@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  memo,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -84,7 +85,7 @@ function HeaderActionTooltip({
   );
 }
 
-export function SidebarPanel({
+export const SidebarPanel = memo(function SidebarPanel({
   files,
   folders,
   filesById,
@@ -854,4 +855,4 @@ export function SidebarPanel({
       </div>
     </div>
   );
-}
+});

@@ -1,5 +1,6 @@
 import type { UpdateNoteResult } from "@/domain/notes/actions";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
+import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
 import { resolveRichDocument } from "@/domain/notes/rich-document";
 import {
@@ -16,12 +17,18 @@ import {
 	noteFromCreateInput,
 } from "./note-builders";
 import type { NoteSearchHit, WorkspaceBackend } from "./types";
-import { WorkspaceCapabilityError } from "./capability-error";
 
 type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
 
+/** Mirror of Tauri's `Channel` for streaming command events (install/pull progress). */
+export interface TauriChannel<T> {
+	onmessage: (message: T) => void;
+}
+
+type TauriChannelCtor = new <T>() => TauriChannel<T>;
+
 type TauriGlobal = {
-	__TAURI__?: { core?: { invoke?: TauriInvoke } };
+	__TAURI__?: { core?: { invoke?: TauriInvoke; Channel?: TauriChannelCtor } };
 };
 
 /** The Rust `Note` wire shape — timestamps as epoch-millis, JSON `richContent`. */
@@ -63,6 +70,21 @@ function getInvoke(): TauriInvoke {
 /** Invoke a Tauri command from anywhere (settings, etc.). Desktop-only. */
 export function tauriInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
 	return getInvoke()<T>(command, args);
+}
+
+/**
+ * Build a Tauri IPC channel for commands that stream events (Ollama install and
+ * model-pull progress). Pass the returned object as a command arg; `onMessage`
+ * fires for every event the Rust side sends. Desktop-only.
+ */
+export function tauriChannel<T>(onMessage: (message: T) => void): TauriChannel<T> {
+	const Channel = (globalThis as TauriGlobal).__TAURI__?.core?.Channel;
+	if (!Channel) {
+		throw new Error("Tauri Channel is unavailable — used outside the desktop shell");
+	}
+	const channel = new Channel<T>();
+	channel.onmessage = onMessage;
+	return channel;
 }
 
 function toRustNote(note: NoteFile): RustNote {
@@ -115,6 +137,57 @@ function fromRustFolder(raw: RustFolder): NoteFolder {
 		parentId: raw.parentId,
 		sortOrder: raw.sortOrder,
 		isOpen: raw.isOpen,
+	};
+}
+
+/** The Rust `JournalEntry` wire shape — timestamps as epoch-millis, `mood` null when absent. */
+type RustJournalEntry = {
+	id: string;
+	dateKey: string;
+	content: string;
+	tags: string[];
+	mood: string | null;
+	createdAt: number;
+	updatedAt: number;
+};
+
+type RustJournalTag = {
+	id: string;
+	name: string;
+	color: string;
+	usageCount: number;
+};
+
+function toRustJournalEntry(entry: JournalEntry): RustJournalEntry {
+	return {
+		id: entry.id,
+		dateKey: entry.dateKey,
+		content: entry.content,
+		tags: entry.tags,
+		mood: entry.mood ?? null,
+		createdAt: entry.createdAt.getTime(),
+		updatedAt: entry.updatedAt.getTime(),
+	};
+}
+
+function fromRustJournalEntry(raw: RustJournalEntry): JournalEntry {
+	return {
+		id: raw.id,
+		dateKey: raw.dateKey,
+		content: raw.content,
+		tags: raw.tags,
+		mood: (raw.mood ?? undefined) as MoodLevel | undefined,
+		createdAt: new Date(raw.createdAt),
+		updatedAt: new Date(raw.updatedAt),
+	};
+}
+
+function fromRustJournalTag(raw: RustJournalTag): JournalTag {
+	return {
+		id: raw.id,
+		name: raw.name,
+		color: raw.color,
+		usageCount: raw.usageCount,
 	};
 }
 
@@ -197,6 +270,16 @@ export function createTauriBackend(): WorkspaceBackend {
 		return rows.map(fromRustFolder);
 	}
 
+	async function listJournalEntries(): Promise<JournalEntry[]> {
+		const rows = await invoke<RustJournalEntry[]>("list_journal_entries");
+		return rows.map(fromRustJournalEntry);
+	}
+
+	async function listJournalTags(): Promise<JournalTag[]> {
+		const rows = await invoke<RustJournalTag[]>("list_journal_tags");
+		return rows.map(fromRustJournalTag);
+	}
+
 	async function indexNoteLinks(note: NoteFile): Promise<void> {
 		await invoke("replace_note_links", {
 			noteId: note.id,
@@ -214,11 +297,11 @@ export function createTauriBackend(): WorkspaceBackend {
 	return {
 		mode: "tauri",
 		capabilities: {
-			journal: false,
+			journal: true,
 			sharing: false,
 			collaboration: false,
 			notifications: false,
-			ai: false,
+			ai: true,
 		},
 
 		async getNote(id) {
@@ -313,20 +396,72 @@ export function createTauriBackend(): WorkspaceBackend {
 			await invoke("delete_folder", { id });
 		},
 
-		async createJournalEntry() {
-			throw new WorkspaceCapabilityError("journal");
+		listJournalEntries,
+		listJournalTags,
+
+		async createJournalEntry(input) {
+			const id = input.id ?? crypto.randomUUID();
+			const existing = (await listJournalEntries()).find((entry) => entry.id === id);
+			const now = new Date();
+			const entry: JournalEntry = {
+				id,
+				dateKey: input.dateKey,
+				content: input.content,
+				tags: input.tags ?? [],
+				mood: input.mood ?? undefined,
+				createdAt: existing?.createdAt ?? now,
+				updatedAt: now,
+			};
+			await invoke("upsert_journal_entry", { entry: toRustJournalEntry(entry) });
+			return entry;
 		},
-		async updateJournalEntry() {
-			throw new WorkspaceCapabilityError("journal");
+
+		async updateJournalEntry(input) {
+			const existing = (await listJournalEntries()).find((entry) => entry.id === input.id);
+			if (!existing) return undefined;
+			const next: JournalEntry = {
+				...existing,
+				content: input.content ?? existing.content,
+				tags: input.tags ?? existing.tags,
+				mood: input.mood === undefined ? existing.mood : (input.mood ?? undefined),
+				updatedAt: new Date(),
+			};
+			await invoke("upsert_journal_entry", { entry: toRustJournalEntry(next) });
+			return next;
 		},
-		async deleteJournalEntry() {
-			throw new WorkspaceCapabilityError("journal");
+
+		async deleteJournalEntry(id) {
+			await invoke("delete_journal_entry", { id });
 		},
-		async createJournalTag() {
-			throw new WorkspaceCapabilityError("journal");
+
+		async createJournalTag(input) {
+			const tag: JournalTag = {
+				id: crypto.randomUUID(),
+				name: input.name,
+				color: input.color,
+				usageCount: 0,
+			};
+			await invoke("upsert_journal_tag", { tag });
+			return tag;
 		},
-		async deleteJournalTag() {
-			throw new WorkspaceCapabilityError("journal");
+
+		// Mirrors the server cascade: strip the tag name from every entry that
+		// carries it, then remove the tag itself. Each entry rewrite re-persists
+		// through the vault + index, same as a normal edit.
+		async deleteJournalTag(id) {
+			const target = (await listJournalTags()).find((tag) => tag.id === id);
+			if (!target) return;
+			const entries = await listJournalEntries();
+			for (const entry of entries) {
+				if (!entry.tags.includes(target.name)) continue;
+				const next: JournalEntry = {
+					...entry,
+					tags: entry.tags.filter((tag) => tag !== target.name),
+					updatedAt: new Date(),
+				};
+				await invoke("upsert_journal_entry", { entry: toRustJournalEntry(next) });
+			}
+			await invoke("delete_journal_tag", { id });
 		},
 	};
 }

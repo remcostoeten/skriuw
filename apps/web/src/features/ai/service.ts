@@ -1,4 +1,5 @@
 import type { AiAction, AiErrorCode } from "@/domain/ai/types";
+import { isTauriRuntime, tauriInvoke } from "@/core/workspace-backend";
 
 export type { AiAction, AiErrorCode } from "@/domain/ai/types";
 
@@ -63,6 +64,22 @@ export async function callAi(
 	content: string,
 	options?: AiCallOptions,
 ): Promise<string> {
+	// Desktop: there is no server — route to the local Rust backend, which runs
+	// the configured provider (Ollama / Groq / Gemini) from settings.json.
+	if (isTauriRuntime()) {
+		try {
+			return await tauriInvoke<string>("ai_complete", { action, content });
+		} catch (err) {
+			const message = typeof err === "string" ? err : "Local AI request failed.";
+			throw new AiRequestError({
+				code: "unknown",
+				message,
+				details: "Open Settings → AI to choose a provider, install a local model, or add a key.",
+				status: 500,
+			});
+		}
+	}
+
 	const res = await fetch("/api/ai", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },

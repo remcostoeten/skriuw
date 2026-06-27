@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import type { NoteFile } from "@/types/notes";
 
@@ -48,8 +48,10 @@ export function useFileNavigation(files: NoteFile[], activeFileId: string | null
 
 export function useUrlSync(onFileSelect: (id: string) => void) {
 	const searchParams = useSearchParams();
+	const lastSyncedNoteIdRef = useRef<string | null>(null);
 
 	const syncWithUrl = useCallback((noteId: string, options?: NoteUrlSyncOptions) => {
+		lastSyncedNoteIdRef.current = noteId;
 		return updateNoteUrl(noteId, options);
 	}, []);
 
@@ -63,7 +65,8 @@ export function useUrlSync(onFileSelect: (id: string) => void) {
 
 	useEffect(() => {
 		const noteId = searchParams.get("note");
-		if (noteId) {
+		if (noteId && noteId !== lastSyncedNoteIdRef.current) {
+			lastSyncedNoteIdRef.current = noteId;
 			onFileSelect(noteId);
 		}
 	}, [searchParams, onFileSelect]);

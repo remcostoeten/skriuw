@@ -18,7 +18,11 @@ import { UserMenu } from "./user-menu";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { resolveAuthError, type AuthErrorNotice } from "@/app/(auth)/auth-errors";
 import { AvatarSkeleton } from "./avatar-skeleton";
-import { GUEST_SIGNUP_PROMPT_EVENT, isTauriRuntime } from "@/core/workspace-backend";
+import {
+	GUEST_SIGNUP_PROMPT_EVENT,
+	isTauriRuntime,
+	useWorkspaceCapabilities,
+} from "@/core/workspace-backend";
 
 type Props = {
 	onOpenSettings: () => void;
@@ -72,6 +76,7 @@ export function IconRail({ onOpenSettings }: Props) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const auth = useAuth();
+	const capabilities = useWorkspaceCapabilities();
 	const [isMounted, setIsMounted] = useState(false);
 	const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
 	const [authDrawerInitialMode, setAuthDrawerInitialMode] =
@@ -177,8 +182,12 @@ export function IconRail({ onOpenSettings }: Props) {
 		},
 		{
 			href: "/app/journal",
+			// Gate on the backend capability, not auth state: the desktop backend
+			// serves journal locally (no cloud auth), so it advertises journal=true
+			// and the link is reachable directly. On web only the signed-in server
+			// backend enables it; guests get the sign-in drawer.
+			requiresAuth: !capabilities.journal,
 			label: "Journal",
-			requiresAuth: true,
 			isActive: pathname === "/app/journal",
 			icon: (_active: boolean) => (
 				<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
@@ -318,6 +327,7 @@ export function IconRail({ onOpenSettings }: Props) {
 						<UserMenu
 							onSettings={onOpenSettings}
 							onSignOut={handleSignOut}
+							onProfile={() => router.push("/app/profile")}
 							onNotes={() => router.push("/app")}
 							onJournal={() => router.push("/app/journal")}
 							onActivity={() => router.push("/app/activity")}

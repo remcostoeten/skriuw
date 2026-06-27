@@ -24,10 +24,16 @@ use std::sync::Mutex;
 
 use serde_json::Value;
 
-use crate::storage::{Folder, Note};
+use crate::storage::{Folder, JournalEntry, JournalTag, Note};
 
 const META_DIR: &str = ".skriuw";
 const FOLDERS_FILE: &str = "folders.json";
+/// Journal entries live as markdown under `.skriuw/journal/` (kept out of the
+/// notes tree so they never surface as notes), and their tag palette in a JSON
+/// index beside them. The markdown is the portable source of truth; the SQLite
+/// `journal_entries`/`journal_tags` tables are a derived index rebuilt on launch.
+const JOURNAL_DIR: &str = "journal";
+const JOURNAL_TAGS_FILE: &str = "journal-tags.json";
 
 /// Filesystem-backed note/folder store rooted at a user-chosen vault directory.
 pub struct VaultStore {
@@ -245,6 +251,123 @@ impl VaultStore {
 		}
 		Ok(())
 	}
+
+	fn journal_dir(&self) -> PathBuf {
+		self.root.join(META_DIR).join(JOURNAL_DIR)
+	}
+
+	fn journal_tags_path(&self) -> PathBuf {
+		self.root.join(META_DIR).join(JOURNAL_TAGS_FILE)
+	}
+
+	pub fn list_journal_entries(&self) -> io::Result<Vec<JournalEntry>> {
+		let dir = self.journal_dir();
+		let mut entries = Vec::new();
+		let read = match fs::read_dir(&dir) {
+			Ok(read) => read,
+			Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(entries),
+			Err(error) => return Err(error),
+		};
+		for entry in read {
+			let path = entry?.path();
+			if is_markdown(&path) {
+				if let Ok(raw) = fs::read_to_string(&path) {
+					if let Some(parsed) = parse_journal_entry(&raw) {
+						entries.push(parsed);
+					}
+				}
+			}
+		}
+		Ok(entries)
+	}
+
+	/// Writes a journal entry as `.skriuw/journal/<dateKey>-<id>.md`. If the same
+	/// id already lives at a different filename (its dateKey changed), the stale
+	/// file is removed first so identity follows the entry.
+	pub fn upsert_journal_entry(&self, entry: &JournalEntry) -> io::Result<()> {
+		let _guard = self.write_lock.lock().expect("vault write lock poisoned");
+		let dir = self.journal_dir();
+		fs::create_dir_all(&dir)?;
+		let target = dir.join(journal_file_name(entry));
+		if let Some(previous) = self.find_journal_path(&entry.id)? {
+			if previous != target {
+				let _ = fs::remove_file(previous);
+			}
+		}
+		fs::write(&target, render_journal_entry(entry))
+	}
+
+	pub fn delete_journal_entry(&self, id: &str) -> io::Result<()> {
+		let _guard = self.write_lock.lock().expect("vault write lock poisoned");
+		if let Some(path) = self.find_journal_path(id)? {
+			fs::remove_file(path)?;
+		}
+		Ok(())
+	}
+
+	fn find_journal_path(&self, id: &str) -> io::Result<Option<PathBuf>> {
+		let dir = self.journal_dir();
+		let read = match fs::read_dir(&dir) {
+			Ok(read) => read,
+			Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+			Err(error) => return Err(error),
+		};
+		for entry in read {
+			let path = entry?.path();
+			if is_markdown(&path) {
+				if let Ok(raw) = fs::read_to_string(&path) {
+					if frontmatter_id(&raw).as_deref() == Some(id) {
+						return Ok(Some(path));
+					}
+				}
+			}
+		}
+		Ok(None)
+	}
+
+	pub fn list_journal_tags(&self) -> io::Result<Vec<JournalTag>> {
+		let raw = match fs::read_to_string(self.journal_tags_path()) {
+			Ok(raw) => raw,
+			Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+			Err(error) => return Err(error),
+		};
+		Ok(serde_json::from_str(&raw).unwrap_or_default())
+	}
+
+	pub fn upsert_journal_tag(&self, tag: &JournalTag) -> io::Result<()> {
+		let _guard = self.write_lock.lock().expect("vault write lock poisoned");
+		let mut tags = self.list_journal_tags()?;
+		match tags.iter_mut().find(|existing| existing.id == tag.id) {
+			Some(existing) => {
+				existing.name = tag.name.clone();
+				existing.color = tag.color.clone();
+				existing.usage_count = tag.usage_count;
+			}
+			None => tags.push(JournalTag {
+				id: tag.id.clone(),
+				name: tag.name.clone(),
+				color: tag.color.clone(),
+				usage_count: tag.usage_count,
+			}),
+		}
+		self.write_journal_tags(&tags)
+	}
+
+	pub fn delete_journal_tag(&self, id: &str) -> io::Result<()> {
+		let _guard = self.write_lock.lock().expect("vault write lock poisoned");
+		let tags: Vec<JournalTag> = self
+			.list_journal_tags()?
+			.into_iter()
+			.filter(|tag| tag.id != id)
+			.collect();
+		self.write_journal_tags(&tags)
+	}
+
+	fn write_journal_tags(&self, tags: &[JournalTag]) -> io::Result<()> {
+		fs::create_dir_all(self.root.join(META_DIR))?;
+		let body = serde_json::to_string_pretty(tags).unwrap_or_else(|_| "[]".to_string());
+		fs::write(self.journal_tags_path(), format!("{body}\n"))
+	}
 }
 
 fn clone_folder(folder: &Folder) -> Folder {
@@ -423,6 +546,74 @@ fn name_stem(name: &str) -> String {
 	name.strip_suffix(".md").unwrap_or(name).to_string()
 }
 
+fn journal_file_name(entry: &JournalEntry) -> String {
+	format!(
+		"{}-{}.md",
+		sanitize_segment(&entry.date_key),
+		sanitize_segment(&entry.id),
+	)
+}
+
+/// Renders a journal entry to YAML frontmatter (JSON-valued) + markdown body.
+/// `mood` is omitted entirely when absent rather than written as `null`.
+fn render_journal_entry(entry: &JournalEntry) -> String {
+	let id = serde_json::to_string(&entry.id).unwrap_or_else(|_| "\"\"".to_string());
+	let date_key = serde_json::to_string(&entry.date_key).unwrap_or_else(|_| "\"\"".to_string());
+	let tags = serde_json::to_string(&entry.tags).unwrap_or_else(|_| "[]".to_string());
+	let mood_line = match &entry.mood {
+		Some(mood) => {
+			let value = serde_json::to_string(mood).unwrap_or_else(|_| "\"\"".to_string());
+			format!("mood: {value}\n")
+		}
+		None => String::new(),
+	};
+	format!(
+		"---\nid: {id}\ndateKey: {date_key}\n{mood_line}tags: {tags}\ncreatedAt: {created}\nupdatedAt: {updated}\n---\n{body}",
+		created = entry.created_at,
+		updated = entry.updated_at,
+		body = entry.content,
+	)
+}
+
+fn parse_journal_entry(raw: &str) -> Option<JournalEntry> {
+	let normalized = raw.replace("\r\n", "\n");
+	let (frontmatter, body) = split_frontmatter(&normalized);
+	let block = frontmatter?;
+
+	let mut id: Option<String> = None;
+	let mut date_key = String::new();
+	let mut mood: Option<String> = None;
+	let mut tags: Vec<String> = Vec::new();
+	let mut created_at = 0i64;
+	let mut updated_at = 0i64;
+
+	for line in block.lines() {
+		let Some((key, value)) = line.split_once(':') else {
+			continue;
+		};
+		let value = value.trim();
+		match key.trim() {
+			"id" => id = parse_json_string(value),
+			"dateKey" => date_key = parse_json_string(value).unwrap_or_default(),
+			"mood" => mood = parse_json_string(value),
+			"tags" => tags = serde_json::from_str(value).unwrap_or_default(),
+			"createdAt" => created_at = value.parse().unwrap_or(0),
+			"updatedAt" => updated_at = value.parse().unwrap_or(0),
+			_ => {}
+		}
+	}
+
+	Some(JournalEntry {
+		id: id?,
+		date_key,
+		content: body.to_string(),
+		tags,
+		mood,
+		created_at,
+		updated_at,
+	})
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -572,6 +763,73 @@ mod tests {
 		let notes = store.list_notes().unwrap();
 		assert_eq!(notes.len(), 1);
 		assert_eq!(notes[0].id, "n2");
+	}
+
+	fn journal_entry(id: &str, date_key: &str) -> JournalEntry {
+		JournalEntry {
+			id: id.to_string(),
+			date_key: date_key.to_string(),
+			content: "felt productive today".to_string(),
+			tags: vec!["work".to_string()],
+			mood: Some("good".to_string()),
+			created_at: 100,
+			updated_at: 200,
+		}
+	}
+
+	#[test]
+	fn journal_entry_roundtrips_through_markdown_and_stays_out_of_notes() {
+		let dir = tempdir().unwrap();
+		let store = VaultStore::open(dir.path()).unwrap();
+		store.upsert_journal_entry(&journal_entry("j1", "2026-06-24")).unwrap();
+
+		// Lives under .skriuw/journal, so it never surfaces as a note.
+		assert!(store.list_notes().unwrap().is_empty());
+		assert!(dir.path().join(".skriuw/journal/2026-06-24-j1.md").exists());
+
+		let got = store.list_journal_entries().unwrap();
+		assert_eq!(got.len(), 1);
+		assert_eq!(got[0].id, "j1");
+		assert_eq!(got[0].date_key, "2026-06-24");
+		assert_eq!(got[0].content, "felt productive today");
+		assert_eq!(got[0].mood.as_deref(), Some("good"));
+		assert_eq!(got[0].tags, vec!["work".to_string()]);
+
+		store.delete_journal_entry("j1").unwrap();
+		assert!(store.list_journal_entries().unwrap().is_empty());
+	}
+
+	#[test]
+	fn journal_entry_without_mood_omits_the_frontmatter_key() {
+		let dir = tempdir().unwrap();
+		let store = VaultStore::open(dir.path()).unwrap();
+		let mut entry = journal_entry("j1", "2026-06-24");
+		entry.mood = None;
+		store.upsert_journal_entry(&entry).unwrap();
+
+		let raw = fs::read_to_string(dir.path().join(".skriuw/journal/2026-06-24-j1.md")).unwrap();
+		assert!(!raw.contains("mood:"));
+		assert_eq!(store.list_journal_entries().unwrap()[0].mood, None);
+	}
+
+	#[test]
+	fn journal_tags_persist_and_delete() {
+		let dir = tempdir().unwrap();
+		let store = VaultStore::open(dir.path()).unwrap();
+		store
+			.upsert_journal_tag(&JournalTag {
+				id: "t1".to_string(),
+				name: "work".to_string(),
+				color: "blue".to_string(),
+				usage_count: 3,
+			})
+			.unwrap();
+		let got = store.list_journal_tags().unwrap();
+		assert_eq!(got.len(), 1);
+		assert_eq!(got[0].name, "work");
+
+		store.delete_journal_tag("t1").unwrap();
+		assert!(store.list_journal_tags().unwrap().is_empty());
 	}
 
 	#[test]

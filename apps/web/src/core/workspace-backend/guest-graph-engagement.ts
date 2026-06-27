@@ -1,4 +1,5 @@
 import { GUEST_SIGNUP_PROMPT_EVENT } from "./local-backend";
+import { noop } from "@/shared/lib/noop";
 
 const GRAPH_EXPLORE_STORAGE_KEY = "skriuw:guest:graph-explore:v1";
 /** Node opens at which we nudge guests toward creating an account. */
@@ -27,5 +28,6 @@ export function recordGuestGraphExplore(): void {
 		}
 	} catch {
 		// ignore storage failures
+		noop();
 	}
 }

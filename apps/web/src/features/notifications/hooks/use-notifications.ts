@@ -10,6 +10,7 @@ import {
   respondToCollabRequestForNote,
 } from "@/domain/collaboration/actions";
 import type { TCollabPermission } from "@/domain/collaboration/models";
+import { noop } from "@/shared/lib/noop";
 
 export const notificationKeys = {
   all: ["notifications"] as const,
@@ -57,6 +58,7 @@ function openSharedSource(queryClient: QueryClient) {
       }
     } catch {
       // ignore parse errors
+      noop();
     }
   };
   source.onerror = () => {

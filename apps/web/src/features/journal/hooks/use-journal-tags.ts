@@ -18,9 +18,14 @@ import type { NoteFile } from "@/types/notes";
 export function useJournalTags() {
 	const entriesQuery = useJournalEntries();
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
 	const tagsQuery = useApiQuery<JournalTag[]>(
 		journalKeys.tags(),
-		createCacheQueryFn<JournalTag[]>(queryClient, journalKeys.tags()),
+		async () => {
+			const cached = queryClient.getQueryData<JournalTag[]>(journalKeys.tags());
+			if (cached !== undefined) return cached;
+			return (await backend.listJournalTags?.()) ?? [];
+		},
 		{ staleTime: Infinity },
 	);
 	const notesQuery = useAuthedApiQuery<NoteFile[]>(

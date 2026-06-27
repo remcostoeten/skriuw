@@ -8,7 +8,6 @@ const INCLUDE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".css", ".json
 const SKIP_DIRS = new Set([".git", ".next", "node_modules", "coverage", "__tests__"]);
 const ALLOWED_PATHS = [
 	"apps/web/public/manifest.json",
-	"apps/web/src/shared/PixelBlast.jsx",
 	"apps/web/src/app/themes/",
 	"apps/web/src/features/settings/preferences/themes.ts",
 	"scripts/color-audit.ts",

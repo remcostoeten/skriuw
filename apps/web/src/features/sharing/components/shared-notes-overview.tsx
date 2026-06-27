@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import type { TSharedNoteRow, TSharedNoteStatus, TSharedOverview } from "@/domain/sharing/models";
+import { noop } from "@/shared/lib/noop";
 import { refreshNoteShareSnapshot, revokeNoteShare } from "@/domain/sharing/actions";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -98,6 +99,7 @@ export function SharedNotesOverview({ overview }: { overview: TSharedOverview })
 			setTimeout(() => setCopiedId((id) => (id === row.noteId ? null : id)), 1600);
 		} catch {
 			/* clipboard unavailable — ignore */
+			noop();
 		}
 	}
 

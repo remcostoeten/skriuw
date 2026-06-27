@@ -14,6 +14,8 @@
  * In development it is on by default.
  */
 
+import { noop } from "@/shared/lib/noop";
+
 type TSample = { value: number; meta?: Record<string, unknown> };
 
 const STORE_KEY = "skriuw:perf";
@@ -34,6 +36,7 @@ function readEnabled(): boolean {
 		if (stored === "0") return false;
 	} catch {
 		// localStorage can throw in private mode — fall through to the default.
+		noop();
 	}
 	return process.env.NODE_ENV !== "production";
 }
@@ -70,6 +73,7 @@ function initObservers(): void {
 		io.observe({ type: "event", buffered: true, durationThreshold: 40 } as PerformanceObserverInit);
 	} catch {
 		// 'event' timing unsupported — skip.
+		noop();
 	}
 
 	try {
@@ -79,6 +83,7 @@ function initObservers(): void {
 		lo.observe({ type: "longtask", buffered: true });
 	} catch {
 		// longtask unsupported (e.g. Safari) — skip.
+		noop();
 	}
 }
 
@@ -224,7 +229,9 @@ if (isBrowser()) {
 			enabled = true;
 			try {
 				window.localStorage.setItem(STORE_KEY, "1");
-			} catch {}
+			} catch {
+				noop();
+			}
 			// eslint-disable-next-line no-console
 			console.log("[skriuw perf] enabled — interact, then __skriuwPerf.dump()");
 		},
@@ -232,7 +239,9 @@ if (isBrowser()) {
 			enabled = false;
 			try {
 				window.localStorage.setItem(STORE_KEY, "0");
-			} catch {}
+			} catch {
+				noop();
+			}
 		},
 		get enabled() {
 			return enabled;

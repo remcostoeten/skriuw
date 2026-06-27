@@ -35,6 +35,35 @@ pub struct Folder {
 	pub is_open: bool,
 }
 
+/// A journal entry row, matching the TypeScript `JournalEntry` contract
+/// (`src/domain/journal/models.ts`). `tags` is stored as JSON TEXT but crosses
+/// IPC as a real array; the two timestamps cross as epoch-millis numbers and
+/// `mood` as a string or null. Journal lives only in the SQLite index + a
+/// markdown mirror in the vault — it has no folder/link/FTS machinery.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JournalEntry {
+	pub id: String,
+	pub date_key: String,
+	pub content: String,
+	pub tags: Vec<String>,
+	pub mood: Option<String>,
+	pub created_at: i64,
+	pub updated_at: i64,
+}
+
+/// A journal tag row, matching the TypeScript `JournalTag` contract. `usage_count`
+/// is persisted but recomputed from entries/notes by `deriveWorkspaceTags` on the
+/// TS side, so its stored value is advisory only.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JournalTag {
+	pub id: String,
+	pub name: String,
+	pub color: String,
+	pub usage_count: i64,
+}
+
 /// One full-text search hit: the note id/name plus a highlighted content
 /// snippet (FTS5 `snippet()` output, `[match]` markers, `…` ellipsis).
 #[derive(Debug, Serialize, Deserialize)]
@@ -177,6 +206,28 @@ CREATE TRIGGER IF NOT EXISTS notes_fts_au AFTER UPDATE ON notes BEGIN
 	INSERT INTO notes_fts(rowid, name, content)
 	VALUES (new.rowid, new.name, new.content);
 END;
+
+-- Journal entries + tags. Account-only on the web (Prisma); on desktop they are
+-- a local-first feature whose source of truth is markdown in the vault, with
+-- these tables as the queried index (rebuilt from the vault on launch).
+CREATE TABLE IF NOT EXISTS journal_entries (
+	id          TEXT PRIMARY KEY,
+	date_key    TEXT NOT NULL,
+	content     TEXT NOT NULL DEFAULT '',
+	mood        TEXT,
+	tags        TEXT NOT NULL DEFAULT '[]',
+	created_at  INTEGER NOT NULL,
+	updated_at  INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date_key);
+
+CREATE TABLE IF NOT EXISTS journal_tags (
+	id          TEXT PRIMARY KEY,
+	name        TEXT NOT NULL,
+	color       TEXT NOT NULL,
+	usage_count INTEGER NOT NULL DEFAULT 0
+);
 "#;
 
 impl Storage {
@@ -421,6 +472,72 @@ impl Storage {
 			.execute("DELETE FROM folders WHERE id = ?1", params![id])?;
 		Ok(())
 	}
+
+	pub fn list_journal_entries(&self) -> rusqlite::Result<Vec<JournalEntry>> {
+		let conn = self.lock();
+		let mut stmt = conn.prepare(
+			"SELECT id, date_key, content, mood, tags, created_at, updated_at \
+			 FROM journal_entries ORDER BY created_at ASC",
+		)?;
+		let rows = stmt.query_map([], row_to_journal_entry)?;
+		rows.collect()
+	}
+
+	pub fn upsert_journal_entry(&self, entry: &JournalEntry) -> rusqlite::Result<()> {
+		let conn = self.lock();
+		conn.execute(
+			"INSERT INTO journal_entries \
+			 (id, date_key, content, mood, tags, created_at, updated_at) \
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
+			 ON CONFLICT(id) DO UPDATE SET \
+			  date_key = excluded.date_key, content = excluded.content, \
+			  mood = excluded.mood, tags = excluded.tags, \
+			  updated_at = excluded.updated_at",
+			params![
+				entry.id,
+				entry.date_key,
+				entry.content,
+				entry.mood,
+				serde_json::Value::from(entry.tags.clone()).to_string(),
+				entry.created_at,
+				entry.updated_at,
+			],
+		)?;
+		Ok(())
+	}
+
+	pub fn delete_journal_entry(&self, id: &str) -> rusqlite::Result<()> {
+		self.lock()
+			.execute("DELETE FROM journal_entries WHERE id = ?1", params![id])?;
+		Ok(())
+	}
+
+	pub fn list_journal_tags(&self) -> rusqlite::Result<Vec<JournalTag>> {
+		let conn = self.lock();
+		let mut stmt = conn
+			.prepare("SELECT id, name, color, usage_count FROM journal_tags ORDER BY name ASC")?;
+		let rows = stmt.query_map([], row_to_journal_tag)?;
+		rows.collect()
+	}
+
+	pub fn upsert_journal_tag(&self, tag: &JournalTag) -> rusqlite::Result<()> {
+		let conn = self.lock();
+		conn.execute(
+			"INSERT INTO journal_tags (id, name, color, usage_count) \
+			 VALUES (?1, ?2, ?3, ?4) \
+			 ON CONFLICT(id) DO UPDATE SET \
+			  name = excluded.name, color = excluded.color, \
+			  usage_count = excluded.usage_count",
+			params![tag.id, tag.name, tag.color, tag.usage_count],
+		)?;
+		Ok(())
+	}
+
+	pub fn delete_journal_tag(&self, id: &str) -> rusqlite::Result<()> {
+		self.lock()
+			.execute("DELETE FROM journal_tags WHERE id = ?1", params![id])?;
+		Ok(())
+	}
 }
 
 /// Shared upsert body. Takes `&Connection` so both the single-note path and the
@@ -565,6 +682,28 @@ fn row_to_folder(row: &rusqlite::Row<'_>) -> rusqlite::Result<Folder> {
 		parent_id: row.get(2)?,
 		sort_order: row.get(3)?,
 		is_open: is_open != 0,
+	})
+}
+
+fn row_to_journal_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<JournalEntry> {
+	let tags_raw: String = row.get(4)?;
+	Ok(JournalEntry {
+		id: row.get(0)?,
+		date_key: row.get(1)?,
+		content: row.get(2)?,
+		mood: row.get(3)?,
+		tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
+		created_at: row.get(5)?,
+		updated_at: row.get(6)?,
+	})
+}
+
+fn row_to_journal_tag(row: &rusqlite::Row<'_>) -> rusqlite::Result<JournalTag> {
+	Ok(JournalTag {
+		id: row.get(0)?,
+		name: row.get(1)?,
+		color: row.get(2)?,
+		usage_count: row.get(3)?,
 	})
 }
 
@@ -837,6 +976,52 @@ mod tests {
 			.unwrap()
 			.sources
 			.is_empty());
+	}
+
+	#[test]
+	fn journal_entries_and_tags_roundtrip() {
+		let store = Storage::open(Path::new(":memory:")).unwrap();
+		let entry = JournalEntry {
+			id: "j1".to_string(),
+			date_key: "2026-06-24".to_string(),
+			content: "a good day".to_string(),
+			tags: vec!["work".to_string()],
+			mood: Some("good".to_string()),
+			created_at: 10,
+			updated_at: 10,
+		};
+		store.upsert_journal_entry(&entry).unwrap();
+
+		let got = store.list_journal_entries().unwrap();
+		assert_eq!(got.len(), 1);
+		assert_eq!(got[0].date_key, "2026-06-24");
+		assert_eq!(got[0].mood.as_deref(), Some("good"));
+		assert_eq!(got[0].tags, vec!["work".to_string()]);
+
+		let mut edited = entry;
+		edited.content = "an edited day".to_string();
+		edited.mood = None;
+		edited.updated_at = 20;
+		store.upsert_journal_entry(&edited).unwrap();
+		let got = store.list_journal_entries().unwrap();
+		assert_eq!(got.len(), 1);
+		assert_eq!(got[0].content, "an edited day");
+		assert_eq!(got[0].mood, None);
+
+		store
+			.upsert_journal_tag(&JournalTag {
+				id: "t1".to_string(),
+				name: "work".to_string(),
+				color: "blue".to_string(),
+				usage_count: 0,
+			})
+			.unwrap();
+		assert_eq!(store.list_journal_tags().unwrap().len(), 1);
+
+		store.delete_journal_entry("j1").unwrap();
+		assert!(store.list_journal_entries().unwrap().is_empty());
+		store.delete_journal_tag("t1").unwrap();
+		assert!(store.list_journal_tags().unwrap().is_empty());
 	}
 
 	#[test]

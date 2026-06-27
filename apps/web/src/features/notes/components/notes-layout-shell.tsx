@@ -397,6 +397,7 @@ export function NotesLayoutShell({
 												}
 											}}
 											isContentLoading={showContentSkeleton}
+											saveState={layout.activeFileSaveState}
 											fileName={
 												// Prefer the selected note's name from metadata
 												// (always available, updates the same commit
