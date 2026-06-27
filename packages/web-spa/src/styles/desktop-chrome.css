@@ -1,7 +1,3 @@
-:root {
-	--titlebar-height: 2.25rem;
-}
-
 html,
 body,
 #root {
@@ -14,15 +10,10 @@ body,
 	flex-direction: column;
 }
 
-/* Routed pages size themselves to the full viewport via the shared
-   LayoutContainer's `h-dvh`/`min-h-dvh` (defined in apps/web, can't be edited
-   from the desktop build). The custom titlebar occupies a fixed strip on top,
-   so shrink those viewport-height utilities by the titlebar height to keep the
-   bottom status bar from being pushed off-screen. */
 .h-dvh {
-	height: calc(100dvh - var(--titlebar-height));
+	height: 100dvh;
 }
 
 .min-h-dvh {
-	min-height: calc(100dvh - var(--titlebar-height));
+	min-height: 100dvh;
 }
