@@ -1,4 +1,5 @@
 import { isEditorFontId, type EditorFontId } from "@/shared/lib/editor-fonts";
+import { noop } from "@/shared/lib/noop";
 import {
 	updateUserEditorPreferences as saveUserEditorPreferences,
 } from "@/features/settings/server/actions";
@@ -40,5 +41,6 @@ export async function updateUserEditorPreferences(
 		await saveUserEditorPreferences(next);
 	} catch {
 		// Storage unavailable; nothing to do.
+		noop();
 	}
 }

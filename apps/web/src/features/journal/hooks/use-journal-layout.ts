@@ -11,7 +11,8 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { parseISO, isValid } from "date-fns";
 import { useReducedMotion, type Transition } from "framer-motion";
-import { useShortcut } from "@remcostoeten/use-shortcut";
+import { useShortcutManager, useShortcutScope } from "@/core/shortcuts";
+import { focusActiveEditor } from "@/shared/lib/focus-editor";
 import { useNotesStore } from "@/features/notes/store";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
@@ -64,7 +65,7 @@ function parseDateParam(value: string | null): Date | null {
 export function useJournalLayout(): UseJournalLayoutResult {
 	const router = useRouter();
 	const searchParams = useSearchParams();
-	const $ = useShortcut({ ignoreInputs: true });
+	const { getHelpGroups } = useShortcutManager();
 	const entriesQuery = useJournalEntries();
 	const tagsQuery = useJournalTags();
 	const ui = useNotesStore((state) => state.ui);
@@ -195,44 +196,14 @@ export function useJournalLayout(): UseJournalLayoutResult {
 		[prefersReducedMotion],
 	);
 
-	useEffect(() => {
-		$.setScopes(["journal"]);
-
-		const bindings = [
-			$.in("journal").mod.key("k").except("typing").on(handleOpenCommandPalette, {
-				preventDefault: true,
-				description: "Open the journal command palette",
-			}),
-			$.in("journal").mod.shift.key("p").except("typing").on(handleOpenCommandPalette, {
-				preventDefault: true,
-				description: "Open the journal command palette",
-			}),
-			$.in("journal").mod.key("slash").except("typing").on(handleToggleSidebar, {
-				description: "Toggle sidebar",
-			}),
-			$.in("journal").mod.key("comma").except("typing").on(handleOpenSettings, {
-				preventDefault: true,
-				description: "Open settings",
-			}),
-			$.in("journal").mod.key("e").except("typing").on(handleToggleEditorMode, {
-				description: "Switch journal editor mode",
-			}),
-			$.in("journal").shift.key("slash").except("typing").on(handleOpenShortcutHelp, {
-				description: "Open shortcut help",
-			}),
-		];
-
-		return () => {
-			bindings.forEach((binding) => binding.unbind());
-		};
-	}, [
-		$,
-		handleOpenCommandPalette,
-		handleOpenSettings,
-		handleOpenShortcutHelp,
-		handleToggleEditorMode,
-		handleToggleSidebar,
-	]);
+	useShortcutScope("journal", {
+		"journal.commandPalette": handleOpenCommandPalette,
+		"journal.toggleSidebar": handleToggleSidebar,
+		"journal.settings": handleOpenSettings,
+		"journal.toggleEditor": handleToggleEditorMode,
+		"journal.focusEditor": () => focusActiveEditor(),
+		"journal.help": handleOpenShortcutHelp,
+	});
 
 	const commandItems = useMemo<CommandPaletteItem[]>(
 		() => [
@@ -292,42 +263,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 		],
 	);
 
-	const shortcutGroups = useMemo<ShortcutHelpGroup[]>(
-		() => [
-			{
-				id: "journal-global",
-				title: "Journal",
-				shortcuts: [
-					{
-						id: "palette",
-						label: "Open command palette",
-						combo: "mod+k / mod+shift+p",
-					},
-					{
-						id: "toggle-sidebar",
-						label: "Toggle sidebar",
-						combo: "mod+slash",
-					},
-					{
-						id: "toggle-editor",
-						label: "Switch editor mode",
-						combo: "mod+e",
-					},
-					{
-						id: "settings",
-						label: "Open settings",
-						combo: "mod+comma",
-					},
-					{
-						id: "help",
-						label: "Open shortcut help",
-						combo: "shift+slash",
-					},
-				],
-			},
-		],
-		[],
-	);
+	const shortcutGroups = getHelpGroups(["journal"]);
 
 	return {
 		selectedDate,

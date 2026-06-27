@@ -1,7 +1,12 @@
 import {
+	Check,
 	ChevronLeft,
 	ChevronRight,
+	CircleAlert,
 	Columns2,
+	Download,
+	FileCode,
+	FileText,
 	Loader2,
 	PanelLeft,
 	PanelRight,
@@ -31,9 +36,41 @@ export type WorkspaceNavItem = {
 	isActive?: boolean;
 };
 
+export type EditorSaveState = "idle" | "saving" | "saved" | "error";
+
+function SaveStatusIndicator({ state }: { state: EditorSaveState }) {
+	if (state === "idle") return null;
+
+	if (state === "saving") {
+		return (
+			<span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground/60">
+				<Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.6} />
+				Saving
+			</span>
+		);
+	}
+
+	if (state === "saved") {
+		return (
+			<span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground/50">
+				<Check className="h-3 w-3" strokeWidth={1.8} />
+				Saved
+			</span>
+		);
+	}
+
+	return (
+		<span className="flex shrink-0 items-center gap-1 text-[11px] text-destructive">
+			<CircleAlert className="h-3 w-3" strokeWidth={1.8} />
+			Save failed
+		</span>
+	);
+}
+
 type Props = {
 	fileName: string;
 	breadcrumb?: string[];
+	saveState?: EditorSaveState;
 	isMobile?: boolean;
 	workspaceItems?: WorkspaceNavItem[];
 	onToggleSidebar: () => void;
@@ -47,6 +84,7 @@ type Props = {
 	onAiGenerateTitle?: () => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
+	onExportNote?: (format: "md" | "html") => void;
 	splitEnabled?: boolean;
 	onToggleSplit?: () => void;
 	canToggleSplit?: boolean;
@@ -105,6 +143,7 @@ function WorkspaceMenu({
 export function EditorToolbar({
 	fileName,
 	breadcrumb,
+	saveState = "idle",
 	isMobile = false,
 	workspaceItems = [],
 	onToggleSidebar,
@@ -118,6 +157,7 @@ export function EditorToolbar({
 	onAiGenerateTitle,
 	onAiSpellCheck,
 	onAiContinueWriting,
+	onExportNote,
 	splitEnabled,
 	onToggleSplit,
 	canToggleSplit = true,
@@ -162,6 +202,7 @@ export function EditorToolbar({
 						<h1 className="truncate text-[17px] font-semibold leading-snug tracking-[-0.02em] text-foreground">
 							{fileName}
 						</h1>
+						<SaveStatusIndicator state={saveState} />
 					</div>
 
 					<CollabPresence awareness={presenceAwareness} />
@@ -242,6 +283,7 @@ export function EditorToolbar({
 					</>
 				)}
 				<span className="text-muted-foreground/50 truncate font-medium ">{fileName}</span>
+				<SaveStatusIndicator state={saveState} />
 			</div>
 
 			<div className="flex shrink-0 items-center gap-1">
@@ -372,6 +414,37 @@ export function EditorToolbar({
 						</DropdownMenuContent>
 					</DropdownMenu>
 					</GuestGate>
+				)}
+
+				{onExportNote && (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<button
+								type="button"
+								className={sidebarIconButtonClass}
+								title="Export note"
+								aria-label="Export note"
+							>
+								<Download className="h-4 w-4" strokeWidth={1.5} />
+							</button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-48 rounded-none shadow-none">
+							<DropdownMenuItem
+								onSelect={() => onExportNote("md")}
+								className="gap-2 text-xs"
+							>
+								<FileText className="h-3.5 w-3.5" strokeWidth={1.6} />
+								Export as Markdown
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onSelect={() => onExportNote("html")}
+								className="gap-2 text-xs"
+							>
+								<FileCode className="h-3.5 w-3.5" strokeWidth={1.6} />
+								Export as HTML
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				)}
 
 				<button

@@ -1,3 +1,4 @@
+mod ai;
 mod backup;
 mod storage;
 mod vault;
@@ -6,15 +7,22 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use storage::{BacklinkSources, Folder, Note, NoteLinkInput, SearchHit, Storage};
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use storage::{
+	BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, SearchHit, Storage,
+};
+use tauri::menu::{Menu, MenuItem};
+#[cfg(target_os = "macos")]
+use tauri::menu::{PredefinedMenuItem, Submenu};
+use tauri::tray::TrayIconBuilder;
+use tauri::Emitter;
+use tauri::{AppHandle, Manager, Runtime, State};
 use tauri_plugin_dialog::DialogExt;
 use vault::VaultStore;
 
 /// Custom (non-predefined) menu item ids forwarded to the frontend. Predefined
 /// items (undo/copy/quit/…) are handled natively by Tauri and never reach here.
-const MENU_ACTION_IDS: [&str; 4] = ["new-note", "new-folder", "save", "toggle-sidebar"];
+#[cfg(target_os = "macos")]
+const MENU_ACTION_IDS: [&str; 5] = ["new-note", "new-folder", "save", "toggle-sidebar", "about"];
 
 #[derive(Serialize)]
 pub struct AppInfo {
@@ -159,6 +167,58 @@ fn delete_folder(
 	storage.delete_folder(&id).map_err(stringify)
 }
 
+#[tauri::command]
+fn list_journal_entries(storage: State<'_, Storage>) -> Result<Vec<JournalEntry>, String> {
+	storage.list_journal_entries().map_err(stringify)
+}
+
+#[tauri::command]
+fn upsert_journal_entry(
+	storage: State<'_, Storage>,
+	vault: State<'_, VaultStore>,
+	entry: JournalEntry,
+) -> Result<JournalEntry, String> {
+	vault.upsert_journal_entry(&entry).map_err(vault_err)?;
+	storage.upsert_journal_entry(&entry).map_err(stringify)?;
+	Ok(entry)
+}
+
+#[tauri::command]
+fn delete_journal_entry(
+	storage: State<'_, Storage>,
+	vault: State<'_, VaultStore>,
+	id: String,
+) -> Result<(), String> {
+	vault.delete_journal_entry(&id).map_err(vault_err)?;
+	storage.delete_journal_entry(&id).map_err(stringify)
+}
+
+#[tauri::command]
+fn list_journal_tags(storage: State<'_, Storage>) -> Result<Vec<JournalTag>, String> {
+	storage.list_journal_tags().map_err(stringify)
+}
+
+#[tauri::command]
+fn upsert_journal_tag(
+	storage: State<'_, Storage>,
+	vault: State<'_, VaultStore>,
+	tag: JournalTag,
+) -> Result<JournalTag, String> {
+	vault.upsert_journal_tag(&tag).map_err(vault_err)?;
+	storage.upsert_journal_tag(&tag).map_err(stringify)?;
+	Ok(tag)
+}
+
+#[tauri::command]
+fn delete_journal_tag(
+	storage: State<'_, Storage>,
+	vault: State<'_, VaultStore>,
+	id: String,
+) -> Result<(), String> {
+	vault.delete_journal_tag(&id).map_err(vault_err)?;
+	storage.delete_journal_tag(&id).map_err(stringify)
+}
+
 fn stringify(error: rusqlite::Error) -> String {
 	error.to_string()
 }
@@ -251,6 +311,28 @@ fn reconcile_index(storage: &Storage, vault: &VaultStore) -> Result<(), String> 
 	for note in storage.list_notes().map_err(stringify)? {
 		if !note_ids.contains(note.id.as_str()) {
 			storage.delete_note(&note.id).map_err(stringify)?;
+		}
+	}
+
+	let vault_entries = vault.list_journal_entries().map_err(vault_err)?;
+	for entry in &vault_entries {
+		storage.upsert_journal_entry(entry).map_err(stringify)?;
+	}
+	let entry_ids: HashSet<&str> = vault_entries.iter().map(|e| e.id.as_str()).collect();
+	for entry in storage.list_journal_entries().map_err(stringify)? {
+		if !entry_ids.contains(entry.id.as_str()) {
+			storage.delete_journal_entry(&entry.id).map_err(stringify)?;
+		}
+	}
+
+	let vault_tags = vault.list_journal_tags().map_err(vault_err)?;
+	for tag in &vault_tags {
+		storage.upsert_journal_tag(tag).map_err(stringify)?;
+	}
+	let tag_ids: HashSet<&str> = vault_tags.iter().map(|t| t.id.as_str()).collect();
+	for tag in storage.list_journal_tags().map_err(stringify)? {
+		if !tag_ids.contains(tag.id.as_str()) {
+			storage.delete_journal_tag(&tag.id).map_err(stringify)?;
 		}
 	}
 	Ok(())
@@ -370,8 +452,122 @@ fn open_in_file_manager(path: &Path) -> Result<(), String> {
 	Ok(())
 }
 
+/// Exports a single note to a user-chosen file. `format` is `"md"` (the raw
+/// vault markdown) or `"html"` (rendered). Returns the chosen path, or `None`
+/// if the save dialog was cancelled. Offline substitute for cloud sharing.
+#[tauri::command]
+fn export_note(
+	app: AppHandle,
+	storage: State<'_, Storage>,
+	id: String,
+	format: String,
+) -> Result<Option<String>, String> {
+	let note = storage
+		.get_note(&id)
+		.map_err(stringify)?
+		.ok_or("note not found")?;
+	let (ext, filter_name, contents) = match format.as_str() {
+		"md" | "markdown" => ("md", "Markdown", note.content.clone()),
+		"html" => ("html", "HTML", render_markdown_html(&note.name, &note.content)),
+		other => return Err(format!("Unsupported export format: {other}")),
+	};
+	let picked = app
+		.dialog()
+		.file()
+		.set_file_name(format!("{}.{ext}", sanitize_filename(&note.name)))
+		.add_filter(filter_name, &[ext])
+		.blocking_save_file();
+	let Some(target) = picked else {
+		return Ok(None);
+	};
+	let out = target.as_path().ok_or("invalid save path")?.to_path_buf();
+	std::fs::write(&out, contents).map_err(|error| error.to_string())?;
+	Ok(Some(out.to_string_lossy().into_owned()))
+}
+
+/// Turns a note name into a safe base filename: drops a trailing `.md`, replaces
+/// characters outside `[alphanumeric - _ space]` with `-`, falls back to `note`.
+fn sanitize_filename(name: &str) -> String {
+	let base = name.trim().trim_end_matches(".md");
+	let cleaned: String = base
+		.chars()
+		.map(|c| {
+			if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
+				c
+			} else {
+				'-'
+			}
+		})
+		.collect();
+	let cleaned = cleaned.trim();
+	if cleaned.is_empty() {
+		"note".to_string()
+	} else {
+		cleaned.to_string()
+	}
+}
+
+fn render_markdown_html(title: &str, markdown: &str) -> String {
+	use pulldown_cmark::{html, Options, Parser};
+	let parser = Parser::new_ext(markdown, Options::all());
+	let mut body = String::new();
+	html::push_html(&mut body, parser);
+	format!(
+		"<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{}</title>\n</head>\n<body>\n{body}</body>\n</html>\n",
+		escape_html(title)
+	)
+}
+
+fn escape_html(input: &str) -> String {
+	input
+		.replace('&', "&amp;")
+		.replace('<', "&lt;")
+		.replace('>', "&gt;")
+}
+
+/// Builds the system tray icon and its menu (Show / New note / Quit). "New note"
+/// reuses the existing `menu://action` → `new-note` bridge the frontend listens
+/// on. Available on all platforms.
+fn build_tray<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<()> {
+	let show = MenuItem::with_id(handle, "tray-show", "Show Skriuw", true, None::<&str>)?;
+	let new_note = MenuItem::with_id(handle, "tray-new-note", "New note", true, None::<&str>)?;
+	let quit = MenuItem::with_id(handle, "tray-quit", "Quit", true, None::<&str>)?;
+	let menu = Menu::with_items(handle, &[&show, &new_note, &quit])?;
+
+	let mut builder = TrayIconBuilder::new()
+		.tooltip("Skriuw")
+		.menu(&menu)
+		.show_menu_on_left_click(false)
+		.on_menu_event(|app, event| match event.id().as_ref() {
+			"tray-show" => reveal_main_window(app),
+			"tray-new-note" => {
+				reveal_main_window(app);
+				let _ = app.emit("menu://action", "new-note");
+			}
+			"tray-quit" => app.exit(0),
+			_ => {}
+		});
+	if let Some(icon) = handle.default_window_icon() {
+		builder = builder.icon(icon.clone());
+	}
+	builder.build(handle)?;
+	Ok(())
+}
+
+fn reveal_main_window<R: Runtime>(app: &AppHandle<R>) {
+	if let Some(window) = app.get_webview_window("main") {
+		let _ = window.show();
+		let _ = window.set_focus();
+	}
+}
+
 /// Builds the native application menu. Predefined items work out of the box;
 /// the custom File/View items emit a `menu://action` event to the frontend.
+///
+/// macOS only: there the menu lives in the global menu bar. On Linux/Windows it
+/// would render as an in-window menubar stacked beneath the custom titlebar, so
+/// it is omitted — the frontend already owns these shortcuts via `useShortcut`.
+#[cfg(target_os = "macos")]
 fn build_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
 	let new_note = MenuItem::with_id(handle, "new-note", "New Note", true, Some("CmdOrCtrl+N"))?;
 	let new_folder = MenuItem::with_id(
@@ -389,13 +585,14 @@ fn build_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> tauri::Result<
 		true,
 		Some("CmdOrCtrl+B"),
 	)?;
+	let about = MenuItem::with_id(handle, "about", "About Skriuw", true, None::<&str>)?;
 
 	let app_menu = Submenu::with_items(
 		handle,
 		"Skriuw",
 		true,
 		&[
-			&PredefinedMenuItem::about(handle, Some("About Skriuw"), None)?,
+			&about,
 			&PredefinedMenuItem::separator(handle)?,
 			&PredefinedMenuItem::quit(handle, None)?,
 		],
@@ -443,7 +640,10 @@ fn build_menu<R: tauri::Runtime>(handle: &tauri::AppHandle<R>) -> tauri::Result<
 }
 
 pub fn run() {
-	tauri::Builder::default()
+	let builder = tauri::Builder::default()
+		.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+			reveal_main_window(app);
+		}))
 		.plugin(tauri_plugin_fs::init())
 		.plugin(tauri_plugin_dialog::init())
 		.plugin(tauri_plugin_window_state::Builder::default().build())
@@ -457,21 +657,52 @@ pub fn run() {
 
 			// The markdown vault is the source of truth; SQLite is a derived index
 			// (FTS5 search, backlinks) kept in a separate `index.db` so the legacy
-			// `skriuw.db` is left untouched. Rebuilt from the vault on every launch.
-			let storage = Storage::open(&dir.join("index.db"))?;
-			reconcile_index(&storage, &vault)?;
+			// `skriuw.db` is left untouched. Reconciled against the vault on launch.
+			//
+			// Reconcile is incremental and idempotent: it never wipes the index, so
+			// on any launch where `index.db` already exists we can defer it to a
+			// background thread and let the window paint against the prior index
+			// immediately. Only the very first launch (empty index) must reconcile
+			// synchronously, since there is nothing for the UI to read otherwise.
+			let index_path = dir.join("index.db");
+			let index_existed = index_path.exists();
+			let storage = Storage::open(&index_path)?;
 
-			app.manage(storage);
-			app.manage(vault);
-			Ok(())
-		})
-		.menu(build_menu)
-		.on_menu_event(|app, event| {
-			let id = event.id().as_ref();
-			if MENU_ACTION_IDS.contains(&id) {
-				let _ = app.emit("menu://action", id);
+			if index_existed {
+				app.manage(storage);
+				app.manage(vault);
+
+				let bg = handle.clone();
+				std::thread::spawn(move || {
+					let storage = bg.state::<Storage>();
+					let vault = bg.state::<VaultStore>();
+					if let Err(err) = reconcile_index(&storage, &vault) {
+						eprintln!("[skriuw] background index reconcile failed: {err}");
+					}
+				});
+			} else {
+				reconcile_index(&storage, &vault)?;
+				app.manage(storage);
+				app.manage(vault);
 			}
-		})
+
+			build_tray(handle)?;
+
+			// If a managed Ollama is already installed, warm it up in the
+			// background so the first local AI action is instant.
+			ai::autostart_managed(handle);
+			Ok(())
+		});
+
+	#[cfg(target_os = "macos")]
+	let builder = builder.menu(build_menu).on_menu_event(|app, event| {
+		let id = event.id().as_ref();
+		if MENU_ACTION_IDS.contains(&id) {
+			let _ = app.emit("menu://action", id);
+		}
+	});
+
+	builder
 		.invoke_handler(tauri::generate_handler![
 			greet,
 			app_info,
@@ -488,6 +719,12 @@ pub fn run() {
 			list_folders,
 			upsert_folder,
 			delete_folder,
+			list_journal_entries,
+			upsert_journal_entry,
+			delete_journal_entry,
+			list_journal_tags,
+			upsert_journal_tag,
+			delete_journal_tag,
 				get_vault_root,
 				set_vault_root,
 				export_vault,
@@ -495,7 +732,25 @@ pub fn run() {
 				clear_local_data,
 				choose_vault_root,
 				reveal_vault,
+				export_note,
+				ai::ai_get_config,
+				ai::ai_set_config,
+				ai::ai_set_key,
+				ai::ai_complete,
+				ai::ai_ollama_status,
+				ai::ai_ollama_catalog,
+				ai::ai_start_ollama,
+				ai::ai_install_ollama,
+				ai::ai_cancel_ollama_install,
+				ai::ai_pull_ollama_model,
+				ai::ai_cancel_ollama_pull,
+				ai::ai_delete_ollama_model,
 		])
-		.run(tauri::generate_context!())
-		.expect("error while running the Skriuw desktop shell");
+		.build(tauri::generate_context!())
+		.expect("error while building the Skriuw desktop shell")
+		.run(|_app, event| {
+			if let tauri::RunEvent::Exit = event {
+				ai::stop_managed_server();
+			}
+		});
 }

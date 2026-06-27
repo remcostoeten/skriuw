@@ -47,8 +47,32 @@ export default defineConfig({
 	build: {
 		outDir: "dist",
 		emptyOutDir: true,
+		target: "esnext",
+		minify: "esbuild",
+		rollupOptions: {
+			output: {
+				manualChunks(id) {
+					if (!id.includes("node_modules")) return;
+					if (
+						id.includes("@blocknote") ||
+						id.includes("y-prosemirror") ||
+						id.includes("prosemirror")
+					) {
+						return "editor";
+					}
+					if (id.includes("react-force-graph") || id.includes("/three/")) {
+						return "graph";
+					}
+					if (id.includes("shiki")) {
+						return "shiki";
+					}
+					return undefined;
+				},
+			},
+		},
 	},
 	server: {
+		host: "127.0.0.1",
 		port: 1421,
 		strictPort: true,
 	},

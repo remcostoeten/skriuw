@@ -936,12 +936,9 @@ export const FileList = memo(function FileList({
 	const renderMoveToSubmenu = useCallback(
 		(items: SelectedItem[]) => {
 			const selectionFolders = items.filter((item) => item.type === "folder");
-			const invalidFolderIds = new Set<string>();
-			selectionFolders.forEach((folderItem) => {
-				getDescendantIds(folderItem.id).forEach((descendantId) =>
-					invalidFolderIds.add(descendantId),
-				);
-			});
+			const invalidFolderIds = new Set<string>(
+				selectionFolders.flatMap((folderItem) => getDescendantIds(folderItem.id)),
+			);
 
 			const availableFolders = folders.filter((folder) => !invalidFolderIds.has(folder.id));
 			const hasSelectionAtNonRoot = items.some((item) => item.parentId !== null);
@@ -985,13 +982,9 @@ export const FileList = memo(function FileList({
 			const selectionFolders = selection.filter(
 				(selectionItem) => selectionItem.type === "folder",
 			);
-			const invalidFolderIds = new Set<string>();
-
-			selectionFolders.forEach((folderItem) => {
-				getDescendantIds(folderItem.id).forEach((descendantId) =>
-					invalidFolderIds.add(descendantId),
-				);
-			});
+			const invalidFolderIds = new Set<string>(
+				selectionFolders.flatMap((folderItem) => getDescendantIds(folderItem.id)),
+			);
 
 			const availableFolders = folders.filter((folder) => !invalidFolderIds.has(folder.id));
 			const hasSelectionAtNonRoot = selection.some(
@@ -1309,7 +1302,7 @@ export const FileList = memo(function FileList({
 							aria-selected={isSelected}
 							tabIndex={0}
 							className={cn(
-								"group relative flex w-full items-center justify-between overflow-hidden border border-transparent text-xs font-medium transition-colors data-[state=open]:scale-[0.97] data-[state=open]:transition-transform",
+								"group relative flex w-full items-center justify-between overflow-hidden border border-transparent text-xs font-medium transition-colors",
 								compactMode ? "h-[28px]" : "h-[34px]",
 								isSelected
 									? "border-border bg-muted text-foreground"
@@ -1356,7 +1349,7 @@ export const FileList = memo(function FileList({
 											onBlur={finishRename}
 											onKeyDown={handleKeyDown}
 											onClick={(e) => e.stopPropagation()}
-											className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden selection:bg-primary/30 md:text-xs"
+											className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden shadow-none focus:shadow-none focus-visible:shadow-none selection:bg-primary/30 md:text-xs"
 											style={{ caretColor: "currentColor" }}
 										/>
 									) : (
@@ -1371,7 +1364,14 @@ export const FileList = memo(function FileList({
 							</span>
 						</motion.button>
 					</ContextMenuTrigger>
-					<ContextMenuContent className="w-48">
+					<ContextMenuContent
+						className="w-48"
+						onCloseAutoFocus={(event) => {
+							if (inputRef.current) {
+								event.preventDefault();
+							}
+						}}
+					>
 						<ContextMenuItem
 							onClick={() => {
 								if (!selectionHasMultiple) {
@@ -1527,7 +1527,7 @@ export const FileList = memo(function FileList({
 						aria-selected={isSelected || activeFileId === file.id}
 						tabIndex={0}
 						className={cn(
-							"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors data-[state=open]:scale-[0.97] data-[state=open]:transition-transform",
+							"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors",
 							compactMode ? "h-7" : "h-[34px]",
 							isSelected || activeFileId === file.id
 								? "border-border bg-muted text-foreground"
@@ -1571,7 +1571,14 @@ export const FileList = memo(function FileList({
 						</span>
 					</motion.button>
 				</ContextMenuTrigger>
-				<ContextMenuContent className="w-48">
+				<ContextMenuContent
+					className="w-48"
+					onCloseAutoFocus={(event) => {
+						if (inputRef.current) {
+							event.preventDefault();
+						}
+					}}
+				>
 					<ContextMenuItem
 						onClick={() => {
 							if (!selectionHasMultiple) {

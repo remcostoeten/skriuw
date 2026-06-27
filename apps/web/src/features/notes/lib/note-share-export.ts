@@ -1,6 +1,7 @@
 import { getNoteTitle } from "@/domain/notes/note-links";
 import { normalizeNoteFileName } from "@/domain/data-transfer/paths";
 import type { NoteFile } from "@/types/notes";
+import { noop } from "@/shared/lib/noop";
 
 export const MAX_SHARE_TEXT_LENGTH = 3_500;
 
@@ -114,6 +115,7 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
 			return true;
 		} catch {
 			// Fall through to legacy copy for Safari / restricted contexts.
+			noop();
 		}
 	}
 
@@ -194,6 +196,7 @@ export async function shareNoteToAppleNotes(payload: NoteSharePayload): Promise<
 			}
 		} catch {
 			// Fall through to text-only share.
+			noop();
 		}
 	}
 

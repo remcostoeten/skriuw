@@ -1,21 +1,12 @@
 import type { ShortcutId } from "./registry";
-import type { SHORTCUT_REGISTRY } from "./registry";
 
-export type ShortcutHandlers = Partial<Record<ShortcutId, () => void>>;
+export type ShortcutHandler = (event: KeyboardEvent) => void;
 
-export type ShortcutBindings = Record<ShortcutId, string>;
+export type ShortcutHandlers = Partial<Record<ShortcutId, ShortcutHandler>>;
 
-export interface ShortcutState {
-	activeScopes: string[];
-	bindings: ShortcutBindings;
-}
-
-export interface ShortcutActions {
-	enableScope: (scope: string) => void;
-	disableScope: (scope: string) => void;
-	setBinding: (id: ShortcutId, key: string) => void;
-}
-
-export interface ShortcutMeta {
-	registry: typeof SHORTCUT_REGISTRY;
-}
+/**
+ * Sparse map of user overrides. Absent ids fall back to the registry default.
+ * Overrides are always a single combo string even where the default registers
+ * several combos, so remapping a multi-combo shortcut collapses it to one.
+ */
+export type ShortcutBindings = Partial<Record<ShortcutId, string>>;

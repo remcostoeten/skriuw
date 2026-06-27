@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { noop } from "@/shared/lib/noop";
 import type { RichTextDocument } from "@/domain/notes/models";
 import { hashViewer, verifySharePassword } from "./crypto";
 import { isExpired } from "./expiry";
@@ -31,6 +32,7 @@ async function logShareView(shareId: string, token: string): Promise<void> {
 		});
 	} catch {
 		// swallow — analytics is non-critical
+		noop();
 	}
 }
 

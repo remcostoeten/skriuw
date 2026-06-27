@@ -7,7 +7,6 @@ import type {
 } from "@/domain/journal/actions";
 import type { JournalEntry } from "@/types/journal";
 import { useQueryClient } from "@tanstack/react-query";
-import { createCacheQueryFn } from "@/shared/api/cache-query";
 import { journalKeys } from "./journal-keys";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
 
@@ -55,10 +54,18 @@ export function upsertJournalEntryByActiveDate(
 
 export function useJournalEntries() {
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
 
 	return useApiQuery<JournalEntry[]>(
 		journalKeys.entries(),
-		createCacheQueryFn<JournalEntry[]>(queryClient, journalKeys.entries()),
+		// Cache-first: on web the list is RSC-hydrated, so this returns it without a
+		// network hit. On desktop there is no prefetch, so fall through to the
+		// backend (Tauri → local SQLite); guest backends have no list method → [].
+		async () => {
+			const cached = queryClient.getQueryData<JournalEntry[]>(journalKeys.entries());
+			if (cached !== undefined) return cached;
+			return (await backend.listJournalEntries?.()) ?? [];
+		},
 		{ staleTime: Infinity, select: mergeJournalEntriesByActiveDate },
 	);
 }

@@ -674,7 +674,7 @@ function LinkRow({
   );
 }
 
-export function MetadataPanel({
+export const MetadataPanel = memo(function MetadataPanel({
   file,
   files = [],
   className,
@@ -1204,4 +1204,4 @@ export function MetadataPanel({
       </div>
     </aside>
   );
-}
+});

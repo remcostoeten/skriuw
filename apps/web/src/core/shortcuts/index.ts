@@ -1,5 +1,11 @@
-export { ShortcutProvider, useShortcutManager } from "./provider";
-export { SCOPES } from "./scopes";
-export { SHORTCUT_REGISTRY } from "./registry";
-export type { ShortcutHandlers, ShortcutBindings } from "./types";
-export type { ShortcutId } from "./registry";
+export { ShortcutProvider, useShortcutManager, useShortcutScope } from "./provider";
+export { SCOPES, type Scope } from "./scopes";
+export {
+	SHORTCUT_REGISTRY,
+	getShortcutIds,
+	getShortcutDef,
+	type ShortcutId,
+	type ShortcutDefinition,
+} from "./registry";
+export { formatBinding, eventToCombo } from "./keys";
+export type { ShortcutHandlers, ShortcutHandler, ShortcutBindings } from "./types";

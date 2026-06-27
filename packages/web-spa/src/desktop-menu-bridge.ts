@@ -10,7 +10,7 @@ type TauriEventApi = {
 
 type TauriGlobal = { __TAURI__?: { event?: TauriEventApi } };
 
-export type MenuAction = "new-note" | "new-folder" | "save" | "toggle-sidebar";
+export type MenuAction = "new-note" | "new-folder" | "save" | "toggle-sidebar" | "about";
 
 export function initDesktopMenuBridge(): void {
 	const events = (window as unknown as TauriGlobal).__TAURI__?.event;
