@@ -2,7 +2,7 @@ import { authAnalyticsHook } from "@/core/analytics/auth-track";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
-import { admin } from "better-auth/plugins";
+import { admin, username } from "better-auth/plugins";
 import { getBetterAuthBaseURL } from "./app-origin";
 import { prisma } from "./prisma";
 
@@ -59,6 +59,10 @@ export const auth = betterAuth({
 	},
 	socialProviders: Object.keys(socialProviders).length > 0 ? socialProviders : undefined,
 	plugins: [
+		username({
+			minUsernameLength: 3,
+			maxUsernameLength: 30,
+		}),
 		admin({
 			defaultRole: "user",
 			adminRoles: ["admin"],
