@@ -1,4 +1,5 @@
 import type { AiErrorCode, AiProvider } from "@/domain/ai/types";
+import { noop } from "@/shared/lib/noop";
 
 export type AiProviderErrorSource =
 	| "auth"
@@ -78,6 +79,7 @@ function readApiCallError(err: unknown): ExtractedProviderError {
 				reason;
 		} catch {
 			// Ignore malformed provider payloads.
+			noop();
 		}
 	}
 

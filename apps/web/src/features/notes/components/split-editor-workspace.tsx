@@ -5,7 +5,7 @@ import { EditorContainer } from "@/features/editor/components/editor-container";
 import { EditorToolbar } from "@/features/editor/components/editor-toolbar";
 import type { WorkspaceNavItem } from "@/features/editor/components/editor-toolbar";
 import { stripMarkdownExtension } from "@/domain/notes/note-links";
-import type { EditorPane, SplitOrientation } from "@/features/notes/store";
+import { useNotesStore, type EditorPane, type SplitOrientation } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
 import type { NoteFile, NoteEditorMode, RichTextDocument } from "@/types/notes";
 
@@ -92,6 +92,9 @@ export function SplitEditorWorkspace({
 	const isVertical = orientation === "vertical";
 	const focusedFile = focusedPane === "secondary" ? secondaryFile : primaryFile;
 	const focusedFileName = focusedFile?.name || "No file selected";
+	const focusedSaveState = useNotesStore(
+		(state) => state.saveStates[focusedFile?.id ?? ""] ?? "idle",
+	);
 
 	const paneLabel = (file: NoteFile | null) =>
 		file ? stripMarkdownExtension(file.name).replace(/-/g, " ") : "Empty pane";
@@ -169,6 +172,7 @@ export function SplitEditorWorkspace({
 		<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 			<EditorToolbar
 				fileName={focusedFileName}
+				saveState={focusedSaveState}
 				isMobile={isMobile}
 				workspaceItems={workspaceItems}
 				onToggleSidebar={onToggleSidebar}

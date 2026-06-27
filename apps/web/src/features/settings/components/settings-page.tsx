@@ -10,6 +10,7 @@ import {
 	Database,
 	Eye,
 	FlaskConical,
+	Keyboard,
 	Palette,
 	PenLine,
 	Shield,
@@ -28,14 +29,22 @@ import { cn } from "@/shared/lib/utils";
 import { AccountSection } from "@/features/settings/sections/account-section";
 import { AppearanceSection } from "@/features/settings/sections/appearance-section";
 import { EditorSection } from "@/features/settings/sections/editor-section";
+import { ShortcutsSection } from "@/features/settings/sections/shortcuts-section";
 import { DataSection } from "@/features/settings/sections/data-section";
 import { SecuritySection } from "@/features/settings/sections/security-section";
 import { AiSection } from "@/features/settings/sections/ai-section";
 import { TagsSection } from "@/features/settings/sections/tags-section";
 import { ExperimentalSection } from "@/features/settings/sections/experimental-section";
 import { PrivacySection } from "@/features/settings/sections/privacy-section";
-import { SettingsSidebar, isSettingsTabVisible, type SettingsTabId } from "./settings-sidebar";
-import { useIsGuestWorkspace } from "@/core/workspace-backend";
+import {
+	SettingsSidebar,
+	isSettingsTabVisible,
+	getSettingsTabId,
+	SETTINGS_TABPANEL_ID,
+	type SettingsTabId,
+} from "./settings-sidebar";
+import { useIsGuestWorkspace, isTauriRuntime } from "@/core/workspace-backend";
+import { DesktopAiSection } from "@/features/desktop/ai-settings-section";
 import { GuestSectionNotice, type GuestFeature } from "@/shared/ui/guest-gate";
 
 type SectionMeta = {
@@ -49,6 +58,7 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 	{ id: "account", label: "Account", icon: User, description: "Profile and sign-in" },
 	{ id: "appearance", label: "Appearance", icon: Palette, description: "Theme and density" },
 	{ id: "editor", label: "Editor", icon: PenLine, description: "Writing experience" },
+	{ id: "shortcuts", label: "Shortcuts", icon: Keyboard, description: "Keyboard bindings" },
 	{ id: "data", label: "Data & sync", icon: Database, description: "Export and backup" },
 	{ id: "privacy", label: "Privacy", icon: Eye, description: "Analytics and data use" },
 	{ id: "security", label: "Security", icon: Shield, description: "Password and sessions" },
@@ -94,6 +104,8 @@ function renderSection(id: SettingsTabId, isGuest: boolean) {
 			return <AppearanceSection />;
 		case "editor":
 			return <EditorSection />;
+		case "shortcuts":
+			return <ShortcutsSection />;
 		case "data":
 			return <DataSection />;
 		case "privacy":
@@ -101,7 +113,7 @@ function renderSection(id: SettingsTabId, isGuest: boolean) {
 		case "security":
 			return <SecuritySection />;
 		case "ai":
-			return <AiSection />;
+			return isTauriRuntime() ? <DesktopAiSection /> : <AiSection />;
 		case "tags":
 			return <TagsSection />;
 		case "experimental":
@@ -202,13 +214,19 @@ export function SettingsPage() {
 						transition={{ type: "tween", duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
 						whileHover={{ scale: 1.03 }}
 						whileTap={{ scale: 0.97 }}
-						className="absolute right-4 top-4 z-10 inline-flex h-8 items-center gap-1 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+						className="absolute right-4 top-4 z-10 inline-flex h-8 items-center gap-1 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 						aria-label="Back to app"
 					>
 						<ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
 						Back
 					</motion.button>
-					<div className="flex-1 overflow-y-auto px-6 py-8 md:px-10">
+					<div
+						id={SETTINGS_TABPANEL_ID}
+						role="tabpanel"
+						tabIndex={0}
+						aria-labelledby={getSettingsTabId(activeTab)}
+						className="flex-1 overflow-y-auto px-6 py-8 md:px-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+					>
 						<div className="mx-auto w-full max-w-3xl">{content}</div>
 					</div>
 				</main>

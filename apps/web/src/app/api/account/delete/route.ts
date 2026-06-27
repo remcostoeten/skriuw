@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getAuthenticatedUser, prisma } from "@/core/db";
 import { auth } from "@/lib/auth";
+import { noop } from "@/shared/lib/noop";
 
 const DELETE_PHRASE = "delete my account";
 
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
 		await auth.api.signOut({ headers: requestHeaders });
 	} catch {
 		// Best-effort cookie clear; the user.delete below will cascade any remaining session row.
+		noop();
 	}
 
 	try {

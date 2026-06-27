@@ -7,7 +7,7 @@ import { Editor } from "./editor";
 import type { TRichTextCollab } from "./rich-text-editor";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
 import { EditorToolbar } from "./editor-toolbar";
-import type { WorkspaceNavItem } from "./editor-toolbar";
+import type { EditorSaveState, WorkspaceNavItem } from "./editor-toolbar";
 import { useCollabRoom } from "@/features/collaboration/hooks/use-collab-room";
 import { useNoteCollabEnabled } from "@/features/collaboration/hooks/use-note-collab-enabled";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
@@ -19,6 +19,7 @@ import {
 	type AiAction,
 	type AiErrorCode,
 } from "@/features/ai/service";
+import { isTauriRuntime, tauriInvoke } from "@/core/workspace-backend";
 import { useAiProviderKeys } from "@/features/ai/hooks/use-ai-provider-keys";
 import { listFallbackAiKeys, resolveAiKey } from "@/features/ai/lib/resolve-ai-key";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -49,6 +50,7 @@ interface EditorContainerProps {
 	canNavigatePrev: boolean;
 	canNavigateNext: boolean;
 	fileName: string;
+	saveState?: EditorSaveState;
 	onRenameFile?: (id: string, name: string) => void;
 	onEditorBlur?: () => void;
 	variant?: "standalone" | "pane";
@@ -183,6 +185,7 @@ export function EditorContainer({
 	canNavigatePrev,
 	canNavigateNext,
 	fileName,
+	saveState,
 	onRenameFile,
 	onEditorBlur,
 	variant = "standalone",
@@ -352,6 +355,19 @@ export function EditorContainer({
 		aiHandleRef.current = handle;
 	}, []);
 
+	const canExportNote = isTauriRuntime();
+	const handleExportNote = useCallback(
+		async (format: "md" | "html") => {
+			if (!file) return;
+			try {
+				await tauriInvoke<string | null>("export_note", { id: file.id, format });
+			} catch (err) {
+				console.error("[export_note]", err);
+			}
+		},
+		[file],
+	);
+
 	const handleTitleCommit = useCallback(
 		(title: string) => {
 			if (!file || !onRenameFile) return;
@@ -426,6 +442,7 @@ export function EditorContainer({
 			{!isPane ? (
 				<EditorToolbar
 					fileName={fileName}
+					saveState={saveState}
 					isMobile={isMobile}
 					workspaceItems={workspaceItems}
 					onToggleSidebar={onToggleSidebar}
@@ -443,6 +460,7 @@ export function EditorContainer({
 					onAiContinueWriting={
 						canUseAi ? () => runAiAction("continueWriting") : undefined
 					}
+					onExportNote={canExportNote && file ? handleExportNote : undefined}
 					splitEnabled={splitEnabled}
 					onToggleSplit={onToggleSplit}
 					canToggleSplit={canToggleSplit}

@@ -3,6 +3,7 @@
 import { authClient } from "@/lib/auth-client";
 import { getBrowserAppOrigin } from "@/lib/app-origin";
 import { resetGuestStorage } from "@/core/workspace-backend/local-backend";
+import { noop } from "@/shared/lib/noop";
 
 export type AuthUser = {
 	id: string;
@@ -57,7 +58,11 @@ function readPreferences(): AuthPreferences {
 
 function persistPreferences(preferences: AuthPreferences): void {
 	if (typeof window === "undefined") return;
-	window.localStorage.setItem(AUTH_PREFERENCES_KEY, JSON.stringify(preferences));
+	try {
+		window.localStorage.setItem(AUTH_PREFERENCES_KEY, JSON.stringify(preferences));
+	} catch {
+		noop();
+	}
 }
 
 export function toAuthUser(rawUser: BetterAuthUser | null | undefined): AuthUser | null {

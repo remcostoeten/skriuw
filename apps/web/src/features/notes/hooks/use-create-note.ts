@@ -7,6 +7,7 @@ import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { trackProductEvent } from "@/core/analytics/client";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { usePreferencesStore } from "@/features/settings/store";
+import { showUserToast } from "@/shared/lib/user-toast";
 import { notesKeys } from "./notes-keys";
 import type { NoteFile } from "@/types/notes";
 
@@ -20,6 +21,9 @@ export function useCreateNote() {
 			void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
 			usePreferencesStore.getState().incrementNoteCount();
 			trackProductEvent("note_created");
+		},
+		onError: () => {
+			showUserToast("Couldn't create note", "error");
 		},
 		optimistic: {
 			queryKey: notesKeys.files(),

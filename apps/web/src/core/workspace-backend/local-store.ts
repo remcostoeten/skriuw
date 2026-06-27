@@ -1,6 +1,7 @@
 "use client";
 
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
+import { noop } from "@/shared/lib/noop";
 
 export const WORKSPACE_STORAGE_KEY = "skriuw:guest:workspace:v2";
 
@@ -54,8 +55,8 @@ function getIndexedDBFactory(): IDBFactory | null {
 function reviveNote(raw: NoteFile): NoteFile {
 	return {
 		...raw,
-		createdAt: new Date(raw.createdAt as unknown as string),
-		modifiedAt: new Date(raw.modifiedAt as unknown as string),
+		createdAt: new Date(raw.createdAt),
+		modifiedAt: new Date(raw.modifiedAt),
 		tags: Array.isArray(raw.tags) ? raw.tags : [],
 	};
 }
@@ -107,6 +108,7 @@ export function writeGuestWorkspacePayloadToLocalStorageSync(payload: GuestWorks
 		window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(payload));
 	} catch {
 		// Quota exceeded or storage disabled — fail silent; guest mode is best-effort.
+		noop();
 	}
 }
 
@@ -116,6 +118,7 @@ export function clearGuestWorkspaceLocalStorageSync(): void {
 		window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
 	} catch {
 		// ignore
+		noop();
 	}
 }
 

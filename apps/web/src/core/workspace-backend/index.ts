@@ -7,7 +7,8 @@ export {
 	resetGuestStorage,
 	GUEST_SIGNUP_PROMPT_EVENT,
 } from "./local-backend";
-export { createTauriBackend, isTauriRuntime, tauriInvoke } from "./tauri-backend";
+export { createTauriBackend, isTauriRuntime, tauriInvoke, tauriChannel } from "./tauri-backend";
+export type { TauriChannel } from "./tauri-backend";
 export { recordGuestGraphExplore } from "./guest-graph-engagement";
 export {
 	WorkspaceBackendProvider,

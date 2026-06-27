@@ -1,5 +1,7 @@
 "use client";
 
+import { noop } from "@/shared/lib/noop";
+
 type FeedbackKind = "selection" | "impact" | "success" | "dismiss";
 
 let audioContextRef: AudioContext | null = null;
@@ -34,7 +36,9 @@ function vibrate(pattern: number | number[]) {
 
 	try {
 		navigator.vibrate(pattern);
-	} catch {}
+	} catch {
+		noop();
+	}
 }
 
 async function playTone({
@@ -70,7 +74,9 @@ async function playTone({
 
 		oscillator.start(now);
 		oscillator.stop(now + duration + 0.02);
-	} catch {}
+	} catch {
+		noop();
+	}
 }
 
 export function triggerNativeFeedback(kind: FeedbackKind = "selection") {

@@ -2,6 +2,8 @@
 // redirect (OAuth does a full-page navigation to /app) by stashing the target
 // noteId here. Once the user lands back authenticated, the app replays the
 // request. localStorage (not a query param) so it survives the OAuth round trip.
+import { noop } from "@/shared/lib/noop";
+
 const PENDING_COLLAB_KEY = "skriuw:pending-collab";
 
 export function setPendingCollabRequest(noteId: string): void {
@@ -10,6 +12,7 @@ export function setPendingCollabRequest(noteId: string): void {
 		window.localStorage.setItem(PENDING_COLLAB_KEY, noteId);
 	} catch {
 		// Ignore storage failures (private mode quota, disabled storage).
+		noop();
 	}
 }
 

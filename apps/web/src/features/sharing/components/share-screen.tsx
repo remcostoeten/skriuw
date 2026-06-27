@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Switch } from "@/shared/ui/switch";
 import { cn } from "@/shared/lib/utils";
+import { noop } from "@/shared/lib/noop";
 import { SHARE_DURATION_PRESETS, type TShareExpiry } from "@/domain/sharing/models";
 import { useNoteSharing } from "../hooks/use-note-sharing";
 
@@ -129,6 +130,7 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 			setCopied(true);
 		} catch {
 			// Clipboard unavailable — ignore.
+			noop();
 		}
 	}
 

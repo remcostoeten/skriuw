@@ -3,8 +3,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { MotionPreferences } from "@/providers/motion-preferences";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { PersistenceBootstrap } from "@/providers/persistence-bootstrap";
+import { noop } from "@/shared/lib/noop";
 import { ProtectedAppGuard } from "@/providers/protected-app-guard";
 import { ThemeAttribute } from "@/providers/theme-attribute";
 import { WorkspaceBackendProvider } from "@/core/workspace-backend";
@@ -12,14 +13,18 @@ import { GuestWorkspaceBootstrap } from "@/providers/guest-workspace-bootstrap";
 import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
 import { QueryCachePersistence } from "@/providers/query-cache-persistence";
 import { WorkspaceWarmup } from "@/providers/workspace-warmup";
-import { ShortcutProvider, type ShortcutHandlers } from "@/core/shortcuts";
+import { ShortcutProvider } from "@/core/shortcuts";
 import { PendingCollabReplay } from "@/features/collaboration/components/pending-collab-replay";
-import { useRouter } from "next/navigation";
-import { signOut } from "@/core/auth";
-import { DevMenu } from "@/features/dev-tools/dev-menu";
+import { isDevEnv } from "@/features/dev-tools/store";
 import { UserToastHost } from "@/shared/ui/user-toast-host";
 import { EDITOR_PREFERENCES_STORAGE_KEY } from "@/features/settings/lib/editor-preferences";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
+
+const DevMenu = lazy(() =>
+	import("@/features/dev-tools/dev-menu").then((module) => ({
+		default: module.DevMenu,
+	})),
+);
 
 type Props = {
 	children: React.ReactNode;
@@ -44,32 +49,11 @@ function EditorPreferencesBootstrap({
 			);
 		} catch {
 			// Ignore cache write failures.
+			noop();
 		}
 	}, [initialEditorPreferences]);
 
 	return null;
-}
-
-function ShortcutHandlerProvider({ children }: { children: React.ReactNode }) {
-	const router = useRouter();
-
-	const handlers: ShortcutHandlers = {
-		profile: () => router.push("/app/profile"),
-		notes: () => router.push("/app"),
-		journal: () => router.push("/app/journal"),
-		activity: () => router.push("/app/activity"),
-		settings: () => router.push("/app/settings"),
-		signOut: async () => {
-			try {
-				await signOut();
-				window.location.replace("/app?auth=sign-in");
-			} catch (error) {
-				console.error("Shortcut sign-out failed", error);
-			}
-		},
-	};
-
-	return <ShortcutProvider handlers={handlers}>{children}</ShortcutProvider>;
 }
 
 export function AppProviders({ children, initialEditorPreferences }: Props) {
@@ -108,10 +92,14 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 							<AppRoutePrefetcher />
 							<WorkspaceWarmup />
 							<ThemeAttribute />
-							<ShortcutHandlerProvider>{children}</ShortcutHandlerProvider>
+							<ShortcutProvider>{children}</ShortcutProvider>
 							<PendingCollabReplay />
 							<UserToastHost />
-							<DevMenu />
+							{isDevEnv() && (
+								<Suspense fallback={null}>
+									<DevMenu />
+								</Suspense>
+							)}
 						</WorkspaceBackendProvider>
 					</ProtectedAppGuard>
 				</TooltipProvider>
