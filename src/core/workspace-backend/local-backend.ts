@@ -1,11 +1,16 @@
 "use client";
 
 import type { QueryClient } from "@tanstack/react-query";
-import type { CreateNoteInput, UpdateNoteInput, UpdateNoteResult } from "@/domain/notes/actions";
-import type { CreateFolderInput, UpdateFolderInput } from "@/domain/folders/actions";
-import type { NoteFile, NoteFolder, RichTextDocument } from "@/domain/notes/models";
-import { markdownToRichDocument } from "@/domain/notes/rich-document";
+import type { UpdateNoteResult } from "@/domain/notes/actions";
+import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
+import {
+	applyFolderUpdate,
+	applyNoteUpdate,
+	collectFolderDescendants,
+	folderFromCreateInput,
+	noteFromCreateInput,
+} from "./note-builders";
 import { fetchGuestSeedNote, fetchGuestSeedNotes } from "@/domain/seed/actions";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import {
@@ -48,77 +53,6 @@ function recordGuestEngagement(): void {
 
 function isBrowser(): boolean {
 	return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
-}
-
-function ensureNoteName(name: string): string {
-	const trimmed = name.trim() || "Untitled";
-	return trimmed.endsWith(".md") ? trimmed : `${trimmed}.md`;
-}
-
-function noteFromCreateInput(input: CreateNoteInput): NoteFile {
-	const richContent: RichTextDocument =
-		input.richContent ?? markdownToRichDocument(input.content ?? "");
-	const now = new Date();
-	return {
-		id: input.id ?? crypto.randomUUID(),
-		name: ensureNoteName(input.name),
-		content: input.content ?? "",
-		richContent,
-		preferredEditorMode: input.preferredEditorMode ?? "block",
-		createdAt: now,
-		modifiedAt: now,
-		parentId: input.parentId ?? null,
-		sortOrder: input.sortOrder ?? 0,
-		tags: input.tags ?? [],
-	};
-}
-
-function applyNoteUpdate(note: NoteFile, input: UpdateNoteInput): NoteFile {
-	return {
-		...note,
-		name: input.name !== undefined ? ensureNoteName(input.name) : note.name,
-		content: input.content ?? note.content,
-		richContent: input.richContent ?? note.richContent,
-		preferredEditorMode: input.preferredEditorMode ?? note.preferredEditorMode,
-		parentId: input.parentId !== undefined ? input.parentId : note.parentId,
-		sortOrder: input.sortOrder ?? note.sortOrder,
-		tags: input.tags ?? note.tags,
-		modifiedAt: new Date(),
-	};
-}
-
-function folderFromCreateInput(input: CreateFolderInput): NoteFolder {
-	return {
-		id: input.id ?? crypto.randomUUID(),
-		name: input.name,
-		parentId: input.parentId ?? null,
-		sortOrder: input.sortOrder ?? 0,
-		isOpen: true,
-	};
-}
-
-function applyFolderUpdate(folder: NoteFolder, input: UpdateFolderInput): NoteFolder {
-	return {
-		...folder,
-		name: input.name ?? folder.name,
-		parentId: input.parentId === undefined ? folder.parentId : input.parentId,
-		sortOrder: input.sortOrder === undefined ? folder.sortOrder : input.sortOrder,
-	};
-}
-
-function collectFolderDescendants(folders: NoteFolder[], rootId: string): Set<string> {
-	const descendants = new Set<string>([rootId]);
-	const stack = [rootId];
-	while (stack.length > 0) {
-		const next = stack.pop()!;
-		for (const folder of folders) {
-			if (folder.parentId === next && !descendants.has(folder.id)) {
-				descendants.add(folder.id);
-				stack.push(folder.id);
-			}
-		}
-	}
-	return descendants;
 }
 
 /**
