@@ -646,7 +646,14 @@ pub fn run() {
 		}))
 		.plugin(tauri_plugin_fs::init())
 		.plugin(tauri_plugin_dialog::init())
-		.plugin(tauri_plugin_window_state::Builder::default().build())
+		.plugin(
+			tauri_plugin_window_state::Builder::default()
+				.with_state_flags(
+					tauri_plugin_window_state::StateFlags::all()
+						& !tauri_plugin_window_state::StateFlags::DECORATIONS,
+				)
+				.build(),
+		)
 		.setup(|app| {
 			let handle = app.handle();
 			let dir = app.path().app_data_dir().expect("resolve app data dir");

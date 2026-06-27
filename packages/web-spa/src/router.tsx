@@ -10,8 +10,8 @@ import {
 import { AppProviders } from "@/providers/app-providers";
 import { cn } from "@/shared/lib/utils";
 import { editorFontVariables } from "@/app/editor-font-loaders";
-import { WindowTitlebar } from "./components/window-titlebar";
 import { WindowResizeHandles } from "./components/window-resize-handles";
+import { WindowDragRegion } from "./components/window-drag-region";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { JournalPageLayout } from "@/features/journal/components/journal-page-layout";
 import { SettingsPage } from "@/features/settings/components/settings-page";
@@ -37,10 +37,10 @@ function DesktopShell() {
 				style={{ height: "100dvh" }}
 				className={cn(editorFontVariables, "flex flex-col overflow-hidden bg-background")}
 			>
-				<WindowTitlebar />
 				<div className="relative min-h-0 flex-1 overflow-hidden">
 					<Outlet />
 				</div>
+				<WindowDragRegion />
 				<WindowResizeHandles />
 			</div>
 		</AppProviders>
