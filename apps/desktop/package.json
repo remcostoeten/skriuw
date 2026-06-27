@@ -1,6 +1,6 @@
 {
 	"name": "skriuw-desktop",
-	"version": "0.1.0",
+	"version": "0.0.1",
 	"private": true,
 	"scripts": {
 		"dev": "cross-env WEBKIT_DISABLE_DMABUF_RENDERER=1 tauri dev",
