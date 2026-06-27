@@ -36,6 +36,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so release notes can diff against the previous tag.
+          fetch-depth: 0
 
       # System libraries Tauri needs on Linux. `appindicator` is required by the
       # `tray-icon` Cargo feature; `patchelf` + `libfuse2` are required to build
@@ -83,6 +86,34 @@ jobs:
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
+      # Build the release body from commit activity since the previous desktop
+      # tag (only changes touching the desktop app / shared SPA / this workflow),
+      # plus a compare link. Falls back to all history for the very first tag.
+      - name: Generate release notes
+        id: notes
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG="${{ github.ref_name }}"
+          PREV="$(git describe --tags --abbrev=0 --match 'desktop-v*' "${TAG}^" 2>/dev/null || true)"
+          if [ -n "$PREV" ]; then RANGE="${PREV}..${TAG}"; else RANGE="$TAG"; fi
+          PATHS="apps/desktop packages/web-spa .github/workflows/release-desktop.yml"
+          {
+            echo "body<<RELEASE_EOF"
+            echo "## What's changed"
+            echo ""
+            git log --no-merges --pretty='- %s (%h)' "$RANGE" -- $PATHS || true
+            echo ""
+            echo "### Install"
+            echo "- **Debian/Ubuntu**: download the \`.deb\`"
+            echo "- **Fedora/RHEL/openSUSE**: download the \`.rpm\`"
+            echo "- **Any distro (portable)**: download the \`.AppImage\`, \`chmod +x\` it, and run"
+            echo ""
+            if [ -n "$PREV" ]; then
+              echo "**Full changelog**: https://github.com/${{ github.repository }}/compare/${PREV}...${TAG}"
+            fi
+            echo "RELEASE_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       # tauri-action runs the frontend build (beforeBuildCommand -> web-spa) and
       # `tauri build`, then uploads the bundles. On a tag push it creates/updates
       # the matching GitHub release; on workflow_dispatch it just builds.
@@ -96,6 +127,7 @@ jobs:
           # Only publish a release when a desktop tag triggered the run.
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('Skriuw Desktop {0}', github.ref_name) || '' }}
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
 
