@@ -1,4 +1,9 @@
-export { ShortcutProvider, useShortcutManager, useShortcutScope } from "./provider";
+export {
+	ShortcutProvider,
+	useShortcutManager,
+	useShortcutScope,
+	useShortcutHint,
+} from "./provider";
 export { SCOPES, type Scope } from "./scopes";
 export {
 	SHORTCUT_REGISTRY,

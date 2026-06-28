@@ -51,7 +51,7 @@ function JournalEditorToolbar({
 
 	if (isMobile) {
 		const mobileControlClass =
-			"flex h-11 w-11 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground active:scale-[0.97]";
+			"flex h-11 w-11 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground";
 
 		return (
 			<div className="border-b border-border bg-card px-3 pb-3 pt-[max(env(safe-area-inset-top),0.85rem)] sm:px-4">
@@ -94,7 +94,7 @@ function JournalEditorToolbar({
 					<div className="flex h-11 items-center gap-1.5 sm:gap-2">
 						<button
 							onClick={onToggleEditorMode}
-							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
+							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 							title={editorModeTitle}
 						>
 							{editorMode === "plain" ? (
@@ -105,7 +105,7 @@ function JournalEditorToolbar({
 						</button>
 						<button
 							onClick={onOpenSettings}
-							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
+							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 							title="Open settings"
 						>
 							<Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
@@ -117,7 +117,7 @@ function JournalEditorToolbar({
 	}
 
 	const desktopIconButtonClass =
-		"pressable flex h-7 w-7 items-center justify-center border border-transparent transition-colors duration-200";
+		"flex h-7 w-7 items-center justify-center border border-transparent transition-colors duration-200";
 
 	return (
 		<div

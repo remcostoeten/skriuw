@@ -1,13 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, RotateCcw, Trash2, Upload } from "lucide-react";
+import { Check, Copy, Download, KeyRound, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { GuestGate } from "@/shared/ui/guest-gate";
+import { showUserToast } from "@/shared/lib/user-toast";
 import { useIsGuestWorkspace, resetGuestStorage, isTauriRuntime } from "@/core/workspace-backend";
 import { LocalDataSection } from "./local-data-section";
 import {
@@ -144,6 +145,22 @@ function ClearDataDialog({ disabled }: { disabled: boolean }) {
 
 type ExportState = "idle" | "pending" | "error";
 type ImportFlowState = "idle" | "previewing" | "ready" | "importing" | "success" | "error";
+type TokenLoadState = "idle" | "loading" | "error";
+
+type SyncTokenSummary = {
+	id: string;
+	name: string;
+	tokenPrefix: string;
+	scopes: string[];
+	expiresAt: string | null;
+	revokedAt: string | null;
+	lastUsedAt: string | null;
+	createdAt: string;
+};
+
+type CreatedSyncToken = SyncTokenSummary & {
+	token: string;
+};
 
 function importHasWork(preview: ImportPreview): boolean {
 	if (preview.policy === "replace-workspace") {
@@ -249,6 +266,254 @@ function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 				</ul>
 			)}
 		</div>
+	);
+}
+
+function formatSyncTokenDate(value: string | null): string {
+	if (!value) return "Never";
+	return new Intl.DateTimeFormat(undefined, {
+		dateStyle: "medium",
+		timeStyle: "short",
+	}).format(new Date(value));
+}
+
+function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
+	const [tokens, setTokens] = useState<SyncTokenSummary[]>([]);
+	const [loadState, setLoadState] = useState<TokenLoadState>("idle");
+	const [error, setError] = useState<string | null>(null);
+	const [tokenName, setTokenName] = useState("Desktop app");
+	const [createdToken, setCreatedToken] = useState<CreatedSyncToken | null>(null);
+	const [isCreating, setIsCreating] = useState(false);
+	const [revokingId, setRevokingId] = useState<string | null>(null);
+	const [copied, setCopied] = useState(false);
+
+	const activeTokens = tokens.filter((token) => !token.revokedAt);
+
+	async function loadTokens() {
+		if (!isConnected) return;
+		setLoadState("loading");
+		setError(null);
+		try {
+			const response = await fetch("/api/sync/tokens");
+			const body = (await response.json().catch(() => ({}))) as {
+				tokens?: SyncTokenSummary[];
+				error?: string;
+			};
+			if (!response.ok || !body.tokens) {
+				throw new Error(body.error ?? "Could not load desktop sync tokens.");
+			}
+			setTokens(body.tokens);
+			setLoadState("idle");
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Could not load desktop sync tokens.");
+			setLoadState("error");
+		}
+	}
+
+	useEffect(() => {
+		void loadTokens();
+	}, [isConnected]);
+
+	async function createToken() {
+		if (!isConnected || isCreating) return;
+		setIsCreating(true);
+		setError(null);
+		setCopied(false);
+		try {
+			const response = await fetch("/api/sync/tokens", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name: tokenName }),
+			});
+			const body = (await response.json().catch(() => ({}))) as {
+				token?: CreatedSyncToken;
+				error?: string;
+			};
+			if (!response.ok || !body.token) {
+				throw new Error(body.error ?? "Could not create desktop sync token.");
+			}
+			setCreatedToken(body.token);
+			setTokens((current) => [
+				body.token!,
+				...current.filter((token) => token.id !== body.token!.id),
+			]);
+			showUserToast("Desktop sync token created.", "success");
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Could not create desktop sync token.");
+		} finally {
+			setIsCreating(false);
+		}
+	}
+
+	async function copyCreatedToken() {
+		if (!createdToken) return;
+		try {
+			await navigator.clipboard.writeText(createdToken.token);
+			setCopied(true);
+			showUserToast("Token copied.", "success");
+			setTimeout(() => setCopied(false), 1600);
+		} catch {
+			showUserToast("Could not copy token.", "error");
+		}
+	}
+
+	async function revokeToken(tokenId: string) {
+		setRevokingId(tokenId);
+		setError(null);
+		try {
+			const response = await fetch(`/api/sync/tokens/${tokenId}`, { method: "DELETE" });
+			const body = (await response.json().catch(() => ({}))) as { error?: string };
+			if (!response.ok) {
+				throw new Error(body.error ?? "Could not revoke desktop sync token.");
+			}
+			setTokens((current) =>
+				current.map((token) =>
+					token.id === tokenId ? { ...token, revokedAt: new Date().toISOString() } : token,
+				),
+			);
+			if (createdToken?.id === tokenId) {
+				setCreatedToken(null);
+			}
+			showUserToast("Desktop sync token revoked.", "success");
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Could not revoke desktop sync token.");
+		} finally {
+			setRevokingId(null);
+		}
+	}
+
+	return (
+		<SettingsCard>
+			<div className="py-4">
+				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+					<div className="min-w-0 flex-1">
+						<div className="flex items-center gap-2 text-sm font-medium">
+							<KeyRound className="size-4 text-muted-foreground" />
+							Desktop sync
+						</div>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Create a scoped token so the desktop app can pull your cloud workspace
+							through <span className="font-mono text-foreground">/api/sync/export</span>.
+						</p>
+					</div>
+					<div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-80">
+						<Label htmlFor="desktop-sync-token-name" className="text-xs text-muted-foreground">
+							Token name
+						</Label>
+						<div className="flex gap-2">
+							<Input
+								id="desktop-sync-token-name"
+								value={tokenName}
+								onChange={(event) => setTokenName(event.target.value)}
+								disabled={!isConnected || isCreating}
+								maxLength={80}
+								placeholder="Desktop app"
+							/>
+							<Button
+								size="sm"
+								disabled={!isConnected || isCreating}
+								onClick={createToken}
+								title={!isConnected ? "Sign in to create a desktop sync token" : undefined}
+							>
+								<Plus className="size-3.5" />
+								{isCreating ? "Creating…" : "Create"}
+							</Button>
+						</div>
+					</div>
+				</div>
+
+				{createdToken && (
+					<div className="mt-4 rounded-md border border-warning/30 bg-warning/10 p-3">
+						<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+							<div className="min-w-0 flex-1">
+								<p className="text-xs font-medium text-foreground">
+									Copy this token now. It will not be shown again.
+								</p>
+								<code className="mt-2 block overflow-x-auto rounded border border-border/60 bg-background px-3 py-2 text-xs text-foreground">
+									{createdToken.token}
+								</code>
+							</div>
+							<Button variant="outline" size="sm" onClick={copyCreatedToken}>
+								{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+								{copied ? "Copied" : "Copy"}
+							</Button>
+						</div>
+					</div>
+				)}
+
+				{error && (
+					<p role="alert" className="mt-3 text-xs text-destructive">
+						{error}
+					</p>
+				)}
+
+				<div className="mt-4 border-t border-border/50 pt-4">
+					<div className="mb-2 flex items-center justify-between gap-3">
+						<p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+							Active tokens
+						</p>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => void loadTokens()}
+							disabled={!isConnected || loadState === "loading"}
+						>
+							{loadState === "loading" ? "Refreshing…" : "Refresh"}
+						</Button>
+					</div>
+
+					{!isConnected && (
+						<p className="text-sm text-muted-foreground">
+							Sign in to create desktop sync tokens.
+						</p>
+					)}
+
+					{isConnected && loadState === "loading" && tokens.length === 0 && (
+						<p className="text-sm text-muted-foreground">Loading desktop sync tokens…</p>
+					)}
+
+					{isConnected && loadState !== "loading" && activeTokens.length === 0 && (
+						<p className="text-sm text-muted-foreground">
+							No active desktop sync tokens yet.
+						</p>
+					)}
+
+					{activeTokens.length > 0 && (
+						<div className="space-y-2">
+							{activeTokens.map((token) => (
+								<div
+									key={token.id}
+									className="flex flex-col gap-3 rounded-md border border-border/60 bg-background/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+								>
+									<div className="min-w-0">
+										<div className="flex flex-wrap items-center gap-2">
+											<p className="text-sm font-medium text-foreground">{token.name}</p>
+											<span className="rounded border border-border/70 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+												{token.tokenPrefix}…
+											</span>
+										</div>
+										<p className="mt-1 text-xs text-muted-foreground">
+											Created {formatSyncTokenDate(token.createdAt)} · Last used{" "}
+											{formatSyncTokenDate(token.lastUsedAt)}
+										</p>
+									</div>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => void revokeToken(token.id)}
+										disabled={revokingId === token.id}
+										className="border-destructive/30 text-destructive hover:bg-destructive/10"
+									>
+										<Trash2 className="size-3.5" />
+										{revokingId === token.id ? "Revoking…" : "Revoke"}
+									</Button>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+			</div>
+		</SettingsCard>
 	);
 }
 
@@ -490,6 +755,9 @@ function CloudDataSection() {
 					</>
 				</Row>
 			</SettingsCard>
+
+			<GroupLabel>DESKTOP APP</GroupLabel>
+			<DesktopSyncTokens isConnected={isConnected} />
 
 			{isGuest && (
 				<SettingsCard>

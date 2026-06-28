@@ -2,8 +2,8 @@
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { EmptyState } from "@/shared/ui/empty-state";
 import type { AiEditorHandle } from "@/features/ai/service";
+import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import { getEditorFontFamily, type EditorFontId } from "@/shared/lib/editor-fonts";
 import {
@@ -209,12 +209,10 @@ export function Editor({
 
 	if (!file) {
 		return (
-			<div className="flex min-h-full flex-1 items-center justify-center bg-card px-6 py-12">
-				<EmptyState
-					variant="files"
+			<div className="flex min-h-full flex-1 bg-card">
+				<NotesEmptyState
 					title="No file selected"
-					description="Choose a note from the sidebar to start writing."
-					className="[&_svg]:mb-4 [&_svg]:h-8 [&_svg]:w-8 [&_h2]:text-[15px] [&_p]:mt-1.5 [&_p]:max-w-[240px] [&_p]:text-[13px]"
+					description="Choose a note from the sidebar to start writing, or create a new note from the toolbar."
 				/>
 			</div>
 		);
@@ -299,7 +297,9 @@ export function Editor({
 								event.currentTarget.value
 									.split(/\r?\n/)
 									.find((line) => line.trim().length > 0) ?? "";
-							const title = firstNonEmptyLine.match(/^#\s+(.+?)\s*#*\s*$/)?.[1]?.trim();
+							const title = firstNonEmptyLine
+								.match(/^#\s+(.+?)\s*#*\s*$/)?.[1]
+								?.trim();
 							if (title) {
 								onTitleCommit?.(title);
 							}

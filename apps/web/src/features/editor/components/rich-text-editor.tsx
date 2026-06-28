@@ -928,6 +928,53 @@ export function RichTextEditor({
 		return () => domElement.removeEventListener("focusout", handleTitleFocusOut);
 	}, [editor, editor.domElement, onTitleCommit]);
 
+	// Commit the title the moment the caret leaves the first heading block —
+	// pressing Enter, Tab, or navigating into another block. `focusout` above only
+	// fires when focus leaves the editor entirely, so without this the filename
+	// wouldn't follow the heading until the editor blurred. Caret moves between
+	// blocks don't blur the (single) contenteditable, so we watch the selection.
+	useEffect(() => {
+		if (!onTitleCommit) return;
+		const domElement = editor.domElement;
+		if (!domElement) return;
+
+		let wasInFirstHeading = false;
+
+		const getFirstHeadingBlockId = (): string | null => {
+			const first = editor.document?.find(
+				(block: { type?: unknown }) => block?.type === "heading",
+			);
+			return (first as { id?: string } | undefined)?.id ?? null;
+		};
+
+		const checkHeadingExit = () => {
+			const firstHeadingId = getFirstHeadingBlockId();
+			let currentBlockId: string | null = null;
+			try {
+				currentBlockId = editor.getTextCursorPosition?.().block?.id ?? null;
+			} catch {
+				// Throws when the editor isn't focused — treat as "not in heading".
+				currentBlockId = null;
+			}
+			const inFirstHeading =
+				firstHeadingId !== null && currentBlockId === firstHeadingId;
+			if (wasInFirstHeading && !inFirstHeading) {
+				const title = getFirstHeadingTitle(editor);
+				if (title) {
+					onTitleCommit(title);
+				}
+			}
+			wasInFirstHeading = inFirstHeading;
+		};
+
+		// Defer to the next frame so the editor's cursor position reflects the move.
+		const handler = () => window.requestAnimationFrame(checkHeadingExit);
+
+		document.addEventListener("selectionchange", handler);
+		window.requestAnimationFrame(checkHeadingExit);
+		return () => document.removeEventListener("selectionchange", handler);
+	}, [editor, editor.domElement, onTitleCommit]);
+
 	useEffect(() => {
 		if (!onCursorChange) return;
 		const root = wrapperRef.current ?? editor.domElement;

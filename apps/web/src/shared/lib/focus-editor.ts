@@ -9,6 +9,24 @@ function placeCaretAtEnd(element: HTMLElement): void {
 	selection.addRange(range);
 }
 
+function focusEditorWithin(root: ParentNode): boolean {
+	const rich = root.querySelector<HTMLElement>(".blocknote-wrapper [contenteditable='true']");
+	if (rich) {
+		placeCaretAtEnd(rich);
+		return true;
+	}
+
+	const plain = root.querySelector<HTMLTextAreaElement>("[data-editor-surface]");
+	if (plain) {
+		plain.focus();
+		const end = plain.value.length;
+		plain.setSelectionRange(end, end);
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * Focuses the active writing surface and drops the caret at its end. Handles
  * both editor modes: the BlockNote rich editor (a ProseMirror `contenteditable`
@@ -19,21 +37,36 @@ function placeCaretAtEnd(element: HTMLElement): void {
 export function focusActiveEditor(): boolean {
 	if (typeof document === "undefined") return false;
 
-	const rich = document.querySelector<HTMLElement>(
-		".blocknote-wrapper [contenteditable='true']",
+	return focusEditorWithin(document);
+}
+
+export function focusSplitEditorPane(pane: "primary" | "secondary"): boolean {
+	if (typeof document === "undefined") return false;
+
+	const paneRoot = document.querySelector<HTMLElement>(`[data-editor-pane="${pane}"]`);
+	return paneRoot ? focusEditorWithin(paneRoot) : false;
+}
+
+export function focusActiveNoteTreeItem(): boolean {
+	if (typeof document === "undefined") return false;
+
+	const activeTreeItem = document.querySelector<HTMLElement>(
+		'[data-active-note-tree-item="true"]',
 	);
-	if (rich) {
-		placeCaretAtEnd(rich);
+	if (activeTreeItem) {
+		activeTreeItem.focus();
 		return true;
 	}
 
-	const plain = document.querySelector<HTMLTextAreaElement>("[data-editor-surface]");
-	if (plain) {
-		plain.focus();
-		const end = plain.value.length;
-		plain.setSelectionRange(end, end);
+	const focusedTreeItem = document.querySelector<HTMLElement>(
+		'[aria-label="Notes file tree"] [role="treeitem"][tabindex="0"]',
+	);
+	if (focusedTreeItem) {
+		focusedTreeItem.focus();
 		return true;
 	}
 
-	return false;
+	const tree = document.querySelector<HTMLElement>('[aria-label="Notes file tree"]');
+	tree?.focus();
+	return Boolean(tree);
 }

@@ -16,12 +16,6 @@ export type SavedNoteResult = {
 
 export function applyNoteUpdate(note: NoteFile, input: UpdateNoteInput): NoteFile {
 	return applyNoteUpdateBuilder(note, input, {
-		resolveName: (patch, current) =>
-			patch.name
-				? patch.name.endsWith(".md")
-					? patch.name
-					: `${patch.name}.md`
-				: current.name,
 		resolveRichContent: (patch, current) =>
 			patch.richContent ??
 			(patch.content !== undefined

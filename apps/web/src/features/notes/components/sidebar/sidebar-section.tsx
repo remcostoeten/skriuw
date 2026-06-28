@@ -17,6 +17,7 @@ type Props = {
 	title: string;
 	isCollapsed: boolean;
 	showHeader?: boolean;
+	showCollapseToggle?: boolean;
 	compactMode?: boolean;
 	isCustom?: boolean;
 	itemCount?: number;
@@ -37,6 +38,15 @@ type Props = {
 	onDragEnd?: () => void;
 	children: React.ReactNode;
 	actions?: React.ReactNode;
+	// When provided, replaces the plain title text in the header (e.g. inline
+	// controls). The section keeps its chevron + menu; the title becomes the slot.
+	titleSlot?: React.ReactNode;
+	// Rendered between the chevron and the title (e.g. a color dot).
+	leading?: React.ReactNode;
+	// When set, a swatch picker is shown at the top of the ⋯ menu.
+	colorOptions?: ReadonlyArray<{ name: string; value: string }>;
+	currentColor?: string;
+	onSelectColor?: (value: string) => void;
 };
 
 export function SidebarSection({
@@ -44,6 +54,7 @@ export function SidebarSection({
 	title,
 	isCollapsed,
 	showHeader = true,
+	showCollapseToggle = true,
 	compactMode = false,
 	isCustom = false,
 	itemCount,
@@ -64,6 +75,11 @@ export function SidebarSection({
 	onDragEnd,
 	children,
 	actions,
+	titleSlot,
+	leading,
+	colorOptions,
+	currentColor,
+	onSelectColor,
 }: Props) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [editValue, setEditValue] = useState(title);
@@ -108,35 +124,47 @@ export function SidebarSection({
 				<div
 					onDragOver={onDragOver}
 					onDrop={onDrop}
-					onClick={onToggleCollapse}
+					onClick={showCollapseToggle ? onToggleCollapse : undefined}
 					className={cn(
-						"group relative flex cursor-pointer items-center gap-1.5 px-2 transition-colors hover:bg-muted",
+						"group relative flex items-center gap-1.5 px-2 transition-colors hover:bg-muted",
+						showCollapseToggle ? "cursor-pointer" : "cursor-default",
 						compactMode ? "min-h-7" : "min-h-8 md:h-7 md:min-h-0",
 						isDropTarget && "bg-muted/80 ring-1 ring-border",
 						isDragging && "opacity-55",
 					)}
 				>
-					<button
-						onClick={(event) => {
-							event.stopPropagation();
-							onToggleCollapse();
-						}}
-						className={cn(
-							"flex items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground",
-							compactMode ? "h-3.5 w-3.5" : "h-4 w-4",
-						)}
-					>
-						<ChevronRight
+					{showCollapseToggle && (
+						<button
+							onClick={(event) => {
+								event.stopPropagation();
+								onToggleCollapse();
+							}}
 							className={cn(
-								"transition-transform",
-								compactMode ? "h-2.5 w-2.5" : "h-3 w-3",
-								(!isHydrated || !isCollapsed) && "rotate-90",
+								"flex items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground",
+								compactMode ? "h-3.5 w-3.5" : "h-4 w-4",
 							)}
-							strokeWidth={1.5}
-						/>
-					</button>
+						>
+							<ChevronRight
+								className={cn(
+									"transition-transform",
+									compactMode ? "h-2.5 w-2.5" : "h-3 w-3",
+									(!isHydrated || !isCollapsed) && "rotate-90",
+								)}
+								strokeWidth={1.5}
+							/>
+						</button>
+					)}
 
-					{isEditing ? (
+					{leading && <span className="flex shrink-0 items-center">{leading}</span>}
+
+					{titleSlot ? (
+						<div
+							onClick={(event) => event.stopPropagation()}
+							className="flex min-w-0 flex-1 items-center gap-1 pr-12"
+						>
+							{titleSlot}
+						</div>
+					) : isEditing ? (
 						<input
 							type="text"
 							value={editValue}
@@ -202,6 +230,26 @@ export function SidebarSection({
 										ref={menuRef}
 										className="absolute right-0 top-full z-50 mt-1 min-w-[8rem] overflow-hidden border border-border bg-popover p-1 text-popover-foreground animate-in fade-in-0"
 									>
+										{onSelectColor && colorOptions && (
+											<div className="flex flex-wrap gap-1 px-2 py-1.5">
+												{colorOptions.map((color) => (
+													<button
+														key={color.value}
+														onClick={() => {
+															onSelectColor(color.value);
+															setShowMenu(false);
+														}}
+														title={color.name}
+														className={cn(
+															"h-4 w-4 rounded-full transition-transform hover:scale-110",
+															color.value,
+															currentColor === color.value &&
+																"ring-2 ring-foreground/50 ring-offset-1 ring-offset-popover",
+														)}
+													/>
+												))}
+											</div>
+										)}
 										{onRename && (
 											<button
 												onClick={() => {
