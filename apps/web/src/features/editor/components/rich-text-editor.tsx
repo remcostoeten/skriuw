@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useCallback, useId, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import {
+	useEffect,
+	useMemo,
+	useCallback,
+	useId,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
 	filterSuggestionItems,
 	insertOrUpdateBlockForSlashMenu,
@@ -11,9 +19,6 @@ import { LinkToolbarExtension } from "@blocknote/core/extensions";
 import {
 	DeleteLinkButton,
 	EditLinkButton,
-	FormattingToolbar,
-	FormattingToolbarController,
-	getFormattingToolbarItems,
 	getDefaultReactSlashMenuItems,
 	LinkToolbarController,
 	OpenLinkButton,
@@ -21,24 +26,41 @@ import {
 	type DefaultReactSuggestionItem,
 	type LinkToolbarProps,
 	type SuggestionMenuProps,
-	useBlockNoteEditor,
 	useComponentsContext,
 	useCreateBlockNote,
 	useEditorState,
 	useExtension,
 } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/shadcn";
-import "@blocknote/shadcn/style.css";
+import { BlockNoteView } from "@blocknote/mantine";
+import "@blocknote/mantine/style.css";
 import {
+	AlignCenter,
+	AlignLeft,
+	AlignRight,
+	Bold,
+	ChevronDown,
+	Code,
 	FileText,
 	FolderTree,
+	Heading1,
+	Heading2,
+	Heading3,
+	Italic,
 	Link2,
+	List,
+	ListChecks,
+	ListOrdered,
 	MessageSquarePlus,
 	PenTool,
+	Pilcrow,
+	Quote,
 	SpellCheck,
+	Strikethrough,
 	Tag,
+	Underline,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { noop } from "@/shared/lib/noop";
 import { perf } from "@/shared/perf/track";
 import { DEFAULT_FILE_TREE_SOURCE } from "@/shared/lib/file-tree";
 import { getEditorFontFamily, type EditorFontId } from "@/shared/lib/editor-fonts";
@@ -58,6 +80,12 @@ import {
 	upgradeRichDocumentChips,
 } from "@/domain/notes/rich-document";
 import type { AiEditorHandle } from "@/features/ai/service";
+import {
+	type AiDiffHighlightHandle,
+	diffChangedIndices,
+	selectCorrectedIndices,
+	showAiDiffHighlight,
+} from "@/features/editor/lib/ai-diff-highlight";
 import { usePreferencesStore } from "@/features/settings/store";
 import { markCollabActivity } from "@/features/collaboration/lib/collab-activity";
 import { useAnchoredMarks } from "@/features/collaboration/anchored-marks/react/use-anchored-marks";
@@ -153,6 +181,16 @@ function inlineContentToPlainText(content: unknown): string {
 			return "";
 		})
 		.join("");
+}
+
+function blockToPlainText(block: unknown): string {
+	if (!block || typeof block !== "object") return "";
+	const node = block as { content?: unknown; children?: unknown };
+	const own = inlineContentToPlainText(node.content);
+	const childText = Array.isArray(node.children)
+		? node.children.map(blockToPlainText).join("\n")
+		: "";
+	return `${own}\n${childText}`.replace(/\s+/g, " ").trim();
 }
 
 function getFirstHeadingTitle(editor: EditorInstance): string {
@@ -329,54 +367,334 @@ function NoteLinkMenuList({
 	);
 }
 
-function InternalNoteLinkButton({
-	files,
-	activeFileId,
-}: {
-	files: NoteFile[];
-	activeFileId?: string;
-}) {
-	const editor = useBlockNoteEditor<any, any, any>();
-	const Components = useComponentsContext()!;
-	const [open, setOpen] = useState(false);
+type TAddComment = (range: { from: number; to: number }, body: string) => void;
 
-	const state = useEditorState({
-		editor,
-		selector: ({ editor }) => {
-			if (
-				!editor.isEditable ||
-				!(editor.getSelection?.()?.blocks || [editor.getTextCursorPosition?.().block]).find(
-					(block: { content?: unknown }) => block.content !== undefined,
-				)
-			) {
-				return undefined;
-			}
+// The bubble menu is a hand-rolled toolbar of plain <button>s wired straight to
+// the editor commands. It deliberately avoids BlockNote's bundled toolbar UI
+// (Mantine buttons / Radix overlays): those rely on portals + open/close
+// transitions that do not reliably respond to clicks inside this app, while the
+// underlying editor commands (toggleStyles / updateBlock / createLink) work
+// perfectly. Every control therefore calls a command directly.
 
-			return {
-				selectedText: editor.getSelectedText?.() ?? "",
-			};
-		},
-	});
+type TBlockTypeOption = {
+	id: string;
+	label: string;
+	icon: ReactNode;
+	type: string;
+	props: Record<string, unknown>;
+};
 
-	if (state === undefined) {
-		return null;
+const BLOCK_TYPE_OPTIONS: TBlockTypeOption[] = [
+	{ id: "paragraph", label: "Paragraph", icon: <Pilcrow size={15} />, type: "paragraph", props: {} },
+	{ id: "heading-1", label: "Heading 1", icon: <Heading1 size={15} />, type: "heading", props: { level: 1 } },
+	{ id: "heading-2", label: "Heading 2", icon: <Heading2 size={15} />, type: "heading", props: { level: 2 } },
+	{ id: "heading-3", label: "Heading 3", icon: <Heading3 size={15} />, type: "heading", props: { level: 3 } },
+	{ id: "bullet", label: "Bullet List", icon: <List size={15} />, type: "bulletListItem", props: {} },
+	{ id: "numbered", label: "Numbered List", icon: <ListOrdered size={15} />, type: "numberedListItem", props: {} },
+	{ id: "check", label: "Check List", icon: <ListChecks size={15} />, type: "checkListItem", props: {} },
+	{ id: "quote", label: "Quote", icon: <Quote size={15} />, type: "quote", props: {} },
+];
+
+function getTargetBlocks(editor: EditorInstance): { id: string }[] {
+	const selection = editor.getSelection?.();
+	if (selection?.blocks?.length) {
+		return selection.blocks;
 	}
+	try {
+		return [editor.getTextCursorPosition().block];
+	} catch {
+		noop();
+		return [];
+	}
+}
+
+function applyBlockType(editor: EditorInstance, type: string, props: Record<string, unknown>) {
+	for (const block of getTargetBlocks(editor)) {
+		editor.updateBlock(block, { type, props });
+	}
+	editor.focus();
+}
+
+function applyAlignment(editor: EditorInstance, textAlignment: string) {
+	for (const block of getTargetBlocks(editor)) {
+		editor.updateBlock(block, { props: { textAlignment } });
+	}
+	editor.focus();
+}
+
+type TFmtIconButtonProps = {
+	label: string;
+	icon: ReactNode;
+	active: boolean;
+	onRun: () => void;
+};
+
+function FmtIconButton({ label, icon, active, onRun }: TFmtIconButtonProps) {
+	return (
+		<button
+			type="button"
+			className="skriuw-fmt-btn"
+			data-active={active ? "true" : undefined}
+			aria-label={label}
+			aria-pressed={active}
+			title={label}
+			onMouseDown={(event) => event.preventDefault()}
+			onClick={onRun}
+		>
+			{icon}
+		</button>
+	);
+}
+
+// BlockNote's FormattingToolbarController unmounts and remounts the toolbar on
+// editor interaction (a real click on a control triggers it), which would reset
+// any in-component dropdown state and instantly close a menu the user just
+// opened. So "which menu is open" lives in a module-level store: a remounted
+// toolbar reads it back and re-opens the same menu, so dropdowns survive the
+// remount. A short debounce distinguishes a remount (toolbar reappears within a
+// few frames) from a genuine hide (selection cleared) and resets in the latter.
+let openFmtMenuId: string | null = null;
+const fmtMenuListeners = new Set<() => void>();
+let fmtToolbarMountCount = 0;
+let fmtResetTimer: ReturnType<typeof setTimeout> | null = null;
+
+function setOpenFmtMenu(id: string | null) {
+	if (openFmtMenuId === id) return;
+	openFmtMenuId = id;
+	for (const listener of fmtMenuListeners) listener();
+}
+
+function useOpenFmtMenu(): string | null {
+	return useSyncExternalStore(
+		(listener) => {
+			fmtMenuListeners.add(listener);
+			return () => fmtMenuListeners.delete(listener);
+		},
+		() => openFmtMenuId,
+		() => openFmtMenuId,
+	);
+}
+
+function registerFmtToolbarMenu(): () => void {
+	fmtToolbarMountCount += 1;
+	if (fmtResetTimer) {
+		clearTimeout(fmtResetTimer);
+		fmtResetTimer = null;
+	}
+	return () => {
+		fmtToolbarMountCount -= 1;
+		if (fmtToolbarMountCount === 0) {
+			fmtResetTimer = setTimeout(() => {
+				fmtResetTimer = null;
+				if (fmtToolbarMountCount === 0) setOpenFmtMenu(null);
+			}, 200);
+		}
+	};
+}
+
+type TFmtMenuProps = {
+	id: string;
+	trigger: (api: { open: boolean; toggle: () => void }) => ReactNode;
+	children: (close: () => void) => ReactNode;
+	onOpen?: () => void;
+	width?: string;
+};
+
+function FmtMenu({ id, trigger, children, onOpen, width }: TFmtMenuProps) {
+	const open = useOpenFmtMenu() === id;
+	const ref = useRef<HTMLDivElement>(null);
+
+	useEffect(() => registerFmtToolbarMenu(), []);
+
+	useEffect(() => {
+		if (!open) return;
+		const handleOutside = (event: MouseEvent) => {
+			if (ref.current && !ref.current.contains(event.target as Node)) {
+				setOpenFmtMenu(null);
+			}
+		};
+		document.addEventListener("mousedown", handleOutside, true);
+		return () => document.removeEventListener("mousedown", handleOutside, true);
+	}, [open]);
+
+	const toggle = () => {
+		if (open) {
+			setOpenFmtMenu(null);
+		} else {
+			onOpen?.();
+			setOpenFmtMenu(id);
+		}
+	};
 
 	return (
-		<Components.Generic.Popover.Root open={open} onOpenChange={setOpen}>
-			<Components.Generic.Popover.Trigger>
-				<Components.FormattingToolbar.Button
-					className="bn-button"
-					label="Link note"
-					mainTooltip="Link selected text to another note"
-					icon={<FileText />}
-					isSelected={false}
-				/>
-			</Components.Generic.Popover.Trigger>
-			<Components.Generic.Popover.Content
-				className="bn-popover-content"
-				variant="form-popover"
-			>
+		<div className="skriuw-fmt-menu" ref={ref}>
+			{trigger({ open, toggle })}
+			{open ? (
+				<div
+					className="skriuw-fmt-dropdown"
+					role="menu"
+					style={width ? ({ minWidth: width } as CSSProperties) : undefined}
+				>
+					{children(() => setOpenFmtMenu(null))}
+				</div>
+			) : null}
+		</div>
+	);
+}
+
+type TBlockTypeMenuProps = {
+	editor: EditorInstance;
+	blockType: string;
+	level?: number;
+};
+
+function BlockTypeMenu({ editor, blockType, level }: TBlockTypeMenuProps) {
+	const current =
+		BLOCK_TYPE_OPTIONS.find(
+			(option) =>
+				option.type === blockType &&
+				(option.type !== "heading" || option.props.level === level),
+		) ?? BLOCK_TYPE_OPTIONS[0];
+
+	return (
+		<FmtMenu
+			id="block-type"
+			width="12rem"
+			trigger={({ open, toggle }) => (
+				<button
+					type="button"
+					className="skriuw-fmt-trigger"
+					aria-label="Block type"
+					aria-haspopup="menu"
+					aria-expanded={open}
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={toggle}
+				>
+					<span className="skriuw-fmt-item-icon">{current.icon}</span>
+					<span className="skriuw-fmt-trigger-label">{current.label}</span>
+					<ChevronDown size={13} className="skriuw-fmt-caret" />
+				</button>
+			)}
+		>
+			{(close) =>
+				BLOCK_TYPE_OPTIONS.map((option) => (
+					<button
+						key={option.id}
+						type="button"
+						className="skriuw-fmt-item"
+						data-active={option.id === current.id ? "true" : undefined}
+						onMouseDown={(event) => event.preventDefault()}
+						onClick={() => {
+							applyBlockType(editor, option.type, option.props);
+							close();
+						}}
+					>
+						<span className="skriuw-fmt-item-icon">{option.icon}</span>
+						<span>{option.label}</span>
+					</button>
+				))
+			}
+		</FmtMenu>
+	);
+}
+
+function LinkPopover({ editor }: { editor: EditorInstance }) {
+	const selectedTextRef = useRef("");
+	const [url, setUrl] = useState("");
+
+	return (
+		<FmtMenu
+			id="link"
+			width="16rem"
+			onOpen={() => {
+				selectedTextRef.current = editor.getSelectedText?.() ?? "";
+				setUrl("");
+			}}
+			trigger={({ open, toggle }) => (
+				<button
+					type="button"
+					className="skriuw-fmt-btn"
+					aria-label="Create link"
+					aria-expanded={open}
+					title="Create link"
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={toggle}
+				>
+					<Link2 size={15} />
+				</button>
+			)}
+		>
+			{(close) => {
+				const submit = () => {
+					const trimmed = url.trim();
+					if (trimmed) {
+						editor.focus();
+						editor.createLink(trimmed, selectedTextRef.current.trim() || undefined);
+					}
+					close();
+				};
+				return (
+					<div className="skriuw-fmt-form">
+						<input
+							autoFocus
+							value={url}
+							onChange={(event) => setUrl(event.target.value)}
+							onKeyDown={(event) => {
+								if (event.key === "Enter") {
+									event.preventDefault();
+									submit();
+								}
+								if (event.key === "Escape") close();
+							}}
+							placeholder="Paste a link…"
+							className="skriuw-fmt-input"
+						/>
+						<button
+							type="button"
+							className="skriuw-fmt-apply"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={submit}
+						>
+							Add
+						</button>
+					</div>
+				);
+			}}
+		</FmtMenu>
+	);
+}
+
+type TInternalNoteLinkMenuProps = {
+	editor: EditorInstance;
+	files: NoteFile[];
+	activeFileId?: string;
+};
+
+function InternalNoteLinkMenu({ editor, files, activeFileId }: TInternalNoteLinkMenuProps) {
+	const selectedTextRef = useRef("");
+
+	return (
+		<FmtMenu
+			id="note-link"
+			width="14rem"
+			onOpen={() => {
+				selectedTextRef.current = editor.getSelectedText?.() ?? "";
+			}}
+			trigger={({ open, toggle }) => (
+				<button
+					type="button"
+					className="skriuw-fmt-btn"
+					aria-label="Link to a note"
+					aria-expanded={open}
+					title="Link selected text to another note"
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={toggle}
+				>
+					<FileText size={15} />
+				</button>
+			)}
+		>
+			{(close) => (
 				<NoteLinkMenuList
 					files={files}
 					activeFileId={activeFileId}
@@ -385,117 +703,270 @@ function InternalNoteLinkButton({
 						editor.focus();
 						editor.createLink(
 							`note://${targetFile.id}`,
-							state.selectedText.trim() || title,
+							selectedTextRef.current.trim() || title,
 						);
-						setOpen(false);
+						close();
 					}}
 				/>
-			</Components.Generic.Popover.Content>
-		</Components.Generic.Popover.Root>
+			)}
+		</FmtMenu>
 	);
 }
 
-type TAddComment = (range: { from: number; to: number }, body: string) => void;
-
-/**
- * Formatting-toolbar action to anchor a comment to the current selection. Only
- * rendered on collaborative notes (the parent passes `onAddComment` only then).
- * The selection range is captured at the moment the popover opens, before focus
- * moves to the textarea.
- */
-function CommentButton({ onAddComment }: { onAddComment: TAddComment }) {
-	const editor = useBlockNoteEditor<any, any, any>();
-	const Components = useComponentsContext()!;
-	const [open, setOpen] = useState(false);
-	const [body, setBody] = useState("");
+function CommentPopover({ editor, onAddComment }: { editor: EditorInstance; onAddComment: TAddComment }) {
 	const rangeRef = useRef<{ from: number; to: number } | null>(null);
-
-	const captureRange = () => {
-		const selection = editor.prosemirrorView?.state.selection;
-		rangeRef.current = selection ? { from: selection.from, to: selection.to } : null;
-	};
-
-	const submit = () => {
-		const range = rangeRef.current;
-		const text = body.trim();
-		if (range && text) onAddComment(range, text);
-		setBody("");
-		setOpen(false);
-	};
+	const [body, setBody] = useState("");
 
 	return (
-		<Components.Generic.Popover.Root
-			open={open}
-			onOpenChange={(next: boolean) => {
-				if (next) captureRange();
-				setOpen(next);
+		<FmtMenu
+			id="comment"
+			width="17rem"
+			onOpen={() => {
+				const selection = editor.prosemirrorView?.state.selection;
+				rangeRef.current = selection ? { from: selection.from, to: selection.to } : null;
+				setBody("");
 			}}
+			trigger={({ open, toggle }) => (
+				<button
+					type="button"
+					className="skriuw-fmt-btn"
+					aria-label="Comment on selection"
+					aria-expanded={open}
+					title="Comment on selection"
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={toggle}
+				>
+					<MessageSquarePlus size={15} />
+				</button>
+			)}
 		>
-			<Components.Generic.Popover.Trigger>
-				<Components.FormattingToolbar.Button
-					className="bn-button"
-					label="Comment"
-					mainTooltip="Comment on selection"
-					icon={<MessageSquarePlus />}
-					isSelected={false}
-				/>
-			</Components.Generic.Popover.Trigger>
-			<Components.Generic.Popover.Content
-				className="bn-popover-content"
-				variant="form-popover"
-			>
-				<div className="flex w-64 flex-col gap-2 p-2">
-					<textarea
-						autoFocus
-						value={body}
-						onChange={(event) => setBody(event.target.value)}
-						onKeyDown={(event) => {
-							if ((event.metaKey || event.ctrlKey) && event.key === "Enter") submit();
-						}}
-						placeholder="Add a comment…"
-						className="h-20 resize-none rounded-md border border-border bg-background p-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-					/>
-					<div className="flex items-center justify-end gap-1.5">
-						<button
-							type="button"
-							onClick={() => {
-								setBody("");
-								setOpen(false);
+			{(close) => {
+				const submit = () => {
+					const range = rangeRef.current;
+					const text = body.trim();
+					if (range && text) onAddComment(range, text);
+					close();
+				};
+				return (
+					<div className="skriuw-fmt-comment">
+						<textarea
+							autoFocus
+							value={body}
+							onChange={(event) => setBody(event.target.value)}
+							onKeyDown={(event) => {
+								if ((event.metaKey || event.ctrlKey) && event.key === "Enter") submit();
+								if (event.key === "Escape") close();
 							}}
-							className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted"
-						>
-							Cancel
-						</button>
-						<button
-							type="button"
-							disabled={!body.trim()}
-							onClick={submit}
-							className="rounded-md bg-foreground px-2 py-1 text-[11px] font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-50"
-						>
-							Comment
-						</button>
+							placeholder="Add a comment…"
+							className="skriuw-fmt-textarea"
+						/>
+						<div className="skriuw-fmt-comment-actions">
+							<button
+								type="button"
+								className="skriuw-fmt-ghost"
+								onMouseDown={(event) => event.preventDefault()}
+								onClick={close}
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								className="skriuw-fmt-apply"
+								disabled={!body.trim()}
+								onMouseDown={(event) => event.preventDefault()}
+								onClick={submit}
+							>
+								Comment
+							</button>
+						</div>
 					</div>
-				</div>
-			</Components.Generic.Popover.Content>
-		</Components.Generic.Popover.Root>
+				);
+			}}
+		</FmtMenu>
 	);
 }
 
-function CustomFormattingToolbar({
-	files,
-	activeFileId,
-	onAddComment,
-}: {
+type TSelectionBubbleMenuProps = {
+	editor: EditorInstance;
 	files: NoteFile[];
 	activeFileId?: string;
 	onAddComment?: TAddComment;
-}) {
+};
+
+// Self-contained bubble menu. Watches the editor's selection and renders the
+// formatting toolbar above it, fixed-positioned. This replaces BlockNote's
+// FormattingToolbarController, which remounts the toolbar on every editor
+// transaction and so wiped the open state of any dropdown the user opened. Here
+// the toolbar is one stable element that only repositions.
+function SelectionBubbleMenu({ editor, files, activeFileId, onAddComment }: TSelectionBubbleMenuProps) {
+	const [rect, setRect] = useState<
+		{ top: number; bottom: number; left: number; width: number } | null
+	>(null);
+
+	useEffect(() => {
+		let frame: number | null = null;
+
+		const compute = () => {
+			frame = null;
+			const editorDom = editor.domElement;
+			if (!editorDom) {
+				setRect(null);
+				return;
+			}
+			const selection = window.getSelection();
+			if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+				setRect(null);
+				return;
+			}
+			const range = selection.getRangeAt(0);
+			if (!editorDom.contains(range.commonAncestorContainer)) {
+				setRect(null);
+				return;
+			}
+			if (!editor.getSelectedText?.()?.trim()) {
+				setRect(null);
+				return;
+			}
+			const bounds = range.getBoundingClientRect();
+			setRect({
+				top: bounds.top,
+				bottom: bounds.bottom,
+				left: bounds.left,
+				width: bounds.width,
+			});
+		};
+
+		const schedule = () => {
+			if (frame !== null) cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(compute);
+		};
+
+		document.addEventListener("selectionchange", schedule);
+		window.addEventListener("scroll", schedule, true);
+		window.addEventListener("resize", schedule);
+		return () => {
+			if (frame !== null) cancelAnimationFrame(frame);
+			document.removeEventListener("selectionchange", schedule);
+			window.removeEventListener("scroll", schedule, true);
+			window.removeEventListener("resize", schedule);
+		};
+	}, [editor]);
+
+	const state = useEditorState({
+		editor,
+		selector: ({ editor }) => {
+			let blockType = "paragraph";
+			let level: number | undefined;
+			let align = "left";
+			try {
+				const block = editor.getTextCursorPosition().block;
+				blockType = block.type;
+				level = block.props?.level;
+				align = block.props?.textAlignment ?? "left";
+			} catch {
+				noop();
+			}
+			let styles: Record<string, unknown> = {};
+			try {
+				styles = editor.getActiveStyles() ?? {};
+			} catch {
+				noop();
+			}
+			return {
+				bold: Boolean(styles.bold),
+				italic: Boolean(styles.italic),
+				underline: Boolean(styles.underline),
+				strike: Boolean(styles.strike),
+				code: Boolean(styles.code),
+				blockType,
+				level,
+				align,
+			};
+		},
+	});
+
+	if (!rect) return null;
+
+	const placeBelow = rect.top < 96;
+	const centerX = rect.left + rect.width / 2;
+	const left = Math.min(Math.max(centerX, 170), window.innerWidth - 170);
+	const positionStyle: CSSProperties = {
+		position: "fixed",
+		left,
+		zIndex: 60,
+		...(placeBelow
+			? { top: rect.bottom + 8, transform: "translateX(-50%)" }
+			: { top: rect.top - 8, transform: "translate(-50%, -100%)" }),
+	};
+
 	return (
-		<FormattingToolbar>
-			{getFormattingToolbarItems()}
-			<InternalNoteLinkButton files={files} activeFileId={activeFileId} />
-			{onAddComment && <CommentButton onAddComment={onAddComment} />}
-		</FormattingToolbar>
+		<div
+			className="bn-toolbar bn-formatting-toolbar skriuw-fmt-toolbar"
+			role="toolbar"
+			aria-label="Text formatting"
+			style={positionStyle}
+			onMouseDown={(event) => {
+				const target = event.target;
+				if (target instanceof HTMLElement && target.closest("input, textarea")) return;
+				event.preventDefault();
+			}}
+		>
+			<BlockTypeMenu editor={editor} blockType={state.blockType} level={state.level} />
+			<span className="skriuw-fmt-sep" />
+			<FmtIconButton
+				label="Bold"
+				active={state.bold}
+				icon={<Bold size={15} />}
+				onRun={() => editor.toggleStyles({ bold: true })}
+			/>
+			<FmtIconButton
+				label="Italic"
+				active={state.italic}
+				icon={<Italic size={15} />}
+				onRun={() => editor.toggleStyles({ italic: true })}
+			/>
+			<FmtIconButton
+				label="Underline"
+				active={state.underline}
+				icon={<Underline size={15} />}
+				onRun={() => editor.toggleStyles({ underline: true })}
+			/>
+			<FmtIconButton
+				label="Strikethrough"
+				active={state.strike}
+				icon={<Strikethrough size={15} />}
+				onRun={() => editor.toggleStyles({ strike: true })}
+			/>
+			<FmtIconButton
+				label="Inline code"
+				active={state.code}
+				icon={<Code size={15} />}
+				onRun={() => editor.toggleStyles({ code: true })}
+			/>
+			<span className="skriuw-fmt-sep" />
+			<FmtIconButton
+				label="Align left"
+				active={state.align === "left"}
+				icon={<AlignLeft size={15} />}
+				onRun={() => applyAlignment(editor, "left")}
+			/>
+			<FmtIconButton
+				label="Align center"
+				active={state.align === "center"}
+				icon={<AlignCenter size={15} />}
+				onRun={() => applyAlignment(editor, "center")}
+			/>
+			<FmtIconButton
+				label="Align right"
+				active={state.align === "right"}
+				icon={<AlignRight size={15} />}
+				onRun={() => applyAlignment(editor, "right")}
+			/>
+			<span className="skriuw-fmt-sep" />
+			<LinkPopover editor={editor} />
+			<InternalNoteLinkMenu editor={editor} files={files} activeFileId={activeFileId} />
+			{onAddComment ? <CommentPopover editor={editor} onAddComment={onAddComment} /> : null}
+		</div>
 	);
 }
 
@@ -814,6 +1285,7 @@ export function RichTextEditor({
 	const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const serializeRunIdRef = useRef(0);
 	const wrapperRef = useRef<HTMLDivElement>(null);
+	const aiDiffHighlightRef = useRef<AiDiffHighlightHandle | null>(null);
 
 	const initialBlocks = useMemo(() => {
 		const base = resolveRichDocument(content, richContent);
@@ -1051,20 +1523,80 @@ export function RichTextEditor({
 
 	useEffect(() => {
 		if (!onEditorReady) return;
+
+		function highlightBlocks(ids: string[]) {
+			if (ids.length === 0) return;
+			aiDiffHighlightRef.current?.cancel();
+			let attempts = 0;
+			const resolve = () => {
+				const root = wrapperRef.current ?? editor.domElement;
+				const els = root
+					? ids
+							.map((id) =>
+								root.querySelector<HTMLElement>(`[data-id="${CSS.escape(id)}"]`),
+							)
+							.filter((el): el is HTMLElement => el !== null)
+					: [];
+				if (els.length > 0) {
+					aiDiffHighlightRef.current = showAiDiffHighlight(els);
+					return;
+				}
+				attempts += 1;
+				if (attempts < 40) requestAnimationFrame(resolve);
+			};
+			requestAnimationFrame(resolve);
+		}
+
 		onEditorReady({
 			getMarkdown: () => blocksToMarkdown(editor),
 			replaceContent: (markdown) => {
+				const beforeTexts = editor.document.map(blockToPlainText);
+				const parsed = markdownToRichDocument(markdown);
+				const parsedTexts = parsed.map(blockToPlainText);
+				const corrected =
+					parsed.length > beforeTexts.length
+						? selectCorrectedIndices(beforeTexts, parsedTexts).map((k) => parsed[k])
+						: parsed;
 				// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
-				editor.replaceBlocks(editor.document, markdownToRichDocument(markdown) as any);
+				editor.replaceBlocks(editor.document, corrected as any);
+				const afterBlocks = editor.document;
+				const afterTexts = afterBlocks.map(blockToPlainText);
+				const changedIds = diffChangedIndices(beforeTexts, afterTexts)
+					.filter((index) => afterTexts[index].length > 0)
+					.map((index) => afterBlocks[index].id);
+				highlightBlocks(changedIds);
 			},
-			appendContent: (markdown) => {
+			continueWriting: (markdown) => {
 				const blocks = markdownToRichDocument(markdown);
-				// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
-				editor.insertBlocks(
+				if (blocks.length === 0) return;
+				const doc = editor.document;
+				let anchorIndex = doc.length - 1;
+				while (anchorIndex >= 0 && blockToPlainText(doc[anchorIndex]).length === 0) {
+					anchorIndex -= 1;
+				}
+				const anchor = anchorIndex >= 0 ? doc[anchorIndex] : null;
+				const anchorType = (anchor as { type?: string } | null)?.type;
+				if (anchor && (anchorType === "paragraph" || anchorType === "quote")) {
+					// The model restates the cut-off final paragraph as its first
+					// block (completing the dangling word/sentence), then continues.
+					// Replacing the anchor merges that completion in place instead of
+					// orphaning a half-finished line above brand-new text.
+					const { insertedBlocks } = editor.replaceBlocks(
+						[anchor],
+						// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
+						blocks as any,
+					);
+					highlightBlocks(insertedBlocks.map((b) => b.id));
+					return;
+				}
+				const reference = anchor ?? doc[doc.length - 1];
+				const inserted = editor.insertBlocks(
+					// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
 					blocks as any,
-					editor.document[editor.document.length - 1],
+					reference,
 					"after",
 				);
+				highlightBlocks(inserted.map((b) => b.id));
 			},
 			setTitle: (title: string) => {
 				const firstBlock = editor.document[0];
@@ -1083,6 +1615,10 @@ export function RichTextEditor({
 				}
 			},
 		});
+		return () => {
+			aiDiffHighlightRef.current?.cancel();
+			aiDiffHighlightRef.current = null;
+		};
 	}, [editor, onEditorReady]);
 
 	// Serializes the live editor document and commits it via onChange when it
@@ -1238,26 +1774,18 @@ export function RichTextEditor({
 		<div
 			ref={wrapperRef}
 			onMouseDown={(event) => {
-				// BlockNote's shadcn toolbar buttons don't preventDefault on
-				// mousedown, so pressing a plain toggle (bold, italic, …) blurs the
-				// editor and collapses the selection before the click handler runs —
-				// formatting becomes a no-op while keyboard shortcuts still work.
-				// Guard those by keeping focus in the editor. Overlay triggers (colors
-				// menu, link/comment dialogs, block-type select) and inputs inside an
-				// open popover must keep their default mousedown, or focus can't enter
-				// the overlay and Radix closes it the instant it opens. data-state
-				// open/closed marks overlay triggers; toggles use on/off, so the guard
-				// still applies to them.
 				const target = event.target;
 				if (!(target instanceof HTMLElement)) return;
 				if (!target.closest(".bn-toolbar")) return;
-				if (
-					target.closest(
-						"input, textarea, [contenteditable='true'], .bn-popover-content, [aria-haspopup], [data-state='open'], [data-state='closed']",
-					)
-				) {
-					return;
-				}
+				// Text inputs (link URL field, comment textarea) must receive
+				// focus, so don't swallow their mousedown.
+				if (target.closest("input, textarea, [contenteditable='true']")) return;
+				// Mantine's toolbar buttons don't preventDefault on mousedown, so a
+				// real mouse press on a control collapses the editor's text
+				// selection — the formatting command then applies to nothing and the
+				// selection-anchored toolbar dismisses. Menus and popovers toggle on
+				// click, so preventing the mousedown default preserves the selection
+				// without blocking them from opening.
 				event.preventDefault();
 			}}
 			onBlur={(event) => {
@@ -1290,15 +1818,6 @@ export function RichTextEditor({
 						linkToolbar={false}
 						slashMenu={false}
 					>
-						<FormattingToolbarController
-							formattingToolbar={() => (
-								<CustomFormattingToolbar
-									files={files}
-									activeFileId={activeFileId}
-									onAddComment={collab ? addComment : undefined}
-								/>
-							)}
-						/>
 						<LinkToolbarController
 							linkToolbar={(props) => (
 								<CustomLinkToolbar
@@ -1339,6 +1858,12 @@ export function RichTextEditor({
 							triggerCharacter="#"
 							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
 							getItems={async (query) => getTagMenuItems(editor, workspaceTags, query)}
+						/>
+						<SelectionBubbleMenu
+							editor={editor}
+							files={files}
+							activeFileId={activeFileId}
+							onAddComment={collab ? addComment : undefined}
 						/>
 					</BlockNoteView>
 				</NoteLinkProvider>
@@ -1518,6 +2043,213 @@ export function RichTextEditor({
 						border-bottom-style: dotted;
 						opacity: 0.55;
 					}
+					/* AI diff highlight: a transient, view-only tint that showcases
+					   the content an AI action just inserted. Applied to a block's
+					   [data-id] node; never touches the document, so it is not saved
+					   or synced. Fade timing is driven from ai-diff-highlight.ts. */
+					.blocknote-wrapper [data-id].skriuw-ai-diff {
+						border-radius: 5px;
+						background: hsl(var(--success) / 0.16);
+						box-shadow:
+							inset 4px 0 0 hsl(var(--success)),
+							0 0 0 1px hsl(var(--success) / 0.3);
+						transition:
+							background 600ms ease,
+							box-shadow 600ms ease;
+						animation: skriuw-ai-diff-in 440ms ease;
+					}
+					.blocknote-wrapper [data-id].skriuw-ai-diff.skriuw-ai-diff--leaving {
+						background: hsl(var(--success) / 0);
+						box-shadow:
+							inset 4px 0 0 hsl(var(--success) / 0),
+							0 0 0 1px hsl(var(--success) / 0);
+					}
+					@keyframes skriuw-ai-diff-in {
+						from {
+							background: hsl(var(--success) / 0.34);
+						}
+						to {
+							background: hsl(var(--success) / 0.16);
+						}
+					}
+					@media (prefers-reduced-motion: reduce) {
+						.blocknote-wrapper [data-id].skriuw-ai-diff {
+							animation: none;
+							transition: none;
+						}
+					}
+				.blocknote-wrapper .skriuw-fmt-toolbar {
+					display: flex;
+					align-items: center;
+					gap: 1px;
+					padding: 2px;
+					overflow: visible;
+				}
+				.blocknote-wrapper .skriuw-fmt-btn,
+				.blocknote-wrapper .skriuw-fmt-trigger {
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					gap: 0.28rem;
+					height: 1.75rem;
+					min-width: 1.75rem;
+					padding: 0 0.42rem;
+					border: 0;
+					border-radius: calc(var(--radius) - 2px);
+					background: transparent;
+					color: hsl(var(--popover-foreground));
+					font-size: 0.75rem;
+					font-weight: 500;
+					cursor: pointer;
+					transition:
+						background-color 120ms ease,
+						color 120ms ease;
+				}
+				.blocknote-wrapper .skriuw-fmt-btn {
+					width: 1.75rem;
+					padding: 0;
+				}
+				.blocknote-wrapper .skriuw-fmt-btn:hover,
+				.blocknote-wrapper .skriuw-fmt-trigger:hover {
+					background: hsl(var(--accent));
+					color: hsl(var(--foreground));
+				}
+				.blocknote-wrapper .skriuw-fmt-btn[data-active="true"],
+				.blocknote-wrapper .skriuw-fmt-trigger[aria-expanded="true"] {
+					background: hsl(var(--muted));
+					color: hsl(var(--foreground));
+				}
+				.blocknote-wrapper .skriuw-fmt-btn svg,
+				.blocknote-wrapper .skriuw-fmt-trigger svg {
+					width: 0.95rem;
+					height: 0.95rem;
+				}
+				.blocknote-wrapper .skriuw-fmt-trigger-label {
+					white-space: nowrap;
+				}
+				.blocknote-wrapper .skriuw-fmt-caret {
+					opacity: 0.6;
+				}
+				.blocknote-wrapper .skriuw-fmt-sep {
+					width: 1px;
+					align-self: stretch;
+					margin: 0.2rem 0.18rem;
+					background: hsl(var(--border));
+				}
+				.blocknote-wrapper .skriuw-fmt-menu {
+					position: relative;
+					display: inline-flex;
+				}
+				.blocknote-wrapper .skriuw-fmt-dropdown {
+					position: absolute;
+					top: calc(100% + 4px);
+					left: 0;
+					z-index: 60;
+					min-width: 11rem;
+					max-height: min(20rem, 60vh);
+					overflow-y: auto;
+					padding: 0.25rem;
+					border: 1px solid hsl(var(--border));
+					border-radius: var(--radius);
+					background: hsl(var(--popover));
+					color: hsl(var(--popover-foreground));
+					box-shadow: 0 16px 36px hsl(var(--editor-shadow) / 0.42);
+				}
+				.blocknote-wrapper .skriuw-fmt-item {
+					display: flex;
+					align-items: center;
+					gap: 0.5rem;
+					width: 100%;
+					min-height: 1.85rem;
+					padding: 0.2rem 0.5rem;
+					border: 0;
+					border-radius: calc(var(--radius) - 2px);
+					background: transparent;
+					color: hsl(var(--popover-foreground));
+					font-size: 0.8rem;
+					text-align: left;
+					cursor: pointer;
+				}
+				.blocknote-wrapper .skriuw-fmt-item:hover {
+					background: hsl(var(--accent));
+					color: hsl(var(--foreground));
+				}
+				.blocknote-wrapper .skriuw-fmt-item[data-active="true"] {
+					background: hsl(var(--muted));
+					color: hsl(var(--foreground));
+				}
+				.blocknote-wrapper .skriuw-fmt-item-icon {
+					display: inline-flex;
+					color: hsl(var(--muted-foreground));
+				}
+				.blocknote-wrapper .skriuw-fmt-item-icon svg {
+					width: 0.95rem;
+					height: 0.95rem;
+				}
+				.blocknote-wrapper .skriuw-fmt-form {
+					display: flex;
+					align-items: center;
+					gap: 0.4rem;
+					padding: 0.15rem;
+				}
+				.blocknote-wrapper .skriuw-fmt-comment {
+					display: flex;
+					flex-direction: column;
+					gap: 0.4rem;
+					padding: 0.15rem;
+				}
+				.blocknote-wrapper .skriuw-fmt-input,
+				.blocknote-wrapper .skriuw-fmt-textarea {
+					flex: 1;
+					min-width: 0;
+					border: 1px solid hsl(var(--border));
+					border-radius: calc(var(--radius) - 2px);
+					background: hsl(var(--background));
+					color: hsl(var(--foreground));
+					font-size: 0.78rem;
+					padding: 0.32rem 0.46rem;
+					outline: none;
+				}
+				.blocknote-wrapper .skriuw-fmt-input:focus,
+				.blocknote-wrapper .skriuw-fmt-textarea:focus {
+					border-color: hsl(var(--ring));
+					box-shadow: 0 0 0 1px hsl(var(--ring));
+				}
+				.blocknote-wrapper .skriuw-fmt-textarea {
+					height: 4.5rem;
+					resize: none;
+				}
+				.blocknote-wrapper .skriuw-fmt-apply {
+					border: 0;
+					border-radius: calc(var(--radius) - 2px);
+					background: hsl(var(--foreground));
+					color: hsl(var(--background));
+					font-size: 0.72rem;
+					font-weight: 600;
+					padding: 0.34rem 0.6rem;
+					cursor: pointer;
+				}
+				.blocknote-wrapper .skriuw-fmt-apply:disabled {
+					opacity: 0.5;
+					cursor: default;
+				}
+				.blocknote-wrapper .skriuw-fmt-ghost {
+					border: 0;
+					border-radius: calc(var(--radius) - 2px);
+					background: transparent;
+					color: hsl(var(--muted-foreground));
+					font-size: 0.72rem;
+					padding: 0.34rem 0.5rem;
+					cursor: pointer;
+				}
+				.blocknote-wrapper .skriuw-fmt-ghost:hover {
+					background: hsl(var(--muted));
+				}
+				.blocknote-wrapper .skriuw-fmt-comment-actions {
+					display: flex;
+					justify-content: flex-end;
+					gap: 0.4rem;
+				}
 				.blocknote-wrapper .bn-toolbar {
 					min-height: 2rem;
 					background: hsl(var(--popover)) !important;
