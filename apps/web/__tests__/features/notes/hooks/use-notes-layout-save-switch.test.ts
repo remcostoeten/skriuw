@@ -198,6 +198,7 @@ function installMocks() {
 	}));
 	mock.module("@/core/workspace-backend", () => ({
 		useIsGuestWorkspace: () => false,
+		isTauriRuntime: () => false,
 		useWorkspaceBackend: () => ({
 			getNote: async (id: string) =>
 				notes.find((note) => note.id === id) ?? null,
