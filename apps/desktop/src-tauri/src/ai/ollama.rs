@@ -279,12 +279,43 @@ impl OllamaClient {
 		Ok(())
 	}
 
+	/// Maps a configured model name onto an actually-installed one. An exact tag
+	/// match wins; otherwise a family match (e.g. `llama3.2` → `llama3.2:3b`) is
+	/// accepted so a tagless default still resolves. Returns a clear, listable
+	/// error instead of letting Ollama answer a bare 404.
+	async fn resolve_model(&self, requested: &str) -> Result<String, String> {
+		let installed = self.list_installed().await.unwrap_or_default();
+		if installed.is_empty() {
+			return Err(format!(
+				"Model '{requested}' is not available and no Ollama models are installed. Download one in Settings → AI."
+			));
+		}
+		if let Some(found) = installed.iter().find(|m| m.name == requested) {
+			return Ok(found.name.clone());
+		}
+		if let Some(found) = installed
+			.iter()
+			.find(|m| Self::models_match(requested, &m.name))
+		{
+			return Ok(found.name.clone());
+		}
+		let names = installed
+			.iter()
+			.map(|m| m.name.as_str())
+			.collect::<Vec<_>>()
+			.join(", ");
+		Err(format!(
+			"Model '{requested}' is not installed. Installed models: {names}. Pick one in Settings → AI."
+		))
+	}
+
 	pub async fn complete(&self, model: &str, system: &str, user: &str) -> Result<String, String> {
 		if model.trim().is_empty() {
 			return Err("No Ollama model selected. Pick one in Settings → AI.".to_string());
 		}
+		let model = self.resolve_model(model).await?;
 		let body = ChatRequest {
-			model: model.to_string(),
+			model,
 			messages: vec![
 				ChatMessage {
 					role: "system".into(),
