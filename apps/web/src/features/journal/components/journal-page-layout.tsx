@@ -159,7 +159,10 @@ function JournalEditorToolbar({
 				</button>
 			</div>
 
-			<div className="flex flex-1 items-center justify-center gap-3 text-sm">
+			<div
+				data-tauri-drag-region
+				className="flex flex-1 items-center justify-center gap-3 text-sm"
+			>
 				<span className="text-sidebar-foreground/58">Journal</span>
 				<span className="font-medium text-sidebar-foreground/80 max-w-[28rem] truncate">
 					{format(selectedDate, "EEEE, dd MMMM yyyy")}

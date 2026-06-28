@@ -65,16 +65,18 @@ function isBrowser(): boolean {
  */
 export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 	const store = createGuestWorkspaceStore();
+	const filesKey = notesKeys.files(notesKeys.localScope());
+	const foldersKey = notesKeys.folders(notesKeys.localScope());
 
 	function getCachedNote(id: string): NoteFile | null {
 		const detail = queryClient.getQueryData<NoteFile | null>(notesKeys.detail(id));
 		if (detail) return detail;
-		const list = queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ?? [];
+		const list = queryClient.getQueryData<NoteFile[]>(filesKey) ?? [];
 		return list.find((note) => note.id === id) ?? null;
 	}
 
 	function getCachedFolder(id: string): NoteFolder | null {
-		const list = queryClient.getQueryData<NoteFolder[]>(notesKeys.folders()) ?? [];
+		const list = queryClient.getQueryData<NoteFolder[]>(foldersKey) ?? [];
 		return list.find((folder) => folder.id === id) ?? null;
 	}
 
@@ -86,6 +88,7 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 			collaboration: false,
 			notifications: false,
 			ai: false,
+			trash: false,
 		},
 
 		async getNote(id) {
@@ -121,8 +124,7 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 
 		async getNoteGraph() {
 			const notes =
-				queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ??
-				(await store.read()).notes;
+				queryClient.getQueryData<NoteFile[]>(filesKey) ?? (await store.read()).notes;
 			return buildGraphFromNotes(notes);
 		},
 
@@ -282,7 +284,9 @@ export async function resetGuestStorage(): Promise<void> {
 		clearGuestWorkspaceLocalStorageSync();
 		window.localStorage.removeItem(ENGAGEMENT_STORAGE_KEY);
 	}
-	await createGuestWorkspaceStore().clear().catch(async () => {
-		await clearGuestWorkspaceIndexedDB();
-	});
+	await createGuestWorkspaceStore()
+		.clear()
+		.catch(async () => {
+			await clearGuestWorkspaceIndexedDB();
+		});
 }

@@ -16,7 +16,48 @@ import {
 	folderFromCreateInput,
 	noteFromCreateInput,
 } from "./note-builders";
-import type { NoteSearchHit, WorkspaceBackend } from "./types";
+import type { NoteSearchHit, TrashBatch, WorkspaceBackend } from "./types";
+
+/** The Rust `TrashRecord` wire shape — one soft-deleted note or folder. */
+type RustTrashRecord = {
+	batchId: string;
+	kind: "note" | "folder";
+	id: string;
+	name: string;
+	parentId: string | null;
+	sortOrder: number;
+	deletedAt: number;
+};
+
+function trashRecordsToBatches(records: RustTrashRecord[]): TrashBatch[] {
+	const groups = new Map<string, RustTrashRecord[]>();
+	for (const record of records) {
+		const group = groups.get(record.batchId) ?? [];
+		group.push(record);
+		groups.set(record.batchId, group);
+	}
+
+	const batches: TrashBatch[] = [];
+	for (const [batchId, group] of groups) {
+		const folderRecords = group.filter((record) => record.kind === "folder");
+		const isFolder = folderRecords.length > 0;
+		const rootFolderId = batchId.startsWith("folder:") ? batchId.slice("folder:".length) : null;
+		const primary =
+			(isFolder
+				? folderRecords.find((record) => record.id === rootFolderId)
+				: group[0]) ?? group[0];
+		batches.push({
+			id: batchId,
+			deletedAt: new Date(Math.max(...group.map((record) => record.deletedAt))),
+			kind: isFolder ? "folder" : "note",
+			primary: { id: primary.id, name: primary.name },
+			noteCount: group.filter((record) => record.kind === "note").length,
+			folderCount: folderRecords.length,
+		});
+	}
+
+	return batches.sort((left, right) => right.deletedAt.getTime() - left.deletedAt.getTime());
+}
 
 type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
 
@@ -302,6 +343,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			collaboration: false,
 			notifications: false,
 			ai: true,
+			trash: true,
 		},
 
 		listNotes,
@@ -367,6 +409,15 @@ export function createTauriBackend(): WorkspaceBackend {
 			return note;
 		},
 
+		async importNotes(notes) {
+			await invoke("bulk_upsert_notes", { notes: notes.map(toRustNote) });
+			for (const note of notes) {
+				if (extractNoteLinks(note).length > 0) {
+					await indexNoteLinks(note);
+				}
+			}
+		},
+
 		async updateNote(input): Promise<UpdateNoteResult> {
 			const raw = await invoke<RustNote | null>("get_note", { id: input.id });
 			if (!raw) return { note: undefined, versionCreated: false };
@@ -397,6 +448,23 @@ export function createTauriBackend(): WorkspaceBackend {
 
 		async deleteFolder(id) {
 			await invoke("delete_folder", { id });
+		},
+
+		async listTrash() {
+			const records = await invoke<RustTrashRecord[]>("list_trash");
+			return trashRecordsToBatches(records);
+		},
+
+		async restoreTrash(batchId) {
+			await invoke("restore_trash", { batchId });
+		},
+
+		async purgeTrash(batchId) {
+			await invoke("purge_trash", { batchId });
+		},
+
+		async emptyTrash() {
+			await invoke("empty_trash");
 		},
 
 		listJournalEntries,

@@ -188,11 +188,6 @@ export function NotesLayoutShell({
 		{ href: "/app/journal", label: "Journal", isActive: pathname === "/app/journal" },
 		{ href: "/app/graph", label: "Graph", isActive: pathname === "/app/graph" },
 		{ href: "/app/shared", label: "Shared", isActive: pathname === "/app/shared" },
-		{
-			href: "/project-planning",
-			label: "Planning",
-			isActive: pathname === "/project-planning",
-		},
 	];
 
 	// Local-first note swap: when moving to a note whose body isn't cached yet,
@@ -405,6 +400,7 @@ export function NotesLayoutShell({
 											onContentChange={updateFileContent}
 											onToggleSidebar={handleToggleSidebar}
 											onToggleMetadata={handleToggleMetadata}
+											onCreateFile={() => layout.createFile()}
 											workspaceItems={workspaceItems}
 											onOpenSettings={handleOpenSettings}
 											onNavigatePrev={handleNavigatePrev}

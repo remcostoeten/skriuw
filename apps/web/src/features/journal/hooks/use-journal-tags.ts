@@ -10,6 +10,8 @@ import { TAG_COLORS } from "@/features/journal/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { createCacheQueryFn } from "@/shared/api/cache-query";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
+import { useAuth } from "@/core/auth/use-auth";
+import { useNotesCacheScope } from "@/features/notes/hooks/use-notes-cache-scope";
 import { journalKeys } from "./journal-keys";
 import { useJournalEntries } from "./use-journal-entries";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
@@ -18,19 +20,26 @@ import type { NoteFile } from "@/types/notes";
 export function useJournalTags() {
 	const entriesQuery = useJournalEntries();
 	const queryClient = useQueryClient();
+	const auth = useAuth();
 	const backend = useWorkspaceBackend();
+	const notesKey = notesKeys.files(useNotesCacheScope());
+	const scope =
+		auth.phase === "authenticated" && auth.user
+			? journalKeys.userScope(auth.user.id)
+			: journalKeys.localScope();
+	const tagsKey = journalKeys.tags(scope);
 	const tagsQuery = useApiQuery<JournalTag[]>(
-		journalKeys.tags(),
+		tagsKey,
 		async () => {
-			const cached = queryClient.getQueryData<JournalTag[]>(journalKeys.tags());
+			const cached = queryClient.getQueryData<JournalTag[]>(tagsKey);
 			if (cached !== undefined) return cached;
 			return (await backend.listJournalTags?.()) ?? [];
 		},
-		{ staleTime: Infinity },
+		{ enabled: auth.isReady, staleTime: Infinity },
 	);
 	const notesQuery = useAuthedApiQuery<NoteFile[]>(
-		notesKeys.files(),
-		async () => queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ?? [],
+		notesKey,
+		async () => queryClient.getQueryData<NoteFile[]>(notesKey) ?? [],
 		{ staleTime: Infinity },
 	);
 
@@ -52,65 +61,87 @@ export function useJournalTags() {
 
 export function useWorkspaceTags() {
 	const queryClient = useQueryClient();
+	const scope = useNotesCacheScope();
+	const workspaceTagsKey = journalKeys.workspaceTags(scope);
 
 	return useAuthedApiQuery<JournalTag[]>(
-		journalKeys.workspaceTags(),
-		createCacheQueryFn<JournalTag[]>(queryClient, journalKeys.workspaceTags()),
+		workspaceTagsKey,
+		createCacheQueryFn<JournalTag[]>(queryClient, workspaceTagsKey),
 		{ staleTime: Infinity },
 	);
 }
 
 export function useCreateJournalTag() {
 	const queryClient = useQueryClient();
+	const auth = useAuth();
 	const backend = useWorkspaceBackend();
+	const scope =
+		auth.phase === "authenticated" && auth.user
+			? journalKeys.userScope(auth.user.id)
+			: journalKeys.localScope();
+	const tagsKey = journalKeys.tags(scope);
 
-	return useApiMutation<CreateJournalTagInput, JournalTag, JournalTag[]>((input) => backend.createJournalTag(input), {
-		invalidateKeys: [journalKeys.tags()],
-		optimistic: {
-			queryKey: journalKeys.tags(),
-			updater: (current, input) => {
-				if ((current ?? []).some((tag) => tag.name === input.name)) {
-					return current;
-				}
+	return useApiMutation<CreateJournalTagInput, JournalTag, JournalTag[]>(
+		(input) => backend.createJournalTag(input),
+		{
+			invalidateKeys: [journalKeys.tags()],
+			optimistic: {
+				queryKey: tagsKey,
+				updater: (current, input) => {
+					if ((current ?? []).some((tag) => tag.name === input.name)) {
+						return current;
+					}
 
-				return [
-					...(current ?? []),
-					{
-						id: `optimistic-${input.name}`,
-						name: input.name,
-						color: input.color,
-						usageCount: 0,
+					return [
+						...(current ?? []),
+						{
+							id: `optimistic-${input.name}`,
+							name: input.name,
+							color: input.color,
+							usageCount: 0,
+						},
+					];
+				},
+			},
+			onSuccess: (createdTag) => {
+				queryClient.setQueryData<JournalTag[]>(
+					journalKeys.workspaceTags(scope),
+					(current) => {
+						const next = current ?? [];
+						if (next.some((tag) => tag.name === createdTag.name)) {
+							return next.map((tag) =>
+								tag.name === createdTag.name
+									? { ...createdTag, usageCount: tag.usageCount }
+									: tag,
+							);
+						}
+
+						return [...next, createdTag];
 					},
-				];
+				);
 			},
 		},
-		onSuccess: (createdTag) => {
-			queryClient.setQueryData<JournalTag[]>(journalKeys.workspaceTags(), (current) => {
-				const next = current ?? [];
-				if (next.some((tag) => tag.name === createdTag.name)) {
-					return next.map((tag) =>
-						tag.name === createdTag.name ? { ...createdTag, usageCount: tag.usageCount } : tag,
-					);
-				}
-
-				return [...next, createdTag];
-			});
-		},
-	});
+	);
 }
 
 export function useDeleteJournalTag() {
 	const queryClient = useQueryClient();
+	const auth = useAuth();
 	const backend = useWorkspaceBackend();
+	const scope =
+		auth.phase === "authenticated" && auth.user
+			? journalKeys.userScope(auth.user.id)
+			: journalKeys.localScope();
+	const tagsKey = journalKeys.tags(scope);
 
 	return useApiMutation<string, void, JournalTag[]>((id) => backend.deleteJournalTag(id), {
 		invalidateKeys: [journalKeys.tags(), journalKeys.entries()],
 		optimistic: {
-			queryKey: journalKeys.tags(),
+			queryKey: tagsKey,
 			updater: (current, id) => (current ?? []).filter((tag) => tag.id !== id),
 		},
 		onSuccess: (_result, id) => {
-			queryClient.setQueryData<JournalTag[]>(journalKeys.workspaceTags(), (current) =>
+			queryClient.setQueryData<JournalTag[]>(journalKeys.workspaceTags(scope), (current) =>
 				(current ?? []).filter((tag) => tag.id !== id),
 			);
 		},

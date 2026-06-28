@@ -3,6 +3,10 @@ import { parseBearExportEntries } from "@/domain/data-transfer/adapters/bear";
 import { parseMarkdownVaultEntries } from "@/domain/data-transfer/adapters/markdown-vault";
 import { parseNotionExportEntries } from "@/domain/data-transfer/adapters/notion";
 import { parseObsidianVaultEntries } from "@/domain/data-transfer/adapters/obsidian";
+import {
+	isSimplenoteArchive,
+	parseSimplenoteEntries,
+} from "@/domain/data-transfer/adapters/simplenote";
 import { findExportRootPrefix } from "@/domain/data-transfer/paths";
 import {
 	decodeArchiveEntries,
@@ -17,6 +21,10 @@ function countByExtension(entries: Record<string, string>, ext: string): number 
 export function detectImportProfile(entries: Record<string, string>): ImportProfile {
 	if (findExportRootPrefix(Object.keys(entries))) {
 		return "skriuw";
+	}
+
+	if (isSimplenoteArchive(entries)) {
+		return "simplenote";
 	}
 
 	const paths = Object.keys(entries);
@@ -69,6 +77,8 @@ function parseThirdPartyArchive(profile: ImportProfile, entries: Record<string, 
 			return parseBearExportEntries(entries);
 		case "notion":
 			return parseNotionExportEntries(entries);
+		case "simplenote":
+			return parseSimplenoteEntries(entries);
 		case "markdown-vault":
 		default:
 			return parseMarkdownVaultEntries(entries);

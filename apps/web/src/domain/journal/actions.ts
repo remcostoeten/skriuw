@@ -50,6 +50,24 @@ export type CreateJournalEntryInput = {
 	mood?: MoodLevel;
 };
 
+export async function listJournalEntries(): Promise<JournalEntry[]> {
+	const { prisma, user } = await getAuthenticatedUser();
+	const records = await prisma.journalEntry.findMany({
+		where: { userId: user.id, deletedAt: null },
+		orderBy: { createdAt: "asc" },
+		select: {
+			id: true,
+			dateKey: true,
+			content: true,
+			mood: true,
+			tags: true,
+			createdAt: true,
+			updatedAt: true,
+		},
+	});
+	return records.map(recordToEntry);
+}
+
 export async function createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry> {
 	const { prisma, user } = await getAuthenticatedUser();
 	const id = input.id ?? crypto.randomUUID();
@@ -142,6 +160,16 @@ export type CreateJournalTagInput = {
 	name: string;
 	color: string;
 };
+
+export async function listJournalTags(): Promise<JournalTag[]> {
+	const { prisma, user } = await getAuthenticatedUser();
+	const records = await prisma.journalTag.findMany({
+		where: { userId: user.id, deletedAt: null },
+		orderBy: { createdAt: "asc" },
+		select: { id: true, name: true, color: true, usageCount: true },
+	});
+	return records.map(recordToTag);
+}
 
 export async function createJournalTag(input: CreateJournalTagInput): Promise<JournalTag> {
 	const { prisma, user } = await getAuthenticatedUser();

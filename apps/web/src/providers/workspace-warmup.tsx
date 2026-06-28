@@ -3,12 +3,10 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/core/auth/use-auth";
-import { useIsGuestWorkspace } from "@/core/workspace-backend";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { useNotes } from "@/features/notes/hooks/use-notes";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import type { NoteFile } from "@/domain/notes/models";
-import { fetchNotes } from "@/domain/notes/actions";
-import { fetchGuestSeedNotes } from "@/domain/seed/actions";
 
 // Cap the background warm-up so a very large workspace doesn't fetch an unbounded
 // payload on load. Beyond this, notes still load instantly once hovered or
@@ -42,7 +40,7 @@ function scheduleIdle(callback: () => void): () => void {
 export function WorkspaceWarmup() {
 	const queryClient = useQueryClient();
 	const auth = useAuth();
-	const isGuest = useIsGuestWorkspace();
+	const backend = useWorkspaceBackend();
 	const notesQuery = useNotes();
 	const files = notesQuery.data;
 
@@ -69,9 +67,9 @@ export function WorkspaceWarmup() {
 					if (cancelled) return;
 					const batch = pending.slice(i, i + BATCH_SIZE);
 					// One batched fetch for the whole chunk instead of N round-trips.
-					const notes: NoteFile[] = isGuest
-						? await fetchGuestSeedNotes(batch)
-						: await fetchNotes(batch);
+					// Routed through the active workspace backend (server / local /
+					// tauri) so desktop never reaches the cloud server actions.
+					const notes: NoteFile[] = await backend.getNotes(batch);
 					if (cancelled) return;
 					// Seed each returned body straight into the detail cache so
 					// useNote() reads it instantly with no fetch and no skeleton.
@@ -86,7 +84,7 @@ export function WorkspaceWarmup() {
 			cancelled = true;
 			cancelIdle();
 		};
-	}, [auth.isReady, files, isGuest, queryClient]);
+	}, [auth.isReady, files, backend, queryClient]);
 
 	return null;
 }

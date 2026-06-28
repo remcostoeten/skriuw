@@ -162,7 +162,6 @@ export function JournalSection({
 								openJournalDate(date);
 							}}
 							onChangeMonth={setCurrentMonth}
-							onGoToToday={goToToday}
 						/>
 					</div>
 				) : (

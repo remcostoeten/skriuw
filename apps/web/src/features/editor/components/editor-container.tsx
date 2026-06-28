@@ -93,6 +93,7 @@ interface EditorContainerProps {
 	onToggleSplit?: () => void;
 	canToggleSplit?: boolean;
 	onToggleEditorMode?: () => void;
+	onCreateFile?: () => void;
 	isContentLoading?: boolean;
 }
 
@@ -288,6 +289,7 @@ export function EditorContainer({
 	onToggleSplit,
 	canToggleSplit,
 	onToggleEditorMode,
+	onCreateFile,
 	isContentLoading = false,
 }: EditorContainerProps) {
 	const aiHandleRef = useRef<AiEditorHandle | null>(null);
@@ -387,7 +389,7 @@ export function EditorContainer({
 				} else if (action === "spellCheck") {
 					editorHandle.replaceContent(result);
 				} else {
-					editorHandle.appendContent(result);
+					editorHandle.continueWriting(result);
 				}
 			} catch (err) {
 				if (err instanceof AiRateLimitError) {
@@ -805,6 +807,7 @@ export function EditorContainer({
 									onScrollPositionChange={onScrollPositionChange}
 									onPaneActivate={onPaneActivate}
 									isPaneFocused={isPaneFocused}
+									onCreateFile={onCreateFile}
 								/>
 							</div>
 						</ContextMenuTrigger>

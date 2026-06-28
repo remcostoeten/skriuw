@@ -2,7 +2,6 @@
 
 import { memo, useState, useRef, useEffect, useMemo, useCallback, type RefObject } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { motion } from "framer-motion";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
@@ -12,10 +11,12 @@ import { EmptyState } from "@/shared/ui/empty-state";
 import {
 	Check,
 	Columns2,
+	FilePlus,
 	FileText,
 	Folder,
 	FolderInput,
 	FolderOpen,
+	FolderPlus,
 	Pencil,
 	Star,
 	Trash2,
@@ -50,6 +51,8 @@ interface FileListProps {
 	onCreationParentChange?: (folderId: string | null) => void;
 	onReorderFiles?: (fileId: string, targetIndex: number, parentId: string | null) => void;
 	onReorderFolders?: (folderId: string, targetIndex: number, parentId: string | null) => void;
+	onCreateNote?: () => void;
+	onCreateFolder?: () => void;
 	scrollElementRef?: RefObject<HTMLElement | null>;
 	sidebarWidth?: number;
 }
@@ -84,6 +87,16 @@ type MobileActionTarget = {
 	selection: SelectedItem[];
 };
 
+type ContextTarget =
+	| {
+			kind: "item";
+			item: SelectedItem;
+			name: string;
+			file: NoteFile | null;
+			folder: NoteFolder | null;
+	  }
+	| { kind: "root" };
+
 const FILE_TREE_ROW_HEIGHT = 36;
 const FILE_TREE_COMPACT_ROW_HEIGHT = 30;
 const FILE_TREE_OVERSCAN = 10;
@@ -99,6 +112,8 @@ export const FileList = memo(function FileList({
 	actions,
 	queries,
 	onCreationParentChange,
+	onCreateNote,
+	onCreateFolder,
 	scrollElementRef,
 	sidebarWidth,
 }: FileListProps) {
@@ -140,6 +155,10 @@ export const FileList = memo(function FileList({
 	// When non-null, "move mode" is active: these items are being relocated and
 	// arrow keys steer a destination cursor until Enter/M drops them (Esc cancels).
 	const [moveModeItems, setMoveModeItems] = useState<SelectedItem[] | null>(null);
+	// A single shared context menu serves every row. Rows carry `data-row-key`;
+	// right-clicking the list resolves the row under the cursor and points the
+	// one menu at it, instead of mounting a Radix ContextMenu per virtualized row.
+	const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
 
 	function renderTreeGuides(depth: number) {
 		if (!showTreeGuides || depth <= 0) {
@@ -764,6 +783,41 @@ export const FileList = memo(function FileList({
 		[flattenedVisibleItems, getItemKey, isItemSelected, isMobile, setSelectedItems],
 	);
 
+	const handleListContextMenu = useCallback(
+		(event: React.MouseEvent) => {
+			// On touch devices the long-press sheet handles this; suppress the
+			// native menu and skip Radix (it bails when defaultPrevented).
+			if (isMobile) {
+				event.preventDefault();
+				return;
+			}
+			const rowEl = (event.target as HTMLElement).closest<HTMLElement>("[data-row-key]");
+			const key = rowEl?.getAttribute("data-row-key");
+			const visibleItem = key
+				? flattenedVisibleItems.find((entry) => getItemKey(entry) === key)
+				: undefined;
+			if (!visibleItem) {
+				// Empty list space: offer the root "new note / new folder" menu.
+				setContextTarget({ kind: "root" });
+				return;
+			}
+			const item: SelectedItem = {
+				id: visibleItem.id,
+				type: visibleItem.type,
+				parentId: visibleItem.parentId,
+			};
+			handleContextMenu(event, item);
+			setContextTarget({
+				kind: "item",
+				item,
+				name: visibleItem.folder?.name ?? visibleItem.file?.name ?? "",
+				file: visibleItem.file ?? null,
+				folder: visibleItem.folder ?? null,
+			});
+		},
+		[flattenedVisibleItems, getItemKey, handleContextMenu, isMobile],
+	);
+
 	const openMobileActionSheet = useCallback(
 		(item: SelectedItem, label: string) => {
 			const selection = getSelectionForAction(item);
@@ -1232,6 +1286,119 @@ export const FileList = memo(function FileList({
 		[folders, getDescendantIds, moveSelected],
 	);
 
+	const renderRootContextItems = useCallback(() => {
+		return (
+			<>
+				<ContextMenuItem onClick={() => onCreateNote?.()} className="gap-2">
+					<FilePlus className="w-4 h-4" />
+					New note
+				</ContextMenuItem>
+				<ContextMenuItem onClick={() => onCreateFolder?.()} className="gap-2">
+					<FolderPlus className="w-4 h-4" />
+					New folder
+				</ContextMenuItem>
+			</>
+		);
+	}, [onCreateNote, onCreateFolder]);
+
+	const renderContextMenuItems = useCallback(
+		(target: Extract<ContextTarget, { kind: "item" }>) => {
+			const { item, name, file } = target;
+			const selectionForAction = getSelectionForAction(item);
+			const selectionHasMultiple = selectionForAction.length > 1;
+			const canOpenBeside =
+				!!file && !!onOpenBeside && !isMobile && !selectionHasMultiple && file.id !== activeFileId;
+
+			return (
+				<>
+					<ContextMenuItem
+						onClick={() => {
+							if (!selectionHasMultiple) {
+								startRename(item.id, name, item.type);
+							}
+						}}
+						className="gap-2"
+						disabled={selectionHasMultiple}
+					>
+						<Pencil className="w-4 h-4" />
+						Rename
+						<ContextMenuShortcut>R</ContextMenuShortcut>
+					</ContextMenuItem>
+					{canOpenBeside && file ? (
+						<ContextMenuItem onClick={() => onOpenBeside?.(file.id)} className="gap-2">
+							<Columns2 className="w-4 h-4" />
+							Open beside
+						</ContextMenuItem>
+					) : null}
+					{renderMoveToSubmenu(selectionForAction)}
+					<ContextMenuSeparator />
+					{isFavorite(item.id) ? (
+						<ContextMenuItem
+							onClick={() => removeFromFavorites(item.id)}
+							className="gap-2"
+						>
+							<Star className="w-4 h-4 fill-favorite text-favorite" />
+							Remove from Favorites
+						</ContextMenuItem>
+					) : (
+						<ContextMenuItem
+							onClick={() => addToFavorites(item.id, item.type)}
+							className="gap-2"
+						>
+							<Star className="w-4 h-4" />
+							Add to Favorites
+						</ContextMenuItem>
+					)}
+					{customSections.length > 0 && (
+						<ContextMenuSub>
+							<ContextMenuSubTrigger className="gap-2">
+								<Folder className="w-4 h-4" />
+								Add to Section
+							</ContextMenuSubTrigger>
+							<ContextMenuSubContent className="w-44">
+								{customSections.map((section) => (
+									<ContextMenuItem
+										key={section.id}
+										onClick={() =>
+											addToCustomSection(section.id, item.id, item.type)
+										}
+										className="gap-2"
+									>
+										{section.name}
+									</ContextMenuItem>
+								))}
+							</ContextMenuSubContent>
+						</ContextMenuSub>
+					)}
+					{file && <NoteSendContextSubmenu note={file} />}
+					<ContextMenuSeparator />
+					<ContextMenuItem
+						onClick={() => deleteSelection(selectionForAction)}
+						className="gap-2 text-destructive focus:text-destructive"
+					>
+						<Trash2 className="w-4 h-4" />
+						{selectionHasMultiple ? "Delete selected" : "Delete"}
+						<ContextMenuShortcut>⌫</ContextMenuShortcut>
+					</ContextMenuItem>
+				</>
+			);
+		},
+		[
+			activeFileId,
+			addToCustomSection,
+			addToFavorites,
+			customSections,
+			deleteSelection,
+			getSelectionForAction,
+			isFavorite,
+			isMobile,
+			onOpenBeside,
+			removeFromFavorites,
+			renderMoveToSubmenu,
+			startRename,
+		],
+	);
+
 	const renderMobileSheetSections = useCallback(
 		(target: MobileActionTarget) => {
 			const { item, selection, label } = target;
@@ -1446,19 +1613,14 @@ export const FileList = memo(function FileList({
 			depth,
 			folder,
 		};
-		const selectionForAction = getSelectionForAction(folderItem);
-		const selectionHasMultiple = selectionForAction.length > 1;
 		const isSelected = isItemSelected(folderItem);
 		const isMoving = movingKeys.has(getItemKey(folderItem));
 		const isMoveDestination = moveActive && moveDestinationId === folder.id;
 
 		return (
-			<div key={folder.id}>
-				<ContextMenu>
-					<ContextMenuTrigger asChild>
-						<motion.button
-							whileTap={!isEditing ? { scale: 0.985 } : undefined}
-							transition={{ duration: 0.06, ease: [0.32, 0.72, 0, 1] }}
+			<button
+							type="button"
+							data-row-key={getItemKey(folderItem)}
 							ref={(node) => {
 								const key = getItemKey(folderItem);
 								if (node) {
@@ -1481,7 +1643,6 @@ export const FileList = memo(function FileList({
 							onDoubleClick={(e) =>
 								handleDoubleClick(e, folder.id, folder.name, "folder")
 							}
-							onContextMenu={(event) => handleContextMenu(event, folderItem)}
 							onPointerDown={(event) =>
 								scheduleLongPress(event, folderItem, folder.name)
 							}
@@ -1531,6 +1692,7 @@ export const FileList = memo(function FileList({
 							tabIndex={0}
 							className={cn(
 								"group relative flex w-full items-center justify-between overflow-hidden border border-transparent text-xs font-medium transition-colors",
+								!isEditing && "active:scale-[0.985]",
 								compactMode ? "h-[28px]" : "h-[34px]",
 								isSelected
 									? "border-border bg-muted text-foreground"
@@ -1602,90 +1764,7 @@ export const FileList = memo(function FileList({
 									{totalCount}
 								</span>
 							)}
-						</motion.button>
-					</ContextMenuTrigger>
-					<ContextMenuContent
-						className="w-48"
-						onKeyDown={(event) =>
-							handleContextMenuKeyDown(
-								event,
-								folderItem,
-								folder.name,
-								selectionForAction,
-								selectionHasMultiple,
-							)
-						}
-						onCloseAutoFocus={(event) => {
-							if (inputRef.current) {
-								event.preventDefault();
-							}
-						}}
-					>
-						<ContextMenuItem
-							onClick={() => {
-								if (!selectionHasMultiple) {
-									startRename(folder.id, folder.name, "folder");
-								}
-							}}
-							className="gap-2"
-							disabled={selectionHasMultiple}
-						>
-							<Pencil className="w-4 h-4" />
-							Rename
-							<ContextMenuShortcut>R</ContextMenuShortcut>
-						</ContextMenuItem>
-						{renderMoveToSubmenu(selectionForAction)}
-						<ContextMenuSeparator />
-						{isFavorite(folder.id) ? (
-							<ContextMenuItem
-								onClick={() => removeFromFavorites(folder.id)}
-								className="gap-2"
-							>
-								<Star className="w-4 h-4 fill-favorite text-favorite" />
-								Remove from Favorites
-							</ContextMenuItem>
-						) : (
-							<ContextMenuItem
-								onClick={() => addToFavorites(folder.id, "folder")}
-								className="gap-2"
-							>
-								<Star className="w-4 h-4" />
-								Add to Favorites
-							</ContextMenuItem>
-						)}
-						{customSections.length > 0 && (
-							<ContextMenuSub>
-								<ContextMenuSubTrigger className="gap-2">
-									<Folder className="w-4 h-4" />
-									Add to Section
-								</ContextMenuSubTrigger>
-								<ContextMenuSubContent className="w-44">
-									{customSections.map((section) => (
-										<ContextMenuItem
-											key={section.id}
-											onClick={() =>
-												addToCustomSection(section.id, folder.id, "folder")
-											}
-											className="gap-2"
-										>
-											{section.name}
-										</ContextMenuItem>
-									))}
-								</ContextMenuSubContent>
-							</ContextMenuSub>
-						)}
-						<ContextMenuSeparator />
-						<ContextMenuItem
-							onClick={() => deleteSelection(selectionForAction)}
-							className="gap-2 text-destructive focus:text-destructive"
-						>
-							<Trash2 className="w-4 h-4" />
-							{selectionHasMultiple ? "Delete selected" : "Delete"}
-							<ContextMenuShortcut>⌫</ContextMenuShortcut>
-						</ContextMenuItem>
-					</ContextMenuContent>
-				</ContextMenu>
-			</div>
+						</button>
 		);
 	};
 
@@ -1694,17 +1773,13 @@ export const FileList = memo(function FileList({
 		const isDragging = dragItem?.id === file.id;
 		const isDropTarget = dropTarget?.id === file.id && dropTarget.type === "sibling";
 		const fileItem: SelectedItem = { id: file.id, type: "file", parentId: file.parentId };
-		const selectionForAction = getSelectionForAction(fileItem);
-		const selectionHasMultiple = selectionForAction.length > 1;
 		const isSelected = isItemSelected(fileItem);
 		const isMoving = movingKeys.has(getItemKey(fileItem));
 
 		return (
-			<ContextMenu key={file.id}>
-				<ContextMenuTrigger asChild>
-					<motion.button
-						whileTap={!isEditing ? { scale: 0.985 } : undefined}
-						transition={{ duration: 0.06, ease: [0.32, 0.72, 0, 1] }}
+			<button
+						type="button"
+						data-row-key={getItemKey(fileItem)}
 						ref={(node) => {
 							const key = getItemKey(fileItem);
 							if (node) {
@@ -1724,7 +1799,6 @@ export const FileList = memo(function FileList({
 								}
 							})
 						}
-						onContextMenu={(event) => handleContextMenu(event, fileItem)}
 						onPointerEnter={() => onFilePrefetch?.(file.id)}
 						onPointerDown={(event) => scheduleLongPress(event, fileItem, file.name)}
 						onPointerUp={cancelLongPress}
@@ -1754,6 +1828,7 @@ export const FileList = memo(function FileList({
 						tabIndex={0}
 						className={cn(
 							"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors",
+							!isEditing && "active:scale-[0.985]",
 							compactMode ? "h-7" : "h-[34px]",
 							isSelected || activeFileId === file.id
 								? "border-border bg-muted text-foreground"
@@ -1799,98 +1874,7 @@ export const FileList = memo(function FileList({
 								<NoteNameLabel name={file.name} className="truncate select-none" />
 							)}
 						</span>
-					</motion.button>
-				</ContextMenuTrigger>
-				<ContextMenuContent
-					className="w-48"
-					onKeyDown={(event) =>
-						handleContextMenuKeyDown(
-							event,
-							fileItem,
-							file.name,
-							selectionForAction,
-							selectionHasMultiple,
-						)
-					}
-					onCloseAutoFocus={(event) => {
-						if (inputRef.current) {
-							event.preventDefault();
-						}
-					}}
-				>
-					<ContextMenuItem
-						onClick={() => {
-							if (!selectionHasMultiple) {
-								startRename(file.id, file.name, "file");
-							}
-						}}
-						className="gap-2"
-						disabled={selectionHasMultiple}
-					>
-						<Pencil className="w-4 h-4" />
-						Rename
-						<ContextMenuShortcut>R</ContextMenuShortcut>
-					</ContextMenuItem>
-					{onOpenBeside &&
-					!isMobile &&
-					!selectionHasMultiple &&
-					file.id !== activeFileId ? (
-						<ContextMenuItem onClick={() => onOpenBeside(file.id)} className="gap-2">
-							<Columns2 className="w-4 h-4" />
-							Open beside
-						</ContextMenuItem>
-					) : null}
-					{renderMoveToSubmenu(selectionForAction)}
-					<ContextMenuSeparator />
-					{isFavorite(file.id) ? (
-						<ContextMenuItem
-							onClick={() => removeFromFavorites(file.id)}
-							className="gap-2"
-						>
-							<Star className="w-4 h-4 fill-favorite text-favorite" />
-							Remove from Favorites
-						</ContextMenuItem>
-					) : (
-						<ContextMenuItem
-							onClick={() => addToFavorites(file.id, "file")}
-							className="gap-2"
-						>
-							<Star className="w-4 h-4" />
-							Add to Favorites
-						</ContextMenuItem>
-					)}
-					{customSections.length > 0 && (
-						<ContextMenuSub>
-							<ContextMenuSubTrigger className="gap-2">
-								<Folder className="w-4 h-4" />
-								Add to Section
-							</ContextMenuSubTrigger>
-							<ContextMenuSubContent className="w-44">
-								{customSections.map((section) => (
-									<ContextMenuItem
-										key={section.id}
-										onClick={() =>
-											addToCustomSection(section.id, file.id, "file")
-										}
-										className="gap-2"
-									>
-										{section.name}
-									</ContextMenuItem>
-								))}
-							</ContextMenuSubContent>
-						</ContextMenuSub>
-					)}
-					<NoteSendContextSubmenu note={file} />
-					<ContextMenuSeparator />
-					<ContextMenuItem
-						onClick={() => deleteSelection(selectionForAction)}
-						className="gap-2 text-destructive focus:text-destructive"
-					>
-						<Trash2 className="w-4 h-4" />
-						{selectionHasMultiple ? "Delete selected" : "Delete"}
-					</ContextMenuItem>
-				</ContextMenuContent>
-			</ContextMenu>
+					</button>
 		);
 	}
 	useEffect(() => {
@@ -1998,49 +1982,83 @@ export const FileList = memo(function FileList({
 					</span>
 				</div>
 			)}
-			<div
-				ref={listRef}
-				className={cn(
-					"px-1.5 pb-4 pt-1",
-					!scrollElementRef && "flex-1 overflow-y-auto",
-					isRootDropTarget && "bg-primary/6",
-					isRootMoveDestination && "bg-primary/6 ring-1 ring-inset ring-primary/40",
+			<ContextMenu onOpenChange={(open) => !open && setContextTarget(null)}>
+				<ContextMenuTrigger asChild>
+					<div
+						ref={listRef}
+						className={cn(
+							"px-1.5 pb-4 pt-1",
+							!scrollElementRef && "flex-1 overflow-y-auto",
+							isRootDropTarget && "bg-primary/6",
+							isRootMoveDestination && "bg-primary/6 ring-1 ring-inset ring-primary/40",
+						)}
+						role="tree"
+						aria-label="Notes file tree"
+						tabIndex={-1}
+						onContextMenu={handleListContextMenu}
+						onDragOver={(e) => handleDragOver(e, null, "root")}
+						onDragLeave={handleDragLeave}
+						onDrop={(e) => handleDrop(e, null)}
+					>
+						<div className="relative space-y-px" style={{ height: totalHeight }}>
+							{virtualItems.map((virtualRow) => {
+								const item = flattenedVisibleItems[virtualRow.index];
+								if (!item) return null;
+
+								const rowContent =
+									item.type === "folder" && item.folder
+										? renderFolderRow(item.folder, item.depth)
+										: item.file
+											? renderFileRow(item.file, item.depth)
+											: null;
+
+								return (
+									<div
+										key={virtualRow.key}
+										className="absolute left-0 right-0"
+										style={{ top: virtualRow.start, height: virtualRow.size }}
+										onDragOver={(event) => handleSiblingDragOver(event, item)}
+										onDrop={(event) => handleSiblingDrop(event, item)}
+									>
+										{rowContent}
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				</ContextMenuTrigger>
+				{contextTarget?.kind === "root" && (
+					<ContextMenuContent className="w-48">
+						{renderRootContextItems()}
+					</ContextMenuContent>
 				)}
-				role="tree"
-				aria-label="Notes file tree"
-				tabIndex={-1}
-				onDragOver={(e) => handleDragOver(e, null, "root")}
-				onDragLeave={handleDragLeave}
-				onDrop={(e) => handleDrop(e, null)}
-			>
-				<div className="relative space-y-px" style={{ height: totalHeight }}>
-					{virtualItems.map((virtualRow) => {
-						const item = flattenedVisibleItems[virtualRow.index];
-						if (!item) return null;
-
-						const rowContent =
-							item.type === "folder" && item.folder
-								? renderFolderRow(item.folder, item.depth)
-								: item.file
-									? renderFileRow(item.file, item.depth)
-									: null;
-
+				{contextTarget?.kind === "item" &&
+					(() => {
+						const itemTarget = contextTarget;
+						const selectionForAction = getSelectionForAction(itemTarget.item);
 						return (
-							<div
-								key={virtualRow.key}
-								data-index={virtualRow.index}
-								ref={virtualizer.measureElement}
-								className="absolute left-0 right-0"
-								style={{ top: virtualRow.start, height: virtualRow.size }}
-								onDragOver={(event) => handleSiblingDragOver(event, item)}
-								onDrop={(event) => handleSiblingDrop(event, item)}
+							<ContextMenuContent
+								className="w-48"
+								onKeyDown={(event) =>
+									handleContextMenuKeyDown(
+										event,
+										itemTarget.item,
+										itemTarget.name,
+										selectionForAction,
+										selectionForAction.length > 1,
+									)
+								}
+								onCloseAutoFocus={(event) => {
+									if (inputRef.current) {
+										event.preventDefault();
+									}
+								}}
 							>
-								{rowContent}
-							</div>
+								{renderContextMenuItems(itemTarget)}
+							</ContextMenuContent>
 						);
-					})}
-				</div>
-			</div>
+					})()}
+			</ContextMenu>
 
 			{dragPreview && (
 				<div

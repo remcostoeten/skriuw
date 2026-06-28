@@ -1,6 +1,6 @@
 "use client";
 
-import type { QueryClient } from "@tanstack/react-query";
+import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { type UpdateNoteInput } from "@/domain/notes/actions";
 import { applyNoteUpdate as applyNoteUpdateBuilder } from "@/core/workspace-backend/note-builders";
@@ -28,13 +28,13 @@ export function reconcileSavedNoteCache(
 	queryClient: QueryClient,
 	input: UpdateNoteInput,
 	result: SavedNoteResult,
-	options: { updateFiles?: boolean } = {},
+	options: { filesKey?: QueryKey; updateFiles?: boolean } = {},
 ): void {
-	const { updateFiles = true } = options;
+	const { filesKey = notesKeys.files(), updateFiles = true } = options;
 
 	if (result.note) {
 		if (updateFiles) {
-			queryClient.setQueryData<NoteFile[]>(notesKeys.files(), (current = []) =>
+			queryClient.setQueryData<NoteFile[]>(filesKey, (current = []) =>
 				current.map((note) => (note.id === result.note!.id ? result.note! : note)),
 			);
 		}

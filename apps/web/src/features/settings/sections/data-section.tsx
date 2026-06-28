@@ -180,6 +180,33 @@ function importHasWork(preview: ImportPreview): boolean {
 	);
 }
 
+function importProgressTotal(preview: ImportPreview | null): number {
+	if (!preview) return 0;
+	return preview.notes.create + preview.notes.overwrite;
+}
+
+function ImportProgress({ imported, total }: { imported: number; total: number }) {
+	const safeTotal = Math.max(total, 1);
+	const percent = Math.min(100, Math.round((imported / safeTotal) * 100));
+
+	return (
+		<div className="space-y-2" aria-live="polite">
+			<div className="flex items-center justify-between text-xs text-muted-foreground">
+				<span>Importing notes</span>
+				<span>
+					{imported}/{total} notes imported
+				</span>
+			</div>
+			<div className="h-2 overflow-hidden rounded-full bg-muted">
+				<div
+					className="h-full rounded-full bg-primary transition-all duration-300"
+					style={{ width: `${percent}%` }}
+				/>
+			</div>
+		</div>
+	);
+}
+
 function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 	const totalCreate =
 		preview.folders.create +
@@ -546,6 +573,7 @@ function CloudDataSection() {
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 	const [importError, setImportError] = useState<string | null>(null);
 	const [importDialogOpen, setImportDialogOpen] = useState(false);
+	const [importProgress, setImportProgress] = useState({ imported: 0, total: 0 });
 
 	const handleExport = async () => {
 		setExportState("pending");
@@ -579,6 +607,7 @@ function CloudDataSection() {
 		setReplaceConfirm("");
 		setSelectedFile(null);
 		setImportError(null);
+		setImportProgress({ imported: 0, total: 0 });
 		if (fileInputRef.current) {
 			fileInputRef.current.value = "";
 		}
@@ -677,15 +706,29 @@ function CloudDataSection() {
 		}
 		setImportState("importing");
 		setImportError(null);
+		const total = importProgressTotal(importPreview);
+		setImportProgress({ imported: 0, total });
 
+		let simulatedProgress: number | undefined;
 		try {
+			if (total > 1) {
+				simulatedProgress = window.setInterval(() => {
+					setImportProgress((current) => ({
+						imported: Math.min(current.imported + 1, Math.max(total - 1, 0)),
+						total,
+					}));
+				}, 180);
+			}
 			await uploadImportArchive(selectedFile, importPolicy, importProfile);
+			setImportProgress({ imported: total, total });
 			await queryClient.invalidateQueries({ queryKey: notesKeys.all });
 			await queryClient.invalidateQueries({ queryKey: journalKeys.all });
 			setImportState("success");
 		} catch (error) {
 			setImportState("error");
 			setImportError(error instanceof Error ? error.message : "Import failed.");
+		} finally {
+			if (simulatedProgress) window.clearInterval(simulatedProgress);
 		}
 	};
 
@@ -810,6 +853,7 @@ function CloudDataSection() {
 									<SelectItem value="apple-notes">Apple Notes HTML (best effort)</SelectItem>
 									<SelectItem value="bear">Bear export (best effort)</SelectItem>
 									<SelectItem value="notion">Notion export (best effort)</SelectItem>
+									<SelectItem value="simplenote">Simplenote export (best effort)</SelectItem>
 									<SelectItem value="markdown-vault">Markdown folder (best effort)</SelectItem>
 								</SelectContent>
 							</Select>
@@ -829,6 +873,7 @@ function CloudDataSection() {
 								<SelectContent>
 									<SelectItem value="merge">Merge (skip duplicates)</SelectItem>
 									<SelectItem value="overwrite">Overwrite matches</SelectItem>
+									<SelectItem value="duplicate">Duplicate matches</SelectItem>
 									<SelectItem value="replace-workspace">Replace workspace</SelectItem>
 								</SelectContent>
 							</Select>
@@ -858,6 +903,13 @@ function CloudDataSection() {
 
 					{importPreview && importState !== "previewing" && (
 						<ImportPreviewSummary preview={importPreview} />
+					)}
+
+					{importState === "importing" && (
+						<ImportProgress
+							imported={importProgress.imported}
+							total={importProgress.total}
+						/>
 					)}
 
 					{importState === "success" && (
@@ -890,7 +942,9 @@ function CloudDataSection() {
 									? "Replace workspace"
 									: importPolicy === "overwrite"
 										? "Import with overwrite"
-										: "Import new items"}
+										: importPolicy === "duplicate"
+											? "Import as duplicates"
+											: "Import new items"}
 							</Button>
 						)}
 						{importState === "importing" && (
