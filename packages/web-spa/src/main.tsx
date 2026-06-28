@@ -1,3 +1,4 @@
+import "./raf-fallback";
 import "@remcostoeten/auth-drawer/styles.css";
 import "@/app/globals.css";
 import "./styles/fonts.css";
