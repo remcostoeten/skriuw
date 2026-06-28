@@ -9,6 +9,14 @@ import { MOOD_OPTIONS } from "@/features/journal/types";
 import { useJournalEntries } from "@/features/journal/hooks/use-journal-entries";
 import { SidebarSection } from "../sidebar-section";
 import { MiniCalendar } from "./mini-calendar";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger,
+} from "@/shared/ui/context-menu";
+import { copyTextToClipboard } from "@/features/desktop/context-menu-actions";
 
 type JournalSectionProps = {
 	isCollapsed: boolean;
@@ -62,6 +70,12 @@ export function JournalSection({
 		router.push(`/app/journal?date=${dateKey}`);
 	};
 
+	const goToToday = () => {
+		const today = new Date();
+		setSelectedDate(today);
+		setCurrentMonth(today);
+	};
+
 	// Recent entries for the "entries" view
 	const recentEntries = useMemo(() => {
 		return [...entries]
@@ -73,9 +87,7 @@ export function JournalSection({
 		<button
 			onClick={(event) => {
 				event.stopPropagation();
-				const today = new Date();
-				setSelectedDate(today);
-				setCurrentMonth(today);
+				goToToday();
 			}}
 			className="flex h-6 items-center gap-1 px-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 			title="Go to today"
@@ -150,6 +162,7 @@ export function JournalSection({
 								openJournalDate(date);
 							}}
 							onChangeMonth={setCurrentMonth}
+							onGoToToday={goToToday}
 						/>
 					</div>
 				) : (
@@ -169,64 +182,93 @@ export function JournalSection({
 						) : (
 							recentEntries.map((entry) => {
 								const mood = entry.mood ? MOOD_OPTIONS[entry.mood] : null;
+								const entryDate = new Date(entry.dateKey + "T00:00:00");
 								return (
-									<button
-										key={entry.id}
-										onClick={() => {
-											const [year, month, day] = entry.dateKey
-												.split("-")
-												.map(Number);
-											const entryDate = new Date(year, month - 1, day);
-											setSelectedDate(entryDate);
-											setCurrentMonth(entryDate);
-											router.push(`/app/journal?date=${entry.dateKey}`);
-										}}
-										className={cn(
-											"flex w-full items-start gap-2 border-b border-border px-2.5 py-2.5 text-left transition-colors last:border-b-0 hover:bg-accent/[0.14]",
-											compactMode && "px-2 py-2",
-										)}
-									>
-										<div className="flex min-w-0 flex-1 flex-col gap-1">
-											<div className="flex items-center gap-1.5">
-												<span className="text-[11px] font-medium text-foreground/72">
-													{format(
-														new Date(entry.dateKey + "T00:00:00"),
-														"dd MM yyyy",
-													)}
-												</span>
-												{mood && (
-													<span className={cn("text-[10px]", mood.color)}>
-														{mood.icon}
-													</span>
+									<ContextMenu key={entry.id}>
+										<ContextMenuTrigger asChild>
+											<button
+												onClick={() => {
+													setSelectedDate(entryDate);
+													setCurrentMonth(entryDate);
+													router.push(
+														`/app/journal?date=${entry.dateKey}`,
+													);
+												}}
+												className={cn(
+													"flex w-full items-start gap-2 border-b border-border px-2.5 py-2.5 text-left transition-colors last:border-b-0 hover:bg-accent/[0.14]",
+													compactMode && "px-2 py-2",
 												)}
-												{entry.dateKey === selectedDateKey && (
-													<span className="text-[9px] text-muted-foreground/45">
-														selected
-													</span>
-												)}
-											</div>
-											<p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground/62">
-												{entry.content.slice(0, 100)}
-											</p>
-											{entry.tags.length > 0 && (
-												<div className="mt-0.5 flex flex-wrap gap-1">
-													{entry.tags.slice(0, 3).map((tag) => (
-														<span
-															key={tag}
-															className="border border-border bg-background/55 px-1.5 py-px text-[9px] text-muted-foreground/70"
-														>
-															@{tag}
+											>
+												<div className="flex min-w-0 flex-1 flex-col gap-1">
+													<div className="flex items-center gap-1.5">
+														<span className="text-[11px] font-medium text-foreground/72">
+															{format(entryDate, "dd MM yyyy")}
 														</span>
-													))}
-													{entry.tags.length > 3 && (
-														<span className="text-[9px] text-muted-foreground/50">
-															+{entry.tags.length - 3}
-														</span>
+														{mood && (
+															<span
+																className={cn(
+																	"text-[10px]",
+																	mood.color,
+																)}
+															>
+																{mood.icon}
+															</span>
+														)}
+														{entry.dateKey === selectedDateKey && (
+															<span className="text-[9px] text-muted-foreground/45">
+																selected
+															</span>
+														)}
+													</div>
+													<p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground/62">
+														{entry.content.slice(0, 100)}
+													</p>
+													{entry.tags.length > 0 && (
+														<div className="mt-0.5 flex flex-wrap gap-1">
+															{entry.tags.slice(0, 3).map((tag) => (
+																<span
+																	key={tag}
+																	className="border border-border bg-background/55 px-1.5 py-px text-[9px] text-muted-foreground/70"
+																>
+																	@{tag}
+																</span>
+															))}
+															{entry.tags.length > 3 && (
+																<span className="text-[9px] text-muted-foreground/50">
+																	+{entry.tags.length - 3}
+																</span>
+															)}
+														</div>
 													)}
 												</div>
-											)}
-										</div>
-									</button>
+											</button>
+										</ContextMenuTrigger>
+										<ContextMenuContent className="w-44">
+											<ContextMenuItem
+												onClick={() => {
+													setSelectedDate(entryDate);
+													setCurrentMonth(entryDate);
+													router.push(
+														`/app/journal?date=${entry.dateKey}`,
+													);
+												}}
+											>
+												Open entry
+											</ContextMenuItem>
+											<ContextMenuItem
+												onClick={() => copyTextToClipboard(entry.dateKey)}
+											>
+												Copy date
+											</ContextMenuItem>
+											<ContextMenuSeparator />
+											<ContextMenuItem
+												disabled={!entry.content.trim()}
+												onClick={() => copyTextToClipboard(entry.content)}
+											>
+												Copy entry
+											</ContextMenuItem>
+										</ContextMenuContent>
+									</ContextMenu>
 								);
 							})
 						)}

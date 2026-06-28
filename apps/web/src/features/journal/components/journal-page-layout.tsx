@@ -298,6 +298,9 @@ export function JournalPageLayout() {
 									selectedDate={selectedDate}
 									editorMode={editorMode}
 									entryState={journalEntry}
+									onToggleEditorMode={handleToggleEditorMode}
+									onGoToToday={handleGoToToday}
+									onBackToList={handleBackToList}
 								/>
 							</>
 						)}
