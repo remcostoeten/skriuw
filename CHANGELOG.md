@@ -3,11 +3,13 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.5.0] — 2026-06-29
+## [0.1.0] — 2026-06-29
 
-A large feature release: a full native desktop app, real-time collaboration,
-multi-provider AI, a knowledge graph, and a ground-up rebuild of the editor's
-formatting toolbar — plus extensive performance and hardening work since 0.4.2.
+First unified release across the web app and the desktop app, sharing a single
+version number going forward. A large feature set: a full native desktop app,
+real-time collaboration, multi-provider AI, a knowledge graph, and a ground-up
+rebuild of the editor's formatting toolbar, plus extensive performance and
+hardening work accumulated during the preview builds.
 
 ### Desktop app (new)
 - Native **Tauri 2 desktop build** (`apps/desktop`) running the shared SPA (`packages/web-spa`).
@@ -61,4 +63,4 @@ formatting toolbar — plus extensive performance and hardening work since 0.4.2
 - Security/IDOR hardening on upserts and debounced-save race fixes.
 - Monorepo restructure (Next.js app moved to `apps/web`, shared `packages/web-spa`).
 
-[0.5.0]: https://github.com/remcostoeten/skriuw/compare/v0.4.2...v0.5.0
+[0.1.0]: https://github.com/remcostoeten/skriuw/releases/tag/desktop-v0.1.0
