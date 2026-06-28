@@ -12,7 +12,12 @@ type UseNotesLayoutShortcutsOptions = {
 	handleToggleMetadata: () => void;
 	handleOpenSettings: () => void;
 	handleToggleEditorMode: () => void;
+	handleFocusFileTree: () => void;
 	handleToggleSplit: () => void;
+	handleSplitHorizontal: () => void;
+	handleCloseSplitPane: () => void;
+	handleFocusNextSplitPane: () => void;
+	handleFocusPreviousSplitPane: () => void;
 };
 
 export function useNotesLayoutShortcuts({
@@ -22,7 +27,12 @@ export function useNotesLayoutShortcuts({
 	handleToggleMetadata,
 	handleOpenSettings,
 	handleToggleEditorMode,
+	handleFocusFileTree,
 	handleToggleSplit,
+	handleSplitHorizontal,
+	handleCloseSplitPane,
+	handleFocusNextSplitPane,
+	handleFocusPreviousSplitPane,
 }: UseNotesLayoutShortcutsOptions) {
 	const { getHelpGroups } = useShortcutManager();
 	const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -46,7 +56,12 @@ export function useNotesLayoutShortcuts({
 		"notes.toggleMetadata": handleToggleMetadata,
 		"notes.settings": handleOpenSettings,
 		"notes.toggleEditor": handleToggleEditorMode,
+		"notes.focusFileTree": handleFocusFileTree,
 		"notes.toggleSplit": handleToggleSplit,
+		"notes.splitHorizontal": handleSplitHorizontal,
+		"notes.closeSplit": handleCloseSplitPane,
+		"notes.focusNextSplitPane": handleFocusNextSplitPane,
+		"notes.focusPreviousSplitPane": handleFocusPreviousSplitPane,
 		"notes.focusEditor": () => focusActiveEditor(),
 		"notes.help": handleOpenShortcutHelp,
 	});

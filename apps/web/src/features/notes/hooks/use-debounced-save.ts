@@ -15,6 +15,15 @@ type DebouncedUpdateOptions = {
 	onError?: (noteId: string) => void;
 };
 
+// Idle window after the last keystroke before a note's pending edits are
+// persisted on their own. Without this the only flush points are editor blur,
+// note switches, and page-unload events — none of which fire reliably in the
+// Tauri desktop webview (closing the window never emits `beforeunload`), so
+// edits would sit in memory showing "saving" forever and never reach the vault.
+// This idle save is checkpoint-free; blur/switch/unload still create version
+// checkpoints, so version history is unchanged.
+const AUTOSAVE_DEBOUNCE_MS = 1000;
+
 type DebouncedContentArgs = {
 	id: string;
 	content: string;
@@ -53,13 +62,27 @@ export function useDebouncedSave(
 	const flushQueuesRef = useRef(new Map<string, Promise<void>>());
 	const pendingRef = useRef(new Map<string, PendingEdit>());
 	const dirtyRef = useRef(new Set<string>());
+	const idleTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 	const optionsRef = useRef(options);
 
 	useEffect(() => {
 		optionsRef.current = options;
 	}, [options]);
 
+	useEffect(() => {
+		const idleTimers = idleTimersRef.current;
+		return () => {
+			for (const timer of idleTimers.values()) clearTimeout(timer);
+			idleTimers.clear();
+		};
+	}, []);
+
 	return useMemo<DebouncedSaveController>(() => {
+		// Autosaves only persist content — never the name. The filename follows the
+		// first heading, but that rename is committed by the editor when the user
+		// leaves the heading block (blur / Enter / navigate away), via an explicit
+		// rename. Deriving the name here on every keystroke is what made the sidebar
+		// rename mid-edit, so the cached name is left untouched.
 		function applyOptimisticCache(
 			id: string,
 			content: string,
@@ -109,6 +132,10 @@ export function useDebouncedSave(
 				content: edit.content,
 				richContent: edit.richContent,
 				preferredEditorMode: edit.preferredEditorMode,
+				// Autosaves never rename. The filename follows the first heading only
+				// when the editor commits it (the user leaves the heading block),
+				// which sends an explicit `name`.
+				trackHeading: false,
 				createCheckpoint: createCheckpoint || undefined,
 				sessionVersionId: createCheckpoint
 					? sessionVersionIdsRef.current.get(id)
@@ -133,6 +160,25 @@ export function useDebouncedSave(
 				optionsRef.current.onError?.(id);
 				return false;
 			}
+		}
+
+		function clearIdleTimer(id: string) {
+			const timer = idleTimersRef.current.get(id);
+			if (timer === undefined) return;
+			clearTimeout(timer);
+			idleTimersRef.current.delete(id);
+		}
+
+		// Persist on its own once typing pauses. Checkpoint-free so it never
+		// inflates version history; the dirty flag is left set so the next
+		// blur/switch/unload flush still records a checkpoint.
+		function scheduleIdleFlush(id: string) {
+			clearIdleTimer(id);
+			const timer = setTimeout(() => {
+				idleTimersRef.current.delete(id);
+				void flush(id, { createCheckpoint: false });
+			}, AUTOSAVE_DEBOUNCE_MS);
+			idleTimersRef.current.set(id, timer);
 		}
 
 		function schedule({
@@ -162,12 +208,16 @@ export function useDebouncedSave(
 			);
 
 			optionsRef.current.onSaving?.(id);
+			scheduleIdleFlush(id);
 		}
 
 		async function flushNow(
 			noteId: string,
 			flushOptions: { createCheckpoint?: boolean } = {},
 		): Promise<void> {
+			// A flush is in flight; cancel the pending idle save so it can't
+			// re-fire a redundant write a beat later.
+			clearIdleTimer(noteId);
 			const pending = pendingRef.current.get(noteId);
 			const wantsCheckpoint = flushOptions.createCheckpoint ?? true;
 			const wasDirty = dirtyRef.current.has(noteId);
@@ -236,6 +286,7 @@ export function useDebouncedSave(
 		}
 
 		function discardPending(noteId: string) {
+			clearIdleTimer(noteId);
 			pendingRef.current.delete(noteId);
 			dirtyRef.current.delete(noteId);
 			versionsRef.current.set(noteId, (versionsRef.current.get(noteId) ?? 0) + 1);

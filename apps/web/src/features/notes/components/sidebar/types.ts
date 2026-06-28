@@ -116,14 +116,6 @@ export const DEFAULT_SECTIONS: SidebarSection[] = [
 		isVisible: true,
 		order: 4,
 	},
-	{
-		id: "projects",
-		type: "projects",
-		name: "Projects",
-		isCollapsed: false,
-		isVisible: true,
-		order: 5,
-	},
 ];
 
 export const DEFAULT_SIDEBAR_CONFIG: SidebarConfig = {

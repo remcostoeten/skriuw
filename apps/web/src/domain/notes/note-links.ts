@@ -46,6 +46,54 @@ function extractHeadingTitle(content: string): string | null {
 	return headingMatch?.[1]?.trim() || null;
 }
 
+const UNTITLED_NAME_PATTERN = /^untitled(\s+\d+)?\.mdx?$/i;
+
+/**
+ * A note still carries its auto-generated name (`Untitled.md`, `Untitled 2.md`).
+ * Used to gate the auto-rename-from-heading behavior so we never clobber a name
+ * the user typed themselves.
+ */
+export function isUntitledNoteName(name: string): boolean {
+	return UNTITLED_NAME_PATTERN.test(name.trim());
+}
+
+/**
+ * Whether `name` is still the auto-managed, heading-derived filename rather than
+ * a title the user typed themselves. True when the note is still "Untitled", or
+ * when the name is exactly what the current heading in `content` would derive
+ * to — i.e. it has been tracking the heading. This lets the filename keep
+ * following the first heading as it's edited, while a manual rename (which makes
+ * the name diverge from the heading) permanently opts out of the tracking.
+ */
+export function nameTracksHeading(name: string, content: string): boolean {
+	if (isUntitledNoteName(name)) return true;
+	const derived = deriveNoteNameFromHeading(content);
+	return derived !== null && normalizeNoteTitle(derived) === normalizeNoteTitle(name);
+}
+
+// Characters that are illegal in filenames on common filesystems (the `name`
+// doubles as a `.md` filename on desktop/export), plus control chars.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control chars from filenames is intentional
+const FILENAME_UNSAFE_PATTERN = /[/\\:*?"<>|\x00-\x1f]/g;
+const MAX_DERIVED_NAME_LENGTH = 120;
+
+/**
+ * Derive a note filename (`<heading>.md`) from the first H1 in `content`, or
+ * `null` when there's no usable heading. The heading is sanitized into a safe
+ * filename: unsafe chars stripped, whitespace collapsed, length capped.
+ */
+export function deriveNoteNameFromHeading(content: string): string | null {
+	const heading = extractHeadingTitle(content);
+	if (!heading) return null;
+	const cleaned = heading
+		.replace(FILENAME_UNSAFE_PATTERN, " ")
+		.replace(/\s+/g, " ")
+		.trim()
+		.slice(0, MAX_DERIVED_NAME_LENGTH)
+		.trim();
+	return cleaned ? `${cleaned}.md` : null;
+}
+
 export function getNoteTitle(note: Pick<NoteFile, "name" | "content">): string {
 	return extractHeadingTitle(note.content) ?? stripMarkdownExtension(note.name);
 }

@@ -1,8 +1,6 @@
 import {
-	Check,
 	ChevronLeft,
 	ChevronRight,
-	CircleAlert,
 	Columns2,
 	Download,
 	FileCode,
@@ -27,8 +25,10 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui/tooltip";
 import { GuestGate } from "@/shared/ui/guest-gate";
 import { CollabPresence } from "@/features/collaboration/components/collab-presence";
+import { useShortcutHint, type ShortcutId } from "@/core/shortcuts";
 
 export type WorkspaceNavItem = {
 	href: string;
@@ -37,35 +37,6 @@ export type WorkspaceNavItem = {
 };
 
 export type EditorSaveState = "idle" | "saving" | "saved" | "error";
-
-function SaveStatusIndicator({ state }: { state: EditorSaveState }) {
-	if (state === "idle") return null;
-
-	if (state === "saving") {
-		return (
-			<span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground/60">
-				<Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.6} />
-				Saving
-			</span>
-		);
-	}
-
-	if (state === "saved") {
-		return (
-			<span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground/50">
-				<Check className="h-3 w-3" strokeWidth={1.8} />
-				Saved
-			</span>
-		);
-	}
-
-	return (
-		<span className="flex shrink-0 items-center gap-1 text-[11px] text-destructive">
-			<CircleAlert className="h-3 w-3" strokeWidth={1.8} />
-			Save failed
-		</span>
-	);
-}
 
 type Props = {
 	fileName: string;
@@ -140,10 +111,31 @@ function WorkspaceMenu({
 	);
 }
 
+function ToolbarTooltip({
+	label,
+	shortcutId,
+	children,
+}: {
+	label: string;
+	shortcutId?: ShortcutId;
+	children: React.ReactNode;
+}) {
+	const shortcut = useShortcutHint(shortcutId);
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>{children}</TooltipTrigger>
+			<TooltipContent side="bottom" className="px-2 py-1 text-xs" shortcut={shortcut}>
+				{label}
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
 export function EditorToolbar({
 	fileName,
 	breadcrumb,
-	saveState = "idle",
+	saveState: _saveState,
 	isMobile = false,
 	workspaceItems = [],
 	onToggleSidebar,
@@ -170,7 +162,7 @@ export function EditorToolbar({
 		: false;
 	const hasAiActions = Boolean(onAiGenerateTitle || onAiSpellCheck || onAiContinueWriting);
 	const sidebarIconButtonClass =
-		"pressable flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground";
+		"flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground";
 
 	const runAiAction = (handler?: () => void) => () => {
 		handler?.();
@@ -181,296 +173,310 @@ export function EditorToolbar({
 			"flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]";
 
 		return (
-			<header className="border-b border-border bg-card px-2 pb-2.5 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-3">
-				<div className="flex min-h-11 items-center gap-0.5">
-					<button
-						onClick={onToggleSidebar}
-						className={mobileIconButton}
-						title="Open notes"
-						aria-label="Open notes"
-					>
-						<Sidebar className="h-5 w-5" strokeWidth={1.7} />
-					</button>
-					<WorkspaceMenu items={workspaceItems} buttonClassName={mobileIconButton} />
+			<TooltipProvider>
+				<header className="border-b border-border bg-card px-2 pb-2.5 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-3">
+					<div className="flex min-h-11 items-center gap-0.5">
+						<ToolbarTooltip label="Open notes" shortcutId="notes.toggleSidebar">
+							<button
+								onClick={onToggleSidebar}
+								className={mobileIconButton}
+								aria-label="Open notes"
+							>
+								<Sidebar className="h-5 w-5" strokeWidth={1.7} />
+							</button>
+						</ToolbarTooltip>
+						<WorkspaceMenu items={workspaceItems} buttonClassName={mobileIconButton} />
 
-					<div className="min-w-0 flex-1 px-1.5">
-						{breadcrumb && breadcrumb.length > 0 && (
-							<p className="truncate text-[11px] leading-tight text-muted-foreground/70">
-								{breadcrumb.join(" / ")}
-							</p>
-						)}
-						<h1 className="truncate text-[17px] font-semibold leading-snug tracking-[-0.02em] text-foreground">
-							{fileName}
-						</h1>
-						<SaveStatusIndicator state={saveState} />
+						<div className="min-w-0 flex-1 px-1.5">
+							{breadcrumb && breadcrumb.length > 0 && (
+								<p className="truncate text-[11px] leading-tight text-muted-foreground/70">
+									{breadcrumb.join(" / ")}
+								</p>
+							)}
+							<h1 className="truncate text-[17px] font-semibold leading-snug tracking-[-0.02em] text-foreground">
+								{fileName}
+							</h1>
+						</div>
+
+						<CollabPresence awareness={presenceAwareness} />
+
+						<ToolbarTooltip label="Open note details" shortcutId="notes.toggleMetadata">
+							<button
+								onClick={onToggleMetadata}
+								className={mobileIconButton}
+								aria-label="Open note details"
+							>
+								<PanelRight className="h-5 w-5" strokeWidth={1.7} />
+							</button>
+						</ToolbarTooltip>
+						{onOpenSettings ? (
+							<ToolbarTooltip label="Open settings" shortcutId="notes.settings">
+								<button
+									onClick={onOpenSettings}
+									className={mobileIconButton}
+									aria-label="Open settings"
+								>
+									<Settings2 className="h-5 w-5" strokeWidth={1.7} />
+								</button>
+							</ToolbarTooltip>
+						) : null}
 					</div>
-
-					<CollabPresence awareness={presenceAwareness} />
-
-					<button
-						onClick={onToggleMetadata}
-						className={mobileIconButton}
-						title="Open note details"
-						aria-label="Open note details"
-					>
-						<PanelRight className="h-5 w-5" strokeWidth={1.7} />
-					</button>
-					{onOpenSettings ? (
-						<button
-							onClick={onOpenSettings}
-							className={mobileIconButton}
-							title="Open settings"
-							aria-label="Open settings"
-						>
-							<Settings2 className="h-5 w-5" strokeWidth={1.7} />
-						</button>
-					) : null}
-				</div>
-			</header>
+				</header>
+			</TooltipProvider>
 		);
 	}
 
 	return (
-		<div
-			className={cn(
-				"border-b border-border bg-background text-foreground",
-				"flex h-11 items-center gap-1 px-3",
-			)}
-		>
-			<button
-				onClick={onToggleSidebar}
-				className={sidebarIconButtonClass}
-				title="Toggle sidebar"
-				aria-label="Toggle sidebar"
-			>
-				<PanelLeft className="h-4 w-4" strokeWidth={1.5} />
-			</button>
-			<WorkspaceMenu items={workspaceItems} buttonClassName={sidebarIconButtonClass} />
-			<button
-				onClick={onNavigatePrev}
-				disabled={!canNavigatePrev}
+		<TooltipProvider>
+			<div
 				className={cn(
-					sidebarIconButtonClass,
-					!canNavigatePrev && "cursor-not-allowed text-muted-foreground/30",
+					"border-b border-border bg-background text-foreground",
+					"flex h-11 items-center gap-1 px-3",
 				)}
-				title="Previous file"
-				aria-label="Previous file"
 			>
-				<ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
-			</button>
-			<button
-				onClick={onNavigateNext}
-				disabled={!canNavigateNext}
-				className={cn(
-					sidebarIconButtonClass,
-					!canNavigateNext && "cursor-not-allowed text-muted-foreground/30",
-				)}
-				title="Next file"
-				aria-label="Next file"
-			>
-				<ChevronRight className="h-4 w-4" strokeWidth={1.5} />
-			</button>
-
-			<div className="ml-2 flex min-w-0 flex-1 items-center gap-1.5 text-sm">
-				{breadcrumb && breadcrumb.length > 0 && (
-					<>
-						{breadcrumb.map((part, i) => (
-							<span key={i} className="flex shrink-0 items-center gap-1.5">
-								<span className="text-muted-foreground/50 truncate">{part}</span>
-								<span className="text-muted-foreground/50">/</span>
-							</span>
-						))}
-					</>
-				)}
-				<span className="text-muted-foreground/50 truncate font-medium ">{fileName}</span>
-				<SaveStatusIndicator state={saveState} />
-			</div>
-
-			<div className="flex shrink-0 items-center gap-1">
-				<CollabPresence awareness={presenceAwareness} />
-				{onToggleSplit && (
+				<ToolbarTooltip label="Toggle sidebar" shortcutId="notes.toggleSidebar">
 					<button
-						type="button"
-						onClick={onToggleSplit}
-						disabled={!canToggleSplit}
-						className={cn(
-							sidebarIconButtonClass,
-							splitEnabled &&
-								"border-border bg-muted text-foreground hover:bg-muted",
-							!canToggleSplit && "cursor-not-allowed text-muted-foreground/30",
-						)}
-						title={splitEnabled ? "Close split editor" : "Split editor"}
-						aria-label={splitEnabled ? "Close split editor" : "Split editor"}
-						aria-pressed={splitEnabled}
-					>
-						<Columns2 className="h-4 w-4" strokeWidth={1.5} />
-					</button>
-				)}
-				{splitEnabled && onToggleSplitOrientation ? (
-					<button
-						type="button"
-						onClick={onToggleSplitOrientation}
+						onClick={onToggleSidebar}
 						className={sidebarIconButtonClass}
-						title={
-							splitOrientation === "vertical"
-								? "Switch to horizontal split"
-								: "Switch to vertical split"
-						}
-						aria-label={
-							splitOrientation === "vertical"
-								? "Switch to horizontal split"
-								: "Switch to vertical split"
-						}
+						aria-label="Toggle sidebar"
 					>
-						{splitOrientation === "vertical" ? (
-							<Rows2 className="h-4 w-4" strokeWidth={1.5} />
-						) : (
-							<Columns2 className="h-4 w-4" strokeWidth={1.5} />
-						)}
+						<PanelLeft className="h-4 w-4" strokeWidth={1.5} />
 					</button>
-				) : null}
-				{hasAiActions && (
-					<GuestGate feature="ai">
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<button
-								disabled={anyAiLoading}
-								className={cn(
-									sidebarIconButtonClass,
-									"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
-									anyAiLoading && "cursor-not-allowed opacity-50",
-								)}
-								title="AI actions"
-								aria-label="AI actions"
-							>
-								{anyAiLoading ? (
-									<Loader2
-										className="h-3.5 w-3.5 animate-spin"
-										strokeWidth={1.6}
-									/>
-								) : (
-									<SparkleIcon className="h-3.5 w-3.5" />
-								)}
-							</button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-52 rounded-none shadow-none animate-in fade-in-80">
-							{onAiGenerateTitle && (
-								<DropdownMenuItem
-									onSelect={runAiAction(onAiGenerateTitle)}
-									disabled={anyAiLoading}
-									className="gap-2 text-xs"
-								>
-									<Wand2
-										className="h-3.5 w-3.5"
-										strokeWidth={1.6}
-									/>
-									Generate title
-									{aiLoading?.generateTitle && (
-										<Loader2
-											className="ml-auto h-3 w-3 animate-spin"
-											strokeWidth={1.6}
-										/>
-									)}
-								</DropdownMenuItem>
-							)}
-							{onAiSpellCheck && (
-								<DropdownMenuItem
-									onSelect={runAiAction(onAiSpellCheck)}
-									disabled={anyAiLoading}
-									className="gap-2 text-xs"
-								>
-									<SpellCheck
-										className="h-3.5 w-3.5"
-										strokeWidth={1.6}
-									/>
-									Spell check
-									{aiLoading?.spellCheck && (
-										<Loader2
-											className="ml-auto h-3 w-3 animate-spin"
-											strokeWidth={1.6}
-										/>
-									)}
-								</DropdownMenuItem>
-							)}
-							{onAiContinueWriting && (
-								<DropdownMenuItem
-									onSelect={runAiAction(onAiContinueWriting)}
-									disabled={anyAiLoading}
-									className="gap-2 text-xs"
-								>
-									<PenTool
-										className="h-3.5 w-3.5"
-										strokeWidth={1.6}
-									/>
-									Continue writing
-									{aiLoading?.continueWriting && (
-										<Loader2
-											className="ml-auto h-3 w-3 animate-spin"
-											strokeWidth={1.6}
-										/>
-									)}
-								</DropdownMenuItem>
-							)}
-						</DropdownMenuContent>
-					</DropdownMenu>
-					</GuestGate>
-				)}
+				</ToolbarTooltip>
+				<WorkspaceMenu items={workspaceItems} buttonClassName={sidebarIconButtonClass} />
+				<button
+					onClick={onNavigatePrev}
+					disabled={!canNavigatePrev}
+					className={cn(
+						sidebarIconButtonClass,
+						!canNavigatePrev && "cursor-not-allowed text-muted-foreground/30",
+					)}
+					title="Previous file"
+					aria-label="Previous file"
+				>
+					<ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
+				</button>
+				<button
+					onClick={onNavigateNext}
+					disabled={!canNavigateNext}
+					className={cn(
+						sidebarIconButtonClass,
+						!canNavigateNext && "cursor-not-allowed text-muted-foreground/30",
+					)}
+					title="Next file"
+					aria-label="Next file"
+				>
+					<ChevronRight className="h-4 w-4" strokeWidth={1.5} />
+				</button>
 
-				{onExportNote && (
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
+				<div className="ml-2 flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+					{breadcrumb && breadcrumb.length > 0 && (
+						<>
+							{breadcrumb.map((part, i) => (
+								<span key={i} className="flex shrink-0 items-center gap-1.5">
+									<span className="text-muted-foreground/50 truncate">
+										{part}
+									</span>
+									<span className="text-muted-foreground/50">/</span>
+								</span>
+							))}
+						</>
+					)}
+					<span className="text-muted-foreground/50 truncate font-medium ">
+						{fileName}
+					</span>
+				</div>
+
+				<div className="flex shrink-0 items-center gap-1">
+					<CollabPresence awareness={presenceAwareness} />
+					{onToggleSplit && (
+						<ToolbarTooltip
+							label={splitEnabled ? "Close split editor" : "Split editor"}
+							shortcutId="notes.toggleSplit"
+						>
 							<button
 								type="button"
-								className={sidebarIconButtonClass}
-								title="Export note"
-								aria-label="Export note"
+								onClick={onToggleSplit}
+								disabled={!canToggleSplit}
+								className={cn(
+									sidebarIconButtonClass,
+									splitEnabled &&
+										"border-border bg-muted text-foreground hover:bg-muted",
+									!canToggleSplit &&
+										"cursor-not-allowed text-muted-foreground/30",
+								)}
+								aria-label={splitEnabled ? "Close split editor" : "Split editor"}
+								aria-pressed={splitEnabled}
 							>
-								<Download className="h-4 w-4" strokeWidth={1.5} />
+								<Columns2 className="h-4 w-4" strokeWidth={1.5} />
 							</button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-48 rounded-none shadow-none">
-							<DropdownMenuItem
-								onSelect={() => onExportNote("md")}
-								className="gap-2 text-xs"
-							>
-								<FileText className="h-3.5 w-3.5" strokeWidth={1.6} />
-								Export as Markdown
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onSelect={() => onExportNote("html")}
-								className="gap-2 text-xs"
-							>
-								<FileCode className="h-3.5 w-3.5" strokeWidth={1.6} />
-								Export as HTML
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				)}
+						</ToolbarTooltip>
+					)}
+					{splitEnabled && onToggleSplitOrientation ? (
+						<button
+							type="button"
+							onClick={onToggleSplitOrientation}
+							className={sidebarIconButtonClass}
+							title={
+								splitOrientation === "vertical"
+									? "Switch to horizontal split"
+									: "Switch to vertical split"
+							}
+							aria-label={
+								splitOrientation === "vertical"
+									? "Switch to horizontal split"
+									: "Switch to vertical split"
+							}
+						>
+							{splitOrientation === "vertical" ? (
+								<Rows2 className="h-4 w-4" strokeWidth={1.5} />
+							) : (
+								<Columns2 className="h-4 w-4" strokeWidth={1.5} />
+							)}
+						</button>
+					) : null}
+					{hasAiActions && (
+						<GuestGate feature="ai">
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<button
+										disabled={anyAiLoading}
+										className={cn(
+											sidebarIconButtonClass,
+											"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+											anyAiLoading && "cursor-not-allowed opacity-50",
+										)}
+										title="AI actions"
+										aria-label="AI actions"
+									>
+										{anyAiLoading ? (
+											<Loader2
+												className="h-3.5 w-3.5 animate-spin"
+												strokeWidth={1.6}
+											/>
+										) : (
+											<SparkleIcon className="h-3.5 w-3.5" />
+										)}
+									</button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent
+									align="end"
+									className="w-52 rounded-none shadow-none animate-in fade-in-80"
+								>
+									{onAiGenerateTitle && (
+										<DropdownMenuItem
+											onSelect={runAiAction(onAiGenerateTitle)}
+											disabled={anyAiLoading}
+											className="gap-2 text-xs"
+										>
+											<Wand2 className="h-3.5 w-3.5" strokeWidth={1.6} />
+											Generate title
+											{aiLoading?.generateTitle && (
+												<Loader2
+													className="ml-auto h-3 w-3 animate-spin"
+													strokeWidth={1.6}
+												/>
+											)}
+										</DropdownMenuItem>
+									)}
+									{onAiSpellCheck && (
+										<DropdownMenuItem
+											onSelect={runAiAction(onAiSpellCheck)}
+											disabled={anyAiLoading}
+											className="gap-2 text-xs"
+										>
+											<SpellCheck className="h-3.5 w-3.5" strokeWidth={1.6} />
+											Spell check
+											{aiLoading?.spellCheck && (
+												<Loader2
+													className="ml-auto h-3 w-3 animate-spin"
+													strokeWidth={1.6}
+												/>
+											)}
+										</DropdownMenuItem>
+									)}
+									{onAiContinueWriting && (
+										<DropdownMenuItem
+											onSelect={runAiAction(onAiContinueWriting)}
+											disabled={anyAiLoading}
+											className="gap-2 text-xs"
+										>
+											<PenTool className="h-3.5 w-3.5" strokeWidth={1.6} />
+											Continue writing
+											{aiLoading?.continueWriting && (
+												<Loader2
+													className="ml-auto h-3 w-3 animate-spin"
+													strokeWidth={1.6}
+												/>
+											)}
+										</DropdownMenuItem>
+									)}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</GuestGate>
+					)}
 
-				<button
-					onClick={onToggleMetadata}
-					className={sidebarIconButtonClass}
-					title="Toggle metadata"
-					aria-label="Toggle metadata"
-				>
-					<PanelRight className="h-4 w-4" strokeWidth={1.5} />
-				</button>
-				{onOpenSettings && (
-					<button
-						onClick={onOpenSettings}
-						className={sidebarIconButtonClass}
-						title="Open settings"
-						aria-label="Open settings"
-					>
-						<SlidersHorizontal className="h-4 w-4" strokeWidth={1.5} />
-					</button>
-				)}
+					{onExportNote && (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<button
+									type="button"
+									className={sidebarIconButtonClass}
+									title="Export note"
+									aria-label="Export note"
+								>
+									<Download className="h-4 w-4" strokeWidth={1.5} />
+								</button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent
+								align="end"
+								className="w-48 rounded-none shadow-none"
+							>
+								<DropdownMenuItem
+									onSelect={() => onExportNote("md")}
+									className="gap-2 text-xs"
+								>
+									<FileText className="h-3.5 w-3.5" strokeWidth={1.6} />
+									Export as Markdown
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onSelect={() => onExportNote("html")}
+									className="gap-2 text-xs"
+								>
+									<FileCode className="h-3.5 w-3.5" strokeWidth={1.6} />
+									Export as HTML
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
+
+					<ToolbarTooltip label="Toggle metadata" shortcutId="notes.toggleMetadata">
+						<button
+							onClick={onToggleMetadata}
+							className={sidebarIconButtonClass}
+							aria-label="Toggle metadata"
+						>
+							<PanelRight className="h-4 w-4" strokeWidth={1.5} />
+						</button>
+					</ToolbarTooltip>
+					{onOpenSettings && (
+						<ToolbarTooltip label="Open settings" shortcutId="notes.settings">
+							<button
+								onClick={onOpenSettings}
+								className={sidebarIconButtonClass}
+								aria-label="Open settings"
+							>
+								<SlidersHorizontal className="h-4 w-4" strokeWidth={1.5} />
+							</button>
+						</ToolbarTooltip>
+					)}
+				</div>
 			</div>
-		</div>
+		</TooltipProvider>
 	);
 }
 
-	function SparkleIcon({ className }: { className?: string }) {
+function SparkleIcon({ className }: { className?: string }) {
 	return (
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
@@ -487,14 +493,38 @@ export function EditorToolbar({
 				stroke="hsl(43, 96%, 56%)"
 				style={{ animation: "sparkle-float-up 2.4s ease-in-out infinite" }}
 			/>
-			<circle cx={12} cy={2.5} r={1.5} fill="#22d3ee" stroke="none"
-				style={{ animation: "sparkle-float-down 2s ease-in-out infinite 0.15s" }} />
-			<circle cx={21.5} cy={12} r={1.5} fill="#34d399" stroke="none"
-				style={{ animation: "sparkle-float-up 2.8s ease-in-out infinite 0.4s" }} />
-			<circle cx={12} cy={21.5} r={1.5} fill="#a78bfa" stroke="none"
-				style={{ animation: "sparkle-float-down 2.2s ease-in-out infinite 0.9s" }} />
-			<circle cx={2.5} cy={12} r={1.5} fill="#f472b6" stroke="none"
-				style={{ animation: "sparkle-float-up 3s ease-in-out infinite 0.6s" }} />
+			<circle
+				cx={12}
+				cy={2.5}
+				r={1.5}
+				fill="#22d3ee"
+				stroke="none"
+				style={{ animation: "sparkle-float-down 2s ease-in-out infinite 0.15s" }}
+			/>
+			<circle
+				cx={21.5}
+				cy={12}
+				r={1.5}
+				fill="#34d399"
+				stroke="none"
+				style={{ animation: "sparkle-float-up 2.8s ease-in-out infinite 0.4s" }}
+			/>
+			<circle
+				cx={12}
+				cy={21.5}
+				r={1.5}
+				fill="#a78bfa"
+				stroke="none"
+				style={{ animation: "sparkle-float-down 2.2s ease-in-out infinite 0.9s" }}
+			/>
+			<circle
+				cx={2.5}
+				cy={12}
+				r={1.5}
+				fill="#f472b6"
+				stroke="none"
+				style={{ animation: "sparkle-float-up 3s ease-in-out infinite 0.6s" }}
+			/>
 		</svg>
 	);
 }

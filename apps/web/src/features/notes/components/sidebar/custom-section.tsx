@@ -7,6 +7,7 @@ import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import type { SidebarSection as SidebarSectionType } from "./types";
+import { PROJECT_COLORS, resolveProjectColorClass } from "./types";
 import { SidebarSection } from "./sidebar-section";
 
 type Props = {
@@ -25,6 +26,7 @@ type Props = {
 	canMoveDown?: boolean;
 	onRename: (name: string) => void;
 	onDelete: () => void;
+	onSetColor: (color: string) => void;
 	onFileSelect: (id: string) => void;
 	onFilePrefetch?: (id: string) => void;
 	onRemoveFromSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => void;
@@ -53,6 +55,7 @@ export const CustomSection = memo(function CustomSection({
 	canMoveDown,
 	onRename,
 	onDelete,
+	onSetColor,
 	onFileSelect,
 	onFilePrefetch,
 	onRemoveFromSection,
@@ -76,6 +79,7 @@ export const CustomSection = memo(function CustomSection({
 		[fileIds, filesById],
 	);
 	const totalItems = sectionFolders.length + sectionFiles.length;
+	const color = section.customConfig?.color;
 
 	return (
 		<SidebarSection
@@ -86,6 +90,19 @@ export const CustomSection = memo(function CustomSection({
 			compactMode={compactMode}
 			isCustom
 			itemCount={totalItems}
+			leading={
+				color ? (
+					<span
+						className={cn(
+							"h-2 w-2 rounded-full",
+							resolveProjectColorClass(color),
+						)}
+					/>
+				) : undefined
+			}
+			colorOptions={PROJECT_COLORS}
+			currentColor={color}
+			onSelectColor={onSetColor}
 			onToggleCollapse={onToggleCollapse}
 			onToggleVisibility={onToggleVisibility}
 			onMoveUp={onMoveUp}

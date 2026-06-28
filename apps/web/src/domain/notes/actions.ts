@@ -31,6 +31,7 @@ import {
 import { listNoteVersions } from "@/domain/notes/queries";
 import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
 import type { ResolvedNoteLink } from "@/domain/notes/note-links";
+import { deriveNoteNameFromHeading, nameTracksHeading } from "@/domain/notes/note-links";
 import { syncNoteLinks } from "@/domain/notes/note-link-sync";
 import { buildGraphData, type GraphData } from "@/domain/notes/graph";
 import type {
@@ -336,6 +337,13 @@ export type UpdateNoteInput = {
 	tags?: string[];
 	createCheckpoint?: boolean;
 	sessionVersionId?: string | null;
+	/**
+	 * When `false`, this save must not auto-rename the note from its first
+	 * heading. Autosaves pass `false` so the filename only follows the heading
+	 * once the editor commits it (the user leaves the heading block, which sends
+	 * an explicit `name`). Omitted/`true` keeps the legacy heading-tracking.
+	 */
+	trackHeading?: boolean;
 };
 
 export type UpdateNoteResult = {
@@ -346,6 +354,10 @@ export type UpdateNoteResult = {
 };
 
 export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResult> {
+	if (isGuestScopedId(input.id)) {
+		return { versionCreated: false };
+	}
+
 	const validated = parseServerInput(updateNoteInputSchema, input);
 	const { prisma, user } = await getAuthenticatedUser();
 
@@ -387,6 +399,27 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		let record: NoteRecord | null = null;
 		let ownerId = user.id;
 		let role: NoteAccessRole = "owner";
+
+		// Snapshot the pre-update content so we can later tell a heading-tracked
+		// filename apart from a user-set one. This MUST be read before the content
+		// write below — reading it afterwards compares the name against the *new*
+		// heading, which makes tracking stop after the first rename. Skipped when
+		// the caller opts out (`trackHeading: false`, e.g. autosaves) or when no
+		// usable heading could be derived.
+		let priorHeadingContent: string | null = null;
+		const mayTrackHeading =
+			validated.trackHeading !== false &&
+			validated.name === undefined &&
+			validated.content !== undefined &&
+			deriveNoteNameFromHeading(validated.content) !== null;
+		if (mayTrackHeading) {
+			const prior = await tx.note.findUnique({
+				where: { id: validated.id },
+				select: { content: true },
+			});
+			priorHeadingContent = prior?.content ?? null;
+		}
+
 		try {
 			// Moving a note validates the destination folder, owner-only.
 			if (validated.parentId !== undefined) {
@@ -415,6 +448,26 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		}
 
 		if (!record) return { versionCreated: false };
+
+		// Keep the filename tracking the note's first heading as it's edited, while
+		// never clobbering a manual rename. Gated by `mayTrackHeading` above, so it
+		// only runs for opted-in saves (the editor's heading commit) — autosaves
+		// pass `trackHeading: false` and skip this. We compare against
+		// `priorHeadingContent` (captured before the write) so the "is this name
+		// still heading-tracked?" check sees the pre-edit heading.
+		if (mayTrackHeading && priorHeadingContent !== null) {
+			const derivedName = deriveNoteNameFromHeading(validated.content!);
+			if (
+				derivedName &&
+				derivedName !== record.name &&
+				nameTracksHeading(record.name, priorHeadingContent)
+			) {
+				record = await tx.note.update({
+					where: { id: validated.id, deletedAt: null },
+					data: { name: derivedName },
+				});
+			}
+		}
 
 		const updatedNote = recordToNoteFile(record, { ownerId, role });
 		if (
@@ -537,6 +590,8 @@ export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteR
 }
 
 export async function deleteNote(id: string): Promise<void> {
+	if (isGuestScopedId(id)) return;
+
 	const { prisma, user } = await getAuthenticatedUser();
 	await prisma.note.updateMany({
 		where: { id, userId: user.id, deletedAt: null },

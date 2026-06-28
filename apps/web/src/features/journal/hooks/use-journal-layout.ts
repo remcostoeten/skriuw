@@ -9,7 +9,7 @@ import {
 	type SetStateAction,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { parseISO, isValid } from "date-fns";
+import { isSameDay, parseISO, isValid } from "date-fns";
 import { useReducedMotion, type Transition } from "framer-motion";
 import { useShortcutManager, useShortcutScope } from "@/core/shortcuts";
 import { focusActiveEditor } from "@/shared/lib/focus-editor";
@@ -68,6 +68,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 	const { getHelpGroups } = useShortcutManager();
 	const entriesQuery = useJournalEntries();
 	const tagsQuery = useJournalTags();
+	const dateParam = searchParams.get("date");
 	const ui = useNotesStore((state) => state.ui);
 	const setUIState = useNotesStore((state) => state.setUIState);
 	const [selectedDate, setSelectedDate] = useState(new Date());
@@ -81,12 +82,12 @@ export function useJournalLayout(): UseJournalLayoutResult {
 	const isHydrated = entriesQuery.isSuccess && tagsQuery.isSuccess;
 
 	useEffect(() => {
-		const requestedDate = parseDateParam(searchParams.get("date"));
+		const requestedDate = parseDateParam(dateParam);
 		if (!requestedDate) return;
 
-		setSelectedDate(requestedDate);
-		setView("editor");
-	}, [searchParams]);
+		setSelectedDate((current) => (isSameDay(current, requestedDate) ? current : requestedDate));
+		setView((current) => (current === "editor" ? current : "editor"));
+	}, [dateParam]);
 
 	useEffect(() => {
 		const mediaQuery = window.matchMedia("(max-width: 767px)");

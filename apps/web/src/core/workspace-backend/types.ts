@@ -65,6 +65,14 @@ export type WorkspaceBackend = {
 	 */
 	searchNotes?(query: string, limit?: number): Promise<NoteSearchHit[]>;
 
+	/**
+	 * Whole-list note/folder reads for client-only backends. Optional because the
+	 * web/guest app hydrates these lists from RSC or seed snapshots and keeps
+	 * using the React Query cache as the list source of truth.
+	 */
+	listNotes?(): Promise<NoteFile[]>;
+	listFolders?(): Promise<NoteFolder[]>;
+
 	createNote(input: CreateNoteInput): Promise<NoteFile>;
 	updateNote(input: UpdateNoteInput): Promise<UpdateNoteResult>;
 	deleteNote(id: string): Promise<void>;
