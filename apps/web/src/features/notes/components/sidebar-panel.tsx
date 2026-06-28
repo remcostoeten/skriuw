@@ -7,7 +7,25 @@ import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { useShortcutHint, type ShortcutId } from "@/core/shortcuts";
-import { FileText, Folder, PanelTopClose, Search, UnfoldVertical, X } from "lucide-react";
+import {
+	FilePlus,
+	FileText,
+	Folder,
+	FolderPlus,
+	FoldVertical,
+	PanelTopClose,
+	Search,
+	UnfoldVertical,
+	X,
+} from "lucide-react";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuShortcut,
+	ContextMenuTrigger,
+} from "@/shared/ui/context-menu";
 import { useSidebarStore } from "./sidebar/store";
 import type { SidebarSection as SidebarSectionType } from "./sidebar/types";
 import {
@@ -91,6 +109,8 @@ export const SidebarPanel = memo(function SidebarPanel({
 	sidebarWidth,
 }: SidebarPanelProps) {
 	const { onFileSelect, onToggleFolder, onFilePrefetch } = actions;
+	const newNoteHint = useShortcutHint("notes.newNote");
+	const newFolderHint = useShortcutHint("notes.newFolder");
 	const isGuest = useIsGuestWorkspace();
 	const sidebarStore = useSidebarStore();
 	const prefersReducedMotion = useReducedMotion();
@@ -786,23 +806,76 @@ export const SidebarPanel = memo(function SidebarPanel({
 						)}
 					</div>
 				) : (
-					<>
-						{fileTreeSection ? renderSection(fileTreeSection) : null}
-						{navigationSections.map(renderSection)}
-						{!isGuest && (
-							<SharedSection
-								activeFileId={activeFileId}
-								isCollapsed={sharedSectionCollapsed}
-								showHeader={showSectionHeaders}
-								compactMode={effectiveCompactMode}
-								onToggleCollapse={() => setSharedSectionCollapsed((p) => !p)}
-								onFileSelect={handleFileSelect}
-							/>
-						)}
-						{journalSection ? (
-							<div className="mt-auto">{renderSection(journalSection)}</div>
-						) : null}
-					</>
+					<ContextMenu>
+						<ContextMenuTrigger asChild>
+							<div className="flex flex-1 flex-col">
+								{fileTreeSection ? renderSection(fileTreeSection) : null}
+								{navigationSections.map(renderSection)}
+								{!isGuest && (
+									<SharedSection
+										activeFileId={activeFileId}
+										isCollapsed={sharedSectionCollapsed}
+										showHeader={showSectionHeaders}
+										compactMode={effectiveCompactMode}
+										onToggleCollapse={() =>
+											setSharedSectionCollapsed((p) => !p)
+										}
+										onFileSelect={handleFileSelect}
+									/>
+								)}
+								{journalSection ? (
+									<div className="mt-auto">
+										{renderSection(journalSection)}
+									</div>
+								) : null}
+							</div>
+						</ContextMenuTrigger>
+						<ContextMenuContent className="w-48">
+							<ContextMenuItem className="gap-2" onClick={() => onCreateFile()}>
+								<FilePlus className="h-3.5 w-3.5" strokeWidth={1.6} />
+								New note
+								{newNoteHint && (
+									<ContextMenuShortcut>{newNoteHint}</ContextMenuShortcut>
+								)}
+							</ContextMenuItem>
+							<ContextMenuItem className="gap-2" onClick={onCreateFolder}>
+								<FolderPlus className="h-3.5 w-3.5" strokeWidth={1.6} />
+								New folder
+								{newFolderHint && (
+									<ContextMenuShortcut>{newFolderHint}</ContextMenuShortcut>
+								)}
+							</ContextMenuItem>
+							{(onExpandAllFolders || onCollapseAllFolders) && (
+								<>
+									<ContextMenuSeparator />
+									{onExpandAllFolders && (
+										<ContextMenuItem
+											className="gap-2"
+											onClick={onExpandAllFolders}
+										>
+											<UnfoldVertical
+												className="h-3.5 w-3.5"
+												strokeWidth={1.6}
+											/>
+											Expand all folders
+										</ContextMenuItem>
+									)}
+									{onCollapseAllFolders && (
+										<ContextMenuItem
+											className="gap-2"
+											onClick={onCollapseAllFolders}
+										>
+											<FoldVertical
+												className="h-3.5 w-3.5"
+												strokeWidth={1.6}
+											/>
+											Collapse all folders
+										</ContextMenuItem>
+									)}
+								</>
+							)}
+						</ContextMenuContent>
+					</ContextMenu>
 				)}
 			</div>
 		</div>

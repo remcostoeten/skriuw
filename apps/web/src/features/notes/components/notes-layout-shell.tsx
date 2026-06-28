@@ -384,6 +384,7 @@ export function NotesLayoutShell({
 											onNavigatePrev={handleNavigatePrev}
 											onNavigateNext={handleNavigateNext}
 											onToggleSplit={handleToggleSplit}
+											onToggleEditorMode={handleToggleEditorMode}
 											onToggleSplitOrientation={handleToggleSplitOrientation}
 											onSwapPaneOrder={handleSwapSplitPaneOrder}
 											onCloseSplit={handleCloseSplit}
@@ -417,6 +418,7 @@ export function NotesLayoutShell({
 											canNavigateNext={canNavigateNext}
 											canToggleSplit={canToggleSplit}
 											onToggleSplit={handleToggleSplit}
+											onToggleEditorMode={handleToggleEditorMode}
 											splitEnabled={false}
 											initialScrollTop={
 												displayFile
