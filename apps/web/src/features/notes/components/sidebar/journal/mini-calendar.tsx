@@ -16,6 +16,17 @@ import {
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger,
+} from "@/shared/ui/context-menu";
+import {
+	copyTextToClipboard,
+	getCalendarDayContextMenuState,
+} from "@/features/desktop/context-menu-actions";
 
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
@@ -25,6 +36,7 @@ type MiniCalendarProps = {
 	datesWithEntries: string[];
 	onSelectDate: (date: Date) => void;
 	onChangeMonth: (date: Date) => void;
+	onGoToToday?: () => void;
 };
 
 export function MiniCalendar({
@@ -33,6 +45,7 @@ export function MiniCalendar({
 	datesWithEntries,
 	onSelectDate,
 	onChangeMonth,
+	onGoToToday,
 }: MiniCalendarProps) {
 	const calendarDays = useMemo(() => {
 		const monthStart = startOfMonth(currentMonth);
@@ -85,31 +98,61 @@ export function MiniCalendar({
 					const isSelected = isSameDay(day, selectedDate);
 					const hasEntry = entrySet.has(dateKey);
 					const dayIsToday = isToday(day);
+					const menuState = getCalendarDayContextMenuState({
+						hasEntry,
+						isSelected,
+						isToday: dayIsToday,
+					});
 
 					return (
-						<button
-							key={dateKey}
-							onClick={() => onSelectDate(day)}
-							className={cn(
-								"relative flex h-7 w-full items-center justify-center border border-transparent text-[11px] transition-colors",
-								!inCurrentMonth && "text-muted-foreground/30",
-								inCurrentMonth &&
-									!isSelected &&
-									"text-foreground/70 hover:border-border hover:bg-muted",
-								isSelected && "border-border bg-muted text-foreground font-medium",
-								dayIsToday &&
-									!isSelected &&
-									"border-border font-semibold text-foreground",
-							)}
-						>
-							{format(day, "d")}
-							{hasEntry && !isSelected && (
-								<span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-status-planned" />
-							)}
-							{hasEntry && isSelected && (
-								<span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-background/70" />
-							)}
-						</button>
+						<ContextMenu key={dateKey}>
+							<ContextMenuTrigger asChild>
+								<button
+									onClick={() => onSelectDate(day)}
+									className={cn(
+										"relative flex h-7 w-full items-center justify-center border border-transparent text-[11px] transition-colors",
+										!inCurrentMonth && "text-muted-foreground/30",
+										inCurrentMonth &&
+											!isSelected &&
+											"text-foreground/70 hover:border-border hover:bg-muted",
+										isSelected &&
+											"border-border bg-muted text-foreground font-medium",
+										dayIsToday &&
+											!isSelected &&
+											"border-border font-semibold text-foreground",
+									)}
+								>
+									{format(day, "d")}
+									{hasEntry && !isSelected && (
+										<span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-status-planned" />
+									)}
+									{hasEntry && isSelected && (
+										<span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-background/70" />
+									)}
+								</button>
+							</ContextMenuTrigger>
+							<ContextMenuContent className="w-44">
+								<ContextMenuItem onClick={() => onSelectDate(day)}>
+									{menuState.openLabel}
+								</ContextMenuItem>
+								<ContextMenuItem
+									onClick={() => copyTextToClipboard(format(day, "yyyy-MM-dd"))}
+								>
+									{menuState.copyLabel}
+								</ContextMenuItem>
+								{onGoToToday && (
+									<>
+										<ContextMenuSeparator />
+										<ContextMenuItem
+											disabled={!menuState.canJumpToToday}
+											onClick={onGoToToday}
+										>
+											Go to today
+										</ContextMenuItem>
+									</>
+								)}
+							</ContextMenuContent>
+						</ContextMenu>
 					);
 				})}
 			</div>

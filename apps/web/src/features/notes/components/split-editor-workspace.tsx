@@ -29,6 +29,7 @@ type SplitEditorWorkspaceProps = {
 	onNavigatePrev: () => void;
 	onNavigateNext: () => void;
 	onToggleSplit: () => void;
+	onToggleEditorMode?: () => void;
 	onToggleSplitOrientation: () => void;
 	onSwapPaneOrder: () => void;
 	onCloseSplit: () => void;
@@ -75,6 +76,7 @@ export function SplitEditorWorkspace({
 	onNavigatePrev,
 	onNavigateNext,
 	onToggleSplit,
+	onToggleEditorMode,
 	onToggleSplitOrientation,
 	onSwapPaneOrder,
 	onCloseSplit,
@@ -133,7 +135,11 @@ export function SplitEditorWorkspace({
 			setDraggingPane(null);
 			setDragOffset(0);
 
-			if (releaseTarget && pointerId !== undefined && releaseTarget.hasPointerCapture(pointerId)) {
+			if (
+				releaseTarget &&
+				pointerId !== undefined &&
+				releaseTarget.hasPointerCapture(pointerId)
+			) {
 				releaseTarget.releasePointerCapture(pointerId);
 			}
 		},
@@ -192,7 +198,9 @@ export function SplitEditorWorkspace({
 				ref={containerRef}
 				className={cn(
 					"relative flex min-h-0 flex-1",
-					isVertical ? "flex-row divide-x divide-border" : "flex-col divide-y divide-border",
+					isVertical
+						? "flex-row divide-x divide-border"
+						: "flex-col divide-y divide-border",
 				)}
 			>
 				{panes.map(({ pane, file, editorMode: paneEditorMode, showClose }) => {
@@ -211,7 +219,9 @@ export function SplitEditorWorkspace({
 								transform: isVertical
 									? `translateX(${translate}px)`
 									: `translateY(${translate}px)`,
-								transition: isDragging ? undefined : "transform 180ms cubic-bezier(0.23, 1, 0.32, 1)",
+								transition: isDragging
+									? undefined
+									: "transform 180ms cubic-bezier(0.23, 1, 0.32, 1)",
 							}}
 						>
 							<EditorContainer
@@ -233,9 +243,12 @@ export function SplitEditorWorkspace({
 								isPaneFocused={focusedPane === pane}
 								onPaneActivate={() => onFocusPane(pane)}
 								paneLabel={paneLabel(file)}
+								onToggleEditorMode={onToggleEditorMode}
 								onClosePane={showClose ? onCloseSplit : undefined}
 								onPaneDragHandlePointerDown={handleDragStart(pane)}
-								onPaneDragHandlePointerMove={isDragging ? handleDragMove : undefined}
+								onPaneDragHandlePointerMove={
+									isDragging ? handleDragMove : undefined
+								}
 								onPaneDragHandlePointerUp={isDragging ? handleDragEnd : undefined}
 								isPaneDragging={isDragging}
 								initialScrollTop={file ? (scrollPositions[file.id] ?? 0) : 0}
