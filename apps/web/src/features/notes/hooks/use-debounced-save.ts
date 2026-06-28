@@ -8,6 +8,7 @@ import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import type { NoteEditorMode, NoteFile, RichTextDocument } from "@/types/notes";
 import { notesKeys } from "./notes-keys";
 import { reconcileSavedNoteCache } from "@/features/notes/lib/note-cache";
+import { useNotesCacheScope } from "./use-notes-cache-scope";
 
 type DebouncedUpdateOptions = {
 	onSaving?: (noteId: string) => void;
@@ -39,20 +40,16 @@ type PendingEdit = {
 
 export type DebouncedSaveController = {
 	schedule(args: DebouncedContentArgs): void;
-	flush(
-		noteId: string,
-		options?: { createCheckpoint?: boolean },
-	): Promise<void>;
+	flush(noteId: string, options?: { createCheckpoint?: boolean }): Promise<void>;
 	flushAll(options?: { createCheckpoint?: boolean }): Promise<void>;
 	discardPending(noteId: string): void;
 	getDirtyNoteIds(): string[];
 };
 
-export function useDebouncedSave(
-	options: DebouncedUpdateOptions = {},
-): DebouncedSaveController {
+export function useDebouncedSave(options: DebouncedUpdateOptions = {}): DebouncedSaveController {
 	const queryClient = useQueryClient();
 	const backend = useWorkspaceBackend();
+	const filesKey = notesKeys.files(useNotesCacheScope());
 	const updateNoteRef = useRef(backend.updateNote);
 	useEffect(() => {
 		updateNoteRef.current = backend.updateNote;
@@ -90,7 +87,7 @@ export function useDebouncedSave(
 			preferredEditorMode: NoteEditorMode | undefined,
 			updatedAt: Date,
 		) {
-			queryClient.setQueryData<NoteFile[]>(notesKeys.files(), (current = []) =>
+			queryClient.setQueryData<NoteFile[]>(filesKey, (current = []) =>
 				current.map((note) =>
 					note.id === id
 						? {
@@ -104,19 +101,16 @@ export function useDebouncedSave(
 						: note,
 				),
 			);
-			queryClient.setQueryData<NoteFile | null>(
-				notesKeys.detail(id),
-				(current) =>
-					current
-						? {
-								...current,
-								content,
-								richContent,
-								preferredEditorMode:
-									preferredEditorMode ?? current.preferredEditorMode,
-								modifiedAt: updatedAt,
-							}
-						: current,
+			queryClient.setQueryData<NoteFile | null>(notesKeys.detail(id), (current) =>
+				current
+					? {
+							...current,
+							content,
+							richContent,
+							preferredEditorMode: preferredEditorMode ?? current.preferredEditorMode,
+							modifiedAt: updatedAt,
+						}
+					: current,
 			);
 		}
 
@@ -150,7 +144,7 @@ export function useDebouncedSave(
 				if (createCheckpoint && result.versionId) {
 					sessionVersionIdsRef.current.set(id, result.versionId);
 				}
-				reconcileSavedNoteCache(queryClient, input, result);
+				reconcileSavedNoteCache(queryClient, input, result, { filesKey });
 				optionsRef.current.onSaved?.(id);
 				return true;
 			} catch {
@@ -181,12 +175,7 @@ export function useDebouncedSave(
 			idleTimersRef.current.set(id, timer);
 		}
 
-		function schedule({
-			id,
-			content,
-			richContent,
-			preferredEditorMode,
-		}: DebouncedContentArgs) {
+		function schedule({ id, content, richContent, preferredEditorMode }: DebouncedContentArgs) {
 			versionsRef.current.set(id, (versionsRef.current.get(id) ?? 0) + 1);
 
 			const updatedAt = new Date();
@@ -199,13 +188,7 @@ export function useDebouncedSave(
 			});
 			dirtyRef.current.add(id);
 
-			applyOptimisticCache(
-				id,
-				content,
-				nextRichContent,
-				preferredEditorMode,
-				updatedAt,
-			);
+			applyOptimisticCache(id, content, nextRichContent, preferredEditorMode, updatedAt);
 
 			optionsRef.current.onSaving?.(id);
 			scheduleIdleFlush(id);
@@ -275,13 +258,8 @@ export function useDebouncedSave(
 			}
 		}
 
-		async function flushAll(
-			flushOptions: { createCheckpoint?: boolean } = {},
-		): Promise<void> {
-			const ids = new Set<string>([
-				...pendingRef.current.keys(),
-				...dirtyRef.current,
-			]);
+		async function flushAll(flushOptions: { createCheckpoint?: boolean } = {}): Promise<void> {
+			const ids = new Set<string>([...pendingRef.current.keys(), ...dirtyRef.current]);
 			await Promise.all(Array.from(ids).map((id) => flush(id, flushOptions)));
 		}
 
@@ -297,5 +275,5 @@ export function useDebouncedSave(
 		}
 
 		return { schedule, flush, flushAll, discardPending, getDirtyNoteIds };
-	}, [queryClient]);
+	}, [filesKey, queryClient]);
 }

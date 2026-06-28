@@ -23,12 +23,17 @@ export function useNoteGraph() {
 	const auth = useAuth();
 	const queryClient = useQueryClient();
 	const backend = useWorkspaceBackend();
-	const guestRevision = queryClient.getQueryState(notesKeys.files())?.dataUpdatedAt ?? 0;
+	const graphScope =
+		auth.phase === "authenticated" && auth.user
+			? notesKeys.userScope(auth.user.id)
+			: notesKeys.localScope();
+	const localFilesKey = notesKeys.files(notesKeys.localScope());
+	const guestRevision = queryClient.getQueryState(localFilesKey)?.dataUpdatedAt ?? 0;
 	const isGuest = auth.phase !== "authenticated";
 
 	const queryKey = isGuest
-		? ([...notesKeys.graph(), "guest", guestRevision] as const)
-		: notesKeys.graph();
+		? ([...notesKeys.graph(graphScope), "guest", guestRevision] as const)
+		: notesKeys.graph(graphScope);
 
 	return useApiQuery<GraphData>(
 		queryKey,
@@ -37,7 +42,7 @@ export function useNoteGraph() {
 				return backend.getNoteGraph();
 			}
 
-			const files = queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ?? [];
+			const files = queryClient.getQueryData<NoteFile[]>(localFilesKey) ?? [];
 			const notes = resolveGuestNotesForGraph(files, (id) =>
 				queryClient.getQueryData<NoteFile | null>(notesKeys.detail(id)),
 			);

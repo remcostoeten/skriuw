@@ -1,13 +1,11 @@
 "use client";
 
 import { useApiQuery, useApiMutation } from "@/shared/api";
-import type {
-	CreateJournalEntryInput,
-	UpdateJournalEntryInput,
-} from "@/domain/journal/actions";
+import type { CreateJournalEntryInput, UpdateJournalEntryInput } from "@/domain/journal/actions";
 import type { JournalEntry } from "@/types/journal";
 import { useQueryClient } from "@tanstack/react-query";
 import { journalKeys } from "./journal-keys";
+import { useAuth } from "@/core/auth/use-auth";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
 
 function timeValue(value: Date): number {
@@ -54,30 +52,47 @@ export function upsertJournalEntryByActiveDate(
 
 export function useJournalEntries() {
 	const queryClient = useQueryClient();
+	const auth = useAuth();
 	const backend = useWorkspaceBackend();
+	const scope =
+		auth.phase === "authenticated" && auth.user
+			? journalKeys.userScope(auth.user.id)
+			: journalKeys.localScope();
+	const entriesKey = journalKeys.entries(scope);
 
 	return useApiQuery<JournalEntry[]>(
-		journalKeys.entries(),
+		entriesKey,
 		// Cache-first: on web the list is RSC-hydrated, so this returns it without a
 		// network hit. On desktop there is no prefetch, so fall through to the
 		// backend (Tauri → local SQLite); guest backends have no list method → [].
 		async () => {
-			const cached = queryClient.getQueryData<JournalEntry[]>(journalKeys.entries());
+			const cached = queryClient.getQueryData<JournalEntry[]>(entriesKey);
 			if (cached !== undefined) return cached;
 			return (await backend.listJournalEntries?.()) ?? [];
 		},
-		{ staleTime: Infinity, select: mergeJournalEntriesByActiveDate },
+		{
+			enabled: auth.isReady,
+			staleTime: Infinity,
+			select: mergeJournalEntriesByActiveDate,
+		},
 	);
 }
 
 export function useCreateJournalEntry() {
+	const auth = useAuth();
 	const backend = useWorkspaceBackend();
+	const scope =
+		auth.phase === "authenticated" && auth.user
+			? journalKeys.userScope(auth.user.id)
+			: journalKeys.localScope();
+	const entriesKey = journalKeys.entries(scope);
+
 	return useApiMutation<CreateJournalEntryInput, JournalEntry, JournalEntry[]>(
 		(input) => backend.createJournalEntry(input),
 		{
 			invalidateKeys: [journalKeys.entries()],
 			optimistic: {
-				queryKey: journalKeys.entries(),
+				queryKey: entriesKey,
 				updater: (current, input) => {
 					const optimisticEntry: JournalEntry = {
 						id: input.id ?? crypto.randomUUID(),
@@ -97,13 +112,20 @@ export function useCreateJournalEntry() {
 }
 
 export function useUpdateJournalEntry() {
+	const auth = useAuth();
 	const backend = useWorkspaceBackend();
+	const scope =
+		auth.phase === "authenticated" && auth.user
+			? journalKeys.userScope(auth.user.id)
+			: journalKeys.localScope();
+	const entriesKey = journalKeys.entries(scope);
+
 	return useApiMutation<UpdateJournalEntryInput, JournalEntry | undefined, JournalEntry[]>(
 		(input) => backend.updateJournalEntry(input),
 		{
 			invalidateKeys: [journalKeys.entries()],
 			optimistic: {
-				queryKey: journalKeys.entries(),
+				queryKey: entriesKey,
 				updater: (current, input) =>
 					mergeJournalEntriesByActiveDate(
 						(current ?? []).map((entry) =>
@@ -127,11 +149,18 @@ export function useUpdateJournalEntry() {
 }
 
 export function useDeleteJournalEntry() {
+	const auth = useAuth();
 	const backend = useWorkspaceBackend();
+	const scope =
+		auth.phase === "authenticated" && auth.user
+			? journalKeys.userScope(auth.user.id)
+			: journalKeys.localScope();
+	const entriesKey = journalKeys.entries(scope);
+
 	return useApiMutation<string, void, JournalEntry[]>((id) => backend.deleteJournalEntry(id), {
 		invalidateKeys: [journalKeys.entries()],
 		optimistic: {
-			queryKey: journalKeys.entries(),
+			queryKey: entriesKey,
 			updater: (current, id) => (current ?? []).filter((entry) => entry.id !== id),
 		},
 	});

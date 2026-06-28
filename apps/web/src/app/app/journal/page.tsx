@@ -18,24 +18,22 @@ async function JournalContent() {
 	// listJournalEntries / listJournalTags call getAuthenticatedUser() and
 	// would throw → 500 for guests.
 	if (user) {
+		const journalScope = journalKeys.userScope(user.id);
 		// Race seeding with the prefetch; re-fetch only for brand-new users whose
 		// prefetch may have run before the seed insert committed (see app/page.tsx).
 		const prefetchJournal = () =>
 			Promise.all([
 				queryClient.prefetchQuery({
-					queryKey: journalKeys.entries(),
+					queryKey: journalKeys.entries(journalScope),
 					queryFn: () => listJournalEntries(),
 				}),
 				queryClient.prefetchQuery({
-					queryKey: journalKeys.tags(),
+					queryKey: journalKeys.tags(journalScope),
 					queryFn: () => listJournalTags(),
 				}),
 			]);
 
-		const [didSeed] = await Promise.all([
-			ensureCloudStarterContentSeeded(),
-			prefetchJournal(),
-		]);
+		const [didSeed] = await Promise.all([ensureCloudStarterContentSeeded(), prefetchJournal()]);
 
 		if (didSeed) {
 			await prefetchJournal();

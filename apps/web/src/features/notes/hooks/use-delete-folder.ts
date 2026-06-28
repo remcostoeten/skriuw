@@ -5,9 +5,12 @@ import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { notesKeys } from "./notes-keys";
 import type { NoteFolder } from "@/types/notes";
+import { useNotesCacheScope } from "./use-notes-cache-scope";
 
 export function useDeleteFolder() {
 	const backend = useWorkspaceBackend();
+	const scope = useNotesCacheScope();
+	const foldersKey = notesKeys.folders(scope);
 
 	return useApiMutation<string, void, NoteFolder[]>(backend.deleteFolder, {
 		invalidateKeys: [notesKeys.files(), notesKeys.folders()],
@@ -15,7 +18,7 @@ export function useDeleteFolder() {
 			showUserToast("Couldn't delete folder", "error");
 		},
 		optimistic: {
-			queryKey: notesKeys.folders(),
+			queryKey: foldersKey,
 			updater: (current, id) => {
 				const descendants = new Set<string>([id]);
 				const stack = [id];

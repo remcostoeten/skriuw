@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import type { AiEditorHandle } from "@/features/ai/service";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
+import { useShortcutHint } from "@/core/shortcuts";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import { getEditorFontFamily, type EditorFontId } from "@/shared/lib/editor-fonts";
 import {
@@ -60,6 +61,7 @@ interface EditorProps {
 	onScrollPositionChange?: (scrollTop: number) => void;
 	onPaneActivate?: () => void;
 	isPaneFocused?: boolean;
+	onCreateFile?: () => void;
 	collab?: TRichTextCollab;
 }
 
@@ -82,6 +84,7 @@ export function Editor({
 	onScrollPositionChange,
 	onPaneActivate,
 	isPaneFocused,
+	onCreateFile,
 	collab,
 }: EditorProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -89,6 +92,7 @@ export function Editor({
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const cursorAnimationFrameRef = useRef<number | null>(null);
 	const scrollReportFrameRef = useRef<number | null>(null);
+	const newNoteHint = useShortcutHint("notes.newNote");
 	const lineHeightValue = getEditorLineHeightValue(editorLineHeight);
 	const lineCount = useMemo(
 		() => Math.max(1, (file?.content ?? "").split(/\r?\n/).length),
@@ -209,10 +213,20 @@ export function Editor({
 
 	if (!file) {
 		return (
-			<div className="flex min-h-full flex-1 bg-card">
+			<div className="flex min-h-full flex-1 items-center justify-center bg-card">
 				<NotesEmptyState
+					className="h-auto"
 					title="No file selected"
-					description="Choose a note from the sidebar to start writing, or create a new note from the toolbar."
+					description="Choose a note from the sidebar to start writing, or create a new note to begin."
+					action={
+						onCreateFile
+							? {
+									label: "New note",
+									kbd: newNoteHint,
+									onClick: onCreateFile,
+								}
+							: undefined
+					}
 				/>
 			</div>
 		);

@@ -41,6 +41,7 @@ export default async function AppHomePage(props: {
 	const queryClient = new QueryClient();
 
 	if (user) {
+		const notesScope = notesKeys.userScope(user.id);
 		// Race seeding with the data prefetch instead of serializing it ahead.
 		// Returning users (starterSeededAt set) resolve the seed check instantly,
 		// so the prefetch no longer waits on a serial round trip. Brand-new users
@@ -49,11 +50,11 @@ export default async function AppHomePage(props: {
 		const prefetchWorkspace = () =>
 			Promise.all([
 				queryClient.prefetchQuery({
-					queryKey: notesKeys.files(),
+					queryKey: notesKeys.files(notesScope),
 					queryFn: () => listNoteMetadata(),
 				}),
 				queryClient.prefetchQuery({
-					queryKey: notesKeys.folders(),
+					queryKey: notesKeys.folders(notesScope),
 					queryFn: () => listFolders(),
 				}),
 			]);
@@ -68,7 +69,7 @@ export default async function AppHomePage(props: {
 		}
 
 		const files = queryClient.getQueryData<Awaited<ReturnType<typeof listNoteMetadata>>>(
-			notesKeys.files(),
+			notesKeys.files(notesScope),
 		);
 		// Ignore a stale `?note=guest:…` carried over from a guest session — that
 		// id isn't a persisted UUID, so prefetching it would throw P2007.
@@ -93,8 +94,9 @@ export default async function AppHomePage(props: {
 	}
 
 	const snapshot = await loadGuestWorkspaceSnapshot();
-	queryClient.setQueryData(notesKeys.files(), snapshot.notes);
-	queryClient.setQueryData(notesKeys.folders(), snapshot.folders);
+	const localScope = notesKeys.localScope();
+	queryClient.setQueryData(notesKeys.files(localScope), snapshot.notes);
+	queryClient.setQueryData(notesKeys.folders(localScope), snapshot.folders);
 
 	const initialActiveFileId = searchParams?.note ?? snapshot.notes[0]?.id ?? null;
 	if (initialActiveFileId) {

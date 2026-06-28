@@ -209,6 +209,11 @@ export const SidebarPanel = memo(function SidebarPanel({
 		[sidebarStore, onFileSelect, onRequestClose],
 	);
 
+	const fileTreeActions = useMemo<NoteTreeActions>(
+		() => ({ ...actions, onFileSelect: handleFileSelect }),
+		[actions, handleFileSelect],
+	);
+
 	const openConfigPanel = useCallback(() => {
 		setIsConfigOpen(true);
 	}, []);
@@ -456,9 +461,11 @@ export const SidebarPanel = memo(function SidebarPanel({
 							sidebarWidth={sidebarWidth}
 							showTreeGuides={showTreeGuides}
 							isLoading={isFilesLoading}
-							actions={{ ...actions, onFileSelect: handleFileSelect }}
+							actions={fileTreeActions}
 							queries={queries}
 							onCreationParentChange={onCreationParentChange}
+							onCreateNote={() => onCreateFile()}
+							onCreateFolder={onCreateFolder}
 							scrollElementRef={scrollContainerRef}
 						/>
 					</div>
@@ -688,15 +695,14 @@ export const SidebarPanel = memo(function SidebarPanel({
 			</div>
 
 			<div
-				ref={scrollContainerRef}
 				className={cn(
-					"flex flex-1 flex-col overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 md:pb-0",
-					effectiveCompactMode && "pt-1 text-sm",
+					"flex min-h-0 flex-1 flex-col overflow-hidden",
+					effectiveCompactMode && "text-sm",
 					isVeryNarrow && "text-xs",
 				)}
 			>
 				{searchQuery.trim() ? (
-					<div className="px-3 py-3">
+					<div className="flex-1 overflow-y-auto px-3 py-3">
 						{hasSearchResults ? (
 							<div className="overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar-accent/40 shadow-lg">
 								<div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3">
@@ -808,26 +814,32 @@ export const SidebarPanel = memo(function SidebarPanel({
 				) : (
 					<ContextMenu>
 						<ContextMenuTrigger asChild>
-							<div className="flex flex-1 flex-col">
-								{fileTreeSection ? renderSection(fileTreeSection) : null}
-								{navigationSections.map(renderSection)}
-								{!isGuest && (
-									<SharedSection
-										activeFileId={activeFileId}
-										isCollapsed={sharedSectionCollapsed}
-										showHeader={showSectionHeaders}
-										compactMode={effectiveCompactMode}
-										onToggleCollapse={() =>
-											setSharedSectionCollapsed((p) => !p)
-										}
-										onFileSelect={handleFileSelect}
-									/>
-								)}
-								{journalSection ? (
-									<div className="mt-auto">
-										{renderSection(journalSection)}
-									</div>
-								) : null}
+							<div className="flex min-h-0 flex-1 flex-col">
+								<div
+									ref={scrollContainerRef}
+									className={cn(
+										"min-h-0 flex-1 overflow-y-auto pt-2",
+										effectiveCompactMode && "pt-1",
+									)}
+								>
+									{fileTreeSection ? renderSection(fileTreeSection) : null}
+								</div>
+								<div className="shrink-0 border-t border-sidebar-border pb-[calc(env(safe-area-inset-bottom)+1rem)] md:pb-0">
+									{navigationSections.map(renderSection)}
+									{!isGuest && (
+										<SharedSection
+											activeFileId={activeFileId}
+											isCollapsed={sharedSectionCollapsed}
+											showHeader={showSectionHeaders}
+											compactMode={effectiveCompactMode}
+											onToggleCollapse={() =>
+												setSharedSectionCollapsed((p) => !p)
+											}
+											onFileSelect={handleFileSelect}
+										/>
+									)}
+									{journalSection ? renderSection(journalSection) : null}
+								</div>
 							</div>
 						</ContextMenuTrigger>
 						<ContextMenuContent className="w-48">
