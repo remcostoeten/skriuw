@@ -1,12 +1,20 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect, useMemo, type PointerEvent as ReactPointerEvent } from "react";
+import {
+	useRef,
+	useState,
+	useCallback,
+	useEffect,
+	useMemo,
+	type PointerEvent as ReactPointerEvent,
+} from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertTriangle, GripVertical, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { Editor } from "./editor";
 import type { TRichTextCollab } from "./rich-text-editor";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
+import { AiWritingIndicator, type AiWritingAction } from "./ai-writing-indicator";
 import { EditorToolbar } from "./editor-toolbar";
 import type { EditorSaveState, WorkspaceNavItem } from "./editor-toolbar";
 import { useCollabRoom } from "@/features/collaboration/hooks/use-collab-room";
@@ -33,6 +41,17 @@ import {
 } from "@/domain/notes/note-links";
 import { AnimatedNumber } from "@/shared/ui/animated-number";
 import { cn } from "@/shared/lib/utils";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger,
+} from "@/shared/ui/context-menu";
+import {
+	copyTextToClipboard,
+	getEditorContextMenuState,
+} from "@/features/desktop/context-menu-actions";
 
 interface EditorContainerProps {
 	file: NoteFile | null;
@@ -73,6 +92,7 @@ interface EditorContainerProps {
 	splitEnabled?: boolean;
 	onToggleSplit?: () => void;
 	canToggleSplit?: boolean;
+	onToggleEditorMode?: () => void;
 	isContentLoading?: boolean;
 }
 
@@ -267,6 +287,7 @@ export function EditorContainer({
 	splitEnabled,
 	onToggleSplit,
 	canToggleSplit,
+	onToggleEditorMode,
 	isContentLoading = false,
 }: EditorContainerProps) {
 	const aiHandleRef = useRef<AiEditorHandle | null>(null);
@@ -460,9 +481,7 @@ export function EditorContainer({
 	// doesn't mistake the note switch for a manual rename.
 	const fileId = file?.id ?? null;
 	useEffect(() => {
-		headingTracksRef.current = file
-			? nameTracksHeading(file.name, file.content)
-			: true;
+		headingTracksRef.current = file ? nameTracksHeading(file.name, file.content) : true;
 		lastFileNameRef.current = fileName;
 		// Keyed on `fileId` only — re-runs when the open note changes, not on every
 		// content keystroke (which would reset tracking mid-edit).
@@ -484,15 +503,26 @@ export function EditorContainer({
 
 	const isMdx = isMdxNote(file);
 	const effectiveEditorMode = isMdx ? "raw" : editorMode;
+	const menuState = getEditorContextMenuState({
+		mode: effectiveEditorMode,
+		hasFile: Boolean(file),
+	});
 	const isAiAvailable = effectiveEditorMode === "block";
 	const canUseAi = isAiAvailable;
 	const wordCount = useMemo(() => getWordCount(file?.content ?? ""), [file?.content]);
 
+	const activeWritingAction: AiWritingAction | null = aiLoading.continueWriting
+		? "continueWriting"
+		: aiLoading.spellCheck
+			? "spellCheck"
+			: aiLoading.generateTitle
+				? "generateTitle"
+				: null;
+
 	// Real-time collaboration: only shared notes in block mode open a Yjs room.
 	// MDX/raw notes use a plain textarea with no CRDT binding, so collab stays off.
 	const collabEligible = effectiveEditorMode === "block";
-	const collabEnabled =
-		useNoteCollabEnabled(file?.id, file?.access) && collabEligible;
+	const collabEnabled = useNoteCollabEnabled(file?.id, file?.access) && collabEligible;
 	const collabRoom = useCollabRoom(file?.id ?? null, collabEnabled);
 	const collab: TRichTextCollab | undefined =
 		collabRoom.synced && collabRoom.fragment && collabRoom.doc
@@ -513,7 +543,8 @@ export function EditorContainer({
 	// never briefly mount a plain (non-collaborative) editor and then swap it.
 	const collabConnecting =
 		collabEnabled &&
-		(collabRoom.status === "connecting" || (!collabRoom.synced && collabRoom.status === "connected"));
+		(collabRoom.status === "connecting" ||
+			(!collabRoom.synced && collabRoom.status === "connected"));
 
 	const availableKeysForFallback = rateLimitPrompt
 		? listFallbackAiKeys({
@@ -726,86 +757,177 @@ export function EditorContainer({
 				</div>
 			)}
 
-			<div className="flex min-h-0 flex-1 flex-col">
+			<div className="relative flex min-h-0 flex-1 flex-col">
 				{isContentLoading || collabConnecting ? (
 					<div className="flex-1 overflow-y-auto bg-card" aria-busy="true">
 						<EditorContentSkeleton />
 					</div>
 				) : (
-				<Editor
-					file={file}
-					files={files}
-					collab={collab}
-					// Fail closed: only the owner (access === undefined, their own note)
-					// or an explicit "editor" gets a writable surface. Any other role
-					// (viewer today, future roles) is read-only so keystrokes aren't
-					// optimistically "saved" and then silently dropped server-side.
-					readOnly={
-						!!file &&
-						file.access !== undefined &&
-						file.access !== "owner" &&
-						file.access !== "editor"
-					}
-					editorMode={effectiveEditorMode}
-					editorFontId={editorPrefs.defaultFont}
-					editorLineHeight={editorPrefs.lineHeight}
-					showLineNumbers={showLineNumbers}
-					isMobile={isMobile}
-					onContentChange={onContentChange}
-					onEditorReady={handleEditorReady}
-					onAiSpellCheck={canUseAi ? () => runAiAction("spellCheck") : undefined}
-					onAiContinueWriting={
-						canUseAi ? () => runAiAction("continueWriting") : undefined
-					}
-					onTitleCommit={handleTitleCommit}
-					onBlur={onEditorBlur}
-					onCursorChange={isPane && !isPaneFocused ? undefined : setCursorPosition}
-					initialScrollTop={initialScrollTop}
-					onScrollPositionChange={onScrollPositionChange}
-					onPaneActivate={onPaneActivate}
-					isPaneFocused={isPaneFocused}
-				/>
+					<ContextMenu>
+						<ContextMenuTrigger asChild>
+							<div
+								className="flex min-h-0 flex-1 flex-col"
+								onContextMenuCapture={onPaneActivate}
+							>
+								<Editor
+									file={file}
+									files={files}
+									collab={collab}
+									// Fail closed: only the owner (access === undefined, their own note)
+									// or an explicit "editor" gets a writable surface. Any other role
+									// (viewer today, future roles) is read-only so keystrokes aren't
+									// optimistically "saved" and then silently dropped server-side.
+									readOnly={
+										!!file &&
+										file.access !== undefined &&
+										file.access !== "owner" &&
+										file.access !== "editor"
+									}
+									editorMode={effectiveEditorMode}
+									editorFontId={editorPrefs.defaultFont}
+									editorLineHeight={editorPrefs.lineHeight}
+									showLineNumbers={showLineNumbers}
+									isMobile={isMobile}
+									onContentChange={onContentChange}
+									onEditorReady={handleEditorReady}
+									onAiSpellCheck={
+										canUseAi ? () => runAiAction("spellCheck") : undefined
+									}
+									onAiContinueWriting={
+										canUseAi ? () => runAiAction("continueWriting") : undefined
+									}
+									onTitleCommit={handleTitleCommit}
+									onBlur={onEditorBlur}
+									onCursorChange={
+										isPane && !isPaneFocused ? undefined : setCursorPosition
+									}
+									initialScrollTop={initialScrollTop}
+									onScrollPositionChange={onScrollPositionChange}
+									onPaneActivate={onPaneActivate}
+									isPaneFocused={isPaneFocused}
+								/>
+							</div>
+						</ContextMenuTrigger>
+						<ContextMenuContent className="w-56">
+							<ContextMenuItem
+								disabled={!menuState.canCopyTitle}
+								onClick={() => copyTextToClipboard(fileName)}
+							>
+								Copy note title
+							</ContextMenuItem>
+							<ContextMenuItem
+								disabled={!file?.content.trim()}
+								onClick={() => copyTextToClipboard(file?.content ?? "")}
+							>
+								Copy markdown
+							</ContextMenuItem>
+							{onToggleEditorMode || onToggleSplit || onClosePane ? (
+								<ContextMenuSeparator />
+							) : null}
+							{onToggleEditorMode ? (
+								<ContextMenuItem disabled={isMdx} onClick={onToggleEditorMode}>
+									{menuState.modeLabel}
+								</ContextMenuItem>
+							) : null}
+							{onToggleSplit ? (
+								<ContextMenuItem disabled={!canToggleSplit} onClick={onToggleSplit}>
+									{splitEnabled ? "Close split editor" : "Open split editor"}
+								</ContextMenuItem>
+							) : null}
+							{onClosePane ? (
+								<ContextMenuItem onClick={onClosePane}>Close pane</ContextMenuItem>
+							) : null}
+							{canUseAi || canExportNote ? <ContextMenuSeparator /> : null}
+							{canUseAi && onRenameFile ? (
+								<ContextMenuItem
+									disabled={aiLoading.generateTitle}
+									onClick={() => runAiAction("generateTitle")}
+								>
+									Generate title
+								</ContextMenuItem>
+							) : null}
+							{canUseAi ? (
+								<>
+									<ContextMenuItem
+										disabled={aiLoading.spellCheck}
+										onClick={() => runAiAction("spellCheck")}
+									>
+										Spell check
+									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={aiLoading.continueWriting}
+										onClick={() => runAiAction("continueWriting")}
+									>
+										Continue writing
+									</ContextMenuItem>
+								</>
+							) : null}
+							{canExportNote ? (
+								<>
+									<ContextMenuSeparator />
+									<ContextMenuItem
+										disabled={!menuState.canExportMarkdown}
+										onClick={() => handleExportNote("md")}
+									>
+										Export Markdown
+									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={!file}
+										onClick={() => handleExportNote("html")}
+									>
+										Export HTML
+									</ContextMenuItem>
+								</>
+							) : null}
+						</ContextMenuContent>
+					</ContextMenu>
+				)}
+				{!(isContentLoading || collabConnecting) && (
+					<AiWritingIndicator action={activeWritingAction} />
 				)}
 			</div>
 
 			{(!isPane || isPaneFocused) && (
-			<div className="flex h-8 shrink-0 items-center border-t border-border bg-card px-4 text-[11px] text-muted-foreground">
-				<div className="flex min-w-0 flex-1 items-center gap-3">
-					<span className="tabular-nums inline-flex items-baseline">
-						<AnimatedNumber value={wordCount} animate={editorPrefs.animateNumbers} />
-						<span className="ml-1">{wordCount === 1 ? "word" : "words"}</span>
-					</span>
-					<span className="h-4 w-px bg-border" aria-hidden="true" />
-					<BottomStatusText isSelection={Boolean(cursorPosition.selection)}>
-						{cursorPosition.selection ? (
-							<>
-								<AnimatedNumber
-									value={cursorPosition.selection.words}
-									animate={editorPrefs.animateNumbers}
-								/>{" "}
-								selected{" "}
-								{cursorPosition.selection.words === 1 ? "word" : "words"} ·{" "}
-								<AnimatedNumber
-									value={cursorPosition.selection.characters}
-									animate={editorPrefs.animateNumbers}
-								/>{" "}
-								{cursorPosition.selection.characters === 1 ? "char" : "chars"}
-							</>
-						) : effectiveEditorMode === "raw" ? (
-							<>
-								Ln <AnimatedNumber value={cursorPosition.line} />, Col{" "}
-								<AnimatedNumber
-									value={cursorPosition.column}
-									animate={editorPrefs.animateNumbers}
-								/>
-							</>
-						) : (
-							<>Block editor</>
-						)}
-					</BottomStatusText>
+				<div className="flex h-8 shrink-0 items-center border-t border-border bg-card px-4 text-[11px] text-muted-foreground">
+					<div className="flex min-w-0 flex-1 items-center gap-3">
+						<span className="tabular-nums inline-flex items-baseline">
+							<AnimatedNumber
+								value={wordCount}
+								animate={editorPrefs.animateNumbers}
+							/>
+							<span className="ml-1">{wordCount === 1 ? "word" : "words"}</span>
+						</span>
+						<span className="h-4 w-px bg-border" aria-hidden="true" />
+						<BottomStatusText isSelection={Boolean(cursorPosition.selection)}>
+							{cursorPosition.selection ? (
+								<>
+									<AnimatedNumber
+										value={cursorPosition.selection.words}
+										animate={editorPrefs.animateNumbers}
+									/>{" "}
+									selected{" "}
+									{cursorPosition.selection.words === 1 ? "word" : "words"} ·{" "}
+									<AnimatedNumber
+										value={cursorPosition.selection.characters}
+										animate={editorPrefs.animateNumbers}
+									/>{" "}
+									{cursorPosition.selection.characters === 1 ? "char" : "chars"}
+								</>
+							) : effectiveEditorMode === "raw" ? (
+								<>
+									Ln <AnimatedNumber value={cursorPosition.line} />, Col{" "}
+									<AnimatedNumber
+										value={cursorPosition.column}
+										animate={editorPrefs.animateNumbers}
+									/>
+								</>
+							) : (
+								<>Block editor</>
+							)}
+						</BottomStatusText>
+					</div>
+					<ActivityDots saveState={saveState} aiLoading={aiLoading} />
 				</div>
-				<ActivityDots saveState={saveState} aiLoading={aiLoading} />
-			</div>
 			)}
 		</div>
 	);
