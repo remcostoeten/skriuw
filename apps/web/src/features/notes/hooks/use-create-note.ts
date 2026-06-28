@@ -10,10 +10,12 @@ import { usePreferencesStore } from "@/features/settings/store";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { notesKeys } from "./notes-keys";
 import type { NoteFile } from "@/types/notes";
+import { useNotesCacheScope } from "./use-notes-cache-scope";
 
 export function useCreateNote() {
 	const queryClient = useQueryClient();
 	const backend = useWorkspaceBackend();
+	const filesKey = notesKeys.files(useNotesCacheScope());
 
 	return useApiMutation<CreateNoteInput, NoteFile, NoteFile[]>(backend.createNote, {
 		onSuccess: (note) => {
@@ -26,7 +28,7 @@ export function useCreateNote() {
 			showUserToast("Couldn't create note", "error");
 		},
 		optimistic: {
-			queryKey: notesKeys.files(),
+			queryKey: filesKey,
 			updater: (current, input) => {
 				const list = current ?? [];
 				// Dedupe by id so retries / double-fires don't duplicate the row.

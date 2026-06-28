@@ -37,6 +37,16 @@ export type CreateFolderInput = {
 	sortOrder?: number;
 };
 
+export async function listFolders(): Promise<NoteFolder[]> {
+	const { prisma, user } = await getAuthenticatedUser();
+	const records = await prisma.folder.findMany({
+		where: { userId: user.id, deletedAt: null },
+		orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+		select: { id: true, name: true, parentId: true, sortOrder: true },
+	});
+	return records.map(recordToFolder);
+}
+
 export async function createFolder(input: CreateFolderInput): Promise<NoteFolder> {
 	const validated = parseServerInput(createFolderInputSchema, input);
 	const { prisma, user } = await getAuthenticatedUser();

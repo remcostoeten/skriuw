@@ -10,9 +10,10 @@ export default async function SettingsRoute() {
 	const queryClient = new QueryClient();
 
 	if (user) {
+		const journalScope = journalKeys.userScope(user.id);
 		await ensureCloudStarterContentSeeded();
 		await queryClient.prefetchQuery({
-			queryKey: journalKeys.workspaceTags(),
+			queryKey: journalKeys.workspaceTags(journalScope),
 			queryFn: () => listWorkspaceTags(),
 		});
 	}

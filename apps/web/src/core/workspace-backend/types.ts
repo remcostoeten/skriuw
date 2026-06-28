@@ -29,6 +29,23 @@ export type WorkspaceCapabilities = {
 	collaboration: boolean;
 	notifications: boolean;
 	ai: boolean;
+	trash: boolean;
+};
+
+/**
+ * One restorable unit in the Trash. A standalone note delete is a single-item
+ * batch; a folder delete groups the folder, its subfolders, and every note it
+ * contained into one batch (so the Trash UI shows one row, not fifty). `id`
+ * keys the batch for restore/purge — the deletedAt-ISO string on the web
+ * backend, a generated `batchId` on the desktop backend.
+ */
+export type TrashBatch = {
+	id: string;
+	deletedAt: Date;
+	kind: "note" | "folder";
+	primary: { id: string; name: string };
+	noteCount: number;
+	folderCount: number;
 };
 
 /**
@@ -75,6 +92,14 @@ export type WorkspaceBackend = {
 
 	createNote(input: CreateNoteInput): Promise<NoteFile>;
 	updateNote(input: UpdateNoteInput): Promise<UpdateNoteResult>;
+
+	/**
+	 * Bulk-write fully-built notes in one shot, preserving their `createdAt`/
+	 * `modifiedAt` (unlike `createNote`, which stamps "now"). Used by external
+	 * importers that carry original timestamps. Optional: only the desktop
+	 * (`tauri`) backend implements it against `bulk_upsert_notes`.
+	 */
+	importNotes?(notes: NoteFile[]): Promise<void>;
 	deleteNote(id: string): Promise<void>;
 	restoreNoteVersion(versionId: string): Promise<UpdateNoteResult>;
 
@@ -87,6 +112,18 @@ export type WorkspaceBackend = {
 	createFolder(input: CreateFolderInput): Promise<NoteFolder>;
 	updateFolder(input: UpdateFolderInput): Promise<NoteFolder | undefined>;
 	deleteFolder(id: string): Promise<void>;
+
+	/**
+	 * Trash bin surface. `deleteNote`/`deleteFolder` soft-delete into the trash;
+	 * these read it, restore a batch back into the workspace, or remove data for
+	 * real. Optional: only backends advertising the `trash` capability (server,
+	 * tauri) implement them; the guest (`local`) backend hard-deletes and omits
+	 * them.
+	 */
+	listTrash?(): Promise<TrashBatch[]>;
+	restoreTrash?(batchId: string): Promise<void>;
+	purgeTrash?(batchId: string): Promise<void>;
+	emptyTrash?(): Promise<void>;
 
 	/**
 	 * Whole-list journal reads. Optional because the web (`server`) backend is

@@ -1,4 +1,4 @@
-import { BookOpen, Kanban, Settings, Waypoints } from "lucide-react";
+import { BookOpen, Settings, Trash2, Waypoints } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { RawLogo } from "@/shared/icons/logo";
 import { cn } from "@/shared/lib/utils";
@@ -8,7 +8,7 @@ const iconButtonClass =
 	"flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-sidebar-foreground/52";
 
 type IconRailSkeletonProps = {
-	activeHref?: "/app" | "/app/journal" | "/project-planning";
+	activeHref?: "/app" | "/app/journal" | "/app/trash";
 };
 
 export function IconRailSkeleton({ activeHref = "/app" }: IconRailSkeletonProps) {
@@ -16,6 +16,7 @@ export function IconRailSkeleton({ activeHref = "/app" }: IconRailSkeletonProps)
 		<>
 			<aside
 				aria-hidden
+				data-tauri-drag-region
 				className="fixed inset-y-0 left-0 z-30 hidden w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar/95 backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 md:flex"
 			>
 				<div className="flex w-full flex-col items-center">
@@ -59,11 +60,11 @@ export function IconRailSkeleton({ activeHref = "/app" }: IconRailSkeletonProps)
 					<div
 						className={cn(
 							iconButtonClass,
-							activeHref === "/project-planning" &&
+							activeHref === "/app/trash" &&
 								"bg-sidebar-accent/75 text-sidebar-accent-foreground",
 						)}
 					>
-						<Kanban className="h-[18px] w-[18px]" strokeWidth={1.6} />
+						<Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />
 					</div>
 					<div className="h-px w-8 bg-sidebar-border" />
 					<div className={iconButtonClass}>

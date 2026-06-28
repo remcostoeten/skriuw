@@ -40,7 +40,6 @@ model User {
   syncTokens             SyncToken[]
   aiUsageLogs            AiUsageLog[]
   aiErrorEvents          AiErrorEvent[]
-  createdFeatures        PlanningFeature[]
   sentCollabRequests     CollaborationRequest[] @relation("SentCollabRequests")
   receivedCollabRequests CollaborationRequest[] @relation("ReceivedCollabRequests")
   noteCollaborations     NoteCollaborator[]     @relation("NoteCollaborations")
@@ -394,99 +393,6 @@ model AiErrorEvent {
   @@index([userId, createdAt(sort: Desc)])
   @@index([errorCode, createdAt(sort: Desc)])
   @@map("ai_error_events")
-}
-
-// ─── Project Planning ────────────────────────────────────────────────────────
-
-model PlanningFeature {
-  id          String          @id @default(uuid()) @db.Uuid
-  title       String
-  slug        String          @unique
-  description String          @default("")
-  status      String          @default("exploring")
-  priority    String          @default("medium")
-  tags        String[]        @default([])
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
-  createdBy   String?         @map("created_by")
-  creator     User?           @relation(fields: [createdBy], references: [id], onDelete: SetNull)
-  issues      PlanningIssue[]
-
-  @@index([status])
-  @@index([updatedAt(sort: Desc)])
-  @@map("features")
-}
-
-model PlanningIssue {
-  id          String          @id @default(uuid()) @db.Uuid
-  featureId   String          @map("feature_id") @db.Uuid
-  feature     PlanningFeature @relation(fields: [featureId], references: [id], onDelete: Cascade)
-  title       String
-  description String          @default("")
-  status      String          @default("todo")
-  priority    String          @default("medium")
-  assignee    String?
-  tags        String[]        @default([])
-  notes       String?
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
-
-  @@index([featureId])
-  @@index([status])
-  @@map("issues")
-}
-
-model PlanningNiceToHave {
-  id          String   @id @default(uuid()) @db.Uuid
-  title       String
-  description String   @default("")
-  reason      String   @default("")
-  priority    String   @default("medium")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  @@index([createdAt(sort: Desc)])
-  @@map("nice_to_haves")
-}
-
-model PlanningScratchEntry {
-  id        String   @id @default(uuid()) @db.Uuid
-  title     String
-  content   String   @default("")
-  type      String   @default("note")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@index([createdAt(sort: Desc)])
-  @@map("scratch_entries")
-}
-
-model PlanningSection {
-  id          String                @id @default(uuid()) @db.Uuid
-  slug        String                @unique
-  title       String
-  description String                @default("")
-  sortOrder   Int                   @default(0) @map("sort_order")
-  createdAt   DateTime              @default(now()) @map("created_at")
-  updatedAt   DateTime              @updatedAt @map("updated_at")
-  items       PlanningSectionItem[]
-
-  @@index([sortOrder, createdAt])
-  @@map("planning_sections")
-}
-
-model PlanningSectionItem {
-  id        String          @id @default(uuid()) @db.Uuid
-  sectionId String          @map("section_id") @db.Uuid
-  section   PlanningSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  title     String
-  content   String          @default("")
-  priority  String?
-  tags      String[]        @default([])
-  sortOrder Int             @default(0) @map("sort_order")
-  createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt @map("updated_at")
-
-  @@index([sectionId, sortOrder, createdAt])
-  @@map("planning_section_items")
 }
 
 // ─── Seed Bundles ────────────────────────────────────────────────────────────

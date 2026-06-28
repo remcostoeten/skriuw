@@ -83,98 +83,100 @@ export function JournalEditor({
 		<ContextMenu>
 			<ContextMenuTrigger asChild>
 				<div className="flex flex-1 flex-col overflow-y-auto">
-					<div className="mx-auto w-full max-w-[720px] px-6 py-12 md:px-16 lg:py-20">
+					<div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col px-5 pb-8 pt-9 sm:px-8 md:px-10 lg:max-w-[820px] lg:px-12 lg:pb-10 lg:pt-14">
 						{/* Date heading */}
-						<div className="mb-1">
-							<h1 className="text-[32px] font-bold leading-tight tracking-tight text-foreground lg:text-[38px]">
-								{formatDateHeading(selectedDate)}
-							</h1>
-							<p className="mt-1 text-[14px] text-muted-foreground/60">
-								{format(selectedDate, "EEEE, MMMM d, yyyy")}
-							</p>
-						</div>
+						<header className="border-b border-border/55 pb-5 md:pb-6">
+							<div className="flex flex-wrap items-end justify-between gap-3">
+								<div className="min-w-0">
+									<h1 className="text-[34px] font-semibold leading-none tracking-tight text-foreground sm:text-[40px]">
+										{formatDateHeading(selectedDate)}
+									</h1>
+									<p className="mt-2 text-[14px] text-muted-foreground/62">
+										{format(selectedDate, "EEEE, MMMM d, yyyy")}
+									</p>
+								</div>
 
-						{/* Mood selector row */}
-						<div className="mt-6 flex items-center gap-2">
-							<span className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-								Mood
-							</span>
-							<div className="flex items-center gap-1">
-								{(
-									Object.entries(MOOD_OPTIONS) as [
-										MoodLevel,
-										(typeof MOOD_OPTIONS)[MoodLevel],
-									][]
-								).map(([key, mood]) => (
-									<button
-										key={key}
-										onClick={() => handleMoodSelect(key)}
-										className={cn(
-											"flex h-8 items-center gap-1 border border-transparent px-2.5 text-[12px] transition-colors",
-											entryMood === key
-												? "border-border bg-muted font-medium text-foreground"
-												: "text-muted-foreground/50 hover:border-border hover:bg-muted hover:text-muted-foreground",
-										)}
-										title={mood.label}
-									>
-										<span
-											className={cn(
-												"text-[13px]",
-												entryMood === key && mood.color,
-											)}
-										>
-											{mood.icon}
-										</span>
-										<span className="hidden sm:inline">{mood.label}</span>
-									</button>
-								))}
+								{editorMode === "rich" && (
+									<div className="flex h-8 items-center gap-2 border border-border/50 bg-background/35 px-2.5 text-[11px] text-muted-foreground/52">
+										<Type className="h-3 w-3" strokeWidth={1.5} />
+										<span>Rich text</span>
+									</div>
+								)}
 							</div>
-						</div>
 
-						{/* Tags row */}
-						{entryTags.length > 0 && (
-							<div className="mt-3 flex flex-wrap items-center gap-1.5">
-								<span className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-									Tags
+							{/* Mood selector row */}
+							<div className="mt-6 grid gap-2 sm:grid-cols-[4.5rem_1fr] sm:items-center">
+								<span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/42">
+									Mood
 								</span>
-								{entryTags.map((tagName) => (
-									<span
-										key={tagName}
-										className="inline-flex items-center gap-1.5 border px-2.5 py-1 text-[11px] font-medium"
-										style={{
-											backgroundColor: colorWithAlpha(
-												getTagColor(tagName),
-												0.08,
-											),
-											color: getTagColor(tagName),
-											borderColor: colorWithAlpha(getTagColor(tagName), 0.21),
-										}}
-									>
-										@{tagName}
+								<div className="flex flex-wrap items-center gap-1.5">
+									{(
+										Object.entries(MOOD_OPTIONS) as [
+											MoodLevel,
+											(typeof MOOD_OPTIONS)[MoodLevel],
+										][]
+									).map(([key, mood]) => (
 										<button
-											onClick={() => handleRemoveTag(tagName)}
-											className="border border-transparent p-0.5 transition-colors hover:border-current/20 hover:bg-foreground/10"
+											key={key}
+											onClick={() => handleMoodSelect(key)}
+											className={cn(
+												"flex h-8 items-center gap-1.5 border border-transparent px-2.5 text-[12px] transition-colors",
+												entryMood === key
+													? "border-border bg-muted font-medium text-foreground shadow-[inset_0_1px_0_hsl(var(--foreground)/0.04)]"
+													: "text-muted-foreground/54 hover:border-border hover:bg-muted/70 hover:text-muted-foreground",
+											)}
+											title={mood.label}
 										>
-											<X className="h-2.5 w-2.5" strokeWidth={2} />
+											<span
+												className={cn(
+													"text-[13px]",
+													entryMood === key && mood.color,
+												)}
+											>
+												{mood.icon}
+											</span>
+											<span>{mood.label}</span>
 										</button>
+									))}
+								</div>
+							</div>
+
+							{/* Tags row */}
+							{entryTags.length > 0 && (
+								<div className="mt-3 grid gap-2 sm:grid-cols-[4.5rem_1fr] sm:items-start">
+									<span className="pt-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/42">
+										Tags
 									</span>
-								))}
-							</div>
-						)}
-
-						{/* Rich text indicator */}
-						{editorMode === "rich" && (
-							<div className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground/40">
-								<Type className="h-3 w-3" strokeWidth={1.5} />
-								<span>Rich text enabled</span>
-							</div>
-						)}
-
-						{/* Divider */}
-						<div className="my-6 h-px bg-border/40" />
+									<div className="flex flex-wrap items-center gap-1.5">
+										{entryTags.map((tagName) => (
+											<span
+												key={tagName}
+												className="inline-flex items-center gap-1.5 border px-2.5 py-1 text-[11px] font-medium"
+												style={{
+													backgroundColor: colorWithAlpha(
+														getTagColor(tagName),
+														0.08,
+													),
+													color: getTagColor(tagName),
+													borderColor: colorWithAlpha(getTagColor(tagName), 0.21),
+												}}
+											>
+												@{tagName}
+												<button
+													onClick={() => handleRemoveTag(tagName)}
+													className="border border-transparent p-0.5 transition-colors hover:border-current/20 hover:bg-foreground/10"
+												>
+													<X className="h-2.5 w-2.5" strokeWidth={2} />
+												</button>
+											</span>
+										))}
+									</div>
+								</div>
+							)}
+						</header>
 
 						{/* Editor area */}
-						<div className="relative min-h-[400px]">
+						<div className="journal-entry-editor relative min-h-[420px] flex-1 py-7 md:py-8">
 							{editorMode === "plain" ? (
 								<PlainTextEditor
 									content={content}
@@ -195,7 +197,7 @@ export function JournalEditor({
 						</div>
 
 						{/* Footer */}
-						<div className="mt-8 flex items-center justify-between border-t border-border pt-4">
+						<div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border/55 pt-4">
 							<div className="flex items-center gap-3">
 								<span className="text-[11px] text-muted-foreground/40">
 									{wordCount} {wordCount === 1 ? "word" : "words"}
@@ -242,6 +244,16 @@ export function JournalEditor({
 							)}
 						</div>
 					</div>
+					<style jsx global>{`
+						.journal-entry-editor .blocknote-wrapper {
+							padding: 0;
+						}
+
+						.journal-entry-editor .blocknote-wrapper .bn-editor {
+							max-width: none;
+							margin: 0;
+						}
+					`}</style>
 				</div>
 			</ContextMenuTrigger>
 			<ContextMenuContent className="w-52">

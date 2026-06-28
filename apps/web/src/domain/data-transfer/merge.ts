@@ -19,6 +19,18 @@ import { hardClearUserWorkspace } from "@/domain/data-transfer/workspace-clear";
 
 type FolderRow = { id: string; name: string; parentId: string | null; sortOrder: number };
 
+function duplicateNoteName(name: string, parentPath: string | null, existingKeys: Set<string>): string {
+	const normalized = name.endsWith(".md") ? name : `${name}.md`;
+	const base = normalized.slice(0, -3);
+	let index = 2;
+	let candidate = `${base} (${index}).md`;
+	while (existingKeys.has(noteImportKey({ name: candidate, parentPath }))) {
+		index++;
+		candidate = `${base} (${index}).md`;
+	}
+	return candidate;
+}
+
 function noteWriteData(
 	note: ParsedNoteFile,
 	parentId: string | null,
@@ -32,6 +44,7 @@ function noteWriteData(
 	tags: string[];
 	createdAt?: Date;
 	updatedAt?: Date;
+	deletedAt?: Date;
 } {
 	const preferredEditorMode = note.preferredEditorMode ?? "block";
 	const richContent = resolveRichDocument(
@@ -49,6 +62,7 @@ function noteWriteData(
 		tags: note.tags,
 		...(note.createdAt ? { createdAt: new Date(note.createdAt) } : {}),
 		...(note.updatedAt ? { updatedAt: new Date(note.updatedAt) } : {}),
+		...(note.deleted ? { deletedAt: new Date() } : {}),
 	};
 }
 
@@ -179,6 +193,30 @@ export async function mergeArchiveImport(
 			const softDeletedById =
 				note.id && allUserNoteIds.has(note.id) && !activeById ? note.id : null;
 
+			if ((activeById || activeByPath) && policy === "duplicate") {
+				const duplicateName = duplicateNoteName(note.name, note.parentPath, existingNoteKeys);
+				const duplicateId =
+					note.id && !allUserNoteIds.has(note.id) ? note.id : crypto.randomUUID();
+				await tx.note.create({
+					data: {
+						id: duplicateId,
+						userId,
+						...data,
+						name: duplicateName,
+					},
+				});
+				const duplicateKey = noteImportKey({ name: duplicateName, parentPath: note.parentPath });
+				existingNoteKeys.add(duplicateKey);
+				existingNoteIds.add(duplicateId);
+				allUserNoteIds.add(duplicateId);
+				existingNoteIdByKey.set(duplicateKey, duplicateId);
+				if (note.id) {
+					importedArchiveNoteIds.add(note.id);
+					archiveNoteIdToWorkspaceId.set(note.id, duplicateId);
+				}
+				continue;
+			}
+
 			if (activeById && policy === "overwrite") {
 				await tx.note.updateMany({
 					where: { id: note.id, userId, deletedAt: null },
@@ -238,6 +276,7 @@ export async function mergeArchiveImport(
 
 			existingNoteKeys.add(key);
 			existingNoteIds.add(createdId);
+			allUserNoteIds.add(createdId);
 			existingNoteIdByKey.set(key, createdId);
 			if (note.id) {
 				importedArchiveNoteIds.add(note.id);

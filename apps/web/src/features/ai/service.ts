@@ -6,7 +6,7 @@ export type { AiAction, AiErrorCode } from "@/domain/ai/types";
 export interface AiEditorHandle {
 	getMarkdown: () => Promise<string>;
 	replaceContent: (markdown: string) => void;
-	appendContent: (markdown: string) => void;
+	continueWriting: (markdown: string) => void;
 	setTitle: (title: string) => void;
 }
 

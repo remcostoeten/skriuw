@@ -28,7 +28,7 @@ import {
 	NOTE_VERSION_RETENTION_LIMIT,
 	shouldPersistNoteVersion,
 } from "@/domain/notes/versioning";
-import { listNoteVersions } from "@/domain/notes/queries";
+import { listNoteMetadata, listNoteVersions } from "@/domain/notes/queries";
 import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
 import type { ResolvedNoteLink } from "@/domain/notes/note-links";
 import { deriveNoteNameFromHeading, nameTracksHeading } from "@/domain/notes/note-links";
@@ -72,14 +72,11 @@ type NoteVersionRecord = {
 	createdAt: Date;
 };
 
-const UUID_PATTERN =
-	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function uniquePersistedNoteIds(ids: string[]): string[] {
 	return Array.from(
-		new Set(
-			ids.filter((id) => id && !isGuestScopedId(id) && UUID_PATTERN.test(id)),
-		),
+		new Set(ids.filter((id) => id && !isGuestScopedId(id) && UUID_PATTERN.test(id))),
 	);
 }
 
@@ -237,6 +234,10 @@ export type CreateNoteInput = {
 	sortOrder?: number;
 	tags?: string[];
 };
+
+export async function listNotes(): Promise<NoteFile[]> {
+	return listNoteMetadata();
+}
 
 export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 	const validated = parseServerInput(createNoteInputSchema, input);
