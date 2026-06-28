@@ -10,6 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+
+# Rust / Tauri build artifacts (apps/desktop/src-tauri/target ~ 5GB)
+target/
 project-management/
 *.local
 .env
@@ -47,3 +50,4 @@ TODO.*
 .env*.local
 .pnpm-store/
 .claude/
+.env*

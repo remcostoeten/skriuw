@@ -12,16 +12,24 @@
 			window.process = window.process || { env: { NODE_ENV: "production" } };
 		</script>
 		<script>
-			// Theme + splash bootstrap. Runs before the JS bundle and before the
-			// splash paints, so the native-feeling splash matches the saved theme
-			// instead of flashing the default. The bundle's globals.css (which owns
-			// the real --background tokens) isn't loaded yet, hence the local map.
+			// Theme bootstrap. Runs before the JS bundle so the saved theme's
+			// background paints immediately instead of flashing the default — the
+			// bundle's globals.css owns the real tokens but isn't loaded yet, hence
+			// the local color map.
 			(function () {
-				var SPLASH = {
-					midnight: { bg: "#121212", fg: "#e8e8e8" },
-					graphite: { bg: "#1d1e21", fg: "#e6e6e6" },
-					paper: { bg: "#f5f2ec", fg: "#26221d" },
-					monokai: { bg: "#24251f", fg: "#e6e6dc" },
+				var THEME_BG = {
+					midnight: "#121212",
+					graphite: "#1d1e21",
+					paper: "#f5f2ec",
+					monokai: "#24251f",
+				};
+				// Logo tint per theme: light themes get a dark mark, dark themes a
+				// light one. Drives the splash logo before globals.css loads.
+				var THEME_FG = {
+					midnight: "#ededed",
+					graphite: "#ededed",
+					paper: "#1d1e21",
+					monokai: "#ededed",
 				};
 				var theme = "midnight";
 				try {
@@ -34,65 +42,71 @@
 					}
 				} catch (e) {}
 				document.documentElement.setAttribute("data-theme", theme);
-				var colors = SPLASH[theme] || SPLASH.midnight;
-				var root = document.documentElement;
-				root.style.setProperty("--splash-bg", colors.bg);
-				root.style.setProperty("--splash-fg", colors.fg);
-				root.style.backgroundColor = colors.bg;
+				document.documentElement.style.backgroundColor = THEME_BG[theme] || THEME_BG.midnight;
+				document.documentElement.style.setProperty("--splash-fg", THEME_FG[theme] || THEME_FG.midnight);
 			})();
 		</script>
 		<style>
+			/* Splash: paints the logo on the themed background immediately, before
+			   the JS bundle loads. main.tsx fades it out once React has mounted. */
 			#splash {
 				position: fixed;
 				inset: 0;
-				z-index: 2147483647;
+				z-index: 9999;
 				display: flex;
-				flex-direction: column;
 				align-items: center;
 				justify-content: center;
-				gap: 1.25rem;
-				background-color: var(--splash-bg, #121212);
-				color: var(--splash-fg, #e8e8e8);
-				font-family:
-					ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-				transition: opacity 200ms ease;
+				transition: opacity 240ms ease;
 			}
-			#splash[data-leaving="true"] {
+			#splash.is-hidden {
 				opacity: 0;
 				pointer-events: none;
 			}
-			#splash .splash-wordmark {
-				font-size: 1.5rem;
-				font-weight: 600;
-				letter-spacing: 0.18em;
-				text-transform: uppercase;
-				opacity: 0.92;
+			#splash svg {
+				width: auto;
+				height: 92px;
+				color: var(--splash-fg, #ededed);
+				animation: splash-pulse 1.4s ease-in-out infinite;
 			}
-			#splash .splash-spinner {
-				width: 1.5rem;
-				height: 1.5rem;
-				border-radius: 9999px;
-				border: 2px solid currentColor;
-				border-top-color: transparent;
-				opacity: 0.55;
-				animation: splash-spin 700ms linear infinite;
-			}
-			@keyframes splash-spin {
-				to {
-					transform: rotate(360deg);
+			@keyframes splash-pulse {
+				0%,
+				100% {
+					opacity: 0.4;
+				}
+				50% {
+					opacity: 1;
 				}
 			}
 			@media (prefers-reduced-motion: reduce) {
-				#splash .splash-spinner {
-					animation-duration: 1.6s;
+				#splash svg {
+					animation: none;
 				}
 			}
 		</style>
 	</head>
 	<body class="font-sans">
-		<div id="splash" role="status" aria-label="Loading Skriuw">
-			<div class="splash-wordmark">Skriuw</div>
-			<div class="splash-spinner"></div>
+		<div id="splash" aria-hidden="true">
+			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 513" preserveAspectRatio="xMidYMid meet">
+				<defs>
+					<linearGradient id="splashLogoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+						<stop offset="0%" stop-color="currentColor" stop-opacity="1" />
+						<stop offset="50%" stop-color="currentColor" stop-opacity="0.8" />
+						<stop offset="100%" stop-color="currentColor" stop-opacity="1" />
+					</linearGradient>
+					<filter id="splashGlow">
+						<feGaussianBlur stdDeviation="2" result="coloredBlur" />
+						<feMerge>
+							<feMergeNode in="coloredBlur" />
+							<feMergeNode in="SourceGraphic" />
+						</feMerge>
+					</filter>
+				</defs>
+				<g fill="url(#splashLogoGradient)" filter="url(#splashGlow)">
+					<path d="M6 52 L0 58 L0 391 L8 400 L82 440 L89 441 L94 439 L99 432 L99 104 L94 96 L14 52 Z" />
+					<path d="M133 0 L123 8 L123 504 L130 511 L140 512 L237 463 L246 452 L246 64 L234 52 L150 6 Z" />
+					<path d="M277 78 L272 83 L272 434 L278 440 L288 440 L378 391 L390 380 L390 139 L379 128 L299 78 Z" />
+				</g>
+			</svg>
 		</div>
 		<div id="root"></div>
 		<div id="auth-drawer-portal"></div>

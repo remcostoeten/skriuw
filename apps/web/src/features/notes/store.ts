@@ -1,7 +1,7 @@
 import { create } from "zustand";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 import type { NoteFile, NoteFolder } from "@/types/notes";
-import { DESKTOP_SIDEBAR_MIN_WIDTH } from "./constants";
+import { DESKTOP_METADATA_MIN_WIDTH, DESKTOP_SIDEBAR_MIN_WIDTH } from "./constants";
 
 type FolderOpenState = Record<string, boolean>;
 
@@ -10,6 +10,7 @@ type LayoutUiState = {
 	showSidebar: boolean;
 	showMetadata: boolean;
 	sidebarWidth: number;
+	metadataWidth: number;
 	selectedInspectorTag: string | null;
 };
 
@@ -45,6 +46,7 @@ type NotesUiState = {
 	setUIState: (updates: Partial<LayoutUiState>) => void;
 	setSelectedInspectorTag: (tag: string | null) => void;
 	setSidebarWidth: (width: number) => void;
+	setMetadataWidth: (width: number) => void;
 	split: SplitEditorState;
 	openSplitBeside: (fileId: string, primaryFileId: string) => void;
 	setSecondaryFile: (fileId: string) => void;
@@ -85,6 +87,7 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
 		showSidebar: true,
 		showMetadata: true,
 		sidebarWidth: DESKTOP_SIDEBAR_MIN_WIDTH,
+		metadataWidth: DESKTOP_METADATA_MIN_WIDTH,
 		selectedInspectorTag: null,
 	},
 
@@ -100,6 +103,7 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
 				showSidebar: true,
 				showMetadata: true,
 				sidebarWidth: DESKTOP_SIDEBAR_MIN_WIDTH,
+				metadataWidth: DESKTOP_METADATA_MIN_WIDTH,
 				selectedInspectorTag: null,
 			},
 		});
@@ -201,6 +205,12 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
 		}));
 	},
 
+	setMetadataWidth: (width) => {
+		set((state) => ({
+			ui: { ...state.ui, metadataWidth: width },
+		}));
+	},
+
 	openSplitBeside: (fileId, primaryFileId) => {
 		if (!fileId || fileId === primaryFileId) return;
 		set((state) => ({
@@ -267,8 +277,7 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
 		set((state) => ({
 			split: {
 				...state.split,
-				orientation:
-					state.split.orientation === "vertical" ? "horizontal" : "vertical",
+				orientation: state.split.orientation === "vertical" ? "horizontal" : "vertical",
 			},
 		}));
 	},

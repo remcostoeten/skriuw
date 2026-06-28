@@ -2,7 +2,6 @@ export * from "./types";
 export * from "./store";
 export * from "./favorites-section";
 export * from "./recents-section";
-export * from "./projects-section";
 export * from "./custom-section";
 export * from "./sidebar-config-manager";
 export * from "./journal";

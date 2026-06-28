@@ -134,8 +134,8 @@ export function JournalDatabaseView({
 	const visibleEntries = filteredEntries.slice(startIndex, endIndex);
 
 	if (isMobile) {
-		const mobileControlClass =
-			"flex h-11 w-11 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground active:scale-[0.97]";
+	const mobileControlClass =
+		"flex h-11 w-11 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground";
 
 		return (
 			<div className="flex flex-1 flex-col overflow-hidden">
@@ -179,14 +179,14 @@ export function JournalDatabaseView({
 						<div className="flex h-11 items-center gap-1.5 sm:gap-2">
 							<button
 								onClick={onNewEntry}
-								className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
+								className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 								title="New entry"
 							>
 								<Plus className="h-[18px] w-[18px]" strokeWidth={1.7} />
 							</button>
 							<button
 								onClick={onOpenSettings}
-								className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]"
+								className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 								title="Open settings"
 							>
 								<Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
@@ -205,7 +205,7 @@ export function JournalDatabaseView({
 									setActiveTab(tab.id);
 								}}
 								className={cn(
-									"pressable flex h-7 shrink-0 items-center gap-1.5 px-3 text-[12px] font-medium transition-colors",
+									"flex h-7 shrink-0 items-center gap-1.5 px-3 text-[12px] font-medium transition-colors",
 									activeTab === tab.id
 										? "text-foreground"
 										: "text-muted-foreground/60 hover:text-muted-foreground",
@@ -220,7 +220,7 @@ export function JournalDatabaseView({
 								setShowSearch(!showSearch);
 							}}
 							className={cn(
-								"pressable ml-auto flex h-9 w-9 shrink-0 items-center justify-center border transition-colors",
+								"ml-auto flex h-9 w-9 shrink-0 items-center justify-center border transition-colors",
 								showSearch
 									? "border-border bg-muted text-foreground"
 									: "border-transparent text-muted-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
@@ -234,7 +234,7 @@ export function JournalDatabaseView({
 								triggerNativeFeedback("selection");
 								setSortOrder(sortOrder === "newest" ? "oldest" : "newest");
 							}}
-							className="pressable flex h-9 w-9 shrink-0 items-center justify-center border border-transparent text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
+							className="flex h-9 w-9 shrink-0 items-center justify-center border border-transparent text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
 							title={
 								sortOrder === "newest" ? "Sort oldest first" : "Sort newest first"
 							}
@@ -298,11 +298,11 @@ export function JournalDatabaseView({
 										return (
 											<button
 												key={entry.id}
-												onClick={() => {
-													triggerNativeFeedback("selection");
-													onSelectEntry(entry.dateKey);
-												}}
-												className="pressable-soft group absolute left-0 flex w-full items-center gap-3 border-b border-border px-1 py-2.5 text-left transition-colors hover:bg-muted"
+											onClick={() => {
+												triggerNativeFeedback("selection");
+												onSelectEntry(entry.dateKey);
+											}}
+											className="group absolute left-0 flex w-full items-center gap-3 border-b border-border px-1 py-2.5 text-left transition-colors hover:bg-muted"
 												style={{
 													top: rowIndex * JOURNAL_ROW_HEIGHT,
 													height: JOURNAL_ROW_HEIGHT,
@@ -344,14 +344,14 @@ export function JournalDatabaseView({
 					<div className="flex items-center gap-1">
 						<button
 							onClick={onToggleSidebar}
-							className="pressable flex h-7 w-7 items-center justify-center border border-transparent text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+							className="flex h-7 w-7 items-center justify-center border border-transparent text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
 							title="Toggle sidebar"
 						>
 							<Sidebar className="h-4 w-4" strokeWidth={1.5} />
 						</button>
 						<button
 							onClick={onGoToToday}
-							className="pressable flex h-7 w-7 items-center justify-center border border-transparent text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+							className="flex h-7 w-7 items-center justify-center border border-transparent text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
 							title="Go to today"
 						>
 							<CalendarDays className="h-4 w-4" strokeWidth={1.5} />
@@ -372,7 +372,7 @@ export function JournalDatabaseView({
 								setShowSearch(!showSearch);
 							}}
 							className={cn(
-								"pressable flex h-7 w-7 items-center justify-center border border-transparent transition-colors duration-200",
+								"flex h-7 w-7 items-center justify-center border border-transparent transition-colors duration-200",
 								showSearch
 									? "border-sidebar-border bg-sidebar-accent/70 text-sidebar-foreground"
 									: "text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
@@ -383,7 +383,7 @@ export function JournalDatabaseView({
 						</button>
 						<button
 							onClick={onNewEntry}
-							className="pressable ml-1 flex h-7 items-center gap-1.5 border border-transparent px-2.5 text-[11px] text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+							className="ml-1 flex h-7 items-center gap-1.5 border border-transparent px-2.5 text-[11px] text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
 							title="New entry"
 						>
 							<Plus className="h-3.5 w-3.5" strokeWidth={1.7} />
@@ -404,7 +404,7 @@ export function JournalDatabaseView({
 									setActiveTab(tab.id);
 								}}
 								className={cn(
-									"pressable flex h-7 items-center gap-1.5 px-3 text-[13px] font-medium transition-colors",
+									"flex h-7 items-center gap-1.5 px-3 text-[13px] font-medium transition-colors",
 									activeTab === tab.id
 										? "text-foreground"
 										: "text-muted-foreground/60 hover:text-muted-foreground",
@@ -466,11 +466,11 @@ export function JournalDatabaseView({
 							return (
 								<button
 									key={entry.id}
-									onClick={() => {
-										triggerNativeFeedback("selection");
-										onSelectEntry(entry.dateKey);
-									}}
-									className="pressable-soft group absolute left-0 flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left transition-colors hover:bg-muted"
+								onClick={() => {
+									triggerNativeFeedback("selection");
+									onSelectEntry(entry.dateKey);
+								}}
+								className="group absolute left-0 flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left transition-colors hover:bg-muted"
 									style={{
 										top: rowIndex * JOURNAL_ROW_HEIGHT,
 										height: JOURNAL_ROW_HEIGHT,

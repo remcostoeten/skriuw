@@ -133,7 +133,7 @@ const welcomeNote: Block[] = [
 	p(),
 	h(2, t("Try this in the next two minutes")),
 	check(false, t("Type "), code("/"), t(" on a blank line to see everything you can insert")),
-	check(false, t("Press "), code("Cmd/Ctrl + Shift + B"), t(" to open the inspector — the panel on the right with this note's links, tags, and outline")),
+	check(false, t("Press "), code("Cmd/Ctrl + Shift + Alt + B"), t(" to open the inspector — the panel on the right with this note's links, tags, and outline")),
 	check(false, t("Click "), wiki("Skriuw handbook"), t(" below, then look at its Outgoing links and Backlinks in the inspector")),
 	check(false, t("Click "), hashTag("getting-started"), t(" in the inspector to filter to every note with that tag")),
 	p(),
@@ -181,7 +181,7 @@ const welcomeNote: Block[] = [
 	),
 	p(),
 	h(2, t("Handy shortcuts")),
-	bullet(code("Cmd/Ctrl + N"), t(" new note · "), code("Cmd/Ctrl + K"), t(" command palette · "), code("Cmd/Ctrl + B"), t(" toggle sidebar · press "), code("?"), t(" for the full list")),
+	bullet(code("Cmd/Ctrl + N"), t(" new note · "), code("Cmd/Ctrl + K"), t(" command palette · "), code("Cmd/Ctrl + Shift + B"), t(" toggle sidebar · press "), code("?"), t(" for the full list")),
 	p(t("Everything else lives in "), wiki("Skriuw handbook"), t(". For a longer example of linked notes in folders, open "), wiki("From idea to published note"), t(" under "), bold("Guides → Workflows"), t(".")),
 ];
 
@@ -292,7 +292,7 @@ const handbookNote: Block[] = [
 	h(2, t("Keyboard shortcuts")),
 	bullet(code("Cmd/Ctrl + N"), t(" — New note · "), code("Cmd/Ctrl + Shift + N"), t(" — New folder")),
 	bullet(code("Cmd/Ctrl + K"), t(" — Command palette (or "), code("Cmd/Ctrl + Shift + P"), t(")")),
-	bullet(code("Cmd/Ctrl + B"), t(" — Toggle sidebar · "), code("Cmd/Ctrl + Shift + B"), t(" — Toggle inspector")),
+	bullet(code("Cmd/Ctrl + Shift + B"), t(" — Toggle sidebar · "), code("Cmd/Ctrl + Shift + Alt + B"), t(" — Toggle inspector")),
 	bullet(code("Cmd/Ctrl + E"), t(" — Switch between blocks and raw MDX")),
 	bullet(code("/"), t(" — Slash menu · "), code("@"), t(" — link a note · "), code("#"), t(" — add a tag")),
 	bullet(code("?"), t(" — Show every shortcut")),

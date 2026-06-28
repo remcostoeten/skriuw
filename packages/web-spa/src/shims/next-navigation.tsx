@@ -12,6 +12,9 @@ type NextRouter = {
 	prefetch: (href: string) => void;
 };
 
+let cachedSearch = "";
+let cachedSearchParams = new URLSearchParams();
+
 export function useRouter(): NextRouter {
 	const router = useTanstackRouter();
 
@@ -43,7 +46,12 @@ export function usePathname(): string {
 
 export function useSearchParams(): URLSearchParams {
 	const search = useRouterState({ select: (s) => s.location.searchStr });
-	return new URLSearchParams(search ?? "");
+	const nextSearch = search ?? "";
+	if (cachedSearch !== nextSearch) {
+		cachedSearch = nextSearch;
+		cachedSearchParams = new URLSearchParams(nextSearch);
+	}
+	return cachedSearchParams;
 }
 
 export function useParams<T extends Record<string, string>>(): T {

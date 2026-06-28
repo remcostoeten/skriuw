@@ -3,8 +3,10 @@ import {
 	buildNoteBacklinks,
 	buildNoteLinkIndex,
 	buildOutgoingNoteLinks,
+	deriveNoteNameFromHeading,
 	extractNoteLinks,
 	extractNoteTags,
+	isUntitledNoteName,
 	findNoteByTitle,
 	getNoteSearchableContent,
 	getNoteTitle,
@@ -241,6 +243,43 @@ describe("note link indexing", () => {
 			targetNoteId: "target-id",
 			status: "resolved",
 		});
+	});
+});
+
+describe("isUntitledNoteName", () => {
+	test("matches auto-generated names regardless of suffix or case", () => {
+		expect(isUntitledNoteName("Untitled.md")).toBe(true);
+		expect(isUntitledNoteName("Untitled 2.md")).toBe(true);
+		expect(isUntitledNoteName("untitled.md")).toBe(true);
+		expect(isUntitledNoteName(" Untitled.md ")).toBe(true);
+	});
+
+	test("does not match user-chosen names", () => {
+		expect(isUntitledNoteName("My note.md")).toBe(false);
+		expect(isUntitledNoteName("Untitled thoughts.md")).toBe(false);
+		expect(isUntitledNoteName("Untitled2.md")).toBe(false);
+	});
+});
+
+describe("deriveNoteNameFromHeading", () => {
+	test("derives a .md filename from the first H1", () => {
+		expect(deriveNoteNameFromHeading("# Meeting notes\n\nbody")).toBe("Meeting notes.md");
+	});
+
+	test("ignores headings inside fenced code and deeper levels", () => {
+		expect(deriveNoteNameFromHeading("```\n# fake\n```\n## Real?\nbody")).toBeNull();
+	});
+
+	test("sanitizes filesystem-unsafe characters and collapses whitespace", () => {
+		expect(deriveNoteNameFromHeading("#   Q1/Q2:  plan?  ")).toBe("Q1 Q2 plan.md");
+	});
+
+	test("returns null when there is no heading", () => {
+		expect(deriveNoteNameFromHeading("just a paragraph")).toBeNull();
+	});
+
+	test("returns null when the heading sanitizes to nothing", () => {
+		expect(deriveNoteNameFromHeading("# ///")).toBeNull();
 	});
 });
 

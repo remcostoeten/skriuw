@@ -17,6 +17,7 @@ interface ShortcutContextValue {
 	resetBinding: (id: ShortcutId) => void;
 	resetAllBindings: () => void;
 	getHelpGroups: (scopes: Scope[]) => ShortcutHelpGroup[];
+	getShortcutHint: (id: ShortcutId) => string;
 }
 
 const ShortcutContext = React.createContext<ShortcutContextValue | null>(null);
@@ -78,6 +79,11 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 		[bindings],
 	);
 
+	const getShortcutHint = React.useCallback(
+		(id: ShortcutId) => formatBinding(bindings[id] ?? getShortcutDef(id).keys),
+		[bindings],
+	);
+
 	const value = React.useMemo<ShortcutContextValue>(
 		() => ({
 			registry: SHORTCUT_REGISTRY,
@@ -86,8 +92,9 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 			resetBinding,
 			resetAllBindings,
 			getHelpGroups,
+			getShortcutHint,
 		}),
-		[bindings, setBinding, resetBinding, resetAllBindings, getHelpGroups],
+		[bindings, setBinding, resetBinding, resetAllBindings, getHelpGroups, getShortcutHint],
 	);
 
 	return <ShortcutContext.Provider value={value}>{children}</ShortcutContext.Provider>;
@@ -97,6 +104,12 @@ export function useShortcutManager(): ShortcutContextValue {
 	const ctx = React.useContext(ShortcutContext);
 	if (!ctx) throw new Error("useShortcutManager must be used inside <ShortcutProvider>");
 	return ctx;
+}
+
+export function useShortcutHint(id?: ShortcutId): string | undefined {
+	const ctx = React.useContext(ShortcutContext);
+	if (!id) return undefined;
+	return ctx?.getShortcutHint(id) ?? formatBinding(getShortcutDef(id).keys);
 }
 
 type ScopedShortcutOptions = {
@@ -141,6 +154,6 @@ export function useShortcutScope(
 
 	useShortcutMap(shortcutMap, {
 		activeScopes: active ? [scope] : [],
-		ignoreInputs: true,
+		ignoreInputs: false,
 	});
 }

@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback, useEffect, useMemo, type PointerEvent as ReactPointerEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertTriangle, GripVertical, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { Editor } from "./editor";
 import type { TRichTextCollab } from "./rich-text-editor";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
@@ -24,7 +25,12 @@ import { useAiProviderKeys } from "@/features/ai/hooks/use-ai-provider-keys";
 import { listFallbackAiKeys, resolveAiKey } from "@/features/ai/lib/resolve-ai-key";
 import { usePreferencesStore } from "@/features/settings/store";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
-import { normalizeNoteTitle, stripMarkdownExtension } from "@/domain/notes/note-links";
+import {
+	deriveNoteNameFromHeading,
+	nameTracksHeading,
+	normalizeNoteTitle,
+	stripMarkdownExtension,
+} from "@/domain/notes/note-links";
 import { AnimatedNumber } from "@/shared/ui/animated-number";
 import { cn } from "@/shared/lib/utils";
 
@@ -166,8 +172,67 @@ function BottomStatusText({
 	);
 }
 
-function titleToFileName(title: string): string {
-	return title.trim().replace(/\s+/g, "-");
+function ActivityDots({
+	saveState,
+	aiLoading,
+}: {
+	saveState?: EditorSaveState;
+	aiLoading: { generateTitle: boolean; spellCheck: boolean; continueWriting: boolean };
+}) {
+	const prefersReducedMotion = useReducedMotion();
+	const isSaving = saveState === "saving";
+	const isAiBusy = aiLoading.generateTitle || aiLoading.spellCheck || aiLoading.continueWriting;
+	const isActive = isSaving || isAiBusy;
+
+	const tooltipLabel = isSaving
+		? "Saving note…"
+		: aiLoading.generateTitle
+			? "AI — Generating title…"
+			: aiLoading.spellCheck
+				? "AI — Checking spelling…"
+				: aiLoading.continueWriting
+					? "AI — Continuing writing…"
+					: "";
+
+	return (
+		<AnimatePresence>
+			{isActive && (
+				<motion.div
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					transition={{ duration: 0.25, ease: "easeInOut" }}
+				>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<div className="flex cursor-default items-center gap-[3px] px-1">
+								{[0, 1, 2].map((i) => (
+									<motion.span
+										key={i}
+										className="block h-[3px] w-[3px] rounded-full bg-muted-foreground/45"
+										animate={
+											prefersReducedMotion
+												? { opacity: 0.45 }
+												: { opacity: [0.2, 0.9, 0.2] }
+										}
+										transition={{
+											duration: 1.1,
+											repeat: Infinity,
+											delay: i * 0.18,
+											ease: "easeInOut",
+										}}
+									/>
+								))}
+							</div>
+						</TooltipTrigger>
+						<TooltipContent side="top" className="text-xs">
+							{tooltipLabel}
+						</TooltipContent>
+					</Tooltip>
+				</motion.div>
+			)}
+		</AnimatePresence>
+	);
 }
 
 export function EditorContainer({
@@ -207,6 +272,10 @@ export function EditorContainer({
 	const aiHandleRef = useRef<AiEditorHandle | null>(null);
 	const isRenamingFromH1Ref = useRef(false);
 	const lastFileNameRef = useRef(fileName);
+	// Whether the filename is still auto-following the first heading. True while
+	// the name is Untitled or matches the current heading; a manual rename
+	// permanently opts out. Re-evaluated when a different note is opened.
+	const headingTracksRef = useRef(true);
 	const [aiLoading, setAiLoading] = useState({
 		generateTitle: false,
 		spellCheck: false,
@@ -368,19 +437,36 @@ export function EditorContainer({
 		[file],
 	);
 
+	// The editor calls this once the heading block is "done" — the caret left it
+	// (blur / Enter / navigate away). That's the only point the sidebar filename
+	// follows the heading; while typing inside the heading the name stays put.
 	const handleTitleCommit = useCallback(
 		(title: string) => {
 			if (!file || !onRenameFile) return;
+			if (!headingTracksRef.current) return;
 			const trimmed = title.trim();
 			if (!trimmed) return;
-			if (normalizeNoteTitle(file.name) !== "untitled") return;
-			const newName = titleToFileName(trimmed);
+			const newName = deriveNoteNameFromHeading(`# ${trimmed}`);
+			if (!newName) return;
 			if (normalizeNoteTitle(newName) === normalizeNoteTitle(file.name)) return;
 			isRenamingFromH1Ref.current = true;
 			onRenameFile(file.id, newName);
 		},
 		[file, onRenameFile],
 	);
+
+	// Opening a different note re-evaluates whether its name still tracks the
+	// heading, and re-baselines `lastFileNameRef` so the rename effect below
+	// doesn't mistake the note switch for a manual rename.
+	const fileId = file?.id ?? null;
+	useEffect(() => {
+		headingTracksRef.current = file
+			? nameTracksHeading(file.name, file.content)
+			: true;
+		lastFileNameRef.current = fileName;
+		// Keyed on `fileId` only — re-runs when the open note changes, not on every
+		// content keystroke (which would reset tracking mid-edit).
+	}, [fileId]);
 
 	useEffect(() => {
 		if (fileName === lastFileNameRef.current) return;
@@ -389,7 +475,9 @@ export function EditorContainer({
 			isRenamingFromH1Ref.current = false;
 			return;
 		}
-		// Sidebar rename: push display name into editor H1
+		// Sidebar rename: the user picked a name themselves, so stop following the
+		// heading, and push the display name into the editor H1.
+		headingTracksRef.current = false;
 		const displayTitle = stripMarkdownExtension(fileName).replace(/-/g, " ");
 		aiHandleRef.current?.setTitle(displayTitle);
 	}, [fileName]);
@@ -716,6 +804,7 @@ export function EditorContainer({
 						)}
 					</BottomStatusText>
 				</div>
+				<ActivityDots saveState={saveState} aiLoading={aiLoading} />
 			</div>
 			)}
 		</div>

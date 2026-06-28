@@ -4,17 +4,29 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { type PanInfo } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { CreateFolderInput } from "@/domain/folders/actions";
 import type { CreateNoteInput } from "@/domain/notes/actions";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
-import { useWorkspaceBackend } from "@/core/workspace-backend";
+import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";
+import { isGuestScopedId } from "@/domain/notes/note-id";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
 import { useOnboardingStore } from "@/features/onboarding/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
-import { useSidebarStore } from "../components/sidebar/store";
 import { usePreferencesStore } from "@/features/settings/store";
+import {
+	focusActiveEditor,
+	focusActiveNoteTreeItem,
+	focusSplitEditorPane,
+} from "@/shared/lib/focus-editor";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { perf } from "@/shared/perf/track";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
@@ -45,7 +57,6 @@ import { useUpdateNote } from "./use-update-note";
 const SHEET_DISMISS_VELOCITY = 480;
 const SHEET_DRAG_BLOCKLIST =
 	"button, a, input, textarea, select, option, [role='button'], [role='tab'], [contenteditable='true'], [data-sheet-no-drag]";
-const DESKTOP_SIDEBAR_MAX_WIDTH = 420;
 const SAVED_BADGE_DURATION_MS = 1800;
 
 function generateNoteContent(name: string): string {
@@ -96,6 +107,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const closeSplit = useNotesStore((state) => state.closeSplit);
 	const setFocusedEditorPane = useNotesStore((state) => state.setFocusedEditorPane);
 	const setEditorScrollPosition = useNotesStore((state) => state.setEditorScrollPosition);
+	const setSplitOrientation = useNotesStore((state) => state.setSplitOrientation);
 	const toggleSplitOrientation = useNotesStore((state) => state.toggleSplitOrientation);
 	const swapSplitPaneOrder = useNotesStore((state) => state.swapSplitPaneOrder);
 	const secondaryNoteQuery = useNote(splitSecondaryFileId ?? "");
@@ -176,7 +188,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const ui = useNotesStore((state) => state.ui);
 	const setUIState = useNotesStore((state) => state.setUIState);
 	const setSidebarWidth = useNotesStore((state) => state.setSidebarWidth);
-	const { showSidebar, showMetadata, sidebarWidth, isMobile } = ui;
+	const setMetadataWidth = useNotesStore((state) => state.setMetadataWidth);
+	const { showSidebar, showMetadata, sidebarWidth, metadataWidth, isMobile } = ui;
 
 	const initializePreferences = usePreferencesStore((state) => state.initialize);
 	const defaultModeRaw = usePreferencesStore((state) => state.editor.defaultModeRaw);
@@ -187,10 +200,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const {
 		prefersReducedMotion,
 		metadataDragControls,
+		metadataRef,
 		sidebarRef,
 		closeSidebar,
 		closeMetadata,
+		handleDesktopMetadataResizeStart,
 		handleDesktopSidebarResizeStart,
+		isMetadataResizing,
+		isSidebarResizing,
 		overlayTransition,
 		sidebarTransition,
 		metadataTransition,
@@ -200,6 +217,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		showMetadata,
 		setUIState,
 		setSidebarWidth,
+		setMetadataWidth,
 	});
 	const {
 		filesById,
@@ -255,6 +273,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const prefetchNote = useCallback(
 		(id: string) => {
 			if (!id) return;
+			if (backend.mode === "server" && isGuestScopedId(id)) return;
 			if (queryClient.getQueryData(notesKeys.detail(id)) !== undefined) return;
 			void queryClient.prefetchQuery({
 				queryKey: notesKeys.detail(id),
@@ -298,6 +317,20 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 		return () => mediaQuery.removeEventListener("change", syncViewport);
 	}, [setUIState]);
+
+	// On the desktop (Tauri) build, an empty workspace has no active note, so the
+	// metadata panel has nothing to show. Collapse it once on the first settled
+	// load so the editor opens full-width; the user can re-open it (mod+shift+alt+b)
+	// without it snapping shut again.
+	const didCollapseDesktopMetadata = useRef(false);
+	useEffect(() => {
+		if (didCollapseDesktopMetadata.current) return;
+		if (isMobile || notesQuery.isPending) return;
+		didCollapseDesktopMetadata.current = true;
+		if (isTauriRuntime() && files.length === 0) {
+			setUIState({ showMetadata: false });
+		}
+	}, [files.length, isMobile, notesQuery.isPending, setUIState]);
 
 	useEffect(() => {
 		initializePreferences();
@@ -384,10 +417,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 			// Start the select→painted timer (warm = body already cached).
 			if (id && id !== activeFileId) {
-				perf.openStart(
-					id,
-					queryClient.getQueryData(notesKeys.detail(id)) !== undefined,
-				);
+				perf.openStart(id, queryClient.getQueryData(notesKeys.detail(id)) !== undefined);
 			}
 
 			if (splitSecondaryFileId && !isMobile) {
@@ -479,17 +509,112 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		closeSplit();
 	}, [closeSplit, handleFlushFileEdits, splitSecondaryFileId]);
 
+	const handleOpenSplitWithOrientation = useCallback(
+		(orientation: "vertical" | "horizontal") => {
+			if (splitSecondaryFileId) {
+				setSplitOrientation(orientation);
+				return;
+			}
+			if (!activeFileId || files.length < 2) return;
+			const currentIndex = files.findIndex((file) => file.id === activeFileId);
+			const neighbor = files[currentIndex + 1] ?? files[currentIndex - 1];
+			if (!neighbor || neighbor.id === activeFileId) return;
+			setSplitOrientation(orientation);
+			handleOpenBeside(neighbor.id);
+		},
+		[
+			activeFileId,
+			files,
+			handleOpenBeside,
+			setSplitOrientation,
+			splitSecondaryFileId,
+		],
+	);
+
+	const restoreEditorFocusAfterLayoutChange = useCallback(() => {
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				if (!focusSplitEditorPane(focusedEditorPane)) {
+					focusActiveEditor();
+				}
+			});
+		});
+	}, [focusedEditorPane]);
+
 	const handleToggleSplit = useCallback(() => {
 		if (splitSecondaryFileId) {
 			handleCloseSplit();
-			return;
+		} else {
+			handleOpenSplitWithOrientation("vertical");
 		}
-		if (!activeFileId || files.length < 2) return;
-		const currentIndex = files.findIndex((file) => file.id === activeFileId);
-		const neighbor = files[currentIndex + 1] ?? files[currentIndex - 1];
-		if (!neighbor || neighbor.id === activeFileId) return;
-		handleOpenBeside(neighbor.id);
-	}, [activeFileId, files, handleCloseSplit, handleOpenBeside, splitSecondaryFileId]);
+		restoreEditorFocusAfterLayoutChange();
+	}, [
+		handleCloseSplit,
+		handleOpenSplitWithOrientation,
+		restoreEditorFocusAfterLayoutChange,
+		splitSecondaryFileId,
+	]);
+
+	const handleSplitHorizontal = useCallback(() => {
+		if (splitSecondaryFileId && splitOrientation === "horizontal") {
+			handleCloseSplit();
+		} else {
+			handleOpenSplitWithOrientation("horizontal");
+		}
+		restoreEditorFocusAfterLayoutChange();
+	}, [
+		handleCloseSplit,
+		handleOpenSplitWithOrientation,
+		restoreEditorFocusAfterLayoutChange,
+		splitOrientation,
+		splitSecondaryFileId,
+	]);
+
+	function handleCloseSplitPane() {
+		if (!splitSecondaryFileId) return;
+		handleCloseSplit();
+		restoreEditorFocusAfterLayoutChange();
+	}
+
+	const handleFocusFileTree = useCallback(() => {
+		triggerNativeFeedback("selection");
+		if (!showSidebar) {
+			setUIState({ showSidebar: true });
+		}
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				focusActiveNoteTreeItem();
+			});
+		});
+	}, [setUIState, showSidebar]);
+
+	const handleFocusSplitPane = useCallback(
+		(direction: 1 | -1) => {
+			if (!splitSecondaryFileId) return;
+			const panes: EditorPane[] = splitSecondaryFirst
+				? ["secondary", "primary"]
+				: ["primary", "secondary"];
+			const currentIndex = panes.indexOf(focusedEditorPane);
+			const nextIndex =
+				currentIndex === -1
+					? 0
+					: (currentIndex + direction + panes.length) % panes.length;
+			const nextPane = panes[nextIndex] ?? "primary";
+			setFocusedEditorPane(nextPane);
+			requestAnimationFrame(() => {
+				focusSplitEditorPane(nextPane);
+			});
+		},
+		[focusedEditorPane, setFocusedEditorPane, splitSecondaryFileId, splitSecondaryFirst],
+	);
+
+	const handleFocusNextSplitPane = useCallback(() => {
+		handleFocusSplitPane(1);
+	}, [handleFocusSplitPane]);
+
+	const handleFocusPreviousSplitPane = useCallback(() => {
+		handleFocusSplitPane(-1);
+	}, [handleFocusSplitPane]);
 
 	const handleFocusEditorPane = useCallback(
 		(pane: EditorPane) => {
@@ -530,84 +655,84 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		}
 	}, [creationParentFolderId, foldersQuery.data]);
 
-	const handleCreateFile = useCallback((options?: { projectId?: string }) => {
-		const projectId = options?.projectId;
-		if (diaryModeEnabled && !projectId) {
+	const handleCreateFile = useCallback(
+		(options?: { projectId?: string }) => {
+			const projectId = options?.projectId;
+			if (diaryModeEnabled && !projectId) {
+				triggerNativeFeedback("success");
+				const today = format(new Date(), "yyyy-MM-dd");
+				router.push(`/app/journal?date=${today}`);
+				if (isMobile) {
+					setUIState({ showSidebar: false });
+				}
+				return;
+			}
+
 			triggerNativeFeedback("success");
-			const today = format(new Date(), "yyyy-MM-dd");
-			router.push(`/app/journal?date=${today}`);
+			const parentId = creationParentFolderId;
+			const preferredEditorMode = defaultModeRaw ? "raw" : "block";
+			const content = generateNoteContent("Untitled");
+			const richContent = markdownToRichDocument(content);
+			const newId = crypto.randomUUID();
+			const newFile: CreateNoteInput = {
+				id: newId,
+				name: "Untitled.md",
+				content,
+				richContent,
+				preferredEditorMode,
+				parentId,
+			};
+
+			// Seed the detail cache synchronously, before selecting the note.
+			// Otherwise selecting it mounts useNote(newId), which fires fetchNote()
+			// for an id the server hasn't committed yet, gets null back, and — with
+			// staleTime: Infinity / retry: false — sticks on null forever, trapping
+			// the editor behind the loading skeleton until a manual refresh.
+			queryClient.setQueryData<NoteFile>(notesKeys.detail(newId), {
+				id: newId,
+				name: newFile.name,
+				content,
+				richContent,
+				preferredEditorMode,
+				createdAt: new Date(),
+				modifiedAt: new Date(),
+				parentId: parentId ?? null,
+				tags: [],
+			});
+
+			if (parentId) {
+				setFolderOpen(parentId, true);
+			}
+			createNoteMutation.mutate(newFile, {
+				onSuccess: () => {
+					markFileSaved(newId);
+				},
+				onError: () => {
+					markFileError(newId);
+				},
+			});
+			syncFileSelection(newId);
+			markFileSaving(newId);
 			if (isMobile) {
 				setUIState({ showSidebar: false });
 			}
-			return;
-		}
-
-		triggerNativeFeedback("success");
-		const parentId = creationParentFolderId;
-		const preferredEditorMode = defaultModeRaw ? "raw" : "block";
-		const content = generateNoteContent("Untitled");
-		const richContent = markdownToRichDocument(content);
-		const newId = crypto.randomUUID();
-		const newFile: CreateNoteInput = {
-			id: newId,
-			name: "Untitled.md",
-			content,
-			richContent,
-			preferredEditorMode,
-			parentId,
-		};
-
-		// Seed the detail cache synchronously, before selecting the note.
-		// Otherwise selecting it mounts useNote(newId), which fires fetchNote()
-		// for an id the server hasn't committed yet, gets null back, and — with
-		// staleTime: Infinity / retry: false — sticks on null forever, trapping
-		// the editor behind the loading skeleton until a manual refresh.
-		queryClient.setQueryData<NoteFile>(notesKeys.detail(newId), {
-			id: newId,
-			name: newFile.name,
-			content,
-			richContent,
-			preferredEditorMode,
-			createdAt: new Date(),
-			modifiedAt: new Date(),
-			parentId: parentId ?? null,
-			tags: [],
-		});
-
-		if (parentId) {
-			setFolderOpen(parentId, true);
-		}
-		createNoteMutation.mutate(newFile, {
-			onSuccess: () => {
-				markFileSaved(newId);
-			},
-			onError: () => {
-				markFileError(newId);
-			},
-		});
-		if (projectId) {
-			useSidebarStore.getState().addToProject(projectId, newId, "file");
-		}
-		syncFileSelection(newId);
-		markFileSaving(newId);
-		if (isMobile) {
-			setUIState({ showSidebar: false });
-		}
-	}, [
-		creationParentFolderId,
-		createNoteMutation,
-		defaultModeRaw,
-		diaryModeEnabled,
-		isMobile,
-		queryClient,
-		router,
-		markFileError,
-		markFileSaved,
-		markFileSaving,
-		setUIState,
-		setFolderOpen,
-		syncFileSelection,
-	]);
+		},
+		[
+			creationParentFolderId,
+			createNoteMutation,
+			defaultModeRaw,
+			diaryModeEnabled,
+			isMobile,
+			queryClient,
+			router,
+			markFileError,
+			markFileSaved,
+			markFileSaving,
+			setUIState,
+			setFolderOpen,
+			syncFileSelection,
+		],
+	);
 
 	const handleCreateFolder = useCallback(() => {
 		triggerNativeFeedback("impact");
@@ -711,7 +836,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleToggleMetadata,
 		handleOpenSettings,
 		handleToggleEditorMode,
+		handleFocusFileTree,
 		handleToggleSplit,
+		handleSplitHorizontal,
+		handleCloseSplitPane,
+		handleFocusNextSplitPane,
+		handleFocusPreviousSplitPane,
 	});
 
 	useDesktopMenuActions({
@@ -941,7 +1071,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "toggle-sidebar",
 				label: "Toggle sidebar",
-				shortcut: "mod+b",
+				shortcut: "mod+shift+b",
 				keywords: ["sidebar", "navigation", "panel"],
 				description: "Show or hide the notes navigation panel.",
 				action: handleToggleSidebar,
@@ -949,7 +1079,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "toggle-metadata",
 				label: "Toggle note details",
-				shortcut: "mod+shift+b",
+				shortcut: "mod+shift+alt+b",
 				keywords: ["metadata", "details", "properties"],
 				description: "Show or hide the metadata panel.",
 				action: handleToggleMetadata,
@@ -957,10 +1087,50 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "toggle-editor-mode",
 				label: "Toggle editor surface",
-				shortcut: "mod+e",
+				shortcut: "mod+alt+e",
 				keywords: ["raw mdx", "block note", "editor"],
 				description: "Swap between raw MDX and Block Note.",
 				action: handleToggleEditorMode,
+			},
+			{
+				id: "focus-file-tree",
+				label: "Focus file tree",
+				shortcut: "ctrl+e",
+				keywords: ["file tree", "sidebar", "focus", "notes"],
+				description: "Move focus to the active note in the file tree.",
+				action: handleFocusFileTree,
+			},
+			{
+				id: "split-editor",
+				label: "Split editor vertically",
+				shortcut: "mod+shift+e",
+				keywords: ["split", "editor", "pane", "vertical"],
+				description: "Open the neighboring note in a vertical split.",
+				action: handleToggleSplit,
+			},
+			{
+				id: "split-editor-horizontal",
+				label: "Split editor horizontally",
+				shortcut: "ctrl+b",
+				keywords: ["split", "editor", "pane", "horizontal"],
+				description: "Open or switch the split editor to a horizontal layout.",
+				action: handleSplitHorizontal,
+			},
+			{
+				id: "focus-next-split-pane",
+				label: "Focus next split pane",
+				shortcut: "ctrl+`",
+				keywords: ["split", "editor", "pane", "focus", "next"],
+				description: "Move focus clockwise through split editor panes.",
+				action: handleFocusNextSplitPane,
+			},
+			{
+				id: "focus-previous-split-pane",
+				label: "Focus previous split pane",
+				shortcut: "ctrl+shift+`",
+				keywords: ["split", "editor", "pane", "focus", "previous"],
+				description: "Move focus counter-clockwise through split editor panes.",
+				action: handleFocusPreviousSplitPane,
 			},
 			{
 				id: "open-settings",
@@ -989,10 +1159,15 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			handleCreateFile,
 			handleCreateFolder,
 			diaryModeEnabled,
+			handleFocusFileTree,
 			handleOpenSettings,
+			handleFocusNextSplitPane,
+			handleFocusPreviousSplitPane,
+			handleSplitHorizontal,
 			handleToggleEditorMode,
 			handleToggleMetadata,
 			handleToggleSidebar,
+			handleToggleSplit,
 			replayWelcomeTour,
 			router,
 		],
@@ -1090,6 +1265,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		files,
 		getFilesInFolder,
 		getFoldersInFolder,
+		handleDesktopMetadataResizeStart,
 		handleDesktopSidebarResizeStart,
 		handleFileSelect,
 		handleMetadataDragEnd,
@@ -1106,9 +1282,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleToggleFolder,
 		isActiveNoteLoading,
 		isEditorReady,
+		isMetadataResizing,
 		isMobile,
+		isSidebarResizing,
 		metadataDragControls,
+		metadataRef,
 		metadataTransition,
+		metadataWidth,
 		moveFile,
 		moveFolder,
 		overlayTransition,

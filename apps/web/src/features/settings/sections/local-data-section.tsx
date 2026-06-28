@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, FolderOpen, RotateCcw, Trash2, Upload } from "lucide-react";
+import { CloudDownload, Download, FolderOpen, RotateCcw, Trash2, Upload } from "lucide-react";
 import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Label } from "@/shared/ui/label";
 import {
 	Dialog,
 	DialogClose,
@@ -20,10 +22,16 @@ import {
 	SectionHeader,
 	SettingsCard,
 } from "@/features/settings/components/settings-primitives";
-import { tauriInvoke } from "@/core/workspace-backend";
+import { tauriInvoke, useWorkspaceBackend } from "@/core/workspace-backend";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
+import { journalKeys } from "@/features/journal/hooks/journal-keys";
+import { pullWorkspaceFromServer } from "@/domain/sync/pull-workspace";
+import {
+	getSyncClientConfig,
+	setSyncClientConfig,
+} from "@/domain/sync/sync-client-config";
 
-type Busy = "idle" | "export" | "import" | "clear";
+type Busy = "idle" | "export" | "import" | "clear" | "pull";
 
 /**
  * Desktop ("tauri" mode) replacement for the cloud Data & sync section. Every
@@ -32,15 +40,50 @@ type Busy = "idle" | "export" | "import" | "clear";
  */
 export function LocalDataSection() {
 	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
 	const [vaultRoot, setVaultRoot] = useState<string>("");
 	const [busy, setBusy] = useState<Busy>("idle");
 	const [notice, setNotice] = useState<string | null>(null);
+	const [serverUrl, setServerUrl] = useState<string>("");
+	const [token, setToken] = useState<string>("");
 
 	useEffect(() => {
 		tauriInvoke<string>("get_vault_root")
 			.then(setVaultRoot)
 			.catch(() => setVaultRoot(""));
 	}, []);
+
+	useEffect(() => {
+		const config = getSyncClientConfig();
+		if (config) {
+			setServerUrl(config.serverUrl);
+			setToken(config.token);
+		}
+	}, []);
+
+	const handlePull = async () => {
+		const url = serverUrl.trim();
+		const tok = token.trim();
+		if (!url || !tok) {
+			setNotice("Enter your server URL and a sync token first.");
+			return;
+		}
+		setBusy("pull");
+		setNotice(null);
+		try {
+			const result = await pullWorkspaceFromServer(backend, url, tok);
+			setSyncClientConfig({ serverUrl: url, token: tok });
+			await queryClient.invalidateQueries({ queryKey: notesKeys.all });
+			await queryClient.invalidateQueries({ queryKey: journalKeys.all });
+			setNotice(
+				`Pulled ${result.notes} notes, ${result.folders} folders, ${result.journalEntries} journal entries.`,
+			);
+		} catch (error) {
+			setNotice(error instanceof Error ? error.message : "Sync failed.");
+		} finally {
+			setBusy("idle");
+		}
+	};
 
 	async function refreshWorkspace() {
 		await queryClient.invalidateQueries({ queryKey: notesKeys.all });
@@ -124,6 +167,68 @@ export function LocalDataSection() {
 						</Button>
 					</div>
 				</Row>
+			</SettingsCard>
+
+			<GroupLabel>Cloud sync</GroupLabel>
+			<SettingsCard>
+				<div className="py-4">
+					<div className="flex items-center gap-2 text-sm font-medium">
+						<CloudDownload className="size-4 text-muted-foreground" />
+						Pull from server
+					</div>
+					<p className="mt-1 text-xs text-muted-foreground">
+						Download your cloud workspace into this device. Create a token in the web app
+						under <span className="font-mono text-foreground">Settings → Data &amp; sync</span>,
+						then paste it here. This is one-way: it never uploads local changes.
+					</p>
+					<p className="mt-1 text-xs text-muted-foreground">
+						Include the full address with scheme — e.g.{" "}
+						<span className="font-mono text-foreground">http://localhost:3000</span> for local
+						dev, or <span className="font-mono text-foreground">https://your-host.com</span>.
+					</p>
+
+					<div className="mt-4 flex flex-col gap-3">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="sync-server-url" className="text-xs text-muted-foreground">
+								Server URL
+							</Label>
+							<Input
+								id="sync-server-url"
+								value={serverUrl}
+								onChange={(event) => setServerUrl(event.target.value)}
+								disabled={busy === "pull"}
+								placeholder="https://your-skriuw-host.com"
+								autoComplete="off"
+								spellCheck={false}
+							/>
+						</div>
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="sync-token" className="text-xs text-muted-foreground">
+								Sync token
+							</Label>
+							<Input
+								id="sync-token"
+								type="password"
+								value={token}
+								onChange={(event) => setToken(event.target.value)}
+								disabled={busy === "pull"}
+								placeholder="sk_sync_…"
+								autoComplete="off"
+								spellCheck={false}
+							/>
+						</div>
+						<div className="flex justify-end">
+							<Button
+								size="sm"
+								onClick={handlePull}
+								disabled={busy !== "idle" || !serverUrl.trim() || !token.trim()}
+							>
+								<CloudDownload className="mr-1.5 h-3.5 w-3.5" />
+								{busy === "pull" ? "Pulling…" : "Pull now"}
+							</Button>
+						</div>
+					</div>
+				</div>
 			</SettingsCard>
 
 			<GroupLabel>Backup</GroupLabel>

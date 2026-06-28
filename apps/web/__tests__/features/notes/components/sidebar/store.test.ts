@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { createStore, type StateCreator } from "zustand/vanilla";
 import type {
-	Project,
 	RecentItem,
 	SidebarSection,
 } from "@/features/notes/components/sidebar/types";
@@ -222,7 +221,65 @@ describe("sidebar store user scope scoping", () => {
 		).toBe(true);
 	});
 
-	test("keeps favorites, recents, custom sections, projects, and visibility prefs isolated per user scope", async () => {
+	test("preserves the journal section collapse state from persisted profiles", async () => {
+		authUserScopeId = "user-a";
+		const { useSidebarStore } = await loadStoreModule();
+
+		await flushMicrotasks();
+
+		useSidebarStore.setState({
+			profiles: {
+				"user-a": {
+					sections: [
+						{
+							id: "file-tree",
+							type: "file-tree",
+							name: "All Notes",
+							isCollapsed: false,
+							isVisible: true,
+							order: 0,
+						},
+						{
+							id: "journal",
+							type: "journal",
+							name: "Journal",
+							isCollapsed: true,
+							isVisible: true,
+							order: 2,
+						},
+					],
+					favorites: [],
+					recents: [],
+					projects: [],
+					maxRecents: 10,
+					showSectionHeaders: true,
+					compactMode: false,
+				},
+			},
+		});
+
+		useSidebarStore.getState().syncUserScope("user-a");
+
+		// The journal section is now user-collapsible and its state persists,
+		// rather than being force-expanded on load.
+		expect(
+			useSidebarStore
+				.getState()
+				.getSections()
+				.find((section: SidebarSection) => section.id === "journal")?.isCollapsed,
+		).toBe(true);
+
+		useSidebarStore.getState().toggleSectionCollapse("journal");
+
+		expect(
+			useSidebarStore
+				.getState()
+				.getSections()
+				.find((section: SidebarSection) => section.id === "journal")?.isCollapsed,
+		).toBe(false);
+	});
+
+	test("keeps favorites, recents, custom sections, and visibility prefs isolated per user scope", async () => {
 		authUserScopeId = "user-a";
 		const { useSidebarStore } = await loadStoreModule();
 
@@ -240,10 +297,6 @@ describe("sidebar store user scope scoping", () => {
 		if (!userScopeASection) {
 			throw new Error("Expected user scope A custom section.");
 		}
-		const userScopeAProject = useSidebarStore
-			.getState()
-			.createProject("User scope A Project", "bg-blue-500");
-		useSidebarStore.getState().addToProject(userScopeAProject.id, "file-a", "file");
 		useSidebarStore.getState().addToCustomSection(userScopeASection.id, "file-a", "file");
 		await flushMicrotasks();
 
@@ -279,10 +332,6 @@ describe("sidebar store user scope scoping", () => {
 		if (!userScopeBSection) {
 			throw new Error("Expected user scope B custom section.");
 		}
-		const userScopeBProject = useSidebarStore
-			.getState()
-			.createProject("User scope B Project", "bg-emerald-500");
-		useSidebarStore.getState().addToProject(userScopeBProject.id, "file-b", "file");
 		useSidebarStore.getState().addToCustomSection(userScopeBSection.id, "file-b", "file");
 		await flushMicrotasks();
 
@@ -313,9 +362,6 @@ describe("sidebar store user scope scoping", () => {
 			useSidebarStore.getState().config.recents.map((item: RecentItem) => item.itemId),
 		).toEqual(["file-a"]);
 		expect(
-			useSidebarStore.getState().config.projects.map((project: Project) => project.name),
-		).toEqual(["User scope A Project"]);
-		expect(
 			useSidebarStore
 				.getState()
 				.config.sections.find((section: SidebarSection) => section.type === "custom")?.name,
@@ -340,9 +386,6 @@ describe("sidebar store user scope scoping", () => {
 			useSidebarStore.getState().config.recents.map((item: RecentItem) => item.itemId),
 		).toEqual(["file-b"]);
 		expect(
-			useSidebarStore.getState().config.projects.map((project: Project) => project.name),
-		).toEqual(["User scope B Project"]);
-		expect(
 			useSidebarStore
 				.getState()
 				.config.sections.find((section: SidebarSection) => section.type === "custom")?.name,
@@ -354,5 +397,64 @@ describe("sidebar store user scope scoping", () => {
 				?.isVisible,
 		).toBe(false);
 		expect(useSidebarStore.getState().config.showSectionHeaders).toBe(false);
+	});
+
+	test("migrates legacy projects into colored custom sections", async () => {
+		authUserScopeId = "user-a";
+		storage.setItem(
+			"skriuw-sidebar",
+			JSON.stringify({
+				state: {
+					profiles: {
+						"user-a": {
+							sections: [],
+							favorites: [],
+							recents: [],
+							projects: [
+								{
+									id: "p1",
+									name: "Legacy Project",
+									color: "bg-project-blue",
+									fileIds: ["file-a"],
+									folderIds: ["folder-x"],
+									createdAt: new Date().toISOString(),
+									updatedAt: new Date().toISOString(),
+								},
+							],
+							maxRecents: 50,
+							showSectionHeaders: true,
+							compactMode: false,
+						},
+					},
+				},
+				version: 0,
+			}),
+		);
+
+		const { useSidebarStore } = await loadStoreModule();
+		await flushMicrotasks();
+
+		const sections = useSidebarStore.getState().config.sections;
+		const migrated = sections.find(
+			(section: SidebarSection) => section.type === "custom" && section.name === "Legacy Project",
+		);
+
+		// The project becomes a colored custom section carrying its items...
+		expect(migrated).toBeDefined();
+		expect(migrated?.customConfig?.color).toBe("bg-project-blue");
+		expect(migrated?.customConfig?.fileIds).toEqual(["file-a"]);
+		expect(migrated?.customConfig?.folderIds).toEqual(["folder-x"]);
+		// ...and the legacy projects array is emptied.
+		expect(useSidebarStore.getState().config.projects).toHaveLength(0);
+
+		// Migration is idempotent: re-syncing does not duplicate the section.
+		useSidebarStore.getState().syncUserScope("user-a");
+		const customCount = useSidebarStore
+			.getState()
+			.config.sections.filter(
+				(section: SidebarSection) =>
+					section.type === "custom" && section.name === "Legacy Project",
+			).length;
+		expect(customCount).toBe(1);
 	});
 });

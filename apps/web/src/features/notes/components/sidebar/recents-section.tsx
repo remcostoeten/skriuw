@@ -156,11 +156,11 @@ export const RecentsSection = memo(function RecentsSection({
 								recent.itemType === "file" && onFilePrefetch?.(recent.itemId)
 							}
 							className={cn(
-								"group flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-[background-color,border-color,color,transform] active:scale-[0.985]",
-								compactMode ? "h-[28px]" : "h-[34px]",
+								"group flex w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors active:scale-[0.985]",
+								compactMode ? "h-6" : "h-7",
 								recent.itemType === "file" && recent.itemId === activeFileId
-									? "border-border bg-muted text-foreground"
-									: "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
+									? "bg-foreground/[0.07] text-foreground"
+									: "text-foreground/60 hover:bg-foreground/[0.045] hover:text-foreground",
 							)}
 						>
 							{recent.itemType === "file" ? (
@@ -182,8 +182,8 @@ export const RecentsSection = memo(function RecentsSection({
 							type="button"
 							onClick={() => setShowAllRecents((value) => !value)}
 							className={cn(
-								"mt-1 flex w-full items-center justify-center gap-1.5 border border-transparent px-2 text-xs text-muted-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground",
-								compactMode ? "h-[26px]" : "h-[30px]",
+								"mt-1 flex w-full items-center justify-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground/60 transition-colors hover:bg-foreground/[0.045] hover:text-foreground",
+								compactMode ? "h-6" : "h-7",
 							)}
 						>
 							{showAllRecents ? (
