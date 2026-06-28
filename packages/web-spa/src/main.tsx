@@ -7,6 +7,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { DesktopAboutDialog } from "@/features/desktop/about-dialog";
+import { WindowControls } from "@/features/desktop/window-controls";
 import { initDesktopMenuBridge } from "./desktop-menu-bridge";
 import { router } from "./router";
 
@@ -19,41 +20,21 @@ createRoot(rootElement).render(
 	<StrictMode>
 		<RouterProvider router={router} />
 		<DesktopAboutDialog />
+		<WindowControls />
 	</StrictMode>,
 );
 
-dismissSplash(rootElement);
-
-function dismissSplash(root: HTMLElement) {
+// Fade out the boot splash (painted in index.html) once the app has had a
+// frame to paint, then drop it from the DOM after the transition.
+function dismissSplash() {
 	const splash = document.getElementById("splash");
 	if (!splash) return;
-
-	function leave() {
-		requestAnimationFrame(() => {
-			requestAnimationFrame(() => {
-				splash.dataset.leaving = "true";
-				splash.addEventListener("transitionend", () => splash.remove(), {
-					once: true,
-				});
-				setTimeout(() => splash.remove(), 400);
-			});
-		});
-	}
-
-	if (root.childElementCount > 0) {
-		leave();
-		return;
-	}
-
-	const observer = new MutationObserver(() => {
-		if (root.childElementCount > 0) {
-			observer.disconnect();
-			leave();
-		}
-	});
-	observer.observe(root, { childList: true });
-	setTimeout(() => {
-		observer.disconnect();
-		leave();
-	}, 8000);
+	splash.classList.add("is-hidden");
+	splash.addEventListener("transitionend", function remove() {
+		splash.remove();
+	}, { once: true });
 }
+
+requestAnimationFrame(function afterFirstFrame() {
+	requestAnimationFrame(dismissSplash);
+});

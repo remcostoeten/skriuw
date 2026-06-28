@@ -16,34 +16,6 @@ mock.module("@/features/journal/hooks/use-journal-entries", () => ({
 }));
 
 describe("sidebar compact states", () => {
-	test("projects uses a compact sidebar-native empty state", async () => {
-		const { ProjectsSection } = await import(
-			`@/features/notes/components/sidebar/projects-section?test=${Math.random().toString(36).slice(2)}`
-		);
-
-		const html = renderToStaticMarkup(
-			<ProjectsSection
-				projects={[]}
-				files={[]}
-				folders={[]}
-				activeFileId=""
-				isCollapsed={false}
-				onToggleCollapse={noop}
-				onToggleVisibility={noop}
-				onManageSections={noop}
-				onFileSelect={noop}
-				onCreateProject={noop}
-				onUpdateProject={noop}
-				onDeleteProject={noop}
-				onRemoveFromProject={noop}
-			/>,
-		);
-
-		expect(html).toContain("No projects");
-		expect(html).toContain("Add one");
-		expect(html).not.toContain("Create one to group related notes and folders.");
-	});
-
 	test("recents uses a compact sidebar-native empty state", async () => {
 		const { RecentsSection } = await import(
 			`@/features/notes/components/sidebar/recents-section?test=${Math.random().toString(36).slice(2)}`

@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Note, PrismaClient } from "@/generated/prisma/client";
 import type { NoteAccessRole } from "@/domain/notes/models";
+import { isGuestScopedId } from "@/domain/notes/note-id";
 
 type NoteAccessDb = Pick<PrismaClient, "note" | "noteCollaborator">;
 
@@ -24,6 +25,8 @@ export async function resolveNoteAccess(
 	userId: string,
 	noteId: string,
 ): Promise<ResolvedNoteAccess | null> {
+	if (isGuestScopedId(noteId)) return null;
+
 	const note = await db.note.findFirst({
 		where: { id: noteId, deletedAt: null },
 		select: { userId: true },
@@ -61,6 +64,8 @@ export async function resolveReadableNote(
 	userId: string,
 	noteId: string,
 ): Promise<ResolvedNoteWithAccess | null> {
+	if (isGuestScopedId(noteId)) return null;
+
 	const record = await db.note.findFirst({
 		where: { id: noteId, deletedAt: null },
 	});

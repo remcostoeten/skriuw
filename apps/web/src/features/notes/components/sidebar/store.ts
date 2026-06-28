@@ -5,10 +5,8 @@ import {
 	DEFAULT_SECTIONS,
 	DEFAULT_SIDEBAR_CONFIG,
 	DEFAULT_MAX_RECENTS,
-	PROJECT_COLORS,
 	resolveProjectColorClass,
 	type FavoriteItem,
-	type Project,
 	type RecentItem,
 	type SidebarConfig,
 	type SidebarSection,
@@ -29,6 +27,7 @@ type SidebarState = {
 	addCustomSection: (name: string) => void;
 	removeSection: (sectionId: string) => void;
 	renameSection: (sectionId: string, name: string) => void;
+	setCustomSectionColor: (sectionId: string, color: string) => void;
 	addToCustomSection: (sectionId: string, itemId: string, itemType: "file" | "folder") => void;
 	removeFromCustomSection: (
 		sectionId: string,
@@ -44,14 +43,6 @@ type SidebarState = {
 	clearRecents: () => void;
 	getRecents: () => RecentItem[];
 	setMaxRecents: (max: number) => void;
-
-	createProject: (name: string, color?: string) => Project;
-	updateProject: (projectId: string, updates: Partial<Project>) => void;
-	deleteProject: (projectId: string) => void;
-	addToProject: (projectId: string, itemId: string, itemType: "file" | "folder") => void;
-	removeFromProject: (projectId: string, itemId: string, itemType: "file" | "folder") => void;
-	getProjects: () => Project[];
-	getProjectById: (projectId: string) => Project | undefined;
 
 	toggleShowSectionHeaders: () => void;
 	toggleCompactMode: () => void;
@@ -75,17 +66,48 @@ function cloneSidebarConfig(config: SidebarConfig = DEFAULT_SIDEBAR_CONFIG): Sid
 		return {
 			...defaultSection,
 			...section,
-			// The notes tree is the primary navigation surface. Older persisted
-			// profiles may have hidden or omitted it; always restore it.
+			// The notes tree is the primary navigation surface; always restore it to
+			// a visible, open state regardless of older persisted profiles. The journal
+			// section may be collapsed/hidden and that choice persists.
 			isVisible: defaultSection.type === "file-tree" ? true : section.isVisible,
+			isCollapsed: defaultSection.type === "file-tree" ? false : section.isCollapsed,
 		};
 	});
 	const customSections = (config.sections ?? [])
 		.filter((section) => section.type === "custom")
 		.map((section) => ({ ...section }));
 
+	// Legacy "Projects" were a parallel manual-grouping concept. They are folded
+	// into custom sections (a project becomes a colored custom section). This runs
+	// on every load but is idempotent: migrated projects are emptied from the
+	// `projects` array below, and the stable id guards against re-importing.
+	const existingCustomIds = new Set(customSections.map((section) => section.id));
+	const migratedProjectSections = (config.projects ?? []).flatMap((project, index) => {
+		const id = `custom-project-${project.id}`;
+		if (existingCustomIds.has(id)) return [];
+		return [
+			{
+				id,
+				type: "custom" as const,
+				name: project.name,
+				isCollapsed: false,
+				isVisible: true,
+				order: normalizedDefaultSections.length + customSections.length + index,
+				customConfig: {
+					color: resolveProjectColorClass(project.color),
+					fileIds: [...project.fileIds],
+					folderIds: [...project.folderIds],
+				},
+			},
+		];
+	});
+
 	return {
-		sections: [...normalizedDefaultSections, ...customSections].map((section) => ({
+		sections: [
+			...normalizedDefaultSections,
+			...customSections,
+			...migratedProjectSections,
+		].map((section) => ({
 			...section,
 			customConfig: section.customConfig
 				? {
@@ -97,12 +119,9 @@ function cloneSidebarConfig(config: SidebarConfig = DEFAULT_SIDEBAR_CONFIG): Sid
 		})),
 		favorites: (config.favorites ?? []).map((favorite) => ({ ...favorite })),
 		recents: (config.recents ?? []).map((recent) => ({ ...recent })),
-		projects: (config.projects ?? []).map((project) => ({
-			...project,
-			color: resolveProjectColorClass(project.color),
-			fileIds: [...project.fileIds],
-			folderIds: [...project.folderIds],
-		})),
+		// Projects are retired and folded into custom sections (see above), so the
+		// projects array is always emptied once migrated.
+		projects: [],
 		maxRecents: Math.max(config.maxRecents ?? DEFAULT_MAX_RECENTS, DEFAULT_MAX_RECENTS),
 		showSectionHeaders: config.showSectionHeaders ?? DEFAULT_SIDEBAR_CONFIG.showSectionHeaders,
 		compactMode: config.compactMode ?? DEFAULT_SIDEBAR_CONFIG.compactMode,
@@ -240,6 +259,26 @@ export const useSidebarStore = create<SidebarState>()(
 						...config,
 						sections: config.sections.map((section) =>
 							section.id === sectionId ? { ...section, name } : section,
+						),
+					}));
+				},
+
+				setCustomSectionColor: (sectionId: string, color: string) => {
+					applyUserScopeUpdate((config) => ({
+						...config,
+						sections: config.sections.map((section) =>
+							section.id === sectionId && section.type === "custom"
+								? {
+										...section,
+										customConfig: {
+											...(section.customConfig ?? {
+												fileIds: [],
+												folderIds: [],
+											}),
+											color: resolveProjectColorClass(color),
+										},
+									}
+								: section,
 						),
 					}));
 				},
@@ -384,110 +423,6 @@ export const useSidebarStore = create<SidebarState>()(
 
 				getRecents: () => {
 					return get().config.recents;
-				},
-
-				createProject: (name: string, color?: string) => {
-					const newProject: Project = {
-						id: crypto.randomUUID(),
-						name,
-						color:
-							(color && resolveProjectColorClass(color)) ||
-							PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)].value,
-						fileIds: [],
-						folderIds: [],
-						createdAt: new Date(),
-						updatedAt: new Date(),
-					};
-
-					applyUserScopeUpdate((config) => ({
-						...config,
-						projects: [...config.projects, newProject],
-					}));
-
-					return newProject;
-				},
-
-				updateProject: (projectId: string, updates: Partial<Project>) => {
-					applyUserScopeUpdate((config) => ({
-						...config,
-						projects: config.projects.map((project) =>
-							project.id === projectId
-								? {
-										...project,
-										...updates,
-										color: updates.color
-											? resolveProjectColorClass(updates.color)
-											: project.color,
-										updatedAt: new Date(),
-									}
-								: project,
-						),
-					}));
-				},
-
-				deleteProject: (projectId: string) => {
-					applyUserScopeUpdate((config) => ({
-						...config,
-						projects: config.projects.filter((project) => project.id !== projectId),
-					}));
-				},
-
-				addToProject: (projectId: string, itemId: string, itemType: "file" | "folder") => {
-					applyUserScopeUpdate((config) => ({
-						...config,
-						projects: config.projects.map((project) => {
-							if (project.id !== projectId) return project;
-							if (itemType === "file") {
-								if (project.fileIds.includes(itemId)) return project;
-								return {
-									...project,
-									fileIds: [...project.fileIds, itemId],
-									updatedAt: new Date(),
-								};
-							}
-
-							if (project.folderIds.includes(itemId)) return project;
-							return {
-								...project,
-								folderIds: [...project.folderIds, itemId],
-								updatedAt: new Date(),
-							};
-						}),
-					}));
-				},
-
-				removeFromProject: (
-					projectId: string,
-					itemId: string,
-					itemType: "file" | "folder",
-				) => {
-					applyUserScopeUpdate((config) => ({
-						...config,
-						projects: config.projects.map((project) => {
-							if (project.id !== projectId) return project;
-							if (itemType === "file") {
-								return {
-									...project,
-									fileIds: project.fileIds.filter((id) => id !== itemId),
-									updatedAt: new Date(),
-								};
-							}
-
-							return {
-								...project,
-								folderIds: project.folderIds.filter((id) => id !== itemId),
-								updatedAt: new Date(),
-							};
-						}),
-					}));
-				},
-
-				getProjects: () => {
-					return get().config.projects;
-				},
-
-				getProjectById: (projectId: string) => {
-					return get().config.projects.find((project) => project.id === projectId);
 				},
 
 				setMaxRecents: (max: number) => {

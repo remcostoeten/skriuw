@@ -71,7 +71,8 @@ export function JournalSection({
 
 	const todayButton = (
 		<button
-			onClick={() => {
+			onClick={(event) => {
+				event.stopPropagation();
 				const today = new Date();
 				setSelectedDate(today);
 				setCurrentMonth(today);
@@ -84,12 +85,42 @@ export function JournalSection({
 		</button>
 	);
 
+	const viewTabs = (
+		<div className="flex items-center gap-1">
+			<button
+				onClick={() => setView("calendar")}
+				className={cn(
+					"px-2 py-1 text-[10px] font-medium transition-colors",
+					compactMode && "px-1.5 py-0.5",
+					view === "calendar"
+						? "border rounded-sm border-border bg-muted text-foreground"
+						: "text-muted-foreground hover:bg-muted hover:text-foreground/75",
+				)}
+			>
+				Calendar
+			</button>
+			<button
+				onClick={() => setView("entries")}
+				className={cn(
+					"px-2 py-1 text-[10px] font-medium transition-colors",
+					view === "entries"
+						? "border rounded-sm border-border bg-muted text-foreground"
+						: "text-muted-foreground hover:bg-muted hover:text-foreground/75",
+				)}
+			>
+				Recent
+			</button>
+		</div>
+	);
+
 	return (
 		<SidebarSection
 			id="journal"
 			title="Journal"
 			isCollapsed={isCollapsed}
 			showHeader={showHeader}
+			showCollapseToggle
+			titleSlot={viewTabs}
 			compactMode={compactMode}
 			itemCount={entryCount}
 			onToggleCollapse={onToggleCollapse}
@@ -108,32 +139,6 @@ export function JournalSection({
 			onDragEnd={onDragEnd}
 		>
 			<div className={cn("space-y-2", compactMode && "space-y-1")}>
-				<div className={cn("flex items-center gap-1")}>
-					<button
-						onClick={() => setView("calendar")}
-						className={cn(
-							"px-2 py-1 text-[10px] font-medium transition-colors",
-							compactMode && "px-1.5 py-0.5",
-							view === "calendar"
-								? "border rounded-sm border-border bg-muted text-foreground"
-								: "text-muted-foreground hover:bg-muted hover:text-foreground/75",
-						)}
-					>
-						Calendar
-					</button>
-					<button
-						onClick={() => setView("entries")}
-						className={cn(
-							"px-2 py-1 text-[10px] font-medium transition-colors",
-							view === "entries"
-								? "border rounded-sm border-border bg-muted text-foreground"
-								: "text-muted-foreground hover:bg-muted hover:text-foreground/75",
-						)}
-					>
-						Recent
-					</button>
-				</div>
-
 				{view === "calendar" ? (
 					<div className={cn("overflow-hidden ", compactMode && "rounded-[16px]")}>
 						<MiniCalendar

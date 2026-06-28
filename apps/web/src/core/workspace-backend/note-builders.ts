@@ -1,6 +1,7 @@
 import type { CreateNoteInput, UpdateNoteInput } from "@/domain/notes/actions";
 import type { CreateFolderInput, UpdateFolderInput } from "@/domain/folders/actions";
 import type { NoteFile, NoteFolder, RichTextDocument } from "@/domain/notes/models";
+import { deriveNoteNameFromHeading, nameTracksHeading } from "@/domain/notes/note-links";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 
 /**
@@ -39,7 +40,23 @@ export type ApplyNoteUpdateOptions = {
 };
 
 function defaultResolveName(input: UpdateNoteInput, note: NoteFile): string {
-	return input.name !== undefined ? ensureNoteName(input.name) : note.name;
+	// Explicit renames always win. Otherwise, keep following the first heading
+	// only while the note still looks auto-managed — and only when the caller
+	// opts in (`trackHeading !== false`). Autosaves pass `false`, so the filename
+	// follows the heading only once the editor commits it (the user leaves the
+	// heading block), matching the server backend.
+	if (input.name !== undefined) return ensureNoteName(input.name);
+
+	if (
+		input.trackHeading !== false &&
+		input.content !== undefined &&
+		nameTracksHeading(note.name, note.content)
+	) {
+		const derivedName = deriveNoteNameFromHeading(input.content);
+		if (derivedName) return derivedName;
+	}
+
+	return note.name;
 }
 
 function defaultResolveRichContent(input: UpdateNoteInput, note: NoteFile): RichTextDocument {

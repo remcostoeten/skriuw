@@ -1,1 +1,2 @@
 export const DESKTOP_SIDEBAR_MIN_WIDTH = 248;
+export const DESKTOP_METADATA_MIN_WIDTH = 288;

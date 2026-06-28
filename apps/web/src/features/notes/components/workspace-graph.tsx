@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Waypoints } from "lucide-react";
@@ -9,8 +8,8 @@ import { useAuth } from "@/core/auth/use-auth";
 import { recordGuestGraphExplore } from "@/core/workspace-backend";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import { cn } from "@/shared/lib/utils";
 import type { GraphData, GraphNode } from "@/domain/notes/graph";
+import { NotesEmptyState } from "./notes-empty-state";
 import { useNoteGraph } from "../hooks/use-note-graph";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
@@ -78,9 +77,11 @@ function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 		for (const edge of data.edges) {
 			// After simulation starts, source/target may be node objects.
 			// biome-ignore lint/suspicious/noExplicitAny: runtime shape from force-graph
-			const s = typeof (edge.source as any) === "object" ? (edge.source as any).id : edge.source;
+			const s =
+				typeof (edge.source as any) === "object" ? (edge.source as any).id : edge.source;
 			// biome-ignore lint/suspicious/noExplicitAny: runtime shape from force-graph
-			const t = typeof (edge.target as any) === "object" ? (edge.target as any).id : edge.target;
+			const t =
+				typeof (edge.target as any) === "object" ? (edge.target as any).id : edge.target;
 			if (s === hoveredId) set.add(t);
 			if (t === hoveredId) set.add(s);
 		}
@@ -99,8 +100,12 @@ function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 	// Capture latest values in refs so canvas callbacks never go stale.
 	const hoveredIdRef = useRef(hoveredId);
 	const neighborsRef = useRef(neighbors);
-	useEffect(() => { hoveredIdRef.current = hoveredId; }, [hoveredId]);
-	useEffect(() => { neighborsRef.current = neighbors; }, [neighbors]);
+	useEffect(() => {
+		hoveredIdRef.current = hoveredId;
+	}, [hoveredId]);
+	useEffect(() => {
+		neighborsRef.current = neighbors;
+	}, [neighbors]);
 
 	const handleNodeClick = useCallback(
 		(node: GraphNode) => {
@@ -137,9 +142,7 @@ function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 		const s = typeof link.source === "object" ? link.source.id : link.source;
 		const t = typeof link.target === "object" ? link.target.id : link.target;
 		if (!hovered) {
-			return link.kind === "note"
-				? "rgba(148, 163, 184, 0.38)"
-				: "rgba(100, 116, 139, 0.22)";
+			return link.kind === "note" ? "rgba(148, 163, 184, 0.38)" : "rgba(100, 116, 139, 0.22)";
 		}
 		const isActive = s === hovered || t === hovered;
 		return isActive ? "rgba(203, 213, 225, 0.9)" : "rgba(148, 163, 184, 0.06)";
@@ -230,9 +233,7 @@ function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 			if (showLabel) {
 				const fontSize = Math.max(2.5, 10 / globalScale);
 				ctx.font = `${isHub ? "500" : "400"} ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
-				ctx.fillStyle = isHovered
-					? "rgba(248, 250, 252, 1)"
-					: "rgba(226, 232, 240, 0.82)";
+				ctx.fillStyle = isHovered ? "rgba(248, 250, 252, 1)" : "rgba(226, 232, 240, 0.82)";
 				ctx.textAlign = "center";
 				ctx.textBaseline = "top";
 				ctx.fillText(typed.label, typed.x, typed.y + r + 2);
@@ -345,33 +346,23 @@ function GraphEmptyState({
 	onOpenStarterNote?: () => void;
 }) {
 	return (
-		<div className={cn("flex h-full flex-col items-center justify-center gap-4 p-8 text-center", className)}>
-			<Waypoints className="h-10 w-10 text-muted-foreground" strokeWidth={1.4} />
-			<div className="max-w-md space-y-2">
-				<p className="text-sm font-medium text-foreground">Your note web starts with links</p>
-				<p className="text-sm text-muted-foreground">
-					Connect notes with <code className="font-mono">[[wiki links]]</code>, mentions, and{" "}
-					<code className="font-mono">#tags</code>. The demo workspace already has a small web — open
-					the welcome note to see how it links to the handbook and workflow guide.
-				</p>
-			</div>
-			{onOpenStarterNote ? (
-				<button
-					type="button"
-					onClick={onOpenStarterNote}
-					className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium transition-colors hover:bg-accent"
-				>
-					Open welcome note
-				</button>
-			) : (
-				<Link
-					href="/app"
-					className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium transition-colors hover:bg-accent"
-				>
-					Back to notes
-				</Link>
-			)}
-		</div>
+		<NotesEmptyState
+			className={className}
+			title="Your note web starts with links"
+			description={
+				<>
+					Connect notes with <code className="font-mono">[[wiki links]]</code>, mentions,
+					and <code className="font-mono">#tags</code>. The demo workspace already has a
+					small web - open the welcome note to see how it links to the handbook and
+					workflow guide.
+				</>
+			}
+			action={
+				onOpenStarterNote
+					? { label: "Open welcome note", onClick: onOpenStarterNote }
+					: { label: "Back to notes", href: "/app" }
+			}
+		/>
 	);
 }
 
@@ -384,10 +375,7 @@ export function WorkspaceGraph() {
 	const query = useNoteGraph();
 	const isGuest = auth.isReady && auth.phase !== "authenticated";
 
-	const openNote = useCallback(
-		(id: string) => router.push(`/app?note=${id}`),
-		[router],
-	);
+	const openNote = useCallback((id: string) => router.push(`/app?note=${id}`), [router]);
 	const handleOpenSettings = useCallback(() => router.push("/app/settings"), [router]);
 	const handleExploreNote = useCallback(
 		(_id: string) => {

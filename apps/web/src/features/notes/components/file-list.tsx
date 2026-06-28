@@ -10,7 +10,6 @@ import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/shared/ui/sheet";
 import { EmptyState } from "@/shared/ui/empty-state";
 import {
-	Briefcase,
 	Check,
 	Columns2,
 	FileText,
@@ -26,11 +25,13 @@ import {
 	ContextMenuContent,
 	ContextMenuItem,
 	ContextMenuSeparator,
+	ContextMenuShortcut,
 	ContextMenuTrigger,
 	ContextMenuSub,
 	ContextMenuSubContent,
 	ContextMenuSubTrigger,
 } from "@/shared/ui/context-menu";
+import { NoteNameLabel } from "./note-name-label";
 import { useSidebarStore } from "./sidebar/store";
 import { SidebarTreeRowSkeleton } from "./sidebar/sidebar-tree-skeleton";
 import { NoteSendContextSubmenu, NoteSendMobileActionBlock } from "./note-send-menu";
@@ -50,6 +51,7 @@ interface FileListProps {
 	onReorderFiles?: (fileId: string, targetIndex: number, parentId: string | null) => void;
 	onReorderFolders?: (folderId: string, targetIndex: number, parentId: string | null) => void;
 	scrollElementRef?: RefObject<HTMLElement | null>;
+	sidebarWidth?: number;
 }
 
 type SelectedItem = {
@@ -98,6 +100,7 @@ export const FileList = memo(function FileList({
 	queries,
 	onCreationParentChange,
 	scrollElementRef,
+	sidebarWidth,
 }: FileListProps) {
 	const {
 		onFileSelect,
@@ -112,17 +115,9 @@ export const FileList = memo(function FileList({
 		onMoveFolder,
 	} = actions;
 	const { getFilesInFolder, getFoldersInFolder, countDescendants } = queries;
-	// Sidebar store for favorites, projects, and custom sections
-	const {
-		config,
-		isFavorite,
-		addToFavorites,
-		removeFromFavorites,
-		getProjects,
-		addToProject,
-		addToCustomSection,
-	} = useSidebarStore();
-	const projects = getProjects();
+	// Sidebar store for favorites and custom sections
+	const { config, isFavorite, addToFavorites, removeFromFavorites, addToCustomSection } =
+		useSidebarStore();
 	const customSections = config.sections.filter((section) => section.type === "custom");
 	const isMobile = useIsMobile();
 	const listRef = useRef<HTMLDivElement>(null);
@@ -130,10 +125,21 @@ export const FileList = memo(function FileList({
 	const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const suppressClickRef = useRef(false);
 	const rowHeight = compactMode ? FILE_TREE_COMPACT_ROW_HEIGHT : FILE_TREE_ROW_HEIGHT;
+	const isNarrow = sidebarWidth !== undefined && sidebarWidth < 220;
+	const isVeryNarrow = sidebarWidth !== undefined && sidebarWidth < 176;
+	const depthIndent = isVeryNarrow ? 8 : isNarrow ? 12 : 16;
+	const rowBasePadding = isNarrow ? 8 : 12;
+	const rowRightPadding = isNarrow ? 6 : 10;
 
 	const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
 	const [focusedItemKey, setFocusedItemKey] = useState<string | null>(null);
 	const lastSelectedIndexRef = useRef<number | null>(null);
+	// Index to focus once the list re-renders after a deletion, so repeated
+	// Backspace keeps walking down the tree instead of dropping focus.
+	const pendingFocusIndexRef = useRef<number | null>(null);
+	// When non-null, "move mode" is active: these items are being relocated and
+	// arrow keys steer a destination cursor until Enter/M drops them (Esc cancels).
+	const [moveModeItems, setMoveModeItems] = useState<SelectedItem[] | null>(null);
 
 	function renderTreeGuides(depth: number) {
 		if (!showTreeGuides || depth <= 0) {
@@ -141,7 +147,7 @@ export const FileList = memo(function FileList({
 		}
 
 		const guideLevels = Array.from({ length: depth }, (_, index) => index);
-		const currentGuideLeft = 19 + (depth - 1) * 16;
+		const currentGuideLeft = rowBasePadding + 7 + (depth - 1) * depthIndent;
 
 		return (
 			<span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0">
@@ -149,7 +155,7 @@ export const FileList = memo(function FileList({
 					<span
 						key={level}
 						className="absolute top-0 bottom-0 w-px bg-border/55"
-						style={{ left: `${19 + level * 16}px` }}
+						style={{ left: `${rowBasePadding + 7 + level * depthIndent}px` }}
 					/>
 				))}
 				<span
@@ -241,6 +247,55 @@ export const FileList = memo(function FileList({
 		[flattenedVisibleItems, getItemKey, virtualizer],
 	);
 
+	// Like focusItemAtIndex but extends the selection from the anchor
+	// (lastSelectedIndexRef) to the target, leaving the anchor in place so
+	// repeated Shift+Arrow grows/shrinks a contiguous range.
+	const extendSelectionToIndex = useCallback(
+		(index: number) => {
+			const target = flattenedVisibleItems[index];
+			if (!target || !listRef.current) {
+				return;
+			}
+
+			const anchor = lastSelectedIndexRef.current ?? index;
+			const start = Math.min(anchor, index);
+			const end = Math.max(anchor, index);
+			const range = flattenedVisibleItems.slice(start, end + 1);
+
+			const targetKey = getItemKey(target);
+			setSelectedItems(range);
+			setFocusedItemKey(targetKey);
+
+			virtualizer.scrollToIndex(index, { align: "auto" });
+
+			requestAnimationFrame(() => {
+				itemButtonRefs.current.get(targetKey)?.focus();
+			});
+		},
+		[flattenedVisibleItems, getItemKey, virtualizer],
+	);
+
+	// Move focus/scroll to a row without touching the selection. Used by move
+	// mode, where the selection is the cargo and focus is the destination cursor.
+	const focusOnlyAtIndex = useCallback(
+		(index: number) => {
+			const target = flattenedVisibleItems[index];
+			if (!target || !listRef.current) {
+				return;
+			}
+
+			const targetKey = getItemKey(target);
+			setFocusedItemKey(targetKey);
+
+			virtualizer.scrollToIndex(index, { align: "auto" });
+
+			requestAnimationFrame(() => {
+				itemButtonRefs.current.get(targetKey)?.focus();
+			});
+		},
+		[flattenedVisibleItems, getItemKey, virtualizer],
+	);
+
 	const focusParentFolder = useCallback(
 		(item: SelectedItem) => {
 			if (!item.parentId) {
@@ -281,11 +336,11 @@ export const FileList = memo(function FileList({
 	} | null>(null);
 	const [mobileActionTarget, setMobileActionTarget] = useState<MobileActionTarget | null>(null);
 
-	// Focus and select text when editing starts
+	// Focus and place a blinking caret at the start of the name when editing starts
 	useEffect(() => {
 		if (editingId && inputRef.current) {
 			inputRef.current.focus();
-			inputRef.current.select();
+			inputRef.current.setSelectionRange(0, 0);
 		}
 	}, [editingId]);
 
@@ -328,6 +383,13 @@ export const FileList = memo(function FileList({
 		},
 		[finishRename],
 	);
+
+	// Closes an open context menu by dispatching Escape to its dismissable layer.
+	const closeContextMenu = useCallback((element: HTMLElement) => {
+		element.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+		);
+	}, []);
 
 	// Double-click handler for inline rename
 	const handleDoubleClick = useCallback(
@@ -424,6 +486,14 @@ export const FileList = memo(function FileList({
 
 	const deleteSelection = useCallback(
 		(items: SelectedItem[]) => {
+			// Remember where the deleted block starts so we can move focus to
+			// whatever item slides into its place after the list re-renders.
+			const deletedKeys = new Set(items.map(getItemKey));
+			const firstDeletedIndex = flattenedVisibleItems.findIndex((entry) =>
+				deletedKeys.has(getItemKey(entry)),
+			);
+			pendingFocusIndexRef.current = firstDeletedIndex === -1 ? null : firstDeletedIndex;
+
 			items.forEach((item) => {
 				if (item.type === "file") {
 					onDeleteFile(item.id);
@@ -433,7 +503,44 @@ export const FileList = memo(function FileList({
 			});
 			setSelectedItems([]);
 		},
-		[onDeleteFile, onDeleteFolder, setSelectedItems],
+		[flattenedVisibleItems, getItemKey, onDeleteFile, onDeleteFolder, setSelectedItems],
+	);
+
+	// While a note's context menu is open: "r" renames, Delete/Backspace/"d" deletes.
+	const handleContextMenuKeyDown = useCallback(
+		(
+			event: React.KeyboardEvent,
+			item: SelectedItem,
+			name: string,
+			selection: SelectedItem[],
+			renameDisabled: boolean,
+		) => {
+			if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+				return;
+			}
+
+			if (event.key === "r" || event.key === "R") {
+				if (renameDisabled) {
+					return;
+				}
+				event.preventDefault();
+				startRename(item.id, name, item.type);
+				closeContextMenu(event.currentTarget as HTMLElement);
+				return;
+			}
+
+			if (
+				event.key === "Delete" ||
+				event.key === "Backspace" ||
+				event.key === "d" ||
+				event.key === "D"
+			) {
+				event.preventDefault();
+				closeContextMenu(event.currentTarget as HTMLElement);
+				deleteSelection(selection);
+			}
+		},
+		[closeContextMenu, deleteSelection, startRename],
 	);
 
 	const closeMobileActionSheet = useCallback(() => {
@@ -596,9 +703,17 @@ export const FileList = memo(function FileList({
 				(entry) => entry.id === item.id && entry.type === item.type,
 			);
 
-			if (shiftKey && lastSelectedIndexRef.current !== null && itemIndex !== -1) {
-				const start = Math.min(lastSelectedIndexRef.current, itemIndex);
-				const end = Math.max(lastSelectedIndexRef.current, itemIndex);
+			// Anchor the range on the last explicitly-selected row, falling back to
+			// whatever currently has focus so "focus a row, Shift+Click another" works.
+			const focusedIndex = flattenedVisibleItems.findIndex(
+				(entry) => getItemKey(entry) === focusedItemKey,
+			);
+			const anchorIndex =
+				lastSelectedIndexRef.current !== null ? lastSelectedIndexRef.current : focusedIndex;
+
+			if (shiftKey && anchorIndex >= 0 && itemIndex !== -1) {
+				const start = Math.min(anchorIndex, itemIndex);
+				const end = Math.max(anchorIndex, itemIndex);
 				const range = flattenedVisibleItems.slice(start, end + 1);
 				setSelectedItems(range);
 				lastSelectedIndexRef.current = itemIndex;
@@ -629,7 +744,7 @@ export const FileList = memo(function FileList({
 			lastSelectedIndexRef.current = itemIndex;
 			action();
 		},
-		[flattenedVisibleItems, getItemKey, setSelectedItems],
+		[flattenedVisibleItems, focusedItemKey, getItemKey, setSelectedItems],
 	);
 
 	const handleContextMenu = useCallback(
@@ -701,15 +816,101 @@ export const FileList = memo(function FileList({
 				return;
 			}
 
+			// Move mode swallows the tree's normal keys: arrows steer a destination
+			// cursor, Enter/M drops the cargo into the focused folder (or root),
+			// Esc cancels. The selection stays put as the set being relocated.
+			if (moveModeItems) {
+				if (event.key === "Escape") {
+					event.preventDefault();
+					setMoveModeItems(null);
+					return;
+				}
+
+				if (event.key === "ArrowDown") {
+					event.preventDefault();
+					focusOnlyAtIndex(Math.min(flattenedVisibleItems.length - 1, currentIndex + 1));
+					return;
+				}
+
+				if (event.key === "ArrowUp") {
+					event.preventDefault();
+					focusOnlyAtIndex(Math.max(0, currentIndex - 1));
+					return;
+				}
+
+				if (event.key === "Home") {
+					event.preventDefault();
+					focusOnlyAtIndex(0);
+					return;
+				}
+
+				if (event.key === "End") {
+					event.preventDefault();
+					focusOnlyAtIndex(flattenedVisibleItems.length - 1);
+					return;
+				}
+
+				if (event.key === "ArrowRight") {
+					if (options?.isFolder && !options.isOpen) {
+						event.preventDefault();
+						onToggleFolder(item.id);
+					}
+					return;
+				}
+
+				if (event.key === "ArrowLeft") {
+					event.preventDefault();
+					if (options?.isFolder && options.isOpen) {
+						onToggleFolder(item.id);
+					} else {
+						focusParentFolder(item);
+					}
+					return;
+				}
+
+				if (
+					event.key === "Enter" ||
+					event.key === " " ||
+					event.key === "m" ||
+					event.key === "M"
+				) {
+					event.preventDefault();
+					// Drop into the focused folder; on a file, drop into its parent.
+					const destination = item.type === "folder" ? item.id : item.parentId;
+					moveSelected(moveModeItems, destination);
+					setMoveModeItems(null);
+					return;
+				}
+
+				// Ignore every other key while relocating.
+				return;
+			}
+
 			if (event.key === "ArrowDown") {
 				event.preventDefault();
-				focusItemAtIndex(Math.min(flattenedVisibleItems.length - 1, currentIndex + 1));
+				const nextIndex = Math.min(flattenedVisibleItems.length - 1, currentIndex + 1);
+				if (event.shiftKey) {
+					if (lastSelectedIndexRef.current === null) {
+						lastSelectedIndexRef.current = currentIndex;
+					}
+					extendSelectionToIndex(nextIndex);
+				} else {
+					focusItemAtIndex(nextIndex);
+				}
 				return;
 			}
 
 			if (event.key === "ArrowUp") {
 				event.preventDefault();
-				focusItemAtIndex(Math.max(0, currentIndex - 1));
+				const prevIndex = Math.max(0, currentIndex - 1);
+				if (event.shiftKey) {
+					if (lastSelectedIndexRef.current === null) {
+						lastSelectedIndexRef.current = currentIndex;
+					}
+					extendSelectionToIndex(prevIndex);
+				} else {
+					focusItemAtIndex(prevIndex);
+				}
 				return;
 			}
 
@@ -752,6 +953,55 @@ export const FileList = memo(function FileList({
 				return;
 			}
 
+			if (
+				(event.key === "r" || event.key === "R") &&
+				!event.metaKey &&
+				!event.ctrlKey &&
+				!event.altKey &&
+				!event.shiftKey
+			) {
+				event.preventDefault();
+				if (getSelectionForAction(item).length > 1) {
+					return;
+				}
+				const entry = flattenedVisibleItems[currentIndex];
+				const name = entry.type === "folder" ? entry.folder?.name : entry.file?.name;
+				if (!name) {
+					return;
+				}
+				startRename(item.id, name, item.type);
+				return;
+			}
+
+			if (
+				(event.key === "Delete" ||
+					event.key === "Backspace" ||
+					event.key === "d" ||
+					event.key === "D") &&
+				!event.metaKey &&
+				!event.ctrlKey &&
+				!event.altKey &&
+				!event.shiftKey
+			) {
+				event.preventDefault();
+				deleteSelection(getSelectionForAction(item));
+				return;
+			}
+
+			if (
+				(event.key === "m" || event.key === "M") &&
+				!event.metaKey &&
+				!event.ctrlKey &&
+				!event.altKey &&
+				!event.shiftKey
+			) {
+				event.preventDefault();
+				const selection = getSelectionForAction(item);
+				setSelectedItems(selection);
+				setMoveModeItems(selection);
+				return;
+			}
+
 			if (event.key === "Enter" || event.key === " ") {
 				event.preventDefault();
 				setSelectedItems([item]);
@@ -765,13 +1015,20 @@ export const FileList = memo(function FileList({
 			}
 		},
 		[
+			deleteSelection,
+			extendSelectionToIndex,
 			flattenedVisibleItems,
 			focusItemAtIndex,
+			focusOnlyAtIndex,
 			focusParentFolder,
 			getItemKey,
+			getSelectionForAction,
+			moveModeItems,
+			moveSelected,
 			onFileSelect,
 			onToggleFolder,
 			setSelectedItems,
+			startRename,
 		],
 	);
 
@@ -948,6 +1205,7 @@ export const FileList = memo(function FileList({
 					<ContextMenuSubTrigger className="gap-2">
 						<FolderInput className="w-4 h-4" />
 						Move to
+						<ContextMenuShortcut className="mr-1">M</ContextMenuShortcut>
 					</ContextMenuSubTrigger>
 					<ContextMenuSubContent className="w-48">
 						{hasSelectionAtNonRoot && (
@@ -1093,36 +1351,6 @@ export const FileList = memo(function FileList({
 							) : null}
 						</div>
 
-						{projects.length > 0 && (
-							<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
-								<div className="px-4 pb-2 pt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-foreground/42">
-									Add To Project
-								</div>
-								{projects.map((project, index) => (
-									<div key={project.id}>
-										{index > 0 && <div className="mx-4 h-px bg-foreground/8" />}
-										<button
-											type="button"
-											onClick={() =>
-												runMobileAction(() =>
-													addToProject(project.id, item.id, item.type),
-												)
-											}
-											className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-foreground transition-colors"
-										>
-											<span
-												className={cn(
-													"h-2.5 w-2.5 rounded-full shrink-0",
-													project.color,
-												)}
-											/>
-											<span className="truncate">{project.name}</span>
-										</button>
-									</div>
-								))}
-							</div>
-						)}
-
 						{customSections.length > 0 && (
 							<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
 								<div className="px-4 pb-2 pt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-foreground/42">
@@ -1186,7 +1414,6 @@ export const FileList = memo(function FileList({
 		[
 			addToCustomSection,
 			addToFavorites,
-			addToProject,
 			closeMobileActionSheet,
 			customSections,
 			deleteSelection,
@@ -1195,7 +1422,6 @@ export const FileList = memo(function FileList({
 			getDescendantIds,
 			isFavorite,
 			moveSelected,
-			projects,
 			removeFromFavorites,
 			runMobileAction,
 			startRename,
@@ -1223,6 +1449,8 @@ export const FileList = memo(function FileList({
 		const selectionForAction = getSelectionForAction(folderItem);
 		const selectionHasMultiple = selectionForAction.length > 1;
 		const isSelected = isItemSelected(folderItem);
+		const isMoving = movingKeys.has(getItemKey(folderItem));
+		const isMoveDestination = moveActive && moveDestinationId === folder.id;
 
 		return (
 			<div key={folder.id}>
@@ -1309,8 +1537,13 @@ export const FileList = memo(function FileList({
 									: "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
 								isDragging && "opacity-35",
 								isDropTarget && "border-border bg-muted",
+								isMoving && "opacity-50 ring-1 ring-primary/40",
+								isMoveDestination && "border-primary bg-primary/10 ring-1 ring-primary",
 							)}
-							style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "10px" }}
+							style={{
+								paddingLeft: `${rowBasePadding + depth * depthIndent}px`,
+								paddingRight: `${rowRightPadding}px`,
+							}}
 						>
 							{renderTreeGuides(depth)}
 							{isSiblingDropTarget && (
@@ -1322,7 +1555,12 @@ export const FileList = memo(function FileList({
 									)}
 								/>
 							)}
-							<div className="flex min-w-0 items-center gap-1.5">
+							<div
+								className={cn(
+									"flex min-w-0 items-center",
+									isNarrow ? "gap-1" : "gap-1.5",
+								)}
+							>
 								{folder.isOpen ? (
 									<FolderOpen
 										className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
@@ -1359,13 +1597,24 @@ export const FileList = memo(function FileList({
 									)}
 								</span>
 							</div>
-							<span className="ml-1.5 w-4 shrink-0 text-right text-[10px] text-muted-foreground/50 tabular-nums">
-								{totalCount}
-							</span>
+							{!isVeryNarrow && (
+								<span className="ml-1.5 w-4 shrink-0 text-right text-[10px] text-muted-foreground/50 tabular-nums">
+									{totalCount}
+								</span>
+							)}
 						</motion.button>
 					</ContextMenuTrigger>
 					<ContextMenuContent
 						className="w-48"
+						onKeyDown={(event) =>
+							handleContextMenuKeyDown(
+								event,
+								folderItem,
+								folder.name,
+								selectionForAction,
+								selectionHasMultiple,
+							)
+						}
 						onCloseAutoFocus={(event) => {
 							if (inputRef.current) {
 								event.preventDefault();
@@ -1383,6 +1632,7 @@ export const FileList = memo(function FileList({
 						>
 							<Pencil className="w-4 h-4" />
 							Rename
+							<ContextMenuShortcut>R</ContextMenuShortcut>
 						</ContextMenuItem>
 						{renderMoveToSubmenu(selectionForAction)}
 						<ContextMenuSeparator />
@@ -1402,33 +1652,6 @@ export const FileList = memo(function FileList({
 								<Star className="w-4 h-4" />
 								Add to Favorites
 							</ContextMenuItem>
-						)}
-						{projects.length > 0 && (
-							<ContextMenuSub>
-								<ContextMenuSubTrigger className="gap-2">
-									<Briefcase className="w-4 h-4" />
-									Add to Project
-								</ContextMenuSubTrigger>
-								<ContextMenuSubContent className="w-40">
-									{projects.map((project) => (
-										<ContextMenuItem
-											key={project.id}
-											onClick={() =>
-												addToProject(project.id, folder.id, "folder")
-											}
-											className="gap-2"
-										>
-											<span
-												className={cn(
-													"w-2 h-2 rounded-full shrink-0",
-													project.color,
-												)}
-											/>
-											{project.name}
-										</ContextMenuItem>
-									))}
-								</ContextMenuSubContent>
-							</ContextMenuSub>
 						)}
 						{customSections.length > 0 && (
 							<ContextMenuSub>
@@ -1458,6 +1681,7 @@ export const FileList = memo(function FileList({
 						>
 							<Trash2 className="w-4 h-4" />
 							{selectionHasMultiple ? "Delete selected" : "Delete"}
+							<ContextMenuShortcut>⌫</ContextMenuShortcut>
 						</ContextMenuItem>
 					</ContextMenuContent>
 				</ContextMenu>
@@ -1473,6 +1697,7 @@ export const FileList = memo(function FileList({
 		const selectionForAction = getSelectionForAction(fileItem);
 		const selectionHasMultiple = selectionForAction.length > 1;
 		const isSelected = isItemSelected(fileItem);
+		const isMoving = movingKeys.has(getItemKey(fileItem));
 
 		return (
 			<ContextMenu key={file.id}>
@@ -1525,6 +1750,7 @@ export const FileList = memo(function FileList({
 						role="treeitem"
 						aria-level={depth + 1}
 						aria-selected={isSelected || activeFileId === file.id}
+						data-active-note-tree-item={activeFileId === file.id ? "true" : undefined}
 						tabIndex={0}
 						className={cn(
 							"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors",
@@ -1534,8 +1760,12 @@ export const FileList = memo(function FileList({
 								: "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85",
 							isDragging && "opacity-35",
 							isDropTarget && "border-border bg-muted",
+							isMoving && "opacity-50 ring-1 ring-primary/40",
 						)}
-						style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "10px" }}
+						style={{
+							paddingLeft: `${rowBasePadding + depth * depthIndent}px`,
+							paddingRight: `${rowRightPadding}px`,
+						}}
 					>
 						{renderTreeGuides(depth)}
 						{isDropTarget && (
@@ -1566,13 +1796,22 @@ export const FileList = memo(function FileList({
 									style={{ caretColor: "currentColor" }}
 								/>
 							) : (
-								<span className="truncate select-none">{file.name}</span>
+								<NoteNameLabel name={file.name} className="truncate select-none" />
 							)}
 						</span>
 					</motion.button>
 				</ContextMenuTrigger>
 				<ContextMenuContent
 					className="w-48"
+					onKeyDown={(event) =>
+						handleContextMenuKeyDown(
+							event,
+							fileItem,
+							file.name,
+							selectionForAction,
+							selectionHasMultiple,
+						)
+					}
 					onCloseAutoFocus={(event) => {
 						if (inputRef.current) {
 							event.preventDefault();
@@ -1590,15 +1829,13 @@ export const FileList = memo(function FileList({
 					>
 						<Pencil className="w-4 h-4" />
 						Rename
+						<ContextMenuShortcut>R</ContextMenuShortcut>
 					</ContextMenuItem>
 					{onOpenBeside &&
 					!isMobile &&
 					!selectionHasMultiple &&
 					file.id !== activeFileId ? (
-						<ContextMenuItem
-							onClick={() => onOpenBeside(file.id)}
-							className="gap-2"
-						>
+						<ContextMenuItem onClick={() => onOpenBeside(file.id)} className="gap-2">
 							<Columns2 className="w-4 h-4" />
 							Open beside
 						</ContextMenuItem>
@@ -1621,31 +1858,6 @@ export const FileList = memo(function FileList({
 							<Star className="w-4 h-4" />
 							Add to Favorites
 						</ContextMenuItem>
-					)}
-					{projects.length > 0 && (
-						<ContextMenuSub>
-							<ContextMenuSubTrigger className="gap-2">
-								<Briefcase className="w-4 h-4" />
-								Add to Project
-							</ContextMenuSubTrigger>
-							<ContextMenuSubContent className="w-40">
-								{projects.map((project) => (
-									<ContextMenuItem
-										key={project.id}
-										onClick={() => addToProject(project.id, file.id, "file")}
-										className="gap-2"
-									>
-										<span
-											className={cn(
-												"w-2 h-2 rounded-full shrink-0",
-												project.color,
-											)}
-										/>
-										{project.name}
-									</ContextMenuItem>
-								))}
-							</ContextMenuSubContent>
-						</ContextMenuSub>
 					)}
 					{customSections.length > 0 && (
 						<ContextMenuSub>
@@ -1689,6 +1901,12 @@ export const FileList = memo(function FileList({
 			prev.filter((selection) => validKeys.has(`${selection.type}:${selection.id}`)),
 		);
 		setFocusedItemKey((prev) => (prev && validKeys.has(prev) ? prev : null));
+		// Drop out of move mode if any cargo item disappeared underneath us.
+		setMoveModeItems((prev) =>
+			prev && prev.every((entry) => validKeys.has(`${entry.type}:${entry.id}`))
+				? prev
+				: null,
+		);
 	}, [files, folders, setSelectedItems]);
 
 	useEffect(() => {
@@ -1706,9 +1924,43 @@ export const FileList = memo(function FileList({
 
 		setFocusedItemKey(preferredItem ? getItemKey(preferredItem) : null);
 	}, [activeFileId, flattenedVisibleItems, focusedItemKey, getItemKey]);
+
+	// After a deletion the list shrinks; move focus to the item that now sits
+	// where the deleted one was (or the new last item) so Backspace can repeat.
+	useEffect(() => {
+		const pendingIndex = pendingFocusIndexRef.current;
+		if (pendingIndex === null) {
+			return;
+		}
+		pendingFocusIndexRef.current = null;
+
+		if (flattenedVisibleItems.length === 0) {
+			return;
+		}
+
+		focusItemAtIndex(Math.min(pendingIndex, flattenedVisibleItems.length - 1));
+	}, [flattenedVisibleItems, focusItemAtIndex]);
 	const isRootDropTarget = dropTarget?.id === null && dropTarget?.type === "root";
 	const virtualItems = virtualizer.getVirtualItems();
 	const totalHeight = virtualizer.getTotalSize();
+
+	// Move-mode derived view state: which rows are cargo, where they'd land.
+	const moveActive = moveModeItems !== null;
+	const movingKeys = new Set((moveModeItems ?? []).map((entry) => getItemKey(entry)));
+	const focusedMoveItem = moveActive
+		? (flattenedVisibleItems.find((entry) => getItemKey(entry) === focusedItemKey) ?? null)
+		: null;
+	const moveDestinationId = focusedMoveItem
+		? focusedMoveItem.type === "folder"
+			? focusedMoveItem.id
+			: focusedMoveItem.parentId
+		: null;
+	const moveDestinationLabel = !moveActive
+		? null
+		: moveDestinationId === null
+			? "Top level"
+			: (folders.find((folder) => folder.id === moveDestinationId)?.name ?? "folder");
+	const isRootMoveDestination = moveActive && moveDestinationId === null;
 
 	if (flattenedVisibleItems.length === 0) {
 		if (isLoading) {
@@ -1734,15 +1986,29 @@ export const FileList = memo(function FileList({
 
 	return (
 		<>
+			{moveActive && (
+				<div className="sticky top-0 z-20 mx-1.5 mb-1 flex items-center gap-2 border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-[11px] font-medium text-foreground">
+					<FolderInput className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.5} />
+					<span className="min-w-0 truncate">
+						Moving {moveModeItems.length} item{moveModeItems.length > 1 ? "s" : ""} →{" "}
+						<span className="text-primary">{moveDestinationLabel}</span>
+					</span>
+					<span className="ml-auto shrink-0 text-muted-foreground">
+						↵ / m drop · esc cancel
+					</span>
+				</div>
+			)}
 			<div
 				ref={listRef}
 				className={cn(
 					"px-1.5 pb-4 pt-1",
 					!scrollElementRef && "flex-1 overflow-y-auto",
 					isRootDropTarget && "bg-primary/6",
+					isRootMoveDestination && "bg-primary/6 ring-1 ring-inset ring-primary/40",
 				)}
 				role="tree"
 				aria-label="Notes file tree"
+				tabIndex={-1}
 				onDragOver={(e) => handleDragOver(e, null, "root")}
 				onDragLeave={handleDragLeave}
 				onDrop={(e) => handleDrop(e, null)}

@@ -23,6 +23,7 @@ import {
 	isTauriRuntime,
 	useWorkspaceCapabilities,
 } from "@/core/workspace-backend";
+import { useShortcutHint } from "@/core/shortcuts";
 
 type Props = {
 	onOpenSettings: () => void;
@@ -76,6 +77,7 @@ export function IconRail({ onOpenSettings }: Props) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const auth = useAuth();
+	const settingsShortcut = useShortcutHint("notes.settings");
 	const capabilities = useWorkspaceCapabilities();
 	const [isMounted, setIsMounted] = useState(false);
 	const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
@@ -211,10 +213,10 @@ export function IconRail({ onOpenSettings }: Props) {
 	};
 
 	const iconButtonClass =
-		"pressable relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all duration-200";
+		"relative flex h-9 w-9 items-center justify-center rounded-lg border transition-colors duration-200";
 
 	const inactiveNavClass =
-		"border-transparent text-sidebar-foreground/52 hover:-translate-y-[1px] hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
+		"border-transparent text-sidebar-foreground/52 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
 
 	return (
 		<>
@@ -227,6 +229,7 @@ export function IconRail({ onOpenSettings }: Props) {
 			>
 				<div className="flex w-full flex-col items-center">
 					<div
+						data-tauri-drag-region
 						className="flex h-11
       w-full items-center justify-center border-b border-sidebar-border"
 					>
@@ -234,7 +237,7 @@ export function IconRail({ onOpenSettings }: Props) {
 							<TooltipTrigger asChild>
 								<Link
 									href="/app"
-									className="rounded-2xl border border-transparent p-1.5 text-sidebar-foreground/92 transition-all hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+									className="rounded-2xl border border-transparent p-1.5 text-sidebar-foreground/92 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
 									aria-label="Go to home"
 								>
 									<RawLogo variant="sidebar" size={26} />
@@ -316,7 +319,9 @@ export function IconRail({ onOpenSettings }: Props) {
 								<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
 							</Link>
 						</TooltipTrigger>
-						<TooltipContent side="right">Settings</TooltipContent>
+						<TooltipContent side="right" shortcut={settingsShortcut}>
+							Settings
+						</TooltipContent>
 					</Tooltip>
 					{isMounted && auth.phase === "authenticated" && auth.user && (
 						<NotificationBell variant="rail" />
@@ -341,7 +346,7 @@ export function IconRail({ onOpenSettings }: Props) {
 									type="button"
 									onClick={() => openAuthDrawerFor("/app")}
 									aria-label="Sign in"
-									className="pressable group flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/78 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+									className="group flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/78 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
 								>
 									<UserRound className="h-4 w-4" strokeWidth={1.7} />
 								</button>

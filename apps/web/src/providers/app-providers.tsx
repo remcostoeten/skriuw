@@ -81,7 +81,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 		<QueryClientProvider client={queryClient}>
 			<QueryCachePersistence />
 			<MotionPreferences>
-				<TooltipProvider delayDuration={300}>
+				<TooltipProvider>
 					<EditorPreferencesBootstrap
 						initialEditorPreferences={initialEditorPreferences}
 					/>

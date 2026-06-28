@@ -25,6 +25,10 @@ export const updateNoteInputSchema = z
 		tags: z.array(z.string().trim().min(1).max(64)).max(64).optional(),
 		createCheckpoint: z.boolean().optional(),
 		sessionVersionId: uuidSchema.nullable().optional(),
+		// When false, the save must not auto-rename the note from its first
+		// heading. Autosaves set this so the filename only follows the heading once
+		// the editor commits it (the user leaves the heading block).
+		trackHeading: z.boolean().optional(),
 	})
 	.refine(
 		(input) =>

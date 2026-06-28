@@ -304,6 +304,9 @@ export function createTauriBackend(): WorkspaceBackend {
 			ai: true,
 		},
 
+		listNotes,
+		listFolders,
+
 		async getNote(id) {
 			const raw = await invoke<RustNote | null>("get_note", { id });
 			return raw ? fromRustNote(raw) : null;

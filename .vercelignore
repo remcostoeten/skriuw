@@ -1,0 +1,16 @@
+# Desktop (Tauri) app — not part of the Vercel web deployment.
+# Its Rust target dir alone is ~5GB.
+apps/desktop
+
+# Build artifacts / caches
+.next
+node_modules
+**/node_modules
+**/target
+*.tsbuildinfo
+
+# Local-only
+.env
+.env.*
+!.env.example
+.claude
