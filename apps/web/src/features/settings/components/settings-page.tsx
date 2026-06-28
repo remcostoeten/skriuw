@@ -214,7 +214,7 @@ export function SettingsPage() {
 						transition={{ type: "tween", duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
 						whileHover={{ scale: 1.03 }}
 						whileTap={{ scale: 0.97 }}
-						className="absolute right-4 top-4 z-10 inline-flex h-8 items-center gap-1 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						className="absolute left-4 top-4 z-10 inline-flex h-8 items-center gap-1 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 						aria-label="Back to app"
 					>
 						<ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
