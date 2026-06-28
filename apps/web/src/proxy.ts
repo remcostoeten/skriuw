@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 const authOnlyRoutes = new Set(["/", "/sign-in", "/sign-up"]);
 const legacyAuthRoutes = new Set(["/sign-in", "/sign-up"]);
-const publicRoutes = new Set(["/", "/sign-in", "/sign-up", "/project-planning"]);
+const publicRoutes = new Set(["/", "/sign-in", "/sign-up"]);
 const marketingRoutes = new Set(["/journal", "/markdown-notes", "/notes", "/writing-app"]);
 
 function getAppAuthURL(req: NextRequest, mode: "sign-in" | "sign-up", nextPath?: string) {
@@ -22,7 +22,6 @@ function isPublicRoute(path: string) {
 		path === "/manifest.json" ||
 		path === "/robots.txt" ||
 		path === "/sitemap.xml" ||
-		path.startsWith("/project-planning/") ||
 		path.startsWith("/s/") ||
 		path.endsWith("/opengraph-image") ||
 		path.endsWith("/twitter-image") ||

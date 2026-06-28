@@ -22,16 +22,19 @@ export function GuestWorkspaceBootstrap() {
 		if (!isGuest) return;
 
 		let cancelled = false;
+		const localScope = notesKeys.localScope();
+		const filesKey = notesKeys.files(localScope);
+		const foldersKey = notesKeys.folders(localScope);
 
 		void (async () => {
-			const seedNotes = queryClient.getQueryData<NoteFile[]>(notesKeys.files()) ?? [];
+			const seedNotes = queryClient.getQueryData<NoteFile[]>(filesKey) ?? [];
 			const seedMetadataNotes = new Set(seedNotes);
-			const seedFolders = queryClient.getQueryData<NoteFolder[]>(notesKeys.folders()) ?? [];
+			const seedFolders = queryClient.getQueryData<NoteFolder[]>(foldersKey) ?? [];
 			const merged = await mergeSeedWithGuestWorkspace(seedNotes, seedFolders);
 			if (cancelled) return;
 
-			queryClient.setQueryData(notesKeys.files(), merged.notes);
-			queryClient.setQueryData(notesKeys.folders(), merged.folders);
+			queryClient.setQueryData(filesKey, merged.notes);
+			queryClient.setQueryData(foldersKey, merged.folders);
 
 			for (const note of merged.notes) {
 				if (seedMetadataNotes.has(note)) continue;

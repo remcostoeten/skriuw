@@ -12,11 +12,12 @@ export default async function GraphPage() {
 	const queryClient = new QueryClient();
 
 	if (user) {
+		const notesScope = notesKeys.userScope(user.id);
 		// Race seeding with the graph prefetch; re-fetch for brand-new users whose
 		// prefetch may have run before the seed insert committed.
 		const prefetchGraph = () =>
 			queryClient.prefetchQuery({
-				queryKey: notesKeys.graph(),
+				queryKey: notesKeys.graph(notesScope),
 				queryFn: () => fetchNoteGraph(),
 			});
 
@@ -26,15 +27,17 @@ export default async function GraphPage() {
 		}
 	} else {
 		const snapshot = await loadGuestWorkspaceSnapshot();
-		queryClient.setQueryData(notesKeys.files(), snapshot.notes);
-		queryClient.setQueryData(notesKeys.folders(), snapshot.folders);
+		const localScope = notesKeys.localScope();
+		const filesKey = notesKeys.files(localScope);
+		queryClient.setQueryData(filesKey, snapshot.notes);
+		queryClient.setQueryData(notesKeys.folders(localScope), snapshot.folders);
 		// Hydrate the guest graph under the SAME key useNoteGraph derives on the
 		// client — keyed on the files() query's dataUpdatedAt (preserved through
 		// dehydrate/hydrate). Hardcoding "0" caused a guaranteed cache miss and a
 		// redundant client-side rebuild on first paint.
-		const guestRevision = queryClient.getQueryState(notesKeys.files())?.dataUpdatedAt ?? 0;
+		const guestRevision = queryClient.getQueryState(filesKey)?.dataUpdatedAt ?? 0;
 		queryClient.setQueryData(
-			[...notesKeys.graph(), "guest", guestRevision],
+			[...notesKeys.graph(localScope), "guest", guestRevision],
 			buildGraphFromNotes(snapshot.noteDetails),
 		);
 		for (const note of snapshot.noteDetails) {

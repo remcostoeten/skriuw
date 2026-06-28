@@ -90,9 +90,10 @@ describe("GuestWorkspaceBootstrap", () => {
 		const seedA = note("guest:a");
 		const seedB = note("guest:b");
 		const localOverride = { ...note("guest:c"), content: "local edit" };
-		store.set(keyStr(notesKeys.files()), [seedA, seedB]);
+		const localScope = notesKeys.localScope();
+		store.set(keyStr(notesKeys.files(localScope)), [seedA, seedB]);
 		mergedNotesOverride = [seedA, seedB, localOverride];
-		store.set(keyStr(notesKeys.folders()), [
+		store.set(keyStr(notesKeys.folders(localScope)), [
 			{ id: "guest:f", name: "F", parentId: null, sortOrder: 0, isOpen: true },
 		]);
 
@@ -123,7 +124,7 @@ describe("GuestWorkspaceBootstrap", () => {
 			phase: "authenticated",
 			user: { id: "u", email: "", name: "", role: null },
 		};
-		store.set(keyStr(notesKeys.files()), [note("guest:a")]);
+		store.set(keyStr(notesKeys.files(notesKeys.localScope())), [note("guest:a")]);
 
 		registerModuleMocks();
 		const { GuestWorkspaceBootstrap } = await import(

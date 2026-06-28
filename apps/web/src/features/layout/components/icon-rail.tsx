@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Kanban, Settings, UserRound, Waypoints } from "lucide-react";
+import { BookOpen, Settings, Trash2, UserRound, Waypoints } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
@@ -204,12 +204,17 @@ export function IconRail({ onOpenSettings }: Props) {
 			),
 		},
 	];
-
-	const planningItem = {
-		href: "/project-planning",
-		label: "Planning",
-		isActive: pathname === "/project-planning",
-		icon: () => <Kanban className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+	const trashNavItem = {
+		href: "/app/trash",
+		// Same capability gate as Journal: the desktop backend serves a local
+		// trash (no cloud auth), so it advertises trash=true and the link is
+		// reachable; on web only the signed-in server backend enables it.
+		requiresAuth: !capabilities.trash,
+		label: "Trash",
+		isActive: pathname === "/app/trash",
+		icon: (_active: boolean) => (
+			<Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />
+		),
 	};
 
 	const iconButtonClass =
@@ -218,11 +223,51 @@ export function IconRail({ onOpenSettings }: Props) {
 	const inactiveNavClass =
 		"border-transparent text-sidebar-foreground/52 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
 
+	const renderNavItem = ({
+		href,
+		label,
+		requiresAuth,
+		isActive,
+		icon,
+	}: (typeof navItems)[number] | typeof trashNavItem) => (
+		<Tooltip key={href}>
+			<TooltipTrigger asChild>
+				{requiresAuth && !isAuthenticated ? (
+					<button
+						type="button"
+						onClick={() => openAuthDrawerFor(href)}
+						className={cn(iconButtonClass, inactiveNavClass)}
+						aria-label={label}
+					>
+						{icon(false)}
+					</button>
+				) : (
+					<Link
+						href={href}
+						prefetch
+						className={cn(
+							iconButtonClass,
+							isActive
+								? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
+								: inactiveNavClass,
+						)}
+						aria-label={label}
+						aria-current={isActive ? "page" : undefined}
+					>
+						{icon(isActive)}
+					</Link>
+				)}
+			</TooltipTrigger>
+			<TooltipContent side="right">{label}</TooltipContent>
+		</Tooltip>
+	);
+
 	return (
 		<>
 			{/* The aside must NOT be inside AuthProvider — fixed positioning breaks
 			    if any ancestor creates a new containing block (transform, filter, etc.) */}
 			<aside
+				data-tauri-drag-region
 				className="fixed inset-y-0 left-0 z-30 hidden w-14 flex-col
       items-center justify-between border-r border-sidebar-border bg-sidebar/95
       backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 md:flex"
@@ -247,60 +292,11 @@ export function IconRail({ onOpenSettings }: Props) {
 						</Tooltip>
 					</div>
 					<div className="mt-4 flex w-full flex-col items-center gap-4">
-						{navItems.map(({ href, label, requiresAuth, isActive, icon }) => (
-							<Tooltip key={href}>
-								<TooltipTrigger asChild>
-									{requiresAuth && !isAuthenticated ? (
-										<button
-											type="button"
-											onClick={() => openAuthDrawerFor(href)}
-											className={cn(iconButtonClass, inactiveNavClass)}
-											aria-label={label}
-										>
-											{icon(false)}
-										</button>
-									) : (
-										<Link
-											href={href}
-											prefetch
-											className={cn(
-												iconButtonClass,
-												isActive
-													? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
-													: inactiveNavClass,
-											)}
-											aria-label={label}
-											aria-current={isActive ? "page" : undefined}
-										>
-											{icon(isActive)}
-										</Link>
-									)}
-								</TooltipTrigger>
-								<TooltipContent side="right">{label}</TooltipContent>
-							</Tooltip>
-						))}
+						{navItems.map(renderNavItem)}
 					</div>
 				</div>
 				<div className="flex w-full flex-col items-center gap-3 pb-4">
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Link
-								href={planningItem.href}
-								prefetch
-								className={cn(
-									iconButtonClass,
-									planningItem.isActive
-										? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
-										: inactiveNavClass,
-								)}
-								aria-label={planningItem.label}
-								aria-current={planningItem.isActive ? "page" : undefined}
-							>
-								{planningItem.icon()}
-							</Link>
-						</TooltipTrigger>
-						<TooltipContent side="right">{planningItem.label}</TooltipContent>
-					</Tooltip>
+					{renderNavItem(trashNavItem)}
 					<div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
 					<Tooltip>
 						<TooltipTrigger asChild>

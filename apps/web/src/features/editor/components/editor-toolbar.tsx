@@ -226,14 +226,14 @@ export function EditorToolbar({
 		);
 	}
 
-	return (
-		<TooltipProvider>
-			<div
-				className={cn(
-					"border-b border-border bg-background text-foreground",
-					"flex h-11 items-center gap-1 px-3",
-				)}
-			>
+		return (
+			<TooltipProvider>
+				<div
+					className={cn(
+						"border-b border-border bg-background text-foreground",
+						"flex h-11 items-center gap-1 px-3",
+					)}
+				>
 				<ToolbarTooltip label="Toggle sidebar" shortcutId="notes.toggleSidebar">
 					<button
 						onClick={onToggleSidebar}
@@ -269,7 +269,10 @@ export function EditorToolbar({
 					<ChevronRight className="h-4 w-4" strokeWidth={1.5} />
 				</button>
 
-				<div className="ml-2 flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+				<div
+					data-tauri-drag-region
+					className="ml-2 flex min-w-0 flex-1 items-center gap-1.5 text-sm"
+				>
 					{breadcrumb && breadcrumb.length > 0 && (
 						<>
 							{breadcrumb.map((part, i) => (

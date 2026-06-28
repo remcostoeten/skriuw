@@ -48,9 +48,9 @@ const PROMPTS: Record<AiAction, (content: string) => string> = {
 	generateTitle: (content) =>
 		`Generate a short, concise title (max 6 words) for this document. Respond ONLY with the title text, no markdown, no quotes.\n\n${content}`,
 	spellCheck: (content) =>
-		`Act as a professional copy editor. Correct all spelling, grammar, and typography errors in the following Markdown document. Keep the structural formatting (headings, lists, bolding) exactly the same. Only fix the text inside it. Respond ONLY with the corrected markdown document, without any extra commentary.\n\n${content}`,
+		`Act as a strict proofreader. Correct ONLY spelling, grammar, punctuation, and typography errors in the following Markdown document.\n\nHard rules:\n- Do NOT add any new words, sentences, paragraphs, headings, or list items.\n- Do NOT remove, merge, split, or reorder paragraphs.\n- Do NOT rephrase, expand, summarize, or "improve" wording — only fix outright errors.\n- Preserve the structural formatting (headings, lists, bolding) and the number of paragraphs/blocks exactly.\n- If a paragraph has no errors, return it byte-for-byte unchanged.\n\nReturn the same document with the same number of blocks, errors fixed. Respond ONLY with the corrected markdown, no commentary.\n\n${content}`,
 	continueWriting: (content) =>
-		`Continue writing the following Markdown document. Preserve its tone, style, and formatting. Output ONLY the continuation text in Markdown, do NOT repeat the original text.\n\n${content}`,
+		`You are continuing a Markdown document that was cut off — it may end mid-sentence or even mid-word.\n\nDo the following:\n1. Take the FINAL paragraph and rewrite it into a complete, natural paragraph: finish any unfinished word or sentence and smooth the wording so it reads well. Keep its original meaning and as much of the existing wording as possible.\n2. Then continue the document naturally for one or two more short paragraphs, matching the author's tone, style, and formatting.\n\nOutput ONLY Markdown: the rewritten final paragraph, immediately followed by your continuation. Do NOT restate or include the title, any headings, or any earlier paragraphs. Do NOT add a heading. Begin directly with the rewritten final paragraph.\n\nDocument:\n${content}`,
 };
 
 const VALID_ACTIONS = new Set(Object.keys(PROMPTS));

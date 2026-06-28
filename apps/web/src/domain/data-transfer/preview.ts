@@ -37,12 +37,19 @@ function classifyNote(note: ParsedNoteFile, ctx: PreviewContext, policy: ImportP
 
 	const key = noteImportKey(note);
 	if (note.id && ctx.existingNoteIds.has(note.id)) {
+		if (policy === "duplicate") return "create";
 		return policy === "overwrite" ? "overwrite" : "skip";
 	}
 	if (ctx.existingNoteKeys.has(key)) {
+		if (policy === "duplicate") return "create";
 		return policy === "overwrite" ? "overwrite" : "skip";
 	}
 	return "create";
+}
+
+function noteConflicts(note: ParsedNoteFile, ctx: PreviewContext): boolean {
+	const key = noteImportKey(note);
+	return Boolean(note.id && ctx.existingNoteIds.has(note.id)) || ctx.existingNoteKeys.has(key);
 }
 
 function classifyJournal(
@@ -136,8 +143,12 @@ export async function buildImportPreview(
 	const notesToCreateSamples: string[] = [];
 	const notesToOverwriteSamples: string[] = [];
 	const noteActions = new Map<ParsedNoteFile, NoteAction>();
+	let duplicateNoteConflicts = 0;
 
 	for (const note of archive.notes) {
+		if (policy === "duplicate" && noteConflicts(note, ctx)) {
+			duplicateNoteConflicts++;
+		}
 		const action = classifyNote(note, ctx, policy);
 		noteActions.set(note, action);
 		noteCounts[action]++;
@@ -230,6 +241,14 @@ export async function buildImportPreview(
 		}
 		if (journalCounts.skip > 0) {
 			warnings.push(`${journalCounts.skip} journal entries already exist and will be skipped.`);
+		}
+	}
+	if (policy === "duplicate") {
+		if (duplicateNoteConflicts > 0) {
+			warnings.push(`${duplicateNoteConflicts} existing notes will be imported as duplicates.`);
+		}
+		if (journalCounts.skip > 0) {
+			warnings.push(`${journalCounts.skip} existing journal entries cannot be duplicated and will be skipped.`);
 		}
 	}
 	if (policy === "overwrite") {

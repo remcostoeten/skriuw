@@ -15,6 +15,7 @@ import { WindowDragRegion } from "./components/window-drag-region";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { JournalPageLayout } from "@/features/journal/components/journal-page-layout";
 import { SettingsPage } from "@/features/settings/components/settings-page";
+import { TrashView } from "@/features/notes/components/trash/trash-view";
 
 const WorkspaceGraph = lazy(() =>
 	import("@/features/notes/components/workspace-graph").then((m) => ({
@@ -81,12 +82,19 @@ const settingsRoute = createRoute({
 	component: SettingsPage,
 });
 
+const trashRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/app/trash",
+	component: TrashView,
+});
+
 const routeTree = rootRoute.addChildren([
 	indexRoute,
 	notesRoute,
 	graphRoute,
 	journalRoute,
 	settingsRoute,
+	trashRoute,
 ]);
 
 export const router = createRouter({

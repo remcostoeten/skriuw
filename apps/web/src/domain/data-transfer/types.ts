@@ -1,14 +1,15 @@
 export const SKRIUW_EXPORT_SOURCE = "skriuw" as const;
 export const SKRIUW_EXPORT_VERSION = 3 as const;
 
-export type ImportPolicy = "merge" | "overwrite" | "replace-workspace";
+export type ImportPolicy = "merge" | "overwrite" | "duplicate" | "replace-workspace";
 export type ImportProfile =
 	| "skriuw"
 	| "markdown-vault"
 	| "obsidian"
 	| "apple-notes"
 	| "bear"
-	| "notion";
+	| "notion"
+	| "simplenote";
 
 export const DEFAULT_IMPORT_POLICY: ImportPolicy = "merge";
 
@@ -83,6 +84,8 @@ export type ParsedNoteFile = {
 	preferredEditorMode?: "raw" | "block";
 	createdAt?: string;
 	updatedAt?: string;
+	/** Import the note straight into Trash (soft-deleted). Used by sources that carry their own trash, e.g. Simplenote. */
+	deleted?: boolean;
 	sourcePath: string;
 };
 
@@ -161,7 +164,9 @@ export function isSkriuwManifestV2OrV3(
 }
 
 export function parseImportPolicy(value: FormDataEntryValue | null): ImportPolicy {
-	if (value === "overwrite" || value === "replace-workspace") return value;
+	if (value === "overwrite" || value === "duplicate" || value === "replace-workspace") {
+		return value;
+	}
 	return DEFAULT_IMPORT_POLICY;
 }
 
@@ -172,6 +177,7 @@ export function parseImportProfile(value: FormDataEntryValue | null): ImportProf
 		value === "apple-notes" ||
 		value === "bear" ||
 		value === "notion" ||
+		value === "simplenote" ||
 		value === "skriuw"
 	) {
 		return value;
