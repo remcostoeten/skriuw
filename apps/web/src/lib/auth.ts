@@ -58,6 +58,18 @@ export const auth = betterAuth({
 		requireEmailVerification: false,
 	},
 	socialProviders: Object.keys(socialProviders).length > 0 ? socialProviders : undefined,
+	account: {
+		accountLinking: {
+			enabled: true,
+			// Sign-in/sign-up doesn't require email verification yet, so trust these
+			// providers explicitly — otherwise Better Auth refuses to link a social
+			// account to an unverified-email user.
+			trustedProviders: ["github", "google"],
+			// Keep the framework's built-in last-account guard active as a backstop;
+			// our /api/account/connections route also enforces it with a clear message.
+			allowUnlinkingAll: false,
+		},
+	},
 	plugins: [
 		username({
 			minUsernameLength: 3,

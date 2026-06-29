@@ -9,7 +9,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { RawLogo } from "@/shared/icons/logo";
 import { useAuth } from "@/core/auth/use-auth";
-import { signOut } from "@/core/auth";
+import { signOut, signInWithOAuth, getRememberMePreference } from "@/core/auth";
+import {
+	DUPLICATE_OAUTH_EMAIL_EVENT,
+	getProviderLabel,
+	type DuplicateOAuthEmailDetail,
+} from "@/core/auth/connections";
+import type { OAuthProvider } from "@/core/auth";
 import { isAdmin } from "@/lib/roles";
 import { AuthDrawer, AuthProvider } from "@remcostoeten/auth-drawer";
 import type { AuthConfig } from "@remcostoeten/auth-drawer";
@@ -85,6 +91,7 @@ export function IconRail({ onOpenSettings }: Props) {
 		useState<AuthDrawerInitialMode>("login");
 	const [authDestination, setAuthDestination] = useState<string | null>(null);
 	const [authDrawerError, setAuthDrawerError] = useState<AuthErrorNotice | null>(null);
+	const [duplicateOAuth, setDuplicateOAuth] = useState<DuplicateOAuthEmailDetail | null>(null);
 	// Desktop is a single local profile with no cloud auth, so nothing is
 	// "protected" — gating these would only pop a sign-in drawer that can never
 	// resolve and would block the user out of Settings/Journal.
@@ -153,6 +160,28 @@ export function IconRail({ onOpenSettings }: Props) {
 		window.addEventListener(GUEST_SIGNUP_PROMPT_EVENT, handleGuestPrompt);
 		return () => window.removeEventListener(GUEST_SIGNUP_PROMPT_EVENT, handleGuestPrompt);
 	}, [router]);
+
+	useEffect(() => {
+		function handleDuplicateOAuth(event: Event) {
+			const detail = (event as CustomEvent<DuplicateOAuthEmailDetail>).detail;
+			if (!detail) return;
+			setAuthDrawerError(null);
+			setDuplicateOAuth(detail);
+		}
+		window.addEventListener(DUPLICATE_OAUTH_EMAIL_EVENT, handleDuplicateOAuth);
+		return () =>
+			window.removeEventListener(DUPLICATE_OAUTH_EMAIL_EVENT, handleDuplicateOAuth);
+	}, []);
+
+	const handleDuplicateOAuthSignIn = async (provider: string) => {
+		try {
+			await signInWithOAuth(provider as OAuthProvider, {
+				rememberMe: getRememberMePreference(),
+			});
+		} catch {
+			setDuplicateOAuth(null);
+		}
+	};
 
 	const handleSignOut = async () => {
 		await signOut();
@@ -356,7 +385,41 @@ export function IconRail({ onOpenSettings }: Props) {
 			{/* AuthProvider is a sibling of <aside>, not its parent.
 			    AuthDrawer renders into a portal so it works fine here. */}
 			<AuthProvider adapter={authDrawerAdapter}>
-				{authDrawerError ? (
+				{duplicateOAuth ? (
+					<div className="fixed bottom-4 left-16 z-[60] w-[min(24rem,calc(100vw-5rem))]">
+						<div
+							role="alert"
+							className="border border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur"
+						>
+							<p className="text-sm font-medium text-foreground">
+								Account already exists
+							</p>
+							<p className="mt-1 text-sm text-muted-foreground">
+								An account with this email already exists via{" "}
+								{getProviderLabel(duplicateOAuth.provider)}. Would you like to sign in
+								with {getProviderLabel(duplicateOAuth.provider)} instead?
+							</p>
+							<div className="mt-3 flex items-center gap-2">
+								<button
+									type="button"
+									onClick={() =>
+										handleDuplicateOAuthSignIn(duplicateOAuth.provider)
+									}
+									className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+								>
+									Sign in with {getProviderLabel(duplicateOAuth.provider)}
+								</button>
+								<button
+									type="button"
+									onClick={() => setDuplicateOAuth(null)}
+									className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+								>
+									Dismiss
+								</button>
+							</div>
+						</div>
+					</div>
+				) : authDrawerError ? (
 					<div className="fixed bottom-4 left-16 z-[60] w-[min(24rem,calc(100vw-5rem))]">
 						<div
 							role="alert"
@@ -383,6 +446,7 @@ export function IconRail({ onOpenSettings }: Props) {
 					}}
 					onSuccess={() => {
 						setAuthDrawerError(null);
+						setDuplicateOAuth(null);
 						if (authDestination && authDestination !== pathname) {
 							router.push(authDestination);
 						}
@@ -397,6 +461,10 @@ export function IconRail({ onOpenSettings }: Props) {
 									: typeof error === "string"
 										? error
 										: "Authentication failed";
+
+						// The duplicate-OAuth-email case is surfaced as a richer prompt
+						// via DUPLICATE_OAUTH_EMAIL_EVENT, so skip the plain error notice.
+						if (fallbackMessage.includes("already exists via")) return;
 
 						setAuthDrawerError(resolveAuthError(new Error(fallbackMessage)));
 					}}
