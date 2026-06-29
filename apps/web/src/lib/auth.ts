@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { admin, username } from "better-auth/plugins";
+import { deriveAvatarColor } from "@/features/collaboration/lib/collab-token";
 import { getBetterAuthBaseURL } from "./app-origin";
 import { prisma } from "./prisma";
 
@@ -50,6 +51,25 @@ function getGithubFallbackEmail(profile: { id?: string | number; login?: string 
 export const auth = betterAuth({
 	baseURL: getBetterAuthBaseURL(),
 	database: prismaAdapter(prisma, { provider: "postgresql" }),
+	user: {
+		additionalFields: {
+			avatarColor: {
+				type: "string",
+				required: false,
+				input: false,
+			},
+		},
+	},
+	databaseHooks: {
+		user: {
+			create: {
+				before: async (user) => {
+					const seed = user.id || user.email;
+					return { data: { ...user, avatarColor: deriveAvatarColor(seed) } };
+				},
+			},
+		},
+	},
 	emailAndPassword: {
 		enabled: true,
 		autoSignIn: true,

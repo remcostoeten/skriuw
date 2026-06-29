@@ -9,7 +9,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { AvatarFace } from "@/shared/icons/avatar-face";
-import { getAvatarSeed } from "@/shared/lib/avatar";
+import { deriveAvatarColor, getAvatarSeed } from "@/shared/lib/avatar";
 import {
 	Dialog,
 	DialogClose,
@@ -36,7 +36,11 @@ const DELETE_PHRASE = "delete my account";
 export function AccountSection() {
 	const auth = useAuth();
 	const user = auth.user;
-	const avatarColor = usePreferencesStore((state) => state.profile.avatarColor);
+	const avatarColorPreference = usePreferencesStore((state) => state.profile.avatarColor);
+	const avatarColor =
+		user?.avatarColor ??
+		avatarColorPreference ??
+		(user ? deriveAvatarColor(user.id) : undefined);
 	const avatarSeed = getAvatarSeed(user?.email || user?.name || user?.id, "account-user");
 
 	const initials = user?.name
