@@ -718,6 +718,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										{visibleSearchFolders.map((folder) => (
 											<button
 												key={folder.id}
+												onMouseDown={(event) => event.preventDefault()}
 												onClick={() => handleSearchFolderSelect(folder.id)}
 												className="flex h-[34px] w-full items-center gap-1.5 border border-transparent px-2 text-left text-xs font-medium text-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground/88"
 											>
@@ -747,6 +748,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										{visibleSearchFiles.map(({ file, snippet }) => (
 											<button
 												key={file.id}
+												onMouseDown={(event) => event.preventDefault()}
 												onClick={() => handleSearchFileSelect(file.id)}
 												className={cn(
 													"flex min-h-[34px] w-full items-start gap-1.5 border border-transparent px-2 py-1.5 text-left text-xs font-medium transition-colors",
