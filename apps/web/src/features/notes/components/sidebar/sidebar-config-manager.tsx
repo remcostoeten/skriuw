@@ -168,10 +168,12 @@ export function SidebarConfigManager({
 			{!hideTrigger && (
 				<DialogTrigger asChild>
 					<button
+						type="button"
 						className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground hover:bg-accent md:h-7 md:w-7"
 						title="Configure sidebar"
+						aria-label="Configure sidebar"
 					>
-						<Sliders className="w-4 h-4" strokeWidth={1.5} />
+						<Sliders className="w-4 h-4" strokeWidth={1.5} aria-hidden />
 					</button>
 				</DialogTrigger>
 			)}
@@ -189,10 +191,11 @@ export function SidebarConfigManager({
 						<div className="flex items-center justify-between mb-3">
 							<h4 className="text-sm font-medium">Sections</h4>
 							<button
+								type="button"
 								onClick={() => setIsAddingSection(true)}
 								className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
 							>
-								<Plus className="w-3 h-3" />
+								<Plus className="w-3 h-3" aria-hidden />
 								Add section
 							</button>
 						</div>
@@ -215,23 +218,28 @@ export function SidebarConfigManager({
 										}
 									}}
 									placeholder="Section name..."
+									aria-label="New section name"
 									className="flex-1 bg-transparent text-base outline-none md:text-sm"
 									autoFocus
 								/>
 								<button
+									type="button"
 									onClick={handleAddSection}
 									className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
 								>
 									Add
 								</button>
 								<button
+									type="button"
 									onClick={() => {
 										setIsAddingSection(false);
 										setNewSectionName("");
 									}}
 									className="p-1 text-muted-foreground hover:text-foreground"
+									title="Cancel"
+									aria-label="Cancel adding section"
 								>
-									<X className="w-3 h-3" />
+									<X className="w-3 h-3" aria-hidden />
 								</button>
 							</div>
 						)}
@@ -273,23 +281,28 @@ export function SidebarConfigManager({
 													"h-3.5 w-3.5 shrink-0 text-muted-foreground",
 													section.type === "file-tree" && "opacity-30",
 												)}
+												aria-hidden
 											/>
 											<div className="flex flex-col">
 												<button
+													type="button"
 													onClick={() => moveSection(section.id, "up")}
 													disabled={!canMoveUp}
 													className="flex h-3.5 w-3.5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
 													title="Move up"
+													aria-label={`Move ${section.name} up`}
 												>
-													<ChevronUp className="h-3 w-3" />
+													<ChevronUp className="h-3 w-3" aria-hidden />
 												</button>
 												<button
+													type="button"
 													onClick={() => moveSection(section.id, "down")}
 													disabled={!canMoveDown}
 													className="flex h-3.5 w-3.5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
 													title="Move down"
+													aria-label={`Move ${section.name} down`}
 												>
-													<ChevronDown className="h-3 w-3" />
+													<ChevronDown className="h-3 w-3" aria-hidden />
 												</button>
 											</div>
 										</div>
@@ -310,23 +323,28 @@ export function SidebarConfigManager({
 											</div>
 										</div>
 										<button
+											type="button"
 											onClick={() => onToggleSectionVisibility(section.id)}
 											className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground md:h-7 md:w-7"
 											title={section.isVisible ? "Hide" : "Show"}
+											aria-pressed={section.isVisible}
+											aria-label={`${section.isVisible ? "Hide" : "Show"} ${section.name}`}
 										>
 											{section.isVisible ? (
-												<Eye className="w-3.5 h-3.5" />
+												<Eye className="w-3.5 h-3.5" aria-hidden />
 											) : (
-												<EyeOff className="w-3.5 h-3.5" />
+												<EyeOff className="w-3.5 h-3.5" aria-hidden />
 											)}
 										</button>
 										{section.type === "custom" && (
 											<button
+												type="button"
 												onClick={() => onRemoveSection(section.id)}
 												className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-destructive md:h-7 md:w-7"
 												title="Remove"
+												aria-label={`Remove ${section.name}`}
 											>
-												<X className="w-3.5 h-3.5" />
+												<X className="w-3.5 h-3.5" aria-hidden />
 											</button>
 										)}
 									</div>
@@ -376,10 +394,11 @@ export function SidebarConfigManager({
 					{/* Reset button */}
 					<div className="pt-4 border-t border-border">
 						<button
+							type="button"
 							onClick={onResetToDefaults}
 							className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground border border-border rounded hover:bg-accent/30 transition-colors"
 						>
-							<RotateCcw className="w-3.5 h-3.5" />
+							<RotateCcw className="w-3.5 h-3.5" aria-hidden />
 							Reset to defaults
 						</button>
 					</div>

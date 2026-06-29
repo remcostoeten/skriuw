@@ -20,6 +20,7 @@ import {
 	Row,
 	SettingsCard,
 } from "@/features/settings/components/settings-primitives";
+import { ConnectedAccounts } from "@/features/settings/components/connected-accounts";
 
 function ChangePasswordDialog() {
 	const [open, setOpen] = useState(false);
@@ -145,6 +146,7 @@ export function SecuritySection() {
 					<ChangePasswordDialog />
 				</Row>
 			</SettingsCard>
+			<ConnectedAccounts />
 		</>
 	);
 }

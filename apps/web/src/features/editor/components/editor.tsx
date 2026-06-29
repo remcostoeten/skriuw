@@ -30,7 +30,7 @@ const RichTextEditor = dynamic(
 	},
 );
 
-interface EditorProps {
+type EditorProps = {
 	file: NoteFile | null;
 	files?: NoteFile[];
 	editorMode: EditorMode;

@@ -62,9 +62,9 @@ function trashRecordsToBatches(records: RustTrashRecord[]): TrashBatch[] {
 type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
 
 /** Mirror of Tauri's `Channel` for streaming command events (install/pull progress). */
-export interface TauriChannel<T> {
+export type TauriChannel<T> = {
 	onmessage: (message: T) => void;
-}
+};
 
 type TauriChannelCtor = new <T>() => TauriChannel<T>;
 
@@ -344,6 +344,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			notifications: false,
 			ai: true,
 			trash: true,
+			history: false,
 		},
 
 		listNotes,

@@ -9,7 +9,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { AvatarFace } from "@/shared/icons/avatar-face";
-import { getAvatarSeed } from "@/shared/lib/avatar";
+import { deriveAvatarColor, getAvatarSeed } from "@/shared/lib/avatar";
 import {
 	Dialog,
 	DialogClose,
@@ -21,8 +21,14 @@ import {
 	DialogTrigger,
 } from "@/shared/ui/dialog";
 import { useAuth } from "@/core/auth/use-auth";
-import { signOut, updateUserDisplayName, updateUsername } from "@/core/auth";
+import {
+	isUsernameTakenError,
+	signOut,
+	updateUserDisplayName,
+	updateUsername,
+} from "@/core/auth";
 import { isUsernameAvailable } from "@/lib/auth-client";
+import { validateUsernameFormat } from "@/lib/username";
 import { usePreferencesStore } from "@/features/settings/store";
 import {
 	SectionHeader,
@@ -36,7 +42,11 @@ const DELETE_PHRASE = "delete my account";
 export function AccountSection() {
 	const auth = useAuth();
 	const user = auth.user;
-	const avatarColor = usePreferencesStore((state) => state.profile.avatarColor);
+	const avatarColorPreference = usePreferencesStore((state) => state.profile.avatarColor);
+	const avatarColor =
+		user?.avatarColor ??
+		avatarColorPreference ??
+		(user ? deriveAvatarColor(user.id) : undefined);
 	const avatarSeed = getAvatarSeed(user?.email || user?.name || user?.id, "account-user");
 
 	const initials = user?.name
@@ -80,6 +90,10 @@ export function AccountSection() {
 				setUsernameAvailable(null);
 				return;
 			}
+			if (validateUsernameFormat(value)) {
+				setUsernameAvailable(null);
+				return;
+			}
 			usernameDebounceRef.current = setTimeout(async () => {
 				pendingCheckRef.current = value;
 				const { data } = await isUsernameAvailable({ username: value });
@@ -94,14 +108,26 @@ export function AccountSection() {
 	const handleSaveUsername = async () => {
 		const trimmed = usernameValue.trim();
 		if (!trimmed || trimmed === user?.username) return;
-		if (usernameAvailable === false) return;
+		const formatError = validateUsernameFormat(trimmed);
+		if (formatError) {
+			setUsernameError(formatError);
+			return;
+		}
+		if (usernameAvailable === false) {
+			setUsernameError("That username is already taken.");
+			return;
+		}
 		setIsSavingUsername(true);
 		setUsernameError(null);
 		try {
 			await updateUsername(trimmed);
 		} catch (err) {
 			setUsernameValue(user?.username ?? "");
-			setUsernameError(err instanceof Error ? err.message : "Could not update username.");
+			setUsernameError(
+				isUsernameTakenError(err)
+					? "That username is already taken."
+					: "Couldn't update username. Please try again.",
+			);
 		} finally {
 			setIsSavingUsername(false);
 			setUsernameAvailable(null);
