@@ -320,7 +320,7 @@ export function Editor({
 							onBlur?.();
 						}}
 						className={cn(
-							"w-full min-h-[80vh] bg-transparent text-foreground/90 text-base md:text-sm resize-none outline-hidden",
+							"w-full min-h-[80vh] bg-transparent text-foreground/90 text-base md:text-sm resize-none outline-hidden shadow-none focus:shadow-none focus-visible:shadow-none",
 							showLineNumbers && "flex-1",
 						)}
 						style={{
