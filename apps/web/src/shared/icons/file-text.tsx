@@ -7,14 +7,14 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/shared/lib/utils";
 
-export interface FileTextIconHandle {
+export type FileTextIconHandle = {
 	startAnimation: () => void;
 	stopAnimation: () => void;
-}
+};
 
-interface FileTextIconProps extends HTMLAttributes<HTMLDivElement> {
+type FileTextIconProps = HTMLAttributes<HTMLDivElement> & {
 	size?: number;
-}
+};
 
 const FILE_TEXT = forwardRef<FileTextIconHandle, FileTextIconProps>(
 	({ onMouseEnter, onMouseLeave, className, size = 28, ...props }, ref) => {

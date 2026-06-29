@@ -7,14 +7,14 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/shared/lib/utils";
 
-export interface FolderOpenIconHandle {
+export type FolderOpenIconHandle = {
 	startAnimation: () => void;
 	stopAnimation: () => void;
-}
+};
 
-interface FolderOpenIconProps extends HTMLAttributes<HTMLDivElement> {
+type FolderOpenIconProps = HTMLAttributes<HTMLDivElement> & {
 	size?: number;
-}
+};
 
 const VARIANTS: Variants = {
 	normal: { rotate: 0 },

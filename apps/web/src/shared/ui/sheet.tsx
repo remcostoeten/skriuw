@@ -45,12 +45,10 @@ const sheetVariants = cva(
 	},
 );
 
-interface SheetContentProps
-	extends
-		React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-		VariantProps<typeof sheetVariants> {
-	hideClose?: boolean;
-}
+type SheetContentProps = React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> &
+	VariantProps<typeof sheetVariants> & {
+		hideClose?: boolean;
+	};
 
 const SheetContent = React.forwardRef<
 	React.ElementRef<typeof SheetPrimitive.Content>,

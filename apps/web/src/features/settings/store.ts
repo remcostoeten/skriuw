@@ -28,7 +28,7 @@ import type {
 // Re-exported for the few public consumers that import these from the store.
 export type { AiKey, AiPreferences } from "./preferences/types";
 
-interface PreferencesState {
+type PreferencesState = {
 	userScopeId: string | null;
 	isLoading: boolean;
 	isHydrated: boolean;

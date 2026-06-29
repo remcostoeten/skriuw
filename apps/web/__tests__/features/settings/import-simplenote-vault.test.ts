@@ -40,7 +40,7 @@ type MockState = {
 function mockBackend(state: MockState): WorkspaceBackend {
 	return {
 		mode: "tauri",
-		capabilities: { journal: true, sharing: false, collaboration: false, notifications: false, ai: true, trash: true },
+		capabilities: { journal: true, sharing: false, collaboration: false, notifications: false, ai: true, trash: true, history: false },
 		async listNotes() {
 			return state.imported;
 		},

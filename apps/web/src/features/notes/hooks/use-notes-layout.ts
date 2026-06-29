@@ -1051,6 +1051,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "new-note",
 				label: diaryModeEnabled ? "Open today's journal" : "Create note",
+				group: "Actions",
 				shortcut: "mod+n",
 				keywords: diaryModeEnabled
 					? ["journal", "today", "entry", "create", "new"]
@@ -1063,6 +1064,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "new-folder",
 				label: "Create folder",
+				group: "Actions",
 				shortcut: "mod+shift+n",
 				keywords: ["folder", "create", "sidebar"],
 				description: "Add a new folder to the current tree.",
@@ -1071,6 +1073,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "toggle-sidebar",
 				label: "Toggle sidebar",
+				group: "Navigation",
 				shortcut: "mod+shift+b",
 				keywords: ["sidebar", "navigation", "panel"],
 				description: "Show or hide the notes navigation panel.",
@@ -1079,6 +1082,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "toggle-metadata",
 				label: "Toggle note details",
+				group: "Navigation",
 				shortcut: "mod+shift+alt+b",
 				keywords: ["metadata", "details", "properties"],
 				description: "Show or hide the metadata panel.",
@@ -1087,6 +1091,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "toggle-editor-mode",
 				label: "Toggle editor surface",
+				group: "Editor",
 				shortcut: "mod+alt+e",
 				keywords: ["raw mdx", "block note", "editor"],
 				description: "Swap between raw MDX and Block Note.",
@@ -1095,6 +1100,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "focus-file-tree",
 				label: "Focus file tree",
+				group: "Navigation",
 				shortcut: "ctrl+e",
 				keywords: ["file tree", "sidebar", "focus", "notes"],
 				description: "Move focus to the active note in the file tree.",
@@ -1103,6 +1109,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "split-editor",
 				label: "Split editor vertically",
+				group: "Editor",
 				shortcut: "mod+shift+e",
 				keywords: ["split", "editor", "pane", "vertical"],
 				description: "Open the neighboring note in a vertical split.",
@@ -1111,6 +1118,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "split-editor-horizontal",
 				label: "Split editor horizontally",
+				group: "Editor",
 				shortcut: "ctrl+b",
 				keywords: ["split", "editor", "pane", "horizontal"],
 				description: "Open or switch the split editor to a horizontal layout.",
@@ -1119,6 +1127,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "focus-next-split-pane",
 				label: "Focus next split pane",
+				group: "Editor",
 				shortcut: "ctrl+`",
 				keywords: ["split", "editor", "pane", "focus", "next"],
 				description: "Move focus clockwise through split editor panes.",
@@ -1127,6 +1136,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "focus-previous-split-pane",
 				label: "Focus previous split pane",
+				group: "Editor",
 				shortcut: "ctrl+shift+`",
 				keywords: ["split", "editor", "pane", "focus", "previous"],
 				description: "Move focus counter-clockwise through split editor panes.",
@@ -1135,6 +1145,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "open-settings",
 				label: "Open settings",
+				group: "Settings",
 				shortcut: "mod+comma",
 				keywords: ["settings", "preferences"],
 				description: "Open the settings modal.",
@@ -1143,6 +1154,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "open-journal",
 				label: "Go to journal",
+				group: "Navigation",
 				keywords: ["journal", "route", "navigate"],
 				description: "Jump from notes into the journal view.",
 				action: () => router.push("/app/journal"),
@@ -1150,6 +1162,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			{
 				id: "welcome-tour",
 				label: "Show welcome tour",
+				group: "Help",
 				keywords: ["tour", "walkthrough", "onboarding", "welcome", "help", "slash", "demo"],
 				description: "Replay the quick intro to the / menu, links, and tags.",
 				action: replayWelcomeTour,
