@@ -1,3 +1,7 @@
+import { deriveAvatarColor } from "@/features/collaboration/lib/collab-token";
+
+export { deriveAvatarColor };
+
 export const FACE_TYPES = ["round", "cross", "line", "curved"] as const;
 export const ROTATIONS = [
 	{ x: -1, y: 1 },
@@ -10,14 +14,6 @@ export const ROTATIONS = [
 	{ x: -1, y: -1 },
 	{ x: 1, y: -1 },
 ] as const;
-export const DEFAULT_AVATAR_COLORS = [
-	"hsl(var(--project-pink))",
-	"hsl(var(--project-amber))",
-	"hsl(var(--project-blue))",
-	"hsl(var(--project-orange))",
-	"hsl(var(--project-green))",
-] as const;
-
 export type FaceType = (typeof FACE_TYPES)[number];
 
 export type FaceShape = {
@@ -79,17 +75,22 @@ export function getAvatarData(input?: string | null) {
 	return {
 		seed,
 		faceType: FACE_TYPES[hash % FACE_TYPES.length] ?? FACE_TYPES[0],
-		color:
-			DEFAULT_AVATAR_COLORS[hash % DEFAULT_AVATAR_COLORS.length] ?? DEFAULT_AVATAR_COLORS[0],
+		color: deriveAvatarColor(seed),
 		rotation: ROTATIONS[hash % ROTATIONS.length] ?? ROTATIONS[0],
 		initial: seed.charAt(0).toUpperCase(),
 	};
 }
 
+/**
+ * Resolves the background color for an avatar. A stored/explicit `colorOverride`
+ * (the persisted per-user color) always wins; otherwise the color is derived
+ * deterministically from the seed so the same input never changes between
+ * renders, sessions, or devices.
+ */
 export function resolveAvatarColor(input?: string | null, colorOverride?: string | null) {
 	if (colorOverride?.trim()) {
 		return colorOverride.trim();
 	}
 
-	return getAvatarData(input).color;
+	return deriveAvatarColor(getAvatarSeed(input));
 }
