@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><title>Skriuw — Linux install</title>
+<body style="font:16px/1.6 system-ui;max-width:46rem;margin:3rem auto;padding:0 1rem">
+<h1>Skriuw — Linux install</h1>
+<h2>Debian / Ubuntu (apt)</h2>
+<pre>curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
+echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" | sudo tee /etc/apt/sources.list.d/skriuw.list
+sudo apt update && sudo apt install skriuw</pre>
+<h2>Arch (AUR)</h2>
+<pre>yay -S skriuw-bin   # or: paru -S skriuw-bin</pre>
+<p>Latest: v0.13.0</p>
+</body>
