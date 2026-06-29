@@ -15,6 +15,7 @@ import {
 	insertOrUpdateBlockForSlashMenu,
 	SuggestionMenu as SuggestionMenuExtension,
 } from "@blocknote/core/extensions";
+import { useShortcutMap } from "@remcostoeten/use-shortcut/react";
 import { LinkToolbarExtension } from "@blocknote/core/extensions";
 import {
 	DeleteLinkButton,
@@ -89,6 +90,21 @@ import {
 import { usePreferencesStore } from "@/features/settings/store";
 import { markCollabActivity } from "@/features/collaboration/lib/collab-activity";
 import { useAnchoredMarks } from "@/features/collaboration/anchored-marks/react/use-anchored-marks";
+import {
+	buildRegex,
+	clearSearch,
+	createSearchPlugin,
+	defaultSearchOptions,
+	getSearchState,
+	nextMatch,
+	previousMatch,
+	replaceAll,
+	replaceCurrent,
+	setSearch,
+	searchPluginKey,
+	type SearchOptions,
+} from "@/features/editor/lib/search-plugin";
+import { SearchWidget } from "./search-widget";
 import { editorSchema } from "./inline-specs/schema";
 import { NoteLinkProvider } from "./inline-specs/note-link-context";
 import type * as Y from "yjs";
@@ -1315,12 +1331,148 @@ export function RichTextEditor({
 					initialContent: initialBlocks,
 				},
 	);
+	const searchPlugin = useMemo(() => createSearchPlugin(), []);
+	const [searchOpen, setSearchOpen] = useState(false);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [replaceValue, setReplaceValue] = useState("");
+	const [showReplace, setShowReplace] = useState(false);
+	const [searchOptions, setSearchOptions] = useState<SearchOptions>({
+		...defaultSearchOptions,
+	});
+	const [matchInfo, setMatchInfo] = useState({ current: 0, total: 0 });
+	const findInputRef = useRef<HTMLInputElement>(null);
 	const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
 	const { createAndOpenNote, openNote } = useNoteLinkActions(files);
 
 	// Anchored comments live alongside the document in the same Yjs room; the
 	// engine only attaches on collaborative notes and tears down otherwise.
 	const { addComment } = useAnchoredMarks(editor, collab ?? null);
+
+	const regexError = useMemo(() => {
+		if (!searchOptions.regex || searchQuery.length === 0) return false;
+		return buildRegex(searchQuery, searchOptions) === null;
+	}, [searchOptions, searchQuery]);
+
+	const syncMatchInfo = useCallback(() => {
+		const view = editor.prosemirrorView;
+		const state = view ? getSearchState(view) : undefined;
+		setMatchInfo({ current: state?.current ?? 0, total: state?.matches.length ?? 0 });
+	}, [editor]);
+
+	const openSearch = useCallback(() => {
+		setSearchOpen(true);
+		requestAnimationFrame(() => {
+			findInputRef.current?.focus();
+			findInputRef.current?.select();
+		});
+	}, []);
+
+	const closeSearch = useCallback(() => {
+		setSearchOpen(false);
+		const view = editor.prosemirrorView;
+		if (view) {
+			clearSearch(view);
+			view.focus();
+		}
+	}, [editor]);
+
+	const toggleSearchOption = useCallback((key: keyof SearchOptions) => {
+		setSearchOptions((prev) => ({ ...prev, [key]: !prev[key] }));
+	}, []);
+
+	const handleNextMatch = useCallback(() => {
+		const view = editor.prosemirrorView;
+		if (!view) return;
+		nextMatch(view);
+		syncMatchInfo();
+	}, [editor, syncMatchInfo]);
+
+	const handlePreviousMatch = useCallback(() => {
+		const view = editor.prosemirrorView;
+		if (!view) return;
+		previousMatch(view);
+		syncMatchInfo();
+	}, [editor, syncMatchInfo]);
+
+	const handleReplaceCurrent = useCallback(() => {
+		const view = editor.prosemirrorView;
+		if (!view) return;
+		replaceCurrent(view, replaceValue);
+		syncMatchInfo();
+	}, [editor, replaceValue, syncMatchInfo]);
+
+	const handleReplaceAll = useCallback(() => {
+		const view = editor.prosemirrorView;
+		if (!view) return;
+		replaceAll(view, replaceValue);
+		syncMatchInfo();
+	}, [editor, replaceValue, syncMatchInfo]);
+
+	useEffect(() => {
+		const tiptap = editor._tiptapEditor;
+		if (!tiptap) return;
+		tiptap.registerPlugin(searchPlugin);
+		return () => {
+			tiptap.unregisterPlugin(searchPluginKey);
+		};
+	}, [editor, searchPlugin]);
+
+	useEffect(() => {
+		const view = editor.prosemirrorView;
+		if (!view) return;
+		setSearch(view, searchQuery, searchOptions);
+		syncMatchInfo();
+	}, [editor, searchOptions, searchQuery, syncMatchInfo]);
+
+	useShortcutMap(
+		{
+			findInNote: {
+				keys: "mod+f",
+				handler: openSearch,
+				options: {
+					description: "Find in note",
+					preventDefault: true,
+					stopOnMatch: true,
+				},
+			},
+		},
+		{
+			ignoreInputs: false,
+		},
+	);
+
+	useShortcutMap(
+		{
+			matchCase: {
+				keys: "alt+c",
+				handler: () => toggleSearchOption("caseSensitive"),
+				options: {
+					description: "Toggle match case",
+					preventDefault: true,
+				},
+			},
+			wholeWord: {
+				keys: "alt+w",
+				handler: () => toggleSearchOption("wholeWord"),
+				options: {
+					description: "Toggle whole word",
+					preventDefault: true,
+				},
+			},
+			regex: {
+				keys: "alt+r",
+				handler: () => toggleSearchOption("regex"),
+				options: {
+					description: "Toggle regular expression",
+					preventDefault: true,
+				},
+			},
+		},
+		{
+			disabled: !searchOpen,
+			ignoreInputs: false,
+		},
+	);
 
 	const handleCreateNoteFromMention = useCallback(
 		(title: string) => {
@@ -1799,7 +1951,7 @@ export function RichTextEditor({
 				flushPendingEditorChange();
 				onBlur?.();
 			}}
-			className="blocknote-wrapper h-full min-h-full px-6 py-3"
+			className="blocknote-wrapper relative h-full min-h-full px-6 py-3"
 			style={
 				{
 					"--bn-font-family": getEditorFontFamily(editorFontId),
@@ -1807,6 +1959,29 @@ export function RichTextEditor({
 				} as CSSProperties
 			}
 		>
+			{searchOpen ? (
+				<div className="absolute top-3 right-4 z-40">
+					<SearchWidget
+						ref={findInputRef}
+						query={searchQuery}
+						onQueryChange={setSearchQuery}
+						replaceValue={replaceValue}
+						onReplaceChange={setReplaceValue}
+						showReplace={showReplace}
+						onToggleReplace={() => setShowReplace((value) => !value)}
+						options={searchOptions}
+						onToggleOption={toggleSearchOption}
+						current={matchInfo.current}
+						total={matchInfo.total}
+						regexError={regexError}
+						onNext={handleNextMatch}
+						onPrevious={handlePreviousMatch}
+						onClose={closeSearch}
+						onReplaceCurrent={handleReplaceCurrent}
+						onReplaceAll={handleReplaceAll}
+					/>
+				</div>
+			) : null}
 			<NoteLinkProvider files={files} activeFileId={activeFileId}>
 					<BlockNoteView
 						editor={editor}
