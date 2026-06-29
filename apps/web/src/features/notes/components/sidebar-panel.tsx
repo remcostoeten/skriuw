@@ -683,6 +683,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 											}
 										}}
 										placeholder="Search"
+										aria-label="Search notes"
 										className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-[13px]"
 									/>
 									<button
@@ -789,11 +790,14 @@ export const SidebarPanel = memo(function SidebarPanel({
 						) : (
 							<div className="px-2 py-6 text-center">
 								<p className="text-xs font-medium text-foreground/70">
-									No results found
+									{supportsContentSearch
+										? "No results found"
+										: "No matching titles"}
 								</p>
 								<p className="mt-1 text-[11px] text-muted-foreground">
-									Try a note title, folder name, or a phrase from the editor
-									content.
+									{supportsContentSearch
+										? "Try a note title, folder name, or a phrase from the editor content."
+										: "Try a different note or folder name."}
 								</p>
 							</div>
 						)}
