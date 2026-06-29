@@ -8,7 +8,12 @@ fn main() {
         // (notably X11 + NVIDIA proprietary driver) disabling it instead causes
         // a multi-second-to-indefinite first-paint stall that leaves the window
         // stuck on the splash, so we must leave dmabuf enabled there.
-        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() && is_wayland_session() {
+        //
+        // That stall was only ever reproduced in the packaged (release) build,
+        // so in dev we additionally disable dmabuf everywhere to silence the
+        // harmless "Failed to create GBM buffer" fallback noise.
+        let should_disable_dmabuf = cfg!(debug_assertions) || is_wayland_session();
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() && should_disable_dmabuf {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
     }

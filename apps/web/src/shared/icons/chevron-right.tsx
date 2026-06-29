@@ -7,14 +7,14 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/shared/lib/utils";
 
-export interface ChevronRightIconHandle {
+export type ChevronRightIconHandle = {
 	startAnimation: () => void;
 	stopAnimation: () => void;
-}
+};
 
-interface ChevronRightIconProps extends HTMLAttributes<HTMLDivElement> {
+type ChevronRightIconProps = HTMLAttributes<HTMLDivElement> & {
 	size?: number;
-}
+};
 
 const DEFAULT_TRANSITION: Transition = {
 	times: [0, 0.4, 1],

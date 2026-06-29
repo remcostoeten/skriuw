@@ -3,14 +3,16 @@ import { isTauriRuntime, tauriInvoke } from "@/core/workspace-backend";
 
 export type { AiAction, AiErrorCode } from "@/domain/ai/types";
 
-export interface AiEditorHandle {
+/** Imperative bridge the AI actions use to read/write the active editor. */
+export type AiEditorHandle = {
 	getMarkdown: () => Promise<string>;
 	replaceContent: (markdown: string) => void;
 	continueWriting: (markdown: string) => void;
 	setTitle: (title: string) => void;
 }
 
-export interface AiCallOptions {
+/** Per-request options for an AI completion (key selection, model, rate-limit attribution). */
+export type AiCallOptions = {
 	apiKey?: string | null;
 	keyId?: string | null;
 	model?: string;
