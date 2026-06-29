@@ -2,7 +2,7 @@ import { getServerUser } from "@/core/db";
 import { prisma } from "@/lib/prisma";
 import { resolveNoteAccess } from "@/domain/notes/note-access";
 import {
-	collabColorForUser,
+	deriveAvatarColor,
 	signCollabToken,
 } from "@/features/collaboration/lib/collab-token";
 
@@ -49,7 +49,8 @@ export async function POST(request: Request) {
 	}
 
 	const name = user.name ?? user.email ?? "Anonymous";
-	const color = collabColorForUser(user.id);
+	const storedColor = (user as { avatarColor?: string | null }).avatarColor;
+	const color = storedColor ?? deriveAvatarColor(user.id);
 
 	const token = await signCollabToken(
 		{
