@@ -47,6 +47,8 @@ function makeNote(id: string): NoteFile {
 function createInitialStoreState(): NotesStoreState {
 	return {
 		activeFileId: "note-a",
+		primaryTabs: [],
+		secondaryTabs: [],
 		split: {
 			secondaryFileId: null,
 			focusedPane: "primary",
