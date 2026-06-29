@@ -39,7 +39,7 @@ import { NoteSendContextSubmenu, NoteSendMobileActionBlock } from "./note-send-m
 import { GuestGate } from "@/shared/ui/guest-gate";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
 
-interface FileListProps {
+type FileListProps = {
 	files: NoteFile[];
 	folders: NoteFolder[];
 	activeFileId: string;
