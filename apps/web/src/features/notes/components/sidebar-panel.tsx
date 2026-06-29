@@ -667,7 +667,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 								transition={searchSwapTransition}
 								className="absolute inset-x-0 top-0 flex h-11 items-center px-3 will-change-transform"
 							>
-								<div className="flex h-8 w-full items-center gap-2 border border-border bg-background px-2.5 transition-colors focus-within:border-ring">
+								<div className="flex h-8 w-full items-center gap-2 bg-transparent px-2.5">
 									<Search
 										className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
 										strokeWidth={1.5}
