@@ -344,6 +344,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			notifications: false,
 			ai: true,
 			trash: true,
+			history: false,
 		},
 
 		listNotes,

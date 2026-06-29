@@ -37,6 +37,7 @@ export const serverBackend: WorkspaceBackend = {
 		notifications: true,
 		ai: true,
 		trash: true,
+		history: true,
 	},
 
 	createNote,
