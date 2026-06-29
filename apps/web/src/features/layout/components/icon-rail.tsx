@@ -169,17 +169,19 @@ export function IconRail({ onOpenSettings }: Props) {
 			setDuplicateOAuth(detail);
 		}
 		window.addEventListener(DUPLICATE_OAUTH_EMAIL_EVENT, handleDuplicateOAuth);
-		return () =>
-			window.removeEventListener(DUPLICATE_OAUTH_EMAIL_EVENT, handleDuplicateOAuth);
+		return () => window.removeEventListener(DUPLICATE_OAUTH_EMAIL_EVENT, handleDuplicateOAuth);
 	}, []);
 
 	const handleDuplicateOAuthSignIn = async (provider: string) => {
+		setDuplicateOAuth(null);
 		try {
 			await signInWithOAuth(provider as OAuthProvider, {
 				rememberMe: getRememberMePreference(),
 			});
-		} catch {
-			setDuplicateOAuth(null);
+		} catch (error) {
+			setAuthDrawerError(
+				resolveAuthError(error instanceof Error ? error : new Error(String(error))),
+			);
 		}
 	};
 
@@ -241,9 +243,7 @@ export function IconRail({ onOpenSettings }: Props) {
 		requiresAuth: !capabilities.trash,
 		label: "Trash",
 		isActive: pathname === "/app/trash",
-		icon: (_active: boolean) => (
-			<Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />
-		),
+		icon: (_active: boolean) => <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />,
 	};
 
 	const iconButtonClass =
@@ -396,8 +396,8 @@ export function IconRail({ onOpenSettings }: Props) {
 							</p>
 							<p className="mt-1 text-sm text-muted-foreground">
 								An account with this email already exists via{" "}
-								{getProviderLabel(duplicateOAuth.provider)}. Would you like to sign in
-								with {getProviderLabel(duplicateOAuth.provider)} instead?
+								{getProviderLabel(duplicateOAuth.provider)}. Would you like to sign
+								in with {getProviderLabel(duplicateOAuth.provider)} instead?
 							</p>
 							<div className="mt-3 flex items-center gap-2">
 								<button
