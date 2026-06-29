@@ -1,4 +1,5 @@
 const LOCAL_APP_ORIGIN = "http://localhost:3000";
+const PRODUCTION_APP_ORIGIN = "https://skriuw.com";
 
 const KNOWN_APP_HOSTS = ["skriuw.com", "www.skriuw.com", "skriuw.app"] as const;
 
@@ -47,7 +48,15 @@ export function getServerAppOrigin(): string | undefined {
 
 export function getBrowserAppOrigin(): string | undefined {
 	if (typeof window !== "undefined") {
-		return window.location.origin;
+		const origin = window.location.origin;
+		// The desktop (Tauri) webview serves the app from a custom scheme
+		// (tauri://localhost). Better Auth throws on any base URL that isn't
+		// http(s), which aborts SPA bootstrap and leaves the app stuck on the
+		// splash, so fall back to the configured/production origin there.
+		if (/^https?:\/\//.test(origin)) {
+			return origin;
+		}
+		return getServerAppOrigin() ?? PRODUCTION_APP_ORIGIN;
 	}
 
 	return getServerAppOrigin();
