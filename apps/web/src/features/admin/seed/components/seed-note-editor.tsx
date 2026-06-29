@@ -8,11 +8,11 @@ import { NoteLinkProvider } from "@/features/editor/components/inline-specs/note
 import { useSeedEditorStore } from "../store";
 import type { SeedNote } from "@/domain/seed/types";
 
-interface SeedNoteEditorProps {
+type Props = {
 	note: SeedNote;
-}
+};
 
-export function SeedNoteEditor({ note }: SeedNoteEditorProps) {
+export function SeedNoteEditor({ note }: Props) {
 	const updateNoteContent = useSeedEditorStore((s) => s.updateNoteContent);
 
 	// biome-ignore lint/suspicious/noExplicitAny: editor type with custom schema requires deep inference

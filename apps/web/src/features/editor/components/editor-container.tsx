@@ -53,7 +53,7 @@ import {
 	getEditorContextMenuState,
 } from "@/features/desktop/context-menu-actions";
 
-interface EditorContainerProps {
+type EditorContainerProps = {
 	file: NoteFile | null;
 	files?: NoteFile[];
 	editorMode: "raw" | "block";
