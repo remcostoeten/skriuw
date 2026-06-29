@@ -128,7 +128,7 @@ export function SettingsSidebar({ activeTab, onSelectTab, className }: SettingsS
 							id={getSettingsTabId(item.id)}
 							aria-selected={isActive}
 							aria-controls={SETTINGS_TABPANEL_ID}
-							tabIndex={isActive ? 0 : -1}
+							tabIndex={0}
 							onClick={() => onSelectTab(item.id)}
 							onKeyDown={(event) => {
 								switch (event.key) {

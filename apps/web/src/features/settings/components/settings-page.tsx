@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useShortcut } from "@remcostoeten/use-shortcut/react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	ChevronLeft,
@@ -43,6 +44,12 @@ import {
 	SETTINGS_TABPANEL_ID,
 	type SettingsTabId,
 } from "./settings-sidebar";
+import { SettingsFocusShortcutHint } from "./settings-focus-shortcut-hint";
+import {
+	getSettingsMainFocusTarget,
+	getSettingsSidebarFocusTarget,
+	isEditableShortcutTarget,
+} from "@/features/settings/lib/focus-shortcut";
 import { useIsGuestWorkspace, isTauriRuntime } from "@/core/workspace-backend";
 import { DesktopAiSection } from "@/features/desktop/ai-settings-section";
 import { GuestSectionNotice, type GuestFeature } from "@/shared/ui/guest-gate";
@@ -126,6 +133,11 @@ export function SettingsPage() {
 	const searchParams = useSearchParams();
 	const isMobile = useIsMobile();
 	const isGuest = useIsGuestWorkspace();
+	const sidebarRef = React.useRef<HTMLDivElement>(null);
+	const panelRef = React.useRef<HTMLDivElement>(null);
+	const lastSidebarFocusRef = React.useRef<HTMLElement | null>(null);
+	const lastMainFocusRef = React.useRef<HTMLElement | null>(null);
+	const shortcut = useShortcut({ ignoreInputs: false });
 	const initializePreferences = usePreferencesStore((state) => state.initialize);
 	const logActivity = usePreferencesStore((state) => state.logActivity);
 
@@ -158,6 +170,45 @@ export function SettingsPage() {
 	};
 
 	const content = useMemo(() => renderSection(activeTab, isGuest), [activeTab, isGuest]);
+
+	const focusMainSettings = React.useCallback(() => {
+		getSettingsMainFocusTarget(panelRef.current, lastMainFocusRef.current)?.focus({
+			preventScroll: true,
+		});
+	}, []);
+
+	const focusSettingsSidebar = React.useCallback(() => {
+		getSettingsSidebarFocusTarget(
+			sidebarRef.current,
+			lastSidebarFocusRef.current,
+		)?.focus({ preventScroll: true });
+	}, []);
+
+	const handleSlashFocusToggle = React.useCallback(
+		() => {
+			const activeElement =
+				document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			if (activeElement && panelRef.current?.contains(activeElement)) {
+				lastMainFocusRef.current =
+					activeElement === panelRef.current ? null : activeElement;
+				focusSettingsSidebar();
+				return;
+			}
+
+			focusMainSettings();
+		},
+		[focusMainSettings, focusSettingsSidebar],
+	);
+
+	useEffect(() => {
+		const result = shortcut.key("slash").on(handleSlashFocusToggle, {
+			description: "Toggle settings sidebar and main focus",
+			except: (event) => isMobile || isEditableShortcutTarget(event.target),
+			preventDefault: true,
+		});
+
+		return () => result.unbind();
+	}, [handleSlashFocusToggle, isMobile, shortcut]);
 
 	if (isMobile) {
 		const showDetail = parsedTab !== null;
@@ -201,7 +252,14 @@ export function SettingsPage() {
 					onOpenSettings={() => router.replace("/app/settings", { scroll: false })}
 				/>
 
-				<div className="shrink-0" style={{ width: 220 }}>
+				<div
+					ref={sidebarRef}
+					className="shrink-0"
+					style={{ width: 220 }}
+					onFocusCapture={(event) => {
+						lastSidebarFocusRef.current = event.target as HTMLElement;
+					}}
+				>
 					<SettingsSidebar activeTab={activeTab} onSelectTab={setTab} />
 				</div>
 
@@ -220,11 +278,18 @@ export function SettingsPage() {
 						<ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
 						Back
 					</motion.button>
+					<SettingsFocusShortcutHint />
 					<div
+						ref={panelRef}
 						id={SETTINGS_TABPANEL_ID}
 						role="tabpanel"
 						tabIndex={0}
 						aria-labelledby={getSettingsTabId(activeTab)}
+						onFocusCapture={(event) => {
+							if (event.target !== event.currentTarget) {
+								lastMainFocusRef.current = event.target as HTMLElement;
+							}
+						}}
 						className="flex-1 overflow-y-auto px-6 py-8 md:px-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
 					>
 						<div className="mx-auto w-full max-w-3xl">{content}</div>
