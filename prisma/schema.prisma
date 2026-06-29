@@ -18,6 +18,7 @@ model User {
   role              String?   @default("user")
   username          String?   @unique
   displayUsername   String?   @map("display_username")
+  avatarColor       String?   @map("avatar_color")
   editorPreferences Json?     @map("editor_preferences")
   starterSeededAt   DateTime? @map("starter_seeded_at")
   banned            Boolean?

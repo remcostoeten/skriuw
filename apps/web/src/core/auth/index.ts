@@ -11,6 +11,7 @@ export type AuthUser = {
 	name: string;
 	role: string | null;
 	username: string | null;
+	avatarColor: string | null;
 };
 
 export type AuthPhase = "initializing" | "signed_out" | "authenticated";
@@ -30,6 +31,7 @@ type BetterAuthUser = {
 	name?: string | null;
 	role?: string | null;
 	username?: string | null;
+	avatarColor?: string | null;
 };
 
 type AuthPreferences = {
@@ -75,6 +77,7 @@ export function toAuthUser(rawUser: BetterAuthUser | null | undefined): AuthUser
 		name: rawUser.name?.trim() || rawUser.email?.split("@")[0] || "Signed-in user",
 		role: rawUser.role ?? null,
 		username: rawUser.username ?? null,
+		avatarColor: rawUser.avatarColor ?? null,
 	};
 }
 
