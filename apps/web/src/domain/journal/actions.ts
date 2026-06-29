@@ -7,6 +7,7 @@ import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/model
 type EntryRecord = {
 	id: string;
 	dateKey: string;
+	title: string | null;
 	content: string;
 	mood: string | null;
 	tags: string[];
@@ -25,6 +26,7 @@ function recordToEntry(record: EntryRecord): JournalEntry {
 	return {
 		id: record.id,
 		dateKey: record.dateKey,
+		title: record.title ?? undefined,
 		content: record.content,
 		tags: record.tags,
 		mood: (record.mood ?? undefined) as MoodLevel | undefined,
@@ -45,6 +47,7 @@ function recordToTag(record: TagRecord): JournalTag {
 export type CreateJournalEntryInput = {
 	id?: string;
 	dateKey: string;
+	title?: string | null;
 	content: string;
 	tags?: string[];
 	mood?: MoodLevel;
@@ -58,6 +61,7 @@ export async function listJournalEntries(): Promise<JournalEntry[]> {
 		select: {
 			id: true,
 			dateKey: true,
+			title: true,
 			content: true,
 			mood: true,
 			tags: true,
@@ -73,6 +77,7 @@ export async function createJournalEntry(input: CreateJournalEntryInput): Promis
 	const id = input.id ?? crypto.randomUUID();
 	const updateData = {
 		dateKey: input.dateKey,
+		title: input.title ?? null,
 		content: input.content,
 		mood: input.mood ?? null,
 		tags: input.tags ?? [],
@@ -80,6 +85,7 @@ export async function createJournalEntry(input: CreateJournalEntryInput): Promis
 	const select = {
 		id: true,
 		dateKey: true,
+		title: true,
 		content: true,
 		mood: true,
 		tags: true,
@@ -113,6 +119,7 @@ export async function createJournalEntry(input: CreateJournalEntryInput): Promis
 
 export type UpdateJournalEntryInput = {
 	id: string;
+	title?: string | null;
 	content?: string;
 	tags?: string[];
 	mood?: MoodLevel | null;
@@ -127,6 +134,7 @@ export async function updateJournalEntry(
 		const record = await prisma.journalEntry.update({
 			where: { id: input.id, userId: user.id, deletedAt: null },
 			data: {
+				...(input.title !== undefined && { title: input.title }),
 				...(input.content !== undefined && { content: input.content }),
 				...(input.tags !== undefined && { tags: input.tags }),
 				...(input.mood !== undefined && { mood: input.mood }),
@@ -134,6 +142,7 @@ export async function updateJournalEntry(
 			select: {
 				id: true,
 				dateKey: true,
+				title: true,
 				content: true,
 				mood: true,
 				tags: true,

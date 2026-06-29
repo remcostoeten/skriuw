@@ -157,6 +157,7 @@ model Note {
   parent              Folder?       @relation(fields: [parentId], references: [id], onDelete: SetNull)
   sortOrder           Int           @default(0) @map("sort_order")
   tags                String[]      @default([])
+  properties          Json?         @map("properties")
   journalMeta         Json?         @map("journal_meta")
   versions            NoteVersion[]
   outgoingLinks       NoteLink[]    @relation("NoteOutgoingLinks")
@@ -237,6 +238,7 @@ model NoteVersion {
   preferredEditorMode String   @default("block") @map("preferred_editor_mode")
   parentId            String?  @map("parent_id") @db.Uuid
   tags                String[] @default([])
+  properties          Json?    @map("properties")
   reason              String
   contentHash         String   @map("content_hash")
   createdAt           DateTime @default(now()) @map("created_at")
@@ -273,6 +275,7 @@ model JournalEntry {
   userId    String    @map("user_id")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   dateKey   String    @map("date_key")
+  title     String?
   content   String
   mood      String?
   tags      String[]  @default([])

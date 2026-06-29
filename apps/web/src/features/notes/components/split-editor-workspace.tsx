@@ -8,6 +8,8 @@ import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import { useNotesStore, type EditorPane, type SplitOrientation } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
 import type { NoteFile, NoteEditorMode, RichTextDocument } from "@/types/notes";
+import type { NoteProperty } from "@/domain/notes/properties";
+import { TabBar, type WorkspaceTabBarApi } from "./editor-tabs/tab-bar";
 
 type SplitEditorWorkspaceProps = {
 	primaryFile: NoteFile | null;
@@ -41,10 +43,12 @@ type SplitEditorWorkspaceProps = {
 		options?: {
 			richContent?: RichTextDocument;
 			preferredEditorMode?: NoteEditorMode;
+			properties?: NoteProperty[];
 		},
 	) => void;
 	onRenameFile?: (id: string, name: string) => void;
 	onEditorBlur?: (fileId: string) => void;
+	tabBar?: WorkspaceTabBarApi;
 };
 
 const SNAP_RATIO = 0.32;
@@ -85,6 +89,7 @@ export function SplitEditorWorkspace({
 	onContentChange,
 	onRenameFile,
 	onEditorBlur,
+	tabBar,
 }: SplitEditorWorkspaceProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const dragStartRef = useRef(0);
@@ -224,6 +229,26 @@ export function SplitEditorWorkspace({
 									: "transform 180ms cubic-bezier(0.23, 1, 0.32, 1)",
 							}}
 						>
+							{tabBar?.openInTabs ? (
+								<TabBar
+									tabs={
+										pane === "primary"
+											? tabBar.primaryTabItems
+											: tabBar.secondaryTabItems
+									}
+									activeFileId={file?.id ?? null}
+									isPaneFocused={focusedPane === pane}
+									onSelect={(id) => tabBar.onSelectTab(pane, id)}
+									onClose={(id) => tabBar.onCloseTab(pane, id)}
+									onReorder={(ids) => tabBar.onReorderTabs(pane, ids)}
+									onTogglePin={(id) => tabBar.onTogglePinTab(pane, id)}
+									onCloseOthers={(id) => tabBar.onCloseOtherTabs(pane, id)}
+									onCloseToSide={(id, side) =>
+										tabBar.onCloseTabsToSide(pane, id, side)
+									}
+									onActivatePane={() => onFocusPane(pane)}
+								/>
+							) : null}
 							<EditorContainer
 								variant="pane"
 								file={file}

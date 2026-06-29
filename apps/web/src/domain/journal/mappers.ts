@@ -19,6 +19,7 @@ export function toPersistedJournalEntry(entry: JournalEntry): PersistedJournalEn
 	return {
 		id: entry.id as JournalEntryId,
 		dateKey: entry.dateKey as DateKey,
+		title: entry.title ?? null,
 		content: entry.content as MarkdownContent,
 		tags: entry.tags.map((tag) => tag as TagName),
 		mood: entry.mood ?? null,
@@ -31,6 +32,7 @@ export function fromPersistedJournalEntry(entry: PersistedJournalEntry): Journal
 	return {
 		id: entry.id,
 		dateKey: entry.dateKey as DateKey,
+		title: entry.title ?? undefined,
 		content: entry.content,
 		tags: entry.tags.map((tag) => tag as string),
 		mood: entry.mood ?? undefined,

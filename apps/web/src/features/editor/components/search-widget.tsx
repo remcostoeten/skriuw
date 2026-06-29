@@ -141,7 +141,7 @@ export const SearchWidget = forwardRef<HTMLInputElement, SearchWidgetProps>(func
 							"flex min-w-0 flex-1 items-center rounded-[4px] border bg-[var(--search-field)] pl-2 transition-[border-color,box-shadow]",
 							regexError
 								? "border-[color:var(--destructive)] shadow-[inset_0_0_0_1px_var(--destructive)]"
-								: "border-[color:var(--search-field-border)] focus-within:border-[color:var(--search-focus)] focus-within:shadow-[inset_0_0_0_1px_var(--search-focus)]",
+								: "border-[color:var(--search-field-border)]",
 						)}
 					>
 						<input
@@ -213,7 +213,7 @@ export const SearchWidget = forwardRef<HTMLInputElement, SearchWidgetProps>(func
 
 				{showReplace ? (
 					<div className="flex items-center gap-1">
-						<div className="flex min-w-0 flex-1 items-center rounded-[4px] border border-[color:var(--search-field-border)] bg-[var(--search-field)] pl-2 transition-[border-color,box-shadow] focus-within:border-[color:var(--search-focus)] focus-within:shadow-[inset_0_0_0_1px_var(--search-focus)]">
+						<div className="flex min-w-0 flex-1 items-center rounded-[4px] border border-[color:var(--search-field-border)] bg-[var(--search-field)] pl-2 transition-[border-color,box-shadow]">
 							<input
 								value={replaceValue}
 								onChange={(event) => onReplaceChange(event.target.value)}

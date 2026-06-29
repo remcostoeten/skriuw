@@ -75,6 +75,7 @@ export const SHORTCUT_REGISTRY = {
 		scope: SCOPES.notes,
 		group: "Notes",
 		label: "Open command palette",
+		except: false,
 		preventDefault: true,
 	},
 	"notes.newNote": {
@@ -178,6 +179,14 @@ export const SHORTCUT_REGISTRY = {
 		description: "Jump the caret into the note body.",
 		preventDefault: true,
 	},
+	"notes.focusSidebarSearch": {
+		keys: "ctrl+slash",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Focus sidebar search",
+		description: "Open the sidebar search field.",
+		preventDefault: true,
+	},
 	"notes.help": {
 		keys: "shift+slash",
 		scope: SCOPES.notes,
@@ -190,6 +199,7 @@ export const SHORTCUT_REGISTRY = {
 		scope: SCOPES.journal,
 		group: "Journal",
 		label: "Open command palette",
+		except: false,
 		preventDefault: true,
 	},
 	"journal.toggleSidebar": {

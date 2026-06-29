@@ -100,6 +100,21 @@ export function EditorSection() {
 						onCheckedChange={(v) => update("animateNumbers", v)}
 					/>
 				</Row>
+				<Row
+					title="Vim mode"
+					description="Modal editing with Normal and Insert modes (h/j/k/l, w/b/e, dd, x, i/a/o, and more). Press Esc for Normal mode."
+				>
+					<Switch checked={editor.vimMode} onCheckedChange={(v) => update("vimMode", v)} />
+				</Row>
+				<Row
+					title="Open notes in tabs"
+					description="Keep opened notes in a tab bar instead of replacing the current note."
+				>
+					<Switch
+						checked={editor.openNotesInTabs}
+						onCheckedChange={(v) => update("openNotesInTabs", v)}
+					/>
+				</Row>
 			</SettingsCard>
 		</>
 	);

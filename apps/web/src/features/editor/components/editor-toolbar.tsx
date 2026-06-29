@@ -364,7 +364,7 @@ export function EditorToolbar({
 								</DropdownMenuTrigger>
 								<DropdownMenuContent
 									align="end"
-									className="w-52 rounded-none shadow-none animate-in fade-in-80"
+									className="w-52 rounded-none shadow-none"
 								>
 									{onAiGenerateTitle && (
 										<DropdownMenuItem

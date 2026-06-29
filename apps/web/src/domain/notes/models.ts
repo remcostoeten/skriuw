@@ -1,5 +1,6 @@
 import type { PartialBlock } from "@blocknote/core";
 import type { MoodLevel } from "@/domain/journal/models";
+import type { NoteProperty } from "@/domain/notes/properties";
 
 export type NoteEditorMode = "raw" | "block";
 export type RichTextDocument = PartialBlock[];
@@ -39,6 +40,7 @@ export type NoteFile = {
 	parentId: string | null;
 	sortOrder?: number;
 	tags?: string[];
+	properties?: NoteProperty[];
 	// Optional journal metadata
 	journalMeta?: JournalMetadata;
 	// Set on the collaborator-aware read path. `ownerId` is the note's real owner;
@@ -58,6 +60,7 @@ export type NoteVersion = {
 	createdAt: Date;
 	parentId: string | null;
 	tags?: string[];
+	properties?: NoteProperty[];
 	reason: NoteVersionReason;
 	contentHash: string;
 }

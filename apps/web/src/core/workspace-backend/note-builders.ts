@@ -2,6 +2,7 @@ import type { CreateNoteInput, UpdateNoteInput } from "@/domain/notes/actions";
 import type { CreateFolderInput, UpdateFolderInput } from "@/domain/folders/actions";
 import type { NoteFile, NoteFolder, RichTextDocument } from "@/domain/notes/models";
 import { deriveNoteNameFromHeading, nameTracksHeading } from "@/domain/notes/note-links";
+import { normalizeNoteProperties } from "@/domain/notes/properties";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 
 /**
@@ -31,6 +32,7 @@ export function noteFromCreateInput(input: CreateNoteInput): NoteFile {
 		parentId: input.parentId ?? null,
 		sortOrder: input.sortOrder ?? 0,
 		tags: input.tags ?? [],
+		properties: normalizeNoteProperties(input.properties),
 	};
 }
 
@@ -79,6 +81,10 @@ export function applyNoteUpdate(
 		parentId: input.parentId !== undefined ? input.parentId : note.parentId,
 		sortOrder: input.sortOrder ?? note.sortOrder,
 		tags: input.tags ?? note.tags,
+		properties:
+			input.properties !== undefined
+				? normalizeNoteProperties(input.properties)
+				: normalizeNoteProperties(note.properties),
 		modifiedAt: new Date(),
 	};
 }

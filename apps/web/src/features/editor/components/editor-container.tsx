@@ -20,6 +20,7 @@ import type { EditorSaveState, WorkspaceNavItem } from "./editor-toolbar";
 import { useCollabRoom } from "@/features/collaboration/hooks/use-collab-room";
 import { useNoteCollabEnabled } from "@/features/collaboration/hooks/use-note-collab-enabled";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
+import type { NoteProperty } from "@/domain/notes/properties";
 import {
 	callAi,
 	AiRateLimitError,
@@ -64,6 +65,7 @@ type EditorContainerProps = {
 		options?: {
 			richContent?: RichTextDocument;
 			preferredEditorMode?: "raw" | "block";
+			properties?: NoteProperty[];
 		},
 	) => void;
 	onToggleSidebar: () => void;
@@ -310,6 +312,7 @@ export function EditorContainer({
 		line: 1,
 		column: 1,
 	});
+	const [vimMode, setVimMode] = useState<"normal" | "insert" | null>(null);
 
 	const aiPrefs = usePreferencesStore((s) => s.ai);
 	const editorPrefs = usePreferencesStore((s) => s.editor);
@@ -769,7 +772,6 @@ export function EditorContainer({
 						<ContextMenuTrigger asChild>
 							<div
 								className="flex min-h-0 flex-1 flex-col"
-								onContextMenuCapture={onPaneActivate}
 							>
 								<Editor
 									file={file}
@@ -803,6 +805,7 @@ export function EditorContainer({
 									onCursorChange={
 										isPane && !isPaneFocused ? undefined : setCursorPosition
 									}
+									onVimModeChange={setVimMode}
 									initialScrollTop={initialScrollTop}
 									onScrollPositionChange={onScrollPositionChange}
 									onPaneActivate={onPaneActivate}
@@ -929,6 +932,15 @@ export function EditorContainer({
 							)}
 						</BottomStatusText>
 					</div>
+					{editorPrefs.vimMode && effectiveEditorMode === "block" && vimMode ? (
+						<span
+							className="mr-3 select-none rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
+							aria-live="polite"
+							title="Vim mode"
+						>
+							{vimMode}
+						</span>
+					) : null}
 					<ActivityDots saveState={saveState} aiLoading={aiLoading} />
 				</div>
 			)}
