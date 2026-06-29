@@ -21,7 +21,12 @@ import {
 	DialogTrigger,
 } from "@/shared/ui/dialog";
 import { useAuth } from "@/core/auth/use-auth";
-import { signOut, updateUserDisplayName, updateUsername } from "@/core/auth";
+import {
+	isUsernameTakenError,
+	signOut,
+	updateUserDisplayName,
+	updateUsername,
+} from "@/core/auth";
 import { isUsernameAvailable } from "@/lib/auth-client";
 import { validateUsernameFormat } from "@/lib/username";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -115,9 +120,9 @@ export function AccountSection() {
 		} catch (err) {
 			setUsernameValue(user?.username ?? "");
 			setUsernameError(
-				err instanceof Error && err.message
-					? err.message
-					: "That username is already taken.",
+				isUsernameTakenError(err)
+					? "That username is already taken."
+					: "Couldn't update username. Please try again.",
 			);
 		} finally {
 			setIsSavingUsername(false);
