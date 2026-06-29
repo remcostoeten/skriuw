@@ -23,6 +23,7 @@ import {
 import { useAuth } from "@/core/auth/use-auth";
 import { signOut, updateUserDisplayName, updateUsername } from "@/core/auth";
 import { isUsernameAvailable } from "@/lib/auth-client";
+import { validateUsernameFormat } from "@/lib/username";
 import { usePreferencesStore } from "@/features/settings/store";
 import {
 	SectionHeader,
@@ -80,6 +81,10 @@ export function AccountSection() {
 				setUsernameAvailable(null);
 				return;
 			}
+			if (validateUsernameFormat(value)) {
+				setUsernameAvailable(null);
+				return;
+			}
 			usernameDebounceRef.current = setTimeout(async () => {
 				pendingCheckRef.current = value;
 				const { data } = await isUsernameAvailable({ username: value });
@@ -94,14 +99,26 @@ export function AccountSection() {
 	const handleSaveUsername = async () => {
 		const trimmed = usernameValue.trim();
 		if (!trimmed || trimmed === user?.username) return;
-		if (usernameAvailable === false) return;
+		const formatError = validateUsernameFormat(trimmed);
+		if (formatError) {
+			setUsernameError(formatError);
+			return;
+		}
+		if (usernameAvailable === false) {
+			setUsernameError("That username is already taken.");
+			return;
+		}
 		setIsSavingUsername(true);
 		setUsernameError(null);
 		try {
 			await updateUsername(trimmed);
 		} catch (err) {
 			setUsernameValue(user?.username ?? "");
-			setUsernameError(err instanceof Error ? err.message : "Could not update username.");
+			setUsernameError(
+				err instanceof Error && err.message
+					? err.message
+					: "That username is already taken.",
+			);
 		} finally {
 			setIsSavingUsername(false);
 			setUsernameAvailable(null);
