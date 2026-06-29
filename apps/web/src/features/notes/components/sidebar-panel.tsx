@@ -48,7 +48,7 @@ type SearchFileResult = {
 	snippet?: string;
 };
 
-interface SidebarPanelProps {
+type SidebarPanelProps = {
 	files: NoteFile[];
 	folders: NoteFolder[];
 	filesById: Map<string, NoteFile>;

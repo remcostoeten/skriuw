@@ -10,9 +10,9 @@ type NoteLinkContextValue = {
 
 const NoteLinkContext = createContext<NoteLinkContextValue>({ files: [] });
 
-interface NoteLinkProviderProps extends NoteLinkContextValue {
+type NoteLinkProviderProps = NoteLinkContextValue & {
 	children: ReactNode;
-}
+};
 
 export function NoteLinkProvider({ files, activeFileId, children }: NoteLinkProviderProps) {
 	return (

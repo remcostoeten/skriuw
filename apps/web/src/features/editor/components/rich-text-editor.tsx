@@ -126,7 +126,7 @@ export type TRichTextCollab = {
 	shouldSeed: boolean;
 };
 
-interface RichTextEditorProps {
+type RichTextEditorProps = {
 	content: string;
 	richContent?: RichTextDocument;
 	files?: NoteFile[];

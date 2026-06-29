@@ -9,7 +9,7 @@ import { formatBinding } from "./keys";
 import { loadBindings, saveBindings } from "./storage";
 import type { ShortcutBindings, ShortcutHandlers } from "./types";
 
-interface ShortcutContextValue {
+type ShortcutContextValue = {
 	registry: typeof SHORTCUT_REGISTRY;
 	/** Sparse user overrides; absent ids use the registry default. */
 	bindings: ShortcutBindings;
