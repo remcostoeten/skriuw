@@ -89,6 +89,7 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 			notifications: false,
 			ai: false,
 			trash: false,
+			history: false,
 		},
 
 		async getNote(id) {
