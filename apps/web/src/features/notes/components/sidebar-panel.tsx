@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { FAST_SWAP_TRANSITION, pickTransition } from "@/shared/lib/motion";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
@@ -657,40 +657,46 @@ export const SidebarPanel = memo(function SidebarPanel({
 						)}
 					</motion.div>
 
-					{hasSearchSection && isSearchOpen && (
-						<div
-							ref={searchSwapRef}
-							onBlur={handleSearchSwapBlur}
-							className="absolute inset-x-0 top-0 flex h-11 items-center px-3"
-						>
-							<div className="flex items-center gap-2 border border-sidebar-border bg-sidebar-accent/55 px-3 shadow-inner">
-								<Search
-									className="h-4 w-4 shrink-0 text-muted-foreground"
-									strokeWidth={1.5}
-								/>
-								<input
-									ref={searchInputRef}
-									type="text"
-									value={searchQuery}
-									onChange={(event) => setSearchQuery(event.target.value)}
-									onKeyDown={(event) => {
-										if (event.key === "Escape") {
-											closeSearch();
-										}
-									}}
-									placeholder="Search"
-									className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-[13px]"
-								/>
-								<button
-									onClick={closeSearch}
-									className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar md:h-7 md:w-7"
-									title="Close search"
-								>
-									<X className="h-4 w-4" strokeWidth={1.5} />
-								</button>
-							</div>
-						</div>
-					)}
+					<AnimatePresence>
+						{hasSearchSection && isSearchOpen && (
+							<motion.div
+								ref={searchSwapRef}
+								onBlur={handleSearchSwapBlur}
+								initial={{ y: 8, opacity: 0, scale: 0.985 }}
+								animate={{ y: 0, opacity: 1, scale: 1 }}
+								exit={{ y: 8, opacity: 0, scale: 0.985 }}
+								transition={searchSwapTransition}
+								className="absolute inset-x-0 top-0 flex h-11 items-center px-3 will-change-transform"
+							>
+								<div className="flex items-center gap-2 border border-sidebar-border bg-sidebar-accent/55 px-3 shadow-inner">
+									<Search
+										className="h-4 w-4 shrink-0 text-muted-foreground"
+										strokeWidth={1.5}
+									/>
+									<input
+										ref={searchInputRef}
+										type="text"
+										value={searchQuery}
+										onChange={(event) => setSearchQuery(event.target.value)}
+										onKeyDown={(event) => {
+											if (event.key === "Escape") {
+												closeSearch();
+											}
+										}}
+										placeholder="Search"
+										className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-[13px]"
+									/>
+									<button
+										onClick={closeSearch}
+										className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar md:h-7 md:w-7"
+										title="Close search"
+									>
+										<X className="h-4 w-4" strokeWidth={1.5} />
+									</button>
+								</div>
+							</motion.div>
+						)}
+					</AnimatePresence>
 				</div>
 			</div>
 
