@@ -211,6 +211,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 			{
 				id: "today",
 				label: "Jump to today",
+				group: "Navigation",
 				keywords: ["journal", "today", "date"],
 				description: "Return to today’s journal entry.",
 				action: handleGoToToday,
@@ -218,6 +219,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 			{
 				id: "toggle-sidebar",
 				label: "Toggle sidebar",
+				group: "Navigation",
 				shortcut: "mod+slash",
 				keywords: ["sidebar", "calendar", "toggle"],
 				description: "Show or hide the journal sidebar.",
@@ -226,6 +228,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 			{
 				id: "back-to-list",
 				label: "Back to journal list",
+				group: "Navigation",
 				keywords: ["journal", "list", "back", "entries"],
 				description: "Return to the journal entries list.",
 				action: handleBackToList,
@@ -233,6 +236,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 			{
 				id: "toggle-editor",
 				label: "Switch editor mode",
+				group: "Editor",
 				shortcut: "mod+e",
 				keywords: ["plain", "rich", "editor"],
 				description: "Swap between plain text and rich text editing.",
@@ -241,6 +245,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 			{
 				id: "settings",
 				label: "Open settings",
+				group: "Settings",
 				shortcut: "mod+comma",
 				keywords: ["settings", "preferences"],
 				description: "Open the settings modal.",
@@ -249,6 +254,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 			{
 				id: "notes",
 				label: "Go to notes",
+				group: "Navigation",
 				keywords: ["notes", "route", "navigate"],
 				description: "Jump back to notes.",
 				action: handleGoToNotes,
