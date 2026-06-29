@@ -3,6 +3,33 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.13.0] — 2026-06-29
+
+Editor-heavy release: typed note properties, a redesigned inline tag flow with
+@user mentions, an optional Vim mode, a tabbed note workspace, and journal entry
+titles — plus the first Linux distribution channels (apt + AUR) so the desktop
+app is installable, not just downloadable.
+
+### Added
+- **Note properties.** Typed key/value metadata on notes, with editor UI,
+  domain model, validation, and a Postgres migration.
+- **Inline @user mentions** and a **redesigned inline tag flow** in the
+  editor. (#163)
+- **Optional Vim mode** for the note editor. (#170)
+- **Tabbed note workspace.** Editor tabs with per-pane tab bars. (#151)
+- **Journal entry titles**, with a Postgres migration and sidebar updates.
+- **Linux install channels.** Self-hosted apt repository (Debian/Ubuntu) on
+  GitHub Pages and an AUR `skriuw-bin` package (Arch), both published from a
+  desktop release. (#149, #156)
+
+### Fixed
+- **Editor context menu** no longer opens and instantly closes on right
+  click. (#168)
+- **Bubble menu link actions** no longer break internal navigation or external
+  URL entry. (#167)
+- Reworked overlay motion across shared UI primitives (context menu, dialog,
+  dropdown, popover, select, sheet, tooltip).
+
 ## [0.11.0] — 2026-06-29
 
 Account-management, search, and command-palette release on top of the unified
