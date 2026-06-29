@@ -1,0 +1,193 @@
+name: Publish Linux Repos
+
+# Publishes the Linux install channels for a desktop release:
+#   - apt repo (Debian/Ubuntu) -> GitHub Pages (gh-pages branch)
+#   - AUR -bin package (Arch)  -> aur.archlinux.org
+#
+# Source of truth is a *published* GitHub release for a `desktop-v*` tag (the
+# release-desktop.yml workflow drafts it; publishing it triggers this). You can
+# also run it manually against an existing tag via workflow_dispatch.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Desktop tag to publish (e.g. desktop-v0.11.0)"
+        required: true
+        type: string
+
+concurrency:
+  group: publish-linux-repos
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+      version: ${{ steps.pick.outputs.version }}
+    steps:
+      - name: Resolve tag/version
+        id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          case "$TAG" in
+            desktop-v*) ;;
+            *) echo "::error::tag '$TAG' is not a desktop-v* tag; skipping"; exit 1 ;;
+          esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#desktop-v}" >> "$GITHUB_OUTPUT"
+
+  apt:
+    needs: resolve
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push to gh-pages
+    steps:
+      - uses: actions/checkout@v4
+
+      # Bring the existing published repo into ./site so the package pool (every
+      # previously released .deb) is re-indexed, not clobbered. First release has
+      # no gh-pages branch yet, so this is allowed to fail.
+      - name: Restore existing gh-pages
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: site
+
+      - name: Install repo tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends dpkg-dev apt-utils gnupg
+
+      - name: Download .deb from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist
+          gh release download "${{ needs.resolve.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "*.deb" --dir dist
+          ls -la dist
+
+      - name: Import GPG signing key
+        id: gpg
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -z "${GPG_PRIVATE_KEY:-}" ]; then
+            echo "::error::secret GPG_PRIVATE_KEY is not set"; exit 1
+          fi
+          export GNUPGHOME="$(mktemp -d)"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          KEY_ID="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/{print $5; exit}')"
+          echo "key_id=$KEY_ID" >> "$GITHUB_OUTPUT"
+          # Preload the passphrase so non-interactive signing works (no-op if unset).
+          if [ -n "${GPG_PASSPHRASE:-}" ]; then
+            echo "allow-loopback-pinentry" >> "$GNUPGHOME/gpg-agent.conf"
+            echo "pinentry-mode loopback" >> "$GNUPGHOME/gpg.conf"
+            echo "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+              --passphrase-fd 0 --sign --output /dev/null --local-user "$KEY_ID" \
+              "$GITHUB_WORKSPACE/LICENSE" || true
+          fi
+
+      - name: Build apt repo
+        run: |
+          rm -rf site/.git
+          mkdir -p site/apt
+          DEB="$(ls dist/*.deb | head -n1)"
+          ./scripts/build-apt-repo.sh "site/apt" "$DEB" "${{ steps.gpg.outputs.key_id }}"
+
+      - name: Write landing page
+        run: |
+          VERSION="${{ needs.resolve.outputs.version }}"
+          cat > site/index.html <<HTML
+          <!doctype html><meta charset="utf-8"><title>Skriuw — Linux install</title>
+          <body style="font:16px/1.6 system-ui;max-width:46rem;margin:3rem auto;padding:0 1rem">
+          <h1>Skriuw — Linux install</h1>
+          <h2>Debian / Ubuntu (apt)</h2>
+          <pre>curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
+          echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" | sudo tee /etc/apt/sources.list.d/skriuw.list
+          sudo apt update && sudo apt install skriuw</pre>
+          <h2>Arch (AUR)</h2>
+          <pre>yay -S skriuw-bin   # or: paru -S skriuw-bin</pre>
+          <p>Latest: v$VERSION</p>
+          </body>
+          HTML
+
+      - name: Publish to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          keep_files: true
+          commit_message: "apt: publish ${{ needs.resolve.outputs.tag }}"
+
+  # Mirrors the dora repo's AUR job: raw SSH push using the same secret names
+  # (AUR_SSH_PRIVATE_KEY + AUR_KNOWN_HOSTS), so dora's existing AUR credentials
+  # work here once those two secrets are present on this repo.
+  aur:
+    needs: resolve
+    runs-on: ubuntu-latest
+    env:
+      AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+      AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update PKGBUILD version
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.resolve.outputs.version }}"
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/aur/skriuw-bin/PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=1/" packaging/aur/skriuw-bin/PKGBUILD
+
+      - name: Generate .SRCINFO (Arch container)
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/packaging/aur/skriuw-bin:/pkg" \
+            -w /pkg \
+            archlinux:latest \
+            bash -c 'pacman -Syu --noconfirm --needed base-devel \
+              && useradd -m builder \
+              && chown -R builder:builder /pkg \
+              && su builder -c "makepkg --printsrcinfo" > .SRCINFO'
+
+      - name: Publish to AUR
+        if: ${{ env.AUR_SSH_PRIVATE_KEY != '' && env.AUR_KNOWN_HOSTS != '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          printf '%s\n' "$AUR_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes"
+
+          git clone ssh://aur@aur.archlinux.org/skriuw-bin.git aur-repo
+          cp packaging/aur/skriuw-bin/PKGBUILD aur-repo/PKGBUILD
+          cp packaging/aur/skriuw-bin/.SRCINFO aur-repo/.SRCINFO
+
+          cd aur-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO
+          if git diff --cached --quiet; then
+            echo "AUR package already up to date."
+            exit 0
+          fi
+          git commit -m "Update to ${{ needs.resolve.outputs.version }}"
+          git push
+
+      - name: AUR key not configured
+        if: ${{ env.AUR_SSH_PRIVATE_KEY == '' || env.AUR_KNOWN_HOSTS == '' }}
+        run: echo "AUR_SSH_PRIVATE_KEY or AUR_KNOWN_HOSTS not set; generated .SRCINFO but skipped AUR push."
