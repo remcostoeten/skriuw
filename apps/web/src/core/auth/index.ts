@@ -231,11 +231,31 @@ export async function updateUserDisplayName(name: string): Promise<void> {
 	}
 }
 
+export const USERNAME_TAKEN_ERROR_CODE = "USERNAME_IS_ALREADY_TAKEN";
+
 export async function updateUsername(username: string): Promise<void> {
 	const { error } = await authClient.updateUser({ username });
 	if (error) {
-		throw new Error(error.message ?? "Could not update username");
+		const failure = new Error(error.message ?? "Could not update username") as Error & {
+			code?: string;
+		};
+		if (error.code) failure.code = error.code;
+		throw failure;
 	}
+}
+
+/**
+ * Whether `error` is the Better Auth username-uniqueness conflict thrown by
+ * {@link updateUsername} (server code `USERNAME_IS_ALREADY_TAKEN`). Use this to
+ * distinguish a genuine "already taken" conflict from generic/network failures.
+ */
+export function isUsernameTakenError(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error as { code?: unknown }).code === USERNAME_TAKEN_ERROR_CODE
+	);
 }
 
 export async function updatePassword(input: {
