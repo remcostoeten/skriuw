@@ -3,6 +3,13 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.13.1] — 2026-06-30
+
+### Fixed
+- **Desktop startup:** the Tauri build no longer crashes while creating the
+  auth client from the `tauri://localhost` origin, which left the app stuck on
+  the splash screen.
+
 ## [0.13.0] — 2026-06-29
 
 Editor-heavy release: typed note properties, a redesigned inline tag flow with
