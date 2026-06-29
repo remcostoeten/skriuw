@@ -10,7 +10,7 @@ export type ActivityItem = {
 	createdAt: Date;
 };
 
-export interface EditorPreferences {
+export type EditorPreferences = {
 	defaultModeRaw: boolean;
 	defaultPlaceholder: string;
 	defaultFont: EditorFontId;
@@ -18,18 +18,18 @@ export interface EditorPreferences {
 	animateNumbers: boolean;
 }
 
-export interface AppearancePreferences {
+export type AppearancePreferences = {
 	theme: ThemeId;
 	compactSidebar: boolean;
 	showLineNumbers: boolean;
 	reduceMotion: boolean;
 }
 
-export interface ProfilePreferences {
+export type ProfilePreferences = {
 	avatarColor: string | null;
 }
 
-export interface JournalPreferences {
+export type JournalPreferences = {
 	diaryModeEnabled: boolean;
 	recentMoods: Array<{ mood: string; date: Date }>;
 }
@@ -38,14 +38,14 @@ export type PrivacyPreferences = {
 	analyticsEnabled: boolean;
 };
 
-export interface AiKey {
+export type AiKey = {
 	id: string;
 	name: string;
 	apiKey: string;
 	tested: boolean;
 }
 
-export interface AiPreferences {
+export type AiPreferences = {
 	model: string;
 	keys: AiKey[];
 	activeKeyId: string | null;

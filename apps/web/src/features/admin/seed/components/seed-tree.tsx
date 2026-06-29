@@ -6,7 +6,7 @@ import { cn } from "@/shared/lib/utils";
 import { useSeedEditorStore } from "../store";
 import type { SeedFolder, SeedNote } from "@/domain/seed/types";
 
-interface TreeNodeProps {
+type TreeNodeProps = {
 	folder?: SeedFolder;
 	children: SeedNote[];
 	subfolders: SeedFolder[];
@@ -72,7 +72,7 @@ function TreeNode({ folder, children, subfolders, allFolders, allNotes, depth }:
 	);
 }
 
-interface NoteItemProps {
+type NoteItemProps = {
 	note: SeedNote;
 	active: boolean;
 	depth: number;

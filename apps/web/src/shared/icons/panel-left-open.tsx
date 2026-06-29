@@ -7,14 +7,14 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/shared/lib/utils";
 
-export interface PanelLeftOpenIconHandle {
+export type PanelLeftOpenIconHandle = {
 	startAnimation: () => void;
 	stopAnimation: () => void;
-}
+};
 
-interface PanelLeftOpenIconProps extends HTMLAttributes<HTMLDivElement> {
+type PanelLeftOpenIconProps = HTMLAttributes<HTMLDivElement> & {
 	size?: number;
-}
+};
 
 const DEFAULT_TRANSITION: Transition = {
 	times: [0, 0.4, 1],
