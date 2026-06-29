@@ -2,6 +2,7 @@ import * as React from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
 import { cn } from "@/shared/lib/utils";
+import { tooltipContentMotion } from "@/shared/ui/overlay-motion";
 
 function TooltipProvider({
 	delayDuration = 350,
@@ -35,7 +36,8 @@ const TooltipContent = React.forwardRef<
 			sideOffset={sideOffset}
 			collisionPadding={collisionPadding}
 			className={cn(
-				"z-50 origin-[--radix-tooltip-content-transform-origin] overflow-hidden border border-border bg-popover px-3 py-1.5 text-sm text-popover-foreground will-change-[opacity,transform] data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:duration-[160ms] data-[state=delayed-open]:ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=instant-open]:duration-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-100 data-[state=closed]:ease-out data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 motion-reduce:data-[side=bottom]:slide-in-from-top-0 motion-reduce:data-[side=left]:slide-in-from-right-0 motion-reduce:data-[side=right]:slide-in-from-left-0 motion-reduce:data-[side=top]:slide-in-from-bottom-0",
+				"z-50 origin-[--radix-tooltip-content-transform-origin] overflow-hidden border border-border bg-popover px-3 py-1.5 text-sm text-popover-foreground data-[state=instant-open]:duration-0",
+				tooltipContentMotion,
 				className,
 			)}
 			{...props}

@@ -14,6 +14,7 @@ import {
 } from "react";
 import type { CreateFolderInput } from "@/domain/folders/actions";
 import type { CreateNoteInput } from "@/domain/notes/actions";
+import { NOTE_PROPERTY_TEMPLATES } from "@/domain/notes/properties";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";
 import { isGuestScopedId } from "@/domain/notes/note-id";
@@ -58,6 +59,19 @@ const SHEET_DISMISS_VELOCITY = 480;
 const SHEET_DRAG_BLOCKLIST =
 	"button, a, input, textarea, select, option, [role='button'], [role='tab'], [contenteditable='true'], [data-sheet-no-drag]";
 const SAVED_BADGE_DURATION_MS = 1800;
+
+function sameTabList(
+	a: ReadonlyArray<{ fileId: string; pinned: boolean }>,
+	b: ReadonlyArray<{ fileId: string; pinned: boolean }>,
+): boolean {
+	if (a.length !== b.length) return false;
+	for (let index = 0; index < a.length; index += 1) {
+		if (a[index]!.fileId !== b[index]!.fileId || a[index]!.pinned !== b[index]!.pinned) {
+			return false;
+		}
+	}
+	return true;
+}
 
 function generateNoteContent(name: string): string {
 	const title = name.replace(/\.md$/, "");
@@ -110,6 +124,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const setSplitOrientation = useNotesStore((state) => state.setSplitOrientation);
 	const toggleSplitOrientation = useNotesStore((state) => state.toggleSplitOrientation);
 	const swapSplitPaneOrder = useNotesStore((state) => state.swapSplitPaneOrder);
+	const primaryTabs = useNotesStore((state) => state.primaryTabs);
+	const secondaryTabs = useNotesStore((state) => state.secondaryTabs);
+	const reorderTabs = useNotesStore((state) => state.reorderTabs);
+	const removeTab = useNotesStore((state) => state.removeTab);
+	const togglePinTab = useNotesStore((state) => state.togglePinTab);
+	const setPaneTabs = useNotesStore((state) => state.setPaneTabs);
+	const closeOtherTabs = useNotesStore((state) => state.closeOtherTabs);
+	const closeTabsToSide = useNotesStore((state) => state.closeTabsToSide);
 	const secondaryNoteQuery = useNote(splitSecondaryFileId ?? "");
 	const folderOpenState = useNotesStore((state) => state.folderOpenState);
 	const activeFileSaveState = useNotesStore((state) =>
@@ -193,7 +215,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const initializePreferences = usePreferencesStore((state) => state.initialize);
 	const defaultModeRaw = usePreferencesStore((state) => state.editor.defaultModeRaw);
+	const openNotesInTabs = usePreferencesStore((state) => state.editor.openNotesInTabs);
+	const defaultPropertiesTemplateId = usePreferencesStore(
+		(state) => state.editor.notePropertiesDefaultTemplateId,
+	);
 	const diaryModeEnabled = usePreferencesStore((state) => state.journal.diaryModeEnabled);
+	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
+	const updateEditorPreference = usePreferencesStore((state) => state.updateEditorPreference);
 	const [viewingVersion, setViewingVersion] = useState<NoteVersion | null>(null);
 	const [sharingNoteId, setSharingNoteId] = useState<string | null>(null);
 	const restoreNoteVersion = useRestoreNoteVersion();
@@ -266,6 +294,41 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		if (!focusedFile) return null;
 		return resolveEditorMode(focusedFile, defaultModeRaw ? "raw" : "block");
 	}, [focusedFile, defaultModeRaw]);
+
+	// Tabs are a desktop-only, client-only enhancement. Gating `openInTabs` on a
+	// mount flag keeps the server render and first client render identical (no
+	// tab bar) so the persisted tab state can't cause a hydration mismatch.
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+	const openInTabs = mounted && openNotesInTabs && !isMobile;
+
+	const fileById = useMemo(() => {
+		const map = new Map<string, NoteFile>();
+		for (const file of files) map.set(file.id, file);
+		return map;
+	}, [files]);
+
+	const resolveTabItems = useCallback(
+		(tabs: typeof primaryTabs) =>
+			tabs
+				.map((tab) => {
+					const file = fileById.get(tab.fileId);
+					return file ? { file, pinned: tab.pinned } : null;
+				})
+				.filter((item): item is { file: NoteFile; pinned: boolean } => item !== null),
+		[fileById],
+	);
+
+	const primaryTabItems = useMemo(
+		() => resolveTabItems(primaryTabs),
+		[primaryTabs, resolveTabItems],
+	);
+	const secondaryTabItems = useMemo(
+		() => resolveTabItems(secondaryTabs),
+		[secondaryTabs, resolveTabItems],
+	);
 
 	// Warm the detail cache for a note before it is opened. `useNote` keeps
 	// fetched notes fresh forever (staleTime: Infinity), so a single prefetch
@@ -630,6 +693,140 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[setEditorScrollPosition],
 	);
 
+	// Keep each pane's tab list aligned with reality: drop tabs whose note no
+	// longer exists, and guarantee the pane's active note is always present. The
+	// "ensure active" step is what makes opening a note accumulate a tab without
+	// any explicit add call in the selection path.
+	useEffect(() => {
+		if (!openInTabs || notesQuery.isPending) return;
+
+		function reconcile(
+			tabs: typeof primaryTabs,
+			ensureId: string | null,
+		): typeof primaryTabs {
+			const pruned = tabs.filter((tab) => fileById.has(tab.fileId));
+			if (ensureId && fileById.has(ensureId) && !pruned.some((tab) => tab.fileId === ensureId)) {
+				return [...pruned, { fileId: ensureId, pinned: false }];
+			}
+			return pruned;
+		}
+
+		const nextPrimary = reconcile(primaryTabs, activeFileId || null);
+		if (!sameTabList(nextPrimary, primaryTabs)) {
+			setPaneTabs("primary", nextPrimary);
+		}
+
+		if (splitEnabled && splitSecondaryFileId) {
+			const nextSecondary = reconcile(secondaryTabs, splitSecondaryFileId);
+			if (!sameTabList(nextSecondary, secondaryTabs)) {
+				setPaneTabs("secondary", nextSecondary);
+			}
+		}
+	}, [
+		openInTabs,
+		notesQuery.isPending,
+		fileById,
+		primaryTabs,
+		secondaryTabs,
+		activeFileId,
+		splitEnabled,
+		splitSecondaryFileId,
+		setPaneTabs,
+	]);
+
+	const activateTab = useCallback(
+		(pane: EditorPane, fileId: string) => {
+			if (pane === "secondary") {
+				if (!fileId || fileId === splitSecondaryFileId) return;
+				flushContentInBackground(splitSecondaryFileId ?? "");
+				setSecondaryFile(fileId);
+				return;
+			}
+			if (!fileId || fileId === activeFileId) return;
+			flushContentInBackground(activeFileId);
+			syncFileSelection(fileId);
+		},
+		[
+			activeFileId,
+			flushContentInBackground,
+			setSecondaryFile,
+			splitSecondaryFileId,
+			syncFileSelection,
+		],
+	);
+
+	const handleCloseTab = useCallback(
+		(pane: EditorPane, fileId: string) => {
+			const tabs = pane === "primary" ? primaryTabs : secondaryTabs;
+			const paneActiveId = pane === "primary" ? activeFileId : splitSecondaryFileId;
+			flushContentInBackground(fileId);
+
+			if (fileId !== paneActiveId) {
+				removeTab(pane, fileId);
+				return;
+			}
+
+			const index = tabs.findIndex((tab) => tab.fileId === fileId);
+			const neighbor = tabs[index + 1]?.fileId ?? tabs[index - 1]?.fileId ?? null;
+			removeTab(pane, fileId);
+
+			if (neighbor) {
+				activateTab(pane, neighbor);
+			} else if (pane === "secondary") {
+				closeSplit();
+			} else {
+				setActiveFileId("");
+				clearNoteUrl({ mode: "replace" });
+			}
+		},
+		[
+			activeFileId,
+			activateTab,
+			closeSplit,
+			flushContentInBackground,
+			primaryTabs,
+			removeTab,
+			secondaryTabs,
+			setActiveFileId,
+			splitSecondaryFileId,
+		],
+	);
+
+	const handleReorderTabs = useCallback(
+		(pane: EditorPane, orderedFileIds: string[]) => {
+			reorderTabs(pane, orderedFileIds);
+		},
+		[reorderTabs],
+	);
+
+	const handleTogglePinTab = useCallback(
+		(pane: EditorPane, fileId: string) => {
+			togglePinTab(pane, fileId);
+		},
+		[togglePinTab],
+	);
+
+	const handleCloseOtherTabs = useCallback(
+		(pane: EditorPane, fileId: string) => {
+			const removed = closeOtherTabs(pane, fileId);
+			removed.forEach((id) => flushContentInBackground(id));
+			activateTab(pane, fileId);
+		},
+		[activateTab, closeOtherTabs, flushContentInBackground],
+	);
+
+	const handleCloseTabsToSide = useCallback(
+		(pane: EditorPane, fileId: string, side: "left" | "right") => {
+			const removed = closeTabsToSide(pane, fileId, side);
+			removed.forEach((id) => flushContentInBackground(id));
+			const paneActiveId = pane === "primary" ? activeFileId : splitSecondaryFileId;
+			if (paneActiveId && removed.includes(paneActiveId)) {
+				activateTab(pane, fileId);
+			}
+		},
+		[activateTab, activeFileId, closeTabsToSide, flushContentInBackground, splitSecondaryFileId],
+	);
+
 	const handleToggleSidebar = useCallback(() => {
 		triggerNativeFeedback(showSidebar ? "dismiss" : "selection");
 		setUIState({
@@ -673,6 +870,10 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			const preferredEditorMode = defaultModeRaw ? "raw" : "block";
 			const content = generateNoteContent("Untitled");
 			const richContent = markdownToRichDocument(content);
+			const defaultTemplate = defaultPropertiesTemplateId
+				? NOTE_PROPERTY_TEMPLATES.find((template) => template.id === defaultPropertiesTemplateId)
+				: null;
+			const properties = defaultTemplate?.build() ?? [];
 			const newId = crypto.randomUUID();
 			const newFile: CreateNoteInput = {
 				id: newId,
@@ -681,6 +882,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				richContent,
 				preferredEditorMode,
 				parentId,
+				properties,
 			};
 
 			// Seed the detail cache synchronously, before selecting the note.
@@ -698,6 +900,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				modifiedAt: new Date(),
 				parentId: parentId ?? null,
 				tags: [],
+				properties,
 			});
 
 			if (parentId) {
@@ -721,6 +924,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			creationParentFolderId,
 			createNoteMutation,
 			defaultModeRaw,
+			defaultPropertiesTemplateId,
 			diaryModeEnabled,
 			isMobile,
 			queryClient,
@@ -1098,6 +1302,16 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				action: handleToggleEditorMode,
 			},
 			{
+				id: "toggle-vim-mode",
+				label: vimModeEnabled ? "Disable Vim mode" : "Enable Vim mode",
+				group: "Editor",
+				keywords: ["vim", "modal", "keybindings", "normal", "insert", "editor"],
+				description: vimModeEnabled
+					? "Turn off modal Vim keybindings in the editor."
+					: "Turn on modal Vim keybindings (Normal/Insert) in the editor.",
+				action: () => updateEditorPreference("vimMode", !vimModeEnabled),
+			},
+			{
 				id: "focus-file-tree",
 				label: "Focus file tree",
 				group: "Navigation",
@@ -1181,6 +1395,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			handleToggleMetadata,
 			handleToggleSidebar,
 			handleToggleSplit,
+			updateEditorPreference,
+			vimModeEnabled,
 			replayWelcomeTour,
 			router,
 		],
@@ -1337,5 +1553,16 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleToggleSplitOrientation: toggleSplitOrientation,
 		handleSwapSplitPaneOrder: swapSplitPaneOrder,
 		canToggleSplit: files.length > 1 && Boolean(activeFileId) && !isMobile,
+		tabBar: {
+			openInTabs,
+			primaryTabItems,
+			secondaryTabItems,
+			onSelectTab: activateTab,
+			onCloseTab: handleCloseTab,
+			onReorderTabs: handleReorderTabs,
+			onTogglePinTab: handleTogglePinTab,
+			onCloseOtherTabs: handleCloseOtherTabs,
+			onCloseTabsToSide: handleCloseTabsToSide,
+		},
 	};
 }

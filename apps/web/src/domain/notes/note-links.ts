@@ -1,5 +1,8 @@
 import type { NoteFile } from "@/types/notes";
-import { richDocumentToSearchableMarkdown } from "@/domain/notes/rich-document";
+import {
+	extractRichDocumentUsers,
+	richDocumentToSearchableMarkdown,
+} from "@/domain/notes/rich-document";
 
 export type NoteLinkKind = "wiki" | "markdown-note-link";
 
@@ -136,6 +139,18 @@ export function getWorkspaceTags(files: NoteFile[]): string[] {
 	}
 
 	return [...tags].toSorted((left, right) => left.localeCompare(right));
+}
+
+export function getWorkspaceUsers(files: NoteFile[]): string[] {
+	const users = new Map<string, string>();
+
+	for (const file of files) {
+		for (const user of extractRichDocumentUsers(file.richContent)) {
+			users.set(user.toLowerCase(), user);
+		}
+	}
+
+	return [...users.values()].toSorted((left, right) => left.localeCompare(right));
 }
 
 export function extractNoteLinks(note: Pick<NoteFile, "id" | "content" | "richContent">): NoteLink[] {

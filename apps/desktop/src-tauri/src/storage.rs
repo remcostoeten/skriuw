@@ -5,7 +5,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 /// A note row, serialized to match the TypeScript `NoteFile` contract
-/// (`src/domain/notes/models.ts`). `richContent` and `tags` are stored as JSON
+/// (`src/domain/notes/models.ts`). `richContent`, `tags`, and `properties` are stored as JSON
 /// TEXT in SQLite but cross the IPC boundary as real JSON values, and the two
 /// timestamps cross as epoch-millis numbers — the `tauriBackend` maps them back
 /// to `Date`.
@@ -20,6 +20,7 @@ pub struct Note {
     pub parent_id: Option<String>,
     pub sort_order: i64,
     pub tags: Vec<String>,
+    pub properties: serde_json::Value,
     pub created_at: i64,
     pub modified_at: i64,
 }
@@ -62,6 +63,8 @@ pub struct TrashRecord {
 pub struct JournalEntry {
     pub id: String,
     pub date_key: String,
+    #[serde(default)]
+    pub title: Option<String>,
     pub content: String,
     pub tags: Vec<String>,
     pub mood: Option<String>,
@@ -155,6 +158,7 @@ CREATE TABLE IF NOT EXISTS notes (
 	parent_id             TEXT REFERENCES folders(id) ON DELETE CASCADE,
 	sort_order            INTEGER NOT NULL DEFAULT 0,
 	tags                  TEXT NOT NULL DEFAULT '[]',
+	properties            TEXT NOT NULL DEFAULT '[]',
 	created_at            INTEGER NOT NULL,
 	modified_at           INTEGER NOT NULL
 );
@@ -230,6 +234,7 @@ END;
 CREATE TABLE IF NOT EXISTS journal_entries (
 	id          TEXT PRIMARY KEY,
 	date_key    TEXT NOT NULL,
+	title       TEXT,
 	content     TEXT NOT NULL DEFAULT '',
 	mood        TEXT,
 	tags        TEXT NOT NULL DEFAULT '[]',
@@ -268,6 +273,8 @@ impl Storage {
         conn.pragma_update(None, "foreign_keys", "ON")?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         conn.execute_batch(SCHEMA)?;
+        ensure_column(&conn, "notes", "properties", "TEXT NOT NULL DEFAULT '[]'")?;
+        ensure_column(&conn, "journal_entries", "title", "TEXT")?;
         // Repopulate the FTS index from the content table. Cheap for a local
         // workspace and idempotent — covers a DB created before the FTS table
         // existed (no-op once the triggers have kept it current).
@@ -293,7 +300,7 @@ impl Storage {
         let conn = self.lock();
         let mut stmt = conn.prepare(
             "SELECT id, name, content, rich_content, preferred_editor_mode, \
-			 parent_id, sort_order, tags, created_at, modified_at FROM notes",
+			 parent_id, sort_order, tags, properties, created_at, modified_at FROM notes",
         )?;
         let rows = stmt.query_map([], row_to_note)?;
         rows.collect()
@@ -303,7 +310,7 @@ impl Storage {
         let conn = self.lock();
         let mut stmt = conn.prepare_cached(
             "SELECT id, name, content, rich_content, preferred_editor_mode, \
-			 parent_id, sort_order, tags, created_at, modified_at FROM notes WHERE id = ?1",
+			 parent_id, sort_order, tags, properties, created_at, modified_at FROM notes WHERE id = ?1",
         )?;
         let mut rows = stmt.query_map(params![id], row_to_note)?;
         match rows.next() {
@@ -427,7 +434,7 @@ impl Storage {
             "SELECT DISTINCT l.kind, l.raw, l.target_label, l.alias, l.target_note_id, \
 			   l.target_title_key, \
 			   n.id, n.name, n.content, n.rich_content, n.preferred_editor_mode, \
-			   n.parent_id, n.sort_order, n.tags, n.created_at, n.modified_at \
+			   n.parent_id, n.sort_order, n.tags, n.properties, n.created_at, n.modified_at \
 			 FROM note_links l JOIN notes n ON n.id = l.source_note_id \
 			 WHERE l.source_note_id != ?1 \
 			   AND (l.target_note_id = ?1 OR l.target_title_key IS NOT NULL)",
@@ -509,7 +516,7 @@ impl Storage {
     pub fn list_journal_entries(&self) -> rusqlite::Result<Vec<JournalEntry>> {
         let conn = self.lock();
         let mut stmt = conn.prepare(
-            "SELECT id, date_key, content, mood, tags, created_at, updated_at \
+            "SELECT id, date_key, title, content, mood, tags, created_at, updated_at \
 			 FROM journal_entries ORDER BY created_at ASC",
         )?;
         let rows = stmt.query_map([], row_to_journal_entry)?;
@@ -520,15 +527,17 @@ impl Storage {
         let conn = self.lock();
         conn.execute(
             "INSERT INTO journal_entries \
-			 (id, date_key, content, mood, tags, created_at, updated_at) \
-			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
+			 (id, date_key, title, content, mood, tags, created_at, updated_at) \
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
 			 ON CONFLICT(id) DO UPDATE SET \
-			  date_key = excluded.date_key, content = excluded.content, \
+			  date_key = excluded.date_key, title = excluded.title, \
+			  content = excluded.content, \
 			  mood = excluded.mood, tags = excluded.tags, \
 			  updated_at = excluded.updated_at",
             params![
                 entry.id,
                 entry.date_key,
+                entry.title,
                 entry.content,
                 entry.mood,
                 serde_json::Value::from(entry.tags.clone()).to_string(),
@@ -573,6 +582,26 @@ impl Storage {
     }
 }
 
+fn ensure_column(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    definition: &str,
+) -> rusqlite::Result<()> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let columns = stmt.query_map([], |row| row.get::<_, String>(1))?;
+    for existing in columns {
+        if existing? == column {
+            return Ok(());
+        }
+    }
+    conn.execute(
+        &format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"),
+        [],
+    )?;
+    Ok(())
+}
+
 /// Shared upsert body. Takes `&Connection` so both the single-note path and the
 /// batched transaction path reuse the exact same SQL (deref coercion lets the
 /// MutexGuard and the Transaction both pass as `&Connection`).
@@ -580,14 +609,15 @@ fn upsert_note_with(conn: &Connection, note: &Note) -> rusqlite::Result<()> {
     let mut stmt = conn.prepare_cached(
         "INSERT INTO notes \
 		 (id, name, content, rich_content, preferred_editor_mode, parent_id, \
-		  sort_order, tags, created_at, modified_at) \
-		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
+		  sort_order, tags, properties, created_at, modified_at) \
+		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
 		 ON CONFLICT(id) DO UPDATE SET \
 		  name = excluded.name, content = excluded.content, \
 		  rich_content = excluded.rich_content, \
 		  preferred_editor_mode = excluded.preferred_editor_mode, \
 		  parent_id = excluded.parent_id, sort_order = excluded.sort_order, \
-		  tags = excluded.tags, modified_at = excluded.modified_at",
+		  tags = excluded.tags, properties = excluded.properties, \
+		  modified_at = excluded.modified_at",
     )?;
     stmt.execute(params![
         note.id,
@@ -598,6 +628,7 @@ fn upsert_note_with(conn: &Connection, note: &Note) -> rusqlite::Result<()> {
         note.parent_id,
         note.sort_order,
         serde_json::Value::from(note.tags.clone()).to_string(),
+        note.properties.to_string(),
         note.created_at,
         note.modified_at,
     ])?;
@@ -656,6 +687,7 @@ fn replace_note_links_with(
 fn row_to_note_offset(row: &rusqlite::Row<'_>, base: usize) -> rusqlite::Result<Note> {
     let rich_raw: String = row.get(base + 3)?;
     let tags_raw: String = row.get(base + 7)?;
+    let properties_raw: String = row.get(base + 8)?;
     Ok(Note {
         id: row.get(base)?,
         name: row.get(base + 1)?,
@@ -666,8 +698,10 @@ fn row_to_note_offset(row: &rusqlite::Row<'_>, base: usize) -> rusqlite::Result<
         parent_id: row.get(base + 5)?,
         sort_order: row.get(base + 6)?,
         tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
-        created_at: row.get(base + 8)?,
-        modified_at: row.get(base + 9)?,
+        properties: serde_json::from_str(&properties_raw)
+            .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
+        created_at: row.get(base + 9)?,
+        modified_at: row.get(base + 10)?,
     })
 }
 
@@ -697,6 +731,7 @@ fn build_fts_match(query: &str) -> Option<String> {
 fn row_to_note(row: &rusqlite::Row<'_>) -> rusqlite::Result<Note> {
     let rich_raw: String = row.get(3)?;
     let tags_raw: String = row.get(7)?;
+    let properties_raw: String = row.get(8)?;
     Ok(Note {
         id: row.get(0)?,
         name: row.get(1)?,
@@ -707,8 +742,10 @@ fn row_to_note(row: &rusqlite::Row<'_>) -> rusqlite::Result<Note> {
         parent_id: row.get(5)?,
         sort_order: row.get(6)?,
         tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
-        created_at: row.get(8)?,
-        modified_at: row.get(9)?,
+        properties: serde_json::from_str(&properties_raw)
+            .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
+        created_at: row.get(9)?,
+        modified_at: row.get(10)?,
     })
 }
 
@@ -724,15 +761,16 @@ fn row_to_folder(row: &rusqlite::Row<'_>) -> rusqlite::Result<Folder> {
 }
 
 fn row_to_journal_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<JournalEntry> {
-    let tags_raw: String = row.get(4)?;
+    let tags_raw: String = row.get(5)?;
     Ok(JournalEntry {
         id: row.get(0)?,
         date_key: row.get(1)?,
-        content: row.get(2)?,
-        mood: row.get(3)?,
+        title: row.get(2)?,
+        content: row.get(3)?,
+        mood: row.get(4)?,
         tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
-        created_at: row.get(5)?,
-        updated_at: row.get(6)?,
+        created_at: row.get(6)?,
+        updated_at: row.get(7)?,
     })
 }
 
@@ -759,6 +797,7 @@ mod tests {
             parent_id: parent.map(|p| p.to_string()),
             sort_order: 0,
             tags: vec!["a".to_string()],
+            properties: serde_json::json!([]),
             created_at: 1,
             modified_at: 1,
         }
@@ -1063,6 +1102,7 @@ mod tests {
         let entry = JournalEntry {
             id: "j1".to_string(),
             date_key: "2026-06-24".to_string(),
+            title: Some("A good day".to_string()),
             content: "a good day".to_string(),
             tags: vec!["work".to_string()],
             mood: Some("good".to_string()),
@@ -1074,6 +1114,7 @@ mod tests {
         let got = store.list_journal_entries().unwrap();
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].date_key, "2026-06-24");
+        assert_eq!(got[0].title.as_deref(), Some("A good day"));
         assert_eq!(got[0].mood.as_deref(), Some("good"));
         assert_eq!(got[0].tags, vec!["work".to_string()]);
 

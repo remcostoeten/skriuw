@@ -1,5 +1,6 @@
 import type { UpdateNoteResult } from "@/domain/notes/actions";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
+import { normalizeNoteProperties } from "@/domain/notes/properties";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
 import { resolveRichDocument } from "@/domain/notes/rich-document";
@@ -82,6 +83,7 @@ type RustNote = {
 	parentId: string | null;
 	sortOrder: number;
 	tags: string[];
+	properties: NoteFile["properties"];
 	createdAt: number;
 	modifiedAt: number;
 };
@@ -138,6 +140,7 @@ function toRustNote(note: NoteFile): RustNote {
 		parentId: note.parentId ?? null,
 		sortOrder: note.sortOrder ?? 0,
 		tags: note.tags ?? [],
+		properties: normalizeNoteProperties(note.properties),
 		createdAt: note.createdAt.getTime(),
 		modifiedAt: note.modifiedAt.getTime(),
 	};
@@ -156,6 +159,7 @@ function fromRustNote(raw: RustNote): NoteFile {
 		parentId: raw.parentId,
 		sortOrder: raw.sortOrder,
 		tags: raw.tags,
+		properties: normalizeNoteProperties(raw.properties),
 		createdAt: new Date(raw.createdAt),
 		modifiedAt: new Date(raw.modifiedAt),
 	};
@@ -185,6 +189,7 @@ function fromRustFolder(raw: RustFolder): NoteFolder {
 type RustJournalEntry = {
 	id: string;
 	dateKey: string;
+	title: string | null;
 	content: string;
 	tags: string[];
 	mood: string | null;
@@ -203,6 +208,7 @@ function toRustJournalEntry(entry: JournalEntry): RustJournalEntry {
 	return {
 		id: entry.id,
 		dateKey: entry.dateKey,
+		title: entry.title ?? null,
 		content: entry.content,
 		tags: entry.tags,
 		mood: entry.mood ?? null,
@@ -215,6 +221,7 @@ function fromRustJournalEntry(raw: RustJournalEntry): JournalEntry {
 	return {
 		id: raw.id,
 		dateKey: raw.dateKey,
+		title: raw.title ?? undefined,
 		content: raw.content,
 		tags: raw.tags,
 		mood: (raw.mood ?? undefined) as MoodLevel | undefined,
@@ -478,6 +485,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			const entry: JournalEntry = {
 				id,
 				dateKey: input.dateKey,
+				title: input.title ?? undefined,
 				content: input.content,
 				tags: input.tags ?? [],
 				mood: input.mood ?? undefined,
@@ -493,6 +501,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			if (!existing) return undefined;
 			const next: JournalEntry = {
 				...existing,
+				title: input.title === undefined ? existing.title : (input.title ?? undefined),
 				content: input.content ?? existing.content,
 				tags: input.tags ?? existing.tags,
 				mood: input.mood === undefined ? existing.mood : (input.mood ?? undefined),

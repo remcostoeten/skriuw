@@ -2,6 +2,55 @@ import { z } from "zod";
 
 const uuidSchema = z.string().uuid();
 
+const notePropertyColorSchema = z.enum([
+	"gray",
+	"stone",
+	"amber",
+	"green",
+	"blue",
+	"teal",
+	"rose",
+	"red",
+]);
+
+const notePropertySchema = z.object({
+	id: z.string().trim().min(1).max(128),
+	type: z.enum([
+		"text",
+		"number",
+		"date",
+		"select",
+		"multi-select",
+		"person",
+		"url",
+		"checkbox",
+		"rating",
+		"location",
+		"email",
+		"phone",
+	]),
+	name: z.string().trim().min(1).max(80),
+	value: z.union([
+		z.string().max(2_000),
+		z.number().finite(),
+		z.boolean(),
+		z.array(z.string().max(128)).max(64),
+		z.null(),
+	]),
+	options: z
+		.array(
+			z.object({
+				id: z.string().trim().min(1).max(128),
+				label: z.string().trim().min(1).max(80),
+				color: notePropertyColorSchema,
+			}),
+		)
+		.max(64)
+		.optional(),
+});
+
+const notePropertiesSchema = z.array(notePropertySchema).max(64);
+
 export const createNoteInputSchema = z.object({
 	id: uuidSchema.optional(),
 	name: z.string().trim().min(1).max(255),
@@ -11,6 +60,7 @@ export const createNoteInputSchema = z.object({
 	parentId: uuidSchema.nullable().optional(),
 	sortOrder: z.number().int().min(0).optional(),
 	tags: z.array(z.string().trim().min(1).max(64)).max(64).optional(),
+	properties: notePropertiesSchema.optional(),
 });
 
 export const updateNoteInputSchema = z
@@ -23,6 +73,7 @@ export const updateNoteInputSchema = z
 		parentId: uuidSchema.nullable().optional(),
 		sortOrder: z.number().int().min(0).optional(),
 		tags: z.array(z.string().trim().min(1).max(64)).max(64).optional(),
+		properties: notePropertiesSchema.optional(),
 		createCheckpoint: z.boolean().optional(),
 		sessionVersionId: uuidSchema.nullable().optional(),
 		// When false, the save must not auto-rename the note from its first
@@ -39,6 +90,7 @@ export const updateNoteInputSchema = z
 			input.parentId !== undefined ||
 			input.sortOrder !== undefined ||
 			input.tags !== undefined ||
+			input.properties !== undefined ||
 			input.createCheckpoint !== undefined ||
 			input.sessionVersionId !== undefined,
 		{ message: "At least one field must be provided." },

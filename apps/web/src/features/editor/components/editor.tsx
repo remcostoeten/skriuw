@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import type { AiEditorHandle } from "@/features/ai/service";
+import type { NoteProperty } from "@/domain/notes/properties";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import { useShortcutHint } from "@/core/shortcuts";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
@@ -45,6 +46,7 @@ type EditorProps = {
 		options?: {
 			richContent?: RichTextDocument;
 			preferredEditorMode?: EditorMode;
+			properties?: NoteProperty[];
 		},
 	) => void;
 	onEditorReady?: (handle: AiEditorHandle) => void;
@@ -57,6 +59,7 @@ type EditorProps = {
 		column: number;
 		selection?: { words: number; characters: number };
 	}) => void;
+	onVimModeChange?: (mode: "normal" | "insert" | null) => void;
 	initialScrollTop?: number;
 	onScrollPositionChange?: (scrollTop: number) => void;
 	onPaneActivate?: () => void;
@@ -80,6 +83,7 @@ export function Editor({
 	onTitleCommit,
 	onBlur,
 	onCursorChange,
+	onVimModeChange,
 	initialScrollTop = 0,
 	onScrollPositionChange,
 	onPaneActivate,
@@ -124,6 +128,18 @@ export function Editor({
 					preferredEditorMode: "block",
 				});
 			}
+		},
+		[file, onContentChange],
+	);
+
+	const handlePropertiesChange = useCallback(
+		(properties: NoteProperty[]) => {
+			if (!file) return;
+			onContentChange(file.id, file.content, {
+				richContent: file.richContent,
+				preferredEditorMode: file.preferredEditorMode,
+				properties,
+			});
 		},
 		[file, onContentChange],
 	);
@@ -249,12 +265,15 @@ export function Editor({
 					editorLineHeight={editorLineHeight}
 					readOnly={readOnly}
 					onChange={handleRichTextChange}
+					properties={file.properties ?? []}
+					onPropertiesChange={handlePropertiesChange}
 					onEditorReady={onEditorReady}
 					onAiSpellCheck={onAiSpellCheck}
 					onAiContinueWriting={onAiContinueWriting}
 					onTitleCommit={onTitleCommit}
 					onBlur={onBlur}
 					onCursorChange={onCursorChange}
+					onVimModeChange={onVimModeChange}
 					collab={collab}
 				/>
 			</div>

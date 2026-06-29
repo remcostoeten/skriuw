@@ -10,6 +10,7 @@ import {
 	ArrowUp,
 	ArrowDown,
 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -85,6 +86,7 @@ export function SidebarSection({
 	const [editValue, setEditValue] = useState(title);
 	const [showMenu, setShowMenu] = useState(false);
 	const [isHydrated, setIsHydrated] = useState(false);
+	const prefersReducedMotion = useReducedMotion();
 	const menuRef = useRef<HTMLDivElement>(null);
 	const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -225,11 +227,31 @@ export function SidebarSection({
 									<MoreHorizontal className="h-3 w-3" strokeWidth={1.5} />
 								</button>
 
-								{showMenu && (
-									<div
-										ref={menuRef}
-										className="absolute right-0 top-full z-50 mt-1 min-w-[8rem] overflow-hidden border border-border bg-popover p-1 text-popover-foreground animate-in fade-in-0"
-									>
+								<AnimatePresence>
+									{showMenu && (
+										<motion.div
+											ref={menuRef}
+											initial={
+												prefersReducedMotion
+													? { opacity: 0 }
+													: { opacity: 0, scale: 0.96, y: -4 }
+											}
+											animate={
+												prefersReducedMotion
+													? { opacity: 1 }
+													: { opacity: 1, scale: 1, y: 0 }
+											}
+											exit={
+												prefersReducedMotion
+													? { opacity: 0 }
+													: { opacity: 0, scale: 0.98, y: -2 }
+											}
+											transition={{
+												duration: prefersReducedMotion ? 0.1 : 0.15,
+												ease: [0.16, 1, 0.3, 1],
+											}}
+											className="absolute right-0 top-full z-50 mt-1 min-w-[8rem] origin-top-right overflow-hidden border border-border bg-popover p-1 text-popover-foreground shadow-lg will-change-[opacity,transform]"
+										>
 										{onSelectColor && colorOptions && (
 											<div className="flex flex-wrap gap-1 px-2 py-1.5">
 												{colorOptions.map((color) => (
@@ -312,8 +334,9 @@ export function SidebarSection({
 												Delete
 											</button>
 										)}
-									</div>
-								)}
+										</motion.div>
+									)}
+								</AnimatePresence>
 							</div>
 						)}
 					</div>
