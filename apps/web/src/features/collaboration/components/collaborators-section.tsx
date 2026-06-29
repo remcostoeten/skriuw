@@ -18,6 +18,7 @@ import type {
   TCollaborator,
 } from "@/domain/collaboration/models";
 import { AvatarFace } from "@/shared/icons/avatar-face";
+import { deriveAvatarColor } from "@/shared/lib/avatar";
 import { useWorkspaceCapabilities } from "@/core/workspace-backend";
 
 const collabKeys = {
@@ -232,7 +233,7 @@ function CollaboratorsSectionInner({
       {/* Collaborators */}
       {collaborators.map((c) => (
         <div key={c.id} className="flex items-center gap-2.5">
-          <AvatarFace name={c.userName} size={22} />
+          <AvatarFace name={c.userName} color={deriveAvatarColor(c.userId)} size={22} />
           <span className="flex-1 truncate text-[12px] text-foreground/80">{c.userName}</span>
           <PermissionToggle
             value={c.permission}
@@ -258,7 +259,11 @@ function CollaboratorsSectionInner({
           </p>
           {pending.map((req) => (
             <div key={req.id} className="flex items-start gap-2.5">
-              <AvatarFace name={req.requesterName} size={22} />
+              <AvatarFace
+                name={req.requesterName}
+                color={deriveAvatarColor(req.requesterId)}
+                size={22}
+              />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="text-[12px] text-foreground/80">{req.requesterName}</span>
                 {req.message && (
