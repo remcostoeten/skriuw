@@ -6,6 +6,7 @@ import { type UpdateNoteInput } from "@/domain/notes/actions";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import type { NoteEditorMode, NoteFile, RichTextDocument } from "@/types/notes";
+import { normalizeNoteProperties, type NoteProperty } from "@/domain/notes/properties";
 import { notesKeys } from "./notes-keys";
 import { reconcileSavedNoteCache } from "@/features/notes/lib/note-cache";
 import { useNotesCacheScope } from "./use-notes-cache-scope";
@@ -30,12 +31,14 @@ type DebouncedContentArgs = {
 	content: string;
 	richContent?: RichTextDocument;
 	preferredEditorMode?: NoteEditorMode;
+	properties?: NoteProperty[];
 };
 
 type PendingEdit = {
 	content: string;
 	richContent: RichTextDocument;
 	preferredEditorMode?: NoteEditorMode;
+	properties?: NoteProperty[];
 };
 
 export type DebouncedSaveController = {
@@ -85,8 +88,10 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 			content: string,
 			richContent: RichTextDocument,
 			preferredEditorMode: NoteEditorMode | undefined,
+			properties: NoteProperty[] | undefined,
 			updatedAt: Date,
 		) {
+			const nextProperties = properties ? normalizeNoteProperties(properties) : undefined;
 			queryClient.setQueryData<NoteFile[]>(filesKey, (current = []) =>
 				current.map((note) =>
 					note.id === id
@@ -96,6 +101,7 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 								richContent,
 								preferredEditorMode:
 									preferredEditorMode ?? note.preferredEditorMode,
+								properties: nextProperties ?? note.properties,
 								modifiedAt: updatedAt,
 							}
 						: note,
@@ -108,6 +114,7 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 							content,
 							richContent,
 							preferredEditorMode: preferredEditorMode ?? current.preferredEditorMode,
+							properties: nextProperties ?? current.properties,
 							modifiedAt: updatedAt,
 						}
 					: current,
@@ -126,6 +133,7 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 				content: edit.content,
 				richContent: edit.richContent,
 				preferredEditorMode: edit.preferredEditorMode,
+				properties: edit.properties,
 				// Autosaves never rename. The filename follows the first heading only
 				// when the editor commits it (the user leaves the heading block),
 				// which sends an explicit `name`.
@@ -175,7 +183,13 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 			idleTimersRef.current.set(id, timer);
 		}
 
-		function schedule({ id, content, richContent, preferredEditorMode }: DebouncedContentArgs) {
+		function schedule({
+			id,
+			content,
+			richContent,
+			preferredEditorMode,
+			properties,
+		}: DebouncedContentArgs) {
 			versionsRef.current.set(id, (versionsRef.current.get(id) ?? 0) + 1);
 
 			const updatedAt = new Date();
@@ -185,10 +199,18 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 				content,
 				richContent: nextRichContent,
 				preferredEditorMode,
+				properties: properties === undefined ? undefined : normalizeNoteProperties(properties),
 			});
 			dirtyRef.current.add(id);
 
-			applyOptimisticCache(id, content, nextRichContent, preferredEditorMode, updatedAt);
+			applyOptimisticCache(
+				id,
+				content,
+				nextRichContent,
+				preferredEditorMode,
+				properties,
+				updatedAt,
+			);
 
 			optionsRef.current.onSaving?.(id);
 			scheduleIdleFlush(id);
@@ -230,6 +252,7 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 						content: snapshot.content,
 						richContent: snapshot.richContent,
 						preferredEditorMode: snapshot.preferredEditorMode,
+						properties: snapshot.properties,
 					},
 					true,
 				);

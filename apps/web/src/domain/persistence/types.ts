@@ -1,5 +1,6 @@
 import type { MoodLevel } from "@/domain/journal/models";
 import type { RichTextDocument } from "@/domain/notes/models";
+import type { NoteProperty } from "@/domain/notes/properties";
 
 export type Brand<T, TBrand extends string> = T & { readonly __brand: TBrand };
 export type Id<TName extends string> = Brand<string, `${TName}Id`>;
@@ -56,6 +57,7 @@ export type PersistedNote = Entity<NoteId> & {
 	parentId: FolderId | null;
 	sortOrder?: number;
 	tags?: TagName[];
+	properties?: NoteProperty[];
 	journalMeta?: PersistedNoteJournalMetadata;
 };
 
@@ -74,6 +76,7 @@ export type PersistedNoteJournalMetadata = {
 
 export type PersistedJournalEntry = Entity<JournalEntryId> & {
 	dateKey: DateKey;
+	title?: string | null;
 	content: MarkdownContent;
 	mood?: MoodLevel | null;
 	tags: TagName[];

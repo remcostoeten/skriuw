@@ -6,7 +6,7 @@ import { FAST_SWAP_TRANSITION, pickTransition } from "@/shared/lib/motion";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
-import { useShortcutHint, type ShortcutId } from "@/core/shortcuts";
+import { useShortcutHint, useShortcutScope, type ShortcutId } from "@/core/shortcuts";
 import {
 	FilePlus,
 	FileText,
@@ -238,8 +238,13 @@ export const SidebarPanel = memo(function SidebarPanel({
 	}, [closeSearch]);
 
 	const openSearch = useCallback(() => {
+		if (!hasSearchSection) return;
+		if (isSearchOpen) {
+			searchInputRef.current?.focus();
+			return;
+		}
 		setIsSearchOpen(true);
-	}, []);
+	}, [hasSearchSection, isSearchOpen]);
 
 	const handleSearchFileSelect = useCallback(
 		(id: string) => {
@@ -255,6 +260,16 @@ export const SidebarPanel = memo(function SidebarPanel({
 			closeSearch();
 		},
 		[closeSearch, onToggleFolder],
+	);
+
+	useShortcutScope(
+		"notes",
+		{
+			"notes.focusSidebarSearch": openSearch,
+		},
+		{
+			active: hasSearchSection,
+		},
 	);
 
 	useEffect(() => {
@@ -603,7 +618,10 @@ export const SidebarPanel = memo(function SidebarPanel({
 								</div>
 							)}
 							{hasSearchSection && (
-								<HeaderActionTooltip label="Search notes">
+								<HeaderActionTooltip
+									label="Search notes"
+									shortcutId="notes.focusSidebarSearch"
+								>
 									<button
 										onClick={openSearch}
 										className={cn(
@@ -684,7 +702,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										}}
 										placeholder="Search"
 										aria-label="Search notes"
-										className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-[13px]"
+										className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 focus-visible:shadow-none md:text-[13px]"
 									/>
 									<button
 										onClick={closeSearch}

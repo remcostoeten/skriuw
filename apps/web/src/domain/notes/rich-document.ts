@@ -303,6 +303,11 @@ export function flattenInlineChips(blocks: Block[] | PartialBlock[]): PartialBlo
 					if (!name) return [];
 					return [{ type: "text", text: `#${name}`, styles: {} }];
 				}
+				if (inline?.type === "user") {
+					const name = String(inline.props?.name ?? "").trim();
+					if (!name) return [];
+					return [{ type: "text", text: `$${name}`, styles: {} }];
+				}
 				return [inline];
 				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible content
 			}) as any;
@@ -682,6 +687,11 @@ function inlineNodeToSearchableMarkdown(inline: unknown): string {
 		return name ? `#${name}` : "";
 	}
 
+	if (node.type === "user") {
+		const name = String(node.props?.name ?? "").trim();
+		return name ? `$${name}` : "";
+	}
+
 	if (node.type === "link" && Array.isArray(node.content)) {
 		return node.content.map(inlineNodeToSearchableMarkdown).join("");
 	}
@@ -787,6 +797,51 @@ export function richDocumentToSearchableMarkdown(
 		.map((block) => blockToSearchableMarkdown(block as PartialBlock))
 		.filter(Boolean)
 		.join("\n\n");
+}
+
+function collectInlineUsers(content: unknown, acc: Map<string, string>): void {
+	if (!Array.isArray(content)) {
+		return;
+	}
+
+	for (const inline of content) {
+		if (!inline || typeof inline !== "object") {
+			continue;
+		}
+
+		const node = inline as { type?: string; props?: Record<string, unknown>; content?: unknown };
+		if (node.type === "user") {
+			const name = String(node.props?.name ?? "").trim();
+			if (name) {
+				acc.set(name.toLowerCase(), name);
+			}
+			continue;
+		}
+
+		collectInlineUsers(node.content, acc);
+	}
+}
+
+/** Names of every `$user` chip actually present in a rich document (not prose `$word` text). */
+export function extractRichDocumentUsers(
+	document: RichTextDocument | null | undefined,
+): string[] {
+	if (!document?.length) {
+		return [];
+	}
+
+	const acc = new Map<string, string>();
+	const walk = (blocks: PartialBlock[]) => {
+		for (const block of blocks) {
+			collectInlineUsers(block.content, acc);
+			if (Array.isArray(block.children)) {
+				walk(block.children as PartialBlock[]);
+			}
+		}
+	};
+	walk(document as PartialBlock[]);
+
+	return [...acc.values()].toSorted((left, right) => left.localeCompare(right));
 }
 
 export function resolveRichDocument(

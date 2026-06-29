@@ -10,6 +10,7 @@ export type JournalTag = {
 export type JournalEntry = {
 	id: string;
 	dateKey: string;
+	title?: string;
 	content: string;
 	tags: string[];
 	mood?: MoodLevel;

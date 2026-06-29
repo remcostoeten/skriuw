@@ -24,6 +24,7 @@ export type NoteVersionCandidate = Pick<
   | "preferredEditorMode"
   | "parentId"
   | "tags"
+  | "properties"
 > & {
   reason: NoteVersionReason;
 };
@@ -46,6 +47,7 @@ export function buildNoteVersionContentHash(
     preferredEditorMode: candidate.preferredEditorMode,
     parentId: candidate.parentId,
     tags: normalizeVersionTags(candidate.tags),
+    properties: candidate.properties ?? [],
   });
 
   return createHash("sha256").update(payload).digest("hex");

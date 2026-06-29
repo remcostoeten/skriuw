@@ -114,6 +114,8 @@ describe("preferences store user scoping", () => {
 
 		usePreferencesStore.getState().syncUserScope("user-a");
 		usePreferencesStore.getState().updateEditorPreference("defaultModeRaw", true);
+		usePreferencesStore.getState().updateEditorPreference("notePropertiesLayout", "inline");
+		usePreferencesStore.getState().updateEditorPreference("notePropertiesDefaultTemplateId", "project");
 		usePreferencesStore.getState().recordMood("calm");
 		usePreferencesStore.getState().incrementNoteCount();
 		usePreferencesStore.getState().logActivity("settings_opened");
@@ -152,6 +154,8 @@ describe("preferences store user scoping", () => {
 
 		expect(reloadedStore.getState().userScopeId).toBe("user-a");
 		expect(reloadedStore.getState().editor.defaultModeRaw).toBe(true);
+		expect(reloadedStore.getState().editor.notePropertiesLayout).toBe("inline");
+		expect(reloadedStore.getState().editor.notePropertiesDefaultTemplateId).toBe("project");
 		expect(reloadedStore.getState().editor.defaultPlaceholder).toBe("Start writing...");
 		expect(
 			reloadedStore.getState().journal.recentMoods.map((item: { mood: string }) => item.mood),

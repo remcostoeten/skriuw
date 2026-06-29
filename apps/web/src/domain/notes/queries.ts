@@ -11,6 +11,7 @@ import type {
 	RichTextDocument,
 } from "@/domain/notes/models";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
+import { normalizeNoteProperties } from "@/domain/notes/properties";
 import type {
 	FolderId,
 	IsoTime,
@@ -28,12 +29,16 @@ type NoteRecord = {
 	parentId: string | null;
 	sortOrder: number;
 	tags: string[];
+	properties: Prisma.JsonValue | null;
 	journalMeta: Prisma.JsonValue | null;
 	createdAt: Date;
 	updatedAt: Date;
 };
 
-type NoteMetadataRecord = Omit<NoteRecord, "content" | "richContent" | "journalMeta">;
+type NoteMetadataRecord = Omit<
+	NoteRecord,
+	"content" | "richContent" | "properties" | "journalMeta"
+>;
 
 type NoteVersionRecord = {
 	id: string;
@@ -44,6 +49,7 @@ type NoteVersionRecord = {
 	preferredEditorMode: string;
 	parentId: string | null;
 	tags: string[];
+	properties: Prisma.JsonValue | null;
 	reason: string;
 	contentHash: string;
 	createdAt: Date;
@@ -70,6 +76,7 @@ function recordToNoteFile(
 		parentId: record.parentId as FolderId | null,
 		sortOrder: record.sortOrder,
 		tags: record.tags.map((tag) => tag as TagName),
+		properties: normalizeNoteProperties(record.properties),
 		journalMeta: meta
 			? {
 					...meta,
@@ -92,6 +99,7 @@ function recordToNoteMetadata(record: NoteMetadataRecord): NoteFile {
 		parentId: record.parentId as FolderId | null,
 		sortOrder: record.sortOrder,
 		tags: record.tags.map((tag) => tag as TagName),
+		properties: [],
 		createdAt: record.createdAt.toISOString() as IsoTime,
 		updatedAt: record.updatedAt.toISOString() as IsoTime,
 	});
@@ -107,6 +115,7 @@ function recordToNoteVersion(record: NoteVersionRecord): NoteVersion {
 		preferred_editor_mode: record.preferredEditorMode as "raw" | "block",
 		parent_id: record.parentId,
 		tags: record.tags,
+		properties: normalizeNoteProperties(record.properties),
 		reason: record.reason as NoteVersionReason,
 		content_hash: record.contentHash,
 		created_at: record.createdAt.toISOString(),

@@ -11,10 +11,15 @@ import type {
 
 export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 	defaultModeRaw: false,
+	vimMode: false,
 	defaultPlaceholder: "Start writing...",
 	defaultFont: "inter",
 	lineHeight: "comfortable",
 	animateNumbers: true,
+	openNotesInTabs: false,
+	notePropertiesLayout: "rows",
+	notePropertiesDefaultTemplateId: null,
+	customNotePropertyTemplates: [],
 };
 
 export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {

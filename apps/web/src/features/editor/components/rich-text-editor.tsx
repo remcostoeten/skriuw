@@ -15,6 +15,7 @@ import {
 	insertOrUpdateBlockForSlashMenu,
 	SuggestionMenu as SuggestionMenuExtension,
 } from "@blocknote/core/extensions";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useShortcutMap } from "@remcostoeten/use-shortcut/react";
 import { LinkToolbarExtension } from "@blocknote/core/extensions";
 import {
@@ -55,12 +56,14 @@ import {
 	PenTool,
 	Pilcrow,
 	Quote,
+	Sparkles,
 	SpellCheck,
 	Strikethrough,
 	Tag,
 	Underline,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { FAST_SWAP_TRANSITION, pickTransition } from "@/shared/lib/motion";
 import { noop } from "@/shared/lib/noop";
 import { perf } from "@/shared/perf/track";
 import { DEFAULT_FILE_TREE_SOURCE } from "@/shared/lib/file-tree";
@@ -70,7 +73,14 @@ import {
 	type EditorLineHeight,
 } from "@/features/editor/lib/editor-line-height";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
-import { extractNoteTags, getNoteTitle, getNoteSearchableContent, getWorkspaceTags } from "@/domain/notes/note-links";
+import type { NoteProperty } from "@/domain/notes/properties";
+import {
+	extractNoteTags,
+	getNoteTitle,
+	getNoteSearchableContent,
+	getWorkspaceTags,
+	getWorkspaceUsers,
+} from "@/domain/notes/note-links";
 import { useNotesStore } from "@/features/notes/store";
 import { useNoteLinkActions } from "@/features/editor/hooks/use-note-link-actions";
 import {
@@ -104,7 +114,10 @@ import {
 	searchPluginKey,
 	type SearchOptions,
 } from "@/features/editor/lib/search-plugin";
+import { createVimPlugin, vimPluginKey, type VimMode } from "@/features/editor/lib/vim-plugin";
+import { shouldClearSelectionBubbleRect } from "@/features/editor/lib/selection-bubble";
 import { SearchWidget } from "./search-widget";
+import { NotePropertiesShelf } from "./note-properties/note-properties-shelf";
 import { editorSchema } from "./inline-specs/schema";
 import { NoteLinkProvider } from "./inline-specs/note-link-context";
 import type * as Y from "yjs";
@@ -133,8 +146,10 @@ type RichTextEditorProps = {
 	activeFileId?: string;
 	editorFontId: EditorFontId;
 	editorLineHeight: EditorLineHeight;
+	properties?: NoteProperty[];
 	readOnly?: boolean;
 	onChange: (next: { markdown: string; richContent: RichTextDocument }) => void;
+	onPropertiesChange?: (properties: NoteProperty[]) => void;
 	onEditorReady?: (handle: AiEditorHandle) => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
@@ -145,8 +160,9 @@ type RichTextEditorProps = {
 		column: number;
 		selection?: { words: number; characters: number };
 	}) => void;
+	onVimModeChange?: (mode: VimMode | null) => void;
 	collab?: TRichTextCollab;
-}
+};
 
 async function blocksToMarkdown(editor: EditorInstance): Promise<string> {
 	try {
@@ -306,7 +322,7 @@ function KeyboardAccessibleSlashMenu({
 			role="listbox"
 			aria-label="Editor suggestions"
 			aria-activedescendant={`${menuId}-item-${activeIndex}`}
-			className="bn-suggestion-menu skriuw-editor-suggestion-menu z-[100] max-h-[min(24rem,50vh)] overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl"
+			className="bn-suggestion-menu skriuw-editor-suggestion-menu z-[100] max-h-[min(24rem,50vh)] overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-xl shadow-black/40"
 		>
 			{items.map((item, index) => (
 				<button
@@ -319,17 +335,17 @@ function KeyboardAccessibleSlashMenu({
 					onMouseEnter={() => setActiveIndex(index)}
 					onClick={() => onItemClick?.(item)}
 					className={cn(
-						"flex w-full items-start gap-3 rounded-[4px] px-2.5 py-1.5 text-left transition-colors",
+						"flex w-full items-start gap-2.5 rounded-md px-2 py-1.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring/50",
 						index === activeIndex
-							? "bg-accent text-accent-foreground"
-							: "text-popover-foreground hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:outline-none",
+							? "bg-accent text-foreground"
+							: "text-muted-foreground hover:bg-accent/70 hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground",
 					)}
 				>
 					{item.icon ? (
 						<span className="mt-0.5 shrink-0 text-muted-foreground">{item.icon}</span>
 					) : null}
 					<span className="min-w-0 flex-1">
-						<span className="block truncate text-sm font-medium">{item.title}</span>
+						<span className="block truncate text-xs font-medium">{item.title}</span>
 						{item.subtext ? (
 							<span className="mt-0.5 block truncate text-xs text-muted-foreground">
 								{item.subtext}
@@ -401,13 +417,55 @@ type TBlockTypeOption = {
 };
 
 const BLOCK_TYPE_OPTIONS: TBlockTypeOption[] = [
-	{ id: "paragraph", label: "Paragraph", icon: <Pilcrow size={15} />, type: "paragraph", props: {} },
-	{ id: "heading-1", label: "Heading 1", icon: <Heading1 size={15} />, type: "heading", props: { level: 1 } },
-	{ id: "heading-2", label: "Heading 2", icon: <Heading2 size={15} />, type: "heading", props: { level: 2 } },
-	{ id: "heading-3", label: "Heading 3", icon: <Heading3 size={15} />, type: "heading", props: { level: 3 } },
-	{ id: "bullet", label: "Bullet List", icon: <List size={15} />, type: "bulletListItem", props: {} },
-	{ id: "numbered", label: "Numbered List", icon: <ListOrdered size={15} />, type: "numberedListItem", props: {} },
-	{ id: "check", label: "Check List", icon: <ListChecks size={15} />, type: "checkListItem", props: {} },
+	{
+		id: "paragraph",
+		label: "Paragraph",
+		icon: <Pilcrow size={15} />,
+		type: "paragraph",
+		props: {},
+	},
+	{
+		id: "heading-1",
+		label: "Heading 1",
+		icon: <Heading1 size={15} />,
+		type: "heading",
+		props: { level: 1 },
+	},
+	{
+		id: "heading-2",
+		label: "Heading 2",
+		icon: <Heading2 size={15} />,
+		type: "heading",
+		props: { level: 2 },
+	},
+	{
+		id: "heading-3",
+		label: "Heading 3",
+		icon: <Heading3 size={15} />,
+		type: "heading",
+		props: { level: 3 },
+	},
+	{
+		id: "bullet",
+		label: "Bullet List",
+		icon: <List size={15} />,
+		type: "bulletListItem",
+		props: {},
+	},
+	{
+		id: "numbered",
+		label: "Numbered List",
+		icon: <ListOrdered size={15} />,
+		type: "numberedListItem",
+		props: {},
+	},
+	{
+		id: "check",
+		label: "Check List",
+		icon: <ListChecks size={15} />,
+		type: "checkListItem",
+		props: {},
+	},
 	{ id: "quote", label: "Quote", icon: <Quote size={15} />, type: "quote", props: {} },
 ];
 
@@ -729,7 +787,13 @@ function InternalNoteLinkMenu({ editor, files, activeFileId }: TInternalNoteLink
 	);
 }
 
-function CommentPopover({ editor, onAddComment }: { editor: EditorInstance; onAddComment: TAddComment }) {
+function CommentPopover({
+	editor,
+	onAddComment,
+}: {
+	editor: EditorInstance;
+	onAddComment: TAddComment;
+}) {
 	const rangeRef = useRef<{ from: number; to: number } | null>(null);
 	const [body, setBody] = useState("");
 
@@ -770,7 +834,8 @@ function CommentPopover({ editor, onAddComment }: { editor: EditorInstance; onAd
 							value={body}
 							onChange={(event) => setBody(event.target.value)}
 							onKeyDown={(event) => {
-								if ((event.metaKey || event.ctrlKey) && event.key === "Enter") submit();
+								if ((event.metaKey || event.ctrlKey) && event.key === "Enter")
+									submit();
 								if (event.key === "Escape") close();
 							}}
 							placeholder="Add a comment…"
@@ -807,40 +872,223 @@ type TSelectionBubbleMenuProps = {
 	files: NoteFile[];
 	activeFileId?: string;
 	onAddComment?: TAddComment;
+	onAiSpellCheck?: () => void;
+	onAiContinueWriting?: () => void;
 };
+
+type TVisualViewportState = {
+	isMobile: boolean;
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+};
+
+function getVisualViewportState(): TVisualViewportState {
+	const viewport = window.visualViewport;
+	const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+	const narrowViewport = window.matchMedia?.("(max-width: 767px)").matches ?? false;
+
+	return {
+		isMobile: coarsePointer || narrowViewport,
+		left: viewport?.offsetLeft ?? 0,
+		top: viewport?.offsetTop ?? 0,
+		width: viewport?.width ?? window.innerWidth,
+		height: viewport?.height ?? window.innerHeight,
+	};
+}
+
+function useVisualViewportState(): TVisualViewportState | null {
+	const [viewport, setViewport] = useState<TVisualViewportState | null>(null);
+
+	useEffect(() => {
+		let frame: number | null = null;
+		const update = () => {
+			if (frame !== null) cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() => {
+				frame = null;
+				setViewport(getVisualViewportState());
+			});
+		};
+		const visualViewport = window.visualViewport;
+
+		update();
+		window.addEventListener("resize", update);
+		visualViewport?.addEventListener("resize", update);
+		visualViewport?.addEventListener("scroll", update);
+		return () => {
+			if (frame !== null) cancelAnimationFrame(frame);
+			window.removeEventListener("resize", update);
+			visualViewport?.removeEventListener("resize", update);
+			visualViewport?.removeEventListener("scroll", update);
+		};
+	}, []);
+
+	return viewport;
+}
 
 // Self-contained bubble menu. Watches the editor's selection and renders the
 // formatting toolbar above it, fixed-positioned. This replaces BlockNote's
 // FormattingToolbarController, which remounts the toolbar on every editor
 // transaction and so wiped the open state of any dropdown the user opened. Here
 // the toolbar is one stable element that only repositions.
-function SelectionBubbleMenu({ editor, files, activeFileId, onAddComment }: TSelectionBubbleMenuProps) {
-	const [rect, setRect] = useState<
-		{ top: number; bottom: number; left: number; width: number } | null
-	>(null);
+const FOCUSABLE_ITEMS =
+	'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// Top-level toolbar controls only — excludes focusables inside an open dropdown
+// so roving navigation steps between toolbar buttons, not menu entries.
+function getToolbarItems(toolbar: HTMLElement): HTMLElement[] {
+	return Array.from(toolbar.querySelectorAll<HTMLElement>(FOCUSABLE_ITEMS)).filter(
+		(el) => !el.closest(".skriuw-fmt-dropdown"),
+	);
+}
+
+type TAiMenuProps = {
+	onSpellCheck?: () => void;
+	onContinueWriting?: () => void;
+};
+
+function AiMenu({ onSpellCheck, onContinueWriting }: TAiMenuProps) {
+	if (!onSpellCheck && !onContinueWriting) return null;
+
+	return (
+		<FmtMenu
+			id="ai"
+			width="13rem"
+			trigger={({ open, toggle }) => (
+				<button
+					type="button"
+					className="skriuw-fmt-btn"
+					aria-label="AI actions"
+					aria-haspopup="menu"
+					aria-expanded={open}
+					title="AI"
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={toggle}
+				>
+					<Sparkles size={15} />
+				</button>
+			)}
+		>
+			{(close) => (
+				<>
+					{onSpellCheck ? (
+						<button
+							type="button"
+							className="skriuw-fmt-item"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={() => {
+								onSpellCheck();
+								close();
+							}}
+						>
+							<span className="skriuw-fmt-item-icon">
+								<SpellCheck size={15} />
+							</span>
+							<span>Spell check</span>
+						</button>
+					) : null}
+					{onContinueWriting ? (
+						<button
+							type="button"
+							className="skriuw-fmt-item"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={() => {
+								onContinueWriting();
+								close();
+							}}
+						>
+							<span className="skriuw-fmt-item-icon">
+								<PenTool size={15} />
+							</span>
+							<span>Continue writing</span>
+						</button>
+					) : null}
+				</>
+			)}
+		</FmtMenu>
+	);
+}
+
+function SelectionBubbleMenu({
+	editor,
+	files,
+	activeFileId,
+	onAddComment,
+	onAiSpellCheck,
+	onAiContinueWriting,
+}: TSelectionBubbleMenuProps) {
+	const [rect, setRect] = useState<{
+		top: number;
+		bottom: number;
+		left: number;
+		width: number;
+	} | null>(null);
+	const openFmtMenu = useOpenFmtMenu();
+	const toolbarRef = useRef<HTMLDivElement>(null);
+	const focusRingRef = useRef<HTMLSpanElement>(null);
+	const visualViewport = useVisualViewportState();
+	const [toolbarHeight, setToolbarHeight] = useState(40);
+
+	// Slides a single highlight pill to sit behind whichever control holds focus.
+	// Because it animates from its current box to the target box, the motion is
+	// inherently direction-aware (left when moving left, right when moving right).
+	const moveFocusRing = useCallback((target: EventTarget | null) => {
+		const toolbar = toolbarRef.current;
+		const ring = focusRingRef.current;
+		if (!toolbar || !ring) return;
+		const el =
+			target instanceof HTMLElement && !target.closest(".skriuw-fmt-dropdown")
+				? target
+				: null;
+		if (!el || !toolbar.contains(el)) {
+			ring.style.opacity = "0";
+			return;
+		}
+		const toolbarBox = toolbar.getBoundingClientRect();
+		const box = el.getBoundingClientRect();
+		ring.style.opacity = "1";
+		ring.style.width = `${box.width}px`;
+		ring.style.height = `${box.height}px`;
+		ring.style.transform = `translate(${box.left - toolbarBox.left}px, ${box.top - toolbarBox.top}px)`;
+	}, []);
 
 	useEffect(() => {
 		let frame: number | null = null;
 
 		const compute = () => {
 			frame = null;
+			// Keyboard focus moved into the toolbar blurs the editor, which would
+			// otherwise clear the selection rect and unmount the toolbar mid-use.
+			if (toolbarRef.current?.contains(document.activeElement)) {
+				return;
+			}
 			const editorDom = editor.domElement;
 			if (!editorDom) {
 				setRect(null);
 				return;
 			}
 			const selection = window.getSelection();
-			if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+			const hasSelection = Boolean(selection && selection.rangeCount > 0);
+			const isCollapsed = Boolean(selection?.isCollapsed);
+			const range = hasSelection && !isCollapsed ? (selection?.getRangeAt(0) ?? null) : null;
+			const isInsideEditor = Boolean(
+				range && editorDom.contains(range.commonAncestorContainer),
+			);
+			const hasSelectedText = Boolean(editor.getSelectedText?.()?.trim());
+			if (
+				shouldClearSelectionBubbleRect({
+					hasOpenMenu: openFmtMenu !== null,
+					hasSelection,
+					isCollapsed,
+					isInsideEditor,
+					hasSelectedText,
+				})
+			) {
 				setRect(null);
 				return;
 			}
-			const range = selection.getRangeAt(0);
-			if (!editorDom.contains(range.commonAncestorContainer)) {
-				setRect(null);
-				return;
-			}
-			if (!editor.getSelectedText?.()?.trim()) {
-				setRect(null);
+			if (!range || !isInsideEditor || !hasSelectedText) {
 				return;
 			}
 			const bounds = range.getBoundingClientRect();
@@ -860,13 +1108,45 @@ function SelectionBubbleMenu({ editor, files, activeFileId, onAddComment }: TSel
 		document.addEventListener("selectionchange", schedule);
 		window.addEventListener("scroll", schedule, true);
 		window.addEventListener("resize", schedule);
+		window.visualViewport?.addEventListener("resize", schedule);
+		window.visualViewport?.addEventListener("scroll", schedule);
 		return () => {
 			if (frame !== null) cancelAnimationFrame(frame);
 			document.removeEventListener("selectionchange", schedule);
 			window.removeEventListener("scroll", schedule, true);
 			window.removeEventListener("resize", schedule);
+			window.visualViewport?.removeEventListener("resize", schedule);
+			window.visualViewport?.removeEventListener("scroll", schedule);
 		};
-	}, [editor]);
+	}, [editor, openFmtMenu]);
+
+	useEffect(() => {
+		if (!rect) return;
+
+		function handleGlobalTab(e: KeyboardEvent) {
+			if (e.key !== "Tab" || e.shiftKey) return;
+			const toolbar = toolbarRef.current;
+			if (!toolbar) return;
+			if (toolbar.contains(document.activeElement)) return;
+			if (!editor.domElement?.contains(document.activeElement)) return;
+			e.preventDefault();
+			e.stopPropagation();
+			getToolbarItems(toolbar)[0]?.focus();
+		}
+
+		document.addEventListener("keydown", handleGlobalTab, true);
+		return () => document.removeEventListener("keydown", handleGlobalTab, true);
+	}, [rect, editor]);
+
+	useEffect(() => {
+		if (!rect) return;
+		const toolbar = toolbarRef.current;
+		if (!toolbar) return;
+		const nextHeight = Math.ceil(toolbar.getBoundingClientRect().height);
+		if (nextHeight > 0 && nextHeight !== toolbarHeight) {
+			setToolbarHeight(nextHeight);
+		}
+	}, [rect, toolbarHeight, visualViewport?.width]);
 
 	const state = useEditorState({
 		editor,
@@ -903,21 +1183,37 @@ function SelectionBubbleMenu({ editor, files, activeFileId, onAddComment }: TSel
 
 	if (!rect) return null;
 
-	const placeBelow = rect.top < 96;
-	const centerX = rect.left + rect.width / 2;
-	const left = Math.min(Math.max(centerX, 170), window.innerWidth - 170);
-	const positionStyle: CSSProperties = {
-		position: "fixed",
-		left,
-		zIndex: 60,
-		...(placeBelow
-			? { top: rect.bottom + 8, transform: "translateX(-50%)" }
-			: { top: rect.top - 8, transform: "translate(-50%, -100%)" }),
-	};
+	const mobileViewport = visualViewport?.isMobile ? visualViewport : null;
+	const positionStyle: CSSProperties = mobileViewport
+		? {
+				position: "fixed",
+				left: mobileViewport.left + 8,
+				top: Math.max(
+					mobileViewport.top + 8,
+					mobileViewport.top + mobileViewport.height - toolbarHeight - 10,
+				),
+				width: Math.max(0, mobileViewport.width - 16),
+				zIndex: 60,
+			}
+		: (() => {
+				const placeBelow = rect.top < 96;
+				const centerX = rect.left + rect.width / 2;
+				const left = Math.min(Math.max(centerX, 170), window.innerWidth - 170);
+				return {
+					position: "fixed",
+					left,
+					zIndex: 60,
+					...(placeBelow
+						? { top: rect.bottom + 8, transform: "translateX(-50%)" }
+						: { top: rect.top - 8, transform: "translate(-50%, -100%)" }),
+				};
+			})();
 
 	return (
 		<div
+			ref={toolbarRef}
 			className="bn-toolbar bn-formatting-toolbar skriuw-fmt-toolbar"
+			data-mobile={mobileViewport ? "true" : undefined}
 			role="toolbar"
 			aria-label="Text formatting"
 			style={positionStyle}
@@ -926,7 +1222,58 @@ function SelectionBubbleMenu({ editor, files, activeFileId, onAddComment }: TSel
 				if (target instanceof HTMLElement && target.closest("input, textarea")) return;
 				event.preventDefault();
 			}}
+			onFocusCapture={(e) => moveFocusRing(e.target)}
+			onBlurCapture={(e) => {
+				const toolbar = toolbarRef.current;
+				if (!toolbar || !toolbar.contains(e.relatedTarget as Node | null)) {
+					moveFocusRing(null);
+				}
+			}}
+			onKeyDown={(e) => {
+				const toolbar = toolbarRef.current;
+				if (!toolbar) return;
+
+				if (e.key === "Escape") {
+					e.preventDefault();
+					editor.focus();
+					return;
+				}
+
+				const items = getToolbarItems(toolbar);
+				if (items.length === 0) return;
+				const active = document.activeElement as HTMLElement | null;
+				const index = active ? items.indexOf(active) : -1;
+
+				if (e.key === "Tab") {
+					if (e.shiftKey && index === 0) {
+						e.preventDefault();
+						editor.focus();
+					} else if (!e.shiftKey && index === items.length - 1) {
+						e.preventDefault();
+						editor.focus();
+					}
+					return;
+				}
+
+				// Roving arrow navigation between top-level controls, wrapping at the ends.
+				if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+					if (index === -1) return;
+					e.preventDefault();
+					const dir = e.key === "ArrowRight" ? 1 : -1;
+					items[(index + dir + items.length) % items.length]?.focus();
+					return;
+				}
+
+				// Down opens the focused menu trigger (block type / AI), matching toolbar conventions.
+				if (e.key === "ArrowDown" && active?.getAttribute("aria-haspopup") === "menu") {
+					if (active.getAttribute("aria-expanded") !== "true") {
+						e.preventDefault();
+						active.click();
+					}
+				}
+			}}
 		>
+			<span ref={focusRingRef} className="skriuw-fmt-focus-ring" aria-hidden="true" />
 			<BlockTypeMenu editor={editor} blockType={state.blockType} level={state.level} />
 			<span className="skriuw-fmt-sep" />
 			<FmtIconButton
@@ -982,6 +1329,12 @@ function SelectionBubbleMenu({ editor, files, activeFileId, onAddComment }: TSel
 			<LinkPopover editor={editor} />
 			<InternalNoteLinkMenu editor={editor} files={files} activeFileId={activeFileId} />
 			{onAddComment ? <CommentPopover editor={editor} onAddComment={onAddComment} /> : null}
+			{onAiSpellCheck || onAiContinueWriting ? (
+				<>
+					<span className="skriuw-fmt-sep" />
+					<AiMenu onSpellCheck={onAiSpellCheck} onContinueWriting={onAiContinueWriting} />
+				</>
+			) : null}
 		</div>
 	);
 }
@@ -1108,6 +1461,17 @@ function insertNoteLinkChip(editor: EditorInstance, title: string) {
 	editor.insertInlineContent([{ type: "noteLink", props: { title: trimmed } } as any, " "]);
 }
 
+function insertUserChip(editor: EditorInstance, name: string) {
+	const trimmed = name
+		.trim()
+		.replace(/^\$/, "")
+		.replace(/[^a-zA-Z0-9_-]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+	if (!trimmed) return;
+	// biome-ignore lint/suspicious/noExplicitAny: custom inline content type
+	editor.insertInlineContent([{ type: "user", props: { name: trimmed } } as any, " "]);
+}
+
 function openNoteMentionMenu(editor: EditorInstance) {
 	const suggestionMenu = editor.getExtension?.(SuggestionMenuExtension);
 	if (!suggestionMenu) {
@@ -1148,6 +1512,43 @@ function getTagMenuItems(
 						group: "Tags",
 						onItemClick: () => {
 							insertTagChip(editor, normalizedQuery);
+						},
+					},
+				]
+			: []),
+		...filterSuggestionItems(existingItems, normalizedQuery),
+	];
+}
+
+function getUserMentionMenuItems(
+	editor: EditorInstance,
+	users: string[],
+	query: string,
+): DefaultReactSuggestionItem[] {
+	const normalizedQuery = query.trim().replace(/^\$/, "");
+	const slugQuery = normalizedQuery.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+	const existingItems: DefaultReactSuggestionItem[] = users.map((user) => ({
+		title: user,
+		subtext: "User",
+		group: "Users",
+		onItemClick: () => {
+			insertUserChip(editor, user);
+		},
+	}));
+
+	const shouldOfferCreate =
+		slugQuery.length > 0 &&
+		!users.some((user) => user.toLowerCase() === slugQuery.toLowerCase());
+
+	return [
+		...(shouldOfferCreate
+			? [
+					{
+						title: slugQuery,
+						subtext: "Mention user",
+						group: "Users",
+						onItemClick: () => {
+							insertUserChip(editor, slugQuery);
 						},
 					},
 				]
@@ -1276,14 +1677,17 @@ export function RichTextEditor({
 	activeFileId,
 	editorFontId,
 	editorLineHeight,
+	properties = [],
 	readOnly = false,
 	onChange,
+	onPropertiesChange,
 	onEditorReady,
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onTitleCommit,
 	onBlur,
 	onCursorChange,
+	onVimModeChange,
 	collab,
 }: RichTextEditorProps) {
 	const appTheme = usePreferencesStore((state) => state.appearance.theme);
@@ -1332,6 +1736,9 @@ export function RichTextEditor({
 				},
 	);
 	const searchPlugin = useMemo(() => createSearchPlugin(), []);
+	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
+	const onVimModeChangeRef = useRef(onVimModeChange);
+	onVimModeChangeRef.current = onVimModeChange;
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [replaceValue, setReplaceValue] = useState("");
@@ -1341,7 +1748,10 @@ export function RichTextEditor({
 	});
 	const [matchInfo, setMatchInfo] = useState({ current: 0, total: 0 });
 	const findInputRef = useRef<HTMLInputElement>(null);
+	const prefersReducedMotion = useReducedMotion() ?? false;
+	const searchWidgetTransition = pickTransition(prefersReducedMotion, FAST_SWAP_TRANSITION);
 	const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
+	const workspaceUsers = useMemo(() => getWorkspaceUsers(files), [files]);
 	const { createAndOpenNote, openNote } = useNoteLinkActions(files);
 
 	// Anchored comments live alongside the document in the same Yjs room; the
@@ -1359,13 +1769,17 @@ export function RichTextEditor({
 		setMatchInfo({ current: state?.current ?? 0, total: state?.matches.length ?? 0 });
 	}, [editor]);
 
-	const openSearch = useCallback(() => {
-		setSearchOpen(true);
+	const focusSearchInput = useCallback(() => {
 		requestAnimationFrame(() => {
 			findInputRef.current?.focus();
 			findInputRef.current?.select();
 		});
 	}, []);
+
+	const openSearch = useCallback(() => {
+		setSearchOpen(true);
+		focusSearchInput();
+	}, [focusSearchInput]);
 
 	const closeSearch = useCallback(() => {
 		setSearchOpen(false);
@@ -1375,6 +1789,14 @@ export function RichTextEditor({
 			view.focus();
 		}
 	}, [editor]);
+
+	const toggleSearch = useCallback(() => {
+		if (searchOpen) {
+			closeSearch();
+			return;
+		}
+		openSearch();
+	}, [closeSearch, openSearch, searchOpen]);
 
 	const toggleSearchOption = useCallback((key: keyof SearchOptions) => {
 		setSearchOptions((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1418,6 +1840,19 @@ export function RichTextEditor({
 	}, [editor, searchPlugin]);
 
 	useEffect(() => {
+		const tiptap = editor._tiptapEditor;
+		if (!tiptap || !vimModeEnabled || readOnly) return;
+		const plugin = createVimPlugin((mode) => onVimModeChangeRef.current?.(mode));
+		tiptap.registerPlugin(plugin);
+		onVimModeChangeRef.current?.("normal");
+		return () => {
+			tiptap.unregisterPlugin(vimPluginKey);
+			editor.prosemirrorView?.dom.classList.remove("vim-normal", "vim-insert");
+			onVimModeChangeRef.current?.(null);
+		};
+	}, [editor, vimModeEnabled, readOnly]);
+
+	useEffect(() => {
 		const view = editor.prosemirrorView;
 		if (!view) return;
 		setSearch(view, searchQuery, searchOptions);
@@ -1428,7 +1863,7 @@ export function RichTextEditor({
 		{
 			findInNote: {
 				keys: "mod+f",
-				handler: openSearch,
+				handler: toggleSearch,
 				options: {
 					description: "Find in note",
 					preventDefault: true,
@@ -1580,8 +2015,7 @@ export function RichTextEditor({
 				// Throws when the editor isn't focused — treat as "not in heading".
 				currentBlockId = null;
 			}
-			const inFirstHeading =
-				firstHeadingId !== null && currentBlockId === firstHeadingId;
+			const inFirstHeading = firstHeadingId !== null && currentBlockId === firstHeadingId;
 			if (wasInFirstHeading && !inFirstHeading) {
 				const title = getFirstHeadingTitle(editor);
 				if (title) {
@@ -1959,90 +2393,127 @@ export function RichTextEditor({
 				} as CSSProperties
 			}
 		>
-			{searchOpen ? (
-				<div className="absolute top-3 right-4 z-40">
-					<SearchWidget
-						ref={findInputRef}
-						query={searchQuery}
-						onQueryChange={setSearchQuery}
-						replaceValue={replaceValue}
-						onReplaceChange={setReplaceValue}
-						showReplace={showReplace}
-						onToggleReplace={() => setShowReplace((value) => !value)}
-						options={searchOptions}
-						onToggleOption={toggleSearchOption}
-						current={matchInfo.current}
-						total={matchInfo.total}
-						regexError={regexError}
-						onNext={handleNextMatch}
-						onPrevious={handlePreviousMatch}
-						onClose={closeSearch}
-						onReplaceCurrent={handleReplaceCurrent}
-						onReplaceAll={handleReplaceAll}
-					/>
-				</div>
+			<AnimatePresence>
+				{searchOpen ? (
+					<motion.div
+						className="absolute top-3 right-4 z-40 origin-top-right"
+						initial={
+							prefersReducedMotion
+								? { opacity: 0 }
+								: { opacity: 0, y: -6, scale: 0.98 }
+						}
+						animate={
+							prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }
+						}
+						exit={
+							prefersReducedMotion
+								? { opacity: 0 }
+								: { opacity: 0, y: -4, scale: 0.98 }
+						}
+						transition={searchWidgetTransition}
+					>
+						<SearchWidget
+							ref={findInputRef}
+							query={searchQuery}
+							onQueryChange={setSearchQuery}
+							replaceValue={replaceValue}
+							onReplaceChange={setReplaceValue}
+							showReplace={showReplace}
+							onToggleReplace={() => setShowReplace((value) => !value)}
+							options={searchOptions}
+							onToggleOption={toggleSearchOption}
+							current={matchInfo.current}
+							total={matchInfo.total}
+							regexError={regexError}
+							onNext={handleNextMatch}
+							onPrevious={handlePreviousMatch}
+							onClose={closeSearch}
+							onReplaceCurrent={handleReplaceCurrent}
+							onReplaceAll={handleReplaceAll}
+						/>
+					</motion.div>
+				) : null}
+			</AnimatePresence>
+			{onPropertiesChange ? (
+				<NotePropertiesShelf
+					properties={properties}
+					readOnly={readOnly}
+					onChange={onPropertiesChange}
+				/>
 			) : null}
 			<NoteLinkProvider files={files} activeFileId={activeFileId}>
-					<BlockNoteView
-						editor={editor}
-						editable={!readOnly}
-						onChange={handleEditorChange}
-						theme={blockNoteTheme}
-						className="h-full"
-						formattingToolbar={false}
-						linkToolbar={false}
-						slashMenu={false}
-					>
-						<LinkToolbarController
-							linkToolbar={(props) => (
-								<CustomLinkToolbar
-									{...props}
-									files={files}
-									activeFileId={activeFileId}
-								/>
-							)}
-						/>
-						<SuggestionMenuController
-							triggerCharacter="/"
-							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-							getItems={async (query) =>
-								filterSuggestionItems(
-									getCustomSlashMenuItems(
-										editor,
-										onAiSpellCheck,
-										onAiContinueWriting,
-									),
-									query,
-								)
-							}
-						/>
-						<SuggestionMenuController
-							triggerCharacter="@"
-							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-							getItems={async (query) =>
-								getNoteMentionMenuItems(
+				<BlockNoteView
+					editor={editor}
+					editable={!readOnly}
+					onChange={handleEditorChange}
+					theme={blockNoteTheme}
+					className="h-full"
+					formattingToolbar={false}
+					linkToolbar={false}
+					slashMenu={false}
+				>
+					<LinkToolbarController
+						linkToolbar={(props) => (
+							<CustomLinkToolbar
+								{...props}
+								files={files}
+								activeFileId={activeFileId}
+							/>
+						)}
+					/>
+					<SuggestionMenuController
+						triggerCharacter="/"
+						suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+						getItems={async (query) =>
+							filterSuggestionItems(
+								getCustomSlashMenuItems(
 									editor,
-									files,
-									activeFileId,
-									query,
-									handleCreateNoteFromMention,
-								)
-							}
-						/>
-						<SuggestionMenuController
-							triggerCharacter="#"
-							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-							getItems={async (query) => getTagMenuItems(editor, workspaceTags, query)}
-						/>
-						<SelectionBubbleMenu
-							editor={editor}
-							files={files}
-							activeFileId={activeFileId}
-							onAddComment={collab ? addComment : undefined}
-						/>
-					</BlockNoteView>
-				</NoteLinkProvider>
+									onAiSpellCheck,
+									onAiContinueWriting,
+								),
+								query,
+							)
+						}
+					/>
+					<SuggestionMenuController
+						triggerCharacter="@"
+						suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+						getItems={async (query) =>
+							getNoteMentionMenuItems(
+								editor,
+								files,
+								activeFileId,
+								query,
+								handleCreateNoteFromMention,
+							)
+						}
+					/>
+					<SuggestionMenuController
+						triggerCharacter="#"
+						suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+						getItems={async (query) => getTagMenuItems(editor, workspaceTags, query)}
+					/>
+					<SuggestionMenuController
+						triggerCharacter="$"
+						suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+						getItems={async (query) =>
+							getUserMentionMenuItems(editor, workspaceUsers, query)
+						}
+					/>
+					<SelectionBubbleMenu
+						editor={editor}
+						files={files}
+						activeFileId={activeFileId}
+						onAddComment={collab ? addComment : undefined}
+						onAiSpellCheck={onAiSpellCheck}
+						onAiContinueWriting={onAiContinueWriting}
+					/>
+				</BlockNoteView>
+			</NoteLinkProvider>
 			<style jsx global>{`
+				.blocknote-wrapper .bn-editor .vim-normal {
+					caret-color: hsl(var(--primary));
+				}
 				.blocknote-wrapper {
 					--bn-colors-editor-background: hsl(var(--card));
 					--bn-colors-editor-text: hsl(var(--card-foreground));
@@ -2167,92 +2638,129 @@ export function RichTextEditor({
 					user-select: none;
 					white-space: nowrap;
 				}
+				.blocknote-wrapper [data-note-tag] {
+					display: inline-flex;
+					max-width: 16ch;
+					vertical-align: baseline;
+					overflow: hidden;
+					text-overflow: ellipsis;
+				}
 				.blocknote-wrapper .bn-suggestion-decorator {
 					border-radius: 0.2rem;
 					background: hsl(var(--editor-selection));
 					box-shadow: 0 0 0 1px hsl(var(--ring) / 0.7);
 				}
-					/* Real-time collaboration: remote carets, name labels, selections. */
-					.blocknote-wrapper .bn-collaboration-cursor__caret {
-						border-radius: 1px;
-						/* Notch the caret away from the glyph edges so it reads as a
+				/* Real-time collaboration: remote carets, name labels, selections. */
+				.blocknote-wrapper .bn-collaboration-cursor__caret {
+					border-radius: 1px;
+					/* Notch the caret away from the glyph edges so it reads as a
 						   distinct cursor, not part of the text. */
-						border-left: 1px solid hsl(var(--card));
-						border-right: 1px solid hsl(var(--card));
-					}
-					.blocknote-wrapper .bn-collaboration-cursor__base[data-active]
-						.bn-collaboration-cursor__label {
-						top: -1.3rem;
-						max-height: 1.2rem;
-						border-radius: 4px 4px 4px 1px;
-						padding: 0.06rem 0.34rem;
-						font-size: 10.5px;
-						font-weight: 600;
-						letter-spacing: 0.01em;
-						line-height: 1.2;
-						box-shadow: 0 2px 8px hsl(var(--editor-shadow) / 0.38);
-					}
-					/* Remote text selection tint. y-prosemirror sets the per-user color
+					border-left: 1px solid hsl(var(--card));
+					border-right: 1px solid hsl(var(--card));
+				}
+				.blocknote-wrapper .bn-collaboration-cursor__base[data-active] .bn-collaboration-cursor__label {
+					top: -1.3rem;
+					max-height: 1.2rem;
+					border-radius: 4px 4px 4px 1px;
+					padding: 0.06rem 0.34rem;
+					font-size: 10.5px;
+					font-weight: 600;
+					letter-spacing: 0.01em;
+					line-height: 1.2;
+					box-shadow: 0 2px 8px hsl(var(--editor-shadow) / 0.38);
+				}
+				/* Remote text selection tint. y-prosemirror sets the per-user color
 					   inline (with alpha); we only soften the corners + keep it from
 					   bleeding past line boxes. */
-					.blocknote-wrapper .ProseMirror-yjs-selection {
-						border-radius: 2px;
-						padding: 0.02em 0;
-					}
-					/* Anchored comments: author-tinted highlight via the engine's
+				.blocknote-wrapper .ProseMirror-yjs-selection {
+					border-radius: 2px;
+					padding: 0.02em 0;
+				}
+				/* Anchored comments: author-tinted highlight via the engine's
 					   --anchored-comment-color custom property. Falls back to the
 					   ring color so it's never invisible. */
-					.blocknote-wrapper .anchored-comment {
-						background: hsl(var(--anchored-comment-color, var(--ring)) / 0.16);
-						border-bottom: 2px solid
-							hsl(var(--anchored-comment-color, var(--ring)) / 0.7);
-						border-radius: 2px;
-						cursor: pointer;
-						transition: background 120ms ease;
-					}
-					.blocknote-wrapper .anchored-comment:hover {
-						background: hsl(var(--anchored-comment-color, var(--ring)) / 0.26);
-					}
-					.blocknote-wrapper .anchored-comment--resolved {
-						background: transparent;
-						border-bottom-style: dotted;
-						opacity: 0.55;
-					}
-					/* AI diff highlight: a transient, view-only tint that showcases
+				.blocknote-wrapper .anchored-comment {
+					background: hsl(var(--anchored-comment-color, var(--ring)) / 0.16);
+					border-bottom: 2px solid hsl(var(--anchored-comment-color, var(--ring)) / 0.7);
+					border-radius: 2px;
+					cursor: pointer;
+					transition: background 120ms ease;
+				}
+				.blocknote-wrapper .anchored-comment:hover {
+					background: hsl(var(--anchored-comment-color, var(--ring)) / 0.26);
+				}
+				.blocknote-wrapper .anchored-comment--resolved {
+					background: transparent;
+					border-bottom-style: dotted;
+					opacity: 0.55;
+				}
+				/* AI diff highlight: a transient, view-only tint that showcases
 					   the content an AI action just inserted. Applied to a block's
 					   [data-id] node; never touches the document, so it is not saved
 					   or synced. Fade timing is driven from ai-diff-highlight.ts. */
-					.blocknote-wrapper [data-id].skriuw-ai-diff {
-						border-radius: 5px;
+				.blocknote-wrapper [data-id].skriuw-ai-diff {
+					border-radius: 5px;
+					background: hsl(var(--success) / 0.16);
+					box-shadow:
+						inset 4px 0 0 hsl(var(--success)),
+						0 0 0 1px hsl(var(--success) / 0.3);
+					transition:
+						background 600ms ease,
+						box-shadow 600ms ease;
+					animation: skriuw-ai-diff-in 440ms ease;
+				}
+				.blocknote-wrapper [data-id].skriuw-ai-diff.skriuw-ai-diff--leaving {
+					background: hsl(var(--success) / 0);
+					box-shadow:
+						inset 4px 0 0 hsl(var(--success) / 0),
+						0 0 0 1px hsl(var(--success) / 0);
+				}
+				@keyframes skriuw-ai-diff-in {
+					from {
+						background: hsl(var(--success) / 0.34);
+					}
+					to {
 						background: hsl(var(--success) / 0.16);
-						box-shadow:
-							inset 4px 0 0 hsl(var(--success)),
-							0 0 0 1px hsl(var(--success) / 0.3);
-						transition:
-							background 600ms ease,
-							box-shadow 600ms ease;
-						animation: skriuw-ai-diff-in 440ms ease;
 					}
-					.blocknote-wrapper [data-id].skriuw-ai-diff.skriuw-ai-diff--leaving {
-						background: hsl(var(--success) / 0);
-						box-shadow:
-							inset 4px 0 0 hsl(var(--success) / 0),
-							0 0 0 1px hsl(var(--success) / 0);
+				}
+				@media (prefers-reduced-motion: reduce) {
+					.blocknote-wrapper [data-id].skriuw-ai-diff {
+						animation: none;
+						transition: none;
 					}
-					@keyframes skriuw-ai-diff-in {
-						from {
-							background: hsl(var(--success) / 0.34);
-						}
-						to {
-							background: hsl(var(--success) / 0.16);
-						}
+				}
+				.blocknote-wrapper .skriuw-fmt-focus-ring {
+					position: absolute;
+					top: 0;
+					left: 0;
+					z-index: 0;
+					opacity: 0;
+					border-radius: calc(var(--radius) - 2px);
+					background: hsl(var(--accent));
+					box-shadow: inset 0 0 0 1px hsl(var(--ring) / 0.55);
+					pointer-events: none;
+					transition:
+						transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+						width 220ms cubic-bezier(0.16, 1, 0.3, 1),
+						height 220ms cubic-bezier(0.16, 1, 0.3, 1),
+						opacity 140ms ease;
+				}
+				@media (prefers-reduced-motion: reduce) {
+					.blocknote-wrapper .skriuw-fmt-focus-ring {
+						transition: opacity 140ms ease;
 					}
-					@media (prefers-reduced-motion: reduce) {
-						.blocknote-wrapper [data-id].skriuw-ai-diff {
-							animation: none;
-							transition: none;
-						}
-					}
+				}
+				.blocknote-wrapper .skriuw-fmt-btn,
+				.blocknote-wrapper .skriuw-fmt-trigger,
+				.blocknote-wrapper .skriuw-fmt-menu,
+				.blocknote-wrapper .skriuw-fmt-sep {
+					position: relative;
+					z-index: 1;
+				}
+				.blocknote-wrapper .skriuw-fmt-btn:focus-visible,
+				.blocknote-wrapper .skriuw-fmt-trigger:focus-visible {
+					outline: none;
+				}
 				.blocknote-wrapper .skriuw-fmt-toolbar {
 					display: flex;
 					align-items: center;
@@ -2260,6 +2768,15 @@ export function RichTextEditor({
 					padding: 2px;
 					overflow: visible;
 				}
+					.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] {
+						max-width: calc(100vw - 16px);
+						min-height: 2.75rem;
+						flex-wrap: wrap;
+						row-gap: 0.2rem;
+						overflow: visible;
+						padding: 0.3rem;
+						gap: 0.15rem;
+					}
 				.blocknote-wrapper .skriuw-fmt-btn,
 				.blocknote-wrapper .skriuw-fmt-trigger {
 					display: inline-flex;
@@ -2284,6 +2801,17 @@ export function RichTextEditor({
 					width: 1.75rem;
 					padding: 0;
 				}
+				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-btn,
+				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-trigger {
+					flex: 0 0 auto;
+					height: 2.15rem;
+					min-width: 2.15rem;
+					padding: 0 0.58rem;
+				}
+				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-btn {
+					width: 2.15rem;
+					padding: 0;
+				}
 				.blocknote-wrapper .skriuw-fmt-btn:hover,
 				.blocknote-wrapper .skriuw-fmt-trigger:hover {
 					background: hsl(var(--accent));
@@ -2302,6 +2830,11 @@ export function RichTextEditor({
 				.blocknote-wrapper .skriuw-fmt-trigger-label {
 					white-space: nowrap;
 				}
+				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-trigger-label {
+					max-width: 6.5rem;
+					overflow: hidden;
+					text-overflow: ellipsis;
+				}
 				.blocknote-wrapper .skriuw-fmt-caret {
 					opacity: 0.6;
 				}
@@ -2314,6 +2847,7 @@ export function RichTextEditor({
 				.blocknote-wrapper .skriuw-fmt-menu {
 					position: relative;
 					display: inline-flex;
+					flex: 0 0 auto;
 				}
 				.blocknote-wrapper .skriuw-fmt-dropdown {
 					position: absolute;
@@ -2329,6 +2863,12 @@ export function RichTextEditor({
 					background: hsl(var(--popover));
 					color: hsl(var(--popover-foreground));
 					box-shadow: 0 16px 36px hsl(var(--editor-shadow) / 0.42);
+				}
+				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-dropdown {
+					top: auto;
+					bottom: calc(100% + 0.5rem);
+					left: 0;
+					max-height: min(18rem, 48dvh);
 				}
 				.blocknote-wrapper .skriuw-fmt-item {
 					display: flex;
@@ -2499,7 +3039,9 @@ export function RichTextEditor({
 					background: hsl(var(--popover)) !important;
 					border: 1px solid hsl(var(--border)) !important;
 					color: hsl(var(--popover-foreground)) !important;
-					box-shadow: 0 16px 36px hsl(var(--editor-shadow) / 0.42) !important;
+					box-shadow:
+						0 20px 25px -5px rgb(0 0 0 / 0.4),
+						0 8px 10px -6px rgb(0 0 0 / 0.4) !important;
 				}
 				.blocknote-wrapper .skriuw-file-tree {
 					--skriuw-file-tree-ease-out: cubic-bezier(0.23, 1, 0.32, 1);

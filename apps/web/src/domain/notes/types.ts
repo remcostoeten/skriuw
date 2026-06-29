@@ -1,5 +1,6 @@
 import type { FolderId, MarkdownContent, NoteId, TagName } from "@/domain/persistence/types";
 import type { NoteEditorMode, RichTextDocument } from "@/domain/notes/models";
+import type { NoteProperty } from "@/domain/notes/properties";
 
 export type CreateNoteInput = {
 	id?: NoteId;
@@ -10,6 +11,7 @@ export type CreateNoteInput = {
 	parentId?: FolderId | null;
 	sortOrder?: number;
 	tags?: TagName[];
+	properties?: NoteProperty[];
 	createdAt?: Date;
 	updatedAt?: Date;
 };
@@ -23,5 +25,6 @@ export type UpdateNoteInput = {
 	parentId?: FolderId | null;
 	sortOrder?: number;
 	tags?: TagName[];
+	properties?: NoteProperty[];
 	updatedAt?: Date;
 };
