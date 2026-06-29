@@ -22,13 +22,13 @@ const SeedNoteEditor = dynamic(
 	},
 );
 
-interface SeedEditorPageProps {
+type Props = {
 	bundleId: string;
 	bundleName: string;
 	payload: SeedBundlePayload;
-}
+};
 
-export function SeedEditorPage({ bundleId, bundleName, payload }: SeedEditorPageProps) {
+export function SeedEditorPage({ bundleId, bundleName, payload }: Props) {
 	const { hydrate, selectedRef, notes } = useSeedEditorStore();
 
 	useEffect(() => {

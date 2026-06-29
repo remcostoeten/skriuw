@@ -7,9 +7,10 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/shared/ui/popover";
-import { getAvatarSeed } from "@/shared/lib/avatar";
+import { deriveAvatarColor, getAvatarSeed } from "@/shared/lib/avatar";
 import { AvatarFace } from "@/shared/icons/avatar-face";
 import { usePreferencesStore } from "@/features/settings/store";
+import { useAuth } from "@/core/auth/use-auth";
 import { useShortcutScope } from "@/core/shortcuts";
 import { cn } from "@/shared/lib/utils";
 
@@ -51,7 +52,12 @@ export function UserMenu({ onSettings, onSignOut, onProfile, onNotes, onJournal,
 	const [open, setOpen] = React.useState(false);
 	const [isSigningOut, setIsSigningOut] = React.useState(false);
 	const firstItemRef = React.useRef<HTMLButtonElement | null>(null);
-	const avatarColor = usePreferencesStore((state) => state.profile.avatarColor);
+	const user = useAuth().user;
+	const avatarColorPreference = usePreferencesStore((state) => state.profile.avatarColor);
+	const avatarColor =
+		user?.avatarColor ??
+		avatarColorPreference ??
+		(user ? deriveAvatarColor(user.id) : undefined);
 
 	const handleSignOut = async () => {
 		setOpen(false);

@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { admin, username } from "better-auth/plugins";
+import { deriveAvatarColor } from "@/features/collaboration/lib/collab-token";
 import { getBetterAuthBaseURL } from "./app-origin";
 import { prisma } from "./prisma";
 
@@ -50,6 +51,25 @@ function getGithubFallbackEmail(profile: { id?: string | number; login?: string 
 export const auth = betterAuth({
 	baseURL: getBetterAuthBaseURL(),
 	database: prismaAdapter(prisma, { provider: "postgresql" }),
+	user: {
+		additionalFields: {
+			avatarColor: {
+				type: "string",
+				required: false,
+				input: false,
+			},
+		},
+	},
+	databaseHooks: {
+		user: {
+			create: {
+				before: async (user) => {
+					const seed = user.id || user.email;
+					return { data: { ...user, avatarColor: deriveAvatarColor(seed) } };
+				},
+			},
+		},
+	},
 	emailAndPassword: {
 		enabled: true,
 		autoSignIn: true,
@@ -58,6 +78,18 @@ export const auth = betterAuth({
 		requireEmailVerification: false,
 	},
 	socialProviders: Object.keys(socialProviders).length > 0 ? socialProviders : undefined,
+	account: {
+		accountLinking: {
+			enabled: true,
+			// Sign-in/sign-up doesn't require email verification yet, so trust these
+			// providers explicitly — otherwise Better Auth refuses to link a social
+			// account to an unverified-email user.
+			trustedProviders: ["github", "google"],
+			// Keep the framework's built-in last-account guard active as a backstop;
+			// our /api/account/connections route also enforces it with a clear message.
+			allowUnlinkingAll: false,
+		},
+	},
 	plugins: [
 		username({
 			minUsernameLength: 3,
