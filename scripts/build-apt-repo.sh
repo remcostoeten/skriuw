@@ -25,12 +25,17 @@ DIST="${DIST:-stable}"
 COMP="${COMP:-main}"
 ARCH="${ARCH:-amd64}"
 
-POOL_DIR="${REPO_DIR}/pool/${COMP}"
-DIST_DIR="${REPO_DIR}/dists/${DIST}"
-BIN_DIR="${DIST_DIR}/${COMP}/binary-${ARCH}"
+# Resolve the .deb to an absolute path before cd-ing into the repo dir.
+DEB_FILE="$(cd "$(dirname "${DEB_FILE}")" && pwd)/$(basename "${DEB_FILE}")"
 
-mkdir -p "${POOL_DIR}" "${BIN_DIR}"
-cp -f "${DEB_FILE}" "${POOL_DIR}/"
+# Paths below are relative to REPO_DIR, which we cd into so dpkg-scanpackages
+# emits Filename entries rooted at the repo (pool/...), not the build host.
+POOL_DIR="pool/${COMP}"
+DIST_DIR="dists/${DIST}"
+BIN_DIR="dists/${DIST}/${COMP}/binary-${ARCH}"
+
+mkdir -p "${REPO_DIR}/${POOL_DIR}" "${REPO_DIR}/${BIN_DIR}"
+cp -f "${DEB_FILE}" "${REPO_DIR}/${POOL_DIR}/"
 
 cd "${REPO_DIR}"
 
@@ -53,7 +58,7 @@ if [ -n "${GPG_KEY_ID}" ]; then
         -abs -o "${DIST_DIR}/Release.gpg" "${DIST_DIR}/Release"
     gpg --batch --yes --default-key "${GPG_KEY_ID}" \
         --clearsign -o "${DIST_DIR}/InRelease" "${DIST_DIR}/Release"
-    gpg --armor --export "${GPG_KEY_ID}" > "${REPO_DIR}/key.gpg"
+    gpg --armor --export "${GPG_KEY_ID}" > "key.gpg"
 else
     echo "warning: no GPG key id supplied — repo is UNSIGNED (apt will refuse it by default)" >&2
 fi
