@@ -8,6 +8,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { DesktopAboutDialog } from "@/features/desktop/about-dialog";
+import { DesktopZoom } from "@/features/desktop/desktop-zoom";
 import { WindowControls } from "@/features/desktop/window-controls";
 import { initDesktopMenuBridge } from "./desktop-menu-bridge";
 import { router } from "./router";
@@ -21,6 +22,7 @@ createRoot(rootElement).render(
 	<StrictMode>
 		<RouterProvider router={router} />
 		<DesktopAboutDialog />
+		<DesktopZoom />
 		<WindowControls />
 	</StrictMode>,
 );
