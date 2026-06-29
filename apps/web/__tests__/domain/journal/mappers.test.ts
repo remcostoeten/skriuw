@@ -11,6 +11,7 @@ describe("journal mappers", () => {
 		const entry = {
 			id: "entry-1",
 			dateKey: "2026-03-08" as DateKey,
+			title: "Morning pages",
 			content: "hello",
 			tags: ["work", "focus"],
 			mood: "good" as const,
@@ -21,6 +22,7 @@ describe("journal mappers", () => {
 		expect(toPersistedJournalEntry(entry)).toEqual({
 			id: "entry-1",
 			dateKey: "2026-03-08",
+			title: "Morning pages",
 			content: "hello",
 			tags: ["work", "focus"],
 			mood: "good",

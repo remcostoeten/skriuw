@@ -1,3 +1,4 @@
+import type { CustomNotePropertyTemplate } from "@/domain/notes/properties";
 import type { EditorFontId } from "@/shared/lib/editor-fonts";
 import type { EditorLineHeight } from "@/features/editor/lib/editor-line-height";
 import type { ThemeId } from "./themes";
@@ -12,10 +13,15 @@ export type ActivityItem = {
 
 export type EditorPreferences = {
 	defaultModeRaw: boolean;
+	vimMode: boolean;
 	defaultPlaceholder: string;
 	defaultFont: EditorFontId;
 	lineHeight: EditorLineHeight;
 	animateNumbers: boolean;
+	openNotesInTabs: boolean;
+	notePropertiesLayout: "rows" | "inline";
+	notePropertiesDefaultTemplateId: string | null;
+	customNotePropertyTemplates: CustomNotePropertyTemplate[];
 }
 
 export type AppearancePreferences = {

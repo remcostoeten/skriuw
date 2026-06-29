@@ -31,9 +31,31 @@ import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Calendar } from "@/shared/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
-import { type MoodLevel, type DateKey, MOOD_OPTIONS } from "@/features/journal/types";
-import { useJournalEntries } from "../hooks/use-journal-entries";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger,
+} from "@/shared/ui/context-menu";
+import {
+	type JournalEntry,
+	type MoodLevel,
+	type DateKey,
+	MOOD_OPTIONS,
+} from "@/features/journal/types";
+import {
+	useJournalEntries,
+	useUpdateJournalEntry,
+	useDeleteJournalEntry,
+} from "../hooks/use-journal-entries";
 import { useJournalTags } from "../hooks/use-journal-tags";
+
+function journalEntryTitle(entry: JournalEntry): string {
+	const title = entry.title?.trim();
+	if (title) return title;
+	return entry.content.trim().slice(0, 35) || "Empty entry";
+}
 
 function JournalStatsLoading() {
 	return (
@@ -77,11 +99,15 @@ type JournalSidebarProps = {
 export function JournalSidebar({ selectedDate, onSelectDate, className }: JournalSidebarProps) {
 	const { data: entries = [] } = useJournalEntries();
 	const { data: allTags = [] } = useJournalTags();
+	const updateEntry = useUpdateJournalEntry();
+	const deleteEntry = useDeleteJournalEntry();
 
 	const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
 	const [jumpPopoverOpen, setJumpPopoverOpen] = useState(false);
 	const [view, setView] = useState<"calendar" | "stats" | "search" | "all" | "tags">("calendar");
 	const [searchQuery, setSearchQuery] = useState("");
+	const [renamingId, setRenamingId] = useState<string | null>(null);
+	const [renameDraft, setRenameDraft] = useState("");
 	const deferredSearchQuery = useDeferredValue(searchQuery);
 	const selectedMood: MoodLevel | "all" = "all";
 	const selectedTag: string | "all" = "all";
@@ -163,6 +189,23 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 			setCurrentMonth(parsed);
 			onSelectDate(parsed);
 		}
+	};
+
+	const startRename = (entry: JournalEntry) => {
+		setRenamingId(entry.id);
+		setRenameDraft(entry.title ?? "");
+	};
+
+	const commitRename = (entry: JournalEntry) => {
+		const next = renameDraft.trim();
+		if ((entry.title ?? "") !== next) {
+			updateEntry.mutate({ id: entry.id, title: next || null });
+		}
+		setRenamingId(null);
+	};
+
+	const cancelRename = () => {
+		setRenamingId(null);
 	};
 
 	const journalTabs = [
@@ -332,37 +375,84 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 										const mood = entry.mood ? MOOD_OPTIONS[entry.mood] : null;
 										const isActive =
 											entry.dateKey === format(selectedDate, "yyyy-MM-dd");
-										return (
-											<button
-												key={entry.id}
-												onClick={() => {
-													const [y, m, d] = entry.dateKey
-														.split("-")
-														.map(Number);
-													onSelectDate(new Date(y, m - 1, d));
-												}}
-												className={cn(
-													"flex w-full items-center gap-1.5 border border-transparent px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-													isActive
-														? "border-border bg-muted text-foreground"
-														: "hover:border-border hover:bg-muted",
-												)}
-											>
-												<span className="w-[72px] shrink-0 text-[10px] font-medium text-muted-foreground">
-													{format(
-														new Date(entry.dateKey + "T00:00:00"),
-														"dd MM yyyy",
-													)}
-												</span>
-												{mood && (
-													<span className={cn("text-[10px]", mood.color)}>
-														{mood.icon}
+										const dateLabel = format(
+											new Date(entry.dateKey + "T00:00:00"),
+											"dd MM yyyy",
+										);
+
+										if (renamingId === entry.id) {
+											return (
+												<div
+													key={entry.id}
+													className="flex w-full items-center gap-1.5 border border-border bg-muted px-2 py-1.5"
+												>
+													<span className="w-[72px] shrink-0 text-[10px] font-medium text-muted-foreground">
+														{dateLabel}
 													</span>
-												)}
-												<span className="flex-1 truncate text-[11px] text-foreground/70">
-													{entry.content.slice(0, 35) || "Empty entry"}
-												</span>
-											</button>
+													<input
+														autoFocus
+														value={renameDraft}
+														onChange={(e) => setRenameDraft(e.target.value)}
+														onKeyDown={(e) => {
+															if (e.key === "Enter") {
+																e.preventDefault();
+																commitRename(entry);
+															} else if (e.key === "Escape") {
+																e.preventDefault();
+																cancelRename();
+															}
+														}}
+														onBlur={() => commitRename(entry)}
+														placeholder="Entry title"
+														className="flex-1 bg-transparent text-[11px] text-foreground outline-none placeholder:text-muted-foreground/40"
+													/>
+												</div>
+											);
+										}
+
+										return (
+											<ContextMenu key={entry.id}>
+												<ContextMenuTrigger asChild>
+													<button
+														onClick={() => {
+															const [y, m, d] = entry.dateKey
+																.split("-")
+																.map(Number);
+															onSelectDate(new Date(y, m - 1, d));
+														}}
+														className={cn(
+															"flex w-full items-center gap-1.5 border border-transparent px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+															isActive
+																? "border-border bg-muted text-foreground"
+																: "hover:border-border hover:bg-muted",
+														)}
+													>
+														<span className="w-[72px] shrink-0 text-[10px] font-medium text-muted-foreground">
+															{dateLabel}
+														</span>
+														{mood && (
+															<span className={cn("text-[10px]", mood.color)}>
+																{mood.icon}
+															</span>
+														)}
+														<span className="flex-1 truncate text-[11px] text-foreground/70">
+															{journalEntryTitle(entry)}
+														</span>
+													</button>
+												</ContextMenuTrigger>
+												<ContextMenuContent className="w-44">
+													<ContextMenuItem onClick={() => startRename(entry)}>
+														Edit title
+													</ContextMenuItem>
+													<ContextMenuSeparator />
+													<ContextMenuItem
+														className="text-destructive focus:text-destructive"
+														onClick={() => deleteEntry.mutate(entry.id)}
+													>
+														Delete entry
+													</ContextMenuItem>
+												</ContextMenuContent>
+											</ContextMenu>
 										);
 									})}
 								</div>

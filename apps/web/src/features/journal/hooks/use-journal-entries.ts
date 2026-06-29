@@ -97,6 +97,7 @@ export function useCreateJournalEntry() {
 					const optimisticEntry: JournalEntry = {
 						id: input.id ?? crypto.randomUUID(),
 						dateKey: input.dateKey,
+						title: input.title ?? undefined,
 						content: input.content,
 						tags: input.tags ?? [],
 						mood: input.mood ?? undefined,
@@ -132,6 +133,10 @@ export function useUpdateJournalEntry() {
 							entry.id === input.id
 								? {
 										...entry,
+										title:
+											input.title === undefined
+												? entry.title
+												: (input.title ?? undefined),
 										content: input.content ?? entry.content,
 										tags: input.tags ?? entry.tags,
 										mood:

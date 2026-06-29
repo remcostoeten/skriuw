@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 import type { NoteFile, NoteFolder } from "@/types/notes";
 import { DESKTOP_METADATA_MIN_WIDTH, DESKTOP_SIDEBAR_MIN_WIDTH } from "./constants";
@@ -18,6 +19,11 @@ export type EditorPane = "primary" | "secondary";
 
 export type SplitOrientation = "vertical" | "horizontal";
 
+export type WorkspaceTab = {
+	fileId: string;
+	pinned: boolean;
+};
+
 type SplitEditorState = {
 	secondaryFileId: string | null;
 	focusedPane: EditorPane;
@@ -25,6 +31,17 @@ type SplitEditorState = {
 	orientation: SplitOrientation;
 	secondaryFirst: boolean;
 };
+
+/**
+ * Pinned tabs always sort ahead of unpinned ones while preserving the relative
+ * order within each group. This is the single invariant every tab mutation
+ * re-applies, so the rendered order always equals the stored array order.
+ */
+function sortPinnedFirst(tabs: WorkspaceTab[]): WorkspaceTab[] {
+	const pinned = tabs.filter((tab) => tab.pinned);
+	const unpinned = tabs.filter((tab) => !tab.pinned);
+	return [...pinned, ...unpinned];
+}
 
 type NotesUiState = {
 	activeFileId: string;
@@ -56,6 +73,16 @@ type NotesUiState = {
 	setSplitOrientation: (orientation: SplitOrientation) => void;
 	toggleSplitOrientation: () => void;
 	swapSplitPaneOrder: () => void;
+	primaryTabs: WorkspaceTab[];
+	secondaryTabs: WorkspaceTab[];
+	tabsHydrated: boolean;
+	addTab: (pane: EditorPane, fileId: string) => void;
+	removeTab: (pane: EditorPane, fileId: string) => void;
+	reorderTabs: (pane: EditorPane, orderedFileIds: string[]) => void;
+	togglePinTab: (pane: EditorPane, fileId: string) => void;
+	setPaneTabs: (pane: EditorPane, tabs: WorkspaceTab[]) => void;
+	closeOtherTabs: (pane: EditorPane, fileId: string) => string[];
+	closeTabsToSide: (pane: EditorPane, fileId: string, side: "left" | "right") => string[];
 };
 
 export function applyFolderUiState(
@@ -76,12 +103,26 @@ const INITIAL_SPLIT_STATE: SplitEditorState = {
 	secondaryFirst: false,
 };
 
-export const useNotesStore = create<NotesUiState>()((set, get) => ({
+const TAB_KEY_BY_PANE: Record<EditorPane, "primaryTabs" | "secondaryTabs"> = {
+	primary: "primaryTabs",
+	secondary: "secondaryTabs",
+};
+
+function paneTabsPatch(pane: EditorPane, tabs: WorkspaceTab[]): Partial<NotesUiState> {
+	return pane === "primary" ? { primaryTabs: tabs } : { secondaryTabs: tabs };
+}
+
+export const useNotesStore = create<NotesUiState>()(
+	persist(
+		(set, get) => ({
 	activeFileId: "",
 	isHydrated: false,
 	folderOpenState: {},
 	saveStates: {},
 	split: INITIAL_SPLIT_STATE,
+	primaryTabs: [],
+	secondaryTabs: [],
+	tabsHydrated: false,
 	ui: {
 		isMobile: false,
 		showSidebar: true,
@@ -98,6 +139,8 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
 			folderOpenState: {},
 			saveStates: {},
 			split: INITIAL_SPLIT_STATE,
+			primaryTabs: [],
+			secondaryTabs: [],
 			ui: {
 				isMobile: false,
 				showSidebar: true,
@@ -242,6 +285,7 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
 				focusedPane: "primary",
 				secondaryFirst: false,
 			},
+			secondaryTabs: [],
 		}));
 	},
 
@@ -290,4 +334,102 @@ export const useNotesStore = create<NotesUiState>()((set, get) => ({
 			},
 		}));
 	},
-}));
+
+	addTab: (pane, fileId) => {
+		if (!fileId) return;
+		const key = TAB_KEY_BY_PANE[pane];
+		set((state) => {
+			if (state[key].some((tab) => tab.fileId === fileId)) return state;
+			return paneTabsPatch(pane, sortPinnedFirst([...state[key], { fileId, pinned: false }]));
+		});
+	},
+
+	removeTab: (pane, fileId) => {
+		const key = TAB_KEY_BY_PANE[pane];
+		set((state) => {
+			if (!state[key].some((tab) => tab.fileId === fileId)) return state;
+			return paneTabsPatch(pane, state[key].filter((tab) => tab.fileId !== fileId));
+		});
+	},
+
+	reorderTabs: (pane, orderedFileIds) => {
+		const key = TAB_KEY_BY_PANE[pane];
+		set((state) => {
+			const byId = new Map(state[key].map((tab) => [tab.fileId, tab]));
+			const reordered = orderedFileIds
+				.map((id) => byId.get(id))
+				.filter((tab): tab is WorkspaceTab => Boolean(tab));
+			for (const tab of state[key]) {
+				if (!orderedFileIds.includes(tab.fileId)) reordered.push(tab);
+			}
+			return paneTabsPatch(pane, sortPinnedFirst(reordered));
+		});
+	},
+
+	togglePinTab: (pane, fileId) => {
+		const key = TAB_KEY_BY_PANE[pane];
+		set((state) =>
+			paneTabsPatch(
+				pane,
+				sortPinnedFirst(
+					state[key].map((tab) =>
+						tab.fileId === fileId ? { ...tab, pinned: !tab.pinned } : tab,
+					),
+				),
+			),
+		);
+	},
+
+	setPaneTabs: (pane, tabs) => {
+		set(paneTabsPatch(pane, sortPinnedFirst(tabs)));
+	},
+
+	closeOtherTabs: (pane, fileId) => {
+		const key = TAB_KEY_BY_PANE[pane];
+		const removed = get()
+			[key].filter((tab) => tab.fileId !== fileId && !tab.pinned)
+			.map((tab) => tab.fileId);
+		set((state) =>
+			paneTabsPatch(pane, state[key].filter((tab) => tab.fileId === fileId || tab.pinned)),
+		);
+		return removed;
+	},
+
+	closeTabsToSide: (pane, fileId, side) => {
+		const key = TAB_KEY_BY_PANE[pane];
+		const tabs = get()[key];
+		const anchorIndex = tabs.findIndex((tab) => tab.fileId === fileId);
+		if (anchorIndex === -1) return [];
+		const shouldKeep = (index: number, tab: WorkspaceTab) => {
+			if (tab.pinned || tab.fileId === fileId) return true;
+			return side === "right" ? index <= anchorIndex : index >= anchorIndex;
+		};
+		const removed = tabs
+			.filter((tab, index) => !shouldKeep(index, tab))
+			.map((tab) => tab.fileId);
+		set((state) => paneTabsPatch(pane, state[key].filter((tab, index) => shouldKeep(index, tab))));
+		return removed;
+	},
+}),
+		{
+			name: "notes-workspace-tabs",
+			version: 1,
+			// Throwing when storage is missing makes createJSONStorage bail and
+			// persist no-op, which keeps SSR and unit tests (no localStorage)
+			// working instead of crashing on the first write.
+			storage: createJSONStorage(() => {
+				if (typeof localStorage === "undefined") {
+					throw new Error("localStorage is unavailable");
+				}
+				return localStorage;
+			}),
+			partialize: (state) => ({
+				primaryTabs: state.primaryTabs,
+				secondaryTabs: state.secondaryTabs,
+			}),
+			onRehydrateStorage: () => (state) => {
+				if (state) state.tabsHydrated = true;
+			},
+		},
+	),
+);

@@ -1,6 +1,10 @@
 import { isAiModelId } from "@/domain/ai/constants";
 import { isEditorFontId } from "@/shared/lib/editor-fonts";
 import { isEditorLineHeight } from "@/features/editor/lib/editor-line-height";
+import {
+	NOTE_PROPERTY_TEMPLATES,
+	normalizeCustomNotePropertyTemplates,
+} from "@/domain/notes/properties";
 import { getUserEditorPreferences } from "@/features/settings/lib/editor-preferences";
 import { createDefaultProfile } from "./defaults";
 import { isThemeId } from "./themes";
@@ -36,6 +40,21 @@ function normalizeBoolean<T extends boolean>(value: unknown, fallback: T): boole
 
 function normalizeString<T extends string>(value: unknown, fallback: T): string {
 	return typeof value === "string" ? value : fallback;
+}
+
+function normalizeNotePropertiesLayout(
+	value: unknown,
+	fallback: PreferencesProfile["editor"]["notePropertiesLayout"],
+): PreferencesProfile["editor"]["notePropertiesLayout"] {
+	return value === "rows" || value === "inline" ? value : fallback;
+}
+
+function normalizeNotePropertiesDefaultTemplateId(value: unknown): string | null {
+	if (value === null || value === undefined || value === "") return null;
+	return typeof value === "string" &&
+		NOTE_PROPERTY_TEMPLATES.some((template) => template.id === value)
+		? value
+		: null;
 }
 
 function normalizeAi(
@@ -86,6 +105,7 @@ export function normalizeProfile(
 				profile?.editor?.defaultModeRaw,
 				fallback.editor.defaultModeRaw,
 			),
+			vimMode: normalizeBoolean(profile?.editor?.vimMode, fallback.editor.vimMode),
 			defaultPlaceholder: normalizeString(
 				profile?.editor?.defaultPlaceholder,
 				fallback.editor.defaultPlaceholder,
@@ -103,6 +123,20 @@ export function normalizeProfile(
 			animateNumbers: normalizeBoolean(
 				profile?.editor?.animateNumbers,
 				fallback.editor.animateNumbers,
+			),
+			openNotesInTabs: normalizeBoolean(
+				profile?.editor?.openNotesInTabs,
+				fallback.editor.openNotesInTabs,
+			),
+			notePropertiesLayout: normalizeNotePropertiesLayout(
+				profile?.editor?.notePropertiesLayout,
+				fallback.editor.notePropertiesLayout,
+			),
+			notePropertiesDefaultTemplateId: normalizeNotePropertiesDefaultTemplateId(
+				profile?.editor?.notePropertiesDefaultTemplateId,
+			),
+			customNotePropertyTemplates: normalizeCustomNotePropertyTemplates(
+				profile?.editor?.customNotePropertyTemplates,
 			),
 		},
 		appearance: {

@@ -1,4 +1,5 @@
 import type { NoteFile, NoteVersion } from "@/domain/notes/models";
+import { normalizeNoteProperties } from "@/domain/notes/properties";
 import type {
 	FolderId,
 	IsoTime,
@@ -16,6 +17,7 @@ function toIsoTime(date: Date): IsoTime {
 export function toPersistedNote(note: NoteFile): PersistedNote {
 	const richContent = note.richContent ?? markdownToRichDocument(note.content);
 	const preferredEditorMode = note.preferredEditorMode ?? "block";
+	const properties = normalizeNoteProperties(note.properties);
 
 	return {
 		id: note.id as NoteId,
@@ -26,6 +28,7 @@ export function toPersistedNote(note: NoteFile): PersistedNote {
 		parentId: note.parentId as FolderId | null,
 		sortOrder: note.sortOrder,
 		tags: note.tags?.map((tag) => tag as TagName),
+		...(properties.length > 0 ? { properties } : {}),
 		createdAt: toIsoTime(note.createdAt),
 		updatedAt: toIsoTime(note.modifiedAt),
 		journalMeta: note.journalMeta
@@ -50,6 +53,7 @@ export function fromPersistedNote(note: PersistedNote): NoteFile {
 		parentId: note.parentId,
 		sortOrder: note.sortOrder ?? 0,
 		tags: note.tags?.map((tag) => tag as string),
+		properties: normalizeNoteProperties(note.properties),
 		createdAt: new Date(note.createdAt),
 		modifiedAt: new Date(note.updatedAt),
 		journalMeta: note.journalMeta
@@ -70,6 +74,7 @@ export type PersistedNoteVersion = {
 	preferred_editor_mode: "raw" | "block" | null;
 	parent_id: string | null;
 	tags?: string[] | null;
+	properties?: PersistedNote["properties"] | null;
 	reason: "created" | "autosave" | "checkpoint" | "rename" | "restore";
 	content_hash: string;
 	created_at: string;
@@ -85,6 +90,7 @@ export function fromPersistedNoteVersion(note: PersistedNoteVersion): NoteVersio
 		preferredEditorMode: note.preferred_editor_mode ?? "block",
 		parentId: note.parent_id,
 		tags: note.tags?.map((tag) => tag as string),
+		properties: normalizeNoteProperties(note.properties),
 		reason: note.reason,
 		contentHash: note.content_hash,
 		createdAt: new Date(note.created_at),

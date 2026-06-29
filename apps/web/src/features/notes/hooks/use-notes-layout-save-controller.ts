@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useSidebarStore } from "@/features/notes/components/sidebar/store";
 import { useNotesStore } from "@/features/notes/store";
 import type { RichTextDocument } from "@/types/notes";
+import type { NoteProperty } from "@/domain/notes/properties";
 import { useDebouncedSave } from "./use-debounced-save";
 
 type SaveState = "saving" | "saved" | "error";
@@ -138,6 +139,7 @@ export function useNotesLayoutSaveController({
 			options?: {
 				richContent?: RichTextDocument;
 				preferredEditorMode?: "raw" | "block";
+				properties?: NoteProperty[];
 			},
 		) => {
 			saveController.schedule({
@@ -145,6 +147,7 @@ export function useNotesLayoutSaveController({
 				content,
 				richContent: options?.richContent,
 				preferredEditorMode: options?.preferredEditorMode,
+				properties: options?.properties,
 			});
 		},
 		[saveController],

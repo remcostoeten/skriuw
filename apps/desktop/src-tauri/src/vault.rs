@@ -683,10 +683,11 @@ fn sanitize_segment(name: &str) -> String {
 fn render_note(note: &Note) -> String {
     let id = serde_json::to_string(&note.id).unwrap_or_else(|_| "\"\"".to_string());
     let tags = serde_json::to_string(&note.tags).unwrap_or_else(|_| "[]".to_string());
+    let properties = note.properties.to_string();
     let mode = serde_json::to_string(&note.preferred_editor_mode)
         .unwrap_or_else(|_| "\"block\"".to_string());
     format!(
-		"---\nid: {id}\ntags: {tags}\nsortOrder: {sort}\npreferredEditorMode: {mode}\ncreatedAt: {created}\nmodifiedAt: {modified}\n---\n{body}",
+		"---\nid: {id}\ntags: {tags}\nproperties: {properties}\nsortOrder: {sort}\npreferredEditorMode: {mode}\ncreatedAt: {created}\nmodifiedAt: {modified}\n---\n{body}",
 		sort = note.sort_order,
 		created = note.created_at,
 		modified = note.modified_at,
@@ -715,6 +716,7 @@ fn parse_note(raw: &str, name: String, parent_id: Option<String>) -> Note {
     let (frontmatter, body) = split_frontmatter(&normalized);
     let mut id = name_stem(&name);
     let mut tags: Vec<String> = Vec::new();
+    let mut properties = Value::Array(Vec::new());
     let mut sort_order = 0i64;
     let mut preferred_editor_mode = "block".to_string();
     let mut created_at = 0i64;
@@ -733,6 +735,10 @@ fn parse_note(raw: &str, name: String, parent_id: Option<String>) -> Note {
                     }
                 }
                 "tags" => tags = serde_json::from_str(value).unwrap_or_default(),
+                "properties" => {
+                    properties =
+                        serde_json::from_str(value).unwrap_or_else(|_| Value::Array(Vec::new()))
+                }
                 "sortOrder" => sort_order = value.parse().unwrap_or(0),
                 "preferredEditorMode" => {
                     if let Some(parsed) = parse_json_string(value) {
@@ -755,6 +761,7 @@ fn parse_note(raw: &str, name: String, parent_id: Option<String>) -> Note {
         parent_id,
         sort_order,
         tags,
+        properties,
         created_at,
         modified_at,
     }
@@ -805,6 +812,13 @@ fn render_journal_entry(entry: &JournalEntry) -> String {
     let id = serde_json::to_string(&entry.id).unwrap_or_else(|_| "\"\"".to_string());
     let date_key = serde_json::to_string(&entry.date_key).unwrap_or_else(|_| "\"\"".to_string());
     let tags = serde_json::to_string(&entry.tags).unwrap_or_else(|_| "[]".to_string());
+    let title_line = match &entry.title {
+        Some(title) => {
+            let value = serde_json::to_string(title).unwrap_or_else(|_| "\"\"".to_string());
+            format!("title: {value}\n")
+        }
+        None => String::new(),
+    };
     let mood_line = match &entry.mood {
         Some(mood) => {
             let value = serde_json::to_string(mood).unwrap_or_else(|_| "\"\"".to_string());
@@ -813,7 +827,7 @@ fn render_journal_entry(entry: &JournalEntry) -> String {
         None => String::new(),
     };
     format!(
-		"---\nid: {id}\ndateKey: {date_key}\n{mood_line}tags: {tags}\ncreatedAt: {created}\nupdatedAt: {updated}\n---\n{body}",
+		"---\nid: {id}\ndateKey: {date_key}\n{title_line}{mood_line}tags: {tags}\ncreatedAt: {created}\nupdatedAt: {updated}\n---\n{body}",
 		created = entry.created_at,
 		updated = entry.updated_at,
 		body = entry.content,
@@ -827,6 +841,7 @@ fn parse_journal_entry(raw: &str) -> Option<JournalEntry> {
 
     let mut id: Option<String> = None;
     let mut date_key = String::new();
+    let mut title: Option<String> = None;
     let mut mood: Option<String> = None;
     let mut tags: Vec<String> = Vec::new();
     let mut created_at = 0i64;
@@ -840,6 +855,7 @@ fn parse_journal_entry(raw: &str) -> Option<JournalEntry> {
         match key.trim() {
             "id" => id = parse_json_string(value),
             "dateKey" => date_key = parse_json_string(value).unwrap_or_default(),
+            "title" => title = parse_json_string(value),
             "mood" => mood = parse_json_string(value),
             "tags" => tags = serde_json::from_str(value).unwrap_or_default(),
             "createdAt" => created_at = value.parse().unwrap_or(0),
@@ -851,6 +867,7 @@ fn parse_journal_entry(raw: &str) -> Option<JournalEntry> {
     Some(JournalEntry {
         id: id?,
         date_key,
+        title,
         content: body.to_string(),
         tags,
         mood,
@@ -874,6 +891,7 @@ mod tests {
             parent_id: parent.map(|p| p.to_string()),
             sort_order: 3,
             tags: vec!["a".to_string(), "b".to_string()],
+            properties: serde_json::json!([{ "id": "p1", "type": "text", "name": "Status", "value": "open" }]),
             created_at: 111,
             modified_at: 222,
         }
@@ -902,6 +920,7 @@ mod tests {
         assert_eq!(got.name, "Groceries.md");
         assert_eq!(got.content, "hello world");
         assert_eq!(got.tags, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(got.properties[0]["name"], "Status");
         assert_eq!(got.sort_order, 3);
         assert_eq!(got.created_at, 111);
         assert_eq!(got.modified_at, 222);
@@ -1043,6 +1062,7 @@ mod tests {
         JournalEntry {
             id: id.to_string(),
             date_key: date_key.to_string(),
+            title: Some("A productive day".to_string()),
             content: "felt productive today".to_string(),
             tags: vec!["work".to_string()],
             mood: Some("good".to_string()),
@@ -1068,6 +1088,7 @@ mod tests {
         assert_eq!(got[0].id, "j1");
         assert_eq!(got[0].date_key, "2026-06-24");
         assert_eq!(got[0].content, "felt productive today");
+        assert_eq!(got[0].title.as_deref(), Some("A productive day"));
         assert_eq!(got[0].mood.as_deref(), Some("good"));
         assert_eq!(got[0].tags, vec!["work".to_string()]);
 

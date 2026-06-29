@@ -17,6 +17,7 @@ import type { WorkspaceNavItem } from "@/features/editor/components/editor-toolb
 import { cn } from "@/shared/lib/utils";
 import { SplitEditorWorkspace } from "./split-editor-workspace";
 import { SidebarPanel } from "./sidebar-panel";
+import { TabBar } from "./editor-tabs/tab-bar";
 import { useNotesLayout } from "../hooks/use-notes-layout";
 
 const VersionPreviewContainer = dynamic(
@@ -176,6 +177,7 @@ export function NotesLayoutShell({
 		sharingNoteId,
 		handleOpenShare,
 		handleCloseShare,
+		tabBar,
 	} = layout;
 
 	const mobileSidebarRef = useRef<HTMLDivElement>(null);
@@ -390,9 +392,31 @@ export function NotesLayoutShell({
 											onContentChange={updateFileContent}
 											onRenameFile={layout.renameFile}
 											onEditorBlur={flushFileEdits}
+											tabBar={tabBar}
 										/>
 									) : (
-										<EditorContainer
+										<>
+											{tabBar.openInTabs ? (
+												<TabBar
+													tabs={tabBar.primaryTabItems}
+													activeFileId={layout.activeFileId}
+													onSelect={(id) => tabBar.onSelectTab("primary", id)}
+													onClose={(id) => tabBar.onCloseTab("primary", id)}
+													onReorder={(ids) =>
+														tabBar.onReorderTabs("primary", ids)
+													}
+													onTogglePin={(id) =>
+														tabBar.onTogglePinTab("primary", id)
+													}
+													onCloseOthers={(id) =>
+														tabBar.onCloseOtherTabs("primary", id)
+													}
+													onCloseToSide={(id, side) =>
+														tabBar.onCloseTabsToSide("primary", id, side)
+													}
+												/>
+											) : null}
+											<EditorContainer
 											file={displayFile}
 											files={files}
 											editorMode={editorMode ?? "block"}
@@ -444,7 +468,8 @@ export function NotesLayoutShell({
 												"No file selected"
 											}
 											onRenameFile={layout.renameFile}
-										/>
+											/>
+										</>
 									)}
 								</motion.div>
 							</AnimatePresence>

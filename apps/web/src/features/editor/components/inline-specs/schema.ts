@@ -5,6 +5,7 @@ import {
 } from "@blocknote/core";
 import { noteLinkInlineSpec } from "./note-link-spec";
 import { tagInlineSpec } from "./tag-spec";
+import { userInlineSpec } from "./user-spec";
 import { createCheckListItem } from "../block-specs/checklist-item";
 import { createFileTree } from "../block-specs/file-tree";
 import { createSyntaxHighlightedCodeBlockSpec } from "../block-specs/code-highlighter";
@@ -24,6 +25,7 @@ export const editorSchema = BlockNoteSchema.create({
 		...defaultInlineContentSpecs,
 		noteLink: noteLinkInlineSpec,
 		tag: tagInlineSpec,
+		user: userInlineSpec,
 	},
 });
 

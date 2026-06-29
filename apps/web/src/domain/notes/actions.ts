@@ -23,6 +23,7 @@ import type {
 	RichTextDocument,
 } from "@/domain/notes/models";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
+import { normalizeNoteProperties, type NoteProperty } from "@/domain/notes/properties";
 import {
 	buildNoteVersionContentHash,
 	NOTE_VERSION_RETENTION_LIMIT,
@@ -53,6 +54,7 @@ type NoteRecord = {
 	parentId: string | null;
 	sortOrder: number;
 	tags: string[];
+	properties: Prisma.JsonValue | null;
 	journalMeta: Prisma.JsonValue | null;
 	createdAt: Date;
 	updatedAt: Date;
@@ -67,6 +69,7 @@ type NoteVersionRecord = {
 	preferredEditorMode: string;
 	parentId: string | null;
 	tags: string[];
+	properties: Prisma.JsonValue | null;
 	reason: string;
 	contentHash: string;
 	createdAt: Date;
@@ -101,6 +104,7 @@ function recordToNoteFile(
 		parentId: record.parentId as FolderId | null,
 		sortOrder: record.sortOrder,
 		tags: record.tags.map((tag) => tag as TagName),
+		properties: normalizeNoteProperties(record.properties),
 		journalMeta: meta
 			? {
 					...meta,
@@ -123,6 +127,7 @@ function recordToNoteVersion(record: NoteVersionRecord): NoteVersion {
 		preferred_editor_mode: record.preferredEditorMode as "raw" | "block",
 		parent_id: record.parentId,
 		tags: record.tags,
+		properties: normalizeNoteProperties(record.properties),
 		reason: record.reason as NoteVersionReason,
 		content_hash: record.contentHash,
 		created_at: record.createdAt.toISOString(),
@@ -136,6 +141,7 @@ async function insertNoteVersion(
 	note: Pick<
 		NoteFile,
 		"name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags"
+		| "properties"
 	>,
 	reason: NoteVersionReason,
 ): Promise<string | null> {
@@ -164,6 +170,7 @@ async function insertNoteVersion(
 			preferredEditorMode: note.preferredEditorMode ?? "block",
 			parentId: note.parentId ?? null,
 			tags: note.tags ?? [],
+			properties: normalizeNoteProperties(note.properties) as Prisma.InputJsonValue,
 			reason,
 			contentHash: buildNoteVersionContentHash(candidate),
 			createdAt,
@@ -201,6 +208,7 @@ async function updateExistingNoteVersion(
 	note: Pick<
 		NoteFile,
 		"name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags"
+		| "properties"
 	>,
 	reason: NoteVersionReason,
 ): Promise<boolean> {
@@ -217,6 +225,7 @@ async function updateExistingNoteVersion(
 			preferredEditorMode: note.preferredEditorMode ?? "block",
 			parentId: note.parentId ?? null,
 			tags: note.tags ?? [],
+			properties: normalizeNoteProperties(note.properties) as Prisma.InputJsonValue,
 			contentHash: nextHash,
 		},
 	});
@@ -233,6 +242,7 @@ export type CreateNoteInput = {
 	parentId?: string | null;
 	sortOrder?: number;
 	tags?: string[];
+	properties?: NoteProperty[];
 };
 
 export async function listNotes(): Promise<NoteFile[]> {
@@ -271,6 +281,7 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 			parentId,
 			sortOrder,
 			tags: validated.tags ?? [],
+			properties: normalizeNoteProperties(validated.properties) as Prisma.InputJsonValue,
 		};
 		const noteSelect = {
 			id: true,
@@ -281,6 +292,7 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 			parentId: true,
 			sortOrder: true,
 			tags: true,
+			properties: true,
 			journalMeta: true,
 			createdAt: true,
 			updatedAt: true,
@@ -319,6 +331,7 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 				preferredEditorMode: note.preferredEditorMode,
 				parentId: note.parentId,
 				tags: note.tags ?? [],
+				properties: note.properties ?? [],
 			},
 			"created",
 		);
@@ -336,6 +349,7 @@ export type UpdateNoteInput = {
 	parentId?: string | null;
 	sortOrder?: number;
 	tags?: string[];
+	properties?: NoteProperty[];
 	createCheckpoint?: boolean;
 	sessionVersionId?: string | null;
 	/**
@@ -381,6 +395,9 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 	}
 	if (validated.tags !== undefined) {
 		basePatch.tags = validated.tags;
+	}
+	if (validated.properties !== undefined) {
+		basePatch.properties = normalizeNoteProperties(validated.properties) as Prisma.InputJsonValue;
 	}
 
 	const ownerPatch: Prisma.NoteUncheckedUpdateInput = { ...basePatch };
@@ -474,7 +491,8 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		if (
 			validated.content !== undefined ||
 			validated.richContent !== undefined ||
-			validated.tags !== undefined
+			validated.tags !== undefined ||
+			validated.properties !== undefined
 		) {
 			await syncNoteLinks(tx, ownerId, updatedNote);
 		}
@@ -491,6 +509,7 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 			preferredEditorMode: updatedNote.preferredEditorMode,
 			parentId: updatedNote.parentId,
 			tags: updatedNote.tags ?? [],
+			properties: updatedNote.properties ?? [],
 		};
 
 		if (validated.sessionVersionId && validated.createCheckpoint) {
@@ -562,6 +581,7 @@ export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteR
 				preferredEditorMode: current.preferredEditorMode,
 				parentId: current.parentId,
 				tags: current.tags ?? [],
+				properties: current.properties ?? [],
 			},
 			"restore",
 		);
@@ -577,6 +597,7 @@ export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteR
 					preferredEditorMode: version.preferredEditorMode,
 					parentId: version.parentId,
 					tags: version.tags ?? [],
+					properties: normalizeNoteProperties(version.properties) as Prisma.InputJsonValue,
 				},
 			});
 		} catch (error) {

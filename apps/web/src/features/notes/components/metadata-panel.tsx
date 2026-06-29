@@ -41,7 +41,7 @@ import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
 import { NoteSendDropdown } from "@/features/notes/components/note-send-menu";
 import { GuestGate } from "@/shared/ui/guest-gate";
-import { useIsGuestWorkspace, useWorkspaceCapabilities } from "@/core/workspace-backend";
+import { isTauriRuntime, useIsGuestWorkspace, useWorkspaceCapabilities } from "@/core/workspace-backend";
 import {
 	findRestoredSourceIndex,
 	getHistoryBranchRoles,
@@ -169,6 +169,7 @@ function InspectorNoteControls({
 	isOwnNote: boolean;
 	isMobile?: boolean;
 }) {
+	const isDesktop = isTauriRuntime();
 	const { shareQuery, refresh } = useNoteSharing(file.id);
 	const share = shareQuery.data;
 	const shareActionLabel = share ? "Manage link" : "Create link";
@@ -267,7 +268,7 @@ function InspectorNoteControls({
 				</div>
 
 				{/* Publishing a share link is owner-only; collaborators don't see it. */}
-				{isOwnNote ? (
+				{isOwnNote && !isDesktop ? (
 					<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
 						{share ? (
 							<>
@@ -298,7 +299,7 @@ function InspectorNoteControls({
 						</GuestGate>
 					</div>
 				) : null}
-				{isOwnNote ? staleShareHint : null}
+				{isOwnNote && !isDesktop ? staleShareHint : null}
 			</div>
 		);
 	}
@@ -310,7 +311,7 @@ function InspectorNoteControls({
 				<dd>{formatControl}</dd>
 			</div>
 			{/* Publishing a share link is owner-only; collaborators don't see it. */}
-			{isOwnNote ? (
+			{isOwnNote && !isDesktop ? (
 				<>
 					<div className="flex items-baseline justify-between gap-4">
 						<dt className="text-[13px] text-muted-foreground">Share link</dt>
@@ -667,9 +668,10 @@ export const MetadataPanel = memo(function MetadataPanel({
 	const effectiveEditorMode = isMdx ? "raw" : editorMode;
 	const canToggleEditorMode = !isMdx && Boolean(onToggleEditorMode);
 	const { shareQuery } = useNoteSharing(file?.id);
+	const isDesktopRuntime = isTauriRuntime();
 	// Sharing is owner-only. `access === undefined` is the owner's own note.
 	const isOwnNote = !file?.access || file.access === "owner";
-	const inspectorControlCount = isOwnNote ? (isMobile && shareQuery.data ? 4 : 3) : 1;
+	const inspectorControlCount = isOwnNote ? (isMobile && !isDesktopRuntime && shareQuery.data ? 4 : 3) : 1;
 
 	const details = useMemo(() => {
 		if (!file) return [];
