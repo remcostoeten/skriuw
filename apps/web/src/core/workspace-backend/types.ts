@@ -30,6 +30,7 @@ export type WorkspaceCapabilities = {
 	notifications: boolean;
 	ai: boolean;
 	trash: boolean;
+	history: boolean;
 };
 
 /**

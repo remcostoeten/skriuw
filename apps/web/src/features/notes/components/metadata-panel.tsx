@@ -41,7 +41,7 @@ import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
 import { NoteSendDropdown } from "@/features/notes/components/note-send-menu";
 import { GuestGate } from "@/shared/ui/guest-gate";
-import { useIsGuestWorkspace } from "@/core/workspace-backend";
+import { useIsGuestWorkspace, useWorkspaceCapabilities } from "@/core/workspace-backend";
 import {
 	findRestoredSourceIndex,
 	getHistoryBranchRoles,
@@ -650,6 +650,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 	const selectedTag = useNotesStore((state) => state.ui.selectedInspectorTag);
 	const setSelectedTag = useNotesStore((state) => state.setSelectedInspectorTag);
 	const isGuest = useIsGuestWorkspace();
+	const capabilities = useWorkspaceCapabilities();
 	const auth = useAuth();
 	const backlinksQuery = useNoteBacklinks(file?.id);
 	const versionsQuery = useNoteVersions(file?.id);
@@ -1052,8 +1053,10 @@ export const MetadataPanel = memo(function MetadataPanel({
 					</InspectorSection>
 				)}
 
-				{/* Version history doesn't carry across sessions for guests — hide it. */}
-				{!isGuest && (
+				{/* Only backends that persist versions (the cloud server) can serve
+				    history; the guest and desktop backends store none, so the
+				    section would be permanently empty and its View action dead. */}
+				{capabilities.history && (
 					<InspectorSection
 						id="note-inspector-history"
 						title="History"
