@@ -1,18 +1,18 @@
 import * as React from "react";
 import { cn } from "@/shared/lib/utils";
 
-interface RawLogoProps extends React.SVGProps<SVGSVGElement> {
+type Props = React.SVGProps<SVGSVGElement> & {
 	size?: number;
 	variant?: "sidebar" | "explanation";
 	className?: string;
-}
+};
 
 export function RawLogo({
 	size = 120,
 	variant = "explanation",
 	className,
 	...props
-}: RawLogoProps) {
+}: Props) {
 	const isSidebar = variant === "sidebar";
 
 	return (

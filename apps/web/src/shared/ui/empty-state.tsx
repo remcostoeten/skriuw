@@ -23,7 +23,7 @@ type Preset = {
 	description: string;
 };
 
-export interface EmptyStateProps {
+export type EmptyStateProps = {
 	variant?: EmptyStateVariant;
 	icon?: LucideIcon;
 	title?: string;

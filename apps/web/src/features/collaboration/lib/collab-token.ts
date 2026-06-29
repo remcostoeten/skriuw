@@ -95,32 +95,42 @@ export async function verifyCollabToken(
 }
 
 /**
- * Deterministic, pleasant cursor color derived from a user id, returned as a
- * 6-digit hex string (`#RRGGBB`). Hex — not `hsl()` — is required because
- * y-prosemirror builds remote text-selection highlights by appending an alpha
- * byte (`${color}70`), which only yields a valid CSS color for hex inputs, and
- * BlockNote's caret contrast check parses the color as hex too.
+ * Fixed avatar / cursor color palette. Concrete 6-digit hex values — never CSS
+ * variables — so a color can be persisted once at signup and rendered
+ * identically across themes, devices, and the BlockNote/y-prosemirror caret
+ * renderer (which appends an alpha byte, `${color}70`, that only yields a valid
+ * CSS color for hex inputs, and whose contrast check parses the color as hex).
+ *
+ * Lives here, not under `@/shared`, because this module is the single place
+ * imported by BOTH the web app and the PartyKit worker bundle — and the worker
+ * bundle cannot resolve the `@/` alias.
  */
-export function collabColorForUser(userId: string): string {
+export const AVATAR_PALETTE = [
+	"#e0598b",
+	"#d98a2b",
+	"#3b82f6",
+	"#e8742f",
+	"#22a565",
+	"#9b59e0",
+	"#13a3b5",
+	"#d6453f",
+] as const;
+
+function paletteIndex(seed: string): number {
 	let hash = 0;
-	for (let i = 0; i < userId.length; i += 1) {
-		hash = (hash << 5) - hash + userId.charCodeAt(i);
+	for (let i = 0; i < seed.length; i += 1) {
+		hash = (hash << 5) - hash + seed.charCodeAt(i);
 		hash |= 0;
 	}
-	const hue = Math.abs(hash) % 360;
-	return hslToHex(hue, 70, 60);
+	return Math.abs(hash) % AVATAR_PALETTE.length;
 }
 
-function hslToHex(h: number, s: number, l: number): string {
-	const sat = s / 100;
-	const light = l / 100;
-	const k = (n: number) => (n + h / 30) % 12;
-	const a = sat * Math.min(light, 1 - light);
-	const f = (n: number) => {
-		const color = light - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-		return Math.round(255 * color)
-			.toString(16)
-			.padStart(2, "0");
-	};
-	return `#${f(0)}${f(8)}${f(4)}`;
+/**
+ * Deterministic avatar / cursor color for a stable seed (canonically the user
+ * id). Maps the seed into {@link AVATAR_PALETTE} so the same seed always
+ * resolves to the same hex string — this is the one derivation every surface
+ * (DB signup default, collaboration cursors, avatar faces) shares.
+ */
+export function deriveAvatarColor(seed: string): string {
+	return AVATAR_PALETTE[paletteIndex(seed)] ?? AVATAR_PALETTE[0];
 }

@@ -27,7 +27,8 @@ export type JournalMetadata = {
 	location?: string;
 };
 
-export interface NoteFile {
+/** A single note: its content, editor preferences, hierarchy position, and viewer access. */
+export type NoteFile = {
 	id: string;
 	name: string;
 	content: string;
@@ -46,7 +47,8 @@ export interface NoteFile {
 	access?: NoteAccessRole;
 }
 
-export interface NoteVersion {
+/** An immutable snapshot of a note captured for history, keyed by `contentHash`. */
+export type NoteVersion = {
 	id: string;
 	noteId: string;
 	name: string;
@@ -60,7 +62,8 @@ export interface NoteVersion {
 	contentHash: string;
 }
 
-export interface NoteFolder {
+/** A folder node in the sidebar tree; groups notes and nested folders by `parentId`. */
+export type NoteFolder = {
 	id: string;
 	name: string;
 	parentId: string | null;

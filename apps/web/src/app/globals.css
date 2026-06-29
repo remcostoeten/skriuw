@@ -227,6 +227,19 @@
 		--text-on-overlay-subtle: var(--theme-text-dim);
 		--border-overlay: var(--border);
 		--error-on-overlay: var(--destructive);
+		--search-widget: hsl(var(--popover));
+		--search-widget-border: hsl(var(--border));
+		--search-field: hsl(var(--background));
+		--search-field-border: hsl(var(--border));
+		--search-focus: hsl(var(--foreground) / 0.38);
+		--search-hover: hsl(var(--foreground) / 0.08);
+		--search-toggle-active: hsl(var(--foreground) / 0.14);
+		--search-toggle-active-border: hsl(var(--foreground) / 0.28);
+		--search-toggle-active-fg: hsl(var(--foreground));
+		--search-match-bg: hsl(var(--favorite) / 0.24);
+		--search-match-border: hsl(var(--favorite) / 0.38);
+		--search-match-current-bg: hsl(var(--favorite) / 0.42);
+		--search-match-current-border: hsl(var(--favorite) / 0.72);
 	}
 
 	* {
@@ -278,6 +291,17 @@
 			[aria-invalid="true"]
 		):focus {
 		border-color: hsl(var(--foreground) / 0.11);
+	}
+
+	.skriuw-search-match {
+		background-color: var(--search-match-bg);
+		border-radius: 2px;
+		box-shadow: inset 0 0 0 1px var(--search-match-border);
+	}
+
+	.skriuw-search-match--current {
+		background-color: var(--search-match-current-bg);
+		box-shadow: inset 0 0 0 1px var(--search-match-current-border);
 	}
 
 	button,
