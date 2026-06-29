@@ -197,7 +197,6 @@ export const SidebarPanel = memo(function SidebarPanel({
 	const maxSearchResultsPerType = 10;
 	const visibleSearchFiles = searchResults.files.slice(0, maxSearchResultsPerType);
 	const visibleSearchFolders = searchResults.folders.slice(0, maxSearchResultsPerType);
-	const totalVisibleSearchResults = visibleSearchFiles.length + visibleSearchFolders.length;
 	const totalSearchResults = searchResults.files.length + searchResults.folders.length;
 
 	const handleFileSelect = useCallback(
@@ -668,9 +667,9 @@ export const SidebarPanel = memo(function SidebarPanel({
 								transition={searchSwapTransition}
 								className="absolute inset-x-0 top-0 flex h-11 items-center px-3 will-change-transform"
 							>
-								<div className="flex items-center gap-2 border border-sidebar-border bg-sidebar-accent/55 px-3 shadow-inner">
+								<div className="flex h-8 w-full items-center gap-2 border border-border bg-background px-2.5 transition-colors focus-within:border-ring">
 									<Search
-										className="h-4 w-4 shrink-0 text-muted-foreground"
+										className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
 										strokeWidth={1.5}
 									/>
 									<input
@@ -688,10 +687,10 @@ export const SidebarPanel = memo(function SidebarPanel({
 									/>
 									<button
 										onClick={closeSearch}
-										className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar md:h-7 md:w-7"
+										className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 										title="Close search"
 									>
-										<X className="h-4 w-4" strokeWidth={1.5} />
+										<X className="h-3.5 w-3.5" strokeWidth={1.5} />
 									</button>
 								</div>
 							</motion.div>
@@ -708,46 +707,30 @@ export const SidebarPanel = memo(function SidebarPanel({
 				)}
 			>
 				{searchQuery.trim() ? (
-					<div className="flex-1 overflow-y-auto px-3 py-3">
+					<div className="flex-1 overflow-y-auto px-2 py-2">
 						{hasSearchResults ? (
-							<div className="overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar-accent/40 shadow-lg">
-								<div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3">
-									<div>
-										<p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/52">
-											Quick Jump
-										</p>
-										<p className="text-[12px] text-sidebar-foreground/72">
-											{totalVisibleSearchResults} results for "
-											{searchQuery.trim()}"
-										</p>
-									</div>
-									<span className="rounded-full border border-sidebar-border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/48">
-										Search
-									</span>
-								</div>
+							<div className="flex flex-col gap-3">
 								{visibleSearchFolders.length > 0 && (
-									<div className="border-b border-sidebar-border p-2 last:border-b-0">
-										<p className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-sidebar-foreground/58">
+									<div className="flex flex-col gap-0.5">
+										<p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
 											Folders
 										</p>
 										{visibleSearchFolders.map((folder) => (
 											<button
 												key={folder.id}
 												onClick={() => handleSearchFolderSelect(folder.id)}
-												className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-transparent px-3 py-2 text-left text-sidebar-foreground/82 transition-colors hover:border-sidebar-border hover:bg-sidebar hover:text-sidebar-foreground"
+												className="flex h-[34px] w-full items-center gap-1.5 border border-transparent px-2 text-left text-xs font-medium text-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground/88"
 											>
 												<Folder
-													className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+													className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
 													strokeWidth={1.5}
 												/>
-												<span className="truncate text-[13px]">
-													{folder.name}
-												</span>
+												<span className="truncate">{folder.name}</span>
 											</button>
 										))}
 										{searchResults.folders.length >
 											visibleSearchFolders.length && (
-											<p className="px-2 py-1 text-[10px] text-sidebar-foreground/52">
+											<p className="px-2 pt-1 text-[10px] text-muted-foreground">
 												+
 												{searchResults.folders.length -
 													visibleSearchFolders.length}{" "}
@@ -757,8 +740,8 @@ export const SidebarPanel = memo(function SidebarPanel({
 									</div>
 								)}
 								{visibleSearchFiles.length > 0 && (
-									<div className="p-2">
-										<p className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-sidebar-foreground/58">
+									<div className="flex flex-col gap-0.5">
+										<p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
 											Files
 										</p>
 										{visibleSearchFiles.map(({ file, snippet }) => (
@@ -766,22 +749,20 @@ export const SidebarPanel = memo(function SidebarPanel({
 												key={file.id}
 												onClick={() => handleSearchFileSelect(file.id)}
 												className={cn(
-													"flex min-h-11 w-full items-start gap-2 rounded-xl border border-transparent px-3 py-2 text-left transition-colors",
+													"flex min-h-[34px] w-full items-start gap-1.5 border border-transparent px-2 py-1.5 text-left text-xs font-medium transition-colors",
 													file.id === activeFileId
-														? "border-sidebar-border bg-sidebar text-sidebar-foreground"
-														: "text-sidebar-foreground/82 hover:border-sidebar-border hover:bg-sidebar hover:text-sidebar-foreground",
+														? "border-border bg-muted text-foreground"
+														: "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
 												)}
 											>
 												<FileText
-													className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+													className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
 													strokeWidth={1.5}
 												/>
 												<span className="flex min-w-0 flex-col">
-													<span className="truncate text-[13px]">
-														{file.name}
-													</span>
+													<span className="truncate">{file.name}</span>
 													{snippet && (
-														<span className="truncate text-[11px] text-sidebar-foreground/52">
+														<span className="truncate text-[11px] font-normal text-muted-foreground">
 															{snippet}
 														</span>
 													)}
@@ -789,7 +770,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 											</button>
 										))}
 										{searchResults.files.length > visibleSearchFiles.length && (
-											<p className="px-2 py-1 text-[10px] text-sidebar-foreground/52">
+											<p className="px-2 pt-1 text-[10px] text-muted-foreground">
 												+
 												{searchResults.files.length -
 													visibleSearchFiles.length}{" "}
@@ -800,17 +781,15 @@ export const SidebarPanel = memo(function SidebarPanel({
 								)}
 							</div>
 						) : supportsContentSearch && isSearching ? (
-							<div className="rounded-2xl border border-dashed border-sidebar-border bg-sidebar-accent/25 px-4 py-6 text-center">
-								<p className="text-xs font-medium text-sidebar-foreground/74">
-									Searching…
-								</p>
-							</div>
+							<p className="px-2 py-6 text-center text-xs font-medium text-muted-foreground">
+								Searching…
+							</p>
 						) : (
-							<div className="rounded-2xl border border-dashed border-sidebar-border bg-sidebar-accent/25 px-4 py-6 text-center">
-								<p className="text-xs font-medium text-sidebar-foreground/74">
+							<div className="px-2 py-6 text-center">
+								<p className="text-xs font-medium text-foreground/70">
 									No results found
 								</p>
-								<p className="mt-1 text-[11px] text-sidebar-foreground/46">
+								<p className="mt-1 text-[11px] text-muted-foreground">
 									Try a note title, folder name, or a phrase from the editor
 									content.
 								</p>
