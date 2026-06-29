@@ -3,6 +3,45 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.11.0] — 2026-06-29
+
+Account-management, search, and command-palette release on top of the unified
+`0.1.0` baseline. Adds OAuth account linking and username changes in settings,
+a rebuilt command palette, an in-note search widget, deterministic avatars, and
+a codebase-wide TypeScript consistency pass — plus desktop and accessibility
+fixes.
+
+### Added
+- **Rebuilt command palette UI.** (#165)
+- **In-note search widget** for finding text within the current note. (#166)
+- **OAuth connect / disconnect in Settings → Security.** New connected-accounts
+  panel lists GitHub/Google with connection status; connecting links a provider
+  via Better Auth `linkSocial`, and disconnecting is guarded so it refuses to
+  remove the last remaining login method. (#161, closes #143)
+- **Change your username from settings**, with shared inline format validation
+  (letters, numbers, underscores, dots; 3–30 chars) before save and a clear
+  "already taken" message on uniqueness conflicts. (#160, #142)
+- **Deterministic avatar color** assigned at signup and reused on every avatar
+  surface, with a stable id-derived fallback for existing rows. (#162)
+- **Desktop: zoom option** to scale the app UI.
+- Smooth search-toggle transition in the aside top bar. (#157)
+
+### Fixed
+- **Block duplicate email registration** when an OAuth-provided email already
+  maps to an account. (#161, closes #143)
+- **Desktop: gate the note-history sidebar by backend capability** so it only
+  shows where versioning is supported. (#159)
+- **a11y: keyboard-accessible "manage sections" popup.** (#158, closes #152)
+- **Desktop: only disable the DMABUF renderer on Wayland**, restoring hardware
+  rendering on X11/NVIDIA.
+- **CI: green test suite** and unified package version.
+
+### Internal
+- **Codebase-wide TypeScript consistency pass** across `apps/web`: all 36
+  `interface` declarations converted to `type` aliases (`extends` → intersection),
+  single-type prop files renamed to `Props`, and JSDoc added to the AI-service
+  and note domain types. (#169, closes #144)
+
 ## [0.1.0] — 2026-06-29
 
 First unified release across the web app and the desktop app, sharing a single
