@@ -16,6 +16,7 @@ type UseNotesLayoutShortcutsOptions = {
 	handleToggleSplit: () => void;
 	handleSplitHorizontal: () => void;
 	handleCloseSplitPane: () => void;
+	handleCloseFocusedTab: () => void;
 	handleFocusNextSplitPane: () => void;
 	handleFocusPreviousSplitPane: () => void;
 };
@@ -31,6 +32,7 @@ export function useNotesLayoutShortcuts({
 	handleToggleSplit,
 	handleSplitHorizontal,
 	handleCloseSplitPane,
+	handleCloseFocusedTab,
 	handleFocusNextSplitPane,
 	handleFocusPreviousSplitPane,
 }: UseNotesLayoutShortcutsOptions) {
@@ -59,6 +61,7 @@ export function useNotesLayoutShortcuts({
 		"notes.focusFileTree": handleFocusFileTree,
 		"notes.toggleSplit": handleToggleSplit,
 		"notes.splitHorizontal": handleSplitHorizontal,
+		"notes.closeTab": handleCloseFocusedTab,
 		"notes.closeSplit": handleCloseSplitPane,
 		"notes.focusNextSplitPane": handleFocusNextSplitPane,
 		"notes.focusPreviousSplitPane": handleFocusPreviousSplitPane,

@@ -844,6 +844,51 @@ export function extractRichDocumentUsers(
 	return [...acc.values()].toSorted((left, right) => left.localeCompare(right));
 }
 
+function collectInlinePersonIds(content: unknown, acc: Set<string>): void {
+	if (!Array.isArray(content)) {
+		return;
+	}
+
+	for (const inline of content) {
+		if (!inline || typeof inline !== "object") {
+			continue;
+		}
+
+		const node = inline as { type?: string; props?: Record<string, unknown>; content?: unknown };
+		if (node.type === "person") {
+			const id = String(node.props?.id ?? "").trim();
+			if (id) {
+				acc.add(id);
+			}
+			continue;
+		}
+
+		collectInlinePersonIds(node.content, acc);
+	}
+}
+
+/** Ids of every `$person` chip present in a rich document. */
+export function extractRichDocumentPersonIds(
+	document: RichTextDocument | null | undefined,
+): string[] {
+	if (!document?.length) {
+		return [];
+	}
+
+	const acc = new Set<string>();
+	const walk = (blocks: PartialBlock[]) => {
+		for (const block of blocks) {
+			collectInlinePersonIds(block.content, acc);
+			if (Array.isArray(block.children)) {
+				walk(block.children as PartialBlock[]);
+			}
+		}
+	};
+	walk(document as PartialBlock[]);
+
+	return [...acc].toSorted((left, right) => left.localeCompare(right));
+}
+
 export function resolveRichDocument(
 	markdown: string,
 	richContent: RichTextDocument | null | undefined,

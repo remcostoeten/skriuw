@@ -79,7 +79,6 @@ import {
 	getNoteTitle,
 	getNoteSearchableContent,
 	getWorkspaceTags,
-	getWorkspaceUsers,
 } from "@/domain/notes/note-links";
 import { useNotesStore } from "@/features/notes/store";
 import { useNoteLinkActions } from "@/features/editor/hooks/use-note-link-actions";
@@ -120,6 +119,8 @@ import { SearchWidget } from "./search-widget";
 import { NotePropertiesShelf } from "./note-properties/note-properties-shelf";
 import { editorSchema } from "./inline-specs/schema";
 import { NoteLinkProvider } from "./inline-specs/note-link-context";
+import { PeopleProvider } from "./inline-specs/people-context";
+import type { Person } from "@/domain/people/models";
 import type * as Y from "yjs";
 import type { Awareness } from "y-protocols/awareness";
 
@@ -180,6 +181,8 @@ type RichTextEditorProps = {
 	content: string;
 	richContent?: RichTextDocument;
 	files?: NoteFile[];
+	people?: Person[];
+	onCreatePerson?: (name: string) => Promise<Person | null>;
 	activeFileId?: string;
 	editorFontId: EditorFontId;
 	editorLineHeight: EditorLineHeight;
@@ -1498,15 +1501,14 @@ function insertNoteLinkChip(editor: EditorInstance, title: string) {
 	editor.insertInlineContent([{ type: "noteLink", props: { title: trimmed } } as any, " "]);
 }
 
-function insertUserChip(editor: EditorInstance, name: string) {
-	const trimmed = name
-		.trim()
-		.replace(/^\$/, "")
-		.replace(/[^a-zA-Z0-9_-]+/g, "-")
-		.replace(/^-+|-+$/g, "");
-	if (!trimmed) return;
-	// biome-ignore lint/suspicious/noExplicitAny: custom inline content type
-	editor.insertInlineContent([{ type: "user", props: { name: trimmed } } as any, " "]);
+function insertPersonChip(editor: EditorInstance, person: Person) {
+	const name = person.name.trim();
+	if (!person.id || !name) return;
+	editor.insertInlineContent([
+		// biome-ignore lint/suspicious/noExplicitAny: custom inline content type
+		{ type: "person", props: { id: person.id, name } } as any,
+		" ",
+	]);
 }
 
 function openNoteMentionMenu(editor: EditorInstance) {
@@ -1557,35 +1559,38 @@ function getTagMenuItems(
 	];
 }
 
-function getUserMentionMenuItems(
+function getPersonMentionMenuItems(
 	editor: EditorInstance,
-	users: string[],
+	people: Person[],
 	query: string,
+	onCreatePerson?: (name: string) => Promise<Person | null>,
 ): DefaultReactSuggestionItem[] {
 	const normalizedQuery = query.trim().replace(/^\$/, "");
-	const slugQuery = normalizedQuery.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
-	const existingItems: DefaultReactSuggestionItem[] = users.map((user) => ({
-		title: user,
-		subtext: "User",
-		group: "Users",
+	const existingItems: DefaultReactSuggestionItem[] = people.map((person) => ({
+		title: person.name,
+		subtext: "Person",
+		group: "People",
 		onItemClick: () => {
-			insertUserChip(editor, user);
+			insertPersonChip(editor, person);
 		},
 	}));
 
 	const shouldOfferCreate =
-		slugQuery.length > 0 &&
-		!users.some((user) => user.toLowerCase() === slugQuery.toLowerCase());
+		Boolean(onCreatePerson) &&
+		normalizedQuery.length > 0 &&
+		!people.some((person) => person.name.toLowerCase() === normalizedQuery.toLowerCase());
 
 	return [
 		...(shouldOfferCreate
 			? [
 					{
-						title: slugQuery,
-						subtext: "Mention user",
-						group: "Users",
+						title: normalizedQuery,
+						subtext: "Add person",
+						group: "People",
 						onItemClick: () => {
-							insertUserChip(editor, slugQuery);
+							void onCreatePerson?.(normalizedQuery).then((person) => {
+								if (person) insertPersonChip(editor, person);
+							});
 						},
 					},
 				]
@@ -1711,6 +1716,8 @@ export function RichTextEditor({
 	content,
 	richContent,
 	files = [],
+	people = [],
+	onCreatePerson,
 	activeFileId,
 	editorFontId,
 	editorLineHeight,
@@ -1789,7 +1796,6 @@ export function RichTextEditor({
 	const prefersReducedMotion = useReducedMotion() ?? false;
 	const searchWidgetTransition = pickTransition(prefersReducedMotion, FAST_SWAP_TRANSITION);
 	const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
-	const workspaceUsers = useMemo(() => getWorkspaceUsers(files), [files]);
 	const { createAndOpenNote, openNote } = useNoteLinkActions(files);
 
 	// Anchored comments live alongside the document in the same Yjs room; the
@@ -2480,6 +2486,7 @@ export function RichTextEditor({
 				/>
 			) : null}
 			<NoteLinkProvider files={files} activeFileId={activeFileId}>
+				<PeopleProvider people={people}>
 				<BlockNoteView
 					editor={editor}
 					editable={!readOnly}
@@ -2535,7 +2542,7 @@ export function RichTextEditor({
 						triggerCharacter="$"
 						suggestionMenuComponent={KeyboardAccessibleSlashMenu}
 						getItems={async (query) =>
-							getUserMentionMenuItems(editor, workspaceUsers, query)
+							getPersonMentionMenuItems(editor, people, query, onCreatePerson)
 						}
 					/>
 					<SelectionBubbleMenu
@@ -2547,6 +2554,7 @@ export function RichTextEditor({
 						onAiContinueWriting={onAiContinueWriting}
 					/>
 				</BlockNoteView>
+				</PeopleProvider>
 			</NoteLinkProvider>
 			<style jsx global>{`
 				.blocknote-wrapper .bn-editor .vim-normal {

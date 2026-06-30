@@ -15,6 +15,7 @@ import { QueryCachePersistence } from "@/providers/query-cache-persistence";
 import { WorkspaceWarmup } from "@/providers/workspace-warmup";
 import { ShortcutProvider } from "@/core/shortcuts";
 import { PendingCollabReplay } from "@/features/collaboration/components/pending-collab-replay";
+import { DesktopIndexSync } from "@/features/desktop/desktop-index-sync";
 import { isDevEnv } from "@/features/dev-tools/store";
 import { UserToastHost } from "@/shared/ui/user-toast-host";
 import { EDITOR_PREFERENCES_STORAGE_KEY } from "@/features/settings/lib/editor-preferences";
@@ -87,6 +88,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 					/>
 					<ProtectedAppGuard>
 						<WorkspaceBackendProvider>
+							<DesktopIndexSync />
 							<PersistenceBootstrap />
 							<GuestWorkspaceBootstrap />
 							<AppRoutePrefetcher />

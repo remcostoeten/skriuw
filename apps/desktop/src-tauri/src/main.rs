@@ -3,38 +3,20 @@
 fn main() {
     #[cfg(target_os = "linux")]
     {
-        // WebKitGTK on some Wayland/GBM stacks fails to allocate dmabuf-backed
-        // render buffers, so we disable the dmabuf renderer there. On X11
-        // (notably X11 + NVIDIA proprietary driver) disabling it instead causes
-        // a multi-second-to-indefinite first-paint stall that leaves the window
-        // stuck on the splash, so we must leave dmabuf enabled there.
+        // WebKitGTK's dmabuf renderer fails to allocate GBM buffers on a range of
+        // Linux GPU/driver stacks (seen on both Wayland and X11 + NVIDIA), which
+        // leaves the window painted grey because nothing ever composites. The
+        // documented workaround is to disable the dmabuf renderer.
         //
-        // That stall was only ever reproduced in the packaged (release) build,
-        // so in dev we additionally disable dmabuf everywhere to silence the
-        // harmless "Failed to create GBM buffer" fallback noise.
-        let should_disable_dmabuf = cfg!(debug_assertions) || is_wayland_session();
-        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() && should_disable_dmabuf {
+        // We previously left it enabled on X11 + NVIDIA to avoid a "first-paint
+        // stall" on the splash, but that stall was actually the Better Auth
+        // client crashing on the tauri:// origin (fixed in fbbfd6e2), not dmabuf.
+        // With that gone, disabling the renderer everywhere is safe and fixes the
+        // grey-screen GBM failures. An explicit env override still wins.
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
     }
 
     skriuw_desktop_lib::run();
-}
-
-#[cfg(target_os = "linux")]
-fn is_wayland_session() -> bool {
-    if let Some(backend) = std::env::var_os("GDK_BACKEND") {
-        let backend = backend.to_string_lossy().to_lowercase();
-        if backend.contains("x11") {
-            return false;
-        }
-        if backend.contains("wayland") {
-            return true;
-        }
-    }
-
-    std::env::var_os("WAYLAND_DISPLAY").is_some()
-        || std::env::var("XDG_SESSION_TYPE")
-            .map(|t| t.eq_ignore_ascii_case("wayland"))
-            .unwrap_or(false)
 }

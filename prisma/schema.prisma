@@ -46,6 +46,7 @@ model User {
   noteCollaborations     NoteCollaborator[]     @relation("NoteCollaborations")
   sentCollaborations     NoteCollaborator[]     @relation("SentCollaborations")
   notifications          Notification[]
+  people                 Person[]
 
   @@map("user")
 }
@@ -266,6 +267,25 @@ model NoteLink {
   @@index([userId, sourceNoteId])
   @@index([userId, targetNoteId])
   @@map("note_links")
+}
+
+// A reusable workspace person. Referenced by id from inline `$` mentions in a
+// note's rich content and from "person" note properties (template
+// Owner/Attendees fields), so a person exists once and renaming the row updates
+// every reference. Mention edges are persisted as NoteLink rows with
+// kind "person" and targetLabel = the person id.
+model Person {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  color     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, name])
+  @@index([userId, name])
+  @@map("people")
 }
 
 // ─── Journal ─────────────────────────────────────────────────────────────────

@@ -83,6 +83,7 @@ type NotesUiState = {
 	setPaneTabs: (pane: EditorPane, tabs: WorkspaceTab[]) => void;
 	closeOtherTabs: (pane: EditorPane, fileId: string) => string[];
 	closeTabsToSide: (pane: EditorPane, fileId: string, side: "left" | "right") => string[];
+	closeAllTabs: (pane: EditorPane) => string[];
 };
 
 export function applyFolderUiState(
@@ -408,6 +409,13 @@ export const useNotesStore = create<NotesUiState>()(
 			.filter((tab, index) => !shouldKeep(index, tab))
 			.map((tab) => tab.fileId);
 		set((state) => paneTabsPatch(pane, state[key].filter((tab, index) => shouldKeep(index, tab))));
+		return removed;
+	},
+
+	closeAllTabs: (pane) => {
+		const key = TAB_KEY_BY_PANE[pane];
+		const removed = get()[key].filter((tab) => !tab.pinned).map((tab) => tab.fileId);
+		set((state) => paneTabsPatch(pane, state[key].filter((tab) => tab.pinned)));
 		return removed;
 	},
 }),
