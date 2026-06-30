@@ -3,6 +3,18 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.13.2] — 2026-06-30
+
+### Fixed
+- **Note editor:** stop the TipTap "`Cannot access view['dom']`" error that
+  fired when the editor was read before its ProseMirror view had mounted.
+  BlockNote 0.46 runs on TipTap 3, whose `editor.view` returns a *truthy* proxy
+  until mount, so the existing `?.` / `if (!view)` guards never caught it. The
+  editor now reads the real view object (genuinely `null` before mount) and
+  tracks the live DOM across mount/unmount — which also repairs link-click,
+  title-commit, and selection-reporting listeners that could silently fail to
+  attach right after mount.
+
 ## [0.13.1] — 2026-06-30
 
 ### Fixed
