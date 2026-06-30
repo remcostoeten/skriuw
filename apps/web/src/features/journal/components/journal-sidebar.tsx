@@ -292,7 +292,10 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 										{format(selectedDate, "dd MMM yyyy")}
 									</Button>
 								</PopoverTrigger>
-								<PopoverContent className="w-auto p-0" align="end">
+								<PopoverContent
+									className="w-auto rounded-lg border-border bg-popover p-0 text-popover-foreground shadow-xl shadow-black/40"
+									align="end"
+								>
 									<Calendar
 										mode="single"
 										selected={selectedDate}
