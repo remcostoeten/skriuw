@@ -7,9 +7,11 @@ import { cn } from "@/shared/lib/utils";
 import { colorWithAlpha } from "@/shared/lib/theme-colors";
 import { MOOD_OPTIONS, type MoodLevel } from "@/features/journal/types";
 import type { JournalEntryController } from "../hooks/use-journal-entry";
+import type { JournalAiController } from "../hooks/use-journal-ai";
 import dynamic from "next/dynamic";
 import { PlainTextEditor } from "./plain-text-editor";
 import { EditorContentSkeleton } from "@/features/editor/components/editor-content-skeleton";
+import { AiWritingIndicator, type AiWritingAction } from "@/features/editor/components/ai-writing-indicator";
 import { useNotes } from "@/features/notes/hooks/use-notes";
 import {
 	ContextMenu,
@@ -19,6 +21,7 @@ import {
 	ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
 import { copyTextToClipboard } from "@/features/desktop/context-menu-actions";
+import { JournalAiErrorBanner, JournalAiRateLimitBanner } from "./journal-ai-banners";
 
 // Lazy-load BlockNote/Mantine off the journal route's critical path (ssr:false),
 // matching the notes editor's dynamic boundary in editor.tsx.
@@ -36,6 +39,7 @@ type JournalEditorProps = {
 	selectedDate: Date;
 	editorMode?: "plain" | "rich";
 	entryState: JournalEntryController;
+	aiState?: JournalAiController;
 	onToggleEditorMode?: () => void;
 	onGoToToday?: () => void;
 	onBackToList?: () => void;
@@ -52,6 +56,7 @@ export function JournalEditor({
 	selectedDate,
 	editorMode = "rich",
 	entryState,
+	aiState,
 	onToggleEditorMode,
 	onGoToToday,
 	onBackToList,
@@ -74,6 +79,15 @@ export function JournalEditor({
 	const entryTags = entry?.tags ?? [];
 	const entryMood = entry?.mood;
 
+	const isAiAvailable = editorMode === "rich" && Boolean(aiState);
+	const activeWritingAction: AiWritingAction | null = !aiState
+		? null
+		: aiState.aiLoading.continueWriting
+			? "continueWriting"
+			: aiState.aiLoading.spellCheck
+				? "spellCheck"
+				: null;
+
 	const getTagColor = (name: string): string => {
 		const tag = allTags.find((t) => t.name === name);
 		return tag?.color ?? "hsl(var(--project-blue))";
@@ -83,6 +97,26 @@ export function JournalEditor({
 		<ContextMenu>
 			<ContextMenuTrigger asChild>
 				<div className="flex flex-1 flex-col overflow-y-auto">
+					{isAiAvailable && aiState?.aiError && (
+						<JournalAiErrorBanner
+							error={aiState.aiError}
+							onDismiss={aiState.dismissAiError}
+						/>
+					)}
+					{isAiAvailable && aiState?.rateLimitPrompt && (
+						<JournalAiRateLimitBanner
+							prompt={aiState.rateLimitPrompt}
+							availableKeysForFallback={aiState.availableKeysForFallback}
+							onRetryWithKey={(keyId) =>
+								aiState.runAiAction(
+									aiState.rateLimitPrompt!.action,
+									keyId,
+									aiState.rateLimitPrompt!.exhaustedKeyIds,
+								)
+							}
+							onDismiss={aiState.dismissRateLimit}
+						/>
+					)}
 					<div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col px-5 pb-8 pt-9 sm:px-8 md:px-10 lg:max-w-[820px] lg:px-12 lg:pb-10 lg:pt-14">
 						{/* Date heading */}
 						<header className="border-b border-border/55 pb-5 md:pb-6">
@@ -189,11 +223,22 @@ export function JournalEditor({
 								<RichTextEditor
 									content={content}
 									files={files}
+									activeFileId={format(selectedDate, "yyyy-MM-dd")}
 									editorFontId={editorPrefs.defaultFont}
 									editorLineHeight={editorPrefs.lineHeight}
 									onChange={(next) => setContent(next.markdown)}
+									onEditorReady={aiState?.handleEditorReady}
+									onAiSpellCheck={
+										aiState ? () => aiState.runAiAction("spellCheck") : undefined
+									}
+									onAiContinueWriting={
+										aiState
+											? () => aiState.runAiAction("continueWriting")
+											: undefined
+									}
 								/>
 							)}
+							{isAiAvailable && <AiWritingIndicator action={activeWritingAction} />}
 						</div>
 
 						{/* Footer */}
@@ -281,6 +326,23 @@ export function JournalEditor({
 				) : null}
 				{onBackToList ? (
 					<ContextMenuItem onClick={onBackToList}>Show all entries</ContextMenuItem>
+				) : null}
+				{isAiAvailable && aiState ? (
+					<>
+						<ContextMenuSeparator />
+						<ContextMenuItem
+							disabled={aiState.aiLoading.spellCheck}
+							onClick={() => aiState.runAiAction("spellCheck")}
+						>
+							Spell check
+						</ContextMenuItem>
+						<ContextMenuItem
+							disabled={aiState.aiLoading.continueWriting}
+							onClick={() => aiState.runAiAction("continueWriting")}
+						>
+							Continue writing
+						</ContextMenuItem>
+					</>
 				) : null}
 				{entry ? (
 					<>
