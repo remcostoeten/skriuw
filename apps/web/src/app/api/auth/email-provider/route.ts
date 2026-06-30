@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 const CREDENTIAL_PROVIDER_ID = "credential";
+const RATE_LIMIT_MAX = 20;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 type RequestBody = {
 	email?: string;
@@ -21,6 +24,16 @@ type EmailProviderResponse = {
  * email and steer the user to the right provider instead.
  */
 export async function POST(request: NextRequest) {
+	const ip = getRequestIp(request.headers);
+	const { allowed } = await checkRateLimit(
+		`email-provider:${ip}`,
+		RATE_LIMIT_MAX,
+		RATE_LIMIT_WINDOW_MS,
+	);
+	if (!allowed) {
+		return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+	}
+
 	const body = (await request.json().catch(() => null)) as RequestBody | null;
 	const email = body?.email?.trim().toLowerCase();
 	if (!email) {

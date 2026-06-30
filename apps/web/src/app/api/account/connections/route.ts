@@ -2,8 +2,11 @@ import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getAuthenticatedUser } from "@/core/db";
 import { auth } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const CREDENTIAL_PROVIDER_ID = "credential";
+const UNLINK_RATE_LIMIT_MAX = 10;
+const UNLINK_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 
 type LinkedAccount = {
 	accountId: string;
@@ -67,10 +70,24 @@ export async function GET() {
 }
 
 export async function DELETE(request: NextRequest) {
+	let userId: string;
 	try {
-		await getAuthenticatedUser();
+		const { user } = await getAuthenticatedUser();
+		userId = user.id;
 	} catch {
 		return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+	}
+
+	const { allowed } = await checkRateLimit(
+		`account-unlink:${userId}`,
+		UNLINK_RATE_LIMIT_MAX,
+		UNLINK_RATE_LIMIT_WINDOW_MS,
+	);
+	if (!allowed) {
+		return NextResponse.json(
+			{ error: "Too many attempts. Try again later." },
+			{ status: 429 },
+		);
 	}
 
 	const body = (await request.json().catch(() => null)) as UnlinkBody | null;
