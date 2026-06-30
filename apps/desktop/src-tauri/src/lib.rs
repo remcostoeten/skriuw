@@ -2,15 +2,17 @@ mod ai;
 mod backup;
 mod storage;
 mod vault;
+mod versioning;
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use storage::{
-    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, SearchHit, Storage,
-    TrashRecord,
+    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteVersion,
+    NoteVersionSnapshot, Person, SearchHit, Storage, TrashRecord,
 };
 
 /// Current wall-clock time in epoch milliseconds, for stamping deletions.
@@ -61,6 +63,18 @@ fn app_info() -> AppInfo {
         status: "local-backend".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
     }
+}
+
+/// Flips to `true` once the SQLite index has been reconciled against the vault.
+/// On launches where `index.db` already exists the reconcile is deferred to a
+/// background thread, so the frontend uses this (plus the `index://reconciled`
+/// event) to know when the first `list_notes` result may have raced ahead of a
+/// stale index and needs refetching.
+struct IndexReady(AtomicBool);
+
+#[tauri::command]
+fn index_ready(state: State<'_, IndexReady>) -> bool {
+    state.0.load(Ordering::SeqCst)
 }
 
 #[tauri::command]
@@ -257,6 +271,157 @@ fn delete_journal_tag(
 ) -> Result<(), String> {
     vault.delete_journal_tag(&id).map_err(vault_err)?;
     storage.delete_journal_tag(&id).map_err(stringify)
+}
+
+#[tauri::command]
+fn list_people(storage: State<'_, Storage>) -> Result<Vec<Person>, String> {
+    storage.list_people().map_err(stringify)
+}
+
+#[tauri::command]
+fn create_person(
+    storage: State<'_, Storage>,
+    id: String,
+    name: String,
+    color: Option<String>,
+) -> Result<Person, String> {
+    storage
+        .create_person(&id, &name, color.as_deref())
+        .map_err(stringify)
+}
+
+#[derive(Serialize)]
+pub struct VersionWriteResult {
+    pub version_id: Option<String>,
+    pub version_changed: bool,
+}
+
+#[derive(Serialize)]
+pub struct RestoreVersionResult {
+    pub note: Option<Note>,
+    pub version_created: bool,
+}
+
+/// Records a checkpoint for a note write, mirroring the web `updateNote`
+/// action's version logic (`src/domain/notes/actions.ts`):
+/// - If this save continues an open checkpoint session (`session_version_id`
+///   from a prior checkpoint flush), overwrite that row in place rather than
+///   growing the history with every keystroke between checkpoints.
+/// - Otherwise only `rename`/`created`/`restore` reasons, or an explicit
+///   checkpoint flush, are eligible to create a new row at all — plain
+///   autosaves never do. Eligible writes still pass through
+///   `Storage::insert_note_version`'s dedupe/throttle check.
+#[tauri::command]
+fn record_note_version(
+    storage: State<'_, Storage>,
+    note_id: String,
+    snapshot: NoteVersionSnapshot,
+    reason: String,
+    create_checkpoint: bool,
+    session_version_id: Option<String>,
+) -> Result<VersionWriteResult, String> {
+    if create_checkpoint {
+        if let Some(existing_id) = &session_version_id {
+            let changed = storage
+                .update_existing_note_version(existing_id, &note_id, &snapshot)
+                .map_err(stringify)?;
+            if changed {
+                return Ok(VersionWriteResult {
+                    version_id: Some(existing_id.clone()),
+                    version_changed: true,
+                });
+            }
+        }
+    }
+
+    let should_create_version =
+        matches!(reason.as_str(), "rename" | "created" | "restore") || create_checkpoint;
+    if !should_create_version {
+        return Ok(VersionWriteResult {
+            version_id: None,
+            version_changed: false,
+        });
+    }
+
+    let version_id = storage
+        .insert_note_version(&note_id, &snapshot, &reason, now_ms())
+        .map_err(stringify)?;
+
+    Ok(VersionWriteResult {
+        version_changed: version_id.is_some(),
+        version_id,
+    })
+}
+
+#[tauri::command]
+fn get_note_versions(
+    storage: State<'_, Storage>,
+    note_id: String,
+    limit: Option<i64>,
+) -> Result<Vec<NoteVersion>, String> {
+    storage
+        .list_note_versions(&note_id, limit.unwrap_or(12))
+        .map_err(stringify)
+}
+
+/// Restores a note to a prior version: snapshots the pre-restore state as a
+/// "restore"-reason version (so the overwritten content isn't lost), then
+/// writes the version's content back as the note's current state.
+#[tauri::command]
+fn restore_note_version(
+    storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    version_id: String,
+) -> Result<RestoreVersionResult, String> {
+    let version = match storage.get_note_version(&version_id).map_err(stringify)? {
+        Some(version) => version,
+        None => {
+            return Ok(RestoreVersionResult {
+                note: None,
+                version_created: false,
+            })
+        }
+    };
+    let current = match storage.get_note(&version.note_id).map_err(stringify)? {
+        Some(note) => note,
+        None => {
+            return Ok(RestoreVersionResult {
+                note: None,
+                version_created: false,
+            })
+        }
+    };
+
+    storage
+        .insert_note_version(
+            &current.id,
+            &NoteVersionSnapshot::from(&current),
+            "restore",
+            now_ms(),
+        )
+        .map_err(stringify)?;
+
+    let restored = Note {
+        id: current.id,
+        name: version.name,
+        content: version.content,
+        rich_content: version.rich_content,
+        preferred_editor_mode: version.preferred_editor_mode,
+        parent_id: version.parent_id,
+        sort_order: current.sort_order,
+        tags: version.tags,
+        properties: version.properties,
+        created_at: current.created_at,
+        modified_at: now_ms(),
+    };
+
+    vault.upsert_note(&restored).map_err(vault_err)?;
+    storage.upsert_note(&restored).map_err(stringify)?;
+
+    Ok(RestoreVersionResult {
+        note: Some(restored),
+        version_created: true,
+    })
 }
 
 fn stringify(error: rusqlite::Error) -> String {
@@ -851,10 +1016,16 @@ pub fn run() {
             let index_existed = index_path.exists();
             let storage = Storage::open(&index_path)?;
 
+            app.manage(IndexReady(AtomicBool::new(false)));
+
             if index_existed {
                 app.manage(storage);
                 app.manage(vault);
 
+                // The window paints against the prior index immediately while the
+                // reconcile runs here; once it lands we flip `IndexReady` and emit
+                // `index://reconciled` so the frontend refetches any list that
+                // resolved against the pre-reconcile index.
                 let bg = handle.clone();
                 std::thread::spawn(move || {
                     let storage = bg.state::<Storage>();
@@ -862,11 +1033,14 @@ pub fn run() {
                     if let Err(err) = reconcile_index(&storage, &vault) {
                         eprintln!("[skriuw] background index reconcile failed: {err}");
                     }
+                    bg.state::<IndexReady>().0.store(true, Ordering::SeqCst);
+                    let _ = bg.emit("index://reconciled", ());
                 });
             } else {
                 reconcile_index(&storage, &vault)?;
                 app.manage(storage);
                 app.manage(vault);
+                handle.state::<IndexReady>().0.store(true, Ordering::SeqCst);
             }
 
             build_tray(handle)?;
@@ -889,6 +1063,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             app_info,
+            index_ready,
             list_notes,
             get_note,
             get_notes,
@@ -912,6 +1087,11 @@ pub fn run() {
             list_journal_tags,
             upsert_journal_tag,
             delete_journal_tag,
+            list_people,
+            create_person,
+            record_note_version,
+            get_note_versions,
+            restore_note_version,
             get_vault_root,
             set_vault_root,
             export_vault,
