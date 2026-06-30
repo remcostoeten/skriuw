@@ -2,55 +2,60 @@ import * as React from "react";
 import { DayPicker, type ClassNames, DayFlag, SelectionState, UI } from "react-day-picker";
 
 import { cn } from "@/shared/lib/utils";
-import { buttonVariants } from "@/shared/ui/button";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
 function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
 	const mergedClassNames: Partial<ClassNames> = {
 		[UI.Root]: cn("p-3", classNames?.[UI.Root]),
-		[UI.Months]: cn("flex flex-col gap-4 sm:flex-row sm:gap-6", classNames?.[UI.Months]),
-		[UI.Month]: cn("space-y-4", classNames?.[UI.Month]),
+		[UI.Months]: cn("relative flex flex-col", classNames?.[UI.Months]),
+		[UI.Month]: cn("space-y-3", classNames?.[UI.Month]),
 		[UI.MonthCaption]: cn(
-			"relative flex items-center justify-center pt-1",
+			"flex h-8 items-center justify-center",
 			classNames?.[UI.MonthCaption],
 		),
-		[UI.CaptionLabel]: cn("text-sm font-medium text-foreground", classNames?.[UI.CaptionLabel]),
-		[UI.Nav]: cn("flex items-center gap-1", classNames?.[UI.Nav]),
+		[UI.CaptionLabel]: cn(
+			"text-sm font-semibold text-foreground",
+			classNames?.[UI.CaptionLabel],
+		),
+		[UI.Nav]: cn(
+			"absolute inset-x-0 top-0 z-10 flex h-8 items-center justify-between px-0.5",
+			classNames?.[UI.Nav],
+		),
 		[UI.PreviousMonthButton]: cn(
-			buttonVariants({ variant: "outline" }),
-			"absolute left-1 size-7 bg-transparent p-0 opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+			"flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover disabled:pointer-events-none disabled:opacity-30",
 			classNames?.[UI.PreviousMonthButton],
 		),
 		[UI.NextMonthButton]: cn(
-			buttonVariants({ variant: "outline" }),
-			"absolute right-1 size-7 bg-transparent p-0 opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+			"flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover disabled:pointer-events-none disabled:opacity-30",
 			classNames?.[UI.NextMonthButton],
 		),
 		[UI.MonthGrid]: cn("w-full border-collapse", classNames?.[UI.MonthGrid]),
 		[UI.Weekdays]: cn("flex", classNames?.[UI.Weekdays]),
 		[UI.Weekday]: cn(
-			"w-9 rounded-md text-[0.8rem] font-normal text-muted-foreground",
+			"w-9 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground/60",
 			classNames?.[UI.Weekday],
 		),
-		[UI.Week]: cn("mt-2 flex w-full", classNames?.[UI.Week]),
+		[UI.Week]: cn("mt-1 flex w-full", classNames?.[UI.Week]),
 		[UI.Day]: cn(
-			"relative size-9 text-center text-sm focus-within:relative focus-within:z-20",
+			"relative size-9 p-0 text-center text-sm focus-within:relative focus-within:z-20",
 			classNames?.[UI.Day],
 		),
 		[UI.DayButton]: cn(
-			buttonVariants({ variant: "ghost" }),
-			"size-9 p-0 font-normal aria-selected:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+			"flex size-9 items-center justify-center rounded-full p-0 font-normal text-foreground/80 transition-colors hover:bg-accent hover:text-foreground aria-selected:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover",
 			classNames?.[UI.DayButton],
 		),
-		[DayFlag.today]: cn("border border-border", classNames?.[DayFlag.today]),
-		[DayFlag.outside]: cn("text-muted-foreground/40 opacity-50", classNames?.[DayFlag.outside]),
+		[DayFlag.today]: cn(
+			"[&_button]:font-semibold [&_button]:text-foreground [&_button]:ring-1 [&_button]:ring-inset [&_button]:ring-border",
+			classNames?.[DayFlag.today],
+		),
+		[DayFlag.outside]: cn("text-muted-foreground/30 opacity-60", classNames?.[DayFlag.outside]),
 		[DayFlag.disabled]: cn(
-			"text-muted-foreground/30 opacity-50",
+			"text-muted-foreground/25 opacity-50",
 			classNames?.[DayFlag.disabled],
 		),
 		[SelectionState.selected]: cn(
-			"bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+			"[&_button]:bg-primary [&_button]:text-primary-foreground [&_button]:font-semibold [&_button]:ring-0 [&_button]:hover:bg-primary [&_button]:hover:text-primary-foreground",
 			classNames?.[SelectionState.selected],
 		),
 		[SelectionState.range_middle]: cn(
