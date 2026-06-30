@@ -44,7 +44,7 @@ export function normalizeNoteTitle(value: string): string {
 	return stripMarkdownExtension(value).trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-function extractHeadingTitle(content: string): string | null {
+export function extractHeadingTitle(content: string): string | null {
 	const headingMatch = searchableContent(content).match(/^#\s+(.+?)\s*#*\s*$/m);
 	return headingMatch?.[1]?.trim() || null;
 }

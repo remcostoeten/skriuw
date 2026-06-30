@@ -147,8 +147,17 @@ export const SHORTCUT_REGISTRY = {
 		except: false,
 		preventDefault: true,
 	},
-	"notes.closeSplit": {
+	"notes.closeTab": {
 		keys: "ctrl+w",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Close tab",
+		description: "Close the focused tab (closes the split or empties the pane when it is the last tab).",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.closeSplit": {
+		keys: "ctrl+shift+w",
 		scope: SCOPES.notes,
 		group: "Notes",
 		label: "Close split pane",

@@ -3,6 +3,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { UpdateNoteResult } from "@/domain/notes/actions";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
+import type { Person } from "@/domain/people/models";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
 import { noop } from "@/shared/lib/noop";
 import {
@@ -67,6 +68,9 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 	const store = createGuestWorkspaceStore();
 	const filesKey = notesKeys.files(notesKeys.localScope());
 	const foldersKey = notesKeys.folders(notesKeys.localScope());
+	// Guest people live for the session only — the demo workspace is ephemeral
+	// and we deliberately keep them out of the persisted payload schema.
+	const guestPeople: Person[] = [];
 
 	function getCachedNote(id: string): NoteFile | null {
 		const detail = queryClient.getQueryData<NoteFile | null>(notesKeys.detail(id));
@@ -238,6 +242,24 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 
 		async deleteJournalTag() {
 			throw new WorkspaceCapabilityError("journal");
+		},
+
+		async listPeople() {
+			return guestPeople.map((person) => ({ ...person }));
+		},
+
+		async createPerson(input) {
+			const existing = guestPeople.find(
+				(person) => person.name.toLowerCase() === input.name.toLowerCase(),
+			);
+			if (existing) return { ...existing };
+			const person: Person = {
+				id: input.id ?? crypto.randomUUID(),
+				name: input.name,
+				color: input.color ?? null,
+			};
+			guestPeople.push(person);
+			return { ...person };
 		},
 	};
 }
