@@ -19,6 +19,15 @@ export type WorkspaceTabItem = {
 	pinned: boolean;
 };
 
+function isMacPlatform(): boolean {
+	if (typeof navigator === "undefined") return false;
+	return /Mac|iP(hone|ad|od)/.test(navigator.userAgent);
+}
+
+function isCloseTabClick(event: { ctrlKey: boolean; metaKey: boolean }): boolean {
+	return isMacPlatform() ? event.metaKey && !event.ctrlKey : event.ctrlKey || event.metaKey;
+}
+
 export type WorkspaceTabBarApi = {
 	openInTabs: boolean;
 	primaryTabItems: WorkspaceTabItem[];
@@ -129,7 +138,14 @@ export function TabBar({
 								aria-selected={isActive}
 								tabIndex={0}
 								draggable
-								onClick={() => handleSelect(file.id)}
+								onClick={(event) => {
+									if (isCloseTabClick(event)) {
+										event.preventDefault();
+										onClose(file.id);
+										return;
+									}
+									handleSelect(file.id);
+								}}
 								onKeyDown={handleKeyDown(file.id)}
 								onDragStart={handleDragStart(file.id)}
 								onDragOver={handleDragOver(file.id)}

@@ -16,6 +16,8 @@ import type {
 	CreateJournalTagInput,
 	UpdateJournalEntryInput,
 } from "@/domain/journal/actions";
+import type { Person } from "@/domain/people/models";
+import type { CreatePersonInput } from "@/domain/people/validation";
 
 /**
  * Feature switches a backend advertises so the UI can hide surfaces a given
@@ -140,4 +142,13 @@ export type WorkspaceBackend = {
 	deleteJournalEntry(id: string): Promise<void>;
 	createJournalTag(input: CreateJournalTagInput): Promise<JournalTag>;
 	deleteJournalTag(id: string): Promise<void>;
+
+	/**
+	 * The shared workspace people directory backing `$mention` chips and
+	 * person-type property fields (e.g. a template's "Attendees"). Every backend
+	 * implements it so the same directory resolves on web (Prisma), desktop
+	 * (SQLite), and guest (local) without the caller branching on backend.
+	 */
+	listPeople(): Promise<Person[]>;
+	createPerson(input: CreatePersonInput): Promise<Person>;
 };

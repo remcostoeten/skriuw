@@ -50,6 +50,7 @@ import {
 } from "./use-notes-navigation";
 import { useNotesLayoutSaveController } from "./use-notes-layout-save-controller";
 import { useNotesLayoutShortcuts } from "./use-notes-layout-shortcuts";
+import { useNoteSearch, type NoteSearchHit } from "./use-note-search";
 import { useNotesLayoutViewport } from "./use-notes-layout-viewport";
 import { useRestoreNoteVersion } from "./use-restore-note-version";
 import { useUpdateFolder } from "./use-update-folder";
@@ -132,6 +133,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const setPaneTabs = useNotesStore((state) => state.setPaneTabs);
 	const closeOtherTabs = useNotesStore((state) => state.closeOtherTabs);
 	const closeTabsToSide = useNotesStore((state) => state.closeTabsToSide);
+	const closeAllTabs = useNotesStore((state) => state.closeAllTabs);
 	const secondaryNoteQuery = useNote(splitSecondaryFileId ?? "");
 	const folderOpenState = useNotesStore((state) => state.folderOpenState);
 	const activeFileSaveState = useNotesStore((state) =>
@@ -827,6 +829,49 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[activateTab, activeFileId, closeTabsToSide, flushContentInBackground, splitSecondaryFileId],
 	);
 
+	const focusedPaneActiveId = useCallback(
+		() => (focusedEditorPane === "secondary" ? splitSecondaryFileId : activeFileId),
+		[activeFileId, focusedEditorPane, splitSecondaryFileId],
+	);
+
+	const handleCloseFocusedTab = useCallback(() => {
+		const id = focusedPaneActiveId();
+		if (!id) return;
+		handleCloseTab(focusedEditorPane, id);
+	}, [focusedEditorPane, focusedPaneActiveId, handleCloseTab]);
+
+	const handleCloseFocusedOtherTabs = useCallback(() => {
+		const id = focusedPaneActiveId();
+		if (!id) return;
+		handleCloseOtherTabs(focusedEditorPane, id);
+	}, [focusedEditorPane, focusedPaneActiveId, handleCloseOtherTabs]);
+
+	const handleCloseAllTabs = useCallback(() => {
+		const pane = focusedEditorPane;
+		const tabs = pane === "secondary" ? secondaryTabs : primaryTabs;
+		const removed = closeAllTabs(pane);
+		removed.forEach((id) => flushContentInBackground(id));
+		const firstPinned = tabs.find((tab) => tab.pinned)?.fileId ?? null;
+		if (firstPinned) {
+			activateTab(pane, firstPinned);
+		} else if (pane === "secondary") {
+			closeSplit();
+		} else {
+			setActiveFileId("");
+			clearNoteUrl({ mode: "replace" });
+		}
+	}, [
+		activateTab,
+		clearNoteUrl,
+		closeAllTabs,
+		closeSplit,
+		flushContentInBackground,
+		focusedEditorPane,
+		primaryTabs,
+		secondaryTabs,
+		setActiveFileId,
+	]);
+
 	const handleToggleSidebar = useCallback(() => {
 		triggerNativeFeedback(showSidebar ? "dismiss" : "selection");
 		setUIState({
@@ -1044,6 +1089,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleToggleSplit,
 		handleSplitHorizontal,
 		handleCloseSplitPane,
+		handleCloseFocusedTab,
 		handleFocusNextSplitPane,
 		handleFocusPreviousSplitPane,
 	});
@@ -1250,7 +1296,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleNavigateInFocusedPane(files[index + 1]!.id);
 	}, [files, focusedFileIdForNav, handleNavigateInFocusedPane]);
 
-	const commandItems: CommandPaletteItem[] = useMemo(
+	const actionCommandItems: CommandPaletteItem[] = useMemo(
 		() => [
 			{
 				id: "new-note",
@@ -1357,6 +1403,31 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				action: handleFocusPreviousSplitPane,
 			},
 			{
+				id: "close-tab",
+				label: "Close tab",
+				group: "Editor",
+				shortcut: "ctrl+w",
+				keywords: ["close", "tab", "note", "dismiss"],
+				description: "Close the focused tab; the pane empties when it is the last one.",
+				action: handleCloseFocusedTab,
+			},
+			{
+				id: "close-other-tabs",
+				label: "Close other tabs",
+				group: "Editor",
+				keywords: ["close", "tab", "note", "others", "except", "focused"],
+				description: "Close every tab in the focused pane except the active one.",
+				action: handleCloseFocusedOtherTabs,
+			},
+			{
+				id: "close-all-tabs",
+				label: "Close all tabs",
+				group: "Editor",
+				keywords: ["close", "tab", "note", "all", "empty"],
+				description: "Close every tab in the focused pane (pinned tabs are kept).",
+				action: handleCloseAllTabs,
+			},
+			{
 				id: "open-settings",
 				label: "Open settings",
 				group: "Settings",
@@ -1388,6 +1459,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			diaryModeEnabled,
 			handleFocusFileTree,
 			handleOpenSettings,
+			handleCloseFocusedTab,
+			handleCloseFocusedOtherTabs,
+			handleCloseAllTabs,
 			handleFocusNextSplitPane,
 			handleFocusPreviousSplitPane,
 			handleSplitHorizontal,
@@ -1400,6 +1474,67 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			replayWelcomeTour,
 			router,
 		],
+	);
+
+	const [commandQuery, setCommandQuery] = useState("");
+	const trimmedCommandQuery = commandQuery.trim();
+	const { supportsContentSearch, hits: commandSearchHits } = useNoteSearch(
+		showCommandPalette ? commandQuery : "",
+	);
+
+	const NOTE_RESULT_LIMIT = 15;
+
+	const noteCommandItems = useMemo<CommandPaletteItem[]>(() => {
+		if (!trimmedCommandQuery) {
+			return [];
+		}
+
+		const lowerQuery = trimmedCommandQuery.toLowerCase();
+		const seen = new Set<string>();
+		const results: CommandPaletteItem[] = [];
+
+		function pushNote(id: string, name: string, hint?: string) {
+			if (seen.has(id) || results.length >= NOTE_RESULT_LIMIT) {
+				return;
+			}
+			seen.add(id);
+			results.push({
+				id: `note:${id}`,
+				label: name || "Untitled",
+				group: "Notes",
+				alwaysShow: true,
+				hint,
+				keywords: ["note", "open", "go to"],
+				action: () => handleFileSelect(id),
+			});
+		}
+
+		for (const file of metadataFiles) {
+			const nameMatch = file.name.toLowerCase().includes(lowerQuery);
+			const tagMatch = (file.tags ?? []).some((tag) => tag.toLowerCase().includes(lowerQuery));
+			if (nameMatch || tagMatch) {
+				pushNote(file.id, file.name);
+			}
+		}
+
+		if (supportsContentSearch) {
+			for (const hit of commandSearchHits as NoteSearchHit[]) {
+				pushNote(hit.id, hit.name, hit.snippet);
+			}
+		}
+
+		return results;
+	}, [
+		trimmedCommandQuery,
+		metadataFiles,
+		supportsContentSearch,
+		commandSearchHits,
+		handleFileSelect,
+	]);
+
+	const commandItems = useMemo<CommandPaletteItem[]>(
+		() => actionCommandItems.concat(noteCommandItems),
+		[actionCommandItems, noteCommandItems],
 	);
 
 	// The sidebar + main layout only need the notes metadata and folder lists,
@@ -1465,6 +1600,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		onCreateFile: handleCreateFile,
 		onCreateFolder: handleCreateFolder,
 		onCreationParentChange: setCreationParentFolderId,
+		onOpenCommandPalette: handleOpenCommandPalette,
 	};
 
 	return {
@@ -1486,6 +1622,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		closeSidebar,
 		collapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
 		commandItems,
+		setCommandQuery,
 		countDescendants,
 		createFile: handleCreateFile,
 		createFolder: handleCreateFolder,

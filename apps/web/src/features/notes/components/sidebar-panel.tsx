@@ -8,6 +8,7 @@ import { cn } from "@/shared/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { useShortcutHint, useShortcutScope, type ShortcutId } from "@/core/shortcuts";
 import {
+	Command,
 	FilePlus,
 	FileText,
 	Folder,
@@ -62,6 +63,7 @@ type SidebarPanelProps = {
 	onCreateFile: (options?: { projectId?: string }) => void;
 	onCreateFolder: () => void;
 	onCreationParentChange?: (folderId: string | null) => void;
+	onOpenCommandPalette?: () => void;
 	className?: string;
 	onRequestClose?: () => void;
 	showCloseButton?: boolean;
@@ -103,6 +105,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 	onCreateFile,
 	onCreateFolder,
 	onCreationParentChange,
+	onOpenCommandPalette,
 	className,
 	onRequestClose,
 	showCloseButton = false,
@@ -136,6 +139,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const searchSwapRef = useRef<HTMLDivElement>(null);
+	const searchResultsRef = useRef<HTMLDivElement>(null);
 	const hasSearchSection = sections.some((section) => section.type === "search");
 	const visibleSections = useMemo(
 		() => sections.filter((section) => section.type !== "search"),
@@ -231,7 +235,10 @@ export const SidebarPanel = memo(function SidebarPanel({
 	const handleSearchSwapBlur = useCallback(() => {
 		setTimeout(() => {
 			const activeElement = document.activeElement;
-			if (!searchSwapRef.current?.contains(activeElement)) {
+			const stillInSearch =
+				searchSwapRef.current?.contains(activeElement) ||
+				searchResultsRef.current?.contains(activeElement);
+			if (!stillInSearch) {
 				closeSearch();
 			}
 		}, 0);
@@ -634,6 +641,23 @@ export const SidebarPanel = memo(function SidebarPanel({
 									</button>
 								</HeaderActionTooltip>
 							)}
+							{onOpenCommandPalette && (
+								<HeaderActionTooltip
+									label="Command menu"
+									shortcutId="notes.commandPalette"
+								>
+									<button
+										onClick={onOpenCommandPalette}
+										className={cn(
+											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+											isNarrow ? "h-6 w-6" : "h-7 w-7",
+										)}
+										aria-label="Command menu"
+									>
+										<Command className="h-4 w-4" strokeWidth={1.5} />
+									</button>
+								</HeaderActionTooltip>
+							)}
 							<SidebarConfigManager
 								open={isConfigOpen}
 								onOpenChange={setIsConfigOpen}
@@ -726,7 +750,11 @@ export const SidebarPanel = memo(function SidebarPanel({
 				)}
 			>
 				{searchQuery.trim() ? (
-					<div className="flex-1 overflow-y-auto px-2 py-2">
+					<div
+						ref={searchResultsRef}
+						onBlur={handleSearchSwapBlur}
+						className="flex-1 overflow-y-auto px-2 py-2"
+					>
 						{hasSearchResults ? (
 							<div className="flex flex-col gap-3">
 								{visibleSearchFolders.length > 0 && (

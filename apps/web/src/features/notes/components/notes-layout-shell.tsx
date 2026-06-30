@@ -127,6 +127,7 @@ export function NotesLayoutShell({
 		closeMetadata,
 		closeSidebar,
 		commandItems,
+		setCommandQuery,
 		editorMode,
 		handleCloseSplit,
 		handleDesktopMetadataResizeStart,
@@ -569,8 +570,9 @@ export function NotesLayoutShell({
 			<CommandPalette
 				open={showCommandPalette}
 				onOpenChange={setShowCommandPalette}
+				onQueryChange={setCommandQuery}
 				items={commandItems}
-				description="Notes actions and route navigation."
+				description="Search notes, run actions, and navigate."
 			/>
 			<ShortcutHelpDialog
 				open={showShortcutHelp}

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   AlignLeft,
@@ -14,8 +14,13 @@ import {
   User,
   CircleDot,
   type LucideIcon,
-} from "lucide-react"
-import { TAG_COLORS, type PropertyType, type TagColor } from "@/lib/note-properties"
+} from "lucide-react";
+import {
+  TAG_COLORS,
+  type PropertyType,
+  type TagColor,
+} from "@/lib/note-properties";
+import { ReactNode } from "react";
 
 export const TYPE_ICON: Record<PropertyType, LucideIcon> = {
   text: AlignLeft,
@@ -30,7 +35,7 @@ export const TYPE_ICON: Record<PropertyType, LucideIcon> = {
   location: MapPin,
   email: AtSign,
   phone: Phone,
-}
+};
 
 export function Pill({
   label,
@@ -38,12 +43,12 @@ export function Pill({
   onRemove,
   dot = false,
 }: {
-  label: string
-  color: TagColor
-  onRemove?: () => void
-  dot?: boolean
+  label: string;
+  color: TagColor;
+  onRemove?: void | (() => void);
+  dot?: boolean;
 }) {
-  const c = TAG_COLORS[color]
+  const c = TAG_COLORS[color];
   return (
     <span
       className="inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-0.5 text-[13px] font-medium leading-5"
@@ -61,29 +66,43 @@ export function Pill({
         <button
           type="button"
           onClick={(e) => {
-            e.stopPropagation()
-            onRemove()
+            e.stopPropagation();
+            onRemove();
           }}
           className="-mr-0.5 ml-0.5 rounded-sm opacity-60 transition-opacity hover:opacity-100"
           aria-label={`Remove ${label}`}
         >
-          <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            viewBox="0 0 16 16"
+            className="size-3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
           </svg>
         </button>
       )}
     </span>
-  )
+  );
 }
 
-export function Avatar({ name, color, size = 18 }: { name: string; color: TagColor; size?: number }) {
-  const c = TAG_COLORS[color]
+export function Avatar({
+  name,
+  color,
+  size = 18,
+}: {
+  name: string;
+  color: TagColor;
+  size?: number;
+}) {
+  const c = TAG_COLORS[color];
   const initials = name
     .split(" ")
     .map((w) => w[0])
     .slice(0, 2)
     .join("")
-    .toUpperCase()
+    .toUpperCase();
   return (
     <span
       className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold"
@@ -98,5 +117,5 @@ export function Avatar({ name, color, size = 18 }: { name: string; color: TagCol
     >
       {initials}
     </span>
-  )
+  );
 }
