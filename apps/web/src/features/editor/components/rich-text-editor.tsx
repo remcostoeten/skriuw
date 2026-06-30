@@ -2083,6 +2083,7 @@ export function RichTextEditor({
 		if (!root) return;
 
 		let animationFrame: number | null = null;
+		let suppressUntil = 0;
 
 		const clearSelectionStatus = () => {
 			onCursorChange({ line: 1, column: 1 });
@@ -2118,7 +2119,22 @@ export function RichTextEditor({
 			});
 		};
 
-		const queueSelectionReport = () => {
+		const queueSelectionReport = (event?: Event) => {
+			// Right-click opens the context menu; reporting the selection here forces
+			// a re-render of the parent (EditorContainer) while Radix is still
+			// measuring/positioning the freshly-opened menu, which can dismiss it or
+			// throw its position off. Suppress both the triggering pointerdown and
+			// the selectionchange it causes (the browser collapses the caret to the
+			// click point before the contextmenu event fires).
+			if (event instanceof PointerEvent && event.button === 2) {
+				suppressUntil = window.performance.now() + 200;
+				return;
+			}
+
+			if (window.performance.now() < suppressUntil) {
+				return;
+			}
+
 			if (animationFrame !== null) {
 				window.cancelAnimationFrame(animationFrame);
 			}
