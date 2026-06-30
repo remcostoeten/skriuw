@@ -20,6 +20,19 @@ export type ShortcutDefinition = {
 	except?: ExceptPreset | false;
 	/** Whether to call `preventDefault()` when the shortcut fires. */
 	preventDefault?: boolean;
+	/**
+	 * When `true`, this shortcut is also registered as an OS-level global
+	 * shortcut on desktop (via `tauri-plugin-global-shortcut`), so it fires
+	 * even while the app is unfocused or minimized. Keep this set small —
+	 * only combos that make sense without the app visible.
+	 *
+	 * The Rust side (`apps/desktop/src-tauri/src/lib.rs`, `GLOBAL_SHORTCUTS`)
+	 * hardcodes the matching `ShortcutId` + accelerator pairs for the entries
+	 * marked here, since Rust can't parse this TS file. If you add, remove,
+	 * or rebind a `global: true` entry, update `GLOBAL_SHORTCUTS` in lib.rs
+	 * to match.
+	 */
+	global?: boolean;
 };
 
 /**
@@ -83,8 +96,10 @@ export const SHORTCUT_REGISTRY = {
 		scope: SCOPES.notes,
 		group: "Notes",
 		label: "Create note",
+		description: "Also works as a global shortcut to quick-capture a note from anywhere, even while Skriuw is unfocused.",
 		except: false,
 		preventDefault: true,
+		global: true,
 	},
 	"notes.newFolder": {
 		keys: "mod+shift+n",
@@ -243,6 +258,15 @@ export const SHORTCUT_REGISTRY = {
 		scope: SCOPES.journal,
 		group: "Journal",
 		label: "Open shortcut help",
+	},
+
+	"app.showWindow": {
+		keys: "mod+shift+space",
+		scope: SCOPES.global,
+		group: "Application",
+		label: "Show Skriuw",
+		description: "Brings the Skriuw window to the front from anywhere, even while it's unfocused or minimized.",
+		global: true,
 	},
 } as const satisfies Record<string, ShortcutDefinition>;
 
