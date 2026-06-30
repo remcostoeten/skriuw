@@ -15,8 +15,11 @@ const TOKEN_TTL_MS = 5 * 60 * 1000;
 function getSecret(): string | null {
 	const secret = process.env.COLLAB_AUTH_SECRET;
 	if (secret) return secret;
-	// Dev convenience only; production must set a real secret shared with PartyKit.
-	if (process.env.NODE_ENV !== "production") return "skriuw-collab-dev-secret";
+	// Dev convenience only, and only when explicitly running on localhost — a
+	// hardcoded fallback that also applied to unset-NODE_ENV preview/staging
+	// deploys let anyone forge a token for any note/role against that PartyKit
+	// instance. Real environments must always set COLLAB_AUTH_SECRET.
+	if (process.env.NODE_ENV === "development") return "skriuw-collab-dev-secret";
 	return null;
 }
 
