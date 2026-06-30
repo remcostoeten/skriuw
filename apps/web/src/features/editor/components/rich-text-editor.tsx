@@ -126,6 +126,43 @@ import type { Awareness } from "y-protocols/awareness";
 // biome-ignore lint/suspicious/noExplicitAny: editor type with custom schema requires deep inference
 type EditorInstance = any;
 
+// BlockNote 0.46 runs on TipTap 3, whose `editor.view` getter returns a *proxy*
+// (truthy, not null) until the ProseMirror view is mounted; reading any property
+// other than `state` on that proxy — `dom` in particular — throws "[tiptap
+// error]: ... Cannot access view['dom']". `editor.prosemirrorView` and
+// `editor.domElement` both route through that proxy, so the usual `?.` / truthy
+// guards don't protect against it (the proxy passes them). These read the real
+// view object directly, which is genuinely null before mount / after unmount.
+function getEditorView(editor: EditorInstance): EditorInstance | null {
+	return editor?._tiptapEditor?.editorView ?? null;
+}
+
+function getEditorDom(editor: EditorInstance): HTMLElement | null {
+	return getEditorView(editor)?.dom ?? null;
+}
+
+// Tracks the live editor DOM element across mount/unmount, so effects that wire
+// listeners onto it re-run when the view actually attaches instead of reading a
+// transient `undefined` (or throwing) during the mount race.
+function useEditorDom(editor: EditorInstance): HTMLElement | null {
+	const [dom, setDom] = useState<HTMLElement | null>(() => getEditorDom(editor));
+
+	useEffect(() => {
+		const tiptap = editor?._tiptapEditor;
+		if (!tiptap) return;
+		const sync = () => setDom(getEditorDom(editor));
+		sync();
+		tiptap.on("mount", sync);
+		tiptap.on("unmount", sync);
+		return () => {
+			tiptap.off("mount", sync);
+			tiptap.off("unmount", sync);
+		};
+	}, [editor]);
+
+	return dom;
+}
+
 // Real-time collaboration wiring. When present, the Yjs document is the source
 // of truth: the editor binds to the shared fragment instead of `initialContent`,
 // the prop-driven content-sync effect is disabled, and (for the owner only) the
@@ -802,7 +839,7 @@ function CommentPopover({
 			id="comment"
 			width="17rem"
 			onOpen={() => {
-				const selection = editor.prosemirrorView?.state.selection;
+				const selection = getEditorView(editor)?.state.selection;
 				rangeRef.current = selection ? { from: selection.from, to: selection.to } : null;
 				setBody("");
 			}}
@@ -1063,7 +1100,7 @@ function SelectionBubbleMenu({
 			if (toolbarRef.current?.contains(document.activeElement)) {
 				return;
 			}
-			const editorDom = editor.domElement;
+			const editorDom = getEditorDom(editor);
 			if (!editorDom) {
 				setRect(null);
 				return;
@@ -1128,7 +1165,7 @@ function SelectionBubbleMenu({
 			const toolbar = toolbarRef.current;
 			if (!toolbar) return;
 			if (toolbar.contains(document.activeElement)) return;
-			if (!editor.domElement?.contains(document.activeElement)) return;
+			if (!getEditorDom(editor)?.contains(document.activeElement)) return;
 			e.preventDefault();
 			e.stopPropagation();
 			getToolbarItems(toolbar)[0]?.focus();
@@ -1735,6 +1772,7 @@ export function RichTextEditor({
 					initialContent: initialBlocks,
 				},
 	);
+	const editorDom = useEditorDom(editor);
 	const searchPlugin = useMemo(() => createSearchPlugin(), []);
 	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
 	const onVimModeChangeRef = useRef(onVimModeChange);
@@ -1764,7 +1802,7 @@ export function RichTextEditor({
 	}, [searchOptions, searchQuery]);
 
 	const syncMatchInfo = useCallback(() => {
-		const view = editor.prosemirrorView;
+		const view = getEditorView(editor);
 		const state = view ? getSearchState(view) : undefined;
 		setMatchInfo({ current: state?.current ?? 0, total: state?.matches.length ?? 0 });
 	}, [editor]);
@@ -1783,7 +1821,7 @@ export function RichTextEditor({
 
 	const closeSearch = useCallback(() => {
 		setSearchOpen(false);
-		const view = editor.prosemirrorView;
+		const view = getEditorView(editor);
 		if (view) {
 			clearSearch(view);
 			view.focus();
@@ -1803,28 +1841,28 @@ export function RichTextEditor({
 	}, []);
 
 	const handleNextMatch = useCallback(() => {
-		const view = editor.prosemirrorView;
+		const view = getEditorView(editor);
 		if (!view) return;
 		nextMatch(view);
 		syncMatchInfo();
 	}, [editor, syncMatchInfo]);
 
 	const handlePreviousMatch = useCallback(() => {
-		const view = editor.prosemirrorView;
+		const view = getEditorView(editor);
 		if (!view) return;
 		previousMatch(view);
 		syncMatchInfo();
 	}, [editor, syncMatchInfo]);
 
 	const handleReplaceCurrent = useCallback(() => {
-		const view = editor.prosemirrorView;
+		const view = getEditorView(editor);
 		if (!view) return;
 		replaceCurrent(view, replaceValue);
 		syncMatchInfo();
 	}, [editor, replaceValue, syncMatchInfo]);
 
 	const handleReplaceAll = useCallback(() => {
-		const view = editor.prosemirrorView;
+		const view = getEditorView(editor);
 		if (!view) return;
 		replaceAll(view, replaceValue);
 		syncMatchInfo();
@@ -1847,13 +1885,13 @@ export function RichTextEditor({
 		onVimModeChangeRef.current?.("normal");
 		return () => {
 			tiptap.unregisterPlugin(vimPluginKey);
-			editor.prosemirrorView?.dom.classList.remove("vim-normal", "vim-insert");
+			getEditorDom(editor)?.classList.remove("vim-normal", "vim-insert");
 			onVimModeChangeRef.current?.(null);
 		};
 	}, [editor, vimModeEnabled, readOnly]);
 
 	useEffect(() => {
-		const view = editor.prosemirrorView;
+		const view = getEditorView(editor);
 		if (!view) return;
 		setSearch(view, searchQuery, searchOptions);
 		syncMatchInfo();
@@ -1917,7 +1955,7 @@ export function RichTextEditor({
 	);
 
 	useEffect(() => {
-		const domElement = editor.domElement;
+		const domElement = editorDom;
 		if (!domElement) return;
 
 		const handleInternalLinkClick = (event: MouseEvent) => {
@@ -1937,12 +1975,12 @@ export function RichTextEditor({
 
 		domElement.addEventListener("click", handleInternalLinkClick);
 		return () => domElement.removeEventListener("click", handleInternalLinkClick);
-	}, [editor.domElement, openNote]);
+	}, [editorDom, openNote]);
 
 	useEffect(() => {
 		if (!onTitleCommit) return;
 
-		const domElement = editor.domElement;
+		const domElement = editorDom;
 		if (!domElement) return;
 
 		const isFirstHeadingElement = (target: EventTarget | null) => {
@@ -1985,7 +2023,7 @@ export function RichTextEditor({
 
 		domElement.addEventListener("focusout", handleTitleFocusOut);
 		return () => domElement.removeEventListener("focusout", handleTitleFocusOut);
-	}, [editor, editor.domElement, onTitleCommit]);
+	}, [editor, editorDom, onTitleCommit]);
 
 	// Commit the title the moment the caret leaves the first heading block —
 	// pressing Enter, Tab, or navigating into another block. `focusout` above only
@@ -1994,7 +2032,7 @@ export function RichTextEditor({
 	// blocks don't blur the (single) contenteditable, so we watch the selection.
 	useEffect(() => {
 		if (!onTitleCommit) return;
-		const domElement = editor.domElement;
+		const domElement = editorDom;
 		if (!domElement) return;
 
 		let wasInFirstHeading = false;
@@ -2031,11 +2069,11 @@ export function RichTextEditor({
 		document.addEventListener("selectionchange", handler);
 		window.requestAnimationFrame(checkHeadingExit);
 		return () => document.removeEventListener("selectionchange", handler);
-	}, [editor, editor.domElement, onTitleCommit]);
+	}, [editor, editorDom, onTitleCommit]);
 
 	useEffect(() => {
 		if (!onCursorChange) return;
-		const root = wrapperRef.current ?? editor.domElement;
+		const root = wrapperRef.current ?? editorDom;
 		if (!root) return;
 
 		let animationFrame: number | null = null;
@@ -2105,7 +2143,7 @@ export function RichTextEditor({
 			root.removeEventListener("pointerdown", queueSelectionReport);
 			root.removeEventListener("pointerup", queueSelectionReport);
 		};
-	}, [editor.domElement, onCursorChange]);
+	}, [editorDom, onCursorChange]);
 
 	useEffect(() => {
 		if (!onEditorReady) return;
@@ -2115,7 +2153,7 @@ export function RichTextEditor({
 			aiDiffHighlightRef.current?.cancel();
 			let attempts = 0;
 			const resolve = () => {
-				const root = wrapperRef.current ?? editor.domElement;
+				const root = wrapperRef.current ?? getEditorDom(editor);
 				const els = root
 					? ids
 							.map((id) =>
