@@ -1,5 +1,5 @@
 import type { UpdateNoteResult } from "@/domain/notes/actions";
-import type { NoteFile, NoteFolder } from "@/domain/notes/models";
+import type { NoteFile, NoteFolder, NoteVersion, NoteVersionReason } from "@/domain/notes/models";
 import { normalizeNoteProperties } from "@/domain/notes/properties";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
@@ -11,6 +11,7 @@ import {
 	normalizeNoteTitle,
 } from "@/domain/notes/note-links";
 import type { NoteLink, ResolvedNoteLink } from "@/domain/notes/note-links";
+import type { Person } from "@/domain/people/models";
 import {
 	applyFolderUpdate,
 	applyNoteUpdate,
@@ -96,6 +97,43 @@ type RustFolder = {
 	isOpen: boolean;
 };
 
+/** The Rust `NoteVersion` wire shape — timestamp as epoch-millis. */
+type RustNoteVersion = {
+	id: string;
+	noteId: string;
+	name: string;
+	content: string;
+	richContent: NoteFile["richContent"];
+	preferredEditorMode: NoteFile["preferredEditorMode"];
+	parentId: string | null;
+	tags: string[];
+	properties: NoteFile["properties"];
+	reason: string;
+	contentHash: string;
+	createdAt: number;
+};
+
+/** A note's versionable fields, sent to `record_note_version`. */
+type RustNoteVersionSnapshot = {
+	name: string;
+	content: string;
+	richContent: NoteFile["richContent"];
+	preferredEditorMode: NoteFile["preferredEditorMode"];
+	parentId: string | null;
+	tags: string[];
+	properties: NoteFile["properties"];
+};
+
+type RustVersionWriteResult = {
+	versionId: string | null;
+	versionChanged: boolean;
+};
+
+type RustRestoreVersionResult = {
+	note: RustNote | null;
+	versionCreated: boolean;
+};
+
 /** True when running inside the Tauri webview (vs. a browser tab). */
 export function isTauriRuntime(): boolean {
 	if (typeof window === "undefined") return false;
@@ -162,6 +200,35 @@ function fromRustNote(raw: RustNote): NoteFile {
 		properties: normalizeNoteProperties(raw.properties),
 		createdAt: new Date(raw.createdAt),
 		modifiedAt: new Date(raw.modifiedAt),
+	};
+}
+
+function toVersionSnapshot(note: NoteFile): RustNoteVersionSnapshot {
+	return {
+		name: note.name,
+		content: note.content,
+		richContent: note.richContent,
+		preferredEditorMode: note.preferredEditorMode,
+		parentId: note.parentId ?? null,
+		tags: note.tags ?? [],
+		properties: normalizeNoteProperties(note.properties),
+	};
+}
+
+function fromRustNoteVersion(raw: RustNoteVersion): NoteVersion {
+	return {
+		id: raw.id,
+		noteId: raw.noteId,
+		name: raw.name,
+		content: raw.content,
+		richContent: raw.richContent,
+		preferredEditorMode: raw.preferredEditorMode,
+		createdAt: new Date(raw.createdAt),
+		parentId: raw.parentId,
+		tags: raw.tags,
+		properties: normalizeNoteProperties(raw.properties),
+		reason: raw.reason as NoteVersionReason,
+		contentHash: raw.contentHash,
 	};
 }
 
@@ -351,7 +418,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			notifications: false,
 			ai: true,
 			trash: true,
-			history: false,
+			history: true,
 		},
 
 		listNotes,
@@ -367,8 +434,9 @@ export function createTauriBackend(): WorkspaceBackend {
 			return rows.map(fromRustNote);
 		},
 
-		async getNoteVersions() {
-			return [];
+		async getNoteVersions(id) {
+			const rows = await invoke<RustNoteVersion[]>("get_note_versions", { noteId: id, limit: 12 });
+			return rows.map(fromRustNoteVersion);
 		},
 
 		async getNoteBacklinks(id) {
@@ -406,14 +474,27 @@ export function createTauriBackend(): WorkspaceBackend {
 			return invoke<NoteSearchHit[]>("search_notes", { query, limit });
 		},
 
-		async restoreNoteVersion() {
-			return { note: undefined, versionCreated: false };
+		async restoreNoteVersion(versionId): Promise<UpdateNoteResult> {
+			const result = await invoke<RustRestoreVersionResult>("restore_note_version", {
+				versionId,
+			});
+			return {
+				note: result.note ? fromRustNote(result.note) : undefined,
+				versionCreated: result.versionCreated,
+			};
 		},
 
 		async createNote(input) {
 			const note = noteFromCreateInput(input);
 			await invoke("upsert_note", { note: toRustNote(note) });
 			await indexNoteLinks(note);
+			await invoke("record_note_version", {
+				noteId: note.id,
+				snapshot: toVersionSnapshot(note),
+				reason: "created",
+				createCheckpoint: false,
+				sessionVersionId: null,
+			});
 			return note;
 		},
 
@@ -432,7 +513,24 @@ export function createTauriBackend(): WorkspaceBackend {
 			const next = applyNoteUpdate(fromRustNote(raw), input);
 			await invoke("upsert_note", { note: toRustNote(next) });
 			await indexNoteLinks(next);
-			return { note: next, versionCreated: false };
+
+			const createCheckpoint = input.createCheckpoint === true;
+			const reason: NoteVersionReason =
+				input.name !== undefined ? "rename" : createCheckpoint ? "checkpoint" : "autosave";
+			const versionResult = await invoke<RustVersionWriteResult>("record_note_version", {
+				noteId: next.id,
+				snapshot: toVersionSnapshot(next),
+				reason,
+				createCheckpoint,
+				sessionVersionId: createCheckpoint ? (input.sessionVersionId ?? null) : null,
+			});
+
+			return {
+				note: next,
+				versionCreated: versionResult.versionId !== null,
+				versionChanged: versionResult.versionChanged,
+				versionId: versionResult.versionId,
+			};
 		},
 
 		async deleteNote(id) {
@@ -543,6 +641,18 @@ export function createTauriBackend(): WorkspaceBackend {
 				await invoke("upsert_journal_entry", { entry: toRustJournalEntry(next) });
 			}
 			await invoke("delete_journal_tag", { id });
+		},
+
+		async listPeople() {
+			return invoke<Person[]>("list_people");
+		},
+
+		async createPerson(input) {
+			return invoke<Person>("create_person", {
+				id: input.id ?? crypto.randomUUID(),
+				name: input.name,
+				color: input.color ?? null,
+			});
 		},
 	};
 }

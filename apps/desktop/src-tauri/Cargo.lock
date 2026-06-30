@@ -3671,6 +3671,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "tar",
  "tauri",
  "tauri-build",
@@ -3682,6 +3683,7 @@ dependencies = [
  "tauri-runtime-wry",
  "tempfile",
  "tokio",
+ "uuid",
  "zip",
  "zstd",
 ]
