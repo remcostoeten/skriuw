@@ -47,7 +47,7 @@ const MENU_ACTION_IDS: [&str; 5] = ["new-note", "new-folder", "save", "toggle-si
 /// just forward the id to the frontend via the `global-shortcut` event — app
 /// behavior for each id lives entirely in TS.
 const GLOBAL_SHORTCUTS: [(&str, &str); 2] = [
-    ("notes.newNote", "CmdOrCtrl+N"),
+    ("global.quickCapture", "CmdOrCtrl+Alt+N"),
     ("app.showWindow", "CmdOrCtrl+Shift+Space"),
 ];
 

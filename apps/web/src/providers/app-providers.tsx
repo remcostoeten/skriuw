@@ -14,6 +14,7 @@ import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
 import { QueryCachePersistence } from "@/providers/query-cache-persistence";
 import { WorkspaceWarmup } from "@/providers/workspace-warmup";
 import { ShortcutProvider } from "@/core/shortcuts";
+import { GlobalShortcutHandlers } from "@/core/shortcuts/global-shortcut-handlers";
 import { PendingCollabReplay } from "@/features/collaboration/components/pending-collab-replay";
 import { DesktopIndexSync } from "@/features/desktop/desktop-index-sync";
 import { isDevEnv } from "@/features/dev-tools/store";
@@ -94,7 +95,10 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 							<AppRoutePrefetcher />
 							<WorkspaceWarmup />
 							<ThemeAttribute />
-							<ShortcutProvider>{children}</ShortcutProvider>
+							<ShortcutProvider>
+								<GlobalShortcutHandlers />
+								{children}
+							</ShortcutProvider>
 							<PendingCollabReplay />
 							<UserToastHost />
 							{isDevEnv() && (

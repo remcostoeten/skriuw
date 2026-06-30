@@ -96,10 +96,8 @@ export const SHORTCUT_REGISTRY = {
 		scope: SCOPES.notes,
 		group: "Notes",
 		label: "Create note",
-		description: "Also works as a global shortcut to quick-capture a note from anywhere, even while Skriuw is unfocused.",
 		except: false,
 		preventDefault: true,
-		global: true,
 	},
 	"notes.newFolder": {
 		keys: "mod+shift+n",
@@ -266,6 +264,17 @@ export const SHORTCUT_REGISTRY = {
 		group: "Application",
 		label: "Show Skriuw",
 		description: "Brings the Skriuw window to the front from anywhere, even while it's unfocused or minimized.",
+		global: true,
+	},
+	"global.quickCapture": {
+		keys: "mod+alt+n",
+		scope: SCOPES.global,
+		group: "Application",
+		label: "Quick capture note",
+		description:
+			"Creates a new note and opens it, from anywhere — even another route or while Skriuw is unfocused. Distinct from \"Create note\" (mod+n) so it keeps working outside the notes view.",
+		except: false,
+		preventDefault: true,
 		global: true,
 	},
 } as const satisfies Record<string, ShortcutDefinition>;
