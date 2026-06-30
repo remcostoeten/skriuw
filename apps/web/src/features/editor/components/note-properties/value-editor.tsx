@@ -6,8 +6,13 @@ import {
 	NOTE_PROPERTY_COLOR_KEYS,
 	createNotePropertyId,
 	type NoteProperty,
+	type NotePropertyColor,
 	type NotePropertyOption,
 } from "@/domain/notes/properties";
+import type { Person } from "@/domain/people/models";
+import { useWorkspacePeople } from "@/features/people/hooks/use-people";
+import { useCreatePerson } from "@/features/people/hooks/use-create-person";
+import { noop } from "@/shared/lib/noop";
 import { Avatar, Pill } from "./primitives";
 import { NotePropertiesPopover } from "./popover";
 import { submitPropertyField } from "./keyboard";
@@ -127,6 +132,20 @@ function RatingEditor({ property, onUpdate }: EditorProps) {
 
 function nextColor(options: NotePropertyOption[]) {
 	return NOTE_PROPERTY_COLOR_KEYS[options.length % NOTE_PROPERTY_COLOR_KEYS.length] ?? "gray";
+}
+
+const EMPTY_PEOPLE: Person[] = [];
+
+// A person row may not have a stored color (created from a bare `$mention`).
+// Fall back to a name-stable swatch so the same person always renders the same
+// colour everywhere it appears.
+function personColor(person: Pick<Person, "name" | "color">): NotePropertyColor {
+	if (person.color) return person.color;
+	let hash = 0;
+	for (let index = 0; index < person.name.length; index += 1) {
+		hash = (hash * 31 + person.name.charCodeAt(index)) >>> 0;
+	}
+	return NOTE_PROPERTY_COLOR_KEYS[hash % NOTE_PROPERTY_COLOR_KEYS.length] ?? "gray";
 }
 
 function OptionPicker({
@@ -268,7 +287,9 @@ function OptionPicker({
 }
 
 function PersonEditor({ property, onUpdate, density = "default" }: EditorProps) {
-	const directory = property.options ?? [];
+	const peopleQuery = useWorkspacePeople();
+	const directory = peopleQuery.data ?? EMPTY_PEOPLE;
+	const createPersonMutation = useCreatePerson();
 	const selected = Array.isArray(property.value) ? property.value : [];
 	const [query, setQuery] = useState("");
 
@@ -278,23 +299,34 @@ function PersonEditor({ property, onUpdate, density = "default" }: EditorProps) 
 		onUpdate({ value: Array.from(set) });
 	}
 
-	function createPerson() {
+	async function createPerson() {
 		const name = query.trim();
 		if (!name) return;
-		const person: NotePropertyOption = {
-			id: createNotePropertyId("person"),
-			label: name,
-			color: nextColor(directory),
-		};
 		setQuery("");
-		onUpdate({ options: [...directory, person], value: [...selected, person.id] });
+
+		const existing = directory.find((person) => person.name.toLowerCase() === name.toLowerCase());
+		if (existing) {
+			if (!selected.includes(existing.id)) onUpdate({ value: [...selected, existing.id] });
+			return;
+		}
+
+		try {
+			const person = await createPersonMutation.mutateAsync({
+				id: crypto.randomUUID(),
+				name,
+				color: personColor({ name, color: null }),
+			});
+			onUpdate({ value: [...selected, person.id] });
+		} catch {
+			noop();
+		}
 	}
 
 	const normalizedQuery = query.toLowerCase().trim();
 	const people = directory.filter((person) =>
-		person.label.toLowerCase().includes(normalizedQuery),
+		person.name.toLowerCase().includes(normalizedQuery),
 	);
-	const exact = directory.some((person) => person.label.toLowerCase() === normalizedQuery);
+	const exact = directory.some((person) => person.name.toLowerCase() === normalizedQuery);
 	const selectedPeople = directory.filter((person) => selected.includes(person.id));
 	const inline = density === "inline";
 	const visibleInlinePeople = selectedPeople.slice(0, 2);
@@ -319,8 +351,8 @@ function PersonEditor({ property, onUpdate, density = "default" }: EditorProps) 
 								key={person.id}
 								className="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-accent py-0.5 pl-0.5 pr-2 text-[13px]"
 							>
-								<Avatar name={person.label} color={person.color} />
-								<span className="truncate">{person.label}</span>
+								<Avatar name={person.name} color={personColor(person)} />
+								<span className="truncate">{person.name}</span>
 							</span>
 						))
 					) : (
@@ -363,8 +395,8 @@ function PersonEditor({ property, onUpdate, density = "default" }: EditorProps) 
 								className="flex w-full items-center justify-between gap-2 rounded-md px-1.5 py-1.5 outline-none transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:ring-1 focus-visible:ring-ring/50"
 							>
 								<span className="flex items-center gap-2 text-sm">
-									<Avatar name={person.label} color={person.color} size={22} />
-									{person.label}
+									<Avatar name={person.name} color={personColor(person)} size={22} />
+									{person.name}
 								</span>
 								{selected.includes(person.id) ? (
 									<Check className="size-4 text-muted-foreground" />
@@ -380,7 +412,11 @@ function PersonEditor({ property, onUpdate, density = "default" }: EditorProps) 
 								<Plus className="size-3.5" />
 								Add
 								<span className="flex items-center gap-1.5">
-									<Avatar name={query.trim()} color={nextColor(directory)} size={22} />
+									<Avatar
+										name={query.trim()}
+										color={personColor({ name: query.trim(), color: null })}
+										size={22}
+									/>
 									{query.trim()}
 								</span>
 							</button>

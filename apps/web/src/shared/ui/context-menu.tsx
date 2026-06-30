@@ -26,7 +26,7 @@ const ContextMenuSubTrigger = React.forwardRef<
 	<ContextMenuPrimitive.SubTrigger
 		ref={ref}
 		className={cn(
-			"flex cursor-default select-none items-center rounded-md px-2.5 py-1.5 text-sm text-foreground outline-hidden transition-colors data-[state=open]:bg-accent data-[state=open]:text-foreground focus:bg-accent focus:text-foreground",
+			"flex cursor-default select-none items-center rounded-md px-2.5 py-1.5 text-sm text-muted-foreground outline-hidden transition-colors data-[state=open]:bg-accent data-[state=open]:text-foreground focus:bg-accent focus:text-foreground",
 			inset && "pl-8",
 			className,
 		)}
@@ -42,15 +42,17 @@ const ContextMenuSubContent = React.forwardRef<
 	React.ElementRef<typeof ContextMenuPrimitive.SubContent>,
 	React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubContent>
 >(({ className, ...props }, ref) => (
-	<ContextMenuPrimitive.SubContent
-		ref={ref}
-		className={cn(
-			"z-50 min-w-32 origin-[--radix-context-menu-content-transform-origin] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl",
-			overlayContentMotion,
-			className,
-		)}
-		{...props}
-	/>
+	<ContextMenuPrimitive.Portal>
+		<ContextMenuPrimitive.SubContent
+			ref={ref}
+			className={cn(
+				"z-50 min-w-32 origin-[--radix-context-menu-content-transform-origin] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-xl",
+				overlayContentMotion,
+				className,
+			)}
+			{...props}
+		/>
+	</ContextMenuPrimitive.Portal>
 ));
 ContextMenuSubContent.displayName = ContextMenuPrimitive.SubContent.displayName;
 
@@ -81,7 +83,7 @@ const ContextMenuItem = React.forwardRef<
 	<ContextMenuPrimitive.Item
 		ref={ref}
 		className={cn(
-			"relative flex cursor-default select-none items-center rounded-sm px-2.5 py-1.5 text-sm text-foreground outline-hidden transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 focus:bg-accent focus:text-foreground",
+			"relative flex cursor-default select-none items-center rounded-md px-2.5 py-1.5 text-sm text-muted-foreground outline-hidden transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 focus:bg-accent focus:text-foreground",
 			inset && "pl-8",
 			className,
 		)}
@@ -97,7 +99,7 @@ const ContextMenuCheckboxItem = React.forwardRef<
 	<ContextMenuPrimitive.CheckboxItem
 		ref={ref}
 		className={cn(
-			"relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2.5 text-sm text-foreground outline-hidden transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 focus:bg-accent focus:text-foreground",
+			"relative flex cursor-default select-none items-center rounded-md py-1.5 pl-8 pr-2.5 text-sm text-muted-foreground outline-hidden transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 focus:bg-accent focus:text-foreground",
 			className,
 		)}
 		checked={checked}
@@ -120,7 +122,7 @@ const ContextMenuRadioItem = React.forwardRef<
 	<ContextMenuPrimitive.RadioItem
 		ref={ref}
 		className={cn(
-			"relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2.5 text-sm text-foreground outline-hidden transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 focus:bg-accent focus:text-foreground",
+			"relative flex cursor-default select-none items-center rounded-md py-1.5 pl-8 pr-2.5 text-sm text-muted-foreground outline-hidden transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 focus:bg-accent focus:text-foreground",
 			className,
 		)}
 		{...props}

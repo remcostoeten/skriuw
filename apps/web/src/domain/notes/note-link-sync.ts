@@ -6,6 +6,7 @@ import {
 	getNoteSearchableContent,
 	normalizeNoteTitle,
 } from "@/domain/notes/note-links";
+import { extractRichDocumentPersonIds } from "@/domain/notes/rich-document";
 
 type BatchPayload = { count: number };
 
@@ -85,6 +86,17 @@ export function buildDesiredNoteLinkRows(
 			targetNoteId: null,
 			targetLabel: tag,
 			kind: "tag",
+		});
+	}
+
+	for (const personId of extractRichDocumentPersonIds(note.richContent)) {
+		if (!personId) continue;
+		rows.set(`person:${personId}`, {
+			userId,
+			sourceNoteId: note.id,
+			targetNoteId: null,
+			targetLabel: personId,
+			kind: "person",
 		});
 	}
 

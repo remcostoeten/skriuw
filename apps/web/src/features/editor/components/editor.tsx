@@ -6,6 +6,10 @@ import type { AiEditorHandle } from "@/features/ai/service";
 import type { NoteProperty } from "@/domain/notes/properties";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import { useShortcutHint } from "@/core/shortcuts";
+import type { Person } from "@/domain/people/models";
+import { useWorkspacePeople } from "@/features/people/hooks/use-people";
+import { useCreatePerson } from "@/features/people/hooks/use-create-person";
+import { noop } from "@/shared/lib/noop";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import { getEditorFontFamily, type EditorFontId } from "@/shared/lib/editor-fonts";
 import {
@@ -17,6 +21,8 @@ import type { TRichTextCollab } from "./rich-text-editor";
 import { cn } from "@/shared/lib/utils";
 
 type EditorMode = "raw" | "block";
+
+const EMPTY_PEOPLE: Person[] = [];
 
 function RichTextEditorLoading() {
 	return <EditorContentSkeleton />;
@@ -97,6 +103,29 @@ export function Editor({
 	const cursorAnimationFrameRef = useRef<number | null>(null);
 	const scrollReportFrameRef = useRef<number | null>(null);
 	const newNoteHint = useShortcutHint("notes.newNote");
+	const peopleQuery = useWorkspacePeople();
+	const people = peopleQuery.data ?? EMPTY_PEOPLE;
+	const createPersonMutation = useCreatePerson();
+	const handleCreatePerson = useCallback(
+		async (name: string): Promise<Person | null> => {
+			const trimmed = name.trim();
+			if (!trimmed) return null;
+			const existing = people.find(
+				(person) => person.name.toLowerCase() === trimmed.toLowerCase(),
+			);
+			if (existing) return existing;
+			try {
+				return await createPersonMutation.mutateAsync({
+					id: crypto.randomUUID(),
+					name: trimmed,
+				});
+			} catch {
+				noop();
+				return null;
+			}
+		},
+		[people, createPersonMutation],
+	);
 	const lineHeightValue = getEditorLineHeightValue(editorLineHeight);
 	const lineCount = useMemo(
 		() => Math.max(1, (file?.content ?? "").split(/\r?\n/).length),
@@ -260,6 +289,8 @@ export function Editor({
 					content={file.content}
 					richContent={file.richContent}
 					files={files}
+					people={people}
+					onCreatePerson={handleCreatePerson}
 					activeFileId={file.id}
 					editorFontId={editorFontId}
 					editorLineHeight={editorLineHeight}

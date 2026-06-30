@@ -109,6 +109,36 @@ describe("note link sync", () => {
 		]);
 	});
 
+	test("builds person rows from inline $person chips in rich content", () => {
+		const rows = buildDesiredNoteLinkRows("user-1", {
+			id: "note-1",
+			content: "",
+			richContent: [
+				{
+					id: "block-1",
+					type: "paragraph",
+					content: [
+						{ type: "text", text: "met ", styles: {} },
+						{ type: "person", props: { id: "person-abc", name: "Ada" } },
+						{ type: "text", text: " today", styles: {} },
+					],
+				},
+				// biome-ignore lint/suspicious/noExplicitAny: minimal block fixture for the extractor
+			] as any,
+			tags: [],
+		});
+
+		expect(rows).toEqual([
+			{
+				userId: "user-1",
+				sourceNoteId: "note-1",
+				targetNoteId: null,
+				targetLabel: "person-abc",
+				kind: "person",
+			},
+		]);
+	});
+
 	test("diffs unchanged rows without write work", async () => {
 		const existing = [
 			row("link-1", "wiki", "alpha"),

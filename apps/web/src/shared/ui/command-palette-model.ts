@@ -6,6 +6,7 @@ export type CommandPaletteItem = {
 	description?: string;
 	hint?: string;
 	group?: string;
+	alwaysShow?: boolean;
 	action: () => void;
 };
 
@@ -52,7 +53,7 @@ export function getCommandPaletteGroups(
 	const grouped = new Map<string, CommandPaletteItem[]>();
 
 	for (const item of items) {
-		if (normalizedQuery && !getSearchHaystack(item).includes(normalizedQuery)) {
+		if (!item.alwaysShow && normalizedQuery && !getSearchHaystack(item).includes(normalizedQuery)) {
 			continue;
 		}
 

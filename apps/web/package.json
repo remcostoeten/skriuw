@@ -14,5 +14,13 @@
     "test:unit:stores": "bun test __tests__/features/notes/store.test.ts && bun test __tests__/features/journal/store.test.ts",
     "test:smoke": "bun run build && playwright test",
     "test:skeleton": "bun run build && playwright test __tests__/e2e/skeleton-qa.e2e.ts --project=chromium"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.0",
+    "@codemirror/view": "^6.43.4",
+    "@replit/codemirror-vim": "^6.3.0"
   }
 }

@@ -33,6 +33,7 @@ type Props = {
 	title?: string;
 	description?: string;
 	items: CommandPaletteItem[];
+	onQueryChange?: (query: string) => void;
 };
 
 function getCommandIcon(item: CommandPaletteItem): LucideIcon {
@@ -62,8 +63,14 @@ export function CommandPalette({
 	title = "Command palette",
 	description = "Run actions without leaving the keyboard.",
 	items,
+	onQueryChange,
 }: Props) {
 	const [query, setQuery] = useState("");
+
+	function updateQuery(next: string) {
+		setQuery(next);
+		onQueryChange?.(next);
+	}
 	const [activeIndex, setActiveIndex] = useState(0);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
@@ -77,9 +84,10 @@ export function CommandPalette({
 		if (!open) return;
 
 		setQuery("");
+		onQueryChange?.("");
 		setActiveIndex(0);
 		requestAnimationFrame(() => inputRef.current?.focus());
-	}, [open]);
+	}, [open, onQueryChange]);
 
 	useEffect(() => {
 		setActiveIndex(0);
@@ -163,7 +171,7 @@ export function CommandPalette({
 					<input
 						ref={inputRef}
 						value={query}
-						onChange={(event) => setQuery(event.target.value)}
+						onChange={(event) => updateQuery(event.target.value)}
 						onKeyDown={handleInputKeyDown}
 						placeholder="Search notes or type a command..."
 						role="combobox"

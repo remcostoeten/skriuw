@@ -43,7 +43,7 @@ export async function listNoteBacklinks(noteId: string): Promise<ResolvedNoteLin
 	const rows = await prisma.noteLink.findMany({
 		where: {
 			userId: access.ownerId,
-			kind: { not: "tag" },
+			kind: { notIn: ["tag", "person"] },
 			sourceNoteId: { not: noteId },
 			OR: [
 				{ targetNoteId: noteId },
