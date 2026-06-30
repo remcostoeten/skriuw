@@ -84,6 +84,66 @@ pub struct JournalTag {
     pub usage_count: i64,
 }
 
+/// A person row, serialized to match the TypeScript `Person` contract
+/// (`src/domain/people/models.ts`). `color` is a nullable property-colour key.
+/// Names are unique so a `$mention` or property pick always resolves to one
+/// durable record (the desktop analogue of the cloud `@@unique([userId, name])`).
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Person {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+}
+
+/// An immutable snapshot of a note captured for history, matching the
+/// TypeScript `NoteVersion` contract (`src/domain/notes/models.ts`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteVersion {
+    pub id: String,
+    pub note_id: String,
+    pub name: String,
+    pub content: String,
+    pub rich_content: serde_json::Value,
+    pub preferred_editor_mode: String,
+    pub parent_id: Option<String>,
+    pub tags: Vec<String>,
+    pub properties: serde_json::Value,
+    pub reason: String,
+    pub content_hash: String,
+    pub created_at: i64,
+}
+
+/// The fields of a note worth versioning — everything in `NoteVersion` except
+/// the row's own identity (`id`, `reason`, `contentHash`, `createdAt`), which
+/// `insert_note_version` derives.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteVersionSnapshot {
+    pub name: String,
+    pub content: String,
+    pub rich_content: serde_json::Value,
+    pub preferred_editor_mode: String,
+    pub parent_id: Option<String>,
+    pub tags: Vec<String>,
+    pub properties: serde_json::Value,
+}
+
+impl From<&Note> for NoteVersionSnapshot {
+    fn from(note: &Note) -> Self {
+        NoteVersionSnapshot {
+            name: note.name.clone(),
+            content: note.content.clone(),
+            rich_content: note.rich_content.clone(),
+            preferred_editor_mode: note.preferred_editor_mode.clone(),
+            parent_id: note.parent_id.clone(),
+            tags: note.tags.clone(),
+            properties: note.properties.clone(),
+        }
+    }
+}
+
 /// One full-text search hit: the note id/name plus a highlighted content
 /// snippet (FTS5 `snippet()` output, `[match]` markers, `…` ellipsis).
 #[derive(Debug, Serialize, Deserialize)]
@@ -250,6 +310,32 @@ CREATE TABLE IF NOT EXISTS journal_tags (
 	color       TEXT NOT NULL,
 	usage_count INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS people (
+	id    TEXT PRIMARY KEY,
+	name  TEXT NOT NULL UNIQUE,
+	color TEXT
+);
+
+-- Version history snapshots, one row per captured checkpoint. Capture/dedupe
+-- rules live in versioning.rs (mirrors the web `note_versions` Postgres table
+-- and its versioning.ts rules); this table is local-only, never synced.
+CREATE TABLE IF NOT EXISTS note_versions (
+	id                    TEXT PRIMARY KEY,
+	note_id               TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+	name                  TEXT NOT NULL,
+	content               TEXT NOT NULL DEFAULT '',
+	rich_content          TEXT NOT NULL DEFAULT '[]',
+	preferred_editor_mode TEXT NOT NULL DEFAULT 'block',
+	parent_id             TEXT,
+	tags                  TEXT NOT NULL DEFAULT '[]',
+	properties            TEXT NOT NULL DEFAULT '[]',
+	reason                TEXT NOT NULL,
+	content_hash          TEXT NOT NULL,
+	created_at            INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_note_versions_note ON note_versions(note_id, created_at DESC);
 "#;
 
 impl Storage {
@@ -580,6 +666,168 @@ impl Storage {
             .execute("DELETE FROM journal_tags WHERE id = ?1", params![id])?;
         Ok(())
     }
+
+    pub fn list_people(&self) -> rusqlite::Result<Vec<Person>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare("SELECT id, name, color FROM people ORDER BY name ASC")?;
+        let rows = stmt.query_map([], row_to_person)?;
+        rows.collect()
+    }
+
+    /// Reuse-by-name: creating a person whose name already exists returns the
+    /// stored row untouched (id and colour preserved), so the same `$mention`
+    /// or property pick always resolves to one durable record.
+    pub fn create_person(
+        &self,
+        id: &str,
+        name: &str,
+        color: Option<&str>,
+    ) -> rusqlite::Result<Person> {
+        let conn = self.lock();
+        conn.execute(
+            "INSERT INTO people (id, name, color) VALUES (?1, ?2, ?3) \
+			 ON CONFLICT(name) DO NOTHING",
+            params![id, name, color],
+        )?;
+        conn.query_row(
+            "SELECT id, name, color FROM people WHERE name = ?1",
+            params![name],
+            row_to_person,
+        )
+    }
+
+    fn latest_note_version_lean(
+        &self,
+        note_id: &str,
+    ) -> rusqlite::Result<Option<crate::versioning::LatestVersionLean>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare_cached(
+            "SELECT content_hash, created_at, content FROM note_versions \
+				 WHERE note_id = ?1 ORDER BY created_at DESC LIMIT 1",
+        )?;
+        let mut rows = stmt.query_map(params![note_id], |row| {
+            Ok(crate::versioning::LatestVersionLean {
+                content_hash: row.get(0)?,
+                created_at: row.get(1)?,
+                content: row.get(2)?,
+            })
+        })?;
+        match rows.next() {
+            Some(latest) => Ok(Some(latest?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Applies the should-persist dedupe/throttle check against the note's
+    /// latest version, then inserts and prunes if it passes. Returns the new
+    /// row's id, or `None` if the snapshot wasn't worth persisting.
+    pub fn insert_note_version(
+        &self,
+        note_id: &str,
+        snapshot: &NoteVersionSnapshot,
+        reason: &str,
+        created_at: i64,
+    ) -> rusqlite::Result<Option<String>> {
+        let latest = self.latest_note_version_lean(note_id)?;
+        if !crate::versioning::should_persist(snapshot, reason, created_at, latest.as_ref()) {
+            return Ok(None);
+        }
+
+        let id = uuid::Uuid::new_v4().to_string();
+        let hash = crate::versioning::content_hash(snapshot);
+        self.lock().execute(
+            "INSERT INTO note_versions \
+				 (id, note_id, name, content, rich_content, preferred_editor_mode, \
+				  parent_id, tags, properties, reason, content_hash, created_at) \
+				 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                id,
+                note_id,
+                snapshot.name,
+                snapshot.content,
+                snapshot.rich_content.to_string(),
+                snapshot.preferred_editor_mode,
+                snapshot.parent_id,
+                serde_json::Value::from(snapshot.tags.clone()).to_string(),
+                snapshot.properties.to_string(),
+                reason,
+                hash,
+                created_at,
+            ],
+        )?;
+
+        self.prune_note_versions(note_id)?;
+        Ok(Some(id))
+    }
+
+    /// Overwrites an existing version row in place (same-session checkpoint
+    /// reuse, mirroring web's `updateExistingNoteVersion`), unless the content
+    /// hash is unchanged. Returns whether a row was actually updated.
+    pub fn update_existing_note_version(
+        &self,
+        version_id: &str,
+        note_id: &str,
+        snapshot: &NoteVersionSnapshot,
+    ) -> rusqlite::Result<bool> {
+        let hash = crate::versioning::content_hash(snapshot);
+        let changed = self.lock().execute(
+            "UPDATE note_versions SET name = ?, content = ?, rich_content = ?, \
+				 preferred_editor_mode = ?, parent_id = ?, tags = ?, properties = ?, content_hash = ? \
+				 WHERE id = ? AND note_id = ? AND content_hash != ?",
+            params![
+                snapshot.name,
+                snapshot.content,
+                snapshot.rich_content.to_string(),
+                snapshot.preferred_editor_mode,
+                snapshot.parent_id,
+                serde_json::Value::from(snapshot.tags.clone()).to_string(),
+                snapshot.properties.to_string(),
+                hash,
+                version_id,
+                note_id,
+                hash,
+            ],
+        )?;
+        Ok(changed > 0)
+    }
+
+    /// Drops everything but the most recent `RETENTION_LIMIT` versions for a
+    /// note, so full-content snapshots cannot grow unbounded.
+    fn prune_note_versions(&self, note_id: &str) -> rusqlite::Result<()> {
+        self.lock().execute(
+            "DELETE FROM note_versions WHERE note_id = ?1 AND id NOT IN (\
+					SELECT id FROM note_versions WHERE note_id = ?1 \
+					ORDER BY created_at DESC LIMIT ?2\
+				 )",
+            params![note_id, crate::versioning::RETENTION_LIMIT],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_note_versions(&self, note_id: &str, limit: i64) -> rusqlite::Result<Vec<NoteVersion>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare_cached(
+            "SELECT id, note_id, name, content, rich_content, preferred_editor_mode, \
+				 parent_id, tags, properties, reason, content_hash, created_at \
+				 FROM note_versions WHERE note_id = ?1 ORDER BY created_at DESC LIMIT ?2",
+        )?;
+        let rows = stmt.query_map(params![note_id, limit], row_to_note_version)?;
+        rows.collect()
+    }
+
+    pub fn get_note_version(&self, version_id: &str) -> rusqlite::Result<Option<NoteVersion>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare_cached(
+            "SELECT id, note_id, name, content, rich_content, preferred_editor_mode, \
+				 parent_id, tags, properties, reason, content_hash, created_at \
+				 FROM note_versions WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query_map(params![version_id], row_to_note_version)?;
+        match rows.next() {
+            Some(version) => Ok(Some(version?)),
+            None => Ok(None),
+        }
+    }
 }
 
 fn ensure_column(
@@ -780,6 +1028,36 @@ fn row_to_journal_tag(row: &rusqlite::Row<'_>) -> rusqlite::Result<JournalTag> {
         name: row.get(1)?,
         color: row.get(2)?,
         usage_count: row.get(3)?,
+    })
+}
+
+fn row_to_note_version(row: &rusqlite::Row<'_>) -> rusqlite::Result<NoteVersion> {
+    let rich_raw: String = row.get(4)?;
+    let tags_raw: String = row.get(7)?;
+    let properties_raw: String = row.get(8)?;
+    Ok(NoteVersion {
+        id: row.get(0)?,
+        note_id: row.get(1)?,
+        name: row.get(2)?,
+        content: row.get(3)?,
+        rich_content: serde_json::from_str(&rich_raw)
+            .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
+        preferred_editor_mode: row.get(5)?,
+        parent_id: row.get(6)?,
+        tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
+        properties: serde_json::from_str(&properties_raw)
+            .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
+        reason: row.get(9)?,
+        content_hash: row.get(10)?,
+        created_at: row.get(11)?,
+    })
+}
+
+fn row_to_person(row: &rusqlite::Row<'_>) -> rusqlite::Result<Person> {
+    Ok(Person {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        color: row.get(2)?,
     })
 }
 
@@ -1179,5 +1457,87 @@ mod tests {
             ids(&store.get_backlink_sources("b", &["b".to_string()]).unwrap()),
             vec!["src".to_string()]
         );
+    }
+
+    fn version_snapshot(content: &str) -> NoteVersionSnapshot {
+        NoteVersionSnapshot {
+            name: "Note.md".to_string(),
+            content: content.to_string(),
+            rich_content: serde_json::json!([]),
+            preferred_editor_mode: "block".to_string(),
+            parent_id: None,
+            tags: vec![],
+            properties: serde_json::json!([]),
+        }
+    }
+
+    #[test]
+    fn insert_note_version_dedupes_identical_snapshots() {
+        let store = Storage::open(Path::new(":memory:")).unwrap();
+        store.upsert_note(&note("n1", None)).unwrap();
+
+        let first = store
+            .insert_note_version("n1", &version_snapshot("hello"), "checkpoint", 0)
+            .unwrap();
+        assert!(first.is_some());
+
+        let dup = store
+            .insert_note_version("n1", &version_snapshot("hello"), "checkpoint", 1)
+            .unwrap();
+        assert!(dup.is_none(), "identical content must not create a second row");
+
+        let changed = store
+            .insert_note_version("n1", &version_snapshot("hello world"), "checkpoint", 2)
+            .unwrap();
+        assert!(changed.is_some());
+
+        assert_eq!(store.list_note_versions("n1", 10).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn insert_note_version_prunes_beyond_retention_limit() {
+        let store = Storage::open(Path::new(":memory:")).unwrap();
+        store.upsert_note(&note("n1", None)).unwrap();
+
+        for i in 0..(crate::versioning::RETENTION_LIMIT + 5) {
+            store
+                .insert_note_version(
+                    "n1",
+                    &version_snapshot(&format!("content {i}")),
+                    "rename",
+                    i,
+                )
+                .unwrap();
+        }
+
+        let versions = store.list_note_versions("n1", 1000).unwrap();
+        assert_eq!(versions.len(), crate::versioning::RETENTION_LIMIT as usize);
+        // The newest rows survive pruning, not the oldest.
+        assert!(versions[0].content.contains(&(crate::versioning::RETENTION_LIMIT + 4).to_string()));
+    }
+
+    #[test]
+    fn update_existing_note_version_overwrites_in_place() {
+        let store = Storage::open(Path::new(":memory:")).unwrap();
+        store.upsert_note(&note("n1", None)).unwrap();
+        let id = store
+            .insert_note_version("n1", &version_snapshot("hello"), "checkpoint", 0)
+            .unwrap()
+            .unwrap();
+
+        let changed = store
+            .update_existing_note_version(&id, "n1", &version_snapshot("hello there"))
+            .unwrap();
+        assert!(changed);
+        assert_eq!(store.list_note_versions("n1", 10).unwrap().len(), 1);
+        assert_eq!(
+            store.get_note_version(&id).unwrap().unwrap().content,
+            "hello there"
+        );
+
+        let unchanged = store
+            .update_existing_note_version(&id, "n1", &version_snapshot("hello there"))
+            .unwrap();
+        assert!(!unchanged, "identical content must report no change");
     }
 }
