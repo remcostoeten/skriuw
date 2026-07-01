@@ -19,9 +19,11 @@ import {
 	Workflow,
 	type LucideIcon,
 } from "lucide-react";
+import { formatShortcut } from "@/shared/lib/format-shortcut";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { cn } from "@/shared/lib/utils";
 import {
+	COMMAND_BANGS,
 	getCommandPaletteGroups,
 	type CommandPaletteItem,
 } from "@/shared/ui/command-palette-model";
@@ -74,6 +76,7 @@ export function CommandPalette({
 		onQueryChange?.(next);
 	}
 	const [activeIndex, setActiveIndex] = useState(0);
+	const [isApple, setIsApple] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	const listboxId = useId();
@@ -92,6 +95,15 @@ export function CommandPalette({
 	useEffect(() => {
 		setActiveIndex(0);
 	}, [query]);
+
+	useEffect(() => {
+		const platform =
+			(navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData
+				?.platform ??
+			navigator.platform ??
+			"";
+		setIsApple(/mac|iphone|ipad|ipod/i.test(platform));
+	}, []);
 
 	useEffect(() => {
 		if (activeIndex < flatItems.length) return;
@@ -169,7 +181,7 @@ export function CommandPalette({
 							aria-activedescendant={
 								activeItem ? `${listboxId}-item-${activeItem.id}` : undefined
 							}
-							className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
+							className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none focus:outline-none focus-visible:shadow-none focus-visible:outline-none placeholder:text-muted-foreground"
 						/>
 						<kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
 							Esc
@@ -234,7 +246,7 @@ export function CommandPalette({
 												<span className="ml-auto flex shrink-0 items-center gap-1.5">
 													{item.shortcut ? (
 														<kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-															{item.shortcut}
+															{formatShortcut(item.shortcut, isApple)}
 														</kbd>
 													) : null}
 													{isActive ? (
@@ -259,9 +271,19 @@ export function CommandPalette({
 							<CornerDownLeft className="h-3 w-3" />
 							select
 						</span>
+						<span className="flex items-center gap-1.5">
+							{Object.entries(COMMAND_BANGS).map(([key, bang]) => (
+								<span key={key} className="flex items-center gap-1">
+									<kbd className="rounded border border-border bg-muted px-1 text-[10px]">
+										!{key}
+									</kbd>
+									<span className="hidden sm:inline">{bang.label.toLowerCase()}</span>
+								</span>
+							))}
+						</span>
 						<span className="ml-auto flex items-center gap-1">
 							<kbd className="rounded border border-border bg-muted px-1 text-[10px]">
-								⌘K
+								{formatShortcut("mod+k", isApple)}
 							</kbd>
 							command palette
 						</span>

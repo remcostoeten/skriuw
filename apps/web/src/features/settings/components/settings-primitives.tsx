@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
+import { settingsAnchorProps } from "@/features/settings/lib/settings-focus-anchor";
 
 export function SectionHeader({ title, description }: { title: string; description: string }) {
 	return (
@@ -16,16 +17,24 @@ export function Row({
 	visualization,
 	children,
 	disabled,
+	focusId,
 }: {
 	title: string;
 	description?: string;
 	visualization?: ReactNode;
 	children: ReactNode;
 	disabled?: boolean;
+	focusId?: string;
 }) {
+	const anchor = focusId ? settingsAnchorProps(focusId) : null;
 	return (
 		<div
-			className={cn("flex items-start justify-between gap-6 py-4", disabled && "opacity-50")}
+			{...anchor}
+			className={cn(
+				"flex items-start justify-between gap-6 py-4",
+				anchor?.className,
+				disabled && "opacity-50",
+			)}
 		>
 			<div className="min-w-0 flex-1">
 				<div className="text-sm font-medium">{title}</div>
