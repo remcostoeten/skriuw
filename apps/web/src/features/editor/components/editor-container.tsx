@@ -26,11 +26,7 @@ import { isTauriRuntime, tauriInvoke } from "@/core/workspace-backend";
 import { useAiProviderKeys } from "@/features/ai/hooks/use-ai-provider-keys";
 import { listFallbackAiKeys } from "@/features/ai/lib/resolve-ai-key";
 import { usePreferencesStore } from "@/features/settings/store";
-import {
-	useAiAction,
-	type AiActionRateLimitPrompt,
-	type AiActionUiError,
-} from "@/features/ai/hooks/use-ai-action";
+import { useAiAction } from "@/features/ai/hooks/use-ai-action";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import {
 	deriveNoteNameFromHeading,
@@ -96,10 +92,6 @@ type EditorContainerProps = {
 	onCreateFile?: () => void;
 	isContentLoading?: boolean;
 }
-
-type RateLimitPrompt = AiActionRateLimitPrompt<AiAction>;
-
-type AiUiError = AiActionUiError<AiAction>;
 
 type EditorCursorStatus = {
 	line: number;
