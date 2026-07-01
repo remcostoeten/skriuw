@@ -21,18 +21,16 @@ import { useCollabRoom } from "@/features/collaboration/hooks/use-collab-room";
 import { useNoteCollabEnabled } from "@/features/collaboration/hooks/use-note-collab-enabled";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import type { NoteProperty } from "@/domain/notes/properties";
-import {
-	callAi,
-	AiRateLimitError,
-	AiRequestError,
-	type AiEditorHandle,
-	type AiAction,
-	type AiErrorCode,
-} from "@/features/ai/service";
+import { type AiEditorHandle, type AiAction } from "@/features/ai/service";
 import { isTauriRuntime, tauriInvoke } from "@/core/workspace-backend";
 import { useAiProviderKeys } from "@/features/ai/hooks/use-ai-provider-keys";
-import { listFallbackAiKeys, resolveAiKey } from "@/features/ai/lib/resolve-ai-key";
+import { listFallbackAiKeys } from "@/features/ai/lib/resolve-ai-key";
 import { usePreferencesStore } from "@/features/settings/store";
+import {
+	useAiAction,
+	type AiActionRateLimitPrompt,
+	type AiActionUiError,
+} from "@/features/ai/hooks/use-ai-action";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import {
 	deriveNoteNameFromHeading,
@@ -99,22 +97,9 @@ type EditorContainerProps = {
 	isContentLoading?: boolean;
 }
 
-type RateLimitPrompt = {
-	action: AiAction;
-	exhaustedKeyIds: string[];
-	message: string;
-	details?: string;
-	eventId?: string;
-};
+type RateLimitPrompt = AiActionRateLimitPrompt<AiAction>;
 
-type AiUiError = {
-	title: string;
-	message: string;
-	details?: string;
-	code?: AiErrorCode | "unknown";
-	eventId?: string;
-	action: AiAction;
-};
+type AiUiError = AiActionUiError<AiAction>;
 
 type EditorCursorStatus = {
 	line: number;
@@ -123,19 +108,6 @@ type EditorCursorStatus = {
 		words: number;
 		characters: number;
 	};
-};
-
-const AI_ERROR_TITLES: Partial<Record<AiErrorCode, string>> = {
-	authentication_required: "Authentication required",
-	invalid_model: "Unsupported model",
-	content_too_large: "Note is too large",
-	server_not_configured: "Server AI is not configured",
-	invalid_key: "AI key failed",
-	forbidden: "AI access denied",
-	model_not_found: "AI model unavailable",
-	provider_error: "AI provider error",
-	network_error: "Network error",
-	rate_limited: "AI key rate limited",
 };
 
 function getWordCount(content: string): number {
@@ -294,20 +266,12 @@ export function EditorContainer({
 	onCreateFile,
 	isContentLoading = false,
 }: EditorContainerProps) {
-	const aiHandleRef = useRef<AiEditorHandle | null>(null);
 	const isRenamingFromH1Ref = useRef(false);
 	const lastFileNameRef = useRef(fileName);
 	// Whether the filename is still auto-following the first heading. True while
 	// the name is Untitled or matches the current heading; a manual rename
 	// permanently opts out. Re-evaluated when a different note is opened.
 	const headingTracksRef = useRef(true);
-	const [aiLoading, setAiLoading] = useState({
-		generateTitle: false,
-		spellCheck: false,
-		continueWriting: false,
-	});
-	const [rateLimitPrompt, setRateLimitPrompt] = useState<RateLimitPrompt | null>(null);
-	const [aiError, setAiError] = useState<AiUiError | null>(null);
 	const [cursorPosition, setCursorPosition] = useState<EditorCursorStatus>({
 		line: 1,
 		column: 1,
@@ -319,136 +283,46 @@ export function EditorContainer({
 	const showLineNumbers = usePreferencesStore((s) => s.appearance.showLineNumbers);
 	const { data: serverKeys = [] } = useAiProviderKeys();
 
-	const aiResourceOptions = useMemo(
+	const applyAiResult = useMemo(
 		() => ({
-			model: aiPrefs.model,
-			resourceType: file ? "note" : undefined,
-			resourceId: file?.id,
-			resourceUrl: file ? `/app?note=${encodeURIComponent(file.id)}` : undefined,
+			generateTitle: (result: string) => {
+				if (file && onRenameFile) onRenameFile(file.id, result);
+			},
+			spellCheck: (result: string, editorHandle: AiEditorHandle) => {
+				editorHandle.replaceContent(result);
+			},
+			continueWriting: (result: string, editorHandle: AiEditorHandle) => {
+				editorHandle.continueWriting(result);
+			},
 		}),
-		[aiPrefs.model, file],
+		[file, onRenameFile],
 	);
+
+	const {
+		aiLoading,
+		aiError,
+		rateLimitPrompt,
+		handleEditorReady,
+		editorHandleRef: aiHandleRef,
+		runAiAction,
+		dismissAiError,
+		dismissRateLimit,
+	} = useAiAction<AiAction>({
+		actions: ["generateTitle", "spellCheck", "continueWriting"],
+		applyResult: applyAiResult,
+		model: aiPrefs.model,
+		resourceType: file ? "note" : undefined,
+		resourceId: file?.id,
+		resourceUrl: file ? `/app?note=${encodeURIComponent(file.id)}` : undefined,
+		resetKey: file?.id,
+		loadingEntityLabel: "note body",
+		errorTitleOverrides: { content_too_large: "Note is too large" },
+	});
 
 	// Clear transient state when switching files
 	useEffect(() => {
-		setRateLimitPrompt(null);
-		setAiError(null);
 		setCursorPosition({ line: 1, column: 1 });
 	}, [file?.id]);
-
-	const runAiAction = useCallback(
-		async (action: AiAction, keyId?: string, exhaustedIds: string[] = []) => {
-			const editorHandle = aiHandleRef.current;
-			if (!editorHandle) {
-				setAiError({
-					action,
-					code: "unknown",
-					title: "Editor is still loading",
-					message: "The AI action could not start because the editor is not ready yet.",
-					details: "Wait for the note body to finish loading, then try again.",
-				});
-				return;
-			}
-
-			const resolvedKey = resolveAiKey({
-				model: aiPrefs.model,
-				localKeys: aiPrefs.keys,
-				activeLocalKeyId: aiPrefs.activeKeyId,
-				serverKeys,
-				overrideKeyId: keyId,
-				exhaustedIds,
-			});
-
-			const callOptions = resolvedKey
-				? {
-						...aiResourceOptions,
-						...(resolvedKey.source === "local"
-							? { apiKey: resolvedKey.apiKey }
-							: { keyId: resolvedKey.keyId }),
-					}
-				: aiResourceOptions;
-
-			setAiLoading((s) => ({ ...s, [action]: true }));
-			setRateLimitPrompt(null);
-			setAiError(null);
-
-			try {
-				const markdown = await editorHandle.getMarkdown();
-				if (!markdown.trim()) {
-					setAiError({
-						action,
-						code: "no_content",
-						title: "Nothing to send to AI",
-						message: "Write some content first, then run the AI action again.",
-					});
-					return;
-				}
-
-				const result = await callAi(action, markdown, callOptions);
-				if (!result) return;
-
-				if (action === "generateTitle") {
-					if (file && onRenameFile) onRenameFile(file.id, result);
-				} else if (action === "spellCheck") {
-					editorHandle.replaceContent(result);
-				} else {
-					editorHandle.continueWriting(result);
-				}
-			} catch (err) {
-				if (err instanceof AiRateLimitError) {
-					const newExhausted = resolvedKey
-						? [...exhaustedIds, resolvedKey.id]
-						: exhaustedIds;
-					setRateLimitPrompt({
-						action,
-						exhaustedKeyIds: newExhausted,
-						message: err.message,
-						details: err.details,
-						eventId: err.eventId,
-					});
-				} else {
-					console.error(`[AI/${action}]`, err);
-					if (err instanceof AiRequestError) {
-						setAiError({
-							action,
-							code: err.code,
-							eventId: err.eventId,
-							title: AI_ERROR_TITLES[err.code] ?? "AI request failed",
-							message: err.message,
-							details: err.details,
-						});
-					} else {
-						setAiError({
-							action,
-							code: "unknown",
-							title: "AI request failed",
-							message:
-								err instanceof Error
-									? err.message
-									: "An unknown AI error occurred.",
-							details:
-								"No structured server diagnostic was returned for this failure.",
-						});
-					}
-				}
-			} finally {
-				setAiLoading((s) => ({ ...s, [action]: false }));
-			}
-		},
-		[
-			aiPrefs.keys,
-			aiPrefs.activeKeyId,
-			aiPrefs.model,
-			aiResourceOptions,
-			file,
-			onRenameFile,
-			serverKeys,
-		],
-	);
-
-	const handleEditorReady = useCallback((handle: AiEditorHandle) => {
-		aiHandleRef.current = handle;
-	}, []);
 
 	const canExportNote = isTauriRuntime();
 	const handleExportNote = useCallback(
@@ -663,7 +537,7 @@ export function EditorContainer({
 						</div>
 						<button
 							type="button"
-							onClick={() => setAiError(null)}
+							onClick={dismissAiError}
 							className="shrink-0 text-destructive/50 transition-colors hover:text-destructive"
 							aria-label="Dismiss AI error"
 						>
@@ -752,7 +626,7 @@ export function EditorContainer({
 						</div>
 						<button
 							type="button"
-							onClick={() => setRateLimitPrompt(null)}
+							onClick={dismissRateLimit}
 							className="mt-0.5 shrink-0 text-warning/50 transition-colors hover:text-warning"
 							aria-label="Dismiss rate limit warning"
 						>
