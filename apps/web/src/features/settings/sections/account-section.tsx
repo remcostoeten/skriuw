@@ -72,6 +72,8 @@ export function AccountSection() {
 	const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
 	const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pendingCheckRef = useRef<string | null>(null);
+	const suppressNameBlurSaveRef = useRef(false);
+	const suppressUsernameBlurSaveRef = useRef(false);
 
 	useEffect(() => {
 		setUsernameValue(user?.username ?? "");
@@ -106,6 +108,7 @@ export function AccountSection() {
 	);
 
 	const handleSaveUsername = async () => {
+		if (isSavingUsername) return;
 		const trimmed = usernameValue.trim();
 		if (!trimmed || trimmed === user?.username) return;
 		const formatError = validateUsernameFormat(trimmed);
@@ -142,6 +145,7 @@ export function AccountSection() {
 	const deleteMatches = deleteValue.trim().toLowerCase() === DELETE_PHRASE;
 
 	const handleSaveName = async () => {
+		if (isSavingName) return;
 		if (!displayName.trim() || displayName === user?.name) return;
 		setIsSavingName(true);
 		setSaveNameError(null);
@@ -224,8 +228,19 @@ export function AccountSection() {
 								value={displayName}
 								onChange={(e) => setDisplayName(e.target.value)}
 								className="w-52 h-8"
-								onBlur={handleSaveName}
-								onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
+								onBlur={() => {
+									if (suppressNameBlurSaveRef.current) {
+										suppressNameBlurSaveRef.current = false;
+										return;
+									}
+									handleSaveName();
+								}}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										suppressNameBlurSaveRef.current = true;
+										handleSaveName();
+									}
+								}}
 							/>
 							{displayName !== (user?.name ?? "") && (
 								<Button
@@ -262,8 +277,19 @@ export function AccountSection() {
 									className="w-52 h-8 pr-6"
 									placeholder="your-handle"
 									maxLength={30}
-									onBlur={handleSaveUsername}
-									onKeyDown={(e) => e.key === "Enter" && handleSaveUsername()}
+									onBlur={() => {
+										if (suppressUsernameBlurSaveRef.current) {
+											suppressUsernameBlurSaveRef.current = false;
+											return;
+										}
+										handleSaveUsername();
+									}}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") {
+											suppressUsernameBlurSaveRef.current = true;
+											handleSaveUsername();
+										}
+									}}
 								/>
 								{usernameAvailable !== null && (
 									<span
