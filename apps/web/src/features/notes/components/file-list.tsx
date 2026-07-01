@@ -3,6 +3,7 @@
 import { memo, useState, useRef, useEffect, useMemo, useCallback, type RefObject } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/shared/lib/utils";
+import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
@@ -374,7 +375,7 @@ export const FileList = memo(function FileList({
 
 	const startRename = useCallback((id: string, currentName: string, type: "file" | "folder") => {
 		setEditingId(id);
-		setEditingName(type === "file" ? currentName.replace(".md", "") : currentName);
+		setEditingName(type === "file" ? stripMarkdownExtension(currentName) : currentName);
 		setEditingType(type);
 	}, []);
 
