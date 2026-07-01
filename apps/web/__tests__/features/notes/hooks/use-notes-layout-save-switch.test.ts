@@ -8,6 +8,9 @@ const createMock = mock as unknown as (implementation: MockFn) => MockFn & {
 
 type NotesStoreState = {
 	activeFileId: string;
+	primaryTabs: unknown[];
+	secondaryTabs: unknown[];
+	recentFileIds: string[];
 	split: {
 		secondaryFileId: string | null;
 		focusedPane: "primary" | "secondary";
@@ -49,6 +52,7 @@ function createInitialStoreState(): NotesStoreState {
 		activeFileId: "note-a",
 		primaryTabs: [],
 		secondaryTabs: [],
+		recentFileIds: [],
 		split: {
 			secondaryFileId: null,
 			focusedPane: "primary",
@@ -74,6 +78,12 @@ function createStoreApi() {
 			id ? (notesStoreState.saveStates[id] ?? "idle") : "idle",
 		setActiveFileId: (id: string) => {
 			notesStoreState.activeFileId = id;
+		},
+		pushRecentFile: (id: string) => {
+			notesStoreState.recentFileIds = [
+				id,
+				...notesStoreState.recentFileIds.filter((existing) => existing !== id),
+			];
 		},
 		setFileSaveState: (id: string, status: "idle" | "saving" | "saved" | "error") => {
 			notesStoreState.saveStates[id] = status;

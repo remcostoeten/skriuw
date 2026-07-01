@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { type PanInfo } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
 	useCallback,
 	useEffect,
@@ -19,10 +19,12 @@ import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";
 import { isGuestScopedId } from "@/domain/notes/note-id";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
+import { VIM_COMMAND_EVENT } from "@/features/editor/lib/vim-command-bus";
 import { useOnboardingStore } from "@/features/onboarding/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
+import { buildSettingsCommandItems } from "@/features/settings/settings-command-index";
 import {
 	focusActiveEditor,
 	focusActiveNoteTreeItem,
@@ -31,6 +33,7 @@ import {
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { perf } from "@/shared/perf/track";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
+import { parseCommandQuery } from "@/shared/ui/command-palette-model";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
 import { useCreateFolder } from "./use-create-folder";
@@ -100,6 +103,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const [seededActiveFileId] = useState(() => initialActiveFileId ?? "");
 
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const queryClient = useQueryClient();
 	const replayWelcomeTour = useOnboardingStore((state) => state.resetWelcome);
 	const backend = useWorkspaceBackend();
@@ -140,6 +144,20 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		state.getFileSaveState(state.activeFileId || seededActiveFileId),
 	);
 	const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
+	// The one-time seed only wins while the store is empty, so an in-app
+	// navigation to `/app?note=X` (graph node click, tag insights link) would
+	// be ignored once another note is already active. Follow the URL param as
+	// a live request instead.
+	const requestedNoteId = searchParams.get("note");
+	useEffect(() => {
+		if (!requestedNoteId) return;
+		if (initialUserScopeId && isGuestScopedId(requestedNoteId)) return;
+		if (useNotesStore.getState().activeFileId !== requestedNoteId) {
+			setActiveFileId(requestedNoteId);
+		}
+	}, [requestedNoteId, initialUserScopeId, setActiveFileId]);
+	const recentFileIds = useNotesStore((state) => state.recentFileIds);
+	const pushRecentFile = useNotesStore((state) => state.pushRecentFile);
 	const setFileSaveState = useNotesStore((state) => state.setFileSaveState);
 	const clearFileSaveState = useNotesStore((state) => state.clearFileSaveState);
 	const setFolderOpen = useNotesStore((state) => state.setFolderOpen);
@@ -401,6 +419,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		initializePreferences();
 	}, [initializePreferences]);
 
+	const didInitialAutoSelect = useRef(false);
 	useEffect(() => {
 		if (notesQuery.isPending) {
 			return;
@@ -414,11 +433,25 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			return;
 		}
 
-		if (activeFileId && files.some((file) => file.id === activeFileId)) {
+		if (activeFileId) {
+			if (files.some((file) => file.id === activeFileId)) {
+				didInitialAutoSelect.current = true;
+				return;
+			}
+			// The open note was deleted/renamed out of existence — fall back to
+			// the first note so the editor never points at a stale id.
+			didInitialAutoSelect.current = true;
+			syncFileSelection(files[0].id, { mode: "replace" });
 			return;
 		}
 
-		syncFileSelection(files[0].id, { mode: "replace" });
+		// No note is selected. Auto-open the first note only on the very first
+		// load; once the user has deliberately closed everything, honor the
+		// empty state instead of re-opening a note behind their back.
+		if (!didInitialAutoSelect.current) {
+			didInitialAutoSelect.current = true;
+			syncFileSelection(files[0].id, { mode: "replace" });
+		}
 	}, [activeFileId, files, notesQuery.isPending, setActiveFileId, syncFileSelection]);
 
 	useEffect(() => {
@@ -480,6 +513,10 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		(id: string, options?: NoteUrlSyncOptions) => {
 			triggerNativeFeedback("selection");
 
+			if (id) {
+				pushRecentFile(id);
+			}
+
 			// Start the select→painted timer (warm = body already cached).
 			if (id && id !== activeFileId) {
 				perf.openStart(id, queryClient.getQueryData(notesKeys.detail(id)) !== undefined);
@@ -526,6 +563,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			flushContentInBackground,
 			focusedEditorPane,
 			isMobile,
+			pushRecentFile,
 			queryClient,
 			setFocusedEditorPane,
 			setSecondaryFile,
@@ -607,7 +645,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	}, [focusedEditorPane]);
 
 	const handleToggleSplit = useCallback(() => {
-		if (splitSecondaryFileId) {
+		if (splitSecondaryFileId && splitOrientation === "vertical") {
 			handleCloseSplit();
 		} else {
 			handleOpenSplitWithOrientation("vertical");
@@ -617,6 +655,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleCloseSplit,
 		handleOpenSplitWithOrientation,
 		restoreEditorFocusAfterLayoutChange,
+		splitOrientation,
 		splitSecondaryFileId,
 	]);
 
@@ -646,12 +685,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		if (!showSidebar) {
 			setUIState({ showSidebar: true });
 		}
+		const targetId = focusedEditorPane === "secondary" ? splitSecondaryFileId : activeFileId;
 		requestAnimationFrame(() => {
 			requestAnimationFrame(() => {
-				focusActiveNoteTreeItem();
+				focusActiveNoteTreeItem(targetId ?? undefined);
 			});
 		});
-	}, [setUIState, showSidebar]);
+	}, [activeFileId, focusedEditorPane, setUIState, showSidebar, splitSecondaryFileId]);
 
 	const handleFocusSplitPane = useCallback(
 		(direction: 1 | -1) => {
@@ -757,6 +797,17 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		],
 	);
 
+	const handleSwitchToTabIndex = useCallback(
+		(index: number) => {
+			const tabs = focusedEditorPane === "secondary" ? secondaryTabs : primaryTabs;
+			if (tabs.length === 0) return;
+			const target = index < 0 ? tabs[tabs.length - 1] : tabs[index];
+			if (!target) return;
+			activateTab(focusedEditorPane, target.fileId);
+		},
+		[activateTab, focusedEditorPane, primaryTabs, secondaryTabs],
+	);
+
 	const handleCloseTab = useCallback(
 		(pane: EditorPane, fileId: string) => {
 			const tabs = pane === "primary" ? primaryTabs : secondaryTabs;
@@ -836,9 +887,45 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const handleCloseFocusedTab = useCallback(() => {
 		const id = focusedPaneActiveId();
-		if (!id) return;
-		handleCloseTab(focusedEditorPane, id);
-	}, [focusedEditorPane, focusedPaneActiveId, handleCloseTab]);
+		if (id) {
+			handleCloseTab(focusedEditorPane, id);
+			return;
+		}
+		if (splitSecondaryFileId) {
+			handleCloseSplit();
+			restoreEditorFocusAfterLayoutChange();
+			return;
+		}
+		if (activeFileId) {
+			handleCloseTab("primary", activeFileId);
+		}
+	}, [
+		activeFileId,
+		focusedEditorPane,
+		focusedPaneActiveId,
+		handleCloseSplit,
+		handleCloseTab,
+		restoreEditorFocusAfterLayoutChange,
+		splitSecondaryFileId,
+	]);
+
+	// Vim ex commands from the block editor (`:w`, `:q`, `:wq`, `:x`, and their
+	// `!` variants). `:w` flushes every dirty note with a checkpoint; quitting
+	// maps to vim window semantics — close the focused tab, or the split pane
+	// when it is the last one.
+	useEffect(() => {
+		function onVimCommand(event: Event) {
+			const command = (event as CustomEvent<{ command?: string }>).detail?.command;
+			if (!command) return;
+			const base = command.replace(/!$/, "");
+			const save = base === "w" || base === "wq" || base === "x";
+			const quit = base === "q" || base === "wq" || base === "x";
+			if (save) flushAllContent({ createCheckpoint: true });
+			if (quit) handleCloseFocusedTab();
+		}
+		window.addEventListener(VIM_COMMAND_EVENT, onVimCommand);
+		return () => window.removeEventListener(VIM_COMMAND_EVENT, onVimCommand);
+	}, [flushAllContent, handleCloseFocusedTab]);
 
 	const handleCloseFocusedOtherTabs = useCallback(() => {
 		const id = focusedPaneActiveId();
@@ -1092,6 +1179,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleCloseFocusedTab,
 		handleFocusNextSplitPane,
 		handleFocusPreviousSplitPane,
+		handleSwitchToTabIndex,
 	});
 
 	useDesktopMenuActions({
@@ -1477,23 +1565,30 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	);
 
 	const [commandQuery, setCommandQuery] = useState("");
-	const trimmedCommandQuery = commandQuery.trim();
+	const parsedCommand = parseCommandQuery(commandQuery);
+	const trimmedCommandQuery = parsedCommand.query;
+	// A bang scoping to actions/settings hides notes entirely, so skip the note
+	// search (and its network hit) unless notes are in scope.
+	const notesInScope =
+		parsedCommand.allowedGroups === null ||
+		parsedCommand.allowedGroups.has("Notes") ||
+		parsedCommand.allowedGroups.has("Recent");
 	const { supportsContentSearch, hits: commandSearchHits } = useNoteSearch(
-		showCommandPalette ? commandQuery : "",
+		showCommandPalette && notesInScope ? trimmedCommandQuery : "",
 	);
 
 	const NOTE_RESULT_LIMIT = 15;
+	const RECENT_DEFAULT_LIMIT = 7;
 
 	const noteCommandItems = useMemo<CommandPaletteItem[]>(() => {
-		if (!trimmedCommandQuery) {
-			return [];
-		}
-
-		const lowerQuery = trimmedCommandQuery.toLowerCase();
 		const seen = new Set<string>();
 		const results: CommandPaletteItem[] = [];
 
-		function pushNote(id: string, name: string, hint?: string) {
+		if (!notesInScope) {
+			return results;
+		}
+
+		function pushNote(id: string, name: string, group: string, hint?: string) {
 			if (seen.has(id) || results.length >= NOTE_RESULT_LIMIT) {
 				return;
 			}
@@ -1501,7 +1596,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			results.push({
 				id: `note:${id}`,
 				label: name || "Untitled",
-				group: "Notes",
+				group,
 				alwaysShow: true,
 				hint,
 				keywords: ["note", "open", "go to"],
@@ -1509,32 +1604,66 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			});
 		}
 
+		if (!trimmedCommandQuery) {
+			const filesById = new Map(metadataFiles.map((file) => [file.id, file]));
+
+			for (const id of recentFileIds) {
+				if (id === activeFileId) continue;
+				const file = filesById.get(id);
+				if (file) pushNote(file.id, file.name, "Recent");
+				if (results.length >= RECENT_DEFAULT_LIMIT) break;
+			}
+
+			if (results.length < RECENT_DEFAULT_LIMIT) {
+				const byModified = [...metadataFiles].sort(
+					(a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime(),
+				);
+				for (const file of byModified) {
+					if (file.id === activeFileId) continue;
+					pushNote(file.id, file.name, "Recent");
+					if (results.length >= RECENT_DEFAULT_LIMIT) break;
+				}
+			}
+
+			return results;
+		}
+
+		const lowerQuery = trimmedCommandQuery.toLowerCase();
+
 		for (const file of metadataFiles) {
 			const nameMatch = file.name.toLowerCase().includes(lowerQuery);
 			const tagMatch = (file.tags ?? []).some((tag) => tag.toLowerCase().includes(lowerQuery));
 			if (nameMatch || tagMatch) {
-				pushNote(file.id, file.name);
+				pushNote(file.id, file.name, "Notes");
 			}
 		}
 
 		if (supportsContentSearch) {
 			for (const hit of commandSearchHits as NoteSearchHit[]) {
-				pushNote(hit.id, hit.name, hit.snippet);
+				pushNote(hit.id, hit.name, "Notes", hit.snippet);
 			}
 		}
 
 		return results;
 	}, [
 		trimmedCommandQuery,
+		notesInScope,
 		metadataFiles,
+		recentFileIds,
+		activeFileId,
 		supportsContentSearch,
 		commandSearchHits,
 		handleFileSelect,
 	]);
 
+	const settingsCommandItems = useMemo<CommandPaletteItem[]>(
+		() => buildSettingsCommandItems((href) => router.push(href)),
+		[router],
+	);
+
 	const commandItems = useMemo<CommandPaletteItem[]>(
-		() => actionCommandItems.concat(noteCommandItems),
-		[actionCommandItems, noteCommandItems],
+		() => actionCommandItems.concat(noteCommandItems, settingsCommandItems),
+		[actionCommandItems, noteCommandItems, settingsCommandItems],
 	);
 
 	// The sidebar + main layout only need the notes metadata and folder lists,

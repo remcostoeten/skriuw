@@ -28,6 +28,7 @@ import { listFallbackAiKeys } from "@/features/ai/lib/resolve-ai-key";
 import { usePreferencesStore } from "@/features/settings/store";
 import { useAiAction } from "@/features/ai/hooks/use-ai-action";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
+import type { VimMode } from "@/features/editor/lib/vim-plugin";
 import {
 	deriveNoteNameFromHeading,
 	nameTracksHeading,
@@ -268,7 +269,7 @@ export function EditorContainer({
 		line: 1,
 		column: 1,
 	});
-	const [vimMode, setVimMode] = useState<"normal" | "insert" | null>(null);
+	const [vimMode, setVimMode] = useState<VimMode | null>(null);
 
 	const aiPrefs = usePreferencesStore((s) => s.ai);
 	const editorPrefs = usePreferencesStore((s) => s.editor);
