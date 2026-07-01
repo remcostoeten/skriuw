@@ -66,6 +66,7 @@ export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabR
 		let cancelled = false;
 		let doc: Y.Doc | null = null;
 		let provider: YProvider | null = null;
+		let cleanupListeners: (() => void) | null = null;
 
 		setRoom({ ...DISABLED, status: "connecting" });
 
@@ -125,21 +126,30 @@ export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabR
 			};
 			setRoom(base);
 
-			provider.on("status", ({ status }: { status: string }) => {
+			const handleStatus = ({ status }: { status: string }) => {
 				if (cancelled) return;
 				setRoom((prev) => ({
 					...prev,
 					status: status === "connected" ? "connected" : "disconnected",
 				}));
-			});
-			provider.on("sync", (isSynced: boolean) => {
+			};
+			const handleSync = (isSynced: boolean) => {
 				if (cancelled || !isSynced) return;
 				setRoom((prev) => ({ ...prev, synced: true, status: "connected" }));
-			});
+			};
+
+			provider.on("status", handleStatus);
+			provider.on("sync", handleSync);
+
+			cleanupListeners = () => {
+				provider?.off("status", handleStatus);
+				provider?.off("sync", handleSync);
+			};
 		})();
 
 		return () => {
 			cancelled = true;
+			cleanupListeners?.();
 			provider?.destroy();
 			doc?.destroy();
 		};
