@@ -48,6 +48,8 @@ type NotesUiState = {
 	isHydrated: boolean;
 	folderOpenState: FolderOpenState;
 	saveStates: Record<string, SaveStatus>;
+	recentFileIds: string[];
+	pushRecentFile: (id: string) => void;
 	resetUi: () => void;
 	initialize: () => Promise<void>;
 	getFileSaveState: (id: string | null | undefined) => SaveStatus;
@@ -104,6 +106,8 @@ const INITIAL_SPLIT_STATE: SplitEditorState = {
 	secondaryFirst: false,
 };
 
+const RECENT_FILES_LIMIT = 12;
+
 const TAB_KEY_BY_PANE: Record<EditorPane, "primaryTabs" | "secondaryTabs"> = {
 	primary: "primaryTabs",
 	secondary: "secondaryTabs",
@@ -120,6 +124,7 @@ export const useNotesStore = create<NotesUiState>()(
 	isHydrated: false,
 	folderOpenState: {},
 	saveStates: {},
+	recentFileIds: [],
 	split: INITIAL_SPLIT_STATE,
 	primaryTabs: [],
 	secondaryTabs: [],
@@ -168,6 +173,15 @@ export const useNotesStore = create<NotesUiState>()(
 
 	setActiveFileId: (id) => {
 		set({ activeFileId: id });
+	},
+
+	pushRecentFile: (id) => {
+		if (!id) return;
+		set((state) => {
+			if (state.recentFileIds[0] === id) return state;
+			const next = [id, ...state.recentFileIds.filter((existing) => existing !== id)];
+			return { recentFileIds: next.slice(0, RECENT_FILES_LIMIT) };
+		});
 	},
 
 	ensureActiveFileId: (files) => {
@@ -434,6 +448,7 @@ export const useNotesStore = create<NotesUiState>()(
 			partialize: (state) => ({
 				primaryTabs: state.primaryTabs,
 				secondaryTabs: state.secondaryTabs,
+				recentFileIds: state.recentFileIds,
 			}),
 			onRehydrateStorage: () => (state) => {
 				if (state) state.tabsHydrated = true;

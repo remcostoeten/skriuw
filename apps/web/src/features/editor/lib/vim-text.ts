@@ -27,6 +27,13 @@ export function isWordChar(char: string | undefined): boolean {
 	return charClass(char) === CHAR_WORD;
 }
 
+/** `^`/`I` — offset of the first non-blank char, or the line length when blank. */
+export function firstNonBlankOffset(text: string): number {
+	let i = 0;
+	while (i < text.length && SPACE_RE.test(text[i]!)) i += 1;
+	return i;
+}
+
 /** `~`/`g~` — flip the case of every character in `text`. */
 export function swapCase(text: string): string {
 	return text
@@ -119,6 +126,46 @@ export function wordObjectBounds(
 		while (e < text.length && charClass(text[e]) === CHAR_SPACE) e += 1;
 	}
 	return { s, e };
+}
+
+const MATCH_OPEN = "([{";
+const MATCH_CLOSE = ")]}";
+
+/**
+ * `%` — offset of the bracket matching the one at/after `offset`, or null when
+ * no bracket follows the cursor or its partner is missing. Mirrors vim: the
+ * cursor does not need to sit on the bracket, only before one on the line.
+ */
+export function matchingPairOffset(text: string, offset: number): number | null {
+	let i = Math.max(0, offset);
+	while (i < text.length && !MATCH_OPEN.includes(text[i]!) && !MATCH_CLOSE.includes(text[i]!)) {
+		i += 1;
+	}
+	if (i >= text.length) return null;
+	const ch = text[i]!;
+	const openIdx = MATCH_OPEN.indexOf(ch);
+	if (openIdx !== -1) {
+		const close = MATCH_CLOSE[openIdx]!;
+		let depth = 0;
+		for (let j = i + 1; j < text.length; j += 1) {
+			if (text[j] === ch) depth += 1;
+			else if (text[j] === close) {
+				if (depth === 0) return j;
+				depth -= 1;
+			}
+		}
+		return null;
+	}
+	const open = MATCH_OPEN[MATCH_CLOSE.indexOf(ch)]!;
+	let depth = 0;
+	for (let j = i - 1; j >= 0; j -= 1) {
+		if (text[j] === ch) depth += 1;
+		else if (text[j] === open) {
+			if (depth === 0) return j;
+			depth -= 1;
+		}
+	}
+	return null;
 }
 
 export const PAIRS: Record<string, { open: string; close: string }> = {
