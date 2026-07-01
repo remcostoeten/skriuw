@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Lock, Sparkles, Share2, Download } from "lucide-react";
-import type { ReactNode } from "react";
+import { Children, cloneElement, isValidElement, type ReactNode } from "react";
 import { useIsGuestWorkspace } from "@/core/workspace-backend";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { cn } from "@/shared/lib/utils";
@@ -55,6 +55,27 @@ type GuestGateProps = {
 };
 
 /**
+ * Recursively marks focusable descendants as disabled to keyboard/AT users.
+ * `pointer-events-none` only blocks mouse interaction, so without this a
+ * real `<button>`/`<a>` child would remain Tab-focusable and activatable via
+ * Enter/Space even though it visually appears disabled.
+ */
+function withKeyboardGuard(node: ReactNode): ReactNode {
+	return Children.map(node, (child) => {
+		if (!isValidElement(child)) return child;
+
+		const props = child.props as { children?: ReactNode };
+		const guarded = props?.children ? withKeyboardGuard(props.children) : props?.children;
+
+		return cloneElement(child, {
+			"aria-disabled": "true",
+			tabIndex: -1,
+			...(guarded !== undefined ? { children: guarded } : {}),
+		} as Record<string, unknown>);
+	});
+}
+
+/**
  * Wraps a trigger surface so that in guest mode it cannot be activated. The
  * child element stays visible (keeping its styling) but a transparent overlay
  * intercepts the click and opens a popover with a sign-up call-to-action.
@@ -79,7 +100,7 @@ export function GuestGate({ feature, children, overlay = true, align = "end" }: 
 						)}
 						aria-hidden={overlay ? undefined : "false"}
 					>
-						{children}
+						{overlay ? withKeyboardGuard(children) : children}
 					</span>
 					{overlay ? (
 						<button
