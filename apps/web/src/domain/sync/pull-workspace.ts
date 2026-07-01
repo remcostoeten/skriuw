@@ -93,6 +93,20 @@ export async function fetchWorkspaceArchive(
 	return parseImportBuffer(buffer, "skriuw");
 }
 
+/** Ids/names tombstoned server-side since the last pull — see `SkriuwExportDeletedIds`. */
+function manifestDeletedIds(archive: ParsedArchive) {
+	const empty = { notes: [], folders: [], journalEntries: [], journalTagNames: [] };
+	if (!isSkriuwManifestV2OrV3(archive.manifest) || archive.manifest.version !== 3) return empty;
+	const deleted = archive.manifest.deletedIds;
+	if (!deleted) return empty;
+	return {
+		notes: deleted.notes,
+		folders: deleted.folders,
+		journalEntries: deleted.journalEntries,
+		journalTagNames: deleted.journalTags,
+	};
+}
+
 export async function importArchiveToBackend(
 	backend: WorkspaceBackend,
 	archive: ParsedArchive,
@@ -103,44 +117,30 @@ export async function importArchiveToBackend(
 	for (const [id, path] of pathById) {
 		idByPath.set(path, id);
 	}
+	const deletedIds = manifestDeletedIds(archive);
 
-	// Parents are sorted before children, so each parentId is already mirrored
-	// by the time its children are written.
-	for (const folder of folders) {
-		await backend.createFolder({
-			id: folder.id,
-			name: folder.name,
-			parentId: folder.parentId,
-			sortOrder: folder.sortOrder,
-		});
-	}
+	const notes = archive.notes.map((note) => ({
+		id: note.id,
+		name: note.name,
+		content: note.content,
+		richContent: (note.richContent as RichTextDocument | undefined) ?? undefined,
+		preferredEditorMode: note.preferredEditorMode,
+		parentId: note.parentPath ? (idByPath.get(note.parentPath) ?? null) : null,
+		sortOrder: note.sortOrder,
+		tags: note.tags,
+	}));
 
-	for (const note of archive.notes) {
-		const parentId = note.parentPath ? (idByPath.get(note.parentPath) ?? null) : null;
-		await backend.createNote({
-			id: note.id,
-			name: note.name,
-			content: note.content,
-			richContent: (note.richContent as RichTextDocument | undefined) ?? undefined,
-			preferredEditorMode: note.preferredEditorMode,
-			parentId,
-			sortOrder: note.sortOrder,
-			tags: note.tags,
-		});
-	}
+	const journalEntries = archive.journalEntries.map((entry) => ({
+		id: entry.id,
+		dateKey: entry.dateKey,
+		content: entry.content,
+		mood: entry.mood as MoodLevel | undefined,
+		tags: entry.tags,
+	}));
 
-	for (const entry of archive.journalEntries) {
-		await backend.createJournalEntry({
-			id: entry.id,
-			dateKey: entry.dateKey,
-			content: entry.content,
-			mood: entry.mood as MoodLevel | undefined,
-			tags: entry.tags,
-		});
-	}
-
-	// `createJournalTag` does not dedupe, so collect the wanted tags (manifest +
-	// those referenced by entries) and only create names not already present.
+	// Tag identity is by name everywhere — collect the wanted tags (manifest +
+	// those referenced by entries); `importArchive`/the fallback below only
+	// create names not already present locally.
 	const wanted = new Map<string, string>();
 	if (isSkriuwManifestV2OrV3(archive.manifest)) {
 		for (const tag of archive.manifest.journalTags) {
@@ -152,14 +152,66 @@ export async function importArchiveToBackend(
 			if (!wanted.has(tag)) wanted.set(tag, "#64748b");
 		}
 	}
+	const journalTags = Array.from(wanted, ([name, color]) => ({ name, color }));
+
+	if (backend.importArchive) {
+		await backend.importArchive({
+			folders: folders.map((folder) => ({
+				id: folder.id,
+				name: folder.name,
+				parentId: folder.parentId,
+				sortOrder: folder.sortOrder,
+			})),
+			notes,
+			journalEntries,
+			journalTags,
+			deletedIds,
+		});
+		return {
+			folders: folders.length,
+			notes: archive.notes.length,
+			journalEntries: archive.journalEntries.length,
+			journalTags: journalTags.length,
+		};
+	}
+
+	// Fallback for backends that don't implement the atomic `importArchive`
+	// path (none pull today, but this keeps the function backend-agnostic).
+	// Parents are sorted before children, so each parentId is already mirrored
+	// by the time its children are written.
+	for (const folder of folders) {
+		await backend.createFolder({
+			id: folder.id,
+			name: folder.name,
+			parentId: folder.parentId,
+			sortOrder: folder.sortOrder,
+		});
+	}
+	for (const note of notes) {
+		await backend.createNote(note);
+	}
+	for (const entry of journalEntries) {
+		await backend.createJournalEntry(entry);
+	}
 
 	const existing = (await backend.listJournalTags?.()) ?? [];
 	const existingNames = new Set(existing.map((tag) => tag.name));
 	let createdTags = 0;
-	for (const [name, color] of wanted) {
-		if (existingNames.has(name)) continue;
-		await backend.createJournalTag({ name, color });
+	for (const tag of journalTags) {
+		if (existingNames.has(tag.name)) continue;
+		await backend.createJournalTag(tag);
 		createdTags += 1;
+	}
+
+	for (const id of deletedIds.notes) await backend.deleteNote(id);
+	for (const id of deletedIds.folders) await backend.deleteFolder(id);
+	for (const id of deletedIds.journalEntries) await backend.deleteJournalEntry(id);
+	if (deletedIds.journalTagNames.length > 0) {
+		const tagIdByName = new Map(existing.map((tag) => [tag.name, tag.id]));
+		for (const name of deletedIds.journalTagNames) {
+			const id = tagIdByName.get(name);
+			if (id) await backend.deleteJournalTag(id);
+		}
 	}
 
 	return {

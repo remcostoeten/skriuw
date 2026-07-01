@@ -16,7 +16,17 @@ type ExportWorkspaceInput = {
 export async function buildWorkspaceExportResponse(input: ExportWorkspaceInput): Promise<Response> {
 	const includeVersions = input.includeVersions ?? true;
 
-	const [folders, notes, journalEntries, journalTags, noteVersions] = await Promise.all([
+	const [
+		folders,
+		notes,
+		journalEntries,
+		journalTags,
+		noteVersions,
+		deletedFolders,
+		deletedNotes,
+		deletedJournalEntries,
+		deletedJournalTags,
+	] = await Promise.all([
 		input.prisma.folder.findMany({
 			where: { userId: input.userId, deletedAt: null },
 			select: { id: true, name: true, parentId: true, sortOrder: true },
@@ -65,6 +75,24 @@ export async function buildWorkspaceExportResponse(input: ExportWorkspaceInput):
 					},
 				})
 			: Promise.resolve([]),
+		// Tombstones — surfaced so the desktop puller can mirror deletions
+		// instead of only ever upserting (see `pull-workspace.ts`).
+		input.prisma.folder.findMany({
+			where: { userId: input.userId, deletedAt: { not: null } },
+			select: { id: true },
+		}),
+		input.prisma.note.findMany({
+			where: { userId: input.userId, deletedAt: { not: null } },
+			select: { id: true },
+		}),
+		input.prisma.journalEntry.findMany({
+			where: { userId: input.userId, deletedAt: { not: null } },
+			select: { id: true },
+		}),
+		input.prisma.journalTag.findMany({
+			where: { userId: input.userId, deletedAt: { not: null } },
+			select: { name: true },
+		}),
 	]);
 
 	const exportedAt = new Date();
@@ -76,6 +104,12 @@ export async function buildWorkspaceExportResponse(input: ExportWorkspaceInput):
 		noteVersions,
 		includeVersions,
 		exportedAt,
+		deletedIds: {
+			folders: deletedFolders.map((f) => f.id),
+			notes: deletedNotes.map((n) => n.id),
+			journalEntries: deletedJournalEntries.map((e) => e.id),
+			journalTags: deletedJournalTags.map((t) => t.name),
+		},
 	});
 	const zip = zipSync(files);
 	const blob = new Blob([zip]);
