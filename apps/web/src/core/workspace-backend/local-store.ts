@@ -1,6 +1,7 @@
 "use client";
 
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
+import type { Person } from "@/domain/people/models";
 import { noop } from "@/shared/lib/noop";
 
 export const WORKSPACE_STORAGE_KEY = "skriuw:guest:workspace:v2";
@@ -11,9 +12,16 @@ const OBJECT_STORE_NAME = "workspace";
 const WORKSPACE_RECORD_KEY = "current";
 const WORKSPACE_RECORD_VERSION = 1;
 
+export type GuestTagMeta = {
+	name: string;
+	color: string | null;
+};
+
 export type GuestWorkspacePayload = {
 	notes: NoteFile[];
 	folders: NoteFolder[];
+	people: Person[];
+	tagMeta: GuestTagMeta[];
 };
 
 type StoredWorkspaceRecord = {
@@ -35,7 +43,7 @@ type UpdateDecision<Result> = {
 };
 
 export function emptyGuestWorkspacePayload(): GuestWorkspacePayload {
-	return { notes: [], folders: [] };
+	return { notes: [], folders: [], people: [], tagMeta: [] };
 }
 
 function canUseLocalStorage(): boolean {
@@ -64,9 +72,13 @@ function reviveNote(raw: NoteFile): NoteFile {
 function normalizePayload(
 	raw: Partial<GuestWorkspacePayload> | null | undefined,
 ): GuestWorkspacePayload {
+	// Older payloads predate people/tagMeta — default them so existing guest
+	// workspaces keep loading.
 	return {
 		notes: Array.isArray(raw?.notes) ? raw.notes.map(reviveNote) : [],
 		folders: Array.isArray(raw?.folders) ? raw.folders : [],
+		people: Array.isArray(raw?.people) ? raw.people : [],
+		tagMeta: Array.isArray(raw?.tagMeta) ? raw.tagMeta : [],
 	};
 }
 
@@ -79,6 +91,8 @@ function clonePayload(payload: GuestWorkspacePayload): GuestWorkspacePayload {
 			tags: [...(note.tags ?? [])],
 		})),
 		folders: payload.folders.map((folder) => ({ ...folder })),
+		people: payload.people.map((person) => ({ ...person })),
+		tagMeta: payload.tagMeta.map((meta) => ({ ...meta })),
 	};
 }
 

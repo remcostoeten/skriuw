@@ -26,7 +26,21 @@ import {
 	purgeTrashBatch,
 	restoreTrashBatch,
 } from "@/domain/trash/actions";
-import { createPerson, listPeople } from "@/domain/people/actions";
+import {
+	createPerson,
+	deletePerson,
+	listPeople,
+	listPersonNotes,
+	mergePersons,
+	updatePerson,
+} from "@/domain/people/actions";
+import {
+	deleteTag,
+	listTagNotes,
+	listTags,
+	renameTag,
+	setTagColor,
+} from "@/domain/tags/actions";
 import type { WorkspaceBackend } from "./types";
 
 export const serverBackend: WorkspaceBackend = {
@@ -73,4 +87,14 @@ export const serverBackend: WorkspaceBackend = {
 
 	listPeople,
 	createPerson,
+	updatePerson,
+	deletePerson,
+	mergePersons,
+	listPersonNotes,
+
+	listTags,
+	setTagColor,
+	renameTag,
+	deleteTag,
+	listTagNotes,
 };

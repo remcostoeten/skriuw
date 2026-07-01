@@ -13,6 +13,7 @@ import { yamlString, yamlTags } from "@/domain/data-transfer/frontmatter";
 import {
 	SKRIUW_EXPORT_SOURCE,
 	SKRIUW_EXPORT_VERSION,
+	type SkriuwExportDeletedIds,
 	type SkriuwExportManifestV3,
 } from "@/domain/data-transfer/types";
 
@@ -83,6 +84,7 @@ export function buildExportArchiveFiles(input: {
 	noteVersions?: NoteVersionRow[];
 	includeVersions?: boolean;
 	exportedAt?: Date;
+	deletedIds?: SkriuwExportDeletedIds;
 }): Record<string, Uint8Array> {
 	const { folders, notes, journalEntries, journalTags } = input;
 	const includeVersions = input.includeVersions ?? true;
@@ -164,6 +166,7 @@ export function buildExportArchiveFiles(input: {
 		})),
 		journalTags,
 		checksums,
+		...(input.deletedIds ? { deletedIds: input.deletedIds } : {}),
 	};
 
 	files[`${root}/skriuw-export.json`] = strToU8(JSON.stringify(manifest, null, 2));

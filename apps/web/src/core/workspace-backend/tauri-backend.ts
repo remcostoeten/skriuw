@@ -1,6 +1,14 @@
 import type { UpdateNoteResult } from "@/domain/notes/actions";
 import type { NoteFile, NoteFolder, NoteVersion, NoteVersionReason } from "@/domain/notes/models";
-import { normalizeNoteProperties } from "@/domain/notes/properties";
+import { normalizeNoteProperties, type NotePropertyColor } from "@/domain/notes/properties";
+import {
+	rewriteNoteForPerson,
+	rewriteNoteForTag,
+	type NoteChipPatch,
+} from "@/domain/notes/chip-rewrite";
+import { buildDesiredNoteLinkRows } from "@/domain/notes/note-link-sync";
+import { extractRichDocumentPersonIds } from "@/domain/notes/rich-document";
+import { normalizeStoredTagEntry, normalizeTagName } from "@/domain/tags/normalize";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
 import { resolveRichDocument } from "@/domain/notes/rich-document";
@@ -375,6 +383,27 @@ function backlinkFromSource(source: RustBacklinkSource, activeId: string): Resol
 export function createTauriBackend(): WorkspaceBackend {
 	const invoke = getInvoke();
 
+	// Per-id write queue: `updateNote`/`updateFolder` do an IPC read, a JS
+	// merge, then an IPC write. Without serialization, two near-simultaneous
+	// updates to the same id (e.g. a drag-to-move and an in-flight autosave)
+	// can interleave between the read and the write and silently clobber each
+	// other. Chaining same-id calls onto one promise (mirroring the guest
+	// backend's queue in local-store.ts) closes that window; different ids run
+	// unserialized.
+	const writeQueues = new Map<string, Promise<unknown>>();
+	function runExclusive<T>(key: string, task: () => Promise<T>): Promise<T> {
+		const previous = writeQueues.get(key) ?? Promise.resolve();
+		const run = previous.then(task, task);
+		writeQueues.set(
+			key,
+			run.then(
+				() => undefined,
+				() => undefined,
+			),
+		);
+		return run;
+	}
+
 	async function listNotes(): Promise<NoteFile[]> {
 		const rows = await invoke<RustNote[]>("list_notes");
 		return rows.map(fromRustNote);
@@ -407,6 +436,64 @@ export function createTauriBackend(): WorkspaceBackend {
 		for (const note of notes) {
 			await indexNoteLinks(note);
 		}
+	}
+
+	async function listPeople(): Promise<Person[]> {
+		return invoke<Person[]>("list_people");
+	}
+
+	// Chip propagation runs in TS with the shared rewrite engine — the Rust side
+	// stays a dumb store so BlockNote JSON semantics exist in exactly one place.
+	// Each note re-reads inside its write-queue slot so an in-flight autosave
+	// cannot be clobbered by a stale snapshot.
+	async function rewriteNotes(
+		buildPatch: (note: NoteFile) => NoteChipPatch | null,
+	): Promise<string[]> {
+		const notes = await listNotes();
+		const rewritten: string[] = [];
+
+		for (const candidate of notes) {
+			if (!buildPatch(candidate)) continue;
+			await runExclusive(`note:${candidate.id}`, async () => {
+				const raw = await invoke<RustNote | null>("get_note", { id: candidate.id });
+				if (!raw) return;
+				const fresh = fromRustNote(raw);
+				const patch = buildPatch(fresh);
+				if (!patch) return;
+				const next: NoteFile = { ...fresh, ...patch, modifiedAt: new Date() };
+				await invoke("upsert_note", { note: toRustNote(next) });
+				await indexNoteLinks(next);
+				rewritten.push(candidate.id);
+			});
+		}
+
+		return rewritten;
+	}
+
+	function noteTagLabels(note: NoteFile): Set<string> {
+		const labels = new Set<string>();
+		for (const row of buildDesiredNoteLinkRows("local", note)) {
+			if (row.kind === "tag") labels.add(row.targetLabel);
+		}
+		return labels;
+	}
+
+	function noteMentionsPerson(note: NoteFile, personId: string): boolean {
+		if (extractRichDocumentPersonIds(note.richContent).includes(personId)) return true;
+		return (note.properties ?? []).some(
+			(property) =>
+				property.type === "person" &&
+				Array.isArray(property.value) &&
+				property.value.includes(personId),
+		);
+	}
+
+	function toNoteSummary(note: NoteFile) {
+		return { id: note.id, name: note.name, modifiedAt: note.modifiedAt };
+	}
+
+	function byModifiedDesc(left: { modifiedAt: Date }, right: { modifiedAt: Date }): number {
+		return right.modifiedAt.getTime() - left.modifiedAt.getTime();
 	}
 
 	return {
@@ -466,7 +553,8 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async getNoteGraph() {
-			return buildGraphFromNotes(await listNotes());
+			const [notes, people] = await Promise.all([listNotes(), listPeople()]);
+			return buildGraphFromNotes(notes, people);
 		},
 
 		async searchNotes(query, limit): Promise<NoteSearchHit[]> {
@@ -508,29 +596,31 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async updateNote(input): Promise<UpdateNoteResult> {
-			const raw = await invoke<RustNote | null>("get_note", { id: input.id });
-			if (!raw) return { note: undefined, versionCreated: false };
-			const next = applyNoteUpdate(fromRustNote(raw), input);
-			await invoke("upsert_note", { note: toRustNote(next) });
-			await indexNoteLinks(next);
+			return runExclusive(`note:${input.id}`, async () => {
+				const raw = await invoke<RustNote | null>("get_note", { id: input.id });
+				if (!raw) return { note: undefined, versionCreated: false };
+				const next = applyNoteUpdate(fromRustNote(raw), input);
+				await invoke("upsert_note", { note: toRustNote(next) });
+				await indexNoteLinks(next);
 
-			const createCheckpoint = input.createCheckpoint === true;
-			const reason: NoteVersionReason =
-				input.name !== undefined ? "rename" : createCheckpoint ? "checkpoint" : "autosave";
-			const versionResult = await invoke<RustVersionWriteResult>("record_note_version", {
-				noteId: next.id,
-				snapshot: toVersionSnapshot(next),
-				reason,
-				createCheckpoint,
-				sessionVersionId: createCheckpoint ? (input.sessionVersionId ?? null) : null,
+				const createCheckpoint = input.createCheckpoint === true;
+				const reason: NoteVersionReason =
+					input.name !== undefined ? "rename" : createCheckpoint ? "checkpoint" : "autosave";
+				const versionResult = await invoke<RustVersionWriteResult>("record_note_version", {
+					noteId: next.id,
+					snapshot: toVersionSnapshot(next),
+					reason,
+					createCheckpoint,
+					sessionVersionId: createCheckpoint ? (input.sessionVersionId ?? null) : null,
+				});
+
+				return {
+					note: next,
+					versionCreated: versionResult.versionId !== null,
+					versionChanged: versionResult.versionChanged,
+					versionId: versionResult.versionId,
+				};
 			});
-
-			return {
-				note: next,
-				versionCreated: versionResult.versionId !== null,
-				versionChanged: versionResult.versionChanged,
-				versionId: versionResult.versionId,
-			};
 		},
 
 		async deleteNote(id) {
@@ -544,12 +634,14 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async updateFolder(input) {
-			const folders = await listFolders();
-			const existing = folders.find((folder) => folder.id === input.id);
-			if (!existing) return undefined;
-			const next = applyFolderUpdate(existing, input);
-			await invoke("upsert_folder", { folder: toRustFolder(next) });
-			return next;
+			return runExclusive(`folder:${input.id}`, async () => {
+				const folders = await listFolders();
+				const existing = folders.find((folder) => folder.id === input.id);
+				if (!existing) return undefined;
+				const next = applyFolderUpdate(existing, input);
+				await invoke("upsert_folder", { folder: toRustFolder(next) });
+				return next;
+			});
 		},
 
 		async deleteFolder(id) {
@@ -643,15 +735,167 @@ export function createTauriBackend(): WorkspaceBackend {
 			await invoke("delete_journal_tag", { id });
 		},
 
-		async listPeople() {
-			return invoke<Person[]>("list_people");
-		},
+		listPeople,
 
 		async createPerson(input) {
 			return invoke<Person>("create_person", {
 				id: input.id ?? crypto.randomUUID(),
 				name: input.name,
 				color: input.color ?? null,
+			});
+		},
+
+		async updatePerson(input) {
+			return invoke<Person>("update_person", {
+				id: input.id,
+				name: input.name ?? null,
+				color: input.color ?? null,
+				clearColor: input.color === null,
+			});
+		},
+
+		async deletePerson(id) {
+			const people = await listPeople();
+			const person = people.find((entry) => entry.id === id);
+			if (!person) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForPerson(note, { fromId: id, toId: null, removalText: person.name }),
+			);
+			await invoke("delete_person", { id });
+			return { rewrittenNoteIds };
+		},
+
+		async mergePersons(sourceId, targetId) {
+			if (sourceId === targetId) return { rewrittenNoteIds: [] };
+			const people = await listPeople();
+			const source = people.find((entry) => entry.id === sourceId);
+			const target = people.find((entry) => entry.id === targetId);
+			if (!source || !target) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForPerson(note, { fromId: sourceId, toId: targetId, toName: target.name }),
+			);
+			await invoke("delete_person", { id: sourceId });
+			return { rewrittenNoteIds };
+		},
+
+		async listPersonNotes(personId) {
+			const notes = await listNotes();
+			return notes
+				.filter((note) => noteMentionsPerson(note, personId))
+				.map(toNoteSummary)
+				.toSorted(byModifiedDesc);
+		},
+
+		async listTags() {
+			const [notes, meta] = await Promise.all([
+				listNotes(),
+				invoke<Array<{ name: string; color: string | null }>>("list_note_tag_meta"),
+			]);
+			const notesByTag = new Map<string, number>();
+			for (const note of notes) {
+				for (const label of noteTagLabels(note)) {
+					notesByTag.set(label, (notesByTag.get(label) ?? 0) + 1);
+				}
+			}
+			const colorByName = new Map(meta.map((row) => [row.name, row.color]));
+			const names = new Set([...notesByTag.keys(), ...colorByName.keys()]);
+			return [...names]
+				.map((name) => ({
+					name,
+					color: (colorByName.get(name) as NotePropertyColor | null | undefined) ?? null,
+					noteCount: notesByTag.get(name) ?? 0,
+				}))
+				.toSorted((left, right) =>
+					right.noteCount !== left.noteCount
+						? right.noteCount - left.noteCount
+						: left.name.localeCompare(right.name),
+				);
+		},
+
+		async setTagColor(name, color) {
+			const normalized = normalizeStoredTagEntry(name);
+			if (!normalized) return;
+			if (color === null) {
+				await invoke("delete_note_tag_meta", { name: normalized });
+				return;
+			}
+			await invoke("upsert_note_tag_meta", { name: normalized, color });
+		},
+
+		async renameTag(from, to) {
+			const source = normalizeStoredTagEntry(from);
+			const target = normalizeTagName(to);
+			if (!source || !target || source === target) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForTag(note, source, target),
+			);
+			await invoke("rename_note_tag_meta", { from: source, to: target });
+			return { rewrittenNoteIds };
+		},
+
+		async deleteTag(name) {
+			const normalized = normalizeStoredTagEntry(name);
+			if (!normalized) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForTag(note, normalized, null),
+			);
+			await invoke("delete_note_tag_meta", { name: normalized });
+			return { rewrittenNoteIds };
+		},
+
+		async listTagNotes(name) {
+			const normalized = normalizeStoredTagEntry(name);
+			if (!normalized) return [];
+			const notes = await listNotes();
+			return notes
+				.filter((note) => noteTagLabels(note).has(normalized))
+				.map(toNoteSummary)
+				.toSorted(byModifiedDesc);
+		},
+
+		async importArchive(payload) {
+			const folders = payload.folders.map((folder) =>
+				toRustFolder({ ...folder, isOpen: true }),
+			);
+			const notes = payload.notes.map((input) => toRustNote(noteFromCreateInput(input)));
+			const now = new Date();
+			const journalEntries = payload.journalEntries.map((input) =>
+				toRustJournalEntry({
+					id: input.id ?? crypto.randomUUID(),
+					dateKey: input.dateKey,
+					title: input.title ?? undefined,
+					content: input.content,
+					tags: input.tags ?? [],
+					mood: input.mood ?? undefined,
+					createdAt: now,
+					updatedAt: now,
+				}),
+			);
+
+			// Tags are matched by name everywhere else in import/pull (no
+			// per-tag upsert key), so skip any name that already exists locally
+			// instead of risking a duplicate row under a fresh id.
+			const existingTagNames = new Set((await listJournalTags()).map((tag) => tag.name));
+			const journalTags = payload.journalTags
+				.filter((tag) => !existingTagNames.has(tag.name))
+				.map((tag) => ({ id: crypto.randomUUID(), name: tag.name, color: tag.color, usageCount: 0 }));
+
+			const tagIdByName = new Map(
+				(await listJournalTags()).map((tag) => [tag.name, tag.id] as const),
+			);
+			const deletedJournalTagIds = payload.deletedIds.journalTagNames
+				.map((name) => tagIdByName.get(name))
+				.filter((id): id is string => Boolean(id));
+
+			await invoke("import_workspace_archive", {
+				folders,
+				notes,
+				journalEntries,
+				journalTags,
+				deletedNoteIds: payload.deletedIds.notes,
+				deletedFolderIds: payload.deletedIds.folders,
+				deletedJournalEntryIds: payload.deletedIds.journalEntries,
+				deletedJournalTagIds,
 			});
 		},
 	};
