@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from "date-fns";
 import {
 	ArrowUpRight,
+	Contact,
 	Copy,
 	ChevronRight,
 	Eye,
@@ -17,6 +18,7 @@ import {
 	Users,
 	X,
 } from "lucide-react";
+import Link from "next/link";
 import { memo, type ComponentType, type ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { NoteVersionReason } from "@/domain/notes/models";
@@ -37,6 +39,9 @@ import {
 	type ResolvedNoteLink,
 } from "@/domain/notes/note-links";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
+import { extractRichDocumentPersonIds } from "@/domain/notes/rich-document";
+import type { Person } from "@/domain/people/models";
+import { useWorkspacePeople } from "@/features/people/hooks/use-people";
 import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
 import { NoteSendDropdown } from "@/features/notes/components/note-send-menu";
@@ -71,7 +76,14 @@ type Props = {
 	onShare?: (noteId: string) => void;
 };
 
-type SectionKey = "outline" | "tags" | "links" | "history" | "details" | "collaborators";
+type SectionKey =
+	| "outline"
+	| "tags"
+	| "people"
+	| "links"
+	| "history"
+	| "details"
+	| "collaborators";
 
 function normalizeTag(tag: string): string {
 	return tag.trim().replace(/^#/, "").toLowerCase();
@@ -659,6 +671,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 	const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
 		outline: true,
 		tags: true,
+		people: true,
 		links: true,
 		history: true,
 		details: true,
@@ -705,6 +718,16 @@ export const MetadataPanel = memo(function MetadataPanel({
 	const backlinks = backlinksQuery.data ?? [];
 	const filesById = useMemo(() => new Map(files.map((item) => [item.id, item])), [files]);
 	const tags = useMemo(() => (file ? uniqueTags(file) : []), [file]);
+	const peopleQuery = useWorkspacePeople();
+	const mentionedPeople = useMemo(() => {
+		if (!file) return [];
+		const ids = extractRichDocumentPersonIds(file.richContent);
+		if (ids.length === 0) return [];
+		const byId = new Map((peopleQuery.data ?? []).map((person) => [person.id, person]));
+		return ids
+			.map((id) => byId.get(id))
+			.filter((person): person is Person => Boolean(person));
+	}, [file, peopleQuery.data]);
 	const taggedNotes = useMemo(() => {
 		if (!file || !selectedTag) return [];
 		return files.filter(
@@ -981,6 +1004,33 @@ export const MetadataPanel = memo(function MetadataPanel({
 						<EmptyLine>No tags yet. Type # in the editor or use /tag.</EmptyLine>
 					)}
 				</InspectorSection>
+
+				{mentionedPeople.length > 0 && (
+					<InspectorSection
+						id="note-inspector-people"
+						title="People"
+						icon={Contact}
+						count={mentionedPeople.length}
+						open={openSections.people}
+						onToggle={() => toggleSection("people")}
+					>
+						<ul
+							aria-label="People mentioned in this note"
+							className="flex flex-wrap gap-1.5"
+						>
+							{mentionedPeople.map((person) => (
+								<li key={person.id}>
+									<Link
+										href={`/app/people/${person.id}`}
+										className="inline-flex min-h-7 cursor-pointer items-center border border-border bg-secondary/50 px-2 text-[12px] font-medium text-foreground/78 transition-colors hover:border-ring/70 hover:text-foreground focus-visible:border-ring focus-visible:outline-none"
+									>
+										{`$${person.name}`}
+									</Link>
+								</li>
+							))}
+						</ul>
+					</InspectorSection>
+				)}
 
 				{(backlinks.length > 0 || outgoingLinks.length > 0) && (
 					<InspectorSection

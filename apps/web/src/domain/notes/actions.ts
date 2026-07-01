@@ -675,16 +675,20 @@ export async function fetchNoteGraph(): Promise<GraphData> {
 		return buildGraphData([], []);
 	}
 
-	const [notes, links] = await Promise.all([
+	const [notes, links, people] = await Promise.all([
 		prisma.note.findMany({
 			where: { userId: user.id, deletedAt: null },
-			select: { id: true, name: true },
+			select: { id: true, name: true, createdAt: true },
 		}),
 		prisma.noteLink.findMany({
 			where: { userId: user.id },
 			select: { sourceNoteId: true, targetNoteId: true, targetLabel: true, kind: true },
 		}),
+		prisma.person.findMany({
+			where: { userId: user.id },
+			select: { id: true, name: true },
+		}),
 	]);
 
-	return buildGraphData(notes, links);
+	return buildGraphData(notes, links, { people });
 }

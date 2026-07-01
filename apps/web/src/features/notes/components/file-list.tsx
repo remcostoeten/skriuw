@@ -7,6 +7,10 @@ import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
+import {
+	NOTE_TREE_REVEAL_EVENT,
+	type NoteTreeRevealDetail,
+} from "@/shared/lib/focus-editor";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/shared/ui/sheet";
 import { EmptyState } from "@/shared/ui/empty-state";
 import {
@@ -260,12 +264,79 @@ export const FileList = memo(function FileList({
 
 			virtualizer.scrollToIndex(index, { align: "auto" });
 
+			// After a long scrollToIndex jump the row may not be mounted on the
+			// next frame yet — retry one frame later before giving up.
 			requestAnimationFrame(() => {
-				itemButtonRefs.current.get(targetKey)?.focus();
+				const button = itemButtonRefs.current.get(targetKey);
+				if (button) {
+					button.focus();
+					return;
+				}
+				requestAnimationFrame(() => {
+					itemButtonRefs.current.get(targetKey)?.focus();
+				});
 			});
 		},
 		[flattenedVisibleItems, getItemKey, virtualizer],
 	);
+
+	// Reveal-and-focus for a note that may be scrolled out of the virtualizer
+	// window or hidden inside collapsed folders (Ctrl+E). Collapsed ancestors
+	// are expanded first; the focus then lands via the pending ref once the
+	// row exists in flattenedVisibleItems.
+	const pendingRevealFileIdRef = useRef<string | null>(null);
+
+	const revealFile = useCallback(
+		(fileId: string): boolean => {
+			const index = flattenedVisibleItems.findIndex(
+				(item) => item.type === "file" && item.id === fileId,
+			);
+			if (index !== -1) {
+				focusItemAtIndex(index);
+				return true;
+			}
+			const file = files.find((entry) => entry.id === fileId);
+			if (!file) return false;
+			let parentId = file.parentId;
+			let guard = 0;
+			let expanded = false;
+			while (parentId && guard < 64) {
+				const folder = folders.find((entry) => entry.id === parentId);
+				if (!folder) break;
+				if (!folder.isOpen) {
+					onToggleFolder(folder.id);
+					expanded = true;
+				}
+				parentId = folder.parentId;
+				guard += 1;
+			}
+			if (!expanded) return false;
+			pendingRevealFileIdRef.current = fileId;
+			return true;
+		},
+		[files, flattenedVisibleItems, focusItemAtIndex, folders, onToggleFolder],
+	);
+
+	useEffect(() => {
+		function onReveal(event: Event) {
+			const fileId = (event as CustomEvent<NoteTreeRevealDetail>).detail?.fileId;
+			if (!fileId) return;
+			if (revealFile(fileId)) event.preventDefault();
+		}
+		window.addEventListener(NOTE_TREE_REVEAL_EVENT, onReveal);
+		return () => window.removeEventListener(NOTE_TREE_REVEAL_EVENT, onReveal);
+	}, [revealFile]);
+
+	useEffect(() => {
+		const fileId = pendingRevealFileIdRef.current;
+		if (!fileId) return;
+		const index = flattenedVisibleItems.findIndex(
+			(item) => item.type === "file" && item.id === fileId,
+		);
+		if (index === -1) return;
+		pendingRevealFileIdRef.current = null;
+		focusItemAtIndex(index);
+	}, [flattenedVisibleItems, focusItemAtIndex]);
 
 	// Like focusItemAtIndex but extends the selection from the anchor
 	// (lastSelectedIndexRef) to the target, leaving the anchor in place so
@@ -1826,6 +1897,7 @@ export const FileList = memo(function FileList({
 						aria-level={depth + 1}
 						aria-selected={isSelected || activeFileId === file.id}
 						data-active-note-tree-item={activeFileId === file.id ? "true" : undefined}
+						data-note-tree-item-id={file.id}
 						tabIndex={0}
 						className={cn(
 							"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors",
