@@ -12,6 +12,7 @@ import {
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
 import { THEMES } from "@/features/settings/preferences/themes";
+import { settingsAnchorProps } from "@/features/settings/lib/settings-focus-anchor";
 import {
 	CompactSidebarDemo,
 	LineNumbersDemo,
@@ -34,7 +35,7 @@ export function AppearanceSection() {
 			/>
 
 			<GroupLabel>THEME</GroupLabel>
-			<div className="grid grid-cols-3 gap-3">
+			<div {...settingsAnchorProps("theme")} className="grid grid-cols-3 gap-3 scroll-mt-24">
 				{THEMES.map((t) => (
 					<button
 						key={t.id}
@@ -69,6 +70,7 @@ export function AppearanceSection() {
 			<GroupLabel>INTERFACE</GroupLabel>
 			<SettingsCard>
 				<Row
+					focusId="compact-sidebar"
 					title="Compact sidebar"
 					description="Tighter spacing in the file tree."
 					visualization={<CompactSidebarDemo enabled={compactMode} />}
@@ -82,6 +84,7 @@ export function AppearanceSection() {
 					/>
 				</Row>
 				<Row
+					focusId="tree-guides"
 					title="File tree guide lines"
 					description="Show nested ruler lines in the notes sidebar."
 					visualization={<TreeGuidesDemo enabled={showTreeGuides} />}
@@ -89,6 +92,7 @@ export function AppearanceSection() {
 					<Switch checked={showTreeGuides} onCheckedChange={() => toggleTreeGuides()} />
 				</Row>
 				<Row
+					focusId="line-numbers"
 					title="Show line numbers"
 					description="In the editor gutter."
 					visualization={<LineNumbersDemo enabled={appearance.showLineNumbers} />}
@@ -98,7 +102,11 @@ export function AppearanceSection() {
 						onCheckedChange={(v) => update("showLineNumbers", v)}
 					/>
 				</Row>
-				<Row title="Reduce motion" description="Minimize transitions and animations.">
+				<Row
+					focusId="reduce-motion"
+					title="Reduce motion"
+					description="Minimize transitions and animations."
+				>
 					<Switch
 						checked={appearance.reduceMotion}
 						onCheckedChange={(v) => update("reduceMotion", v)}
