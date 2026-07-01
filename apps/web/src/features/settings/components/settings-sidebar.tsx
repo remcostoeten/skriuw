@@ -19,19 +19,21 @@ import { useRef } from "react";
 import { cn } from "@/shared/lib/utils";
 import { useAuth } from "@/core/auth/use-auth";
 import { isAdmin } from "@/lib/roles";
-import { isTauriRuntime } from "@/core/workspace-backend";
+import {
+	DESKTOP_HIDDEN_TABS,
+	SETTINGS_TABPANEL_ID,
+	getSettingsTabId,
+	isSettingsTabVisible,
+	type SettingsTabId,
+} from "@/features/settings/lib/settings-tabs";
 
-export type SettingsTabId =
-	| "account"
-	| "appearance"
-	| "editor"
-	| "shortcuts"
-	| "data"
-	| "privacy"
-	| "security"
-	| "ai"
-	| "tags"
-	| "experimental";
+export {
+	DESKTOP_HIDDEN_TABS,
+	SETTINGS_TABPANEL_ID,
+	getSettingsTabId,
+	isSettingsTabVisible,
+	type SettingsTabId,
+};
 
 type SettingsNavItem = {
 	id: SettingsTabId;
@@ -51,25 +53,6 @@ const NAV_ITEMS: ReadonlyArray<SettingsNavItem> = [
 	{ id: "tags", label: "Tags", icon: Tag },
 	{ id: "experimental", label: "Experimental", icon: FlaskConical },
 ];
-
-// Cloud-only tabs hidden in the desktop build: there is no cloud auth (account/
-// security). AI stays visible — desktop runs local Ollama or a direct cloud key.
-// Exported so the page can also redirect away from these ids if reached via a
-// stale ?tab= URL.
-export const DESKTOP_HIDDEN_TABS: ReadonlySet<SettingsTabId> = new Set([
-	"account",
-	"security",
-]);
-
-export function isSettingsTabVisible(id: SettingsTabId): boolean {
-	return !(isTauriRuntime() && DESKTOP_HIDDEN_TABS.has(id));
-}
-
-export const SETTINGS_TABPANEL_ID = "settings-tabpanel";
-
-export function getSettingsTabId(id: SettingsTabId): string {
-	return `settings-tab-${id}`;
-}
 
 const tabClassName = cn(
 	"flex w-full items-center gap-2 border border-transparent px-2.5 py-2 text-left text-[12px] font-medium transition-colors",

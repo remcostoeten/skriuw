@@ -740,6 +740,7 @@ function CloudDataSection() {
 			/>
 			<SettingsCard>
 				<Row
+					focusId="backup-sync"
 					title="Export notes"
 					description="Download notes, folders, journal entries, tags, and optional version history as a Skriuw v3 ZIP."
 				>

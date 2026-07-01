@@ -50,6 +50,10 @@ import {
 	getSettingsSidebarFocusTarget,
 	isEditableShortcutTarget,
 } from "@/features/settings/lib/focus-shortcut";
+import {
+	SETTINGS_FOCUS_PARAM,
+	flashSettingsFocus,
+} from "@/features/settings/lib/settings-focus-anchor";
 import { useIsGuestWorkspace, isTauriRuntime } from "@/core/workspace-backend";
 import { DesktopAiSection } from "@/features/desktop/ai-settings-section";
 import { GuestSectionNotice, type GuestFeature } from "@/shared/ui/guest-gate";
@@ -151,6 +155,32 @@ export function SettingsPage() {
 		initializePreferences();
 		logActivity("settings_opened");
 	}, [initializePreferences, logActivity]);
+
+	const focusParam = searchParams.get(SETTINGS_FOCUS_PARAM);
+
+	useEffect(() => {
+		if (!focusParam) return;
+
+		let attempts = 0;
+		let frame = 0;
+		const tryFlash = () => {
+			if (flashSettingsFocus(focusParam) || attempts >= 20) {
+				const params = new URLSearchParams(searchParams.toString());
+				params.delete(SETTINGS_FOCUS_PARAM);
+				const qs = params.toString();
+				router.replace(qs ? `/app/settings?${qs}` : "/app/settings", { scroll: false });
+				return;
+			}
+			attempts += 1;
+			frame = requestAnimationFrame(tryFlash);
+		};
+		frame = requestAnimationFrame(tryFlash);
+
+		return () => cancelAnimationFrame(frame);
+		// searchParams/router are intentionally excluded: this must run once per
+		// focus target, not on every unrelated query-string change.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [focusParam, activeTab]);
 
 	const setTab = (next: SettingsTabId) => {
 		const params = new URLSearchParams(searchParams.toString());

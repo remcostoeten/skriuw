@@ -262,6 +262,26 @@
 		-webkit-tap-highlight-color: transparent;
 	}
 
+	.settings-focus-flash {
+		border-radius: 0.5rem;
+		animation: settings-focus-flash 1.6s ease-out;
+	}
+
+	@keyframes settings-focus-flash {
+		0% {
+			box-shadow: 0 0 0 0 hsl(var(--ring) / 0);
+			background-color: hsl(var(--ring) / 0);
+		}
+		15% {
+			box-shadow: 0 0 0 3px hsl(var(--ring) / 0.5);
+			background-color: hsl(var(--ring) / 0.08);
+		}
+		100% {
+			box-shadow: 0 0 0 3px hsl(var(--ring) / 0);
+			background-color: hsl(var(--ring) / 0);
+		}
+	}
+
 	#auth-drawer-portal .font-display {
 		font-family:
 			ui-serif, Georgia, Cambria, "Times New Roman", Times, serif !important;
