@@ -96,7 +96,7 @@ export function JournalEditor({
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger asChild>
-				<div className="flex flex-1 flex-col overflow-y-auto">
+				<div className="flex flex-1 flex-col overflow-hidden">
 					{isAiAvailable && aiState?.aiError && (
 						<JournalAiErrorBanner
 							error={aiState.aiError}
@@ -117,7 +117,8 @@ export function JournalEditor({
 							onDismiss={aiState.dismissRateLimit}
 						/>
 					)}
-					<div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col px-5 pb-8 pt-9 sm:px-8 md:px-10 lg:max-w-[820px] lg:px-12 lg:pb-10 lg:pt-14">
+					<div className="flex-1 overflow-y-auto">
+						<div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col px-5 pb-8 pt-9 sm:px-8 md:px-10 lg:max-w-[820px] lg:px-12 lg:pb-10 lg:pt-14">
 						{/* Date heading */}
 						<header className="border-b border-border/55 pb-5 md:pb-6">
 							<div className="flex flex-wrap items-end justify-between gap-3">
@@ -299,6 +300,7 @@ export function JournalEditor({
 							margin: 0;
 						}
 					`}</style>
+					</div>
 				</div>
 			</ContextMenuTrigger>
 			<ContextMenuContent className="w-52">
