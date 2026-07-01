@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	getCommandPaletteGroups,
+	parseCommandQuery,
 	type CommandPaletteItem,
 } from "@/shared/ui/command-palette-model";
 
@@ -42,6 +43,58 @@ describe("getCommandPaletteGroups", () => {
 		expect(getCommandPaletteGroups(items, "settings")).toEqual([
 			{ group: "Settings", items: [items[2]] },
 		]);
+	});
+
+	test("bang prefixes scope results to their groups and strip the bang from the query", () => {
+		const items: CommandPaletteItem[] = [
+			{ id: "note", label: "Dark notes", group: "Notes", alwaysShow: true, action: noop },
+			{
+				id: "theme",
+				label: "Theme",
+				group: "Settings",
+				keywords: ["dark"],
+				searchOnly: true,
+				action: noop,
+			},
+			{ id: "sidebar", label: "Toggle sidebar", group: "Navigation", action: noop },
+		];
+
+		expect(getCommandPaletteGroups(items, "!s dark").map((group) => group.group)).toEqual([
+			"Settings",
+		]);
+		expect(getCommandPaletteGroups(items, "!n").map((group) => group.group)).toEqual(["Notes"]);
+		expect(getCommandPaletteGroups(items, "!a").map((group) => group.group)).toEqual([
+			"Navigation",
+		]);
+	});
+
+	test("searchOnly items stay hidden until searched or scoped by a bang", () => {
+		const items: CommandPaletteItem[] = [
+			{ id: "action", label: "Create note", group: "Actions", action: noop },
+			{
+				id: "theme",
+				label: "Theme",
+				group: "Settings",
+				keywords: ["dark"],
+				searchOnly: true,
+				action: noop,
+			},
+		];
+
+		expect(getCommandPaletteGroups(items, "").map((group) => group.group)).toEqual(["Actions"]);
+		expect(getCommandPaletteGroups(items, "dark").map((group) => group.group)).toEqual([
+			"Settings",
+		]);
+		expect(getCommandPaletteGroups(items, "!s").map((group) => group.group)).toEqual([
+			"Settings",
+		]);
+	});
+
+	test("parseCommandQuery treats unknown or lone bangs as plain text", () => {
+		expect(parseCommandQuery("!s dark")).toMatchObject({ bang: "s", query: "dark" });
+		expect(parseCommandQuery("!z foo")).toMatchObject({ bang: null, query: "!z foo" });
+		expect(parseCommandQuery("!")).toMatchObject({ bang: null, query: "!" });
+		expect(parseCommandQuery("  hello ")).toMatchObject({ bang: null, query: "hello" });
 	});
 
 	test("uses prototype group order before custom groups", () => {

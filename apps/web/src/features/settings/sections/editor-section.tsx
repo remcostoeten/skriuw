@@ -20,6 +20,7 @@ import {
 	EDITOR_LINE_HEIGHTS,
 	getEditorLineHeightLabel,
 } from "@/features/editor/lib/editor-line-height";
+import { settingsAnchorProps } from "@/features/settings/lib/settings-focus-anchor";
 
 export function EditorSection() {
 	const editor = usePreferencesStore((s) => s.editor);
@@ -31,7 +32,7 @@ export function EditorSection() {
 
 			<GroupLabel>TYPOGRAPHY</GroupLabel>
 			<div className="space-y-6 rounded-lg border border-border/60 bg-card/40 p-5">
-				<div className="space-y-3">
+				<div {...settingsAnchorProps("editor-font")} className="space-y-3 scroll-mt-24">
 					<div>
 						<div className="text-sm font-medium">Default font</div>
 						<p className="mt-0.5 text-xs text-muted-foreground">
@@ -45,7 +46,10 @@ export function EditorSection() {
 					<DefaultFontDemo fontId={editor.defaultFont} />
 				</div>
 
-				<div className="border-t border-border/50 pt-5">
+				<div
+					{...settingsAnchorProps("line-height")}
+					className="border-t border-border/50 pt-5 scroll-mt-24"
+				>
 					<div className="space-y-3">
 						<div>
 							<div className="text-sm font-medium">Line height</div>
@@ -81,6 +85,7 @@ export function EditorSection() {
 			<GroupLabel>BEHAVIOR</GroupLabel>
 			<SettingsCard>
 				<Row
+					focusId="raw-mdx"
 					title="Default to Raw MDX"
 					description="New notes open in raw MDX mode."
 					visualization={<RawMdxModeDemo enabled={editor.defaultModeRaw} />}
@@ -101,12 +106,14 @@ export function EditorSection() {
 					/>
 				</Row>
 				<Row
+					focusId="vim-mode"
 					title="Vim mode"
 					description="Modal editing with Normal and Insert modes (h/j/k/l, w/b/e, dd, x, i/a/o, and more). Press Esc for Normal mode."
 				>
 					<Switch checked={editor.vimMode} onCheckedChange={(v) => update("vimMode", v)} />
 				</Row>
 				<Row
+					focusId="open-in-tabs"
 					title="Open notes in tabs"
 					description="Keep opened notes in a tab bar instead of replacing the current note."
 				>
