@@ -19,6 +19,7 @@ type UseNotesLayoutShortcutsOptions = {
 	handleCloseFocusedTab: () => void;
 	handleFocusNextSplitPane: () => void;
 	handleFocusPreviousSplitPane: () => void;
+	handleSwitchToTabIndex: (index: number) => void;
 };
 
 export function useNotesLayoutShortcuts({
@@ -35,6 +36,7 @@ export function useNotesLayoutShortcuts({
 	handleCloseFocusedTab,
 	handleFocusNextSplitPane,
 	handleFocusPreviousSplitPane,
+	handleSwitchToTabIndex,
 }: UseNotesLayoutShortcutsOptions) {
 	const { getHelpGroups } = useShortcutManager();
 	const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -65,6 +67,15 @@ export function useNotesLayoutShortcuts({
 		"notes.closeSplit": handleCloseSplitPane,
 		"notes.focusNextSplitPane": handleFocusNextSplitPane,
 		"notes.focusPreviousSplitPane": handleFocusPreviousSplitPane,
+		"notes.switchTab1": () => handleSwitchToTabIndex(0),
+		"notes.switchTab2": () => handleSwitchToTabIndex(1),
+		"notes.switchTab3": () => handleSwitchToTabIndex(2),
+		"notes.switchTab4": () => handleSwitchToTabIndex(3),
+		"notes.switchTab5": () => handleSwitchToTabIndex(4),
+		"notes.switchTab6": () => handleSwitchToTabIndex(5),
+		"notes.switchTab7": () => handleSwitchToTabIndex(6),
+		"notes.switchTab8": () => handleSwitchToTabIndex(7),
+		"notes.switchTab9": () => handleSwitchToTabIndex(-1),
 		"notes.focusEditor": () => focusActiveEditor(),
 		"notes.help": handleOpenShortcutHelp,
 	});

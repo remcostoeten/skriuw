@@ -5,6 +5,8 @@ import {
 	CHAR_SPACE,
 	CHAR_WORD,
 	findCharOffset,
+	firstNonBlankOffset,
+	matchingPairOffset,
 	nextWordStart,
 	pairObjectBounds,
 	prevWordStart,
@@ -167,5 +169,48 @@ describe("pairObjectBounds (i(/a\"/...)", () => {
 
 	test("returns null without an enclosing pair", () => {
 		expect(pairObjectBounds("no pairs here", 3, "(", ")", false)).toBeNull();
+	});
+});
+
+describe("matchingPairOffset (%)", () => {
+	test("jumps from an opening bracket to its match", () => {
+		expect(matchingPairOffset("a(bc)d", 1)).toBe(4);
+		expect(matchingPairOffset("[x{y}z]", 0)).toBe(6);
+	});
+
+	test("jumps from a closing bracket back to its opener", () => {
+		expect(matchingPairOffset("a(bc)d", 4)).toBe(1);
+		expect(matchingPairOffset("{a[b]c}", 6)).toBe(0);
+	});
+
+	test("scans forward to the first bracket on the line", () => {
+		expect(matchingPairOffset("ab (cd)", 0)).toBe(6);
+	});
+
+	test("respects nesting", () => {
+		expect(matchingPairOffset("f(g(h))", 1)).toBe(6);
+		expect(matchingPairOffset("f(g(h))", 3)).toBe(5);
+	});
+
+	test("returns null without a bracket or without a partner", () => {
+		expect(matchingPairOffset("no brackets", 0)).toBeNull();
+		expect(matchingPairOffset("open(only", 4)).toBeNull();
+		expect(matchingPairOffset("close)only", 5)).toBeNull();
+	});
+});
+
+describe("firstNonBlankOffset", () => {
+	test("leading whitespace is skipped", () => {
+		expect(firstNonBlankOffset("   hi")).toBe(3);
+		expect(firstNonBlankOffset("\t x")).toBe(2);
+	});
+
+	test("no leading blank returns 0", () => {
+		expect(firstNonBlankOffset("hi")).toBe(0);
+	});
+
+	test("all-blank returns the length", () => {
+		expect(firstNonBlankOffset("   ")).toBe(3);
+		expect(firstNonBlankOffset("")).toBe(0);
 	});
 });

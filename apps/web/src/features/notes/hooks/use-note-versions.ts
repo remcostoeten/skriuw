@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuthedApiQuery } from "@/shared/api";
+import { useApiQuery } from "@/shared/api";
 import type { NoteVersion } from "@/types/notes";
 import { notesKeys } from "./notes-keys";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
@@ -9,9 +9,12 @@ import { isGuestScopedId } from "@/domain/notes/note-id";
 export function useNoteVersions(noteId: string | null | undefined) {
 	const id = noteId ?? "";
 	const backend = useWorkspaceBackend();
-	const canLoad = Boolean(id) && !isGuestScopedId(id);
+	// Gate on the backend's own history capability instead of auth phase: the
+	// server backend only exists while authenticated, and the desktop (Tauri)
+	// backend stores versions locally with no auth at all.
+	const canLoad = Boolean(id) && backend.capabilities.history && !isGuestScopedId(id);
 
-	return useAuthedApiQuery<NoteVersion[]>(
+	return useApiQuery<NoteVersion[]>(
 		notesKeys.versions(id),
 		() => backend.getNoteVersions(id),
 		{
