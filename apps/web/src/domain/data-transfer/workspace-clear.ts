@@ -1,4 +1,6 @@
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+
+type WorkspaceClient = PrismaClient | Prisma.TransactionClient;
 
 export async function softClearUserWorkspace(
 	prisma: PrismaClient,
@@ -31,20 +33,22 @@ export async function softClearUserWorkspace(
 	]);
 }
 
-/** Removes workspace rows so re-imported export IDs can be inserted again. */
+/**
+ * Removes workspace rows so re-imported export IDs can be inserted again.
+ * Accepts a transaction client so callers can run the clear as the first
+ * statement of a larger transaction (e.g. clear + restore atomically).
+ */
 export async function hardClearUserWorkspace(
-	prisma: PrismaClient,
+	client: WorkspaceClient,
 	userId: string,
 ): Promise<void> {
-	await prisma.$transaction([
-		prisma.noteShare.deleteMany({ where: { userId } }),
-		prisma.noteVersion.deleteMany({ where: { userId } }),
-		prisma.note.deleteMany({ where: { userId } }),
-		prisma.folder.deleteMany({ where: { userId } }),
-		prisma.journalEntry.deleteMany({ where: { userId } }),
-		prisma.journalTag.deleteMany({ where: { userId } }),
-		prisma.userRecent.deleteMany({ where: { userId } }),
-	]);
+	await client.noteShare.deleteMany({ where: { userId } });
+	await client.noteVersion.deleteMany({ where: { userId } });
+	await client.note.deleteMany({ where: { userId } });
+	await client.folder.deleteMany({ where: { userId } });
+	await client.journalEntry.deleteMany({ where: { userId } });
+	await client.journalTag.deleteMany({ where: { userId } });
+	await client.userRecent.deleteMany({ where: { userId } });
 }
 
 export async function countUserWorkspace(prisma: PrismaClient, userId: string) {

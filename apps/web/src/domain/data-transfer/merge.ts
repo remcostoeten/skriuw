@@ -73,12 +73,15 @@ export async function mergeArchiveImport(
 	policy: ImportPolicy = DEFAULT_IMPORT_POLICY,
 ): Promise<ImportMergeResult> {
 	const preview = await buildImportPreview(prisma, userId, archive, policy);
-
-	if (policy === "replace-workspace") {
-		await hardClearUserWorkspace(prisma, userId);
-	}
+	const warnings = [...preview.warnings];
+	let skippedDeletedNotes = 0;
+	let skippedDeletedJournalEntries = 0;
 
 	await prisma.$transaction(async (tx) => {
+		if (policy === "replace-workspace") {
+			await hardClearUserWorkspace(tx, userId);
+		}
+
 		const existingFolders = await tx.folder.findMany({
 			where: { userId, deletedAt: null },
 			select: { id: true, name: true, parentId: true, sortOrder: true },
@@ -247,6 +250,10 @@ export async function mergeArchiveImport(
 			if (activeById || activeByPath) continue;
 
 			if (softDeletedById) {
+				if (policy !== "overwrite") {
+					skippedDeletedNotes++;
+					continue;
+				}
 				await tx.note.update({
 					where: { id: softDeletedById },
 					data: {
@@ -302,6 +309,10 @@ export async function mergeArchiveImport(
 
 			const softDeletedJournalId = softDeletedJournalByDate.get(entry.dateKey);
 			if (softDeletedJournalId) {
+				if (policy !== "overwrite") {
+					skippedDeletedJournalEntries++;
+					continue;
+				}
 				await tx.journalEntry.update({
 					where: { id: softDeletedJournalId },
 					data: {
@@ -397,5 +408,14 @@ export async function mergeArchiveImport(
 		}
 	});
 
-	return { ok: true, ...preview };
+	if (skippedDeletedNotes > 0) {
+		warnings.push(`${skippedDeletedNotes} note(s) already in trash were not restored.`);
+	}
+	if (skippedDeletedJournalEntries > 0) {
+		warnings.push(
+			`${skippedDeletedJournalEntries} journal entr${skippedDeletedJournalEntries === 1 ? "y" : "ies"} already in trash were not restored.`,
+		);
+	}
+
+	return { ok: true, ...preview, warnings };
 }

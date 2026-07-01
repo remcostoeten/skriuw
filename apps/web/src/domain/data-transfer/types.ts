@@ -49,6 +49,20 @@ export type SkriuwExportManifestV2 = {
 	journalTags: SkriuwExportJournalTag[];
 };
 
+/**
+ * Ids/names removed (soft-deleted) on the server since they were last active,
+ * surfaced so the desktop puller can mirror the deletion locally instead of
+ * only ever upserting. Optional/absent on older exports and on archives built
+ * for the manual import flow (which never populates it).
+ */
+export type SkriuwExportDeletedIds = {
+	notes: string[];
+	folders: string[];
+	journalEntries: string[];
+	/** Tag *names*, not ids — journal tags are deduped/matched by name everywhere else in import/pull. */
+	journalTags: string[];
+};
+
 export type SkriuwExportManifestV3 = {
 	version: typeof SKRIUW_EXPORT_VERSION;
 	source: typeof SKRIUW_EXPORT_SOURCE;
@@ -66,6 +80,7 @@ export type SkriuwExportManifestV3 = {
 	folders: SkriuwExportFolder[];
 	journalTags: SkriuwExportJournalTag[];
 	checksums: Record<string, string>;
+	deletedIds?: SkriuwExportDeletedIds;
 };
 
 export type SkriuwExportManifest =

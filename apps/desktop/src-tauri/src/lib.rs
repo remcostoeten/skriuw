@@ -11,8 +11,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use storage::{
-    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteVersion,
-    NoteVersionSnapshot, Person, SearchHit, Storage, TrashRecord,
+    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteTagMeta,
+    NoteVersion, NoteVersionSnapshot, Person, SearchHit, Storage, TrashRecord,
 };
 
 /// Current wall-clock time in epoch milliseconds, for stamping deletions.
@@ -53,6 +53,11 @@ fn greet(name: &str) -> String {
         name
     };
     format!("Hello, {who} — the Skriuw desktop shell is alive.")
+}
+
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 #[tauri::command]
@@ -119,6 +124,64 @@ fn bulk_upsert_notes(
         vault.upsert_note(note).map_err(vault_err)?;
     }
     storage.upsert_notes(&notes).map_err(stringify)
+}
+
+/// Atomically imports a full pulled archive (desktop sync `pullWorkspaceFromServer`):
+/// writes every entity to the vault, then upserts + applies tombstone deletes to
+/// the SQLite index in one transaction (`Storage::import_workspace`). Unlike the
+/// old per-entity loop this replaced, a crash partway through this call leaves the
+/// index either fully reflecting the archive or untouched — never half-written.
+#[tauri::command]
+fn import_workspace_archive(
+    storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    folders: Vec<Folder>,
+    notes: Vec<Note>,
+    journal_entries: Vec<JournalEntry>,
+    journal_tags: Vec<JournalTag>,
+    deleted_note_ids: Vec<String>,
+    deleted_folder_ids: Vec<String>,
+    deleted_journal_entry_ids: Vec<String>,
+    deleted_journal_tag_ids: Vec<String>,
+) -> Result<(), String> {
+    for folder in &folders {
+        vault.upsert_folder(folder).map_err(vault_err)?;
+    }
+    for note in &notes {
+        vault.upsert_note(note).map_err(vault_err)?;
+    }
+    for entry in &journal_entries {
+        vault.upsert_journal_entry(entry).map_err(vault_err)?;
+    }
+    for tag in &journal_tags {
+        vault.upsert_journal_tag(tag).map_err(vault_err)?;
+    }
+    let deleted_at = now_ms();
+    for id in &deleted_note_ids {
+        vault.trash_note(id, deleted_at).map_err(vault_err)?;
+    }
+    for id in &deleted_folder_ids {
+        vault.trash_folder(id, deleted_at).map_err(vault_err)?;
+    }
+    for id in &deleted_journal_entry_ids {
+        vault.delete_journal_entry(id).map_err(vault_err)?;
+    }
+    for id in &deleted_journal_tag_ids {
+        vault.delete_journal_tag(id).map_err(vault_err)?;
+    }
+
+    storage
+        .import_workspace(
+            &folders,
+            &notes,
+            &journal_entries,
+            &journal_tags,
+            &deleted_note_ids,
+            &deleted_folder_ids,
+            &deleted_journal_entry_ids,
+            &deleted_journal_tag_ids,
+        )
+        .map_err(stringify)
 }
 
 #[tauri::command]
@@ -288,6 +351,61 @@ fn create_person(
     storage
         .create_person(&id, &name, color.as_deref())
         .map_err(stringify)
+}
+
+// `clear_color` disambiguates "unset the colour" from "leave it untouched",
+// which a single nullable arg cannot express over the IPC boundary.
+#[tauri::command]
+fn update_person(
+    storage: State<'_, Storage>,
+    id: String,
+    name: Option<String>,
+    color: Option<String>,
+    clear_color: Option<bool>,
+) -> Result<Person, String> {
+    let color_update: Option<Option<&str>> = if clear_color.unwrap_or(false) {
+        Some(None)
+    } else {
+        color.as_deref().map(Some)
+    };
+    storage
+        .update_person(&id, name.as_deref(), color_update)
+        .map_err(stringify)
+}
+
+#[tauri::command]
+fn delete_person(storage: State<'_, Storage>, id: String) -> Result<(), String> {
+    storage.delete_person(&id).map_err(stringify)
+}
+
+#[tauri::command]
+fn list_note_tag_meta(storage: State<'_, Storage>) -> Result<Vec<NoteTagMeta>, String> {
+    storage.list_note_tag_meta().map_err(stringify)
+}
+
+#[tauri::command]
+fn upsert_note_tag_meta(
+    storage: State<'_, Storage>,
+    name: String,
+    color: Option<String>,
+) -> Result<(), String> {
+    storage
+        .upsert_note_tag_meta(&name, color.as_deref())
+        .map_err(stringify)
+}
+
+#[tauri::command]
+fn delete_note_tag_meta(storage: State<'_, Storage>, name: String) -> Result<(), String> {
+    storage.delete_note_tag_meta(&name).map_err(stringify)
+}
+
+#[tauri::command]
+fn rename_note_tag_meta(
+    storage: State<'_, Storage>,
+    from: String,
+    to: String,
+) -> Result<(), String> {
+    storage.rename_note_tag_meta(&from, &to).map_err(stringify)
 }
 
 #[derive(Serialize)]
@@ -1063,12 +1181,14 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             app_info,
+            quit_app,
             index_ready,
             list_notes,
             get_note,
             get_notes,
             upsert_note,
             bulk_upsert_notes,
+            import_workspace_archive,
             delete_note,
             replace_note_links,
             has_indexed_links,
@@ -1089,6 +1209,12 @@ pub fn run() {
             delete_journal_tag,
             list_people,
             create_person,
+            update_person,
+            delete_person,
+            list_note_tag_meta,
+            upsert_note_tag_meta,
+            delete_note_tag_meta,
+            rename_note_tag_meta,
             record_note_version,
             get_note_versions,
             restore_note_version,

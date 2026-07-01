@@ -16,5 +16,5 @@ export {
 	useIsGuestWorkspace,
 	useWorkspaceCapabilities,
 } from "./context";
-export type { WorkspaceBackend, WorkspaceCapabilities } from "./types";
+export type { ImportArchivePayload, WorkspaceBackend, WorkspaceCapabilities } from "./types";
 export { WorkspaceCapabilityError } from "./capability-error";
