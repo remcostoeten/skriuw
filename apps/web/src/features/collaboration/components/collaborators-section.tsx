@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, X } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, LoaderCircle, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getCollaboratorsAction,
@@ -143,7 +143,10 @@ function CollaboratorsSectionInner({
     },
     onSuccess: (result, vars, ctx) => {
       if (result.ok) {
-        showUserToast(vars.accept ? "Collaborator added" : "Request declined", "success");
+        showUserToast(
+          vars.accept ? "Collaborator added" : "Request declined",
+          "success",
+        );
       } else {
         if (ctx?.previous) qc.setQueryData(pendingKey, ctx.previous);
         showUserToast(result.error ?? "Couldn't respond to request", "error");
@@ -183,8 +186,13 @@ function CollaboratorsSectionInner({
   });
 
   const permissionMutation = useMutation({
-    mutationFn: ({ userId, permission }: { userId: string; permission: TCollabPermission }) =>
-      updateCollaboratorPermission(noteId, userId, permission),
+    mutationFn: ({
+      userId,
+      permission,
+    }: {
+      userId: string;
+      permission: TCollabPermission;
+    }) => updateCollaboratorPermission(noteId, userId, permission),
     onMutate: async ({ userId, permission }) => {
       await qc.cancelQueries({ queryKey: collaboratorsKey });
       const previous = qc.getQueryData<TCollaborator[]>(collaboratorsKey);
@@ -224,83 +232,129 @@ function CollaboratorsSectionInner({
       {/* Owner row */}
       <div className="flex items-center gap-2.5">
         <AvatarFace name={ownerName} size={22} />
-        <span className="flex-1 truncate text-[12px] text-foreground/80">{ownerName}</span>
+        <span className="flex-1 truncate text-[12px] text-foreground/80">
+          {ownerName}
+        </span>
         <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50">
           Owner
         </span>
       </div>
 
-      {/* Collaborators */}
-      {collaborators.map((c) => (
-        <div key={c.id} className="flex items-center gap-2.5">
-          <AvatarFace name={c.userName} color={deriveAvatarColor(c.userId)} size={22} />
-          <span className="flex-1 truncate text-[12px] text-foreground/80">{c.userName}</span>
-          <PermissionToggle
-            value={c.permission}
-            onChange={(p) => permissionMutation.mutate({ userId: c.userId, permission: p })}
+      {collaboratorsQuery.isLoading ? (
+        <div className="flex items-center gap-2 py-1 text-[12px] text-muted-foreground/60">
+          <LoaderCircle
+            className="h-3.5 w-3.5 animate-spin"
+            strokeWidth={1.5}
           />
+          Loading collaborators…
+        </div>
+      ) : collaboratorsQuery.isError ? (
+        <div className="flex items-center justify-between gap-2 py-1">
+          <span className="flex items-center gap-2 text-[12px] text-destructive">
+            <CircleAlert className="h-3.5 w-3.5" strokeWidth={1.5} />
+            Couldn't load collaborators.
+          </span>
           <button
             type="button"
-            onClick={() => revokeMutation.mutate(c.userId)}
-            disabled={revokeMutation.isPending}
-            className="flex h-5 w-5 items-center justify-center text-muted-foreground/50 hover:text-destructive"
-            aria-label="Revoke access"
+            onClick={() => void collaboratorsQuery.refetch()}
+            className="rounded-md border border-border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
           >
-            <X className="h-3 w-3" strokeWidth={1.5} />
+            Retry
           </button>
         </div>
-      ))}
-
-      {/* Pending requests */}
-      {pending.length > 0 && (
-        <div className="space-y-2 border-t border-border pt-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">
-            Pending ({pending.length})
-          </p>
-          {pending.map((req) => (
-            <div key={req.id} className="flex items-start gap-2.5">
+      ) : (
+        <>
+          {/* Collaborators */}
+          {collaborators.map((c) => (
+            <div key={c.id} className="flex items-center gap-2.5">
               <AvatarFace
-                name={req.requesterName}
-                color={deriveAvatarColor(req.requesterId)}
+                name={c.userName}
+                color={deriveAvatarColor(c.userId)}
                 size={22}
               />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-[12px] text-foreground/80">{req.requesterName}</span>
-                {req.message && (
-                  <p className="text-[11px] italic text-muted-foreground/60">
-                    &ldquo;{req.message}&rdquo;
-                  </p>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() =>
-                    respondMutation.mutate({ id: req.id, accept: true, permission: "viewer" })
-                  }
-                  disabled={respondMutation.isPending}
-                  className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-background transition-opacity hover:opacity-85"
-                  aria-label="Accept"
-                >
-                  <Check className="h-3 w-3" strokeWidth={2} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => respondMutation.mutate({ id: req.id, accept: false })}
-                  disabled={respondMutation.isPending}
-                  className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-destructive hover:text-destructive"
-                  aria-label="Decline"
-                >
-                  <X className="h-3 w-3" strokeWidth={1.5} />
-                </button>
-              </div>
+              <span className="flex-1 truncate text-[12px] text-foreground/80">
+                {c.userName}
+              </span>
+              <PermissionToggle
+                value={c.permission}
+                onChange={(p) =>
+                  permissionMutation.mutate({ userId: c.userId, permission: p })
+                }
+              />
+              <button
+                type="button"
+                onClick={() => revokeMutation.mutate(c.userId)}
+                disabled={revokeMutation.isPending}
+                className="flex h-5 w-5 items-center justify-center text-muted-foreground/50 hover:text-destructive"
+                aria-label="Revoke access"
+              >
+                <X className="h-3 w-3" strokeWidth={1.5} />
+              </button>
             </div>
           ))}
-        </div>
-      )}
 
-      {collaborators.length === 0 && pending.length === 0 && (
-        <p className="text-[13px] text-muted-foreground/60">No collaborators yet.</p>
+          {/* Pending requests */}
+          {pending.length > 0 && (
+            <div className="space-y-2 border-t border-border pt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">
+                Pending ({pending.length})
+              </p>
+              {pending.map((req) => (
+                <div key={req.id} className="flex items-start gap-2.5">
+                  <AvatarFace
+                    name={req.requesterName}
+                    color={deriveAvatarColor(req.requesterId)}
+                    size={22}
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="text-[12px] text-foreground/80">
+                      {req.requesterName}
+                    </span>
+                    {req.message && (
+                      <p className="text-[11px] italic text-muted-foreground/60">
+                        &ldquo;{req.message}&rdquo;
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        respondMutation.mutate({
+                          id: req.id,
+                          accept: true,
+                          permission: "viewer",
+                        })
+                      }
+                      disabled={respondMutation.isPending}
+                      className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-background transition-opacity hover:opacity-85"
+                      aria-label="Accept"
+                    >
+                      <Check className="h-3 w-3" strokeWidth={2} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        respondMutation.mutate({ id: req.id, accept: false })
+                      }
+                      disabled={respondMutation.isPending}
+                      className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-destructive hover:text-destructive"
+                      aria-label="Decline"
+                    >
+                      <X className="h-3 w-3" strokeWidth={1.5} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {collaborators.length === 0 && pending.length === 0 && (
+            <p className="text-[13px] text-muted-foreground/60">
+              No collaborators yet.
+            </p>
+          )}
+        </>
       )}
     </div>
   );
