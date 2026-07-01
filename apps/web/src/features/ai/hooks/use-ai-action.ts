@@ -54,7 +54,7 @@ export type UseAiActionOptions<TAction extends AiAction> = {
 	 * result is silently dropped) — every action a consumer wires up through
 	 * `runAiAction` should have a matching entry.
 	 */
-	applyResult: Partial<Record<TAction, ApplyAiActionResult<TAction>>>;
+	applyResult: Partial<Record<TAction, ApplyAiActionResult>>;
 	model: string;
 	resourceType?: string;
 	resourceId?: string;
