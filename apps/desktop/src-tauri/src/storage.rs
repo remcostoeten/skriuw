@@ -96,6 +96,15 @@ pub struct Person {
     pub color: Option<String>,
 }
 
+/// A note-tag colour row, serialized to match the TypeScript `GuestTagMeta`
+/// contract (`src/core/workspace-backend/local-store.ts`).
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteTagMeta {
+    pub name: String,
+    pub color: Option<String>,
+}
+
 /// An immutable snapshot of a note captured for history, matching the
 /// TypeScript `NoteVersion` contract (`src/domain/notes/models.ts`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -314,6 +323,13 @@ CREATE TABLE IF NOT EXISTS journal_tags (
 CREATE TABLE IF NOT EXISTS people (
 	id    TEXT PRIMARY KEY,
 	name  TEXT NOT NULL UNIQUE,
+	color TEXT
+);
+
+-- Note-tag metadata (colour only). Tag membership stays derived from note
+-- content, mirroring the cloud `note_tags` Postgres table.
+CREATE TABLE IF NOT EXISTS note_tags (
+	name  TEXT PRIMARY KEY,
 	color TEXT
 );
 
@@ -573,22 +589,7 @@ impl Storage {
     }
 
     pub fn upsert_folder(&self, folder: &Folder) -> rusqlite::Result<()> {
-        let conn = self.lock();
-        conn.execute(
-            "INSERT INTO folders (id, name, parent_id, sort_order, is_open) \
-			 VALUES (?1, ?2, ?3, ?4, ?5) \
-			 ON CONFLICT(id) DO UPDATE SET \
-			  name = excluded.name, parent_id = excluded.parent_id, \
-			  sort_order = excluded.sort_order, is_open = excluded.is_open",
-            params![
-                folder.id,
-                folder.name,
-                folder.parent_id,
-                folder.sort_order,
-                folder.is_open as i64,
-            ],
-        )?;
-        Ok(())
+        upsert_folder_with(&self.lock(), folder)
     }
 
     /// Deletes a folder. The `ON DELETE CASCADE` foreign keys remove descendant
@@ -610,28 +611,7 @@ impl Storage {
     }
 
     pub fn upsert_journal_entry(&self, entry: &JournalEntry) -> rusqlite::Result<()> {
-        let conn = self.lock();
-        conn.execute(
-            "INSERT INTO journal_entries \
-			 (id, date_key, title, content, mood, tags, created_at, updated_at) \
-			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
-			 ON CONFLICT(id) DO UPDATE SET \
-			  date_key = excluded.date_key, title = excluded.title, \
-			  content = excluded.content, \
-			  mood = excluded.mood, tags = excluded.tags, \
-			  updated_at = excluded.updated_at",
-            params![
-                entry.id,
-                entry.date_key,
-                entry.title,
-                entry.content,
-                entry.mood,
-                serde_json::Value::from(entry.tags.clone()).to_string(),
-                entry.created_at,
-                entry.updated_at,
-            ],
-        )?;
-        Ok(())
+        upsert_journal_entry_with(&self.lock(), entry)
     }
 
     pub fn delete_journal_entry(&self, id: &str) -> rusqlite::Result<()> {
@@ -649,22 +629,60 @@ impl Storage {
     }
 
     pub fn upsert_journal_tag(&self, tag: &JournalTag) -> rusqlite::Result<()> {
-        let conn = self.lock();
-        conn.execute(
-            "INSERT INTO journal_tags (id, name, color, usage_count) \
-			 VALUES (?1, ?2, ?3, ?4) \
-			 ON CONFLICT(id) DO UPDATE SET \
-			  name = excluded.name, color = excluded.color, \
-			  usage_count = excluded.usage_count",
-            params![tag.id, tag.name, tag.color, tag.usage_count],
-        )?;
-        Ok(())
+        upsert_journal_tag_with(&self.lock(), tag)
     }
 
     pub fn delete_journal_tag(&self, id: &str) -> rusqlite::Result<()> {
         self.lock()
             .execute("DELETE FROM journal_tags WHERE id = ?1", params![id])?;
         Ok(())
+    }
+
+    /// Batched import for desktop pull-sync: every folder/note/journal entry/tag
+    /// upsert plus tombstone delete runs in one SQLite transaction, so a crash
+    /// mid-import can't leave the local index half-written — it either reflects
+    /// the full pulled archive or the prior state. The on-disk vault (markdown
+    /// files, written by the caller before/after this call) isn't part of this
+    /// transaction; it's the source of truth and can always be resynced into the
+    /// index via `reconcile_index`.
+    pub fn import_workspace(
+        &self,
+        folders: &[Folder],
+        notes: &[Note],
+        journal_entries: &[JournalEntry],
+        journal_tags: &[JournalTag],
+        deleted_note_ids: &[String],
+        deleted_folder_ids: &[String],
+        deleted_journal_entry_ids: &[String],
+        deleted_journal_tag_ids: &[String],
+    ) -> rusqlite::Result<()> {
+        let mut conn = self.lock();
+        let tx = conn.transaction()?;
+        for folder in folders {
+            upsert_folder_with(&tx, folder)?;
+        }
+        for note in notes {
+            upsert_note_with(&tx, note)?;
+        }
+        for entry in journal_entries {
+            upsert_journal_entry_with(&tx, entry)?;
+        }
+        for tag in journal_tags {
+            upsert_journal_tag_with(&tx, tag)?;
+        }
+        for id in deleted_note_ids {
+            tx.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
+        }
+        for id in deleted_folder_ids {
+            tx.execute("DELETE FROM folders WHERE id = ?1", params![id])?;
+        }
+        for id in deleted_journal_entry_ids {
+            tx.execute("DELETE FROM journal_entries WHERE id = ?1", params![id])?;
+        }
+        for id in deleted_journal_tag_ids {
+            tx.execute("DELETE FROM journal_tags WHERE id = ?1", params![id])?;
+        }
+        tx.commit()
     }
 
     pub fn list_people(&self) -> rusqlite::Result<Vec<Person>> {
@@ -694,6 +712,74 @@ impl Storage {
             params![name],
             row_to_person,
         )
+    }
+
+    pub fn update_person(
+        &self,
+        id: &str,
+        name: Option<&str>,
+        color: Option<Option<&str>>,
+    ) -> rusqlite::Result<Person> {
+        let conn = self.lock();
+        if let Some(name) = name {
+            conn.execute("UPDATE people SET name = ?2 WHERE id = ?1", params![id, name])?;
+        }
+        if let Some(color) = color {
+            conn.execute("UPDATE people SET color = ?2 WHERE id = ?1", params![id, color])?;
+        }
+        conn.query_row(
+            "SELECT id, name, color FROM people WHERE id = ?1",
+            params![id],
+            row_to_person,
+        )
+    }
+
+    pub fn delete_person(&self, id: &str) -> rusqlite::Result<()> {
+        let conn = self.lock();
+        conn.execute("DELETE FROM people WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn list_note_tag_meta(&self) -> rusqlite::Result<Vec<NoteTagMeta>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare("SELECT name, color FROM note_tags ORDER BY name ASC")?;
+        let rows = stmt.query_map([], |row| {
+            Ok(NoteTagMeta {
+                name: row.get(0)?,
+                color: row.get(1)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    pub fn upsert_note_tag_meta(&self, name: &str, color: Option<&str>) -> rusqlite::Result<()> {
+        let conn = self.lock();
+        conn.execute(
+            "INSERT INTO note_tags (name, color) VALUES (?1, ?2) \
+			 ON CONFLICT(name) DO UPDATE SET color = excluded.color",
+            params![name, color],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_note_tag_meta(&self, name: &str) -> rusqlite::Result<()> {
+        let conn = self.lock();
+        conn.execute("DELETE FROM note_tags WHERE name = ?1", params![name])?;
+        Ok(())
+    }
+
+    /// Moves a tag's colour to a new name (rename/merge). Keeps the target's
+    /// existing colour when it already has one.
+    pub fn rename_note_tag_meta(&self, from: &str, to: &str) -> rusqlite::Result<()> {
+        let conn = self.lock();
+        conn.execute(
+            "INSERT INTO note_tags (name, color) \
+			 SELECT ?2, color FROM note_tags WHERE name = ?1 \
+			 ON CONFLICT(name) DO NOTHING",
+            params![from, to],
+        )?;
+        conn.execute("DELETE FROM note_tags WHERE name = ?1", params![from])?;
+        Ok(())
     }
 
     fn latest_note_version_lean(
@@ -880,6 +966,66 @@ fn upsert_note_with(conn: &Connection, note: &Note) -> rusqlite::Result<()> {
         note.created_at,
         note.modified_at,
     ])?;
+    Ok(())
+}
+
+/// Shared upsert body, mirroring `upsert_note_with` so single-write and
+/// batched-transaction callers share the exact same SQL.
+fn upsert_folder_with(conn: &Connection, folder: &Folder) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO folders (id, name, parent_id, sort_order, is_open) \
+		 VALUES (?1, ?2, ?3, ?4, ?5) \
+		 ON CONFLICT(id) DO UPDATE SET \
+		  name = excluded.name, parent_id = excluded.parent_id, \
+		  sort_order = excluded.sort_order, is_open = excluded.is_open",
+        params![
+            folder.id,
+            folder.name,
+            folder.parent_id,
+            folder.sort_order,
+            folder.is_open as i64,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Shared upsert body, mirroring `upsert_note_with` so single-write and
+/// batched-transaction callers share the exact same SQL.
+fn upsert_journal_entry_with(conn: &Connection, entry: &JournalEntry) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO journal_entries \
+		 (id, date_key, title, content, mood, tags, created_at, updated_at) \
+		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
+		 ON CONFLICT(id) DO UPDATE SET \
+		  date_key = excluded.date_key, title = excluded.title, \
+		  content = excluded.content, \
+		  mood = excluded.mood, tags = excluded.tags, \
+		  updated_at = excluded.updated_at",
+        params![
+            entry.id,
+            entry.date_key,
+            entry.title,
+            entry.content,
+            entry.mood,
+            serde_json::Value::from(entry.tags.clone()).to_string(),
+            entry.created_at,
+            entry.updated_at,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Shared upsert body, mirroring `upsert_note_with` so single-write and
+/// batched-transaction callers share the exact same SQL.
+fn upsert_journal_tag_with(conn: &Connection, tag: &JournalTag) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO journal_tags (id, name, color, usage_count) \
+		 VALUES (?1, ?2, ?3, ?4) \
+		 ON CONFLICT(id) DO UPDATE SET \
+		  name = excluded.name, color = excluded.color, \
+		  usage_count = excluded.usage_count",
+        params![tag.id, tag.name, tag.color, tag.usage_count],
+    )?;
     Ok(())
 }
 
