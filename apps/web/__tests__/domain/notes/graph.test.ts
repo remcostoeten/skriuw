@@ -171,3 +171,26 @@ describe("detectCommunities", () => {
 		expect(clusterOf("a")).not.toBe(clusterOf("x"));
 	});
 });
+
+describe("buildGraphData person nodes", () => {
+	test("creates person nodes for known people and skips stale ids", () => {
+		const notes = [note("a", "Alpha")];
+		const links: NoteLinkRow[] = [
+			{ sourceNoteId: "a", targetNoteId: null, targetLabel: "p1", kind: "person" },
+			{ sourceNoteId: "a", targetNoteId: null, targetLabel: "ghost", kind: "person" },
+		];
+
+		const graph = buildGraphData(notes, links, {
+			people: [{ id: "p1", name: "Ada" }],
+		});
+
+		const personNodes = graph.nodes.filter((n) => n.type === "person");
+		expect(personNodes).toHaveLength(1);
+		expect(personNodes[0].id).toBe("person:p1");
+		expect(personNodes[0].label).toBe("Ada");
+		expect(graph.metrics.personCount).toBe(1);
+		expect(
+			graph.edges.some((e) => e.kind === "person" && (e.source === "person:p1" || e.target === "person:p1")),
+		).toBe(true);
+	});
+});

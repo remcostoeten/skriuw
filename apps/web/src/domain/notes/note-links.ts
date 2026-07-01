@@ -28,7 +28,7 @@ export type NoteLinkIndex = {
 
 const WIKI_LINK_PATTERN = /\[\[([^\]| \n][^\]|\n]*?)(?:\|([^\]\n]+?))?\]\]/g;
 const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+?)\]\((note:\/\/([^)#\s]+))\)/g;
-const TAG_PATTERN = /(^|[\s([{])#([a-zA-Z][a-zA-Z0-9_-]{1,31})\b/g;
+export const TAG_PATTERN = /(^|[\s([{])#([a-zA-Z][a-zA-Z0-9_-]{1,31})\b/g;
 const FENCED_CODE_PATTERN = /```[\s\S]*?```/g;
 const INLINE_CODE_PATTERN = /`[^`\n]*`/g;
 
