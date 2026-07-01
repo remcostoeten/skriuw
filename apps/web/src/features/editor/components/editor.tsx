@@ -18,6 +18,7 @@ import {
 } from "@/features/editor/lib/editor-line-height";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
 import type { TRichTextCollab } from "./rich-text-editor";
+import type { VimMode } from "@/features/editor/lib/vim-plugin";
 import { cn } from "@/shared/lib/utils";
 
 type EditorMode = "raw" | "block";
@@ -65,7 +66,7 @@ type EditorProps = {
 		column: number;
 		selection?: { words: number; characters: number };
 	}) => void;
-	onVimModeChange?: (mode: "normal" | "insert" | null) => void;
+	onVimModeChange?: (mode: VimMode | null) => void;
 	initialScrollTop?: number;
 	onScrollPositionChange?: (scrollTop: number) => void;
 	onPaneActivate?: () => void;

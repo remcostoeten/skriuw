@@ -113,6 +113,7 @@ import {
 	searchPluginKey,
 	type SearchOptions,
 } from "@/features/editor/lib/search-plugin";
+import type { Plugin } from "prosemirror-state";
 import { createVimPlugin, vimPluginKey, type VimMode } from "@/features/editor/lib/vim-plugin";
 import { shouldClearSelectionBubbleRect } from "@/features/editor/lib/selection-bubble";
 import { SearchWidget } from "./search-widget";
@@ -1542,20 +1543,22 @@ function getTagMenuItems(
 	const shouldOfferCreate =
 		normalizedQuery.length > 0 && !tags.some((tag) => tag.toLowerCase() === normalizedQuery);
 
+	// Existing matches first, "create" last — same ordering as the "@" note
+	// menu, so a stray Enter never creates something new by accident.
 	return [
+		...filterSuggestionItems(existingItems, normalizedQuery),
 		...(shouldOfferCreate
 			? [
 					{
 						title: normalizedQuery,
 						subtext: "Create tag",
-						group: "Tags",
+						group: "Create",
 						onItemClick: () => {
 							insertTagChip(editor, normalizedQuery);
 						},
 					},
 				]
 			: []),
-		...filterSuggestionItems(existingItems, normalizedQuery),
 	];
 }
 
@@ -1580,13 +1583,16 @@ function getPersonMentionMenuItems(
 		normalizedQuery.length > 0 &&
 		!people.some((person) => person.name.toLowerCase() === normalizedQuery.toLowerCase());
 
+	// Existing matches first, "create" last — same ordering as the "@" note
+	// menu, so a stray Enter never creates something new by accident.
 	return [
+		...filterSuggestionItems(existingItems, normalizedQuery),
 		...(shouldOfferCreate
 			? [
 					{
 						title: normalizedQuery,
 						subtext: "Add person",
-						group: "People",
+						group: "Create",
 						onItemClick: () => {
 							void onCreatePerson?.(normalizedQuery).then((person) => {
 								if (person) insertPersonChip(editor, person);
@@ -1595,7 +1601,6 @@ function getPersonMentionMenuItems(
 					},
 				]
 			: []),
-		...filterSuggestionItems(existingItems, normalizedQuery),
 	];
 }
 
@@ -1784,6 +1789,7 @@ export function RichTextEditor({
 	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
 	const onVimModeChangeRef = useRef(onVimModeChange);
 	onVimModeChangeRef.current = onVimModeChange;
+	const [vimCommand, setVimCommand] = useState<string | null>(null);
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [replaceValue, setReplaceValue] = useState("");
@@ -1886,12 +1892,22 @@ export function RichTextEditor({
 	useEffect(() => {
 		const tiptap = editor._tiptapEditor;
 		if (!tiptap || !vimModeEnabled || readOnly) return;
-		const plugin = createVimPlugin((mode) => onVimModeChangeRef.current?.(mode));
-		tiptap.registerPlugin(plugin);
+		const plugin = createVimPlugin((status) => {
+			onVimModeChangeRef.current?.(status.mode);
+			setVimCommand(status.command);
+		});
+		// Prepend: BlockNote ships an `OverrideEscape` keymap that blurs the
+		// editor on Escape, and ProseMirror consults plugins in order — vim must
+		// see keys first or Escape kicks the user out of the editor.
+		tiptap.registerPlugin(plugin, (vimPlugin: Plugin, plugins: Plugin[]) => [
+			vimPlugin,
+			...plugins,
+		]);
 		onVimModeChangeRef.current?.("normal");
 		return () => {
 			tiptap.unregisterPlugin(vimPluginKey);
-			getEditorDom(editor)?.classList.remove("vim-normal", "vim-insert");
+			getEditorDom(editor)?.classList.remove("vim-normal", "vim-insert", "vim-visual");
+			setVimCommand(null);
 			onVimModeChangeRef.current?.(null);
 		};
 	}, [editor, vimModeEnabled, readOnly]);
@@ -2572,9 +2588,29 @@ export function RichTextEditor({
 				</BlockNoteView>
 				</PeopleProvider>
 			</NoteLinkProvider>
+			{vimCommand !== null ? (
+				<div
+					className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex items-center gap-0 border-t border-border bg-background/95 px-3 py-1 font-mono text-xs text-foreground"
+					role="status"
+					aria-live="polite"
+					aria-label="Vim command line"
+				>
+					<span>:{vimCommand}</span>
+					<span
+						aria-hidden="true"
+						className="ml-px inline-block h-3.5 w-[7px] animate-pulse bg-foreground/80"
+					/>
+				</div>
+			) : null}
 			<style jsx global>{`
 				.blocknote-wrapper .bn-editor .vim-normal {
 					caret-color: hsl(var(--primary));
+				}
+				.blocknote-wrapper .bn-editor .vim-visual {
+					caret-color: transparent;
+				}
+				.blocknote-wrapper .bn-editor .vim-visual ::selection {
+					background: hsl(var(--primary) / 0.34);
 				}
 				.blocknote-wrapper {
 					--bn-colors-editor-background: hsl(var(--card));
