@@ -20,11 +20,14 @@ import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import type { NoteFile } from "@/types/notes";
 
-const ROUTES_WITH_OWN_NOTES_HANDLERS = new Set(["/app", "/app/journal"]);
-const GLOBAL_SHORTCUT_IDS: ShortcutId[] = [
-	"app.commandPalette",
+const NOTES_ROUTE = "/app";
+const JOURNAL_ROUTE = "/app/journal";
+const CORE_NOTE_SHORTCUT_IDS: ShortcutId[] = [
 	"notes.newNote",
 	"notes.newFolder",
+];
+const GLOBAL_APP_SHORTCUT_IDS: ShortcutId[] = [
+	"app.commandPalette",
 	"notes.toggleSidebar",
 	"notes.toggleMetadata",
 	"notes.focusSidebarSearch",
@@ -34,7 +37,11 @@ const GLOBAL_SHORTCUT_IDS: ShortcutId[] = [
 ];
 
 function hasOwnNotesHandlers(pathname: string): boolean {
-	return ROUTES_WITH_OWN_NOTES_HANDLERS.has(pathname);
+	return pathname === NOTES_ROUTE;
+}
+
+function hasOwnContextPalette(pathname: string): boolean {
+	return pathname === NOTES_ROUTE || pathname === JOURNAL_ROUTE;
 }
 
 function generateNoteContent(name: string): string {
@@ -97,6 +104,7 @@ export function GlobalNotesShortcuts() {
 	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
 	const globalNotesActive = !hasOwnNotesHandlers(pathname);
+	const globalContextActionsActive = !hasOwnContextPalette(pathname);
 
 	const createNote = useCallback(() => {
 		triggerNativeFeedback("success");
@@ -143,7 +151,7 @@ export function GlobalNotesShortcuts() {
 			parentId: null,
 		};
 		createFolderMutation.mutate(input);
-		router.push(shortcutParam("focusSidebarSearch"));
+		router.push(`/app?shortcut=renameFolder&folder=${encodeURIComponent(input.id)}`);
 	}, [createFolderMutation, router]);
 
 	const openCommandPalette = useCallback(() => {
@@ -160,7 +168,7 @@ export function GlobalNotesShortcuts() {
 			"notes.toggleMetadata": () => router.push(shortcutParam("toggleMetadata")),
 			"notes.focusSidebarSearch": () => router.push(shortcutParam("focusSidebarSearch")),
 			"notes.focusEditor": () => {
-				if (!globalNotesActive) {
+				if (!globalContextActionsActive) {
 					focusActiveEditor();
 					return;
 				}
@@ -169,16 +177,22 @@ export function GlobalNotesShortcuts() {
 			"notes.help": () => router.push(shortcutParam("help")),
 			"app.settings": () => router.push("/app/settings"),
 		}),
-		[createFolder, createNote, globalNotesActive, openCommandPalette, router],
+		[createFolder, createNote, globalContextActionsActive, openCommandPalette, router],
 	);
 
-	const shortcutMap = useResolvedShortcutMap(
-		GLOBAL_SHORTCUT_IDS,
-		handlers,
-	);
+	const activeShortcutIds = useMemo<ShortcutId[]>(() => {
+		if (!globalNotesActive) return [];
+		const ids: ShortcutId[] = [...CORE_NOTE_SHORTCUT_IDS, "app.settings"];
+		if (globalContextActionsActive) {
+			ids.push(...GLOBAL_APP_SHORTCUT_IDS.filter((id) => id !== "app.settings"));
+		}
+		return ids;
+	}, [globalContextActionsActive, globalNotesActive]);
+
+	const shortcutMap = useResolvedShortcutMap(activeShortcutIds, handlers);
 
 	useShortcutMap(shortcutMap, {
-		disabled: !globalNotesActive,
+		disabled: activeShortcutIds.length === 0,
 		ignoreInputs: false,
 	});
 

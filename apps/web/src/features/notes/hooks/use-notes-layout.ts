@@ -1185,6 +1185,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	useEffect(() => {
 		const pendingShortcut = searchParams.get("shortcut");
 		if (!pendingShortcut) return;
+		const pendingFolderId = searchParams.get("folder");
 
 		switch (pendingShortcut) {
 			case "toggleSidebar":
@@ -1199,6 +1200,18 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 					window.dispatchEvent(new Event("skriuw:focus-sidebar-search"));
 				}, 0);
 				break;
+			case "renameFolder":
+				if (pendingFolderId) {
+					setUIState({ showSidebar: true });
+					window.setTimeout(() => {
+						window.dispatchEvent(
+							new CustomEvent("skriuw:rename-folder", {
+								detail: { id: pendingFolderId },
+							}),
+						);
+					}, 0);
+				}
+				break;
 			case "focusEditor":
 				window.setTimeout(() => focusActiveEditor(), 0);
 				break;
@@ -1209,7 +1222,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				break;
 		}
 
-		router.replace("/app", { scroll: false });
+		const params = new URLSearchParams(searchParams.toString());
+		params.delete("shortcut");
+		params.delete("folder");
+		const qs = params.toString();
+		router.replace(qs ? `/app?${qs}` : "/app", { scroll: false });
 	}, [
 		handleOpenShortcutHelp,
 		handleToggleMetadata,
