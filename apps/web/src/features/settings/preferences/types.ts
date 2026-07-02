@@ -19,6 +19,7 @@ export type EditorPreferences = {
 	lineHeight: EditorLineHeight;
 	animateNumbers: boolean;
 	openNotesInTabs: boolean;
+	detectTagsInText: boolean;
 	notePropertiesLayout: "rows" | "inline";
 	notePropertiesDefaultTemplateId: string | null;
 	customNotePropertyTemplates: CustomNotePropertyTemplate[];

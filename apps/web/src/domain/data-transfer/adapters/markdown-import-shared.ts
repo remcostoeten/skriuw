@@ -1,4 +1,3 @@
-import { extractNoteTags } from "@/domain/notes/note-links";
 import { foldersFromNotePaths } from "@/domain/data-transfer/folders";
 import {
 	parseTagsField,
@@ -113,9 +112,11 @@ export function parseMarkdownNoteFile(
 		transformedBody = options.transformBody?.(body, path) ?? body;
 		preparedTags = options.extraTags?.(body, frontmatter) ?? [];
 	}
+	// Only declared tags (frontmatter + adapter-supplied) survive the import.
+	// Deriving tags from note text turned `#comment` lines in code/.env
+	// snippets into workspace tags.
 	const frontmatterTags = parseTagsField(frontmatter.tags);
-	const contentTags = extractNoteTags(transformedBody);
-	const tags = [...new Set([...frontmatterTags, ...contentTags, ...preparedTags])];
+	const tags = [...new Set([...frontmatterTags, ...preparedTags])];
 	const sortOrderRaw = frontmatter.sortOrder;
 	const sortOrder =
 		sortOrderRaw !== undefined && sortOrderRaw !== "" ? Number(sortOrderRaw) : undefined;
