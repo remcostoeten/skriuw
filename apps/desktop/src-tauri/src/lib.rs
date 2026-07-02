@@ -11,8 +11,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use storage::{
-    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteTagMeta,
-    NoteVersion, NoteVersionSnapshot, Person, SearchHit, Storage, TrashRecord,
+    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteMetadata,
+    NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person, SearchHit, Storage, TrashRecord,
 };
 
 /// Current wall-clock time in epoch milliseconds, for stamping deletions.
@@ -85,6 +85,14 @@ fn index_ready(state: State<'_, IndexReady>) -> bool {
 #[tauri::command]
 fn list_notes(storage: State<'_, Storage>) -> Result<Vec<Note>, String> {
     storage.list_notes().map_err(stringify)
+}
+
+/// Body-free note list for the sidebar/list UI — `list_notes` ships every
+/// note's markdown + richContent JSON over IPC (megabytes on a real vault),
+/// which the list view never reads.
+#[tauri::command]
+fn list_note_metadata(storage: State<'_, Storage>) -> Result<Vec<NoteMetadata>, String> {
+    storage.list_note_metadata().map_err(stringify)
 }
 
 #[tauri::command]
@@ -438,10 +446,28 @@ fn record_note_version(
     create_checkpoint: bool,
     session_version_id: Option<String>,
 ) -> Result<VersionWriteResult, String> {
+    record_note_version_inner(
+        &storage,
+        &note_id,
+        &snapshot,
+        &reason,
+        create_checkpoint,
+        session_version_id,
+    )
+}
+
+fn record_note_version_inner(
+    storage: &Storage,
+    note_id: &str,
+    snapshot: &NoteVersionSnapshot,
+    reason: &str,
+    create_checkpoint: bool,
+    session_version_id: Option<String>,
+) -> Result<VersionWriteResult, String> {
     if create_checkpoint {
         if let Some(existing_id) = &session_version_id {
             let changed = storage
-                .update_existing_note_version(existing_id, &note_id, &snapshot)
+                .update_existing_note_version(existing_id, note_id, snapshot)
                 .map_err(stringify)?;
             if changed {
                 return Ok(VersionWriteResult {
@@ -453,7 +479,7 @@ fn record_note_version(
     }
 
     let should_create_version =
-        matches!(reason.as_str(), "rename" | "created" | "restore") || create_checkpoint;
+        matches!(reason, "rename" | "created" | "restore") || create_checkpoint;
     if !should_create_version {
         return Ok(VersionWriteResult {
             version_id: None,
@@ -462,13 +488,45 @@ fn record_note_version(
     }
 
     let version_id = storage
-        .insert_note_version(&note_id, &snapshot, &reason, now_ms())
+        .insert_note_version(note_id, snapshot, reason, now_ms())
         .map_err(stringify)?;
 
     Ok(VersionWriteResult {
         version_changed: version_id.is_some(),
         version_id,
     })
+}
+
+/// One-round-trip note save: vault write, index upsert, link-index replace, and
+/// version bookkeeping in a single IPC command. The version snapshot is derived
+/// from `note` server-side so the body crosses the boundary once. Replaces the
+/// `upsert_note` → `replace_note_links` → `record_note_version` sequence the
+/// autosave and create paths used to issue as three separate invokes.
+#[tauri::command]
+fn save_note(
+    storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    note: Note,
+    links: Vec<NoteLinkInput>,
+    title_keys: Vec<String>,
+    reason: String,
+    create_checkpoint: bool,
+    session_version_id: Option<String>,
+) -> Result<VersionWriteResult, String> {
+    vault.upsert_note(&note).map_err(vault_err)?;
+    storage.upsert_note(&note).map_err(stringify)?;
+    storage
+        .replace_note_links(&note.id, &links, &title_keys)
+        .map_err(stringify)?;
+    let snapshot = NoteVersionSnapshot::from(&note);
+    record_note_version_inner(
+        &storage,
+        &note.id,
+        &snapshot,
+        &reason,
+        create_checkpoint,
+        session_version_id,
+    )
 }
 
 #[tauri::command]
@@ -1184,9 +1242,11 @@ pub fn run() {
             quit_app,
             index_ready,
             list_notes,
+            list_note_metadata,
             get_note,
             get_notes,
             upsert_note,
+            save_note,
             bulk_upsert_notes,
             import_workspace_archive,
             delete_note,

@@ -11,36 +11,23 @@ function isTauriRuntime(): boolean {
 	);
 }
 
-/**
- * Client auth state for React components.
- *
- * Returns an {@link AuthSnapshot} with `phase`, `user`, and `isReady`. Also
- * syncs the current user into module-level auth helpers so non-React code
- * (e.g. persisted stores) can read the signed-in user via `getUserScopeId()`.
- *
- * @example Gate UI on auth phase
- * ```ts
- * const auth = useAuth();
- *
- * if (!auth.isReady) return <AuthSkeleton />;
- * if (auth.phase === "signed_out") return <SignInPrompt />;
- *
- * return <NotesApp user={auth.user} />;
- * ```
- *
- * @example Combine with {@link useAuthedApiQuery} (handled inside that hook)
- * ```ts
- * // useAuthedApiQuery already waits for auth.isReady && phase === "authenticated"
- * const { data: notes } = useNotes();
- * ```
- */
-export function useAuth() {
+// Desktop is local-first with no auth server: `authClient.useSession()` would
+// fire a network request to the cloud origin on every launch (and hang offline
+// until timeout) for a session that can never exist. The desktop variant never
+// touches the auth client — it returns the same resolved signed-out snapshot
+// the web variant would eventually settle on.
+function useDesktopAuth() {
+	useEffect(() => {
+		setCurrentAuthUser(null);
+	}, []);
+
+	return useMemo(() => createAuthSnapshot({ user: null, isPending: false }), []);
+}
+
+function useWebAuth() {
 	const session = authClient.useSession();
 	const user = useMemo(() => toAuthUser(session.data?.user), [session.data?.user]);
-
-	// Desktop webview has no reachable auth server, so useSession never resolves
-	// and would gate every local-vault query forever. Desktop is local-first.
-	const isPending = isTauriRuntime() ? false : session.isPending;
+	const isPending = session.isPending;
 
 	useEffect(() => {
 		if (!isPending) {
@@ -58,3 +45,32 @@ export function useAuth() {
 		[user, session.error, isPending],
 	);
 }
+
+/**
+ * Client auth state for React components.
+ *
+ * Returns an {@link AuthSnapshot} with `phase`, `user`, and `isReady`. Also
+ * syncs the current user into module-level auth helpers so non-React code
+ * (e.g. persisted stores) can read the signed-in user via `getUserScopeId()`.
+ *
+ * The implementation is chosen once at module load: the Tauri runtime flag
+ * cannot change within a session, so the hook identity is stable and the
+ * rules-of-hooks hold.
+ *
+ * @example Gate UI on auth phase
+ * ```ts
+ * const auth = useAuth();
+ *
+ * if (!auth.isReady) return <AuthSkeleton />;
+ * if (auth.phase === "signed_out") return <SignInPrompt />;
+ *
+ * return <NotesApp user={auth.user} />;
+ * ```
+ *
+ * @example Combine with {@link useAuthedApiQuery} (handled inside that hook)
+ * ```ts
+ * // useAuthedApiQuery already waits for auth.isReady && phase === "authenticated"
+ * const { data: notes } = useNotes();
+ * ```
+ */
+export const useAuth = isTauriRuntime() ? useDesktopAuth : useWebAuth;

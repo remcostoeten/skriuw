@@ -7,6 +7,7 @@ import { get, set, del } from "idb-keyval";
 import { useEffect } from "react";
 import { useAuth } from "@/core/auth/use-auth";
 import { getUserScopeIdForUser } from "@/core/auth";
+import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
 
 // Bump when the cached query shapes change in a backward-incompatible way so
 // stale snapshots from older deploys are dropped instead of hydrated.
@@ -40,6 +41,10 @@ export function QueryCachePersistence() {
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 		if (!auth.isReady) return;
+		// Desktop reads from local SQLite/vault over IPC — already instant and
+		// durable. A second IndexedDB copy is pure overhead: an extra restore at
+		// boot plus a full note-body dehydrate every throttle window while typing.
+		if (isTauriRuntime()) return;
 
 		const key = storageKey(scope);
 		const persister = createAsyncStoragePersister({
