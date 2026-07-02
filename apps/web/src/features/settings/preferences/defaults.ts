@@ -18,6 +18,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 	animateNumbers: true,
 	openNotesInTabs: false,
 	notePropertiesLayout: "rows",
+	notePropertiesCollapsed: false,
 	notePropertiesDefaultTemplateId: null,
 	customNotePropertyTemplates: [],
 };
