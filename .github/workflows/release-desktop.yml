@@ -148,7 +148,9 @@ jobs:
       - name: Track build metrics
         run: bash scripts/track-build.sh
 
-      # Commit tracking data back to the repo so history is preserved.
+      # Commit tracking data back to the repo so history is preserved. A tag
+      # push checks out a detached HEAD, so there is no current branch to
+      # `git push` to — push straight to daddy instead.
       - name: Commit build metrics
         run: |
           git config user.name "github-actions[bot]"
@@ -159,5 +161,5 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "chore: track build metrics for ${{ github.ref_name }}"
-            git push
+            git push origin HEAD:daddy
           fi
