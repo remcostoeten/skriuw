@@ -1,6 +1,8 @@
 "use client";
 
-import { AlignLeft, Check, Rows3, SlidersHorizontal } from "lucide-react";
+import { useId } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { AlignLeft, Check, ChevronRight, Rows3, SlidersHorizontal } from "lucide-react";
 import { usePreferencesStore } from "@/features/settings/store";
 import {
 	NOTE_PROPERTY_TEMPLATES,
@@ -31,6 +33,7 @@ export function NotePropertiesShelf({
 	onChange?: (properties: NoteProperty[]) => void;
 }) {
 	const layout = usePreferencesStore((state) => state.editor.notePropertiesLayout);
+	const collapsed = usePreferencesStore((state) => state.editor.notePropertiesCollapsed);
 	const defaultTemplateId = usePreferencesStore(
 		(state) => state.editor.notePropertiesDefaultTemplateId,
 	);
@@ -38,7 +41,13 @@ export function NotePropertiesShelf({
 		(state) => state.editor.customNotePropertyTemplates,
 	);
 	const updateEditorPreference = usePreferencesStore((state) => state.updateEditorPreference);
+	const prefersReducedMotion = useReducedMotion();
+	const bodyId = useId();
 	const normalizedProperties = normalizeNoteProperties(properties);
+
+	function toggleCollapsed() {
+		updateEditorPreference("notePropertiesCollapsed", !collapsed);
+	}
 
 	function commit(next: NoteProperty[]) {
 		if (readOnly) return;
@@ -86,28 +95,42 @@ export function NotePropertiesShelf({
 			className="group relative mx-auto mt-1 mb-2 w-full max-w-[42rem]"
 			aria-label="Note properties"
 		>
-			{layout === "rows" ? (
-				<div className="flex flex-col gap-0.5">
-					{normalizedProperties.map((property) => (
-						<PropertyRow
-							key={property.id}
-							property={property}
-							onChange={(next) => updateProperty(property.id, next)}
-							onRemove={() =>
-								commit(normalizedProperties.filter((item) => item.id !== property.id))
-							}
-						/>
-					))}
-					<div className="mt-0.5 flex items-center gap-1 opacity-55 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
-						<AddPropertyButton onAdd={(property) => commit([...normalizedProperties, property])} />
-						<TemplatePicker {...templatePickerProps} />
-					</div>
-				</div>
-			) : (
-				<div>
-					<div className="flex flex-wrap items-center gap-1.5">
+			<button
+				type="button"
+				onClick={toggleCollapsed}
+				aria-expanded={!collapsed}
+				aria-controls={bodyId}
+				className="-ml-1 mb-0.5 inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/55 outline-none transition-colors duration-150 hover:text-foreground focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
+			>
+				<ChevronRight
+					className={`size-3 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none ${
+						collapsed ? "" : "rotate-90"
+					}`}
+				/>
+				<span>Properties</span>
+				{collapsed && normalizedProperties.length > 0 ? (
+					<span className="rounded-full border border-border/60 bg-card/70 px-1.5 text-[9px] tabular-nums text-muted-foreground">
+						{normalizedProperties.length}
+					</span>
+				) : null}
+			</button>
+
+			<motion.div
+				id={bodyId}
+				initial={false}
+				animate={{ height: collapsed ? 0 : "auto", opacity: collapsed ? 0 : 1 }}
+				transition={
+					prefersReducedMotion
+						? { height: { duration: 0 }, opacity: { duration: 0.15, ease: "easeOut" } }
+						: { duration: 0.2, ease: [0.23, 1, 0.32, 1] }
+				}
+				inert={collapsed}
+				className="overflow-hidden"
+			>
+				{layout === "rows" ? (
+					<div className="flex flex-col gap-0.5">
 						{normalizedProperties.map((property) => (
-							<InlinePropertyChip
+							<PropertyRow
 								key={property.id}
 								property={property}
 								onChange={(next) => updateProperty(property.id, next)}
@@ -116,16 +139,35 @@ export function NotePropertiesShelf({
 								}
 							/>
 						))}
-						<AddPropertyButton
-							compact
-							onAdd={(property) => commit([...normalizedProperties, property])}
-						/>
+						<div className="mt-0.5 flex items-center gap-1 opacity-55 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+							<AddPropertyButton onAdd={(property) => commit([...normalizedProperties, property])} />
+							<TemplatePicker {...templatePickerProps} />
+						</div>
 					</div>
-					<div className="mt-1.5 opacity-55 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
-						<TemplatePicker {...templatePickerProps} />
+				) : (
+					<div>
+						<div className="flex flex-wrap items-center gap-1.5">
+							{normalizedProperties.map((property) => (
+								<InlinePropertyChip
+									key={property.id}
+									property={property}
+									onChange={(next) => updateProperty(property.id, next)}
+									onRemove={() =>
+										commit(normalizedProperties.filter((item) => item.id !== property.id))
+									}
+								/>
+							))}
+							<AddPropertyButton
+								compact
+								onAdd={(property) => commit([...normalizedProperties, property])}
+							/>
+						</div>
+						<div className="mt-1.5 opacity-55 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+							<TemplatePicker {...templatePickerProps} />
+						</div>
 					</div>
-				</div>
-			)}
+				)}
+			</motion.div>
 
 			<LayoutMenu
 				layout={layout}

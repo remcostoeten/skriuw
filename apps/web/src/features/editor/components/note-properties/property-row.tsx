@@ -101,7 +101,7 @@ export function PropertyRow({
 					className={PROPERTY_NAME_INPUT_CLASS}
 				/>
 			</div>
-			<div className="flex min-h-7 flex-1 items-center py-0.5">
+			<div className="flex min-h-7 min-w-0 flex-1 items-center py-0.5">
 				<ValueEditor property={property} onUpdate={(patch) => onChange({ ...property, ...patch })} />
 			</div>
 			<button

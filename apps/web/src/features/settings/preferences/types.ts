@@ -20,6 +20,7 @@ export type EditorPreferences = {
 	animateNumbers: boolean;
 	openNotesInTabs: boolean;
 	notePropertiesLayout: "rows" | "inline";
+	notePropertiesCollapsed: boolean;
 	notePropertiesDefaultTemplateId: string | null;
 	customNotePropertyTemplates: CustomNotePropertyTemplate[];
 }

@@ -15,7 +15,7 @@ import { useCreatePerson } from "@/features/people/hooks/use-create-person";
 import { noop } from "@/shared/lib/noop";
 import { Avatar, Pill } from "./primitives";
 import { NotePropertiesPopover } from "./popover";
-import { submitPropertyField } from "./keyboard";
+import { submitPropertyField, valueDisplayKeys } from "./keyboard";
 
 type Patch = Partial<Pick<NoteProperty, "value" | "options">>;
 
@@ -202,6 +202,10 @@ function OptionPicker({
 					type="button"
 					data-note-property-field
 					onClick={togglePopover}
+					onKeyDown={valueDisplayKeys({
+						onEdit: togglePopover,
+						onClear: () => onUpdate({ value: multi ? [] : "" }),
+					})}
 					className={
 						inline
 							? `inline-flex min-h-6 max-w-[18rem] items-center gap-1 overflow-hidden rounded-md px-0.5 py-0 text-left transition-colors hover:bg-accent/50 ${VALUE_BUTTON_FOCUS_CLASS}`
@@ -339,6 +343,10 @@ function PersonEditor({ property, onUpdate, density = "default" }: EditorProps) 
 					type="button"
 					data-note-property-field
 					onClick={togglePopover}
+					onKeyDown={valueDisplayKeys({
+						onEdit: togglePopover,
+						onClear: () => onUpdate({ value: [] }),
+					})}
 					className={
 						inline
 							? `inline-flex min-h-6 max-w-[18rem] items-center gap-1 overflow-hidden rounded-md px-0.5 py-0 text-left transition-colors hover:bg-accent/50 ${VALUE_BUTTON_FOCUS_CLASS}`
@@ -437,6 +445,7 @@ function UrlEditor({ property, onUpdate }: EditorProps) {
 	if (value && !editing) {
 		return (
 			<a
+				data-note-property-field
 				href={value.startsWith("http") ? value : `https://${value}`}
 				target="_blank"
 				rel="noreferrer"
@@ -445,7 +454,14 @@ function UrlEditor({ property, onUpdate }: EditorProps) {
 					event.preventDefault();
 					setEditing(true);
 				}}
-				className="truncate text-[15px] text-blue-400 underline decoration-blue-400/40 underline-offset-2 hover:decoration-blue-400"
+				onKeyDown={valueDisplayKeys({
+					onEdit: () => setEditing(true),
+					onClear: () => {
+						onUpdate({ value: "" });
+						setEditing(true);
+					},
+				})}
+				className="block min-w-0 flex-1 truncate text-[15px] text-blue-400 underline decoration-blue-400/40 underline-offset-2 hover:decoration-blue-400"
 			>
 				{value}
 			</a>
