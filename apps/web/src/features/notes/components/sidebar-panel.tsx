@@ -286,6 +286,17 @@ export const SidebarPanel = memo(function SidebarPanel({
 	}, [closeSearch, hasSearchSection, isSearchOpen]);
 
 	useEffect(() => {
+		function handleGlobalSearchFocus() {
+			openSearch();
+		}
+
+		window.addEventListener("skriuw:focus-sidebar-search", handleGlobalSearchFocus);
+		return () => {
+			window.removeEventListener("skriuw:focus-sidebar-search", handleGlobalSearchFocus);
+		};
+	}, [openSearch]);
+
+	useEffect(() => {
 		if (isSearchOpen) {
 			searchInputRef.current?.focus();
 		}
