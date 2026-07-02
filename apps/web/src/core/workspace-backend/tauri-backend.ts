@@ -97,6 +97,9 @@ type RustNote = {
 	modifiedAt: number;
 };
 
+/** The Rust `NoteMetadata` wire shape — a `RustNote` without its body columns. */
+type RustNoteMetadata = Omit<RustNote, "content" | "richContent">;
+
 type RustFolder = {
 	id: string;
 	name: string;
@@ -119,17 +122,6 @@ type RustNoteVersion = {
 	reason: string;
 	contentHash: string;
 	createdAt: number;
-};
-
-/** A note's versionable fields, sent to `record_note_version`. */
-type RustNoteVersionSnapshot = {
-	name: string;
-	content: string;
-	richContent: NoteFile["richContent"];
-	preferredEditorMode: NoteFile["preferredEditorMode"];
-	parentId: string | null;
-	tags: string[];
-	properties: NoteFile["properties"];
 };
 
 type RustVersionWriteResult = {
@@ -211,15 +203,25 @@ function fromRustNote(raw: RustNote): NoteFile {
 	};
 }
 
-function toVersionSnapshot(note: NoteFile): RustNoteVersionSnapshot {
+/**
+ * Maps a body-free list row to the `NoteFile` shape with empty body fields,
+ * mirroring the web backend's `recordToNoteMetadata`. Deliberately skips
+ * `resolveRichDocument` — the repair walk over BlockNote JSON is what made
+ * materializing the full list expensive.
+ */
+function fromRustNoteMetadata(raw: RustNoteMetadata): NoteFile {
 	return {
-		name: note.name,
-		content: note.content,
-		richContent: note.richContent,
-		preferredEditorMode: note.preferredEditorMode,
-		parentId: note.parentId ?? null,
-		tags: note.tags ?? [],
-		properties: normalizeNoteProperties(note.properties),
+		id: raw.id,
+		name: raw.name,
+		content: "",
+		richContent: [],
+		preferredEditorMode: raw.preferredEditorMode,
+		parentId: raw.parentId,
+		sortOrder: raw.sortOrder,
+		tags: raw.tags,
+		properties: normalizeNoteProperties(raw.properties),
+		createdAt: new Date(raw.createdAt),
+		modifiedAt: new Date(raw.modifiedAt),
 	};
 }
 
@@ -404,7 +406,17 @@ export function createTauriBackend(): WorkspaceBackend {
 		return run;
 	}
 
+	// The public list is metadata-only (matching the web backend): the sidebar
+	// and every other list consumer never reads bodies, and shipping content +
+	// richContent for the whole vault over JSON IPC costs megabytes per call.
 	async function listNotes(): Promise<NoteFile[]> {
+		const rows = await invoke<RustNoteMetadata[]>("list_note_metadata");
+		return rows.map(fromRustNoteMetadata);
+	}
+
+	// Full rows for the aggregation paths (graph, tag/person scans, rewrites)
+	// that genuinely read every note's body.
+	async function listNotesWithBodies(): Promise<NoteFile[]> {
 		const rows = await invoke<RustNote[]>("list_notes");
 		return rows.map(fromRustNote);
 	}
@@ -449,7 +461,7 @@ export function createTauriBackend(): WorkspaceBackend {
 	async function rewriteNotes(
 		buildPatch: (note: NoteFile) => NoteChipPatch | null,
 	): Promise<string[]> {
-		const notes = await listNotes();
+		const notes = await listNotesWithBodies();
 		const rewritten: string[] = [];
 
 		for (const candidate of notes) {
@@ -461,8 +473,14 @@ export function createTauriBackend(): WorkspaceBackend {
 				const patch = buildPatch(fresh);
 				if (!patch) return;
 				const next: NoteFile = { ...fresh, ...patch, modifiedAt: new Date() };
-				await invoke("upsert_note", { note: toRustNote(next) });
-				await indexNoteLinks(next);
+				await invoke("save_note", {
+					note: toRustNote(next),
+					links: extractNoteLinks(next).map(toRustNoteLink),
+					titleKeys: noteTitleKeys(next),
+					reason: "autosave",
+					createCheckpoint: false,
+					sessionVersionId: null,
+				});
 				rewritten.push(candidate.id);
 			});
 		}
@@ -533,7 +551,7 @@ export function createTauriBackend(): WorkspaceBackend {
 
 			const indexed = await invoke<boolean>("has_indexed_links");
 			if (!indexed) {
-				const notes = await listNotes();
+				const notes = await listNotesWithBodies();
 				await backfillNoteLinks(notes);
 				return buildNoteBacklinks(active, notes);
 			}
@@ -553,7 +571,7 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async getNoteGraph() {
-			const [notes, people] = await Promise.all([listNotes(), listPeople()]);
+			const [notes, people] = await Promise.all([listNotesWithBodies(), listPeople()]);
 			return buildGraphFromNotes(notes, people);
 		},
 
@@ -574,11 +592,10 @@ export function createTauriBackend(): WorkspaceBackend {
 
 		async createNote(input) {
 			const note = noteFromCreateInput(input);
-			await invoke("upsert_note", { note: toRustNote(note) });
-			await indexNoteLinks(note);
-			await invoke("record_note_version", {
-				noteId: note.id,
-				snapshot: toVersionSnapshot(note),
+			await invoke("save_note", {
+				note: toRustNote(note),
+				links: extractNoteLinks(note).map(toRustNoteLink),
+				titleKeys: noteTitleKeys(note),
 				reason: "created",
 				createCheckpoint: false,
 				sessionVersionId: null,
@@ -600,15 +617,17 @@ export function createTauriBackend(): WorkspaceBackend {
 				const raw = await invoke<RustNote | null>("get_note", { id: input.id });
 				if (!raw) return { note: undefined, versionCreated: false };
 				const next = applyNoteUpdate(fromRustNote(raw), input);
-				await invoke("upsert_note", { note: toRustNote(next) });
-				await indexNoteLinks(next);
 
 				const createCheckpoint = input.createCheckpoint === true;
 				const reason: NoteVersionReason =
 					input.name !== undefined ? "rename" : createCheckpoint ? "checkpoint" : "autosave";
-				const versionResult = await invoke<RustVersionWriteResult>("record_note_version", {
-					noteId: next.id,
-					snapshot: toVersionSnapshot(next),
+				// One command for vault write + index upsert + link index +
+				// version bookkeeping; the snapshot is derived Rust-side so the
+				// note body crosses IPC once per save instead of three times.
+				const versionResult = await invoke<RustVersionWriteResult>("save_note", {
+					note: toRustNote(next),
+					links: extractNoteLinks(next).map(toRustNoteLink),
+					titleKeys: noteTitleKeys(next),
 					reason,
 					createCheckpoint,
 					sessionVersionId: createCheckpoint ? (input.sessionVersionId ?? null) : null,
@@ -779,7 +798,7 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async listPersonNotes(personId) {
-			const notes = await listNotes();
+			const notes = await listNotesWithBodies();
 			return notes
 				.filter((note) => noteMentionsPerson(note, personId))
 				.map(toNoteSummary)
@@ -788,7 +807,7 @@ export function createTauriBackend(): WorkspaceBackend {
 
 		async listTags() {
 			const [notes, meta] = await Promise.all([
-				listNotes(),
+				listNotesWithBodies(),
 				invoke<Array<{ name: string; color: string | null }>>("list_note_tag_meta"),
 			]);
 			const notesByTag = new Map<string, number>();
@@ -846,7 +865,7 @@ export function createTauriBackend(): WorkspaceBackend {
 		async listTagNotes(name) {
 			const normalized = normalizeStoredTagEntry(name);
 			if (!normalized) return [];
-			const notes = await listNotes();
+			const notes = await listNotesWithBodies();
 			return notes
 				.filter((note) => noteTagLabels(note).has(normalized))
 				.map(toNoteSummary)
