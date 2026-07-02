@@ -139,6 +139,17 @@ function getEditorView(editor: EditorInstance): EditorInstance | null {
 	return editor?._tiptapEditor?.editorView ?? null;
 }
 
+const COLLAPSED_SELECTION_STATE = {
+	bold: false,
+	italic: false,
+	underline: false,
+	strike: false,
+	code: false,
+	blockType: "paragraph",
+	level: undefined as number | undefined,
+	align: "left",
+};
+
 function getEditorDom(editor: EditorInstance): HTMLElement | null {
 	return getEditorView(editor)?.dom ?? null;
 }
@@ -1192,6 +1203,13 @@ function SelectionBubbleMenu({
 	const state = useEditorState({
 		editor,
 		selector: ({ editor }) => {
+			// This selector runs on EVERY transaction (each keystroke). The bubble
+			// only renders while a range is selected, so with a collapsed caret the
+			// expensive cursor/style getters are skipped in favor of a shared
+			// constant that the deep-equality check resolves for free.
+			if (getEditorView(editor)?.state.selection.empty !== false) {
+				return COLLAPSED_SELECTION_STATE;
+			}
 			let blockType = "paragraph";
 			let level: number | undefined;
 			let align = "left";
