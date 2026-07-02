@@ -4,6 +4,33 @@ Measured on the live vault (`~/.skriuw`) and the current `packages/web-spa` prod
 before the performance batch that follows the 2026-07-02 four-agent audit.
 Re-measure after each batch with the commands below.
 
+## After round 3 (same day, evening) — tags/graph → SQL + guest persistence
+
+Dataset at re-measure: 471 notes, 1.74 MB bodies (779 KB md + 964 KB richContent),
+vault 2.5 MB, `index.db` 3.1 MB. Vault scan still 15 ms warm.
+
+| Metric | Before (round-2 state) | After round 3 |
+|---|---|---|
+| `note_links` index | 13 rows / 470 notes (wiki only — tags/people never persisted; backlinks silently incomplete) | **65 rows** (49 tag + 3 person + 13 wiki) + 494 title keys; self-heals via `LINK_INDEX_VERSION` wipe + launch backfill |
+| `/app/tags` (listTags) | `list_notes` 1.74 MB over IPC + `buildDesiredNoteLinkRows` regex pass over every body | one `list_tag_summaries` SQL GROUP BY, 41 rows ≈ **2 KB** — ~900× less IPC, zero TS parsing |
+| Tag detail / person detail page | `list_notes` 1.74 MB + per-note body scan | one indexed SQL lookup, ≈ **hundreds of bytes** |
+| Graph view (getNoteGraph) | `list_notes` 1.74 MB + re-running link/tag/person extraction regexes over all 471 bodies, then `buildGraphData` | `list_note_metadata` (~63 KB) + `list_note_link_rows` (~8 KB) + people → same `buildGraphData`. ≈ **71 KB**, no extraction pass — now identical shape to the web/Prisma path |
+| Graph/tag correctness | tag + person nodes missing on desktop (rows never written); backlinks under-reported | full parity with web: tag/person rows written at all 6 write sites (`buildRustNoteLinkRows`) |
+| Tag-detection toggle | changed future saves only; stale rows persisted forever | flips trigger `clear_note_links_index` → full backfill → cache invalidation |
+| Guest edits (browser SPA) | never persisted to `skriuw:guest:workspace` (unguarded missing-object-store error + divergent store instances + errors swallowed) | **fixed + browser-verified**: IDB self-rebuild, singleton store, errors logged; RQ persistence no longer writes the guest files list as a note body |
+| Entry/editor JS chunks | 390 / 465 KB gz | 390 / 464 KB gz (unchanged) |
+
+`listNotesWithBodies` (the 1.74 MB call) now survives only in `rewriteNotes` (chip
+propagation genuinely needs bodies) and the pre-index backlinks fallback.
+
+Verified: cargo 48/48 (new tests: tag/person aggregation, index-version wipe), tsc 0
+product-code errors, bun 256 pass (20 pre-existing failures unchanged), SPA build green,
+live vault re-indexed by the running dev app (verified via read-only sqlite3), guest
+create→type→persist→reload verified in a real browser.
+
+Still open: `NotesLayoutShell` memo split, SQLite read-connection pool, lazy collab
+stack, packaged-app runtime profiling (startup-to-interactive, typing INP).
+
 ## After the 2026-07-02 batch (same session)
 
 | Metric | Before | After |

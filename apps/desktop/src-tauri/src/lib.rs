@@ -11,8 +11,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use storage::{
-    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteMetadata,
-    NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person, SearchHit, Storage, TrashRecord,
+    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteLinkReplacement,
+    NoteLinkRow, NoteMetadata, NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person, SearchHit,
+    Storage, TagSummaryRow, TaggedNoteSummaryRow, TrashRecord,
 };
 
 /// Current wall-clock time in epoch milliseconds, for stamping deletions.
@@ -217,6 +218,54 @@ fn replace_note_links(
 #[tauri::command]
 fn has_indexed_links(storage: State<'_, Storage>) -> Result<bool, String> {
     storage.has_indexed_links().map_err(stringify)
+}
+
+#[tauri::command]
+fn list_unindexed_note_ids(storage: State<'_, Storage>) -> Result<Vec<String>, String> {
+    storage.list_unindexed_note_ids().map_err(stringify)
+}
+
+#[tauri::command]
+fn replace_note_links_bulk(
+    storage: State<'_, Storage>,
+    entries: Vec<NoteLinkReplacement>,
+) -> Result<(), String> {
+    storage.replace_note_links_bulk(&entries).map_err(stringify)
+}
+
+#[tauri::command]
+fn clear_note_links_index(storage: State<'_, Storage>) -> Result<(), String> {
+    storage.clear_note_links_index().map_err(stringify)
+}
+
+#[tauri::command]
+fn list_tag_summaries(storage: State<'_, Storage>) -> Result<Vec<TagSummaryRow>, String> {
+    storage.list_tag_summaries().map_err(stringify)
+}
+
+#[tauri::command]
+fn list_tag_notes(
+    storage: State<'_, Storage>,
+    name: String,
+) -> Result<Vec<TaggedNoteSummaryRow>, String> {
+    storage
+        .list_linked_note_summaries("tag", &name)
+        .map_err(stringify)
+}
+
+#[tauri::command]
+fn list_person_notes(
+    storage: State<'_, Storage>,
+    person_id: String,
+) -> Result<Vec<TaggedNoteSummaryRow>, String> {
+    storage
+        .list_linked_note_summaries("person", &person_id)
+        .map_err(stringify)
+}
+
+#[tauri::command]
+fn list_note_link_rows(storage: State<'_, Storage>) -> Result<Vec<NoteLinkRow>, String> {
+    storage.list_note_link_rows().map_err(stringify)
 }
 
 #[tauri::command]
@@ -1251,6 +1300,13 @@ pub fn run() {
             import_workspace_archive,
             delete_note,
             replace_note_links,
+            replace_note_links_bulk,
+            clear_note_links_index,
+            list_tag_summaries,
+            list_tag_notes,
+            list_person_notes,
+            list_note_link_rows,
+            list_unindexed_note_ids,
             has_indexed_links,
             get_backlink_sources,
             search_notes,
