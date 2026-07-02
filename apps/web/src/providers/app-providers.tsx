@@ -14,7 +14,7 @@ import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
 import { QueryCachePersistence } from "@/providers/query-cache-persistence";
 import { WorkspaceWarmup } from "@/providers/workspace-warmup";
 import { ShortcutProvider } from "@/core/shortcuts";
-import { GlobalCommandPalette } from "@/features/layout/components/global-command-palette";
+import { GlobalNotesShortcuts } from "@/features/layout/components/global-notes-shortcuts";
 import { PendingCollabReplay } from "@/features/collaboration/components/pending-collab-replay";
 import { DesktopIndexSync } from "@/features/desktop/desktop-index-sync";
 import { DesktopQuitShortcut } from "@/features/desktop/desktop-quit-shortcut";
@@ -92,7 +92,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 							<ThemeAttribute />
 							<ShortcutProvider>
 								{children}
-								<GlobalCommandPalette />
+								<GlobalNotesShortcuts />
 							</ShortcutProvider>
 							<PendingCollabReplay />
 							<UserToastHost />
