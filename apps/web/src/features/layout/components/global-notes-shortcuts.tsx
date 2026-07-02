@@ -8,7 +8,11 @@ import type { CreateFolderInput } from "@/domain/folders/actions";
 import type { CreateNoteInput } from "@/domain/notes/actions";
 import { NOTE_PROPERTY_TEMPLATES } from "@/domain/notes/properties";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
-import { useShortcutManager, type ShortcutId } from "@/core/shortcuts";
+import {
+	getShortcutDef,
+	useShortcutManager,
+	type ShortcutId,
+} from "@/core/shortcuts";
 import { useWorkspaceCapabilities } from "@/core/workspace-backend";
 import { focusActiveEditor } from "@/shared/lib/focus-editor";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
@@ -62,14 +66,14 @@ function useResolvedShortcutMap(
 	ids: ShortcutId[],
 	handlers: Partial<Record<ShortcutId, (event: KeyboardEvent) => void>>,
 ): ShortcutMap {
-	const { registry, bindings } = useShortcutManager();
+	const { bindings } = useShortcutManager();
 
 	return useMemo<ShortcutMap>(() => {
 		const map: ShortcutMap = {};
 		for (const id of ids) {
-			const def = registry[id];
+			const def = getShortcutDef(id);
 			const handler = handlers[id];
-			if (!def || !handler) continue;
+			if (!handler) continue;
 			map[id] = {
 				keys: bindings[id] ?? def.keys,
 				handler,
@@ -81,7 +85,7 @@ function useResolvedShortcutMap(
 			};
 		}
 		return map;
-	}, [bindings, handlers, ids, registry]);
+	}, [bindings, handlers, ids]);
 }
 
 /**
@@ -145,13 +149,14 @@ export function GlobalNotesShortcuts() {
 
 	const createFolder = useCallback(() => {
 		triggerNativeFeedback("impact");
+		const id = crypto.randomUUID();
 		const input: CreateFolderInput = {
-			id: crypto.randomUUID(),
+			id,
 			name: "Untitled",
 			parentId: null,
 		};
 		createFolderMutation.mutate(input);
-		router.push(`/app?shortcut=renameFolder&folder=${encodeURIComponent(input.id)}`);
+		router.push(`/app?shortcut=renameFolder&folder=${encodeURIComponent(id)}`);
 	}, [createFolderMutation, router]);
 
 	const openCommandPalette = useCallback(() => {
