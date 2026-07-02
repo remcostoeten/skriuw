@@ -1,0 +1,29 @@
+# Skriuw
+
+For more info reference the [Readme](../../README.md).
+Skriuw is lightweight, blazingly fast yet feature rich personal knowledge base. It's a combination of Obsidian and Notion, but rather than relying on Electron, Tauri is built with Rust allowing for native compilation to Mac, Windows and Linux resulting in <6 MB of total binary size.
+
+Skriuw it's size is not the only thing making it fast. It is designed to be keyboard first allowing for you to hop through the entire application via keyboard shortcuts, which are all customizable. Read [shortcuts](./shortcuts.mdx) to reference all current shortcuts.
+
+### Table of contents
+
+// make a nice table of all topics
+[Stack & Technology](##stack--technology)
+[Desktop integration](##desktop-integration)
+[Approach](##approach)
+
+## Stack & Technology
+
+Skriuw started of as a web application monolith written in Next.js 16 and React 19, TypeScript, TailwindCSS and PostgreSQL (via [neon.tech](https://neon.tech)). As of recent we migrated to Prisma, no particular reason rather than trying things out.
+
+Since then we've added a desktop client written in Rust (tauri 2.0). With this addition we also migrated to a monorepo through Bun and Turbopack.
+
+### Desktop integration
+
+to make use of the speed of rust for the dekstop build we chose to not use the Next.js front-end as that was fully invested in API routes and server actions thus we introduced a [web-spa](https://github.com/remcostoeten/skriuw/tree/daddy/packages/web-spa/src) package. This is a "dumb", fully client-side React SPA allowing us to smartly render everything that was Next.js specific and SSR through the SPA, whilst still usingt a agostic shared layer for UI, hooks, utilities and non read/write actions.
+
+### Approach
+
+We use a domain driven / feature sliced approach whilst keeping it in a modern functional approach rather than OOP style. Read [development features](./development-features.mdx) for a list of all the features and domains we have.
+
+In regards of internal back-end routing we use a [adapter] pattern which contains of a ...

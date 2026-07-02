@@ -59,20 +59,27 @@ type GuestGateProps = {
  * `pointer-events-none` only blocks mouse interaction, so without this a
  * real `<button>`/`<a>` child would remain Tab-focusable and activatable via
  * Enter/Space even though it visually appears disabled.
+ *
+ * A single element must come back as a single element, NOT a one-item array:
+ * Radix `asChild` triggers (`Slot`) require `isValidElement(children)`, and
+ * `Children.map` always wraps into an array, which made any gated subtree
+ * containing an `asChild` trigger throw at render.
  */
 function withKeyboardGuard(node: ReactNode): ReactNode {
-	return Children.map(node, (child) => {
-		if (!isValidElement(child)) return child;
-
-		const props = child.props as { children?: ReactNode };
+	if (isValidElement(node)) {
+		const props = node.props as { children?: ReactNode };
 		const guarded = props?.children ? withKeyboardGuard(props.children) : props?.children;
 
-		return cloneElement(child, {
+		return cloneElement(node, {
 			"aria-disabled": "true",
 			tabIndex: -1,
 			...(guarded !== undefined ? { children: guarded } : {}),
 		} as Record<string, unknown>);
-	});
+	}
+
+	return Children.map(node, (child) =>
+		isValidElement(child) ? withKeyboardGuard(child) : child,
+	);
 }
 
 /**
