@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useShortcut } from "@remcostoeten/use-shortcut/react";
+import { useShortcutScope } from "@/core/shortcuts";
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	ChevronLeft,
@@ -48,7 +48,6 @@ import { SettingsFocusShortcutHint } from "./settings-focus-shortcut-hint";
 import {
 	getSettingsMainFocusTarget,
 	getSettingsSidebarFocusTarget,
-	isEditableShortcutTarget,
 } from "@/features/settings/lib/focus-shortcut";
 import {
 	SETTINGS_FOCUS_PARAM,
@@ -141,7 +140,6 @@ export function SettingsPage() {
 	const panelRef = React.useRef<HTMLDivElement>(null);
 	const lastSidebarFocusRef = React.useRef<HTMLElement | null>(null);
 	const lastMainFocusRef = React.useRef<HTMLElement | null>(null);
-	const shortcut = useShortcut({ ignoreInputs: false });
 	const initializePreferences = usePreferencesStore((state) => state.initialize);
 	const logActivity = usePreferencesStore((state) => state.logActivity);
 
@@ -230,15 +228,15 @@ export function SettingsPage() {
 		[focusMainSettings, focusSettingsSidebar],
 	);
 
-	useEffect(() => {
-		const result = shortcut.key("slash").on(handleSlashFocusToggle, {
-			description: "Toggle settings sidebar and main focus",
-			except: (event) => isMobile || isEditableShortcutTarget(event.target),
-			preventDefault: true,
-		});
-
-		return () => result.unbind();
-	}, [handleSlashFocusToggle, isMobile, shortcut]);
+	useShortcutScope(
+		"settings",
+		{
+			"settings.toggleFocus": handleSlashFocusToggle,
+		},
+		{
+			active: !isMobile,
+		},
+	);
 
 	if (isMobile) {
 		const showDetail = parsedTab !== null;

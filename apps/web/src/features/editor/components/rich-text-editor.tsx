@@ -63,6 +63,7 @@ import {
 	Underline,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { getShortcutDef, useShortcutManager, type ShortcutId } from "@/core/shortcuts";
 import { FAST_SWAP_TRANSITION, pickTransition } from "@/shared/lib/motion";
 import { noop } from "@/shared/lib/noop";
 import { perf } from "@/shared/perf/track";
@@ -1955,10 +1956,16 @@ export function RichTextEditor({
 		syncMatchInfo();
 	}, [editor, searchOptions, searchQuery, syncMatchInfo]);
 
+	const { bindings } = useShortcutManager();
+	const shortcutKeys = useCallback(
+		(id: ShortcutId) => bindings[id] ?? getShortcutDef(id).keys,
+		[bindings],
+	);
+
 	useShortcutMap(
 		{
 			findInNote: {
-				keys: "mod+f",
+				keys: shortcutKeys("notes.findInNote"),
 				handler: toggleSearch,
 				options: {
 					description: "Find in note",
@@ -1975,7 +1982,7 @@ export function RichTextEditor({
 	useShortcutMap(
 		{
 			matchCase: {
-				keys: "alt+c",
+				keys: shortcutKeys("notes.searchMatchCase"),
 				handler: () => toggleSearchOption("caseSensitive"),
 				options: {
 					description: "Toggle match case",
@@ -1983,7 +1990,7 @@ export function RichTextEditor({
 				},
 			},
 			wholeWord: {
-				keys: "alt+w",
+				keys: shortcutKeys("notes.searchWholeWord"),
 				handler: () => toggleSearchOption("wholeWord"),
 				options: {
 					description: "Toggle whole word",
@@ -1991,7 +1998,7 @@ export function RichTextEditor({
 				},
 			},
 			regex: {
-				keys: "alt+r",
+				keys: shortcutKeys("notes.searchRegex"),
 				handler: () => toggleSearchOption("regex"),
 				options: {
 					description: "Toggle regular expression",
