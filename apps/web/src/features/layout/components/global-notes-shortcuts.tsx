@@ -143,8 +143,11 @@ export function GlobalNotesShortcuts() {
 			properties,
 		});
 
-		createNoteMutation.mutate(input);
-		router.push(`/app?note=${encodeURIComponent(id)}`);
+		createNoteMutation.mutate(input, {
+			onSuccess: () => {
+				router.push(`/app?note=${encodeURIComponent(id)}`);
+			},
+		});
 	}, [createNoteMutation, defaultModeRaw, defaultPropertiesTemplateId, queryClient, router]);
 
 	const createFolder = useCallback(() => {
@@ -180,7 +183,10 @@ export function GlobalNotesShortcuts() {
 				router.push(shortcutParam("focusEditor"));
 			},
 			"notes.help": () => router.push(shortcutParam("help")),
-			"app.settings": () => router.push("/app/settings"),
+			"app.settings": () => {
+				triggerNativeFeedback("selection");
+				router.push("/app/settings");
+			},
 		}),
 		[createFolder, createNote, globalContextActionsActive, openCommandPalette, router],
 	);
