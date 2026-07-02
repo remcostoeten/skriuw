@@ -7,10 +7,9 @@ import {
 	type NoteChipPatch,
 } from "@/domain/notes/chip-rewrite";
 import { buildDesiredNoteLinkRows } from "@/domain/notes/note-link-sync";
-import { extractRichDocumentPersonIds } from "@/domain/notes/rich-document";
 import { normalizeStoredTagEntry, normalizeTagName } from "@/domain/tags/normalize";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
-import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
+import { buildGraphData } from "@/domain/notes/graph";
 import { resolveRichDocument } from "@/domain/notes/rich-document";
 import {
 	buildNoteBacklinks,
@@ -317,13 +316,32 @@ function fromRustJournalTag(raw: RustJournalTag): JournalTag {
 }
 
 type RustNoteLink = {
-	kind: NoteLink["kind"];
+	kind: NoteLink["kind"] | "tag" | "person";
 	raw: string;
 	targetLabel: string;
 	alias: string | null;
 	targetNoteId: string | null;
 	targetTitleKey: string | null;
 };
+
+/** The Rust `TaggedNoteSummaryRow` wire shape. */
+type RustTaggedNoteSummary = {
+	id: string;
+	name: string;
+	modifiedAt: number;
+};
+
+/** The Rust `NoteLinkRow` wire shape — the graph builder's link input. */
+type RustGraphLinkRow = {
+	sourceNoteId: string;
+	targetNoteId: string | null;
+	targetLabel: string;
+	kind: string;
+};
+
+function fromRustTaggedNoteSummary(raw: RustTaggedNoteSummary) {
+	return { id: raw.id, name: raw.name, modifiedAt: new Date(raw.modifiedAt) };
+}
 
 type RustBacklinkSource = {
 	note: RustNote;
@@ -359,6 +377,29 @@ function toRustNoteLink(link: NoteLink): RustNoteLink {
 }
 
 /**
+ * The full persisted link-row set for a note: wiki/markdown rows from
+ * `extractNoteLinks` (keeping raw/alias/title-key fidelity for backlink
+ * resolution) plus the `tag`/`person` membership rows the web Prisma index
+ * also stores — so the SQL aggregations (tag pages, person pages, graph) see
+ * the same data on desktop as on the web.
+ */
+function buildRustNoteLinkRows(note: NoteFile): RustNoteLink[] {
+	const rows = extractNoteLinks(note).map(toRustNoteLink);
+	for (const row of buildDesiredNoteLinkRows("local", note)) {
+		if (row.kind !== "tag" && row.kind !== "person") continue;
+		rows.push({
+			kind: row.kind,
+			raw: row.kind === "tag" ? `#${row.targetLabel}` : row.targetLabel,
+			targetLabel: row.targetLabel,
+			alias: null,
+			targetNoteId: null,
+			targetTitleKey: null,
+		});
+	}
+	return rows;
+}
+
+/**
  * Backfills the SQLite link index for notes that have no link rows yet — bulk
  * imports and reconcile-adopted external edits write notes without going
  * through `save_note`, so their links/title keys are missing and backlinks
@@ -381,7 +422,7 @@ export async function backfillMissingNoteLinks(): Promise<number> {
 			const note = fromRustNote(raw);
 			return {
 				noteId: note.id,
-				links: extractNoteLinks(note).map(toRustNoteLink),
+				links: buildRustNoteLinkRows(note),
 				titleKeys: noteTitleKeys(note),
 			};
 		});
@@ -473,7 +514,7 @@ export function createTauriBackend(): WorkspaceBackend {
 	async function backfillNoteLinks(notes: NoteFile[]): Promise<void> {
 		const entries = notes.map((note) => ({
 			noteId: note.id,
-			links: extractNoteLinks(note).map(toRustNoteLink),
+			links: buildRustNoteLinkRows(note),
 			titleKeys: noteTitleKeys(note),
 		}));
 		if (entries.length > 0) {
@@ -506,7 +547,7 @@ export function createTauriBackend(): WorkspaceBackend {
 				const next: NoteFile = { ...fresh, ...patch, modifiedAt: new Date() };
 				await invoke("save_note", {
 					note: toRustNote(next),
-					links: extractNoteLinks(next).map(toRustNoteLink),
+					links: buildRustNoteLinkRows(next),
 					titleKeys: noteTitleKeys(next),
 					reason: "autosave",
 					createCheckpoint: false,
@@ -517,32 +558,6 @@ export function createTauriBackend(): WorkspaceBackend {
 		}
 
 		return rewritten;
-	}
-
-	function noteTagLabels(note: NoteFile): Set<string> {
-		const labels = new Set<string>();
-		for (const row of buildDesiredNoteLinkRows("local", note)) {
-			if (row.kind === "tag") labels.add(row.targetLabel);
-		}
-		return labels;
-	}
-
-	function noteMentionsPerson(note: NoteFile, personId: string): boolean {
-		if (extractRichDocumentPersonIds(note.richContent).includes(personId)) return true;
-		return (note.properties ?? []).some(
-			(property) =>
-				property.type === "person" &&
-				Array.isArray(property.value) &&
-				property.value.includes(personId),
-		);
-	}
-
-	function toNoteSummary(note: NoteFile) {
-		return { id: note.id, name: note.name, modifiedAt: note.modifiedAt };
-	}
-
-	function byModifiedDesc(left: { modifiedAt: Date }, right: { modifiedAt: Date }): number {
-		return right.modifiedAt.getTime() - left.modifiedAt.getTime();
 	}
 
 	return {
@@ -601,9 +616,16 @@ export function createTauriBackend(): WorkspaceBackend {
 			return backlinks;
 		},
 
+		// Metadata + persisted link rows + people — the same inputs the web
+		// backend feeds `buildGraphData`, instead of shipping every note body
+		// over IPC and re-extracting links in TS.
 		async getNoteGraph() {
-			const [notes, people] = await Promise.all([listNotesWithBodies(), listPeople()]);
-			return buildGraphFromNotes(notes, people);
+			const [notes, links, people] = await Promise.all([
+				listNotes(),
+				invoke<RustGraphLinkRow[]>("list_note_link_rows"),
+				listPeople(),
+			]);
+			return buildGraphData(notes, links, { people });
 		},
 
 		async searchNotes(query, limit): Promise<NoteSearchHit[]> {
@@ -625,7 +647,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			const note = noteFromCreateInput(input);
 			await invoke("save_note", {
 				note: toRustNote(note),
-				links: extractNoteLinks(note).map(toRustNoteLink),
+				links: buildRustNoteLinkRows(note),
 				titleKeys: noteTitleKeys(note),
 				reason: "created",
 				createCheckpoint: false,
@@ -638,7 +660,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			await invoke("bulk_upsert_notes", { notes: notes.map(toRustNote) });
 			const entries = notes.map((note) => ({
 				noteId: note.id,
-				links: extractNoteLinks(note).map(toRustNoteLink),
+				links: buildRustNoteLinkRows(note),
 				titleKeys: noteTitleKeys(note),
 			}));
 			if (entries.length > 0) {
@@ -660,7 +682,7 @@ export function createTauriBackend(): WorkspaceBackend {
 				// note body crosses IPC once per save instead of three times.
 				const versionResult = await invoke<RustVersionWriteResult>("save_note", {
 					note: toRustNote(next),
-					links: extractNoteLinks(next).map(toRustNoteLink),
+					links: buildRustNoteLinkRows(next),
 					titleKeys: noteTitleKeys(next),
 					reason,
 					createCheckpoint,
@@ -832,37 +854,19 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async listPersonNotes(personId) {
-			const notes = await listNotesWithBodies();
-			return notes
-				.filter((note) => noteMentionsPerson(note, personId))
-				.map(toNoteSummary)
-				.toSorted(byModifiedDesc);
+			const rows = await invoke<RustTaggedNoteSummary[]>("list_person_notes", { personId });
+			return rows.map(fromRustTaggedNoteSummary);
 		},
 
 		async listTags() {
-			const [notes, meta] = await Promise.all([
-				listNotesWithBodies(),
-				invoke<Array<{ name: string; color: string | null }>>("list_note_tag_meta"),
-			]);
-			const notesByTag = new Map<string, number>();
-			for (const note of notes) {
-				for (const label of noteTagLabels(note)) {
-					notesByTag.set(label, (notesByTag.get(label) ?? 0) + 1);
-				}
-			}
-			const colorByName = new Map(meta.map((row) => [row.name, row.color]));
-			const names = new Set([...notesByTag.keys(), ...colorByName.keys()]);
-			return [...names]
-				.map((name) => ({
-					name,
-					color: (colorByName.get(name) as NotePropertyColor | null | undefined) ?? null,
-					noteCount: notesByTag.get(name) ?? 0,
-				}))
-				.toSorted((left, right) =>
-					right.noteCount !== left.noteCount
-						? right.noteCount - left.noteCount
-						: left.name.localeCompare(right.name),
-				);
+			const rows = await invoke<
+				Array<{ name: string; color: string | null; noteCount: number }>
+			>("list_tag_summaries");
+			return rows.map((row) => ({
+				name: row.name,
+				color: (row.color as NotePropertyColor | null) ?? null,
+				noteCount: row.noteCount,
+			}));
 		},
 
 		async setTagColor(name, color) {
@@ -899,11 +903,10 @@ export function createTauriBackend(): WorkspaceBackend {
 		async listTagNotes(name) {
 			const normalized = normalizeStoredTagEntry(name);
 			if (!normalized) return [];
-			const notes = await listNotesWithBodies();
-			return notes
-				.filter((note) => noteTagLabels(note).has(normalized))
-				.map(toNoteSummary)
-				.toSorted(byModifiedDesc);
+			const rows = await invoke<RustTaggedNoteSummary[]>("list_tag_notes", {
+				name: normalized,
+			});
+			return rows.map(fromRustTaggedNoteSummary);
 		},
 
 		async importArchive(payload) {
