@@ -160,6 +160,7 @@ export const FileList = memo(function FileList({
 	// When non-null, "move mode" is active: these items are being relocated and
 	// arrow keys steer a destination cursor until Enter/M drops them (Esc cancels).
 	const [moveModeItems, setMoveModeItems] = useState<SelectedItem[] | null>(null);
+	const [pendingRenameFolderId, setPendingRenameFolderId] = useState<string | null>(null);
 	// A single shared context menu serves every row. Rows carry `data-row-key`;
 	// right-clicking the list resolves the row under the cursor and points the
 	// one menu at it, instead of mounting a Radix ContextMenu per virtualized row.
@@ -449,6 +450,31 @@ export const FileList = memo(function FileList({
 		setEditingName(type === "file" ? stripMarkdownExtension(currentName) : currentName);
 		setEditingType(type);
 	}, []);
+
+	useEffect(() => {
+		function handleRenameFolder(event: Event) {
+			if (!(event instanceof CustomEvent)) return;
+			const id = event.detail?.id;
+			if (typeof id !== "string") return;
+			const folder = folders.find((candidate) => candidate.id === id);
+			if (!folder) {
+				setPendingRenameFolderId(id);
+				return;
+			}
+			startRename(folder.id, folder.name, "folder");
+		}
+
+		window.addEventListener("skriuw:rename-folder", handleRenameFolder);
+		return () => window.removeEventListener("skriuw:rename-folder", handleRenameFolder);
+	}, [folders, startRename]);
+
+	useEffect(() => {
+		if (!pendingRenameFolderId) return;
+		const folder = folders.find((candidate) => candidate.id === pendingRenameFolderId);
+		if (!folder) return;
+		startRename(folder.id, folder.name, "folder");
+		setPendingRenameFolderId(null);
+	}, [folders, pendingRenameFolderId, startRename]);
 
 	const finishRename = useCallback(() => {
 		if (editingId && editingName.trim()) {
