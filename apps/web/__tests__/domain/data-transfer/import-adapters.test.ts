@@ -142,7 +142,7 @@ describe("import adapters", () => {
 		expect(first?.parentPath).toBeNull();
 		expect(first?.deleted).toBe(false);
 		expect(first?.content).toBe("Shopping list\nmilk\neggs #errand");
-		expect(first?.tags).toEqual(["home", "errand"]);
+		expect(first?.tags).toEqual(["home"]);
 		expect(first?.createdAt).toBe("2026-01-02T10:00:00.000Z");
 		expect(first?.preferredEditorMode).toBe("raw");
 

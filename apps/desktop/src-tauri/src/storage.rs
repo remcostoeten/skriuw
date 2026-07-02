@@ -198,6 +198,15 @@ pub struct NoteLinkInput {
     pub target_title_key: Option<String>,
 }
 
+/// One note's link-index replacement, for the bulk backfill path.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteLinkReplacement {
+    pub note_id: String,
+    pub links: Vec<NoteLinkInput>,
+    pub title_keys: Vec<String>,
+}
+
 /// Candidate backlink sources for a target note, plus the ambiguity verdict for
 /// each of the target's title keys. The TS side does the final mapping to
 /// `ResolvedNoteLink[]` so the output is byte-identical to `buildNoteBacklinks`:
@@ -510,6 +519,31 @@ impl Storage {
         let mut conn = self.lock();
         let tx = conn.transaction()?;
         replace_note_links_with(&tx, source_note_id, links, title_keys)?;
+        tx.commit()
+    }
+
+    /// Notes that have never had their links indexed — no `note_titles` rows
+    /// (those are written for every indexed note, even link-free ones). Filled
+    /// by the frontend backfill, since link extraction semantics live in TS.
+    pub fn list_unindexed_note_ids(&self) -> rusqlite::Result<Vec<String>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id FROM notes WHERE id NOT IN (SELECT DISTINCT note_id FROM note_titles)",
+        )?;
+        let rows = stmt.query_map([], |row| row.get(0))?;
+        rows.collect()
+    }
+
+    /// Replaces the link rows + title keys for many notes in one transaction.
+    pub fn replace_note_links_bulk(
+        &self,
+        entries: &[NoteLinkReplacement],
+    ) -> rusqlite::Result<()> {
+        let mut conn = self.lock();
+        let tx = conn.transaction()?;
+        for entry in entries {
+            replace_note_links_with(&tx, &entry.note_id, &entry.links, &entry.title_keys)?;
+        }
         tx.commit()
     }
 

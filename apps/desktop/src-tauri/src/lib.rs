@@ -11,8 +11,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use storage::{
-    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteMetadata,
-    NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person, SearchHit, Storage, TrashRecord,
+    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteLinkReplacement,
+    NoteMetadata, NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person, SearchHit, Storage,
+    TrashRecord,
 };
 
 /// Current wall-clock time in epoch milliseconds, for stamping deletions.
@@ -217,6 +218,19 @@ fn replace_note_links(
 #[tauri::command]
 fn has_indexed_links(storage: State<'_, Storage>) -> Result<bool, String> {
     storage.has_indexed_links().map_err(stringify)
+}
+
+#[tauri::command]
+fn list_unindexed_note_ids(storage: State<'_, Storage>) -> Result<Vec<String>, String> {
+    storage.list_unindexed_note_ids().map_err(stringify)
+}
+
+#[tauri::command]
+fn replace_note_links_bulk(
+    storage: State<'_, Storage>,
+    entries: Vec<NoteLinkReplacement>,
+) -> Result<(), String> {
+    storage.replace_note_links_bulk(&entries).map_err(stringify)
 }
 
 #[tauri::command]
@@ -1251,6 +1265,8 @@ pub fn run() {
             import_workspace_archive,
             delete_note,
             replace_note_links,
+            replace_note_links_bulk,
+            list_unindexed_note_ids,
             has_indexed_links,
             get_backlink_sources,
             search_notes,
