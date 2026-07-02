@@ -25,6 +25,26 @@ pub struct Note {
     pub modified_at: i64,
 }
 
+/// A note row without its body columns (`content`, `rich_content`) — what the
+/// sidebar/list UI actually consumes. Listing bodies for every note ships
+/// megabytes of JSON over IPC per call on a real vault; this keeps the list
+/// payload to metadata, mirroring the web backend's metadata-only list query
+/// (`listNoteMetadata` in `domain/notes/queries.ts`). The TS side fills
+/// `content`/`richContent` with empty values to preserve the `NoteFile` shape.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteMetadata {
+    pub id: String,
+    pub name: String,
+    pub preferred_editor_mode: String,
+    pub parent_id: Option<String>,
+    pub sort_order: i64,
+    pub tags: Vec<String>,
+    pub properties: serde_json::Value,
+    pub created_at: i64,
+    pub modified_at: i64,
+}
+
 /// A folder row, matching the TypeScript `NoteFolder` contract.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -405,6 +425,18 @@ impl Storage {
 			 parent_id, sort_order, tags, properties, created_at, modified_at FROM notes",
         )?;
         let rows = stmt.query_map([], row_to_note)?;
+        rows.collect()
+    }
+
+    /// Lists every note WITHOUT its body columns. This is the sidebar/list hot
+    /// path; bodies are fetched per note via `get_note`/`get_notes`.
+    pub fn list_note_metadata(&self) -> rusqlite::Result<Vec<NoteMetadata>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare_cached(
+            "SELECT id, name, preferred_editor_mode, parent_id, sort_order, \
+			 tags, properties, created_at, modified_at FROM notes",
+        )?;
+        let rows = stmt.query_map([], row_to_note_metadata)?;
         rows.collect()
     }
 
@@ -1140,6 +1172,23 @@ fn row_to_note(row: &rusqlite::Row<'_>) -> rusqlite::Result<Note> {
             .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
         created_at: row.get(9)?,
         modified_at: row.get(10)?,
+    })
+}
+
+fn row_to_note_metadata(row: &rusqlite::Row<'_>) -> rusqlite::Result<NoteMetadata> {
+    let tags_raw: String = row.get(5)?;
+    let properties_raw: String = row.get(6)?;
+    Ok(NoteMetadata {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        preferred_editor_mode: row.get(2)?,
+        parent_id: row.get(3)?,
+        sort_order: row.get(4)?,
+        tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
+        properties: serde_json::from_str(&properties_raw)
+            .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
+        created_at: row.get(7)?,
+        modified_at: row.get(8)?,
     })
 }
 
