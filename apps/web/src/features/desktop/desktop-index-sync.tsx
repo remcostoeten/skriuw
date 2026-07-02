@@ -2,8 +2,13 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { isTauriRuntime, tauriInvoke } from "@/core/workspace-backend/tauri-backend";
+import {
+	backfillMissingNoteLinks,
+	isTauriRuntime,
+	tauriInvoke,
+} from "@/core/workspace-backend/tauri-backend";
 import { notesKeys } from "@/features/notes/lib/notes-keys";
+import { noop } from "@/shared/lib/noop";
 
 type TauriEventApi = {
 	listen: (event: string, handler: (event: { payload: unknown }) => void) => Promise<() => void>;
@@ -42,6 +47,18 @@ export function DesktopIndexSync(): null {
 			unlisten?.();
 			unlisten = undefined;
 			void queryClient.invalidateQueries({ queryKey: notesKeys.all });
+
+			// The reconcile adopts imported/externally-edited notes into the
+			// index without link rows; index them now so backlinks are complete.
+			void backfillMissingNoteLinks()
+				.then((indexed) => {
+					if (indexed > 0) {
+						void queryClient.invalidateQueries({
+							queryKey: notesKeys.backlinksAll(),
+						});
+					}
+				})
+				.catch(noop);
 		}
 
 		function pollReady() {
