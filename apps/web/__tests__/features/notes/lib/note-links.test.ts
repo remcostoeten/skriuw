@@ -12,6 +12,7 @@ import {
 	getNoteTitle,
 	getWorkspaceTags,
 } from "@/domain/notes/note-links";
+import { setTagDetectionEnabled } from "@/domain/notes/tag-detection";
 import type { NoteFile } from "@/types/notes";
 
 function note(input: Partial<NoteFile> & Pick<NoteFile, "id" | "name" | "content">): NoteFile {
@@ -33,6 +34,16 @@ describe("note link indexing", () => {
 			"product",
 			"writing",
 		]);
+	});
+
+	test("extracts nothing while tag detection is disabled", () => {
+		setTagDetectionEnabled(false);
+		try {
+			expect(extractNoteTags("#Some comment\nDB_URL=postgres://x #legacy")).toEqual([]);
+		} finally {
+			setTagDetectionEnabled(true);
+		}
+		expect(extractNoteTags("#Some comment")).toEqual(["some"]);
 	});
 
 	test("extracts wiki links and internal markdown note links", () => {

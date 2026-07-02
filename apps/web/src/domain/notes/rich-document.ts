@@ -1,5 +1,6 @@
 import type { Block, PartialBlock } from "@blocknote/core";
 import { isFileTreeFence, normalizeFileTreeSource } from "@/shared/lib/file-tree";
+import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
 import type { RichTextDocument } from "@/types/notes";
 
 type InlineNode = {
@@ -133,16 +134,18 @@ function findInlineHits(text: string): InlineHit[] {
 		});
 	}
 
-	for (const match of text.matchAll(TAG_PATTERN)) {
-		const prefix = match[1] ?? "";
-		const name = match[2]?.trim();
-		if (!name) continue;
-		const start = (match.index ?? 0) + prefix.length;
-		hits.push({
-			start,
-			end: start + 1 + name.length,
-			produce: () => [{ type: "tag", props: { name } }],
-		});
+	if (isTagDetectionEnabled()) {
+		for (const match of text.matchAll(TAG_PATTERN)) {
+			const prefix = match[1] ?? "";
+			const name = match[2]?.trim();
+			if (!name) continue;
+			const start = (match.index ?? 0) + prefix.length;
+			hits.push({
+				start,
+				end: start + 1 + name.length,
+				produce: () => [{ type: "tag", props: { name } }],
+			});
+		}
 	}
 
 	hits.sort((left, right) => {
