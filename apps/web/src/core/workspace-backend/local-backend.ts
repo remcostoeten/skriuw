@@ -27,7 +27,7 @@ import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import {
 	clearGuestWorkspaceIndexedDB,
 	clearGuestWorkspaceLocalStorageSync,
-	createGuestWorkspaceStore,
+	getGuestWorkspaceStore,
 	readGuestWorkspacePayloadFromLocalStorageSync,
 	type GuestWorkspacePayload,
 } from "./local-store";
@@ -74,7 +74,7 @@ function isBrowser(): boolean {
  * that would clobber the seed name/parent on next reload.
  */
 export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
-	const store = createGuestWorkspaceStore();
+	const store = getGuestWorkspaceStore();
 	const filesKey = notesKeys.files(notesKeys.localScope());
 	const foldersKey = notesKeys.folders(notesKeys.localScope());
 
@@ -482,7 +482,7 @@ export async function mergeSeedWithGuestWorkspace(
 	seedNotes: NoteFile[],
 	seedFolders: NoteFolder[],
 ): Promise<GuestWorkspacePayload> {
-	const store = createGuestWorkspaceStore();
+	const store = getGuestWorkspaceStore();
 	const stored = await store.read();
 	return {
 		...stored,
@@ -496,7 +496,7 @@ export async function resetGuestStorage(): Promise<void> {
 		clearGuestWorkspaceLocalStorageSync();
 		window.localStorage.removeItem(ENGAGEMENT_STORAGE_KEY);
 	}
-	await createGuestWorkspaceStore()
+	await getGuestWorkspaceStore()
 		.clear()
 		.catch(async () => {
 			await clearGuestWorkspaceIndexedDB();

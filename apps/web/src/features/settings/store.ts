@@ -2,6 +2,7 @@ import { optIn, optOut } from "@remcostoeten/analytics";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getUserScopeId, resolveUserScopeId, SIGNED_OUT_USER_SCOPE } from "@/core/auth";
+import { setTagDetectionEnabled } from "@/domain/notes/tag-detection";
 import { updateUserEditorPreferences } from "@/features/settings/lib/editor-preferences";
 import { createDefaultProfile } from "./preferences/defaults";
 import {
@@ -340,3 +341,11 @@ export const usePreferencesStore = create<PreferencesState>()(
 		},
 	),
 );
+
+// The tag-derivation regex runs deep inside pure domain code (note-links,
+// rich-document) where no React context is reachable, so the preference is
+// mirrored into a module-level flag instead of threaded through every caller.
+setTagDetectionEnabled(usePreferencesStore.getState().editor.detectTagsInText);
+usePreferencesStore.subscribe((state) => {
+	setTagDetectionEnabled(state.editor.detectTagsInText);
+});

@@ -8,6 +8,7 @@ import {
 	resetGuestStorage,
 	GUEST_SIGNUP_PROMPT_EVENT,
 } from "@/core/workspace-backend/local-backend";
+import { resetGuestWorkspaceStoreForTests } from "@/core/workspace-backend/local-store";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 
@@ -71,6 +72,7 @@ function seedNote(overrides: Partial<NoteFile> = {}): NoteFile {
 describe("local workspace backend", () => {
 	beforeEach(() => {
 		installWindow();
+		resetGuestWorkspaceStoreForTests();
 	});
 
 	afterEach(() => {
