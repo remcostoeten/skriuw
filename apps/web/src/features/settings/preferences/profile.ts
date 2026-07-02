@@ -128,6 +128,10 @@ export function normalizeProfile(
 				profile?.editor?.openNotesInTabs,
 				fallback.editor.openNotesInTabs,
 			),
+			detectTagsInText: normalizeBoolean(
+				profile?.editor?.detectTagsInText,
+				fallback.editor.detectTagsInText,
+			),
 			notePropertiesLayout: normalizeNotePropertiesLayout(
 				profile?.editor?.notePropertiesLayout,
 				fallback.editor.notePropertiesLayout,

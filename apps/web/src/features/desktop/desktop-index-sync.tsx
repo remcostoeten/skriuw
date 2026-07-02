@@ -2,8 +2,16 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { isTauriRuntime, tauriInvoke } from "@/core/workspace-backend/tauri-backend";
+import {
+	backfillMissingNoteLinks,
+	isTauriRuntime,
+	tauriInvoke,
+} from "@/core/workspace-backend/tauri-backend";
 import { notesKeys } from "@/features/notes/lib/notes-keys";
+import { peopleKeys } from "@/features/people/lib/people-keys";
+import { tagsKeys } from "@/features/tags/lib/tags-keys";
+import { usePreferencesStore } from "@/features/settings/store";
+import { noop } from "@/shared/lib/noop";
 
 type TauriEventApi = {
 	listen: (event: string, handler: (event: { payload: unknown }) => void) => Promise<() => void>;
@@ -42,6 +50,22 @@ export function DesktopIndexSync(): null {
 			unlisten?.();
 			unlisten = undefined;
 			void queryClient.invalidateQueries({ queryKey: notesKeys.all });
+
+			// The reconcile adopts imported/externally-edited notes into the
+			// index without link rows; index them now. Backlinks, the graph,
+			// and the tag/person aggregations all read the persisted rows.
+			void backfillMissingNoteLinks()
+				.then((indexed) => {
+					if (indexed > 0) {
+						void queryClient.invalidateQueries({
+							queryKey: notesKeys.backlinksAll(),
+						});
+						void queryClient.invalidateQueries({ queryKey: notesKeys.graph() });
+						void queryClient.invalidateQueries({ queryKey: tagsKeys.all });
+						void queryClient.invalidateQueries({ queryKey: peopleKeys.all });
+					}
+				})
+				.catch(noop);
 		}
 
 		function pollReady() {
@@ -68,6 +92,30 @@ export function DesktopIndexSync(): null {
 			cancelled = true;
 			unlisten?.();
 		};
+	}, [queryClient]);
+
+	// The tag-detection preference is applied at link-extraction time, so its
+	// effect is baked into the persisted note_links rows. Flipping it would
+	// otherwise only affect notes saved afterwards — rebuild the whole index so
+	// the tags page / graph reflect the new setting immediately.
+	useEffect(() => {
+		if (!isTauriRuntime()) return;
+
+		let previous = usePreferencesStore.getState().editor.detectTagsInText;
+		return usePreferencesStore.subscribe((state) => {
+			const current = state.editor.detectTagsInText;
+			if (current === previous) return;
+			previous = current;
+			void tauriInvoke("clear_note_links_index")
+				.then(() => backfillMissingNoteLinks())
+				.then(() => {
+					void queryClient.invalidateQueries({ queryKey: notesKeys.backlinksAll() });
+					void queryClient.invalidateQueries({ queryKey: notesKeys.graph() });
+					void queryClient.invalidateQueries({ queryKey: tagsKeys.all });
+					void queryClient.invalidateQueries({ queryKey: peopleKeys.all });
+				})
+				.catch(noop);
+		});
 	}, [queryClient]);
 
 	return null;

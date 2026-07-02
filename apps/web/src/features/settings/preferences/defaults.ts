@@ -17,6 +17,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 	lineHeight: "comfortable",
 	animateNumbers: true,
 	openNotesInTabs: false,
+	detectTagsInText: true,
 	notePropertiesLayout: "rows",
 	notePropertiesCollapsed: false,
 	notePropertiesDefaultTemplateId: null,

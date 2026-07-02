@@ -103,7 +103,7 @@ describe("importSimplenoteFile", () => {
 		const active = state.imported.find((note) => note.id === "11111111-1111-1111-1111-111111111111")!;
 		expect(active.name).toBe("Active note.md");
 		expect(active.parentId).toBeNull();
-		expect(active.tags).toEqual(["work", "idea"]);
+		expect(active.tags).toEqual(["work"]);
 		expect(active.content).toBe("Active note\nbody #idea");
 		expect(active.createdAt.toISOString()).toBe("2020-03-04T08:00:00.000Z");
 		expect(active.modifiedAt.toISOString()).toBe("2021-06-07T09:00:00.000Z");

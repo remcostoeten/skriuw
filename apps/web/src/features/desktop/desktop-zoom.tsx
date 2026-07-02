@@ -1,6 +1,22 @@
 import * as React from "react";
 
 import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
+import { noop } from "@/shared/lib/noop";
+
+type TauriWebview = { setZoom: (factor: number) => Promise<void> };
+type TauriWebviewApi = {
+	getCurrentWebview?: () => TauriWebview;
+	getCurrent?: () => TauriWebview;
+};
+type TauriWebviewGlobal = { __TAURI__?: { webview?: TauriWebviewApi } };
+
+function getWebview(): TauriWebview | null {
+	if (typeof window === "undefined") return null;
+	const api = (window as TauriWebviewGlobal).__TAURI__?.webview;
+	if (!api) return null;
+	const resolve = api.getCurrentWebview ?? api.getCurrent;
+	return resolve ? resolve() : null;
+}
 
 const ZOOM_STORAGE_KEY = "skriuw:desktop:zoom:v1";
 const MIN_ZOOM = 0.5;
@@ -23,9 +39,19 @@ function readStoredZoom(): number {
 }
 
 function applyZoom(value: number): void {
-	// WebKitGTK (the Tauri webview on Linux) and the Chromium-based webviews
-	// honour the non-standard CSS `zoom`, which reflows like real browser zoom
-	// rather than a blurry transform scale.
+	// Zoom at the webview engine level, not via CSS `zoom`. CSS `zoom` on
+	// WebKitGTK puts `getBoundingClientRect()` (read by floating-ui) and
+	// `MouseEvent.clientX/clientY` (used to anchor context menus) in different
+	// coordinate spaces, so every popover, dropdown and context menu mis-anchors
+	// by a fixed offset. Native `setZoom` scales the whole webview, keeping both
+	// spaces in sync.
+	const webview = getWebview();
+	if (webview) {
+		const style = document.documentElement.style as CSSStyleDeclaration & { zoom: string };
+		if (style.zoom) style.zoom = "";
+		webview.setZoom(value).catch(noop);
+		return;
+	}
 	(document.documentElement.style as CSSStyleDeclaration & { zoom: string }).zoom = String(value);
 }
 
