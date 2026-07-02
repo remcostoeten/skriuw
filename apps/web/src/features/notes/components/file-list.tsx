@@ -1764,6 +1764,7 @@ export const FileList = memo(function FileList({
 							tabIndex={0}
 							className={cn(
 								"group relative flex w-full items-center justify-between overflow-hidden border border-transparent text-xs font-medium transition-colors",
+								"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 								!isEditing && "active:scale-[0.985]",
 								compactMode ? "h-[28px]" : "h-[34px]",
 								isSelected
@@ -1901,6 +1902,7 @@ export const FileList = memo(function FileList({
 						tabIndex={0}
 						className={cn(
 							"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors",
+							"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 							!isEditing && "active:scale-[0.985]",
 							compactMode ? "h-7" : "h-[34px]",
 							isSelected || activeFileId === file.id
