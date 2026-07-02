@@ -132,6 +132,10 @@ export function normalizeProfile(
 				profile?.editor?.notePropertiesLayout,
 				fallback.editor.notePropertiesLayout,
 			),
+			notePropertiesCollapsed: normalizeBoolean(
+				profile?.editor?.notePropertiesCollapsed,
+				fallback.editor.notePropertiesCollapsed,
+			),
 			notePropertiesDefaultTemplateId: normalizeNotePropertiesDefaultTemplateId(
 				profile?.editor?.notePropertiesDefaultTemplateId,
 			),
