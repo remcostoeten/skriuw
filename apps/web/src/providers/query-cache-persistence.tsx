@@ -75,6 +75,10 @@ export function QueryCachePersistence() {
 				// stale snapshot look "newer" than the fresh SSR data to hydrate()).
 				// A persisted orphan body, by contrast, is harmless: the SSR-fresh
 				// list never references it, so it never renders.
+				// Scope-suffixed LIST keys (["notes","files","local"] /
+				// ["notes","files","user:<id>"]) share this exact shape with detail
+				// keys, so they must be excluded by value or the guest/user files
+				// list gets persisted as if it were a note body.
 				shouldDehydrateQuery: (query) => {
 					if (query.state.status !== "success") return false;
 					const key = query.queryKey;
@@ -83,7 +87,9 @@ export function QueryCachePersistence() {
 						key.length === 3 &&
 						key[0] === "notes" &&
 						key[1] === "files" &&
-						typeof key[2] === "string"
+						typeof key[2] === "string" &&
+						key[2] !== "local" &&
+						!key[2].startsWith("user:")
 					);
 				},
 			},

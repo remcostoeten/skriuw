@@ -148,7 +148,8 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 				reconcileSavedNoteCache(queryClient, input, result, { filesKey });
 				optionsRef.current.onSaved?.(id);
 				return true;
-			} catch {
+			} catch (error) {
+				console.error(`Note save failed for ${id}`, error);
 				if ((versionsRef.current.get(id) ?? 0) !== baselineVersion) {
 					return false;
 				}
