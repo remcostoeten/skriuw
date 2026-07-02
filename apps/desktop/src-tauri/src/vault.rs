@@ -46,6 +46,14 @@ const TRASH_INDEX_FILE: &str = "trash.json";
 pub struct VaultStore {
     root: Mutex<PathBuf>,
     write_lock: Mutex<()>,
+    /// Lazy id → file-path cache backing `find_note_path`. Without it every note
+    /// save re-reads and frontmatter-parses the entire vault to locate the file.
+    /// Built on first lookup, maintained incrementally by upsert/delete/trash,
+    /// dropped wholesale on batch moves and root changes. External file moves
+    /// made while the app runs are caught by the per-hit staleness check;
+    /// externally *added* files surface at the next launch reconcile, matching
+    /// the vault's documented external-edit semantics.
+    note_paths: Mutex<Option<HashMap<String, PathBuf>>>,
 }
 
 impl VaultStore {
@@ -56,6 +64,7 @@ impl VaultStore {
         let store = Self {
             root: Mutex::new(root.to_path_buf()),
             write_lock: Mutex::new(()),
+            note_paths: Mutex::new(None),
         };
         if !store.folders_path().exists() {
             store.write_folders(&[])?;
@@ -73,6 +82,8 @@ impl VaultStore {
     pub fn reload_root(&self, root: PathBuf) {
         let mut guard = self.root.lock().expect("vault root mutex poisoned");
         *guard = root;
+        drop(guard);
+        self.invalidate_note_paths();
     }
 
     fn folders_path(&self) -> PathBuf {
@@ -120,6 +131,7 @@ impl VaultStore {
         if dir.starts_with(&root) && dir != root && dir.exists() {
             fs::remove_dir_all(&dir)?;
         }
+        self.invalidate_note_paths();
         let doomed = descendant_ids(&folders, id);
         let kept: Vec<Folder> = folders
             .into_iter()
@@ -161,7 +173,9 @@ impl VaultStore {
         }
 
         let target = dir.join(note_file_name(&note.name));
-        fs::write(&target, render_note(note))
+        fs::write(&target, render_note(note))?;
+        self.cache_note_path(&note.id, target);
+        Ok(())
     }
 
     pub fn delete_note(&self, id: &str) -> io::Result<()> {
@@ -169,6 +183,7 @@ impl VaultStore {
         if let Some(path) = self.find_note_path(id)? {
             fs::remove_file(path)?;
         }
+        self.uncache_note_path(id);
         Ok(())
     }
 
@@ -219,6 +234,7 @@ impl VaultStore {
         };
         fs::create_dir_all(self.trash_notes_dir())?;
         move_file(&path, &self.trash_note_file(id))?;
+        self.uncache_note_path(id);
 
         let mut records = self.read_trash()?;
         records.push(TrashRecord {
@@ -288,6 +304,7 @@ impl VaultStore {
         if dir.starts_with(&root) && dir != root && dir.exists() {
             fs::remove_dir_all(&dir)?;
         }
+        self.invalidate_note_paths();
         let kept: Vec<Folder> = folders
             .into_iter()
             .filter(|folder| !subtree.iter().any(|folder_id| folder_id == &folder.id))
@@ -349,6 +366,7 @@ impl VaultStore {
             }
         }
 
+        self.invalidate_note_paths();
         self.write_trash(&rest)
     }
 
@@ -450,14 +468,62 @@ impl VaultStore {
     }
 
     fn find_note_path(&self, id: &str) -> io::Result<Option<PathBuf>> {
-        let mut found = None;
+        let mut cache = self.note_paths.lock().expect("vault path cache poisoned");
+        if cache.is_none() {
+            *cache = Some(self.build_note_paths()?);
+        }
+        let map = cache.as_mut().expect("cache populated above");
+
+        if let Some(path) = map.get(id) {
+            let still_there = fs::read_to_string(path)
+                .ok()
+                .and_then(|raw| frontmatter_id(&raw))
+                .is_some_and(|found| found == id);
+            if still_there {
+                return Ok(Some(path.clone()));
+            }
+            // The file moved or changed under us (external edit) — rebuild once.
+            *map = self.build_note_paths()?;
+            return Ok(map.get(id).cloned());
+        }
+        Ok(None)
+    }
+
+    fn build_note_paths(&self) -> io::Result<HashMap<String, PathBuf>> {
+        let mut map = HashMap::new();
         let root = self.root();
         self.walk_markdown(&root, &mut |path, raw| {
-            if frontmatter_id(raw).as_deref() == Some(id) {
-                found = Some(path.to_path_buf());
+            if let Some(id) = frontmatter_id(raw) {
+                map.insert(id, path.to_path_buf());
             }
         })?;
-        Ok(found)
+        Ok(map)
+    }
+
+    fn invalidate_note_paths(&self) {
+        *self.note_paths.lock().expect("vault path cache poisoned") = None;
+    }
+
+    fn cache_note_path(&self, id: &str, path: PathBuf) {
+        if let Some(map) = self
+            .note_paths
+            .lock()
+            .expect("vault path cache poisoned")
+            .as_mut()
+        {
+            map.insert(id.to_string(), path);
+        }
+    }
+
+    fn uncache_note_path(&self, id: &str) {
+        if let Some(map) = self
+            .note_paths
+            .lock()
+            .expect("vault path cache poisoned")
+            .as_mut()
+        {
+            map.remove(id);
+        }
     }
 
     fn walk_markdown(&self, dir: &Path, visit: &mut dyn FnMut(&Path, &str)) -> io::Result<()> {

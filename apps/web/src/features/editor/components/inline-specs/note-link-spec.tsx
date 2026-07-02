@@ -1,7 +1,7 @@
 "use client";
 
 import { createReactInlineContentSpec } from "@blocknote/react";
-import { findFirstNoteByTitle, resolveNoteLink, type NoteLink } from "@/domain/notes/note-links";
+import { type NoteLink } from "@/domain/notes/note-links";
 import { useNoteLinkActions } from "@/features/editor/hooks/use-note-link-actions";
 import { useNoteLinkContext } from "./note-link-context";
 import { cn } from "@/shared/lib/utils";
@@ -26,7 +26,7 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
 		},
 		render: ({ inlineContent }) => {
 			const title = String(inlineContent.props.title ?? "");
-			const { files, activeFileId } = useNoteLinkContext();
+			const { activeFileId, resolver } = useNoteLinkContext();
 			const { openNote, createAndOpenNote, isCreatingTitle } = useNoteLinkActions();
 
 			const linkInput: NoteLink = {
@@ -35,7 +35,7 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
 				sourceNoteId: activeFileId ?? "",
 				targetLabel: title,
 			};
-			const resolved = resolveNoteLink(linkInput, files);
+			const resolved = resolver.resolve(linkInput);
 			const isResolved = resolved.status === "resolved" && Boolean(resolved.targetNoteId);
 			const isCreating = isCreatingTitle(title);
 
@@ -56,7 +56,7 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
 				// match so the link stays navigable instead of being a dead button
 				// (and so we never create a further duplicate).
 				if (resolved.status === "ambiguous") {
-					const match = findFirstNoteByTitle(files, title);
+					const match = resolver.findFirstByTitle(title);
 					if (match) openNote(match.id);
 					return;
 				}

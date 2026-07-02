@@ -29,7 +29,14 @@ const STRIKE_PATTERN = /~~([^~\n]+?)~~/g;
 const ITALIC_STAR_PATTERN = /(^|[^*\w])\*((?:[^*\n]+?))\*(?!\*)/g;
 const ITALIC_UNDERSCORE_PATTERN = /(^|[^_\w])_([^_\n]+?)_(?!\w)/g;
 
+// Every pattern below requires one of these characters, so a plain text node
+// (the overwhelming majority in an already-upgraded document) skips the whole
+// nine-regex battery with one scan. This runs per text node on the editor
+// mount and note-switch paths.
+const INLINE_TRIGGER_PATTERN = /[`[*_~#]/;
+
 function findInlineHits(text: string): InlineHit[] {
+	if (!INLINE_TRIGGER_PATTERN.test(text)) return [];
 	const hits: InlineHit[] = [];
 
 	for (const match of text.matchAll(CODE_SPAN_PATTERN)) {

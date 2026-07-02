@@ -244,6 +244,31 @@ export function resolveNoteLink(link: NoteLink, files: NoteFile[]): ResolvedNote
 	return resolveNoteLinkWithIndexes(link, buildNoteIdIndex(files), buildTitleIndex(files));
 }
 
+export type NoteLinkResolver = {
+	resolve(link: NoteLink): ResolvedNoteLink;
+	findFirstByTitle(title: string): NoteFile | null;
+};
+
+/**
+ * Prebuilds the id/title indexes over `files` once so callers that resolve many
+ * links against the same file set (every wiki-link chip in a rendered document)
+ * pay O(files) a single time instead of per link. Build it in a memo keyed on
+ * `files` and share it; each `resolve` is then a map lookup.
+ */
+export function createNoteLinkResolver(files: NoteFile[]): NoteLinkResolver {
+	const notesById = buildNoteIdIndex(files);
+	const titleIndex = buildTitleIndex(files);
+
+	return {
+		resolve(link) {
+			return resolveNoteLinkWithIndexes(link, notesById, titleIndex);
+		},
+		findFirstByTitle(title) {
+			return titleIndex.get(normalizeNoteTitle(title))?.[0] ?? null;
+		},
+	};
+}
+
 export function findNoteByTitle(
 	files: NoteFile[],
 	title: string,

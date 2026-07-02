@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useAuth } from "@/core/auth/use-auth";
 import { mergeSeedWithGuestWorkspace } from "@/core/workspace-backend";
+import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 
@@ -16,7 +17,9 @@ import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 export function GuestWorkspaceBootstrap() {
 	const auth = useAuth();
 	const queryClient = useQueryClient();
-	const isGuest = auth.isReady && auth.phase !== "authenticated";
+	// Desktop is unauthenticated but NOT a guest — its workspace lives in the
+	// vault via tauriBackend, and there is no seed snapshot to merge.
+	const isGuest = auth.isReady && auth.phase !== "authenticated" && !isTauriRuntime();
 
 	useEffect(() => {
 		if (!isGuest) return;
