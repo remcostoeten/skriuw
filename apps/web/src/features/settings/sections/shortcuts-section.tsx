@@ -19,6 +19,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 
 type GroupedShortcuts = { group: string; ids: ShortcutId[] };
+type ShortcutConflict = { label: string; combo: string };
 
 function groupShortcuts(registry: ReturnType<typeof useShortcutManager>["registry"]): GroupedShortcuts[] {
 	const groups: GroupedShortcuts[] = [];
@@ -31,9 +32,30 @@ function groupShortcuts(registry: ReturnType<typeof useShortcutManager>["registr
 	return groups;
 }
 
+function combosFor(keys: string | string[]): string[] {
+	return Array.isArray(keys) ? keys : [keys];
+}
+
+function findShortcutConflict(
+	id: ShortcutId,
+	combo: string,
+	bindings: ReturnType<typeof useShortcutManager>["bindings"],
+): ShortcutConflict | null {
+	const def = getShortcutDef(id);
+	for (const candidate of getShortcutIds()) {
+		if (candidate === id) continue;
+		const candidateDef = getShortcutDef(candidate);
+		if (def.bindingGroup && candidateDef.bindingGroup === def.bindingGroup) continue;
+		if (!combosFor(bindings[candidate] ?? candidateDef.keys).includes(combo)) continue;
+		return { label: candidateDef.label, combo };
+	}
+	return null;
+}
+
 export function ShortcutsSection() {
 	const { registry, bindings, setBinding, resetBinding, resetAllBindings } = useShortcutManager();
 	const [recordingId, setRecordingId] = useState<ShortcutId | null>(null);
+	const [conflict, setConflict] = useState<ShortcutConflict | null>(null);
 	const grouped = useMemo(() => groupShortcuts(registry), [registry]);
 	const hasOverrides = Object.keys(bindings).length > 0;
 
@@ -48,13 +70,20 @@ export function ShortcutsSection() {
 			const combo = eventToCombo(event);
 			if (!combo) return;
 			event.preventDefault();
+			const nextConflict = findShortcutConflict(recordingId as ShortcutId, combo, bindings);
+			if (nextConflict) {
+				setConflict(nextConflict);
+				setRecordingId(null);
+				return;
+			}
+			setConflict(null);
 			setBinding(recordingId as ShortcutId, combo);
 			setRecordingId(null);
 		}
 
 		window.addEventListener("keydown", handleKeyDown, { capture: true });
 		return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
-	}, [recordingId, setBinding]);
+	}, [bindings, recordingId, setBinding]);
 
 	return (
 		<>
@@ -62,6 +91,16 @@ export function ShortcutsSection() {
 				title="Shortcuts"
 				description="Rebind keyboard shortcuts. Changes are saved to this device."
 			/>
+
+			{conflict ? (
+				<div
+					role="status"
+					className="mb-3 border border-destructive/35 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+				>
+					{formatBinding(conflict.combo)} is already assigned to {conflict.label}. Pick
+					a different combination or reset the existing shortcut first.
+				</div>
+			) : null}
 
 			{hasOverrides ? (
 				<div className="mb-2 flex justify-end">
@@ -84,14 +123,20 @@ export function ShortcutsSection() {
 							const def = getShortcutDef(id);
 							const isOverridden = id in bindings;
 							const isRecording = recordingId === id;
+							const description = def.bindingGroup
+								? `${def.description ?? "Shared shortcut."} Rebinding this also updates matching ${def.bindingGroup.replace(/-/g, " ")} shortcuts.`
+								: def.description;
 							return (
-								<Row key={id} title={def.label} description={def.description}>
+								<Row key={id} title={def.label} description={description}>
 									<div className="flex items-center gap-2">
 										{isOverridden && !isRecording ? (
 											<button
 												type="button"
 												aria-label={`Reset ${def.label} to default`}
-												onClick={() => resetBinding(id)}
+												onClick={() => {
+													setConflict(null);
+													resetBinding(id);
+												}}
 												className="text-muted-foreground transition-colors hover:text-foreground"
 											>
 												<RotateCcw className="h-3.5 w-3.5" strokeWidth={1.8} />
@@ -99,7 +144,10 @@ export function ShortcutsSection() {
 										) : null}
 										<button
 											type="button"
-											onClick={() => setRecordingId(isRecording ? null : id)}
+											onClick={() => {
+												setConflict(null);
+												setRecordingId(isRecording ? null : id);
+											}}
 											className={cn(
 												"min-w-[7rem] border px-2.5 py-1.5 text-center font-mono text-[12px] transition-colors",
 												isRecording
