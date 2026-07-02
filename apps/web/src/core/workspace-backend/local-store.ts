@@ -151,7 +151,7 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
 	});
 }
 
-function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
+function openRequest(factory: IDBFactory): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
 		const request = factory.open(DB_NAME, DB_VERSION);
 
@@ -165,6 +165,34 @@ function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
 		request.onerror = () => reject(request.error);
 		request.onblocked = () => reject(request.error ?? new Error("IndexedDB open blocked"));
 	});
+}
+
+function deleteDatabase(factory: IDBFactory): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const request = factory.deleteDatabase(DB_NAME);
+		request.onsuccess = () => resolve();
+		request.onerror = () => reject(request.error);
+		request.onblocked = () => reject(request.error ?? new Error("IndexedDB delete blocked"));
+	});
+}
+
+// A DB can exist at the current version WITHOUT the object store (an aborted
+// first open leaves this state behind); `onupgradeneeded` then never fires
+// again and every transaction throws NotFoundError. Detect it here and rebuild
+// the DB once so guest writes don't fail silently forever.
+async function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
+	const database = await openRequest(factory);
+	if (database.objectStoreNames.contains(OBJECT_STORE_NAME)) {
+		return database;
+	}
+	database.close();
+	await deleteDatabase(factory);
+	const rebuilt = await openRequest(factory);
+	if (!rebuilt.objectStoreNames.contains(OBJECT_STORE_NAME)) {
+		rebuilt.close();
+		throw new Error(`IndexedDB "${DB_NAME}" is missing the "${OBJECT_STORE_NAME}" store after rebuild`);
+	}
+	return rebuilt;
 }
 
 function createLocalStorageAdapter(): StorageAdapter {
@@ -224,7 +252,11 @@ async function createStorageAdapter(): Promise<StorageAdapter> {
 	try {
 		const database = await openDatabase(factory);
 		return createIndexedDBAdapter(database);
-	} catch {
+	} catch (error) {
+		console.error(
+			"Guest workspace: IndexedDB unavailable, falling back to localStorage",
+			error,
+		);
 		return createLocalStorageAdapter();
 	}
 }
@@ -309,6 +341,27 @@ export class GuestWorkspaceStore {
 
 export function createGuestWorkspaceStore(): GuestWorkspaceStore {
 	return new GuestWorkspaceStore();
+}
+
+let sharedStore: GuestWorkspaceStore | null = null;
+
+/**
+ * The shared guest store. Runtime writes (the backend) and boot reads (the
+ * seed merge) must go through the SAME instance: each instance picks its
+ * storage adapter independently, so two instances can silently target
+ * different backing stores (IndexedDB vs the localStorage fallback) and lose
+ * edits across reloads.
+ */
+export function getGuestWorkspaceStore(): GuestWorkspaceStore {
+	if (!sharedStore) {
+		sharedStore = createGuestWorkspaceStore();
+	}
+	return sharedStore;
+}
+
+/** Drops the shared store so each test starts from a fresh adapter + payload. */
+export function resetGuestWorkspaceStoreForTests(): void {
+	sharedStore = null;
 }
 
 export async function clearGuestWorkspaceIndexedDB(): Promise<void> {

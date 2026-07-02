@@ -231,12 +231,43 @@ pub struct BacklinkSource {
     pub matched_note_id: bool,
 }
 
+/// One tag with its note membership count, aggregated from `note_links` rows
+/// of kind `tag` — mirrors the web's Prisma `listTags` aggregation.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TagSummaryRow {
+    pub name: String,
+    pub color: Option<String>,
+    pub note_count: i64,
+}
+
+/// A note summary for tag/person membership pages (id + name + modified time).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaggedNoteSummaryRow {
+    pub id: String,
+    pub name: String,
+    pub modified_at: i64,
+}
+
+/// A `note_links` row narrowed to what the TS graph builder needs.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteLinkRow {
+    pub source_note_id: String,
+    pub target_note_id: Option<String>,
+    pub target_label: String,
+    pub kind: String,
+}
+
 /// Tauri-managed handle around the single SQLite connection. Every command
 /// locks the mutex for the duration of its query; SQLite itself serializes
 /// writers, and the workspace is single-user/local so contention is trivial.
 pub struct Storage {
     conn: Mutex<Connection>,
 }
+
+const LINK_INDEX_VERSION: i64 = 2;
 
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS folders (
@@ -406,6 +437,17 @@ impl Storage {
         conn.execute_batch(SCHEMA)?;
         ensure_column(&conn, "notes", "properties", "TEXT NOT NULL DEFAULT '[]'")?;
         ensure_column(&conn, "journal_entries", "title", "TEXT")?;
+        // Link-index generation, tracked in the SQLite user_version pragma.
+        // v2: the index gained `tag`/`person` rows (previously wiki/markdown
+        // only), so rows written by older builds are incomplete. Dropping the
+        // index makes every note "unindexed" again; the frontend backfill that
+        // runs after the launch reconcile rebuilds it with the new row set.
+        let link_index_version: i64 =
+            conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if link_index_version < LINK_INDEX_VERSION {
+            conn.execute_batch("DELETE FROM note_links; DELETE FROM note_titles;")?;
+            conn.pragma_update(None, "user_version", LINK_INDEX_VERSION)?;
+        }
         // Repopulate the FTS index from the content table. Cheap for a local
         // workspace and idempotent — covers a DB created before the FTS table
         // existed (no-op once the triggers have kept it current).
@@ -561,6 +603,85 @@ impl Storage {
         }
         let notes: i64 = conn.query_row("SELECT COUNT(*) FROM notes", [], |row| row.get(0))?;
         Ok(notes == 0)
+    }
+
+    /// Drops the whole link index (link rows + title keys) so the frontend
+    /// backfill rebuilds it from scratch. Used when the extraction semantics
+    /// change at runtime — e.g. toggling the "detect #tags in text" preference,
+    /// whose effect is baked into the persisted rows at write time.
+    pub fn clear_note_links_index(&self) -> rusqlite::Result<()> {
+        let mut conn = self.lock();
+        let tx = conn.transaction()?;
+        tx.execute("DELETE FROM note_links", [])?;
+        tx.execute("DELETE FROM note_titles", [])?;
+        tx.commit()
+    }
+
+    /// Every tag with its distinct-note count, from the persisted `tag` link
+    /// rows — plus color-only entries from `note_tags` that no note carries.
+    /// Sorted by count desc then name asc, matching the web `listTags` action.
+    pub fn list_tag_summaries(&self) -> rusqlite::Result<Vec<TagSummaryRow>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare(
+            "SELECT c.label AS name, t.color AS color, c.cnt AS note_count \
+			 FROM (SELECT target_label AS label, COUNT(DISTINCT source_note_id) AS cnt \
+			       FROM note_links WHERE kind = 'tag' GROUP BY target_label) c \
+			 LEFT JOIN note_tags t ON t.name = c.label \
+			 UNION ALL \
+			 SELECT t.name, t.color, 0 FROM note_tags t \
+			 WHERE t.name NOT IN (SELECT DISTINCT target_label FROM note_links WHERE kind = 'tag') \
+			 ORDER BY note_count DESC, name ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(TagSummaryRow {
+                name: row.get(0)?,
+                color: row.get(1)?,
+                note_count: row.get(2)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    /// Notes carrying a link row of `kind` pointing at `label` (a normalized
+    /// tag name or a person id), newest-modified first.
+    pub fn list_linked_note_summaries(
+        &self,
+        kind: &str,
+        label: &str,
+    ) -> rusqlite::Result<Vec<TaggedNoteSummaryRow>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare(
+            "SELECT DISTINCT n.id, n.name, n.modified_at \
+			 FROM note_links l JOIN notes n ON n.id = l.source_note_id \
+			 WHERE l.kind = ?1 AND l.target_label = ?2 \
+			 ORDER BY n.modified_at DESC",
+        )?;
+        let rows = stmt.query_map(params![kind, label], |row| {
+            Ok(TaggedNoteSummaryRow {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                modified_at: row.get(2)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    /// Every persisted link row, narrowed to the fields the TS graph builder
+    /// consumes. Replaces shipping all note bodies over IPC for the graph view.
+    pub fn list_note_link_rows(&self) -> rusqlite::Result<Vec<NoteLinkRow>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare(
+            "SELECT source_note_id, target_note_id, target_label, kind FROM note_links",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(NoteLinkRow {
+                source_note_id: row.get(0)?,
+                target_note_id: row.get(1)?,
+                target_label: row.get(2)?,
+                kind: row.get(3)?,
+            })
+        })?;
+        rows.collect()
     }
 
     /// Returns the candidate source notes that link to `target_id` — matched by an
@@ -1434,6 +1555,29 @@ mod tests {
         assert_eq!(store.list_folders().unwrap().len(), 1);
     }
 
+    #[test]
+    fn outdated_link_index_is_wiped_on_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("index.db");
+        {
+            let store = Storage::open(&db_path).unwrap();
+            store.upsert_note(&note_with("n1", "A.md", "a")).unwrap();
+            store
+                .replace_note_links("n1", &[tag_link("rust")], &["a".to_string()])
+                .unwrap();
+            assert!(store.has_indexed_links().unwrap());
+        }
+
+        // Simulate a DB written by a build that predates the version bump.
+        let conn = Connection::open(&db_path).unwrap();
+        conn.pragma_update(None, "user_version", 0).unwrap();
+        drop(conn);
+
+        let store = Storage::open(&db_path).unwrap();
+        assert!(store.list_note_link_rows().unwrap().is_empty());
+        assert_eq!(store.list_unindexed_note_ids().unwrap(), vec!["n1".to_string()]);
+    }
+
     fn wiki_link(raw: &str, label: &str, key: &str) -> NoteLinkInput {
         NoteLinkInput {
             kind: "wiki".to_string(),
@@ -1460,6 +1604,80 @@ mod tests {
         let mut v: Vec<String> = sources.sources.iter().map(|s| s.note.id.clone()).collect();
         v.sort();
         v
+    }
+
+    fn tag_link(label: &str) -> NoteLinkInput {
+        NoteLinkInput {
+            kind: "tag".to_string(),
+            raw: format!("#{label}"),
+            target_label: label.to_string(),
+            alias: None,
+            target_note_id: None,
+            target_title_key: None,
+        }
+    }
+
+    fn person_link(person_id: &str) -> NoteLinkInput {
+        NoteLinkInput {
+            kind: "person".to_string(),
+            raw: person_id.to_string(),
+            target_label: person_id.to_string(),
+            alias: None,
+            target_note_id: None,
+            target_title_key: None,
+        }
+    }
+
+    #[test]
+    fn tag_and_person_rows_aggregate() {
+        let store = Storage::open(Path::new(":memory:")).unwrap();
+        store.upsert_note(&note_with("n1", "A.md", "a")).unwrap();
+        store.upsert_note(&note_with("n2", "B.md", "b")).unwrap();
+        store
+            .replace_note_links(
+                "n1",
+                &[tag_link("rust"), tag_link("perf"), person_link("p1")],
+                &["a".to_string()],
+            )
+            .unwrap();
+        store
+            .replace_note_links("n2", &[tag_link("rust")], &["b".to_string()])
+            .unwrap();
+        store.upsert_note_tag_meta("rust", Some("#f00")).unwrap();
+        store.upsert_note_tag_meta("orphan", Some("#0f0")).unwrap();
+
+        let summaries = store.list_tag_summaries().unwrap();
+        let shaped: Vec<(String, Option<String>, i64)> = summaries
+            .into_iter()
+            .map(|s| (s.name, s.color, s.note_count))
+            .collect();
+        assert_eq!(
+            shaped,
+            vec![
+                ("rust".to_string(), Some("#f00".to_string()), 2),
+                ("perf".to_string(), None, 1),
+                ("orphan".to_string(), Some("#0f0".to_string()), 0),
+            ]
+        );
+
+        let tagged = store.list_linked_note_summaries("tag", "rust").unwrap();
+        let mut tagged_ids: Vec<String> = tagged.into_iter().map(|t| t.id).collect();
+        tagged_ids.sort();
+        assert_eq!(tagged_ids, vec!["n1".to_string(), "n2".to_string()]);
+
+        let mentions = store.list_linked_note_summaries("person", "p1").unwrap();
+        assert_eq!(mentions.len(), 1);
+        assert_eq!(mentions[0].id, "n1");
+
+        // Tag/person rows never surface as backlinks: no target id or title key.
+        let backlinks = store.get_backlink_sources("n2", &["b".to_string()]).unwrap();
+        assert!(backlinks.sources.is_empty());
+
+        assert_eq!(store.list_note_link_rows().unwrap().len(), 4);
+
+        store.clear_note_links_index().unwrap();
+        assert_eq!(store.list_note_link_rows().unwrap().len(), 0);
+        assert_eq!(store.list_unindexed_note_ids().unwrap().len(), 2);
     }
 
     #[test]
