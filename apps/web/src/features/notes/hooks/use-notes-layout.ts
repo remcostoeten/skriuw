@@ -1182,6 +1182,43 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleSwitchToTabIndex,
 	});
 
+	useEffect(() => {
+		const pendingShortcut = searchParams.get("shortcut");
+		if (!pendingShortcut) return;
+
+		switch (pendingShortcut) {
+			case "toggleSidebar":
+				handleToggleSidebar();
+				break;
+			case "toggleMetadata":
+				handleToggleMetadata();
+				break;
+			case "focusSidebarSearch":
+				setUIState({ showSidebar: true });
+				window.setTimeout(() => {
+					window.dispatchEvent(new Event("skriuw:focus-sidebar-search"));
+				}, 0);
+				break;
+			case "focusEditor":
+				window.setTimeout(() => focusActiveEditor(), 0);
+				break;
+			case "help":
+				handleOpenShortcutHelp();
+				break;
+			default:
+				break;
+		}
+
+		router.replace("/app", { scroll: false });
+	}, [
+		handleOpenShortcutHelp,
+		handleToggleMetadata,
+		handleToggleSidebar,
+		router,
+		searchParams,
+		setUIState,
+	]);
+
 	useDesktopMenuActions({
 		onCreateFile: handleCreateFile,
 		onCreateFolder: handleCreateFolder,
