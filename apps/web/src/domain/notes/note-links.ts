@@ -3,6 +3,7 @@ import {
 	extractRichDocumentUsers,
 	richDocumentToSearchableMarkdown,
 } from "@/domain/notes/rich-document";
+import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
 
 export type NoteLinkKind = "wiki" | "markdown-note-link";
 
@@ -113,6 +114,7 @@ export function getNoteSearchableContent(
 }
 
 export function extractNoteTags(content: string): string[] {
+	if (!isTagDetectionEnabled()) return [];
 	const tags = new Set<string>();
 	const source = searchableContent(content);
 

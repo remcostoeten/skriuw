@@ -359,6 +359,40 @@ function toRustNoteLink(link: NoteLink): RustNoteLink {
 }
 
 /**
+ * Backfills the SQLite link index for notes that have no link rows yet — bulk
+ * imports and reconcile-adopted external edits write notes without going
+ * through `save_note`, so their links/title keys are missing and backlinks
+ * silently under-report. Link extraction semantics live in TS, so Rust only
+ * reports which notes are unindexed and stores the result (one transaction
+ * per batch). Desktop-only; runs after the launch reconcile. Returns the
+ * number of notes indexed.
+ */
+export async function backfillMissingNoteLinks(): Promise<number> {
+	const invoke = getInvoke();
+	const ids = await invoke<string[]>("list_unindexed_note_ids");
+	if (ids.length === 0) return 0;
+
+	const BATCH_SIZE = 100;
+	for (let start = 0; start < ids.length; start += BATCH_SIZE) {
+		const rows = await invoke<RustNote[]>("get_notes", {
+			ids: ids.slice(start, start + BATCH_SIZE),
+		});
+		const entries = rows.map((raw) => {
+			const note = fromRustNote(raw);
+			return {
+				noteId: note.id,
+				links: extractNoteLinks(note).map(toRustNoteLink),
+				titleKeys: noteTitleKeys(note),
+			};
+		});
+		if (entries.length > 0) {
+			await invoke("replace_note_links_bulk", { entries });
+		}
+	}
+	return ids.length;
+}
+
+/**
  * The final resolution of a SQL-prefiltered backlink source into the exact
  * `ResolvedNoteLink` shape `buildNoteBacklinks` produces: always `resolved`,
  * pointing at the active note, carrying the source's link fields.
@@ -436,17 +470,14 @@ export function createTauriBackend(): WorkspaceBackend {
 		return rows.map(fromRustJournalTag);
 	}
 
-	async function indexNoteLinks(note: NoteFile): Promise<void> {
-		await invoke("replace_note_links", {
+	async function backfillNoteLinks(notes: NoteFile[]): Promise<void> {
+		const entries = notes.map((note) => ({
 			noteId: note.id,
 			links: extractNoteLinks(note).map(toRustNoteLink),
 			titleKeys: noteTitleKeys(note),
-		});
-	}
-
-	async function backfillNoteLinks(notes: NoteFile[]): Promise<void> {
-		for (const note of notes) {
-			await indexNoteLinks(note);
+		}));
+		if (entries.length > 0) {
+			await invoke("replace_note_links_bulk", { entries });
 		}
 	}
 
@@ -605,10 +636,13 @@ export function createTauriBackend(): WorkspaceBackend {
 
 		async importNotes(notes) {
 			await invoke("bulk_upsert_notes", { notes: notes.map(toRustNote) });
-			for (const note of notes) {
-				if (extractNoteLinks(note).length > 0) {
-					await indexNoteLinks(note);
-				}
+			const entries = notes.map((note) => ({
+				noteId: note.id,
+				links: extractNoteLinks(note).map(toRustNoteLink),
+				titleKeys: noteTitleKeys(note),
+			}));
+			if (entries.length > 0) {
+				await invoke("replace_note_links_bulk", { entries });
 			}
 		},
 

@@ -107,6 +107,14 @@ const SETTINGS_COMMAND_ENTRIES: ReadonlyArray<SettingsCommandEntry> = [
 		hint: "Editor",
 	},
 	{
+		id: "detect-tags-in-text",
+		label: "Detect #tags in note text",
+		tab: "editor",
+		focusId: "detect-tags-in-text",
+		keywords: ["tags", "detect", "hashtag", "parse", "auto", "code", "env"],
+		hint: "Editor",
+	},
+	{
 		id: "shortcuts",
 		label: "Keyboard shortcuts",
 		tab: "shortcuts",

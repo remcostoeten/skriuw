@@ -122,6 +122,16 @@ export function EditorSection() {
 						onCheckedChange={(v) => update("openNotesInTabs", v)}
 					/>
 				</Row>
+				<Row
+					focusId="detect-tags-in-text"
+					title="Detect #tags in note text"
+					description="Turn #words written in plain text into workspace tags. Disable if your notes contain code comments or .env snippets — tags inserted via the # menu keep working either way."
+				>
+					<Switch
+						checked={editor.detectTagsInText}
+						onCheckedChange={(v) => update("detectTagsInText", v)}
+					/>
+				</Row>
 			</SettingsCard>
 		</>
 	);
