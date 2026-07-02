@@ -115,6 +115,10 @@ import {
 } from "@/features/editor/lib/search-plugin";
 import type { Plugin } from "prosemirror-state";
 import { createVimPlugin, vimPluginKey, type VimMode } from "@/features/editor/lib/vim-plugin";
+import {
+	codeBlockIndentPluginKey,
+	createCodeBlockIndentPlugin,
+} from "@/features/editor/lib/code-block-indent-plugin";
 import { shouldClearSelectionBubbleRect } from "@/features/editor/lib/selection-bubble";
 import { SearchWidget } from "./search-widget";
 import { NotePropertiesShelf } from "./note-properties/note-properties-shelf";
@@ -1888,6 +1892,20 @@ export function RichTextEditor({
 			tiptap.unregisterPlugin(searchPluginKey);
 		};
 	}, [editor, searchPlugin]);
+
+	useEffect(() => {
+		const tiptap = editor._tiptapEditor;
+		if (!tiptap || readOnly) return;
+		// Prepend so ProseMirror sees Tab before BlockNote's built-in code-block
+		// shortcut, which hardcodes a two-space indent — we want four.
+		tiptap.registerPlugin(
+			createCodeBlockIndentPlugin(),
+			(indentPlugin: Plugin, plugins: Plugin[]) => [indentPlugin, ...plugins],
+		);
+		return () => {
+			tiptap.unregisterPlugin(codeBlockIndentPluginKey);
+		};
+	}, [editor, readOnly]);
 
 	useEffect(() => {
 		const tiptap = editor._tiptapEditor;
