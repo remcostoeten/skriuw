@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, Sparkles, Undo2, X } from "lucide-react";
 import type { listFallbackAiKeys } from "@/features/ai/lib/resolve-ai-key";
 import type {
 	JournalAiUiError,
@@ -44,6 +44,39 @@ export function JournalAiErrorBanner({ error, onDismiss }: AiErrorBannerProps) {
 					aria-label="Dismiss AI error"
 				>
 					<X className="h-3.5 w-3.5" strokeWidth={1.5} />
+				</button>
+			</div>
+		</div>
+	);
+}
+
+type SpellCheckRevertBannerProps = {
+	onRevert: () => void;
+	onKeep: () => void;
+};
+
+export function JournalSpellCheckRevertBanner({ onRevert, onKeep }: SpellCheckRevertBannerProps) {
+	return (
+		<div className="border-b border-border bg-muted/40 px-4 py-2.5 text-xs">
+			<div className="flex items-center gap-3">
+				<Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+				<span className="min-w-0 flex-1 text-muted-foreground">
+					AI spell check replaced the entry content.
+				</span>
+				<button
+					type="button"
+					onClick={onRevert}
+					className="flex shrink-0 items-center gap-1.5 border border-border bg-background px-2 py-0.5 font-medium text-foreground transition-colors hover:bg-muted"
+				>
+					<Undo2 className="h-3 w-3" strokeWidth={1.6} />
+					Revert
+				</button>
+				<button
+					type="button"
+					onClick={onKeep}
+					className="shrink-0 border border-transparent px-2 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
+				>
+					Keep
 				</button>
 			</div>
 		</div>

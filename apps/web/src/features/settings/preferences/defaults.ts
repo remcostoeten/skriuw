@@ -29,6 +29,8 @@ export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
 	compactSidebar: false,
 	showLineNumbers: true,
 	reduceMotion: false,
+	rememberLastTab: true,
+	rememberLastNote: false,
 };
 
 export const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {
@@ -48,6 +50,7 @@ export const DEFAULT_AI_PREFERENCES: AiPreferences = {
 	model: DEFAULT_AI_MODEL,
 	keys: [],
 	activeKeyId: null,
+	translateLanguage: "auto",
 };
 
 export function createDefaultProfile(): PreferencesProfile {

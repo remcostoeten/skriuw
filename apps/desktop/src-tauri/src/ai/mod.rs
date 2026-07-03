@@ -1,7 +1,8 @@
 //! Desktop AI: local-first inference via a managed Ollama runtime, with Groq
 //! and Gemini as optional cloud providers. Configuration (provider, models, and
 //! API keys) lives in the same `settings.json` as the vault root. The web app's
-//! three editor actions route here through the `ai_complete` command.
+//! editor actions route here through the `ai_complete` and `ai_complete_stream`
+//! commands.
 
 mod cloud;
 mod installer;
@@ -9,7 +10,7 @@ mod ollama;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -116,29 +117,79 @@ fn ollama_root(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("ollama"))
 }
 
-fn prompt_for(action: &str, content: &str) -> Result<(String, String), String> {
-    let (system, user) = match action {
-		"generateTitle" => (
-			"You write short, descriptive document titles.",
-			format!(
-				"Generate a short, concise title (max 6 words) for this document. Respond ONLY with the title text, no markdown, no quotes.\n\n{content}"
-			),
-		),
-		"spellCheck" => (
-			"You are a professional copy editor.",
-			format!(
-				"Correct all spelling, grammar, and typography errors in the following Markdown document. Keep the structural formatting (headings, lists, bolding) exactly the same. Only fix the text inside it. Respond ONLY with the corrected markdown document, without any extra commentary.\n\n{content}"
-			),
-		),
-		"continueWriting" => (
-			"You are a writing assistant that continues documents in the author's exact voice and style.",
-			format!(
-				"You are continuing a Markdown document that was cut off — it may end mid-sentence or even mid-word.\n\nDo the following:\n1. Take the FINAL paragraph and rewrite it into a complete, natural paragraph: finish any unfinished word or sentence and smooth the wording so it reads well. Keep its original meaning and as much of the existing wording as possible.\n2. Then continue the document naturally for one or two more short paragraphs, matching the author's tone, style, and formatting.\n\nOutput ONLY Markdown: the rewritten final paragraph, immediately followed by your continuation. Do NOT restate or include the title, any headings, or any earlier paragraphs. Do NOT add a heading. Begin directly with the rewritten final paragraph.\n\nDocument:\n{content}"
-			),
-		),
-		_ => return Err(format!("Unsupported AI action: {action}")),
-	};
-    Ok((system.to_string(), user))
+// The prompt catalog is shared with the web app — apps/web/src/domain/ai/
+// prompts.json is the single source of truth for both platforms.
+const PROMPTS_JSON: &str = include_str!("../../../../web/src/domain/ai/prompts.json");
+
+#[derive(Debug, Deserialize)]
+struct PromptCatalog {
+    rules: PromptRules,
+    translate: TranslateDirectives,
+    actions: std::collections::HashMap<String, PromptSpec>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TranslateDirectives {
+    auto: String,
+    target: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PromptRules {
+    preserve_tokens_rule: String,
+    match_language_rule: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PromptSpec {
+    system: String,
+    user: String,
+}
+
+static PROMPT_CATALOG: OnceLock<PromptCatalog> = OnceLock::new();
+
+fn prompt_catalog() -> &'static PromptCatalog {
+    PROMPT_CATALOG
+        .get_or_init(|| serde_json::from_str(PROMPTS_JSON).expect("invalid prompts.json"))
+}
+
+/// Mirrors the web-side sanitizer: a short plain language name, nothing that
+/// can smuggle extra prompt instructions. `None`/"auto"/invalid → heuristic.
+fn sanitize_target_language(value: Option<&str>) -> Option<String> {
+    let trimmed = value?.trim();
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("auto") {
+        return None;
+    }
+    let valid_len = (2..=40).contains(&trimmed.chars().count());
+    let valid_start = trimmed.chars().next().is_some_and(char::is_alphabetic);
+    let valid_chars = trimmed
+        .chars()
+        .all(|c| c.is_alphabetic() || c == ' ' || c == '\'' || c == '-');
+    (valid_len && valid_start && valid_chars).then(|| trimmed.to_string())
+}
+
+fn prompt_for(
+    action: &str,
+    content: &str,
+    target_language: Option<&str>,
+) -> Result<(String, String), String> {
+    let catalog = prompt_catalog();
+    let spec = catalog
+        .actions
+        .get(action)
+        .ok_or_else(|| format!("Unsupported AI action: {action}"))?;
+    let translate_directive = match sanitize_target_language(target_language) {
+        Some(language) => catalog.translate.target.replace("{targetLanguage}", &language),
+        None => catalog.translate.auto.clone(),
+    };
+    let user = spec
+        .user
+        .replace("{matchLanguageRule}", &catalog.rules.match_language_rule)
+        .replace("{preserveTokensRule}", &catalog.rules.preserve_tokens_rule)
+        .replace("{translateDirective}", &translate_directive)
+        .replacen("{content}", content, 1);
+    Ok((spec.system.clone(), user))
 }
 
 #[tauri::command]
@@ -204,11 +255,12 @@ pub async fn ai_complete(
     app: AppHandle,
     action: String,
     content: String,
+    target_language: Option<String>,
 ) -> Result<String, String> {
     if content.trim().is_empty() {
         return Err("There is no note content to send to AI.".to_string());
     }
-    let (system, user) = prompt_for(&action, &content)?;
+    let (system, user) = prompt_for(&action, &content, target_language.as_deref())?;
     let settings = read_settings(&app)?;
     let config = load_config(&app)?;
 
@@ -225,6 +277,47 @@ pub async fn ai_complete(
             let client = ollama::OllamaClient::new(config.ollama_endpoint.clone());
             client
                 .complete(&config.ollama_model, &system, &user)
+                .await?
+        }
+    };
+    Ok(result.trim().to_string())
+}
+
+/// Streaming variant of `ai_complete` used by continue-writing: every text
+/// delta is sent over `on_chunk` as it arrives, and the full accumulated
+/// result is returned when the provider finishes.
+#[tauri::command]
+pub async fn ai_complete_stream(
+    app: AppHandle,
+    action: String,
+    content: String,
+    target_language: Option<String>,
+    on_chunk: Channel<String>,
+) -> Result<String, String> {
+    if content.trim().is_empty() {
+        return Err("There is no note content to send to AI.".to_string());
+    }
+    let (system, user) = prompt_for(&action, &content, target_language.as_deref())?;
+    let settings = read_settings(&app)?;
+    let config = load_config(&app)?;
+
+    let emit = |chunk: &str| {
+        let _ = on_chunk.send(chunk.to_string());
+    };
+
+    let result = match config.provider.as_str() {
+        "groq" => {
+            let key = ai_str(&settings, "groqApiKey").unwrap_or_default();
+            cloud::groq_complete_stream(&key, &config.groq_model, &system, &user, emit).await?
+        }
+        "gemini" | "google" => {
+            let key = ai_str(&settings, "geminiApiKey").unwrap_or_default();
+            cloud::gemini_complete_stream(&key, &config.gemini_model, &system, &user, emit).await?
+        }
+        _ => {
+            let client = ollama::OllamaClient::new(config.ollama_endpoint.clone());
+            client
+                .complete_stream(&config.ollama_model, &system, &user, emit)
                 .await?
         }
     };

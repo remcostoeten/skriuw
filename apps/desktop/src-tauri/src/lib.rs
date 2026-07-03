@@ -1349,6 +1349,7 @@ pub fn run() {
             ai::ai_set_config,
             ai::ai_set_key,
             ai::ai_complete,
+            ai::ai_complete_stream,
             ai::ai_ollama_status,
             ai::ai_ollama_catalog,
             ai::ai_start_ollama,
