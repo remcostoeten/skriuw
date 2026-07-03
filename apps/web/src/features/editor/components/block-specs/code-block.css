@@ -1,13 +1,13 @@
 .pro-code-block {
-  --pcb-muted-fg: var(--muted-foreground);
-  --pcb-accent: var(--accent);
-  --pcb-popover: var(--background);
-  --pcb-popover-fg: var(--foreground);
+  --pcb-muted-fg: var(--sidebar-foreground);
+  --pcb-accent: var(--sidebar-accent);
+  --pcb-popover: var(--sidebar-background);
+  --pcb-popover-fg: var(--sidebar-foreground);
   --pcb-radius: 0.375rem;
-  --pcb-ring: var(--ring);
-  --pcb-border: var(--border);
-  --pcb-fg: var(--foreground);
-  --pcb-muted: var(--muted);
+  --pcb-ring: var(--sidebar-ring);
+  --pcb-border: var(--sidebar-border);
+  --pcb-fg: var(--sidebar-foreground);
+  --pcb-muted: var(--sidebar-background);
 
   position: relative;
   margin: 0.5rem 0;
