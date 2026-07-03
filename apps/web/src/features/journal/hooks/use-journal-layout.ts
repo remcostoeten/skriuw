@@ -15,7 +15,7 @@ import { useShortcutManager, useShortcutScope } from "@/core/shortcuts";
 import { focusActiveEditor } from "@/shared/lib/focus-editor";
 import { useNotesStore } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
-import { openSettings } from "@/features/settings/use-settings-modal";
+import { openSettings, toggleSettings } from "@/features/settings/use-settings-modal";
 import { THEMES } from "@/features/settings/preferences/themes";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
@@ -154,6 +154,11 @@ export function useJournalLayout(): UseJournalLayoutResult {
 		openSettings();
 	}, []);
 
+	const handleToggleSettings = useCallback(() => {
+		triggerNativeFeedback("selection");
+		toggleSettings();
+	}, []);
+
 	const handleToggleEditorMode = useCallback(() => {
 		triggerNativeFeedback("impact");
 		setEditorMode((current) => (current === "plain" ? "rich" : "plain"));
@@ -166,7 +171,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 
 	const handleOpenCommandPalette = useCallback(() => {
 		triggerNativeFeedback("selection");
-		setShowCommandPalette(true);
+		setShowCommandPalette((prev) => !prev);
 	}, []);
 
 	const handleOpenShortcutHelp = useCallback(() => {
@@ -208,7 +213,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 	useShortcutScope("journal", {
 		"journal.commandPalette": handleOpenCommandPalette,
 		"journal.toggleSidebar": handleToggleSidebar,
-		"journal.settings": handleOpenSettings,
+		"journal.settings": handleToggleSettings,
 		"journal.toggleEditor": handleToggleEditorMode,
 		"journal.focusEditor": () => focusActiveEditor(),
 		"journal.help": handleOpenShortcutHelp,

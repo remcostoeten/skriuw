@@ -9,6 +9,7 @@ type SettingsModalState = {
 	focusId: string | null;
 	open: (tab?: SettingsTabId, focusId?: string) => void;
 	close: () => void;
+	toggle: () => void;
 	setTab: (tab: SettingsTabId) => void;
 };
 
@@ -34,6 +35,7 @@ export const useSettingsModal = create<SettingsModalState>()(
 				});
 			},
 			close: () => set({ isOpen: false, focusId: null }),
+			toggle: () => (get().isOpen ? get().close() : get().open()),
 			setTab: (tab) => set({ tab, focusId: null }),
 		}),
 		{
@@ -51,4 +53,12 @@ export const useSettingsModal = create<SettingsModalState>()(
  */
 export function openSettings(tab?: SettingsTabId, focusId?: string): void {
 	useSettingsModal.getState().open(tab, focusId);
+}
+
+/**
+ * Imperative entry point for toggling the settings modal from non-React call
+ * sites (e.g. the global `mod+comma` shortcut).
+ */
+export function toggleSettings(): void {
+	useSettingsModal.getState().toggle();
 }

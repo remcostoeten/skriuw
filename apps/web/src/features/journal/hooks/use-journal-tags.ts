@@ -8,7 +8,6 @@ import { deriveWorkspaceTags } from "@/domain/tags/workspace-tags";
 import type { JournalTag } from "@/types/journal";
 import { TAG_COLORS } from "@/features/journal/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { createCacheQueryFn } from "@/shared/api/cache-query";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { useAuth } from "@/core/auth/use-auth";
 import { useNotesCacheScope } from "@/features/notes/hooks/use-notes-cache-scope";
@@ -57,18 +56,6 @@ export function useJournalTags() {
 		...tagsQuery,
 		data,
 	};
-}
-
-export function useWorkspaceTags() {
-	const queryClient = useQueryClient();
-	const scope = useNotesCacheScope();
-	const workspaceTagsKey = journalKeys.workspaceTags(scope);
-
-	return useAuthedApiQuery<JournalTag[]>(
-		workspaceTagsKey,
-		createCacheQueryFn<JournalTag[]>(queryClient, workspaceTagsKey),
-		{ staleTime: Infinity },
-	);
 }
 
 export function useCreateJournalTag() {
@@ -122,30 +109,6 @@ export function useCreateJournalTag() {
 			},
 		},
 	);
-}
-
-export function useDeleteJournalTag() {
-	const queryClient = useQueryClient();
-	const auth = useAuth();
-	const backend = useWorkspaceBackend();
-	const scope =
-		auth.phase === "authenticated" && auth.user
-			? journalKeys.userScope(auth.user.id)
-			: journalKeys.localScope();
-	const tagsKey = journalKeys.tags(scope);
-
-	return useApiMutation<string, void, JournalTag[]>((id) => backend.deleteJournalTag(id), {
-		invalidateKeys: [journalKeys.tags(), journalKeys.entries()],
-		optimistic: {
-			queryKey: tagsKey,
-			updater: (current, id) => (current ?? []).filter((tag) => tag.id !== id),
-		},
-		onSuccess: (_result, id) => {
-			queryClient.setQueryData<JournalTag[]>(journalKeys.workspaceTags(scope), (current) =>
-				(current ?? []).filter((tag) => tag.id !== id),
-			);
-		},
-	});
 }
 
 export { TAG_COLORS };
