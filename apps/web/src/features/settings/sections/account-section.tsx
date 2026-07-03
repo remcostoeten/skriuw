@@ -7,19 +7,9 @@ import { LogOut, Share2 } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import { Label } from "@/shared/ui/label";
 import { AvatarFace } from "@/shared/icons/avatar-face";
 import { deriveAvatarColor, getAvatarSeed } from "@/shared/lib/avatar";
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/shared/ui/dialog";
+import { DeleteButton } from "@/shared/ui/delete-button";
 import { useAuth } from "@/core/auth/use-auth";
 import {
 	isUsernameTakenError,
@@ -37,7 +27,7 @@ import {
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
 
-const DELETE_PHRASE = "delete my account";
+
 
 export function AccountSection() {
 	const auth = useAuth();
@@ -137,12 +127,6 @@ export function AccountSection() {
 		}
 	};
 	const [isSigningOut, setIsSigningOut] = useState(false);
-	const [deleteOpen, setDeleteOpen] = useState(false);
-	const [deleteValue, setDeleteValue] = useState("");
-	const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-	const [deleteError, setDeleteError] = useState<string | null>(null);
-
-	const deleteMatches = deleteValue.trim().toLowerCase() === DELETE_PHRASE;
 
 	const handleSaveName = async () => {
 		if (isSavingName) return;
@@ -169,23 +153,20 @@ export function AccountSection() {
 		}
 	};
 
-	const handleDeleteAccount = async () => {
-		if (!deleteMatches) return;
-		setIsDeletingAccount(true);
-		setDeleteError(null);
+	const handleDeleteAccount = async (): Promise<boolean> => {
 		try {
 			const res = await fetch("/api/account/delete", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ confirmation: deleteValue.trim() }),
+				body: JSON.stringify({ confirmation: "delete my account" }),
 			});
 			const payload = (await res.json().catch(() => null)) as { error?: string } | null;
 			if (!res.ok) throw new Error(payload?.error ?? "Could not delete account.");
 			await signOut().catch(() => undefined);
 			window.location.replace("/app?auth=sign-in");
-		} catch (err) {
-			setDeleteError(err instanceof Error ? err.message : "Could not delete account.");
-			setIsDeletingAccount(false);
+			return true;
+		} catch {
+			return false;
 		}
 	};
 
@@ -221,7 +202,7 @@ export function AccountSection() {
 
 			<GroupLabel>PROFILE</GroupLabel>
 			<SettingsCard>
-				<Row title="Display name" description="Shown on shared notes and comments.">
+				<Row focusId="display-name" title="Display name" description="Shown on shared notes and comments.">
 					<div className="flex flex-col gap-1">
 						<div className="flex gap-2">
 							<Input
@@ -261,6 +242,7 @@ export function AccountSection() {
 					</div>
 				</Row>
 				<Row
+					focusId="username"
 					title="Username"
 					description="Used for collaboration invites. Letters, numbers, underscores, and dots only."
 				>
@@ -317,7 +299,7 @@ export function AccountSection() {
 						)}
 					</div>
 				</Row>
-				<Row title="Email" description="Used for sign-in and account recovery.">
+				<Row focusId="email" title="Email" description="Used for sign-in and account recovery.">
 					<Input
 						value={user?.email ?? ""}
 						readOnly
@@ -330,6 +312,7 @@ export function AccountSection() {
 			<GroupLabel>SHARING</GroupLabel>
 			<SettingsCard>
 				<Row
+					focusId="shared-notes"
 					title="Shared notes"
 					description="Manage every public link and see view activity."
 				>
@@ -343,7 +326,7 @@ export function AccountSection() {
 
 			<GroupLabel>DANGER ZONE</GroupLabel>
 			<SettingsCard>
-				<Row title="Sign out" description="End your session on this device.">
+				<Row focusId="sign-out" title="Sign out" description="End your session on this device.">
 					<Button
 						variant="outline"
 						size="sm"
@@ -355,74 +338,17 @@ export function AccountSection() {
 					</Button>
 				</Row>
 				<Row
+					focusId="delete-account"
 					title="Delete account"
 					description="Permanently remove your account and notes."
 				>
-					<Dialog
-						open={deleteOpen}
-						onOpenChange={(o) => {
-							setDeleteOpen(o);
-							if (!o) setDeleteValue("");
-						}}
-					>
-						<DialogTrigger asChild>
-							<Button
-								size="sm"
-								className="bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 shadow-none"
-							>
-								Delete
-							</Button>
-						</DialogTrigger>
-						<DialogContent>
-							<DialogHeader>
-								<DialogTitle>Delete account</DialogTitle>
-								<DialogDescription>
-									This will permanently remove your account, notes, and history.
-									This cannot be undone.
-								</DialogDescription>
-							</DialogHeader>
-							<div className="space-y-2">
-								<Label
-									htmlFor="delete-confirm"
-									className="text-xs text-muted-foreground"
-								>
-									To confirm, type{" "}
-									<span className="font-mono text-foreground">
-										{DELETE_PHRASE}
-									</span>{" "}
-									below.
-								</Label>
-								<Input
-									id="delete-confirm"
-									value={deleteValue}
-									onChange={(e) => setDeleteValue(e.target.value)}
-									placeholder={DELETE_PHRASE}
-									autoComplete="off"
-									maxLength={100}
-								/>
-								{deleteError && (
-									<p role="alert" className="text-xs text-destructive">
-										{deleteError}
-									</p>
-								)}
-							</div>
-							<DialogFooter>
-								<DialogClose asChild>
-									<Button variant="outline" size="sm">
-										Cancel
-									</Button>
-								</DialogClose>
-								<Button
-									size="sm"
-									disabled={!deleteMatches || isDeletingAccount}
-									onClick={handleDeleteAccount}
-									className="bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 shadow-none disabled:opacity-50"
-								>
-									{isDeletingAccount ? "Deleting…" : "Delete account"}
-								</Button>
-							</DialogFooter>
-						</DialogContent>
-					</Dialog>
+					<DeleteButton
+						onDelete={handleDeleteAccount}
+						confirmLabel="Confirm delete account"
+						pendingLabel="Deleting account"
+						successLabel="Deleted"
+						failedLabel="Retry"
+					/>
 				</Row>
 			</SettingsCard>
 		</>

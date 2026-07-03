@@ -3,6 +3,7 @@
 import { Label } from "@/shared/ui/label";
 import { Switch } from "@/shared/ui/switch";
 import { usePreferencesStore } from "@/features/settings/store";
+import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-anchor";
 
 export function ExperimentalSection() {
 	const journal = usePreferencesStore((state) => state.journal);
@@ -17,7 +18,11 @@ export function ExperimentalSection() {
 				</p>
 			</div>
 			<div className="border-t border-border" />
-			<div className="flex items-center justify-between py-2">
+			<div
+				id={settingsFocusDomId("diary-view")}
+				data-settings-focus="diary-view"
+				className="flex items-center justify-between py-2 scroll-mt-24"
+			>
 				<div className="space-y-1">
 					<Label htmlFor="diary-mode" className="text-sm font-medium">
 						Diary view

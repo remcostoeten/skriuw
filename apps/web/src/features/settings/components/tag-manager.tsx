@@ -6,13 +6,19 @@ import { colorWithAlpha } from "@/shared/lib/theme-colors";
 import { EmptyState } from "@/shared/ui/empty-state";
 import { TAG_COLORS } from "@/features/journal/types";
 import type { JournalTag as Tag } from "@/types/journal";
-import { Plus, MoreHorizontal, Trash2, Hash } from "lucide-react";
+import { Plus, Hash } from "lucide-react";
+import { DeleteButton } from "@/shared/ui/delete-button";
 import type { CssColorValue, TagId, TagName } from "@/core/persistence-types";
 import {
 	useCreateJournalTag,
 	useDeleteJournalTag,
 	useWorkspaceTags,
 } from "@/features/journal/hooks/use-journal-tags";
+import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-anchor";
+
+function tagColorName(color: string): string {
+	return color.match(/--project-(\w+)/)?.[1] ?? color;
+}
 
 export function TagManager() {
 	const { data: tags = [] } = useWorkspaceTags();
@@ -57,7 +63,11 @@ export function TagManager() {
 	const sortedTags = [...tags].sort((a, b) => b.usageCount - a.usageCount);
 
 	return (
-		<div className="space-y-4">
+		<div
+			id={settingsFocusDomId("manage-tags")}
+			data-settings-focus="manage-tags"
+			className="space-y-4 scroll-mt-24"
+		>
 			<div className="flex items-center justify-between">
 				<div>
 					<h3 className="text-sm font-medium text-foreground">Manage Tags</h3>
@@ -94,20 +104,49 @@ export function TagManager() {
 
 					{/* Color picker */}
 					<div className="space-y-2">
-						<span className="text-xs text-muted-foreground">Color</span>
-						<div className="flex flex-wrap gap-1.5">
-							{TAG_COLORS.map((color) => (
+						<span id="tag-color-label" className="text-xs text-muted-foreground">
+							Color
+						</span>
+						<div
+							role="radiogroup"
+							aria-labelledby="tag-color-label"
+							className="flex flex-wrap gap-1.5"
+							onKeyDown={(e) => {
+								const arrows = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+								if (!arrows.includes(e.key)) return;
+								e.preventDefault();
+								const idx = Math.max(0, TAG_COLORS.indexOf(selectedColor as CssColorValue));
+								const delta = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1;
+								const next =
+									TAG_COLORS[(idx + delta + TAG_COLORS.length) % TAG_COLORS.length];
+								setSelectedColor(next);
+								e.currentTarget
+									.querySelector<HTMLElement>(`[data-tag-color="${next}"]`)
+									?.focus();
+							}}
+						>
+							{TAG_COLORS.map((color, i) => (
 								<button
 									key={color}
+									type="button"
+									role="radio"
+									data-tag-color={color}
+									aria-checked={selectedColor === color}
+									aria-label={tagColorName(color)}
+									tabIndex={
+										selectedColor === color ||
+										(i === 0 && !TAG_COLORS.includes(selectedColor as CssColorValue))
+											? 0
+											: -1
+									}
 									onClick={() => setSelectedColor(color)}
 									className={cn(
-										"h-6 w-6 border transition-colors",
+										"h-6 w-6 border transition-transform focus-visible:scale-115",
 										selectedColor === color
 											? "border-foreground"
 											: "border-transparent hover:border-border",
 									)}
 									style={{ backgroundColor: color }}
-									title={color}
 								/>
 							))}
 						</div>
@@ -163,7 +202,7 @@ export function TagManager() {
 					<TagRow
 						key={tag.id}
 						tag={tag}
-						onDelete={() => void removeTag.mutateAsync(tag.id as TagId)}
+						onDelete={() => removeTag.mutateAsync(tag.id as TagId).then(() => true).catch(() => false)}
 					/>
 				))}
 
@@ -180,26 +219,11 @@ export function TagManager() {
 	);
 }
 
-function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
-	const [showMenu, setShowMenu] = useState(false);
-	const menuRef = useRef<HTMLDivElement>(null);
+function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => Promise<boolean> }) {
 	const canDelete = !tag.id.startsWith("derived-") && !tag.id.startsWith("optimistic-");
-
-	useEffect(() => {
-		const handleClickOutside = (e: MouseEvent) => {
-			if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-				setShowMenu(false);
-			}
-		};
-		if (showMenu) {
-			document.addEventListener("mousedown", handleClickOutside);
-		}
-		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, [showMenu]);
 
 	return (
 		<div className="group -mx-2 flex items-center gap-3 border border-transparent px-2 py-2 transition-colors hover:border-border hover:bg-muted">
-			{/* Tag badge */}
 			<span
 				className="inline-flex min-w-[60px] items-center border px-2 py-0.5 text-xs font-medium"
 				style={{
@@ -211,43 +235,20 @@ function TagRow({ tag, onDelete }: { tag: Tag; onDelete: () => void }) {
 				{tag.name}
 			</span>
 
-			{/* Stats */}
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-3 text-[11px] text-muted-foreground">
 					<span className="tabular-nums">{tag.usageCount} uses</span>
 				</div>
 			</div>
 
-			{/* Actions */}
 			{canDelete ? (
-				<div className="relative" ref={menuRef}>
-				<button
-					onClick={() => setShowMenu(!showMenu)}
-					className={cn(
-						"flex h-6 w-6 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground",
-						showMenu ? "border-border bg-muted" : "hover-reveal",
-					)}
-				>
-					<MoreHorizontal className="w-4 h-4" />
-				</button>
-
-				{showMenu && (
-					<div className="absolute right-0 top-full z-50 mt-1 w-36 overflow-hidden border border-border bg-card">
-						<div className="p-1">
-							<button
-								onClick={() => {
-									onDelete();
-									setShowMenu(false);
-								}}
-								className="flex w-full items-center gap-2 border border-transparent px-2 py-1.5 text-xs text-destructive transition-colors hover:border-border hover:bg-destructive/10"
-							>
-								<Trash2 className="w-3.5 h-3.5" />
-								Delete tag
-							</button>
-						</div>
-					</div>
-				)}
-			</div>
+				<DeleteButton
+					onDelete={onDelete}
+					confirmLabel="Confirm delete tag"
+					pendingLabel="Deleting tag"
+					successLabel="Deleted"
+					failedLabel="Retry"
+				/>
 			) : null}
 		</div>
 	);

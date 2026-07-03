@@ -17,7 +17,7 @@ export function SharedWorkspace({ overview }: { overview: TSharedOverview }) {
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<IconRail onOpenSettings={() => router.push("/app/settings")} />
+				<IconRail />
 				<main className="relative flex min-w-0 flex-1 flex-col overflow-y-auto">
 					<SharedNotesOverview overview={overview} />
 				</main>
