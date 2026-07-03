@@ -91,7 +91,7 @@
     },
     "apps/desktop": {
       "name": "skriuw-desktop",
-      "version": "0.15.1",
+      "version": "0.15.2",
       "devDependencies": {
         "@tauri-apps/cli": "^2.11.0",
         "cross-env": "^7.0.3",
