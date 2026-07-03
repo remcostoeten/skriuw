@@ -27,7 +27,8 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
 		render: ({ inlineContent }) => {
 			const title = String(inlineContent.props.title ?? "");
 			const { activeFileId, resolver } = useNoteLinkContext();
-			const { openNote, createAndOpenNote, isCreatingTitle } = useNoteLinkActions();
+			const { openNote, openNoteInNewTab, createAndOpenNote, isCreatingTitle } =
+				useNoteLinkActions();
 
 			const linkInput: NoteLink = {
 				raw: `[[${title}]]`,
@@ -47,8 +48,13 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
 					return;
 				}
 
+				// Ctrl/Cmd-click opens the target in a background tab (browser
+				// convention) instead of navigating the current pane.
+				const openInNewTab = event.metaKey || event.ctrlKey;
+
 				if (isResolved && resolved.targetNoteId) {
-					openNote(resolved.targetNoteId);
+					if (openInNewTab) openNoteInNewTab(resolved.targetNoteId);
+					else openNote(resolved.targetNoteId);
 					return;
 				}
 
@@ -57,7 +63,10 @@ export const noteLinkInlineSpec = createReactInlineContentSpec(
 				// (and so we never create a further duplicate).
 				if (resolved.status === "ambiguous") {
 					const match = resolver.findFirstByTitle(title);
-					if (match) openNote(match.id);
+					if (match) {
+						if (openInNewTab) openNoteInNewTab(match.id);
+						else openNote(match.id);
+					}
 					return;
 				}
 

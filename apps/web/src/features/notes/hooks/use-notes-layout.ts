@@ -24,7 +24,9 @@ import { useOnboardingStore } from "@/features/onboarding/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
+import { openSettings } from "@/features/settings/use-settings-modal";
 import { buildSettingsCommandItems } from "@/features/settings/settings-command-index";
+import { THEMES } from "@/features/settings/preferences/themes";
 import {
 	focusActiveEditor,
 	focusActiveNoteTreeItem,
@@ -129,9 +131,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const setSplitOrientation = useNotesStore((state) => state.setSplitOrientation);
 	const toggleSplitOrientation = useNotesStore((state) => state.toggleSplitOrientation);
 	const swapSplitPaneOrder = useNotesStore((state) => state.swapSplitPaneOrder);
+	const setSplitSecondaryFirst = useNotesStore((state) => state.setSplitSecondaryFirst);
 	const primaryTabs = useNotesStore((state) => state.primaryTabs);
 	const secondaryTabs = useNotesStore((state) => state.secondaryTabs);
 	const reorderTabs = useNotesStore((state) => state.reorderTabs);
+	const addTab = useNotesStore((state) => state.addTab);
+	const openTabInBackground = useNotesStore((state) => state.openTabInBackground);
 	const removeTab = useNotesStore((state) => state.removeTab);
 	const togglePinTab = useNotesStore((state) => state.togglePinTab);
 	const setPaneTabs = useNotesStore((state) => state.setPaneTabs);
@@ -157,6 +162,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		}
 	}, [requestedNoteId, initialUserScopeId, setActiveFileId]);
 	const recentFileIds = useNotesStore((state) => state.recentFileIds);
+	const lastActiveFileId = useNotesStore((state) => state.lastActiveFileId);
 	const pushRecentFile = useNotesStore((state) => state.pushRecentFile);
 	const setFileSaveState = useNotesStore((state) => state.setFileSaveState);
 	const clearFileSaveState = useNotesStore((state) => state.clearFileSaveState);
@@ -241,7 +247,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	);
 	const diaryModeEnabled = usePreferencesStore((state) => state.journal.diaryModeEnabled);
 	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
+	const activeTheme = usePreferencesStore((state) => state.appearance.theme);
+	const rememberLastNote = usePreferencesStore((state) => state.appearance.rememberLastNote);
 	const updateEditorPreference = usePreferencesStore((state) => state.updateEditorPreference);
+	const updateAppearancePreference = usePreferencesStore(
+		(state) => state.updateAppearancePreference,
+	);
 	const [viewingVersion, setViewingVersion] = useState<NoteVersion | null>(null);
 	const [sharingNoteId, setSharingNoteId] = useState<string | null>(null);
 	const restoreNoteVersion = useRestoreNoteVersion();
@@ -322,7 +333,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	useEffect(() => {
 		setMounted(true);
 	}, []);
-	const openInTabs = mounted && openNotesInTabs && !isMobile;
+	// Tab mode is on when the user enabled the preference, or on demand once a note
+	// is opened in a new tab (background open). Without the preference we only show
+	// the bar at 2+ tabs so closing back down to a single note hides it again
+	// instead of stranding a lone-tab bar.
+	const openInTabs =
+		mounted &&
+		(openNotesInTabs || primaryTabs.length > 1 || secondaryTabs.length > 1) &&
+		!isMobile;
 
 	const fileById = useMemo(() => {
 		const map = new Map<string, NoteFile>();
@@ -433,6 +451,22 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			return;
 		}
 
+		// On the very first resolve, restore the note the user last viewed
+		// (instead of the server-seeded first note) when they opted in and the
+		// URL isn't already pointing at a specific note.
+		if (
+			!didInitialAutoSelect.current &&
+			!requestedNoteId &&
+			rememberLastNote &&
+			lastActiveFileId &&
+			lastActiveFileId !== activeFileId &&
+			files.some((file) => file.id === lastActiveFileId)
+		) {
+			didInitialAutoSelect.current = true;
+			syncFileSelection(lastActiveFileId, { mode: "replace" });
+			return;
+		}
+
 		if (activeFileId) {
 			if (files.some((file) => file.id === activeFileId)) {
 				didInitialAutoSelect.current = true;
@@ -452,7 +486,16 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			didInitialAutoSelect.current = true;
 			syncFileSelection(files[0].id, { mode: "replace" });
 		}
-	}, [activeFileId, files, notesQuery.isPending, setActiveFileId, syncFileSelection]);
+	}, [
+		activeFileId,
+		files,
+		notesQuery.isPending,
+		setActiveFileId,
+		syncFileSelection,
+		requestedNoteId,
+		rememberLastNote,
+		lastActiveFileId,
+	]);
 
 	useEffect(() => {
 		if (viewingVersion && viewingVersion.noteId !== activeFileId) {
@@ -602,6 +645,33 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			openSplitBeside(fileId, activeFileId);
 		},
 		[activeFileId, flushAllContent, isMobile, openSplitBeside],
+	);
+
+	const handleOpenInSplit = useCallback(
+		(
+			fileId: string,
+			orientation: "vertical" | "horizontal",
+			placement: "before" | "after" = "after",
+		) => {
+			if (isMobile || !fileId || fileId === activeFileId) return;
+			setSplitOrientation(orientation);
+			setSplitSecondaryFirst(placement === "before");
+			handleOpenBeside(fileId);
+		},
+		[activeFileId, handleOpenBeside, isMobile, setSplitOrientation, setSplitSecondaryFirst],
+	);
+
+	// Open a note as a background tab (middle-click in the sidebar, ctrl/cmd-click
+	// a wikilink): it appears as a new tab in the focused pane without stealing
+	// focus from the current note. Forces tab mode on if it was off.
+	const handleOpenInNewTab = useCallback(
+		(fileId: string) => {
+			if (isMobile || !fileId) return;
+			const pane = splitEnabled ? focusedEditorPane : "primary";
+			openTabInBackground(pane, fileId);
+			prefetchNote(fileId);
+		},
+		[focusedEditorPane, isMobile, openTabInBackground, prefetchNote, splitEnabled],
 	);
 
 	const handleCloseSplit = useCallback(() => {
@@ -880,6 +950,41 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[activateTab, activeFileId, closeTabsToSide, flushContentInBackground, splitSecondaryFileId],
 	);
 
+	const handleDropNoteOnTab = useCallback(
+		(pane: EditorPane, targetFileId: string | null, droppedFileId: string) => {
+			if (!droppedFileId || droppedFileId === targetFileId) return;
+			const tabs = pane === "primary" ? primaryTabs : secondaryTabs;
+			const alreadyOpen = tabs.some((tab) => tab.fileId === droppedFileId);
+			if (!alreadyOpen) {
+				const target = targetFileId
+					? tabs.find((tab) => tab.fileId === targetFileId)
+					: undefined;
+				if (target) {
+					flushContentInBackground(target.fileId);
+					setPaneTabs(
+						pane,
+						tabs.map((tab) =>
+							tab.fileId === target.fileId
+								? { fileId: droppedFileId, pinned: tab.pinned }
+								: tab,
+						),
+					);
+				} else {
+					addTab(pane, droppedFileId);
+				}
+			}
+			activateTab(pane, droppedFileId);
+		},
+		[
+			activateTab,
+			addTab,
+			flushContentInBackground,
+			primaryTabs,
+			secondaryTabs,
+			setPaneTabs,
+		],
+	);
+
 	const focusedPaneActiveId = useCallback(
 		() => (focusedEditorPane === "secondary" ? splitSecondaryFileId : activeFileId),
 		[activeFileId, focusedEditorPane, splitSecondaryFileId],
@@ -1088,8 +1193,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const handleOpenSettings = useCallback(() => {
 		triggerNativeFeedback("selection");
-		router.push("/app/settings");
-	}, [router]);
+		openSettings();
+	}, []);
 
 	const handleToggleEditorMode = useCallback(() => {
 		const modeTarget = focusedFile ?? activeFile;
@@ -1570,6 +1675,18 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				action: handleCloseAllTabs,
 			},
 			{
+				id: "switch-theme",
+				label: "Switch theme",
+				group: "Settings",
+				keywords: ["theme", "appearance", "color", "dark", "light", "switch", "cycle"],
+				description: `Cycle to the next theme (current: ${activeTheme}).`,
+				action: () => {
+					const currentIndex = THEMES.findIndex((t) => t.id === activeTheme);
+					const nextTheme = THEMES[(currentIndex + 1) % THEMES.length];
+					updateAppearancePreference("theme", nextTheme.id);
+				},
+			},
+			{
 				id: "open-settings",
 				label: "Open settings",
 				group: "Settings",
@@ -1613,6 +1730,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			handleToggleSplit,
 			updateEditorPreference,
 			vimModeEnabled,
+			activeTheme,
+			updateAppearancePreference,
 			replayWelcomeTour,
 			router,
 		],
@@ -1711,7 +1830,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	]);
 
 	const settingsCommandItems = useMemo<CommandPaletteItem[]>(
-		() => buildSettingsCommandItems((href) => router.push(href)),
+		() => buildSettingsCommandItems(),
 		[router],
 	);
 
@@ -1737,6 +1856,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		() => ({
 			onFileSelect: handleFileSelect,
 			onOpenBeside: !isMobile ? handleOpenBeside : undefined,
+			onOpenInSplit: !isMobile ? handleOpenInSplit : undefined,
+			onOpenInNewTab: !isMobile ? handleOpenInNewTab : undefined,
 			onFilePrefetch: prefetchNote,
 			onToggleFolder: handleToggleFolder,
 			onRenameFile: renameFile,
@@ -1749,6 +1870,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[
 			handleFileSelect,
 			handleOpenBeside,
+			handleOpenInSplit,
+			handleOpenInNewTab,
 			isMobile,
 			prefetchNote,
 			handleToggleFolder,
@@ -1869,6 +1992,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleEditorScrollPositionChange,
 		handleFocusEditorPane,
 		handleOpenBeside,
+		handleOpenInSplit,
 		handleToggleSplit,
 		handleToggleSplitOrientation: toggleSplitOrientation,
 		handleSwapSplitPaneOrder: swapSplitPaneOrder,
@@ -1883,6 +2007,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			onTogglePinTab: handleTogglePinTab,
 			onCloseOtherTabs: handleCloseOtherTabs,
 			onCloseTabsToSide: handleCloseTabsToSide,
+			onDropNoteOnTab: handleDropNoteOnTab,
 		},
 	};
 }

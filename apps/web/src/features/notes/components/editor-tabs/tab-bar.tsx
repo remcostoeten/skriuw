@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type DragEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Pin, X } from "lucide-react";
 import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import { cn } from "@/shared/lib/utils";
@@ -12,6 +12,11 @@ import {
 	ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
 import type { EditorPane } from "@/features/notes/store";
+import {
+	getActiveTreeItemDrag,
+	isTreeItemDrag,
+	readDroppedFileId,
+} from "@/features/notes/lib/note-drag";
 import type { NoteFile } from "@/types/notes";
 
 export type WorkspaceTabItem = {
@@ -38,6 +43,11 @@ export type WorkspaceTabBarApi = {
 	onTogglePinTab: (pane: EditorPane, fileId: string) => void;
 	onCloseOtherTabs: (pane: EditorPane, fileId: string) => void;
 	onCloseTabsToSide: (pane: EditorPane, fileId: string, side: "left" | "right") => void;
+	onDropNoteOnTab: (
+		pane: EditorPane,
+		targetFileId: string | null,
+		droppedFileId: string,
+	) => void;
 };
 
 type Props = {
@@ -50,11 +60,17 @@ type Props = {
 	onTogglePin: (fileId: string) => void;
 	onCloseOthers: (fileId: string) => void;
 	onCloseToSide: (fileId: string, side: "left" | "right") => void;
+	onDropNote?: (targetFileId: string | null, droppedFileId: string) => void;
 	onActivatePane?: () => void;
 };
 
 function tabLabel(file: NoteFile): string {
 	return stripMarkdownExtension(file.name).trim() || "Untitled";
+}
+
+function activeDraggedFileId(): string | null {
+	const item = getActiveTreeItemDrag();
+	return item?.type === "file" ? item.id : null;
 }
 
 export function TabBar({
@@ -67,10 +83,30 @@ export function TabBar({
 	onTogglePin,
 	onCloseOthers,
 	onCloseToSide,
+	onDropNote,
 	onActivatePane,
 }: Props) {
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [dragOverId, setDragOverId] = useState<string | null>(null);
+	const externalOverRef = useRef<string | "strip" | null>(null);
+	const dropNoteRef = useRef(onDropNote);
+	dropNoteRef.current = onDropNote;
+
+	// Same WebKitGTK rescue as SplitDropZone: if the native drop never fires,
+	// commit the tab that was highlighted when the drag was released.
+	useEffect(() => {
+		function handleWindowDragEnd() {
+			const pending = externalOverRef.current;
+			externalOverRef.current = null;
+			setDragOverId(null);
+			if (!pending || !dropNoteRef.current) return;
+			const item = getActiveTreeItemDrag();
+			if (!item || item.type !== "file") return;
+			dropNoteRef.current(pending === "strip" ? null : pending, item.id);
+		}
+		window.addEventListener("dragend", handleWindowDragEnd, true);
+		return () => window.removeEventListener("dragend", handleWindowDragEnd, true);
+	}, []);
 
 	if (tabs.length === 0) return null;
 
@@ -104,7 +140,14 @@ export function TabBar({
 	};
 
 	const handleDragOver = (fileId: string) => (event: DragEvent<HTMLDivElement>) => {
-		if (!draggingId) return;
+		if (!draggingId) {
+			if (!onDropNote || !isTreeItemDrag(event)) return;
+			event.preventDefault();
+			event.dataTransfer.dropEffect = "copy";
+			externalOverRef.current = fileId;
+			if (fileId !== dragOverId) setDragOverId(fileId);
+			return;
+		}
 		event.preventDefault();
 		event.dataTransfer.dropEffect = "move";
 		if (fileId !== dragOverId) setDragOverId(fileId);
@@ -112,9 +155,33 @@ export function TabBar({
 
 	const handleDrop = (fileId: string) => (event: DragEvent<HTMLDivElement>) => {
 		event.preventDefault();
+		if (!draggingId && onDropNote && isTreeItemDrag(event)) {
+			externalOverRef.current = null;
+			const droppedId = readDroppedFileId(event) ?? activeDraggedFileId();
+			if (droppedId) onDropNote(fileId, droppedId);
+			setDragOverId(null);
+			return;
+		}
 		reorderAround(fileId);
 		setDraggingId(null);
 		setDragOverId(null);
+	};
+
+	const handleStripDragOver = (event: DragEvent<HTMLDivElement>) => {
+		if (event.defaultPrevented || draggingId) return;
+		if (!onDropNote || !isTreeItemDrag(event)) return;
+		event.preventDefault();
+		event.dataTransfer.dropEffect = "copy";
+		externalOverRef.current = "strip";
+	};
+
+	const handleStripDrop = (event: DragEvent<HTMLDivElement>) => {
+		if (event.defaultPrevented || draggingId) return;
+		if (!onDropNote || !isTreeItemDrag(event)) return;
+		event.preventDefault();
+		externalOverRef.current = null;
+		const droppedId = readDroppedFileId(event) ?? activeDraggedFileId();
+		if (droppedId) onDropNote(null, droppedId);
 	};
 
 	const handleDragEnd = () => {
@@ -126,7 +193,14 @@ export function TabBar({
 		<div
 			role="tablist"
 			aria-label="Open notes"
-			className="flex min-h-9 shrink-0 items-stretch overflow-x-auto border-b border-border bg-background/80"
+			onDragOver={handleStripDragOver}
+			onDrop={handleStripDrop}
+			onDragLeave={() => {
+				if (draggingId) return;
+				externalOverRef.current = null;
+				setDragOverId(null);
+			}}
+			className="flex min-h-9 shrink-0 items-stretch overflow-x-auto border-b border-sidebar-border bg-sidebar text-sidebar-foreground"
 		>
 			{tabs.map(({ file, pinned }) => {
 				const isActive = file.id === activeFileId;
@@ -145,6 +219,12 @@ export function TabBar({
 										return;
 									}
 									handleSelect(file.id);
+								}}
+								onAuxClick={(event) => {
+									if (event.button === 1) {
+										event.preventDefault();
+										onClose(file.id);
+									}
 								}}
 								onKeyDown={handleKeyDown(file.id)}
 								onDragStart={handleDragStart(file.id)}

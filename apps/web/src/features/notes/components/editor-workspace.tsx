@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { EditorContainer } from "@/features/editor/components/editor-container";
 import { EditorToolbar } from "@/features/editor/components/editor-toolbar";
-import type { WorkspaceNavItem } from "@/features/editor/components/editor-toolbar";
+import type { EditorSaveState, WorkspaceNavItem } from "@/features/editor/components/editor-toolbar";
 import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import { useNotesStore, type EditorPane, type SplitOrientation } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
@@ -11,7 +11,8 @@ import type { NoteFile, NoteEditorMode, RichTextDocument } from "@/types/notes";
 import type { NoteProperty } from "@/domain/notes/properties";
 import { TabBar, type WorkspaceTabBarApi } from "./editor-tabs/tab-bar";
 
-type SplitEditorWorkspaceProps = {
+type EditorWorkspaceProps = {
+	splitActive: boolean;
 	primaryFile: NoteFile | null;
 	secondaryFile: NoteFile | null;
 	files: NoteFile[];
@@ -24,6 +25,10 @@ type SplitEditorWorkspaceProps = {
 	isMobile: boolean;
 	canNavigatePrev: boolean;
 	canNavigateNext: boolean;
+	canToggleSplit: boolean;
+	primaryFileName: string;
+	primarySaveState?: EditorSaveState;
+	primaryContentLoading: boolean;
 	onToggleSidebar: () => void;
 	onToggleMetadata: () => void;
 	workspaceItems?: WorkspaceNavItem[];
@@ -46,6 +51,7 @@ type SplitEditorWorkspaceProps = {
 			properties?: NoteProperty[];
 		},
 	) => void;
+	onCreateFile?: () => void;
 	onRenameFile?: (id: string, name: string) => void;
 	onEditorBlur?: (fileId: string) => void;
 	tabBar?: WorkspaceTabBarApi;
@@ -60,7 +66,8 @@ type PaneConfig = {
 	showClose: boolean;
 };
 
-export function SplitEditorWorkspace({
+export function EditorWorkspace({
+	splitActive,
 	primaryFile,
 	secondaryFile,
 	files,
@@ -73,6 +80,10 @@ export function SplitEditorWorkspace({
 	isMobile,
 	canNavigatePrev,
 	canNavigateNext,
+	canToggleSplit,
+	primaryFileName,
+	primarySaveState,
+	primaryContentLoading,
 	onToggleSidebar,
 	onToggleMetadata,
 	workspaceItems,
@@ -87,10 +98,11 @@ export function SplitEditorWorkspace({
 	onFocusPane,
 	onScrollPositionChange,
 	onContentChange,
+	onCreateFile,
 	onRenameFile,
 	onEditorBlur,
 	tabBar,
-}: SplitEditorWorkspaceProps) {
+}: EditorWorkspaceProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const dragStartRef = useRef(0);
 	const [draggingPane, setDraggingPane] = useState<EditorPane | null>(null);
@@ -106,25 +118,24 @@ export function SplitEditorWorkspace({
 	const paneLabel = (file: NoteFile | null) =>
 		file ? stripMarkdownExtension(file.name).replace(/-/g, " ") : "Empty pane";
 
-	const panes: PaneConfig[] = secondaryFirst
-		? [
-				{
-					pane: "secondary",
-					file: secondaryFile,
-					editorMode: secondaryEditorMode,
-					showClose: true,
-				},
-				{ pane: "primary", file: primaryFile, editorMode, showClose: false },
-			]
-		: [
-				{ pane: "primary", file: primaryFile, editorMode, showClose: false },
-				{
-					pane: "secondary",
-					file: secondaryFile,
-					editorMode: secondaryEditorMode,
-					showClose: true,
-				},
-			];
+	const primaryPane: PaneConfig = {
+		pane: "primary",
+		file: primaryFile,
+		editorMode,
+		showClose: false,
+	};
+	const secondaryPane: PaneConfig = {
+		pane: "secondary",
+		file: secondaryFile,
+		editorMode: secondaryEditorMode,
+		showClose: true,
+	};
+
+	const panes: PaneConfig[] = !splitActive
+		? [primaryPane]
+		: secondaryFirst
+			? [secondaryPane, primaryPane]
+			: [primaryPane, secondaryPane];
 
 	const finishDrag = useCallback(
 		(releaseTarget?: HTMLButtonElement | null, pointerId?: number) => {
@@ -181,36 +192,45 @@ export function SplitEditorWorkspace({
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-			<EditorToolbar
-				fileName={focusedFileName}
-				saveState={focusedSaveState}
-				isMobile={isMobile}
-				workspaceItems={workspaceItems}
-				onToggleSidebar={onToggleSidebar}
-				onToggleMetadata={onToggleMetadata}
-				onOpenSettings={onOpenSettings}
-				onNavigatePrev={onNavigatePrev}
-				onNavigateNext={onNavigateNext}
-				canNavigatePrev={canNavigatePrev}
-				canNavigateNext={canNavigateNext}
-				splitEnabled
-				onToggleSplit={onToggleSplit}
-				canToggleSplit
-				splitOrientation={orientation}
-				onToggleSplitOrientation={onToggleSplitOrientation}
-			/>
+			{splitActive ? (
+				<EditorToolbar
+					key="split-toolbar"
+					fileName={focusedFileName}
+					saveState={focusedSaveState}
+					isMobile={isMobile}
+					workspaceItems={workspaceItems}
+					onToggleSidebar={onToggleSidebar}
+					onToggleMetadata={onToggleMetadata}
+					onOpenSettings={onOpenSettings}
+					onNavigatePrev={onNavigatePrev}
+					onNavigateNext={onNavigateNext}
+					canNavigatePrev={canNavigatePrev}
+					canNavigateNext={canNavigateNext}
+					splitEnabled
+					onToggleSplit={onToggleSplit}
+					canToggleSplit
+					splitOrientation={orientation}
+					onToggleSplitOrientation={onToggleSplitOrientation}
+				/>
+			) : null}
 			<div
+				key="panes"
 				ref={containerRef}
 				className={cn(
 					"relative flex min-h-0 flex-1",
-					isVertical
-						? "flex-row divide-x divide-border"
-						: "flex-col divide-y divide-border",
+					splitActive
+						? isVertical
+							? "flex-row divide-x divide-border"
+							: "flex-col divide-y divide-border"
+						: "flex-col",
 				)}
 			>
 				{panes.map(({ pane, file, editorMode: paneEditorMode, showClose }) => {
+					const isPrimary = pane === "primary";
 					const isDragging = draggingPane === pane;
 					const translate = isDragging ? dragOffset : 0;
+					const paneTabItems =
+						pane === "primary" ? tabBar?.primaryTabItems : tabBar?.secondaryTabItems;
 
 					return (
 						<div
@@ -229,15 +249,11 @@ export function SplitEditorWorkspace({
 									: "transform 180ms cubic-bezier(0.23, 1, 0.32, 1)",
 							}}
 						>
-							{tabBar?.openInTabs ? (
+							{tabBar?.openInTabs && paneTabItems ? (
 								<TabBar
-									tabs={
-										pane === "primary"
-											? tabBar.primaryTabItems
-											: tabBar.secondaryTabItems
-									}
+									tabs={paneTabItems}
 									activeFileId={file?.id ?? null}
-									isPaneFocused={focusedPane === pane}
+									isPaneFocused={splitActive ? focusedPane === pane : undefined}
 									onSelect={(id) => tabBar.onSelectTab(pane, id)}
 									onClose={(id) => tabBar.onCloseTab(pane, id)}
 									onReorder={(ids) => tabBar.onReorderTabs(pane, ids)}
@@ -246,11 +262,16 @@ export function SplitEditorWorkspace({
 									onCloseToSide={(id, side) =>
 										tabBar.onCloseTabsToSide(pane, id, side)
 									}
-									onActivatePane={() => onFocusPane(pane)}
+									onDropNote={(targetId, droppedId) =>
+										tabBar.onDropNoteOnTab(pane, targetId, droppedId)
+									}
+									onActivatePane={
+										splitActive ? () => onFocusPane(pane) : undefined
+									}
 								/>
 							) : null}
 							<EditorContainer
-								variant="pane"
+								variant={splitActive ? "pane" : "standalone"}
 								file={file}
 								files={files}
 								editorMode={paneEditorMode}
@@ -262,20 +283,32 @@ export function SplitEditorWorkspace({
 								onNavigateNext={onNavigateNext}
 								canNavigatePrev={canNavigatePrev}
 								canNavigateNext={canNavigateNext}
-								fileName={file?.name || ""}
+								fileName={isPrimary ? primaryFileName : file?.name || ""}
+								saveState={isPrimary ? primarySaveState : undefined}
+								isContentLoading={isPrimary ? primaryContentLoading : false}
+								workspaceItems={!splitActive ? workspaceItems : undefined}
+								onOpenSettings={!splitActive ? onOpenSettings : undefined}
+								onCreateFile={!splitActive ? onCreateFile : undefined}
+								onToggleSplit={onToggleSplit}
+								canToggleSplit={canToggleSplit}
+								splitEnabled={splitActive}
 								onRenameFile={onRenameFile}
 								onEditorBlur={file ? () => onEditorBlur?.(file.id) : undefined}
-								isPaneFocused={focusedPane === pane}
-								onPaneActivate={() => onFocusPane(pane)}
-								paneLabel={paneLabel(file)}
+								isPaneFocused={splitActive ? focusedPane === pane : undefined}
+								onPaneActivate={splitActive ? () => onFocusPane(pane) : undefined}
+								paneLabel={splitActive ? paneLabel(file) : undefined}
 								onToggleEditorMode={onToggleEditorMode}
-								onClosePane={showClose ? onCloseSplit : undefined}
-								onPaneDragHandlePointerDown={handleDragStart(pane)}
-								onPaneDragHandlePointerMove={
-									isDragging ? handleDragMove : undefined
+								onClosePane={splitActive && showClose ? onCloseSplit : undefined}
+								onPaneDragHandlePointerDown={
+									splitActive ? handleDragStart(pane) : undefined
 								}
-								onPaneDragHandlePointerUp={isDragging ? handleDragEnd : undefined}
-								isPaneDragging={isDragging}
+								onPaneDragHandlePointerMove={
+									splitActive && isDragging ? handleDragMove : undefined
+								}
+								onPaneDragHandlePointerUp={
+									splitActive && isDragging ? handleDragEnd : undefined
+								}
+								isPaneDragging={splitActive && isDragging}
 								initialScrollTop={file ? (scrollPositions[file.id] ?? 0) : 0}
 								onScrollPositionChange={(scrollTop) => {
 									if (file) onScrollPositionChange(file.id, scrollTop);
