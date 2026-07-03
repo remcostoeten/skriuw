@@ -27,14 +27,14 @@ const LANGUAGE_VALUES = LANGUAGES.map((l) => l.value) as unknown as readonly [
 
 const validLanguages = new Set(LANGUAGE_VALUES);
 
-// biome-ignore lint/suspicious/noExplicitAny: runtime-compatible extension factory
+// oxlint-disable-next-line no-explicit-any -- runtime-compatible extension factory
 const procodeExtensions: any[] = [
   createExtension({
     key: "procode-input-rule",
     inputRules: [
       {
         find: /^```(\S+)?(\s+.*)?\s$/,
-        replace: ({ match }: { match: RegExpExecArray }) => {
+        replace: ({ match }: { match: RegExpMatchArray }) => {
           const raw = match[1]?.toLowerCase();
           const language = raw && validLanguages.has(raw) ? raw : "typescript";
           const title = raw && !validLanguages.has(raw)
