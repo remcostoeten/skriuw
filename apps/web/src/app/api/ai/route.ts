@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
-import { generateText } from "ai";
+import { generateText, streamText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { tryGetAuthenticatedUser } from "@/core/db";
@@ -14,6 +14,7 @@ import {
 } from "@/domain/ai/constants";
 import type { AiAction } from "@/domain/ai/types";
 import type { AiProvider } from "@/domain/ai/types";
+import { AI_PROMPT_ACTIONS, buildAiPrompt } from "@/domain/ai/prompts";
 import { getDecryptedAiProviderKey } from "@/domain/ai/provider-keys";
 import { classifyAiProviderError } from "@/domain/ai/provider-errors";
 import { recordAiError, type AiErrorSource } from "@/domain/ai/telemetry";
@@ -44,16 +45,9 @@ function getServerProviderInstance(provider: AiProvider) {
 	}
 }
 
-const PROMPTS: Record<AiAction, (content: string) => string> = {
-	generateTitle: (content) =>
-		`Generate a short, concise title (max 6 words) for this document. Respond ONLY with the title text, no markdown, no quotes.\n\n${content}`,
-	spellCheck: (content) =>
-		`Act as a strict proofreader. Correct ONLY spelling, grammar, punctuation, and typography errors in the following Markdown document.\n\nHard rules:\n- Do NOT add any new words, sentences, paragraphs, headings, or list items.\n- Do NOT remove, merge, split, or reorder paragraphs.\n- Do NOT rephrase, expand, summarize, or "improve" wording — only fix outright errors.\n- Preserve the structural formatting (headings, lists, bolding) and the number of paragraphs/blocks exactly.\n- If a paragraph has no errors, return it byte-for-byte unchanged.\n\nReturn the same document with the same number of blocks, errors fixed. Respond ONLY with the corrected markdown, no commentary.\n\n${content}`,
-	continueWriting: (content) =>
-		`You are continuing a Markdown document that was cut off — it may end mid-sentence or even mid-word.\n\nDo the following:\n1. Take the FINAL paragraph and rewrite it into a complete, natural paragraph: finish any unfinished word or sentence and smooth the wording so it reads well. Keep its original meaning and as much of the existing wording as possible.\n2. Then continue the document naturally for one or two more short paragraphs, matching the author's tone, style, and formatting.\n\nOutput ONLY Markdown: the rewritten final paragraph, immediately followed by your continuation. Do NOT restate or include the title, any headings, or any earlier paragraphs. Do NOT add a heading. Begin directly with the rewritten final paragraph.\n\nDocument:\n${content}`,
-};
+const STREAMABLE_ACTIONS: ReadonlySet<AiAction> = new Set(["continueWriting"]);
 
-const VALID_ACTIONS = new Set(Object.keys(PROMPTS));
+const VALID_ACTIONS = new Set(AI_PROMPT_ACTIONS);
 
 type UserContext = Awaited<ReturnType<typeof tryGetAuthenticatedUser>>["user"];
 
@@ -156,6 +150,8 @@ export async function POST(req: NextRequest) {
 	const resourceType = readOptionalString(body?.resourceType)?.trim();
 	const resourceId = readOptionalString(body?.resourceId)?.trim();
 	const resourceUrl = readOptionalString(body?.resourceUrl)?.trim();
+	const targetLanguage = readOptionalString(body?.targetLanguage)?.trim();
+	const wantsStream = body?.stream === true;
 	const contentLength = typeof content === "string" ? content.length : 0;
 
 	if (!action || !VALID_ACTIONS.has(action)) {
@@ -340,11 +336,39 @@ export async function POST(req: NextRequest) {
 
 	const modelName = model.includes(".") ? model.split(".").slice(1).join(".") : model;
 	const languageModel = providerInstance(modelName);
-	const prompt = PROMPTS[action as AiAction](content);
+	const { system, prompt } = buildAiPrompt(action as AiAction, content, { targetLanguage });
+
+	if (wantsStream && STREAMABLE_ACTIONS.has(action as AiAction)) {
+		// Usage is recorded in onFinish; provider errors after the headers are
+		// sent can only terminate the stream, so the client treats an aborted
+		// stream as a partial result rather than a structured error.
+		const streamed = streamText({
+			model: languageModel,
+			system,
+			prompt,
+			onFinish: async (event) => {
+				const usage = readUsageMetadata(event);
+				await recordAiUsage({
+					userId: user?.id,
+					model,
+					action,
+					resourceType: resourceType || null,
+					resourceId: resourceId || null,
+					resourceUrl: resourceUrl || null,
+					prompt,
+					status: "success",
+					keySource,
+					...usage,
+				});
+			},
+		});
+		return streamed.toTextStreamResponse();
+	}
 
 	try {
 		const response = await generateText({
 			model: languageModel,
+			system,
 			prompt,
 		});
 

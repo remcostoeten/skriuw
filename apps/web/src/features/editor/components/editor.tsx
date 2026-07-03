@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
-import type { AiEditorHandle } from "@/features/ai/service";
+import type { AiAction, AiEditorHandle } from "@/features/ai/service";
 import type { NoteProperty } from "@/domain/notes/properties";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import { useShortcutHint } from "@/core/shortcuts";
@@ -59,6 +59,7 @@ type EditorProps = {
 	onEditorReady?: (handle: AiEditorHandle) => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
+	onAiAction?: (action: AiAction) => void;
 	onTitleCommit?: (title: string) => void;
 	onBlur?: () => void;
 	onCursorChange?: (position: {
@@ -87,6 +88,7 @@ export function Editor({
 	onEditorReady,
 	onAiSpellCheck,
 	onAiContinueWriting,
+	onAiAction,
 	onTitleCommit,
 	onBlur,
 	onCursorChange,
@@ -302,6 +304,7 @@ export function Editor({
 					onEditorReady={onEditorReady}
 					onAiSpellCheck={onAiSpellCheck}
 					onAiContinueWriting={onAiContinueWriting}
+					onAiAction={onAiAction}
 					onTitleCommit={onTitleCommit}
 					onBlur={onBlur}
 					onCursorChange={onCursorChange}

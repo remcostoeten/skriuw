@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
 	callAi,
+	callAiStream,
 	AiRateLimitError,
 	AiRequestError,
 	type AiAction,
@@ -55,6 +56,12 @@ export type UseAiActionOptions<TAction extends AiAction> = {
 	 * `runAiAction` should have a matching entry.
 	 */
 	applyResult: Partial<Record<TAction, ApplyAiActionResult>>;
+	/**
+	 * Per-action content override. Actions without an entry send the full
+	 * document markdown; selection-scoped actions read the captured selection
+	 * here instead.
+	 */
+	contentSource?: Partial<Record<TAction, (handle: AiEditorHandle) => string | Promise<string>>>;
 	model: string;
 	resourceType?: string;
 	resourceId?: string;
@@ -107,6 +114,7 @@ export function useAiAction<TAction extends AiAction>(
 	const {
 		actions,
 		applyResult,
+		contentSource,
 		model,
 		resourceType,
 		resourceId,
@@ -130,14 +138,19 @@ export function useAiAction<TAction extends AiAction>(
 	const aiPrefs = usePreferencesStore((s) => s.ai);
 	const { data: serverKeys = [] } = useAiProviderKeys();
 
+	const translateLanguage = usePreferencesStore((s) => s.ai.translateLanguage);
+
 	const aiResourceOptions = useMemo(
 		() => ({
 			model,
 			resourceType,
 			resourceId,
 			resourceUrl,
+			...(translateLanguage && translateLanguage !== "auto"
+				? { targetLanguage: translateLanguage }
+				: {}),
 		}),
-		[model, resourceType, resourceId, resourceUrl],
+		[model, resourceType, resourceId, resourceUrl, translateLanguage],
 	);
 
 	const errorTitles = useMemo(
@@ -196,14 +209,36 @@ export function useAiAction<TAction extends AiAction>(
 				setAiError(null);
 
 				try {
-					const markdown = await editorHandle.getMarkdown();
+					const getContent = contentSource?.[action];
+					const markdown = getContent
+						? await getContent(editorHandle)
+						: await editorHandle.getMarkdown();
 					if (!markdown.trim()) {
 						setAiError({
 							action,
 							code: "no_content",
 							title: "Nothing to send to AI",
-							message: "Write some content first, then run the AI action again.",
+							message: getContent
+								? "Select some text first, then run the AI action again."
+								: "Write some content first, then run the AI action again.",
 						});
+						return;
+					}
+
+					const streamApplier =
+						action === "continueWriting"
+							? editorHandle.beginStreamingContinue?.()
+							: undefined;
+
+					if (streamApplier) {
+						try {
+							const result = await callAiStream(action, markdown, callOptions, (text) => {
+								streamApplier.update(text);
+							});
+							streamApplier.update(result);
+						} finally {
+							streamApplier.done();
+						}
 						return;
 					}
 
@@ -261,6 +296,7 @@ export function useAiAction<TAction extends AiAction>(
 			aiPrefs.model,
 			aiResourceOptions,
 			applyResult,
+			contentSource,
 			errorTitles,
 			loadingEntityLabel,
 			serverKeys,

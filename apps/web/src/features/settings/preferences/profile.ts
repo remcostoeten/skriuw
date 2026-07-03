@@ -63,6 +63,10 @@ function normalizeAi(
 ): PreferencesProfile["ai"] {
 	const model =
 		typeof rawAi?.model === "string" && isAiModelId(rawAi.model) ? rawAi.model : fallback.model;
+	const translateLanguage =
+		typeof rawAi?.translateLanguage === "string" && rawAi.translateLanguage.trim()
+			? rawAi.translateLanguage
+			: fallback.translateLanguage;
 
 	// Migrate legacy single apiKey → keys array
 	if (!Array.isArray(rawAi?.keys) && typeof rawAi?.apiKey === "string" && rawAi.apiKey) {
@@ -72,7 +76,7 @@ function normalizeAi(
 			apiKey: rawAi.apiKey as string,
 			tested: true,
 		};
-		return { model, keys: [migratedKey], activeKeyId: "migrated-key" };
+		return { model, keys: [migratedKey], activeKeyId: "migrated-key", translateLanguage };
 	}
 
 	const keys: AiKey[] = Array.isArray(rawAi?.keys)
@@ -91,7 +95,7 @@ function normalizeAi(
 			? (rawAi.activeKeyId as string)
 			: (keys[0]?.id ?? null);
 
-	return { model, keys, activeKeyId };
+	return { model, keys, activeKeyId, translateLanguage };
 }
 
 export function normalizeProfile(
@@ -162,6 +166,14 @@ export function normalizeProfile(
 			reduceMotion: normalizeBoolean(
 				profile?.appearance?.reduceMotion,
 				fallback.appearance.reduceMotion,
+			),
+			rememberLastTab: normalizeBoolean(
+				profile?.appearance?.rememberLastTab,
+				fallback.appearance.rememberLastTab,
+			),
+			rememberLastNote: normalizeBoolean(
+				profile?.appearance?.rememberLastNote,
+				fallback.appearance.rememberLastNote,
 			),
 		},
 		profile: {
