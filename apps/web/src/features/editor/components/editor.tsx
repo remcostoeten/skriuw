@@ -60,6 +60,7 @@ type EditorProps = {
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
 	onAiAction?: (action: AiAction) => void;
+	onAiCustomPrompt?: (instruction: string) => void;
 	onTitleCommit?: (title: string) => void;
 	onBlur?: () => void;
 	onCursorChange?: (position: {
@@ -89,6 +90,7 @@ export function Editor({
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onAiAction,
+	onAiCustomPrompt,
 	onTitleCommit,
 	onBlur,
 	onCursorChange,
@@ -305,6 +307,7 @@ export function Editor({
 					onAiSpellCheck={onAiSpellCheck}
 					onAiContinueWriting={onAiContinueWriting}
 					onAiAction={onAiAction}
+					onAiCustomPrompt={onAiCustomPrompt}
 					onTitleCommit={onTitleCommit}
 					onBlur={onBlur}
 					onCursorChange={onCursorChange}
