@@ -88,6 +88,7 @@ export function TabBar({
 }: Props) {
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [dragOverId, setDragOverId] = useState<string | null>(null);
+	const tabRefs = useRef(new Map<string, HTMLDivElement>());
 	const externalOverRef = useRef<string | "strip" | null>(null);
 	const dropNoteRef = useRef(onDropNote);
 	dropNoteRef.current = onDropNote;
@@ -126,12 +127,39 @@ export function TabBar({
 		onSelect(fileId);
 	};
 
-	const handleKeyDown = (fileId: string) => (event: KeyboardEvent<HTMLDivElement>) => {
+	function focusAndSelectTab(fileId: string) {
+		tabRefs.current.get(fileId)?.focus();
+		handleSelect(fileId);
+	}
+
+	function handleTabKeyDown(fileId: string, event: KeyboardEvent<HTMLDivElement>) {
 		if (event.key === "Enter" || event.key === " ") {
 			event.preventDefault();
 			handleSelect(fileId);
+			return;
 		}
-	};
+
+		const ids = tabs.map((tab) => tab.file.id);
+		const currentIndex = ids.indexOf(fileId);
+		if (currentIndex === -1) return;
+
+		if (event.key === "ArrowRight") {
+			event.preventDefault();
+			focusAndSelectTab(ids[(currentIndex + 1) % ids.length]);
+		} else if (event.key === "ArrowLeft") {
+			event.preventDefault();
+			focusAndSelectTab(ids[(currentIndex - 1 + ids.length) % ids.length]);
+		} else if (event.key === "Home") {
+			event.preventDefault();
+			focusAndSelectTab(ids[0]);
+		} else if (event.key === "End") {
+			event.preventDefault();
+			focusAndSelectTab(ids[ids.length - 1]);
+		} else if (event.key === "Delete") {
+			event.preventDefault();
+			onClose(fileId);
+		}
+	}
 
 	const handleDragStart = (fileId: string) => (event: DragEvent<HTMLDivElement>) => {
 		setDraggingId(fileId);
@@ -189,6 +217,10 @@ export function TabBar({
 		setDragOverId(null);
 	};
 
+	const focusableTabId = tabs.some((tab) => tab.file.id === activeFileId)
+		? activeFileId
+		: tabs[0].file.id;
+
 	return (
 		<div
 			role="tablist"
@@ -210,7 +242,14 @@ export function TabBar({
 							<div
 								role="tab"
 								aria-selected={isActive}
-								tabIndex={0}
+								tabIndex={file.id === focusableTabId ? 0 : -1}
+								ref={(node) => {
+									if (node) {
+										tabRefs.current.set(file.id, node);
+									} else {
+										tabRefs.current.delete(file.id);
+									}
+								}}
 								draggable
 								onClick={(event) => {
 									if (isCloseTabClick(event)) {
@@ -226,7 +265,7 @@ export function TabBar({
 										onClose(file.id);
 									}
 								}}
-								onKeyDown={handleKeyDown(file.id)}
+								onKeyDown={(event) => handleTabKeyDown(file.id, event)}
 								onDragStart={handleDragStart(file.id)}
 								onDragOver={handleDragOver(file.id)}
 								onDrop={handleDrop(file.id)}
@@ -248,6 +287,7 @@ export function TabBar({
 								<button
 									type="button"
 									aria-label={`Close ${tabLabel(file)}`}
+									tabIndex={-1}
 									onClick={(event) => {
 										event.stopPropagation();
 										onClose(file.id);

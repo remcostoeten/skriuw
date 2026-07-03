@@ -106,10 +106,46 @@ describe("getCommandPaletteGroups", () => {
 		];
 
 		expect(getCommandPaletteGroups(items, "").map((group) => group.group)).toEqual([
+			"Recent",
 			"Actions",
 			"Notes",
-			"Recent",
 			"Workspace",
 		]);
+	});
+
+	test("fuzzy matches subsequences and ranks label hits above keyword hits", () => {
+		const items: CommandPaletteItem[] = [
+			{
+				id: "open-settings-theme",
+				label: "Open Settings Theme",
+				group: "Settings",
+				action: noop,
+			},
+			{
+				id: "new-note",
+				label: "Create note",
+				keywords: ["ost"],
+				group: "Actions",
+				action: noop,
+			},
+		];
+
+		const groups = getCommandPaletteGroups(items, "ost");
+		const ids = groups.flatMap((group) => group.items).map((item) => item.id);
+		expect(ids).toContain("open-settings-theme");
+		expect(ids).toContain("new-note");
+	});
+
+	test("surfaces frecent commands in the Recent group when idle", () => {
+		const items: CommandPaletteItem[] = [
+			{ id: "used-often", label: "Used often", group: "Actions", action: noop },
+			{ id: "never-used", label: "Never used", group: "Actions", action: noop },
+		];
+
+		const groups = getCommandPaletteGroups(items, "", { "used-often": 3 });
+		expect(groups[0]).toEqual({ group: "Recent", items: [items[0]] });
+
+		const searching = getCommandPaletteGroups(items, "used", { "used-often": 3 });
+		expect(searching.map((group) => group.group)).not.toContain("Recent");
 	});
 });
