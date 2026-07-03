@@ -17,7 +17,8 @@ import {
 	Check,
 	Columns2,
 	FilePlus,
-	FileText,
+	Rows2,
+	SplitSquareHorizontal,
 	Folder,
 	FolderInput,
 	FolderOpen,
@@ -42,6 +43,7 @@ import { useSidebarStore } from "./sidebar/store";
 import { SidebarTreeRowSkeleton } from "./sidebar/sidebar-tree-skeleton";
 import { NoteSendContextSubmenu, NoteSendMobileActionBlock } from "./note-send-menu";
 import { GuestGate } from "@/shared/ui/guest-gate";
+import { endTreeItemDrag, setTreeItemDragData } from "../lib/note-drag";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
 
 type FileListProps = {
@@ -72,12 +74,6 @@ type DragItem = {
 	type: "file" | "folder";
 	id: string;
 	parentId: string | null;
-};
-
-type DragPreview = DragItem & {
-	name: string;
-	x: number;
-	y: number;
 };
 
 type DropPosition = "before" | "after";
@@ -125,6 +121,8 @@ export const FileList = memo(function FileList({
 	const {
 		onFileSelect,
 		onOpenBeside,
+		onOpenInSplit,
+		onOpenInNewTab,
 		onFilePrefetch,
 		onToggleFolder,
 		onRenameFile,
@@ -420,7 +418,6 @@ export const FileList = memo(function FileList({
 
 	// Drag and drop state
 	const [dragItem, setDragItem] = useState<DragItem | null>(null);
-	const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
 	const [dropTarget, setDropTarget] = useState<{
 		id: string | null;
 		type: "folder" | "root" | "sibling";
@@ -536,48 +533,17 @@ export const FileList = memo(function FileList({
 		[files, folders],
 	);
 
-	const updateDragPreviewPosition = useCallback((event: React.DragEvent) => {
-		if (event.clientX === 0 && event.clientY === 0) {
-			return;
-		}
-
-		setDragPreview((preview) =>
-			preview
-				? {
-						...preview,
-						x: event.clientX,
-						y: event.clientY,
-					}
-				: preview,
-		);
-	}, []);
-
 	const handleDragStart = useCallback(
 		(e: React.DragEvent, item: DragItem) => {
 			setDragItem(item);
-			setDragPreview({
-				...item,
-				name: getDragItemName(item),
-				x: e.clientX,
-				y: e.clientY,
-			});
-			e.dataTransfer.effectAllowed = "move";
-			e.dataTransfer.setData("text/plain", getDragItemName(item));
-			e.dataTransfer.setData("application/x-skriuw-tree-item", JSON.stringify(item));
+			setTreeItemDragData(e, item, getDragItemName(item));
 		},
 		[getDragItemName],
 	);
 
-	const handleDrag = useCallback(
-		(event: React.DragEvent) => {
-			updateDragPreviewPosition(event);
-		},
-		[updateDragPreviewPosition],
-	);
-
 	const handleDragEnd = useCallback(() => {
+		endTreeItemDrag();
 		setDragItem(null);
-		setDragPreview(null);
 		setDropTarget(null);
 	}, []);
 
@@ -838,6 +804,12 @@ export const FileList = memo(function FileList({
 				return;
 			}
 
+			if (metaKey && item.type === "file" && onOpenInNewTab) {
+				event.preventDefault();
+				onOpenInNewTab(item.id);
+				return;
+			}
+
 			if (metaKey) {
 				setSelectedItems((prev) => {
 					const exists = prev.some(
@@ -861,7 +833,7 @@ export const FileList = memo(function FileList({
 			lastSelectedIndexRef.current = itemIndex;
 			action();
 		},
-		[flattenedVisibleItems, focusedItemKey, getItemKey, setSelectedItems],
+		[flattenedVisibleItems, focusedItemKey, getItemKey, onOpenInNewTab, setSelectedItems],
 	);
 
 	const handleContextMenu = useCallback(
@@ -1207,7 +1179,6 @@ export const FileList = memo(function FileList({
 			e.stopPropagation();
 
 			if (!dragItem) return;
-			updateDragPreviewPosition(e);
 
 			// Prevent dropping a folder into itself or its descendants
 			if (dragItem.type === "folder" && targetType === "folder") {
@@ -1221,7 +1192,7 @@ export const FileList = memo(function FileList({
 			e.dataTransfer.dropEffect = "move";
 			setDropTarget({ id: targetId, type: targetType });
 		},
-		[dragItem, getDescendantIds, updateDragPreviewPosition],
+		[dragItem, getDescendantIds],
 	);
 
 	const handleSiblingDragOver = useCallback(
@@ -1230,7 +1201,6 @@ export const FileList = memo(function FileList({
 			e.stopPropagation();
 
 			if (!dragItem) return;
-			updateDragPreviewPosition(e);
 
 			const targetParentId = target.parentId;
 
@@ -1250,7 +1220,7 @@ export const FileList = memo(function FileList({
 				position: getDropPosition(e) as DropPosition,
 			});
 		},
-		[dragItem, getDescendantIds, getDropPosition, updateDragPreviewPosition],
+		[dragItem, getDescendantIds, getDropPosition],
 	);
 
 	const handleDragLeave = useCallback((e: React.DragEvent) => {
@@ -1278,7 +1248,6 @@ export const FileList = memo(function FileList({
 			// Don't drop on itself
 			if (dragItem.id === targetId) {
 				setDragItem(null);
-				setDragPreview(null);
 				setDropTarget(null);
 				return;
 			}
@@ -1287,7 +1256,6 @@ export const FileList = memo(function FileList({
 			if (dragItem.type === "folder" && targetId) {
 				if (getDescendantIds(dragItem.id).includes(targetId)) {
 					setDragItem(null);
-					setDragPreview(null);
 					setDropTarget(null);
 					return;
 				}
@@ -1299,7 +1267,6 @@ export const FileList = memo(function FileList({
 			moveDraggedToParent(targetId, appendOrder);
 
 			setDragItem(null);
-			setDragPreview(null);
 			setDropTarget(null);
 		},
 		[dragItem, getDescendantIds, getOrderedChildren, moveDraggedToParent],
@@ -1316,7 +1283,6 @@ export const FileList = memo(function FileList({
 
 			if (dragItem.id === target.id && dragItem.type === target.type) {
 				setDragItem(null);
-				setDragPreview(null);
 				setDropTarget(null);
 				return;
 			}
@@ -1327,7 +1293,6 @@ export const FileList = memo(function FileList({
 				getDescendantIds(dragItem.id).includes(targetParentId)
 			) {
 				setDragItem(null);
-				setDragPreview(null);
 				setDropTarget(null);
 				return;
 			}
@@ -1335,7 +1300,6 @@ export const FileList = memo(function FileList({
 			reorderDraggedAroundTarget(target, getDropPosition(e) as DropPosition);
 
 			setDragItem(null);
-			setDragPreview(null);
 			setDropTarget(null);
 		},
 		[dragItem, getDescendantIds, getDropPosition, reorderDraggedAroundTarget],
@@ -1406,6 +1370,8 @@ export const FileList = memo(function FileList({
 			const selectionHasMultiple = selectionForAction.length > 1;
 			const canOpenBeside =
 				!!file && !!onOpenBeside && !isMobile && !selectionHasMultiple && file.id !== activeFileId;
+			const canOpenInSplit =
+				!!file && !!onOpenInSplit && !isMobile && !selectionHasMultiple && file.id !== activeFileId;
 
 			return (
 				<>
@@ -1427,6 +1393,30 @@ export const FileList = memo(function FileList({
 							<Columns2 className="w-4 h-4" />
 							Open beside
 						</ContextMenuItem>
+					) : null}
+					{canOpenInSplit && file ? (
+						<ContextMenuSub>
+							<ContextMenuSubTrigger className="gap-2">
+								<SplitSquareHorizontal className="w-4 h-4" />
+								Open in split
+							</ContextMenuSubTrigger>
+							<ContextMenuSubContent className="w-44">
+								<ContextMenuItem
+									onClick={() => onOpenInSplit?.(file.id, "vertical")}
+									className="gap-2"
+								>
+									<Columns2 className="w-4 h-4" />
+									Vertical split
+								</ContextMenuItem>
+								<ContextMenuItem
+									onClick={() => onOpenInSplit?.(file.id, "horizontal")}
+									className="gap-2"
+								>
+									<Rows2 className="w-4 h-4" />
+									Horizontal split
+								</ContextMenuItem>
+							</ContextMenuSubContent>
+						</ContextMenuSub>
 					) : null}
 					{renderMoveToSubmenu(selectionForAction)}
 					<ContextMenuSeparator />
@@ -1491,6 +1481,7 @@ export const FileList = memo(function FileList({
 			isFavorite,
 			isMobile,
 			onOpenBeside,
+			onOpenInSplit,
 			removeFromFavorites,
 			renderMoveToSubmenu,
 			startRename,
@@ -1755,7 +1746,6 @@ export const FileList = memo(function FileList({
 									{ type: "folder", id: folder.id, parentId: folder.parentId },
 								)
 							}
-							onDrag={handleDrag as any}
 							onDragEnd={handleDragEnd}
 							onDragOver={(e) => {
 								const position = getDropPosition(e, "edges");
@@ -1898,6 +1888,14 @@ export const FileList = memo(function FileList({
 								}
 							})
 						}
+						onAuxClick={(event) => {
+							if (event.button !== 1 || isEditing || !onOpenInNewTab) return;
+							event.preventDefault();
+							onOpenInNewTab(file.id);
+						}}
+						onMouseDown={(event) => {
+							if (event.button === 1) event.preventDefault();
+						}}
 						onPointerEnter={() => onFilePrefetch?.(file.id)}
 						onPointerDown={(event) => scheduleLongPress(event, fileItem, file.name)}
 						onPointerUp={cancelLongPress}
@@ -1913,7 +1911,6 @@ export const FileList = memo(function FileList({
 								parentId: file.parentId,
 							})
 						}
-						onDrag={handleDrag as any}
 						onDragEnd={handleDragEnd}
 						onFocus={() => {
 							setFocusedItemKey(getItemKey(fileItem));
@@ -2161,29 +2158,6 @@ export const FileList = memo(function FileList({
 					})()}
 			</ContextMenu>
 
-			{dragPreview && (
-				<div
-					className="pointer-events-none fixed z-[100] flex max-w-56 items-center gap-2 border border-border bg-popover px-2.5 py-1.5 text-xs font-medium text-popover-foreground shadow-lg"
-					style={{
-						left: dragPreview.x,
-						top: dragPreview.y,
-						transform: "translate(12px, 12px)",
-					}}
-				>
-					{dragPreview.type === "folder" ? (
-						<Folder
-							className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-							strokeWidth={1.5}
-						/>
-					) : (
-						<FileText
-							className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-							strokeWidth={1.5}
-						/>
-					)}
-					<span className="truncate">{dragPreview.name}</span>
-				</div>
-			)}
 
 			<Sheet
 				open={!!mobileActionTarget}
