@@ -4,8 +4,8 @@
 		--foreground: 30 10% 14%;
 		--card: 40 16% 98%;
 		--card-foreground: 30 10% 14%;
-		--popover: 40 18% 98%;
-		--popover-foreground: 30 10% 14%;
+		--popover: 40 16% 95%;
+		--popover-foreground: 30 10% 18%;
 		--primary: 30 10% 20%;
 		--primary-foreground: 40 18% 96%;
 		--secondary: 40 14% 88%;
@@ -14,7 +14,7 @@
 		--muted-foreground: 30 8% 38%;
 		--accent: 40 14% 88%;
 		--accent-foreground: 30 10% 18%;
-		--destructive: 0 64% 45%;
+		--destructive: 348 55% 35%;
 		--destructive-foreground: 0 0% 98%;
 		--success: 146 58% 34%;
 		--success-foreground: 142 70% 12%;
