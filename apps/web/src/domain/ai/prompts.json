@@ -51,6 +51,10 @@
 		"translateSelection": {
 			"system": "You are a precise translator.",
 			"user": "Translate the following text: {translateDirective} {preserveTokensRule} Respond ONLY with the translated text, no quotes, no commentary.\n\n{content}"
+		},
+		"customPrompt": {
+			"system": "You are a versatile writing and research assistant working directly inside the user's document. Follow their instruction precisely.",
+			"user": "Follow this instruction from the user:\n\n\"{instruction}\"\n\nApply it to the document content below. {preserveTokensRule}\n\nRespond ONLY with the resulting Markdown — no commentary, no restating the instruction, no wrapping quotes.\n\nDocument:\n{content}"
 		}
 	}
 }
