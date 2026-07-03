@@ -1,6 +1,6 @@
 [package]
 name = "skriuw-desktop"
-version = "0.14.0"
+version = "0.15.0"
 description = "Skriuw desktop shell (local-first)"
 authors = ["Remco Stoeten"]
 edition = "2021"
