@@ -18,7 +18,7 @@ const PopoverContent = React.forwardRef<
 			align={align}
 			sideOffset={sideOffset}
 			className={cn(
-				"z-50 w-80 origin-[--radix-popover-content-transform-origin] rounded-md border border-border bg-popover p-4 text-popover-foreground shadow-md outline-none",
+				"z-[70] w-80 origin-[--radix-popover-content-transform-origin] rounded-md border border-border bg-popover p-4 text-popover-foreground shadow-md outline-none",
 				overlayContentMotion,
 				className,
 			)}
