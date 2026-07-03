@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import {
 	buildTableBlock,
 	resolveRichDocument,
+	richDocumentKey,
 	richDocumentNeedsRepair,
 	stripSidebarDragArtifacts,
 } from "@/domain/notes/rich-document";
+import type { RichTextDocument } from "@/domain/notes/models";
 
 describe("resolveRichDocument", () => {
 	test("repairs legacy seed table blocks from markdown", () => {
@@ -52,5 +54,58 @@ describe("stripSidebarDragArtifacts", () => {
 			'{"type":"file","id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","parentId":null}One {"type":"folder","id":"bbbbbbbb-cccc-dddd-eeee-ffffffffffff","parentId":null}Two';
 
 		expect(stripSidebarDragArtifacts(input)).toBe("One Two");
+	});
+});
+
+describe("richDocumentKey", () => {
+	test("is insensitive to JSONB-style key reordering", () => {
+		const editorOrder: RichTextDocument = [
+			{
+				id: "b1",
+				type: "paragraph",
+				props: { textColor: "default", backgroundColor: "default", textAlignment: "left" },
+				content: [{ type: "text", text: "hello", styles: {} }],
+				children: [],
+			},
+		];
+		const jsonbOrder: RichTextDocument = [
+			{
+				id: "b1",
+				type: "paragraph",
+				content: [{ text: "hello", type: "text", styles: {} }],
+				props: { textColor: "default", textAlignment: "left", backgroundColor: "default" },
+				children: [],
+			},
+		];
+
+		expect(richDocumentKey(editorOrder)).toBe(richDocumentKey(jsonbOrder));
+	});
+
+	test("still distinguishes genuinely different documents", () => {
+		const left: RichTextDocument = [
+			{
+				id: "b1",
+				type: "paragraph",
+				props: {},
+				content: [{ type: "text", text: "hello", styles: {} }],
+				children: [],
+			},
+		];
+		const right: RichTextDocument = [
+			{
+				id: "b1",
+				type: "paragraph",
+				props: {},
+				content: [{ type: "text", text: "hello world", styles: {} }],
+				children: [],
+			},
+		];
+
+		expect(richDocumentKey(left)).not.toBe(richDocumentKey(right));
+	});
+
+	test("treats null and undefined as an empty document", () => {
+		expect(richDocumentKey(null)).toBe(richDocumentKey(undefined));
+		expect(richDocumentKey(null)).toBe(richDocumentKey([]));
 	});
 });
