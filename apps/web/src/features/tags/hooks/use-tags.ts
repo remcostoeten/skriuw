@@ -92,20 +92,29 @@ export function useRenameTag() {
 }
 
 export function useDeleteTag() {
+	const scope = useTagsScope();
 	const backend = useWorkspaceBackend();
 	const invalidate = useChipRewriteInvalidation();
+	const listKey = tagsKeys.list(scope);
 
-	return useApiMutation<string, ChipRewriteResult>((name) => backend.deleteTag(name), {
-		invalidateKeys: [],
-		onSuccess: (result, name) => {
-			invalidate();
-			showUserToast(
-				`Removed #${name} from ${result.rewrittenNoteIds.length} ${
-					result.rewrittenNoteIds.length === 1 ? "note" : "notes"
-				}`,
-				"success",
-			);
+	return useApiMutation<string, ChipRewriteResult, TagSummary[]>(
+		(name) => backend.deleteTag(name),
+		{
+			invalidateKeys: [],
+			optimistic: {
+				queryKey: listKey,
+				updater: (current, name) => (current ?? []).filter((tag) => tag.name !== name),
+			},
+			onSuccess: (result, name) => {
+				invalidate();
+				showUserToast(
+					`Removed #${name} from ${result.rewrittenNoteIds.length} ${
+						result.rewrittenNoteIds.length === 1 ? "note" : "notes"
+					}`,
+					"success",
+				);
+			},
+			onError: () => showUserToast("Couldn't delete tag", "error"),
 		},
-		onError: () => showUserToast("Couldn't delete tag", "error"),
-	});
+	);
 }
