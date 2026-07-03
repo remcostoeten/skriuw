@@ -74,7 +74,7 @@ function check(checked: boolean, ...content: Inline[]): Block {
 }
 
 function codeBlock(language: string, code: string): Block {
-	return { id: bid(), type: "codeBlock", props: { language }, content: code, children: [] };
+	return { id: bid(), type: "procode", props: { language }, content: code, children: [] };
 }
 
 function fileTree(source: string): Block {
