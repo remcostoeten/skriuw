@@ -47,7 +47,7 @@ describe("file tree block data", () => {
 		const flattened = flattenInlineChips(document);
 		const firstFlattenedBlock = flattened[0] as BlockWithProps | undefined;
 
-		expect(firstFlattenedBlock?.type).toBe("codeBlock");
+		expect(firstFlattenedBlock?.type).toBe("procode");
 		expect(firstFlattenedBlock?.props?.language).toBe("filetree");
 		expect(firstFlattenedBlock?.content).toContain("Guides/");
 	});
