@@ -31,10 +31,7 @@ import {
 } from "@/core/workspace-backend";
 import { useShortcutHint } from "@/core/shortcuts";
 import { showUserToast } from "@/shared/lib/user-toast";
-
-type Props = {
-	onOpenSettings: () => void;
-};
+import { useSettingsModal } from "@/features/settings/use-settings-modal";
 
 const authDrawerConfig = {
 	ui: {
@@ -79,12 +76,14 @@ function getPathWithoutAuthParams(pathname: string, searchParams: URLSearchParam
 	return query ? `${pathname}?${query}` : pathname;
 }
 
-export function IconRail({ onOpenSettings }: Props) {
+export function IconRail() {
 	const pathname = usePathname();
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const auth = useAuth();
 	const settingsShortcut = useShortcutHint("notes.settings");
+	const settingsOpen = useSettingsModal((state) => state.isOpen);
+	const openSettingsModal = useSettingsModal((state) => state.open);
 	const capabilities = useWorkspaceCapabilities();
 	const [isMounted, setIsMounted] = useState(false);
 	const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
@@ -99,7 +98,7 @@ export function IconRail({ onOpenSettings }: Props) {
 		() =>
 			isTauriRuntime()
 				? new Set<string>()
-				: new Set(["/app/journal", "/app/settings", "/app/shared"]),
+				: new Set(["/app/journal", "/app/shared"]),
 		[],
 	);
 	const activeAuthDrawerConfig = useMemo(
@@ -307,8 +306,7 @@ export function IconRail({ onOpenSettings }: Props) {
 			<aside
 				data-tauri-drag-region
 				className="fixed inset-y-0 left-0 z-30 hidden w-14 flex-col
-      items-center justify-between border-r border-sidebar-border bg-sidebar/95
-      backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 md:flex"
+      items-center justify-between border-r border-sidebar-border bg-sidebar md:flex"
 			>
 				<div className="flex w-full flex-col items-center">
 					<div
@@ -338,20 +336,21 @@ export function IconRail({ onOpenSettings }: Props) {
 					<div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Link
-								href="/app/settings"
-								prefetch
+							<button
+								type="button"
+								onClick={() => openSettingsModal()}
 								className={cn(
 									iconButtonClass,
-									pathname === "/app/settings"
+									settingsOpen
 										? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
 										: inactiveNavClass,
 								)}
 								aria-label="Settings"
-								aria-current={pathname === "/app/settings" ? "page" : undefined}
+								aria-haspopup="dialog"
+								aria-expanded={settingsOpen}
 							>
 								<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
-							</Link>
+							</button>
 						</TooltipTrigger>
 						<TooltipContent side="right" shortcut={settingsShortcut}>
 							Settings
@@ -364,7 +363,7 @@ export function IconRail({ onOpenSettings }: Props) {
 						<AvatarSkeleton />
 					) : auth.phase === "authenticated" && auth.user ? (
 						<UserMenu
-							onSettings={onOpenSettings}
+							onSettings={() => openSettingsModal()}
 							onSignOut={handleSignOut}
 							onProfile={() => router.push("/app/profile")}
 							onNotes={() => router.push("/app")}

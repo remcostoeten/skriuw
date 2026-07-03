@@ -16,6 +16,7 @@ import {
 	SettingsCard,
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
+import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-anchor";
 import { cn } from "@/shared/lib/utils";
 
 type GroupedShortcuts = { group: string; ids: ShortcutId[] };
@@ -103,7 +104,11 @@ export function ShortcutsSection() {
 			) : null}
 
 			{hasOverrides ? (
-				<div className="mb-2 flex justify-end">
+				<div
+					id={settingsFocusDomId("reset-all-to-defaults")}
+					data-settings-focus="reset-all-to-defaults"
+					className="mb-2 flex justify-end scroll-mt-24"
+				>
 					<button
 						type="button"
 						onClick={resetAllBindings}
@@ -115,8 +120,15 @@ export function ShortcutsSection() {
 				</div>
 			) : null}
 
-			{grouped.map(({ group, ids }) => (
-				<div key={group}>
+			{grouped.map(({ group, ids }) => {
+				const groupFocusId = `group-${group.toLowerCase().replace(/\s+/g, "-")}`;
+				return (
+				<div
+					key={group}
+					id={settingsFocusDomId(groupFocusId)}
+					data-settings-focus={groupFocusId}
+					className="scroll-mt-24"
+				>
 					<GroupLabel>{group.toUpperCase()}</GroupLabel>
 					<SettingsCard>
 						{ids.map((id) => {
@@ -165,7 +177,8 @@ export function ShortcutsSection() {
 						})}
 					</SettingsCard>
 				</div>
-			))}
+				);
+			})}
 		</>
 	);
 }

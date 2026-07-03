@@ -142,7 +142,7 @@ export function SecuritySection() {
 		<>
 			<SectionHeader title="Security" description="Lock down access to your account." />
 			<SettingsCard>
-				<Row title="Change password" description="Update your sign-in password.">
+				<Row focusId="change-password" title="Change password" description="Update your sign-in password.">
 					<ChangePasswordDialog />
 				</Row>
 			</SettingsCard>

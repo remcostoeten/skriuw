@@ -8,12 +8,13 @@ import {
 	KeyRound,
 	LoaderCircle,
 	Plus,
-	Trash2,
 } from "lucide-react";
+import { DeleteButton } from "@/shared/ui/delete-button";
 import type { AiProviderKeySummary, AiUsageLogRow } from "@/domain/ai/types";
 import { AiUsageLog } from "@/features/settings/components/ai/ai-usage-log";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
+import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-anchor";
 
 type LoadState = "idle" | "loading" | "error";
 
@@ -123,17 +124,19 @@ export function AiKeysManager({ isSignedIn }: { isSignedIn: boolean }) {
 		}
 	}
 
-	async function deleteKey(keyId: string) {
+	async function deleteKey(keyId: string): Promise<boolean> {
 		setKeyError(null);
 		try {
 			const res = await fetch(`/api/ai/keys/${keyId}`, { method: "DELETE" });
 			if (!res.ok) {
 				setKeyError("Could not remove AI key.");
-				return;
+				return false;
 			}
 			setKeys((current) => current.filter((key) => key.id !== keyId));
+			return true;
 		} catch (error) {
 			setKeyError(error instanceof Error ? error.message : "Could not remove AI key.");
+			return false;
 		}
 	}
 
@@ -191,7 +194,11 @@ export function AiKeysManager({ isSignedIn }: { isSignedIn: boolean }) {
 
 	return (
 		<div className="space-y-6">
-			<div className="rounded-lg border border-border/60 bg-card/40 px-5 py-4">
+			<div
+				id={settingsFocusDomId("keys-server")}
+				data-settings-focus="keys-server"
+				className="rounded-lg border border-border/60 bg-card/40 px-5 py-4 scroll-mt-24"
+			>
 				<div className="flex items-start justify-between gap-4">
 					<div className="space-y-1">
 						<h3 className="text-sm font-medium text-foreground">Server keys</h3>
@@ -313,14 +320,13 @@ export function AiKeysManager({ isSignedIn }: { isSignedIn: boolean }) {
 										) : null}
 										Test
 									</Button>
-									<button
-										type="button"
-										onClick={() => void deleteKey(key.id)}
-										className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:text-destructive"
-										aria-label="Remove AI key"
-									>
-										<Trash2 className="h-4 w-4" />
-									</button>
+									<DeleteButton
+										onDelete={() => deleteKey(key.id)}
+										confirmLabel="Confirm remove"
+										pendingLabel="Removing"
+										successLabel="Removed"
+										failedLabel="Retry"
+									/>
 								</div>
 							</div>
 						</div>

@@ -30,7 +30,7 @@ export function EditorSection() {
 		<>
 			<SectionHeader title="Editor" description="How writing in Skriuw should feel." />
 
-			<GroupLabel>TYPOGRAPHY</GroupLabel>
+			<GroupLabel focusId="typography">TYPOGRAPHY</GroupLabel>
 			<div className="space-y-6 rounded-lg border border-border/60 bg-card/40 p-5">
 				<div {...settingsAnchorProps("editor-font")} className="space-y-3 scroll-mt-24">
 					<div>
@@ -82,7 +82,7 @@ export function EditorSection() {
 				</div>
 			</div>
 
-			<GroupLabel>BEHAVIOR</GroupLabel>
+			<GroupLabel focusId="behavior">BEHAVIOR</GroupLabel>
 			<SettingsCard>
 				<Row
 					focusId="raw-mdx"
@@ -96,6 +96,7 @@ export function EditorSection() {
 					/>
 				</Row>
 				<Row
+					focusId="animated-numbers"
 					title="Animated numbers"
 					description="Animate changing counts in the inspector and status bar."
 					visualization={<AnimatedNumberDemo animate={editor.animateNumbers} />}
