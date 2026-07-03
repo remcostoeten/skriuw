@@ -106,10 +106,72 @@ describe("getCommandPaletteGroups", () => {
 		];
 
 		expect(getCommandPaletteGroups(items, "").map((group) => group.group)).toEqual([
+			"Recent",
 			"Actions",
 			"Notes",
-			"Recent",
 			"Workspace",
 		]);
+	});
+
+	test("fuzzy matches subsequences and ranks label hits above keyword hits", () => {
+		const items: CommandPaletteItem[] = [
+			{
+				id: "keyword-hit",
+				label: "Create file",
+				keywords: ["note"],
+				group: "Actions",
+				action: noop,
+			},
+			{ id: "label-hit", label: "Note file", group: "Actions", action: noop },
+			{
+				id: "subsequence-hit",
+				label: "Open Settings Theme",
+				group: "Actions",
+				action: noop,
+			},
+		];
+
+		const subsequenceIds = getCommandPaletteGroups(items, "ost")
+			.flatMap((group) => group.items)
+			.map((item) => item.id);
+		expect(subsequenceIds).toContain("subsequence-hit");
+
+		const rankedIds = getCommandPaletteGroups(items, "note")
+			.flatMap((group) => group.items)
+			.map((item) => item.id);
+		expect(rankedIds.indexOf("label-hit")).toBeLessThan(rankedIds.indexOf("keyword-hit"));
+	});
+
+	test("orders Recent by descending frecency and caps it at five items", () => {
+		const items: CommandPaletteItem[] = Array.from({ length: 7 }, (_, index) => ({
+			id: `command-${index}`,
+			label: `Command ${index}`,
+			group: "Actions",
+			action: noop,
+		}));
+		const frecency = Object.fromEntries(items.map((item, index) => [item.id, index + 1]));
+
+		const groups = getCommandPaletteGroups(items, "", frecency);
+		expect(groups[0].group).toBe("Recent");
+		expect(groups[0].items.map((item) => item.id)).toEqual([
+			"command-6",
+			"command-5",
+			"command-4",
+			"command-3",
+			"command-2",
+		]);
+	});
+
+	test("surfaces frecent commands in the Recent group when idle", () => {
+		const items: CommandPaletteItem[] = [
+			{ id: "used-often", label: "Used often", group: "Actions", action: noop },
+			{ id: "never-used", label: "Never used", group: "Actions", action: noop },
+		];
+
+		const groups = getCommandPaletteGroups(items, "", { "used-often": 3 });
+		expect(groups[0]).toEqual({ group: "Recent", items: [items[0]] });
+
+		const searching = getCommandPaletteGroups(items, "used", { "used-often": 3 });
+		expect(searching.map((group) => group.group)).not.toContain("Recent");
 	});
 });
