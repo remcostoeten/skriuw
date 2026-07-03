@@ -369,7 +369,7 @@ export const createFileTree = createReactBlockSpec(
 			}
 			return undefined;
 		},
-		runsBefore: ["codeBlock"],
+		runsBefore: ["procode"],
 		meta: {
 			isolating: true,
 		},

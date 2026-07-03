@@ -246,7 +246,7 @@ function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
 			} as any;
 		}
 
-		if (blockType === "codeBlock") {
+		if (blockType === "procode") {
 			const language = String(blockProps?.language ?? "");
 			const source = getPlainBlockContent(content);
 			if (isFileTreeFence(language, source)) {
@@ -290,7 +290,7 @@ export function flattenInlineChips(blocks: Block[] | PartialBlock[]): PartialBlo
 
 		if (blockType === "fileTree") {
 			return {
-				type: "codeBlock",
+				type: "procode",
 				props: { language: "filetree" },
 				content: normalizeFileTreeSource(String(blockProps?.source ?? "")),
 				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
@@ -404,7 +404,7 @@ function blockNeedsRichDocumentRepair(block: PartialBlock): boolean {
 		return true;
 	}
 
-	if (blockType === "codeBlock" && Array.isArray(content)) {
+	if (blockType === "procode" && Array.isArray(content)) {
 		return true;
 	}
 
@@ -615,10 +615,11 @@ export function markdownToRichDocument(markdown: string): RichTextDocument {
 				continue;
 			}
 			blocks.push({
-				type: "codeBlock",
+				type: "procode",
 				props: { language: language || "plaintext" },
 				content: code,
-			});
+				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+			} as any);
 			continue;
 		}
 
@@ -748,7 +749,7 @@ function blockToSearchableMarkdown(block: PartialBlock): string {
 		return childText ? `${line}\n${childText}` : line;
 	}
 
-	if (blockType === "codeBlock" || blockType === "fileTree") {
+	if (blockType === "procode" || blockType === "fileTree") {
 		return getPlainBlockContent(content);
 	}
 
