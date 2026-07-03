@@ -3,6 +3,16 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.15.1] — 2026-07-03
+
+### Fixed
+- **Code block:** stop the editor from spewing repeating `TypeScript (typescript)`
+  lines on every save/reload. The `procode` block spec had no `toExternalHTML`,
+  so markdown serialization leaked the block's language `<select>` chrome into
+  the stored markdown; on reload that text was parsed into real paragraphs which
+  persisted and re-leaked, accumulating garbage. The block now serializes to a
+  clean fenced `<pre><code class="language-*">` like the other custom blocks.
+
 ## [0.13.2] — 2026-06-30
 
 ### Fixed
