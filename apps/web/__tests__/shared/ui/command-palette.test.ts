@@ -116,24 +116,50 @@ describe("getCommandPaletteGroups", () => {
 	test("fuzzy matches subsequences and ranks label hits above keyword hits", () => {
 		const items: CommandPaletteItem[] = [
 			{
-				id: "open-settings-theme",
-				label: "Open Settings Theme",
-				group: "Settings",
+				id: "keyword-hit",
+				label: "Create file",
+				keywords: ["note"],
+				group: "Actions",
 				action: noop,
 			},
+			{ id: "label-hit", label: "Note file", group: "Actions", action: noop },
 			{
-				id: "new-note",
-				label: "Create note",
-				keywords: ["ost"],
+				id: "subsequence-hit",
+				label: "Open Settings Theme",
 				group: "Actions",
 				action: noop,
 			},
 		];
 
-		const groups = getCommandPaletteGroups(items, "ost");
-		const ids = groups.flatMap((group) => group.items).map((item) => item.id);
-		expect(ids).toContain("open-settings-theme");
-		expect(ids).toContain("new-note");
+		const subsequenceIds = getCommandPaletteGroups(items, "ost")
+			.flatMap((group) => group.items)
+			.map((item) => item.id);
+		expect(subsequenceIds).toContain("subsequence-hit");
+
+		const rankedIds = getCommandPaletteGroups(items, "note")
+			.flatMap((group) => group.items)
+			.map((item) => item.id);
+		expect(rankedIds.indexOf("label-hit")).toBeLessThan(rankedIds.indexOf("keyword-hit"));
+	});
+
+	test("orders Recent by descending frecency and caps it at five items", () => {
+		const items: CommandPaletteItem[] = Array.from({ length: 7 }, (_, index) => ({
+			id: `command-${index}`,
+			label: `Command ${index}`,
+			group: "Actions",
+			action: noop,
+		}));
+		const frecency = Object.fromEntries(items.map((item, index) => [item.id, index + 1]));
+
+		const groups = getCommandPaletteGroups(items, "", frecency);
+		expect(groups[0].group).toBe("Recent");
+		expect(groups[0].items.map((item) => item.id)).toEqual([
+			"command-6",
+			"command-5",
+			"command-4",
+			"command-3",
+			"command-2",
+		]);
 	});
 
 	test("surfaces frecent commands in the Recent group when idle", () => {
