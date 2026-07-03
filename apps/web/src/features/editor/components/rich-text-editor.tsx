@@ -67,6 +67,7 @@ import {
 	Tag,
 	Tags,
 	Underline,
+	Wand2,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { getShortcutDef, useShortcutManager, type ShortcutId } from "@/core/shortcuts";
@@ -219,6 +220,7 @@ type RichTextEditorProps = {
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
 	onAiAction?: (action: AiAction) => void;
+	onAiCustomPrompt?: (instruction: string) => void;
 	onTitleCommit?: (title: string) => void;
 	onBlur?: () => void;
 	onCursorChange?: (position: {
@@ -933,6 +935,61 @@ function CommentPopover({
 	);
 }
 
+type TCustomPromptWidgetProps = {
+	onSubmit: (instruction: string) => void;
+	onClose: () => void;
+};
+
+function CustomPromptWidget({ onSubmit, onClose }: TCustomPromptWidgetProps) {
+	const [instruction, setInstruction] = useState("");
+
+	const submit = () => {
+		const trimmed = instruction.trim();
+		if (!trimmed) return;
+		onSubmit(trimmed);
+		onClose();
+	};
+
+	return (
+		<div
+			role="dialog"
+			aria-label="Custom AI prompt"
+			className="skriuw-fmt-comment w-[min(92vw,26rem)] rounded-md border border-[color:var(--search-widget-border)] bg-[var(--search-widget)] p-2 shadow-2xl backdrop-blur-sm"
+		>
+			<textarea
+				autoFocus
+				value={instruction}
+				onChange={(event) => setInstruction(event.target.value)}
+				onKeyDown={(event) => {
+					if ((event.metaKey || event.ctrlKey) && event.key === "Enter") submit();
+					if (event.key === "Escape") onClose();
+				}}
+				placeholder="Ask AI anything — “spellcheck this”, “summarize as bullets”, “translate to French”…"
+				className="skriuw-fmt-textarea min-h-[4.5rem]"
+			/>
+			<div className="skriuw-fmt-comment-actions">
+				<button
+					type="button"
+					className="skriuw-fmt-ghost"
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={onClose}
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					className="skriuw-fmt-apply"
+					disabled={!instruction.trim()}
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={submit}
+				>
+					Run
+				</button>
+			</div>
+		</div>
+	);
+}
+
 type TSelectionBubbleMenuProps = {
 	editor: EditorInstance;
 	files: NoteFile[];
@@ -941,6 +998,7 @@ type TSelectionBubbleMenuProps = {
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
 	onAiAction?: (action: AiAction) => void;
+	onOpenCustomPrompt?: () => void;
 };
 
 type TVisualViewportState = {
@@ -1014,6 +1072,7 @@ type TAiMenuProps = {
 	onSpellCheck?: () => void;
 	onContinueWriting?: () => void;
 	onAiAction?: (action: AiAction) => void;
+	onOpenCustomPrompt?: () => void;
 };
 
 const SELECTION_AI_ITEMS: Array<{ action: AiAction; label: string; icon: ReactNode }> = [
@@ -1024,8 +1083,8 @@ const SELECTION_AI_ITEMS: Array<{ action: AiAction; label: string; icon: ReactNo
 	{ action: "translateSelection", label: "Translate", icon: <Languages size={15} /> },
 ];
 
-function AiMenu({ onSpellCheck, onContinueWriting, onAiAction }: TAiMenuProps) {
-	if (!onSpellCheck && !onContinueWriting && !onAiAction) return null;
+function AiMenu({ onSpellCheck, onContinueWriting, onAiAction, onOpenCustomPrompt }: TAiMenuProps) {
+	if (!onSpellCheck && !onContinueWriting && !onAiAction && !onOpenCustomPrompt) return null;
 
 	return (
 		<FmtMenu
@@ -1097,6 +1156,22 @@ function AiMenu({ onSpellCheck, onContinueWriting, onAiAction }: TAiMenuProps) {
 								</button>
 							))
 						: null}
+					{onOpenCustomPrompt ? (
+						<button
+							type="button"
+							className="skriuw-fmt-item"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={() => {
+								onOpenCustomPrompt();
+								close();
+							}}
+						>
+							<span className="skriuw-fmt-item-icon">
+								<Wand2 size={15} />
+							</span>
+							<span>Ask AI…</span>
+						</button>
+					) : null}
 				</>
 			)}
 		</FmtMenu>
@@ -1111,6 +1186,7 @@ function SelectionBubbleMenu({
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onAiAction,
+	onOpenCustomPrompt,
 }: TSelectionBubbleMenuProps) {
 	const [rect, setRect] = useState<{
 		top: number;
@@ -1430,13 +1506,14 @@ function SelectionBubbleMenu({
 			<LinkPopover editor={editor} />
 			<InternalNoteLinkMenu editor={editor} files={files} activeFileId={activeFileId} />
 			{onAddComment ? <CommentPopover editor={editor} onAddComment={onAddComment} /> : null}
-			{onAiSpellCheck || onAiContinueWriting || onAiAction ? (
+			{onAiSpellCheck || onAiContinueWriting || onAiAction || onOpenCustomPrompt ? (
 				<>
 					<span className="skriuw-fmt-sep" />
 					<AiMenu
 						onSpellCheck={onAiSpellCheck}
 						onContinueWriting={onAiContinueWriting}
 						onAiAction={onAiAction}
+						onOpenCustomPrompt={onOpenCustomPrompt}
 					/>
 				</>
 			) : null}
@@ -1719,6 +1796,7 @@ function getCustomSlashMenuItems(
 	onAiSpellCheck?: () => void,
 	onAiContinueWriting?: () => void,
 	onAiAction?: (action: AiAction) => void,
+	onOpenCustomPrompt?: () => void,
 ): DefaultReactSuggestionItem[] {
 	const aiItems: DefaultReactSuggestionItem[] =
 		onAiSpellCheck && onAiContinueWriting
@@ -1771,8 +1849,33 @@ function getCustomSlashMenuItems(
 		);
 	}
 
+	if (onOpenCustomPrompt) {
+		aiItems.push({
+			title: "Ask AI…",
+			aliases: ["ai", "prompt", "ask", "custom", "instruction"],
+			group: "AI",
+			icon: <Wand2 size={16} />,
+			subtext: "Give the AI a free-form instruction",
+			onItemClick: onOpenCustomPrompt,
+		});
+	}
+
 	return [
 		...getDefaultReactSlashMenuItems(editor),
+		{
+			title: "Code block",
+			aliases: ["code", "fence", "syntax"],
+			group: "Structure",
+			icon: <Code size={16} />,
+			subtext: "Insert a code block with syntax highlighting",
+			onItemClick: () => {
+				insertOrUpdateBlockForSlashMenu(editor, {
+					type: "procode",
+					props: { language: "typescript", title: "" },
+					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+				} as any);
+			},
+		},
 		{
 			title: "File tree",
 			aliases: ["tree", "folder", "files", "map", "directory"],
@@ -1828,6 +1931,7 @@ export function RichTextEditor({
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onAiAction,
+	onAiCustomPrompt,
 	onTitleCommit,
 	onBlur,
 	onCursorChange,
@@ -1886,6 +1990,7 @@ export function RichTextEditor({
 	onVimModeChangeRef.current = onVimModeChange;
 	const [vimCommand, setVimCommand] = useState<string | null>(null);
 	const [searchOpen, setSearchOpen] = useState(false);
+	const [customPromptOpen, setCustomPromptOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [replaceValue, setReplaceValue] = useState("");
 	const [showReplace, setShowReplace] = useState(false);
@@ -2450,7 +2555,7 @@ export function RichTextEditor({
 							clearTimeout(pendingTimer);
 							pendingTimer = null;
 						}
-						if (stopped) return;
+						if (stopped) return insertedIds;
 						if (pendingMarkdown !== null) {
 							const latest = pendingMarkdown;
 							pendingMarkdown = null;
@@ -2458,8 +2563,104 @@ export function RichTextEditor({
 						}
 						stopped = true;
 						highlightBlocks(insertedIds);
+						return insertedIds;
 					},
 				};
+			},
+			beginStreamingCustomPrompt: (): AiStreamApplier => {
+				// Always inserts new blocks after the cursor (or after the last block
+				// when no cursor position is known) rather than merging into existing
+				// content, so an arbitrary free-form instruction can never silently
+				// overwrite prose the way continueWriting's anchor-merge does.
+				let insertedIds: string[] = [];
+				let started = false;
+				let stopped = false;
+				let lastAppliedAt = 0;
+				let pendingMarkdown: string | null = null;
+				let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+
+				const apply = (markdown: string) => {
+					const blocks = markdownToRichDocument(markdown);
+					if (blocks.length === 0) return;
+					if (!started) {
+						started = true;
+						let reference: { id: string } | null = null;
+						try {
+							reference = editor.getTextCursorPosition?.().block ?? null;
+						} catch {
+							reference = null;
+						}
+						const doc = editor.document;
+						reference = reference ?? doc[doc.length - 1] ?? null;
+						if (!reference) return;
+						const inserted = editor.insertBlocks(
+							// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
+							blocks as any,
+							reference,
+							"after",
+						);
+						insertedIds = inserted.map((b) => b.id);
+						return;
+					}
+					const docIds = new Set(editor.document.map((b) => b.id));
+					const existing = insertedIds.filter((id) => docIds.has(id));
+					if (existing.length === 0) {
+						stopped = true;
+						return;
+					}
+					const { insertedBlocks } = editor.replaceBlocks(
+						existing,
+						// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
+						blocks as any,
+					);
+					insertedIds = insertedBlocks.map((b) => b.id);
+				};
+
+				return {
+					update: (markdown) => {
+						if (stopped) return;
+						const now = Date.now();
+						const elapsed = now - lastAppliedAt;
+						if (elapsed >= STREAM_APPLY_INTERVAL_MS) {
+							lastAppliedAt = now;
+							pendingMarkdown = null;
+							apply(markdown);
+							return;
+						}
+						pendingMarkdown = markdown;
+						if (pendingTimer === null) {
+							pendingTimer = setTimeout(() => {
+								pendingTimer = null;
+								if (stopped || pendingMarkdown === null) return;
+								lastAppliedAt = Date.now();
+								const latest = pendingMarkdown;
+								pendingMarkdown = null;
+								apply(latest);
+							}, STREAM_APPLY_INTERVAL_MS - elapsed);
+						}
+					},
+					done: () => {
+						if (pendingTimer !== null) {
+							clearTimeout(pendingTimer);
+							pendingTimer = null;
+						}
+						if (stopped) return insertedIds;
+						if (pendingMarkdown !== null) {
+							const latest = pendingMarkdown;
+							pendingMarkdown = null;
+							apply(latest);
+						}
+						stopped = true;
+						highlightBlocks(insertedIds);
+						return insertedIds;
+					},
+				};
+			},
+			deleteBlocks: (ids) => {
+				const docIds = new Set(editor.document.map((b) => b.id));
+				const existing = ids.filter((id) => docIds.has(id));
+				if (existing.length === 0) return;
+				editor.removeBlocks(existing);
 			},
 			replaceContent: (markdown) => {
 				const beforeTexts = editor.document.map(blockToPlainText);
@@ -2798,6 +2999,7 @@ export function RichTextEditor({
 									onAiSpellCheck,
 									onAiContinueWriting,
 									onAiAction,
+									onAiCustomPrompt ? () => setCustomPromptOpen(true) : undefined,
 								),
 								query,
 							)
@@ -2836,10 +3038,33 @@ export function RichTextEditor({
 						onAiSpellCheck={onAiSpellCheck}
 						onAiContinueWriting={onAiContinueWriting}
 						onAiAction={onAiAction}
+						onOpenCustomPrompt={onAiCustomPrompt ? () => setCustomPromptOpen(true) : undefined}
 					/>
 				</BlockNoteView>
 				</PeopleProvider>
 			</NoteLinkProvider>
+			<AnimatePresence>
+				{customPromptOpen ? (
+					<motion.div
+						className="absolute inset-x-0 top-3 z-40 flex justify-center"
+						initial={
+							prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.98 }
+						}
+						animate={
+							prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }
+						}
+						exit={
+							prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }
+						}
+						transition={searchWidgetTransition}
+					>
+						<CustomPromptWidget
+							onSubmit={(instruction) => onAiCustomPrompt?.(instruction)}
+							onClose={() => setCustomPromptOpen(false)}
+						/>
+					</motion.div>
+				) : null}
+			</AnimatePresence>
 			{vimCommand !== null ? (
 				<div
 					className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex items-center gap-0 border-t border-border bg-background/95 px-3 py-1 font-mono text-xs text-foreground"

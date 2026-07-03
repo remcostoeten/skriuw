@@ -1,3 +1,4 @@
+import { createExtension } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
@@ -26,6 +27,26 @@ const LANGUAGE_VALUES = LANGUAGES.map((l) => l.value) as unknown as readonly [
 
 const validLanguages = new Set(LANGUAGE_VALUES);
 
+// biome-ignore lint/suspicious/noExplicitAny: runtime-compatible extension factory
+const procodeExtensions: any[] = [
+  createExtension({
+    key: "procode-input-rule",
+    inputRules: [
+      {
+        find: /^```(\S+)?(\s+.*)?\s$/,
+        replace: ({ match }: { match: RegExpExecArray }) => {
+          const raw = match[1]?.toLowerCase();
+          const language = raw && validLanguages.has(raw) ? raw : "typescript";
+          const title = raw && !validLanguages.has(raw)
+            ? ((match[1] ?? "") + (match[2] ?? "")).trim()
+            : (match[2] ?? "").trim();
+          return { type: "procode", props: { language, title } };
+        },
+      },
+    ],
+  }),
+];
+
 export const CodeBlock = createReactBlockSpec(
   {
     type: "procode",
@@ -36,19 +57,6 @@ export const CodeBlock = createReactBlockSpec(
     content: "inline",
   },
   {
-    inputRules: [
-      {
-        find: /^```(\S+)?(\s+.*)?\s$/,
-        replace: ({ match }) => {
-          const raw = match[1]?.toLowerCase();
-          const language = raw && validLanguages.has(raw) ? raw : "typescript";
-          const title = raw && !validLanguages.has(raw)
-            ? ((match[1] ?? "") + (match[2] ?? "")).trim()
-            : (match[2] ?? "").trim();
-          return { type: "procode", props: { language, title } };
-        },
-      },
-    ],
     render: ({ block, contentRef, editor }) => {
       const [copied, setCopied] = useState(false);
       const [highlighted, setHighlighted] = useState<string>("");
@@ -94,7 +102,6 @@ export const CodeBlock = createReactBlockSpec(
         <div className="pro-code-block" data-language={block.props.language}>
           <div className="pro-code-head" contentEditable={false}>
             <span className="pro-code-head-start">
-              <span className="pro-code-fence">```</span>
               <select
                 className="pro-code-lang"
                 value={block.props.language}
@@ -175,4 +182,5 @@ export const CodeBlock = createReactBlockSpec(
       );
     },
   },
+  procodeExtensions,
 );
