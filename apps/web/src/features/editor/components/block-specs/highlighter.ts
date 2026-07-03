@@ -17,6 +17,17 @@ const langLoaders: Record<string, () => Promise<unknown>> = {
   sql: () => import("shiki/langs/sql.mjs"),
 };
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function plainCodeHtml(code: string): string {
+  return `<pre class="shiki" style="color:hsl(var(--pcb-fg))"><code>${escapeHtml(code)}</code></pre>`;
+}
+
 async function getHighlighter(): Promise<HighlighterCore> {
   if (!hlPromise) {
     hlPromise = (async () => {
@@ -33,20 +44,32 @@ async function getHighlighter(): Promise<HighlighterCore> {
         engine: createOnigurumaEngine(wasm),
       });
     })();
+    // A rejected `hlPromise` must not stick — one transient chunk/wasm load
+    // failure would otherwise permanently disable highlighting for the whole
+    // session. Clear the cache on failure so the next call retries.
+    hlPromise.catch(() => {
+      hlPromise = null;
+    });
   }
   return hlPromise;
 }
 
 export async function highlight(code: string, lang: string): Promise<string> {
-  const hl = await getHighlighter();
-  const target = langLoaders[lang] ? lang : "text";
-  if (target !== "text" && !loadedLangs.has(target)) {
-    const mod = (await langLoaders[target]()) as { default: unknown };
-    await hl.loadLanguage(mod.default as never);
-    loadedLangs.add(target);
+  try {
+    const hl = await getHighlighter();
+    const target = langLoaders[lang] ? lang : "text";
+    if (target !== "text" && !loadedLangs.has(target)) {
+      const mod = (await langLoaders[target]()) as { default: unknown };
+      await hl.loadLanguage(mod.default as never);
+      loadedLangs.add(target);
+    }
+    return hl.codeToHtml(code, {
+      lang: target,
+      theme: "github-dark-default",
+    });
+  } catch {
+    // Never leave a code block unrendered: fall back to plain, escaped text so
+    // the block still shows its contents even when Shiki fails to load.
+    return plainCodeHtml(code);
   }
-  return hl.codeToHtml(code, {
-    lang: target,
-    theme: "github-dark-default",
-  });
 }
