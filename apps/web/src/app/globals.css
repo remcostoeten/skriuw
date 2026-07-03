@@ -293,18 +293,6 @@
 		animation: settings-focus-flash 1.4s cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
-	.settings-focus-flash::before {
-		content: "";
-		position: absolute;
-		left: -0.75rem;
-		top: 0.15rem;
-		bottom: 0.15rem;
-		width: 2px;
-		border-radius: 2px;
-		background-color: hsl(var(--foreground));
-		animation: settings-focus-bar 1.4s cubic-bezier(0.32, 0.72, 0, 1);
-	}
-
 	@keyframes settings-focus-flash {
 		0% {
 			background-color: hsl(var(--foreground) / 0);
@@ -314,21 +302,6 @@
 		}
 		100% {
 			background-color: hsl(var(--foreground) / 0);
-		}
-	}
-
-	@keyframes settings-focus-bar {
-		0% {
-			opacity: 0;
-			transform: scaleY(0.4);
-		}
-		12% {
-			opacity: 1;
-			transform: scaleY(1);
-		}
-		100% {
-			opacity: 0;
-			transform: scaleY(1);
 		}
 	}
 

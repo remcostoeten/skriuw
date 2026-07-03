@@ -1,21 +1,14 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/shared/lib/utils";
+import { MorphingLabel } from "@/shared/ui/morphing-label";
 
 type Status = "idle" | "confirm" | "pending" | "success" | "failed";
 
 type Frame = {
   key: Status;
   label: string;
-};
-
-const order: Record<Status, number> = {
-  idle: 0,
-  confirm: 1,
-  pending: 2,
-  success: 3,
-  failed: 4,
 };
 
 function Spinner() {
@@ -98,8 +91,6 @@ export function DeleteButton({
   disabledTitle,
 }: DeleteButtonProps) {
   const [status, setStatus] = useState<Status>("idle");
-  const [width, setWidth] = useState<number | null>(null);
-  const ghost = useRef<HTMLSpanElement | null>(null);
 
   const frames: Frame[] = [
     { key: "idle", label },
@@ -108,30 +99,6 @@ export function DeleteButton({
     { key: "success", label: successLabel },
     { key: "failed", label: failedLabel },
   ];
-
-  const active = order[status];
-  const activeFrame = frames[active];
-
-  // Width must be a concrete px value so it can transition between states. The
-  // ghost lives inside the button, so it is measured in the exact typography
-  // context the labels render in — an external measuring node can disagree
-  // (webview font fallback, zoom, late font load) and clip the label. The
-  // ResizeObserver re-syncs when those factors change after mount.
-  useLayoutEffect(
-    function sync() {
-      const node = ghost.current;
-      if (!node) return;
-      setWidth(node.offsetWidth);
-      const observer = new ResizeObserver(function measure() {
-        setWidth(node.offsetWidth);
-      });
-      observer.observe(node);
-      return function cleanup() {
-        observer.disconnect();
-      };
-    },
-    [active],
-  );
 
   async function confirm() {
     setStatus("pending");
@@ -172,7 +139,6 @@ export function DeleteButton({
         onClick={handleClick}
         disabled={disabled || busy || solid}
         title={disabled ? disabledTitle : undefined}
-        style={{ width: width ?? undefined }}
         className={cn(
           "relative inline-flex h-10 items-center justify-center overflow-hidden rounded-md border text-sm font-medium transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",
           (solid || busy) && "cursor-default",
@@ -182,38 +148,19 @@ export function DeleteButton({
           !disabled && solid && "border-input bg-accent text-accent-foreground",
         )}
       >
-        <span
-          aria-hidden
-          ref={ghost}
-          className="invisible pointer-events-none inline-flex h-full items-center gap-2 whitespace-nowrap px-4"
-        >
-          {frameIcon(activeFrame.key)}
-          {activeFrame.label}
-        </span>
-
-        {frames.map(function render(frame) {
-          const on = frame.key === status;
-          const above = order[frame.key] < active;
-          return (
-            <span
-              key={frame.key}
-              className="absolute inset-0 flex items-center justify-center gap-2 whitespace-nowrap"
-              style={{
-                opacity: on ? 1 : 0,
-                transform: on
-                  ? "translateY(0)"
-                  : above
-                    ? "translateY(-100%)"
-                    : "translateY(100%)",
-                transition:
-                  "transform 0.35s cubic-bezier(0.32,0.72,0,1), opacity 0.25s ease",
-              }}
-            >
-              {frameIcon(frame.key)}
-              {frame.label}
-            </span>
-          );
-        })}
+        <MorphingLabel
+          activeKey={status}
+          framePadding="px-4"
+          frames={frames.map((frame) => ({
+            key: frame.key,
+            content: (
+              <>
+                {frameIcon(frame.key)}
+                {frame.label}
+              </>
+            ),
+          }))}
+        />
       </button>
 
       {!disabled ? (
