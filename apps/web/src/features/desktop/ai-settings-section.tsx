@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Download, Loader2, Play, X } from "lucide-react";
+import { Check, ChevronDown, Download, Loader2, Play, Radio, X } from "lucide-react";
 import { DeleteButton } from "@/shared/ui/delete-button";
+import { MorphingLabel } from "@/shared/ui/morphing-label";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import {
@@ -62,6 +63,14 @@ type PullEvent =
 
 type PullState = { percent: number; etaSeconds: number | null; status: string };
 
+type PingResult = {
+	provider: AiProvider;
+	model: string;
+	ok: boolean;
+	latencyMs: number;
+	message: string;
+};
+
 const PROVIDER_LABELS: Record<AiProvider, string> = {
 	ollama: "Ollama (local)",
 	groq: "Groq (cloud)",
@@ -93,6 +102,8 @@ export function DesktopAiSection() {
 	const [pullState, setPullState] = useState<Record<string, PullState>>({});
 	const [keyDraft, setKeyDraft] = useState("");
 	const [notice, setNotice] = useState<string | null>(null);
+	const [pinging, setPinging] = useState(false);
+	const [pingResult, setPingResult] = useState<PingResult | null>(null);
 
 	const refreshOllama = useCallback(async () => {
 		const [nextStatus, nextCatalog] = await Promise.all([
@@ -231,6 +242,25 @@ export function DesktopAiSection() {
 		[refreshOllama],
 	);
 
+	const handlePing = useCallback(async () => {
+		setPinging(true);
+		setPingResult(null);
+		try {
+			const result = await tauriInvoke<PingResult>("ai_ping");
+			setPingResult(result);
+		} catch (error) {
+			setPingResult({
+				provider: config?.provider ?? "ollama",
+				model: "",
+				ok: false,
+				latencyMs: 0,
+				message: error instanceof Error ? error.message : String(error),
+			});
+		} finally {
+			setPinging(false);
+		}
+	}, [config]);
+
 	const handleSaveKey = useCallback(async () => {
 		if (!config) return;
 		const provider = config.provider;
@@ -278,6 +308,46 @@ export function DesktopAiSection() {
 				</Row>
 			</SettingsCard>
 
+			<GroupLabel>Test model</GroupLabel>
+			<SettingsCard>
+				<Row
+					focusId="desktop-test-model"
+					title={PROVIDER_LABELS[config.provider]}
+					description={
+						config.provider === "ollama"
+							? config.ollamaModel
+							: config.provider === "groq"
+								? config.groqModel
+								: config.geminiModel
+					}
+				>
+					<Button variant="outline" size="sm" onClick={handlePing} disabled={pinging}>
+						{pinging ? (
+							<Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+						) : (
+							<Radio className="mr-1.5 h-3.5 w-3.5" />
+						)}
+						{pinging ? "Pinging\u2026" : "Send ping"}
+					</Button>
+				</Row>
+				{pingResult ? (
+					<div
+						className={`flex items-center gap-1.5 text-xs ${pingResult.ok ? "text-emerald-500" : "text-destructive"}`}
+					>
+						{pingResult.ok ? (
+							<Check className="h-3.5 w-3.5 shrink-0" />
+						) : (
+							<X className="h-3.5 w-3.5 shrink-0" />
+						)}
+						<span>
+							{pingResult.ok
+								? `Replied in ${pingResult.latencyMs}ms: "${pingResult.message}"`
+								: pingResult.message}
+						</span>
+					</div>
+				) : null}
+			</SettingsCard>
+
 			{config.provider === "ollama" ? (
 				<>
 					<GroupLabel>Local engine</GroupLabel>
@@ -293,31 +363,53 @@ export function DesktopAiSection() {
 										: "Not installed — one click downloads and starts it."
 							}
 						>
-							{installState ? (
-								<div className="flex items-center gap-2">
-									<span className="text-xs text-muted-foreground">
-										{installState.message} {Math.round(installState.percent)}%
-									</span>
-									<Button variant="outline" size="sm" onClick={handleCancelInstall}>
-										<X className="mr-1 h-3.5 w-3.5" />
-										Cancel
-									</Button>
-								</div>
-							) : status?.running ? (
+							{status?.running ? (
 								<span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
 									<Check className="h-3.5 w-3.5 text-emerald-500" />
 									Ready
 								</span>
-							) : status?.binaryReady ? (
+							) : status?.binaryReady && !installState ? (
 								<Button variant="outline" size="sm" onClick={handleStart}>
 									<Play className="mr-1.5 h-3.5 w-3.5" />
 									Start
 								</Button>
 							) : (
-								<Button variant="outline" size="sm" onClick={handleInstall}>
-									<Download className="mr-1.5 h-3.5 w-3.5" />
-									Install Ollama
-								</Button>
+								<div className="flex items-center gap-2">
+									{installState ? (
+										<span className="text-xs text-muted-foreground">
+											{installState.message} {Math.round(installState.percent)}%
+										</span>
+									) : null}
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={installState ? handleCancelInstall : handleInstall}
+									>
+										<MorphingLabel
+											activeKey={installState ? "cancel" : "install"}
+											frames={[
+												{
+													key: "install",
+													content: (
+														<>
+															<Download className="mr-1.5 h-3.5 w-3.5" />
+															Install Ollama
+														</>
+													),
+												},
+												{
+													key: "cancel",
+													content: (
+														<>
+															<X className="mr-1 h-3.5 w-3.5" />
+															Cancel
+														</>
+													),
+												},
+											]}
+										/>
+									</Button>
+								</div>
 							)}
 						</Row>
 						{installState ? (
@@ -331,21 +423,20 @@ export function DesktopAiSection() {
 
 						{installedModels.length > 0 ? (
 							<Row focusId="desktop-active-model" title="Active model" description="The local model used for AI actions.">
-								<Select
-									value={config.ollamaModel}
-									onValueChange={(value) => patchConfig({ ollamaModel: value })}
-								>
-									<SelectTrigger className="w-48">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
+								<div className="relative w-48">
+									<select
+										className="h-10 w-full appearance-none rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+										value={config.ollamaModel}
+										onChange={(event) => patchConfig({ ollamaModel: event.target.value })}
+									>
 										{installedModels.map((entry) => (
-											<SelectItem key={entry.name} value={entry.name}>
+											<option key={entry.name} value={entry.name}>
 												{entry.name}
-											</SelectItem>
+											</option>
 										))}
-									</SelectContent>
-								</Select>
+									</select>
+									<ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
+								</div>
 							</Row>
 						) : null}
 					</SettingsCard>
@@ -382,12 +473,7 @@ export function DesktopAiSection() {
 										) : undefined
 									}
 								>
-									{pull ? (
-										<Button variant="outline" size="sm" onClick={() => handleCancelPull(entry.name)}>
-											<X className="mr-1 h-3.5 w-3.5" />
-											Cancel
-										</Button>
-									) : entry.installed ? (
+									{entry.installed ? (
 										<DeleteButton
 											onDelete={() => handleDelete(entry.name)}
 											label="Remove"
@@ -400,11 +486,34 @@ export function DesktopAiSection() {
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={() => handlePull(entry.name)}
-											disabled={!status?.running}
+											onClick={
+												pull ? () => handleCancelPull(entry.name) : () => handlePull(entry.name)
+											}
+											disabled={!pull && !status?.running}
 										>
-											<Download className="mr-1.5 h-3.5 w-3.5" />
-											Download
+											<MorphingLabel
+												activeKey={pull ? "cancel" : "download"}
+												frames={[
+													{
+														key: "download",
+														content: (
+															<>
+																<Download className="mr-1.5 h-3.5 w-3.5" />
+																Download
+															</>
+														),
+													},
+													{
+														key: "cancel",
+														content: (
+															<>
+																<X className="mr-1 h-3.5 w-3.5" />
+																Cancel
+															</>
+														),
+													},
+												]}
+											/>
 										</Button>
 									)}
 								</Row>

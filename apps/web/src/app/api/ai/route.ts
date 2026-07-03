@@ -45,7 +45,7 @@ function getServerProviderInstance(provider: AiProvider) {
 	}
 }
 
-const STREAMABLE_ACTIONS: ReadonlySet<AiAction> = new Set(["continueWriting"]);
+const STREAMABLE_ACTIONS: ReadonlySet<AiAction> = new Set(["continueWriting", "customPrompt"]);
 
 const VALID_ACTIONS = new Set(AI_PROMPT_ACTIONS);
 
@@ -151,6 +151,7 @@ export async function POST(req: NextRequest) {
 	const resourceId = readOptionalString(body?.resourceId)?.trim();
 	const resourceUrl = readOptionalString(body?.resourceUrl)?.trim();
 	const targetLanguage = readOptionalString(body?.targetLanguage)?.trim();
+	const instruction = readOptionalString(body?.instruction)?.trim();
 	const wantsStream = body?.stream === true;
 	const contentLength = typeof content === "string" ? content.length : 0;
 
@@ -179,6 +180,20 @@ export async function POST(req: NextRequest) {
 			source: "validation",
 			message: "There is no note content to send to AI.",
 			details: "Write some content first, then run the AI action again.",
+			status: 400,
+			contentLength,
+		});
+	}
+	if (action === "customPrompt" && !instruction) {
+		return aiErrorResponse({
+			req,
+			action,
+			model: requestedModel,
+			apiKey: userApiKey,
+			code: "no_content",
+			source: "validation",
+			message: "Write an instruction for the AI first.",
+			details: "Type what you want the AI to do, then run it again.",
 			status: 400,
 			contentLength,
 		});
@@ -336,7 +351,10 @@ export async function POST(req: NextRequest) {
 
 	const modelName = model.includes(".") ? model.split(".").slice(1).join(".") : model;
 	const languageModel = providerInstance(modelName);
-	const { system, prompt } = buildAiPrompt(action as AiAction, content, { targetLanguage });
+	const { system, prompt } = buildAiPrompt(action as AiAction, content, {
+		targetLanguage,
+		instruction,
+	});
 
 	if (wantsStream && STREAMABLE_ACTIONS.has(action as AiAction)) {
 		// Usage is recorded in onFinish; provider errors after the headers are
