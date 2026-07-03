@@ -1777,7 +1777,7 @@ export const FileList = memo(function FileList({
 							aria-level={depth + 1}
 							aria-expanded={folder.isOpen}
 							aria-selected={isSelected}
-							tabIndex={0}
+							tabIndex={getItemKey(folderItem) === rovingFocusKey ? 0 : -1}
 							className={cn(
 								"group relative flex w-full items-center justify-between overflow-hidden border border-transparent text-xs font-medium transition-colors",
 								"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
@@ -1922,7 +1922,7 @@ export const FileList = memo(function FileList({
 						aria-selected={isSelected || activeFileId === file.id}
 						data-active-note-tree-item={activeFileId === file.id ? "true" : undefined}
 						data-note-tree-item-id={file.id}
-						tabIndex={0}
+						tabIndex={getItemKey(fileItem) === rovingFocusKey ? 0 : -1}
 						className={cn(
 							"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors",
 							"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
@@ -2025,6 +2025,24 @@ export const FileList = memo(function FileList({
 	const isRootDropTarget = dropTarget?.id === null && dropTarget?.type === "root";
 	const virtualItems = virtualizer.getVirtualItems();
 	const totalHeight = virtualizer.getTotalSize();
+
+	// Roving tabindex: exactly one rendered row stays in the Tab order. When the
+	// focused row is virtualized out of the window, fall back to the first
+	// rendered row so the tree never drops out of the Tab sequence.
+	const renderedRowKeys = new Set(
+		virtualItems
+			.map((virtualRow) => flattenedVisibleItems[virtualRow.index])
+			.filter((item): item is (typeof flattenedVisibleItems)[number] => Boolean(item))
+			.map((item) => getItemKey(item)),
+	);
+	const firstRenderedItem =
+		virtualItems.length > 0 ? flattenedVisibleItems[virtualItems[0].index] : undefined;
+	const rovingFocusKey =
+		focusedItemKey && renderedRowKeys.has(focusedItemKey)
+			? focusedItemKey
+			: firstRenderedItem
+				? getItemKey(firstRenderedItem)
+				: null;
 
 	// Move-mode derived view state: which rows are cargo, where they'd land.
 	const moveActive = moveModeItems !== null;
