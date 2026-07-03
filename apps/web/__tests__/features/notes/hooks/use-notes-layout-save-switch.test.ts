@@ -273,8 +273,9 @@ function installMocks() {
 		usePreferencesStore: (selector: (state: any) => unknown) =>
 			selector({
 				initialize: () => undefined,
-				editor: { defaultModeRaw: false },
+				editor: { defaultModeRaw: false, notePropertiesDefaultTemplateId: null, vimMode: false },
 				journal: { diaryModeEnabled: false },
+				appearance: { theme: "midnight", rememberLastNote: false },
 			}),
 	}));
 	mock.module("@/features/onboarding/store", () => ({
