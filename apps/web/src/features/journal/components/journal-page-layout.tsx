@@ -331,7 +331,7 @@ export function JournalPageLayout() {
 		return (
 			<LayoutContainer className="bg-background">
 				<div className="relative flex min-h-0 flex-1 overflow-hidden">
-					{!isMobile && <IconRail onOpenSettings={handleOpenSettings} />}
+					{!isMobile && <IconRail />}
 					<JournalSidebarPlaceholder />
 					<JournalContentPlaceholder view={loadingView} />
 				</div>
@@ -343,7 +343,7 @@ export function JournalPageLayout() {
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
 				{/* Icon rail (desktop) */}
-				{!isMobile && <IconRail onOpenSettings={handleOpenSettings} />}
+				{!isMobile && <IconRail />}
 
 				{/* Sidebar (desktop) */}
 				{isHydrated && !isMobile && showSidebar ? (

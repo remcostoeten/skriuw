@@ -524,7 +524,6 @@ export function WorkspaceGraph() {
 		[router],
 	);
 	const openPerson = useCallback((id: string) => router.push(`/app/people/${id}`), [router]);
-	const handleOpenSettings = useCallback(() => router.push("/app/settings"), [router]);
 	const handleExploreNote = useCallback(
 		(_id: string) => {
 			if (isGuest) recordGuestGraphExplore();
@@ -558,7 +557,7 @@ export function WorkspaceGraph() {
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<IconRail onOpenSettings={handleOpenSettings} />
+				<IconRail />
 				<div className="relative min-w-0 flex-1">
 					{query.isPending ? (
 						<div className="flex h-full items-center justify-center text-sm text-muted-foreground">

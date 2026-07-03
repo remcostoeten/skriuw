@@ -29,7 +29,7 @@ export function TagInsights({ name }: Props) {
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<IconRail onOpenSettings={() => router.push("/app/settings")} />
+				<IconRail />
 				<div className="mx-auto flex h-full w-full max-w-3xl flex-col">
 					<header className="border-b border-border px-6 py-5">
 						<div className="flex items-center gap-2">

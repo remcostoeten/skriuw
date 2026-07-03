@@ -540,7 +540,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 				className,
 			)}
 		>
-			<div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar/95 backdrop-blur-xl">
+			<div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar">
 				<div
 					className={cn(
 						"relative flex h-11 items-center justify-between overflow-hidden",
@@ -573,6 +573,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 									onClick={() => onCreateFile()}
 									className={cn(
 										"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 										isNarrow ? "h-6 w-6" : "h-7 w-7",
 									)}
 									aria-label="New note"
@@ -585,6 +586,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 									onClick={onCreateFolder}
 									className={cn(
 										"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 										isNarrow ? "h-6 w-6" : "h-7 w-7",
 									)}
 									aria-label="New folder"
@@ -597,6 +599,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 									onClick={openConfigPanel}
 									className={cn(
 										"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 										isNarrow ? "h-6 w-6" : "h-7 w-7",
 									)}
 									aria-label="Manage sections"
@@ -626,6 +629,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 											}}
 											className={cn(
 												"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 												isNarrow ? "h-6 w-6" : "h-7 w-7",
 											)}
 											aria-label="Toggle all folders"
@@ -644,6 +648,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										onClick={openSearch}
 										className={cn(
 											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 											isNarrow ? "h-6 w-6" : "h-7 w-7",
 										)}
 										aria-label="Search notes"
@@ -661,6 +666,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										onClick={onOpenCommandPalette}
 										className={cn(
 											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 											isNarrow ? "h-6 w-6" : "h-7 w-7",
 										)}
 										aria-label="Command menu"
@@ -741,7 +747,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 									/>
 									<button
 										onClick={closeSearch}
-										className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+										className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground"
 										title="Close search"
 									>
 										<X className="h-3.5 w-3.5" strokeWidth={1.5} />
