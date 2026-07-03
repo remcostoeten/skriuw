@@ -181,6 +181,15 @@ export const CodeBlock = createReactBlockSpec(
         </div>
       );
     },
+    toExternalHTML: ({ block, contentRef }) => (
+      <pre>
+        <code
+          className={`language-${block.props.language}`}
+          data-language={block.props.language}
+          ref={contentRef}
+        />
+      </pre>
+    ),
   },
   procodeExtensions,
 );
