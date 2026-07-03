@@ -48,18 +48,24 @@ import {
 	Heading2,
 	Heading3,
 	Italic,
+	Languages,
 	Link2,
 	List,
 	ListChecks,
 	ListOrdered,
+	Maximize2,
 	MessageSquarePlus,
+	Minimize2,
 	PenTool,
 	Pilcrow,
 	Quote,
+	RefreshCw,
+	ScrollText,
 	Sparkles,
 	SpellCheck,
 	Strikethrough,
 	Tag,
+	Tags,
 	Underline,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
@@ -90,7 +96,7 @@ import {
 	resolveRichDocument,
 	upgradeRichDocumentChips,
 } from "@/domain/notes/rich-document";
-import type { AiEditorHandle } from "@/features/ai/service";
+import type { AiAction, AiEditorHandle, AiStreamApplier } from "@/features/ai/service";
 import {
 	type AiDiffHighlightHandle,
 	diffChangedIndices,
@@ -143,6 +149,8 @@ type EditorInstance = any;
 function getEditorView(editor: EditorInstance): EditorInstance | null {
 	return editor?._tiptapEditor?.editorView ?? null;
 }
+
+const STREAM_APPLY_INTERVAL_MS = 150;
 
 const COLLAPSED_SELECTION_STATE = {
 	bold: false,
@@ -210,6 +218,7 @@ type RichTextEditorProps = {
 	onEditorReady?: (handle: AiEditorHandle) => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
+	onAiAction?: (action: AiAction) => void;
 	onTitleCommit?: (title: string) => void;
 	onBlur?: () => void;
 	onCursorChange?: (position: {
@@ -931,6 +940,7 @@ type TSelectionBubbleMenuProps = {
 	onAddComment?: TAddComment;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
+	onAiAction?: (action: AiAction) => void;
 };
 
 type TVisualViewportState = {
@@ -1003,10 +1013,19 @@ function getToolbarItems(toolbar: HTMLElement): HTMLElement[] {
 type TAiMenuProps = {
 	onSpellCheck?: () => void;
 	onContinueWriting?: () => void;
+	onAiAction?: (action: AiAction) => void;
 };
 
-function AiMenu({ onSpellCheck, onContinueWriting }: TAiMenuProps) {
-	if (!onSpellCheck && !onContinueWriting) return null;
+const SELECTION_AI_ITEMS: Array<{ action: AiAction; label: string; icon: ReactNode }> = [
+	{ action: "fixSelection", label: "Fix spelling & grammar", icon: <SpellCheck size={15} /> },
+	{ action: "rewriteSelection", label: "Rewrite", icon: <RefreshCw size={15} /> },
+	{ action: "shortenSelection", label: "Make shorter", icon: <Minimize2 size={15} /> },
+	{ action: "expandSelection", label: "Make longer", icon: <Maximize2 size={15} /> },
+	{ action: "translateSelection", label: "Translate", icon: <Languages size={15} /> },
+];
+
+function AiMenu({ onSpellCheck, onContinueWriting, onAiAction }: TAiMenuProps) {
+	if (!onSpellCheck && !onContinueWriting && !onAiAction) return null;
 
 	return (
 		<FmtMenu
@@ -1061,6 +1080,23 @@ function AiMenu({ onSpellCheck, onContinueWriting }: TAiMenuProps) {
 							<span>Continue writing</span>
 						</button>
 					) : null}
+					{onAiAction
+						? SELECTION_AI_ITEMS.map((item) => (
+								<button
+									key={item.action}
+									type="button"
+									className="skriuw-fmt-item"
+									onMouseDown={(event) => event.preventDefault()}
+									onClick={() => {
+										onAiAction(item.action);
+										close();
+									}}
+								>
+									<span className="skriuw-fmt-item-icon">{item.icon}</span>
+									<span>{item.label}</span>
+								</button>
+							))
+						: null}
 				</>
 			)}
 		</FmtMenu>
@@ -1074,6 +1110,7 @@ function SelectionBubbleMenu({
 	onAddComment,
 	onAiSpellCheck,
 	onAiContinueWriting,
+	onAiAction,
 }: TSelectionBubbleMenuProps) {
 	const [rect, setRect] = useState<{
 		top: number;
@@ -1393,10 +1430,14 @@ function SelectionBubbleMenu({
 			<LinkPopover editor={editor} />
 			<InternalNoteLinkMenu editor={editor} files={files} activeFileId={activeFileId} />
 			{onAddComment ? <CommentPopover editor={editor} onAddComment={onAddComment} /> : null}
-			{onAiSpellCheck || onAiContinueWriting ? (
+			{onAiSpellCheck || onAiContinueWriting || onAiAction ? (
 				<>
 					<span className="skriuw-fmt-sep" />
-					<AiMenu onSpellCheck={onAiSpellCheck} onContinueWriting={onAiContinueWriting} />
+					<AiMenu
+						onSpellCheck={onAiSpellCheck}
+						onContinueWriting={onAiContinueWriting}
+						onAiAction={onAiAction}
+					/>
 				</>
 			) : null}
 		</div>
@@ -1677,6 +1718,7 @@ function getCustomSlashMenuItems(
 	editor: EditorInstance,
 	onAiSpellCheck?: () => void,
 	onAiContinueWriting?: () => void,
+	onAiAction?: (action: AiAction) => void,
 ): DefaultReactSuggestionItem[] {
 	const aiItems: DefaultReactSuggestionItem[] =
 		onAiSpellCheck && onAiContinueWriting
@@ -1699,6 +1741,35 @@ function getCustomSlashMenuItems(
 					},
 				]
 			: [];
+
+	if (onAiAction) {
+		aiItems.push(
+			{
+				title: "Summarize",
+				aliases: ["ai", "summary", "tldr", "summarize"],
+				group: "AI",
+				icon: <ScrollText size={16} />,
+				subtext: "Append an AI summary of this note",
+				onItemClick: () => onAiAction("summarize"),
+			},
+			{
+				title: "Extract tasks",
+				aliases: ["ai", "tasks", "todo", "action", "items"],
+				group: "AI",
+				icon: <ListChecks size={16} />,
+				subtext: "Pull action items out of this note",
+				onItemClick: () => onAiAction("extractTasks"),
+			},
+			{
+				title: "Suggest tags",
+				aliases: ["ai", "tags", "label", "topics"],
+				group: "AI",
+				icon: <Tags size={16} />,
+				subtext: "Get AI tag suggestions for this note",
+				onItemClick: () => onAiAction("suggestTags"),
+			},
+		);
+	}
 
 	return [
 		...getDefaultReactSlashMenuItems(editor),
@@ -1756,6 +1827,7 @@ export function RichTextEditor({
 	onEditorReady,
 	onAiSpellCheck,
 	onAiContinueWriting,
+	onAiAction,
 	onTitleCommit,
 	onBlur,
 	onCursorChange,
@@ -2252,8 +2324,143 @@ export function RichTextEditor({
 			requestAnimationFrame(resolve);
 		}
 
+		// Range captured when a selection-scoped AI action reads the selection, so
+		// the replacement lands on the original text even if focus moved during
+		// the async AI round-trip.
+		let capturedSelection: { from: number; to: number } | null = null;
+
 		onEditorReady({
 			getMarkdown: () => blocksToMarkdown(editor),
+			getSelectionText: () => {
+				const view = getEditorView(editor);
+				if (!view) return "";
+				const selection = view.state.selection;
+				if (selection.empty) {
+					capturedSelection = null;
+					return "";
+				}
+				capturedSelection = { from: selection.from, to: selection.to };
+				return view.state.doc.textBetween(selection.from, selection.to, "\n");
+			},
+			replaceSelection: (text) => {
+				const view = getEditorView(editor);
+				const range = capturedSelection;
+				capturedSelection = null;
+				if (!view || !range) return;
+				if (range.to > view.state.doc.content.size) return;
+				view.dispatch(view.state.tr.insertText(text, range.from, range.to));
+			},
+			appendMarkdown: (markdown) => {
+				const blocks = markdownToRichDocument(markdown);
+				if (blocks.length === 0) return;
+				const doc = editor.document;
+				const last = doc[doc.length - 1];
+				if (!last) return;
+				// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
+				const inserted = editor.insertBlocks(blocks as any, last, "after");
+				highlightBlocks(inserted.map((b) => b.id));
+			},
+			beginStreamingContinue: (): AiStreamApplier => {
+				// First update anchors like continueWriting (merge into the cut-off
+				// final paragraph); later updates re-parse the accumulated markdown
+				// and swap the previously inserted blocks in place. Applies are
+				// throttled (trailing) so long generations don't re-parse the whole
+				// accumulated markdown on every network chunk.
+				let insertedIds: string[] = [];
+				let started = false;
+				let stopped = false;
+				let lastAppliedAt = 0;
+				let pendingMarkdown: string | null = null;
+				let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+
+				const apply = (markdown: string) => {
+					const blocks = markdownToRichDocument(markdown);
+					if (blocks.length === 0) return;
+					if (!started) {
+						started = true;
+						const doc = editor.document;
+						let anchorIndex = doc.length - 1;
+						while (
+							anchorIndex >= 0 &&
+							blockToPlainText(doc[anchorIndex]).length === 0
+						) {
+							anchorIndex -= 1;
+						}
+						const anchor = anchorIndex >= 0 ? doc[anchorIndex] : null;
+						const anchorType = (anchor as { type?: string } | null)?.type;
+						if (anchor && (anchorType === "paragraph" || anchorType === "quote")) {
+							const { insertedBlocks } = editor.replaceBlocks(
+								[anchor],
+								// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
+								blocks as any,
+							);
+							insertedIds = insertedBlocks.map((b) => b.id);
+						} else {
+							const reference = anchor ?? doc[doc.length - 1];
+							const inserted = editor.insertBlocks(
+								// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
+								blocks as any,
+								reference,
+								"after",
+							);
+							insertedIds = inserted.map((b) => b.id);
+						}
+						return;
+					}
+					const docIds = new Set(editor.document.map((b) => b.id));
+					const existing = insertedIds.filter((id) => docIds.has(id));
+					if (existing.length === 0) {
+						// The user removed the streamed blocks — stop touching the doc.
+						stopped = true;
+						return;
+					}
+					const { insertedBlocks } = editor.replaceBlocks(
+						existing,
+						// biome-ignore lint/suspicious/noExplicitAny: schema-shaped blocks
+						blocks as any,
+					);
+					insertedIds = insertedBlocks.map((b) => b.id);
+				};
+
+				return {
+					update: (markdown) => {
+						if (stopped) return;
+						const now = Date.now();
+						const elapsed = now - lastAppliedAt;
+						if (elapsed >= STREAM_APPLY_INTERVAL_MS) {
+							lastAppliedAt = now;
+							pendingMarkdown = null;
+							apply(markdown);
+							return;
+						}
+						pendingMarkdown = markdown;
+						if (pendingTimer === null) {
+							pendingTimer = setTimeout(() => {
+								pendingTimer = null;
+								if (stopped || pendingMarkdown === null) return;
+								lastAppliedAt = Date.now();
+								const latest = pendingMarkdown;
+								pendingMarkdown = null;
+								apply(latest);
+							}, STREAM_APPLY_INTERVAL_MS - elapsed);
+						}
+					},
+					done: () => {
+						if (pendingTimer !== null) {
+							clearTimeout(pendingTimer);
+							pendingTimer = null;
+						}
+						if (stopped) return;
+						if (pendingMarkdown !== null) {
+							const latest = pendingMarkdown;
+							pendingMarkdown = null;
+							apply(latest);
+						}
+						stopped = true;
+						highlightBlocks(insertedIds);
+					},
+				};
+			},
 			replaceContent: (markdown) => {
 				const beforeTexts = editor.document.map(blockToPlainText);
 				const parsed = markdownToRichDocument(markdown);
@@ -2590,6 +2797,7 @@ export function RichTextEditor({
 									editor,
 									onAiSpellCheck,
 									onAiContinueWriting,
+									onAiAction,
 								),
 								query,
 							)
@@ -2627,6 +2835,7 @@ export function RichTextEditor({
 						onAddComment={collab ? addComment : undefined}
 						onAiSpellCheck={onAiSpellCheck}
 						onAiContinueWriting={onAiContinueWriting}
+						onAiAction={onAiAction}
 					/>
 				</BlockNoteView>
 				</PeopleProvider>
@@ -2645,7 +2854,7 @@ export function RichTextEditor({
 					/>
 				</div>
 			) : null}
-			<style jsx global>{`
+			<style>{`
 				.blocknote-wrapper .bn-editor .vim-normal {
 					caret-color: hsl(var(--primary));
 				}
@@ -3346,17 +3555,10 @@ export function RichTextEditor({
 						transition-duration: 0ms;
 					}
 				}
-				.blocknote-wrapper pre,
-				.blocknote-wrapper pre code,
-				.blocknote-wrapper [data-content-type="codeBlock"],
-				.blocknote-wrapper [data-content-type="codeBlock"] * {
+				.blocknote-wrapper [data-content-type="procode"] .pro-code-code {
 					white-space: pre-wrap !important;
 					overflow-wrap: anywhere;
 					word-break: break-word;
-				}
-				.blocknote-wrapper pre {
-					max-width: 100%;
-					overflow-x: hidden;
 				}
 				/* Override any mantine styles */
 				.blocknote-wrapper .mantine-Paper-root,

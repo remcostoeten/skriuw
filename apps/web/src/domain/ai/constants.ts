@@ -50,7 +50,23 @@ export const ACTION_MODEL_DEFAULTS: Record<string, AiModelId> = {
 	generateTitle: "google.gemini-2.5-flash",
 	spellCheck: "google.gemini-2.5-flash",
 	continueWriting: "google.gemini-2.5-pro",
+	summarize: "google.gemini-2.5-flash",
+	extractTasks: "google.gemini-2.5-flash",
+	suggestTags: "google.gemini-2.5-flash-lite",
+	fixSelection: "google.gemini-2.5-flash",
+	rewriteSelection: "google.gemini-2.5-flash",
+	shortenSelection: "google.gemini-2.5-flash",
+	expandSelection: "google.gemini-2.5-flash",
+	translateSelection: "google.gemini-2.5-flash",
 };
+
+export const AI_SELECTION_ACTIONS = [
+	"fixSelection",
+	"rewriteSelection",
+	"shortenSelection",
+	"expandSelection",
+	"translateSelection",
+] as const;
 
 export const MAX_AI_CONTENT_CHARS = 50_000;
 

@@ -5,17 +5,21 @@ import {
 	Download,
 	FileCode,
 	FileText,
+	ListChecks,
 	Loader2,
 	PanelLeft,
 	PanelRight,
 	PenTool,
 	Rows2,
+	ScrollText,
 	Settings2,
 	Sidebar,
 	SlidersHorizontal,
 	SpellCheck,
+	Tags,
 	Wand2,
 } from "lucide-react";
+import type { AiAction } from "@/features/ai/service";
 import Link from "next/link";
 import type { Awareness } from "y-protocols/awareness";
 import { cn } from "@/shared/lib/utils";
@@ -51,10 +55,11 @@ type Props = {
 	onNavigateNext?: () => void;
 	canNavigatePrev?: boolean;
 	canNavigateNext?: boolean;
-	aiLoading?: { generateTitle: boolean; spellCheck: boolean; continueWriting: boolean };
+	aiLoading?: Partial<Record<AiAction, boolean>>;
 	onAiGenerateTitle?: () => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
+	onAiAction?: (action: AiAction) => void;
 	onExportNote?: (format: "md" | "html") => void;
 	splitEnabled?: boolean;
 	onToggleSplit?: () => void;
@@ -149,6 +154,7 @@ export function EditorToolbar({
 	onAiGenerateTitle,
 	onAiSpellCheck,
 	onAiContinueWriting,
+	onAiAction,
 	onExportNote,
 	splitEnabled,
 	onToggleSplit,
@@ -157,10 +163,10 @@ export function EditorToolbar({
 	onToggleSplitOrientation,
 	presenceAwareness,
 }: Props) {
-	const anyAiLoading = aiLoading
-		? aiLoading.generateTitle || aiLoading.spellCheck || aiLoading.continueWriting
-		: false;
-	const hasAiActions = Boolean(onAiGenerateTitle || onAiSpellCheck || onAiContinueWriting);
+	const anyAiLoading = aiLoading ? Object.values(aiLoading).some(Boolean) : false;
+	const hasAiActions = Boolean(
+		onAiGenerateTitle || onAiSpellCheck || onAiContinueWriting || onAiAction,
+	);
 	const sidebarIconButtonClass =
 		"flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground";
 
@@ -230,7 +236,7 @@ export function EditorToolbar({
 			<TooltipProvider>
 				<div
 					className={cn(
-						"border-b border-border bg-background text-foreground",
+						"border-b border-sidebar-border bg-sidebar text-sidebar-foreground",
 						"flex h-11 items-center gap-1 px-3",
 					)}
 				>
@@ -407,6 +413,54 @@ export function EditorToolbar({
 											<PenTool className="h-3.5 w-3.5" strokeWidth={1.6} />
 											Continue writing
 											{aiLoading?.continueWriting && (
+												<Loader2
+													className="ml-auto h-3 w-3 animate-spin"
+													strokeWidth={1.6}
+												/>
+											)}
+										</DropdownMenuItem>
+									)}
+									{onAiAction && (
+										<DropdownMenuItem
+											onSelect={() => onAiAction("summarize")}
+											disabled={anyAiLoading}
+											className="gap-2 text-xs"
+										>
+											<ScrollText className="h-3.5 w-3.5" strokeWidth={1.6} />
+											Summarize
+											{aiLoading?.summarize && (
+												<Loader2
+													className="ml-auto h-3 w-3 animate-spin"
+													strokeWidth={1.6}
+												/>
+											)}
+										</DropdownMenuItem>
+									)}
+									{onAiAction && (
+										<DropdownMenuItem
+											onSelect={() => onAiAction("extractTasks")}
+											disabled={anyAiLoading}
+											className="gap-2 text-xs"
+										>
+											<ListChecks className="h-3.5 w-3.5" strokeWidth={1.6} />
+											Extract tasks
+											{aiLoading?.extractTasks && (
+												<Loader2
+													className="ml-auto h-3 w-3 animate-spin"
+													strokeWidth={1.6}
+												/>
+											)}
+										</DropdownMenuItem>
+									)}
+									{onAiAction && (
+										<DropdownMenuItem
+											onSelect={() => onAiAction("suggestTags")}
+											disabled={anyAiLoading}
+											className="gap-2 text-xs"
+										>
+											<Tags className="h-3.5 w-3.5" strokeWidth={1.6} />
+											Suggest tags
+											{aiLoading?.suggestTags && (
 												<Loader2
 													className="ml-auto h-3 w-3 animate-spin"
 													strokeWidth={1.6}

@@ -1,6 +1,20 @@
 export type AiProvider = "google" | "groq";
 
-export type AiAction = "generateTitle" | "spellCheck" | "continueWriting";
+export type AiSelectionAction =
+	| "fixSelection"
+	| "rewriteSelection"
+	| "shortenSelection"
+	| "expandSelection"
+	| "translateSelection";
+
+export type AiAction =
+	| "generateTitle"
+	| "spellCheck"
+	| "continueWriting"
+	| "summarize"
+	| "extractTasks"
+	| "suggestTags"
+	| AiSelectionAction;
 
 export type AiErrorCode =
 	| "authentication_required"

@@ -31,6 +31,8 @@ export type AppearancePreferences = {
 	compactSidebar: boolean;
 	showLineNumbers: boolean;
 	reduceMotion: boolean;
+	rememberLastTab: boolean;
+	rememberLastNote: boolean;
 }
 
 export type ProfilePreferences = {
@@ -57,6 +59,8 @@ export type AiPreferences = {
 	model: string;
 	keys: AiKey[];
 	activeKeyId: string | null;
+	/** Translate-selection target language name; "auto" keeps the EN↔NL heuristic. */
+	translateLanguage: string;
 }
 
 export type PreferencesProfile = {
