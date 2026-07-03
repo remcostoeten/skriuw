@@ -101,7 +101,7 @@ export function WindowControls() {
 	return (
 		<div
 			data-tauri-drag-region
-			className="fixed right-0 top-0 z-50 flex h-9 items-center gap-0.5 rounded-bl-lg border-b border-l border-sidebar-border/70 bg-sidebar/80 pl-3 pr-1 backdrop-blur supports-[backdrop-filter]:bg-sidebar/60"
+			className="fixed right-0 top-0 z-50 flex h-9 items-center gap-0.5 rounded-bl-lg border-b border-l border-sidebar-border/70 bg-sidebar pl-3 pr-1"
 		>
 			<ControlButton label="Minimize" onClick={run((w) => w.minimize())}>
 				<Minus className="h-3.5 w-3.5" strokeWidth={1.75} />
