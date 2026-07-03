@@ -95,6 +95,7 @@ import {
 	flattenInlineChips,
 	markdownToRichDocument,
 	resolveRichDocument,
+	richDocumentKey,
 	upgradeRichDocumentChips,
 } from "@/domain/notes/rich-document";
 import type { AiAction, AiEditorHandle, AiStreamApplier } from "@/features/ai/service";
@@ -1941,7 +1942,7 @@ export function RichTextEditor({
 	const appTheme = usePreferencesStore((state) => state.appearance.theme);
 	const blockNoteTheme = appTheme === "paper" ? "light" : "dark";
 	const lastContentRef = useRef(content);
-	const lastRichContentRef = useRef<string>(JSON.stringify(richContent ?? []));
+	const lastRichContentRef = useRef<string>(richDocumentKey(richContent));
 	const pendingMarkdownRef = useRef(content);
 	const pendingRichContentRef = useRef<RichTextDocument>(
 		upgradeRichDocumentChips(resolveRichDocument(content, richContent)),
@@ -2754,7 +2755,7 @@ export function RichTextEditor({
 		const serializeStart = performance.now();
 		// biome-ignore lint/suspicious/noExplicitAny: schema-flexible blocks
 		const nextRichContent = cloneRichDocument(editor.document as any);
-		const nextRichContentKey = JSON.stringify(nextRichContent);
+		const nextRichContentKey = richDocumentKey(nextRichContent);
 		perf.serialize(performance.now() - serializeStart);
 
 		pendingMarkdownRef.current = markdown;
@@ -2854,7 +2855,7 @@ export function RichTextEditor({
 		if (!editor || isInternalChangeRef.current) return;
 		const baseRichContent = resolveRichDocument(content, richContent);
 		const nextRichContent = upgradeRichDocumentChips(baseRichContent);
-		const nextRichContentKey = JSON.stringify(nextRichContent);
+		const nextRichContentKey = richDocumentKey(nextRichContent);
 		if (
 			content !== lastContentRef.current ||
 			nextRichContentKey !== lastRichContentRef.current

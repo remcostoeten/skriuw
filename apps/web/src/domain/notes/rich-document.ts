@@ -965,6 +965,32 @@ export function cloneRichDocument(document: Block[]): RichTextDocument {
 	return JSON.parse(JSON.stringify(document)) as RichTextDocument;
 }
 
+/**
+ * Canonical comparison key for a rich document. Postgres stores `rich_content`
+ * as JSONB, which rewrites object key order, so a saved note echoed back by the
+ * server never `JSON.stringify`-matches the editor's in-memory snapshot even
+ * when the documents are identical. Sorting keys recursively makes the key
+ * insensitive to that reordering.
+ */
+export function richDocumentKey(document: RichTextDocument | null | undefined): string {
+	return stableStringify(document ?? []);
+}
+
+function stableStringify(value: unknown): string {
+	if (Array.isArray(value)) {
+		return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+	}
+	if (value !== null && typeof value === "object") {
+		const entries = Object.entries(value as Record<string, unknown>)
+			.filter(([, entryValue]) => entryValue !== undefined)
+			.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+		return `{${entries
+			.map(([key, entryValue]) => `${JSON.stringify(key)}:${stableStringify(entryValue)}`)
+			.join(",")}}`;
+	}
+	return JSON.stringify(value) ?? "null";
+}
+
 export function upgradeRichDocumentChips(document: RichTextDocument): RichTextDocument {
 	return upgradeBlockContent(document) as RichTextDocument;
 }
