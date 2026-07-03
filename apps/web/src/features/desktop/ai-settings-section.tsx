@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Download, Loader2, Play, Trash2, X } from "lucide-react";
+import { Check, Download, Loader2, Play, X } from "lucide-react";
+import { DeleteButton } from "@/shared/ui/delete-button";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import {
@@ -217,11 +218,15 @@ export function DesktopAiSection() {
 	}, []);
 
 	const handleDelete = useCallback(
-		async (model: string) => {
-			await tauriInvoke<void>("ai_delete_ollama_model", { model }).catch((error) =>
-				setNotice(error instanceof Error ? error.message : String(error)),
-			);
-			await refreshOllama();
+		async (model: string): Promise<boolean> => {
+			try {
+				await tauriInvoke<void>("ai_delete_ollama_model", { model });
+				await refreshOllama();
+				return true;
+			} catch (error) {
+				setNotice(error instanceof Error ? error.message : String(error));
+				return false;
+			}
 		},
 		[refreshOllama],
 	);
@@ -254,7 +259,7 @@ export function DesktopAiSection() {
 
 			<GroupLabel>Provider</GroupLabel>
 			<SettingsCard>
-				<Row title="AI provider" description="Where title, spell-check, and continue-writing run.">
+				<Row focusId="desktop-provider" title="AI provider" description="Where title, spell-check, and continue-writing run.">
 					<Select
 						value={config.provider}
 						onValueChange={(value) => patchConfig({ provider: value as AiProvider })}
@@ -278,6 +283,7 @@ export function DesktopAiSection() {
 					<GroupLabel>Local engine</GroupLabel>
 					<SettingsCard>
 						<Row
+							focusId="desktop-ollama-runtime"
 							title="Ollama runtime"
 							description={
 								status?.running
@@ -324,7 +330,7 @@ export function DesktopAiSection() {
 						) : null}
 
 						{installedModels.length > 0 ? (
-							<Row title="Active model" description="The local model used for AI actions.">
+							<Row focusId="desktop-active-model" title="Active model" description="The local model used for AI actions.">
 								<Select
 									value={config.ollamaModel}
 									onValueChange={(value) => patchConfig({ ollamaModel: value })}
@@ -344,7 +350,7 @@ export function DesktopAiSection() {
 						) : null}
 					</SettingsCard>
 
-					<GroupLabel>Models</GroupLabel>
+					<GroupLabel focusId="desktop-models">Models</GroupLabel>
 					<SettingsCard>
 						{catalog.map((entry) => {
 							const pull = pullState[entry.name];
@@ -382,14 +388,14 @@ export function DesktopAiSection() {
 											Cancel
 										</Button>
 									) : entry.installed ? (
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => handleDelete(entry.name)}
-										>
-											<Trash2 className="mr-1.5 h-3.5 w-3.5" />
-											Remove
-										</Button>
+										<DeleteButton
+											onDelete={() => handleDelete(entry.name)}
+											label="Remove"
+											confirmLabel="Confirm remove"
+											pendingLabel="Removing"
+											successLabel="Removed"
+											failedLabel="Retry"
+										/>
 									) : (
 										<Button
 											variant="outline"
@@ -416,6 +422,7 @@ export function DesktopAiSection() {
 					<GroupLabel>{config.provider === "groq" ? "Groq" : "Gemini"}</GroupLabel>
 					<SettingsCard>
 						<Row
+							focusId="desktop-cloud-model"
 							title="Model"
 							description={
 								config.provider === "groq"
@@ -438,6 +445,7 @@ export function DesktopAiSection() {
 							/>
 						</Row>
 						<Row
+							focusId="desktop-cloud-key"
 							title="API key"
 							description={
 								(config.provider === "groq" ? config.hasGroqKey : config.hasGeminiKey)

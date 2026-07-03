@@ -2,6 +2,7 @@ import { getServerUser } from "@/core/db";
 import { editorFontVariables } from "@/app/editor-font-loaders";
 import { GuestBanner } from "@/features/layout/components/guest-banner";
 import { AppProviders } from "@/providers/app-providers";
+import { SettingsModal } from "@/features/settings/components/settings-modal";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 				{!user && <GuestBanner />}
 				{children}
 			</div>
+			<SettingsModal />
 		</AppProviders>
 	);
 }

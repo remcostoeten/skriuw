@@ -26,6 +26,7 @@ export function PrivacySection() {
 			<SettingsCard>
 				{isGuest ? (
 					<Row
+						focusId="usage-analytics"
 						title="Usage analytics"
 						description="Anonymous page views and product events are collected while you explore the demo. Create an account to manage analytics preferences."
 					>
@@ -33,6 +34,7 @@ export function PrivacySection() {
 					</Row>
 				) : (
 					<Row
+						focusId="usage-analytics"
 						title="Usage analytics"
 						description="Anonymous page views and product events while you browse. On by default for accounts — turn off to opt out. No note content, no cookies. Sign-in events are recorded separately on the server."
 					>

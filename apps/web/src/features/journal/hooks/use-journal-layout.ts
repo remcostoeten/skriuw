@@ -14,6 +14,9 @@ import { useReducedMotion, type Transition } from "framer-motion";
 import { useShortcutManager, useShortcutScope } from "@/core/shortcuts";
 import { focusActiveEditor } from "@/shared/lib/focus-editor";
 import { useNotesStore } from "@/features/notes/store";
+import { usePreferencesStore } from "@/features/settings/store";
+import { openSettings } from "@/features/settings/use-settings-modal";
+import { THEMES } from "@/features/settings/preferences/themes";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
@@ -148,8 +151,8 @@ export function useJournalLayout(): UseJournalLayoutResult {
 
 	const handleOpenSettings = useCallback(() => {
 		triggerNativeFeedback("selection");
-		router.push("/app/settings");
-	}, [router]);
+		openSettings();
+	}, []);
 
 	const handleToggleEditorMode = useCallback(() => {
 		triggerNativeFeedback("impact");
@@ -175,6 +178,11 @@ export function useJournalLayout(): UseJournalLayoutResult {
 		triggerNativeFeedback("selection");
 		router.push("/");
 	}, [router]);
+
+	const activeTheme = usePreferencesStore((state) => state.appearance.theme);
+	const updateAppearancePreference = usePreferencesStore(
+		(state) => state.updateAppearancePreference,
+	);
 
 	const closeSidebar = useCallback(() => {
 		triggerNativeFeedback("dismiss");
@@ -259,6 +267,18 @@ export function useJournalLayout(): UseJournalLayoutResult {
 				description: "Jump back to notes.",
 				action: handleGoToNotes,
 			},
+			{
+				id: "switch-theme",
+				label: "Switch theme",
+				group: "Settings",
+				keywords: ["theme", "appearance", "color", "dark", "light", "switch", "cycle"],
+				description: `Cycle to the next theme (current: ${activeTheme}).`,
+				action: () => {
+					const currentIndex = THEMES.findIndex((t) => t.id === activeTheme);
+					const nextTheme = THEMES[(currentIndex + 1) % THEMES.length];
+					updateAppearancePreference("theme", nextTheme.id);
+				},
+			},
 		],
 		[
 			handleBackToList,
@@ -267,6 +287,8 @@ export function useJournalLayout(): UseJournalLayoutResult {
 			handleOpenSettings,
 			handleToggleEditorMode,
 			handleToggleSidebar,
+			activeTheme,
+			updateAppearancePreference,
 		],
 	);
 

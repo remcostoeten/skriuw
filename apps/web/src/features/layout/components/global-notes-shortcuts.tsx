@@ -18,7 +18,9 @@ import { focusActiveEditor } from "@/shared/lib/focus-editor";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { CommandPalette, type CommandPaletteItem } from "@/shared/ui/command-palette";
 import { buildSettingsCommandItems } from "@/features/settings/settings-command-index";
+import { openSettings } from "@/features/settings/use-settings-modal";
 import { usePreferencesStore } from "@/features/settings/store";
+import { THEMES } from "@/features/settings/preferences/themes";
 import { useCreateFolder } from "@/features/notes/hooks/use-create-folder";
 import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
@@ -105,6 +107,10 @@ export function GlobalNotesShortcuts() {
 	const defaultPropertiesTemplateId = usePreferencesStore(
 		(state) => state.editor.notePropertiesDefaultTemplateId,
 	);
+	const activeTheme = usePreferencesStore((state) => state.appearance.theme);
+	const updateAppearancePreference = usePreferencesStore(
+		(state) => state.updateAppearancePreference,
+	);
 	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
 	const globalNotesActive = !hasOwnNotesHandlers(pathname);
@@ -185,7 +191,7 @@ export function GlobalNotesShortcuts() {
 			"notes.help": () => router.push(shortcutParam("help")),
 			"app.settings": () => {
 				triggerNativeFeedback("selection");
-				router.push("/app/settings");
+				openSettings();
 			},
 		}),
 		[createFolder, createNote, globalContextActionsActive, openCommandPalette, router],
@@ -238,7 +244,7 @@ export function GlobalNotesShortcuts() {
 				label: "Open Settings",
 				group: "Settings",
 				shortcut: "mod+comma",
-				action: go("/app/settings"),
+				action: () => openSettings(),
 			},
 		];
 
@@ -276,9 +282,22 @@ export function GlobalNotesShortcuts() {
 			});
 		}
 
-		navItems.push(...buildSettingsCommandItems((href) => router.push(href)));
+		navItems.push({
+			id: "switch-theme",
+			label: "Switch theme",
+			group: "Settings",
+			keywords: ["theme", "appearance", "color", "dark", "light", "switch", "cycle"],
+			description: `Cycle to the next theme (current: ${activeTheme}).`,
+			action: () => {
+				const currentIndex = THEMES.findIndex((t) => t.id === activeTheme);
+				const nextTheme = THEMES[(currentIndex + 1) % THEMES.length];
+				updateAppearancePreference("theme", nextTheme.id);
+			},
+		});
+
+		navItems.push(...buildSettingsCommandItems());
 		return navItems;
-	}, [capabilities.journal, capabilities.sharing, capabilities.trash, createFolder, createNote, router]);
+	}, [capabilities.journal, capabilities.sharing, capabilities.trash, createFolder, createNote, router, activeTheme, updateAppearancePreference]);
 
 	return (
 		<CommandPalette
