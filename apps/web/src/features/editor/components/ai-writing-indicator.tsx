@@ -2,13 +2,22 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Sparkles } from "lucide-react";
+import type { AiAction } from "@/features/ai/service";
 
-export type AiWritingAction = "continueWriting" | "spellCheck" | "generateTitle";
+export type AiWritingAction = AiAction;
 
-const LABELS: Record<AiWritingAction, string> = {
+export const AI_WRITING_LABELS: Record<AiWritingAction, string> = {
 	continueWriting: "Continuing your writing",
 	spellCheck: "Checking spelling & grammar",
 	generateTitle: "Generating a title",
+	summarize: "Summarizing this note",
+	extractTasks: "Extracting action items",
+	suggestTags: "Suggesting tags",
+	fixSelection: "Fixing the selection",
+	rewriteSelection: "Rewriting the selection",
+	shortenSelection: "Shortening the selection",
+	expandSelection: "Expanding the selection",
+	translateSelection: "Translating the selection",
 };
 
 type Props = {
@@ -84,7 +93,7 @@ export function AiWritingIndicator({ action }: Props) {
 								strokeWidth={1.5}
 							/>
 						</span>
-						<ShimmerLabel reduce={reduce}>{LABELS[action]}</ShimmerLabel>
+						<ShimmerLabel reduce={reduce}>{AI_WRITING_LABELS[action]}</ShimmerLabel>
 						<WritingDots reduce={reduce} />
 					</motion.div>
 				)}

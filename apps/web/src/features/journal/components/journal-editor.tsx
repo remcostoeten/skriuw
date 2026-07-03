@@ -7,7 +7,7 @@ import { cn } from "@/shared/lib/utils";
 import { colorWithAlpha } from "@/shared/lib/theme-colors";
 import { MOOD_OPTIONS, type MoodLevel } from "@/features/journal/types";
 import type { JournalEntryController } from "../hooks/use-journal-entry";
-import type { JournalAiController } from "../hooks/use-journal-ai";
+import type { JournalAiAction, JournalAiController } from "../hooks/use-journal-ai";
 import dynamic from "next/dynamic";
 import { PlainTextEditor } from "./plain-text-editor";
 import { EditorContentSkeleton } from "@/features/editor/components/editor-content-skeleton";
@@ -21,7 +21,11 @@ import {
 	ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
 import { copyTextToClipboard } from "@/features/desktop/context-menu-actions";
-import { JournalAiErrorBanner, JournalAiRateLimitBanner } from "./journal-ai-banners";
+import {
+	JournalAiErrorBanner,
+	JournalAiRateLimitBanner,
+	JournalSpellCheckRevertBanner,
+} from "./journal-ai-banners";
 
 // Lazy-load BlockNote/Mantine off the journal route's critical path (ssr:false),
 // matching the notes editor's dynamic boundary in editor.tsx.
@@ -82,11 +86,9 @@ export function JournalEditor({
 	const isAiAvailable = editorMode === "rich" && Boolean(aiState);
 	const activeWritingAction: AiWritingAction | null = !aiState
 		? null
-		: aiState.aiLoading.continueWriting
-			? "continueWriting"
-			: aiState.aiLoading.spellCheck
-				? "spellCheck"
-				: null;
+		: ((Object.keys(aiState.aiLoading) as JournalAiAction[]).find(
+				(action) => aiState.aiLoading[action],
+			) ?? null);
 
 	const getTagColor = (name: string): string => {
 		const tag = allTags.find((t) => t.name === name);
@@ -101,6 +103,12 @@ export function JournalEditor({
 						<JournalAiErrorBanner
 							error={aiState.aiError}
 							onDismiss={aiState.dismissAiError}
+						/>
+					)}
+					{isAiAvailable && aiState && aiState.spellCheckRevert !== null && (
+						<JournalSpellCheckRevertBanner
+							onRevert={aiState.revertSpellCheck}
+							onKeep={aiState.dismissSpellCheckRevert}
 						/>
 					)}
 					{isAiAvailable && aiState?.rateLimitPrompt && (
@@ -237,6 +245,12 @@ export function JournalEditor({
 											? () => aiState.runAiAction("continueWriting")
 											: undefined
 									}
+									onAiAction={
+										aiState
+											? (action) =>
+													aiState.runAiAction(action as JournalAiAction)
+											: undefined
+									}
 								/>
 							)}
 							{isAiAvailable && <AiWritingIndicator action={activeWritingAction} />}
@@ -290,7 +304,7 @@ export function JournalEditor({
 							)}
 						</div>
 					</div>
-					<style jsx global>{`
+					<style>{`
 						.journal-entry-editor .blocknote-wrapper {
 							padding: 0;
 						}
@@ -343,6 +357,18 @@ export function JournalEditor({
 							onClick={() => aiState.runAiAction("continueWriting")}
 						>
 							Continue writing
+						</ContextMenuItem>
+						<ContextMenuItem
+							disabled={aiState.aiLoading.summarize}
+							onClick={() => aiState.runAiAction("summarize")}
+						>
+							Summarize
+						</ContextMenuItem>
+						<ContextMenuItem
+							disabled={aiState.aiLoading.extractTasks}
+							onClick={() => aiState.runAiAction("extractTasks")}
+						>
+							Extract tasks
 						</ContextMenuItem>
 					</>
 				) : null}
