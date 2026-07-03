@@ -22,7 +22,7 @@ export function NotesSidebarSkeleton() {
 			className="hidden shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex md:flex-col"
 			style={{ width: DESKTOP_SIDEBAR_MIN_WIDTH, minWidth: DESKTOP_SIDEBAR_MIN_WIDTH }}
 		>
-			<div className="sticky top-0 z-10 flex h-11 items-center justify-between overflow-hidden border-b border-sidebar-border bg-sidebar/95 px-3 backdrop-blur-xl">
+			<div className="sticky top-0 z-10 flex h-11 items-center justify-between overflow-hidden border-b border-sidebar-border bg-sidebar px-3">
 				<div className="flex h-full w-full items-center justify-between gap-3">
 					<div className="flex w-full items-center justify-between gap-2 md:gap-2.5">
 						<SidebarHeaderIcon>
