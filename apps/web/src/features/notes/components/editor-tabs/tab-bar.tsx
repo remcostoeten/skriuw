@@ -157,7 +157,13 @@ export function TabBar({
 			focusAndSelectTab(ids[ids.length - 1]);
 		} else if (event.key === "Delete") {
 			event.preventDefault();
+			const survivorId = ids[currentIndex + 1] ?? ids[currentIndex - 1] ?? null;
 			onClose(fileId);
+			if (survivorId) {
+				requestAnimationFrame(() => {
+					tabRefs.current.get(survivorId)?.focus();
+				});
+			}
 		}
 	}
 
