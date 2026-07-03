@@ -18,6 +18,8 @@ import { GlobalNotesShortcuts } from "@/features/layout/components/global-notes-
 import { PendingCollabReplay } from "@/features/collaboration/components/pending-collab-replay";
 import { DesktopIndexSync } from "@/features/desktop/desktop-index-sync";
 import { DesktopQuitShortcut } from "@/features/desktop/desktop-quit-shortcut";
+import { DesktopToggleSize } from "@/features/desktop/desktop-toggle-size";
+import { WindowControls } from "@/features/desktop/window-controls";
 import { UserToastHost } from "@/shared/ui/user-toast-host";
 import { EDITOR_PREFERENCES_STORAGE_KEY } from "@/features/settings/lib/editor-preferences";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
@@ -85,6 +87,8 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 						<WorkspaceBackendProvider>
 							<DesktopIndexSync />
 							<DesktopQuitShortcut />
+							<DesktopToggleSize />
+							<WindowControls />
 							<PersistenceBootstrap />
 							<GuestWorkspaceBootstrap />
 							<AppRoutePrefetcher />
