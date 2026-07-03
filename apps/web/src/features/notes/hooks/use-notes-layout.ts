@@ -24,7 +24,7 @@ import { useOnboardingStore } from "@/features/onboarding/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
-import { openSettings } from "@/features/settings/use-settings-modal";
+import { openSettings, toggleSettings } from "@/features/settings/use-settings-modal";
 import { buildSettingsCommandItems } from "@/features/settings/settings-command-index";
 import { THEMES } from "@/features/settings/preferences/themes";
 import {
@@ -1196,6 +1196,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		openSettings();
 	}, []);
 
+	const handleToggleSettings = useCallback(() => {
+		triggerNativeFeedback("selection");
+		toggleSettings();
+	}, []);
+
 	const handleToggleEditorMode = useCallback(() => {
 		const modeTarget = focusedFile ?? activeFile;
 		const modeBaseline = focusedEditorMode ?? editorMode;
@@ -1275,7 +1280,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleCreateFolder,
 		handleToggleSidebar,
 		handleToggleMetadata,
-		handleOpenSettings,
+		handleOpenSettings: handleToggleSettings,
 		handleToggleEditorMode,
 		handleFocusFileTree,
 		handleToggleSplit,

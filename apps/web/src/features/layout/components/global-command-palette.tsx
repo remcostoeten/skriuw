@@ -32,7 +32,7 @@ export function GlobalCommandPalette() {
 
 	const handleOpen = useCallback(() => {
 		triggerNativeFeedback("selection");
-		setOpen(true);
+		setOpen((prev) => !prev);
 	}, []);
 
 	useShortcutScope(

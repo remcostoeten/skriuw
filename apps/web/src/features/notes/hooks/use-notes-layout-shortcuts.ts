@@ -44,7 +44,7 @@ export function useNotesLayoutShortcuts({
 
 	const handleOpenCommandPalette = useCallback(() => {
 		triggerNativeFeedback("selection");
-		setShowCommandPalette(true);
+		setShowCommandPalette((prev) => !prev);
 	}, []);
 
 	const handleOpenShortcutHelp = useCallback(() => {

@@ -336,6 +336,15 @@ export function SettingsModal() {
 					return;
 				}
 			}
+			// Ctrl+E: move focus to the active section in the sidebar, mirroring
+			// the notes file tree's "focus tree" shortcut.
+			if (e.key.toLowerCase() === "e" && e.ctrlKey && !e.metaKey && !e.altKey) {
+				e.preventDefault();
+				navRef.current
+					?.querySelector<HTMLElement>('[role="tab"][tabindex="0"]')
+					?.focus();
+				return;
+			}
 			// F6 / Shift+F6: jump between the dialog's panes (search → section
 			// list → content) from anywhere, without tabbing through controls.
 			if (e.key === "F6") {
