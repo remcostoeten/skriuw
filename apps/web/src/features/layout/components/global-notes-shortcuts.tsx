@@ -18,7 +18,7 @@ import { focusActiveEditor } from "@/shared/lib/focus-editor";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { CommandPalette, type CommandPaletteItem } from "@/shared/ui/command-palette";
 import { buildSettingsCommandItems } from "@/features/settings/settings-command-index";
-import { openSettings } from "@/features/settings/use-settings-modal";
+import { openSettings, toggleSettings } from "@/features/settings/use-settings-modal";
 import { usePreferencesStore } from "@/features/settings/store";
 import { THEMES } from "@/features/settings/preferences/themes";
 import { useCreateFolder } from "@/features/notes/hooks/use-create-folder";
@@ -191,7 +191,7 @@ export function GlobalNotesShortcuts() {
 			"notes.help": () => router.push(shortcutParam("help")),
 			"app.settings": () => {
 				triggerNativeFeedback("selection");
-				openSettings();
+				toggleSettings();
 			},
 		}),
 		[createFolder, createNote, globalContextActionsActive, openCommandPalette, router],
