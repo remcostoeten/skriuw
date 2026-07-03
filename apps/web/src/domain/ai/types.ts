@@ -14,6 +14,7 @@ export type AiAction =
 	| "summarize"
 	| "extractTasks"
 	| "suggestTags"
+	| "customPrompt"
 	| AiSelectionAction;
 
 export type AiErrorCode =

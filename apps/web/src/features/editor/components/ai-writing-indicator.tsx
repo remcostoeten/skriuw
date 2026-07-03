@@ -18,10 +18,13 @@ export const AI_WRITING_LABELS: Record<AiWritingAction, string> = {
 	shortenSelection: "Shortening the selection",
 	expandSelection: "Expanding the selection",
 	translateSelection: "Translating the selection",
+	customPrompt: "Running your instruction",
 };
 
 type Props = {
 	action: AiWritingAction | null;
+	/** Shown as a "Stop" button next to the label when the running action can be cancelled. */
+	onCancel?: () => void;
 };
 
 const SHIMMER =
@@ -63,7 +66,7 @@ function WritingDots({ reduce }: { reduce: boolean }) {
 	);
 }
 
-export function AiWritingIndicator({ action }: Props) {
+export function AiWritingIndicator({ action, onCancel }: Props) {
 	const prefersReducedMotion = useReducedMotion();
 	const reduce = Boolean(prefersReducedMotion);
 
@@ -95,6 +98,15 @@ export function AiWritingIndicator({ action }: Props) {
 						</span>
 						<ShimmerLabel reduce={reduce}>{AI_WRITING_LABELS[action]}</ShimmerLabel>
 						<WritingDots reduce={reduce} />
+						{onCancel ? (
+							<button
+								type="button"
+								onClick={onCancel}
+								className="-mr-1.5 ml-0.5 rounded-full px-2 py-0.5 text-[11px] text-muted-foreground/80 underline-offset-2 hover:text-foreground hover:underline"
+							>
+								Stop
+							</button>
+						) : null}
 					</motion.div>
 				)}
 			</AnimatePresence>

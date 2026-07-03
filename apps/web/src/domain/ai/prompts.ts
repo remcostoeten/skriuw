@@ -9,6 +9,8 @@ export type AiPrompt = {
 export type AiPromptOptions = {
 	/** Target language for translateSelection; empty/"auto" keeps the EN↔NL heuristic. */
 	targetLanguage?: string;
+	/** Free-form user instruction for customPrompt. */
+	instruction?: string;
 };
 
 export const AI_PROMPT_ACTIONS: readonly string[] = Object.keys(promptCatalog.actions);
@@ -44,6 +46,7 @@ export function buildAiPrompt(
 		.replaceAll("{matchLanguageRule}", promptCatalog.rules.matchLanguageRule)
 		.replaceAll("{preserveTokensRule}", promptCatalog.rules.preserveTokensRule)
 		.replaceAll("{translateDirective}", translateDirective(options?.targetLanguage))
+		.replaceAll("{instruction}", options?.instruction?.trim() || "")
 		.replace("{content}", () => content);
 	return { system: spec.system, prompt: user };
 }

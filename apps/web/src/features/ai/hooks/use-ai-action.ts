@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import {
 	callAi,
 	callAiStream,
+	cancelAiStream,
 	AiRateLimitError,
 	AiRequestError,
 	type AiAction,
@@ -72,6 +73,8 @@ export type UseAiActionOptions<TAction extends AiAction> = {
 	loadingEntityLabel?: string;
 	/** Overrides merged over the default AI error title map (e.g. a different content_too_large title). */
 	errorTitleOverrides?: Partial<Record<AiErrorCode, string>>;
+	/** Called after a streamed action finishes applying, with the ids of any blocks it inserted (for revert). */
+	onStreamComplete?: (action: TAction, insertedIds: string[]) => void;
 };
 
 export type AiActionController<TAction extends AiAction> = {
@@ -82,7 +85,9 @@ export type AiActionController<TAction extends AiAction> = {
 	handleEditorReady: (handle: AiEditorHandle) => void;
 	/** The most recently registered editor handle, e.g. for callers that need to act on it outside of `runAiAction` (title sync, exports, etc.). */
 	editorHandleRef: RefObject<AiEditorHandle | null>;
-	runAiAction: (action: TAction, keyId?: string, exhaustedIds?: string[]) => void;
+	runAiAction: (action: TAction, keyId?: string, exhaustedIds?: string[], instruction?: string) => void;
+	/** Cancels the in-flight streamed request, if any — the stream resolves with its partial result. */
+	cancelAiAction: () => void;
 	dismissAiError: () => void;
 	dismissRateLimit: () => void;
 };
@@ -168,7 +173,7 @@ export function useAiAction<TAction extends AiAction>(
 	}, []);
 
 	const runAiAction = useCallback(
-		(action: TAction, keyId?: string, exhaustedIds: string[] = []) => {
+		(action: TAction, keyId?: string, exhaustedIds: string[] = [], instruction?: string) => {
 			if (inFlightActionsRef.current.has(action)) return;
 			inFlightActionsRef.current.add(action);
 
@@ -195,14 +200,17 @@ export function useAiAction<TAction extends AiAction>(
 					exhaustedIds,
 				});
 
-				const callOptions = resolvedKey
-					? {
-							...aiResourceOptions,
-							...(resolvedKey.source === "local"
-								? { apiKey: resolvedKey.apiKey }
-								: { keyId: resolvedKey.keyId }),
-						}
-					: aiResourceOptions;
+				const callOptions = {
+					...(resolvedKey
+						? {
+								...aiResourceOptions,
+								...(resolvedKey.source === "local"
+									? { apiKey: resolvedKey.apiKey }
+									: { keyId: resolvedKey.keyId }),
+							}
+						: aiResourceOptions),
+					...(instruction ? { instruction } : {}),
+				};
 
 				setAiLoading((s) => ({ ...s, [action]: true }));
 				setRateLimitPrompt(null);
@@ -228,7 +236,9 @@ export function useAiAction<TAction extends AiAction>(
 					const streamApplier =
 						action === "continueWriting"
 							? editorHandle.beginStreamingContinue?.()
-							: undefined;
+							: action === "customPrompt"
+								? editorHandle.beginStreamingCustomPrompt?.()
+								: undefined;
 
 					if (streamApplier) {
 						try {
@@ -237,7 +247,8 @@ export function useAiAction<TAction extends AiAction>(
 							});
 							streamApplier.update(result);
 						} finally {
-							streamApplier.done();
+							const insertedIds = streamApplier.done();
+							options.onStreamComplete?.(action, insertedIds);
 						}
 						return;
 					}
@@ -319,6 +330,7 @@ export function useAiAction<TAction extends AiAction>(
 		handleEditorReady,
 		editorHandleRef: aiHandleRef,
 		runAiAction,
+		cancelAiAction: cancelAiStream,
 		dismissAiError: () => setAiError(null),
 		dismissRateLimit: () => setRateLimitPrompt(null),
 	};
