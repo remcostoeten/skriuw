@@ -22,6 +22,7 @@ import {
 import { formatShortcut } from "@/shared/lib/format-shortcut";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { cn } from "@/shared/lib/utils";
+import { getCommandFrecency, recordCommandUse } from "@/shared/ui/command-frecency";
 import {
 	COMMAND_BANGS,
 	getCommandPaletteGroups,
@@ -77,11 +78,15 @@ export function CommandPalette({
 	}
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [isApple, setIsApple] = useState(false);
+	const [frecency, setFrecency] = useState<Record<string, number>>({});
 	const inputRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	const listboxId = useId();
 
-	const groups = useMemo(() => getCommandPaletteGroups(items, query), [items, query]);
+	const groups = useMemo(
+		() => getCommandPaletteGroups(items, query, frecency),
+		[items, query, frecency],
+	);
 	const flatItems = useMemo(() => groups.flatMap((group) => group.items), [groups]);
 
 	useEffect(() => {
@@ -90,6 +95,7 @@ export function CommandPalette({
 		setQuery("");
 		onQueryChange?.("");
 		setActiveIndex(0);
+		setFrecency(getCommandFrecency());
 	}, [open, onQueryChange]);
 
 	useEffect(() => {
@@ -119,6 +125,7 @@ export function CommandPalette({
 
 	function runItem(item: CommandPaletteItem) {
 		triggerNativeFeedback("selection");
+		recordCommandUse(item.id);
 		onOpenChange(false);
 		item.action();
 	}
@@ -179,7 +186,7 @@ export function CommandPalette({
 							aria-controls={listboxId}
 							aria-autocomplete="list"
 							aria-activedescendant={
-								activeItem ? `${listboxId}-item-${activeItem.id}` : undefined
+								activeItem ? `${listboxId}-item-${activeIndex}` : undefined
 							}
 							className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none focus:outline-none focus-visible:shadow-none focus-visible:outline-none placeholder:text-muted-foreground"
 						/>
@@ -214,7 +221,7 @@ export function CommandPalette({
 											<button
 												key={item.id}
 												type="button"
-												id={`${listboxId}-item-${item.id}`}
+												id={`${listboxId}-item-${index}`}
 												data-index={index}
 												role="option"
 												aria-selected={isActive}
