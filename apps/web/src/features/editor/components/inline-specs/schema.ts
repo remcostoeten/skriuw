@@ -11,9 +11,11 @@ import { createCheckListItem } from "../block-specs/checklist-item";
 import { createFileTree } from "../block-specs/file-tree";
 import { CodeBlock } from "../block-specs/CodeBlock";
 
+const { codeBlock: _discarded, ...blockSpecsWithoutCodeBlock } = defaultBlockSpecs;
+
 export const editorSchema = BlockNoteSchema.create({
 	blockSpecs: {
-		...defaultBlockSpecs,
+		...blockSpecsWithoutCodeBlock,
 		procode: CodeBlock(),
 		checkListItem: createCheckListItem(),
 		fileTree: createFileTree(),

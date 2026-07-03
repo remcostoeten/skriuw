@@ -19,6 +19,7 @@ import {
 	Tags,
 	Wand2,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { AiAction } from "@/features/ai/service";
 import Link from "next/link";
 import type { Awareness } from "y-protocols/awareness";
@@ -33,6 +34,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shar
 import { GuestGate } from "@/shared/ui/guest-gate";
 import { CollabPresence } from "@/features/collaboration/components/collab-presence";
 import { useShortcutHint, type ShortcutId } from "@/core/shortcuts";
+import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
 
 export type WorkspaceNavItem = {
 	href: string;
@@ -163,6 +165,11 @@ export function EditorToolbar({
 	onToggleSplitOrientation,
 	presenceAwareness,
 }: Props) {
+	const [isTauri, setIsTauri] = useState(false);
+	useEffect(() => {
+		setIsTauri(isTauriRuntime());
+	}, []);
+
 	const anyAiLoading = aiLoading ? Object.values(aiLoading).some(Boolean) : false;
 	const hasAiActions = Boolean(
 		onAiGenerateTitle || onAiSpellCheck || onAiContinueWriting || onAiAction,
@@ -239,6 +246,10 @@ export function EditorToolbar({
 						"border-b border-sidebar-border bg-sidebar text-sidebar-foreground",
 						"flex h-11 items-center gap-1 px-3",
 					)}
+					// Reserves space for the fixed WindowControls cluster (~128px) so
+					// this toolbar's rightmost icons never sit underneath it, even
+					// when the page is zoomed in.
+					style={isTauri ? { paddingRight: 128 } : undefined}
 				>
 				<ToolbarTooltip label="Toggle sidebar" shortcutId="notes.toggleSidebar">
 					<button
