@@ -2,6 +2,8 @@
 //! Both expose a non-streaming `complete` for one-shot actions and a
 //! `_stream` variant used by continue-writing to surface tokens as they arrive.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::StreamExt;
@@ -17,15 +19,20 @@ fn http_client() -> Result<reqwest::Client, String> {
 const GROQ_URL: &str = "https://api.groq.com/openai/v1/chat/completions";
 
 /// Reads an SSE body and invokes `on_data` with the payload of every
-/// `data:` line (the `[DONE]` sentinel is skipped).
+/// `data:` line (the `[DONE]` sentinel is skipped). Stops early, without
+/// error, once `cancel` is flagged.
 async fn read_sse<F: FnMut(&str)>(
     response: reqwest::Response,
     provider: &str,
+    cancel: &Arc<AtomicBool>,
     mut on_data: F,
 ) -> Result<(), String> {
     let mut stream = response.bytes_stream();
     let mut buffer = String::new();
     while let Some(chunk) = stream.next().await {
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(());
+        }
         let chunk = chunk.map_err(|error| format!("{provider} stream error: {error}"))?;
         buffer.push_str(&String::from_utf8_lossy(&chunk));
 
@@ -106,6 +113,7 @@ pub async fn groq_complete_stream<F: Fn(&str)>(
     system: &str,
     user: &str,
     on_chunk: F,
+    cancel: Arc<AtomicBool>,
 ) -> Result<String, String> {
     if api_key.trim().is_empty() {
         return Err("No Groq API key set. Add one in Settings → AI.".to_string());
@@ -146,7 +154,7 @@ pub async fn groq_complete_stream<F: Fn(&str)>(
     }
 
     let mut accumulated = String::new();
-    read_sse(response, "Groq", |data| {
+    read_sse(response, "Groq", &cancel, |data| {
         let Ok(parsed) = serde_json::from_str::<StreamResponse>(data) else {
             return;
         };
@@ -232,6 +240,7 @@ pub async fn gemini_complete_stream<F: Fn(&str)>(
     system: &str,
     user: &str,
     on_chunk: F,
+    cancel: Arc<AtomicBool>,
 ) -> Result<String, String> {
     if api_key.trim().is_empty() {
         return Err("No Gemini API key set. Add one in Settings → AI.".to_string());
@@ -273,7 +282,7 @@ pub async fn gemini_complete_stream<F: Fn(&str)>(
     }
 
     let mut accumulated = String::new();
-    read_sse(response, "Gemini", |data| {
+    read_sse(response, "Gemini", &cancel, |data| {
         let Ok(parsed) = serde_json::from_str::<StreamResponse>(data) else {
             return;
         };

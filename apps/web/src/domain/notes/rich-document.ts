@@ -246,7 +246,7 @@ function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
 			} as any;
 		}
 
-		if (blockType === "procode") {
+		if (blockType === "procode" || blockType === "codeBlock") {
 			const language = String(blockProps?.language ?? "");
 			const source = getPlainBlockContent(content);
 			if (isFileTreeFence(language, source)) {
@@ -259,6 +259,7 @@ function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
 
 			return {
 				...next,
+				type: "procode",
 				content: source,
 			};
 		}
@@ -408,6 +409,10 @@ function blockNeedsRichDocumentRepair(block: PartialBlock): boolean {
 		return true;
 	}
 
+	if (blockType === "codeBlock") {
+		return true;
+	}
+
 	if (Array.isArray(block.children) && block.children.length > 0) {
 		return (block.children as PartialBlock[]).some(blockNeedsRichDocumentRepair);
 	}
@@ -476,8 +481,34 @@ function getPlainBlockContent(content: unknown): string {
 	return "";
 }
 
+/**
+ * Local LLMs frequently wrap an entire markdown answer in a single fence
+ * (often ```markdown or ```md) instead of using real heading/code-block
+ * syntax at the top level — a side effect of being told "respond only with
+ * markdown". Left as-is, the whole response is parsed as one literal code
+ * block instead of headings/paragraphs/nested code blocks. Detected by an
+ * explicit markdown/md language tag, or by the wrapped content containing
+ * its own fence (a real single code-snippet answer never nests a fence).
+ */
+function unwrapOuterMarkdownFence(markdown: string): string {
+	const trimmed = markdown.trim();
+	const lines = trimmed.split("\n");
+	if (lines.length < 2) return markdown;
+
+	const openMatch = lines[0].match(CODE_FENCE_OPEN_PATTERN);
+	if (!openMatch || !CODE_FENCE_CLOSE_PATTERN.test(lines[lines.length - 1])) return markdown;
+
+	const inner = lines.slice(1, -1);
+	const language = openMatch[1].trim().toLowerCase();
+	const isMarkdownTag = language === "markdown" || language === "md";
+	const hasNestedFence = inner.some((line) => CODE_FENCE_OPEN_PATTERN.test(line));
+	if (!isMarkdownTag && !hasNestedFence) return markdown;
+
+	return inner.join("\n");
+}
+
 export function markdownToRichDocument(markdown: string): RichTextDocument {
-	const lines = markdown.split("\n");
+	const lines = unwrapOuterMarkdownFence(markdown).split("\n");
 	const blocks: PartialBlock[] = [];
 	let i = 0;
 

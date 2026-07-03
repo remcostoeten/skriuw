@@ -58,6 +58,7 @@ export const ACTION_MODEL_DEFAULTS: Record<string, AiModelId> = {
 	shortenSelection: "google.gemini-2.5-flash",
 	expandSelection: "google.gemini-2.5-flash",
 	translateSelection: "google.gemini-2.5-flash",
+	customPrompt: "google.gemini-2.5-flash",
 };
 
 export const AI_SELECTION_ACTIONS = [

@@ -1,5 +1,6 @@
 import type { AiAction, AiErrorCode } from "@/domain/ai/types";
 import { isTauriRuntime, tauriChannel, tauriInvoke } from "@/core/workspace-backend";
+import { noop } from "@/shared/lib/noop";
 
 export type { AiAction, AiSelectionAction, AiErrorCode } from "@/domain/ai/types";
 
@@ -7,7 +8,8 @@ export type { AiAction, AiSelectionAction, AiErrorCode } from "@/domain/ai/types
 export type AiStreamApplier = {
 	/** Re-applies the full accumulated markdown so far (idempotent per call). */
 	update: (markdown: string) => void;
-	done: () => void;
+	/** Flushes any pending update and returns the ids of the blocks it inserted, for revert. */
+	done: () => string[];
 };
 
 /** Imperative bridge the AI actions use to read/write the active editor. */
@@ -24,6 +26,10 @@ export type AiEditorHandle = {
 	appendMarkdown?: (markdown: string) => void;
 	/** Starts a streamed continue-writing application; falls back to continueWriting when absent. */
 	beginStreamingContinue?: () => AiStreamApplier;
+	/** Starts a streamed custom-prompt application, inserting new blocks after the cursor. */
+	beginStreamingCustomPrompt?: () => AiStreamApplier;
+	/** Removes blocks by id — used to revert a streamed insertion. */
+	deleteBlocks?: (ids: string[]) => void;
 }
 
 /** Per-request options for an AI completion (key selection, model, rate-limit attribution). */
@@ -36,6 +42,8 @@ export type AiCallOptions = {
 	resourceUrl?: string;
 	/** Target language for translateSelection; "auto"/absent keeps the EN↔NL heuristic. */
 	targetLanguage?: string;
+	/** Free-form user instruction for customPrompt. */
+	instruction?: string;
 }
 
 export class AiRateLimitError extends Error {
@@ -139,8 +147,27 @@ function buildAiRequestBody(
 		...(options?.resourceId ? { resourceId: options.resourceId } : {}),
 		...(options?.resourceUrl ? { resourceUrl: options.resourceUrl } : {}),
 		...(options?.targetLanguage ? { targetLanguage: options.targetLanguage } : {}),
+		...(options?.instruction ? { instruction: options.instruction } : {}),
 	});
 }
+
+function isAbortError(err: unknown): boolean {
+	return err instanceof DOMException && err.name === "AbortError";
+}
+
+/**
+ * Cancels the in-flight streamed AI request, if any. There is at most one
+ * stream in flight per platform at a time, so this needs no request id.
+ */
+export function cancelAiStream(): void {
+	if (isTauriRuntime()) {
+		void tauriInvoke("ai_cancel_ai_stream").catch(noop);
+		return;
+	}
+	currentStreamAbort?.abort();
+}
+
+let currentStreamAbort: AbortController | null = null;
 
 /**
  * Streamed variant of callAi: invokes onText with the accumulated text after
@@ -164,6 +191,7 @@ export async function callAiStream(
 				action,
 				content: contentForAction(action, content),
 				targetLanguage: options?.targetLanguage ?? null,
+				instruction: options?.instruction ?? null,
 				onChunk,
 			});
 		} catch (err) {
@@ -178,32 +206,44 @@ export async function callAiStream(
 		}
 	}
 
-	const res = await fetch("/api/ai", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: buildAiRequestBody(action, contentForAction(action, content), options, true),
-	});
+	const controller = new AbortController();
+	currentStreamAbort = controller;
 
-	if (!res.ok) await throwAiResponseError(res);
-	if (!res.body) {
-		throw new AiRequestError({
-			code: "network_error",
-			message: "The AI stream could not be opened.",
-			status: 500,
+	try {
+		const res = await fetch("/api/ai", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: buildAiRequestBody(action, contentForAction(action, content), options, true),
+			signal: controller.signal,
 		});
-	}
 
-	const reader = res.body.getReader();
-	const decoder = new TextDecoder();
-	let accumulated = "";
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		accumulated += decoder.decode(value, { stream: true });
-		onText(accumulated);
+		if (!res.ok) await throwAiResponseError(res);
+		if (!res.body) {
+			throw new AiRequestError({
+				code: "network_error",
+				message: "The AI stream could not be opened.",
+				status: 500,
+			});
+		}
+
+		const reader = res.body.getReader();
+		const decoder = new TextDecoder();
+		let accumulated = "";
+		try {
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				accumulated += decoder.decode(value, { stream: true });
+				onText(accumulated);
+			}
+		} catch (err) {
+			if (!isAbortError(err)) throw err;
+		}
+		accumulated += decoder.decode();
+		return accumulated;
+	} finally {
+		if (currentStreamAbort === controller) currentStreamAbort = null;
 	}
-	accumulated += decoder.decode();
-	return accumulated;
 }
 
 export async function callAi(
@@ -221,6 +261,7 @@ export async function callAi(
 				action,
 				content: effectiveContent,
 				targetLanguage: options?.targetLanguage ?? null,
+				instruction: options?.instruction ?? null,
 			});
 		} catch (err) {
 			const message = typeof err === "string" ? err : "Local AI request failed.";

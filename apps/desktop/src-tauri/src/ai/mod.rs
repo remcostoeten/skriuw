@@ -26,6 +26,7 @@ const SETTINGS_FILE: &str = "settings.json";
 
 static INSTALL_CANCEL: AtomicBool = AtomicBool::new(false);
 static PULL_CANCEL: AtomicBool = AtomicBool::new(false);
+static STREAM_CANCEL: AtomicBool = AtomicBool::new(false);
 
 const DEFAULT_GROQ_MODEL: &str = "llama-3.3-70b-versatile";
 const DEFAULT_GEMINI_MODEL: &str = "gemini-2.5-flash";
@@ -173,6 +174,7 @@ fn prompt_for(
     action: &str,
     content: &str,
     target_language: Option<&str>,
+    instruction: Option<&str>,
 ) -> Result<(String, String), String> {
     let catalog = prompt_catalog();
     let spec = catalog
@@ -188,6 +190,7 @@ fn prompt_for(
         .replace("{matchLanguageRule}", &catalog.rules.match_language_rule)
         .replace("{preserveTokensRule}", &catalog.rules.preserve_tokens_rule)
         .replace("{translateDirective}", &translate_directive)
+        .replace("{instruction}", instruction.unwrap_or_default())
         .replacen("{content}", content, 1);
     Ok((spec.system.clone(), user))
 }
@@ -256,11 +259,17 @@ pub async fn ai_complete(
     action: String,
     content: String,
     target_language: Option<String>,
+    instruction: Option<String>,
 ) -> Result<String, String> {
     if content.trim().is_empty() {
         return Err("There is no note content to send to AI.".to_string());
     }
-    let (system, user) = prompt_for(&action, &content, target_language.as_deref())?;
+    let (system, user) = prompt_for(
+        &action,
+        &content,
+        target_language.as_deref(),
+        instruction.as_deref(),
+    )?;
     let settings = read_settings(&app)?;
     let config = load_config(&app)?;
 
@@ -283,23 +292,44 @@ pub async fn ai_complete(
     Ok(result.trim().to_string())
 }
 
-/// Streaming variant of `ai_complete` used by continue-writing: every text
-/// delta is sent over `on_chunk` as it arrives, and the full accumulated
-/// result is returned when the provider finishes.
+/// Streaming variant of `ai_complete` used by continue-writing and the custom
+/// prompt action: every text delta is sent over `on_chunk` as it arrives, and
+/// the full accumulated result is returned when the provider finishes — or
+/// when `ai_cancel_ai_stream` is called, in which case the partial text
+/// accumulated so far is returned instead of an error.
 #[tauri::command]
 pub async fn ai_complete_stream(
     app: AppHandle,
     action: String,
     content: String,
     target_language: Option<String>,
+    instruction: Option<String>,
     on_chunk: Channel<String>,
 ) -> Result<String, String> {
     if content.trim().is_empty() {
         return Err("There is no note content to send to AI.".to_string());
     }
-    let (system, user) = prompt_for(&action, &content, target_language.as_deref())?;
+    let (system, user) = prompt_for(
+        &action,
+        &content,
+        target_language.as_deref(),
+        instruction.as_deref(),
+    )?;
     let settings = read_settings(&app)?;
     let config = load_config(&app)?;
+
+    STREAM_CANCEL.store(false, Ordering::Relaxed);
+    let cancel = Arc::new(AtomicBool::new(false));
+    let mirror = cancel.clone();
+    tauri::async_runtime::spawn(async move {
+        while !mirror.load(Ordering::Relaxed) {
+            if STREAM_CANCEL.load(Ordering::Relaxed) {
+                mirror.store(true, Ordering::Relaxed);
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+        }
+    });
 
     let emit = |chunk: &str| {
         let _ = on_chunk.send(chunk.to_string());
@@ -308,20 +338,86 @@ pub async fn ai_complete_stream(
     let result = match config.provider.as_str() {
         "groq" => {
             let key = ai_str(&settings, "groqApiKey").unwrap_or_default();
-            cloud::groq_complete_stream(&key, &config.groq_model, &system, &user, emit).await?
+            cloud::groq_complete_stream(&key, &config.groq_model, &system, &user, emit, cancel)
+                .await?
         }
         "gemini" | "google" => {
             let key = ai_str(&settings, "geminiApiKey").unwrap_or_default();
-            cloud::gemini_complete_stream(&key, &config.gemini_model, &system, &user, emit).await?
+            cloud::gemini_complete_stream(&key, &config.gemini_model, &system, &user, emit, cancel)
+                .await?
         }
         _ => {
             let client = ollama::OllamaClient::new(config.ollama_endpoint.clone());
             client
-                .complete_stream(&config.ollama_model, &system, &user, emit)
+                .complete_stream(&config.ollama_model, &system, &user, emit, cancel)
                 .await?
         }
     };
     Ok(result.trim().to_string())
+}
+
+#[tauri::command]
+pub fn ai_cancel_ai_stream() {
+    STREAM_CANCEL.store(true, Ordering::Relaxed);
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiPingResult {
+    pub provider: String,
+    pub model: String,
+    pub ok: bool,
+    pub latency_ms: u64,
+    pub message: String,
+}
+
+/// Sends a minimal "ping" completion to the active provider/model and reports
+/// whether it responded, so settings can show a live connectivity check.
+#[tauri::command]
+pub async fn ai_ping(app: AppHandle) -> Result<AiPingResult, String> {
+    let settings = read_settings(&app)?;
+    let config = load_config(&app)?;
+    let system = "Reply with exactly one word: pong.";
+    let user = "ping";
+    let model = match config.provider.as_str() {
+        "groq" => config.groq_model.clone(),
+        "gemini" | "google" => config.gemini_model.clone(),
+        _ => config.ollama_model.clone(),
+    };
+
+    let started = std::time::Instant::now();
+    let result = match config.provider.as_str() {
+        "groq" => {
+            let key = ai_str(&settings, "groqApiKey").unwrap_or_default();
+            cloud::groq_complete(&key, &config.groq_model, system, user).await
+        }
+        "gemini" | "google" => {
+            let key = ai_str(&settings, "geminiApiKey").unwrap_or_default();
+            cloud::gemini_complete(&key, &config.gemini_model, system, user).await
+        }
+        _ => {
+            let client = ollama::OllamaClient::new(config.ollama_endpoint.clone());
+            client.complete(&config.ollama_model, system, user).await
+        }
+    };
+    let latency_ms = started.elapsed().as_millis() as u64;
+
+    Ok(match result {
+        Ok(text) => AiPingResult {
+            provider: config.provider,
+            model,
+            ok: true,
+            latency_ms,
+            message: text.trim().to_string(),
+        },
+        Err(error) => AiPingResult {
+            provider: config.provider,
+            model,
+            ok: false,
+            latency_ms,
+            message: error,
+        },
+    })
 }
 
 #[tauri::command]

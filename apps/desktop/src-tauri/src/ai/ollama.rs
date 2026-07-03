@@ -162,10 +162,10 @@ impl OllamaClient {
         let mut seen = std::collections::HashSet::new();
 
         for (name, label, description) in RECOMMENDED_MODELS {
-            seen.insert(name.to_string());
             let matched = installed.iter().find(|m| Self::models_match(name, &m.name));
+            seen.insert(matched.map(|m| m.name.clone()).unwrap_or_else(|| name.to_string()));
             catalog.push(OllamaCatalogEntry {
-                name: name.to_string(),
+                name: matched.map(|m| m.name.clone()).unwrap_or_else(|| name.to_string()),
                 label: label.to_string(),
                 description: description.to_string(),
                 installed: matched.is_some(),
@@ -331,6 +331,7 @@ impl OllamaClient {
         system: &str,
         user: &str,
         on_chunk: F,
+        cancel: Arc<AtomicBool>,
     ) -> Result<String, String> {
         if model.trim().is_empty() {
             return Err("No Ollama model selected. Pick one in Settings → AI.".to_string());
@@ -368,6 +369,9 @@ impl OllamaClient {
         let mut buffer = String::new();
         let mut accumulated = String::new();
         while let Some(chunk) = stream.next().await {
+            if cancel.load(Ordering::Relaxed) {
+                return Ok(accumulated);
+            }
             let chunk = chunk.map_err(|error| format!("Ollama stream error: {error}"))?;
             buffer.push_str(&String::from_utf8_lossy(&chunk));
 

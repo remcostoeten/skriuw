@@ -29,7 +29,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::menu::{PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
 use tauri::Emitter;
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, LogicalSize, Manager, Runtime, State};
 use tauri_plugin_dialog::DialogExt;
 use vault::VaultStore;
 
@@ -59,6 +59,27 @@ fn greet(name: &str) -> String {
 #[tauri::command]
 fn quit_app(app: AppHandle) {
     app.exit(0);
+}
+
+/// Toggles the main window between maximized and the default size (1440×960)
+/// centered on screen. Bound to `mod+enter` in the desktop shell.
+#[tauri::command]
+async fn toggle_window_size(app: AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+
+    if window.is_maximized().map_err(|e| e.to_string())? {
+        window.unmaximize().map_err(|e| e.to_string())?;
+        window
+            .set_size(LogicalSize::new(1440.0, 960.0))
+            .map_err(|e| e.to_string())?;
+        window.center().map_err(|e| e.to_string())?;
+    } else {
+        window.maximize().map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -1289,6 +1310,7 @@ pub fn run() {
             greet,
             app_info,
             quit_app,
+            toggle_window_size,
             index_ready,
             list_notes,
             list_note_metadata,
@@ -1350,6 +1372,8 @@ pub fn run() {
             ai::ai_set_key,
             ai::ai_complete,
             ai::ai_complete_stream,
+            ai::ai_cancel_ai_stream,
+            ai::ai_ping,
             ai::ai_ollama_status,
             ai::ai_ollama_catalog,
             ai::ai_start_ollama,
