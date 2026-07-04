@@ -89,6 +89,16 @@ export const SHORTCUT_REGISTRY = {
 		preventDefault: true,
 		bindingGroup: "settings",
 	},
+	"app.quickSwitcher": {
+		keys: "mod+p",
+		scope: SCOPES.app,
+		group: "General",
+		label: "Quick switcher",
+		description: "Jump to a note by name with fuzzy search.",
+		except: false,
+		preventDefault: true,
+		bindingGroup: "quick-switcher",
+	},
 
 	"notes.commandPalette": {
 		keys: ["mod+k", "mod+shift+p"],
