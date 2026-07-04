@@ -20,6 +20,8 @@ function isPublicRoute(path: string) {
 		publicRoutes.has(path) ||
 		marketingRoutes.has(path) ||
 		path === "/manifest.json" ||
+		path === "/sw.js" ||
+		path === "/offline.html" ||
 		path === "/robots.txt" ||
 		path === "/sitemap.xml" ||
 		path.startsWith("/s/") ||
