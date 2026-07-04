@@ -621,6 +621,17 @@ export async function deleteNote(id: string): Promise<void> {
 	});
 }
 
+export async function deleteNotes(ids: string[]): Promise<void> {
+	const persistedIds = ids.filter((id) => !isGuestScopedId(id));
+	if (persistedIds.length === 0) return;
+
+	const { prisma, user } = await getAuthenticatedUser();
+	await prisma.note.updateMany({
+		where: { id: { in: persistedIds }, userId: user.id, deletedAt: null },
+		data: { deletedAt: new Date() },
+	});
+}
+
 export async function fetchNote(id: string): Promise<NoteFile | null> {
 	if (isGuestScopedId(id)) return null;
 	const { prisma, user } = await tryGetAuthenticatedUser();
