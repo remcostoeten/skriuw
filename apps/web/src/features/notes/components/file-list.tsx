@@ -4,6 +4,7 @@ import { memo, useState, useRef, useEffect, useMemo, useCallback, type RefObject
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/shared/lib/utils";
 import { stripMarkdownExtension } from "@/domain/notes/note-links";
+import { collectFolderSubtreeIds } from "@/domain/folders/traversal";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
@@ -240,10 +241,7 @@ export const FileList = memo(function FileList({
 	});
 
 	const getDescendantIds = useCallback(
-		function collect(folderId: string): string[] {
-			const children = getFoldersInFolder(folderId);
-			return [folderId, ...children.flatMap((child) => collect(child.id))];
-		},
+		(folderId: string): string[] => [...collectFolderSubtreeIds(folderId, getFoldersInFolder)],
 		[getFoldersInFolder],
 	);
 
