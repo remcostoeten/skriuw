@@ -55,7 +55,15 @@ export function GlobalShortcutHandlers(): null {
 			properties: [],
 		});
 
-		createNoteMutation.mutate(newFile);
+		// The seeded detail cache lives outside the mutation's own rollback, so
+		// on a failed create we drop it and return to /app — otherwise the user
+		// is stranded on a note route backed only by the phantom entry.
+		createNoteMutation.mutate(newFile, {
+			onError: () => {
+				queryClient.removeQueries({ queryKey: notesKeys.detail(newId) });
+				router.push(`${window.location.origin}/app`);
+			},
+		});
 		router.push(buildNoteUrl(newId, `${window.location.origin}/app`));
 	}, [createNoteMutation, queryClient, router]);
 

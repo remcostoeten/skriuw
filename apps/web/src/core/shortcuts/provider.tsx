@@ -64,6 +64,9 @@ function useGlobalShortcutBridge(handlersRef: React.RefObject<Partial<Record<Sho
 					return;
 				}
 				unlisten = fn;
+			})
+			.catch((error) => {
+				console.error("Failed to listen for global-shortcut events", error);
 			});
 
 		return () => {
