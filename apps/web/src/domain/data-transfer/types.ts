@@ -97,6 +97,7 @@ export type ParsedNoteFile = {
 	parentPath: string | null;
 	sortOrder?: number;
 	preferredEditorMode?: "raw" | "block";
+	icon?: string;
 	createdAt?: string;
 	updatedAt?: string;
 	/** Import the note straight into Trash (soft-deleted). Used by sources that carry their own trash, e.g. Simplenote. */

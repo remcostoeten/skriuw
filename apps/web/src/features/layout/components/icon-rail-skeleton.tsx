@@ -1,5 +1,4 @@
-import { BookOpen, Settings, Trash2, Waypoints } from "lucide-react";
-import { FolderOpenIcon } from "@/shared/icons/folder-open";
+import { BookOpen, FolderOpen, Settings, Trash2, Waypoints } from "lucide-react";
 import { RawLogo } from "@/shared/icons/logo";
 import { cn } from "@/shared/lib/utils";
 import { AvatarSkeleton } from "./avatar-skeleton";
@@ -22,7 +21,11 @@ export function IconRailSkeleton({ activeHref = "/app" }: IconRailSkeletonProps)
 				<div className="flex w-full flex-col items-center">
 					<div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">
 						<div className="rounded-2xl border border-transparent p-1.5">
-							<RawLogo variant="sidebar" size={26} className="text-sidebar-foreground/92" />
+							<RawLogo
+								variant="sidebar"
+								size={26}
+								className="text-sidebar-foreground/92"
+							/>
 						</div>
 					</div>
 					<div className="mt-4 flex w-full flex-col items-center gap-4">
@@ -33,13 +36,14 @@ export function IconRailSkeleton({ activeHref = "/app" }: IconRailSkeletonProps)
 									"bg-sidebar-accent/75 text-sidebar-accent-foreground",
 							)}
 						>
-							<FolderOpenIcon
-								size={18}
-								className={
+							<FolderOpen
+								className={cn(
+									"h-[18px] w-[18px]",
 									activeHref === "/app"
 										? "text-sidebar-accent-foreground"
-										: "text-sidebar-foreground/52"
-								}
+										: "text-sidebar-foreground/52",
+								)}
+								strokeWidth={1.6}
 							/>
 						</div>
 						<div

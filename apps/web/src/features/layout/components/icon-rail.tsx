@@ -1,7 +1,23 @@
 "use client";
 
-import { BookOpen, Hash, Settings, Trash2, UserRound, Users, Waypoints } from "lucide-react";
+import {
+	BookOpen,
+	FolderOpen,
+	Hash,
+	Settings,
+	Trash2,
+	UserRound,
+	Users,
+	Waypoints,
+} from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
+import { BookOpenIcon } from "@/shared/icons/book-open";
+import { HashIcon } from "@/shared/icons/hash";
+import { SettingsIcon } from "@/shared/icons/settings";
+import { Trash2Icon } from "@/shared/icons/trash-2";
+import { UsersIcon } from "@/shared/icons/users";
+import { WaypointsIcon } from "@/shared/icons/waypoints";
+import { usePreferencesStore } from "@/features/settings/store";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -85,6 +101,7 @@ export function IconRail() {
 	const settingsOpen = useSettingsModal((state) => state.isOpen);
 	const openSettingsModal = useSettingsModal((state) => state.open);
 	const capabilities = useWorkspaceCapabilities();
+	const showAnimatedIcons = usePreferencesStore((state) => state.appearance.showAnimatedIcons);
 	const [isMounted, setIsMounted] = useState(false);
 	const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
 	const [authDrawerInitialMode, setAuthDrawerInitialMode] =
@@ -95,10 +112,7 @@ export function IconRail() {
 	// "protected" — gating these would only pop a sign-in drawer that can never
 	// resolve and would block the user out of Settings/Journal.
 	const protectedRoutes = useMemo(
-		() =>
-			isTauriRuntime()
-				? new Set<string>()
-				: new Set(["/app/journal", "/app/shared"]),
+		() => (isTauriRuntime() ? new Set<string>() : new Set(["/app/journal", "/app/shared"])),
 		[],
 	);
 	const activeAuthDrawerConfig = useMemo(
@@ -177,7 +191,9 @@ export function IconRail() {
 				rememberMe: getRememberMePreference(),
 			});
 		} catch (error) {
-			const notice = resolveAuthError(error instanceof Error ? error : new Error(String(error)));
+			const notice = resolveAuthError(
+				error instanceof Error ? error : new Error(String(error)),
+			);
 			showUserToast(`${notice.title}: ${notice.message}`, "error");
 		}
 	};
@@ -200,14 +216,25 @@ export function IconRail() {
 			href: "/app",
 			label: "Notes",
 			isActive: pathname === "/app",
-			icon: (active: boolean) => (
-				<FolderOpenIcon
-					size={18}
-					className={
-						active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/52"
-					}
-				/>
-			),
+			icon: (active: boolean) =>
+				showAnimatedIcons ? (
+					<FolderOpenIcon
+						size={18}
+						className={
+							active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/52"
+						}
+					/>
+				) : (
+					<FolderOpen
+						className={cn(
+							"h-[18px] w-[18px]",
+							active
+								? "text-sidebar-accent-foreground"
+								: "text-sidebar-foreground/52",
+						)}
+						strokeWidth={1.6}
+					/>
+				),
 		},
 		{
 			href: "/app/journal",
@@ -218,29 +245,45 @@ export function IconRail() {
 			requiresAuth: !capabilities.journal,
 			label: "Journal",
 			isActive: pathname === "/app/journal",
-			icon: (_active: boolean) => (
-				<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
-			),
+			icon: (_active: boolean) =>
+				showAnimatedIcons ? (
+					<BookOpenIcon size={18} />
+				) : (
+					<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
+				),
 		},
 		{
 			href: "/app/graph",
 			label: "Graph",
 			isActive: pathname === "/app/graph",
-			icon: (_active: boolean) => (
-				<Waypoints className="h-[18px] w-[18px]" strokeWidth={1.6} />
-			),
+			icon: (_active: boolean) =>
+				showAnimatedIcons ? (
+					<WaypointsIcon size={18} />
+				) : (
+					<Waypoints className="h-[18px] w-[18px]" strokeWidth={1.6} />
+				),
 		},
 		{
 			href: "/app/tags",
 			label: "Tags",
 			isActive: pathname.startsWith("/app/tags"),
-			icon: (_active: boolean) => <Hash className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+			icon: (_active: boolean) =>
+				showAnimatedIcons ? (
+					<HashIcon size={18} />
+				) : (
+					<Hash className="h-[18px] w-[18px]" strokeWidth={1.6} />
+				),
 		},
 		{
 			href: "/app/people",
 			label: "People",
 			isActive: pathname.startsWith("/app/people"),
-			icon: (_active: boolean) => <Users className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+			icon: (_active: boolean) =>
+				showAnimatedIcons ? (
+					<UsersIcon size={18} />
+				) : (
+					<Users className="h-[18px] w-[18px]" strokeWidth={1.6} />
+				),
 		},
 	];
 	const trashNavItem = {
@@ -251,7 +294,12 @@ export function IconRail() {
 		requiresAuth: !capabilities.trash,
 		label: "Trash",
 		isActive: pathname === "/app/trash",
-		icon: (_active: boolean) => <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+		icon: (_active: boolean) =>
+			showAnimatedIcons ? (
+				<Trash2Icon size={18} />
+			) : (
+				<Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />
+			),
 	};
 
 	const iconButtonClass =
@@ -349,7 +397,11 @@ export function IconRail() {
 								aria-haspopup="dialog"
 								aria-expanded={settingsOpen}
 							>
-								<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
+								{showAnimatedIcons ? (
+									<SettingsIcon size={18} />
+								) : (
+									<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
+								)}
 							</button>
 						</TooltipTrigger>
 						<TooltipContent side="right" shortcut={settingsShortcut}>

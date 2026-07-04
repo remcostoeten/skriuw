@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
 import { NOTE_PROPERTY_COLORS } from "@/domain/notes/properties";
 import { cn } from "@/shared/lib/utils";
-import { formatInlinePersonLabel, normalizeInlinePersonName } from "@/features/editor/lib/inline-person";
+import {
+	formatInlinePersonLabel,
+	normalizeInlinePersonName,
+} from "@/features/editor/lib/inline-person";
 import { usePeopleContext } from "./people-context";
 
 export const personInlineSpec = createReactInlineContentSpec(
@@ -55,7 +58,7 @@ export const personInlineSpec = createReactInlineContentSpec(
 					title={name ? `Open person ${name}` : "Person"}
 					className={cn(
 						"mx-[1px] inline-flex max-w-[18ch] cursor-pointer items-center gap-1 overflow-hidden rounded-[4px] border px-1.5 py-0 text-[0.82em] font-medium leading-[1.45] align-baseline transition-colors",
-						"border-primary/30 bg-primary/10 text-primary hover:border-primary/60 hover:bg-primary/20",
+						"border-border/80 bg-muted/60 text-foreground/82 hover:border-ring/70 hover:bg-muted hover:text-foreground",
 						"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40",
 					)}
 				>

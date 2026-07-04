@@ -175,6 +175,14 @@ export function normalizeProfile(
 				profile?.appearance?.rememberLastNote,
 				fallback.appearance.rememberLastNote,
 			),
+			showAnimatedIcons: normalizeBoolean(
+				profile?.appearance?.showAnimatedIcons,
+				fallback.appearance.showAnimatedIcons,
+			),
+			showPageIcons: normalizeBoolean(
+				profile?.appearance?.showPageIcons,
+				fallback.appearance.showPageIcons,
+			),
 		},
 		profile: {
 			avatarColor:

@@ -1,8 +1,5 @@
 import { foldersFromNotePaths } from "@/domain/data-transfer/folders";
-import {
-	parseTagsField,
-	splitFrontmatter,
-} from "@/domain/data-transfer/frontmatter";
+import { parseTagsField, splitFrontmatter } from "@/domain/data-transfer/frontmatter";
 import { normalizeNoteFileName } from "@/domain/data-transfer/paths";
 import type {
 	ImportProfile,
@@ -14,8 +11,11 @@ import type {
 export type MarkdownImportOptions = {
 	skipPath?: (path: string) => boolean;
 	transformBody?: (body: string, path: string) => string;
-	extraTags?: (body: string, frontmatter: Record<string, string>) => string[];
-	prepareBody?: (body: string, path: string) => {
+	extraTags?: (body: string, frontmatter: Record<string, unknown>) => string[];
+	prepareBody?: (
+		body: string,
+		path: string,
+	) => {
 		content: string;
 		extraTags?: string[];
 	};
@@ -117,24 +117,26 @@ export function parseMarkdownNoteFile(
 	// snippets into workspace tags.
 	const frontmatterTags = parseTagsField(frontmatter.tags);
 	const tags = [...new Set([...frontmatterTags, ...preparedTags])];
-	const sortOrderRaw = frontmatter.sortOrder;
-	const sortOrder =
-		sortOrderRaw !== undefined && sortOrderRaw !== "" ? Number(sortOrderRaw) : undefined;
-	const preferredEditorMode = frontmatter.preferredEditorMode;
+
+	const sortOrder = String(frontmatter.sortOrder ?? "");
+	const sortOrderValue = sortOrder !== "" ? Number(sortOrder) : undefined;
+
+	const preferredEditorMode = String(frontmatter.preferredEditorMode ?? "");
 
 	return {
-		id: frontmatter.id,
+		id: String(frontmatter.id ?? ""),
 		name,
 		content: transformedBody,
 		tags,
 		parentPath,
-		sortOrder: Number.isFinite(sortOrder) ? sortOrder : undefined,
+		sortOrder: Number.isFinite(sortOrderValue) ? sortOrderValue : undefined,
 		preferredEditorMode:
 			preferredEditorMode === "raw" || preferredEditorMode === "block"
 				? preferredEditorMode
 				: "raw",
-		createdAt: frontmatter.created,
-		updatedAt: frontmatter.updated,
+		icon: String(frontmatter.icon ?? ""),
+		createdAt: String(frontmatter.created ?? ""),
+		updatedAt: String(frontmatter.updated ?? ""),
 		sourcePath: path,
 	};
 }

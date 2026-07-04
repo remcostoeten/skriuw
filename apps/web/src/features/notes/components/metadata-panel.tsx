@@ -46,7 +46,11 @@ import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
 import { NoteSendDropdown } from "@/features/notes/components/note-send-menu";
 import { GuestGate } from "@/shared/ui/guest-gate";
-import { isTauriRuntime, useIsGuestWorkspace, useWorkspaceCapabilities } from "@/core/workspace-backend";
+import {
+	isTauriRuntime,
+	useIsGuestWorkspace,
+	useWorkspaceCapabilities,
+} from "@/core/workspace-backend";
 import {
 	findRestoredSourceIndex,
 	getHistoryBranchRoles,
@@ -62,6 +66,8 @@ import { AnimatedNumber } from "@/shared/ui/animated-number";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import { CollaboratorsSection } from "@/features/collaboration/components/collaborators-section";
 import { useAuth } from "@/core/auth/use-auth";
+import { useUpdateNote } from "@/features/notes/hooks/use-update-note";
+import { NoteIconPicker } from "@/features/notes/components/note-icon-picker";
 
 type Props = {
 	file: NoteFile | null;
@@ -76,14 +82,7 @@ type Props = {
 	onShare?: (noteId: string) => void;
 };
 
-type SectionKey =
-	| "outline"
-	| "tags"
-	| "people"
-	| "links"
-	| "history"
-	| "details"
-	| "collaborators";
+type SectionKey = "outline" | "tags" | "people" | "links" | "history" | "details" | "collaborators";
 
 function normalizeTag(tag: string): string {
 	return tag.trim().replace(/^#/, "").toLowerCase();
@@ -668,6 +667,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 	const backlinksQuery = useNoteBacklinks(file?.id);
 	const versionsQuery = useNoteVersions(file?.id);
 	const animateNumbers = usePreferencesStore((state) => state.editor.animateNumbers);
+	const updateNoteMutation = useUpdateNote();
 	const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
 		outline: true,
 		tags: true,
@@ -684,7 +684,11 @@ export const MetadataPanel = memo(function MetadataPanel({
 	const isDesktopRuntime = isTauriRuntime();
 	// Sharing is owner-only. `access === undefined` is the owner's own note.
 	const isOwnNote = !file?.access || file.access === "owner";
-	const inspectorControlCount = isOwnNote ? (isMobile && !isDesktopRuntime && shareQuery.data ? 4 : 3) : 1;
+	const inspectorControlCount = isOwnNote
+		? isMobile && !isDesktopRuntime && shareQuery.data
+			? 4
+			: 3
+		: 1;
 
 	const details = useMemo(() => {
 		if (!file) return [];
@@ -724,9 +728,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 		const ids = extractRichDocumentPersonIds(file.richContent);
 		if (ids.length === 0) return [];
 		const byId = new Map((peopleQuery.data ?? []).map((person) => [person.id, person]));
-		return ids
-			.map((id) => byId.get(id))
-			.filter((person): person is Person => Boolean(person));
+		return ids.map((id) => byId.get(id)).filter((person): person is Person => Boolean(person));
 	}, [file, peopleQuery.data]);
 	const taggedNotes = useMemo(() => {
 		if (!file || !selectedTag) return [];
@@ -791,6 +793,12 @@ export const MetadataPanel = memo(function MetadataPanel({
 	const handleShare = () => {
 		if (!file) return;
 		onShare?.(file.id);
+	};
+
+	const handleIconChange = (icon: string) => {
+		if (!file) return;
+		if (icon === file.icon) return;
+		updateNoteMutation.mutate({ id: file.id, icon: icon || "" });
 	};
 
 	const asideClass = cn(
@@ -921,6 +929,22 @@ export const MetadataPanel = memo(function MetadataPanel({
 					)}
 				</InspectorSection>
 
+				<div className="flex items-center gap-3 border-b border-border px-3 py-2.5">
+					<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/50">
+						Page Icon
+					</span>
+					<NoteIconPicker icon={file.icon} onIconChange={handleIconChange} />
+					{file.icon && (
+						<button
+							type="button"
+							onClick={() => handleIconChange("")}
+							className="ml-auto text-[11px] text-muted-foreground/50 underline decoration-dotted underline-offset-2 hover:text-foreground"
+						>
+							Remove
+						</button>
+					)}
+				</div>
+
 				<InspectorSection
 					id="note-inspector-tags"
 					title="Tags"
@@ -1024,7 +1048,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 										href={`/app/people/${person.id}`}
 										className="inline-flex min-h-7 cursor-pointer items-center border border-border bg-secondary/50 px-2 text-[12px] font-medium text-foreground/78 transition-colors hover:border-ring/70 hover:text-foreground focus-visible:border-ring focus-visible:outline-none"
 									>
-										{`$${person.name}`}
+										{person.name}
 									</Link>
 								</li>
 							))}

@@ -2,8 +2,7 @@
 
 import { memo, useMemo } from "react";
 import { X } from "lucide-react";
-import { FileTextIcon } from "@/shared/icons/file-text";
-import { FolderOpenIcon } from "@/shared/icons/folder-open";
+import { SidebarItemIcon } from "./sidebar-item-icon";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import type { SidebarSection as SidebarSectionType } from "./types";
@@ -92,12 +91,7 @@ export const CustomSection = memo(function CustomSection({
 			itemCount={totalItems}
 			leading={
 				color ? (
-					<span
-						className={cn(
-							"h-2 w-2 rounded-full",
-							resolveProjectColorClass(color),
-						)}
-					/>
+					<span className={cn("h-2 w-2 rounded-full", resolveProjectColorClass(color))} />
 				) : undefined
 			}
 			colorOptions={PROJECT_COLORS}
@@ -133,7 +127,8 @@ export const CustomSection = memo(function CustomSection({
 								compactMode ? "h-6" : "h-7",
 							)}
 						>
-							<FolderOpenIcon
+							<SidebarItemIcon
+								kind="folder"
 								size={14}
 								className="shrink-0 text-muted-foreground/70"
 							/>
@@ -163,7 +158,8 @@ export const CustomSection = memo(function CustomSection({
 								onPointerEnter={() => onFilePrefetch?.(file.id)}
 								className="flex min-w-0 flex-1 items-center gap-2 text-left"
 							>
-								<FileTextIcon
+								<SidebarItemIcon
+									kind="file"
 									size={14}
 									className="shrink-0 text-muted-foreground/70"
 								/>
