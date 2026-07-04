@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["fra1"],
   "bunVersion": "1.x",
   "buildCommand": "prisma migrate deploy && bun run build",
   "outputDirectory": "apps/web/.next"
