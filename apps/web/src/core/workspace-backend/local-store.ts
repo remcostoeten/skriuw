@@ -3,8 +3,14 @@
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 import type { Person } from "@/domain/people/models";
 import { noop } from "@/shared/lib/noop";
+import { createWriteQueue } from "./write-queue";
 
 export const WORKSPACE_STORAGE_KEY = "skriuw:guest:workspace:v2";
+
+// The whole workspace is one blob, so every mutation rewrites the entire
+// payload — all guest writes serialize on this single key. See `write-queue.ts`
+// for how this shares one concurrency model with the desktop backend.
+const GUEST_WRITE_KEY = "workspace";
 
 const DB_NAME = "skriuw:guest:workspace";
 const DB_VERSION = 1;
@@ -265,7 +271,7 @@ export class GuestWorkspaceStore {
 	private adapterPromise: Promise<StorageAdapter> | null = null;
 	private payloadPromise: Promise<GuestWorkspacePayload> | null = null;
 	private payload: GuestWorkspacePayload | null = null;
-	private pending: Promise<void> = Promise.resolve();
+	private queue = createWriteQueue();
 
 	async read(): Promise<GuestWorkspacePayload> {
 		return clonePayload(await this.load());
@@ -285,7 +291,7 @@ export class GuestWorkspaceStore {
 			payload: GuestWorkspacePayload,
 		) => UpdateDecision<Result> | Promise<UpdateDecision<Result>>,
 	): Promise<Result> {
-		const operation = this.pending.then(async () => {
+		return this.queue.runExclusive(GUEST_WRITE_KEY, async () => {
 			const payload = clonePayload(await this.load());
 			const { result, shouldWrite } = await mutator(payload);
 			if (!shouldWrite) return result;
@@ -295,27 +301,14 @@ export class GuestWorkspaceStore {
 			await (await this.getAdapter()).write(normalized);
 			return result;
 		});
-
-		this.pending = operation.then(
-			() => undefined,
-			() => undefined,
-		);
-
-		return operation;
 	}
 
 	async clear(): Promise<void> {
-		const operation = this.pending.then(async () => {
+		return this.queue.runExclusive(GUEST_WRITE_KEY, async () => {
 			this.payload = emptyGuestWorkspacePayload();
 			this.payloadPromise = Promise.resolve(this.payload);
 			await (await this.getAdapter()).clear();
 		});
-
-		this.pending = operation.then(
-			() => undefined,
-			() => undefined,
-		);
-		return operation;
 	}
 
 	private async load(): Promise<GuestWorkspacePayload> {
