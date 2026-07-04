@@ -134,6 +134,9 @@ function createStoreApi() {
 }
 
 function installMocks() {
+	// Stub the hooks `useNotesLayout` actually calls so it runs as a plain
+	// function without a renderer. Anything that reaches for another React
+	// hook (e.g. a `useContext`) is mocked away at the module level below.
 	const reactMock = {
 		useCallback: (callback: unknown) => callback,
 		useEffect: () => undefined,
@@ -191,6 +194,19 @@ function installMocks() {
 	mock.module("@/core/shortcuts", () => ({
 		useShortcutManager: () => ({ getHelpGroups: () => [] }),
 		useShortcutScope: () => undefined,
+	}));
+
+	// The command registry lives behind React context; stub its hooks so the
+	// layout runs without a `CommandProvider` in this rendererless test.
+	mock.module("@/core/commands", () => ({
+		useCommandRegistry: () => ({
+			query: "",
+			isOpen: false,
+			setIsOpen: () => undefined,
+		}),
+		useActiveCommandScope: () => undefined,
+		useRegisterCommands: () => undefined,
+		useRegisterCommandItemsProvider: () => undefined,
 	}));
 
 	mock.module("framer-motion", () => ({
@@ -267,6 +283,19 @@ function installMocks() {
 	}));
 	mock.module("@/features/notes/hooks/use-restore-note-version", () => ({
 		useRestoreNoteVersion: () => mutation,
+	}));
+
+	// Keyboard-shortcut/command-palette wiring is irrelevant to note-switch
+	// saves, and its real implementation reads the command-registry context
+	// (a `useContext` call that has no provider in this rendererless test).
+	mock.module("@/features/notes/hooks/use-notes-layout-shortcuts", () => ({
+		useNotesLayoutShortcuts: () => ({
+			showShortcutHelp: false,
+			setShowShortcutHelp: () => undefined,
+			handleOpenCommandPalette: () => undefined,
+			handleOpenShortcutHelp: () => undefined,
+			shortcutGroups: [],
+		}),
 	}));
 
 	mock.module("@/features/settings/store", () => ({
