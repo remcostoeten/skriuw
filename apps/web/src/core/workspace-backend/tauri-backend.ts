@@ -702,6 +702,12 @@ export function createTauriBackend(): WorkspaceBackend {
 			await invoke("delete_note", { id });
 		},
 
+		async deleteNotes(ids) {
+			for (const id of ids) {
+				await invoke("delete_note", { id });
+			}
+		},
+
 		async createFolder(input) {
 			const folder = folderFromCreateInput(input);
 			await invoke("upsert_folder", { folder: toRustFolder(folder) });

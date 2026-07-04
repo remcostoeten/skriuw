@@ -35,6 +35,7 @@ import {
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { perf } from "@/shared/perf/track";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
+import { useRegisterCommands, useRegisterCommandItemsProvider, useActiveCommandScope, useCommandRegistry } from "@/core/commands";
 import { parseCommandQuery } from "@/shared/ui/command-palette-model";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
@@ -1268,8 +1269,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	]);
 
 	const {
-		showCommandPalette,
-		setShowCommandPalette,
 		showShortcutHelp,
 		setShowShortcutHelp,
 		handleOpenCommandPalette,
@@ -1548,201 +1547,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleNavigateInFocusedPane(files[index + 1]!.id);
 	}, [files, focusedFileIdForNav, handleNavigateInFocusedPane]);
 
-	const actionCommandItems: CommandPaletteItem[] = useMemo(
-		() => [
-			{
-				id: "new-note",
-				label: diaryModeEnabled ? "Open today's journal" : "Create note",
-				group: "Actions",
-				shortcut: "mod+n",
-				keywords: diaryModeEnabled
-					? ["journal", "today", "entry", "create", "new"]
-					: ["new", "file", "note", "create"],
-				description: diaryModeEnabled
-					? "Open today's journal entry."
-					: "Create a fresh note and focus it immediately.",
-				action: handleCreateFile,
-			},
-			{
-				id: "new-folder",
-				label: "Create folder",
-				group: "Actions",
-				shortcut: "mod+shift+n",
-				keywords: ["folder", "create", "sidebar"],
-				description: "Add a new folder to the current tree.",
-				action: handleCreateFolder,
-			},
-			{
-				id: "toggle-sidebar",
-				label: "Toggle sidebar",
-				group: "Navigation",
-				shortcut: "mod+shift+b",
-				keywords: ["sidebar", "navigation", "panel"],
-				description: "Show or hide the notes navigation panel.",
-				action: handleToggleSidebar,
-			},
-			{
-				id: "toggle-metadata",
-				label: "Toggle note details",
-				group: "Navigation",
-				shortcut: "mod+shift+alt+b",
-				keywords: ["metadata", "details", "properties"],
-				description: "Show or hide the metadata panel.",
-				action: handleToggleMetadata,
-			},
-			{
-				id: "toggle-editor-mode",
-				label: "Toggle editor surface",
-				group: "Editor",
-				shortcut: "mod+alt+e",
-				keywords: ["raw mdx", "block note", "editor"],
-				description: "Swap between raw MDX and Block Note.",
-				action: handleToggleEditorMode,
-			},
-			{
-				id: "toggle-vim-mode",
-				label: vimModeEnabled ? "Disable Vim mode" : "Enable Vim mode",
-				group: "Editor",
-				keywords: ["vim", "modal", "keybindings", "normal", "insert", "editor"],
-				description: vimModeEnabled
-					? "Turn off modal Vim keybindings in the editor."
-					: "Turn on modal Vim keybindings (Normal/Insert) in the editor.",
-				action: () => updateEditorPreference("vimMode", !vimModeEnabled),
-			},
-			{
-				id: "focus-file-tree",
-				label: "Focus file tree",
-				group: "Navigation",
-				shortcut: "ctrl+e",
-				keywords: ["file tree", "sidebar", "focus", "notes"],
-				description: "Move focus to the active note in the file tree.",
-				action: handleFocusFileTree,
-			},
-			{
-				id: "split-editor",
-				label: "Split editor vertically",
-				group: "Editor",
-				shortcut: "mod+shift+e",
-				keywords: ["split", "editor", "pane", "vertical"],
-				description: "Open the neighboring note in a vertical split.",
-				action: handleToggleSplit,
-			},
-			{
-				id: "split-editor-horizontal",
-				label: "Split editor horizontally",
-				group: "Editor",
-				shortcut: "ctrl+b",
-				keywords: ["split", "editor", "pane", "horizontal"],
-				description: "Open or switch the split editor to a horizontal layout.",
-				action: handleSplitHorizontal,
-			},
-			{
-				id: "focus-next-split-pane",
-				label: "Focus next split pane",
-				group: "Editor",
-				shortcut: "ctrl+`",
-				keywords: ["split", "editor", "pane", "focus", "next"],
-				description: "Move focus clockwise through split editor panes.",
-				action: handleFocusNextSplitPane,
-			},
-			{
-				id: "focus-previous-split-pane",
-				label: "Focus previous split pane",
-				group: "Editor",
-				shortcut: "ctrl+shift+`",
-				keywords: ["split", "editor", "pane", "focus", "previous"],
-				description: "Move focus counter-clockwise through split editor panes.",
-				action: handleFocusPreviousSplitPane,
-			},
-			{
-				id: "close-tab",
-				label: "Close tab",
-				group: "Editor",
-				shortcut: "ctrl+w",
-				keywords: ["close", "tab", "note", "dismiss"],
-				description: "Close the focused tab; the pane empties when it is the last one.",
-				action: handleCloseFocusedTab,
-			},
-			{
-				id: "close-other-tabs",
-				label: "Close other tabs",
-				group: "Editor",
-				keywords: ["close", "tab", "note", "others", "except", "focused"],
-				description: "Close every tab in the focused pane except the active one.",
-				action: handleCloseFocusedOtherTabs,
-			},
-			{
-				id: "close-all-tabs",
-				label: "Close all tabs",
-				group: "Editor",
-				keywords: ["close", "tab", "note", "all", "empty"],
-				description: "Close every tab in the focused pane (pinned tabs are kept).",
-				action: handleCloseAllTabs,
-			},
-			{
-				id: "switch-theme",
-				label: "Switch theme",
-				group: "Settings",
-				keywords: ["theme", "appearance", "color", "dark", "light", "switch", "cycle"],
-				description: `Cycle to the next theme (current: ${activeTheme}).`,
-				action: () => {
-					const currentIndex = THEMES.findIndex((t) => t.id === activeTheme);
-					const nextTheme = THEMES[(currentIndex + 1) % THEMES.length];
-					updateAppearancePreference("theme", nextTheme.id);
-				},
-			},
-			{
-				id: "open-settings",
-				label: "Open settings",
-				group: "Settings",
-				shortcut: "mod+comma",
-				keywords: ["settings", "preferences"],
-				description: "Open the settings modal.",
-				action: handleOpenSettings,
-			},
-			{
-				id: "open-journal",
-				label: "Go to journal",
-				group: "Navigation",
-				keywords: ["journal", "route", "navigate"],
-				description: "Jump from notes into the journal view.",
-				action: () => router.push("/app/journal"),
-			},
-			{
-				id: "welcome-tour",
-				label: "Show welcome tour",
-				group: "Help",
-				keywords: ["tour", "walkthrough", "onboarding", "welcome", "help", "slash", "demo"],
-				description: "Replay the quick intro to the / menu, links, and tags.",
-				action: replayWelcomeTour,
-			},
-		],
-		[
-			handleCreateFile,
-			handleCreateFolder,
-			diaryModeEnabled,
-			handleFocusFileTree,
-			handleOpenSettings,
-			handleCloseFocusedTab,
-			handleCloseFocusedOtherTabs,
-			handleCloseAllTabs,
-			handleFocusNextSplitPane,
-			handleFocusPreviousSplitPane,
-			handleSplitHorizontal,
-			handleToggleEditorMode,
-			handleToggleMetadata,
-			handleToggleSidebar,
-			handleToggleSplit,
-			updateEditorPreference,
-			vimModeEnabled,
-			activeTheme,
-			updateAppearancePreference,
-			replayWelcomeTour,
-			router,
-		],
-	);
-
-	const [commandQuery, setCommandQuery] = useState("");
+	const {
+		query: commandQuery,
+		isOpen: showCommandPalette,
+		setIsOpen: setShowCommandPalette,
+	} = useCommandRegistry();
 	const parsedCommand = parseCommandQuery(commandQuery);
 	const trimmedCommandQuery = parsedCommand.query;
 	// A bang scoping to actions/settings hides notes entirely, so skip the note
@@ -1834,14 +1643,31 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleFileSelect,
 	]);
 
-	const settingsCommandItems = useMemo<CommandPaletteItem[]>(
-		() => buildSettingsCommandItems(),
-		[router],
-	);
+	useActiveCommandScope("notes");
 
-	const commandItems = useMemo<CommandPaletteItem[]>(
-		() => actionCommandItems.concat(noteCommandItems, settingsCommandItems),
-		[actionCommandItems, noteCommandItems, settingsCommandItems],
+	useRegisterCommands({
+		"notes.newNote": handleCreateFile,
+		"notes.newFolder": handleCreateFolder,
+		"notes.toggleSidebar": handleToggleSidebar,
+		"notes.toggleMetadata": handleToggleMetadata,
+		"notes.toggleEditor": handleToggleEditorMode,
+		"notes.focusFileTree": handleFocusFileTree,
+		"notes.toggleSplit": handleToggleSplit,
+		"notes.splitHorizontal": handleSplitHorizontal,
+		"notes.closeTab": handleCloseFocusedTab,
+		"notes.closeSplit": handleCloseSplitPane,
+		"notes.focusNextSplitPane": handleFocusNextSplitPane,
+		"notes.focusPreviousSplitPane": handleFocusPreviousSplitPane,
+		"notes.focusEditor": () => focusActiveEditor(),
+		"notes.help": handleOpenShortcutHelp,
+		"notes.closeOtherTabs": handleCloseFocusedOtherTabs,
+		"notes.closeAllTabs": handleCloseAllTabs,
+	});
+
+	useRegisterCommandItemsProvider(
+		useCallback(() => {
+			return noteCommandItems;
+		}, [noteCommandItems])
 	);
 
 	// The sidebar + main layout only need the notes metadata and folder lists,
@@ -1932,8 +1758,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		closeMetadata,
 		closeSidebar,
 		collapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
-		commandItems,
-		setCommandQuery,
 		countDescendants,
 		createFile: handleCreateFile,
 		createFolder: handleCreateFolder,

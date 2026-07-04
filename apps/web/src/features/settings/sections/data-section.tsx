@@ -29,6 +29,11 @@ import {
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
 import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-anchor";
+import {
+	NoteCleanupDialog,
+	NoteCleanupRow,
+} from "@/features/settings/components/note-cleanup";
+import { useNoteCleanupScan } from "@/features/settings/lib/use-note-cleanup-scan";
 import { useAuth } from "@/core/auth/use-auth";
 import { clearAllData } from "@/features/settings/actions/clear-data";
 import { useNotesStore } from "@/features/notes/store";
@@ -494,6 +499,7 @@ function CloudDataSection() {
 	const [importError, setImportError] = useState<string | null>(null);
 	const [importDialogOpen, setImportDialogOpen] = useState(false);
 	const [importProgress, setImportProgress] = useState({ imported: 0, total: 0 });
+	const cleanup = useNoteCleanupScan();
 
 	const handleExport = async () => {
 		setExportState("pending");
@@ -721,6 +727,17 @@ function CloudDataSection() {
 				</Row>
 			</SettingsCard>
 
+			<GroupLabel>MAINTENANCE</GroupLabel>
+			<SettingsCard>
+				<NoteCleanupRow phase={cleanup.phase} onScan={cleanup.scan} disabled={false} />
+			</SettingsCard>
+			<NoteCleanupDialog
+				result={cleanup.result}
+				onOpenChange={(open) => {
+					if (!open) cleanup.reset();
+				}}
+			/>
+
 			<GroupLabel>DESKTOP APP</GroupLabel>
 			<DesktopSyncTokens isConnected={isConnected} />
 
@@ -836,7 +853,25 @@ function CloudDataSection() {
 					)}
 
 					{importState === "success" && (
-						<p className="text-sm text-foreground">Import completed successfully.</p>
+						<div className="space-y-3">
+							<p className="text-sm text-foreground">Import completed successfully.</p>
+							<div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 p-3">
+								<p className="text-xs text-muted-foreground">
+									Imports often bring along empty or duplicate notes. Scan for them now?
+								</p>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										setImportDialogOpen(false);
+										resetImportFlow();
+										void cleanup.scan();
+									}}
+								>
+									Scan for junk notes
+								</Button>
+							</div>
+						</div>
 					)}
 
 					{importError && (
