@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ShortcutProvider } from "@/core/shortcuts";
 import { WorkspaceBackendProvider } from "@/core/workspace-backend";
 
 export default function SharedNoteLayout({ children }: { children: ReactNode }) {
@@ -9,7 +10,9 @@ export default function SharedNoteLayout({ children }: { children: ReactNode }) 
 
 	return (
 		<QueryClientProvider client={queryClient}>
-			<WorkspaceBackendProvider>{children}</WorkspaceBackendProvider>
+			<ShortcutProvider>
+				<WorkspaceBackendProvider>{children}</WorkspaceBackendProvider>
+			</ShortcutProvider>
 		</QueryClientProvider>
 	);
 }

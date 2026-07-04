@@ -30,7 +30,7 @@ import { GuestGate } from "@/shared/ui/guest-gate";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
 import { JournalDatabaseView } from "./journal-database-view";
-import { CommandPalette } from "@/shared/ui/command-palette";
+
 import { ShortcutHelpDialog } from "@/shared/ui/shortcut-help-dialog";
 import { useJournalLayout } from "../hooks/use-journal-layout";
 import { useJournalEntry } from "../hooks/use-journal-entry";
@@ -300,8 +300,6 @@ export function JournalPageLayout() {
 		selectedDate,
 		sidebarWidth,
 		showSidebar,
-		showCommandPalette,
-		setShowCommandPalette,
 		showShortcutHelp,
 		setShowShortcutHelp,
 		editorMode,
@@ -311,7 +309,6 @@ export function JournalPageLayout() {
 		prefersReducedMotion,
 		overlayTransition,
 		sidebarTransition,
-		commandItems,
 		shortcutGroups,
 		handleSelectEntry,
 		handleSelectDate,
@@ -449,12 +446,7 @@ export function JournalPageLayout() {
 				)}
 			</AnimatePresence>
 
-			<CommandPalette
-				open={showCommandPalette}
-				onOpenChange={setShowCommandPalette}
-				items={commandItems}
-				description="Journal actions and route navigation."
-			/>
+
 			<ShortcutHelpDialog
 				open={showShortcutHelp}
 				onOpenChange={setShowShortcutHelp}

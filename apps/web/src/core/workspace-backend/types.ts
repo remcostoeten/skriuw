@@ -150,6 +150,13 @@ export type WorkspaceBackend = {
 	 */
 	importArchive?(payload: ImportArchivePayload): Promise<void>;
 	deleteNote(id: string): Promise<void>;
+
+	/**
+	 * Bulk soft-delete into the trash, used by the note-cleanup sweep. Optional:
+	 * the server backend batches it into one UPDATE; callers fall back to
+	 * looping `deleteNote` when absent.
+	 */
+	deleteNotes?(ids: string[]): Promise<void>;
 	restoreNoteVersion(versionId: string): Promise<UpdateNoteResult>;
 
 	getNote(id: string): Promise<NoteFile | null>;

@@ -7,6 +7,7 @@ import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { useShortcutHint, useShortcutScope, type ShortcutId } from "@/core/shortcuts";
+import { useRegisterCommands } from "@/core/commands";
 import {
 	Command,
 	FilePlus,
@@ -269,15 +270,13 @@ export const SidebarPanel = memo(function SidebarPanel({
 		[closeSearch, onToggleFolder],
 	);
 
-	useShortcutScope(
-		"notes",
-		{
-			"notes.focusSidebarSearch": openSearch,
+	useRegisterCommands({
+		"notes.focusSidebarSearch": () => {
+			if (hasSearchSection) {
+				openSearch();
+			}
 		},
-		{
-			active: hasSearchSection,
-		},
-	);
+	});
 
 	useEffect(() => {
 		if (!hasSearchSection && isSearchOpen) {
