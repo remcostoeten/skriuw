@@ -3,17 +3,19 @@
 fn main() {
     #[cfg(target_os = "linux")]
     {
-        // WebKitGTK's dmabuf renderer fails to allocate GBM buffers on a range of
-        // Linux GPU/driver stacks (seen on both Wayland and X11 + NVIDIA), which
-        // leaves the window painted grey because nothing ever composites. The
-        // documented workaround is to disable the dmabuf renderer.
-        //
-        // We previously left it enabled on X11 + NVIDIA to avoid a "first-paint
-        // stall" on the splash, but that stall was actually the Better Auth
-        // client crashing on the tauri:// origin (fixed in fbbfd6e2), not dmabuf.
-        // With that gone, disabling the renderer everywhere is safe and fixes the
-        // grey-screen GBM failures. An explicit env override still wins.
-        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        // WebKitGTK's dmabuf renderer cannot allocate GBM buffers on X11 with
+        // the NVIDIA proprietary driver ("Failed to create GBM buffer:
+        // Invalid argument" -> black window), so X11 must fall back to the
+        // slower shared-memory path. On Wayland the dmabuf renderer works,
+        // but NVIDIA's explicit-sync EGL path crashes GTK with Wayland
+        // protocol Error 71, hence __NV_DISABLE_EXPLICIT_SYNC. Explicit env
+        // overrides always win.
+        let wayland = std::env::var_os("WAYLAND_DISPLAY").is_some();
+        if wayland {
+            if std::env::var_os("__NV_DISABLE_EXPLICIT_SYNC").is_none() {
+                std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
+            }
+        } else if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
     }
