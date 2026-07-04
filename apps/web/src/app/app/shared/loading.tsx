@@ -1,6 +1,6 @@
 export default function SharedNotesLoading() {
 	return (
-		<div className="relative flex h-dvh min-h-dvh">
+		<div className="relative flex h-dvh max-h-full min-h-0">
 			{/* icon rail placeholder */}
 			<div className="hidden w-14 shrink-0 border-r border-sidebar-border bg-sidebar/95 md:block" />
 			<main className="flex-1 overflow-hidden">
