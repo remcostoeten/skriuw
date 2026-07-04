@@ -42,6 +42,7 @@ export async function buildWorkspaceExportResponse(input: ExportWorkspaceInput):
 				parentId: true,
 				sortOrder: true,
 				preferredEditorMode: true,
+				icon: true,
 				createdAt: true,
 				updatedAt: true,
 			},

@@ -184,7 +184,8 @@ export const SHORTCUT_REGISTRY = {
 		scope: SCOPES.notes,
 		group: "Notes",
 		label: "Close tab",
-		description: "Close the focused tab (closes the split or empties the pane when it is the last tab).",
+		description:
+			"Close the focused tab (closes the split or empties the pane when it is the last tab).",
 		except: false,
 		preventDefault: true,
 	},
@@ -395,6 +396,48 @@ export const SHORTCUT_REGISTRY = {
 		label: "Toggle settings focus",
 		description: "Move focus between the settings sidebar and main panel.",
 		preventDefault: true,
+	},
+
+	// ── Desktop ──────────────────────────────────────────────────────────────
+	"desktop.zoomIn": {
+		keys: "mod+=",
+		scope: SCOPES.app,
+		group: "Desktop",
+		label: "Zoom in",
+		preventDefault: true,
+		except: false,
+	},
+	"desktop.zoomOut": {
+		keys: "mod+-",
+		scope: SCOPES.app,
+		group: "Desktop",
+		label: "Zoom out",
+		preventDefault: true,
+		except: false,
+	},
+	"desktop.zoomReset": {
+		keys: "mod+0",
+		scope: SCOPES.app,
+		group: "Desktop",
+		label: "Reset zoom",
+		preventDefault: true,
+		except: false,
+	},
+	"desktop.quit": {
+		keys: "mod+shift+q",
+		scope: SCOPES.app,
+		group: "Desktop",
+		label: "Quit app",
+		preventDefault: true,
+		except: false,
+	},
+	"desktop.toggleMaximize": {
+		keys: "mod+enter",
+		scope: SCOPES.app,
+		group: "Desktop",
+		label: "Toggle maximize",
+		preventDefault: true,
+		except: false,
 	},
 } as const satisfies Record<string, ShortcutDefinition>;
 

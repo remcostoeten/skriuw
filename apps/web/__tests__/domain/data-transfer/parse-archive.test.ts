@@ -45,6 +45,7 @@ describe("data transfer archive parsing", () => {
 					parentId: "22222222-2222-4222-8222-222222222222",
 					sortOrder: 1,
 					preferredEditorMode: "block",
+					icon: null,
 					createdAt: new Date("2026-05-26T10:00:00.000Z"),
 					updatedAt: new Date("2026-05-26T11:00:00.000Z"),
 				},
@@ -179,9 +180,9 @@ tags: ["idea"]
 		});
 
 		const archive = parseArchiveBuffer(zip);
-		expect(archive.integrityWarnings.some((warning) => warning.includes("Checksum mismatch"))).toBe(
-			true,
-		);
+		expect(
+			archive.integrityWarnings.some((warning) => warning.includes("Checksum mismatch")),
+		).toBe(true);
 	});
 
 	test("rejects invalid zip archives", () => {

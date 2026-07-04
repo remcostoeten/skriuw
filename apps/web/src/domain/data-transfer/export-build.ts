@@ -27,6 +27,7 @@ type NoteRow = {
 	parentId: string | null;
 	sortOrder: number;
 	preferredEditorMode: string | null;
+	icon: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -60,6 +61,7 @@ function noteFrontmatter(note: NoteRow): string {
 	if (note.preferredEditorMode) {
 		lines.push(`preferredEditorMode: ${note.preferredEditorMode}`);
 	}
+	if (note.icon) lines.push(`icon: ${note.icon}`);
 	lines.push(`created: ${note.createdAt.toISOString()}`);
 	lines.push(`updated: ${note.updatedAt.toISOString()}`);
 	lines.push("---", "", "");

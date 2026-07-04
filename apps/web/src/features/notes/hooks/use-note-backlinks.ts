@@ -5,6 +5,7 @@ import type { ResolvedNoteLink } from "@/domain/notes/note-links";
 import { notesKeys } from "./notes-keys";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { isGuestScopedId } from "@/domain/notes/note-id";
+import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
 
 export function useNoteBacklinks(noteId: string | null | undefined) {
 	const id = noteId ?? "";
@@ -15,10 +16,11 @@ export function useNoteBacklinks(noteId: string | null | undefined) {
 		notesKeys.backlinks(id),
 		() => backend.getNoteBacklinks(id),
 		{
-			// Backlinks change only via the user's own edits, which already
-			// invalidate backlinksAll(). Cache between mounts instead of refetching.
 			enabled: canLoad,
-			staleTime: 5 * 60 * 1000,
+			// Desktop: short stale window so backlinks reflect newly-saved
+			// @-mentions quickly. Web: backlinks are invalidated on every save
+			// via reconcileSavedNoteCache, so the long cache is safe.
+			staleTime: isTauriRuntime() ? 30_000 : 5 * 60 * 1000,
 		},
 	);
 }

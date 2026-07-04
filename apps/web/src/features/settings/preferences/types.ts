@@ -24,7 +24,7 @@ export type EditorPreferences = {
 	notePropertiesCollapsed: boolean;
 	notePropertiesDefaultTemplateId: string | null;
 	customNotePropertyTemplates: CustomNotePropertyTemplate[];
-}
+};
 
 export type AppearancePreferences = {
 	theme: ThemeId;
@@ -33,16 +33,18 @@ export type AppearancePreferences = {
 	reduceMotion: boolean;
 	rememberLastTab: boolean;
 	rememberLastNote: boolean;
-}
+	showAnimatedIcons: boolean;
+	showPageIcons: boolean;
+};
 
 export type ProfilePreferences = {
 	avatarColor: string | null;
-}
+};
 
 export type JournalPreferences = {
 	diaryModeEnabled: boolean;
 	recentMoods: Array<{ mood: string; date: Date }>;
-}
+};
 
 export type PrivacyPreferences = {
 	analyticsEnabled: boolean;
@@ -53,7 +55,7 @@ export type AiKey = {
 	name: string;
 	apiKey: string;
 	tested: boolean;
-}
+};
 
 export type AiPreferences = {
 	model: string;
@@ -61,7 +63,7 @@ export type AiPreferences = {
 	activeKeyId: string | null;
 	/** Translate-selection target language name; "auto" keeps the EN↔NL heuristic. */
 	translateLanguage: string;
-}
+};
 
 export type PreferencesProfile = {
 	editor: EditorPreferences;
