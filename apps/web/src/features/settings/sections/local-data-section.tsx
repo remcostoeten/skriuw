@@ -49,6 +49,11 @@ import {
 } from "@/features/settings/components/settings-primitives";
 import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-anchor";
 import {
+  NoteCleanupDialog,
+  NoteCleanupRow,
+} from "@/features/settings/components/note-cleanup";
+import { useNoteCleanupScan } from "@/features/settings/lib/use-note-cleanup-scan";
+import {
   tauriChannel,
   tauriInvoke,
   useWorkspaceBackend,
@@ -447,6 +452,8 @@ export function LocalDataSection() {
   } | null>(null);
   const [resetStartedAt, setResetStartedAt] = useState<number | null>(null);
   const [resetState, setResetState] = useState<SnapshotState>("idle");
+  const cleanup = useNoteCleanupScan();
+  const [cleanupPrompt, setCleanupPrompt] = useState(false);
   const simplenoteInputRef = useRef<HTMLInputElement>(null);
 
   function resetSimplenoteFlow() {
@@ -545,6 +552,7 @@ export function LocalDataSection() {
       if (restored) {
         await refreshWorkspace();
         setNotice("Vault restored from backup.");
+        setCleanupPrompt(true);
       }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Restore failed.");
@@ -669,6 +677,7 @@ export function LocalDataSection() {
           setSimplenoteProgress({ imported, total }),
       });
       await refreshWorkspace();
+      setCleanupPrompt(true);
       const parts = [`Imported ${summary.imported} notes from Simplenote`];
       if (summary.skipped > 0) parts.push(`${summary.skipped} skipped`);
       if (summary.overwritten > 0)
@@ -1355,6 +1364,39 @@ export function LocalDataSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <GroupLabel>Maintenance</GroupLabel>
+      <SettingsCard>
+        <NoteCleanupRow
+          phase={cleanup.phase}
+          onScan={cleanup.scan}
+          disabled={busy !== "idle"}
+        />
+        {cleanupPrompt && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 p-3">
+            <p className="text-xs text-muted-foreground">
+              Imports often bring along empty or duplicate notes. Scan for them
+              now?
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCleanupPrompt(false);
+                void cleanup.scan();
+              }}
+            >
+              Scan for junk notes
+            </Button>
+          </div>
+        )}
+      </SettingsCard>
+      <NoteCleanupDialog
+        result={cleanup.result}
+        onOpenChange={(open) => {
+          if (!open) cleanup.reset();
+        }}
+      />
 
       <GroupLabel>Danger zone</GroupLabel>
       <SettingsCard>

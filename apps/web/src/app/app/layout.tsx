@@ -14,9 +14,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
 	return (
 		<AppProviders initialEditorPreferences={initialEditorPreferences}>
-			<div className={editorFontVariables}>
+			<div className={`flex h-dvh flex-col ${editorFontVariables}`}>
 				{!user && <GuestBanner />}
-				{children}
+				<div className="flex min-h-0 flex-1 flex-col">{children}</div>
 			</div>
 			<SettingsModal />
 		</AppProviders>

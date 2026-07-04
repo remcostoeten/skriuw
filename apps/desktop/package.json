@@ -3,7 +3,7 @@
 	"version": "0.15.2",
 	"private": true,
 	"scripts": {
-		"dev": "cross-env WEBKIT_DISABLE_DMABUF_RENDERER=1 tauri dev",
+		"dev": "tauri dev",
 		"build": "cross-env NO_STRIP=1 tauri build",
 		"build:snap": "bun run build && snapcraft pack",
 		"tauri": "tauri"
