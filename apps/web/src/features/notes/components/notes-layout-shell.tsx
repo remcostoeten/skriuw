@@ -39,10 +39,6 @@ const MetadataPanel = dynamic(
 	{ ssr: false, loading: () => <NotesMetadataPlaceholder /> },
 );
 
-const CommandPalette = dynamic(
-	() => import("@/shared/ui/command-palette").then((mod) => ({ default: mod.CommandPalette })),
-	{ ssr: false, loading: () => null },
-);
 
 const ShortcutHelpDialog = dynamic(
 	() =>
@@ -124,8 +120,6 @@ export function NotesLayoutShell({
 		canToggleSplit,
 		closeMetadata,
 		closeSidebar,
-		commandItems,
-		setCommandQuery,
 		editorMode,
 		handleCloseSplit,
 		handleDesktopMetadataResizeStart,
@@ -156,13 +150,11 @@ export function NotesLayoutShell({
 		metadataWidth,
 		overlayTransition,
 		prefersReducedMotion,
-		setShowCommandPalette,
 		setShowShortcutHelp,
 		sidebarPanelProps,
 		sidebarRef,
 		sidebarTransition,
 		sidebarWidth,
-		showCommandPalette,
 		showMetadata,
 		showSidebar,
 		showShortcutHelp,
@@ -511,13 +503,6 @@ export function NotesLayoutShell({
 				</div>
 			</div>
 
-			<CommandPalette
-				open={showCommandPalette}
-				onOpenChange={setShowCommandPalette}
-				onQueryChange={setCommandQuery}
-				items={commandItems}
-				description="Search notes, run actions, and navigate."
-			/>
 			<ShortcutHelpDialog
 				open={showShortcutHelp}
 				onOpenChange={setShowShortcutHelp}

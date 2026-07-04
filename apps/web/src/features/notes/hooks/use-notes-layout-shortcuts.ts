@@ -2,8 +2,8 @@
 
 import { useCallback, useState } from "react";
 import { useShortcutManager, useShortcutScope } from "@/core/shortcuts";
+import { useCommandRegistry } from "@/core/commands";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import { focusActiveEditor } from "@/shared/lib/focus-editor";
 
 type UseNotesLayoutShortcutsOptions = {
 	handleCreateFile: () => void;
@@ -39,34 +39,21 @@ export function useNotesLayoutShortcuts({
 	handleSwitchToTabIndex,
 }: UseNotesLayoutShortcutsOptions) {
 	const { getHelpGroups } = useShortcutManager();
-	const [showCommandPalette, setShowCommandPalette] = useState(false);
+	const {
+		isOpen: showCommandPalette,
+		setIsOpen: setShowCommandPalette,
+		toggleOpen: handleOpenCommandPalette,
+	} = useCommandRegistry();
+	
 	const [showShortcutHelp, setShowShortcutHelp] = useState(false);
-
-	const handleOpenCommandPalette = useCallback(() => {
-		triggerNativeFeedback("selection");
-		setShowCommandPalette((prev) => !prev);
-	}, []);
 
 	const handleOpenShortcutHelp = useCallback(() => {
 		triggerNativeFeedback("selection");
 		setShowShortcutHelp(true);
 	}, []);
 
+	// Only bind layout-specific shortcuts that are not commands in the registry
 	useShortcutScope("notes", {
-		"notes.commandPalette": handleOpenCommandPalette,
-		"notes.newNote": handleCreateFile,
-		"notes.newFolder": handleCreateFolder,
-		"notes.toggleSidebar": handleToggleSidebar,
-		"notes.toggleMetadata": handleToggleMetadata,
-		"notes.settings": handleOpenSettings,
-		"notes.toggleEditor": handleToggleEditorMode,
-		"notes.focusFileTree": handleFocusFileTree,
-		"notes.toggleSplit": handleToggleSplit,
-		"notes.splitHorizontal": handleSplitHorizontal,
-		"notes.closeTab": handleCloseFocusedTab,
-		"notes.closeSplit": handleCloseSplitPane,
-		"notes.focusNextSplitPane": handleFocusNextSplitPane,
-		"notes.focusPreviousSplitPane": handleFocusPreviousSplitPane,
 		"notes.switchTab1": () => handleSwitchToTabIndex(0),
 		"notes.switchTab2": () => handleSwitchToTabIndex(1),
 		"notes.switchTab3": () => handleSwitchToTabIndex(2),
@@ -76,8 +63,6 @@ export function useNotesLayoutShortcuts({
 		"notes.switchTab7": () => handleSwitchToTabIndex(6),
 		"notes.switchTab8": () => handleSwitchToTabIndex(7),
 		"notes.switchTab9": () => handleSwitchToTabIndex(-1),
-		"notes.focusEditor": () => focusActiveEditor(),
-		"notes.help": handleOpenShortcutHelp,
 	});
 
 	return {
