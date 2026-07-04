@@ -20,8 +20,18 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Unit tests
-        run: bun run test:unit
+      - name: Unit tests with coverage
+        run: bun scripts/coverage-tui.ts --json coverage.json --markdown >> "$GITHUB_STEP_SUMMARY"
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?sslmode=disable
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-json
+          path: coverage.json
+          if-no-files-found: warn
 
       - name: Lint
         run: bun run lint
@@ -29,7 +39,6 @@ jobs:
       - name: Production build
         run: bun run build
         env:
-          # Prisma client + Next static generation need a URL at build time.
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?sslmode=disable
           BETTER_AUTH_SECRET: ci-build-secret-minimum-32-characters
           BETTER_AUTH_URL: http://localhost:3000

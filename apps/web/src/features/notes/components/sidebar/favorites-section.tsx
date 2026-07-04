@@ -2,8 +2,7 @@
 
 import { memo, useMemo } from "react";
 import { X } from "lucide-react";
-import { FileTextIcon } from "@/shared/icons/file-text";
-import { FolderOpenIcon } from "@/shared/icons/folder-open";
+import { SidebarItemIcon } from "./sidebar-item-icon";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import type { FavoriteItem } from "./types";
@@ -130,17 +129,11 @@ export const FavoritesSection = memo(function FavoritesSection({
 								}
 								className="flex min-w-0 flex-1 items-center gap-2 text-left"
 							>
-								{fav.itemType === "file" ? (
-									<FileTextIcon
-										size={compactMode ? 12 : 14}
-										className="shrink-0 text-muted-foreground/70"
-									/>
-								) : (
-									<FolderOpenIcon
-										size={compactMode ? 12 : 14}
-										className="shrink-0 text-muted-foreground/70"
-									/>
-								)}
+								<SidebarItemIcon
+									kind={fav.itemType}
+									size={compactMode ? 12 : 14}
+									className="shrink-0 text-muted-foreground/70"
+								/>
 								<span className="flex-1 truncate">{fav.name}</span>
 							</button>
 							<button

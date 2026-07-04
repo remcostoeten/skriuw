@@ -2,18 +2,8 @@ import { parse as parseYaml } from "yaml";
 
 const FRONTMATTER_BOUNDARY = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
-function scalarToString(value: unknown): string {
-	if (value === null || value === undefined) return "";
-	if (typeof value === "string") return value;
-	if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-		return String(value);
-	}
-	if (value instanceof Date) return value.toISOString();
-	return JSON.stringify(value);
-}
-
 export function splitFrontmatter(raw: string): {
-	frontmatter: Record<string, string>;
+	frontmatter: Record<string, unknown>;
 	body: string;
 } {
 	const match = raw.match(FRONTMATTER_BOUNDARY);
@@ -21,7 +11,7 @@ export function splitFrontmatter(raw: string): {
 		return { frontmatter: {}, body: raw };
 	}
 
-	const frontmatter: Record<string, string> = {};
+	const frontmatter: Record<string, unknown> = {};
 	let parsed: unknown;
 	try {
 		parsed = parseYaml(match[1], { schema: "core" });
@@ -31,7 +21,7 @@ export function splitFrontmatter(raw: string): {
 
 	if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
 		for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-			frontmatter[key] = scalarToString(value);
+			frontmatter[key] = value instanceof Date ? value.toISOString() : value;
 		}
 	}
 
@@ -50,24 +40,30 @@ export function parseYamlString(value: string | undefined): string | undefined {
 	return value;
 }
 
-export function parseTagsField(value: string | undefined): string[] {
+export function parseTagsField(value: unknown): string[] {
 	if (!value) return [];
-	const trimmed = value.trim();
-	if (!trimmed || trimmed === "[]") return [];
-
-	if (!trimmed.startsWith("[")) {
-		const single = parseYamlString(trimmed);
-		return single ? [single] : [];
+	if (Array.isArray(value)) {
+		return value.map((tag) => String(tag).trim()).filter(Boolean);
 	}
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (!trimmed || trimmed === "[]") return [];
 
-	const normalized = normalizeTagArray(trimmed);
-	if (normalized) return normalized;
+		if (!trimmed.startsWith("[")) {
+			const single = parseYamlString(trimmed);
+			return single ? [single] : [];
+		}
 
-	return trimmed
-		.slice(1, -1)
-		.split(",")
-		.map((tag) => tag.trim().replace(/^["']|["']$/g, ""))
-		.filter(Boolean);
+		const normalized = normalizeTagArray(trimmed);
+		if (normalized) return normalized;
+
+		return trimmed
+			.slice(1, -1)
+			.split(",")
+			.map((tag) => tag.trim().replace(/^["']|["']$/g, ""))
+			.filter(Boolean);
+	}
+	return [];
 }
 
 function normalizeTagArray(source: string): string[] | null {

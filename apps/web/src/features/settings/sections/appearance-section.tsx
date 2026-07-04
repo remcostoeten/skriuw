@@ -13,11 +13,7 @@ import {
 } from "@/features/settings/components/settings-primitives";
 import { THEMES } from "@/features/settings/preferences/themes";
 import { settingsAnchorProps } from "@/features/settings/lib/settings-focus-anchor";
-import {
-	CompactSidebarDemo,
-	LineNumbersDemo,
-	TreeGuidesDemo,
-} from "@/features/settings/demos";
+import { CompactSidebarDemo, LineNumbersDemo, TreeGuidesDemo } from "@/features/settings/demos";
 
 export function AppearanceSection() {
 	const appearance = usePreferencesStore((s) => s.appearance);
@@ -44,7 +40,10 @@ export function AppearanceSection() {
 					const arrows = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
 					if (!arrows.includes(e.key)) return;
 					e.preventDefault();
-					const idx = Math.max(0, THEMES.findIndex((t) => t.id === appearance.theme));
+					const idx = Math.max(
+						0,
+						THEMES.findIndex((t) => t.id === appearance.theme),
+					);
 					const delta = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1;
 					const next = THEMES[(idx + delta + THEMES.length) % THEMES.length];
 					update("theme", next.id);
@@ -138,6 +137,16 @@ export function AppearanceSection() {
 					/>
 				</Row>
 				<Row
+					focusId="show-animated-icons"
+					title="Show animated icons"
+					description="Play a small animation on hover for sidebar and settings icons."
+				>
+					<Switch
+						checked={appearance.showAnimatedIcons}
+						onCheckedChange={(v) => update("showAnimatedIcons", v)}
+					/>
+				</Row>
+				<Row
 					focusId="remember-last-tab"
 					title="Remember last settings tab"
 					description="Reopen settings on the tab you last visited instead of the default."
@@ -155,6 +164,16 @@ export function AppearanceSection() {
 					<Switch
 						checked={appearance.rememberLastNote}
 						onCheckedChange={(v) => update("rememberLastNote", v)}
+					/>
+				</Row>
+				<Row
+					focusId="show-page-icons"
+					title="Show page icons"
+					description="Display emoji icons next to note names in the sidebar and tabs."
+				>
+					<Switch
+						checked={appearance.showPageIcons}
+						onCheckedChange={(v) => update("showPageIcons", v)}
 					/>
 				</Row>
 			</SettingsCard>

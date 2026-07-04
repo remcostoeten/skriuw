@@ -1,0 +1,2 @@
+bun lint-staged
+bun scripts/coverage-tui.ts --json coverage.json

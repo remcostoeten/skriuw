@@ -31,6 +31,8 @@ export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
 	reduceMotion: false,
 	rememberLastTab: true,
 	rememberLastNote: false,
+	showAnimatedIcons: true,
+	showPageIcons: true,
 };
 
 export const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {

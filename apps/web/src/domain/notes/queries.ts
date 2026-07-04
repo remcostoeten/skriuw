@@ -38,7 +38,7 @@ type NoteRecord = {
 type NoteMetadataRecord = Omit<
 	NoteRecord,
 	"content" | "richContent" | "properties" | "journalMeta"
->;
+> & { icon: string | null };
 
 type NoteVersionRecord = {
 	id: string;
@@ -100,6 +100,7 @@ function recordToNoteMetadata(record: NoteMetadataRecord): NoteFile {
 		sortOrder: record.sortOrder,
 		tags: record.tags.map((tag) => tag as TagName),
 		properties: [],
+		icon: record.icon ?? undefined,
 		createdAt: record.createdAt.toISOString() as IsoTime,
 		updatedAt: record.updatedAt.toISOString() as IsoTime,
 	});
@@ -134,6 +135,7 @@ export async function listNoteMetadata(): Promise<NoteFile[]> {
 			parentId: true,
 			sortOrder: true,
 			tags: true,
+			icon: true,
 			createdAt: true,
 			updatedAt: true,
 		},
