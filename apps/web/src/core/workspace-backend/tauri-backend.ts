@@ -26,6 +26,7 @@ import {
 	noteFromCreateInput,
 } from "./note-builders";
 import type { NoteSearchHit, TrashBatch, WorkspaceBackend } from "./types";
+import { createWriteQueue } from "./write-queue";
 
 /** The Rust `TrashRecord` wire shape — one soft-deleted note or folder. */
 type RustTrashRecord = {
@@ -464,22 +465,10 @@ export function createTauriBackend(): WorkspaceBackend {
 	// merge, then an IPC write. Without serialization, two near-simultaneous
 	// updates to the same id (e.g. a drag-to-move and an in-flight autosave)
 	// can interleave between the read and the write and silently clobber each
-	// other. Chaining same-id calls onto one promise (mirroring the guest
-	// backend's queue in local-store.ts) closes that window; different ids run
-	// unserialized.
-	const writeQueues = new Map<string, Promise<unknown>>();
-	function runExclusive<T>(key: string, task: () => Promise<T>): Promise<T> {
-		const previous = writeQueues.get(key) ?? Promise.resolve();
-		const run = previous.then(task, task);
-		writeQueues.set(
-			key,
-			run.then(
-				() => undefined,
-				() => undefined,
-			),
-		);
-		return run;
-	}
+	// other. Chaining same-id calls onto one promise closes that window;
+	// different ids run unserialized. Shared with the guest backend — see
+	// `write-queue.ts` for the cross-backend concurrency contract.
+	const { runExclusive } = createWriteQueue();
 
 	// The public list is metadata-only (matching the web backend): the sidebar
 	// and every other list consumer never reads bodies, and shipping content +
