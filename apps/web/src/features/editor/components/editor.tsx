@@ -29,9 +29,14 @@ function RichTextEditorLoading() {
 	return <EditorContentSkeleton />;
 }
 
-// Dynamically import RichTextEditor to avoid SSR issues with BlockNote
+// Dynamically import RichTextEditor to avoid SSR issues with BlockNote.
+// Must use the same absolute specifier as journal-editor.tsx so both async
+// boundaries share one chunk instead of bundling the editor graph twice.
 const RichTextEditor = dynamic(
-	() => import("./rich-text-editor").then((mod) => ({ default: mod.RichTextEditor })),
+	() =>
+		import("@/features/editor/components/rich-text-editor").then((mod) => ({
+			default: mod.RichTextEditor,
+		})),
 	{
 		ssr: false,
 		loading: RichTextEditorLoading,
@@ -244,7 +249,7 @@ export function Editor({
 	}, [file, onScrollPositionChange]);
 
 	const containerClass = cn(
-		"flex min-h-full flex-1 flex-col overflow-y-auto bg-card",
+		"flex min-h-full flex-1 flex-col overflow-y-auto overscroll-contain bg-card",
 		isPaneFocused === false && "opacity-95",
 		isPaneFocused === true && "ring-1 ring-inset ring-foreground/12",
 	);

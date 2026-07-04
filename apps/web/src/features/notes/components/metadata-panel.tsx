@@ -827,7 +827,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 				</div>
 			)}
 
-			<div className="min-h-0 flex-1 overflow-y-auto">
+			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 				<InspectorSection
 					id="note-inspector-outline"
 					title="Outline"

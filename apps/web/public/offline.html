@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Offline — Skriuw</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				--bg: #f5f2eb;
+				--fg: #1c1c1c;
+				--muted: #6b6b6b;
+				--border: #d9d4c8;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg: #121212;
+					--fg: #ececec;
+					--muted: #9a9a9a;
+					--border: #2c2c2c;
+				}
+			}
+			body {
+				font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+				background: var(--bg);
+				color: var(--fg);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 100dvh;
+				margin: 0;
+			}
+			.card {
+				text-align: center;
+				padding: 2rem;
+				max-width: 22rem;
+			}
+			img {
+				width: 64px;
+				height: 64px;
+				border-radius: 14px;
+			}
+			h1 {
+				font-size: 1.25rem;
+				margin: 1rem 0 0.25rem;
+			}
+			p {
+				color: var(--muted);
+				margin: 0 0 1.5rem;
+			}
+			button {
+				background: transparent;
+				color: var(--fg);
+				border: 1px solid var(--border);
+				padding: 0.6rem 1.4rem;
+				border-radius: 8px;
+				font-size: 0.95rem;
+				cursor: pointer;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="card">
+			<img src="/icon-192.png" alt="Skriuw" />
+			<h1>You&rsquo;re offline</h1>
+			<p>Skriuw needs a connection to load this page. Your notes sync again once you&rsquo;re back online.</p>
+			<button onclick="location.reload()">Retry</button>
+		</div>
+		<script>
+			window.addEventListener("online", function () {
+				location.reload();
+			});
+		</script>
+	</body>
+</html>

@@ -886,7 +886,7 @@ export function EditorContainer({
 
 			<div className="relative flex min-h-0 flex-1 flex-col">
 				{isContentLoading || collabConnecting ? (
-					<div className="flex-1 overflow-y-auto bg-card" aria-busy="true">
+					<div className="flex-1 overflow-y-auto overscroll-contain bg-card" aria-busy="true">
 						<EditorContentSkeleton />
 					</div>
 				) : (

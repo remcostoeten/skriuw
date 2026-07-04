@@ -181,6 +181,8 @@ export function CommandPalette({
 							onChange={(event) => updateQuery(event.target.value)}
 							onKeyDown={handleInputKeyDown}
 							placeholder="Search notes or type a command..."
+							inputMode="search"
+							enterKeyHint="go"
 							role="combobox"
 							aria-expanded={open}
 							aria-controls={listboxId}
