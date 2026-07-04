@@ -16,6 +16,7 @@ import { WorkspaceWarmup } from "@/providers/workspace-warmup";
 import { ShortcutProvider } from "@/core/shortcuts";
 import { CommandProvider } from "@/core/commands";
 import { GlobalCommandPaletteMount } from "@/features/layout/components/global-command-palette-mount";
+import { QuickSwitcherMount } from "@/features/notes/components/quick-switcher-mount";
 import { PendingCollabReplay } from "@/features/collaboration/components/pending-collab-replay";
 import { DesktopIndexSync } from "@/features/desktop/desktop-index-sync";
 import { DesktopQuitShortcut } from "@/features/desktop/desktop-quit-shortcut";
@@ -99,6 +100,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 								<CommandProvider>
 									{children}
 									<GlobalCommandPaletteMount />
+									<QuickSwitcherMount />
 								</CommandProvider>
 							</ShortcutProvider>
 							<PendingCollabReplay />
