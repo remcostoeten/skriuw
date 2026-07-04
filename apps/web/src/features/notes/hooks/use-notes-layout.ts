@@ -13,6 +13,7 @@ import {
 	type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { CreateFolderInput } from "@/domain/folders/actions";
+import { collectFolderSubtreeIds } from "@/domain/folders/traversal";
 import type { CreateNoteInput } from "@/domain/notes/actions";
 import { NOTE_PROPERTY_TEMPLATES } from "@/domain/notes/properties";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
@@ -1483,19 +1484,10 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const moveFolder = useCallback(
 		(folderId: string, newParentId: string | null, sortOrder?: number) => {
-			const descendantIds = new Set<string>();
-			const stack = [folderId];
-
-			while (stack.length > 0) {
-				const current = stack.pop();
-				if (!current) continue;
-				descendantIds.add(current);
-				for (const folder of folders) {
-					if (folder.parentId === current && !descendantIds.has(folder.id)) {
-						stack.push(folder.id);
-					}
-				}
-			}
+			const descendantIds = collectFolderSubtreeIds(
+				folderId,
+				(parentId) => foldersByParentId.get(parentId) ?? [],
+			);
 
 			if (newParentId && descendantIds.has(newParentId)) {
 				return;
@@ -1507,7 +1499,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				...(sortOrder !== undefined && { sortOrder }),
 			});
 		},
-		[folders, updateFolderMutation],
+		[foldersByParentId, updateFolderMutation],
 	);
 
 	const handleToggleFolder = useCallback(
