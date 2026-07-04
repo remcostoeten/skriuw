@@ -1,6 +1,7 @@
 import {
 	createNote,
 	deleteNote,
+	deleteNotes,
 	fetchNote,
 	fetchNoteBacklinks,
 	fetchNoteGraph,
@@ -58,6 +59,7 @@ export const serverBackend: WorkspaceBackend = {
 	createNote,
 	updateNote,
 	deleteNote,
+	deleteNotes,
 	restoreNoteVersion,
 
 	getNote: fetchNote,
