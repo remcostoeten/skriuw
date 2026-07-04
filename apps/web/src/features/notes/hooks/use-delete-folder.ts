@@ -5,6 +5,7 @@ import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { notesKeys } from "./notes-keys";
 import type { NoteFolder } from "@/types/notes";
+import { collectFolderSubtreeIds, indexFoldersByParentId } from "@/domain/folders/traversal";
 import { useNotesCacheScope } from "./use-notes-cache-scope";
 
 export function useDeleteFolder() {
@@ -20,18 +21,11 @@ export function useDeleteFolder() {
 		optimistic: {
 			queryKey: foldersKey,
 			updater: (current, id) => {
-				const descendants = new Set<string>([id]);
-				const stack = [id];
-
-				while (stack.length > 0) {
-					const current_id = stack.pop();
-					for (const folder of current ?? []) {
-						if (folder.parentId === current_id && !descendants.has(folder.id)) {
-							descendants.add(folder.id);
-							stack.push(folder.id);
-						}
-					}
-				}
+				const childrenByParentId = indexFoldersByParentId(current ?? []);
+				const descendants = collectFolderSubtreeIds(
+					id,
+					(parentId) => childrenByParentId.get(parentId) ?? [],
+				);
 
 				return (current ?? []).filter((folder) => !descendants.has(folder.id));
 			},

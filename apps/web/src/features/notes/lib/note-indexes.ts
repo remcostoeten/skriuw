@@ -35,6 +35,10 @@ export function buildNoteIndexes(
 
 	const descendantCountByFolderId = new Map<string, number>();
 
+	// The folder-id subtree walk lives in `domain/folders/traversal.ts`; this
+	// stays separate because it counts files + folders and memoizes every
+	// folder in one O(n) pass. It carries the same `visited` cycle guard as the
+	// shared walk, so a corrupt `parentId` chain terminates here too.
 	const countDescendants = (folderId: string, visited: Set<string> = new Set()): number => {
 		const cached = descendantCountByFolderId.get(folderId);
 		if (cached !== undefined) {
