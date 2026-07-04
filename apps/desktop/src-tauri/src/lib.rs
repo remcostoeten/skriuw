@@ -174,34 +174,50 @@ fn import_workspace_archive(
     deleted_journal_entry_ids: Vec<String>,
     deleted_journal_tag_ids: Vec<String>,
 ) -> Result<(), String> {
-    for folder in &folders {
-        vault.upsert_folder(folder).map_err(vault_err)?;
-    }
-    for note in &notes {
-        vault.upsert_note(note).map_err(vault_err)?;
-    }
-    for entry in &journal_entries {
-        vault.upsert_journal_entry(entry).map_err(vault_err)?;
-    }
-    for tag in &journal_tags {
-        vault.upsert_journal_tag(tag).map_err(vault_err)?;
-    }
-    let deleted_at = now_ms();
-    for id in &deleted_note_ids {
-        vault.trash_note(id, deleted_at).map_err(vault_err)?;
-    }
-    for id in &deleted_folder_ids {
-        vault.trash_folder(id, deleted_at).map_err(vault_err)?;
-    }
-    for id in &deleted_journal_entry_ids {
-        vault.delete_journal_entry(id).map_err(vault_err)?;
-    }
-    for id in &deleted_journal_tag_ids {
-        vault.delete_journal_tag(id).map_err(vault_err)?;
+    // 1. Create a backup of the vault
+    vault.create_import_backup().map_err(|e| format!("Failed to create backup: {e}"))?;
+
+    // 2. Perform the sequential filesystem writes
+    let mut import_failed = false;
+    let mut err_msg = String::new();
+
+    let perform_writes = || -> Result<(), String> {
+        for folder in &folders {
+            vault.upsert_folder(folder).map_err(vault_err)?;
+        }
+        for note in &notes {
+            vault.upsert_note(note).map_err(vault_err)?;
+        }
+        for entry in &journal_entries {
+            vault.upsert_journal_entry(entry).map_err(vault_err)?;
+        }
+        for tag in &journal_tags {
+            vault.upsert_journal_tag(tag).map_err(vault_err)?;
+        }
+        let deleted_at = now_ms();
+        for id in &deleted_note_ids {
+            vault.trash_note(id, deleted_at).map_err(vault_err)?;
+        }
+        for id in &deleted_folder_ids {
+            vault.trash_folder(id, deleted_at).map_err(vault_err)?;
+        }
+        for id in &deleted_journal_entry_ids {
+            vault.delete_journal_entry(id).map_err(vault_err)?;
+        }
+        for id in &deleted_journal_tag_ids {
+            vault.delete_journal_tag(id).map_err(vault_err)?;
+        }
+        Ok(())
+    };
+
+    if let Err(e) = perform_writes() {
+        import_failed = true;
+        err_msg = e;
     }
 
-    storage
-        .import_workspace(
+    // 3. If filesystem writes succeeded, perform SQLite write
+    if !import_failed {
+        if let Err(e) = storage.import_workspace(
             &folders,
             &notes,
             &journal_entries,
@@ -210,8 +226,29 @@ fn import_workspace_archive(
             &deleted_folder_ids,
             &deleted_journal_entry_ids,
             &deleted_journal_tag_ids,
-        )
-        .map_err(stringify)
+        ) {
+            import_failed = true;
+            err_msg = stringify(e);
+        }
+    }
+
+    // 4. Handle success or failure
+    if import_failed {
+        if let Err(rollback_err) = vault.restore_import_backup() {
+            return Err(format!(
+                "Import failed: {}. Critical: Backup restore failed: {}",
+                err_msg, rollback_err
+            ));
+        }
+        return Err(err_msg);
+    }
+
+    // Success! Clean up the backup
+    if let Err(e) = vault.discard_import_backup() {
+        eprintln!("Failed to clean up import backup: {e}");
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
