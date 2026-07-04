@@ -1781,6 +1781,7 @@ export const FileList = memo(function FileList({
 								"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 								!isEditing && "active:scale-[0.985]",
 								compactMode ? "h-[28px]" : "h-[34px]",
+								"[@media(pointer:coarse)]:min-h-11",
 								isSelected
 									? "border-border bg-muted text-foreground"
 									: "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
@@ -1926,6 +1927,7 @@ export const FileList = memo(function FileList({
 							"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 							!isEditing && "active:scale-[0.985]",
 							compactMode ? "h-7" : "h-[34px]",
+							"[@media(pointer:coarse)]:min-h-11",
 							isSelected || activeFileId === file.id
 								? "border-border bg-muted text-foreground"
 								: "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85",
@@ -2102,7 +2104,7 @@ export const FileList = memo(function FileList({
 						ref={listRef}
 						className={cn(
 							"px-1.5 pb-4 pt-1",
-							!scrollElementRef && "flex-1 overflow-y-auto",
+							!scrollElementRef && "flex-1 overflow-y-auto overscroll-contain",
 							isRootDropTarget && "bg-primary/6",
 							isRootMoveDestination && "bg-primary/6 ring-1 ring-inset ring-primary/40",
 						)}

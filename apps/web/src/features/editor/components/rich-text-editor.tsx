@@ -3380,12 +3380,12 @@ export function RichTextEditor({
 				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-btn,
 				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-trigger {
 					flex: 0 0 auto;
-					height: 2.15rem;
-					min-width: 2.15rem;
+					height: 2.75rem;
+					min-width: 2.75rem;
 					padding: 0 0.58rem;
 				}
 				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-btn {
-					width: 2.15rem;
+					width: 2.75rem;
 					padding: 0;
 				}
 				.blocknote-wrapper .skriuw-fmt-btn:hover,
