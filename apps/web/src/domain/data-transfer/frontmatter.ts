@@ -1,4 +1,16 @@
+import { parse as parseYaml } from "yaml";
+
 const FRONTMATTER_BOUNDARY = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+
+function scalarToString(value: unknown): string {
+	if (value === null || value === undefined) return "";
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+		return String(value);
+	}
+	if (value instanceof Date) return value.toISOString();
+	return JSON.stringify(value);
+}
 
 export function splitFrontmatter(raw: string): {
 	frontmatter: Record<string, string>;
@@ -10,14 +22,17 @@ export function splitFrontmatter(raw: string): {
 	}
 
 	const frontmatter: Record<string, string> = {};
-	for (const line of match[1].split(/\r?\n/)) {
-		const trimmed = line.trim();
-		if (!trimmed || trimmed.startsWith("#")) continue;
-		const separator = trimmed.indexOf(":");
-		if (separator === -1) continue;
-		const key = trimmed.slice(0, separator).trim();
-		const value = trimmed.slice(separator + 1).trim();
-		frontmatter[key] = value;
+	let parsed: unknown;
+	try {
+		parsed = parseYaml(match[1], { schema: "core" });
+	} catch {
+		parsed = null;
+	}
+
+	if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+		for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+			frontmatter[key] = scalarToString(value);
+		}
 	}
 
 	return { frontmatter, body: raw.slice(match[0].length) };
@@ -36,24 +51,37 @@ export function parseYamlString(value: string | undefined): string | undefined {
 }
 
 export function parseTagsField(value: string | undefined): string[] {
-	if (!value || value === "[]") return [];
+	if (!value) return [];
 	const trimmed = value.trim();
+	if (!trimmed || trimmed === "[]") return [];
+
 	if (!trimmed.startsWith("[")) {
 		const single = parseYamlString(trimmed);
 		return single ? [single] : [];
 	}
 
-	try {
-		const parsed = JSON.parse(trimmed.replace(/'/g, '"')) as unknown;
-		if (!Array.isArray(parsed)) return [];
-		return parsed.map((tag) => String(tag).trim()).filter(Boolean);
-	} catch {
-		return trimmed
-			.slice(1, -1)
-			.split(",")
-			.map((tag) => tag.trim().replace(/^"|"$/g, ""))
-			.filter(Boolean);
+	const normalized = normalizeTagArray(trimmed);
+	if (normalized) return normalized;
+
+	return trimmed
+		.slice(1, -1)
+		.split(",")
+		.map((tag) => tag.trim().replace(/^["']|["']$/g, ""))
+		.filter(Boolean);
+}
+
+function normalizeTagArray(source: string): string[] | null {
+	for (const candidate of [source, source.replace(/'/g, '"')]) {
+		try {
+			const parsed = JSON.parse(candidate) as unknown;
+			if (Array.isArray(parsed)) {
+				return parsed.map((tag) => String(tag).trim()).filter(Boolean);
+			}
+		} catch {
+			continue;
+		}
 	}
+	return null;
 }
 
 export function yamlString(value: string): string {

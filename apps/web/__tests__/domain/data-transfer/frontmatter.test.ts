@@ -51,4 +51,51 @@ Body
 		expect(parseTagsField(undefined)).toEqual([]);
 		expect(parseTagsField("[]")).toEqual([]);
 	});
+
+	test("parses block-style (multi-line) tag lists from real vaults", () => {
+		const raw = `---
+title: Meeting
+tags:
+  - idea
+  - draft
+---
+
+Body
+`;
+		const { frontmatter } = splitFrontmatter(raw);
+		expect(frontmatter.title).toBe("Meeting");
+		expect(parseTagsField(frontmatter.tags)).toEqual(["idea", "draft"]);
+	});
+
+	test("preserves multiline block-scalar values instead of truncating to one line", () => {
+		const raw = `---
+summary: |
+  first line
+  second line
+---
+
+Body
+`;
+		const { frontmatter } = splitFrontmatter(raw);
+		expect(frontmatter.summary).toBe("first line\nsecond line\n");
+	});
+
+	test("keeps tags containing apostrophes intact", () => {
+		expect(parseTagsField('["it\'s", "o\'clock"]')).toEqual(["it's", "o'clock"]);
+	});
+
+	test("parses single-quoted flow arrays", () => {
+		expect(parseTagsField("['idea', 'draft']")).toEqual(["idea", "draft"]);
+	});
+
+	test("does not coerce ISO date frontmatter into Date objects", () => {
+		const raw = `---
+created: 2026-05-26T10:00:00.000Z
+---
+
+Body
+`;
+		const { frontmatter } = splitFrontmatter(raw);
+		expect(frontmatter.created).toBe("2026-05-26T10:00:00.000Z");
+	});
 });
