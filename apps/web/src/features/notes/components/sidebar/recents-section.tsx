@@ -2,8 +2,7 @@
 
 import { memo, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
-import { FileTextIcon } from "@/shared/icons/file-text";
-import { FolderOpenIcon } from "@/shared/icons/folder-open";
+import { SidebarItemIcon } from "./sidebar-item-icon";
 import { cn } from "@/shared/lib/utils";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import type { RecentItem } from "./types";
@@ -138,7 +137,8 @@ export const RecentsSection = memo(function RecentsSection({
 						compactMode ? "h-7" : "h-8",
 					)}
 				>
-					<FileTextIcon
+					<SidebarItemIcon
+						kind="file"
 						size={compactMode ? 12 : 13}
 						className="shrink-0 text-muted-foreground/45"
 					/>
@@ -163,17 +163,11 @@ export const RecentsSection = memo(function RecentsSection({
 									: "text-foreground/60 hover:bg-foreground/[0.045] hover:text-foreground",
 							)}
 						>
-							{recent.itemType === "file" ? (
-								<FileTextIcon
-									size={compactMode ? 12 : 14}
-									className="shrink-0 text-muted-foreground/70"
-								/>
-							) : (
-								<FolderOpenIcon
-									size={compactMode ? 12 : 14}
-									className="shrink-0 text-muted-foreground/70"
-								/>
-							)}
+							<SidebarItemIcon
+								kind={recent.itemType}
+								size={compactMode ? 12 : 14}
+								className="shrink-0 text-muted-foreground/70"
+							/>
 							<span className="flex-1 truncate">{recent.name}</span>
 						</button>
 					))}

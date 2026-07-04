@@ -61,6 +61,7 @@ export const createNoteInputSchema = z.object({
 	sortOrder: z.number().int().min(0).optional(),
 	tags: z.array(z.string().trim().min(1).max(64)).max(64).optional(),
 	properties: notePropertiesSchema.optional(),
+	icon: z.string().max(32).optional(),
 });
 
 export const updateNoteInputSchema = z
@@ -74,6 +75,7 @@ export const updateNoteInputSchema = z
 		sortOrder: z.number().int().min(0).optional(),
 		tags: z.array(z.string().trim().min(1).max(64)).max(64).optional(),
 		properties: notePropertiesSchema.optional(),
+		icon: z.string().max(32).optional(),
 		createCheckpoint: z.boolean().optional(),
 		sessionVersionId: uuidSchema.nullable().optional(),
 		// When false, the save must not auto-rename the note from its first
@@ -91,6 +93,7 @@ export const updateNoteInputSchema = z
 			input.sortOrder !== undefined ||
 			input.tags !== undefined ||
 			input.properties !== undefined ||
+			input.icon !== undefined ||
 			input.createCheckpoint !== undefined ||
 			input.sessionVersionId !== undefined,
 		{ message: "At least one field must be provided." },
@@ -123,7 +126,14 @@ export const publishNoteInputSchema = z.object({
 	viewOnce: z.boolean(),
 	expiry: z.discriminatedUnion("kind", [
 		z.object({ kind: z.literal("never") }),
-		z.object({ kind: z.literal("duration"), ms: z.number().int().positive().max(365 * 24 * 60 * 60 * 1000) }),
+		z.object({
+			kind: z.literal("duration"),
+			ms: z
+				.number()
+				.int()
+				.positive()
+				.max(365 * 24 * 60 * 60 * 1000),
+		}),
 		z.object({ kind: z.literal("date"), iso: z.string().datetime() }),
 	]),
 	password: z.string().min(1).max(128).nullable().optional(),
@@ -138,7 +148,11 @@ export const updateShareInputSchema = z.object({
 			z.object({ kind: z.literal("never") }),
 			z.object({
 				kind: z.literal("duration"),
-				ms: z.number().int().positive().max(365 * 24 * 60 * 60 * 1000),
+				ms: z
+					.number()
+					.int()
+					.positive()
+					.max(365 * 24 * 60 * 60 * 1000),
 			}),
 			z.object({ kind: z.literal("date"), iso: z.string().datetime() }),
 		])

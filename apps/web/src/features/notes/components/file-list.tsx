@@ -8,10 +8,7 @@ import { collectFolderSubtreeIds } from "@/domain/folders/traversal";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import {
-	NOTE_TREE_REVEAL_EVENT,
-	type NoteTreeRevealDetail,
-} from "@/shared/lib/focus-editor";
+import { NOTE_TREE_REVEAL_EVENT, type NoteTreeRevealDetail } from "@/shared/lib/focus-editor";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/shared/ui/sheet";
 import { EmptyState } from "@/shared/ui/empty-state";
 import {
@@ -41,8 +38,10 @@ import {
 } from "@/shared/ui/context-menu";
 import { NoteNameLabel } from "./note-name-label";
 import { useSidebarStore } from "./sidebar/store";
+import { usePreferencesStore } from "@/features/settings/store";
 import { SidebarTreeRowSkeleton } from "./sidebar/sidebar-tree-skeleton";
 import { NoteSendContextSubmenu, NoteSendMobileActionBlock } from "./note-send-menu";
+import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
 import { GuestGate } from "@/shared/ui/guest-gate";
 import { endTreeItemDrag, setTreeItemDragData } from "../lib/note-drag";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
@@ -63,7 +62,7 @@ type FileListProps = {
 	onCreateFolder?: () => void;
 	scrollElementRef?: RefObject<HTMLElement | null>;
 	sidebarWidth?: number;
-}
+};
 
 type SelectedItem = {
 	id: string;
@@ -139,6 +138,7 @@ export const FileList = memo(function FileList({
 		useSidebarStore();
 	const customSections = config.sections.filter((section) => section.type === "custom");
 	const isMobile = useIsMobile();
+	const showPageIcons = usePreferencesStore((s) => s.appearance.showPageIcons);
 	const listRef = useRef<HTMLDivElement>(null);
 	const itemButtonRefs = useRef(new Map<string, HTMLButtonElement>());
 	const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1357,6 +1357,7 @@ export const FileList = memo(function FileList({
 					<FolderPlus className="w-4 h-4" />
 					New folder
 				</ContextMenuItem>
+				<DevContextSubmenu />
 			</>
 		);
 	}, [onCreateNote, onCreateFolder]);
@@ -1367,9 +1368,17 @@ export const FileList = memo(function FileList({
 			const selectionForAction = getSelectionForAction(item);
 			const selectionHasMultiple = selectionForAction.length > 1;
 			const canOpenBeside =
-				!!file && !!onOpenBeside && !isMobile && !selectionHasMultiple && file.id !== activeFileId;
+				!!file &&
+				!!onOpenBeside &&
+				!isMobile &&
+				!selectionHasMultiple &&
+				file.id !== activeFileId;
 			const canOpenInSplit =
-				!!file && !!onOpenInSplit && !isMobile && !selectionHasMultiple && file.id !== activeFileId;
+				!!file &&
+				!!onOpenInSplit &&
+				!isMobile &&
+				!selectionHasMultiple &&
+				file.id !== activeFileId;
 
 			return (
 				<>
@@ -1457,6 +1466,8 @@ export const FileList = memo(function FileList({
 						</ContextMenuSub>
 					)}
 					{file && <NoteSendContextSubmenu note={file} />}
+					<ContextMenuSeparator />
+					<DevContextSubmenu />
 					<ContextMenuSeparator />
 					<ContextMenuItem
 						onClick={() => deleteSelection(selectionForAction)}
@@ -1706,153 +1717,143 @@ export const FileList = memo(function FileList({
 
 		return (
 			<button
-							type="button"
-							data-row-key={getItemKey(folderItem)}
-							ref={(node) => {
-								const key = getItemKey(folderItem);
-								if (node) {
-									itemButtonRefs.current.set(key, node);
-								} else {
-									itemButtonRefs.current.delete(key);
-								}
-							}}
-							onClick={(event) =>
-								handleItemClick(event, folderItem, () => {
-									if (suppressClickRef.current) {
-										suppressClickRef.current = false;
-										return;
-									}
-									if (!isEditing) {
-										onToggleFolder(folder.id);
-									}
-								})
-							}
-							onDoubleClick={(e) =>
-								handleDoubleClick(e, folder.id, folder.name, "folder")
-							}
-							onPointerDown={(event) =>
-								scheduleLongPress(event, folderItem, folder.name)
-							}
-							onPointerUp={cancelLongPress}
-							onPointerMove={cancelLongPress}
-							onPointerCancel={cancelLongPress}
-							onPointerLeave={cancelLongPress}
-							draggable={!isEditing}
-							onDragStart={(e) =>
-								handleDragStart(
-									e as unknown as React.DragEvent<HTMLButtonElement>,
-									{ type: "folder", id: folder.id, parentId: folder.parentId },
-								)
-							}
-							onDragEnd={handleDragEnd}
-							onDragOver={(e) => {
-								const position = getDropPosition(e, "edges");
-								if (position === "inside") {
-									handleDragOver(e, folder.id, "folder");
-									return;
-								}
-								handleSiblingDragOver(e, folderVisibleItem);
-							}}
-							onDragLeave={handleDragLeave}
-							onDrop={(e) => {
-								const position = getDropPosition(e, "edges");
-								if (position === "inside") {
-									handleDrop(e, folder.id);
-									return;
-								}
-								handleSiblingDrop(e, folderVisibleItem);
-							}}
-							onFocus={() => setFocusedItemKey(getItemKey(folderItem))}
-							onFocusCapture={() => onCreationParentChange?.(folder.id)}
-							onKeyDown={(event) =>
-								!isEditing &&
-								handleTreeItemKeyDown(event, folderItem, {
-									isFolder: true,
-									isOpen: folder.isOpen,
-								})
-							}
-							role="treeitem"
-							aria-level={depth + 1}
-							aria-expanded={folder.isOpen}
-							aria-selected={isSelected}
-							tabIndex={getItemKey(folderItem) === rovingFocusKey ? 0 : -1}
-							className={cn(
-								"group relative flex w-full items-center justify-between overflow-hidden border border-transparent text-xs font-medium transition-colors",
-								"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
-								!isEditing && "active:scale-[0.985]",
-								compactMode ? "h-[28px]" : "h-[34px]",
-								"[@media(pointer:coarse)]:min-h-11",
-								isSelected
-									? "border-border bg-muted text-foreground"
-									: "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
-								isDragging && "opacity-35",
-								isDropTarget && "border-border bg-muted",
-								isMoving && "opacity-50 ring-1 ring-primary/40",
-								isMoveDestination && "border-primary bg-primary/10 ring-1 ring-primary",
-							)}
-							style={{
-								paddingLeft: `${rowBasePadding + depth * depthIndent}px`,
-								paddingRight: `${rowRightPadding}px`,
-							}}
-						>
-							{renderTreeGuides(depth)}
-							{isSiblingDropTarget && (
-								<span
-									aria-hidden="true"
-									className={cn(
-										"pointer-events-none absolute left-0 right-0 h-px bg-primary",
-										dropTarget.position === "before" ? "top-0" : "bottom-0",
-									)}
-								/>
-							)}
-							<div
-								className={cn(
-									"flex min-w-0 items-center",
-									isNarrow ? "gap-1" : "gap-1.5",
-								)}
-							>
-								{folder.isOpen ? (
-									<FolderOpen
-										className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
-										strokeWidth={1.5}
-									/>
-								) : (
-									<Folder
-										className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
-										strokeWidth={1.5}
-									/>
-								)}
-								<span
-									className={cn(
-										"flex min-w-0 flex-1 items-center",
-										isEditing ? "h-[18px]" : "h-[18px]",
-									)}
-								>
-									{isEditing ? (
-										<input
-											ref={inputRef}
-											type="text"
-											value={editingName}
-											onChange={(e) => setEditingName(e.target.value)}
-											onBlur={finishRename}
-											onKeyDown={handleKeyDown}
-											onClick={(e) => e.stopPropagation()}
-											className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden shadow-none focus:shadow-none focus-visible:shadow-none selection:bg-primary/30 md:text-xs"
-											style={{ caretColor: "currentColor" }}
-										/>
-									) : (
-										<span className="truncate text-left select-none">
-											{folder.name}
-										</span>
-									)}
-								</span>
-							</div>
-							{!isVeryNarrow && (
-								<span className="ml-1.5 w-4 shrink-0 text-right text-[10px] text-muted-foreground/50 tabular-nums">
-									{totalCount}
-								</span>
-							)}
-						</button>
+				type="button"
+				data-row-key={getItemKey(folderItem)}
+				ref={(node) => {
+					const key = getItemKey(folderItem);
+					if (node) {
+						itemButtonRefs.current.set(key, node);
+					} else {
+						itemButtonRefs.current.delete(key);
+					}
+				}}
+				onClick={(event) =>
+					handleItemClick(event, folderItem, () => {
+						if (suppressClickRef.current) {
+							suppressClickRef.current = false;
+							return;
+						}
+						if (!isEditing) {
+							onToggleFolder(folder.id);
+						}
+					})
+				}
+				onDoubleClick={(e) => handleDoubleClick(e, folder.id, folder.name, "folder")}
+				onPointerDown={(event) => scheduleLongPress(event, folderItem, folder.name)}
+				onPointerUp={cancelLongPress}
+				onPointerMove={cancelLongPress}
+				onPointerCancel={cancelLongPress}
+				onPointerLeave={cancelLongPress}
+				draggable={!isEditing}
+				onDragStart={(e) =>
+					handleDragStart(e as unknown as React.DragEvent<HTMLButtonElement>, {
+						type: "folder",
+						id: folder.id,
+						parentId: folder.parentId,
+					})
+				}
+				onDragEnd={handleDragEnd}
+				onDragOver={(e) => {
+					const position = getDropPosition(e, "edges");
+					if (position === "inside") {
+						handleDragOver(e, folder.id, "folder");
+						return;
+					}
+					handleSiblingDragOver(e, folderVisibleItem);
+				}}
+				onDragLeave={handleDragLeave}
+				onDrop={(e) => {
+					const position = getDropPosition(e, "edges");
+					if (position === "inside") {
+						handleDrop(e, folder.id);
+						return;
+					}
+					handleSiblingDrop(e, folderVisibleItem);
+				}}
+				onFocus={() => setFocusedItemKey(getItemKey(folderItem))}
+				onFocusCapture={() => onCreationParentChange?.(folder.id)}
+				onKeyDown={(event) =>
+					!isEditing &&
+					handleTreeItemKeyDown(event, folderItem, {
+						isFolder: true,
+						isOpen: folder.isOpen,
+					})
+				}
+				role="treeitem"
+				aria-level={depth + 1}
+				aria-expanded={folder.isOpen}
+				aria-selected={isSelected}
+				tabIndex={getItemKey(folderItem) === rovingFocusKey ? 0 : -1}
+				className={cn(
+					"group relative flex w-full items-center justify-between overflow-hidden border border-transparent text-xs font-medium transition-colors",
+					"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+					!isEditing && "active:scale-[0.985]",
+					compactMode ? "h-[28px]" : "h-[34px]",
+					"[@media(pointer:coarse)]:min-h-11",
+					isSelected
+						? "border-border bg-muted text-foreground"
+						: "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
+					isDragging && "opacity-35",
+					isDropTarget && "border-border bg-muted",
+					isMoving && "opacity-50 ring-1 ring-primary/40",
+					isMoveDestination && "border-primary bg-primary/10 ring-1 ring-primary",
+				)}
+				style={{
+					paddingLeft: `${rowBasePadding + depth * depthIndent}px`,
+					paddingRight: `${rowRightPadding}px`,
+				}}
+			>
+				{renderTreeGuides(depth)}
+				{isSiblingDropTarget && (
+					<span
+						aria-hidden="true"
+						className={cn(
+							"pointer-events-none absolute left-0 right-0 h-px bg-primary",
+							dropTarget.position === "before" ? "top-0" : "bottom-0",
+						)}
+					/>
+				)}
+				<div className={cn("flex min-w-0 items-center", isNarrow ? "gap-1" : "gap-1.5")}>
+					{folder.isOpen ? (
+						<FolderOpen
+							className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
+							strokeWidth={1.5}
+						/>
+					) : (
+						<Folder
+							className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
+							strokeWidth={1.5}
+						/>
+					)}
+					<span
+						className={cn(
+							"flex min-w-0 flex-1 items-center",
+							isEditing ? "h-[18px]" : "h-[18px]",
+						)}
+					>
+						{isEditing ? (
+							<input
+								ref={inputRef}
+								type="text"
+								value={editingName}
+								onChange={(e) => setEditingName(e.target.value)}
+								onBlur={finishRename}
+								onKeyDown={handleKeyDown}
+								onClick={(e) => e.stopPropagation()}
+								className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden shadow-none focus:shadow-none focus-visible:shadow-none selection:bg-primary/30 md:text-xs"
+								style={{ caretColor: "currentColor" }}
+							/>
+						) : (
+							<span className="truncate text-left select-none">{folder.name}</span>
+						)}
+					</span>
+				</div>
+				{!isVeryNarrow && (
+					<span className="ml-1.5 w-4 shrink-0 text-right text-[10px] text-muted-foreground/50 tabular-nums">
+						{totalCount}
+					</span>
+				)}
+			</button>
 		);
 	};
 
@@ -1866,113 +1867,118 @@ export const FileList = memo(function FileList({
 
 		return (
 			<button
-						type="button"
-						data-row-key={getItemKey(fileItem)}
-						ref={(node) => {
-							const key = getItemKey(fileItem);
-							if (node) {
-								itemButtonRefs.current.set(key, node);
-							} else {
-								itemButtonRefs.current.delete(key);
-							}
-						}}
-						onClick={(event) =>
-							handleItemClick(event, fileItem, () => {
-								if (suppressClickRef.current) {
-									suppressClickRef.current = false;
-									return;
-								}
-								if (!isEditing) {
-									onFileSelect(file.id);
-								}
-							})
+				type="button"
+				data-row-key={getItemKey(fileItem)}
+				ref={(node) => {
+					const key = getItemKey(fileItem);
+					if (node) {
+						itemButtonRefs.current.set(key, node);
+					} else {
+						itemButtonRefs.current.delete(key);
+					}
+				}}
+				onClick={(event) =>
+					handleItemClick(event, fileItem, () => {
+						if (suppressClickRef.current) {
+							suppressClickRef.current = false;
+							return;
 						}
-						onAuxClick={(event) => {
-							if (event.button !== 1 || isEditing || !onOpenInNewTab) return;
-							event.preventDefault();
-							onOpenInNewTab(file.id);
-						}}
-						onMouseDown={(event) => {
-							if (event.button === 1) event.preventDefault();
-						}}
-						onPointerEnter={() => onFilePrefetch?.(file.id)}
-						onPointerDown={(event) => scheduleLongPress(event, fileItem, file.name)}
-						onPointerUp={cancelLongPress}
-						onPointerMove={cancelLongPress}
-						onPointerCancel={cancelLongPress}
-						onPointerLeave={cancelLongPress}
-						onDoubleClick={(e) => handleDoubleClick(e, file.id, file.name, "file")}
-						draggable={!isEditing}
-						onDragStart={(e) =>
-							handleDragStart(e as unknown as React.DragEvent<HTMLButtonElement>, {
-								type: "file",
-								id: file.id,
-								parentId: file.parentId,
-							})
+						if (!isEditing) {
+							onFileSelect(file.id);
 						}
-						onDragEnd={handleDragEnd}
-						onFocus={() => {
-							setFocusedItemKey(getItemKey(fileItem));
-							onCreationParentChange?.(file.parentId);
-						}}
-						onKeyDown={(event) => !isEditing && handleTreeItemKeyDown(event, fileItem)}
-						role="treeitem"
-						aria-level={depth + 1}
-						aria-selected={isSelected || activeFileId === file.id}
-						data-active-note-tree-item={activeFileId === file.id ? "true" : undefined}
-						data-note-tree-item-id={file.id}
-						tabIndex={getItemKey(fileItem) === rovingFocusKey ? 0 : -1}
+					})
+				}
+				onAuxClick={(event) => {
+					if (event.button !== 1 || isEditing || !onOpenInNewTab) return;
+					event.preventDefault();
+					onOpenInNewTab(file.id);
+				}}
+				onMouseDown={(event) => {
+					if (event.button === 1) event.preventDefault();
+				}}
+				onPointerEnter={() => onFilePrefetch?.(file.id)}
+				onPointerDown={(event) => scheduleLongPress(event, fileItem, file.name)}
+				onPointerUp={cancelLongPress}
+				onPointerMove={cancelLongPress}
+				onPointerCancel={cancelLongPress}
+				onPointerLeave={cancelLongPress}
+				onDoubleClick={(e) => handleDoubleClick(e, file.id, file.name, "file")}
+				draggable={!isEditing}
+				onDragStart={(e) =>
+					handleDragStart(e as unknown as React.DragEvent<HTMLButtonElement>, {
+						type: "file",
+						id: file.id,
+						parentId: file.parentId,
+					})
+				}
+				onDragEnd={handleDragEnd}
+				onFocus={() => {
+					setFocusedItemKey(getItemKey(fileItem));
+					onCreationParentChange?.(file.parentId);
+				}}
+				onKeyDown={(event) => !isEditing && handleTreeItemKeyDown(event, fileItem)}
+				role="treeitem"
+				aria-level={depth + 1}
+				aria-selected={isSelected || activeFileId === file.id}
+				data-active-note-tree-item={activeFileId === file.id ? "true" : undefined}
+				data-note-tree-item-id={file.id}
+				tabIndex={getItemKey(fileItem) === rovingFocusKey ? 0 : -1}
+				className={cn(
+					"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors",
+					"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+					!isEditing && "active:scale-[0.985]",
+					compactMode ? "h-7" : "h-[34px]",
+					"[@media(pointer:coarse)]:min-h-11",
+					isSelected || activeFileId === file.id
+						? "border-border bg-muted text-foreground"
+						: "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85",
+					isDragging && "opacity-35",
+					isDropTarget && "border-border bg-muted",
+					isMoving && "opacity-50 ring-1 ring-primary/40",
+				)}
+				style={{
+					paddingLeft: `${rowBasePadding + depth * depthIndent}px`,
+					paddingRight: `${rowRightPadding}px`,
+				}}
+			>
+				{renderTreeGuides(depth)}
+				{isDropTarget && (
+					<span
+						aria-hidden="true"
 						className={cn(
-							"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors",
-							"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
-							!isEditing && "active:scale-[0.985]",
-							compactMode ? "h-7" : "h-[34px]",
-							"[@media(pointer:coarse)]:min-h-11",
-							isSelected || activeFileId === file.id
-								? "border-border bg-muted text-foreground"
-								: "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85",
-							isDragging && "opacity-35",
-							isDropTarget && "border-border bg-muted",
-							isMoving && "opacity-50 ring-1 ring-primary/40",
+							"pointer-events-none absolute left-0 right-0 h-px bg-primary",
+							dropTarget.position === "before" ? "top-0" : "bottom-0",
 						)}
-						style={{
-							paddingLeft: `${rowBasePadding + depth * depthIndent}px`,
-							paddingRight: `${rowRightPadding}px`,
-						}}
-					>
-						{renderTreeGuides(depth)}
-						{isDropTarget && (
-							<span
-								aria-hidden="true"
-								className={cn(
-									"pointer-events-none absolute left-0 right-0 h-px bg-primary",
-									dropTarget.position === "before" ? "top-0" : "bottom-0",
-								)}
-							/>
-						)}
-						<span
-							className={cn(
-								"flex min-w-0 flex-1 items-center truncate",
-								isEditing ? "h-[18px]" : "h-[18px]",
+					/>
+				)}
+				<span
+					className={cn(
+						"flex min-w-0 flex-1 items-center truncate",
+						isEditing ? "h-[18px]" : "h-[18px]",
+					)}
+				>
+					{isEditing ? (
+						<input
+							ref={inputRef}
+							type="text"
+							value={editingName}
+							onChange={(e) => setEditingName(e.target.value)}
+							onBlur={finishRename}
+							onKeyDown={handleKeyDown}
+							onClick={(e) => e.stopPropagation()}
+							className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden selection:bg-primary/30 md:text-xs"
+							style={{ caretColor: "currentColor" }}
+						/>
+					) : (
+						<>
+							{showPageIcons && file.icon && (
+								<span className="mr-1.5 shrink-0 text-xs">{file.icon}</span>
 							)}
-						>
-							{isEditing ? (
-								<input
-									ref={inputRef}
-									type="text"
-									value={editingName}
-									onChange={(e) => setEditingName(e.target.value)}
-									onBlur={finishRename}
-									onKeyDown={handleKeyDown}
-									onClick={(e) => e.stopPropagation()}
-									className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden selection:bg-primary/30 md:text-xs"
-									style={{ caretColor: "currentColor" }}
-								/>
-							) : (
-								<NoteNameLabel name={file.name} className="truncate select-none" />
-							)}
-						</span>
-					</button>
+							<NoteNameLabel name={file.name} className="truncate select-none" />
+						</>
+					)}
+				</span>
+			</button>
 		);
 	}
 	useEffect(() => {
@@ -1985,9 +1991,7 @@ export const FileList = memo(function FileList({
 		setFocusedItemKey((prev) => (prev && validKeys.has(prev) ? prev : null));
 		// Drop out of move mode if any cargo item disappeared underneath us.
 		setMoveModeItems((prev) =>
-			prev && prev.every((entry) => validKeys.has(`${entry.type}:${entry.id}`))
-				? prev
-				: null,
+			prev && prev.every((entry) => validKeys.has(`${entry.type}:${entry.id}`)) ? prev : null,
 		);
 	}, [files, folders, setSelectedItems]);
 
@@ -2106,7 +2110,8 @@ export const FileList = memo(function FileList({
 							"px-1.5 pb-4 pt-1",
 							!scrollElementRef && "flex-1 overflow-y-auto overscroll-contain",
 							isRootDropTarget && "bg-primary/6",
-							isRootMoveDestination && "bg-primary/6 ring-1 ring-inset ring-primary/40",
+							isRootMoveDestination &&
+								"bg-primary/6 ring-1 ring-inset ring-primary/40",
 						)}
 						role="tree"
 						aria-label="Notes file tree"
@@ -2175,7 +2180,6 @@ export const FileList = memo(function FileList({
 						);
 					})()}
 			</ContextMenu>
-
 
 			<Sheet
 				open={!!mobileActionTarget}

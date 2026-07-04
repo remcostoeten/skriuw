@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { format, isToday, isYesterday, isTomorrow } from "date-fns";
 import { X, Trash2, Type } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
@@ -11,8 +11,12 @@ import type { JournalAiAction, JournalAiController } from "../hooks/use-journal-
 import dynamic from "next/dynamic";
 import { PlainTextEditor } from "./plain-text-editor";
 import { EditorContentSkeleton } from "@/features/editor/components/editor-content-skeleton";
-import { AiWritingIndicator, type AiWritingAction } from "@/features/editor/components/ai-writing-indicator";
+import {
+	AiWritingIndicator,
+	type AiWritingAction,
+} from "@/features/editor/components/ai-writing-indicator";
 import { useNotes } from "@/features/notes/hooks/use-notes";
+import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -38,6 +42,10 @@ const RichTextEditor = dynamic(
 );
 import { usePreferencesStore } from "@/features/settings/store";
 import { useJournalTags } from "../hooks/use-journal-tags";
+import type { Person } from "@/domain/people/models";
+import { useWorkspacePeople } from "@/features/people/hooks/use-people";
+import { useCreatePerson } from "@/features/people/hooks/use-create-person";
+import { noop } from "@/shared/lib/noop";
 
 type JournalEditorProps = {
 	selectedDate: Date;
@@ -48,6 +56,8 @@ type JournalEditorProps = {
 	onGoToToday?: () => void;
 	onBackToList?: () => void;
 };
+
+const EMPTY_PEOPLE: Person[] = [];
 
 function formatDateHeading(date: Date): string {
 	if (isToday(date)) return "Today";
@@ -78,6 +88,29 @@ export function JournalEditor({
 		handleDeleteEntry,
 	} = entryState;
 	const { data: allTags = [] } = useJournalTags();
+	const peopleQuery = useWorkspacePeople();
+	const people = peopleQuery.data ?? EMPTY_PEOPLE;
+	const createPersonMutation = useCreatePerson();
+	const handleCreatePerson = useCallback(
+		async (name: string): Promise<Person | null> => {
+			const trimmed = name.trim();
+			if (!trimmed) return null;
+			const existing = people.find(
+				(person) => person.name.toLowerCase() === trimmed.toLowerCase(),
+			);
+			if (existing) return existing;
+			try {
+				return await createPersonMutation.mutateAsync({
+					id: crypto.randomUUID(),
+					name: trimmed,
+				});
+			} catch {
+				noop();
+				return null;
+			}
+		},
+		[people, createPersonMutation],
+	);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
 	const entryTags = entry?.tags ?? [];
@@ -127,184 +160,198 @@ export function JournalEditor({
 					)}
 					<div className="flex-1 overflow-y-auto">
 						<div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col px-5 pb-8 pt-9 sm:px-8 md:px-10 lg:max-w-[820px] lg:px-12 lg:pb-10 lg:pt-14">
-						{/* Date heading */}
-						<header className="border-b border-border/55 pb-5 md:pb-6">
-							<div className="flex flex-wrap items-end justify-between gap-3">
-								<div className="min-w-0">
-									<h1 className="text-[34px] font-semibold leading-none tracking-tight text-foreground sm:text-[40px]">
-										{formatDateHeading(selectedDate)}
-									</h1>
-									<p className="mt-2 text-[14px] text-muted-foreground/62">
-										{format(selectedDate, "EEEE, MMMM d, yyyy")}
-									</p>
-								</div>
-
-								{editorMode === "rich" && (
-									<div className="flex h-8 items-center gap-2 border border-border/50 bg-background/35 px-2.5 text-[11px] text-muted-foreground/52">
-										<Type className="h-3 w-3" strokeWidth={1.5} />
-										<span>Rich text</span>
+							{/* Date heading */}
+							<header className="border-b border-border/55 pb-5 md:pb-6">
+								<div className="flex flex-wrap items-end justify-between gap-3">
+									<div className="min-w-0">
+										<h1 className="text-[34px] font-semibold leading-none tracking-tight text-foreground sm:text-[40px]">
+											{formatDateHeading(selectedDate)}
+										</h1>
+										<p className="mt-2 text-[14px] text-muted-foreground/62">
+											{format(selectedDate, "EEEE, MMMM d, yyyy")}
+										</p>
 									</div>
-								)}
-							</div>
 
-							{/* Mood selector row */}
-							<div className="mt-6 grid gap-2 sm:grid-cols-[4.5rem_1fr] sm:items-center">
-								<span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/42">
-									Mood
-								</span>
-								<div className="flex flex-wrap items-center gap-1.5">
-									{(
-										Object.entries(MOOD_OPTIONS) as [
-											MoodLevel,
-											(typeof MOOD_OPTIONS)[MoodLevel],
-										][]
-									).map(([key, mood]) => (
-										<button
-											key={key}
-											onClick={() => handleMoodSelect(key)}
-											className={cn(
-												"flex h-8 items-center gap-1.5 border border-transparent px-2.5 text-[12px] transition-colors",
-												entryMood === key
-													? "border-border bg-muted font-medium text-foreground shadow-[inset_0_1px_0_hsl(var(--foreground)/0.04)]"
-													: "text-muted-foreground/54 hover:border-border hover:bg-muted/70 hover:text-muted-foreground",
-											)}
-											title={mood.label}
-										>
-											<span
-												className={cn(
-													"text-[13px]",
-													entryMood === key && mood.color,
-												)}
-											>
-												{mood.icon}
-											</span>
-											<span>{mood.label}</span>
-										</button>
-									))}
+									{editorMode === "rich" && (
+										<div className="flex h-8 items-center gap-2 border border-border/50 bg-background/35 px-2.5 text-[11px] text-muted-foreground/52">
+											<Type className="h-3 w-3" strokeWidth={1.5} />
+											<span>Rich text</span>
+										</div>
+									)}
 								</div>
-							</div>
 
-							{/* Tags row */}
-							{entryTags.length > 0 && (
-								<div className="mt-3 grid gap-2 sm:grid-cols-[4.5rem_1fr] sm:items-start">
-									<span className="pt-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/42">
-										Tags
+								{/* Mood selector row */}
+								<div className="mt-6 grid gap-2 sm:grid-cols-[4.5rem_1fr] sm:items-center">
+									<span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/42">
+										Mood
 									</span>
 									<div className="flex flex-wrap items-center gap-1.5">
-										{entryTags.map((tagName) => (
-											<span
-												key={tagName}
-												className="inline-flex items-center gap-1.5 border px-2.5 py-1 text-[11px] font-medium"
-												style={{
-													backgroundColor: colorWithAlpha(
-														getTagColor(tagName),
-														0.08,
-													),
-													color: getTagColor(tagName),
-													borderColor: colorWithAlpha(getTagColor(tagName), 0.21),
-												}}
+										{(
+											Object.entries(MOOD_OPTIONS) as [
+												MoodLevel,
+												(typeof MOOD_OPTIONS)[MoodLevel],
+											][]
+										).map(([key, mood]) => (
+											<button
+												key={key}
+												onClick={() => handleMoodSelect(key)}
+												className={cn(
+													"flex h-8 items-center gap-1.5 border border-transparent px-2.5 text-[12px] transition-colors",
+													entryMood === key
+														? "border-border bg-muted font-medium text-foreground shadow-[inset_0_1px_0_hsl(var(--foreground)/0.04)]"
+														: "text-muted-foreground/54 hover:border-border hover:bg-muted/70 hover:text-muted-foreground",
+												)}
+												title={mood.label}
 											>
-												@{tagName}
-												<button
-													onClick={() => handleRemoveTag(tagName)}
-													className="border border-transparent p-0.5 transition-colors hover:border-current/20 hover:bg-foreground/10"
+												<span
+													className={cn(
+														"text-[13px]",
+														entryMood === key && mood.color,
+													)}
 												>
-													<X className="h-2.5 w-2.5" strokeWidth={2} />
-												</button>
-											</span>
+													{mood.icon}
+												</span>
+												<span>{mood.label}</span>
+											</button>
 										))}
 									</div>
 								</div>
-							)}
-						</header>
 
-						{/* Editor area */}
-						<div className="journal-entry-editor relative min-h-[420px] flex-1 py-7 md:py-8">
-							{editorMode === "plain" ? (
-								<PlainTextEditor
-									content={content}
-									onChange={setContent}
-									onInsertTag={handleAddTag}
-									editorFontId={editorPrefs.defaultFont}
-									editorLineHeight={editorPrefs.lineHeight}
-								/>
-							) : (
-								<RichTextEditor
-									content={content}
-									files={files}
-									activeFileId={format(selectedDate, "yyyy-MM-dd")}
-									editorFontId={editorPrefs.defaultFont}
-									editorLineHeight={editorPrefs.lineHeight}
-									onChange={(next) => setContent(next.markdown)}
-									onEditorReady={aiState?.handleEditorReady}
-									onAiSpellCheck={
-										aiState ? () => aiState.runAiAction("spellCheck") : undefined
-									}
-									onAiContinueWriting={
-										aiState
-											? () => aiState.runAiAction("continueWriting")
-											: undefined
-									}
-									onAiAction={
-										aiState
-											? (action) =>
-													aiState.runAiAction(action as JournalAiAction)
-											: undefined
-									}
-								/>
-							)}
-							{isAiAvailable && <AiWritingIndicator action={activeWritingAction} />}
-						</div>
+								{/* Tags row */}
+								{entryTags.length > 0 && (
+									<div className="mt-3 grid gap-2 sm:grid-cols-[4.5rem_1fr] sm:items-start">
+										<span className="pt-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/42">
+											Tags
+										</span>
+										<div className="flex flex-wrap items-center gap-1.5">
+											{entryTags.map((tagName) => (
+												<span
+													key={tagName}
+													className="inline-flex items-center gap-1.5 border px-2.5 py-1 text-[11px] font-medium"
+													style={{
+														backgroundColor: colorWithAlpha(
+															getTagColor(tagName),
+															0.08,
+														),
+														color: getTagColor(tagName),
+														borderColor: colorWithAlpha(
+															getTagColor(tagName),
+															0.21,
+														),
+													}}
+												>
+													@{tagName}
+													<button
+														onClick={() => handleRemoveTag(tagName)}
+														className="border border-transparent p-0.5 transition-colors hover:border-current/20 hover:bg-foreground/10"
+													>
+														<X
+															className="h-2.5 w-2.5"
+															strokeWidth={2}
+														/>
+													</button>
+												</span>
+											))}
+										</div>
+									</div>
+								)}
+							</header>
 
-						{/* Footer */}
-						<div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border/55 pt-4">
-							<div className="flex items-center gap-3">
-								<span className="text-[11px] text-muted-foreground/40">
-									{wordCount} {wordCount === 1 ? "word" : "words"}
-								</span>
-								{content.trim() && (
-									<span className="text-[11px] text-muted-foreground/30">
-										auto-saved
-									</span>
+							{/* Editor area */}
+							<div className="journal-entry-editor relative min-h-[420px] flex-1 py-7 md:py-8">
+								{editorMode === "plain" ? (
+									<PlainTextEditor
+										content={content}
+										onChange={setContent}
+										onInsertTag={handleAddTag}
+										editorFontId={editorPrefs.defaultFont}
+										editorLineHeight={editorPrefs.lineHeight}
+									/>
+								) : (
+									<RichTextEditor
+										content={content}
+										files={files}
+										people={people}
+										onCreatePerson={handleCreatePerson}
+										activeFileId={format(selectedDate, "yyyy-MM-dd")}
+										editorFontId={editorPrefs.defaultFont}
+										editorLineHeight={editorPrefs.lineHeight}
+										onChange={(next) => setContent(next.markdown)}
+										onEditorReady={aiState?.handleEditorReady}
+										onAiSpellCheck={
+											aiState
+												? () => aiState.runAiAction("spellCheck")
+												: undefined
+										}
+										onAiContinueWriting={
+											aiState
+												? () => aiState.runAiAction("continueWriting")
+												: undefined
+										}
+										onAiAction={
+											aiState
+												? (action) =>
+														aiState.runAiAction(
+															action as JournalAiAction,
+														)
+												: undefined
+										}
+									/>
+								)}
+								{isAiAvailable && (
+									<AiWritingIndicator action={activeWritingAction} />
 								)}
 							</div>
-							{entry && (
-								<div className="relative">
-									{showDeleteConfirm ? (
-										<div className="flex items-center gap-2">
-											<span className="text-[11px] text-destructive/70">
-												Delete this entry?
-											</span>
-											<button
-												onClick={() => {
-													handleDeleteEntry();
-													setShowDeleteConfirm(false);
-												}}
-												className="border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/20"
-											>
-												Delete
-											</button>
-											<button
-												onClick={() => setShowDeleteConfirm(false)}
-												className="border border-transparent px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-muted"
-											>
-												Cancel
-											</button>
-										</div>
-									) : (
-										<button
-											onClick={() => setShowDeleteConfirm(true)}
-											className="flex items-center gap-1 border border-transparent px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:border-border hover:bg-muted hover:text-destructive"
-										>
-											<Trash2 className="h-3 w-3" strokeWidth={1.5} />
-											Delete
-										</button>
+
+							{/* Footer */}
+							<div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border/55 pt-4">
+								<div className="flex items-center gap-3">
+									<span className="text-[11px] text-muted-foreground/40">
+										{wordCount} {wordCount === 1 ? "word" : "words"}
+									</span>
+									{content.trim() && (
+										<span className="text-[11px] text-muted-foreground/30">
+											auto-saved
+										</span>
 									)}
 								</div>
-							)}
+								{entry && (
+									<div className="relative">
+										{showDeleteConfirm ? (
+											<div className="flex items-center gap-2">
+												<span className="text-[11px] text-destructive/70">
+													Delete this entry?
+												</span>
+												<button
+													onClick={() => {
+														handleDeleteEntry();
+														setShowDeleteConfirm(false);
+													}}
+													className="border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/20"
+												>
+													Delete
+												</button>
+												<button
+													onClick={() => setShowDeleteConfirm(false)}
+													className="border border-transparent px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-muted"
+												>
+													Cancel
+												</button>
+											</div>
+										) : (
+											<button
+												onClick={() => setShowDeleteConfirm(true)}
+												className="flex items-center gap-1 border border-transparent px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:border-border hover:bg-muted hover:text-destructive"
+											>
+												<Trash2 className="h-3 w-3" strokeWidth={1.5} />
+												Delete
+											</button>
+										)}
+									</div>
+								)}
+							</div>
 						</div>
-					</div>
-					<style>{`
+						<style>{`
 						.journal-entry-editor .blocknote-wrapper {
 							padding: 0;
 						}
@@ -383,6 +430,8 @@ export function JournalEditor({
 						</ContextMenuItem>
 					</>
 				) : null}
+				<ContextMenuSeparator />
+				<DevContextSubmenu />
 			</ContextMenuContent>
 		</ContextMenu>
 	);
