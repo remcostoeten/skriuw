@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { NoteFile } from "@/types/notes";
+import {
+	createCommandRegistryMock,
+	createNotesLayoutShortcutsMock,
+} from "./use-notes-layout-mocks";
 
 type MockFn = (...args: any[]) => any;
 const createMock = mock as unknown as (implementation: MockFn) => MockFn & {
@@ -137,6 +141,15 @@ function installMocks() {
 	// Stub the hooks `useNotesLayout` actually calls so it runs as a plain
 	// function without a renderer. Anything that reaches for another React
 	// hook (e.g. a `useContext`) is mocked away at the module level below.
+	//
+	// This intentionally drives `useNotesLayout` as a plain function call
+	// (see `renderLayout` below) instead of through `renderHook`/a real React
+	// renderer: the hook body is synchronous and store-driven, so a stub
+	// `react` module is enough, and it's far cheaper than mounting a tree.
+	// Don't "fix" this back into a renderer-based setup — the real
+	// `useContext` (via `useCommandRegistry`, mocked below) has no
+	// `CommandProvider` to resolve against outside a full render, which is
+	// exactly the failure this test was added to prevent.
 	const reactMock = {
 		useCallback: (callback: unknown) => callback,
 		useEffect: () => undefined,
@@ -199,11 +212,7 @@ function installMocks() {
 	// The command registry lives behind React context; stub its hooks so the
 	// layout runs without a `CommandProvider` in this rendererless test.
 	mock.module("@/core/commands", () => ({
-		useCommandRegistry: () => ({
-			query: "",
-			isOpen: false,
-			setIsOpen: () => undefined,
-		}),
+		useCommandRegistry: () => createCommandRegistryMock(),
 		useActiveCommandScope: () => undefined,
 		useRegisterCommands: () => undefined,
 		useRegisterCommandItemsProvider: () => undefined,
@@ -289,13 +298,7 @@ function installMocks() {
 	// saves, and its real implementation reads the command-registry context
 	// (a `useContext` call that has no provider in this rendererless test).
 	mock.module("@/features/notes/hooks/use-notes-layout-shortcuts", () => ({
-		useNotesLayoutShortcuts: () => ({
-			showShortcutHelp: false,
-			setShowShortcutHelp: () => undefined,
-			handleOpenCommandPalette: () => undefined,
-			handleOpenShortcutHelp: () => undefined,
-			shortcutGroups: [],
-		}),
+		useNotesLayoutShortcuts: () => createNotesLayoutShortcutsMock(),
 	}));
 
 	mock.module("@/features/settings/store", () => ({
