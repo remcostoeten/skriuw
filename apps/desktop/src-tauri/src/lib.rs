@@ -1,6 +1,7 @@
 mod ai;
 mod backup;
 mod content_analysis;
+mod import_export;
 mod markdown;
 mod storage;
 mod vault;
@@ -1389,6 +1390,8 @@ pub fn run() {
             export_note,
             content_analysis::analyze_note_content,
             markdown::markdown_to_rich,
+            import_export::parse_import_json,
+            import_export::import_notes_batch,
             ai::ai_get_config,
             ai::ai_set_config,
             ai::ai_set_key,
