@@ -133,8 +133,10 @@ function createStoreApi() {
 	};
 }
 
-function installMocks() {
+async function installMocks() {
+	const actualReact = await import("react");
 	const reactMock = {
+		...actualReact,
 		useCallback: (callback: unknown) => callback,
 		useEffect: () => undefined,
 		useMemo: (factory: () => unknown) => factory(),
@@ -193,6 +195,23 @@ function installMocks() {
 		useShortcutScope: () => undefined,
 	}));
 
+	mock.module("@/core/commands", () => ({
+		useCommandRegistry: () => ({
+			isOpen: false,
+			setIsOpen: () => undefined,
+			toggleOpen: () => undefined,
+			executeCommand: () => undefined,
+			registerHandlers: () => () => undefined,
+			registerItemsProvider: () => () => undefined,
+			pushActiveScope: () => () => undefined,
+			query: "",
+			setQuery: () => undefined,
+		}),
+		useRegisterCommands: () => undefined,
+		useRegisterCommandItemsProvider: () => undefined,
+		useActiveCommandScope: () => undefined,
+	}));
+
 	mock.module("framer-motion", () => ({
 		useDragControls: () => ({}),
 		useReducedMotion: () => false,
@@ -212,8 +231,7 @@ function installMocks() {
 		useIsGuestWorkspace: () => false,
 		isTauriRuntime: () => false,
 		useWorkspaceBackend: () => ({
-			getNote: async (id: string) =>
-				notes.find((note) => note.id === id) ?? null,
+			getNote: async (id: string) => notes.find((note) => note.id === id) ?? null,
 		}),
 	}));
 	mock.module("@/features/editor/lib/editor-mode", () => ({
@@ -273,7 +291,11 @@ function installMocks() {
 		usePreferencesStore: (selector: (state: any) => unknown) =>
 			selector({
 				initialize: () => undefined,
-				editor: { defaultModeRaw: false, notePropertiesDefaultTemplateId: null, vimMode: false },
+				editor: {
+					defaultModeRaw: false,
+					notePropertiesDefaultTemplateId: null,
+					vimMode: false,
+				},
 				journal: { diaryModeEnabled: false },
 				appearance: { theme: "midnight", rememberLastNote: false },
 			}),
@@ -316,7 +338,7 @@ function installMocks() {
 }
 
 async function renderLayout() {
-	installMocks();
+	await installMocks();
 	const moduleId = `@/features/notes/hooks/use-notes-layout?switch-save=${Math.random()
 		.toString(36)
 		.slice(2)}`;
