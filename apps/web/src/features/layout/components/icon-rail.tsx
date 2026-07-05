@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Hash, Settings, Trash2, UserRound, Users, Waypoints } from "lucide-react";
+import { Activity, BookOpen, Hash, Settings, Trash2, UserRound, Users, Waypoints } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
@@ -241,6 +241,12 @@ export function IconRail() {
 			label: "People",
 			isActive: pathname.startsWith("/app/people"),
 			icon: (_active: boolean) => <Users className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+		},
+		{
+			href: "/app/activity",
+			label: "Activity",
+			isActive: pathname.startsWith("/app/activity"),
+			icon: (_active: boolean) => <Activity className="h-[18px] w-[18px]" strokeWidth={1.6} />,
 		},
 	];
 	const trashNavItem = {
