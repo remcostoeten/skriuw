@@ -12,7 +12,7 @@ pub fn parse_frontmatter(content: &str) -> (HashMap<String, String>, String) {
     if content.starts_with("---") {
         if let Some(end_pos) = content[3..].find("---") {
             let fm_section = &content[3..end_pos + 3];
-            body = &content[end_pos + 6..].trim_start();
+            body = content[end_pos + 6..].trim_start();
 
             // Simple YAML parser for key: value pairs
             for line in fm_section.lines() {
@@ -47,7 +47,7 @@ pub struct ExportedNote {
     pub modified_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folder_id: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
 }
 
@@ -249,47 +249,59 @@ impl ConflictResolution {
 pub fn build_export(
     notes: Vec<serde_json::Value>,
     folders: Vec<serde_json::Value>,
+    exported_at: String,
 ) -> Result<String, String> {
-    let export = ExportArchive {
-        notes: notes
-            .into_iter()
-            .filter_map(|n| {
-                serde_json::from_value(n).ok()
-            })
-            .collect(),
-        folders: folders
-            .into_iter()
-            .filter_map(|f| {
-                if let (Some(id), Some(name)) = (
-                    f.get("id").and_then(|v| v.as_str()),
-                    f.get("name").and_then(|v| v.as_str()),
-                ) {
-                    Some(ExportedFolder {
-                        id: id.to_string(),
-                        name: name.to_string(),
-                        parent_id: f
-                            .get("parent_id")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string()),
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect(),
-        tags: deduplicate_tags(&[]).into_iter()
-            .map(|(name, count)| ExportedTag { name, note_count: count })
-            .collect(),
-        manifest: ExportManifest {
-            version: "1.0".to_string(),
-            exported_at: "2026-01-01T00:00:00Z".to_string(),
-            note_count: 0,
-            folder_count: 0,
-            tag_count: 0,
-        },
+    let notes: Vec<ExportedNote> = notes
+        .into_iter()
+        .filter_map(|n| serde_json::from_value(n).ok())
+        .collect();
+
+    let folders: Vec<ExportedFolder> = folders
+        .into_iter()
+        .filter_map(|f| {
+            if let (Some(id), Some(name)) = (
+                f.get("id").and_then(|v| v.as_str()),
+                f.get("name").and_then(|v| v.as_str()),
+            ) {
+                Some(ExportedFolder {
+                    id: id.to_string(),
+                    name: name.to_string(),
+                    parent_id: f
+                        .get("parent_id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let tags: Vec<ExportedTag> = deduplicate_tags(&notes)
+        .into_iter()
+        .map(|(name, count)| ExportedTag { name, note_count: count })
+        .collect();
+
+    let manifest = ExportManifest {
+        version: "1.0".to_string(),
+        exported_at,
+        note_count: notes.len(),
+        folder_count: folders.len(),
+        tag_count: tags.len(),
     };
 
+    let export = ExportArchive { notes, folders, tags, manifest };
+
     serde_json::to_string(&export).map_err(|e| format!("Failed to serialize export: {}", e))
+}
+
+#[tauri::command]
+pub fn build_export_archive(
+    notes: Vec<serde_json::Value>,
+    folders: Vec<serde_json::Value>,
+    exported_at: String,
+) -> Result<String, String> {
+    build_export(notes, folders, exported_at)
 }
 
 /// Extract and parse archive.json from a ZIP file
@@ -392,7 +404,8 @@ pub fn extract_and_validate_archive(
             "importable": unique.len(),
             "duplicates": duplicates.len(),
             "errors": validation_errors,
-        }
+        },
+        "notes": unique,
     }))
 }
 
@@ -500,6 +513,56 @@ mod tests {
     }
 
     #[test]
+    fn test_build_export_computes_tags_and_manifest() {
+        let notes = vec![
+            json!({
+                "id": "n1",
+                "name": "Note1",
+                "content": "body",
+                "created_at": "2026-01-01T00:00:00Z",
+                "modified_at": "2026-01-01T00:00:00Z",
+                "tags": ["Work", " work "],
+            }),
+            json!({
+                "id": "n2",
+                "name": "Note2",
+                "content": "body",
+                "created_at": "2026-01-01T00:00:00Z",
+                "modified_at": "2026-01-01T00:00:00Z",
+                "tags": ["personal"],
+            }),
+        ];
+        let folders = vec![json!({"id": "f1", "name": "Folder", "parent_id": null})];
+
+        let exported = build_export(notes, folders, "2026-07-05T00:00:00Z".to_string()).unwrap();
+        let archive: ExportArchive = serde_json::from_str(&exported).unwrap();
+
+        assert_eq!(archive.manifest.note_count, 2);
+        assert_eq!(archive.manifest.folder_count, 1);
+        assert_eq!(archive.manifest.tag_count, 2);
+        assert_eq!(archive.manifest.exported_at, "2026-07-05T00:00:00Z");
+        assert_eq!(archive.folders[0].id, "f1");
+
+        // "Work" and " work " fold to the same normalized tag and count both notes.
+        let work_tag = archive.tags.iter().find(|t| t.name == "work").unwrap();
+        assert_eq!(work_tag.note_count, 2);
+    }
+
+    #[test]
+    fn test_build_export_skips_malformed_note_entries() {
+        let notes = vec![
+            json!({"id": "n1", "name": "Ok", "content": "", "created_at": "", "modified_at": ""}),
+            json!({"missing": "required fields"}),
+        ];
+
+        let exported = build_export(notes, vec![], "2026-01-01T00:00:00Z".to_string()).unwrap();
+        let archive: ExportArchive = serde_json::from_str(&exported).unwrap();
+
+        assert_eq!(archive.notes.len(), 1);
+        assert_eq!(archive.manifest.note_count, 1);
+    }
+
+    #[test]
     fn test_extract_archive_missing_file() {
         // Non-existent file should fail gracefully
         let result = extract_archive_json(Path::new("/nonexistent/archive.zip"));
@@ -558,5 +621,105 @@ mod tests {
             apply_conflict_resolution(notes, &existing, ConflictResolution::Rename);
 
         assert_eq!(resolved[0].name, "Note (2)");
+    }
+
+    fn synthetic_archive(note_count: usize) -> ExportArchive {
+        let notes = (0..note_count)
+            .map(|i| ExportedNote {
+                id: format!("n{}", i),
+                name: format!("Note {}", i),
+                content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.".repeat(20),
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+                modified_at: "2026-01-01T00:00:00Z".to_string(),
+                folder_id: None,
+                tags: vec!["work".to_string(), format!("tag{}", i % 50)],
+            })
+            .collect();
+
+        ExportArchive {
+            notes,
+            folders: vec![],
+            tags: vec![],
+            manifest: ExportManifest {
+                version: "1.0".to_string(),
+                exported_at: "2026-01-01T00:00:00Z".to_string(),
+                note_count,
+                folder_count: 0,
+                tag_count: 0,
+            },
+        }
+    }
+
+    /// 10k-note archive is a generous stand-in for a large real-world vault;
+    /// these guard against accidental O(n^2) regressions in the hot import
+    /// paths (JSON round-trip, dedupe, validation, export build).
+    #[test]
+    fn perf_parse_and_serialize_large_archive() {
+        let archive = synthetic_archive(10_000);
+        let json = serde_json::to_string(&archive).unwrap();
+
+        let start = std::time::Instant::now();
+        let parsed = parse_import_archive(&json).unwrap();
+        let elapsed = start.elapsed();
+
+        assert_eq!(parsed.notes.len(), 10_000);
+        assert!(
+            elapsed.as_millis() < 500,
+            "parsing 10k notes took {:?}, expected < 500ms",
+            elapsed
+        );
+    }
+
+    #[test]
+    fn perf_detect_duplicates_large_archive() {
+        let archive = synthetic_archive(10_000);
+        let existing_names: Vec<&str> = archive.notes[..5_000]
+            .iter()
+            .map(|n| n.name.as_str())
+            .collect();
+
+        let start = std::time::Instant::now();
+        let (unique, duplicates) = detect_duplicates(&archive, &existing_names);
+        let elapsed = start.elapsed();
+
+        assert_eq!(unique.len(), 5_000);
+        assert_eq!(duplicates.len(), 5_000);
+        assert!(
+            elapsed.as_millis() < 200,
+            "dedup over 10k notes took {:?}, expected < 200ms",
+            elapsed
+        );
+    }
+
+    #[test]
+    fn perf_validate_and_build_export_large_archive() {
+        let archive = synthetic_archive(10_000);
+
+        let start = std::time::Instant::now();
+        let errors = validate_import(&archive);
+        let elapsed = start.elapsed();
+        assert!(errors.is_empty());
+        assert!(
+            elapsed.as_millis() < 200,
+            "validating 10k notes took {:?}, expected < 200ms",
+            elapsed
+        );
+
+        let notes: Vec<serde_json::Value> = archive
+            .notes
+            .iter()
+            .map(|n| serde_json::to_value(n).unwrap())
+            .collect();
+
+        let start = std::time::Instant::now();
+        let exported = build_export(notes, vec![], "2026-01-01T00:00:00Z".to_string()).unwrap();
+        let elapsed = start.elapsed();
+
+        assert!(exported.contains("\"note_count\":10000"));
+        assert!(
+            elapsed.as_millis() < 1500,
+            "building export for 10k notes took {:?}, expected < 1500ms",
+            elapsed
+        );
     }
 }
