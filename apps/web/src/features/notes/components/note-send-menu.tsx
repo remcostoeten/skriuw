@@ -5,6 +5,7 @@ import {
 	Copy,
 	Download,
 	FileDown,
+	ImageIcon,
 	Link2,
 	Loader2,
 	Lock,
@@ -40,6 +41,7 @@ import {
 	type LinkShareHandlers,
 } from "@/features/notes/lib/note-send-actions";
 import { StaleShareHint } from "@/features/notes/components/stale-share-hint";
+import { NoteShareImageDialog } from "@/features/notes/components/note-share-image-dialog";
 import { cn } from "@/shared/lib/utils";
 import type { NoteFile } from "@/types/notes";
 
@@ -118,6 +120,7 @@ function NoteSendMobilePanel({
 		isRefreshingShare,
 		refreshShareSnapshot,
 	} = useNoteSendMenu(note, prefetch);
+	const [imageOpen, setImageOpen] = useState(false);
 
 	const linkHandlers: LinkShareHandlers = {
 		copyShareLink,
@@ -139,6 +142,8 @@ function NoteSendMobilePanel({
 	const linkBusy = isLinkShareBusy;
 
 	return (
+		<>
+		<NoteShareImageDialog note={note} open={imageOpen} onOpenChange={setImageOpen} />
 		<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03] pb-[env(safe-area-inset-bottom)]">
 			{shareIsStale ? (
 				<StaleShareHint
@@ -226,6 +231,12 @@ function NoteSendMobilePanel({
 			/>
 			<MobileActionDivider />
 			<MobileActionButton
+				icon={<ImageIcon className="h-5 w-5 shrink-0 text-foreground/72" />}
+				label="Save as image"
+				onClick={() => setImageOpen(true)}
+			/>
+			<MobileActionDivider />
+			<MobileActionButton
 				icon={<Mail className="h-5 w-5 shrink-0 text-foreground/72" />}
 				label="Email"
 				onClick={() => runAction(() => shareEmail())}
@@ -242,6 +253,7 @@ function NoteSendMobilePanel({
 				</p>
 			) : null}
 		</div>
+		</>
 	);
 }
 
@@ -487,6 +499,8 @@ function NoteSendDesktopDropdown({
 		copyMarkdown,
 	} = useNoteSend(note);
 
+	const [imageOpen, setImageOpen] = useState(false);
+
 	const linkHandlers: LinkShareHandlers = {
 		copyShareLink,
 		shareLinkOnX,
@@ -498,6 +512,8 @@ function NoteSendDesktopDropdown({
 	};
 
 	return (
+		<>
+		<NoteShareImageDialog note={note} open={imageOpen} onOpenChange={setImageOpen} />
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<button
@@ -554,6 +570,10 @@ function NoteSendDesktopDropdown({
 					<Copy className="h-4 w-4" />
 					Copy markdown
 				</DropdownMenuItem>
+				<DropdownMenuItem className="gap-2" onSelect={() => setImageOpen(true)}>
+					<ImageIcon className="h-4 w-4" />
+					Save as image
+				</DropdownMenuItem>
 				<DropdownMenuItem className="gap-2" onClick={shareEmail}>
 					<Mail className="h-4 w-4" />
 					Email
@@ -564,6 +584,7 @@ function NoteSendDesktopDropdown({
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
+		</>
 	);
 }
 
