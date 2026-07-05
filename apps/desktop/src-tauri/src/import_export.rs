@@ -2,6 +2,30 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
 
+/// Parse YAML frontmatter from markdown content
+pub fn parse_frontmatter(content: &str) -> (HashMap<String, String>, String) {
+    let mut frontmatter = HashMap::new();
+    let mut body = content;
+
+    if content.starts_with("---") {
+        if let Some(end_pos) = content[3..].find("---") {
+            let fm_section = &content[3..end_pos + 3];
+            body = &content[end_pos + 6..].trim_start();
+
+            // Simple YAML parser for key: value pairs
+            for line in fm_section.lines() {
+                if let Some(colon_pos) = line.find(':') {
+                    let key = line[..colon_pos].trim();
+                    let value = line[colon_pos + 1..].trim();
+                    frontmatter.insert(key.to_string(), value.to_string());
+                }
+            }
+        }
+    }
+
+    (frontmatter, body.to_string())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(crate = "serde")]
 pub struct ExportArchive {
@@ -350,5 +374,24 @@ mod tests {
         let tags = deduplicate_tags(&notes);
         assert_eq!(tags.get("work"), Some(&2));
         assert_eq!(tags.get("important"), Some(&1));
+    }
+
+    #[test]
+    fn test_parse_frontmatter() {
+        let markdown = "---\ntitle: Test Note\ndate: 2026-01-01\n---\n# Content\nBody text";
+        let (fm, body) = parse_frontmatter(markdown);
+
+        assert_eq!(fm.get("title"), Some(&"Test Note".to_string()));
+        assert_eq!(fm.get("date"), Some(&"2026-01-01".to_string()));
+        assert!(body.contains("# Content"));
+    }
+
+    #[test]
+    fn test_parse_frontmatter_no_frontmatter() {
+        let markdown = "# No frontmatter\nJust body text";
+        let (fm, body) = parse_frontmatter(markdown);
+
+        assert!(fm.is_empty());
+        assert_eq!(body, markdown);
     }
 }
