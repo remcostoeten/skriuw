@@ -16,6 +16,7 @@ import type { CreateFolderInput } from "@/domain/folders/actions";
 import { collectFolderSubtreeIds } from "@/domain/folders/traversal";
 import type { CreateNoteInput } from "@/domain/notes/actions";
 import { NOTE_PROPERTY_TEMPLATES } from "@/domain/notes/properties";
+import { NOTE_TEMPLATES, getNoteTemplate } from "@/domain/notes/templates";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";
 import { isGuestScopedId } from "@/domain/notes/note-id";
@@ -1092,9 +1093,10 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	}, [creationParentFolderId, foldersQuery.data]);
 
 	const handleCreateFile = useCallback(
-		(options?: { projectId?: string }) => {
+		(options?: { projectId?: string; templateId?: string }) => {
 			const projectId = options?.projectId;
-			if (diaryModeEnabled && !projectId) {
+			const template = options?.templateId ? getNoteTemplate(options.templateId) : null;
+			if (diaryModeEnabled && !projectId && !template) {
 				triggerNativeFeedback("success");
 				const today = format(new Date(), "yyyy-MM-dd");
 				router.push(`/app/journal?date=${today}`);
@@ -1107,7 +1109,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			triggerNativeFeedback("success");
 			const parentId = creationParentFolderId;
 			const preferredEditorMode = defaultModeRaw ? "raw" : "block";
-			const content = generateNoteContent("Untitled");
+			const templateBody = template?.build();
+			const name = templateBody?.name ?? "Untitled.md";
+			const content = templateBody?.content ?? generateNoteContent("Untitled");
 			const richContent = markdownToRichDocument(content);
 			const defaultTemplate = defaultPropertiesTemplateId
 				? NOTE_PROPERTY_TEMPLATES.find((template) => template.id === defaultPropertiesTemplateId)
@@ -1116,7 +1120,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			const newId = crypto.randomUUID();
 			const newFile: CreateNoteInput = {
 				id: newId,
-				name: "Untitled.md",
+				name,
 				content,
 				richContent,
 				preferredEditorMode,
@@ -1635,6 +1639,19 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleFileSelect,
 	]);
 
+	const templateCommandItems = useMemo<CommandPaletteItem[]>(
+		() =>
+			NOTE_TEMPLATES.map((template) => ({
+				id: `template:${template.id}`,
+				label: `New note: ${template.name}`,
+				group: "Templates",
+				hint: template.description,
+				keywords: ["new", "note", "template", "create", template.name],
+				action: () => handleCreateFile({ templateId: template.id }),
+			})),
+		[handleCreateFile],
+	);
+
 	useActiveCommandScope("notes");
 
 	useRegisterCommands({
@@ -1658,8 +1675,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	useRegisterCommandItemsProvider(
 		useCallback(() => {
-			return noteCommandItems;
-		}, [noteCommandItems])
+			return [...templateCommandItems, ...noteCommandItems];
+		}, [noteCommandItems, templateCommandItems])
 	);
 
 	// The sidebar + main layout only need the notes metadata and folder lists,
