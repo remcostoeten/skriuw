@@ -16,7 +16,9 @@ import {
 	Tag,
 	Tags,
 	Wand2,
+	Workflow,
 } from "lucide-react";
+import { DEFAULT_DIAGRAM_SOURCE } from "@/shared/lib/diagram";
 import { DEFAULT_FILE_TREE_SOURCE } from "@/shared/lib/file-tree";
 import { extractNoteTags, getNoteSearchableContent, getNoteTitle } from "@/domain/notes/note-links";
 import type { AiAction } from "@/features/ai/service";
@@ -281,6 +283,20 @@ export function getCustomSlashMenuItems(
 				insertOrUpdateBlockForSlashMenu(editor, {
 					type: "fileTree",
 					props: { source: DEFAULT_FILE_TREE_SOURCE },
+					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+				} as any);
+			},
+		},
+		{
+			title: "Diagram",
+			aliases: ["diagram", "mermaid", "flowchart", "chart", "graph", "sequence"],
+			group: "Structure",
+			icon: <Workflow size={16} />,
+			subtext: "Insert a Mermaid diagram",
+			onItemClick: () => {
+				insertOrUpdateBlockForSlashMenu(editor, {
+					type: "diagram",
+					props: { source: DEFAULT_DIAGRAM_SOURCE },
 					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
 				} as any);
 			},
