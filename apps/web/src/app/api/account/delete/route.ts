@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAuthenticatedUser, prisma } from "@/core/db";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { verifyStepUp } from "@/lib/step-up";
 import { noop } from "@/shared/lib/noop";
 
 const DELETE_PHRASE = "delete my account";
@@ -30,9 +31,20 @@ export async function POST(request: NextRequest) {
 		);
 	}
 
-	const body = (await request.json().catch(() => null)) as { confirmation?: string } | null;
+	const body = (await request.json().catch(() => null)) as {
+		confirmation?: string;
+		password?: string;
+	} | null;
 	if (body?.confirmation?.trim().toLowerCase() !== DELETE_PHRASE) {
 		return NextResponse.json({ error: "Confirmation did not match." }, { status: 400 });
+	}
+
+	const stepUp = await verifyStepUp({ password: body?.password });
+	if (!stepUp.ok) {
+		return NextResponse.json(
+			{ error: stepUp.error, code: stepUp.code },
+			{ status: stepUp.status },
+		);
 	}
 
 	const requestHeaders = await headers();
