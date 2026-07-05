@@ -42,6 +42,7 @@ import {
 	renameTag,
 	setTagColor,
 } from "@/domain/tags/actions";
+import { searchNotes } from "@/features/notes/server/search-notes";
 import type { WorkspaceBackend } from "./types";
 
 export const serverBackend: WorkspaceBackend = {
@@ -55,6 +56,8 @@ export const serverBackend: WorkspaceBackend = {
 		trash: true,
 		history: true,
 	},
+
+	searchNotes,
 
 	createNote,
 	updateNote,
