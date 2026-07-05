@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	Activity,
 	BookOpen,
 	FolderOpen,
 	Hash,
@@ -284,6 +285,12 @@ export function IconRail() {
 				) : (
 					<Users className="h-[18px] w-[18px]" strokeWidth={1.6} />
 				),
+		},
+		{
+			href: "/app/activity",
+			label: "Activity",
+			isActive: pathname.startsWith("/app/activity"),
+			icon: (_active: boolean) => <Activity className="h-[18px] w-[18px]" strokeWidth={1.6} />,
 		},
 	];
 	const trashNavItem = {
