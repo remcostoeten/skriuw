@@ -24,9 +24,9 @@ type SearchState = {
 
 /**
  * Content-aware note search backed by the workspace backend's optional
- * `searchNotes` (desktop SQLite FTS5). When the active backend does not
- * implement `searchNotes` (web/guest), `supportsContentSearch` is `false` and
- * the caller should fall back to its in-memory name/tag filter.
+ * `searchNotes` (desktop SQLite FTS5, web Postgres full-text). When the active
+ * backend does not implement `searchNotes` (guest mode), `supportsContentSearch`
+ * is `false` and the caller should fall back to its in-memory name/tag filter.
  *
  * Debounces the query, ignores stale/out-of-order responses, and never leaves a
  * lingering loading state for an empty query.
