@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import * as actualReact from "react";
 import type { AuthSnapshot } from "@/core/auth";
 
 type EffectRecord = {
@@ -44,22 +45,26 @@ async function flushMicrotasks() {
 }
 
 function registerModuleMocks() {
-	mock.module("react", () => ({
-		useEffect: (callback: () => void | (() => void), deps?: unknown[]) => {
-			const index = effectCursor++;
-			const previousRender = renderedEffects.at(-1);
-			const previousEffect = previousRender?.[index];
+	// Spread the real react module so this mock stays a complete module (with a
+	// `default` export and every other hook) even if bun leaks it into another
+	// isolated test file; only `useEffect` is swapped for a synchronous,
+	// deps-aware stub so the bootstrap component runs as a plain function call.
+	const useEffectStub = (callback: () => void | (() => void), deps?: unknown[]) => {
+		const index = effectCursor++;
+		const previousRender = renderedEffects.at(-1);
+		const previousEffect = previousRender?.[index];
 
-			if (!previousEffect || depsChanged(previousEffect.deps, deps)) {
-				previousEffect?.cleanup?.();
-				const cleanup = callback();
-				currentRenderEffects[index] = { deps, cleanup };
-				return;
-			}
+		if (!previousEffect || depsChanged(previousEffect.deps, deps)) {
+			previousEffect?.cleanup?.();
+			const cleanup = callback();
+			currentRenderEffects[index] = { deps, cleanup };
+			return;
+		}
 
-			currentRenderEffects[index] = previousEffect;
-		},
-	}));
+		currentRenderEffects[index] = previousEffect;
+	};
+	const reactMock = { ...actualReact, useEffect: useEffectStub };
+	mock.module("react", () => ({ ...reactMock, default: reactMock }));
 
 	mock.module("@/core/auth/use-auth", () => ({
 		useAuth: () => authSnapshot,
