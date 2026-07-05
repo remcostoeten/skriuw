@@ -526,8 +526,8 @@ export const EDITOR_STYLES = `
 					box-shadow: 0 16px 36px hsl(var(--editor-shadow) / 0.42) !important;
 					backdrop-filter: none !important;
 				}
-				:global(.mantine-Menu-dropdown),
-				:global(.mantine-Popover-dropdown) {
+				.mantine-Menu-dropdown,
+				.mantine-Popover-dropdown {
 					z-index: 10050 !important;
 				}
 				.blocknote-wrapper .bn-toolbar .mantine-Menu-item:hover,
