@@ -1,4 +1,6 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 /// Rich text document block (matches TypeScript Block type)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -172,10 +174,10 @@ fn parse_heading(line: &str) -> (serde_json::Value, usize) {
     let title = line[level..].trim();
 
     (
-        serde_json::json!({
+        json!({
             "type": "heading",
             "props": { "level": level },
-            "content": title
+            "content": parse_inline_content(title)
         }),
         1,
     )
@@ -194,9 +196,9 @@ fn parse_unordered_list(lines: &[&str], start: usize) -> (Vec<serde_json::Value>
         }
 
         let content = trimmed[2..].trim();
-        items.push(serde_json::json!({
+        items.push(json!({
             "type": "bulletListItem",
-            "content": content
+            "content": parse_inline_content(content)
         }));
         i += 1;
     }
@@ -218,9 +220,9 @@ fn parse_ordered_list(lines: &[&str], start: usize) -> (Vec<serde_json::Value>, 
 
         if let Some(dot_pos) = trimmed.find(". ") {
             let content = trimmed[dot_pos + 2..].trim();
-            items.push(serde_json::json!({
+            items.push(json!({
                 "type": "numberedListItem",
-                "content": content
+                "content": parse_inline_content(content)
             }));
         }
         i += 1;
@@ -248,10 +250,10 @@ fn parse_checklist(lines: &[&str], start: usize) -> (Vec<serde_json::Value>, usi
             ""
         };
 
-        items.push(serde_json::json!({
+        items.push(json!({
             "type": "checkListItem",
             "props": { "checked": checked },
-            "content": content
+            "content": parse_inline_content(content)
         }));
         i += 1;
     }
@@ -277,9 +279,9 @@ fn parse_blockquote(lines: &[&str], start: usize) -> (serde_json::Value, usize) 
 
     let content = quote_lines.join("\n");
     (
-        serde_json::json!({
+        json!({
             "type": "quote",
-            "content": content
+            "content": parse_inline_content(&content)
         }),
         i - start,
     )
@@ -303,7 +305,7 @@ fn parse_code_block(lines: &[&str], start: usize) -> (serde_json::Value, usize) 
 
     let content = code_lines.join("\n");
     (
-        serde_json::json!({
+        json!({
             "type": "procode",
             "props": { "language": if language.is_empty() { "text" } else { language } },
             "content": content
@@ -315,9 +317,9 @@ fn parse_code_block(lines: &[&str], start: usize) -> (serde_json::Value, usize) 
 fn parse_paragraph(lines: &[&str], start: usize) -> (serde_json::Value, usize) {
     let line = lines[start];
     (
-        serde_json::json!({
+        json!({
             "type": "paragraph",
-            "content": line.trim()
+            "content": parse_inline_content(line.trim())
         }),
         1,
     )
@@ -336,6 +338,193 @@ fn is_horizontal_rule(line: &str) -> bool {
     (trimmed.starts_with("---") && trimmed.chars().all(|c| c == '-' || c.is_whitespace()))
         || (trimmed.starts_with("***") && trimmed.chars().all(|c| c == '*' || c.is_whitespace()))
         || (trimmed.starts_with("___") && trimmed.chars().all(|c| c == '_' || c.is_whitespace()))
+}
+
+/// Parse inline content with markdown formatting (bold, italic, code, links, etc)
+fn parse_inline_content(text: &str) -> Vec<serde_json::Value> {
+    if text.is_empty() {
+        return vec![];
+    }
+
+    let mut result = Vec::new();
+    let mut remaining = text;
+
+    // Compile regexes for inline elements
+    let bold_re = Regex::new(r"\*\*(.*?)\*\*").unwrap();
+    let italic_re = Regex::new(r"\*(.*?)\*").unwrap();
+    let strike_re = Regex::new(r"~~(.*?)~~").unwrap();
+    let code_re = Regex::new(r"`([^`]+?)`").unwrap();
+    let wikilink_re = Regex::new(r"\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]").unwrap();
+    let link_re = Regex::new(r"\[([^\]]+?)\]\(([^)]+?)\)").unwrap();
+    let tag_re = Regex::new(r"#([a-zA-Z][a-zA-Z0-9_-]{1,31})").unwrap();
+    let mention_re = Regex::new(r"\$([A-Z][a-z]*(?:\s+[A-Z][a-z]*)*)").unwrap();
+
+    let mut pos = 0;
+    let text_bytes = text.as_bytes();
+
+    while pos < text.len() {
+        // Try to find next formatting element
+        let mut earliest = None;
+        let mut earliest_type = "";
+
+        // Check for bold
+        if let Some(m) = bold_re.find(&text[pos..]) {
+            let abs_pos = pos + m.start();
+            if earliest.is_none() || abs_pos < earliest.unwrap() {
+                earliest = Some(abs_pos);
+                earliest_type = "bold";
+            }
+        }
+
+        // Check for wikilinks (higher priority - check before other patterns)
+        if let Some(m) = wikilink_re.find(&text[pos..]) {
+            let abs_pos = pos + m.start();
+            if earliest.is_none() || abs_pos < earliest.unwrap() {
+                earliest = Some(abs_pos);
+                earliest_type = "wikilink";
+            }
+        }
+
+        // Check for code
+        if let Some(m) = code_re.find(&text[pos..]) {
+            let abs_pos = pos + m.start();
+            if earliest.is_none() || abs_pos < earliest.unwrap() {
+                earliest = Some(abs_pos);
+                earliest_type = "code";
+            }
+        }
+
+        // Check for strike
+        if let Some(m) = strike_re.find(&text[pos..]) {
+            let abs_pos = pos + m.start();
+            if earliest.is_none() || abs_pos < earliest.unwrap() {
+                earliest = Some(abs_pos);
+                earliest_type = "strike";
+            }
+        }
+
+        // Check for links
+        if let Some(m) = link_re.find(&text[pos..]) {
+            let abs_pos = pos + m.start();
+            if earliest.is_none() || abs_pos < earliest.unwrap() {
+                earliest = Some(abs_pos);
+                earliest_type = "link";
+            }
+        }
+
+        // Check for italic (after bold, since ** is checked first)
+        if let Some(m) = italic_re.find(&text[pos..]) {
+            let abs_pos = pos + m.start();
+            if earliest.is_none() || abs_pos < earliest.unwrap() {
+                earliest = Some(abs_pos);
+                earliest_type = "italic";
+            }
+        }
+
+        if let Some(earliest_pos) = earliest {
+            // Add plain text before the formatting
+            if earliest_pos > pos {
+                result.push(json!({
+                    "type": "text",
+                    "text": &text[pos..earliest_pos]
+                }));
+            }
+
+            // Add the formatted element
+            match earliest_type {
+                "bold" => {
+                    if let Some(caps) = bold_re.captures(&text[earliest_pos..]) {
+                        if let Some(content) = caps.get(1) {
+                            result.push(json!({
+                                "type": "text",
+                                "text": content.as_str(),
+                                "styles": { "bold": true }
+                            }));
+                            pos = earliest_pos + caps.get(0).unwrap().len();
+                        }
+                    }
+                }
+                "italic" => {
+                    if let Some(caps) = italic_re.captures(&text[earliest_pos..]) {
+                        if let Some(content) = caps.get(1) {
+                            result.push(json!({
+                                "type": "text",
+                                "text": content.as_str(),
+                                "styles": { "italic": true }
+                            }));
+                            pos = earliest_pos + caps.get(0).unwrap().len();
+                        }
+                    }
+                }
+                "strike" => {
+                    if let Some(caps) = strike_re.captures(&text[earliest_pos..]) {
+                        if let Some(content) = caps.get(1) {
+                            result.push(json!({
+                                "type": "text",
+                                "text": content.as_str(),
+                                "styles": { "strike": true }
+                            }));
+                            pos = earliest_pos + caps.get(0).unwrap().len();
+                        }
+                    }
+                }
+                "code" => {
+                    if let Some(caps) = code_re.captures(&text[earliest_pos..]) {
+                        if let Some(content) = caps.get(1) {
+                            result.push(json!({
+                                "type": "text",
+                                "text": content.as_str(),
+                                "styles": { "code": true }
+                            }));
+                            pos = earliest_pos + caps.get(0).unwrap().len();
+                        }
+                    }
+                }
+                "wikilink" => {
+                    if let Some(caps) = wikilink_re.captures(&text[earliest_pos..]) {
+                        if let Some(title) = caps.get(1) {
+                            result.push(json!({
+                                "type": "noteLink",
+                                "props": { "title": title.as_str().trim() }
+                            }));
+                            pos = earliest_pos + caps.get(0).unwrap().len();
+                        }
+                    }
+                }
+                "link" => {
+                    if let Some(caps) = link_re.captures(&text[earliest_pos..]) {
+                        if let (Some(label), Some(href)) = (caps.get(1), caps.get(2)) {
+                            result.push(json!({
+                                "type": "link",
+                                "href": href.as_str(),
+                                "content": parse_inline_content(label.as_str())
+                            }));
+                            pos = earliest_pos + caps.get(0).unwrap().len();
+                        }
+                    }
+                }
+                _ => {
+                    pos = earliest_pos + 1;
+                }
+            }
+        } else {
+            // No more formatting found, add remaining text
+            result.push(json!({
+                "type": "text",
+                "text": &text[pos..]
+            }));
+            break;
+        }
+    }
+
+    if result.is_empty() {
+        result.push(json!({
+            "type": "text",
+            "text": text
+        }));
+    }
+
+    result
 }
 
 #[tauri::command]
@@ -357,7 +546,8 @@ mod tests {
     fn test_parse_heading() {
         let result = markdown_to_rich_document("# Title");
         assert_eq!(result[0]["type"], "heading");
-        assert_eq!(result[0]["content"], "Title");
+        assert!(result[0]["content"].is_array());
+        assert_eq!(result[0]["content"][0]["text"], "Title");
     }
 
     #[test]
