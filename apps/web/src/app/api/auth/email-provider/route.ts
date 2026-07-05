@@ -16,12 +16,22 @@ type EmailProviderResponse = {
 	providers: string[];
 };
 
+// Returned for every email that is not OAuth-only (no account, a password
+// account, or a password+OAuth account). Keeping these cases byte-for-byte
+// identical stops the endpoint being used as an account-existence oracle:
+// only the OAuth-only case — which the sign-up UX must reveal to steer the
+// user to their provider — deviates from this neutral payload.
+const NON_DISCLOSING_RESPONSE: EmailProviderResponse = {
+	exists: false,
+	hasPassword: false,
+	providers: [],
+};
+
 /**
- * Reports whether an email already has an account and, if so, which OAuth
- * providers it is linked through and whether it also has a password login.
- *
- * The registration flow uses this to block sign-ups against an OAuth-only
- * email and steer the user to the right provider instead.
+ * Reports the OAuth providers to steer an OAuth-only email toward during
+ * sign-up. Any email that already has a password login — or no account at
+ * all — returns an identical neutral response, so the endpoint cannot be
+ * used to confirm which emails are registered.
  */
 export async function POST(request: NextRequest) {
 	const ip = getRequestIp(request.headers);
@@ -46,12 +56,7 @@ export async function POST(request: NextRequest) {
 	});
 
 	if (!user) {
-		const payload: EmailProviderResponse = {
-			exists: false,
-			hasPassword: false,
-			providers: [],
-		};
-		return NextResponse.json(payload);
+		return NextResponse.json(NON_DISCLOSING_RESPONSE);
 	}
 
 	const accounts: Array<{ providerId: string; password: string | null }> = user.accounts;
@@ -66,9 +71,13 @@ export async function POST(request: NextRequest) {
 		),
 	);
 
+	if (hasPassword || providers.length === 0) {
+		return NextResponse.json(NON_DISCLOSING_RESPONSE);
+	}
+
 	const payload: EmailProviderResponse = {
 		exists: true,
-		hasPassword,
+		hasPassword: false,
 		providers,
 	};
 	return NextResponse.json(payload);
