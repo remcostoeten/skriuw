@@ -1009,7 +1009,12 @@ export function resolveRichDocument(
 }
 
 export function cloneRichDocument(document: Block[]): RichTextDocument {
-	return JSON.parse(JSON.stringify(document)) as RichTextDocument;
+	try {
+		return JSON.parse(JSON.stringify(document)) as RichTextDocument;
+	} catch (err) {
+		console.error("[cloneRichDocument] Serialization failed:", err);
+		return document.map((block) => structuredClone(block)) as RichTextDocument;
+	}
 }
 
 /**

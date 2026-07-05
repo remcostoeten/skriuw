@@ -148,8 +148,15 @@ export async function getDecryptedAiProviderKey({
 	});
 
 	const rawProvider = record.provider as AiProvider | "gemini";
+	let apiKey: string;
+	try {
+		apiKey = decryptApiKey(record.encryptedKey);
+	} catch (err) {
+		console.error("[getDecryptedAiProviderKey] Decryption failed:", err);
+		throw new Error(`Cannot retrieve ${rawProvider} key. Key may be corrupted.`);
+	}
 	return {
-		apiKey: decryptApiKey(record.encryptedKey),
+		apiKey,
 		provider: rawProvider === "gemini" ? "google" : rawProvider,
 		keyId,
 	};
