@@ -101,10 +101,27 @@ export function useTitleCommit({ editor, editorDom, onTitleCommit }: Params) {
       wasInFirstHeading = inFirstHeading;
     };
 
-    const handler = () => window.requestAnimationFrame(checkHeadingExit);
+    let pendingFrame: number | null = null;
+    const handler = () => {
+      if (pendingFrame !== null) {
+        window.cancelAnimationFrame(pendingFrame);
+      }
+      pendingFrame = window.requestAnimationFrame(() => {
+        checkHeadingExit();
+        pendingFrame = null;
+      });
+    };
 
     document.addEventListener("selectionchange", handler);
-    window.requestAnimationFrame(checkHeadingExit);
-    return () => document.removeEventListener("selectionchange", handler);
+    pendingFrame = window.requestAnimationFrame(() => {
+      checkHeadingExit();
+      pendingFrame = null;
+    });
+    return () => {
+      document.removeEventListener("selectionchange", handler);
+      if (pendingFrame !== null) {
+        window.cancelAnimationFrame(pendingFrame);
+      }
+    };
   }, [editor, editorDom, onTitleCommit]);
 }

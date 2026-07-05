@@ -15,8 +15,20 @@ export function splitFrontmatter(raw: string): {
 	let parsed: unknown;
 	try {
 		parsed = parseYaml(match[1], { schema: "core" });
-	} catch {
-		parsed = null;
+	} catch (error) {
+		// parseYaml failed; fallback to simple key: value extraction
+		const lines = match[1].split(/\r?\n/);
+		for (const line of lines) {
+			const colonIndex = line.indexOf(":");
+			if (colonIndex > 0) {
+				const key = line.slice(0, colonIndex).trim();
+				const value = line.slice(colonIndex + 1).trim();
+				if (key) {
+					frontmatter[key] = value;
+				}
+			}
+		}
+		return { frontmatter, body: raw.slice(match[0].length) };
 	}
 
 	if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
