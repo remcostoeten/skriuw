@@ -179,6 +179,62 @@ pub fn validate_import(archive: &ExportArchive) -> Vec<String> {
     errors
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(crate = "serde")]
+#[serde(rename_all = "lowercase")]
+pub enum ConflictResolution {
+    Skip,
+    Replace,
+    Rename,
+}
+
+/// Build export JSON from workspace data
+pub fn build_export(
+    notes: Vec<serde_json::Value>,
+    folders: Vec<serde_json::Value>,
+) -> Result<String, String> {
+    let export = ExportArchive {
+        notes: notes
+            .into_iter()
+            .filter_map(|n| {
+                serde_json::from_value(n).ok()
+            })
+            .collect(),
+        folders: folders
+            .into_iter()
+            .filter_map(|f| {
+                if let (Some(id), Some(name)) = (
+                    f.get("id").and_then(|v| v.as_str()),
+                    f.get("name").and_then(|v| v.as_str()),
+                ) {
+                    Some(ExportedFolder {
+                        id: id.to_string(),
+                        name: name.to_string(),
+                        parent_id: f
+                            .get("parent_id")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect(),
+        tags: deduplicate_tags(&[]).into_iter()
+            .map(|(name, count)| ExportedTag { name, note_count: count })
+            .collect(),
+        manifest: ExportManifest {
+            version: "1.0".to_string(),
+            exported_at: "2026-01-01T00:00:00Z".to_string(),
+            note_count: 0,
+            folder_count: 0,
+            tag_count: 0,
+        },
+    };
+
+    serde_json::to_string(&export).map_err(|e| format!("Failed to serialize export: {}", e))
+}
+
 #[tauri::command]
 pub fn parse_import_json(json: String) -> Result<serde_json::Value, String> {
     match parse_import_archive(&json) {
