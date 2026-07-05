@@ -15,6 +15,7 @@ import {
 	Link2,
 	ListTree,
 	Plus,
+	Unlink,
 	Users,
 	X,
 } from "lucide-react";
@@ -61,6 +62,8 @@ import { showUserToast } from "@/shared/lib/user-toast";
 import { AnimatedNumber } from "@/shared/ui/animated-number";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import { CollaboratorsSection } from "@/features/collaboration/components/collaborators-section";
+import { UnlinkedMentionsSection } from "@/features/notes/components/unlinked-mentions-section";
+import { findUnlinkedMentions } from "@/domain/notes/unlinked-mentions";
 import { useAuth } from "@/core/auth/use-auth";
 
 type Props = {
@@ -81,6 +84,7 @@ type SectionKey =
 	| "tags"
 	| "people"
 	| "links"
+	| "mentions"
 	| "history"
 	| "details"
 	| "collaborators";
@@ -673,6 +677,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 		tags: true,
 		people: true,
 		links: true,
+		mentions: true,
 		history: true,
 		details: true,
 		collaborators: false,
@@ -715,6 +720,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 	}, [file]);
 
 	const outgoingLinks = useMemo(() => buildOutgoingNoteLinks(file, files), [file, files]);
+	const unlinkedMentions = useMemo(() => findUnlinkedMentions(file, files), [file, files]);
 	const backlinks = backlinksQuery.data ?? [];
 	const filesById = useMemo(() => new Map(files.map((item) => [item.id, item])), [files]);
 	const tags = useMemo(() => (file ? uniqueTags(file) : []), [file]);
@@ -1085,6 +1091,23 @@ export const MetadataPanel = memo(function MetadataPanel({
 								</div>
 							)}
 						</div>
+					</InspectorSection>
+				)}
+
+				{unlinkedMentions.length > 0 && (
+					<InspectorSection
+						id="note-inspector-mentions"
+						title="Unlinked mentions"
+						icon={Unlink}
+						count={unlinkedMentions.length}
+						open={openSections.mentions}
+						onToggle={() => toggleSection("mentions")}
+					>
+						<UnlinkedMentionsSection
+							mentions={unlinkedMentions}
+							filesById={filesById}
+							onFileSelect={onFileSelect}
+						/>
 					</InspectorSection>
 				)}
 
