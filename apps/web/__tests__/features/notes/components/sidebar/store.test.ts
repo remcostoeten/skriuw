@@ -1,44 +1,13 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { createStore, type StateCreator } from "zustand/vanilla";
-import type {
-	RecentItem,
-	SidebarSection,
-} from "@/features/notes/components/sidebar/types";
+import type { RecentItem, SidebarSection } from "@/features/notes/components/sidebar/types";
 import type { FavoriteItem } from "@/features/notes/components/sidebar/types";
+import { MemoryStorage } from "../../../../lib/memory-storage";
+import { installMockLocalStorage } from "../../../../lib/mock-globals";
 
 let authUserScopeId = "signed-out-local";
-
-class MemoryStorage implements Storage {
-	#entries = new Map<string, string>();
-
-	clear() {
-		this.#entries.clear();
-	}
-
-	getItem(key: string) {
-		return this.#entries.get(key) ?? null;
-	}
-
-	key(index: number) {
-		return Array.from(this.#entries.keys())[index] ?? null;
-	}
-
-	removeItem(key: string) {
-		this.#entries.delete(key);
-	}
-
-	setItem(key: string, value: string) {
-		this.#entries.set(key, value);
-	}
-
-	get length() {
-		return this.#entries.size;
-	}
-}
-
 let storage: MemoryStorage;
-const originalLocalStorage = globalThis.localStorage;
-const originalWindow = (globalThis as typeof globalThis & { window?: Window }).window;
+let restoreLocalStorage: () => void;
 
 async function flushMicrotasks() {
 	await Promise.resolve();
@@ -80,29 +49,13 @@ function readPersistedSidebarState() {
 beforeEach(() => {
 	authUserScopeId = "signed-out-local";
 	storage = new MemoryStorage();
-
-	Object.defineProperty(globalThis, "localStorage", {
-		configurable: true,
-		value: storage,
-	});
-	Object.defineProperty(globalThis, "window", {
-		configurable: true,
-		value: { localStorage: storage },
-	});
+	restoreLocalStorage = installMockLocalStorage(storage);
 });
 
 afterEach(() => {
 	mock.restore();
 	storage.clear();
-
-	Object.defineProperty(globalThis, "localStorage", {
-		configurable: true,
-		value: originalLocalStorage,
-	});
-	Object.defineProperty(globalThis, "window", {
-		configurable: true,
-		value: originalWindow,
-	});
+	restoreLocalStorage();
 });
 
 describe("sidebar store user scope scoping", () => {
@@ -436,7 +389,8 @@ describe("sidebar store user scope scoping", () => {
 
 		const sections = useSidebarStore.getState().config.sections;
 		const migrated = sections.find(
-			(section: SidebarSection) => section.type === "custom" && section.name === "Legacy Project",
+			(section: SidebarSection) =>
+				section.type === "custom" && section.name === "Legacy Project",
 		);
 
 		// The project becomes a colored custom section carrying its items...

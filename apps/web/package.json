@@ -25,6 +25,7 @@
 		"@codemirror/view": "^6.43.4",
 		"@replit/codemirror-vim": "^6.3.0",
 		"html-to-image": "^1.11.13",
+		"mermaid": "^11.16.0",
 		"yaml": "^2.9.0"
 	}
 }

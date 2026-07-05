@@ -1,13 +1,10 @@
-import {
-	BlockNoteSchema,
-	defaultBlockSpecs,
-	defaultInlineContentSpecs,
-} from "@blocknote/core";
+import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs } from "@blocknote/core";
 import { noteLinkInlineSpec } from "./note-link-spec";
 import { tagInlineSpec } from "./tag-spec";
 import { userInlineSpec } from "./user-spec";
 import { personInlineSpec } from "./person-spec";
 import { createCheckListItem } from "../block-specs/checklist-item";
+import { createDiagram } from "../block-specs/diagram";
 import { createFileTree } from "../block-specs/file-tree";
 import { CodeBlock } from "../block-specs/CodeBlock";
 
@@ -19,6 +16,7 @@ export const editorSchema = BlockNoteSchema.create({
 		procode: CodeBlock(),
 		checkListItem: createCheckListItem(),
 		fileTree: createFileTree(),
+		diagram: createDiagram(),
 	},
 	inlineContentSpecs: {
 		...defaultInlineContentSpecs,
