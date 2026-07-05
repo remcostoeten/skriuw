@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAuthenticatedUser } from "@/core/db";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { verifyStepUp } from "@/lib/step-up";
 
 const CREDENTIAL_PROVIDER_ID = "credential";
 const UNLINK_RATE_LIMIT_MAX = 10;
@@ -23,6 +24,7 @@ type ConnectionsResponse = {
 type UnlinkBody = {
 	providerId?: string;
 	accountId?: string;
+	password?: string;
 };
 
 async function loadAccounts(requestHeaders: Headers): Promise<LinkedAccount[]> {
@@ -118,6 +120,14 @@ export async function DELETE(request: NextRequest) {
 					"This is your only sign-in method. Add a password or another provider before disconnecting it.",
 			},
 			{ status: 409 },
+		);
+	}
+
+	const stepUp = await verifyStepUp({ password: body?.password });
+	if (!stepUp.ok) {
+		return NextResponse.json(
+			{ error: stepUp.error, code: stepUp.code },
+			{ status: stepUp.status },
 		);
 	}
 
