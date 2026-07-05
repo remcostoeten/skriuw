@@ -1,4 +1,6 @@
 import { isAiModelId } from "@/domain/ai/constants";
+import { isGotoIndicatorPosition, isGotoIndicatorSize } from "@/core/quick-access/goto-types";
+import { parseDurationMs } from "@/core/quick-access/parse-duration";
 import { isEditorFontId } from "@/shared/lib/editor-fonts";
 import { isEditorLineHeight } from "@/features/editor/lib/editor-line-height";
 import {
@@ -213,6 +215,34 @@ export function normalizeProfile(
 			),
 		},
 		ai: normalizeAi(profile?.ai as Record<string, unknown> | undefined, fallback.ai),
+		quickAccess: {
+			enabled: normalizeBoolean(profile?.quickAccess?.enabled, fallback.quickAccess.enabled),
+			allowInEditor: normalizeBoolean(
+				profile?.quickAccess?.allowInEditor,
+				fallback.quickAccess.allowInEditor,
+			),
+			gotoModeDuration:
+				typeof profile?.quickAccess?.gotoModeDuration === "string" &&
+				parseDurationMs(profile.quickAccess.gotoModeDuration) !== null
+					? profile.quickAccess.gotoModeDuration
+					: fallback.quickAccess.gotoModeDuration,
+			showIndicators: normalizeBoolean(
+				profile?.quickAccess?.showIndicators,
+				fallback.quickAccess.showIndicators,
+			),
+			indicatorPosition: isGotoIndicatorPosition(profile?.quickAccess?.indicatorPosition)
+				? profile.quickAccess.indicatorPosition
+				: fallback.quickAccess.indicatorPosition,
+			indicatorSize: isGotoIndicatorSize(profile?.quickAccess?.indicatorSize)
+				? profile.quickAccess.indicatorSize
+				: fallback.quickAccess.indicatorSize,
+			indicatorOpacity:
+				typeof profile?.quickAccess?.indicatorOpacity === "number" &&
+				profile.quickAccess.indicatorOpacity >= 0.1 &&
+				profile.quickAccess.indicatorOpacity <= 1
+					? profile.quickAccess.indicatorOpacity
+					: fallback.quickAccess.indicatorOpacity,
+		},
 		amountOfNotes:
 			typeof profile?.amountOfNotes === "number" && Number.isFinite(profile.amountOfNotes)
 				? profile.amountOfNotes

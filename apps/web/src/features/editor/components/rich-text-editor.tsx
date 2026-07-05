@@ -12,6 +12,15 @@ import {
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
+import { Clipboard, Copy, Scissors } from "lucide-react";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuShortcut,
+	ContextMenuTrigger,
+} from "@/shared/ui/context-menu";
+import { noop } from "@/shared/lib/noop";
 import { FAST_SWAP_TRANSITION, pickTransition } from "@/shared/lib/motion";
 import { perf } from "@/shared/perf/track";
 import { getEditorFontFamily, type EditorFontId } from "@/shared/lib/editor-fonts";
@@ -234,6 +243,62 @@ export function RichTextEditor({
 	useSelectionReporter({ editorDom, wrapperRef, onCursorChange });
 	useAiEditorHandle({ editor, onEditorReady, wrapperRef });
 
+	// Radix's context menu moves focus into its portal, which collapses the
+	// browser selection the native Cut/Copy/Paste commands need. Snapshot the
+	// range when the menu opens (still synchronous with the contextmenu event)
+	// and restore it onto the editor right before issuing the command.
+	const savedSelectionRangeRef = useRef<Range | null>(null);
+	const [hasSelectionForContextMenu, setHasSelectionForContextMenu] = useState(false);
+
+	const handleContextMenuOpenChange = useCallback((open: boolean) => {
+		if (!open) return;
+		const selection = window.getSelection();
+		if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+			savedSelectionRangeRef.current = selection.getRangeAt(0).cloneRange();
+			setHasSelectionForContextMenu(true);
+		} else {
+			savedSelectionRangeRef.current = null;
+			setHasSelectionForContextMenu(false);
+		}
+	}, []);
+
+	const restoreEditorSelection = useCallback(() => {
+		const editableElement = wrapperRef.current?.querySelector<HTMLElement>(
+			'[contenteditable="true"]',
+		);
+		if (!editableElement) return false;
+		editableElement.focus();
+		const range = savedSelectionRangeRef.current;
+		if (range) {
+			const selection = window.getSelection();
+			selection?.removeAllRanges();
+			selection?.addRange(range);
+		}
+		return true;
+	}, []);
+
+	const handleCopySelection = useCallback(() => {
+		if (!restoreEditorSelection()) return;
+		document.execCommand("copy");
+	}, [restoreEditorSelection]);
+
+	const handleCutSelection = useCallback(() => {
+		if (readOnly || !restoreEditorSelection()) return;
+		document.execCommand("cut");
+	}, [readOnly, restoreEditorSelection]);
+
+	const handlePasteSelection = useCallback(() => {
+		if (readOnly) return;
+		restoreEditorSelection();
+		if (document.execCommand("paste")) return;
+		navigator.clipboard
+			?.readText()
+			.then((text) => {
+				document.execCommand("insertText", false, text);
+			})
+			.catch(noop);
+	}, [readOnly, restoreEditorSelection]);
+
 	// Serializes the live editor document and commits it via onChange when it
 	// actually differs from the last committed snapshot. The expensive work
 	// (markdown serialization + deep clone + JSON.stringify) runs here only —
@@ -384,210 +449,255 @@ export function RichTextEditor({
 	}, []);
 
 	return (
-		<div
-			ref={wrapperRef}
-			onMouseDown={(event) => {
-				const target = event.target;
-				if (!(target instanceof HTMLElement)) return;
-				if (!target.closest(".bn-toolbar")) return;
-				// Text inputs (link URL field, comment textarea) must receive focus,
-				// so don't swallow their mousedown.
-				if (target.closest("input, textarea, [contenteditable='true']")) return;
-				// Mantine's toolbar buttons don't preventDefault on mousedown, so a
-				// real mouse press on a control collapses the editor's text selection —
-				// the formatting command then applies to nothing and the
-				// selection-anchored toolbar dismisses.
-				event.preventDefault();
-			}}
-			onBlur={(event) => {
-				const nextFocusedElement = event.relatedTarget;
-				if (
-					nextFocusedElement instanceof Node &&
-					event.currentTarget.contains(nextFocusedElement)
-				) {
-					return;
-				}
-				flushPendingEditorChange();
-				onBlur?.();
-			}}
-			className="blocknote-wrapper relative h-full min-h-full px-6 py-3"
-			style={
-				{
-					"--bn-font-family": getEditorFontFamily(editorFontId),
-					"--skriuw-editor-line-height": getEditorLineHeightValue(editorLineHeight),
-				} as CSSProperties
-			}
-		>
-			<AnimatePresence>
-				{search.searchOpen ? (
-					<motion.div
-						className="absolute top-3 right-4 z-40 origin-top-right"
-						initial={
-							prefersReducedMotion
-								? { opacity: 0 }
-								: { opacity: 0, y: -6, scale: 0.98 }
+		<ContextMenu onOpenChange={handleContextMenuOpenChange}>
+			<ContextMenuTrigger asChild>
+				<div
+					ref={wrapperRef}
+					onMouseDown={(event) => {
+						const target = event.target;
+						if (!(target instanceof HTMLElement)) return;
+						if (!target.closest(".bn-toolbar")) return;
+						// Text inputs (link URL field, comment textarea) must receive focus,
+						// so don't swallow their mousedown.
+						if (target.closest("input, textarea, [contenteditable='true']")) return;
+						// Mantine's toolbar buttons don't preventDefault on mousedown, so a
+						// real mouse press on a control collapses the editor's text selection —
+						// the formatting command then applies to nothing and the
+						// selection-anchored toolbar dismisses.
+						event.preventDefault();
+					}}
+					onBlur={(event) => {
+						const nextFocusedElement = event.relatedTarget;
+						if (
+							nextFocusedElement instanceof Node &&
+							event.currentTarget.contains(nextFocusedElement)
+						) {
+							return;
 						}
-						animate={
-							prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }
-						}
-						exit={
-							prefersReducedMotion
-								? { opacity: 0 }
-								: { opacity: 0, y: -4, scale: 0.98 }
-						}
-						transition={searchWidgetTransition}
-					>
-						<SearchWidget
-							ref={search.findInputRef}
-							query={search.searchQuery}
-							onQueryChange={search.setSearchQuery}
-							replaceValue={search.replaceValue}
-							onReplaceChange={search.setReplaceValue}
-							showReplace={search.showReplace}
-							onToggleReplace={() => search.setShowReplace((value) => !value)}
-							options={search.searchOptions}
-							onToggleOption={search.toggleSearchOption}
-							current={search.matchInfo.current}
-							total={search.matchInfo.total}
-							regexError={search.regexError}
-							onNext={search.handleNextMatch}
-							onPrevious={search.handlePreviousMatch}
-							onClose={search.closeSearch}
-							onReplaceCurrent={search.handleReplaceCurrent}
-							onReplaceAll={search.handleReplaceAll}
+						flushPendingEditorChange();
+						onBlur?.();
+					}}
+					className="blocknote-wrapper relative h-full min-h-full px-6 py-3"
+					style={
+						{
+							"--bn-font-family": getEditorFontFamily(editorFontId),
+							"--skriuw-editor-line-height":
+								getEditorLineHeightValue(editorLineHeight),
+						} as CSSProperties
+					}
+				>
+					<AnimatePresence>
+						{search.searchOpen ? (
+							<motion.div
+								className="absolute top-3 right-4 z-40 origin-top-right"
+								initial={
+									prefersReducedMotion
+										? { opacity: 0 }
+										: { opacity: 0, y: -6, scale: 0.98 }
+								}
+								animate={
+									prefersReducedMotion
+										? { opacity: 1 }
+										: { opacity: 1, y: 0, scale: 1 }
+								}
+								exit={
+									prefersReducedMotion
+										? { opacity: 0 }
+										: { opacity: 0, y: -4, scale: 0.98 }
+								}
+								transition={searchWidgetTransition}
+							>
+								<SearchWidget
+									ref={search.findInputRef}
+									query={search.searchQuery}
+									onQueryChange={search.setSearchQuery}
+									replaceValue={search.replaceValue}
+									onReplaceChange={search.setReplaceValue}
+									showReplace={search.showReplace}
+									onToggleReplace={() => search.setShowReplace((value) => !value)}
+									options={search.searchOptions}
+									onToggleOption={search.toggleSearchOption}
+									current={search.matchInfo.current}
+									total={search.matchInfo.total}
+									regexError={search.regexError}
+									onNext={search.handleNextMatch}
+									onPrevious={search.handlePreviousMatch}
+									onClose={search.closeSearch}
+									onReplaceCurrent={search.handleReplaceCurrent}
+									onReplaceAll={search.handleReplaceAll}
+								/>
+							</motion.div>
+						) : null}
+					</AnimatePresence>
+					{onPropertiesChange ? (
+						<NotePropertiesShelf
+							properties={properties}
+							readOnly={readOnly}
+							onChange={onPropertiesChange}
 						/>
-					</motion.div>
-				) : null}
-			</AnimatePresence>
-			{onPropertiesChange ? (
-				<NotePropertiesShelf
-					properties={properties}
-					readOnly={readOnly}
-					onChange={onPropertiesChange}
-				/>
-			) : null}
-			<NoteLinkProvider files={files} activeFileId={activeFileId}>
-				<PeopleProvider people={people}>
-					<BlockNoteView
-						editor={editor}
-						editable={!readOnly}
-						onChange={handleEditorChange}
-						theme={blockNoteTheme}
-						className="h-full"
-						formattingToolbar={false}
-						linkToolbar={false}
-						slashMenu={false}
-					>
-						<LinkToolbarController
-							linkToolbar={(props) => (
-								<CustomLinkToolbar
-									{...props}
+					) : null}
+					<NoteLinkProvider files={files} activeFileId={activeFileId}>
+						<PeopleProvider people={people}>
+							<BlockNoteView
+								editor={editor}
+								editable={!readOnly}
+								onChange={handleEditorChange}
+								theme={blockNoteTheme}
+								className="h-full"
+								formattingToolbar={false}
+								linkToolbar={false}
+								slashMenu={false}
+							>
+								<LinkToolbarController
+									linkToolbar={(props) => (
+										<CustomLinkToolbar
+											{...props}
+											files={files}
+											activeFileId={activeFileId}
+										/>
+									)}
+								/>
+								<SuggestionMenuController
+									triggerCharacter="/"
+									suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+									getItems={async (query) =>
+										filterSuggestionItems(
+											getCustomSlashMenuItems(
+												editor,
+												onAiSpellCheck,
+												onAiContinueWriting,
+												onAiAction,
+												onAiCustomPrompt
+													? () => setCustomPromptOpen(true)
+													: undefined,
+											),
+											query,
+										)
+									}
+								/>
+								<SuggestionMenuController
+									triggerCharacter="@"
+									suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+									getItems={async (query) =>
+										getNoteMentionMenuItems(
+											editor,
+											files,
+											activeFileId,
+											query,
+											handleCreateNoteFromMention,
+										)
+									}
+								/>
+								<SuggestionMenuController
+									triggerCharacter="#"
+									suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+									getItems={async (query) =>
+										getTagMenuItems(editor, workspaceTags, query)
+									}
+								/>
+								<SuggestionMenuController
+									triggerCharacter="$"
+									suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+									getItems={async (query) =>
+										getPersonMentionMenuItems(
+											editor,
+											people,
+											query,
+											onCreatePerson,
+										)
+									}
+								/>
+								<SelectionBubbleMenu
+									editor={editor}
 									files={files}
 									activeFileId={activeFileId}
-								/>
-							)}
-						/>
-						<SuggestionMenuController
-							triggerCharacter="/"
-							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-							getItems={async (query) =>
-								filterSuggestionItems(
-									getCustomSlashMenuItems(
-										editor,
-										onAiSpellCheck,
-										onAiContinueWriting,
-										onAiAction,
+									onAddComment={collab ? addComment : undefined}
+									onAiSpellCheck={onAiSpellCheck}
+									onAiContinueWriting={onAiContinueWriting}
+									onAiAction={onAiAction}
+									onOpenCustomPrompt={
 										onAiCustomPrompt
 											? () => setCustomPromptOpen(true)
-											: undefined,
-									),
-									query,
-								)
-							}
-						/>
-						<SuggestionMenuController
-							triggerCharacter="@"
-							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-							getItems={async (query) =>
-								getNoteMentionMenuItems(
-									editor,
-									files,
-									activeFileId,
-									query,
-									handleCreateNoteFromMention,
-								)
-							}
-						/>
-						<SuggestionMenuController
-							triggerCharacter="#"
-							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-							getItems={async (query) =>
-								getTagMenuItems(editor, workspaceTags, query)
-							}
-						/>
-						<SuggestionMenuController
-							triggerCharacter="$"
-							suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-							getItems={async (query) =>
-								getPersonMentionMenuItems(editor, people, query, onCreatePerson)
-							}
-						/>
-						<SelectionBubbleMenu
-							editor={editor}
-							files={files}
-							activeFileId={activeFileId}
-							onAddComment={collab ? addComment : undefined}
-							onAiSpellCheck={onAiSpellCheck}
-							onAiContinueWriting={onAiContinueWriting}
-							onAiAction={onAiAction}
-							onOpenCustomPrompt={
-								onAiCustomPrompt ? () => setCustomPromptOpen(true) : undefined
-							}
-						/>
-					</BlockNoteView>
-				</PeopleProvider>
-			</NoteLinkProvider>
-			<AnimatePresence>
-				{customPromptOpen ? (
-					<motion.div
-						className="absolute inset-x-0 top-3 z-40 flex justify-center"
-						initial={
-							prefersReducedMotion
-								? { opacity: 0 }
-								: { opacity: 0, y: -6, scale: 0.98 }
-						}
-						animate={
-							prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }
-						}
-						exit={
-							prefersReducedMotion
-								? { opacity: 0 }
-								: { opacity: 0, y: -4, scale: 0.98 }
-						}
-						transition={searchWidgetTransition}
-					>
-						<CustomPromptWidget
-							onSubmit={(instruction) => onAiCustomPrompt?.(instruction)}
-							onClose={() => setCustomPromptOpen(false)}
-						/>
-					</motion.div>
-				) : null}
-			</AnimatePresence>
-			{vimCommand !== null ? (
-				<div
-					className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex items-center gap-0 border-t border-border bg-background/95 px-3 py-1 font-mono text-xs text-foreground"
-					role="status"
-					aria-live="polite"
-					aria-label="Vim command line"
-				>
-					<span>:{vimCommand}</span>
-					<span
-						aria-hidden="true"
-						className="ml-px inline-block h-3.5 w-[7px] animate-pulse bg-foreground/80"
-					/>
+											: undefined
+									}
+								/>
+							</BlockNoteView>
+						</PeopleProvider>
+					</NoteLinkProvider>
+					<AnimatePresence>
+						{customPromptOpen ? (
+							<motion.div
+								className="absolute inset-x-0 top-3 z-40 flex justify-center"
+								initial={
+									prefersReducedMotion
+										? { opacity: 0 }
+										: { opacity: 0, y: -6, scale: 0.98 }
+								}
+								animate={
+									prefersReducedMotion
+										? { opacity: 1 }
+										: { opacity: 1, y: 0, scale: 1 }
+								}
+								exit={
+									prefersReducedMotion
+										? { opacity: 0 }
+										: { opacity: 0, y: -4, scale: 0.98 }
+								}
+								transition={searchWidgetTransition}
+							>
+								<CustomPromptWidget
+									onSubmit={(instruction) => onAiCustomPrompt?.(instruction)}
+									onClose={() => setCustomPromptOpen(false)}
+								/>
+							</motion.div>
+						) : null}
+					</AnimatePresence>
+					{vimCommand !== null ? (
+						<div
+							className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex items-center gap-0 border-t border-border bg-background/95 px-3 py-1 font-mono text-xs text-foreground"
+							role="status"
+							aria-live="polite"
+							aria-label="Vim command line"
+						>
+							<span>:{vimCommand}</span>
+							<span
+								aria-hidden="true"
+								className="ml-px inline-block h-3.5 w-[7px] animate-pulse bg-foreground/80"
+							/>
+						</div>
+					) : null}
+					<style>{EDITOR_STYLES}</style>
 				</div>
-			) : null}
-			<style>{EDITOR_STYLES}</style>
-		</div>
+			</ContextMenuTrigger>
+			<ContextMenuContent className="w-44">
+				<ContextMenuItem
+					onClick={handleCutSelection}
+					disabled={readOnly || !hasSelectionForContextMenu}
+					className="gap-2"
+				>
+					<Scissors className="w-4 h-4" />
+					Cut
+					<ContextMenuShortcut>⌘X</ContextMenuShortcut>
+				</ContextMenuItem>
+				<ContextMenuItem
+					onClick={handleCopySelection}
+					disabled={!hasSelectionForContextMenu}
+					className="gap-2"
+				>
+					<Copy className="w-4 h-4" />
+					Copy
+					<ContextMenuShortcut>⌘C</ContextMenuShortcut>
+				</ContextMenuItem>
+				<ContextMenuItem
+					onClick={handlePasteSelection}
+					disabled={readOnly}
+					className="gap-2"
+				>
+					<Clipboard className="w-4 h-4" />
+					Paste
+					<ContextMenuShortcut>⌘V</ContextMenuShortcut>
+				</ContextMenuItem>
+			</ContextMenuContent>
+		</ContextMenu>
 	);
 }

@@ -1,60 +1,103 @@
 import { describe, expect, test } from "bun:test";
 import {
 	buildNoteVersionContentHash,
+	decideNoteVersionPersistence,
 	formatNoteVersionDelta,
 	getVersionContextPreview,
+	NOTE_VERSION_COALESCE_WINDOW_MS,
 	previewVersionContent,
-	shouldPersistNoteVersion,
 } from "@/domain/notes/versioning";
 
+function candidateWith(content: string, createdAt: string, reason = "autosave" as const) {
+	return {
+		name: "Alpha.md",
+		content,
+		richContent: [],
+		preferredEditorMode: "block" as const,
+		parentId: null,
+		tags: ["draft"],
+		reason,
+		createdAt: new Date(createdAt),
+	};
+}
+
+function latestWith(content: string, createdAt: string, reason = "autosave") {
+	return {
+		id: "v1",
+		contentHash: buildNoteVersionContentHash(candidateWith(content, createdAt)),
+		content,
+		reason,
+		createdAt: new Date(createdAt),
+	};
+}
+
 describe("note versioning", () => {
-	test("persists the first checkpoint and skips identical saves", () => {
-		const candidate = {
-			name: "Alpha.md",
-			content: "# Alpha",
-			richContent: [],
-			preferredEditorMode: "block" as const,
-			parentId: null,
-			tags: ["draft"],
-			reason: "autosave" as const,
-			createdAt: new Date("2026-05-21T10:00:00.000Z"),
-		};
+	test("inserts the first version and skips identical saves", () => {
+		const candidate = candidateWith("# Alpha", "2026-05-21T10:00:00.000Z");
+		expect(decideNoteVersionPersistence(candidate, null)).toEqual({ action: "insert" });
 
-		expect(shouldPersistNoteVersion(candidate, null)).toBe(true);
-
-		const latest = {
-			contentHash: buildNoteVersionContentHash(candidate),
-			content: candidate.content,
-			name: candidate.name,
-			createdAt: new Date("2026-05-21T09:58:00.000Z"),
-		};
-
-		expect(shouldPersistNoteVersion(candidate, latest)).toBe(false);
+		const latest = latestWith("# Alpha", "2026-05-21T09:58:00.000Z");
+		expect(decideNoteVersionPersistence(candidate, latest)).toEqual({ action: "skip" });
 	});
 
-	test("records meaningful autosave changes after enough time or size delta", () => {
-		const latest = {
-			contentHash: "previous",
-			content: "one two three",
-			name: "Alpha.md",
-			createdAt: new Date("2026-05-21T10:00:00.000Z"),
-		};
-
+	test("skips whitespace-only and one-or-two-char edits", () => {
+		const latest = latestWith("one two three", "2026-05-21T10:00:00.000Z");
 		expect(
-			shouldPersistNoteVersion(
-				{
-					name: "Alpha.md",
-					content: "one two three four five six seven eight nine ten",
-					richContent: [],
-					preferredEditorMode: "block",
-					parentId: null,
-					tags: [],
-					reason: "autosave",
-					createdAt: new Date("2026-05-21T10:06:00.000Z"),
-				},
+			decideNoteVersionPersistence(
+				candidateWith("one  two three\n", "2026-05-21T11:00:00.000Z"),
 				latest,
 			),
-		).toBe(true);
+		).toEqual({ action: "skip" });
+		expect(
+			decideNoteVersionPersistence(
+				candidateWith("one two three!", "2026-05-21T11:00:00.000Z"),
+				latest,
+			),
+		).toEqual({ action: "skip" });
+	});
+
+	test("coalesces same-burst meaningful edits into the latest row", () => {
+		const latest = latestWith("one two three", "2026-05-21T10:00:00.000Z");
+		expect(
+			decideNoteVersionPersistence(
+				candidateWith("one two three four five six", "2026-05-21T10:00:30.000Z"),
+				latest,
+			),
+		).toEqual({ action: "coalesce", versionId: "v1" });
+	});
+
+	test("inserts meaningful edits after the coalesce window", () => {
+		const latest = latestWith("one two three", "2026-05-21T10:00:00.000Z");
+		const after = new Date(
+			new Date("2026-05-21T10:00:00.000Z").getTime() + NOTE_VERSION_COALESCE_WINDOW_MS,
+		).toISOString();
+		expect(
+			decideNoteVersionPersistence(
+				candidateWith("one two three four five six", after),
+				latest,
+			),
+		).toEqual({ action: "insert" });
+	});
+
+	test("explicit reasons always insert on change and never coalesce", () => {
+		const latest = latestWith("one two three", "2026-05-21T10:00:00.000Z", "restore");
+		expect(
+			decideNoteVersionPersistence(
+				candidateWith("one two three four five six", "2026-05-21T10:00:05.000Z"),
+				latest,
+			),
+		).toEqual({ action: "insert" });
+
+		const autosaveLatest = latestWith("one two three", "2026-05-21T10:00:00.000Z");
+		expect(
+			decideNoteVersionPersistence(
+				{
+					...candidateWith("one two three four", "2026-05-21T10:00:05.000Z"),
+					reason: "rename" as const,
+				},
+				autosaveLatest,
+			),
+		).toEqual({ action: "insert" });
 	});
 
 	test("formats version metadata for the sidebar", () => {

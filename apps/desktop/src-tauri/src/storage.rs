@@ -209,8 +209,9 @@ pub struct NoteLinkReplacement {
 
 /// Candidate backlink sources for a target note, plus the ambiguity verdict for
 /// each of the target's title keys. The TS side does the final mapping to
-/// `ResolvedNoteLink[]` so the output is byte-identical to `buildNoteBacklinks`:
-/// a title-key match only counts when that key resolves to a single note.
+/// `ResolvedNoteLink[]`. Title-key matches count even when the key is shared by
+/// multiple notes (matching web server resolution); `ambiguous_title_keys` is
+/// informational.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BacklinkSources {
@@ -317,8 +318,8 @@ CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id);
 -- Normalized title keys per note, mirroring the TS title index: each note
 -- contributes its file-name key and its heading-title key (both computed in TS
 -- so the same regex stays the single source of truth). Backlink resolution uses
--- this to decide whether a `[[wiki]]` title is unique (resolved) or shared
--- (ambiguous → not a backlink), matching `buildNoteBacklinks` exactly.
+-- this to report which `[[wiki]]` title keys are shared by multiple notes;
+-- shared titles still count as backlinks of every match, like the web server.
 CREATE TABLE IF NOT EXISTS note_titles (
 	note_id   TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
 	title_key TEXT NOT NULL
@@ -521,18 +522,63 @@ impl Storage {
     }
 
     /// Full-text search over note name + content, ranked by FTS5 relevance.
-    pub fn search_notes(&self, query: &str, limit: i64) -> rusqlite::Result<Vec<SearchHit>> {
-        let match_expr = match build_fts_match(query) {
-            Some(expr) => expr,
+    /// `tags` (from `tag:`/`#` operators) AND-filter on note_links tag rows;
+    /// `people` (from `person:`/`$` operators, lowercase name fragments)
+    /// AND-filter on note_links person rows joined to the people table. With no
+    /// free text the filters run alone, ordered by recency.
+    pub fn search_notes(
+        &self,
+        query: &str,
+        tags: &[String],
+        people: &[String],
+        limit: i64,
+    ) -> rusqlite::Result<Vec<SearchHit>> {
+        let tag_clause = " AND EXISTS (SELECT 1 FROM note_links l WHERE l.source_note_id = n.id AND l.kind = 'tag' AND l.target_label = ?)";
+        let person_clause = " AND EXISTS (SELECT 1 FROM note_links l JOIN people p ON p.id = l.target_label WHERE l.source_note_id = n.id AND l.kind = 'person' AND LOWER(p.name) LIKE ?)";
+        let filter_clauses =
+            [tag_clause.repeat(tags.len()), person_clause.repeat(people.len())].concat();
+        let person_patterns: Vec<String> =
+            people.iter().map(|name| format!("%{name}%")).collect();
+        let conn = self.lock();
+
+        let (sql, text_param) = match build_fts_match(query) {
+            Some(expr) => (
+                [
+                    "SELECT n.id, n.name, snippet(notes_fts, 1, '[', ']', '\u{2026}', 12) ",
+                    "FROM notes_fts JOIN notes n ON n.rowid = notes_fts.rowid ",
+                    "WHERE notes_fts MATCH ?",
+                    &filter_clauses,
+                    " ORDER BY rank LIMIT ?",
+                ]
+                .concat(),
+                Some(expr),
+            ),
+            None if !tags.is_empty() || !people.is_empty() => (
+                [
+                    "SELECT n.id, n.name, substr(n.content, 1, 120) ",
+                    "FROM notes n WHERE 1=1",
+                    &filter_clauses,
+                    " ORDER BY n.modified_at DESC LIMIT ?",
+                ]
+                .concat(),
+                None,
+            ),
             None => return Ok(Vec::new()),
         };
-        let conn = self.lock();
-        let mut stmt = conn.prepare_cached(
-            "SELECT n.id, n.name, snippet(notes_fts, 1, '[', ']', '…', 12) \
-			 FROM notes_fts JOIN notes n ON n.rowid = notes_fts.rowid \
-			 WHERE notes_fts MATCH ?1 ORDER BY rank LIMIT ?2",
-        )?;
-        let rows = stmt.query_map(params![match_expr, limit], |row| {
+
+        let mut stmt = conn.prepare(&sql)?;
+        let mut values: Vec<&dyn rusqlite::types::ToSql> = Vec::new();
+        if let Some(expr) = &text_param {
+            values.push(expr);
+        }
+        for tag in tags {
+            values.push(tag);
+        }
+        for pattern in &person_patterns {
+            values.push(pattern);
+        }
+        values.push(&limit);
+        let rows = stmt.query_map(values.as_slice(), |row| {
             Ok(SearchHit {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -695,6 +741,11 @@ impl Storage {
     ) -> rusqlite::Result<BacklinkSources> {
         let conn = self.lock();
 
+        // A wiki link whose title is shared by multiple notes counts as a
+        // backlink of each of them, matching the web server's note_links
+        // resolution — ambiguity surfaces more backlinks rather than hiding
+        // them. `ambiguous_title_keys` stays in the payload so the UI can
+        // still flag duplicate-title matches if it wants to.
         let mut ambiguous_title_keys = Vec::new();
         {
             let mut count_stmt = conn.prepare_cached(
@@ -711,13 +762,11 @@ impl Storage {
             }
         }
 
-        let resolvable_keys: Vec<&String> = title_keys
+        let key_set: std::collections::HashSet<&str> = title_keys
             .iter()
-            .filter(|key| !key.is_empty() && !ambiguous_title_keys.contains(key))
+            .filter(|key| !key.is_empty())
+            .map(|k| k.as_str())
             .collect();
-
-        let key_set: std::collections::HashSet<&str> =
-            resolvable_keys.iter().map(|k| k.as_str()).collect();
 
         let mut stmt = conn.prepare(
             "SELECT DISTINCT l.kind, l.raw, l.target_label, l.alias, l.target_note_id, \
@@ -975,14 +1024,16 @@ impl Storage {
     ) -> rusqlite::Result<Option<crate::versioning::LatestVersionLean>> {
         let conn = self.lock();
         let mut stmt = conn.prepare_cached(
-            "SELECT content_hash, created_at, content FROM note_versions \
+            "SELECT id, content_hash, created_at, content, reason FROM note_versions \
 				 WHERE note_id = ?1 ORDER BY created_at DESC LIMIT 1",
         )?;
         let mut rows = stmt.query_map(params![note_id], |row| {
             Ok(crate::versioning::LatestVersionLean {
-                content_hash: row.get(0)?,
-                created_at: row.get(1)?,
-                content: row.get(2)?,
+                id: row.get(0)?,
+                content_hash: row.get(1)?,
+                created_at: row.get(2)?,
+                content: row.get(3)?,
+                reason: row.get(4)?,
             })
         })?;
         match rows.next() {
@@ -991,9 +1042,9 @@ impl Storage {
         }
     }
 
-    /// Applies the should-persist dedupe/throttle check against the note's
-    /// latest version, then inserts and prunes if it passes. Returns the new
-    /// row's id, or `None` if the snapshot wasn't worth persisting.
+    /// Applies the dedupe/trivial-edit/coalesce decision against the note's
+    /// latest version, then inserts (or overwrites the latest row) and prunes.
+    /// Returns the persisted row's id, or `None` if the snapshot was skipped.
     pub fn insert_note_version(
         &self,
         note_id: &str,
@@ -1002,8 +1053,13 @@ impl Storage {
         created_at: i64,
     ) -> rusqlite::Result<Option<String>> {
         let latest = self.latest_note_version_lean(note_id)?;
-        if !crate::versioning::should_persist(snapshot, reason, created_at, latest.as_ref()) {
-            return Ok(None);
+        match crate::versioning::decide(snapshot, reason, created_at, latest.as_ref()) {
+            crate::versioning::VersionDecision::Skip => return Ok(None),
+            crate::versioning::VersionDecision::Coalesce(version_id) => {
+                self.update_existing_note_version(&version_id, note_id, snapshot)?;
+                return Ok(Some(version_id));
+            }
+            crate::versioning::VersionDecision::Insert => {}
         }
 
         let id = uuid::Uuid::new_v4().to_string();
@@ -1496,24 +1552,107 @@ mod tests {
             .unwrap();
 
         // content match
-        let hits = store.search_notes("milk", 10).unwrap();
+        let hits = store.search_notes("milk", &[], &[], 10).unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].id, "n1");
         assert!(hits[0].snippet.contains('['));
 
         // name match + prefix
-        assert_eq!(store.search_notes("road", 10).unwrap()[0].id, "n2");
+        assert_eq!(store.search_notes("road", &[], &[], 10).unwrap()[0].id, "n2");
 
         // edits flow through the UPDATE trigger
         store
             .upsert_note(&note_with("n2", "Roadmap.md", "ship the mobile build"))
             .unwrap();
-        assert!(store.search_notes("desktop", 10).unwrap().is_empty());
-        assert_eq!(store.search_notes("mobile", 10).unwrap()[0].id, "n2");
+        assert!(store.search_notes("desktop", &[], &[], 10).unwrap().is_empty());
+        assert_eq!(store.search_notes("mobile", &[], &[], 10).unwrap()[0].id, "n2");
 
         // delete removes from the index
         store.delete_note("n1").unwrap();
-        assert!(store.search_notes("milk", 10).unwrap().is_empty());
+        assert!(store.search_notes("milk", &[], &[], 10).unwrap().is_empty());
+    }
+
+    #[test]
+    fn search_filters_by_tag_operator() {
+        fn tag_link(tag: &str) -> NoteLinkInput {
+            NoteLinkInput {
+                kind: "tag".to_string(),
+                raw: format!("#{tag}"),
+                target_label: tag.to_string(),
+                alias: None,
+                target_note_id: None,
+                target_title_key: None,
+            }
+        }
+
+        let store = Storage::open(Path::new(":memory:")).unwrap();
+        store
+            .upsert_note(&note_with("n1", "Groceries.md", "buy oat milk"))
+            .unwrap();
+        store
+            .upsert_note(&note_with("n2", "Recipes.md", "oat pancakes"))
+            .unwrap();
+        store
+            .replace_note_links("n1", &[tag_link("food")], &["groceries".to_string()])
+            .unwrap();
+        store
+            .replace_note_links(
+                "n2",
+                &[tag_link("food"), tag_link("cooking")],
+                &["recipes".to_string()],
+            )
+            .unwrap();
+
+        // text + tag narrows the FTS hits
+        let hits = store
+            .search_notes("oat", &["cooking".to_string()], &[], 10)
+            .unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, "n2");
+
+        // tags AND together
+        assert!(store
+            .search_notes("oat", &["food".to_string(), "missing".to_string()], &[], 10)
+            .unwrap()
+            .is_empty());
+
+        // tag-only query (no free text) lists matching notes
+        let tag_only = store.search_notes("", &["food".to_string()], &[], 10).unwrap();
+        assert_eq!(tag_only.len(), 2);
+
+        // person filter joins people by name fragment, case-insensitive
+        store.create_person("p1", "Ann Example", None).unwrap();
+        store
+            .replace_note_links(
+                "n1",
+                &[
+                    tag_link("food"),
+                    NoteLinkInput {
+                        kind: "person".to_string(),
+                        raw: "$Ann Example".to_string(),
+                        target_label: "p1".to_string(),
+                        alias: None,
+                        target_note_id: None,
+                        target_title_key: None,
+                    },
+                ],
+                &["groceries".to_string()],
+            )
+            .unwrap();
+        let by_person = store
+            .search_notes("", &[], &["ann".to_string()], 10)
+            .unwrap();
+        assert_eq!(by_person.len(), 1);
+        assert_eq!(by_person[0].id, "n1");
+        let with_text = store
+            .search_notes("oat", &[], &["ann".to_string()], 10)
+            .unwrap();
+        assert_eq!(with_text.len(), 1);
+        assert_eq!(with_text[0].id, "n1");
+        assert!(store
+            .search_notes("", &[], &["nobody".to_string()], 10)
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -1522,8 +1661,8 @@ mod tests {
         store
             .upsert_note(&note_with("n1", "Note.md", "content"))
             .unwrap();
-        assert!(store.search_notes("   ", 10).unwrap().is_empty());
-        assert!(store.search_notes("!!! ??? \"", 10).unwrap().is_empty());
+        assert!(store.search_notes("   ", &[], &[], 10).unwrap().is_empty());
+        assert!(store.search_notes("!!! ??? \"", &[], &[], 10).unwrap().is_empty());
     }
 
     #[test]
@@ -1536,7 +1675,7 @@ mod tests {
             ])
             .unwrap();
         assert_eq!(store.list_notes().unwrap().len(), 2);
-        assert_eq!(store.search_notes("second", 10).unwrap()[0].id, "n2");
+        assert_eq!(store.search_notes("second", &[], &[], 10).unwrap()[0].id, "n2");
     }
 
     #[test]
@@ -1754,7 +1893,7 @@ mod tests {
     }
 
     #[test]
-    fn ambiguous_title_is_not_a_backlink() {
+    fn ambiguous_title_is_a_backlink_of_every_match() {
         let store = Storage::open(Path::new(":memory:")).unwrap();
         store.upsert_note(&note_with("a1", "Dup.md", "")).unwrap();
         store.upsert_note(&note_with("a2", "Dup.md", "")).unwrap();
@@ -1780,10 +1919,16 @@ mod tests {
             .get_backlink_sources("a1", &["dup".to_string()])
             .unwrap();
         assert_eq!(got.ambiguous_title_keys, vec!["dup".to_string()]);
-        assert!(
-            got.sources.is_empty(),
-            "an ambiguous title key must not yield a backlink source"
+        assert_eq!(
+            ids(&got),
+            vec!["src".to_string()],
+            "a shared title key still yields a backlink source, like the web server"
         );
+
+        let other = store
+            .get_backlink_sources("a2", &["dup".to_string()])
+            .unwrap();
+        assert_eq!(ids(&other), vec!["src".to_string()]);
     }
 
     #[test]
@@ -1933,11 +2078,22 @@ mod tests {
             .unwrap();
         assert!(dup.is_none(), "identical content must not create a second row");
 
-        let changed = store
-            .insert_note_version("n1", &version_snapshot("hello world"), "checkpoint", 2)
+        let coalesced = store
+            .insert_note_version("n1", &version_snapshot("hello wide world"), "checkpoint", 2)
             .unwrap();
-        assert!(changed.is_some());
+        assert_eq!(coalesced, first, "same-burst change must overwrite the latest row");
+        assert_eq!(store.list_note_versions("n1", 10).unwrap().len(), 1);
 
+        let after_window = store
+            .insert_note_version(
+                "n1",
+                &version_snapshot("hello brand new world"),
+                "checkpoint",
+                2 + crate::versioning::COALESCE_WINDOW_MS,
+            )
+            .unwrap();
+        assert!(after_window.is_some());
+        assert_ne!(after_window, first);
         assert_eq!(store.list_note_versions("n1", 10).unwrap().len(), 2);
     }
 

@@ -19,9 +19,27 @@ export const THEMES = [
 	},
 	{
 		id: "mocha",
-		label: "Mocha",
-		swatchFrom: "hsl(25 20% 7%)",
-		swatchTo: "hsl(28 16% 25%)",
+		label: "Catppuccin Mocha",
+		swatchFrom: "hsl(240 21% 15%)",
+		swatchTo: "hsl(267 84% 81%)",
+	},
+	{
+		id: "rose-pine",
+		label: "Rosé Pine",
+		swatchFrom: "hsl(249 22% 12%)",
+		swatchTo: "hsl(2 55% 83%)",
+	},
+	{
+		id: "gruvbox",
+		label: "Gruvbox",
+		swatchFrom: "hsl(0 0% 16%)",
+		swatchTo: "hsl(35 87% 55%)",
+	},
+	{
+		id: "tokyo-night",
+		label: "Tokyo Night",
+		swatchFrom: "hsl(235 22% 12%)",
+		swatchTo: "hsl(221 74% 74%)",
 	},
 ] as const;
 

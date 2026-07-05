@@ -38,7 +38,6 @@ import {
 } from "@/shared/ui/context-menu";
 import { NoteNameLabel } from "./note-name-label";
 import { useSidebarStore } from "./sidebar/store";
-import { usePreferencesStore } from "@/features/settings/store";
 import { SidebarTreeRowSkeleton } from "./sidebar/sidebar-tree-skeleton";
 import { NoteSendContextSubmenu, NoteSendMobileActionBlock } from "./note-send-menu";
 import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
@@ -138,7 +137,6 @@ export const FileList = memo(function FileList({
 		useSidebarStore();
 	const customSections = config.sections.filter((section) => section.type === "custom");
 	const isMobile = useIsMobile();
-	const showPageIcons = usePreferencesStore((s) => s.appearance.showPageIcons);
 	const listRef = useRef<HTMLDivElement>(null);
 	const itemButtonRefs = useRef(new Map<string, HTMLButtonElement>());
 	const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1970,12 +1968,7 @@ export const FileList = memo(function FileList({
 							style={{ caretColor: "currentColor" }}
 						/>
 					) : (
-						<>
-							{showPageIcons && file.icon && (
-								<span className="mr-1.5 shrink-0 text-xs">{file.icon}</span>
-							)}
-							<NoteNameLabel name={file.name} className="truncate select-none" />
-						</>
+						<NoteNameLabel name={file.name} className="truncate select-none" />
 					)}
 				</span>
 			</button>

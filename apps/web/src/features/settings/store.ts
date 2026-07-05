@@ -24,6 +24,7 @@ import type {
 	PreferencesProfile,
 	PrivacyPreferences,
 	ProfilePreferences,
+	QuickAccessPreferences,
 } from "./preferences/types";
 
 // Re-exported for the few public consumers that import these from the store.
@@ -40,6 +41,7 @@ type PreferencesState = {
 	journal: JournalPreferences;
 	privacy: PrivacyPreferences;
 	ai: AiPreferences;
+	quickAccess: QuickAccessPreferences;
 	amountOfNotes: number;
 	activity: ActivityItem[];
 	initialize: () => void;
@@ -60,6 +62,10 @@ type PreferencesState = {
 		value: PrivacyPreferences[K],
 	) => void;
 	updateAiPreference: <K extends keyof AiPreferences>(key: K, value: AiPreferences[K]) => void;
+	updateQuickAccessPreference: <K extends keyof QuickAccessPreferences>(
+		key: K,
+		value: QuickAccessPreferences[K],
+	) => void;
 	addAiKey: (key: AiKey) => void;
 	removeAiKey: (id: string) => void;
 	setActiveAiKey: (id: string | null) => void;
@@ -69,7 +75,7 @@ type PreferencesState = {
 	incrementNoteCount: () => void;
 	logActivity: (action: ActivityAction) => void;
 	syncUserScope: (userScopeId: string) => void;
-}
+};
 
 /**
  * Flatten a profile onto the top-level store state for ergonomic access
@@ -86,6 +92,7 @@ function projectProfile(userScopeId: string, profile: PreferencesProfile) {
 		journal: profile.journal,
 		privacy: profile.privacy,
 		ai: profile.ai,
+		quickAccess: profile.quickAccess,
 		amountOfNotes: profile.amountOfNotes,
 		activity: profile.activity,
 	} satisfies Partial<PreferencesState>;
@@ -195,6 +202,13 @@ export const usePreferencesStore = create<PreferencesState>()(
 					mutate((profile) => ({
 						...profile,
 						ai: { ...profile.ai, [key]: value },
+					}));
+				},
+
+				updateQuickAccessPreference: (key, value) => {
+					mutate((profile) => ({
+						...profile,
+						quickAccess: { ...profile.quickAccess, [key]: value },
 					}));
 				},
 

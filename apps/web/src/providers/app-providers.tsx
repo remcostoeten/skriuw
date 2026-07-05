@@ -17,12 +17,14 @@ import { ShortcutProvider } from "@/core/shortcuts";
 import { CommandProvider } from "@/core/commands";
 import { GlobalCommandPaletteMount } from "@/features/layout/components/global-command-palette-mount";
 import { QuickSwitcherMount } from "@/features/notes/components/quick-switcher-mount";
+import { QuickAccessMount } from "@/features/quick-access/quick-access-mount";
 import { PendingCollabReplay } from "@/features/collaboration/components/pending-collab-replay";
 import { DesktopIndexSync } from "@/features/desktop/desktop-index-sync";
 import { DesktopQuitShortcut } from "@/features/desktop/desktop-quit-shortcut";
 import { DesktopToggleSize } from "@/features/desktop/desktop-toggle-size";
 import { WindowControls } from "@/features/desktop/window-controls";
 import { UserToastHost } from "@/shared/ui/user-toast-host";
+import { PerfDevtools } from "@/shared/devtools";
 import { EDITOR_PREFERENCES_STORAGE_KEY } from "@/features/settings/lib/editor-preferences";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
 
@@ -88,8 +90,6 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 					<ProtectedAppGuard>
 						<WorkspaceBackendProvider>
 							<DesktopIndexSync />
-							<DesktopQuitShortcut />
-							<DesktopToggleSize />
 							<WindowControls />
 							<PersistenceBootstrap />
 							<GuestWorkspaceBootstrap />
@@ -97,14 +97,18 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 							<WorkspaceWarmup />
 							<ThemeAttribute />
 							<ShortcutProvider>
+								<DesktopQuitShortcut />
+								<DesktopToggleSize />
 								<CommandProvider>
 									{children}
 									<GlobalCommandPaletteMount />
 									<QuickSwitcherMount />
+									<QuickAccessMount />
 								</CommandProvider>
 							</ShortcutProvider>
 							<PendingCollabReplay />
 							<UserToastHost />
+							<PerfDevtools />
 						</WorkspaceBackendProvider>
 					</ProtectedAppGuard>
 				</TooltipProvider>

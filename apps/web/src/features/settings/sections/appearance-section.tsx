@@ -52,19 +52,13 @@ export function AppearanceSection() {
 						?.focus();
 				}}
 			>
-				{THEMES.map((t, i) => (
+				{THEMES.map((t) => (
 					<button
 						key={t.id}
 						type="button"
 						role="radio"
 						data-theme-id={t.id}
 						aria-checked={appearance.theme === t.id}
-						tabIndex={
-							appearance.theme === t.id ||
-							(i === 0 && !THEMES.some((x) => x.id === appearance.theme))
-								? 0
-								: -1
-						}
 						onClick={() => update("theme", t.id)}
 						className={cn(
 							"group rounded-lg border p-2 text-left transition-colors",

@@ -12,6 +12,7 @@ import type {
 } from "@/domain/notes/models";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { normalizeNoteProperties } from "@/domain/notes/properties";
+import { NOTE_VERSION_RETENTION_LIMIT } from "@/domain/notes/versioning";
 import type {
 	FolderId,
 	IsoTime,
@@ -143,7 +144,10 @@ export async function listNoteMetadata(): Promise<NoteFile[]> {
 	return records.map(recordToNoteMetadata);
 }
 
-export async function listNoteVersions(noteId: string, limit = 12): Promise<NoteVersion[]> {
+export async function listNoteVersions(
+	noteId: string,
+	limit = NOTE_VERSION_RETENTION_LIMIT,
+): Promise<NoteVersion[]> {
 	if (isGuestScopedId(noteId)) return [];
 	const { prisma, user } = await getAuthenticatedUser();
 	// Versions are bookkept under the owner, so read under `ownerId` once the

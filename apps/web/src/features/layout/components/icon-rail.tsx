@@ -47,8 +47,10 @@ import {
 	useWorkspaceCapabilities,
 } from "@/core/workspace-backend";
 import { useShortcutHint } from "@/core/shortcuts";
+import { goto, useGotoTarget, type GotoDestination } from "@/core/quick-access";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { useSettingsModal } from "@/features/settings/use-settings-modal";
+import type { ReactNode } from "react";
 
 const authDrawerConfig = {
 	ui: {
@@ -82,6 +84,73 @@ function resolveAuthDrawerMode(value: string | null): AuthDrawerInitialMode | nu
 function resolveNextDestination(value: string | null): string | null {
 	if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
 	return value;
+}
+
+const iconButtonClass =
+	"relative flex h-9 w-9 items-center justify-center rounded-lg border transition-colors duration-200";
+
+const inactiveNavClass =
+	"border-transparent text-sidebar-foreground/52 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
+
+type RailNavItemProps = {
+	href: string;
+	label: string;
+	requiresAuth?: boolean;
+	isActive: boolean;
+	icon: (active: boolean) => ReactNode;
+	gotoKeybind: string;
+	gotoDestination: GotoDestination;
+	isAuthenticated: boolean;
+	onRequireAuth: (href: string) => void;
+};
+
+function RailNavItem({
+	href,
+	label,
+	requiresAuth,
+	isActive,
+	icon,
+	gotoKeybind,
+	gotoDestination,
+	isAuthenticated,
+	onRequireAuth,
+}: RailNavItemProps) {
+	const gotoRef = useGotoTarget({ keybind: gotoKeybind, to: gotoDestination });
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				{requiresAuth && !isAuthenticated ? (
+					<button
+						ref={gotoRef}
+						type="button"
+						onClick={() => onRequireAuth(href)}
+						className={cn(iconButtonClass, inactiveNavClass)}
+						aria-label={label}
+					>
+						{icon(false)}
+					</button>
+				) : (
+					<Link
+						ref={gotoRef}
+						href={href}
+						prefetch
+						className={cn(
+							iconButtonClass,
+							isActive
+								? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
+								: inactiveNavClass,
+						)}
+						aria-label={label}
+						aria-current={isActive ? "page" : undefined}
+					>
+						{icon(isActive)}
+					</Link>
+				)}
+			</TooltipTrigger>
+			<TooltipContent side="right">{label}</TooltipContent>
+		</Tooltip>
+	);
 }
 
 function getPathWithoutAuthParams(pathname: string, searchParams: URLSearchParams): string {
@@ -216,6 +285,8 @@ export function IconRail() {
 		{
 			href: "/app",
 			label: "Notes",
+			gotoKeybind: "n",
+			gotoDestination: goto.route.notes,
 			isActive: pathname === "/app",
 			icon: (active: boolean) =>
 				showAnimatedIcons ? (
@@ -245,6 +316,8 @@ export function IconRail() {
 			// backend enables it; guests get the sign-in drawer.
 			requiresAuth: !capabilities.journal,
 			label: "Journal",
+			gotoKeybind: "j",
+			gotoDestination: goto.route.journal,
 			isActive: pathname === "/app/journal",
 			icon: (_active: boolean) =>
 				showAnimatedIcons ? (
@@ -256,6 +329,8 @@ export function IconRail() {
 		{
 			href: "/app/graph",
 			label: "Graph",
+			gotoKeybind: "g",
+			gotoDestination: goto.route.graph,
 			isActive: pathname === "/app/graph",
 			icon: (_active: boolean) =>
 				showAnimatedIcons ? (
@@ -267,6 +342,8 @@ export function IconRail() {
 		{
 			href: "/app/tags",
 			label: "Tags",
+			gotoKeybind: "t",
+			gotoDestination: goto.route.tags,
 			isActive: pathname.startsWith("/app/tags"),
 			icon: (_active: boolean) =>
 				showAnimatedIcons ? (
@@ -278,6 +355,8 @@ export function IconRail() {
 		{
 			href: "/app/people",
 			label: "People",
+			gotoKeybind: "p",
+			gotoDestination: goto.route.people,
 			isActive: pathname.startsWith("/app/people"),
 			icon: (_active: boolean) =>
 				showAnimatedIcons ? (
@@ -289,8 +368,12 @@ export function IconRail() {
 		{
 			href: "/app/activity",
 			label: "Activity",
+			gotoKeybind: "a",
+			gotoDestination: goto.route.activity,
 			isActive: pathname.startsWith("/app/activity"),
-			icon: (_active: boolean) => <Activity className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+			icon: (_active: boolean) => (
+				<Activity className="h-[18px] w-[18px]" strokeWidth={1.6} />
+			),
 		},
 	];
 	const trashNavItem = {
@@ -300,6 +383,8 @@ export function IconRail() {
 		// reachable; on web only the signed-in server backend enables it.
 		requiresAuth: !capabilities.trash,
 		label: "Trash",
+		gotoKeybind: "x",
+		gotoDestination: goto.route.trash,
 		isActive: pathname === "/app/trash",
 		icon: (_active: boolean) =>
 			showAnimatedIcons ? (
@@ -309,49 +394,13 @@ export function IconRail() {
 			),
 	};
 
-	const iconButtonClass =
-		"relative flex h-9 w-9 items-center justify-center rounded-lg border transition-colors duration-200";
-
-	const inactiveNavClass =
-		"border-transparent text-sidebar-foreground/52 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
-
-	const renderNavItem = ({
-		href,
-		label,
-		requiresAuth,
-		isActive,
-		icon,
-	}: (typeof navItems)[number] | typeof trashNavItem) => (
-		<Tooltip key={href}>
-			<TooltipTrigger asChild>
-				{requiresAuth && !isAuthenticated ? (
-					<button
-						type="button"
-						onClick={() => openAuthDrawerFor(href)}
-						className={cn(iconButtonClass, inactiveNavClass)}
-						aria-label={label}
-					>
-						{icon(false)}
-					</button>
-				) : (
-					<Link
-						href={href}
-						prefetch
-						className={cn(
-							iconButtonClass,
-							isActive
-								? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
-								: inactiveNavClass,
-						)}
-						aria-label={label}
-						aria-current={isActive ? "page" : undefined}
-					>
-						{icon(isActive)}
-					</Link>
-				)}
-			</TooltipTrigger>
-			<TooltipContent side="right">{label}</TooltipContent>
-		</Tooltip>
+	const renderNavItem = (item: (typeof navItems)[number] | typeof trashNavItem) => (
+		<RailNavItem
+			key={item.href}
+			{...item}
+			isAuthenticated={isAuthenticated}
+			onRequireAuth={openAuthDrawerFor}
+		/>
 	);
 
 	return (

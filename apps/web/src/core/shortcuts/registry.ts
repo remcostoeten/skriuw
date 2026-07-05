@@ -99,6 +99,15 @@ export const SHORTCUT_REGISTRY = {
 		preventDefault: true,
 		bindingGroup: "quick-switcher",
 	},
+	"app.gotoMode": {
+		keys: "ctrl+g",
+		scope: SCOPES.app,
+		group: "General",
+		label: "Go-to mode",
+		description: "Show quick-navigation hints and jump with a single key.",
+		except: false,
+		preventDefault: true,
+	},
 
 	"notes.commandPalette": {
 		keys: ["mod+k", "mod+shift+p"],
@@ -301,6 +310,15 @@ export const SHORTCUT_REGISTRY = {
 		group: "Notes",
 		label: "Focus sidebar search",
 		description: "Open the sidebar search field.",
+		preventDefault: true,
+	},
+	"notes.focusMetadata": {
+		keys: "ctrl+shift+slash",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Focus note inspector",
+		description: "Move focus to the note inspector (metadata) panel.",
+		except: false,
 		preventDefault: true,
 	},
 	"notes.findInNote": {
