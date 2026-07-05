@@ -31,13 +31,19 @@ import { buildSettingsCommandItems } from "@/features/settings/settings-command-
 import { THEMES } from "@/features/settings/preferences/themes";
 import {
 	focusActiveEditor,
+	focusActiveMetadataPanel,
 	focusActiveNoteTreeItem,
 	focusSplitEditorPane,
 } from "@/shared/lib/focus-editor";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { perf } from "@/shared/perf/track";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
-import { useRegisterCommands, useRegisterCommandItemsProvider, useActiveCommandScope, useCommandRegistry } from "@/core/commands";
+import {
+	useRegisterCommands,
+	useRegisterCommandItemsProvider,
+	useActiveCommandScope,
+	useCommandRegistry,
+} from "@/core/commands";
 import { parseCommandQuery } from "@/shared/ui/command-palette-model";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
@@ -698,13 +704,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			setSplitOrientation(orientation);
 			handleOpenBeside(neighbor.id);
 		},
-		[
-			activeFileId,
-			files,
-			handleOpenBeside,
-			setSplitOrientation,
-			splitSecondaryFileId,
-		],
+		[activeFileId, files, handleOpenBeside, setSplitOrientation, splitSecondaryFileId],
 	);
 
 	const restoreEditorFocusAfterLayoutChange = useCallback(() => {
@@ -766,6 +766,18 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		});
 	}, [activeFileId, focusedEditorPane, setUIState, showSidebar, splitSecondaryFileId]);
 
+	const handleFocusMetadata = useCallback(() => {
+		triggerNativeFeedback("selection");
+		if (!showMetadata) {
+			setUIState({ showMetadata: true });
+		}
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				focusActiveMetadataPanel();
+			});
+		});
+	}, [setUIState, showMetadata]);
+
 	const handleFocusSplitPane = useCallback(
 		(direction: 1 | -1) => {
 			if (!splitSecondaryFileId) return;
@@ -774,9 +786,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				: ["primary", "secondary"];
 			const currentIndex = panes.indexOf(focusedEditorPane);
 			const nextIndex =
-				currentIndex === -1
-					? 0
-					: (currentIndex + direction + panes.length) % panes.length;
+				currentIndex === -1 ? 0 : (currentIndex + direction + panes.length) % panes.length;
 			const nextPane = panes[nextIndex] ?? "primary";
 			setFocusedEditorPane(nextPane);
 			requestAnimationFrame(() => {
@@ -815,12 +825,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	useEffect(() => {
 		if (!openInTabs || notesQuery.isPending) return;
 
-		function reconcile(
-			tabs: typeof primaryTabs,
-			ensureId: string | null,
-		): typeof primaryTabs {
+		function reconcile(tabs: typeof primaryTabs, ensureId: string | null): typeof primaryTabs {
 			const pruned = tabs.filter((tab) => fileById.has(tab.fileId));
-			if (ensureId && fileById.has(ensureId) && !pruned.some((tab) => tab.fileId === ensureId)) {
+			if (
+				ensureId &&
+				fileById.has(ensureId) &&
+				!pruned.some((tab) => tab.fileId === ensureId)
+			) {
 				return [...pruned, { fileId: ensureId, pinned: false }];
 			}
 			return pruned;
@@ -950,7 +961,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				activateTab(pane, fileId);
 			}
 		},
-		[activateTab, activeFileId, closeTabsToSide, flushContentInBackground, splitSecondaryFileId],
+		[
+			activateTab,
+			activeFileId,
+			closeTabsToSide,
+			flushContentInBackground,
+			splitSecondaryFileId,
+		],
 	);
 
 	const handleDropNoteOnTab = useCallback(
@@ -978,14 +995,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			}
 			activateTab(pane, droppedFileId);
 		},
-		[
-			activateTab,
-			addTab,
-			flushContentInBackground,
-			primaryTabs,
-			secondaryTabs,
-			setPaneTabs,
-		],
+		[activateTab, addTab, flushContentInBackground, primaryTabs, secondaryTabs, setPaneTabs],
 	);
 
 	const focusedPaneActiveId = useCallback(
@@ -1114,7 +1124,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			const content = templateBody?.content ?? generateNoteContent("Untitled");
 			const richContent = markdownToRichDocument(content);
 			const defaultTemplate = defaultPropertiesTemplateId
-				? NOTE_PROPERTY_TEMPLATES.find((template) => template.id === defaultPropertiesTemplateId)
+				? NOTE_PROPERTY_TEMPLATES.find(
+						(template) => template.id === defaultPropertiesTemplateId,
+					)
 				: null;
 			const properties = defaultTemplate?.build() ?? [];
 			const newId = crypto.randomUUID();
@@ -1329,6 +1341,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			case "focusEditor":
 				window.setTimeout(() => focusActiveEditor(), 0);
 				break;
+			case "focusMetadata":
+				handleFocusMetadata();
+				break;
 			case "help":
 				handleOpenShortcutHelp();
 				break;
@@ -1342,6 +1357,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		const qs = params.toString();
 		router.replace(qs ? `/app?${qs}` : "/app", { scroll: false });
 	}, [
+		handleFocusMetadata,
 		handleOpenShortcutHelp,
 		handleToggleMetadata,
 		handleToggleSidebar,
@@ -1615,7 +1631,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 		for (const file of metadataFiles) {
 			const nameMatch = file.name.toLowerCase().includes(lowerQuery);
-			const tagMatch = (file.tags ?? []).some((tag) => tag.toLowerCase().includes(lowerQuery));
+			const tagMatch = (file.tags ?? []).some((tag) =>
+				tag.toLowerCase().includes(lowerQuery),
+			);
 			if (nameMatch || tagMatch) {
 				pushNote(file.id, file.name, "Notes");
 			}
@@ -1661,6 +1679,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		"notes.toggleMetadata": handleToggleMetadata,
 		"notes.toggleEditor": handleToggleEditorMode,
 		"notes.focusFileTree": handleFocusFileTree,
+		"notes.focusMetadata": handleFocusMetadata,
 		"notes.toggleSplit": handleToggleSplit,
 		"notes.splitHorizontal": handleSplitHorizontal,
 		"notes.closeTab": handleCloseFocusedTab,
@@ -1676,7 +1695,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	useRegisterCommandItemsProvider(
 		useCallback(() => {
 			return [...templateCommandItems, ...noteCommandItems];
-		}, [noteCommandItems, templateCommandItems])
+		}, [noteCommandItems, templateCommandItems]),
 	);
 
 	// The sidebar + main layout only need the notes metadata and folder lists,

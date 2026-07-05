@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
@@ -38,7 +38,6 @@ const MetadataPanel = dynamic(
 	() => import("./metadata-panel").then((mod) => ({ default: mod.MetadataPanel })),
 	{ ssr: false, loading: () => <NotesMetadataPlaceholder /> },
 );
-
 
 const ShortcutHelpDialog = dynamic(
 	() =>
@@ -177,12 +176,15 @@ export function NotesLayoutShell({
 	useFocusTrap(isMobile && showSidebar, mobileSidebarRef);
 	useFocusTrap(isMobile && showMetadata, mobileMetadataRef);
 	const mobileOverlayOpen = isMobile && (showSidebar || showMetadata);
-	const workspaceItems: WorkspaceNavItem[] = [
-		{ href: "/app", label: "Notes", isActive: pathname === "/app" },
-		{ href: "/app/journal", label: "Journal", isActive: pathname === "/app/journal" },
-		{ href: "/app/graph", label: "Graph", isActive: pathname === "/app/graph" },
-		{ href: "/app/shared", label: "Shared", isActive: pathname === "/app/shared" },
-	];
+	const workspaceItems = useMemo<WorkspaceNavItem[]>(
+		() => [
+			{ href: "/app", label: "Notes", isActive: pathname === "/app" },
+			{ href: "/app/journal", label: "Journal", isActive: pathname === "/app/journal" },
+			{ href: "/app/graph", label: "Graph", isActive: pathname === "/app/graph" },
+			{ href: "/app/shared", label: "Shared", isActive: pathname === "/app/shared" },
+		],
+		[pathname],
+	);
 
 	// Local-first note swap: when moving to a note whose body isn't cached yet,
 	// keep the previously loaded note on screen instead of flashing the editor

@@ -7,6 +7,7 @@ import type {
 	PreferencesProfile,
 	PrivacyPreferences,
 	ProfilePreferences,
+	QuickAccessPreferences,
 } from "./types";
 
 export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
@@ -55,6 +56,16 @@ export const DEFAULT_AI_PREFERENCES: AiPreferences = {
 	translateLanguage: "auto",
 };
 
+export const DEFAULT_QUICK_ACCESS_PREFERENCES: QuickAccessPreferences = {
+	enabled: true,
+	allowInEditor: false,
+	gotoModeDuration: "2s",
+	showIndicators: true,
+	indicatorPosition: "top-right",
+	indicatorSize: "small",
+	indicatorOpacity: 0.95,
+};
+
 export function createDefaultProfile(): PreferencesProfile {
 	return {
 		editor: { ...DEFAULT_EDITOR_PREFERENCES },
@@ -63,6 +74,7 @@ export function createDefaultProfile(): PreferencesProfile {
 		journal: { ...DEFAULT_JOURNAL_PREFERENCES, recentMoods: [] },
 		privacy: { ...DEFAULT_PRIVACY_PREFERENCES },
 		ai: { ...DEFAULT_AI_PREFERENCES },
+		quickAccess: { ...DEFAULT_QUICK_ACCESS_PREFERENCES },
 		amountOfNotes: 0,
 		activity: [],
 	};
