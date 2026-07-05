@@ -21,17 +21,37 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Unit tests with coverage
-        run: bun scripts/coverage-tui.ts --json coverage.json --markdown >> "$GITHUB_STEP_SUMMARY"
+        run: bun scripts/coverage-tui.ts --json coverage.json --markdown coverage.md --threshold=65
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?sslmode=disable
 
-      - name: Upload coverage report
+      - name: Append coverage report to summary
+        if: always()
+        run: cat coverage.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-json
-          path: coverage.json
+          name: coverage-reports
+          path: |
+            coverage.json
+            coverage.md
           if-no-files-found: warn
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const coverage = fs.readFileSync('coverage.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: coverage
+            });
 
       - name: Lint
         run: bun run lint
