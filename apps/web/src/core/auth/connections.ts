@@ -2,6 +2,7 @@
 
 import { authClient } from "@/lib/auth-client";
 import { getOAuthRedirectTo, type OAuthProvider } from "@/core/auth";
+import { StepUpRequiredError, stepUpCodeFromPayload } from "@/core/auth/step-up";
 
 export type ProviderMeta = {
 	id: OAuthProvider;
@@ -75,18 +76,33 @@ export async function linkProvider(provider: OAuthProvider): Promise<void> {
 	}
 }
 
-/** Unlinks a provider, guarded server-side against removing the last login method. */
+/**
+ * Unlinks a provider, guarded server-side against removing the last login method
+ * and behind step-up re-authentication. When the server requires re-auth it
+ * throws a {@link StepUpRequiredError} carrying the reason so the caller can
+ * prompt for a password or a fresh OAuth sign-in.
+ */
 export async function unlinkProvider(input: {
 	providerId: string;
 	accountId?: string;
+	password?: string;
 }): Promise<void> {
 	const res = await fetch("/api/account/connections", {
 		method: "DELETE",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+	const payload = (await res.json().catch(() => null)) as
+		| { error?: string; code?: string }
+		| null;
 	if (!res.ok) {
+		const stepUpCode = stepUpCodeFromPayload(payload);
+		if (stepUpCode) {
+			throw new StepUpRequiredError(
+				stepUpCode,
+				payload?.error ?? "Re-authentication required.",
+			);
+		}
 		throw new Error(payload?.error ?? "Could not disconnect this account.");
 	}
 }
