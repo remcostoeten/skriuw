@@ -37,7 +37,11 @@
 	"scripts": {
 		"postinstall": "prisma generate && husky",
 		"dev": "bun run --cwd apps/web dev",
-		"prebuild": "bun run lint && bun run test:unit",
+		"prebuild": "bun run lint && bun run test:unit && bun run coverage:check",
+		"coverage:check": "bun scripts/coverage-tui.ts --json coverage.json --threshold=65",
+		"coverage:report": "bun scripts/coverage-tui.ts --markdown",
+		"coverage:dashboard": "bun scripts/coverage-dashboard.ts",
+		"coverage:badges": "bun scripts/coverage-badge.ts",
 		"build": "bun run --cwd apps/web build",
 		"build:verified": "bun scripts/verified-build.ts",
 		"start": "bun run --cwd apps/web start",
