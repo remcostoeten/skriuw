@@ -213,7 +213,9 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 			const currentEntry = entry;
 
 			const task = persistQueueRef.current
-				.catch(() => {})
+				.catch((err) => {
+					console.error("[persistJournalEntry] Previous persist failed:", err);
+				})
 				.then(async () => {
 					const nextTags = uniqueTags(draft.tags ?? currentEntry?.tags ?? []);
 					const nextMood =
@@ -289,7 +291,9 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 					}
 				});
 
-			persistQueueRef.current = task.catch(() => {});
+			persistQueueRef.current = task.catch((err) => {
+				console.error("[persistJournalEntry] Task failed:", err);
+			});
 			return task;
 		},
 		[

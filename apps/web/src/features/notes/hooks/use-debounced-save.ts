@@ -262,7 +262,9 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 		): Promise<void> {
 			const previousFlush = flushQueuesRef.current.get(noteId) ?? Promise.resolve();
 			const nextFlush = previousFlush
-				.catch(() => {})
+				.catch((err) => {
+					console.error(`[flush] Previous flush for ${noteId} failed:`, err);
+				})
 				.then(() => flushNow(noteId, flushOptions));
 
 			flushQueuesRef.current.set(noteId, nextFlush);
@@ -277,7 +279,16 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 
 		async function flushAll(flushOptions: { createCheckpoint?: boolean } = {}): Promise<void> {
 			const ids = new Set<string>([...pendingRef.current.keys(), ...dirtyRef.current]);
-			await Promise.all(Array.from(ids).map((id) => flush(id, flushOptions)));
+			const results = await Promise.allSettled(
+				Array.from(ids).map((id) => flush(id, flushOptions)),
+			);
+			const failures = results.filter((r) => r.status === "rejected");
+			if (failures.length > 0) {
+				console.error(
+					"[flushAll] Some notes failed to save:",
+					failures.map((f) => (f as PromiseRejectedResult).reason),
+				);
+			}
 		}
 
 		function discardPending(noteId: string) {
