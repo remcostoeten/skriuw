@@ -214,6 +214,37 @@ pub enum ConflictResolution {
     Rename,
 }
 
+impl ConflictResolution {
+    pub fn apply(
+        &self,
+        note: ExportedNote,
+        existing_names: &HashSet<String>,
+    ) -> Option<ExportedNote> {
+        match self {
+            ConflictResolution::Skip => {
+                if existing_names.contains(&note.name) {
+                    None
+                } else {
+                    Some(note)
+                }
+            }
+            ConflictResolution::Replace => Some(note),
+            ConflictResolution::Rename => {
+                let original_name = note.name.clone();
+                let mut renamed = note;
+                let mut counter = 1;
+
+                while existing_names.contains(&renamed.name) {
+                    renamed.name = format!("{} ({})", original_name, counter);
+                    counter += 1;
+                }
+
+                Some(renamed)
+            }
+        }
+    }
+}
+
 /// Build export JSON from workspace data
 pub fn build_export(
     notes: Vec<serde_json::Value>,
@@ -280,6 +311,30 @@ pub fn extract_archive_json(zip_path: &Path) -> Result<ExportArchive, String> {
         .map_err(|e| format!("Failed to read archive.json: {}", e))?;
 
     parse_import_archive(&json_str)
+}
+
+/// Apply conflict resolution strategy to imported notes
+pub fn apply_conflict_resolution(
+    notes: Vec<ExportedNote>,
+    existing_names: &[String],
+    strategy: ConflictResolution,
+) -> (Vec<ExportedNote>, usize) {
+    let existing_set: HashSet<String> = existing_names.iter().cloned().collect();
+    let mut resolved = Vec::new();
+    let mut skipped = 0;
+
+    for note in notes {
+        match strategy.apply(note, &existing_set) {
+            Some(n) => {
+                resolved.push(n.clone());
+            }
+            None => {
+                skipped += 1;
+            }
+        }
+    }
+
+    (resolved, skipped)
 }
 
 #[tauri::command]
@@ -450,5 +505,58 @@ mod tests {
         let result = extract_archive_json(Path::new("/nonexistent/archive.zip"));
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Failed to open ZIP"));
+    }
+
+    #[test]
+    fn test_conflict_resolution_skip() {
+        let notes = vec![
+            ExportedNote {
+                id: "n1".to_string(),
+                name: "Existing".to_string(),
+                content: "".to_string(),
+                created_at: "".to_string(),
+                modified_at: "".to_string(),
+                folder_id: None,
+                tags: vec![],
+            },
+            ExportedNote {
+                id: "n2".to_string(),
+                name: "New".to_string(),
+                content: "".to_string(),
+                created_at: "".to_string(),
+                modified_at: "".to_string(),
+                folder_id: None,
+                tags: vec![],
+            },
+        ];
+
+        let existing = vec!["Existing".to_string()];
+        let (resolved, skipped) =
+            apply_conflict_resolution(notes, &existing, ConflictResolution::Skip);
+
+        assert_eq!(resolved.len(), 1);
+        assert_eq!(skipped, 1);
+        assert_eq!(resolved[0].name, "New");
+    }
+
+    #[test]
+    fn test_conflict_resolution_rename() {
+        let notes = vec![
+            ExportedNote {
+                id: "n1".to_string(),
+                name: "Note".to_string(),
+                content: "".to_string(),
+                created_at: "".to_string(),
+                modified_at: "".to_string(),
+                folder_id: None,
+                tags: vec![],
+            },
+        ];
+
+        let existing = vec!["Note".to_string(), "Note (1)".to_string()];
+        let (resolved, _) =
+            apply_conflict_resolution(notes, &existing, ConflictResolution::Rename);
+
+        assert_eq!(resolved[0].name, "Note (2)");
     }
 }
