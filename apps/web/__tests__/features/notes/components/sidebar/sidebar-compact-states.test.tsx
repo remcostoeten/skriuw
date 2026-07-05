@@ -15,6 +15,17 @@ mock.module("@/features/journal/hooks/use-journal-entries", () => ({
 	useJournalEntries: () => ({ data: [] }),
 }));
 
+// sidebar-item-icon pulls in @/features/settings/store, whose
+// editor-preferences chain reaches @/core/db (server-only). Next's bundler
+// scopes that away from client bundles; bun:test's plain SSR render has no
+// such boundary, so the store hook is mocked out here like the other
+// sidebar deps.
+mock.module("@/features/settings/store", () => ({
+	usePreferencesStore: (
+		selector: (state: { appearance: { showAnimatedIcons: boolean } }) => unknown,
+	) => selector({ appearance: { showAnimatedIcons: false } }),
+}));
+
 describe("sidebar compact states", () => {
 	test("recents uses a compact sidebar-native empty state", async () => {
 		const { RecentsSection } = await import(
