@@ -15,6 +15,7 @@ import {
 	Folder,
 	FolderPlus,
 	FoldVertical,
+	LayoutTemplate,
 	PanelTopClose,
 	Search,
 	UnfoldVertical,
@@ -26,8 +27,12 @@ import {
 	ContextMenuItem,
 	ContextMenuSeparator,
 	ContextMenuShortcut,
+	ContextMenuSub,
+	ContextMenuSubContent,
+	ContextMenuSubTrigger,
 	ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
+import { NOTE_TEMPLATES } from "@/domain/notes/templates";
 import { useSidebarStore } from "./sidebar/store";
 import type { SidebarSection as SidebarSectionType } from "./sidebar/types";
 import {
@@ -61,7 +66,7 @@ type SidebarPanelProps = {
 	queries: NoteTreeQueries;
 	onCollapseAllFolders?: () => void;
 	onExpandAllFolders?: () => void;
-	onCreateFile: (options?: { projectId?: string }) => void;
+	onCreateFile: (options?: { projectId?: string; templateId?: string }) => void;
 	onCreateFolder: () => void;
 	onCreationParentChange?: (folderId: string | null) => void;
 	onOpenCommandPalette?: () => void;
@@ -905,6 +910,26 @@ export const SidebarPanel = memo(function SidebarPanel({
 									<ContextMenuShortcut>{newNoteHint}</ContextMenuShortcut>
 								)}
 							</ContextMenuItem>
+							<ContextMenuSub>
+								<ContextMenuSubTrigger className="gap-2">
+									<LayoutTemplate className="h-3.5 w-3.5" strokeWidth={1.6} />
+									New from template
+								</ContextMenuSubTrigger>
+								<ContextMenuSubContent className="w-52">
+									{NOTE_TEMPLATES.map((template) => (
+										<ContextMenuItem
+											key={template.id}
+											className="flex-col items-start gap-0.5"
+											onClick={() => onCreateFile({ templateId: template.id })}
+										>
+											<span>{template.name}</span>
+											<span className="text-[11px] text-muted-foreground">
+												{template.description}
+											</span>
+										</ContextMenuItem>
+									))}
+								</ContextMenuSubContent>
+							</ContextMenuSub>
 							<ContextMenuItem className="gap-2" onClick={onCreateFolder}>
 								<FolderPlus className="h-3.5 w-3.5" strokeWidth={1.6} />
 								New folder
