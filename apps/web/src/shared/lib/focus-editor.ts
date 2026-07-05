@@ -1,6 +1,9 @@
 function caretRangeFromPoint(x: number, y: number): Range | null {
 	const doc = document as Document & {
-		caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+		caretPositionFromPoint?: (
+			x: number,
+			y: number,
+		) => { offsetNode: Node; offset: number } | null;
 		caretRangeFromPoint?: (x: number, y: number) => Range | null;
 	};
 	if (typeof doc.caretPositionFromPoint === "function") {
@@ -79,7 +82,11 @@ function placeCaretInView(element: HTMLElement): void {
 	scrollCaretIntoView(selection, visibleTop, visibleBottom);
 }
 
-function scrollCaretIntoView(selection: Selection, visibleTop: number, visibleBottom: number): void {
+function scrollCaretIntoView(
+	selection: Selection,
+	visibleTop: number,
+	visibleBottom: number,
+): void {
 	if (selection.rangeCount === 0) return;
 	const range = selection.getRangeAt(0);
 	const rect = range.getBoundingClientRect();
@@ -174,7 +181,8 @@ export function focusActiveNoteTreeItem(targetFileId?: string): boolean {
 		);
 		if (revealHandled) return true;
 
-		const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(targetFileId) : targetFileId;
+		const escaped =
+			typeof CSS !== "undefined" && CSS.escape ? CSS.escape(targetFileId) : targetFileId;
 		const targetItem = document.querySelector<HTMLElement>(
 			`[data-note-tree-item-id="${escaped}"]`,
 		);
@@ -203,4 +211,18 @@ export function focusActiveNoteTreeItem(targetFileId?: string): boolean {
 	const tree = document.querySelector<HTMLElement>('[aria-label="Notes file tree"]');
 	tree?.focus();
 	return Boolean(tree);
+}
+
+const FOCUSABLE_SELECTOR =
+	'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+export function focusActiveMetadataPanel(): boolean {
+	if (typeof document === "undefined") return false;
+
+	const panel = document.querySelector<HTMLElement>("[data-metadata-panel]");
+	if (!panel) return false;
+
+	const firstFocusable = panel.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+	(firstFocusable ?? panel).focus();
+	return true;
 }

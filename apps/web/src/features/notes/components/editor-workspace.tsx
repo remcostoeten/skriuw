@@ -3,9 +3,13 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { EditorContainer } from "@/features/editor/components/editor-container";
 import { EditorToolbar } from "@/features/editor/components/editor-toolbar";
-import type { EditorSaveState, WorkspaceNavItem } from "@/features/editor/components/editor-toolbar";
+import type {
+	EditorSaveState,
+	WorkspaceNavItem,
+} from "@/features/editor/components/editor-toolbar";
 import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import { useNotesStore, type EditorPane, type SplitOrientation } from "@/features/notes/store";
+import { goto, useGotoTarget } from "@/core/quick-access";
 import { cn } from "@/shared/lib/utils";
 import type { NoteFile, NoteEditorMode, RichTextDocument } from "@/types/notes";
 import type { NoteProperty } from "@/domain/notes/properties";
@@ -104,6 +108,7 @@ export function EditorWorkspace({
 	tabBar,
 }: EditorWorkspaceProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
+	const editorGotoRef = useGotoTarget({ keybind: "e", to: goto.focus.editor });
 	const dragStartRef = useRef(0);
 	const [draggingPane, setDraggingPane] = useState<EditorPane | null>(null);
 	const [dragOffset, setDragOffset] = useState(0);
@@ -235,6 +240,7 @@ export function EditorWorkspace({
 					return (
 						<div
 							key={pane}
+							ref={isPrimary ? editorGotoRef : undefined}
 							data-editor-pane={pane}
 							className={cn(
 								"flex min-h-0 min-w-0 flex-1 flex-col",

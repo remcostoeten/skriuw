@@ -1,18 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, ChevronDown, Download, Loader2, Play, Radio, X } from "lucide-react";
+import { Check, ChevronDown, Download, Play, Radio, X } from "lucide-react";
+import { AsyncActionButton } from "@/shared/ui/async-action-button";
 import { DeleteButton } from "@/shared/ui/delete-button";
 import { MorphingLabel } from "@/shared/ui/morphing-label";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/shared/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import {
 	GroupLabel,
 	Row,
@@ -57,7 +52,13 @@ type InstallEvent =
 
 type PullEvent =
 	| { type: "status"; message: string }
-	| { type: "progress"; completed: number; total: number; percent: number; etaSeconds: number | null }
+	| {
+			type: "progress";
+			completed: number;
+			total: number;
+			percent: number;
+			etaSeconds: number | null;
+	  }
 	| { type: "done"; model: string }
 	| { type: "error"; message: string };
 
@@ -102,8 +103,6 @@ export function DesktopAiSection() {
 	const [pullState, setPullState] = useState<Record<string, PullState>>({});
 	const [keyDraft, setKeyDraft] = useState("");
 	const [notice, setNotice] = useState<string | null>(null);
-	const [pinging, setPinging] = useState(false);
-	const [pingResult, setPingResult] = useState<PingResult | null>(null);
 
 	const refreshOllama = useCallback(async () => {
 		const [nextStatus, nextCatalog] = await Promise.all([
@@ -133,7 +132,10 @@ export function DesktopAiSection() {
 			if (event.type === "progress") {
 				setInstallState({ percent: event.percent, message: "Downloading Ollama…" });
 			} else if (event.type === "status") {
-				setInstallState((prev) => ({ percent: prev?.percent ?? 0, message: event.message }));
+				setInstallState((prev) => ({
+					percent: prev?.percent ?? 0,
+					message: event.message,
+				}));
 			} else if (event.type === "done") {
 				setInstallState(null);
 				setNotice("Ollama installed and running.");
@@ -187,7 +189,10 @@ export function DesktopAiSection() {
 				} else if (event.type === "status") {
 					setPullState((prev) => ({
 						...prev,
-						[model]: { ...(prev[model] ?? { percent: 0, etaSeconds: null }), status: event.message },
+						[model]: {
+							...(prev[model] ?? { percent: 0, etaSeconds: null }),
+							status: event.message,
+						},
 					}));
 				} else if (event.type === "done") {
 					setPullState((prev) => {
@@ -242,24 +247,17 @@ export function DesktopAiSection() {
 		[refreshOllama],
 	);
 
-	const handlePing = useCallback(async () => {
-		setPinging(true);
-		setPingResult(null);
+	const handlePing = useCallback(async (): Promise<{ ok: boolean; label?: string }> => {
 		try {
 			const result = await tauriInvoke<PingResult>("ai_ping");
-			setPingResult(result);
+			return {
+				ok: result.ok,
+				label: result.ok ? `Replied in ${result.latencyMs}ms` : result.message,
+			};
 		} catch (error) {
-			setPingResult({
-				provider: config?.provider ?? "ollama",
-				model: "",
-				ok: false,
-				latencyMs: 0,
-				message: error instanceof Error ? error.message : String(error),
-			});
-		} finally {
-			setPinging(false);
+			return { ok: false, label: error instanceof Error ? error.message : String(error) };
 		}
-	}, [config]);
+	}, []);
 
 	const handleSaveKey = useCallback(async () => {
 		if (!config) return;
@@ -289,7 +287,11 @@ export function DesktopAiSection() {
 
 			<GroupLabel>Provider</GroupLabel>
 			<SettingsCard>
-				<Row focusId="desktop-provider" title="AI provider" description="Where title, spell-check, and continue-writing run.">
+				<Row
+					focusId="desktop-provider"
+					title="AI provider"
+					description="Where title, spell-check, and continue-writing run."
+				>
 					<Select
 						value={config.provider}
 						onValueChange={(value) => patchConfig({ provider: value as AiProvider })}
@@ -321,31 +323,15 @@ export function DesktopAiSection() {
 								: config.geminiModel
 					}
 				>
-					<Button variant="outline" size="sm" onClick={handlePing} disabled={pinging}>
-						{pinging ? (
-							<Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-						) : (
-							<Radio className="mr-1.5 h-3.5 w-3.5" />
-						)}
-						{pinging ? "Pinging\u2026" : "Send ping"}
-					</Button>
+					<AsyncActionButton
+						onRun={handlePing}
+						idleIcon={<Radio className="h-3.5 w-3.5" />}
+						label="Send ping"
+						pendingLabel="Pinging\u2026"
+						successLabel="Replied"
+						failedLabel="Failed"
+					/>
 				</Row>
-				{pingResult ? (
-					<div
-						className={`flex items-center gap-1.5 text-xs ${pingResult.ok ? "text-emerald-500" : "text-destructive"}`}
-					>
-						{pingResult.ok ? (
-							<Check className="h-3.5 w-3.5 shrink-0" />
-						) : (
-							<X className="h-3.5 w-3.5 shrink-0" />
-						)}
-						<span>
-							{pingResult.ok
-								? `Replied in ${pingResult.latencyMs}ms: "${pingResult.message}"`
-								: pingResult.message}
-						</span>
-					</div>
-				) : null}
 			</SettingsCard>
 
 			{config.provider === "ollama" ? (
@@ -377,7 +363,8 @@ export function DesktopAiSection() {
 								<div className="flex items-center gap-2">
 									{installState ? (
 										<span className="text-xs text-muted-foreground">
-											{installState.message} {Math.round(installState.percent)}%
+											{installState.message}{" "}
+											{Math.round(installState.percent)}%
 										</span>
 									) : null}
 									<Button
@@ -422,12 +409,18 @@ export function DesktopAiSection() {
 						) : null}
 
 						{installedModels.length > 0 ? (
-							<Row focusId="desktop-active-model" title="Active model" description="The local model used for AI actions.">
+							<Row
+								focusId="desktop-active-model"
+								title="Active model"
+								description="The local model used for AI actions."
+							>
 								<div className="relative w-48">
 									<select
 										className="h-10 w-full appearance-none rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
 										value={config.ollamaModel}
-										onChange={(event) => patchConfig({ ollamaModel: event.target.value })}
+										onChange={(event) =>
+											patchConfig({ ollamaModel: event.target.value })
+										}
 									>
 										{installedModels.map((entry) => (
 											<option key={entry.name} value={entry.name}>
@@ -460,13 +453,16 @@ export function DesktopAiSection() {
 												<div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
 													<div
 														className="h-full bg-foreground/70 transition-all"
-														style={{ width: `${Math.min(100, pull.percent)}%` }}
+														style={{
+															width: `${Math.min(100, pull.percent)}%`,
+														}}
 													/>
 												</div>
 												<div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
 													<span>{pull.status}</span>
 													<span>
-														{Math.round(pull.percent)}% {formatEta(pull.etaSeconds)}
+														{Math.round(pull.percent)}%{" "}
+														{formatEta(pull.etaSeconds)}
 													</span>
 												</div>
 											</div>
@@ -487,7 +483,9 @@ export function DesktopAiSection() {
 											variant="outline"
 											size="sm"
 											onClick={
-												pull ? () => handleCancelPull(entry.name) : () => handlePull(entry.name)
+												pull
+													? () => handleCancelPull(entry.name)
+													: () => handlePull(entry.name)
 											}
 											disabled={!pull && !status?.running}
 										>
@@ -542,7 +540,9 @@ export function DesktopAiSection() {
 							<Input
 								className="w-56"
 								defaultValue={
-									config.provider === "groq" ? config.groqModel : config.geminiModel
+									config.provider === "groq"
+										? config.groqModel
+										: config.geminiModel
 								}
 								onBlur={(event) =>
 									patchConfig(
@@ -557,7 +557,11 @@ export function DesktopAiSection() {
 							focusId="desktop-cloud-key"
 							title="API key"
 							description={
-								(config.provider === "groq" ? config.hasGroqKey : config.hasGeminiKey)
+								(
+									config.provider === "groq"
+										? config.hasGroqKey
+										: config.hasGeminiKey
+								)
 									? "A key is saved on this device. Enter a new one to replace it, or save empty to clear."
 									: "Stored locally in settings.json on this device."
 							}
@@ -567,7 +571,11 @@ export function DesktopAiSection() {
 									type="password"
 									className="w-56"
 									placeholder={
-										(config.provider === "groq" ? config.hasGroqKey : config.hasGeminiKey)
+										(
+											config.provider === "groq"
+												? config.hasGroqKey
+												: config.hasGeminiKey
+										)
 											? "••••••••"
 											: "Paste API key"
 									}

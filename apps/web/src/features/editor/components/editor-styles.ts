@@ -12,6 +12,9 @@ export const EDITOR_STYLES = `
 				.blocknote-wrapper .bn-editor .vim-visual ::selection {
 					background: hsl(var(--primary) / 0.34);
 				}
+				.blocknote-wrapper .bn-editor ::selection {
+					background: hsl(var(--editor-selection) / 0.6);
+				}
 				.blocknote-wrapper {
 					--bn-colors-editor-background: hsl(var(--card));
 					--bn-colors-editor-text: hsl(var(--card-foreground));

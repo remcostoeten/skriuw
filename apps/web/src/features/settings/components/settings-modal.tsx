@@ -9,6 +9,7 @@ import {
 	type RefAttributes,
 } from "react";
 import {
+	Compass,
 	Database,
 	Eye,
 	FlaskConical,
@@ -57,6 +58,7 @@ import { AccountSection } from "@/features/settings/sections/account-section";
 import { AppearanceSection } from "@/features/settings/sections/appearance-section";
 import { EditorSection } from "@/features/settings/sections/editor-section";
 import { ShortcutsSection } from "@/features/settings/sections/shortcuts-section";
+import { QuickAccessSection } from "@/features/settings/sections/quick-access-section";
 import { DataSection } from "@/features/settings/sections/data-section";
 import { PrivacySection } from "@/features/settings/sections/privacy-section";
 import { SecuritySection } from "@/features/settings/sections/security-section";
@@ -89,6 +91,8 @@ const SECTION_DEEP_KEYWORDS: Partial<Record<SettingsTabId, string>> = {
 		"compact sidebar tree guide lines show line numbers reduce motion remember last settings tab reopen persist",
 	editor: "vim mode default mode raw placeholder font line height animate numbers open notes in tabs detect tags note properties layout collapsed template custom properties",
 	shortcuts: "keyboard shortcuts custom keybinds remap",
+	"quick-access":
+		"go-to mode goto vimium hints navigation jump indicators duration shortcut quick access",
 	privacy: "analytics telemetry tracking opt out opt in",
 	tags: "merge rename delete organize",
 	data: "export import backup restore sync download json markdown simplenote migration vault storage",
@@ -135,7 +139,7 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 		description: "Theme and density",
 		group: "Workspace",
 		keywords:
-			"theme themes midnight paper graphite monokai dark light color scheme density compact spacing font typeface accent zoom sidebar line numbers reduce motion remember last tab reopen settings persist",
+			"theme themes midnight paper embers mocha catppuccin rose pine gruvbox tokyo night dark light color scheme density compact spacing font typeface accent zoom sidebar line numbers reduce motion remember last tab reopen settings persist",
 	},
 	{
 		id: "editor",
@@ -155,6 +159,15 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 		description: "Keyboard bindings",
 		group: "Workspace",
 		keywords: "keyboard bindings hotkeys keybindings remap commands shortcuts keys",
+	},
+	{
+		id: "quick-access",
+		label: "Quick Access",
+		icon: Compass,
+		description: "Go-to mode and hints",
+		group: "Workspace",
+		keywords:
+			"quick access go-to goto mode vimium navigation hints jump keyboard indicators duration",
 	},
 	{
 		id: "tags",
@@ -220,6 +233,8 @@ function renderSection(id: SettingsTabId, isGuest: boolean) {
 			return <EditorSection />;
 		case "shortcuts":
 			return <ShortcutsSection />;
+		case "quick-access":
+			return <QuickAccessSection />;
 		case "data":
 			return <DataSection />;
 		case "privacy":
