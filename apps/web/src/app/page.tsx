@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { seoPageList } from "@/features/marketing/seo-pages";
 
 const title = "Skriuw - Notes, journal, and focused writing";
@@ -131,9 +132,13 @@ export default function Page() {
 						<div className="flex flex-wrap items-center gap-3">
 							<Link
 								href="/app"
-								className="inline-flex h-11 items-center justify-center bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-90"
+								className="group inline-flex h-11 items-center justify-center gap-2 bg-foreground px-5 text-sm font-medium text-background transition-[opacity,transform] duration-200 hover:opacity-90 active:scale-[0.98]"
 							>
 								Try the workspace
+								<span className="cta-arrow-swap h-4 w-4" aria-hidden="true">
+									<ArrowRight className="h-4 w-4" strokeWidth={2} />
+									<ArrowRight className="h-4 w-4" strokeWidth={2} />
+								</span>
 							</Link>
 							<Link
 								href="/app?auth=sign-up"

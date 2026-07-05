@@ -7,6 +7,7 @@ import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { useShortcutHint, useShortcutScope, type ShortcutId } from "@/core/shortcuts";
+import { goto, useGotoTarget } from "@/core/quick-access";
 import { useRegisterCommands } from "@/core/commands";
 import {
 	Command,
@@ -74,7 +75,7 @@ type SidebarPanelProps = {
 	onRequestClose?: () => void;
 	showCloseButton?: boolean;
 	sidebarWidth?: number;
-}
+};
 
 function HeaderActionTooltip({
 	label,
@@ -147,6 +148,12 @@ export const SidebarPanel = memo(function SidebarPanel({
 	const searchSwapRef = useRef<HTMLDivElement>(null);
 	const searchResultsRef = useRef<HTMLDivElement>(null);
 	const hasSearchSection = sections.some((section) => section.type === "search");
+	const leftSidebarGotoRef = useGotoTarget({ keybind: "l", to: goto.focus.leftSidebar });
+	const searchGotoRef = useGotoTarget({
+		keybind: "s",
+		to: goto.focus.searchInput,
+		enabled: hasSearchSection,
+	});
 	const visibleSections = useMemo(
 		() => sections.filter((section) => section.type !== "search"),
 		[sections],
@@ -537,7 +544,10 @@ export const SidebarPanel = memo(function SidebarPanel({
 
 	return (
 		<div
-			ref={sidebarPanelRef}
+			ref={(element) => {
+				sidebarPanelRef.current = element;
+				leftSidebarGotoRef(element);
+			}}
 			className={cn(
 				"flex h-full w-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground",
 				"min-w-0 overflow-hidden",
@@ -633,7 +643,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 											}}
 											className={cn(
 												"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+												"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 												isNarrow ? "h-6 w-6" : "h-7 w-7",
 											)}
 											aria-label="Toggle all folders"
@@ -649,10 +659,11 @@ export const SidebarPanel = memo(function SidebarPanel({
 									shortcutId="notes.focusSidebarSearch"
 								>
 									<button
+										ref={searchGotoRef}
 										onClick={openSearch}
 										className={cn(
 											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 											isNarrow ? "h-6 w-6" : "h-7 w-7",
 										)}
 										aria-label="Search notes"
@@ -670,7 +681,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										onClick={onOpenCommandPalette}
 										className={cn(
 											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 											isNarrow ? "h-6 w-6" : "h-7 w-7",
 										)}
 										aria-label="Command menu"
@@ -920,7 +931,9 @@ export const SidebarPanel = memo(function SidebarPanel({
 										<ContextMenuItem
 											key={template.id}
 											className="flex-col items-start gap-0.5"
-											onClick={() => onCreateFile({ templateId: template.id })}
+											onClick={() =>
+												onCreateFile({ templateId: template.id })
+											}
 										>
 											<span>{template.name}</span>
 											<span className="text-[11px] text-muted-foreground">

@@ -37,13 +37,20 @@
 					if (raw) {
 						var parsed = JSON.parse(raw);
 						var saved =
-							parsed && parsed.state && parsed.state.appearance && parsed.state.appearance.theme;
+							parsed &&
+							parsed.state &&
+							parsed.state.appearance &&
+							parsed.state.appearance.theme;
 						if (saved) theme = saved;
 					}
 				} catch (e) {}
 				document.documentElement.setAttribute("data-theme", theme);
-				document.documentElement.style.backgroundColor = THEME_BG[theme] || THEME_BG.midnight;
-				document.documentElement.style.setProperty("--splash-fg", THEME_FG[theme] || THEME_FG.midnight);
+				document.documentElement.style.backgroundColor =
+					THEME_BG[theme] || THEME_BG.midnight;
+				document.documentElement.style.setProperty(
+					"--splash-fg",
+					THEME_FG[theme] || THEME_FG.midnight,
+				);
 			})();
 		</script>
 		<style>
@@ -66,27 +73,73 @@
 				width: auto;
 				height: 92px;
 				color: var(--splash-fg, #ededed);
-				animation: splash-pulse 1.4s ease-in-out infinite;
+				animation: splash-breathe 2.6s ease-in-out infinite;
+			}
+			/* Each bar rides the same wave, offset in time so the motion ripples
+			   left-to-right across the mark like a loader. */
+			#splash svg path {
+				transform-box: fill-box;
+				transform-origin: center bottom;
+				animation: splash-wave 1.5s cubic-bezier(0.76, 0, 0.24, 1) infinite;
+				will-change: transform, opacity;
+			}
+			#splash svg path:nth-of-type(1) {
+				animation-delay: 0ms;
+			}
+			#splash svg path:nth-of-type(2) {
+				animation-delay: 150ms;
+			}
+			#splash svg path:nth-of-type(3) {
+				animation-delay: 300ms;
+			}
+			@keyframes splash-wave {
+				0%,
+				100% {
+					transform: translateY(0) scaleY(1);
+					opacity: 0.45;
+				}
+				40% {
+					transform: translateY(-22px) scaleY(1.015);
+					opacity: 1;
+				}
+			}
+			/* Whole-mark drift keeps the composition alive between wave crests. */
+			@keyframes splash-breathe {
+				0%,
+				100% {
+					transform: translateY(0);
+				}
+				50% {
+					transform: translateY(-3px);
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				#splash svg,
+				#splash svg path {
+					animation: splash-pulse 1.6s ease-in-out infinite;
+				}
+				#splash svg path {
+					animation: none;
+				}
 			}
 			@keyframes splash-pulse {
 				0%,
 				100% {
-					opacity: 0.4;
+					opacity: 0.5;
 				}
 				50% {
 					opacity: 1;
-				}
-			}
-			@media (prefers-reduced-motion: reduce) {
-				#splash svg {
-					animation: none;
 				}
 			}
 		</style>
 	</head>
 	<body class="font-sans">
 		<div id="splash" aria-hidden="true">
-			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 513" preserveAspectRatio="xMidYMid meet">
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				viewBox="0 -30 390 543"
+				preserveAspectRatio="xMidYMid meet"
+			>
 				<defs>
 					<linearGradient id="splashLogoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
 						<stop offset="0%" stop-color="currentColor" stop-opacity="1" />
@@ -102,9 +155,15 @@
 					</filter>
 				</defs>
 				<g fill="url(#splashLogoGradient)" filter="url(#splashGlow)">
-					<path d="M6 52 L0 58 L0 391 L8 400 L82 440 L89 441 L94 439 L99 432 L99 104 L94 96 L14 52 Z" />
-					<path d="M133 0 L123 8 L123 504 L130 511 L140 512 L237 463 L246 452 L246 64 L234 52 L150 6 Z" />
-					<path d="M277 78 L272 83 L272 434 L278 440 L288 440 L378 391 L390 380 L390 139 L379 128 L299 78 Z" />
+					<path
+						d="M6 52 L0 58 L0 391 L8 400 L82 440 L89 441 L94 439 L99 432 L99 104 L94 96 L14 52 Z"
+					/>
+					<path
+						d="M133 0 L123 8 L123 504 L130 511 L140 512 L237 463 L246 452 L246 64 L234 52 L150 6 Z"
+					/>
+					<path
+						d="M277 78 L272 83 L272 434 L278 440 L288 440 L378 391 L390 380 L390 139 L379 128 L299 78 Z"
+					/>
 				</g>
 			</svg>
 		</div>

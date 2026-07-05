@@ -21,6 +21,7 @@ import {
 	normalizeNoteTitle,
 } from "@/domain/notes/note-links";
 import type { NoteLink, ResolvedNoteLink } from "@/domain/notes/note-links";
+import { parseSearchQuery } from "@/domain/notes/search-query";
 import type { Person } from "@/domain/people/models";
 import {
 	applyFolderUpdate,
@@ -616,7 +617,7 @@ export function createTauriBackend(): WorkspaceBackend {
 		async getNoteVersions(id) {
 			const rows = await invoke<RustNoteVersion[]>("get_note_versions", {
 				noteId: id,
-				limit: 12,
+				limit: 200,
 			});
 			return rows.map(fromRustNoteVersion);
 		},
@@ -660,8 +661,9 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async searchNotes(query, limit): Promise<NoteSearchHit[]> {
-			if (!query.trim()) return [];
-			return invoke<NoteSearchHit[]>("search_notes", { query, limit });
+			const { text, tags, people } = parseSearchQuery(query);
+			if (!text && tags.length === 0 && people.length === 0) return [];
+			return invoke<NoteSearchHit[]>("search_notes", { query: text, tags, people, limit });
 		},
 
 		async restoreNoteVersion(versionId): Promise<UpdateNoteResult> {
