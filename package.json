@@ -108,6 +108,7 @@
 		"react-dom": "19.2.4",
 		"react-force-graph-2d": "^1.29.1",
 		"react-hook-form": "^7.61.1",
+		"server-only": "^0.0.1",
 		"shiki": "^4.0.2",
 		"tailwind-merge": "^2.6.0",
 		"tailwindcss-animate": "^1.0.7",
