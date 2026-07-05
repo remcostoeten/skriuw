@@ -65,9 +65,9 @@ export type TrashBatch = {
  */
 /**
  * A full-text search hit. `snippet` is a short excerpt with the matched terms
- * wrapped in `[` … `]`. Currently produced only by the desktop backend (SQLite
- * FTS5); callers must treat `searchNotes` as optional and fall back to in-memory
- * filtering when it is absent.
+ * wrapped in `[` … `]`. Produced by the desktop backend (SQLite FTS5) and the
+ * web backend (Postgres full-text). Callers must still treat `searchNotes` as
+ * optional and fall back to in-memory filtering when it is absent (guest mode).
  */
 export type NoteSearchHit = {
 	id: string;
@@ -115,8 +115,9 @@ export type WorkspaceBackend = {
 
 	/**
 	 * Full-text search across note names + bodies, ranked by relevance. Optional:
-	 * only the desktop (`tauri`) backend implements it via SQLite FTS5; on web/
-	 * guest the sidebar keeps doing in-memory name/tag filtering.
+	 * the desktop (`tauri`) backend implements it via SQLite FTS5 and the web
+	 * (`server`) backend via Postgres full-text; guest mode omits it, so the
+	 * sidebar keeps doing in-memory name/tag filtering there.
 	 */
 	searchNotes?(query: string, limit?: number): Promise<NoteSearchHit[]>;
 
