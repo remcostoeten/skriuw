@@ -12,7 +12,7 @@ use zip::ZipArchive;
 /// inspectable folder of markdown.
 
 fn map_zip(error: zip::result::ZipError) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, error)
+    io::Error::other(error)
 }
 
 const SNAPSHOT_MANIFEST_FILE: &str = "manifest.json";
@@ -85,7 +85,7 @@ where
         }
         let rel = path
             .strip_prefix(base)
-            .map_err(|error| io::Error::new(io::ErrorKind::Other, error))?
+            .map_err(io::Error::other)?
             .to_string_lossy()
             .replace('\\', "/");
         let full_rel = if rel.is_empty() {
@@ -478,7 +478,7 @@ fn add_dir(
         let path = entry?.path();
         let rel = path
             .strip_prefix(base)
-            .map_err(|error| io::Error::new(io::ErrorKind::Other, error))?
+            .map_err(io::Error::other)?
             .to_string_lossy()
             .replace('\\', "/");
         if path.is_dir() {

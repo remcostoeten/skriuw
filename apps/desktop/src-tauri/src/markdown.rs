@@ -347,7 +347,7 @@ fn parse_inline_content(text: &str) -> Vec<serde_json::Value> {
     }
 
     let mut result = Vec::new();
-    let mut remaining = text;
+    let _remaining = text;
 
     // Compile regexes for inline elements
     let bold_re = Regex::new(r"\*\*(.*?)\*\*").unwrap();
@@ -356,11 +356,11 @@ fn parse_inline_content(text: &str) -> Vec<serde_json::Value> {
     let code_re = Regex::new(r"`([^`]+?)`").unwrap();
     let wikilink_re = Regex::new(r"\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]").unwrap();
     let link_re = Regex::new(r"\[([^\]]+?)\]\(([^)]+?)\)").unwrap();
-    let tag_re = Regex::new(r"#([a-zA-Z][a-zA-Z0-9_-]{1,31})").unwrap();
-    let mention_re = Regex::new(r"\$([A-Z][a-z]*(?:\s+[A-Z][a-z]*)*)").unwrap();
+    let _tag_re = Regex::new(r"#([a-zA-Z][a-zA-Z0-9_-]{1,31})").unwrap();
+    let _mention_re = Regex::new(r"\$([A-Z][a-z]*(?:\s+[A-Z][a-z]*)*)").unwrap();
 
     let mut pos = 0;
-    let text_bytes = text.as_bytes();
+    let _text_bytes = text.as_bytes();
 
     while pos < text.len() {
         // Try to find next formatting element
