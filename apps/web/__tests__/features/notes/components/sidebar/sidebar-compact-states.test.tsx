@@ -15,6 +15,15 @@ mock.module("@/features/journal/hooks/use-journal-entries", () => ({
 	useJournalEntries: () => ({ data: [] }),
 }));
 
+// The preferences store (pulled in via the sidebar item icon) reaches
+// `@/features/settings/server/actions`, whose barrel imports `@/core/db` and
+// its `server-only`/DB chain. Next's bundler scopes that away from the client;
+// bun:test's plain SSR render has no such boundary, so stub the server action
+// the store actually uses and cut the chain here.
+mock.module("@/features/settings/server/actions", () => ({
+	updateUserEditorPreferences: async () => undefined,
+}));
+
 describe("sidebar compact states", () => {
 	test("recents uses a compact sidebar-native empty state", async () => {
 		const { RecentsSection } = await import(
