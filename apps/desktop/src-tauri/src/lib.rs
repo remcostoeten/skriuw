@@ -1,5 +1,6 @@
 mod ai;
 mod backup;
+mod content_analysis;
 mod storage;
 mod vault;
 mod versioning;
@@ -1385,6 +1386,7 @@ pub fn run() {
             choose_vault_root,
             reveal_vault,
             export_note,
+            content_analysis::analyze_note_content,
             ai::ai_get_config,
             ai::ai_set_config,
             ai::ai_set_key,
