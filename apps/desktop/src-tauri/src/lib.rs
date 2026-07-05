@@ -1392,6 +1392,7 @@ pub fn run() {
             markdown::markdown_to_rich,
             import_export::parse_import_json,
             import_export::import_notes_batch,
+            import_export::extract_and_validate_archive,
             ai::ai_get_config,
             ai::ai_set_config,
             ai::ai_set_key,
