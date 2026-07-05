@@ -57,7 +57,14 @@ export function useEditorSearch(editor: EditorInstance) {
   const openSearch = useCallback(() => {
     setSearchOpen(true);
     focusSearchInput();
-  }, [focusSearchInput]);
+    // Re-apply search if there's an existing query
+    if (searchQuery) {
+      const view = getEditorView(editor);
+      if (view) {
+        setSearch(view, searchQuery, searchOptions);
+      }
+    }
+  }, [focusSearchInput, searchQuery, searchOptions, editor]);
 
   const closeSearch = useCallback(() => {
     setSearchOpen(false);
