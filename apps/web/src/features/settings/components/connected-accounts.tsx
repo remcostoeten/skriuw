@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import {
@@ -11,7 +11,9 @@ import {
   type ConnectionsSnapshot,
   type ProviderMeta,
 } from "@/core/auth/connections";
-import type { OAuthProvider } from "@/core/auth";
+import { signInWithOAuth, type OAuthProvider } from "@/core/auth";
+import { isStepUpError, type StepUpCode } from "@/core/auth/step-up";
+import { StepUpDialog } from "@/features/settings/components/step-up-dialog";
 import {
   Row,
   SettingsCard,
@@ -65,6 +67,12 @@ export function ConnectedAccounts() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingProvider, setPendingProvider] = useState<string | null>(null);
+  const [stepUpOpen, setStepUpOpen] = useState(false);
+  const [stepUpMode, setStepUpMode] = useState<"password" | "reauth">("password");
+  const [stepUpPassword, setStepUpPassword] = useState("");
+  const [stepUpError, setStepUpError] = useState<string | null>(null);
+  const [stepUpPending, setStepUpPending] = useState(false);
+  const pendingUnlinkRef = useRef<{ providerId: string; accountId: string } | null>(null);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -99,6 +107,14 @@ export function ConnectedAccounts() {
     }
   };
 
+  function openStepUp(code: StepUpCode) {
+    setStepUpMode(code === "reauth_required" ? "reauth" : "password");
+    setStepUpError(code === "invalid_password" ? "Incorrect password." : null);
+    setStepUpPassword("");
+    setStepUpPending(false);
+    setStepUpOpen(true);
+  }
+
   const handleDisconnect = async (account: {
     providerId: string;
     accountId: string;
@@ -112,16 +128,72 @@ export function ConnectedAccounts() {
       });
       await refresh();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not disconnect account.",
-      );
+      if (isStepUpError(err)) {
+        pendingUnlinkRef.current = account;
+        openStepUp(err.code);
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Could not disconnect account.",
+        );
+      }
     } finally {
       setPendingProvider(null);
     }
   };
 
+  const handleStepUpConfirm = async () => {
+    const target = pendingUnlinkRef.current;
+    if (!target || stepUpMode !== "password" || stepUpPending) return;
+    setStepUpPending(true);
+    setStepUpError(null);
+    try {
+      await unlinkProvider({
+        providerId: target.providerId,
+        accountId: target.accountId,
+        password: stepUpPassword,
+      });
+      pendingUnlinkRef.current = null;
+      setStepUpOpen(false);
+      setStepUpPending(false);
+      setStepUpPassword("");
+      await refresh();
+    } catch (err) {
+      if (isStepUpError(err)) {
+        openStepUp(err.code);
+      } else {
+        setStepUpError(
+          err instanceof Error ? err.message : "Could not disconnect account.",
+        );
+        setStepUpPending(false);
+      }
+    }
+  };
+
+  const handleStepUpReauth = async (provider: OAuthProvider) => {
+    setStepUpPending(true);
+    setStepUpError(null);
+    try {
+      await signInWithOAuth(provider, { rememberMe: true });
+    } catch {
+      setStepUpError("Could not start re-authentication. Please try again.");
+      setStepUpPending(false);
+    }
+  };
+
+  const handleStepUpOpenChange = (open: boolean) => {
+    if (open) return;
+    setStepUpOpen(false);
+    setStepUpPending(false);
+    setStepUpPassword("");
+    setStepUpError(null);
+    pendingUnlinkRef.current = null;
+  };
+
   const loginMethodCount = snapshot?.loginMethodCount ?? 0;
   const isLastMethod = loginMethodCount <= 1;
+  const reauthProviders = (snapshot?.accounts ?? [])
+    .map((account) => account.providerId)
+    .filter((id): id is OAuthProvider => id === "github" || id === "google");
   const isInitialLoading = isLoading && snapshot === null;
   const hasLoadError = Boolean(error) && snapshot === null;
 
@@ -237,6 +309,26 @@ export function ConnectedAccounts() {
           {error}
         </p>
       )}
+
+      <StepUpDialog
+        open={stepUpOpen}
+        mode={stepUpMode}
+        title="Confirm it's you"
+        description={
+          stepUpMode === "password"
+            ? "Enter your password to disconnect this sign-in method."
+            : "For your security, re-authenticate before disconnecting this sign-in method."
+        }
+        confirmLabel="Disconnect"
+        password={stepUpPassword}
+        error={stepUpError}
+        pending={stepUpPending}
+        reauthProviders={reauthProviders}
+        onPasswordChange={setStepUpPassword}
+        onConfirm={handleStepUpConfirm}
+        onReauth={handleStepUpReauth}
+        onOpenChange={handleStepUpOpenChange}
+      />
     </>
   );
 }
