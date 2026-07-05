@@ -4,7 +4,12 @@ import { useState } from "react";
 import { AlertCircle, CheckCircle2, FileUp, Loader2, X } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { showUserToast } from "@/shared/lib/user-toast";
-import { isTauriRuntime, tauriInvoke } from "@/core/workspace-backend";
+import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";
+import {
+	importRustArchive,
+	validateRustArchive,
+	type RustArchiveValidation,
+} from "@/features/settings/lib/import-rust-archive";
 import {
 	Dialog,
 	DialogClose,
@@ -18,19 +23,11 @@ import {
 
 type ImportState = "idle" | "validating" | "ready" | "importing" | "success" | "error";
 
-interface ArchiveValidation {
-	archive: { notes_count: number; folders_count: number; tags_count: number };
-	import_summary: {
-		importable: number;
-		duplicates: number;
-		errors: string[];
-	};
-}
-
 export function RustImportDialog() {
+	const backend = useWorkspaceBackend();
 	const [open, setOpen] = useState(false);
 	const [state, setState] = useState<ImportState>("idle");
-	const [validation, setValidation] = useState<ArchiveValidation | null>(null);
+	const [validation, setValidation] = useState<RustArchiveValidation | null>(null);
 	const [importedCount, setImportedCount] = useState(0);
 
 	if (!isTauriRuntime()) {
@@ -46,10 +43,11 @@ export function RustImportDialog() {
 			// File.path is Tauri-specific; fallback to name for web
 			const zipPath = (file as unknown as { path: string }).path || file.name;
 
-			const result = await tauriInvoke<ArchiveValidation>("extract_and_validate_archive", {
-				zip_path: zipPath,
-				existing_note_names: [],
-			});
+			const existingNotes = backend.listNotes ? await backend.listNotes() : [];
+			const result = await validateRustArchive(
+				zipPath,
+				existingNotes.map((note) => note.name),
+			);
 
 			setValidation(result);
 			setState("ready");
@@ -67,9 +65,10 @@ export function RustImportDialog() {
 
 		setState("importing");
 		try {
-			setImportedCount(validation.import_summary.importable);
+			const count = await importRustArchive(validation, backend);
+			setImportedCount(count);
 			setState("success");
-			showUserToast(`Imported ${validation.import_summary.importable} notes.`, "success");
+			showUserToast(`Imported ${count} notes.`, "success");
 			setTimeout(() => {
 				setOpen(false);
 				setState("idle");
