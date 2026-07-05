@@ -30,6 +30,8 @@ import {
 import { usePreferencesStore } from "@/features/settings/store";
 import { useNoteLinkActions } from "@/features/editor/hooks/use-note-link-actions";
 import { useNoteBacklinks } from "@/features/notes/hooks/use-note-backlinks";
+import { useDocumentOutline } from "@/features/notes/hooks/use-document-outline";
+import { DocumentOutline } from "@/features/notes/components/document-outline";
 import { useNoteVersions } from "@/features/notes/hooks/use-note-versions";
 import {
 	buildOutgoingNoteLinks,
@@ -703,16 +705,11 @@ export const MetadataPanel = memo(function MetadataPanel({
 		];
 	}, [file]);
 
-	const headingItems = useMemo(() => {
-		if (!file) return [];
-		return file.content
-			.split("\n")
-			.filter((line) => /^#{1,3}\s/.test(line))
-			.map((heading) => ({
-				level: heading.match(/^(#+)/)?.[1].length || 1,
-				text: heading.replace(/^#+\s+/, ""),
-			}));
-	}, [file]);
+	const { headings: outlineHeadings, scrollToHeading } = useDocumentOutline({
+		noteId: file?.id ?? null,
+		mode: effectiveEditorMode,
+		content: file?.content ?? "",
+	});
 
 	const outgoingLinks = useMemo(() => buildOutgoingNoteLinks(file, files), [file, files]);
 	const backlinks = backlinksQuery.data ?? [];
@@ -832,93 +829,12 @@ export const MetadataPanel = memo(function MetadataPanel({
 					id="note-inspector-outline"
 					title="Outline"
 					icon={ListTree}
-					count={headingItems.length}
+					count={outlineHeadings.length}
 					open={openSections.outline}
 					onToggle={() => toggleSection("outline")}
 					contentClassName="px-3 pb-3"
 				>
-					{headingItems.length > 0 ? (
-						<ul className="min-w-0 overflow-hidden border border-border/65 bg-muted/[0.18] shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.025)]">
-							{headingItems.map((heading, index) => {
-								const indent = (heading.level - 1) * 10;
-								return (
-									<li
-										key={`${heading.text}-${index}`}
-										className="border-b border-border/45 last:border-b-0"
-									>
-										<button
-											type="button"
-											onClick={() => {
-												const all = Array.from(
-													document.querySelectorAll<HTMLElement>(
-														'[data-content-type="heading"]',
-													),
-												);
-												const levelStr =
-													heading.level === 1
-														? null
-														: String(heading.level);
-												const candidates = all.filter(
-													(el) =>
-														(el.getAttribute("data-level") ?? null) ===
-															levelStr &&
-														el.textContent?.trim() === heading.text,
-												);
-												const target =
-													candidates[0] ??
-													all.find(
-														(el) =>
-															el.textContent?.trim() === heading.text,
-													);
-												target?.scrollIntoView({
-													behavior: "smooth",
-													block: "center",
-												});
-											}}
-											className={cn(
-												"group flex min-h-8 w-full min-w-0 cursor-pointer items-center gap-0 text-left transition-colors hover:bg-background/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-												heading.level === 1
-													? "text-foreground/72"
-													: heading.level === 2
-														? "text-foreground/58"
-														: "text-foreground/46",
-											)}
-											style={{ paddingLeft: `${indent + 8}px` }}
-											title={heading.text}
-										>
-											{heading.level > 1 && (
-												<span
-													className={cn(
-														"mr-2 my-1.5 shrink-0 self-stretch",
-														"border-l",
-														heading.level === 2
-															? "border-muted-foreground/20"
-															: "border-muted-foreground/12",
-													)}
-												/>
-											)}
-											<span
-												className={cn(
-													"min-w-0 flex-1 truncate py-1.5 pr-2",
-													heading.level === 1
-														? "text-[12.5px] font-medium"
-														: heading.level === 2
-															? "text-[12px]"
-															: "text-[11.5px]",
-												)}
-											>
-												{heading.text}
-											</span>
-										</button>
-									</li>
-								);
-							})}
-						</ul>
-					) : (
-						<div className="border border-dashed border-border/60 bg-muted/[0.12] px-3 py-2">
-							<EmptyLine>No headings</EmptyLine>
-						</div>
-					)}
+					<DocumentOutline headings={outlineHeadings} onSelect={scrollToHeading} />
 				</InspectorSection>
 
 				<InspectorSection
