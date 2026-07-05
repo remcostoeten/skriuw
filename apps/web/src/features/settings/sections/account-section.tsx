@@ -13,10 +13,18 @@ import { DeleteButton } from "@/shared/ui/delete-button";
 import { useAuth } from "@/core/auth/use-auth";
 import {
 	isUsernameTakenError,
+	signInWithOAuth,
 	signOut,
 	updateUserDisplayName,
 	updateUsername,
+	type OAuthProvider,
 } from "@/core/auth";
+import {
+	SUPPORTED_OAUTH_PROVIDERS,
+	listConnections,
+} from "@/core/auth/connections";
+import { stepUpCodeFromPayload } from "@/core/auth/step-up";
+import { StepUpDialog } from "@/features/settings/components/step-up-dialog";
 import { isUsernameAvailable } from "@/lib/auth-client";
 import { validateUsernameFormat } from "@/lib/username";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -153,21 +161,114 @@ export function AccountSection() {
 		}
 	};
 
-	const handleDeleteAccount = async (): Promise<boolean> => {
-		try {
-			const res = await fetch("/api/account/delete", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ confirmation: "delete my account" }),
-			});
-			const payload = (await res.json().catch(() => null)) as { error?: string } | null;
-			if (!res.ok) throw new Error(payload?.error ?? "Could not delete account.");
+	const [stepUpOpen, setStepUpOpen] = useState(false);
+	const [stepUpMode, setStepUpMode] = useState<"password" | "reauth">("password");
+	const [stepUpPassword, setStepUpPassword] = useState("");
+	const [stepUpError, setStepUpError] = useState<string | null>(null);
+	const [stepUpPending, setStepUpPending] = useState(false);
+	const [reauthProviders, setReauthProviders] = useState<OAuthProvider[]>([]);
+	const deleteResolverRef = useRef<((ok: boolean) => void) | null>(null);
+
+	async function attemptDelete(
+		password?: string,
+	): Promise<"done" | { needs: "password" | "reauth"; error?: string }> {
+		const res = await fetch("/api/account/delete", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ confirmation: "delete my account", password }),
+		});
+		if (res.ok) {
 			await signOut().catch(() => undefined);
 			window.location.replace("/app?auth=sign-in");
-			return true;
+			return "done";
+		}
+		const payload = (await res.json().catch(() => null)) as
+			| { error?: string; code?: string }
+			| null;
+		const code = stepUpCodeFromPayload(payload);
+		if (code === "password_required") return { needs: "password" };
+		if (code === "invalid_password") {
+			return { needs: "password", error: payload?.error ?? "Incorrect password." };
+		}
+		if (code === "reauth_required") return { needs: "reauth", error: payload?.error };
+		throw new Error(payload?.error ?? "Could not delete account.");
+	}
+
+	function beginStepUp(mode: "password" | "reauth", error?: string): Promise<boolean> {
+		setStepUpMode(mode);
+		setStepUpError(error ?? null);
+		setStepUpPassword("");
+		setStepUpPending(false);
+		setStepUpOpen(true);
+		return new Promise<boolean>((resolve) => {
+			deleteResolverRef.current = resolve;
+		});
+	}
+
+	const handleDeleteAccount = async (): Promise<boolean> => {
+		try {
+			const snapshot = await listConnections();
+			const linked = SUPPORTED_OAUTH_PROVIDERS.map((provider) => provider.id).filter((id) =>
+				snapshot.accounts.some((account) => account.providerId === id),
+			);
+			setReauthProviders(linked);
+
+			// Password accounts prove identity by re-entering their password, so we
+			// never fire a destructive request (which counts against the delete rate
+			// limit) until they've done so. OAuth-only accounts have no password, so
+			// the server enforces a fresh-session step-up instead.
+			if (snapshot.credential) {
+				return await beginStepUp("password");
+			}
+
+			const result = await attemptDelete();
+			if (result === "done") return true;
+			return await beginStepUp(result.needs, result.error);
 		} catch {
 			return false;
 		}
+	};
+
+	const handleStepUpConfirm = async () => {
+		if (stepUpMode !== "password" || stepUpPending) return;
+		setStepUpPending(true);
+		setStepUpError(null);
+		try {
+			const result = await attemptDelete(stepUpPassword);
+			if (result === "done") return;
+			if (result.needs === "password") {
+				setStepUpError(result.error ?? "Incorrect password.");
+				setStepUpPending(false);
+				return;
+			}
+			setStepUpMode("reauth");
+			setStepUpError(result.error ?? null);
+			setStepUpPending(false);
+		} catch {
+			setStepUpError("Could not delete account. Please try again.");
+			setStepUpPending(false);
+		}
+	};
+
+	const handleStepUpReauth = async (provider: OAuthProvider) => {
+		setStepUpPending(true);
+		setStepUpError(null);
+		try {
+			await signInWithOAuth(provider, { rememberMe: true });
+		} catch {
+			setStepUpError("Could not start re-authentication. Please try again.");
+			setStepUpPending(false);
+		}
+	};
+
+	const handleStepUpOpenChange = (open: boolean) => {
+		if (open) return;
+		setStepUpOpen(false);
+		setStepUpPending(false);
+		setStepUpPassword("");
+		setStepUpError(null);
+		deleteResolverRef.current?.(false);
+		deleteResolverRef.current = null;
 	};
 
 	return (
@@ -351,6 +452,26 @@ export function AccountSection() {
 					/>
 				</Row>
 			</SettingsCard>
+
+			<StepUpDialog
+				open={stepUpOpen}
+				mode={stepUpMode}
+				title="Confirm it's you"
+				description={
+					stepUpMode === "password"
+						? "Enter your password to permanently delete your account."
+						: "For your security, re-authenticate before deleting your account."
+				}
+				confirmLabel="Delete account"
+				password={stepUpPassword}
+				error={stepUpError}
+				pending={stepUpPending}
+				reauthProviders={reauthProviders}
+				onPasswordChange={setStepUpPassword}
+				onConfirm={handleStepUpConfirm}
+				onReauth={handleStepUpReauth}
+				onOpenChange={handleStepUpOpenChange}
+			/>
 		</>
 	);
 }
