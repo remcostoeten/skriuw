@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
+use std::io::Read;
 
 /// Parse YAML frontmatter from markdown content
 pub fn parse_frontmatter(content: &str) -> (HashMap<String, String>, String) {
@@ -259,6 +261,27 @@ pub fn build_export(
     serde_json::to_string(&export).map_err(|e| format!("Failed to serialize export: {}", e))
 }
 
+/// Extract and parse archive.json from a ZIP file
+pub fn extract_archive_json(zip_path: &Path) -> Result<ExportArchive, String> {
+    let file = std::fs::File::open(zip_path)
+        .map_err(|e| format!("Failed to open ZIP: {}", e))?;
+
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| format!("Invalid ZIP file: {}", e))?;
+
+    // Look for archive.json
+    let mut archive_file = archive
+        .by_name("archive.json")
+        .map_err(|_| "archive.json not found in ZIP".to_string())?;
+
+    let mut json_str = String::new();
+    archive_file
+        .read_to_string(&mut json_str)
+        .map_err(|e| format!("Failed to read archive.json: {}", e))?;
+
+    parse_import_archive(&json_str)
+}
+
 #[tauri::command]
 pub fn parse_import_json(json: String) -> Result<serde_json::Value, String> {
     match parse_import_archive(&json) {
@@ -290,6 +313,32 @@ pub fn import_notes_batch(
         duplicates_skipped: duplicates.len(),
         errors: validation_errors,
     })
+}
+
+#[tauri::command]
+pub fn extract_and_validate_archive(
+    zip_path: String,
+    existing_note_names: Vec<String>,
+) -> Result<serde_json::Value, String> {
+    let archive = extract_archive_json(Path::new(&zip_path))?;
+
+    let existing_refs: Vec<&str> = existing_note_names.iter().map(|s| s.as_str()).collect();
+    let (unique, duplicates) = detect_duplicates(&archive, &existing_refs);
+
+    let validation_errors = validate_import(&archive);
+
+    Ok(json!({
+        "archive": {
+            "notes_count": archive.notes.len(),
+            "folders_count": archive.folders.len(),
+            "tags_count": archive.tags.len(),
+        },
+        "import_summary": {
+            "importable": unique.len(),
+            "duplicates": duplicates.len(),
+            "errors": validation_errors,
+        }
+    }))
 }
 
 #[cfg(test)]
@@ -393,5 +442,13 @@ mod tests {
 
         assert!(fm.is_empty());
         assert_eq!(body, markdown);
+    }
+
+    #[test]
+    fn test_extract_archive_missing_file() {
+        // Non-existent file should fail gracefully
+        let result = extract_archive_json(Path::new("/nonexistent/archive.zip"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to open ZIP"));
     }
 }
