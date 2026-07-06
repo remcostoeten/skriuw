@@ -14,11 +14,10 @@ import {
 const WINDOW_DAYS = 30;
 
 function getAppBaseUrl(): string {
-	return (
-		process.env.NEXT_PUBLIC_BETTER_AUTH_URL ??
-		process.env.BETTER_AUTH_URL ??
-		""
-	).replace(/\/$/, "");
+	return (process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? process.env.BETTER_AUTH_URL ?? "").replace(
+		/\/$/,
+		"",
+	);
 }
 
 /** UTC `YYYY-MM-DD` key for a given instant. */
@@ -113,10 +112,7 @@ export async function getSharedNotesOverview(): Promise<TSharedOverview> {
 	} catch (err) {
 		// Only suppress "table does not exist" errors during migrations;
 		// re-throw all other DB/runtime errors to surface real issues.
-		if (
-			err instanceof Prisma.PrismaClientKnownRequestError &&
-			err.code === "P2021"
-		) {
+		if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2021") {
 			// view-log unavailable — recurrence metrics degrade to empty
 		} else {
 			throw err;

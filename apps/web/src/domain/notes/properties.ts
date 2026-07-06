@@ -44,9 +44,7 @@ export const NOTE_PROPERTY_COLORS: Record<
 	red: { bg: "oklch(0.36 0.08 25)", fg: "oklch(0.9 0.08 25)", dot: "oklch(0.78 0.16 25)" },
 };
 
-export const NOTE_PROPERTY_COLOR_KEYS = Object.keys(
-	NOTE_PROPERTY_COLORS,
-) as NotePropertyColor[];
+export const NOTE_PROPERTY_COLOR_KEYS = Object.keys(NOTE_PROPERTY_COLORS) as NotePropertyColor[];
 
 export type NoteProperty = {
 	id: string;
@@ -136,7 +134,9 @@ export function createNoteProperty(
 		type,
 		name,
 		value: emptyNotePropertyValue(type),
-		...(type === "select" || type === "multi-select" || type === "person" ? { options: [] } : {}),
+		...(type === "select" || type === "multi-select" || type === "person"
+			? { options: [] }
+			: {}),
 	};
 }
 
@@ -360,16 +360,21 @@ export function normalizeNoteProperties(input: unknown): NoteProperty[] {
 	return input.flatMap((entry) => {
 		if (!entry || typeof entry !== "object") return [];
 		const record = entry as Record<string, unknown>;
-		if (typeof record.type !== "string" || !PROPERTY_TYPE_SET.has(record.type as NotePropertyType)) {
+		if (
+			typeof record.type !== "string" ||
+			!PROPERTY_TYPE_SET.has(record.type as NotePropertyType)
+		) {
 			return [];
 		}
 		const type = record.type as NotePropertyType;
-		const id = typeof record.id === "string" && record.id.trim()
-			? record.id.trim()
-			: createNotePropertyId();
-		const name = typeof record.name === "string" && record.name.trim()
-			? record.name.trim().slice(0, 80)
-			: "Untitled";
+		const id =
+			typeof record.id === "string" && record.id.trim()
+				? record.id.trim()
+				: createNotePropertyId();
+		const name =
+			typeof record.name === "string" && record.name.trim()
+				? record.name.trim().slice(0, 80)
+				: "Untitled";
 		const options = normalizePropertyOptions(record.options);
 		return [
 			{
@@ -413,9 +418,7 @@ export function instantiateCustomNotePropertyTemplate(
 	);
 }
 
-export function normalizeCustomNotePropertyTemplates(
-	input: unknown,
-): CustomNotePropertyTemplate[] {
+export function normalizeCustomNotePropertyTemplates(input: unknown): CustomNotePropertyTemplate[] {
 	if (!Array.isArray(input)) return [];
 	return input.flatMap((entry) => {
 		if (!entry || typeof entry !== "object") return [];

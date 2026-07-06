@@ -6,11 +6,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/core/auth/use-auth";
 import { usePreferencesStore } from "@/features/settings/store";
 import { resolveAnalyticsConsent } from "./client";
-import {
-	isClientAnalyticsDisabled,
-	resolveClientIngestUrl,
-	SKRIUW_PROJECT_ID,
-} from "./config";
+import { isClientAnalyticsDisabled, resolveClientIngestUrl, SKRIUW_PROJECT_ID } from "./config";
 
 export function AnalyticsMount() {
 	const pathname = usePathname();

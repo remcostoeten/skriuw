@@ -50,8 +50,7 @@ export function PublicNoteReader({
 		initialCollabStatus === "collaborator"
 			? `/app?note=${encodeURIComponent(snapshot.noteId)}`
 			: "/app";
-	const appCtaLabel =
-		initialCollabStatus === "collaborator" ? "Open in editor" : "Open Skriuw";
+	const appCtaLabel = initialCollabStatus === "collaborator" ? "Open in editor" : "Open Skriuw";
 
 	const file = useMemo<NoteFile>(() => {
 		const sharedAt = new Date(snapshot.sharedAt);
@@ -89,7 +88,10 @@ export function PublicNoteReader({
 						)}
 
 						{snapshot.author && (
-							<span className="hidden text-[11px] text-muted-foreground/50 sm:inline" aria-hidden>
+							<span
+								className="hidden text-[11px] text-muted-foreground/50 sm:inline"
+								aria-hidden
+							>
 								·
 							</span>
 						)}

@@ -56,11 +56,7 @@ export async function generateMetadata({
 // Snapshots can change (re-publish, expiry, consumption) — never statically cache.
 export const dynamic = "force-dynamic";
 
-export default async function PublicSharePage({
-	params,
-}: {
-	params: Promise<{ token: string }>;
-}) {
+export default async function PublicSharePage({ params }: { params: Promise<{ token: string }> }) {
 	const { token } = await params;
 	const peek = await peekShare(token);
 

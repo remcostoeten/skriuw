@@ -5,13 +5,7 @@
 // (e.g. `await import("@/features/collaboration/anchored-marks")`) behind the
 // collab gate so solo notes never pay its bundle cost.
 
-export type {
-	TAnchor,
-	TAnchoredMark,
-	TMarkAuthor,
-	TMarkRenderer,
-	TResolvedMark,
-} from "./types";
+export type { TAnchor, TAnchoredMark, TMarkAuthor, TMarkRenderer, TResolvedMark } from "./types";
 
 export { AnchoredMarkStore, getAnchoredMarkMap } from "./store";
 export { MarkRendererRegistry } from "./registry";

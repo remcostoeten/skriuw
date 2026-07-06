@@ -1,3 +1,4 @@
+/// <reference types="@cloudflare/workers-types" />
 import { routePartykitRequest } from "partyserver";
 import { YServer } from "y-partyserver";
 import { applyUpdate, Doc, encodeStateAsUpdate } from "yjs";
@@ -30,9 +31,7 @@ export class NotesServer extends YServer {
 	};
 
 	async onLoad() {
-		const stored = await this.ctx.storage.get<Uint8Array | ArrayBuffer>(
-			DOC_STORAGE_KEY,
-		);
+		const stored = await this.ctx.storage.get<Uint8Array | ArrayBuffer>(DOC_STORAGE_KEY);
 		if (!stored) return;
 		const bytes = stored instanceof Uint8Array ? stored : new Uint8Array(stored);
 		const doc = new Doc();

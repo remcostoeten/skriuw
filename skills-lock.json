@@ -1,23 +1,35 @@
 {
-  "version": 1,
-  "skills": {
-    "caveman": {
-      "source": "juliusbrussee/caveman",
-      "sourceType": "github",
-      "skillPath": "skills/caveman/SKILL.md",
-      "computedHash": "d18cdf73a5f5c496d681a43a6846336b110223bdffa6817b8992529c57f1a815"
-    },
-    "pwa-development": {
-      "source": "alinaqi/claude-bootstrap",
-      "sourceType": "github",
-      "skillPath": "skills/pwa-development/SKILL.md",
-      "computedHash": "356d9a26a8435778bb3bb906f5198814c48872ae87485ae97f4da3c10a0cfcc5"
-    },
-    "responsive-design": {
-      "source": "wshobson/agents",
-      "sourceType": "github",
-      "skillPath": "plugins/ui-design/skills/responsive-design/SKILL.md",
-      "computedHash": "794cc7f1b2f79d398135d19ef3fe32c406dde926b9bdf86ee3fe7b939a0be906"
-    }
-  }
+	"version": 1,
+	"skills": {
+		"caveman": {
+			"source": "juliusbrussee/caveman",
+			"sourceType": "github",
+			"skillPath": "skills/caveman/SKILL.md",
+			"computedHash": "d18cdf73a5f5c496d681a43a6846336b110223bdffa6817b8992529c57f1a815"
+		},
+		"copywriting": {
+			"source": "coreyhaines31/marketingskills",
+			"sourceType": "github",
+			"skillPath": "skills/copywriting/SKILL.md",
+			"computedHash": "c8d63b1f77be04fd54981720de65697988810bd28331097dbe0aaf3e166d638a"
+		},
+		"pwa-development": {
+			"source": "alinaqi/claude-bootstrap",
+			"sourceType": "github",
+			"skillPath": "skills/pwa-development/SKILL.md",
+			"computedHash": "356d9a26a8435778bb3bb906f5198814c48872ae87485ae97f4da3c10a0cfcc5"
+		},
+		"readme-i18n": {
+			"source": "xixu-me/skills",
+			"sourceType": "github",
+			"skillPath": "skills/readme-i18n/SKILL.md",
+			"computedHash": "667e1a9ec1be5d8cd28113558740af67861e372792587bf0e65d14ddebbcf38e"
+		},
+		"responsive-design": {
+			"source": "wshobson/agents",
+			"sourceType": "github",
+			"skillPath": "plugins/ui-design/skills/responsive-design/SKILL.md",
+			"computedHash": "794cc7f1b2f79d398135d19ef3fe32c406dde926b9bdf86ee3fe7b939a0be906"
+		}
+	}
 }

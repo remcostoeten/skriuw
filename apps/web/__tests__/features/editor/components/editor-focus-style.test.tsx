@@ -28,11 +28,13 @@ describe("Editor focus styles", () => {
 
 		const html = renderToStaticMarkup(
 			<Editor
-				file={{
-					id: "note-1",
-					name: "Note.md",
-					content: "A plain note",
-				} as never}
+				file={
+					{
+						id: "note-1",
+						name: "Note.md",
+						content: "A plain note",
+					} as never
+				}
 				editorMode="raw"
 				editorFontId="inter"
 				editorLineHeight="normal"

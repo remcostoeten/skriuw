@@ -19,10 +19,7 @@ import {
 	updateUsername,
 	type OAuthProvider,
 } from "@/core/auth";
-import {
-	SUPPORTED_OAUTH_PROVIDERS,
-	listConnections,
-} from "@/core/auth/connections";
+import { SUPPORTED_OAUTH_PROVIDERS, listConnections } from "@/core/auth/connections";
 import { stepUpCodeFromPayload } from "@/core/auth/step-up";
 import { StepUpDialog } from "@/features/settings/components/step-up-dialog";
 import { isUsernameAvailable } from "@/lib/auth-client";
@@ -34,8 +31,6 @@ import {
 	SettingsCard,
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
-
-
 
 export function AccountSection() {
 	const auth = useAuth();
@@ -182,9 +177,10 @@ export function AccountSection() {
 			window.location.replace("/app?auth=sign-in");
 			return "done";
 		}
-		const payload = (await res.json().catch(() => null)) as
-			| { error?: string; code?: string }
-			| null;
+		const payload = (await res.json().catch(() => null)) as {
+			error?: string;
+			code?: string;
+		} | null;
 		const code = stepUpCodeFromPayload(payload);
 		if (code === "password_required") return { needs: "password" };
 		if (code === "invalid_password") {
@@ -303,7 +299,11 @@ export function AccountSection() {
 
 			<GroupLabel>PROFILE</GroupLabel>
 			<SettingsCard>
-				<Row focusId="display-name" title="Display name" description="Shown on shared notes and comments.">
+				<Row
+					focusId="display-name"
+					title="Display name"
+					description="Shown on shared notes and comments."
+				>
 					<div className="flex flex-col gap-1">
 						<div className="flex gap-2">
 							<Input
@@ -382,16 +382,17 @@ export function AccountSection() {
 									</span>
 								)}
 							</div>
-							{usernameValue.trim() !== (user?.username ?? "") && usernameValue.trim() && (
-								<Button
-									size="sm"
-									className="h-8"
-									onClick={handleSaveUsername}
-									disabled={isSavingUsername || usernameAvailable === false}
-								>
-									{isSavingUsername ? "Saving…" : "Save"}
-								</Button>
-							)}
+							{usernameValue.trim() !== (user?.username ?? "") &&
+								usernameValue.trim() && (
+									<Button
+										size="sm"
+										className="h-8"
+										onClick={handleSaveUsername}
+										disabled={isSavingUsername || usernameAvailable === false}
+									>
+										{isSavingUsername ? "Saving…" : "Save"}
+									</Button>
+								)}
 						</div>
 						{usernameError && (
 							<p role="alert" className="mt-1 text-xs text-destructive">
@@ -400,7 +401,11 @@ export function AccountSection() {
 						)}
 					</div>
 				</Row>
-				<Row focusId="email" title="Email" description="Used for sign-in and account recovery.">
+				<Row
+					focusId="email"
+					title="Email"
+					description="Used for sign-in and account recovery."
+				>
 					<Input
 						value={user?.email ?? ""}
 						readOnly
@@ -427,7 +432,11 @@ export function AccountSection() {
 
 			<GroupLabel>DANGER ZONE</GroupLabel>
 			<SettingsCard>
-				<Row focusId="sign-out" title="Sign out" description="End your session on this device.">
+				<Row
+					focusId="sign-out"
+					title="Sign out"
+					description="End your session on this device."
+				>
 					<Button
 						variant="outline"
 						size="sm"

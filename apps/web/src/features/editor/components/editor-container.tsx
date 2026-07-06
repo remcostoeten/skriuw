@@ -96,7 +96,7 @@ type EditorContainerProps = {
 	onToggleEditorMode?: () => void;
 	onCreateFile?: () => void;
 	isContentLoading?: boolean;
-}
+};
 
 type EditorCursorStatus = {
 	line: number;
@@ -171,7 +171,10 @@ function SuggestedTagsBanner({
 	return (
 		<div className="border-b border-border bg-muted/40 px-4 py-3 text-xs">
 			<div className="flex items-start gap-3">
-				<Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+				<Sparkles
+					className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+					strokeWidth={1.5}
+				/>
 				<div className="flex min-w-0 flex-1 flex-col gap-2">
 					<span className="font-medium text-foreground">Suggested tags</span>
 					<div className="flex flex-wrap items-center gap-1.5">
@@ -799,7 +802,10 @@ export function EditorContainer({
 			{!isPane && aiNotice && (
 				<div className="border-b border-border bg-muted/40 px-4 py-2.5 text-xs">
 					<div className="flex items-center gap-3">
-						<Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+						<Sparkles
+							className="h-4 w-4 shrink-0 text-muted-foreground"
+							strokeWidth={1.5}
+						/>
 						<span className="min-w-0 flex-1 text-muted-foreground">{aiNotice}</span>
 						<button
 							type="button"
@@ -816,7 +822,10 @@ export function EditorContainer({
 			{!isPane && spellCheckRevert !== null && (
 				<div className="border-b border-border bg-muted/40 px-4 py-2.5 text-xs">
 					<div className="flex items-center gap-3">
-						<Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+						<Sparkles
+							className="h-4 w-4 shrink-0 text-muted-foreground"
+							strokeWidth={1.5}
+						/>
 						<span className="min-w-0 flex-1 text-muted-foreground">
 							AI spell check replaced the note content.
 						</span>
@@ -845,7 +854,10 @@ export function EditorContainer({
 			{!isPane && customPromptRevert !== null && (
 				<div className="border-b border-border bg-muted/40 px-4 py-2.5 text-xs">
 					<div className="flex items-center gap-3">
-						<Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+						<Sparkles
+							className="h-4 w-4 shrink-0 text-muted-foreground"
+							strokeWidth={1.5}
+						/>
 						<span className="min-w-0 flex-1 text-muted-foreground">
 							AI inserted content from your instruction.
 						</span>
@@ -886,15 +898,16 @@ export function EditorContainer({
 
 			<div className="relative flex min-h-0 flex-1 flex-col">
 				{isContentLoading || collabConnecting ? (
-					<div className="flex-1 overflow-y-auto overscroll-contain bg-card" aria-busy="true">
+					<div
+						className="flex-1 overflow-y-auto overscroll-contain bg-card"
+						aria-busy="true"
+					>
 						<EditorContentSkeleton />
 					</div>
 				) : (
 					<ContextMenu>
 						<ContextMenuTrigger asChild>
-							<div
-								className="flex min-h-0 flex-1 flex-col"
-							>
+							<div className="flex min-h-0 flex-1 flex-col">
 								<Editor
 									file={file}
 									files={files}
@@ -926,7 +939,12 @@ export function EditorContainer({
 									onAiCustomPrompt={
 										canUseAi
 											? (instruction) =>
-													runAiAction("customPrompt", undefined, [], instruction)
+													runAiAction(
+														"customPrompt",
+														undefined,
+														[],
+														instruction,
+													)
 											: undefined
 									}
 									onTitleCommit={handleTitleCommit}

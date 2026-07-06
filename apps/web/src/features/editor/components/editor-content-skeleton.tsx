@@ -3,11 +3,7 @@ import { cn } from "@/shared/lib/utils";
 
 function Bar({ className, style }: { className?: string; style?: React.CSSProperties }) {
 	return (
-		<div
-			aria-hidden="true"
-			className={cn("bg-foreground/[0.06]", className)}
-			style={style}
-		/>
+		<div aria-hidden="true" className={cn("bg-foreground/[0.06]", className)} style={style} />
 	);
 }
 

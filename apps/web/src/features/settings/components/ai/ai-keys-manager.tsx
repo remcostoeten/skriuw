@@ -1,14 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-	CheckCircle,
-	CircleAlert,
-	Clock,
-	KeyRound,
-	LoaderCircle,
-	Plus,
-} from "lucide-react";
+import { CheckCircle, CircleAlert, Clock, KeyRound, LoaderCircle, Plus } from "lucide-react";
 import { DeleteButton } from "@/shared/ui/delete-button";
 import type { AiProviderKeySummary, AiUsageLogRow } from "@/domain/ai/types";
 import { AiUsageLog } from "@/features/settings/components/ai/ai-usage-log";

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { FileText, FolderClosed, RotateCcw, Trash2 } from "lucide-react";
 import type { TrashBatch } from "@/core/workspace-backend/types";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
@@ -43,7 +42,6 @@ function batchSubtitle(batch: TrashBatch): string {
 }
 
 export function TrashView() {
-	const router = useRouter();
 	const { data: batches = [], isLoading } = useTrash();
 	const restore = useRestoreTrash();
 	const purge = usePurgeTrash();

@@ -21,7 +21,10 @@ export function PersistenceBootstrap() {
 		usePreferencesStore.getState().syncUserScope(userScopeId);
 
 		const appearance = usePreferencesStore.getState().appearance;
-		if (appearance && useSidebarStore.getState().config.compactMode !== appearance.compactSidebar) {
+		if (
+			appearance &&
+			useSidebarStore.getState().config.compactMode !== appearance.compactSidebar
+		) {
 			useSidebarStore.getState().setCompactMode(appearance.compactSidebar);
 		}
 	}, [auth.isReady, auth.phase, userScopeId]);

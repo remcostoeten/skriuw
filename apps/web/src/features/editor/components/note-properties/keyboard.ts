@@ -44,10 +44,7 @@ export function valueDisplayKeys({
 			return;
 		}
 
-		if (
-			(event.key === "Backspace" || event.key === "Delete" || event.key === "d") &&
-			onClear
-		) {
+		if ((event.key === "Backspace" || event.key === "Delete" || event.key === "d") && onClear) {
 			event.preventDefault();
 			onClear();
 		}
@@ -55,13 +52,7 @@ export function valueDisplayKeys({
 }
 
 export function submitPropertyField(event: KeyboardEvent<HTMLElement>) {
-	if (
-		event.key !== "Enter" ||
-		event.shiftKey ||
-		event.altKey ||
-		event.ctrlKey ||
-		event.metaKey
-	) {
+	if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
 		return;
 	}
 

@@ -47,7 +47,12 @@ describe("import AI title suggestions", () => {
 
 	test("generates sanitized title suggestions with bounded concurrency and progress", async () => {
 		const notes = [note({ id: "a" }), note({ id: "b" }), note({ id: "c", content: "short" })];
-		const progress: Array<{ completed: number; succeeded: number; failed: number; active: number }> = [];
+		const progress: Array<{
+			completed: number;
+			succeeded: number;
+			failed: number;
+			active: number;
+		}> = [];
 		let active = 0;
 		let maxActive = 0;
 
@@ -77,11 +82,16 @@ describe("import AI title suggestions", () => {
 	});
 
 	test("applies a selected title by prepending an H1 and deriving the note name", () => {
-		const original = note({ name: "Imported note.md", content: "Paragraph one.\n\nParagraph two." });
+		const original = note({
+			name: "Imported note.md",
+			content: "Paragraph one.\n\nParagraph two.",
+		});
 
 		const updated = applyImportTitleSuggestion(original, "Generated Import Title");
 
-		expect(updated.content).toBe("# Generated Import Title\n\nParagraph one.\n\nParagraph two.");
+		expect(updated.content).toBe(
+			"# Generated Import Title\n\nParagraph one.\n\nParagraph two.",
+		);
 		expect(updated.name).toBe("Generated Import Title.md");
 		expect(updated.richContent.length).toBeGreaterThan(0);
 	});

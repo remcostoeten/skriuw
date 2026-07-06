@@ -92,9 +92,10 @@ export async function unlinkProvider(input: {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const payload = (await res.json().catch(() => null)) as
-		| { error?: string; code?: string }
-		| null;
+	const payload = (await res.json().catch(() => null)) as {
+		error?: string;
+		code?: string;
+	} | null;
 	if (!res.ok) {
 		const stepUpCode = stepUpCodeFromPayload(payload);
 		if (stepUpCode) {

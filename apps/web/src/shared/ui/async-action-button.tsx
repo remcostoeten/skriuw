@@ -100,6 +100,7 @@ export function AsyncActionButton({
 
 	return (
 		<button
+			type="button"
 			onClick={run}
 			disabled={disabled || busy}
 			title={disabled ? disabledTitle : undefined}

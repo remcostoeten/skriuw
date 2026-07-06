@@ -6,240 +6,242 @@ import { isUniqueConstraintError } from "@/domain/persistence/guards";
 import { revalidatePath } from "next/cache";
 import type { TCollabPermission } from "./models";
 import {
-  getCollaborators,
-  getPendingRequestsForNote,
-  getNotifications,
-  getSharedNotes,
+	getCollaborators,
+	getPendingRequestsForNote,
+	getNotifications,
+	getSharedNotes,
 } from "./queries";
 
 // ─── Server action wrappers (callable from client via TanStack Query) ─────────
 
 export async function getCollaboratorsAction(noteId: string) {
-  return getCollaborators(noteId);
+	return getCollaborators(noteId);
 }
 
 export async function getPendingRequestsAction(noteId: string) {
-  return getPendingRequestsForNote(noteId);
+	return getPendingRequestsForNote(noteId);
 }
 
 export async function getNotificationsAction() {
-  return getNotifications();
+	return getNotifications();
 }
 
 export async function getSharedNotesAction() {
-  return getSharedNotes();
+	return getSharedNotes();
 }
 
 // ─── Mutation actions ─────────────────────────────────────────────────────────
 
 export async function requestCollaboration(
-  noteId: string,
-  message?: string,
+	noteId: string,
+	message?: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (isGuestScopedId(noteId)) return { ok: false, error: "Invalid note" };
+	if (isGuestScopedId(noteId)) return { ok: false, error: "Invalid note" };
 
-  const { prisma, user } = await tryGetAuthenticatedUser();
-  if (!user) return { ok: false, error: "unauthenticated" };
+	const { prisma, user } = await tryGetAuthenticatedUser();
+	if (!user) return { ok: false, error: "unauthenticated" };
 
-  const note = await prisma.note.findUnique({ where: { id: noteId } });
-  if (!note) return { ok: false, error: "Note not found" };
-  if (note.userId === user.id) return { ok: false, error: "You own this note" };
+	const note = await prisma.note.findUnique({ where: { id: noteId } });
+	if (!note) return { ok: false, error: "Note not found" };
+	if (note.userId === user.id) return { ok: false, error: "You own this note" };
 
-  const existing = await prisma.collaborationRequest.findUnique({
-    where: { noteId_requesterId: { noteId, requesterId: user.id } },
-  });
-  if (existing?.status === "pending") return { ok: false, error: "Request already pending" };
-  if (existing?.status === "accepted") return { ok: false, error: "Already a collaborator" };
+	const existing = await prisma.collaborationRequest.findUnique({
+		where: { noteId_requesterId: { noteId, requesterId: user.id } },
+	});
+	if (existing?.status === "pending") return { ok: false, error: "Request already pending" };
+	if (existing?.status === "accepted") return { ok: false, error: "Already a collaborator" };
 
-  // Upsert keyed on the (noteId, requesterId) unique constraint so two concurrent
-  // first-time requests can't both INSERT and crash on P2002. The try/catch covers
-  // the residual race where Prisma's non-atomic upsert still loses to a parallel
-  // insert — that simply means the request already exists, which is success here.
-  try {
-    await prisma.collaborationRequest.upsert({
-      where: { noteId_requesterId: { noteId, requesterId: user.id } },
-      create: {
-        noteId,
-        requesterId: user.id,
-        ownerId: note.userId,
-        message: message ?? null,
-      },
-      update: { status: "pending", message: message ?? null, resolvedAt: null },
-    });
-  } catch (error) {
-    if (!isUniqueConstraintError(error)) throw error;
-  }
+	// Upsert keyed on the (noteId, requesterId) unique constraint so two concurrent
+	// first-time requests can't both INSERT and crash on P2002. The try/catch covers
+	// the residual race where Prisma's non-atomic upsert still loses to a parallel
+	// insert — that simply means the request already exists, which is success here.
+	try {
+		await prisma.collaborationRequest.upsert({
+			where: { noteId_requesterId: { noteId, requesterId: user.id } },
+			create: {
+				noteId,
+				requesterId: user.id,
+				ownerId: note.userId,
+				message: message ?? null,
+			},
+			update: { status: "pending", message: message ?? null, resolvedAt: null },
+		});
+	} catch (error) {
+		if (!isUniqueConstraintError(error)) throw error;
+	}
 
-  await prisma.notification.create({
-    data: {
-      userId: note.userId,
-      type: "collab_request",
-      payload: { noteId, noteName: note.name, requesterId: user.id, requesterName: user.name },
-    },
-  });
+	await prisma.notification.create({
+		data: {
+			userId: note.userId,
+			type: "collab_request",
+			payload: {
+				noteId,
+				noteName: note.name,
+				requesterId: user.id,
+				requesterName: user.name,
+			},
+		},
+	});
 
-  return { ok: true };
+	return { ok: true };
 }
 
 export async function respondToCollabRequest(
-  requestId: string,
-  accept: boolean,
-  permission: TCollabPermission = "viewer",
+	requestId: string,
+	accept: boolean,
+	permission: TCollabPermission = "viewer",
 ): Promise<{ ok: boolean; error?: string }> {
-  const { prisma, user } = await getAuthenticatedUser();
+	const { prisma, user } = await getAuthenticatedUser();
 
-  const request = await prisma.collaborationRequest.findUnique({
-    where: { id: requestId },
-    include: { note: true },
-  });
-  if (!request) return { ok: false, error: "Request not found" };
-  if (request.ownerId !== user.id) return { ok: false, error: "Forbidden" };
-  if (request.status !== "pending") return { ok: false, error: "Request already resolved" };
+	const request = await prisma.collaborationRequest.findUnique({
+		where: { id: requestId },
+		include: { note: true },
+	});
+	if (!request) return { ok: false, error: "Request not found" };
+	if (request.ownerId !== user.id) return { ok: false, error: "Forbidden" };
+	if (request.status !== "pending") return { ok: false, error: "Request already resolved" };
 
-  // Atomic transition: only flip a still-pending request owned by this user.
-  // Guards against two concurrent responses (e.g. double-click, or accept+decline)
-  // both passing the status check above and producing duplicate side effects.
-  const { count } = await prisma.collaborationRequest.updateMany({
-    where: { id: requestId, ownerId: user.id, status: "pending" },
-    data: { status: accept ? "accepted" : "declined", resolvedAt: new Date() },
-  });
-  if (count !== 1) return { ok: false, error: "Request already resolved" };
+	// Atomic transition: only flip a still-pending request owned by this user.
+	// Guards against two concurrent responses (e.g. double-click, or accept+decline)
+	// both passing the status check above and producing duplicate side effects.
+	const { count } = await prisma.collaborationRequest.updateMany({
+		where: { id: requestId, ownerId: user.id, status: "pending" },
+		data: { status: accept ? "accepted" : "declined", resolvedAt: new Date() },
+	});
+	if (count !== 1) return { ok: false, error: "Request already resolved" };
 
-  if (accept) {
-    await prisma.noteCollaborator.upsert({
-      where: { noteId_userId: { noteId: request.noteId, userId: request.requesterId } },
-      create: {
-        noteId: request.noteId,
-        userId: request.requesterId,
-        permission,
-        invitedBy: user.id,
-      },
-      update: { permission },
-    });
-  }
+	if (accept) {
+		await prisma.noteCollaborator.upsert({
+			where: { noteId_userId: { noteId: request.noteId, userId: request.requesterId } },
+			create: {
+				noteId: request.noteId,
+				userId: request.requesterId,
+				permission,
+				invitedBy: user.id,
+			},
+			update: { permission },
+		});
+	}
 
-  await prisma.notification.create({
-    data: {
-      userId: request.requesterId,
-      type: accept ? "collab_accepted" : "collab_declined",
-      payload: {
-        noteId: request.noteId,
-        noteName: request.note.name,
-        permission: accept ? permission : undefined,
-      },
-    },
-  });
+	await prisma.notification.create({
+		data: {
+			userId: request.requesterId,
+			type: accept ? "collab_accepted" : "collab_declined",
+			payload: {
+				noteId: request.noteId,
+				noteName: request.note.name,
+				permission: accept ? permission : undefined,
+			},
+		},
+	});
 
-  revalidatePath("/app");
-  return { ok: true };
+	revalidatePath("/app");
+	return { ok: true };
 }
 
 export async function updateCollaboratorPermission(
-  noteId: string,
-  userId: string,
-  permission: TCollabPermission,
+	noteId: string,
+	userId: string,
+	permission: TCollabPermission,
 ): Promise<{ ok: boolean }> {
-  const { prisma, user } = await getAuthenticatedUser();
+	const { prisma, user } = await getAuthenticatedUser();
 
-  const note = await prisma.note.findUnique({ where: { id: noteId } });
-  if (!note || note.userId !== user.id) return { ok: false };
+	const note = await prisma.note.findUnique({ where: { id: noteId } });
+	if (!note || note.userId !== user.id) return { ok: false };
 
-  await prisma.noteCollaborator.update({
-    where: { noteId_userId: { noteId, userId } },
-    data: { permission },
-  });
+	await prisma.noteCollaborator.update({
+		where: { noteId_userId: { noteId, userId } },
+		data: { permission },
+	});
 
-  return { ok: true };
+	return { ok: true };
 }
 
-export async function revokeCollaborator(
-  noteId: string,
-  userId: string,
-): Promise<{ ok: boolean }> {
-  const { prisma, user } = await getAuthenticatedUser();
+export async function revokeCollaborator(noteId: string, userId: string): Promise<{ ok: boolean }> {
+	const { prisma, user } = await getAuthenticatedUser();
 
-  const note = await prisma.note.findUnique({ where: { id: noteId } });
-  if (!note || note.userId !== user.id) return { ok: false };
+	const note = await prisma.note.findUnique({ where: { id: noteId } });
+	if (!note || note.userId !== user.id) return { ok: false };
 
-  await prisma.noteCollaborator.deleteMany({
-    where: { noteId, userId },
-  });
+	await prisma.noteCollaborator.deleteMany({
+		where: { noteId, userId },
+	});
 
-  await prisma.notification.create({
-    data: {
-      userId,
-      type: "collab_revoked",
-      payload: { noteId, noteName: note.name },
-    },
-  });
+	await prisma.notification.create({
+		data: {
+			userId,
+			type: "collab_revoked",
+			payload: { noteId, noteName: note.name },
+		},
+	});
 
-  revalidatePath("/app");
-  return { ok: true };
+	revalidatePath("/app");
+	return { ok: true };
 }
 
 export async function markNotificationsRead(ids: string[]): Promise<void> {
-  const { prisma, user } = await getAuthenticatedUser();
-  await prisma.notification.updateMany({
-    where: { id: { in: ids }, userId: user.id },
-    data: { read: true },
-  });
+	const { prisma, user } = await getAuthenticatedUser();
+	await prisma.notification.updateMany({
+		where: { id: { in: ids }, userId: user.id },
+		data: { read: true },
+	});
 }
 
 export async function markNotificationsUnread(ids: string[]): Promise<void> {
-  const { prisma, user } = await getAuthenticatedUser();
-  await prisma.notification.updateMany({
-    where: { id: { in: ids }, userId: user.id },
-    data: { read: false },
-  });
+	const { prisma, user } = await getAuthenticatedUser();
+	await prisma.notification.updateMany({
+		where: { id: { in: ids }, userId: user.id },
+		data: { read: false },
+	});
 }
 
 export async function deleteNotifications(ids: string[]): Promise<void> {
-  const { prisma, user } = await getAuthenticatedUser();
-  await prisma.notification.deleteMany({
-    where: { id: { in: ids }, userId: user.id },
-  });
+	const { prisma, user } = await getAuthenticatedUser();
+	await prisma.notification.deleteMany({
+		where: { id: { in: ids }, userId: user.id },
+	});
 }
 
 // Respond to a collaboration request straight from its notification, which
 // carries (noteId, requesterId) but not the request id. Looks up the pending
 // request and delegates to respondToCollabRequest (which re-checks ownership).
 export async function respondToCollabRequestForNote(
-  noteId: string,
-  requesterId: string,
-  accept: boolean,
-  permission: TCollabPermission = "viewer",
+	noteId: string,
+	requesterId: string,
+	accept: boolean,
+	permission: TCollabPermission = "viewer",
 ): Promise<{ ok: boolean; error?: string }> {
-  const { prisma, user } = await getAuthenticatedUser();
+	const { prisma, user } = await getAuthenticatedUser();
 
-  const request = await prisma.collaborationRequest.findUnique({
-    where: { noteId_requesterId: { noteId, requesterId } },
-  });
-  if (!request || request.ownerId !== user.id) {
-    return { ok: false, error: "Request not found" };
-  }
-  if (request.status !== "pending") {
-    return { ok: false, error: "Request already resolved" };
-  }
+	const request = await prisma.collaborationRequest.findUnique({
+		where: { noteId_requesterId: { noteId, requesterId } },
+	});
+	if (!request || request.ownerId !== user.id) {
+		return { ok: false, error: "Request not found" };
+	}
+	if (request.status !== "pending") {
+		return { ok: false, error: "Request already resolved" };
+	}
 
-  return respondToCollabRequest(request.id, accept, permission);
+	return respondToCollabRequest(request.id, accept, permission);
 }
 
 export async function getCollaborationStatusForNote(
-  noteId: string,
+	noteId: string,
 ): Promise<"none" | "pending" | "collaborator"> {
-  if (isGuestScopedId(noteId)) return "none";
-  const { prisma, user } = await tryGetAuthenticatedUser();
-  if (!user) return "none";
+	if (isGuestScopedId(noteId)) return "none";
+	const { prisma, user } = await tryGetAuthenticatedUser();
+	if (!user) return "none";
 
-  const collaborator = await prisma.noteCollaborator.findUnique({
-    where: { noteId_userId: { noteId, userId: user.id } },
-  });
-  if (collaborator) return "collaborator";
+	const collaborator = await prisma.noteCollaborator.findUnique({
+		where: { noteId_userId: { noteId, userId: user.id } },
+	});
+	if (collaborator) return "collaborator";
 
-  const request = await prisma.collaborationRequest.findUnique({
-    where: { noteId_requesterId: { noteId, requesterId: user.id } },
-  });
-  if (request?.status === "pending") return "pending";
+	const request = await prisma.collaborationRequest.findUnique({
+		where: { noteId_requesterId: { noteId, requesterId: user.id } },
+	});
+	if (request?.status === "pending") return "pending";
 
-  return "none";
+	return "none";
 }

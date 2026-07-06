@@ -6,7 +6,7 @@ import { FAST_SWAP_TRANSITION, pickTransition } from "@/shared/lib/motion";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
-import { useShortcutHint, useShortcutScope, type ShortcutId } from "@/core/shortcuts";
+import { useShortcutHint, type ShortcutId } from "@/core/shortcuts";
 import { goto, useGotoTarget } from "@/core/quick-access";
 import { useRegisterCommands } from "@/core/commands";
 import {

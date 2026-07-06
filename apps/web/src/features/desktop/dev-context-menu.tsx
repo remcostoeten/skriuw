@@ -34,7 +34,9 @@ function openDevtools(): void {
 			?.openDevtools()
 			.catch(() => {});
 	} else {
-		eval("debugger;");
+		// biome-ignore lint/suspicious/noDebugger: intentional dev-only breakpoint trigger
+		// eslint-disable-next-line no-debugger
+		debugger;
 	}
 }
 

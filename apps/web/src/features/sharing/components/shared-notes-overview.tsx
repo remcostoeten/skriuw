@@ -46,7 +46,13 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
 
-import { formatDate, formatExpiry, formatRelativeTime, formatSpan, statusStyle } from "../lib/format";
+import {
+	formatDate,
+	formatExpiry,
+	formatRelativeTime,
+	formatSpan,
+	statusStyle,
+} from "../lib/format";
 import { ViewSparkline } from "./view-sparkline";
 
 type ViewMode = "table" | "grid";
@@ -282,9 +288,7 @@ function ViewToggle({
 			aria-label={label}
 			className={cn(
 				"flex h-7 w-8 items-center justify-center rounded transition-colors",
-				active
-					? "bg-muted text-foreground"
-					: "text-muted-foreground hover:text-foreground",
+				active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
 			)}
 		>
 			{children}
@@ -312,9 +316,7 @@ function StatusPill({ status }: { status: TSharedNoteStatus }) {
 function NoteFlags({ row }: { row: TSharedNoteRow }) {
 	return (
 		<span className="inline-flex items-center gap-1.5 text-muted-foreground">
-			{row.hasPassword && (
-				<Flag icon={Lock} tip="Password protected" />
-			)}
+			{row.hasPassword && <Flag icon={Lock} tip="Password protected" />}
 			{row.viewOnce && <Flag icon={Eye} tip="View once" />}
 			{row.authorName && <Flag icon={User} tip={`Shared as ${row.authorName}`} />}
 			{row.isStale && (
@@ -637,8 +639,8 @@ function RevokeDialog({
 						<span className="font-medium text-foreground">
 							{target?.name || "this note"}
 						</span>{" "}
-						will stop working immediately. View history is kept, but this can't be undone
-						— you'd have to publish a new link.
+						will stop working immediately. View history is kept, but this can't be
+						undone — you'd have to publish a new link.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>

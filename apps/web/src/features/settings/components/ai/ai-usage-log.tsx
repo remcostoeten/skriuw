@@ -58,7 +58,8 @@ function UsageRow({ row }: { row: AiUsageLogRow }) {
 						<UsageStatusBadge status={row.status} />
 					</div>
 					<p className="text-[11px] text-muted-foreground">
-						{row.provider} · {row.model ?? "Unknown model"} · {formatDate(row.createdAt)}
+						{row.provider} · {row.model ?? "Unknown model"} ·{" "}
+						{formatDate(row.createdAt)}
 					</p>
 					{row.errorMessage && !expanded ? (
 						<p className="line-clamp-1 text-[11px] text-destructive/90">
@@ -90,7 +91,9 @@ function UsageRow({ row }: { row: AiUsageLogRow }) {
 						</a>
 					) : null}
 					{row.prompt ? (
-						<p className="line-clamp-3 text-[11px] text-muted-foreground/80">{row.prompt}</p>
+						<p className="line-clamp-3 text-[11px] text-muted-foreground/80">
+							{row.prompt}
+						</p>
 					) : null}
 					{ok && (row.inputTokens != null || row.outputTokens != null) ? (
 						<div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
@@ -184,7 +187,9 @@ export function AiUsageLog({
 							)}
 						>
 							{option.label}
-							{option.id === "errors" && stats.errors > 0 ? ` (${stats.errors})` : null}
+							{option.id === "errors" && stats.errors > 0
+								? ` (${stats.errors})`
+								: null}
 						</button>
 					))}
 				</div>

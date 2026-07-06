@@ -27,11 +27,7 @@ export function getActiveTreeItemDrag(): TreeDragItem | null {
 }
 
 /** Marks a drag as a sidebar tree item so editor panes and tab bars can accept it. */
-export function setTreeItemDragData(
-	event: DragEvent,
-	item: TreeDragItem,
-	label: string,
-): void {
+export function setTreeItemDragData(event: DragEvent, item: TreeDragItem, label: string): void {
 	beginTreeItemDrag(item);
 	event.dataTransfer.effectAllowed = "copyMove";
 	event.dataTransfer.setData("text/plain", label);

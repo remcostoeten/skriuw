@@ -46,10 +46,7 @@ function notifyCopyResult(copied: boolean) {
 
 export function useNoteSend(note: NoteSendSource) {
 	const noteId = note?.id ?? "";
-	const payload = useMemo(
-		() => (note ? buildNoteSharePayload(note) : null),
-		[note],
-	);
+	const payload = useMemo(() => (note ? buildNoteSharePayload(note) : null), [note]);
 	const { shareQuery, publish, refresh } = useNoteSharing(noteId || undefined);
 
 	const canNativeShare = canUseNativeShare();

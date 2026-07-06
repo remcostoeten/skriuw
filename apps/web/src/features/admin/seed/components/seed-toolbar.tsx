@@ -7,7 +7,8 @@ import { saveSeedBundle } from "../server/actions";
 import { useSeedEditorStore } from "../store";
 
 export function SeedToolbar() {
-	const { bundleId, bundleName, folders, notes, dirty, setBundleName, markSaved } = useSeedEditorStore();
+	const { bundleId, bundleName, folders, notes, dirty, setBundleName, markSaved } =
+		useSeedEditorStore();
 	const [isPending, startTransition] = useTransition();
 	const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +39,9 @@ export function SeedToolbar() {
 
 			<div className="flex items-center gap-2">
 				{error && <span className="text-xs text-destructive">{error}</span>}
-				<span className={cn("text-xs", dirty ? "text-amber-500" : "text-muted-foreground/50")}>
+				<span
+					className={cn("text-xs", dirty ? "text-amber-500" : "text-muted-foreground/50")}
+				>
 					{isPending ? "Saving…" : dirty ? "Unsaved changes" : "Saved"}
 				</span>
 				<button
