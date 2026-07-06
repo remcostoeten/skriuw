@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, LayoutTemplate, Plus, Trash2 } from "lucide-react";
+import { Check, Plus, Trash2 } from "lucide-react";
+import { LayoutDashboardIcon } from "@/shared/icons/layout-dashboard";
 import {
 	NOTE_PROPERTY_TEMPLATES,
 	NOTE_PROPERTY_TYPES,
@@ -264,7 +265,7 @@ export function TemplatePicker({
 					onClick={toggle}
 					className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
 				>
-					<LayoutTemplate className="size-3.5" />
+					<LayoutDashboardIcon size={14} />
 					Templates
 				</button>
 			)}

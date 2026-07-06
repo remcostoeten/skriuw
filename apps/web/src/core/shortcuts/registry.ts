@@ -34,6 +34,13 @@ export type ShortcutDefinition = {
 	 */
 	global?: boolean;
 	/**
+	 * When `true`, this shortcut is only registered under the Tauri desktop
+	 * runtime. On the web build it is skipped entirely so its `preventDefault`
+	 * never swallows a native browser combo (e.g. `mod+=`/`mod+-`/`mod+0` zoom)
+	 * whose handler only exists on desktop.
+	 */
+	desktopOnly?: boolean;
+	/**
 	 * Shortcuts with the same binding group represent the same user-facing
 	 * command in different scopes. Rebinding one rebinds all of them, and the
 	 * settings UI treats their shared default as an intentional non-conflict.
@@ -458,6 +465,7 @@ export const SHORTCUT_REGISTRY = {
 		label: "Zoom in",
 		preventDefault: true,
 		except: false,
+		desktopOnly: true,
 	},
 	"desktop.zoomOut": {
 		keys: "mod+-",
@@ -466,6 +474,7 @@ export const SHORTCUT_REGISTRY = {
 		label: "Zoom out",
 		preventDefault: true,
 		except: false,
+		desktopOnly: true,
 	},
 	"desktop.zoomReset": {
 		keys: "mod+0",
@@ -474,6 +483,7 @@ export const SHORTCUT_REGISTRY = {
 		label: "Reset zoom",
 		preventDefault: true,
 		except: false,
+		desktopOnly: true,
 	},
 	"desktop.quit": {
 		keys: "mod+shift+q",
@@ -482,6 +492,7 @@ export const SHORTCUT_REGISTRY = {
 		label: "Quit app",
 		preventDefault: true,
 		except: false,
+		desktopOnly: true,
 	},
 	"desktop.toggleMaximize": {
 		keys: "mod+enter",
@@ -490,6 +501,7 @@ export const SHORTCUT_REGISTRY = {
 		label: "Toggle maximize",
 		preventDefault: true,
 		except: false,
+		desktopOnly: true,
 	},
 } as const satisfies Record<string, ShortcutDefinition>;
 

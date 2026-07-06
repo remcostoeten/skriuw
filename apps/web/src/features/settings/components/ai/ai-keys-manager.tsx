@@ -11,6 +11,11 @@ import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-ancho
 
 type LoadState = "idle" | "loading" | "error";
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+	dateStyle: "medium",
+	timeStyle: "short",
+});
+
 function StatusBadge({ status }: { status: string }) {
 	const ok = status === "success" || status === "valid";
 	const warning = status === "rate_limited" || status === "untested";
@@ -31,10 +36,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function formatDate(value: string | null) {
 	if (!value) return "Never";
-	return new Intl.DateTimeFormat(undefined, {
-		dateStyle: "medium",
-		timeStyle: "short",
-	}).format(new Date(value));
+	return DATE_FORMATTER.format(new Date(value));
 }
 
 export function AiKeysManager({ isSignedIn }: { isSignedIn: boolean }) {

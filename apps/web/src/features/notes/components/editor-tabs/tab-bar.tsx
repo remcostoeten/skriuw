@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Pin, X } from "lucide-react";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import { cn } from "@/shared/lib/utils";
 import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
@@ -87,7 +88,7 @@ export function TabBar({
 	const showPageIcons = usePreferencesStore((s) => s.appearance.showPageIcons);
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [dragOverId, setDragOverId] = useState<string | null>(null);
-	const tabRefs = useRef(new Map<string, HTMLDivElement>());
+	const tabRefs = useLazyRef(() => new Map<string, HTMLDivElement>());
 	const externalOverRef = useRef<string | "strip" | null>(null);
 	const dropNoteRef = useRef(onDropNote);
 	dropNoteRef.current = onDropNote;

@@ -1,7 +1,16 @@
 "use client";
 
-import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import {
+	memo,
+	useCallback,
+	useDeferredValue,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
+import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "framer-motion";
 import { FAST_SWAP_TRANSITION, pickTransition } from "@/shared/lib/motion";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
@@ -77,6 +86,29 @@ type SidebarPanelProps = {
 	sidebarWidth?: number;
 };
 
+function subscribeCoarsePointer(callback: () => void) {
+	const mql = window.matchMedia("(pointer: coarse)");
+	mql.addEventListener("change", callback);
+	return () => mql.removeEventListener("change", callback);
+}
+
+function isSidebarFindShortcut(event: KeyboardEvent) {
+	return (
+		event.key.toLowerCase() === "f" &&
+		(event.ctrlKey || event.metaKey) &&
+		!event.altKey &&
+		!event.shiftKey
+	);
+}
+
+function useIsCoarsePointer() {
+	return useSyncExternalStore(
+		subscribeCoarsePointer,
+		() => window.matchMedia("(pointer: coarse)").matches,
+		() => false,
+	);
+}
+
 function HeaderActionTooltip({
 	label,
 	shortcutId,
@@ -87,11 +119,16 @@ function HeaderActionTooltip({
 	children: React.ReactNode;
 }) {
 	const shortcut = useShortcutHint(shortcutId);
+	const isCoarsePointer = useIsCoarsePointer();
 
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>{children}</TooltipTrigger>
-			<TooltipContent side="bottom" className="px-2 py-1 text-xs" shortcut={shortcut}>
+			<TooltipContent
+				side="bottom"
+				className="px-2 py-1 text-xs"
+				shortcut={isCoarsePointer ? undefined : shortcut}
+			>
 				{label}
 			</TooltipContent>
 		</Tooltip>
@@ -174,13 +211,13 @@ export const SidebarPanel = memo(function SidebarPanel({
 			return [];
 		}
 		const lowerQuery = deferredSearchQuery.toLowerCase();
-		return files
-			.filter(
-				(file) =>
-					file.name.toLowerCase().includes(lowerQuery) ||
-					(file.tags ?? []).some((tag) => tag.toLowerCase().includes(lowerQuery)),
-			)
-			.map((file) => ({ file }));
+		return files.reduce<SearchFileResult[]>((results, file) => {
+			const matches =
+				file.name.toLowerCase().includes(lowerQuery) ||
+				(file.tags ?? []).some((tag) => tag.toLowerCase().includes(lowerQuery));
+			if (matches) results.push({ file });
+			return results;
+		}, []);
 	}, [deferredSearchQuery, files, supportsContentSearch]);
 
 	const contentFileResults = useMemo<SearchFileResult[]>(() => {
@@ -313,6 +350,24 @@ export const SidebarPanel = memo(function SidebarPanel({
 		}
 	}, [isSearchOpen]);
 
+	useEffect(() => {
+		function handleSidebarFindShortcut(event: KeyboardEvent) {
+			if (!isSidebarFindShortcut(event)) return;
+			const activeElement = document.activeElement;
+			if (!activeElement || !sidebarPanelRef.current?.contains(activeElement)) return;
+
+			event.preventDefault();
+			event.stopPropagation();
+			event.stopImmediatePropagation();
+			openSearch();
+		}
+
+		window.addEventListener("keydown", handleSidebarFindShortcut, { capture: true });
+		return () => {
+			window.removeEventListener("keydown", handleSidebarFindShortcut, { capture: true });
+		};
+	}, [openSearch]);
+
 	const hasSearchResults = totalSearchResults > 0;
 	const fileTreeSection = visibleSections.find((section) => section.type === "file-tree");
 	const journalSection = visibleSections.find((section) => section.type === "journal");
@@ -329,9 +384,9 @@ export const SidebarPanel = memo(function SidebarPanel({
 				if (right.type === "file-tree" && left.type !== "file-tree") return 1;
 				return left.order - right.order;
 			});
-			const movableIds = orderedSections
-				.filter((section) => section.type !== "file-tree")
-				.map((section) => section.id);
+			const movableIds = orderedSections.flatMap((section) =>
+				section.type !== "file-tree" ? [section.id] : [],
+			);
 			const draggedIndex = movableIds.indexOf(draggedId);
 			const targetIndex = movableIds.indexOf(targetId);
 
@@ -341,9 +396,9 @@ export const SidebarPanel = memo(function SidebarPanel({
 			nextMovableIds.splice(draggedIndex, 1);
 			nextMovableIds.splice(targetIndex, 0, draggedId);
 
-			const pinnedIds = orderedSections
-				.filter((section) => section.type === "file-tree")
-				.map((section) => section.id);
+			const pinnedIds = orderedSections.flatMap((section) =>
+				section.type === "file-tree" ? [section.id] : [],
+			);
 
 			sidebarStore.reorderSections([...pinnedIds, ...nextMovableIds]);
 		},
@@ -393,9 +448,9 @@ export const SidebarPanel = memo(function SidebarPanel({
 				if (right.type === "file-tree" && left.type !== "file-tree") return 1;
 				return left.order - right.order;
 			});
-			const movableIds = orderedSections
-				.filter((section) => section.type !== "file-tree")
-				.map((section) => section.id);
+			const movableIds = orderedSections.flatMap((section) =>
+				section.type !== "file-tree" ? [section.id] : [],
+			);
 			const currentIndex = movableIds.indexOf(sectionId);
 
 			const move = (direction: "up" | "down") => {
@@ -405,9 +460,9 @@ export const SidebarPanel = memo(function SidebarPanel({
 				const nextMovableIds = [...movableIds];
 				const [movedId] = nextMovableIds.splice(currentIndex, 1);
 				nextMovableIds.splice(targetIndex, 0, movedId);
-				const pinnedIds = orderedSections
-					.filter((section) => section.type === "file-tree")
-					.map((section) => section.id);
+				const pinnedIds = orderedSections.flatMap((section) =>
+					section.type === "file-tree" ? [section.id] : [],
+				);
 				sidebarStore.reorderSections([...pinnedIds, ...nextMovableIds]);
 			};
 
@@ -431,7 +486,6 @@ export const SidebarPanel = memo(function SidebarPanel({
 				if (sidebarStore.config.favorites.length === 0) return null;
 				return (
 					<FavoritesSection
-						key={section.id}
 						favorites={sidebarStore.config.favorites}
 						filesById={filesById}
 						foldersById={foldersById}
@@ -447,6 +501,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 						onRemoveFromFavorites={sidebarStore.removeFromFavorites}
 						{...getSectionMoveProps(section.id)}
 						{...getSectionDragProps(section.id)}
+						key={section.id}
 					/>
 				);
 
@@ -455,7 +510,6 @@ export const SidebarPanel = memo(function SidebarPanel({
 				if (sidebarStore.getRecents().length === 0) return null;
 				return (
 					<RecentsSection
-						key={section.id}
 						recents={sidebarStore.getRecents()}
 						filesById={filesById}
 						foldersById={foldersById}
@@ -471,6 +525,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 						onClearRecents={sidebarStore.clearRecents}
 						{...getSectionMoveProps(section.id)}
 						{...getSectionDragProps(section.id)}
+						key={section.id}
 					/>
 				);
 
@@ -482,7 +537,6 @@ export const SidebarPanel = memo(function SidebarPanel({
 			case "journal":
 				return (
 					<JournalSection
-						key={section.id}
 						isCollapsed={section.isCollapsed}
 						showHeader={showSectionHeaders}
 						compactMode={effectiveCompactMode}
@@ -490,6 +544,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 						onToggleVisibility={() => sidebarStore.toggleSectionVisibility(section.id)}
 						{...getSectionMoveProps(section.id)}
 						{...getSectionDragProps(section.id)}
+						key={section.id}
 					/>
 				);
 
@@ -517,7 +572,6 @@ export const SidebarPanel = memo(function SidebarPanel({
 			default:
 				return (
 					<CustomSection
-						key={section.id}
 						section={section}
 						filesById={filesById}
 						foldersById={foldersById}
@@ -537,452 +591,482 @@ export const SidebarPanel = memo(function SidebarPanel({
 						onRemoveFromSection={sidebarStore.removeFromCustomSection}
 						{...getSectionMoveProps(section.id)}
 						{...getSectionDragProps(section.id)}
+						key={section.id}
 					/>
 				);
 		}
 	};
 
 	return (
-		<div
-			ref={(element) => {
-				sidebarPanelRef.current = element;
-				leftSidebarGotoRef(element);
-			}}
-			className={cn(
-				"flex h-full w-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground",
-				"min-w-0 overflow-hidden",
-				className,
-			)}
-		>
-			<div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar">
-				<div
-					className={cn(
-						"relative flex h-11 items-center justify-between overflow-hidden",
-						isNarrow ? "px-1.5" : "px-3",
-					)}
-				>
-					<motion.div
-						animate={
-							isSearchOpen
-								? { y: -8, opacity: 0, scale: 0.985 }
-								: { y: 0, opacity: 1, scale: 1 }
-						}
-						transition={searchSwapTransition}
+		<LazyMotion features={domAnimation} strict>
+			<div
+				ref={(element) => {
+					sidebarPanelRef.current = element;
+					leftSidebarGotoRef(element);
+				}}
+				className={cn(
+					"flex h-full w-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground",
+					"min-w-0 overflow-hidden",
+					className,
+				)}
+			>
+				<div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar">
+					<div
 						className={cn(
-							"flex h-full w-full min-w-0 items-center justify-between will-change-transform",
-							isNarrow ? "gap-1" : "gap-3",
-							isSearchOpen && "pointer-events-none",
+							"relative flex h-11 items-center justify-between overflow-hidden",
+							isNarrow ? "px-1.5" : "px-3",
 						)}
-						inert={isSearchOpen}
-						aria-hidden={isSearchOpen}
 					>
-						<div
+						<m.div
+							animate={
+								isSearchOpen
+									? { y: -8, opacity: 0, scale: 0.985 }
+									: { y: 0, opacity: 1, scale: 1 }
+							}
+							transition={searchSwapTransition}
 							className={cn(
-								"flex min-w-0 items-center w-full justify-between",
-								isNarrow ? "gap-0.5" : "gap-2 md:gap-2.5",
+								"flex h-full w-full min-w-0 items-center justify-between will-change-transform",
+								isNarrow ? "gap-1" : "gap-3",
+								isSearchOpen && "pointer-events-none",
 							)}
+							inert={isSearchOpen}
+							aria-hidden={isSearchOpen}
 						>
-							<HeaderActionTooltip label="New note" shortcutId="notes.newNote">
-								<button
-									onClick={() => onCreateFile()}
-									className={cn(
-										"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
-										isNarrow ? "h-6 w-6" : "h-7 w-7",
-									)}
-									aria-label="New note"
+							<div
+								className={cn(
+									"flex min-w-0 items-center w-full justify-between",
+									isNarrow ? "gap-0.5" : "gap-2 md:gap-2.5",
+									"[@media(pointer:coarse)]:[&>button]:min-h-11",
+								)}
+							>
+								<HeaderActionTooltip label="New note" shortcutId="notes.newNote">
+									<button
+										type="button"
+										onClick={() => onCreateFile()}
+										className={cn(
+											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+											isNarrow ? "h-6 w-6" : "h-7 w-7",
+										)}
+										aria-label="New note"
+									>
+										<NewNoteIcon />
+									</button>
+								</HeaderActionTooltip>
+								<HeaderActionTooltip
+									label="New folder"
+									shortcutId="notes.newFolder"
 								>
-									<NewNoteIcon />
-								</button>
-							</HeaderActionTooltip>
-							<HeaderActionTooltip label="New folder" shortcutId="notes.newFolder">
-								<button
-									onClick={onCreateFolder}
-									className={cn(
-										"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
-										isNarrow ? "h-6 w-6" : "h-7 w-7",
-									)}
-									aria-label="New folder"
-								>
-									<NewFolderNoteIcon />
-								</button>
-							</HeaderActionTooltip>
-							<HeaderActionTooltip label="Manage sections">
-								<button
-									onClick={openConfigPanel}
-									className={cn(
-										"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
-										isNarrow ? "h-6 w-6" : "h-7 w-7",
-									)}
-									aria-label="Manage sections"
-								>
-									<PanelTopClose className="h-4 w-4" strokeWidth={1.5} />
-								</button>
-							</HeaderActionTooltip>
-							{(onCollapseAllFolders || onExpandAllFolders) && (
-								<div className="relative flex">
-									<HeaderActionTooltip label="Toggle all folders">
-										<button
-											onClick={() => {
-												if (onCollapseAllFolders && onExpandAllFolders) {
-													const anyExpanded = folders.some(
-														(f) => f.isOpen,
-													);
-													if (anyExpanded) {
+									<button
+										type="button"
+										onClick={onCreateFolder}
+										className={cn(
+											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+											isNarrow ? "h-6 w-6" : "h-7 w-7",
+										)}
+										aria-label="New folder"
+									>
+										<NewFolderNoteIcon />
+									</button>
+								</HeaderActionTooltip>
+								<HeaderActionTooltip label="Manage sections">
+									<button
+										type="button"
+										onClick={openConfigPanel}
+										className={cn(
+											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+											isNarrow ? "h-6 w-6" : "h-7 w-7",
+										)}
+										aria-label="Manage sections"
+									>
+										<PanelTopClose className="h-4 w-4" strokeWidth={1.5} />
+									</button>
+								</HeaderActionTooltip>
+								{(onCollapseAllFolders || onExpandAllFolders) && (
+									<div className="relative flex">
+										<HeaderActionTooltip label="Toggle all folders">
+											<button
+												type="button"
+												onClick={() => {
+													if (
+														onCollapseAllFolders &&
+														onExpandAllFolders
+													) {
+														const anyExpanded = folders.some(
+															(f) => f.isOpen,
+														);
+														if (anyExpanded) {
+															onCollapseAllFolders();
+														} else {
+															onExpandAllFolders();
+														}
+													} else if (onCollapseAllFolders) {
 														onCollapseAllFolders();
-													} else {
+													} else if (onExpandAllFolders) {
 														onExpandAllFolders();
 													}
-												} else if (onCollapseAllFolders) {
-													onCollapseAllFolders();
-												} else if (onExpandAllFolders) {
-													onExpandAllFolders();
-												}
-											}}
+												}}
+												className={cn(
+													"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+													"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+													isNarrow ? "h-6 w-6" : "h-7 w-7",
+												)}
+												aria-label="Toggle all folders"
+											>
+												<UnfoldVertical
+													className="h-4 w-4"
+													strokeWidth={1.5}
+												/>
+											</button>
+										</HeaderActionTooltip>
+									</div>
+								)}
+								{hasSearchSection && (
+									<HeaderActionTooltip
+										label="Search notes"
+										shortcutId="notes.focusSidebarSearch"
+									>
+										<button
+											type="button"
+											ref={searchGotoRef}
+											onClick={openSearch}
 											className={cn(
 												"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
 												"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 												isNarrow ? "h-6 w-6" : "h-7 w-7",
 											)}
-											aria-label="Toggle all folders"
+											aria-label="Search notes"
 										>
-											<UnfoldVertical className="h-4 w-4" strokeWidth={1.5} />
+											<Search className="h-4 w-4" strokeWidth={1.5} />
 										</button>
 									</HeaderActionTooltip>
-								</div>
-							)}
-							{hasSearchSection && (
-								<HeaderActionTooltip
-									label="Search notes"
-									shortcutId="notes.focusSidebarSearch"
-								>
-									<button
-										ref={searchGotoRef}
-										onClick={openSearch}
-										className={cn(
-											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
-											isNarrow ? "h-6 w-6" : "h-7 w-7",
-										)}
-										aria-label="Search notes"
+								)}
+								{onOpenCommandPalette && (
+									<HeaderActionTooltip
+										label="Command menu"
+										shortcutId="notes.commandPalette"
 									>
-										<Search className="h-4 w-4" strokeWidth={1.5} />
-									</button>
-								</HeaderActionTooltip>
-							)}
-							{onOpenCommandPalette && (
-								<HeaderActionTooltip
-									label="Command menu"
-									shortcutId="notes.commandPalette"
-								>
-									<button
-										onClick={onOpenCommandPalette}
-										className={cn(
-											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-											"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
-											isNarrow ? "h-6 w-6" : "h-7 w-7",
-										)}
-										aria-label="Command menu"
-									>
-										<Command className="h-4 w-4" strokeWidth={1.5} />
-									</button>
-								</HeaderActionTooltip>
-							)}
-							<SidebarConfigManager
-								open={isConfigOpen}
-								onOpenChange={setIsConfigOpen}
-								hideTrigger
-								sections={sidebarStore.config.sections}
-								showSectionHeaders={sidebarStore.config.showSectionHeaders}
-								compactMode={effectiveCompactMode}
-								showTreeGuides={sidebarStore.config.showTreeGuides}
-								onReorderSections={sidebarStore.reorderSections}
-								onToggleSectionVisibility={sidebarStore.toggleSectionVisibility}
-								onAddCustomSection={sidebarStore.addCustomSection}
-								onRemoveSection={sidebarStore.removeSection}
-								onRenameSection={sidebarStore.renameSection}
-								onToggleShowSectionHeaders={sidebarStore.toggleShowSectionHeaders}
-								onToggleCompactMode={sidebarStore.toggleCompactMode}
-								onToggleTreeGuides={sidebarStore.toggleTreeGuides}
-								onResetToDefaults={sidebarStore.resetToDefaults}
-							/>
-							{!isGuest && (
-								// Desktop shows the bell at the avatar (icon rail); the rail is
-								// hidden on mobile, so keep a mobile-only trigger here.
-								<div className="md:hidden">
-									<HeaderActionTooltip label="Notifications">
-										<NotificationBell />
+										<button
+											type="button"
+											onClick={onOpenCommandPalette}
+											className={cn(
+												"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+												"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
+												isNarrow ? "h-6 w-6" : "h-7 w-7",
+											)}
+											aria-label="Command menu"
+										>
+											<Command className="h-4 w-4" strokeWidth={1.5} />
+										</button>
 									</HeaderActionTooltip>
+								)}
+								<SidebarConfigManager
+									open={isConfigOpen}
+									onOpenChange={setIsConfigOpen}
+									hideTrigger
+									sections={sidebarStore.config.sections}
+									showSectionHeaders={sidebarStore.config.showSectionHeaders}
+									compactMode={effectiveCompactMode}
+									showTreeGuides={sidebarStore.config.showTreeGuides}
+									onReorderSections={sidebarStore.reorderSections}
+									onToggleSectionVisibility={sidebarStore.toggleSectionVisibility}
+									onAddCustomSection={sidebarStore.addCustomSection}
+									onRemoveSection={sidebarStore.removeSection}
+									onRenameSection={sidebarStore.renameSection}
+									onToggleShowSectionHeaders={
+										sidebarStore.toggleShowSectionHeaders
+									}
+									onToggleCompactMode={sidebarStore.toggleCompactMode}
+									onToggleTreeGuides={sidebarStore.toggleTreeGuides}
+									onResetToDefaults={sidebarStore.resetToDefaults}
+								/>
+								{!isGuest && (
+									// Desktop shows the bell at the avatar (icon rail); the rail is
+									// hidden on mobile, so keep a mobile-only trigger here.
+									<div className="md:hidden">
+										<HeaderActionTooltip label="Notifications">
+											<NotificationBell />
+										</HeaderActionTooltip>
+									</div>
+								)}
+							</div>
+
+							{showCloseButton && (
+								<button
+									type="button"
+									onClick={onRequestClose}
+									className="ml-auto inline-flex h-7 w-7 shrink-0 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground [@media(pointer:coarse)]:min-h-11 md:hidden"
+									title="Close sidebar"
+								>
+									<X className="h-4 w-4" strokeWidth={1.5} />
+								</button>
+							)}
+						</m.div>
+
+						<AnimatePresence>
+							{hasSearchSection && isSearchOpen && (
+								<m.div
+									ref={searchSwapRef}
+									onBlur={handleSearchSwapBlur}
+									initial={{ y: 8, opacity: 0, scale: 0.985 }}
+									animate={{ y: 0, opacity: 1, scale: 1 }}
+									exit={{ y: 8, opacity: 0, scale: 0.985 }}
+									transition={searchSwapTransition}
+									className="absolute inset-x-0 top-0 flex h-11 items-center px-3 will-change-transform"
+								>
+									<div className="flex h-8 w-full items-center gap-2 bg-transparent px-2.5">
+										<Search
+											className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+											strokeWidth={1.5}
+										/>
+										<input
+											ref={searchInputRef}
+											type="text"
+											value={searchQuery}
+											onChange={(event) => setSearchQuery(event.target.value)}
+											onKeyDown={(event) => {
+												if (event.key === "Escape") {
+													closeSearch();
+												}
+											}}
+											placeholder="Search"
+											aria-label="Search notes"
+											inputMode="search"
+											enterKeyHint="search"
+											className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 focus-visible:shadow-none md:text-[13px]"
+										/>
+										<button
+											type="button"
+											onClick={closeSearch}
+											className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2.5 after:md:hidden hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground"
+											title="Close search"
+										>
+											<X className="h-3.5 w-3.5" strokeWidth={1.5} />
+										</button>
+									</div>
+								</m.div>
+							)}
+						</AnimatePresence>
+					</div>
+				</div>
+
+				<div
+					className={cn(
+						"flex min-h-0 flex-1 flex-col overflow-hidden",
+						effectiveCompactMode && "text-sm",
+						isVeryNarrow && "text-xs",
+					)}
+				>
+					{searchQuery.trim() ? (
+						<div
+							ref={searchResultsRef}
+							onBlur={handleSearchSwapBlur}
+							className="momentum-scroll flex-1 overflow-y-auto px-2 py-2"
+						>
+							{hasSearchResults ? (
+								<div className="flex flex-col gap-3">
+									{visibleSearchFolders.length > 0 && (
+										<div className="flex flex-col gap-0.5">
+											<p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+												Folders
+											</p>
+											{visibleSearchFolders.map((folder) => (
+												<button
+													key={folder.id}
+													onMouseDown={(event) => event.preventDefault()}
+													type="button"
+													onClick={() =>
+														handleSearchFolderSelect(folder.id)
+													}
+													className="flex h-[34px] w-full items-center gap-1.5 border border-transparent px-2 text-left text-xs font-medium text-foreground/70 transition-colors [@media(pointer:coarse)]:min-h-11 hover:border-border hover:bg-muted hover:text-foreground/88"
+												>
+													<Folder
+														className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
+														strokeWidth={1.5}
+													/>
+													<span className="truncate">{folder.name}</span>
+												</button>
+											))}
+											{searchResults.folders.length >
+												visibleSearchFolders.length && (
+												<p className="px-2 pt-1 text-[10px] text-muted-foreground">
+													+
+													{searchResults.folders.length -
+														visibleSearchFolders.length}{" "}
+													more folders
+												</p>
+											)}
+										</div>
+									)}
+									{visibleSearchFiles.length > 0 && (
+										<div className="flex flex-col gap-0.5">
+											<p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+												Files
+											</p>
+											{visibleSearchFiles.map(({ file, snippet }) => (
+												<button
+													key={file.id}
+													onMouseDown={(event) => event.preventDefault()}
+													type="button"
+													onClick={() => handleSearchFileSelect(file.id)}
+													className={cn(
+														"flex min-h-[34px] w-full items-start gap-1.5 border border-transparent px-2 py-1.5 text-left text-xs font-medium transition-colors [@media(pointer:coarse)]:min-h-11",
+														file.id === activeFileId
+															? "border-border bg-muted text-foreground"
+															: "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
+													)}
+												>
+													<FileText
+														className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
+														strokeWidth={1.5}
+													/>
+													<span className="flex min-w-0 flex-col">
+														<span className="truncate">
+															{file.name}
+														</span>
+														{snippet && (
+															<span className="truncate text-[11px] font-normal text-muted-foreground">
+																{snippet}
+															</span>
+														)}
+													</span>
+												</button>
+											))}
+											{searchResults.files.length >
+												visibleSearchFiles.length && (
+												<p className="px-2 pt-1 text-[10px] text-muted-foreground">
+													+
+													{searchResults.files.length -
+														visibleSearchFiles.length}{" "}
+													more files
+												</p>
+											)}
+										</div>
+									)}
+								</div>
+							) : supportsContentSearch && isSearching ? (
+								<p className="px-2 py-6 text-center text-xs font-medium text-muted-foreground">
+									Searching…
+								</p>
+							) : (
+								<div className="px-2 py-6 text-center">
+									<p className="text-xs font-medium text-foreground/70">
+										{supportsContentSearch
+											? "No results found"
+											: "No matching titles"}
+									</p>
+									<p className="mt-1 text-[11px] text-muted-foreground">
+										{supportsContentSearch
+											? "Try a note title, folder name, or a phrase from the editor content."
+											: "Try a different note or folder name."}
+									</p>
 								</div>
 							)}
 						</div>
-
-						{showCloseButton && (
-							<button
-								onClick={onRequestClose}
-								className="ml-auto inline-flex h-7 w-7 shrink-0 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground md:hidden"
-								title="Close sidebar"
-							>
-								<X className="h-4 w-4" strokeWidth={1.5} />
-							</button>
-						)}
-					</motion.div>
-
-					<AnimatePresence>
-						{hasSearchSection && isSearchOpen && (
-							<motion.div
-								ref={searchSwapRef}
-								onBlur={handleSearchSwapBlur}
-								initial={{ y: 8, opacity: 0, scale: 0.985 }}
-								animate={{ y: 0, opacity: 1, scale: 1 }}
-								exit={{ y: 8, opacity: 0, scale: 0.985 }}
-								transition={searchSwapTransition}
-								className="absolute inset-x-0 top-0 flex h-11 items-center px-3 will-change-transform"
-							>
-								<div className="flex h-8 w-full items-center gap-2 bg-transparent px-2.5">
-									<Search
-										className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-										strokeWidth={1.5}
-									/>
-									<input
-										ref={searchInputRef}
-										type="text"
-										value={searchQuery}
-										onChange={(event) => setSearchQuery(event.target.value)}
-										onKeyDown={(event) => {
-											if (event.key === "Escape") {
-												closeSearch();
-											}
-										}}
-										placeholder="Search"
-										aria-label="Search notes"
-										inputMode="search"
-										enterKeyHint="search"
-										className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 focus-visible:shadow-none md:text-[13px]"
-									/>
-									<button
-										onClick={closeSearch}
-										className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2.5 after:md:hidden hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground"
-										title="Close search"
+					) : (
+						<ContextMenu>
+							<ContextMenuTrigger asChild>
+								<div className="flex min-h-0 flex-1 flex-col">
+									<div
+										ref={scrollContainerRef}
+										className={cn(
+											"momentum-scroll min-h-0 flex-1 overflow-y-auto pt-2",
+											effectiveCompactMode && "pt-1",
+										)}
 									>
-										<X className="h-3.5 w-3.5" strokeWidth={1.5} />
-									</button>
+										{fileTreeSection ? renderSection(fileTreeSection) : null}
+									</div>
+									<div className="shrink-0 border-t border-sidebar-border pb-[calc(env(safe-area-inset-bottom)+1rem)] md:pb-0">
+										{navigationSections.map(renderSection)}
+										{!isGuest && (
+											<SharedSection
+												activeFileId={activeFileId}
+												isCollapsed={sharedSectionCollapsed}
+												showHeader={showSectionHeaders}
+												compactMode={effectiveCompactMode}
+												onToggleCollapse={() =>
+													setSharedSectionCollapsed((p) => !p)
+												}
+												onFileSelect={handleFileSelect}
+											/>
+										)}
+										{journalSection ? renderSection(journalSection) : null}
+									</div>
 								</div>
-							</motion.div>
-						)}
-					</AnimatePresence>
+							</ContextMenuTrigger>
+							<ContextMenuContent className="w-48">
+								<ContextMenuItem className="gap-2" onClick={() => onCreateFile()}>
+									<FilePlus className="h-3.5 w-3.5" strokeWidth={1.6} />
+									New note
+									{newNoteHint && (
+										<ContextMenuShortcut>{newNoteHint}</ContextMenuShortcut>
+									)}
+								</ContextMenuItem>
+								<ContextMenuSub>
+									<ContextMenuSubTrigger className="gap-2">
+										<LayoutTemplate className="h-3.5 w-3.5" strokeWidth={1.6} />
+										New from template
+									</ContextMenuSubTrigger>
+									<ContextMenuSubContent className="w-52">
+										{NOTE_TEMPLATES.map((template) => (
+											<ContextMenuItem
+												key={template.id}
+												className="flex-col items-start gap-0.5"
+												onClick={() =>
+													onCreateFile({ templateId: template.id })
+												}
+											>
+												<span>{template.name}</span>
+												<span className="text-[11px] text-muted-foreground">
+													{template.description}
+												</span>
+											</ContextMenuItem>
+										))}
+									</ContextMenuSubContent>
+								</ContextMenuSub>
+								<ContextMenuItem className="gap-2" onClick={onCreateFolder}>
+									<FolderPlus className="h-3.5 w-3.5" strokeWidth={1.6} />
+									New folder
+									{newFolderHint && (
+										<ContextMenuShortcut>{newFolderHint}</ContextMenuShortcut>
+									)}
+								</ContextMenuItem>
+								{(onExpandAllFolders || onCollapseAllFolders) && (
+									<>
+										<ContextMenuSeparator />
+										{onExpandAllFolders && (
+											<ContextMenuItem
+												className="gap-2"
+												onClick={onExpandAllFolders}
+											>
+												<UnfoldVertical
+													className="h-3.5 w-3.5"
+													strokeWidth={1.6}
+												/>
+												Expand all folders
+											</ContextMenuItem>
+										)}
+										{onCollapseAllFolders && (
+											<ContextMenuItem
+												className="gap-2"
+												onClick={onCollapseAllFolders}
+											>
+												<FoldVertical
+													className="h-3.5 w-3.5"
+													strokeWidth={1.6}
+												/>
+												Collapse all folders
+											</ContextMenuItem>
+										)}
+									</>
+								)}
+							</ContextMenuContent>
+						</ContextMenu>
+					)}
 				</div>
 			</div>
-
-			<div
-				className={cn(
-					"flex min-h-0 flex-1 flex-col overflow-hidden",
-					effectiveCompactMode && "text-sm",
-					isVeryNarrow && "text-xs",
-				)}
-			>
-				{searchQuery.trim() ? (
-					<div
-						ref={searchResultsRef}
-						onBlur={handleSearchSwapBlur}
-						className="flex-1 overflow-y-auto overscroll-contain px-2 py-2"
-					>
-						{hasSearchResults ? (
-							<div className="flex flex-col gap-3">
-								{visibleSearchFolders.length > 0 && (
-									<div className="flex flex-col gap-0.5">
-										<p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-											Folders
-										</p>
-										{visibleSearchFolders.map((folder) => (
-											<button
-												key={folder.id}
-												onMouseDown={(event) => event.preventDefault()}
-												onClick={() => handleSearchFolderSelect(folder.id)}
-												className="flex h-[34px] w-full items-center gap-1.5 border border-transparent px-2 text-left text-xs font-medium text-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground/88"
-											>
-												<Folder
-													className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
-													strokeWidth={1.5}
-												/>
-												<span className="truncate">{folder.name}</span>
-											</button>
-										))}
-										{searchResults.folders.length >
-											visibleSearchFolders.length && (
-											<p className="px-2 pt-1 text-[10px] text-muted-foreground">
-												+
-												{searchResults.folders.length -
-													visibleSearchFolders.length}{" "}
-												more folders
-											</p>
-										)}
-									</div>
-								)}
-								{visibleSearchFiles.length > 0 && (
-									<div className="flex flex-col gap-0.5">
-										<p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-											Files
-										</p>
-										{visibleSearchFiles.map(({ file, snippet }) => (
-											<button
-												key={file.id}
-												onMouseDown={(event) => event.preventDefault()}
-												onClick={() => handleSearchFileSelect(file.id)}
-												className={cn(
-													"flex min-h-[34px] w-full items-start gap-1.5 border border-transparent px-2 py-1.5 text-left text-xs font-medium transition-colors",
-													file.id === activeFileId
-														? "border-border bg-muted text-foreground"
-														: "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
-												)}
-											>
-												<FileText
-													className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
-													strokeWidth={1.5}
-												/>
-												<span className="flex min-w-0 flex-col">
-													<span className="truncate">{file.name}</span>
-													{snippet && (
-														<span className="truncate text-[11px] font-normal text-muted-foreground">
-															{snippet}
-														</span>
-													)}
-												</span>
-											</button>
-										))}
-										{searchResults.files.length > visibleSearchFiles.length && (
-											<p className="px-2 pt-1 text-[10px] text-muted-foreground">
-												+
-												{searchResults.files.length -
-													visibleSearchFiles.length}{" "}
-												more files
-											</p>
-										)}
-									</div>
-								)}
-							</div>
-						) : supportsContentSearch && isSearching ? (
-							<p className="px-2 py-6 text-center text-xs font-medium text-muted-foreground">
-								Searching…
-							</p>
-						) : (
-							<div className="px-2 py-6 text-center">
-								<p className="text-xs font-medium text-foreground/70">
-									{supportsContentSearch
-										? "No results found"
-										: "No matching titles"}
-								</p>
-								<p className="mt-1 text-[11px] text-muted-foreground">
-									{supportsContentSearch
-										? "Try a note title, folder name, or a phrase from the editor content."
-										: "Try a different note or folder name."}
-								</p>
-							</div>
-						)}
-					</div>
-				) : (
-					<ContextMenu>
-						<ContextMenuTrigger asChild>
-							<div className="flex min-h-0 flex-1 flex-col">
-								<div
-									ref={scrollContainerRef}
-									className={cn(
-										"min-h-0 flex-1 overflow-y-auto overscroll-contain pt-2",
-										effectiveCompactMode && "pt-1",
-									)}
-								>
-									{fileTreeSection ? renderSection(fileTreeSection) : null}
-								</div>
-								<div className="shrink-0 border-t border-sidebar-border pb-[calc(env(safe-area-inset-bottom)+1rem)] md:pb-0">
-									{navigationSections.map(renderSection)}
-									{!isGuest && (
-										<SharedSection
-											activeFileId={activeFileId}
-											isCollapsed={sharedSectionCollapsed}
-											showHeader={showSectionHeaders}
-											compactMode={effectiveCompactMode}
-											onToggleCollapse={() =>
-												setSharedSectionCollapsed((p) => !p)
-											}
-											onFileSelect={handleFileSelect}
-										/>
-									)}
-									{journalSection ? renderSection(journalSection) : null}
-								</div>
-							</div>
-						</ContextMenuTrigger>
-						<ContextMenuContent className="w-48">
-							<ContextMenuItem className="gap-2" onClick={() => onCreateFile()}>
-								<FilePlus className="h-3.5 w-3.5" strokeWidth={1.6} />
-								New note
-								{newNoteHint && (
-									<ContextMenuShortcut>{newNoteHint}</ContextMenuShortcut>
-								)}
-							</ContextMenuItem>
-							<ContextMenuSub>
-								<ContextMenuSubTrigger className="gap-2">
-									<LayoutTemplate className="h-3.5 w-3.5" strokeWidth={1.6} />
-									New from template
-								</ContextMenuSubTrigger>
-								<ContextMenuSubContent className="w-52">
-									{NOTE_TEMPLATES.map((template) => (
-										<ContextMenuItem
-											key={template.id}
-											className="flex-col items-start gap-0.5"
-											onClick={() =>
-												onCreateFile({ templateId: template.id })
-											}
-										>
-											<span>{template.name}</span>
-											<span className="text-[11px] text-muted-foreground">
-												{template.description}
-											</span>
-										</ContextMenuItem>
-									))}
-								</ContextMenuSubContent>
-							</ContextMenuSub>
-							<ContextMenuItem className="gap-2" onClick={onCreateFolder}>
-								<FolderPlus className="h-3.5 w-3.5" strokeWidth={1.6} />
-								New folder
-								{newFolderHint && (
-									<ContextMenuShortcut>{newFolderHint}</ContextMenuShortcut>
-								)}
-							</ContextMenuItem>
-							{(onExpandAllFolders || onCollapseAllFolders) && (
-								<>
-									<ContextMenuSeparator />
-									{onExpandAllFolders && (
-										<ContextMenuItem
-											className="gap-2"
-											onClick={onExpandAllFolders}
-										>
-											<UnfoldVertical
-												className="h-3.5 w-3.5"
-												strokeWidth={1.6}
-											/>
-											Expand all folders
-										</ContextMenuItem>
-									)}
-									{onCollapseAllFolders && (
-										<ContextMenuItem
-											className="gap-2"
-											onClick={onCollapseAllFolders}
-										>
-											<FoldVertical
-												className="h-3.5 w-3.5"
-												strokeWidth={1.6}
-											/>
-											Collapse all folders
-										</ContextMenuItem>
-									)}
-								</>
-							)}
-						</ContextMenuContent>
-					</ContextMenu>
-				)}
-			</div>
-		</div>
+		</LazyMotion>
 	);
 });

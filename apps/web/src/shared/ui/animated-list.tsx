@@ -21,10 +21,12 @@ type Identifiable = { id: string | number };
 function useWillChangeOnTransition(active: boolean) {
 	const ref = useRef<HTMLDivElement>(null);
 	const [animating, setAnimating] = useState(false);
+	const [prevActive, setPrevActive] = useState(active);
 
-	useEffect(() => {
+	if (active !== prevActive) {
+		setPrevActive(active);
 		setAnimating(true);
-	}, [active]);
+	}
 
 	useEffect(() => {
 		if (!animating) return;

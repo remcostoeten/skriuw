@@ -1,168 +1,67 @@
 "use client";
 
-import type { Variants } from "framer-motion";
-import { LazyMotion, domMin, m, useAnimation, useReducedMotion } from "framer-motion";
-import { forwardRef, useCallback, useImperativeHandle, useRef, type HTMLAttributes } from "react";
-
-import { cn } from "@/shared/lib/utils";
-
-export interface HashIconHandle {
-	startAnimation: () => void;
-	stopAnimation: () => void;
-}
-
-type HashIconProps = Omit<
-	HTMLAttributes<HTMLDivElement>,
-	| "color"
-	| "onDrag"
-	| "onDragStart"
-	| "onDragEnd"
-	| "onAnimationStart"
-	| "onAnimationEnd"
-	| "onAnimationIteration"
-> & {
+type HashIconProps = {
 	size?: number;
+	className?: string;
+	stroke?: string;
 	duration?: number;
-	isAnimated?: boolean;
-	color?: string;
 };
 
-const HashIcon = forwardRef<HashIconHandle, HashIconProps>(
-	(
-		{
-			onMouseEnter,
-			onMouseLeave,
-			className,
-			size = 24,
-			duration = 1,
-			isAnimated = true,
-			color,
-			...props
-		},
-		ref,
-	) => {
-		const controls = useAnimation();
-		const reduced = useReducedMotion();
-		const isControlled = useRef(false);
+function HashIcon({
+	size = 24,
+	className,
+	stroke = "currentColor",
+	duration = 2.4,
+}: HashIconProps) {
+	return (
+		<svg
+			width={size}
+			height={size}
+			viewBox="0 0 100 100"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			className={className}
+			role="img"
+			aria-label="Hash"
+		>
+			<style>{`
+				.hash-line {
+					stroke: ${stroke};
+					stroke-width: 7;
+					stroke-linecap: round;
+					fill: none;
+					stroke-dasharray: 90;
+					transform-box: fill-box;
+					transform-origin: center;
+				}
+				.hash-v1 { animation: hash-draw ${duration}s ease-in-out infinite, hash-glide-x ${duration * 2}s ease-in-out infinite; }
+				.hash-v2 { animation: hash-draw ${duration}s ease-in-out infinite 0.12s, hash-glide-x ${duration * 2}s ease-in-out infinite 0.12s; }
+				.hash-h1 { animation: hash-draw ${duration}s ease-in-out infinite 0.24s, hash-glide-y ${duration * 2}s ease-in-out infinite 0.24s; }
+				.hash-h2 { animation: hash-draw ${duration}s ease-in-out infinite 0.36s, hash-glide-y ${duration * 2}s ease-in-out infinite 0.36s; }
+				@keyframes hash-draw {
+					0% { stroke-dashoffset: 90; opacity: 0.15; }
+					40% { stroke-dashoffset: 0; opacity: 1; }
+					70% { stroke-dashoffset: 0; opacity: 1; }
+					100% { stroke-dashoffset: -90; opacity: 0.15; }
+				}
+				@keyframes hash-glide-x {
+					0%, 100% { transform: translateX(0); }
+					50% { transform: translateX(3px); }
+				}
+				@keyframes hash-glide-y {
+					0%, 100% { transform: translateY(0); }
+					50% { transform: translateY(3px); }
+				}
+				@media (prefers-reduced-motion: reduce) {
+					.hash-line { animation: none; stroke-dashoffset: 0; opacity: 1; }
+				}
+			`}</style>
+			<line className="hash-line hash-v1" x1="38" y1="15" x2="30" y2="85" />
+			<line className="hash-line hash-v2" x1="70" y1="15" x2="62" y2="85" />
+			<line className="hash-line hash-h1" x1="18" y1="40" x2="85" y2="36" />
+			<line className="hash-line hash-h2" x1="15" y1="66" x2="82" y2="62" />
+		</svg>
+	);
+}
 
-		useImperativeHandle(ref, () => {
-			isControlled.current = true;
-			return {
-				startAnimation: () =>
-					reduced ? controls.start("normal") : controls.start("animate"),
-				stopAnimation: () => controls.start("normal"),
-			};
-		});
-
-		const handleEnter = useCallback(
-			(e: React.MouseEvent<HTMLDivElement>) => {
-				if (!isAnimated || reduced) return;
-				if (!isControlled.current) controls.start("animate");
-				else onMouseEnter?.(e);
-			},
-			[controls, reduced, isAnimated, onMouseEnter],
-		);
-
-		const handleLeave = useCallback(
-			(e: React.MouseEvent<HTMLDivElement>) => {
-				if (!isControlled.current) controls.start("normal");
-				else onMouseLeave?.(e);
-			},
-			[controls, onMouseLeave],
-		);
-
-		const horizontalVariants: Variants = {
-			normal: { x: 0 },
-			animate: (i: number) => ({
-				x: [0, i === 0 ? 1 : -1, 0],
-				transition: {
-					duration: 0.5 * duration,
-					ease: "easeInOut",
-					repeat: 0,
-					delay: i * 0.08,
-				},
-			}),
-		};
-
-		const verticalVariants: Variants = {
-			normal: { y: 0 },
-			animate: (i: number) => ({
-				y: [0, i === 0 ? -1 : 1, 0],
-				transition: {
-					duration: 0.5 * duration,
-					ease: "easeInOut",
-					repeat: 0,
-					delay: 0.16 + i * 0.08,
-				},
-			}),
-		};
-
-		return (
-			<LazyMotion features={domMin} strict>
-				<m.div
-					className={cn("inline-flex items-center justify-center", className)}
-					onMouseEnter={handleEnter}
-					onMouseLeave={handleLeave}
-					{...props}
-					style={{ color, ...props.style }}
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width={size}
-						height={size}
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					>
-						<m.line
-							x1="4"
-							x2="20"
-							y1="9"
-							y2="9"
-							custom={0}
-							variants={horizontalVariants}
-							animate={controls}
-							initial="normal"
-						/>
-						<m.line
-							x1="4"
-							x2="20"
-							y1="15"
-							y2="15"
-							custom={1}
-							variants={horizontalVariants}
-							animate={controls}
-							initial="normal"
-						/>
-						<m.line
-							x1="10"
-							x2="8"
-							y1="3"
-							y2="21"
-							custom={0}
-							variants={verticalVariants}
-							animate={controls}
-							initial="normal"
-						/>
-						<m.line
-							x1="16"
-							x2="14"
-							y1="3"
-							y2="21"
-							custom={1}
-							variants={verticalVariants}
-							animate={controls}
-							initial="normal"
-						/>
-					</svg>
-				</m.div>
-			</LazyMotion>
-		);
-	},
-);
-
-HashIcon.displayName = "HashIcon";
 export { HashIcon };

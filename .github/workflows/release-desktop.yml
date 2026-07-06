@@ -38,6 +38,18 @@ jobs:
                   # Full history so release notes can diff against the previous tag.
                   fetch-depth: 0
 
+            # Tauri's build-time CSP hash injection voids 'unsafe-inline' for
+            # style-src, which silently strips all runtime-injected styles in the
+            # packaged app (unstyled bubble menu, wrong editor background, dead
+            # syntax highlighting — shipped broken in 0.16.0). Refuse to release
+            # without the opt-out that keeps the authored style-src intact.
+            - name: Guard CSP style-src opt-out
+              run: |
+                  if ! jq -e '.app.security.dangerousDisableAssetCspModification | index("style-src") != null' apps/desktop/src-tauri/tauri.conf.json >/dev/null; then
+                    echo "::error file=apps/desktop/src-tauri/tauri.conf.json::dangerousDisableAssetCspModification must include \"style-src\" — without it Tauri's CSP rewrite blocks all runtime <style> injection in packaged builds (see CHANGELOG 0.16.1)."
+                    exit 1
+                  fi
+
             - name: Create draft release with generated notes
               if: startsWith(github.ref, 'refs/tags/')
               env:

@@ -33,9 +33,9 @@ export const DEFAULT_FILE_TREE_SOURCE = `Skriuw workspace
         \`-- From idea to published note`;
 
 function removeCommonIndent(lines: string[]): string[] {
-	const indents = lines
-		.filter((line) => line.trim().length > 0)
-		.map((line) => line.match(/^\s*/)?.[0].length ?? 0);
+	const indents = lines.flatMap((line) =>
+		line.trim().length > 0 ? [line.match(/^\s*/)?.[0].length ?? 0] : [],
+	);
 
 	if (indents.length === 0) {
 		return lines;

@@ -97,6 +97,7 @@ type RustNote = {
 	tags: string[];
 	properties: NoteFile["properties"];
 	icon?: string;
+	cover?: string;
 	createdAt: number;
 	modifiedAt: number;
 };
@@ -184,6 +185,7 @@ function toRustNote(note: NoteFile): RustNote {
 		tags: note.tags ?? [],
 		properties: normalizeNoteProperties(note.properties),
 		icon: note.icon,
+		cover: note.cover,
 		createdAt: note.createdAt.getTime(),
 		modifiedAt: note.modifiedAt.getTime(),
 	};
@@ -204,6 +206,7 @@ function fromRustNote(raw: RustNote): NoteFile {
 		tags: raw.tags,
 		properties: normalizeNoteProperties(raw.properties),
 		icon: raw.icon,
+		cover: raw.cover,
 		createdAt: new Date(raw.createdAt),
 		modifiedAt: new Date(raw.modifiedAt),
 	};
@@ -455,22 +458,26 @@ export async function backfillMissingNoteLinks(): Promise<number> {
 	if (ids.length === 0) return 0;
 
 	const BATCH_SIZE = 100;
+	const batches: string[][] = [];
 	for (let start = 0; start < ids.length; start += BATCH_SIZE) {
-		const rows = await invoke<RustNote[]>("get_notes", {
-			ids: ids.slice(start, start + BATCH_SIZE),
-		});
-		const entries = rows.map((raw) => {
-			const note = fromRustNote(raw);
-			return {
-				noteId: note.id,
-				links: buildRustNoteLinkRows(note),
-				titleKeys: noteTitleKeys(note),
-			};
-		});
-		if (entries.length > 0) {
-			await invoke("replace_note_links_bulk", { entries });
-		}
+		batches.push(ids.slice(start, start + BATCH_SIZE));
 	}
+	await Promise.all(
+		batches.map(async (batchIds) => {
+			const rows = await invoke<RustNote[]>("get_notes", { ids: batchIds });
+			const entries = rows.map((raw) => {
+				const note = fromRustNote(raw);
+				return {
+					noteId: note.id,
+					links: buildRustNoteLinkRows(note),
+					titleKeys: noteTitleKeys(note),
+				};
+			});
+			if (entries.length > 0) {
+				await invoke("replace_note_links_bulk", { entries });
+			}
+		}),
+	);
 	return ids.length;
 }
 
@@ -563,30 +570,31 @@ export function createTauriBackend(): WorkspaceBackend {
 		buildPatch: (note: NoteFile) => NoteChipPatch | null,
 	): Promise<string[]> {
 		const notes = await listNotesWithBodies();
-		const rewritten: string[] = [];
 
-		for (const candidate of notes) {
-			if (!buildPatch(candidate)) continue;
-			await runExclusive(`note:${candidate.id}`, async () => {
-				const raw = await invoke<RustNote | null>("get_note", { id: candidate.id });
-				if (!raw) return;
-				const fresh = fromRustNote(raw);
-				const patch = buildPatch(fresh);
-				if (!patch) return;
-				const next: NoteFile = { ...fresh, ...patch, modifiedAt: new Date() };
-				await invoke("save_note", {
-					note: toRustNote(next),
-					links: buildRustNoteLinkRows(next),
-					titleKeys: noteTitleKeys(next),
-					reason: "autosave",
-					createCheckpoint: false,
-					sessionVersionId: null,
+		const rewritten = await Promise.all(
+			notes.map((candidate) => {
+				if (!buildPatch(candidate)) return null;
+				return runExclusive(`note:${candidate.id}`, async () => {
+					const raw = await invoke<RustNote | null>("get_note", { id: candidate.id });
+					if (!raw) return null;
+					const fresh = fromRustNote(raw);
+					const patch = buildPatch(fresh);
+					if (!patch) return null;
+					const next: NoteFile = { ...fresh, ...patch, modifiedAt: new Date() };
+					await invoke("save_note", {
+						note: toRustNote(next),
+						links: buildRustNoteLinkRows(next),
+						titleKeys: noteTitleKeys(next),
+						reason: "autosave",
+						createCheckpoint: false,
+						sessionVersionId: null,
+					});
+					return candidate.id;
 				});
-				rewritten.push(candidate.id);
-			});
-		}
+			}),
+		);
 
-		return rewritten;
+		return rewritten.filter((id): id is string => id !== null);
 	}
 
 	return {
@@ -740,9 +748,7 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async deleteNotes(ids) {
-			for (const id of ids) {
-				await invoke("delete_note", { id });
-			}
+			await Promise.all(ids.map((id) => invoke("delete_note", { id })));
 		},
 
 		async createFolder(input) {
@@ -841,15 +847,18 @@ export function createTauriBackend(): WorkspaceBackend {
 			const target = (await listJournalTags()).find((tag) => tag.id === id);
 			if (!target) return;
 			const entries = await listJournalEntries();
-			for (const entry of entries) {
-				if (!entry.tags.includes(target.name)) continue;
-				const next: JournalEntry = {
-					...entry,
-					tags: entry.tags.filter((tag) => tag !== target.name),
-					updatedAt: new Date(),
-				};
-				await invoke("upsert_journal_entry", { entry: toRustJournalEntry(next) });
-			}
+			await Promise.all(
+				entries
+					.filter((entry) => entry.tags.includes(target.name))
+					.map((entry) => {
+						const next: JournalEntry = {
+							...entry,
+							tags: entry.tags.filter((tag) => tag !== target.name),
+							updatedAt: new Date(),
+						};
+						return invoke("upsert_journal_entry", { entry: toRustJournalEntry(next) });
+					}),
+			);
 			await invoke("delete_journal_tag", { id });
 		},
 
@@ -980,14 +989,18 @@ export function createTauriBackend(): WorkspaceBackend {
 			// per-tag upsert key), so skip any name that already exists locally
 			// instead of risking a duplicate row under a fresh id.
 			const existingTagNames = new Set((await listJournalTags()).map((tag) => tag.name));
-			const journalTags = payload.journalTags
-				.filter((tag) => !existingTagNames.has(tag.name))
-				.map((tag) => ({
-					id: crypto.randomUUID(),
-					name: tag.name,
-					color: tag.color,
-					usageCount: 0,
-				}));
+			const journalTags = payload.journalTags.flatMap((tag) =>
+				existingTagNames.has(tag.name)
+					? []
+					: [
+							{
+								id: crypto.randomUUID(),
+								name: tag.name,
+								color: tag.color,
+								usageCount: 0,
+							},
+						],
+			);
 
 			const tagIdByName = new Map(
 				(await listJournalTags()).map((tag) => [tag.name, tag.id] as const),

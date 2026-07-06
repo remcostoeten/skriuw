@@ -22,25 +22,26 @@ export function validateGotoTargets(targets: RegisteredGotoTarget[]): Validation
 	const byKeybind = new Map<string, RegisteredGotoTarget>();
 
 	for (const target of targets) {
+		const destinationId = target.to.id;
 		if (!target.keybind) {
 			issues.push({
-				destinationId: target.to.id,
-				message: `"${target.to.id}" has an empty keybind`,
+				destinationId,
+				message: `"${destinationId}" has an empty keybind`,
 			});
 			continue;
 		}
 		if (target.keybind.includes("escape")) {
 			issues.push({
-				destinationId: target.to.id,
-				message: `"${target.to.id}" may not bind Escape — it always exits go-to mode`,
+				destinationId,
+				message: `"${destinationId}" may not bind Escape — it always exits go-to mode`,
 			});
 			continue;
 		}
 		const existing = byKeybind.get(target.keybind);
 		if (existing) {
 			issues.push({
-				destinationId: target.to.id,
-				message: `keybind "${target.keybind}" is bound to both "${existing.to.id}" and "${target.to.id}"`,
+				destinationId,
+				message: `keybind "${target.keybind}" is bound to both "${existing.to.id}" and "${destinationId}"`,
 			});
 			continue;
 		}

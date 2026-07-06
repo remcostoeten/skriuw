@@ -41,54 +41,86 @@ const Trash2Icon = forwardRef<Trash2IconHandle, Trash2IconProps>(
 		},
 		ref,
 	) => {
-		const controls = useAnimation();
+		const binControls = useAnimation();
+		const lidControls = useAnimation();
+		const barControls = useAnimation();
 		const reduced = useReducedMotion();
 		const isControlled = useRef(false);
 
 		useImperativeHandle(ref, () => {
 			isControlled.current = true;
 			return {
-				startAnimation: () =>
-					reduced ? controls.start("normal") : controls.start("animate"),
-				stopAnimation: () => controls.start("normal"),
+				startAnimation: () => {
+					if (reduced) {
+						binControls.start("normal");
+						lidControls.start("normal");
+						barControls.start("normal");
+					} else {
+						binControls.start("animate");
+						lidControls.start("animate");
+						barControls.start("animate");
+					}
+				},
+				stopAnimation: () => {
+					binControls.start("normal");
+					lidControls.start("normal");
+					barControls.start("normal");
+				},
 			};
 		});
 
 		const handleEnter = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
 				if (!isAnimated || reduced) return;
-				if (!isControlled.current) controls.start("animate");
-				else onMouseEnter?.(e);
+				if (!isControlled.current) {
+					binControls.start("animate");
+					lidControls.start("animate");
+					barControls.start("animate");
+				} else {
+					onMouseEnter?.(e);
+				}
 			},
-			[controls, reduced, isAnimated, onMouseEnter],
+			[binControls, lidControls, barControls, reduced, isAnimated, onMouseEnter],
 		);
 
 		const handleLeave = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
-				if (!isControlled.current) controls.start("normal");
-				else onMouseLeave?.(e);
+				if (!isControlled.current) {
+					binControls.start("normal");
+					lidControls.start("normal");
+					barControls.start("normal");
+				} else {
+					onMouseLeave?.(e);
+				}
 			},
-			[controls, onMouseLeave],
+			[binControls, lidControls, barControls, onMouseLeave],
 		);
 
-		const lidVariants: Variants = {
-			normal: { rotate: 0 },
+		const binVariants: Variants = {
+			normal: { scale: 1, rotate: 0, y: 0 },
 			animate: {
-				rotate: [0, -12, 0],
-				transition: { duration: 0.45 * duration, ease: "easeInOut", repeat: 0 },
+				scale: [1, 1.05, 0.97, 1],
+				rotate: [0, -2, 2, 0],
+				y: [0, -1.5, 0],
+				transition: { duration: 0.8 * duration, ease: "easeInOut" },
 			},
 		};
 
-		const lineVariants: Variants = {
-			normal: { y: 0 },
+		const lidVariants: Variants = {
+			normal: { rotate: 0, y: 0 },
 			animate: {
-				y: [0, 1.5, 0],
-				transition: {
-					duration: 0.4 * duration,
-					ease: "easeInOut",
-					repeat: 0,
-					delay: 0.15 * duration,
-				},
+				rotate: [-15, 5, 0],
+				y: [-2, 0],
+				transition: { duration: 0.7 * duration, ease: "easeOut", delay: 0.1 },
+			},
+		};
+
+		const barVariants: Variants = {
+			normal: { scaleY: 1, opacity: 1 },
+			animate: {
+				scaleY: [1, 1.2, 1],
+				opacity: [1, 0.9, 1],
+				transition: { duration: 0.6 * duration, ease: "easeInOut", delay: 0.2 },
 			},
 		};
 
@@ -114,26 +146,32 @@ const Trash2Icon = forwardRef<Trash2IconHandle, Trash2IconProps>(
 					>
 						<m.path
 							d="M10 11v6"
-							variants={lineVariants}
-							animate={controls}
+							animate={barControls}
 							initial="normal"
+							variants={barVariants}
+							style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}
 						/>
 						<m.path
 							d="M14 11v6"
-							variants={lineVariants}
-							animate={controls}
+							animate={barControls}
 							initial="normal"
+							variants={barVariants}
+							style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}
 						/>
-						<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-						<m.g
-							variants={lidVariants}
-							animate={controls}
+						<m.path
+							d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"
+							animate={binControls}
 							initial="normal"
-							style={{ transformBox: "view-box", transformOrigin: "3px 6px" }}
-						>
-							<path d="M3 6h18" />
-							<path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-						</m.g>
+							variants={binVariants}
+						/>
+						<path d="M3 6h18" />
+						<m.path
+							d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+							animate={lidControls}
+							initial="normal"
+							variants={lidVariants}
+							style={{ transformBox: "fill-box", transformOrigin: "left bottom" }}
+						/>
 					</svg>
 				</m.div>
 			</LazyMotion>

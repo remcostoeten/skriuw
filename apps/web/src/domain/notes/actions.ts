@@ -23,6 +23,14 @@ import type {
 	RichTextDocument,
 } from "@/domain/notes/models";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
+import {
+	type CreateNoteInput,
+	createNoteForUser,
+	insertNoteVersion,
+	type NoteRecord,
+	recordToNoteFile,
+	recordToNoteVersion,
+} from "@/domain/notes/note-write-core";
 import { normalizeNoteProperties, type NoteProperty } from "@/domain/notes/properties";
 import {
 	buildNoteVersionContentHash,
@@ -43,39 +51,6 @@ import type {
 	TagName,
 } from "@/domain/persistence/types";
 
-type NoteDb = Pick<PrismaClient, "note" | "noteVersion" | "noteLink" | "folder" | "journalEntry">;
-
-type NoteRecord = {
-	id: string;
-	name: string;
-	content: string;
-	richContent: Prisma.JsonValue | null;
-	preferredEditorMode: string | null;
-	parentId: string | null;
-	sortOrder: number;
-	tags: string[];
-	properties: Prisma.JsonValue | null;
-	icon: string | null;
-	journalMeta: Prisma.JsonValue | null;
-	createdAt: Date;
-	updatedAt: Date;
-};
-
-type NoteVersionRecord = {
-	id: string;
-	noteId: string;
-	name: string;
-	content: string;
-	richContent: Prisma.JsonValue | null;
-	preferredEditorMode: string;
-	parentId: string | null;
-	tags: string[];
-	properties: Prisma.JsonValue | null;
-	reason: string;
-	contentHash: string;
-	createdAt: Date;
-};
-
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function uniquePersistedNoteIds(ids: string[]): string[] {
@@ -84,287 +59,13 @@ function uniquePersistedNoteIds(ids: string[]): string[] {
 	);
 }
 
-function recordToNoteFile(
-	record: NoteRecord,
-	access?: { ownerId: string; role: NoteAccessRole },
-): NoteFile {
-	const richContent =
-		(record.richContent as RichTextDocument | null) ?? markdownToRichDocument(record.content);
-	const meta = record.journalMeta as {
-		mood?: import("@/domain/journal/models").MoodLevel;
-		tags: string[];
-		weather?: string;
-		location?: string;
-	} | null;
-	const file = fromPersistedNote({
-		id: record.id as NoteId,
-		name: record.name,
-		content: record.content as MarkdownContent,
-		richContent,
-		preferredEditorMode: (record.preferredEditorMode as "raw" | "block" | null) ?? "block",
-		parentId: record.parentId as FolderId | null,
-		sortOrder: record.sortOrder,
-		tags: record.tags.map((tag) => tag as TagName),
-		properties: normalizeNoteProperties(record.properties),
-		icon: record.icon ?? undefined,
-		journalMeta: meta
-			? {
-					...meta,
-					tags: meta.tags.map((tag) => tag as TagName),
-				}
-			: undefined,
-		createdAt: record.createdAt.toISOString() as IsoTime,
-		updatedAt: record.updatedAt.toISOString() as IsoTime,
-	});
-	return access ? { ...file, ownerId: access.ownerId, access: access.role } : file;
-}
-
-function recordToNoteVersion(record: NoteVersionRecord): NoteVersion {
-	return fromPersistedNoteVersion({
-		id: record.id,
-		note_id: record.noteId,
-		name: record.name,
-		content: record.content,
-		rich_content: record.richContent as RichTextDocument | null,
-		preferred_editor_mode: record.preferredEditorMode as "raw" | "block",
-		parent_id: record.parentId,
-		tags: record.tags,
-		properties: normalizeNoteProperties(record.properties),
-		reason: record.reason as NoteVersionReason,
-		content_hash: record.contentHash,
-		created_at: record.createdAt.toISOString(),
-	});
-}
-
-async function insertNoteVersion(
-	db: Pick<NoteDb, "noteVersion">,
-	userId: string,
-	noteId: string,
-	note: Pick<
-		NoteFile,
-		| "name"
-		| "content"
-		| "richContent"
-		| "preferredEditorMode"
-		| "parentId"
-		| "tags"
-		| "properties"
-	>,
-	reason: NoteVersionReason,
-): Promise<string | null> {
-	// Lean select: the persist decision only needs hash, timestamp, content,
-	// and reason — never the full richContent JSON snapshot.
-	const latest = await db.noteVersion.findFirst({
-		where: { userId, noteId },
-		orderBy: { createdAt: "desc" },
-		select: { id: true, contentHash: true, createdAt: true, content: true, reason: true },
-	});
-
-	const createdAt = new Date();
-	const candidate = { ...note, reason, createdAt };
-	const decision = decideNoteVersionPersistence(candidate, latest);
-	if (decision.action === "skip") {
-		return null;
-	}
-	if (decision.action === "coalesce") {
-		const changed = await updateExistingNoteVersion(
-			db,
-			userId,
-			decision.versionId,
-			noteId,
-			note,
-			reason,
-		);
-		return changed ? decision.versionId : null;
-	}
-
-	const created = await db.noteVersion.create({
-		data: {
-			userId,
-			noteId,
-			name: note.name,
-			content: note.content,
-			richContent: (note.richContent ??
-				markdownToRichDocument(note.content)) as Prisma.InputJsonValue,
-			preferredEditorMode: note.preferredEditorMode ?? "block",
-			parentId: note.parentId ?? null,
-			tags: note.tags ?? [],
-			properties: normalizeNoteProperties(note.properties) as Prisma.InputJsonValue,
-			reason,
-			contentHash: buildNoteVersionContentHash(candidate),
-			createdAt,
-		},
-	});
-
-	await pruneNoteVersions(db, userId, noteId);
-
-	return created.id;
-}
-
-async function pruneNoteVersions(
-	db: Pick<NoteDb, "noteVersion">,
-	userId: string,
-	noteId: string,
-): Promise<void> {
-	const stale = await db.noteVersion.findMany({
-		where: { userId, noteId },
-		orderBy: { createdAt: "desc" },
-		skip: NOTE_VERSION_RETENTION_LIMIT,
-		select: { id: true },
-	});
-	if (stale.length > 0) {
-		await db.noteVersion.deleteMany({
-			where: { userId, noteId, id: { in: stale.map((row) => row.id) } },
-		});
-	}
-}
-
-async function updateExistingNoteVersion(
-	db: Pick<NoteDb, "noteVersion">,
-	userId: string,
-	versionId: string,
-	noteId: string,
-	note: Pick<
-		NoteFile,
-		| "name"
-		| "content"
-		| "richContent"
-		| "preferredEditorMode"
-		| "parentId"
-		| "tags"
-		| "properties"
-	>,
-	reason: NoteVersionReason,
-): Promise<boolean> {
-	// The hash is independent of the stored row, so a single conditional
-	// updateMany covers both "version missing" and "content unchanged".
-	const nextHash = buildNoteVersionContentHash({ ...note, reason });
-	const { count } = await db.noteVersion.updateMany({
-		where: { id: versionId, userId, noteId, NOT: { contentHash: nextHash } },
-		data: {
-			name: note.name,
-			content: note.content,
-			richContent: (note.richContent ??
-				markdownToRichDocument(note.content)) as Prisma.InputJsonValue,
-			preferredEditorMode: note.preferredEditorMode ?? "block",
-			parentId: note.parentId ?? null,
-			tags: note.tags ?? [],
-			properties: normalizeNoteProperties(note.properties) as Prisma.InputJsonValue,
-			contentHash: nextHash,
-		},
-	});
-
-	return count > 0;
-}
-
-export type CreateNoteInput = {
-	id?: string;
-	name: string;
-	content: string;
-	richContent?: RichTextDocument;
-	preferredEditorMode?: "raw" | "block";
-	parentId?: string | null;
-	sortOrder?: number;
-	tags?: string[];
-	properties?: NoteProperty[];
-	icon?: string;
-};
-
 export async function listNotes(): Promise<NoteFile[]> {
 	return listNoteMetadata();
 }
 
 export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
-	const validated = parseServerInput(createNoteInputSchema, input);
 	const { prisma, user } = await getAuthenticatedUser();
-	const id = validated.id ?? crypto.randomUUID();
-	const name = validated.name.endsWith(".md") ? validated.name : `${validated.name}.md`;
-	const richContent = (validated.richContent ??
-		markdownToRichDocument(validated.content)) as Prisma.InputJsonValue;
-	const parentId = validated.parentId ?? null;
-	await assertOwnedParentFolder(prisma, user.id, parentId);
-	const [lastNote, lastFolder] = await Promise.all([
-		prisma.note.aggregate({
-			where: { userId: user.id, deletedAt: null, parentId },
-			_max: { sortOrder: true },
-		}),
-		prisma.folder.aggregate({
-			where: { userId: user.id, deletedAt: null, parentId },
-			_max: { sortOrder: true },
-		}),
-	]);
-	const sortOrder =
-		validated.sortOrder ??
-		Math.max(lastNote._max.sortOrder ?? -1, lastFolder._max.sortOrder ?? -1) + 1;
-
-	return prisma.$transaction(async (tx) => {
-		const noteData = {
-			name,
-			content: validated.content,
-			richContent,
-			preferredEditorMode: validated.preferredEditorMode ?? "block",
-			parentId,
-			sortOrder,
-			tags: validated.tags ?? [],
-			properties: normalizeNoteProperties(validated.properties) as Prisma.InputJsonValue,
-			icon: validated.icon ?? null,
-		};
-		const noteSelect = {
-			id: true,
-			name: true,
-			content: true,
-			richContent: true,
-			preferredEditorMode: true,
-			parentId: true,
-			sortOrder: true,
-			tags: true,
-			properties: true,
-			icon: true,
-			journalMeta: true,
-			createdAt: true,
-			updatedAt: true,
-		} as const;
-
-		let record: NoteRecord;
-		try {
-			record = await tx.note.update({
-				where: { id, userId: user.id, deletedAt: null },
-				data: noteData,
-				select: noteSelect,
-			});
-		} catch (error) {
-			if (!isRecordNotFoundError(error)) throw error;
-			await assertResourceIdAvailable(tx, "note", id, user.id);
-			record = await tx.note.create({
-				data: {
-					id,
-					userId: user.id,
-					...noteData,
-				},
-				select: noteSelect,
-			});
-		}
-
-		const note = recordToNoteFile(record);
-		await syncNoteLinks(tx, user.id, note);
-		await insertNoteVersion(
-			tx,
-			user.id,
-			id,
-			{
-				name: note.name,
-				content: note.content,
-				richContent: note.richContent,
-				preferredEditorMode: note.preferredEditorMode,
-				parentId: note.parentId,
-				tags: note.tags ?? [],
-				properties: note.properties ?? [],
-			},
-			"created",
-		);
-
-		return note;
-	});
+	return createNoteForUser(prisma, user.id, input);
 }
 
 export type UpdateNoteInput = {
@@ -378,6 +79,7 @@ export type UpdateNoteInput = {
 	tags?: string[];
 	properties?: NoteProperty[];
 	icon?: string;
+	cover?: string;
 	createCheckpoint?: boolean;
 	sessionVersionId?: string | null;
 	/**
@@ -431,6 +133,9 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 	}
 	if (validated.icon !== undefined) {
 		basePatch.icon = validated.icon || null;
+	}
+	if (validated.cover !== undefined) {
+		basePatch.cover = validated.cover || null;
 	}
 
 	const ownerPatch: Prisma.NoteUncheckedUpdateInput = { ...basePatch };

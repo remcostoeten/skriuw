@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { defaultProps } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
 import {
@@ -157,21 +157,22 @@ function FileTreeBlockView({
 	const [editing, setEditing] = useState(false);
 	const [draftSource, setDraftSource] = useState(source);
 	const [copied, setCopied] = useState(false);
+	const [prevSource, setPrevSource] = useState(source);
+	const [prevDefaultExpanded, setPrevDefaultExpanded] = useState(defaultExpanded);
+
+	if (source !== prevSource || defaultExpanded !== prevDefaultExpanded) {
+		if (source !== prevSource) {
+			setDraftSource(source);
+		}
+		setCollapsedNodeIds(getInitialCollapsedNodeIds(parsedTree.children, defaultExpanded));
+		setPrevSource(source);
+		setPrevDefaultExpanded(defaultExpanded);
+	}
 
 	const visibleNodes = useMemo(
 		() => getVisibleNodes(parsedTree.children, collapsedNodeIds),
 		[collapsedNodeIds, parsedTree.children],
 	);
-
-	useEffect(() => {
-		setDraftSource(source);
-	}, [source]);
-
-	useEffect(() => {
-		setCollapsedNodeIds(
-			getInitialCollapsedNodeIds(parseFileTreeSource(source).children, defaultExpanded),
-		);
-	}, [source, defaultExpanded]);
 
 	function toggleNode(nodeId: string) {
 		setCollapsedNodeIds((current) => {

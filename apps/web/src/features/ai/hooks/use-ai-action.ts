@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import {
 	callAi,
 	callAiStream,
@@ -135,7 +136,9 @@ export function useAiAction<TAction extends AiAction>(
 	} = options;
 
 	const aiHandleRef = useRef<AiEditorHandle | null>(null);
-	const inFlightActionsRef = useRef<Set<TAction>>(new Set());
+	const inFlightActionsRef = useLazyRef(() => new Set<TAction>());
+	const onStreamCompleteRef = useRef(options.onStreamComplete);
+	onStreamCompleteRef.current = options.onStreamComplete;
 
 	const [aiLoading, setAiLoading] = useState<Record<TAction, boolean>>(() =>
 		buildInitialLoadingState(actions),
@@ -168,10 +171,12 @@ export function useAiAction<TAction extends AiAction>(
 		[errorTitleOverrides],
 	);
 
-	useEffect(() => {
+	const [prevResetKey, setPrevResetKey] = useState<unknown>(resetKey);
+	if (resetKey !== prevResetKey) {
+		setPrevResetKey(resetKey);
 		setAiError(null);
 		setRateLimitPrompt(null);
-	}, [resetKey]);
+	}
 
 	const handleEditorReady = useCallback((handle: AiEditorHandle) => {
 		aiHandleRef.current = handle;
@@ -259,7 +264,7 @@ export function useAiAction<TAction extends AiAction>(
 							streamApplier.update(result);
 						} finally {
 							const insertedIds = streamApplier.done();
-							options.onStreamComplete?.(action, insertedIds);
+							onStreamCompleteRef.current?.(action, insertedIds);
 						}
 						return;
 					}

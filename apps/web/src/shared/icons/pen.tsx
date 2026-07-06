@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useImperativeHandle } from "react";
-import { motion, useAnimate } from "framer-motion";
+import { domAnimation, LazyMotion, m, useAnimate } from "framer-motion";
 
 import type { AnimatedIconHandle, AnimatedIconProps } from "./types";
 import { scaledStrokeWidth } from "./types";
@@ -46,39 +46,41 @@ const PenIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
 		}));
 
 		return (
-			<motion.svg
-				ref={scope}
-				width={size}
-				height={size}
-				viewBox="0 0 32 32"
-				fill="none"
-				stroke={color}
-				strokeWidth={scaledStrokeWidth(strokeWidth, 32)}
-				strokeLinecap="square"
-				strokeMiterlimit="10"
-				className={`cursor-pointer ${className}`}
-				style={{ overflow: "visible" }}
-				onHoverStart={start}
-				onHoverEnd={stop}
-			>
-				<motion.g
-					className="pen-group"
-					style={{
-						transformOrigin: "50% 50%",
-						transformBox: "fill-box",
-					}}
+			<LazyMotion features={domAnimation} strict>
+				<m.svg
+					ref={scope}
+					width={size}
+					height={size}
+					viewBox="0 0 32 32"
+					fill="none"
+					stroke={color}
+					strokeWidth={scaledStrokeWidth(strokeWidth, 32)}
+					strokeLinecap="square"
+					strokeMiterlimit="10"
+					className={`cursor-pointer ${className}`}
+					style={{ overflow: "visible" }}
+					onHoverStart={start}
+					onHoverEnd={stop}
 				>
-					<motion.path
-						className="pen-slash"
-						d="M20 6 L26 12"
-						initial={{ pathLength: 0, opacity: 0 }}
-					/>
-					<motion.path
-						className="pen-body"
-						d="m10.5,27.5l-8,2 2-8L22.257,3.743c1.657-1.657,4.343-1.657,6,0s1.657,4.343,0,6L10.5,27.5Z"
-					/>
-				</motion.g>
-			</motion.svg>
+					<m.g
+						className="pen-group"
+						style={{
+							transformOrigin: "50% 50%",
+							transformBox: "fill-box",
+						}}
+					>
+						<m.path
+							className="pen-slash"
+							d="M20 6 L26 12"
+							initial={{ pathLength: 0, opacity: 0 }}
+						/>
+						<m.path
+							className="pen-body"
+							d="m10.5,27.5l-8,2 2-8L22.257,3.743c1.657-1.657,4.343-1.657,6,0s1.657,4.343,0,6L10.5,27.5Z"
+						/>
+					</m.g>
+				</m.svg>
+			</LazyMotion>
 		);
 	},
 );

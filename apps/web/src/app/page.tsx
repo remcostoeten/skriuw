@@ -90,22 +90,25 @@ export default function Page() {
 				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
 			/>
 
-			<section className="mx-auto grid min-h-[92dvh] w-full max-w-6xl grid-cols-1 gap-10 px-5 py-6 md:grid-cols-[0.9fr_1.1fr] md:px-8 md:py-8">
+			<section className="mx-auto grid min-h-[92dvh] w-full max-w-6xl grid-cols-1 gap-10 px-5 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] md:grid-cols-[0.9fr_1.1fr] md:px-8 md:py-8">
 				<div className="flex flex-col justify-between gap-12">
 					<nav className="flex items-center justify-between gap-4" aria-label="Primary">
-						<Link href="/" className="text-sm font-semibold tracking-normal">
+						<Link
+							href="/"
+							className="inline-flex h-11 items-center text-sm font-semibold tracking-normal md:h-auto"
+						>
 							Skriuw
 						</Link>
 						<div className="flex items-center gap-2">
 							<Link
 								href="/app?auth=sign-in"
-								className="inline-flex h-9 items-center justify-center px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+								className="inline-flex h-11 items-center justify-center px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:h-9"
 							>
 								Sign in
 							</Link>
 							<Link
 								href="/app"
-								className="inline-flex h-9 items-center justify-center bg-foreground px-3 text-sm font-medium text-background transition-opacity hover:opacity-90"
+								className="inline-flex h-11 items-center justify-center bg-foreground px-3 text-sm font-medium text-background transition-opacity hover:opacity-90 md:h-9"
 							>
 								Open app
 							</Link>

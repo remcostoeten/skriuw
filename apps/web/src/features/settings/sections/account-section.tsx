@@ -32,6 +32,32 @@ import {
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
 
+async function attemptDelete(
+	password?: string,
+): Promise<"done" | { needs: "password" | "reauth"; error?: string }> {
+	const res = await fetch("/api/account/delete", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ confirmation: "delete my account", password }),
+	});
+	if (res.ok) {
+		await signOut().catch(() => undefined);
+		window.location.replace("/app?auth=sign-in");
+		return "done";
+	}
+	const payload = (await res.json().catch(() => null)) as {
+		error?: string;
+		code?: string;
+	} | null;
+	const code = stepUpCodeFromPayload(payload);
+	if (code === "password_required") return { needs: "password" };
+	if (code === "invalid_password") {
+		return { needs: "password", error: payload?.error ?? "Incorrect password." };
+	}
+	if (code === "reauth_required") return { needs: "reauth", error: payload?.error };
+	throw new Error(payload?.error ?? "Could not delete account.");
+}
+
 export function AccountSection() {
 	const auth = useAuth();
 	const user = auth.user;
@@ -164,32 +190,6 @@ export function AccountSection() {
 	const [reauthProviders, setReauthProviders] = useState<OAuthProvider[]>([]);
 	const deleteResolverRef = useRef<((ok: boolean) => void) | null>(null);
 
-	async function attemptDelete(
-		password?: string,
-	): Promise<"done" | { needs: "password" | "reauth"; error?: string }> {
-		const res = await fetch("/api/account/delete", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ confirmation: "delete my account", password }),
-		});
-		if (res.ok) {
-			await signOut().catch(() => undefined);
-			window.location.replace("/app?auth=sign-in");
-			return "done";
-		}
-		const payload = (await res.json().catch(() => null)) as {
-			error?: string;
-			code?: string;
-		} | null;
-		const code = stepUpCodeFromPayload(payload);
-		if (code === "password_required") return { needs: "password" };
-		if (code === "invalid_password") {
-			return { needs: "password", error: payload?.error ?? "Incorrect password." };
-		}
-		if (code === "reauth_required") return { needs: "reauth", error: payload?.error };
-		throw new Error(payload?.error ?? "Could not delete account.");
-	}
-
 	function beginStepUp(mode: "password" | "reauth", error?: string): Promise<boolean> {
 		setStepUpMode(mode);
 		setStepUpError(error ?? null);
@@ -204,8 +204,10 @@ export function AccountSection() {
 	const handleDeleteAccount = async (): Promise<boolean> => {
 		try {
 			const snapshot = await listConnections();
-			const linked = SUPPORTED_OAUTH_PROVIDERS.map((provider) => provider.id).filter((id) =>
-				snapshot.accounts.some((account) => account.providerId === id),
+			const linked = SUPPORTED_OAUTH_PROVIDERS.flatMap((provider) =>
+				snapshot.accounts.some((account) => account.providerId === provider.id)
+					? [provider.id]
+					: [],
 			);
 			setReauthProviders(linked);
 

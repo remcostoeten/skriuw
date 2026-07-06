@@ -30,7 +30,7 @@ export function TagManager() {
 	const [editingName, setEditingName] = useState<string | null>(null);
 	const [editValue, setEditValue] = useState("");
 
-	const sortedTags = [...tags].sort((a, b) => b.noteCount - a.noteCount);
+	const sortedTags = tags.toSorted((a, b) => b.noteCount - a.noteCount);
 
 	function startEditing(tag: TagSummary) {
 		setEditingName(tag.name);

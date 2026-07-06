@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/core/db";
 import { buildWorkspaceExportResponse } from "@/domain/data-transfer/export-workspace";
-import { authenticateSyncBearer } from "@/domain/sync/tokens";
+import { recordSyncEvent } from "@/domain/sync/activity";
+import { authenticateSyncBearer, checkSyncRateLimit } from "@/domain/sync/tokens";
 
 /**
  * The desktop app pulls this endpoint from a different origin (the Tauri webview
@@ -29,6 +30,14 @@ export async function GET(request: Request) {
 		);
 	}
 
+	const rateLimit = await checkSyncRateLimit(auth.tokenId, "export");
+	if (!rateLimit.allowed) {
+		return NextResponse.json(
+			{ error: "Too many export requests. Try again in a minute." },
+			{ status: 429, headers: CORS_HEADERS },
+		);
+	}
+
 	const { searchParams } = new URL(request.url);
 	const includeVersions = searchParams.get("includeVersions") !== "false";
 
@@ -37,6 +46,13 @@ export async function GET(request: Request) {
 		userId: auth.userId,
 		includeVersions,
 	});
+	await recordSyncEvent({
+		userId: auth.userId,
+		tokenId: auth.tokenId,
+		operation: "export",
+		status: "success",
+		source: "sync-export",
+	}).catch(() => undefined);
 	for (const [header, value] of Object.entries(CORS_HEADERS)) {
 		response.headers.set(header, value);
 	}

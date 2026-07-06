@@ -13,6 +13,7 @@ export type CreateNoteInput = {
 	tags?: TagName[];
 	properties?: NoteProperty[];
 	icon?: string;
+	cover?: string;
 	createdAt?: Date;
 	updatedAt?: Date;
 };
@@ -28,5 +29,6 @@ export type UpdateNoteInput = {
 	tags?: TagName[];
 	properties?: NoteProperty[];
 	icon?: string;
+	cover?: string;
 	updatedAt?: Date;
 };

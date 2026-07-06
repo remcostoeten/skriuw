@@ -1,10 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { useSidebarStore } from "@/features/notes/components/sidebar/store";
 import { useNotesStore } from "@/features/notes/store";
-import type { RichTextDocument } from "@/types/notes";
+import { useWorkspaceBackend, isTauriRuntime } from "@/core/workspace-backend";
+import { richDocumentKey } from "@/domain/notes/rich-document";
+import { noop } from "@/shared/lib/noop";
+import type { NoteFile, RichTextDocument } from "@/types/notes";
 import type { NoteProperty } from "@/domain/notes/properties";
+import { notesKeys } from "./notes-keys";
 import { useDebouncedSave } from "./use-debounced-save";
 
 type SaveState = "saving" | "saved" | "error";
@@ -26,7 +32,9 @@ export function useNotesLayoutSaveController({
 	setFileSaveState,
 	clearFileSaveState,
 }: UseNotesLayoutSaveControllerOptions) {
-	const saveResetTimeoutsRef = useRef(new Map<string, number>());
+	const queryClient = useQueryClient();
+	const backend = useWorkspaceBackend();
+	const saveResetTimeoutsRef = useLazyRef(() => new Map<string, number>());
 	const previousActiveFileIdRef = useRef<string>("");
 	const saveControllerRef = useRef<ReturnType<typeof useDebouncedSave> | null>(null);
 
@@ -95,6 +103,53 @@ export function useNotesLayoutSaveController({
 			void saveController.flush(previousId);
 		}
 	}, [activeFileId, saveController]);
+
+	// Local-first revalidation. Opening a note repaints its body instantly from
+	// the cache — which may be a week-old, IndexedDB-persisted snapshot never
+	// otherwise refreshed. Left stale, a note edited on another device/tab would
+	// keep showing the old copy here and a later save would silently overwrite
+	// the newer server version. Re-fetch the opened note in the background and
+	// reconcile, but never at the cost of local work:
+	//   - skip while the note has unsaved (dirty) edits;
+	//   - re-check dirty after the fetch (the user may have started typing);
+	//   - reference-equality CAS on the cached body so a mid-fetch optimistic
+	//     write (a keystroke) is never clobbered by the older server copy;
+	//   - only write when the content actually differs (avoids a needless
+	//     editor re-render on every open).
+	// Desktop is skipped: its local SQLite/vault is the single source of truth,
+	// so there is no cross-device copy to reconcile.
+	useEffect(() => {
+		const id = activeFileId;
+		if (!id || isTauriRuntime()) return;
+
+		const before = queryClient.getQueryData<NoteFile | null>(notesKeys.detail(id));
+		// Nothing cached yet → useNote() is already fetching a fresh body.
+		if (before === undefined) return;
+		if (saveController.getDirtyNoteIds().includes(id)) return;
+
+		let cancelled = false;
+		void (async () => {
+			try {
+				const fresh = await backend.getNote(id);
+				if (cancelled || !fresh) return;
+				if (saveController.getDirtyNoteIds().includes(id)) return;
+				if (queryClient.getQueryData(notesKeys.detail(id)) !== before) return;
+				const unchanged =
+					before !== null &&
+					before.content === fresh.content &&
+					before.name === fresh.name &&
+					richDocumentKey(before.richContent) === richDocumentKey(fresh.richContent);
+				if (unchanged) return;
+				queryClient.setQueryData(notesKeys.detail(id), fresh);
+			} catch {
+				noop();
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [activeFileId, backend, queryClient, saveController]);
 
 	useEffect(
 		() => () => {

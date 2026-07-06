@@ -627,15 +627,37 @@ export function firstSettingsFocusId(tab: SettingsTabId): string | null {
  */
 export function buildThemeCommandItems(): CommandPaletteItem[] {
 	const activeTheme = usePreferencesStore.getState().appearance.theme;
-	return THEMES.map((theme) => ({
-		id: `theme:${theme.id}`,
-		label: `Theme: ${theme.label}`,
-		group: "Theme",
-		hint: theme.id === activeTheme ? "Active" : "Appearance",
-		keywords: ["theme", "appearance", "color", theme.label.toLowerCase(), theme.id],
-		searchOnly: true,
-		action: () => usePreferencesStore.getState().updateAppearancePreference("theme", theme.id),
-	}));
+	return THEMES.flatMap((theme) => {
+		if ("variants" in theme && theme.variants) {
+			return theme.variants.map((v) => ({
+				id: `theme:${v.id}`,
+				label: `Theme: ${theme.label} — ${v.label}`,
+				group: "Theme",
+				hint: v.id === activeTheme ? "Active" : "Appearance",
+				keywords: [
+					"theme",
+					"appearance",
+					"color",
+					theme.label.toLowerCase(),
+					v.label.toLowerCase(),
+					v.id,
+				],
+				searchOnly: true,
+				action: () =>
+					usePreferencesStore.getState().updateAppearancePreference("theme", v.id),
+			}));
+		}
+		return {
+			id: `theme:${theme.id}`,
+			label: `Theme: ${theme.label}`,
+			group: "Theme",
+			hint: theme.id === activeTheme ? "Active" : "Appearance",
+			keywords: ["theme", "appearance", "color", theme.label.toLowerCase(), theme.id],
+			searchOnly: true,
+			action: () =>
+				usePreferencesStore.getState().updateAppearancePreference("theme", theme.id),
+		};
+	});
 }
 
 /**
@@ -645,15 +667,19 @@ export function buildThemeCommandItems(): CommandPaletteItem[] {
  * control.
  */
 export function buildSettingsCommandItems(): CommandPaletteItem[] {
-	return SETTINGS_COMMAND_ENTRIES.filter((entry) => isSettingsTabVisible(entry.tab)).map(
-		(entry) => ({
-			id: `setting:${entry.id}`,
-			label: entry.label,
-			group: "Settings",
-			hint: entry.hint,
-			keywords: ["settings", ...entry.keywords],
-			searchOnly: true,
-			action: () => openSettings(entry.tab, entry.focusId),
-		}),
+	return SETTINGS_COMMAND_ENTRIES.flatMap((entry) =>
+		isSettingsTabVisible(entry.tab)
+			? [
+					{
+						id: `setting:${entry.id}`,
+						label: entry.label,
+						group: "Settings",
+						hint: entry.hint,
+						keywords: ["settings", ...entry.keywords],
+						searchOnly: true,
+						action: () => openSettings(entry.tab, entry.focusId),
+					},
+				]
+			: [],
 	);
 }

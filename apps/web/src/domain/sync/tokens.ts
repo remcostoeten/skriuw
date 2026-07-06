@@ -2,14 +2,19 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { prisma } from "@/core/db";
+import { checkRateLimit } from "@/lib/rate-limit";
 import {
 	createRawSyncToken,
 	MAX_SYNC_TOKEN_NAME_LENGTH,
 	readBearerToken,
 	SYNC_READ_SCOPE,
+	type SyncScope,
+	SYNC_WRITE_SCOPE,
 } from "@/domain/sync/token-utils";
 
-export { createRawSyncToken, readBearerToken, SYNC_READ_SCOPE };
+export { createRawSyncToken, readBearerToken, SYNC_READ_SCOPE, SYNC_WRITE_SCOPE };
+
+export const MAX_SYNC_TOKENS_PER_USER = 20;
 
 type SyncTokenRecord = {
 	id: string;
@@ -90,15 +95,26 @@ export async function createSyncToken(input: {
 	userId: string;
 	name?: string;
 	expiresAt?: string | null;
+	canWrite?: boolean;
 }): Promise<CreatedSyncToken> {
+	const activeCount = await prisma.syncToken.count({
+		where: { userId: input.userId, revokedAt: null },
+	});
+	if (activeCount >= MAX_SYNC_TOKENS_PER_USER) {
+		throw new Error(
+			`You can have at most ${MAX_SYNC_TOKENS_PER_USER} active sync keys. Revoke one first.`,
+		);
+	}
+
 	const token = createRawSyncToken();
+	const scopes = input.canWrite ? [SYNC_READ_SCOPE, SYNC_WRITE_SCOPE] : [SYNC_READ_SCOPE];
 	const record = await prisma.syncToken.create({
 		data: {
 			userId: input.userId,
 			name: normalizeTokenName(input.name),
 			tokenHash: tokenHash(token),
 			tokenPrefix: tokenPreview(token),
-			scopes: [SYNC_READ_SCOPE],
+			scopes,
 			expiresAt: normalizeExpiresAt(input.expiresAt),
 		},
 		select: SYNC_TOKEN_SELECT,
@@ -123,10 +139,84 @@ export async function revokeSyncToken(userId: string, tokenId: string): Promise<
 	});
 }
 
+export async function revokeAllSyncTokens(userId: string): Promise<number> {
+	const result = await prisma.syncToken.updateMany({
+		where: { userId, revokedAt: null },
+		data: { revokedAt: new Date() },
+	});
+	return result.count;
+}
+
+/**
+ * Rotates a key in place: mints a fresh secret carrying the same name/scopes/
+ * expiry, then revokes the old one. Callers that only have the prefix (never
+ * the raw secret) use this instead of copy-pasting create+revoke, so a leaked
+ * key can be replaced without losing its extension/desktop configuration.
+ */
+export async function rotateSyncToken(
+	userId: string,
+	tokenId: string,
+): Promise<CreatedSyncToken | null> {
+	const existing = await prisma.syncToken.findFirst({
+		where: { id: tokenId, userId, revokedAt: null },
+		select: { name: true, scopes: true, expiresAt: true },
+	});
+	if (!existing) return null;
+
+	const token = createRawSyncToken();
+	const [record] = await prisma.$transaction([
+		prisma.syncToken.create({
+			data: {
+				userId,
+				name: existing.name,
+				tokenHash: tokenHash(token),
+				tokenPrefix: tokenPreview(token),
+				scopes: existing.scopes,
+				expiresAt: existing.expiresAt,
+			},
+			select: SYNC_TOKEN_SELECT,
+		}),
+		prisma.syncToken.updateMany({
+			where: { id: tokenId, userId, revokedAt: null },
+			data: { revokedAt: new Date() },
+		}),
+	]);
+
+	return { ...toSummary(record), token };
+}
+
+const SYNC_RATE_LIMIT_WINDOW_MS = 60_000;
+const SYNC_RATE_LIMITS: Record<string, number> = {
+	capture: 30,
+	export: 10,
+	folders: 60,
+	verify: 60,
+	activity: 60,
+};
+
+/** Per-token, per-operation fixed-window limit so a leaked or misbehaving key can't hammer the API. */
+export async function checkSyncRateLimit(
+	tokenId: string,
+	operation: keyof typeof SYNC_RATE_LIMITS,
+): Promise<{ allowed: boolean; remaining: number }> {
+	return checkRateLimit(
+		`sync:${operation}:${tokenId}`,
+		SYNC_RATE_LIMITS[operation],
+		SYNC_RATE_LIMIT_WINDOW_MS,
+	);
+}
+
 export async function authenticateSyncBearer(
 	request: Request,
-	requiredScope = SYNC_READ_SCOPE,
-): Promise<{ userId: string } | null> {
+	requiredScope: SyncScope = SYNC_READ_SCOPE,
+	options: { updateLastUsedAt?: boolean } = {},
+): Promise<{
+	userId: string;
+	tokenId: string;
+	name: string;
+	scopes: string[];
+	expiresAt: Date | null;
+} | null> {
 	const token = readBearerToken(request);
 	if (!token) return null;
 
@@ -134,6 +224,7 @@ export async function authenticateSyncBearer(
 		where: { tokenHash: tokenHash(token) },
 		select: {
 			id: true,
+			name: true,
 			userId: true,
 			scopes: true,
 			expiresAt: true,
@@ -145,10 +236,18 @@ export async function authenticateSyncBearer(
 	if (record.expiresAt && record.expiresAt.getTime() <= Date.now()) return null;
 	if (!record.scopes.includes(requiredScope)) return null;
 
-	await prisma.syncToken.update({
-		where: { id: record.id },
-		data: { lastUsedAt: new Date() },
-	});
+	if (options.updateLastUsedAt !== false) {
+		await prisma.syncToken.update({
+			where: { id: record.id },
+			data: { lastUsedAt: new Date() },
+		});
+	}
 
-	return { userId: record.userId };
+	return {
+		userId: record.userId,
+		tokenId: record.id,
+		name: record.name,
+		scopes: record.scopes,
+		expiresAt: record.expiresAt,
+	};
 }

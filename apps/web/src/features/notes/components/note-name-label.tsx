@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "framer-motion";
 
 type TProps = {
 	name: string;
@@ -24,30 +24,36 @@ export function NoteNameLabel({ name, className }: TProps) {
 	const reduceMotion = useReducedMotion();
 
 	return (
-		<AnimatePresence initial={false} mode="wait">
-			<motion.span
-				key={name}
-				className={className}
-				style={{ willChange: "opacity, transform, filter" }}
-				initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 4, filter: "blur(4px)" }}
-				animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, filter: "blur(0px)" }}
-				exit={
-					reduceMotion
-						? { opacity: 0, transition: { duration: 0.1, ease: EASE } }
-						: {
-								opacity: 0,
-								y: -4,
-								filter: "blur(4px)",
-								transition: { duration: 0.13, ease: EASE },
-							}
-				}
-				transition={{
-					duration: reduceMotion ? 0.12 : 0.18,
-					ease: EASE,
-				}}
-			>
-				{name}
-			</motion.span>
-		</AnimatePresence>
+		<LazyMotion features={domAnimation} strict>
+			<AnimatePresence initial={false} mode="wait">
+				<m.span
+					key={name}
+					className={className}
+					style={{ willChange: "opacity, transform, filter" }}
+					initial={
+						reduceMotion ? { opacity: 0 } : { opacity: 0, y: 4, filter: "blur(4px)" }
+					}
+					animate={
+						reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, filter: "blur(0px)" }
+					}
+					exit={
+						reduceMotion
+							? { opacity: 0, transition: { duration: 0.1, ease: EASE } }
+							: {
+									opacity: 0,
+									y: -4,
+									filter: "blur(4px)",
+									transition: { duration: 0.13, ease: EASE },
+								}
+					}
+					transition={{
+						duration: reduceMotion ? 0.12 : 0.18,
+						ease: EASE,
+					}}
+				>
+					{name}
+				</m.span>
+			</AnimatePresence>
+		</LazyMotion>
 	);
 }

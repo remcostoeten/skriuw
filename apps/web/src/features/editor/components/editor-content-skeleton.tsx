@@ -74,18 +74,18 @@ function DetailsSectionShell({
 	);
 }
 
-function DetailRowsSkeleton() {
-	const rows = [
-		{ label: "w-[28%]", value: "w-[18%]" },
-		{ label: "w-[34%]", value: "w-[26%]" },
-		{ label: "w-[22%]", value: "w-[38%]" },
-		{ label: "w-[30%]", value: "w-[32%]" },
-	];
+const DETAIL_ROWS = [
+	{ label: "w-[28%]", value: "w-[18%]" },
+	{ label: "w-[34%]", value: "w-[26%]" },
+	{ label: "w-[22%]", value: "w-[38%]" },
+	{ label: "w-[30%]", value: "w-[32%]" },
+];
 
+function DetailRowsSkeleton() {
 	return (
 		<div className="space-y-2.5">
-			{rows.map((row, index) => (
-				<div key={index} className="flex items-center justify-between gap-4">
+			{DETAIL_ROWS.map((row) => (
+				<div key={row.label} className="flex items-center justify-between gap-4">
 					<Bar className={cn("h-2.5 bg-foreground/[0.045]", row.label)} />
 					<Bar className={cn("h-2.5 bg-foreground/[0.07]", row.value)} />
 				</div>
@@ -105,8 +105,11 @@ export function DetailsPanelSkeleton() {
 							{ width: "54%", indent: 12 },
 							{ width: "64%", indent: 12 },
 							{ width: "46%", indent: 24 },
-						].map((row, index) => (
-							<div key={index} className="flex items-center gap-2">
+						].map((row) => (
+							<div
+								key={`${row.width}-${row.indent}`}
+								className="flex items-center gap-2"
+							>
 								<span
 									className="h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/[0.08]"
 									style={{ marginLeft: row.indent }}

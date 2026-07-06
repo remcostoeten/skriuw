@@ -200,11 +200,10 @@ export function normalizeProfile(
 			),
 			recentMoods: Array.isArray(profile?.journal?.recentMoods)
 				? profile.journal.recentMoods
-						.map((item) => ({
-							mood: typeof item?.mood === "string" ? item.mood : "",
-							date: toDate(item?.date),
-						}))
-						.filter((item) => item.mood.length > 0)
+						.flatMap((item) => {
+							const mood = typeof item?.mood === "string" ? item.mood : "";
+							return mood.length > 0 ? [{ mood, date: toDate(item?.date) }] : [];
+						})
 						.slice(0, MAX_RECENT_MOODS)
 				: fallback.journal.recentMoods,
 		},

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import {
 	ArrowLeft,
@@ -18,7 +18,11 @@ import {
 import { Switch } from "@/shared/ui/switch";
 import { cn } from "@/shared/lib/utils";
 import { noop } from "@/shared/lib/noop";
-import { SHARE_DURATION_PRESETS, type TShareExpiry } from "@/domain/sharing/models";
+import {
+	SHARE_DURATION_PRESETS,
+	type TNoteShareState,
+	type TShareExpiry,
+} from "@/domain/sharing/models";
 import { useNoteSharing } from "../hooks/use-note-sharing";
 
 type Props = {
@@ -51,38 +55,101 @@ const EXPIRY_OPTIONS: { id: ExpiryMode; label: string }[] = [
 	{ id: "date", label: "On date" },
 ];
 
+type ShareFormState = {
+	syncedToken: string | null;
+	viewOnce: boolean;
+	expiryMode: ExpiryMode;
+	customDate: string;
+	passwordEnabled: boolean;
+	passwordInput: string;
+	showAuthor: boolean;
+	dirty: boolean;
+};
+
+type ShareFormAction =
+	| { type: "sync"; share: TNoteShareState }
+	| { type: "sharegone" }
+	| { type: "viewOnce"; value: boolean }
+	| { type: "expiryMode"; value: ExpiryMode }
+	| { type: "customDate"; value: string }
+	| { type: "passwordEnabled"; value: boolean }
+	| { type: "passwordInput"; value: string }
+	| { type: "showAuthor"; value: boolean }
+	| { type: "saved" };
+
+function seedShareForm(share: TNoteShareState | null): ShareFormState {
+	if (!share) {
+		return {
+			syncedToken: null,
+			viewOnce: false,
+			expiryMode: "never",
+			customDate: "",
+			passwordEnabled: false,
+			passwordInput: "",
+			showAuthor: false,
+			dirty: false,
+		};
+	}
+	return {
+		syncedToken: share.token,
+		viewOnce: share.viewOnce,
+		expiryMode: share.expiresAt ? "date" : "never",
+		customDate: share.expiresAt ? toLocalInputValue(share.expiresAt) : "",
+		passwordEnabled: share.hasPassword,
+		passwordInput: "",
+		showAuthor: share.authorName != null,
+		dirty: false,
+	};
+}
+
+function shareFormReducer(state: ShareFormState, action: ShareFormAction): ShareFormState {
+	switch (action.type) {
+		case "sync":
+			return seedShareForm(action.share);
+		case "sharegone":
+			return { ...state, syncedToken: null };
+		case "viewOnce":
+			return { ...state, viewOnce: action.value, dirty: true };
+		case "expiryMode":
+			return { ...state, expiryMode: action.value, dirty: true };
+		case "customDate":
+			return { ...state, customDate: action.value, dirty: true };
+		case "passwordEnabled":
+			return {
+				...state,
+				passwordEnabled: action.value,
+				passwordInput: action.value ? state.passwordInput : "",
+				dirty: true,
+			};
+		case "passwordInput":
+			return { ...state, passwordInput: action.value, dirty: true };
+		case "showAuthor":
+			return { ...state, showAuthor: action.value, dirty: true };
+		case "saved":
+			return { ...state, dirty: false };
+	}
+}
+
 export function ShareScreen({ noteId, noteName, onBack }: Props) {
 	const { shareQuery, publish, update, refresh, revoke } = useNoteSharing(noteId);
 	const share = shareQuery.data ?? null;
 	const isPublic = Boolean(share);
 
-	const [viewOnce, setViewOnce] = useState(false);
-	const [expiryMode, setExpiryMode] = useState<ExpiryMode>("never");
-	const [customDate, setCustomDate] = useState("");
-	const [passwordEnabled, setPasswordEnabled] = useState(false);
-	const [passwordInput, setPasswordInput] = useState("");
-	const [showAuthor, setShowAuthor] = useState(false);
-	const [dirty, setDirty] = useState(false);
+	const [form, dispatch] = useReducer(shareFormReducer, share, seedShareForm);
+	const [prevShare, setPrevShare] = useState(share);
 	const [copied, setCopied] = useState(false);
-	const lastSyncedShareTokenRef = useRef<string | null>(null);
 
-	// Sync local controls when share state changes, but not mid-edit on background refetches.
-	useEffect(() => {
+	if (share !== prevShare) {
+		setPrevShare(share);
 		if (!share) {
-			lastSyncedShareTokenRef.current = null;
-			return;
+			if (form.syncedToken !== null) dispatch({ type: "sharegone" });
+		} else if (!form.dirty || form.syncedToken !== share.token) {
+			dispatch({ type: "sync", share });
 		}
-		if (dirty && lastSyncedShareTokenRef.current === share.token) return;
+	}
 
-		lastSyncedShareTokenRef.current = share.token;
-		setViewOnce(share.viewOnce);
-		setExpiryMode(share.expiresAt ? "date" : "never");
-		setCustomDate(share.expiresAt ? toLocalInputValue(share.expiresAt) : "");
-		setPasswordEnabled(share.hasPassword);
-		setPasswordInput("");
-		setShowAuthor(share.authorName != null);
-		setDirty(false);
-	}, [share, dirty]);
+	const { viewOnce, expiryMode, customDate, passwordEnabled, passwordInput, showAuthor, dirty } =
+		form;
 
 	useEffect(() => {
 		if (!copied) return;
@@ -95,10 +162,6 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 		if (typeof window !== "undefined") return `${window.location.origin}${share.path}`;
 		return share.url;
 	}, [share]);
-
-	function markDirty() {
-		setDirty(true);
-	}
 
 	function handleTogglePublic(next: boolean) {
 		if (next) {
@@ -124,7 +187,7 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 				: undefined;
 		update.mutate(
 			{ noteId, viewOnce, expiry: buildExpiry(expiryMode, customDate), password, showAuthor },
-			{ onSuccess: () => setDirty(false) },
+			{ onSuccess: () => dispatch({ type: "saved" }) },
 		);
 	}
 
@@ -268,10 +331,9 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 								>
 									<Switch
 										checked={viewOnce}
-										onCheckedChange={(next) => {
-											setViewOnce(next);
-											markDirty();
-										}}
+										onCheckedChange={(next) =>
+											dispatch({ type: "viewOnce", value: next })
+										}
 									/>
 								</ControlRow>
 
@@ -288,11 +350,9 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 								>
 									<Switch
 										checked={passwordEnabled}
-										onCheckedChange={(next) => {
-											setPasswordEnabled(next);
-											if (!next) setPasswordInput("");
-											markDirty();
-										}}
+										onCheckedChange={(next) =>
+											dispatch({ type: "passwordEnabled", value: next })
+										}
 									/>
 								</ControlRow>
 								{passwordEnabled && (
@@ -300,10 +360,12 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 										<input
 											type="password"
 											value={passwordInput}
-											onChange={(event) => {
-												setPasswordInput(event.target.value);
-												markDirty();
-											}}
+											onChange={(event) =>
+												dispatch({
+													type: "passwordInput",
+													value: event.target.value,
+												})
+											}
 											placeholder={
 												share!.hasPassword
 													? "New password (unchanged)"
@@ -323,10 +385,9 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 								>
 									<Switch
 										checked={showAuthor}
-										onCheckedChange={(next) => {
-											setShowAuthor(next);
-											markDirty();
-										}}
+										onCheckedChange={(next) =>
+											dispatch({ type: "showAuthor", value: next })
+										}
 									/>
 								</ControlRow>
 
@@ -349,10 +410,12 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 													<button
 														key={option.id}
 														type="button"
-														onClick={() => {
-															setExpiryMode(option.id);
-															markDirty();
-														}}
+														onClick={() =>
+															dispatch({
+																type: "expiryMode",
+																value: option.id,
+															})
+														}
 														className={cn(
 															"rounded-md border px-2.5 py-1 text-[12px] font-medium transition-colors active:scale-[0.97]",
 															expiryMode === option.id
@@ -368,10 +431,12 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 												<input
 													type="datetime-local"
 													value={customDate}
-													onChange={(event) => {
-														setCustomDate(event.target.value);
-														markDirty();
-													}}
+													onChange={(event) =>
+														dispatch({
+															type: "customDate",
+															value: event.target.value,
+														})
+													}
 													className="mt-2.5 w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground outline-none transition-colors focus:border-foreground/30"
 												/>
 											)}

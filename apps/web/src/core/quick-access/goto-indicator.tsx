@@ -58,22 +58,21 @@ export function GotoIndicators({ settings }: Props) {
 
 	return (
 		<>
-			{Object.values(targets)
-				.filter(
-					(target) =>
-						activeIds.has(target.to.id) &&
-						target.element !== null &&
-						target.element.isConnected &&
-						target.keybind.startsWith(buffer),
-				)
-				.map((target) => (
-					<GotoIndicator
-						key={target.to.id}
-						target={target}
-						element={target.element as HTMLElement}
-						settings={settings}
-					/>
-				))}
+			{Object.values(targets).flatMap((target) =>
+				activeIds.has(target.to.id) &&
+				target.element !== null &&
+				target.element.isConnected &&
+				target.keybind.startsWith(buffer)
+					? [
+							<GotoIndicator
+								key={target.to.id}
+								target={target}
+								element={target.element as HTMLElement}
+								settings={settings}
+							/>,
+						]
+					: [],
+			)}
 		</>
 	);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import type { AiEditorHandle, AiErrorCode, AiSelectionAction } from "@/features/ai/service";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -59,10 +59,12 @@ export function useJournalAi(
 	const dateKey = format(selectedDate, "yyyy-MM-dd");
 	const aiPrefs = usePreferencesStore((s) => s.ai);
 	const [spellCheckRevert, setSpellCheckRevert] = useState<string | null>(null);
+	const [prevDateKey, setPrevDateKey] = useState(dateKey);
 
-	useEffect(() => {
+	if (dateKey !== prevDateKey) {
+		setPrevDateKey(dateKey);
 		setSpellCheckRevert(null);
-	}, [dateKey]);
+	}
 
 	const applyResult = useMemo(() => {
 		const applySelection = (result: string, editorHandle: AiEditorHandle) => {

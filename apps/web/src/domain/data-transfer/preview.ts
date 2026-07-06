@@ -204,6 +204,12 @@ export async function buildImportPreview(
 	const importedNoteIds = new Set(
 		archive.notes.map((note) => note.id).filter((id): id is string => Boolean(id)),
 	);
+	const notesById = new Map<string, (typeof archive.notes)[number]>();
+	for (const note of archive.notes) {
+		if (note.id && !notesById.has(note.id)) {
+			notesById.set(note.id, note);
+		}
+	}
 
 	for (const version of archive.noteVersions) {
 		if (!importedNoteIds.has(version.noteId)) {
@@ -211,7 +217,7 @@ export async function buildImportPreview(
 			continue;
 		}
 
-		const sourceNote = archive.notes.find((note) => note.id === version.noteId);
+		const sourceNote = notesById.get(version.noteId);
 		if (!sourceNote) {
 			versionCounts.skip++;
 			continue;

@@ -2,7 +2,7 @@
 
 import { useApiMutation } from "@/shared/api";
 import { useQueryClient } from "@tanstack/react-query";
-import type { CreateNoteInput } from "@/domain/notes/actions";
+import type { CreateNoteInput } from "@/domain/notes/note-write-core";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { trackProductEvent } from "@/core/analytics/client";
 import { useWorkspaceBackend } from "@/core/workspace-backend";

@@ -63,19 +63,17 @@ export const FavoritesSection = memo(function FavoritesSection({
 }: Props) {
 	const resolvedFavorites = useMemo(
 		() =>
-			favorites
-				.map((fav) => {
-					if (fav.itemType === "file") {
-						const file = filesById.get(fav.itemId);
-						return file ? { ...fav, item: file, name: file.name } : null;
-					}
+			favorites.flatMap<
+				FavoriteItem & { item: NoteFile | NoteFolder; name: string; icon?: string }
+			>((fav) => {
+				if (fav.itemType === "file") {
+					const file = filesById.get(fav.itemId);
+					return file ? [{ ...fav, item: file, name: file.name, icon: file.icon }] : [];
+				}
 
-					const folder = foldersById.get(fav.itemId);
-					return folder ? { ...fav, item: folder, name: folder.name } : null;
-				})
-				.filter(Boolean) as Array<
-				FavoriteItem & { item: NoteFile | NoteFolder; name: string }
-			>,
+				const folder = foldersById.get(fav.itemId);
+				return folder ? [{ ...fav, item: folder, name: folder.name }] : [];
+			}),
 		[favorites, filesById, foldersById],
 	);
 
@@ -114,7 +112,7 @@ export const FavoritesSection = memo(function FavoritesSection({
 						<div
 							key={fav.id}
 							className={cn(
-								"group flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-colors",
+								"group flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-colors [@media(pointer:coarse)]:min-h-11",
 								compactMode ? "h-6" : "h-7",
 								fav.itemType === "file" && fav.itemId === activeFileId
 									? "border-border bg-muted text-foreground"
@@ -129,11 +127,20 @@ export const FavoritesSection = memo(function FavoritesSection({
 								}
 								className="flex min-w-0 flex-1 items-center gap-2 text-left"
 							>
-								<SidebarItemIcon
-									kind={fav.itemType}
-									size={compactMode ? 12 : 14}
-									className="shrink-0 text-muted-foreground/70"
-								/>
+								{fav.icon ? (
+									<span
+										className="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-[13px] leading-none"
+										aria-hidden
+									>
+										{fav.icon}
+									</span>
+								) : fav.itemType === "folder" ? (
+									<SidebarItemIcon
+										kind="folder"
+										size={compactMode ? 12 : 14}
+										className="shrink-0 text-muted-foreground/70"
+									/>
+								) : null}
 								<span className="flex-1 truncate">{fav.name}</span>
 							</button>
 							<button

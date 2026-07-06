@@ -61,9 +61,9 @@ export async function restoreTrashBatch(batchId: string): Promise<void> {
 			where: { userId: user.id, id: { in: folderIds } },
 			select: { id: true, parentId: true },
 		});
-		const folderOrphans = restoredFolders
-			.filter((folder) => folder.parentId && !activeFolderIds.has(folder.parentId))
-			.map((folder) => folder.id);
+		const folderOrphans = restoredFolders.flatMap((folder) =>
+			folder.parentId && !activeFolderIds.has(folder.parentId) ? [folder.id] : [],
+		);
 		if (folderOrphans.length > 0) {
 			await tx.folder.updateMany({
 				where: { id: { in: folderOrphans } },
@@ -75,9 +75,9 @@ export async function restoreTrashBatch(batchId: string): Promise<void> {
 			where: { userId: user.id, id: { in: noteIds } },
 			select: { id: true, parentId: true },
 		});
-		const noteOrphans = restoredNotes
-			.filter((note) => note.parentId && !activeFolderIds.has(note.parentId))
-			.map((note) => note.id);
+		const noteOrphans = restoredNotes.flatMap((note) =>
+			note.parentId && !activeFolderIds.has(note.parentId) ? [note.id] : [],
+		);
 		if (noteOrphans.length > 0) {
 			await tx.note.updateMany({
 				where: { id: { in: noteOrphans } },

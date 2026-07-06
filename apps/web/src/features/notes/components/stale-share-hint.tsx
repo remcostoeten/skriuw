@@ -43,15 +43,15 @@ export function StaleShareHint({
 	}
 
 	return (
-		<div className={cn("flex flex-col items-end gap-1", className)}>
-			<p className="text-[12px] leading-5 text-amber-700 dark:text-amber-500">
+		<div className={cn("flex w-full flex-col items-end gap-1", className)}>
+			<p className="max-w-[180px] text-right text-[12px] leading-5 text-amber-700 dark:text-amber-500">
 				Public link shows an older snapshot.
 			</p>
 			<button
 				type="button"
 				disabled={isRefreshing}
 				onClick={onRefresh}
-				className="pressable inline-flex items-center gap-1.5 text-[12px] font-medium text-amber-800 underline-offset-2 hover:underline disabled:opacity-50 dark:text-amber-400"
+				className="pressable inline-flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-amber-800 underline-offset-2 hover:underline disabled:opacity-50 dark:text-amber-400"
 			>
 				{isRefreshing ? (
 					<Loader2 className="h-3.5 w-3.5 animate-spin" />

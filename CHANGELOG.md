@@ -3,6 +3,34 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.17.0] — 2026-07-06
+
+### Changed
+
+- **Release:** prepare the next minor release and align the unified web,
+  desktop, Tauri, Cargo, and Linux packaging versions on `0.17.0`.
+
+### Fixed
+
+- **Tests:** update the rich-document clone error-injection coverage for the
+  current `structuredClone`-first implementation so the release build pipeline
+  passes cleanly.
+
+## [0.16.1] — 2026-07-06
+
+### Fixed
+
+- **Desktop styling (regression):** the packaged app shipped without
+  `dangerousDisableAssetCspModification`, so Tauri's build-time CSP hash
+  injection voided `'unsafe-inline'` and silently blocked every
+  runtime-injected `<style>` tag and inline `style=` attribute — leaving the
+  formatting bubble menu unstyled, the editor with the wrong background, and
+  shiki syntax highlighting dead. The fix (previously applied but never
+  committed) is now in `tauri.conf.json`, and CI fails the release if it is
+  ever removed.
+- **Editor:** pressing Enter inside a code block now inserts a newline
+  instead of splitting out of the block into a new paragraph.
+
 ## [0.16.0] — 2026-07-06
 
 ### Added

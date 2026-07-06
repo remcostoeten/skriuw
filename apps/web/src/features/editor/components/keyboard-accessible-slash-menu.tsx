@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { type DefaultReactSuggestionItem, type SuggestionMenuProps } from "@blocknote/react";
 import { cn } from "@/shared/lib/utils";
 
@@ -10,13 +10,21 @@ export function KeyboardAccessibleSlashMenu({
 }: SuggestionMenuProps<DefaultReactSuggestionItem>) {
 	const menuId = useId();
 	const [activeIndex, setActiveIndex] = useState(selectedIndex ?? 0);
+	const [prevSelectedIndex, setPrevSelectedIndex] = useState(selectedIndex);
+	const [prevItemsLength, setPrevItemsLength] = useState(items.length);
 
-	useEffect(() => {
+	if (selectedIndex !== prevSelectedIndex || items.length !== prevItemsLength) {
+		setPrevSelectedIndex(selectedIndex);
+		setPrevItemsLength(items.length);
 		setActiveIndex(selectedIndex ?? 0);
-	}, [selectedIndex, items.length]);
+	}
+
+	const keyStateRef = useRef({ items, activeIndex, onItemClick });
+	keyStateRef.current = { items, activeIndex, onItemClick };
 
 	useEffect(() => {
 		function handleKeyDown(event: KeyboardEvent) {
+			const { items, activeIndex, onItemClick } = keyStateRef.current;
 			const suggestionMenu = document.getElementById(menuId);
 			if (!suggestionMenu || items.length === 0) {
 				return;
@@ -69,7 +77,7 @@ export function KeyboardAccessibleSlashMenu({
 
 		document.addEventListener("keydown", handleKeyDown, true);
 		return () => document.removeEventListener("keydown", handleKeyDown, true);
-	}, [activeIndex, items, menuId, onItemClick]);
+	}, [menuId]);
 
 	useEffect(() => {
 		const activeItem = document.getElementById(`${menuId}-item-${activeIndex}`);
@@ -117,7 +125,7 @@ export function KeyboardAccessibleSlashMenu({
 						) : null}
 					</span>
 					{item.badge ? (
-						<span className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+						<span className="skriuw-slash-badge shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
 							{item.badge}
 						</span>
 					) : null}

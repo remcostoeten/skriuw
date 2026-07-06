@@ -5,7 +5,10 @@ import {
 	codeBlockIndentPluginKey,
 	createCodeBlockIndentPlugin,
 } from "@/features/editor/lib/code-block-indent-plugin";
-import { createPersonNavPlugin, personNavPluginKey } from "@/features/editor/lib/person-nav-plugin";
+import {
+	createInlineChipNavPlugin,
+	inlineChipNavPluginKey,
+} from "@/features/editor/lib/inline-chip-nav-plugin";
 import { createVimPlugin, vimPluginKey, type VimMode } from "@/features/editor/lib/vim-plugin";
 import { type EditorInstance, getEditorDom } from "@/features/editor/lib/editor-instance";
 
@@ -15,7 +18,9 @@ type Params = {
 	vimModeEnabled: boolean;
 	onVimModeChange?: (mode: VimMode | null) => void;
 	setVimCommand: (command: string | null) => void;
+	onOpenNoteLink: (title: string) => void;
 	onOpenPerson: (id: string) => void;
+	onOpenTag: (name: string) => void;
 };
 
 export function useEditorPlugins({
@@ -24,13 +29,19 @@ export function useEditorPlugins({
 	vimModeEnabled,
 	onVimModeChange,
 	setVimCommand,
+	onOpenNoteLink,
 	onOpenPerson,
+	onOpenTag,
 }: Params) {
 	const searchPlugin = useMemo(() => createSearchPlugin(), []);
 	const onVimModeChangeRef = useRef(onVimModeChange);
 	onVimModeChangeRef.current = onVimModeChange;
+	const onOpenNoteLinkRef = useRef(onOpenNoteLink);
+	onOpenNoteLinkRef.current = onOpenNoteLink;
 	const onOpenPersonRef = useRef(onOpenPerson);
 	onOpenPersonRef.current = onOpenPerson;
+	const onOpenTagRef = useRef(onOpenTag);
+	onOpenTagRef.current = onOpenTag;
 
 	useEffect(() => {
 		const tiptap = editor._tiptapEditor;
@@ -58,9 +69,17 @@ export function useEditorPlugins({
 	useEffect(() => {
 		const tiptap = editor._tiptapEditor;
 		if (!tiptap || !vimModeEnabled || readOnly) return;
-		const plugin = createVimPlugin((status) => {
-			onVimModeChangeRef.current?.(status.mode);
-			setVimCommand(status.command);
+		const plugin = createVimPlugin({
+			onStatusChange: (status) => {
+				onVimModeChangeRef.current?.(status.mode);
+				setVimCommand(status.command);
+			},
+			onIndent: () => {
+				if (editor.canNestBlock?.()) editor.nestBlock?.();
+			},
+			onOutdent: () => {
+				if (editor.canUnnestBlock?.()) editor.unnestBlock?.();
+			},
 		});
 		// Prepend: BlockNote ships an `OverrideEscape` keymap that blurs the
 		// editor on Escape, and ProseMirror consults plugins in order — vim must
@@ -79,17 +98,21 @@ export function useEditorPlugins({
 	}, [editor, vimModeEnabled, readOnly, setVimCommand]);
 
 	// Registered last (and re-registered whenever vim toggles) so it prepends in
-	// front of every other plugin — Enter on a person chip must route before
+	// front of every other plugin — inline chip activation must route before
 	// BlockNote splits the block or vim's `Enter → j` motion fires.
 	useEffect(() => {
 		const tiptap = editor._tiptapEditor;
 		if (!tiptap) return;
 		tiptap.registerPlugin(
-			createPersonNavPlugin(() => onOpenPersonRef.current),
+			createInlineChipNavPlugin({
+				onOpenNoteLink: (title) => onOpenNoteLinkRef.current(title),
+				onOpenPerson: (id) => onOpenPersonRef.current(id),
+				onOpenTag: (name) => onOpenTagRef.current(name),
+			}),
 			(navPlugin: Plugin, plugins: Plugin[]) => [navPlugin, ...plugins],
 		);
 		return () => {
-			tiptap.unregisterPlugin(personNavPluginKey);
+			tiptap.unregisterPlugin(inlineChipNavPluginKey);
 		};
 	}, [editor, vimModeEnabled, readOnly]);
 }

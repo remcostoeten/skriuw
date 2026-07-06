@@ -36,7 +36,12 @@ export type NoteVersionCandidate = Pick<
 
 export function normalizeVersionTags(tags: string[] | undefined): string[] {
 	return [
-		...new Set((tags ?? []).map((tag) => tag.trim().toLowerCase()).filter(Boolean)),
+		...new Set(
+			(tags ?? []).flatMap((tag) => {
+				const normalized = tag.trim().toLowerCase();
+				return normalized ? [normalized] : [];
+			}),
+		),
 	].toSorted((left, right) => left.localeCompare(right));
 }
 

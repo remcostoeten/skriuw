@@ -5,7 +5,7 @@ import type { RichTextDocument } from "@/types/notes";
 
 describe("Error handling injection tests", () => {
 	describe("cloneRichDocument", () => {
-		test("falls back to structuredClone when JSON.stringify fails", () => {
+		test("falls back to JSON serialization when structuredClone fails", () => {
 			const original: RichTextDocument = [
 				{
 					id: "b1",
@@ -16,25 +16,27 @@ describe("Error handling injection tests", () => {
 				},
 			];
 
-			const stringifySpy = spyOn(JSON, "stringify");
-			stringifySpy.mockImplementation(() => {
-				throw new Error("Stringify failed");
+			const structuredCloneSpy = spyOn(globalThis, "structuredClone");
+			structuredCloneSpy.mockImplementation(() => {
+				throw new Error("Structured clone failed");
 			});
 
 			const consoleSpy = spyOn(console, "error");
 
-			const cloned = cloneRichDocument(original);
+			try {
+				const cloned = cloneRichDocument(original);
 
-			expect(consoleSpy).toHaveBeenCalledWith(
-				expect.stringContaining("[cloneRichDocument]"),
-				expect.any(Error),
-			);
-			expect(cloned).toEqual(original);
-			expect(cloned).not.toBe(original);
-			expect(cloned[0]).not.toBe(original[0]);
-
-			stringifySpy.mockRestore();
-			consoleSpy.mockRestore();
+				expect(consoleSpy).toHaveBeenCalledWith(
+					expect.stringContaining("[cloneRichDocument]"),
+					expect.any(Error),
+				);
+				expect(cloned).toEqual(original);
+				expect(cloned).not.toBe(original);
+				expect(cloned[0]).not.toBe(original[0]);
+			} finally {
+				structuredCloneSpy.mockRestore();
+				consoleSpy.mockRestore();
+			}
 		});
 
 		test("recovers via structuredClone when JSON serialization fails", () => {
@@ -55,17 +57,16 @@ describe("Error handling injection tests", () => {
 
 			const consoleSpy = spyOn(console, "error");
 
-			const cloned = cloneRichDocument(original);
+			try {
+				const cloned = cloneRichDocument(original);
 
-			expect(consoleSpy).toHaveBeenCalledWith(
-				expect.stringContaining("[cloneRichDocument]"),
-				expect.any(Error),
-			);
-			expect(cloned).toEqual(original);
-			expect(cloned).not.toBe(original);
-
-			stringifySpy.mockRestore();
-			consoleSpy.mockRestore();
+				expect(consoleSpy).not.toHaveBeenCalled();
+				expect(cloned).toEqual(original);
+				expect(cloned).not.toBe(original);
+			} finally {
+				stringifySpy.mockRestore();
+				consoleSpy.mockRestore();
+			}
 		});
 	});
 

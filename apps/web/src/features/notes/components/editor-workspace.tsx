@@ -70,6 +70,10 @@ type PaneConfig = {
 	showClose: boolean;
 };
 
+function paneLabel(file: NoteFile | null) {
+	return file ? stripMarkdownExtension(file.name).replace(/-/g, " ") : "Empty pane";
+}
+
 export function EditorWorkspace({
 	splitActive,
 	primaryFile,
@@ -119,9 +123,6 @@ export function EditorWorkspace({
 	const focusedSaveState = useNotesStore(
 		(state) => state.saveStates[focusedFile?.id ?? ""] ?? "idle",
 	);
-
-	const paneLabel = (file: NoteFile | null) =>
-		file ? stripMarkdownExtension(file.name).replace(/-/g, " ") : "Empty pane";
 
 	const primaryPane: PaneConfig = {
 		pane: "primary",
@@ -201,6 +202,7 @@ export function EditorWorkspace({
 				<EditorToolbar
 					key="split-toolbar"
 					fileName={focusedFileName}
+					fileIcon={focusedFile?.icon}
 					saveState={focusedSaveState}
 					isMobile={isMobile}
 					workspaceItems={workspaceItems}

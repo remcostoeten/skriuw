@@ -21,10 +21,12 @@ import {
 	getEditorLineHeightLabel,
 } from "@/features/editor/lib/editor-line-height";
 import { settingsAnchorProps } from "@/features/settings/lib/settings-focus-anchor";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 export function EditorSection() {
 	const editor = usePreferencesStore((s) => s.editor);
 	const update = usePreferencesStore((s) => s.updateEditorPreference);
+	const isMobile = useIsMobile();
 
 	return (
 		<>
@@ -106,16 +108,18 @@ export function EditorSection() {
 						onCheckedChange={(v) => update("animateNumbers", v)}
 					/>
 				</Row>
-				<Row
-					focusId="vim-mode"
-					title="Vim mode"
-					description="Modal editing with Normal and Insert modes (h/j/k/l, w/b/e, dd, x, i/a/o, and more). Press Esc for Normal mode."
-				>
-					<Switch
-						checked={editor.vimMode}
-						onCheckedChange={(v) => update("vimMode", v)}
-					/>
-				</Row>
+				{isMobile ? null : (
+					<Row
+						focusId="vim-mode"
+						title="Vim mode"
+						description="Modal editing with Normal and Insert modes (h/j/k/l, w/b/e, dd, x, i/a/o, and more). Press Esc for Normal mode."
+					>
+						<Switch
+							checked={editor.vimMode}
+							onCheckedChange={(v) => update("vimMode", v)}
+						/>
+					</Row>
+				)}
 				<Row
 					focusId="open-in-tabs"
 					title="Open notes in tabs"

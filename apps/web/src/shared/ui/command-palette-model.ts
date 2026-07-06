@@ -7,6 +7,8 @@ export type CommandPaletteItem = {
 	keywords?: string[];
 	description?: string;
 	hint?: string;
+	/** Page emoji rendered in place of the derived lucide icon. */
+	emoji?: string;
 	group?: string;
 	alwaysShow?: boolean;
 	/**

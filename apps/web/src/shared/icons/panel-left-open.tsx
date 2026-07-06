@@ -1,7 +1,7 @@
 "use client";
 
 import type { Transition, Variants } from "framer-motion";
-import { motion, useAnimation } from "framer-motion";
+import { domAnimation, LazyMotion, m, useAnimation } from "framer-motion";
 import type { HTMLAttributes } from "react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
@@ -68,26 +68,28 @@ const PanelLeftOpenIcon = forwardRef<PanelLeftOpenIconHandle, PanelLeftOpenIconP
 				onMouseLeave={handleMouseLeave}
 				{...props}
 			>
-				<svg
-					fill="none"
-					height={size}
-					stroke="currentColor"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth="2"
-					viewBox="0 0 24 24"
-					width={size}
-					xmlns="http://www.w3.org/2000/svg"
-				>
-					<rect height="18" rx="2" width="18" x="3" y="3" />
-					<path d="M9 3v18" />
-					<motion.path
-						animate={controls}
-						d="m14 9 3 3-3 3"
-						transition={DEFAULT_TRANSITION}
-						variants={PATH_VARIANTS}
-					/>
-				</svg>
+				<LazyMotion features={domAnimation} strict>
+					<svg
+						fill="none"
+						height={size}
+						stroke="currentColor"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						strokeWidth="2"
+						viewBox="0 0 24 24"
+						width={size}
+						xmlns="http://www.w3.org/2000/svg"
+					>
+						<rect height="18" rx="2" width="18" x="3" y="3" />
+						<path d="M9 3v18" />
+						<m.path
+							animate={controls}
+							d="m14 9 3 3-3 3"
+							transition={DEFAULT_TRANSITION}
+							variants={PATH_VARIANTS}
+						/>
+					</svg>
+				</LazyMotion>
 			</div>
 		);
 	},

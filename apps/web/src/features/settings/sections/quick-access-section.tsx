@@ -264,7 +264,7 @@ export function QuickAccessSection() {
 						}
 						disabled={!quickAccess.enabled || !quickAccess.showIndicators}
 					>
-						<SelectTrigger className="h-8 w-36">
+						<SelectTrigger className="h-11 w-36 sm:h-8">
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
@@ -284,7 +284,7 @@ export function QuickAccessSection() {
 						}
 						disabled={!quickAccess.enabled || !quickAccess.showIndicators}
 					>
-						<SelectTrigger className="h-8 w-36">
+						<SelectTrigger className="h-11 w-36 sm:h-8">
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>

@@ -10,6 +10,7 @@ import {
 	useUpdateJournalEntry,
 } from "./use-journal-entries";
 import { useCreateJournalTag, useJournalTags } from "./use-journal-tags";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { TAG_COLORS, type JournalEntry, type MoodLevel } from "../types";
 
 const CONTENT_SAVE_DEBOUNCE_MS = 650;
@@ -86,7 +87,7 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pendingEntryIdRef = useRef<string | null>(null);
-	const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
+	const persistQueueRef = useLazyRef<Promise<void>>(() => Promise.resolve());
 
 	const setDraftContent = useCallback((nextContent: string) => {
 		setContent(nextContent);

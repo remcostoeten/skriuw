@@ -83,14 +83,15 @@ export const metadata: Metadata = {
 	},
 };
 
+// `themeColor` is intentionally NOT declared here. The app has seven
+// `data-theme` themes that are independent of the OS `prefers-color-scheme`,
+// so a static media-scoped pair would tint the mobile address bar / Android
+// PWA status bar wrong. `ThemeAttribute` owns a single `<meta name="theme-color">`
+// (seeded in <head> below) and keeps it matched to the active theme.
 export const viewport: Viewport = {
 	width: "device-width",
 	initialScale: 1,
 	viewportFit: "cover",
-	themeColor: [
-		{ media: "(prefers-color-scheme: light)", color: "#f5f2eb" },
-		{ media: "(prefers-color-scheme: dark)", color: "#121212" },
-	],
 };
 
 type Props = {
@@ -101,9 +102,13 @@ export default function RootLayout({ children }: Props) {
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<head>
+				{/* Pre-paint: apply the saved theme and seed a `theme-color` meta.
+				    The meta is created imperatively (not via JSX) so React never
+				    reconciles its content — ThemeAttribute updates it in place to
+				    the active theme's real background once hydrated. */}
 				<script
 					dangerouslySetInnerHTML={{
-						__html: `(function(){try{var raw=localStorage.getItem("preferences-store");if(!raw)return;var parsed=JSON.parse(raw);var theme=parsed&&parsed.state&&parsed.state.appearance&&parsed.state.appearance.theme;if(theme){document.documentElement.setAttribute("data-theme",theme);}}catch(e){}})();`,
+						__html: `(function(){try{var t=localStorage.getItem("skriuw-active-theme");if(t){document.documentElement.setAttribute("data-theme",t);}var m=document.createElement("meta");m.setAttribute("name","theme-color");m.setAttribute("content","#121212");document.head.appendChild(m);}catch(e){}})();`,
 					}}
 				/>
 			</head>

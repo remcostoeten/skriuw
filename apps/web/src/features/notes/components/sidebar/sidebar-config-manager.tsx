@@ -44,6 +44,30 @@ type Props = {
 	onResetToDefaults: () => void;
 };
 
+function handleDragOver(e: React.DragEvent) {
+	e.preventDefault();
+	e.dataTransfer.dropEffect = "move";
+}
+
+function getSectionIcon(type: string) {
+	switch (type) {
+		case "search":
+			return "Search";
+		case "favorites":
+			return "Star";
+		case "recents":
+			return "Clock";
+		case "projects":
+			return "Briefcase";
+		case "file-tree":
+			return "Files";
+		case "tags":
+			return "Tag";
+		default:
+			return "Folder";
+	}
+}
+
 export function SidebarConfigManager({
 	sections,
 	showSectionHeaders,
@@ -70,7 +94,7 @@ export function SidebarConfigManager({
 	const setIsOpen = onOpenChange ?? setIsOpenInternal;
 
 	// Sort sections by order
-	const sortedSections = [...sections].sort((a, b) => {
+	const sortedSections = sections.toSorted((a, b) => {
 		if (a.type === "file-tree" && b.type !== "file-tree") return -1;
 		if (b.type === "file-tree" && a.type !== "file-tree") return 1;
 		return a.order - b.order;
@@ -88,11 +112,6 @@ export function SidebarConfigManager({
 		setDraggedSectionId(sectionId);
 		e.dataTransfer.effectAllowed = "move";
 		e.dataTransfer.setData("text/plain", sectionId);
-	};
-
-	const handleDragOver = (e: React.DragEvent) => {
-		e.preventDefault();
-		e.dataTransfer.dropEffect = "move";
 	};
 
 	const handleDrop = (e: React.DragEvent, targetSectionId: string) => {
@@ -137,30 +156,12 @@ export function SidebarConfigManager({
 		const [movedSection] = nextMovableSections.splice(currentIndex, 1);
 		nextMovableSections.splice(targetIndex, 0, movedSection);
 
-		const pinnedSections = sortedSections
-			.filter((section) => section.type === "file-tree")
-			.map((section) => section.id);
+		const pinnedSections = sortedSections.reduce<string[]>((ids, section) => {
+			if (section.type === "file-tree") ids.push(section.id);
+			return ids;
+		}, []);
 
 		onReorderSections([...pinnedSections, ...nextMovableSections.map((section) => section.id)]);
-	};
-
-	const getSectionIcon = (type: string) => {
-		switch (type) {
-			case "search":
-				return "Search";
-			case "favorites":
-				return "Star";
-			case "recents":
-				return "Clock";
-			case "projects":
-				return "Briefcase";
-			case "file-tree":
-				return "Files";
-			case "tags":
-				return "Tag";
-			default:
-				return "Folder";
-		}
 	};
 
 	return (

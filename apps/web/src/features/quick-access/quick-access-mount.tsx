@@ -18,6 +18,7 @@ import {
 } from "@/core/quick-access";
 import { useShortcutScope } from "@/core/shortcuts";
 import { usePreferencesStore } from "@/features/settings/store";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 const DEFAULT_DURATION_MS = 2000;
 
@@ -30,6 +31,7 @@ export function QuickAccessMount() {
 	const active = useGotoMode((state) => state.active);
 	const quickAccess = usePreferencesStore((state) => state.quickAccess);
 	const validTargetsRef = useRef<RegisteredGotoTarget[]>([]);
+	const isMobile = useIsMobile();
 
 	useShortcutScope(
 		"app",
@@ -55,16 +57,16 @@ export function QuickAccessMount() {
 				enterGotoMode(new Set(valid.map((target) => target.to.id)));
 			},
 		},
-		{ active: quickAccess.enabled },
+		{ active: quickAccess.enabled && !isMobile },
 	);
 
 	const durationMs = parseDurationMs(quickAccess.gotoModeDuration) ?? DEFAULT_DURATION_MS;
 
 	useEffect(() => {
-		if (!quickAccess.enabled && useGotoMode.getState().active) {
+		if ((!quickAccess.enabled || isMobile) && useGotoMode.getState().active) {
 			exitGotoMode();
 		}
-	}, [quickAccess.enabled]);
+	}, [isMobile, quickAccess.enabled]);
 
 	useEffect(() => {
 		if (!active) return;
@@ -115,7 +117,7 @@ export function QuickAccessMount() {
 		};
 	}, [active, durationMs, router]);
 
-	if (!active || !quickAccess.showIndicators) return null;
+	if (isMobile || !active || !quickAccess.showIndicators) return null;
 
 	return (
 		<GotoIndicators

@@ -197,21 +197,23 @@ export function PeopleOverview() {
 						</DialogDescription>
 					</DialogHeader>
 					<ul className="max-h-64 overflow-y-auto rounded-md border border-border">
-						{people
-							.filter((person) => person.id !== pending?.person.id)
-							.map((person) => (
-								<li key={person.id}>
-									<button
-										type="button"
-										onClick={() => setMergeTargetId(person.id)}
-										className={`flex w-full items-center px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
-											mergeTargetId === person.id ? "bg-muted" : ""
-										}`}
-									>
-										{person.name}
-									</button>
-								</li>
-							))}
+						{people.flatMap((person) =>
+							person.id === pending?.person.id
+								? []
+								: [
+										<li key={person.id}>
+											<button
+												type="button"
+												onClick={() => setMergeTargetId(person.id)}
+												className={`flex w-full items-center px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
+													mergeTargetId === person.id ? "bg-muted" : ""
+												}`}
+											>
+												{person.name}
+											</button>
+										</li>,
+									],
+						)}
 					</ul>
 					<DialogFooter>
 						<DialogClose asChild>

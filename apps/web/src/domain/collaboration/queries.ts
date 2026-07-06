@@ -59,21 +59,25 @@ export async function getSharedNotes(): Promise<TSharedNote[]> {
 		include: { note: { include: { user: true } } },
 		orderBy: { createdAt: "desc" },
 	});
-	return rows
-		.filter((r) => !r.note.deletedAt)
-		.map((r) => ({
-			id: r.note.id,
-			name: r.note.name,
-			ownerId: r.note.userId,
-			ownerName: r.note.user.name,
-			permission: r.permission as "viewer" | "editor",
-			createdAt: r.note.createdAt.toISOString(),
-			updatedAt: r.note.updatedAt.toISOString(),
-			preferredEditorMode: r.note.preferredEditorMode ?? null,
-			content: r.note.content,
-			richContent: r.note.richContent,
-			tags: r.note.tags,
-		}));
+	return rows.flatMap((r) =>
+		r.note.deletedAt
+			? []
+			: [
+					{
+						id: r.note.id,
+						name: r.note.name,
+						ownerId: r.note.userId,
+						ownerName: r.note.user.name,
+						permission: r.permission as "viewer" | "editor",
+						createdAt: r.note.createdAt.toISOString(),
+						updatedAt: r.note.updatedAt.toISOString(),
+						preferredEditorMode: r.note.preferredEditorMode ?? null,
+						content: r.note.content,
+						richContent: r.note.richContent,
+						tags: r.note.tags,
+					},
+				],
+	);
 }
 
 export async function getNotifications(): Promise<TNotification[]> {

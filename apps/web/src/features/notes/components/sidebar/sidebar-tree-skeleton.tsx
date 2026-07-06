@@ -11,6 +11,8 @@ import {
 import { ChevronLeft, ChevronRight, FileText, Folder } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
+const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+
 function SkeletonLine({ className, style }: { className?: string; style?: React.CSSProperties }) {
 	return (
 		<div
@@ -75,7 +77,6 @@ function SidebarSectionHeaderSkeleton({ title }: { title: string }) {
 }
 
 function JournalSectionSkeleton() {
-	const weekdayLabels = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 	// Mirror MiniCalendar's real grid for the current month so the calendar
 	// doesn't visibly change month/today when the live component takes over.
 	const now = new Date();
@@ -108,7 +109,7 @@ function JournalSectionSkeleton() {
 					</div>
 				</div>
 				<div className="grid grid-cols-7 gap-0">
-					{weekdayLabels.map((label) => (
+					{WEEKDAY_LABELS.map((label) => (
 						<div
 							key={label}
 							className="flex h-6 items-center justify-center text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60"
@@ -142,15 +143,20 @@ function JournalSectionSkeleton() {
 	);
 }
 
-const FILE_TREE_ROWS: Array<{ depth: number; kind: "file" | "folder"; labelWidth: number }> = [
-	{ depth: 0, kind: "folder", labelWidth: 58 },
-	{ depth: 1, kind: "file", labelWidth: 72 },
-	{ depth: 1, kind: "file", labelWidth: 64 },
-	{ depth: 0, kind: "folder", labelWidth: 52 },
-	{ depth: 1, kind: "file", labelWidth: 68 },
-	{ depth: 0, kind: "file", labelWidth: 76 },
-	{ depth: 0, kind: "file", labelWidth: 48 },
-	{ depth: 0, kind: "file", labelWidth: 61 },
+const FILE_TREE_ROWS: Array<{
+	id: string;
+	depth: number;
+	kind: "file" | "folder";
+	labelWidth: number;
+}> = [
+	{ id: "row-1", depth: 0, kind: "folder", labelWidth: 58 },
+	{ id: "row-2", depth: 1, kind: "file", labelWidth: 72 },
+	{ id: "row-3", depth: 1, kind: "file", labelWidth: 64 },
+	{ id: "row-4", depth: 0, kind: "folder", labelWidth: 52 },
+	{ id: "row-5", depth: 1, kind: "file", labelWidth: 68 },
+	{ id: "row-6", depth: 0, kind: "file", labelWidth: 76 },
+	{ id: "row-7", depth: 0, kind: "file", labelWidth: 48 },
+	{ id: "row-8", depth: 0, kind: "file", labelWidth: 61 },
 ];
 
 export function SidebarTreeSkeleton({
@@ -166,7 +172,7 @@ export function SidebarTreeSkeleton({
 		<div aria-hidden="true" className={cn("px-1.5 pt-1", className)}>
 			{rows.map((row, index) => (
 				<SidebarTreeRowSkeleton
-					key={index}
+					key={row.id}
 					index={index}
 					depth={row.depth}
 					kind={row.kind}

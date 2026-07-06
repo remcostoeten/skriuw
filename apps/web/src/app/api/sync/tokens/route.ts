@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { tryGetAuthenticatedUser } from "@/core/db";
-import { createSyncToken, listSyncTokens } from "@/domain/sync/tokens";
+import { createSyncToken, listSyncTokens, revokeAllSyncTokens } from "@/domain/sync/tokens";
 
 export async function GET() {
 	const { user } = await tryGetAuthenticatedUser();
@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
 	const body = (await request.json().catch(() => ({}))) as {
 		name?: string;
 		expiresAt?: string | null;
+		canWrite?: boolean;
 	};
 
 	try {
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
 			userId: user.id,
 			name: body.name,
 			expiresAt: body.expiresAt,
+			canWrite: body.canWrite === true,
 		});
 		return NextResponse.json({ token: syncToken }, { status: 201 });
 	} catch (error) {
@@ -33,4 +35,12 @@ export async function POST(request: NextRequest) {
 			{ status: 400 },
 		);
 	}
+}
+
+export async function DELETE() {
+	const { user } = await tryGetAuthenticatedUser();
+	if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+
+	const count = await revokeAllSyncTokens(user.id);
+	return NextResponse.json({ ok: true, revoked: count });
 }

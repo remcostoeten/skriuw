@@ -59,6 +59,7 @@ export type PersistedNote = Entity<NoteId> & {
 	tags?: TagName[];
 	properties?: NoteProperty[];
 	icon?: string;
+	cover?: string;
 	journalMeta?: PersistedNoteJournalMetadata;
 };
 
