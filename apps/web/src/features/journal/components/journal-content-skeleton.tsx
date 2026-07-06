@@ -15,18 +15,10 @@ import { cn } from "@/shared/lib/utils";
 export type JournalContentSkeletonView = "list" | "editor";
 
 function Bar({ className }: { className?: string }) {
-	return (
-		<div aria-hidden className={cn("bg-foreground/[0.06]", className)} />
-	);
+	return <div aria-hidden className={cn("bg-foreground/[0.06]", className)} />;
 }
 
-function StaticControl({
-	children,
-	className,
-}: {
-	children: React.ReactNode;
-	className?: string;
-}) {
+function StaticControl({ children, className }: { children: React.ReactNode; className?: string }) {
 	return (
 		<div
 			aria-hidden
@@ -64,9 +56,7 @@ function JournalMobileToolbarSkeleton({
 
 				<div className="flex h-11 min-w-0 flex-1 items-center border border-border bg-background px-4">
 					<div className="min-w-0">
-						<div className="truncate text-[10px] text-muted-foreground/70">
-							Journal
-						</div>
+						<div className="truncate text-[10px] text-muted-foreground/70">Journal</div>
 						<div className="truncate text-[15px] font-semibold tracking-[-0.02em] text-foreground/70">
 							{title}
 						</div>
@@ -165,9 +155,7 @@ function JournalListTabsSkeleton() {
 						key={label}
 						className={cn(
 							"flex h-7 shrink-0 items-center px-3 text-[12px] font-medium md:text-[13px]",
-							label === "All"
-								? "text-foreground/70"
-								: "text-muted-foreground/50",
+							label === "All" ? "text-foreground/70" : "text-muted-foreground/50",
 						)}
 					>
 						{label}
@@ -184,7 +172,18 @@ function JournalListTabsSkeleton() {
 	);
 }
 
-const LIST_ROW_TITLE_WIDTHS = ["w-[62%]", "w-[48%]", "w-[71%]", "w-[54%]", "w-[66%]", "w-[43%]", "w-[58%]", "w-[50%]", "w-[64%]", "w-[46%]"];
+const LIST_ROW_TITLE_WIDTHS = [
+	"w-[62%]",
+	"w-[48%]",
+	"w-[71%]",
+	"w-[54%]",
+	"w-[66%]",
+	"w-[43%]",
+	"w-[58%]",
+	"w-[50%]",
+	"w-[64%]",
+	"w-[46%]",
+];
 
 function JournalListBodySkeleton() {
 	return (
@@ -259,10 +258,7 @@ type JournalContentSkeletonProps = {
 	title?: string;
 };
 
-export function JournalContentSkeleton({
-	view = "list",
-	title,
-}: JournalContentSkeletonProps) {
+export function JournalContentSkeleton({ view = "list", title }: JournalContentSkeletonProps) {
 	const resolvedTitle =
 		title ?? (view === "list" ? "Entries" : format(new Date(), "EEEE, dd MMMM yyyy"));
 

@@ -63,7 +63,7 @@ describe("rewriteNoteForTag", () => {
 		expect(patch).not.toBeNull();
 		expect(patch?.content).toBe("About #concept");
 		expect(patch?.tags).toEqual(["concept", "other"]);
-		const inline = (patch?.richContent?.[0] as { content: Array<{ props?: { name?: string } }> })
+		const inline = (patch!.richContent![0] as { content: Array<{ props?: { name?: string } }> })
 			.content;
 		expect(inline[1]?.props?.name).toBe("concept");
 	});
@@ -82,7 +82,7 @@ describe("rewriteNoteForTag", () => {
 		const richContent = [paragraph([tagChip("idea")])] as RichTextDocument;
 		const patch = rewriteNoteForTag({ content: "", richContent, tags: [] }, "idea", null);
 
-		const inline = (patch?.richContent?.[0] as { content: Array<Record<string, unknown>> })
+		const inline = (patch!.richContent![0] as { content: Array<Record<string, unknown>> })
 			.content;
 		expect(inline).toEqual([{ type: "text", text: "idea", styles: {} }]);
 	});
@@ -108,8 +108,11 @@ describe("rewriteNoteForTag", () => {
 		] as RichTextDocument;
 
 		const patch = rewriteNoteForTag({ content: "", richContent, tags: [] }, "idea", "concept");
-		const child = (patch?.richContent?.[0] as { children: Array<{ content: Array<{ props?: { name?: string } }> }> })
-			.children[0];
+		const child = (
+			patch!.richContent![0] as {
+				children: Array<{ content: Array<{ props?: { name?: string } }> }>;
+			}
+		).children[0];
 		expect(child.content[0]?.props?.name).toBe("concept");
 	});
 });
@@ -122,9 +125,11 @@ describe("rewriteNoteForPerson", () => {
 			{ fromId: "p1", toId: "p2", toName: "New Name" },
 		);
 
-		const inline = (patch?.richContent?.[0] as {
-			content: Array<{ props?: { id?: string; name?: string } }>;
-		}).content;
+		const inline = (
+			patch!.richContent![0] as {
+				content: Array<{ props?: { id?: string; name?: string } }>;
+			}
+		).content;
 		expect(inline[0]?.props?.id).toBe("p2");
 		expect(inline[0]?.props?.name).toBe("New Name");
 	});
@@ -136,7 +141,7 @@ describe("rewriteNoteForPerson", () => {
 			{ fromId: "p1", toId: null, removalText: "Ada Lovelace" },
 		);
 
-		const inline = (patch?.richContent?.[0] as { content: Array<Record<string, unknown>> })
+		const inline = (patch!.richContent![0] as { content: Array<Record<string, unknown>> })
 			.content;
 		expect(inline).toEqual([{ type: "text", text: "Ada Lovelace", styles: {} }]);
 	});

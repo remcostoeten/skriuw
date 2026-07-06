@@ -41,24 +41,25 @@ function parseNoteFile(path: string, raw: string, rootPrefix: string): ParsedNot
 	if (!location) return null;
 
 	const { frontmatter, body } = splitFrontmatter(raw);
-	const preferredEditorMode = frontmatter.preferredEditorMode;
-	const sortOrderRaw = frontmatter.sortOrder;
-	const sortOrder =
-		sortOrderRaw !== undefined && sortOrderRaw !== "" ? Number(sortOrderRaw) : undefined;
+	const preferredEditorMode = String(frontmatter.preferredEditorMode ?? "");
+
+	const sortOrder = String(frontmatter.sortOrder ?? "");
+	const sortOrderValue = sortOrder !== "" ? Number(sortOrder) : undefined;
 
 	return {
-		id: frontmatter.id,
+		id: String(frontmatter.id ?? ""),
 		name: location.name,
 		content: body,
 		tags: parseTagsField(frontmatter.tags),
 		parentPath: location.parentPath,
-		sortOrder: Number.isFinite(sortOrder) ? sortOrder : undefined,
+		sortOrder: Number.isFinite(sortOrderValue) ? sortOrderValue : undefined,
 		preferredEditorMode:
 			preferredEditorMode === "raw" || preferredEditorMode === "block"
 				? preferredEditorMode
 				: undefined,
-		createdAt: frontmatter.created,
-		updatedAt: frontmatter.updated,
+		icon: String(frontmatter.icon ?? ""),
+		createdAt: String(frontmatter.created ?? ""),
+		updatedAt: String(frontmatter.updated ?? ""),
 		sourcePath: path,
 	};
 }
@@ -68,11 +69,12 @@ function parseJournalFile(path: string, raw: string, rootPrefix: string): Parsed
 	if (!dateKey) return null;
 
 	const { frontmatter, body } = splitFrontmatter(raw);
-	const mood = parseYamlString(frontmatter.mood);
+	const moodRaw = frontmatter.mood;
+	const mood = parseYamlString(moodRaw != null ? String(moodRaw) : undefined);
 
 	return {
-		id: frontmatter.id,
-		dateKey: frontmatter.date ?? dateKey,
+		id: String(frontmatter.id ?? ""),
+		dateKey: String(frontmatter.date ?? dateKey),
 		content: body,
 		mood,
 		tags: parseTagsField(frontmatter.tags),
@@ -237,7 +239,11 @@ export function parseSkriuwArchiveEntries(entries: Record<string, string>): Pars
 
 	if (manifestJson.version === 3) {
 		integrityWarnings.push(
-			...validateArchiveIntegrity(rootPrefix, entries, manifestJson as SkriuwExportManifestV3),
+			...validateArchiveIntegrity(
+				rootPrefix,
+				entries,
+				manifestJson as SkriuwExportManifestV3,
+			),
 		);
 	}
 

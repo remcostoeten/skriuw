@@ -20,9 +20,7 @@ export function WorkspaceBackendProvider({ children }: { children: ReactNode }) 
 		// Desktop build: a single local profile backed by Rust/SQLite, regardless
 		// of auth phase (the desktop shell skips cloud auth entirely).
 		if (isTauriRuntime()) return createTauriBackend();
-		return auth.phase === "authenticated"
-			? serverBackend
-			: createLocalBackend(queryClient);
+		return auth.phase === "authenticated" ? serverBackend : createLocalBackend(queryClient);
 	}, [auth.phase, queryClient]);
 
 	return (

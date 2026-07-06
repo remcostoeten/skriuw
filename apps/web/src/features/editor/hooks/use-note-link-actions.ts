@@ -50,7 +50,9 @@ export function useNoteLinkActions(filesOverride?: NoteFile[]) {
 	const openNoteInNewTab = useCallback(
 		(noteId: string) => {
 			const pane =
-				contextActiveFileId && contextActiveFileId === secondaryFileId ? "secondary" : "primary";
+				contextActiveFileId && contextActiveFileId === secondaryFileId
+					? "secondary"
+					: "primary";
 			openTabInBackground(pane, noteId);
 		},
 		[contextActiveFileId, openTabInBackground, secondaryFileId],

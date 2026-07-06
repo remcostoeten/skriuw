@@ -15,12 +15,13 @@ import {
 	Link2,
 	ListTree,
 	Plus,
+	Unlink,
 	Users,
 	X,
 } from "lucide-react";
 import Link from "next/link";
 import { memo, type ComponentType, type ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { NoteVersionReason } from "@/domain/notes/models";
 import {
 	getNoteVersionDeltaValues,
@@ -30,6 +31,8 @@ import {
 import { usePreferencesStore } from "@/features/settings/store";
 import { useNoteLinkActions } from "@/features/editor/hooks/use-note-link-actions";
 import { useNoteBacklinks } from "@/features/notes/hooks/use-note-backlinks";
+import { useDocumentOutline } from "@/features/notes/hooks/use-document-outline";
+import { DocumentOutline } from "@/features/notes/components/document-outline";
 import { useNoteVersions } from "@/features/notes/hooks/use-note-versions";
 import {
 	buildOutgoingNoteLinks,
@@ -46,13 +49,19 @@ import { useNotesStore } from "@/features/notes/store";
 import { cn } from "@/shared/lib/utils";
 import { NoteSendDropdown } from "@/features/notes/components/note-send-menu";
 import { GuestGate } from "@/shared/ui/guest-gate";
-import { isTauriRuntime, useIsGuestWorkspace, useWorkspaceCapabilities } from "@/core/workspace-backend";
 import {
-	findRestoredSourceIndex,
-	getHistoryBranchRoles,
+	isTauriRuntime,
+	useIsGuestWorkspace,
+	useWorkspaceCapabilities,
+} from "@/core/workspace-backend";
+import {
 	HistoryGraphRail,
 	type HistoryBranchRole,
 } from "@/features/notes/components/note-history-graph";
+import {
+	findRestoredSourceIndex,
+	getHistoryBranchRoles,
+} from "@/features/notes/components/note-history-graph-utils";
 import { StaleShareHint } from "@/features/notes/components/stale-share-hint";
 import { copyTextToClipboard, resolveClientShareUrl } from "@/features/notes/lib/note-share-export";
 import { useNoteSharing } from "@/features/sharing/hooks/use-note-sharing";
@@ -61,7 +70,12 @@ import { showUserToast } from "@/shared/lib/user-toast";
 import { AnimatedNumber } from "@/shared/ui/animated-number";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import { CollaboratorsSection } from "@/features/collaboration/components/collaborators-section";
+import { UnlinkedMentionsSection } from "@/features/notes/components/unlinked-mentions-section";
+import { findUnlinkedMentions } from "@/domain/notes/unlinked-mentions";
 import { useAuth } from "@/core/auth/use-auth";
+import { goto, useGotoTarget } from "@/core/quick-access";
+import { useUpdateNote } from "@/features/notes/hooks/use-update-note";
+import { NoteIconPicker } from "@/features/notes/components/note-icon-picker";
 
 type Props = {
 	file: NoteFile | null;
@@ -81,6 +95,7 @@ type SectionKey =
 	| "tags"
 	| "people"
 	| "links"
+	| "mentions"
 	| "history"
 	| "details"
 	| "collaborators";
@@ -662,21 +677,29 @@ export const MetadataPanel = memo(function MetadataPanel({
 }: Props) {
 	const selectedTag = useNotesStore((state) => state.ui.selectedInspectorTag);
 	const setSelectedTag = useNotesStore((state) => state.setSelectedInspectorTag);
+	const rightSidebarGotoRef = useGotoTarget({ keybind: "r", to: goto.focus.rightSidebar });
 	const isGuest = useIsGuestWorkspace();
 	const capabilities = useWorkspaceCapabilities();
 	const auth = useAuth();
 	const backlinksQuery = useNoteBacklinks(file?.id);
 	const versionsQuery = useNoteVersions(file?.id);
 	const animateNumbers = usePreferencesStore((state) => state.editor.animateNumbers);
+	const updateNoteMutation = useUpdateNote();
 	const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
 		outline: true,
 		tags: true,
 		people: true,
 		links: true,
+		mentions: true,
 		history: true,
 		details: true,
 		collaborators: false,
 	});
+	// The detail cache hands this panel a new `file` object on every keystroke.
+	// All content-derived sections (details, outline, links, mentions, tags,
+	// history) compute from this deferred snapshot so their workspace-wide
+	// scans run off the urgent typing lane and never cost input frames.
+	const deferredFile = useDeferredValue(file);
 	const isMdx = isMdxNote(file);
 	const effectiveEditorMode = isMdx ? "raw" : editorMode;
 	const canToggleEditorMode = !isMdx && Boolean(onToggleEditorMode);
@@ -684,50 +707,54 @@ export const MetadataPanel = memo(function MetadataPanel({
 	const isDesktopRuntime = isTauriRuntime();
 	// Sharing is owner-only. `access === undefined` is the owner's own note.
 	const isOwnNote = !file?.access || file.access === "owner";
-	const inspectorControlCount = isOwnNote ? (isMobile && !isDesktopRuntime && shareQuery.data ? 4 : 3) : 1;
+	const inspectorControlCount = isOwnNote
+		? isMobile && !isDesktopRuntime && shareQuery.data
+			? 4
+			: 3
+		: 1;
 
 	const details = useMemo(() => {
-		if (!file) return [];
-		const wordCount = file.content.split(/\s+/).filter(Boolean).length;
-		const charCount = file.content.length;
-		const fileSize = new Blob([file.content]).size;
+		if (!deferredFile) return [];
+		const wordCount = deferredFile.content.split(/\s+/).filter(Boolean).length;
+		const charCount = deferredFile.content.length;
+		const fileSize = new Blob([deferredFile.content]).size;
 		const readTime = Math.max(1, Math.ceil(wordCount / 200));
 
 		return [
-			{ label: "Created", value: formatTime(file.createdAt) },
-			{ label: "Modified", value: formatTime(file.modifiedAt) },
+			{ label: "Created", value: formatTime(deferredFile.createdAt) },
+			{ label: "Modified", value: formatTime(deferredFile.modifiedAt) },
 			{ label: "File Size", value: formatSize(fileSize) },
 			{ label: "Characters", value: charCount.toLocaleString() },
 			{ label: "Words", value: wordCount.toLocaleString() },
 			{ label: "Read Time", value: `${readTime}m` },
 		];
-	}, [file]);
+	}, [deferredFile]);
 
-	const headingItems = useMemo(() => {
-		if (!file) return [];
-		return file.content
-			.split("\n")
-			.filter((line) => /^#{1,3}\s/.test(line))
-			.map((heading) => ({
-				level: heading.match(/^(#+)/)?.[1].length || 1,
-				text: heading.replace(/^#+\s+/, ""),
-			}));
-	}, [file]);
+	const { headings: outlineHeadings, scrollToHeading } = useDocumentOutline({
+		noteId: file?.id ?? null,
+		mode: effectiveEditorMode,
+		content: deferredFile?.content ?? "",
+	});
 
-	const outgoingLinks = useMemo(() => buildOutgoingNoteLinks(file, files), [file, files]);
+	const outgoingLinks = useMemo(
+		() => buildOutgoingNoteLinks(deferredFile, files),
+		[deferredFile, files],
+	);
+	const unlinkedMentions = useMemo(
+		() => findUnlinkedMentions(deferredFile, files),
+		[deferredFile, files],
+	);
 	const backlinks = backlinksQuery.data ?? [];
 	const filesById = useMemo(() => new Map(files.map((item) => [item.id, item])), [files]);
-	const tags = useMemo(() => (file ? uniqueTags(file) : []), [file]);
+	const tags = useMemo(() => (deferredFile ? uniqueTags(deferredFile) : []), [deferredFile]);
 	const peopleQuery = useWorkspacePeople();
 	const mentionedPeople = useMemo(() => {
-		if (!file) return [];
-		const ids = extractRichDocumentPersonIds(file.richContent);
+		if (!deferredFile) return [];
+		const ids = extractRichDocumentPersonIds(deferredFile.richContent);
 		if (ids.length === 0) return [];
 		const byId = new Map((peopleQuery.data ?? []).map((person) => [person.id, person]));
-		return ids
-			.map((id) => byId.get(id))
-			.filter((person): person is Person => Boolean(person));
-	}, [file, peopleQuery.data]);
+		return ids.map((id) => byId.get(id)).filter((person): person is Person => Boolean(person));
+	}, [deferredFile, peopleQuery.data]);
 	const taggedNotes = useMemo(() => {
 		if (!file || !selectedTag) return [];
 		return files.filter(
@@ -735,7 +762,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 		);
 	}, [file, files, selectedTag]);
 	const historyItems = useMemo<VersionRowData[]>(() => {
-		if (!file) return [];
+		if (!deferredFile) return [];
 
 		const checkpoints = (versionsQuery.data ?? []).map((version) => ({
 			id: version.id,
@@ -749,10 +776,10 @@ export const MetadataPanel = memo(function MetadataPanel({
 
 		const items = [
 			{
-				id: `current-${file.id}`,
-				name: file.name,
-				content: file.content,
-				createdAt: file.modifiedAt,
+				id: `current-${deferredFile.id}`,
+				name: deferredFile.name,
+				content: deferredFile.content,
+				createdAt: deferredFile.modifiedAt,
 				reason: "",
 				reasonKind: "current" as const,
 				current: true,
@@ -764,7 +791,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 			...item,
 			previousContent: index === 0 ? undefined : items[index - 1]?.content,
 		}));
-	}, [file, versionsQuery.data]);
+	}, [deferredFile, versionsQuery.data]);
 
 	const historyBranchRoles = useMemo(() => getHistoryBranchRoles(historyItems), [historyItems]);
 	const hasRestoreBranch = historyBranchRoles.includes("fork");
@@ -793,6 +820,12 @@ export const MetadataPanel = memo(function MetadataPanel({
 		onShare?.(file.id);
 	};
 
+	const handleIconChange = (icon: string) => {
+		if (!file) return;
+		if (icon === file.icon) return;
+		updateNoteMutation.mutate({ id: file.id, icon: icon || "" });
+	};
+
 	const asideClass = cn(
 		"flex min-h-0 flex-col bg-background",
 		isMobile
@@ -802,11 +835,17 @@ export const MetadataPanel = memo(function MetadataPanel({
 	);
 
 	if (!file) {
-		return <aside aria-label="Note inspector" className={asideClass} />;
+		return <aside aria-label="Note inspector" data-metadata-panel className={asideClass} />;
 	}
 
 	return (
-		<aside aria-label="Note inspector" className={asideClass}>
+		<aside
+			ref={rightSidebarGotoRef}
+			aria-label="Note inspector"
+			data-metadata-panel
+			tabIndex={-1}
+			className={asideClass}
+		>
 			{isMobile && (
 				<div className="shrink-0 border-b border-border bg-background px-4 pb-3 pt-3">
 					<div className="flex items-center justify-between gap-3">
@@ -832,94 +871,29 @@ export const MetadataPanel = memo(function MetadataPanel({
 					id="note-inspector-outline"
 					title="Outline"
 					icon={ListTree}
-					count={headingItems.length}
+					count={outlineHeadings.length}
 					open={openSections.outline}
 					onToggle={() => toggleSection("outline")}
 					contentClassName="px-3 pb-3"
 				>
-					{headingItems.length > 0 ? (
-						<ul className="min-w-0 overflow-hidden border border-border/65 bg-muted/[0.18] shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.025)]">
-							{headingItems.map((heading, index) => {
-								const indent = (heading.level - 1) * 10;
-								return (
-									<li
-										key={`${heading.text}-${index}`}
-										className="border-b border-border/45 last:border-b-0"
-									>
-										<button
-											type="button"
-											onClick={() => {
-												const all = Array.from(
-													document.querySelectorAll<HTMLElement>(
-														'[data-content-type="heading"]',
-													),
-												);
-												const levelStr =
-													heading.level === 1
-														? null
-														: String(heading.level);
-												const candidates = all.filter(
-													(el) =>
-														(el.getAttribute("data-level") ?? null) ===
-															levelStr &&
-														el.textContent?.trim() === heading.text,
-												);
-												const target =
-													candidates[0] ??
-													all.find(
-														(el) =>
-															el.textContent?.trim() === heading.text,
-													);
-												target?.scrollIntoView({
-													behavior: "smooth",
-													block: "center",
-												});
-											}}
-											className={cn(
-												"group flex min-h-8 w-full min-w-0 cursor-pointer items-center gap-0 text-left transition-colors hover:bg-background/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-												heading.level === 1
-													? "text-foreground/72"
-													: heading.level === 2
-														? "text-foreground/58"
-														: "text-foreground/46",
-											)}
-											style={{ paddingLeft: `${indent + 8}px` }}
-											title={heading.text}
-										>
-											{heading.level > 1 && (
-												<span
-													className={cn(
-														"mr-2 my-1.5 shrink-0 self-stretch",
-														"border-l",
-														heading.level === 2
-															? "border-muted-foreground/20"
-															: "border-muted-foreground/12",
-													)}
-												/>
-											)}
-											<span
-												className={cn(
-													"min-w-0 flex-1 truncate py-1.5 pr-2",
-													heading.level === 1
-														? "text-[12.5px] font-medium"
-														: heading.level === 2
-															? "text-[12px]"
-															: "text-[11.5px]",
-												)}
-											>
-												{heading.text}
-											</span>
-										</button>
-									</li>
-								);
-							})}
-						</ul>
-					) : (
-						<div className="border border-dashed border-border/60 bg-muted/[0.12] px-3 py-2">
-							<EmptyLine>No headings</EmptyLine>
-						</div>
-					)}
+					<DocumentOutline headings={outlineHeadings} onSelect={scrollToHeading} />
 				</InspectorSection>
+
+				<div className="flex items-center gap-3 border-b border-border px-3 py-2.5">
+					<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/50">
+						Page Icon
+					</span>
+					<NoteIconPicker icon={file.icon} onIconChange={handleIconChange} />
+					{file.icon && (
+						<button
+							type="button"
+							onClick={() => handleIconChange("")}
+							className="ml-auto text-[11px] text-muted-foreground/50 underline decoration-dotted underline-offset-2 hover:text-foreground"
+						>
+							Remove
+						</button>
+					)}
+				</div>
 
 				<InspectorSection
 					id="note-inspector-tags"
@@ -1024,7 +998,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 										href={`/app/people/${person.id}`}
 										className="inline-flex min-h-7 cursor-pointer items-center border border-border bg-secondary/50 px-2 text-[12px] font-medium text-foreground/78 transition-colors hover:border-ring/70 hover:text-foreground focus-visible:border-ring focus-visible:outline-none"
 									>
-										{`$${person.name}`}
+										{person.name}
 									</Link>
 								</li>
 							))}
@@ -1088,6 +1062,23 @@ export const MetadataPanel = memo(function MetadataPanel({
 					</InspectorSection>
 				)}
 
+				{unlinkedMentions.length > 0 && (
+					<InspectorSection
+						id="note-inspector-mentions"
+						title="Unlinked mentions"
+						icon={Unlink}
+						count={unlinkedMentions.length}
+						open={openSections.mentions}
+						onToggle={() => toggleSection("mentions")}
+					>
+						<UnlinkedMentionsSection
+							mentions={unlinkedMentions}
+							filesById={filesById}
+							onFileSelect={onFileSelect}
+						/>
+					</InspectorSection>
+				)}
+
 				{/* Collaborators — only for authenticated note owners (not guests). */}
 				{!isGuest && file && auth.user && (
 					<InspectorSection
@@ -1105,9 +1096,9 @@ export const MetadataPanel = memo(function MetadataPanel({
 					</InspectorSection>
 				)}
 
-				{/* Only backends that persist versions (the cloud server) can serve
-				    history; the guest and desktop backends store none, so the
-				    section would be permanently empty and its View action dead. */}
+				{/* Only backends that persist versions (cloud server, desktop
+				    SQLite) can serve history; the guest backend stores none, so
+				    the section would be permanently empty and its View action dead. */}
 				{capabilities.history && (
 					<InspectorSection
 						id="note-inspector-history"

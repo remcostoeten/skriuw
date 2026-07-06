@@ -16,28 +16,32 @@ import type { CreateFolderInput } from "@/domain/folders/actions";
 import { collectFolderSubtreeIds } from "@/domain/folders/traversal";
 import type { CreateNoteInput } from "@/domain/notes/actions";
 import { NOTE_PROPERTY_TEMPLATES } from "@/domain/notes/properties";
+import { NOTE_TEMPLATES, getNoteTemplate } from "@/domain/notes/templates";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";
 import { isGuestScopedId } from "@/domain/notes/note-id";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
 import { VIM_COMMAND_EVENT } from "@/features/editor/lib/vim-command-bus";
-import { useOnboardingStore } from "@/features/onboarding/store";
 import { generateNoteContent } from "@/features/notes/lib/generate-note-content";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
-import { openSettings, toggleSettings } from "@/features/settings/use-settings-modal";
-import { buildSettingsCommandItems } from "@/features/settings/settings-command-index";
-import { THEMES } from "@/features/settings/preferences/themes";
+import { openSettings } from "@/features/settings/use-settings-modal";
 import {
 	focusActiveEditor,
+	focusActiveMetadataPanel,
 	focusActiveNoteTreeItem,
 	focusSplitEditorPane,
 } from "@/shared/lib/focus-editor";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { perf } from "@/shared/perf/track";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
-import { useRegisterCommands, useRegisterCommandItemsProvider, useActiveCommandScope, useCommandRegistry } from "@/core/commands";
+import {
+	useRegisterCommands,
+	useRegisterCommandItemsProvider,
+	useActiveCommandScope,
+	useCommandRegistry,
+} from "@/core/commands";
 import { parseCommandQuery } from "@/shared/ui/command-palette-model";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
@@ -67,7 +71,6 @@ import { useUpdateNote } from "./use-update-note";
 const SHEET_DISMISS_VELOCITY = 480;
 const SHEET_DRAG_BLOCKLIST =
 	"button, a, input, textarea, select, option, [role='button'], [role='tab'], [contenteditable='true'], [data-sheet-no-drag]";
-const SAVED_BADGE_DURATION_MS = 1800;
 
 function sameTabList(
 	a: ReadonlyArray<{ fileId: string; pinned: boolean }>,
@@ -100,7 +103,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const queryClient = useQueryClient();
-	const replayWelcomeTour = useOnboardingStore((state) => state.resetWelcome);
 	const backend = useWorkspaceBackend();
 	const notesQuery = useNotes();
 	const foldersQuery = useFolders();
@@ -239,13 +241,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		(state) => state.editor.notePropertiesDefaultTemplateId,
 	);
 	const diaryModeEnabled = usePreferencesStore((state) => state.journal.diaryModeEnabled);
-	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
-	const activeTheme = usePreferencesStore((state) => state.appearance.theme);
 	const rememberLastNote = usePreferencesStore((state) => state.appearance.rememberLastNote);
-	const updateEditorPreference = usePreferencesStore((state) => state.updateEditorPreference);
-	const updateAppearancePreference = usePreferencesStore(
-		(state) => state.updateAppearancePreference,
-	);
 	const [viewingVersion, setViewingVersion] = useState<NoteVersion | null>(null);
 	const [sharingNoteId, setSharingNoteId] = useState<string | null>(null);
 	const restoreNoteVersion = useRestoreNoteVersion();
@@ -688,13 +684,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			setSplitOrientation(orientation);
 			handleOpenBeside(neighbor.id);
 		},
-		[
-			activeFileId,
-			files,
-			handleOpenBeside,
-			setSplitOrientation,
-			splitSecondaryFileId,
-		],
+		[activeFileId, files, handleOpenBeside, setSplitOrientation, splitSecondaryFileId],
 	);
 
 	const restoreEditorFocusAfterLayoutChange = useCallback(() => {
@@ -756,6 +746,18 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		});
 	}, [activeFileId, focusedEditorPane, setUIState, showSidebar, splitSecondaryFileId]);
 
+	const handleFocusMetadata = useCallback(() => {
+		triggerNativeFeedback("selection");
+		if (!showMetadata) {
+			setUIState({ showMetadata: true });
+		}
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				focusActiveMetadataPanel();
+			});
+		});
+	}, [setUIState, showMetadata]);
+
 	const handleFocusSplitPane = useCallback(
 		(direction: 1 | -1) => {
 			if (!splitSecondaryFileId) return;
@@ -764,9 +766,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				: ["primary", "secondary"];
 			const currentIndex = panes.indexOf(focusedEditorPane);
 			const nextIndex =
-				currentIndex === -1
-					? 0
-					: (currentIndex + direction + panes.length) % panes.length;
+				currentIndex === -1 ? 0 : (currentIndex + direction + panes.length) % panes.length;
 			const nextPane = panes[nextIndex] ?? "primary";
 			setFocusedEditorPane(nextPane);
 			requestAnimationFrame(() => {
@@ -805,12 +805,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	useEffect(() => {
 		if (!openInTabs || notesQuery.isPending) return;
 
-		function reconcile(
-			tabs: typeof primaryTabs,
-			ensureId: string | null,
-		): typeof primaryTabs {
+		function reconcile(tabs: typeof primaryTabs, ensureId: string | null): typeof primaryTabs {
 			const pruned = tabs.filter((tab) => fileById.has(tab.fileId));
-			if (ensureId && fileById.has(ensureId) && !pruned.some((tab) => tab.fileId === ensureId)) {
+			if (
+				ensureId &&
+				fileById.has(ensureId) &&
+				!pruned.some((tab) => tab.fileId === ensureId)
+			) {
 				return [...pruned, { fileId: ensureId, pinned: false }];
 			}
 			return pruned;
@@ -940,7 +941,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				activateTab(pane, fileId);
 			}
 		},
-		[activateTab, activeFileId, closeTabsToSide, flushContentInBackground, splitSecondaryFileId],
+		[
+			activateTab,
+			activeFileId,
+			closeTabsToSide,
+			flushContentInBackground,
+			splitSecondaryFileId,
+		],
 	);
 
 	const handleDropNoteOnTab = useCallback(
@@ -968,14 +975,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			}
 			activateTab(pane, droppedFileId);
 		},
-		[
-			activateTab,
-			addTab,
-			flushContentInBackground,
-			primaryTabs,
-			secondaryTabs,
-			setPaneTabs,
-		],
+		[activateTab, addTab, flushContentInBackground, primaryTabs, secondaryTabs, setPaneTabs],
 	);
 
 	const focusedPaneActiveId = useCallback(
@@ -1083,9 +1083,10 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	}, [creationParentFolderId, foldersQuery.data]);
 
 	const handleCreateFile = useCallback(
-		(options?: { projectId?: string }) => {
+		(options?: { projectId?: string; templateId?: string }) => {
 			const projectId = options?.projectId;
-			if (diaryModeEnabled && !projectId) {
+			const template = options?.templateId ? getNoteTemplate(options.templateId) : null;
+			if (diaryModeEnabled && !projectId && !template) {
 				triggerNativeFeedback("success");
 				const today = format(new Date(), "yyyy-MM-dd");
 				router.push(`/app/journal?date=${today}`);
@@ -1098,16 +1099,20 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			triggerNativeFeedback("success");
 			const parentId = creationParentFolderId;
 			const preferredEditorMode = defaultModeRaw ? "raw" : "block";
-			const content = generateNoteContent("Untitled");
+			const templateBody = template?.build();
+			const name = templateBody?.name ?? "Untitled.md";
+			const content = templateBody?.content ?? generateNoteContent("Untitled");
 			const richContent = markdownToRichDocument(content);
 			const defaultTemplate = defaultPropertiesTemplateId
-				? NOTE_PROPERTY_TEMPLATES.find((template) => template.id === defaultPropertiesTemplateId)
+				? NOTE_PROPERTY_TEMPLATES.find(
+						(template) => template.id === defaultPropertiesTemplateId,
+					)
 				: null;
 			const properties = defaultTemplate?.build() ?? [];
 			const newId = crypto.randomUUID();
 			const newFile: CreateNoteInput = {
 				id: newId,
-				name: "Untitled.md",
+				name,
 				content,
 				richContent,
 				preferredEditorMode,
@@ -1189,11 +1194,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		openSettings();
 	}, []);
 
-	const handleToggleSettings = useCallback(() => {
-		triggerNativeFeedback("selection");
-		toggleSettings();
-	}, []);
-
 	const handleToggleEditorMode = useCallback(() => {
 		const modeTarget = focusedFile ?? activeFile;
 		const modeBaseline = focusedEditorMode ?? editorMode;
@@ -1267,19 +1267,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleOpenShortcutHelp,
 		shortcutGroups,
 	} = useNotesLayoutShortcuts({
-		handleCreateFile,
-		handleCreateFolder,
-		handleToggleSidebar,
-		handleToggleMetadata,
-		handleOpenSettings: handleToggleSettings,
-		handleToggleEditorMode,
-		handleFocusFileTree,
-		handleToggleSplit,
-		handleSplitHorizontal,
-		handleCloseSplitPane,
-		handleCloseFocusedTab,
-		handleFocusNextSplitPane,
-		handleFocusPreviousSplitPane,
 		handleSwitchToTabIndex,
 	});
 
@@ -1316,6 +1303,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			case "focusEditor":
 				window.setTimeout(() => focusActiveEditor(), 0);
 				break;
+			case "focusMetadata":
+				handleFocusMetadata();
+				break;
 			case "help":
 				handleOpenShortcutHelp();
 				break;
@@ -1329,6 +1319,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		const qs = params.toString();
 		router.replace(qs ? `/app?${qs}` : "/app", { scroll: false });
 	}, [
+		handleFocusMetadata,
 		handleOpenShortcutHelp,
 		handleToggleMetadata,
 		handleToggleSidebar,
@@ -1602,7 +1593,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 		for (const file of metadataFiles) {
 			const nameMatch = file.name.toLowerCase().includes(lowerQuery);
-			const tagMatch = (file.tags ?? []).some((tag) => tag.toLowerCase().includes(lowerQuery));
+			const tagMatch = (file.tags ?? []).some((tag) =>
+				tag.toLowerCase().includes(lowerQuery),
+			);
 			if (nameMatch || tagMatch) {
 				pushNote(file.id, file.name, "Notes");
 			}
@@ -1626,6 +1619,19 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleFileSelect,
 	]);
 
+	const templateCommandItems = useMemo<CommandPaletteItem[]>(
+		() =>
+			NOTE_TEMPLATES.map((template) => ({
+				id: `template:${template.id}`,
+				label: `New note: ${template.name}`,
+				group: "Templates",
+				hint: template.description,
+				keywords: ["new", "note", "template", "create", template.name],
+				action: () => handleCreateFile({ templateId: template.id }),
+			})),
+		[handleCreateFile],
+	);
+
 	useActiveCommandScope("notes");
 
 	useRegisterCommands({
@@ -1635,6 +1641,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		"notes.toggleMetadata": handleToggleMetadata,
 		"notes.toggleEditor": handleToggleEditorMode,
 		"notes.focusFileTree": handleFocusFileTree,
+		"notes.focusMetadata": handleFocusMetadata,
 		"notes.toggleSplit": handleToggleSplit,
 		"notes.splitHorizontal": handleSplitHorizontal,
 		"notes.closeTab": handleCloseFocusedTab,
@@ -1649,8 +1656,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	useRegisterCommandItemsProvider(
 		useCallback(() => {
-			return noteCommandItems;
-		}, [noteCommandItems])
+			return [...templateCommandItems, ...noteCommandItems];
+		}, [noteCommandItems, templateCommandItems]),
 	);
 
 	// The sidebar + main layout only need the notes metadata and folder lists,

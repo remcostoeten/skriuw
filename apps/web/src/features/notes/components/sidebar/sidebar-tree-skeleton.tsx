@@ -37,9 +37,7 @@ export function SidebarTreeRowSkeleton({
 	className,
 }: SidebarTreeRowSkeletonProps) {
 	const Icon = kind === "folder" ? Folder : FileText;
-	const width =
-		labelWidth ??
-		[68, 52, 74, 44, 61, 58, 48, 70, 55, 63, 42, 66][index % 12];
+	const width = labelWidth ?? [68, 52, 74, 44, 61, 58, 48, 70, 55, 63, 42, 66][index % 12];
 
 	return (
 		<div
@@ -65,7 +63,10 @@ function SidebarSectionHeaderSkeleton({ title }: { title: string }) {
 			aria-hidden="true"
 			className="mx-2 mb-0.5 flex min-h-8 items-center gap-1.5 px-2 md:h-7 md:min-h-0"
 		>
-			<ChevronRight className="h-3 w-3 rotate-90 text-muted-foreground/70" strokeWidth={1.5} />
+			<ChevronRight
+				className="h-3 w-3 rotate-90 text-muted-foreground/70"
+				strokeWidth={1.5}
+			/>
 			<span className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
 				{title}
 			</span>
@@ -124,7 +125,8 @@ function JournalSectionSkeleton() {
 								"relative flex h-7 w-full items-center justify-center border border-transparent text-[11px]",
 								!isSameMonth(day, now) && "text-muted-foreground/30",
 								isSameMonth(day, now) && !isToday(day) && "text-foreground/70",
-								isToday(day) && "border-border bg-muted font-medium text-foreground",
+								isToday(day) &&
+									"border-border bg-muted font-medium text-foreground",
 							)}
 						>
 							{format(day, "d")}
@@ -191,7 +193,11 @@ export function NotesSidebarContentSkeleton() {
 				<SidebarSectionHeaderSkeleton title="Recents" />
 				<div className="space-y-px px-1.5 pb-2 pt-0.5">
 					{Array.from({ length: 3 }).map((_, index) => (
-						<SidebarTreeRowSkeleton key={index} index={index} labelWidth={[62, 54, 70][index]} />
+						<SidebarTreeRowSkeleton
+							key={index}
+							index={index}
+							labelWidth={[62, 54, 70][index]}
+						/>
 					))}
 				</div>
 			</section>
@@ -202,7 +208,10 @@ export function NotesSidebarContentSkeleton() {
 					{Array.from({ length: 2 }).map((_, index) => (
 						<div key={index} className="flex items-center gap-2 px-1 py-1.5">
 							<div className="h-2 w-2 shrink-0 rounded-full bg-sidebar-foreground/[0.12]" />
-							<SkeletonLine className="h-2.5" style={{ width: `${[48, 56][index]}%` }} />
+							<SkeletonLine
+								className="h-2.5"
+								style={{ width: `${[48, 56][index]}%` }}
+							/>
 						</div>
 					))}
 				</div>

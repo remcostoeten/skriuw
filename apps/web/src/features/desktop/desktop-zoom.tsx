@@ -1,5 +1,5 @@
 import * as React from "react";
-
+import { useShortcutScope } from "@/core/shortcuts";
 import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
 import { noop } from "@/shared/lib/noop";
 
@@ -39,12 +39,6 @@ function readStoredZoom(): number {
 }
 
 function applyZoom(value: number): void {
-	// Zoom at the webview engine level, not via CSS `zoom`. CSS `zoom` on
-	// WebKitGTK puts `getBoundingClientRect()` (read by floating-ui) and
-	// `MouseEvent.clientX/clientY` (used to anchor context menus) in different
-	// coordinate spaces, so every popover, dropdown and context menu mis-anchors
-	// by a fixed offset. Native `setZoom` scales the whole webview, keeping both
-	// spaces in sync.
 	const webview = getWebview();
 	if (webview) {
 		const style = document.documentElement.style as CSSStyleDeclaration & { zoom: string };
@@ -55,6 +49,10 @@ function applyZoom(value: number): void {
 	(document.documentElement.style as CSSStyleDeclaration & { zoom: string }).zoom = String(value);
 }
 
+function persistZoom(zoom: number): void {
+	window.localStorage.setItem(ZOOM_STORAGE_KEY, String(zoom));
+}
+
 /**
  * Desktop-only page zoom. Mirrors browser zoom: `Ctrl +` / `Ctrl -` step the
  * level, `Ctrl 0` resets, and `Ctrl` + mouse wheel zooms continuously. The level
@@ -62,62 +60,47 @@ function applyZoom(value: number): void {
  * Renders nothing; it only wires up global listeners while running under Tauri.
  */
 export function DesktopZoom() {
+	const zoomRef = React.useRef(readStoredZoom());
+
 	React.useEffect(() => {
 		if (!isTauriRuntime()) return;
 
-		let zoom = readStoredZoom();
-
-		const persist = () => {
-			window.localStorage.setItem(ZOOM_STORAGE_KEY, String(zoom));
-		};
-
-		const setZoom = (next: number) => {
-			zoom = clamp(roundZoom(next));
-			applyZoom(zoom);
-			persist();
-		};
-
-		applyZoom(zoom);
-
-		const onKeyDown = (event: KeyboardEvent) => {
-			if (!(event.ctrlKey || event.metaKey)) return;
-
-			switch (event.key) {
-				case "=":
-				case "+":
-					event.preventDefault();
-					setZoom(zoom + STEP);
-					break;
-				case "-":
-				case "_":
-					event.preventDefault();
-					setZoom(zoom - STEP);
-					break;
-				case "0":
-					event.preventDefault();
-					setZoom(1);
-					break;
-				default:
-					break;
-			}
-		};
+		zoomRef.current = readStoredZoom();
+		applyZoom(zoomRef.current);
 
 		const onWheel = (event: WheelEvent) => {
 			if (!(event.ctrlKey || event.metaKey)) return;
 			event.preventDefault();
 			const delta = event.deltaY < 0 ? STEP : -STEP;
-			setZoom(zoom + delta);
+			const next = clamp(roundZoom(zoomRef.current + delta));
+			zoomRef.current = next;
+			applyZoom(next);
+			persistZoom(next);
 		};
 
-		window.addEventListener("keydown", onKeyDown);
-		// `passive: false` so `preventDefault` blocks the webview's own pinch/zoom.
 		window.addEventListener("wheel", onWheel, { passive: false });
-
-		return () => {
-			window.removeEventListener("keydown", onKeyDown);
-			window.removeEventListener("wheel", onWheel);
-		};
+		return () => window.removeEventListener("wheel", onWheel);
 	}, []);
+
+	useShortcutScope("app", {
+		"desktop.zoomIn": () => {
+			const next = clamp(roundZoom(zoomRef.current + STEP));
+			zoomRef.current = next;
+			applyZoom(next);
+			persistZoom(next);
+		},
+		"desktop.zoomOut": () => {
+			const next = clamp(roundZoom(zoomRef.current - STEP));
+			zoomRef.current = next;
+			applyZoom(next);
+			persistZoom(next);
+		},
+		"desktop.zoomReset": () => {
+			zoomRef.current = 1;
+			applyZoom(1);
+			persistZoom(1);
+		},
+	});
 
 	return null;
 }

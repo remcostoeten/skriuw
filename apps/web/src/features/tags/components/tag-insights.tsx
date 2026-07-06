@@ -1,18 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText, Hash, Waypoints } from "lucide-react";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import { AnimatedRelativeTime } from "@/shared/ui/animated-relative-time";
 import { Button } from "@/shared/ui/button";
-import {
-	useSetTagColor,
-	useTagNotes,
-	useWorkspaceTagSummaries,
-} from "../hooks/use-tags";
+import { useSetTagColor, useTagNotes, useWorkspaceTagSummaries } from "../hooks/use-tags";
 import { ColorSwatchPicker } from "./color-swatch-picker";
 
 type Props = {
@@ -20,7 +15,6 @@ type Props = {
 };
 
 export function TagInsights({ name }: Props) {
-	const router = useRouter();
 	const { data: notes = [], isLoading } = useTagNotes(name);
 	const { data: tags = [] } = useWorkspaceTagSummaries();
 	const setTagColor = useSetTagColor();

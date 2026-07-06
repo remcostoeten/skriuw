@@ -31,14 +31,7 @@ describe("createWriteQueue", () => {
 			queue.runExclusive("k", task("c")),
 		]);
 
-		expect(log).toEqual([
-			"a:start",
-			"a:end",
-			"b:start",
-			"b:end",
-			"c:start",
-			"c:end",
-		]);
+		expect(log).toEqual(["a:start", "a:end", "b:start", "b:end", "c:start", "c:end"]);
 	});
 
 	test("read-modify-write on one key cannot clobber a concurrent write", async () => {

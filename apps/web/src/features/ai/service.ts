@@ -30,7 +30,7 @@ export type AiEditorHandle = {
 	beginStreamingCustomPrompt?: () => AiStreamApplier;
 	/** Removes blocks by id — used to revert a streamed insertion. */
 	deleteBlocks?: (ids: string[]) => void;
-}
+};
 
 /** Per-request options for an AI completion (key selection, model, rate-limit attribution). */
 export type AiCallOptions = {
@@ -44,7 +44,7 @@ export type AiCallOptions = {
 	targetLanguage?: string;
 	/** Free-form user instruction for customPrompt. */
 	instruction?: string;
-}
+};
 
 export class AiRateLimitError extends Error {
 	readonly code = "rate_limited";
@@ -97,9 +97,7 @@ function tailForContinuation(content: string): string {
 	if (content.length <= CONTINUE_TAIL_CHARS) return content;
 	const tail = content.slice(-CONTINUE_TAIL_CHARS);
 	const boundary = tail.indexOf("\n\n");
-	return boundary > 0 && boundary < CONTINUE_TAIL_CHARS / 2
-		? tail.slice(boundary + 2)
-		: tail;
+	return boundary > 0 && boundary < CONTINUE_TAIL_CHARS / 2 ? tail.slice(boundary + 2) : tail;
 }
 
 function contentForAction(action: AiAction, content: string): string {
@@ -268,7 +266,8 @@ export async function callAi(
 			throw new AiRequestError({
 				code: "unknown",
 				message,
-				details: "Open Settings → AI to choose a provider, install a local model, or add a key.",
+				details:
+					"Open Settings → AI to choose a provider, install a local model, or add a key.",
 				status: 500,
 			});
 		}

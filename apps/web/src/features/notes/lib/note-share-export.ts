@@ -19,9 +19,7 @@ function truncateShareText(text: string, max = MAX_SHARE_TEXT_LENGTH): string {
 	return `${text.slice(0, max - 1)}…`;
 }
 
-export function buildNoteSharePayload(
-	note: Pick<NoteFile, "name" | "content">,
-): NoteSharePayload {
+export function buildNoteSharePayload(note: Pick<NoteFile, "name" | "content">): NoteSharePayload {
 	const title = getNoteTitle(note);
 	const fileName = normalizeNoteFileName(note.name);
 	const markdown = note.content;

@@ -13,7 +13,7 @@ Faster animations don't just complete quicker—they make your entire interface 
 
 ```css
 .select-dropdown {
-  transition: transform 400ms ease-out;
+	transition: transform 400ms ease-out;
 }
 /* Feels slow even though animation is smooth */
 ```
@@ -22,12 +22,13 @@ Faster animations don't just complete quicker—they make your entire interface 
 
 ```css
 .select-dropdown {
-  transition: transform 180ms ease-out;
+	transition: transform 180ms ease-out;
 }
 /* Feels snappy and responsive */
 ```
 
 **The Speed Principle:**
+
 - Animations improve perceived performance when fast
 - Animations degrade perceived performance when slow
 - When in doubt, make it faster

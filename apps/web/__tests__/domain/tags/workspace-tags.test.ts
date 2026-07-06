@@ -28,7 +28,13 @@ describe("deriveWorkspaceTags", () => {
 			],
 		);
 
-		expect(tags.map((tag) => tag.name)).toEqual(["draft", "idea", "journal", "manual", "shared"]);
+		expect(tags.map((tag) => tag.name)).toEqual([
+			"draft",
+			"idea",
+			"journal",
+			"manual",
+			"shared",
+		]);
 		expect(tags.find((tag) => tag.name === "shared")).toMatchObject({
 			id: "tag-1",
 			color: "hsl(var(--project-purple))",

@@ -1,7 +1,25 @@
 "use client";
 
-import { BookOpen, Hash, Settings, Trash2, UserRound, Users, Waypoints } from "lucide-react";
+import {
+	Activity,
+	BookOpen,
+	FolderOpen,
+	Hash,
+	Settings,
+	Trash2,
+	UserRound,
+	Users,
+	Waypoints,
+} from "lucide-react";
+import { ActivityIcon } from "@/shared/icons/activity-icon";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
+import { BookOpenIcon } from "@/shared/icons/book-open";
+import { HashIcon } from "@/shared/icons/hash";
+import { SettingsIcon } from "@/shared/icons/settings";
+import { Trash2Icon } from "@/shared/icons/trash-2";
+import { UsersIcon } from "@/shared/icons/users";
+import { WaypointsIcon } from "@/shared/icons/waypoints";
+import { usePreferencesStore } from "@/features/settings/store";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -30,8 +48,10 @@ import {
 	useWorkspaceCapabilities,
 } from "@/core/workspace-backend";
 import { useShortcutHint } from "@/core/shortcuts";
+import { goto, useGotoTarget, type GotoDestination } from "@/core/quick-access";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { useSettingsModal } from "@/features/settings/use-settings-modal";
+import type { ReactNode } from "react";
 
 const authDrawerConfig = {
 	ui: {
@@ -67,6 +87,73 @@ function resolveNextDestination(value: string | null): string | null {
 	return value;
 }
 
+const iconButtonClass =
+	"relative flex h-9 w-9 items-center justify-center rounded-lg border transition-colors duration-200";
+
+const inactiveNavClass =
+	"border-transparent text-sidebar-foreground/52 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
+
+type RailNavItemProps = {
+	href: string;
+	label: string;
+	requiresAuth?: boolean;
+	isActive: boolean;
+	icon: (active: boolean) => ReactNode;
+	gotoKeybind: string;
+	gotoDestination: GotoDestination;
+	isAuthenticated: boolean;
+	onRequireAuth: (href: string) => void;
+};
+
+function RailNavItem({
+	href,
+	label,
+	requiresAuth,
+	isActive,
+	icon,
+	gotoKeybind,
+	gotoDestination,
+	isAuthenticated,
+	onRequireAuth,
+}: RailNavItemProps) {
+	const gotoRef = useGotoTarget({ keybind: gotoKeybind, to: gotoDestination });
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				{requiresAuth && !isAuthenticated ? (
+					<button
+						ref={gotoRef}
+						type="button"
+						onClick={() => onRequireAuth(href)}
+						className={cn(iconButtonClass, inactiveNavClass)}
+						aria-label={label}
+					>
+						{icon(false)}
+					</button>
+				) : (
+					<Link
+						ref={gotoRef}
+						href={href}
+						prefetch
+						className={cn(
+							iconButtonClass,
+							isActive
+								? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
+								: inactiveNavClass,
+						)}
+						aria-label={label}
+						aria-current={isActive ? "page" : undefined}
+					>
+						{icon(isActive)}
+					</Link>
+				)}
+			</TooltipTrigger>
+			<TooltipContent side="right">{label}</TooltipContent>
+		</Tooltip>
+	);
+}
+
 function getPathWithoutAuthParams(pathname: string, searchParams: URLSearchParams): string {
 	const nextParams = new URLSearchParams(searchParams.toString());
 	nextParams.delete("auth");
@@ -85,6 +172,7 @@ export function IconRail() {
 	const settingsOpen = useSettingsModal((state) => state.isOpen);
 	const openSettingsModal = useSettingsModal((state) => state.open);
 	const capabilities = useWorkspaceCapabilities();
+	const showAnimatedIcons = usePreferencesStore((state) => state.appearance.showAnimatedIcons);
 	const [isMounted, setIsMounted] = useState(false);
 	const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
 	const [authDrawerInitialMode, setAuthDrawerInitialMode] =
@@ -95,10 +183,7 @@ export function IconRail() {
 	// "protected" — gating these would only pop a sign-in drawer that can never
 	// resolve and would block the user out of Settings/Journal.
 	const protectedRoutes = useMemo(
-		() =>
-			isTauriRuntime()
-				? new Set<string>()
-				: new Set(["/app/journal", "/app/shared"]),
+		() => (isTauriRuntime() ? new Set<string>() : new Set(["/app/journal", "/app/shared"])),
 		[],
 	);
 	const activeAuthDrawerConfig = useMemo(
@@ -177,7 +262,9 @@ export function IconRail() {
 				rememberMe: getRememberMePreference(),
 			});
 		} catch (error) {
-			const notice = resolveAuthError(error instanceof Error ? error : new Error(String(error)));
+			const notice = resolveAuthError(
+				error instanceof Error ? error : new Error(String(error)),
+			);
 			showUserToast(`${notice.title}: ${notice.message}`, "error");
 		}
 	};
@@ -199,15 +286,28 @@ export function IconRail() {
 		{
 			href: "/app",
 			label: "Notes",
+			gotoKeybind: "n",
+			gotoDestination: goto.route.notes,
 			isActive: pathname === "/app",
-			icon: (active: boolean) => (
-				<FolderOpenIcon
-					size={18}
-					className={
-						active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/52"
-					}
-				/>
-			),
+			icon: (active: boolean) =>
+				showAnimatedIcons ? (
+					<FolderOpenIcon
+						size={18}
+						className={
+							active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/52"
+						}
+					/>
+				) : (
+					<FolderOpen
+						className={cn(
+							"h-[18px] w-[18px]",
+							active
+								? "text-sidebar-accent-foreground"
+								: "text-sidebar-foreground/52",
+						)}
+						strokeWidth={1.6}
+					/>
+				),
 		},
 		{
 			href: "/app/journal",
@@ -217,30 +317,67 @@ export function IconRail() {
 			// backend enables it; guests get the sign-in drawer.
 			requiresAuth: !capabilities.journal,
 			label: "Journal",
+			gotoKeybind: "j",
+			gotoDestination: goto.route.journal,
 			isActive: pathname === "/app/journal",
-			icon: (_active: boolean) => (
-				<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
-			),
+			icon: (_active: boolean) =>
+				showAnimatedIcons ? (
+					<BookOpenIcon size={18} />
+				) : (
+					<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
+				),
 		},
 		{
 			href: "/app/graph",
 			label: "Graph",
+			gotoKeybind: "g",
+			gotoDestination: goto.route.graph,
 			isActive: pathname === "/app/graph",
-			icon: (_active: boolean) => (
-				<Waypoints className="h-[18px] w-[18px]" strokeWidth={1.6} />
-			),
+			icon: (_active: boolean) =>
+				showAnimatedIcons ? (
+					<WaypointsIcon size={18} />
+				) : (
+					<Waypoints className="h-[18px] w-[18px]" strokeWidth={1.6} />
+				),
 		},
 		{
 			href: "/app/tags",
 			label: "Tags",
+			gotoKeybind: "t",
+			gotoDestination: goto.route.tags,
 			isActive: pathname.startsWith("/app/tags"),
-			icon: (_active: boolean) => <Hash className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+			icon: (_active: boolean) =>
+				showAnimatedIcons ? (
+					<HashIcon size={18} />
+				) : (
+					<Hash className="h-[18px] w-[18px]" strokeWidth={1.6} />
+				),
 		},
 		{
 			href: "/app/people",
 			label: "People",
+			gotoKeybind: "p",
+			gotoDestination: goto.route.people,
 			isActive: pathname.startsWith("/app/people"),
-			icon: (_active: boolean) => <Users className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+			icon: (_active: boolean) =>
+				showAnimatedIcons ? (
+					<UsersIcon size={18} />
+				) : (
+					<Users className="h-[18px] w-[18px]" strokeWidth={1.6} />
+				),
+		},
+		{
+			href: "/app/activity",
+			label: "Activity",
+			gotoKeybind: "a",
+			gotoDestination: goto.route.activity,
+			isActive: pathname.startsWith("/app/activity"),
+			icon: (_active: boolean) =>
+				showAnimatedIcons ? (
+					<ActivityIcon size={18} />
+				) : (
+					<Activity className="h-[18px] w-[18px]" strokeWidth={1.6} />
+				),
 		},
 	];
 	const trashNavItem = {
@@ -250,53 +387,24 @@ export function IconRail() {
 		// reachable; on web only the signed-in server backend enables it.
 		requiresAuth: !capabilities.trash,
 		label: "Trash",
+		gotoKeybind: "x",
+		gotoDestination: goto.route.trash,
 		isActive: pathname === "/app/trash",
-		icon: (_active: boolean) => <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+		icon: (_active: boolean) =>
+			showAnimatedIcons ? (
+				<Trash2Icon size={18} />
+			) : (
+				<Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />
+			),
 	};
 
-	const iconButtonClass =
-		"relative flex h-9 w-9 items-center justify-center rounded-lg border transition-colors duration-200";
-
-	const inactiveNavClass =
-		"border-transparent text-sidebar-foreground/52 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
-
-	const renderNavItem = ({
-		href,
-		label,
-		requiresAuth,
-		isActive,
-		icon,
-	}: (typeof navItems)[number] | typeof trashNavItem) => (
-		<Tooltip key={href}>
-			<TooltipTrigger asChild>
-				{requiresAuth && !isAuthenticated ? (
-					<button
-						type="button"
-						onClick={() => openAuthDrawerFor(href)}
-						className={cn(iconButtonClass, inactiveNavClass)}
-						aria-label={label}
-					>
-						{icon(false)}
-					</button>
-				) : (
-					<Link
-						href={href}
-						prefetch
-						className={cn(
-							iconButtonClass,
-							isActive
-								? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
-								: inactiveNavClass,
-						)}
-						aria-label={label}
-						aria-current={isActive ? "page" : undefined}
-					>
-						{icon(isActive)}
-					</Link>
-				)}
-			</TooltipTrigger>
-			<TooltipContent side="right">{label}</TooltipContent>
-		</Tooltip>
+	const renderNavItem = (item: (typeof navItems)[number] | typeof trashNavItem) => (
+		<RailNavItem
+			{...item}
+			key={item.href}
+			isAuthenticated={isAuthenticated}
+			onRequireAuth={openAuthDrawerFor}
+		/>
 	);
 
 	return (
@@ -349,7 +457,11 @@ export function IconRail() {
 								aria-haspopup="dialog"
 								aria-expanded={settingsOpen}
 							>
-								<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
+								{showAnimatedIcons ? (
+									<SettingsIcon size={18} />
+								) : (
+									<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
+								)}
 							</button>
 						</TooltipTrigger>
 						<TooltipContent side="right" shortcut={settingsShortcut}>

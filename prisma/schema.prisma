@@ -160,6 +160,7 @@ model Note {
   sortOrder           Int           @default(0) @map("sort_order")
   tags                String[]      @default([])
   properties          Json?         @map("properties")
+  icon                String?
   journalMeta         Json?         @map("journal_meta")
   versions            NoteVersion[]
   outgoingLinks       NoteLink[]    @relation("NoteOutgoingLinks")

@@ -31,6 +31,7 @@ import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Calendar } from "@/shared/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
+import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -395,7 +396,9 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 													<input
 														autoFocus
 														value={renameDraft}
-														onChange={(e) => setRenameDraft(e.target.value)}
+														onChange={(e) =>
+															setRenameDraft(e.target.value)
+														}
 														onKeyDown={(e) => {
 															if (e.key === "Enter") {
 																e.preventDefault();
@@ -434,7 +437,12 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 															{dateLabel}
 														</span>
 														{mood && (
-															<span className={cn("text-[10px]", mood.color)}>
+															<span
+																className={cn(
+																	"text-[10px]",
+																	mood.color,
+																)}
+															>
 																{mood.icon}
 															</span>
 														)}
@@ -444,7 +452,9 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 													</button>
 												</ContextMenuTrigger>
 												<ContextMenuContent className="w-44">
-													<ContextMenuItem onClick={() => startRename(entry)}>
+													<ContextMenuItem
+														onClick={() => startRename(entry)}
+													>
 														Edit title
 													</ContextMenuItem>
 													<ContextMenuSeparator />
@@ -454,6 +464,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 													>
 														Delete entry
 													</ContextMenuItem>
+													<ContextMenuSeparator />
+													<DevContextSubmenu />
 												</ContextMenuContent>
 											</ContextMenu>
 										);

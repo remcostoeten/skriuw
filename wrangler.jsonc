@@ -7,9 +7,9 @@
 	// party "notes", which routePartykitRequest matches (case-insensitively)
 	// to the binding named "Notes".
 	"durable_objects": {
-		"bindings": [{ "name": "Notes", "class_name": "NotesServer" }]
+		"bindings": [{ "name": "Notes", "class_name": "NotesServer" }],
 	},
 	// partyserver/y-partyserver require SQLite-backed Durable Objects (also the
 	// only kind available on the Workers free plan).
-	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["NotesServer"] }]
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["NotesServer"] }],
 }

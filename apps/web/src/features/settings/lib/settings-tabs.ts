@@ -5,6 +5,7 @@ export type SettingsTabId =
 	| "appearance"
 	| "editor"
 	| "shortcuts"
+	| "quick-access"
 	| "data"
 	| "privacy"
 	| "security"
@@ -14,10 +15,7 @@ export type SettingsTabId =
 
 // Cloud-only tabs hidden in the desktop build: there is no cloud auth (account/
 // security). AI stays visible — desktop runs local Ollama or a direct cloud key.
-export const DESKTOP_HIDDEN_TABS: ReadonlySet<SettingsTabId> = new Set([
-	"account",
-	"security",
-]);
+export const DESKTOP_HIDDEN_TABS: ReadonlySet<SettingsTabId> = new Set(["account", "security"]);
 
 export function isSettingsTabVisible(id: SettingsTabId): boolean {
 	return !(isTauriRuntime() && DESKTOP_HIDDEN_TABS.has(id));

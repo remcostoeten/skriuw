@@ -13,10 +13,10 @@ Instead of animating a highlight bar separately from text color changes, duplica
 
 ```css
 .tab-highlight {
-  transition: left 200ms ease-out;
+	transition: left 200ms ease-out;
 }
 .tab-text {
-  transition: color 200ms ease-out;
+	transition: color 200ms ease-out;
 }
 /* Timing misalignment visible in slow-motion */
 ```
@@ -25,20 +25,20 @@ Instead of animating a highlight bar separately from text color changes, duplica
 
 ```css
 .tabs-wrapper {
-  position: relative;
+	position: relative;
 }
 
 .tabs-inactive {
-  color: gray;
+	color: gray;
 }
 
 .tabs-active {
-  position: absolute;
-  top: 0;
-  color: white;
-  background: blue;
-  clip-path: inset(0px 75% 0px 0% round 17px);
-  transition: clip-path 200ms ease-out;
+	position: absolute;
+	top: 0;
+	color: white;
+	background: blue;
+	clip-path: inset(0px 75% 0px 0% round 17px);
+	transition: clip-path 200ms ease-out;
 }
 
 /* On tab change, update clip-path to reveal active tab */

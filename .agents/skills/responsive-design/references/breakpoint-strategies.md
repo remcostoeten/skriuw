@@ -13,23 +13,23 @@ Start with the smallest screen, then progressively enhance for larger screens.
 ```css
 /* Base styles (mobile first) */
 .component {
-  display: flex;
-  flex-direction: column;
-  padding: 1rem;
+	display: flex;
+	flex-direction: column;
+	padding: 1rem;
 }
 
 /* Enhance for larger screens */
 @media (min-width: 640px) {
-  .component {
-    flex-direction: row;
-    padding: 1.5rem;
-  }
+	.component {
+		flex-direction: row;
+		padding: 1.5rem;
+	}
 }
 
 @media (min-width: 1024px) {
-  .component {
-    padding: 2rem;
-  }
+	.component {
+		padding: 2rem;
+	}
 }
 ```
 
@@ -53,19 +53,19 @@ Start with the smallest screen, then progressively enhance for larger screens.
 /* 2xl: 1536px - Large desktops */
 
 @media (min-width: 640px) {
-  /* sm */
+	/* sm */
 }
 @media (min-width: 768px) {
-  /* md */
+	/* md */
 }
 @media (min-width: 1024px) {
-  /* lg */
+	/* lg */
 }
 @media (min-width: 1280px) {
-  /* xl */
+	/* xl */
 }
 @media (min-width: 1536px) {
-  /* 2xl */
+	/* 2xl */
 }
 ```
 
@@ -80,19 +80,19 @@ Start with the smallest screen, then progressively enhance for larger screens.
 /* xxl: 1400px */
 
 @media (min-width: 576px) {
-  /* sm */
+	/* sm */
 }
 @media (min-width: 768px) {
-  /* md */
+	/* md */
 }
 @media (min-width: 992px) {
-  /* lg */
+	/* lg */
 }
 @media (min-width: 1200px) {
-  /* xl */
+	/* xl */
 }
 @media (min-width: 1400px) {
-  /* xxl */
+	/* xxl */
 }
 ```
 
@@ -105,15 +105,15 @@ Start with the smallest screen, then progressively enhance for larger screens.
 /* Large: Desktops (> 1024px) */
 
 :root {
-  --bp-md: 600px;
-  --bp-lg: 1024px;
+	--bp-md: 600px;
+	--bp-lg: 1024px;
 }
 
 @media (min-width: 600px) {
-  /* Medium */
+	/* Medium */
 }
 @media (min-width: 1024px) {
-  /* Large */
+	/* Large */
 }
 ```
 
@@ -126,23 +126,23 @@ Instead of using device-based breakpoints, identify where your content naturally
 ```css
 /* Bad: Device-based thinking */
 @media (min-width: 768px) {
-  /* iPad breakpoint */
+	/* iPad breakpoint */
 }
 
 /* Good: Content-based thinking */
 /* Breakpoint where sidebar fits comfortably next to content */
 @media (min-width: 50rem) {
-  .layout {
-    display: grid;
-    grid-template-columns: 1fr 300px;
-  }
+	.layout {
+		display: grid;
+		grid-template-columns: 1fr 300px;
+	}
 }
 
 /* Breakpoint where cards can show 3 across without crowding */
 @media (min-width: 65rem) {
-  .card-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+	.card-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
 }
 ```
 
@@ -151,19 +151,19 @@ Instead of using device-based breakpoints, identify where your content naturally
 ```javascript
 // Find where content breaks
 function findBreakpoints(selector) {
-  const element = document.querySelector(selector);
-  const breakpoints = [];
+	const element = document.querySelector(selector);
+	const breakpoints = [];
 
-  for (let width = 320; width <= 1920; width += 10) {
-    element.style.width = `${width}px`;
+	for (let width = 320; width <= 1920; width += 10) {
+		element.style.width = `${width}px`;
 
-    // Check for overflow, wrapping, or layout issues
-    if (element.scrollWidth > element.clientWidth) {
-      breakpoints.push({ width, issue: "overflow" });
-    }
-  }
+		// Check for overflow, wrapping, or layout issues
+		if (element.scrollWidth > element.clientWidth) {
+			breakpoints.push({ width, issue: "overflow" });
+		}
+	}
 
-  return breakpoints;
+	return breakpoints;
 }
 ```
 
@@ -173,26 +173,26 @@ function findBreakpoints(selector) {
 
 ```css
 :root {
-  /* Breakpoint values */
-  --breakpoint-sm: 640px;
-  --breakpoint-md: 768px;
-  --breakpoint-lg: 1024px;
-  --breakpoint-xl: 1280px;
-  --breakpoint-2xl: 1536px;
+	/* Breakpoint values */
+	--breakpoint-sm: 640px;
+	--breakpoint-md: 768px;
+	--breakpoint-lg: 1024px;
+	--breakpoint-xl: 1280px;
+	--breakpoint-2xl: 1536px;
 
-  /* Container widths for each breakpoint */
-  --container-sm: 640px;
-  --container-md: 768px;
-  --container-lg: 1024px;
-  --container-xl: 1280px;
-  --container-2xl: 1536px;
+	/* Container widths for each breakpoint */
+	--container-sm: 640px;
+	--container-md: 768px;
+	--container-lg: 1024px;
+	--container-xl: 1280px;
+	--container-2xl: 1536px;
 }
 
 .container {
-  width: 100%;
-  max-width: var(--container-lg);
-  margin-inline: auto;
-  padding-inline: var(--space-4);
+	width: 100%;
+	max-width: var(--container-lg);
+	margin-inline: auto;
+	padding-inline: var(--space-4);
 }
 ```
 
@@ -201,50 +201,42 @@ function findBreakpoints(selector) {
 ```typescript
 // Breakpoint constants
 export const breakpoints = {
-  sm: 640,
-  md: 768,
-  lg: 1024,
-  xl: 1280,
-  "2xl": 1536,
+	sm: 640,
+	md: 768,
+	lg: 1024,
+	xl: 1280,
+	"2xl": 1536,
 } as const;
 
 // Media query hook
 function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false);
+	const [matches, setMatches] = useState(false);
 
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    setMatches(media.matches);
+	useEffect(() => {
+		const media = window.matchMedia(query);
+		setMatches(media.matches);
 
-    const listener = () => setMatches(media.matches);
-    media.addEventListener("change", listener);
-    return () => media.removeEventListener("change", listener);
-  }, [query]);
+		const listener = () => setMatches(media.matches);
+		media.addEventListener("change", listener);
+		return () => media.removeEventListener("change", listener);
+	}, [query]);
 
-  return matches;
+	return matches;
 }
 
 // Breakpoint hook
 function useBreakpoint() {
-  const isSmall = useMediaQuery(`(min-width: ${breakpoints.sm}px)`);
-  const isMedium = useMediaQuery(`(min-width: ${breakpoints.md}px)`);
-  const isLarge = useMediaQuery(`(min-width: ${breakpoints.lg}px)`);
-  const isXLarge = useMediaQuery(`(min-width: ${breakpoints.xl}px)`);
+	const isSmall = useMediaQuery(`(min-width: ${breakpoints.sm}px)`);
+	const isMedium = useMediaQuery(`(min-width: ${breakpoints.md}px)`);
+	const isLarge = useMediaQuery(`(min-width: ${breakpoints.lg}px)`);
+	const isXLarge = useMediaQuery(`(min-width: ${breakpoints.xl}px)`);
 
-  return {
-    isMobile: !isSmall,
-    isTablet: isSmall && !isLarge,
-    isDesktop: isLarge,
-    current: isXLarge
-      ? "xl"
-      : isLarge
-        ? "lg"
-        : isMedium
-          ? "md"
-          : isSmall
-            ? "sm"
-            : "base",
-  };
+	return {
+		isMobile: !isSmall,
+		isTablet: isSmall && !isLarge,
+		isDesktop: isLarge,
+		current: isXLarge ? "xl" : isLarge ? "lg" : isMedium ? "md" : isSmall ? "sm" : "base",
+	};
 }
 ```
 
@@ -255,35 +247,35 @@ function useBreakpoint() {
 ```css
 /* Feature detection instead of browser detection */
 @supports (display: grid) {
-  .layout {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  }
+	.layout {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	}
 }
 
 @supports (container-type: inline-size) {
-  .card-container {
-    container-type: inline-size;
-  }
+	.card-container {
+		container-type: inline-size;
+	}
 
-  @container (min-width: 400px) {
-    .card {
-      flex-direction: row;
-    }
-  }
+	@container (min-width: 400px) {
+		.card {
+			flex-direction: row;
+		}
+	}
 }
 
 @supports (aspect-ratio: 16/9) {
-  .video-container {
-    aspect-ratio: 16/9;
-  }
+	.video-container {
+		aspect-ratio: 16/9;
+	}
 }
 
 /* Fallback for older browsers */
 @supports not (gap: 1rem) {
-  .flex-container > * + * {
-    margin-left: 1rem;
-  }
+	.flex-container > * + * {
+		margin-left: 1rem;
+	}
 }
 ```
 
@@ -292,12 +284,12 @@ function useBreakpoint() {
 ```css
 /* Only apply grid layout if supported and screen is large enough */
 @supports (display: grid) {
-  @media (min-width: 768px) {
-    .layout {
-      display: grid;
-      grid-template-columns: 250px 1fr;
-    }
-  }
+	@media (min-width: 768px) {
+		.layout {
+			display: grid;
+			grid-template-columns: 250px 1fr;
+		}
+	}
 }
 ```
 
@@ -307,28 +299,28 @@ function useBreakpoint() {
 
 ```css
 .nav {
-  /* Mobile: vertical stack */
-  display: flex;
-  flex-direction: column;
+	/* Mobile: vertical stack */
+	display: flex;
+	flex-direction: column;
 }
 
 @media (min-width: 768px) {
-  .nav {
-    /* Tablet+: horizontal */
-    flex-direction: row;
-    align-items: center;
-  }
+	.nav {
+		/* Tablet+: horizontal */
+		flex-direction: row;
+		align-items: center;
+	}
 }
 
 /* Or with container queries */
 .nav-container {
-  container-type: inline-size;
+	container-type: inline-size;
 }
 
 @container (min-width: 600px) {
-  .nav {
-    flex-direction: row;
-  }
+	.nav {
+		flex-direction: row;
+	}
 }
 ```
 
@@ -336,34 +328,34 @@ function useBreakpoint() {
 
 ```css
 .cards {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: 1fr;
+	display: grid;
+	gap: 1.5rem;
+	grid-template-columns: 1fr;
 }
 
 @media (min-width: 640px) {
-  .cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
+	.cards {
+		grid-template-columns: repeat(2, 1fr);
+	}
 }
 
 @media (min-width: 1024px) {
-  .cards {
-    grid-template-columns: repeat(3, 1fr);
-  }
+	.cards {
+		grid-template-columns: repeat(3, 1fr);
+	}
 }
 
 @media (min-width: 1280px) {
-  .cards {
-    grid-template-columns: repeat(4, 1fr);
-  }
+	.cards {
+		grid-template-columns: repeat(4, 1fr);
+	}
 }
 
 /* Better: auto-fit with minimum size */
 .cards-auto {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+	display: grid;
+	gap: 1.5rem;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 }
 ```
 
@@ -371,40 +363,40 @@ function useBreakpoint() {
 
 ```css
 .hero {
-  min-height: 50vh;
-  padding: var(--space-lg) var(--space-md);
-  text-align: center;
+	min-height: 50vh;
+	padding: var(--space-lg) var(--space-md);
+	text-align: center;
 }
 
 .hero-title {
-  font-size: clamp(2rem, 5vw + 1rem, 4rem);
+	font-size: clamp(2rem, 5vw + 1rem, 4rem);
 }
 
 .hero-subtitle {
-  font-size: clamp(1rem, 2vw + 0.5rem, 1.5rem);
+	font-size: clamp(1rem, 2vw + 0.5rem, 1.5rem);
 }
 
 @media (min-width: 768px) {
-  .hero {
-    min-height: 70vh;
-    display: flex;
-    align-items: center;
-    text-align: left;
-  }
+	.hero {
+		min-height: 70vh;
+		display: flex;
+		align-items: center;
+		text-align: left;
+	}
 
-  .hero-content {
-    max-width: 60%;
-  }
+	.hero-content {
+		max-width: 60%;
+	}
 }
 
 @media (min-width: 1024px) {
-  .hero {
-    min-height: 80vh;
-  }
+	.hero {
+		min-height: 80vh;
+	}
 
-  .hero-content {
-    max-width: 50%;
-  }
+	.hero-content {
+		max-width: 50%;
+	}
 }
 ```
 
@@ -413,42 +405,42 @@ function useBreakpoint() {
 ```css
 /* Mobile: cards or horizontal scroll */
 .table-container {
-  overflow-x: auto;
+	overflow-x: auto;
 }
 
 .responsive-table {
-  min-width: 600px;
+	min-width: 600px;
 }
 
 /* Alternative: transform to cards on mobile */
 @media (max-width: 639px) {
-  .responsive-table {
-    min-width: 0;
-  }
+	.responsive-table {
+		min-width: 0;
+	}
 
-  .responsive-table thead {
-    display: none;
-  }
+	.responsive-table thead {
+		display: none;
+	}
 
-  .responsive-table tr {
-    display: block;
-    margin-bottom: 1rem;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    padding: 1rem;
-  }
+	.responsive-table tr {
+		display: block;
+		margin-bottom: 1rem;
+		border: 1px solid var(--border);
+		border-radius: 0.5rem;
+		padding: 1rem;
+	}
 
-  .responsive-table td {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.5rem 0;
-    border: none;
-  }
+	.responsive-table td {
+		display: flex;
+		justify-content: space-between;
+		padding: 0.5rem 0;
+		border: none;
+	}
 
-  .responsive-table td::before {
-    content: attr(data-label);
-    font-weight: 600;
-  }
+	.responsive-table td::before {
+		content: attr(data-label);
+		font-weight: 600;
+	}
 }
 ```
 
@@ -456,44 +448,44 @@ function useBreakpoint() {
 
 ```css
 @media print {
-  /* Remove non-essential elements */
-  .nav,
-  .sidebar,
-  .footer,
-  .ads {
-    display: none;
-  }
+	/* Remove non-essential elements */
+	.nav,
+	.sidebar,
+	.footer,
+	.ads {
+		display: none;
+	}
 
-  /* Reset colors and backgrounds */
-  * {
-    background: white !important;
-    color: black !important;
-    box-shadow: none !important;
-  }
+	/* Reset colors and backgrounds */
+	* {
+		background: white !important;
+		color: black !important;
+		box-shadow: none !important;
+	}
 
-  /* Ensure content fits on page */
-  .container {
-    max-width: 100%;
-    padding: 0;
-  }
+	/* Ensure content fits on page */
+	.container {
+		max-width: 100%;
+		padding: 0;
+	}
 
-  /* Handle page breaks */
-  h1,
-  h2,
-  h3 {
-    page-break-after: avoid;
-  }
+	/* Handle page breaks */
+	h1,
+	h2,
+	h3 {
+		page-break-after: avoid;
+	}
 
-  img,
-  table {
-    page-break-inside: avoid;
-  }
+	img,
+	table {
+		page-break-inside: avoid;
+	}
 
-  /* Show URLs for links */
-  a[href^="http"]::after {
-    content: " (" attr(href) ")";
-    font-size: 0.8em;
-  }
+	/* Show URLs for links */
+	a[href^="http"]::after {
+		content: " (" attr(href) ")";
+		font-size: 0.8em;
+	}
 }
 ```
 
@@ -502,45 +494,45 @@ function useBreakpoint() {
 ```css
 /* Dark mode preference */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1a1a1a;
-    --text: #f0f0f0;
-  }
+	:root {
+		--bg: #1a1a1a;
+		--text: #f0f0f0;
+	}
 }
 
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
 }
 
 /* High contrast preference */
 @media (prefers-contrast: high) {
-  :root {
-    --text: #000;
-    --bg: #fff;
-    --border: #000;
-  }
+	:root {
+		--text: #000;
+		--bg: #fff;
+		--border: #000;
+	}
 
-  .button {
-    border: 2px solid currentColor;
-  }
+	.button {
+		border: 2px solid currentColor;
+	}
 }
 
 /* Reduced data preference */
 @media (prefers-reduced-data: reduce) {
-  .hero-video {
-    display: none;
-  }
+	.hero-video {
+		display: none;
+	}
 
-  .hero-image {
-    display: block;
-  }
+	.hero-image {
+		display: block;
+	}
 }
 ```
 
@@ -549,37 +541,34 @@ function useBreakpoint() {
 ```javascript
 // Automated breakpoint testing
 async function testBreakpoints(page, breakpoints) {
-  const results = [];
+	const results = [];
 
-  for (const [name, width] of Object.entries(breakpoints)) {
-    await page.setViewportSize({ width, height: 800 });
+	for (const [name, width] of Object.entries(breakpoints)) {
+		await page.setViewportSize({ width, height: 800 });
 
-    // Check for horizontal overflow
-    const hasOverflow = await page.evaluate(() => {
-      return (
-        document.documentElement.scrollWidth >
-        document.documentElement.clientWidth
-      );
-    });
+		// Check for horizontal overflow
+		const hasOverflow = await page.evaluate(() => {
+			return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+		});
 
-    // Check for elements going off-screen
-    const offscreenElements = await page.evaluate(() => {
-      const elements = document.querySelectorAll("*");
-      return Array.from(elements).filter((el) => {
-        const rect = el.getBoundingClientRect();
-        return rect.right > window.innerWidth || rect.left < 0;
-      }).length;
-    });
+		// Check for elements going off-screen
+		const offscreenElements = await page.evaluate(() => {
+			const elements = document.querySelectorAll("*");
+			return Array.from(elements).filter((el) => {
+				const rect = el.getBoundingClientRect();
+				return rect.right > window.innerWidth || rect.left < 0;
+			}).length;
+		});
 
-    results.push({
-      breakpoint: name,
-      width,
-      hasOverflow,
-      offscreenElements,
-    });
-  }
+		results.push({
+			breakpoint: name,
+			width,
+			hasOverflow,
+			offscreenElements,
+		});
+	}
 
-  return results;
+	return results;
 }
 ```
 

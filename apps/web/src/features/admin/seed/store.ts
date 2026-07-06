@@ -14,7 +14,12 @@ type State = {
 };
 
 type Actions = {
-	hydrate: (data: { bundleId: string; bundleName: string; folders: SeedFolder[]; notes: SeedNote[] }) => void;
+	hydrate: (data: {
+		bundleId: string;
+		bundleName: string;
+		folders: SeedFolder[];
+		notes: SeedNote[];
+	}) => void;
 	selectNote: (ref: string) => void;
 	toggleFolder: (ref: string) => void;
 	updateNoteContent: (ref: string, richContent: unknown[]) => void;
@@ -34,11 +39,14 @@ function nextRef(prefix: string): string {
 	return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-function siblingOrder(items: Array<{ parentRef: string | null }>, parentRef: string | null): number {
+function siblingOrder(
+	items: Array<{ parentRef: string | null }>,
+	parentRef: string | null,
+): number {
 	return items.filter((i) => i.parentRef === parentRef).length;
 }
 
-export const useSeedEditorStore = create<SeedEditorStore>()((set, get) => ({
+export const useSeedEditorStore = create<SeedEditorStore>()((set) => ({
 	bundleId: "",
 	bundleName: "",
 	folders: [],
@@ -82,7 +90,10 @@ export const useSeedEditorStore = create<SeedEditorStore>()((set, get) => ({
 	addNote: (name, parentRef) => {
 		const ref = nextRef("note");
 		set((s) => ({
-			notes: [...s.notes, { ref, name, parentRef, order: siblingOrder(s.notes, parentRef), richContent: [] }],
+			notes: [
+				...s.notes,
+				{ ref, name, parentRef, order: siblingOrder(s.notes, parentRef), richContent: [] },
+			],
 			selectedRef: ref,
 			dirty: true,
 		}));
@@ -91,7 +102,10 @@ export const useSeedEditorStore = create<SeedEditorStore>()((set, get) => ({
 	addFolder: (name, parentRef) => {
 		const ref = nextRef("folder");
 		set((s) => ({
-			folders: [...s.folders, { ref, name, parentRef, order: siblingOrder(s.folders, parentRef) }],
+			folders: [
+				...s.folders,
+				{ ref, name, parentRef, order: siblingOrder(s.folders, parentRef) },
+			],
 			openFolderRefs: new Set([...s.openFolderRefs, ref]),
 			dirty: true,
 		}));
@@ -121,12 +135,16 @@ export const useSeedEditorStore = create<SeedEditorStore>()((set, get) => ({
 
 	deleteFolder: (ref) =>
 		set((s) => {
-			const orphanedNoteRefs = new Set(s.notes.filter((n) => n.parentRef === ref).map((n) => n.ref));
+			const orphanedNoteRefs = new Set(
+				s.notes.filter((n) => n.parentRef === ref).map((n) => n.ref),
+			);
 			const remaining = s.notes.filter((n) => n.parentRef !== ref);
 			return {
 				folders: s.folders.filter((f) => f.ref !== ref),
 				notes: remaining,
-				selectedRef: orphanedNoteRefs.has(s.selectedRef ?? "") ? (remaining[0]?.ref ?? null) : s.selectedRef,
+				selectedRef: orphanedNoteRefs.has(s.selectedRef ?? "")
+					? (remaining[0]?.ref ?? null)
+					: s.selectedRef,
 				dirty: true,
 			};
 		}),

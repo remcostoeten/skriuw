@@ -826,7 +826,7 @@ TagsSection: {
   },
   divider: "border-t border-border",
 
-  // Inner component (dynamic import with skeleton loading)  
+  // Inner component (dynamic import with skeleton loading)
   TagManager: {
     header: {
       title:  "Manage Tags" (h3, text-sm font-medium),
@@ -1000,18 +1000,18 @@ SettingsCard [
 
 Defined in `settings-page.tsx` SECTIONS array:
 
-| ID | Label | Icon | Description | Desktop (Tauri) |
-|---|---|---|---|---|
-| account | Account | User | Profile and sign-in | hidden |
-| appearance | Appearance | Palette | Theme and density | visible |
-| editor | Editor | PenLine | Writing experience | visible |
-| shortcuts | Shortcuts | Keyboard | Keyboard bindings | visible |
-| data | Data & sync | Database | Export and backup | replaced by local Data |
-| privacy | Privacy | Eye | Analytics and data use | visible |
-| security | Security | Shield | Password and sessions | hidden |
-| ai | AI | Sparkles | Providers and keys | replaced by DesktopAiSection |
-| tags | Tags | Tag | Manage tags | visible |
-| experimental | Experimental | FlaskConical | Preview features | visible |
+| ID           | Label        | Icon         | Description            | Desktop (Tauri)              |
+| ------------ | ------------ | ------------ | ---------------------- | ---------------------------- |
+| account      | Account      | User         | Profile and sign-in    | hidden                       |
+| appearance   | Appearance   | Palette      | Theme and density      | visible                      |
+| editor       | Editor       | PenLine      | Writing experience     | visible                      |
+| shortcuts    | Shortcuts    | Keyboard     | Keyboard bindings      | visible                      |
+| data         | Data & sync  | Database     | Export and backup      | replaced by local Data       |
+| privacy      | Privacy      | Eye          | Analytics and data use | visible                      |
+| security     | Security     | Shield       | Password and sessions  | hidden                       |
+| ai           | AI           | Sparkles     | Providers and keys     | replaced by DesktopAiSection |
+| tags         | Tags         | Tag          | Manage tags            | visible                      |
+| experimental | Experimental | FlaskConical | Preview features       | visible                      |
 
 Guest-gated tabs (show GuestSectionNotice instead of actual content): account, security, ai, tags.
 
@@ -1050,18 +1050,18 @@ GroupLabel: {
 
 ## Interaction Patterns
 
-| Pattern | Usage |
-|---|---|
-| **Type-to-confirm** | All destructive actions (delete account, clear data, reset app) — user must type an exact phrase into a text input before the confirm button enables. |
-| **Auto-save on blur** | Display name, username, model inputs (desktop AI) save when the field loses focus. |
-| **Debounced validation** | Username availability checks fire 400ms after last keystroke, with inline ✓/✗ indicator. |
-| **Live visualizations** | Many switches have inline demo components that toggle/show the effect in real time. |
-| **Deep-link focus** | Focus IDs allow the command palette (Cmd+K) to jump directly to any named setting. |
-| **Animated button states** | Pull button morphs between idle/pulling/success/error with blur-fade transitions. |
-| **Recording mode** | Keyboard shortcut rows enter a capture mode that listens for keydown events (Esc to cancel). |
-| **Guest gating** | Server-dependent tabs show a sign-up notice for guest (demo) users. |
-| **Password show/hide** | API key inputs have an eye toggle to reveal the plaintext value. |
-| **Progress bars** | Import, snapshot, reset, and model download operations show determinate progress with ETA. |
+| Pattern                    | Usage                                                                                                                                                 |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Type-to-confirm**        | All destructive actions (delete account, clear data, reset app) — user must type an exact phrase into a text input before the confirm button enables. |
+| **Auto-save on blur**      | Display name, username, model inputs (desktop AI) save when the field loses focus.                                                                    |
+| **Debounced validation**   | Username availability checks fire 400ms after last keystroke, with inline ✓/✗ indicator.                                                              |
+| **Live visualizations**    | Many switches have inline demo components that toggle/show the effect in real time.                                                                   |
+| **Deep-link focus**        | Focus IDs allow the command palette (Cmd+K) to jump directly to any named setting.                                                                    |
+| **Animated button states** | Pull button morphs between idle/pulling/success/error with blur-fade transitions.                                                                     |
+| **Recording mode**         | Keyboard shortcut rows enter a capture mode that listens for keydown events (Esc to cancel).                                                          |
+| **Guest gating**           | Server-dependent tabs show a sign-up notice for guest (demo) users.                                                                                   |
+| **Password show/hide**     | API key inputs have an eye toggle to reveal the plaintext value.                                                                                      |
+| **Progress bars**          | Import, snapshot, reset, and model download operations show determinate progress with ETA.                                                            |
 
 ---
 

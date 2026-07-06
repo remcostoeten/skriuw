@@ -60,7 +60,11 @@ function NumberEditor({ property, onUpdate }: EditorProps) {
 		<input
 			data-note-property-field
 			type="number"
-			value={property.value === null || property.value === undefined ? "" : String(property.value)}
+			value={
+				property.value === null || property.value === undefined
+					? ""
+					: String(property.value)
+			}
 			placeholder="Empty"
 			onChange={(event) =>
 				onUpdate({ value: event.target.value === "" ? null : Number(event.target.value) })
@@ -167,7 +171,11 @@ function OptionPicker({
 	function toggle(id: string) {
 		if (multi) {
 			const set = new Set(selected);
-			set.has(id) ? set.delete(id) : set.add(id);
+			if (set.has(id)) {
+				set.delete(id);
+			} else {
+				set.add(id);
+			}
 			onUpdate({ value: Array.from(set) });
 			return;
 		}
@@ -177,7 +185,11 @@ function OptionPicker({
 	function createOption() {
 		const label = query.trim();
 		if (!label) return;
-		const option: NotePropertyOption = { id: createNotePropertyId("opt"), label, color: nextColor(options) };
+		const option: NotePropertyOption = {
+			id: createNotePropertyId("opt"),
+			label,
+			color: nextColor(options),
+		};
 		const nextOptions = [...options, option];
 		setQuery("");
 		if (multi) {
@@ -188,7 +200,9 @@ function OptionPicker({
 	}
 
 	const normalizedQuery = query.toLowerCase().trim();
-	const filtered = options.filter((option) => option.label.toLowerCase().includes(normalizedQuery));
+	const filtered = options.filter((option) =>
+		option.label.toLowerCase().includes(normalizedQuery),
+	);
 	const exact = options.some((option) => option.label.toLowerCase() === normalizedQuery);
 	const selectedOptions = options.filter((option) => selected.includes(option.id));
 	const inline = density === "inline";
@@ -216,7 +230,12 @@ function OptionPicker({
 						inline ? (
 							<>
 								{visibleInlineOptions.map((option) => (
-									<Pill key={option.id} label={option.label} color={option.color} dot />
+									<Pill
+										key={option.id}
+										label={option.label}
+										color={option.color}
+										dot
+									/>
 								))}
 								{hiddenInlineCount > 0 ? (
 									<span className="shrink-0 rounded-md bg-accent px-1.5 py-0.5 text-[12px] font-medium leading-5 text-muted-foreground">
@@ -226,7 +245,12 @@ function OptionPicker({
 							</>
 						) : (
 							selectedOptions.map((option) => (
-								<Pill key={option.id} label={option.label} color={option.color} dot />
+								<Pill
+									key={option.id}
+									label={option.label}
+									color={option.color}
+									dot
+								/>
 							))
 						)
 					) : (
@@ -281,7 +305,9 @@ function OptionPicker({
 							</button>
 						) : null}
 						{filtered.length === 0 && !query.trim() ? (
-							<p className="px-1.5 py-2 text-sm text-muted-foreground/60">No options yet</p>
+							<p className="px-1.5 py-2 text-sm text-muted-foreground/60">
+								No options yet
+							</p>
 						) : null}
 					</div>
 				</div>
@@ -299,7 +325,11 @@ function PersonEditor({ property, onUpdate, density = "default" }: EditorProps) 
 
 	function toggle(id: string) {
 		const set = new Set(selected);
-		set.has(id) ? set.delete(id) : set.add(id);
+		if (set.has(id)) {
+			set.delete(id);
+		} else {
+			set.add(id);
+		}
 		onUpdate({ value: Array.from(set) });
 	}
 
@@ -308,7 +338,9 @@ function PersonEditor({ property, onUpdate, density = "default" }: EditorProps) 
 		if (!name) return;
 		setQuery("");
 
-		const existing = directory.find((person) => person.name.toLowerCase() === name.toLowerCase());
+		const existing = directory.find(
+			(person) => person.name.toLowerCase() === name.toLowerCase(),
+		);
 		if (existing) {
 			if (!selected.includes(existing.id)) onUpdate({ value: [...selected, existing.id] });
 			return;
@@ -403,7 +435,11 @@ function PersonEditor({ property, onUpdate, density = "default" }: EditorProps) 
 								className="flex w-full items-center justify-between gap-2 rounded-md px-1.5 py-1.5 outline-none transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:ring-1 focus-visible:ring-ring/50"
 							>
 								<span className="flex items-center gap-2 text-sm">
-									<Avatar name={person.name} color={personColor(person)} size={22} />
+									<Avatar
+										name={person.name}
+										color={personColor(person)}
+										size={22}
+									/>
 									{person.name}
 								</span>
 								{selected.includes(person.id) ? (
@@ -430,7 +466,9 @@ function PersonEditor({ property, onUpdate, density = "default" }: EditorProps) 
 							</button>
 						) : null}
 						{people.length === 0 && !query.trim() ? (
-							<p className="px-1.5 py-2 text-sm text-muted-foreground/60">No people yet</p>
+							<p className="px-1.5 py-2 text-sm text-muted-foreground/60">
+								No people yet
+							</p>
 						) : null}
 					</div>
 				</div>
@@ -494,7 +532,12 @@ export function ValueEditor({ property, onUpdate, density = "default" }: EditorP
 			return <RatingEditor property={property} onUpdate={onUpdate} />;
 		case "select":
 			return (
-				<OptionPicker property={property} onUpdate={onUpdate} multi={false} density={density} />
+				<OptionPicker
+					property={property}
+					onUpdate={onUpdate}
+					multi={false}
+					density={density}
+				/>
 			);
 		case "multi-select":
 			return <OptionPicker property={property} onUpdate={onUpdate} multi density={density} />;
@@ -513,7 +556,12 @@ export function ValueEditor({ property, onUpdate, density = "default" }: EditorP
 			);
 		case "phone":
 			return (
-				<TextLike property={property} onUpdate={onUpdate} placeholder="+31 6 ..." type="tel" />
+				<TextLike
+					property={property}
+					onUpdate={onUpdate}
+					placeholder="+31 6 ..."
+					type="tel"
+				/>
 			);
 		case "location":
 			return <TextLike property={property} onUpdate={onUpdate} placeholder="Add a place" />;

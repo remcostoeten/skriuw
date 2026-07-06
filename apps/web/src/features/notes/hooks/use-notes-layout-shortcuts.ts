@@ -6,36 +6,10 @@ import { useCommandRegistry } from "@/core/commands";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 
 type UseNotesLayoutShortcutsOptions = {
-	handleCreateFile: () => void;
-	handleCreateFolder: () => void;
-	handleToggleSidebar: () => void;
-	handleToggleMetadata: () => void;
-	handleOpenSettings: () => void;
-	handleToggleEditorMode: () => void;
-	handleFocusFileTree: () => void;
-	handleToggleSplit: () => void;
-	handleSplitHorizontal: () => void;
-	handleCloseSplitPane: () => void;
-	handleCloseFocusedTab: () => void;
-	handleFocusNextSplitPane: () => void;
-	handleFocusPreviousSplitPane: () => void;
 	handleSwitchToTabIndex: (index: number) => void;
 };
 
 export function useNotesLayoutShortcuts({
-	handleCreateFile,
-	handleCreateFolder,
-	handleToggleSidebar,
-	handleToggleMetadata,
-	handleOpenSettings,
-	handleToggleEditorMode,
-	handleFocusFileTree,
-	handleToggleSplit,
-	handleSplitHorizontal,
-	handleCloseSplitPane,
-	handleCloseFocusedTab,
-	handleFocusNextSplitPane,
-	handleFocusPreviousSplitPane,
 	handleSwitchToTabIndex,
 }: UseNotesLayoutShortcutsOptions) {
 	const { getHelpGroups } = useShortcutManager();
@@ -44,7 +18,7 @@ export function useNotesLayoutShortcuts({
 		setIsOpen: setShowCommandPalette,
 		toggleOpen: handleOpenCommandPalette,
 	} = useCommandRegistry();
-	
+
 	const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
 	const handleOpenShortcutHelp = useCallback(() => {

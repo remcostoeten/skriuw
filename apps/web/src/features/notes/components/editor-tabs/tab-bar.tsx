@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 
 import { Pin, X } from "lucide-react";
 import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import { cn } from "@/shared/lib/utils";
+import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
+import { usePreferencesStore } from "@/features/settings/store";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -43,11 +45,7 @@ export type WorkspaceTabBarApi = {
 	onTogglePinTab: (pane: EditorPane, fileId: string) => void;
 	onCloseOtherTabs: (pane: EditorPane, fileId: string) => void;
 	onCloseTabsToSide: (pane: EditorPane, fileId: string, side: "left" | "right") => void;
-	onDropNoteOnTab: (
-		pane: EditorPane,
-		targetFileId: string | null,
-		droppedFileId: string,
-	) => void;
+	onDropNoteOnTab: (pane: EditorPane, targetFileId: string | null, droppedFileId: string) => void;
 };
 
 type Props = {
@@ -86,6 +84,7 @@ export function TabBar({
 	onDropNote,
 	onActivatePane,
 }: Props) {
+	const showPageIcons = usePreferencesStore((s) => s.appearance.showPageIcons);
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [dragOverId, setDragOverId] = useState<string | null>(null);
 	const tabRefs = useRef(new Map<string, HTMLDivElement>());
@@ -281,7 +280,9 @@ export function TabBar({
 									isActive
 										? "bg-accent text-accent-foreground"
 										: "text-muted-foreground hover:bg-muted hover:text-foreground",
-									isActive && isPaneFocused && "shadow-[inset_0_-2px_0_0_hsl(var(--ring))]",
+									isActive &&
+										isPaneFocused &&
+										"shadow-[inset_0_-2px_0_0_hsl(var(--ring))]",
 									dragOverId === file.id && "bg-muted",
 									draggingId === file.id && "opacity-50",
 								)}
@@ -289,6 +290,9 @@ export function TabBar({
 								{pinned ? (
 									<Pin className="h-3 w-3 shrink-0 fill-current" aria-hidden />
 								) : null}
+								{showPageIcons && file.icon && (
+									<span className="shrink-0 text-xs">{file.icon}</span>
+								)}
 								<span className="truncate">{tabLabel(file)}</span>
 								<button
 									type="button"
@@ -313,7 +317,9 @@ export function TabBar({
 								{pinned ? "Unpin" : "Pin"}
 							</ContextMenuItem>
 							<ContextMenuSeparator />
-							<ContextMenuItem onClick={() => onClose(file.id)}>Close</ContextMenuItem>
+							<ContextMenuItem onClick={() => onClose(file.id)}>
+								Close
+							</ContextMenuItem>
 							<ContextMenuItem onClick={() => onCloseOthers(file.id)}>
 								Close all but this
 							</ContextMenuItem>
@@ -323,6 +329,8 @@ export function TabBar({
 							<ContextMenuItem onClick={() => onCloseToSide(file.id, "left")}>
 								Close all to the left
 							</ContextMenuItem>
+							<ContextMenuSeparator />
+							<DevContextSubmenu />
 						</ContextMenuContent>
 					</ContextMenu>
 				);

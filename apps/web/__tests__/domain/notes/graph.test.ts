@@ -73,7 +73,12 @@ describe("buildGraphData", () => {
 	test("honors explicit markdown link target ids", () => {
 		const notes = [note("a", "Alpha"), note("b", "Beta")];
 		const links: NoteLinkRow[] = [
-			{ sourceNoteId: "a", targetNoteId: "b", targetLabel: "Beta", kind: "markdown-note-link" },
+			{
+				sourceNoteId: "a",
+				targetNoteId: "b",
+				targetLabel: "Beta",
+				kind: "markdown-note-link",
+			},
 		];
 
 		const graph = buildGraphData(notes, links);
@@ -100,10 +105,25 @@ describe("buildGraphData", () => {
 	});
 
 	test("flags unlinked notes as orphans and ranks hubs by degree", () => {
-		const notes = [note("hub", "Hub"), note("a", "A"), note("b", "B"), note("lonely", "Lonely")];
+		const notes = [
+			note("hub", "Hub"),
+			note("a", "A"),
+			note("b", "B"),
+			note("lonely", "Lonely"),
+		];
 		const links: NoteLinkRow[] = [
-			{ sourceNoteId: "a", targetNoteId: "hub", targetLabel: "Hub", kind: "markdown-note-link" },
-			{ sourceNoteId: "b", targetNoteId: "hub", targetLabel: "Hub", kind: "markdown-note-link" },
+			{
+				sourceNoteId: "a",
+				targetNoteId: "hub",
+				targetLabel: "Hub",
+				kind: "markdown-note-link",
+			},
+			{
+				sourceNoteId: "b",
+				targetNoteId: "hub",
+				targetLabel: "Hub",
+				kind: "markdown-note-link",
+			},
 		];
 
 		const graph = buildGraphData(notes, links);
@@ -190,7 +210,10 @@ describe("buildGraphData person nodes", () => {
 		expect(personNodes[0].label).toBe("Ada");
 		expect(graph.metrics.personCount).toBe(1);
 		expect(
-			graph.edges.some((e) => e.kind === "person" && (e.source === "person:p1" || e.target === "person:p1")),
+			graph.edges.some(
+				(e) =>
+					e.kind === "person" && (e.source === "person:p1" || e.target === "person:p1"),
+			),
 		).toBe(true);
 	});
 });

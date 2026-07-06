@@ -51,13 +51,13 @@ feature detection.
 The drawer decides which UI to show from which methods exist. This is the key
 behavior to internalize:
 
-| Implement… | …and the UI shows |
-| :-- | :-- |
-| `signUp` | the Register tab |
-| `signInWithOAuth` (+ `providers`) | the OAuth button group |
-| `requestPasswordReset` | the forgot-password link |
-| `resetPassword` | accepts a new password in reset mode |
-| `features.magicLink` / `emailOtp` / `anonymous` | the corresponding extra flows |
+| Implement…                                      | …and the UI shows                    |
+| :---------------------------------------------- | :----------------------------------- |
+| `signUp`                                        | the Register tab                     |
+| `signInWithOAuth` (+ `providers`)               | the OAuth button group               |
+| `requestPasswordReset`                          | the forgot-password link             |
+| `resetPassword`                                 | accepts a new password in reset mode |
+| `features.magicLink` / `emailOtp` / `anonymous` | the corresponding extra flows        |
 
 Don't try to toggle these through `config`. To hide registration, omit `signUp`.
 To hide OAuth, omit `signInWithOAuth`, pass `providers: []` on the adapter
@@ -90,28 +90,32 @@ session and `signOut` defaults to a page reload.
 import { createAdapter } from "@remcostoeten/auth-drawer";
 
 export const myAdapter = createAdapter({
-  id: "my-backend",
-  providers: ["github", "google"],
-  async signIn({ email, password, rememberMe }) {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, rememberMe }),
-    });
-    if (!res.ok) {
-      // AuthUiError is a plain object — see errors.md for codes and targets
-      return {
-        success: false,
-        error: { code: "invalid_credentials", target: "form", message: "Invalid email or password." },
-      };
-    }
-    return { success: true, data: await res.json() };
-  },
-  // optional: add signUp / signInWithOAuth / requestPasswordReset to reveal more UI
-  useSession() {
-    // a real hook — wire to your session source, or omit to default to null
-    return { data: null, isPending: false, error: null };
-  },
+	id: "my-backend",
+	providers: ["github", "google"],
+	async signIn({ email, password, rememberMe }) {
+		const res = await fetch("/api/login", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ email, password, rememberMe }),
+		});
+		if (!res.ok) {
+			// AuthUiError is a plain object — see errors.md for codes and targets
+			return {
+				success: false,
+				error: {
+					code: "invalid_credentials",
+					target: "form",
+					message: "Invalid email or password.",
+				},
+			};
+		}
+		return { success: true, data: await res.json() };
+	},
+	// optional: add signUp / signInWithOAuth / requestPasswordReset to reveal more UI
+	useSession() {
+		// a real hook — wire to your session source, or omit to default to null
+		return { data: null, isPending: false, error: null };
+	},
 });
 ```
 

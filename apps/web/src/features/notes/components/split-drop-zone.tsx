@@ -2,11 +2,7 @@
 
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
-import {
-	getActiveTreeItemDrag,
-	isTreeItemDrag,
-	readDroppedFileId,
-} from "../lib/note-drag";
+import { getActiveTreeItemDrag, isTreeItemDrag, readDroppedFileId } from "../lib/note-drag";
 
 const EDGE_THRESHOLD = 0.3;
 
@@ -25,10 +21,7 @@ type Props = {
 };
 
 function isTabBarTarget(event: DragEvent): boolean {
-	return (
-		event.target instanceof Element &&
-		Boolean(event.target.closest('[role="tablist"]'))
-	);
+	return event.target instanceof Element && Boolean(event.target.closest('[role="tablist"]'));
 }
 
 function zoneOverlayClass(zone: SnapZone): string {
@@ -161,8 +154,7 @@ export function SplitDropZone({
 		const dropZone = computeZone(event);
 		updateZone(null);
 		const active = getActiveTreeItemDrag();
-		const fileId =
-			readDroppedFileId(event) ?? (active?.type === "file" ? active.id : null);
+		const fileId = readDroppedFileId(event) ?? (active?.type === "file" ? active.id : null);
 		if (!fileId) return;
 		commit(dropZone, fileId);
 	};

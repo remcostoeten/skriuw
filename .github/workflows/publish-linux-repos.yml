@@ -1,193 +1,361 @@
-name: Publish Linux Repos
+name: Publish Channels
 
-# Publishes the Linux install channels for a desktop release:
-#   - apt repo (Debian/Ubuntu) -> GitHub Pages (gh-pages branch)
-#   - AUR -bin package (Arch)  -> aur.archlinux.org
+# Publishes the install channels for a desktop release:
+#   - apt repo (Debian/Ubuntu)  -> GitHub Pages (gh-pages branch)
+#   - dnf repo (Fedora/RHEL)    -> GitHub Pages (gh-pages branch)
+#   - AUR -bin package (Arch)   -> aur.archlinux.org
+#   - Homebrew cask (macOS)     -> Casks/skriuw.rb in this repo (tap by URL)
+#   - Scoop bucket (Windows)    -> bucket/skriuw.json in this repo
+#   - winget (Windows)          -> PR to microsoft/winget-pkgs
+#   - Snap Store                -> snapcraft.io (repacked from the .deb)
 #
 # Source of truth is a *published* GitHub release for a `desktop-v*` tag (the
 # release-desktop.yml workflow drafts it; publishing it triggers this). You can
 # also run it manually against an existing tag via workflow_dispatch.
 on:
-  release:
-    types: [published]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Desktop tag to publish (e.g. desktop-v0.11.0)"
-        required: true
-        type: string
+    release:
+        types: [published]
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "Desktop tag to publish (e.g. desktop-v0.11.0)"
+                required: true
+                type: string
 
 concurrency:
-  group: publish-linux-repos
-  cancel-in-progress: false
+    group: publish-linux-repos
+    cancel-in-progress: false
 
 jobs:
-  resolve:
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.pick.outputs.tag }}
-      version: ${{ steps.pick.outputs.version }}
-    steps:
-      - name: Resolve tag/version
-        id: pick
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
-          else
-            TAG="${{ github.event.release.tag_name }}"
-          fi
-          case "$TAG" in
-            desktop-v*) ;;
-            *) echo "::error::tag '$TAG' is not a desktop-v* tag; skipping"; exit 1 ;;
-          esac
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#desktop-v}" >> "$GITHUB_OUTPUT"
+    resolve:
+        runs-on: ubuntu-latest
+        outputs:
+            tag: ${{ steps.pick.outputs.tag }}
+            version: ${{ steps.pick.outputs.version }}
+        steps:
+            - name: Resolve tag/version
+              id: pick
+              run: |
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    TAG="${{ inputs.tag }}"
+                  else
+                    TAG="${{ github.event.release.tag_name }}"
+                  fi
+                  case "$TAG" in
+                    desktop-v*) ;;
+                    *) echo "::error::tag '$TAG' is not a desktop-v* tag; skipping"; exit 1 ;;
+                  esac
+                  echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+                  echo "version=${TAG#desktop-v}" >> "$GITHUB_OUTPUT"
 
-  apt:
-    needs: resolve
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # push to gh-pages
-    steps:
-      - uses: actions/checkout@v4
+    apt:
+        needs: resolve
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write # push to gh-pages
+        steps:
+            - uses: actions/checkout@v4
 
-      # Bring the existing published repo into ./site so the package pool (every
-      # previously released .deb) is re-indexed, not clobbered. First release has
-      # no gh-pages branch yet, so this is allowed to fail.
-      - name: Restore existing gh-pages
-        continue-on-error: true
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: site
+            # Bring the existing published repo into ./site so the package pool (every
+            # previously released .deb) is re-indexed, not clobbered. First release has
+            # no gh-pages branch yet, so this is allowed to fail.
+            - name: Restore existing gh-pages
+              continue-on-error: true
+              uses: actions/checkout@v4
+              with:
+                  ref: gh-pages
+                  path: site
 
-      - name: Install repo tooling
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends dpkg-dev apt-utils gnupg
+            - name: Install repo tooling
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y --no-install-recommends dpkg-dev apt-utils gnupg createrepo-c
 
-      - name: Download .deb from release
+            - name: Download .deb and .rpm from release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  mkdir -p dist
+                  gh release download "${{ needs.resolve.outputs.tag }}" \
+                    --repo "${{ github.repository }}" \
+                    --pattern "*.deb" --pattern "*.rpm" --dir dist
+                  ls -la dist
+
+            - name: Import GPG signing key
+              id: gpg
+              env:
+                  GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+                  GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+              run: |
+                  if [ -z "${GPG_PRIVATE_KEY:-}" ]; then
+                    echo "::error::secret GPG_PRIVATE_KEY is not set"; exit 1
+                  fi
+                  export GNUPGHOME="$(mktemp -d)"
+                  echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+                  echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+                  KEY_ID="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/{print $5; exit}')"
+                  echo "key_id=$KEY_ID" >> "$GITHUB_OUTPUT"
+                  # Preload the passphrase so non-interactive signing works (no-op if unset).
+                  if [ -n "${GPG_PASSPHRASE:-}" ]; then
+                    echo "allow-loopback-pinentry" >> "$GNUPGHOME/gpg-agent.conf"
+                    echo "pinentry-mode loopback" >> "$GNUPGHOME/gpg.conf"
+                    echo "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+                      --passphrase-fd 0 --sign --output /dev/null --local-user "$KEY_ID" \
+                      "$GITHUB_WORKSPACE/LICENSE" || true
+                  fi
+
+            - name: Build apt repo
+              run: |
+                  rm -rf site/.git
+                  mkdir -p site/apt
+                  DEB="$(ls dist/*.deb | head -n1)"
+                  ./scripts/build-apt-repo.sh "site/apt" "$DEB" "${{ steps.gpg.outputs.key_id }}"
+
+            - name: Build dnf repo
+              run: |
+                  mkdir -p site/rpm
+                  RPM="$(ls dist/*.rpm | head -n1)"
+                  ./scripts/build-rpm-repo.sh "site/rpm" "$RPM" "${{ steps.gpg.outputs.key_id }}"
+
+            - name: Write landing page
+              run: |
+                  VERSION="${{ needs.resolve.outputs.version }}"
+                  cat > site/index.html <<HTML
+                  <!doctype html><meta charset="utf-8"><title>Skriuw — Linux install</title>
+                  <body style="font:16px/1.6 system-ui;max-width:46rem;margin:3rem auto;padding:0 1rem">
+                  <h1>Skriuw — Linux install</h1>
+                  <h2>Debian / Ubuntu (apt)</h2>
+                  <pre>curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
+                  echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" | sudo tee /etc/apt/sources.list.d/skriuw.list
+                  sudo apt update && sudo apt install skriuw</pre>
+                  <h2>Fedora / RHEL / openSUSE (dnf)</h2>
+                  <pre>sudo dnf config-manager addrepo --from-repofile=https://remcostoeten.github.io/skriuw/rpm/skriuw.repo
+                  sudo dnf install skriuw</pre>
+                  <h2>Arch (AUR)</h2>
+                  <pre>yay -S skriuw-bin   # or: paru -S skriuw-bin</pre>
+                  <h2>Snap</h2>
+                  <pre>sudo snap install skriuw</pre>
+                  <h2>macOS (Homebrew)</h2>
+                  <pre>brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
+                  brew install --cask skriuw</pre>
+                  <h2>Windows (winget)</h2>
+                  <pre>winget install RemcoStoeten.Skriuw</pre>
+                  <h2>Windows (Scoop)</h2>
+                  <pre>scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+                  scoop install skriuw</pre>
+                  <p>Latest: v$VERSION</p>
+                  </body>
+                  HTML
+
+            - name: Publish to GitHub Pages
+              uses: peaceiris/actions-gh-pages@v4
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  publish_dir: ./site
+                  keep_files: true
+                  commit_message: "apt: publish ${{ needs.resolve.outputs.tag }}"
+
+    # Mirrors the dora repo's AUR job: raw SSH push using the same secret names
+    # (AUR_SSH_PRIVATE_KEY + AUR_KNOWN_HOSTS), so dora's existing AUR credentials
+    # work here once those two secrets are present on this repo.
+    aur:
+        needs: resolve
+        runs-on: ubuntu-latest
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p dist
-          gh release download "${{ needs.resolve.outputs.tag }}" \
-            --repo "${{ github.repository }}" \
-            --pattern "*.deb" --dir dist
-          ls -la dist
+            AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+            AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Import GPG signing key
-        id: gpg
+            - name: Update PKGBUILD version
+              run: |
+                  set -euo pipefail
+                  VERSION="${{ needs.resolve.outputs.version }}"
+                  sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/aur/skriuw-bin/PKGBUILD
+                  sed -i "s/^pkgrel=.*/pkgrel=1/" packaging/aur/skriuw-bin/PKGBUILD
+
+            - name: Generate .SRCINFO (Arch container)
+              run: |
+                  set -euo pipefail
+                  docker run --rm \
+                    -v "$PWD/packaging/aur/skriuw-bin:/pkg" \
+                    -w /pkg \
+                    archlinux:latest \
+                    bash -c 'pacman -Syu --noconfirm --needed base-devel \
+                      && useradd -m builder \
+                      && chown -R builder:builder /pkg \
+                      && su builder -c "makepkg --printsrcinfo" > .SRCINFO'
+
+            - name: Publish to AUR
+              if: ${{ env.AUR_SSH_PRIVATE_KEY != '' && env.AUR_KNOWN_HOSTS != '' }}
+              run: |
+                  set -euo pipefail
+                  mkdir -p ~/.ssh && chmod 700 ~/.ssh
+                  printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+                  chmod 600 ~/.ssh/aur
+                  printf '%s\n' "$AUR_KNOWN_HOSTS" > ~/.ssh/known_hosts
+                  chmod 644 ~/.ssh/known_hosts
+                  export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes"
+
+                  git clone ssh://aur@aur.archlinux.org/skriuw-bin.git aur-repo
+                  cp packaging/aur/skriuw-bin/PKGBUILD aur-repo/PKGBUILD
+                  cp packaging/aur/skriuw-bin/.SRCINFO aur-repo/.SRCINFO
+
+                  cd aur-repo
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add PKGBUILD .SRCINFO
+                  if git diff --cached --quiet; then
+                    echo "AUR package already up to date."
+                    exit 0
+                  fi
+                  git commit -m "Update to ${{ needs.resolve.outputs.version }}"
+                  git push
+
+            - name: AUR key not configured
+              if: ${{ env.AUR_SSH_PRIVATE_KEY == '' || env.AUR_KNOWN_HOSTS == '' }}
+              run: echo "AUR_SSH_PRIVATE_KEY or AUR_KNOWN_HOSTS not set; generated .SRCINFO but skipped AUR push."
+
+    # In-repo package manifests, updated in a single commit to daddy:
+    #   - Homebrew cask (Casks/skriuw.rb) from the released .dmg
+    #     tap:    brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
+    #   - Scoop bucket (bucket/skriuw.json) from the released NSIS -setup.exe
+    #     bucket: scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+    # Missing artifacts (e.g. a Linux-only release) just skip that manifest.
+    # Needs no extra secrets.
+    manifests:
+        needs: resolve
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: daddy
+
+            - name: Download .dmg and -setup.exe from release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  mkdir -p dist
+                  gh release download "${{ needs.resolve.outputs.tag }}" \
+                    --repo "${{ github.repository }}" \
+                    --pattern "*.dmg" --pattern "*-setup.exe" --dir dist || true
+                  ls -la dist
+
+            - name: Update Homebrew cask
+              run: |
+                  set -euo pipefail
+                  if [ ! -f Casks/skriuw.rb ]; then
+                    echo "::warning::Casks/skriuw.rb not on daddy yet; skipping cask update"
+                    exit 0
+                  fi
+                  DMG="$(ls dist/*.dmg 2>/dev/null | head -n1 || true)"
+                  if [ -z "$DMG" ]; then
+                    echo "::warning::no .dmg on this release; skipping cask update"
+                    exit 0
+                  fi
+                  VERSION="${{ needs.resolve.outputs.version }}"
+                  SHA="$(sha256sum "$DMG" | awk '{print $1}')"
+                  sed -i -E "s/^  version \".*\"/  version \"${VERSION}\"/" Casks/skriuw.rb
+                  sed -i -E "s/^  sha256 \".*\"/  sha256 \"${SHA}\"/" Casks/skriuw.rb
+
+            - name: Update Scoop bucket
+              run: |
+                  set -euo pipefail
+                  if [ ! -f bucket/skriuw.json ]; then
+                    echo "::warning::bucket/skriuw.json not on daddy yet; skipping scoop update"
+                    exit 0
+                  fi
+                  EXE="$(ls dist/*-setup.exe 2>/dev/null | head -n1 || true)"
+                  if [ -z "$EXE" ]; then
+                    echo "::warning::no -setup.exe on this release; skipping scoop update"
+                    exit 0
+                  fi
+                  VERSION="${{ needs.resolve.outputs.version }}"
+                  SHA="$(sha256sum "$EXE" | awk '{print $1}')"
+                  URL="https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/$(basename "$EXE")"
+                  jq --arg v "$VERSION" --arg url "$URL" --arg sha "$SHA" \
+                    '.version = $v
+                     | .architecture["64bit"].url = $url
+                     | .architecture["64bit"].hash = $sha' \
+                    bucket/skriuw.json > bucket/skriuw.json.tmp
+                  mv bucket/skriuw.json.tmp bucket/skriuw.json
+
+            - name: Commit manifests
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git add Casks/skriuw.rb bucket/skriuw.json
+                  if git diff --cached --quiet; then
+                    echo "Manifests already up to date."
+                  else
+                    git commit -m "chore(manifests): brew + scoop ${{ needs.resolve.outputs.version }}"
+                    git push origin HEAD:daddy
+                  fi
+
+    # Submits a version PR to microsoft/winget-pkgs pointing at the NSIS
+    # installer on the release. Requires WINGET_TOKEN (classic PAT with
+    # public_repo) and a one-time manual submission of the first version so
+    # the RemcoStoeten.Skriuw identifier exists.
+    winget:
+        needs: resolve
+        runs-on: windows-latest
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          if [ -z "${GPG_PRIVATE_KEY:-}" ]; then
-            echo "::error::secret GPG_PRIVATE_KEY is not set"; exit 1
-          fi
-          export GNUPGHOME="$(mktemp -d)"
-          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          KEY_ID="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/{print $5; exit}')"
-          echo "key_id=$KEY_ID" >> "$GITHUB_OUTPUT"
-          # Preload the passphrase so non-interactive signing works (no-op if unset).
-          if [ -n "${GPG_PASSPHRASE:-}" ]; then
-            echo "allow-loopback-pinentry" >> "$GNUPGHOME/gpg-agent.conf"
-            echo "pinentry-mode loopback" >> "$GNUPGHOME/gpg.conf"
-            echo "$GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
-              --passphrase-fd 0 --sign --output /dev/null --local-user "$KEY_ID" \
-              "$GITHUB_WORKSPACE/LICENSE" || true
-          fi
+            WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        steps:
+            - name: Publish to winget
+              if: ${{ env.WINGET_TOKEN != '' }}
+              uses: vedantmgoyal9/winget-releaser@v2
+              with:
+                  identifier: RemcoStoeten.Skriuw
+                  version: ${{ needs.resolve.outputs.version }}
+                  release-tag: ${{ needs.resolve.outputs.tag }}
+                  installers-regex: '-setup\.exe$'
+                  token: ${{ secrets.WINGET_TOKEN }}
 
-      - name: Build apt repo
-        run: |
-          rm -rf site/.git
-          mkdir -p site/apt
-          DEB="$(ls dist/*.deb | head -n1)"
-          ./scripts/build-apt-repo.sh "site/apt" "$DEB" "${{ steps.gpg.outputs.key_id }}"
+            - name: winget token not configured
+              if: ${{ env.WINGET_TOKEN == '' }}
+              run: echo "WINGET_TOKEN not set; skipped winget submission."
 
-      - name: Write landing page
-        run: |
-          VERSION="${{ needs.resolve.outputs.version }}"
-          cat > site/index.html <<HTML
-          <!doctype html><meta charset="utf-8"><title>Skriuw — Linux install</title>
-          <body style="font:16px/1.6 system-ui;max-width:46rem;margin:3rem auto;padding:0 1rem">
-          <h1>Skriuw — Linux install</h1>
-          <h2>Debian / Ubuntu (apt)</h2>
-          <pre>curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
-          echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" | sudo tee /etc/apt/sources.list.d/skriuw.list
-          sudo apt update && sudo apt install skriuw</pre>
-          <h2>Arch (AUR)</h2>
-          <pre>yay -S skriuw-bin   # or: paru -S skriuw-bin</pre>
-          <p>Latest: v$VERSION</p>
-          </body>
-          HTML
+    # Repacks the released .deb via packaging/snap/snapcraft.yaml. The build
+    # always runs (validates the recipe); the store upload only happens when
+    # SNAPCRAFT_STORE_CREDENTIALS is set and the snap name is registered.
+    snap:
+        needs: resolve
+        runs-on: ubuntu-latest
+        env:
+            SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Publish to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
-          keep_files: true
-          commit_message: "apt: publish ${{ needs.resolve.outputs.tag }}"
+            - name: Download .deb from release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  gh release download "${{ needs.resolve.outputs.tag }}" \
+                    --repo "${{ github.repository }}" \
+                    --pattern "*amd64.deb" --dir packaging/snap
+                  mv packaging/snap/*.deb packaging/snap/skriuw.deb
 
-  # Mirrors the dora repo's AUR job: raw SSH push using the same secret names
-  # (AUR_SSH_PRIVATE_KEY + AUR_KNOWN_HOSTS), so dora's existing AUR credentials
-  # work here once those two secrets are present on this repo.
-  aur:
-    needs: resolve
-    runs-on: ubuntu-latest
-    env:
-      AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-      AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
-    steps:
-      - uses: actions/checkout@v4
+            - name: Set snap version
+              run: |
+                  sed -i "s/^version: .*/version: \"${{ needs.resolve.outputs.version }}\"/" \
+                    packaging/snap/snapcraft.yaml
 
-      - name: Update PKGBUILD version
-        run: |
-          set -euo pipefail
-          VERSION="${{ needs.resolve.outputs.version }}"
-          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/aur/skriuw-bin/PKGBUILD
-          sed -i "s/^pkgrel=.*/pkgrel=1/" packaging/aur/skriuw-bin/PKGBUILD
+            - name: Build snap
+              id: build
+              uses: snapcore/action-build@v1
+              with:
+                  path: packaging/snap
 
-      - name: Generate .SRCINFO (Arch container)
-        run: |
-          set -euo pipefail
-          docker run --rm \
-            -v "$PWD/packaging/aur/skriuw-bin:/pkg" \
-            -w /pkg \
-            archlinux:latest \
-            bash -c 'pacman -Syu --noconfirm --needed base-devel \
-              && useradd -m builder \
-              && chown -R builder:builder /pkg \
-              && su builder -c "makepkg --printsrcinfo" > .SRCINFO'
+            - name: Publish to Snap Store
+              if: ${{ env.SNAPCRAFT_STORE_CREDENTIALS != '' }}
+              uses: snapcore/action-publish@v1
+              with:
+                  snap: ${{ steps.build.outputs.snap }}
+                  release: stable
 
-      - name: Publish to AUR
-        if: ${{ env.AUR_SSH_PRIVATE_KEY != '' && env.AUR_KNOWN_HOSTS != '' }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
-          chmod 600 ~/.ssh/aur
-          printf '%s\n' "$AUR_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-          export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes"
-
-          git clone ssh://aur@aur.archlinux.org/skriuw-bin.git aur-repo
-          cp packaging/aur/skriuw-bin/PKGBUILD aur-repo/PKGBUILD
-          cp packaging/aur/skriuw-bin/.SRCINFO aur-repo/.SRCINFO
-
-          cd aur-repo
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add PKGBUILD .SRCINFO
-          if git diff --cached --quiet; then
-            echo "AUR package already up to date."
-            exit 0
-          fi
-          git commit -m "Update to ${{ needs.resolve.outputs.version }}"
-          git push
-
-      - name: AUR key not configured
-        if: ${{ env.AUR_SSH_PRIVATE_KEY == '' || env.AUR_KNOWN_HOSTS == '' }}
-        run: echo "AUR_SSH_PRIVATE_KEY or AUR_KNOWN_HOSTS not set; generated .SRCINFO but skipped AUR push."
+            - name: Snap credentials not configured
+              if: ${{ env.SNAPCRAFT_STORE_CREDENTIALS == '' }}
+              run: echo "SNAPCRAFT_STORE_CREDENTIALS not set; built the snap but skipped the store upload."

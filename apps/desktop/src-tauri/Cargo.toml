@@ -1,6 +1,6 @@
 [package]
 name = "skriuw-desktop"
-version = "0.15.2"
+version = "0.16.0"
 description = "Skriuw desktop shell (local-first)"
 authors = ["Remco Stoeten"]
 edition = "2021"
@@ -28,6 +28,7 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 # rows it creates.
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
+regex = "1"
 # Native foundation: filesystem + native dialogs (import/export, vault picker)
 # and window size/position persistence across launches.
 tauri-plugin-fs = "2"

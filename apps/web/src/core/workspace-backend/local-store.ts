@@ -196,7 +196,9 @@ async function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
 	const rebuilt = await openRequest(factory);
 	if (!rebuilt.objectStoreNames.contains(OBJECT_STORE_NAME)) {
 		rebuilt.close();
-		throw new Error(`IndexedDB "${DB_NAME}" is missing the "${OBJECT_STORE_NAME}" store after rebuild`);
+		throw new Error(
+			`IndexedDB "${DB_NAME}" is missing the "${OBJECT_STORE_NAME}" store after rebuild`,
+		);
 	}
 	return rebuilt;
 }

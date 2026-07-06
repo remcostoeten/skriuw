@@ -9,7 +9,6 @@ import "@/app/globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { AnalyticsGate } from "@/core/analytics/analytics-gate";
 import { PwaSetup } from "@/core/pwa/pwa-setup";
-
 export const metadata: Metadata = {
 	metadataBase: new URL("https://skriuw.com"),
 	title: {

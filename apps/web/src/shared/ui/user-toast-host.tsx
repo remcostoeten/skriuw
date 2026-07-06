@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/shared/lib/utils";
-import {
-	subscribeUserToast,
-	type UserToast,
-	type UserToastVariant,
-} from "@/shared/lib/user-toast";
+import { subscribeUserToast, type UserToast, type UserToastVariant } from "@/shared/lib/user-toast";
 
 const variantClass: Record<UserToastVariant, string> = {
 	success: "border-emerald-500/25 bg-emerald-500/10 text-foreground",

@@ -13,10 +13,10 @@ Add a subtle scale-down effect when buttons are pressed. A scale of 0.97 with ~1
 
 ```css
 .button {
-  background: blue;
+	background: blue;
 }
 .button:hover {
-  background: darkblue;
+	background: darkblue;
 }
 /* No tactile feedback on press */
 ```
@@ -25,14 +25,14 @@ Add a subtle scale-down effect when buttons are pressed. A scale of 0.97 with ~1
 
 ```css
 .button {
-  background: blue;
-  transition: transform 150ms ease-out;
+	background: blue;
+	transition: transform 150ms ease-out;
 }
 .button:hover {
-  background: darkblue;
+	background: darkblue;
 }
 .button:active {
-  transform: scale(0.97);
+	transform: scale(0.97);
 }
 /* Subtle but noticeable press feedback */
 ```

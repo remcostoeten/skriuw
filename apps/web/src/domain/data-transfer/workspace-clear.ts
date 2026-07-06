@@ -2,10 +2,7 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
 type WorkspaceClient = PrismaClient | Prisma.TransactionClient;
 
-export async function softClearUserWorkspace(
-	prisma: PrismaClient,
-	userId: string,
-): Promise<void> {
+export async function softClearUserWorkspace(prisma: PrismaClient, userId: string): Promise<void> {
 	const now = new Date();
 	await prisma.$transaction([
 		prisma.noteShare.updateMany({

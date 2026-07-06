@@ -25,7 +25,10 @@ export type TCollabPeer = {
 	lastActive: number | null;
 };
 
-function classify(presence: TCollabPresenceState | undefined, now: number): {
+function classify(
+	presence: TCollabPresenceState | undefined,
+	now: number,
+): {
 	status: TCollabStatusKind;
 	lastActive: number | null;
 } {

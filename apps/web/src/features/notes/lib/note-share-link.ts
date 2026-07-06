@@ -11,9 +11,7 @@ function defaultConfirm(message: string): boolean {
 	return window.confirm(message);
 }
 
-export function confirmFirstSharePublish(
-	confirm: ConfirmFn = defaultConfirm,
-): boolean {
+export function confirmFirstSharePublish(confirm: ConfirmFn = defaultConfirm): boolean {
 	return confirm(FIRST_SHARE_PUBLISH_MESSAGE);
 }
 

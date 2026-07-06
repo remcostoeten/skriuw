@@ -102,7 +102,12 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 
 	function handleTogglePublic(next: boolean) {
 		if (next) {
-			publish.mutate({ noteId, viewOnce: false, expiry: { kind: "never" }, showAuthor: false });
+			publish.mutate({
+				noteId,
+				viewOnce: false,
+				expiry: { kind: "never" },
+				showAuthor: false,
+			});
 		} else {
 			revoke.mutate(noteId);
 		}
@@ -148,7 +153,9 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 					<ArrowLeft className="h-4 w-4" strokeWidth={1.7} />
 				</button>
 				<div className="min-w-0 flex-1">
-					<h1 className="truncate text-sm font-semibold tracking-[-0.01em]">Share note</h1>
+					<h1 className="truncate text-sm font-semibold tracking-[-0.01em]">
+						Share note
+					</h1>
 				</div>
 			</header>
 
@@ -235,9 +242,15 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 									className="flex w-full items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-left text-[12px] text-warning-foreground transition-colors hover:bg-warning/15 disabled:opacity-60"
 								>
 									{refresh.isPending ? (
-										<Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.7} />
+										<Loader2
+											className="h-3.5 w-3.5 animate-spin"
+											strokeWidth={1.7}
+										/>
 									) : (
-										<RefreshCw className="h-3.5 w-3.5 shrink-0" strokeWidth={1.7} />
+										<RefreshCw
+											className="h-3.5 w-3.5 shrink-0"
+											strokeWidth={1.7}
+										/>
 									)}
 									<span>
 										This note changed since you shared it.{" "}
@@ -292,7 +305,9 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 												markDirty();
 											}}
 											placeholder={
-												share!.hasPassword ? "New password (unchanged)" : "Password"
+												share!.hasPassword
+													? "New password (unchanged)"
+													: "Password"
 											}
 											className="w-full rounded-md border border-border bg-background px-3 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/55 focus:border-foreground/30"
 										/>
@@ -381,7 +396,10 @@ export function ShareScreen({ noteId, noteName, onBack }: Props) {
 									className="inline-flex items-center gap-2 rounded-md bg-foreground px-4 py-2 text-[13px] font-medium text-background transition-transform duration-150 ease-out active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
 								>
 									{update.isPending && (
-										<Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.8} />
+										<Loader2
+											className="h-3.5 w-3.5 animate-spin"
+											strokeWidth={1.8}
+										/>
 									)}
 									{passwordMissing ? "Enter a password" : "Save changes"}
 								</button>
@@ -448,7 +466,5 @@ function ShareStatusLine({
 				: `Expires ${formatDistanceToNow(expiry, { addSuffix: true })}`,
 		);
 	}
-	return (
-		<p className="mt-2 text-[11px] text-muted-foreground/70">{parts.join(" · ")}</p>
-	);
+	return <p className="mt-2 text-[11px] text-muted-foreground/70">{parts.join(" · ")}</p>;
 }
