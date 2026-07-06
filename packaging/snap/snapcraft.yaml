@@ -1,0 +1,53 @@
+# Repackages the released .deb as a strictly-confined snap. The snap job in
+# .github/workflows/publish-linux-repos.yml downloads the .deb next to this
+# file as `skriuw.deb` and rewrites `version` before building — the values
+# here are placeholders, not a source of truth.
+name: skriuw
+base: core22
+version: "0.0.0"
+summary: A quiet writing workspace for notes, journaling, sharing, and planning
+description: |
+  Skriuw is a local-first writing workspace for notes, journaling, sharing,
+  and planning. This snap repackages the official .deb release.
+grade: stable
+confinement: strict
+license: MIT
+
+# The gnome extension provides the GTK runtime; WebKitGTK itself is staged
+# from the archive and must be bind-mounted where the loader expects it.
+layout:
+  /usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1
+
+apps:
+  skriuw:
+    command: usr/bin/skriuw
+    desktop: usr/share/applications/skriuw.desktop
+    extensions: [gnome]
+    plugs:
+      - network
+      - network-status
+      - home
+      - removable-media
+
+parts:
+  skriuw:
+    plugin: dump
+    source: skriuw.deb
+    source-type: deb
+    stage-packages:
+      - libwebkit2gtk-4.1-0
+      - libayatana-appindicator3-1
+    override-build: |
+      craftctl default
+      cd "$CRAFT_PART_INSTALL"
+      # The deb's binary/desktop/icon names follow the Tauri productName;
+      # normalize them so the `apps` section above can use fixed paths.
+      if [ ! -e usr/bin/skriuw ]; then
+        ln -s "$(ls usr/bin | head -n1)" usr/bin/skriuw
+      fi
+      ORIG_DESKTOP="$(ls usr/share/applications/*.desktop | head -n1)"
+      ICON="$(ls usr/share/icons/hicolor/128x128/apps/*.png 2>/dev/null | head -n1 || true)"
+      sed -e 's|^Exec=.*|Exec=skriuw|' \
+          -e "s|^Icon=.*|Icon=\${SNAP}/${ICON}|" \
+          "$ORIG_DESKTOP" > usr/share/applications/skriuw.desktop
