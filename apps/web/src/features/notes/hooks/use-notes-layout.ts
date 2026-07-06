@@ -22,6 +22,7 @@ import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";
 import { isGuestScopedId } from "@/domain/notes/note-id";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
 import { VIM_COMMAND_EVENT } from "@/features/editor/lib/vim-command-bus";
+import { generateNoteContent } from "@/features/notes/lib/generate-note-content";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -82,16 +83,6 @@ function sameTabList(
 		}
 	}
 	return true;
-}
-
-function generateNoteContent(name: string): string {
-	const title = name.replace(/\.md$/, "");
-	return `# ${title}
-
-#draft #idea
-
-Start writing here. Use # for tags, @ to mention notes, or /tag and /link note from the block editor.
-`;
 }
 
 type UseNotesLayoutOptions = {
