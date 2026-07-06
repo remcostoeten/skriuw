@@ -246,6 +246,10 @@ jobs:
             - name: Update Homebrew cask
               run: |
                   set -euo pipefail
+                  if [ ! -f Casks/skriuw.rb ]; then
+                    echo "::warning::Casks/skriuw.rb not on daddy yet; skipping cask update"
+                    exit 0
+                  fi
                   DMG="$(ls dist/*.dmg 2>/dev/null | head -n1 || true)"
                   if [ -z "$DMG" ]; then
                     echo "::warning::no .dmg on this release; skipping cask update"
@@ -259,6 +263,10 @@ jobs:
             - name: Update Scoop bucket
               run: |
                   set -euo pipefail
+                  if [ ! -f bucket/skriuw.json ]; then
+                    echo "::warning::bucket/skriuw.json not on daddy yet; skipping scoop update"
+                    exit 0
+                  fi
                   EXE="$(ls dist/*-setup.exe 2>/dev/null | head -n1 || true)"
                   if [ -z "$EXE" ]; then
                     echo "::warning::no -setup.exe on this release; skipping scoop update"
