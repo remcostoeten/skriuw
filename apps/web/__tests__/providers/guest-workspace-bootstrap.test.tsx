@@ -63,6 +63,8 @@ function registerModuleMocks() {
 
 	mock.module("@tanstack/react-query", () => ({
 		useQueryClient: () => makeQueryClient(),
+		useQuery: () => ({ data: undefined, isPending: false, isFetching: false }),
+		useMutation: (options: any) => options,
 	}));
 
 	// Identity merge so the test asserts the bootstrap's own wiring, not the
@@ -72,6 +74,22 @@ function registerModuleMocks() {
 			notes: mergedNotesOverride ?? notes,
 			folders,
 		}),
+		useIsGuestWorkspace: () => false,
+		useWorkspaceCapabilities: () => ({}),
+		isTauriRuntime: () => false,
+		createTauriBackend: () => ({}),
+		tauriInvoke: async () => undefined,
+		tauriChannel: () => ({}),
+		useWorkspaceBackend: () => ({}),
+		WorkspaceBackendProvider: ({ children }: { children?: unknown }) => children,
+		WorkspaceCapabilityError: class WorkspaceCapabilityError extends Error {},
+		serverBackend: {},
+		createLocalBackend: () => ({}),
+		mergeSeedWithGuestNotes: (notes: unknown) => notes,
+		mergeSeedWithGuestFolders: (folders: unknown) => folders,
+		resetGuestStorage: () => undefined,
+		GUEST_SIGNUP_PROMPT_EVENT: "guest-signup-prompt",
+		recordGuestGraphExplore: () => undefined,
 	}));
 }
 

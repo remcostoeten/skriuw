@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Awareness } from "y-protocols/awareness";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { AvatarFace } from "@/shared/icons/avatar-face";
 import { cn } from "@/shared/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
@@ -44,7 +45,7 @@ type TActivityEntry = { id: string; name: string; color: string; at: number };
  * not durable history.
  */
 function useActivityFeed(peers: TCollabPeer[]): TActivityEntry[] {
-	const seen = useRef(new Map<number, number>());
+	const seen = useLazyRef(() => new Map<number, number>());
 	const [feed, setFeed] = useState<TActivityEntry[]>([]);
 
 	useEffect(() => {

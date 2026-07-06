@@ -8,12 +8,14 @@ import { Button } from "@/shared/ui/button";
 
 type UsageFilter = "all" | "errors" | "success";
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+	dateStyle: "medium",
+	timeStyle: "short",
+});
+
 function formatDate(value: string | null) {
 	if (!value) return "Never";
-	return new Intl.DateTimeFormat(undefined, {
-		dateStyle: "medium",
-		timeStyle: "short",
-	}).format(new Date(value));
+	return DATE_FORMATTER.format(new Date(value));
 }
 
 function UsageStatusBadge({ status }: { status: string }) {

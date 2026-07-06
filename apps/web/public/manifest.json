@@ -8,9 +8,13 @@
 	"start_url": "/app?source=pwa",
 	"scope": "/",
 	"display": "standalone",
+	"display_override": ["standalone", "minimal-ui"],
+	"launch_handler": {
+		"client_mode": "navigate-existing"
+	},
 	"background_color": "#121212",
 	"theme_color": "#121212",
-	"orientation": "portrait-primary",
+	"orientation": "any",
 	"categories": ["productivity", "utilities"],
 	"icons": [
 		{

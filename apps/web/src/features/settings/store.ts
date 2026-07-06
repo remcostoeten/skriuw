@@ -1,4 +1,5 @@
 import { optIn, optOut } from "@remcostoeten/analytics";
+import { startTransition } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getUserScopeId, resolveUserScopeId, SIGNED_OUT_USER_SCOPE } from "@/core/auth";
@@ -167,10 +168,21 @@ export const usePreferencesStore = create<PreferencesState>()(
 				},
 
 				updateAppearancePreference: (key, value) => {
-					mutate((profile) => ({
-						...profile,
-						appearance: { ...profile.appearance, [key]: value },
-					}));
+					const commit = () =>
+						mutate((profile) => ({
+							...profile,
+							appearance: { ...profile.appearance, [key]: value },
+						}));
+
+					if (key === "theme") {
+						if (typeof document !== "undefined") {
+							document.documentElement.dataset.themeSwitching = "true";
+						}
+						startTransition(commit);
+						return;
+					}
+
+					commit();
 				},
 
 				updateProfilePreference: (key, value) => {

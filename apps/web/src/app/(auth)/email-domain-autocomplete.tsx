@@ -97,9 +97,11 @@ export function EmailDomainAutocomplete({
 
 	const isOpen = isFocused && suggestions.length > 0;
 
-	useEffect(() => {
+	const [prevQuery, setPrevQuery] = useState(query);
+	if (query !== prevQuery) {
+		setPrevQuery(query);
 		setActiveIndex(0);
-	}, [query]);
+	}
 
 	useEffect(() => {
 		return () => {

@@ -14,7 +14,7 @@ import {
 } from "react";
 import type { CreateFolderInput } from "@/domain/folders/actions";
 import { collectFolderSubtreeIds } from "@/domain/folders/traversal";
-import type { CreateNoteInput } from "@/domain/notes/actions";
+import type { CreateNoteInput } from "@/domain/notes/note-write-core";
 import { NOTE_PROPERTY_TEMPLATES } from "@/domain/notes/properties";
 import { NOTE_TEMPLATES, getNoteTemplate } from "@/domain/notes/templates";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
@@ -189,7 +189,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		setFileSaveState,
 		clearFileSaveState,
 	});
-	const metadataFiles = notesQuery.data ?? [];
+	const metadataFiles = useMemo(() => notesQuery.data ?? [], [notesQuery.data]);
 	const activeNote = activeNoteQuery.isPlaceholderData ? null : (activeNoteQuery.data ?? null);
 	const secondaryNote = secondaryNoteQuery.isPlaceholderData
 		? null
@@ -1307,7 +1307,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				handleFocusMetadata();
 				break;
 			case "help":
-				handleOpenShortcutHelp();
+				if (!isMobile) handleOpenShortcutHelp();
 				break;
 			default:
 				break;
@@ -1323,6 +1323,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleOpenShortcutHelp,
 		handleToggleMetadata,
 		handleToggleSidebar,
+		isMobile,
 		router,
 		searchParams,
 		setUIState,
@@ -1576,7 +1577,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			}
 
 			if (results.length < RECENT_DEFAULT_LIMIT) {
-				const byModified = [...metadataFiles].sort(
+				const byModified = metadataFiles.toSorted(
 					(a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime(),
 				);
 				for (const file of byModified) {
@@ -1660,12 +1661,15 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		}, [noteCommandItems, templateCommandItems]),
 	);
 
-	// The sidebar + main layout only need the notes metadata and folder lists,
-	// which are prefetched on the server. They MUST NOT depend on the active
-	// note query — otherwise clicking another note flips this to `false` while
-	// the new note is fetched, replacing the whole UI with skeletons.
-	const hasSidebarData = notesQuery.data !== undefined && foldersQuery.data !== undefined;
-	const isEditorReady = hasSidebarData || (!notesQuery.isPending && !foldersQuery.isPending);
+	// The main layout only needs the notes metadata, not folders (those only
+	// feed the sidebar tree, which has its own independent loading state).
+	// This MUST NOT depend on the active note query — otherwise clicking
+	// another note flips this to `false` while the new note is fetched,
+	// replacing the whole UI with skeletons. It also MUST NOT depend on
+	// foldersQuery — folders lack the notes query's warm local-first cache,
+	// so waiting on them stalls the editor/metadata skeleton behind the
+	// already-populated file list, producing two visibly staggered loaders.
+	const isEditorReady = notesQuery.data !== undefined || !notesQuery.isPending;
 	// Separate flag for "we're swapping to a note whose content has never
 	// been fetched". `activeNote` is null only while the detail query has no
 	// data for the selected id (true first fetch); cached or prefetched notes

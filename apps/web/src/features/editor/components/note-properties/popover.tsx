@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
 
@@ -91,43 +91,47 @@ export function NotePropertiesPopover({
 	}, [open]);
 
 	return (
-		<div ref={ref} className={cn("relative inline-flex", wrapperClassName)}>
-			{trigger({ open, toggle: () => setOpen((value) => !value) })}
-			<AnimatePresence>
-				{open ? (
-					<motion.div
-						initial={
-							prefersReducedMotion
-								? { opacity: 0 }
-								: { opacity: 0, scale: 0.96, y: -4 }
-						}
-						animate={
-							prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }
-						}
-						exit={
-							prefersReducedMotion
-								? { opacity: 0 }
-								: { opacity: 0, scale: 0.98, y: -2 }
-						}
-						transition={{
-							duration: prefersReducedMotion ? 0.1 : 0.15,
-							ease: [0.16, 1, 0.3, 1],
-						}}
-						className={cn(
-							"absolute top-[calc(100%+6px)] z-50 origin-top-left will-change-[opacity,transform]",
-							align === "end" ? "right-0 origin-top-right" : "left-0",
-							className,
-						)}
-					>
-						<div
-							data-popover-content
-							className="rounded-lg border border-border bg-popover text-popover-foreground shadow-xl shadow-black/40"
+		<LazyMotion features={domAnimation} strict>
+			<div ref={ref} className={cn("relative inline-flex", wrapperClassName)}>
+				{trigger({ open, toggle: () => setOpen((value) => !value) })}
+				<AnimatePresence>
+					{open ? (
+						<m.div
+							initial={
+								prefersReducedMotion
+									? { opacity: 0 }
+									: { opacity: 0, scale: 0.96, y: -4 }
+							}
+							animate={
+								prefersReducedMotion
+									? { opacity: 1 }
+									: { opacity: 1, scale: 1, y: 0 }
+							}
+							exit={
+								prefersReducedMotion
+									? { opacity: 0 }
+									: { opacity: 0, scale: 0.98, y: -2 }
+							}
+							transition={{
+								duration: prefersReducedMotion ? 0.1 : 0.15,
+								ease: [0.16, 1, 0.3, 1],
+							}}
+							className={cn(
+								"absolute top-[calc(100%+6px)] z-50 origin-top-left will-change-[opacity,transform]",
+								align === "end" ? "right-0 origin-top-right" : "left-0",
+								className,
+							)}
 						>
-							{children({ close })}
-						</div>
-					</motion.div>
-				) : null}
-			</AnimatePresence>
-		</div>
+							<div
+								data-popover-content
+								className="rounded-lg border border-border bg-popover text-popover-foreground shadow-xl shadow-black/40"
+							>
+								{children({ close })}
+							</div>
+						</m.div>
+					) : null}
+				</AnimatePresence>
+			</div>
+		</LazyMotion>
 	);
 }

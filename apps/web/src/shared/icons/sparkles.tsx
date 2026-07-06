@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useImperativeHandle } from "react";
-import { motion, useAnimate } from "framer-motion";
+import { domAnimation, LazyMotion, m, useAnimate } from "framer-motion";
 
 import type { AnimatedIconHandle, AnimatedIconProps } from "./types";
 
@@ -49,38 +49,40 @@ const SparklesIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
 		}));
 
 		return (
-			<motion.svg
-				ref={scope}
-				onHoverStart={start}
-				onHoverEnd={stop}
-				xmlns="http://www.w3.org/2000/svg"
-				width={size}
-				height={size}
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke={color}
-				strokeWidth={strokeWidth}
-				strokeLinecap="round"
-				strokeLinejoin="round"
-				className={`cursor-pointer ${className}`}
-				style={{ overflow: "visible" }}
-			>
-				<motion.path
-					className="sparkle-bottom"
-					d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2z"
-					style={{ transformOrigin: "18px 18px" }}
-				/>
-				<motion.path
-					className="sparkle-top"
-					d="M16 6a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2z"
-					style={{ transformOrigin: "18px 6px" }}
-				/>
-				<motion.path
-					className="sparkle-main"
-					d="M9 18a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z"
-					style={{ transformOrigin: "9px 12px" }}
-				/>
-			</motion.svg>
+			<LazyMotion features={domAnimation} strict>
+				<m.svg
+					ref={scope}
+					onHoverStart={start}
+					onHoverEnd={stop}
+					xmlns="http://www.w3.org/2000/svg"
+					width={size}
+					height={size}
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke={color}
+					strokeWidth={strokeWidth}
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					className={`cursor-pointer ${className}`}
+					style={{ overflow: "visible" }}
+				>
+					<m.path
+						className="sparkle-bottom"
+						d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2z"
+						style={{ transformOrigin: "18px 18px" }}
+					/>
+					<m.path
+						className="sparkle-top"
+						d="M16 6a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2z"
+						style={{ transformOrigin: "18px 6px" }}
+					/>
+					<m.path
+						className="sparkle-main"
+						d="M9 18a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z"
+						style={{ transformOrigin: "9px 12px" }}
+					/>
+				</m.svg>
+			</LazyMotion>
 		);
 	},
 );

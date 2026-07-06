@@ -51,8 +51,11 @@ export function WorkspaceWarmup() {
 		let cancelled = false;
 
 		const pending = files
-			.map((file) => file.id)
-			.filter((id) => id && queryClient.getQueryData(notesKeys.detail(id)) === undefined)
+			.flatMap((file) =>
+				file.id && queryClient.getQueryData(notesKeys.detail(file.id)) === undefined
+					? [file.id]
+					: [],
+			)
 			.slice(0, MAX_WARMUP_NOTES);
 
 		const cancelIdle = scheduleIdle(() => {
@@ -62,10 +65,14 @@ export function WorkspaceWarmup() {
 			// just falls back to loading on first mount.
 			void import("@/features/editor/components/rich-text-editor").catch(() => {});
 
-			void (async () => {
-				for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+			const chunks: string[][] = [];
+			for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+				chunks.push(pending.slice(i, i + BATCH_SIZE));
+			}
+
+			void Promise.all(
+				chunks.map(async (batch) => {
 					if (cancelled) return;
-					const batch = pending.slice(i, i + BATCH_SIZE);
 					// One batched fetch for the whole chunk instead of N round-trips.
 					// Routed through the active workspace backend (server / local /
 					// tauri) so desktop never reaches the cloud server actions.
@@ -76,8 +83,8 @@ export function WorkspaceWarmup() {
 					for (const note of notes) {
 						queryClient.setQueryData(notesKeys.detail(note.id), note);
 					}
-				}
-			})();
+				}),
+			);
 		});
 
 		return () => {

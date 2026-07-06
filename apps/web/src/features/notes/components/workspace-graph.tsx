@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Waypoints } from "lucide-react";
 import { useAuth } from "@/core/auth/use-auth";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { recordGuestGraphExplore } from "@/core/workspace-backend";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
@@ -41,8 +42,10 @@ function nodeColor(node: GraphNode): string {
 	return CLUSTER_COLORS[node.cluster % CLUSTER_COLORS.length];
 }
 
-function nodeRadius(node: GraphNode): number {
-	return 3 + Math.min(9, Math.sqrt(node.degree) * 2.2);
+function nodeRadius(node: GraphNode, mobile = false): number {
+	const base = 3 + Math.min(9, Math.sqrt(node.degree) * 2.2);
+	// Larger nodes on touch screens give a bigger hit area for thumbs.
+	return mobile ? base * 1.4 : base;
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -82,6 +85,7 @@ type GraphCanvasProps = {
 	onOpenTag: (name: string) => void;
 	onOpenPerson: (id: string) => void;
 	onExploreNote?: (id: string) => void;
+	isMobile: boolean;
 };
 
 function GraphCanvas({
@@ -90,6 +94,7 @@ function GraphCanvas({
 	onOpenTag,
 	onOpenPerson,
 	onExploreNote,
+	isMobile,
 }: GraphCanvasProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	// biome-ignore lint/suspicious/noExplicitAny: react-force-graph-2d has no exported ref type
@@ -196,9 +201,9 @@ function GraphCanvas({
 	const handleEngineStop = useCallback(() => {
 		if (!hasFitRef.current) {
 			hasFitRef.current = true;
-			graphRef.current?.zoomToFit(600, 80);
+			graphRef.current?.zoomToFit(600, isMobile ? 32 : 80);
 		}
-	}, []);
+	}, [isMobile]);
 
 	const getNodeColor = useCallback((node: GraphNode): string => {
 		const hovered = hoveredIdRef.current;
@@ -254,7 +259,7 @@ function GraphCanvas({
 			const typed = node as GraphNode & { x?: number; y?: number };
 			if (typed.x === undefined || typed.y === undefined) return;
 
-			const r = nodeRadius(typed);
+			const r = nodeRadius(typed, isMobile);
 			const color = getNodeColor(typed);
 			const hovered = hoveredIdRef.current;
 			const isHovered = typed.id === hovered;
@@ -319,14 +324,17 @@ function GraphCanvas({
 				ctx.fillText(typed.label, typed.x, typed.y + r + 2);
 			}
 		},
-		[getNodeColor],
+		[getNodeColor, isMobile],
 	);
 
 	return (
 		<div
 			ref={containerRef}
-			className="relative h-full w-full"
-			style={{ cursor: hoveredId ? "pointer" : undefined }}
+			className="relative h-full w-full [&_canvas]:touch-none"
+			style={{
+				cursor: hoveredId ? "pointer" : undefined,
+				overscrollBehavior: "none",
+			}}
 		>
 			{size.width > 0 && (
 				<ForceGraph2D
@@ -336,7 +344,7 @@ function GraphCanvas({
 					graphData={graphData}
 					backgroundColor="transparent"
 					nodeRelSize={1}
-					nodeVal={(node) => nodeRadius(node as GraphNode) ** 2}
+					nodeVal={(node) => nodeRadius(node as GraphNode, isMobile) ** 2}
 					nodeColor={(node) => getNodeColor(node as GraphNode)}
 					nodeLabel={(node) => {
 						const typed = node as GraphNode;
@@ -412,13 +420,47 @@ function MetricsOverlay({
 	onOpenNote,
 	visible,
 	onToggleType,
+	isMobile,
 }: {
 	data: GraphData;
 	onOpenNote: (id: string) => void;
 	visible: NodeTypeVisibility;
 	onToggleType: (type: GraphNodeType) => void;
+	isMobile: boolean;
 }) {
 	const { metrics } = data;
+
+	if (isMobile) {
+		return (
+			<div
+				className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center px-3"
+				style={{
+					paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
+					paddingLeft: "calc(env(safe-area-inset-left) + 0.75rem)",
+					paddingRight: "calc(env(safe-area-inset-right) + 0.75rem)",
+				}}
+			>
+				<div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-card/90 p-1.5 backdrop-blur">
+					{NODE_TYPE_FILTERS.map((filter) => (
+						<button
+							key={filter.type}
+							type="button"
+							aria-pressed={visible[filter.type]}
+							onClick={() => onToggleType(filter.type)}
+							className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full px-4 text-sm transition-colors ${
+								visible[filter.type]
+									? "bg-muted text-foreground"
+									: "text-muted-foreground"
+							}`}
+						>
+							{filter.label}
+						</button>
+					))}
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="pointer-events-none absolute left-4 top-4 z-10 flex w-64 max-w-[calc(100%-2rem)] flex-col gap-4">
 			<div className="pointer-events-auto border border-border bg-card/90 p-4 backdrop-blur">
@@ -517,6 +559,7 @@ const GUEST_WELCOME_NOTE_ID = "guest:note-welcome";
 export function WorkspaceGraph() {
 	const router = useRouter();
 	const auth = useAuth();
+	const isMobile = useIsMobile();
 	const query = useNoteGraph();
 	const isGuest = auth.isReady && auth.phase !== "authenticated";
 	const [visible, setVisible] = useState<NodeTypeVisibility>({
@@ -585,6 +628,7 @@ export function WorkspaceGraph() {
 								onOpenNote={openNote}
 								visible={visible}
 								onToggleType={toggleType}
+								isMobile={isMobile}
 							/>
 							<GraphCanvas
 								data={data!}
@@ -592,6 +636,7 @@ export function WorkspaceGraph() {
 								onOpenTag={openTag}
 								onOpenPerson={openPerson}
 								onExploreNote={handleExploreNote}
+								isMobile={isMobile}
 							/>
 						</>
 					)}

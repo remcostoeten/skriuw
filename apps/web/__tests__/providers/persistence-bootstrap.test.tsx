@@ -71,6 +71,7 @@ function registerModuleMocks() {
 	}));
 
 	mock.module("@/features/notes/store", () => ({
+		applyFolderUiState: (folders: unknown[]) => folders,
 		useNotesStore: {
 			getState: () => ({
 				resetUi: resetNotesUi,
@@ -79,13 +80,15 @@ function registerModuleMocks() {
 		},
 	}));
 
-	mock.module("@/features/settings/store", () => ({
-		usePreferencesStore: {
-			getState: () => ({
-				syncUserScope: syncPreferencesActor,
-			}),
-		},
-	}));
+	mock.module("@/features/settings/store", () => {
+		const state = { syncUserScope: syncPreferencesActor };
+		return {
+			usePreferencesStore: Object.assign(
+				(selector: (state: unknown) => unknown) => selector(state),
+				{ getState: () => state },
+			),
+		};
+	});
 
 	mock.module("@/features/notes/components/sidebar/store", () => ({
 		useSidebarStore: {

@@ -59,11 +59,11 @@ export function useNoteCleanupScan() {
 				: (queryClient.getQueryData<NoteFile[]>(filesKey) ?? []);
 			const ids = metadata.map((note) => note.id);
 
-			const notes: NoteFile[] = [];
-			for (const idChunk of chunk(ids, NOTE_FETCH_CHUNK_SIZE)) {
-				const rows = await backend.getNotes(idChunk);
-				notes.push(...rows);
-			}
+			const idChunks = chunk(ids, NOTE_FETCH_CHUNK_SIZE);
+			const chunkRows = await Promise.all(
+				idChunks.map((idChunk) => backend.getNotes(idChunk)),
+			);
+			const notes: NoteFile[] = chunkRows.flat();
 
 			const scanResult = findCleanupCandidates(notes);
 			await settle();

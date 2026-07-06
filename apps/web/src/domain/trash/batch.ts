@@ -63,8 +63,8 @@ export function resolveBatchMembers(
 	if (!folders.some((folder) => folder.id === parsed.id)) {
 		return { folderIds: [], noteIds: [] };
 	}
-	const noteIds = notes
-		.filter((note) => note.parentId && folderIds.has(note.parentId))
-		.map((note) => note.id);
+	const noteIds = notes.flatMap((note) =>
+		note.parentId && folderIds.has(note.parentId) ? [note.id] : [],
+	);
 	return { folderIds: [...folderIds], noteIds };
 }

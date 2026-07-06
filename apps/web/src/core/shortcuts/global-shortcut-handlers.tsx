@@ -8,7 +8,7 @@ import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { buildNoteUrl } from "@/features/notes/hooks/use-notes-navigation";
 import { generateNoteContent } from "@/features/notes/lib/generate-note-content";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
-import type { CreateNoteInput } from "@/domain/notes/actions";
+import type { CreateNoteInput } from "@/domain/notes/note-write-core";
 import type { NoteFile } from "@/types/notes";
 import { SCOPES } from "./scopes";
 import { useShortcutScope } from "./provider";

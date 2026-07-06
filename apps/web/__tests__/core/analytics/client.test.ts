@@ -13,11 +13,17 @@ mock.module("@/core/auth", () => ({
 	SIGNED_OUT_USER_SCOPE: "signed-out-local",
 }));
 
-mock.module("@/features/settings/store", () => ({
-	usePreferencesStore: {
-		getState: () => ({ privacy: { analyticsEnabled: false } }),
-	},
-}));
+mock.module("@/features/settings/store", () => {
+	const state = { privacy: { analyticsEnabled: false } };
+	return {
+		usePreferencesStore: Object.assign(
+			(selector: (state: unknown) => unknown) => selector(state),
+			{
+				getState: () => state,
+			},
+		),
+	};
+});
 
 const { hasProductAnalyticsConsent, isGuestVisitor, resolveAnalyticsConsent } =
 	await import("@/core/analytics/client");

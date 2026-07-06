@@ -11,6 +11,8 @@
 @import "./themes/embers.css";
 @import "./themes/mocha.css";
 @import "./themes/rose-pine.css";
+@import "./themes/rose-pine-dawn.css";
+@import "./themes/catppuccin-latte.css";
 @import "./themes/gruvbox.css";
 @import "./themes/tokyo-night.css";
 
@@ -221,6 +223,35 @@
 	color: hsl(var(--theme-text-secondary));
 }
 
+@utility pt-safe {
+	padding-top: env(safe-area-inset-top);
+}
+
+@utility pb-safe {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility pl-safe {
+	padding-left: env(safe-area-inset-left);
+}
+
+@utility pr-safe {
+	padding-right: env(safe-area-inset-right);
+}
+
+@utility min-h-dvh-safe {
+	min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
+@utility momentum-scroll {
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
+}
+
+@utility no-ios-zoom {
+	font-size: max(16px, 1em);
+}
+
 @layer base {
 	html,
 	body {
@@ -302,6 +333,14 @@
 		overscroll-behavior: none;
 		text-rendering: optimizeLegibility;
 		-webkit-tap-highlight-color: transparent;
+	}
+
+	html[data-theme-switching],
+	html[data-theme-switching] *,
+	html[data-theme-switching] *::before,
+	html[data-theme-switching] *::after {
+		animation: none !important;
+		transition-property: none !important;
 	}
 
 	.settings-focus-flash {

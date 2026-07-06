@@ -187,31 +187,24 @@ export async function importArchiveToBackend(
 			sortOrder: folder.sortOrder,
 		});
 	}
-	for (const note of notes) {
-		await backend.createNote(note);
-	}
-	for (const entry of journalEntries) {
-		await backend.createJournalEntry(entry);
-	}
+	await Promise.all(notes.map((note) => backend.createNote(note)));
+	await Promise.all(journalEntries.map((entry) => backend.createJournalEntry(entry)));
 
 	const existing = (await backend.listJournalTags?.()) ?? [];
 	const existingNames = new Set(existing.map((tag) => tag.name));
-	let createdTags = 0;
-	for (const tag of journalTags) {
-		if (existingNames.has(tag.name)) continue;
-		await backend.createJournalTag(tag);
-		createdTags += 1;
-	}
+	const tagsToCreate = journalTags.filter((tag) => !existingNames.has(tag.name));
+	await Promise.all(tagsToCreate.map((tag) => backend.createJournalTag(tag)));
+	const createdTags = tagsToCreate.length;
 
-	for (const id of deletedIds.notes) await backend.deleteNote(id);
+	await Promise.all(deletedIds.notes.map((id) => backend.deleteNote(id)));
 	for (const id of deletedIds.folders) await backend.deleteFolder(id);
-	for (const id of deletedIds.journalEntries) await backend.deleteJournalEntry(id);
+	await Promise.all(deletedIds.journalEntries.map((id) => backend.deleteJournalEntry(id)));
 	if (deletedIds.journalTagNames.length > 0) {
 		const tagIdByName = new Map(existing.map((tag) => [tag.name, tag.id]));
-		for (const name of deletedIds.journalTagNames) {
-			const id = tagIdByName.get(name);
-			if (id) await backend.deleteJournalTag(id);
-		}
+		const idsToDelete = deletedIds.journalTagNames
+			.map((name) => tagIdByName.get(name))
+			.filter((id): id is string => Boolean(id));
+		await Promise.all(idsToDelete.map((id) => backend.deleteJournalTag(id)));
 	}
 
 	return {

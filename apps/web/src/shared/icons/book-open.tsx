@@ -1,126 +1,86 @@
 "use client";
 
-import type { Variants } from "framer-motion";
-import { LazyMotion, domMin, m, useAnimation, useReducedMotion } from "framer-motion";
-import { forwardRef, useCallback, useImperativeHandle, useRef, type HTMLAttributes } from "react";
+import { forwardRef, useImperativeHandle } from "react";
+import { domAnimation, LazyMotion, m, useAnimate } from "framer-motion";
 
-import { cn } from "@/shared/lib/utils";
+import type { AnimatedIconHandle, AnimatedIconProps } from "./types";
+import { scaledStrokeWidth } from "./types";
 
-export interface BookOpenIconHandle {
-	startAnimation: () => void;
-	stopAnimation: () => void;
-}
+const BookOpenIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
+	({ size = 24, color = "currentColor", strokeWidth = 2, className = "" }, ref) => {
+		const [scope, animate] = useAnimate();
 
-type BookOpenIconProps = Omit<
-	HTMLAttributes<HTMLDivElement>,
-	| "color"
-	| "onDrag"
-	| "onDragStart"
-	| "onDragEnd"
-	| "onAnimationStart"
-	| "onAnimationEnd"
-	| "onAnimationIteration"
-> & {
-	size?: number;
-	duration?: number;
-	isAnimated?: boolean;
-	color?: string;
-};
+		const start = async () => {
+			await animate(".book-line", { pathLength: 0, opacity: 0 }, { duration: 0 });
 
-const BookOpenIcon = forwardRef<BookOpenIconHandle, BookOpenIconProps>(
-	(
-		{
-			onMouseEnter,
-			onMouseLeave,
-			className,
-			size = 24,
-			duration = 1,
-			isAnimated = true,
-			color,
-			...props
-		},
-		ref,
-	) => {
-		const controls = useAnimation();
-		const reduced = useReducedMotion();
-		const isControlled = useRef(false);
+			await animate(
+				".book-line-1",
+				{ pathLength: [0, 1], opacity: [0, 1] },
+				{ duration: 0.3, ease: "easeInOut", delay: 0.1 },
+			);
 
-		useImperativeHandle(ref, () => {
-			isControlled.current = true;
-			return {
-				startAnimation: () =>
-					reduced ? controls.start("normal") : controls.start("animate"),
-				stopAnimation: () => controls.start("normal"),
-			};
-		});
+			await animate(
+				".book-line-2",
+				{ pathLength: [0, 1], opacity: [0, 1] },
+				{ duration: 0.3, ease: "easeInOut", delay: 0.05 },
+			);
 
-		const handleEnter = useCallback(
-			(e: React.MouseEvent<HTMLDivElement>) => {
-				if (!isAnimated || reduced) return;
-				if (!isControlled.current) controls.start("animate");
-				else onMouseEnter?.(e);
-			},
-			[controls, reduced, isAnimated, onMouseEnter],
-		);
-
-		const handleLeave = useCallback(
-			(e: React.MouseEvent<HTMLDivElement>) => {
-				if (!isControlled.current) controls.start("normal");
-				else onMouseLeave?.(e);
-			},
-			[controls, onMouseLeave],
-		);
-
-		const svgVariants: Variants = {
-			normal: { rotate: 0 },
-			animate: {
-				rotate: [0, -4, 4, -2, 0],
-				transition: { duration: 0.7 * duration, ease: "easeInOut", repeat: 0 },
-			},
+			await animate(
+				".book-line-3",
+				{ pathLength: [0, 1], opacity: [0, 1] },
+				{ duration: 0.3, ease: "easeInOut", delay: 0.05 },
+			);
 		};
 
-		const spineVariants: Variants = {
-			normal: { scaleY: 1 },
-			animate: {
-				scaleY: [1, 0.85, 1],
-				transition: { duration: 0.5 * duration, ease: "easeInOut", repeat: 0 },
-			},
+		const stop = () => {
+			animate(".book-line", { pathLength: 1, opacity: 1 }, { duration: 0.2 });
 		};
+
+		useImperativeHandle(ref, () => ({
+			startAnimation: start,
+			stopAnimation: stop,
+		}));
 
 		return (
-			<LazyMotion features={domMin} strict>
-				<m.div
-					className={cn("inline-flex items-center justify-center", className)}
-					onMouseEnter={handleEnter}
-					onMouseLeave={handleLeave}
-					{...props}
-					style={{ color, ...props.style }}
+			<LazyMotion features={domAnimation} strict>
+				<m.svg
+					ref={scope}
+					onHoverStart={start}
+					onHoverEnd={stop}
+					xmlns="http://www.w3.org/2000/svg"
+					width={size}
+					height={size}
+					viewBox="0 0 48 48"
+					fill="none"
+					stroke={color}
+					strokeWidth={scaledStrokeWidth(strokeWidth, 48)}
+					strokeMiterlimit="10"
+					strokeLinecap="square"
+					className={`cursor-pointer ${className}`}
 				>
-					<m.svg
-						xmlns="http://www.w3.org/2000/svg"
-						width={size}
-						height={size}
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						animate={controls}
-						initial="normal"
-						variants={svgVariants}
-						style={{ transformOrigin: "12px 12px" }}
-					>
-						<path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
-						<m.path
-							d="M12 7v14"
-							variants={spineVariants}
-							animate={controls}
-							initial="normal"
-							style={{ transformBox: "fill-box", transformOrigin: "center" }}
-						/>
-					</m.svg>
-				</m.div>
+					<m.path className="book-spine" d="M24 40.5V41L24 10V10.5" />
+
+					<m.path
+						className="book-cover"
+						style={{ transformOrigin: "24px 25px" }}
+						d="M24 41C31.0005 36.9995 37.9995 36.9995 45 41V10.0003C37.9995 5.99989 31.0005 5.99989 24 10.0003C16.9995 5.99989 10.0005 5.99989 3 10.0003V41C10.0005 36.9995 16.9995 36.9995 24 41Z"
+					/>
+
+					<m.path
+						className="book-line book-line-1"
+						d="M30 16.5C32.8362 15.1345 36.5662 15.06 39.5 16.2763"
+					/>
+
+					<m.path
+						className="book-line book-line-2"
+						d="M30 23.5832C32.8362 22.2178 36.5662 22.1432 39.5 23.3596"
+					/>
+
+					<m.path
+						className="book-line book-line-3"
+						d="M30 30.6665C32.8362 29.301 36.5662 29.2265 39.5 30.4428"
+					/>
+				</m.svg>
 			</LazyMotion>
 		);
 	},

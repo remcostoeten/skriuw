@@ -36,7 +36,7 @@ export function PrivacySection() {
 					<Row
 						focusId="usage-analytics"
 						title="Usage analytics"
-						description="Anonymous page views and product events while you browse. On by default for accounts — turn off to opt out. No note content, no cookies. Sign-in events are recorded separately on the server."
+						description="Tracked: anonymous page views and product events like note creation and sharing. On by default for accounts — turn off to opt out. No note content, no cookies. Sign-in events are recorded separately on the server."
 					>
 						<Switch
 							checked={analyticsEnabled}

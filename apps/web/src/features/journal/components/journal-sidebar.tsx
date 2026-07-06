@@ -91,6 +91,14 @@ const JournalStats = dynamic(
 
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
+const JOURNAL_TABS = [
+	{ id: "calendar" as const, label: "Calendar", icon: CalendarDays },
+	{ id: "stats" as const, label: "Stats", icon: BarChart3 },
+	{ id: "search" as const, label: "Search", icon: Search },
+	{ id: "all" as const, label: "All entries", icon: Clock },
+	{ id: "tags" as const, label: "Tags", icon: Tag },
+];
+
 type JournalSidebarProps = {
 	selectedDate: Date;
 	onSelectDate: (date: Date) => void;
@@ -125,7 +133,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 	}, [currentMonth]);
 
 	const allEntriesSorted = useMemo(() => {
-		return [...entries].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+		return entries.toSorted((a, b) => b.dateKey.localeCompare(a.dateKey));
 	}, [entries]);
 
 	const filteredEntries = useMemo(() => {
@@ -209,19 +217,12 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 		setRenamingId(null);
 	};
 
-	const journalTabs = [
-		{ id: "calendar" as const, label: "Calendar", icon: CalendarDays },
-		{ id: "stats" as const, label: "Stats", icon: BarChart3 },
-		{ id: "search" as const, label: "Search", icon: Search },
-		{ id: "all" as const, label: "All entries", icon: Clock },
-		{ id: "tags" as const, label: "Tags", icon: Tag },
-	];
-
 	return (
 		<div className={cn("flex h-full w-full shrink-0 flex-col bg-background", className)}>
 			<div className="flex h-11 items-center justify-between border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
 				<h2 className="text-sm font-semibold text-foreground">Journal</h2>
 				<button
+					type="button"
 					onClick={goToToday}
 					className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
 					title="Go to today"
@@ -237,8 +238,9 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 				aria-label="Journal sidebar views"
 				className="flex h-11 items-center border-b border-border px-2"
 			>
-				{journalTabs.map((tab) => (
+				{JOURNAL_TABS.map((tab) => (
 					<button
+						type="button"
 						key={tab.id}
 						onClick={() => setView(tab.id)}
 						role="tab"
@@ -263,6 +265,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 						{/* Jump controls */}
 						<div className="mb-2 flex items-center gap-1.5">
 							<button
+								type="button"
 								onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
 								className="flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 								aria-label="Previous month"
@@ -270,6 +273,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 								<ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
 							</button>
 							<button
+								type="button"
 								onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
 								className="flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 								aria-label="Next month"
@@ -277,6 +281,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 								<ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
 							</button>
 							<button
+								type="button"
 								onClick={goToToday}
 								className="ml-1 flex h-7 items-center rounded-md border border-border/70 bg-background px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 							>
@@ -341,6 +346,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 
 								return (
 									<button
+										type="button"
 										key={dateKey}
 										onClick={() => onSelectDate(day)}
 										className={cn(
@@ -420,6 +426,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 											<ContextMenu key={entry.id}>
 												<ContextMenuTrigger asChild>
 													<button
+														type="button"
 														onClick={() => {
 															const [y, m, d] = entry.dateKey
 																.split("-")
@@ -497,6 +504,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 							/>
 							{searchQuery && (
 								<button
+									type="button"
 									onClick={() => setSearchQuery("")}
 									className="absolute right-2.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center border border-transparent text-muted-foreground/50 transition-colors hover:border-border hover:bg-muted hover:text-foreground md:h-4 md:w-4"
 								>
@@ -518,6 +526,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 										entry.dateKey === format(selectedDate, "yyyy-MM-dd");
 									return (
 										<button
+											type="button"
 											key={entry.id}
 											onClick={() => {
 												const [y, m, d] = entry.dateKey
@@ -575,6 +584,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 									entry.dateKey === format(selectedDate, "yyyy-MM-dd");
 								return (
 									<button
+										type="button"
 										key={entry.id}
 										onClick={() => {
 											const [y, m, d] = entry.dateKey.split("-").map(Number);
@@ -637,6 +647,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 											<div className="mt-1.5 space-y-0.5 pl-[18px]">
 												{tagEntries.slice(0, 3).map((entry) => (
 													<button
+														type="button"
 														key={entry.id}
 														onClick={() => {
 															const [y, m, d] = entry.dateKey
@@ -674,6 +685,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 
 			<div className="border-t border-border p-2">
 				<button
+					type="button"
 					onClick={goToToday}
 					className="flex w-full items-center justify-center gap-1.5 border border-border bg-background px-2 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-muted"
 				>

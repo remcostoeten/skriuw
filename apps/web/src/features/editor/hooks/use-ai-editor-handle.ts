@@ -7,6 +7,7 @@ import {
 	selectCorrectedIndices,
 	showAiDiffHighlight,
 } from "@/features/editor/lib/ai-diff-highlight";
+import { insertMarkdownBelowHeading } from "@/features/editor/lib/ai-tag-insertion";
 import {
 	type EditorInstance,
 	getEditorDom,
@@ -98,6 +99,11 @@ export function useAiEditorHandle({ editor, onEditorReady, wrapperRef }: Params)
 				const inserted = editor.insertBlocks(blocks as any, last, "after");
 				highlightBlocks(inserted.map((b: { id: string }) => b.id));
 			},
+			insertMarkdownBelowHeading: (markdown) => {
+				const insertedIds = insertMarkdownBelowHeading(editor, markdown);
+				highlightBlocks(insertedIds);
+				return insertedIds.length > 0;
+			},
 			beginStreamingContinue: () =>
 				createStreamingApplier({
 					editor,
@@ -167,9 +173,13 @@ export function useAiEditorHandle({ editor, onEditorReady, wrapperRef }: Params)
 				editor.replaceBlocks(editor.document, corrected as any);
 				const afterBlocks = editor.document;
 				const afterTexts = afterBlocks.map(blockToPlainText);
-				const changedIds = diffChangedIndices(beforeTexts, afterTexts)
-					.filter((index) => afterTexts[index].length > 0)
-					.map((index) => afterBlocks[index].id);
+				const changedIds = diffChangedIndices(beforeTexts, afterTexts).reduce<string[]>(
+					(acc, index) => {
+						if (afterTexts[index].length > 0) acc.push(afterBlocks[index].id);
+						return acc;
+					},
+					[],
+				);
 				highlightBlocks(changedIds);
 			},
 			continueWriting: (markdown) => {

@@ -21,6 +21,10 @@ pub struct Note {
     pub sort_order: i64,
     pub tags: Vec<String>,
     pub properties: serde_json::Value,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub cover: Option<String>,
     pub created_at: i64,
     pub modified_at: i64,
 }
@@ -41,6 +45,10 @@ pub struct NoteMetadata {
     pub sort_order: i64,
     pub tags: Vec<String>,
     pub properties: serde_json::Value,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub cover: Option<String>,
     pub created_at: i64,
     pub modified_at: i64,
 }
@@ -289,6 +297,8 @@ CREATE TABLE IF NOT EXISTS notes (
 	sort_order            INTEGER NOT NULL DEFAULT 0,
 	tags                  TEXT NOT NULL DEFAULT '[]',
 	properties            TEXT NOT NULL DEFAULT '[]',
+	icon                  TEXT,
+	cover                 TEXT,
 	created_at            INTEGER NOT NULL,
 	modified_at           INTEGER NOT NULL
 );
@@ -437,6 +447,8 @@ impl Storage {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         conn.execute_batch(SCHEMA)?;
         ensure_column(&conn, "notes", "properties", "TEXT NOT NULL DEFAULT '[]'")?;
+        ensure_column(&conn, "notes", "icon", "TEXT")?;
+        ensure_column(&conn, "notes", "cover", "TEXT")?;
         ensure_column(&conn, "journal_entries", "title", "TEXT")?;
         // Link-index generation, tracked in the SQLite user_version pragma.
         // v2: the index gained `tag`/`person` rows (previously wiki/markdown

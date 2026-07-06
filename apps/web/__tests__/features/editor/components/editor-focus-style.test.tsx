@@ -7,6 +7,8 @@ mock.module("next/dynamic", () => ({
 
 mock.module("@/core/shortcuts", () => ({
 	useShortcutHint: () => "Ctrl+N",
+	useShortcutManager: () => ({ getHelpGroups: () => [] }),
+	useShortcutScope: () => undefined,
 }));
 
 // Real hooks pull in @/core/workspace-backend's barrel, which re-exports

@@ -3,12 +3,16 @@
  *
  * Deliberately conservative: Next.js owns data freshness, so the worker only
  * (1) serves hashed /_next/static assets cache-first (immutable by contract),
- * (2) falls back to a cached offline page when a navigation fails, and
- * (3) leaves API and mutation traffic untouched.
+ * (2) serves previously-visited page navigations stale-while-revalidate so the
+ *     app shell opens instantly and, when offline, renders real chrome instead
+ *     of the bare offline page,
+ * (3) falls back to a cached offline page only when a navigation has no cached
+ *     document and the network is unreachable, and
+ * (4) leaves API and mutation traffic untouched.
  */
-const CACHE_NAME = "skriuw-v1";
+const CACHE_NAME = "skriuw-v2";
 const OFFLINE_URL = "/offline.html";
-const PRECACHE = [OFFLINE_URL, "/icon-192.png", "/manifest.json"];
+const PRECACHE = [OFFLINE_URL, "/icon-192.png", "/icon-maskable-512.png", "/manifest.json"];
 
 self.addEventListener("install", function (event) {
 	event.waitUntil(
@@ -57,6 +61,10 @@ self.addEventListener("fetch", function (event) {
 	const url = new URL(request.url);
 	if (url.origin !== self.location.origin) return;
 
+	// API traffic must always hit the network so reads stay fresh and the
+	// worker never shadows server auth/errors.
+	if (url.pathname.startsWith("/api/")) return;
+
 	// Hashed build assets never change under the same URL: cache-first.
 	if (url.pathname.startsWith("/_next/static/")) {
 		event.respondWith(
@@ -76,14 +84,33 @@ self.addEventListener("fetch", function (event) {
 		return;
 	}
 
-	// Page navigations: network-first, offline page as last resort.
+	// Page navigations: stale-while-revalidate. A previously-visited route is
+	// served from cache immediately (native-feeling instant open) while a fresh
+	// copy is fetched in the background for next time. This only caches the app
+	// shell HTML; live note/journal data is fetched client-side afterwards, so
+	// serving a stale document never surfaces stale user data.
 	if (request.mode === "navigate") {
 		event.respondWith(
-			fetch(request).catch(function () {
-				return caches.match(OFFLINE_URL).then(function (cached) {
-					// A missing precache entry must still yield a Response;
-					// returning undefined would surface as a TypeError page.
-					return cached || Response.error();
+			caches.open(CACHE_NAME).then(function (cache) {
+				return cache.match(request).then(function (cached) {
+					const network = fetch(request)
+						.then(function (response) {
+							if (response.ok) {
+								cache.put(request, response.clone());
+							}
+							return response;
+						})
+						.catch(function () {
+							// Offline with no cached document for this route:
+							// fall back to the offline page. A missing precache
+							// entry must still yield a Response; returning
+							// undefined would surface as a TypeError page.
+							return cache.match(OFFLINE_URL).then(function (offline) {
+								return offline || Response.error();
+							});
+						});
+
+					return cached || network;
 				});
 			}),
 		);

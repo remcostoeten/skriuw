@@ -59,6 +59,7 @@ export function MiniCalendar({
 			{/* Month navigation */}
 			<div className="mb-1.5 flex items-center justify-between">
 				<button
+					type="button"
 					onClick={() => onChangeMonth(subMonths(currentMonth, 1))}
 					className="flex h-6 w-6 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
 				>
@@ -68,6 +69,7 @@ export function MiniCalendar({
 					{format(currentMonth, "MMMM yyyy")}
 				</span>
 				<button
+					type="button"
 					onClick={() => onChangeMonth(addMonths(currentMonth, 1))}
 					className="flex h-6 w-6 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
 				>
@@ -105,6 +107,7 @@ export function MiniCalendar({
 						<ContextMenu key={dateKey}>
 							<ContextMenuTrigger asChild>
 								<button
+									type="button"
 									onClick={() => onSelectDate(day)}
 									className={cn(
 										"relative flex h-7 w-full items-center justify-center border border-transparent text-[11px] transition-colors",

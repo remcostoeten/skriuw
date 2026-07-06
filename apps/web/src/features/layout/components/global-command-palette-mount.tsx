@@ -20,7 +20,8 @@ import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { NOTE_PROPERTY_TEMPLATES } from "@/domain/notes/properties";
-import type { CreateNoteInput } from "@/domain/notes/actions";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
+import type { CreateNoteInput } from "@/domain/notes/note-write-core";
 import type { CreateFolderInput } from "@/domain/folders/actions";
 import type { NoteFile } from "@/types/notes";
 
@@ -38,12 +39,27 @@ function shortcutParam(param: string): string {
 	return `/app?shortcut=${encodeURIComponent(param)}`;
 }
 
+const MOBILE_HIDDEN_COMMAND_IDS = new Set([
+	"notes.help",
+	"journal.help",
+	"settings.vim",
+	"notes.focusFileTree",
+	"notes.focusEditor",
+	"notes.focusSidebarSearch",
+	"notes.focusNextSplitPane",
+	"notes.focusPreviousSplitPane",
+	"notes.toggleSplit",
+	"notes.splitHorizontal",
+	"notes.closeSplit",
+]);
+
 export function GlobalCommandPaletteMount() {
 	const router = useRouter();
 	const queryClient = useQueryClient();
 	const capabilities = useWorkspaceCapabilities();
 	const createNoteMutation = useCreateNote();
 	const createFolderMutation = useCreateFolder();
+	const isMobile = useIsMobile();
 
 	const { getShortcutHint } = useShortcutManager();
 	const { isOpen, setIsOpen, query, setQuery, activeScope, itemProviders, getRegisteredHandler } =
@@ -102,6 +118,12 @@ export function GlobalCommandPaletteMount() {
 			onSuccess: () => {
 				router.push(`/app?note=${encodeURIComponent(id)}`);
 			},
+			// The seeded detail cache lives outside the mutation's own optimistic
+			// rollback, so drop it on failure to avoid an orphan entry that would
+			// otherwise get persisted to IndexedDB.
+			onError: () => {
+				queryClient.removeQueries({ queryKey: notesKeys.detail(id) });
+			},
 		});
 	}, [createNoteMutation, defaultModeRaw, defaultPropertiesTemplateId, queryClient, router]);
 
@@ -124,8 +146,9 @@ export function GlobalCommandPaletteMount() {
 	}, [activeTheme, updateAppearancePreference]);
 
 	const toggleVimMode = useCallback(() => {
+		if (isMobile) return;
 		updateEditorPreference("vimMode", !vimModeEnabled);
-	}, [vimModeEnabled, updateEditorPreference]);
+	}, [isMobile, vimModeEnabled, updateEditorPreference]);
 
 	// Register the fallback handlers globally
 	useRegisterCommands({
@@ -163,6 +186,7 @@ export function GlobalCommandPaletteMount() {
 			if (cmd.id === "nav.journal" && !capabilities.journal) continue;
 			if (cmd.id === "nav.shared" && !capabilities.sharing) continue;
 			if (cmd.id === "nav.trash" && !capabilities.trash) continue;
+			if (isMobile && MOBILE_HIDDEN_COMMAND_IDS.has(cmd.id)) continue;
 
 			if (cmd.scope === "global" || cmd.scope === activeScope) {
 				const registeredHandler = getRegisteredHandler(id);
@@ -186,7 +210,8 @@ export function GlobalCommandPaletteMount() {
 					group: cmd.group,
 					keywords: cmd.keywords,
 					description: cmd.description,
-					shortcut: cmd.shortcutId ? getShortcutHint(cmd.shortcutId) : undefined,
+					shortcut:
+						!isMobile && cmd.shortcutId ? getShortcutHint(cmd.shortcutId) : undefined,
 					action: registeredHandler ?? (() => {}),
 				});
 			}
@@ -206,6 +231,7 @@ export function GlobalCommandPaletteMount() {
 		capabilities.trash,
 		activeScope,
 		activeTheme,
+		isMobile,
 		vimModeEnabled,
 		getRegisteredHandler,
 		getShortcutHint,

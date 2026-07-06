@@ -1,19 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/shared/ui/dialog";
 import { Label } from "@/shared/ui/label";
+import { cn } from "@/shared/lib/utils";
 import { updatePassword } from "@/core/auth";
 import {
 	SectionHeader,
@@ -22,7 +14,7 @@ import {
 } from "@/features/settings/components/settings-primitives";
 import { ConnectedAccounts } from "@/features/settings/components/connected-accounts";
 
-function ChangePasswordDialog() {
+function ChangePasswordInlineSection() {
 	const [open, setOpen] = useState(false);
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
@@ -30,12 +22,34 @@ function ChangePasswordDialog() {
 	const [isPending, setIsPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
+	const currentPasswordRef = useRef<HTMLInputElement | null>(null);
+	const toggleButtonRef = useRef<HTMLButtonElement | null>(null);
+	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const hasMountedRef = useRef(false);
 
 	const canSubmit =
 		currentPassword.length > 0 &&
 		newPassword.length >= 8 &&
 		newPassword === confirm &&
 		!isPending;
+
+	const resetForm = () => {
+		setCurrentPassword("");
+		setNewPassword("");
+		setConfirm("");
+		setError(null);
+		setSuccess(false);
+		setIsPending(false);
+	};
+
+	const closeForm = () => {
+		if (closeTimerRef.current) {
+			clearTimeout(closeTimerRef.current);
+			closeTimerRef.current = null;
+		}
+		setOpen(false);
+		resetForm();
+	};
 
 	const handleSubmit = async () => {
 		if (!canSubmit) return;
@@ -44,7 +58,12 @@ function ChangePasswordDialog() {
 		try {
 			await updatePassword({ currentPassword, newPassword });
 			setSuccess(true);
-			setTimeout(() => setOpen(false), 1200);
+			if (closeTimerRef.current) {
+				clearTimeout(closeTimerRef.current);
+			}
+			closeTimerRef.current = setTimeout(() => {
+				closeForm();
+			}, 1200);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Could not update password.");
 		} finally {
@@ -52,89 +71,148 @@ function ChangePasswordDialog() {
 		}
 	};
 
+	useEffect(() => {
+		if (!hasMountedRef.current) {
+			hasMountedRef.current = true;
+			return;
+		}
+
+		if (open) {
+			currentPasswordRef.current?.focus();
+			return;
+		}
+
+		toggleButtonRef.current?.focus();
+	}, [open]);
+
+	useEffect(
+		() => () => {
+			if (closeTimerRef.current) {
+				clearTimeout(closeTimerRef.current);
+			}
+		},
+		[],
+	);
+
 	return (
-		<Dialog
-			open={open}
-			onOpenChange={(o) => {
-				setOpen(o);
-				if (!o) {
-					setCurrentPassword("");
-					setNewPassword("");
-					setConfirm("");
-					setError(null);
-					setSuccess(false);
-				}
-			}}
-		>
-			<DialogTrigger asChild>
-				<Button variant="outline" size="sm">
-					Update
-				</Button>
-			</DialogTrigger>
-			<DialogContent>
-				<DialogHeader>
-					<DialogTitle>Change password</DialogTitle>
-					<DialogDescription>
-						Enter your current password, then choose a strong new password of at least 8
-						characters.
-					</DialogDescription>
-				</DialogHeader>
-				<div className="space-y-3">
-					<div className="space-y-1">
-						<Label htmlFor="current-password" className="text-xs text-muted-foreground">
-							Current password
-						</Label>
-						<Input
-							id="current-password"
-							type="password"
-							value={currentPassword}
-							onChange={(e) => setCurrentPassword(e.target.value)}
-							autoComplete="current-password"
-						/>
+		<div className="space-y-0">
+			<Button
+				ref={toggleButtonRef}
+				variant="outline"
+				size="sm"
+				aria-expanded={open}
+				aria-controls="change-password-panel"
+				onClick={() => {
+					if (open) {
+						closeForm();
+						return;
+					}
+					setOpen(true);
+				}}
+			>
+				{open ? "Close" : "Update"}
+				<ChevronDown
+					className={cn("size-4 transition-transform duration-200", open && "rotate-180")}
+				/>
+			</Button>
+
+			<div
+				id="change-password-panel"
+				className={cn(
+					"grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-300 ease-out",
+					open ? "mt-4 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0",
+				)}
+			>
+				<div className="min-h-0 overflow-hidden">
+					<div className="space-y-4 rounded-md border border-border/60 bg-background/40 p-4">
+						<div className="space-y-1">
+							<div className="text-sm font-medium">Change password</div>
+							<p className="text-xs text-muted-foreground">
+								Enter your current password, then choose a strong new password of at
+								least 8 characters.
+							</p>
+						</div>
+						<form
+							className="space-y-3"
+							onSubmit={(event) => {
+								event.preventDefault();
+								void handleSubmit();
+							}}
+						>
+							<div className="space-y-1">
+								<Label
+									htmlFor="current-password"
+									className="text-xs text-muted-foreground"
+								>
+									Current password
+								</Label>
+								<Input
+									ref={currentPasswordRef}
+									id="current-password"
+									type="password"
+									value={currentPassword}
+									onChange={(e) => setCurrentPassword(e.target.value)}
+									autoComplete="current-password"
+									disabled={isPending}
+								/>
+							</div>
+							<div className="space-y-1">
+								<Label
+									htmlFor="new-password"
+									className="text-xs text-muted-foreground"
+								>
+									New password
+								</Label>
+								<Input
+									id="new-password"
+									type="password"
+									value={newPassword}
+									onChange={(e) => setNewPassword(e.target.value)}
+									autoComplete="new-password"
+									disabled={isPending}
+								/>
+							</div>
+							<div className="space-y-1">
+								<Label
+									htmlFor="confirm-password"
+									className="text-xs text-muted-foreground"
+								>
+									Confirm password
+								</Label>
+								<Input
+									id="confirm-password"
+									type="password"
+									value={confirm}
+									onChange={(e) => setConfirm(e.target.value)}
+									autoComplete="new-password"
+									disabled={isPending}
+								/>
+							</div>
+							{error && (
+								<p role="alert" className="text-xs text-destructive">
+									{error}
+								</p>
+							)}
+							{success && <p className="text-xs text-success">Password updated.</p>}
+							<div className="flex flex-wrap gap-2 pt-1">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={closeForm}
+									disabled={isPending}
+								>
+									Cancel
+								</Button>
+								<Button type="submit" size="sm" disabled={!canSubmit}>
+									{isPending ? "Saving…" : "Save password"}
+								</Button>
+							</div>
+						</form>
 					</div>
-					<div className="space-y-1">
-						<Label htmlFor="new-password" className="text-xs text-muted-foreground">
-							New password
-						</Label>
-						<Input
-							id="new-password"
-							type="password"
-							value={newPassword}
-							onChange={(e) => setNewPassword(e.target.value)}
-							autoComplete="new-password"
-						/>
-					</div>
-					<div className="space-y-1">
-						<Label htmlFor="confirm-password" className="text-xs text-muted-foreground">
-							Confirm password
-						</Label>
-						<Input
-							id="confirm-password"
-							type="password"
-							value={confirm}
-							onChange={(e) => setConfirm(e.target.value)}
-							autoComplete="new-password"
-						/>
-					</div>
-					{error && (
-						<p role="alert" className="text-xs text-destructive">
-							{error}
-						</p>
-					)}
-					{success && <p className="text-xs text-success">Password updated.</p>}
 				</div>
-				<DialogFooter>
-					<DialogClose asChild>
-						<Button variant="outline" size="sm">
-							Cancel
-						</Button>
-					</DialogClose>
-					<Button size="sm" disabled={!canSubmit} onClick={handleSubmit}>
-						{isPending ? "Saving…" : "Save password"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+			</div>
+		</div>
 	);
 }
 
@@ -148,7 +226,7 @@ export function SecuritySection() {
 					title="Change password"
 					description="Update your sign-in password."
 				>
-					<ChangePasswordDialog />
+					<ChangePasswordInlineSection />
 				</Row>
 			</SettingsCard>
 			<ConnectedAccounts />

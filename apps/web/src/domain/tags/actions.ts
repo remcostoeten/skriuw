@@ -175,12 +175,14 @@ export async function deleteTag(name: string): Promise<ChipRewriteResult> {
 	const { prisma, user } = await getAuthenticatedUser();
 	return prisma.$transaction(async (tx) => {
 		const rewrittenNoteIds = await rewriteTagAcrossNotes(tx, user.id, normalized, null);
-		await tx.noteTagMeta.deleteMany({ where: { userId: user.id, name: normalized } });
 		// Rows on soft-deleted notes are not resynced by the rewrite; drop them so
 		// the tag cannot resurrect with a stale label from the trash.
-		await tx.noteLink.deleteMany({
-			where: { userId: user.id, kind: "tag", targetLabel: normalized },
-		});
+		await Promise.all([
+			tx.noteTagMeta.deleteMany({ where: { userId: user.id, name: normalized } }),
+			tx.noteLink.deleteMany({
+				where: { userId: user.id, kind: "tag", targetLabel: normalized },
+			}),
+		]);
 		return { rewrittenNoteIds };
 	});
 }

@@ -20,6 +20,7 @@ function registerReactQueryMock() {
 			mutationOptions = options;
 			return options;
 		},
+		useQuery: () => ({ data: undefined, isPending: false, isFetching: false }),
 	}));
 }
 

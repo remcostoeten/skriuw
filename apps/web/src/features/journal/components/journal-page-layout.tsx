@@ -13,7 +13,7 @@ import {
 	SpellCheck,
 	Type,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
@@ -85,6 +85,7 @@ function JournalEditorToolbar({
 				<div className="flex items-center gap-2.5 sm:gap-3">
 					<div className="flex h-11 items-center gap-1 border border-border bg-background px-1">
 						<button
+							type="button"
 							onClick={onToggleSidebar}
 							className={mobileControlClass}
 							title="Open journal"
@@ -92,6 +93,7 @@ function JournalEditorToolbar({
 							<Sidebar className="h-[18px] w-[18px]" strokeWidth={1.7} />
 						</button>
 						<button
+							type="button"
 							onClick={onBackToList}
 							className={mobileControlClass}
 							title="Back to journal"
@@ -99,6 +101,7 @@ function JournalEditorToolbar({
 							<ChevronLeft className="h-[18px] w-[18px]" strokeWidth={1.7} />
 						</button>
 						<button
+							type="button"
 							onClick={onGoToToday}
 							className={mobileControlClass}
 							title="Go to today"
@@ -120,6 +123,7 @@ function JournalEditorToolbar({
 
 					<div className="flex h-11 items-center gap-1.5 sm:gap-2">
 						<button
+							type="button"
 							onClick={onToggleEditorMode}
 							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 							title={editorModeTitle}
@@ -131,6 +135,7 @@ function JournalEditorToolbar({
 							)}
 						</button>
 						<button
+							type="button"
 							onClick={onOpenSettings}
 							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 							title="Open settings"
@@ -155,6 +160,7 @@ function JournalEditorToolbar({
 		>
 			<div className="flex items-center gap-1">
 				<button
+					type="button"
 					onClick={onToggleSidebar}
 					className={cn(
 						desktopIconButtonClass,
@@ -165,6 +171,7 @@ function JournalEditorToolbar({
 					<Sidebar className="h-4 w-4" strokeWidth={1.5} />
 				</button>
 				<button
+					type="button"
 					onClick={onBackToList}
 					className={cn(
 						desktopIconButtonClass,
@@ -175,6 +182,7 @@ function JournalEditorToolbar({
 					<ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
 				</button>
 				<button
+					type="button"
 					onClick={onGoToToday}
 					className={cn(
 						desktopIconButtonClass,
@@ -198,6 +206,7 @@ function JournalEditorToolbar({
 
 			<div className="flex items-center gap-2">
 				<button
+					type="button"
 					onClick={onToggleEditorMode}
 					className={cn(
 						desktopIconButtonClass,
@@ -223,6 +232,7 @@ function JournalEditorToolbar({
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<button
+									type="button"
 									disabled={anyAiLoading}
 									className={cn(
 										desktopIconButtonClass,
@@ -283,6 +293,7 @@ function JournalEditorToolbar({
 					</GuestGate>
 				)}
 				<button
+					type="button"
 					onClick={onOpenSettings}
 					className={cn(
 						desktopIconButtonClass,
@@ -343,121 +354,123 @@ export function JournalPageLayout() {
 	}
 
 	return (
-		<LayoutContainer className="bg-background">
-			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				{/* Icon rail (desktop) */}
-				{!isMobile && <IconRail />}
+		<LazyMotion features={domAnimation} strict>
+			<LayoutContainer className="bg-background">
+				<div className="relative flex min-h-0 flex-1 overflow-hidden">
+					{/* Icon rail (desktop) */}
+					{!isMobile && <IconRail />}
 
-				{/* Sidebar (desktop) */}
-				{isHydrated && !isMobile && showSidebar ? (
-					<div className="relative shrink-0" style={{ width: sidebarWidth }}>
-						<JournalSidebar
-							selectedDate={selectedDate}
-							onSelectDate={handleSelectDate}
-						/>
-					</div>
-				) : !isMobile ? (
-					<JournalSidebarPlaceholder />
-				) : null}
-
-				{/* Main content area */}
-				{isHydrated ? (
-					<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-card">
-						{view === "list" ? (
-							<JournalDatabaseView
-								onSelectEntry={handleSelectEntry}
-								onNewEntry={handleNewEntry}
-								onToggleSidebar={handleToggleSidebar}
-								onGoToToday={handleGoToToday}
-								onGoToNotes={handleGoToNotes}
-								onOpenSettings={handleOpenSettings}
-								isMobile={isMobile}
+					{/* Sidebar (desktop) */}
+					{isHydrated && !isMobile && showSidebar ? (
+						<div className="relative shrink-0" style={{ width: sidebarWidth }}>
+							<JournalSidebar
+								selectedDate={selectedDate}
+								onSelectDate={handleSelectDate}
 							/>
-						) : (
-							<>
-								<JournalEditorToolbar
-									selectedDate={selectedDate}
-									editorMode={editorMode}
-									isMobile={isMobile}
-									onToggleSidebar={handleToggleSidebar}
-									onBackToList={handleBackToList}
-									onToggleEditorMode={handleToggleEditorMode}
-									onGoToToday={handleGoToToday}
-									onOpenSettings={handleOpenSettings}
-									aiLoading={journalAi.aiLoading}
-									onAiSpellCheck={() => journalAi.runAiAction("spellCheck")}
-									onAiContinueWriting={() =>
-										journalAi.runAiAction("continueWriting")
-									}
-								/>
-
-								<JournalEditor
-									selectedDate={selectedDate}
-									editorMode={editorMode}
-									entryState={journalEntry}
-									aiState={journalAi}
-									onToggleEditorMode={handleToggleEditorMode}
-									onGoToToday={handleGoToToday}
-									onBackToList={handleBackToList}
-								/>
-							</>
-						)}
-					</div>
-				) : (
-					<JournalContentPlaceholder view={loadingView} />
-				)}
-			</div>
-
-			{/* Mobile sidebar overlay */}
-			<AnimatePresence>
-				{isHydrated && isMobile && showSidebar && (
-					<>
-						<motion.button
-							key="journal-sidebar-backdrop"
-							type="button"
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0 }}
-							transition={overlayTransition}
-							className="absolute inset-0 z-40 bg-scrim/54"
-							onClick={closeSidebar}
-							aria-label="Close sidebar"
-						/>
-						<div className="pointer-events-none absolute inset-y-0 left-0 z-50 flex w-full items-stretch pr-5 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
-							<motion.div
-								key="journal-sidebar-panel"
-								initial={
-									prefersReducedMotion
-										? { x: -12, opacity: 0 }
-										: { x: -28, opacity: 0.96 }
-								}
-								animate={{ x: 0, opacity: 1 }}
-								exit={
-									prefersReducedMotion
-										? { x: -8, opacity: 0 }
-										: { x: -34, opacity: 0.94 }
-								}
-								transition={sidebarTransition}
-								style={{ willChange: "transform, opacity" }}
-								className="native-panel pointer-events-auto h-full w-[min(88vw,22rem)] max-w-full overflow-hidden border border-l-0 border-border"
-							>
-								<JournalSidebar
-									selectedDate={selectedDate}
-									onSelectDate={handleSelectDate}
-									className="h-full w-full border-r-0 bg-transparent"
-								/>
-							</motion.div>
 						</div>
-					</>
-				)}
-			</AnimatePresence>
+					) : !isMobile ? (
+						<JournalSidebarPlaceholder />
+					) : null}
 
-			<ShortcutHelpDialog
-				open={showShortcutHelp}
-				onOpenChange={setShowShortcutHelp}
-				groups={shortcutGroups}
-				description="Global shortcuts for the journal."
-			/>
-		</LayoutContainer>
+					{/* Main content area */}
+					{isHydrated ? (
+						<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-card">
+							{view === "list" ? (
+								<JournalDatabaseView
+									onSelectEntry={handleSelectEntry}
+									onNewEntry={handleNewEntry}
+									onToggleSidebar={handleToggleSidebar}
+									onGoToToday={handleGoToToday}
+									onGoToNotes={handleGoToNotes}
+									onOpenSettings={handleOpenSettings}
+									isMobile={isMobile}
+								/>
+							) : (
+								<>
+									<JournalEditorToolbar
+										selectedDate={selectedDate}
+										editorMode={editorMode}
+										isMobile={isMobile}
+										onToggleSidebar={handleToggleSidebar}
+										onBackToList={handleBackToList}
+										onToggleEditorMode={handleToggleEditorMode}
+										onGoToToday={handleGoToToday}
+										onOpenSettings={handleOpenSettings}
+										aiLoading={journalAi.aiLoading}
+										onAiSpellCheck={() => journalAi.runAiAction("spellCheck")}
+										onAiContinueWriting={() =>
+											journalAi.runAiAction("continueWriting")
+										}
+									/>
+
+									<JournalEditor
+										selectedDate={selectedDate}
+										editorMode={editorMode}
+										entryState={journalEntry}
+										aiState={journalAi}
+										onToggleEditorMode={handleToggleEditorMode}
+										onGoToToday={handleGoToToday}
+										onBackToList={handleBackToList}
+									/>
+								</>
+							)}
+						</div>
+					) : (
+						<JournalContentPlaceholder view={loadingView} />
+					)}
+				</div>
+
+				{/* Mobile sidebar overlay */}
+				<AnimatePresence>
+					{isHydrated && isMobile && showSidebar && (
+						<>
+							<m.button
+								key="journal-sidebar-backdrop"
+								type="button"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								transition={overlayTransition}
+								className="absolute inset-0 z-40 bg-scrim/54"
+								onClick={closeSidebar}
+								aria-label="Close sidebar"
+							/>
+							<div className="pointer-events-none absolute inset-y-0 left-0 z-50 flex w-full items-stretch pr-5 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
+								<m.div
+									key="journal-sidebar-panel"
+									initial={
+										prefersReducedMotion
+											? { x: -12, opacity: 0 }
+											: { x: -28, opacity: 0.96 }
+									}
+									animate={{ x: 0, opacity: 1 }}
+									exit={
+										prefersReducedMotion
+											? { x: -8, opacity: 0 }
+											: { x: -34, opacity: 0.94 }
+									}
+									transition={sidebarTransition}
+									style={{ willChange: "transform, opacity" }}
+									className="native-panel pointer-events-auto h-full w-[min(88vw,22rem)] max-w-full overflow-hidden border border-l-0 border-border"
+								>
+									<JournalSidebar
+										selectedDate={selectedDate}
+										onSelectDate={handleSelectDate}
+										className="h-full w-full border-r-0 bg-transparent"
+									/>
+								</m.div>
+							</div>
+						</>
+					)}
+				</AnimatePresence>
+
+				<ShortcutHelpDialog
+					open={showShortcutHelp}
+					onOpenChange={setShowShortcutHelp}
+					groups={shortcutGroups}
+					description="Global shortcuts for the journal."
+				/>
+			</LayoutContainer>
+		</LazyMotion>
 	);
 }

@@ -26,21 +26,23 @@ function getEditorRoot(): HTMLElement | null {
 }
 
 function readDomHeadings(root: HTMLElement): TOutlineHeading[] {
-	return Array.from(root.querySelectorAll<HTMLElement>(HEADING_SELECTOR))
-		.map((node, index) => {
-			const container = node.closest<HTMLElement>("[data-id]");
-			const blockId = container?.getAttribute("data-id") ?? null;
-			const levelAttr = node.getAttribute("data-level");
-			const level = levelAttr ? Number(levelAttr) : 1;
-			const text = node.textContent?.trim() ?? "";
-			return {
-				key: blockId ?? `dom-${index}`,
-				blockId,
-				level: Number.isFinite(level) ? level : 1,
-				text,
-			};
-		})
-		.filter((heading) => heading.text.length > 0);
+	const nodes = root.querySelectorAll<HTMLElement>(HEADING_SELECTOR);
+	const headings: TOutlineHeading[] = [];
+	nodes.forEach((node, index) => {
+		const text = node.textContent?.trim() ?? "";
+		if (text.length === 0) return;
+		const container = node.closest<HTMLElement>("[data-id]");
+		const blockId = container?.getAttribute("data-id") ?? null;
+		const levelAttr = node.getAttribute("data-level");
+		const level = levelAttr ? Number(levelAttr) : 1;
+		headings.push({
+			key: blockId ?? `dom-${index}`,
+			blockId,
+			level: Number.isFinite(level) ? level : 1,
+			text,
+		});
+	});
+	return headings;
 }
 
 function parseMarkdownHeadings(markdown: string): TOutlineHeading[] {

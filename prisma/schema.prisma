@@ -39,6 +39,7 @@ model User {
   userRecents            UserRecent[]
   aiProviderKeys         AiProviderKey[]
   syncTokens             SyncToken[]
+  syncEvents             SyncEvent[]
   aiUsageLogs            AiUsageLog[]
   aiErrorEvents          AiErrorEvent[]
   sentCollabRequests     CollaborationRequest[] @relation("SentCollabRequests")
@@ -126,6 +127,26 @@ model SyncToken {
   @@map("sync_tokens")
 }
 
+model SyncEvent {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenId        String?   @map("token_id") @db.Uuid
+  operation      String
+  status         String
+  resourceId     String?   @map("resource_id") @db.Uuid
+  resourceName   String?   @map("resource_name")
+  message        String?
+  idempotencyKey String?   @map("idempotency_key")
+  source         String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([tokenId, createdAt(sort: Desc)])
+  @@unique([idempotencyKey])
+  @@map("sync_events")
+}
+
 // ─── Notes ───────────────────────────────────────────────────────────────────
 
 model Folder {
@@ -161,6 +182,7 @@ model Note {
   tags                String[]      @default([])
   properties          Json?         @map("properties")
   icon                String?
+  cover               String?
   journalMeta         Json?         @map("journal_meta")
   versions            NoteVersion[]
   outgoingLinks       NoteLink[]    @relation("NoteOutgoingLinks")

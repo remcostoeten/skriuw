@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { findFirstNoteByTitle, normalizeNoteTitle } from "@/domain/notes/note-links";
 import { useCreateNote } from "@/features/notes/hooks/use-create-note";
 import { updateNoteUrl } from "@/features/notes/hooks/use-notes-navigation";
 import { useNotesStore } from "@/features/notes/store";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import type { NoteFile } from "@/types/notes";
 import { useNoteLinkContext } from "@/features/editor/components/inline-specs/note-link-context";
 
@@ -27,7 +28,7 @@ export function useNoteLinkActions(filesOverride?: NoteFile[]) {
 	const openTabInBackground = useNotesStore((state) => state.openTabInBackground);
 	const secondaryFileId = useNotesStore((state) => state.split.secondaryFileId);
 	const createNote = useCreateNote();
-	const pendingTitlesRef = useRef(new Set<string>());
+	const pendingTitlesRef = useLazyRef(() => new Set<string>());
 	const [creatingTitleKey, setCreatingTitleKey] = useState<string | null>(null);
 
 	const openNote = useCallback(

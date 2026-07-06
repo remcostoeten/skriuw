@@ -1,8 +1,18 @@
 "use client";
 
-import { memo, useState, useRef, useEffect, useMemo, useCallback, type RefObject } from "react";
+import {
+	memo,
+	useState,
+	useRef,
+	useEffect,
+	useEffectEvent,
+	useMemo,
+	useCallback,
+	type RefObject,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/shared/lib/utils";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import { collectFolderSubtreeIds } from "@/domain/folders/traversal";
 import { NoteFile, NoteFolder } from "@/types/notes";
@@ -14,6 +24,7 @@ import { EmptyState } from "@/shared/ui/empty-state";
 import {
 	Check,
 	Columns2,
+	FileText,
 	FilePlus,
 	Rows2,
 	SplitSquareHorizontal,
@@ -22,6 +33,7 @@ import {
 	FolderOpen,
 	FolderPlus,
 	Pencil,
+	Smile,
 	Star,
 	Trash2,
 } from "lucide-react";
@@ -37,6 +49,7 @@ import {
 	ContextMenuSubTrigger,
 } from "@/shared/ui/context-menu";
 import { NoteNameLabel } from "./note-name-label";
+import { NOTE_ICON_EMOJIS } from "./note-icon-picker";
 import { useSidebarStore } from "./sidebar/store";
 import { SidebarTreeRowSkeleton } from "./sidebar/sidebar-tree-skeleton";
 import { NoteSendContextSubmenu, NoteSendMobileActionBlock } from "./note-send-menu";
@@ -44,6 +57,7 @@ import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
 import { GuestGate } from "@/shared/ui/guest-gate";
 import { endTreeItemDrag, setTreeItemDragData } from "../lib/note-drag";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
+import { useUpdateNote } from "../hooks/use-update-note";
 
 type FileListProps = {
 	files: NoteFile[];
@@ -102,6 +116,43 @@ const FILE_TREE_COMPACT_ROW_HEIGHT = 30;
 const FILE_TREE_OVERSCAN = 10;
 const LONG_PRESS_DURATION_MS = 380;
 
+type TreeGuidesProps = {
+	depth: number;
+	showTreeGuides: boolean;
+	rowBasePadding: number;
+	depthIndent: number;
+};
+
+const TreeGuides = memo(function TreeGuides({
+	depth,
+	showTreeGuides,
+	rowBasePadding,
+	depthIndent,
+}: TreeGuidesProps) {
+	if (!showTreeGuides || depth <= 0) {
+		return null;
+	}
+
+	const guideLevels = Array.from({ length: depth }, (_, index) => index);
+	const currentGuideLeft = rowBasePadding + 7 + (depth - 1) * depthIndent;
+
+	return (
+		<span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0">
+			{guideLevels.map((level) => (
+				<span
+					key={level}
+					className="absolute top-0 bottom-0 w-px bg-border/55"
+					style={{ left: `${rowBasePadding + 7 + level * depthIndent}px` }}
+				/>
+			))}
+			<span
+				className="absolute h-px w-2.5 bg-border/55"
+				style={{ left: `${currentGuideLeft}px`, top: "50%" }}
+			/>
+		</span>
+	);
+});
+
 export const FileList = memo(function FileList({
 	folders,
 	files,
@@ -132,13 +183,14 @@ export const FileList = memo(function FileList({
 		onMoveFolder,
 	} = actions;
 	const { getFilesInFolder, getFoldersInFolder, countDescendants } = queries;
+	const updateNoteMutation = useUpdateNote();
 	// Sidebar store for favorites and custom sections
 	const { config, isFavorite, addToFavorites, removeFromFavorites, addToCustomSection } =
 		useSidebarStore();
 	const customSections = config.sections.filter((section) => section.type === "custom");
 	const isMobile = useIsMobile();
 	const listRef = useRef<HTMLDivElement>(null);
-	const itemButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+	const itemButtonRefs = useLazyRef(() => new Map<string, HTMLButtonElement>());
 	const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const suppressClickRef = useRef(false);
 	const rowHeight = compactMode ? FILE_TREE_COMPACT_ROW_HEIGHT : FILE_TREE_ROW_HEIGHT;
@@ -163,30 +215,10 @@ export const FileList = memo(function FileList({
 	// one menu at it, instead of mounting a Radix ContextMenu per virtualized row.
 	const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
 
-	function renderTreeGuides(depth: number) {
-		if (!showTreeGuides || depth <= 0) {
-			return null;
-		}
-
-		const guideLevels = Array.from({ length: depth }, (_, index) => index);
-		const currentGuideLeft = rowBasePadding + 7 + (depth - 1) * depthIndent;
-
-		return (
-			<span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0">
-				{guideLevels.map((level) => (
-					<span
-						key={level}
-						className="absolute top-0 bottom-0 w-px bg-border/55"
-						style={{ left: `${rowBasePadding + 7 + level * depthIndent}px` }}
-					/>
-				))}
-				<span
-					className="absolute h-px w-2.5 bg-border/55"
-					style={{ left: `${currentGuideLeft}px`, top: "50%" }}
-				/>
-			</span>
-		);
-	}
+	const foldersById = useMemo(
+		() => new Map(folders.map((folder) => [folder.id, folder])),
+		[folders],
+	);
 
 	const flattenedVisibleItems = useMemo<VisibleItem[]>(() => {
 		const list: VisibleItem[] = [];
@@ -296,7 +328,7 @@ export const FileList = memo(function FileList({
 			let guard = 0;
 			let expanded = false;
 			while (parentId && guard < 64) {
-				const folder = folders.find((entry) => entry.id === parentId);
+				const folder = foldersById.get(parentId);
 				if (!folder) break;
 				if (!folder.isOpen) {
 					onToggleFolder(folder.id);
@@ -309,7 +341,7 @@ export const FileList = memo(function FileList({
 			pendingRevealFileIdRef.current = fileId;
 			return true;
 		},
-		[files, flattenedVisibleItems, focusItemAtIndex, folders, onToggleFolder],
+		[files, flattenedVisibleItems, focusItemAtIndex, foldersById, onToggleFolder],
 	);
 
 	useEffect(() => {
@@ -444,22 +476,26 @@ export const FileList = memo(function FileList({
 		setEditingType(type);
 	}, []);
 
+	const onRenameFolderEvent = useEffectEvent((id: string) => {
+		const folder = folders.find((candidate) => candidate.id === id);
+		if (!folder) {
+			setPendingRenameFolderId(id);
+			return;
+		}
+		startRename(folder.id, folder.name, "folder");
+	});
+
 	useEffect(() => {
 		function handleRenameFolder(event: Event) {
 			if (!(event instanceof CustomEvent)) return;
 			const id = event.detail?.id;
 			if (typeof id !== "string") return;
-			const folder = folders.find((candidate) => candidate.id === id);
-			if (!folder) {
-				setPendingRenameFolderId(id);
-				return;
-			}
-			startRename(folder.id, folder.name, "folder");
+			onRenameFolderEvent(id);
 		}
 
 		window.addEventListener("skriuw:rename-folder", handleRenameFolder);
 		return () => window.removeEventListener("skriuw:rename-folder", handleRenameFolder);
-	}, [folders, startRename]);
+	}, []);
 
 	useEffect(() => {
 		if (!pendingRenameFolderId) return;
@@ -653,6 +689,14 @@ export const FileList = memo(function FileList({
 			setSelectedItems([]);
 		},
 		[onMoveFile, onMoveFolder, getDescendantIds, setSelectedItems],
+	);
+
+	const updatePageIcon = useCallback(
+		(file: NoteFile, icon: string) => {
+			if (file.icon === icon) return;
+			updateNoteMutation.mutate({ id: file.id, icon });
+		},
+		[updateNoteMutation],
 	);
 
 	const getOrderedChildren = useCallback(
@@ -1344,6 +1388,48 @@ export const FileList = memo(function FileList({
 		[folders, getDescendantIds, moveSelected],
 	);
 
+	const renderPageIconSubmenu = useCallback(
+		(file: NoteFile) => (
+			<ContextMenuSub>
+				<ContextMenuSubTrigger className="gap-2">
+					<span className="flex h-4 w-4 items-center justify-center text-[13px]">
+						{file.icon || <Smile className="h-4 w-4" />}
+					</span>
+					Page icon
+				</ContextMenuSubTrigger>
+				<ContextMenuSubContent className="w-[232px] p-2">
+					<div className="grid grid-cols-8 gap-0.5">
+						{NOTE_ICON_EMOJIS.map((emoji) => (
+							<ContextMenuItem
+								key={emoji}
+								onClick={() => updatePageIcon(file, emoji)}
+								className={cn(
+									"flex h-7 w-7 justify-center rounded-md p-0 text-base",
+									file.icon === emoji && "bg-accent text-foreground",
+								)}
+								aria-label={`Use ${emoji} as page icon`}
+							>
+								{emoji}
+							</ContextMenuItem>
+						))}
+					</div>
+					{file.icon ? (
+						<>
+							<ContextMenuSeparator className="my-2" />
+							<ContextMenuItem
+								onClick={() => updatePageIcon(file, "")}
+								className="justify-center text-xs"
+							>
+								Remove icon
+							</ContextMenuItem>
+						</>
+					) : null}
+				</ContextMenuSubContent>
+			</ContextMenuSub>
+		),
+		[updatePageIcon],
+	);
+
 	const renderRootContextItems = useCallback(() => {
 		return (
 			<>
@@ -1423,6 +1509,7 @@ export const FileList = memo(function FileList({
 							</ContextMenuSubContent>
 						</ContextMenuSub>
 					) : null}
+					{file && !selectionHasMultiple ? renderPageIconSubmenu(file) : null}
 					{renderMoveToSubmenu(selectionForAction)}
 					<ContextMenuSeparator />
 					{isFavorite(item.id) ? (
@@ -1490,6 +1577,7 @@ export const FileList = memo(function FileList({
 			onOpenBeside,
 			onOpenInSplit,
 			removeFromFavorites,
+			renderPageIconSubmenu,
 			renderMoveToSubmenu,
 			startRename,
 		],
@@ -1511,6 +1599,10 @@ export const FileList = memo(function FileList({
 			const hasSelectionAtNonRoot = selection.some(
 				(selectionItem) => selectionItem.parentId !== null,
 			);
+			const targetFile =
+				!selectionHasMultiple && item.type === "file"
+					? (files.find((entry) => entry.id === item.id) ?? null)
+					: null;
 
 			return (
 				<>
@@ -1570,6 +1662,50 @@ export const FileList = memo(function FileList({
 								{targetIsFavorite ? "Remove from Favorites" : "Add to Favorites"}
 							</button>
 						</div>
+
+						{targetFile ? (
+							<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03] p-3">
+								<div className="mb-2 flex items-center justify-between px-1">
+									<div className="text-[11px] font-medium uppercase tracking-[0.16em] text-foreground/42">
+										Page icon
+									</div>
+									{targetFile.icon ? (
+										<button
+											type="button"
+											onClick={() =>
+												runMobileAction(() =>
+													updatePageIcon(targetFile, ""),
+												)
+											}
+											className="min-h-8 px-2 text-[13px] text-foreground/54"
+										>
+											Remove
+										</button>
+									) : null}
+								</div>
+								<div className="grid grid-cols-8 gap-1">
+									{NOTE_ICON_EMOJIS.slice(0, 32).map((emoji) => (
+										<button
+											key={emoji}
+											type="button"
+											onClick={() =>
+												runMobileAction(() =>
+													updatePageIcon(targetFile, emoji),
+												)
+											}
+											className={cn(
+												"flex h-9 w-full items-center justify-center rounded-lg text-[17px] transition-colors active:bg-foreground/10",
+												targetFile.icon === emoji &&
+													"bg-foreground/10 ring-1 ring-foreground/18",
+											)}
+											aria-label={`Use ${emoji} as page icon`}
+										>
+											{emoji}
+										</button>
+									))}
+								</div>
+							</div>
+						) : null}
 
 						<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
 							<div className="px-4 pb-2 pt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-foreground/42">
@@ -1688,6 +1824,7 @@ export const FileList = memo(function FileList({
 			removeFromFavorites,
 			runMobileAction,
 			startRename,
+			updatePageIcon,
 		],
 	);
 
@@ -1801,7 +1938,12 @@ export const FileList = memo(function FileList({
 					paddingRight: `${rowRightPadding}px`,
 				}}
 			>
-				{renderTreeGuides(depth)}
+				<TreeGuides
+					depth={depth}
+					showTreeGuides={showTreeGuides}
+					rowBasePadding={rowBasePadding}
+					depthIndent={depthIndent}
+				/>
 				{isSiblingDropTarget && (
 					<span
 						aria-hidden="true"
@@ -1939,7 +2081,12 @@ export const FileList = memo(function FileList({
 					paddingRight: `${rowRightPadding}px`,
 				}}
 			>
-				{renderTreeGuides(depth)}
+				<TreeGuides
+					depth={depth}
+					showTreeGuides={showTreeGuides}
+					rowBasePadding={rowBasePadding}
+					depthIndent={depthIndent}
+				/>
 				{isDropTarget && (
 					<span
 						aria-hidden="true"
@@ -1968,7 +2115,24 @@ export const FileList = memo(function FileList({
 							style={{ caretColor: "currentColor" }}
 						/>
 					) : (
-						<NoteNameLabel name={file.name} className="truncate select-none" />
+						<>
+							<span
+								className={cn(
+									"mr-1.5 flex h-4 w-4 shrink-0 items-center justify-center",
+									file.icon
+										? "text-[13px] leading-none"
+										: "text-muted-foreground/58",
+								)}
+								aria-hidden
+							>
+								{file.icon ? (
+									file.icon
+								) : (
+									<FileText className="h-3.5 w-3.5" strokeWidth={1.55} />
+								)}
+							</span>
+							<NoteNameLabel name={file.name} className="truncate select-none" />
+						</>
 					)}
 				</span>
 			</button>
@@ -2101,7 +2265,7 @@ export const FileList = memo(function FileList({
 						ref={listRef}
 						className={cn(
 							"px-1.5 pb-4 pt-1",
-							!scrollElementRef && "flex-1 overflow-y-auto overscroll-contain",
+							!scrollElementRef && "momentum-scroll flex-1 overflow-y-auto",
 							isRootDropTarget && "bg-primary/6",
 							isRootMoveDestination &&
 								"bg-primary/6 ring-1 ring-inset ring-primary/40",

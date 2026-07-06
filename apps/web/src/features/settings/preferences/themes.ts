@@ -1,3 +1,18 @@
+export type ThemeVariant = {
+	id: string;
+	label: string;
+	swatchFrom: string;
+	swatchTo: string;
+};
+
+export type ThemeEntry = {
+	id: string;
+	label: string;
+	swatchFrom: string;
+	swatchTo: string;
+	variants?: readonly ThemeVariant[];
+};
+
 export const THEMES = [
 	{
 		id: "midnight",
@@ -19,15 +34,43 @@ export const THEMES = [
 	},
 	{
 		id: "mocha",
-		label: "Catppuccin Mocha",
+		label: "Catppuccin",
 		swatchFrom: "hsl(240 21% 15%)",
 		swatchTo: "hsl(267 84% 81%)",
+		variants: [
+			{
+				id: "mocha",
+				label: "Mocha",
+				swatchFrom: "hsl(240 21% 15%)",
+				swatchTo: "hsl(267 84% 81%)",
+			},
+			{
+				id: "catppuccin-latte",
+				label: "Latte",
+				swatchFrom: "hsl(220 23% 95%)",
+				swatchTo: "hsl(267 83% 58%)",
+			},
+		],
 	},
 	{
 		id: "rose-pine",
 		label: "Rosé Pine",
 		swatchFrom: "hsl(249 22% 12%)",
 		swatchTo: "hsl(2 55% 83%)",
+		variants: [
+			{
+				id: "rose-pine",
+				label: "Dusk",
+				swatchFrom: "hsl(249 22% 12%)",
+				swatchTo: "hsl(2 55% 83%)",
+			},
+			{
+				id: "rose-pine-dawn",
+				label: "Dawn",
+				swatchFrom: "hsl(35 30% 95%)",
+				swatchTo: "hsl(2 55% 67%)",
+			},
+		],
 	},
 	{
 		id: "gruvbox",
@@ -41,11 +84,30 @@ export const THEMES = [
 		swatchFrom: "hsl(235 22% 12%)",
 		swatchTo: "hsl(221 74% 74%)",
 	},
-] as const;
+] as const satisfies readonly ThemeEntry[];
 
-export type ThemeId = (typeof THEMES)[number]["id"];
+export type ThemeId =
+	| "midnight"
+	| "paper"
+	| "embers"
+	| "mocha"
+	| "catppuccin-latte"
+	| "rose-pine"
+	| "rose-pine-dawn"
+	| "gruvbox"
+	| "tokyo-night";
 
-export const THEME_IDS = THEMES.map((theme) => theme.id) as readonly ThemeId[];
+export const THEME_IDS: readonly ThemeId[] = [
+	"midnight",
+	"paper",
+	"embers",
+	"mocha",
+	"catppuccin-latte",
+	"rose-pine",
+	"rose-pine-dawn",
+	"gruvbox",
+	"tokyo-night",
+];
 
 export function isThemeId(value: unknown): value is ThemeId {
 	return typeof value === "string" && THEME_IDS.includes(value as ThemeId);

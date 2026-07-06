@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useShortcutMap, type ShortcutMap } from "@remcostoeten/use-shortcut/react";
+import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
 import { SHORTCUT_REGISTRY, getShortcutDef, getShortcutIds, type ShortcutId } from "./registry";
 import type { Scope } from "./scopes";
@@ -25,6 +27,7 @@ type ShortcutContextValue = {
 	 * hooks — not part of the public shortcut API surface.
 	 */
 	registerLiveHandler: (id: ShortcutId, handler: ShortcutHandler) => () => void;
+	isMobile: boolean;
 };
 
 const ShortcutContext = React.createContext<ShortcutContextValue | null>(null);
@@ -93,6 +96,7 @@ function getBindingGroupIds(id: ShortcutId): ShortcutId[] {
 export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 	const [bindings, setBindings] = React.useState<ShortcutBindings>(() => loadBindings());
 	const liveHandlersRef = React.useRef<Partial<Record<ShortcutId, ShortcutHandler>>>({});
+	const isMobile = useIsMobile();
 
 	const registerLiveHandler = React.useCallback((id: ShortcutId, handler: ShortcutHandler) => {
 		liveHandlersRef.current[id] = handler;
@@ -137,9 +141,10 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 	const getHelpGroups = React.useCallback(
 		(scopes: Scope[]): ShortcutHelpGroup[] => {
 			const groups = new Map<string, ShortcutHelpGroup>();
+			const scopeSet = new Set(scopes);
 			for (const id of getShortcutIds()) {
 				const def = getShortcutDef(id);
-				if (!scopes.includes(def.scope)) continue;
+				if (!scopeSet.has(def.scope)) continue;
 				const existing = groups.get(def.group) ?? {
 					id: def.group,
 					title: def.group,
@@ -173,6 +178,7 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 			getHelpGroups,
 			getShortcutHint,
 			registerLiveHandler,
+			isMobile,
 		}),
 		[
 			bindings,
@@ -182,6 +188,7 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 			getHelpGroups,
 			getShortcutHint,
 			registerLiveHandler,
+			isMobile,
 		],
 	);
 
@@ -197,6 +204,7 @@ export function useShortcutManager(): ShortcutContextValue {
 export function useShortcutHint(id?: ShortcutId): string | undefined {
 	const ctx = React.useContext(ShortcutContext);
 	if (!id) return undefined;
+	if (ctx?.isMobile) return undefined;
 	return ctx?.getShortcutHint(id) ?? formatBinding(getShortcutDef(id).keys);
 }
 
@@ -216,26 +224,40 @@ export function useShortcutScope(
 	handlers: ShortcutHandlers,
 	options: ScopedShortcutOptions = {},
 ): void {
-	const { bindings, registerLiveHandler } = useShortcutManager();
-	const active = options.active ?? true;
+	const { bindings, registerLiveHandler, isMobile } = useShortcutManager();
+	const active = !isMobile && (options.active ?? true);
 	const latest = React.useRef(handlers);
 	latest.current = handlers;
 
 	const shortcutMap = React.useMemo<ShortcutMap>(() => {
 		const map: ShortcutMap = {};
+		const onDesktop = isTauriRuntime();
 		for (const id of getShortcutIds()) {
 			const def = getShortcutDef(id);
 			if (def.scope !== scope) continue;
-			map[id] = {
-				keys: bindings[id] ?? def.keys,
-				handler: (event) => latest.current[id]?.(event),
-				options: {
-					scopes: [scope],
-					except: def.except === false ? undefined : (def.except ?? "typing"),
-					preventDefault: def.preventDefault,
-					description: def.description ?? def.label,
-				},
+			// Desktop-only shortcuts must never register on the web build, or their
+			// `preventDefault` swallows the native browser combo (their real
+			// handler only exists under Tauri).
+			if (def.desktopOnly && !onDesktop) continue;
+			const options = {
+				scopes: [scope],
+				except: def.except === false ? undefined : (def.except ?? "typing"),
+				preventDefault: def.preventDefault,
+				description: def.description ?? def.label,
 			};
+			// A `keys` array means "any of these combos triggers the action", but
+			// `useShortcutMap` reads an array as a multi-step chord. Register each
+			// combo as its own single-combo entry so they behave as alternatives.
+			const resolved = bindings[id] ?? def.keys;
+			const combos = Array.isArray(resolved) ? resolved : [resolved];
+			combos.forEach((combo, index) => {
+				const entryId = index === 0 ? id : `${id}__alt${index}`;
+				map[entryId] = {
+					keys: combo,
+					handler: (event) => latest.current[id]?.(event),
+					options,
+				};
+			});
 		}
 		return map;
 	}, [scope, bindings]);

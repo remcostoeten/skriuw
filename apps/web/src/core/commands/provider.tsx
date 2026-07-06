@@ -143,19 +143,22 @@ export function CommandProvider({ children }: { children: React.ReactNode }) {
 }
 
 function CommandShortcutBinder() {
-	const { executeCommand, toggleOpen } = useCommandRegistry();
+	const { executeCommand, toggleOpen, activeScope } = useCommandRegistry();
 
-	// Bind command palette toggles
+	// The command palette and settings toggles are bound exactly once, in the
+	// always-active `app` scope, so a single `mod+k` / `mod+comma` fires one
+	// toggle. Binding them redundantly per scope (as before) made the net result
+	// depend on the *parity* of how many scopes were active — remove or gate one
+	// and the toggle silently became a no-op. `app.settings` is supplied by
+	// `appHandlers` below; the palette toggle is bound here.
 	useShortcutScope("app", { "app.commandPalette": toggleOpen });
-	useShortcutScope("notes", { "notes.commandPalette": toggleOpen });
-	useShortcutScope("journal", { "journal.commandPalette": toggleOpen });
-	useShortcutScope("settings", { "app.commandPalette": toggleOpen });
 
-	// Notes Scope Keybindings
+	// Notes / journal shortcuts fire only while their surface is mounted. The
+	// scope's `useActiveCommandScope` push (see use-notes-layout / use-journal-
+	// layout) is what makes `activeScope` match, so gating on it keeps e.g. `/`
+	// or `mod+n` from firing (and navigating away) on unrelated routes.
 	const notesHandlers = useMemo<Record<string, () => void>>(() => {
-		const handlers: Record<string, () => void> = {
-			"notes.settings": () => executeCommand("settings.open"),
-		};
+		const handlers: Record<string, () => void> = {};
 		for (const [id, cmd] of Object.entries(COMMAND_REGISTRY)) {
 			if (cmd.scope === "notes" && cmd.shortcutId) {
 				handlers[cmd.shortcutId] = () => executeCommand(id);
@@ -163,13 +166,10 @@ function CommandShortcutBinder() {
 		}
 		return handlers;
 	}, [executeCommand]);
-	useShortcutScope("notes", notesHandlers);
+	useShortcutScope("notes", notesHandlers, { active: activeScope === "notes" });
 
-	// Journal Scope Keybindings
 	const journalHandlers = useMemo<Record<string, () => void>>(() => {
-		const handlers: Record<string, () => void> = {
-			"journal.settings": () => executeCommand("settings.open"),
-		};
+		const handlers: Record<string, () => void> = {};
 		for (const [id, cmd] of Object.entries(COMMAND_REGISTRY)) {
 			if (cmd.scope === "journal" && cmd.shortcutId) {
 				handlers[cmd.shortcutId] = () => executeCommand(id);
@@ -177,9 +177,10 @@ function CommandShortcutBinder() {
 		}
 		return handlers;
 	}, [executeCommand]);
-	useShortcutScope("journal", journalHandlers);
+	useShortcutScope("journal", journalHandlers, { active: activeScope === "journal" });
 
-	// App Scope Keybindings
+	// App-scope global commands (e.g. `app.settings` → open settings). Always
+	// active, and each command binds a single handler, so no parity dependence.
 	const appHandlers = useMemo<Record<string, () => void>>(() => {
 		const handlers: Record<string, () => void> = {};
 		for (const [id, cmd] of Object.entries(COMMAND_REGISTRY)) {

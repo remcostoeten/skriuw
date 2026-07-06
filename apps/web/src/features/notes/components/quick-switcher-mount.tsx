@@ -51,7 +51,7 @@ export function QuickSwitcherMount() {
 		const recentRank = new Map<string, number>();
 		recentFileIds.forEach((id, index) => recentRank.set(id, index));
 
-		const ordered = [...notes].sort((a, b) => {
+		const ordered = notes.toSorted((a, b) => {
 			const ra = recentRank.get(a.id);
 			const rb = recentRank.get(b.id);
 			if (ra !== undefined && rb !== undefined) return ra - rb;
@@ -63,6 +63,7 @@ export function QuickSwitcherMount() {
 		const titleItems: CommandPaletteItem[] = ordered.map((note) => ({
 			id: `note:${note.id}`,
 			label: noteTitle(note.name),
+			emoji: note.icon,
 			group: "Notes",
 			keywords: note.tags,
 			searchOnly: !recentRank.has(note.id),

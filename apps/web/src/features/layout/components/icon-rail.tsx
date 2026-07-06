@@ -23,7 +23,7 @@ import { usePreferencesStore } from "@/features/settings/store";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { RawLogo } from "@/shared/icons/logo";
 import { useAuth } from "@/core/auth/use-auth";
@@ -69,6 +69,13 @@ const authDrawerConfig = {
 					fromPos: 0,
 					toPos: 100,
 				},
+			},
+		},
+		success: {
+			messages: {
+				signIn: "Signed in",
+				signUp: "Account created",
+				oauth: "Signed in",
 			},
 		},
 	},
@@ -154,6 +161,18 @@ function RailNavItem({
 	);
 }
 
+type NavItemProps = {
+	item: Omit<RailNavItemProps, "isAuthenticated" | "onRequireAuth">;
+	isAuthenticated: boolean;
+	onRequireAuth: (href: string) => void;
+};
+
+function NavItem({ item, isAuthenticated, onRequireAuth }: NavItemProps) {
+	return (
+		<RailNavItem {...item} isAuthenticated={isAuthenticated} onRequireAuth={onRequireAuth} />
+	);
+}
+
 function getPathWithoutAuthParams(pathname: string, searchParams: URLSearchParams): string {
 	const nextParams = new URLSearchParams(searchParams.toString());
 	nextParams.delete("auth");
@@ -177,7 +196,7 @@ export function IconRail() {
 	const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
 	const [authDrawerInitialMode, setAuthDrawerInitialMode] =
 		useState<AuthDrawerInitialMode>("login");
-	const [authDestination, setAuthDestination] = useState<string | null>(null);
+	const authDestinationRef = useRef<string | null>(null);
 	const [duplicateOAuth, setDuplicateOAuth] = useState<DuplicateOAuthEmailDetail | null>(null);
 	// Desktop is a single local profile with no cloud auth, so nothing is
 	// "protected" — gating these would only pop a sign-in drawer that can never
@@ -217,7 +236,7 @@ export function IconRail() {
 		}
 
 		setAuthDrawerInitialMode(initialMode);
-		setAuthDestination(destination);
+		authDestinationRef.current = destination;
 		setAuthDrawerOpen(true);
 		router.replace(cleanPath, { scroll: false });
 	}, [auth.isReady, auth.phase, pathname, router, searchParams]);
@@ -230,7 +249,7 @@ export function IconRail() {
 		if (!auth.isReady || auth.phase === "authenticated") return;
 		if (!protectedRoutes.has(pathname)) return;
 
-		setAuthDestination(pathname);
+		authDestinationRef.current = pathname;
 		setAuthDrawerOpen(true);
 	}, [auth.isReady, auth.phase, pathname, protectedRoutes]);
 
@@ -238,7 +257,7 @@ export function IconRail() {
 		function handleGuestPrompt() {
 			router.prefetch("/app");
 			setAuthDrawerInitialMode("register");
-			setAuthDestination("/app");
+			authDestinationRef.current = "/app";
 			setAuthDrawerOpen(true);
 		}
 		window.addEventListener(GUEST_SIGNUP_PROMPT_EVENT, handleGuestPrompt);
@@ -278,7 +297,7 @@ export function IconRail() {
 	const openAuthDrawerFor = (destination: string) => {
 		router.prefetch(destination);
 		setAuthDrawerInitialMode("login");
-		setAuthDestination(destination);
+		authDestinationRef.current = destination;
 		setAuthDrawerOpen(true);
 	};
 
@@ -398,15 +417,6 @@ export function IconRail() {
 			),
 	};
 
-	const renderNavItem = (item: (typeof navItems)[number] | typeof trashNavItem) => (
-		<RailNavItem
-			{...item}
-			key={item.href}
-			isAuthenticated={isAuthenticated}
-			onRequireAuth={openAuthDrawerFor}
-		/>
-	);
-
 	return (
 		<>
 			{/* The aside must NOT be inside AuthProvider — fixed positioning breaks
@@ -436,11 +446,22 @@ export function IconRail() {
 						</Tooltip>
 					</div>
 					<div className="mt-4 flex w-full flex-col items-center gap-4">
-						{navItems.map(renderNavItem)}
+						{navItems.map((item) => (
+							<NavItem
+								key={item.href}
+								item={item}
+								isAuthenticated={isAuthenticated}
+								onRequireAuth={openAuthDrawerFor}
+							/>
+						))}
 					</div>
 				</div>
 				<div className="flex w-full flex-col items-center gap-3 pb-4">
-					{renderNavItem(trashNavItem)}
+					<NavItem
+						item={trashNavItem}
+						isAuthenticated={isAuthenticated}
+						onRequireAuth={openAuthDrawerFor}
+					/>
 					<div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -550,15 +571,16 @@ export function IconRail() {
 					onOpenChange={(open) => {
 						setAuthDrawerOpen(open);
 						if (!open) {
-							setAuthDestination(null);
+							authDestinationRef.current = null;
 						}
 					}}
 					onSuccess={() => {
 						setDuplicateOAuth(null);
-						if (authDestination && authDestination !== pathname) {
-							router.push(authDestination);
+						const destination = authDestinationRef.current;
+						if (destination && destination !== pathname) {
+							router.push(destination);
 						}
-						setAuthDestination(null);
+						authDestinationRef.current = null;
 					}}
 					onError={(error) => {
 						const fallbackMessage =

@@ -1,4 +1,5 @@
 import { mock } from "bun:test";
+import { createElement } from "react";
 import type { NoteFile } from "@/types/notes";
 
 type MockFn = (...args: any[]) => any;
@@ -154,6 +155,8 @@ export async function installNotesLayoutMocks(
 			prefetchQuery: () => Promise.resolve(),
 			setQueryData: () => undefined,
 		}),
+		useQuery: () => ({ data: undefined, isPending: false, isFetching: false }),
+		useMutation: (options: any) => options,
 	}));
 
 	mock.module("next/navigation", () => ({
@@ -193,6 +196,8 @@ export async function installNotesLayoutMocks(
 	mock.module("@/core/shortcuts", () => ({
 		useShortcutManager: () => ({ getHelpGroups: () => [] }),
 		useShortcutScope: () => undefined,
+		useShortcutHint: () => "",
+		ShortcutProvider: ({ children }: { children?: unknown }) => children,
 	}));
 
 	mock.module("@/core/commands", () => ({
@@ -212,10 +217,66 @@ export async function installNotesLayoutMocks(
 		useActiveCommandScope: () => undefined,
 	}));
 
-	mock.module("framer-motion", () => ({
-		useDragControls: () => ({}),
-		useReducedMotion: () => false,
-	}));
+	mock.module("framer-motion", () => {
+		const MOTION_ONLY_PROPS = new Set([
+			"initial",
+			"animate",
+			"exit",
+			"transition",
+			"variants",
+			"whileHover",
+			"whileTap",
+			"whileFocus",
+			"whileInView",
+			"whileDrag",
+			"drag",
+			"dragControls",
+			"dragConstraints",
+			"dragElastic",
+			"dragMomentum",
+			"layout",
+			"layoutId",
+			"onAnimationComplete",
+			"onAnimationStart",
+			"onDragEnd",
+			"custom",
+		]);
+		const stripMotionProps = (props: Record<string, unknown>) => {
+			const rest: Record<string, unknown> = {};
+			for (const key in props) {
+				if (!MOTION_ONLY_PROPS.has(key)) rest[key] = props[key];
+			}
+			return rest;
+		};
+		const m = new Proxy(
+			{},
+			{
+				get:
+					(_target, tag: string) =>
+					({ ref, ...props }: Record<string, unknown> & { ref?: unknown }) =>
+						createElement(tag, { ...stripMotionProps(props), ref }),
+			},
+		);
+		const passthrough = ({ children }: { children?: unknown }) => children;
+		return {
+			m,
+			motion: m,
+			AnimatePresence: passthrough,
+			LazyMotion: passthrough,
+			MotionConfig: passthrough,
+			domAnimation: {},
+			domMin: {},
+			stagger: () => 0,
+			useAnimate: () => [{ current: null }, async () => undefined],
+			useAnimation: () => ({
+				start: async () => undefined,
+				stop: () => undefined,
+				set: () => undefined,
+			}),
+			useDragControls: () => ({}),
+			useReducedMotion: () => false,
+		};
+	});
 
 	mock.module("@/domain/folders/actions", () => ({}));
 	mock.module("@/domain/notes/actions", () => ({
@@ -226,13 +287,31 @@ export async function installNotesLayoutMocks(
 	}));
 	mock.module("@/domain/notes/rich-document", () => ({
 		markdownToRichDocument: () => [],
+		richDocumentKey: () => "",
 	}));
 	mock.module("@/core/workspace-backend", () => ({
 		useIsGuestWorkspace: () => false,
+		useWorkspaceCapabilities: () => ({}),
 		isTauriRuntime: () => false,
+		createTauriBackend: () => ({}),
+		tauriInvoke: async () => undefined,
+		tauriChannel: () => ({}),
 		useWorkspaceBackend: () => ({
 			getNote: async (id: string) => notes.find((note) => note.id === id) ?? null,
 		}),
+		WorkspaceBackendProvider: ({ children }: { children?: unknown }) => children,
+		WorkspaceCapabilityError: class WorkspaceCapabilityError extends Error {},
+		serverBackend: {},
+		createLocalBackend: () => ({}),
+		mergeSeedWithGuestNotes: (notes: unknown) => notes,
+		mergeSeedWithGuestFolders: (folders: unknown) => folders,
+		mergeSeedWithGuestWorkspace: async (workspaceNotes: unknown, folders: unknown) => ({
+			notes: workspaceNotes,
+			folders,
+		}),
+		resetGuestStorage: () => undefined,
+		GUEST_SIGNUP_PROMPT_EVENT: "guest-signup-prompt",
+		recordGuestGraphExplore: () => undefined,
 	}));
 	mock.module("@/features/editor/lib/editor-mode", () => ({
 		isMdxNote: () => false,

@@ -211,24 +211,26 @@ export function TagsOverview() {
 						</DialogDescription>
 					</DialogHeader>
 					<ul className="max-h-64 overflow-y-auto rounded-md border border-border">
-						{tags
-							.filter((tag) => tag.name !== pending?.tag.name)
-							.map((tag) => (
-								<li key={tag.name}>
-									<button
-										type="button"
-										onClick={() => setMergeTarget(tag.name)}
-										className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
-											mergeTarget === tag.name ? "bg-muted" : ""
-										}`}
-									>
-										<span>#{tag.name}</span>
-										<span className="text-xs text-muted-foreground">
-											{noteCountLabel(tag.noteCount)}
-										</span>
-									</button>
-								</li>
-							))}
+						{tags.flatMap((tag) =>
+							tag.name === pending?.tag.name
+								? []
+								: [
+										<li key={tag.name}>
+											<button
+												type="button"
+												onClick={() => setMergeTarget(tag.name)}
+												className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
+													mergeTarget === tag.name ? "bg-muted" : ""
+												}`}
+											>
+												<span>#{tag.name}</span>
+												<span className="text-xs text-muted-foreground">
+													{noteCountLabel(tag.noteCount)}
+												</span>
+											</button>
+										</li>,
+									],
+						)}
 					</ul>
 					<DialogFooter>
 						<DialogClose asChild>

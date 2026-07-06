@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { cn } from "@/shared/lib/utils";
 import { useState } from "react";
 
-const EMOJIS = [
+export const NOTE_ICON_EMOJIS = [
 	"📝",
 	"📄",
 	"📑",
@@ -129,7 +129,7 @@ export function NoteIconPicker({ icon, onIconChange }: Props) {
 			</PopoverTrigger>
 			<PopoverContent className="w-[232px] p-2" align="start" side="right">
 				<div className="grid grid-cols-8 gap-0.5">
-					{EMOJIS.map((emoji) => (
+					{NOTE_ICON_EMOJIS.map((emoji) => (
 						<button
 							key={emoji}
 							type="button"

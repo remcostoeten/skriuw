@@ -1,7 +1,7 @@
 export const SKRIUW_EXPORT_SOURCE = "skriuw" as const;
 export const SKRIUW_EXPORT_VERSION = 3 as const;
 
-export type ImportPolicy = "merge" | "overwrite" | "duplicate" | "replace-workspace";
+export type ImportPolicy = "merge" | "overwrite" | "duplicate" | "replace-workspace" | "newer";
 export type ImportProfile =
 	| "skriuw"
 	| "markdown-vault"

@@ -4,7 +4,32 @@
  */
 export const EDITOR_STYLES = `
 				.blocknote-wrapper .bn-editor .vim-normal {
-					caret-color: hsl(var(--primary));
+					caret-color: transparent;
+				}
+				.blocknote-wrapper .bn-editor .vim-cursor {
+					background-color: hsl(var(--primary));
+					color: hsl(var(--primary-foreground));
+					border-radius: 1px;
+				}
+				.blocknote-wrapper .bn-editor .vim-cursor-eol {
+					display: inline-block;
+					width: 0.55ch;
+					height: 1.15em;
+					vertical-align: text-bottom;
+					background-color: hsl(var(--primary));
+					border-radius: 1px;
+					opacity: 0.85;
+					pointer-events: none;
+				}
+				.blocknote-wrapper .bn-editor .vim-blurred .vim-cursor {
+					background-color: transparent;
+					color: inherit;
+					box-shadow: inset 0 0 0 1px hsl(var(--primary));
+				}
+				.blocknote-wrapper .bn-editor .vim-blurred .vim-cursor-eol {
+					background-color: transparent;
+					box-shadow: inset 0 0 0 1px hsl(var(--primary));
+					opacity: 1;
 				}
 				.blocknote-wrapper .bn-editor .vim-visual {
 					caret-color: transparent;
@@ -139,10 +164,18 @@ export const EDITOR_STYLES = `
 					transform: translateY(-0.14em) rotate(45deg);
 				}
 				.blocknote-wrapper [data-note-link],
-				.blocknote-wrapper [data-note-tag] {
+				.blocknote-wrapper [data-note-tag],
+				.blocknote-wrapper [data-note-person] {
 					cursor: pointer;
 					user-select: none;
 					white-space: nowrap;
+				}
+				.blocknote-wrapper [data-note-link].ProseMirror-selectednode,
+				.blocknote-wrapper [data-note-tag].ProseMirror-selectednode,
+				.blocknote-wrapper [data-note-person].ProseMirror-selectednode {
+					outline: 2px solid hsl(var(--ring) / 0.8);
+					outline-offset: 2px;
+					box-shadow: 0 0 0 3px hsl(var(--background));
 				}
 				.blocknote-wrapper [data-note-tag] {
 					display: inline-flex;
@@ -235,7 +268,7 @@ export const EDITOR_STYLES = `
 						transition: none;
 					}
 				}
-				.blocknote-wrapper .skriuw-fmt-focus-ring {
+				.skriuw-fmt-focus-ring {
 					position: absolute;
 					top: 0;
 					left: 0;
@@ -252,29 +285,34 @@ export const EDITOR_STYLES = `
 						opacity 140ms ease;
 				}
 				@media (prefers-reduced-motion: reduce) {
-					.blocknote-wrapper .skriuw-fmt-focus-ring {
+					.skriuw-fmt-focus-ring {
 						transition: opacity 140ms ease;
 					}
 				}
-				.blocknote-wrapper .skriuw-fmt-btn,
-				.blocknote-wrapper .skriuw-fmt-trigger,
-				.blocknote-wrapper .skriuw-fmt-menu,
-				.blocknote-wrapper .skriuw-fmt-sep {
+				.skriuw-fmt-btn,
+				.skriuw-fmt-trigger,
+				.skriuw-fmt-menu,
+				.skriuw-fmt-sep {
 					position: relative;
 					z-index: 1;
 				}
-				.blocknote-wrapper .skriuw-fmt-btn:focus-visible,
-				.blocknote-wrapper .skriuw-fmt-trigger:focus-visible {
+				.skriuw-fmt-btn:focus-visible,
+				.skriuw-fmt-trigger:focus-visible {
 					outline: none;
 				}
-				.blocknote-wrapper .skriuw-fmt-toolbar {
+				.skriuw-fmt-toolbar {
 					display: flex;
 					align-items: center;
 					gap: 1px;
 					padding: 2px;
 					overflow: visible;
+					border: 1px solid hsl(var(--border));
+					border-radius: var(--radius);
+					background: hsl(var(--popover));
+					color: hsl(var(--popover-foreground));
+					box-shadow: 0 16px 36px hsl(var(--editor-shadow) / 0.42);
 				}
-					.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] {
+					.skriuw-fmt-toolbar[data-mobile="true"] {
 						max-width: calc(100vw - 16px);
 						min-height: 2.75rem;
 						flex-wrap: wrap;
@@ -283,8 +321,8 @@ export const EDITOR_STYLES = `
 						padding: 0.3rem;
 						gap: 0.15rem;
 					}
-				.blocknote-wrapper .skriuw-fmt-btn,
-				.blocknote-wrapper .skriuw-fmt-trigger {
+				.skriuw-fmt-btn,
+				.skriuw-fmt-trigger {
 					display: inline-flex;
 					align-items: center;
 					justify-content: center;
@@ -303,59 +341,59 @@ export const EDITOR_STYLES = `
 						background-color 120ms ease,
 						color 120ms ease;
 				}
-				.blocknote-wrapper .skriuw-fmt-btn {
+				.skriuw-fmt-btn {
 					width: 1.75rem;
 					padding: 0;
 				}
-				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-btn,
-				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-trigger {
+				.skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-btn,
+				.skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-trigger {
 					flex: 0 0 auto;
 					height: 2.75rem;
 					min-width: 2.75rem;
 					padding: 0 0.58rem;
 				}
-				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-btn {
+				.skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-btn {
 					width: 2.75rem;
 					padding: 0;
 				}
-				.blocknote-wrapper .skriuw-fmt-btn:hover,
-				.blocknote-wrapper .skriuw-fmt-trigger:hover {
+				.skriuw-fmt-btn:hover,
+				.skriuw-fmt-trigger:hover {
 					background: hsl(var(--accent));
 					color: hsl(var(--foreground));
 				}
-				.blocknote-wrapper .skriuw-fmt-btn[data-active="true"],
-				.blocknote-wrapper .skriuw-fmt-trigger[aria-expanded="true"] {
+				.skriuw-fmt-btn[data-active="true"],
+				.skriuw-fmt-trigger[aria-expanded="true"] {
 					background: hsl(var(--muted));
 					color: hsl(var(--foreground));
 				}
-				.blocknote-wrapper .skriuw-fmt-btn svg,
-				.blocknote-wrapper .skriuw-fmt-trigger svg {
+				.skriuw-fmt-btn svg,
+				.skriuw-fmt-trigger svg {
 					width: 0.95rem;
 					height: 0.95rem;
 				}
-				.blocknote-wrapper .skriuw-fmt-trigger-label {
+				.skriuw-fmt-trigger-label {
 					white-space: nowrap;
 				}
-				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-trigger-label {
+				.skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-trigger-label {
 					max-width: 6.5rem;
 					overflow: hidden;
 					text-overflow: ellipsis;
 				}
-				.blocknote-wrapper .skriuw-fmt-caret {
+				.skriuw-fmt-caret {
 					opacity: 0.6;
 				}
-				.blocknote-wrapper .skriuw-fmt-sep {
+				.skriuw-fmt-sep {
 					width: 1px;
 					align-self: stretch;
 					margin: 0.2rem 0.18rem;
 					background: hsl(var(--border));
 				}
-				.blocknote-wrapper .skriuw-fmt-menu {
+				.skriuw-fmt-menu {
 					position: relative;
 					display: inline-flex;
 					flex: 0 0 auto;
 				}
-				.blocknote-wrapper .skriuw-fmt-dropdown {
+				.skriuw-fmt-dropdown {
 					position: absolute;
 					top: calc(100% + 4px);
 					left: 0;
@@ -370,13 +408,13 @@ export const EDITOR_STYLES = `
 					color: hsl(var(--popover-foreground));
 					box-shadow: 0 16px 36px hsl(var(--editor-shadow) / 0.42);
 				}
-				.blocknote-wrapper .skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-dropdown {
+				.skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-dropdown {
 					top: auto;
 					bottom: calc(100% + 0.5rem);
 					left: 0;
 					max-height: min(18rem, 48dvh);
 				}
-				.blocknote-wrapper .skriuw-fmt-item {
+				.skriuw-fmt-item {
 					display: flex;
 					align-items: center;
 					gap: 0.5rem;
@@ -391,36 +429,36 @@ export const EDITOR_STYLES = `
 					text-align: left;
 					cursor: pointer;
 				}
-				.blocknote-wrapper .skriuw-fmt-item:hover {
+				.skriuw-fmt-item:hover {
 					background: hsl(var(--accent));
 					color: hsl(var(--foreground));
 				}
-				.blocknote-wrapper .skriuw-fmt-item[data-active="true"] {
+				.skriuw-fmt-item[data-active="true"] {
 					background: hsl(var(--muted));
 					color: hsl(var(--foreground));
 				}
-				.blocknote-wrapper .skriuw-fmt-item-icon {
+				.skriuw-fmt-item-icon {
 					display: inline-flex;
 					color: hsl(var(--muted-foreground));
 				}
-				.blocknote-wrapper .skriuw-fmt-item-icon svg {
+				.skriuw-fmt-item-icon svg {
 					width: 0.95rem;
 					height: 0.95rem;
 				}
-				.blocknote-wrapper .skriuw-fmt-form {
+				.skriuw-fmt-form {
 					display: flex;
 					align-items: center;
 					gap: 0.4rem;
 					padding: 0.15rem;
 				}
-				.blocknote-wrapper .skriuw-fmt-comment {
+				.skriuw-fmt-comment {
 					display: flex;
 					flex-direction: column;
 					gap: 0.4rem;
 					padding: 0.15rem;
 				}
-				.blocknote-wrapper .skriuw-fmt-input,
-				.blocknote-wrapper .skriuw-fmt-textarea {
+				.skriuw-fmt-input,
+				.skriuw-fmt-textarea {
 					flex: 1;
 					min-width: 0;
 					border: 1px solid hsl(var(--border));
@@ -431,16 +469,16 @@ export const EDITOR_STYLES = `
 					padding: 0.32rem 0.46rem;
 					outline: none;
 				}
-				.blocknote-wrapper .skriuw-fmt-input:focus,
-				.blocknote-wrapper .skriuw-fmt-textarea:focus {
+				.skriuw-fmt-input:focus,
+				.skriuw-fmt-textarea:focus {
 					border-color: hsl(var(--ring));
 					box-shadow: 0 0 0 1px hsl(var(--ring));
 				}
-				.blocknote-wrapper .skriuw-fmt-textarea {
+				.skriuw-fmt-textarea {
 					height: 4.5rem;
 					resize: none;
 				}
-				.blocknote-wrapper .skriuw-fmt-apply {
+				.skriuw-fmt-apply {
 					border: 0;
 					border-radius: calc(var(--radius) - 2px);
 					background: hsl(var(--foreground));
@@ -450,11 +488,11 @@ export const EDITOR_STYLES = `
 					padding: 0.34rem 0.6rem;
 					cursor: pointer;
 				}
-				.blocknote-wrapper .skriuw-fmt-apply:disabled {
+				.skriuw-fmt-apply:disabled {
 					opacity: 0.5;
 					cursor: default;
 				}
-				.blocknote-wrapper .skriuw-fmt-ghost {
+				.skriuw-fmt-ghost {
 					border: 0;
 					border-radius: calc(var(--radius) - 2px);
 					background: transparent;
@@ -463,10 +501,10 @@ export const EDITOR_STYLES = `
 					padding: 0.34rem 0.5rem;
 					cursor: pointer;
 				}
-				.blocknote-wrapper .skriuw-fmt-ghost:hover {
+				.skriuw-fmt-ghost:hover {
 					background: hsl(var(--muted));
 				}
-				.blocknote-wrapper .skriuw-fmt-comment-actions {
+				.skriuw-fmt-comment-actions {
 					display: flex;
 					justify-content: flex-end;
 					gap: 0.4rem;
@@ -728,5 +766,17 @@ export const EDITOR_STYLES = `
 				.blocknote-wrapper .bn-editor [data-content-type="table"] th {
 					background: hsl(var(--muted) / 0.6);
 					font-weight: 500;
+				}
+				@media (pointer: coarse) {
+					.skriuw-slash-badge {
+						display: none;
+					}
+					.blocknote-wrapper .pro-code-title {
+						font-size: 16px;
+					}
+					.skriuw-fmt-toolbar[data-mobile="true"] .skriuw-fmt-dropdown {
+						max-width: calc(100vw - 24px);
+						overflow-x: hidden;
+					}
 				}
 `;

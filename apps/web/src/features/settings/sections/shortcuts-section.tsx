@@ -26,11 +26,17 @@ function groupShortcuts(
 	registry: ReturnType<typeof useShortcutManager>["registry"],
 ): GroupedShortcuts[] {
 	const groups: GroupedShortcuts[] = [];
+	const byGroup = new Map<string, GroupedShortcuts>();
 	for (const id of getShortcutIds()) {
 		const { group } = registry[id];
-		const existing = groups.find((g) => g.group === group);
-		if (existing) existing.ids.push(id);
-		else groups.push({ group, ids: [id] });
+		const existing = byGroup.get(group);
+		if (existing) {
+			existing.ids.push(id);
+		} else {
+			const entry: GroupedShortcuts = { group, ids: [id] };
+			byGroup.set(group, entry);
+			groups.push(entry);
+		}
 	}
 	return groups;
 }

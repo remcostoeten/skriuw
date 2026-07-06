@@ -199,11 +199,9 @@ export async function signInWithOAuth(
 	provider: OAuthProvider,
 	options: { rememberMe: boolean },
 ): Promise<void> {
-	await setRememberMe(options.rememberMe);
-
 	// Once authenticated, any local guest workspace is irrelevant — clear it
 	// before the OAuth redirect so it doesn't linger.
-	await resetGuestStorage();
+	await Promise.all([setRememberMe(options.rememberMe), resetGuestStorage()]);
 
 	const { error } = await authClient.signIn.social({
 		provider,

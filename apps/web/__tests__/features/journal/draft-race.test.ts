@@ -42,6 +42,22 @@ const noopBackend = {
 
 mock.module("@/core/workspace-backend", () => ({
 	useWorkspaceBackend: () => noopBackend,
+	useIsGuestWorkspace: () => false,
+	useWorkspaceCapabilities: () => ({}),
+	isTauriRuntime: () => false,
+	createTauriBackend: () => ({}),
+	tauriInvoke: async () => undefined,
+	tauriChannel: () => ({}),
+	WorkspaceBackendProvider: ({ children }: { children?: unknown }) => children,
+	WorkspaceCapabilityError: class WorkspaceCapabilityError extends Error {},
+	serverBackend: {},
+	createLocalBackend: () => ({}),
+	mergeSeedWithGuestNotes: (notes: unknown) => notes,
+	mergeSeedWithGuestFolders: (folders: unknown) => folders,
+	mergeSeedWithGuestWorkspace: async (notes: unknown, folders: unknown) => ({ notes, folders }),
+	resetGuestStorage: () => undefined,
+	GUEST_SIGNUP_PROMPT_EVENT: "guest-signup-prompt",
+	recordGuestGraphExplore: () => undefined,
 }));
 
 const { isCurrentJournalDraftAcknowledgement, shouldAdoptJournalEntrySnapshot } =

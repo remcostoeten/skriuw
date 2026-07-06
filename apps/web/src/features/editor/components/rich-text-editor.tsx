@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { filterSuggestionItems } from "@blocknote/core/extensions";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "framer-motion";
 import {
 	LinkToolbarController,
 	SuggestionMenuController,
@@ -21,6 +21,7 @@ import {
 	ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
 import { noop } from "@/shared/lib/noop";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { FAST_SWAP_TRANSITION, pickTransition } from "@/shared/lib/motion";
 import { perf } from "@/shared/perf/track";
 import { getEditorFontFamily, type EditorFontId } from "@/shared/lib/editor-fonts";
@@ -108,19 +109,24 @@ type RichTextEditorProps = {
 		selection?: { words: number; characters: number };
 	}) => void;
 	onVimModeChange?: (mode: VimMode | null) => void;
+	isMobile?: boolean;
 	collab?: TRichTextCollab;
 };
+
+const EMPTY_FILES: NoteFile[] = [];
+const EMPTY_PEOPLE: Person[] = [];
+const EMPTY_PROPERTIES: NoteProperty[] = [];
 
 export function RichTextEditor({
 	content,
 	richContent,
-	files = [],
-	people = [],
+	files = EMPTY_FILES,
+	people = EMPTY_PEOPLE,
 	onCreatePerson,
 	activeFileId,
 	editorFontId,
 	editorLineHeight,
-	properties = [],
+	properties = EMPTY_PROPERTIES,
 	readOnly = false,
 	onChange,
 	onPropertiesChange,
@@ -133,17 +139,28 @@ export function RichTextEditor({
 	onBlur,
 	onCursorChange,
 	onVimModeChange,
+	isMobile = false,
 	collab,
 }: RichTextEditorProps) {
 	const appTheme = usePreferencesStore((state) => state.appearance.theme);
-	const blockNoteTheme = appTheme === "paper" ? "light" : "dark";
+	const blockNoteTheme =
+		appTheme === "paper" || appTheme === "rose-pine-dawn" || appTheme === "catppuccin-latte"
+			? "light"
+			: "dark";
 	const lastContentRef = useRef(content);
-	const lastRichContentRef = useRef<string>(richDocumentKey(richContent));
+	const lastRichContentRef = useLazyRef<string>(() => richDocumentKey(richContent));
 	const pendingMarkdownRef = useRef(content);
-	const pendingRichContentRef = useRef<RichTextDocument>(
+	const pendingRichContentRef = useLazyRef<RichTextDocument>(() =>
 		upgradeRichDocumentChips(resolveRichDocument(content, richContent)),
 	);
 	const isInternalChangeRef = useRef(false);
+	// True while the caret is inside this editor. When the same note is open in a
+	// second split pane, typing in one pane rewrites the shared detail cache,
+	// which pushes a new `content` prop into the *other* pane — without this guard
+	// its prop-sync effect would `replaceBlocks` and yank the caret/selection out
+	// from under an actively-editing user. A focused editor's live document is
+	// authoritative; external content updates apply only while it's unfocused.
+	const isFocusedRef = useRef(false);
 	const hasNormalizedInitialContentRef = useRef(false);
 	const activeFileIdRef = useRef(activeFileId);
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -179,6 +196,7 @@ export function RichTextEditor({
 	);
 	const editorDom = useEditorDom(editor);
 	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
+	const effectiveVimModeEnabled = vimModeEnabled && !isMobile;
 	const [vimCommand, setVimCommand] = useState<string | null>(null);
 	const [customPromptOpen, setCustomPromptOpen] = useState(false);
 	const prefersReducedMotion = useReducedMotion() ?? false;
@@ -199,15 +217,29 @@ export function RichTextEditor({
 		},
 		[router],
 	);
+	const handleOpenTag = useCallback(
+		(name: string) => {
+			router.push(`/app/tags/${encodeURIComponent(name)}`);
+		},
+		[router],
+	);
 
 	useEditorPlugins({
 		editor,
 		readOnly,
-		vimModeEnabled,
+		vimModeEnabled: effectiveVimModeEnabled,
 		onVimModeChange,
 		setVimCommand,
+		onOpenNoteLink: createAndOpenNote,
 		onOpenPerson: handleOpenPerson,
+		onOpenTag: handleOpenTag,
 	});
+
+	useEffect(() => {
+		if (!isMobile) return;
+		setVimCommand(null);
+		onVimModeChange?.(null);
+	}, [isMobile, onVimModeChange]);
 
 	const handleCreateNoteFromMention = useCallback(
 		(title: string) => {
@@ -416,7 +448,7 @@ export function RichTextEditor({
 		// `content` prop back into the editor would fight the CRDT and clobber
 		// remote edits. The shared doc handles all content updates.
 		if (collab) return;
-		if (!editor || isInternalChangeRef.current) return;
+		if (!editor || isInternalChangeRef.current || isFocusedRef.current) return;
 		const baseRichContent = resolveRichDocument(content, richContent);
 		const nextRichContent = upgradeRichDocumentChips(baseRichContent);
 		const nextRichContentKey = richDocumentKey(nextRichContent);
@@ -449,255 +481,263 @@ export function RichTextEditor({
 	}, []);
 
 	return (
-		<ContextMenu onOpenChange={handleContextMenuOpenChange}>
-			<ContextMenuTrigger asChild>
-				<div
-					ref={wrapperRef}
-					onMouseDown={(event) => {
-						const target = event.target;
-						if (!(target instanceof HTMLElement)) return;
-						if (!target.closest(".bn-toolbar")) return;
-						// Text inputs (link URL field, comment textarea) must receive focus,
-						// so don't swallow their mousedown.
-						if (target.closest("input, textarea, [contenteditable='true']")) return;
-						// Mantine's toolbar buttons don't preventDefault on mousedown, so a
-						// real mouse press on a control collapses the editor's text selection —
-						// the formatting command then applies to nothing and the
-						// selection-anchored toolbar dismisses.
-						event.preventDefault();
-					}}
-					onBlur={(event) => {
-						const nextFocusedElement = event.relatedTarget;
-						if (
-							nextFocusedElement instanceof Node &&
-							event.currentTarget.contains(nextFocusedElement)
-						) {
-							return;
+		<LazyMotion features={domAnimation} strict>
+			<ContextMenu onOpenChange={handleContextMenuOpenChange}>
+				<ContextMenuTrigger asChild>
+					<div
+						ref={wrapperRef}
+						onFocus={() => {
+							isFocusedRef.current = true;
+						}}
+						onMouseDown={(event) => {
+							const target = event.target;
+							if (!(target instanceof HTMLElement)) return;
+							if (!target.closest(".bn-toolbar")) return;
+							// Text inputs (link URL field, comment textarea) must receive focus,
+							// so don't swallow their mousedown.
+							if (target.closest("input, textarea, [contenteditable='true']")) return;
+							// Mantine's toolbar buttons don't preventDefault on mousedown, so a
+							// real mouse press on a control collapses the editor's text selection —
+							// the formatting command then applies to nothing and the
+							// selection-anchored toolbar dismisses.
+							event.preventDefault();
+						}}
+						onBlur={(event) => {
+							const nextFocusedElement = event.relatedTarget;
+							if (
+								nextFocusedElement instanceof Node &&
+								event.currentTarget.contains(nextFocusedElement)
+							) {
+								return;
+							}
+							isFocusedRef.current = false;
+							flushPendingEditorChange();
+							onBlur?.();
+						}}
+						className="blocknote-wrapper relative h-full min-h-full px-6 py-3"
+						style={
+							{
+								"--bn-font-family": getEditorFontFamily(editorFontId),
+								"--skriuw-editor-line-height":
+									getEditorLineHeightValue(editorLineHeight),
+							} as CSSProperties
 						}
-						flushPendingEditorChange();
-						onBlur?.();
-					}}
-					className="blocknote-wrapper relative h-full min-h-full px-6 py-3"
-					style={
-						{
-							"--bn-font-family": getEditorFontFamily(editorFontId),
-							"--skriuw-editor-line-height":
-								getEditorLineHeightValue(editorLineHeight),
-						} as CSSProperties
-					}
-				>
-					<AnimatePresence>
-						{search.searchOpen ? (
-							<motion.div
-								className="absolute top-3 right-4 z-40 origin-top-right"
-								initial={
-									prefersReducedMotion
-										? { opacity: 0 }
-										: { opacity: 0, y: -6, scale: 0.98 }
-								}
-								animate={
-									prefersReducedMotion
-										? { opacity: 1 }
-										: { opacity: 1, y: 0, scale: 1 }
-								}
-								exit={
-									prefersReducedMotion
-										? { opacity: 0 }
-										: { opacity: 0, y: -4, scale: 0.98 }
-								}
-								transition={searchWidgetTransition}
-							>
-								<SearchWidget
-									ref={search.findInputRef}
-									query={search.searchQuery}
-									onQueryChange={search.setSearchQuery}
-									replaceValue={search.replaceValue}
-									onReplaceChange={search.setReplaceValue}
-									showReplace={search.showReplace}
-									onToggleReplace={() => search.setShowReplace((value) => !value)}
-									options={search.searchOptions}
-									onToggleOption={search.toggleSearchOption}
-									current={search.matchInfo.current}
-									total={search.matchInfo.total}
-									regexError={search.regexError}
-									onNext={search.handleNextMatch}
-									onPrevious={search.handlePreviousMatch}
-									onClose={search.closeSearch}
-									onReplaceCurrent={search.handleReplaceCurrent}
-									onReplaceAll={search.handleReplaceAll}
-								/>
-							</motion.div>
-						) : null}
-					</AnimatePresence>
-					{onPropertiesChange ? (
-						<NotePropertiesShelf
-							properties={properties}
-							readOnly={readOnly}
-							onChange={onPropertiesChange}
-						/>
-					) : null}
-					<NoteLinkProvider files={files} activeFileId={activeFileId}>
-						<PeopleProvider people={people}>
-							<BlockNoteView
-								editor={editor}
-								editable={!readOnly}
-								onChange={handleEditorChange}
-								theme={blockNoteTheme}
-								className="h-full"
-								formattingToolbar={false}
-								linkToolbar={false}
-								slashMenu={false}
-							>
-								<LinkToolbarController
-									linkToolbar={(props) => (
-										<CustomLinkToolbar
-											{...props}
-											files={files}
-											activeFileId={activeFileId}
-										/>
-									)}
-								/>
-								<SuggestionMenuController
-									triggerCharacter="/"
-									suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-									getItems={async (query) =>
-										filterSuggestionItems(
-											getCustomSlashMenuItems(
-												editor,
-												onAiSpellCheck,
-												onAiContinueWriting,
-												onAiAction,
-												onAiCustomPrompt
-													? () => setCustomPromptOpen(true)
-													: undefined,
-											),
-											query,
-										)
+					>
+						<AnimatePresence>
+							{search.searchOpen ? (
+								<m.div
+									className="absolute top-3 right-4 z-40 origin-top-right"
+									initial={
+										prefersReducedMotion
+											? { opacity: 0 }
+											: { opacity: 0, y: -6, scale: 0.98 }
 									}
-								/>
-								<SuggestionMenuController
-									triggerCharacter="@"
-									suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-									getItems={async (query) =>
-										getNoteMentionMenuItems(
-											editor,
-											files,
-											activeFileId,
-											query,
-											handleCreateNoteFromMention,
-										)
+									animate={
+										prefersReducedMotion
+											? { opacity: 1 }
+											: { opacity: 1, y: 0, scale: 1 }
 									}
-								/>
-								<SuggestionMenuController
-									triggerCharacter="#"
-									suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-									getItems={async (query) =>
-										getTagMenuItems(editor, workspaceTags, query)
+									exit={
+										prefersReducedMotion
+											? { opacity: 0 }
+											: { opacity: 0, y: -4, scale: 0.98 }
 									}
-								/>
-								<SuggestionMenuController
-									triggerCharacter="$"
-									suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-									getItems={async (query) =>
-										getPersonMentionMenuItems(
-											editor,
-											people,
-											query,
-											onCreatePerson,
-										)
-									}
-								/>
-								<SelectionBubbleMenu
-									editor={editor}
-									files={files}
-									activeFileId={activeFileId}
-									onAddComment={collab ? addComment : undefined}
-									onAiSpellCheck={onAiSpellCheck}
-									onAiContinueWriting={onAiContinueWriting}
-									onAiAction={onAiAction}
-									onOpenCustomPrompt={
-										onAiCustomPrompt
-											? () => setCustomPromptOpen(true)
-											: undefined
-									}
-								/>
-							</BlockNoteView>
-						</PeopleProvider>
-					</NoteLinkProvider>
-					<AnimatePresence>
-						{customPromptOpen ? (
-							<motion.div
-								className="absolute inset-x-0 top-3 z-40 flex justify-center"
-								initial={
-									prefersReducedMotion
-										? { opacity: 0 }
-										: { opacity: 0, y: -6, scale: 0.98 }
-								}
-								animate={
-									prefersReducedMotion
-										? { opacity: 1 }
-										: { opacity: 1, y: 0, scale: 1 }
-								}
-								exit={
-									prefersReducedMotion
-										? { opacity: 0 }
-										: { opacity: 0, y: -4, scale: 0.98 }
-								}
-								transition={searchWidgetTransition}
-							>
-								<CustomPromptWidget
-									onSubmit={(instruction) => onAiCustomPrompt?.(instruction)}
-									onClose={() => setCustomPromptOpen(false)}
-								/>
-							</motion.div>
-						) : null}
-					</AnimatePresence>
-					{vimCommand !== null ? (
-						<div
-							className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex items-center gap-0 border-t border-border bg-background/95 px-3 py-1 font-mono text-xs text-foreground"
-							role="status"
-							aria-live="polite"
-							aria-label="Vim command line"
-						>
-							<span>:{vimCommand}</span>
-							<span
-								aria-hidden="true"
-								className="ml-px inline-block h-3.5 w-[7px] animate-pulse bg-foreground/80"
+									transition={searchWidgetTransition}
+								>
+									<SearchWidget
+										ref={search.findInputRef}
+										query={search.searchQuery}
+										onQueryChange={search.setSearchQuery}
+										replaceValue={search.replaceValue}
+										onReplaceChange={search.setReplaceValue}
+										showReplace={search.showReplace}
+										onToggleReplace={() =>
+											search.setShowReplace((value) => !value)
+										}
+										options={search.searchOptions}
+										onToggleOption={search.toggleSearchOption}
+										current={search.matchInfo.current}
+										total={search.matchInfo.total}
+										regexError={search.regexError}
+										onNext={search.handleNextMatch}
+										onPrevious={search.handlePreviousMatch}
+										onClose={search.closeSearch}
+										onReplaceCurrent={search.handleReplaceCurrent}
+										onReplaceAll={search.handleReplaceAll}
+									/>
+								</m.div>
+							) : null}
+						</AnimatePresence>
+						{onPropertiesChange ? (
+							<NotePropertiesShelf
+								properties={properties}
+								readOnly={readOnly}
+								onChange={onPropertiesChange}
 							/>
-						</div>
-					) : null}
-					<style>{EDITOR_STYLES}</style>
-				</div>
-			</ContextMenuTrigger>
-			<ContextMenuContent className="w-44">
-				<ContextMenuItem
-					onClick={handleCutSelection}
-					disabled={readOnly || !hasSelectionForContextMenu}
-					className="gap-2"
-				>
-					<Scissors className="w-4 h-4" />
-					Cut
-					<ContextMenuShortcut>⌘X</ContextMenuShortcut>
-				</ContextMenuItem>
-				<ContextMenuItem
-					onClick={handleCopySelection}
-					disabled={!hasSelectionForContextMenu}
-					className="gap-2"
-				>
-					<Copy className="w-4 h-4" />
-					Copy
-					<ContextMenuShortcut>⌘C</ContextMenuShortcut>
-				</ContextMenuItem>
-				<ContextMenuItem
-					onClick={handlePasteSelection}
-					disabled={readOnly}
-					className="gap-2"
-				>
-					<Clipboard className="w-4 h-4" />
-					Paste
-					<ContextMenuShortcut>⌘V</ContextMenuShortcut>
-				</ContextMenuItem>
-			</ContextMenuContent>
-		</ContextMenu>
+						) : null}
+						<NoteLinkProvider files={files} activeFileId={activeFileId}>
+							<PeopleProvider people={people}>
+								<BlockNoteView
+									editor={editor}
+									editable={!readOnly}
+									onChange={handleEditorChange}
+									theme={blockNoteTheme}
+									className="h-full"
+									formattingToolbar={false}
+									linkToolbar={false}
+									slashMenu={false}
+								>
+									<LinkToolbarController
+										linkToolbar={(props) => (
+											<CustomLinkToolbar
+												{...props}
+												files={files}
+												activeFileId={activeFileId}
+											/>
+										)}
+									/>
+									<SuggestionMenuController
+										triggerCharacter="/"
+										suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+										getItems={async (query) =>
+											filterSuggestionItems(
+												getCustomSlashMenuItems(
+													editor,
+													onAiSpellCheck,
+													onAiContinueWriting,
+													onAiAction,
+													onAiCustomPrompt
+														? () => setCustomPromptOpen(true)
+														: undefined,
+												),
+												query,
+											)
+										}
+									/>
+									<SuggestionMenuController
+										triggerCharacter="@"
+										suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+										getItems={async (query) =>
+											getNoteMentionMenuItems(
+												editor,
+												files,
+												activeFileId,
+												query,
+												handleCreateNoteFromMention,
+											)
+										}
+									/>
+									<SuggestionMenuController
+										triggerCharacter="#"
+										suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+										getItems={async (query) =>
+											getTagMenuItems(editor, workspaceTags, query)
+										}
+									/>
+									<SuggestionMenuController
+										triggerCharacter="$"
+										suggestionMenuComponent={KeyboardAccessibleSlashMenu}
+										getItems={async (query) =>
+											getPersonMentionMenuItems(
+												editor,
+												people,
+												query,
+												onCreatePerson,
+											)
+										}
+									/>
+									<SelectionBubbleMenu
+										editor={editor}
+										files={files}
+										activeFileId={activeFileId}
+										onAddComment={collab ? addComment : undefined}
+										onAiSpellCheck={onAiSpellCheck}
+										onAiContinueWriting={onAiContinueWriting}
+										onAiAction={onAiAction}
+										onOpenCustomPrompt={
+											onAiCustomPrompt
+												? () => setCustomPromptOpen(true)
+												: undefined
+										}
+									/>
+								</BlockNoteView>
+							</PeopleProvider>
+						</NoteLinkProvider>
+						<AnimatePresence>
+							{customPromptOpen ? (
+								<m.div
+									className="absolute inset-x-0 top-3 z-40 flex justify-center"
+									initial={
+										prefersReducedMotion
+											? { opacity: 0 }
+											: { opacity: 0, y: -6, scale: 0.98 }
+									}
+									animate={
+										prefersReducedMotion
+											? { opacity: 1 }
+											: { opacity: 1, y: 0, scale: 1 }
+									}
+									exit={
+										prefersReducedMotion
+											? { opacity: 0 }
+											: { opacity: 0, y: -4, scale: 0.98 }
+									}
+									transition={searchWidgetTransition}
+								>
+									<CustomPromptWidget
+										onSubmit={(instruction) => onAiCustomPrompt?.(instruction)}
+										onClose={() => setCustomPromptOpen(false)}
+									/>
+								</m.div>
+							) : null}
+						</AnimatePresence>
+						{!isMobile && vimCommand !== null ? (
+							<div
+								className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex items-center gap-0 border-t border-border bg-background/95 px-3 py-1 font-mono text-xs text-foreground"
+								role="status"
+								aria-live="polite"
+								aria-label="Vim command line"
+							>
+								<span>:{vimCommand}</span>
+								<span
+									aria-hidden="true"
+									className="ml-px inline-block h-3.5 w-[7px] animate-pulse bg-foreground/80"
+								/>
+							</div>
+						) : null}
+						<style>{EDITOR_STYLES}</style>
+					</div>
+				</ContextMenuTrigger>
+				<ContextMenuContent className="w-44">
+					<ContextMenuItem
+						onClick={handleCutSelection}
+						disabled={readOnly || !hasSelectionForContextMenu}
+						className="gap-2"
+					>
+						<Scissors className="w-4 h-4" />
+						Cut
+						{isMobile ? null : <ContextMenuShortcut>⌘X</ContextMenuShortcut>}
+					</ContextMenuItem>
+					<ContextMenuItem
+						onClick={handleCopySelection}
+						disabled={!hasSelectionForContextMenu}
+						className="gap-2"
+					>
+						<Copy className="w-4 h-4" />
+						Copy
+						{isMobile ? null : <ContextMenuShortcut>⌘C</ContextMenuShortcut>}
+					</ContextMenuItem>
+					<ContextMenuItem
+						onClick={handlePasteSelection}
+						disabled={readOnly}
+						className="gap-2"
+					>
+						<Clipboard className="w-4 h-4" />
+						Paste
+						{isMobile ? null : <ContextMenuShortcut>⌘V</ContextMenuShortcut>}
+					</ContextMenuItem>
+				</ContextMenuContent>
+			</ContextMenu>
+		</LazyMotion>
 	);
 }

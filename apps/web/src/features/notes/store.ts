@@ -416,8 +416,9 @@ export const useNotesStore = create<NotesUiState>()(
 					const reordered = orderedFileIds
 						.map((id) => byId.get(id))
 						.filter((tab): tab is WorkspaceTab => Boolean(tab));
+					const orderedIdSet = new Set(orderedFileIds);
 					for (const tab of state[key]) {
-						if (!orderedFileIds.includes(tab.fileId)) reordered.push(tab);
+						if (!orderedIdSet.has(tab.fileId)) reordered.push(tab);
 					}
 					return paneTabsPatch(pane, sortPinnedFirst(reordered));
 				});
@@ -443,9 +444,10 @@ export const useNotesStore = create<NotesUiState>()(
 
 			closeOtherTabs: (pane, fileId) => {
 				const key = TAB_KEY_BY_PANE[pane];
-				const removed = get()
-					[key].filter((tab) => tab.fileId !== fileId && !tab.pinned)
-					.map((tab) => tab.fileId);
+				const removed = get()[key].reduce<string[]>((acc, tab) => {
+					if (tab.fileId !== fileId && !tab.pinned) acc.push(tab.fileId);
+					return acc;
+				}, []);
 				set((state) =>
 					paneTabsPatch(
 						pane,
@@ -464,9 +466,10 @@ export const useNotesStore = create<NotesUiState>()(
 					if (tab.pinned || tab.fileId === fileId) return true;
 					return side === "right" ? index <= anchorIndex : index >= anchorIndex;
 				};
-				const removed = tabs
-					.filter((tab, index) => !shouldKeep(index, tab))
-					.map((tab) => tab.fileId);
+				const removed = tabs.reduce<string[]>((acc, tab, index) => {
+					if (!shouldKeep(index, tab)) acc.push(tab.fileId);
+					return acc;
+				}, []);
 				set((state) =>
 					paneTabsPatch(
 						pane,
@@ -478,9 +481,10 @@ export const useNotesStore = create<NotesUiState>()(
 
 			closeAllTabs: (pane) => {
 				const key = TAB_KEY_BY_PANE[pane];
-				const removed = get()
-					[key].filter((tab) => !tab.pinned)
-					.map((tab) => tab.fileId);
+				const removed = get()[key].reduce<string[]>((acc, tab) => {
+					if (!tab.pinned) acc.push(tab.fileId);
+					return acc;
+				}, []);
 				set((state) =>
 					paneTabsPatch(
 						pane,
