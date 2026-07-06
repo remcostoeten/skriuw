@@ -68,7 +68,8 @@ export function getTagMenuItems(
 	tags: string[],
 	query: string,
 ): DefaultReactSuggestionItem[] {
-	const normalizedQuery = query.trim().replace(/^#/, "").toLowerCase();
+	const trimmedQuery = query.trim().replace(/^#/, "");
+	const lowercaseQuery = trimmedQuery.toLowerCase();
 	const existingItems: DefaultReactSuggestionItem[] = tags.map((tag) => ({
 		title: tag,
 		subtext: "Tag",
@@ -79,20 +80,20 @@ export function getTagMenuItems(
 	}));
 
 	const shouldOfferCreate =
-		normalizedQuery.length > 0 && !tags.some((tag) => tag.toLowerCase() === normalizedQuery);
+		trimmedQuery.length > 0 && !tags.some((tag) => tag.toLowerCase() === lowercaseQuery);
 
 	// Existing matches first, "create" last — same ordering as the "@" note
 	// menu, so a stray Enter never creates something new by accident.
 	return [
-		...filterSuggestionItems(existingItems, normalizedQuery),
+		...filterSuggestionItems(existingItems, lowercaseQuery),
 		...(shouldOfferCreate
 			? [
 					{
-						title: normalizedQuery,
+						title: trimmedQuery,
 						subtext: "Create tag",
 						group: "Create",
 						onItemClick: () => {
-							insertTagChip(editor, normalizedQuery);
+							insertTagChip(editor, trimmedQuery);
 						},
 					},
 				]

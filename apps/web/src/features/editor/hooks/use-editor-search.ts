@@ -50,7 +50,13 @@ export function useEditorSearch(editor: EditorInstance) {
 	const openSearch = useCallback(() => {
 		setSearchOpen(true);
 		focusSearchInput();
-	}, [focusSearchInput]);
+		if (searchQuery) {
+			const view = getEditorView(editor);
+			if (view) {
+				setSearch(view, searchQuery, searchOptions);
+			}
+		}
+	}, [focusSearchInput, searchQuery, searchOptions, editor]);
 
 	const closeSearch = useCallback(() => {
 		setSearchOpen(false);
