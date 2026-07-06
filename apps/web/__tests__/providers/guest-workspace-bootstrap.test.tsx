@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import * as actualReact from "react";
 import type { AuthSnapshot } from "@/core/auth";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
@@ -44,11 +45,17 @@ function renderComponent(Component: () => null) {
 }
 
 function registerModuleMocks() {
-	mock.module("react", () => ({
+	// Spread the real react module so this mock stays a complete module (with a
+	// `default` export and every other hook) even if bun leaks it into another
+	// isolated test file; only `useEffect` is swapped for a synchronous stub so
+	// the bootstrap component runs as a plain function call.
+	const reactMock = {
+		...actualReact,
 		useEffect: (callback: () => void | (() => void)) => {
 			callback();
 		},
-	}));
+	};
+	mock.module("react", () => ({ ...reactMock, default: reactMock }));
 
 	mock.module("@/core/auth/use-auth", () => ({
 		useAuth: () => authSnapshot,
