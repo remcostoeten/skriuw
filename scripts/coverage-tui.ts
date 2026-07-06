@@ -384,8 +384,13 @@ function parseArgs(argv: string[]): ReportOptions {
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
 		if (arg === "--report") opts.report = true;
-		else if (arg === "--markdown") opts.markdown = true;
-		else if (arg.startsWith("--markdown=")) {
+		else if (arg === "--markdown") {
+			opts.markdown = true;
+			// Accept a space-separated path (`--markdown coverage.md`) the same way
+			// `--json` does; a bare `--markdown` still writes to stdout.
+			const next = argv[i + 1];
+			if (next && !next.startsWith("--")) opts.markdownPath = argv[++i];
+		} else if (arg.startsWith("--markdown=")) {
 			opts.markdown = true;
 			opts.markdownPath = arg.slice("--markdown=".length);
 		} else if (arg === "--json") opts.json = argv[++i] ?? "coverage.json";
