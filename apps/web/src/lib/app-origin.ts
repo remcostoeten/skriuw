@@ -43,7 +43,10 @@ export function getConfiguredAppOrigins(): string[] {
 }
 
 export function getServerAppOrigin(): string | undefined {
-	return getConfiguredAppOrigins()[0] ?? (process.env.NODE_ENV === "production" ? undefined : LOCAL_APP_ORIGIN);
+	return (
+		getConfiguredAppOrigins()[0] ??
+		(process.env.NODE_ENV === "production" ? undefined : LOCAL_APP_ORIGIN)
+	);
 }
 
 export function getBrowserAppOrigin(): string | undefined {
@@ -65,7 +68,8 @@ export function getBrowserAppOrigin(): string | undefined {
 export function getBetterAuthBaseURL() {
 	const configuredOrigins = getConfiguredAppOrigins();
 	const fallback =
-		configuredOrigins[0] ?? (process.env.NODE_ENV === "production" ? "https://skriuw.com" : LOCAL_APP_ORIGIN);
+		configuredOrigins[0] ??
+		(process.env.NODE_ENV === "production" ? "https://skriuw.com" : LOCAL_APP_ORIGIN);
 	const allowedHosts = unique(
 		[
 			...KNOWN_APP_HOSTS,

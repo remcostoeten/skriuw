@@ -30,15 +30,12 @@ export function useNotesLayoutSaveController({
 	const previousActiveFileIdRef = useRef<string>("");
 	const saveControllerRef = useRef<ReturnType<typeof useDebouncedSave> | null>(null);
 
-	const clearPendingSaveReset = useCallback(
-		(id: string) => {
-			const timeoutId = saveResetTimeoutsRef.current.get(id);
-			if (!timeoutId) return;
-			window.clearTimeout(timeoutId);
-			saveResetTimeoutsRef.current.delete(id);
-		},
-		[],
-	);
+	const clearPendingSaveReset = useCallback((id: string) => {
+		const timeoutId = saveResetTimeoutsRef.current.get(id);
+		if (!timeoutId) return;
+		window.clearTimeout(timeoutId);
+		saveResetTimeoutsRef.current.delete(id);
+	}, []);
 
 	const markFileSaving = useCallback(
 		(id: string) => {

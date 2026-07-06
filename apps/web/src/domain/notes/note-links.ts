@@ -78,6 +78,7 @@ export function nameTracksHeading(name: string, content: string): boolean {
 // Characters that are illegal in filenames on common filesystems (the `name`
 // doubles as a `.md` filename on desktop/export), plus control chars.
 // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control chars from filenames is intentional
+// eslint-disable-next-line no-control-regex
 const FILENAME_UNSAFE_PATTERN = /[/\\:*?"<>|\x00-\x1f]/g;
 const MAX_DERIVED_NAME_LENGTH = 120;
 

@@ -54,9 +54,7 @@ export async function GET() {
 		);
 		const payload: ConnectionsResponse = {
 			credential,
-			accounts: accounts.filter(
-				(account) => account.providerId !== CREDENTIAL_PROVIDER_ID,
-			),
+			accounts: accounts.filter((account) => account.providerId !== CREDENTIAL_PROVIDER_ID),
 			loginMethodCount: accounts.length,
 		};
 		return NextResponse.json(payload);
@@ -86,10 +84,7 @@ export async function DELETE(request: NextRequest) {
 		UNLINK_RATE_LIMIT_WINDOW_MS,
 	);
 	if (!allowed) {
-		return NextResponse.json(
-			{ error: "Too many attempts. Try again later." },
-			{ status: 429 },
-		);
+		return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 });
 	}
 
 	const body = (await request.json().catch(() => null)) as UnlinkBody | null;
@@ -116,8 +111,7 @@ export async function DELETE(request: NextRequest) {
 	if (accounts.length <= 1) {
 		return NextResponse.json(
 			{
-				error:
-					"This is your only sign-in method. Add a password or another provider before disconnecting it.",
+				error: "This is your only sign-in method. Add a password or another provider before disconnecting it.",
 			},
 			{ status: 409 },
 		);

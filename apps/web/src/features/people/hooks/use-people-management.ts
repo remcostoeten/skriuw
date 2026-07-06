@@ -46,7 +46,9 @@ export function useUpdatePerson() {
 							? {
 									...person,
 									...(input.name !== undefined ? { name: input.name } : {}),
-									...(input.color !== undefined ? { color: input.color ?? null } : {}),
+									...(input.color !== undefined
+										? { color: input.color ?? null }
+										: {}),
 								}
 							: person,
 					),

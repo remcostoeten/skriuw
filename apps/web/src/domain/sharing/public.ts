@@ -41,9 +41,7 @@ async function logShareView(shareId: string, token: string): Promise<void> {
  * content and never spends a view-once link, so it is safe under link-preview
  * crawlers and browser prefetch.
  */
-export const peekShare = cache(async function peekShare(
-	token: string,
-): Promise<TPublicSharePeek> {
+export const peekShare = cache(async function peekShare(token: string): Promise<TPublicSharePeek> {
 	// cache() dedupes the two calls per request (generateMetadata + page body).
 	// Selected columns only — never pulls the heavy richContent JSON for a peek.
 	const share = await prisma.noteShare.findUnique({
@@ -69,10 +67,7 @@ export const peekShare = cache(async function peekShare(
 		viewOnce: share.viewOnce,
 		noteId: share.noteId,
 		name: share.name,
-		description: buildSharePreviewDescription(
-			share.content,
-			Boolean(share.passwordHash),
-		),
+		description: buildSharePreviewDescription(share.content, Boolean(share.passwordHash)),
 	};
 });
 

@@ -108,7 +108,8 @@ function hasUseServerDirective(source: string): boolean {
 	for (const line of lines) {
 		const trimmed = line.trim();
 		if (trimmed === "") continue;
-		if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) continue;
+		if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*"))
+			continue;
 		return /^["']use server["'];?$/.test(trimmed);
 	}
 	return false;
@@ -141,7 +142,10 @@ function check(): Violation[] {
 			if (SHIMMED_SPECIFIERS.has(specifier)) continue;
 
 			if (FORBIDDEN_SPECIFIERS.has(specifier)) {
-				violations.push({ file: rel, reason: `imports forbidden server-only specifier "${specifier}"` });
+				violations.push({
+					file: rel,
+					reason: `imports forbidden server-only specifier "${specifier}"`,
+				});
 				continue;
 			}
 
@@ -197,11 +201,15 @@ function main(): void {
 	const stale = [...baseline].filter((key) => !currentKeys.has(key));
 
 	if (stale.length > 0) {
-		console.log(`check:portable — ${stale.length} baseline entry(ies) no longer leak; run --update-baseline to trim.`);
+		console.log(
+			`check:portable — ${stale.length} baseline entry(ies) no longer leak; run --update-baseline to trim.`,
+		);
 	}
 
 	if (introduced.length === 0) {
-		console.log(`check:portable — clean (no new leaks; ${baseline.size} known/neutralized baselined).`);
+		console.log(
+			`check:portable — clean (no new leaks; ${baseline.size} known/neutralized baselined).`,
+		);
 		process.exit(0);
 	}
 
@@ -209,7 +217,9 @@ function main(): void {
 	for (const violation of introduced) {
 		console.error(`${violation.file} -> ${violation.reason}`);
 	}
-	console.error("\nIf this is expected and neutralized by a Vite shim, run: bun scripts/check-portable.ts --update-baseline");
+	console.error(
+		"\nIf this is expected and neutralized by a Vite shim, run: bun scripts/check-portable.ts --update-baseline",
+	);
 	process.exit(1);
 }
 

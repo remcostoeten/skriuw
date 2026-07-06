@@ -7,12 +7,7 @@ type Props = React.SVGProps<SVGSVGElement> & {
 	className?: string;
 };
 
-export function RawLogo({
-	size = 120,
-	variant = "explanation",
-	className,
-	...props
-}: Props) {
+export function RawLogo({ size = 120, variant = "explanation", className, ...props }: Props) {
 	const isSidebar = variant === "sidebar";
 
 	return (

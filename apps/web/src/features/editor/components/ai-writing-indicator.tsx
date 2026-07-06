@@ -88,7 +88,11 @@ export function AiWritingIndicator({ action, onCancel }: Props) {
 									aria-hidden="true"
 									className="absolute inset-0 rounded-full bg-foreground/10"
 									animate={{ scale: [1, 1.6], opacity: [0.5, 0] }}
-									transition={{ duration: 1.4, repeat: Infinity, ease: "easeOut" }}
+									transition={{
+										duration: 1.4,
+										repeat: Infinity,
+										ease: "easeOut",
+									}}
 								/>
 							)}
 							<Sparkles

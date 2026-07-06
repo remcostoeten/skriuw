@@ -1,7 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 import type { TSharedOverview } from "@/domain/sharing/models";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
@@ -12,8 +10,6 @@ import { SharedNotesOverview } from "./shared-notes-overview";
  * inside the same navigation chrome as Notes, Journal, and Settings.
  */
 export function SharedWorkspace({ overview }: { overview: TSharedOverview }) {
-	const router = useRouter();
-
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">

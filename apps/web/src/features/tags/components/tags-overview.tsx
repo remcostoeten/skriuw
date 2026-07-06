@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Hash, MoreHorizontal, Pencil, Trash2, Merge } from "lucide-react";
 import type { TagSummary } from "@/core/workspace-backend/types";
 import { normalizeTagName } from "@/domain/tags/normalize";
@@ -45,7 +44,6 @@ function noteCountLabel(count: number): string {
 }
 
 export function TagsOverview() {
-	const router = useRouter();
 	const { data: tags = [], isLoading } = useWorkspaceTagSummaries();
 	const renameTag = useRenameTag();
 	const deleteTag = useDeleteTag();
@@ -97,8 +95,8 @@ export function TagsOverview() {
 					<header className="border-b border-border px-6 py-5">
 						<h1 className="text-base font-semibold text-foreground">Tags</h1>
 						<p className="mt-0.5 text-sm text-muted-foreground">
-							Every #tag across your notes. Rename, recolor, merge, or delete — changes
-							rewrite the notes that use them.
+							Every #tag across your notes. Rename, recolor, merge, or delete —
+							changes rewrite the notes that use them.
 						</p>
 					</header>
 
@@ -115,7 +113,9 @@ export function TagsOverview() {
 									<ColorSwatchPicker
 										value={tag.color}
 										label={`#${tag.name}`}
-										onChange={(color) => setTagColor.mutate({ name: tag.name, color })}
+										onChange={(color) =>
+											setTagColor.mutate({ name: tag.name, color })
+										}
 									/>
 									<Link
 										href={`/app/tags/${encodeURIComponent(tag.name)}`}
@@ -130,7 +130,11 @@ export function TagsOverview() {
 									</Link>
 									<DropdownMenu>
 										<DropdownMenuTrigger asChild>
-											<Button variant="ghost" size="sm" aria-label={`Actions for #${tag.name}`}>
+											<Button
+												variant="ghost"
+												size="sm"
+												aria-label={`Actions for #${tag.name}`}
+											>
 												<MoreHorizontal className="h-4 w-4" />
 											</Button>
 										</DropdownMenuTrigger>
@@ -171,8 +175,8 @@ export function TagsOverview() {
 					<DialogHeader>
 						<DialogTitle>Rename tag</DialogTitle>
 						<DialogDescription>
-							Every note using #{pending?.tag.name} is rewritten to the new name. Renaming
-							onto an existing tag merges them.
+							Every note using #{pending?.tag.name} is rewritten to the new name.
+							Renaming onto an existing tag merges them.
 						</DialogDescription>
 					</DialogHeader>
 					<Input
@@ -195,7 +199,10 @@ export function TagsOverview() {
 				</DialogContent>
 			</Dialog>
 
-			<Dialog open={pending?.kind === "merge"} onOpenChange={(open) => !open && setPending(null)}>
+			<Dialog
+				open={pending?.kind === "merge"}
+				onOpenChange={(open) => !open && setPending(null)}
+			>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Merge #{pending?.tag.name} into…</DialogTitle>
@@ -248,8 +255,8 @@ export function TagsOverview() {
 					<DialogHeader>
 						<DialogTitle>Delete #{pending?.tag.name}?</DialogTitle>
 						<DialogDescription>
-							The tag is removed from {noteCountLabel(pending?.tag.noteCount ?? 0)}; the
-							words stay as plain text. This cannot be undone.
+							The tag is removed from {noteCountLabel(pending?.tag.noteCount ?? 0)};
+							the words stay as plain text. This cannot be undone.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>

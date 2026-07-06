@@ -174,7 +174,10 @@ export function CommandPalette({
 					</DialogPrimitive.Description>
 
 					<div className="flex items-center gap-2.5 border-b border-border px-3.5 py-3">
-						<Search className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.7} />
+						<Search
+							className="h-4 w-4 shrink-0 text-muted-foreground"
+							strokeWidth={1.7}
+						/>
 						<input
 							ref={inputRef}
 							value={query}
@@ -286,7 +289,9 @@ export function CommandPalette({
 									<kbd className="rounded border border-border bg-muted px-1 text-[10px]">
 										!{key}
 									</kbd>
-									<span className="hidden sm:inline">{bang.label.toLowerCase()}</span>
+									<span className="hidden sm:inline">
+										{bang.label.toLowerCase()}
+									</span>
 								</span>
 							))}
 						</span>

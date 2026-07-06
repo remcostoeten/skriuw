@@ -71,11 +71,13 @@ Fix by giving the skeleton container a `min-height` matching typical content hei
 ```tsx
 // loading.tsx
 export default function Loading() {
-  return (
-    <div className="min-h-[800px]"> {/* Match typical content height */}
-      <ProductGridSkeleton count={12} />
-    </div>
-  )
+	return (
+		<div className="min-h-[800px]">
+			{" "}
+			{/* Match typical content height */}
+			<ProductGridSkeleton count={12} />
+		</div>
+	);
 }
 ```
 
@@ -89,14 +91,14 @@ Fix by mirroring the grid layout exactly:
 ```tsx
 // loading.tsx
 export default function Loading() {
-  return (
-    <div className="grid grid-cols-[250px_1fr] gap-6">
-      <aside className="animate-pulse bg-muted rounded h-[600px]" />
-      <main>
-        <ContentSkeleton />
-      </main>
-    </div>
-  )
+	return (
+		<div className="grid grid-cols-[250px_1fr] gap-6">
+			<aside className="animate-pulse bg-muted rounded h-[600px]" />
+			<main>
+				<ContentSkeleton />
+			</main>
+		</div>
+	);
 }
 ```
 
@@ -111,14 +113,14 @@ or wrapping it in `<Suspense>` within the layout:
 ```tsx
 // layout.tsx
 export default function Layout({ children }) {
-  return (
-    <div>
-      <Suspense fallback={<NavSkeleton />}>
-        <Nav /> {/* Nav fetches its own data */}
-      </Suspense>
-      {children}
-    </div>
-  )
+	return (
+		<div>
+			<Suspense fallback={<NavSkeleton />}>
+				<Nav /> {/* Nav fetches its own data */}
+			</Suspense>
+			{children}
+		</div>
+	);
 }
 ```
 
@@ -131,8 +133,8 @@ Custom fonts loading after the skeleton state cause text reflow. Fix with
 `size-adjust`:
 
 ```tsx
-import { Inter } from 'next/font/google'
-const inter = Inter({ subsets: ['latin'], display: 'swap' })
+import { Inter } from "next/font/google";
+const inter = Inter({ subsets: ["latin"], display: "swap" });
 ```
 
 ### 5. Image Container Collapse

@@ -2,15 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import {
-	ArrowLeft,
-	AtSign,
-	Hash,
-	Sparkles,
-	SlashSquare,
-	X,
-	type LucideIcon,
-} from "lucide-react";
+import { ArrowLeft, AtSign, Hash, Sparkles, SlashSquare, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
 import { useOnboardingStore } from "../store";
@@ -65,7 +57,9 @@ const SLASH_ROWS: SlashRow[] = [
 
 function StepVisual({ visual }: { visual: WalkthroughStep["visual"] }) {
 	const reduceMotion = useReducedMotion();
-	const rise = reduceMotion ? {} : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 } };
+	const rise = reduceMotion
+		? {}
+		: { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 } };
 
 	if (visual === "welcome") {
 		return (
@@ -75,7 +69,12 @@ function StepVisual({ visual }: { visual: WalkthroughStep["visual"] }) {
 						key={i}
 						initial={reduceMotion ? false : { opacity: 0, scale: 0.8 }}
 						animate={{ opacity: 1, scale: 1 }}
-						transition={{ delay: 0.08 * i, type: "spring", stiffness: 320, damping: 22 }}
+						transition={{
+							delay: 0.08 * i,
+							type: "spring",
+							stiffness: 320,
+							damping: 22,
+						}}
 						className="flex size-12 items-center justify-center rounded-xl border border-border bg-background text-primary shadow-sm"
 					>
 						<Icon className="size-5" />
@@ -89,7 +88,8 @@ function StepVisual({ visual }: { visual: WalkthroughStep["visual"] }) {
 		return (
 			<div className="space-y-2 rounded-lg border border-border bg-background p-3 text-left">
 				<div className="font-mono text-sm text-foreground/80">
-					/<span className="ml-px inline-block h-4 w-px translate-y-0.5 animate-pulse bg-primary" />
+					/
+					<span className="ml-px inline-block h-4 w-px translate-y-0.5 animate-pulse bg-primary" />
 				</div>
 				<div className="overflow-hidden rounded-md border border-border bg-popover p-1">
 					{SLASH_ROWS.map((row, i) => (
@@ -99,7 +99,9 @@ function StepVisual({ visual }: { visual: WalkthroughStep["visual"] }) {
 							transition={{ delay: 0.06 * i }}
 							className={cn(
 								"flex items-center justify-between rounded px-2 py-1.5 text-xs",
-								i === 0 ? "bg-accent text-accent-foreground" : "text-popover-foreground",
+								i === 0
+									? "bg-accent text-accent-foreground"
+									: "text-popover-foreground",
 							)}
 						>
 							<span className="font-medium">{row.label}</span>
@@ -125,7 +127,9 @@ function StepVisual({ visual }: { visual: WalkthroughStep["visual"] }) {
 							transition={{ delay: 0.06 * i }}
 							className={cn(
 								"flex items-center gap-2 rounded px-2 py-1.5 text-xs",
-								i === 0 ? "bg-accent text-accent-foreground" : "text-popover-foreground",
+								i === 0
+									? "bg-accent text-accent-foreground"
+									: "text-popover-foreground",
 							)}
 						>
 							<AtSign className="size-3 text-muted-foreground" />
@@ -139,9 +143,7 @@ function StepVisual({ visual }: { visual: WalkthroughStep["visual"] }) {
 
 	return (
 		<div className="space-y-2 rounded-lg border border-border bg-background p-3 text-left">
-			<div className="font-mono text-sm text-foreground/80">
-				Captured today
-			</div>
+			<div className="font-mono text-sm text-foreground/80">Captured today</div>
 			<div className="flex flex-wrap gap-1.5">
 				{["#ideas", "#todo", "#reading"].map((tag, i) => (
 					<motion.span

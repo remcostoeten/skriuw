@@ -63,9 +63,7 @@ describe("note share export", () => {
 		expect(buildWhatsAppShareUrlWithLink(title, url)).toBe(
 			`https://wa.me/?text=${encodeURIComponent(message)}`,
 		);
-		expect(buildMailtoShareUrlWithLink(title, url)).toContain(
-			encodeURIComponent(message),
-		);
+		expect(buildMailtoShareUrlWithLink(title, url)).toContain(encodeURIComponent(message));
 	});
 
 	test("resolves client share urls from path", () => {

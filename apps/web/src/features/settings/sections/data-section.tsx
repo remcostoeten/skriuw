@@ -9,6 +9,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { DeleteButton } from "@/shared/ui/delete-button";
 import { GuestGate } from "@/shared/ui/guest-gate";
+import { AnimatedList } from "@/shared/ui/animated-list";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { useIsGuestWorkspace, resetGuestStorage, isTauriRuntime } from "@/core/workspace-backend";
 import { LocalDataSection } from "./local-data-section";
@@ -20,7 +21,6 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "@/shared/ui/dialog";
 import {
 	SectionHeader,
@@ -432,12 +432,11 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 					)}
 
 					{activeTokens.length > 0 && (
-						<div className="space-y-2">
-							{activeTokens.map((token) => (
-								<div
-									key={token.id}
-									className="flex flex-col gap-3 rounded-md border border-border/60 bg-background/60 p-3 sm:flex-row sm:items-center sm:justify-between"
-								>
+						<AnimatedList
+							items={activeTokens}
+							className="space-y-2"
+							renderItem={(token) => (
+								<div className="flex flex-col gap-3 rounded-md border border-border/60 bg-background/60 p-3 sm:flex-row sm:items-center sm:justify-between">
 									<div className="min-w-0">
 										<div className="flex flex-wrap items-center gap-2">
 											<p className="text-sm font-medium text-foreground">
@@ -463,8 +462,8 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 										{revokingId === token.id ? "Revoking…" : "Revoke"}
 									</Button>
 								</div>
-							))}
-						</div>
+							)}
+						/>
 					)}
 				</div>
 			</div>

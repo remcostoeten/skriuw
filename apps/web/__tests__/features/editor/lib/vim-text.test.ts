@@ -148,7 +148,7 @@ describe("wordObjectBounds (iw/aw)", () => {
 	});
 });
 
-describe("pairObjectBounds (i(/a\"/...)", () => {
+describe('pairObjectBounds (i(/a"/...)', () => {
 	test("inner parentheses excludes delimiters", () => {
 		expect(pairObjectBounds("a(bc)d", 3, "(", ")", false)).toEqual({ s: 2, e: 4 });
 	});

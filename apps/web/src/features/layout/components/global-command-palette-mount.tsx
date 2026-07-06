@@ -12,7 +12,7 @@ import {
 	buildSettingsCommandItems,
 	buildThemeCommandItems,
 } from "@/features/settings/settings-command-index";
-import { openSettings, toggleSettings } from "@/features/settings/use-settings-modal";
+import { toggleSettings } from "@/features/settings/use-settings-modal";
 import { usePreferencesStore } from "@/features/settings/store";
 import { THEMES } from "@/features/settings/preferences/themes";
 import { useCreateFolder } from "@/features/notes/hooks/use-create-folder";

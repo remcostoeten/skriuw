@@ -82,7 +82,11 @@ function transformBlockContent(
 
 		let changed = false;
 		const rows = table.rows.map((row) => {
-			if (!row || typeof row !== "object" || !Array.isArray((row as { cells?: unknown }).cells)) {
+			if (
+				!row ||
+				typeof row !== "object" ||
+				!Array.isArray((row as { cells?: unknown }).cells)
+			) {
 				return row;
 			}
 			const rowRecord = row as { cells: unknown[] };
@@ -93,7 +97,11 @@ function transformBlockContent(
 					if (result.changed) rowChanged = true;
 					return result.value;
 				}
-				if (cell && typeof cell === "object" && Array.isArray((cell as InlineNode).content)) {
+				if (
+					cell &&
+					typeof cell === "object" &&
+					Array.isArray((cell as InlineNode).content)
+				) {
 					const cellNode = cell as InlineNode;
 					const result = transformInlineArray(cellNode.content as unknown[], transform);
 					if (result.changed) {
@@ -247,8 +255,7 @@ function rewriteTagsField(
 	const next: string[] = [];
 
 	for (const entry of tags) {
-		const matches =
-			normalizeStoredTagEntry(entry) === from || normalizeTagName(entry) === from;
+		const matches = normalizeStoredTagEntry(entry) === from || normalizeTagName(entry) === from;
 		const value = matches ? to : entry;
 		if (matches) changed = true;
 		if (value === null) continue;

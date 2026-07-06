@@ -19,9 +19,8 @@ mock.module("@/features/settings/store", () => ({
 	},
 }));
 
-const { hasProductAnalyticsConsent, isGuestVisitor, resolveAnalyticsConsent } = await import(
-	"@/core/analytics/client"
-);
+const { hasProductAnalyticsConsent, isGuestVisitor, resolveAnalyticsConsent } =
+	await import("@/core/analytics/client");
 
 mock.restore();
 

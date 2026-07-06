@@ -1,10 +1,7 @@
 import { getServerUser } from "@/core/db";
 import { prisma } from "@/lib/prisma";
 import { resolveNoteAccess } from "@/domain/notes/note-access";
-import {
-	deriveAvatarColor,
-	signCollabToken,
-} from "@/features/collaboration/lib/collab-token";
+import { deriveAvatarColor, signCollabToken } from "@/features/collaboration/lib/collab-token";
 
 export const dynamic = "force-dynamic";
 

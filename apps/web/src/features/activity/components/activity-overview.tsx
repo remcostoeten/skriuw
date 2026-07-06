@@ -46,9 +46,7 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 				<span
 					className={cn(
 						"flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border",
-						entry.kind === "deleted"
-							? "text-destructive"
-							: "text-muted-foreground",
+						entry.kind === "deleted" ? "text-destructive" : "text-muted-foreground",
 					)}
 				>
 					<Icon className="h-4 w-4" strokeWidth={1.6} />

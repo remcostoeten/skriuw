@@ -8,10 +8,10 @@ Execution plan for the remaining AI work. The base expansion (11 actions, select
 
 The AI feature was expanded from 3 to 11 actions across web and desktop:
 
-| Scope | Actions |
-|---|---|
-| Whole document | `generateTitle`, `spellCheck`, `continueWriting`, `summarize`, `extractTasks`, `suggestTags` |
-| Selection | `fixSelection`, `rewriteSelection`, `shortenSelection`, `expandSelection`, `translateSelection` |
+| Scope          | Actions                                                                                         |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| Whole document | `generateTitle`, `spellCheck`, `continueWriting`, `summarize`, `extractTasks`, `suggestTags`    |
+| Selection      | `fixSelection`, `rewriteSelection`, `shortenSelection`, `expandSelection`, `translateSelection` |
 
 Key files (all already modified — read them before changing anything):
 

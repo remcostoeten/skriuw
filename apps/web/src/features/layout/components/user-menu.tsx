@@ -2,11 +2,7 @@
 
 import * as React from "react";
 import { FileText, BookOpen, Activity, Settings, LogOut, LoaderCircle, Shield } from "lucide-react";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/shared/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { deriveAvatarColor, getAvatarSeed } from "@/shared/lib/avatar";
 import { AvatarFace } from "@/shared/icons/avatar-face";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -48,7 +44,16 @@ function Shortcut({ value }: { value: string }) {
 	);
 }
 
-export function UserMenu({ onSettings, onSignOut, onProfile, onNotes, onJournal, onActivity, onAdmin, isAdmin }: UserMenuProps) {
+export function UserMenu({
+	onSettings,
+	onSignOut,
+	onProfile,
+	onNotes,
+	onJournal,
+	onActivity,
+	onAdmin,
+	isAdmin,
+}: UserMenuProps) {
 	const [open, setOpen] = React.useState(false);
 	const [isSigningOut, setIsSigningOut] = React.useState(false);
 	const firstItemRef = React.useRef<HTMLButtonElement | null>(null);

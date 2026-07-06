@@ -19,7 +19,11 @@ import { hardClearUserWorkspace } from "@/domain/data-transfer/workspace-clear";
 
 type FolderRow = { id: string; name: string; parentId: string | null; sortOrder: number };
 
-function duplicateNoteName(name: string, parentPath: string | null, existingKeys: Set<string>): string {
+function duplicateNoteName(
+	name: string,
+	parentPath: string | null,
+	existingKeys: Set<string>,
+): string {
 	const normalized = name.endsWith(".md") ? name : `${name}.md`;
 	const base = normalized.slice(0, -3);
 	let index = 2;
@@ -197,7 +201,11 @@ export async function mergeArchiveImport(
 				note.id && allUserNoteIds.has(note.id) && !activeById ? note.id : null;
 
 			if ((activeById || activeByPath) && policy === "duplicate") {
-				const duplicateName = duplicateNoteName(note.name, note.parentPath, existingNoteKeys);
+				const duplicateName = duplicateNoteName(
+					note.name,
+					note.parentPath,
+					existingNoteKeys,
+				);
 				const duplicateId =
 					note.id && !allUserNoteIds.has(note.id) ? note.id : crypto.randomUUID();
 				await tx.note.create({
@@ -208,7 +216,10 @@ export async function mergeArchiveImport(
 						name: duplicateName,
 					},
 				});
-				const duplicateKey = noteImportKey({ name: duplicateName, parentPath: note.parentPath });
+				const duplicateKey = noteImportKey({
+					name: duplicateName,
+					parentPath: note.parentPath,
+				});
 				existingNoteKeys.add(duplicateKey);
 				existingNoteIds.add(duplicateId);
 				allUserNoteIds.add(duplicateId);
@@ -328,9 +339,7 @@ export async function mergeArchiveImport(
 			}
 
 			const journalEntryId =
-				entry.id && !allUserJournalEntryIds.has(entry.id)
-					? entry.id
-					: crypto.randomUUID();
+				entry.id && !allUserJournalEntryIds.has(entry.id) ? entry.id : crypto.randomUUID();
 			await tx.journalEntry.create({
 				data: {
 					id: journalEntryId,

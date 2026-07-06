@@ -57,6 +57,11 @@ export const EDITOR_STYLES = `
 					outline: none !important;
 					box-shadow: none !important;
 				}
+				.blocknote-wrapper .bn-block-content.ProseMirror-selectednode > *,
+				.blocknote-wrapper .ProseMirror-selectednode > .bn-block-content > * {
+					outline: none !important;
+					border-radius: inherit !important;
+				}
 				.blocknote-wrapper .bn-editor,
 				.blocknote-wrapper .bn-block-content,
 				.blocknote-wrapper .bn-inline-content {

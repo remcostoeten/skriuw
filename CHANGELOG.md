@@ -6,6 +6,7 @@ All notable changes to Skriuw are documented here. This project loosely follows
 ## [0.15.2] — 2026-07-03
 
 ### Fixed
+
 - **Web editor:** stop typed text from being reverted and the cursor from
   jumping while writing. `rich_content` is a Postgres JSONB column, which
   rewrites object key order, so the note echoed back by every autosave (and
@@ -19,6 +20,7 @@ All notable changes to Skriuw are documented here. This project loosely follows
 ## [0.15.1] — 2026-07-03
 
 ### Fixed
+
 - **Code block:** stop the editor from spewing repeating `TypeScript (typescript)`
   lines on every save/reload. The `procode` block spec had no `toExternalHTML`,
   so markdown serialization leaked the block's language `<select>` chrome into
@@ -29,9 +31,10 @@ All notable changes to Skriuw are documented here. This project loosely follows
 ## [0.13.2] — 2026-06-30
 
 ### Fixed
+
 - **Note editor:** stop the TipTap "`Cannot access view['dom']`" error that
   fired when the editor was read before its ProseMirror view had mounted.
-  BlockNote 0.46 runs on TipTap 3, whose `editor.view` returns a *truthy* proxy
+  BlockNote 0.46 runs on TipTap 3, whose `editor.view` returns a _truthy_ proxy
   until mount, so the existing `?.` / `if (!view)` guards never caught it. The
   editor now reads the real view object (genuinely `null` before mount) and
   tracks the live DOM across mount/unmount — which also repairs link-click,
@@ -41,6 +44,7 @@ All notable changes to Skriuw are documented here. This project loosely follows
 ## [0.13.1] — 2026-06-30
 
 ### Fixed
+
 - **Desktop startup:** the Tauri build no longer crashes while creating the
   auth client from the `tauri://localhost` origin, which left the app stuck on
   the splash screen.
@@ -53,6 +57,7 @@ titles — plus the first Linux distribution channels (apt + AUR) so the desktop
 app is installable, not just downloadable.
 
 ### Added
+
 - **Note properties.** Typed key/value metadata on notes, with editor UI,
   domain model, validation, and a Postgres migration.
 - **Inline @user mentions** and a **redesigned inline tag flow** in the
@@ -65,6 +70,7 @@ app is installable, not just downloadable.
   desktop release. (#149, #156)
 
 ### Fixed
+
 - **Editor context menu** no longer opens and instantly closes on right
   click. (#168)
 - **Bubble menu link actions** no longer break internal navigation or external
@@ -81,6 +87,7 @@ a codebase-wide TypeScript consistency pass — plus desktop and accessibility
 fixes.
 
 ### Added
+
 - **Rebuilt command palette UI.** (#165)
 - **In-note search widget** for finding text within the current note. (#166)
 - **OAuth connect / disconnect in Settings → Security.** New connected-accounts
@@ -96,6 +103,7 @@ fixes.
 - Smooth search-toggle transition in the aside top bar. (#157)
 
 ### Fixed
+
 - **Block duplicate email registration** when an OAuth-provided email already
   maps to an account. (#161, closes #143)
 - **Desktop: gate the note-history sidebar by backend capability** so it only
@@ -106,6 +114,7 @@ fixes.
 - **CI: green test suite** and unified package version.
 
 ### Internal
+
 - **Codebase-wide TypeScript consistency pass** across `apps/web`: all 36
   `interface` declarations converted to `type` aliases (`extends` → intersection),
   single-type prop files renamed to `Props`, and JSDoc added to the AI-service
@@ -120,6 +129,7 @@ rebuild of the editor's formatting toolbar, plus extensive performance and
 hardening work accumulated during the preview builds.
 
 ### Desktop app (new)
+
 - Native **Tauri 2 desktop build** (`apps/desktop`) running the shared SPA (`packages/web-spa`).
 - **Markdown vault** as the live local backend — notes are real `.md` files (hybrid: SQLite is a derived index for search/backlinks).
 - **Native full-text search** via SQLite FTS5; backlinks resolved through indexed SQL instead of O(n) scans.
@@ -129,6 +139,7 @@ hardening work accumulated during the preview builds.
 - Linux release pipeline producing `.deb`, `.rpm`, and `.AppImage`.
 
 ### Real-time collaboration (new)
+
 - **Yjs-based collaborative editing** wired into the BlockNote editor.
 - **Anchored comments** engine.
 - Live **presence** in the editor with a fail-closed read-only gate.
@@ -136,16 +147,19 @@ hardening work accumulated during the preview builds.
 - Collaboration invites via the Better Auth **username** plugin.
 
 ### AI
+
 - **Multi-provider** support: Groq, Google Gemini, and local **Ollama** (one-click install + model pull).
 - Bring-your-own-key with multi-key rate-limit fallback and a connection test.
 - Editor AI actions: spell check, continue writing, generate title.
 
 ### Editor
+
 - **Rebuilt formatting bubble menu** as a self-contained component with plain controls wired directly to the editor commands, replacing the previous toolbar layer that didn't reliably respond to clicks.
 - Block specs, MDX / Raw mode, font and line-height controls, rich-text expansion.
 - Note links and tags rendered as inline chips.
 
 ### Notes & navigation
+
 - **Knowledge graph / spiderweb** view (demo-viewable for guests; hover highlight + auto-fit).
 - Content-aware sidebar search; right sidebar with tags and backlinks.
 - Note **version history** and preview flow.
@@ -153,20 +167,24 @@ hardening work accumulated during the preview builds.
 - **Local-first instant navigation** — IndexedDB cache persistence, warmup, prefetch, and off-keystroke serialization.
 
 ### Journal
+
 - Journal / calendar layout, recents, preloader, and sync refinements.
 
 ### Sharing & import/export
+
 - **Skriuw ZIP import/export** with merge-only restore and integrity checks.
 - Importers for **Obsidian, Apple Notes, Bear, and Notion**.
 - Note sharing with share links, statistics, and mobile-friendly send.
 
 ### Settings, auth & admin
+
 - Full **settings page** (profile, auth preferences, data export).
 - Google OAuth, per-request Better Auth base URL, and numerous auth hardening fixes.
 - Admin shell and **seed bundle** editor (`/admin/seed`) for starter content.
 - **Keyboard shortcut** system with full handler wiring.
 
 ### Performance & reliability
+
 - Local-first caching and render-churn reductions for near-instant note open.
 - Security/IDOR hardening on upserts and debounced-save race fixes.
 - Monorepo restructure (Next.js app moved to `apps/web`, shared `packages/web-spa`).

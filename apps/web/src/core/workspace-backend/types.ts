@@ -1,12 +1,5 @@
-import type {
-	CreateNoteInput,
-	UpdateNoteInput,
-	UpdateNoteResult,
-} from "@/domain/notes/actions";
-import type {
-	CreateFolderInput,
-	UpdateFolderInput,
-} from "@/domain/folders/actions";
+import type { CreateNoteInput, UpdateNoteInput, UpdateNoteResult } from "@/domain/notes/actions";
+import type { CreateFolderInput, UpdateFolderInput } from "@/domain/folders/actions";
 import type { GraphData } from "@/domain/notes/graph";
 import type { NoteFile, NoteFolder, NoteVersion } from "@/domain/notes/models";
 import type { ResolvedNoteLink } from "@/domain/notes/note-links";

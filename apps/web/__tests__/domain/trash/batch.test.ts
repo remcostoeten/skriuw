@@ -29,10 +29,11 @@ describe("trash batch helpers", () => {
 	});
 
 	test("rootDeletedFolders returns only subtree roots", () => {
-		expect(rootDeletedFolders(folders).map((folder) => folder.id).sort()).toEqual([
-			"other",
-			"root",
-		]);
+		expect(
+			rootDeletedFolders(folders)
+				.map((folder) => folder.id)
+				.sort(),
+		).toEqual(["other", "root"]);
 	});
 
 	test("folder batch resolves the full deleted subtree and its notes", () => {

@@ -80,7 +80,9 @@ function formatReport(reports: RouteReport[]): string {
 			const status = report.passed ? "PASS" : "FAIL";
 			const diffPct = (report.diffPercentage * 100).toFixed(1);
 			const violations = report.cls.filter((result) => result.shifted);
-			lines.push(`--- ${status} [${report.viewport}] ${report.route} (${diffPct}% pixel diff) ---`);
+			lines.push(
+				`--- ${status} [${report.viewport}] ${report.route} (${diffPct}% pixel diff) ---`,
+			);
 
 			if (violations.length === 0 && report.diffPercentage < 0.05) {
 				lines.push("  No issues.");

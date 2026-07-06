@@ -147,8 +147,8 @@ export function PwaSetup() {
 						</>
 					) : (
 						<p className="mt-0.5 text-xs text-muted-foreground">
-							Tap the <span className="font-medium text-foreground">Share</span> icon in
-							Safari, then{" "}
+							Tap the <span className="font-medium text-foreground">Share</span> icon
+							in Safari, then{" "}
 							<span className="font-medium text-foreground">Add to Home Screen</span>.
 						</p>
 					)}

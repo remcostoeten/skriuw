@@ -8,7 +8,12 @@ import { useAuth } from "@/core/auth/use-auth";
 import { recordGuestGraphExplore } from "@/core/workspace-backend";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import { graphNodeKey, type GraphData, type GraphNode, type GraphNodeType } from "@/domain/notes/graph";
+import {
+	graphNodeKey,
+	type GraphData,
+	type GraphNode,
+	type GraphNodeType,
+} from "@/domain/notes/graph";
 import { NotesEmptyState } from "./notes-empty-state";
 import { useNoteGraph } from "../hooks/use-note-graph";
 
@@ -79,7 +84,13 @@ type GraphCanvasProps = {
 	onExploreNote?: (id: string) => void;
 };
 
-function GraphCanvas({ data, onOpenNote, onOpenTag, onOpenPerson, onExploreNote }: GraphCanvasProps) {
+function GraphCanvas({
+	data,
+	onOpenNote,
+	onOpenTag,
+	onOpenPerson,
+	onExploreNote,
+}: GraphCanvasProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	// biome-ignore lint/suspicious/noExplicitAny: react-force-graph-2d has no exported ref type
 	const graphRef = useRef<any>(null);
@@ -372,8 +383,8 @@ function GraphLegend() {
 				<span>Person</span>
 			</div>
 			<p className="pt-1 leading-relaxed">
-				Bigger = more connections. Older notes sit left, newer right. Click any node to
-				open it.
+				Bigger = more connections. Older notes sit left, newer right. Click any node to open
+				it.
 			</p>
 		</div>
 	);

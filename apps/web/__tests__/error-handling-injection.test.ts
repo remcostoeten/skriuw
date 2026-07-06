@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, spyOn } from "bun:test";
+import { describe, expect, test, spyOn } from "bun:test";
 import { cloneRichDocument } from "@/domain/notes/rich-document";
 import { verifyCollabToken } from "@/features/collaboration/lib/collab-token";
 import type { RichTextDocument } from "@/types/notes";

@@ -17,7 +17,9 @@ import { ensureStarterContentForUserId } from "@/domain/seed/provision";
  * Resolves to `true` only when this request actually created starter content,
  * letting page loaders re-run a prefetch that may have raced the seed insert.
  */
-export const ensureCloudStarterContentSeeded = cache(async function ensureCloudStarterContentSeeded(): Promise<boolean> {
-	const { user } = await getAuthenticatedUser();
-	return ensureStarterContentForUserId(user.id);
-});
+export const ensureCloudStarterContentSeeded = cache(
+	async function ensureCloudStarterContentSeeded(): Promise<boolean> {
+		const { user } = await getAuthenticatedUser();
+		return ensureStarterContentForUserId(user.id);
+	},
+);

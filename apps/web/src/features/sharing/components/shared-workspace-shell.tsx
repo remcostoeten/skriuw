@@ -1,13 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 
 export function SharedWorkspaceShell() {
-	const router = useRouter();
-
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">

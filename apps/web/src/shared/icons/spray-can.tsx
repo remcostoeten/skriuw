@@ -2,13 +2,7 @@
 
 import type { Variants } from "framer-motion";
 import { LazyMotion, domMin, m, useAnimation, useReducedMotion } from "framer-motion";
-import {
-	forwardRef,
-	useCallback,
-	useImperativeHandle,
-	useRef,
-	type HTMLAttributes,
-} from "react";
+import { forwardRef, useCallback, useImperativeHandle, useRef, type HTMLAttributes } from "react";
 
 import { cn } from "@/shared/lib/utils";
 
@@ -33,14 +27,7 @@ type SprayCanIconProps = Omit<
 	color?: string;
 };
 
-const SPRAY_DOTS = [
-	"M3 3h.01",
-	"M7 5h.01",
-	"M11 7h.01",
-	"M3 7h.01",
-	"M7 9h.01",
-	"M3 11h.01",
-];
+const SPRAY_DOTS = ["M3 3h.01", "M7 5h.01", "M11 7h.01", "M3 7h.01", "M7 9h.01", "M3 11h.01"];
 
 const SprayCanIcon = forwardRef<SprayCanIconHandle, SprayCanIconProps>(
 	(

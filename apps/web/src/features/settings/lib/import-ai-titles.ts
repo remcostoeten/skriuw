@@ -115,7 +115,9 @@ export async function createImportTitleSuggestions(
 			active++;
 			emit();
 			try {
-				const title = sanitizeGeneratedTitle(await options.generateTitle(note.content, note));
+				const title = sanitizeGeneratedTitle(
+					await options.generateTitle(note.content, note),
+				);
 				if (!title) {
 					failures.push({
 						noteId: note.id,
@@ -144,7 +146,9 @@ export async function createImportTitleSuggestions(
 		}
 	}
 
-	await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, () => worker()));
+	await Promise.all(
+		Array.from({ length: Math.min(concurrency, candidates.length) }, () => worker()),
+	);
 
 	return {
 		eligible: candidates.length,

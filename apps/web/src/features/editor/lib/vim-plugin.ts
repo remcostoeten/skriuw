@@ -125,7 +125,12 @@ function isPrintable(event: KeyboardEvent): boolean {
  * Block-local text access
  * ------------------------------------------------------------------ */
 
-function blockText(state: EditorState): { text: string; start: number; end: number; offset: number } {
+function blockText(state: EditorState): {
+	text: string;
+	start: number;
+	end: number;
+	offset: number;
+} {
 	const { $head } = state.selection;
 	return {
 		text: $head.parent.textContent,
@@ -211,10 +216,7 @@ function gotoLine(view: EditorView, line: number) {
 	const blocks = listTextblocks(view.state);
 	if (blocks.length === 0) return;
 	const target = blocks[Math.min(blocks.length, Math.max(1, line)) - 1]!;
-	const offset = Math.min(
-		firstNonBlankOffset(target.text),
-		Math.max(0, target.text.length - 1),
-	);
+	const offset = Math.min(firstNonBlankOffset(target.text), Math.max(0, target.text.length - 1));
 	selectAt(view, target.start + offset);
 }
 
@@ -265,9 +267,19 @@ function computeMotion(
 	const len = text.length;
 	switch (motion) {
 		case "h":
-			return { target: Math.max(0, offset - count), inclusive: false, backward: true, ok: true };
+			return {
+				target: Math.max(0, offset - count),
+				inclusive: false,
+				backward: true,
+				ok: true,
+			};
 		case "l":
-			return { target: Math.min(len, offset + count), inclusive: false, backward: false, ok: true };
+			return {
+				target: Math.min(len, offset + count),
+				inclusive: false,
+				backward: false,
+				ok: true,
+			};
 		case "w":
 		case "W": {
 			let t = offset;
@@ -296,7 +308,8 @@ function computeMotion(
 			return { target: len, inclusive: true, backward: false, ok: true };
 		case "%": {
 			const match = matchingPairOffset(text, offset);
-			if (match === null) return { target: offset, inclusive: false, backward: false, ok: false };
+			if (match === null)
+				return { target: offset, inclusive: false, backward: false, ok: false };
 			return { target: match, inclusive: true, backward: match < offset, ok: true };
 		}
 		case "f":
@@ -305,7 +318,8 @@ function computeMotion(
 		case "T": {
 			if (!char) return { target: offset, inclusive: false, backward: false, ok: false };
 			const idx = findCharOffset(text, offset, motion, char, count, repeat);
-			if (idx === null) return { target: offset, inclusive: false, backward: false, ok: false };
+			if (idx === null)
+				return { target: offset, inclusive: false, backward: false, ok: false };
 			const backward = motion === "F" || motion === "T";
 			return { target: idx, inclusive: !backward, backward, ok: true };
 		}
@@ -428,11 +442,7 @@ function applyCharwise(view: EditorView, op: VimOperator, from: number, to: numb
 	if (op === "d") clampNormalCursor(view);
 }
 
-function applyMotionOperator(
-	view: EditorView,
-	op: VimOperator,
-	res: MotionResult | null,
-) {
+function applyMotionOperator(view: EditorView, op: VimOperator, res: MotionResult | null) {
 	if (!res || !res.ok) {
 		setMeta(view, CLEAR_TRANSIENT);
 		return;
@@ -624,7 +634,12 @@ function textObjectRange(
  * ------------------------------------------------------------------ */
 
 function escapeToNormal(view: EditorView) {
-	setMeta(view, { ...CLEAR_TRANSIENT, mode: "normal", visualAnchor: null, linewiseVisual: false });
+	setMeta(view, {
+		...CLEAR_TRANSIENT,
+		mode: "normal",
+		visualAnchor: null,
+		linewiseVisual: false,
+	});
 	if (!isInTextblock(view.state.selection)) return;
 	const { text, start, offset } = blockText(view.state);
 	collapseCursorAt(view, start + Math.max(0, Math.min(text.length - 1, offset - 1)));
@@ -641,13 +656,23 @@ function enterVisual(view: EditorView, linewise: boolean) {
 
 function visualToNormal(view: EditorView) {
 	const head = view.state.selection.head;
-	setMeta(view, { ...CLEAR_TRANSIENT, mode: "normal", visualAnchor: null, linewiseVisual: false });
+	setMeta(view, {
+		...CLEAR_TRANSIENT,
+		mode: "normal",
+		visualAnchor: null,
+		linewiseVisual: false,
+	});
 	collapseCursorAt(view, head);
 }
 
 function visualToInsert(view: EditorView) {
 	const head = view.state.selection.head;
-	setMeta(view, { ...CLEAR_TRANSIENT, mode: "insert", visualAnchor: null, linewiseVisual: false });
+	setMeta(view, {
+		...CLEAR_TRANSIENT,
+		mode: "insert",
+		visualAnchor: null,
+		linewiseVisual: false,
+	});
 	collapseCursorAt(view, head);
 }
 
@@ -681,7 +706,12 @@ function yankSelection(view: EditorView) {
 	const vim = vimState(view);
 	const { from, to } = visualBounds(view);
 	register = { text: view.state.doc.textBetween(from, to, "\n"), linewise: vim.linewiseVisual };
-	setMeta(view, { ...CLEAR_TRANSIENT, mode: "normal", visualAnchor: null, linewiseVisual: false });
+	setMeta(view, {
+		...CLEAR_TRANSIENT,
+		mode: "normal",
+		visualAnchor: null,
+		linewiseVisual: false,
+	});
 	collapseCursorAt(view, from);
 }
 
@@ -710,7 +740,12 @@ function recaseSelection(view: EditorView, transform: (text: string) => string) 
 	const next = transform(view.state.doc.textBetween(from, to, "\n"));
 	const tr = view.state.tr.insertText(next, from, to);
 	view.dispatch(tr.scrollIntoView());
-	setMeta(view, { ...CLEAR_TRANSIENT, mode: "normal", visualAnchor: null, linewiseVisual: false });
+	setMeta(view, {
+		...CLEAR_TRANSIENT,
+		mode: "normal",
+		visualAnchor: null,
+		linewiseVisual: false,
+	});
 	collapseCursorAt(view, from);
 }
 
@@ -803,7 +838,14 @@ function runMotion(
 		return;
 	}
 	if (res?.ok) {
-		const cross = crossBlockTarget(view.state, motion, res, text, offset, vim.mode === "visual");
+		const cross = crossBlockTarget(
+			view.state,
+			motion,
+			res,
+			text,
+			offset,
+			vim.mode === "visual",
+		);
 		if (cross !== null) {
 			selectAt(view, cross);
 			setMeta(view, CLEAR_TRANSIENT);
@@ -1052,7 +1094,11 @@ function handleNormalBase(
 		case "d":
 		case "c":
 		case "y":
-			setMeta(view, { operator: key, opCount: resolveCount(vimState(view).count), count: "" });
+			setMeta(view, {
+				operator: key,
+				opCount: resolveCount(vimState(view).count),
+				count: "",
+			});
 			return true;
 		case "Y":
 			operatorLinewise(view, "y", count - 1, 0);
@@ -1325,11 +1371,7 @@ const DOUBLE_SHIFT_WINDOW_MS = 400;
 
 function isLoneShift(event: KeyboardEvent): boolean {
 	return (
-		event.key === "Shift" &&
-		!event.ctrlKey &&
-		!event.metaKey &&
-		!event.altKey &&
-		!event.repeat
+		event.key === "Shift" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.repeat
 	);
 }
 
@@ -1414,11 +1456,7 @@ export function createVimPlugin(onStatusChange?: (status: VimStatus) => void): P
 					return false;
 				}
 				if (!isInTextblock(view.state.selection)) return false;
-				if (
-					event.metaKey ||
-					event.altKey ||
-					(event.ctrlKey && !CTRL_KEYS.has(event.key))
-				) {
+				if (event.metaKey || event.altKey || (event.ctrlKey && !CTRL_KEYS.has(event.key))) {
 					return false;
 				}
 				const handled = handleKey(view, event);

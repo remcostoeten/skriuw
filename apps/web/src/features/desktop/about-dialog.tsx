@@ -63,7 +63,9 @@ export function DesktopAboutDialog() {
 						<RawLogo variant="explanation" size={36} />
 					</div>
 					<div className="space-y-1">
-						<DialogTitle className="text-xl font-semibold tracking-tight">Skriuw</DialogTitle>
+						<DialogTitle className="text-xl font-semibold tracking-tight">
+							Skriuw
+						</DialogTitle>
 						<DialogDescription className="text-sm text-muted-foreground">
 							A local-first notebook for plain-text thinking.
 						</DialogDescription>

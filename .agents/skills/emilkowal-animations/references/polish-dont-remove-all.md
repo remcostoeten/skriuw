@@ -13,10 +13,12 @@ Going nuclear and removing all animation hurts usability. Some animations help a
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
 }
 /* Loading spinners vanish, state changes are invisible */
 ```
@@ -25,22 +27,22 @@ Going nuclear and removing all animation hurts usability. Some animations help a
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-  /* Disable spatial movement */
-  .slide-in {
-    transform: none;
-    transition: opacity 200ms ease-out;
-  }
+	/* Disable spatial movement */
+	.slide-in {
+		transform: none;
+		transition: opacity 200ms ease-out;
+	}
 
-  /* Keep essential feedback animations */
-  .spinner {
-    /* Still animates, but with reduced motion */
-    animation: pulse 1s ease-in-out infinite;
-  }
+	/* Keep essential feedback animations */
+	.spinner {
+		/* Still animates, but with reduced motion */
+		animation: pulse 1s ease-in-out infinite;
+	}
 
-  .error-shake {
-    /* Replace shake with color pulse */
-    animation: error-pulse 200ms ease-out;
-  }
+	.error-shake {
+		/* Replace shake with color pulse */
+		animation: error-pulse 200ms ease-out;
+	}
 }
 ```
 

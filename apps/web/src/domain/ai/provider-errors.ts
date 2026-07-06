@@ -184,13 +184,7 @@ export function classifyAiProviderError(
 	}
 
 	if (
-		matchesAny(signal, [
-			"safety",
-			"blocked",
-			"prohibited_content",
-			"content filter",
-			"harmful",
-		])
+		matchesAny(signal, ["safety", "blocked", "prohibited_content", "content filter", "harmful"])
 	) {
 		return {
 			code: "provider_error",

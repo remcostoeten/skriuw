@@ -13,7 +13,7 @@ Drawer components should match the native iOS Sheet animation feel. The curve `c
 
 ```css
 .drawer {
-  transition: transform 300ms ease-out;
+	transition: transform 300ms ease-out;
 }
 /* Feels like a web component, not native */
 ```
@@ -22,7 +22,7 @@ Drawer components should match the native iOS Sheet animation feel. The curve `c
 
 ```css
 .drawer {
-  transition: transform 500ms cubic-bezier(0.32, 0.72, 0, 1);
+	transition: transform 500ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 /* Matches iOS Sheet animation, feels native */
 ```

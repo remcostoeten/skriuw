@@ -2,14 +2,8 @@
 
 import { ArrowUpRight, Link2 } from "lucide-react";
 import { useState } from "react";
-import {
-	getNoteSearchableContent,
-	getNoteTitle,
-} from "@/domain/notes/note-links";
-import {
-	linkifyFirstMention,
-	type UnlinkedMention,
-} from "@/domain/notes/unlinked-mentions";
+import { getNoteSearchableContent, getNoteTitle } from "@/domain/notes/note-links";
+import { linkifyFirstMention, type UnlinkedMention } from "@/domain/notes/unlinked-mentions";
 import { useUpdateNote } from "@/features/notes/hooks/use-update-note";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
