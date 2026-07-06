@@ -5,7 +5,20 @@
 <pre>curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
 echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" | sudo tee /etc/apt/sources.list.d/skriuw.list
 sudo apt update && sudo apt install skriuw</pre>
+<h2>Fedora / RHEL / openSUSE (dnf)</h2>
+<pre>sudo dnf config-manager addrepo --from-repofile=https://remcostoeten.github.io/skriuw/rpm/skriuw.repo
+sudo dnf install skriuw</pre>
 <h2>Arch (AUR)</h2>
 <pre>yay -S skriuw-bin   # or: paru -S skriuw-bin</pre>
-<p>Latest: v0.15.1</p>
+<h2>Snap</h2>
+<pre>sudo snap install skriuw</pre>
+<h2>macOS (Homebrew)</h2>
+<pre>brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
+brew install --cask skriuw</pre>
+<h2>Windows (winget)</h2>
+<pre>winget install RemcoStoeten.Skriuw</pre>
+<h2>Windows (Scoop)</h2>
+<pre>scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+scoop install skriuw</pre>
+<p>Latest: v0.16.0</p>
 </body>
