@@ -21,6 +21,19 @@ export type ShortcutDefinition = {
 	/** Whether to call `preventDefault()` when the shortcut fires. */
 	preventDefault?: boolean;
 	/**
+	 * When `true`, this shortcut is also registered as an OS-level global
+	 * shortcut on desktop (via `tauri-plugin-global-shortcut`), so it fires
+	 * even while the app is unfocused or minimized. Keep this set small —
+	 * only combos that make sense without the app visible.
+	 *
+	 * The Rust side (`apps/desktop/src-tauri/src/lib.rs`, `GLOBAL_SHORTCUTS`)
+	 * hardcodes the matching `ShortcutId` + accelerator pairs for the entries
+	 * marked here, since Rust can't parse this TS file. If you add, remove,
+	 * or rebind a `global: true` entry, update `GLOBAL_SHORTCUTS` in lib.rs
+	 * to match.
+	 */
+	global?: boolean;
+	/**
 	 * Shortcuts with the same binding group represent the same user-facing
 	 * command in different scopes. Rebinding one rebinds all of them, and the
 	 * settings UI treats their shared default as an intentional non-conflict.
@@ -377,6 +390,26 @@ export const SHORTCUT_REGISTRY = {
 		scope: SCOPES.journal,
 		group: "Journal",
 		label: "Open shortcut help",
+	},
+
+	"app.showWindow": {
+		keys: "mod+shift+space",
+		scope: SCOPES.global,
+		group: "Application",
+		label: "Show Skriuw",
+		description: "Brings the Skriuw window to the front from anywhere, even while it's unfocused or minimized.",
+		global: true,
+	},
+	"global.quickCapture": {
+		keys: "mod+alt+n",
+		scope: SCOPES.global,
+		group: "Application",
+		label: "Quick capture note",
+		description:
+			"Creates a new note and opens it, from anywhere — even another route or while Skriuw is unfocused. Distinct from \"Create note\" (mod+n) so it keeps working outside the notes view.",
+		except: false,
+		preventDefault: true,
+		global: true,
 	},
 	"settings.toggleFocus": {
 		keys: "slash",
