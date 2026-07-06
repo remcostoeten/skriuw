@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText, Users, Waypoints } from "lucide-react";
 import { NOTE_PROPERTY_COLORS } from "@/domain/notes/properties";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
@@ -17,7 +16,6 @@ type Props = {
 };
 
 export function PersonInsights({ personId }: Props) {
-	const router = useRouter();
 	const { data: people = [] } = useWorkspacePeople();
 	const { data: notes = [], isLoading } = usePersonNotes(personId);
 	const person = people.find((entry) => entry.id === personId);
@@ -44,7 +42,9 @@ export function PersonInsights({ personId }: Props) {
 								{person?.name ?? "Unknown person"}
 							</h1>
 							<span className="text-sm text-muted-foreground">
-								{notes.length === 1 ? "mentioned in 1 note" : `mentioned in ${notes.length} notes`}
+								{notes.length === 1
+									? "mentioned in 1 note"
+									: `mentioned in ${notes.length} notes`}
 							</span>
 							<div className="ml-auto">
 								<Button variant="outline" size="sm" asChild>

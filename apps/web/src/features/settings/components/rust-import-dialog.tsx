@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, CheckCircle2, FileUp, Loader2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileUp, Loader2 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";

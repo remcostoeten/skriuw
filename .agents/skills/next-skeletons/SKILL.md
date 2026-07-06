@@ -1,9 +1,9 @@
 ---
 name: next-skeletons
 description: >
-  Visual QA for Next.js skeleton/loading states via next-playwright instant() API.
-  Trigger on: skeleton testing, loading state QA, CLS with skeletons, Suspense
-  fallback testing, fallback shell verification, or next-playwright usage.
+    Visual QA for Next.js skeleton/loading states via next-playwright instant() API.
+    Trigger on: skeleton testing, loading state QA, CLS with skeletons, Suspense
+    fallback testing, fallback shell verification, or next-playwright usage.
 ---
 
 # Skeleton QA — Agent-Driven Feedback Loop for Next.js Loading States
@@ -25,6 +25,7 @@ results to stdout.
 ## Prerequisites
 
 The project must have:
+
 - Next.js 15+ with App Router
 - Playwright installed (`npx playwright install`)
 - Routes that use Suspense boundaries (via `loading.tsx`, inline `<Suspense>`, or any other pattern)
@@ -47,16 +48,16 @@ Create `skeleton-qa.config.ts` at the project root:
 
 ```typescript
 export default {
-  routes: ['/', '/products', '/products/[slug]', '/cart', '/account'],
-  clsThreshold: 2,       // px — shifts below this are ignored
-  diffThreshold: 0.05,   // 5% pixel diff threshold
-  viewports: [
-    { width: 1280, height: 720, name: 'desktop' },
-    { width: 375, height: 812, name: 'mobile' },
-  ],
-  landmarks: ['nav', 'main', '[role="complementary"]', 'footer'],
-  settleTime: 1000,
-}
+	routes: ["/", "/products", "/products/[slug]", "/cart", "/account"],
+	clsThreshold: 2, // px — shifts below this are ignored
+	diffThreshold: 0.05, // 5% pixel diff threshold
+	viewports: [
+		{ width: 1280, height: 720, name: "desktop" },
+		{ width: 375, height: 812, name: "mobile" },
+	],
+	landmarks: ["nav", "main", '[role="complementary"]', "footer"],
+	settleTime: 1000,
+};
 ```
 
 ## The Feedback Loop
@@ -88,6 +89,7 @@ CLS violations: 0
 ```
 
 Each failing route includes:
+
 - **Which elements shifted** and by how much
 - **A suggested fix** explaining what to change and where
 

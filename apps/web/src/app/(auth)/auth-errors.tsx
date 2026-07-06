@@ -46,8 +46,7 @@ export function resolveAuthError(error: unknown): AuthErrorNotice {
 		return {
 			kind: "configuration",
 			title: "Authentication redirect problem",
-			message:
-				"Check the callback URL, app origin, and OAuth provider settings.",
+			message: "Check the callback URL, app origin, and OAuth provider settings.",
 		};
 	}
 

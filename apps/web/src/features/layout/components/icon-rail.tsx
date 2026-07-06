@@ -11,6 +11,7 @@ import {
 	Users,
 	Waypoints,
 } from "lucide-react";
+import { ActivityIcon } from "@/shared/icons/activity-icon";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { BookOpenIcon } from "@/shared/icons/book-open";
 import { HashIcon } from "@/shared/icons/hash";
@@ -371,9 +372,12 @@ export function IconRail() {
 			gotoKeybind: "a",
 			gotoDestination: goto.route.activity,
 			isActive: pathname.startsWith("/app/activity"),
-			icon: (_active: boolean) => (
-				<Activity className="h-[18px] w-[18px]" strokeWidth={1.6} />
-			),
+			icon: (_active: boolean) =>
+				showAnimatedIcons ? (
+					<ActivityIcon size={18} />
+				) : (
+					<Activity className="h-[18px] w-[18px]" strokeWidth={1.6} />
+				),
 		},
 	];
 	const trashNavItem = {
@@ -396,8 +400,8 @@ export function IconRail() {
 
 	const renderNavItem = (item: (typeof navItems)[number] | typeof trashNavItem) => (
 		<RailNavItem
-			key={item.href}
 			{...item}
+			key={item.href}
 			isAuthenticated={isAuthenticated}
 			onRequireAuth={openAuthDrawerFor}
 		/>

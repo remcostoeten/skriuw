@@ -9,42 +9,6 @@ const BRANCH_X = 26;
 const RAIL_WIDTH = 1.25;
 const GRAPH_WIDTH = 32;
 
-export function getHistoryBranchRoles<
-	T extends { reasonKind: string },
->(items: T[]): HistoryBranchRole[] {
-	const forkIndex = items.findIndex(
-		(item, index) => index > 0 && item.reasonKind === "restore",
-	);
-
-	if (forkIndex === -1) {
-		return items.map((_, index) => (index === 0 ? "head" : "trunk"));
-	}
-
-	return items.map((_, index) => {
-		if (index === 0) return "head";
-		if (index < forkIndex) return "branch";
-		if (index === forkIndex) return "fork";
-		return "trunk";
-	});
-}
-
-export function findRestoredSourceIndex<
-	T extends { content: string },
->(items: T[], forkIndex: number): number | null {
-	if (forkIndex === -1) return null;
-
-	const currentContent = items[0]?.content;
-	if (!currentContent) return null;
-
-	for (let index = forkIndex + 1; index < items.length; index += 1) {
-		if (items[index].content === currentContent) {
-			return index;
-		}
-	}
-
-	return null;
-}
-
 function historyLaneX(role: HistoryBranchRole, hasFork: boolean) {
 	if (!hasFork) return TRUNK_X;
 	if (role === "head" || role === "branch") return BRANCH_X;
@@ -224,11 +188,7 @@ export function HistoryGraphRail({
 					isLast={isLast}
 					dashed={isRestoredTrunkLink}
 				/>
-				<HistoryGraphNodeDot
-					branchRole={branchRole}
-					isCurrent={isCurrent}
-					laneX={laneX}
-				/>
+				<HistoryGraphNodeDot branchRole={branchRole} isCurrent={isCurrent} laneX={laneX} />
 			</>
 		);
 	}
@@ -236,12 +196,7 @@ export function HistoryGraphRail({
 	return (
 		<>
 			{onBranchLane ? (
-				<HistoryRailSegment
-					x={BRANCH_X}
-					isFirst={isFirst}
-					isLast={isLast}
-					dashed={false}
-				/>
+				<HistoryRailSegment x={BRANCH_X} isFirst={isFirst} isLast={isLast} dashed={false} />
 			) : null}
 
 			{isFork ? <ForkRailConnector /> : null}
@@ -255,11 +210,7 @@ export function HistoryGraphRail({
 				/>
 			) : null}
 
-			<HistoryGraphNodeDot
-				branchRole={branchRole}
-				isCurrent={isCurrent}
-				laneX={laneX}
-			/>
+			<HistoryGraphNodeDot branchRole={branchRole} isCurrent={isCurrent} laneX={laneX} />
 		</>
 	);
 }

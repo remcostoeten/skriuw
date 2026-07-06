@@ -170,9 +170,7 @@ export function getCommandPaletteGroups(
 
 	if (normalizedQuery) {
 		for (const groupItems of grouped.values()) {
-			groupItems.sort(
-				(a, b) => (matchScores.get(b.id) ?? 0) - (matchScores.get(a.id) ?? 0),
-			);
+			groupItems.sort((a, b) => (matchScores.get(b.id) ?? 0) - (matchScores.get(a.id) ?? 0));
 		}
 	}
 

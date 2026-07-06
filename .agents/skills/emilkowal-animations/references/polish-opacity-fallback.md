@@ -13,10 +13,10 @@ Opacity changes don't affect perceived position, size, or shape—they're safe f
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
-  }
+	* {
+		animation: none !important;
+		transition: none !important;
+	}
 }
 /* No feedback at all, confusing UX */
 ```
@@ -25,14 +25,16 @@ Opacity changes don't affect perceived position, size, or shape—they're safe f
 
 ```css
 .sidebar {
-  transition: transform 300ms ease-out, opacity 300ms ease-out;
+	transition:
+		transform 300ms ease-out,
+		opacity 300ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sidebar {
-    transition: opacity 200ms ease-out;
-    transform: none; /* No movement, only fade */
-  }
+	.sidebar {
+		transition: opacity 200ms ease-out;
+		transform: none; /* No movement, only fade */
+	}
 }
 ```
 

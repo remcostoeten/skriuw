@@ -103,20 +103,18 @@ function cloneSidebarConfig(config: SidebarConfig = DEFAULT_SIDEBAR_CONFIG): Sid
 	});
 
 	return {
-		sections: [
-			...normalizedDefaultSections,
-			...customSections,
-			...migratedProjectSections,
-		].map((section) => ({
-			...section,
-			customConfig: section.customConfig
-				? {
-						...section.customConfig,
-						fileIds: [...(section.customConfig.fileIds ?? [])],
-						folderIds: [...(section.customConfig.folderIds ?? [])],
-					}
-				: undefined,
-		})),
+		sections: [...normalizedDefaultSections, ...customSections, ...migratedProjectSections].map(
+			(section) => ({
+				...section,
+				customConfig: section.customConfig
+					? {
+							...section.customConfig,
+							fileIds: [...(section.customConfig.fileIds ?? [])],
+							folderIds: [...(section.customConfig.folderIds ?? [])],
+						}
+					: undefined,
+			}),
+		),
 		favorites: (config.favorites ?? []).map((favorite) => ({ ...favorite })),
 		recents: (config.recents ?? []).map((recent) => ({ ...recent })),
 		// Projects are retired and folded into custom sections (see above), so the

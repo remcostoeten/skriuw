@@ -339,169 +339,164 @@ export function AiLocalKeySettings() {
 			) : null}
 
 			<div className="space-y-1.5">
-					{ai.keys.map((k) => (
-						<div key={k.id} className="space-y-1">
-							<KeyRow
-								k={k}
-								isActive={ai.activeKeyId === k.id}
-								onSetActive={() => setActiveAiKey(k.id)}
-								onRemove={() => removeAiKey(k.id)}
-								onTest={() => handleTestRow(k)}
-							/>
-							{rowTestStatus[k.id] && rowTestStatus[k.id].status !== "idle" && (
-								<div
-									className={cn(
-										"space-y-1 px-3 py-1.5 text-[10px]",
-										rowTestStatus[k.id].status === "loading" &&
-											"text-muted-foreground",
-										rowTestStatus[k.id].status === "ok" && "text-success",
-										rowTestStatus[k.id].status !== "loading" &&
-											rowTestStatus[k.id].status !== "ok" &&
-											"text-destructive",
+				{ai.keys.map((k) => (
+					<div key={k.id} className="space-y-1">
+						<KeyRow
+							k={k}
+							isActive={ai.activeKeyId === k.id}
+							onSetActive={() => setActiveAiKey(k.id)}
+							onRemove={() => removeAiKey(k.id)}
+							onTest={() => handleTestRow(k)}
+						/>
+						{rowTestStatus[k.id] && rowTestStatus[k.id].status !== "idle" && (
+							<div
+								className={cn(
+									"space-y-1 px-3 py-1.5 text-[10px]",
+									rowTestStatus[k.id].status === "loading" &&
+										"text-muted-foreground",
+									rowTestStatus[k.id].status === "ok" && "text-success",
+									rowTestStatus[k.id].status !== "loading" &&
+										rowTestStatus[k.id].status !== "ok" &&
+										"text-destructive",
+								)}
+							>
+								<div className="flex items-center gap-1.5">
+									{rowTestStatus[k.id].status === "loading" ? (
+										<Loader2
+											className="h-3 w-3 animate-spin"
+											strokeWidth={1.5}
+										/>
+									) : rowTestStatus[k.id].status === "ok" ? (
+										<CheckCircle className="h-3 w-3" strokeWidth={1.5} />
+									) : (
+										<XCircle className="h-3 w-3" strokeWidth={1.5} />
 									)}
-								>
-									<div className="flex items-center gap-1.5">
-										{rowTestStatus[k.id].status === "loading" ? (
-											<Loader2
-												className="h-3 w-3 animate-spin"
-												strokeWidth={1.5}
-											/>
-										) : rowTestStatus[k.id].status === "ok" ? (
-											<CheckCircle className="h-3 w-3" strokeWidth={1.5} />
-										) : (
-											<XCircle className="h-3 w-3" strokeWidth={1.5} />
-										)}
-										{rowTestStatus[k.id].status !== "loading" &&
-											STATUS_COPY[
-												rowTestStatus[k.id].status as Exclude<
-													TestStatus,
-													"idle" | "loading"
-												>
-											]}
-										{rowTestStatus[k.id].status === "loading" && "Testing…"}
-									</div>
-									{rowTestStatus[k.id].details && (
-										<p className="pl-4 opacity-70">
-											{rowTestStatus[k.id].details}
-										</p>
-									)}
-									{rowTestStatus[k.id].eventId && (
-										<p className="pl-4 font-mono opacity-50">
-											Diagnostic event: {rowTestStatus[k.id].eventId}
-										</p>
-									)}
+									{rowTestStatus[k.id].status !== "loading" &&
+										STATUS_COPY[
+											rowTestStatus[k.id].status as Exclude<
+												TestStatus,
+												"idle" | "loading"
+											>
+										]}
+									{rowTestStatus[k.id].status === "loading" && "Testing…"}
 								</div>
-							)}
-						</div>
-					))}
-				</div>
+								{rowTestStatus[k.id].details && (
+									<p className="pl-4 opacity-70">{rowTestStatus[k.id].details}</p>
+								)}
+								{rowTestStatus[k.id].eventId && (
+									<p className="pl-4 font-mono opacity-50">
+										Diagnostic event: {rowTestStatus[k.id].eventId}
+									</p>
+								)}
+							</div>
+						)}
+					</div>
+				))}
+			</div>
 
 			{showAddForm ? (
 				<div className="space-y-3 border border-border bg-background/50 p-3">
-						<div className="flex gap-2">
+					<div className="flex gap-2">
+						<input
+							type="text"
+							value={draftName}
+							onChange={(e) => setDraftName(e.target.value)}
+							placeholder="Key name (e.g. Personal)"
+							className="h-9 flex-1 border border-border bg-background px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/45 focus:border-ring transition-colors md:text-xs"
+						/>
+					</div>
+					<div className="flex gap-2">
+						<div className="relative flex-1">
 							<input
-								type="text"
-								value={draftName}
-								onChange={(e) => setDraftName(e.target.value)}
-								placeholder="Key name (e.g. Personal)"
-								className="h-9 flex-1 border border-border bg-background px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/45 focus:border-ring transition-colors md:text-xs"
-							/>
-						</div>
-						<div className="flex gap-2">
-							<div className="relative flex-1">
-								<input
-									type={showDraftKey ? "text" : "password"}
-									value={draftKey}
-									onChange={(e) => {
-										setDraftKey(e.target.value);
-										setDraftTestStatus("idle");
-										setDraftTestDetails(null);
-									}}
-									placeholder="API key..."
-									autoComplete="off"
-									spellCheck={false}
-									className="h-9 w-full border border-border bg-background px-3 pr-9 font-mono text-base text-foreground outline-none placeholder:text-muted-foreground/45 focus:border-ring transition-colors md:text-xs"
-								/>
-								<button
-									type="button"
-									onClick={() => setShowDraftKey((v) => !v)}
-									className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-								>
-									{showDraftKey ? (
-										<EyeOff className="h-3.5 w-3.5" strokeWidth={1.5} />
-									) : (
-										<Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
-									)}
-								</button>
-							</div>
-							<button
-								type="button"
-								onClick={handleTestDraft}
-								disabled={!draftKey.trim() || draftTestStatus === "loading"}
-								className="inline-flex h-9 items-center gap-1.5 border border-border bg-background px-3 text-xs text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
-							>
-								{draftTestStatus === "loading" && (
-									<Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.5} />
-								)}
-								Test
-							</button>
-						</div>
-
-						{draftTestStatus !== "idle" && draftTestStatus !== "loading" && (
-							<div
-								className={cn(
-									"flex items-center gap-1.5 text-xs",
-									draftTestStatus === "ok" ? "text-success" : "text-destructive",
-								)}
-							>
-								{draftTestStatus === "ok" ? (
-									<CheckCircle
-										className="h-3.5 w-3.5 shrink-0"
-										strokeWidth={1.5}
-									/>
-								) : (
-									<XCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-								)}
-								<span>{STATUS_COPY[draftTestStatus]}</span>
-							</div>
-						)}
-						{draftTestStatus !== "idle" &&
-							draftTestStatus !== "loading" &&
-							draftTestDetails?.details && (
-								<p className="text-xs text-muted-foreground">
-									{draftTestDetails.details}
-								</p>
-							)}
-						{draftTestDetails?.eventId && (
-							<p className="font-mono text-[10px] text-muted-foreground/60">
-								Diagnostic event: {draftTestDetails.eventId}
-							</p>
-						)}
-
-						<div className="flex gap-2">
-							<button
-								type="button"
-								onClick={handleAddKey}
-								disabled={!canAdd}
-								className="inline-flex h-9 items-center gap-1.5 border border-ring/60 bg-ring/10 px-3 text-xs text-ring transition-colors hover:bg-ring/20 disabled:pointer-events-none disabled:opacity-40"
-							>
-								<Plus className="h-3 w-3" strokeWidth={2} />
-								Save key
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									setShowAddForm(false);
-									setDraftName("");
-									setDraftKey("");
+								type={showDraftKey ? "text" : "password"}
+								value={draftKey}
+								onChange={(e) => {
+									setDraftKey(e.target.value);
 									setDraftTestStatus("idle");
 									setDraftTestDetails(null);
 								}}
-								className="h-9 border border-border bg-background px-3 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+								placeholder="API key..."
+								autoComplete="off"
+								spellCheck={false}
+								className="h-9 w-full border border-border bg-background px-3 pr-9 font-mono text-base text-foreground outline-none placeholder:text-muted-foreground/45 focus:border-ring transition-colors md:text-xs"
+							/>
+							<button
+								type="button"
+								onClick={() => setShowDraftKey((v) => !v)}
+								className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
 							>
-								Cancel
+								{showDraftKey ? (
+									<EyeOff className="h-3.5 w-3.5" strokeWidth={1.5} />
+								) : (
+									<Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
+								)}
 							</button>
 						</div>
+						<button
+							type="button"
+							onClick={handleTestDraft}
+							disabled={!draftKey.trim() || draftTestStatus === "loading"}
+							className="inline-flex h-9 items-center gap-1.5 border border-border bg-background px-3 text-xs text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+						>
+							{draftTestStatus === "loading" && (
+								<Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.5} />
+							)}
+							Test
+						</button>
+					</div>
+
+					{draftTestStatus !== "idle" && draftTestStatus !== "loading" && (
+						<div
+							className={cn(
+								"flex items-center gap-1.5 text-xs",
+								draftTestStatus === "ok" ? "text-success" : "text-destructive",
+							)}
+						>
+							{draftTestStatus === "ok" ? (
+								<CheckCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+							) : (
+								<XCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+							)}
+							<span>{STATUS_COPY[draftTestStatus]}</span>
+						</div>
+					)}
+					{draftTestStatus !== "idle" &&
+						draftTestStatus !== "loading" &&
+						draftTestDetails?.details && (
+							<p className="text-xs text-muted-foreground">
+								{draftTestDetails.details}
+							</p>
+						)}
+					{draftTestDetails?.eventId && (
+						<p className="font-mono text-[10px] text-muted-foreground/60">
+							Diagnostic event: {draftTestDetails.eventId}
+						</p>
+					)}
+
+					<div className="flex gap-2">
+						<button
+							type="button"
+							onClick={handleAddKey}
+							disabled={!canAdd}
+							className="inline-flex h-9 items-center gap-1.5 border border-ring/60 bg-ring/10 px-3 text-xs text-ring transition-colors hover:bg-ring/20 disabled:pointer-events-none disabled:opacity-40"
+						>
+							<Plus className="h-3 w-3" strokeWidth={2} />
+							Save key
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								setShowAddForm(false);
+								setDraftName("");
+								setDraftKey("");
+								setDraftTestStatus("idle");
+								setDraftTestDetails(null);
+							}}
+							className="h-9 border border-border bg-background px-3 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+						>
+							Cancel
+						</button>
+					</div>
 				</div>
 			) : null}
 		</div>

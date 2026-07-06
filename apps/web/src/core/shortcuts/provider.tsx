@@ -18,7 +18,7 @@ type ShortcutContextValue = {
 	resetAllBindings: () => void;
 	getHelpGroups: (scopes: Scope[]) => ShortcutHelpGroup[];
 	getShortcutHint: (id: ShortcutId) => string;
-}
+};
 
 const ShortcutContext = React.createContext<ShortcutContextValue | null>(null);
 

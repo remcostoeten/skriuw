@@ -8,9 +8,7 @@ import { prisma as rootPrisma } from "@/lib/prisma";
 const SEED_TX_MAX_ATTEMPTS = 3;
 
 function isTransactionConflict(error: unknown): boolean {
-	return (
-		error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034"
-	);
+	return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
 }
 
 function sleep(ms: number): Promise<void> {
@@ -19,12 +17,7 @@ function sleep(ms: number): Promise<void> {
 
 function isEmptyPayload(payload: ActiveSeedBundle["payload"]): boolean {
 	const { folders, notes, tags, journals } = payload;
-	return (
-		folders.length === 0 &&
-		notes.length === 0 &&
-		tags.length === 0 &&
-		journals.length === 0
-	);
+	return folders.length === 0 && notes.length === 0 && tags.length === 0 && journals.length === 0;
 }
 
 /**

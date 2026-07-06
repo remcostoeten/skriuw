@@ -232,7 +232,10 @@ for (const viewport of config.viewports) {
 				passed: clsViolations.length === 0 && diffPercentage < config.diffThreshold,
 			};
 
-			await fs.writeFile(path.join(outputDir, "report.json"), JSON.stringify(report, null, 2));
+			await fs.writeFile(
+				path.join(outputDir, "report.json"),
+				JSON.stringify(report, null, 2),
+			);
 			printReport(report);
 
 			expect(

@@ -6,10 +6,7 @@ import type { ChipRewriteResult, TaggedNoteSummary } from "@/core/workspace-back
 import { rewriteNoteForPerson, type PersonChipRewrite } from "@/domain/notes/chip-rewrite";
 import type { RichTextDocument } from "@/domain/notes/models";
 import { syncNoteLinks } from "@/domain/notes/note-link-sync";
-import {
-	normalizeNoteProperties,
-	type NotePropertyColor,
-} from "@/domain/notes/properties";
+import { normalizeNoteProperties, type NotePropertyColor } from "@/domain/notes/properties";
 import { parseServerInput } from "@/domain/validation/schemas";
 import type { Person } from "./models";
 import {
@@ -173,10 +170,7 @@ export async function deletePerson(id: string): Promise<ChipRewriteResult> {
 	});
 }
 
-export async function mergePersons(
-	sourceId: string,
-	targetId: string,
-): Promise<ChipRewriteResult> {
+export async function mergePersons(sourceId: string, targetId: string): Promise<ChipRewriteResult> {
 	if (sourceId === targetId) return { rewrittenNoteIds: [] };
 
 	const { prisma, user } = await getAuthenticatedUser();

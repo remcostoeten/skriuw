@@ -1,11 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type {
-	SeedBundlePayload,
-	SeedFolder,
-	SeedJournalEntry,
-	SeedNote,
-	SeedTag,
-} from "./types";
+import type { SeedBundlePayload, SeedFolder, SeedJournalEntry, SeedNote, SeedTag } from "./types";
 
 export type ActiveSeedBundle = {
 	id: string;

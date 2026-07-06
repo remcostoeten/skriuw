@@ -27,10 +27,7 @@ function resolveNoteName(name: string): string {
 	return trimmed.length > 0 ? trimmed : UNTITLED_LABEL;
 }
 
-export function buildActivityEntries(
-	notes: NoteFile[],
-	trash: TrashBatch[],
-): ActivityEntry[] {
+export function buildActivityEntries(notes: NoteFile[], trash: TrashBatch[]): ActivityEntry[] {
 	const entries: ActivityEntry[] = [];
 
 	for (const note of notes) {
@@ -66,9 +63,7 @@ export function buildActivityEntries(
 		});
 	}
 
-	return entries.toSorted(
-		(left, right) => right.timestamp.getTime() - left.timestamp.getTime(),
-	);
+	return entries.toSorted((left, right) => right.timestamp.getTime() - left.timestamp.getTime());
 }
 
 function startOfDay(date: Date): Date {

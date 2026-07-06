@@ -13,29 +13,62 @@ type TreeNodeProps = {
 	allFolders: SeedFolder[];
 	allNotes: SeedNote[];
 	depth: number;
-}
+};
 
 function TreeNode({ folder, children, subfolders, allFolders, allNotes, depth }: TreeNodeProps) {
-	const { selectedRef, openFolderRefs, selectNote, toggleFolder, addNote, addFolder, renameNote, renameFolder, deleteNote, deleteFolder } = useSeedEditorStore();
+	const {
+		selectedRef,
+		openFolderRefs,
+		selectNote,
+		toggleFolder,
+		addNote,
+		renameNote,
+		renameFolder,
+		deleteNote,
+		deleteFolder,
+	} = useSeedEditorStore();
 	const isOpen = !folder || openFolderRefs.has(folder.ref);
 
 	return (
 		<div>
 			{folder && (
-				<div className="group flex items-center gap-1 px-2 py-0.5 rounded-sm hover:bg-muted/50 cursor-pointer select-none" style={{ paddingLeft: `${depth * 12 + 8}px` }}
+				<div
+					className="group flex items-center gap-1 px-2 py-0.5 rounded-sm hover:bg-muted/50 cursor-pointer select-none"
+					style={{ paddingLeft: `${depth * 12 + 8}px` }}
 					onClick={() => toggleFolder(folder.ref)}
 				>
-					<ChevronRight className={cn("h-3 w-3 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
-					{isOpen ? <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+					<ChevronRight
+						className={cn(
+							"h-3 w-3 shrink-0 text-muted-foreground transition-transform",
+							isOpen && "rotate-90",
+						)}
+					/>
+					{isOpen ? (
+						<FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+					) : (
+						<Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+					)}
 					<EditableLabel
 						value={folder.name}
 						onCommit={(name) => renameFolder(folder.ref, name)}
 					/>
 					<div className="ml-auto hidden group-hover:flex items-center gap-0.5">
-						<IconButton title="Add note" onClick={(e) => { e.stopPropagation(); addNote("Untitled", folder.ref); }}>
+						<IconButton
+							title="Add note"
+							onClick={(e) => {
+								e.stopPropagation();
+								addNote("Untitled", folder.ref);
+							}}
+						>
 							<Plus className="h-3 w-3" />
 						</IconButton>
-						<IconButton title="Delete folder" onClick={(e) => { e.stopPropagation(); deleteFolder(folder.ref); }}>
+						<IconButton
+							title="Delete folder"
+							onClick={(e) => {
+								e.stopPropagation();
+								deleteFolder(folder.ref);
+							}}
+						>
 							<Trash2 className="h-3 w-3 text-destructive" />
 						</IconButton>
 					</div>
@@ -79,19 +112,28 @@ type NoteItemProps = {
 	onSelect: () => void;
 	onRename: (name: string) => void;
 	onDelete: () => void;
-}
+};
 
 function NoteItem({ note, active, depth, onSelect, onRename, onDelete }: NoteItemProps) {
 	return (
 		<div
-			className={cn("group flex items-center gap-1.5 px-2 py-0.5 rounded-sm cursor-pointer select-none hover:bg-muted/50", active && "bg-muted text-foreground")}
+			className={cn(
+				"group flex items-center gap-1.5 px-2 py-0.5 rounded-sm cursor-pointer select-none hover:bg-muted/50",
+				active && "bg-muted text-foreground",
+			)}
 			style={{ paddingLeft: `${depth * 12 + 8}px` }}
 			onClick={onSelect}
 		>
 			<File className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 			<EditableLabel value={note.name} onCommit={onRename} />
 			<div className="ml-auto hidden group-hover:flex">
-				<IconButton title="Delete note" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+				<IconButton
+					title="Delete note"
+					onClick={(e) => {
+						e.stopPropagation();
+						onDelete();
+					}}
+				>
 					<Trash2 className="h-3 w-3 text-destructive" />
 				</IconButton>
 			</div>
@@ -110,10 +152,19 @@ function EditableLabel({ value, onCommit }: { value: string; onCommit: (v: strin
 				className="flex-1 min-w-0 bg-transparent text-sm outline-none border-b border-border"
 				value={draft}
 				onChange={(e) => setDraft(e.target.value)}
-				onBlur={() => { onCommit(draft); setEditing(false); }}
+				onBlur={() => {
+					onCommit(draft);
+					setEditing(false);
+				}}
 				onKeyDown={(e) => {
-					if (e.key === "Enter") { onCommit(draft); setEditing(false); }
-					if (e.key === "Escape") { setDraft(value); setEditing(false); }
+					if (e.key === "Enter") {
+						onCommit(draft);
+						setEditing(false);
+					}
+					if (e.key === "Escape") {
+						setDraft(value);
+						setEditing(false);
+					}
 					e.stopPropagation();
 				}}
 				onClick={(e) => e.stopPropagation()}
@@ -122,13 +173,28 @@ function EditableLabel({ value, onCommit }: { value: string; onCommit: (v: strin
 	}
 
 	return (
-		<span className="flex-1 min-w-0 truncate text-sm" onDoubleClick={(e) => { e.stopPropagation(); setDraft(value); setEditing(true); }}>
+		<span
+			className="flex-1 min-w-0 truncate text-sm"
+			onDoubleClick={(e) => {
+				e.stopPropagation();
+				setDraft(value);
+				setEditing(true);
+			}}
+		>
 			{value}
 		</span>
 	);
 }
 
-function IconButton({ title, onClick, children }: { title: string; onClick: React.MouseEventHandler; children: React.ReactNode }) {
+function IconButton({
+	title,
+	onClick,
+	children,
+}: {
+	title: string;
+	onClick: React.MouseEventHandler;
+	children: React.ReactNode;
+}) {
 	return (
 		<button
 			type="button"
@@ -144,13 +210,17 @@ function IconButton({ title, onClick, children }: { title: string; onClick: Reac
 export function SeedTree() {
 	const { folders, notes, addNote, addFolder } = useSeedEditorStore();
 
-	const rootFolders = folders.filter((f) => f.parentRef === null).sort((a, b) => a.order - b.order);
+	const rootFolders = folders
+		.filter((f) => f.parentRef === null)
+		.sort((a, b) => a.order - b.order);
 	const rootNotes = notes.filter((n) => n.parentRef === null).sort((a, b) => a.order - b.order);
 
 	return (
 		<div className="flex flex-col h-full">
 			<div className="flex items-center gap-1 px-2 py-1.5 border-b border-border/40">
-				<span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex-1">Structure</span>
+				<span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex-1">
+					Structure
+				</span>
 				<IconButton title="Add folder" onClick={() => addFolder("New folder", null)}>
 					<Folder className="h-3.5 w-3.5" />
 				</IconButton>

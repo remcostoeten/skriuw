@@ -29,16 +29,8 @@ export function NoteNameLabel({ name, className }: TProps) {
 				key={name}
 				className={className}
 				style={{ willChange: "opacity, transform, filter" }}
-				initial={
-					reduceMotion
-						? { opacity: 0 }
-						: { opacity: 0, y: 4, filter: "blur(4px)" }
-				}
-				animate={
-					reduceMotion
-						? { opacity: 1 }
-						: { opacity: 1, y: 0, filter: "blur(0px)" }
-				}
+				initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 4, filter: "blur(4px)" }}
+				animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, filter: "blur(0px)" }}
 				exit={
 					reduceMotion
 						? { opacity: 0, transition: { duration: 0.1, ease: EASE } }

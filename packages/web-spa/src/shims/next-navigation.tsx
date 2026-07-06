@@ -1,7 +1,4 @@
-import {
-	useRouter as useTanstackRouter,
-	useRouterState,
-} from "@tanstack/react-router";
+import { useRouter as useTanstackRouter, useRouterState } from "@tanstack/react-router";
 
 type NextRouter = {
 	push: (href: string) => void;
@@ -71,7 +68,9 @@ export function useSearchParams(): URLSearchParams {
 export function useParams<T extends Record<string, string>>(): T {
 	// TanStack's structural-sharing generics reject a caller-supplied return
 	// type; the runtime shape is a plain params record, so cast around them.
-	const options = { select: (s: { matches: Array<{ params: unknown }> }) => s.matches.at(-1)?.params ?? {} };
+	const options = {
+		select: (s: { matches: Array<{ params: unknown }> }) => s.matches.at(-1)?.params ?? {},
+	};
 	return useRouterState(options as never) as T;
 }
 

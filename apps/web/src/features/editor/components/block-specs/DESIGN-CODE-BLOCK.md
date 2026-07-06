@@ -2,18 +2,18 @@
 
 ## Stack
 
-| Thing | Value |
-|---|---|
-| Editor framework | [BlockNote](https://www.blocknotejs.org/) v0.46.2 (`@blocknote/core`, `@blocknote/react`, `@blocknote/mantine`) |
-| Syntax highlighting | Shiki v4 (`shiki/core`, `shiki/engine/oniguruma`) |
-| UI framework | React + Tailwind (shadcn-style tokens via CSS variables) |
-| Rendering model | BlockNote block specs return **plain DOM nodes**, not React components. See "Approaches" below. |
+| Thing               | Value                                                                                                           |
+| ------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Editor framework    | [BlockNote](https://www.blocknotejs.org/) v0.46.2 (`@blocknote/core`, `@blocknote/react`, `@blocknote/mantine`) |
+| Syntax highlighting | Shiki v4 (`shiki/core`, `shiki/engine/oniguruma`)                                                               |
+| UI framework        | React + Tailwind (shadcn-style tokens via CSS variables)                                                        |
+| Rendering model     | BlockNote block specs return **plain DOM nodes**, not React components. See "Approaches" below.                 |
 
 ---
 
 ## What the user sees
 
-1. Type ```` ```ts `` followed by space → input rule matches `/^```(.*?)\s$/` → block converts to `codeBlock` with `language: "typescript"` prop (aliased via `SUPPORTED_LANGUAGES`)
+1. Type `` `ts ``followed by space → input rule matches`/^```(.*?)\s$/` → block converts to `codeBlock` with `language: "typescript"` prop (aliased via `SUPPORTED_LANGUAGES`)
 2. The block renders as `<pre><code>` with a `<select>` dropdown for language switching
 3. Shiki applies syntax highlighting via a ProseMirror plugin (`lazyShikiPlugin`)
 4. Tab inserts 4 spaces (custom ProseMirror plugin overrides BlockNote's default 2-space)
@@ -85,8 +85,18 @@ export function createSyntaxHighlightedCodeBlockSpec() {
 			return createHighlighterCore({
 				themes: [theme],
 				langs: [
-					javascript, typescript, tsx, jsx, json, markdown,
-					bash, css, html, python, sql, yaml,
+					javascript,
+					typescript,
+					tsx,
+					jsx,
+					json,
+					markdown,
+					bash,
+					css,
+					html,
+					python,
+					sql,
+					yaml,
 				],
 				engine: createOnigurumaEngine(wasm),
 			});
@@ -102,11 +112,7 @@ export function createSyntaxHighlightedCodeBlockSpec() {
 **`apps/web/src/features/editor/components/inline-specs/schema.ts`**
 
 ```ts
-import {
-	BlockNoteSchema,
-	defaultBlockSpecs,
-	defaultInlineContentSpecs,
-} from "@blocknote/core";
+import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs } from "@blocknote/core";
 import { noteLinkInlineSpec } from "./note-link-spec";
 import { tagInlineSpec } from "./tag-spec";
 import { userInlineSpec } from "./user-spec";
@@ -301,7 +307,7 @@ toExternalHTML(block) {
 
 Also in `node_modules/@blocknote/core/src/blocks/Code/block.ts` (lines 275–293):
 
-```ts
+````ts
 inputRules: [
 	{
 		find: /^```(.*?)\s$/,
@@ -318,20 +324,15 @@ inputRules: [
 		},
 	},
 ],
-```
+````
 
 The `getLanguageId` helper maps aliases → IDs (lines 299–308):
 
 ```ts
-export function getLanguageId(
-	options: CodeBlockOptions,
-	languageName: string,
-): string | undefined {
-	return Object.entries(options.supportedLanguages ?? {}).find(
-		([id, { aliases }]) => {
-			return aliases?.includes(languageName) || id === languageName;
-		},
-	)?.[0];
+export function getLanguageId(options: CodeBlockOptions, languageName: string): string | undefined {
+	return Object.entries(options.supportedLanguages ?? {}).find(([id, { aliases }]) => {
+		return aliases?.includes(languageName) || id === languageName;
+	})?.[0];
 }
 ```
 
@@ -341,7 +342,7 @@ export function getLanguageId(
 
 **`apps/web/src/domain/notes/rich-document.ts`** (lines 356–357, 595–622)
 
-```ts
+````ts
 const CODE_FENCE_OPEN_PATTERN = /^\s{0,3}```(.*)$/;
 const CODE_FENCE_CLOSE_PATTERN = /^\s{0,3}```\s*$/;
 
@@ -365,7 +366,7 @@ if (fenceMatch) {
 	});
 	continue;
 }
-```
+````
 
 ---
 
@@ -378,6 +379,7 @@ Keep calling `createCodeBlockSpec()` and add CSS. You get the `<select>` dropdow
 ### Option B: Custom `render()` in the spec (medium)
 
 Pass a custom `render` function to `createCodeBlockSpec`. You control the full DOM output. You can:
+
 - Replace the `<select>` with a styled language badge/dropdown
 - Add a copy-to-clipboard button
 - Add line numbers
@@ -409,26 +411,26 @@ The app uses HSL-encoded CSS custom properties (values are `hue saturation light
 ### Core (always available)
 
 ```css
---background: 25 20% 7%;          /* page bg */
---foreground: 30 25% 85%;         /* body text */
---card: 25 18% 10%;               /* editor surface */
---card-foreground: 30 25% 85%;    /* text on editor */
---popover: 25 20% 6%;             /* dropdown/menu bg */
+--background: 25 20% 7%; /* page bg */
+--foreground: 30 25% 85%; /* body text */
+--card: 25 18% 10%; /* editor surface */
+--card-foreground: 30 25% 85%; /* text on editor */
+--popover: 25 20% 6%; /* dropdown/menu bg */
 --popover-foreground: 30 22% 80%; /* text on popover */
 --primary: 28 16% 25%;
 --primary-foreground: 30 25% 88%;
 --secondary: 25 12% 15%;
 --secondary-foreground: 30 18% 78%;
 --muted: 25 10% 14%;
---muted-foreground: 28 8% 45%;    /* secondary text, placeholders */
---accent: 25 12% 20%;             /* hover states */
+--muted-foreground: 28 8% 45%; /* secondary text, placeholders */
+--accent: 25 12% 20%; /* hover states */
 --accent-foreground: 30 25% 85%;
 --destructive: 344 45% 26%;
 --destructive-foreground: 0 0% 98%;
---border: 25 10% 18%;             /* dividers, outlines */
---input: 25 10% 18%;              /* form field border */
---ring: 28 16% 30%;               /* focus ring */
---radius: 0.375rem;               /* border-radius */
+--border: 25 10% 18%; /* dividers, outlines */
+--input: 25 10% 18%; /* form field border */
+--ring: 28 16% 30%; /* focus ring */
+--radius: 0.375rem; /* border-radius */
 ```
 
 ### Status & semantic
@@ -440,18 +442,18 @@ The app uses HSL-encoded CSS custom properties (values are `hue saturation light
 --warning-foreground: 35 96% 86%;
 --info: 200 78% 58%;
 --info-foreground: 200 100% 94%;
---scrim: 0 0% 0%;                /* overlay backdrop */
+--scrim: 0 0% 0%; /* overlay backdrop */
 ```
 
-### Surface hierarchy (theme-*)
+### Surface hierarchy (theme-\*)
 
 ```css
---theme-bg-deep: 25 20% 5%;     /* deepest layer */
---theme-bg-sidebar: 25 20% 6%;  /* sidebar panel */
---theme-bg-editor: 25 20% 7%;   /* editor surface (same as --background) */
---theme-bg-hover: 25 10% 16%;   /* row hover */
---theme-bg-active: 25 10% 20%;  /* active/selected row */
---theme-text-dim: 28 8% 38%;    /* dimmer than muted */
+--theme-bg-deep: 25 20% 5%; /* deepest layer */
+--theme-bg-sidebar: 25 20% 6%; /* sidebar panel */
+--theme-bg-editor: 25 20% 7%; /* editor surface (same as --background) */
+--theme-bg-hover: 25 10% 16%; /* row hover */
+--theme-bg-active: 25 10% 20%; /* active/selected row */
+--theme-text-dim: 28 8% 38%; /* dimmer than muted */
 --theme-text-secondary: 28 8% 50%;
 --theme-accent-blue: 200 78% 58%;
 --theme-divider: 25 10% 16%;
@@ -509,6 +511,7 @@ These are set in `globals.css` as `hsl(var(--x))` for Tailwind's `bg-background`
 The editor renders inside a `.blocknote-wrapper` div. The flow background is `hsl(var(--card))` (`#1b1814` in mocha). The code block itself is a child of the editor's content area — it sits directly on the card surface with no container between it and the editor background.
 
 In the DOM:
+
 ```
 <div class="blocknote-wrapper">                       ← inherits --bn-colors-editor-background
   <div class="bn-editor">                             ← ProseMirror editable area

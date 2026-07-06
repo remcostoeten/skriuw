@@ -14,7 +14,7 @@ Marketing and landing pages are exceptions to speed rules. Users visit once or i
 ```css
 /* Marketing hero animation */
 .hero-element {
-  transition: transform 200ms ease-out;
+	transition: transform 200ms ease-out;
 }
 /* Too fast for marketing, misses opportunity for delight */
 ```
@@ -24,12 +24,13 @@ Marketing and landing pages are exceptions to speed rules. Users visit once or i
 ```css
 /* Marketing hero animation */
 .hero-element {
-  animation: floatIn 800ms cubic-bezier(0.34, 1.56, 0.64, 1);
+	animation: floatIn 800ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 /* Longer, more expressive animation appropriate for one-time viewing */
 ```
 
 **Guidelines by context:**
+
 - **App UI:** <300ms, subtle, functional
 - **Marketing:** 500-1000ms OK, expressive, attention-grabbing
 - **Onboarding:** Can be playful, guiding

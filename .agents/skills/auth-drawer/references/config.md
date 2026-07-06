@@ -6,9 +6,9 @@ read or extend the defaults.
 
 ```ts
 type AuthConfig = {
-  ui?: AuthUiConfig;            // appearance + form behavior
-  triggers?: AuthTriggerConfig; // see triggers.md
-  normalizeError?: AuthErrorNormalizer; // see errors.md
+	ui?: AuthUiConfig; // appearance + form behavior
+	triggers?: AuthTriggerConfig; // see triggers.md
+	normalizeError?: AuthErrorNormalizer; // see errors.md
 };
 ```
 
@@ -16,12 +16,12 @@ type AuthConfig = {
 
 ```ts
 type AuthUiConfig = {
-  auth?: AuthConfigGroup;          // providers, flags, initial mode, email autocomplete
-  copy?: AuthCopyConfig;           // all user-facing strings
-  presentation?: AuthPresentationConfig;  // drawer vs modal, defaultOpen
-  visual?: { backdrop?: AuthBackdropConfig };
-  motion?: Partial<MotionSettings>; // low-level drag/entry/exit/layout tuning
-  footer?: ReactNode;              // fully custom footer; overrides copy.footer
+	auth?: AuthConfigGroup; // providers, flags, initial mode, email autocomplete
+	copy?: AuthCopyConfig; // all user-facing strings
+	presentation?: AuthPresentationConfig; // drawer vs modal, defaultOpen
+	visual?: { backdrop?: AuthBackdropConfig };
+	motion?: Partial<MotionSettings>; // low-level drag/entry/exit/layout tuning
+	footer?: ReactNode; // fully custom footer; overrides copy.footer
 };
 ```
 
@@ -29,16 +29,16 @@ type AuthUiConfig = {
 
 ```ts
 type AuthConfigGroup = {
-  providers?: OAuthProvider[];     // [] disables OAuth entirely
-  oauthLayout?: "row" | "column";
-  oauthOverflow?: { visibleCount?: number; showPreviewIcons?: boolean };
-  allowRegister?: boolean;
-  showRememberMe?: boolean;
-  initialMode?: "login" | "register" | "resetPassword";
-  showForgotPassword?: boolean;
-  showLivePasswordMatch?: boolean;
-  showFooter?: boolean;
-  emailAutocomplete?: { enabled?: boolean; domains?: string[] };
+	providers?: OAuthProvider[]; // [] disables OAuth entirely
+	oauthLayout?: "row" | "column";
+	oauthOverflow?: { visibleCount?: number; showPreviewIcons?: boolean };
+	allowRegister?: boolean;
+	showRememberMe?: boolean;
+	initialMode?: "login" | "register" | "resetPassword";
+	showForgotPassword?: boolean;
+	showLivePasswordMatch?: boolean;
+	showFooter?: boolean;
+	emailAutocomplete?: { enabled?: boolean; domains?: string[] };
 };
 ```
 
@@ -52,8 +52,8 @@ Valid `OAuthProvider` values: `github`, `google`, `apple`, `discord`, `tiktok`.
 
 ```ts
 type AuthPresentationConfig = {
-  variant?: "drawer" | "modal";   // default "drawer"
-  defaultOpen?: boolean;          // open on mount (uncontrolled)
+	variant?: "drawer" | "modal"; // default "drawer"
+	defaultOpen?: boolean; // open on mount (uncontrolled)
 };
 ```
 
@@ -61,10 +61,10 @@ type AuthPresentationConfig = {
 
 ```ts
 type AuthBackdropConfig = {
-  color?: string;
-  opacity?: number;
-  blur?: number;                  // px
-  gradient?: { angle?: number; from?: string; to?: string; fromPos?: number; toPos?: number };
+	color?: string;
+	opacity?: number;
+	blur?: number; // px
+	gradient?: { angle?: number; from?: string; to?: string; fromPos?: number; toPos?: number };
 };
 ```
 
@@ -126,7 +126,9 @@ The email field offers inline domain completion when the user types `@`.
 config = { ui: { auth: { emailAutocomplete: { enabled: false } } } };
 
 // custom domains
-config = { ui: { auth: { emailAutocomplete: { enabled: true, domains: ["company.com", "gmail.com"] } } } };
+config = {
+	ui: { auth: { emailAutocomplete: { enabled: true, domains: ["company.com", "gmail.com"] } } },
+};
 ```
 
 ## CSS theme tokens
@@ -136,15 +138,15 @@ tokens use HSL components, not hex values:
 
 ```css
 :root {
-  --surface-overlay: 34 12% 82%;
-  --text-on-overlay: 24 18% 14%;
-  --border-overlay: 28 12% 54%;
+	--surface-overlay: 34 12% 82%;
+	--text-on-overlay: 24 18% 14%;
+	--border-overlay: 28 12% 54%;
 }
 
 .dark {
-  --surface-overlay: 0 0% 7.5%;
-  --text-on-overlay: 0 0% 96%;
-  --border-overlay: 0 0% 100%;
+	--surface-overlay: 0 0% 7.5%;
+	--text-on-overlay: 0 0% 96%;
+	--border-overlay: 0 0% 100%;
 }
 ```
 

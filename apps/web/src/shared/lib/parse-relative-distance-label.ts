@@ -2,12 +2,9 @@ export type RelativeDistanceParts =
 	| { kind: "numeric"; prefix: string; value: number; unit: string }
 	| { kind: "text"; label: string };
 
-const NUMERIC_DISTANCE_PATTERN =
-	/^(?:(about|over|almost) )?(\d+) (.+)$/;
+const NUMERIC_DISTANCE_PATTERN = /^(?:(about|over|almost) )?(\d+) (.+)$/;
 
-export function parseRelativeDistanceLabel(
-	label: string,
-): RelativeDistanceParts {
+export function parseRelativeDistanceLabel(label: string): RelativeDistanceParts {
 	const match = label.match(NUMERIC_DISTANCE_PATTERN);
 	if (!match) {
 		return { kind: "text", label };

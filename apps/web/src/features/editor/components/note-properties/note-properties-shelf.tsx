@@ -13,12 +13,7 @@ import {
 	type NoteProperty,
 	type NotePropertyTemplate,
 } from "@/domain/notes/properties";
-import {
-	AddPropertyButton,
-	InlinePropertyChip,
-	PropertyRow,
-	TemplatePicker,
-} from "./property-row";
+import { AddPropertyButton, InlinePropertyChip, PropertyRow, TemplatePicker } from "./property-row";
 import { NotePropertiesPopover } from "./popover";
 
 type Layout = "rows" | "inline";
@@ -135,12 +130,18 @@ export function NotePropertiesShelf({
 								property={property}
 								onChange={(next) => updateProperty(property.id, next)}
 								onRemove={() =>
-									commit(normalizedProperties.filter((item) => item.id !== property.id))
+									commit(
+										normalizedProperties.filter(
+											(item) => item.id !== property.id,
+										),
+									)
 								}
 							/>
 						))}
 						<div className="mt-0.5 flex items-center gap-1 opacity-55 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
-							<AddPropertyButton onAdd={(property) => commit([...normalizedProperties, property])} />
+							<AddPropertyButton
+								onAdd={(property) => commit([...normalizedProperties, property])}
+							/>
 							<TemplatePicker {...templatePickerProps} />
 						</div>
 					</div>
@@ -153,7 +154,11 @@ export function NotePropertiesShelf({
 									property={property}
 									onChange={(next) => updateProperty(property.id, next)}
 									onRemove={() =>
-										commit(normalizedProperties.filter((item) => item.id !== property.id))
+										commit(
+											normalizedProperties.filter(
+												(item) => item.id !== property.id,
+											),
+										)
 									}
 								/>
 							))}

@@ -1,16 +1,16 @@
 ---
 name: auth-drawer
 description: >-
-  Integrate the @remcostoeten/auth-drawer React library (a sign-in/sign-up
-  drawer or modal) into a consumer app. Use this whenever the user wants to add
-  a login/signup/auth surface, an "auth drawer" or "auth modal", wrap their app
-  in AuthProvider, render <AuthDrawer>, call useAuth(), pick or write an auth
-  adapter (Better Auth, Supabase, Clerk, NextAuth, Firebase, custom JWT/REST,
-  Passport, or createMockAdapter), or configure auth triggers/theming for that package.
-  Use it even if the user only mentions the auth backend (e.g. "add a Supabase
-  login drawer") and doesn't name the package, as long as @remcostoeten/auth-drawer
-  is or will be the UI. Do NOT use it for unrelated drawer/sheet UI, for
-  configuring an auth backend with no auth-drawer UI, or for other auth UI kits.
+    Integrate the @remcostoeten/auth-drawer React library (a sign-in/sign-up
+    drawer or modal) into a consumer app. Use this whenever the user wants to add
+    a login/signup/auth surface, an "auth drawer" or "auth modal", wrap their app
+    in AuthProvider, render <AuthDrawer>, call useAuth(), pick or write an auth
+    adapter (Better Auth, Supabase, Clerk, NextAuth, Firebase, custom JWT/REST,
+    Passport, or createMockAdapter), or configure auth triggers/theming for that package.
+    Use it even if the user only mentions the auth backend (e.g. "add a Supabase
+    login drawer") and doesn't name the package, as long as @remcostoeten/auth-drawer
+    is or will be the UI. Do NOT use it for unrelated drawer/sheet UI, for
+    configuring an auth backend with no auth-drawer UI, or for other auth UI kits.
 ---
 
 # Auth Drawer Integration
@@ -85,7 +85,7 @@ import { AuthProvider } from "@remcostoeten/auth-drawer";
 import { authAdapter } from "./auth-adapter";
 
 export function App({ children }) {
-  return <AuthProvider adapter={authAdapter}>{children}</AuthProvider>;
+	return <AuthProvider adapter={authAdapter}>{children}</AuthProvider>;
 }
 ```
 
@@ -109,11 +109,13 @@ controlled state.
 import { useAuth } from "@remcostoeten/auth-drawer";
 
 function Header() {
-  const { user, isPending, openDrawer, signOut } = useAuth();
-  if (isPending) return null;
-  return user
-    ? <button onClick={signOut}>Sign out {user.email}</button>
-    : <button onClick={openDrawer}>Sign in</button>;
+	const { user, isPending, openDrawer, signOut } = useAuth();
+	if (isPending) return null;
+	return user ? (
+		<button onClick={signOut}>Sign out {user.email}</button>
+	) : (
+		<button onClick={openDrawer}>Sign in</button>
+	);
 }
 ```
 
@@ -127,25 +129,25 @@ app CSS. Do not document or invent a `cad-*` theme API.
 
 ```css
 :root {
-  --surface-overlay: 34 12% 82%;
-  --text-on-overlay: 24 18% 14%;
-  --border-overlay: 28 12% 54%;
+	--surface-overlay: 34 12% 82%;
+	--text-on-overlay: 24 18% 14%;
+	--border-overlay: 28 12% 54%;
 }
 ```
 
 ## Choosing an adapter
 
-| Backend | Import | Factory |
-| :-- | :-- | :-- |
-| Better Auth | `.../adapters/better-auth` | `createBetterAuthAdapter({ client })` |
-| Supabase | `.../adapters/supabase` | `createSupabaseAdapter({ supabase })` |
-| Clerk | `.../adapters/clerk` | `createClerkAdapter({ client })` |
-| NextAuth / Auth.js | `.../adapters/next-auth` | `createNextAuthAdapter({ client })` |
-| Firebase | `.../adapters/firebase` | `createFirebaseAdapter({ auth, ...fns })` |
-| Custom JWT / REST | `.../adapters/custom-jwt` | `createCustomJwtAdapter({ baseUrl })` |
-| Passport (session) | `.../adapters/passport` | `createPassportAdapter({ ... })` |
-| Mock / demo | `.../adapters/mock` | `createMockAdapter()` |
-| Anything else | (main export) | `createAdapter({ id, signIn, useSession, ... })` |
+| Backend            | Import                     | Factory                                          |
+| :----------------- | :------------------------- | :----------------------------------------------- |
+| Better Auth        | `.../adapters/better-auth` | `createBetterAuthAdapter({ client })`            |
+| Supabase           | `.../adapters/supabase`    | `createSupabaseAdapter({ supabase })`            |
+| Clerk              | `.../adapters/clerk`       | `createClerkAdapter({ client })`                 |
+| NextAuth / Auth.js | `.../adapters/next-auth`   | `createNextAuthAdapter({ client })`              |
+| Firebase           | `.../adapters/firebase`    | `createFirebaseAdapter({ auth, ...fns })`        |
+| Custom JWT / REST  | `.../adapters/custom-jwt`  | `createCustomJwtAdapter({ baseUrl })`            |
+| Passport (session) | `.../adapters/passport`    | `createPassportAdapter({ ... })`                 |
+| Mock / demo        | `.../adapters/mock`        | `createMockAdapter()`                            |
+| Anything else      | (main export)              | `createAdapter({ id, signIn, useSession, ... })` |
 
 All paths are subpath imports under `@remcostoeten/auth-drawer`. For exact option
 shapes, OAuth handling, and `createAdapter` custom-adapter rules (including which
@@ -165,14 +167,14 @@ over `DEFAULT_CONFIG`. Two namespaces:
 
 ```tsx
 <AuthDrawer
-  adapter={authAdapter}
-  config={{
-    ui: {
-      auth: { providers: ["github", "google"], allowRegister: true },
-      presentation: { variant: "modal" },
-    },
-  }}
-/>;
+	adapter={authAdapter}
+	config={{
+		ui: {
+			auth: { providers: ["github", "google"], allowRegister: true },
+			presentation: { variant: "modal" },
+		},
+	}}
+/>
 ```
 
 `ui.auth.providers` may be `[]` to disable OAuth entirely (the button group and

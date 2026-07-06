@@ -25,10 +25,7 @@ export async function POST(request: NextRequest) {
 		RATE_LIMIT_WINDOW_MS,
 	);
 	if (!allowed) {
-		return NextResponse.json(
-			{ error: "Too many attempts. Try again later." },
-			{ status: 429 },
-		);
+		return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 });
 	}
 
 	const body = (await request.json().catch(() => null)) as {

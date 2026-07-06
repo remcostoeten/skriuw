@@ -18,11 +18,11 @@ Feature code never branches on platform or auth. It talks to `WorkspaceBackend`
 (`apps/web/src/core/workspace-backend/types.ts`), which advertises a
 `capabilities` set so the UI hides surfaces a backend can't serve.
 
-| Backend | File | Storage | Role |
-| --- | --- | --- | --- |
-| `server` | `server-backend.ts` | Prisma / Postgres | Authenticated web user |
-| `local` | `local-backend.ts` | `localStorage` + seed | Unauthenticated web guest |
-| `tauri` | `tauri-backend.ts` | Rust: `.md` vault + SQLite index | Desktop |
+| Backend  | File                | Storage                          | Role                      |
+| -------- | ------------------- | -------------------------------- | ------------------------- |
+| `server` | `server-backend.ts` | Prisma / Postgres                | Authenticated web user    |
+| `local`  | `local-backend.ts`  | `localStorage` + seed            | Unauthenticated web guest |
+| `tauri`  | `tauri-backend.ts`  | Rust: `.md` vault + SQLite index | Desktop                   |
 
 Desktop capabilities (`tauri-backend.ts`): `sharing: false`, `collaboration: false`,
 `ai: true`, `journal/trash/history: true`. Sharing and collaboration are

@@ -85,9 +85,7 @@ async function main() {
 
 		await prisma.$transaction([
 			prisma.noteLink.deleteMany({ where: { sourceNoteId: note.id } }),
-			...(rows.size > 0
-				? [prisma.noteLink.createMany({ data: [...rows.values()] })]
-				: []),
+			...(rows.size > 0 ? [prisma.noteLink.createMany({ data: [...rows.values()] })] : []),
 		]);
 		edgeCount += rows.size;
 	}

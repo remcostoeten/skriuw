@@ -72,17 +72,17 @@ export function useNoteCleanupScan() {
 			// resets on the next scan() call or when the settings section remounts.
 			setPhase("scanned");
 			if (scanResult.candidates.length === 0) {
-				showUserToast(`Scanned ${scanResult.scanned} notes — nothing to clean up`, "success");
+				showUserToast(
+					`Scanned ${scanResult.scanned} notes — nothing to clean up`,
+					"success",
+				);
 				return;
 			}
 			setResult(scanResult);
 		} catch (scanError) {
 			await settle();
 			setPhase("error");
-			showUserToast(
-				scanError instanceof Error ? scanError.message : "Scan failed.",
-				"error",
-			);
+			showUserToast(scanError instanceof Error ? scanError.message : "Scan failed.", "error");
 		}
 	}
 

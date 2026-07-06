@@ -11,7 +11,6 @@
  */
 
 import { spawn } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const ESC = "\x1b";
@@ -59,7 +58,7 @@ type CoverageData = {
 
 async function runCoverage(): Promise<CoverageData | null> {
 	return new Promise((resolve) => {
-		const webDir = path.join(import.meta.dir, "..", "apps", "web");
+		const webDir = path.join(import.meta.dirname, "..", "apps", "web");
 		const child = spawn("bun", ["test", "--coverage", "__tests__"], {
 			cwd: webDir,
 			stdio: ["ignore", "pipe", "pipe"],
@@ -163,7 +162,7 @@ function renderDashboard(data: CoverageData): string {
 	}
 
 	// Test summary
-	const { pass, fail, tests, files: testFiles } = data.summary;
+	const { pass, fail, files: testFiles } = data.summary;
 	lines.push("");
 	lines.push("  " + bold("Tests") + "  " + dim(`${testFiles} files`));
 	lines.push(

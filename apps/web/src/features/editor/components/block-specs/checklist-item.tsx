@@ -27,7 +27,9 @@ const checkListExtensions: any[] = [
 					(Array.isArray(content) && content.length === 0) ||
 					(Array.isArray(content) &&
 						// biome-ignore lint/suspicious/noExplicitAny: inline content union
-						content.every((n: any) => typeof n.text === "string" && n.text.length === 0));
+						content.every(
+							(n: any) => typeof n.text === "string" && n.text.length === 0,
+						));
 
 				if (isEmpty) {
 					editor.updateBlock(block, { type: "paragraph", props: {} });
@@ -37,9 +39,7 @@ const checkListExtensions: any[] = [
 			},
 			"Mod-Shift-9": ({ editor }) => {
 				const cursorPosition = editor.getTextCursorPosition();
-				if (
-					editor.schema.blockSchema[cursorPosition.block.type].content !== "inline"
-				) {
+				if (editor.schema.blockSchema[cursorPosition.block.type].content !== "inline") {
 					return false;
 				}
 				editor.updateBlock(cursorPosition.block, {

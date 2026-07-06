@@ -22,13 +22,10 @@ import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";
 import { isGuestScopedId } from "@/domain/notes/note-id";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
 import { VIM_COMMAND_EVENT } from "@/features/editor/lib/vim-command-bus";
-import { useOnboardingStore } from "@/features/onboarding/store";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
-import { openSettings, toggleSettings } from "@/features/settings/use-settings-modal";
-import { buildSettingsCommandItems } from "@/features/settings/settings-command-index";
-import { THEMES } from "@/features/settings/preferences/themes";
+import { openSettings } from "@/features/settings/use-settings-modal";
 import {
 	focusActiveEditor,
 	focusActiveMetadataPanel,
@@ -73,7 +70,6 @@ import { useUpdateNote } from "./use-update-note";
 const SHEET_DISMISS_VELOCITY = 480;
 const SHEET_DRAG_BLOCKLIST =
 	"button, a, input, textarea, select, option, [role='button'], [role='tab'], [contenteditable='true'], [data-sheet-no-drag]";
-const SAVED_BADGE_DURATION_MS = 1800;
 
 function sameTabList(
 	a: ReadonlyArray<{ fileId: string; pinned: boolean }>,
@@ -116,7 +112,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const queryClient = useQueryClient();
-	const replayWelcomeTour = useOnboardingStore((state) => state.resetWelcome);
 	const backend = useWorkspaceBackend();
 	const notesQuery = useNotes();
 	const foldersQuery = useFolders();
@@ -255,13 +250,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		(state) => state.editor.notePropertiesDefaultTemplateId,
 	);
 	const diaryModeEnabled = usePreferencesStore((state) => state.journal.diaryModeEnabled);
-	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
-	const activeTheme = usePreferencesStore((state) => state.appearance.theme);
 	const rememberLastNote = usePreferencesStore((state) => state.appearance.rememberLastNote);
-	const updateEditorPreference = usePreferencesStore((state) => state.updateEditorPreference);
-	const updateAppearancePreference = usePreferencesStore(
-		(state) => state.updateAppearancePreference,
-	);
 	const [viewingVersion, setViewingVersion] = useState<NoteVersion | null>(null);
 	const [sharingNoteId, setSharingNoteId] = useState<string | null>(null);
 	const restoreNoteVersion = useRestoreNoteVersion();
@@ -1214,11 +1203,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		openSettings();
 	}, []);
 
-	const handleToggleSettings = useCallback(() => {
-		triggerNativeFeedback("selection");
-		toggleSettings();
-	}, []);
-
 	const handleToggleEditorMode = useCallback(() => {
 		const modeTarget = focusedFile ?? activeFile;
 		const modeBaseline = focusedEditorMode ?? editorMode;
@@ -1292,19 +1276,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleOpenShortcutHelp,
 		shortcutGroups,
 	} = useNotesLayoutShortcuts({
-		handleCreateFile,
-		handleCreateFolder,
-		handleToggleSidebar,
-		handleToggleMetadata,
-		handleOpenSettings: handleToggleSettings,
-		handleToggleEditorMode,
-		handleFocusFileTree,
-		handleToggleSplit,
-		handleSplitHorizontal,
-		handleCloseSplitPane,
-		handleCloseFocusedTab,
-		handleFocusNextSplitPane,
-		handleFocusPreviousSplitPane,
 		handleSwitchToTabIndex,
 	});
 

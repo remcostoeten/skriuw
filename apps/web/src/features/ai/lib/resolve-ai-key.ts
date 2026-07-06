@@ -20,7 +20,8 @@ export function pickServerProviderKey(
 	excludeIds: string[] = [],
 ): AiProviderKeySummary | null {
 	const candidates = keys.filter(
-		(key) => key.provider === provider && !excludeIds.includes(key.id) && key.status !== "invalid",
+		(key) =>
+			key.provider === provider && !excludeIds.includes(key.id) && key.status !== "invalid",
 	);
 
 	if (candidates.length === 0) return null;
