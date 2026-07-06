@@ -76,14 +76,16 @@ export function DesktopIndexSync(): null {
 
 		const events = (window as unknown as TauriGlobal).__TAURI__?.event;
 		if (events) {
-			void events.listen(RECONCILE_EVENT, () => invalidate()).then((stop) => {
-				if (cancelled || invalidated) {
-					stop();
-					return;
-				}
-				unlisten = stop;
-				pollReady();
-			});
+			void events
+				.listen(RECONCILE_EVENT, () => invalidate())
+				.then((stop) => {
+					if (cancelled || invalidated) {
+						stop();
+						return;
+					}
+					unlisten = stop;
+					pollReady();
+				});
 		} else {
 			pollReady();
 		}

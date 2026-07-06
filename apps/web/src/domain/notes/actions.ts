@@ -26,8 +26,8 @@ import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { normalizeNoteProperties, type NoteProperty } from "@/domain/notes/properties";
 import {
 	buildNoteVersionContentHash,
+	decideNoteVersionPersistence,
 	NOTE_VERSION_RETENTION_LIMIT,
-	shouldPersistNoteVersion,
 } from "@/domain/notes/versioning";
 import { listNoteMetadata, listNoteVersions } from "@/domain/notes/queries";
 import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
@@ -55,6 +55,7 @@ type NoteRecord = {
 	sortOrder: number;
 	tags: string[];
 	properties: Prisma.JsonValue | null;
+	icon: string | null;
 	journalMeta: Prisma.JsonValue | null;
 	createdAt: Date;
 	updatedAt: Date;
@@ -105,6 +106,7 @@ function recordToNoteFile(
 		sortOrder: record.sortOrder,
 		tags: record.tags.map((tag) => tag as TagName),
 		properties: normalizeNoteProperties(record.properties),
+		icon: record.icon ?? undefined,
 		journalMeta: meta
 			? {
 					...meta,
@@ -140,23 +142,40 @@ async function insertNoteVersion(
 	noteId: string,
 	note: Pick<
 		NoteFile,
-		"name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags"
+		| "name"
+		| "content"
+		| "richContent"
+		| "preferredEditorMode"
+		| "parentId"
+		| "tags"
 		| "properties"
 	>,
 	reason: NoteVersionReason,
 ): Promise<string | null> {
-	// Lean select: the persist decision only needs hash, timestamp, and content
-	// length deltas — never the full richContent JSON snapshot.
+	// Lean select: the persist decision only needs hash, timestamp, content,
+	// and reason — never the full richContent JSON snapshot.
 	const latest = await db.noteVersion.findFirst({
 		where: { userId, noteId },
 		orderBy: { createdAt: "desc" },
-		select: { contentHash: true, createdAt: true, content: true },
+		select: { id: true, contentHash: true, createdAt: true, content: true, reason: true },
 	});
 
 	const createdAt = new Date();
 	const candidate = { ...note, reason, createdAt };
-	if (!shouldPersistNoteVersion(candidate, latest)) {
+	const decision = decideNoteVersionPersistence(candidate, latest);
+	if (decision.action === "skip") {
 		return null;
+	}
+	if (decision.action === "coalesce") {
+		const changed = await updateExistingNoteVersion(
+			db,
+			userId,
+			decision.versionId,
+			noteId,
+			note,
+			reason,
+		);
+		return changed ? decision.versionId : null;
 	}
 
 	const created = await db.noteVersion.create({
@@ -207,7 +226,12 @@ async function updateExistingNoteVersion(
 	noteId: string,
 	note: Pick<
 		NoteFile,
-		"name" | "content" | "richContent" | "preferredEditorMode" | "parentId" | "tags"
+		| "name"
+		| "content"
+		| "richContent"
+		| "preferredEditorMode"
+		| "parentId"
+		| "tags"
 		| "properties"
 	>,
 	reason: NoteVersionReason,
@@ -243,6 +267,7 @@ export type CreateNoteInput = {
 	sortOrder?: number;
 	tags?: string[];
 	properties?: NoteProperty[];
+	icon?: string;
 };
 
 export async function listNotes(): Promise<NoteFile[]> {
@@ -282,6 +307,7 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 			sortOrder,
 			tags: validated.tags ?? [],
 			properties: normalizeNoteProperties(validated.properties) as Prisma.InputJsonValue,
+			icon: validated.icon ?? null,
 		};
 		const noteSelect = {
 			id: true,
@@ -293,6 +319,7 @@ export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 			sortOrder: true,
 			tags: true,
 			properties: true,
+			icon: true,
 			journalMeta: true,
 			createdAt: true,
 			updatedAt: true,
@@ -350,6 +377,7 @@ export type UpdateNoteInput = {
 	sortOrder?: number;
 	tags?: string[];
 	properties?: NoteProperty[];
+	icon?: string;
 	createCheckpoint?: boolean;
 	sessionVersionId?: string | null;
 	/**
@@ -397,7 +425,12 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		basePatch.tags = validated.tags;
 	}
 	if (validated.properties !== undefined) {
-		basePatch.properties = normalizeNoteProperties(validated.properties) as Prisma.InputJsonValue;
+		basePatch.properties = normalizeNoteProperties(
+			validated.properties,
+		) as Prisma.InputJsonValue;
+	}
+	if (validated.icon !== undefined) {
+		basePatch.icon = validated.icon || null;
 	}
 
 	const ownerPatch: Prisma.NoteUncheckedUpdateInput = { ...basePatch };
@@ -512,30 +545,17 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 			properties: updatedNote.properties ?? [],
 		};
 
-		if (validated.sessionVersionId && validated.createCheckpoint) {
-			const versionChanged = await updateExistingNoteVersion(
-				tx,
-				ownerId,
-				validated.sessionVersionId,
-				validated.id,
-				noteSnapshot,
-				versionReason,
-			);
-			if (versionChanged) {
-				return {
-					note: updatedNote,
-					versionCreated: false,
-					versionChanged: true,
-					versionId: validated.sessionVersionId,
-				};
-			}
-		}
-
-		const shouldCreateVersion =
-			validated.name !== undefined || validated.createCheckpoint === true;
-		const versionId = shouldCreateVersion
-			? await insertNoteVersion(tx, ownerId, validated.id, noteSnapshot, versionReason)
-			: null;
+		// Every write — autosaves included — goes through insertNoteVersion,
+		// whose decision logic skips trivial edits and coalesces same-burst
+		// saves into the latest row. sessionVersionId is accepted for client
+		// compatibility but no longer drives persistence.
+		const versionId = await insertNoteVersion(
+			tx,
+			ownerId,
+			validated.id,
+			noteSnapshot,
+			versionReason,
+		);
 		const versionCreated = versionId !== null;
 
 		return {
@@ -597,7 +617,9 @@ export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteR
 					preferredEditorMode: version.preferredEditorMode,
 					parentId: version.parentId,
 					tags: version.tags ?? [],
-					properties: normalizeNoteProperties(version.properties) as Prisma.InputJsonValue,
+					properties: normalizeNoteProperties(
+						version.properties,
+					) as Prisma.InputJsonValue,
 				},
 			});
 		} catch (error) {

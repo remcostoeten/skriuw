@@ -42,7 +42,7 @@ function fromBase64Url(value: string): Uint8Array {
 	return bytes;
 }
 
-async function importKey(secret: string): Promise<CryptoKey> {
+async function importKey(secret: string) {
 	return crypto.subtle.importKey(
 		"raw",
 		encoder.encode(secret),
@@ -79,17 +79,26 @@ export async function verifyCollabToken(
 		const valid = await crypto.subtle.verify(
 			"HMAC",
 			key,
-			fromBase64Url(signature) as BufferSource,
+			fromBase64Url(signature) as any,
 			encoder.encode(body),
 		);
 		if (!valid) return null;
 
-		const payload = JSON.parse(decoder.decode(fromBase64Url(body))) as TCollabTokenPayload;
-		if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
-		if (!payload.noteId || !payload.userId) return null;
+		let payload: unknown;
+		try {
+			payload = JSON.parse(decoder.decode(fromBase64Url(body)));
+		} catch (err) {
+			console.error("[decodeCollabToken] Failed to parse payload:", err);
+			return null;
+		}
+		if (typeof payload !== "object" || payload === null) return null;
+		const typed = payload as Record<string, unknown>;
+		if (typeof typed.exp !== "number" || typed.exp < Date.now()) return null;
+		if (!typed.noteId || !typed.userId) return null;
 
-		return payload;
-	} catch {
+		return typed as TCollabTokenPayload;
+	} catch (err) {
+		console.error("[decodeCollabToken] Token validation failed:", err);
 		return null;
 	}
 }

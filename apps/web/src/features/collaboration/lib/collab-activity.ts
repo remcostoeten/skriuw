@@ -20,10 +20,7 @@ export type TCollabPresenceState = {
  * No-ops until the room has seeded the `presence` field, so it never races the
  * initial connect.
  */
-export function markCollabActivity(
-	awareness: Awareness | null | undefined,
-	typing: boolean,
-): void {
+export function markCollabActivity(awareness: Awareness | null | undefined, typing: boolean): void {
 	if (!awareness) return;
 	const current = awareness.getLocalState()?.presence as TCollabPresenceState | undefined;
 	if (!current) return;

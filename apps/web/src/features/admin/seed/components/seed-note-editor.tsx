@@ -27,7 +27,9 @@ export function SeedNoteEditor({ note }: Props) {
 			<div className="flex flex-col h-full">
 				<div className="px-6 py-3 border-b border-border/40">
 					<h2 className="text-sm font-medium text-foreground">{note.name}</h2>
-					<p className="text-xs text-muted-foreground/60 mt-0.5">Double-click a name in the tree to rename</p>
+					<p className="text-xs text-muted-foreground/60 mt-0.5">
+						Double-click a name in the tree to rename
+					</p>
 				</div>
 				<div className="flex-1 overflow-y-auto">
 					<BlockNoteView

@@ -22,8 +22,8 @@ type DebouncedUpdateOptions = {
 // note switches, and page-unload events — none of which fire reliably in the
 // Tauri desktop webview (closing the window never emits `beforeunload`), so
 // edits would sit in memory showing "saving" forever and never reach the vault.
-// This idle save is checkpoint-free; blur/switch/unload still create version
-// checkpoints, so version history is unchanged.
+// Every save (idle autosaves included) is version-eligible; the backend's
+// decision logic skips trivial edits and coalesces same-burst saves.
 const AUTOSAVE_DEBOUNCE_MS = 1000;
 
 type DebouncedContentArgs = {
@@ -165,9 +165,9 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 			idleTimersRef.current.delete(id);
 		}
 
-		// Persist on its own once typing pauses. Checkpoint-free so it never
-		// inflates version history; the dirty flag is left set so the next
-		// blur/switch/unload flush still records a checkpoint.
+		// Persist on its own once typing pauses. The backend coalesces these
+		// into the latest version row, so history isn't inflated; the dirty
+		// flag is left set so the next blur/switch/unload flush still lands.
 		function scheduleIdleFlush(id: string) {
 			clearIdleTimer(id);
 			const timer = setTimeout(() => {
@@ -192,7 +192,8 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 				content,
 				richContent,
 				preferredEditorMode,
-				properties: properties === undefined ? undefined : normalizeNoteProperties(properties),
+				properties:
+					properties === undefined ? undefined : normalizeNoteProperties(properties),
 			});
 			dirtyRef.current.add(id);
 
@@ -261,7 +262,9 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 		): Promise<void> {
 			const previousFlush = flushQueuesRef.current.get(noteId) ?? Promise.resolve();
 			const nextFlush = previousFlush
-				.catch(() => {})
+				.catch((err) => {
+					console.error(`[flush] Previous flush for ${noteId} failed:`, err);
+				})
 				.then(() => flushNow(noteId, flushOptions));
 
 			flushQueuesRef.current.set(noteId, nextFlush);
@@ -276,7 +279,16 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 
 		async function flushAll(flushOptions: { createCheckpoint?: boolean } = {}): Promise<void> {
 			const ids = new Set<string>([...pendingRef.current.keys(), ...dirtyRef.current]);
-			await Promise.all(Array.from(ids).map((id) => flush(id, flushOptions)));
+			const results = await Promise.allSettled(
+				Array.from(ids).map((id) => flush(id, flushOptions)),
+			);
+			const failures = results.filter((r) => r.status === "rejected");
+			if (failures.length > 0) {
+				console.error(
+					"[flushAll] Some notes failed to save:",
+					failures.map((f) => (f as PromiseRejectedResult).reason),
+				);
+			}
 		}
 
 		function discardPending(noteId: string) {

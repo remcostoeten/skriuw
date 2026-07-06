@@ -7,8 +7,8 @@ export async function updateUserEditorPreferences(
 	preferences: Partial<EditorPreferencesRecord>,
 ): Promise<void> {
 	const { prisma, user } = await getAuthenticatedUser();
-	const current = (user as { editorPreferences?: EditorPreferencesRecord | null })
-		.editorPreferences ?? {};
+	const current =
+		(user as { editorPreferences?: EditorPreferencesRecord | null }).editorPreferences ?? {};
 	const next = { ...current, ...preferences };
 
 	await prisma.user.update({

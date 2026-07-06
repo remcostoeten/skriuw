@@ -58,19 +58,33 @@ function p(...content: Inline[]): Block {
 }
 
 function h(level: 1 | 2 | 3, ...content: Inline[]): Block {
-	return { id: bid(), type: "heading", props: { level, textColor: "default", backgroundColor: "default", textAlignment: "left" }, content, children: [] };
+	return {
+		id: bid(),
+		type: "heading",
+		props: { level, textColor: "default", backgroundColor: "default", textAlignment: "left" },
+		content,
+		children: [],
+	};
 }
 
 function bullet(...content: Inline[]): Block {
-	return { id: bid(), type: "bulletListItem", props: { textColor: "default", backgroundColor: "default", textAlignment: "left" }, content, children: [] };
-}
-
-function numbered(...content: Inline[]): Block {
-	return { id: bid(), type: "numberedListItem", props: { textColor: "default", backgroundColor: "default", textAlignment: "left" }, content, children: [] };
+	return {
+		id: bid(),
+		type: "bulletListItem",
+		props: { textColor: "default", backgroundColor: "default", textAlignment: "left" },
+		content,
+		children: [],
+	};
 }
 
 function check(checked: boolean, ...content: Inline[]): Block {
-	return { id: bid(), type: "checkListItem", props: { checked, textColor: "default", backgroundColor: "default", textAlignment: "left" }, content, children: [] };
+	return {
+		id: bid(),
+		type: "checkListItem",
+		props: { checked, textColor: "default", backgroundColor: "default", textAlignment: "left" },
+		content,
+		children: [],
+	};
 }
 
 function codeBlock(language: string, code: string): Block {
@@ -85,10 +99,6 @@ function fileTree(source: string): Block {
 		content: [],
 		children: [],
 	};
-}
-
-function tableCell(text: string): InlineText[] {
-	return [t(text)];
 }
 
 function table(headers: string[], rows: string[][]): Block {
@@ -115,16 +125,14 @@ const EXAMPLE_PROJECT_TREE = `Example project map
     |-- Launch checklist.md
     \`-- Post-launch retro.md`;
 
-function divider(): Block {
-	return { id: bid(), type: "paragraph", props: {}, content: [t("─────────────────────────────────────────────")], children: [] };
-}
-
 // ─── Note content ─────────────────────────────────────────────────────────────
 
 const welcomeNote: Block[] = [
 	h(1, t("Welcome to Skriuw")),
 	p(
-		t("Skriuw is a notes workspace that stays out of your way — scratchpad, journal, or linked knowledge base. This note is tagged "),
+		t(
+			"Skriuw is a notes workspace that stays out of your way — scratchpad, journal, or linked knowledge base. This note is tagged ",
+		),
 		hashTag("getting-started"),
 		t(". The companion note "),
 		wiki("Skriuw handbook"),
@@ -133,25 +141,62 @@ const welcomeNote: Block[] = [
 	p(),
 	h(2, t("Try this in the next two minutes")),
 	check(false, t("Type "), code("/"), t(" on a blank line to see everything you can insert")),
-	check(false, t("Press "), code("Cmd/Ctrl + Shift + Alt + B"), t(" to open the inspector — the panel on the right with this note's links, tags, and outline")),
-	check(false, t("Click "), wiki("Skriuw handbook"), t(" below, then look at its Outgoing links and Backlinks in the inspector")),
-	check(false, t("Click "), hashTag("getting-started"), t(" in the inspector to filter to every note with that tag")),
+	check(
+		false,
+		t("Press "),
+		code("Cmd/Ctrl + Shift + Alt + B"),
+		t(
+			" to open the inspector — the panel on the right with this note's links, tags, and outline",
+		),
+	),
+	check(
+		false,
+		t("Click "),
+		wiki("Skriuw handbook"),
+		t(" below, then look at its Outgoing links and Backlinks in the inspector"),
+	),
+	check(
+		false,
+		t("Click "),
+		hashTag("getting-started"),
+		t(" in the inspector to filter to every note with that tag"),
+	),
 	p(),
 	h(2, t("Block editor")),
 	p(
-		t("Each paragraph is a block. Hover the handle to reorder. The slash menu gives you headings, lists, quotes, code, tables, and more."),
+		t(
+			"Each paragraph is a block. Hover the handle to reorder. The slash menu gives you headings, lists, quotes, code, tables, and more.",
+		),
 	),
-	bullet(t("Type markdown inline — "), code("##"), t(" becomes a heading, "), code("[ ]"), t(" becomes a checkbox")),
+	bullet(
+		t("Type markdown inline — "),
+		code("##"),
+		t(" becomes a heading, "),
+		code("[ ]"),
+		t(" becomes a checkbox"),
+	),
 	bullet(t("Switch to raw MDX in the toolbar when you want source view")),
-	bullet(t("Insert a "), bold("file tree"), t(" block with "), code("/file tree"), t(" — see "), wiki("Skriuw handbook"), t(" for a live example")),
+	bullet(
+		t("Insert a "),
+		bold("file tree"),
+		t(" block with "),
+		code("/file tree"),
+		t(" — see "),
+		wiki("Skriuw handbook"),
+		t(" for a live example"),
+	),
 	p(),
 	h(2, t("Link notes")),
 	p(
 		t("The easy way: type "),
 		code("@"),
-		t(" and pick a note from the list — or type a new name to create and link it in one step. It shows up as "),
+		t(
+			" and pick a note from the list — or type a new name to create and link it in one step. It shows up as ",
+		),
 		code("[[Note title]]"),
-		t(", which you can also type by hand. Unresolved links are clickable to create the target note. Open "),
+		t(
+			", which you can also type by hand. Unresolved links are clickable to create the target note. Open ",
+		),
 		wiki("Skriuw handbook"),
 		t(" for a worked example with backlinks."),
 	),
@@ -162,7 +207,9 @@ const welcomeNote: Block[] = [
 		code("#tag"),
 		t(" or the "),
 		code("/tag"),
-		t(" slash command. Tags show up in the inspector and can be clicked to filter the workspace."),
+		t(
+			" slash command. Tags show up in the inspector and can be clicked to filter the workspace.",
+		),
 	),
 	p(),
 	h(2, t("Your note web")),
@@ -181,8 +228,25 @@ const welcomeNote: Block[] = [
 	),
 	p(),
 	h(2, t("Handy shortcuts")),
-	bullet(code("Cmd/Ctrl + N"), t(" new note · "), code("Cmd/Ctrl + K"), t(" command palette · "), code("Cmd/Ctrl + Shift + B"), t(" toggle sidebar · press "), code("?"), t(" for the full list")),
-	p(t("Everything else lives in "), wiki("Skriuw handbook"), t(". For a longer example of linked notes in folders, open "), wiki("From idea to published note"), t(" under "), bold("Guides → Workflows"), t(".")),
+	bullet(
+		code("Cmd/Ctrl + N"),
+		t(" new note · "),
+		code("Cmd/Ctrl + K"),
+		t(" command palette · "),
+		code("Cmd/Ctrl + Shift + B"),
+		t(" toggle sidebar · press "),
+		code("?"),
+		t(" for the full list"),
+	),
+	p(
+		t("Everything else lives in "),
+		wiki("Skriuw handbook"),
+		t(". For a longer example of linked notes in folders, open "),
+		wiki("From idea to published note"),
+		t(" under "),
+		bold("Guides → Workflows"),
+		t("."),
+	),
 ];
 
 const researchWorkflowNote: Block[] = [
@@ -201,7 +265,11 @@ const researchWorkflowNote: Block[] = [
 	),
 	p(),
 	h(2, t("Sidebar layout")),
-	p(t("This note lives in nested folders. The tree below mirrors the starter workspace (folders open by default):")),
+	p(
+		t(
+			"This note lives in nested folders. The tree below mirrors the starter workspace (folders open by default):",
+		),
+	),
 	fileTree(STARTER_WORKSPACE_TREE),
 	p(),
 	h(2, t("Four-step loop")),
@@ -217,7 +285,9 @@ const researchWorkflowNote: Block[] = [
 	p(
 		t("Insert tables with "),
 		code("/table"),
-		t(". Edit cells inline, add rows from the block handle, and switch to raw MDX to see the markdown source."),
+		t(
+			". Edit cells inline, add rows from the block handle, and switch to raw MDX to see the markdown source.",
+		),
 	),
 	p(),
 	check(false, t("Open the inspector — confirm outgoing links to the two starter notes")),
@@ -236,13 +306,19 @@ const handbookNote: Block[] = [
 		hashTag("reference"),
 		t(" — links, tags, editor modes, shortcuts, and copy-paste templates."),
 	),
-	p(t("Linked from "), wiki("Welcome to Skriuw"), t(". Keep both notes open in split view while you explore the inspector.")),
+	p(
+		t("Linked from "),
+		wiki("Welcome to Skriuw"),
+		t(". Keep both notes open in split view while you explore the inspector."),
+	),
 	p(),
 	h(2, t("Links and backlinks")),
 	p(
 		t("This note links back to "),
 		wiki("Welcome to Skriuw"),
-		t(". That creates an outgoing link here and a backlink there. Use the inspector Links section to jump between notes."),
+		t(
+			". That creates an outgoing link here and a backlink there. Use the inspector Links section to jump between notes.",
+		),
 	),
 	p(
 		t("Create links with "),
@@ -251,7 +327,9 @@ const handbookNote: Block[] = [
 		code("]]"),
 		t(", the "),
 		code("/link note"),
-		t(" slash command, or the note mention menu. Titles resolve against note names and H1 headings."),
+		t(
+			" slash command, or the note mention menu. Titles resolve against note names and H1 headings.",
+		),
 	),
 	p(),
 	h(2, t("Tags")),
@@ -260,7 +338,9 @@ const handbookNote: Block[] = [
 		hashTag("getting-started"),
 		t(" and "),
 		hashTag("reference"),
-		t(" are plain text markers upgraded into chips when the note loads. Click a tag in the inspector to see every note that uses it."),
+		t(
+			" are plain text markers upgraded into chips when the note loads. Click a tag in the inspector to see every note that uses it.",
+		),
 	),
 	p(
 		t("Shared tag example: both this handbook and "),
@@ -271,32 +351,77 @@ const handbookNote: Block[] = [
 	),
 	p(),
 	h(2, t("Editor modes")),
-	p(t("Block mode (default) keeps structured blocks and the slash menu. Raw MDX mode shows markdown source and round-trips most syntax.")),
+	p(
+		t(
+			"Block mode (default) keeps structured blocks and the slash menu. Raw MDX mode shows markdown source and round-trips most syntax.",
+		),
+	),
 	bullet(bold("Headings"), t(" — H1 / H2 / H3")),
 	bullet(bold("Lists"), t(" — bullet, numbered, and check lists")),
 	bullet(bold("Code"), t(" — fenced code blocks with language tags")),
 	bullet(bold("Tables"), t(" — full grid editing")),
-	bullet(bold("File tree"), t(" — "), code("/file tree"), t(" inserts a collapsible directory map")),
+	bullet(
+		bold("File tree"),
+		t(" — "),
+		code("/file tree"),
+		t(" inserts a collapsible directory map"),
+	),
 	p(),
 	h(2, t("File tree blocks")),
 	p(
-		t("Use a file tree when a list of paths is clearer than prose — project layouts, repo maps, or “where does this live?” diagrams. Type "),
+		t(
+			"Use a file tree when a list of paths is clearer than prose — project layouts, repo maps, or “where does this live?” diagrams. Type ",
+		),
 		code("/file tree"),
 		t(" or paste a tree inside a "),
 		code("```filetree"),
 		t(" fence."),
 	),
 	fileTree(EXAMPLE_PROJECT_TREE),
-	p(t("Click a folder row to expand or collapse. Use the edit control on the block to change paths — handy for planning before you create real folders.")),
+	p(
+		t(
+			"Click a folder row to expand or collapse. Use the edit control on the block to change paths — handy for planning before you create real folders.",
+		),
+	),
 	p(),
 	h(2, t("Keyboard shortcuts")),
-	bullet(code("Cmd/Ctrl + N"), t(" — New note · "), code("Cmd/Ctrl + Shift + N"), t(" — New folder")),
-	bullet(code("Cmd/Ctrl + K"), t(" — Command palette (or "), code("Cmd/Ctrl + Shift + P"), t(")")),
-	bullet(code("Cmd/Ctrl + Shift + B"), t(" — Toggle sidebar · "), code("Cmd/Ctrl + Shift + Alt + B"), t(" — Toggle inspector")),
+	bullet(
+		code("Cmd/Ctrl + N"),
+		t(" — New note · "),
+		code("Cmd/Ctrl + Shift + N"),
+		t(" — New folder"),
+	),
+	bullet(
+		code("Cmd/Ctrl + K"),
+		t(" — Command palette (or "),
+		code("Cmd/Ctrl + Shift + P"),
+		t(")"),
+	),
+	bullet(
+		code("Cmd/Ctrl + Shift + B"),
+		t(" — Toggle sidebar · "),
+		code("Cmd/Ctrl + Shift + Alt + B"),
+		t(" — Toggle inspector"),
+	),
 	bullet(code("Cmd/Ctrl + E"), t(" — Switch between blocks and raw MDX")),
-	bullet(code("/"), t(" — Slash menu · "), code("@"), t(" — link a note · "), code("#"), t(" — add a tag")),
+	bullet(
+		code("/"),
+		t(" — Slash menu · "),
+		code("@"),
+		t(" — link a note · "),
+		code("#"),
+		t(" — add a tag"),
+	),
 	bullet(code("?"), t(" — Show every shortcut")),
-	bullet(t("While editing text: "), code("Cmd/Ctrl + B"), t(" bold · "), code("Cmd/Ctrl + I"), t(" italic · "), code("Cmd/Ctrl + `"), t(" inline code")),
+	bullet(
+		t("While editing text: "),
+		code("Cmd/Ctrl + B"),
+		t(" bold · "),
+		code("Cmd/Ctrl + I"),
+		t(" italic · "),
+		code("Cmd/Ctrl + `"),
+		t(" inline code"),
+	),
 	p(t("Notes save automatically while you type.")),
 	p(
 		t("For a compact example with a table and nested folders, see "),
@@ -319,11 +444,14 @@ const handbookNote: Block[] = [
 	p(bold("End of day:"), t(" What went well? What to improve?")),
 	p(),
 	h(2, t("Code sample")),
-	codeBlock("typescript", `function greet(name: string): string {
+	codeBlock(
+		"typescript",
+		`function greet(name: string): string {
   return \`Hello, \${name}!\`;
 }
 
-console.log(greet("Skriuw"));`),
+console.log(greet("Skriuw"));`,
+	),
 ];
 
 // ─── Bundle payload ────────────────────────────────────────────────────────────
@@ -373,7 +501,10 @@ const notes: SeedNote[] = [
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-	const bundle = await prisma.seedBundle.findFirst({ where: { isActive: true }, select: { id: true, name: true } });
+	const bundle = await prisma.seedBundle.findFirst({
+		where: { isActive: true },
+		select: { id: true, name: true },
+	});
 
 	if (!bundle) {
 		console.error("No active seed bundle found. Run migrations first.");
@@ -410,5 +541,8 @@ async function main() {
 }
 
 main()
-	.catch((err) => { console.error(err); process.exit(1); })
+	.catch((err) => {
+		console.error(err);
+		process.exit(1);
+	})
 	.finally(() => prisma.$disconnect());

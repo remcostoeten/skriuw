@@ -13,7 +13,7 @@ Drawer components are an exception to the 300ms rule. The 500ms duration with iO
 
 ```css
 .drawer {
-  transition: transform 200ms ease-out;
+	transition: transform 200ms ease-out;
 }
 /* Feels rushed, doesn't match native behavior */
 ```
@@ -22,12 +22,13 @@ Drawer components are an exception to the 300ms rule. The 500ms duration with iO
 
 ```css
 .drawer {
-  transition: transform 500ms cubic-bezier(0.32, 0.72, 0, 1);
+	transition: transform 500ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 /* Matches iOS Sheet, feels native and polished */
 ```
 
 The 500ms duration works because:
+
 - Drawers cover large screen areas
 - Users expect mobile-native behavior
 - The custom easing makes it feel faster than it is

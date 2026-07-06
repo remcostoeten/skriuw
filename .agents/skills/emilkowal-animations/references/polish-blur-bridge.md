@@ -13,7 +13,7 @@ When easing and timing adjustments don't resolve animation issues, add a subtle 
 
 ```css
 .button {
-  transition: background-color 200ms ease-out;
+	transition: background-color 200ms ease-out;
 }
 /* Hard transition between states */
 ```
@@ -22,10 +22,12 @@ When easing and timing adjustments don't resolve animation issues, add a subtle 
 
 ```css
 .button {
-  transition: background-color 200ms ease-out, filter 200ms ease-out;
+	transition:
+		background-color 200ms ease-out,
+		filter 200ms ease-out;
 }
 .button:active {
-  filter: blur(2px);
+	filter: blur(2px);
 }
 ```
 

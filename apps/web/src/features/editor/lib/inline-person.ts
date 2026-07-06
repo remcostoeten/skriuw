@@ -2,11 +2,7 @@ const MAX_PERSON_NAME_LENGTH = 80;
 const MAX_PERSON_LABEL_LENGTH = 24;
 
 export function normalizeInlinePersonName(name: string): string {
-	return name
-		.trim()
-		.replace(/^\$+/, "")
-		.replace(/\s+/g, " ")
-		.slice(0, MAX_PERSON_NAME_LENGTH);
+	return name.trim().replace(/^\$+/, "").replace(/\s+/g, " ").slice(0, MAX_PERSON_NAME_LENGTH);
 }
 
 export function formatInlinePersonLabel(name: string): string {

@@ -9,6 +9,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { DeleteButton } from "@/shared/ui/delete-button";
 import { GuestGate } from "@/shared/ui/guest-gate";
+import { AnimatedList } from "@/shared/ui/animated-list";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { useIsGuestWorkspace, resetGuestStorage, isTauriRuntime } from "@/core/workspace-backend";
 import { LocalDataSection } from "./local-data-section";
@@ -20,7 +21,6 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "@/shared/ui/dialog";
 import {
 	SectionHeader,
@@ -29,24 +29,21 @@ import {
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
 import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-anchor";
-import {
-	NoteCleanupDialog,
-	NoteCleanupRow,
-} from "@/features/settings/components/note-cleanup";
+import { NoteCleanupDialog, NoteCleanupRow } from "@/features/settings/components/note-cleanup";
 import { useNoteCleanupScan } from "@/features/settings/lib/use-note-cleanup-scan";
 import { useAuth } from "@/core/auth/use-auth";
 import { clearAllData } from "@/features/settings/actions/clear-data";
 import { useNotesStore } from "@/features/notes/store";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { journalKeys } from "@/features/journal/hooks/journal-keys";
-import type { ImportMergeResult, ImportPolicy, ImportPreview, ImportProfile } from "@/domain/data-transfer/types";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/shared/ui/select";
+import type {
+	ImportMergeResult,
+	ImportPolicy,
+	ImportPreview,
+	ImportProfile,
+} from "@/domain/data-transfer/types";
+import { RustImportDialog } from "@/features/settings/components/rust-import-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 
 const REPLACE_PHRASE = "replace my workspace";
 
@@ -122,9 +119,7 @@ function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 		preview.journalTags.create +
 		preview.noteVersions.create;
 	const totalOverwrite =
-		preview.notes.overwrite +
-		preview.journalEntries.overwrite +
-		preview.journalTags.overwrite;
+		preview.notes.overwrite + preview.journalEntries.overwrite + preview.journalTags.overwrite;
 
 	if (preview.policy !== "replace-workspace" && totalCreate === 0 && totalOverwrite === 0) {
 		return (
@@ -143,7 +138,9 @@ function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 				</li>
 				<li>
 					{preview.notes.create} notes to create
-					{preview.notes.overwrite > 0 ? ` · ${preview.notes.overwrite} to overwrite` : ""}
+					{preview.notes.overwrite > 0
+						? ` · ${preview.notes.overwrite} to overwrite`
+						: ""}
 					{preview.notes.skip > 0 ? ` · ${preview.notes.skip} skipped` : ""}
 				</li>
 				<li>
@@ -176,7 +173,9 @@ function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 						</p>
 					)}
 					{preview.samples.journalToCreate.length > 0 && (
-						<p className="mt-1">Create journal: {preview.samples.journalToCreate.join(", ")}</p>
+						<p className="mt-1">
+							Create journal: {preview.samples.journalToCreate.join(", ")}
+						</p>
 					)}
 					{preview.samples.journalToOverwrite.length > 0 && (
 						<p className="mt-1">
@@ -302,7 +301,9 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 			}
 			setTokens((current) =>
 				current.map((token) =>
-					token.id === tokenId ? { ...token, revokedAt: new Date().toISOString() } : token,
+					token.id === tokenId
+						? { ...token, revokedAt: new Date().toISOString() }
+						: token,
 				),
 			);
 			if (createdToken?.id === tokenId) {
@@ -331,11 +332,15 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 						</div>
 						<p className="mt-1 text-xs text-muted-foreground">
 							Create a scoped token so the desktop app can pull your cloud workspace
-							through <span className="font-mono text-foreground">/api/sync/export</span>.
+							through{" "}
+							<span className="font-mono text-foreground">/api/sync/export</span>.
 						</p>
 					</div>
 					<div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-80">
-						<Label htmlFor="desktop-sync-token-name" className="text-xs text-muted-foreground">
+						<Label
+							htmlFor="desktop-sync-token-name"
+							className="text-xs text-muted-foreground"
+						>
 							Token name
 						</Label>
 						<div className="flex gap-2">
@@ -351,7 +356,11 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 								size="sm"
 								disabled={!isConnected || isCreating}
 								onClick={createToken}
-								title={!isConnected ? "Sign in to create a desktop sync token" : undefined}
+								title={
+									!isConnected
+										? "Sign in to create a desktop sync token"
+										: undefined
+								}
 							>
 								<Plus className="size-3.5" />
 								{isCreating ? "Creating…" : "Create"}
@@ -372,7 +381,11 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 								</code>
 							</div>
 							<Button variant="outline" size="sm" onClick={copyCreatedToken}>
-								{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+								{copied ? (
+									<Check className="size-3.5" />
+								) : (
+									<Copy className="size-3.5" />
+								)}
 								{copied ? "Copied" : "Copy"}
 							</Button>
 						</div>
@@ -407,7 +420,9 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 					)}
 
 					{isConnected && loadState === "loading" && tokens.length === 0 && (
-						<p className="text-sm text-muted-foreground">Loading desktop sync tokens…</p>
+						<p className="text-sm text-muted-foreground">
+							Loading desktop sync tokens…
+						</p>
 					)}
 
 					{isConnected && loadState !== "loading" && activeTokens.length === 0 && (
@@ -417,22 +432,23 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 					)}
 
 					{activeTokens.length > 0 && (
-						<div className="space-y-2">
-							{activeTokens.map((token) => (
-								<div
-									key={token.id}
-									className="flex flex-col gap-3 rounded-md border border-border/60 bg-background/60 p-3 sm:flex-row sm:items-center sm:justify-between"
-								>
+						<AnimatedList
+							items={activeTokens}
+							className="space-y-2"
+							renderItem={(token) => (
+								<div className="flex flex-col gap-3 rounded-md border border-border/60 bg-background/60 p-3 sm:flex-row sm:items-center sm:justify-between">
 									<div className="min-w-0">
 										<div className="flex flex-wrap items-center gap-2">
-											<p className="text-sm font-medium text-foreground">{token.name}</p>
+											<p className="text-sm font-medium text-foreground">
+												{token.name}
+											</p>
 											<span className="rounded border border-border/70 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
 												{token.tokenPrefix}…
 											</span>
 										</div>
 										<p className="mt-1 text-xs text-muted-foreground">
-											Created {formatSyncTokenDate(token.createdAt)} · Last used{" "}
-											{formatSyncTokenDate(token.lastUsedAt)}
+											Created {formatSyncTokenDate(token.createdAt)} · Last
+											used {formatSyncTokenDate(token.lastUsedAt)}
 										</p>
 									</div>
 									<Button
@@ -446,8 +462,8 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 										{revokingId === token.id ? "Revoking…" : "Revoke"}
 									</Button>
 								</div>
-							))}
-						</div>
+							)}
+						/>
 					)}
 				</div>
 			</div>
@@ -550,7 +566,10 @@ function CloudDataSection() {
 		if (profile !== "auto") {
 			formData.set("profile", profile);
 		}
-		const response = await fetch("/api/data/import/preview", { method: "POST", body: formData });
+		const response = await fetch("/api/data/import/preview", {
+			method: "POST",
+			body: formData,
+		});
 		const body = (await response.json().catch(() => null)) as
 			| ({ error?: string } & Partial<ImportPreview>)
 			| null;
@@ -715,7 +734,11 @@ function CloudDataSection() {
 							<Button
 								variant="outline"
 								size="sm"
-								disabled={!isConnected || importState === "previewing" || importState === "importing"}
+								disabled={
+									!isConnected ||
+									importState === "previewing" ||
+									importState === "importing"
+								}
 								onClick={() => fileInputRef.current?.click()}
 								title={!isConnected ? "Sign in to import" : undefined}
 							>
@@ -725,6 +748,15 @@ function CloudDataSection() {
 						</GuestGate>
 					</>
 				</Row>
+				{isTauriRuntime() && (
+					<Row
+						focusId="import-archive-rust"
+						title="Import workspace (fast)"
+						description="Import Skriuw archives with optimized Rust parser. Automatic duplicate detection."
+					>
+						<RustImportDialog />
+					</Row>
+				)}
 			</SettingsCard>
 
 			<GroupLabel>MAINTENANCE</GroupLabel>
@@ -781,7 +813,9 @@ function CloudDataSection() {
 								onValueChange={(value) =>
 									void handleImportProfileChange(value as "auto" | ImportProfile)
 								}
-								disabled={importState === "previewing" || importState === "importing"}
+								disabled={
+									importState === "previewing" || importState === "importing"
+								}
 							>
 								<SelectTrigger className="h-8">
 									<SelectValue placeholder="Auto-detect" />
@@ -789,12 +823,22 @@ function CloudDataSection() {
 								<SelectContent>
 									<SelectItem value="auto">Auto-detect</SelectItem>
 									<SelectItem value="skriuw">Skriuw backup</SelectItem>
-									<SelectItem value="obsidian">Obsidian vault (best effort)</SelectItem>
-									<SelectItem value="apple-notes">Apple Notes HTML (best effort)</SelectItem>
+									<SelectItem value="obsidian">
+										Obsidian vault (best effort)
+									</SelectItem>
+									<SelectItem value="apple-notes">
+										Apple Notes HTML (best effort)
+									</SelectItem>
 									<SelectItem value="bear">Bear export (best effort)</SelectItem>
-									<SelectItem value="notion">Notion export (best effort)</SelectItem>
-									<SelectItem value="simplenote">Simplenote export (best effort)</SelectItem>
-									<SelectItem value="markdown-vault">Markdown folder (best effort)</SelectItem>
+									<SelectItem value="notion">
+										Notion export (best effort)
+									</SelectItem>
+									<SelectItem value="simplenote">
+										Simplenote export (best effort)
+									</SelectItem>
+									<SelectItem value="markdown-vault">
+										Markdown folder (best effort)
+									</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -805,7 +849,9 @@ function CloudDataSection() {
 								onValueChange={(value) =>
 									void handleImportPolicyChange(value as ImportPolicy)
 								}
-								disabled={importState === "previewing" || importState === "importing"}
+								disabled={
+									importState === "previewing" || importState === "importing"
+								}
 							>
 								<SelectTrigger className="h-8">
 									<SelectValue placeholder="Merge" />
@@ -814,7 +860,9 @@ function CloudDataSection() {
 									<SelectItem value="merge">Merge (skip duplicates)</SelectItem>
 									<SelectItem value="overwrite">Overwrite matches</SelectItem>
 									<SelectItem value="duplicate">Duplicate matches</SelectItem>
-									<SelectItem value="replace-workspace">Replace workspace</SelectItem>
+									<SelectItem value="replace-workspace">
+										Replace workspace
+									</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -822,7 +870,10 @@ function CloudDataSection() {
 
 					{importPolicy === "replace-workspace" && importPreview && (
 						<div className="space-y-2">
-							<Label htmlFor="replace-confirm" className="text-xs text-muted-foreground">
+							<Label
+								htmlFor="replace-confirm"
+								className="text-xs text-muted-foreground"
+							>
 								To confirm workspace replace, type{" "}
 								<span className="font-mono text-foreground">{REPLACE_PHRASE}</span>
 							</Label>
@@ -854,10 +905,13 @@ function CloudDataSection() {
 
 					{importState === "success" && (
 						<div className="space-y-3">
-							<p className="text-sm text-foreground">Import completed successfully.</p>
+							<p className="text-sm text-foreground">
+								Import completed successfully.
+							</p>
 							<div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 p-3">
 								<p className="text-xs text-muted-foreground">
-									Imports often bring along empty or duplicate notes. Scan for them now?
+									Imports often bring along empty or duplicate notes. Scan for
+									them now?
 								</p>
 								<Button
 									variant="outline"

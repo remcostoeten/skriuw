@@ -1,39 +1,11 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { createStore } from "zustand/vanilla";
+import { MemoryStorage } from "../../lib/memory-storage";
+import { installMockLocalStorage } from "../../lib/mock-globals";
 
 let authUserScopeId = "signed-out-local";
-
-class MemoryStorage implements Storage {
-	#entries = new Map<string, string>();
-
-	clear() {
-		this.#entries.clear();
-	}
-
-	getItem(key: string) {
-		return this.#entries.get(key) ?? null;
-	}
-
-	key(index: number) {
-		return Array.from(this.#entries.keys())[index] ?? null;
-	}
-
-	removeItem(key: string) {
-		this.#entries.delete(key);
-	}
-
-	setItem(key: string, value: string) {
-		this.#entries.set(key, value);
-	}
-
-	get length() {
-		return this.#entries.size;
-	}
-}
-
 let storage: MemoryStorage;
-const originalLocalStorage = globalThis.localStorage;
-const originalWindow = (globalThis as typeof globalThis & { window?: Window }).window;
+let restoreLocalStorage: () => void;
 
 async function flushMicrotasks() {
 	await Promise.resolve();
@@ -77,27 +49,13 @@ function readPersistedPreferences() {
 beforeEach(() => {
 	authUserScopeId = "signed-out-local";
 	storage = new MemoryStorage();
-	Object.defineProperty(globalThis, "localStorage", {
-		configurable: true,
-		value: storage,
-	});
-	Object.defineProperty(globalThis, "window", {
-		configurable: true,
-		value: { localStorage: storage },
-	});
+	restoreLocalStorage = installMockLocalStorage(storage);
 });
 
 afterEach(() => {
 	mock.restore();
 	storage.clear();
-	Object.defineProperty(globalThis, "localStorage", {
-		configurable: true,
-		value: originalLocalStorage,
-	});
-	Object.defineProperty(globalThis, "window", {
-		configurable: true,
-		value: originalWindow,
-	});
+	restoreLocalStorage();
 });
 
 describe("preferences store user scoping", () => {
@@ -115,7 +73,9 @@ describe("preferences store user scoping", () => {
 		usePreferencesStore.getState().syncUserScope("user-a");
 		usePreferencesStore.getState().updateEditorPreference("defaultModeRaw", true);
 		usePreferencesStore.getState().updateEditorPreference("notePropertiesLayout", "inline");
-		usePreferencesStore.getState().updateEditorPreference("notePropertiesDefaultTemplateId", "project");
+		usePreferencesStore
+			.getState()
+			.updateEditorPreference("notePropertiesDefaultTemplateId", "project");
 		usePreferencesStore.getState().recordMood("calm");
 		usePreferencesStore.getState().incrementNoteCount();
 		usePreferencesStore.getState().logActivity("settings_opened");

@@ -252,88 +252,88 @@ export function SidebarSection({
 											}}
 											className="absolute right-0 top-full z-50 mt-1 min-w-[8rem] origin-top-right overflow-hidden border border-border bg-popover p-1 text-popover-foreground shadow-lg will-change-[opacity,transform]"
 										>
-										{onSelectColor && colorOptions && (
-											<div className="flex flex-wrap gap-1 px-2 py-1.5">
-												{colorOptions.map((color) => (
-													<button
-														key={color.value}
-														onClick={() => {
-															onSelectColor(color.value);
-															setShowMenu(false);
-														}}
-														title={color.name}
-														className={cn(
-															"h-4 w-4 rounded-full transition-transform hover:scale-110",
-															color.value,
-															currentColor === color.value &&
-																"ring-2 ring-foreground/50 ring-offset-1 ring-offset-popover",
-														)}
-													/>
-												))}
-											</div>
-										)}
-										{onRename && (
-											<button
-												onClick={() => {
-													setIsEditing(true);
-													setShowMenu(false);
-												}}
-												className="relative flex w-full cursor-default select-none items-center gap-2 px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground"
-											>
-												<Pencil className="w-3.5 h-3.5" />
-												Rename
-											</button>
-										)}
-										{onToggleVisibility && (
-											<button
-												onClick={() => {
-													onToggleVisibility();
-													setShowMenu(false);
-												}}
-												className="relative flex w-full cursor-default select-none items-center gap-2 whitespace-nowrap px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground"
-											>
-												<EyeOff className="w-3.5 h-3.5" />
-												Hide
-											</button>
-										)}
-										{onMoveUp && (
-											<button
-												onClick={() => {
-													onMoveUp();
-													setShowMenu(false);
-												}}
-												disabled={!canMoveUp}
-												className="relative flex w-full cursor-default select-none items-center gap-2 whitespace-nowrap px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-											>
-												<ArrowUp className="w-3.5 h-3.5" />
-												Move up
-											</button>
-										)}
-										{onMoveDown && (
-											<button
-												onClick={() => {
-													onMoveDown();
-													setShowMenu(false);
-												}}
-												disabled={!canMoveDown}
-												className="relative flex w-full cursor-default select-none items-center gap-2 whitespace-nowrap px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-											>
-												<ArrowDown className="w-3.5 h-3.5" />
-												Move down
-											</button>
-										)}
-										{isCustom && onDelete && (
-											<button
-												onClick={() => {
-													onDelete();
-													setShowMenu(false);
-												}}
-												className="relative flex w-full cursor-default select-none items-center gap-2 px-2 py-1.5 text-left text-sm text-destructive outline-none hover:bg-muted"
-											>
-												<Trash2 className="w-3.5 h-3.5" />
-												Delete
-											</button>
-										)}
+											{onSelectColor && colorOptions && (
+												<div className="flex flex-wrap gap-1 px-2 py-1.5">
+													{colorOptions.map((color) => (
+														<button
+															key={color.value}
+															onClick={() => {
+																onSelectColor(color.value);
+																setShowMenu(false);
+															}}
+															title={color.name}
+															className={cn(
+																"h-4 w-4 rounded-full transition-transform hover:scale-110",
+																color.value,
+																currentColor === color.value &&
+																	"ring-2 ring-foreground/50 ring-offset-1 ring-offset-popover",
+															)}
+														/>
+													))}
+												</div>
+											)}
+											{onRename && (
+												<button
+													onClick={() => {
+														setIsEditing(true);
+														setShowMenu(false);
+													}}
+													className="relative flex w-full cursor-default select-none items-center gap-2 px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground"
+												>
+													<Pencil className="w-3.5 h-3.5" />
+													Rename
+												</button>
+											)}
+											{onToggleVisibility && (
+												<button
+													onClick={() => {
+														onToggleVisibility();
+														setShowMenu(false);
+													}}
+													className="relative flex w-full cursor-default select-none items-center gap-2 whitespace-nowrap px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground"
+												>
+													<EyeOff className="w-3.5 h-3.5" />
+													Hide
+												</button>
+											)}
+											{onMoveUp && (
+												<button
+													onClick={() => {
+														onMoveUp();
+														setShowMenu(false);
+													}}
+													disabled={!canMoveUp}
+													className="relative flex w-full cursor-default select-none items-center gap-2 whitespace-nowrap px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+												>
+													<ArrowUp className="w-3.5 h-3.5" />
+													Move up
+												</button>
+											)}
+											{onMoveDown && (
+												<button
+													onClick={() => {
+														onMoveDown();
+														setShowMenu(false);
+													}}
+													disabled={!canMoveDown}
+													className="relative flex w-full cursor-default select-none items-center gap-2 whitespace-nowrap px-2 py-1.5 text-left text-sm outline-none hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+												>
+													<ArrowDown className="w-3.5 h-3.5" />
+													Move down
+												</button>
+											)}
+											{isCustom && onDelete && (
+												<button
+													onClick={() => {
+														onDelete();
+														setShowMenu(false);
+													}}
+													className="relative flex w-full cursor-default select-none items-center gap-2 px-2 py-1.5 text-left text-sm text-destructive outline-none hover:bg-muted"
+												>
+													<Trash2 className="w-3.5 h-3.5" />
+													Delete
+												</button>
+											)}
 										</motion.div>
 									)}
 								</AnimatePresence>

@@ -1,5 +1,8 @@
 mod ai;
 mod backup;
+mod content_analysis;
+mod import_export;
+mod markdown;
 mod storage;
 mod vault;
 mod versioning;
@@ -355,10 +358,17 @@ fn get_backlink_sources(
 fn search_notes(
     storage: State<'_, Storage>,
     query: String,
+    tags: Option<Vec<String>>,
+    people: Option<Vec<String>>,
     limit: Option<i64>,
 ) -> Result<Vec<SearchHit>, String> {
     storage
-        .search_notes(&query, limit.unwrap_or(20))
+        .search_notes(
+            &query,
+            &tags.unwrap_or_default(),
+            &people.unwrap_or_default(),
+            limit.unwrap_or(20),
+        )
         .map_err(stringify)
 }
 
@@ -549,15 +559,12 @@ pub struct RestoreVersionResult {
     pub version_created: bool,
 }
 
-/// Records a checkpoint for a note write, mirroring the web `updateNote`
-/// action's version logic (`src/domain/notes/actions.ts`):
-/// - If this save continues an open checkpoint session (`session_version_id`
-///   from a prior checkpoint flush), overwrite that row in place rather than
-///   growing the history with every keystroke between checkpoints.
-/// - Otherwise only `rename`/`created`/`restore` reasons, or an explicit
-///   checkpoint flush, are eligible to create a new row at all — plain
-///   autosaves never do. Eligible writes still pass through
-///   `Storage::insert_note_version`'s dedupe/throttle check.
+/// Records a version for a note write, mirroring the web `updateNote` action
+/// (`src/domain/notes/actions.ts`). Every write — autosaves included — goes
+/// through `Storage::insert_note_version`, whose decision logic skips trivial
+/// edits and coalesces same-burst saves into the latest row. The
+/// `create_checkpoint`/`session_version_id` params are kept for IPC
+/// compatibility but no longer drive persistence.
 #[tauri::command]
 fn record_note_version(
     storage: State<'_, Storage>,
@@ -582,32 +589,9 @@ fn record_note_version_inner(
     note_id: &str,
     snapshot: &NoteVersionSnapshot,
     reason: &str,
-    create_checkpoint: bool,
-    session_version_id: Option<String>,
+    _create_checkpoint: bool,
+    _session_version_id: Option<String>,
 ) -> Result<VersionWriteResult, String> {
-    if create_checkpoint {
-        if let Some(existing_id) = &session_version_id {
-            let changed = storage
-                .update_existing_note_version(existing_id, note_id, snapshot)
-                .map_err(stringify)?;
-            if changed {
-                return Ok(VersionWriteResult {
-                    version_id: Some(existing_id.clone()),
-                    version_changed: true,
-                });
-            }
-        }
-    }
-
-    let should_create_version =
-        matches!(reason, "rename" | "created" | "restore") || create_checkpoint;
-    if !should_create_version {
-        return Ok(VersionWriteResult {
-            version_id: None,
-            version_changed: false,
-        });
-    }
-
     let version_id = storage
         .insert_note_version(note_id, snapshot, reason, now_ms())
         .map_err(stringify)?;
@@ -657,7 +641,7 @@ fn get_note_versions(
     limit: Option<i64>,
 ) -> Result<Vec<NoteVersion>, String> {
     storage
-        .list_note_versions(&note_id, limit.unwrap_or(12))
+        .list_note_versions(&note_id, limit.unwrap_or(crate::versioning::RETENTION_LIMIT))
         .map_err(stringify)
 }
 
@@ -1439,6 +1423,12 @@ pub fn run() {
             choose_vault_root,
             reveal_vault,
             export_note,
+            content_analysis::analyze_note_content,
+            markdown::markdown_to_rich,
+            import_export::parse_import_json,
+            import_export::import_notes_batch,
+            import_export::extract_and_validate_archive,
+            import_export::build_export_archive,
             ai::ai_get_config,
             ai::ai_set_config,
             ai::ai_set_key,

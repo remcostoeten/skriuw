@@ -134,8 +134,8 @@ export function JournalDatabaseView({
 	const visibleEntries = filteredEntries.slice(startIndex, endIndex);
 
 	if (isMobile) {
-	const mobileControlClass =
-		"flex h-11 w-11 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground";
+		const mobileControlClass =
+			"flex h-11 w-11 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground";
 
 		return (
 			<div className="flex flex-1 flex-col overflow-hidden">
@@ -298,11 +298,11 @@ export function JournalDatabaseView({
 										return (
 											<button
 												key={entry.id}
-											onClick={() => {
-												triggerNativeFeedback("selection");
-												onSelectEntry(entry.dateKey);
-											}}
-											className="group absolute left-0 flex w-full items-center gap-3 border-b border-border px-1 py-2.5 text-left transition-colors hover:bg-muted"
+												onClick={() => {
+													triggerNativeFeedback("selection");
+													onSelectEntry(entry.dateKey);
+												}}
+												className="group absolute left-0 flex w-full items-center gap-3 border-b border-border px-1 py-2.5 text-left transition-colors hover:bg-muted"
 												style={{
 													top: rowIndex * JOURNAL_ROW_HEIGHT,
 													height: JOURNAL_ROW_HEIGHT,
@@ -466,11 +466,11 @@ export function JournalDatabaseView({
 							return (
 								<button
 									key={entry.id}
-								onClick={() => {
-									triggerNativeFeedback("selection");
-									onSelectEntry(entry.dateKey);
-								}}
-								className="group absolute left-0 flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left transition-colors hover:bg-muted"
+									onClick={() => {
+										triggerNativeFeedback("selection");
+										onSelectEntry(entry.dateKey);
+									}}
+									className="group absolute left-0 flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left transition-colors hover:bg-muted"
 									style={{
 										top: rowIndex * JOURNAL_ROW_HEIGHT,
 										height: JOURNAL_ROW_HEIGHT,

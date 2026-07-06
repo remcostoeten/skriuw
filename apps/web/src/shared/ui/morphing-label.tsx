@@ -76,8 +76,13 @@ export function MorphingLabel({ activeKey, frames, framePadding }: Props) {
 						)}
 						style={{
 							opacity: on ? 1 : 0,
-							transform: on ? "translateY(0)" : above ? "translateY(-100%)" : "translateY(100%)",
-							transition: "transform 0.35s cubic-bezier(0.32,0.72,0,1), opacity 0.25s ease",
+							transform: on
+								? "translateY(0)"
+								: above
+									? "translateY(-100%)"
+									: "translateY(100%)",
+							transition:
+								"transform 0.35s cubic-bezier(0.32,0.72,0,1), opacity 0.25s ease",
 						}}
 					>
 						{frame.content}

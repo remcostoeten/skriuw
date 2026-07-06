@@ -2,10 +2,7 @@
 
 import { AlertTriangle, Sparkles, Undo2, X } from "lucide-react";
 import type { listFallbackAiKeys } from "@/features/ai/lib/resolve-ai-key";
-import type {
-	JournalAiUiError,
-	JournalRateLimitPrompt,
-} from "../hooks/use-journal-ai";
+import type { JournalAiUiError, JournalRateLimitPrompt } from "../hooks/use-journal-ai";
 
 type AiErrorBannerProps = {
 	error: JournalAiUiError;
@@ -16,7 +13,10 @@ export function JournalAiErrorBanner({ error, onDismiss }: AiErrorBannerProps) {
 	return (
 		<div className="border-b border-destructive/25 bg-[linear-gradient(135deg,hsl(var(--destructive)/0.12),hsl(var(--background)/0.94))] px-4 py-3 text-xs">
 			<div className="flex items-start gap-3">
-				<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" strokeWidth={1.5} />
+				<AlertTriangle
+					className="mt-0.5 h-4 w-4 shrink-0 text-destructive"
+					strokeWidth={1.5}
+				/>
 				<div className="min-w-0 flex-1 space-y-1">
 					<div className="flex flex-wrap items-center gap-2">
 						<span className="font-medium text-destructive">{error.title}</span>

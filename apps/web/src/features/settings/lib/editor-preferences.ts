@@ -1,8 +1,6 @@
 import { isEditorFontId, type EditorFontId } from "@/shared/lib/editor-fonts";
 import { noop } from "@/shared/lib/noop";
-import {
-	updateUserEditorPreferences as saveUserEditorPreferences,
-} from "@/features/settings/server/actions";
+import { updateUserEditorPreferences as saveUserEditorPreferences } from "@/features/settings/server/actions";
 
 export const EDITOR_PREFERENCES_STORAGE_KEY = "skriuw:editor:preferences:v1";
 
@@ -24,7 +22,10 @@ export function getUserEditorPreferences(): StoredEditorPreferences | null {
 		const animateNumbers =
 			typeof parsed.animateNumbers === "boolean" ? parsed.animateNumbers : undefined;
 		if (!defaultFont && animateNumbers === undefined) return null;
-		return { ...(defaultFont ? { defaultFont } : {}), ...(animateNumbers !== undefined ? { animateNumbers } : {}) };
+		return {
+			...(defaultFont ? { defaultFont } : {}),
+			...(animateNumbers !== undefined ? { animateNumbers } : {}),
+		};
 	} catch {
 		return null;
 	}

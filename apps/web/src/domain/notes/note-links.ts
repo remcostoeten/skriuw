@@ -78,6 +78,7 @@ export function nameTracksHeading(name: string, content: string): boolean {
 // Characters that are illegal in filenames on common filesystems (the `name`
 // doubles as a `.md` filename on desktop/export), plus control chars.
 // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control chars from filenames is intentional
+// eslint-disable-next-line no-control-regex
 const FILENAME_UNSAFE_PATTERN = /[/\\:*?"<>|\x00-\x1f]/g;
 const MAX_DERIVED_NAME_LENGTH = 120;
 
@@ -102,9 +103,7 @@ export function getNoteTitle(note: Pick<NoteFile, "name" | "content">): string {
 	return extractHeadingTitle(note.content) ?? stripMarkdownExtension(note.name);
 }
 
-export function getNoteSearchableContent(
-	note: Pick<NoteFile, "content" | "richContent">,
-): string {
+export function getNoteSearchableContent(note: Pick<NoteFile, "content" | "richContent">): string {
 	const markdown = note.content?.trim();
 	if (markdown) {
 		return note.content;
@@ -155,7 +154,9 @@ export function getWorkspaceUsers(files: NoteFile[]): string[] {
 	return [...users.values()].toSorted((left, right) => left.localeCompare(right));
 }
 
-export function extractNoteLinks(note: Pick<NoteFile, "id" | "content" | "richContent">): NoteLink[] {
+export function extractNoteLinks(
+	note: Pick<NoteFile, "id" | "content" | "richContent">,
+): NoteLink[] {
 	const links: NoteLink[] = [];
 	const content = searchableContent(getNoteSearchableContent(note));
 
@@ -271,10 +272,7 @@ export function createNoteLinkResolver(files: NoteFile[]): NoteLinkResolver {
 	};
 }
 
-export function findNoteByTitle(
-	files: NoteFile[],
-	title: string,
-): NoteFile | null {
+export function findNoteByTitle(files: NoteFile[], title: string): NoteFile | null {
 	const matches = buildTitleIndex(files).get(normalizeNoteTitle(title)) ?? [];
 
 	if (matches.length === 1) {
@@ -290,10 +288,7 @@ export function findNoteByTitle(
  * flow so an already-existing note is opened instead of spawning yet another
  * duplicate — which is what turns a single accidental duplicate into a cascade.
  */
-export function findFirstNoteByTitle(
-	files: NoteFile[],
-	title: string,
-): NoteFile | null {
+export function findFirstNoteByTitle(files: NoteFile[], title: string): NoteFile | null {
 	const matches = buildTitleIndex(files).get(normalizeNoteTitle(title)) ?? [];
 	return matches[0] ?? null;
 }
@@ -362,10 +357,30 @@ export function buildNoteBacklinks(
 	const titleIndex = buildTitleIndex(files);
 	const resolve = (link: NoteLink) => resolveNoteLinkWithIndexes(link, notesById, titleIndex);
 
+	// A wiki link whose title is shared by multiple notes counts as a backlink
+	// of each of them, matching the server's note_links resolution — ambiguity
+	// surfaces more backlinks rather than hiding them.
+	const activeTitleKeys = new Set(
+		[normalizeNoteTitle(activeNote.name), normalizeNoteTitle(getNoteTitle(activeNote))].filter(
+			Boolean,
+		),
+	);
+
 	const links = files
 		.filter((file) => file.id !== activeNote.id)
 		.flatMap((file) => extractNoteLinks(file).map(resolve))
-		.filter((link) => link.status === "resolved" && link.targetNoteId === activeNote.id);
+		.filter(
+			(link) =>
+				(link.status === "resolved" && link.targetNoteId === activeNote.id) ||
+				(link.status === "ambiguous" &&
+					!link.targetNoteId &&
+					activeTitleKeys.has(normalizeNoteTitle(link.targetLabel))),
+		)
+		.map((link) =>
+			link.status === "ambiguous"
+				? { ...link, status: "resolved" as const, targetNoteId: activeNote.id }
+				: link,
+		);
 
 	return dedupeLinks(links, (link) => link.sourceNoteId);
 }

@@ -9,6 +9,7 @@ import {
 	type RefAttributes,
 } from "react";
 import {
+	Compass,
 	Database,
 	Eye,
 	FlaskConical,
@@ -29,6 +30,11 @@ import { SprayCanIcon } from "@/shared/icons/spray-can";
 import { PenIcon } from "@/shared/icons/pen";
 import { SparklesIcon } from "@/shared/icons/sparkles";
 import { CloudIcon } from "@/shared/icons/cloud";
+import { FlaskConicalIcon } from "@/shared/icons/flask-conical";
+import { KeyboardIcon } from "@/shared/icons/keyboard";
+import { ShieldIcon } from "@/shared/icons/shield";
+import { TagIcon } from "@/shared/icons/tag";
+import { UserIcon } from "@/shared/icons/user";
 import type { AnimatedIconHandle } from "@/shared/icons/types";
 
 import { usePreferencesStore } from "@/features/settings/store";
@@ -52,6 +58,7 @@ import { AccountSection } from "@/features/settings/sections/account-section";
 import { AppearanceSection } from "@/features/settings/sections/appearance-section";
 import { EditorSection } from "@/features/settings/sections/editor-section";
 import { ShortcutsSection } from "@/features/settings/sections/shortcuts-section";
+import { QuickAccessSection } from "@/features/settings/sections/quick-access-section";
 import { DataSection } from "@/features/settings/sections/data-section";
 import { PrivacySection } from "@/features/settings/sections/privacy-section";
 import { SecuritySection } from "@/features/settings/sections/security-section";
@@ -80,9 +87,12 @@ type SectionMeta = {
 // Searchable terms from each section's internal settings (toggle labels,
 // descriptions, etc.) so the sidebar search finds sections by their content.
 const SECTION_DEEP_KEYWORDS: Partial<Record<SettingsTabId, string>> = {
-	appearance: "compact sidebar tree guide lines show line numbers reduce motion remember last settings tab reopen persist",
+	appearance:
+		"compact sidebar tree guide lines show line numbers reduce motion remember last settings tab reopen persist",
 	editor: "vim mode default mode raw placeholder font line height animate numbers open notes in tabs detect tags note properties layout collapsed template custom properties",
 	shortcuts: "keyboard shortcuts custom keybinds remap",
+	"quick-access":
+		"go-to mode goto vimium hints navigation jump indicators duration shortcut quick access",
 	privacy: "analytics telemetry tracking opt out opt in",
 	tags: "merge rename delete organize",
 	data: "export import backup restore sync download json markdown simplenote migration vault storage",
@@ -91,16 +101,112 @@ const SECTION_DEEP_KEYWORDS: Partial<Record<SettingsTabId, string>> = {
 };
 
 const SECTIONS: ReadonlyArray<SectionMeta> = [
-	{ id: "account", label: "Account", icon: User, description: "Profile and sign-in", group: "Account", keywords: "profile name email avatar display picture username delete account sign out log out session" },
-	{ id: "security", label: "Security", icon: Shield, description: "Password and sessions", group: "Account", keywords: "password change reset two factor 2fa authentication active sessions devices revoke login history" },
-	{ id: "privacy", label: "Privacy", icon: Eye, animatedIcon: EyeIcon, description: "Analytics and data use", group: "Account", keywords: "analytics usage anonymous page views product events tracking telemetry opt out opt in cookies sign-in events data collection" },
-	{ id: "appearance", label: "Appearance", icon: Palette, animatedIcon: SprayCanIcon, description: "Theme and density", group: "Workspace", keywords: "theme themes midnight paper graphite monokai dark light color scheme density compact spacing font typeface accent zoom sidebar line numbers reduce motion remember last tab reopen settings persist" },
-	{ id: "editor", label: "Editor", icon: PenLine, animatedIcon: PenIcon, description: "Writing experience", group: "Workspace", keywords: "writing markdown vim mode spellcheck autosave line width typewriter block editor rich text formatting" },
-	{ id: "shortcuts", label: "Shortcuts", icon: Keyboard, description: "Keyboard bindings", group: "Workspace", keywords: "keyboard bindings hotkeys keybindings remap commands shortcuts keys" },
-	{ id: "tags", label: "Tags", icon: Tag, description: "Manage tags", group: "Workspace", keywords: "tags labels people mentions rename merge delete organize" },
-	{ id: "ai", label: "AI", icon: Sparkles, animatedIcon: SparklesIcon, description: "Providers and keys", group: "Intelligence", keywords: "ai artificial intelligence providers api keys ollama groq gemini openai model local cloud completion prompts actions" },
-	{ id: "data", label: "Data & sync", icon: Database, animatedIcon: CloudIcon, description: "Export and backup", group: "Advanced", keywords: "export import backup restore sync download data json markdown simplenote migration vault storage" },
-	{ id: "experimental", label: "Experimental", icon: FlaskConical, description: "Preview features", group: "Advanced", keywords: "experimental preview beta flags features labs early access" },
+	{
+		id: "account",
+		label: "Account",
+		icon: User,
+		animatedIcon: UserIcon,
+		description: "Profile and sign-in",
+		group: "Account",
+		keywords:
+			"profile name email avatar display picture username delete account sign out log out session",
+	},
+	{
+		id: "security",
+		label: "Security",
+		icon: Shield,
+		animatedIcon: ShieldIcon,
+		description: "Password and sessions",
+		group: "Account",
+		keywords:
+			"password change reset two factor 2fa authentication active sessions devices revoke login history",
+	},
+	{
+		id: "privacy",
+		label: "Privacy",
+		icon: Eye,
+		animatedIcon: EyeIcon,
+		description: "Analytics and data use",
+		group: "Account",
+		keywords:
+			"analytics usage anonymous page views product events tracking telemetry opt out opt in cookies sign-in events data collection",
+	},
+	{
+		id: "appearance",
+		label: "Appearance",
+		icon: Palette,
+		animatedIcon: SprayCanIcon,
+		description: "Theme and density",
+		group: "Workspace",
+		keywords:
+			"theme themes midnight paper embers mocha catppuccin rose pine gruvbox tokyo night dark light color scheme density compact spacing font typeface accent zoom sidebar line numbers reduce motion remember last tab reopen settings persist",
+	},
+	{
+		id: "editor",
+		label: "Editor",
+		icon: PenLine,
+		animatedIcon: PenIcon,
+		description: "Writing experience",
+		group: "Workspace",
+		keywords:
+			"writing markdown vim mode spellcheck autosave line width typewriter block editor rich text formatting",
+	},
+	{
+		id: "shortcuts",
+		label: "Shortcuts",
+		icon: Keyboard,
+		animatedIcon: KeyboardIcon,
+		description: "Keyboard bindings",
+		group: "Workspace",
+		keywords: "keyboard bindings hotkeys keybindings remap commands shortcuts keys",
+	},
+	{
+		id: "quick-access",
+		label: "Quick Access",
+		icon: Compass,
+		description: "Go-to mode and hints",
+		group: "Workspace",
+		keywords:
+			"quick access go-to goto mode vimium navigation hints jump keyboard indicators duration",
+	},
+	{
+		id: "tags",
+		label: "Tags",
+		icon: Tag,
+		animatedIcon: TagIcon,
+		description: "Manage tags",
+		group: "Workspace",
+		keywords: "tags labels people mentions rename merge delete organize",
+	},
+	{
+		id: "ai",
+		label: "AI",
+		icon: Sparkles,
+		animatedIcon: SparklesIcon,
+		description: "Providers and keys",
+		group: "Intelligence",
+		keywords:
+			"ai artificial intelligence providers api keys ollama groq gemini openai model local cloud completion prompts actions",
+	},
+	{
+		id: "data",
+		label: "Data & sync",
+		icon: Database,
+		animatedIcon: CloudIcon,
+		description: "Export and backup",
+		group: "Advanced",
+		keywords:
+			"export import backup restore sync download data json markdown simplenote migration vault storage",
+	},
+	{
+		id: "experimental",
+		label: "Experimental",
+		icon: FlaskConical,
+		animatedIcon: FlaskConicalIcon,
+		description: "Preview features",
+		group: "Advanced",
+		keywords: "experimental preview beta flags features labs early access",
+	},
 ];
 
 // Tabs whose features require a server/account. Guests see a sign-up notice
@@ -127,6 +233,8 @@ function renderSection(id: SettingsTabId, isGuest: boolean) {
 			return <EditorSection />;
 		case "shortcuts":
 			return <ShortcutsSection />;
+		case "quick-access":
+			return <QuickAccessSection />;
 		case "data":
 			return <DataSection />;
 		case "privacy":
@@ -169,11 +277,14 @@ type Props = {
 	query: string;
 	rovingTabId: SettingsTabId | undefined;
 	onSelect: (id: SettingsTabId) => void;
+	onHover: (el: HTMLElement) => void;
 };
 
-function SettingsTabButton({ section, active, query, rovingTabId, onSelect }: Props) {
+function SettingsTabButton({ section, active, query, rovingTabId, onSelect, onHover }: Props) {
 	const iconRef = useRef<AnimatedIconHandle>(null);
-	const AnimatedIcon = section.animatedIcon;
+	const buttonRef = useRef<HTMLButtonElement>(null);
+	const showAnimatedIcons = usePreferencesStore((state) => state.appearance.showAnimatedIcons);
+	const AnimatedIcon = showAnimatedIcons ? section.animatedIcon : undefined;
 	const Icon = section.icon;
 	const match = query.trim() ? bestSettingsMatch(query, section.id) : null;
 	const subtitle = match ? match.title : section.description;
@@ -183,6 +294,7 @@ function SettingsTabButton({ section, active, query, rovingTabId, onSelect }: Pr
 	return (
 		<li role="presentation">
 			<button
+				ref={buttonRef}
 				id={getSettingsTabId(section.id)}
 				role="tab"
 				aria-selected={active}
@@ -192,21 +304,29 @@ function SettingsTabButton({ section, active, query, rovingTabId, onSelect }: Pr
 					onSelect(section.id);
 					play();
 				}}
-				onMouseEnter={play}
-				className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground ${
+				onMouseEnter={() => {
+					play();
+					if (buttonRef.current) onHover(buttonRef.current);
+				}}
+				onFocus={() => {
+					if (buttonRef.current) onHover(buttonRef.current);
+				}}
+				className={`relative z-10 flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors focus-visible:shadow-none focus-visible:outline-none focus-visible:text-foreground ${
 					active
 						? "bg-sidebar-accent text-sidebar-accent-foreground"
-						: "text-sidebar-foreground hover:bg-sidebar-accent/50"
+						: "text-sidebar-foreground"
 				}`}
 			>
-				<span className={active ? "text-foreground" : "text-muted-foreground"}>
+				<span
+					className={`flex h-4 w-4 shrink-0 items-center justify-center [&_svg]:[stroke-width:1.5] ${active ? "text-foreground" : "text-muted-foreground"}`}
+				>
 					{AnimatedIcon ? (
 						<AnimatedIcon ref={iconRef} size={16} />
 					) : (
 						<Icon className="h-4 w-4" />
 					)}
 				</span>
-				<span className="min-w-0 flex-1">
+				<span className="min-w-0 flex-1 leading-none">
 					<span className="block truncate">{highlightMatch(section.label, query)}</span>
 					{query.trim() && (
 						<span className="block truncate text-[11px] text-muted-foreground">
@@ -241,6 +361,54 @@ export function SettingsModal() {
 	const searchRef = useRef<HTMLInputElement>(null);
 	const [query, setQuery] = useState("");
 	const [searchFocused, setSearchFocused] = useState(false);
+
+	const tablistRef = useRef<HTMLDivElement>(null);
+	const [hoverRect, setHoverRect] = useState<{
+		top: number;
+		left: number;
+		width: number;
+		height: number;
+	} | null>(null);
+	const [hoverVisible, setHoverVisible] = useState(false);
+	const [squash, setSquash] = useState(0);
+	const prevTopRef = useRef<number | null>(null);
+	const squashTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+	const handleNavHover = (el: HTMLElement) => {
+		const container = tablistRef.current;
+		if (!container) return;
+		const containerRect = container.getBoundingClientRect();
+		const rect = el.getBoundingClientRect();
+		const top = rect.top - containerRect.top;
+		const prevTop = prevTopRef.current;
+		const dy = prevTop == null ? 0 : top - prevTop;
+		prevTopRef.current = top;
+
+		setHoverRect({
+			top,
+			left: rect.left - containerRect.left,
+			width: rect.width,
+			height: rect.height,
+		});
+		setHoverVisible(true);
+
+		if (prevTop != null && Math.abs(dy) > 1) {
+			const magnitude = Math.min(Math.abs(dy) / 320, 0.1) * Math.sign(dy);
+			setSquash(magnitude);
+			clearTimeout(squashTimer.current);
+			squashTimer.current = setTimeout(() => setSquash(0), 110);
+		}
+	};
+
+	const handleNavLeave = () => {
+		setHoverVisible(false);
+		prevTopRef.current = null;
+		setSquash(0);
+	};
+
+	useEffect(() => {
+		return () => clearTimeout(squashTimer.current);
+	}, []);
 
 	const visibleSections = useMemo(
 		() => SECTIONS.filter((section) => isSettingsTabVisible(section.id)),
@@ -340,9 +508,7 @@ export function SettingsModal() {
 			// the notes file tree's "focus tree" shortcut.
 			if (e.key.toLowerCase() === "e" && e.ctrlKey && !e.metaKey && !e.altKey) {
 				e.preventDefault();
-				navRef.current
-					?.querySelector<HTMLElement>('[role="tab"][tabindex="0"]')
-					?.focus();
+				navRef.current?.querySelector<HTMLElement>('[role="tab"][tabindex="0"]')?.focus();
 				return;
 			}
 			// F6 / Shift+F6: jump between the dialog's panes (search → section
@@ -355,11 +521,7 @@ export function SettingsModal() {
 				const regions = [searchRef.current, activeTab, contentRef.current];
 				const activeEl = document.activeElement;
 				const currentIdx =
-					activeEl === searchRef.current
-						? 0
-						: navRef.current?.contains(activeEl)
-							? 1
-							: 2;
+					activeEl === searchRef.current ? 0 : navRef.current?.contains(activeEl) ? 1 : 2;
 				for (let step = 1; step <= regions.length; step++) {
 					const next =
 						regions[
@@ -381,9 +543,7 @@ export function SettingsModal() {
 					panel.querySelectorAll<HTMLElement>(
 						'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
 					),
-				).filter(
-					(el) => el.tabIndex >= 0 && (el.checkVisibility?.() ?? true),
-				);
+				).filter((el) => el.tabIndex >= 0 && (el.checkVisibility?.() ?? true));
 				if (focusables.length === 0) return;
 				const first = focusables[0];
 				const last = focusables[focusables.length - 1];
@@ -425,9 +585,7 @@ export function SettingsModal() {
 	);
 	// Roving tabindex: exactly one tab is reachable via Tab. Falls back to the
 	// first match when the active tab is filtered out by the search query.
-	const rovingTabId = orderedSections.some((s) => s.id === tab)
-		? tab
-		: orderedSections[0]?.id;
+	const rovingTabId = orderedSections.some((s) => s.id === tab) ? tab : orderedSections[0]?.id;
 
 	function focusContent() {
 		requestAnimationFrame(() => contentRef.current?.focus());
@@ -470,9 +628,8 @@ export function SettingsModal() {
 					aria-label="Settings sections"
 					className="hidden w-[220px] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar py-3 sm:flex"
 					onKeyDown={(e) => {
-						const target = e.currentTarget.querySelector<HTMLElement>(
-							'[role="tab"]:focus',
-						);
+						const target =
+							e.currentTarget.querySelector<HTMLElement>('[role="tab"]:focus');
 						if (!target) return;
 						const idx = orderedSections.findIndex(
 							(s) => getSettingsTabId(s.id) === target.id,
@@ -496,7 +653,9 @@ export function SettingsModal() {
 								? 0
 								: e.key === "End"
 									? orderedSections.length - 1
-									: (idx + (e.key === "ArrowDown" ? 1 : -1) + orderedSections.length) %
+									: (idx +
+											(e.key === "ArrowDown" ? 1 : -1) +
+											orderedSections.length) %
 										orderedSections.length;
 						const next = orderedSections[nextIdx];
 						if (!next) return;
@@ -537,11 +696,15 @@ export function SettingsModal() {
 											openSettings(target.id, focusId);
 											return;
 										}
-										document.getElementById(getSettingsTabId(target.id))?.focus();
+										document
+											.getElementById(getSettingsTabId(target.id))
+											?.focus();
 									}
 									if (e.key === "ArrowDown" && orderedSections.length > 0) {
 										e.preventDefault();
-										document.getElementById(getSettingsTabId(orderedSections[0].id))?.focus();
+										document
+											.getElementById(getSettingsTabId(orderedSections[0].id))
+											?.focus();
 									}
 								}}
 								placeholder="Search settings"
@@ -559,9 +722,13 @@ export function SettingsModal() {
 									className="pointer-events-auto absolute inset-0 flex cursor-pointer select-none items-center justify-center px-1.5 py-0.5 font-mono text-[11px] leading-none text-muted-foreground"
 									style={{
 										opacity: !searchFocused || !query ? 1 : 0,
-										transform: !searchFocused || !query ? "translateY(0)" : "translateY(-6px)",
+										transform:
+											!searchFocused || !query
+												? "translateY(0)"
+												: "translateY(-6px)",
 										pointerEvents: !searchFocused || !query ? "auto" : "none",
-										transition: "opacity 200ms cubic-bezier(0.32, 0.72, 0, 1), transform 200ms cubic-bezier(0.32, 0.72, 0, 1)",
+										transition:
+											"opacity 200ms cubic-bezier(0.32, 0.72, 0, 1), transform 200ms cubic-bezier(0.32, 0.72, 0, 1)",
 									}}
 									aria-hidden
 								>
@@ -571,9 +738,13 @@ export function SettingsModal() {
 									className="pointer-events-none absolute inset-0 flex select-none items-center justify-center px-1.5 py-0.5 font-mono text-[11px] leading-none text-muted-foreground"
 									style={{
 										opacity: searchFocused && query ? 1 : 0,
-										transform: searchFocused && query ? "translateY(0)" : "translateY(6px)",
+										transform:
+											searchFocused && query
+												? "translateY(0)"
+												: "translateY(6px)",
 										pointerEvents: searchFocused && query ? "auto" : "none",
-										transition: "opacity 200ms cubic-bezier(0.32, 0.72, 0, 1), transform 200ms cubic-bezier(0.32, 0.72, 0, 1)",
+										transition:
+											"opacity 200ms cubic-bezier(0.32, 0.72, 0, 1), transform 200ms cubic-bezier(0.32, 0.72, 0, 1)",
 									}}
 									aria-hidden
 								>
@@ -587,32 +758,55 @@ export function SettingsModal() {
 							No settings match “{query.trim()}”.
 						</div>
 					)}
-					<div role="tablist" aria-orientation="vertical" aria-label="Settings sections">
-					{GROUP_ORDER.map((group) => {
-						const groupSections = filteredSections.filter(
-							(section) => section.group === group,
-						);
-						if (groupSections.length === 0) return null;
-						return (
-							<div key={group} className="mb-2">
-								<div className="px-4 pb-1 pt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
-									{group}
+					<div
+						ref={tablistRef}
+						role="tablist"
+						aria-orientation="vertical"
+						aria-label="Settings sections"
+						className="relative"
+						onMouseLeave={handleNavLeave}
+					>
+						{hoverRect && (
+							<div
+								aria-hidden
+								className="pointer-events-none absolute left-0 top-0 z-0 rounded-md bg-sidebar-accent/50 will-change-transform"
+								style={{
+									width: hoverRect.width,
+									height: hoverRect.height,
+									opacity: hoverVisible ? 1 : 0,
+									transform: `translate3d(${hoverRect.left}px, ${hoverRect.top}px, 0) scaleY(${1 + Math.abs(squash)}) scaleX(${1 - Math.abs(squash) * 0.5})`,
+									transformOrigin: squash >= 0 ? "top center" : "bottom center",
+									transition:
+										"transform 190ms cubic-bezier(0.22, 1, 0.36, 1), width 190ms cubic-bezier(0.22, 1, 0.36, 1), height 190ms cubic-bezier(0.22, 1, 0.36, 1), opacity 130ms ease",
+								}}
+							/>
+						)}
+						{GROUP_ORDER.map((group) => {
+							const groupSections = filteredSections.filter(
+								(section) => section.group === group,
+							);
+							if (groupSections.length === 0) return null;
+							return (
+								<div key={group} className="mb-2">
+									<div className="px-4 pb-1 pt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+										{group}
+									</div>
+									<ul role="presentation" className="flex flex-col gap-0.5 px-2">
+										{groupSections.map((section) => (
+											<SettingsTabButton
+												key={section.id}
+												section={section}
+												active={tab === section.id}
+												query={query}
+												rovingTabId={rovingTabId}
+												onSelect={setTab}
+												onHover={handleNavHover}
+											/>
+										))}
+									</ul>
 								</div>
-								<ul role="presentation" className="flex flex-col gap-0.5 px-2">
-									{groupSections.map((section) => (
-										<SettingsTabButton
-											key={section.id}
-											section={section}
-											active={tab === section.id}
-											query={query}
-											rovingTabId={rovingTabId}
-											onSelect={setTab}
-										/>
-									))}
-								</ul>
-							</div>
-						);
-					})}
+							);
+						})}
 					</div>
 				</nav>
 

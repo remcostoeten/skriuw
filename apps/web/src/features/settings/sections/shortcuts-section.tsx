@@ -22,7 +22,9 @@ import { cn } from "@/shared/lib/utils";
 type GroupedShortcuts = { group: string; ids: ShortcutId[] };
 type ShortcutConflict = { label: string; combo: string };
 
-function groupShortcuts(registry: ReturnType<typeof useShortcutManager>["registry"]): GroupedShortcuts[] {
+function groupShortcuts(
+	registry: ReturnType<typeof useShortcutManager>["registry"],
+): GroupedShortcuts[] {
 	const groups: GroupedShortcuts[] = [];
 	for (const id of getShortcutIds()) {
 		const { group } = registry[id];
@@ -98,8 +100,8 @@ export function ShortcutsSection() {
 					role="status"
 					className="mb-3 border border-destructive/35 bg-destructive/10 px-3 py-2 text-xs text-destructive"
 				>
-					{formatBinding(conflict.combo)} is already assigned to {conflict.label}. Pick
-					a different combination or reset the existing shortcut first.
+					{formatBinding(conflict.combo)} is already assigned to {conflict.label}. Pick a
+					different combination or reset the existing shortcut first.
 				</div>
 			) : null}
 
@@ -123,60 +125,63 @@ export function ShortcutsSection() {
 			{grouped.map(({ group, ids }) => {
 				const groupFocusId = `group-${group.toLowerCase().replace(/\s+/g, "-")}`;
 				return (
-				<div
-					key={group}
-					id={settingsFocusDomId(groupFocusId)}
-					data-settings-focus={groupFocusId}
-					className="scroll-mt-24"
-				>
-					<GroupLabel>{group.toUpperCase()}</GroupLabel>
-					<SettingsCard>
-						{ids.map((id) => {
-							const def = getShortcutDef(id);
-							const isOverridden = id in bindings;
-							const isRecording = recordingId === id;
-							const description = def.bindingGroup
-								? `${def.description ?? "Shared shortcut."} Rebinding this also updates matching ${def.bindingGroup.replace(/-/g, " ")} shortcuts.`
-								: def.description;
-							return (
-								<Row key={id} title={def.label} description={description}>
-									<div className="flex items-center gap-2">
-										{isOverridden && !isRecording ? (
+					<div
+						key={group}
+						id={settingsFocusDomId(groupFocusId)}
+						data-settings-focus={groupFocusId}
+						className="scroll-mt-24"
+					>
+						<GroupLabel>{group.toUpperCase()}</GroupLabel>
+						<SettingsCard>
+							{ids.map((id) => {
+								const def = getShortcutDef(id);
+								const isOverridden = id in bindings;
+								const isRecording = recordingId === id;
+								const description = def.bindingGroup
+									? `${def.description ?? "Shared shortcut."} Rebinding this also updates matching ${def.bindingGroup.replace(/-/g, " ")} shortcuts.`
+									: def.description;
+								return (
+									<Row key={id} title={def.label} description={description}>
+										<div className="flex items-center gap-2">
+											{isOverridden && !isRecording ? (
+												<button
+													type="button"
+													aria-label={`Reset ${def.label} to default`}
+													onClick={() => {
+														setConflict(null);
+														resetBinding(id);
+													}}
+													className="text-muted-foreground transition-colors hover:text-foreground"
+												>
+													<RotateCcw
+														className="h-3.5 w-3.5"
+														strokeWidth={1.8}
+													/>
+												</button>
+											) : null}
 											<button
 												type="button"
-												aria-label={`Reset ${def.label} to default`}
 												onClick={() => {
 													setConflict(null);
-													resetBinding(id);
+													setRecordingId(isRecording ? null : id);
 												}}
-												className="text-muted-foreground transition-colors hover:text-foreground"
+												className={cn(
+													"min-w-[7rem] border px-2.5 py-1.5 text-center font-mono text-[12px] transition-colors",
+													isRecording
+														? "border-ring bg-background text-foreground"
+														: "border-border bg-card text-muted-foreground hover:border-ring hover:text-foreground",
+												)}
 											>
-												<RotateCcw className="h-3.5 w-3.5" strokeWidth={1.8} />
+												{isRecording
+													? "Press keys…"
+													: formatBinding(bindings[id] ?? def.keys)}
 											</button>
-										) : null}
-										<button
-											type="button"
-											onClick={() => {
-												setConflict(null);
-												setRecordingId(isRecording ? null : id);
-											}}
-											className={cn(
-												"min-w-[7rem] border px-2.5 py-1.5 text-center font-mono text-[12px] transition-colors",
-												isRecording
-													? "border-ring bg-background text-foreground"
-													: "border-border bg-card text-muted-foreground hover:border-ring hover:text-foreground",
-											)}
-										>
-											{isRecording
-												? "Press keys…"
-												: formatBinding(bindings[id] ?? def.keys)}
-										</button>
-									</div>
-								</Row>
-							);
-						})}
-					</SettingsCard>
-				</div>
+										</div>
+									</Row>
+								);
+							})}
+						</SettingsCard>
+					</div>
 				);
 			})}
 		</>

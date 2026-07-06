@@ -86,8 +86,6 @@ function StaticIconButton({
 	);
 }
 
-
-
 function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; title: string }) {
 	if (variant === "notes") {
 		return (
@@ -471,11 +469,7 @@ export function SettingsLoadingShell() {
 	);
 }
 
-export function WorkspaceLoadingShell({
-	variant,
-}: {
-	variant: WorkspaceLoadingVariant;
-}) {
+export function WorkspaceLoadingShell({ variant }: { variant: WorkspaceLoadingVariant }) {
 	const activeHref = variant === "journal" ? "/app/journal" : "/app";
 
 	return (

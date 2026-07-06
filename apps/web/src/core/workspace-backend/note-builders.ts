@@ -33,6 +33,7 @@ export function noteFromCreateInput(input: CreateNoteInput): NoteFile {
 		sortOrder: input.sortOrder ?? 0,
 		tags: input.tags ?? [],
 		properties: normalizeNoteProperties(input.properties),
+		icon: input.icon,
 	};
 }
 
@@ -85,6 +86,7 @@ export function applyNoteUpdate(
 			input.properties !== undefined
 				? normalizeNoteProperties(input.properties)
 				: normalizeNoteProperties(note.properties),
+		icon: input.icon !== undefined ? input.icon : note.icon,
 		modifiedAt: new Date(),
 	};
 }

@@ -167,14 +167,14 @@ const ContextMenuSeparator = React.forwardRef<
 ));
 ContextMenuSeparator.displayName = ContextMenuPrimitive.Separator.displayName;
 
-const ContextMenuShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => {
+function ContextMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
 	return (
 		<span
 			className={cn("ml-auto text-[10px] tracking-[0.18em] text-foreground/38", className)}
 			{...props}
 		/>
 	);
-};
+}
 ContextMenuShortcut.displayName = "ContextMenuShortcut";
 
 export {

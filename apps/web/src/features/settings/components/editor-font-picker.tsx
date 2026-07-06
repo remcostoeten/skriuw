@@ -94,10 +94,7 @@ export function EditorFontPicker({ value, onChange }: EditorFontPickerProps) {
 				<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
 					Preview · {getEditorFontLabel(value)}
 				</p>
-				<div
-					className="mt-3 space-y-1.5"
-					style={{ fontFamily: selectedFamily }}
-				>
+				<div className="mt-3 space-y-1.5" style={{ fontFamily: selectedFamily }}>
 					<p className="text-base font-medium leading-snug text-foreground">
 						The quick brown fox jumps over the lazy dog.
 					</p>

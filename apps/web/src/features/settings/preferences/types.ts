@@ -1,6 +1,7 @@
 import type { CustomNotePropertyTemplate } from "@/domain/notes/properties";
 import type { EditorFontId } from "@/shared/lib/editor-fonts";
 import type { EditorLineHeight } from "@/features/editor/lib/editor-line-height";
+import type { GotoIndicatorPosition, GotoIndicatorSize } from "@/core/quick-access/goto-types";
 import type { ThemeId } from "./themes";
 
 export type ActivityAction = "settings_opened" | "note_created" | "mode_changed" | "diary_toggled";
@@ -24,7 +25,7 @@ export type EditorPreferences = {
 	notePropertiesCollapsed: boolean;
 	notePropertiesDefaultTemplateId: string | null;
 	customNotePropertyTemplates: CustomNotePropertyTemplate[];
-}
+};
 
 export type AppearancePreferences = {
 	theme: ThemeId;
@@ -33,16 +34,18 @@ export type AppearancePreferences = {
 	reduceMotion: boolean;
 	rememberLastTab: boolean;
 	rememberLastNote: boolean;
-}
+	showAnimatedIcons: boolean;
+	showPageIcons: boolean;
+};
 
 export type ProfilePreferences = {
 	avatarColor: string | null;
-}
+};
 
 export type JournalPreferences = {
 	diaryModeEnabled: boolean;
 	recentMoods: Array<{ mood: string; date: Date }>;
-}
+};
 
 export type PrivacyPreferences = {
 	analyticsEnabled: boolean;
@@ -53,7 +56,7 @@ export type AiKey = {
 	name: string;
 	apiKey: string;
 	tested: boolean;
-}
+};
 
 export type AiPreferences = {
 	model: string;
@@ -61,7 +64,23 @@ export type AiPreferences = {
 	activeKeyId: string | null;
 	/** Translate-selection target language name; "auto" keeps the EN↔NL heuristic. */
 	translateLanguage: string;
-}
+};
+
+export type QuickAccessPreferences = {
+	enabled: boolean;
+	/**
+	 * Allow the activation shortcut to fire while typing inside a note. Only
+	 * safe with a modifier combo (mod/ctrl/alt+key) — a plain key would toggle
+	 * go-to mode on every matching keystroke while writing.
+	 */
+	allowInEditor: boolean;
+	/** Raw user-entered duration string, e.g. "2s" or "1500ms". */
+	gotoModeDuration: string;
+	showIndicators: boolean;
+	indicatorPosition: GotoIndicatorPosition;
+	indicatorSize: GotoIndicatorSize;
+	indicatorOpacity: number;
+};
 
 export type PreferencesProfile = {
 	editor: EditorPreferences;
@@ -70,6 +89,7 @@ export type PreferencesProfile = {
 	journal: JournalPreferences;
 	privacy: PrivacyPreferences;
 	ai: AiPreferences;
+	quickAccess: QuickAccessPreferences;
 	amountOfNotes: number;
 	activity: ActivityItem[];
 };
@@ -81,6 +101,7 @@ export type PersistedPreferencesProfile = {
 	journal?: Partial<JournalPreferences>;
 	privacy?: Partial<PrivacyPreferences>;
 	ai?: Partial<AiPreferences>;
+	quickAccess?: Partial<QuickAccessPreferences>;
 	amountOfNotes?: number;
 	activity?: Array<Partial<ActivityItem>>;
 };

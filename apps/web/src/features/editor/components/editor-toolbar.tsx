@@ -239,18 +239,18 @@ export function EditorToolbar({
 		);
 	}
 
-		return (
-			<TooltipProvider>
-				<div
-					className={cn(
-						"border-b border-sidebar-border bg-sidebar text-sidebar-foreground",
-						"flex h-11 items-center gap-1 px-3",
-					)}
-					// Reserves space for the fixed WindowControls cluster (~128px) so
-					// this toolbar's rightmost icons never sit underneath it, even
-					// when the page is zoomed in.
-					style={isTauri ? { paddingRight: 128 } : undefined}
-				>
+	return (
+		<TooltipProvider>
+			<div
+				className={cn(
+					"border-b border-sidebar-border bg-sidebar text-sidebar-foreground",
+					"flex h-11 items-center gap-1 px-3",
+				)}
+				// Reserves space for the fixed WindowControls cluster (~128px) so
+				// this toolbar's rightmost icons never sit underneath it, even
+				// when the page is zoomed in.
+				style={isTauri ? { paddingRight: 128 } : undefined}
+			>
 				<ToolbarTooltip label="Toggle sidebar" shortcutId="notes.toggleSidebar">
 					<button
 						onClick={onToggleSidebar}

@@ -13,11 +13,11 @@ Unlike width/height changes, scale transforms apply proportionally to all child 
 
 ```tsx
 function ZoomableContainer({ children, zoom }) {
-  return (
-    <div style={{ transform: `scale(${zoom})` }}>
-      {children} {/* Text becomes unreadable at low zoom */}
-    </div>
-  )
+	return (
+		<div style={{ transform: `scale(${zoom})` }}>
+			{children} {/* Text becomes unreadable at low zoom */}
+		</div>
+	);
 }
 // All children including text scale proportionally
 ```
@@ -26,14 +26,16 @@ function ZoomableContainer({ children, zoom }) {
 
 ```tsx
 function FadeContainer({ children, visible }) {
-  return (
-    <div style={{
-      opacity: visible ? 1 : 0,
-      transform: visible ? 'translateY(0)' : 'translateY(10px)'
-    }}>
-      {children} {/* Children maintain original size */}
-    </div>
-  )
+	return (
+		<div
+			style={{
+				opacity: visible ? 1 : 0,
+				transform: visible ? "translateY(0)" : "translateY(10px)",
+			}}
+		>
+			{children} {/* Children maintain original size */}
+		</div>
+	);
 }
 // Children stay readable, only position/opacity change
 ```

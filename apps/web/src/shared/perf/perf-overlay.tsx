@@ -119,14 +119,20 @@ export function PerfOverlay() {
 							</span>
 							<span>
 								long-tasks{" "}
-								<b style={{ color: head.longTaskCount > 0 ? "#fbbf24" : "#4ade80" }}>
+								<b
+									style={{
+										color: head.longTaskCount > 0 ? "#fbbf24" : "#4ade80",
+									}}
+								>
 									{head.longTaskCount}
 								</b>
 							</span>
 						</div>
 					)}
 					{entries.length === 0 ? (
-						<div style={{ opacity: 0.6 }}>Click between notes / type to collect samples…</div>
+						<div style={{ opacity: 0.6 }}>
+							Click between notes / type to collect samples…
+						</div>
 					) : (
 						<table style={{ borderCollapse: "collapse", width: "100%" }}>
 							<thead>
@@ -141,10 +147,16 @@ export function PerfOverlay() {
 							<tbody>
 								{entries.map(([metric, s]) => (
 									<tr key={metric}>
-										<td style={{ paddingRight: 8, whiteSpace: "nowrap" }}>{metric}</td>
+										<td style={{ paddingRight: 8, whiteSpace: "nowrap" }}>
+											{metric}
+										</td>
 										<td style={cellStyle}>{s.count}</td>
-										<td style={{ ...cellStyle, color: tint(metric, s.p50) }}>{s.p50}</td>
-										<td style={{ ...cellStyle, color: tint(metric, s.p95) }}>{s.p95}</td>
+										<td style={{ ...cellStyle, color: tint(metric, s.p50) }}>
+											{s.p50}
+										</td>
+										<td style={{ ...cellStyle, color: tint(metric, s.p95) }}>
+											{s.p95}
+										</td>
 										<td style={cellStyle}>{s.max}</td>
 									</tr>
 								))}
