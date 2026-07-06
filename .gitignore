@@ -57,3 +57,4 @@ TODO.*
 .claude/
 .env*
 dev-menu.config.ts
+apps/desktop/skriuw_*_amd64-working-directory/
