@@ -76,6 +76,13 @@ function useGlobalShortcutBridge(handlersRef: React.RefObject<Partial<Record<Sho
 	}, [handlersRef]);
 }
 
+function getBindingGroupIds(id: ShortcutId): ShortcutId[] {
+	const group = getShortcutDef(id).bindingGroup;
+	if (!group) return [id];
+	return getShortcutIds().filter((candidate) => getShortcutDef(candidate).bindingGroup === group);
+}
+
+
 /**
  * Owns the persisted, user-remappable bindings shared by every shortcut
  * consumer and the settings UI. It does NOT register any key handlers itself —
@@ -99,7 +106,10 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 
 	const setBinding = React.useCallback((id: ShortcutId, combo: string) => {
 		setBindings((prev) => {
-			const next = { ...prev, [id]: combo };
+			const next = { ...prev };
+			for (const groupId of getBindingGroupIds(id)) {
+				next[groupId] = combo;
+			}
 			saveBindings(next);
 			return next;
 		});
@@ -108,7 +118,9 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 	const resetBinding = React.useCallback((id: ShortcutId) => {
 		setBindings((prev) => {
 			const next = { ...prev };
-			delete next[id];
+			for (const groupId of getBindingGroupIds(id)) {
+				delete next[groupId];
+			}
 			saveBindings(next);
 			return next;
 		});

@@ -81,6 +81,13 @@ struct ChatResponse {
 }
 
 #[derive(Debug, Deserialize)]
+struct ChatStreamLine {
+    message: Option<ChatMessage>,
+    #[serde(default)]
+    done: bool,
+}
+
+#[derive(Debug, Deserialize)]
 struct OllamaModel {
     name: String,
     #[serde(default)]
@@ -155,10 +162,10 @@ impl OllamaClient {
         let mut seen = std::collections::HashSet::new();
 
         for (name, label, description) in RECOMMENDED_MODELS {
-            seen.insert(name.to_string());
             let matched = installed.iter().find(|m| Self::models_match(name, &m.name));
+            seen.insert(matched.map(|m| m.name.clone()).unwrap_or_else(|| name.to_string()));
             catalog.push(OllamaCatalogEntry {
-                name: name.to_string(),
+                name: matched.map(|m| m.name.clone()).unwrap_or_else(|| name.to_string()),
                 label: label.to_string(),
                 description: description.to_string(),
                 installed: matched.is_some(),
@@ -316,6 +323,79 @@ impl OllamaClient {
         Err(format!(
 			"Model '{requested}' is not installed. Installed models: {names}. Pick one in Settings → AI."
 		))
+    }
+
+    pub async fn complete_stream<F: Fn(&str)>(
+        &self,
+        model: &str,
+        system: &str,
+        user: &str,
+        on_chunk: F,
+        cancel: Arc<AtomicBool>,
+    ) -> Result<String, String> {
+        if model.trim().is_empty() {
+            return Err("No Ollama model selected. Pick one in Settings → AI.".to_string());
+        }
+        let model = self.resolve_model(model).await?;
+        let body = ChatRequest {
+            model,
+            messages: vec![
+                ChatMessage {
+                    role: "system".into(),
+                    content: system.to_string(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: user.to_string(),
+                },
+            ],
+            stream: true,
+        };
+        let url = format!("{}/api/chat", self.endpoint);
+        let response = self
+            .client
+            .post(&url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|error| format!("Ollama request failed: {error}. Is Ollama running?"))?;
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(format!("Ollama error ({status}): {text}"));
+        }
+
+        let mut stream = response.bytes_stream();
+        let mut buffer = String::new();
+        let mut accumulated = String::new();
+        while let Some(chunk) = stream.next().await {
+            if cancel.load(Ordering::Relaxed) {
+                return Ok(accumulated);
+            }
+            let chunk = chunk.map_err(|error| format!("Ollama stream error: {error}"))?;
+            buffer.push_str(&String::from_utf8_lossy(&chunk));
+
+            while let Some(idx) = buffer.find('\n') {
+                let line = buffer[..idx].trim().to_string();
+                buffer = buffer[idx + 1..].to_string();
+                if line.is_empty() {
+                    continue;
+                }
+                let Ok(parsed) = serde_json::from_str::<ChatStreamLine>(&line) else {
+                    continue;
+                };
+                if let Some(message) = parsed.message {
+                    if !message.content.is_empty() {
+                        accumulated.push_str(&message.content);
+                        on_chunk(&message.content);
+                    }
+                }
+                if parsed.done {
+                    return Ok(accumulated);
+                }
+            }
+        }
+        Ok(accumulated)
     }
 
     pub async fn complete(&self, model: &str, system: &str, user: &str) -> Result<String, String> {

@@ -4,12 +4,58 @@ import { useEffect, useMemo } from "react";
 import { authClient } from "@/lib/auth-client";
 import { createAuthSnapshot, setCurrentAuthUser, toAuthUser } from "@/core/auth";
 
+function isTauriRuntime(): boolean {
+	if (typeof window === "undefined") return false;
+	return Boolean(
+		(window as { __TAURI__?: { core?: { invoke?: unknown } } }).__TAURI__?.core?.invoke,
+	);
+}
+
+// Desktop is local-first with no auth server: `authClient.useSession()` would
+// fire a network request to the cloud origin on every launch (and hang offline
+// until timeout) for a session that can never exist. The desktop variant never
+// touches the auth client — it returns the same resolved signed-out snapshot
+// the web variant would eventually settle on.
+function useDesktopAuth() {
+	useEffect(() => {
+		setCurrentAuthUser(null);
+	}, []);
+
+	return useMemo(() => createAuthSnapshot({ user: null, isPending: false }), []);
+}
+
+function useWebAuth() {
+	const session = authClient.useSession();
+	const user = useMemo(() => toAuthUser(session.data?.user), [session.data?.user]);
+	const isPending = session.isPending;
+
+	useEffect(() => {
+		if (!isPending) {
+			setCurrentAuthUser(user);
+		}
+	}, [isPending, user]);
+
+	return useMemo(
+		() =>
+			createAuthSnapshot({
+				user,
+				isPending,
+				error: session.error,
+			}),
+		[user, session.error, isPending],
+	);
+}
+
 /**
  * Client auth state for React components.
  *
  * Returns an {@link AuthSnapshot} with `phase`, `user`, and `isReady`. Also
  * syncs the current user into module-level auth helpers so non-React code
  * (e.g. persisted stores) can read the signed-in user via `getUserScopeId()`.
+ *
+ * The implementation is chosen once at module load: the Tauri runtime flag
+ * cannot change within a session, so the hook identity is stable and the
+ * rules-of-hooks hold.
  *
  * @example Gate UI on auth phase
  * ```ts
@@ -27,23 +73,4 @@ import { createAuthSnapshot, setCurrentAuthUser, toAuthUser } from "@/core/auth"
  * const { data: notes } = useNotes();
  * ```
  */
-export function useAuth() {
-	const session = authClient.useSession();
-	const user = useMemo(() => toAuthUser(session.data?.user), [session.data?.user]);
-
-	useEffect(() => {
-		if (!session.isPending) {
-			setCurrentAuthUser(user);
-		}
-	}, [session.isPending, user]);
-
-	return useMemo(
-		() =>
-			createAuthSnapshot({
-				user,
-				isPending: session.isPending,
-				error: session.error,
-			}),
-		[user, session.error, session.isPending],
-	);
-}
+export const useAuth = isTauriRuntime() ? useDesktopAuth : useWebAuth;

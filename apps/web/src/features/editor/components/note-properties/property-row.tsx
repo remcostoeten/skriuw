@@ -101,14 +101,14 @@ export function PropertyRow({
 					className={PROPERTY_NAME_INPUT_CLASS}
 				/>
 			</div>
-			<div className="flex min-h-7 flex-1 items-center py-0.5">
+			<div className="flex min-h-7 min-w-0 flex-1 items-center py-0.5">
 				<ValueEditor property={property} onUpdate={(patch) => onChange({ ...property, ...patch })} />
 			</div>
 			<button
 				type="button"
 				onClick={onRemove}
 				aria-label={`Remove ${property.name}`}
-				className="mt-0.5 rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100"
+				className="mt-0.5 rounded-md p-1.5 text-muted-foreground transition-opacity hover:bg-accent hover:text-foreground md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
 			>
 				<Trash2 className="size-3.5" />
 			</button>
@@ -149,7 +149,7 @@ export function InlinePropertyChip({
 				type="button"
 				onClick={onRemove}
 				aria-label={`Remove ${property.name}`}
-				className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100"
+				className="shrink-0 rounded p-1 text-muted-foreground transition-opacity hover:bg-accent hover:text-foreground md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
 			>
 				<Trash2 className="size-3" />
 			</button>
@@ -309,7 +309,7 @@ export function TemplatePicker({
 											type="button"
 											onClick={() => onDeleteCustom(template.id)}
 											aria-label={`Delete ${template.name}`}
-											className="mr-1 rounded p-1 text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/template:opacity-100"
+											className="mr-1 rounded p-1 text-muted-foreground/60 transition-opacity hover:text-foreground md:opacity-0 md:group-hover/template:opacity-100 md:focus-visible:opacity-100"
 										>
 											<Trash2 className="size-3" />
 										</button>

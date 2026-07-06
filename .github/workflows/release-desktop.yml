@@ -142,3 +142,24 @@ jobs:
             apps/desktop/src-tauri/target/release/bundle/deb/*.deb
             apps/desktop/src-tauri/target/release/bundle/rpm/*.rpm
             apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+
+      # Track bundle sizes, LoC, and file counts.
+      # Appends to docs/ app-size-table.mdx, generates diff reports on meaningful changes.
+      - name: Track build metrics
+        run: bash scripts/track-build.sh
+
+      # Commit tracking data back to the repo so history is preserved. A tag
+      # push checks out a detached HEAD, so there is no current branch to
+      # `git push` to — push straight to daddy instead.
+      - name: Commit build metrics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/docs_for_docs.skriuw.app/app-size-table.mdx
+          git add docs/docs_for_docs.skriuw.app/build-diffs/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: track build metrics for ${{ github.ref_name }}"
+            git push origin HEAD:daddy
+          fi

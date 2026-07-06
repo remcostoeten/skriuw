@@ -16,6 +16,7 @@ import { cn } from "@/shared/lib/utils";
 import { Label } from "@/shared/ui/label";
 import { usePreferencesStore, type AiKey } from "@/features/settings/store";
 import { AI_MODELS, type AiProvider } from "@/features/ai/constants";
+import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-anchor";
 
 const PROVIDER_LABELS: Record<AiProvider, string> = {
 	google: "Google",
@@ -153,7 +154,55 @@ export function AiSettings() {
 	return (
 		<div className="space-y-7">
 			<AiModelSettings />
+			<AiTranslateLanguageSettings />
 			<AiLocalKeySettings />
+		</div>
+	);
+}
+
+const TRANSLATE_LANGUAGE_OPTIONS: Array<{ value: string; label: string; desc: string }> = [
+	{ value: "auto", label: "Auto", desc: "Non-English → English, English → Dutch" },
+	{ value: "English", label: "English", desc: "Always translate to English" },
+	{ value: "Dutch", label: "Dutch", desc: "Always translate to Dutch" },
+	{ value: "German", label: "German", desc: "Always translate to German" },
+	{ value: "French", label: "French", desc: "Always translate to French" },
+	{ value: "Spanish", label: "Spanish", desc: "Always translate to Spanish" },
+];
+
+export function AiTranslateLanguageSettings() {
+	const { ai, updateAiPreference } = usePreferencesStore();
+	const current = ai.translateLanguage ?? "auto";
+
+	return (
+		<div
+			id={settingsFocusDomId("translate-language")}
+			data-settings-focus="translate-language"
+			className="space-y-3 scroll-mt-24"
+		>
+			<div className="space-y-1">
+				<Label className="text-sm font-medium">Translate target language</Label>
+				<p className="text-xs text-muted-foreground">
+					Used by the Translate selection action in the editor toolbar.
+				</p>
+			</div>
+			<div className="flex flex-wrap gap-2">
+				{TRANSLATE_LANGUAGE_OPTIONS.map((option) => (
+					<button
+						key={option.value}
+						type="button"
+						onClick={() => updateAiPreference("translateLanguage", option.value)}
+						className={cn(
+							"flex min-w-[100px] flex-col items-start border px-3 py-2.5 text-left transition-colors",
+							current === option.value
+								? "border-ring bg-accent text-accent-foreground"
+								: "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+						)}
+					>
+						<span className="text-xs font-medium leading-tight">{option.label}</span>
+						<span className="mt-0.5 text-[10px] opacity-60">{option.desc}</span>
+					</button>
+				))}
+			</div>
 		</div>
 	);
 }
@@ -170,7 +219,11 @@ export function AiModelSettings() {
 	);
 
 	return (
-		<div className="space-y-3">
+		<div
+			id={settingsFocusDomId("model")}
+			data-settings-focus="model"
+			className="space-y-3 scroll-mt-24"
+		>
 			<div className="space-y-1">
 				<Label className="text-sm font-medium">Preferred model</Label>
 				<p className="text-xs text-muted-foreground">
@@ -255,7 +308,11 @@ export function AiLocalKeySettings() {
 	const canAdd = draftTestStatus === "ok" && draftKey.trim() && draftName.trim();
 
 	return (
-		<div className="space-y-3">
+		<div
+			id={settingsFocusDomId("local-keys")}
+			data-settings-focus="local-keys"
+			className="space-y-3 scroll-mt-24"
+		>
 			<div className="flex items-center justify-between">
 				<div className="space-y-1">
 					<Label className="text-sm font-medium">Local API keys</Label>

@@ -7,6 +7,7 @@ import { Check, Copy, Download, KeyRound, Plus, RotateCcw, Trash2, Upload } from
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { DeleteButton } from "@/shared/ui/delete-button";
 import { GuestGate } from "@/shared/ui/guest-gate";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { useIsGuestWorkspace, resetGuestStorage, isTauriRuntime } from "@/core/workspace-backend";
@@ -27,6 +28,12 @@ import {
 	SettingsCard,
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
+import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-anchor";
+import {
+	NoteCleanupDialog,
+	NoteCleanupRow,
+} from "@/features/settings/components/note-cleanup";
+import { useNoteCleanupScan } from "@/features/settings/lib/use-note-cleanup-scan";
 import { useAuth } from "@/core/auth/use-auth";
 import { clearAllData } from "@/features/settings/actions/clear-data";
 import { useNotesStore } from "@/features/notes/store";
@@ -41,107 +48,7 @@ import {
 	SelectValue,
 } from "@/shared/ui/select";
 
-const CLEAR_PHRASE = "clear my data";
 const REPLACE_PHRASE = "replace my workspace";
-
-type AsyncState = "idle" | "pending" | "error";
-
-function ClearDataDialog({ disabled }: { disabled: boolean }) {
-	const [open, setOpen] = useState(false);
-	const [value, setValue] = useState("");
-	const [state, setState] = useState<AsyncState>("idle");
-	const [error, setError] = useState<string | null>(null);
-
-	const router = useRouter();
-	const queryClient = useQueryClient();
-	const resetNotesStore = useNotesStore((s) => s.resetUi);
-
-	const matches = value.trim().toLowerCase() === CLEAR_PHRASE;
-
-	const handleClear = async () => {
-		if (!matches) return;
-		setState("pending");
-		setError(null);
-		const result = await clearAllData(value.trim());
-		if (result.ok) {
-			await queryClient.resetQueries({ queryKey: notesKeys.all });
-			await queryClient.resetQueries({ queryKey: journalKeys.all });
-			resetNotesStore();
-			router.replace("/app");
-		} else {
-			setError(result.error);
-			setState("idle");
-		}
-	};
-
-	return (
-		<Dialog
-			open={open}
-			onOpenChange={(nextOpen) => {
-				setOpen(nextOpen);
-				if (!nextOpen) {
-					setValue("");
-					setError(null);
-					setState("idle");
-				}
-			}}
-		>
-			<DialogTrigger asChild>
-				<Button
-					size="sm"
-					disabled={disabled}
-					title={disabled ? "Sign in to clear data" : undefined}
-					className="bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 shadow-none"
-				>
-					<Trash2 className="size-3.5" /> Clear data
-				</Button>
-			</DialogTrigger>
-			<DialogContent>
-				<DialogHeader>
-					<DialogTitle>Clear all data</DialogTitle>
-					<DialogDescription>
-						Permanently removes all notes, folders, journal entries, and tags. Your
-						account and AI keys are kept. This cannot be undone.
-					</DialogDescription>
-				</DialogHeader>
-				<div className="space-y-2">
-					<Label htmlFor="clear-confirm" className="text-xs text-muted-foreground">
-						To confirm, type{" "}
-						<span className="font-mono text-foreground">{CLEAR_PHRASE}</span> below.
-					</Label>
-					<Input
-						id="clear-confirm"
-						value={value}
-						onChange={(e) => setValue(e.target.value)}
-						placeholder={CLEAR_PHRASE}
-						autoComplete="off"
-						maxLength={60}
-					/>
-					{error && (
-						<p role="alert" className="text-xs text-destructive">
-							{error}
-						</p>
-					)}
-				</div>
-				<DialogFooter>
-					<DialogClose asChild>
-						<Button variant="outline" size="sm">
-							Cancel
-						</Button>
-					</DialogClose>
-					<Button
-						size="sm"
-						disabled={!matches || state === "pending"}
-						onClick={handleClear}
-						className="bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 shadow-none disabled:opacity-50"
-					>
-						{state === "pending" ? "Clearing…" : "Clear all data"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-	);
-}
 
 type ExportState = "idle" | "pending" | "error";
 type ImportFlowState = "idle" | "previewing" | "ready" | "importing" | "success" | "error";
@@ -411,7 +318,11 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 
 	return (
 		<SettingsCard>
-			<div className="py-4">
+			<div
+				id={settingsFocusDomId("desktop-sync")}
+				data-settings-focus="desktop-sync"
+				className="py-4 scroll-mt-24"
+			>
 				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 					<div className="min-w-0 flex-1">
 						<div className="flex items-center gap-2 text-sm font-medium">
@@ -556,12 +467,26 @@ function CloudDataSection() {
 	const isConnected = auth.phase === "authenticated";
 	const isGuest = useIsGuestWorkspace();
 	const queryClient = useQueryClient();
+	const router = useRouter();
+	const resetNotesStore = useNotesStore((s) => s.resetUi);
 
 	const handleResetDemo = async () => {
 		await resetGuestStorage();
 		window.location.reload();
 	};
 	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	const handleClearData = async (): Promise<boolean> => {
+		const result = await clearAllData("clear my data");
+		if (result.ok) {
+			await queryClient.resetQueries({ queryKey: notesKeys.all });
+			await queryClient.resetQueries({ queryKey: journalKeys.all });
+			resetNotesStore();
+			router.replace("/app");
+			return true;
+		}
+		return false;
+	};
 
 	const [exportState, setExportState] = useState<ExportState>("idle");
 	const [includeVersions, setIncludeVersions] = useState(true);
@@ -574,6 +499,7 @@ function CloudDataSection() {
 	const [importError, setImportError] = useState<string | null>(null);
 	const [importDialogOpen, setImportDialogOpen] = useState(false);
 	const [importProgress, setImportProgress] = useState({ imported: 0, total: 0 });
+	const cleanup = useNoteCleanupScan();
 
 	const handleExport = async () => {
 		setExportState("pending");
@@ -740,6 +666,7 @@ function CloudDataSection() {
 			/>
 			<SettingsCard>
 				<Row
+					focusId="backup-sync"
 					title="Export notes"
 					description="Download notes, folders, journal entries, tags, and optional version history as a Skriuw v3 ZIP."
 				>
@@ -772,6 +699,7 @@ function CloudDataSection() {
 					</div>
 				</Row>
 				<Row
+					focusId="import-backup"
 					title="Import backup"
 					description="Import a Skriuw backup or Markdown folder ZIP. Choose merge, overwrite, or full workspace replace."
 				>
@@ -799,12 +727,24 @@ function CloudDataSection() {
 				</Row>
 			</SettingsCard>
 
+			<GroupLabel>MAINTENANCE</GroupLabel>
+			<SettingsCard>
+				<NoteCleanupRow phase={cleanup.phase} onScan={cleanup.scan} disabled={false} />
+			</SettingsCard>
+			<NoteCleanupDialog
+				result={cleanup.result}
+				onOpenChange={(open) => {
+					if (!open) cleanup.reset();
+				}}
+			/>
+
 			<GroupLabel>DESKTOP APP</GroupLabel>
 			<DesktopSyncTokens isConnected={isConnected} />
 
 			{isGuest && (
 				<SettingsCard>
 					<Row
+						focusId="reset-demo-workspace"
 						title="Reset demo workspace"
 						description="Clear your local demo edits and restore the original seeded workspace. This cannot be undone."
 					>
@@ -913,7 +853,25 @@ function CloudDataSection() {
 					)}
 
 					{importState === "success" && (
-						<p className="text-sm text-foreground">Import completed successfully.</p>
+						<div className="space-y-3">
+							<p className="text-sm text-foreground">Import completed successfully.</p>
+							<div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 p-3">
+								<p className="text-xs text-muted-foreground">
+									Imports often bring along empty or duplicate notes. Scan for them now?
+								</p>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										setImportDialogOpen(false);
+										resetImportFlow();
+										void cleanup.scan();
+									}}
+								>
+									Scan for junk notes
+								</Button>
+							</div>
+						</div>
 					)}
 
 					{importError && (
@@ -959,10 +917,20 @@ function CloudDataSection() {
 			<GroupLabel>DANGER ZONE</GroupLabel>
 			<SettingsCard>
 				<Row
+					focusId="clear-all-data"
 					title="Clear all data"
 					description="Permanently delete all notes, folders, journal entries, and tags. Account and AI keys are kept."
 				>
-					<ClearDataDialog disabled={!isConnected} />
+					<DeleteButton
+						onDelete={handleClearData}
+						label="Clear data"
+						confirmLabel="Confirm clear"
+						pendingLabel="Clearing"
+						successLabel="Cleared"
+						failedLabel="Retry"
+						disabled={!isConnected}
+						disabledTitle={!isConnected ? "Sign in to clear data" : undefined}
+					/>
 				</Row>
 			</SettingsCard>
 		</>

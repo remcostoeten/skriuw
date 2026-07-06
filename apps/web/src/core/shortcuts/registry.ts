@@ -33,6 +33,12 @@ export type ShortcutDefinition = {
 	 * to match.
 	 */
 	global?: boolean;
+	/**
+	 * Shortcuts with the same binding group represent the same user-facing
+	 * command in different scopes. Rebinding one rebinds all of them, and the
+	 * settings UI treats their shared default as an intentional non-conflict.
+	 */
+	bindingGroup?: string;
 };
 
 /**
@@ -69,18 +75,32 @@ export const SHORTCUT_REGISTRY = {
 		group: "User menu",
 		label: "Go to activity",
 	},
-	"menu.settings": {
-		keys: "mod+comma",
-		scope: SCOPES.userMenu,
-		group: "User menu",
-		label: "Open settings",
-		preventDefault: true,
-	},
 	"menu.signOut": {
 		keys: "mod+delete",
 		scope: SCOPES.userMenu,
 		group: "User menu",
 		label: "Sign out",
+	},
+
+	"app.commandPalette": {
+		keys: ["mod+k", "mod+shift+p"],
+		scope: SCOPES.app,
+		group: "General",
+		label: "Open command palette",
+		description: "Search and navigate from anywhere in the app.",
+		except: false,
+		preventDefault: true,
+		bindingGroup: "command-palette",
+	},
+	"app.settings": {
+		keys: "mod+comma",
+		scope: SCOPES.app,
+		group: "General",
+		label: "Open settings",
+		description: "Open settings from anywhere in the app.",
+		except: false,
+		preventDefault: true,
+		bindingGroup: "settings",
 	},
 
 	"notes.commandPalette": {
@@ -90,6 +110,7 @@ export const SHORTCUT_REGISTRY = {
 		label: "Open command palette",
 		except: false,
 		preventDefault: true,
+		bindingGroup: "command-palette",
 	},
 	"notes.newNote": {
 		keys: "mod+n",
@@ -128,6 +149,7 @@ export const SHORTCUT_REGISTRY = {
 		group: "Notes",
 		label: "Open settings",
 		preventDefault: true,
+		bindingGroup: "settings",
 	},
 	"notes.toggleEditor": {
 		keys: "mod+alt+e",
@@ -193,6 +215,80 @@ export const SHORTCUT_REGISTRY = {
 		except: false,
 		preventDefault: true,
 	},
+	"notes.switchTab1": {
+		keys: "ctrl+1",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Go to tab 1",
+		description: "Switch to the first tab in the focused pane.",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.switchTab2": {
+		keys: "ctrl+2",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Go to tab 2",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.switchTab3": {
+		keys: "ctrl+3",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Go to tab 3",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.switchTab4": {
+		keys: "ctrl+4",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Go to tab 4",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.switchTab5": {
+		keys: "ctrl+5",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Go to tab 5",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.switchTab6": {
+		keys: "ctrl+6",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Go to tab 6",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.switchTab7": {
+		keys: "ctrl+7",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Go to tab 7",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.switchTab8": {
+		keys: "ctrl+8",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Go to tab 8",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.switchTab9": {
+		keys: "ctrl+9",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Go to last tab",
+		description: "Switch to the last tab in the focused pane.",
+		except: false,
+		preventDefault: true,
+	},
 	"notes.focusEditor": {
 		keys: "slash",
 		scope: SCOPES.notes,
@@ -209,6 +305,42 @@ export const SHORTCUT_REGISTRY = {
 		description: "Open the sidebar search field.",
 		preventDefault: true,
 	},
+	"notes.findInNote": {
+		keys: "mod+f",
+		scope: SCOPES.notes,
+		group: "Editor search",
+		label: "Find in note",
+		description: "Open the in-note search widget.",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.searchMatchCase": {
+		keys: "alt+c",
+		scope: SCOPES.notes,
+		group: "Editor search",
+		label: "Toggle match case",
+		description: "Toggle case-sensitive in-note search.",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.searchWholeWord": {
+		keys: "alt+w",
+		scope: SCOPES.notes,
+		group: "Editor search",
+		label: "Toggle whole word",
+		description: "Toggle whole-word in-note search.",
+		except: false,
+		preventDefault: true,
+	},
+	"notes.searchRegex": {
+		keys: "alt+r",
+		scope: SCOPES.notes,
+		group: "Editor search",
+		label: "Toggle regular expression",
+		description: "Toggle regex in-note search.",
+		except: false,
+		preventDefault: true,
+	},
 	"notes.help": {
 		keys: "shift+slash",
 		scope: SCOPES.notes,
@@ -223,6 +355,7 @@ export const SHORTCUT_REGISTRY = {
 		label: "Open command palette",
 		except: false,
 		preventDefault: true,
+		bindingGroup: "command-palette",
 	},
 	"journal.toggleSidebar": {
 		keys: "mod+slash",
@@ -236,6 +369,7 @@ export const SHORTCUT_REGISTRY = {
 		group: "Journal",
 		label: "Open settings",
 		preventDefault: true,
+		bindingGroup: "settings",
 	},
 	"journal.toggleEditor": {
 		keys: "mod+e",
@@ -276,6 +410,14 @@ export const SHORTCUT_REGISTRY = {
 		except: false,
 		preventDefault: true,
 		global: true,
+	},
+	"settings.toggleFocus": {
+		keys: "slash",
+		scope: SCOPES.settings,
+		group: "Settings",
+		label: "Toggle settings focus",
+		description: "Move focus between the settings sidebar and main panel.",
+		preventDefault: true,
 	},
 } as const satisfies Record<string, ShortcutDefinition>;
 

@@ -1,4 +1,3 @@
-import { extractNoteTags } from "@/domain/notes/note-links";
 import {
 	buildMarkdownImportArchive,
 	inferImportFolders,
@@ -73,8 +72,9 @@ function toParsedNote(
 	const content = (note.content ?? "").replace(/\r\n/g, "\n");
 	const title = deriveTitle(content);
 	const name = normalizeNoteFileName(uniqueName(usedKeys, null, title));
-	const declaredTags = Array.isArray(note.tags) ? note.tags : [];
-	const tags = [...new Set([...declaredTags, ...extractNoteTags(content)])];
+	// Only Simplenote's own tags survive the import. Deriving tags from note
+	// text turned `#comment` lines in code/.env snippets into workspace tags.
+	const tags = [...new Set(Array.isArray(note.tags) ? note.tags : [])];
 
 	return {
 		id: note.id,

@@ -1,0 +1,60 @@
+{
+	"rules": {
+		"preserveTokensRule": "Treat [[wikilinks]], #tags, @mentions, and $person mentions as immutable tokens: copy them byte-for-byte, never translate, correct, or reformat them.",
+		"matchLanguageRule": "Respond in the same language as the document."
+	},
+	"translate": {
+		"auto": "if it is not in English, translate it to natural English; if it is already in English, translate it to natural Dutch.",
+		"target": "translate it to natural {targetLanguage}; if it is already in {targetLanguage}, correct it into fluent, natural {targetLanguage}."
+	},
+	"actions": {
+		"generateTitle": {
+			"system": "You write short, descriptive document titles.",
+			"user": "Generate a short, concise title (max 6 words) for this document. {matchLanguageRule} Respond ONLY with the title text, no markdown, no quotes.\n\n{content}"
+		},
+		"spellCheck": {
+			"system": "You are a strict proofreader.",
+			"user": "Act as a strict proofreader. Correct ONLY spelling, grammar, punctuation, and typography errors in the following Markdown document.\n\nHard rules:\n- Do NOT add any new words, sentences, paragraphs, headings, or list items.\n- Do NOT remove, merge, split, or reorder paragraphs.\n- Do NOT rephrase, expand, summarize, or \"improve\" wording — only fix outright errors.\n- Preserve the structural formatting (headings, lists, bolding) and the number of paragraphs/blocks exactly.\n- {preserveTokensRule}\n- If a paragraph has no errors, return it byte-for-byte unchanged.\n\nReturn the same document with the same number of blocks, errors fixed. Respond ONLY with the corrected markdown, no commentary.\n\n{content}"
+		},
+		"continueWriting": {
+			"system": "You are a writing assistant that continues documents in the author's exact voice and style.",
+			"user": "You are continuing a Markdown document that was cut off — it may end mid-sentence or even mid-word.\n\nDo the following:\n1. Take the FINAL paragraph and rewrite it into a complete, natural paragraph: finish any unfinished word or sentence and smooth the wording so it reads well. Keep its original meaning and as much of the existing wording as possible.\n2. Then continue the document naturally for one or two more short paragraphs, matching the author's tone, style, and formatting.\n\n{matchLanguageRule} {preserveTokensRule}\n\nOutput ONLY Markdown: the rewritten final paragraph, immediately followed by your continuation. Do NOT restate or include the title, any headings, or any earlier paragraphs. Do NOT add a heading. Begin directly with the rewritten final paragraph.\n\nDocument:\n{content}"
+		},
+		"summarize": {
+			"system": "You write faithful, compact summaries.",
+			"user": "Summarize the following Markdown document in 2-4 sentences, capturing its key points and conclusions. {matchLanguageRule} {preserveTokensRule} Respond ONLY with the summary text as plain prose — no heading, no bullet points, no commentary.\n\n{content}"
+		},
+		"extractTasks": {
+			"system": "You extract actionable tasks from documents.",
+			"user": "Extract every actionable task, todo, follow-up, or commitment from the following Markdown document.\n\nRules:\n- One task per line, as a Markdown bullet (\"- \").\n- Phrase each task as a short imperative.\n- Only include tasks actually implied by the document; do NOT invent work.\n- If the document contains no tasks, respond with exactly: NONE\n- {matchLanguageRule} {preserveTokensRule}\n\nRespond ONLY with the bullet list (or NONE), no heading, no commentary.\n\n{content}"
+		},
+		"suggestTags": {
+			"system": "You suggest short topic tags for documents.",
+			"user": "Suggest 3 to 5 short topic tags for the following Markdown document.\n\nRules:\n- Each tag is a single lowercase word or hyphenated-compound (e.g. \"meeting-notes\"), no spaces, no \"#\" prefix.\n- Prefer tags that already appear as #tags in the document when they fit.\n- Tags describe topics, not sentiments.\n- {matchLanguageRule}\n\nRespond ONLY with the tags as a comma-separated list, nothing else.\n\n{content}"
+		},
+		"fixSelection": {
+			"system": "You are a strict proofreader.",
+			"user": "Correct spelling, grammar, and punctuation errors in the following text. Do not rephrase or change the meaning — only fix outright errors. {preserveTokensRule} Respond in the same language as the text, ONLY with the corrected text, no quotes, no commentary.\n\n{content}"
+		},
+		"rewriteSelection": {
+			"system": "You rewrite text clearly without changing its meaning.",
+			"user": "Rewrite the following text so it reads more clearly and naturally while keeping its exact meaning, tone, and approximate length. {preserveTokensRule} Respond in the same language as the text, ONLY with the rewritten text, no quotes, no commentary.\n\n{content}"
+		},
+		"shortenSelection": {
+			"system": "You condense text without losing meaning.",
+			"user": "Rewrite the following text to be roughly half as long while keeping every essential point and the original tone. {preserveTokensRule} Respond in the same language as the text, ONLY with the shortened text, no quotes, no commentary.\n\n{content}"
+		},
+		"expandSelection": {
+			"system": "You expand text in the author's voice.",
+			"user": "Expand the following text with more detail and natural flow, keeping the author's tone and intent. Roughly double the length; do not pad with filler. {preserveTokensRule} Respond in the same language as the text, ONLY with the expanded text, no quotes, no commentary.\n\n{content}"
+		},
+		"translateSelection": {
+			"system": "You are a precise translator.",
+			"user": "Translate the following text: {translateDirective} {preserveTokensRule} Respond ONLY with the translated text, no quotes, no commentary.\n\n{content}"
+		},
+		"customPrompt": {
+			"system": "You are a versatile writing and research assistant working directly inside the user's document. Follow their instruction precisely.",
+			"user": "Follow this instruction from the user:\n\n\"{instruction}\"\n\nApply it to the document content below. {preserveTokensRule}\n\nRespond ONLY with the resulting Markdown — no commentary, no restating the instruction, no wrapping quotes.\n\nDocument:\n{content}"
+		}
+	}
+}

@@ -7,6 +7,7 @@ import { get, set, del } from "idb-keyval";
 import { useEffect } from "react";
 import { useAuth } from "@/core/auth/use-auth";
 import { getUserScopeIdForUser } from "@/core/auth";
+import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
 
 // Bump when the cached query shapes change in a backward-incompatible way so
 // stale snapshots from older deploys are dropped instead of hydrated.
@@ -40,6 +41,10 @@ export function QueryCachePersistence() {
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 		if (!auth.isReady) return;
+		// Desktop reads from local SQLite/vault over IPC — already instant and
+		// durable. A second IndexedDB copy is pure overhead: an extra restore at
+		// boot plus a full note-body dehydrate every throttle window while typing.
+		if (isTauriRuntime()) return;
 
 		const key = storageKey(scope);
 		const persister = createAsyncStoragePersister({
@@ -70,6 +75,10 @@ export function QueryCachePersistence() {
 				// stale snapshot look "newer" than the fresh SSR data to hydrate()).
 				// A persisted orphan body, by contrast, is harmless: the SSR-fresh
 				// list never references it, so it never renders.
+				// Scope-suffixed LIST keys (["notes","files","local"] /
+				// ["notes","files","user:<id>"]) share this exact shape with detail
+				// keys, so they must be excluded by value or the guest/user files
+				// list gets persisted as if it were a note body.
 				shouldDehydrateQuery: (query) => {
 					if (query.state.status !== "success") return false;
 					const key = query.queryKey;
@@ -78,7 +87,9 @@ export function QueryCachePersistence() {
 						key.length === 3 &&
 						key[0] === "notes" &&
 						key[1] === "files" &&
-						typeof key[2] === "string"
+						typeof key[2] === "string" &&
+						key[2] !== "local" &&
+						!key[2].startsWith("user:")
 					);
 				},
 			},

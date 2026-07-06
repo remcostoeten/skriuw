@@ -1,10 +1,15 @@
 import type { NoteFile } from "@/domain/notes/models";
+import type { Person } from "@/domain/people/models";
 import { buildDesiredNoteLinkRows } from "@/domain/notes/note-link-sync";
 import { buildGraphData, type GraphData, type NoteLinkRow } from "@/domain/notes/graph";
 
-/** Builds a workspace graph from in-memory notes (guest/demo or tests). */
-export function buildGraphFromNotes(notes: NoteFile[]): GraphData {
-	const noteInputs = notes.map((note) => ({ id: note.id, name: note.name }));
+/** Builds a workspace graph from in-memory notes (guest/desktop or tests). */
+export function buildGraphFromNotes(notes: NoteFile[], people: Person[] = []): GraphData {
+	const noteInputs = notes.map((note) => ({
+		id: note.id,
+		name: note.name,
+		createdAt: note.createdAt,
+	}));
 	const links: NoteLinkRow[] = [];
 
 	for (const note of notes) {
@@ -18,5 +23,7 @@ export function buildGraphFromNotes(notes: NoteFile[]): GraphData {
 		}
 	}
 
-	return buildGraphData(noteInputs, links);
+	return buildGraphData(noteInputs, links, {
+		people: people.map((person) => ({ id: person.id, name: person.name })),
+	});
 }

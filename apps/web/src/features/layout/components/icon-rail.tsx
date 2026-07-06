@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Settings, Trash2, UserRound, Waypoints } from "lucide-react";
+import { BookOpen, Hash, Settings, Trash2, UserRound, Users, Waypoints } from "lucide-react";
 import { FolderOpenIcon } from "@/shared/icons/folder-open";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
@@ -22,7 +22,7 @@ import type { AuthConfig } from "@remcostoeten/auth-drawer";
 import { authDrawerAdapter } from "@/features/auth/auth-drawer-adapter";
 import { UserMenu } from "./user-menu";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
-import { resolveAuthError, type AuthErrorNotice } from "@/app/(auth)/auth-errors";
+import { resolveAuthError } from "@/app/(auth)/auth-errors";
 import { AvatarSkeleton } from "./avatar-skeleton";
 import {
 	GUEST_SIGNUP_PROMPT_EVENT,
@@ -30,10 +30,8 @@ import {
 	useWorkspaceCapabilities,
 } from "@/core/workspace-backend";
 import { useShortcutHint } from "@/core/shortcuts";
-
-type Props = {
-	onOpenSettings: () => void;
-};
+import { showUserToast } from "@/shared/lib/user-toast";
+import { useSettingsModal } from "@/features/settings/use-settings-modal";
 
 const authDrawerConfig = {
 	ui: {
@@ -78,19 +76,20 @@ function getPathWithoutAuthParams(pathname: string, searchParams: URLSearchParam
 	return query ? `${pathname}?${query}` : pathname;
 }
 
-export function IconRail({ onOpenSettings }: Props) {
+export function IconRail() {
 	const pathname = usePathname();
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const auth = useAuth();
 	const settingsShortcut = useShortcutHint("notes.settings");
+	const settingsOpen = useSettingsModal((state) => state.isOpen);
+	const openSettingsModal = useSettingsModal((state) => state.open);
 	const capabilities = useWorkspaceCapabilities();
 	const [isMounted, setIsMounted] = useState(false);
 	const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
 	const [authDrawerInitialMode, setAuthDrawerInitialMode] =
 		useState<AuthDrawerInitialMode>("login");
 	const [authDestination, setAuthDestination] = useState<string | null>(null);
-	const [authDrawerError, setAuthDrawerError] = useState<AuthErrorNotice | null>(null);
 	const [duplicateOAuth, setDuplicateOAuth] = useState<DuplicateOAuthEmailDetail | null>(null);
 	// Desktop is a single local profile with no cloud auth, so nothing is
 	// "protected" — gating these would only pop a sign-in drawer that can never
@@ -99,7 +98,7 @@ export function IconRail({ onOpenSettings }: Props) {
 		() =>
 			isTauriRuntime()
 				? new Set<string>()
-				: new Set(["/app/journal", "/app/settings", "/app/shared"]),
+				: new Set(["/app/journal", "/app/shared"]),
 		[],
 	);
 	const activeAuthDrawerConfig = useMemo(
@@ -134,27 +133,27 @@ export function IconRail({ onOpenSettings }: Props) {
 
 		setAuthDrawerInitialMode(initialMode);
 		setAuthDestination(destination);
-		setAuthDrawerError(null);
 		setAuthDrawerOpen(true);
 		router.replace(cleanPath, { scroll: false });
 	}, [auth.isReady, auth.phase, pathname, router, searchParams]);
 
+	// Intentionally excludes `authDrawerOpen`: this effect only gates entry
+	// onto a protected route, it must not re-fire (and reopen the drawer)
+	// just because the drawer's own open state changed, or a deliberate
+	// dismissal would be immediately undone.
 	useEffect(() => {
 		if (!auth.isReady || auth.phase === "authenticated") return;
 		if (!protectedRoutes.has(pathname)) return;
-		if (authDrawerOpen) return;
 
 		setAuthDestination(pathname);
-		setAuthDrawerError(null);
 		setAuthDrawerOpen(true);
-	}, [auth.isReady, auth.phase, authDrawerOpen, pathname, protectedRoutes]);
+	}, [auth.isReady, auth.phase, pathname, protectedRoutes]);
 
 	useEffect(() => {
 		function handleGuestPrompt() {
 			router.prefetch("/app");
 			setAuthDrawerInitialMode("register");
 			setAuthDestination("/app");
-			setAuthDrawerError(null);
 			setAuthDrawerOpen(true);
 		}
 		window.addEventListener(GUEST_SIGNUP_PROMPT_EVENT, handleGuestPrompt);
@@ -165,7 +164,6 @@ export function IconRail({ onOpenSettings }: Props) {
 		function handleDuplicateOAuth(event: Event) {
 			const detail = (event as CustomEvent<DuplicateOAuthEmailDetail>).detail;
 			if (!detail) return;
-			setAuthDrawerError(null);
 			setDuplicateOAuth(detail);
 		}
 		window.addEventListener(DUPLICATE_OAUTH_EMAIL_EVENT, handleDuplicateOAuth);
@@ -179,15 +177,14 @@ export function IconRail({ onOpenSettings }: Props) {
 				rememberMe: getRememberMePreference(),
 			});
 		} catch (error) {
-			setAuthDrawerError(
-				resolveAuthError(error instanceof Error ? error : new Error(String(error))),
-			);
+			const notice = resolveAuthError(error instanceof Error ? error : new Error(String(error)));
+			showUserToast(`${notice.title}: ${notice.message}`, "error");
 		}
 	};
 
 	const handleSignOut = async () => {
 		await signOut();
-		window.location.replace("/app?auth=sign-in");
+		router.replace("/app?auth=sign-in");
 	};
 
 	const isAuthenticated = auth.isReady && auth.phase === "authenticated";
@@ -195,7 +192,6 @@ export function IconRail({ onOpenSettings }: Props) {
 		router.prefetch(destination);
 		setAuthDrawerInitialMode("login");
 		setAuthDestination(destination);
-		setAuthDrawerError(null);
 		setAuthDrawerOpen(true);
 	};
 
@@ -233,6 +229,18 @@ export function IconRail({ onOpenSettings }: Props) {
 			icon: (_active: boolean) => (
 				<Waypoints className="h-[18px] w-[18px]" strokeWidth={1.6} />
 			),
+		},
+		{
+			href: "/app/tags",
+			label: "Tags",
+			isActive: pathname.startsWith("/app/tags"),
+			icon: (_active: boolean) => <Hash className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+		},
+		{
+			href: "/app/people",
+			label: "People",
+			isActive: pathname.startsWith("/app/people"),
+			icon: (_active: boolean) => <Users className="h-[18px] w-[18px]" strokeWidth={1.6} />,
 		},
 	];
 	const trashNavItem = {
@@ -298,8 +306,7 @@ export function IconRail({ onOpenSettings }: Props) {
 			<aside
 				data-tauri-drag-region
 				className="fixed inset-y-0 left-0 z-30 hidden w-14 flex-col
-      items-center justify-between border-r border-sidebar-border bg-sidebar/95
-      backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 md:flex"
+      items-center justify-between border-r border-sidebar-border bg-sidebar md:flex"
 			>
 				<div className="flex w-full flex-col items-center">
 					<div
@@ -329,20 +336,21 @@ export function IconRail({ onOpenSettings }: Props) {
 					<div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Link
-								href="/app/settings"
-								prefetch
+							<button
+								type="button"
+								onClick={() => openSettingsModal()}
 								className={cn(
 									iconButtonClass,
-									pathname === "/app/settings"
+									settingsOpen
 										? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none"
 										: inactiveNavClass,
 								)}
 								aria-label="Settings"
-								aria-current={pathname === "/app/settings" ? "page" : undefined}
+								aria-haspopup="dialog"
+								aria-expanded={settingsOpen}
 							>
 								<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
-							</Link>
+							</button>
 						</TooltipTrigger>
 						<TooltipContent side="right" shortcut={settingsShortcut}>
 							Settings
@@ -355,7 +363,7 @@ export function IconRail({ onOpenSettings }: Props) {
 						<AvatarSkeleton />
 					) : auth.phase === "authenticated" && auth.user ? (
 						<UserMenu
-							onSettings={onOpenSettings}
+							onSettings={() => openSettingsModal()}
 							onSignOut={handleSignOut}
 							onProfile={() => router.push("/app/profile")}
 							onNotes={() => router.push("/app")}
@@ -386,7 +394,10 @@ export function IconRail({ onOpenSettings }: Props) {
 			    AuthDrawer renders into a portal so it works fine here. */}
 			<AuthProvider adapter={authDrawerAdapter}>
 				{duplicateOAuth ? (
-					<div className="fixed bottom-4 left-16 z-[60] w-[min(24rem,calc(100vw-5rem))]">
+					// Not a plain toast: it needs an action, which the shared
+					// user-toast-host can't render. z-[110] keeps it above the
+					// toast host (z-[100]) instead of overlapping it.
+					<div className="fixed bottom-4 left-16 z-[110] w-[min(24rem,calc(100vw-5rem))]">
 						<div
 							role="alert"
 							className="border border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur"
@@ -419,20 +430,6 @@ export function IconRail({ onOpenSettings }: Props) {
 							</div>
 						</div>
 					</div>
-				) : authDrawerError ? (
-					<div className="fixed bottom-4 left-16 z-[60] w-[min(24rem,calc(100vw-5rem))]">
-						<div
-							role="alert"
-							className="border border-destructive/25 bg-background/95 px-4 py-3 shadow-lg backdrop-blur"
-						>
-							<p className="text-sm font-medium text-foreground">
-								{authDrawerError.title}
-							</p>
-							<p className="mt-1 text-sm text-muted-foreground">
-								{authDrawerError.message}
-							</p>
-						</div>
-					</div>
 				) : null}
 				<AuthDrawer
 					adapter={authDrawerAdapter}
@@ -445,7 +442,6 @@ export function IconRail({ onOpenSettings }: Props) {
 						}
 					}}
 					onSuccess={() => {
-						setAuthDrawerError(null);
 						setDuplicateOAuth(null);
 						if (authDestination && authDestination !== pathname) {
 							router.push(authDestination);
@@ -466,7 +462,8 @@ export function IconRail({ onOpenSettings }: Props) {
 						// via DUPLICATE_OAUTH_EMAIL_EVENT, so skip the plain error notice.
 						if (fallbackMessage.includes("already exists via")) return;
 
-						setAuthDrawerError(resolveAuthError(new Error(fallbackMessage)));
+						const notice = resolveAuthError(new Error(fallbackMessage));
+						showUserToast(`${notice.title}: ${notice.message}`, "error");
 					}}
 					config={activeAuthDrawerConfig}
 				/>

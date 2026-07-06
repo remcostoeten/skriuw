@@ -9,31 +9,30 @@ import {
 	type PointerEvent as ReactPointerEvent,
 } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { AlertTriangle, GripVertical, X } from "lucide-react";
+import { AlertTriangle, GripVertical, Sparkles, Undo2, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { Editor } from "./editor";
 import type { TRichTextCollab } from "./rich-text-editor";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
-import { AiWritingIndicator, type AiWritingAction } from "./ai-writing-indicator";
+import {
+	AiWritingIndicator,
+	AI_WRITING_LABELS,
+	type AiWritingAction,
+} from "./ai-writing-indicator";
 import { EditorToolbar } from "./editor-toolbar";
 import type { EditorSaveState, WorkspaceNavItem } from "./editor-toolbar";
 import { useCollabRoom } from "@/features/collaboration/hooks/use-collab-room";
 import { useNoteCollabEnabled } from "@/features/collaboration/hooks/use-note-collab-enabled";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import type { NoteProperty } from "@/domain/notes/properties";
-import {
-	callAi,
-	AiRateLimitError,
-	AiRequestError,
-	type AiEditorHandle,
-	type AiAction,
-	type AiErrorCode,
-} from "@/features/ai/service";
+import { type AiEditorHandle, type AiAction, type AiSelectionAction } from "@/features/ai/service";
 import { isTauriRuntime, tauriInvoke } from "@/core/workspace-backend";
 import { useAiProviderKeys } from "@/features/ai/hooks/use-ai-provider-keys";
-import { listFallbackAiKeys, resolveAiKey } from "@/features/ai/lib/resolve-ai-key";
+import { listFallbackAiKeys } from "@/features/ai/lib/resolve-ai-key";
 import { usePreferencesStore } from "@/features/settings/store";
+import { useAiAction } from "@/features/ai/hooks/use-ai-action";
 import { isMdxNote } from "@/features/editor/lib/editor-mode";
+import type { VimMode } from "@/features/editor/lib/vim-plugin";
 import {
 	deriveNoteNameFromHeading,
 	nameTracksHeading,
@@ -99,23 +98,6 @@ type EditorContainerProps = {
 	isContentLoading?: boolean;
 }
 
-type RateLimitPrompt = {
-	action: AiAction;
-	exhaustedKeyIds: string[];
-	message: string;
-	details?: string;
-	eventId?: string;
-};
-
-type AiUiError = {
-	title: string;
-	message: string;
-	details?: string;
-	code?: AiErrorCode | "unknown";
-	eventId?: string;
-	action: AiAction;
-};
-
 type EditorCursorStatus = {
 	line: number;
 	column: number;
@@ -125,18 +107,112 @@ type EditorCursorStatus = {
 	};
 };
 
-const AI_ERROR_TITLES: Partial<Record<AiErrorCode, string>> = {
-	authentication_required: "Authentication required",
-	invalid_model: "Unsupported model",
-	content_too_large: "Note is too large",
-	server_not_configured: "Server AI is not configured",
-	invalid_key: "AI key failed",
-	forbidden: "AI access denied",
-	model_not_found: "AI model unavailable",
-	provider_error: "AI provider error",
-	network_error: "Network error",
-	rate_limited: "AI key rate limited",
-};
+const NOTE_AI_ACTIONS: readonly AiAction[] = [
+	"generateTitle",
+	"spellCheck",
+	"continueWriting",
+	"summarize",
+	"extractTasks",
+	"suggestTags",
+	"fixSelection",
+	"rewriteSelection",
+	"shortenSelection",
+	"expandSelection",
+	"translateSelection",
+	"customPrompt",
+];
+
+const SELECTION_AI_ACTIONS: readonly AiSelectionAction[] = [
+	"fixSelection",
+	"rewriteSelection",
+	"shortenSelection",
+	"expandSelection",
+	"translateSelection",
+];
+
+function readSelectionContent(handle: AiEditorHandle): string {
+	return handle.getSelectionText?.() ?? "";
+}
+
+function parseSuggestedTags(result: string): string[] {
+	return Array.from(
+		new Set(
+			result
+				.split(/[,\n]/)
+				.map((tag) => tag.trim().replace(/^#/, "").toLowerCase())
+				.filter((tag) => tag.length > 0 && tag.length <= 40 && !tag.includes(" ")),
+		),
+	).slice(0, 8);
+}
+
+function SuggestedTagsBanner({
+	tags,
+	onInsert,
+	onDismiss,
+}: {
+	tags: string[];
+	onInsert: (tags: string[]) => void;
+	onDismiss: () => void;
+}) {
+	const [selected, setSelected] = useState<Set<string>>(() => new Set(tags));
+
+	const toggle = (tag: string) => {
+		setSelected((current) => {
+			const next = new Set(current);
+			if (next.has(tag)) {
+				next.delete(tag);
+			} else {
+				next.add(tag);
+			}
+			return next;
+		});
+	};
+
+	return (
+		<div className="border-b border-border bg-muted/40 px-4 py-3 text-xs">
+			<div className="flex items-start gap-3">
+				<Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+				<div className="flex min-w-0 flex-1 flex-col gap-2">
+					<span className="font-medium text-foreground">Suggested tags</span>
+					<div className="flex flex-wrap items-center gap-1.5">
+						{tags.map((tag) => (
+							<button
+								key={tag}
+								type="button"
+								onClick={() => toggle(tag)}
+								aria-pressed={selected.has(tag)}
+								className={cn(
+									"border px-2 py-0.5 font-mono transition-colors",
+									selected.has(tag)
+										? "border-foreground/30 bg-foreground/10 text-foreground"
+										: "border-border text-muted-foreground hover:text-foreground",
+								)}
+							>
+								#{tag}
+							</button>
+						))}
+						<button
+							type="button"
+							disabled={selected.size === 0}
+							onClick={() => onInsert(tags.filter((tag) => selected.has(tag)))}
+							className="ml-1 border border-border bg-background px-2 py-0.5 font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							Add to note
+						</button>
+					</div>
+				</div>
+				<button
+					type="button"
+					onClick={onDismiss}
+					className="shrink-0 text-muted-foreground/60 transition-colors hover:text-foreground"
+					aria-label="Dismiss tag suggestions"
+				>
+					<X className="h-3.5 w-3.5" strokeWidth={1.5} />
+				</button>
+			</div>
+		</div>
+	);
+}
 
 function getWordCount(content: string): number {
 	const trimmed = content.trim();
@@ -200,22 +276,20 @@ function ActivityDots({
 	aiLoading,
 }: {
 	saveState?: EditorSaveState;
-	aiLoading: { generateTitle: boolean; spellCheck: boolean; continueWriting: boolean };
+	aiLoading: Partial<Record<AiAction, boolean>>;
 }) {
 	const prefersReducedMotion = useReducedMotion();
 	const isSaving = saveState === "saving";
-	const isAiBusy = aiLoading.generateTitle || aiLoading.spellCheck || aiLoading.continueWriting;
-	const isActive = isSaving || isAiBusy;
+	const activeAiAction = (Object.keys(aiLoading) as AiAction[]).find(
+		(action) => aiLoading[action],
+	);
+	const isActive = isSaving || Boolean(activeAiAction);
 
 	const tooltipLabel = isSaving
 		? "Saving note…"
-		: aiLoading.generateTitle
-			? "AI — Generating title…"
-			: aiLoading.spellCheck
-				? "AI — Checking spelling…"
-				: aiLoading.continueWriting
-					? "AI — Continuing writing…"
-					: "";
+		: activeAiAction
+			? `AI — ${AI_WRITING_LABELS[activeAiAction]}…`
+			: "";
 
 	return (
 		<AnimatePresence>
@@ -294,161 +368,125 @@ export function EditorContainer({
 	onCreateFile,
 	isContentLoading = false,
 }: EditorContainerProps) {
-	const aiHandleRef = useRef<AiEditorHandle | null>(null);
 	const isRenamingFromH1Ref = useRef(false);
 	const lastFileNameRef = useRef(fileName);
 	// Whether the filename is still auto-following the first heading. True while
 	// the name is Untitled or matches the current heading; a manual rename
 	// permanently opts out. Re-evaluated when a different note is opened.
 	const headingTracksRef = useRef(true);
-	const [aiLoading, setAiLoading] = useState({
-		generateTitle: false,
-		spellCheck: false,
-		continueWriting: false,
-	});
-	const [rateLimitPrompt, setRateLimitPrompt] = useState<RateLimitPrompt | null>(null);
-	const [aiError, setAiError] = useState<AiUiError | null>(null);
 	const [cursorPosition, setCursorPosition] = useState<EditorCursorStatus>({
 		line: 1,
 		column: 1,
 	});
-	const [vimMode, setVimMode] = useState<"normal" | "insert" | null>(null);
+	const [vimMode, setVimMode] = useState<VimMode | null>(null);
+	const [spellCheckRevert, setSpellCheckRevert] = useState<string | null>(null);
+	const [customPromptRevert, setCustomPromptRevert] = useState<string[] | null>(null);
+	const [suggestedTags, setSuggestedTags] = useState<string[] | null>(null);
+	const [aiNotice, setAiNotice] = useState<string | null>(null);
 
 	const aiPrefs = usePreferencesStore((s) => s.ai);
 	const editorPrefs = usePreferencesStore((s) => s.editor);
 	const showLineNumbers = usePreferencesStore((s) => s.appearance.showLineNumbers);
 	const { data: serverKeys = [] } = useAiProviderKeys();
 
-	const aiResourceOptions = useMemo(
+	const applyAiResult = useMemo(() => {
+		const applySelection = (result: string, editorHandle: AiEditorHandle) => {
+			editorHandle.replaceSelection?.(result.trim());
+		};
+		return {
+			generateTitle: (result: string) => {
+				if (file && onRenameFile) onRenameFile(file.id, result);
+			},
+			spellCheck: (result: string, editorHandle: AiEditorHandle) => {
+				// Snapshot the pre-correction markdown so the user can revert the
+				// whole-document replace from the banner below.
+				void (async () => {
+					const previous = await editorHandle.getMarkdown();
+					editorHandle.replaceContent(result);
+					setSpellCheckRevert(previous);
+				})();
+			},
+			continueWriting: (result: string, editorHandle: AiEditorHandle) => {
+				editorHandle.continueWriting(result);
+			},
+			summarize: (result: string, editorHandle: AiEditorHandle) => {
+				const trimmed = result.trim();
+				if (!trimmed) return;
+				editorHandle.appendMarkdown?.(`## Summary\n\n${trimmed}`);
+			},
+			extractTasks: (result: string, editorHandle: AiEditorHandle) => {
+				const trimmed = result.trim();
+				if (!trimmed || trimmed.toUpperCase() === "NONE") {
+					setAiNotice("No action items were found in this note.");
+					return;
+				}
+				editorHandle.appendMarkdown?.(`## Action items\n\n${trimmed}`);
+			},
+			suggestTags: (result: string) => {
+				const tags = parseSuggestedTags(result);
+				if (tags.length === 0) {
+					setAiNotice("No usable tag suggestions came back.");
+					return;
+				}
+				setSuggestedTags(tags);
+			},
+			fixSelection: applySelection,
+			rewriteSelection: applySelection,
+			shortenSelection: applySelection,
+			expandSelection: applySelection,
+			translateSelection: applySelection,
+		};
+	}, [file, onRenameFile]);
+
+	const aiContentSource = useMemo(
 		() => ({
-			model: aiPrefs.model,
-			resourceType: file ? "note" : undefined,
-			resourceId: file?.id,
-			resourceUrl: file ? `/app?note=${encodeURIComponent(file.id)}` : undefined,
+			...(Object.fromEntries(
+				SELECTION_AI_ACTIONS.map((action) => [action, readSelectionContent]),
+			) as Partial<Record<AiAction, (handle: AiEditorHandle) => string>>),
+			customPrompt: async (handle: AiEditorHandle) => {
+				const selection = handle.getSelectionText?.() ?? "";
+				return selection.trim() ? selection : await handle.getMarkdown();
+			},
 		}),
-		[aiPrefs.model, file],
+		[],
 	);
+
+	const {
+		aiLoading,
+		aiError,
+		rateLimitPrompt,
+		handleEditorReady,
+		editorHandleRef: aiHandleRef,
+		runAiAction,
+		cancelAiAction,
+		dismissAiError,
+		dismissRateLimit,
+	} = useAiAction<AiAction>({
+		actions: NOTE_AI_ACTIONS,
+		applyResult: applyAiResult,
+		contentSource: aiContentSource,
+		model: aiPrefs.model,
+		resourceType: file ? "note" : undefined,
+		resourceId: file?.id,
+		resourceUrl: file ? `/app?note=${encodeURIComponent(file.id)}` : undefined,
+		resetKey: file?.id,
+		loadingEntityLabel: "note body",
+		errorTitleOverrides: { content_too_large: "Note is too large" },
+		onStreamComplete: (action, insertedIds) => {
+			if (action === "customPrompt" && insertedIds.length > 0) {
+				setCustomPromptRevert(insertedIds);
+			}
+		},
+	});
 
 	// Clear transient state when switching files
 	useEffect(() => {
-		setRateLimitPrompt(null);
-		setAiError(null);
 		setCursorPosition({ line: 1, column: 1 });
+		setSpellCheckRevert(null);
+		setCustomPromptRevert(null);
+		setSuggestedTags(null);
+		setAiNotice(null);
 	}, [file?.id]);
-
-	const runAiAction = useCallback(
-		async (action: AiAction, keyId?: string, exhaustedIds: string[] = []) => {
-			const editorHandle = aiHandleRef.current;
-			if (!editorHandle) {
-				setAiError({
-					action,
-					code: "unknown",
-					title: "Editor is still loading",
-					message: "The AI action could not start because the editor is not ready yet.",
-					details: "Wait for the note body to finish loading, then try again.",
-				});
-				return;
-			}
-
-			const resolvedKey = resolveAiKey({
-				model: aiPrefs.model,
-				localKeys: aiPrefs.keys,
-				activeLocalKeyId: aiPrefs.activeKeyId,
-				serverKeys,
-				overrideKeyId: keyId,
-				exhaustedIds,
-			});
-
-			const callOptions = resolvedKey
-				? {
-						...aiResourceOptions,
-						...(resolvedKey.source === "local"
-							? { apiKey: resolvedKey.apiKey }
-							: { keyId: resolvedKey.keyId }),
-					}
-				: aiResourceOptions;
-
-			setAiLoading((s) => ({ ...s, [action]: true }));
-			setRateLimitPrompt(null);
-			setAiError(null);
-
-			try {
-				const markdown = await editorHandle.getMarkdown();
-				if (!markdown.trim()) {
-					setAiError({
-						action,
-						code: "no_content",
-						title: "Nothing to send to AI",
-						message: "Write some content first, then run the AI action again.",
-					});
-					return;
-				}
-
-				const result = await callAi(action, markdown, callOptions);
-				if (!result) return;
-
-				if (action === "generateTitle") {
-					if (file && onRenameFile) onRenameFile(file.id, result);
-				} else if (action === "spellCheck") {
-					editorHandle.replaceContent(result);
-				} else {
-					editorHandle.continueWriting(result);
-				}
-			} catch (err) {
-				if (err instanceof AiRateLimitError) {
-					const newExhausted = resolvedKey
-						? [...exhaustedIds, resolvedKey.id]
-						: exhaustedIds;
-					setRateLimitPrompt({
-						action,
-						exhaustedKeyIds: newExhausted,
-						message: err.message,
-						details: err.details,
-						eventId: err.eventId,
-					});
-				} else {
-					console.error(`[AI/${action}]`, err);
-					if (err instanceof AiRequestError) {
-						setAiError({
-							action,
-							code: err.code,
-							eventId: err.eventId,
-							title: AI_ERROR_TITLES[err.code] ?? "AI request failed",
-							message: err.message,
-							details: err.details,
-						});
-					} else {
-						setAiError({
-							action,
-							code: "unknown",
-							title: "AI request failed",
-							message:
-								err instanceof Error
-									? err.message
-									: "An unknown AI error occurred.",
-							details:
-								"No structured server diagnostic was returned for this failure.",
-						});
-					}
-				}
-			} finally {
-				setAiLoading((s) => ({ ...s, [action]: false }));
-			}
-		},
-		[
-			aiPrefs.keys,
-			aiPrefs.activeKeyId,
-			aiPrefs.model,
-			aiResourceOptions,
-			file,
-			onRenameFile,
-			serverKeys,
-		],
-	);
-
-	const handleEditorReady = useCallback((handle: AiEditorHandle) => {
-		aiHandleRef.current = handle;
-	}, []);
 
 	const canExportNote = isTauriRuntime();
 	const handleExportNote = useCallback(
@@ -516,13 +554,8 @@ export function EditorContainer({
 	const canUseAi = isAiAvailable;
 	const wordCount = useMemo(() => getWordCount(file?.content ?? ""), [file?.content]);
 
-	const activeWritingAction: AiWritingAction | null = aiLoading.continueWriting
-		? "continueWriting"
-		: aiLoading.spellCheck
-			? "spellCheck"
-			: aiLoading.generateTitle
-				? "generateTitle"
-				: null;
+	const activeWritingAction: AiWritingAction | null =
+		(Object.keys(aiLoading) as AiAction[]).find((action) => aiLoading[action]) ?? null;
 
 	// Real-time collaboration: only shared notes in block mode open a Yjs room.
 	// MDX/raw notes use a plain textarea with no CRDT binding, so collab stays off.
@@ -584,6 +617,7 @@ export function EditorContainer({
 					onAiContinueWriting={
 						canUseAi ? () => runAiAction("continueWriting") : undefined
 					}
+					onAiAction={canUseAi ? runAiAction : undefined}
 					onExportNote={canExportNote && file ? handleExportNote : undefined}
 					splitEnabled={splitEnabled}
 					onToggleSplit={onToggleSplit}
@@ -663,7 +697,7 @@ export function EditorContainer({
 						</div>
 						<button
 							type="button"
-							onClick={() => setAiError(null)}
+							onClick={dismissAiError}
 							className="shrink-0 text-destructive/50 transition-colors hover:text-destructive"
 							aria-label="Dismiss AI error"
 						>
@@ -752,7 +786,7 @@ export function EditorContainer({
 						</div>
 						<button
 							type="button"
-							onClick={() => setRateLimitPrompt(null)}
+							onClick={dismissRateLimit}
 							className="mt-0.5 shrink-0 text-warning/50 transition-colors hover:text-warning"
 							aria-label="Dismiss rate limit warning"
 						>
@@ -762,9 +796,97 @@ export function EditorContainer({
 				</div>
 			)}
 
+			{!isPane && aiNotice && (
+				<div className="border-b border-border bg-muted/40 px-4 py-2.5 text-xs">
+					<div className="flex items-center gap-3">
+						<Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+						<span className="min-w-0 flex-1 text-muted-foreground">{aiNotice}</span>
+						<button
+							type="button"
+							onClick={() => setAiNotice(null)}
+							className="shrink-0 text-muted-foreground/60 transition-colors hover:text-foreground"
+							aria-label="Dismiss AI notice"
+						>
+							<X className="h-3.5 w-3.5" strokeWidth={1.5} />
+						</button>
+					</div>
+				</div>
+			)}
+
+			{!isPane && spellCheckRevert !== null && (
+				<div className="border-b border-border bg-muted/40 px-4 py-2.5 text-xs">
+					<div className="flex items-center gap-3">
+						<Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+						<span className="min-w-0 flex-1 text-muted-foreground">
+							AI spell check replaced the note content.
+						</span>
+						<button
+							type="button"
+							onClick={() => {
+								aiHandleRef.current?.replaceContent(spellCheckRevert);
+								setSpellCheckRevert(null);
+							}}
+							className="flex shrink-0 items-center gap-1.5 border border-border bg-background px-2 py-0.5 font-medium text-foreground transition-colors hover:bg-muted"
+						>
+							<Undo2 className="h-3 w-3" strokeWidth={1.6} />
+							Revert
+						</button>
+						<button
+							type="button"
+							onClick={() => setSpellCheckRevert(null)}
+							className="shrink-0 border border-transparent px-2 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
+						>
+							Keep
+						</button>
+					</div>
+				</div>
+			)}
+
+			{!isPane && customPromptRevert !== null && (
+				<div className="border-b border-border bg-muted/40 px-4 py-2.5 text-xs">
+					<div className="flex items-center gap-3">
+						<Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+						<span className="min-w-0 flex-1 text-muted-foreground">
+							AI inserted content from your instruction.
+						</span>
+						<button
+							type="button"
+							onClick={() => {
+								aiHandleRef.current?.deleteBlocks?.(customPromptRevert);
+								setCustomPromptRevert(null);
+							}}
+							className="flex shrink-0 items-center gap-1.5 border border-border bg-background px-2 py-0.5 font-medium text-foreground transition-colors hover:bg-muted"
+						>
+							<Undo2 className="h-3 w-3" strokeWidth={1.6} />
+							Revert
+						</button>
+						<button
+							type="button"
+							onClick={() => setCustomPromptRevert(null)}
+							className="shrink-0 border border-transparent px-2 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
+						>
+							Keep
+						</button>
+					</div>
+				</div>
+			)}
+
+			{!isPane && suggestedTags && (
+				<SuggestedTagsBanner
+					tags={suggestedTags}
+					onInsert={(tags) => {
+						aiHandleRef.current?.appendMarkdown?.(
+							`Tags: ${tags.map((tag) => `#${tag}`).join(" ")}`,
+						);
+						setSuggestedTags(null);
+					}}
+					onDismiss={() => setSuggestedTags(null)}
+				/>
+			)}
+
 			<div className="relative flex min-h-0 flex-1 flex-col">
 				{isContentLoading || collabConnecting ? (
-					<div className="flex-1 overflow-y-auto bg-card" aria-busy="true">
+					<div className="flex-1 overflow-y-auto overscroll-contain bg-card" aria-busy="true">
 						<EditorContentSkeleton />
 					</div>
 				) : (
@@ -799,6 +921,13 @@ export function EditorContainer({
 									}
 									onAiContinueWriting={
 										canUseAi ? () => runAiAction("continueWriting") : undefined
+									}
+									onAiAction={canUseAi ? runAiAction : undefined}
+									onAiCustomPrompt={
+										canUseAi
+											? (instruction) =>
+													runAiAction("customPrompt", undefined, [], instruction)
+											: undefined
 									}
 									onTitleCommit={handleTitleCommit}
 									onBlur={onEditorBlur}
@@ -866,6 +995,24 @@ export function EditorContainer({
 									>
 										Continue writing
 									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={aiLoading.summarize}
+										onClick={() => runAiAction("summarize")}
+									>
+										Summarize
+									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={aiLoading.extractTasks}
+										onClick={() => runAiAction("extractTasks")}
+									>
+										Extract tasks
+									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={aiLoading.suggestTags}
+										onClick={() => runAiAction("suggestTags")}
+									>
+										Suggest tags
+									</ContextMenuItem>
 								</>
 							) : null}
 							{canExportNote ? (
@@ -889,7 +1036,15 @@ export function EditorContainer({
 					</ContextMenu>
 				)}
 				{!(isContentLoading || collabConnecting) && (
-					<AiWritingIndicator action={activeWritingAction} />
+					<AiWritingIndicator
+						action={activeWritingAction}
+						onCancel={
+							activeWritingAction === "continueWriting" ||
+							activeWritingAction === "customPrompt"
+								? cancelAiAction
+								: undefined
+						}
+					/>
 				)}
 			</div>
 
@@ -897,10 +1052,7 @@ export function EditorContainer({
 				<div className="flex h-8 shrink-0 items-center border-t border-border bg-card px-4 text-[11px] text-muted-foreground">
 					<div className="flex min-w-0 flex-1 items-center gap-3">
 						<span className="tabular-nums inline-flex items-baseline">
-							<AnimatedNumber
-								value={wordCount}
-								animate={editorPrefs.animateNumbers}
-							/>
+							<AnimatedNumber value={wordCount} animate={false} />
 							<span className="ml-1">{wordCount === 1 ? "word" : "words"}</span>
 						</span>
 						<span className="h-4 w-px bg-border" aria-hidden="true" />

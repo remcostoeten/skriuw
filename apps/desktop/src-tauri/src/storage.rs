@@ -25,6 +25,26 @@ pub struct Note {
     pub modified_at: i64,
 }
 
+/// A note row without its body columns (`content`, `rich_content`) — what the
+/// sidebar/list UI actually consumes. Listing bodies for every note ships
+/// megabytes of JSON over IPC per call on a real vault; this keeps the list
+/// payload to metadata, mirroring the web backend's metadata-only list query
+/// (`listNoteMetadata` in `domain/notes/queries.ts`). The TS side fills
+/// `content`/`richContent` with empty values to preserve the `NoteFile` shape.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteMetadata {
+    pub id: String,
+    pub name: String,
+    pub preferred_editor_mode: String,
+    pub parent_id: Option<String>,
+    pub sort_order: i64,
+    pub tags: Vec<String>,
+    pub properties: serde_json::Value,
+    pub created_at: i64,
+    pub modified_at: i64,
+}
+
 /// A folder row, matching the TypeScript `NoteFolder` contract.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -92,6 +112,15 @@ pub struct JournalTag {
 #[serde(rename_all = "camelCase")]
 pub struct Person {
     pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+}
+
+/// A note-tag colour row, serialized to match the TypeScript `GuestTagMeta`
+/// contract (`src/core/workspace-backend/local-store.ts`).
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteTagMeta {
     pub name: String,
     pub color: Option<String>,
 }
@@ -169,6 +198,15 @@ pub struct NoteLinkInput {
     pub target_title_key: Option<String>,
 }
 
+/// One note's link-index replacement, for the bulk backfill path.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteLinkReplacement {
+    pub note_id: String,
+    pub links: Vec<NoteLinkInput>,
+    pub title_keys: Vec<String>,
+}
+
 /// Candidate backlink sources for a target note, plus the ambiguity verdict for
 /// each of the target's title keys. The TS side does the final mapping to
 /// `ResolvedNoteLink[]` so the output is byte-identical to `buildNoteBacklinks`:
@@ -193,12 +231,43 @@ pub struct BacklinkSource {
     pub matched_note_id: bool,
 }
 
+/// One tag with its note membership count, aggregated from `note_links` rows
+/// of kind `tag` — mirrors the web's Prisma `listTags` aggregation.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TagSummaryRow {
+    pub name: String,
+    pub color: Option<String>,
+    pub note_count: i64,
+}
+
+/// A note summary for tag/person membership pages (id + name + modified time).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaggedNoteSummaryRow {
+    pub id: String,
+    pub name: String,
+    pub modified_at: i64,
+}
+
+/// A `note_links` row narrowed to what the TS graph builder needs.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteLinkRow {
+    pub source_note_id: String,
+    pub target_note_id: Option<String>,
+    pub target_label: String,
+    pub kind: String,
+}
+
 /// Tauri-managed handle around the single SQLite connection. Every command
 /// locks the mutex for the duration of its query; SQLite itself serializes
 /// writers, and the workspace is single-user/local so contention is trivial.
 pub struct Storage {
     conn: Mutex<Connection>,
 }
+
+const LINK_INDEX_VERSION: i64 = 2;
 
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS folders (
@@ -317,6 +386,13 @@ CREATE TABLE IF NOT EXISTS people (
 	color TEXT
 );
 
+-- Note-tag metadata (colour only). Tag membership stays derived from note
+-- content, mirroring the cloud `note_tags` Postgres table.
+CREATE TABLE IF NOT EXISTS note_tags (
+	name  TEXT PRIMARY KEY,
+	color TEXT
+);
+
 -- Version history snapshots, one row per captured checkpoint. Capture/dedupe
 -- rules live in versioning.rs (mirrors the web `note_versions` Postgres table
 -- and its versioning.ts rules); this table is local-only, never synced.
@@ -361,6 +437,17 @@ impl Storage {
         conn.execute_batch(SCHEMA)?;
         ensure_column(&conn, "notes", "properties", "TEXT NOT NULL DEFAULT '[]'")?;
         ensure_column(&conn, "journal_entries", "title", "TEXT")?;
+        // Link-index generation, tracked in the SQLite user_version pragma.
+        // v2: the index gained `tag`/`person` rows (previously wiki/markdown
+        // only), so rows written by older builds are incomplete. Dropping the
+        // index makes every note "unindexed" again; the frontend backfill that
+        // runs after the launch reconcile rebuilds it with the new row set.
+        let link_index_version: i64 =
+            conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if link_index_version < LINK_INDEX_VERSION {
+            conn.execute_batch("DELETE FROM note_links; DELETE FROM note_titles;")?;
+            conn.pragma_update(None, "user_version", LINK_INDEX_VERSION)?;
+        }
         // Repopulate the FTS index from the content table. Cheap for a local
         // workspace and idempotent — covers a DB created before the FTS table
         // existed (no-op once the triggers have kept it current).
@@ -389,6 +476,18 @@ impl Storage {
 			 parent_id, sort_order, tags, properties, created_at, modified_at FROM notes",
         )?;
         let rows = stmt.query_map([], row_to_note)?;
+        rows.collect()
+    }
+
+    /// Lists every note WITHOUT its body columns. This is the sidebar/list hot
+    /// path; bodies are fetched per note via `get_note`/`get_notes`.
+    pub fn list_note_metadata(&self) -> rusqlite::Result<Vec<NoteMetadata>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare_cached(
+            "SELECT id, name, preferred_editor_mode, parent_id, sort_order, \
+			 tags, properties, created_at, modified_at FROM notes",
+        )?;
+        let rows = stmt.query_map([], row_to_note_metadata)?;
         rows.collect()
     }
 
@@ -465,6 +564,31 @@ impl Storage {
         tx.commit()
     }
 
+    /// Notes that have never had their links indexed — no `note_titles` rows
+    /// (those are written for every indexed note, even link-free ones). Filled
+    /// by the frontend backfill, since link extraction semantics live in TS.
+    pub fn list_unindexed_note_ids(&self) -> rusqlite::Result<Vec<String>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id FROM notes WHERE id NOT IN (SELECT DISTINCT note_id FROM note_titles)",
+        )?;
+        let rows = stmt.query_map([], |row| row.get(0))?;
+        rows.collect()
+    }
+
+    /// Replaces the link rows + title keys for many notes in one transaction.
+    pub fn replace_note_links_bulk(
+        &self,
+        entries: &[NoteLinkReplacement],
+    ) -> rusqlite::Result<()> {
+        let mut conn = self.lock();
+        let tx = conn.transaction()?;
+        for entry in entries {
+            replace_note_links_with(&tx, &entry.note_id, &entry.links, &entry.title_keys)?;
+        }
+        tx.commit()
+    }
+
     /// True once the link index has been populated for the workspace. Checks
     /// `note_titles` (written for every note, even link-free ones) rather than
     /// `note_links` so a workspace with notes but no links still counts as
@@ -479,6 +603,85 @@ impl Storage {
         }
         let notes: i64 = conn.query_row("SELECT COUNT(*) FROM notes", [], |row| row.get(0))?;
         Ok(notes == 0)
+    }
+
+    /// Drops the whole link index (link rows + title keys) so the frontend
+    /// backfill rebuilds it from scratch. Used when the extraction semantics
+    /// change at runtime — e.g. toggling the "detect #tags in text" preference,
+    /// whose effect is baked into the persisted rows at write time.
+    pub fn clear_note_links_index(&self) -> rusqlite::Result<()> {
+        let mut conn = self.lock();
+        let tx = conn.transaction()?;
+        tx.execute("DELETE FROM note_links", [])?;
+        tx.execute("DELETE FROM note_titles", [])?;
+        tx.commit()
+    }
+
+    /// Every tag with its distinct-note count, from the persisted `tag` link
+    /// rows — plus color-only entries from `note_tags` that no note carries.
+    /// Sorted by count desc then name asc, matching the web `listTags` action.
+    pub fn list_tag_summaries(&self) -> rusqlite::Result<Vec<TagSummaryRow>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare(
+            "SELECT c.label AS name, t.color AS color, c.cnt AS note_count \
+			 FROM (SELECT target_label AS label, COUNT(DISTINCT source_note_id) AS cnt \
+			       FROM note_links WHERE kind = 'tag' GROUP BY target_label) c \
+			 LEFT JOIN note_tags t ON t.name = c.label \
+			 UNION ALL \
+			 SELECT t.name, t.color, 0 FROM note_tags t \
+			 WHERE t.name NOT IN (SELECT DISTINCT target_label FROM note_links WHERE kind = 'tag') \
+			 ORDER BY note_count DESC, name ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(TagSummaryRow {
+                name: row.get(0)?,
+                color: row.get(1)?,
+                note_count: row.get(2)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    /// Notes carrying a link row of `kind` pointing at `label` (a normalized
+    /// tag name or a person id), newest-modified first.
+    pub fn list_linked_note_summaries(
+        &self,
+        kind: &str,
+        label: &str,
+    ) -> rusqlite::Result<Vec<TaggedNoteSummaryRow>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare(
+            "SELECT DISTINCT n.id, n.name, n.modified_at \
+			 FROM note_links l JOIN notes n ON n.id = l.source_note_id \
+			 WHERE l.kind = ?1 AND l.target_label = ?2 \
+			 ORDER BY n.modified_at DESC",
+        )?;
+        let rows = stmt.query_map(params![kind, label], |row| {
+            Ok(TaggedNoteSummaryRow {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                modified_at: row.get(2)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    /// Every persisted link row, narrowed to the fields the TS graph builder
+    /// consumes. Replaces shipping all note bodies over IPC for the graph view.
+    pub fn list_note_link_rows(&self) -> rusqlite::Result<Vec<NoteLinkRow>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare(
+            "SELECT source_note_id, target_note_id, target_label, kind FROM note_links",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(NoteLinkRow {
+                source_note_id: row.get(0)?,
+                target_note_id: row.get(1)?,
+                target_label: row.get(2)?,
+                kind: row.get(3)?,
+            })
+        })?;
+        rows.collect()
     }
 
     /// Returns the candidate source notes that link to `target_id` — matched by an
@@ -573,22 +776,7 @@ impl Storage {
     }
 
     pub fn upsert_folder(&self, folder: &Folder) -> rusqlite::Result<()> {
-        let conn = self.lock();
-        conn.execute(
-            "INSERT INTO folders (id, name, parent_id, sort_order, is_open) \
-			 VALUES (?1, ?2, ?3, ?4, ?5) \
-			 ON CONFLICT(id) DO UPDATE SET \
-			  name = excluded.name, parent_id = excluded.parent_id, \
-			  sort_order = excluded.sort_order, is_open = excluded.is_open",
-            params![
-                folder.id,
-                folder.name,
-                folder.parent_id,
-                folder.sort_order,
-                folder.is_open as i64,
-            ],
-        )?;
-        Ok(())
+        upsert_folder_with(&self.lock(), folder)
     }
 
     /// Deletes a folder. The `ON DELETE CASCADE` foreign keys remove descendant
@@ -610,28 +798,7 @@ impl Storage {
     }
 
     pub fn upsert_journal_entry(&self, entry: &JournalEntry) -> rusqlite::Result<()> {
-        let conn = self.lock();
-        conn.execute(
-            "INSERT INTO journal_entries \
-			 (id, date_key, title, content, mood, tags, created_at, updated_at) \
-			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
-			 ON CONFLICT(id) DO UPDATE SET \
-			  date_key = excluded.date_key, title = excluded.title, \
-			  content = excluded.content, \
-			  mood = excluded.mood, tags = excluded.tags, \
-			  updated_at = excluded.updated_at",
-            params![
-                entry.id,
-                entry.date_key,
-                entry.title,
-                entry.content,
-                entry.mood,
-                serde_json::Value::from(entry.tags.clone()).to_string(),
-                entry.created_at,
-                entry.updated_at,
-            ],
-        )?;
-        Ok(())
+        upsert_journal_entry_with(&self.lock(), entry)
     }
 
     pub fn delete_journal_entry(&self, id: &str) -> rusqlite::Result<()> {
@@ -649,22 +816,60 @@ impl Storage {
     }
 
     pub fn upsert_journal_tag(&self, tag: &JournalTag) -> rusqlite::Result<()> {
-        let conn = self.lock();
-        conn.execute(
-            "INSERT INTO journal_tags (id, name, color, usage_count) \
-			 VALUES (?1, ?2, ?3, ?4) \
-			 ON CONFLICT(id) DO UPDATE SET \
-			  name = excluded.name, color = excluded.color, \
-			  usage_count = excluded.usage_count",
-            params![tag.id, tag.name, tag.color, tag.usage_count],
-        )?;
-        Ok(())
+        upsert_journal_tag_with(&self.lock(), tag)
     }
 
     pub fn delete_journal_tag(&self, id: &str) -> rusqlite::Result<()> {
         self.lock()
             .execute("DELETE FROM journal_tags WHERE id = ?1", params![id])?;
         Ok(())
+    }
+
+    /// Batched import for desktop pull-sync: every folder/note/journal entry/tag
+    /// upsert plus tombstone delete runs in one SQLite transaction, so a crash
+    /// mid-import can't leave the local index half-written — it either reflects
+    /// the full pulled archive or the prior state. The on-disk vault (markdown
+    /// files, written by the caller before/after this call) isn't part of this
+    /// transaction; it's the source of truth and can always be resynced into the
+    /// index via `reconcile_index`.
+    pub fn import_workspace(
+        &self,
+        folders: &[Folder],
+        notes: &[Note],
+        journal_entries: &[JournalEntry],
+        journal_tags: &[JournalTag],
+        deleted_note_ids: &[String],
+        deleted_folder_ids: &[String],
+        deleted_journal_entry_ids: &[String],
+        deleted_journal_tag_ids: &[String],
+    ) -> rusqlite::Result<()> {
+        let mut conn = self.lock();
+        let tx = conn.transaction()?;
+        for folder in folders {
+            upsert_folder_with(&tx, folder)?;
+        }
+        for note in notes {
+            upsert_note_with(&tx, note)?;
+        }
+        for entry in journal_entries {
+            upsert_journal_entry_with(&tx, entry)?;
+        }
+        for tag in journal_tags {
+            upsert_journal_tag_with(&tx, tag)?;
+        }
+        for id in deleted_note_ids {
+            tx.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
+        }
+        for id in deleted_folder_ids {
+            tx.execute("DELETE FROM folders WHERE id = ?1", params![id])?;
+        }
+        for id in deleted_journal_entry_ids {
+            tx.execute("DELETE FROM journal_entries WHERE id = ?1", params![id])?;
+        }
+        for id in deleted_journal_tag_ids {
+            tx.execute("DELETE FROM journal_tags WHERE id = ?1", params![id])?;
+        }
+        tx.commit()
     }
 
     pub fn list_people(&self) -> rusqlite::Result<Vec<Person>> {
@@ -694,6 +899,74 @@ impl Storage {
             params![name],
             row_to_person,
         )
+    }
+
+    pub fn update_person(
+        &self,
+        id: &str,
+        name: Option<&str>,
+        color: Option<Option<&str>>,
+    ) -> rusqlite::Result<Person> {
+        let conn = self.lock();
+        if let Some(name) = name {
+            conn.execute("UPDATE people SET name = ?2 WHERE id = ?1", params![id, name])?;
+        }
+        if let Some(color) = color {
+            conn.execute("UPDATE people SET color = ?2 WHERE id = ?1", params![id, color])?;
+        }
+        conn.query_row(
+            "SELECT id, name, color FROM people WHERE id = ?1",
+            params![id],
+            row_to_person,
+        )
+    }
+
+    pub fn delete_person(&self, id: &str) -> rusqlite::Result<()> {
+        let conn = self.lock();
+        conn.execute("DELETE FROM people WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn list_note_tag_meta(&self) -> rusqlite::Result<Vec<NoteTagMeta>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare("SELECT name, color FROM note_tags ORDER BY name ASC")?;
+        let rows = stmt.query_map([], |row| {
+            Ok(NoteTagMeta {
+                name: row.get(0)?,
+                color: row.get(1)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    pub fn upsert_note_tag_meta(&self, name: &str, color: Option<&str>) -> rusqlite::Result<()> {
+        let conn = self.lock();
+        conn.execute(
+            "INSERT INTO note_tags (name, color) VALUES (?1, ?2) \
+			 ON CONFLICT(name) DO UPDATE SET color = excluded.color",
+            params![name, color],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_note_tag_meta(&self, name: &str) -> rusqlite::Result<()> {
+        let conn = self.lock();
+        conn.execute("DELETE FROM note_tags WHERE name = ?1", params![name])?;
+        Ok(())
+    }
+
+    /// Moves a tag's colour to a new name (rename/merge). Keeps the target's
+    /// existing colour when it already has one.
+    pub fn rename_note_tag_meta(&self, from: &str, to: &str) -> rusqlite::Result<()> {
+        let conn = self.lock();
+        conn.execute(
+            "INSERT INTO note_tags (name, color) \
+			 SELECT ?2, color FROM note_tags WHERE name = ?1 \
+			 ON CONFLICT(name) DO NOTHING",
+            params![from, to],
+        )?;
+        conn.execute("DELETE FROM note_tags WHERE name = ?1", params![from])?;
+        Ok(())
     }
 
     fn latest_note_version_lean(
@@ -883,6 +1156,66 @@ fn upsert_note_with(conn: &Connection, note: &Note) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// Shared upsert body, mirroring `upsert_note_with` so single-write and
+/// batched-transaction callers share the exact same SQL.
+fn upsert_folder_with(conn: &Connection, folder: &Folder) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO folders (id, name, parent_id, sort_order, is_open) \
+		 VALUES (?1, ?2, ?3, ?4, ?5) \
+		 ON CONFLICT(id) DO UPDATE SET \
+		  name = excluded.name, parent_id = excluded.parent_id, \
+		  sort_order = excluded.sort_order, is_open = excluded.is_open",
+        params![
+            folder.id,
+            folder.name,
+            folder.parent_id,
+            folder.sort_order,
+            folder.is_open as i64,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Shared upsert body, mirroring `upsert_note_with` so single-write and
+/// batched-transaction callers share the exact same SQL.
+fn upsert_journal_entry_with(conn: &Connection, entry: &JournalEntry) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO journal_entries \
+		 (id, date_key, title, content, mood, tags, created_at, updated_at) \
+		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
+		 ON CONFLICT(id) DO UPDATE SET \
+		  date_key = excluded.date_key, title = excluded.title, \
+		  content = excluded.content, \
+		  mood = excluded.mood, tags = excluded.tags, \
+		  updated_at = excluded.updated_at",
+        params![
+            entry.id,
+            entry.date_key,
+            entry.title,
+            entry.content,
+            entry.mood,
+            serde_json::Value::from(entry.tags.clone()).to_string(),
+            entry.created_at,
+            entry.updated_at,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Shared upsert body, mirroring `upsert_note_with` so single-write and
+/// batched-transaction callers share the exact same SQL.
+fn upsert_journal_tag_with(conn: &Connection, tag: &JournalTag) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO journal_tags (id, name, color, usage_count) \
+		 VALUES (?1, ?2, ?3, ?4) \
+		 ON CONFLICT(id) DO UPDATE SET \
+		  name = excluded.name, color = excluded.color, \
+		  usage_count = excluded.usage_count",
+        params![tag.id, tag.name, tag.color, tag.usage_count],
+    )?;
+    Ok(())
+}
+
 /// Shared body for replacing a note's link + title rows. Takes `&Connection` so
 /// it works against both a `Transaction` (the live path) and a plain connection.
 fn replace_note_links_with(
@@ -994,6 +1327,23 @@ fn row_to_note(row: &rusqlite::Row<'_>) -> rusqlite::Result<Note> {
             .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
         created_at: row.get(9)?,
         modified_at: row.get(10)?,
+    })
+}
+
+fn row_to_note_metadata(row: &rusqlite::Row<'_>) -> rusqlite::Result<NoteMetadata> {
+    let tags_raw: String = row.get(5)?;
+    let properties_raw: String = row.get(6)?;
+    Ok(NoteMetadata {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        preferred_editor_mode: row.get(2)?,
+        parent_id: row.get(3)?,
+        sort_order: row.get(4)?,
+        tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
+        properties: serde_json::from_str(&properties_raw)
+            .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
+        created_at: row.get(7)?,
+        modified_at: row.get(8)?,
     })
 }
 
@@ -1205,6 +1555,29 @@ mod tests {
         assert_eq!(store.list_folders().unwrap().len(), 1);
     }
 
+    #[test]
+    fn outdated_link_index_is_wiped_on_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("index.db");
+        {
+            let store = Storage::open(&db_path).unwrap();
+            store.upsert_note(&note_with("n1", "A.md", "a")).unwrap();
+            store
+                .replace_note_links("n1", &[tag_link("rust")], &["a".to_string()])
+                .unwrap();
+            assert!(store.has_indexed_links().unwrap());
+        }
+
+        // Simulate a DB written by a build that predates the version bump.
+        let conn = Connection::open(&db_path).unwrap();
+        conn.pragma_update(None, "user_version", 0).unwrap();
+        drop(conn);
+
+        let store = Storage::open(&db_path).unwrap();
+        assert!(store.list_note_link_rows().unwrap().is_empty());
+        assert_eq!(store.list_unindexed_note_ids().unwrap(), vec!["n1".to_string()]);
+    }
+
     fn wiki_link(raw: &str, label: &str, key: &str) -> NoteLinkInput {
         NoteLinkInput {
             kind: "wiki".to_string(),
@@ -1231,6 +1604,80 @@ mod tests {
         let mut v: Vec<String> = sources.sources.iter().map(|s| s.note.id.clone()).collect();
         v.sort();
         v
+    }
+
+    fn tag_link(label: &str) -> NoteLinkInput {
+        NoteLinkInput {
+            kind: "tag".to_string(),
+            raw: format!("#{label}"),
+            target_label: label.to_string(),
+            alias: None,
+            target_note_id: None,
+            target_title_key: None,
+        }
+    }
+
+    fn person_link(person_id: &str) -> NoteLinkInput {
+        NoteLinkInput {
+            kind: "person".to_string(),
+            raw: person_id.to_string(),
+            target_label: person_id.to_string(),
+            alias: None,
+            target_note_id: None,
+            target_title_key: None,
+        }
+    }
+
+    #[test]
+    fn tag_and_person_rows_aggregate() {
+        let store = Storage::open(Path::new(":memory:")).unwrap();
+        store.upsert_note(&note_with("n1", "A.md", "a")).unwrap();
+        store.upsert_note(&note_with("n2", "B.md", "b")).unwrap();
+        store
+            .replace_note_links(
+                "n1",
+                &[tag_link("rust"), tag_link("perf"), person_link("p1")],
+                &["a".to_string()],
+            )
+            .unwrap();
+        store
+            .replace_note_links("n2", &[tag_link("rust")], &["b".to_string()])
+            .unwrap();
+        store.upsert_note_tag_meta("rust", Some("#f00")).unwrap();
+        store.upsert_note_tag_meta("orphan", Some("#0f0")).unwrap();
+
+        let summaries = store.list_tag_summaries().unwrap();
+        let shaped: Vec<(String, Option<String>, i64)> = summaries
+            .into_iter()
+            .map(|s| (s.name, s.color, s.note_count))
+            .collect();
+        assert_eq!(
+            shaped,
+            vec![
+                ("rust".to_string(), Some("#f00".to_string()), 2),
+                ("perf".to_string(), None, 1),
+                ("orphan".to_string(), Some("#0f0".to_string()), 0),
+            ]
+        );
+
+        let tagged = store.list_linked_note_summaries("tag", "rust").unwrap();
+        let mut tagged_ids: Vec<String> = tagged.into_iter().map(|t| t.id).collect();
+        tagged_ids.sort();
+        assert_eq!(tagged_ids, vec!["n1".to_string(), "n2".to_string()]);
+
+        let mentions = store.list_linked_note_summaries("person", "p1").unwrap();
+        assert_eq!(mentions.len(), 1);
+        assert_eq!(mentions[0].id, "n1");
+
+        // Tag/person rows never surface as backlinks: no target id or title key.
+        let backlinks = store.get_backlink_sources("n2", &["b".to_string()]).unwrap();
+        assert!(backlinks.sources.is_empty());
+
+        assert_eq!(store.list_note_link_rows().unwrap().len(), 4);
+
+        store.clear_note_links_index().unwrap();
+        assert_eq!(store.list_note_link_rows().unwrap().len(), 0);
+        assert_eq!(store.list_unindexed_note_ids().unwrap().len(), 2);
     }
 
     #[test]

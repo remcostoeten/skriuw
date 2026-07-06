@@ -7,9 +7,11 @@ import { cn } from "@/shared/lib/utils";
 import { colorWithAlpha } from "@/shared/lib/theme-colors";
 import { MOOD_OPTIONS, type MoodLevel } from "@/features/journal/types";
 import type { JournalEntryController } from "../hooks/use-journal-entry";
+import type { JournalAiAction, JournalAiController } from "../hooks/use-journal-ai";
 import dynamic from "next/dynamic";
 import { PlainTextEditor } from "./plain-text-editor";
 import { EditorContentSkeleton } from "@/features/editor/components/editor-content-skeleton";
+import { AiWritingIndicator, type AiWritingAction } from "@/features/editor/components/ai-writing-indicator";
 import { useNotes } from "@/features/notes/hooks/use-notes";
 import {
 	ContextMenu,
@@ -19,6 +21,11 @@ import {
 	ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
 import { copyTextToClipboard } from "@/features/desktop/context-menu-actions";
+import {
+	JournalAiErrorBanner,
+	JournalAiRateLimitBanner,
+	JournalSpellCheckRevertBanner,
+} from "./journal-ai-banners";
 
 // Lazy-load BlockNote/Mantine off the journal route's critical path (ssr:false),
 // matching the notes editor's dynamic boundary in editor.tsx.
@@ -36,6 +43,7 @@ type JournalEditorProps = {
 	selectedDate: Date;
 	editorMode?: "plain" | "rich";
 	entryState: JournalEntryController;
+	aiState?: JournalAiController;
 	onToggleEditorMode?: () => void;
 	onGoToToday?: () => void;
 	onBackToList?: () => void;
@@ -52,6 +60,7 @@ export function JournalEditor({
 	selectedDate,
 	editorMode = "rich",
 	entryState,
+	aiState,
 	onToggleEditorMode,
 	onGoToToday,
 	onBackToList,
@@ -74,6 +83,13 @@ export function JournalEditor({
 	const entryTags = entry?.tags ?? [];
 	const entryMood = entry?.mood;
 
+	const isAiAvailable = editorMode === "rich" && Boolean(aiState);
+	const activeWritingAction: AiWritingAction | null = !aiState
+		? null
+		: ((Object.keys(aiState.aiLoading) as JournalAiAction[]).find(
+				(action) => aiState.aiLoading[action],
+			) ?? null);
+
 	const getTagColor = (name: string): string => {
 		const tag = allTags.find((t) => t.name === name);
 		return tag?.color ?? "hsl(var(--project-blue))";
@@ -82,8 +98,35 @@ export function JournalEditor({
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger asChild>
-				<div className="flex flex-1 flex-col overflow-y-auto">
-					<div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col px-5 pb-8 pt-9 sm:px-8 md:px-10 lg:max-w-[820px] lg:px-12 lg:pb-10 lg:pt-14">
+				<div className="flex flex-1 flex-col overflow-hidden">
+					{isAiAvailable && aiState?.aiError && (
+						<JournalAiErrorBanner
+							error={aiState.aiError}
+							onDismiss={aiState.dismissAiError}
+						/>
+					)}
+					{isAiAvailable && aiState && aiState.spellCheckRevert !== null && (
+						<JournalSpellCheckRevertBanner
+							onRevert={aiState.revertSpellCheck}
+							onKeep={aiState.dismissSpellCheckRevert}
+						/>
+					)}
+					{isAiAvailable && aiState?.rateLimitPrompt && (
+						<JournalAiRateLimitBanner
+							prompt={aiState.rateLimitPrompt}
+							availableKeysForFallback={aiState.availableKeysForFallback}
+							onRetryWithKey={(keyId) =>
+								aiState.runAiAction(
+									aiState.rateLimitPrompt!.action,
+									keyId,
+									aiState.rateLimitPrompt!.exhaustedKeyIds,
+								)
+							}
+							onDismiss={aiState.dismissRateLimit}
+						/>
+					)}
+					<div className="flex-1 overflow-y-auto">
+						<div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col px-5 pb-8 pt-9 sm:px-8 md:px-10 lg:max-w-[820px] lg:px-12 lg:pb-10 lg:pt-14">
 						{/* Date heading */}
 						<header className="border-b border-border/55 pb-5 md:pb-6">
 							<div className="flex flex-wrap items-end justify-between gap-3">
@@ -189,11 +232,28 @@ export function JournalEditor({
 								<RichTextEditor
 									content={content}
 									files={files}
+									activeFileId={format(selectedDate, "yyyy-MM-dd")}
 									editorFontId={editorPrefs.defaultFont}
 									editorLineHeight={editorPrefs.lineHeight}
 									onChange={(next) => setContent(next.markdown)}
+									onEditorReady={aiState?.handleEditorReady}
+									onAiSpellCheck={
+										aiState ? () => aiState.runAiAction("spellCheck") : undefined
+									}
+									onAiContinueWriting={
+										aiState
+											? () => aiState.runAiAction("continueWriting")
+											: undefined
+									}
+									onAiAction={
+										aiState
+											? (action) =>
+													aiState.runAiAction(action as JournalAiAction)
+											: undefined
+									}
 								/>
 							)}
+							{isAiAvailable && <AiWritingIndicator action={activeWritingAction} />}
 						</div>
 
 						{/* Footer */}
@@ -244,7 +304,7 @@ export function JournalEditor({
 							)}
 						</div>
 					</div>
-					<style jsx global>{`
+					<style>{`
 						.journal-entry-editor .blocknote-wrapper {
 							padding: 0;
 						}
@@ -254,6 +314,7 @@ export function JournalEditor({
 							margin: 0;
 						}
 					`}</style>
+					</div>
 				</div>
 			</ContextMenuTrigger>
 			<ContextMenuContent className="w-52">
@@ -281,6 +342,35 @@ export function JournalEditor({
 				) : null}
 				{onBackToList ? (
 					<ContextMenuItem onClick={onBackToList}>Show all entries</ContextMenuItem>
+				) : null}
+				{isAiAvailable && aiState ? (
+					<>
+						<ContextMenuSeparator />
+						<ContextMenuItem
+							disabled={aiState.aiLoading.spellCheck}
+							onClick={() => aiState.runAiAction("spellCheck")}
+						>
+							Spell check
+						</ContextMenuItem>
+						<ContextMenuItem
+							disabled={aiState.aiLoading.continueWriting}
+							onClick={() => aiState.runAiAction("continueWriting")}
+						>
+							Continue writing
+						</ContextMenuItem>
+						<ContextMenuItem
+							disabled={aiState.aiLoading.summarize}
+							onClick={() => aiState.runAiAction("summarize")}
+						>
+							Summarize
+						</ContextMenuItem>
+						<ContextMenuItem
+							disabled={aiState.aiLoading.extractTasks}
+							onClick={() => aiState.runAiAction("extractTasks")}
+						>
+							Extract tasks
+						</ContextMenuItem>
+					</>
 				) : null}
 				{entry ? (
 					<>

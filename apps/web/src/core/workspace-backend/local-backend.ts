@@ -4,7 +4,16 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { UpdateNoteResult } from "@/domain/notes/actions";
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
 import type { Person } from "@/domain/people/models";
+import type { NotePropertyColor } from "@/domain/notes/properties";
 import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
+import {
+	rewriteNoteForPerson,
+	rewriteNoteForTag,
+	type NoteChipPatch,
+} from "@/domain/notes/chip-rewrite";
+import { buildDesiredNoteLinkRows } from "@/domain/notes/note-link-sync";
+import { extractRichDocumentPersonIds } from "@/domain/notes/rich-document";
+import { normalizeStoredTagEntry, normalizeTagName } from "@/domain/tags/normalize";
 import { noop } from "@/shared/lib/noop";
 import {
 	applyFolderUpdate,
@@ -18,7 +27,7 @@ import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import {
 	clearGuestWorkspaceIndexedDB,
 	clearGuestWorkspaceLocalStorageSync,
-	createGuestWorkspaceStore,
+	getGuestWorkspaceStore,
 	readGuestWorkspacePayloadFromLocalStorageSync,
 	type GuestWorkspacePayload,
 } from "./local-store";
@@ -65,12 +74,9 @@ function isBrowser(): boolean {
  * that would clobber the seed name/parent on next reload.
  */
 export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
-	const store = createGuestWorkspaceStore();
+	const store = getGuestWorkspaceStore();
 	const filesKey = notesKeys.files(notesKeys.localScope());
 	const foldersKey = notesKeys.folders(notesKeys.localScope());
-	// Guest people live for the session only — the demo workspace is ephemeral
-	// and we deliberately keep them out of the persisted payload schema.
-	const guestPeople: Person[] = [];
 
 	function getCachedNote(id: string): NoteFile | null {
 		const detail = queryClient.getQueryData<NoteFile | null>(notesKeys.detail(id));
@@ -82,6 +88,68 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 	function getCachedFolder(id: string): NoteFolder | null {
 		const list = queryClient.getQueryData<NoteFolder[]>(foldersKey) ?? [];
 		return list.find((folder) => folder.id === id) ?? null;
+	}
+
+	// The full guest note universe: the files cache carries seed notes the store
+	// only learns about on first edit; stored versions win over cached ones.
+	async function allNotes(): Promise<NoteFile[]> {
+		const stored = (await store.read()).notes;
+		const cached = queryClient.getQueryData<NoteFile[]>(filesKey);
+		if (!cached) return stored;
+		const storedById = new Map(stored.map((note) => [note.id, note]));
+		const merged = cached.map((note) => storedById.get(note.id) ?? note);
+		const cachedIds = new Set(cached.map((note) => note.id));
+		return [...merged, ...stored.filter((note) => !cachedIds.has(note.id))];
+	}
+
+	async function rewriteNotes(
+		buildPatch: (note: NoteFile) => NoteChipPatch | null,
+	): Promise<string[]> {
+		const universe = await allNotes();
+		const rewritten: string[] = [];
+
+		await store.update((payload) => {
+			for (const note of universe) {
+				const patch = buildPatch(note);
+				if (!patch) continue;
+				const next: NoteFile = { ...note, ...patch, modifiedAt: new Date() };
+				const index = payload.notes.findIndex((stored) => stored.id === note.id);
+				if (index !== -1) payload.notes[index] = next;
+				else payload.notes.push(next);
+				rewritten.push(note.id);
+			}
+		});
+
+		return rewritten;
+	}
+
+	function noteMentionsPerson(note: NoteFile, personId: string): boolean {
+		if (extractRichDocumentPersonIds(note.richContent).includes(personId)) return true;
+		return (note.properties ?? []).some(
+			(property) =>
+				property.type === "person" &&
+				Array.isArray(property.value) &&
+				property.value.includes(personId),
+		);
+	}
+
+	function noteTagLabels(note: NoteFile): Set<string> {
+		const labels = new Set<string>();
+		for (const row of buildDesiredNoteLinkRows("local", note)) {
+			if (row.kind === "tag") labels.add(row.targetLabel);
+		}
+		return labels;
+	}
+
+	function toNoteSummary(note: NoteFile) {
+		return { id: note.id, name: note.name, modifiedAt: note.modifiedAt };
+	}
+
+	function byModifiedDesc(
+		left: { modifiedAt: Date },
+		right: { modifiedAt: Date },
+	): number {
+		return right.modifiedAt.getTime() - left.modifiedAt.getTime();
 	}
 
 	return {
@@ -128,9 +196,8 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 		},
 
 		async getNoteGraph() {
-			const notes =
-				queryClient.getQueryData<NoteFile[]>(filesKey) ?? (await store.read()).notes;
-			return buildGraphFromNotes(notes);
+			const [notes, payload] = await Promise.all([allNotes(), store.read()]);
+			return buildGraphFromNotes(notes, payload.people);
 		},
 
 		async restoreNoteVersion() {
@@ -245,21 +312,142 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 		},
 
 		async listPeople() {
-			return guestPeople.map((person) => ({ ...person }));
+			return (await store.read()).people;
 		},
 
 		async createPerson(input) {
-			const existing = guestPeople.find(
-				(person) => person.name.toLowerCase() === input.name.toLowerCase(),
+			return store.update((payload) => {
+				const existing = payload.people.find(
+					(person) => person.name.toLowerCase() === input.name.toLowerCase(),
+				);
+				if (existing) return { ...existing };
+				const person: Person = {
+					id: input.id ?? crypto.randomUUID(),
+					name: input.name,
+					color: input.color ?? null,
+				};
+				payload.people.push(person);
+				return { ...person };
+			});
+		},
+
+		async updatePerson(input) {
+			return store.update((payload) => {
+				const person = payload.people.find((entry) => entry.id === input.id);
+				if (!person) throw new Error("Person not found");
+				if (input.name !== undefined) person.name = input.name;
+				if (input.color !== undefined) person.color = input.color ?? null;
+				return { ...person };
+			});
+		},
+
+		async deletePerson(id) {
+			const person = (await store.read()).people.find((entry) => entry.id === id);
+			if (!person) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForPerson(note, { fromId: id, toId: null, removalText: person.name }),
 			);
-			if (existing) return { ...existing };
-			const person: Person = {
-				id: input.id ?? crypto.randomUUID(),
-				name: input.name,
-				color: input.color ?? null,
-			};
-			guestPeople.push(person);
-			return { ...person };
+			await store.update((payload) => {
+				payload.people = payload.people.filter((entry) => entry.id !== id);
+			});
+			return { rewrittenNoteIds };
+		},
+
+		async mergePersons(sourceId, targetId) {
+			if (sourceId === targetId) return { rewrittenNoteIds: [] };
+			const people = (await store.read()).people;
+			const source = people.find((entry) => entry.id === sourceId);
+			const target = people.find((entry) => entry.id === targetId);
+			if (!source || !target) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForPerson(note, { fromId: sourceId, toId: targetId, toName: target.name }),
+			);
+			await store.update((payload) => {
+				payload.people = payload.people.filter((entry) => entry.id !== sourceId);
+			});
+			return { rewrittenNoteIds };
+		},
+
+		async listPersonNotes(personId) {
+			const notes = await allNotes();
+			return notes
+				.filter((note) => noteMentionsPerson(note, personId))
+				.map(toNoteSummary)
+				.toSorted(byModifiedDesc);
+		},
+
+		async listTags() {
+			const [notes, payload] = await Promise.all([allNotes(), store.read()]);
+			const notesByTag = new Map<string, number>();
+			for (const note of notes) {
+				for (const label of noteTagLabels(note)) {
+					notesByTag.set(label, (notesByTag.get(label) ?? 0) + 1);
+				}
+			}
+			const colorByName = new Map(payload.tagMeta.map((meta) => [meta.name, meta.color]));
+			const names = new Set([...notesByTag.keys(), ...colorByName.keys()]);
+			return [...names]
+				.map((name) => ({
+					name,
+					color: (colorByName.get(name) as NotePropertyColor | null | undefined) ?? null,
+					noteCount: notesByTag.get(name) ?? 0,
+				}))
+				.toSorted((left, right) =>
+					right.noteCount !== left.noteCount
+						? right.noteCount - left.noteCount
+						: left.name.localeCompare(right.name),
+				);
+		},
+
+		async setTagColor(name, color) {
+			const normalized = normalizeStoredTagEntry(name);
+			if (!normalized) return;
+			await store.update((payload) => {
+				payload.tagMeta = payload.tagMeta.filter((meta) => meta.name !== normalized);
+				if (color !== null) {
+					payload.tagMeta.push({ name: normalized, color });
+				}
+			});
+		},
+
+		async renameTag(from, to) {
+			const source = normalizeStoredTagEntry(from);
+			const target = normalizeTagName(to);
+			if (!source || !target || source === target) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForTag(note, source, target),
+			);
+			await store.update((payload) => {
+				const sourceMeta = payload.tagMeta.find((meta) => meta.name === source);
+				const targetMeta = payload.tagMeta.find((meta) => meta.name === target);
+				payload.tagMeta = payload.tagMeta.filter((meta) => meta.name !== source);
+				if (sourceMeta?.color && !targetMeta) {
+					payload.tagMeta.push({ name: target, color: sourceMeta.color });
+				}
+			});
+			return { rewrittenNoteIds };
+		},
+
+		async deleteTag(name) {
+			const normalized = normalizeStoredTagEntry(name);
+			if (!normalized) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForTag(note, normalized, null),
+			);
+			await store.update((payload) => {
+				payload.tagMeta = payload.tagMeta.filter((meta) => meta.name !== normalized);
+			});
+			return { rewrittenNoteIds };
+		},
+
+		async listTagNotes(name) {
+			const normalized = normalizeStoredTagEntry(name);
+			if (!normalized) return [];
+			const notes = await allNotes();
+			return notes
+				.filter((note) => noteTagLabels(note).has(normalized))
+				.map(toNoteSummary)
+				.toSorted(byModifiedDesc);
 		},
 	};
 }
@@ -294,9 +482,10 @@ export async function mergeSeedWithGuestWorkspace(
 	seedNotes: NoteFile[],
 	seedFolders: NoteFolder[],
 ): Promise<GuestWorkspacePayload> {
-	const store = createGuestWorkspaceStore();
+	const store = getGuestWorkspaceStore();
 	const stored = await store.read();
 	return {
+		...stored,
 		notes: mergeNotes(seedNotes, stored.notes),
 		folders: mergeFolders(seedFolders, stored.folders),
 	};
@@ -307,7 +496,7 @@ export async function resetGuestStorage(): Promise<void> {
 		clearGuestWorkspaceLocalStorageSync();
 		window.localStorage.removeItem(ENGAGEMENT_STORAGE_KEY);
 	}
-	await createGuestWorkspaceStore()
+	await getGuestWorkspaceStore()
 		.clear()
 		.catch(async () => {
 			await clearGuestWorkspaceIndexedDB();

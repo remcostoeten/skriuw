@@ -4,6 +4,14 @@ const HUMAN_ACTIONS: Record<string, string> = {
 	generateTitle: "Triggered generate title",
 	spellCheck: "Triggered spell check",
 	continueWriting: "Triggered continue writing",
+	summarize: "Triggered summarize",
+	extractTasks: "Triggered extract action items",
+	suggestTags: "Triggered tag suggestions",
+	fixSelection: "Triggered fix selection",
+	rewriteSelection: "Triggered rewrite selection",
+	shortenSelection: "Triggered shorten selection",
+	expandSelection: "Triggered expand selection",
+	translateSelection: "Triggered translate selection",
 	testKey: "Tested AI provider key",
 };
 
@@ -35,9 +43,20 @@ export function readUsageMetadata(response: unknown): {
 	const usage = r.usage as Record<string, unknown> | undefined;
 
 	if (usage) {
-		const inputTokens = typeof usage.promptTokens === "number" ? usage.promptTokens : null;
+		// AI SDK v5+ names the fields inputTokens/outputTokens; older code paths
+		// (and stored metadata) may still carry promptTokens/completionTokens.
+		const inputTokens =
+			typeof usage.inputTokens === "number"
+				? usage.inputTokens
+				: typeof usage.promptTokens === "number"
+					? usage.promptTokens
+					: null;
 		const outputTokens =
-			typeof usage.completionTokens === "number" ? usage.completionTokens : null;
+			typeof usage.outputTokens === "number"
+				? usage.outputTokens
+				: typeof usage.completionTokens === "number"
+					? usage.completionTokens
+					: null;
 		const totalTokens =
 			inputTokens !== null && outputTokens !== null
 				? inputTokens + outputTokens

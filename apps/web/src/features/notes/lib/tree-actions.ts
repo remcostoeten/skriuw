@@ -13,6 +13,18 @@ export type NoteTreeActions = {
 	onFileSelect: (id: string) => void;
 	/** Open a note in the secondary split pane (desktop only). */
 	onOpenBeside?: (id: string) => void;
+	/**
+	 * Open a note in a split pane with an explicit orientation (desktop only).
+	 * `placement` decides which side the dropped note lands on: "before" puts it
+	 * in the first pane (left/top), "after" (default) in the second (right/bottom).
+	 */
+	onOpenInSplit?: (
+		id: string,
+		orientation: "vertical" | "horizontal",
+		placement?: "before" | "after",
+	) => void;
+	/** Open a note as a background tab without leaving the current note (middle-click). */
+	onOpenInNewTab?: (id: string) => void;
 	/** Optional: warm a note's detail cache before it is opened (e.g. on hover). */
 	onFilePrefetch?: (id: string) => void;
 	onToggleFolder: (id: string) => void;

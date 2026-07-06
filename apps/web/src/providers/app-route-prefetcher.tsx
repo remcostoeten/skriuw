@@ -14,7 +14,6 @@ const AUTHED_APP_ROUTES = [
 	"/app",
 	"/app/graph",
 	"/app/journal",
-	"/app/settings",
 	"/app/shared",
 ] as const;
 

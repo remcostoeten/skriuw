@@ -3,16 +3,23 @@
 import { memo, useState, useRef, useEffect, useMemo, useCallback, type RefObject } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/shared/lib/utils";
+import { stripMarkdownExtension } from "@/domain/notes/note-links";
+import { collectFolderSubtreeIds } from "@/domain/folders/traversal";
 import { NoteFile, NoteFolder } from "@/types/notes";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
+import {
+	NOTE_TREE_REVEAL_EVENT,
+	type NoteTreeRevealDetail,
+} from "@/shared/lib/focus-editor";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/shared/ui/sheet";
 import { EmptyState } from "@/shared/ui/empty-state";
 import {
 	Check,
 	Columns2,
 	FilePlus,
-	FileText,
+	Rows2,
+	SplitSquareHorizontal,
 	Folder,
 	FolderInput,
 	FolderOpen,
@@ -37,6 +44,7 @@ import { useSidebarStore } from "./sidebar/store";
 import { SidebarTreeRowSkeleton } from "./sidebar/sidebar-tree-skeleton";
 import { NoteSendContextSubmenu, NoteSendMobileActionBlock } from "./note-send-menu";
 import { GuestGate } from "@/shared/ui/guest-gate";
+import { endTreeItemDrag, setTreeItemDragData } from "../lib/note-drag";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
 
 type FileListProps = {
@@ -67,12 +75,6 @@ type DragItem = {
 	type: "file" | "folder";
 	id: string;
 	parentId: string | null;
-};
-
-type DragPreview = DragItem & {
-	name: string;
-	x: number;
-	y: number;
 };
 
 type DropPosition = "before" | "after";
@@ -120,6 +122,8 @@ export const FileList = memo(function FileList({
 	const {
 		onFileSelect,
 		onOpenBeside,
+		onOpenInSplit,
+		onOpenInNewTab,
 		onFilePrefetch,
 		onToggleFolder,
 		onRenameFile,
@@ -155,6 +159,7 @@ export const FileList = memo(function FileList({
 	// When non-null, "move mode" is active: these items are being relocated and
 	// arrow keys steer a destination cursor until Enter/M drops them (Esc cancels).
 	const [moveModeItems, setMoveModeItems] = useState<SelectedItem[] | null>(null);
+	const [pendingRenameFolderId, setPendingRenameFolderId] = useState<string | null>(null);
 	// A single shared context menu serves every row. Rows carry `data-row-key`;
 	// right-clicking the list resolves the row under the cursor and points the
 	// one menu at it, instead of mounting a Radix ContextMenu per virtualized row.
@@ -236,10 +241,7 @@ export const FileList = memo(function FileList({
 	});
 
 	const getDescendantIds = useCallback(
-		function collect(folderId: string): string[] {
-			const children = getFoldersInFolder(folderId);
-			return [folderId, ...children.flatMap((child) => collect(child.id))];
-		},
+		(folderId: string): string[] => [...collectFolderSubtreeIds(folderId, getFoldersInFolder)],
 		[getFoldersInFolder],
 	);
 
@@ -259,12 +261,79 @@ export const FileList = memo(function FileList({
 
 			virtualizer.scrollToIndex(index, { align: "auto" });
 
+			// After a long scrollToIndex jump the row may not be mounted on the
+			// next frame yet — retry one frame later before giving up.
 			requestAnimationFrame(() => {
-				itemButtonRefs.current.get(targetKey)?.focus();
+				const button = itemButtonRefs.current.get(targetKey);
+				if (button) {
+					button.focus();
+					return;
+				}
+				requestAnimationFrame(() => {
+					itemButtonRefs.current.get(targetKey)?.focus();
+				});
 			});
 		},
 		[flattenedVisibleItems, getItemKey, virtualizer],
 	);
+
+	// Reveal-and-focus for a note that may be scrolled out of the virtualizer
+	// window or hidden inside collapsed folders (Ctrl+E). Collapsed ancestors
+	// are expanded first; the focus then lands via the pending ref once the
+	// row exists in flattenedVisibleItems.
+	const pendingRevealFileIdRef = useRef<string | null>(null);
+
+	const revealFile = useCallback(
+		(fileId: string): boolean => {
+			const index = flattenedVisibleItems.findIndex(
+				(item) => item.type === "file" && item.id === fileId,
+			);
+			if (index !== -1) {
+				focusItemAtIndex(index);
+				return true;
+			}
+			const file = files.find((entry) => entry.id === fileId);
+			if (!file) return false;
+			let parentId = file.parentId;
+			let guard = 0;
+			let expanded = false;
+			while (parentId && guard < 64) {
+				const folder = folders.find((entry) => entry.id === parentId);
+				if (!folder) break;
+				if (!folder.isOpen) {
+					onToggleFolder(folder.id);
+					expanded = true;
+				}
+				parentId = folder.parentId;
+				guard += 1;
+			}
+			if (!expanded) return false;
+			pendingRevealFileIdRef.current = fileId;
+			return true;
+		},
+		[files, flattenedVisibleItems, focusItemAtIndex, folders, onToggleFolder],
+	);
+
+	useEffect(() => {
+		function onReveal(event: Event) {
+			const fileId = (event as CustomEvent<NoteTreeRevealDetail>).detail?.fileId;
+			if (!fileId) return;
+			if (revealFile(fileId)) event.preventDefault();
+		}
+		window.addEventListener(NOTE_TREE_REVEAL_EVENT, onReveal);
+		return () => window.removeEventListener(NOTE_TREE_REVEAL_EVENT, onReveal);
+	}, [revealFile]);
+
+	useEffect(() => {
+		const fileId = pendingRevealFileIdRef.current;
+		if (!fileId) return;
+		const index = flattenedVisibleItems.findIndex(
+			(item) => item.type === "file" && item.id === fileId,
+		);
+		if (index === -1) return;
+		pendingRevealFileIdRef.current = null;
+		focusItemAtIndex(index);
+	}, [flattenedVisibleItems, focusItemAtIndex]);
 
 	// Like focusItemAtIndex but extends the selection from the anchor
 	// (lastSelectedIndexRef) to the target, leaving the anchor in place so
@@ -347,7 +416,6 @@ export const FileList = memo(function FileList({
 
 	// Drag and drop state
 	const [dragItem, setDragItem] = useState<DragItem | null>(null);
-	const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
 	const [dropTarget, setDropTarget] = useState<{
 		id: string | null;
 		type: "folder" | "root" | "sibling";
@@ -374,9 +442,34 @@ export const FileList = memo(function FileList({
 
 	const startRename = useCallback((id: string, currentName: string, type: "file" | "folder") => {
 		setEditingId(id);
-		setEditingName(type === "file" ? currentName.replace(".md", "") : currentName);
+		setEditingName(type === "file" ? stripMarkdownExtension(currentName) : currentName);
 		setEditingType(type);
 	}, []);
+
+	useEffect(() => {
+		function handleRenameFolder(event: Event) {
+			if (!(event instanceof CustomEvent)) return;
+			const id = event.detail?.id;
+			if (typeof id !== "string") return;
+			const folder = folders.find((candidate) => candidate.id === id);
+			if (!folder) {
+				setPendingRenameFolderId(id);
+				return;
+			}
+			startRename(folder.id, folder.name, "folder");
+		}
+
+		window.addEventListener("skriuw:rename-folder", handleRenameFolder);
+		return () => window.removeEventListener("skriuw:rename-folder", handleRenameFolder);
+	}, [folders, startRename]);
+
+	useEffect(() => {
+		if (!pendingRenameFolderId) return;
+		const folder = folders.find((candidate) => candidate.id === pendingRenameFolderId);
+		if (!folder) return;
+		startRename(folder.id, folder.name, "folder");
+		setPendingRenameFolderId(null);
+	}, [folders, pendingRenameFolderId, startRename]);
 
 	const finishRename = useCallback(() => {
 		if (editingId && editingName.trim()) {
@@ -438,48 +531,17 @@ export const FileList = memo(function FileList({
 		[files, folders],
 	);
 
-	const updateDragPreviewPosition = useCallback((event: React.DragEvent) => {
-		if (event.clientX === 0 && event.clientY === 0) {
-			return;
-		}
-
-		setDragPreview((preview) =>
-			preview
-				? {
-						...preview,
-						x: event.clientX,
-						y: event.clientY,
-					}
-				: preview,
-		);
-	}, []);
-
 	const handleDragStart = useCallback(
 		(e: React.DragEvent, item: DragItem) => {
 			setDragItem(item);
-			setDragPreview({
-				...item,
-				name: getDragItemName(item),
-				x: e.clientX,
-				y: e.clientY,
-			});
-			e.dataTransfer.effectAllowed = "move";
-			e.dataTransfer.setData("text/plain", getDragItemName(item));
-			e.dataTransfer.setData("application/x-skriuw-tree-item", JSON.stringify(item));
+			setTreeItemDragData(e, item, getDragItemName(item));
 		},
 		[getDragItemName],
 	);
 
-	const handleDrag = useCallback(
-		(event: React.DragEvent) => {
-			updateDragPreviewPosition(event);
-		},
-		[updateDragPreviewPosition],
-	);
-
 	const handleDragEnd = useCallback(() => {
+		endTreeItemDrag();
 		setDragItem(null);
-		setDragPreview(null);
 		setDropTarget(null);
 	}, []);
 
@@ -740,6 +802,12 @@ export const FileList = memo(function FileList({
 				return;
 			}
 
+			if (metaKey && item.type === "file" && onOpenInNewTab) {
+				event.preventDefault();
+				onOpenInNewTab(item.id);
+				return;
+			}
+
 			if (metaKey) {
 				setSelectedItems((prev) => {
 					const exists = prev.some(
@@ -763,7 +831,7 @@ export const FileList = memo(function FileList({
 			lastSelectedIndexRef.current = itemIndex;
 			action();
 		},
-		[flattenedVisibleItems, focusedItemKey, getItemKey, setSelectedItems],
+		[flattenedVisibleItems, focusedItemKey, getItemKey, onOpenInNewTab, setSelectedItems],
 	);
 
 	const handleContextMenu = useCallback(
@@ -1109,7 +1177,6 @@ export const FileList = memo(function FileList({
 			e.stopPropagation();
 
 			if (!dragItem) return;
-			updateDragPreviewPosition(e);
 
 			// Prevent dropping a folder into itself or its descendants
 			if (dragItem.type === "folder" && targetType === "folder") {
@@ -1123,7 +1190,7 @@ export const FileList = memo(function FileList({
 			e.dataTransfer.dropEffect = "move";
 			setDropTarget({ id: targetId, type: targetType });
 		},
-		[dragItem, getDescendantIds, updateDragPreviewPosition],
+		[dragItem, getDescendantIds],
 	);
 
 	const handleSiblingDragOver = useCallback(
@@ -1132,7 +1199,6 @@ export const FileList = memo(function FileList({
 			e.stopPropagation();
 
 			if (!dragItem) return;
-			updateDragPreviewPosition(e);
 
 			const targetParentId = target.parentId;
 
@@ -1152,7 +1218,7 @@ export const FileList = memo(function FileList({
 				position: getDropPosition(e) as DropPosition,
 			});
 		},
-		[dragItem, getDescendantIds, getDropPosition, updateDragPreviewPosition],
+		[dragItem, getDescendantIds, getDropPosition],
 	);
 
 	const handleDragLeave = useCallback((e: React.DragEvent) => {
@@ -1180,7 +1246,6 @@ export const FileList = memo(function FileList({
 			// Don't drop on itself
 			if (dragItem.id === targetId) {
 				setDragItem(null);
-				setDragPreview(null);
 				setDropTarget(null);
 				return;
 			}
@@ -1189,7 +1254,6 @@ export const FileList = memo(function FileList({
 			if (dragItem.type === "folder" && targetId) {
 				if (getDescendantIds(dragItem.id).includes(targetId)) {
 					setDragItem(null);
-					setDragPreview(null);
 					setDropTarget(null);
 					return;
 				}
@@ -1201,7 +1265,6 @@ export const FileList = memo(function FileList({
 			moveDraggedToParent(targetId, appendOrder);
 
 			setDragItem(null);
-			setDragPreview(null);
 			setDropTarget(null);
 		},
 		[dragItem, getDescendantIds, getOrderedChildren, moveDraggedToParent],
@@ -1218,7 +1281,6 @@ export const FileList = memo(function FileList({
 
 			if (dragItem.id === target.id && dragItem.type === target.type) {
 				setDragItem(null);
-				setDragPreview(null);
 				setDropTarget(null);
 				return;
 			}
@@ -1229,7 +1291,6 @@ export const FileList = memo(function FileList({
 				getDescendantIds(dragItem.id).includes(targetParentId)
 			) {
 				setDragItem(null);
-				setDragPreview(null);
 				setDropTarget(null);
 				return;
 			}
@@ -1237,7 +1298,6 @@ export const FileList = memo(function FileList({
 			reorderDraggedAroundTarget(target, getDropPosition(e) as DropPosition);
 
 			setDragItem(null);
-			setDragPreview(null);
 			setDropTarget(null);
 		},
 		[dragItem, getDescendantIds, getDropPosition, reorderDraggedAroundTarget],
@@ -1308,6 +1368,8 @@ export const FileList = memo(function FileList({
 			const selectionHasMultiple = selectionForAction.length > 1;
 			const canOpenBeside =
 				!!file && !!onOpenBeside && !isMobile && !selectionHasMultiple && file.id !== activeFileId;
+			const canOpenInSplit =
+				!!file && !!onOpenInSplit && !isMobile && !selectionHasMultiple && file.id !== activeFileId;
 
 			return (
 				<>
@@ -1329,6 +1391,30 @@ export const FileList = memo(function FileList({
 							<Columns2 className="w-4 h-4" />
 							Open beside
 						</ContextMenuItem>
+					) : null}
+					{canOpenInSplit && file ? (
+						<ContextMenuSub>
+							<ContextMenuSubTrigger className="gap-2">
+								<SplitSquareHorizontal className="w-4 h-4" />
+								Open in split
+							</ContextMenuSubTrigger>
+							<ContextMenuSubContent className="w-44">
+								<ContextMenuItem
+									onClick={() => onOpenInSplit?.(file.id, "vertical")}
+									className="gap-2"
+								>
+									<Columns2 className="w-4 h-4" />
+									Vertical split
+								</ContextMenuItem>
+								<ContextMenuItem
+									onClick={() => onOpenInSplit?.(file.id, "horizontal")}
+									className="gap-2"
+								>
+									<Rows2 className="w-4 h-4" />
+									Horizontal split
+								</ContextMenuItem>
+							</ContextMenuSubContent>
+						</ContextMenuSub>
 					) : null}
 					{renderMoveToSubmenu(selectionForAction)}
 					<ContextMenuSeparator />
@@ -1393,6 +1479,7 @@ export const FileList = memo(function FileList({
 			isFavorite,
 			isMobile,
 			onOpenBeside,
+			onOpenInSplit,
 			removeFromFavorites,
 			renderMoveToSubmenu,
 			startRename,
@@ -1657,7 +1744,6 @@ export const FileList = memo(function FileList({
 									{ type: "folder", id: folder.id, parentId: folder.parentId },
 								)
 							}
-							onDrag={handleDrag as any}
 							onDragEnd={handleDragEnd}
 							onDragOver={(e) => {
 								const position = getDropPosition(e, "edges");
@@ -1689,11 +1775,13 @@ export const FileList = memo(function FileList({
 							aria-level={depth + 1}
 							aria-expanded={folder.isOpen}
 							aria-selected={isSelected}
-							tabIndex={0}
+							tabIndex={getItemKey(folderItem) === rovingFocusKey ? 0 : -1}
 							className={cn(
 								"group relative flex w-full items-center justify-between overflow-hidden border border-transparent text-xs font-medium transition-colors",
+								"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 								!isEditing && "active:scale-[0.985]",
 								compactMode ? "h-[28px]" : "h-[34px]",
+								"[@media(pointer:coarse)]:min-h-11",
 								isSelected
 									? "border-border bg-muted text-foreground"
 									: "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88",
@@ -1799,6 +1887,14 @@ export const FileList = memo(function FileList({
 								}
 							})
 						}
+						onAuxClick={(event) => {
+							if (event.button !== 1 || isEditing || !onOpenInNewTab) return;
+							event.preventDefault();
+							onOpenInNewTab(file.id);
+						}}
+						onMouseDown={(event) => {
+							if (event.button === 1) event.preventDefault();
+						}}
 						onPointerEnter={() => onFilePrefetch?.(file.id)}
 						onPointerDown={(event) => scheduleLongPress(event, fileItem, file.name)}
 						onPointerUp={cancelLongPress}
@@ -1814,7 +1910,6 @@ export const FileList = memo(function FileList({
 								parentId: file.parentId,
 							})
 						}
-						onDrag={handleDrag as any}
 						onDragEnd={handleDragEnd}
 						onFocus={() => {
 							setFocusedItemKey(getItemKey(fileItem));
@@ -1825,11 +1920,14 @@ export const FileList = memo(function FileList({
 						aria-level={depth + 1}
 						aria-selected={isSelected || activeFileId === file.id}
 						data-active-note-tree-item={activeFileId === file.id ? "true" : undefined}
-						tabIndex={0}
+						data-note-tree-item-id={file.id}
+						tabIndex={getItemKey(fileItem) === rovingFocusKey ? 0 : -1}
 						className={cn(
 							"relative flex w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors",
+							"focus-visible:shadow-none focus-visible:outline-none focus-visible:border-transparent focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 							!isEditing && "active:scale-[0.985]",
 							compactMode ? "h-7" : "h-[34px]",
+							"[@media(pointer:coarse)]:min-h-11",
 							isSelected || activeFileId === file.id
 								? "border-border bg-muted text-foreground"
 								: "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85",
@@ -1928,6 +2026,24 @@ export const FileList = memo(function FileList({
 	const virtualItems = virtualizer.getVirtualItems();
 	const totalHeight = virtualizer.getTotalSize();
 
+	// Roving tabindex: exactly one rendered row stays in the Tab order. When the
+	// focused row is virtualized out of the window, fall back to the first
+	// rendered row so the tree never drops out of the Tab sequence.
+	const renderedRowKeys = new Set(
+		virtualItems
+			.map((virtualRow) => flattenedVisibleItems[virtualRow.index])
+			.filter((item): item is (typeof flattenedVisibleItems)[number] => Boolean(item))
+			.map((item) => getItemKey(item)),
+	);
+	const firstRenderedItem =
+		virtualItems.length > 0 ? flattenedVisibleItems[virtualItems[0].index] : undefined;
+	const rovingFocusKey =
+		focusedItemKey && renderedRowKeys.has(focusedItemKey)
+			? focusedItemKey
+			: firstRenderedItem
+				? getItemKey(firstRenderedItem)
+				: null;
+
 	// Move-mode derived view state: which rows are cargo, where they'd land.
 	const moveActive = moveModeItems !== null;
 	const movingKeys = new Set((moveModeItems ?? []).map((entry) => getItemKey(entry)));
@@ -1988,7 +2104,7 @@ export const FileList = memo(function FileList({
 						ref={listRef}
 						className={cn(
 							"px-1.5 pb-4 pt-1",
-							!scrollElementRef && "flex-1 overflow-y-auto",
+							!scrollElementRef && "flex-1 overflow-y-auto overscroll-contain",
 							isRootDropTarget && "bg-primary/6",
 							isRootMoveDestination && "bg-primary/6 ring-1 ring-inset ring-primary/40",
 						)}
@@ -2060,29 +2176,6 @@ export const FileList = memo(function FileList({
 					})()}
 			</ContextMenu>
 
-			{dragPreview && (
-				<div
-					className="pointer-events-none fixed z-[100] flex max-w-56 items-center gap-2 border border-border bg-popover px-2.5 py-1.5 text-xs font-medium text-popover-foreground shadow-lg"
-					style={{
-						left: dragPreview.x,
-						top: dragPreview.y,
-						transform: "translate(12px, 12px)",
-					}}
-				>
-					{dragPreview.type === "folder" ? (
-						<Folder
-							className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-							strokeWidth={1.5}
-						/>
-					) : (
-						<FileText
-							className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-							strokeWidth={1.5}
-						/>
-					)}
-					<span className="truncate">{dragPreview.name}</span>
-				</div>
-			)}
 
 			<Sheet
 				open={!!mobileActionTarget}

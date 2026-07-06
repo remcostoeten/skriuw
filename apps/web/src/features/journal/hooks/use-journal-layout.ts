@@ -11,11 +11,13 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { isSameDay, parseISO, isValid } from "date-fns";
 import { useReducedMotion, type Transition } from "framer-motion";
-import { useShortcutManager, useShortcutScope } from "@/core/shortcuts";
+import { useShortcutManager } from "@/core/shortcuts";
+import { useActiveCommandScope, useRegisterCommands, useCommandRegistry } from "@/core/commands";
 import { focusActiveEditor } from "@/shared/lib/focus-editor";
 import { useNotesStore } from "@/features/notes/store";
+import { usePreferencesStore } from "@/features/settings/store";
+import { openSettings, toggleSettings } from "@/features/settings/use-settings-modal";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
 import { useJournalEntries } from "./use-journal-entries";
 import { useJournalTags } from "./use-journal-tags";
@@ -29,7 +31,7 @@ type UseJournalLayoutResult = {
 	showSidebar: boolean;
 	setShowSidebar: Dispatch<SetStateAction<boolean>>;
 	showCommandPalette: boolean;
-	setShowCommandPalette: Dispatch<SetStateAction<boolean>>;
+	setShowCommandPalette: (open: boolean) => void;
 	showShortcutHelp: boolean;
 	setShowShortcutHelp: Dispatch<SetStateAction<boolean>>;
 	editorMode: JournalEditorMode;
@@ -39,7 +41,6 @@ type UseJournalLayoutResult = {
 	prefersReducedMotion: boolean;
 	overlayTransition: Transition;
 	sidebarTransition: Transition;
-	commandItems: CommandPaletteItem[];
 	shortcutGroups: ShortcutHelpGroup[];
 	handleSelectEntry: (dateKey: string) => void;
 	handleSelectDate: (date: Date) => void;
@@ -66,6 +67,12 @@ export function useJournalLayout(): UseJournalLayoutResult {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const { getHelpGroups } = useShortcutManager();
+	const {
+		isOpen: showCommandPalette,
+		setIsOpen: setShowCommandPalette,
+		toggleOpen: handleOpenCommandPalette,
+	} = useCommandRegistry();
+
 	const entriesQuery = useJournalEntries();
 	const tagsQuery = useJournalTags();
 	const dateParam = searchParams.get("date");
@@ -73,7 +80,6 @@ export function useJournalLayout(): UseJournalLayoutResult {
 	const setUIState = useNotesStore((state) => state.setUIState);
 	const [selectedDate, setSelectedDate] = useState(new Date());
 	const [showSidebar, setShowSidebar] = useState(true);
-	const [showCommandPalette, setShowCommandPalette] = useState(false);
 	const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 	const [editorMode, setEditorMode] = useState<JournalEditorMode>("rich");
 	const [view, setView] = useState<JournalView>("list");
@@ -148,8 +154,8 @@ export function useJournalLayout(): UseJournalLayoutResult {
 
 	const handleOpenSettings = useCallback(() => {
 		triggerNativeFeedback("selection");
-		router.push("/app/settings");
-	}, [router]);
+		openSettings();
+	}, []);
 
 	const handleToggleEditorMode = useCallback(() => {
 		triggerNativeFeedback("impact");
@@ -160,11 +166,6 @@ export function useJournalLayout(): UseJournalLayoutResult {
 		triggerNativeFeedback("selection");
 		selectDate(new Date());
 	}, [selectDate]);
-
-	const handleOpenCommandPalette = useCallback(() => {
-		triggerNativeFeedback("selection");
-		setShowCommandPalette(true);
-	}, []);
 
 	const handleOpenShortcutHelp = useCallback(() => {
 		triggerNativeFeedback("selection");
@@ -197,78 +198,17 @@ export function useJournalLayout(): UseJournalLayoutResult {
 		[prefersReducedMotion],
 	);
 
-	useShortcutScope("journal", {
-		"journal.commandPalette": handleOpenCommandPalette,
+	// Register journal commands and scope
+	useActiveCommandScope("journal");
+
+	useRegisterCommands({
+		"journal.goToToday": handleGoToToday,
 		"journal.toggleSidebar": handleToggleSidebar,
-		"journal.settings": handleOpenSettings,
+		"journal.backToList": handleBackToList,
 		"journal.toggleEditor": handleToggleEditorMode,
 		"journal.focusEditor": () => focusActiveEditor(),
 		"journal.help": handleOpenShortcutHelp,
 	});
-
-	const commandItems = useMemo<CommandPaletteItem[]>(
-		() => [
-			{
-				id: "today",
-				label: "Jump to today",
-				group: "Navigation",
-				keywords: ["journal", "today", "date"],
-				description: "Return to today’s journal entry.",
-				action: handleGoToToday,
-			},
-			{
-				id: "toggle-sidebar",
-				label: "Toggle sidebar",
-				group: "Navigation",
-				shortcut: "mod+slash",
-				keywords: ["sidebar", "calendar", "toggle"],
-				description: "Show or hide the journal sidebar.",
-				action: handleToggleSidebar,
-			},
-			{
-				id: "back-to-list",
-				label: "Back to journal list",
-				group: "Navigation",
-				keywords: ["journal", "list", "back", "entries"],
-				description: "Return to the journal entries list.",
-				action: handleBackToList,
-			},
-			{
-				id: "toggle-editor",
-				label: "Switch editor mode",
-				group: "Editor",
-				shortcut: "mod+e",
-				keywords: ["plain", "rich", "editor"],
-				description: "Swap between plain text and rich text editing.",
-				action: handleToggleEditorMode,
-			},
-			{
-				id: "settings",
-				label: "Open settings",
-				group: "Settings",
-				shortcut: "mod+comma",
-				keywords: ["settings", "preferences"],
-				description: "Open the settings modal.",
-				action: handleOpenSettings,
-			},
-			{
-				id: "notes",
-				label: "Go to notes",
-				group: "Navigation",
-				keywords: ["notes", "route", "navigate"],
-				description: "Jump back to notes.",
-				action: handleGoToNotes,
-			},
-		],
-		[
-			handleBackToList,
-			handleGoToNotes,
-			handleGoToToday,
-			handleOpenSettings,
-			handleToggleEditorMode,
-			handleToggleSidebar,
-		],
-	);
 
 	const shortcutGroups = getHelpGroups(["journal"]);
 
@@ -288,7 +228,6 @@ export function useJournalLayout(): UseJournalLayoutResult {
 		prefersReducedMotion,
 		overlayTransition,
 		sidebarTransition,
-		commandItems,
 		shortcutGroups,
 		handleSelectEntry,
 		handleSelectDate,

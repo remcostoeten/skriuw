@@ -1,7 +1,18 @@
 "use client";
 
 import { format } from "date-fns";
-import { CalendarDays, ChevronLeft, Code, Settings2, Sidebar, Type } from "lucide-react";
+import {
+	CalendarDays,
+	ChevronLeft,
+	Code,
+	Loader2,
+	PenTool,
+	Settings2,
+	Sidebar,
+	Sparkles,
+	SpellCheck,
+	Type,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
@@ -9,13 +20,21 @@ import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { WorkspaceSidebarSkeleton } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
+import { GuestGate } from "@/shared/ui/guest-gate";
 import { JournalSidebar } from "./journal-sidebar";
 import { JournalEditor } from "./journal-editor";
 import { JournalDatabaseView } from "./journal-database-view";
-import { CommandPalette } from "@/shared/ui/command-palette";
+
 import { ShortcutHelpDialog } from "@/shared/ui/shortcut-help-dialog";
 import { useJournalLayout } from "../hooks/use-journal-layout";
 import { useJournalEntry } from "../hooks/use-journal-entry";
+import { useJournalAi } from "../hooks/use-journal-ai";
 import { JournalContentSkeleton } from "./journal-content-skeleton";
 
 function JournalSidebarPlaceholder() {
@@ -35,6 +54,9 @@ type JournalEditorToolbarProps = {
 	onToggleEditorMode: () => void;
 	onGoToToday: () => void;
 	onOpenSettings: () => void;
+	aiLoading?: { spellCheck: boolean; continueWriting: boolean };
+	onAiSpellCheck?: () => void;
+	onAiContinueWriting?: () => void;
 };
 
 function JournalEditorToolbar({
@@ -46,7 +68,12 @@ function JournalEditorToolbar({
 	onToggleEditorMode,
 	onGoToToday,
 	onOpenSettings,
+	aiLoading,
+	onAiSpellCheck,
+	onAiContinueWriting,
 }: JournalEditorToolbarProps) {
+	const hasAiActions = editorMode === "rich" && Boolean(onAiSpellCheck || onAiContinueWriting);
+	const anyAiLoading = aiLoading ? aiLoading.spellCheck || aiLoading.continueWriting : false;
 	const editorModeTitle = editorMode === "plain" ? "Switch to Rich Text" : "Switch to Plain Text";
 
 	if (isMobile) {
@@ -191,6 +218,64 @@ function JournalEditorToolbar({
 						</>
 					)}
 				</button>
+				{hasAiActions && (
+					<GuestGate feature="ai">
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<button
+									disabled={anyAiLoading}
+									className={cn(
+										desktopIconButtonClass,
+										"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+										anyAiLoading && "cursor-not-allowed opacity-50",
+									)}
+									title="AI actions"
+									aria-label="AI actions"
+								>
+									{anyAiLoading ? (
+										<Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.6} />
+									) : (
+										<Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
+									)}
+								</button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-52 rounded-none shadow-none">
+								{onAiSpellCheck && (
+									<DropdownMenuItem
+										onSelect={() => onAiSpellCheck()}
+										disabled={anyAiLoading}
+										className="gap-2 text-xs"
+									>
+										<SpellCheck className="h-3.5 w-3.5" strokeWidth={1.6} />
+										Spell check
+										{aiLoading?.spellCheck && (
+											<Loader2
+												className="ml-auto h-3 w-3 animate-spin"
+												strokeWidth={1.6}
+											/>
+										)}
+									</DropdownMenuItem>
+								)}
+								{onAiContinueWriting && (
+									<DropdownMenuItem
+										onSelect={() => onAiContinueWriting()}
+										disabled={anyAiLoading}
+										className="gap-2 text-xs"
+									>
+										<PenTool className="h-3.5 w-3.5" strokeWidth={1.6} />
+										Continue writing
+										{aiLoading?.continueWriting && (
+											<Loader2
+												className="ml-auto h-3 w-3 animate-spin"
+												strokeWidth={1.6}
+											/>
+										)}
+									</DropdownMenuItem>
+								)}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</GuestGate>
+				)}
 				<button
 					onClick={onOpenSettings}
 					className={cn(
@@ -215,8 +300,6 @@ export function JournalPageLayout() {
 		selectedDate,
 		sidebarWidth,
 		showSidebar,
-		showCommandPalette,
-		setShowCommandPalette,
 		showShortcutHelp,
 		setShowShortcutHelp,
 		editorMode,
@@ -226,7 +309,6 @@ export function JournalPageLayout() {
 		prefersReducedMotion,
 		overlayTransition,
 		sidebarTransition,
-		commandItems,
 		shortcutGroups,
 		handleSelectEntry,
 		handleSelectDate,
@@ -240,12 +322,13 @@ export function JournalPageLayout() {
 		closeSidebar,
 	} = useJournalLayout();
 	const journalEntry = useJournalEntry(selectedDate);
+	const journalAi = useJournalAi(selectedDate, journalEntry.entry);
 
 	if (forceLoading) {
 		return (
 			<LayoutContainer className="bg-background">
 				<div className="relative flex min-h-0 flex-1 overflow-hidden">
-					{!isMobile && <IconRail onOpenSettings={handleOpenSettings} />}
+					{!isMobile && <IconRail />}
 					<JournalSidebarPlaceholder />
 					<JournalContentPlaceholder view={loadingView} />
 				</div>
@@ -257,7 +340,7 @@ export function JournalPageLayout() {
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
 				{/* Icon rail (desktop) */}
-				{!isMobile && <IconRail onOpenSettings={handleOpenSettings} />}
+				{!isMobile && <IconRail />}
 
 				{/* Sidebar (desktop) */}
 				{isHydrated && !isMobile && showSidebar ? (
@@ -295,12 +378,18 @@ export function JournalPageLayout() {
 									onToggleEditorMode={handleToggleEditorMode}
 									onGoToToday={handleGoToToday}
 									onOpenSettings={handleOpenSettings}
+									aiLoading={journalAi.aiLoading}
+									onAiSpellCheck={() => journalAi.runAiAction("spellCheck")}
+									onAiContinueWriting={() =>
+										journalAi.runAiAction("continueWriting")
+									}
 								/>
 
 								<JournalEditor
 									selectedDate={selectedDate}
 									editorMode={editorMode}
 									entryState={journalEntry}
+									aiState={journalAi}
 									onToggleEditorMode={handleToggleEditorMode}
 									onGoToToday={handleGoToToday}
 									onBackToList={handleBackToList}
@@ -357,12 +446,7 @@ export function JournalPageLayout() {
 				)}
 			</AnimatePresence>
 
-			<CommandPalette
-				open={showCommandPalette}
-				onOpenChange={setShowCommandPalette}
-				items={commandItems}
-				description="Journal actions and route navigation."
-			/>
+
 			<ShortcutHelpDialog
 				open={showShortcutHelp}
 				onOpenChange={setShowShortcutHelp}

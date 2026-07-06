@@ -36,7 +36,7 @@ type DebouncedContentArgs = {
 
 type PendingEdit = {
 	content: string;
-	richContent: RichTextDocument;
+	richContent?: RichTextDocument;
 	preferredEditorMode?: NoteEditorMode;
 	properties?: NoteProperty[];
 };
@@ -83,36 +83,27 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 		// leaves the heading block (blur / Enter / navigate away), via an explicit
 		// rename. Deriving the name here on every keystroke is what made the sidebar
 		// rename mid-edit, so the cached name is left untouched.
+		//
+		// Only the detail cache is written here. Writing the files LIST query per
+		// edit gives the whole list a new identity every ~180ms of typing, which
+		// re-renders the sidebar tree and rebuilds every list-derived memo
+		// (note indexes, command items). The list entry is reconciled once per
+		// flush via reconcileSavedNoteCache instead.
 		function applyOptimisticCache(
 			id: string,
 			content: string,
-			richContent: RichTextDocument,
+			richContent: RichTextDocument | undefined,
 			preferredEditorMode: NoteEditorMode | undefined,
 			properties: NoteProperty[] | undefined,
 			updatedAt: Date,
 		) {
 			const nextProperties = properties ? normalizeNoteProperties(properties) : undefined;
-			queryClient.setQueryData<NoteFile[]>(filesKey, (current = []) =>
-				current.map((note) =>
-					note.id === id
-						? {
-								...note,
-								content,
-								richContent,
-								preferredEditorMode:
-									preferredEditorMode ?? note.preferredEditorMode,
-								properties: nextProperties ?? note.properties,
-								modifiedAt: updatedAt,
-							}
-						: note,
-				),
-			);
 			queryClient.setQueryData<NoteFile | null>(notesKeys.detail(id), (current) =>
 				current
 					? {
 							...current,
 							content,
-							richContent,
+							richContent: richContent ?? current.richContent,
 							preferredEditorMode: preferredEditorMode ?? current.preferredEditorMode,
 							properties: nextProperties ?? current.properties,
 							modifiedAt: updatedAt,
@@ -131,7 +122,9 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 			const input: UpdateNoteInput = {
 				id,
 				content: edit.content,
-				richContent: edit.richContent,
+				// Deriving blocks from markdown is deferred from schedule() to here so
+				// the parse runs once per flush instead of once per typing settle.
+				richContent: edit.richContent ?? markdownToRichDocument(edit.content),
 				preferredEditorMode: edit.preferredEditorMode,
 				properties: edit.properties,
 				// Autosaves never rename. The filename follows the first heading only
@@ -155,7 +148,8 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 				reconcileSavedNoteCache(queryClient, input, result, { filesKey });
 				optionsRef.current.onSaved?.(id);
 				return true;
-			} catch {
+			} catch (error) {
+				console.error(`Note save failed for ${id}`, error);
 				if ((versionsRef.current.get(id) ?? 0) !== baselineVersion) {
 					return false;
 				}
@@ -193,11 +187,10 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 			versionsRef.current.set(id, (versionsRef.current.get(id) ?? 0) + 1);
 
 			const updatedAt = new Date();
-			const nextRichContent = richContent ?? markdownToRichDocument(content);
 
 			pendingRef.current.set(id, {
 				content,
-				richContent: nextRichContent,
+				richContent,
 				preferredEditorMode,
 				properties: properties === undefined ? undefined : normalizeNoteProperties(properties),
 			});
@@ -206,7 +199,7 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 			applyOptimisticCache(
 				id,
 				content,
-				nextRichContent,
+				richContent,
 				preferredEditorMode,
 				properties,
 				updatedAt,

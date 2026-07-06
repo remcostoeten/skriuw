@@ -1,9 +1,16 @@
 "use client";
 
 import type { NoteFile, NoteFolder } from "@/domain/notes/models";
+import type { Person } from "@/domain/people/models";
 import { noop } from "@/shared/lib/noop";
+import { createWriteQueue } from "./write-queue";
 
 export const WORKSPACE_STORAGE_KEY = "skriuw:guest:workspace:v2";
+
+// The whole workspace is one blob, so every mutation rewrites the entire
+// payload — all guest writes serialize on this single key. See `write-queue.ts`
+// for how this shares one concurrency model with the desktop backend.
+const GUEST_WRITE_KEY = "workspace";
 
 const DB_NAME = "skriuw:guest:workspace";
 const DB_VERSION = 1;
@@ -11,9 +18,16 @@ const OBJECT_STORE_NAME = "workspace";
 const WORKSPACE_RECORD_KEY = "current";
 const WORKSPACE_RECORD_VERSION = 1;
 
+export type GuestTagMeta = {
+	name: string;
+	color: string | null;
+};
+
 export type GuestWorkspacePayload = {
 	notes: NoteFile[];
 	folders: NoteFolder[];
+	people: Person[];
+	tagMeta: GuestTagMeta[];
 };
 
 type StoredWorkspaceRecord = {
@@ -35,7 +49,7 @@ type UpdateDecision<Result> = {
 };
 
 export function emptyGuestWorkspacePayload(): GuestWorkspacePayload {
-	return { notes: [], folders: [] };
+	return { notes: [], folders: [], people: [], tagMeta: [] };
 }
 
 function canUseLocalStorage(): boolean {
@@ -64,9 +78,13 @@ function reviveNote(raw: NoteFile): NoteFile {
 function normalizePayload(
 	raw: Partial<GuestWorkspacePayload> | null | undefined,
 ): GuestWorkspacePayload {
+	// Older payloads predate people/tagMeta — default them so existing guest
+	// workspaces keep loading.
 	return {
 		notes: Array.isArray(raw?.notes) ? raw.notes.map(reviveNote) : [],
 		folders: Array.isArray(raw?.folders) ? raw.folders : [],
+		people: Array.isArray(raw?.people) ? raw.people : [],
+		tagMeta: Array.isArray(raw?.tagMeta) ? raw.tagMeta : [],
 	};
 }
 
@@ -79,6 +97,8 @@ function clonePayload(payload: GuestWorkspacePayload): GuestWorkspacePayload {
 			tags: [...(note.tags ?? [])],
 		})),
 		folders: payload.folders.map((folder) => ({ ...folder })),
+		people: payload.people.map((person) => ({ ...person })),
+		tagMeta: payload.tagMeta.map((meta) => ({ ...meta })),
 	};
 }
 
@@ -137,7 +157,7 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
 	});
 }
 
-function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
+function openRequest(factory: IDBFactory): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
 		const request = factory.open(DB_NAME, DB_VERSION);
 
@@ -151,6 +171,34 @@ function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
 		request.onerror = () => reject(request.error);
 		request.onblocked = () => reject(request.error ?? new Error("IndexedDB open blocked"));
 	});
+}
+
+function deleteDatabase(factory: IDBFactory): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const request = factory.deleteDatabase(DB_NAME);
+		request.onsuccess = () => resolve();
+		request.onerror = () => reject(request.error);
+		request.onblocked = () => reject(request.error ?? new Error("IndexedDB delete blocked"));
+	});
+}
+
+// A DB can exist at the current version WITHOUT the object store (an aborted
+// first open leaves this state behind); `onupgradeneeded` then never fires
+// again and every transaction throws NotFoundError. Detect it here and rebuild
+// the DB once so guest writes don't fail silently forever.
+async function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
+	const database = await openRequest(factory);
+	if (database.objectStoreNames.contains(OBJECT_STORE_NAME)) {
+		return database;
+	}
+	database.close();
+	await deleteDatabase(factory);
+	const rebuilt = await openRequest(factory);
+	if (!rebuilt.objectStoreNames.contains(OBJECT_STORE_NAME)) {
+		rebuilt.close();
+		throw new Error(`IndexedDB "${DB_NAME}" is missing the "${OBJECT_STORE_NAME}" store after rebuild`);
+	}
+	return rebuilt;
 }
 
 function createLocalStorageAdapter(): StorageAdapter {
@@ -210,7 +258,11 @@ async function createStorageAdapter(): Promise<StorageAdapter> {
 	try {
 		const database = await openDatabase(factory);
 		return createIndexedDBAdapter(database);
-	} catch {
+	} catch (error) {
+		console.error(
+			"Guest workspace: IndexedDB unavailable, falling back to localStorage",
+			error,
+		);
 		return createLocalStorageAdapter();
 	}
 }
@@ -219,7 +271,7 @@ export class GuestWorkspaceStore {
 	private adapterPromise: Promise<StorageAdapter> | null = null;
 	private payloadPromise: Promise<GuestWorkspacePayload> | null = null;
 	private payload: GuestWorkspacePayload | null = null;
-	private pending: Promise<void> = Promise.resolve();
+	private queue = createWriteQueue();
 
 	async read(): Promise<GuestWorkspacePayload> {
 		return clonePayload(await this.load());
@@ -239,7 +291,7 @@ export class GuestWorkspaceStore {
 			payload: GuestWorkspacePayload,
 		) => UpdateDecision<Result> | Promise<UpdateDecision<Result>>,
 	): Promise<Result> {
-		const operation = this.pending.then(async () => {
+		return this.queue.runExclusive(GUEST_WRITE_KEY, async () => {
 			const payload = clonePayload(await this.load());
 			const { result, shouldWrite } = await mutator(payload);
 			if (!shouldWrite) return result;
@@ -249,27 +301,14 @@ export class GuestWorkspaceStore {
 			await (await this.getAdapter()).write(normalized);
 			return result;
 		});
-
-		this.pending = operation.then(
-			() => undefined,
-			() => undefined,
-		);
-
-		return operation;
 	}
 
 	async clear(): Promise<void> {
-		const operation = this.pending.then(async () => {
+		return this.queue.runExclusive(GUEST_WRITE_KEY, async () => {
 			this.payload = emptyGuestWorkspacePayload();
 			this.payloadPromise = Promise.resolve(this.payload);
 			await (await this.getAdapter()).clear();
 		});
-
-		this.pending = operation.then(
-			() => undefined,
-			() => undefined,
-		);
-		return operation;
 	}
 
 	private async load(): Promise<GuestWorkspacePayload> {
@@ -295,6 +334,27 @@ export class GuestWorkspaceStore {
 
 export function createGuestWorkspaceStore(): GuestWorkspaceStore {
 	return new GuestWorkspaceStore();
+}
+
+let sharedStore: GuestWorkspaceStore | null = null;
+
+/**
+ * The shared guest store. Runtime writes (the backend) and boot reads (the
+ * seed merge) must go through the SAME instance: each instance picks its
+ * storage adapter independently, so two instances can silently target
+ * different backing stores (IndexedDB vs the localStorage fallback) and lose
+ * edits across reloads.
+ */
+export function getGuestWorkspaceStore(): GuestWorkspaceStore {
+	if (!sharedStore) {
+		sharedStore = createGuestWorkspaceStore();
+	}
+	return sharedStore;
+}
+
+/** Drops the shared store so each test starts from a fresh adapter + payload. */
+export function resetGuestWorkspaceStoreForTests(): void {
+	sharedStore = null;
 }
 
 export async function clearGuestWorkspaceIndexedDB(): Promise<void> {

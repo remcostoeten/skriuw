@@ -47,6 +47,12 @@ import {
   SectionHeader,
   SettingsCard,
 } from "@/features/settings/components/settings-primitives";
+import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-anchor";
+import {
+  NoteCleanupDialog,
+  NoteCleanupRow,
+} from "@/features/settings/components/note-cleanup";
+import { useNoteCleanupScan } from "@/features/settings/lib/use-note-cleanup-scan";
 import {
   tauriChannel,
   tauriInvoke,
@@ -446,6 +452,8 @@ export function LocalDataSection() {
   } | null>(null);
   const [resetStartedAt, setResetStartedAt] = useState<number | null>(null);
   const [resetState, setResetState] = useState<SnapshotState>("idle");
+  const cleanup = useNoteCleanupScan();
+  const [cleanupPrompt, setCleanupPrompt] = useState(false);
   const simplenoteInputRef = useRef<HTMLInputElement>(null);
 
   function resetSimplenoteFlow() {
@@ -544,6 +552,7 @@ export function LocalDataSection() {
       if (restored) {
         await refreshWorkspace();
         setNotice("Vault restored from backup.");
+        setCleanupPrompt(true);
       }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Restore failed.");
@@ -668,6 +677,7 @@ export function LocalDataSection() {
           setSimplenoteProgress({ imported, total }),
       });
       await refreshWorkspace();
+      setCleanupPrompt(true);
       const parts = [`Imported ${summary.imported} notes from Simplenote`];
       if (summary.skipped > 0) parts.push(`${summary.skipped} skipped`);
       if (summary.overwritten > 0)
@@ -824,7 +834,11 @@ export function LocalDataSection() {
 
       <GroupLabel>Vault</GroupLabel>
       <SettingsCard>
-        <Row title="Vault directory" description={vaultRoot || "Loading…"}>
+        <Row
+          focusId="local-vault-directory"
+          title="Vault directory"
+          description={vaultRoot || "Loading…"}
+        >
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleReveal}>
               <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -839,7 +853,11 @@ export function LocalDataSection() {
 
       <GroupLabel>Cloud sync</GroupLabel>
       <SettingsCard>
-        <div className="py-4">
+        <div
+          id={settingsFocusDomId("local-pull-from-server")}
+          data-settings-focus="local-pull-from-server"
+          className="py-4 scroll-mt-24"
+        >
           <div className="flex items-center gap-2 text-sm font-medium">
             <CloudDownload className="size-4 text-muted-foreground" />
             Pull from server
@@ -954,6 +972,7 @@ export function LocalDataSection() {
       <GroupLabel>Backup</GroupLabel>
       <SettingsCard>
         <Row
+          focusId="local-back-up-vault"
           title="Back up vault"
           description="Save a .zip of every note and folder."
         >
@@ -968,6 +987,7 @@ export function LocalDataSection() {
           </Button>
         </Row>
         <Row
+          focusId="local-restore-from-backup"
           title="Restore from backup"
           description="Replace the current vault with a .zip backup."
         >
@@ -983,6 +1003,7 @@ export function LocalDataSection() {
         </Row>
         <div>
           <Row
+            focusId="local-complete-snapshot"
             title="Complete snapshot"
             description="Capture settings, the SQLite index, the vault, and local AI data. Restoring wipes current desktop data and reloads Skriuw."
           >
@@ -1062,6 +1083,7 @@ export function LocalDataSection() {
       <GroupLabel>Import</GroupLabel>
       <SettingsCard>
         <Row
+          focusId="local-import-from-simplenote"
           title="Import from Simplenote"
           description="Pick your Simplenote export .zip. Notes, tags, and original dates are added to your vault; trashed notes go into a “Trash” folder."
         >
@@ -1343,9 +1365,43 @@ export function LocalDataSection() {
         </DialogContent>
       </Dialog>
 
+      <GroupLabel>Maintenance</GroupLabel>
+      <SettingsCard>
+        <NoteCleanupRow
+          phase={cleanup.phase}
+          onScan={cleanup.scan}
+          disabled={busy !== "idle"}
+        />
+        {cleanupPrompt && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 p-3">
+            <p className="text-xs text-muted-foreground">
+              Imports often bring along empty or duplicate notes. Scan for them
+              now?
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCleanupPrompt(false);
+                void cleanup.scan();
+              }}
+            >
+              Scan for junk notes
+            </Button>
+          </div>
+        )}
+      </SettingsCard>
+      <NoteCleanupDialog
+        result={cleanup.result}
+        onOpenChange={(open) => {
+          if (!open) cleanup.reset();
+        }}
+      />
+
       <GroupLabel>Danger zone</GroupLabel>
       <SettingsCard>
         <Row
+          focusId="local-reset-app"
           title="Reset app"
           description="Permanently remove app data, local AI data, and the vault."
         >

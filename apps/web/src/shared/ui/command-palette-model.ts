@@ -1,3 +1,5 @@
+import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
+
 export type CommandPaletteItem = {
 	id: string;
 	label: string;
@@ -7,6 +9,12 @@ export type CommandPaletteItem = {
 	hint?: string;
 	group?: string;
 	alwaysShow?: boolean;
+	/**
+	 * Hidden while the palette is idle (no query, no bang). Surfaces only once
+	 * the user searches or scopes to its group with a bang. Keeps large indexes
+	 * — every individual setting — out of the default view.
+	 */
+	searchOnly?: boolean;
 	action: () => void;
 };
 
@@ -16,24 +24,87 @@ export type CommandPaletteGroup = {
 };
 
 const DEFAULT_GROUP = "Actions";
-const GROUP_ORDER = [DEFAULT_GROUP, "Notes", "Recent", "Navigation", "Editor", "Settings", "Help"];
+const RECENT_GROUP = "Recent";
+const MAX_RECENT_ITEMS = 5;
+const GROUP_ORDER = [
+	RECENT_GROUP,
+	DEFAULT_GROUP,
+	"Notes",
+	"Navigation",
+	"Editor",
+	"Settings",
+	"Help",
+];
+
+/**
+ * Bang prefixes scope the palette to a slice of groups. `!n foo` searches only
+ * notes for "foo"; a bare `!s` lists every setting. The map values are the
+ * groups each bang keeps visible.
+ */
+export const COMMAND_BANGS: Record<string, { label: string; groups: string[] }> = {
+	a: { label: "Actions", groups: [DEFAULT_GROUP, "Navigation", "Editor", "Help"] },
+	n: { label: "Notes", groups: ["Notes", "Recent"] },
+	s: { label: "Settings", groups: ["Settings"] },
+};
+
+export type ParsedCommandQuery = {
+	bang: string | null;
+	allowedGroups: Set<string> | null;
+	query: string;
+};
+
+/**
+ * Splits a leading `!x` bang off the raw input. Returns the matched bang key
+ * (or null), the set of groups it unlocks, and the remaining search text. A
+ * lone `!` or an unknown bang is treated as plain text so typing stays fluid.
+ */
+export function parseCommandQuery(raw: string): ParsedCommandQuery {
+	const match = raw.match(/^!([a-z])(?:\s+(.*))?$/i);
+	if (match) {
+		const key = match[1].toLowerCase();
+		const bang = COMMAND_BANGS[key];
+		if (bang) {
+			return {
+				bang: key,
+				allowedGroups: new Set(bang.groups),
+				query: (match[2] ?? "").trim(),
+			};
+		}
+	}
+
+	return { bang: null, allowedGroups: null, query: raw.trim() };
+}
 
 function getItemGroup(item: CommandPaletteItem) {
 	return item.group?.trim() || DEFAULT_GROUP;
 }
 
-function getSearchHaystack(item: CommandPaletteItem) {
-	return [
-		item.label,
+/**
+ * Best fuzzy score for an item across its searchable fields. The label is
+ * weighted double so title hits outrank keyword/description hits. Returns
+ * null when nothing matches.
+ */
+function getItemMatchScore(item: CommandPaletteItem, query: string): number | null {
+	const labelScore = fuzzyMatchScore(query, item.label);
+	let best = labelScore === null ? null : labelScore * 2;
+
+	const secondaryFields = [
 		item.description,
 		item.hint,
 		item.shortcut,
 		getItemGroup(item),
 		...(item.keywords ?? []),
-	]
-		.filter(Boolean)
-		.join(" ")
-		.toLowerCase();
+	];
+
+	for (const field of secondaryFields) {
+		if (!field) continue;
+		const score = fuzzyMatchScore(query, field);
+		if (score !== null && (best === null || score > best)) {
+			best = score;
+		}
+	}
+
+	return best;
 }
 
 function compareGroups(a: string, b: string) {
@@ -45,22 +116,64 @@ function compareGroups(a: string, b: string) {
 	return a.localeCompare(b);
 }
 
+function buildRecentItems(
+	items: CommandPaletteItem[],
+	frecency: Record<string, number>,
+): CommandPaletteItem[] {
+	return items
+		.filter((item) => (frecency[item.id] ?? 0) > 0)
+		.sort((a, b) => (frecency[b.id] ?? 0) - (frecency[a.id] ?? 0))
+		.slice(0, MAX_RECENT_ITEMS);
+}
+
 export function getCommandPaletteGroups(
 	items: CommandPaletteItem[],
 	query: string,
+	frecency: Record<string, number> = {},
 ): CommandPaletteGroup[] {
-	const normalizedQuery = query.trim().toLowerCase();
+	const { allowedGroups, query: searchQuery } = parseCommandQuery(query);
+	const normalizedQuery = searchQuery.toLowerCase();
+	const bangActive = allowedGroups !== null;
 	const grouped = new Map<string, CommandPaletteItem[]>();
+	const matchScores = new Map<string, number>();
+
+	if (!normalizedQuery && (!allowedGroups || allowedGroups.has(RECENT_GROUP))) {
+		const recentItems = buildRecentItems(items, frecency);
+		if (recentItems.length > 0) {
+			grouped.set(RECENT_GROUP, recentItems);
+		}
+	}
 
 	for (const item of items) {
-		if (!item.alwaysShow && normalizedQuery && !getSearchHaystack(item).includes(normalizedQuery)) {
+		const group = getItemGroup(item);
+
+		if (allowedGroups && !allowedGroups.has(group)) {
 			continue;
 		}
 
-		const group = getItemGroup(item);
+		if (item.searchOnly && !normalizedQuery && !bangActive) {
+			continue;
+		}
+
+		if (normalizedQuery) {
+			const score = getItemMatchScore(item, normalizedQuery);
+			if (score === null && !(item.alwaysShow ?? false)) {
+				continue;
+			}
+			matchScores.set(item.id, (score ?? 0) + Math.min(frecency[item.id] ?? 0, 10));
+		}
+
 		const groupItems = grouped.get(group) ?? [];
 		groupItems.push(item);
 		grouped.set(group, groupItems);
+	}
+
+	if (normalizedQuery) {
+		for (const groupItems of grouped.values()) {
+			groupItems.sort(
+				(a, b) => (matchScores.get(b.id) ?? 0) - (matchScores.get(a.id) ?? 0),
+			);
+		}
 	}
 
 	return [...grouped.entries()]

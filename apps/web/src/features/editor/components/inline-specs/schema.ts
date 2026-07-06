@@ -9,16 +9,14 @@ import { userInlineSpec } from "./user-spec";
 import { personInlineSpec } from "./person-spec";
 import { createCheckListItem } from "../block-specs/checklist-item";
 import { createFileTree } from "../block-specs/file-tree";
-import { createSyntaxHighlightedCodeBlockSpec } from "../block-specs/code-highlighter";
+import { CodeBlock } from "../block-specs/CodeBlock";
+
+const { codeBlock: _discarded, ...blockSpecsWithoutCodeBlock } = defaultBlockSpecs;
 
 export const editorSchema = BlockNoteSchema.create({
 	blockSpecs: {
-		...defaultBlockSpecs,
-		// Fine-grained shiki/core spec: only the explicitly-imported languages get
-		// bundled. The previous inline config imported the full `shiki` barrel,
-		// which pulled the entire bundledLanguages registry into the build (~200
-		// unused grammar chunks, e.g. wolfram/fortran/verilog).
-		codeBlock: createSyntaxHighlightedCodeBlockSpec(),
+		...blockSpecsWithoutCodeBlock,
+		procode: CodeBlock(),
 		checkListItem: createCheckListItem(),
 		fileTree: createFileTree(),
 	},

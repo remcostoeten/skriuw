@@ -46,6 +46,14 @@ const TRASH_INDEX_FILE: &str = "trash.json";
 pub struct VaultStore {
     root: Mutex<PathBuf>,
     write_lock: Mutex<()>,
+    /// Lazy id → file-path cache backing `find_note_path`. Without it every note
+    /// save re-reads and frontmatter-parses the entire vault to locate the file.
+    /// Built on first lookup, maintained incrementally by upsert/delete/trash,
+    /// dropped wholesale on batch moves and root changes. External file moves
+    /// made while the app runs are caught by the per-hit staleness check;
+    /// externally *added* files surface at the next launch reconcile, matching
+    /// the vault's documented external-edit semantics.
+    note_paths: Mutex<Option<HashMap<String, PathBuf>>>,
 }
 
 impl VaultStore {
@@ -56,9 +64,13 @@ impl VaultStore {
         let store = Self {
             root: Mutex::new(root.to_path_buf()),
             write_lock: Mutex::new(()),
+            note_paths: Mutex::new(None),
         };
         if !store.folders_path().exists() {
             store.write_folders(&[])?;
+        }
+        if store.has_import_backup() {
+            let _ = store.restore_import_backup();
         }
         Ok(store)
     }
@@ -73,6 +85,11 @@ impl VaultStore {
     pub fn reload_root(&self, root: PathBuf) {
         let mut guard = self.root.lock().expect("vault root mutex poisoned");
         *guard = root;
+        drop(guard);
+        self.invalidate_note_paths();
+        if self.has_import_backup() {
+            let _ = self.restore_import_backup();
+        }
     }
 
     fn folders_path(&self) -> PathBuf {
@@ -120,6 +137,7 @@ impl VaultStore {
         if dir.starts_with(&root) && dir != root && dir.exists() {
             fs::remove_dir_all(&dir)?;
         }
+        self.invalidate_note_paths();
         let doomed = descendant_ids(&folders, id);
         let kept: Vec<Folder> = folders
             .into_iter()
@@ -161,7 +179,9 @@ impl VaultStore {
         }
 
         let target = dir.join(note_file_name(&note.name));
-        fs::write(&target, render_note(note))
+        fs::write(&target, render_note(note))?;
+        self.cache_note_path(&note.id, target);
+        Ok(())
     }
 
     pub fn delete_note(&self, id: &str) -> io::Result<()> {
@@ -169,6 +189,7 @@ impl VaultStore {
         if let Some(path) = self.find_note_path(id)? {
             fs::remove_file(path)?;
         }
+        self.uncache_note_path(id);
         Ok(())
     }
 
@@ -219,6 +240,7 @@ impl VaultStore {
         };
         fs::create_dir_all(self.trash_notes_dir())?;
         move_file(&path, &self.trash_note_file(id))?;
+        self.uncache_note_path(id);
 
         let mut records = self.read_trash()?;
         records.push(TrashRecord {
@@ -288,6 +310,7 @@ impl VaultStore {
         if dir.starts_with(&root) && dir != root && dir.exists() {
             fs::remove_dir_all(&dir)?;
         }
+        self.invalidate_note_paths();
         let kept: Vec<Folder> = folders
             .into_iter()
             .filter(|folder| !subtree.iter().any(|folder_id| folder_id == &folder.id))
@@ -349,6 +372,7 @@ impl VaultStore {
             }
         }
 
+        self.invalidate_note_paths();
         self.write_trash(&rest)
     }
 
@@ -450,14 +474,62 @@ impl VaultStore {
     }
 
     fn find_note_path(&self, id: &str) -> io::Result<Option<PathBuf>> {
-        let mut found = None;
+        let mut cache = self.note_paths.lock().expect("vault path cache poisoned");
+        if cache.is_none() {
+            *cache = Some(self.build_note_paths()?);
+        }
+        let map = cache.as_mut().expect("cache populated above");
+
+        if let Some(path) = map.get(id) {
+            let still_there = fs::read_to_string(path)
+                .ok()
+                .and_then(|raw| frontmatter_id(&raw))
+                .is_some_and(|found| found == id);
+            if still_there {
+                return Ok(Some(path.clone()));
+            }
+            // The file moved or changed under us (external edit) — rebuild once.
+            *map = self.build_note_paths()?;
+            return Ok(map.get(id).cloned());
+        }
+        Ok(None)
+    }
+
+    fn build_note_paths(&self) -> io::Result<HashMap<String, PathBuf>> {
+        let mut map = HashMap::new();
         let root = self.root();
         self.walk_markdown(&root, &mut |path, raw| {
-            if frontmatter_id(raw).as_deref() == Some(id) {
-                found = Some(path.to_path_buf());
+            if let Some(id) = frontmatter_id(raw) {
+                map.insert(id, path.to_path_buf());
             }
         })?;
-        Ok(found)
+        Ok(map)
+    }
+
+    fn invalidate_note_paths(&self) {
+        *self.note_paths.lock().expect("vault path cache poisoned") = None;
+    }
+
+    fn cache_note_path(&self, id: &str, path: PathBuf) {
+        if let Some(map) = self
+            .note_paths
+            .lock()
+            .expect("vault path cache poisoned")
+            .as_mut()
+        {
+            map.insert(id.to_string(), path);
+        }
+    }
+
+    fn uncache_note_path(&self, id: &str) {
+        if let Some(map) = self
+            .note_paths
+            .lock()
+            .expect("vault path cache poisoned")
+            .as_mut()
+        {
+            map.remove(id);
+        }
     }
 
     fn walk_markdown(&self, dir: &Path, visit: &mut dyn FnMut(&Path, &str)) -> io::Result<()> {
@@ -589,11 +661,149 @@ impl VaultStore {
         self.write_journal_tags(&tags)
     }
 
+    fn backup_dir(&self) -> PathBuf {
+        self.root().join(META_DIR).join("backup_import")
+    }
+
+    pub fn has_import_backup(&self) -> bool {
+        self.backup_dir().exists()
+    }
+
+    /// Creates a backup of the current vault (folders list, journal tags, journal entries, and all notes).
+    pub fn create_import_backup(&self) -> io::Result<()> {
+        let _guard = self.write_lock.lock().expect("vault write lock poisoned");
+        let backup_dir = self.backup_dir();
+        if backup_dir.exists() {
+            fs::remove_dir_all(&backup_dir)?;
+        }
+        fs::create_dir_all(&backup_dir)?;
+
+        let root = self.root();
+
+        // 1. Copy all folders and notes (everything in root except META_DIR)
+        for entry in fs::read_dir(&root)? {
+            let entry = entry?;
+            let path = entry.path();
+            let name = entry.file_name();
+            if name == META_DIR {
+                continue;
+            }
+            let target = backup_dir.join(&name);
+            if path.is_dir() {
+                copy_dir_all(&path, &target)?;
+            } else {
+                fs::copy(&path, &target)?;
+            }
+        }
+
+        // 2. Copy selected metadata folder contents
+        let meta_src = root.join(META_DIR);
+        let meta_dst = backup_dir.join(META_DIR);
+        fs::create_dir_all(&meta_dst)?;
+
+        let files_to_copy = [FOLDERS_FILE, JOURNAL_TAGS_FILE, TRASH_INDEX_FILE];
+        for file in &files_to_copy {
+            let src_file = meta_src.join(file);
+            if src_file.exists() {
+                fs::copy(&src_file, meta_dst.join(file))?;
+            }
+        }
+
+        let dirs_to_copy = [JOURNAL_DIR, TRASH_DIR];
+        for dir in &dirs_to_copy {
+            let src_dir = meta_src.join(dir);
+            if src_dir.exists() {
+                copy_dir_all(&src_dir, &meta_dst.join(dir))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Restores the vault to the backed up state.
+    pub fn restore_import_backup(&self) -> io::Result<()> {
+        let _guard = self.write_lock.lock().expect("vault write lock poisoned");
+        let backup_dir = self.backup_dir();
+        if !backup_dir.exists() {
+            return Ok(());
+        }
+
+        let root = self.root();
+
+        // 1. Delete everything in the vault root, EXCEPT for `.skriuw`.
+        for entry in fs::read_dir(&root)? {
+            let entry = entry?;
+            let path = entry.path();
+            if entry.file_name() == META_DIR {
+                continue;
+            }
+            if path.is_dir() {
+                fs::remove_dir_all(&path)?;
+            } else {
+                fs::remove_file(&path)?;
+            }
+        }
+
+        // 2. Also delete folders.json, journal-tags.json, trash/, journal/
+        let meta_dir = root.join(META_DIR);
+        let folders_json = meta_dir.join(FOLDERS_FILE);
+        if folders_json.exists() {
+            let _ = fs::remove_file(folders_json);
+        }
+        let journal_tags_json = meta_dir.join(JOURNAL_TAGS_FILE);
+        if journal_tags_json.exists() {
+            let _ = fs::remove_file(journal_tags_json);
+        }
+        let trash_dir = meta_dir.join(TRASH_DIR);
+        if trash_dir.exists() {
+            let _ = fs::remove_dir_all(trash_dir);
+        }
+        let journal_dir = meta_dir.join(JOURNAL_DIR);
+        if journal_dir.exists() {
+            let _ = fs::remove_dir_all(journal_dir);
+        }
+
+        // 3. Copy everything from backup_dir back to the vault root
+        copy_dir_all(&backup_dir, &root)?;
+
+        // 4. Invalidate paths cache
+        self.invalidate_note_paths();
+
+        // 5. Delete the backup directory.
+        fs::remove_dir_all(&backup_dir)?;
+
+        Ok(())
+    }
+
+    /// Discards the backup directory after a successful import.
+    pub fn discard_import_backup(&self) -> io::Result<()> {
+        let _guard = self.write_lock.lock().expect("vault write lock poisoned");
+        let backup_dir = self.backup_dir();
+        if backup_dir.exists() {
+            fs::remove_dir_all(&backup_dir)?;
+        }
+        Ok(())
+    }
+
     fn write_journal_tags(&self, tags: &[JournalTag]) -> io::Result<()> {
         fs::create_dir_all(self.root().join(META_DIR))?;
         let body = serde_json::to_string_pretty(tags).unwrap_or_else(|_| "[]".to_string());
         fs::write(self.journal_tags_path(), format!("{body}\n"))
     }
+}
+
+fn copy_dir_all(src: &Path, dst: &Path) -> io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(&entry.path(), &dst.join(entry.file_name()))?;
+        } else {
+            fs::copy(entry.path(), dst.join(entry.file_name()))?;
+        }
+    }
+    Ok(())
 }
 
 fn clone_folder(folder: &Folder) -> Folder {
@@ -1255,5 +1465,47 @@ mod tests {
 
         assert!(store.list_trash().unwrap().is_empty());
         assert!(!dir.path().join(".skriuw/trash/notes/n1.md").exists());
+    }
+
+    #[test]
+    fn backup_restore_and_discard_works() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+
+        // 1. Create initial state
+        store.upsert_folder(&folder("f1", "Work", None)).unwrap();
+        store.upsert_note(&note("n1", "A.md", Some("f1"))).unwrap();
+        store.upsert_note(&note("n2", "B.md", None)).unwrap();
+
+        // 2. Backup the state
+        store.create_import_backup().unwrap();
+        assert!(store.has_import_backup());
+
+        // 3. Make some changes (simulating an import)
+        store.upsert_note(&note("n3", "C.md", None)).unwrap();
+        store.delete_note("n2").unwrap();
+
+        // 4. Restore the backup (simulating a rollback)
+        store.restore_import_backup().unwrap();
+        assert!(!store.has_import_backup());
+
+        // Verify state is restored
+        let notes = store.list_notes().unwrap();
+        assert_eq!(notes.len(), 2);
+        assert!(notes.iter().any(|n| n.id == "n1"));
+        assert!(notes.iter().any(|n| n.id == "n2"));
+        assert!(!notes.iter().any(|n| n.id == "n3"));
+
+        // 5. Create backup again, make changes, and discard it (simulating success)
+        store.create_import_backup().unwrap();
+        assert!(store.has_import_backup());
+        store.upsert_note(&note("n4", "D.md", None)).unwrap();
+        store.discard_import_backup().unwrap();
+        assert!(!store.has_import_backup());
+
+        // Verify changes are kept
+        let notes = store.list_notes().unwrap();
+        assert_eq!(notes.len(), 3);
+        assert!(notes.iter().any(|n| n.id == "n4"));
     }
 }

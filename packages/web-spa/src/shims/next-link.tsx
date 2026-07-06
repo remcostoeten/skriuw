@@ -24,8 +24,14 @@ const NextLink = forwardRef<HTMLAnchorElement, Props>(function NextLink(
 		);
 	}
 
+	const [path, query = ""] = href.split("?");
+	const search: Record<string, string> = {};
+	for (const [key, value] of new URLSearchParams(query)) {
+		search[key] = value;
+	}
+
 	return (
-		<TanstackLink ref={ref} to={href} replace={replace} {...rest}>
+		<TanstackLink ref={ref} to={path} search={search} replace={replace} {...rest}>
 			{children}
 		</TanstackLink>
 	);

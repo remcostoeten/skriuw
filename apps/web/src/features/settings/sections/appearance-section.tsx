@@ -12,6 +12,7 @@ import {
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
 import { THEMES } from "@/features/settings/preferences/themes";
+import { settingsAnchorProps } from "@/features/settings/lib/settings-focus-anchor";
 import {
 	CompactSidebarDemo,
 	LineNumbersDemo,
@@ -34,12 +35,37 @@ export function AppearanceSection() {
 			/>
 
 			<GroupLabel>THEME</GroupLabel>
-			<div className="grid grid-cols-3 gap-3">
-				{THEMES.map((t) => (
+			<div
+				{...settingsAnchorProps("theme")}
+				role="radiogroup"
+				aria-label="Theme"
+				className="grid grid-cols-3 gap-3 scroll-mt-24"
+				onKeyDown={(e) => {
+					const arrows = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+					if (!arrows.includes(e.key)) return;
+					e.preventDefault();
+					const idx = Math.max(0, THEMES.findIndex((t) => t.id === appearance.theme));
+					const delta = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1;
+					const next = THEMES[(idx + delta + THEMES.length) % THEMES.length];
+					update("theme", next.id);
+					e.currentTarget
+						.querySelector<HTMLElement>(`[data-theme-id="${next.id}"]`)
+						?.focus();
+				}}
+			>
+				{THEMES.map((t, i) => (
 					<button
 						key={t.id}
 						type="button"
-						aria-pressed={appearance.theme === t.id}
+						role="radio"
+						data-theme-id={t.id}
+						aria-checked={appearance.theme === t.id}
+						tabIndex={
+							appearance.theme === t.id ||
+							(i === 0 && !THEMES.some((x) => x.id === appearance.theme))
+								? 0
+								: -1
+						}
 						onClick={() => update("theme", t.id)}
 						className={cn(
 							"group rounded-lg border p-2 text-left transition-colors",
@@ -69,6 +95,7 @@ export function AppearanceSection() {
 			<GroupLabel>INTERFACE</GroupLabel>
 			<SettingsCard>
 				<Row
+					focusId="compact-sidebar"
 					title="Compact sidebar"
 					description="Tighter spacing in the file tree."
 					visualization={<CompactSidebarDemo enabled={compactMode} />}
@@ -82,6 +109,7 @@ export function AppearanceSection() {
 					/>
 				</Row>
 				<Row
+					focusId="tree-guides"
 					title="File tree guide lines"
 					description="Show nested ruler lines in the notes sidebar."
 					visualization={<TreeGuidesDemo enabled={showTreeGuides} />}
@@ -89,6 +117,7 @@ export function AppearanceSection() {
 					<Switch checked={showTreeGuides} onCheckedChange={() => toggleTreeGuides()} />
 				</Row>
 				<Row
+					focusId="line-numbers"
 					title="Show line numbers"
 					description="In the editor gutter."
 					visualization={<LineNumbersDemo enabled={appearance.showLineNumbers} />}
@@ -98,10 +127,34 @@ export function AppearanceSection() {
 						onCheckedChange={(v) => update("showLineNumbers", v)}
 					/>
 				</Row>
-				<Row title="Reduce motion" description="Minimize transitions and animations.">
+				<Row
+					focusId="reduce-motion"
+					title="Reduce motion"
+					description="Minimize transitions and animations."
+				>
 					<Switch
 						checked={appearance.reduceMotion}
 						onCheckedChange={(v) => update("reduceMotion", v)}
+					/>
+				</Row>
+				<Row
+					focusId="remember-last-tab"
+					title="Remember last settings tab"
+					description="Reopen settings on the tab you last visited instead of the default."
+				>
+					<Switch
+						checked={appearance.rememberLastTab}
+						onCheckedChange={(v) => update("rememberLastTab", v)}
+					/>
+				</Row>
+				<Row
+					focusId="remember-last-note"
+					title="Remember last opened note"
+					description="Reopen the note you last viewed on launch instead of the first note."
+				>
+					<Switch
+						checked={appearance.rememberLastNote}
+						onCheckedChange={(v) => update("rememberLastNote", v)}
 					/>
 				</Row>
 			</SettingsCard>

@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { type PanInfo } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
 	useCallback,
 	useEffect,
@@ -13,17 +13,22 @@ import {
 	type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { CreateFolderInput } from "@/domain/folders/actions";
+import { collectFolderSubtreeIds } from "@/domain/folders/traversal";
 import type { CreateNoteInput } from "@/domain/notes/actions";
 import { NOTE_PROPERTY_TEMPLATES } from "@/domain/notes/properties";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";
 import { isGuestScopedId } from "@/domain/notes/note-id";
 import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
+import { VIM_COMMAND_EVENT } from "@/features/editor/lib/vim-command-bus";
 import { useOnboardingStore } from "@/features/onboarding/store";
 import { generateNoteContent } from "@/features/notes/lib/generate-note-content";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
+import { openSettings, toggleSettings } from "@/features/settings/use-settings-modal";
+import { buildSettingsCommandItems } from "@/features/settings/settings-command-index";
+import { THEMES } from "@/features/settings/preferences/themes";
 import {
 	focusActiveEditor,
 	focusActiveNoteTreeItem,
@@ -32,6 +37,8 @@ import {
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { perf } from "@/shared/perf/track";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
+import { useRegisterCommands, useRegisterCommandItemsProvider, useActiveCommandScope, useCommandRegistry } from "@/core/commands";
+import { parseCommandQuery } from "@/shared/ui/command-palette-model";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
 import { useCreateFolder } from "./use-create-folder";
@@ -91,6 +98,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const [seededActiveFileId] = useState(() => initialActiveFileId ?? "");
 
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const queryClient = useQueryClient();
 	const replayWelcomeTour = useOnboardingStore((state) => state.resetWelcome);
 	const backend = useWorkspaceBackend();
@@ -116,9 +124,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const setSplitOrientation = useNotesStore((state) => state.setSplitOrientation);
 	const toggleSplitOrientation = useNotesStore((state) => state.toggleSplitOrientation);
 	const swapSplitPaneOrder = useNotesStore((state) => state.swapSplitPaneOrder);
+	const setSplitSecondaryFirst = useNotesStore((state) => state.setSplitSecondaryFirst);
 	const primaryTabs = useNotesStore((state) => state.primaryTabs);
 	const secondaryTabs = useNotesStore((state) => state.secondaryTabs);
 	const reorderTabs = useNotesStore((state) => state.reorderTabs);
+	const addTab = useNotesStore((state) => state.addTab);
+	const openTabInBackground = useNotesStore((state) => state.openTabInBackground);
 	const removeTab = useNotesStore((state) => state.removeTab);
 	const togglePinTab = useNotesStore((state) => state.togglePinTab);
 	const setPaneTabs = useNotesStore((state) => state.setPaneTabs);
@@ -131,6 +142,21 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		state.getFileSaveState(state.activeFileId || seededActiveFileId),
 	);
 	const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
+	// The one-time seed only wins while the store is empty, so an in-app
+	// navigation to `/app?note=X` (graph node click, tag insights link) would
+	// be ignored once another note is already active. Follow the URL param as
+	// a live request instead.
+	const requestedNoteId = searchParams.get("note");
+	useEffect(() => {
+		if (!requestedNoteId) return;
+		if (initialUserScopeId && isGuestScopedId(requestedNoteId)) return;
+		if (useNotesStore.getState().activeFileId !== requestedNoteId) {
+			setActiveFileId(requestedNoteId);
+		}
+	}, [requestedNoteId, initialUserScopeId, setActiveFileId]);
+	const recentFileIds = useNotesStore((state) => state.recentFileIds);
+	const lastActiveFileId = useNotesStore((state) => state.lastActiveFileId);
+	const pushRecentFile = useNotesStore((state) => state.pushRecentFile);
 	const setFileSaveState = useNotesStore((state) => state.setFileSaveState);
 	const clearFileSaveState = useNotesStore((state) => state.clearFileSaveState);
 	const setFolderOpen = useNotesStore((state) => state.setFolderOpen);
@@ -214,7 +240,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	);
 	const diaryModeEnabled = usePreferencesStore((state) => state.journal.diaryModeEnabled);
 	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
+	const activeTheme = usePreferencesStore((state) => state.appearance.theme);
+	const rememberLastNote = usePreferencesStore((state) => state.appearance.rememberLastNote);
 	const updateEditorPreference = usePreferencesStore((state) => state.updateEditorPreference);
+	const updateAppearancePreference = usePreferencesStore(
+		(state) => state.updateAppearancePreference,
+	);
 	const [viewingVersion, setViewingVersion] = useState<NoteVersion | null>(null);
 	const [sharingNoteId, setSharingNoteId] = useState<string | null>(null);
 	const restoreNoteVersion = useRestoreNoteVersion();
@@ -295,7 +326,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	useEffect(() => {
 		setMounted(true);
 	}, []);
-	const openInTabs = mounted && openNotesInTabs && !isMobile;
+	// Tab mode is on when the user enabled the preference, or on demand once a note
+	// is opened in a new tab (background open). Without the preference we only show
+	// the bar at 2+ tabs so closing back down to a single note hides it again
+	// instead of stranding a lone-tab bar.
+	const openInTabs =
+		mounted &&
+		(openNotesInTabs || primaryTabs.length > 1 || secondaryTabs.length > 1) &&
+		!isMobile;
 
 	const fileById = useMemo(() => {
 		const map = new Map<string, NoteFile>();
@@ -392,6 +430,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		initializePreferences();
 	}, [initializePreferences]);
 
+	const didInitialAutoSelect = useRef(false);
 	useEffect(() => {
 		if (notesQuery.isPending) {
 			return;
@@ -405,12 +444,51 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			return;
 		}
 
-		if (activeFileId && files.some((file) => file.id === activeFileId)) {
+		// On the very first resolve, restore the note the user last viewed
+		// (instead of the server-seeded first note) when they opted in and the
+		// URL isn't already pointing at a specific note.
+		if (
+			!didInitialAutoSelect.current &&
+			!requestedNoteId &&
+			rememberLastNote &&
+			lastActiveFileId &&
+			lastActiveFileId !== activeFileId &&
+			files.some((file) => file.id === lastActiveFileId)
+		) {
+			didInitialAutoSelect.current = true;
+			syncFileSelection(lastActiveFileId, { mode: "replace" });
 			return;
 		}
 
-		syncFileSelection(files[0].id, { mode: "replace" });
-	}, [activeFileId, files, notesQuery.isPending, setActiveFileId, syncFileSelection]);
+		if (activeFileId) {
+			if (files.some((file) => file.id === activeFileId)) {
+				didInitialAutoSelect.current = true;
+				return;
+			}
+			// The open note was deleted/renamed out of existence — fall back to
+			// the first note so the editor never points at a stale id.
+			didInitialAutoSelect.current = true;
+			syncFileSelection(files[0].id, { mode: "replace" });
+			return;
+		}
+
+		// No note is selected. Auto-open the first note only on the very first
+		// load; once the user has deliberately closed everything, honor the
+		// empty state instead of re-opening a note behind their back.
+		if (!didInitialAutoSelect.current) {
+			didInitialAutoSelect.current = true;
+			syncFileSelection(files[0].id, { mode: "replace" });
+		}
+	}, [
+		activeFileId,
+		files,
+		notesQuery.isPending,
+		setActiveFileId,
+		syncFileSelection,
+		requestedNoteId,
+		rememberLastNote,
+		lastActiveFileId,
+	]);
 
 	useEffect(() => {
 		if (viewingVersion && viewingVersion.noteId !== activeFileId) {
@@ -471,6 +549,10 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		(id: string, options?: NoteUrlSyncOptions) => {
 			triggerNativeFeedback("selection");
 
+			if (id) {
+				pushRecentFile(id);
+			}
+
 			// Start the select→painted timer (warm = body already cached).
 			if (id && id !== activeFileId) {
 				perf.openStart(id, queryClient.getQueryData(notesKeys.detail(id)) !== undefined);
@@ -517,6 +599,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			flushContentInBackground,
 			focusedEditorPane,
 			isMobile,
+			pushRecentFile,
 			queryClient,
 			setFocusedEditorPane,
 			setSecondaryFile,
@@ -555,6 +638,33 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			openSplitBeside(fileId, activeFileId);
 		},
 		[activeFileId, flushAllContent, isMobile, openSplitBeside],
+	);
+
+	const handleOpenInSplit = useCallback(
+		(
+			fileId: string,
+			orientation: "vertical" | "horizontal",
+			placement: "before" | "after" = "after",
+		) => {
+			if (isMobile || !fileId || fileId === activeFileId) return;
+			setSplitOrientation(orientation);
+			setSplitSecondaryFirst(placement === "before");
+			handleOpenBeside(fileId);
+		},
+		[activeFileId, handleOpenBeside, isMobile, setSplitOrientation, setSplitSecondaryFirst],
+	);
+
+	// Open a note as a background tab (middle-click in the sidebar, ctrl/cmd-click
+	// a wikilink): it appears as a new tab in the focused pane without stealing
+	// focus from the current note. Forces tab mode on if it was off.
+	const handleOpenInNewTab = useCallback(
+		(fileId: string) => {
+			if (isMobile || !fileId) return;
+			const pane = splitEnabled ? focusedEditorPane : "primary";
+			openTabInBackground(pane, fileId);
+			prefetchNote(fileId);
+		},
+		[focusedEditorPane, isMobile, openTabInBackground, prefetchNote, splitEnabled],
 	);
 
 	const handleCloseSplit = useCallback(() => {
@@ -598,7 +708,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	}, [focusedEditorPane]);
 
 	const handleToggleSplit = useCallback(() => {
-		if (splitSecondaryFileId) {
+		if (splitSecondaryFileId && splitOrientation === "vertical") {
 			handleCloseSplit();
 		} else {
 			handleOpenSplitWithOrientation("vertical");
@@ -608,6 +718,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleCloseSplit,
 		handleOpenSplitWithOrientation,
 		restoreEditorFocusAfterLayoutChange,
+		splitOrientation,
 		splitSecondaryFileId,
 	]);
 
@@ -637,12 +748,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		if (!showSidebar) {
 			setUIState({ showSidebar: true });
 		}
+		const targetId = focusedEditorPane === "secondary" ? splitSecondaryFileId : activeFileId;
 		requestAnimationFrame(() => {
 			requestAnimationFrame(() => {
-				focusActiveNoteTreeItem();
+				focusActiveNoteTreeItem(targetId ?? undefined);
 			});
 		});
-	}, [setUIState, showSidebar]);
+	}, [activeFileId, focusedEditorPane, setUIState, showSidebar, splitSecondaryFileId]);
 
 	const handleFocusSplitPane = useCallback(
 		(direction: 1 | -1) => {
@@ -748,6 +860,17 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		],
 	);
 
+	const handleSwitchToTabIndex = useCallback(
+		(index: number) => {
+			const tabs = focusedEditorPane === "secondary" ? secondaryTabs : primaryTabs;
+			if (tabs.length === 0) return;
+			const target = index < 0 ? tabs[tabs.length - 1] : tabs[index];
+			if (!target) return;
+			activateTab(focusedEditorPane, target.fileId);
+		},
+		[activateTab, focusedEditorPane, primaryTabs, secondaryTabs],
+	);
+
 	const handleCloseTab = useCallback(
 		(pane: EditorPane, fileId: string) => {
 			const tabs = pane === "primary" ? primaryTabs : secondaryTabs;
@@ -820,6 +943,41 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[activateTab, activeFileId, closeTabsToSide, flushContentInBackground, splitSecondaryFileId],
 	);
 
+	const handleDropNoteOnTab = useCallback(
+		(pane: EditorPane, targetFileId: string | null, droppedFileId: string) => {
+			if (!droppedFileId || droppedFileId === targetFileId) return;
+			const tabs = pane === "primary" ? primaryTabs : secondaryTabs;
+			const alreadyOpen = tabs.some((tab) => tab.fileId === droppedFileId);
+			if (!alreadyOpen) {
+				const target = targetFileId
+					? tabs.find((tab) => tab.fileId === targetFileId)
+					: undefined;
+				if (target) {
+					flushContentInBackground(target.fileId);
+					setPaneTabs(
+						pane,
+						tabs.map((tab) =>
+							tab.fileId === target.fileId
+								? { fileId: droppedFileId, pinned: tab.pinned }
+								: tab,
+						),
+					);
+				} else {
+					addTab(pane, droppedFileId);
+				}
+			}
+			activateTab(pane, droppedFileId);
+		},
+		[
+			activateTab,
+			addTab,
+			flushContentInBackground,
+			primaryTabs,
+			secondaryTabs,
+			setPaneTabs,
+		],
+	);
+
 	const focusedPaneActiveId = useCallback(
 		() => (focusedEditorPane === "secondary" ? splitSecondaryFileId : activeFileId),
 		[activeFileId, focusedEditorPane, splitSecondaryFileId],
@@ -827,9 +985,45 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const handleCloseFocusedTab = useCallback(() => {
 		const id = focusedPaneActiveId();
-		if (!id) return;
-		handleCloseTab(focusedEditorPane, id);
-	}, [focusedEditorPane, focusedPaneActiveId, handleCloseTab]);
+		if (id) {
+			handleCloseTab(focusedEditorPane, id);
+			return;
+		}
+		if (splitSecondaryFileId) {
+			handleCloseSplit();
+			restoreEditorFocusAfterLayoutChange();
+			return;
+		}
+		if (activeFileId) {
+			handleCloseTab("primary", activeFileId);
+		}
+	}, [
+		activeFileId,
+		focusedEditorPane,
+		focusedPaneActiveId,
+		handleCloseSplit,
+		handleCloseTab,
+		restoreEditorFocusAfterLayoutChange,
+		splitSecondaryFileId,
+	]);
+
+	// Vim ex commands from the block editor (`:w`, `:q`, `:wq`, `:x`, and their
+	// `!` variants). `:w` flushes every dirty note with a checkpoint; quitting
+	// maps to vim window semantics — close the focused tab, or the split pane
+	// when it is the last one.
+	useEffect(() => {
+		function onVimCommand(event: Event) {
+			const command = (event as CustomEvent<{ command?: string }>).detail?.command;
+			if (!command) return;
+			const base = command.replace(/!$/, "");
+			const save = base === "w" || base === "wq" || base === "x";
+			const quit = base === "q" || base === "wq" || base === "x";
+			if (save) flushAllContent({ createCheckpoint: true });
+			if (quit) handleCloseFocusedTab();
+		}
+		window.addEventListener(VIM_COMMAND_EVENT, onVimCommand);
+		return () => window.removeEventListener(VIM_COMMAND_EVENT, onVimCommand);
+	}, [flushAllContent, handleCloseFocusedTab]);
 
 	const handleCloseFocusedOtherTabs = useCallback(() => {
 		const id = focusedPaneActiveId();
@@ -992,8 +1186,13 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const handleOpenSettings = useCallback(() => {
 		triggerNativeFeedback("selection");
-		router.push("/app/settings");
-	}, [router]);
+		openSettings();
+	}, []);
+
+	const handleToggleSettings = useCallback(() => {
+		triggerNativeFeedback("selection");
+		toggleSettings();
+	}, []);
 
 	const handleToggleEditorMode = useCallback(() => {
 		const modeTarget = focusedFile ?? activeFile;
@@ -1062,8 +1261,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	]);
 
 	const {
-		showCommandPalette,
-		setShowCommandPalette,
 		showShortcutHelp,
 		setShowShortcutHelp,
 		handleOpenCommandPalette,
@@ -1074,7 +1271,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleCreateFolder,
 		handleToggleSidebar,
 		handleToggleMetadata,
-		handleOpenSettings,
+		handleOpenSettings: handleToggleSettings,
 		handleToggleEditorMode,
 		handleFocusFileTree,
 		handleToggleSplit,
@@ -1083,7 +1280,62 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleCloseFocusedTab,
 		handleFocusNextSplitPane,
 		handleFocusPreviousSplitPane,
+		handleSwitchToTabIndex,
 	});
+
+	useEffect(() => {
+		const pendingShortcut = searchParams.get("shortcut");
+		if (!pendingShortcut) return;
+		const pendingFolderId = searchParams.get("folder");
+
+		switch (pendingShortcut) {
+			case "toggleSidebar":
+				handleToggleSidebar();
+				break;
+			case "toggleMetadata":
+				handleToggleMetadata();
+				break;
+			case "focusSidebarSearch":
+				setUIState({ showSidebar: true });
+				window.setTimeout(() => {
+					window.dispatchEvent(new Event("skriuw:focus-sidebar-search"));
+				}, 0);
+				break;
+			case "renameFolder":
+				if (pendingFolderId) {
+					setUIState({ showSidebar: true });
+					window.setTimeout(() => {
+						window.dispatchEvent(
+							new CustomEvent("skriuw:rename-folder", {
+								detail: { id: pendingFolderId },
+							}),
+						);
+					}, 0);
+				}
+				break;
+			case "focusEditor":
+				window.setTimeout(() => focusActiveEditor(), 0);
+				break;
+			case "help":
+				handleOpenShortcutHelp();
+				break;
+			default:
+				break;
+		}
+
+		const params = new URLSearchParams(searchParams.toString());
+		params.delete("shortcut");
+		params.delete("folder");
+		const qs = params.toString();
+		router.replace(qs ? `/app?${qs}` : "/app", { scroll: false });
+	}, [
+		handleOpenShortcutHelp,
+		handleToggleMetadata,
+		handleToggleSidebar,
+		router,
+		searchParams,
+		setUIState,
+	]);
 
 	useDesktopMenuActions({
 		onCreateFile: handleCreateFile,
@@ -1223,19 +1475,10 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const moveFolder = useCallback(
 		(folderId: string, newParentId: string | null, sortOrder?: number) => {
-			const descendantIds = new Set<string>();
-			const stack = [folderId];
-
-			while (stack.length > 0) {
-				const current = stack.pop();
-				if (!current) continue;
-				descendantIds.add(current);
-				for (const folder of folders) {
-					if (folder.parentId === current && !descendantIds.has(folder.id)) {
-						stack.push(folder.id);
-					}
-				}
-			}
+			const descendantIds = collectFolderSubtreeIds(
+				folderId,
+				(parentId) => foldersByParentId.get(parentId) ?? [],
+			);
 
 			if (newParentId && descendantIds.has(newParentId)) {
 				return;
@@ -1247,7 +1490,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				...(sortOrder !== undefined && { sortOrder }),
 			});
 		},
-		[folders, updateFolderMutation],
+		[foldersByParentId, updateFolderMutation],
 	);
 
 	const handleToggleFolder = useCallback(
@@ -1287,204 +1530,35 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleNavigateInFocusedPane(files[index + 1]!.id);
 	}, [files, focusedFileIdForNav, handleNavigateInFocusedPane]);
 
-	const actionCommandItems: CommandPaletteItem[] = useMemo(
-		() => [
-			{
-				id: "new-note",
-				label: diaryModeEnabled ? "Open today's journal" : "Create note",
-				group: "Actions",
-				shortcut: "mod+n",
-				keywords: diaryModeEnabled
-					? ["journal", "today", "entry", "create", "new"]
-					: ["new", "file", "note", "create"],
-				description: diaryModeEnabled
-					? "Open today's journal entry."
-					: "Create a fresh note and focus it immediately.",
-				action: handleCreateFile,
-			},
-			{
-				id: "new-folder",
-				label: "Create folder",
-				group: "Actions",
-				shortcut: "mod+shift+n",
-				keywords: ["folder", "create", "sidebar"],
-				description: "Add a new folder to the current tree.",
-				action: handleCreateFolder,
-			},
-			{
-				id: "toggle-sidebar",
-				label: "Toggle sidebar",
-				group: "Navigation",
-				shortcut: "mod+shift+b",
-				keywords: ["sidebar", "navigation", "panel"],
-				description: "Show or hide the notes navigation panel.",
-				action: handleToggleSidebar,
-			},
-			{
-				id: "toggle-metadata",
-				label: "Toggle note details",
-				group: "Navigation",
-				shortcut: "mod+shift+alt+b",
-				keywords: ["metadata", "details", "properties"],
-				description: "Show or hide the metadata panel.",
-				action: handleToggleMetadata,
-			},
-			{
-				id: "toggle-editor-mode",
-				label: "Toggle editor surface",
-				group: "Editor",
-				shortcut: "mod+alt+e",
-				keywords: ["raw mdx", "block note", "editor"],
-				description: "Swap between raw MDX and Block Note.",
-				action: handleToggleEditorMode,
-			},
-			{
-				id: "toggle-vim-mode",
-				label: vimModeEnabled ? "Disable Vim mode" : "Enable Vim mode",
-				group: "Editor",
-				keywords: ["vim", "modal", "keybindings", "normal", "insert", "editor"],
-				description: vimModeEnabled
-					? "Turn off modal Vim keybindings in the editor."
-					: "Turn on modal Vim keybindings (Normal/Insert) in the editor.",
-				action: () => updateEditorPreference("vimMode", !vimModeEnabled),
-			},
-			{
-				id: "focus-file-tree",
-				label: "Focus file tree",
-				group: "Navigation",
-				shortcut: "ctrl+e",
-				keywords: ["file tree", "sidebar", "focus", "notes"],
-				description: "Move focus to the active note in the file tree.",
-				action: handleFocusFileTree,
-			},
-			{
-				id: "split-editor",
-				label: "Split editor vertically",
-				group: "Editor",
-				shortcut: "mod+shift+e",
-				keywords: ["split", "editor", "pane", "vertical"],
-				description: "Open the neighboring note in a vertical split.",
-				action: handleToggleSplit,
-			},
-			{
-				id: "split-editor-horizontal",
-				label: "Split editor horizontally",
-				group: "Editor",
-				shortcut: "ctrl+b",
-				keywords: ["split", "editor", "pane", "horizontal"],
-				description: "Open or switch the split editor to a horizontal layout.",
-				action: handleSplitHorizontal,
-			},
-			{
-				id: "focus-next-split-pane",
-				label: "Focus next split pane",
-				group: "Editor",
-				shortcut: "ctrl+`",
-				keywords: ["split", "editor", "pane", "focus", "next"],
-				description: "Move focus clockwise through split editor panes.",
-				action: handleFocusNextSplitPane,
-			},
-			{
-				id: "focus-previous-split-pane",
-				label: "Focus previous split pane",
-				group: "Editor",
-				shortcut: "ctrl+shift+`",
-				keywords: ["split", "editor", "pane", "focus", "previous"],
-				description: "Move focus counter-clockwise through split editor panes.",
-				action: handleFocusPreviousSplitPane,
-			},
-			{
-				id: "close-tab",
-				label: "Close tab",
-				group: "Editor",
-				shortcut: "ctrl+w",
-				keywords: ["close", "tab", "note", "dismiss"],
-				description: "Close the focused tab; the pane empties when it is the last one.",
-				action: handleCloseFocusedTab,
-			},
-			{
-				id: "close-other-tabs",
-				label: "Close other tabs",
-				group: "Editor",
-				keywords: ["close", "tab", "note", "others", "except", "focused"],
-				description: "Close every tab in the focused pane except the active one.",
-				action: handleCloseFocusedOtherTabs,
-			},
-			{
-				id: "close-all-tabs",
-				label: "Close all tabs",
-				group: "Editor",
-				keywords: ["close", "tab", "note", "all", "empty"],
-				description: "Close every tab in the focused pane (pinned tabs are kept).",
-				action: handleCloseAllTabs,
-			},
-			{
-				id: "open-settings",
-				label: "Open settings",
-				group: "Settings",
-				shortcut: "mod+comma",
-				keywords: ["settings", "preferences"],
-				description: "Open the settings modal.",
-				action: handleOpenSettings,
-			},
-			{
-				id: "open-journal",
-				label: "Go to journal",
-				group: "Navigation",
-				keywords: ["journal", "route", "navigate"],
-				description: "Jump from notes into the journal view.",
-				action: () => router.push("/app/journal"),
-			},
-			{
-				id: "welcome-tour",
-				label: "Show welcome tour",
-				group: "Help",
-				keywords: ["tour", "walkthrough", "onboarding", "welcome", "help", "slash", "demo"],
-				description: "Replay the quick intro to the / menu, links, and tags.",
-				action: replayWelcomeTour,
-			},
-		],
-		[
-			handleCreateFile,
-			handleCreateFolder,
-			diaryModeEnabled,
-			handleFocusFileTree,
-			handleOpenSettings,
-			handleCloseFocusedTab,
-			handleCloseFocusedOtherTabs,
-			handleCloseAllTabs,
-			handleFocusNextSplitPane,
-			handleFocusPreviousSplitPane,
-			handleSplitHorizontal,
-			handleToggleEditorMode,
-			handleToggleMetadata,
-			handleToggleSidebar,
-			handleToggleSplit,
-			updateEditorPreference,
-			vimModeEnabled,
-			replayWelcomeTour,
-			router,
-		],
-	);
-
-	const [commandQuery, setCommandQuery] = useState("");
-	const trimmedCommandQuery = commandQuery.trim();
+	const {
+		query: commandQuery,
+		isOpen: showCommandPalette,
+		setIsOpen: setShowCommandPalette,
+	} = useCommandRegistry();
+	const parsedCommand = parseCommandQuery(commandQuery);
+	const trimmedCommandQuery = parsedCommand.query;
+	// A bang scoping to actions/settings hides notes entirely, so skip the note
+	// search (and its network hit) unless notes are in scope.
+	const notesInScope =
+		parsedCommand.allowedGroups === null ||
+		parsedCommand.allowedGroups.has("Notes") ||
+		parsedCommand.allowedGroups.has("Recent");
 	const { supportsContentSearch, hits: commandSearchHits } = useNoteSearch(
-		showCommandPalette ? commandQuery : "",
+		showCommandPalette && notesInScope ? trimmedCommandQuery : "",
 	);
 
 	const NOTE_RESULT_LIMIT = 15;
+	const RECENT_DEFAULT_LIMIT = 7;
 
 	const noteCommandItems = useMemo<CommandPaletteItem[]>(() => {
-		if (!trimmedCommandQuery) {
-			return [];
-		}
-
-		const lowerQuery = trimmedCommandQuery.toLowerCase();
 		const seen = new Set<string>();
 		const results: CommandPaletteItem[] = [];
 
-		function pushNote(id: string, name: string, hint?: string) {
+		if (!notesInScope) {
+			return results;
+		}
+
+		function pushNote(id: string, name: string, group: string, hint?: string) {
 			if (seen.has(id) || results.length >= NOTE_RESULT_LIMIT) {
 				return;
 			}
@@ -1492,7 +1566,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			results.push({
 				id: `note:${id}`,
 				label: name || "Untitled",
-				group: "Notes",
+				group,
 				alwaysShow: true,
 				hint,
 				keywords: ["note", "open", "go to"],
@@ -1500,32 +1574,83 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			});
 		}
 
+		if (!trimmedCommandQuery) {
+			const filesById = new Map(metadataFiles.map((file) => [file.id, file]));
+
+			for (const id of recentFileIds) {
+				if (id === activeFileId) continue;
+				const file = filesById.get(id);
+				if (file) pushNote(file.id, file.name, "Recent");
+				if (results.length >= RECENT_DEFAULT_LIMIT) break;
+			}
+
+			if (results.length < RECENT_DEFAULT_LIMIT) {
+				const byModified = [...metadataFiles].sort(
+					(a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime(),
+				);
+				for (const file of byModified) {
+					if (file.id === activeFileId) continue;
+					pushNote(file.id, file.name, "Recent");
+					if (results.length >= RECENT_DEFAULT_LIMIT) break;
+				}
+			}
+
+			return results;
+		}
+
+		const lowerQuery = trimmedCommandQuery.toLowerCase();
+
 		for (const file of metadataFiles) {
 			const nameMatch = file.name.toLowerCase().includes(lowerQuery);
 			const tagMatch = (file.tags ?? []).some((tag) => tag.toLowerCase().includes(lowerQuery));
 			if (nameMatch || tagMatch) {
-				pushNote(file.id, file.name);
+				pushNote(file.id, file.name, "Notes");
 			}
 		}
 
 		if (supportsContentSearch) {
 			for (const hit of commandSearchHits as NoteSearchHit[]) {
-				pushNote(hit.id, hit.name, hit.snippet);
+				pushNote(hit.id, hit.name, "Notes", hit.snippet);
 			}
 		}
 
 		return results;
 	}, [
 		trimmedCommandQuery,
+		notesInScope,
 		metadataFiles,
+		recentFileIds,
+		activeFileId,
 		supportsContentSearch,
 		commandSearchHits,
 		handleFileSelect,
 	]);
 
-	const commandItems = useMemo<CommandPaletteItem[]>(
-		() => actionCommandItems.concat(noteCommandItems),
-		[actionCommandItems, noteCommandItems],
+	useActiveCommandScope("notes");
+
+	useRegisterCommands({
+		"notes.newNote": handleCreateFile,
+		"notes.newFolder": handleCreateFolder,
+		"notes.toggleSidebar": handleToggleSidebar,
+		"notes.toggleMetadata": handleToggleMetadata,
+		"notes.toggleEditor": handleToggleEditorMode,
+		"notes.focusFileTree": handleFocusFileTree,
+		"notes.toggleSplit": handleToggleSplit,
+		"notes.splitHorizontal": handleSplitHorizontal,
+		"notes.closeTab": handleCloseFocusedTab,
+		"notes.closeSplit": handleCloseSplitPane,
+		"notes.focusNextSplitPane": handleFocusNextSplitPane,
+		"notes.focusPreviousSplitPane": handleFocusPreviousSplitPane,
+		"notes.focusEditor": () => focusActiveEditor(),
+		"notes.help": handleOpenShortcutHelp,
+		"notes.closeOtherTabs": handleCloseFocusedOtherTabs,
+		"notes.closeAllTabs": handleCloseAllTabs,
+	});
+
+	useRegisterCommandItemsProvider(
+		useCallback(() => {
+			return noteCommandItems;
+		}, [noteCommandItems])
 	);
 
 	// The sidebar + main layout only need the notes metadata and folder lists,
@@ -1545,6 +1670,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		() => ({
 			onFileSelect: handleFileSelect,
 			onOpenBeside: !isMobile ? handleOpenBeside : undefined,
+			onOpenInSplit: !isMobile ? handleOpenInSplit : undefined,
+			onOpenInNewTab: !isMobile ? handleOpenInNewTab : undefined,
 			onFilePrefetch: prefetchNote,
 			onToggleFolder: handleToggleFolder,
 			onRenameFile: renameFile,
@@ -1557,6 +1684,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[
 			handleFileSelect,
 			handleOpenBeside,
+			handleOpenInSplit,
+			handleOpenInNewTab,
 			isMobile,
 			prefetchNote,
 			handleToggleFolder,
@@ -1612,8 +1741,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		closeMetadata,
 		closeSidebar,
 		collapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
-		commandItems,
-		setCommandQuery,
 		countDescendants,
 		createFile: handleCreateFile,
 		createFolder: handleCreateFolder,
@@ -1677,6 +1804,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleEditorScrollPositionChange,
 		handleFocusEditorPane,
 		handleOpenBeside,
+		handleOpenInSplit,
 		handleToggleSplit,
 		handleToggleSplitOrientation: toggleSplitOrientation,
 		handleSwapSplitPaneOrder: swapSplitPaneOrder,
@@ -1691,6 +1819,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			onTogglePinTab: handleTogglePinTab,
 			onCloseOtherTabs: handleCloseOtherTabs,
 			onCloseTabsToSide: handleCloseTabsToSide,
+			onDropNoteOnTab: handleDropNoteOnTab,
 		},
 	};
 }

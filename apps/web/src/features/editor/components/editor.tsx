@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
-import type { AiEditorHandle } from "@/features/ai/service";
+import type { AiAction, AiEditorHandle } from "@/features/ai/service";
 import type { NoteProperty } from "@/domain/notes/properties";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import { useShortcutHint } from "@/core/shortcuts";
@@ -18,6 +18,7 @@ import {
 } from "@/features/editor/lib/editor-line-height";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
 import type { TRichTextCollab } from "./rich-text-editor";
+import type { VimMode } from "@/features/editor/lib/vim-plugin";
 import { cn } from "@/shared/lib/utils";
 
 type EditorMode = "raw" | "block";
@@ -28,9 +29,14 @@ function RichTextEditorLoading() {
 	return <EditorContentSkeleton />;
 }
 
-// Dynamically import RichTextEditor to avoid SSR issues with BlockNote
+// Dynamically import RichTextEditor to avoid SSR issues with BlockNote.
+// Must use the same absolute specifier as journal-editor.tsx so both async
+// boundaries share one chunk instead of bundling the editor graph twice.
 const RichTextEditor = dynamic(
-	() => import("./rich-text-editor").then((mod) => ({ default: mod.RichTextEditor })),
+	() =>
+		import("@/features/editor/components/rich-text-editor").then((mod) => ({
+			default: mod.RichTextEditor,
+		})),
 	{
 		ssr: false,
 		loading: RichTextEditorLoading,
@@ -58,6 +64,8 @@ type EditorProps = {
 	onEditorReady?: (handle: AiEditorHandle) => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
+	onAiAction?: (action: AiAction) => void;
+	onAiCustomPrompt?: (instruction: string) => void;
 	onTitleCommit?: (title: string) => void;
 	onBlur?: () => void;
 	onCursorChange?: (position: {
@@ -65,7 +73,7 @@ type EditorProps = {
 		column: number;
 		selection?: { words: number; characters: number };
 	}) => void;
-	onVimModeChange?: (mode: "normal" | "insert" | null) => void;
+	onVimModeChange?: (mode: VimMode | null) => void;
 	initialScrollTop?: number;
 	onScrollPositionChange?: (scrollTop: number) => void;
 	onPaneActivate?: () => void;
@@ -86,6 +94,8 @@ export function Editor({
 	onEditorReady,
 	onAiSpellCheck,
 	onAiContinueWriting,
+	onAiAction,
+	onAiCustomPrompt,
 	onTitleCommit,
 	onBlur,
 	onCursorChange,
@@ -239,7 +249,7 @@ export function Editor({
 	}, [file, onScrollPositionChange]);
 
 	const containerClass = cn(
-		"flex min-h-full flex-1 flex-col overflow-y-auto bg-card",
+		"flex min-h-full flex-1 flex-col overflow-y-auto overscroll-contain bg-card",
 		isPaneFocused === false && "opacity-95",
 		isPaneFocused === true && "ring-1 ring-inset ring-foreground/12",
 	);
@@ -301,6 +311,8 @@ export function Editor({
 					onEditorReady={onEditorReady}
 					onAiSpellCheck={onAiSpellCheck}
 					onAiContinueWriting={onAiContinueWriting}
+					onAiAction={onAiAction}
+					onAiCustomPrompt={onAiCustomPrompt}
 					onTitleCommit={onTitleCommit}
 					onBlur={onBlur}
 					onCursorChange={onCursorChange}

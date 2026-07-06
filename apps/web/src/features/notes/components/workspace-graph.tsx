@@ -8,7 +8,7 @@ import { useAuth } from "@/core/auth/use-auth";
 import { recordGuestGraphExplore } from "@/core/workspace-backend";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import type { GraphData, GraphNode } from "@/domain/notes/graph";
+import { graphNodeKey, type GraphData, type GraphNode, type GraphNodeType } from "@/domain/notes/graph";
 import { NotesEmptyState } from "./notes-empty-state";
 import { useNoteGraph } from "../hooks/use-note-graph";
 
@@ -28,9 +28,11 @@ const CLUSTER_COLORS = [
 ];
 
 const TAG_COLOR = "#64748b";
+const PERSON_COLOR = "#cbd5e1";
 
 function nodeColor(node: GraphNode): string {
 	if (node.type === "tag") return TAG_COLOR;
+	if (node.type === "person") return PERSON_COLOR;
 	return CLUSTER_COLORS[node.cluster % CLUSTER_COLORS.length];
 }
 
@@ -45,13 +47,39 @@ function hexToRgba(hex: string, alpha: number): string {
 	return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+type SimulationNode = GraphNode & { x?: number; vx?: number };
+
+/**
+ * A d3-force that nudges note nodes toward an x position derived from their
+ * creation time, so the layout reads as a loose timeline: oldest notes drift
+ * left, newest right. Weak on purpose — link/charge forces still dominate, the
+ * timeline only biases where clusters settle. Tag/person nodes (no createdAt)
+ * are left to the other forces.
+ */
+function makeTimelineForce(minCreatedAt: number, span: number, spread: number) {
+	let nodes: SimulationNode[] = [];
+	function force(alpha: number) {
+		for (const node of nodes) {
+			if (node.createdAt === undefined || node.x === undefined) continue;
+			const target = ((node.createdAt - minCreatedAt) / span - 0.5) * spread;
+			node.vx = (node.vx ?? 0) + (target - node.x) * 0.06 * alpha;
+		}
+	}
+	force.initialize = (simulationNodes: SimulationNode[]) => {
+		nodes = simulationNodes;
+	};
+	return force;
+}
+
 type GraphCanvasProps = {
 	data: GraphData;
 	onOpenNote: (id: string) => void;
+	onOpenTag: (name: string) => void;
+	onOpenPerson: (id: string) => void;
 	onExploreNote?: (id: string) => void;
 };
 
-function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
+function GraphCanvas({ data, onOpenNote, onOpenTag, onOpenPerson, onExploreNote }: GraphCanvasProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	// biome-ignore lint/suspicious/noExplicitAny: react-force-graph-2d has no exported ref type
 	const graphRef = useRef<any>(null);
@@ -97,6 +125,33 @@ function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 		[data],
 	);
 
+	// The canvas is lazy-loaded, so the ref may still be empty when effects
+	// first run — the engine-tick callback retries until the instance exists,
+	// and the guard keeps re-registration to once per dataset.
+	const timelineForNodes = useRef<GraphData["nodes"] | null>(null);
+	const ensureTimelineForce = useCallback(() => {
+		const graph = graphRef.current;
+		if (!graph || timelineForNodes.current === data.nodes) return;
+		timelineForNodes.current = data.nodes;
+
+		const stamps = data.nodes
+			.map((node) => node.createdAt)
+			.filter((value): value is number => value !== undefined);
+		if (stamps.length < 2) {
+			graph.d3Force("timeline", null);
+			return;
+		}
+		const min = Math.min(...stamps);
+		const span = Math.max(1, Math.max(...stamps) - min);
+		const spread = 60 * Math.sqrt(data.nodes.length);
+		graph.d3Force("timeline", makeTimelineForce(min, span, spread));
+		graph.d3ReheatSimulation?.();
+	}, [data.nodes]);
+
+	useEffect(() => {
+		ensureTimelineForce();
+	}, [ensureTimelineForce]);
+
 	// Capture latest values in refs so canvas callbacks never go stale.
 	const hoveredIdRef = useRef(hoveredId);
 	const neighborsRef = useRef(neighbors);
@@ -109,11 +164,18 @@ function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 
 	const handleNodeClick = useCallback(
 		(node: GraphNode) => {
-			if (node.type !== "note") return;
+			if (node.type === "tag") {
+				onOpenTag(graphNodeKey(node.id, "tag"));
+				return;
+			}
+			if (node.type === "person") {
+				onOpenPerson(graphNodeKey(node.id, "person"));
+				return;
+			}
 			onExploreNote?.(node.id);
 			onOpenNote(node.id);
 		},
-		[onExploreNote, onOpenNote],
+		[onExploreNote, onOpenNote, onOpenPerson, onOpenTag],
 	);
 
 	const handleNodeHover = useCallback((node: GraphNode | null) => {
@@ -205,6 +267,13 @@ function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 				ctx.closePath();
 				ctx.fillStyle = color;
 				ctx.fill();
+			} else if (typed.type === "person") {
+				// Rounded square for person nodes
+				const s = r * 1.05;
+				ctx.beginPath();
+				ctx.roundRect(typed.x - s, typed.y - s, s * 2, s * 2, s * 0.45);
+				ctx.fillStyle = color;
+				ctx.fill();
 			} else {
 				ctx.beginPath();
 				ctx.arc(typed.x, typed.y, r, 0, 2 * Math.PI);
@@ -227,7 +296,7 @@ function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 			const showLabel =
 				isHovered ||
 				(isHub && globalScale >= 0.7) ||
-				(isTag && globalScale >= 1.0) ||
+				((isTag || typed.type === "person") && globalScale >= 1.0) ||
 				(typed.degree >= 2 && globalScale >= 1.5);
 
 			if (showLabel) {
@@ -243,7 +312,11 @@ function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 	);
 
 	return (
-		<div ref={containerRef} className="relative h-full w-full">
+		<div
+			ref={containerRef}
+			className="relative h-full w-full"
+			style={{ cursor: hoveredId ? "pointer" : undefined }}
+		>
 			{size.width > 0 && (
 				<ForceGraph2D
 					ref={graphRef}
@@ -267,11 +340,41 @@ function GraphCanvas({ data, onOpenNote, onExploreNote }: GraphCanvasProps) {
 					onNodeClick={(node) => handleNodeClick(node as GraphNode)}
 					onNodeHover={(node) => handleNodeHover(node as GraphNode | null)}
 					cooldownTicks={150}
+					onEngineTick={ensureTimelineForce}
 					onEngineStop={handleEngineStop}
 					nodeCanvasObjectMode={() => "replace"}
 					nodeCanvasObject={drawNode}
 				/>
 			)}
+		</div>
+	);
+}
+
+function GraphLegend() {
+	return (
+		<div className="flex flex-col gap-1.5 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+			<div className="flex items-center gap-2">
+				<svg className="h-3 w-3 shrink-0" viewBox="0 0 12 12" aria-hidden>
+					<circle cx="6" cy="6" r="5" fill={CLUSTER_COLORS[0]} />
+				</svg>
+				<span>Note — color marks its cluster</span>
+			</div>
+			<div className="flex items-center gap-2">
+				<svg className="h-3 w-3 shrink-0" viewBox="0 0 12 12" aria-hidden>
+					<path d="M6 0 L12 6 L6 12 L0 6 Z" fill={TAG_COLOR} />
+				</svg>
+				<span>Tag</span>
+			</div>
+			<div className="flex items-center gap-2">
+				<svg className="h-3 w-3 shrink-0" viewBox="0 0 12 12" aria-hidden>
+					<rect x="0.5" y="0.5" width="11" height="11" rx="3" fill={PERSON_COLOR} />
+				</svg>
+				<span>Person</span>
+			</div>
+			<p className="pt-1 leading-relaxed">
+				Bigger = more connections. Older notes sit left, newer right. Click any node to
+				open it.
+			</p>
 		</div>
 	);
 }
@@ -285,12 +388,24 @@ function MetricRow({ label, value }: { label: string; value: number }) {
 	);
 }
 
+type NodeTypeVisibility = Record<GraphNodeType, boolean>;
+
+const NODE_TYPE_FILTERS: Array<{ type: GraphNodeType; label: string }> = [
+	{ type: "note", label: "Notes" },
+	{ type: "tag", label: "Tags" },
+	{ type: "person", label: "People" },
+];
+
 function MetricsOverlay({
 	data,
 	onOpenNote,
+	visible,
+	onToggleType,
 }: {
 	data: GraphData;
 	onOpenNote: (id: string) => void;
+	visible: NodeTypeVisibility;
+	onToggleType: (type: GraphNodeType) => void;
 }) {
 	const { metrics } = data;
 	return (
@@ -300,13 +415,32 @@ function MetricsOverlay({
 					<Waypoints className="h-4 w-4" strokeWidth={1.7} />
 					Workspace graph
 				</div>
-				<div className="flex flex-col gap-1.5">
+				<div className="mb-3 flex items-center gap-1.5">
+					{NODE_TYPE_FILTERS.map((filter) => (
+						<button
+							key={filter.type}
+							type="button"
+							aria-pressed={visible[filter.type]}
+							onClick={() => onToggleType(filter.type)}
+							className={`rounded-[4px] border px-2 py-0.5 text-xs transition-colors ${
+								visible[filter.type]
+									? "border-ring/60 bg-muted text-foreground"
+									: "border-border/60 text-muted-foreground hover:text-foreground"
+							}`}
+						>
+							{filter.label}
+						</button>
+					))}
+				</div>
+				<div className="mb-3 flex flex-col gap-1.5">
 					<MetricRow label="Notes" value={metrics.noteCount} />
 					<MetricRow label="Tags" value={metrics.tagCount} />
+					<MetricRow label="People" value={metrics.personCount} />
 					<MetricRow label="Connections" value={metrics.edgeCount} />
 					<MetricRow label="Clusters" value={metrics.clusterCount} />
 					<MetricRow label="Orphans" value={metrics.orphanCount} />
 				</div>
+				<GraphLegend />
 			</div>
 
 			{metrics.topHubs.length > 0 && (
@@ -374,9 +508,22 @@ export function WorkspaceGraph() {
 	const auth = useAuth();
 	const query = useNoteGraph();
 	const isGuest = auth.isReady && auth.phase !== "authenticated";
+	const [visible, setVisible] = useState<NodeTypeVisibility>({
+		note: true,
+		tag: true,
+		person: true,
+	});
+
+	const toggleType = useCallback((type: GraphNodeType) => {
+		setVisible((current) => ({ ...current, [type]: !current[type] }));
+	}, []);
 
 	const openNote = useCallback((id: string) => router.push(`/app?note=${id}`), [router]);
-	const handleOpenSettings = useCallback(() => router.push("/app/settings"), [router]);
+	const openTag = useCallback(
+		(name: string) => router.push(`/app/tags/${encodeURIComponent(name)}`),
+		[router],
+	);
+	const openPerson = useCallback((id: string) => router.push(`/app/people/${id}`), [router]);
 	const handleExploreNote = useCallback(
 		(_id: string) => {
 			if (isGuest) recordGuestGraphExplore();
@@ -388,14 +535,29 @@ export function WorkspaceGraph() {
 		[router],
 	);
 
-	const data = query.data;
-	const hasGraph = Boolean(data && data.nodes.length > 0);
-	const hasConnections = Boolean(data && data.edges.length > 0);
+	// Hide filtered-out node types; an edge survives only when both of its
+	// endpoints are still visible. Metrics keep the unfiltered totals.
+	const data = useMemo<GraphData | undefined>(() => {
+		const full = query.data;
+		if (!full) return undefined;
+		if (visible.note && visible.tag && visible.person) return full;
+		const nodes = full.nodes.filter((node) => visible[node.type]);
+		const visibleIds = new Set(nodes.map((node) => node.id));
+		const edges = full.edges.filter(
+			(edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target),
+		);
+		return { ...full, nodes, edges };
+	}, [query.data, visible]);
+
+	// Empty-state checks look at the unfiltered graph so toggling every type
+	// off still leaves the filter chips reachable.
+	const hasGraph = Boolean(query.data && query.data.nodes.length > 0);
+	const hasConnections = Boolean(query.data && query.data.edges.length > 0);
 
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<IconRail onOpenSettings={handleOpenSettings} />
+				<IconRail />
 				<div className="relative min-w-0 flex-1">
 					{query.isPending ? (
 						<div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -407,10 +569,17 @@ export function WorkspaceGraph() {
 						/>
 					) : (
 						<>
-							<MetricsOverlay data={data!} onOpenNote={openNote} />
+							<MetricsOverlay
+								data={data!}
+								onOpenNote={openNote}
+								visible={visible}
+								onToggleType={toggleType}
+							/>
 							<GraphCanvas
 								data={data!}
 								onOpenNote={openNote}
+								onOpenTag={openTag}
+								onOpenPerson={openPerson}
 								onExploreNote={handleExploreNote}
 							/>
 						</>

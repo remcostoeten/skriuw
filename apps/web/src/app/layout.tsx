@@ -8,6 +8,7 @@ import "@remcostoeten/auth-drawer/styles.css";
 import "@/app/globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { AnalyticsGate } from "@/core/analytics/analytics-gate";
+import { PwaSetup } from "@/core/pwa/pwa-setup";
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://skriuw.com"),
@@ -31,11 +32,39 @@ export const metadata: Metadata = {
 			"max-video-preview": -1,
 		},
 	},
+	appleWebApp: {
+		capable: true,
+		title: "Skriuw",
+		statusBarStyle: "black-translucent",
+	},
 	icons: {
 		icon: [
 			{ url: "/favicon.ico" },
-			{ url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-			{ url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+			// Dark tile for light UI chrome, light tile for dark UI chrome.
+			{
+				url: "/favicon-32x32.png",
+				sizes: "32x32",
+				type: "image/png",
+				media: "(prefers-color-scheme: light)",
+			},
+			{
+				url: "/favicon-32x32-light.png",
+				sizes: "32x32",
+				type: "image/png",
+				media: "(prefers-color-scheme: dark)",
+			},
+			{
+				url: "/favicon-16x16.png",
+				sizes: "16x16",
+				type: "image/png",
+				media: "(prefers-color-scheme: light)",
+			},
+			{
+				url: "/favicon-16x16-light.png",
+				sizes: "16x16",
+				type: "image/png",
+				media: "(prefers-color-scheme: dark)",
+			},
 		],
 		apple: [{ url: "/apple-touch-icon.png" }],
 	},
@@ -82,6 +111,7 @@ export default function RootLayout({ children }: Props) {
 			<body className="font-sans">
 				{children}
 				<div id="auth-drawer-portal" />
+				<PwaSetup />
 				<AnalyticsGate />
 				<Analytics />
 			</body>

@@ -32,7 +32,7 @@ export function TagsSection() {
 			<div>
 				<h3 className="text-sm font-medium text-foreground">Tags</h3>
 				<p className="text-xs text-muted-foreground mt-1">
-					Manage the tag vocabulary across notes and journal entries.
+					Rename, recolor, or delete tags derived from #tags across your notes.
 				</p>
 			</div>
 			<div className="border-t border-border" />

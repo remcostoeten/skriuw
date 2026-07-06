@@ -11,8 +11,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use storage::{
-    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteVersion,
-    NoteVersionSnapshot, Person, SearchHit, Storage, TrashRecord,
+    BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteLinkReplacement,
+    NoteLinkRow, NoteMetadata, NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person, SearchHit,
+    Storage, TagSummaryRow, TaggedNoteSummaryRow, TrashRecord,
 };
 
 /// Current wall-clock time in epoch milliseconds, for stamping deletions.
@@ -28,7 +29,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::menu::{PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
 use tauri::Emitter;
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, LogicalSize, Manager, Runtime, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use vault::VaultStore;
@@ -70,6 +71,32 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
+}
+
+/// Toggles the main window between maximized and the default size (1440×960)
+/// centered on screen. Bound to `mod+enter` in the desktop shell.
+#[tauri::command]
+async fn toggle_window_size(app: AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+
+    if window.is_maximized().map_err(|e| e.to_string())? {
+        window.unmaximize().map_err(|e| e.to_string())?;
+        window
+            .set_size(LogicalSize::new(1440.0, 960.0))
+            .map_err(|e| e.to_string())?;
+        window.center().map_err(|e| e.to_string())?;
+    } else {
+        window.maximize().map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 fn app_info() -> AppInfo {
     AppInfo {
         app: "skriuw-desktop".to_string(),
@@ -94,6 +121,14 @@ fn index_ready(state: State<'_, IndexReady>) -> bool {
 #[tauri::command]
 fn list_notes(storage: State<'_, Storage>) -> Result<Vec<Note>, String> {
     storage.list_notes().map_err(stringify)
+}
+
+/// Body-free note list for the sidebar/list UI — `list_notes` ships every
+/// note's markdown + richContent JSON over IPC (megabytes on a real vault),
+/// which the list view never reads.
+#[tauri::command]
+fn list_note_metadata(storage: State<'_, Storage>) -> Result<Vec<NoteMetadata>, String> {
+    storage.list_note_metadata().map_err(stringify)
 }
 
 #[tauri::command]
@@ -135,6 +170,101 @@ fn bulk_upsert_notes(
     storage.upsert_notes(&notes).map_err(stringify)
 }
 
+/// Atomically imports a full pulled archive (desktop sync `pullWorkspaceFromServer`):
+/// writes every entity to the vault, then upserts + applies tombstone deletes to
+/// the SQLite index in one transaction (`Storage::import_workspace`). Unlike the
+/// old per-entity loop this replaced, a crash partway through this call leaves the
+/// index either fully reflecting the archive or untouched — never half-written.
+#[tauri::command]
+fn import_workspace_archive(
+    storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    folders: Vec<Folder>,
+    notes: Vec<Note>,
+    journal_entries: Vec<JournalEntry>,
+    journal_tags: Vec<JournalTag>,
+    deleted_note_ids: Vec<String>,
+    deleted_folder_ids: Vec<String>,
+    deleted_journal_entry_ids: Vec<String>,
+    deleted_journal_tag_ids: Vec<String>,
+) -> Result<(), String> {
+    // 1. Create a backup of the vault
+    vault.create_import_backup().map_err(|e| format!("Failed to create backup: {e}"))?;
+
+    // 2. Perform the sequential filesystem writes
+    let mut import_failed = false;
+    let mut err_msg = String::new();
+
+    let perform_writes = || -> Result<(), String> {
+        for folder in &folders {
+            vault.upsert_folder(folder).map_err(vault_err)?;
+        }
+        for note in &notes {
+            vault.upsert_note(note).map_err(vault_err)?;
+        }
+        for entry in &journal_entries {
+            vault.upsert_journal_entry(entry).map_err(vault_err)?;
+        }
+        for tag in &journal_tags {
+            vault.upsert_journal_tag(tag).map_err(vault_err)?;
+        }
+        let deleted_at = now_ms();
+        for id in &deleted_note_ids {
+            vault.trash_note(id, deleted_at).map_err(vault_err)?;
+        }
+        for id in &deleted_folder_ids {
+            vault.trash_folder(id, deleted_at).map_err(vault_err)?;
+        }
+        for id in &deleted_journal_entry_ids {
+            vault.delete_journal_entry(id).map_err(vault_err)?;
+        }
+        for id in &deleted_journal_tag_ids {
+            vault.delete_journal_tag(id).map_err(vault_err)?;
+        }
+        Ok(())
+    };
+
+    if let Err(e) = perform_writes() {
+        import_failed = true;
+        err_msg = e;
+    }
+
+    // 3. If filesystem writes succeeded, perform SQLite write
+    if !import_failed {
+        if let Err(e) = storage.import_workspace(
+            &folders,
+            &notes,
+            &journal_entries,
+            &journal_tags,
+            &deleted_note_ids,
+            &deleted_folder_ids,
+            &deleted_journal_entry_ids,
+            &deleted_journal_tag_ids,
+        ) {
+            import_failed = true;
+            err_msg = stringify(e);
+        }
+    }
+
+    // 4. Handle success or failure
+    if import_failed {
+        if let Err(rollback_err) = vault.restore_import_backup() {
+            return Err(format!(
+                "Import failed: {}. Critical: Backup restore failed: {}",
+                err_msg, rollback_err
+            ));
+        }
+        return Err(err_msg);
+    }
+
+    // Success! Clean up the backup
+    if let Err(e) = vault.discard_import_backup() {
+        eprintln!("Failed to clean up import backup: {e}");
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 fn delete_note(
     storage: State<'_, Storage>,
@@ -160,6 +290,54 @@ fn replace_note_links(
 #[tauri::command]
 fn has_indexed_links(storage: State<'_, Storage>) -> Result<bool, String> {
     storage.has_indexed_links().map_err(stringify)
+}
+
+#[tauri::command]
+fn list_unindexed_note_ids(storage: State<'_, Storage>) -> Result<Vec<String>, String> {
+    storage.list_unindexed_note_ids().map_err(stringify)
+}
+
+#[tauri::command]
+fn replace_note_links_bulk(
+    storage: State<'_, Storage>,
+    entries: Vec<NoteLinkReplacement>,
+) -> Result<(), String> {
+    storage.replace_note_links_bulk(&entries).map_err(stringify)
+}
+
+#[tauri::command]
+fn clear_note_links_index(storage: State<'_, Storage>) -> Result<(), String> {
+    storage.clear_note_links_index().map_err(stringify)
+}
+
+#[tauri::command]
+fn list_tag_summaries(storage: State<'_, Storage>) -> Result<Vec<TagSummaryRow>, String> {
+    storage.list_tag_summaries().map_err(stringify)
+}
+
+#[tauri::command]
+fn list_tag_notes(
+    storage: State<'_, Storage>,
+    name: String,
+) -> Result<Vec<TaggedNoteSummaryRow>, String> {
+    storage
+        .list_linked_note_summaries("tag", &name)
+        .map_err(stringify)
+}
+
+#[tauri::command]
+fn list_person_notes(
+    storage: State<'_, Storage>,
+    person_id: String,
+) -> Result<Vec<TaggedNoteSummaryRow>, String> {
+    storage
+        .list_linked_note_summaries("person", &person_id)
+        .map_err(stringify)
+}
+
+#[tauri::command]
+fn list_note_link_rows(storage: State<'_, Storage>) -> Result<Vec<NoteLinkRow>, String> {
+    storage.list_note_link_rows().map_err(stringify)
 }
 
 #[tauri::command]
@@ -304,6 +482,61 @@ fn create_person(
         .map_err(stringify)
 }
 
+// `clear_color` disambiguates "unset the colour" from "leave it untouched",
+// which a single nullable arg cannot express over the IPC boundary.
+#[tauri::command]
+fn update_person(
+    storage: State<'_, Storage>,
+    id: String,
+    name: Option<String>,
+    color: Option<String>,
+    clear_color: Option<bool>,
+) -> Result<Person, String> {
+    let color_update: Option<Option<&str>> = if clear_color.unwrap_or(false) {
+        Some(None)
+    } else {
+        color.as_deref().map(Some)
+    };
+    storage
+        .update_person(&id, name.as_deref(), color_update)
+        .map_err(stringify)
+}
+
+#[tauri::command]
+fn delete_person(storage: State<'_, Storage>, id: String) -> Result<(), String> {
+    storage.delete_person(&id).map_err(stringify)
+}
+
+#[tauri::command]
+fn list_note_tag_meta(storage: State<'_, Storage>) -> Result<Vec<NoteTagMeta>, String> {
+    storage.list_note_tag_meta().map_err(stringify)
+}
+
+#[tauri::command]
+fn upsert_note_tag_meta(
+    storage: State<'_, Storage>,
+    name: String,
+    color: Option<String>,
+) -> Result<(), String> {
+    storage
+        .upsert_note_tag_meta(&name, color.as_deref())
+        .map_err(stringify)
+}
+
+#[tauri::command]
+fn delete_note_tag_meta(storage: State<'_, Storage>, name: String) -> Result<(), String> {
+    storage.delete_note_tag_meta(&name).map_err(stringify)
+}
+
+#[tauri::command]
+fn rename_note_tag_meta(
+    storage: State<'_, Storage>,
+    from: String,
+    to: String,
+) -> Result<(), String> {
+    storage.rename_note_tag_meta(&from, &to).map_err(stringify)
+}
+
 #[derive(Serialize)]
 pub struct VersionWriteResult {
     pub version_id: Option<String>,
@@ -334,10 +567,28 @@ fn record_note_version(
     create_checkpoint: bool,
     session_version_id: Option<String>,
 ) -> Result<VersionWriteResult, String> {
+    record_note_version_inner(
+        &storage,
+        &note_id,
+        &snapshot,
+        &reason,
+        create_checkpoint,
+        session_version_id,
+    )
+}
+
+fn record_note_version_inner(
+    storage: &Storage,
+    note_id: &str,
+    snapshot: &NoteVersionSnapshot,
+    reason: &str,
+    create_checkpoint: bool,
+    session_version_id: Option<String>,
+) -> Result<VersionWriteResult, String> {
     if create_checkpoint {
         if let Some(existing_id) = &session_version_id {
             let changed = storage
-                .update_existing_note_version(existing_id, &note_id, &snapshot)
+                .update_existing_note_version(existing_id, note_id, snapshot)
                 .map_err(stringify)?;
             if changed {
                 return Ok(VersionWriteResult {
@@ -349,7 +600,7 @@ fn record_note_version(
     }
 
     let should_create_version =
-        matches!(reason.as_str(), "rename" | "created" | "restore") || create_checkpoint;
+        matches!(reason, "rename" | "created" | "restore") || create_checkpoint;
     if !should_create_version {
         return Ok(VersionWriteResult {
             version_id: None,
@@ -358,13 +609,45 @@ fn record_note_version(
     }
 
     let version_id = storage
-        .insert_note_version(&note_id, &snapshot, &reason, now_ms())
+        .insert_note_version(note_id, snapshot, reason, now_ms())
         .map_err(stringify)?;
 
     Ok(VersionWriteResult {
         version_changed: version_id.is_some(),
         version_id,
     })
+}
+
+/// One-round-trip note save: vault write, index upsert, link-index replace, and
+/// version bookkeeping in a single IPC command. The version snapshot is derived
+/// from `note` server-side so the body crosses the boundary once. Replaces the
+/// `upsert_note` → `replace_note_links` → `record_note_version` sequence the
+/// autosave and create paths used to issue as three separate invokes.
+#[tauri::command]
+fn save_note(
+    storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    note: Note,
+    links: Vec<NoteLinkInput>,
+    title_keys: Vec<String>,
+    reason: String,
+    create_checkpoint: bool,
+    session_version_id: Option<String>,
+) -> Result<VersionWriteResult, String> {
+    vault.upsert_note(&note).map_err(vault_err)?;
+    storage.upsert_note(&note).map_err(stringify)?;
+    storage
+        .replace_note_links(&note.id, &links, &title_keys)
+        .map_err(stringify)?;
+    let snapshot = NoteVersionSnapshot::from(&note);
+    record_note_version_inner(
+        &storage,
+        &note.id,
+        &snapshot,
+        &reason,
+        create_checkpoint,
+        session_version_id,
+    )
 }
 
 #[tauri::command]
@@ -1098,14 +1381,26 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             app_info,
+            quit_app,
+            toggle_window_size,
             index_ready,
             list_notes,
+            list_note_metadata,
             get_note,
             get_notes,
             upsert_note,
+            save_note,
             bulk_upsert_notes,
+            import_workspace_archive,
             delete_note,
             replace_note_links,
+            replace_note_links_bulk,
+            clear_note_links_index,
+            list_tag_summaries,
+            list_tag_notes,
+            list_person_notes,
+            list_note_link_rows,
+            list_unindexed_note_ids,
             has_indexed_links,
             get_backlink_sources,
             search_notes,
@@ -1124,6 +1419,12 @@ pub fn run() {
             delete_journal_tag,
             list_people,
             create_person,
+            update_person,
+            delete_person,
+            list_note_tag_meta,
+            upsert_note_tag_meta,
+            delete_note_tag_meta,
+            rename_note_tag_meta,
             record_note_version,
             get_note_versions,
             restore_note_version,
@@ -1142,6 +1443,9 @@ pub fn run() {
             ai::ai_set_config,
             ai::ai_set_key,
             ai::ai_complete,
+            ai::ai_complete_stream,
+            ai::ai_cancel_ai_stream,
+            ai::ai_ping,
             ai::ai_ollama_status,
             ai::ai_ollama_catalog,
             ai::ai_start_ollama,

@@ -21,9 +21,11 @@ function buildNoteCreateInput(title: string) {
 
 export function useNoteLinkActions(filesOverride?: NoteFile[]) {
 	const router = useRouter();
-	const { files: contextFiles } = useNoteLinkContext();
+	const { files: contextFiles, activeFileId: contextActiveFileId } = useNoteLinkContext();
 	const files = filesOverride ?? contextFiles;
 	const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
+	const openTabInBackground = useNotesStore((state) => state.openTabInBackground);
+	const secondaryFileId = useNotesStore((state) => state.split.secondaryFileId);
 	const createNote = useCreateNote();
 	const pendingTitlesRef = useRef(new Set<string>());
 	const [creatingTitleKey, setCreatingTitleKey] = useState<string | null>(null);
@@ -43,6 +45,15 @@ export function useNoteLinkActions(filesOverride?: NoteFile[]) {
 			updateNoteUrl(noteId);
 		},
 		[router, setActiveFileId],
+	);
+
+	const openNoteInNewTab = useCallback(
+		(noteId: string) => {
+			const pane =
+				contextActiveFileId && contextActiveFileId === secondaryFileId ? "secondary" : "primary";
+			openTabInBackground(pane, noteId);
+		},
+		[contextActiveFileId, openTabInBackground, secondaryFileId],
 	);
 
 	const createAndOpenNote = useCallback(
@@ -86,6 +97,7 @@ export function useNoteLinkActions(filesOverride?: NoteFile[]) {
 
 	return {
 		openNote,
+		openNoteInNewTab,
 		createAndOpenNote,
 		isCreatingTitle,
 	};

@@ -1,8 +1,15 @@
 import type { UpdateNoteResult } from "@/domain/notes/actions";
 import type { NoteFile, NoteFolder, NoteVersion, NoteVersionReason } from "@/domain/notes/models";
-import { normalizeNoteProperties } from "@/domain/notes/properties";
+import { normalizeNoteProperties, type NotePropertyColor } from "@/domain/notes/properties";
+import {
+	rewriteNoteForPerson,
+	rewriteNoteForTag,
+	type NoteChipPatch,
+} from "@/domain/notes/chip-rewrite";
+import { buildDesiredNoteLinkRows } from "@/domain/notes/note-link-sync";
+import { normalizeStoredTagEntry, normalizeTagName } from "@/domain/tags/normalize";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
-import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
+import { buildGraphData } from "@/domain/notes/graph";
 import { resolveRichDocument } from "@/domain/notes/rich-document";
 import {
 	buildNoteBacklinks,
@@ -19,6 +26,7 @@ import {
 	noteFromCreateInput,
 } from "./note-builders";
 import type { NoteSearchHit, TrashBatch, WorkspaceBackend } from "./types";
+import { createWriteQueue } from "./write-queue";
 
 /** The Rust `TrashRecord` wire shape — one soft-deleted note or folder. */
 type RustTrashRecord = {
@@ -89,6 +97,9 @@ type RustNote = {
 	modifiedAt: number;
 };
 
+/** The Rust `NoteMetadata` wire shape — a `RustNote` without its body columns. */
+type RustNoteMetadata = Omit<RustNote, "content" | "richContent">;
+
 type RustFolder = {
 	id: string;
 	name: string;
@@ -111,17 +122,6 @@ type RustNoteVersion = {
 	reason: string;
 	contentHash: string;
 	createdAt: number;
-};
-
-/** A note's versionable fields, sent to `record_note_version`. */
-type RustNoteVersionSnapshot = {
-	name: string;
-	content: string;
-	richContent: NoteFile["richContent"];
-	preferredEditorMode: NoteFile["preferredEditorMode"];
-	parentId: string | null;
-	tags: string[];
-	properties: NoteFile["properties"];
 };
 
 type RustVersionWriteResult = {
@@ -203,15 +203,25 @@ function fromRustNote(raw: RustNote): NoteFile {
 	};
 }
 
-function toVersionSnapshot(note: NoteFile): RustNoteVersionSnapshot {
+/**
+ * Maps a body-free list row to the `NoteFile` shape with empty body fields,
+ * mirroring the web backend's `recordToNoteMetadata`. Deliberately skips
+ * `resolveRichDocument` — the repair walk over BlockNote JSON is what made
+ * materializing the full list expensive.
+ */
+function fromRustNoteMetadata(raw: RustNoteMetadata): NoteFile {
 	return {
-		name: note.name,
-		content: note.content,
-		richContent: note.richContent,
-		preferredEditorMode: note.preferredEditorMode,
-		parentId: note.parentId ?? null,
-		tags: note.tags ?? [],
-		properties: normalizeNoteProperties(note.properties),
+		id: raw.id,
+		name: raw.name,
+		content: "",
+		richContent: [],
+		preferredEditorMode: raw.preferredEditorMode,
+		parentId: raw.parentId,
+		sortOrder: raw.sortOrder,
+		tags: raw.tags,
+		properties: normalizeNoteProperties(raw.properties),
+		createdAt: new Date(raw.createdAt),
+		modifiedAt: new Date(raw.modifiedAt),
 	};
 }
 
@@ -307,13 +317,32 @@ function fromRustJournalTag(raw: RustJournalTag): JournalTag {
 }
 
 type RustNoteLink = {
-	kind: NoteLink["kind"];
+	kind: NoteLink["kind"] | "tag" | "person";
 	raw: string;
 	targetLabel: string;
 	alias: string | null;
 	targetNoteId: string | null;
 	targetTitleKey: string | null;
 };
+
+/** The Rust `TaggedNoteSummaryRow` wire shape. */
+type RustTaggedNoteSummary = {
+	id: string;
+	name: string;
+	modifiedAt: number;
+};
+
+/** The Rust `NoteLinkRow` wire shape — the graph builder's link input. */
+type RustGraphLinkRow = {
+	sourceNoteId: string;
+	targetNoteId: string | null;
+	targetLabel: string;
+	kind: string;
+};
+
+function fromRustTaggedNoteSummary(raw: RustTaggedNoteSummary) {
+	return { id: raw.id, name: raw.name, modifiedAt: new Date(raw.modifiedAt) };
+}
 
 type RustBacklinkSource = {
 	note: RustNote;
@@ -349,6 +378,63 @@ function toRustNoteLink(link: NoteLink): RustNoteLink {
 }
 
 /**
+ * The full persisted link-row set for a note: wiki/markdown rows from
+ * `extractNoteLinks` (keeping raw/alias/title-key fidelity for backlink
+ * resolution) plus the `tag`/`person` membership rows the web Prisma index
+ * also stores — so the SQL aggregations (tag pages, person pages, graph) see
+ * the same data on desktop as on the web.
+ */
+function buildRustNoteLinkRows(note: NoteFile): RustNoteLink[] {
+	const rows = extractNoteLinks(note).map(toRustNoteLink);
+	for (const row of buildDesiredNoteLinkRows("local", note)) {
+		if (row.kind !== "tag" && row.kind !== "person") continue;
+		rows.push({
+			kind: row.kind,
+			raw: row.kind === "tag" ? `#${row.targetLabel}` : row.targetLabel,
+			targetLabel: row.targetLabel,
+			alias: null,
+			targetNoteId: null,
+			targetTitleKey: null,
+		});
+	}
+	return rows;
+}
+
+/**
+ * Backfills the SQLite link index for notes that have no link rows yet — bulk
+ * imports and reconcile-adopted external edits write notes without going
+ * through `save_note`, so their links/title keys are missing and backlinks
+ * silently under-report. Link extraction semantics live in TS, so Rust only
+ * reports which notes are unindexed and stores the result (one transaction
+ * per batch). Desktop-only; runs after the launch reconcile. Returns the
+ * number of notes indexed.
+ */
+export async function backfillMissingNoteLinks(): Promise<number> {
+	const invoke = getInvoke();
+	const ids = await invoke<string[]>("list_unindexed_note_ids");
+	if (ids.length === 0) return 0;
+
+	const BATCH_SIZE = 100;
+	for (let start = 0; start < ids.length; start += BATCH_SIZE) {
+		const rows = await invoke<RustNote[]>("get_notes", {
+			ids: ids.slice(start, start + BATCH_SIZE),
+		});
+		const entries = rows.map((raw) => {
+			const note = fromRustNote(raw);
+			return {
+				noteId: note.id,
+				links: buildRustNoteLinkRows(note),
+				titleKeys: noteTitleKeys(note),
+			};
+		});
+		if (entries.length > 0) {
+			await invoke("replace_note_links_bulk", { entries });
+		}
+	}
+	return ids.length;
+}
+
+/**
  * The final resolution of a SQL-prefiltered backlink source into the exact
  * `ResolvedNoteLink` shape `buildNoteBacklinks` produces: always `resolved`,
  * pointing at the active note, carrying the source's link fields.
@@ -375,7 +461,26 @@ function backlinkFromSource(source: RustBacklinkSource, activeId: string): Resol
 export function createTauriBackend(): WorkspaceBackend {
 	const invoke = getInvoke();
 
+	// Per-id write queue: `updateNote`/`updateFolder` do an IPC read, a JS
+	// merge, then an IPC write. Without serialization, two near-simultaneous
+	// updates to the same id (e.g. a drag-to-move and an in-flight autosave)
+	// can interleave between the read and the write and silently clobber each
+	// other. Chaining same-id calls onto one promise closes that window;
+	// different ids run unserialized. Shared with the guest backend — see
+	// `write-queue.ts` for the cross-backend concurrency contract.
+	const { runExclusive } = createWriteQueue();
+
+	// The public list is metadata-only (matching the web backend): the sidebar
+	// and every other list consumer never reads bodies, and shipping content +
+	// richContent for the whole vault over JSON IPC costs megabytes per call.
 	async function listNotes(): Promise<NoteFile[]> {
+		const rows = await invoke<RustNoteMetadata[]>("list_note_metadata");
+		return rows.map(fromRustNoteMetadata);
+	}
+
+	// Full rows for the aggregation paths (graph, tag/person scans, rewrites)
+	// that genuinely read every note's body.
+	async function listNotesWithBodies(): Promise<NoteFile[]> {
 		const rows = await invoke<RustNote[]>("list_notes");
 		return rows.map(fromRustNote);
 	}
@@ -395,18 +500,53 @@ export function createTauriBackend(): WorkspaceBackend {
 		return rows.map(fromRustJournalTag);
 	}
 
-	async function indexNoteLinks(note: NoteFile): Promise<void> {
-		await invoke("replace_note_links", {
+	async function backfillNoteLinks(notes: NoteFile[]): Promise<void> {
+		const entries = notes.map((note) => ({
 			noteId: note.id,
-			links: extractNoteLinks(note).map(toRustNoteLink),
+			links: buildRustNoteLinkRows(note),
 			titleKeys: noteTitleKeys(note),
-		});
+		}));
+		if (entries.length > 0) {
+			await invoke("replace_note_links_bulk", { entries });
+		}
 	}
 
-	async function backfillNoteLinks(notes: NoteFile[]): Promise<void> {
-		for (const note of notes) {
-			await indexNoteLinks(note);
+	async function listPeople(): Promise<Person[]> {
+		return invoke<Person[]>("list_people");
+	}
+
+	// Chip propagation runs in TS with the shared rewrite engine — the Rust side
+	// stays a dumb store so BlockNote JSON semantics exist in exactly one place.
+	// Each note re-reads inside its write-queue slot so an in-flight autosave
+	// cannot be clobbered by a stale snapshot.
+	async function rewriteNotes(
+		buildPatch: (note: NoteFile) => NoteChipPatch | null,
+	): Promise<string[]> {
+		const notes = await listNotesWithBodies();
+		const rewritten: string[] = [];
+
+		for (const candidate of notes) {
+			if (!buildPatch(candidate)) continue;
+			await runExclusive(`note:${candidate.id}`, async () => {
+				const raw = await invoke<RustNote | null>("get_note", { id: candidate.id });
+				if (!raw) return;
+				const fresh = fromRustNote(raw);
+				const patch = buildPatch(fresh);
+				if (!patch) return;
+				const next: NoteFile = { ...fresh, ...patch, modifiedAt: new Date() };
+				await invoke("save_note", {
+					note: toRustNote(next),
+					links: buildRustNoteLinkRows(next),
+					titleKeys: noteTitleKeys(next),
+					reason: "autosave",
+					createCheckpoint: false,
+					sessionVersionId: null,
+				});
+				rewritten.push(candidate.id);
+			});
 		}
+
+		return rewritten;
 	}
 
 	return {
@@ -446,7 +586,7 @@ export function createTauriBackend(): WorkspaceBackend {
 
 			const indexed = await invoke<boolean>("has_indexed_links");
 			if (!indexed) {
-				const notes = await listNotes();
+				const notes = await listNotesWithBodies();
 				await backfillNoteLinks(notes);
 				return buildNoteBacklinks(active, notes);
 			}
@@ -465,8 +605,16 @@ export function createTauriBackend(): WorkspaceBackend {
 			return backlinks;
 		},
 
+		// Metadata + persisted link rows + people — the same inputs the web
+		// backend feeds `buildGraphData`, instead of shipping every note body
+		// over IPC and re-extracting links in TS.
 		async getNoteGraph() {
-			return buildGraphFromNotes(await listNotes());
+			const [notes, links, people] = await Promise.all([
+				listNotes(),
+				invoke<RustGraphLinkRow[]>("list_note_link_rows"),
+				listPeople(),
+			]);
+			return buildGraphData(notes, links, { people });
 		},
 
 		async searchNotes(query, limit): Promise<NoteSearchHit[]> {
@@ -486,11 +634,10 @@ export function createTauriBackend(): WorkspaceBackend {
 
 		async createNote(input) {
 			const note = noteFromCreateInput(input);
-			await invoke("upsert_note", { note: toRustNote(note) });
-			await indexNoteLinks(note);
-			await invoke("record_note_version", {
-				noteId: note.id,
-				snapshot: toVersionSnapshot(note),
+			await invoke("save_note", {
+				note: toRustNote(note),
+				links: buildRustNoteLinkRows(note),
+				titleKeys: noteTitleKeys(note),
 				reason: "created",
 				createCheckpoint: false,
 				sessionVersionId: null,
@@ -500,41 +647,54 @@ export function createTauriBackend(): WorkspaceBackend {
 
 		async importNotes(notes) {
 			await invoke("bulk_upsert_notes", { notes: notes.map(toRustNote) });
-			for (const note of notes) {
-				if (extractNoteLinks(note).length > 0) {
-					await indexNoteLinks(note);
-				}
+			const entries = notes.map((note) => ({
+				noteId: note.id,
+				links: buildRustNoteLinkRows(note),
+				titleKeys: noteTitleKeys(note),
+			}));
+			if (entries.length > 0) {
+				await invoke("replace_note_links_bulk", { entries });
 			}
 		},
 
 		async updateNote(input): Promise<UpdateNoteResult> {
-			const raw = await invoke<RustNote | null>("get_note", { id: input.id });
-			if (!raw) return { note: undefined, versionCreated: false };
-			const next = applyNoteUpdate(fromRustNote(raw), input);
-			await invoke("upsert_note", { note: toRustNote(next) });
-			await indexNoteLinks(next);
+			return runExclusive(`note:${input.id}`, async () => {
+				const raw = await invoke<RustNote | null>("get_note", { id: input.id });
+				if (!raw) return { note: undefined, versionCreated: false };
+				const next = applyNoteUpdate(fromRustNote(raw), input);
 
-			const createCheckpoint = input.createCheckpoint === true;
-			const reason: NoteVersionReason =
-				input.name !== undefined ? "rename" : createCheckpoint ? "checkpoint" : "autosave";
-			const versionResult = await invoke<RustVersionWriteResult>("record_note_version", {
-				noteId: next.id,
-				snapshot: toVersionSnapshot(next),
-				reason,
-				createCheckpoint,
-				sessionVersionId: createCheckpoint ? (input.sessionVersionId ?? null) : null,
+				const createCheckpoint = input.createCheckpoint === true;
+				const reason: NoteVersionReason =
+					input.name !== undefined ? "rename" : createCheckpoint ? "checkpoint" : "autosave";
+				// One command for vault write + index upsert + link index +
+				// version bookkeeping; the snapshot is derived Rust-side so the
+				// note body crosses IPC once per save instead of three times.
+				const versionResult = await invoke<RustVersionWriteResult>("save_note", {
+					note: toRustNote(next),
+					links: buildRustNoteLinkRows(next),
+					titleKeys: noteTitleKeys(next),
+					reason,
+					createCheckpoint,
+					sessionVersionId: createCheckpoint ? (input.sessionVersionId ?? null) : null,
+				});
+
+				return {
+					note: next,
+					versionCreated: versionResult.versionId !== null,
+					versionChanged: versionResult.versionChanged,
+					versionId: versionResult.versionId,
+				};
 			});
-
-			return {
-				note: next,
-				versionCreated: versionResult.versionId !== null,
-				versionChanged: versionResult.versionChanged,
-				versionId: versionResult.versionId,
-			};
 		},
 
 		async deleteNote(id) {
 			await invoke("delete_note", { id });
+		},
+
+		async deleteNotes(ids) {
+			for (const id of ids) {
+				await invoke("delete_note", { id });
+			}
 		},
 
 		async createFolder(input) {
@@ -544,12 +704,14 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async updateFolder(input) {
-			const folders = await listFolders();
-			const existing = folders.find((folder) => folder.id === input.id);
-			if (!existing) return undefined;
-			const next = applyFolderUpdate(existing, input);
-			await invoke("upsert_folder", { folder: toRustFolder(next) });
-			return next;
+			return runExclusive(`folder:${input.id}`, async () => {
+				const folders = await listFolders();
+				const existing = folders.find((folder) => folder.id === input.id);
+				if (!existing) return undefined;
+				const next = applyFolderUpdate(existing, input);
+				await invoke("upsert_folder", { folder: toRustFolder(next) });
+				return next;
+			});
 		},
 
 		async deleteFolder(id) {
@@ -643,15 +805,148 @@ export function createTauriBackend(): WorkspaceBackend {
 			await invoke("delete_journal_tag", { id });
 		},
 
-		async listPeople() {
-			return invoke<Person[]>("list_people");
-		},
+		listPeople,
 
 		async createPerson(input) {
 			return invoke<Person>("create_person", {
 				id: input.id ?? crypto.randomUUID(),
 				name: input.name,
 				color: input.color ?? null,
+			});
+		},
+
+		async updatePerson(input) {
+			return invoke<Person>("update_person", {
+				id: input.id,
+				name: input.name ?? null,
+				color: input.color ?? null,
+				clearColor: input.color === null,
+			});
+		},
+
+		async deletePerson(id) {
+			const people = await listPeople();
+			const person = people.find((entry) => entry.id === id);
+			if (!person) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForPerson(note, { fromId: id, toId: null, removalText: person.name }),
+			);
+			await invoke("delete_person", { id });
+			return { rewrittenNoteIds };
+		},
+
+		async mergePersons(sourceId, targetId) {
+			if (sourceId === targetId) return { rewrittenNoteIds: [] };
+			const people = await listPeople();
+			const source = people.find((entry) => entry.id === sourceId);
+			const target = people.find((entry) => entry.id === targetId);
+			if (!source || !target) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForPerson(note, { fromId: sourceId, toId: targetId, toName: target.name }),
+			);
+			await invoke("delete_person", { id: sourceId });
+			return { rewrittenNoteIds };
+		},
+
+		async listPersonNotes(personId) {
+			const rows = await invoke<RustTaggedNoteSummary[]>("list_person_notes", { personId });
+			return rows.map(fromRustTaggedNoteSummary);
+		},
+
+		async listTags() {
+			const rows = await invoke<
+				Array<{ name: string; color: string | null; noteCount: number }>
+			>("list_tag_summaries");
+			return rows.map((row) => ({
+				name: row.name,
+				color: (row.color as NotePropertyColor | null) ?? null,
+				noteCount: row.noteCount,
+			}));
+		},
+
+		async setTagColor(name, color) {
+			const normalized = normalizeStoredTagEntry(name);
+			if (!normalized) return;
+			if (color === null) {
+				await invoke("delete_note_tag_meta", { name: normalized });
+				return;
+			}
+			await invoke("upsert_note_tag_meta", { name: normalized, color });
+		},
+
+		async renameTag(from, to) {
+			const source = normalizeStoredTagEntry(from);
+			const target = normalizeTagName(to);
+			if (!source || !target || source === target) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForTag(note, source, target),
+			);
+			await invoke("rename_note_tag_meta", { from: source, to: target });
+			return { rewrittenNoteIds };
+		},
+
+		async deleteTag(name) {
+			const normalized = normalizeStoredTagEntry(name);
+			if (!normalized) return { rewrittenNoteIds: [] };
+			const rewrittenNoteIds = await rewriteNotes((note) =>
+				rewriteNoteForTag(note, normalized, null),
+			);
+			await invoke("delete_note_tag_meta", { name: normalized });
+			return { rewrittenNoteIds };
+		},
+
+		async listTagNotes(name) {
+			const normalized = normalizeStoredTagEntry(name);
+			if (!normalized) return [];
+			const rows = await invoke<RustTaggedNoteSummary[]>("list_tag_notes", {
+				name: normalized,
+			});
+			return rows.map(fromRustTaggedNoteSummary);
+		},
+
+		async importArchive(payload) {
+			const folders = payload.folders.map((folder) =>
+				toRustFolder({ ...folder, isOpen: true }),
+			);
+			const notes = payload.notes.map((input) => toRustNote(noteFromCreateInput(input)));
+			const now = new Date();
+			const journalEntries = payload.journalEntries.map((input) =>
+				toRustJournalEntry({
+					id: input.id ?? crypto.randomUUID(),
+					dateKey: input.dateKey,
+					title: input.title ?? undefined,
+					content: input.content,
+					tags: input.tags ?? [],
+					mood: input.mood ?? undefined,
+					createdAt: now,
+					updatedAt: now,
+				}),
+			);
+
+			// Tags are matched by name everywhere else in import/pull (no
+			// per-tag upsert key), so skip any name that already exists locally
+			// instead of risking a duplicate row under a fresh id.
+			const existingTagNames = new Set((await listJournalTags()).map((tag) => tag.name));
+			const journalTags = payload.journalTags
+				.filter((tag) => !existingTagNames.has(tag.name))
+				.map((tag) => ({ id: crypto.randomUUID(), name: tag.name, color: tag.color, usageCount: 0 }));
+
+			const tagIdByName = new Map(
+				(await listJournalTags()).map((tag) => [tag.name, tag.id] as const),
+			);
+			const deletedJournalTagIds = payload.deletedIds.journalTagNames
+				.map((name) => tagIdByName.get(name))
+				.filter((id): id is string => Boolean(id));
+
+			await invoke("import_workspace_archive", {
+				folders,
+				notes,
+				journalEntries,
+				journalTags,
+				deletedNoteIds: payload.deletedIds.notes,
+				deletedFolderIds: payload.deletedIds.folders,
+				deletedJournalEntryIds: payload.deletedIds.journalEntries,
+				deletedJournalTagIds,
 			});
 		},
 	};

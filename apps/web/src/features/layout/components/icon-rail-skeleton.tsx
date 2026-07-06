@@ -17,7 +17,7 @@ export function IconRailSkeleton({ activeHref = "/app" }: IconRailSkeletonProps)
 			<aside
 				aria-hidden
 				data-tauri-drag-region
-				className="fixed inset-y-0 left-0 z-30 hidden w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar/95 backdrop-blur supports-[backdrop-filter]:bg-sidebar/85 md:flex"
+				className="fixed inset-y-0 left-0 z-30 hidden w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar md:flex"
 			>
 				<div className="flex w-full flex-col items-center">
 					<div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">

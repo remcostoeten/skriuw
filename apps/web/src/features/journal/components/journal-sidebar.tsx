@@ -292,7 +292,10 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 										{format(selectedDate, "dd MMM yyyy")}
 									</Button>
 								</PopoverTrigger>
-								<PopoverContent className="w-auto p-0" align="end">
+								<PopoverContent
+									className="w-auto rounded-lg border-border bg-popover p-0 text-popover-foreground shadow-xl shadow-black/40"
+									align="end"
+								>
 									<Calendar
 										mode="single"
 										selected={selectedDate}
@@ -476,6 +479,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								placeholder="Search entries..."
+								inputMode="search"
+								enterKeyHint="search"
 								className="w-full border border-border bg-background py-2 pl-8 pr-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:border-border focus:bg-muted md:py-1.5 md:text-[11px]"
 							/>
 							{searchQuery && (

@@ -17,7 +17,8 @@ import type {
 	UpdateJournalEntryInput,
 } from "@/domain/journal/actions";
 import type { Person } from "@/domain/people/models";
-import type { CreatePersonInput } from "@/domain/people/validation";
+import type { CreatePersonInput, UpdatePersonInput } from "@/domain/people/validation";
+import type { NotePropertyColor } from "@/domain/notes/properties";
 
 /**
  * Feature switches a backend advertises so the UI can hide surfaces a given
@@ -74,6 +75,40 @@ export type NoteSearchHit = {
 	snippet: string;
 };
 
+/** One atomic desktop-sync pull payload — see `WorkspaceBackend.importArchive`. */
+export type ImportArchivePayload = {
+	folders: { id: string; name: string; parentId: string | null; sortOrder: number }[];
+	notes: CreateNoteInput[];
+	journalEntries: CreateJournalEntryInput[];
+	journalTags: { name: string; color: string }[];
+	/** Ids/names to remove locally — see `SkriuwExportDeletedIds`. Tags are matched by name. */
+	deletedIds: {
+		notes: string[];
+		folders: string[];
+		journalEntries: string[];
+		journalTagNames: string[];
+	};
+};
+
+/** A workspace note tag: derived usage joined with optional persisted color. */
+export type TagSummary = {
+	name: string;
+	color: NotePropertyColor | null;
+	noteCount: number;
+};
+
+/** Outcome of a tag/person rename, merge, or delete that rewrote note content. */
+export type ChipRewriteResult = {
+	rewrittenNoteIds: string[];
+};
+
+/** One note that carries a given tag or mentions a given person. */
+export type TaggedNoteSummary = {
+	id: string;
+	name: string;
+	modifiedAt: Date;
+};
+
 export type WorkspaceBackend = {
 	readonly mode: "server" | "local" | "tauri";
 	readonly capabilities: WorkspaceCapabilities;
@@ -103,7 +138,25 @@ export type WorkspaceBackend = {
 	 * (`tauri`) backend implements it against `bulk_upsert_notes`.
 	 */
 	importNotes?(notes: NoteFile[]): Promise<void>;
+
+	/**
+	 * Atomically applies a full desktop-sync pull (folders/notes/journal
+	 * entries/tags to upsert, plus ids to remove for server-side deletions) in
+	 * one backend-level transaction, so a crash mid-import can't leave a
+	 * half-imported workspace. Optional: only the desktop (`tauri`) backend
+	 * implements it, against `import_workspace_archive`; other backends never
+	 * pull, so `pull-workspace.ts` falls back to a sequential per-item loop
+	 * when this is absent.
+	 */
+	importArchive?(payload: ImportArchivePayload): Promise<void>;
 	deleteNote(id: string): Promise<void>;
+
+	/**
+	 * Bulk soft-delete into the trash, used by the note-cleanup sweep. Optional:
+	 * the server backend batches it into one UPDATE; callers fall back to
+	 * looping `deleteNote` when absent.
+	 */
+	deleteNotes?(ids: string[]): Promise<void>;
 	restoreNoteVersion(versionId: string): Promise<UpdateNoteResult>;
 
 	getNote(id: string): Promise<NoteFile | null>;
@@ -151,4 +204,22 @@ export type WorkspaceBackend = {
 	 */
 	listPeople(): Promise<Person[]>;
 	createPerson(input: CreatePersonInput): Promise<Person>;
+
+	/**
+	 * Tag and person management. Tag identity is the normalized name persisted
+	 * on NoteLink rows; renames/merges/deletes propagate into note content via
+	 * the shared chip-rewrite engine (domain/notes/chip-rewrite.ts) on every
+	 * backend. `renameTag` onto an existing name is a merge. `deletePerson` and
+	 * `mergePersons` rewrite `$` chips before touching the Person row.
+	 */
+	listTags(): Promise<TagSummary[]>;
+	setTagColor(name: string, color: NotePropertyColor | null): Promise<void>;
+	renameTag(from: string, to: string): Promise<ChipRewriteResult>;
+	deleteTag(name: string): Promise<ChipRewriteResult>;
+	listTagNotes(name: string): Promise<TaggedNoteSummary[]>;
+
+	updatePerson(input: UpdatePersonInput): Promise<Person>;
+	deletePerson(id: string): Promise<ChipRewriteResult>;
+	mergePersons(sourceId: string, targetId: string): Promise<ChipRewriteResult>;
+	listPersonNotes(personId: string): Promise<TaggedNoteSummary[]>;
 };

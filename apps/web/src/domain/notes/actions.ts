@@ -621,6 +621,17 @@ export async function deleteNote(id: string): Promise<void> {
 	});
 }
 
+export async function deleteNotes(ids: string[]): Promise<void> {
+	const persistedIds = ids.filter((id) => !isGuestScopedId(id));
+	if (persistedIds.length === 0) return;
+
+	const { prisma, user } = await getAuthenticatedUser();
+	await prisma.note.updateMany({
+		where: { id: { in: persistedIds }, userId: user.id, deletedAt: null },
+		data: { deletedAt: new Date() },
+	});
+}
+
 export async function fetchNote(id: string): Promise<NoteFile | null> {
 	if (isGuestScopedId(id)) return null;
 	const { prisma, user } = await tryGetAuthenticatedUser();
@@ -675,16 +686,20 @@ export async function fetchNoteGraph(): Promise<GraphData> {
 		return buildGraphData([], []);
 	}
 
-	const [notes, links] = await Promise.all([
+	const [notes, links, people] = await Promise.all([
 		prisma.note.findMany({
 			where: { userId: user.id, deletedAt: null },
-			select: { id: true, name: true },
+			select: { id: true, name: true, createdAt: true },
 		}),
 		prisma.noteLink.findMany({
 			where: { userId: user.id },
 			select: { sourceNoteId: true, targetNoteId: true, targetLabel: true, kind: true },
 		}),
+		prisma.person.findMany({
+			where: { userId: user.id },
+			select: { id: true, name: true },
+		}),
 	]);
 
-	return buildGraphData(notes, links);
+	return buildGraphData(notes, links, { people });
 }

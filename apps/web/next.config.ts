@@ -24,6 +24,20 @@ const config: NextConfig = {
 		},
 	},
 	serverExternalPackages: ["@prisma/client", "@prisma/adapter-pg"],
+	async headers() {
+		return [
+			{
+				source: "/:path*",
+				headers: [
+					{
+						// Vercel's default HSTS lacks includeSubDomains/preload.
+						key: "Strict-Transport-Security",
+						value: "max-age=63072000; includeSubDomains; preload",
+					},
+				],
+			},
+		];
+	},
 	transpilePackages: [
 		"@blocknote/core",
 		"@blocknote/react",

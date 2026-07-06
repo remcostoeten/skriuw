@@ -24,6 +24,36 @@ export function focusNextPropertyField(current: HTMLElement) {
 	return true;
 }
 
+// Vim-like shortcuts for a value that renders as a non-editable display
+// (a link, a pill button…): `e` drops into edit mode, and Backspace / Delete /
+// `d` clear the value. Applied only to the display element, never the input, so
+// typing those keys while editing behaves normally.
+export function valueDisplayKeys({
+	onEdit,
+	onClear,
+}: {
+	onEdit?: () => void;
+	onClear?: () => void;
+}) {
+	return function handleValueDisplayKey(event: KeyboardEvent<HTMLElement>) {
+		if (event.altKey || event.ctrlKey || event.metaKey) return;
+
+		if (event.key === "e" && onEdit) {
+			event.preventDefault();
+			onEdit();
+			return;
+		}
+
+		if (
+			(event.key === "Backspace" || event.key === "Delete" || event.key === "d") &&
+			onClear
+		) {
+			event.preventDefault();
+			onClear();
+		}
+	};
+}
+
 export function submitPropertyField(event: KeyboardEvent<HTMLElement>) {
 	if (
 		event.key !== "Enter" ||

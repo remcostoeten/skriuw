@@ -3,6 +3,7 @@ import {
 	extractRichDocumentUsers,
 	richDocumentToSearchableMarkdown,
 } from "@/domain/notes/rich-document";
+import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
 
 export type NoteLinkKind = "wiki" | "markdown-note-link";
 
@@ -28,7 +29,7 @@ export type NoteLinkIndex = {
 
 const WIKI_LINK_PATTERN = /\[\[([^\]| \n][^\]|\n]*?)(?:\|([^\]\n]+?))?\]\]/g;
 const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+?)\]\((note:\/\/([^)#\s]+))\)/g;
-const TAG_PATTERN = /(^|[\s([{])#([a-zA-Z][a-zA-Z0-9_-]{1,31})\b/g;
+export const TAG_PATTERN = /(^|[\s([{])#([a-zA-Z][a-zA-Z0-9_-]{1,31})\b/g;
 const FENCED_CODE_PATTERN = /```[\s\S]*?```/g;
 const INLINE_CODE_PATTERN = /`[^`\n]*`/g;
 
@@ -113,6 +114,7 @@ export function getNoteSearchableContent(
 }
 
 export function extractNoteTags(content: string): string[] {
+	if (!isTagDetectionEnabled()) return [];
 	const tags = new Set<string>();
 	const source = searchableContent(content);
 
@@ -242,6 +244,31 @@ function resolveNoteLinkWithIndexes(
 
 export function resolveNoteLink(link: NoteLink, files: NoteFile[]): ResolvedNoteLink {
 	return resolveNoteLinkWithIndexes(link, buildNoteIdIndex(files), buildTitleIndex(files));
+}
+
+export type NoteLinkResolver = {
+	resolve(link: NoteLink): ResolvedNoteLink;
+	findFirstByTitle(title: string): NoteFile | null;
+};
+
+/**
+ * Prebuilds the id/title indexes over `files` once so callers that resolve many
+ * links against the same file set (every wiki-link chip in a rendered document)
+ * pay O(files) a single time instead of per link. Build it in a memo keyed on
+ * `files` and share it; each `resolve` is then a map lookup.
+ */
+export function createNoteLinkResolver(files: NoteFile[]): NoteLinkResolver {
+	const notesById = buildNoteIdIndex(files);
+	const titleIndex = buildTitleIndex(files);
+
+	return {
+		resolve(link) {
+			return resolveNoteLinkWithIndexes(link, notesById, titleIndex);
+		},
+		findFirstByTitle(title) {
+			return titleIndex.get(normalizeNoteTitle(title))?.[0] ?? null;
+		},
+	};
 }
 
 export function findNoteByTitle(

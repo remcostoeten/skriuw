@@ -7,9 +7,9 @@
 @source "../";
 
 @import "./themes/midnight.css";
-@import "./themes/graphite.css";
 @import "./themes/paper.css";
-@import "./themes/monokai.css";
+@import "./themes/embers.css";
+@import "./themes/mocha.css";
 
 @plugin 'tailwindcss-animate';
 
@@ -246,12 +246,37 @@
 		@apply border-border;
 	}
 
+	*:focus,
 	*:focus-visible {
-		outline: none;
-		box-shadow:
-			0 0 0 1px hsl(var(--background)),
-			0 0 0 3px hsl(var(--foreground) / 0.22),
-			0 0 0 5px hsl(var(--foreground) / 0.08);
+		outline: none !important;
+		--tw-ring-shadow: 0 0 #0000 !important;
+		--tw-ring-offset-shadow: 0 0 #0000 !important;
+		--tw-inset-ring-shadow: 0 0 #0000 !important;
+	}
+
+	/* Keyboard-focus feedback without outline/glow: a foreground tint painted as
+	   a background-image overlay, so it stays visible on top of any control's own
+	   background (utility classes or inline styles) instead of being overridden. */
+	:where(
+			button,
+			a,
+			summary,
+			[role="button"],
+			[role="menuitem"],
+			[role="menuitemcheckbox"],
+			[role="menuitemradio"],
+			[role="radio"],
+			[role="switch"],
+			[role="checkbox"],
+			[role="option"],
+			[role="tab"],
+			[role="treeitem"]
+		):focus-visible {
+		background-image: linear-gradient(
+			hsl(var(--foreground) / 0.18),
+			hsl(var(--foreground) / 0.18)
+		) !important;
+		color: hsl(var(--foreground));
 	}
 
 	body {
@@ -260,6 +285,24 @@
 		overscroll-behavior: none;
 		text-rendering: optimizeLegibility;
 		-webkit-tap-highlight-color: transparent;
+	}
+
+	.settings-focus-flash {
+		position: relative;
+		border-radius: 0.5rem;
+		animation: settings-focus-flash 1.4s cubic-bezier(0.32, 0.72, 0, 1);
+	}
+
+	@keyframes settings-focus-flash {
+		0% {
+			background-color: hsl(var(--foreground) / 0);
+		}
+		12% {
+			background-color: hsl(var(--foreground) / 0.06);
+		}
+		100% {
+			background-color: hsl(var(--foreground) / 0);
+		}
 	}
 
 	#auth-drawer-portal .font-display {
@@ -436,11 +479,6 @@
 	.auth-check-input:checked + .auth-check-control {
 		border-color: hsl(var(--foreground));
 		background: hsl(var(--foreground));
-	}
-
-	.auth-check-input:focus-visible + .auth-check-control {
-		outline: 1px solid hsl(var(--ring));
-		outline-offset: 2px;
 	}
 
 	.auth-check-mark {

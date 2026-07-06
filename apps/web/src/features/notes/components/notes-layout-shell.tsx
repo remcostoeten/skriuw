@@ -8,16 +8,14 @@ import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
 import { perf } from "@/shared/perf/track";
-import { PerfOverlay } from "@/shared/perf/perf-overlay";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { useOnboardingStore } from "@/features/onboarding/store";
-import { EditorContainer } from "@/features/editor/components/editor-container";
 import type { WorkspaceNavItem } from "@/features/editor/components/editor-toolbar";
 import { cn } from "@/shared/lib/utils";
-import { SplitEditorWorkspace } from "./split-editor-workspace";
+import { EditorWorkspace } from "./editor-workspace";
+import { SplitDropZone } from "./split-drop-zone";
 import { SidebarPanel } from "./sidebar-panel";
-import { TabBar } from "./editor-tabs/tab-bar";
 import { useNotesLayout } from "../hooks/use-notes-layout";
 
 const VersionPreviewContainer = dynamic(
@@ -41,10 +39,6 @@ const MetadataPanel = dynamic(
 	{ ssr: false, loading: () => <NotesMetadataPlaceholder /> },
 );
 
-const CommandPalette = dynamic(
-	() => import("@/shared/ui/command-palette").then((mod) => ({ default: mod.CommandPalette })),
-	{ ssr: false, loading: () => null },
-);
 
 const ShortcutHelpDialog = dynamic(
 	() =>
@@ -126,8 +120,6 @@ export function NotesLayoutShell({
 		canToggleSplit,
 		closeMetadata,
 		closeSidebar,
-		commandItems,
-		setCommandQuery,
 		editorMode,
 		handleCloseSplit,
 		handleDesktopMetadataResizeStart,
@@ -143,6 +135,7 @@ export function NotesLayoutShell({
 		handleToggleEditorMode,
 		handleToggleMetadata,
 		handleToggleSidebar,
+		handleOpenInSplit,
 		handleToggleSplit,
 		handleToggleSplitOrientation,
 		handleSwapSplitPaneOrder,
@@ -157,13 +150,11 @@ export function NotesLayoutShell({
 		metadataWidth,
 		overlayTransition,
 		prefersReducedMotion,
-		setShowCommandPalette,
 		setShowShortcutHelp,
 		sidebarPanelProps,
 		sidebarRef,
 		sidebarTransition,
 		sidebarWidth,
-		showCommandPalette,
 		showMetadata,
 		showSidebar,
 		showShortcutHelp,
@@ -223,10 +214,9 @@ export function NotesLayoutShell({
 
 	return (
 		<LayoutContainer className="bg-background">
-			<PerfOverlay />
 			{showWelcome && <WelcomeWalkthrough />}
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				{!isMobile && <IconRail onOpenSettings={handleOpenSettings} />}
+				{!isMobile && <IconRail />}
 
 				{/* The chrome below (sidebar frame, toolbar, status bar) is static —
 				    it renders unconditionally on the first paint. Only the data
@@ -307,7 +297,12 @@ export function NotesLayoutShell({
 					inert={mobileOverlayOpen ? true : undefined}
 				>
 					<div className="relative flex min-w-0 flex-1 overflow-hidden">
-						<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+						<SplitDropZone
+							disabled={isMobile || Boolean(sharingNoteId) || Boolean(viewingVersion)}
+							activeFileId={layout.activeFileId}
+							onOpenInSplit={handleOpenInSplit}
+							onFileSelect={sidebarPanelProps.actions.onFileSelect}
+						>
 							<AnimatePresence mode="wait" initial={false}>
 								<motion.div
 									key={
@@ -361,9 +356,10 @@ export function NotesLayoutShell({
 											onBack={handleExitVersionPreview}
 											onRestore={handleRestoreViewedVersion}
 										/>
-									) : splitEnabled && secondaryFile ? (
-										<SplitEditorWorkspace
-											primaryFile={activeFile}
+									) : (
+										<EditorWorkspace
+											splitActive={Boolean(splitEnabled && secondaryFile)}
+											primaryFile={displayFile}
 											secondaryFile={secondaryFile}
 											files={files}
 											focusedPane={focusedEditorPane}
@@ -375,6 +371,21 @@ export function NotesLayoutShell({
 											isMobile={isMobile}
 											canNavigatePrev={canNavigatePrev}
 											canNavigateNext={canNavigateNext}
+											canToggleSplit={canToggleSplit}
+											primarySaveState={layout.activeFileSaveState}
+											primaryContentLoading={showContentSkeleton}
+											primaryFileName={
+												// Prefer the selected note's name from metadata
+												// (always available, updates the same commit
+												// selection moves) so the toolbar tracks the
+												// sidebar instantly during a cold swap — even
+												// while the previous body is still on screen.
+												files.find(
+													(file) => file.id === layout.activeFileId,
+												)?.name ??
+												displayFile?.name ??
+												"No file selected"
+											}
 											onToggleSidebar={handleToggleSidebar}
 											onToggleMetadata={handleToggleMetadata}
 											workspaceItems={workspaceItems}
@@ -391,90 +402,15 @@ export function NotesLayoutShell({
 												handleEditorScrollPositionChange
 											}
 											onContentChange={updateFileContent}
+											onCreateFile={() => layout.createFile()}
 											onRenameFile={layout.renameFile}
 											onEditorBlur={flushFileEdits}
 											tabBar={tabBar}
 										/>
-									) : (
-										<>
-											{tabBar.openInTabs ? (
-												<TabBar
-													tabs={tabBar.primaryTabItems}
-													activeFileId={layout.activeFileId}
-													onSelect={(id) => tabBar.onSelectTab("primary", id)}
-													onClose={(id) => tabBar.onCloseTab("primary", id)}
-													onReorder={(ids) =>
-														tabBar.onReorderTabs("primary", ids)
-													}
-													onTogglePin={(id) =>
-														tabBar.onTogglePinTab("primary", id)
-													}
-													onCloseOthers={(id) =>
-														tabBar.onCloseOtherTabs("primary", id)
-													}
-													onCloseToSide={(id, side) =>
-														tabBar.onCloseTabsToSide("primary", id, side)
-													}
-												/>
-											) : null}
-											<EditorContainer
-											file={displayFile}
-											files={files}
-											editorMode={editorMode ?? "block"}
-											isMobile={isMobile}
-											onContentChange={updateFileContent}
-											onToggleSidebar={handleToggleSidebar}
-											onToggleMetadata={handleToggleMetadata}
-											onCreateFile={() => layout.createFile()}
-											workspaceItems={workspaceItems}
-											onOpenSettings={handleOpenSettings}
-											onNavigatePrev={handleNavigatePrev}
-											onNavigateNext={handleNavigateNext}
-											onEditorBlur={
-												displayFile
-													? () => flushFileEdits(displayFile.id)
-													: undefined
-											}
-											canNavigatePrev={canNavigatePrev}
-											canNavigateNext={canNavigateNext}
-											canToggleSplit={canToggleSplit}
-											onToggleSplit={handleToggleSplit}
-											onToggleEditorMode={handleToggleEditorMode}
-											splitEnabled={false}
-											initialScrollTop={
-												displayFile
-													? (editorScrollPositions[displayFile.id] ?? 0)
-													: 0
-											}
-											onScrollPositionChange={(scrollTop) => {
-												if (displayFile) {
-													handleEditorScrollPositionChange(
-														displayFile.id,
-														scrollTop,
-													);
-												}
-											}}
-											isContentLoading={showContentSkeleton}
-											saveState={layout.activeFileSaveState}
-											fileName={
-												// Prefer the selected note's name from metadata
-												// (always available, updates the same commit
-												// selection moves) so the toolbar tracks the
-												// sidebar instantly during a cold swap — even
-												// while the previous body is still on screen.
-												files.find(
-													(file) => file.id === layout.activeFileId,
-												)?.name ??
-												displayFile?.name ??
-												"No file selected"
-											}
-											onRenameFile={layout.renameFile}
-											/>
-										</>
 									)}
 								</motion.div>
 							</AnimatePresence>
-						</div>
+						</SplitDropZone>
 
 						{!isMobile && (
 							<AnimatePresence initial={false}>
@@ -567,13 +503,6 @@ export function NotesLayoutShell({
 				</div>
 			</div>
 
-			<CommandPalette
-				open={showCommandPalette}
-				onOpenChange={setShowCommandPalette}
-				onQueryChange={setCommandQuery}
-				items={commandItems}
-				description="Search notes, run actions, and navigate."
-			/>
 			<ShortcutHelpDialog
 				open={showShortcutHelp}
 				onOpenChange={setShowShortcutHelp}

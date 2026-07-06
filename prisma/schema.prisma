@@ -47,6 +47,7 @@ model User {
   sentCollaborations     NoteCollaborator[]     @relation("SentCollaborations")
   notifications          Notification[]
   people                 Person[]
+  noteTagMeta            NoteTagMeta[]
 
   @@map("user")
 }
@@ -286,6 +287,22 @@ model Person {
   @@unique([userId, name])
   @@index([userId, name])
   @@map("people")
+}
+
+// Per-user note-tag metadata. Tag membership stays derived from note content
+// (NoteLink rows with kind "tag"); a row exists here only once a user assigns
+// a color, so listTags LEFT-JOINs this onto the derived counts.
+model NoteTagMeta {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  color     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, name])
+  @@map("note_tags")
 }
 
 // ─── Journal ─────────────────────────────────────────────────────────────────

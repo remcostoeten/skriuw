@@ -1,5 +1,6 @@
 import type { Block, PartialBlock } from "@blocknote/core";
 import { isFileTreeFence, normalizeFileTreeSource } from "@/shared/lib/file-tree";
+import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
 import type { RichTextDocument } from "@/types/notes";
 
 type InlineNode = {
@@ -29,7 +30,14 @@ const STRIKE_PATTERN = /~~([^~\n]+?)~~/g;
 const ITALIC_STAR_PATTERN = /(^|[^*\w])\*((?:[^*\n]+?))\*(?!\*)/g;
 const ITALIC_UNDERSCORE_PATTERN = /(^|[^_\w])_([^_\n]+?)_(?!\w)/g;
 
+// Every pattern below requires one of these characters, so a plain text node
+// (the overwhelming majority in an already-upgraded document) skips the whole
+// nine-regex battery with one scan. This runs per text node on the editor
+// mount and note-switch paths.
+const INLINE_TRIGGER_PATTERN = /[`[*_~#]/;
+
 function findInlineHits(text: string): InlineHit[] {
+	if (!INLINE_TRIGGER_PATTERN.test(text)) return [];
 	const hits: InlineHit[] = [];
 
 	for (const match of text.matchAll(CODE_SPAN_PATTERN)) {
@@ -126,16 +134,18 @@ function findInlineHits(text: string): InlineHit[] {
 		});
 	}
 
-	for (const match of text.matchAll(TAG_PATTERN)) {
-		const prefix = match[1] ?? "";
-		const name = match[2]?.trim();
-		if (!name) continue;
-		const start = (match.index ?? 0) + prefix.length;
-		hits.push({
-			start,
-			end: start + 1 + name.length,
-			produce: () => [{ type: "tag", props: { name } }],
-		});
+	if (isTagDetectionEnabled()) {
+		for (const match of text.matchAll(TAG_PATTERN)) {
+			const prefix = match[1] ?? "";
+			const name = match[2]?.trim();
+			if (!name) continue;
+			const start = (match.index ?? 0) + prefix.length;
+			hits.push({
+				start,
+				end: start + 1 + name.length,
+				produce: () => [{ type: "tag", props: { name } }],
+			});
+		}
 	}
 
 	hits.sort((left, right) => {
@@ -236,7 +246,7 @@ function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
 			} as any;
 		}
 
-		if (blockType === "codeBlock") {
+		if (blockType === "procode" || blockType === "codeBlock") {
 			const language = String(blockProps?.language ?? "");
 			const source = getPlainBlockContent(content);
 			if (isFileTreeFence(language, source)) {
@@ -249,6 +259,7 @@ function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
 
 			return {
 				...next,
+				type: "procode",
 				content: source,
 			};
 		}
@@ -280,7 +291,7 @@ export function flattenInlineChips(blocks: Block[] | PartialBlock[]): PartialBlo
 
 		if (blockType === "fileTree") {
 			return {
-				type: "codeBlock",
+				type: "procode",
 				props: { language: "filetree" },
 				content: normalizeFileTreeSource(String(blockProps?.source ?? "")),
 				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
@@ -394,7 +405,11 @@ function blockNeedsRichDocumentRepair(block: PartialBlock): boolean {
 		return true;
 	}
 
-	if (blockType === "codeBlock" && Array.isArray(content)) {
+	if (blockType === "procode" && Array.isArray(content)) {
+		return true;
+	}
+
+	if (blockType === "codeBlock") {
 		return true;
 	}
 
@@ -466,8 +481,34 @@ function getPlainBlockContent(content: unknown): string {
 	return "";
 }
 
+/**
+ * Local LLMs frequently wrap an entire markdown answer in a single fence
+ * (often ```markdown or ```md) instead of using real heading/code-block
+ * syntax at the top level — a side effect of being told "respond only with
+ * markdown". Left as-is, the whole response is parsed as one literal code
+ * block instead of headings/paragraphs/nested code blocks. Detected by an
+ * explicit markdown/md language tag, or by the wrapped content containing
+ * its own fence (a real single code-snippet answer never nests a fence).
+ */
+function unwrapOuterMarkdownFence(markdown: string): string {
+	const trimmed = markdown.trim();
+	const lines = trimmed.split("\n");
+	if (lines.length < 2) return markdown;
+
+	const openMatch = lines[0].match(CODE_FENCE_OPEN_PATTERN);
+	if (!openMatch || !CODE_FENCE_CLOSE_PATTERN.test(lines[lines.length - 1])) return markdown;
+
+	const inner = lines.slice(1, -1);
+	const language = openMatch[1].trim().toLowerCase();
+	const isMarkdownTag = language === "markdown" || language === "md";
+	const hasNestedFence = inner.some((line) => CODE_FENCE_OPEN_PATTERN.test(line));
+	if (!isMarkdownTag && !hasNestedFence) return markdown;
+
+	return inner.join("\n");
+}
+
 export function markdownToRichDocument(markdown: string): RichTextDocument {
-	const lines = markdown.split("\n");
+	const lines = unwrapOuterMarkdownFence(markdown).split("\n");
 	const blocks: PartialBlock[] = [];
 	let i = 0;
 
@@ -605,10 +646,11 @@ export function markdownToRichDocument(markdown: string): RichTextDocument {
 				continue;
 			}
 			blocks.push({
-				type: "codeBlock",
+				type: "procode",
 				props: { language: language || "plaintext" },
 				content: code,
-			});
+				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+			} as any);
 			continue;
 		}
 
@@ -738,7 +780,7 @@ function blockToSearchableMarkdown(block: PartialBlock): string {
 		return childText ? `${line}\n${childText}` : line;
 	}
 
-	if (blockType === "codeBlock" || blockType === "fileTree") {
+	if (blockType === "procode" || blockType === "fileTree") {
 		return getPlainBlockContent(content);
 	}
 
@@ -921,6 +963,32 @@ export function resolveRichDocument(
 
 export function cloneRichDocument(document: Block[]): RichTextDocument {
 	return JSON.parse(JSON.stringify(document)) as RichTextDocument;
+}
+
+/**
+ * Canonical comparison key for a rich document. Postgres stores `rich_content`
+ * as JSONB, which rewrites object key order, so a saved note echoed back by the
+ * server never `JSON.stringify`-matches the editor's in-memory snapshot even
+ * when the documents are identical. Sorting keys recursively makes the key
+ * insensitive to that reordering.
+ */
+export function richDocumentKey(document: RichTextDocument | null | undefined): string {
+	return stableStringify(document ?? []);
+}
+
+function stableStringify(value: unknown): string {
+	if (Array.isArray(value)) {
+		return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+	}
+	if (value !== null && typeof value === "object") {
+		const entries = Object.entries(value as Record<string, unknown>)
+			.filter(([, entryValue]) => entryValue !== undefined)
+			.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+		return `{${entries
+			.map(([key, entryValue]) => `${JSON.stringify(key)}:${stableStringify(entryValue)}`)
+			.join(",")}}`;
+	}
+	return JSON.stringify(value) ?? "null";
 }
 
 export function upgradeRichDocumentChips(document: RichTextDocument): RichTextDocument {

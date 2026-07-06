@@ -7,6 +7,7 @@ import { NoteFile, NoteFolder } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { useShortcutHint, useShortcutScope, type ShortcutId } from "@/core/shortcuts";
+import { useRegisterCommands } from "@/core/commands";
 import {
 	Command,
 	FilePlus,
@@ -269,21 +270,30 @@ export const SidebarPanel = memo(function SidebarPanel({
 		[closeSearch, onToggleFolder],
 	);
 
-	useShortcutScope(
-		"notes",
-		{
-			"notes.focusSidebarSearch": openSearch,
+	useRegisterCommands({
+		"notes.focusSidebarSearch": () => {
+			if (hasSearchSection) {
+				openSearch();
+			}
 		},
-		{
-			active: hasSearchSection,
-		},
-	);
+	});
 
 	useEffect(() => {
 		if (!hasSearchSection && isSearchOpen) {
 			closeSearch();
 		}
 	}, [closeSearch, hasSearchSection, isSearchOpen]);
+
+	useEffect(() => {
+		function handleGlobalSearchFocus() {
+			openSearch();
+		}
+
+		window.addEventListener("skriuw:focus-sidebar-search", handleGlobalSearchFocus);
+		return () => {
+			window.removeEventListener("skriuw:focus-sidebar-search", handleGlobalSearchFocus);
+		};
+	}, [openSearch]);
 
 	useEffect(() => {
 		if (isSearchOpen) {
@@ -529,7 +539,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 				className,
 			)}
 		>
-			<div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar/95 backdrop-blur-xl">
+			<div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar">
 				<div
 					className={cn(
 						"relative flex h-11 items-center justify-between overflow-hidden",
@@ -562,6 +572,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 									onClick={() => onCreateFile()}
 									className={cn(
 										"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 										isNarrow ? "h-6 w-6" : "h-7 w-7",
 									)}
 									aria-label="New note"
@@ -574,6 +585,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 									onClick={onCreateFolder}
 									className={cn(
 										"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 										isNarrow ? "h-6 w-6" : "h-7 w-7",
 									)}
 									aria-label="New folder"
@@ -586,6 +598,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 									onClick={openConfigPanel}
 									className={cn(
 										"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 										isNarrow ? "h-6 w-6" : "h-7 w-7",
 									)}
 									aria-label="Manage sections"
@@ -615,6 +628,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 											}}
 											className={cn(
 												"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 												isNarrow ? "h-6 w-6" : "h-7 w-7",
 											)}
 											aria-label="Toggle all folders"
@@ -633,6 +647,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										onClick={openSearch}
 										className={cn(
 											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 											isNarrow ? "h-6 w-6" : "h-7 w-7",
 										)}
 										aria-label="Search notes"
@@ -650,6 +665,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 										onClick={onOpenCommandPalette}
 										className={cn(
 											"inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+										"focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground",
 											isNarrow ? "h-6 w-6" : "h-7 w-7",
 										)}
 										aria-label="Command menu"
@@ -726,11 +742,13 @@ export const SidebarPanel = memo(function SidebarPanel({
 										}}
 										placeholder="Search"
 										aria-label="Search notes"
+										inputMode="search"
+										enterKeyHint="search"
 										className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 focus-visible:shadow-none md:text-[13px]"
 									/>
 									<button
 										onClick={closeSearch}
-										className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+										className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2.5 after:md:hidden hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground"
 										title="Close search"
 									>
 										<X className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -753,7 +771,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 					<div
 						ref={searchResultsRef}
 						onBlur={handleSearchSwapBlur}
-						className="flex-1 overflow-y-auto px-2 py-2"
+						className="flex-1 overflow-y-auto overscroll-contain px-2 py-2"
 					>
 						{hasSearchResults ? (
 							<div className="flex flex-col gap-3">
@@ -855,7 +873,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 								<div
 									ref={scrollContainerRef}
 									className={cn(
-										"min-h-0 flex-1 overflow-y-auto pt-2",
+										"min-h-0 flex-1 overflow-y-auto overscroll-contain pt-2",
 										effectiveCompactMode && "pt-1",
 									)}
 								>

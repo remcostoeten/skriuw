@@ -45,9 +45,12 @@ function sortPinnedFirst(tabs: WorkspaceTab[]): WorkspaceTab[] {
 
 type NotesUiState = {
 	activeFileId: string;
+	lastActiveFileId: string;
 	isHydrated: boolean;
 	folderOpenState: FolderOpenState;
 	saveStates: Record<string, SaveStatus>;
+	recentFileIds: string[];
+	pushRecentFile: (id: string) => void;
 	resetUi: () => void;
 	initialize: () => Promise<void>;
 	getFileSaveState: (id: string | null | undefined) => SaveStatus;
@@ -73,10 +76,12 @@ type NotesUiState = {
 	setSplitOrientation: (orientation: SplitOrientation) => void;
 	toggleSplitOrientation: () => void;
 	swapSplitPaneOrder: () => void;
+	setSplitSecondaryFirst: (secondaryFirst: boolean) => void;
 	primaryTabs: WorkspaceTab[];
 	secondaryTabs: WorkspaceTab[];
 	tabsHydrated: boolean;
 	addTab: (pane: EditorPane, fileId: string) => void;
+	openTabInBackground: (pane: EditorPane, fileId: string) => void;
 	removeTab: (pane: EditorPane, fileId: string) => void;
 	reorderTabs: (pane: EditorPane, orderedFileIds: string[]) => void;
 	togglePinTab: (pane: EditorPane, fileId: string) => void;
@@ -104,6 +109,8 @@ const INITIAL_SPLIT_STATE: SplitEditorState = {
 	secondaryFirst: false,
 };
 
+const RECENT_FILES_LIMIT = 12;
+
 const TAB_KEY_BY_PANE: Record<EditorPane, "primaryTabs" | "secondaryTabs"> = {
 	primary: "primaryTabs",
 	secondary: "secondaryTabs",
@@ -117,9 +124,11 @@ export const useNotesStore = create<NotesUiState>()(
 	persist(
 		(set, get) => ({
 	activeFileId: "",
+	lastActiveFileId: "",
 	isHydrated: false,
 	folderOpenState: {},
 	saveStates: {},
+	recentFileIds: [],
 	split: INITIAL_SPLIT_STATE,
 	primaryTabs: [],
 	secondaryTabs: [],
@@ -167,7 +176,16 @@ export const useNotesStore = create<NotesUiState>()(
 	},
 
 	setActiveFileId: (id) => {
-		set({ activeFileId: id });
+		set(id ? { activeFileId: id, lastActiveFileId: id } : { activeFileId: id });
+	},
+
+	pushRecentFile: (id) => {
+		if (!id) return;
+		set((state) => {
+			if (state.recentFileIds[0] === id) return state;
+			const next = [id, ...state.recentFileIds.filter((existing) => existing !== id)];
+			return { recentFileIds: next.slice(0, RECENT_FILES_LIMIT) };
+		});
 	},
 
 	ensureActiveFileId: (files) => {
@@ -336,12 +354,38 @@ export const useNotesStore = create<NotesUiState>()(
 		}));
 	},
 
+	setSplitSecondaryFirst: (secondaryFirst) => {
+		set((state) => ({
+			split: { ...state.split, secondaryFirst },
+		}));
+	},
+
 	addTab: (pane, fileId) => {
 		if (!fileId) return;
 		const key = TAB_KEY_BY_PANE[pane];
 		set((state) => {
 			if (state[key].some((tab) => tab.fileId === fileId)) return state;
 			return paneTabsPatch(pane, sortPinnedFirst([...state[key], { fileId, pinned: false }]));
+		});
+	},
+
+	openTabInBackground: (pane, fileId) => {
+		if (!fileId) return;
+		const key = TAB_KEY_BY_PANE[pane];
+		set((state) => {
+			const activeId = pane === "secondary" ? state.split.secondaryFileId : state.activeFileId;
+			const next = [...state[key]];
+			let changed = false;
+			if (activeId && activeId !== fileId && !next.some((tab) => tab.fileId === activeId)) {
+				next.push({ fileId: activeId, pinned: false });
+				changed = true;
+			}
+			if (!next.some((tab) => tab.fileId === fileId)) {
+				next.push({ fileId, pinned: false });
+				changed = true;
+			}
+			if (!changed) return state;
+			return paneTabsPatch(pane, sortPinnedFirst(next));
 		});
 	},
 
@@ -434,6 +478,8 @@ export const useNotesStore = create<NotesUiState>()(
 			partialize: (state) => ({
 				primaryTabs: state.primaryTabs,
 				secondaryTabs: state.secondaryTabs,
+				recentFileIds: state.recentFileIds,
+				lastActiveFileId: state.lastActiveFileId,
 			}),
 			onRehydrateStorage: () => (state) => {
 				if (state) state.tabsHydrated = true;
