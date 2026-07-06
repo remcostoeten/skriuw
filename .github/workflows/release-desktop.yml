@@ -158,7 +158,10 @@ jobs:
 
             # Commit tracking data back to the repo so history is preserved. A tag
             # push checks out a detached HEAD, so there is no current branch to
-            # `git push` to — push straight to daddy instead.
+            # `git push` to — push straight to daddy instead. Tags cut from a
+            # feature branch aren't fast-forwards of daddy, so a rejected push is
+            # a warning, not a build failure (the release artifacts are already
+            # uploaded by this point).
             - name: Commit build metrics
               run: |
                   git config user.name "github-actions[bot]"
@@ -167,9 +170,11 @@ jobs:
                   git add docs/docs_for_docs.skriuw.app/build-diffs/
                   if git diff --cached --quiet; then
                     echo "No changes to commit"
+                  elif git commit -m "chore: track build metrics for ${{ github.ref_name }}" \
+                      && git push origin HEAD:daddy; then
+                    echo "Metrics pushed to daddy"
                   else
-                    git commit -m "chore: track build metrics for ${{ github.ref_name }}"
-                    git push origin HEAD:daddy
+                    echo "::warning::could not push build metrics to daddy (tag not a fast-forward?); skipping"
                   fi
 
     build-macos:
