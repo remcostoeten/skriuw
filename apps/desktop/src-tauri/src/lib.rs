@@ -34,12 +34,26 @@ use tauri::tray::TrayIconBuilder;
 use tauri::Emitter;
 use tauri::{AppHandle, LogicalSize, Manager, Runtime, State};
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use vault::VaultStore;
 
 /// Custom (non-predefined) menu item ids forwarded to the frontend. Predefined
 /// items (undo/copy/quit/…) are handled natively by Tauri and never reach here.
 #[cfg(target_os = "macos")]
 const MENU_ACTION_IDS: [&str; 5] = ["new-note", "new-folder", "save", "toggle-sidebar", "about"];
+
+/// OS-level shortcuts registered via `tauri-plugin-global-shortcut`, so they
+/// fire even while the app is unfocused or minimized. Each entry is a
+/// `(ShortcutId, accelerator)` pair: the id MUST match a `global: true` entry
+/// in `apps/web/src/core/shortcuts/registry.ts` (the TS registry is the
+/// single source of truth for the in-app keymap; this list only mirrors the
+/// subset marked global, since Rust can't parse the TS file). On trigger we
+/// just forward the id to the frontend via the `global-shortcut` event — app
+/// behavior for each id lives entirely in TS.
+const GLOBAL_SHORTCUTS: [(&str, &str); 2] = [
+    ("global.quickCapture", "CmdOrCtrl+Alt+N"),
+    ("app.showWindow", "CmdOrCtrl+Shift+Space"),
+];
 
 #[derive(Serialize)]
 pub struct AppInfo {
@@ -1262,8 +1276,29 @@ pub fn run() {
                 )
                 .build(),
         )
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             let handle = app.handle();
+
+            for (id, accelerator) in GLOBAL_SHORTCUTS {
+                app.global_shortcut()
+                    .on_shortcut(accelerator, move |app, _shortcut, event| {
+                        if event.state() != ShortcutState::Pressed {
+                            return;
+                        }
+                        // `app.showWindow` is OS-level window chrome rather than
+                        // app behavior, so it's handled the same way the
+                        // single-instance plugin already reveals the window.
+                        if id == "app.showWindow" {
+                            reveal_main_window(app);
+                        }
+                        let _ = app.emit("global-shortcut", id);
+                    })
+                    .unwrap_or_else(|err| {
+                        eprintln!("[skriuw] failed to register global shortcut {id} ({accelerator}): {err}");
+                    });
+            }
+
             let dir = app.path().app_data_dir().expect("resolve app data dir");
             std::fs::create_dir_all(&dir)?;
 
