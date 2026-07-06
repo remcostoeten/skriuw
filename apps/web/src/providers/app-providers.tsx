@@ -14,6 +14,7 @@ import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
 import { QueryCachePersistence } from "@/providers/query-cache-persistence";
 import { WorkspaceWarmup } from "@/providers/workspace-warmup";
 import { ShortcutProvider } from "@/core/shortcuts";
+import { GlobalShortcutHandlers } from "@/core/shortcuts/global-shortcut-handlers";
 import { CommandProvider } from "@/core/commands";
 import { GlobalCommandPaletteMount } from "@/features/layout/components/global-command-palette-mount";
 import { QuickSwitcherMount } from "@/features/notes/components/quick-switcher-mount";
@@ -100,6 +101,7 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 								<DesktopQuitShortcut />
 								<DesktopToggleSize />
 								<CommandProvider>
+									<GlobalShortcutHandlers />
 									{children}
 									<GlobalCommandPaletteMount />
 									<QuickSwitcherMount />
