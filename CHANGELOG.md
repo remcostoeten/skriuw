@@ -3,6 +3,19 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.16.0] — 2026-07-06
+
+### Added
+
+- **Import/export (desktop):** native Rust import/export pipeline — ZIP
+  archive extraction and validation, batch imports with conflict resolution,
+  and the export builder wired into the desktop UI.
+- **Distribution:** the release pipeline now builds macOS (universal `.dmg`)
+  and Windows (NSIS installer) alongside Linux, and publishes to eight
+  channels: apt, dnf, AUR, Homebrew (tap-by-URL from this repo), Scoop,
+  winget, Snap, and AppImage. Release notes are generated automatically by
+  diffing against the previous desktop tag and grouping commits by type.
+
 ## [0.15.2] — 2026-07-03
 
 ### Fixed
