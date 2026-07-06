@@ -51,6 +51,7 @@ import {
 } from "@/features/settings/lib/settings-tabs";
 import { flashSettingsFocus } from "@/features/settings/lib/settings-focus-anchor";
 import { useIsGuestWorkspace, isTauriRuntime } from "@/core/workspace-backend";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { GuestSectionNotice, type GuestFeature } from "@/shared/ui/guest-gate";
 import { DesktopAiSection } from "@/features/desktop/ai-settings-section";
 
@@ -218,6 +219,8 @@ const GUEST_GATED_TABS: Partial<Record<SettingsTabId, GuestFeature>> = {
 	tags: "account",
 };
 
+const MOBILE_HIDDEN_TABS: ReadonlySet<SettingsTabId> = new Set(["shortcuts", "quick-access"]);
+
 function renderSection(id: SettingsTabId, isGuest: boolean) {
 	const gatedFeature = GUEST_GATED_TABS[id];
 	if (isGuest && gatedFeature) {
@@ -294,6 +297,7 @@ function SettingsTabButton({ section, active, query, rovingTabId, onSelect, onHo
 	return (
 		<li role="presentation">
 			<button
+				type="button"
 				ref={buttonRef}
 				id={getSettingsTabId(section.id)}
 				role="tab"
@@ -347,6 +351,7 @@ export function SettingsModal() {
 	const close = useSettingsModal((state) => state.close);
 
 	const isGuest = useIsGuestWorkspace();
+	const isMobile = useIsMobile();
 	const initializePreferences = usePreferencesStore((state) => state.initialize);
 	const logActivity = usePreferencesStore((state) => state.logActivity);
 
@@ -411,8 +416,13 @@ export function SettingsModal() {
 	}, []);
 
 	const visibleSections = useMemo(
-		() => SECTIONS.filter((section) => isSettingsTabVisible(section.id)),
-		[],
+		() =>
+			SECTIONS.filter(
+				(section) =>
+					isSettingsTabVisible(section.id) &&
+					!(isMobile && MOBILE_HIDDEN_TABS.has(section.id)),
+			),
+		[isMobile],
 	);
 
 	const filteredSections = useMemo(() => {
@@ -577,7 +587,11 @@ export function SettingsModal() {
 		return () => cancelAnimationFrame(frame);
 	}, [open, focusId, tab]);
 
-	const content = useMemo(() => renderSection(tab, isGuest), [tab, isGuest]);
+	const effectiveTab = visibleSections.some((section) => section.id === tab)
+		? tab
+		: (visibleSections[0]?.id ?? tab);
+
+	const content = useMemo(() => renderSection(effectiveTab, isGuest), [effectiveTab, isGuest]);
 
 	const orderedSections = useMemo(
 		() => GROUP_ORDER.flatMap((group) => filteredSections.filter((s) => s.group === group)),
@@ -585,7 +599,9 @@ export function SettingsModal() {
 	);
 	// Roving tabindex: exactly one tab is reachable via Tab. Falls back to the
 	// first match when the active tab is filtered out by the search query.
-	const rovingTabId = orderedSections.some((s) => s.id === tab) ? tab : orderedSections[0]?.id;
+	const rovingTabId = orderedSections.some((s) => s.id === effectiveTab)
+		? effectiveTab
+		: orderedSections[0]?.id;
 
 	function focusContent() {
 		requestAnimationFrame(() => contentRef.current?.focus());
@@ -599,6 +615,7 @@ export function SettingsModal() {
 			className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-8"
 		>
 			<button
+				type="button"
 				aria-label="Close settings"
 				className={`absolute inset-0 cursor-default bg-black/60 backdrop-blur-[1px] transition-opacity duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] sm:duration-300 motion-reduce:transition-none ${
 					visible ? "opacity-100" : "opacity-0"
@@ -612,7 +629,7 @@ export function SettingsModal() {
 				aria-modal="true"
 				aria-label="Settings"
 				tabIndex={-1}
-				className={`relative flex max-h-[88vh] w-full max-w-none flex-col overflow-hidden rounded-t-2xl border border-border bg-background shadow-2xl shadow-black/50 outline-none will-change-transform sm:h-full sm:max-h-[720px] sm:max-w-4xl sm:flex-row sm:rounded-xl transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] sm:duration-300 motion-reduce:transition-none motion-reduce:transform-none ${
+				className={`relative flex h-[92dvh] w-full max-w-none flex-col overflow-hidden rounded-t-2xl border border-border bg-background pt-safe shadow-2xl shadow-black/50 outline-none will-change-transform sm:h-full sm:max-h-[720px] sm:max-w-4xl sm:flex-row sm:rounded-xl sm:pt-0 transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] sm:duration-300 motion-reduce:transition-none motion-reduce:transform-none ${
 					visible
 						? "translate-y-0 sm:scale-100 sm:opacity-100"
 						: "translate-y-full sm:translate-y-0 sm:scale-95 sm:opacity-0"
@@ -796,7 +813,7 @@ export function SettingsModal() {
 											<SettingsTabButton
 												key={section.id}
 												section={section}
-												active={tab === section.id}
+												active={effectiveTab === section.id}
 												query={query}
 												rovingTabId={rovingTabId}
 												onSelect={setTab}
@@ -810,13 +827,14 @@ export function SettingsModal() {
 					</div>
 				</nav>
 
-				<div className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-background px-3 py-2 sm:hidden">
+				<div className="momentum-scroll flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-background px-3 py-2 sm:hidden">
 					{visibleSections.map((section) => (
 						<button
+							type="button"
 							key={section.id}
 							onClick={() => setTab(section.id)}
-							className={`shrink-0 rounded-md px-2.5 py-1 text-xs focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground ${
-								tab === section.id
+							className={`flex min-h-[44px] shrink-0 items-center rounded-md px-3.5 text-sm focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground ${
+								effectiveTab === section.id
 									? "bg-sidebar-accent text-sidebar-accent-foreground"
 									: "text-muted-foreground"
 							}`}
@@ -841,12 +859,13 @@ export function SettingsModal() {
 							?.querySelector<HTMLElement>('[role="tab"][tabindex="0"]')
 							?.focus();
 					}}
-					className="relative min-w-0 flex-1 overflow-y-auto px-6 pb-12 pt-6 focus-visible:bg-foreground/[0.03] sm:px-10 sm:pt-8"
+					className="momentum-scroll relative min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 pb-[calc(3rem+env(safe-area-inset-bottom))] pt-6 focus-visible:bg-foreground/[0.03] sm:px-10 sm:pb-12 sm:pt-8"
 				>
 					<button
+						type="button"
 						onClick={close}
 						aria-label="Close settings"
-						className="absolute right-4 top-4 z-10 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+						className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:right-4 sm:top-4 sm:h-7 sm:w-7"
 					>
 						<X className="h-4 w-4" />
 					</button>

@@ -24,6 +24,7 @@ import { cn } from "@/shared/lib/utils";
 type EditorMode = "raw" | "block";
 
 const EMPTY_PEOPLE: Person[] = [];
+const EMPTY_FILES: NoteFile[] = [];
 
 function RichTextEditorLoading() {
 	return <EditorContentSkeleton />;
@@ -84,11 +85,12 @@ type EditorProps = {
 
 export function Editor({
 	file,
-	files = [],
+	files = EMPTY_FILES,
 	editorMode,
 	editorFontId,
 	editorLineHeight,
 	showLineNumbers = false,
+	isMobile = false,
 	readOnly = false,
 	onContentChange,
 	onEditorReady,
@@ -277,7 +279,7 @@ export function Editor({
 						onCreateFile
 							? {
 									label: "New note",
-									kbd: newNoteHint,
+									kbd: isMobile ? undefined : newNoteHint,
 									onClick: onCreateFile,
 								}
 							: undefined
@@ -317,6 +319,7 @@ export function Editor({
 					onBlur={onBlur}
 					onCursorChange={onCursorChange}
 					onVimModeChange={onVimModeChange}
+					isMobile={isMobile}
 					collab={collab}
 				/>
 			</div>

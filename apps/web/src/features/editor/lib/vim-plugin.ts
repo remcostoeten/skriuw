@@ -2,8 +2,9 @@ import { redo, undo } from "prosemirror-history";
 import { Plugin, PluginKey, type Selection, TextSelection } from "prosemirror-state";
 import type { EditorState, Transaction } from "prosemirror-state";
 import type { Command } from "prosemirror-state";
-import type { EditorView } from "prosemirror-view";
+import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
 import { dispatchVimCommand } from "@/features/editor/lib/vim-command-bus";
+import { noop } from "@/shared/lib/noop";
 import {
 	CHAR_SPACE,
 	charClass,
@@ -48,7 +49,8 @@ type FindKind = "f" | "F" | "t" | "T";
 type Pending =
 	| { kind: "find"; find: FindKind }
 	| { kind: "replace" }
-	| { kind: "textobject"; around: boolean };
+	| { kind: "textobject"; around: boolean }
+	| { kind: "indent"; outdent: boolean };
 
 type LastFind = { find: FindKind; char: string };
 
@@ -59,7 +61,7 @@ type VimState = {
 	/** Count typed before the operator (`2` in `2d3w`); multiplied with the motion count. */
 	opCount: number;
 	operator: VimOperator | null;
-	leader: "g" | null;
+	leader: "g" | "z" | null;
 	pending: Pending | null;
 	visualAnchor: number | null;
 	lastFind: LastFind | null;
@@ -72,6 +74,13 @@ type VimMeta = Partial<VimState>;
 type Register = { text: string; linewise: boolean };
 
 let register: Register = { text: "", linewise: false };
+
+/** Per-view side effects the plugin can trigger but that live outside the
+ * ProseMirror layer (block nesting is a BlockNote editor API). Keyed by view so
+ * split panes each dispatch to their own editor. */
+type VimHandlers = { indent?: () => void; outdent?: () => void };
+
+const viewHandlers = new WeakMap<EditorView, VimHandlers>();
 
 export const vimPluginKey = new PluginKey<VimState>("skriuw-vim");
 
@@ -119,6 +128,141 @@ function isInTextblock(selection: Selection): boolean {
 
 function isPrintable(event: KeyboardEvent): boolean {
 	return event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey;
+}
+
+/* ------------------------------------------------------------------ *
+ * `.` repeat — records the keystrokes of the last buffer-changing command
+ * (plus any text typed during the insert it opened) and replays them by
+ * feeding the keys back through `handleKey`. Replaying the keys — rather than
+ * reconstructing each command's semantics — means every current and future
+ * normal-mode edit repeats for free; only the inserted text needs capturing,
+ * done with a net string diff (so a mid-insert backspace-and-retype repeats the
+ * net result, not the literal keystrokes — an accepted approximation).
+ * ------------------------------------------------------------------ */
+
+type DotChange = { keys: string[]; insertText: string | null };
+
+let lastDot: DotChange | null = null;
+let dotRecording = false;
+let dotKeys: string[] = [];
+let dotDocBefore: EditorState["doc"] | null = null;
+let dotInsertCapture: { textBefore: string; blockCount: number } | null = null;
+let dotReplaying = false;
+
+function resetDot() {
+	dotRecording = false;
+	dotKeys = [];
+	dotDocBefore = null;
+	dotInsertCapture = null;
+}
+
+function isDotInvocation(vim: VimState, key: string): boolean {
+	return key === "." && !vim.operator && !vim.pending && !vim.leader;
+}
+
+/** Called before `handleKey` for every unmodified normal-mode key so the key
+ * joins the in-progress change recording. */
+function beforeCommandKey(view: EditorView, key: string) {
+	if (dotReplaying) return;
+	if (!dotRecording) {
+		dotRecording = true;
+		dotKeys = [];
+		dotDocBefore = view.state.doc;
+	}
+	dotKeys.push(key);
+}
+
+/** Called after `handleKey` to decide whether the command finished, and if so
+ * whether it changed the buffer (→ remember it) or merely moved/switched mode. */
+function afterCommandKey(view: EditorView) {
+	if (dotReplaying || !dotRecording) return;
+	const vim = vimState(view);
+	if (vim.operator || vim.pending || vim.leader || vim.count !== "") return;
+	if (vim.mode === "insert") {
+		dotInsertCapture = {
+			textBefore: isInTextblock(view.state.selection) ? blockText(view.state).text : "",
+			blockCount: listTextblocks(view.state).length,
+		};
+		dotRecording = false;
+		return;
+	}
+	const changed = dotDocBefore !== null && view.state.doc !== dotDocBefore;
+	if (changed) lastDot = { keys: [...dotKeys], insertText: null };
+	resetDot();
+}
+
+/** Called from `escapeToNormal` when an insert that began as a recorded change
+ * ends — captures the net inserted text and commits the change. */
+function finalizeDotInsert(view: EditorView) {
+	if (dotReplaying) return;
+	const capture = dotInsertCapture;
+	if (!capture) return;
+	if (
+		isInTextblock(view.state.selection) &&
+		listTextblocks(view.state).length === capture.blockCount &&
+		dotKeys.length > 0
+	) {
+		const after = blockText(view.state).text;
+		lastDot = { keys: [...dotKeys], insertText: diffInsertedText(capture.textBefore, after) };
+	}
+	resetDot();
+}
+
+function diffInsertedText(before: string, after: string): string {
+	let prefix = 0;
+	const min = Math.min(before.length, after.length);
+	while (prefix < min && before.charCodeAt(prefix) === after.charCodeAt(prefix)) prefix += 1;
+	let suffix = 0;
+	while (
+		suffix < min - prefix &&
+		before.charCodeAt(before.length - 1 - suffix) ===
+			after.charCodeAt(after.length - 1 - suffix)
+	) {
+		suffix += 1;
+	}
+	return after.slice(prefix, after.length - suffix);
+}
+
+function insertLiteralText(view: EditorView, text: string) {
+	const pos = view.state.selection.head;
+	const tr = view.state.tr.insertText(text, pos);
+	tr.setSelection(TextSelection.near(tr.doc.resolve(pos + text.length)));
+	view.dispatch(tr);
+}
+
+/** Swap the recorded command's leading count for an explicit `3.` override. */
+function withCountOverride(keys: string[], override: number | null): string[] {
+	let i = 0;
+	while (i < keys.length && /^[0-9]$/.test(keys[i]!)) i += 1;
+	const rest = keys.slice(i);
+	return override === null ? [...keys] : [...String(override).split(""), ...rest];
+}
+
+function repeatLastChange(view: EditorView, override: number | null) {
+	if (!lastDot) return;
+	const change = lastDot;
+	dotReplaying = true;
+	try {
+		for (const key of withCountOverride(change.keys, override)) {
+			const fake = {
+				key,
+				ctrlKey: false,
+				metaKey: false,
+				altKey: false,
+				shiftKey: false,
+				isComposing: false,
+				preventDefault: noop,
+				stopPropagation: noop,
+			} as unknown as KeyboardEvent;
+			handleKey(view, fake);
+		}
+		if (getVimMode(view.state) === "insert") {
+			if (change.insertText) insertLiteralText(view, change.insertText);
+			escapeToNormal(view);
+		}
+	} finally {
+		dotReplaying = false;
+	}
 }
 
 /* ------------------------------------------------------------------ *
@@ -174,17 +318,80 @@ function clampNormalCursor(view: EditorView) {
 	}
 }
 
+function findScrollParent(el: HTMLElement | null): HTMLElement | null {
+	const scroller = el?.closest<HTMLElement>(".bn-scroller");
+	if (scroller) return scroller;
+	let node = el?.parentElement ?? null;
+	while (node) {
+		const overflowY = getComputedStyle(node).overflowY;
+		if (
+			(overflowY === "auto" || overflowY === "scroll") &&
+			node.scrollHeight > node.clientHeight
+		) {
+			return node;
+		}
+		node = node.parentElement;
+	}
+	return null;
+}
+
+/** `zz` / `zt` / `zb` — recenter, scroll-to-top, scroll-to-bottom on the caret line. */
+function scrollCursorLine(view: EditorView, place: "z" | "t" | "b") {
+	const head = view.state.selection.head;
+	const coords = view.coordsAtPos(head);
+	const scroller = findScrollParent(view.dom as HTMLElement);
+	if (!scroller) {
+		view.dispatch(view.state.tr.scrollIntoView());
+		return;
+	}
+	const rect = scroller.getBoundingClientRect();
+	const lineHeight = coords.bottom - coords.top || 18;
+	const lineTop = coords.top - rect.top + scroller.scrollTop;
+	let top: number;
+	if (place === "t") top = lineTop - lineHeight * 0.5;
+	else if (place === "b") top = lineTop - scroller.clientHeight + lineHeight * 1.5;
+	else top = lineTop - scroller.clientHeight / 2 + lineHeight / 2;
+	scroller.scrollTo({ top: Math.max(0, top) });
+}
+
+function indentBlock(view: EditorView, outdent: boolean) {
+	const handlers = viewHandlers.get(view);
+	const fn = outdent ? handlers?.outdent : handlers?.indent;
+	fn?.();
+}
+
 function moveVertical(view: EditorView, dir: 1 | -1, count: number) {
 	const left = view.coordsAtPos(view.state.selection.head).left;
 	for (let n = 0; n < count; n += 1) {
 		const head = view.state.selection.head;
 		const coords = view.coordsAtPos(head);
 		const lineHeight = coords.bottom - coords.top || 18;
-		const targetY = dir > 0 ? coords.bottom + lineHeight / 2 : coords.top - lineHeight / 2;
-		const found = view.posAtCoords({ left, top: targetY });
-		if (!found || found.pos === head) break;
-		selectAt(view, found.pos);
+		let moved = false;
+		for (let step = 1; step <= 8; step += 1) {
+			const delta = (lineHeight * step) / 2;
+			const targetY = dir > 0 ? coords.bottom + delta : coords.top - delta;
+			const found = view.posAtCoords({ left, top: targetY });
+			if (found && found.pos !== head) {
+				selectAt(view, found.pos);
+				moved = true;
+				break;
+			}
+		}
+		if (!moved) break;
 	}
+}
+
+/** Linewise up/down (`-` / `+`) — jumps whole blocks to the first non-blank
+ * character, matching vim's linewise motions rather than pixel display lines. */
+function moveLinewise(view: EditorView, dir: 1 | -1, count: number) {
+	const blocks = listTextblocks(view.state);
+	if (blocks.length === 0) return;
+	const start = view.state.selection.$head.start();
+	const index = blocks.findIndex((block) => block.start === start);
+	if (index === -1) return;
+	const target = blocks[Math.max(0, Math.min(blocks.length - 1, index + dir * count))]!;
+	const offset = Math.min(firstNonBlankOffset(target.text), Math.max(0, target.text.length - 1));
+	selectAt(view, target.start + offset);
 }
 
 function moveHalfPage(view: EditorView, dir: 1 | -1) {
@@ -634,6 +841,7 @@ function textObjectRange(
  * ------------------------------------------------------------------ */
 
 function escapeToNormal(view: EditorView) {
+	finalizeDotInsert(view);
 	setMeta(view, {
 		...CLEAR_TRANSIENT,
 		mode: "normal",
@@ -954,6 +1162,12 @@ function handleOperatorKey(
 	return isPrintable(event) || key.length === 1;
 }
 
+function handleLeaderZ(view: EditorView, key: string): boolean {
+	if (key === "z" || key === "t" || key === "b") scrollCursorLine(view, key);
+	setMeta(view, CLEAR_TRANSIENT);
+	return true;
+}
+
 function handleLeaderG(view: EditorView, key: string, count: number): boolean {
 	const vim = vimState(view);
 	if (key === "g") {
@@ -1036,12 +1250,35 @@ function handleNormalBase(
 			moveVertical(view, -1, count);
 			setMeta(view, { count: "" });
 			return true;
+		case "+":
+			moveLinewise(view, 1, count);
+			setMeta(view, { count: "" });
+			return true;
+		case "-":
+			moveLinewise(view, -1, count);
+			setMeta(view, { count: "" });
+			return true;
 		case "G":
 			gotoLine(view, vimState(view).count.length > 0 ? count : Number.MAX_SAFE_INTEGER);
 			setMeta(view, { count: "" });
 			return true;
 		case "g":
 			setMeta(view, { leader: "g" });
+			return true;
+		case "z":
+			setMeta(view, { leader: "z" });
+			return true;
+		case ".": {
+			const override = vimState(view).count.length > 0 ? count : null;
+			setMeta(view, { count: "" });
+			repeatLastChange(view, override);
+			return true;
+		}
+		case ">":
+			setMeta(view, { pending: { kind: "indent", outdent: false } });
+			return true;
+		case "<":
+			setMeta(view, { pending: { kind: "indent", outdent: true } });
 			return true;
 		case ";":
 		case ",": {
@@ -1156,6 +1393,14 @@ function handleVisualBase(
 			return true;
 		case "k":
 			moveVertical(view, -1, count);
+			setMeta(view, { count: "" });
+			return true;
+		case "+":
+			moveLinewise(view, 1, count);
+			setMeta(view, { count: "" });
+			return true;
+		case "-":
+			moveLinewise(view, -1, count);
 			setMeta(view, { count: "" });
 			return true;
 		case "G":
@@ -1351,12 +1596,24 @@ function handleKey(view: EditorView, event: KeyboardEvent): boolean {
 		return true;
 	}
 
+	if (vim.pending?.kind === "indent") {
+		if ((raw === ">" && !vim.pending.outdent) || (raw === "<" && vim.pending.outdent)) {
+			indentBlock(view, vim.pending.outdent);
+		}
+		setMeta(view, CLEAR_TRANSIENT);
+		return true;
+	}
+
 	const key = KEY_ALIASES[raw] ?? raw;
 
 	if (PASSTHROUGH_KEYS.has(key)) return false;
 
 	if (vim.leader === "g") {
 		return handleLeaderG(view, key, count);
+	}
+
+	if (vim.leader === "z") {
+		return handleLeaderZ(view, key);
 	}
 
 	if (vim.operator) {
@@ -1399,7 +1656,47 @@ function statusOf(state: EditorState): VimStatus {
 	return { mode: vim.mode, command: vim.command };
 }
 
-export function createVimPlugin(onStatusChange?: (status: VimStatus) => void): Plugin<VimState> {
+/** Block cursor for normal mode: paints the character under the caret (or a
+ * standalone block at end-of-line) so the position reads unambiguously, the
+ * way a terminal vim cursor does rather than a thin i-beam. */
+function blockCursorDecorations(state: EditorState): DecorationSet {
+	const vim = vimPluginKey.getState(state) ?? INITIAL_STATE;
+	if (vim.mode !== "normal") return DecorationSet.empty;
+	const sel = state.selection;
+	if (!(sel instanceof TextSelection) || !sel.empty) return DecorationSet.empty;
+	const $head = sel.$head;
+	if (!$head.parent.isTextblock) return DecorationSet.empty;
+	const head = sel.head;
+	// A position remains before the block's content end → paint the box over the
+	// next leaf, whether that's a character OR an inline atom (mention/link chip),
+	// so the cursor never renders in the wrong place before a chip.
+	if (head < $head.end()) {
+		return DecorationSet.create(state.doc, [
+			Decoration.inline(head, head + 1, { class: "vim-cursor" }),
+		]);
+	}
+	const widget = Decoration.widget(
+		head,
+		() => {
+			const span = document.createElement("span");
+			span.className = "vim-cursor-eol";
+			return span;
+		},
+		{ side: 1 },
+	);
+	return DecorationSet.create(state.doc, [widget]);
+}
+
+export type VimPluginOptions = {
+	onStatusChange?: (status: VimStatus) => void;
+	/** Nest / unnest the current block (`>>` / `<<`) — routed to the BlockNote
+	 * editor API by the host, since block nesting lives above ProseMirror. */
+	onIndent?: () => void;
+	onOutdent?: () => void;
+};
+
+export function createVimPlugin(options: VimPluginOptions = {}): Plugin<VimState> {
+	const { onStatusChange, onIndent, onOutdent } = options;
 	let lastShiftAt = 0;
 	return new Plugin<VimState>({
 		key: vimPluginKey,
@@ -1415,6 +1712,13 @@ export function createVimPlugin(onStatusChange?: (status: VimStatus) => void): P
 			let last = statusOf(view.state);
 			reflectMode(view, last.mode);
 			onStatusChange?.(last);
+			viewHandlers.set(view, { indent: onIndent, outdent: onOutdent });
+			// A block cursor drawn filled in an unfocused pane reads as active; go
+			// hollow when the editor loses focus, the way a terminal cursor does.
+			const setBlurred = () => view.dom.classList.toggle("vim-blurred", !view.hasFocus());
+			view.dom.addEventListener("focus", setBlurred);
+			view.dom.addEventListener("blur", setBlurred);
+			setBlurred();
 			return {
 				update(updatedView) {
 					const status = statusOf(updatedView.state);
@@ -1424,9 +1728,17 @@ export function createVimPlugin(onStatusChange?: (status: VimStatus) => void): P
 						onStatusChange?.(status);
 					}
 				},
+				destroy() {
+					view.dom.removeEventListener("focus", setBlurred);
+					view.dom.removeEventListener("blur", setBlurred);
+					viewHandlers.delete(view);
+				},
 			};
 		},
 		props: {
+			decorations(state) {
+				return blockCursorDecorations(state);
+			},
 			handleKeyDown(view, event) {
 				if (event.isComposing) return false;
 				if (isLoneShift(event)) {
@@ -1459,8 +1771,18 @@ export function createVimPlugin(onStatusChange?: (status: VimStatus) => void): P
 				if (event.metaKey || event.altKey || (event.ctrlKey && !CTRL_KEYS.has(event.key))) {
 					return false;
 				}
+				// `.` repeat records normal-mode change commands. Only plain keys
+				// starting from normal mode are recorded (visual-mode changes and
+				// ctrl chords are excluded); the `.` key itself resets any partial.
+				const modified = event.ctrlKey || event.metaKey || event.altKey;
+				const record =
+					!modified && vim.mode === "normal" && !isDotInvocation(vim, event.key);
+				if (!modified && vim.mode === "normal" && isDotInvocation(vim, event.key))
+					resetDot();
+				if (record) beforeCommandKey(view, event.key);
 				const handled = handleKey(view, event);
 				if (handled) consume(event);
+				if (record) afterCommandKey(view);
 				return handled;
 			},
 		},

@@ -24,13 +24,8 @@ function scheduleIdleWork(callback: () => void): () => void {
 
 export function AnalyticsGate() {
 	const [shouldRender, setShouldRender] = useState(false);
-	const [browserChecked, setBrowserChecked] = useState(false);
-	const [braveDetected, setBraveDetected] = useState(false);
-
-	useEffect(() => {
-		setBrowserChecked(true);
-		setBraveDetected(isBraveBrowser());
-	}, []);
+	const [browserChecked] = useState(() => typeof window !== "undefined");
+	const [braveDetected] = useState(() => typeof window !== "undefined" && isBraveBrowser());
 
 	useEffect(() => {
 		if (!browserChecked || braveDetected || isClientAnalyticsDisabled()) {

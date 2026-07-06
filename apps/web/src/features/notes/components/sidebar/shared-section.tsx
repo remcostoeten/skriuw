@@ -1,8 +1,8 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { SidebarItemIcon } from "./sidebar-item-icon";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { getSharedNotesAction } from "@/domain/collaboration/actions";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { SidebarSection } from "./sidebar-section";
@@ -42,7 +42,7 @@ export const SharedSection = memo(function SharedSection({
 	// `staleTime: Infinity` and a cache-first queryFn, so a plain invalidate won't
 	// re-run `fetchNote` — drop the detail entry outright so the editor re-resolves
 	// its access (revoked → note gone, downgraded → read-only).
-	const prevPermsRef = useRef<Map<string, string>>(new Map());
+	const prevPermsRef = useLazyRef<Map<string, string>>(() => new Map());
 	useEffect(() => {
 		const prev = prevPermsRef.current;
 		const next = new Map(sharedNotes.map((note) => [note.id, note.permission]));
@@ -74,18 +74,13 @@ export const SharedSection = memo(function SharedSection({
 						type="button"
 						onClick={() => onFileSelect(note.id)}
 						className={cn(
-							"flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-colors",
+							"flex w-full items-center gap-2 border border-transparent px-2 text-left text-xs transition-colors [@media(pointer:coarse)]:min-h-11",
 							compactMode ? "h-6" : "h-7",
 							note.id === activeFileId
 								? "border-border bg-muted text-foreground"
 								: "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
 						)}
 					>
-						<SidebarItemIcon
-							kind="file"
-							size={compactMode ? 12 : 14}
-							className="shrink-0 text-muted-foreground/70"
-						/>
 						<span className="flex-1 truncate">{note.name}</span>
 						<span className="text-[9px] uppercase tracking-wide text-muted-foreground/40">
 							{note.permission}

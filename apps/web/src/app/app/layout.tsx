@@ -3,6 +3,7 @@ import { editorFontVariables } from "@/app/editor-font-loaders";
 import { GuestBanner } from "@/features/layout/components/guest-banner";
 import { AppProviders } from "@/providers/app-providers";
 import { SettingsModal } from "@/features/settings/components/settings-modal";
+import { MobileAppNav } from "@/features/layout/components/mobile-app-nav";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +17,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 		<AppProviders initialEditorPreferences={initialEditorPreferences}>
 			<div className={`flex h-dvh flex-col ${editorFontVariables}`}>
 				{!user && <GuestBanner />}
-				<div className="flex min-h-0 flex-1 flex-col">{children}</div>
+				<div className="flex min-h-0 flex-1 flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
+					{children}
+				</div>
+				<MobileAppNav />
 			</div>
 			<SettingsModal />
 		</AppProviders>

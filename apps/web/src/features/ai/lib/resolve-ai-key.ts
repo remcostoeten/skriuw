@@ -87,12 +87,13 @@ export function listFallbackAiKeys({
 	serverKeys: AiProviderKeySummary[];
 	exhaustedIds?: string[];
 }): Array<{ id: string; label: string }> {
-	const local = localKeys
-		.filter((key) => !exhaustedIds.includes(key.id))
-		.map((key) => ({ id: key.id, label: key.name }));
-	const server = serverKeys
-		.filter((key) => !exhaustedIds.includes(key.id) && key.status !== "invalid")
-		.map((key) => ({ id: key.id, label: key.label }));
+	const exhausted = new Set(exhaustedIds);
+	const local = localKeys.flatMap((key) =>
+		exhausted.has(key.id) ? [] : [{ id: key.id, label: key.name }],
+	);
+	const server = serverKeys.flatMap((key) =>
+		exhausted.has(key.id) || key.status === "invalid" ? [] : [{ id: key.id, label: key.label }],
+	);
 
 	return [...local, ...server];
 }

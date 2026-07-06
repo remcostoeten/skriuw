@@ -24,6 +24,8 @@ export type AiEditorHandle = {
 	replaceSelection?: (text: string) => void;
 	/** Appends markdown blocks at the end of the document. */
 	appendMarkdown?: (markdown: string) => void;
+	/** Inserts markdown blocks immediately below the first heading when possible. */
+	insertMarkdownBelowHeading?: (markdown: string) => boolean;
 	/** Starts a streamed continue-writing application; falls back to continueWriting when absent. */
 	beginStreamingContinue?: () => AiStreamApplier;
 	/** Starts a streamed custom-prompt application, inserting new blocks after the cursor. */

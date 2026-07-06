@@ -340,9 +340,10 @@ export function buildOutgoingNoteLinks(
 	const notesById = buildNoteIdIndex(files);
 	const titleIndex = buildTitleIndex(files);
 
-	const links = extractNoteLinks(activeNote)
-		.map((link) => resolveNoteLinkWithIndexes(link, notesById, titleIndex))
-		.filter((link) => !isSelfLink(link, activeNote));
+	const links = extractNoteLinks(activeNote).flatMap((link) => {
+		const resolved = resolveNoteLinkWithIndexes(link, notesById, titleIndex);
+		return isSelfLink(resolved, activeNote) ? [] : [resolved];
+	});
 
 	return dedupeLinks(links, outgoingLinkKey);
 }
@@ -366,21 +367,24 @@ export function buildNoteBacklinks(
 		),
 	);
 
-	const links = files
-		.filter((file) => file.id !== activeNote.id)
-		.flatMap((file) => extractNoteLinks(file).map(resolve))
-		.filter(
-			(link) =>
-				(link.status === "resolved" && link.targetNoteId === activeNote.id) ||
-				(link.status === "ambiguous" &&
-					!link.targetNoteId &&
-					activeTitleKeys.has(normalizeNoteTitle(link.targetLabel))),
-		)
-		.map((link) =>
-			link.status === "ambiguous"
-				? { ...link, status: "resolved" as const, targetNoteId: activeNote.id }
-				: link,
-		);
+	const links: ResolvedNoteLink[] = [];
+	for (const file of files) {
+		if (file.id === activeNote.id) continue;
+		for (const link of extractNoteLinks(file)) {
+			const resolved = resolve(link);
+			const isBacklink =
+				(resolved.status === "resolved" && resolved.targetNoteId === activeNote.id) ||
+				(resolved.status === "ambiguous" &&
+					!resolved.targetNoteId &&
+					activeTitleKeys.has(normalizeNoteTitle(resolved.targetLabel)));
+			if (!isBacklink) continue;
+			links.push(
+				resolved.status === "ambiguous"
+					? { ...resolved, status: "resolved" as const, targetNoteId: activeNote.id }
+					: resolved,
+			);
+		}
+	}
 
 	return dedupeLinks(links, (link) => link.sourceNoteId);
 }

@@ -2,6 +2,7 @@ import * as React from "react";
 import { useShortcutScope } from "@/core/shortcuts";
 import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
 import { noop } from "@/shared/lib/noop";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 
 type TauriWebview = { setZoom: (factor: number) => Promise<void> };
 type TauriWebviewApi = {
@@ -60,7 +61,7 @@ function persistZoom(zoom: number): void {
  * Renders nothing; it only wires up global listeners while running under Tauri.
  */
 export function DesktopZoom() {
-	const zoomRef = React.useRef(readStoredZoom());
+	const zoomRef = useLazyRef(readStoredZoom);
 
 	React.useEffect(() => {
 		if (!isTauriRuntime()) return;

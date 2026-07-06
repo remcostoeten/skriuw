@@ -63,7 +63,7 @@ export function exportFolderPaths(folders: FolderPathRow[]): Map<string, string>
 
 export function sortFoldersForCreation(folders: SkriuwExportFolder[]): SkriuwExportFolder[] {
 	const paths = exportFolderPaths(folders);
-	return [...folders].sort((left, right) => {
+	return folders.toSorted((left, right) => {
 		const leftDepth = (paths.get(left.id) ?? "").split("/").filter(Boolean).length;
 		const rightDepth = (paths.get(right.id) ?? "").split("/").filter(Boolean).length;
 		return leftDepth - rightDepth;

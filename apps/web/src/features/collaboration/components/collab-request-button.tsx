@@ -8,6 +8,13 @@ import { showUserToast } from "@/shared/lib/user-toast";
 
 type Status = "idle" | "pending" | "sent" | "already";
 
+const STATUS_LABELS: Record<Status, string> = {
+	idle: "Request to collaborate",
+	pending: "Requesting...",
+	sent: "Request sent",
+	already: "Already a collaborator",
+};
+
 export function CollabRequestButton({
 	noteId,
 	onAuthRequired,
@@ -49,13 +56,6 @@ export function CollabRequestButton({
 		}
 	};
 
-	const labels: Record<Status, string> = {
-		idle: "Request to collaborate",
-		pending: "Requesting...",
-		sent: "Request sent",
-		already: "Already a collaborator",
-	};
-
 	return (
 		<button
 			type="button"
@@ -64,7 +64,7 @@ export function CollabRequestButton({
 			className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-[11px] font-medium text-foreground/80 transition-opacity hover:opacity-85 active:scale-[0.97] disabled:cursor-default disabled:opacity-60"
 		>
 			<Users className="h-3 w-3" strokeWidth={1.5} />
-			{loading ? "Requesting..." : labels[status]}
+			{loading ? "Requesting..." : STATUS_LABELS[status]}
 		</button>
 	);
 }

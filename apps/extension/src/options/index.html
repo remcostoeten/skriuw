@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Skriuw Web Clipper — Settings</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				--bg: #f7f6f2;
+				--panel: #ffffff;
+				--text: #1d1c19;
+				--muted: #6f6b62;
+				--border: #ded8cc;
+				--accent: #302c27;
+				--accent-strong: #1d1c19;
+				--accent-foreground: #f7f6f2;
+				--ok: #137a43;
+				--error: #b42318;
+				--shadow: 0 20px 60px rgba(29, 28, 25, 0.1);
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg: #151412;
+					--panel: #201f1c;
+					--text: #f4f0e8;
+					--muted: #aaa39a;
+					--border: #39352f;
+					--accent: #d8cfc0;
+					--accent-strong: #f4f0e8;
+					--accent-foreground: #151412;
+					--ok: #6ee7a5;
+					--error: #ff8a7a;
+					--shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+				}
+			}
+			body {
+				margin: 0;
+				font:
+					14px/1.5 Inter,
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					BlinkMacSystemFont,
+					"Segoe UI",
+					sans-serif;
+				background: var(--bg);
+				color: var(--text);
+			}
+			.page {
+				box-sizing: border-box;
+				width: min(100%, 620px);
+				margin: 0 auto;
+				padding: 44px 20px 24px;
+			}
+			.hero {
+				margin-bottom: 18px;
+			}
+			.brand {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+			}
+			.logo {
+				width: 42px;
+				height: 42px;
+				border-radius: 10px;
+				box-shadow: 0 1px 0 color-mix(in srgb, white 45%, transparent) inset;
+			}
+			.eyebrow {
+				margin: 0 0 6px;
+				color: var(--muted);
+				font-size: 11px;
+				font-weight: 700;
+				letter-spacing: 0.14em;
+				text-transform: uppercase;
+			}
+			h1 {
+				margin: 0;
+				font-size: 28px;
+				line-height: 1.1;
+				letter-spacing: 0;
+			}
+			.hero p {
+				max-width: 520px;
+				margin: 10px 0 0;
+				color: var(--muted);
+			}
+			.panel {
+				border: 1px solid var(--border);
+				border-radius: 10px;
+				background: color-mix(in srgb, var(--panel) 94%, transparent);
+				box-shadow: var(--shadow);
+				padding: 18px;
+			}
+			label {
+				display: block;
+				font-weight: 700;
+				font-size: 13px;
+				margin: 18px 0 5px;
+			}
+			label:first-child {
+				margin-top: 0;
+			}
+			input {
+				width: 100%;
+				box-sizing: border-box;
+				padding: 10px 11px;
+				border: 1px solid var(--border);
+				border-radius: 8px;
+				background: color-mix(in srgb, var(--panel) 80%, var(--bg));
+				color: var(--text);
+				outline: none;
+			}
+			input:focus {
+				border-color: var(--accent);
+				box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+			}
+			button {
+				padding: 10px 16px;
+				border: 0;
+				border-radius: 8px;
+				background: var(--accent);
+				color: var(--accent-foreground);
+				font-weight: 700;
+				cursor: pointer;
+			}
+			button:hover {
+				background: var(--accent-strong);
+			}
+			button:disabled {
+				opacity: 0.5;
+				cursor: default;
+			}
+			.actions {
+				margin-top: 20px;
+			}
+			.hint {
+				color: var(--muted);
+				font-size: 12px;
+				margin-top: 5px;
+			}
+			.status {
+				margin-top: 16px;
+				border-radius: 8px;
+				padding: 10px 11px;
+				font-weight: 700;
+			}
+			.error {
+				background: color-mix(in srgb, var(--error) 11%, transparent);
+				color: var(--error);
+			}
+			.ok {
+				background: color-mix(in srgb, var(--ok) 12%, transparent);
+				color: var(--ok);
+			}
+			code {
+				background: color-mix(in srgb, var(--text) 8%, transparent);
+				padding: 1px 4px;
+				border-radius: 4px;
+			}
+			.footer {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 8px;
+				margin-top: 18px;
+				border-top: 1px solid var(--border);
+				padding-top: 14px;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			a {
+				color: var(--accent);
+				font-weight: 700;
+				text-decoration: none;
+			}
+			.version {
+				font-variant-numeric: tabular-nums;
+			}
+			a:hover {
+				text-decoration: underline;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="root"></div>
+		<script type="module" src="./main.tsx"></script>
+	</body>
+</html>

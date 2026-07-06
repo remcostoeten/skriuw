@@ -30,6 +30,7 @@ export function toPersistedNote(note: NoteFile): PersistedNote {
 		tags: note.tags?.map((tag) => tag as TagName),
 		...(properties.length > 0 ? { properties } : {}),
 		icon: note.icon,
+		cover: note.cover,
 		createdAt: toIsoTime(note.createdAt),
 		updatedAt: toIsoTime(note.modifiedAt),
 		journalMeta: note.journalMeta
@@ -56,6 +57,7 @@ export function fromPersistedNote(note: PersistedNote): NoteFile {
 		tags: note.tags?.map((tag) => tag as string),
 		properties: normalizeNoteProperties(note.properties),
 		icon: note.icon,
+		cover: note.cover,
 		createdAt: new Date(note.createdAt),
 		modifiedAt: new Date(note.updatedAt),
 		journalMeta: note.journalMeta

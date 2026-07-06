@@ -247,21 +247,6 @@ export function VersionPreviewContainer({
 	const toolbarButtonClass =
 		"inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md px-3 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-55";
 
-	function renderEditor(targetFile: NoteFile | null, mode: "raw" | "block") {
-		return (
-			<Editor
-				file={targetFile}
-				files={files}
-				editorMode={mode}
-				editorFontId={editorPrefs.defaultFont}
-				editorLineHeight={editorPrefs.lineHeight}
-				isMobile={isMobile}
-				readOnly
-				onContentChange={() => {}}
-			/>
-		);
-	}
-
 	return (
 		<div className="flex flex-1 flex-col overflow-hidden">
 			<div className="@container border-b border-warning/30 bg-[linear-gradient(135deg,hsl(var(--warning)/0.12),hsl(var(--background)/0.96)_62%)] px-3 py-3 text-xs sm:px-4">
@@ -445,7 +430,16 @@ export function VersionPreviewContainer({
 				</div>
 			) : (
 				<div className="flex min-h-0 flex-1 overflow-hidden">
-					{renderEditor(previewFile, effectiveMode)}
+					<Editor
+						file={previewFile}
+						files={files}
+						editorMode={effectiveMode}
+						editorFontId={editorPrefs.defaultFont}
+						editorLineHeight={editorPrefs.lineHeight}
+						isMobile={isMobile}
+						readOnly
+						onContentChange={() => {}}
+					/>
 				</div>
 			)}
 		</div>

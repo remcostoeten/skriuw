@@ -29,6 +29,7 @@ import {
 	type CommandPaletteItem,
 } from "@/shared/ui/command-palette-model";
 import { dialogContentMotion, overlayFadeMotion } from "@/shared/ui/overlay-motion";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 export type { CommandPaletteItem } from "@/shared/ui/command-palette-model";
 
@@ -62,6 +63,16 @@ function getCommandIcon(item: CommandPaletteItem): LucideIcon {
 	return SquarePen;
 }
 
+function detectApplePlatform(): boolean {
+	if (typeof navigator === "undefined") return false;
+	const platform =
+		(navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData
+			?.platform ??
+		navigator.platform ??
+		"";
+	return /mac|iphone|ipad|ipod/i.test(platform);
+}
+
 export function CommandPalette({
 	open,
 	onOpenChange,
@@ -77,8 +88,10 @@ export function CommandPalette({
 		onQueryChange?.(next);
 	}
 	const [activeIndex, setActiveIndex] = useState(0);
-	const [isApple, setIsApple] = useState(false);
+	const [prevQuery, setPrevQuery] = useState(query);
+	const [isApple] = useState(detectApplePlatform);
 	const [frecency, setFrecency] = useState<Record<string, number>>({});
+	const isMobile = useIsMobile();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	const listboxId = useId();
@@ -88,6 +101,14 @@ export function CommandPalette({
 		[items, query, frecency],
 	);
 	const flatItems = useMemo(() => groups.flatMap((group) => group.items), [groups]);
+
+	if (query !== prevQuery) {
+		setPrevQuery(query);
+		setActiveIndex(0);
+	}
+
+	const boundedActiveIndex =
+		activeIndex < flatItems.length ? activeIndex : Math.max(flatItems.length - 1, 0);
 
 	useEffect(() => {
 		if (!open) return;
@@ -99,29 +120,11 @@ export function CommandPalette({
 	}, [open, onQueryChange]);
 
 	useEffect(() => {
-		setActiveIndex(0);
-	}, [query]);
-
-	useEffect(() => {
-		const platform =
-			(navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData
-				?.platform ??
-			navigator.platform ??
-			"";
-		setIsApple(/mac|iphone|ipad|ipod/i.test(platform));
-	}, []);
-
-	useEffect(() => {
-		if (activeIndex < flatItems.length) return;
-		setActiveIndex(flatItems.length > 0 ? flatItems.length - 1 : 0);
-	}, [activeIndex, flatItems.length]);
-
-	useEffect(() => {
 		const activeElement = listRef.current?.querySelector<HTMLElement>(
-			`[data-index="${activeIndex}"]`,
+			`[data-index="${boundedActiveIndex}"]`,
 		);
 		activeElement?.scrollIntoView({ block: "nearest" });
-	}, [activeIndex]);
+	}, [boundedActiveIndex]);
 
 	function runItem(item: CommandPaletteItem) {
 		triggerNativeFeedback("selection");
@@ -133,21 +136,21 @@ export function CommandPalette({
 	function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
 		if (event.key === "ArrowDown") {
 			event.preventDefault();
-			setActiveIndex((index) =>
-				flatItems.length > 0 ? Math.min(index + 1, flatItems.length - 1) : 0,
+			setActiveIndex(
+				flatItems.length > 0 ? Math.min(boundedActiveIndex + 1, flatItems.length - 1) : 0,
 			);
 		} else if (event.key === "ArrowUp") {
 			event.preventDefault();
-			setActiveIndex((index) => Math.max(index - 1, 0));
+			setActiveIndex(Math.max(boundedActiveIndex - 1, 0));
 		} else if (event.key === "Enter") {
 			event.preventDefault();
-			const activeItem = flatItems[activeIndex];
+			const activeItem = flatItems[boundedActiveIndex];
 			if (activeItem) runItem(activeItem);
 		}
 	}
 
 	let runningIndex = -1;
-	const activeItem = flatItems[activeIndex];
+	const activeItem = flatItems[boundedActiveIndex];
 
 	return (
 		<DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -164,7 +167,10 @@ export function CommandPalette({
 						inputRef.current?.focus();
 					}}
 					className={cn(
-						"fixed left-1/2 top-[12vh] z-50 w-[calc(100vw-1.5rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl shadow-black/40 focus:outline-none focus:ring-0",
+						"fixed left-1/2 z-50 w-[calc(100vw-1.5rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl shadow-black/40 focus:outline-none focus:ring-0",
+						isMobile
+							? "bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] max-h-[72dvh]"
+							: "top-[12vh]",
 						dialogContentMotion,
 					)}
 				>
@@ -191,20 +197,25 @@ export function CommandPalette({
 							aria-controls={listboxId}
 							aria-autocomplete="list"
 							aria-activedescendant={
-								activeItem ? `${listboxId}-item-${activeIndex}` : undefined
+								activeItem ? `${listboxId}-item-${boundedActiveIndex}` : undefined
 							}
 							className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none focus:outline-none focus-visible:shadow-none focus-visible:outline-none placeholder:text-muted-foreground"
 						/>
-						<kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-							Esc
-						</kbd>
+						{isMobile ? null : (
+							<kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+								Esc
+							</kbd>
+						)}
 					</div>
 
 					<div
 						ref={listRef}
 						id={listboxId}
 						role="listbox"
-						className="max-h-[52vh] overflow-y-auto py-1.5"
+						className={cn(
+							"overflow-y-auto py-1.5",
+							isMobile ? "momentum-scroll max-h-[52dvh]" : "max-h-[52vh]",
+						)}
 					>
 						{flatItems.length === 0 ? (
 							<div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
@@ -219,7 +230,7 @@ export function CommandPalette({
 									{group.items.map((item) => {
 										runningIndex += 1;
 										const index = runningIndex;
-										const isActive = index === activeIndex;
+										const isActive = index === boundedActiveIndex;
 										const Icon = getCommandIcon(item);
 
 										return (
@@ -247,7 +258,19 @@ export function CommandPalette({
 															: "text-muted-foreground",
 													)}
 												>
-													<Icon className="h-4 w-4" strokeWidth={1.7} />
+													{item.emoji ? (
+														<span
+															className="flex h-4 w-4 items-center justify-center text-[13px] leading-none"
+															aria-hidden
+														>
+															{item.emoji}
+														</span>
+													) : (
+														<Icon
+															className="h-4 w-4"
+															strokeWidth={1.7}
+														/>
+													)}
 												</span>
 												<span className="truncate">{item.label}</span>
 												{(item.hint ?? item.description) ? (
@@ -256,12 +279,12 @@ export function CommandPalette({
 													</span>
 												) : null}
 												<span className="ml-auto flex shrink-0 items-center gap-1.5">
-													{item.shortcut ? (
+													{!isMobile && item.shortcut ? (
 														<kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
 															{formatShortcut(item.shortcut, isApple)}
 														</kbd>
 													) : null}
-													{isActive ? (
+													{!isMobile && isActive ? (
 														<CornerDownLeft className="h-3.5 w-3.5 text-muted-foreground" />
 													) : null}
 												</span>
@@ -273,35 +296,37 @@ export function CommandPalette({
 						)}
 					</div>
 
-					<div className="flex items-center gap-4 border-t border-border px-3.5 py-2 text-[11px] text-muted-foreground">
-						<span className="flex items-center gap-1">
-							<ArrowRight className="h-3 w-3 rotate-90" />
-							<ArrowRight className="h-3 w-3 -rotate-90" />
-							navigate
-						</span>
-						<span className="flex items-center gap-1">
-							<CornerDownLeft className="h-3 w-3" />
-							select
-						</span>
-						<span className="flex items-center gap-1.5">
-							{Object.entries(COMMAND_BANGS).map(([key, bang]) => (
-								<span key={key} className="flex items-center gap-1">
-									<kbd className="rounded border border-border bg-muted px-1 text-[10px]">
-										!{key}
-									</kbd>
-									<span className="hidden sm:inline">
-										{bang.label.toLowerCase()}
+					{isMobile ? null : (
+						<div className="flex items-center gap-4 border-t border-border px-3.5 py-2 text-[11px] text-muted-foreground">
+							<span className="flex items-center gap-1">
+								<ArrowRight className="h-3 w-3 rotate-90" />
+								<ArrowRight className="h-3 w-3 -rotate-90" />
+								navigate
+							</span>
+							<span className="flex items-center gap-1">
+								<CornerDownLeft className="h-3 w-3" />
+								select
+							</span>
+							<span className="flex items-center gap-1.5">
+								{Object.entries(COMMAND_BANGS).map(([key, bang]) => (
+									<span key={key} className="flex items-center gap-1">
+										<kbd className="rounded border border-border bg-muted px-1 text-[10px]">
+											!{key}
+										</kbd>
+										<span className="hidden sm:inline">
+											{bang.label.toLowerCase()}
+										</span>
 									</span>
-								</span>
-							))}
-						</span>
-						<span className="ml-auto flex items-center gap-1">
-							<kbd className="rounded border border-border bg-muted px-1 text-[10px]">
-								{formatShortcut("mod+k", isApple)}
-							</kbd>
-							command palette
-						</span>
-					</div>
+								))}
+							</span>
+							<span className="ml-auto flex items-center gap-1">
+								<kbd className="rounded border border-border bg-muted px-1 text-[10px]">
+									{formatShortcut("mod+k", isApple)}
+								</kbd>
+								command palette
+							</span>
+						</div>
+					)}
 				</DialogPrimitive.Content>
 			</DialogPrimitive.Portal>
 		</DialogPrimitive.Root>

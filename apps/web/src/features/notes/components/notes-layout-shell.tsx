@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
@@ -215,426 +215,433 @@ export function NotesLayoutShell({
 	}
 
 	return (
-		<LayoutContainer className="bg-background">
-			{showWelcome && <WelcomeWalkthrough />}
-			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				{!isMobile && <IconRail />}
+		<LazyMotion features={domAnimation}>
+			<LayoutContainer className="bg-background">
+				{showWelcome && <WelcomeWalkthrough />}
+				<div className="relative flex min-h-0 flex-1 overflow-hidden">
+					{!isMobile && <IconRail />}
 
-				{/* The chrome below (sidebar frame, toolbar, status bar) is static —
+					{/* The chrome below (sidebar frame, toolbar, status bar) is static —
 				    it renders unconditionally on the first paint. Only the data
 				    regions inside it (file tree, document body, metadata) swap to
 				    skeletons while their queries resolve, so nothing blocks and
 				    nothing shifts. */}
-				{!isMobile && (
-					<AnimatePresence initial={false}>
-						{showSidebar && (
-							<motion.div
-								key="desktop-sidebar"
-								initial={
-									prefersReducedMotion ? { opacity: 0 } : { width: 0, opacity: 0 }
-								}
-								animate={
-									prefersReducedMotion
-										? {
-												opacity: 1,
-												transition: { duration: 0.1, ease: "linear" },
-											}
-										: {
-												width: sidebarWidth,
-												opacity: 1,
-												transition: isSidebarResizing
-													? { duration: 0 }
-													: {
-															duration: 0.22,
-															ease: [0.23, 1, 0.32, 1],
-														},
-											}
-								}
-								exit={
-									prefersReducedMotion
-										? {
-												opacity: 0,
-												transition: { duration: 0.1, ease: "linear" },
-											}
-										: {
-												width: 0,
-												opacity: 0,
-												transition: {
-													duration: 0.18,
-													ease: [0.23, 1, 0.32, 1],
-												},
-											}
-								}
-								style={{ overflow: "hidden", flexShrink: 0 }}
-							>
-								<div
-									ref={sidebarRef}
-									className="relative h-full bg-sidebar"
-									style={{ width: sidebarWidth }}
-								>
-									<SidebarPanel
-										{...sidebarPanelProps}
-										isFilesLoading={
-											sidebarPanelProps.isFilesLoading || !isEditorReady
-										}
-										sidebarWidth={sidebarWidth}
-									/>
-									<div
-										role="separator"
-										aria-orientation="vertical"
-										aria-label="Resize sidebar"
-										onPointerDown={handleDesktopSidebarResizeStart}
-										className="absolute inset-y-0 -right-1 z-20 hidden w-3 cursor-col-resize items-center justify-center md:flex"
-									>
-										<div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-foreground/8 transition-colors hover:bg-foreground/20" />
-									</div>
-								</div>
-							</motion.div>
-						)}
-					</AnimatePresence>
-				)}
-
-				<div
-					className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
-					inert={mobileOverlayOpen ? true : undefined}
-				>
-					<div className="relative flex min-w-0 flex-1 overflow-hidden">
-						<SplitDropZone
-							disabled={isMobile || Boolean(sharingNoteId) || Boolean(viewingVersion)}
-							activeFileId={layout.activeFileId}
-							onOpenInSplit={handleOpenInSplit}
-							onFileSelect={sidebarPanelProps.actions.onFileSelect}
-						>
-							<AnimatePresence mode="wait" initial={false}>
-								<motion.div
-									key={
-										sharingNoteId
-											? "share"
-											: viewingVersion
-												? "version"
-												: "editor"
-									}
+					{!isMobile && (
+						<AnimatePresence initial={false}>
+							{showSidebar && (
+								<m.div
+									key="desktop-sidebar"
 									initial={
 										prefersReducedMotion
 											? { opacity: 0 }
-											: { opacity: 0, x: 18 }
+											: { width: 0, opacity: 0 }
 									}
-									animate={{
-										opacity: 1,
-										x: 0,
-										transition: {
-											duration: 0.24,
-											ease: [0.23, 1, 0.32, 1],
-										},
-									}}
+									animate={
+										prefersReducedMotion
+											? {
+													opacity: 1,
+													transition: { duration: 0.1, ease: "linear" },
+												}
+											: {
+													width: sidebarWidth,
+													opacity: 1,
+													transition: isSidebarResizing
+														? { duration: 0 }
+														: {
+																duration: 0.22,
+																ease: [0.23, 1, 0.32, 1],
+															},
+												}
+									}
 									exit={
 										prefersReducedMotion
-											? { opacity: 0, transition: { duration: 0.12 } }
-											: {
+											? {
 													opacity: 0,
-													x: -12,
+													transition: { duration: 0.1, ease: "linear" },
+												}
+											: {
+													width: 0,
+													opacity: 0,
 													transition: {
-														duration: 0.16,
+														duration: 0.18,
 														ease: [0.23, 1, 0.32, 1],
 													},
 												}
 									}
-									style={{ willChange: "transform, opacity" }}
-									className="flex min-h-0 flex-1 flex-col"
+									style={{ overflow: "hidden", flexShrink: 0 }}
 								>
-									{sharingNoteId ? (
-										<ShareScreen
-											noteId={sharingNoteId}
-											noteName={activeFile?.name ?? "this note"}
-											onBack={handleCloseShare}
+									<div
+										ref={sidebarRef}
+										className="relative h-full bg-sidebar"
+										style={{ width: sidebarWidth }}
+									>
+										<SidebarPanel
+											{...sidebarPanelProps}
+											sidebarWidth={sidebarWidth}
 										/>
-									) : viewingVersion ? (
-										<VersionPreviewContainer
-											version={viewingVersion}
-											file={activeFile}
-											files={files}
-											isMobile={isMobile}
-											isRestoring={isRestoringVersion}
-											onBack={handleExitVersionPreview}
-											onRestore={handleRestoreViewedVersion}
-										/>
-									) : (
-										<EditorWorkspace
-											splitActive={Boolean(splitEnabled && secondaryFile)}
-											primaryFile={displayFile}
-											secondaryFile={secondaryFile}
-											files={files}
-											focusedPane={focusedEditorPane}
-											editorMode={editorMode ?? "block"}
-											secondaryEditorMode={secondaryEditorMode}
-											scrollPositions={editorScrollPositions}
-											orientation={splitOrientation}
-											secondaryFirst={splitSecondaryFirst}
-											isMobile={isMobile}
-											canNavigatePrev={canNavigatePrev}
-											canNavigateNext={canNavigateNext}
-											canToggleSplit={canToggleSplit}
-											primarySaveState={layout.activeFileSaveState}
-											primaryContentLoading={showContentSkeleton}
-											primaryFileName={
-												// Prefer the selected note's name from metadata
-												// (always available, updates the same commit
-												// selection moves) so the toolbar tracks the
-												// sidebar instantly during a cold swap — even
-												// while the previous body is still on screen.
-												files.find(
-													(file) => file.id === layout.activeFileId,
-												)?.name ??
-												displayFile?.name ??
-												"No file selected"
-											}
-											onToggleSidebar={handleToggleSidebar}
-											onToggleMetadata={handleToggleMetadata}
-											workspaceItems={workspaceItems}
-											onOpenSettings={handleOpenSettings}
-											onNavigatePrev={handleNavigatePrev}
-											onNavigateNext={handleNavigateNext}
-											onToggleSplit={handleToggleSplit}
-											onToggleEditorMode={handleToggleEditorMode}
-											onToggleSplitOrientation={handleToggleSplitOrientation}
-											onSwapPaneOrder={handleSwapSplitPaneOrder}
-											onCloseSplit={handleCloseSplit}
-											onFocusPane={handleFocusEditorPane}
-											onScrollPositionChange={
-												handleEditorScrollPositionChange
-											}
-											onContentChange={updateFileContent}
-											onCreateFile={() => layout.createFile()}
-											onRenameFile={layout.renameFile}
-											onEditorBlur={flushFileEdits}
-											tabBar={tabBar}
-										/>
-									)}
-								</motion.div>
-							</AnimatePresence>
-						</SplitDropZone>
+										<div
+											role="separator"
+											aria-orientation="vertical"
+											aria-label="Resize sidebar"
+											onPointerDown={handleDesktopSidebarResizeStart}
+											className="absolute inset-y-0 -right-1 z-20 hidden w-3 cursor-col-resize items-center justify-center md:flex"
+										>
+											<div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-foreground/8 transition-colors hover:bg-foreground/20" />
+										</div>
+									</div>
+								</m.div>
+							)}
+						</AnimatePresence>
+					)}
 
-						{!isMobile && (
-							<AnimatePresence initial={false}>
-								{showMetadata && (
-									<motion.div
-										key="desktop-metadata"
+					<div
+						className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
+						inert={mobileOverlayOpen ? true : undefined}
+					>
+						<div className="relative flex min-w-0 flex-1 overflow-hidden">
+							<SplitDropZone
+								disabled={
+									isMobile || Boolean(sharingNoteId) || Boolean(viewingVersion)
+								}
+								activeFileId={layout.activeFileId}
+								onOpenInSplit={handleOpenInSplit}
+								onFileSelect={sidebarPanelProps.actions.onFileSelect}
+							>
+								<AnimatePresence mode="wait" initial={false}>
+									<m.div
+										key={
+											sharingNoteId
+												? "share"
+												: viewingVersion
+													? "version"
+													: "editor"
+										}
 										initial={
 											prefersReducedMotion
 												? { opacity: 0 }
-												: { width: 0, opacity: 0 }
+												: { opacity: 0, x: 18 }
 										}
-										animate={
-											prefersReducedMotion
-												? {
-														opacity: 1,
-														transition: {
-															duration: 0.1,
-															ease: "linear",
-														},
-													}
-												: {
-														width: metadataWidth,
-														opacity: 1,
-														transition: isMetadataResizing
-															? { duration: 0 }
-															: {
-																	duration: 0.22,
-																	ease: [0.23, 1, 0.32, 1],
-																},
-													}
-										}
+										animate={{
+											opacity: 1,
+											x: 0,
+											transition: {
+												duration: 0.24,
+												ease: [0.23, 1, 0.32, 1],
+											},
+										}}
 										exit={
 											prefersReducedMotion
-												? {
-														opacity: 0,
-														transition: {
-															duration: 0.1,
-															ease: "linear",
-														},
-													}
+												? { opacity: 0, transition: { duration: 0.12 } }
 												: {
-														width: 0,
 														opacity: 0,
+														x: -12,
 														transition: {
-															duration: 0.18,
+															duration: 0.16,
 															ease: [0.23, 1, 0.32, 1],
 														},
 													}
 										}
-										style={{ overflow: "hidden", flexShrink: 0 }}
+										style={{ willChange: "transform, opacity" }}
+										className="flex min-h-0 flex-1 flex-col"
 									>
-										<div
-											ref={metadataRef}
-											className="relative h-full bg-background"
-											style={{ width: metadataWidth }}
+										{sharingNoteId ? (
+											<ShareScreen
+												noteId={sharingNoteId}
+												noteName={activeFile?.name ?? "this note"}
+												onBack={handleCloseShare}
+											/>
+										) : viewingVersion ? (
+											<VersionPreviewContainer
+												version={viewingVersion}
+												file={activeFile}
+												files={files}
+												isMobile={isMobile}
+												isRestoring={isRestoringVersion}
+												onBack={handleExitVersionPreview}
+												onRestore={handleRestoreViewedVersion}
+											/>
+										) : (
+											<EditorWorkspace
+												splitActive={Boolean(splitEnabled && secondaryFile)}
+												primaryFile={displayFile}
+												secondaryFile={secondaryFile}
+												files={files}
+												focusedPane={focusedEditorPane}
+												editorMode={editorMode ?? "block"}
+												secondaryEditorMode={secondaryEditorMode}
+												scrollPositions={editorScrollPositions}
+												orientation={splitOrientation}
+												secondaryFirst={splitSecondaryFirst}
+												isMobile={isMobile}
+												canNavigatePrev={canNavigatePrev}
+												canNavigateNext={canNavigateNext}
+												canToggleSplit={canToggleSplit}
+												primarySaveState={layout.activeFileSaveState}
+												primaryContentLoading={showContentSkeleton}
+												primaryFileName={
+													// Prefer the selected note's name from metadata
+													// (always available, updates the same commit
+													// selection moves) so the toolbar tracks the
+													// sidebar instantly during a cold swap — even
+													// while the previous body is still on screen.
+													files.find(
+														(file) => file.id === layout.activeFileId,
+													)?.name ??
+													displayFile?.name ??
+													"No file selected"
+												}
+												onToggleSidebar={handleToggleSidebar}
+												onToggleMetadata={handleToggleMetadata}
+												workspaceItems={workspaceItems}
+												onOpenSettings={handleOpenSettings}
+												onNavigatePrev={handleNavigatePrev}
+												onNavigateNext={handleNavigateNext}
+												onToggleSplit={handleToggleSplit}
+												onToggleEditorMode={handleToggleEditorMode}
+												onToggleSplitOrientation={
+													handleToggleSplitOrientation
+												}
+												onSwapPaneOrder={handleSwapSplitPaneOrder}
+												onCloseSplit={handleCloseSplit}
+												onFocusPane={handleFocusEditorPane}
+												onScrollPositionChange={
+													handleEditorScrollPositionChange
+												}
+												onContentChange={updateFileContent}
+												onCreateFile={() => layout.createFile()}
+												onRenameFile={layout.renameFile}
+												onEditorBlur={flushFileEdits}
+												tabBar={tabBar}
+											/>
+										)}
+									</m.div>
+								</AnimatePresence>
+							</SplitDropZone>
+
+							{!isMobile && (
+								<AnimatePresence initial={false}>
+									{showMetadata && (
+										<m.div
+											key="desktop-metadata"
+											initial={
+												prefersReducedMotion
+													? { opacity: 0 }
+													: { width: 0, opacity: 0 }
+											}
+											animate={
+												prefersReducedMotion
+													? {
+															opacity: 1,
+															transition: {
+																duration: 0.1,
+																ease: "linear",
+															},
+														}
+													: {
+															width: metadataWidth,
+															opacity: 1,
+															transition: isMetadataResizing
+																? { duration: 0 }
+																: {
+																		duration: 0.22,
+																		ease: [0.23, 1, 0.32, 1],
+																	},
+														}
+											}
+											exit={
+												prefersReducedMotion
+													? {
+															opacity: 0,
+															transition: {
+																duration: 0.1,
+																ease: "linear",
+															},
+														}
+													: {
+															width: 0,
+															opacity: 0,
+															transition: {
+																duration: 0.18,
+																ease: [0.23, 1, 0.32, 1],
+															},
+														}
+											}
+											style={{ overflow: "hidden", flexShrink: 0 }}
 										>
 											<div
-												role="separator"
-												aria-orientation="vertical"
-												aria-label="Resize metadata panel"
-												onPointerDown={handleDesktopMetadataResizeStart}
-												className="absolute inset-y-0 -left-1 z-20 hidden w-3 cursor-col-resize items-center justify-center md:flex"
+												ref={metadataRef}
+												className="relative h-full bg-background"
+												style={{ width: metadataWidth }}
 											>
-												<div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-foreground/8 transition-colors hover:bg-foreground/20" />
+												<div
+													role="separator"
+													aria-orientation="vertical"
+													aria-label="Resize metadata panel"
+													onPointerDown={handleDesktopMetadataResizeStart}
+													className="absolute inset-y-0 -left-1 z-20 hidden w-3 cursor-col-resize items-center justify-center md:flex"
+												>
+													<div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-foreground/8 transition-colors hover:bg-foreground/20" />
+												</div>
+												{showContentSkeleton ? (
+													<NotesMetadataPlaceholder className="w-full xl:w-full" />
+												) : (
+													<MetadataPanel
+														file={focusedFile ?? displayFile}
+														files={files}
+														editorMode={
+															focusedEditorMode ??
+															editorMode ??
+															"block"
+														}
+														onToggleEditorMode={handleToggleEditorMode}
+														onFileSelect={
+															sidebarPanelProps.actions.onFileSelect
+														}
+														onViewVersion={handleViewVersion}
+														onShare={handleOpenShare}
+														className="h-full w-full shrink-0 xl:w-full"
+													/>
+												)}
 											</div>
-											{showContentSkeleton ? (
-												<NotesMetadataPlaceholder className="w-full xl:w-full" />
-											) : (
-												<MetadataPanel
-													file={focusedFile ?? displayFile}
-													files={files}
-													editorMode={
-														focusedEditorMode ?? editorMode ?? "block"
-													}
-													onToggleEditorMode={handleToggleEditorMode}
-													onFileSelect={
-														sidebarPanelProps.actions.onFileSelect
-													}
-													onViewVersion={handleViewVersion}
-													onShare={handleOpenShare}
-													className="h-full w-full shrink-0 xl:w-full"
-												/>
-											)}
-										</div>
-									</motion.div>
-								)}
-							</AnimatePresence>
-						)}
+										</m.div>
+									)}
+								</AnimatePresence>
+							)}
+						</div>
 					</div>
 				</div>
-			</div>
 
-			<ShortcutHelpDialog
-				open={showShortcutHelp}
-				onOpenChange={setShowShortcutHelp}
-				groups={shortcutGroups}
-				description="Global shortcuts for notes."
-			/>
+				<ShortcutHelpDialog
+					open={showShortcutHelp}
+					onOpenChange={setShowShortcutHelp}
+					groups={shortcutGroups}
+					description="Global shortcuts for notes."
+				/>
 
-			<AnimatePresence>
-				{isEditorReady && isMobile && showSidebar && (
-					<>
-						<motion.button
-							key="sidebar-backdrop"
-							type="button"
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0 }}
-							transition={overlayTransition}
-							className="absolute inset-0 z-40 bg-scrim/58"
-							onClick={closeSidebar}
-							aria-label="Close sidebar"
-						/>
-						<div className="pointer-events-none absolute inset-y-0 left-0 z-50 flex w-full max-w-full items-stretch pr-4 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
-							<motion.div
-								key="sidebar-panel"
-								ref={mobileSidebarRef}
-								initial={
-									prefersReducedMotion
-										? { x: -12, opacity: 0 }
-										: { x: -24, opacity: 0.96 }
-								}
-								animate={{ x: 0, opacity: 1 }}
-								exit={
-									prefersReducedMotion
-										? { x: -8, opacity: 0 }
-										: { x: -32, opacity: 0.94 }
-								}
-								transition={sidebarTransition}
-								drag="x"
-								dragConstraints={{ left: 0, right: 0 }}
-								dragDirectionLock
-								dragElastic={{ left: 0.14, right: 0.05 }}
-								onDragEnd={handleSidebarDragEnd}
-								style={{ willChange: "transform, opacity" }}
-								className="native-panel pointer-events-auto relative h-full w-[min(92vw,24rem)] max-w-full overflow-hidden border border-l-0 border-border touch-pan-y"
-							>
-								<div className="pointer-events-none absolute inset-y-0 right-1 z-10 flex items-center">
-									<div className="flex h-16 w-1 flex-col items-center justify-center gap-2 rounded-sm bg-foreground/20">
-										<div className="h-5 w-1 rounded-full bg-foreground/50" />
+				<AnimatePresence>
+					{isEditorReady && isMobile && showSidebar && (
+						<>
+							<m.button
+								key="sidebar-backdrop"
+								type="button"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								transition={overlayTransition}
+								className="absolute inset-0 z-40 bg-scrim/58"
+								onClick={closeSidebar}
+								aria-label="Close sidebar"
+							/>
+							<div className="pointer-events-none absolute inset-y-0 left-0 z-50 flex w-full max-w-full items-stretch pr-4 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
+								<m.div
+									key="sidebar-panel"
+									ref={mobileSidebarRef}
+									initial={
+										prefersReducedMotion
+											? { x: -12, opacity: 0 }
+											: { x: -24, opacity: 0.96 }
+									}
+									animate={{ x: 0, opacity: 1 }}
+									exit={
+										prefersReducedMotion
+											? { x: -8, opacity: 0 }
+											: { x: -32, opacity: 0.94 }
+									}
+									transition={sidebarTransition}
+									drag="x"
+									dragConstraints={{ left: 0, right: 0 }}
+									dragDirectionLock
+									dragElastic={{ left: 0.14, right: 0.05 }}
+									onDragEnd={handleSidebarDragEnd}
+									style={{ willChange: "transform, opacity" }}
+									className="native-panel pointer-events-auto relative h-full w-[min(92vw,24rem)] max-w-full overflow-hidden border border-l-0 border-border touch-pan-y"
+								>
+									<div className="pointer-events-none absolute inset-y-0 right-1 z-10 flex items-center">
+										<div className="flex h-16 w-1 flex-col items-center justify-center gap-2 rounded-sm bg-foreground/20">
+											<div className="h-5 w-1 rounded-full bg-foreground/50" />
+										</div>
 									</div>
-								</div>
-								<SidebarPanel
-									{...sidebarPanelProps}
-									className="w-full border-r-0 bg-transparent"
-									onRequestClose={closeSidebar}
-									showCloseButton
-								/>
-							</motion.div>
-						</div>
-					</>
-				)}
-			</AnimatePresence>
-
-			<AnimatePresence>
-				{isEditorReady && isMobile && showMetadata && (
-					<>
-						<motion.button
-							key="metadata-backdrop"
-							type="button"
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0 }}
-							transition={overlayTransition}
-							className="absolute inset-0 z-40 bg-scrim/52"
-							onClick={closeMetadata}
-							aria-label="Close metadata panel"
-						/>
-						<div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.35rem)]">
-							<motion.div
-								key="metadata-panel"
-								ref={mobileMetadataRef}
-								initial={
-									prefersReducedMotion
-										? { y: 16, opacity: 0 }
-										: { y: 56, opacity: 0.98 }
-								}
-								animate={{ y: 0, opacity: 1 }}
-								exit={
-									prefersReducedMotion
-										? { y: 12, opacity: 0 }
-										: { y: 88, opacity: 0.94 }
-								}
-								transition={metadataTransition}
-								drag="y"
-								dragControls={metadataDragControls}
-								dragListener={false}
-								dragConstraints={{ top: 0, bottom: 0 }}
-								dragDirectionLock
-								dragElastic={{ top: 0.05, bottom: 0.16 }}
-								onPointerDownCapture={handleMetadataDragStart}
-								onDragEnd={handleMetadataDragEnd}
-								style={{ willChange: "transform, opacity" }}
-								className="native-panel pointer-events-auto mx-auto h-[min(74dvh,38rem)] w-full max-w-[36rem] overflow-hidden border border-border touch-pan-x"
-							>
-								{showContentSkeleton ? (
-									<NotesMetadataPlaceholder isMobile />
-								) : (
-									<MetadataPanel
-										file={focusedFile ?? displayFile}
-										files={files}
-										isMobile
-										editorMode={focusedEditorMode ?? editorMode ?? "block"}
-										onToggleEditorMode={handleToggleEditorMode}
-										onFileSelect={sidebarPanelProps.actions.onFileSelect}
-										onViewVersion={(version) => {
-											handleViewVersion(version);
-											closeMetadata();
-										}}
-										onShare={(noteId) => {
-											handleOpenShare(noteId);
-											closeMetadata();
-										}}
-										onRequestClose={closeMetadata}
-										className="h-full w-full border-l-0"
+									<SidebarPanel
+										{...sidebarPanelProps}
+										className="w-full border-r-0 bg-transparent"
+										onRequestClose={closeSidebar}
+										showCloseButton
 									/>
-								)}
-							</motion.div>
-						</div>
-					</>
-				)}
-			</AnimatePresence>
-		</LayoutContainer>
+								</m.div>
+							</div>
+						</>
+					)}
+				</AnimatePresence>
+
+				<AnimatePresence>
+					{isEditorReady && isMobile && showMetadata && (
+						<>
+							<m.button
+								key="metadata-backdrop"
+								type="button"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								transition={overlayTransition}
+								className="absolute inset-0 z-40 bg-scrim/52"
+								onClick={closeMetadata}
+								aria-label="Close metadata panel"
+							/>
+							<div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.35rem)]">
+								<m.div
+									key="metadata-panel"
+									ref={mobileMetadataRef}
+									initial={
+										prefersReducedMotion
+											? { y: 16, opacity: 0 }
+											: { y: 56, opacity: 0.98 }
+									}
+									animate={{ y: 0, opacity: 1 }}
+									exit={
+										prefersReducedMotion
+											? { y: 12, opacity: 0 }
+											: { y: 88, opacity: 0.94 }
+									}
+									transition={metadataTransition}
+									drag="y"
+									dragControls={metadataDragControls}
+									dragListener={false}
+									dragConstraints={{ top: 0, bottom: 0 }}
+									dragDirectionLock
+									dragElastic={{ top: 0.05, bottom: 0.16 }}
+									onPointerDownCapture={handleMetadataDragStart}
+									onDragEnd={handleMetadataDragEnd}
+									style={{ willChange: "transform, opacity" }}
+									className="native-panel pointer-events-auto mx-auto h-[min(74dvh,38rem)] w-full max-w-[36rem] overflow-hidden border border-border touch-pan-x"
+								>
+									{showContentSkeleton ? (
+										<NotesMetadataPlaceholder isMobile />
+									) : (
+										<MetadataPanel
+											file={focusedFile ?? displayFile}
+											files={files}
+											isMobile
+											editorMode={focusedEditorMode ?? editorMode ?? "block"}
+											onToggleEditorMode={handleToggleEditorMode}
+											onFileSelect={sidebarPanelProps.actions.onFileSelect}
+											onViewVersion={(version) => {
+												handleViewVersion(version);
+												closeMetadata();
+											}}
+											onShare={(noteId) => {
+												handleOpenShare(noteId);
+												closeMetadata();
+											}}
+											onRequestClose={closeMetadata}
+											className="h-full w-full border-l-0"
+										/>
+									)}
+								</m.div>
+							</div>
+						</>
+					)}
+				</AnimatePresence>
+			</LayoutContainer>
+		</LazyMotion>
 	);
 }

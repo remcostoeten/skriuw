@@ -45,6 +45,8 @@ export function buildAiPrompt(
 	const user = spec.user
 		.replaceAll("{matchLanguageRule}", promptCatalog.rules.matchLanguageRule)
 		.replaceAll("{preserveTokensRule}", promptCatalog.rules.preserveTokensRule)
+		.replaceAll("{noMetaRule}", promptCatalog.rules.noMetaRule)
+		.replaceAll("{voiceRule}", promptCatalog.rules.voiceRule)
 		.replaceAll("{translateDirective}", translateDirective(options?.targetLanguage))
 		.replaceAll("{instruction}", options?.instruction?.trim() || "")
 		.replace("{content}", () => content);

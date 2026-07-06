@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { format, subDays, isAfter, startOfDay } from "date-fns";
 import { Calendar, Hash, Target, Zap, Heart, Download, FileText } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
@@ -40,7 +40,7 @@ export function JournalStats({ className }: JournalStatsProps) {
 		const lastMonthEntries = entries.filter((e) => isAfter(new Date(e.dateKey), lastMonth));
 
 		// Streak calculation
-		const sortedEntries = [...entries].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+		const sortedEntries = entries.toSorted((a, b) => b.dateKey.localeCompare(a.dateKey));
 		let currentStreak = 0;
 		let longestStreak = 0;
 		let tempStreak = 0;
@@ -128,8 +128,8 @@ export function JournalStats({ className }: JournalStatsProps) {
 		};
 	}, [entries, tags]);
 
-	const exportAsMarkdown = useCallback(() => {
-		const sortedEntries = [...entries].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+	const exportAsMarkdown = () => {
+		const sortedEntries = entries.toSorted((a, b) => b.dateKey.localeCompare(a.dateKey));
 		let markdown = "# Journal Export\n\n";
 		markdown += `Exported on ${format(new Date(), "MMMM d, yyyy")}\n\n`;
 		markdown += `Total entries: ${sortedEntries.length}\n\n`;
@@ -158,9 +158,9 @@ export function JournalStats({ className }: JournalStatsProps) {
 		a.download = `journal-export-${format(new Date(), "yyyy-MM-dd")}.md`;
 		a.click();
 		URL.revokeObjectURL(url);
-	}, [entries]);
+	};
 
-	const exportAsJSON = useCallback(() => {
+	const exportAsJSON = () => {
 		const exportData = {
 			exportedAt: new Date().toISOString(),
 			entries: entries,
@@ -181,11 +181,11 @@ export function JournalStats({ className }: JournalStatsProps) {
 		a.download = `journal-export-${format(new Date(), "yyyy-MM-dd")}.json`;
 		a.click();
 		URL.revokeObjectURL(url);
-	}, [entries, tags, stats]);
+	};
 
-	const exportAsPDF = useCallback(() => {
+	const exportAsPDF = () => {
 		// For PDF export, we'll create a simple HTML version and trigger print
-		const sortedEntries = [...entries].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+		const sortedEntries = entries.toSorted((a, b) => b.dateKey.localeCompare(a.dateKey));
 		const rootStyles = getComputedStyle(document.documentElement);
 		const foreground = rootStyles.getPropertyValue("--foreground").trim() || "0 0% 12%";
 		const mutedForeground =
@@ -245,7 +245,7 @@ export function JournalStats({ className }: JournalStatsProps) {
 				printWindow.close();
 			}, 250);
 		}
-	}, [entries]);
+	};
 
 	return (
 		<div className={cn("p-2 space-y-4", className)}>
@@ -430,6 +430,7 @@ export function JournalStats({ className }: JournalStatsProps) {
 
 				<div className="space-y-1.5">
 					<button
+						type="button"
 						onClick={exportAsMarkdown}
 						className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
 					>
@@ -438,6 +439,7 @@ export function JournalStats({ className }: JournalStatsProps) {
 					</button>
 
 					<button
+						type="button"
 						onClick={exportAsJSON}
 						className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
 					>
@@ -446,6 +448,7 @@ export function JournalStats({ className }: JournalStatsProps) {
 					</button>
 
 					<button
+						type="button"
 						onClick={exportAsPDF}
 						className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
 					>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "framer-motion";
 import {
 	AlertCircle,
 	CalendarDays,
@@ -66,7 +66,13 @@ import type { NoteFile } from "@/domain/notes/models";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { journalKeys } from "@/features/journal/hooks/journal-keys";
 import { pullWorkspaceFromServer, type PullResult } from "@/domain/sync/pull-workspace";
-import { getSyncClientConfig, setSyncClientConfig } from "@/domain/sync/sync-client-config";
+import { pushWorkspaceToServer, type PushResult } from "@/domain/sync/push-workspace";
+import { syncWorkspaceWithServer, type SyncResult } from "@/domain/sync/sync-workspace";
+import {
+	getSyncClientConfig,
+	setLastSyncedAt,
+	setSyncClientConfig,
+} from "@/domain/sync/sync-client-config";
 import { matchesDesktopResetPhrase, RESET_PHRASE } from "@/features/settings/lib/desktop-reset";
 
 type Busy =
@@ -75,6 +81,8 @@ type Busy =
 	| "import"
 	| "clear"
 	| "pull"
+	| "push"
+	| "sync"
 	| "simplenote"
 	| "snapshot"
 	| "reset"
@@ -136,6 +144,20 @@ function formatSnapshotEta(
 	return `${Math.ceil(remainingSeconds / 60)}m remaining`;
 }
 
+function formatRelativeTime(iso: string): string | null {
+	const then = Date.parse(iso);
+	if (Number.isNaN(then)) return null;
+	const seconds = Math.round((Date.now() - then) / 1000);
+	if (seconds < 5) return "just now";
+	if (seconds < 60) return `${seconds}s ago`;
+	const minutes = Math.round(seconds / 60);
+	if (minutes < 60) return `${minutes}m ago`;
+	const hours = Math.round(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.round(hours / 24);
+	return `${days}d ago`;
+}
+
 type PullPhase = "idle" | "pulling" | "success" | "error";
 
 const PULL_BUTTON_LABEL: Record<PullPhase, string> = {
@@ -188,7 +210,7 @@ function PullButton({
 			)}
 		>
 			<AnimatePresence mode="popLayout" initial={false}>
-				<motion.span
+				<m.span
 					key={phase}
 					className="inline-flex items-center gap-1.5"
 					initial={
@@ -204,7 +226,7 @@ function PullButton({
 				>
 					<PullButtonIcon phase={phase} />
 					{PULL_BUTTON_LABEL[phase]}
-				</motion.span>
+				</m.span>
 			</AnimatePresence>
 		</Button>
 	);
@@ -222,7 +244,7 @@ function SyncResultRow({
 	reduceMotion: boolean;
 }) {
 	return (
-		<motion.div
+		<m.div
 			className="flex items-center gap-2 text-xs"
 			variants={{
 				hidden: reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 },
@@ -234,7 +256,7 @@ function SyncResultRow({
 				{count}
 			</span>
 			<span className="text-muted-foreground">{label}</span>
-		</motion.div>
+		</m.div>
 	);
 }
 
@@ -258,7 +280,7 @@ function SyncResultPanel({
 		ease: EASE_OUT_QUART,
 	});
 	return (
-		<motion.div
+		<m.div
 			className="space-y-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3"
 			initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 4, scale: 0.98 }}
 			animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -277,7 +299,7 @@ function SyncResultPanel({
 				</p>
 			</div>
 
-			<motion.div
+			<m.div
 				className="grid grid-cols-2 gap-x-6 gap-y-1.5 pl-6"
 				initial="hidden"
 				animate="show"
@@ -315,10 +337,10 @@ function SyncResultPanel({
 					label={result.journalTags === 1 ? "new tag" : "new tags"}
 					reduceMotion={reduceMotion}
 				/>
-			</motion.div>
+			</m.div>
 
 			{vaultRoot ? (
-				<motion.div
+				<m.div
 					className="flex items-start gap-2 border-t border-emerald-500/20 pt-2.5"
 					initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
 					animate={{ opacity: 1, y: 0 }}
@@ -329,9 +351,9 @@ function SyncResultPanel({
 						Saved to your vault at{" "}
 						<span className="break-all font-mono text-foreground/90">{vaultRoot}</span>
 					</p>
-				</motion.div>
+				</m.div>
 			) : null}
-		</motion.div>
+		</m.div>
 	);
 }
 
@@ -340,6 +362,10 @@ function SyncResultPanel({
  * action is local: the markdown vault is the source of truth, so backup is a
  * portable .zip of it and restore/clear rebuild the SQLite index from disk.
  */
+async function handleReveal() {
+	await tauriInvoke<void>("reveal_vault").catch(() => undefined);
+}
+
 export function LocalDataSection() {
 	const queryClient = useQueryClient();
 	const backend = useWorkspaceBackend();
@@ -356,6 +382,9 @@ export function LocalDataSection() {
 	} | null>(null);
 	const [pullFlash, setPullFlash] = useState<"success" | "error" | null>(null);
 	const pullFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const [syncError, setSyncError] = useState<string | null>(null);
+	const [syncMessage, setSyncMessage] = useState<string | null>(null);
+	const [lastSyncedAt, setLastSyncedAtState] = useState<string | null>(null);
 	const prefersReducedMotion = useReducedMotion() ?? false;
 	const [simplenoteFile, setSimplenoteFile] = useState<File | null>(null);
 	const [simplenotePreview, setSimplenotePreview] = useState<SimplenoteImportPreview | null>(
@@ -374,7 +403,7 @@ export function LocalDataSection() {
 	const [aiTitleProgress, setAiTitleProgress] = useState<ImportTitleProgress | null>(null);
 	const [aiTitleSuggestions, setAiTitleSuggestions] = useState<ImportTitleSuggestion[]>([]);
 	const [aiTitleFailures, setAiTitleFailures] = useState<ImportTitleFailure[]>([]);
-	const [aiTitleNotes, setAiTitleNotes] = useState<NoteFile[]>([]);
+	const aiTitleNotesRef = useRef<NoteFile[]>([]);
 	const [selectedAiTitleIds, setSelectedAiTitleIds] = useState<Set<string>>(new Set());
 	const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
 	const [snapshotProgress, setSnapshotProgress] = useState<{
@@ -409,7 +438,7 @@ export function LocalDataSection() {
 		setAiTitleProgress(null);
 		setAiTitleSuggestions([]);
 		setAiTitleFailures([]);
-		setAiTitleNotes([]);
+		aiTitleNotesRef.current = [];
 		setSelectedAiTitleIds(new Set());
 	}
 
@@ -581,7 +610,7 @@ export function LocalDataSection() {
 		setAiTitleProgress(null);
 		setAiTitleSuggestions([]);
 		setAiTitleFailures([]);
-		setAiTitleNotes([]);
+		aiTitleNotesRef.current = [];
 		setSelectedAiTitleIds(new Set());
 		try {
 			setSimplenotePreview(await previewSimplenoteFile(file, backend));
@@ -605,7 +634,7 @@ export function LocalDataSection() {
 		setAiTitleProgress(null);
 		setAiTitleSuggestions([]);
 		setAiTitleFailures([]);
-		setAiTitleNotes([]);
+		aiTitleNotesRef.current = [];
 		setSelectedAiTitleIds(new Set());
 		try {
 			const summary = await importSimplenoteFile(simplenoteFile, backend, {
@@ -626,7 +655,7 @@ export function LocalDataSection() {
 			const titleCandidates = summary.importedNotes.filter(isImportTitleCandidate);
 			if (generateAiTitles && titleCandidates.length > 0) {
 				setAiTitleStage("generating");
-				setAiTitleNotes(summary.importedNotes);
+				aiTitleNotesRef.current = summary.importedNotes;
 				const result = await createImportTitleSuggestions(summary.importedNotes, {
 					concurrency: 3,
 					generateTitle: (content) => callAi("generateTitle", content),
@@ -662,7 +691,7 @@ export function LocalDataSection() {
 		}
 		setBusy("simplenote");
 		try {
-			const notesById = new Map(aiTitleNotes.map((note) => [note.id, note]));
+			const notesById = new Map(aiTitleNotesRef.current.map((note) => [note.id, note]));
 			let applied = 0;
 			for (const suggestion of selected) {
 				const note = notesById.get(suggestion.noteId);
@@ -763,743 +792,764 @@ export function LocalDataSection() {
 		}
 	};
 
-	const handleReveal = async () => {
-		await tauriInvoke<void>("reveal_vault").catch(() => undefined);
-	};
-
 	return (
-		<div>
-			<SectionHeader
-				title="Data"
-				description="Your notes live as plain markdown on this device. Back them up, restore, or move the vault anytime."
-			/>
+		<LazyMotion features={domAnimation} strict>
+			<div>
+				<SectionHeader
+					title="Data"
+					description="Your notes live as plain markdown on this device. Back them up, restore, or move the vault anytime."
+				/>
 
-			<GroupLabel>Vault</GroupLabel>
-			<SettingsCard>
-				<Row
-					focusId="local-vault-directory"
-					title="Vault directory"
-					description={vaultRoot || "Loading…"}
-				>
-					<div className="flex gap-2">
-						<Button variant="outline" size="sm" onClick={handleReveal}>
-							<FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-							Open
-						</Button>
-						<Button variant="outline" size="sm" onClick={handleChangeDirectory}>
-							Change…
-						</Button>
-					</div>
-				</Row>
-			</SettingsCard>
-
-			<GroupLabel>Cloud sync</GroupLabel>
-			<SettingsCard>
-				<div
-					id={settingsFocusDomId("local-pull-from-server")}
-					data-settings-focus="local-pull-from-server"
-					className="py-4 scroll-mt-24"
-				>
-					<div className="flex items-center gap-2 text-sm font-medium">
-						<CloudDownload className="size-4 text-muted-foreground" />
-						Pull from server
-					</div>
-					<p className="mt-1 text-xs text-muted-foreground">
-						Download your cloud workspace into this device. Create a token in the web
-						app under{" "}
-						<span className="font-mono text-foreground">
-							Settings → Data &amp; sync
-						</span>
-						, then paste it here. This is one-way: it never uploads local changes.
-					</p>
-					<p className="mt-1 text-xs text-muted-foreground">
-						Include the full address with scheme — e.g.{" "}
-						<span className="font-mono text-foreground">http://localhost:3000</span> for
-						local dev, or{" "}
-						<span className="font-mono text-foreground">https://your-host.com</span>.
-					</p>
-
-					<div className="mt-4 flex flex-col gap-3">
-						<div className="flex flex-col gap-1.5">
-							<Label
-								htmlFor="sync-server-url"
-								className="text-xs text-muted-foreground"
-							>
-								Server URL
-							</Label>
-							<Input
-								id="sync-server-url"
-								value={serverUrl}
-								onChange={(event) => setServerUrl(event.target.value)}
-								disabled={busy === "pull"}
-								placeholder="https://your-skriuw-host.com"
-								autoComplete="off"
-								spellCheck={false}
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="sync-token" className="text-xs text-muted-foreground">
-								Sync token
-							</Label>
-							<Input
-								id="sync-token"
-								type="password"
-								value={token}
-								onChange={(event) => setToken(event.target.value)}
-								disabled={busy === "pull"}
-								placeholder="sk_sync_…"
-								autoComplete="off"
-								spellCheck={false}
-							/>
-						</div>
-						<div className="flex justify-end">
-							<PullButton
-								phase={busy === "pull" ? "pulling" : (pullFlash ?? "idle")}
-								disabled={busy !== "idle" || !serverUrl.trim() || !token.trim()}
-								reduceMotion={prefersReducedMotion}
-								onClick={handlePull}
-							/>
-						</div>
-
-						<AnimatePresence mode="wait" initial={false}>
-							{pullError && busy !== "pull" ? (
-								<motion.div
-									key="pull-error"
-									className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3"
-									initial={
-										prefersReducedMotion
-											? { opacity: 0 }
-											: { opacity: 0, y: 4, scale: 0.98 }
-									}
-									animate={{ opacity: 1, y: 0, scale: 1 }}
-									exit={
-										prefersReducedMotion
-											? { opacity: 0 }
-											: { opacity: 0, y: -4, scale: 0.98 }
-									}
-									transition={pickTransition(prefersReducedMotion, {
-										duration: 0.2,
-										ease: EASE_OUT_QUART,
-									})}
-									aria-live="polite"
-								>
-									<AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-									<p className="text-xs text-destructive">{pullError}</p>
-								</motion.div>
-							) : pullResult && busy !== "pull" ? (
-								<SyncResultPanel
-									key="pull-result"
-									result={pullResult.result}
-									origin={pullResult.origin}
-									vaultRoot={vaultRoot}
-									reduceMotion={prefersReducedMotion}
-								/>
-							) : null}
-						</AnimatePresence>
-					</div>
-				</div>
-			</SettingsCard>
-
-			<GroupLabel>Backup</GroupLabel>
-			<SettingsCard>
-				<Row
-					focusId="local-back-up-vault"
-					title="Back up vault"
-					description="Save a .zip of every note and folder."
-				>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleExport}
-						disabled={busy !== "idle"}
-					>
-						<Download className="mr-1.5 h-3.5 w-3.5" />
-						{busy === "export" ? "Backing up…" : "Back up"}
-					</Button>
-				</Row>
-				<Row
-					focusId="local-restore-from-backup"
-					title="Restore from backup"
-					description="Replace the current vault with a .zip backup."
-				>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleImport}
-						disabled={busy !== "idle"}
-					>
-						<Upload className="mr-1.5 h-3.5 w-3.5" />
-						{busy === "import" ? "Restoring…" : "Restore"}
-					</Button>
-				</Row>
-				<div>
+				<GroupLabel>Vault</GroupLabel>
+				<SettingsCard>
 					<Row
-						focusId="local-complete-snapshot"
-						title="Complete snapshot"
-						description="Capture settings, the SQLite index, the vault, and local AI data. Restoring wipes current desktop data and reloads Skriuw."
+						focusId="local-vault-directory"
+						title="Vault directory"
+						description={vaultRoot || "Loading…"}
 					>
 						<div className="flex gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={handleSnapshotExport}
-								disabled={busy !== "idle"}
-							>
-								<Download className="mr-1.5 h-3.5 w-3.5" />
-								{snapshotMode === "export" ? "Saving…" : "Snapshot"}
+							<Button variant="outline" size="sm" onClick={handleReveal}>
+								<FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+								Open
 							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={handleSnapshotImport}
-								disabled={busy !== "idle"}
-							>
-								<Upload className="mr-1.5 h-3.5 w-3.5" />
-								{snapshotMode === "import" ? "Restoring…" : "Restore snapshot"}
+							<Button variant="outline" size="sm" onClick={handleChangeDirectory}>
+								Change…
 							</Button>
 						</div>
 					</Row>
-					{busy === "snapshot" && (
-						<div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3 pb-4">
-							<div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-								<span className="min-w-0 truncate">
-									{snapshotStatus ?? "Working…"}
-								</span>
-								<span className="shrink-0 tabular-nums">
-									{snapshotProgress
-										? `${snapshotProgress.completed}/${snapshotProgress.total}`
-										: "Working…"}
-								</span>
-							</div>
-							<div className="h-2 overflow-hidden rounded-full bg-muted">
-								<div
-									className="h-full rounded-full bg-primary transition-all duration-300"
-									style={{
-										width: `${snapshotProgress?.percent ?? 35}%`,
-									}}
-								/>
-							</div>
-							<p className="text-xs text-muted-foreground">
-								{snapshotProgress
-									? `${Math.round(snapshotProgress.percent)}% complete${
-											snapshotEta ? ` · ${snapshotEta}` : ""
-										}`
-									: "Preparing snapshot…"}
-							</p>
-						</div>
-					)}
-					{busy === "idle" &&
-						snapshotState === "success" &&
-						snapshotMode === null &&
-						snapshotResult && (
-							<div className="mb-4 flex items-start gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
-								<CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-								<div className="min-w-0 space-y-1">
-									<p className="text-sm font-medium text-foreground">
-										Snapshot ready
-									</p>
-									<p className="break-words text-xs text-muted-foreground">
-										Backed up everything to{" "}
-										<span className="font-mono text-foreground">
-											{snapshotResult}
-										</span>
-										. You can restore this exact desktop state later.
-									</p>
-								</div>
-							</div>
-						)}
-				</div>
-			</SettingsCard>
+				</SettingsCard>
 
-			<GroupLabel>Import</GroupLabel>
-			<SettingsCard>
-				<Row
-					focusId="local-import-from-simplenote"
-					title="Import from Simplenote"
-					description="Pick your Simplenote export .zip. Notes, tags, and original dates are added to your vault; trashed notes go into a “Trash” folder."
-				>
-					<input
-						ref={simplenoteInputRef}
-						type="file"
-						accept=".zip"
-						className="hidden"
-						onChange={handleSimplenoteImport}
-					/>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => simplenoteInputRef.current?.click()}
-						disabled={busy !== "idle"}
+				<GroupLabel>Cloud sync</GroupLabel>
+				<SettingsCard>
+					<div
+						id={settingsFocusDomId("local-pull-from-server")}
+						data-settings-focus="local-pull-from-server"
+						className="py-4 scroll-mt-24"
 					>
-						<FileDown className="mr-1.5 h-3.5 w-3.5" />
-						{busy === "simplenote" ? "Importing…" : "Import"}
-					</Button>
-				</Row>
-			</SettingsCard>
-
-			<Dialog
-				open={simplenoteDialogOpen}
-				onOpenChange={(open) => {
-					setSimplenoteDialogOpen(open);
-					if (!open && busy !== "simplenote") {
-						resetSimplenoteFlow();
-					}
-				}}
-			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Import from Simplenote</DialogTitle>
-						<DialogDescription>
-							{simplenoteFile
-								? `Review what will happen when importing ${simplenoteFile.name}.`
-								: "Review your Simplenote import."}
-						</DialogDescription>
-					</DialogHeader>
-
-					{simplenotePreview ? (
-						<div className="space-y-4">
-							<div className="space-y-2 text-sm text-muted-foreground">
-								<p>
-									{simplenotePreview.total} notes found
-									{simplenotePreview.trashed > 0
-										? ` · ${simplenotePreview.trashed} from Simplenote Trash`
-										: ""}
-								</p>
-								<p>
-									{simplenotePreview.dated} notes from{" "}
-									{simplenotePreview.years.length} years found
-									{simplenotePreview.undated > 0
-										? ` · ${simplenotePreview.undated} without creation dates`
-										: ""}
-								</p>
-								{simplenotePreview.duplicates > 0 ? (
-									<div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs">
-										<p className="font-medium text-foreground">
-											{simplenotePreview.duplicates}{" "}
-											{simplenotePreview.duplicates === 1
-												? "duplicate found"
-												: "duplicates found"}{" "}
-											and {simplenotePreview.unique} unique.
-										</p>
-										{simplenotePreview.samples.length > 0 && (
-											<p className="mt-1">
-												Matches: {simplenotePreview.samples.join(", ")}
-											</p>
-										)}
-									</div>
-								) : (
-									<p>No existing notes match this import.</p>
-								)}
-							</div>
-							<div className="space-y-1.5">
-								<Label className="text-xs text-muted-foreground">
-									Duplicate handling
-								</Label>
-								<Select
-									value={simplenotePolicy}
-									onValueChange={(value) =>
-										setSimplenotePolicy(value as SimplenoteDuplicatePolicy)
-									}
-									disabled={busy === "simplenote"}
-								>
-									<SelectTrigger className="h-8">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="skip">
-											Do not import duplicates
-										</SelectItem>
-										<SelectItem value="overwrite">
-											Overwrite existing notes
-										</SelectItem>
-										<SelectItem value="duplicate">
-											Import duplicate copies
-										</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-							{simplenotePreview.years.length > 0 && (
-								<div className="space-y-1.5">
-									<Label className="text-xs text-muted-foreground">
-										Save location
-									</Label>
-									<Select
-										value={simplenoteOrganization}
-										onValueChange={(value) =>
-											setSimplenoteOrganization(
-												value as SimplenoteOrganizationMode,
-											)
-										}
-										disabled={busy === "simplenote"}
-									>
-										<SelectTrigger className="h-8">
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="root">
-												Save all notes in root
-											</SelectItem>
-											<SelectItem value="year">
-												Organize into year folders
-											</SelectItem>
-										</SelectContent>
-									</Select>
-									<p className="text-xs text-muted-foreground">
-										Years:{" "}
-										{simplenotePreview.years
-											.map((bucket) => `${bucket.year} (${bucket.count})`)
-											.join(", ")}
-									</p>
-								</div>
-							)}
-							<div className="flex items-start justify-between gap-4 rounded-md border border-border/60 p-3">
-								<div className="space-y-1">
-									<Label className="text-xs text-foreground">AI title pass</Label>
-									<p className="text-xs text-muted-foreground">
-										After import, generate reviewable H1 titles for notes over
-										100 characters with multiple paragraphs.
-									</p>
-									<p className="text-xs text-muted-foreground">
-										{simplenotePreview.total} notes will be checked after
-										duplicate handling.
-									</p>
-								</div>
-								<Switch
-									checked={generateAiTitles}
-									onCheckedChange={setGenerateAiTitles}
-									disabled={busy === "simplenote"}
-								/>
-							</div>
+						<div className="flex items-center gap-2 text-sm font-medium">
+							<CloudDownload className="size-4 text-muted-foreground" />
+							Pull from server
 						</div>
-					) : (
-						<p className="text-sm text-muted-foreground">Reading Simplenote archive…</p>
-					)}
-
-					{busy === "simplenote" &&
-						simplenoteProgress.total > 0 &&
-						aiTitleStage === "idle" && (
-							<ImportProgress
-								imported={simplenoteProgress.imported}
-								total={simplenoteProgress.total}
-							/>
-						)}
-
-					{aiTitleStage === "generating" && (
-						<div className="space-y-2 rounded-md border border-border/60 p-3 text-sm">
-							<div className="flex items-center justify-between text-xs text-muted-foreground">
-								<span>Generating AI titles</span>
-								<span>
-									{aiTitleProgress?.completed ?? 0}/{aiTitleProgress?.total ?? 0}{" "}
-									checked
-								</span>
-							</div>
-							<div className="h-2 overflow-hidden rounded-full bg-muted">
-								<div
-									className="h-full rounded-full bg-primary transition-all duration-300"
-									style={{
-										width: `${
-											aiTitleProgress?.total
-												? Math.round(
-														((aiTitleProgress.completed ?? 0) /
-															aiTitleProgress.total) *
-															100,
-													)
-												: 0
-										}%`,
-									}}
-								/>
-							</div>
-							<p className="text-xs text-muted-foreground">
-								{aiTitleProgress?.succeeded ?? 0} succeeded ·{" "}
-								{aiTitleProgress?.failed ?? 0} failed
-								{formatAiTitleEta(aiTitleProgress)
-									? ` · ${formatAiTitleEta(aiTitleProgress)}`
-									: ""}
-							</p>
-						</div>
-					)}
-
-					{aiTitleStage === "review" && (
-						<div className="space-y-3 rounded-md border border-border/60 p-3">
-							<div className="flex items-center justify-between gap-3">
-								<div>
-									<p className="text-sm font-medium text-foreground">
-										{aiTitleSuggestions.length} AI title suggestions
-									</p>
-									<p className="text-xs text-muted-foreground">
-										Review generated headings before applying them to imported
-										notes.
-									</p>
-								</div>
-								{aiTitleFailures.length > 0 && (
-									<p className="text-xs text-warning-foreground">
-										{aiTitleFailures.length} failed
-									</p>
-								)}
-							</div>
-							{aiTitleSuggestions.length > 0 ? (
-								<div className="max-h-52 space-y-2 overflow-auto pr-1">
-									{aiTitleSuggestions.map((suggestion) => {
-										const selected = selectedAiTitleIds.has(suggestion.noteId);
-										return (
-											<div
-												key={suggestion.noteId}
-												className="rounded-md border border-border/60 p-2 text-xs"
-											>
-												<div className="flex items-center justify-between gap-2">
-													<div className="min-w-0">
-														<p className="truncate font-medium text-foreground">
-															{suggestion.title}
-														</p>
-														<p className="truncate text-muted-foreground">
-															{suggestion.noteName}
-														</p>
-													</div>
-													<Button
-														type="button"
-														variant={selected ? "default" : "outline"}
-														size="sm"
-														onClick={() =>
-															setSelectedAiTitleIds((current) => {
-																const next = new Set(current);
-																if (next.has(suggestion.noteId))
-																	next.delete(suggestion.noteId);
-																else next.add(suggestion.noteId);
-																return next;
-															})
-														}
-													>
-														{selected ? "Selected" : "Skipped"}
-													</Button>
-												</div>
-												<p className="mt-2 line-clamp-2 text-muted-foreground">
-													{suggestion.previewContent}
-												</p>
-											</div>
-										);
-									})}
-								</div>
-							) : (
-								<p className="text-xs text-muted-foreground">
-									No usable title suggestions were generated.
-								</p>
-							)}
-						</div>
-					)}
-
-					<DialogFooter>
-						{aiTitleStage === "review" ? (
-							<>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={discardAiTitleSuggestions}
-								>
-									Discard titles
-								</Button>
-								<Button
-									size="sm"
-									disabled={
-										busy === "simplenote" || selectedAiTitleIds.size === 0
-									}
-									onClick={applyAiTitleSuggestions}
-								>
-									{busy === "simplenote"
-										? "Applying…"
-										: `Apply ${selectedAiTitleIds.size} titles`}
-								</Button>
-							</>
-						) : (
-							<>
-								<DialogClose asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										disabled={busy === "simplenote"}
-									>
-										Cancel
-									</Button>
-								</DialogClose>
-								<Button
-									size="sm"
-									disabled={!simplenotePreview || busy === "simplenote"}
-									onClick={confirmSimplenoteImport}
-								>
-									{busy === "simplenote" ? "Importing…" : "Import notes"}
-								</Button>
-							</>
-						)}
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			<GroupLabel>Maintenance</GroupLabel>
-			<SettingsCard>
-				<NoteCleanupRow
-					phase={cleanup.phase}
-					onScan={cleanup.scan}
-					disabled={busy !== "idle"}
-				/>
-				<Row
-					focusId="local-organize-by-year"
-					title="Organize by year"
-					description="Move root notes with creation dates into year folders."
-				>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleOrganizeByYear}
-						disabled={busy !== "idle"}
-					>
-						<FolderTree className="mr-1.5 h-3.5 w-3.5" />
-						{busy === "organize" ? "Organizing…" : "Organize"}
-					</Button>
-				</Row>
-				{cleanupPrompt && (
-					<div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 p-3">
-						<p className="text-xs text-muted-foreground">
-							Imports often bring along empty or duplicate notes. Scan for them now?
+						<p className="mt-1 text-xs text-muted-foreground">
+							Download your cloud workspace into this device. Create a token in the
+							web app under{" "}
+							<span className="font-mono text-foreground">
+								Settings → Data &amp; sync
+							</span>
+							, then paste it here. This is one-way: it never uploads local changes.
 						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Include the full address with scheme — e.g.{" "}
+							<span className="font-mono text-foreground">http://localhost:3000</span>{" "}
+							for local dev, or{" "}
+							<span className="font-mono text-foreground">https://your-host.com</span>
+							.
+						</p>
+
+						<div className="mt-4 flex flex-col gap-3">
+							<div className="flex flex-col gap-1.5">
+								<Label
+									htmlFor="sync-server-url"
+									className="text-xs text-muted-foreground"
+								>
+									Server URL
+								</Label>
+								<Input
+									id="sync-server-url"
+									value={serverUrl}
+									onChange={(event) => setServerUrl(event.target.value)}
+									disabled={busy === "pull"}
+									placeholder="https://your-skriuw-host.com"
+									autoComplete="off"
+									spellCheck={false}
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label
+									htmlFor="sync-token"
+									className="text-xs text-muted-foreground"
+								>
+									Sync token
+								</Label>
+								<Input
+									id="sync-token"
+									type="password"
+									value={token}
+									onChange={(event) => setToken(event.target.value)}
+									disabled={busy === "pull"}
+									placeholder="sk_sync_…"
+									autoComplete="off"
+									spellCheck={false}
+								/>
+							</div>
+							<div className="flex justify-end">
+								<PullButton
+									phase={busy === "pull" ? "pulling" : (pullFlash ?? "idle")}
+									disabled={busy !== "idle" || !serverUrl.trim() || !token.trim()}
+									reduceMotion={prefersReducedMotion}
+									onClick={handlePull}
+								/>
+							</div>
+
+							<AnimatePresence mode="wait" initial={false}>
+								{pullError && busy !== "pull" ? (
+									<m.div
+										key="pull-error"
+										className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3"
+										initial={
+											prefersReducedMotion
+												? { opacity: 0 }
+												: { opacity: 0, y: 4, scale: 0.98 }
+										}
+										animate={{ opacity: 1, y: 0, scale: 1 }}
+										exit={
+											prefersReducedMotion
+												? { opacity: 0 }
+												: { opacity: 0, y: -4, scale: 0.98 }
+										}
+										transition={pickTransition(prefersReducedMotion, {
+											duration: 0.2,
+											ease: EASE_OUT_QUART,
+										})}
+										aria-live="polite"
+									>
+										<AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+										<p className="text-xs text-destructive">{pullError}</p>
+									</m.div>
+								) : pullResult && busy !== "pull" ? (
+									<SyncResultPanel
+										key="pull-result"
+										result={pullResult.result}
+										origin={pullResult.origin}
+										vaultRoot={vaultRoot}
+										reduceMotion={prefersReducedMotion}
+									/>
+								) : null}
+							</AnimatePresence>
+						</div>
+					</div>
+				</SettingsCard>
+
+				<GroupLabel>Backup</GroupLabel>
+				<SettingsCard>
+					<Row
+						focusId="local-back-up-vault"
+						title="Back up vault"
+						description="Save a .zip of every note and folder."
+					>
 						<Button
 							variant="outline"
 							size="sm"
-							onClick={() => {
-								setCleanupPrompt(false);
-								void cleanup.scan();
-							}}
+							onClick={handleExport}
+							disabled={busy !== "idle"}
 						>
-							Scan for junk notes
+							<Download className="mr-1.5 h-3.5 w-3.5" />
+							{busy === "export" ? "Backing up…" : "Back up"}
 						</Button>
-					</div>
-				)}
-			</SettingsCard>
-			<NoteCleanupDialog
-				result={cleanup.result}
-				onOpenChange={(open) => {
-					if (!open) cleanup.reset();
-				}}
-			/>
-
-			<GroupLabel>Danger zone</GroupLabel>
-			<SettingsCard>
-				<Row
-					focusId="local-reset-app"
-					title="Reset app"
-					description="Permanently remove app data, local AI data, and the vault."
-				>
-					<Dialog
-						open={resetDialogOpen}
-						onOpenChange={(open) => {
-							setResetDialogOpen(open);
-							if (!open && busy !== "reset") {
-								resetDesktopResetFlow();
-							}
-						}}
+					</Row>
+					<Row
+						focusId="local-restore-from-backup"
+						title="Restore from backup"
+						description="Replace the current vault with a .zip backup."
 					>
-						<DialogTrigger asChild>
-							<Button variant="destructive" size="sm" disabled={busy !== "idle"}>
-								<RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-								Reset app
-							</Button>
-						</DialogTrigger>
-						<DialogContent>
-							<DialogHeader>
-								<DialogTitle>Reset Skriuw?</DialogTitle>
-								<DialogDescription>
-									This wipes the desktop app state, local AI data, and vault
-									contents. Back up first if you want to keep anything.
-								</DialogDescription>
-							</DialogHeader>
-							<div className="space-y-4">
-								<div className="space-y-1.5">
-									<Label
-										htmlFor="reset-confirm"
-										className="text-xs text-muted-foreground"
-									>
-										Type{" "}
-										<span className="font-mono text-foreground">
-											{RESET_PHRASE}
-										</span>{" "}
-										to confirm
-									</Label>
-									<Input
-										id="reset-confirm"
-										value={resetConfirm}
-										onChange={(event) => setResetConfirm(event.target.value)}
-										disabled={busy === "reset"}
-										autoComplete="off"
-										spellCheck={false}
-										placeholder={RESET_PHRASE}
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleImport}
+							disabled={busy !== "idle"}
+						>
+							<Upload className="mr-1.5 h-3.5 w-3.5" />
+							{busy === "import" ? "Restoring…" : "Restore"}
+						</Button>
+					</Row>
+					<div>
+						<Row
+							focusId="local-complete-snapshot"
+							title="Complete snapshot"
+							description="Capture settings, the SQLite index, the vault, and local AI data. Restoring wipes current desktop data and reloads Skriuw."
+						>
+							<div className="flex gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handleSnapshotExport}
+									disabled={busy !== "idle"}
+								>
+									<Download className="mr-1.5 h-3.5 w-3.5" />
+									{snapshotMode === "export" ? "Saving…" : "Snapshot"}
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handleSnapshotImport}
+									disabled={busy !== "idle"}
+								>
+									<Upload className="mr-1.5 h-3.5 w-3.5" />
+									{snapshotMode === "import" ? "Restoring…" : "Restore snapshot"}
+								</Button>
+							</div>
+						</Row>
+						{busy === "snapshot" && (
+							<div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3 pb-4">
+								<div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+									<span className="min-w-0 truncate">
+										{snapshotStatus ?? "Working…"}
+									</span>
+									<span className="shrink-0 tabular-nums">
+										{snapshotProgress
+											? `${snapshotProgress.completed}/${snapshotProgress.total}`
+											: "Working…"}
+									</span>
+								</div>
+								<div className="h-2 overflow-hidden rounded-full bg-muted">
+									<div
+										className="h-full rounded-full bg-primary transition-all duration-300"
+										style={{
+											width: `${snapshotProgress?.percent ?? 35}%`,
+										}}
 									/>
 								</div>
-								{busy === "reset" && (
-									<div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
-										<div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-											<span>{resetStatus ?? "Working…"}</span>
-											<span>
-												{resetProgress
-													? `${resetProgress.completed}/${resetProgress.total}`
-													: "Working…"}
+								<p className="text-xs text-muted-foreground">
+									{snapshotProgress
+										? `${Math.round(snapshotProgress.percent)}% complete${
+												snapshotEta ? ` · ${snapshotEta}` : ""
+											}`
+										: "Preparing snapshot…"}
+								</p>
+							</div>
+						)}
+						{busy === "idle" &&
+							snapshotState === "success" &&
+							snapshotMode === null &&
+							snapshotResult && (
+								<div className="mb-4 flex items-start gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
+									<CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+									<div className="min-w-0 space-y-1">
+										<p className="text-sm font-medium text-foreground">
+											Snapshot ready
+										</p>
+										<p className="break-words text-xs text-muted-foreground">
+											Backed up everything to{" "}
+											<span className="font-mono text-foreground">
+												{snapshotResult}
 											</span>
+											. You can restore this exact desktop state later.
+										</p>
+									</div>
+								</div>
+							)}
+					</div>
+				</SettingsCard>
+
+				<GroupLabel>Import</GroupLabel>
+				<SettingsCard>
+					<Row
+						focusId="local-import-from-simplenote"
+						title="Import from Simplenote"
+						description="Pick your Simplenote export .zip. Notes, tags, and original dates are added to your vault; trashed notes go into a “Trash” folder."
+					>
+						<input
+							ref={simplenoteInputRef}
+							type="file"
+							accept=".zip"
+							className="hidden"
+							onChange={handleSimplenoteImport}
+						/>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => simplenoteInputRef.current?.click()}
+							disabled={busy !== "idle"}
+						>
+							<FileDown className="mr-1.5 h-3.5 w-3.5" />
+							{busy === "simplenote" ? "Importing…" : "Import"}
+						</Button>
+					</Row>
+				</SettingsCard>
+
+				<Dialog
+					open={simplenoteDialogOpen}
+					onOpenChange={(open) => {
+						setSimplenoteDialogOpen(open);
+						if (!open && busy !== "simplenote") {
+							resetSimplenoteFlow();
+						}
+					}}
+				>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Import from Simplenote</DialogTitle>
+							<DialogDescription>
+								{simplenoteFile
+									? `Review what will happen when importing ${simplenoteFile.name}.`
+									: "Review your Simplenote import."}
+							</DialogDescription>
+						</DialogHeader>
+
+						{simplenotePreview ? (
+							<div className="space-y-4">
+								<div className="space-y-2 text-sm text-muted-foreground">
+									<p>
+										{simplenotePreview.total} notes found
+										{simplenotePreview.trashed > 0
+											? ` · ${simplenotePreview.trashed} from Simplenote Trash`
+											: ""}
+									</p>
+									<p>
+										{simplenotePreview.dated} notes from{" "}
+										{simplenotePreview.years.length} years found
+										{simplenotePreview.undated > 0
+											? ` · ${simplenotePreview.undated} without creation dates`
+											: ""}
+									</p>
+									{simplenotePreview.duplicates > 0 ? (
+										<div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs">
+											<p className="font-medium text-foreground">
+												{simplenotePreview.duplicates}{" "}
+												{simplenotePreview.duplicates === 1
+													? "duplicate found"
+													: "duplicates found"}{" "}
+												and {simplenotePreview.unique} unique.
+											</p>
+											{simplenotePreview.samples.length > 0 && (
+												<p className="mt-1">
+													Matches: {simplenotePreview.samples.join(", ")}
+												</p>
+											)}
 										</div>
-										<div className="h-2 overflow-hidden rounded-full bg-muted">
-											<div
-												className="h-full rounded-full bg-primary transition-all duration-300"
-												style={{
-													width: `${resetProgress?.percent ?? 35}%`,
-												}}
-											/>
-										</div>
+									) : (
+										<p>No existing notes match this import.</p>
+									)}
+								</div>
+								<div className="space-y-1.5">
+									<Label className="text-xs text-muted-foreground">
+										Duplicate handling
+									</Label>
+									<Select
+										value={simplenotePolicy}
+										onValueChange={(value) =>
+											setSimplenotePolicy(value as SimplenoteDuplicatePolicy)
+										}
+										disabled={busy === "simplenote"}
+									>
+										<SelectTrigger className="h-11 sm:h-8">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="skip">
+												Do not import duplicates
+											</SelectItem>
+											<SelectItem value="overwrite">
+												Overwrite existing notes
+											</SelectItem>
+											<SelectItem value="duplicate">
+												Import duplicate copies
+											</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+								{simplenotePreview.years.length > 0 && (
+									<div className="space-y-1.5">
+										<Label className="text-xs text-muted-foreground">
+											Save location
+										</Label>
+										<Select
+											value={simplenoteOrganization}
+											onValueChange={(value) =>
+												setSimplenoteOrganization(
+													value as SimplenoteOrganizationMode,
+												)
+											}
+											disabled={busy === "simplenote"}
+										>
+											<SelectTrigger className="h-11 sm:h-8">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="root">
+													Save all notes in root
+												</SelectItem>
+												<SelectItem value="year">
+													Organize into year folders
+												</SelectItem>
+											</SelectContent>
+										</Select>
 										<p className="text-xs text-muted-foreground">
-											{resetProgress
-												? `${Math.round(resetProgress.percent)}% complete${
-														resetEta ? ` · ${resetEta}` : ""
-													}`
-												: "Preparing reset…"}
+											Years:{" "}
+											{simplenotePreview.years
+												.map((bucket) => `${bucket.year} (${bucket.count})`)
+												.join(", ")}
 										</p>
 									</div>
 								)}
-								{resetState === "success" && (
-									<div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
-										<div className="flex items-start gap-3">
-											<CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
-											<div className="space-y-1">
-												<p className="text-sm font-medium text-foreground">
-													Desktop data cleared
-												</p>
-												<p className="text-xs text-muted-foreground">
-													Skriuw will reload with a fresh app state now.
-												</p>
+								<div className="flex items-start justify-between gap-4 rounded-md border border-border/60 p-3">
+									<div className="space-y-1">
+										<Label className="text-xs text-foreground">
+											AI title pass
+										</Label>
+										<p className="text-xs text-muted-foreground">
+											After import, generate reviewable H1 titles for notes
+											over 100 characters with multiple paragraphs.
+										</p>
+										<p className="text-xs text-muted-foreground">
+											{simplenotePreview.total} notes will be checked after
+											duplicate handling.
+										</p>
+									</div>
+									<Switch
+										checked={generateAiTitles}
+										onCheckedChange={setGenerateAiTitles}
+										disabled={busy === "simplenote"}
+									/>
+								</div>
+							</div>
+						) : (
+							<p className="text-sm text-muted-foreground">
+								Reading Simplenote archive…
+							</p>
+						)}
+
+						{busy === "simplenote" &&
+							simplenoteProgress.total > 0 &&
+							aiTitleStage === "idle" && (
+								<ImportProgress
+									imported={simplenoteProgress.imported}
+									total={simplenoteProgress.total}
+								/>
+							)}
+
+						{aiTitleStage === "generating" && (
+							<div className="space-y-2 rounded-md border border-border/60 p-3 text-sm">
+								<div className="flex items-center justify-between text-xs text-muted-foreground">
+									<span>Generating AI titles</span>
+									<span>
+										{aiTitleProgress?.completed ?? 0}/
+										{aiTitleProgress?.total ?? 0} checked
+									</span>
+								</div>
+								<div className="h-2 overflow-hidden rounded-full bg-muted">
+									<div
+										className="h-full rounded-full bg-primary transition-all duration-300"
+										style={{
+											width: `${
+												aiTitleProgress?.total
+													? Math.round(
+															((aiTitleProgress.completed ?? 0) /
+																aiTitleProgress.total) *
+																100,
+														)
+													: 0
+											}%`,
+										}}
+									/>
+								</div>
+								<p className="text-xs text-muted-foreground">
+									{aiTitleProgress?.succeeded ?? 0} succeeded ·{" "}
+									{aiTitleProgress?.failed ?? 0} failed
+									{formatAiTitleEta(aiTitleProgress)
+										? ` · ${formatAiTitleEta(aiTitleProgress)}`
+										: ""}
+								</p>
+							</div>
+						)}
+
+						{aiTitleStage === "review" && (
+							<div className="space-y-3 rounded-md border border-border/60 p-3">
+								<div className="flex items-center justify-between gap-3">
+									<div>
+										<p className="text-sm font-medium text-foreground">
+											{aiTitleSuggestions.length} AI title suggestions
+										</p>
+										<p className="text-xs text-muted-foreground">
+											Review generated headings before applying them to
+											imported notes.
+										</p>
+									</div>
+									{aiTitleFailures.length > 0 && (
+										<p className="text-xs text-warning-foreground">
+											{aiTitleFailures.length} failed
+										</p>
+									)}
+								</div>
+								{aiTitleSuggestions.length > 0 ? (
+									<div className="max-h-52 space-y-2 overflow-auto pr-1">
+										{aiTitleSuggestions.map((suggestion) => {
+											const selected = selectedAiTitleIds.has(
+												suggestion.noteId,
+											);
+											return (
+												<div
+													key={suggestion.noteId}
+													className="rounded-md border border-border/60 p-2 text-xs"
+												>
+													<div className="flex items-center justify-between gap-2">
+														<div className="min-w-0">
+															<p className="truncate font-medium text-foreground">
+																{suggestion.title}
+															</p>
+															<p className="truncate text-muted-foreground">
+																{suggestion.noteName}
+															</p>
+														</div>
+														<Button
+															type="button"
+															variant={
+																selected ? "default" : "outline"
+															}
+															size="sm"
+															onClick={() =>
+																setSelectedAiTitleIds((current) => {
+																	const next = new Set(current);
+																	if (next.has(suggestion.noteId))
+																		next.delete(
+																			suggestion.noteId,
+																		);
+																	else
+																		next.add(suggestion.noteId);
+																	return next;
+																})
+															}
+														>
+															{selected ? "Selected" : "Skipped"}
+														</Button>
+													</div>
+													<p className="mt-2 line-clamp-2 text-muted-foreground">
+														{suggestion.previewContent}
+													</p>
+												</div>
+											);
+										})}
+									</div>
+								) : (
+									<p className="text-xs text-muted-foreground">
+										No usable title suggestions were generated.
+									</p>
+								)}
+							</div>
+						)}
+
+						<DialogFooter>
+							{aiTitleStage === "review" ? (
+								<>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={discardAiTitleSuggestions}
+									>
+										Discard titles
+									</Button>
+									<Button
+										size="sm"
+										disabled={
+											busy === "simplenote" || selectedAiTitleIds.size === 0
+										}
+										onClick={applyAiTitleSuggestions}
+									>
+										{busy === "simplenote"
+											? "Applying…"
+											: `Apply ${selectedAiTitleIds.size} titles`}
+									</Button>
+								</>
+							) : (
+								<>
+									<DialogClose asChild>
+										<Button
+											variant="outline"
+											size="sm"
+											disabled={busy === "simplenote"}
+										>
+											Cancel
+										</Button>
+									</DialogClose>
+									<Button
+										size="sm"
+										disabled={!simplenotePreview || busy === "simplenote"}
+										onClick={confirmSimplenoteImport}
+									>
+										{busy === "simplenote" ? "Importing…" : "Import notes"}
+									</Button>
+								</>
+							)}
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
+				<GroupLabel>Maintenance</GroupLabel>
+				<SettingsCard>
+					<NoteCleanupRow
+						phase={cleanup.phase}
+						onScan={cleanup.scan}
+						disabled={busy !== "idle"}
+					/>
+					<Row
+						focusId="local-organize-by-year"
+						title="Organize by year"
+						description="Move root notes with creation dates into year folders."
+					>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleOrganizeByYear}
+							disabled={busy !== "idle"}
+						>
+							<FolderTree className="mr-1.5 h-3.5 w-3.5" />
+							{busy === "organize" ? "Organizing…" : "Organize"}
+						</Button>
+					</Row>
+					{cleanupPrompt && (
+						<div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 p-3">
+							<p className="text-xs text-muted-foreground">
+								Imports often bring along empty or duplicate notes. Scan for them
+								now?
+							</p>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									setCleanupPrompt(false);
+									void cleanup.scan();
+								}}
+							>
+								Scan for junk notes
+							</Button>
+						</div>
+					)}
+				</SettingsCard>
+				<NoteCleanupDialog
+					result={cleanup.result}
+					onOpenChange={(open) => {
+						if (!open) cleanup.reset();
+					}}
+				/>
+
+				<GroupLabel>Danger zone</GroupLabel>
+				<SettingsCard>
+					<Row
+						focusId="local-reset-app"
+						title="Reset app"
+						description="Permanently remove app data, local AI data, and the vault."
+					>
+						<Dialog
+							open={resetDialogOpen}
+							onOpenChange={(open) => {
+								setResetDialogOpen(open);
+								if (!open && busy !== "reset") {
+									resetDesktopResetFlow();
+								}
+							}}
+						>
+							<DialogTrigger asChild>
+								<Button variant="destructive" size="sm" disabled={busy !== "idle"}>
+									<RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+									Reset app
+								</Button>
+							</DialogTrigger>
+							<DialogContent>
+								<DialogHeader>
+									<DialogTitle>Reset Skriuw?</DialogTitle>
+									<DialogDescription>
+										This wipes the desktop app state, local AI data, and vault
+										contents. Back up first if you want to keep anything.
+									</DialogDescription>
+								</DialogHeader>
+								<div className="space-y-4">
+									<div className="space-y-1.5">
+										<Label
+											htmlFor="reset-confirm"
+											className="text-xs text-muted-foreground"
+										>
+											Type{" "}
+											<span className="font-mono text-foreground">
+												{RESET_PHRASE}
+											</span>{" "}
+											to confirm
+										</Label>
+										<Input
+											id="reset-confirm"
+											value={resetConfirm}
+											onChange={(event) =>
+												setResetConfirm(event.target.value)
+											}
+											disabled={busy === "reset"}
+											autoComplete="off"
+											spellCheck={false}
+											placeholder={RESET_PHRASE}
+										/>
+									</div>
+									{busy === "reset" && (
+										<div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+											<div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+												<span>{resetStatus ?? "Working…"}</span>
+												<span>
+													{resetProgress
+														? `${resetProgress.completed}/${resetProgress.total}`
+														: "Working…"}
+												</span>
+											</div>
+											<div className="h-2 overflow-hidden rounded-full bg-muted">
+												<div
+													className="h-full rounded-full bg-primary transition-all duration-300"
+													style={{
+														width: `${resetProgress?.percent ?? 35}%`,
+													}}
+												/>
+											</div>
+											<p className="text-xs text-muted-foreground">
+												{resetProgress
+													? `${Math.round(resetProgress.percent)}% complete${
+															resetEta ? ` · ${resetEta}` : ""
+														}`
+													: "Preparing reset…"}
+											</p>
+										</div>
+									)}
+									{resetState === "success" && (
+										<div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
+											<div className="flex items-start gap-3">
+												<CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+												<div className="space-y-1">
+													<p className="text-sm font-medium text-foreground">
+														Desktop data cleared
+													</p>
+													<p className="text-xs text-muted-foreground">
+														Skriuw will reload with a fresh app state
+														now.
+													</p>
+												</div>
 											</div>
 										</div>
-									</div>
-								)}
-								{resetState === "error" && notice ? (
-									<p className="text-xs text-destructive">{notice}</p>
-								) : null}
-							</div>
-							<DialogFooter>
-								<DialogClose asChild>
-									<Button variant="outline" size="sm" disabled={busy === "reset"}>
-										Cancel
+									)}
+									{resetState === "error" && notice ? (
+										<p className="text-xs text-destructive">{notice}</p>
+									) : null}
+								</div>
+								<DialogFooter>
+									<DialogClose asChild>
+										<Button
+											variant="outline"
+											size="sm"
+											disabled={busy === "reset"}
+										>
+											Cancel
+										</Button>
+									</DialogClose>
+									<Button
+										variant="destructive"
+										size="sm"
+										onClick={handleResetApp}
+										disabled={busy === "reset" || !resetMatches}
+									>
+										<RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+										{busy === "reset" ? "Resetting…" : "Reset app"}
 									</Button>
-								</DialogClose>
-								<Button
-									variant="destructive"
-									size="sm"
-									onClick={handleResetApp}
-									disabled={busy === "reset" || !resetMatches}
-								>
-									<RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-									{busy === "reset" ? "Resetting…" : "Reset app"}
-								</Button>
-							</DialogFooter>
-						</DialogContent>
-					</Dialog>
-				</Row>
-			</SettingsCard>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
+					</Row>
+				</SettingsCard>
 
-			{notice ? <p className="mt-4 text-xs text-muted-foreground">{notice}</p> : null}
-		</div>
+				{notice ? <p className="mt-4 text-xs text-muted-foreground">{notice}</p> : null}
+			</div>
+		</LazyMotion>
 	);
 }

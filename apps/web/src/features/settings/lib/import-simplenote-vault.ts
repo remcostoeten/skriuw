@@ -126,9 +126,10 @@ async function ensureYearFolders(
 	const folders = await backend.listFolders();
 	const rootFolders = folders.filter((folder) => folder.parentId === null);
 	const folderIdByYear = new Map(
-		rootFolders
-			.filter((folder) => years.includes(folder.name))
-			.map((folder) => [folder.name, folder.id]),
+		rootFolders.flatMap(
+			(folder): Array<[string, string]> =>
+				years.includes(folder.name) ? [[folder.name, folder.id]] : [],
+		),
 	);
 	let sortOrder = Math.max(-1, ...rootFolders.map((folder) => folder.sortOrder ?? 0)) + 1;
 
@@ -336,7 +337,12 @@ export async function organizeWorkspaceNotesByYear(
 		(note) => note.parentId === null && yearFromDate(note.createdAt),
 	);
 	const years = Array.from(
-		new Set(candidates.map((note) => yearFromDate(note.createdAt)).filter(Boolean) as string[]),
+		new Set(
+			candidates.flatMap((note) => {
+				const year = yearFromDate(note.createdAt);
+				return year ? [year] : [];
+			}),
+		),
 	).sort((a, b) => Number(b) - Number(a));
 	const folderIdByYear = await ensureYearFolders(backend, years);
 	let moved = 0;

@@ -9,6 +9,7 @@ import { usePreferencesStore } from "@/features/settings/store";
 import { useAuth } from "@/core/auth/use-auth";
 import { useShortcutScope } from "@/core/shortcuts";
 import { cn } from "@/shared/lib/utils";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 export type UserMenuProps = {
 	onSettings: () => void;
@@ -22,6 +23,9 @@ export type UserMenuProps = {
 };
 
 function Shortcut({ value }: { value: string }) {
+	const isMobile = useIsMobile();
+	if (isMobile) return null;
+
 	const tokens =
 		value.trim().includes("+") || value.trim().includes(" ")
 			? value

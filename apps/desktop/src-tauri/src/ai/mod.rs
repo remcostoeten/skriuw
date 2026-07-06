@@ -140,6 +140,8 @@ struct TranslateDirectives {
 struct PromptRules {
     preserve_tokens_rule: String,
     match_language_rule: String,
+    no_meta_rule: String,
+    voice_rule: String,
 }
 
 #[derive(Debug, Deserialize)]

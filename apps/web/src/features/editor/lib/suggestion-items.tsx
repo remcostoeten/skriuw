@@ -150,20 +150,20 @@ export function getNoteMentionMenuItems(
 	query: string,
 	onCreate: (title: string) => void,
 ): DefaultReactSuggestionItem[] {
-	const existingItems: DefaultReactSuggestionItem[] = files
-		.filter((file) => file.id !== activeFileId)
-		.map((file) => {
-			const title = getNoteTitle(file);
-			const tags = extractNoteTags(getNoteSearchableContent(file));
-			return {
-				title,
-				subtext: tags.length ? `#${tags.slice(0, 2).join(" #")}` : "Note",
-				group: "Notes",
-				onItemClick: () => {
-					insertNoteLinkChip(editor, title);
-				},
-			};
+	const existingItems: DefaultReactSuggestionItem[] = [];
+	for (const file of files) {
+		if (file.id === activeFileId) continue;
+		const title = getNoteTitle(file);
+		const tags = extractNoteTags(getNoteSearchableContent(file));
+		existingItems.push({
+			title,
+			subtext: tags.length ? `#${tags.slice(0, 2).join(" #")}` : "Note",
+			group: "Notes",
+			onItemClick: () => {
+				insertNoteLinkChip(editor, title);
+			},
 		});
+	}
 
 	const filtered = filterSuggestionItems(existingItems, query);
 	const trimmedQuery = query.trim();

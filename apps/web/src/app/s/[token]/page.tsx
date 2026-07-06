@@ -21,8 +21,7 @@ export async function generateMetadata({
 	params: Promise<{ token: string }>;
 }): Promise<Metadata> {
 	const { token } = await params;
-	const peek = await peekShare(token);
-	const pageUrl = await resolveSharePageUrl(token);
+	const [peek, pageUrl] = await Promise.all([peekShare(token), resolveSharePageUrl(token)]);
 
 	if (peek.status !== "ready") {
 		return {

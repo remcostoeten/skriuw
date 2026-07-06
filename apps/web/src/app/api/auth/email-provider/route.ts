@@ -63,13 +63,13 @@ export async function POST(request: NextRequest) {
 	const hasPassword = accounts.some(
 		(account) => account.providerId === CREDENTIAL_PROVIDER_ID || account.password != null,
 	);
-	const providers = Array.from(
-		new Set(
-			accounts
-				.map((account) => account.providerId)
-				.filter((providerId) => providerId !== CREDENTIAL_PROVIDER_ID),
-		),
-	);
+	const providerSet = new Set<string>();
+	for (const account of accounts) {
+		if (account.providerId !== CREDENTIAL_PROVIDER_ID) {
+			providerSet.add(account.providerId);
+		}
+	}
+	const providers = Array.from(providerSet);
 
 	if (hasPassword || providers.length === 0) {
 		return NextResponse.json(NON_DISCLOSING_RESPONSE);

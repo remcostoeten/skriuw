@@ -70,6 +70,13 @@ function CandidateCheckbox({ checked }: { checked: boolean }) {
 	);
 }
 
+const SCAN_FRAMES = [
+	{ key: "idle", label: "Scan", icon: <Sparkles className="size-3.5 shrink-0" /> },
+	{ key: "scanning", label: "Scanning…", icon: <Spinner /> },
+	{ key: "scanned", label: "Scanned", icon: <CheckIcon size={14} /> },
+	{ key: "error", label: "Retry scan", icon: <RotateCcw className="size-3.5 shrink-0" /> },
+];
+
 export function NoteCleanupScanButton({
 	phase,
 	onScan,
@@ -79,15 +86,9 @@ export function NoteCleanupScanButton({
 	onScan: () => void;
 	disabled?: boolean;
 }) {
-	const frames = [
-		{ key: "idle", label: "Scan", icon: <Sparkles className="size-3.5 shrink-0" /> },
-		{ key: "scanning", label: "Scanning…", icon: <Spinner /> },
-		{ key: "scanned", label: "Scanned", icon: <CheckIcon size={14} /> },
-		{ key: "error", label: "Retry scan", icon: <RotateCcw className="size-3.5 shrink-0" /> },
-	];
-
 	return (
 		<button
+			type="button"
 			onClick={onScan}
 			disabled={disabled || phase === "scanning"}
 			className={cn(
@@ -105,7 +106,7 @@ export function NoteCleanupScanButton({
 			<MorphingLabel
 				activeKey={phase}
 				framePadding="px-3"
-				frames={frames.map((frame) => ({
+				frames={SCAN_FRAMES.map((frame) => ({
 					key: frame.key,
 					content: (
 						<>
@@ -180,9 +181,10 @@ export function NoteCleanupDialog({
 	}
 
 	async function handleRemove() {
-		const ids = candidates
-			.map((candidate) => candidate.note.id)
-			.filter((id) => selectedIds.has(id));
+		const ids: string[] = [];
+		for (const candidate of candidates) {
+			if (selectedIds.has(candidate.note.id)) ids.push(candidate.note.id);
+		}
 		if (ids.length === 0) return;
 
 		setPhase("removing");
@@ -191,9 +193,7 @@ export function NoteCleanupDialog({
 			if (backend.deleteNotes) {
 				await backend.deleteNotes(ids);
 			} else {
-				for (const id of ids) {
-					await backend.deleteNote(id);
-				}
+				await Promise.all(ids.map((id) => backend.deleteNote(id)));
 			}
 			const removed = new Set(ids);
 			const filesKey = notesKeys.files(scope);

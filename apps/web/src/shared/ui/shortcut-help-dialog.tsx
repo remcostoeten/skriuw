@@ -1,3 +1,5 @@
+"use client";
+
 import {
 	Dialog,
 	DialogContent,
@@ -5,6 +7,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/shared/ui/dialog";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 export type ShortcutHelpGroup = {
 	id: string;
@@ -32,6 +35,9 @@ export function ShortcutHelpDialog({
 	description = "The current route-specific shortcut map.",
 	groups,
 }: Props) {
+	const isMobile = useIsMobile();
+	if (isMobile) return null;
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[80vh] overflow-y-auto border-border bg-card sm:max-w-2xl">

@@ -19,6 +19,19 @@ import { hardClearUserWorkspace } from "@/domain/data-transfer/workspace-clear";
 
 type FolderRow = { id: string; name: string; parentId: string | null; sortOrder: number };
 
+function parseTimestamp(value: string | undefined): number | null {
+	if (!value) return null;
+	const time = new Date(value).getTime();
+	return Number.isFinite(time) ? time : null;
+}
+
+function incomingIsNewer(incoming: string | undefined, server: Date | undefined): boolean {
+	if (!server) return true;
+	const incomingTime = parseTimestamp(incoming);
+	if (incomingTime === null) return false;
+	return incomingTime > server.getTime();
+}
+
 function duplicateNoteName(
 	name: string,
 	parentPath: string | null,

@@ -15,7 +15,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { EmptyState } from "@/shared/ui/empty-state";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import { MOOD_OPTIONS } from "@/features/journal/types";
+import { MOOD_OPTIONS, type JournalEntry } from "@/features/journal/types";
 import { useJournalEntries } from "../hooks/use-journal-entries";
 
 const JOURNAL_ROW_HEIGHT = 54;
@@ -24,6 +24,27 @@ const JOURNAL_INITIAL_VIEWPORT_HEIGHT = JOURNAL_ROW_HEIGHT * 12;
 
 type FilterTab = "all" | "daily" | "tagged" | "moods";
 type SortOrder = "newest" | "oldest";
+
+const FILTER_TABS: { id: FilterTab; label: string }[] = [
+	{ id: "all", label: "All" },
+	{ id: "daily", label: "Daily" },
+	{ id: "tagged", label: "Tagged" },
+	{ id: "moods", label: "Mood" },
+];
+
+function getEntryTitle(entry: JournalEntry): string {
+	const firstLine = entry.content.split("\n")[0]?.trim();
+	if (firstLine) {
+		return (
+			firstLine
+				.replace(/^#+\s*/, "")
+				.replace(/@\w+/g, "")
+				.trim()
+				.slice(0, 60) || "Untitled"
+		);
+	}
+	return "Untitled";
+}
 
 type JournalDatabaseViewProps = {
 	onSelectEntry: (dateKey: string) => void;
@@ -106,27 +127,6 @@ export function JournalDatabaseView({
 		return filtered;
 	}, [entries, activeTab, deferredSearchQuery, sortOrder]);
 
-	const getEntryTitle = (entry: (typeof entries)[0]): string => {
-		const firstLine = entry.content.split("\n")[0]?.trim();
-		if (firstLine) {
-			return (
-				firstLine
-					.replace(/^#+\s*/, "")
-					.replace(/@\w+/g, "")
-					.trim()
-					.slice(0, 60) || "Untitled"
-			);
-		}
-		return "Untitled";
-	};
-
-	const tabs: { id: FilterTab; label: string }[] = [
-		{ id: "all", label: "All" },
-		{ id: "daily", label: "Daily" },
-		{ id: "tagged", label: "Tagged" },
-		{ id: "moods", label: "Mood" },
-	];
-
 	const totalHeight = filteredEntries.length * JOURNAL_ROW_HEIGHT;
 	const visibleCount = Math.ceil(viewportHeight / JOURNAL_ROW_HEIGHT) + JOURNAL_OVERSCAN * 2;
 	const startIndex = Math.max(0, Math.floor(scrollTop / JOURNAL_ROW_HEIGHT) - JOURNAL_OVERSCAN);
@@ -143,6 +143,7 @@ export function JournalDatabaseView({
 					<div className="flex items-center gap-2.5 sm:gap-3">
 						<div className="flex h-11 items-center gap-1 border border-border bg-background px-1">
 							<button
+								type="button"
 								onClick={onToggleSidebar}
 								className={mobileControlClass}
 								title="Open journal"
@@ -150,6 +151,7 @@ export function JournalDatabaseView({
 								<Sidebar className="h-[18px] w-[18px]" strokeWidth={1.7} />
 							</button>
 							<button
+								type="button"
 								onClick={onGoToNotes}
 								className={mobileControlClass}
 								title="Go to notes"
@@ -157,6 +159,7 @@ export function JournalDatabaseView({
 								<ChevronLeft className="h-[18px] w-[18px]" strokeWidth={1.7} />
 							</button>
 							<button
+								type="button"
 								onClick={onGoToToday}
 								className={mobileControlClass}
 								title="Go to today"
@@ -178,6 +181,7 @@ export function JournalDatabaseView({
 
 						<div className="flex h-11 items-center gap-1.5 sm:gap-2">
 							<button
+								type="button"
 								onClick={onNewEntry}
 								className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 								title="New entry"
@@ -185,6 +189,7 @@ export function JournalDatabaseView({
 								<Plus className="h-[18px] w-[18px]" strokeWidth={1.7} />
 							</button>
 							<button
+								type="button"
 								onClick={onOpenSettings}
 								className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 								title="Open settings"
@@ -195,61 +200,68 @@ export function JournalDatabaseView({
 					</div>
 				</div>
 
-				<div className="flex h-11 items-center border-b border-border px-3">
-					<div className="flex items-center gap-1 overflow-x-auto">
-						{tabs.map((tab) => (
+				<div className="border-b border-border">
+					<div className="flex h-12 items-center px-3">
+						<div className="flex flex-1 items-center gap-1 overflow-x-auto">
+							{FILTER_TABS.map((tab) => (
+								<button
+									type="button"
+									key={tab.id}
+									onClick={() => {
+										triggerNativeFeedback("selection");
+										setActiveTab(tab.id);
+									}}
+									className={cn(
+										"flex h-11 shrink-0 items-center gap-1.5 px-3 text-[13px] font-medium transition-colors",
+										activeTab === tab.id
+											? "text-foreground"
+											: "text-muted-foreground/60 hover:text-muted-foreground",
+									)}
+								>
+									{tab.label}
+								</button>
+							))}
 							<button
-								key={tab.id}
+								type="button"
 								onClick={() => {
-									triggerNativeFeedback("selection");
-									setActiveTab(tab.id);
+									triggerNativeFeedback(showSearch ? "dismiss" : "selection");
+									setShowSearch(!showSearch);
 								}}
 								className={cn(
-									"flex h-7 shrink-0 items-center gap-1.5 px-3 text-[12px] font-medium transition-colors",
-									activeTab === tab.id
-										? "text-foreground"
-										: "text-muted-foreground/60 hover:text-muted-foreground",
+									"ml-auto flex h-11 w-11 shrink-0 items-center justify-center border transition-colors",
+									showSearch
+										? "border-border bg-muted text-foreground"
+										: "border-transparent text-muted-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
 								)}
+								title="Search"
 							>
-								{tab.label}
+								<Search className="h-4 w-4" strokeWidth={1.5} />
 							</button>
-						))}
-						<button
-							onClick={() => {
-								triggerNativeFeedback(showSearch ? "dismiss" : "selection");
-								setShowSearch(!showSearch);
-							}}
-							className={cn(
-								"ml-auto flex h-9 w-9 shrink-0 items-center justify-center border transition-colors",
-								showSearch
-									? "border-border bg-muted text-foreground"
-									: "border-transparent text-muted-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
-							)}
-							title="Search"
-						>
-							<Search className="h-3.5 w-3.5" strokeWidth={1.5} />
-						</button>
-						<button
-							onClick={() => {
-								triggerNativeFeedback("selection");
-								setSortOrder(sortOrder === "newest" ? "oldest" : "newest");
-							}}
-							className="flex h-9 w-9 shrink-0 items-center justify-center border border-transparent text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
-							title={
-								sortOrder === "newest" ? "Sort oldest first" : "Sort newest first"
-							}
-						>
-							{sortOrder === "newest" ? (
-								<SortDesc className="h-3.5 w-3.5" strokeWidth={1.5} />
-							) : (
-								<SortAsc className="h-3.5 w-3.5" strokeWidth={1.5} />
-							)}
-						</button>
+							<button
+								type="button"
+								onClick={() => {
+									triggerNativeFeedback("selection");
+									setSortOrder(sortOrder === "newest" ? "oldest" : "newest");
+								}}
+								className="flex h-11 w-11 shrink-0 items-center justify-center border border-transparent text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
+								title={
+									sortOrder === "newest"
+										? "Sort oldest first"
+										: "Sort newest first"
+								}
+							>
+								{sortOrder === "newest" ? (
+									<SortDesc className="h-4 w-4" strokeWidth={1.5} />
+								) : (
+									<SortAsc className="h-4 w-4" strokeWidth={1.5} />
+								)}
+							</button>
+						</div>
 					</div>
 					{showSearch && (
-						<div className="relative mt-2">
+						<div className="relative border-t border-border px-3 py-2">
 							<Search
-								className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/40"
+								className="absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/40"
 								strokeWidth={1.5}
 							/>
 							<input
@@ -258,7 +270,7 @@ export function JournalDatabaseView({
 								onChange={(e) => setSearchQuery(e.target.value)}
 								placeholder="Filter entries..."
 								autoFocus
-								className="w-full border border-border bg-accent/20 py-2.5 pl-9 pr-3 text-base text-foreground outline-none placeholder:text-muted-foreground/30 focus:border-border focus:bg-accent/30 md:py-2 md:text-[13px]"
+								className="w-full border border-border bg-accent/20 py-3 pl-9 pr-3 text-base text-foreground outline-none placeholder:text-muted-foreground/30 focus:border-border focus:bg-accent/30"
 							/>
 						</div>
 					)}
@@ -266,7 +278,7 @@ export function JournalDatabaseView({
 
 				<div
 					ref={listRef}
-					className="flex-1 overflow-y-auto px-3"
+					className="flex-1 overflow-y-auto overscroll-y-contain px-3 pb-[env(safe-area-inset-bottom)] [-webkit-overflow-scrolling:touch]"
 					onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
 				>
 					<div className="mt-2">
@@ -297,6 +309,7 @@ export function JournalDatabaseView({
 
 										return (
 											<button
+												type="button"
 												key={entry.id}
 												onClick={() => {
 													triggerNativeFeedback("selection");
@@ -343,6 +356,7 @@ export function JournalDatabaseView({
 				<div className="flex h-11 items-center px-3">
 					<div className="flex items-center gap-1">
 						<button
+							type="button"
 							onClick={onToggleSidebar}
 							className="flex h-7 w-7 items-center justify-center border border-transparent text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
 							title="Toggle sidebar"
@@ -350,6 +364,7 @@ export function JournalDatabaseView({
 							<Sidebar className="h-4 w-4" strokeWidth={1.5} />
 						</button>
 						<button
+							type="button"
 							onClick={onGoToToday}
 							className="flex h-7 w-7 items-center justify-center border border-transparent text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
 							title="Go to today"
@@ -367,6 +382,7 @@ export function JournalDatabaseView({
 
 					<div className="flex items-center gap-1">
 						<button
+							type="button"
 							onClick={() => {
 								triggerNativeFeedback(showSearch ? "dismiss" : "selection");
 								setShowSearch(!showSearch);
@@ -382,6 +398,7 @@ export function JournalDatabaseView({
 							<Search className="h-4 w-4" strokeWidth={1.5} />
 						</button>
 						<button
+							type="button"
 							onClick={onNewEntry}
 							className="ml-1 flex h-7 items-center gap-1.5 border border-transparent px-2.5 text-[11px] text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
 							title="New entry"
@@ -396,8 +413,9 @@ export function JournalDatabaseView({
 			<div className="flex flex-col">
 				<div className="flex h-11 items-center gap-2 border-b border-border px-2">
 					<div className="flex items-center gap-0.5 overflow-x-auto">
-						{tabs.map((tab) => (
+						{FILTER_TABS.map((tab) => (
 							<button
+								type="button"
 								key={tab.id}
 								onClick={() => {
 									triggerNativeFeedback("selection");
@@ -465,6 +483,7 @@ export function JournalDatabaseView({
 
 							return (
 								<button
+									type="button"
 									key={entry.id}
 									onClick={() => {
 										triggerNativeFeedback("selection");

@@ -8,7 +8,7 @@ import {
 	useMemo,
 	type PointerEvent as ReactPointerEvent,
 } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "framer-motion";
 import { AlertTriangle, GripVertical, Sparkles, Undo2, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { Editor } from "./editor";
@@ -52,6 +52,7 @@ import {
 	copyTextToClipboard,
 	getEditorContextMenuState,
 } from "@/features/desktop/context-menu-actions";
+import { NoteCoverBanner } from "@/features/notes/components/note-cover";
 
 type EditorContainerProps = {
 	file: NoteFile | null;
@@ -106,6 +107,8 @@ type EditorCursorStatus = {
 		characters: number;
 	};
 };
+
+const EMPTY_FILES: NoteFile[] = [];
 
 const NOTE_AI_ACTIONS: readonly AiAction[] = [
 	"generateTitle",
@@ -234,43 +237,45 @@ function BottomStatusText({
 	const direction = isSelection ? 1 : -1;
 
 	return (
-		<span
-			className="relative inline-grid min-h-4 min-w-[9.5rem] items-center overflow-hidden"
-			style={{ perspective: 360 }}
-		>
-			<AnimatePresence initial={false} mode="popLayout" custom={direction}>
-				<motion.span
-					key={isSelection ? "selection" : "position"}
-					custom={direction}
-					initial={
-						prefersReducedMotion
-							? { opacity: 0 }
-							: {
-									opacity: 0,
-									y: direction > 0 ? 6 : -6,
-									rotateX: direction > 0 ? -12 : 12,
-									scale: 0.985,
-								}
-					}
-					animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
-					exit={
-						prefersReducedMotion
-							? { opacity: 0 }
-							: {
-									opacity: 0,
-									y: direction > 0 ? -6 : 6,
-									rotateX: direction > 0 ? 12 : -12,
-									scale: 0.985,
-								}
-					}
-					transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-					className="col-start-1 row-start-1 whitespace-nowrap tabular-nums"
-					style={{ transformOrigin: "50% 50%" }}
-				>
-					{children}
-				</motion.span>
-			</AnimatePresence>
-		</span>
+		<LazyMotion features={domAnimation} strict>
+			<span
+				className="relative inline-grid min-h-4 min-w-[9.5rem] items-center overflow-hidden"
+				style={{ perspective: 360 }}
+			>
+				<AnimatePresence initial={false} mode="popLayout" custom={direction}>
+					<m.span
+						key={isSelection ? "selection" : "position"}
+						custom={direction}
+						initial={
+							prefersReducedMotion
+								? { opacity: 0 }
+								: {
+										opacity: 0,
+										y: direction > 0 ? 6 : -6,
+										rotateX: direction > 0 ? -12 : 12,
+										scale: 0.985,
+									}
+						}
+						animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+						exit={
+							prefersReducedMotion
+								? { opacity: 0 }
+								: {
+										opacity: 0,
+										y: direction > 0 ? -6 : 6,
+										rotateX: direction > 0 ? 12 : -12,
+										scale: 0.985,
+									}
+						}
+						transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+						className="col-start-1 row-start-1 whitespace-nowrap tabular-nums"
+						style={{ transformOrigin: "50% 50%" }}
+					>
+						{children}
+					</m.span>
+				</AnimatePresence>
+			</span>
+		</LazyMotion>
 	);
 }
 
@@ -295,49 +300,51 @@ function ActivityDots({
 			: "";
 
 	return (
-		<AnimatePresence>
-			{isActive && (
-				<motion.div
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					exit={{ opacity: 0 }}
-					transition={{ duration: 0.25, ease: "easeInOut" }}
-				>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<div className="flex cursor-default items-center gap-[3px] px-1">
-								{[0, 1, 2].map((i) => (
-									<motion.span
-										key={i}
-										className="block h-[3px] w-[3px] rounded-full bg-muted-foreground/45"
-										animate={
-											prefersReducedMotion
-												? { opacity: 0.45 }
-												: { opacity: [0.2, 0.9, 0.2] }
-										}
-										transition={{
-											duration: 1.1,
-											repeat: Infinity,
-											delay: i * 0.18,
-											ease: "easeInOut",
-										}}
-									/>
-								))}
-							</div>
-						</TooltipTrigger>
-						<TooltipContent side="top" className="text-xs">
-							{tooltipLabel}
-						</TooltipContent>
-					</Tooltip>
-				</motion.div>
-			)}
-		</AnimatePresence>
+		<LazyMotion features={domAnimation} strict>
+			<AnimatePresence>
+				{isActive && (
+					<m.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.25, ease: "easeInOut" }}
+					>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<div className="flex cursor-default items-center gap-[3px] px-1">
+									{[0, 1, 2].map((i) => (
+										<m.span
+											key={i}
+											className="block h-[3px] w-[3px] rounded-full bg-muted-foreground/45"
+											animate={
+												prefersReducedMotion
+													? { opacity: 0.45 }
+													: { opacity: [0.2, 0.9, 0.2] }
+											}
+											transition={{
+												duration: 1.1,
+												repeat: Infinity,
+												delay: i * 0.18,
+												ease: "easeInOut",
+											}}
+										/>
+									))}
+								</div>
+							</TooltipTrigger>
+							<TooltipContent side="top" className="text-xs">
+								{tooltipLabel}
+							</TooltipContent>
+						</Tooltip>
+					</m.div>
+				)}
+			</AnimatePresence>
+		</LazyMotion>
 	);
 }
 
 export function EditorContainer({
 	file,
-	files = [],
+	files = EMPTY_FILES,
 	editorMode,
 	isMobile,
 	onContentChange,
@@ -387,6 +394,17 @@ export function EditorContainer({
 	const [suggestedTags, setSuggestedTags] = useState<string[] | null>(null);
 	const [aiNotice, setAiNotice] = useState<string | null>(null);
 
+	const fileId = file?.id ?? null;
+	const [prevFileId, setPrevFileId] = useState(fileId);
+	if (fileId !== prevFileId) {
+		setPrevFileId(fileId);
+		setCursorPosition({ line: 1, column: 1 });
+		setSpellCheckRevert(null);
+		setCustomPromptRevert(null);
+		setSuggestedTags(null);
+		setAiNotice(null);
+	}
+
 	const aiPrefs = usePreferencesStore((s) => s.ai);
 	const editorPrefs = usePreferencesStore((s) => s.editor);
 	const showLineNumbers = usePreferencesStore((s) => s.appearance.showLineNumbers);
@@ -397,8 +415,11 @@ export function EditorContainer({
 			editorHandle.replaceSelection?.(result.trim());
 		};
 		return {
-			generateTitle: (result: string) => {
-				if (file && onRenameFile) onRenameFile(file.id, result);
+			generateTitle: (result: string, editorHandle: AiEditorHandle) => {
+				const title = result.trim();
+				if (!title) return;
+				editorHandle.setTitle(title);
+				if (file && onRenameFile) onRenameFile(file.id, title);
 			},
 			spellCheck: (result: string, editorHandle: AiEditorHandle) => {
 				// Snapshot the pre-correction markdown so the user can revert the
@@ -482,15 +503,6 @@ export function EditorContainer({
 		},
 	});
 
-	// Clear transient state when switching files
-	useEffect(() => {
-		setCursorPosition({ line: 1, column: 1 });
-		setSpellCheckRevert(null);
-		setCustomPromptRevert(null);
-		setSuggestedTags(null);
-		setAiNotice(null);
-	}, [file?.id]);
-
 	const canExportNote = isTauriRuntime();
 	const handleExportNote = useCallback(
 		async (format: "md" | "html") => {
@@ -525,7 +537,6 @@ export function EditorContainer({
 	// Opening a different note re-evaluates whether its name still tracks the
 	// heading, and re-baselines `lastFileNameRef` so the rename effect below
 	// doesn't mistake the note switch for a manual rename.
-	const fileId = file?.id ?? null;
 	useEffect(() => {
 		headingTracksRef.current = file ? nameTracksHeading(file.name, file.content) : true;
 		lastFileNameRef.current = fileName;
@@ -602,6 +613,7 @@ export function EditorContainer({
 			{!isPane ? (
 				<EditorToolbar
 					fileName={fileName}
+					fileIcon={file?.icon}
 					saveState={saveState}
 					isMobile={isMobile}
 					workspaceItems={workspaceItems}
@@ -652,6 +664,11 @@ export function EditorContainer({
 						</button>
 					) : null}
 					<span className="min-w-0 flex-1 truncate font-medium text-foreground/80">
+						{file?.icon && (
+							<span className="mr-1.5" aria-hidden>
+								{file.icon}
+							</span>
+						)}
 						{paneLabel}
 					</span>
 					{onClosePane ? (
@@ -887,14 +904,19 @@ export function EditorContainer({
 				<SuggestedTagsBanner
 					tags={suggestedTags}
 					onInsert={(tags) => {
-						aiHandleRef.current?.appendMarkdown?.(
-							`Tags: ${tags.map((tag) => `#${tag}`).join(" ")}`,
-						);
+						const markdown = `Tags: ${tags.map((tag) => `#${tag}`).join(" ")}`;
+						const inserted =
+							aiHandleRef.current?.insertMarkdownBelowHeading?.(markdown);
+						if (!inserted) {
+							aiHandleRef.current?.appendMarkdown?.(markdown);
+						}
 						setSuggestedTags(null);
 					}}
 					onDismiss={() => setSuggestedTags(null)}
 				/>
 			)}
+
+			{file?.cover && <NoteCoverBanner cover={file.cover} />}
 
 			<div className="relative flex min-h-0 flex-1 flex-col">
 				{isContentLoading || collabConnecting ? (
@@ -1066,7 +1088,7 @@ export function EditorContainer({
 				)}
 			</div>
 
-			{(!isPane || isPaneFocused) && (
+			{!isMobile && (!isPane || isPaneFocused) && (
 				<div className="flex h-8 shrink-0 items-center border-t border-border bg-card px-4 text-[11px] text-muted-foreground">
 					<div className="flex min-w-0 flex-1 items-center gap-3">
 						<span className="tabular-nums inline-flex items-baseline">
@@ -1102,7 +1124,10 @@ export function EditorContainer({
 							)}
 						</BottomStatusText>
 					</div>
-					{editorPrefs.vimMode && effectiveEditorMode === "block" && vimMode ? (
+					{!isMobile &&
+					editorPrefs.vimMode &&
+					effectiveEditorMode === "block" &&
+					vimMode ? (
 						<span
 							className="mr-3 select-none rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
 							aria-live="polite"

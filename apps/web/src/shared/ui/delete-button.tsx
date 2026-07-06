@@ -134,6 +134,7 @@ export function DeleteButton({
 	return (
 		<div className="flex items-center gap-2">
 			<button
+				type="button"
 				onClick={handleClick}
 				disabled={disabled || busy || solid}
 				title={disabled ? disabledTitle : undefined}
@@ -168,6 +169,7 @@ export function DeleteButton({
 
 			{!disabled ? (
 				<button
+					type="button"
 					onClick={cancel}
 					className={cn(
 						"h-10 overflow-hidden whitespace-nowrap rounded-md border border-input bg-background text-sm font-medium text-muted-foreground transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-accent hover:text-accent-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",

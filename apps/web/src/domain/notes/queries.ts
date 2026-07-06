@@ -31,6 +31,8 @@ type NoteRecord = {
 	sortOrder: number;
 	tags: string[];
 	properties: Prisma.JsonValue | null;
+	icon: string | null;
+	cover: string | null;
 	journalMeta: Prisma.JsonValue | null;
 	createdAt: Date;
 	updatedAt: Date;
@@ -38,8 +40,8 @@ type NoteRecord = {
 
 type NoteMetadataRecord = Omit<
 	NoteRecord,
-	"content" | "richContent" | "properties" | "journalMeta"
-> & { icon: string | null };
+	"content" | "richContent" | "properties" | "journalMeta" | "cover"
+>;
 
 type NoteVersionRecord = {
 	id: string;
@@ -78,6 +80,8 @@ function recordToNoteFile(
 		sortOrder: record.sortOrder,
 		tags: record.tags.map((tag) => tag as TagName),
 		properties: normalizeNoteProperties(record.properties),
+		icon: record.icon ?? undefined,
+		cover: record.cover ?? undefined,
 		journalMeta: meta
 			? {
 					...meta,

@@ -787,8 +787,10 @@ function blockToSearchableMarkdown(block: PartialBlock): string {
 
 	const childText = Array.isArray(block.children)
 		? (block.children as PartialBlock[])
-				.map(blockToSearchableMarkdown)
-				.filter(Boolean)
+				.flatMap((child) => {
+					const text = blockToSearchableMarkdown(child);
+					return text ? [text] : [];
+				})
 				.join("\n")
 		: "";
 
@@ -856,8 +858,10 @@ function blockToSearchableMarkdown(block: PartialBlock): string {
 
 		if (Array.isArray(content)) {
 			return content
-				.map((inline) => inlineNodeToSearchableMarkdown(inline))
-				.filter(Boolean)
+				.flatMap((inline) => {
+					const text = inlineNodeToSearchableMarkdown(inline);
+					return text ? [text] : [];
+				})
 				.join("\n");
 		}
 	}
@@ -875,8 +879,10 @@ export function richDocumentToSearchableMarkdown(
 	}
 
 	return document
-		.map((block) => blockToSearchableMarkdown(block as PartialBlock))
-		.filter(Boolean)
+		.flatMap((block) => {
+			const text = blockToSearchableMarkdown(block as PartialBlock);
+			return text ? [text] : [];
+		})
 		.join("\n\n");
 }
 
@@ -1008,10 +1014,10 @@ export function resolveRichDocument(
 
 export function cloneRichDocument(document: Block[]): RichTextDocument {
 	try {
-		return JSON.parse(JSON.stringify(document)) as RichTextDocument;
+		return structuredClone(document) as RichTextDocument;
 	} catch (err) {
-		console.error("[cloneRichDocument] Serialization failed:", err);
-		return document.map((block) => structuredClone(block)) as RichTextDocument;
+		console.error("[cloneRichDocument] structuredClone failed, falling back to JSON:", err);
+		return JSON.parse(JSON.stringify(document)) as RichTextDocument;
 	}
 }
 

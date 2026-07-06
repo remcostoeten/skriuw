@@ -62,6 +62,7 @@ export const createNoteInputSchema = z.object({
 	tags: z.array(z.string().trim().min(1).max(64)).max(64).optional(),
 	properties: notePropertiesSchema.optional(),
 	icon: z.string().max(32).optional(),
+	cover: z.string().max(2048).optional(),
 });
 
 export const updateNoteInputSchema = z
@@ -76,6 +77,7 @@ export const updateNoteInputSchema = z
 		tags: z.array(z.string().trim().min(1).max(64)).max(64).optional(),
 		properties: notePropertiesSchema.optional(),
 		icon: z.string().max(32).optional(),
+		cover: z.string().max(2048).optional(),
 		createCheckpoint: z.boolean().optional(),
 		sessionVersionId: uuidSchema.nullable().optional(),
 		// When false, the save must not auto-rename the note from its first
@@ -94,6 +96,7 @@ export const updateNoteInputSchema = z
 			input.tags !== undefined ||
 			input.properties !== undefined ||
 			input.icon !== undefined ||
+			input.cover !== undefined ||
 			input.createCheckpoint !== undefined ||
 			input.sessionVersionId !== undefined,
 		{ message: "At least one field must be provided." },

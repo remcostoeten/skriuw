@@ -36,6 +36,21 @@ import { NotesSidebarSkeleton } from "@/features/notes/components/sidebar/notes-
 
 type WorkspaceLoadingVariant = "notes" | "journal";
 
+const JOURNAL_TAB_ICONS = [CalendarDays, SortDesc, Search, FileText, Tag];
+const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+const SETTINGS_NAV_ITEMS: Array<{ label: string; Icon: typeof User; active?: boolean }> = [
+	{ label: "Account", Icon: User, active: true },
+	{ label: "Appearance", Icon: Palette },
+	{ label: "Editor", Icon: PenLine },
+	{ label: "Notifications", Icon: Bell },
+	{ label: "Data & sync", Icon: Database },
+	{ label: "Integrations", Icon: Plug },
+	{ label: "Security", Icon: Shield },
+	{ label: "AI", Icon: Sparkles },
+	{ label: "Tags", Icon: Tag },
+	{ label: "Experimental", Icon: FlaskConical },
+];
+
 function DataLine({ className, style }: { className?: string; style?: React.CSSProperties }) {
 	return (
 		<div
@@ -148,8 +163,6 @@ function MobileTopBar({ variant, title }: { variant: WorkspaceLoadingVariant; ti
 }
 
 function JournalSidebarSkeleton() {
-	const journalTabs = [CalendarDays, SortDesc, Search, FileText, Tag];
-	const weekdayLabels = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 	const days = Array.from({ length: 35 }, (_, index) => index + 1);
 
 	return (
@@ -170,7 +183,7 @@ function JournalSidebarSkeleton() {
 				aria-label="Journal sidebar views loading"
 				className="flex h-11 items-center border-b border-border px-2"
 			>
-				{journalTabs.map((Icon, index) => (
+				{JOURNAL_TAB_ICONS.map((Icon, index) => (
 					<div
 						key={index}
 						className={cn(
@@ -205,7 +218,7 @@ function JournalSidebarSkeleton() {
 				</div>
 
 				<div className="grid grid-cols-7 gap-0">
-					{weekdayLabels.map((label) => (
+					{WEEKDAY_LABELS.map((label) => (
 						<div
 							key={label}
 							className="flex h-6 items-center justify-center text-[9px] font-medium uppercase tracking-wider text-muted-foreground/50"
@@ -343,19 +356,6 @@ function SettingsLoadingRail() {
 }
 
 export function SettingsLoadingShell() {
-	const items: Array<{ label: string; Icon: typeof User; active?: boolean }> = [
-		{ label: "Account", Icon: User, active: true },
-		{ label: "Appearance", Icon: Palette },
-		{ label: "Editor", Icon: PenLine },
-		{ label: "Notifications", Icon: Bell },
-		{ label: "Data & sync", Icon: Database },
-		{ label: "Integrations", Icon: Plug },
-		{ label: "Security", Icon: Shield },
-		{ label: "AI", Icon: Sparkles },
-		{ label: "Tags", Icon: Tag },
-		{ label: "Experimental", Icon: FlaskConical },
-	];
-
 	return (
 		<LayoutContainer className="bg-background">
 			{/* Mobile skeleton — iOS-style settings list */}
@@ -380,7 +380,7 @@ export function SettingsLoadingShell() {
 						aria-hidden="true"
 						className="divide-y divide-border border-b border-border"
 					>
-						{items.map(({ label, Icon }) => (
+						{SETTINGS_NAV_ITEMS.map(({ label, Icon }) => (
 							<li key={label}>
 								<div className="flex min-h-[56px] w-full items-center gap-3 px-4 py-3.5">
 									<span className="flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-muted/40 text-foreground/60">
@@ -412,7 +412,7 @@ export function SettingsLoadingShell() {
 					</div>
 					<nav aria-hidden="true" className="flex-1 overflow-y-auto p-2">
 						<ul className="space-y-0.5">
-							{items.map(({ label, Icon, active }) => (
+							{SETTINGS_NAV_ITEMS.map(({ label, Icon, active }) => (
 								<li key={label}>
 									<div
 										className={cn(

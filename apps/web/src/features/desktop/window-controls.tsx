@@ -3,6 +3,7 @@ import * as React from "react";
 import { Minus, Square, X, Copy } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
+import { noop } from "@/shared/lib/noop";
 
 type TauriWindow = {
 	minimize: () => Promise<void>;
@@ -33,6 +34,13 @@ type ControlButtonProps = {
 	className?: string;
 	children: React.ReactNode;
 };
+
+function runWindowAction(action: (appWindow: TauriWindow) => Promise<void>) {
+	return () => {
+		const appWindow = getAppWindow();
+		if (appWindow) void action(appWindow).catch(noop);
+	};
+}
 
 function ControlButton({ label, onClick, className, children }: ControlButtonProps) {
 	return (
@@ -93,22 +101,17 @@ export function WindowControls() {
 
 	if (!isTauri) return null;
 
-	const run = (action: (appWindow: TauriWindow) => Promise<void>) => () => {
-		const appWindow = getAppWindow();
-		if (appWindow) void action(appWindow).catch(() => {});
-	};
-
 	return (
 		<div
 			data-tauri-drag-region
 			className="fixed right-0 top-0 z-50 flex h-9 items-center gap-0.5 rounded-bl-lg border-b border-l border-sidebar-border/70 bg-sidebar pl-3 pr-1"
 		>
-			<ControlButton label="Minimize" onClick={run((w) => w.minimize())}>
+			<ControlButton label="Minimize" onClick={runWindowAction((w) => w.minimize())}>
 				<Minus className="h-3.5 w-3.5" strokeWidth={1.75} />
 			</ControlButton>
 			<ControlButton
 				label={isMaximized ? "Restore" : "Maximize"}
-				onClick={run((w) => w.toggleMaximize())}
+				onClick={runWindowAction((w) => w.toggleMaximize())}
 			>
 				{isMaximized ? (
 					<Copy className="h-3 w-3" strokeWidth={1.75} />
@@ -118,7 +121,7 @@ export function WindowControls() {
 			</ControlButton>
 			<ControlButton
 				label="Close"
-				onClick={run((w) => w.close())}
+				onClick={runWindowAction((w) => w.close())}
 				className="hover:bg-red-500/85 hover:text-white"
 			>
 				<X className="h-3.5 w-3.5" strokeWidth={1.75} />

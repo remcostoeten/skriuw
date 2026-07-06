@@ -43,6 +43,7 @@ export type NoteFile = {
 	properties?: NoteProperty[];
 	// Optional journal metadata
 	icon?: string;
+	cover?: string;
 	journalMeta?: JournalMetadata;
 	// Set on the collaborator-aware read path. `ownerId` is the note's real owner;
 	// `access` is this viewer's role. Undefined → owner (legacy owner-scoped read).

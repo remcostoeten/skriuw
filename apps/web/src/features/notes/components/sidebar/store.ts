@@ -73,9 +73,10 @@ function cloneSidebarConfig(config: SidebarConfig = DEFAULT_SIDEBAR_CONFIG): Sid
 			isCollapsed: defaultSection.type === "file-tree" ? false : section.isCollapsed,
 		};
 	});
-	const customSections = (config.sections ?? [])
-		.filter((section) => section.type === "custom")
-		.map((section) => ({ ...section }));
+	const customSections = (config.sections ?? []).reduce<SidebarSection[]>((acc, section) => {
+		if (section.type === "custom") acc.push({ ...section });
+		return acc;
+	}, []);
 
 	// Legacy "Projects" were a parallel manual-grouping concept. They are folded
 	// into custom sections (a project becomes a colored custom section). This runs

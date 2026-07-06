@@ -144,13 +144,13 @@ function JournalDesktopToolbarSkeleton({
 	);
 }
 
-function JournalListTabsSkeleton() {
-	const tabs = ["All", "Daily", "Tagged", "Mood"];
+const JOURNAL_LIST_TAB_LABELS = ["All", "Daily", "Tagged", "Mood"];
 
+function JournalListTabsSkeleton() {
 	return (
 		<div className="flex h-11 items-center gap-2 border-b border-border px-2 md:px-3">
 			<div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
-				{tabs.map((label) => (
+				{JOURNAL_LIST_TAB_LABELS.map((label) => (
 					<span
 						key={label}
 						className={cn(

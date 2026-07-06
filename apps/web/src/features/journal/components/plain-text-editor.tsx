@@ -30,7 +30,7 @@ export function PlainTextEditor({
 	const { data: allTags = [] } = useJournalTags();
 	const [showTagPopup, setShowTagPopup] = useState(false);
 	const [tagQuery, setTagQuery] = useState("");
-	const [tagCursorStart, setTagCursorStart] = useState<number | null>(null);
+	const tagCursorStartRef = useRef<number | null>(null);
 	const [selectedSuggestionIdx, setSelectedSuggestionIdx] = useState(0);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const popupId = useId();
@@ -98,17 +98,18 @@ export function PlainTextEditor({
 		if (activeMention) {
 			setShowTagPopup(true);
 			setTagQuery(activeMention.query);
-			setTagCursorStart(activeMention.start);
+			tagCursorStartRef.current = activeMention.start;
 			setSelectedSuggestionIdx(0);
 		} else {
 			setShowTagPopup(false);
 			setTagQuery("");
-			setTagCursorStart(null);
+			tagCursorStartRef.current = null;
 		}
 	};
 
 	const insertTag = useCallback(
 		(tagName: string) => {
+			const tagCursorStart = tagCursorStartRef.current;
 			if (tagCursorStart === null) return;
 
 			const cursorPos = textareaRef.current?.selectionStart ?? content.length;
@@ -124,7 +125,7 @@ export function PlainTextEditor({
 
 			setShowTagPopup(false);
 			setTagQuery("");
-			setTagCursorStart(null);
+			tagCursorStartRef.current = null;
 			setSelectedSuggestionIdx(0);
 
 			requestAnimationFrame(() => {
@@ -137,7 +138,7 @@ export function PlainTextEditor({
 				}
 			});
 		},
-		[content, tagCursorStart, onChange, onInsertTag],
+		[content, onChange, onInsertTag],
 	);
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

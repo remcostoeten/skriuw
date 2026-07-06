@@ -69,19 +69,19 @@ export const RecentsSection = memo(function RecentsSection({
 	}, []);
 	const resolvedRecents = useMemo(
 		() =>
-			recents
-				.map((recent) => {
-					if (recent.itemType === "file") {
-						const file = filesById.get(recent.itemId);
-						return file ? { ...recent, item: file, name: file.name } : null;
-					}
+			recents.flatMap<
+				RecentItem & { item: NoteFile | NoteFolder; name: string; icon?: string }
+			>((recent) => {
+				if (recent.itemType === "file") {
+					const file = filesById.get(recent.itemId);
+					return file
+						? [{ ...recent, item: file, name: file.name, icon: file.icon }]
+						: [];
+				}
 
-					const folder = foldersById.get(recent.itemId);
-					return folder ? { ...recent, item: folder, name: folder.name } : null;
-				})
-				.filter(Boolean) as Array<
-				RecentItem & { item: NoteFile | NoteFolder; name: string }
-			>,
+				const folder = foldersById.get(recent.itemId);
+				return folder ? [{ ...recent, item: folder, name: folder.name }] : [];
+			}),
 		[recents, filesById, foldersById],
 	);
 
@@ -99,6 +99,7 @@ export const RecentsSection = memo(function RecentsSection({
 	const clearButton =
 		isHydrated && resolvedRecents.length > 0 ? (
 			<button
+				type="button"
 				onClick={onClearRecents}
 				className="flex h-5 w-5 items-center justify-center border border-transparent text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
 				title="Clear recents"
@@ -137,17 +138,13 @@ export const RecentsSection = memo(function RecentsSection({
 						compactMode ? "h-7" : "h-8",
 					)}
 				>
-					<SidebarItemIcon
-						kind="file"
-						size={compactMode ? 12 : 13}
-						className="shrink-0 text-muted-foreground/45"
-					/>
 					<span className="truncate">No recent notes</span>
 				</div>
 			) : (
 				<div className={cn("space-y-px px-1", compactMode && "space-y-[1px]")}>
 					{visibleRecents.map((recent) => (
 						<button
+							type="button"
 							key={recent.id}
 							onClick={() =>
 								recent.itemType === "file" && onFileSelect(recent.itemId)
@@ -156,18 +153,27 @@ export const RecentsSection = memo(function RecentsSection({
 								recent.itemType === "file" && onFilePrefetch?.(recent.itemId)
 							}
 							className={cn(
-								"group flex w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors active:scale-[0.985]",
+								"group flex w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors active:scale-[0.985] [@media(pointer:coarse)]:min-h-11",
 								compactMode ? "h-6" : "h-7",
 								recent.itemType === "file" && recent.itemId === activeFileId
 									? "bg-foreground/[0.07] text-foreground"
 									: "text-foreground/60 hover:bg-foreground/[0.045] hover:text-foreground",
 							)}
 						>
-							<SidebarItemIcon
-								kind={recent.itemType}
-								size={compactMode ? 12 : 14}
-								className="shrink-0 text-muted-foreground/70"
-							/>
+							{recent.icon ? (
+								<span
+									className="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-[13px] leading-none"
+									aria-hidden
+								>
+									{recent.icon}
+								</span>
+							) : recent.itemType === "folder" ? (
+								<SidebarItemIcon
+									kind="folder"
+									size={compactMode ? 12 : 14}
+									className="shrink-0 text-muted-foreground/70"
+								/>
+							) : null}
 							<span className="flex-1 truncate">{recent.name}</span>
 						</button>
 					))}
@@ -176,7 +182,7 @@ export const RecentsSection = memo(function RecentsSection({
 							type="button"
 							onClick={() => setShowAllRecents((value) => !value)}
 							className={cn(
-								"mt-1 flex w-full items-center justify-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground/60 transition-colors hover:bg-foreground/[0.045] hover:text-foreground",
+								"mt-1 flex w-full items-center justify-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground/60 transition-colors hover:bg-foreground/[0.045] hover:text-foreground [@media(pointer:coarse)]:min-h-11",
 								compactMode ? "h-6" : "h-7",
 							)}
 						>

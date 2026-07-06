@@ -55,7 +55,10 @@ export function parseYamlString(value: string | undefined): string | undefined {
 export function parseTagsField(value: unknown): string[] {
 	if (!value) return [];
 	if (Array.isArray(value)) {
-		return value.map((tag) => String(tag).trim()).filter(Boolean);
+		return value.flatMap((tag) => {
+			const trimmed = String(tag).trim();
+			return trimmed ? [trimmed] : [];
+		});
 	}
 	if (typeof value === "string") {
 		const trimmed = value.trim();
@@ -72,8 +75,10 @@ export function parseTagsField(value: unknown): string[] {
 		return trimmed
 			.slice(1, -1)
 			.split(",")
-			.map((tag) => tag.trim().replace(/^["']|["']$/g, ""))
-			.filter(Boolean);
+			.flatMap((tag) => {
+				const cleaned = tag.trim().replace(/^["']|["']$/g, "");
+				return cleaned ? [cleaned] : [];
+			});
 	}
 	return [];
 }
@@ -83,7 +88,10 @@ function normalizeTagArray(source: string): string[] | null {
 		try {
 			const parsed = JSON.parse(candidate) as unknown;
 			if (Array.isArray(parsed)) {
-				return parsed.map((tag) => String(tag).trim()).filter(Boolean);
+				return parsed.flatMap((tag) => {
+					const trimmed = String(tag).trim();
+					return trimmed ? [trimmed] : [];
+				});
 			}
 		} catch {
 			continue;

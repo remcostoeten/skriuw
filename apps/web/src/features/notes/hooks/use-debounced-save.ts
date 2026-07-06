@@ -2,6 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
+import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { type UpdateNoteInput } from "@/domain/notes/actions";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
@@ -57,12 +58,12 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 	useEffect(() => {
 		updateNoteRef.current = backend.updateNote;
 	}, [backend]);
-	const versionsRef = useRef(new Map<string, number>());
-	const sessionVersionIdsRef = useRef(new Map<string, string>());
-	const flushQueuesRef = useRef(new Map<string, Promise<void>>());
-	const pendingRef = useRef(new Map<string, PendingEdit>());
-	const dirtyRef = useRef(new Set<string>());
-	const idleTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+	const versionsRef = useLazyRef(() => new Map<string, number>());
+	const sessionVersionIdsRef = useLazyRef(() => new Map<string, string>());
+	const flushQueuesRef = useLazyRef(() => new Map<string, Promise<void>>());
+	const pendingRef = useLazyRef(() => new Map<string, PendingEdit>());
+	const dirtyRef = useLazyRef(() => new Set<string>());
+	const idleTimersRef = useLazyRef(() => new Map<string, ReturnType<typeof setTimeout>>());
 	const optionsRef = useRef(options);
 
 	useEffect(() => {
@@ -222,6 +223,7 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 			const wasDirty = dirtyRef.current.has(noteId);
 
 			if (pending) {
+				const baselineVersion = versionsRef.current.get(noteId) ?? 0;
 				const saved = await sendUpdate(noteId, pending, wantsCheckpoint);
 				if (saved) {
 					pendingRef.current.delete(noteId);
@@ -229,8 +231,17 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 					return;
 				}
 
-				pendingRef.current.set(noteId, pending);
-				dirtyRef.current.add(noteId);
+				// `sendUpdate` returns false both on a genuine write failure and
+				// when a newer schedule() superseded this edit mid-flight. Only
+				// re-instate this (now stale) snapshot on a real failure; if it was
+				// superseded, schedule() already stored the newer pending edit and
+				// armed its own flush — overwriting it here would clobber the newer
+				// content with the older one and lose keystrokes.
+				const superseded = (versionsRef.current.get(noteId) ?? 0) !== baselineVersion;
+				if (!superseded) {
+					pendingRef.current.set(noteId, pending);
+					dirtyRef.current.add(noteId);
+				}
 				return;
 			}
 

@@ -4,11 +4,17 @@ import type React from "react";
 
 describe("EditorToolbar", () => {
 	test("shows workspace navigation when workspace items are provided", async () => {
+		mock.module("server-only", () => ({}));
 		mock.module("@/shared/ui/guest-gate", () => ({
 			GuestGate: ({ children }: { children: React.ReactNode }) => children,
 		}));
 		mock.module("@/features/collaboration/components/collab-presence", () => ({
 			CollabPresence: () => null,
+		}));
+		mock.module("@/features/settings/store", () => ({
+			usePreferencesStore: <T,>(
+				selector: (state: { appearance: { showPageIcons: boolean } }) => T,
+			) => selector({ appearance: { showPageIcons: false } }),
 		}));
 
 		const { EditorToolbar } = await import(

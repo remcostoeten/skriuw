@@ -194,6 +194,7 @@ export function JournalEditor({
 										).map(([key, mood]) => (
 											<button
 												key={key}
+												type="button"
 												onClick={() => handleMoodSelect(key)}
 												className={cn(
 													"flex h-8 items-center gap-1.5 border border-transparent px-2.5 text-[12px] transition-colors",
@@ -242,6 +243,7 @@ export function JournalEditor({
 												>
 													@{tagName}
 													<button
+														type="button"
 														onClick={() => handleRemoveTag(tagName)}
 														className="border border-transparent p-0.5 transition-colors hover:border-current/20 hover:bg-foreground/10"
 													>
@@ -323,6 +325,7 @@ export function JournalEditor({
 													Delete this entry?
 												</span>
 												<button
+													type="button"
 													onClick={() => {
 														handleDeleteEntry();
 														setShowDeleteConfirm(false);
@@ -332,6 +335,7 @@ export function JournalEditor({
 													Delete
 												</button>
 												<button
+													type="button"
 													onClick={() => setShowDeleteConfirm(false)}
 													className="border border-transparent px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-muted"
 												>
@@ -340,6 +344,7 @@ export function JournalEditor({
 											</div>
 										) : (
 											<button
+												type="button"
 												onClick={() => setShowDeleteConfirm(true)}
 												className="flex items-center gap-1 border border-transparent px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:border-border hover:bg-muted hover:text-destructive"
 											>

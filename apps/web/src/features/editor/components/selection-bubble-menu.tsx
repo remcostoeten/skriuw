@@ -119,6 +119,21 @@ type TVisualViewportState = {
 	height: number;
 };
 
+// A hidden probe whose height resolves `env(safe-area-inset-bottom)`, so the
+// mobile toolbar can clear the iPhone home indicator when it pins to the very
+// bottom (keyboard closed). Resolves to 0 on devices without insets.
+let safeAreaProbe: HTMLDivElement | null = null;
+function getSafeAreaInsetBottom(): number {
+	if (typeof document === "undefined" || !document.body) return 0;
+	if (!safeAreaProbe) {
+		safeAreaProbe = document.createElement("div");
+		safeAreaProbe.style.cssText =
+			"position:fixed;bottom:0;left:0;width:0;height:env(safe-area-inset-bottom);pointer-events:none;visibility:hidden;";
+		document.body.appendChild(safeAreaProbe);
+	}
+	return safeAreaProbe.getBoundingClientRect().height;
+}
+
 function getVisualViewportState(): TVisualViewportState {
 	const viewport = window.visualViewport;
 	const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
@@ -134,7 +149,9 @@ function getVisualViewportState(): TVisualViewportState {
 }
 
 function useVisualViewportState(): TVisualViewportState | null {
-	const [viewport, setViewport] = useState<TVisualViewportState | null>(null);
+	const [viewport, setViewport] = useState<TVisualViewportState | null>(() =>
+		typeof window !== "undefined" ? getVisualViewportState() : null,
+	);
 
 	useEffect(() => {
 		let frame: number | null = null;
@@ -150,7 +167,7 @@ function useVisualViewportState(): TVisualViewportState | null {
 		update();
 		window.addEventListener("resize", update);
 		visualViewport?.addEventListener("resize", update);
-		visualViewport?.addEventListener("scroll", update);
+		visualViewport?.addEventListener("scroll", update, { passive: true });
 		return () => {
 			if (frame !== null) cancelAnimationFrame(frame);
 			window.removeEventListener("resize", update);
@@ -272,7 +289,7 @@ export function SelectionBubbleMenu({
 		window.addEventListener("scroll", schedule, true);
 		window.addEventListener("resize", schedule);
 		window.visualViewport?.addEventListener("resize", schedule);
-		window.visualViewport?.addEventListener("scroll", schedule);
+		window.visualViewport?.addEventListener("scroll", schedule, { passive: true });
 		return () => {
 			if (frame !== null) cancelAnimationFrame(frame);
 			document.removeEventListener("selectionchange", schedule);
@@ -359,7 +376,11 @@ export function SelectionBubbleMenu({
 				left: mobileViewport.left + 8,
 				top: Math.max(
 					mobileViewport.top + 8,
-					mobileViewport.top + mobileViewport.height - toolbarHeight - 10,
+					mobileViewport.top +
+						mobileViewport.height -
+						toolbarHeight -
+						10 -
+						getSafeAreaInsetBottom(),
 				),
 				width: Math.max(0, mobileViewport.width - 16),
 				zIndex: 60,

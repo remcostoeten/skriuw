@@ -162,10 +162,12 @@ export async function deletePerson(id: string): Promise<ChipRewriteResult> {
 			toId: null,
 			removalText: person.name,
 		});
-		await tx.noteLink.deleteMany({
-			where: { userId: user.id, kind: "person", targetLabel: id },
-		});
-		await tx.person.deleteMany({ where: { id, userId: user.id } });
+		await Promise.all([
+			tx.noteLink.deleteMany({
+				where: { userId: user.id, kind: "person", targetLabel: id },
+			}),
+			tx.person.deleteMany({ where: { id, userId: user.id } }),
+		]);
 		return { rewrittenNoteIds };
 	});
 }
@@ -186,10 +188,12 @@ export async function mergePersons(sourceId: string, targetId: string): Promise<
 			toId: targetId,
 			toName: target.name,
 		});
-		await tx.noteLink.deleteMany({
-			where: { userId: user.id, kind: "person", targetLabel: sourceId },
-		});
-		await tx.person.deleteMany({ where: { id: sourceId, userId: user.id } });
+		await Promise.all([
+			tx.noteLink.deleteMany({
+				where: { userId: user.id, kind: "person", targetLabel: sourceId },
+			}),
+			tx.person.deleteMany({ where: { id: sourceId, userId: user.id } }),
+		]);
 		return { rewrittenNoteIds };
 	});
 }

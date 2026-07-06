@@ -76,6 +76,7 @@ import { useAuth } from "@/core/auth/use-auth";
 import { goto, useGotoTarget } from "@/core/quick-access";
 import { useUpdateNote } from "@/features/notes/hooks/use-update-note";
 import { NoteIconPicker } from "@/features/notes/components/note-icon-picker";
+import { NoteCoverPicker } from "@/features/notes/components/note-cover";
 
 type Props = {
 	file: NoteFile | null;
@@ -107,9 +108,12 @@ function normalizeTag(tag: string): string {
 function uniqueTags(file: NoteFile): string[] {
 	return [
 		...new Set(
-			[...(file.tags ?? []), ...extractNoteTags(getNoteSearchableContent(file))]
-				.map(normalizeTag)
-				.filter(Boolean),
+			[...(file.tags ?? []), ...extractNoteTags(getNoteSearchableContent(file))].flatMap(
+				(tag) => {
+					const normalized = normalizeTag(tag);
+					return normalized ? [normalized] : [];
+				},
+			),
 		),
 	].toSorted((a, b) => a.localeCompare(b));
 }
@@ -340,16 +344,16 @@ function InspectorNoteControls({
 			{/* Publishing a share link is owner-only; collaborators don't see it. */}
 			{isOwnNote && !isDesktop ? (
 				<>
-					<div className="flex items-baseline justify-between gap-4">
+					<div className="flex items-start justify-between gap-4">
 						<dt className="text-[13px] text-muted-foreground">Share link</dt>
 						<dd className="flex flex-col items-end gap-1">
 							{staleShareHint}
-							<div className="flex items-center gap-3">
+							<div className="flex shrink-0 items-center gap-3">
 								{share ? (
 									<button
 										type="button"
 										onClick={() => void handleCopyShareLink()}
-										className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
+										className="whitespace-nowrap text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
 									>
 										Copy link
 									</button>
@@ -358,7 +362,7 @@ function InspectorNoteControls({
 									<button
 										type="button"
 										onClick={onShare}
-										className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
+										className="whitespace-nowrap text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
 									>
 										{shareActionLabel}
 									</button>
@@ -584,11 +588,13 @@ function LinkRow({
 	direction,
 	filesById,
 	onFileSelect,
+	isMobile = false,
 }: {
 	link: ResolvedNoteLink;
 	direction: "incoming" | "outgoing";
 	filesById: Map<string, NoteFile>;
 	onFileSelect?: (id: string) => void;
+	isMobile?: boolean;
 }) {
 	const files = useMemo(() => [...filesById.values()], [filesById]);
 	const { createAndOpenNote } = useNoteLinkActions(files);
@@ -600,6 +606,7 @@ function LinkRow({
 	const isResolved = link.status === "resolved" && link.targetNoteId;
 	const navigateTargetId = isBacklink ? link.sourceNoteId : link.targetNoteId;
 	const rowLabel = isBacklink ? `Open backlink source ${title}` : `Open linked note ${title}`;
+	const rowHeight = isMobile ? "min-h-11" : "min-h-9";
 
 	if (isResolved && navigateTargetId && onFileSelect) {
 		return (
@@ -608,7 +615,11 @@ function LinkRow({
 					type="button"
 					onClick={() => onFileSelect(navigateTargetId)}
 					aria-label={rowLabel}
-					className="group flex min-h-9 w-full cursor-pointer items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none"
+					className={cn(
+						"group flex w-full cursor-pointer items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none",
+						rowHeight,
+						isMobile && "active:bg-muted",
+					)}
 				>
 					<FileText
 						className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
@@ -633,7 +644,11 @@ function LinkRow({
 					type="button"
 					onClick={() => createAndOpenNote(title)}
 					aria-label={`Create note "${title}"`}
-					className="group flex min-h-9 w-full cursor-pointer items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none"
+					className={cn(
+						"group flex w-full cursor-pointer items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none",
+						rowHeight,
+						isMobile && "active:bg-muted",
+					)}
 				>
 					<Plus
 						className="h-3.5 w-3.5 shrink-0 text-muted-foreground/62"
@@ -651,7 +666,7 @@ function LinkRow({
 	}
 
 	return (
-		<li className="flex min-h-9 items-center gap-2 px-2 py-1.5">
+		<li className={cn("flex items-center gap-2 px-2 py-1.5", rowHeight)}>
 			<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground/62" strokeWidth={1.5} />
 			<span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">
 				{link.alias || link.targetLabel}
@@ -813,7 +828,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 		if (!tags.includes(selectedTag)) {
 			setSelectedTag(null);
 		}
-	}, [selectedTag, tags]);
+	}, [selectedTag, tags, setSelectedTag]);
 
 	const handleShare = () => {
 		if (!file) return;
@@ -824,6 +839,12 @@ export const MetadataPanel = memo(function MetadataPanel({
 		if (!file) return;
 		if (icon === file.icon) return;
 		updateNoteMutation.mutate({ id: file.id, icon: icon || "" });
+	};
+
+	const handleCoverChange = (cover: string) => {
+		if (!file) return;
+		if (cover === file.cover) return;
+		updateNoteMutation.mutate({ id: file.id, cover: cover || "" });
 	};
 
 	const asideClass = cn(
@@ -847,26 +868,35 @@ export const MetadataPanel = memo(function MetadataPanel({
 			className={asideClass}
 		>
 			{isMobile && (
-				<div className="shrink-0 border-b border-border bg-background px-4 pb-3 pt-3">
-					<div className="flex items-center justify-between gap-3">
-						<div className="mx-auto h-1.5 w-12 bg-border" />
+				<div className="shrink-0 border-b border-border bg-background px-4 pb-2 pt-2.5">
+					<div aria-hidden className="mx-auto mb-2 h-1.5 w-11 rounded-full bg-border" />
+					<div className="relative flex min-h-11 items-center justify-end gap-3">
+						<span className="absolute left-0 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-foreground">
+							Note details
+						</span>
 						{onRequestClose && (
 							<button
+								type="button"
 								onClick={onRequestClose}
 								onPointerDown={(event) => event.stopPropagation()}
 								aria-label="Close details"
 								data-sheet-no-drag
-								className="flex h-10 w-10 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
+								className="flex h-11 w-11 items-center justify-center rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground active:bg-muted"
 								title="Close details"
 							>
-								<X className="h-4 w-4" strokeWidth={1.6} />
+								<X className="h-5 w-5" strokeWidth={1.6} />
 							</button>
 						)}
 					</div>
 				</div>
 			)}
 
-			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+			<div
+				className={cn(
+					"min-h-0 flex-1 overflow-y-auto overscroll-contain",
+					isMobile && "momentum-scroll",
+				)}
+			>
 				<InspectorSection
 					id="note-inspector-outline"
 					title="Outline"
@@ -879,7 +909,12 @@ export const MetadataPanel = memo(function MetadataPanel({
 					<DocumentOutline headings={outlineHeadings} onSelect={scrollToHeading} />
 				</InspectorSection>
 
-				<div className="flex items-center gap-3 border-b border-border px-3 py-2.5">
+				<div
+					className={cn(
+						"flex items-center gap-3 border-b border-border px-3",
+						isMobile ? "min-h-14 py-2" : "py-2.5",
+					)}
+				>
 					<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/50">
 						Page Icon
 					</span>
@@ -888,7 +923,38 @@ export const MetadataPanel = memo(function MetadataPanel({
 						<button
 							type="button"
 							onClick={() => handleIconChange("")}
-							className="ml-auto text-[11px] text-muted-foreground/50 underline decoration-dotted underline-offset-2 hover:text-foreground"
+							className={cn(
+								"ml-auto text-muted-foreground/50 underline decoration-dotted underline-offset-2 hover:text-foreground",
+								isMobile
+									? "inline-flex min-h-11 items-center px-1 text-[13px] active:text-foreground"
+									: "text-[11px]",
+							)}
+						>
+							Remove
+						</button>
+					)}
+				</div>
+
+				<div
+					className={cn(
+						"flex items-center gap-3 border-b border-border px-3",
+						isMobile ? "min-h-14 py-2" : "py-2.5",
+					)}
+				>
+					<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/50">
+						Page Cover
+					</span>
+					<NoteCoverPicker cover={file.cover} onCoverChange={handleCoverChange} />
+					{file.cover && (
+						<button
+							type="button"
+							onClick={() => handleCoverChange("")}
+							className={cn(
+								"ml-auto text-muted-foreground/50 underline decoration-dotted underline-offset-2 hover:text-foreground",
+								isMobile
+									? "inline-flex min-h-11 items-center px-1 text-[13px] active:text-foreground"
+									: "text-[11px]",
+							)}
 						>
 							Remove
 						</button>
@@ -918,7 +984,10 @@ export const MetadataPanel = memo(function MetadataPanel({
 													setSelectedTag(isSelected ? null : tag)
 												}
 												className={cn(
-													"inline-flex min-h-7 cursor-pointer items-center border px-2 text-[12px] font-medium transition-colors focus-visible:border-ring focus-visible:outline-none",
+													"inline-flex cursor-pointer items-center border font-medium transition-colors focus-visible:border-ring focus-visible:outline-none",
+													isMobile
+														? "min-h-11 px-3 text-[14px] active:bg-secondary"
+														: "min-h-7 px-2 text-[12px]",
 													isSelected
 														? "border-ring bg-secondary text-foreground"
 														: "border-border bg-secondary/50 text-foreground/78 hover:border-ring/70 hover:text-foreground",
@@ -949,7 +1018,12 @@ export const MetadataPanel = memo(function MetadataPanel({
 															onFileSelect?.(taggedFile.id)
 														}
 														disabled={!onFileSelect}
-														className="group flex min-h-9 w-full cursor-pointer items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60"
+														className={cn(
+															"group flex w-full cursor-pointer items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60",
+															isMobile
+																? "min-h-11 active:bg-muted"
+																: "min-h-9",
+														)}
 													>
 														<FileText
 															className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
@@ -979,15 +1053,15 @@ export const MetadataPanel = memo(function MetadataPanel({
 					)}
 				</InspectorSection>
 
-				{mentionedPeople.length > 0 && (
-					<InspectorSection
-						id="note-inspector-people"
-						title="People"
-						icon={Contact}
-						count={mentionedPeople.length}
-						open={openSections.people}
-						onToggle={() => toggleSection("people")}
-					>
+				<InspectorSection
+					id="note-inspector-people"
+					title="People"
+					icon={Contact}
+					count={mentionedPeople.length}
+					open={openSections.people}
+					onToggle={() => toggleSection("people")}
+				>
+					{mentionedPeople.length > 0 ? (
 						<ul
 							aria-label="People mentioned in this note"
 							className="flex flex-wrap gap-1.5"
@@ -996,15 +1070,22 @@ export const MetadataPanel = memo(function MetadataPanel({
 								<li key={person.id}>
 									<Link
 										href={`/app/people/${person.id}`}
-										className="inline-flex min-h-7 cursor-pointer items-center border border-border bg-secondary/50 px-2 text-[12px] font-medium text-foreground/78 transition-colors hover:border-ring/70 hover:text-foreground focus-visible:border-ring focus-visible:outline-none"
+										className={cn(
+											"inline-flex cursor-pointer items-center border border-border bg-secondary/50 font-medium text-foreground/78 transition-colors hover:border-ring/70 hover:text-foreground focus-visible:border-ring focus-visible:outline-none",
+											isMobile
+												? "min-h-11 px-3 text-[14px] active:bg-secondary"
+												: "min-h-7 px-2 text-[12px]",
+										)}
 									>
 										{person.name}
 									</Link>
 								</li>
 							))}
 						</ul>
-					</InspectorSection>
-				)}
+					) : (
+						<EmptyLine>No people mentioned yet. Type $ in the editor.</EmptyLine>
+					)}
+				</InspectorSection>
 
 				{(backlinks.length > 0 || outgoingLinks.length > 0) && (
 					<InspectorSection
@@ -1032,6 +1113,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 												link={link}
 												filesById={filesById}
 												onFileSelect={onFileSelect}
+												isMobile={isMobile}
 											/>
 										))}
 									</ul>
@@ -1053,6 +1135,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 												link={link}
 												filesById={filesById}
 												onFileSelect={onFileSelect}
+												isMobile={isMobile}
 											/>
 										))}
 									</ul>

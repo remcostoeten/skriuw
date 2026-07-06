@@ -7,8 +7,6 @@ import {
 	FileText,
 	ListChecks,
 	Loader2,
-	PanelLeft,
-	PanelRight,
 	PenTool,
 	Rows2,
 	ScrollText,
@@ -24,6 +22,8 @@ import type { AiAction } from "@/features/ai/service";
 import Link from "next/link";
 import type { Awareness } from "y-protocols/awareness";
 import { cn } from "@/shared/lib/utils";
+import { PanelLeftToggleIcon } from "@/shared/icons/panel-left-toggle";
+import { PanelRightToggleIcon } from "@/shared/icons/panel-right-toggle";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -35,6 +35,7 @@ import { GuestGate } from "@/shared/ui/guest-gate";
 import { CollabPresence } from "@/features/collaboration/components/collab-presence";
 import { useShortcutHint, type ShortcutId } from "@/core/shortcuts";
 import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
+import { usePreferencesStore } from "@/features/settings/store";
 
 export type WorkspaceNavItem = {
 	href: string;
@@ -44,8 +45,18 @@ export type WorkspaceNavItem = {
 
 export type EditorSaveState = "idle" | "saving" | "saved" | "error";
 
+const EMPTY_WORKSPACE_ITEMS: WorkspaceNavItem[] = [];
+
+function runAiAction(handler?: () => void) {
+	return () => {
+		handler?.();
+	};
+}
+
 type Props = {
 	fileName: string;
+	/** Page emoji chosen via the icon picker; rendered before the title. */
+	fileIcon?: string;
 	breadcrumb?: string[];
 	saveState?: EditorSaveState;
 	isMobile?: boolean;
@@ -121,10 +132,12 @@ function WorkspaceMenu({
 function ToolbarTooltip({
 	label,
 	shortcutId,
+	hideShortcut = false,
 	children,
 }: {
 	label: string;
 	shortcutId?: ShortcutId;
+	hideShortcut?: boolean;
 	children: React.ReactNode;
 }) {
 	const shortcut = useShortcutHint(shortcutId);
@@ -132,7 +145,11 @@ function ToolbarTooltip({
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>{children}</TooltipTrigger>
-			<TooltipContent side="bottom" className="px-2 py-1 text-xs" shortcut={shortcut}>
+			<TooltipContent
+				side="bottom"
+				className="px-2 py-1 text-xs"
+				shortcut={hideShortcut ? undefined : shortcut}
+			>
 				{label}
 			</TooltipContent>
 		</Tooltip>
@@ -141,10 +158,11 @@ function ToolbarTooltip({
 
 export function EditorToolbar({
 	fileName,
+	fileIcon,
 	breadcrumb,
 	saveState: _saveState,
 	isMobile = false,
-	workspaceItems = [],
+	workspaceItems = EMPTY_WORKSPACE_ITEMS,
 	onToggleSidebar,
 	onToggleMetadata,
 	onOpenSettings,
@@ -169,6 +187,8 @@ export function EditorToolbar({
 	useEffect(() => {
 		setIsTauri(isTauriRuntime());
 	}, []);
+	const showPageIcons = usePreferencesStore((s) => s.appearance.showPageIcons);
+	const titleIcon = showPageIcons && fileIcon ? fileIcon : null;
 
 	const anyAiLoading = aiLoading ? Object.values(aiLoading).some(Boolean) : false;
 	const hasAiActions = Boolean(
@@ -177,65 +197,61 @@ export function EditorToolbar({
 	const sidebarIconButtonClass =
 		"flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground";
 
-	const runAiAction = (handler?: () => void) => () => {
-		handler?.();
-	};
-
 	if (isMobile) {
 		const mobileIconButton =
 			"flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-[0.97]";
 
 		return (
-			<TooltipProvider>
-				<header className="border-b border-border bg-card px-2 pb-2.5 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-3">
-					<div className="flex min-h-11 items-center gap-0.5">
-						<ToolbarTooltip label="Open notes" shortcutId="notes.toggleSidebar">
-							<button
-								onClick={onToggleSidebar}
-								className={mobileIconButton}
-								aria-label="Open notes"
-							>
-								<Sidebar className="h-5 w-5" strokeWidth={1.7} />
-							</button>
-						</ToolbarTooltip>
-						<WorkspaceMenu items={workspaceItems} buttonClassName={mobileIconButton} />
+			<header className="border-b border-border bg-card px-2 pb-2.5 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-3">
+				<div className="flex min-h-11 items-center gap-0.5">
+					<button
+						type="button"
+						onClick={onToggleSidebar}
+						className={mobileIconButton}
+						aria-label="Open notes"
+					>
+						<Sidebar className="h-5 w-5" strokeWidth={1.7} />
+					</button>
+					<WorkspaceMenu items={workspaceItems} buttonClassName={mobileIconButton} />
 
-						<div className="min-w-0 flex-1 px-1.5">
-							{breadcrumb && breadcrumb.length > 0 && (
-								<p className="truncate text-[11px] leading-tight text-muted-foreground/70">
-									{breadcrumb.join(" / ")}
-								</p>
+					<div className="min-w-0 flex-1 px-1.5">
+						{breadcrumb && breadcrumb.length > 0 && (
+							<p className="truncate text-[11px] leading-tight text-muted-foreground/70">
+								{breadcrumb.join(" / ")}
+							</p>
+						)}
+						<h1 className="truncate text-[17px] font-semibold leading-snug tracking-[-0.02em] text-foreground">
+							{titleIcon && (
+								<span className="mr-1.5" aria-hidden>
+									{titleIcon}
+								</span>
 							)}
-							<h1 className="truncate text-[17px] font-semibold leading-snug tracking-[-0.02em] text-foreground">
-								{fileName}
-							</h1>
-						</div>
-
-						<CollabPresence awareness={presenceAwareness} />
-
-						<ToolbarTooltip label="Open note details" shortcutId="notes.toggleMetadata">
-							<button
-								onClick={onToggleMetadata}
-								className={mobileIconButton}
-								aria-label="Open note details"
-							>
-								<PanelRight className="h-5 w-5" strokeWidth={1.7} />
-							</button>
-						</ToolbarTooltip>
-						{onOpenSettings ? (
-							<ToolbarTooltip label="Open settings" shortcutId="notes.settings">
-								<button
-									onClick={onOpenSettings}
-									className={mobileIconButton}
-									aria-label="Open settings"
-								>
-									<Settings2 className="h-5 w-5" strokeWidth={1.7} />
-								</button>
-							</ToolbarTooltip>
-						) : null}
+							{fileName}
+						</h1>
 					</div>
-				</header>
-			</TooltipProvider>
+
+					<CollabPresence awareness={presenceAwareness} />
+
+					<button
+						type="button"
+						onClick={onToggleMetadata}
+						className={mobileIconButton}
+						aria-label="Open note details"
+					>
+						<PanelRightToggleIcon size={20} strokeWidth={1.7} />
+					</button>
+					{onOpenSettings ? (
+						<button
+							type="button"
+							onClick={onOpenSettings}
+							className={mobileIconButton}
+							aria-label="Open settings"
+						>
+							<Settings2 className="h-5 w-5" strokeWidth={1.7} />
+						</button>
+					) : null}
+				</div>
+			</header>
 		);
 	}
 
@@ -253,15 +269,17 @@ export function EditorToolbar({
 			>
 				<ToolbarTooltip label="Toggle sidebar" shortcutId="notes.toggleSidebar">
 					<button
+						type="button"
 						onClick={onToggleSidebar}
 						className={sidebarIconButtonClass}
 						aria-label="Toggle sidebar"
 					>
-						<PanelLeft className="h-4 w-4" strokeWidth={1.5} />
+						<PanelLeftToggleIcon size={16} strokeWidth={1.5} />
 					</button>
 				</ToolbarTooltip>
 				<WorkspaceMenu items={workspaceItems} buttonClassName={sidebarIconButtonClass} />
 				<button
+					type="button"
 					onClick={onNavigatePrev}
 					disabled={!canNavigatePrev}
 					className={cn(
@@ -274,6 +292,7 @@ export function EditorToolbar({
 					<ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
 				</button>
 				<button
+					type="button"
 					onClick={onNavigateNext}
 					disabled={!canNavigateNext}
 					className={cn(
@@ -293,7 +312,10 @@ export function EditorToolbar({
 					{breadcrumb && breadcrumb.length > 0 && (
 						<>
 							{breadcrumb.map((part, i) => (
-								<span key={i} className="flex shrink-0 items-center gap-1.5">
+								<span
+									key={`${part}-${i}`}
+									className="flex shrink-0 items-center gap-1.5"
+								>
 									<span className="text-muted-foreground/50 truncate">
 										{part}
 									</span>
@@ -301,6 +323,11 @@ export function EditorToolbar({
 								</span>
 							))}
 						</>
+					)}
+					{titleIcon && (
+						<span className="shrink-0 text-[13px] leading-none" aria-hidden>
+							{titleIcon}
+						</span>
 					)}
 					<span className="text-muted-foreground/50 truncate font-medium ">
 						{fileName}
@@ -360,6 +387,7 @@ export function EditorToolbar({
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
 									<button
+										type="button"
 										disabled={anyAiLoading}
 										className={cn(
 											sidebarIconButtonClass,
@@ -520,16 +548,18 @@ export function EditorToolbar({
 
 					<ToolbarTooltip label="Toggle metadata" shortcutId="notes.toggleMetadata">
 						<button
+							type="button"
 							onClick={onToggleMetadata}
 							className={sidebarIconButtonClass}
 							aria-label="Toggle metadata"
 						>
-							<PanelRight className="h-4 w-4" strokeWidth={1.5} />
+							<PanelRightToggleIcon size={16} strokeWidth={1.5} />
 						</button>
 					</ToolbarTooltip>
 					{onOpenSettings && (
 						<ToolbarTooltip label="Open settings" shortcutId="notes.settings">
 							<button
+								type="button"
 								onClick={onOpenSettings}
 								className={sidebarIconButtonClass}
 								aria-label="Open settings"

@@ -1,7 +1,8 @@
-import type { CreateNoteInput, UpdateNoteInput, UpdateNoteResult } from "@/domain/notes/actions";
+import type { UpdateNoteInput, UpdateNoteResult } from "@/domain/notes/actions";
 import type { CreateFolderInput, UpdateFolderInput } from "@/domain/folders/actions";
 import type { GraphData } from "@/domain/notes/graph";
 import type { NoteFile, NoteFolder, NoteVersion } from "@/domain/notes/models";
+import type { CreateNoteInput } from "@/domain/notes/note-write-core";
 import type { ResolvedNoteLink } from "@/domain/notes/note-links";
 import type { JournalEntry, JournalTag } from "@/domain/journal/models";
 import type {

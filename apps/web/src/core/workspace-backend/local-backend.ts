@@ -204,7 +204,14 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 		async createNote(input) {
 			const note = noteFromCreateInput(input);
 			await store.update((payload) => {
-				payload.notes.push(note);
+				// Upsert on the client-provided id so a retried/double-fired create
+				// can't insert a duplicate row (the server backend upserts too).
+				const index = payload.notes.findIndex((existing) => existing.id === note.id);
+				if (index !== -1) {
+					payload.notes[index] = note;
+				} else {
+					payload.notes.push(note);
+				}
 			});
 			recordGuestEngagement();
 			return note;
@@ -372,8 +379,9 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 		async listPersonNotes(personId) {
 			const notes = await allNotes();
 			return notes
-				.filter((note) => noteMentionsPerson(note, personId))
-				.map(toNoteSummary)
+				.flatMap((note) =>
+					noteMentionsPerson(note, personId) ? [toNoteSummary(note)] : [],
+				)
 				.toSorted(byModifiedDesc);
 		},
 
@@ -446,8 +454,9 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 			if (!normalized) return [];
 			const notes = await allNotes();
 			return notes
-				.filter((note) => noteTagLabels(note).has(normalized))
-				.map(toNoteSummary)
+				.flatMap((note) =>
+					noteTagLabels(note).has(normalized) ? [toNoteSummary(note)] : [],
+				)
 				.toSorted(byModifiedDesc);
 		},
 	};

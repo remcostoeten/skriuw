@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import {
 	ChevronDown,
@@ -96,6 +96,9 @@ const BLOCK_TYPE_OPTIONS: TBlockTypeOption[] = [
 	},
 ];
 
+const FMT_MENU_FOCUSABLE_ITEMS =
+	'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 type TFmtIconButtonProps = {
 	label: string;
 	icon: ReactNode;
@@ -177,6 +180,7 @@ type TFmtMenuProps = {
 function FmtMenu({ id, trigger, children, onOpen, width }: TFmtMenuProps) {
 	const open = useOpenFmtMenu() === id;
 	const ref = useRef<HTMLDivElement>(null);
+	const dropdownRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => registerFmtToolbarMenu(), []);
 
@@ -200,14 +204,62 @@ function FmtMenu({ id, trigger, children, onOpen, width }: TFmtMenuProps) {
 		}
 	};
 
+	useLayoutEffect(() => {
+		if (!open) return;
+		dropdownRef.current?.querySelector<HTMLElement>(FMT_MENU_FOCUSABLE_ITEMS)?.focus();
+	}, [open]);
+
+	const focusTrigger = () => {
+		ref.current?.querySelector<HTMLElement>("button")?.focus();
+	};
+
+	const focusDropdownItem = (direction: 1 | -1) => {
+		const dropdown = dropdownRef.current;
+		if (!dropdown) return;
+		const items = Array.from(dropdown.querySelectorAll<HTMLElement>(FMT_MENU_FOCUSABLE_ITEMS));
+		if (items.length === 0) return;
+		const index = document.activeElement
+			? items.indexOf(document.activeElement as HTMLElement)
+			: -1;
+		items[(index + direction + items.length) % items.length]?.focus();
+	};
+
+	const focusDropdownBoundary = (edge: "first" | "last") => {
+		const dropdown = dropdownRef.current;
+		if (!dropdown) return;
+		const items = Array.from(dropdown.querySelectorAll<HTMLElement>(FMT_MENU_FOCUSABLE_ITEMS));
+		const item = edge === "first" ? items[0] : items.at(-1);
+		item?.focus();
+	};
+
 	return (
 		<div className="skriuw-fmt-menu" ref={ref}>
 			{trigger({ open, toggle })}
 			{open ? (
 				<div
+					ref={dropdownRef}
 					className="skriuw-fmt-dropdown"
 					role="menu"
 					style={width ? ({ minWidth: width } as CSSProperties) : undefined}
+					onKeyDown={(event) => {
+						if (event.key === "Escape") {
+							event.preventDefault();
+							setOpenFmtMenu(null);
+							focusTrigger();
+							return;
+						}
+
+						if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+							event.preventDefault();
+							focusDropdownItem(event.key === "ArrowDown" ? 1 : -1);
+							return;
+						}
+
+						if (event.key === "Home" || event.key === "End") {
+							event.preventDefault();
+							focusDropdownBoundary(event.key === "Home" ? "first" : "last");
+						}
+					}}
 				>
 					{children(() => setOpenFmtMenu(null))}
 				</div>

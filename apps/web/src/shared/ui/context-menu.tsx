@@ -1,9 +1,12 @@
+"use client";
+
 import * as React from "react";
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import { Check, ChevronRight, Circle } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
 import { overlayContentMotion } from "@/shared/ui/overlay-motion";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 const ContextMenu = ContextMenuPrimitive.Root;
 
@@ -168,6 +171,9 @@ const ContextMenuSeparator = React.forwardRef<
 ContextMenuSeparator.displayName = ContextMenuPrimitive.Separator.displayName;
 
 function ContextMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
+	const isMobile = useIsMobile();
+	if (isMobile) return null;
+
 	return (
 		<span
 			className={cn("ml-auto text-[10px] tracking-[0.18em] text-foreground/38", className)}
