@@ -50,9 +50,13 @@ export function Row({
 			)}
 		>
 			<div className="min-w-0 flex-1">
-				<div id={titleId} className="text-sm font-medium">{title}</div>
+				<div id={titleId} className="text-sm font-medium">
+					{title}
+				</div>
 				{description && (
-					<div id={descriptionId} className="mt-0.5 text-xs text-muted-foreground">{description}</div>
+					<div id={descriptionId} className="mt-0.5 text-xs text-muted-foreground">
+						{description}
+					</div>
 				)}
 				{visualization ? <div className="mt-3">{visualization}</div> : null}
 			</div>

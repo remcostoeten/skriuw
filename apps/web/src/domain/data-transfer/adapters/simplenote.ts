@@ -47,7 +47,9 @@ function deriveTitle(content: string): string {
 		.split(/\r?\n/)
 		.map((line) => line.trim())
 		.find((line) => line.length > 0);
-	const title = safeArchiveName(firstLine ?? "").slice(0, MAX_TITLE_LENGTH).trim();
+	const title = safeArchiveName(firstLine ?? "")
+		.slice(0, MAX_TITLE_LENGTH)
+		.trim();
 	return title || "untitled";
 }
 

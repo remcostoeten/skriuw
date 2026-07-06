@@ -106,7 +106,9 @@ export function TagManager() {
 
 						<div className="flex-1 min-w-0">
 							<div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-								<span className="tabular-nums">{noteCountLabel(tag.noteCount)}</span>
+								<span className="tabular-nums">
+									{noteCountLabel(tag.noteCount)}
+								</span>
 							</div>
 						</div>
 

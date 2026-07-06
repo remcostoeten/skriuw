@@ -55,11 +55,13 @@ import {
 	useWorkspaceCapabilities,
 } from "@/core/workspace-backend";
 import {
-	findRestoredSourceIndex,
-	getHistoryBranchRoles,
 	HistoryGraphRail,
 	type HistoryBranchRole,
 } from "@/features/notes/components/note-history-graph";
+import {
+	findRestoredSourceIndex,
+	getHistoryBranchRoles,
+} from "@/features/notes/components/note-history-graph-utils";
 import { StaleShareHint } from "@/features/notes/components/stale-share-hint";
 import { copyTextToClipboard, resolveClientShareUrl } from "@/features/notes/lib/note-share-export";
 import { useNoteSharing } from "@/features/sharing/hooks/use-note-sharing";

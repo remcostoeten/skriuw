@@ -17,7 +17,6 @@ export function PerfDevtools() {
 	const [open, setOpen] = useState(false);
 
 	useEffect(() => {
-		if (process.env.NODE_ENV === "production") return;
 		setOpen(localStorage.getItem(STORAGE_KEY) === "on");
 
 		function onKeyDown(event: KeyboardEvent) {
@@ -34,7 +33,7 @@ export function PerfDevtools() {
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, []);
 
-	if (process.env.NODE_ENV === "production" || !open) return null;
+	if (!open) return null;
 
 	return (
 		<Suspense fallback={null}>

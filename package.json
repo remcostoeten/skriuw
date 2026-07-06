@@ -124,6 +124,7 @@
 		"zustand": "^5.0.5"
 	},
 	"devDependencies": {
+		"@cloudflare/workers-types": "^5.20260705.1",
 		"@next/playwright": "^16.2.6",
 		"@playwright/test": "^1.59.1",
 		"@tailwindcss/postcss": "^4.2.1",

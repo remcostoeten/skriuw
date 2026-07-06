@@ -12,14 +12,14 @@ the surface when the store decides a rule fires.
 
 ## When you need a shared store
 
-| Trigger | Config key | Who emits the event? | Needs shared store? |
-| :-- | :-- | :-- | :-- |
-| Page load | `pageLoad` | `AuthDrawer` on mount (respects `delayMs`) | No |
-| Click | `click` | `AuthDrawer` on a matching document event | No |
-| Scroll | `scrollOpen` | Host app (usually `useScrollOpenTrigger` + emit) | Yes |
-| Auth state | `state` | Host app (API client, route guard, 401 handler) | Yes |
-| Idle | `idle` | Host app (your idle detector) | Yes |
-| Custom | `custom` | Host app (any named channel) | Yes |
+| Trigger    | Config key   | Who emits the event?                             | Needs shared store? |
+| :--------- | :----------- | :----------------------------------------------- | :------------------ |
+| Page load  | `pageLoad`   | `AuthDrawer` on mount (respects `delayMs`)       | No                  |
+| Click      | `click`      | `AuthDrawer` on a matching document event        | No                  |
+| Scroll     | `scrollOpen` | Host app (usually `useScrollOpenTrigger` + emit) | Yes                 |
+| Auth state | `state`      | Host app (API client, route guard, 401 handler)  | Yes                 |
+| Idle       | `idle`       | Host app (your idle detector)                    | Yes                 |
+| Custom     | `custom`     | Host app (any named channel)                     | Yes                 |
 
 `pageLoad` and `click` work with no `triggerStore` prop — `AuthDrawer` makes one
 internally. For scroll/state/idle/custom, create one store and pass it to both
@@ -29,20 +29,20 @@ the drawer and the emitting code.
 
 ```ts
 type AuthTriggerConfig = {
-  pageLoad?: TriggerPolicy & { delayMs?: number };
-  click?:    TriggerPolicy & { selector?: string; event?: "click" | "pointerdown" };
-  state?:    TriggerPolicy & { state: "denied" | "expired" | "missing" };
-  scrollOpen?: TriggerPolicy & { threshold?: number; container?: "self" | "page" };
-  idle?:     TriggerPolicy & { idleMs: number };
-  custom?:   TriggerPolicy & { event: string };
+	pageLoad?: TriggerPolicy & { delayMs?: number };
+	click?: TriggerPolicy & { selector?: string; event?: "click" | "pointerdown" };
+	state?: TriggerPolicy & { state: "denied" | "expired" | "missing" };
+	scrollOpen?: TriggerPolicy & { threshold?: number; container?: "self" | "page" };
+	idle?: TriggerPolicy & { idleMs: number };
+	custom?: TriggerPolicy & { event: string };
 };
 
 type TriggerPolicy = {
-  once?: boolean;        // fire at most once per scope bucket
-  cooldownMs?: number;   // minimum time between firings
-  scope?: "session" | "day" | "week" | "install"; // eligibility bucket
-  every?: number;        // fire only on every Nth matching event
-  sampleRate?: number;   // random gate, 0..1
+	once?: boolean; // fire at most once per scope bucket
+	cooldownMs?: number; // minimum time between firings
+	scope?: "session" | "day" | "week" | "install"; // eligibility bucket
+	every?: number; // fire only on every Nth matching event
+	sampleRate?: number; // random gate, 0..1
 };
 ```
 
@@ -54,39 +54,42 @@ default `once` to `false`.
 
 ```tsx
 import {
-  AuthDrawer, createAuthTriggerStore, useScrollOpenTrigger, type AuthConfig,
+	AuthDrawer,
+	createAuthTriggerStore,
+	useScrollOpenTrigger,
+	type AuthConfig,
 } from "@remcostoeten/auth-drawer";
 import { useRef } from "react";
 
 const triggerStore = createAuthTriggerStore();
 
 const config: AuthConfig = {
-  triggers: {
-    pageLoad: { delayMs: 800, once: true },
-    scrollOpen: { threshold: 0.25, once: true, cooldownMs: 30_000 },
-    state: { state: "expired", once: true },
-    custom: { event: "paywall:blocked", scope: "session" },
-  },
+	triggers: {
+		pageLoad: { delayMs: 800, once: true },
+		scrollOpen: { threshold: 0.25, once: true, cooldownMs: 30_000 },
+		state: { state: "expired", once: true },
+		custom: { event: "paywall:blocked", scope: "session" },
+	},
 };
 
 function ArticlePaywall() {
-  const articleRef = useRef<HTMLDivElement>(null);
+	const articleRef = useRef<HTMLDivElement>(null);
 
-  useScrollOpenTrigger({
-    containerRef: articleRef,
-    threshold: config.triggers?.scrollOpen?.threshold ?? 0.25,
-    once: config.triggers?.scrollOpen?.once ?? true,
-    enabled: Boolean(config.triggers?.scrollOpen),
-    onTrigger: (progress) =>
-      triggerStore.emit({ kind: "scrollOpen", progress, container: "self" }),
-  });
+	useScrollOpenTrigger({
+		containerRef: articleRef,
+		threshold: config.triggers?.scrollOpen?.threshold ?? 0.25,
+		once: config.triggers?.scrollOpen?.once ?? true,
+		enabled: Boolean(config.triggers?.scrollOpen),
+		onTrigger: (progress) =>
+			triggerStore.emit({ kind: "scrollOpen", progress, container: "self" }),
+	});
 
-  return (
-    <>
-      <div ref={articleRef}>{/* scrollable article */}</div>
-      <AuthDrawer adapter={adapter} config={config} triggerStore={triggerStore} hideTrigger />
-    </>
-  );
+	return (
+		<>
+			<div ref={articleRef}>{/* scrollable article */}</div>
+			<AuthDrawer adapter={adapter} config={config} triggerStore={triggerStore} hideTrigger />
+		</>
+	);
 }
 ```
 
@@ -107,12 +110,17 @@ triggerStore.emit({ kind: "idle", idleMs: 60_000 });
 
 ```ts
 type AuthTriggerEvent =
-  | { kind: "pageLoad"; source?: "mount" | "manual" }
-  | { kind: "click"; selector?: string; event?: "click" | "pointerdown"; target?: EventTarget | null }
-  | { kind: "state"; state: "denied" | "expired" | "missing"; reason?: string; payload?: unknown }
-  | { kind: "scrollOpen"; progress: number; threshold?: number; container?: "self" | "page" }
-  | { kind: "idle"; idleMs: number }
-  | { kind: "custom"; event: string; payload?: unknown };
+	| { kind: "pageLoad"; source?: "mount" | "manual" }
+	| {
+			kind: "click";
+			selector?: string;
+			event?: "click" | "pointerdown";
+			target?: EventTarget | null;
+	  }
+	| { kind: "state"; state: "denied" | "expired" | "missing"; reason?: string; payload?: unknown }
+	| { kind: "scrollOpen"; progress: number; threshold?: number; container?: "self" | "page" }
+	| { kind: "idle"; idleMs: number }
+	| { kind: "custom"; event: string; payload?: unknown };
 ```
 
 - `scrollOpen` fires when `event.progress >= config.threshold` (default `0.25`).

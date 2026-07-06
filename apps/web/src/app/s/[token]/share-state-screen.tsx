@@ -4,10 +4,7 @@ import type { ReactNode } from "react";
 
 type TerminalStatus = "expired" | "revoked" | "consumed" | "not-found";
 
-const COPY: Record<
-	TerminalStatus,
-	{ icon: ReactNode; title: string; body: string }
-> = {
+const COPY: Record<TerminalStatus, { icon: ReactNode; title: string; body: string }> = {
 	expired: {
 		icon: <Clock className="h-6 w-6" strokeWidth={1.6} />,
 		title: "This link has expired",
@@ -39,7 +36,10 @@ export function ShareShell({ children }: { children: ReactNode }) {
 			</div>
 			<footer className="border-t border-border px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] text-muted-foreground/70">
 				Shared with{" "}
-				<Link href="/" className="font-medium text-foreground/80 transition-colors hover:text-foreground">
+				<Link
+					href="/"
+					className="font-medium text-foreground/80 transition-colors hover:text-foreground"
+				>
 					Skriuw
 				</Link>
 			</footer>

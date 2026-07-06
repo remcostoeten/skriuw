@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { MoreHorizontal, Pencil, Trash2, Merge, Users } from "lucide-react";
 import type { Person } from "@/domain/people/models";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
@@ -28,11 +27,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { Input } from "@/shared/ui/input";
 import { useWorkspacePeople } from "../hooks/use-people";
-import {
-	useDeletePerson,
-	useMergePersons,
-	useUpdatePerson,
-} from "../hooks/use-people-management";
+import { useDeletePerson, useMergePersons, useUpdatePerson } from "../hooks/use-people-management";
 
 type PendingAction =
 	| { kind: "rename"; person: Person }
@@ -40,7 +35,6 @@ type PendingAction =
 	| { kind: "delete"; person: Person };
 
 export function PeopleOverview() {
-	const router = useRouter();
 	const { data: people = [], isLoading } = useWorkspacePeople();
 	const updatePerson = useUpdatePerson();
 	const deletePerson = useDeletePerson();
@@ -81,8 +75,8 @@ export function PeopleOverview() {
 					<header className="border-b border-border px-6 py-5">
 						<h1 className="text-base font-semibold text-foreground">People</h1>
 						<p className="mt-0.5 text-sm text-muted-foreground">
-							Everyone you've mentioned with $. Renames update every mention instantly;
-							merges and deletes rewrite the notes involved.
+							Everyone you've mentioned with $. Renames update every mention
+							instantly; merges and deletes rewrite the notes involved.
 						</p>
 					</header>
 
@@ -99,9 +93,14 @@ export function PeopleOverview() {
 									<ColorSwatchPicker
 										value={person.color}
 										label={person.name}
-										onChange={(color) => updatePerson.mutate({ id: person.id, color })}
+										onChange={(color) =>
+											updatePerson.mutate({ id: person.id, color })
+										}
 									/>
-									<Link href={`/app/people/${person.id}`} className="min-w-0 flex-1">
+									<Link
+										href={`/app/people/${person.id}`}
+										className="min-w-0 flex-1"
+									>
 										<p className="truncate text-sm font-medium text-foreground">
 											{person.name}
 										</p>
@@ -139,7 +138,9 @@ export function PeopleOverview() {
 											<DropdownMenuSeparator />
 											<DropdownMenuItem
 												className="text-destructive focus:text-destructive"
-												onSelect={() => setPending({ kind: "delete", person })}
+												onSelect={() =>
+													setPending({ kind: "delete", person })
+												}
 											>
 												<Trash2 className="mr-2 h-3.5 w-3.5" />
 												Delete
@@ -183,13 +184,16 @@ export function PeopleOverview() {
 				</DialogContent>
 			</Dialog>
 
-			<Dialog open={pending?.kind === "merge"} onOpenChange={(open) => !open && setPending(null)}>
+			<Dialog
+				open={pending?.kind === "merge"}
+				onOpenChange={(open) => !open && setPending(null)}
+			>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Merge {pending?.person.name} into…</DialogTitle>
 						<DialogDescription>
-							Every mention of {pending?.person.name} is repointed at the person you pick,
-							then the duplicate is removed.
+							Every mention of {pending?.person.name} is repointed at the person you
+							pick, then the duplicate is removed.
 						</DialogDescription>
 					</DialogHeader>
 					<ul className="max-h-64 overflow-y-auto rounded-md border border-border">

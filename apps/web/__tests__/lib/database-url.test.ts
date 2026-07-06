@@ -3,8 +3,7 @@ import { normalizeDatabaseUrl } from "@/lib/database-url";
 
 describe("normalizeDatabaseUrl", () => {
 	test("upgrades legacy sslmode=require to verify-full", () => {
-		const url =
-			"postgresql://user:pass@host/db?sslmode=require&channel_binding=require";
+		const url = "postgresql://user:pass@host/db?sslmode=require&channel_binding=require";
 		expect(normalizeDatabaseUrl(url)).toBe(
 			"postgresql://user:pass@host/db?sslmode=verify-full&channel_binding=require",
 		);

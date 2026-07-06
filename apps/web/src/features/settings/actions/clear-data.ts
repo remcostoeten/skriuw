@@ -51,7 +51,10 @@ export async function clearAllData(confirmation: string): Promise<ClearDataResul
 			prisma.userRecent.deleteMany({ where: { userId } }),
 		]);
 	} catch (error) {
-		return { ok: false, error: error instanceof Error ? error.message : "Could not clear data" };
+		return {
+			ok: false,
+			error: error instanceof Error ? error.message : "Could not clear data",
+		};
 	}
 
 	return { ok: true };

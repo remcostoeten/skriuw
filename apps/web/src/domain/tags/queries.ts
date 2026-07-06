@@ -1,6 +1,7 @@
 import { getAuthenticatedUser } from "@/core/db";
 import type { JournalEntry, JournalTag } from "@/domain/journal/models";
 import { deriveWorkspaceTags } from "@/domain/tags/workspace-tags";
+import type { RichTextDocument } from "@/types/notes";
 
 export async function listWorkspaceTags(): Promise<JournalTag[]> {
 	const { prisma, user } = await getAuthenticatedUser();
@@ -26,7 +27,7 @@ export async function listWorkspaceTags(): Promise<JournalTag[]> {
 		}),
 		prisma.note.findMany({
 			where: { userId: user.id, deletedAt: null },
-			select: { tags: true, content: true },
+			select: { tags: true, content: true, richContent: true },
 		}),
 	]);
 
@@ -47,5 +48,11 @@ export async function listWorkspaceTags(): Promise<JournalTag[]> {
 		usageCount: tag.usageCount,
 	}));
 
-	return deriveWorkspaceTags(journalEntries, tags, []);
+	const noteTagSources = notes.map((note) => ({
+		tags: note.tags,
+		content: note.content,
+		richContent: (note.richContent as RichTextDocument | null) ?? [],
+	}));
+
+	return deriveWorkspaceTags(journalEntries, tags, noteTagSources);
 }

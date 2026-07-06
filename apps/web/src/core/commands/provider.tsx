@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useRef, useState, useCallback, useMemo } from "react";
 import { useShortcutScope } from "../shortcuts";
-import { COMMAND_REGISTRY, type CommandDefinition, type CommandId } from "./registry";
+import { COMMAND_REGISTRY } from "./registry";
 import type { Scope } from "../shortcuts/scopes";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 

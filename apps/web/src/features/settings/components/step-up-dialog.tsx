@@ -73,7 +73,10 @@ export function StepUpDialog(props: Props) {
 							>
 								Cancel
 							</Button>
-							<Button type="submit" disabled={props.pending || !props.password.trim()}>
+							<Button
+								type="submit"
+								disabled={props.pending || !props.password.trim()}
+							>
 								{props.pending ? "Verifying…" : props.confirmLabel}
 							</Button>
 						</DialogFooter>

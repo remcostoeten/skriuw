@@ -62,12 +62,7 @@ export function DevMenu() {
 						)}
 					</button>
 				</PopoverTrigger>
-				<PopoverContent
-					align="end"
-					side="top"
-					sideOffset={8}
-					className="w-72 p-2"
-				>
+				<PopoverContent align="end" side="top" sideOffset={8} className="w-72 p-2">
 					<div className="border-b border-border px-2 pb-2 pt-1">
 						<div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/68">
 							Developer tools

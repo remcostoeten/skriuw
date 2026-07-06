@@ -13,12 +13,12 @@ Clip-path creates reveal animations without layout shifts—elements occupy thei
 
 ```css
 .reveal {
-  height: 0;
-  overflow: hidden;
-  transition: height 300ms ease-out;
+	height: 0;
+	overflow: hidden;
+	transition: height 300ms ease-out;
 }
 .reveal.open {
-  height: auto; /* Causes layout recalculation */
+	height: auto; /* Causes layout recalculation */
 }
 ```
 
@@ -26,15 +26,16 @@ Clip-path creates reveal animations without layout shifts—elements occupy thei
 
 ```css
 .reveal {
-  clip-path: inset(0 0 100% 0); /* Hidden */
-  transition: clip-path 300ms ease-out;
+	clip-path: inset(0 0 100% 0); /* Hidden */
+	transition: clip-path 300ms ease-out;
 }
 .reveal.open {
-  clip-path: inset(0 0 0 0); /* Fully revealed */
+	clip-path: inset(0 0 0 0); /* Fully revealed */
 }
 ```
 
 **Common clip-path patterns:**
+
 - `inset(0 0 100% 0)` - Hide bottom
 - `inset(100% 0 0 0)` - Hide top
 - `inset(0 100% 0 0)` - Hide right

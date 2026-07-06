@@ -185,7 +185,10 @@ export function NoteShareImageDialog({
 				</DialogHeader>
 
 				<div className="flex justify-center overflow-hidden rounded-xl bg-muted/40 p-4">
-					<div className="origin-top" style={{ transform: "scale(0.62)", marginBottom: -180 }}>
+					<div
+						className="origin-top"
+						style={{ transform: "scale(0.62)", marginBottom: -180 }}
+					>
 						<ShareImageCard
 							title={payload.title}
 							preview={preview}
@@ -230,7 +233,11 @@ export function NoteShareImageDialog({
 						Copy image
 					</Button>
 					<Button onClick={handleDownload} disabled={isBusy}>
-						{isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+						{isBusy ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : (
+							<Download className="h-4 w-4" />
+						)}
 						Download PNG
 					</Button>
 				</div>

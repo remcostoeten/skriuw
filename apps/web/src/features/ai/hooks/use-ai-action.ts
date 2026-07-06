@@ -85,7 +85,12 @@ export type AiActionController<TAction extends AiAction> = {
 	handleEditorReady: (handle: AiEditorHandle) => void;
 	/** The most recently registered editor handle, e.g. for callers that need to act on it outside of `runAiAction` (title sync, exports, etc.). */
 	editorHandleRef: RefObject<AiEditorHandle | null>;
-	runAiAction: (action: TAction, keyId?: string, exhaustedIds?: string[], instruction?: string) => void;
+	runAiAction: (
+		action: TAction,
+		keyId?: string,
+		exhaustedIds?: string[],
+		instruction?: string,
+	) => void;
 	/** Cancels the in-flight streamed request, if any — the stream resolves with its partial result. */
 	cancelAiAction: () => void;
 	dismissAiError: () => void;
@@ -184,7 +189,8 @@ export function useAiAction<TAction extends AiAction>(
 						action,
 						code: "unknown",
 						title: "Editor is still loading",
-						message: "The AI action could not start because the editor is not ready yet.",
+						message:
+							"The AI action could not start because the editor is not ready yet.",
 						details: `Wait for the ${loadingEntityLabel} to finish loading, then try again.`,
 					});
 					inFlightActionsRef.current.delete(action);
@@ -242,9 +248,14 @@ export function useAiAction<TAction extends AiAction>(
 
 					if (streamApplier) {
 						try {
-							const result = await callAiStream(action, markdown, callOptions, (text) => {
-								streamApplier.update(text);
-							});
+							const result = await callAiStream(
+								action,
+								markdown,
+								callOptions,
+								(text) => {
+									streamApplier.update(text);
+								},
+							);
 							streamApplier.update(result);
 						} finally {
 							const insertedIds = streamApplier.done();

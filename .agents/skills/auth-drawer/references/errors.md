@@ -10,12 +10,12 @@ let them through.
 type AuthResult<T = any> = { success: boolean; data?: T | null; error?: AuthUiError | null };
 
 type AuthUiError = {
-  code: AuthErrorCode;
-  message: string;
-  target: "email" | "password" | "confirmPassword" | "form" | "oauth";  // where the message renders
-  provider?: OAuthProvider;
-  retryable?: boolean;
-  cause?: unknown;
+	code: AuthErrorCode;
+	message: string;
+	target: "email" | "password" | "confirmPassword" | "form" | "oauth"; // where the message renders
+	provider?: OAuthProvider;
+	retryable?: boolean;
+	cause?: unknown;
 };
 ```
 
@@ -26,21 +26,21 @@ taken", `form` for invalid credentials, `oauth` for provider failures.
 
 ```ts
 type AuthErrorCode =
-  | "required"
-  | "invalid_email"
-  | "weak_password"
-  | "password_mismatch"
-  | "invalid_credentials"
-  | "email_not_verified"
-  | "email_taken"
-  | "user_not_found"
-  | "provider_unavailable"
-  | "oauth_cancelled"
-  | "popup_blocked"
-  | "rate_limited"
-  | "network_error"
-  | "server_error"
-  | "unknown";
+	| "required"
+	| "invalid_email"
+	| "weak_password"
+	| "password_mismatch"
+	| "invalid_credentials"
+	| "email_not_verified"
+	| "email_taken"
+	| "user_not_found"
+	| "provider_unavailable"
+	| "oauth_cancelled"
+	| "popup_blocked"
+	| "rate_limited"
+	| "network_error"
+	| "server_error"
+	| "unknown";
 ```
 
 Each code has built-in user-facing copy, so you usually only pick the code and

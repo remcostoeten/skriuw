@@ -2,13 +2,7 @@
 
 import type { Variants } from "framer-motion";
 import { LazyMotion, domMin, m, useAnimation, useReducedMotion } from "framer-motion";
-import {
-	forwardRef,
-	useCallback,
-	useImperativeHandle,
-	useRef,
-	type HTMLAttributes,
-} from "react";
+import { forwardRef, useCallback, useImperativeHandle, useRef, type HTMLAttributes } from "react";
 
 import { cn } from "@/shared/lib/utils";
 

@@ -37,7 +37,7 @@ const ESC = "\x1b";
 const HEADER_HEIGHT = 3;
 const FOOTER_HEIGHT = 3;
 
-const WEB_DIR = path.join(import.meta.dir, "..", "apps", "web");
+const WEB_DIR = path.join(import.meta.dirname, "..", "apps", "web");
 const TEST_ARGS = ["test", "--coverage", "--isolate", "__tests__"];
 
 function color(code: number, text: string): string {
@@ -339,6 +339,7 @@ class Screen {
 }
 
 function stripLen(text: string): number {
+	// eslint-disable-next-line no-control-regex
 	return text.replace(/\x1b\[[0-9;]*m/g, "").length;
 }
 
@@ -348,6 +349,7 @@ function clip(text: string, maxWidth: number): string {
 	let i = 0;
 	while (i < text.length) {
 		if (text[i] === ESC) {
+			// eslint-disable-next-line no-control-regex
 			const match = text.slice(i).match(/^\x1b\[[0-9;]*m/);
 			if (match) {
 				out += match[0];

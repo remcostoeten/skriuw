@@ -10,10 +10,13 @@ import { commentRenderer, COMMENT_MARK_TYPE, type TCommentPayload } from "../ren
 type TRange = { from: number; to: number };
 
 /** Minimal shape we need from the collab room — kept loose to avoid coupling. */
-type TCollabLike = {
-	doc: { clientID: number } & Parameters<typeof getAnchoredMarkMap>[0];
-	user: { name: string; color: string } | null;
-} | null | undefined;
+type TCollabLike =
+	| {
+			doc: { clientID: number } & Parameters<typeof getAnchoredMarkMap>[0];
+			user: { name: string; color: string } | null;
+	  }
+	| null
+	| undefined;
 
 export type TUseAnchoredMarks = {
 	/** True once the engine is attached to a live, Yjs-bound editor view. */

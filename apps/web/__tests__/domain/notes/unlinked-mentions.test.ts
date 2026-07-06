@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	findUnlinkedMentions,
-	linkifyFirstMention,
-} from "@/domain/notes/unlinked-mentions";
+import { findUnlinkedMentions, linkifyFirstMention } from "@/domain/notes/unlinked-mentions";
 import type { NoteFile } from "@/types/notes";
 
 function note(input: Partial<NoteFile> & Pick<NoteFile, "id" | "name" | "content">): NoteFile {

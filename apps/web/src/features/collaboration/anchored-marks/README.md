@@ -2,7 +2,7 @@
 
 A small, framework-light engine for **persistent, edit-surviving annotations**
 anchored to ranges of a collaborative document. It powers comments today and is
-built so highlights, suggested edits, AI notes, bookmarks, etc. are *adapters*,
+built so highlights, suggested edits, AI notes, bookmarks, etc. are _adapters_,
 not rewrites.
 
 ## Why an engine (and not just "comments")
@@ -34,7 +34,7 @@ index.ts                public barrel
 ```
 
 - The **store** never imports ProseMirror — anchors are opaque bytes to it.
-- The **codec** is the *only* place that knows about y-prosemirror positions.
+- The **codec** is the _only_ place that knows about y-prosemirror positions.
 - The **renderers** are the adapter seam.
 
 ## Adding a new annotation type (the adapter pattern)
@@ -45,13 +45,13 @@ No engine change required:
 // renderers/highlight.ts
 export const HIGHLIGHT_MARK_TYPE = "highlight";
 export function highlightRenderer(): TMarkRenderer {
-  return {
-    type: HIGHLIGHT_MARK_TYPE,
-    buildDecorations({ mark, from, to }) {
-      if (from >= to) return [];
-      return [Decoration.inline(from, to, { class: "anchored-highlight" })];
-    },
-  };
+	return {
+		type: HIGHLIGHT_MARK_TYPE,
+		buildDecorations({ mark, from, to }) {
+			if (from >= to) return [];
+			return [Decoration.inline(from, to, { class: "anchored-highlight" })];
+		},
+	};
 }
 ```
 
@@ -77,7 +77,7 @@ const map = getAnchoredMarkMap(collab.doc);
 const store = new AnchoredMarkStore(map);
 const registry = new MarkRendererRegistry([commentRenderer()]);
 const engine = new AnchoredMarksEngine(collab.doc, store, registry);
-engine.attach(view);          // view = BlockNote's ProseMirror view
+engine.attach(view); // view = BlockNote's ProseMirror view
 // engine.create({ from, to }, { id, type: "comment", author, payload, createdAt });
 // engine.dispose();          // on teardown
 ```
@@ -91,14 +91,14 @@ engine.attach(view);          // view = BlockNote's ProseMirror view
 
 ```css
 .blocknote-wrapper .anchored-comment {
-  background: hsl(var(--anchored-comment-color, var(--ring)) / 0.18);
-  border-bottom: 2px solid hsl(var(--anchored-comment-color, var(--ring)) / 0.7);
-  cursor: pointer;
+	background: hsl(var(--anchored-comment-color, var(--ring)) / 0.18);
+	border-bottom: 2px solid hsl(var(--anchored-comment-color, var(--ring)) / 0.7);
+	cursor: pointer;
 }
 .blocknote-wrapper .anchored-comment--resolved {
-  background: transparent;
-  border-bottom-style: dotted;
-  opacity: 0.55;
+	background: transparent;
+	border-bottom-style: dotted;
+	opacity: 0.55;
 }
 ```
 

@@ -70,7 +70,11 @@ function initObservers(): void {
 			}
 		});
 		// durationThreshold 40ms ≈ skips sub-frame noise, keeps anything felt.
-		io.observe({ type: "event", buffered: true, durationThreshold: 40 } as PerformanceObserverInit);
+		io.observe({
+			type: "event",
+			buffered: true,
+			durationThreshold: 40,
+		} as PerformanceObserverInit);
 	} catch {
 		// 'event' timing unsupported — skip.
 		noop();
@@ -178,7 +182,12 @@ export function getHeadline(): TPerfHeadline {
 	const longTaskCount = (samples.get("long-task") ?? []).length;
 
 	const warmP95 = warm.length
-		? round(percentile(warm.map((s) => s.value).sort((a, b) => a - b), 95))
+		? round(
+				percentile(
+					warm.map((s) => s.value).sort((a, b) => a - b),
+					95,
+				),
+			)
 		: 0;
 
 	let verdict: TPerfHeadline["verdict"] = "idle";

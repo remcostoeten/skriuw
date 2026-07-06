@@ -3,18 +3,18 @@ base: core24
 version: "0.13.1"
 summary: Local-first writing and notes desktop app
 description: |
-  Skriuw is a local-first desktop shell for writing, notes, journals, and
-  personal knowledge work.
+    Skriuw is a local-first desktop shell for writing, notes, journals, and
+    personal knowledge work.
 
 grade: stable
 confinement: classic
 
 apps:
-  skriuw:
-    command: AppRun
-    desktop: Skriuw.desktop
+    skriuw:
+        command: AppRun
+        desktop: Skriuw.desktop
 
 parts:
-  skriuw:
-    plugin: dump
-    source: src-tauri/target/release/bundle/appimage/Skriuw.AppDir
+    skriuw:
+        plugin: dump
+        source: src-tauri/target/release/bundle/appimage/Skriuw.AppDir

@@ -38,7 +38,7 @@ export function SeedEditorPage({ bundleId, bundleName, payload }: Props) {
 			folders: payload.folders,
 			notes: payload.notes,
 		});
-	// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [bundleId]);
 
 	const selectedNote = notes.find((n) => n.ref === selectedRef) ?? null;

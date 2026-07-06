@@ -42,7 +42,7 @@ function fromBase64Url(value: string): Uint8Array {
 	return bytes;
 }
 
-async function importKey(secret: string): Promise<CryptoKey> {
+async function importKey(secret: string) {
 	return crypto.subtle.importKey(
 		"raw",
 		encoder.encode(secret),
@@ -79,7 +79,7 @@ export async function verifyCollabToken(
 		const valid = await crypto.subtle.verify(
 			"HMAC",
 			key,
-			fromBase64Url(signature) as BufferSource,
+			fromBase64Url(signature) as any,
 			encoder.encode(body),
 		);
 		if (!valid) return null;

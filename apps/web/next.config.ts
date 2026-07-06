@@ -38,11 +38,7 @@ const config: NextConfig = {
 			},
 		];
 	},
-	transpilePackages: [
-		"@blocknote/core",
-		"@blocknote/react",
-		"@blocknote/shadcn",
-	],
+	transpilePackages: ["@blocknote/core", "@blocknote/react", "@blocknote/shadcn"],
 };
 
 export default config;

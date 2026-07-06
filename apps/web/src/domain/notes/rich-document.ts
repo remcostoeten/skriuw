@@ -21,12 +21,10 @@ type InlineHit = {
 
 const TAG_PATTERN = /(^|[\s([{])#([a-zA-Z][a-zA-Z0-9_-]{1,31})\b/g;
 const WIKI_LINK_PATTERN = /\[\[([^\]\n|]+?)(?:\|([^\]\n]+?))?\]\]/g;
-const IMAGE_INLINE_PATTERN = /!\[([^\]\n]*?)\]\(([^)\n\s]+?)(?:\s+"([^"]*)")?\)/g;
 const INLINE_LINK_PATTERN = /\[([^\]\n]+?)\]\(([^)\n\s]+?)(?:\s+"[^"]*")?\)/g;
 const CODE_SPAN_PATTERN = /(?<!`)`([^`\n]+?)`(?!`)/g;
 const BOLD_STAR_PATTERN = /\*\*((?:[^*\n]|\*(?!\*))+?)\*\*/g;
 const BOLD_UNDERSCORE_PATTERN = /(^|[^_\w])__([^_\n]+?)__(?!\w)/g;
-const HIGHLIGHT_PATTERN = /==([^=\n]+?)==/g;
 const STRIKE_PATTERN = /~~([^~\n]+?)~~/g;
 const ITALIC_STAR_PATTERN = /(^|[^*\w])\*((?:[^*\n]+?))\*(?!\*)/g;
 const ITALIC_UNDERSCORE_PATTERN = /(^|[^_\w])_([^_\n]+?)_(?!\w)/g;

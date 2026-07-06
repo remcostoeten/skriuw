@@ -10,12 +10,7 @@ const GUEST_APP_ROUTES = ["/app"] as const;
 // payload (data included, not just the loading.tsx boundary), and with
 // `staleTimes.dynamic` set these stay reusable — so the first hop to any of
 // these lands without replaying a skeleton.
-const AUTHED_APP_ROUTES = [
-	"/app",
-	"/app/graph",
-	"/app/journal",
-	"/app/shared",
-] as const;
+const AUTHED_APP_ROUTES = ["/app", "/app/graph", "/app/journal", "/app/shared"] as const;
 
 function scheduleIdle(callback: () => void): () => void {
 	if (typeof window === "undefined") return () => {};
@@ -45,8 +40,7 @@ export function AppRoutePrefetcher() {
 	useEffect(() => {
 		if (!auth.isReady) return;
 
-		const routes =
-			auth.phase === "authenticated" ? AUTHED_APP_ROUTES : GUEST_APP_ROUTES;
+		const routes = auth.phase === "authenticated" ? AUTHED_APP_ROUTES : GUEST_APP_ROUTES;
 
 		return scheduleIdle(() => {
 			for (const href of routes) {

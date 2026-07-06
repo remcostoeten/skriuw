@@ -94,7 +94,9 @@ export function NoteCleanupScanButton({
 				"relative inline-flex h-8 items-center justify-center overflow-hidden rounded-md border text-sm font-medium transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",
 				phase === "scanning" && "cursor-default",
 				disabled && "cursor-not-allowed opacity-50",
-				!disabled && phase === "error" && "border-destructive/60 bg-destructive/15 text-destructive-foreground",
+				!disabled &&
+					phase === "error" &&
+					"border-destructive/60 bg-destructive/15 text-destructive-foreground",
 				!disabled &&
 					phase !== "error" &&
 					"border-input bg-secondary text-secondary-foreground hover:bg-accent",
@@ -178,7 +180,9 @@ export function NoteCleanupDialog({
 	}
 
 	async function handleRemove() {
-		const ids = candidates.map((candidate) => candidate.note.id).filter((id) => selectedIds.has(id));
+		const ids = candidates
+			.map((candidate) => candidate.note.id)
+			.filter((id) => selectedIds.has(id));
 		if (ids.length === 0) return;
 
 		setPhase("removing");
@@ -212,11 +216,15 @@ export function NoteCleanupDialog({
 		}
 	}
 
-	const selectedCount = candidates.filter((candidate) => selectedIds.has(candidate.note.id)).length;
+	const selectedCount = candidates.filter((candidate) =>
+		selectedIds.has(candidate.note.id),
+	).length;
 	const allSelected = candidates.length > 0 && selectedCount === candidates.length;
 
 	function toggleSelectAll() {
-		setSelectedIds(allSelected ? new Set() : new Set(candidates.map((candidate) => candidate.note.id)));
+		setSelectedIds(
+			allSelected ? new Set() : new Set(candidates.map((candidate) => candidate.note.id)),
+		);
 	}
 
 	return (
@@ -249,7 +257,9 @@ export function NoteCleanupDialog({
 				{phase !== "done" && candidates.length > 0 && (
 					<div className="max-h-[50vh] space-y-4 overflow-y-auto pr-1">
 						{REASON_ORDER.map((reason) => {
-							const group = candidates.filter((candidate) => candidate.reason === reason);
+							const group = candidates.filter(
+								(candidate) => candidate.reason === reason,
+							);
 							if (group.length === 0) return null;
 							return (
 								<div key={reason} className="space-y-2">
@@ -266,7 +276,9 @@ export function NoteCleanupDialog({
 												<input
 													type="checkbox"
 													checked={checked}
-													onChange={() => toggleCandidate(candidate.note.id)}
+													onChange={() =>
+														toggleCandidate(candidate.note.id)
+													}
 													disabled={phase === "removing"}
 													className="sr-only"
 												/>
@@ -278,7 +290,8 @@ export function NoteCleanupDialog({
 														</span>
 														{candidate.duplicateOfName && (
 															<span className="block truncate text-muted-foreground">
-																Same content as {candidate.duplicateOfName}
+																Same content as{" "}
+																{candidate.duplicateOfName}
 															</span>
 														)}
 														<span className="mt-0.5 line-clamp-2 text-muted-foreground">
@@ -328,4 +341,3 @@ export function NoteCleanupDialog({
 		</Dialog>
 	);
 }
-

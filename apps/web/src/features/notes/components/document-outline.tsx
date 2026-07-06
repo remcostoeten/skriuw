@@ -39,10 +39,7 @@ export function DocumentOutline({ headings, onSelect }: Props) {
 				const depth = Math.max(0, heading.level - minLevel);
 				const indent = depth * 10;
 				return (
-					<li
-						key={heading.key}
-						className="border-b border-border/45 last:border-b-0"
-					>
+					<li key={heading.key} className="border-b border-border/45 last:border-b-0">
 						<button
 							type="button"
 							onClick={() => onSelect(heading)}

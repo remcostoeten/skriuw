@@ -1,8 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import * as Y from "yjs";
-import { AnchoredMarkStore, getAnchoredMarkMap } from "@/features/collaboration/anchored-marks/store";
+import {
+	AnchoredMarkStore,
+	getAnchoredMarkMap,
+} from "@/features/collaboration/anchored-marks/store";
 import { MarkRendererRegistry } from "@/features/collaboration/anchored-marks/registry";
-import { commentRenderer, COMMENT_MARK_TYPE } from "@/features/collaboration/anchored-marks/renderers/comment";
+import {
+	commentRenderer,
+	COMMENT_MARK_TYPE,
+} from "@/features/collaboration/anchored-marks/renderers/comment";
 import type { TAnchoredMark, TResolvedMark } from "@/features/collaboration/anchored-marks/types";
 
 function makeMark(id: string, type = COMMENT_MARK_TYPE): TAnchoredMark {
@@ -23,14 +29,19 @@ describe("AnchoredMarkStore", () => {
 		store.add(makeMark("a"));
 		store.add(makeMark("b"));
 		expect(store.get("a")?.id).toBe("a");
-		expect(store.getAll().map((m) => m.id).sort()).toEqual(["a", "b"]);
+		expect(
+			store
+				.getAll()
+				.map((m) => m.id)
+				.sort(),
+		).toEqual(["a", "b"]);
 	});
 
 	test("update patches without dropping other fields", () => {
 		const store = new AnchoredMarkStore(getAnchoredMarkMap(new Y.Doc()));
 		store.add(makeMark("a"));
 		store.update("a", { payload: { body: "edited", replies: [] } });
-		expect((store.get("a")?.payload as { body: string }).body).toBe("edited");
+		expect((store.get("a")!.payload as { body: string }).body).toBe("edited");
 		expect(store.get("a")?.author.name).toBe("Ada");
 	});
 
