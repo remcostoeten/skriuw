@@ -19,6 +19,8 @@ export function initDesktopMenuBridge(): void {
 	events.listen("menu://action", (event) => {
 		const action = event.payload;
 		if (typeof action !== "string") return;
-		window.dispatchEvent(new CustomEvent<MenuAction>("skriuw:menu-action", { detail: action as MenuAction }));
+		window.dispatchEvent(
+			new CustomEvent<MenuAction>("skriuw:menu-action", { detail: action as MenuAction }),
+		);
 	});
 }

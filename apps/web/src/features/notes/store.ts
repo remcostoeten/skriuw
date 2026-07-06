@@ -123,34 +123,16 @@ function paneTabsPatch(pane: EditorPane, tabs: WorkspaceTab[]): Partial<NotesUiS
 export const useNotesStore = create<NotesUiState>()(
 	persist(
 		(set, get) => ({
-	activeFileId: "",
-	lastActiveFileId: "",
-	isHydrated: false,
-	folderOpenState: {},
-	saveStates: {},
-	recentFileIds: [],
-	split: INITIAL_SPLIT_STATE,
-	primaryTabs: [],
-	secondaryTabs: [],
-	tabsHydrated: false,
-	ui: {
-		isMobile: false,
-		showSidebar: true,
-		showMetadata: true,
-		sidebarWidth: DESKTOP_SIDEBAR_MIN_WIDTH,
-		metadataWidth: DESKTOP_METADATA_MIN_WIDTH,
-		selectedInspectorTag: null,
-	},
-
-	resetUi: () => {
-		set({
 			activeFileId: "",
+			lastActiveFileId: "",
 			isHydrated: false,
 			folderOpenState: {},
 			saveStates: {},
+			recentFileIds: [],
 			split: INITIAL_SPLIT_STATE,
 			primaryTabs: [],
 			secondaryTabs: [],
+			tabsHydrated: false,
 			ui: {
 				isMobile: false,
 				showSidebar: true,
@@ -159,310 +141,355 @@ export const useNotesStore = create<NotesUiState>()(
 				metadataWidth: DESKTOP_METADATA_MIN_WIDTH,
 				selectedInspectorTag: null,
 			},
-		});
-	},
 
-	initialize: async () => {
-		if (get().isHydrated) {
-			return;
-		}
-
-		set({ isHydrated: true });
-	},
-
-	getFileSaveState: (id) => {
-		if (!id) return "idle";
-		return get().saveStates[id] ?? "idle";
-	},
-
-	setActiveFileId: (id) => {
-		set(id ? { activeFileId: id, lastActiveFileId: id } : { activeFileId: id });
-	},
-
-	pushRecentFile: (id) => {
-		if (!id) return;
-		set((state) => {
-			if (state.recentFileIds[0] === id) return state;
-			const next = [id, ...state.recentFileIds.filter((existing) => existing !== id)];
-			return { recentFileIds: next.slice(0, RECENT_FILES_LIMIT) };
-		});
-	},
-
-	ensureActiveFileId: (files) => {
-		set((state) => {
-			if (files.length === 0) {
-				return state.activeFileId ? { activeFileId: "" } : state;
-			}
-
-			if (files.some((file) => file.id === state.activeFileId)) {
-				return state;
-			}
-
-			return { activeFileId: files[0]?.id ?? "" };
-		});
-	},
-
-	setFileSaveState: (id, status) => {
-		set((state) => ({
-			saveStates: { ...state.saveStates, [id]: status },
-		}));
-	},
-
-	clearFileSaveState: (id) => {
-		set((state) => ({
-			saveStates: Object.fromEntries(
-				Object.entries(state.saveStates).filter(([key]) => key !== id),
-			),
-		}));
-	},
-
-	toggleFolder: (id) => {
-		set((state) => ({
-			folderOpenState: {
-				...state.folderOpenState,
-				[id]: !(state.folderOpenState[id] ?? true),
-			},
-		}));
-	},
-
-	setFolderOpen: (id, isOpen) => {
-		set((state) => ({
-			folderOpenState: { ...state.folderOpenState, [id]: isOpen },
-		}));
-	},
-
-	collapseAllFolders: (folderIds) => {
-		set((state) => ({
-			folderOpenState: {
-				...state.folderOpenState,
-				...Object.fromEntries(folderIds.map((folderId) => [folderId, false])),
-			},
-		}));
-	},
-
-	expandAllFolders: (folderIds) => {
-		set((state) => ({
-			folderOpenState: {
-				...state.folderOpenState,
-				...Object.fromEntries(folderIds.map((folderId) => [folderId, true])),
-			},
-		}));
-	},
-
-	setUIState: (updates) => {
-		set((state) => ({
-			ui: { ...state.ui, ...updates },
-		}));
-	},
-
-	setSelectedInspectorTag: (tag) => {
-		set((state) => ({
-			ui: { ...state.ui, selectedInspectorTag: tag },
-		}));
-	},
-
-	setSidebarWidth: (width) => {
-		set((state) => ({
-			ui: { ...state.ui, sidebarWidth: width },
-		}));
-	},
-
-	setMetadataWidth: (width) => {
-		set((state) => ({
-			ui: { ...state.ui, metadataWidth: width },
-		}));
-	},
-
-	openSplitBeside: (fileId, primaryFileId) => {
-		if (!fileId || fileId === primaryFileId) return;
-		set((state) => ({
-			split: {
-				...state.split,
-				secondaryFileId: fileId,
-				focusedPane: "secondary",
-			},
-		}));
-	},
-
-	setSecondaryFile: (fileId) => {
-		const primaryFileId = get().activeFileId;
-		if (!fileId || fileId === primaryFileId) return;
-		set((state) => ({
-			split: {
-				...state.split,
-				secondaryFileId: fileId,
-				focusedPane: "secondary",
-			},
-		}));
-	},
-
-	closeSplit: () => {
-		set((state) => ({
-			split: {
-				...state.split,
-				secondaryFileId: null,
-				focusedPane: "primary",
-				secondaryFirst: false,
-			},
-			secondaryTabs: [],
-		}));
-	},
-
-	setFocusedEditorPane: (pane) => {
-		set((state) => ({
-			split: { ...state.split, focusedPane: pane },
-		}));
-	},
-
-	setEditorScrollPosition: (fileId, scrollTop) => {
-		if (!fileId) return;
-		set((state) => {
-			if (state.split.scrollPositions[fileId] === scrollTop) return state;
-			return {
-				split: {
-					...state.split,
-					scrollPositions: {
-						...state.split.scrollPositions,
-						[fileId]: scrollTop,
+			resetUi: () => {
+				set({
+					activeFileId: "",
+					isHydrated: false,
+					folderOpenState: {},
+					saveStates: {},
+					split: INITIAL_SPLIT_STATE,
+					primaryTabs: [],
+					secondaryTabs: [],
+					ui: {
+						isMobile: false,
+						showSidebar: true,
+						showMetadata: true,
+						sidebarWidth: DESKTOP_SIDEBAR_MIN_WIDTH,
+						metadataWidth: DESKTOP_METADATA_MIN_WIDTH,
+						selectedInspectorTag: null,
 					},
-				},
-			};
-		});
-	},
-
-	setSplitOrientation: (orientation) => {
-		set((state) => ({
-			split: { ...state.split, orientation },
-		}));
-	},
-
-	toggleSplitOrientation: () => {
-		set((state) => ({
-			split: {
-				...state.split,
-				orientation: state.split.orientation === "vertical" ? "horizontal" : "vertical",
+				});
 			},
-		}));
-	},
 
-	swapSplitPaneOrder: () => {
-		set((state) => ({
-			split: {
-				...state.split,
-				secondaryFirst: !state.split.secondaryFirst,
+			initialize: async () => {
+				if (get().isHydrated) {
+					return;
+				}
+
+				set({ isHydrated: true });
 			},
-		}));
-	},
 
-	setSplitSecondaryFirst: (secondaryFirst) => {
-		set((state) => ({
-			split: { ...state.split, secondaryFirst },
-		}));
-	},
+			getFileSaveState: (id) => {
+				if (!id) return "idle";
+				return get().saveStates[id] ?? "idle";
+			},
 
-	addTab: (pane, fileId) => {
-		if (!fileId) return;
-		const key = TAB_KEY_BY_PANE[pane];
-		set((state) => {
-			if (state[key].some((tab) => tab.fileId === fileId)) return state;
-			return paneTabsPatch(pane, sortPinnedFirst([...state[key], { fileId, pinned: false }]));
-		});
-	},
+			setActiveFileId: (id) => {
+				set(id ? { activeFileId: id, lastActiveFileId: id } : { activeFileId: id });
+			},
 
-	openTabInBackground: (pane, fileId) => {
-		if (!fileId) return;
-		const key = TAB_KEY_BY_PANE[pane];
-		set((state) => {
-			const activeId = pane === "secondary" ? state.split.secondaryFileId : state.activeFileId;
-			const next = [...state[key]];
-			let changed = false;
-			if (activeId && activeId !== fileId && !next.some((tab) => tab.fileId === activeId)) {
-				next.push({ fileId: activeId, pinned: false });
-				changed = true;
-			}
-			if (!next.some((tab) => tab.fileId === fileId)) {
-				next.push({ fileId, pinned: false });
-				changed = true;
-			}
-			if (!changed) return state;
-			return paneTabsPatch(pane, sortPinnedFirst(next));
-		});
-	},
+			pushRecentFile: (id) => {
+				if (!id) return;
+				set((state) => {
+					if (state.recentFileIds[0] === id) return state;
+					const next = [id, ...state.recentFileIds.filter((existing) => existing !== id)];
+					return { recentFileIds: next.slice(0, RECENT_FILES_LIMIT) };
+				});
+			},
 
-	removeTab: (pane, fileId) => {
-		const key = TAB_KEY_BY_PANE[pane];
-		set((state) => {
-			if (!state[key].some((tab) => tab.fileId === fileId)) return state;
-			return paneTabsPatch(pane, state[key].filter((tab) => tab.fileId !== fileId));
-		});
-	},
+			ensureActiveFileId: (files) => {
+				set((state) => {
+					if (files.length === 0) {
+						return state.activeFileId ? { activeFileId: "" } : state;
+					}
 
-	reorderTabs: (pane, orderedFileIds) => {
-		const key = TAB_KEY_BY_PANE[pane];
-		set((state) => {
-			const byId = new Map(state[key].map((tab) => [tab.fileId, tab]));
-			const reordered = orderedFileIds
-				.map((id) => byId.get(id))
-				.filter((tab): tab is WorkspaceTab => Boolean(tab));
-			for (const tab of state[key]) {
-				if (!orderedFileIds.includes(tab.fileId)) reordered.push(tab);
-			}
-			return paneTabsPatch(pane, sortPinnedFirst(reordered));
-		});
-	},
+					if (files.some((file) => file.id === state.activeFileId)) {
+						return state;
+					}
 
-	togglePinTab: (pane, fileId) => {
-		const key = TAB_KEY_BY_PANE[pane];
-		set((state) =>
-			paneTabsPatch(
-				pane,
-				sortPinnedFirst(
-					state[key].map((tab) =>
-						tab.fileId === fileId ? { ...tab, pinned: !tab.pinned } : tab,
+					return { activeFileId: files[0]?.id ?? "" };
+				});
+			},
+
+			setFileSaveState: (id, status) => {
+				set((state) => ({
+					saveStates: { ...state.saveStates, [id]: status },
+				}));
+			},
+
+			clearFileSaveState: (id) => {
+				set((state) => ({
+					saveStates: Object.fromEntries(
+						Object.entries(state.saveStates).filter(([key]) => key !== id),
 					),
-				),
-			),
-		);
-	},
+				}));
+			},
 
-	setPaneTabs: (pane, tabs) => {
-		set(paneTabsPatch(pane, sortPinnedFirst(tabs)));
-	},
+			toggleFolder: (id) => {
+				set((state) => ({
+					folderOpenState: {
+						...state.folderOpenState,
+						[id]: !(state.folderOpenState[id] ?? true),
+					},
+				}));
+			},
 
-	closeOtherTabs: (pane, fileId) => {
-		const key = TAB_KEY_BY_PANE[pane];
-		const removed = get()
-			[key].filter((tab) => tab.fileId !== fileId && !tab.pinned)
-			.map((tab) => tab.fileId);
-		set((state) =>
-			paneTabsPatch(pane, state[key].filter((tab) => tab.fileId === fileId || tab.pinned)),
-		);
-		return removed;
-	},
+			setFolderOpen: (id, isOpen) => {
+				set((state) => ({
+					folderOpenState: { ...state.folderOpenState, [id]: isOpen },
+				}));
+			},
 
-	closeTabsToSide: (pane, fileId, side) => {
-		const key = TAB_KEY_BY_PANE[pane];
-		const tabs = get()[key];
-		const anchorIndex = tabs.findIndex((tab) => tab.fileId === fileId);
-		if (anchorIndex === -1) return [];
-		const shouldKeep = (index: number, tab: WorkspaceTab) => {
-			if (tab.pinned || tab.fileId === fileId) return true;
-			return side === "right" ? index <= anchorIndex : index >= anchorIndex;
-		};
-		const removed = tabs
-			.filter((tab, index) => !shouldKeep(index, tab))
-			.map((tab) => tab.fileId);
-		set((state) => paneTabsPatch(pane, state[key].filter((tab, index) => shouldKeep(index, tab))));
-		return removed;
-	},
+			collapseAllFolders: (folderIds) => {
+				set((state) => ({
+					folderOpenState: {
+						...state.folderOpenState,
+						...Object.fromEntries(folderIds.map((folderId) => [folderId, false])),
+					},
+				}));
+			},
 
-	closeAllTabs: (pane) => {
-		const key = TAB_KEY_BY_PANE[pane];
-		const removed = get()[key].filter((tab) => !tab.pinned).map((tab) => tab.fileId);
-		set((state) => paneTabsPatch(pane, state[key].filter((tab) => tab.pinned)));
-		return removed;
-	},
-}),
+			expandAllFolders: (folderIds) => {
+				set((state) => ({
+					folderOpenState: {
+						...state.folderOpenState,
+						...Object.fromEntries(folderIds.map((folderId) => [folderId, true])),
+					},
+				}));
+			},
+
+			setUIState: (updates) => {
+				set((state) => ({
+					ui: { ...state.ui, ...updates },
+				}));
+			},
+
+			setSelectedInspectorTag: (tag) => {
+				set((state) => ({
+					ui: { ...state.ui, selectedInspectorTag: tag },
+				}));
+			},
+
+			setSidebarWidth: (width) => {
+				set((state) => ({
+					ui: { ...state.ui, sidebarWidth: width },
+				}));
+			},
+
+			setMetadataWidth: (width) => {
+				set((state) => ({
+					ui: { ...state.ui, metadataWidth: width },
+				}));
+			},
+
+			openSplitBeside: (fileId, primaryFileId) => {
+				if (!fileId || fileId === primaryFileId) return;
+				set((state) => ({
+					split: {
+						...state.split,
+						secondaryFileId: fileId,
+						focusedPane: "secondary",
+					},
+				}));
+			},
+
+			setSecondaryFile: (fileId) => {
+				const primaryFileId = get().activeFileId;
+				if (!fileId || fileId === primaryFileId) return;
+				set((state) => ({
+					split: {
+						...state.split,
+						secondaryFileId: fileId,
+						focusedPane: "secondary",
+					},
+				}));
+			},
+
+			closeSplit: () => {
+				set((state) => ({
+					split: {
+						...state.split,
+						secondaryFileId: null,
+						focusedPane: "primary",
+						secondaryFirst: false,
+					},
+					secondaryTabs: [],
+				}));
+			},
+
+			setFocusedEditorPane: (pane) => {
+				set((state) => ({
+					split: { ...state.split, focusedPane: pane },
+				}));
+			},
+
+			setEditorScrollPosition: (fileId, scrollTop) => {
+				if (!fileId) return;
+				set((state) => {
+					if (state.split.scrollPositions[fileId] === scrollTop) return state;
+					return {
+						split: {
+							...state.split,
+							scrollPositions: {
+								...state.split.scrollPositions,
+								[fileId]: scrollTop,
+							},
+						},
+					};
+				});
+			},
+
+			setSplitOrientation: (orientation) => {
+				set((state) => ({
+					split: { ...state.split, orientation },
+				}));
+			},
+
+			toggleSplitOrientation: () => {
+				set((state) => ({
+					split: {
+						...state.split,
+						orientation:
+							state.split.orientation === "vertical" ? "horizontal" : "vertical",
+					},
+				}));
+			},
+
+			swapSplitPaneOrder: () => {
+				set((state) => ({
+					split: {
+						...state.split,
+						secondaryFirst: !state.split.secondaryFirst,
+					},
+				}));
+			},
+
+			setSplitSecondaryFirst: (secondaryFirst) => {
+				set((state) => ({
+					split: { ...state.split, secondaryFirst },
+				}));
+			},
+
+			addTab: (pane, fileId) => {
+				if (!fileId) return;
+				const key = TAB_KEY_BY_PANE[pane];
+				set((state) => {
+					if (state[key].some((tab) => tab.fileId === fileId)) return state;
+					return paneTabsPatch(
+						pane,
+						sortPinnedFirst([...state[key], { fileId, pinned: false }]),
+					);
+				});
+			},
+
+			openTabInBackground: (pane, fileId) => {
+				if (!fileId) return;
+				const key = TAB_KEY_BY_PANE[pane];
+				set((state) => {
+					const activeId =
+						pane === "secondary" ? state.split.secondaryFileId : state.activeFileId;
+					const next = [...state[key]];
+					let changed = false;
+					if (
+						activeId &&
+						activeId !== fileId &&
+						!next.some((tab) => tab.fileId === activeId)
+					) {
+						next.push({ fileId: activeId, pinned: false });
+						changed = true;
+					}
+					if (!next.some((tab) => tab.fileId === fileId)) {
+						next.push({ fileId, pinned: false });
+						changed = true;
+					}
+					if (!changed) return state;
+					return paneTabsPatch(pane, sortPinnedFirst(next));
+				});
+			},
+
+			removeTab: (pane, fileId) => {
+				const key = TAB_KEY_BY_PANE[pane];
+				set((state) => {
+					if (!state[key].some((tab) => tab.fileId === fileId)) return state;
+					return paneTabsPatch(
+						pane,
+						state[key].filter((tab) => tab.fileId !== fileId),
+					);
+				});
+			},
+
+			reorderTabs: (pane, orderedFileIds) => {
+				const key = TAB_KEY_BY_PANE[pane];
+				set((state) => {
+					const byId = new Map(state[key].map((tab) => [tab.fileId, tab]));
+					const reordered = orderedFileIds
+						.map((id) => byId.get(id))
+						.filter((tab): tab is WorkspaceTab => Boolean(tab));
+					for (const tab of state[key]) {
+						if (!orderedFileIds.includes(tab.fileId)) reordered.push(tab);
+					}
+					return paneTabsPatch(pane, sortPinnedFirst(reordered));
+				});
+			},
+
+			togglePinTab: (pane, fileId) => {
+				const key = TAB_KEY_BY_PANE[pane];
+				set((state) =>
+					paneTabsPatch(
+						pane,
+						sortPinnedFirst(
+							state[key].map((tab) =>
+								tab.fileId === fileId ? { ...tab, pinned: !tab.pinned } : tab,
+							),
+						),
+					),
+				);
+			},
+
+			setPaneTabs: (pane, tabs) => {
+				set(paneTabsPatch(pane, sortPinnedFirst(tabs)));
+			},
+
+			closeOtherTabs: (pane, fileId) => {
+				const key = TAB_KEY_BY_PANE[pane];
+				const removed = get()
+					[key].filter((tab) => tab.fileId !== fileId && !tab.pinned)
+					.map((tab) => tab.fileId);
+				set((state) =>
+					paneTabsPatch(
+						pane,
+						state[key].filter((tab) => tab.fileId === fileId || tab.pinned),
+					),
+				);
+				return removed;
+			},
+
+			closeTabsToSide: (pane, fileId, side) => {
+				const key = TAB_KEY_BY_PANE[pane];
+				const tabs = get()[key];
+				const anchorIndex = tabs.findIndex((tab) => tab.fileId === fileId);
+				if (anchorIndex === -1) return [];
+				const shouldKeep = (index: number, tab: WorkspaceTab) => {
+					if (tab.pinned || tab.fileId === fileId) return true;
+					return side === "right" ? index <= anchorIndex : index >= anchorIndex;
+				};
+				const removed = tabs
+					.filter((tab, index) => !shouldKeep(index, tab))
+					.map((tab) => tab.fileId);
+				set((state) =>
+					paneTabsPatch(
+						pane,
+						state[key].filter((tab, index) => shouldKeep(index, tab)),
+					),
+				);
+				return removed;
+			},
+
+			closeAllTabs: (pane) => {
+				const key = TAB_KEY_BY_PANE[pane];
+				const removed = get()
+					[key].filter((tab) => !tab.pinned)
+					.map((tab) => tab.fileId);
+				set((state) =>
+					paneTabsPatch(
+						pane,
+						state[key].filter((tab) => tab.pinned),
+					),
+				);
+				return removed;
+			},
+		}),
 		{
 			name: "notes-workspace-tabs",
 			version: 1,

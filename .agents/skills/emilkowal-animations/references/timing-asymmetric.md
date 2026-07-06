@@ -13,7 +13,7 @@ Press and release actions have different purposes. Pressing should be slow to al
 
 ```css
 .hold-button .progress {
-  transition: clip-path 500ms ease-out;
+	transition: clip-path 500ms ease-out;
 }
 /* Same speed for both directions feels wrong */
 ```
@@ -22,11 +22,11 @@ Press and release actions have different purposes. Pressing should be slow to al
 
 ```css
 .hold-button .progress {
-  transition: clip-path 200ms ease-out; /* Fast release */
+	transition: clip-path 200ms ease-out; /* Fast release */
 }
 
 .hold-button:active .progress {
-  transition: clip-path 2s linear; /* Slow press for confirmation */
+	transition: clip-path 2s linear; /* Slow press for confirmation */
 }
 ```
 

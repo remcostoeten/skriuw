@@ -13,7 +13,7 @@ Use percentage values instead of fixed pixels for translateY. Percentages are re
 
 ```css
 .toast {
-  transform: translateY(60px); /* Assumes toast is 60px tall */
+	transform: translateY(60px); /* Assumes toast is 60px tall */
 }
 /* Breaks if toast height varies */
 ```
@@ -22,7 +22,7 @@ Use percentage values instead of fixed pixels for translateY. Percentages are re
 
 ```css
 .toast {
-  transform: translateY(100%); /* Always moves by its own height */
+	transform: translateY(100%); /* Always moves by its own height */
 }
 /* Works regardless of toast content/height */
 ```

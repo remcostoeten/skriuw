@@ -9,7 +9,6 @@ effort: medium
 
 # PWA Development Skill
 
-
 **Purpose:** Build Progressive Web Apps that work offline, install like native apps, and deliver fast, reliable experiences across all devices.
 
 ---
@@ -50,31 +49,31 @@ effort: medium
 
 ```json
 {
-  "name": "My Progressive Web App",
-  "short_name": "MyPWA",
-  "description": "A description of what the app does",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
-  "icons": [
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ]
+	"name": "My Progressive Web App",
+	"short_name": "MyPWA",
+	"description": "A description of what the app does",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#ffffff",
+	"theme_color": "#000000",
+	"icons": [
+		{
+			"src": "/icons/icon-192.png",
+			"sizes": "192x192",
+			"type": "image/png"
+		},
+		{
+			"src": "/icons/icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png"
+		},
+		{
+			"src": "/icons/icon-512-maskable.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	]
 }
 ```
 
@@ -82,83 +81,88 @@ effort: medium
 
 ```json
 {
-  "name": "My Progressive Web App",
-  "short_name": "MyPWA",
-  "description": "A full-featured PWA",
-  "start_url": "/?source=pwa",
-  "scope": "/",
-  "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#ffffff",
-  "theme_color": "#3367D6",
-  "dir": "ltr",
-  "lang": "en",
-  "categories": ["productivity", "utilities"],
+	"name": "My Progressive Web App",
+	"short_name": "MyPWA",
+	"description": "A full-featured PWA",
+	"start_url": "/?source=pwa",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "portrait-primary",
+	"background_color": "#ffffff",
+	"theme_color": "#3367D6",
+	"dir": "ltr",
+	"lang": "en",
+	"categories": ["productivity", "utilities"],
 
-  "icons": [
-    { "src": "/icons/icon-72.png", "sizes": "72x72", "type": "image/png" },
-    { "src": "/icons/icon-96.png", "sizes": "96x96", "type": "image/png" },
-    { "src": "/icons/icon-128.png", "sizes": "128x128", "type": "image/png" },
-    { "src": "/icons/icon-144.png", "sizes": "144x144", "type": "image/png" },
-    { "src": "/icons/icon-152.png", "sizes": "152x152", "type": "image/png" },
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-384.png", "sizes": "384x384", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ],
+	"icons": [
+		{ "src": "/icons/icon-72.png", "sizes": "72x72", "type": "image/png" },
+		{ "src": "/icons/icon-96.png", "sizes": "96x96", "type": "image/png" },
+		{ "src": "/icons/icon-128.png", "sizes": "128x128", "type": "image/png" },
+		{ "src": "/icons/icon-144.png", "sizes": "144x144", "type": "image/png" },
+		{ "src": "/icons/icon-152.png", "sizes": "152x152", "type": "image/png" },
+		{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+		{ "src": "/icons/icon-384.png", "sizes": "384x384", "type": "image/png" },
+		{ "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+		{
+			"src": "/icons/icon-maskable.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	],
 
-  "screenshots": [
-    {
-      "src": "/screenshots/desktop.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshots/mobile.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
+	"screenshots": [
+		{
+			"src": "/screenshots/desktop.png",
+			"sizes": "1280x720",
+			"type": "image/png",
+			"form_factor": "wide"
+		},
+		{
+			"src": "/screenshots/mobile.png",
+			"sizes": "750x1334",
+			"type": "image/png",
+			"form_factor": "narrow"
+		}
+	],
 
-  "shortcuts": [
-    {
-      "name": "New Item",
-      "short_name": "New",
-      "description": "Create a new item",
-      "url": "/new?source=shortcut",
-      "icons": [{ "src": "/icons/shortcut-new.png", "sizes": "192x192" }]
-    }
-  ],
+	"shortcuts": [
+		{
+			"name": "New Item",
+			"short_name": "New",
+			"description": "Create a new item",
+			"url": "/new?source=shortcut",
+			"icons": [{ "src": "/icons/shortcut-new.png", "sizes": "192x192" }]
+		}
+	],
 
-  "share_target": {
-    "action": "/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
-      "files": [{ "name": "files", "accept": ["image/*"] }]
-    }
-  },
+	"share_target": {
+		"action": "/share",
+		"method": "POST",
+		"enctype": "multipart/form-data",
+		"params": {
+			"title": "title",
+			"text": "text",
+			"url": "url",
+			"files": [{ "name": "files", "accept": ["image/*"] }]
+		}
+	},
 
-  "protocol_handlers": [
-    {
-      "protocol": "web+myapp",
-      "url": "/handle?url=%s"
-    }
-  ],
+	"protocol_handlers": [
+		{
+			"protocol": "web+myapp",
+			"url": "/handle?url=%s"
+		}
+	],
 
-  "file_handlers": [
-    {
-      "action": "/open-file",
-      "accept": {
-        "text/plain": [".txt"]
-      }
-    }
-  ]
+	"file_handlers": [
+		{
+			"action": "/open-file",
+			"accept": {
+				"text/plain": [".txt"]
+			}
+		}
+	]
 }
 ```
 
@@ -182,44 +186,41 @@ effort: medium
 
 ```javascript
 // sw.js
-const CACHE_NAME = 'app-cache-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/styles/main.css',
-  '/scripts/app.js',
-  '/offline.html'
-];
+const CACHE_NAME = "app-cache-v1";
+const STATIC_ASSETS = ["/", "/index.html", "/styles/main.css", "/scripts/app.js", "/offline.html"];
 
 // Install: Cache static assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting())
-  );
+self.addEventListener("install", (event) => {
+	event.waitUntil(
+		caches
+			.open(CACHE_NAME)
+			.then((cache) => cache.addAll(STATIC_ASSETS))
+			.then(() => self.skipWaiting()),
+	);
 });
 
 // Activate: Clean old caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      ))
-      .then(() => self.clients.claim())
-  );
+self.addEventListener("activate", (event) => {
+	event.waitUntil(
+		caches
+			.keys()
+			.then((keys) =>
+				Promise.all(
+					keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)),
+				),
+			)
+			.then(() => self.clients.claim()),
+	);
 });
 
 // Fetch: Serve from cache, fall back to network
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((cached) => cached || fetch(event.request))
-      .catch(() => caches.match('/offline.html'))
-  );
+self.addEventListener("fetch", (event) => {
+	event.respondWith(
+		caches
+			.match(event.request)
+			.then((cached) => cached || fetch(event.request))
+			.catch(() => caches.match("/offline.html")),
+	);
 });
 ```
 
@@ -227,17 +228,17 @@ self.addEventListener('fetch', (event) => {
 
 ```javascript
 // main.js
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/'
-      });
-      console.log('SW registered:', registration.scope);
-    } catch (error) {
-      console.error('SW registration failed:', error);
-    }
-  });
+if ("serviceWorker" in navigator) {
+	window.addEventListener("load", async () => {
+		try {
+			const registration = await navigator.serviceWorker.register("/sw.js", {
+				scope: "/",
+			});
+			console.log("SW registered:", registration.scope);
+		} catch (error) {
+			console.error("SW registration failed:", error);
+		}
+	});
 }
 ```
 
@@ -247,36 +248,37 @@ if ('serviceWorker' in navigator) {
 
 ### Strategy Selection Guide
 
-| Strategy | Use Case | Description |
-|----------|----------|-------------|
-| **Cache First** | Static assets (CSS, JS, images) | Check cache, fall back to network |
-| **Network First** | API responses, dynamic content | Try network, fall back to cache |
+| Strategy                   | Use Case                                | Description                                   |
+| -------------------------- | --------------------------------------- | --------------------------------------------- |
+| **Cache First**            | Static assets (CSS, JS, images)         | Check cache, fall back to network             |
+| **Network First**          | API responses, dynamic content          | Try network, fall back to cache               |
 | **Stale While Revalidate** | Semi-static content (avatars, articles) | Serve cache immediately, update in background |
-| **Network Only** | Non-cacheable requests (analytics) | Always use network |
-| **Cache Only** | Offline-only assets | Only serve from cache |
+| **Network Only**           | Non-cacheable requests (analytics)      | Always use network                            |
+| **Cache Only**             | Offline-only assets                     | Only serve from cache                         |
 
 ### Cache First (Offline First)
 
 ```javascript
 // Best for: Static assets that rarely change
-self.addEventListener('fetch', (event) => {
-  if (event.request.destination === 'image' ||
-      event.request.destination === 'style' ||
-      event.request.destination === 'script') {
-    event.respondWith(
-      caches.match(event.request)
-        .then((cached) => {
-          if (cached) return cached;
-          return fetch(event.request).then((response) => {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, clone);
-            });
-            return response;
-          });
-        })
-    );
-  }
+self.addEventListener("fetch", (event) => {
+	if (
+		event.request.destination === "image" ||
+		event.request.destination === "style" ||
+		event.request.destination === "script"
+	) {
+		event.respondWith(
+			caches.match(event.request).then((cached) => {
+				if (cached) return cached;
+				return fetch(event.request).then((response) => {
+					const clone = response.clone();
+					caches.open(CACHE_NAME).then((cache) => {
+						cache.put(event.request, clone);
+					});
+					return response;
+				});
+			}),
+		);
+	}
 });
 ```
 
@@ -284,20 +286,20 @@ self.addEventListener('fetch', (event) => {
 
 ```javascript
 // Best for: API data, frequently updated content
-self.addEventListener('fetch', (event) => {
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
-  }
+self.addEventListener("fetch", (event) => {
+	if (event.request.url.includes("/api/")) {
+		event.respondWith(
+			fetch(event.request)
+				.then((response) => {
+					const clone = response.clone();
+					caches.open(CACHE_NAME).then((cache) => {
+						cache.put(event.request, clone);
+					});
+					return response;
+				})
+				.catch(() => caches.match(event.request)),
+		);
+	}
 });
 ```
 
@@ -305,20 +307,20 @@ self.addEventListener('fetch', (event) => {
 
 ```javascript
 // Best for: Content that's okay to be slightly outdated
-self.addEventListener('fetch', (event) => {
-  if (event.request.url.includes('/articles/')) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.match(event.request).then((cached) => {
-          const fetchPromise = fetch(event.request).then((response) => {
-            cache.put(event.request, response.clone());
-            return response;
-          });
-          return cached || fetchPromise;
-        });
-      })
-    );
-  }
+self.addEventListener("fetch", (event) => {
+	if (event.request.url.includes("/articles/")) {
+		event.respondWith(
+			caches.open(CACHE_NAME).then((cache) => {
+				return cache.match(event.request).then((cached) => {
+					const fetchPromise = fetch(event.request).then((response) => {
+						cache.put(event.request, response.clone());
+						return response;
+					});
+					return cached || fetchPromise;
+				});
+			}),
+		);
+	}
 });
 ```
 
@@ -345,51 +347,51 @@ npm install @vite-pwa/vite-plugin   # Vite
 
 ```javascript
 // vite.config.js
-import { VitePWA } from 'vite-plugin-pwa';
+import { VitePWA } from "vite-plugin-pwa";
 
 export default {
-  plugins: [
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
-      manifest: {
-        name: 'My App',
-        short_name: 'App',
-        theme_color: '#ffffff',
-        icons: [
-          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' }
-        ]
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/api\.example\.com\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              }
-            }
-          },
-          {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'image-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-              }
-            }
-          }
-        ]
-      }
-    })
-  ]
+	plugins: [
+		VitePWA({
+			registerType: "autoUpdate",
+			includeAssets: ["favicon.ico", "robots.txt", "apple-touch-icon.png"],
+			manifest: {
+				name: "My App",
+				short_name: "App",
+				theme_color: "#ffffff",
+				icons: [
+					{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+					{ src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
+				],
+			},
+			workbox: {
+				globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+				runtimeCaching: [
+					{
+						urlPattern: /^https:\/\/api\.example\.com\/.*/i,
+						handler: "NetworkFirst",
+						options: {
+							cacheName: "api-cache",
+							expiration: {
+								maxEntries: 100,
+								maxAgeSeconds: 60 * 60 * 24, // 24 hours
+							},
+						},
+					},
+					{
+						urlPattern: /\.(?:png|jpg|jpeg|svg|gif)$/,
+						handler: "CacheFirst",
+						options: {
+							cacheName: "image-cache",
+							expiration: {
+								maxEntries: 50,
+								maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+							},
+						},
+					},
+				],
+			},
+		}),
+	],
 };
 ```
 
@@ -397,54 +399,52 @@ export default {
 
 ```javascript
 // sw.js
-import { precacheAndRoute } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
-import { CacheableResponsePlugin } from 'workbox-cacheable-response';
+import { precacheAndRoute } from "workbox-precaching";
+import { registerRoute } from "workbox-routing";
+import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from "workbox-strategies";
+import { ExpirationPlugin } from "workbox-expiration";
+import { CacheableResponsePlugin } from "workbox-cacheable-response";
 
 // Precache static assets (generated by build tool)
 precacheAndRoute(self.__WB_MANIFEST);
 
 // Cache images
 registerRoute(
-  ({ request }) => request.destination === 'image',
-  new CacheFirst({
-    cacheName: 'images',
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-      new ExpirationPlugin({
-        maxEntries: 60,
-        maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
-      })
-    ]
-  })
+	({ request }) => request.destination === "image",
+	new CacheFirst({
+		cacheName: "images",
+		plugins: [
+			new CacheableResponsePlugin({ statuses: [0, 200] }),
+			new ExpirationPlugin({
+				maxEntries: 60,
+				maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+			}),
+		],
+	}),
 );
 
 // Cache API responses
 registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
-  new NetworkFirst({
-    cacheName: 'api-responses',
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-      new ExpirationPlugin({
-        maxEntries: 100,
-        maxAgeSeconds: 24 * 60 * 60 // 24 hours
-      })
-    ]
-  })
+	({ url }) => url.pathname.startsWith("/api/"),
+	new NetworkFirst({
+		cacheName: "api-responses",
+		plugins: [
+			new CacheableResponsePlugin({ statuses: [0, 200] }),
+			new ExpirationPlugin({
+				maxEntries: 100,
+				maxAgeSeconds: 24 * 60 * 60, // 24 hours
+			}),
+		],
+	}),
 );
 
 // Cache page navigations
 registerRoute(
-  ({ request }) => request.mode === 'navigate',
-  new NetworkFirst({
-    cacheName: 'pages',
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [0, 200] })
-    ]
-  })
+	({ request }) => request.mode === "navigate",
+	new NetworkFirst({
+		cacheName: "pages",
+		plugins: [new CacheableResponsePlugin({ statuses: [0, 200] })],
+	}),
 );
 ```
 
@@ -458,46 +458,52 @@ registerRoute(
 <!-- offline.html -->
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Offline - App Name</title>
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      background: #f5f5f5;
-    }
-    .offline-content {
-      text-align: center;
-      padding: 2rem;
-    }
-    .offline-icon { font-size: 4rem; }
-    h1 { color: #333; }
-    p { color: #666; }
-    button {
-      background: #3367D6;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 1rem;
-    }
-  </style>
-</head>
-<body>
-  <div class="offline-content">
-    <div class="offline-icon">📡</div>
-    <h1>You're offline</h1>
-    <p>Check your connection and try again.</p>
-    <button onclick="location.reload()">Retry</button>
-  </div>
-</body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Offline - App Name</title>
+		<style>
+			body {
+				font-family: system-ui, sans-serif;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 100vh;
+				margin: 0;
+				background: #f5f5f5;
+			}
+			.offline-content {
+				text-align: center;
+				padding: 2rem;
+			}
+			.offline-icon {
+				font-size: 4rem;
+			}
+			h1 {
+				color: #333;
+			}
+			p {
+				color: #666;
+			}
+			button {
+				background: #3367d6;
+				color: white;
+				border: none;
+				padding: 0.75rem 1.5rem;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 1rem;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="offline-content">
+			<div class="offline-icon">📡</div>
+			<h1>You're offline</h1>
+			<p>Check your connection and try again.</p>
+			<button onclick="location.reload()">Retry</button>
+		</div>
+	</body>
 </html>
 ```
 
@@ -506,16 +512,16 @@ registerRoute(
 ```javascript
 // Online/offline status handling
 function updateOnlineStatus() {
-  const status = navigator.onLine ? 'online' : 'offline';
-  document.body.dataset.connectionStatus = status;
+	const status = navigator.onLine ? "online" : "offline";
+	document.body.dataset.connectionStatus = status;
 
-  if (!navigator.onLine) {
-    showNotification('You are offline. Some features may be unavailable.');
-  }
+	if (!navigator.onLine) {
+		showNotification("You are offline. Some features may be unavailable.");
+	}
 }
 
-window.addEventListener('online', updateOnlineStatus);
-window.addEventListener('offline', updateOnlineStatus);
+window.addEventListener("online", updateOnlineStatus);
+window.addEventListener("offline", updateOnlineStatus);
 updateOnlineStatus();
 ```
 
@@ -523,37 +529,37 @@ updateOnlineStatus();
 
 ```javascript
 // sw.js with Workbox
-import { BackgroundSyncPlugin } from 'workbox-background-sync';
-import { registerRoute } from 'workbox-routing';
-import { NetworkOnly } from 'workbox-strategies';
+import { BackgroundSyncPlugin } from "workbox-background-sync";
+import { registerRoute } from "workbox-routing";
+import { NetworkOnly } from "workbox-strategies";
 
-const bgSyncPlugin = new BackgroundSyncPlugin('formQueue', {
-  maxRetentionTime: 24 * 60 // Retry for 24 hours
+const bgSyncPlugin = new BackgroundSyncPlugin("formQueue", {
+	maxRetentionTime: 24 * 60, // Retry for 24 hours
 });
 
 registerRoute(
-  ({ url }) => url.pathname === '/api/submit',
-  new NetworkOnly({
-    plugins: [bgSyncPlugin]
-  }),
-  'POST'
+	({ url }) => url.pathname === "/api/submit",
+	new NetworkOnly({
+		plugins: [bgSyncPlugin],
+	}),
+	"POST",
 );
 ```
 
 ```javascript
 // main.js - Queue form submission
 async function submitForm(data) {
-  try {
-    const response = await fetch('/api/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return response.json();
-  } catch (error) {
-    // Will be retried by background sync when online
-    showNotification('Saved offline. Will sync when connected.');
-  }
+	try {
+		const response = await fetch("/api/submit", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(data),
+		});
+		return response.json();
+	} catch (error) {
+		// Will be retried by background sync when online
+		showNotification("Saved offline. Will sync when connected.");
+	}
 }
 ```
 
@@ -566,26 +572,26 @@ async function submitForm(data) {
 ```javascript
 let deferredPrompt;
 
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  showInstallButton();
+window.addEventListener("beforeinstallprompt", (e) => {
+	e.preventDefault();
+	deferredPrompt = e;
+	showInstallButton();
 });
 
 async function installApp() {
-  if (!deferredPrompt) return;
+	if (!deferredPrompt) return;
 
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
+	deferredPrompt.prompt();
+	const { outcome } = await deferredPrompt.userChoice;
 
-  console.log(`User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} install`);
-  deferredPrompt = null;
-  hideInstallButton();
+	console.log(`User ${outcome === "accepted" ? "accepted" : "dismissed"} install`);
+	deferredPrompt = null;
+	hideInstallButton();
 }
 
-window.addEventListener('appinstalled', () => {
-  console.log('App installed');
-  deferredPrompt = null;
+window.addEventListener("appinstalled", () => {
+	console.log("App installed");
+	deferredPrompt = null;
 });
 ```
 
@@ -594,15 +600,16 @@ window.addEventListener('appinstalled', () => {
 ```javascript
 // Check if running as installed PWA
 function isInstalledPWA() {
-  return window.matchMedia('(display-mode: standalone)').matches ||
-         window.navigator.standalone === true; // iOS
+	return (
+		window.matchMedia("(display-mode: standalone)").matches ||
+		window.navigator.standalone === true
+	); // iOS
 }
 
 // Listen for display mode changes
-window.matchMedia('(display-mode: standalone)')
-  .addEventListener('change', (e) => {
-    console.log('Display mode:', e.matches ? 'standalone' : 'browser');
-  });
+window.matchMedia("(display-mode: standalone)").addEventListener("change", (e) => {
+	console.log("Display mode:", e.matches ? "standalone" : "browser");
+});
 ```
 
 ### Push Notifications
@@ -610,48 +617,46 @@ window.matchMedia('(display-mode: standalone)')
 ```javascript
 // Request permission
 async function requestNotificationPermission() {
-  const permission = await Notification.requestPermission();
-  if (permission === 'granted') {
-    await subscribeToPush();
-  }
-  return permission;
+	const permission = await Notification.requestPermission();
+	if (permission === "granted") {
+		await subscribeToPush();
+	}
+	return permission;
 }
 
 // Subscribe to push
 async function subscribeToPush() {
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-  });
+	const registration = await navigator.serviceWorker.ready;
+	const subscription = await registration.pushManager.subscribe({
+		userVisibleOnly: true,
+		applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+	});
 
-  // Send subscription to server
-  await fetch('/api/push/subscribe', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(subscription)
-  });
+	// Send subscription to server
+	await fetch("/api/push/subscribe", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(subscription),
+	});
 }
 
 // sw.js - Handle push events
-self.addEventListener('push', (event) => {
-  const data = event.data.json();
-  event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/badge-72.png',
-      data: { url: data.url }
-    })
-  );
+self.addEventListener("push", (event) => {
+	const data = event.data.json();
+	event.waitUntil(
+		self.registration.showNotification(data.title, {
+			body: data.body,
+			icon: "/icons/icon-192.png",
+			badge: "/icons/badge-72.png",
+			data: { url: data.url },
+		}),
+	);
 });
 
 // Handle notification click
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data.url)
-  );
+self.addEventListener("notificationclick", (event) => {
+	event.notification.close();
+	event.waitUntil(clients.openWindow(event.notification.data.url));
 });
 ```
 
@@ -659,20 +664,21 @@ self.addEventListener('notificationclick', (event) => {
 
 ```javascript
 // sw.js - Handle share target
-self.addEventListener('fetch', (event) => {
-  if (event.request.url.endsWith('/share') &&
-      event.request.method === 'POST') {
-    event.respondWith((async () => {
-      const formData = await event.request.formData();
-      const title = formData.get('title');
-      const text = formData.get('text');
-      const url = formData.get('url');
+self.addEventListener("fetch", (event) => {
+	if (event.request.url.endsWith("/share") && event.request.method === "POST") {
+		event.respondWith(
+			(async () => {
+				const formData = await event.request.formData();
+				const title = formData.get("title");
+				const text = formData.get("text");
+				const url = formData.get("url");
 
-      // Store or process shared content
-      // Redirect to app with shared data
-      return Response.redirect(`/?shared=true&title=${encodeURIComponent(title)}`);
-    })());
-  }
+				// Store or process shared content
+				// Redirect to app with shared data
+				return Response.redirect(`/?shared=true&title=${encodeURIComponent(title)}`);
+			})(),
+		);
+	}
 });
 ```
 
@@ -685,16 +691,16 @@ self.addEventListener('fetch', (event) => {
 ```html
 <!-- Inline critical CSS -->
 <style>
-  /* Critical above-the-fold styles */
+	/* Critical above-the-fold styles */
 </style>
 
 <!-- Preload important resources -->
-<link rel="preload" href="/fonts/main.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/scripts/app.js" as="script">
+<link rel="preload" href="/fonts/main.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/scripts/app.js" as="script" />
 
 <!-- Defer non-critical CSS -->
-<link rel="stylesheet" href="/styles/main.css" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="/styles/main.css"></noscript>
+<link rel="stylesheet" href="/styles/main.css" media="print" onload="this.media='all'" />
+<noscript><link rel="stylesheet" href="/styles/main.css" /></noscript>
 ```
 
 ### Image Optimization
@@ -702,23 +708,19 @@ self.addEventListener('fetch', (event) => {
 ```html
 <!-- Responsive images -->
 <img
-  src="/images/hero-800.webp"
-  srcset="
-    /images/hero-400.webp 400w,
-    /images/hero-800.webp 800w,
-    /images/hero-1200.webp 1200w
-  "
-  sizes="(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px"
-  alt="Hero image"
-  loading="lazy"
-  decoding="async"
->
+	src="/images/hero-800.webp"
+	srcset="/images/hero-400.webp 400w, /images/hero-800.webp 800w, /images/hero-1200.webp 1200w"
+	sizes="(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px"
+	alt="Hero image"
+	loading="lazy"
+	decoding="async"
+/>
 
 <!-- Modern formats with fallback -->
 <picture>
-  <source srcset="/images/hero.avif" type="image/avif">
-  <source srcset="/images/hero.webp" type="image/webp">
-  <img src="/images/hero.jpg" alt="Hero image" loading="lazy">
+	<source srcset="/images/hero.avif" type="image/avif" />
+	<source srcset="/images/hero.webp" type="image/webp" />
+	<img src="/images/hero.jpg" alt="Hero image" loading="lazy" />
 </picture>
 ```
 
@@ -727,17 +729,17 @@ self.addEventListener('fetch', (event) => {
 ```javascript
 // Dynamic imports for route-based splitting
 const routes = {
-  '/': () => import('./pages/Home.js'),
-  '/about': () => import('./pages/About.js'),
-  '/settings': () => import('./pages/Settings.js')
+	"/": () => import("./pages/Home.js"),
+	"/about": () => import("./pages/About.js"),
+	"/settings": () => import("./pages/Settings.js"),
 };
 
 async function loadPage(path) {
-  const loader = routes[path];
-  if (loader) {
-    const module = await loader();
-    return module.default;
-  }
+	const loader = routes[path];
+	if (loader) {
+		const module = await loader();
+		return module.default;
+	}
 }
 ```
 
@@ -761,48 +763,48 @@ npx lighthouse https://your-app.com --view
 ### Manual Testing Checklist
 
 - [ ] **Installability**
-  - [ ] Install prompt appears on desktop Chrome
-  - [ ] Can be added to home screen on mobile
-  - [ ] App opens in standalone mode after install
+    - [ ] Install prompt appears on desktop Chrome
+    - [ ] Can be added to home screen on mobile
+    - [ ] App opens in standalone mode after install
 
 - [ ] **Offline Support**
-  - [ ] App loads when offline (airplane mode)
-  - [ ] Cached pages display correctly
-  - [ ] Offline fallback page shows for uncached routes
-  - [ ] Background sync works when coming back online
+    - [ ] App loads when offline (airplane mode)
+    - [ ] Cached pages display correctly
+    - [ ] Offline fallback page shows for uncached routes
+    - [ ] Background sync works when coming back online
 
 - [ ] **Performance**
-  - [ ] First Contentful Paint < 1.8s
-  - [ ] Largest Contentful Paint < 2.5s
-  - [ ] Time to Interactive < 3.8s
-  - [ ] Cumulative Layout Shift < 0.1
+    - [ ] First Contentful Paint < 1.8s
+    - [ ] Largest Contentful Paint < 2.5s
+    - [ ] Time to Interactive < 3.8s
+    - [ ] Cumulative Layout Shift < 0.1
 
 - [ ] **Service Worker**
-  - [ ] SW registers successfully
-  - [ ] Static assets cached on install
-  - [ ] SW updates correctly (new version)
-  - [ ] No stale cache issues
+    - [ ] SW registers successfully
+    - [ ] Static assets cached on install
+    - [ ] SW updates correctly (new version)
+    - [ ] No stale cache issues
 
 - [ ] **Manifest**
-  - [ ] All required fields present
-  - [ ] Icons display correctly
-  - [ ] Theme color applied
-  - [ ] Splash screen shows on launch
+    - [ ] All required fields present
+    - [ ] Icons display correctly
+    - [ ] Theme color applied
+    - [ ] Splash screen shows on launch
 
 ### Testing Service Worker Updates
 
 ```javascript
 // Force update check
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.ready.then((registration) => {
-    registration.update();
-  });
+if ("serviceWorker" in navigator) {
+	navigator.serviceWorker.ready.then((registration) => {
+		registration.update();
+	});
 }
 
 // Listen for updates
-navigator.serviceWorker.addEventListener('controllerchange', () => {
-  // New service worker activated
-  window.location.reload();
+navigator.serviceWorker.addEventListener("controllerchange", () => {
+	// New service worker activated
+	window.location.reload();
 });
 ```
 
@@ -847,18 +849,18 @@ project/
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Missing maskable icon | Add icon with `"purpose": "maskable"` |
-| No offline fallback | Create `offline.html` and cache it |
-| Cache never expires | Use `ExpirationPlugin` with Workbox |
+| Mistake                    | Fix                                          |
+| -------------------------- | -------------------------------------------- |
+| Missing maskable icon      | Add icon with `"purpose": "maskable"`        |
+| No offline fallback        | Create `offline.html` and cache it           |
+| Cache never expires        | Use `ExpirationPlugin` with Workbox          |
 | SW caches too aggressively | Use appropriate strategies per resource type |
-| No update mechanism | Implement `skipWaiting()` + reload prompt |
-| Broken install prompt | Ensure manifest meets all criteria |
-| No HTTPS in production | Configure SSL certificate |
-| Large cache size | Set `maxEntries` and `maxAgeSeconds` |
-| Stale API responses | Use `NetworkFirst` for dynamic data |
-| Missing start_url tracking | Add query param: `/?source=pwa` |
+| No update mechanism        | Implement `skipWaiting()` + reload prompt    |
+| Broken install prompt      | Ensure manifest meets all criteria           |
+| No HTTPS in production     | Configure SSL certificate                    |
+| Large cache size           | Set `maxEntries` and `maxAgeSeconds`         |
+| Stale API responses        | Use `NetworkFirst` for dynamic data          |
+| Missing start_url tracking | Add query param: `/?source=pwa`              |
 
 ---
 
@@ -896,13 +898,13 @@ npm install next-pwa
 
 ```javascript
 // next.config.js
-const withPWA = require('next-pwa')({
-  dest: 'public',
-  disable: process.env.NODE_ENV === 'development'
+const withPWA = require("next-pwa")({
+	dest: "public",
+	disable: process.env.NODE_ENV === "development",
 });
 
 module.exports = withPWA({
-  // Your Next.js config
+	// Your Next.js config
 });
 ```
 
@@ -939,14 +941,14 @@ Offline-only assets                 → Cache Only
 
 ```json
 {
-  "name": "App Name",
-  "short_name": "App",
-  "start_url": "/",
-  "display": "standalone",
-  "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
-  ]
+	"name": "App Name",
+	"short_name": "App",
+	"start_url": "/",
+	"display": "standalone",
+	"icons": [
+		{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+		{ "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+	]
 }
 ```
 

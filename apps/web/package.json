@@ -1,26 +1,31 @@
 {
-  "name": "@skriuw/web",
-  "version": "0.11.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "env -u NODE_ENV bun --env-file=../../.env --bun next dev --turbopack",
-    "build": "env -u NODE_ENV bun --env-file=../../.env --bun next build",
-    "start": "bun --env-file=../../.env --bun next start",
-    "test:unit": "bun test --isolate __tests__",
-    "test:unit:core": "bun test __tests__/domain/journal/mappers.test.ts __tests__/domain/notes/mappers.test.ts __tests__/core/auth/index.test.ts __tests__/features/ai/provider-keys.test.ts __tests__/features/ai/usage.test.ts",
-    "test:unit:web-state": "bun test __tests__/features/settings/store.test.ts __tests__/features/notes/components/sidebar/store.test.ts",
-    "test:unit:bootstrap": "bun test __tests__/providers/persistence-bootstrap.test.tsx",
-    "test:unit:stores": "bun test __tests__/features/notes/store.test.ts && bun test __tests__/features/journal/store.test.ts",
-    "test:smoke": "bun run build && playwright test",
-    "test:skeleton": "bun run build && playwright test __tests__/e2e/skeleton-qa.e2e.ts --project=chromium"
-  },
-  "dependencies": {
-    "@codemirror/commands": "^6.10.4",
-    "@codemirror/lang-markdown": "^6.5.0",
-    "@codemirror/language": "^6.12.4",
-    "@codemirror/state": "^6.7.0",
-    "@codemirror/view": "^6.43.4",
-    "@replit/codemirror-vim": "^6.3.0"
-  }
+	"name": "@skriuw/web",
+	"version": "0.11.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "env -u NODE_ENV bun --env-file=../../.env --bun next dev --turbopack",
+		"prebuild": "bun run test:unit",
+		"build": "env -u NODE_ENV bun --env-file=../../.env --bun next build",
+		"start": "bun --env-file=../../.env --bun next start",
+		"test:unit": "bun test --isolate __tests__",
+		"test:unit:coverage": "bun test --coverage --isolate __tests__",
+		"test:unit:core": "bun test __tests__/domain/journal/mappers.test.ts __tests__/domain/notes/mappers.test.ts __tests__/core/auth/index.test.ts __tests__/features/ai/provider-keys.test.ts __tests__/features/ai/usage.test.ts",
+		"test:unit:web-state": "bun test __tests__/features/settings/store.test.ts __tests__/features/notes/components/sidebar/store.test.ts",
+		"test:unit:bootstrap": "bun test __tests__/providers/persistence-bootstrap.test.tsx",
+		"test:unit:stores": "bun test __tests__/features/notes/store.test.ts && bun test __tests__/features/journal/store.test.ts",
+		"test:smoke": "bun run build && playwright test",
+		"test:skeleton": "bun run build && playwright test __tests__/e2e/skeleton-qa.e2e.ts --project=chromium"
+	},
+	"dependencies": {
+		"@codemirror/commands": "^6.10.4",
+		"@codemirror/lang-markdown": "^6.5.0",
+		"@codemirror/language": "^6.12.4",
+		"@codemirror/state": "^6.7.0",
+		"@codemirror/view": "^6.43.4",
+		"@replit/codemirror-vim": "^6.3.0",
+		"html-to-image": "^1.11.13",
+		"mermaid": "^11.16.0",
+		"yaml": "^2.9.0"
+	}
 }

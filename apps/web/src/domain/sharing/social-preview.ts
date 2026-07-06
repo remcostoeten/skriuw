@@ -1,9 +1,6 @@
 const MAX_PREVIEW_LENGTH = 160;
 
-export function buildSharePreviewDescription(
-	content: string,
-	requiresPassword: boolean,
-): string {
+export function buildSharePreviewDescription(content: string, requiresPassword: boolean): string {
 	if (requiresPassword) {
 		return "Password-protected note shared via Skriuw.";
 	}

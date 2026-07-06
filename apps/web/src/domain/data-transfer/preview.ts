@@ -176,9 +176,7 @@ export async function buildImportPreview(
 		}
 	}
 
-	const exportTags = isSkriuwManifestV2OrV3(archive.manifest)
-		? archive.manifest.journalTags
-		: [];
+	const exportTags = isSkriuwManifestV2OrV3(archive.manifest) ? archive.manifest.journalTags : [];
 	const uniqueExportTags = new Map<string, { name: string; color: string }>();
 	for (const tag of exportTags) {
 		uniqueExportTags.set(tag.name, tag);
@@ -240,15 +238,21 @@ export async function buildImportPreview(
 			warnings.push(`${noteCounts.skip} notes already exist and will be skipped.`);
 		}
 		if (journalCounts.skip > 0) {
-			warnings.push(`${journalCounts.skip} journal entries already exist and will be skipped.`);
+			warnings.push(
+				`${journalCounts.skip} journal entries already exist and will be skipped.`,
+			);
 		}
 	}
 	if (policy === "duplicate") {
 		if (duplicateNoteConflicts > 0) {
-			warnings.push(`${duplicateNoteConflicts} existing notes will be imported as duplicates.`);
+			warnings.push(
+				`${duplicateNoteConflicts} existing notes will be imported as duplicates.`,
+			);
 		}
 		if (journalCounts.skip > 0) {
-			warnings.push(`${journalCounts.skip} existing journal entries cannot be duplicated and will be skipped.`);
+			warnings.push(
+				`${journalCounts.skip} existing journal entries cannot be duplicated and will be skipped.`,
+			);
 		}
 	}
 	if (policy === "overwrite") {
@@ -256,7 +260,9 @@ export async function buildImportPreview(
 			warnings.push(`${noteCounts.overwrite} existing notes will be overwritten.`);
 		}
 		if (journalCounts.overwrite > 0) {
-			warnings.push(`${journalCounts.overwrite} existing journal entries will be overwritten.`);
+			warnings.push(
+				`${journalCounts.overwrite} existing journal entries will be overwritten.`,
+			);
 		}
 	}
 

@@ -49,10 +49,7 @@ function collectFolderNodeIds(nodes: FileTreeNode[]): string[] {
 	);
 }
 
-function getInitialCollapsedNodeIds(
-	nodes: FileTreeNode[],
-	defaultExpanded: boolean,
-): Set<string> {
+function getInitialCollapsedNodeIds(nodes: FileTreeNode[], defaultExpanded: boolean): Set<string> {
 	if (defaultExpanded) {
 		return new Set();
 	}

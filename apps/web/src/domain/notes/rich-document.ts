@@ -1,4 +1,5 @@
 import type { Block, PartialBlock } from "@blocknote/core";
+import { isDiagramFence, normalizeDiagramSource } from "@/shared/lib/diagram";
 import { isFileTreeFence, normalizeFileTreeSource } from "@/shared/lib/file-tree";
 import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
 import type { RichTextDocument } from "@/types/notes";
@@ -20,12 +21,10 @@ type InlineHit = {
 
 const TAG_PATTERN = /(^|[\s([{])#([a-zA-Z][a-zA-Z0-9_-]{1,31})\b/g;
 const WIKI_LINK_PATTERN = /\[\[([^\]\n|]+?)(?:\|([^\]\n]+?))?\]\]/g;
-const IMAGE_INLINE_PATTERN = /!\[([^\]\n]*?)\]\(([^)\n\s]+?)(?:\s+"([^"]*)")?\)/g;
 const INLINE_LINK_PATTERN = /\[([^\]\n]+?)\]\(([^)\n\s]+?)(?:\s+"[^"]*")?\)/g;
 const CODE_SPAN_PATTERN = /(?<!`)`([^`\n]+?)`(?!`)/g;
 const BOLD_STAR_PATTERN = /\*\*((?:[^*\n]|\*(?!\*))+?)\*\*/g;
 const BOLD_UNDERSCORE_PATTERN = /(^|[^_\w])__([^_\n]+?)__(?!\w)/g;
-const HIGHLIGHT_PATTERN = /==([^=\n]+?)==/g;
 const STRIKE_PATTERN = /~~([^~\n]+?)~~/g;
 const ITALIC_STAR_PATTERN = /(^|[^*\w])\*((?:[^*\n]+?))\*(?!\*)/g;
 const ITALIC_UNDERSCORE_PATTERN = /(^|[^_\w])_([^_\n]+?)_(?!\w)/g;
@@ -246,9 +245,25 @@ function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
 			} as any;
 		}
 
+		if (blockType === "diagram") {
+			const source = String(blockProps?.source ?? "");
+			return {
+				type: "diagram",
+				props: { source: normalizeDiagramSource(source) },
+				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+			} as any;
+		}
+
 		if (blockType === "procode" || blockType === "codeBlock") {
 			const language = String(blockProps?.language ?? "");
 			const source = getPlainBlockContent(content);
+			if (isDiagramFence(language)) {
+				return {
+					type: "diagram",
+					props: { source: normalizeDiagramSource(source) },
+					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+				} as any;
+			}
 			if (isFileTreeFence(language, source)) {
 				return {
 					type: "fileTree",
@@ -288,6 +303,15 @@ export function flattenInlineChips(blocks: Block[] | PartialBlock[]): PartialBlo
 	return (blocks as PartialBlock[]).map((block) => {
 		const blockType = String(block.type ?? "");
 		const blockProps = (block as { props?: Record<string, unknown> }).props;
+
+		if (blockType === "diagram") {
+			return {
+				type: "procode",
+				props: { language: "mermaid" },
+				content: normalizeDiagramSource(String(blockProps?.source ?? "")),
+				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+			} as any;
+		}
 
 		if (blockType === "fileTree") {
 			return {
@@ -637,6 +661,14 @@ export function markdownToRichDocument(markdown: string): RichTextDocument {
 			// fence has already pushed `i` to `lines.length`, and an extra increment
 			// is just a defensive no-op we'd rather avoid.
 			if (i < lines.length) i++;
+			if (isDiagramFence(language)) {
+				blocks.push({
+					type: "diagram",
+					props: { source: normalizeDiagramSource(code) },
+					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+				} as any);
+				continue;
+			}
 			if (isFileTreeFence(language, code)) {
 				blocks.push({
 					type: "fileTree",
@@ -754,7 +786,10 @@ function blockToSearchableMarkdown(block: PartialBlock): string {
 	}
 
 	const childText = Array.isArray(block.children)
-		? (block.children as PartialBlock[]).map(blockToSearchableMarkdown).filter(Boolean).join("\n")
+		? (block.children as PartialBlock[])
+				.map(blockToSearchableMarkdown)
+				.filter(Boolean)
+				.join("\n")
 		: "";
 
 	if (blockType === "heading") {
@@ -782,6 +817,10 @@ function blockToSearchableMarkdown(block: PartialBlock): string {
 
 	if (blockType === "procode" || blockType === "fileTree") {
 		return getPlainBlockContent(content);
+	}
+
+	if (blockType === "diagram") {
+		return String(blockProps?.source ?? "");
 	}
 
 	if (blockType === "table") {
@@ -851,7 +890,11 @@ function collectInlineUsers(content: unknown, acc: Map<string, string>): void {
 			continue;
 		}
 
-		const node = inline as { type?: string; props?: Record<string, unknown>; content?: unknown };
+		const node = inline as {
+			type?: string;
+			props?: Record<string, unknown>;
+			content?: unknown;
+		};
 		if (node.type === "user") {
 			const name = String(node.props?.name ?? "").trim();
 			if (name) {
@@ -865,9 +908,7 @@ function collectInlineUsers(content: unknown, acc: Map<string, string>): void {
 }
 
 /** Names of every `$user` chip actually present in a rich document (not prose `$word` text). */
-export function extractRichDocumentUsers(
-	document: RichTextDocument | null | undefined,
-): string[] {
+export function extractRichDocumentUsers(document: RichTextDocument | null | undefined): string[] {
 	if (!document?.length) {
 		return [];
 	}
@@ -896,7 +937,11 @@ function collectInlinePersonIds(content: unknown, acc: Set<string>): void {
 			continue;
 		}
 
-		const node = inline as { type?: string; props?: Record<string, unknown>; content?: unknown };
+		const node = inline as {
+			type?: string;
+			props?: Record<string, unknown>;
+			content?: unknown;
+		};
 		if (node.type === "person") {
 			const id = String(node.props?.id ?? "").trim();
 			if (id) {
@@ -962,7 +1007,12 @@ export function resolveRichDocument(
 }
 
 export function cloneRichDocument(document: Block[]): RichTextDocument {
-	return JSON.parse(JSON.stringify(document)) as RichTextDocument;
+	try {
+		return JSON.parse(JSON.stringify(document)) as RichTextDocument;
+	} catch (err) {
+		console.error("[cloneRichDocument] Serialization failed:", err);
+		return document.map((block) => structuredClone(block)) as RichTextDocument;
+	}
 }
 
 /**

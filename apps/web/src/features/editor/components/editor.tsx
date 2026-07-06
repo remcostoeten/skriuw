@@ -80,7 +80,7 @@ type EditorProps = {
 	isPaneFocused?: boolean;
 	onCreateFile?: () => void;
 	collab?: TRichTextCollab;
-}
+};
 
 export function Editor({
 	file,

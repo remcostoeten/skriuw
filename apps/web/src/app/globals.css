@@ -10,6 +10,9 @@
 @import "./themes/paper.css";
 @import "./themes/embers.css";
 @import "./themes/mocha.css";
+@import "./themes/rose-pine.css";
+@import "./themes/gruvbox.css";
+@import "./themes/tokyo-night.css";
 
 @plugin 'tailwindcss-animate';
 
@@ -125,12 +128,26 @@
 	--animate-accordion-up: accordion-up 0.2s ease-out;
 
 	@keyframes sparkle-float-up {
-		0%, 100% { opacity: 1; transform: scale(1) translateY(0); }
-		50% { opacity: 0.25; transform: scale(0.65) translateY(-4px); }
+		0%,
+		100% {
+			opacity: 1;
+			transform: scale(1) translateY(0);
+		}
+		50% {
+			opacity: 0.25;
+			transform: scale(0.65) translateY(-4px);
+		}
 	}
 	@keyframes sparkle-float-down {
-		0%, 100% { opacity: 1; transform: scale(1) translateY(0); }
-		50% { opacity: 0.35; transform: scale(0.7) translateY(3px); }
+		0%,
+		100% {
+			opacity: 1;
+			transform: scale(1) translateY(0);
+		}
+		50% {
+			opacity: 0.35;
+			transform: scale(0.7) translateY(3px);
+		}
 	}
 	@keyframes accordion-down {
 		from {
@@ -258,20 +275,20 @@
 	   a background-image overlay, so it stays visible on top of any control's own
 	   background (utility classes or inline styles) instead of being overridden. */
 	:where(
-			button,
-			a,
-			summary,
-			[role="button"],
-			[role="menuitem"],
-			[role="menuitemcheckbox"],
-			[role="menuitemradio"],
-			[role="radio"],
-			[role="switch"],
-			[role="checkbox"],
-			[role="option"],
-			[role="tab"],
-			[role="treeitem"]
-		):focus-visible {
+		button,
+		a,
+		summary,
+		[role="button"],
+		[role="menuitem"],
+		[role="menuitemcheckbox"],
+		[role="menuitemradio"],
+		[role="radio"],
+		[role="switch"],
+		[role="checkbox"],
+		[role="option"],
+		[role="tab"],
+		[role="treeitem"]
+	):focus-visible {
 		background-image: linear-gradient(
 			hsl(var(--foreground) / 0.18),
 			hsl(var(--foreground) / 0.18)
@@ -306,8 +323,7 @@
 	}
 
 	#auth-drawer-portal .font-display {
-		font-family:
-			ui-serif, Georgia, Cambria, "Times New Roman", Times, serif !important;
+		font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif !important;
 	}
 
 	#auth-drawer-portal button.rounded-none {
@@ -324,15 +340,13 @@
 		border-color: hsl(var(--foreground) / 0.12) !important;
 	}
 
-	#auth-drawer-portal input:not([type="checkbox"]):not([type="radio"]):not(
-			[aria-invalid="true"]
-		) {
+	#auth-drawer-portal
+		input:not([type="checkbox"]):not([type="radio"]):not([aria-invalid="true"]) {
 		border-color: hsl(var(--foreground) / 0.07);
 	}
 
-	#auth-drawer-portal input:not([type="checkbox"]):not([type="radio"]):not(
-			[aria-invalid="true"]
-		):focus {
+	#auth-drawer-portal
+		input:not([type="checkbox"]):not([type="radio"]):not([aria-invalid="true"]):focus {
 		border-color: hsl(var(--foreground) / 0.11);
 	}
 
@@ -357,7 +371,9 @@
 
 	/* iOS Safari zooms focused inputs below 16px — enforce minimum on mobile */
 	@media (max-width: 767px) {
-		input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="hidden"]):not([type="range"]):not([type="file"]),
+		input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not(
+				[type="submit"]
+			):not([type="hidden"]):not([type="range"]):not([type="file"]),
 		textarea,
 		select {
 			font-size: 16px;
@@ -648,5 +664,106 @@
 	.group:hover .hover-reveal,
 	.group:focus-within .hover-reveal {
 		opacity: 1;
+	}
+}
+
+/*
+ * Go-to mode (quick access) indicators. The <kbd> hint portals into its target
+ * element; anchors that were statically positioned get data-goto-target-anchor
+ * so the hint can position absolutely without disturbing already-positioned
+ * elements.
+ */
+[data-goto-target-anchor] {
+	position: relative;
+}
+
+kbd[data-goto-indicator] {
+	position: absolute;
+	z-index: 40;
+	pointer-events: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid hsl(var(--border));
+	border-radius: 4px;
+	background: hsl(var(--muted));
+	color: hsl(var(--foreground));
+	font-family: var(--font-mono, ui-monospace, monospace);
+	line-height: 1;
+	box-shadow: 0 1px 2px hsl(var(--scrim) / 0.25);
+}
+
+kbd[data-goto-indicator][data-size="small"] {
+	padding: 2px 4px;
+	font-size: 10px;
+}
+
+kbd[data-goto-indicator][data-size="medium"] {
+	padding: 3px 6px;
+	font-size: 12px;
+}
+
+kbd[data-goto-indicator][data-size="large"] {
+	padding: 4px 8px;
+	font-size: 14px;
+}
+
+kbd[data-goto-indicator][data-position="top-right"] {
+	top: 2px;
+	right: 2px;
+}
+
+kbd[data-goto-indicator][data-position="top-left"] {
+	top: 2px;
+	left: 2px;
+}
+
+kbd[data-goto-indicator][data-position="bottom-right"] {
+	bottom: 2px;
+	right: 2px;
+}
+
+kbd[data-goto-indicator][data-position="bottom-left"] {
+	bottom: 2px;
+	left: 2px;
+}
+
+/*
+ * CTA arrow swap-through: on hover the arrow exits right while a clone enters
+ * from the left, reading as one arrow passing through the button edge. Two
+ * stacked icons inside an overflow-hidden box — transform-only, so it stays on
+ * the GPU. Hover-gated so touch taps don't trigger a stuck half-swap.
+ */
+.cta-arrow-swap {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+}
+
+.cta-arrow-swap > svg {
+	transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.cta-arrow-swap > svg:last-child {
+	position: absolute;
+	inset: 0;
+	transform: translateX(-150%);
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.group:hover .cta-arrow-swap > svg:first-child {
+		transform: translateX(150%);
+	}
+
+	.group:hover .cta-arrow-swap > svg:last-child {
+		transform: translateX(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.cta-arrow-swap > svg {
+		transition: none;
 	}
 }

@@ -67,7 +67,10 @@ export function detectImportProfile(entries: Record<string, string>): ImportProf
 	throw new Error("Unsupported archive format.");
 }
 
-function parseThirdPartyArchive(profile: ImportProfile, entries: Record<string, string>): ParsedArchive {
+function parseThirdPartyArchive(
+	profile: ImportProfile,
+	entries: Record<string, string>,
+): ParsedArchive {
 	switch (profile) {
 		case "obsidian":
 			return parseObsidianVaultEntries(entries);
@@ -85,10 +88,7 @@ function parseThirdPartyArchive(profile: ImportProfile, entries: Record<string, 
 	}
 }
 
-export function parseImportBuffer(
-	buffer: Uint8Array,
-	profileHint?: ImportProfile,
-): ParsedArchive {
+export function parseImportBuffer(buffer: Uint8Array, profileHint?: ImportProfile): ParsedArchive {
 	const entries = decodeArchiveEntries(buffer);
 	const profile = profileHint ?? detectImportProfile(entries);
 

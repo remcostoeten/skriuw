@@ -13,10 +13,10 @@ Combine `transform-style: preserve-3d` with `rotateX()` and `rotateY()` to creat
 
 ```css
 .card {
-  transition: transform 500ms ease-out;
+	transition: transform 500ms ease-out;
 }
 .card:hover {
-  transform: rotateY(180deg);
+	transform: rotateY(180deg);
 }
 /* Card rotates but children flatten, back isn't visible */
 ```
@@ -25,20 +25,21 @@ Combine `transform-style: preserve-3d` with `rotateX()` and `rotateY()` to creat
 
 ```css
 .card-container {
-  perspective: 1000px;
+	perspective: 1000px;
 }
 .card {
-  transform-style: preserve-3d;
-  transition: transform 500ms ease-out;
+	transform-style: preserve-3d;
+	transition: transform 500ms ease-out;
 }
 .card:hover {
-  transform: rotateY(180deg);
+	transform: rotateY(180deg);
 }
-.card-front, .card-back {
-  backface-visibility: hidden;
+.card-front,
+.card-back {
+	backface-visibility: hidden;
 }
 .card-back {
-  transform: rotateY(180deg);
+	transform: rotateY(180deg);
 }
 /* True 3D flip with front/back faces */
 ```

@@ -10,7 +10,10 @@ import { buildDesiredNoteLinkRows } from "@/domain/notes/note-link-sync";
 import { normalizeStoredTagEntry, normalizeTagName } from "@/domain/tags/normalize";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 import { buildGraphData } from "@/domain/notes/graph";
-import { resolveRichDocument } from "@/domain/notes/rich-document";
+import {
+	resolveRichDocument,
+	richDocumentToSearchableMarkdown,
+} from "@/domain/notes/rich-document";
 import {
 	buildNoteBacklinks,
 	extractNoteLinks,
@@ -18,6 +21,7 @@ import {
 	normalizeNoteTitle,
 } from "@/domain/notes/note-links";
 import type { NoteLink, ResolvedNoteLink } from "@/domain/notes/note-links";
+import { parseSearchQuery } from "@/domain/notes/search-query";
 import type { Person } from "@/domain/people/models";
 import {
 	applyFolderUpdate,
@@ -53,9 +57,8 @@ function trashRecordsToBatches(records: RustTrashRecord[]): TrashBatch[] {
 		const isFolder = folderRecords.length > 0;
 		const rootFolderId = batchId.startsWith("folder:") ? batchId.slice("folder:".length) : null;
 		const primary =
-			(isFolder
-				? folderRecords.find((record) => record.id === rootFolderId)
-				: group[0]) ?? group[0];
+			(isFolder ? folderRecords.find((record) => record.id === rootFolderId) : group[0]) ??
+			group[0];
 		batches.push({
 			id: batchId,
 			deletedAt: new Date(Math.max(...group.map((record) => record.deletedAt))),
@@ -93,6 +96,7 @@ type RustNote = {
 	sortOrder: number;
 	tags: string[];
 	properties: NoteFile["properties"];
+	icon?: string;
 	createdAt: number;
 	modifiedAt: number;
 };
@@ -179,6 +183,7 @@ function toRustNote(note: NoteFile): RustNote {
 		sortOrder: note.sortOrder ?? 0,
 		tags: note.tags ?? [],
 		properties: normalizeNoteProperties(note.properties),
+		icon: note.icon,
 		createdAt: note.createdAt.getTime(),
 		modifiedAt: note.modifiedAt.getTime(),
 	};
@@ -198,6 +203,7 @@ function fromRustNote(raw: RustNote): NoteFile {
 		sortOrder: raw.sortOrder,
 		tags: raw.tags,
 		properties: normalizeNoteProperties(raw.properties),
+		icon: raw.icon,
 		createdAt: new Date(raw.createdAt),
 		modifiedAt: new Date(raw.modifiedAt),
 	};
@@ -220,6 +226,7 @@ function fromRustNoteMetadata(raw: RustNoteMetadata): NoteFile {
 		sortOrder: raw.sortOrder,
 		tags: raw.tags,
 		properties: normalizeNoteProperties(raw.properties),
+		icon: raw.icon,
 		createdAt: new Date(raw.createdAt),
 		modifiedAt: new Date(raw.modifiedAt),
 	};
@@ -360,7 +367,10 @@ type RustBacklinkSources = {
 
 function noteTitleKeys(note: NoteFile): string[] {
 	const keys = new Set<string>();
-	for (const candidate of [normalizeNoteTitle(note.name), normalizeNoteTitle(getNoteTitle(note))]) {
+	for (const candidate of [
+		normalizeNoteTitle(note.name),
+		normalizeNoteTitle(getNoteTitle(note)),
+	]) {
 		if (candidate) keys.add(candidate);
 	}
 	return [...keys];
@@ -383,9 +393,39 @@ function toRustNoteLink(link: NoteLink): RustNoteLink {
  * resolution) plus the `tag`/`person` membership rows the web Prisma index
  * also stores — so the SQL aggregations (tag pages, person pages, graph) see
  * the same data on desktop as on the web.
+ *
+ * Falls back to scanning `richContent` for noteLink chips when the
+ * markdown `content` doesn't contain the serialised `[[wiki]]` form yet
+ * (e.g. a block-only note that was just created and hasn't been through a
+ * full markdown round-trip).
  */
 function buildRustNoteLinkRows(note: NoteFile): RustNoteLink[] {
-	const rows = extractNoteLinks(note).map(toRustNoteLink);
+	const rows: RustNoteLink[] = [];
+
+	const contentLinks = extractNoteLinks(note);
+	const seen = new Set<string>();
+
+	for (const link of contentLinks) {
+		seen.add(`${link.kind}:${normalizeNoteTitle(link.targetLabel)}`);
+		rows.push(toRustNoteLink(link));
+	}
+
+	// When content is empty the link extractor already falls through to
+	// richContent, but when content has unrelated text without the wiki
+	// link the noteLink chips in richContent would be missed — extract
+	// them explicitly and merge.
+	const content = note.content?.trim();
+	const richMarkdown = content ? richDocumentToSearchableMarkdown(note.richContent) : "";
+	if (richMarkdown) {
+		const fallback: NoteFile = { ...note, content: richMarkdown };
+		for (const link of extractNoteLinks(fallback)) {
+			const key = `${link.kind}:${normalizeNoteTitle(link.targetLabel)}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			rows.push(toRustNoteLink(link));
+		}
+	}
+
 	for (const row of buildDesiredNoteLinkRows("local", note)) {
 		if (row.kind !== "tag" && row.kind !== "person") continue;
 		rows.push({
@@ -575,7 +615,10 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async getNoteVersions(id) {
-			const rows = await invoke<RustNoteVersion[]>("get_note_versions", { noteId: id, limit: 12 });
+			const rows = await invoke<RustNoteVersion[]>("get_note_versions", {
+				noteId: id,
+				limit: 200,
+			});
 			return rows.map(fromRustNoteVersion);
 		},
 
@@ -618,8 +661,9 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async searchNotes(query, limit): Promise<NoteSearchHit[]> {
-			if (!query.trim()) return [];
-			return invoke<NoteSearchHit[]>("search_notes", { query, limit });
+			const { text, tags, people } = parseSearchQuery(query);
+			if (!text && tags.length === 0 && people.length === 0) return [];
+			return invoke<NoteSearchHit[]>("search_notes", { query: text, tags, people, limit });
 		},
 
 		async restoreNoteVersion(versionId): Promise<UpdateNoteResult> {
@@ -665,7 +709,11 @@ export function createTauriBackend(): WorkspaceBackend {
 
 				const createCheckpoint = input.createCheckpoint === true;
 				const reason: NoteVersionReason =
-					input.name !== undefined ? "rename" : createCheckpoint ? "checkpoint" : "autosave";
+					input.name !== undefined
+						? "rename"
+						: createCheckpoint
+							? "checkpoint"
+							: "autosave";
 				// One command for vault write + index upsert + link index +
 				// version bookkeeping; the snapshot is derived Rust-side so the
 				// note body crosses IPC once per save instead of three times.
@@ -842,7 +890,11 @@ export function createTauriBackend(): WorkspaceBackend {
 			const target = people.find((entry) => entry.id === targetId);
 			if (!source || !target) return { rewrittenNoteIds: [] };
 			const rewrittenNoteIds = await rewriteNotes((note) =>
-				rewriteNoteForPerson(note, { fromId: sourceId, toId: targetId, toName: target.name }),
+				rewriteNoteForPerson(note, {
+					fromId: sourceId,
+					toId: targetId,
+					toName: target.name,
+				}),
 			);
 			await invoke("delete_person", { id: sourceId });
 			return { rewrittenNoteIds };
@@ -854,9 +906,10 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async listTags() {
-			const rows = await invoke<
-				Array<{ name: string; color: string | null; noteCount: number }>
-			>("list_tag_summaries");
+			const rows =
+				await invoke<Array<{ name: string; color: string | null; noteCount: number }>>(
+					"list_tag_summaries",
+				);
 			return rows.map((row) => ({
 				name: row.name,
 				color: (row.color as NotePropertyColor | null) ?? null,
@@ -929,7 +982,12 @@ export function createTauriBackend(): WorkspaceBackend {
 			const existingTagNames = new Set((await listJournalTags()).map((tag) => tag.name));
 			const journalTags = payload.journalTags
 				.filter((tag) => !existingTagNames.has(tag.name))
-				.map((tag) => ({ id: crypto.randomUUID(), name: tag.name, color: tag.color, usageCount: 0 }));
+				.map((tag) => ({
+					id: crypto.randomUUID(),
+					name: tag.name,
+					color: tag.color,
+					usageCount: 0,
+				}));
 
 			const tagIdByName = new Map(
 				(await listJournalTags()).map((tag) => [tag.name, tag.id] as const),

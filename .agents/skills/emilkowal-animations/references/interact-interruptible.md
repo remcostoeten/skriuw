@@ -13,11 +13,15 @@ Users should be able to change animation state at any time with smooth transitio
 
 ```css
 .sidebar {
-  animation: slideIn 300ms ease-out;
+	animation: slideIn 300ms ease-out;
 }
 @keyframes slideIn {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
+	from {
+		transform: translateX(-100%);
+	}
+	to {
+		transform: translateX(0);
+	}
 }
 /* If user closes mid-animation, it jumps or glitches */
 ```
@@ -26,11 +30,11 @@ Users should be able to change animation state at any time with smooth transitio
 
 ```css
 .sidebar {
-  transform: translateX(-100%);
-  transition: transform 300ms ease-out;
+	transform: translateX(-100%);
+	transition: transform 300ms ease-out;
 }
 .sidebar.open {
-  transform: translateX(0);
+	transform: translateX(0);
 }
 /* User can open/close anytime, animation retargets smoothly */
 ```

@@ -14,14 +14,10 @@ export function useNoteVersions(noteId: string | null | undefined) {
 	// backend stores versions locally with no auth at all.
 	const canLoad = Boolean(id) && backend.capabilities.history && !isGuestScopedId(id);
 
-	return useApiQuery<NoteVersion[]>(
-		notesKeys.versions(id),
-		() => backend.getNoteVersions(id),
-		{
-			// Versions only grow via the user's own saves, which invalidate
-			// versionsAll(). Cache between mounts instead of refetching.
-			enabled: canLoad,
-			staleTime: 5 * 60 * 1000,
-		},
-	);
+	return useApiQuery<NoteVersion[]>(notesKeys.versions(id), () => backend.getNoteVersions(id), {
+		// Versions only grow via the user's own saves, which invalidate
+		// versionsAll(). Cache between mounts instead of refetching.
+		enabled: canLoad,
+		staleTime: 5 * 60 * 1000,
+	});
 }

@@ -9,9 +9,7 @@ export function safeRedirectPath(value: string | null): string {
 
 export function forwardAuthCookies(source: Response, target: NextResponse): void {
 	const cookies =
-		typeof source.headers.getSetCookie === "function"
-			? source.headers.getSetCookie()
-			: [];
+		typeof source.headers.getSetCookie === "function" ? source.headers.getSetCookie() : [];
 	if (cookies.length > 0) {
 		for (const cookie of cookies) {
 			target.headers.append("set-cookie", cookie);

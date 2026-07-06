@@ -23,7 +23,12 @@ type Phase =
 	| { kind: "ready"; snapshot: TPublicShareSnapshot }
 	| { kind: "terminal"; status: TerminalStatus };
 
-export function ShareViewer({ token, requiresPassword, viewOnce, initialCollabStatus = "none" }: Props) {
+export function ShareViewer({
+	token,
+	requiresPassword,
+	viewOnce,
+	initialCollabStatus = "none",
+}: Props) {
 	const needsGate = requiresPassword || viewOnce;
 	const [phase, setPhase] = useState<Phase>(needsGate ? { kind: "gate" } : { kind: "loading" });
 	const [password, setPassword] = useState("");
@@ -67,7 +72,9 @@ export function ShareViewer({ token, requiresPassword, viewOnce, initialCollabSt
 	}, []);
 
 	if (phase.kind === "ready") {
-		return <PublicNoteReader snapshot={phase.snapshot} initialCollabStatus={initialCollabStatus} />;
+		return (
+			<PublicNoteReader snapshot={phase.snapshot} initialCollabStatus={initialCollabStatus} />
+		);
 	}
 
 	if (phase.kind === "terminal") {
@@ -84,7 +91,8 @@ export function ShareViewer({ token, requiresPassword, viewOnce, initialCollabSt
 
 	// gate
 	// Derive whether password input is needed from current state, not just initial prop
-	const needsPasswordInput = requiresPassword || (phase.kind === "gate" && error?.includes("password"));
+	const needsPasswordInput =
+		requiresPassword || (phase.kind === "gate" && error?.includes("password"));
 
 	function handleSubmit(event: FormEvent) {
 		event.preventDefault();
@@ -94,7 +102,10 @@ export function ShareViewer({ token, requiresPassword, viewOnce, initialCollabSt
 
 	return (
 		<ShareShell>
-			<form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col items-center text-center">
+			<form
+				onSubmit={handleSubmit}
+				className="flex w-full max-w-sm flex-col items-center text-center"
+			>
 				<div className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
 					{needsPasswordInput ? (
 						<Lock className="h-5 w-5" strokeWidth={1.6} />
@@ -135,7 +146,9 @@ export function ShareViewer({ token, requiresPassword, viewOnce, initialCollabSt
 					disabled={submitting || (needsPasswordInput && password.length === 0)}
 					className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-[15px] font-medium text-background transition-transform duration-150 ease-out active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 sm:px-4 sm:py-2 sm:text-[13px]"
 				>
-					{submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.8} />}
+					{submitting && (
+						<Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.8} />
+					)}
 					{needsPasswordInput ? "Unlock note" : "Reveal note"}
 				</button>
 			</form>

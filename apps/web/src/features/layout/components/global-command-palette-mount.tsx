@@ -8,8 +8,11 @@ import { useShortcutManager } from "@/core/shortcuts";
 import { useWorkspaceCapabilities } from "@/core/workspace-backend";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { CommandPalette, type CommandPaletteItem } from "@/shared/ui/command-palette";
-import { buildSettingsCommandItems } from "@/features/settings/settings-command-index";
-import { openSettings, toggleSettings } from "@/features/settings/use-settings-modal";
+import {
+	buildSettingsCommandItems,
+	buildThemeCommandItems,
+} from "@/features/settings/settings-command-index";
+import { toggleSettings } from "@/features/settings/use-settings-modal";
 import { usePreferencesStore } from "@/features/settings/store";
 import { THEMES } from "@/features/settings/preferences/themes";
 import { useCreateFolder } from "@/features/notes/hooks/use-create-folder";
@@ -41,17 +44,10 @@ export function GlobalCommandPaletteMount() {
 	const capabilities = useWorkspaceCapabilities();
 	const createNoteMutation = useCreateNote();
 	const createFolderMutation = useCreateFolder();
-	
+
 	const { getShortcutHint } = useShortcutManager();
-	const {
-		isOpen,
-		setIsOpen,
-		query,
-		setQuery,
-		activeScope,
-		itemProviders,
-		getRegisteredHandler,
-	} = useCommandRegistry();
+	const { isOpen, setIsOpen, query, setQuery, activeScope, itemProviders, getRegisteredHandler } =
+		useCommandRegistry();
 
 	const defaultModeRaw = usePreferencesStore((state) => state.editor.defaultModeRaw);
 	const defaultPropertiesTemplateId = usePreferencesStore(
@@ -74,7 +70,9 @@ export function GlobalCommandPaletteMount() {
 		const richContent = markdownToRichDocument(content);
 		const preferredEditorMode = defaultModeRaw ? "raw" : "block";
 		const defaultTemplate = defaultPropertiesTemplateId
-			? NOTE_PROPERTY_TEMPLATES.find((template) => template.id === defaultPropertiesTemplateId)
+			? NOTE_PROPERTY_TEMPLATES.find(
+					(template) => template.id === defaultPropertiesTemplateId,
+				)
 			: null;
 		const properties = defaultTemplate?.build() ?? [];
 		const input: CreateNoteInput = {
@@ -137,6 +135,7 @@ export function GlobalCommandPaletteMount() {
 		"notes.toggleMetadata": () => router.push(shortcutParam("toggleMetadata")),
 		"notes.focusSidebarSearch": () => router.push(shortcutParam("focusSidebarSearch")),
 		"notes.focusEditor": () => router.push(shortcutParam("focusEditor")),
+		"notes.focusMetadata": () => router.push(shortcutParam("focusMetadata")),
 		"notes.help": () => router.push(shortcutParam("help")),
 		"settings.open": () => {
 			triggerNativeFeedback("selection");
@@ -167,7 +166,7 @@ export function GlobalCommandPaletteMount() {
 
 			if (cmd.scope === "global" || cmd.scope === activeScope) {
 				const registeredHandler = getRegisteredHandler(id);
-				
+
 				// Determine label dynamically if needed
 				let label = cmd.label;
 				if (cmd.id === "settings.theme") {
@@ -176,7 +175,8 @@ export function GlobalCommandPaletteMount() {
 					label = vimModeEnabled ? "Disable Vim mode" : "Enable Vim mode";
 				} else if (cmd.id === "notes.newNote" && activeScope === "notes") {
 					// Use local label context
-					const diaryModeEnabled = usePreferencesStore.getState().journal.diaryModeEnabled;
+					const diaryModeEnabled =
+						usePreferencesStore.getState().journal.diaryModeEnabled;
 					label = diaryModeEnabled ? "Open today's journal" : "Create note";
 				}
 
@@ -194,6 +194,7 @@ export function GlobalCommandPaletteMount() {
 
 		// 2. Append settings search items (always available in search)
 		staticItems.push(...buildSettingsCommandItems());
+		staticItems.push(...buildThemeCommandItems());
 
 		// 3. Append dynamic items from items providers (e.g. note search hits)
 		const dynamicItems = itemProviders.flatMap((provider) => provider(query));

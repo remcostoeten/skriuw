@@ -25,7 +25,7 @@ type ShortcutContextValue = {
 	 * hooks — not part of the public shortcut API surface.
 	 */
 	registerLiveHandler: (id: ShortcutId, handler: ShortcutHandler) => () => void;
-}
+};
 
 const ShortcutContext = React.createContext<ShortcutContextValue | null>(null);
 
@@ -43,7 +43,9 @@ type TauriGlobal = { __TAURI__?: { event?: TauriEventApi } };
  * recently registered for that id, so the behavior stays defined in one place.
  * No-ops outside the Tauri runtime (web build).
  */
-function useGlobalShortcutBridge(handlersRef: React.RefObject<Partial<Record<ShortcutId, ShortcutHandler>>>): void {
+function useGlobalShortcutBridge(
+	handlersRef: React.RefObject<Partial<Record<ShortcutId, ShortcutHandler>>>,
+): void {
 	React.useEffect(() => {
 		const events = (window as unknown as TauriGlobal).__TAURI__?.event;
 		if (!events) return;
@@ -81,7 +83,6 @@ function getBindingGroupIds(id: ShortcutId): ShortcutId[] {
 	if (!group) return [id];
 	return getShortcutIds().filter((candidate) => getShortcutDef(candidate).bindingGroup === group);
 }
-
 
 /**
  * Owns the persisted, user-remappable bindings shared by every shortcut
@@ -173,7 +174,15 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 			getShortcutHint,
 			registerLiveHandler,
 		}),
-		[bindings, setBinding, resetBinding, resetAllBindings, getHelpGroups, getShortcutHint, registerLiveHandler],
+		[
+			bindings,
+			setBinding,
+			resetBinding,
+			resetAllBindings,
+			getHelpGroups,
+			getShortcutHint,
+			registerLiveHandler,
+		],
 	);
 
 	return <ShortcutContext.Provider value={value}>{children}</ShortcutContext.Provider>;
@@ -240,10 +249,14 @@ export function useShortcutScope(
 	// shared live-handler registry, so the desktop global-shortcut bridge can
 	// dispatch to the same behavior an in-app keypress would trigger.
 	React.useEffect(() => {
-		const globalIds = getShortcutIds().filter((id) => getShortcutDef(id).scope === scope && getShortcutDef(id).global);
+		const globalIds = getShortcutIds().filter(
+			(id) => getShortcutDef(id).scope === scope && getShortcutDef(id).global,
+		);
 		if (globalIds.length === 0) return;
 
-		const unregisterFns = globalIds.map((id) => registerLiveHandler(id, (event) => latest.current[id]?.(event)));
+		const unregisterFns = globalIds.map((id) =>
+			registerLiveHandler(id, (event) => latest.current[id]?.(event)),
+		);
 		return () => {
 			for (const unregister of unregisterFns) unregister();
 		};

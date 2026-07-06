@@ -17,4 +17,3 @@ export function readBearerToken(request: Request): string | null {
 	if (scheme?.toLowerCase() !== "bearer" || !token) return null;
 	return token;
 }
-

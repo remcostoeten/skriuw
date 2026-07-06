@@ -42,12 +42,13 @@ export type NoteFile = {
 	tags?: string[];
 	properties?: NoteProperty[];
 	// Optional journal metadata
+	icon?: string;
 	journalMeta?: JournalMetadata;
 	// Set on the collaborator-aware read path. `ownerId` is the note's real owner;
 	// `access` is this viewer's role. Undefined → owner (legacy owner-scoped read).
 	ownerId?: string;
 	access?: NoteAccessRole;
-}
+};
 
 /** An immutable snapshot of a note captured for history, keyed by `contentHash`. */
 export type NoteVersion = {
@@ -63,7 +64,7 @@ export type NoteVersion = {
 	properties?: NoteProperty[];
 	reason: NoteVersionReason;
 	contentHash: string;
-}
+};
 
 /** A folder node in the sidebar tree; groups notes and nested folders by `parentId`. */
 export type NoteFolder = {
@@ -72,7 +73,7 @@ export type NoteFolder = {
 	parentId: string | null;
 	sortOrder?: number;
 	isOpen: boolean;
-}
+};
 
 export type SidebarItem =
 	| { type: "file"; data: NoteFile }

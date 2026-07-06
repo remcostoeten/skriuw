@@ -35,11 +35,10 @@ type ShareRecord = {
 };
 
 function getAppBaseUrl(): string {
-	return (
-		process.env.NEXT_PUBLIC_BETTER_AUTH_URL ??
-		process.env.BETTER_AUTH_URL ??
-		""
-	).replace(/\/$/, "");
+	return (process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? process.env.BETTER_AUTH_URL ?? "").replace(
+		/\/$/,
+		"",
+	);
 }
 
 function toShareState(share: ShareRecord, liveContent?: string): TNoteShareState {
@@ -139,9 +138,7 @@ export async function updateNoteShareSettings(
 }
 
 /** Re-freeze the snapshot from the note's current content. */
-export async function refreshNoteShareSnapshot(
-	noteId: string,
-): Promise<TNoteShareState | null> {
+export async function refreshNoteShareSnapshot(noteId: string): Promise<TNoteShareState | null> {
 	const { prisma, user } = await getAuthenticatedUser();
 
 	const existing = await prisma.noteShare.findFirst({ where: { noteId, userId: user.id } });

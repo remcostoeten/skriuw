@@ -1,6 +1,16 @@
 "use client";
 
-import { Bell, FileText, FolderPlus, Image as ImageIcon, Inbox, MessageSquare, Search, Users, type LucideIcon } from "lucide-react";
+import {
+	Bell,
+	FileText,
+	FolderPlus,
+	Image as ImageIcon,
+	Inbox,
+	MessageSquare,
+	Search,
+	Users,
+	type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 export type EmptyStateVariant =
@@ -30,7 +40,7 @@ export type EmptyStateProps = {
 	description?: string;
 	action?: Action;
 	className?: string;
-}
+};
 
 const PRESETS: Record<EmptyStateVariant, Preset> = {
 	projects: {

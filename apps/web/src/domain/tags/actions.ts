@@ -24,7 +24,14 @@ async function listTaggedNoteRecords(tx: TagDb, userId: string, name: string) {
 	if (ids.length === 0) return [];
 	return tx.note.findMany({
 		where: { id: { in: ids }, userId, deletedAt: null },
-		select: { id: true, name: true, content: true, richContent: true, tags: true, updatedAt: true },
+		select: {
+			id: true,
+			name: true,
+			content: true,
+			richContent: true,
+			tags: true,
+			updatedAt: true,
+		},
 	});
 }
 
@@ -110,10 +117,7 @@ export async function listTags(): Promise<TagSummary[]> {
 		);
 }
 
-export async function setTagColor(
-	name: string,
-	color: NotePropertyColor | null,
-): Promise<void> {
+export async function setTagColor(name: string, color: NotePropertyColor | null): Promise<void> {
 	const normalized = normalizeStoredTagEntry(name);
 	if (!normalized) return;
 	const { prisma, user } = await getAuthenticatedUser();
@@ -144,8 +148,12 @@ export async function renameTag(from: string, to: string): Promise<ChipRewriteRe
 		const rewrittenNoteIds = await rewriteTagAcrossNotes(tx, user.id, source, target);
 
 		const [sourceMeta, targetMeta] = await Promise.all([
-			tx.noteTagMeta.findUnique({ where: { userId_name: { userId: user.id, name: source } } }),
-			tx.noteTagMeta.findUnique({ where: { userId_name: { userId: user.id, name: target } } }),
+			tx.noteTagMeta.findUnique({
+				where: { userId_name: { userId: user.id, name: source } },
+			}),
+			tx.noteTagMeta.findUnique({
+				where: { userId_name: { userId: user.id, name: target } },
+			}),
 		]);
 		if (sourceMeta) {
 			await tx.noteTagMeta.delete({ where: { id: sourceMeta.id } });

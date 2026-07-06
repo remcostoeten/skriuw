@@ -102,7 +102,10 @@ export function PropertyRow({
 				/>
 			</div>
 			<div className="flex min-h-7 min-w-0 flex-1 items-center py-0.5">
-				<ValueEditor property={property} onUpdate={(patch) => onChange({ ...property, ...patch })} />
+				<ValueEditor
+					property={property}
+					onUpdate={(patch) => onChange({ ...property, ...patch })}
+				/>
 			</div>
 			<button
 				type="button"
@@ -168,7 +171,9 @@ export function AddPropertyButton({
 
 	function create(type: NotePropertyType, close: () => void) {
 		const label =
-			name.trim() || NOTE_PROPERTY_TYPES.find((propertyType) => propertyType.type === type)?.label || "Property";
+			name.trim() ||
+			NOTE_PROPERTY_TYPES.find((propertyType) => propertyType.type === type)?.label ||
+			"Property";
 		const base = createNoteProperty(type, label);
 		base.id = createNotePropertyId("prop");
 		base.value = emptyNotePropertyValue(type);
@@ -303,7 +308,9 @@ export function TemplatePicker({
 											}}
 											className="flex min-w-0 flex-1 items-center rounded-md px-2 py-1.5 text-left text-xs font-medium outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
 										>
-											<span className="min-w-0 flex-1 truncate">{template.name}</span>
+											<span className="min-w-0 flex-1 truncate">
+												{template.name}
+											</span>
 										</button>
 										<button
 											type="button"

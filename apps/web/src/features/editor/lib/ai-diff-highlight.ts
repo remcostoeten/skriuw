@@ -125,7 +125,9 @@ export function showAiDiffHighlight(elements: HTMLElement[]): AiDiffHighlightHan
 export function diffChangedIndices(before: string[], after: string[]): number[] {
 	const n = before.length;
 	const m = after.length;
-	const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+	const lcs: number[][] = Array.from({ length: n + 1 }, () =>
+		Array.from({ length: m + 1 }, () => 0),
+	);
 	for (let i = n - 1; i >= 0; i--) {
 		for (let j = m - 1; j >= 0; j--) {
 			lcs[i][j] =
@@ -186,7 +188,9 @@ export function selectCorrectedIndices(beforeTexts: string[], afterTexts: string
 	if (m <= n) return afterTexts.map((_, k) => k);
 
 	const NEG = Number.NEGATIVE_INFINITY;
-	const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(NEG));
+	const dp: number[][] = Array.from({ length: n + 1 }, () =>
+		Array.from({ length: m + 1 }, () => NEG),
+	);
 	for (let j = 0; j <= m; j++) dp[n][j] = 0;
 	for (let i = n - 1; i >= 0; i--) {
 		for (let j = m - 1; j >= 0; j--) {

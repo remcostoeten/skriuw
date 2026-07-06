@@ -1,7 +1,9 @@
+import { parse as parseYaml } from "yaml";
+
 const FRONTMATTER_BOUNDARY = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
 export function splitFrontmatter(raw: string): {
-	frontmatter: Record<string, string>;
+	frontmatter: Record<string, unknown>;
 	body: string;
 } {
 	const match = raw.match(FRONTMATTER_BOUNDARY);
@@ -9,15 +11,30 @@ export function splitFrontmatter(raw: string): {
 		return { frontmatter: {}, body: raw };
 	}
 
-	const frontmatter: Record<string, string> = {};
-	for (const line of match[1].split(/\r?\n/)) {
-		const trimmed = line.trim();
-		if (!trimmed || trimmed.startsWith("#")) continue;
-		const separator = trimmed.indexOf(":");
-		if (separator === -1) continue;
-		const key = trimmed.slice(0, separator).trim();
-		const value = trimmed.slice(separator + 1).trim();
-		frontmatter[key] = value;
+	const frontmatter: Record<string, unknown> = {};
+	let parsed: unknown;
+	try {
+		parsed = parseYaml(match[1], { schema: "core" });
+	} catch (error) {
+		// parseYaml failed; fallback to simple key: value extraction
+		const lines = match[1].split(/\r?\n/);
+		for (const line of lines) {
+			const colonIndex = line.indexOf(":");
+			if (colonIndex > 0) {
+				const key = line.slice(0, colonIndex).trim();
+				const value = line.slice(colonIndex + 1).trim();
+				if (key) {
+					frontmatter[key] = value;
+				}
+			}
+		}
+		return { frontmatter, body: raw.slice(match[0].length) };
+	}
+
+	if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+		for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+			frontmatter[key] = value instanceof Date ? value.toISOString() : value;
+		}
 	}
 
 	return { frontmatter, body: raw.slice(match[0].length) };
@@ -35,25 +52,44 @@ export function parseYamlString(value: string | undefined): string | undefined {
 	return value;
 }
 
-export function parseTagsField(value: string | undefined): string[] {
-	if (!value || value === "[]") return [];
-	const trimmed = value.trim();
-	if (!trimmed.startsWith("[")) {
-		const single = parseYamlString(trimmed);
-		return single ? [single] : [];
+export function parseTagsField(value: unknown): string[] {
+	if (!value) return [];
+	if (Array.isArray(value)) {
+		return value.map((tag) => String(tag).trim()).filter(Boolean);
 	}
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (!trimmed || trimmed === "[]") return [];
 
-	try {
-		const parsed = JSON.parse(trimmed.replace(/'/g, '"')) as unknown;
-		if (!Array.isArray(parsed)) return [];
-		return parsed.map((tag) => String(tag).trim()).filter(Boolean);
-	} catch {
+		if (!trimmed.startsWith("[")) {
+			const single = parseYamlString(trimmed);
+			return single ? [single] : [];
+		}
+
+		const normalized = normalizeTagArray(trimmed);
+		if (normalized) return normalized;
+
 		return trimmed
 			.slice(1, -1)
 			.split(",")
-			.map((tag) => tag.trim().replace(/^"|"$/g, ""))
+			.map((tag) => tag.trim().replace(/^["']|["']$/g, ""))
 			.filter(Boolean);
 	}
+	return [];
+}
+
+function normalizeTagArray(source: string): string[] | null {
+	for (const candidate of [source, source.replace(/'/g, '"')]) {
+		try {
+			const parsed = JSON.parse(candidate) as unknown;
+			if (Array.isArray(parsed)) {
+				return parsed.map((tag) => String(tag).trim()).filter(Boolean);
+			}
+		} catch {
+			continue;
+		}
+	}
+	return null;
 }
 
 export function yamlString(value: string): string {

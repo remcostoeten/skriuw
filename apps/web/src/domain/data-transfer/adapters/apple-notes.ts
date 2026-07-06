@@ -25,13 +25,20 @@ function stripHtml(html: string): string {
 
 function titleFromAppleNotesPath(path: string): string {
 	const base = path.split("/").pop() ?? "note.html";
-	return base.replace(/\.html?$/i, "").replace(/_/g, " ").trim() || "Untitled";
+	return (
+		base
+			.replace(/\.html?$/i, "")
+			.replace(/_/g, " ")
+			.trim() || "Untitled"
+	);
 }
 
 function parseAppleNotesHtml(path: string, html: string): ParsedNoteFile {
 	const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
 	const headingMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-	const rawTitle = stripHtml(titleMatch?.[1] ?? headingMatch?.[1] ?? titleFromAppleNotesPath(path));
+	const rawTitle = stripHtml(
+		titleMatch?.[1] ?? headingMatch?.[1] ?? titleFromAppleNotesPath(path),
+	);
 	const parts = path.split("/").filter(Boolean);
 	const parentPath = parts.length > 1 ? parts.slice(0, -1).join("/") : null;
 	const content = stripHtml(html);

@@ -5,6 +5,7 @@ import {
 	Copy,
 	Download,
 	FileDown,
+	ImageIcon,
 	Link2,
 	Loader2,
 	Lock,
@@ -34,12 +35,13 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/shared/ui/s
 import { useNoteSend } from "@/features/notes/hooks/use-note-send";
 import {
 	LINK_SHARE_ACTIONS,
-	LinkShareBrandIcon,
 	linkShareActionLabel,
 	runLinkShareAction,
 	type LinkShareHandlers,
 } from "@/features/notes/lib/note-send-actions";
+import { LinkShareBrandIcon } from "@/features/notes/lib/note-send-icons";
 import { StaleShareHint } from "@/features/notes/components/stale-share-hint";
+import { NoteShareImageDialog } from "@/features/notes/components/note-share-image-dialog";
 import { cn } from "@/shared/lib/utils";
 import type { NoteFile } from "@/types/notes";
 
@@ -118,6 +120,7 @@ function NoteSendMobilePanel({
 		isRefreshingShare,
 		refreshShareSnapshot,
 	} = useNoteSendMenu(note, prefetch);
+	const [imageOpen, setImageOpen] = useState(false);
 
 	const linkHandlers: LinkShareHandlers = {
 		copyShareLink,
@@ -139,109 +142,118 @@ function NoteSendMobilePanel({
 	const linkBusy = isLinkShareBusy;
 
 	return (
-		<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03] pb-[env(safe-area-inset-bottom)]">
-			{shareIsStale ? (
-				<StaleShareHint
-					layout="banner"
-					isRefreshing={isRefreshingShare}
-					onRefresh={() => void refreshShareSnapshot()}
-				/>
-			) : null}
-			<div className={MOBILE_SECTION_LABEL}>Share link</div>
-			{LINK_SHARE_ACTIONS.map((action, index) => (
-				<div key={action.id}>
-					{index > 0 ? <MobileActionDivider /> : null}
-					<MobileActionButton
-						icon={
-							action.id === "copy" && isLinkShareBusy ? (
-								<Loader2 className="h-5 w-5 shrink-0 animate-spin text-foreground/72" />
-							) : (
-								<LinkShareBrandIcon
-									icon={action.icon}
-									className="h-5 w-5 shrink-0 text-foreground/72"
-								/>
-							)
-						}
-						label={linkShareActionLabel(action, isLinkShareBusy)}
-						disabled={isLinkShareBusy}
-						onClick={() =>
-							runAction(
-								() => runLinkShareAction(action.id, linkHandlers),
-								action.closeAfter !== false,
-							)
-						}
+		<>
+			<NoteShareImageDialog note={note} open={imageOpen} onOpenChange={setImageOpen} />
+			<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03] pb-[env(safe-area-inset-bottom)]">
+				{shareIsStale ? (
+					<StaleShareHint
+						layout="banner"
+						isRefreshing={isRefreshingShare}
+						onRefresh={() => void refreshShareSnapshot()}
 					/>
-				</div>
-			))}
+				) : null}
+				<div className={MOBILE_SECTION_LABEL}>Share link</div>
+				{LINK_SHARE_ACTIONS.map((action, index) => (
+					<div key={action.id}>
+						{index > 0 ? <MobileActionDivider /> : null}
+						<MobileActionButton
+							icon={
+								action.id === "copy" && isLinkShareBusy ? (
+									<Loader2 className="h-5 w-5 shrink-0 animate-spin text-foreground/72" />
+								) : (
+									<LinkShareBrandIcon
+										icon={action.icon}
+										className="h-5 w-5 shrink-0 text-foreground/72"
+									/>
+								)
+							}
+							label={linkShareActionLabel(action, isLinkShareBusy)}
+							disabled={isLinkShareBusy}
+							onClick={() =>
+								runAction(
+									() => runLinkShareAction(action.id, linkHandlers),
+									action.closeAfter !== false,
+								)
+							}
+						/>
+					</div>
+				))}
 
-			<div className={cn(MOBILE_SECTION_LABEL, "border-t border-foreground/8")}>
-				Send note
+				<div className={cn(MOBILE_SECTION_LABEL, "border-t border-foreground/8")}>
+					Send note
+				</div>
+				{canNativeShare ? (
+					<>
+						<MobileActionButton
+							icon={<Share2 className="h-5 w-5 shrink-0 text-foreground/72" />}
+							label="Share…"
+							onClick={() => runAction(() => shareNative(), false)}
+						/>
+						<MobileActionDivider />
+					</>
+				) : null}
+				{canSaveAsFile ? (
+					<>
+						<MobileActionButton
+							icon={<FileDown className="h-5 w-5 shrink-0 text-foreground/72" />}
+							label="Save as file"
+							onClick={() => runAction(() => saveAsFile(), false)}
+						/>
+						<MobileActionDivider />
+					</>
+				) : null}
+				{showAppleNotes ? (
+					<>
+						<MobileActionButton
+							icon={<NotebookPen className="h-5 w-5 shrink-0 text-foreground/72" />}
+							label="Apple Notes"
+							onClick={() => runAction(() => shareAppleNotes(), false)}
+						/>
+						<MobileActionDivider />
+					</>
+				) : null}
+				<MobileActionButton
+					icon={<MessageCircle className="h-5 w-5 shrink-0 text-foreground/72" />}
+					label="WhatsApp"
+					onClick={() => runAction(() => shareWhatsApp())}
+				/>
+				<MobileActionDivider />
+				<MobileActionButton
+					icon={<MessageSquare className="h-5 w-5 shrink-0 text-foreground/72" />}
+					label="SMS"
+					onClick={() => runAction(() => shareSms())}
+				/>
+				<MobileActionDivider />
+				<MobileActionButton
+					icon={<Copy className="h-5 w-5 shrink-0 text-foreground/72" />}
+					label="Copy markdown"
+					onClick={() => runAction(() => copyMarkdown())}
+				/>
+				<MobileActionDivider />
+				<MobileActionButton
+					icon={<ImageIcon className="h-5 w-5 shrink-0 text-foreground/72" />}
+					label="Save as image"
+					onClick={() => setImageOpen(true)}
+				/>
+				<MobileActionDivider />
+				<MobileActionButton
+					icon={<Mail className="h-5 w-5 shrink-0 text-foreground/72" />}
+					label="Email"
+					onClick={() => runAction(() => shareEmail())}
+				/>
+				<MobileActionDivider />
+				<MobileActionButton
+					icon={<Download className="h-5 w-5 shrink-0 text-foreground/72" />}
+					label="Download .md"
+					onClick={() => runAction(() => downloadMarkdown())}
+				/>
+				{linkBusy ? (
+					<p className="px-4 pb-3 pt-1 text-[12px] text-foreground/48">
+						Preparing your share link…
+					</p>
+				) : null}
 			</div>
-			{canNativeShare ? (
-				<>
-					<MobileActionButton
-						icon={<Share2 className="h-5 w-5 shrink-0 text-foreground/72" />}
-						label="Share…"
-						onClick={() => runAction(() => shareNative(), false)}
-					/>
-					<MobileActionDivider />
-				</>
-			) : null}
-			{canSaveAsFile ? (
-				<>
-					<MobileActionButton
-						icon={<FileDown className="h-5 w-5 shrink-0 text-foreground/72" />}
-						label="Save as file"
-						onClick={() => runAction(() => saveAsFile(), false)}
-					/>
-					<MobileActionDivider />
-				</>
-			) : null}
-			{showAppleNotes ? (
-				<>
-					<MobileActionButton
-						icon={<NotebookPen className="h-5 w-5 shrink-0 text-foreground/72" />}
-						label="Apple Notes"
-						onClick={() => runAction(() => shareAppleNotes(), false)}
-					/>
-					<MobileActionDivider />
-				</>
-			) : null}
-			<MobileActionButton
-				icon={<MessageCircle className="h-5 w-5 shrink-0 text-foreground/72" />}
-				label="WhatsApp"
-				onClick={() => runAction(() => shareWhatsApp())}
-			/>
-			<MobileActionDivider />
-			<MobileActionButton
-				icon={<MessageSquare className="h-5 w-5 shrink-0 text-foreground/72" />}
-				label="SMS"
-				onClick={() => runAction(() => shareSms())}
-			/>
-			<MobileActionDivider />
-			<MobileActionButton
-				icon={<Copy className="h-5 w-5 shrink-0 text-foreground/72" />}
-				label="Copy markdown"
-				onClick={() => runAction(() => copyMarkdown())}
-			/>
-			<MobileActionDivider />
-			<MobileActionButton
-				icon={<Mail className="h-5 w-5 shrink-0 text-foreground/72" />}
-				label="Email"
-				onClick={() => runAction(() => shareEmail())}
-			/>
-			<MobileActionDivider />
-			<MobileActionButton
-				icon={<Download className="h-5 w-5 shrink-0 text-foreground/72" />}
-				label="Download .md"
-				onClick={() => runAction(() => downloadMarkdown())}
-			/>
-			{linkBusy ? (
-				<p className="px-4 pb-3 pt-1 text-[12px] text-foreground/48">
-					Preparing your share link…
-				</p>
-			) : null}
-		</div>
+		</>
 	);
 }
 
@@ -487,6 +499,8 @@ function NoteSendDesktopDropdown({
 		copyMarkdown,
 	} = useNoteSend(note);
 
+	const [imageOpen, setImageOpen] = useState(false);
+
 	const linkHandlers: LinkShareHandlers = {
 		copyShareLink,
 		shareLinkOnX,
@@ -498,72 +512,79 @@ function NoteSendDesktopDropdown({
 	};
 
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<button
-					type="button"
-					className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
-				>
-					{triggerLabel}
-				</button>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-48">
-				{LINK_SHARE_ACTIONS.map((action) => (
-					<DropdownMenuItem
-						key={action.id}
-						className="gap-2"
-						disabled={isLinkShareBusy}
-						onClick={() => void runLinkShareAction(action.id, linkHandlers)}
+		<>
+			<NoteShareImageDialog note={note} open={imageOpen} onOpenChange={setImageOpen} />
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<button
+						type="button"
+						className="text-[13px] font-medium text-foreground/80 transition-colors hover:text-foreground"
 					>
-						{action.id === "copy" && isLinkShareBusy ? (
-							<Loader2 className="h-4 w-4 animate-spin" />
-						) : (
-							<LinkShareBrandIcon icon={action.icon} className="h-4 w-4" />
-						)}
-						{linkShareActionLabel(action, isLinkShareBusy)}
+						{triggerLabel}
+					</button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" className="w-48">
+					{LINK_SHARE_ACTIONS.map((action) => (
+						<DropdownMenuItem
+							key={action.id}
+							className="gap-2"
+							disabled={isLinkShareBusy}
+							onClick={() => void runLinkShareAction(action.id, linkHandlers)}
+						>
+							{action.id === "copy" && isLinkShareBusy ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<LinkShareBrandIcon icon={action.icon} className="h-4 w-4" />
+							)}
+							{linkShareActionLabel(action, isLinkShareBusy)}
+						</DropdownMenuItem>
+					))}
+					<DropdownMenuSeparator />
+					{canNativeShare ? (
+						<DropdownMenuItem className="gap-2" onClick={() => void shareNative()}>
+							<Share2 className="h-4 w-4" />
+							Share…
+						</DropdownMenuItem>
+					) : null}
+					{canSaveAsFile ? (
+						<DropdownMenuItem className="gap-2" onClick={() => void saveAsFile()}>
+							<FileDown className="h-4 w-4" />
+							Save as file
+						</DropdownMenuItem>
+					) : null}
+					{showAppleNotes ? (
+						<DropdownMenuItem className="gap-2" onClick={() => void shareAppleNotes()}>
+							<NotebookPen className="h-4 w-4" />
+							Apple Notes
+						</DropdownMenuItem>
+					) : null}
+					<DropdownMenuItem className="gap-2" onClick={shareWhatsApp}>
+						<MessageCircle className="h-4 w-4" />
+						WhatsApp
 					</DropdownMenuItem>
-				))}
-				<DropdownMenuSeparator />
-				{canNativeShare ? (
-					<DropdownMenuItem className="gap-2" onClick={() => void shareNative()}>
-						<Share2 className="h-4 w-4" />
-						Share…
+					<DropdownMenuItem className="gap-2" onClick={shareSms}>
+						<MessageSquare className="h-4 w-4" />
+						SMS
 					</DropdownMenuItem>
-				) : null}
-				{canSaveAsFile ? (
-					<DropdownMenuItem className="gap-2" onClick={() => void saveAsFile()}>
-						<FileDown className="h-4 w-4" />
-						Save as file
+					<DropdownMenuItem className="gap-2" onClick={() => void copyMarkdown()}>
+						<Copy className="h-4 w-4" />
+						Copy markdown
 					</DropdownMenuItem>
-				) : null}
-				{showAppleNotes ? (
-					<DropdownMenuItem className="gap-2" onClick={() => void shareAppleNotes()}>
-						<NotebookPen className="h-4 w-4" />
-						Apple Notes
+					<DropdownMenuItem className="gap-2" onSelect={() => setImageOpen(true)}>
+						<ImageIcon className="h-4 w-4" />
+						Save as image
 					</DropdownMenuItem>
-				) : null}
-				<DropdownMenuItem className="gap-2" onClick={shareWhatsApp}>
-					<MessageCircle className="h-4 w-4" />
-					WhatsApp
-				</DropdownMenuItem>
-				<DropdownMenuItem className="gap-2" onClick={shareSms}>
-					<MessageSquare className="h-4 w-4" />
-					SMS
-				</DropdownMenuItem>
-				<DropdownMenuItem className="gap-2" onClick={() => void copyMarkdown()}>
-					<Copy className="h-4 w-4" />
-					Copy markdown
-				</DropdownMenuItem>
-				<DropdownMenuItem className="gap-2" onClick={shareEmail}>
-					<Mail className="h-4 w-4" />
-					Email
-				</DropdownMenuItem>
-				<DropdownMenuItem className="gap-2" onClick={downloadMarkdown}>
-					<Download className="h-4 w-4" />
-					Download .md
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
+					<DropdownMenuItem className="gap-2" onClick={shareEmail}>
+						<Mail className="h-4 w-4" />
+						Email
+					</DropdownMenuItem>
+					<DropdownMenuItem className="gap-2" onClick={downloadMarkdown}>
+						<Download className="h-4 w-4" />
+						Download .md
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</>
 	);
 }
 

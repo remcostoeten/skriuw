@@ -13,8 +13,8 @@ Dropdowns and popovers should animate from their trigger element, not from an ar
 
 ```css
 .dropdown {
-  transform-origin: center; /* Default */
-  animation: scaleIn 200ms ease-out;
+	transform-origin: center; /* Default */
+	animation: scaleIn 200ms ease-out;
 }
 /* Dropdown scales from middle, disconnected from button */
 ```
@@ -23,8 +23,8 @@ Dropdowns and popovers should animate from their trigger element, not from an ar
 
 ```css
 .dropdown {
-  transform-origin: top center; /* Matches button position */
-  animation: scaleIn 200ms ease-out;
+	transform-origin: top center; /* Matches button position */
+	animation: scaleIn 200ms ease-out;
 }
 ```
 
@@ -32,7 +32,7 @@ Dropdowns and popovers should animate from their trigger element, not from an ar
 
 ```css
 .dropdown {
-  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+	transform-origin: var(--radix-dropdown-menu-content-transform-origin);
 }
 /* Radix automatically calculates correct origin */
 ```

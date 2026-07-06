@@ -41,10 +41,7 @@ export function notePathFromArchivePath(
 	};
 }
 
-export function journalDateFromArchivePath(
-	rootPrefix: string,
-	archivePath: string,
-): string | null {
+export function journalDateFromArchivePath(rootPrefix: string, archivePath: string): string | null {
 	const journalPrefix = `${rootPrefix}/journal/`;
 	if (!archivePath.startsWith(journalPrefix) || !archivePath.endsWith(".md")) {
 		return null;
@@ -76,15 +73,11 @@ export function noteVersionPath(rootPrefix: string, noteId: string, versionId: s
 }
 
 export function isNoteVersionPath(rootPrefix: string, archivePath: string): boolean {
-	return (
-		archivePath.startsWith(`${rootPrefix}/versions/`) && archivePath.endsWith(".json")
-	);
+	return archivePath.startsWith(`${rootPrefix}/versions/`) && archivePath.endsWith(".json");
 }
 
 export function isNoteRichSidecarPath(rootPrefix: string, archivePath: string): boolean {
-	return (
-		archivePath.startsWith(`${rootPrefix}/notes/`) && archivePath.endsWith(".rich.json")
-	);
+	return archivePath.startsWith(`${rootPrefix}/notes/`) && archivePath.endsWith(".rich.json");
 }
 
 export function findExportRootPrefix(paths: string[]): string | null {

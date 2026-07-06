@@ -145,10 +145,7 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 		return { id: note.id, name: note.name, modifiedAt: note.modifiedAt };
 	}
 
-	function byModifiedDesc(
-		left: { modifiedAt: Date },
-		right: { modifiedAt: Date },
-	): number {
+	function byModifiedDesc(left: { modifiedAt: Date }, right: { modifiedAt: Date }): number {
 		return right.modifiedAt.getTime() - left.modifiedAt.getTime();
 	}
 
@@ -360,7 +357,11 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 			const target = people.find((entry) => entry.id === targetId);
 			if (!source || !target) return { rewrittenNoteIds: [] };
 			const rewrittenNoteIds = await rewriteNotes((note) =>
-				rewriteNoteForPerson(note, { fromId: sourceId, toId: targetId, toName: target.name }),
+				rewriteNoteForPerson(note, {
+					fromId: sourceId,
+					toId: targetId,
+					toName: target.name,
+				}),
 			);
 			await store.update((payload) => {
 				payload.people = payload.people.filter((entry) => entry.id !== sourceId);

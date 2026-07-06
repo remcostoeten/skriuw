@@ -102,6 +102,25 @@ export const SHORTCUT_REGISTRY = {
 		preventDefault: true,
 		bindingGroup: "settings",
 	},
+	"app.quickSwitcher": {
+		keys: "mod+p",
+		scope: SCOPES.app,
+		group: "General",
+		label: "Quick switcher",
+		description: "Jump to a note by name with fuzzy search.",
+		except: false,
+		preventDefault: true,
+		bindingGroup: "quick-switcher",
+	},
+	"app.gotoMode": {
+		keys: "ctrl+g",
+		scope: SCOPES.app,
+		group: "General",
+		label: "Go-to mode",
+		description: "Show quick-navigation hints and jump with a single key.",
+		except: false,
+		preventDefault: true,
+	},
 
 	"notes.commandPalette": {
 		keys: ["mod+k", "mod+shift+p"],
@@ -187,7 +206,8 @@ export const SHORTCUT_REGISTRY = {
 		scope: SCOPES.notes,
 		group: "Notes",
 		label: "Close tab",
-		description: "Close the focused tab (closes the split or empties the pane when it is the last tab).",
+		description:
+			"Close the focused tab (closes the split or empties the pane when it is the last tab).",
 		except: false,
 		preventDefault: true,
 	},
@@ -305,6 +325,15 @@ export const SHORTCUT_REGISTRY = {
 		description: "Open the sidebar search field.",
 		preventDefault: true,
 	},
+	"notes.focusMetadata": {
+		keys: "ctrl+shift+slash",
+		scope: SCOPES.notes,
+		group: "Notes",
+		label: "Focus note inspector",
+		description: "Move focus to the note inspector (metadata) panel.",
+		except: false,
+		preventDefault: true,
+	},
 	"notes.findInNote": {
 		keys: "mod+f",
 		scope: SCOPES.notes,
@@ -397,7 +426,8 @@ export const SHORTCUT_REGISTRY = {
 		scope: SCOPES.global,
 		group: "Application",
 		label: "Show Skriuw",
-		description: "Brings the Skriuw window to the front from anywhere, even while it's unfocused or minimized.",
+		description:
+			"Brings the Skriuw window to the front from anywhere, even while it's unfocused or minimized.",
 		global: true,
 	},
 	"global.quickCapture": {
@@ -406,7 +436,7 @@ export const SHORTCUT_REGISTRY = {
 		group: "Application",
 		label: "Quick capture note",
 		description:
-			"Creates a new note and opens it, from anywhere — even another route or while Skriuw is unfocused. Distinct from \"Create note\" (mod+n) so it keeps working outside the notes view.",
+			'Creates a new note and opens it, from anywhere — even another route or while Skriuw is unfocused. Distinct from "Create note" (mod+n) so it keeps working outside the notes view.',
 		except: false,
 		preventDefault: true,
 		global: true,
@@ -418,6 +448,48 @@ export const SHORTCUT_REGISTRY = {
 		label: "Toggle settings focus",
 		description: "Move focus between the settings sidebar and main panel.",
 		preventDefault: true,
+	},
+
+	// ── Desktop ──────────────────────────────────────────────────────────────
+	"desktop.zoomIn": {
+		keys: "mod+=",
+		scope: SCOPES.app,
+		group: "Desktop",
+		label: "Zoom in",
+		preventDefault: true,
+		except: false,
+	},
+	"desktop.zoomOut": {
+		keys: "mod+-",
+		scope: SCOPES.app,
+		group: "Desktop",
+		label: "Zoom out",
+		preventDefault: true,
+		except: false,
+	},
+	"desktop.zoomReset": {
+		keys: "mod+0",
+		scope: SCOPES.app,
+		group: "Desktop",
+		label: "Reset zoom",
+		preventDefault: true,
+		except: false,
+	},
+	"desktop.quit": {
+		keys: "mod+shift+q",
+		scope: SCOPES.app,
+		group: "Desktop",
+		label: "Quit app",
+		preventDefault: true,
+		except: false,
+	},
+	"desktop.toggleMaximize": {
+		keys: "mod+enter",
+		scope: SCOPES.app,
+		group: "Desktop",
+		label: "Toggle maximize",
+		preventDefault: true,
+		except: false,
 	},
 } as const satisfies Record<string, ShortcutDefinition>;
 

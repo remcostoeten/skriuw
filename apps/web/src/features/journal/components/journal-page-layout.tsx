@@ -233,13 +233,19 @@ function JournalEditorToolbar({
 									aria-label="AI actions"
 								>
 									{anyAiLoading ? (
-										<Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.6} />
+										<Loader2
+											className="h-3.5 w-3.5 animate-spin"
+											strokeWidth={1.6}
+										/>
 									) : (
 										<Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
 									)}
 								</button>
 							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-52 rounded-none shadow-none">
+							<DropdownMenuContent
+								align="end"
+								className="w-52 rounded-none shadow-none"
+							>
 								{onAiSpellCheck && (
 									<DropdownMenuItem
 										onSelect={() => onAiSpellCheck()}
@@ -445,7 +451,6 @@ export function JournalPageLayout() {
 					</>
 				)}
 			</AnimatePresence>
-
 
 			<ShortcutHelpDialog
 				open={showShortcutHelp}

@@ -17,7 +17,9 @@ type TProsemirrorMapping = Parameters<typeof absolutePositionToRelativePosition>
  * it is `null` on a non-collaborative editor (no ySyncPlugin), which the codec
  * treats as "anchoring unavailable".
  */
-function getBinding(view: EditorView): { type: Y.XmlFragment; mapping: TProsemirrorMapping } | null {
+function getBinding(
+	view: EditorView,
+): { type: Y.XmlFragment; mapping: TProsemirrorMapping } | null {
 	const state = ySyncPluginKey.getState(view.state) as
 		| { binding?: { type: Y.XmlFragment; mapping: TProsemirrorMapping } }
 		| undefined;

@@ -175,6 +175,24 @@ describe("note link indexing", () => {
 		});
 	});
 
+	test("counts a shared-title wiki link as a backlink of every match", () => {
+		const first = note({ id: "dup-1", name: "Dup.md", content: "# Dup\n\nFirst." });
+		const second = note({ id: "dup-2", name: "Dup.md", content: "# Dup\n\nSecond." });
+		const source = note({
+			id: "source-id",
+			name: "Source.md",
+			content: "# Source\n\nSee [[Dup]].",
+		});
+
+		const files = [first, second, source];
+		expect(buildNoteBacklinks(first, files)).toMatchObject([
+			{ sourceNoteId: "source-id", targetNoteId: "dup-1", status: "resolved" },
+		]);
+		expect(buildNoteBacklinks(second, files)).toMatchObject([
+			{ sourceNoteId: "source-id", targetNoteId: "dup-2", status: "resolved" },
+		]);
+	});
+
 	test("resolves links against markdown headings as note titles", () => {
 		const target = note({
 			id: "target-id",
@@ -217,7 +235,15 @@ describe("note link indexing", () => {
 			id: "target-id",
 			name: "Project hub.md",
 			content: "",
-			richContent: [{ id: "h1", type: "heading", props: { level: 1 }, content: [t("Project hub")], children: [] }],
+			richContent: [
+				{
+					id: "h1",
+					type: "heading",
+					props: { level: 1 },
+					content: [t("Project hub")],
+					children: [],
+				},
+			],
 		});
 		const source = note({
 			id: "source-id",

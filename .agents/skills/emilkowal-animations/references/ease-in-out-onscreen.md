@@ -13,7 +13,7 @@ For elements already visible that move from one position to another, ease-in-out
 
 ```css
 .slider-thumb {
-  transition: left 300ms ease-out;
+	transition: left 300ms ease-out;
 }
 /* Starts too fast, feels jarring for on-screen movement */
 ```
@@ -22,12 +22,13 @@ For elements already visible that move from one position to another, ease-in-out
 
 ```css
 .slider-thumb {
-  transition: transform 300ms ease-in-out;
+	transition: transform 300ms ease-in-out;
 }
 /* Accelerates naturally, then settles into place */
 ```
 
 **When to use ease-in-out:**
+
 - Carousel slides
 - Tab indicator movement
 - Drag-and-drop repositioning

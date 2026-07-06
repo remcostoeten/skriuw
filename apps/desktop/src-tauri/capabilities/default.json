@@ -14,6 +14,7 @@
 		"core:window:allow-start-resize-dragging",
 		"core:window:allow-close",
 		"core:webview:allow-set-webview-zoom",
+		"core:webview:allow-internal-toggle-devtools",
 		"fs:default",
 		"dialog:default",
 		"window-state:default"
