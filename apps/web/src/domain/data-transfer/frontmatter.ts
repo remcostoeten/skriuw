@@ -15,7 +15,7 @@ export function splitFrontmatter(raw: string): {
 	let parsed: unknown;
 	try {
 		parsed = parseYaml(match[1], { schema: "core" });
-	} catch (error) {
+	} catch {
 		// parseYaml failed; fallback to simple key: value extraction
 		const lines = match[1].split(/\r?\n/);
 		for (const line of lines) {

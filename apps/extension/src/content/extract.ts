@@ -14,6 +14,17 @@ export function extractInPage(kind: TExtractKind): TExtractResult {
 		}
 	}
 
+	function appendLines(target: string[], source: string[], prefix = ""): void {
+		if (!source.length) return;
+		if (!prefix) {
+			target.push(...source);
+			return;
+		}
+		for (const line of source) {
+			target.push(`${prefix}${line}`);
+		}
+	}
+
 	function inlineMarkdown(node: Node): string {
 		if (node.nodeType === Node.TEXT_NODE) {
 			return normalizeWhitespace(node.textContent ?? "");
@@ -64,9 +75,18 @@ export function extractInPage(kind: TExtractKind): TExtractResult {
 			return text ? [text] : [];
 		}
 		if (tag === "blockquote") {
-			const lines = Array.from(node.children).flatMap((child) => blockMarkdown(child, depth));
-			const fallback = lines.length ? lines : [inlineMarkdown(node)].filter(Boolean);
-			return fallback.map((line) => `> ${line}`);
+			const lines: string[] = [];
+			for (const child of node.children) {
+				appendLines(lines, blockMarkdown(child, depth));
+			}
+			if (lines.length === 0) {
+				const text = inlineMarkdown(node);
+				return text ? [`> ${text}`] : [];
+			}
+			for (let i = 0; i < lines.length; i++) {
+				lines[i] = `> ${lines[i]}`;
+			}
+			return lines;
 		}
 		if (tag === "pre") {
 			const code = (node.textContent ?? "").trim();
@@ -79,33 +99,42 @@ export function extractInPage(kind: TExtractKind): TExtractResult {
 			return [`![${alt}](${src})`];
 		}
 		if (tag === "ul" || tag === "ol") {
-			return Array.from(node.children)
-				.filter((child) => child.tagName.toLowerCase() === "li")
-				.flatMap((child, index) => {
-					const prefix = tag === "ol" ? `${index + 1}.` : "-";
-					const own = inlineMarkdown(child);
-					const nested = Array.from(child.children)
-						.filter((nestedChild) =>
-							["ul", "ol"].includes(nestedChild.tagName.toLowerCase()),
-						)
-						.flatMap((nestedChild) => blockMarkdown(nestedChild, depth + 1))
-						.map((line) => `  ${line}`);
-					return own ? [`${"  ".repeat(depth)}${prefix} ${own}`, ...nested] : nested;
-				});
+			const lines: string[] = [];
+			let listIndex = 0;
+			for (const child of node.children) {
+				if (child.tagName.toLowerCase() !== "li") continue;
+
+				const prefix = tag === "ol" ? `${++listIndex}.` : "-";
+				const own = inlineMarkdown(child);
+				if (own) {
+					lines.push(`${"  ".repeat(depth)}${prefix} ${own}`);
+				}
+
+				for (const nestedChild of child.children) {
+					const nestedTag = nestedChild.tagName.toLowerCase();
+					if (nestedTag !== "ul" && nestedTag !== "ol") continue;
+					appendLines(lines, blockMarkdown(nestedChild, depth + 1), "  ");
+				}
+			}
+			return lines;
 		}
 
-		const childBlocks = Array.from(node.children).flatMap((child) =>
-			blockMarkdown(child, depth),
-		);
+		const childBlocks: string[] = [];
+		for (const child of node.children) {
+			appendLines(childBlocks, blockMarkdown(child, depth));
+		}
 		if (childBlocks.length > 0) return childBlocks;
 		const text = inlineMarkdown(node);
 		return text ? [text] : [];
 	}
 
 	function toMarkdown(root: HTMLElement): string {
-		return blockMarkdown(root)
-			.map((line) => line.trimEnd())
-			.filter(Boolean)
+		const lines: string[] = [];
+		for (const line of blockMarkdown(root)) {
+			const trimmed = line.trimEnd();
+			if (trimmed) lines.push(trimmed);
+		}
+		return lines
 			.join("\n\n")
 			.replace(/\n{3,}/g, "\n\n")
 			.trim();
@@ -120,10 +149,25 @@ export function extractInPage(kind: TExtractKind): TExtractResult {
 		let best: HTMLElement = document.body;
 		let bestLen = 0;
 		for (const el of [...candidates, document.body]) {
-			const paragraphs = el.querySelectorAll("p,li,pre,blockquote").length;
+			let paragraphs = 0;
+			let blockers = 0;
+			for (const child of el.querySelectorAll("p,li,pre,blockquote,nav,footer,aside")) {
+				switch (child.tagName.toLowerCase()) {
+					case "p":
+					case "li":
+					case "pre":
+					case "blockquote":
+						paragraphs++;
+						break;
+					case "nav":
+					case "footer":
+					case "aside":
+						blockers++;
+						break;
+				}
+			}
 			const len = (el.textContent ?? "").length;
-			const score =
-				len + paragraphs * 120 - el.querySelectorAll("nav,footer,aside").length * 300;
+			const score = len + paragraphs * 120 - blockers * 300;
 			if (score > bestLen) {
 				best = el;
 				bestLen = score;
@@ -159,11 +203,13 @@ export function extractInPage(kind: TExtractKind): TExtractResult {
 		document.querySelector<HTMLElement>('[rel="author"], .byline, .author')?.textContent ??
 		undefined;
 	const keywords = document.querySelector('meta[name="keywords"]')?.getAttribute("content") ?? "";
-	const tags = keywords
-		.split(",")
-		.map((tag) => tag.trim())
-		.filter(Boolean)
-		.slice(0, 10);
+	const tags: string[] = [];
+	for (const tag of keywords.split(",")) {
+		const trimmed = tag.trim();
+		if (!trimmed) continue;
+		tags.push(trimmed);
+		if (tags.length === 10) break;
+	}
 
 	return {
 		title: metaTitle,

@@ -12,4 +12,11 @@ describe("desktop router", () => {
 		expect(source).toContain('path: "/app/trash"');
 		expect(source).toContain("trashRoute");
 	});
+
+	test("registers the activity page route", () => {
+		const source = readFileSync(join(here, "router.tsx"), "utf8");
+
+		expect(source).toContain('path: "/app/activity"');
+		expect(source).toContain("activityRoute");
+	});
 });

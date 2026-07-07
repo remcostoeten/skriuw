@@ -8,8 +8,10 @@ const OPEN_AFTER_SAVE_KEY = "skriuw.openAfterSave";
 const QUEUE_KEY = "skriuw.queue";
 
 export async function getSettings(): Promise<TSettings> {
-	const local = await chrome.storage.local.get(TOKEN_KEY);
-	const sync = await chrome.storage.sync.get([API_BASE_KEY, PARENT_ID_KEY, OPEN_AFTER_SAVE_KEY]);
+	const [local, sync] = await Promise.all([
+		chrome.storage.local.get(TOKEN_KEY),
+		chrome.storage.sync.get([API_BASE_KEY, PARENT_ID_KEY, OPEN_AFTER_SAVE_KEY]),
+	]);
 	return {
 		token: (local[TOKEN_KEY] as string | undefined) ?? "",
 		apiBase: (sync[API_BASE_KEY] as string | undefined) ?? DEFAULT_API_BASE,
@@ -23,12 +25,14 @@ export async function clearToken(): Promise<void> {
 }
 
 export async function saveSettings(settings: TSettings): Promise<void> {
-	await chrome.storage.local.set({ [TOKEN_KEY]: settings.token.trim() });
-	await chrome.storage.sync.set({
-		[API_BASE_KEY]: settings.apiBase.trim().replace(/\/$/, "") || DEFAULT_API_BASE,
-		[PARENT_ID_KEY]: settings.parentId,
-		[OPEN_AFTER_SAVE_KEY]: settings.openAfterSave,
-	});
+	await Promise.all([
+		chrome.storage.local.set({ [TOKEN_KEY]: settings.token.trim() }),
+		chrome.storage.sync.set({
+			[API_BASE_KEY]: settings.apiBase.trim().replace(/\/$/, "") || DEFAULT_API_BASE,
+			[PARENT_ID_KEY]: settings.parentId,
+			[OPEN_AFTER_SAVE_KEY]: settings.openAfterSave,
+		}),
+	]);
 }
 
 export async function saveCapturePreferences(input: {

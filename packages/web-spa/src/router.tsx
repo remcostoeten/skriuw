@@ -17,6 +17,7 @@ import { DesktopZoom } from "@/features/desktop/desktop-zoom";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { JournalPageLayout } from "@/features/journal/components/journal-page-layout";
 import { TrashView } from "@/features/notes/components/trash/trash-view";
+import { ActivityOverview } from "@/features/activity/components/activity-overview";
 import { SettingsModal } from "@/features/settings/components/settings-modal";
 
 const WorkspaceGraph = lazy(() =>
@@ -110,6 +111,12 @@ const trashRoute = createRoute({
 	component: TrashView,
 });
 
+const activityRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/app/activity",
+	component: ActivityOverview,
+});
+
 const tagsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/app/tags",
@@ -166,6 +173,7 @@ const routeTree = rootRoute.addChildren([
 	graphRoute,
 	journalRoute,
 	trashRoute,
+	activityRoute,
 	tagsRoute,
 	tagDetailRoute,
 	peopleRoute,

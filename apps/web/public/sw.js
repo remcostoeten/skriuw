@@ -38,15 +38,13 @@ self.addEventListener("activate", function (event) {
 		caches
 			.keys()
 			.then(function (keys) {
-				return Promise.all(
-					keys
-						.filter(function (key) {
-							return key !== CACHE_NAME;
-						})
-						.map(function (key) {
-							return caches.delete(key);
-						}),
-				);
+				const deletions = [];
+				for (const key of keys) {
+					if (key !== CACHE_NAME) {
+						deletions.push(caches.delete(key));
+					}
+				}
+				return Promise.all(deletions);
 			})
 			.then(function () {
 				return self.clients.claim();

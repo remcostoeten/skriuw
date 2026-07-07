@@ -23,7 +23,6 @@ type EditorWorkspaceProps = {
 	focusedPane: EditorPane;
 	editorMode: "raw" | "block";
 	secondaryEditorMode: "raw" | "block";
-	scrollPositions: Record<string, number>;
 	orientation: SplitOrientation;
 	secondaryFirst: boolean;
 	isMobile: boolean;
@@ -82,7 +81,6 @@ export function EditorWorkspace({
 	focusedPane,
 	editorMode,
 	secondaryEditorMode,
-	scrollPositions,
 	orientation,
 	secondaryFirst,
 	isMobile,
@@ -317,7 +315,16 @@ export function EditorWorkspace({
 									splitActive && isDragging ? handleDragEnd : undefined
 								}
 								isPaneDragging={splitActive && isDragging}
-								initialScrollTop={file ? (scrollPositions[file.id] ?? 0) : 0}
+								// Non-reactive read: subscribing to scrollPositions would
+								// re-render the whole workspace on every scroll frame, and
+								// the editor only consumes this on file switch.
+								initialScrollTop={
+									file
+										? (useNotesStore.getState().split.scrollPositions[
+												file.id
+											] ?? 0)
+										: 0
+								}
 								onScrollPositionChange={(scrollTop) => {
 									if (file) onScrollPositionChange(file.id, scrollTop);
 								}}

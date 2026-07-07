@@ -117,6 +117,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 	const [searchQuery, setSearchQuery] = useState("");
 	const [renamingId, setRenamingId] = useState<string | null>(null);
 	const [renameDraft, setRenameDraft] = useState("");
+	const [openContextMenuId, setOpenContextMenuId] = useState<string | null>(null);
 	const deferredSearchQuery = useDeferredValue(searchQuery);
 	const selectedMood: MoodLevel | "all" = "all";
 	const selectedTag: string | "all" = "all";
@@ -423,7 +424,18 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 										}
 
 										return (
-											<ContextMenu key={entry.id}>
+											<ContextMenu
+												key={entry.id}
+												onOpenChange={(open) => {
+													setOpenContextMenuId((current) =>
+														open
+															? entry.id
+															: current === entry.id
+																? null
+																: current,
+													);
+												}}
+											>
 												<ContextMenuTrigger asChild>
 													<button
 														type="button"
@@ -458,22 +470,26 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 														</span>
 													</button>
 												</ContextMenuTrigger>
-												<ContextMenuContent className="w-44">
-													<ContextMenuItem
-														onClick={() => startRename(entry)}
-													>
-														Edit title
-													</ContextMenuItem>
-													<ContextMenuSeparator />
-													<ContextMenuItem
-														className="text-destructive focus:text-destructive"
-														onClick={() => deleteEntry.mutate(entry.id)}
-													>
-														Delete entry
-													</ContextMenuItem>
-													<ContextMenuSeparator />
-													<DevContextSubmenu />
-												</ContextMenuContent>
+												{openContextMenuId === entry.id ? (
+													<ContextMenuContent className="w-44">
+														<ContextMenuItem
+															onClick={() => startRename(entry)}
+														>
+															Edit title
+														</ContextMenuItem>
+														<ContextMenuSeparator />
+														<ContextMenuItem
+															className="text-destructive focus:text-destructive"
+															onClick={() =>
+																deleteEntry.mutate(entry.id)
+															}
+														>
+															Delete entry
+														</ContextMenuItem>
+														<ContextMenuSeparator />
+														<DevContextSubmenu />
+													</ContextMenuContent>
+												) : null}
 											</ContextMenu>
 										);
 									})}

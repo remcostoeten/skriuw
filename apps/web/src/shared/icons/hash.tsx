@@ -33,6 +33,12 @@ function HashIcon({
 					stroke-dasharray: 90;
 					transform-box: fill-box;
 					transform-origin: center;
+					animation-play-state: paused;
+					stroke-dashoffset: 0;
+					opacity: 1;
+				}
+				svg:hover .hash-line {
+					animation-play-state: running;
 				}
 				.hash-v1 { animation: hash-draw ${duration}s ease-in-out infinite, hash-glide-x ${duration * 2}s ease-in-out infinite; }
 				.hash-v2 { animation: hash-draw ${duration}s ease-in-out infinite 0.12s, hash-glide-x ${duration * 2}s ease-in-out infinite 0.12s; }

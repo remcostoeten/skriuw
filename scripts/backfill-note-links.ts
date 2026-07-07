@@ -13,7 +13,7 @@
  */
 
 import "dotenv/config";
-import { PrismaClient } from "../apps/web/generated/prisma/client";
+import { PrismaClient } from "../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
 	extractNoteLinks,

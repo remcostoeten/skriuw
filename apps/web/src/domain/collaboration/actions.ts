@@ -15,18 +15,24 @@ import {
 // ─── Server action wrappers (callable from client via TanStack Query) ─────────
 
 export async function getCollaboratorsAction(noteId: string) {
+	await getAuthenticatedUser();
 	return getCollaborators(noteId);
 }
 
 export async function getPendingRequestsAction(noteId: string) {
+	await getAuthenticatedUser();
 	return getPendingRequestsForNote(noteId);
 }
 
 export async function getNotificationsAction() {
+	const { user } = await tryGetAuthenticatedUser();
+	if (!user) return [];
 	return getNotifications();
 }
 
 export async function getSharedNotesAction() {
+	const { user } = await tryGetAuthenticatedUser();
+	if (!user) return [];
 	return getSharedNotes();
 }
 

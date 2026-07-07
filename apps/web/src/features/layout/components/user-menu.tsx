@@ -166,7 +166,7 @@ export function UserMenu({
 					firstItemRef.current?.focus();
 				}}
 			>
-				<div className="py-1" aria-label="User menu actions">
+				<div role="group" className="py-1" aria-label="User menu actions">
 					{menuItems.map((item, index) => {
 						const Icon = item.icon;
 						return (

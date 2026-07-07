@@ -1,18 +1,9 @@
 "use server";
 
 import { getAuthenticatedUser, tryGetAuthenticatedUser } from "@/core/db";
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
-import {
-	assertOwnedParentFolder,
-	assertResourceIdAvailable,
-	isRecordNotFoundError,
-} from "@/domain/persistence/guards";
-import {
-	createNoteInputSchema,
-	parseServerInput,
-	updateNoteInputSchema,
-} from "@/domain/validation/schemas";
-import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
+import type { Prisma } from "@/generated/prisma/client";
+import { assertOwnedParentFolder, isRecordNotFoundError } from "@/domain/persistence/guards";
+import { parseServerInput, updateNoteInputSchema } from "@/domain/validation/schemas";
 import { isGuestScopedId } from "@/domain/notes/note-id";
 import { resolveNoteAccess, resolveReadableNote } from "@/domain/notes/note-access";
 import type {
@@ -32,24 +23,12 @@ import {
 	recordToNoteVersion,
 } from "@/domain/notes/note-write-core";
 import { normalizeNoteProperties, type NoteProperty } from "@/domain/notes/properties";
-import {
-	buildNoteVersionContentHash,
-	decideNoteVersionPersistence,
-	NOTE_VERSION_RETENTION_LIMIT,
-} from "@/domain/notes/versioning";
 import { listNoteMetadata, listNoteVersions } from "@/domain/notes/queries";
 import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
 import type { ResolvedNoteLink } from "@/domain/notes/note-links";
 import { deriveNoteNameFromHeading, nameTracksHeading } from "@/domain/notes/note-links";
 import { syncNoteLinks } from "@/domain/notes/note-link-sync";
 import { buildGraphData, type GraphData } from "@/domain/notes/graph";
-import type {
-	FolderId,
-	IsoTime,
-	MarkdownContent,
-	NoteId,
-	TagName,
-} from "@/domain/persistence/types";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -60,6 +39,7 @@ function uniquePersistedNoteIds(ids: string[]): string[] {
 }
 
 export async function listNotes(): Promise<NoteFile[]> {
+	await getAuthenticatedUser();
 	return listNoteMetadata();
 }
 

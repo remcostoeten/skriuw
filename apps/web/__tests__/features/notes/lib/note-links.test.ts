@@ -281,6 +281,41 @@ describe("note link indexing", () => {
 			status: "resolved",
 		});
 	});
+
+	test("merges rich-content chips when markdown content dropped them (desktop vault)", () => {
+		const source = note({
+			id: "source-id",
+			name: "Linking demo.md",
+			content: "Some body text without the serialized link forms.",
+			richContent: [
+				{
+					id: "p1",
+					type: "paragraph",
+					props: {},
+					content: [
+						{
+							type: "text",
+							text: "Some body text without the serialized link forms. ",
+							styles: {},
+						},
+						{ type: "noteLink", props: { title: "Project hub" } },
+						{ type: "text", text: " and ", styles: {} },
+						{
+							type: "link",
+							href: "note://target-id",
+							content: [{ type: "text", text: "Target", styles: {} }],
+						},
+					],
+					children: [],
+				},
+			],
+		});
+
+		expect(extractNoteLinks(source)).toMatchObject([
+			{ kind: "wiki", targetLabel: "Project hub" },
+			{ kind: "markdown-note-link", targetLabel: "Target", targetNoteId: "target-id" },
+		]);
+	});
 });
 
 describe("isUntitledNoteName", () => {

@@ -27,26 +27,28 @@ export async function flushQueue(now: number): Promise<void> {
 	const queue = await readQueue();
 	if (queue.length === 0) return;
 
-	const remaining: TQueueItem[] = [];
-	for (const item of queue) {
-		if (item.nextAt > now) {
-			remaining.push(item);
-			continue;
-		}
+	const remaining = (
+		await Promise.all(
+			queue.map(async (item): Promise<TQueueItem | null> => {
+				if (item.nextAt > now) {
+					return item;
+				}
 
-		const outcome = await postCapture(item.payload, item.id);
-		if (outcome.ok) {
-			continue;
-		}
-		if (!outcome.retryable || item.attempts + 1 >= MAX_ATTEMPTS) {
-			continue;
-		}
-		remaining.push({
-			...item,
-			attempts: item.attempts + 1,
-			nextAt: now + backoffDelay(item.attempts + 1),
-		});
-	}
+				const outcome = await postCapture(item.payload, item.id);
+				if (outcome.ok) {
+					return null;
+				}
+				if (!outcome.retryable || item.attempts + 1 >= MAX_ATTEMPTS) {
+					return null;
+				}
+				return {
+					...item,
+					attempts: item.attempts + 1,
+					nextAt: now + backoffDelay(item.attempts + 1),
+				};
+			}),
+		)
+	).filter((item): item is TQueueItem => item !== null);
 
 	await writeQueue(remaining);
 }

@@ -154,11 +154,9 @@ export function getWorkspaceUsers(files: NoteFile[]): string[] {
 	return [...users.values()].toSorted((left, right) => left.localeCompare(right));
 }
 
-export function extractNoteLinks(
-	note: Pick<NoteFile, "id" | "content" | "richContent">,
-): NoteLink[] {
+function extractLinksFromMarkdown(sourceNoteId: string, markdown: string): NoteLink[] {
 	const links: NoteLink[] = [];
-	const content = searchableContent(getNoteSearchableContent(note));
+	const content = searchableContent(markdown);
 
 	for (const match of content.matchAll(WIKI_LINK_PATTERN)) {
 		const targetLabel = match[1]?.trim();
@@ -169,7 +167,7 @@ export function extractNoteLinks(
 		links.push({
 			raw: match[0],
 			kind: "wiki",
-			sourceNoteId: note.id,
+			sourceNoteId,
 			targetLabel,
 			alias: match[2]?.trim() || undefined,
 		});
@@ -185,10 +183,49 @@ export function extractNoteLinks(
 		links.push({
 			raw: match[0],
 			kind: "markdown-note-link",
-			sourceNoteId: note.id,
+			sourceNoteId,
 			targetLabel,
 			targetNoteId,
 		});
+	}
+
+	return links;
+}
+
+function noteLinkDedupeKey(link: NoteLink): string {
+	return link.kind === "markdown-note-link"
+		? `id:${link.targetNoteId}`
+		: `wiki:${normalizeNoteTitle(link.targetLabel)}`;
+}
+
+/**
+ * All internal links a note points at. Scans the markdown `content`, then merges
+ * any chips that only survive in `richContent` — on desktop the vault markdown is
+ * the source of truth and lossy serialization can drop a `[[wiki]]`/`note://` chip
+ * from `content` while it lives on in the rich document. Mirrors the desktop link
+ * indexer (`buildRustNoteLinkRows`) so the sidebar and the SQLite index agree.
+ */
+export function extractNoteLinks(
+	note: Pick<NoteFile, "id" | "content" | "richContent">,
+): NoteLink[] {
+	const markdown = note.content?.trim();
+	const links = extractLinksFromMarkdown(note.id, getNoteSearchableContent(note));
+
+	if (!markdown) {
+		return links;
+	}
+
+	const richMarkdown = richDocumentToSearchableMarkdown(note.richContent);
+	if (!richMarkdown) {
+		return links;
+	}
+
+	const seen = new Set(links.map(noteLinkDedupeKey));
+	for (const link of extractLinksFromMarkdown(note.id, richMarkdown)) {
+		const key = noteLinkDedupeKey(link);
+		if (seen.has(key)) continue;
+		seen.add(key);
+		links.push(link);
 	}
 
 	return links;
