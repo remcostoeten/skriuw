@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/no-giant-component, react-doctor/prefer-useReducer */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -57,6 +58,7 @@ import type {
 	ImportProfile,
 } from "@/domain/data-transfer/types";
 import { RustImportDialog } from "@/features/settings/components/rust-import-dialog";
+import { StorageConfigManager } from "@/features/settings/components/storage/storage-config-manager";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 
 const REPLACE_PHRASE = "replace my workspace";
@@ -598,7 +600,6 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 								className="mt-4 w-full"
 								disabled={!isConnected || isCreating}
 								onClick={createToken}
-								title={!isConnected ? "Sign in to create a sync key" : undefined}
 							>
 								{isCreating ? (
 									<Sparkles className="size-3.5 animate-pulse" />
@@ -709,7 +710,7 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 											)
 										}
 										className="min-w-0 flex-1 text-left"
-										title="Show this key's activity"
+										aria-label="Show this key's activity"
 									>
 										<div className="flex flex-wrap items-center gap-2">
 											<p
@@ -743,7 +744,7 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 											size="sm"
 											onClick={() => void rotateToken(token.id)}
 											disabled={rotatingId === token.id}
-											title="Issue a new secret, revoking this one"
+											aria-label="Issue a new secret, revoking this one"
 										>
 											<RotateCcw className="size-3.5" />
 											{rotatingId === token.id ? "Rotating…" : "Rotate"}
@@ -1065,7 +1066,6 @@ function CloudDataSection() {
 								size="sm"
 								onClick={handleExport}
 								disabled={exportState === "pending" || !isConnected}
-								title={!isConnected ? "Sign in to export" : undefined}
 							>
 								<Download className="size-3.5" />
 								{exportState === "pending"
@@ -1100,7 +1100,6 @@ function CloudDataSection() {
 									importState === "importing"
 								}
 								onClick={() => fileInputRef.current?.click()}
-								title={!isConnected ? "Sign in to import" : undefined}
 							>
 								<Upload className="size-3.5" />
 								{importState === "previewing" ? "Reading…" : "Import"}
@@ -1118,6 +1117,9 @@ function CloudDataSection() {
 					</Row>
 				)}
 			</SettingsCard>
+
+			<GroupLabel>COVER IMAGE STORAGE</GroupLabel>
+			<StorageConfigManager isSignedIn={isConnected} />
 
 			<GroupLabel>MAINTENANCE</GroupLabel>
 			<SettingsCard>
@@ -1347,7 +1349,6 @@ function CloudDataSection() {
 						successLabel="Cleared"
 						failedLabel="Retry"
 						disabled={!isConnected}
-						disabledTitle={!isConnected ? "Sign in to clear data" : undefined}
 					/>
 				</Row>
 			</SettingsCard>

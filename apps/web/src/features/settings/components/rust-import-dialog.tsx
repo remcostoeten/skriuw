@@ -99,14 +99,19 @@ export function RustImportDialog() {
 				<div className="space-y-4">
 					{state === "idle" && (
 						<div className="space-y-4">
-							<label className="block">
-								<input
-									type="file"
-									accept=".zip"
-									onChange={handleFileSelect}
-									className="block w-full text-sm"
-								/>
+							<label
+								htmlFor="rust-archive-input"
+								className="block text-sm font-medium text-foreground"
+							>
+								Workspace archive (.zip)
 							</label>
+							<input
+								id="rust-archive-input"
+								type="file"
+								accept=".zip"
+								onChange={handleFileSelect}
+								className="block w-full text-sm"
+							/>
 						</div>
 					)}
 
@@ -160,11 +165,11 @@ export function RustImportDialog() {
 										<ul className="mt-1 space-y-1">
 											{validation.import_summary.errors
 												.slice(0, 3)
-												.map((err, i) => (
-													<li key={i}>• {err}</li>
+												.map((err) => (
+													<li key={err}>• {err}</li>
 												))}
 											{validation.import_summary.errors.length > 3 && (
-												<li>
+												<li key="more-errors">
 													• +{validation.import_summary.errors.length - 3}{" "}
 													more
 												</li>

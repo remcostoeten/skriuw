@@ -47,7 +47,6 @@ function ControlButton({ label, onClick, className, children }: ControlButtonPro
 		<button
 			type="button"
 			aria-label={label}
-			title={label}
 			onClick={onClick}
 			// Buttons are interactive, so the parent drag region ignores them — a
 			// click triggers the action while empty cluster space still drags.

@@ -8,6 +8,7 @@ import { IconRail } from "@/features/layout/components/icon-rail";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import { AnimatedRelativeTime } from "@/shared/ui/animated-relative-time";
 import { Button } from "@/shared/ui/button";
+import { useBackspaceNavigatesBack } from "@/shared/hooks/use-backspace-navigates-back";
 import { useWorkspacePeople } from "../hooks/use-people";
 import { usePersonNotes } from "../hooks/use-people-management";
 
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export function PersonInsights({ personId }: Props) {
+	useBackspaceNavigatesBack();
 	const { data: people = [] } = useWorkspacePeople();
 	const { data: notes = [], isLoading } = usePersonNotes(personId);
 	const person = people.find((entry) => entry.id === personId);

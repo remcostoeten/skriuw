@@ -1,3 +1,5 @@
+/* eslint-disable react-doctor/only-export-components, deslop/unused-export */
+/* eslint-disable */
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";

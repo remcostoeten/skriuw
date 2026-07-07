@@ -18,6 +18,9 @@ export const createDiagram = createReactBlockSpec(
 			source: {
 				default: DEFAULT_DIAGRAM_SOURCE,
 			},
+			graph: {
+				default: "",
+			},
 		},
 		content: "none" as const,
 	},

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable */
 
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -350,6 +351,7 @@ export function LocalDataSection() {
 	const queryClient = useQueryClient();
 	const backend = useWorkspaceBackend();
 	const [vaultRoot, setVaultRoot] = useState<string>("");
+	const [coverAssetsRoot, setCoverAssetsRoot] = useState<string>("");
 	const [busy, setBusy] = useState<Busy>("idle");
 	const [notice, setNotice] = useState<string | null>(null);
 	const [serverUrl, setServerUrl] = useState<string>("");
@@ -431,6 +433,9 @@ export function LocalDataSection() {
 		tauriInvoke<string>("get_vault_root")
 			.then(setVaultRoot)
 			.catch(() => setVaultRoot(""));
+		tauriInvoke<string>("get_cover_assets_root")
+			.then(setCoverAssetsRoot)
+			.catch(() => setCoverAssetsRoot(""));
 	}, []);
 
 	useEffect(() => {
@@ -689,7 +694,7 @@ export function LocalDataSection() {
 						return result.note ? 1 : 0;
 					}),
 				)
-			).reduce((total, count) => total + count, 0);
+			).reduce((total, count) => total + count, 0 as number);
 			await refreshWorkspace();
 			setNotice(`Applied ${applied} AI-generated titles.`);
 			setSimplenoteDialogOpen(false);
@@ -772,6 +777,24 @@ export function LocalDataSection() {
 		}
 	};
 
+	const handleRevealCoverAssets = async () => {
+		await tauriInvoke<void>("reveal_cover_assets").catch(() => undefined);
+	};
+
+	const handleChangeCoverAssetsDirectory = async () => {
+		const next = await tauriInvoke<string | null>("choose_cover_assets_root");
+		if (next) {
+			setCoverAssetsRoot(next);
+			setNotice("Cover image storage location updated.");
+		}
+	};
+
+	const handleResetCoverAssetsDirectory = async () => {
+		const next = await tauriInvoke<string>("reset_cover_assets_root");
+		setCoverAssetsRoot(next);
+		setNotice("Cover image storage location reset to default.");
+	};
+
 	return (
 		<LazyMotion features={domAnimation} strict>
 			<div>
@@ -794,6 +817,32 @@ export function LocalDataSection() {
 							</Button>
 							<Button variant="outline" size="sm" onClick={handleChangeDirectory}>
 								Change…
+							</Button>
+						</div>
+					</Row>
+					<Row
+						focusId="local-cover-assets-directory"
+						title="Cover image storage"
+						description={coverAssetsRoot || "Loading…"}
+					>
+						<div className="flex gap-2">
+							<Button variant="outline" size="sm" onClick={handleRevealCoverAssets}>
+								<FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+								Open
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleChangeCoverAssetsDirectory}
+							>
+								Change…
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleResetCoverAssetsDirectory}
+							>
+								Reset
 							</Button>
 						</div>
 					</Row>

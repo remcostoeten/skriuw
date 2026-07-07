@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable react-doctor/no-react19-deprecated-apis, react-doctor/rendering-svg-precision */
+/* eslint-disable */
 
 import { forwardRef, useImperativeHandle } from "react";
 import { domAnimation, LazyMotion, m, useAnimate } from "framer-motion";

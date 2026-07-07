@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable */
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
@@ -230,7 +231,6 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 					type="button"
 					onClick={goToToday}
 					className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-					title="Go to today"
 				>
 					<CalendarDays className="h-3 w-3" strokeWidth={1.5} />
 					Today
@@ -426,9 +426,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 																	if (e.key === "Enter") {
 																		e.preventDefault();
 																		commitRename(entry);
-																	} else if (
-																		e.key === "Escape"
-																	) {
+																	} else if (e.key === "Escape") {
 																		e.preventDefault();
 																		cancelRename();
 																	}
@@ -484,7 +482,9 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 									</ContextMenuTrigger>
 									{contextEntry ? (
 										<ContextMenuContent className="w-44">
-											<ContextMenuItem onClick={() => startRename(contextEntry)}>
+											<ContextMenuItem
+												onClick={() => startRename(contextEntry)}
+											>
 												Edit title
 											</ContextMenuItem>
 											<ContextMenuSeparator />

@@ -25,6 +25,7 @@ export function useNoteLinkActions(filesOverride?: NoteFile[]) {
 	const { files: contextFiles, activeFileId: contextActiveFileId } = useNoteLinkContext();
 	const files = filesOverride ?? contextFiles;
 	const setActiveFileId = useNotesStore((state) => state.setActiveFileId);
+	const setNoteLinkReturn = useNotesStore((state) => state.setNoteLinkReturn);
 	const openTabInBackground = useNotesStore((state) => state.openTabInBackground);
 	const secondaryFileId = useNotesStore((state) => state.split.secondaryFileId);
 	const createNote = useCreateNote();
@@ -33,6 +34,10 @@ export function useNoteLinkActions(filesOverride?: NoteFile[]) {
 
 	const openNote = useCallback(
 		(noteId: string) => {
+			const fromId = useNotesStore.getState().activeFileId;
+			if (fromId && fromId !== noteId) {
+				setNoteLinkReturn({ fromId, toId: noteId });
+			}
 			setActiveFileId(noteId);
 
 			if (
@@ -45,7 +50,7 @@ export function useNoteLinkActions(filesOverride?: NoteFile[]) {
 
 			updateNoteUrl(noteId);
 		},
-		[router, setActiveFileId],
+		[router, setActiveFileId, setNoteLinkReturn],
 	);
 
 	const openNoteInNewTab = useCallback(

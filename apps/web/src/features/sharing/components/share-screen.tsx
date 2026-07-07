@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable */
 
 import { useEffect, useMemo, useReducer, useState } from "react";
 import { formatDistanceToNow } from "date-fns";

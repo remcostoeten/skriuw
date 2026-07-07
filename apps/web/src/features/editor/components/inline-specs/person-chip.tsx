@@ -44,7 +44,6 @@ export function PersonChip({ id, cachedName }: Props) {
 			contentEditable={false}
 			data-note-person
 			aria-label={name ? `Open person ${name}` : "Person"}
-			title={name ? `Open person ${name}` : "Person"}
 			className={cn(
 				"mx-[1px] inline-flex max-w-[18ch] cursor-pointer items-center gap-1 overflow-hidden rounded-[4px] border px-1.5 py-0 text-[0.82em] font-medium leading-[1.45] align-baseline transition-colors",
 				"border-border/80 bg-muted/60 text-foreground/82 hover:border-ring/70 hover:bg-muted hover:text-foreground",

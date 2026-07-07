@@ -7,7 +7,7 @@ function unique<T>(values: T[]): T[] {
 	return values.filter((value, index, all) => all.indexOf(value) === index);
 }
 
-export function normalizeOrigin(value: string | null | undefined): string | undefined {
+function normalizeOrigin(value: string | null | undefined): string | undefined {
 	const trimmed = value?.trim();
 	if (!trimmed) return undefined;
 

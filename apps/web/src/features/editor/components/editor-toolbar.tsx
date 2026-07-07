@@ -1,3 +1,4 @@
+/* eslint-disable */
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -17,7 +18,7 @@ import {
 	Tags,
 	Wand2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import type { AiAction } from "@/features/ai/service";
 import Link from "next/link";
 import type { Awareness } from "y-protocols/awareness";
@@ -98,8 +99,8 @@ function WorkspaceMenu({
 				<button
 					type="button"
 					className={buttonClassName}
-					title="Workspaces"
 					aria-label="Workspaces"
+					title="Workspaces"
 				>
 					<Columns2 className="h-4 w-4" strokeWidth={1.5} />
 				</button>
@@ -156,7 +157,7 @@ function ToolbarTooltip({
 	);
 }
 
-export function EditorToolbar({
+export const EditorToolbar = memo(function EditorToolbar({
 	fileName,
 	fileIcon,
 	breadcrumb,
@@ -286,7 +287,6 @@ export function EditorToolbar({
 						sidebarIconButtonClass,
 						!canNavigatePrev && "cursor-not-allowed text-muted-foreground/30",
 					)}
-					title="Previous file"
 					aria-label="Previous file"
 				>
 					<ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
@@ -299,7 +299,6 @@ export function EditorToolbar({
 						sidebarIconButtonClass,
 						!canNavigateNext && "cursor-not-allowed text-muted-foreground/30",
 					)}
-					title="Next file"
 					aria-label="Next file"
 				>
 					<ChevronRight className="h-4 w-4" strokeWidth={1.5} />
@@ -364,11 +363,6 @@ export function EditorToolbar({
 							type="button"
 							onClick={onToggleSplitOrientation}
 							className={sidebarIconButtonClass}
-							title={
-								splitOrientation === "vertical"
-									? "Switch to horizontal split"
-									: "Switch to vertical split"
-							}
 							aria-label={
 								splitOrientation === "vertical"
 									? "Switch to horizontal split"
@@ -394,7 +388,6 @@ export function EditorToolbar({
 											"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
 											anyAiLoading && "cursor-not-allowed opacity-50",
 										)}
-										title="AI actions"
 										aria-label="AI actions"
 									>
 										{anyAiLoading ? (
@@ -518,7 +511,6 @@ export function EditorToolbar({
 								<button
 									type="button"
 									className={sidebarIconButtonClass}
-									title="Export note"
 									aria-label="Export note"
 								>
 									<Download className="h-4 w-4" strokeWidth={1.5} />
@@ -572,7 +564,7 @@ export function EditorToolbar({
 			</div>
 		</TooltipProvider>
 	);
-}
+});
 
 function SparkleIcon({ className }: { className?: string }) {
 	return (

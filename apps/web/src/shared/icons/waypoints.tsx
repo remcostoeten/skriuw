@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/no-react19-deprecated-apis */
 
 import type { Variants } from "framer-motion";
 import { LazyMotion, domMin, m, useAnimation, useReducedMotion } from "framer-motion";
@@ -64,16 +65,16 @@ const WaypointsIcon = forwardRef<WaypointsIconHandle, WaypointsIconProps>(
 		const handleEnter = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
 				if (!isAnimated || reduced) return;
-				if (!isControlled.current) controls.start("animate");
-				else onMouseEnter?.(e);
+				controls.start("animate");
+				onMouseEnter?.(e);
 			},
 			[controls, reduced, isAnimated, onMouseEnter],
 		);
 
 		const handleLeave = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
-				if (!isControlled.current) controls.start("normal");
-				else onMouseLeave?.(e);
+				controls.start("normal");
+				onMouseLeave?.(e);
 			},
 			[controls, onMouseLeave],
 		);
@@ -117,7 +118,7 @@ const WaypointsIcon = forwardRef<WaypointsIconHandle, WaypointsIconProps>(
 						<path d="M6 12h12" />
 						{NODES.map((n, i) => (
 							<m.circle
-								key={i}
+								key={`${n.cx}-${n.cy}`}
 								cx={n.cx}
 								cy={n.cy}
 								r="2"

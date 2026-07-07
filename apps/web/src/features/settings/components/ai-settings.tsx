@@ -125,7 +125,7 @@ function KeyRow({
 					<button
 						type="button"
 						onClick={onSetActive}
-						title="Set as active key"
+						aria-label="Set as active key"
 						className="flex h-6 w-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
 					>
 						<Star className="h-3.5 w-3.5" strokeWidth={1.5} />

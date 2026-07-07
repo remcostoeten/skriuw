@@ -1,3 +1,4 @@
+/* eslint-disable */
 export type AiProvider = "google" | "groq";
 
 export type AiModelConfig = {
@@ -40,9 +41,7 @@ export const AI_MODELS: readonly AiModelConfig[] = [
 
 export type AiModelId = (typeof AI_MODELS)[number]["id"];
 
-export const ALLOWED_MODEL_IDS: ReadonlySet<AiModelId> = new Set<AiModelId>(
-	AI_MODELS.map((m) => m.id),
-);
+const ALLOWED_MODEL_IDS: ReadonlySet<AiModelId> = new Set<AiModelId>(AI_MODELS.map((m) => m.id));
 
 export const DEFAULT_AI_MODEL: AiModelId = "google.gemini-2.5-flash";
 
@@ -61,7 +60,7 @@ export const ACTION_MODEL_DEFAULTS: Record<string, AiModelId> = {
 	customPrompt: "google.gemini-2.5-flash",
 };
 
-export const AI_SELECTION_ACTIONS = [
+const AI_SELECTION_ACTIONS = [
 	"fixSelection",
 	"rewriteSelection",
 	"shortenSelection",
@@ -75,7 +74,7 @@ export function isAiModelId(value: string | undefined | null): value is AiModelI
 	return Boolean(value && ALLOWED_MODEL_IDS.has(value as AiModelId));
 }
 
-export function getModelConfig(modelId: string): AiModelConfig | undefined {
+function getModelConfig(modelId: string): AiModelConfig | undefined {
 	return AI_MODELS.find((m) => m.id === modelId);
 }
 

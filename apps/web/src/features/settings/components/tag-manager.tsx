@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Hash } from "lucide-react";
 import { NOTE_PROPERTY_COLORS } from "@/domain/notes/properties";
 import { normalizeTagName } from "@/domain/tags/normalize";
@@ -29,12 +29,14 @@ export function TagManager() {
 
 	const [editingName, setEditingName] = useState<string | null>(null);
 	const [editValue, setEditValue] = useState("");
+	const editInputRef = useRef<HTMLInputElement | null>(null);
 
 	const sortedTags = tags.toSorted((a, b) => b.noteCount - a.noteCount);
 
 	function startEditing(tag: TagSummary) {
 		setEditingName(tag.name);
 		setEditValue(tag.name);
+		requestAnimationFrame(() => editInputRef.current?.focus());
 	}
 
 	function commitRename(originalName: string) {
@@ -72,6 +74,7 @@ export function TagManager() {
 
 						{editingName === tag.name ? (
 							<input
+								ref={editInputRef}
 								type="text"
 								value={editValue}
 								onChange={(e) => setEditValue(e.target.value)}
@@ -81,7 +84,7 @@ export function TagManager() {
 									if (e.key === "Escape") setEditingName(null);
 								}}
 								className="min-w-0 flex-1 border-b border-foreground/30 bg-transparent text-sm outline-hidden"
-								autoFocus
+								aria-label={`Rename tag ${tag.name}`}
 							/>
 						) : (
 							<button

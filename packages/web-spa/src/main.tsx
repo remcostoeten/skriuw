@@ -1,4 +1,3 @@
-import "./devtools-hook-install";
 import "./raf-fallback";
 import "@remcostoeten/auth-drawer/styles.css";
 import "@/app/globals.css";

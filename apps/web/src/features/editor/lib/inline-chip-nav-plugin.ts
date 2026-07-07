@@ -1,6 +1,7 @@
 import { NodeSelection, Plugin, PluginKey, TextSelection } from "prosemirror-state";
 import type { Node as PMNode } from "prosemirror-model";
 import type { EditorView } from "prosemirror-view";
+import { vimPluginKey } from "@/features/editor/lib/vim-plugin";
 
 export type InlineChipNavHandlers = {
 	onOpenNoteLink: (title: string) => void;
@@ -110,8 +111,39 @@ export function createInlineChipNavPlugin(handlers: InlineChipNavHandlers): Plug
 					return false;
 				}
 
-				if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-					const direction = event.key === "ArrowLeft" ? -1 : 1;
+				// In vim normal mode, `h`/`l` are the arrow-key equivalents — without
+				// this, they fall through to vim's text-offset motion, which steps
+				// straight through a chip's leaf position instead of ever selecting
+				// it, so it can never be opened with Enter from the keyboard.
+				const vimMode = vimPluginKey.getState(view.state)?.mode;
+				const isVimLeft = vimMode === "normal" && event.key === "h";
+				const isVimRight = vimMode === "normal" && event.key === "l";
+
+				if (
+					event.key === "ArrowLeft" ||
+					event.key === "ArrowRight" ||
+					isVimLeft ||
+					isVimRight
+				) {
+					const direction = event.key === "ArrowLeft" || isVimLeft ? -1 : 1;
+
+					// A chip is already selected (NodeSelection) — step out of it to
+					// the requested side instead of leaving it to vim's text-offset
+					// motion, which doesn't understand NodeSelection.
+					const selectedChip = getSelectedChip(view);
+					if (selectedChip) {
+						const pos =
+							direction === -1
+								? selectedChip.pos
+								: selectedChip.pos + selectedChip.node.nodeSize;
+						event.preventDefault();
+						const tr = view.state.tr.setSelection(
+							TextSelection.create(view.state.doc, pos),
+						);
+						view.dispatch(tr.scrollIntoView());
+						return true;
+					}
+
 					const chip = getAdjacentChip(view, direction);
 					if (!chip) {
 						return false;

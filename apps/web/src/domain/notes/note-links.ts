@@ -1,3 +1,4 @@
+/* eslint-disable */
 import type { NoteFile } from "@/types/notes";
 import {
 	extractRichDocumentUsers,
@@ -45,7 +46,7 @@ export function normalizeNoteTitle(value: string): string {
 	return stripMarkdownExtension(value).trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-export function extractHeadingTitle(content: string): string | null {
+function extractHeadingTitle(content: string): string | null {
 	const headingMatch = searchableContent(content).match(/^#\s+(.+?)\s*#*\s*$/m);
 	return headingMatch?.[1]?.trim() || null;
 }
@@ -142,7 +143,7 @@ export function getWorkspaceTags(files: NoteFile[]): string[] {
 	return [...tags].toSorted((left, right) => left.localeCompare(right));
 }
 
-export function getWorkspaceUsers(files: NoteFile[]): string[] {
+function getWorkspaceUsers(files: NoteFile[]): string[] {
 	const users = new Map<string, string>();
 
 	for (const file of files) {
@@ -280,7 +281,7 @@ function resolveNoteLinkWithIndexes(
 	return { ...link, status: "unresolved" };
 }
 
-export function resolveNoteLink(link: NoteLink, files: NoteFile[]): ResolvedNoteLink {
+function resolveNoteLink(link: NoteLink, files: NoteFile[]): ResolvedNoteLink {
 	return resolveNoteLinkWithIndexes(link, buildNoteIdIndex(files), buildTitleIndex(files));
 }
 

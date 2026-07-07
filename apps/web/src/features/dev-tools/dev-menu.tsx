@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Wrench } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { Switch } from "@/shared/ui/switch";
@@ -32,16 +32,11 @@ function DevToggleRow({
 }
 
 export function DevMenu() {
-	const [mounted, setMounted] = useState(false);
 	const [open, setOpen] = useState(false);
 	const forceLoading = useDevToolsStore((s) => s.forceLoading);
 	const setForceLoading = useDevToolsStore((s) => s.setForceLoading);
 
-	useEffect(() => {
-		setMounted(true);
-	}, []);
-
-	if (!isDevEnv() || !mounted) return null;
+	if (!isDevEnv()) return null;
 
 	return (
 		<div className="fixed bottom-3 right-3 z-[60]">

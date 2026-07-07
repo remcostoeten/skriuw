@@ -403,6 +403,7 @@ export async function installNotesLayoutMocks(
 	}));
 	mock.module("@/features/notes/hooks/use-notes-navigation", () => ({
 		clearNoteUrl: () => true,
+		updateNoteUrl: () => true,
 		useFileNavigation: (files: NoteFile[], activeId: string) => {
 			const index = files.findIndex((file) => file.id === activeId);
 			return {

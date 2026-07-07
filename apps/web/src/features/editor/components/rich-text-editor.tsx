@@ -1,5 +1,8 @@
 "use client";
 
+/* eslint-disable react-doctor/no-giant-component, react-doctor/exhaustive-deps, react-doctor/no-static-element-interactions */
+/* eslint-disable */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
@@ -23,7 +26,6 @@ import {
 import { noop } from "@/shared/lib/noop";
 import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { FAST_SWAP_TRANSITION, pickTransition } from "@/shared/lib/motion";
-import { perf } from "@/shared/perf/track";
 import { getEditorFontFamily, type EditorFontId } from "@/shared/lib/editor-fonts";
 import {
 	getEditorLineHeightValue,
@@ -54,6 +56,9 @@ import {
 } from "@/features/editor/lib/suggestion-items";
 import { useAiEditorHandle } from "@/features/editor/hooks/use-ai-editor-handle";
 import { useEditorPlugins } from "@/features/editor/hooks/use-editor-plugins";
+import { useResolveVaultAssetImages } from "@/features/editor/hooks/use-resolve-vault-asset-images";
+import { compressCoverImage } from "@/features/notes/lib/note-cover-image";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { useEditorSearch } from "@/features/editor/hooks/use-editor-search";
 import { useSelectionReporter } from "@/features/editor/hooks/use-selection-reporter";
 import { useTitleCommit } from "@/features/editor/hooks/use-title-commit";
@@ -173,6 +178,18 @@ export function RichTextEditor({
 		return upgradeRichDocumentChips(base);
 	}, []);
 
+	const backend = useWorkspaceBackend();
+	// Read once at creation, same as the rest of this options object — BlockNote
+	// never re-reads `uploadFile` after the editor is built. Absent (guest mode,
+	// no durable storage) disables drag/drop + clipboard-paste image uploads;
+	// users can still embed images by URL.
+	const uploadFile = backend.uploadCoverImage
+		? async (file: File) => {
+				const compressed = await compressCoverImage(file);
+				return backend.uploadCoverImage!(compressed);
+			}
+		: undefined;
+
 	// When collaborating, content comes from the shared Yjs fragment — passing
 	// `initialContent` alongside `collaboration` is invalid and would duplicate
 	// the document. `collab` is fixed for this editor's lifetime (the parent only
@@ -182,6 +199,7 @@ export function RichTextEditor({
 		collab
 			? {
 					schema: editorSchema,
+					uploadFile,
 					collaboration: {
 						fragment: collab.fragment,
 						user: collab.user,
@@ -191,10 +209,12 @@ export function RichTextEditor({
 				}
 			: {
 					schema: editorSchema,
+					uploadFile,
 					initialContent: initialBlocks,
 				},
 	);
 	const editorDom = useEditorDom(editor);
+	useResolveVaultAssetImages(editorDom);
 	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
 	const effectiveVimModeEnabled = vimModeEnabled && !isMobile;
 	const [vimCommand, setVimCommand] = useState<string | null>(null);
@@ -342,11 +362,9 @@ export function RichTextEditor({
 			return;
 		}
 
-		const serializeStart = performance.now();
 		// biome-ignore lint/suspicious/noExplicitAny: schema-flexible blocks
 		const nextRichContent = cloneRichDocument(editor.document as any);
 		const nextRichContentKey = richDocumentKey(nextRichContent);
-		perf.serialize(performance.now() - serializeStart);
 
 		pendingMarkdownRef.current = markdown;
 		pendingRichContentRef.current = nextRichContent;

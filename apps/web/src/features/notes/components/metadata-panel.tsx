@@ -22,7 +22,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { memo, type ComponentType, type ReactNode } from "react";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import {
+	useCallback,
+	useDeferredValue,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import type { NoteVersionReason } from "@/domain/notes/models";
 import {
 	getNoteVersionDeltaValues,
@@ -458,6 +466,19 @@ function getVersionEventLabel(version: VersionListItem) {
 	return version.reason;
 }
 
+type VersionRowProps = {
+	version: VersionListItem;
+	previousContent?: string;
+	branchRole: HistoryBranchRole;
+	isFirst: boolean;
+	isLast: boolean;
+	hasFork: boolean;
+	isRestoredSource?: boolean;
+	isRestoredTrunkLink?: boolean;
+	animateNumbers?: boolean;
+	onView?: (id: string) => void;
+};
+
 const VersionRow = memo(function VersionRow({
 	version,
 	previousContent,
@@ -469,24 +490,14 @@ const VersionRow = memo(function VersionRow({
 	isRestoredTrunkLink,
 	animateNumbers = true,
 	onView,
-}: {
-	version: VersionListItem;
-	previousContent?: string;
-	branchRole: HistoryBranchRole;
-	isFirst: boolean;
-	isLast: boolean;
-	hasFork: boolean;
-	isRestoredSource?: boolean;
-	isRestoredTrunkLink?: boolean;
-	animateNumbers?: boolean;
-	onView?: () => void;
-}) {
+}: VersionRowProps) {
 	const eventLabel = getVersionEventLabel(version);
 	const isFork = branchRole === "fork";
-	const [mounted, setMounted] = useState(false);
-	useEffect(() => {
-		setMounted(true);
-	}, []);
+	const mounted = useSyncExternalStore(
+		() => () => {},
+		() => true,
+		() => false,
+	);
 
 	const delta =
 		previousContent !== undefined ? (
@@ -564,7 +575,7 @@ const VersionRow = memo(function VersionRow({
 				{contextPreview ? (
 					<p
 						className="truncate pr-6 text-[11px] leading-4 text-muted-foreground/50"
-						title={contextPreview}
+						aria-label={contextPreview}
 					>
 						{contextPreview}
 					</p>
@@ -573,7 +584,7 @@ const VersionRow = memo(function VersionRow({
 			{!version.current && onView ? (
 				<button
 					type="button"
-					onClick={onView}
+					onClick={() => onView(version.id)}
 					className="hover-reveal absolute right-0 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
 				>
 					<Eye className="h-2.5 w-2.5" strokeWidth={1.6} />
@@ -582,7 +593,27 @@ const VersionRow = memo(function VersionRow({
 			) : null}
 		</li>
 	);
-});
+}, areVersionRowsEqual);
+
+function areVersionRowsEqual(prev: VersionRowProps, next: VersionRowProps): boolean {
+	return (
+		prev.version.id === next.version.id &&
+		prev.version.content === next.version.content &&
+		prev.version.current === next.version.current &&
+		prev.version.reason === next.version.reason &&
+		prev.version.reasonKind === next.version.reasonKind &&
+		prev.version.createdAt.getTime() === next.version.createdAt.getTime() &&
+		prev.previousContent === next.previousContent &&
+		prev.branchRole === next.branchRole &&
+		prev.isFirst === next.isFirst &&
+		prev.isLast === next.isLast &&
+		prev.hasFork === next.hasFork &&
+		prev.isRestoredSource === next.isRestoredSource &&
+		prev.isRestoredTrunkLink === next.isRestoredTrunkLink &&
+		prev.animateNumbers === next.animateNumbers &&
+		prev.onView === next.onView
+	);
+}
 
 function LinkGroupHeader({
 	icon: Icon,
@@ -858,17 +889,36 @@ export const MetadataPanel = memo(function MetadataPanel({
 		onShare?.(file.id);
 	};
 
-	const handleIconChange = (icon: string) => {
-		if (!file) return;
-		if (icon === file.icon) return;
-		updateNoteMutation.mutate({ id: file.id, icon: icon || "" });
-	};
+	const { mutate: mutateNote } = updateNoteMutation;
+	const fileRef = useRef(file);
+	fileRef.current = file;
 
-	const handleCoverChange = (cover: string) => {
-		if (!file) return;
-		if (cover === file.cover) return;
-		updateNoteMutation.mutate({ id: file.id, cover: cover || "" });
-	};
+	const handleIconChange = useCallback(
+		(icon: string) => {
+			const current = fileRef.current;
+			if (!current || icon === current.icon) return;
+			mutateNote({ id: current.id, icon: icon || "" });
+		},
+		[mutateNote],
+	);
+
+	const handleCoverChange = useCallback(
+		(cover: string) => {
+			const current = fileRef.current;
+			if (!current || cover === current.cover) return;
+			mutateNote({ id: current.id, cover: cover || "" });
+		},
+		[mutateNote],
+	);
+
+	const handleViewVersion = useCallback(
+		(id: string) => {
+			if (!onViewVersion) return;
+			const fullVersion = (versionsQuery.data ?? []).find((version) => version.id === id);
+			if (fullVersion) onViewVersion(fullVersion);
+		},
+		[onViewVersion, versionsQuery.data],
+	);
 
 	const asideClass = cn(
 		"flex min-h-0 flex-col bg-background",
@@ -905,7 +955,6 @@ export const MetadataPanel = memo(function MetadataPanel({
 								aria-label="Close details"
 								data-sheet-no-drag
 								className="flex h-11 w-11 items-center justify-center rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground active:bg-muted"
-								title="Close details"
 							>
 								<X className="h-5 w-5" strokeWidth={1.6} />
 							</button>
@@ -1242,18 +1291,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 											isRestoredSource={index === restoredSourceIndex}
 											isRestoredTrunkLink={isRestoredTrunkLink}
 											animateNumbers={animateNumbers}
-											onView={
-												!version.current && onViewVersion
-													? () => {
-															const fullVersion = (
-																versionsQuery.data ?? []
-															).find((v) => v.id === version.id);
-															if (fullVersion) {
-																onViewVersion(fullVersion);
-															}
-														}
-													: undefined
-											}
+											onView={onViewVersion ? handleViewVersion : undefined}
 										/>
 									);
 								})}

@@ -49,6 +49,7 @@ model User {
   notifications          Notification[]
   people                 Person[]
   noteTagMeta            NoteTagMeta[]
+  storageConfig          UserStorageConfig?
 
   @@map("user")
 }
@@ -128,22 +129,22 @@ model SyncToken {
 }
 
 model SyncEvent {
-  id             String    @id @default(uuid()) @db.Uuid
-  userId         String    @map("user_id")
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenId        String?   @map("token_id") @db.Uuid
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenId        String?  @map("token_id") @db.Uuid
   operation      String
   status         String
-  resourceId     String?   @map("resource_id") @db.Uuid
-  resourceName   String?   @map("resource_name")
+  resourceId     String?  @map("resource_id") @db.Uuid
+  resourceName   String?  @map("resource_name")
   message        String?
-  idempotencyKey String?   @map("idempotency_key")
+  idempotencyKey String?  @map("idempotency_key")
   source         String?
-  createdAt      DateTime  @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at")
 
+  @@unique([idempotencyKey])
   @@index([userId, createdAt(sort: Desc)])
   @@index([tokenId, createdAt(sort: Desc)])
-  @@unique([idempotencyKey])
   @@map("sync_events")
 }
 
@@ -169,27 +170,27 @@ model Folder {
 }
 
 model Note {
-  id                  String        @id @default(uuid()) @db.Uuid
-  userId              String        @map("user_id")
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name                String
-  content             String
-  richContent         Json?         @map("rich_content")
-  preferredEditorMode String?       @map("preferred_editor_mode")
-  parentId            String?       @map("parent_id") @db.Uuid
-  parent              Folder?       @relation(fields: [parentId], references: [id], onDelete: SetNull)
-  sortOrder           Int           @default(0) @map("sort_order")
-  tags                String[]      @default([])
-  properties          Json?         @map("properties")
-  icon                String?
-  cover               String?
-  journalMeta         Json?         @map("journal_meta")
-  versions            NoteVersion[]
-  outgoingLinks       NoteLink[]    @relation("NoteOutgoingLinks")
-  shares              NoteShare[]
-  deletedAt           DateTime?     @map("deleted_at")
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
+  id                    String                 @id @default(uuid()) @db.Uuid
+  userId                String                 @map("user_id")
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                  String
+  content               String
+  richContent           Json?                  @map("rich_content")
+  preferredEditorMode   String?                @map("preferred_editor_mode")
+  parentId              String?                @map("parent_id") @db.Uuid
+  parent                Folder?                @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  sortOrder             Int                    @default(0) @map("sort_order")
+  tags                  String[]               @default([])
+  properties            Json?                  @map("properties")
+  icon                  String?
+  cover                 String?
+  journalMeta           Json?                  @map("journal_meta")
+  versions              NoteVersion[]
+  outgoingLinks         NoteLink[]             @relation("NoteOutgoingLinks")
+  shares                NoteShare[]
+  deletedAt             DateTime?              @map("deleted_at")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
   collaborationRequests CollaborationRequest[]
   collaborators         NoteCollaborator[]
 
@@ -400,6 +401,23 @@ model AiProviderKey {
   @@unique([userId, provider, keyFingerprint])
   @@index([userId, provider, createdAt(sort: Desc)])
   @@map("ai_provider_keys")
+}
+
+// ─── STORAGE ─────────────────────────────────────────────────────────────────
+
+model UserStorageConfig {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @unique @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        String // "vercel-blob" | "s3"
+  encryptedConfig String    @map("encrypted_config")
+  configPreview   String    @map("config_preview")
+  status          String    @default("untested")
+  lastTestedAt    DateTime? @map("last_tested_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("user_storage_configs")
 }
 
 model AiUsageLog {

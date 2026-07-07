@@ -81,7 +81,7 @@ export function NoteLinkChip({ title }: Props) {
 			contentEditable={false}
 			data-note-link
 			data-note-link-status={resolved.status}
-			title={tooltip}
+			aria-label={tooltip}
 			className={cn(
 				"mx-[1px] inline-flex items-baseline rounded-[3px] border px-1 text-[0.95em] font-medium align-baseline transition-colors",
 				"border-border bg-popover text-popover-foreground",

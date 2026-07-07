@@ -38,12 +38,15 @@ export function useNotesLayoutSaveController({
 	const previousActiveFileIdRef = useRef<string>("");
 	const saveControllerRef = useRef<ReturnType<typeof useDebouncedSave> | null>(null);
 
-	const clearPendingSaveReset = useCallback((id: string) => {
-		const timeoutId = saveResetTimeoutsRef.current.get(id);
-		if (!timeoutId) return;
-		window.clearTimeout(timeoutId);
-		saveResetTimeoutsRef.current.delete(id);
-	}, []);
+	const clearPendingSaveReset = useCallback(
+		(id: string) => {
+			const timeoutId = saveResetTimeoutsRef.current.get(id);
+			if (!timeoutId) return;
+			window.clearTimeout(timeoutId);
+			saveResetTimeoutsRef.current.delete(id);
+		},
+		[saveResetTimeoutsRef],
+	);
 
 	const markFileSaving = useCallback(
 		(id: string) => {
@@ -63,7 +66,7 @@ export function useNotesLayoutSaveController({
 			}, 1800);
 			saveResetTimeoutsRef.current.set(id, timeoutId);
 		},
-		[clearFileSaveState, clearPendingSaveReset, setFileSaveState],
+		[clearFileSaveState, clearPendingSaveReset, saveResetTimeoutsRef, setFileSaveState],
 	);
 
 	const markFileError = useCallback(
@@ -85,9 +88,11 @@ export function useNotesLayoutSaveController({
 	}, [saveController]);
 
 	useEffect(() => {
+		// react-doctor-disable-next-line react-doctor/no-event-handler -- seeded layout state is intentionally reconciled after mount.
 		if (seededActiveFileId && !useNotesStore.getState().activeFileId) {
 			setActiveFileId(seededActiveFileId);
 		}
+		// react-doctor-disable-next-line react-doctor/no-event-handler -- initial user scope sync is intentionally deferred until mount.
 		if (
 			initialUserScopeId &&
 			useSidebarStore.getState().currentUserScopeId !== initialUserScopeId
@@ -99,6 +104,7 @@ export function useNotesLayoutSaveController({
 	useEffect(() => {
 		const previousId = previousActiveFileIdRef.current;
 		previousActiveFileIdRef.current = activeFileId;
+		// react-doctor-disable-next-line react-doctor/no-event-handler -- flushing the previous note belongs to this mount/update effect.
 		if (previousId && previousId !== activeFileId) {
 			void saveController.flush(previousId);
 		}
@@ -159,7 +165,7 @@ export function useNotesLayoutSaveController({
 			saveResetTimeoutsRef.current.clear();
 			void saveControllerRef.current?.flushAll();
 		},
-		[],
+		[saveResetTimeoutsRef],
 	);
 
 	useEffect(() => {

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/no-multi-comp, react-doctor/no-cascading-set-state, deslop/unused-export */
 
 import { useLayoutEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";

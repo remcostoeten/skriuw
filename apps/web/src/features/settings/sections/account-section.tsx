@@ -412,7 +412,6 @@ export function AccountSection() {
 						value={user?.email ?? ""}
 						readOnly
 						className="w-52 h-8 opacity-60 cursor-not-allowed"
-						title="Email changes require re-authentication — contact support"
 					/>
 				</Row>
 			</SettingsCard>

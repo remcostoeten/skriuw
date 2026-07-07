@@ -1,5 +1,3 @@
-import { AlertCircle, WifiOff } from "lucide-react";
-
 type AuthErrorKind = "network" | "configuration" | "credentials" | "validation" | "unknown";
 
 export type AuthErrorNotice = {
@@ -7,14 +5,6 @@ export type AuthErrorNotice = {
 	title: string;
 	message: string;
 };
-
-export function createAuthValidationError(message: string): AuthErrorNotice {
-	return {
-		kind: "validation",
-		title: "Check your details",
-		message,
-	};
-}
 
 export function resolveAuthError(error: unknown): AuthErrorNotice {
 	if (!(error instanceof Error)) {
@@ -79,21 +69,4 @@ function fallbackAuthError(): AuthErrorNotice {
 		title: "Authentication failed",
 		message: "Something went wrong. Try again.",
 	};
-}
-
-export function AuthErrorAlert({ error }: { error: AuthErrorNotice }) {
-	const Icon = error.kind === "network" ? WifiOff : AlertCircle;
-
-	return (
-		<div
-			role="alert"
-			className="mt-4 flex gap-3 border border-destructive/25 bg-destructive/7 px-4 py-3 text-left"
-		>
-			<Icon className="mt-0.5 size-4 shrink-0 text-destructive/80" />
-			<div className="min-w-0 space-y-1">
-				<p className="text-sm font-medium leading-5 text-foreground">{error.title}</p>
-				<p className="text-sm leading-5 text-muted-foreground">{error.message}</p>
-			</div>
-		</div>
-	);
 }

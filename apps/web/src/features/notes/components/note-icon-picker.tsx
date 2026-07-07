@@ -3,9 +3,9 @@
 import { Smile } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { cn } from "@/shared/lib/utils";
-import { useState } from "react";
+import { memo, useState } from "react";
 
-export const NOTE_ICON_EMOJIS = [
+const NOTE_ICON_EMOJIS = [
 	"📝",
 	"📄",
 	"📑",
@@ -109,7 +109,7 @@ type Props = {
 	onIconChange: (icon: string) => void;
 };
 
-export function NoteIconPicker({ icon, onIconChange }: Props) {
+export const NoteIconPicker = memo(function NoteIconPicker({ icon, onIconChange }: Props) {
 	const [open, setOpen] = useState(false);
 
 	return (
@@ -117,6 +117,7 @@ export function NoteIconPicker({ icon, onIconChange }: Props) {
 			<PopoverTrigger asChild>
 				<button
 					type="button"
+					aria-label={icon ? `Change note icon, currently ${icon}` : "Choose note icon"}
 					className={cn(
 						"flex h-8 w-8 items-center justify-center rounded-md text-base transition-colors",
 						icon
@@ -133,6 +134,7 @@ export function NoteIconPicker({ icon, onIconChange }: Props) {
 						<button
 							key={emoji}
 							type="button"
+							aria-label={`Use ${emoji} as note icon`}
 							onClick={() => {
 								onIconChange(emoji);
 								setOpen(false);
@@ -149,4 +151,4 @@ export function NoteIconPicker({ icon, onIconChange }: Props) {
 			</PopoverContent>
 		</Popover>
 	);
-}
+});

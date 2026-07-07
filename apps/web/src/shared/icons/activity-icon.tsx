@@ -57,22 +57,16 @@ const ActivityIcon = forwardRef<ActivityIconHandle, ActivityIconProps>(
 		const handleEnter = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
 				if (!isAnimated || reduced) return;
-				if (isControlled.current) {
-					onMouseEnter?.(e);
-				} else {
-					controls.start("animate");
-				}
+				controls.start("animate");
+				onMouseEnter?.(e);
 			},
 			[controls, reduced, isAnimated, onMouseEnter],
 		);
 
 		const handleLeave = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
-				if (isControlled.current) {
-					onMouseLeave?.(e);
-				} else {
-					controls.start("normal");
-				}
+				controls.start("normal");
+				onMouseLeave?.(e);
 			},
 			[controls, onMouseLeave],
 		);

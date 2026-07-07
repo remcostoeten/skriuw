@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, ChevronDown, Download, Play, Radio, X } from "lucide-react";
 import { AsyncActionButton } from "@/shared/ui/async-action-button";
 import { DeleteButton } from "@/shared/ui/delete-button";
-import { MorphingLabel } from "@/shared/ui/morphing-label";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
@@ -276,6 +275,68 @@ export function DesktopAiSection() {
 		);
 	}
 
+	return (
+		<DesktopAiSectionContent
+			config={config}
+			status={status}
+			catalog={catalog}
+			installState={installState}
+			pullState={pullState}
+			keyDraft={keyDraft}
+			notice={notice}
+			onPatchConfig={patchConfig}
+			onInstall={handleInstall}
+			onCancelInstall={handleCancelInstall}
+			onStart={handleStart}
+			onPull={handlePull}
+			onCancelPull={handleCancelPull}
+			onDelete={handleDelete}
+			onPing={handlePing}
+			onKeyDraftChange={setKeyDraft}
+			onSaveKey={handleSaveKey}
+		/>
+	);
+}
+
+type DesktopAiSectionContentProps = {
+	config: AiConfig;
+	status: OllamaStatus | null;
+	catalog: CatalogEntry[];
+	installState: { percent: number; message: string } | null;
+	pullState: Record<string, PullState>;
+	keyDraft: string;
+	notice: string | null;
+	onPatchConfig: (patch: Partial<AiConfig>) => Promise<void>;
+	onInstall: () => Promise<void>;
+	onCancelInstall: () => Promise<void>;
+	onStart: () => Promise<void>;
+	onPull: (model: string) => Promise<void>;
+	onCancelPull: (model: string) => Promise<void>;
+	onDelete: (model: string) => Promise<boolean>;
+	onPing: () => Promise<{ ok: boolean; label?: string }>;
+	onKeyDraftChange: React.Dispatch<React.SetStateAction<string>>;
+	onSaveKey: () => Promise<void>;
+};
+
+function DesktopAiSectionContent({
+	config,
+	status,
+	catalog,
+	installState,
+	pullState,
+	keyDraft,
+	notice,
+	onPatchConfig,
+	onInstall,
+	onCancelInstall,
+	onStart,
+	onPull,
+	onCancelPull,
+	onDelete,
+	onPing,
+	onKeyDraftChange,
+	onSaveKey,
+}: DesktopAiSectionContentProps) {
 	const installedModels = catalog.filter((entry) => entry.installed);
 
 	return (
@@ -294,7 +355,7 @@ export function DesktopAiSection() {
 				>
 					<Select
 						value={config.provider}
-						onValueChange={(value) => patchConfig({ provider: value as AiProvider })}
+						onValueChange={(value) => onPatchConfig({ provider: value as AiProvider })}
 					>
 						<SelectTrigger className="w-44">
 							<SelectValue />
@@ -324,7 +385,7 @@ export function DesktopAiSection() {
 					}
 				>
 					<AsyncActionButton
-						onRun={handlePing}
+						onRun={onPing}
 						idleIcon={<Radio className="h-3.5 w-3.5" />}
 						label="Send ping"
 						pendingLabel="Pinging\u2026"
@@ -335,263 +396,349 @@ export function DesktopAiSection() {
 			</SettingsCard>
 
 			{config.provider === "ollama" ? (
-				<>
-					<GroupLabel>Local engine</GroupLabel>
-					<SettingsCard>
-						<Row
-							focusId="desktop-ollama-runtime"
-							title="Ollama runtime"
-							description={
-								status?.running
-									? `Running${status.version ? ` · v${status.version}` : ""}`
-									: status?.binaryReady
-										? "Installed but not running"
-										: "Not installed — one click downloads and starts it."
-							}
-						>
-							{status?.running ? (
-								<span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-									<Check className="h-3.5 w-3.5 text-emerald-500" />
-									Ready
-								</span>
-							) : status?.binaryReady && !installState ? (
-								<Button variant="outline" size="sm" onClick={handleStart}>
-									<Play className="mr-1.5 h-3.5 w-3.5" />
-									Start
-								</Button>
-							) : (
-								<div className="flex items-center gap-2">
-									{installState ? (
-										<span className="text-xs text-muted-foreground">
-											{installState.message}{" "}
-											{Math.round(installState.percent)}%
-										</span>
-									) : null}
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={installState ? handleCancelInstall : handleInstall}
-									>
-										<MorphingLabel
-											activeKey={installState ? "cancel" : "install"}
-											frames={[
-												{
-													key: "install",
-													content: (
-														<>
-															<Download className="mr-1.5 h-3.5 w-3.5" />
-															Install Ollama
-														</>
-													),
-												},
-												{
-													key: "cancel",
-													content: (
-														<>
-															<X className="mr-1 h-3.5 w-3.5" />
-															Cancel
-														</>
-													),
-												},
-											]}
-										/>
-									</Button>
-								</div>
-							)}
-						</Row>
-						{installState ? (
-							<div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-								<div
-									className="h-full bg-foreground/70 transition-all"
-									style={{ width: `${Math.min(100, installState.percent)}%` }}
-								/>
-							</div>
-						) : null}
-
-						{installedModels.length > 0 ? (
-							<Row
-								focusId="desktop-active-model"
-								title="Active model"
-								description="The local model used for AI actions."
-							>
-								<div className="relative w-48">
-									<select
-										className="h-10 w-full appearance-none rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-										value={config.ollamaModel}
-										onChange={(event) =>
-											patchConfig({ ollamaModel: event.target.value })
-										}
-									>
-										{installedModels.map((entry) => (
-											<option key={entry.name} value={entry.name}>
-												{entry.name}
-											</option>
-										))}
-									</select>
-									<ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
-								</div>
-							</Row>
-						) : null}
-					</SettingsCard>
-
-					<GroupLabel focusId="desktop-models">Models</GroupLabel>
-					<SettingsCard>
-						{catalog.map((entry) => {
-							const pull = pullState[entry.name];
-							return (
-								<Row
-									key={entry.name}
-									title={`${entry.label} · ${entry.name}`}
-									description={
-										entry.installed && entry.sizeBytes
-											? `Installed · ${formatBytes(entry.sizeBytes)}`
-											: entry.description
-									}
-									visualization={
-										pull ? (
-											<div className="w-full">
-												<div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-													<div
-														className="h-full bg-foreground/70 transition-all"
-														style={{
-															width: `${Math.min(100, pull.percent)}%`,
-														}}
-													/>
-												</div>
-												<div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-													<span>{pull.status}</span>
-													<span>
-														{Math.round(pull.percent)}%{" "}
-														{formatEta(pull.etaSeconds)}
-													</span>
-												</div>
-											</div>
-										) : undefined
-									}
-								>
-									{entry.installed ? (
-										<DeleteButton
-											onDelete={() => handleDelete(entry.name)}
-											label="Remove"
-											confirmLabel="Confirm remove"
-											pendingLabel="Removing"
-											successLabel="Removed"
-											failedLabel="Retry"
-										/>
-									) : (
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={
-												pull
-													? () => handleCancelPull(entry.name)
-													: () => handlePull(entry.name)
-											}
-											disabled={!pull && !status?.running}
-										>
-											<MorphingLabel
-												activeKey={pull ? "cancel" : "download"}
-												frames={[
-													{
-														key: "download",
-														content: (
-															<>
-																<Download className="mr-1.5 h-3.5 w-3.5" />
-																Download
-															</>
-														),
-													},
-													{
-														key: "cancel",
-														content: (
-															<>
-																<X className="mr-1 h-3.5 w-3.5" />
-																Cancel
-															</>
-														),
-													},
-												]}
-											/>
-										</Button>
-									)}
-								</Row>
-							);
-						})}
-						{!status?.running ? (
-							<p className="pt-2 text-xs text-muted-foreground">
-								Start Ollama to download models.
-							</p>
-						) : null}
-					</SettingsCard>
-				</>
+				<OllamaSection
+					status={status}
+					catalog={catalog}
+					installedModels={installedModels}
+					installState={installState}
+					pullState={pullState}
+					config={config}
+					onPatchConfig={onPatchConfig}
+					onInstall={onInstall}
+					onCancelInstall={onCancelInstall}
+					onStart={onStart}
+					onPull={onPull}
+					onCancelPull={onCancelPull}
+					onDelete={onDelete}
+				/>
 			) : (
-				<>
-					<GroupLabel>{config.provider === "groq" ? "Groq" : "Gemini"}</GroupLabel>
-					<SettingsCard>
-						<Row
-							focusId="desktop-cloud-model"
-							title="Model"
-							description={
-								config.provider === "groq"
-									? "Groq model id (e.g. llama-3.3-70b-versatile)."
-									: "Gemini model id (e.g. gemini-2.5-flash)."
-							}
-						>
-							<Input
-								className="w-56"
-								defaultValue={
-									config.provider === "groq"
-										? config.groqModel
-										: config.geminiModel
+				<CloudSection
+					config={config}
+					keyDraft={keyDraft}
+					onKeyDraftChange={onKeyDraftChange}
+					onSaveKey={onSaveKey}
+					onPatchConfig={onPatchConfig}
+				/>
+			)}
+
+			{notice ? <p className="mt-4 text-xs text-muted-foreground">{notice}</p> : null}
+		</div>
+	);
+}
+
+type OllamaSectionProps = {
+	status: OllamaStatus | null;
+	catalog: CatalogEntry[];
+	installedModels: CatalogEntry[];
+	installState: { percent: number; message: string } | null;
+	pullState: Record<string, PullState>;
+	config: AiConfig;
+	onPatchConfig: (patch: Partial<AiConfig>) => Promise<void>;
+	onInstall: () => Promise<void>;
+	onCancelInstall: () => Promise<void>;
+	onStart: () => Promise<void>;
+	onPull: (model: string) => Promise<void>;
+	onCancelPull: (model: string) => Promise<void>;
+	onDelete: (model: string) => Promise<boolean>;
+};
+
+function OllamaSection({
+	status,
+	catalog,
+	installedModels,
+	installState,
+	pullState,
+	config,
+	onPatchConfig,
+	onInstall,
+	onCancelInstall,
+	onStart,
+	onPull,
+	onCancelPull,
+	onDelete,
+}: OllamaSectionProps) {
+	return (
+		<>
+			<GroupLabel>Local engine</GroupLabel>
+			<SettingsCard>
+				<OllamaRuntimeRow
+					status={status}
+					installState={installState}
+					onStart={onStart}
+					onInstall={onInstall}
+					onCancelInstall={onCancelInstall}
+				/>
+				{installState ? (
+					<div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+						<div
+							className="h-full bg-foreground/70 transition-all"
+							style={{ width: `${Math.min(100, installState.percent)}%` }}
+						/>
+					</div>
+				) : null}
+
+				{installedModels.length > 0 ? (
+					<Row
+						focusId="desktop-active-model"
+						title="Active model"
+						description="The local model used for AI actions."
+					>
+						<div className="relative w-48">
+							<select
+								className="h-10 w-full appearance-none rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+								value={config.ollamaModel}
+								onChange={(event) =>
+									onPatchConfig({ ollamaModel: event.target.value })
 								}
-								onBlur={(event) =>
-									patchConfig(
-										config.provider === "groq"
-											? { groqModel: event.target.value.trim() }
-											: { geminiModel: event.target.value.trim() },
-									)
-								}
+							>
+								{installedModels.map((entry) => (
+									<option key={entry.name} value={entry.name}>
+										{entry.name}
+									</option>
+								))}
+							</select>
+							<ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
+						</div>
+					</Row>
+				) : null}
+			</SettingsCard>
+
+			<GroupLabel focusId="desktop-models">Models</GroupLabel>
+			<SettingsCard>
+				{catalog.map((entry) => (
+					<OllamaModelRow
+						key={entry.name}
+						entry={entry}
+						pull={pullState[entry.name]}
+						running={Boolean(status?.running)}
+						onPull={onPull}
+						onCancelPull={onCancelPull}
+						onDelete={onDelete}
+					/>
+				))}
+				{!status?.running ? (
+					<p className="pt-2 text-xs text-muted-foreground">
+						Start Ollama to download models.
+					</p>
+				) : null}
+			</SettingsCard>
+		</>
+	);
+}
+
+function OllamaRuntimeRow({
+	status,
+	installState,
+	onStart,
+	onInstall,
+	onCancelInstall,
+}: {
+	status: OllamaStatus | null;
+	installState: { percent: number; message: string } | null;
+	onStart: () => Promise<void>;
+	onInstall: () => Promise<void>;
+	onCancelInstall: () => Promise<void>;
+}) {
+	return (
+		<Row
+			focusId="desktop-ollama-runtime"
+			title="Ollama runtime"
+			description={
+				status?.running
+					? `Running${status.version ? ` · v${status.version}` : ""}`
+					: status?.binaryReady
+						? "Installed but not running"
+						: "Not installed — one click downloads and starts it."
+			}
+		>
+			{status?.running ? (
+				<span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+					<Check className="h-3.5 w-3.5 text-emerald-500" />
+					Ready
+				</span>
+			) : status?.binaryReady && !installState ? (
+				<Button variant="outline" size="sm" onClick={onStart}>
+					<Play className="mr-1.5 h-3.5 w-3.5" />
+					Start
+				</Button>
+			) : (
+				<div className="flex items-center gap-2">
+					{installState ? (
+						<span className="text-xs text-muted-foreground">
+							{installState.message} {Math.round(installState.percent)}%
+						</span>
+					) : null}
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={installState ? onCancelInstall : onInstall}
+					>
+						{installState ? (
+							<>
+								<X className="mr-1 h-3.5 w-3.5" />
+								Cancel
+							</>
+						) : (
+							<>
+								<Download className="mr-1.5 h-3.5 w-3.5" />
+								Install Ollama
+							</>
+						)}
+					</Button>
+				</div>
+			)}
+		</Row>
+	);
+}
+
+function OllamaModelRow({
+	entry,
+	pull,
+	running,
+	onPull,
+	onCancelPull,
+	onDelete,
+}: {
+	entry: CatalogEntry;
+	pull: PullState | undefined;
+	running: boolean;
+	onPull: (model: string) => Promise<void>;
+	onCancelPull: (model: string) => Promise<void>;
+	onDelete: (model: string) => Promise<boolean>;
+}) {
+	return (
+		<Row
+			title={`${entry.label} · ${entry.name}`}
+			description={
+				entry.installed && entry.sizeBytes
+					? `Installed · ${formatBytes(entry.sizeBytes)}`
+					: entry.description
+			}
+		>
+			<div className="flex flex-col items-end gap-2">
+				{entry.installed ? (
+					<DeleteButton
+						onDelete={() => onDelete(entry.name)}
+						label="Remove"
+						confirmLabel="Confirm remove"
+						pendingLabel="Removing"
+						successLabel="Removed"
+						failedLabel="Retry"
+					/>
+				) : (
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={pull ? () => onCancelPull(entry.name) : () => onPull(entry.name)}
+						disabled={!pull && !running}
+					>
+						{pull ? (
+							<>
+								<X className="mr-1 h-3.5 w-3.5" />
+								Cancel
+							</>
+						) : (
+							<>
+								<Download className="mr-1.5 h-3.5 w-3.5" />
+								Download
+							</>
+						)}
+					</Button>
+				)}
+				{pull ? (
+					<div className="w-48">
+						<div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+							<div
+								className="h-full bg-foreground/70 transition-all"
+								style={{ width: `${Math.min(100, pull.percent)}%` }}
 							/>
-						</Row>
-						<Row
-							focusId="desktop-cloud-key"
-							title="API key"
-							description={
+						</div>
+						<div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+							<span>{pull.status}</span>
+							<span>
+								{Math.round(pull.percent)}% {formatEta(pull.etaSeconds)}
+							</span>
+						</div>
+					</div>
+				) : null}
+			</div>
+		</Row>
+	);
+}
+
+type CloudSectionProps = {
+	config: AiConfig;
+	keyDraft: string;
+	onKeyDraftChange: React.Dispatch<React.SetStateAction<string>>;
+	onSaveKey: () => Promise<void>;
+	onPatchConfig: (patch: Partial<AiConfig>) => Promise<void>;
+};
+
+function CloudSection({
+	config,
+	keyDraft,
+	onKeyDraftChange,
+	onSaveKey,
+	onPatchConfig,
+}: CloudSectionProps) {
+	return (
+		<>
+			<GroupLabel>{config.provider === "groq" ? "Groq" : "Gemini"}</GroupLabel>
+			<SettingsCard>
+				<Row
+					focusId="desktop-cloud-model"
+					title="Model"
+					description={
+						config.provider === "groq"
+							? "Groq model id (e.g. llama-3.3-70b-versatile)."
+							: "Gemini model id (e.g. gemini-2.5-flash)."
+					}
+				>
+					<Input
+						className="w-56"
+						defaultValue={
+							config.provider === "groq" ? config.groqModel : config.geminiModel
+						}
+						onBlur={(event) =>
+							onPatchConfig(
+								config.provider === "groq"
+									? { groqModel: event.target.value.trim() }
+									: { geminiModel: event.target.value.trim() },
+							)
+						}
+					/>
+				</Row>
+				<Row
+					focusId="desktop-cloud-key"
+					title="API key"
+					description={
+						(config.provider === "groq" ? config.hasGroqKey : config.hasGeminiKey)
+							? "A key is saved on this device. Enter a new one to replace it, or save empty to clear."
+							: "Stored locally in settings.json on this device."
+					}
+				>
+					<div className="flex gap-2">
+						<Input
+							type="password"
+							className="w-56"
+							placeholder={
 								(
 									config.provider === "groq"
 										? config.hasGroqKey
 										: config.hasGeminiKey
 								)
-									? "A key is saved on this device. Enter a new one to replace it, or save empty to clear."
-									: "Stored locally in settings.json on this device."
+									? "••••••••"
+									: "Paste API key"
 							}
-						>
-							<div className="flex gap-2">
-								<Input
-									type="password"
-									className="w-56"
-									placeholder={
-										(
-											config.provider === "groq"
-												? config.hasGroqKey
-												: config.hasGeminiKey
-										)
-											? "••••••••"
-											: "Paste API key"
-									}
-									value={keyDraft}
-									onChange={(event) => setKeyDraft(event.target.value)}
-								/>
-								<Button variant="outline" size="sm" onClick={handleSaveKey}>
-									Save
-								</Button>
-							</div>
-						</Row>
-					</SettingsCard>
-				</>
-			)}
-
-			{notice ? <p className="mt-4 text-xs text-muted-foreground">{notice}</p> : null}
-		</div>
+							value={keyDraft}
+							onChange={(event) => onKeyDraftChange(event.target.value)}
+						/>
+						<Button variant="outline" size="sm" onClick={onSaveKey}>
+							Save
+						</Button>
+					</div>
+				</Row>
+			</SettingsCard>
+		</>
 	);
 }

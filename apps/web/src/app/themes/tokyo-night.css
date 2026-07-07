@@ -1,13 +1,13 @@
 @layer base {
 	:root[data-theme="tokyo-night"] {
-		--background: 235 22% 12%;
+		--background: 231 22% 16%;
 		--foreground: 231 55% 89%;
 		--card: 230 24% 19%;
 		--card-foreground: 231 55% 89%;
-		--popover: 235 26% 9%;
+		--popover: 235 24% 14%;
 		--popover-foreground: 231 55% 89%;
 		--primary: 221 74% 74%;
-		--primary-foreground: 235 22% 12%;
+		--primary-foreground: 231 22% 16%;
 		--secondary: 231 20% 27%;
 		--secondary-foreground: 231 55% 89%;
 		--muted: 231 20% 27%;
@@ -30,9 +30,9 @@
 		--input: 230 20% 32%;
 		--ring: 221 74% 74%;
 		--radius: 0.375rem;
-		--theme-bg-deep: 235 26% 9%;
+		--theme-bg-deep: 235 24% 14%;
 		--theme-bg-sidebar: 230 24% 19%;
-		--theme-bg-editor: 235 22% 12%;
+		--theme-bg-editor: 231 22% 16%;
 		--theme-bg-hover: 231 20% 27%;
 		--theme-bg-active: 230 20% 32%;
 		--theme-text-dim: 231 14% 50%;
@@ -77,6 +77,6 @@
 		--editor-note-link-hover: 189 60% 66%;
 		--editor-selection: 230 20% 32%;
 		--editor-shadow: 0 0% 0%;
-		--avatar-ink: 235 26% 9%;
+		--avatar-ink: 235 24% 14%;
 	}
 }

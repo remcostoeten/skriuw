@@ -7,6 +7,7 @@ import { IconRail } from "@/features/layout/components/icon-rail";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import { AnimatedRelativeTime } from "@/shared/ui/animated-relative-time";
 import { Button } from "@/shared/ui/button";
+import { useBackspaceNavigatesBack } from "@/shared/hooks/use-backspace-navigates-back";
 import { useSetTagColor, useTagNotes, useWorkspaceTagSummaries } from "../hooks/use-tags";
 import { ColorSwatchPicker } from "./color-swatch-picker";
 
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export function TagInsights({ name }: Props) {
+	useBackspaceNavigatesBack();
 	const { data: notes = [], isLoading } = useTagNotes(name);
 	const { data: tags = [] } = useWorkspaceTagSummaries();
 	const setTagColor = useSetTagColor();

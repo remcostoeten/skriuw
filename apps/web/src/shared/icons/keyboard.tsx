@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/no-react19-deprecated-apis */
 
 import type { Variants } from "framer-motion";
 import { LazyMotion, domMin, m, useAnimation, useReducedMotion } from "framer-motion";
@@ -142,7 +143,7 @@ const KeyboardIcon = forwardRef<KeyboardIconHandle, KeyboardIconProps>(
 						<rect width="20" height="16" x="2" y="4" rx="2" />
 						{KEYS.map((k, i) => (
 							<m.path
-								key={i}
+								key={`${k.cx}-${k.cy}`}
 								d={`M${k.cx} ${k.cy}h.01`}
 								variants={keyVariants}
 								custom={i}

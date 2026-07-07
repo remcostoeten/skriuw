@@ -111,8 +111,8 @@ function CommandPaletteState({
 	const frecency = getCommandFrecency();
 
 	const groups = useMemo(
-		() => getCommandPaletteGroups(items, query, frecency),
-		[items, query, frecency],
+		() => (open ? getCommandPaletteGroups(items, query, frecency) : []),
+		[open, items, query, frecency],
 	);
 	const flatItems = useMemo(() => groups.flatMap((group) => group.items), [groups]);
 
