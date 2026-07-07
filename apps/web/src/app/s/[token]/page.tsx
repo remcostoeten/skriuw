@@ -68,7 +68,6 @@ export default async function PublicSharePage({ params }: { params: Promise<{ to
 	return (
 		<ShareViewer
 			token={token}
-			name={peek.name}
 			requiresPassword={peek.requiresPassword}
 			viewOnce={peek.viewOnce}
 			initialCollabStatus={initialCollabStatus}

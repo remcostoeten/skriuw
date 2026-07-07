@@ -38,7 +38,7 @@ type AuthPreferences = {
 	rememberMe: boolean;
 };
 
-const AUTH_PREFERENCES_KEY = "skriuw:auth:preferences:v1";
+const AUTH_PREFERENCES_STORAGE_NAME = "skriuw:auth:preferences:v1";
 export const SIGNED_OUT_USER_SCOPE = "signed-out-local";
 
 let currentUser: AuthUser | null = null;
@@ -49,7 +49,7 @@ function readPreferences(): AuthPreferences {
 	}
 
 	try {
-		const raw = window.localStorage.getItem(AUTH_PREFERENCES_KEY);
+		const raw = window.localStorage.getItem(AUTH_PREFERENCES_STORAGE_NAME);
 		if (!raw) return { rememberMe: true };
 		const parsed = JSON.parse(raw) as { rememberMe?: boolean };
 		return {
@@ -63,7 +63,7 @@ function readPreferences(): AuthPreferences {
 function persistPreferences(preferences: AuthPreferences): void {
 	if (typeof window === "undefined") return;
 	try {
-		window.localStorage.setItem(AUTH_PREFERENCES_KEY, JSON.stringify(preferences));
+		window.localStorage.setItem(AUTH_PREFERENCES_STORAGE_NAME, JSON.stringify(preferences));
 	} catch {
 		noop();
 	}
@@ -280,6 +280,6 @@ export function resolveUserScopeId(userScopeId?: string | null): string {
 export function resetAuthForTests(): void {
 	currentUser = null;
 	if (typeof window !== "undefined") {
-		window.localStorage.removeItem(AUTH_PREFERENCES_KEY);
+		window.localStorage.removeItem(AUTH_PREFERENCES_STORAGE_NAME);
 	}
 }

@@ -39,13 +39,15 @@ export async function hardClearUserWorkspace(
 	client: WorkspaceClient,
 	userId: string,
 ): Promise<void> {
-	await client.noteShare.deleteMany({ where: { userId } });
-	await client.noteVersion.deleteMany({ where: { userId } });
-	await client.note.deleteMany({ where: { userId } });
-	await client.folder.deleteMany({ where: { userId } });
-	await client.journalEntry.deleteMany({ where: { userId } });
-	await client.journalTag.deleteMany({ where: { userId } });
-	await client.userRecent.deleteMany({ where: { userId } });
+	await Promise.all([
+		client.noteShare.deleteMany({ where: { userId } }),
+		client.noteVersion.deleteMany({ where: { userId } }),
+		client.note.deleteMany({ where: { userId } }),
+		client.folder.deleteMany({ where: { userId } }),
+		client.journalEntry.deleteMany({ where: { userId } }),
+		client.journalTag.deleteMany({ where: { userId } }),
+		client.userRecent.deleteMany({ where: { userId } }),
+	]);
 }
 
 export async function countUserWorkspace(prisma: PrismaClient, userId: string) {

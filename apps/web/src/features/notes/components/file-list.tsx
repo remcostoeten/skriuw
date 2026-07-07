@@ -1542,10 +1542,6 @@ export const FileList = memo(function FileList({
 			const hasSelectionAtNonRoot = selection.some(
 				(selectionItem) => selectionItem.parentId !== null,
 			);
-			const targetFile =
-				!selectionHasMultiple && item.type === "file"
-					? (files.find((entry) => entry.id === item.id) ?? null)
-					: null;
 
 			return (
 				<>

@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import { getServerUser } from "@/core/db";
 import { listJournalEntries, listJournalTags } from "@/domain/journal/queries";
 import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";
+import { JournalContentSkeleton } from "@/features/journal/components/journal-content-skeleton";
 import { JournalPageLayout } from "@/features/journal/components/journal-page-layout";
 import { journalKeys } from "@/features/journal/hooks/journal-keys";
 
@@ -42,7 +44,9 @@ async function JournalContent() {
 
 	return (
 		<HydrationBoundary state={dehydrate(queryClient)}>
-			<JournalPageLayout />
+			<Suspense fallback={<JournalContentSkeleton />}>
+				<JournalPageLayout />
+			</Suspense>
 		</HydrationBoundary>
 	);
 }

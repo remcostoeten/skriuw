@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Eye, Loader2, Lock } from "lucide-react";
 import { openPublicShare } from "@/domain/sharing/public-actions";
 import type { TPublicShareSnapshot } from "@/domain/sharing/models";
@@ -9,7 +9,6 @@ import { ShareShell, ShareStateScreen } from "./share-state-screen";
 
 type Props = {
 	token: string;
-	name: string;
 	requiresPassword: boolean;
 	viewOnce: boolean;
 	initialCollabStatus?: "none" | "pending" | "collaborator";
@@ -36,40 +35,42 @@ export function ShareViewer({
 	const [submitting, setSubmitting] = useState(false);
 	const didAuto = useRef(false);
 
-	async function reveal(pw?: string) {
-		setError(null);
-		setSubmitting(true);
-		try {
-			const res = await openPublicShare({ token, password: pw });
-			switch (res.status) {
-				case "ok":
-					setPhase({ kind: "ready", snapshot: res.snapshot });
-					break;
-				case "need-password":
-					setPhase({ kind: "gate" });
-					setError("This note is password protected.");
-					break;
-				case "wrong-password":
-					setPhase({ kind: "gate" });
-					setError("Incorrect password. Try again.");
-					break;
-				default:
-					setPhase({ kind: "terminal", status: res.status });
+	const reveal = useCallback(
+		async (pw?: string) => {
+			setError(null);
+			setSubmitting(true);
+			try {
+				const res = await openPublicShare({ token, password: pw });
+				switch (res.status) {
+					case "ok":
+						setPhase({ kind: "ready", snapshot: res.snapshot });
+						break;
+					case "need-password":
+						setPhase({ kind: "gate" });
+						setError("This note is password protected.");
+						break;
+					case "wrong-password":
+						setPhase({ kind: "gate" });
+						setError("Incorrect password. Try again.");
+						break;
+					default:
+						setPhase({ kind: "terminal", status: res.status });
+				}
+			} catch {
+				setPhase({ kind: "gate" });
+				setError("Something went wrong. Try again.");
+			} finally {
+				setSubmitting(false);
 			}
-		} catch {
-			setPhase({ kind: "gate" });
-			setError("Something went wrong. Try again.");
-		} finally {
-			setSubmitting(false);
-		}
-	}
+		},
+		[token],
+	);
 
 	useEffect(() => {
 		if (needsGate || didAuto.current) return;
 		didAuto.current = true;
 		void reveal();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [needsGate, reveal]);
 
 	if (phase.kind === "ready") {
 		return (
@@ -133,7 +134,7 @@ export function ShareViewer({
 						autoCapitalize="off"
 						autoCorrect="off"
 						spellCheck={false}
-						autoFocus
+						aria-label="Share note password"
 						placeholder="Password"
 						className="mt-5 w-full rounded-md border border-border bg-card px-3 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-foreground/30 sm:py-2 sm:text-sm"
 					/>
