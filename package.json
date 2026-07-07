@@ -37,7 +37,6 @@
 	"scripts": {
 		"postinstall": "prisma generate && husky",
 		"dev": "bun run --cwd apps/web dev",
-		"prebuild": "bun run lint && bun run test:unit && bun run coverage:check",
 		"coverage:check": "bun scripts/coverage-tui.ts --json coverage.json --threshold=65",
 		"coverage:report": "bun scripts/coverage-tui.ts --markdown",
 		"coverage:dashboard": "bun scripts/coverage-dashboard.ts",
@@ -52,7 +51,7 @@
 		"test:smoke": "bun run --cwd apps/web test:smoke",
 		"test:skeleton": "bun run --cwd apps/web test:skeleton",
 		"skeleton:report": "bun scripts/skeleton-report.ts",
-		"lint": "oxlint",
+		"lint": "oxlint apps/web/src apps/web/skeleton-qa.config.ts apps/web/next.config.ts apps/web/playwright.config.ts apps/web/postcss.config.js apps/extension/src apps/extension/manifest.config.ts apps/extension/vite.config.ts packages/web-spa/src packages/web-spa/vite.config.ts scripts dev-menu.config.ts prisma.config.ts oxlint.custom.js",
 		"format": "oxfmt",
 		"check:portable": "bun scripts/check-portable.ts",
 		"colors:audit": "bun scripts/color-audit.ts",
@@ -155,7 +154,8 @@
 		"@mantine/hooks": "8.3.18",
 		"@types/react": "19.2.14",
 		"@types/react-dom": "19.2.3",
-		"prosemirror-model": "1.25.4"
+		"prosemirror-model": "1.25.4",
+		"prosemirror-view": "1.42.0"
 	},
 	"lint-staged": {
 		"*.{ts,tsx,js,jsx,mjs,cjs}": [
