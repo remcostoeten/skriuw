@@ -358,8 +358,9 @@ type RowActionProps = {
 
 function RowActions({ row, busy, copied, onCopy, onRefresh, onRevoke }: RowActionProps) {
 	const live = row.status === "active";
+	const [menuOpen, setMenuOpen] = useState(false);
 	return (
-		<DropdownMenu>
+		<DropdownMenu onOpenChange={setMenuOpen}>
 			<DropdownMenuTrigger asChild>
 				<button
 					type="button"
@@ -373,40 +374,42 @@ function RowActions({ row, busy, copied, onCopy, onRefresh, onRevoke }: RowActio
 					)}
 				</button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-44">
-				<DropdownMenuItem onClick={() => onCopy(row)} disabled={!live}>
-					{copied ? (
-						<Check className="h-3.5 w-3.5 text-success" />
-					) : (
-						<Copy className="h-3.5 w-3.5" />
-					)}
-					{copied ? "Copied" : "Copy link"}
-				</DropdownMenuItem>
-				<DropdownMenuItem asChild disabled={!live}>
-					<a href={getClientFullUrl(row)} target="_blank" rel="noreferrer">
-						<ExternalLink className="h-3.5 w-3.5" />
-						Open link
-					</a>
-				</DropdownMenuItem>
-				{row.isStale && live && (
-					<DropdownMenuItem onClick={() => onRefresh(row)}>
-						<RefreshCw className="h-3.5 w-3.5" />
-						Update snapshot
+			{menuOpen ? (
+				<DropdownMenuContent align="end" className="w-44">
+					<DropdownMenuItem onClick={() => onCopy(row)} disabled={!live}>
+						{copied ? (
+							<Check className="h-3.5 w-3.5 text-success" />
+						) : (
+							<Copy className="h-3.5 w-3.5" />
+						)}
+						{copied ? "Copied" : "Copy link"}
 					</DropdownMenuItem>
-				)}
-				{live && (
-					<>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem
-							onClick={() => onRevoke(row)}
-							className="text-destructive focus:text-destructive"
-						>
-							<Ban className="h-3.5 w-3.5" />
-							Revoke link
+					<DropdownMenuItem asChild disabled={!live}>
+						<a href={getClientFullUrl(row)} target="_blank" rel="noreferrer">
+							<ExternalLink className="h-3.5 w-3.5" />
+							Open link
+						</a>
+					</DropdownMenuItem>
+					{row.isStale && live && (
+						<DropdownMenuItem onClick={() => onRefresh(row)}>
+							<RefreshCw className="h-3.5 w-3.5" />
+							Update snapshot
 						</DropdownMenuItem>
-					</>
-				)}
-			</DropdownMenuContent>
+					)}
+					{live && (
+						<>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onClick={() => onRevoke(row)}
+								className="text-destructive focus:text-destructive"
+							>
+								<Ban className="h-3.5 w-3.5" />
+								Revoke link
+							</DropdownMenuItem>
+						</>
+					)}
+				</DropdownMenuContent>
+			) : null}
 		</DropdownMenu>
 	);
 }

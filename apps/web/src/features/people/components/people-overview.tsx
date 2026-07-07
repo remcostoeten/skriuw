@@ -42,6 +42,7 @@ export function PeopleOverview() {
 	const [pending, setPending] = useState<PendingAction | null>(null);
 	const [renameValue, setRenameValue] = useState("");
 	const [mergeTargetId, setMergeTargetId] = useState("");
+	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
 	function submitRename() {
 		if (pending?.kind !== "rename") return;
@@ -105,7 +106,17 @@ export function PeopleOverview() {
 											{person.name}
 										</p>
 									</Link>
-									<DropdownMenu>
+									<DropdownMenu
+										onOpenChange={(open) => {
+											setOpenMenuId((current) =>
+												open
+													? person.id
+													: current === person.id
+														? null
+														: current,
+											);
+										}}
+									>
 										<DropdownMenuTrigger asChild>
 											<Button
 												variant="ghost"
@@ -115,37 +126,39 @@ export function PeopleOverview() {
 												<MoreHorizontal className="h-4 w-4" />
 											</Button>
 										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end">
-											<DropdownMenuItem
-												onSelect={() => {
-													setRenameValue(person.name);
-													setPending({ kind: "rename", person });
-												}}
-											>
-												<Pencil className="mr-2 h-3.5 w-3.5" />
-												Rename
-											</DropdownMenuItem>
-											<DropdownMenuItem
-												disabled={people.length < 2}
-												onSelect={() => {
-													setMergeTargetId("");
-													setPending({ kind: "merge", person });
-												}}
-											>
-												<Merge className="mr-2 h-3.5 w-3.5" />
-												Merge into…
-											</DropdownMenuItem>
-											<DropdownMenuSeparator />
-											<DropdownMenuItem
-												className="text-destructive focus:text-destructive"
-												onSelect={() =>
-													setPending({ kind: "delete", person })
-												}
-											>
-												<Trash2 className="mr-2 h-3.5 w-3.5" />
-												Delete
-											</DropdownMenuItem>
-										</DropdownMenuContent>
+										{openMenuId === person.id ? (
+											<DropdownMenuContent align="end">
+												<DropdownMenuItem
+													onSelect={() => {
+														setRenameValue(person.name);
+														setPending({ kind: "rename", person });
+													}}
+												>
+													<Pencil className="mr-2 h-3.5 w-3.5" />
+													Rename
+												</DropdownMenuItem>
+												<DropdownMenuItem
+													disabled={people.length < 2}
+													onSelect={() => {
+														setMergeTargetId("");
+														setPending({ kind: "merge", person });
+													}}
+												>
+													<Merge className="mr-2 h-3.5 w-3.5" />
+													Merge into…
+												</DropdownMenuItem>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem
+													className="text-destructive focus:text-destructive"
+													onSelect={() =>
+														setPending({ kind: "delete", person })
+													}
+												>
+													<Trash2 className="mr-2 h-3.5 w-3.5" />
+													Delete
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										) : null}
 									</DropdownMenu>
 								</li>
 							))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
 	startOfMonth,
 	endOfMonth,
@@ -53,6 +53,7 @@ export function MiniCalendar({
 	}, [currentMonth]);
 
 	const entrySet = useMemo(() => new Set(datesWithEntries), [datesWithEntries]);
+	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
 	return (
 		<div className="px-2">
@@ -104,7 +105,14 @@ export function MiniCalendar({
 					});
 
 					return (
-						<ContextMenu key={dateKey}>
+						<ContextMenu
+							key={dateKey}
+							onOpenChange={(open) => {
+								setOpenMenuId((current) =>
+									open ? dateKey : current === dateKey ? null : current,
+								);
+							}}
+						>
 							<ContextMenuTrigger asChild>
 								<button
 									type="button"
@@ -131,16 +139,20 @@ export function MiniCalendar({
 									)}
 								</button>
 							</ContextMenuTrigger>
-							<ContextMenuContent className="w-44">
-								<ContextMenuItem onClick={() => onSelectDate(day)}>
-									{menuState.openLabel}
-								</ContextMenuItem>
-								<ContextMenuItem
-									onClick={() => copyTextToClipboard(format(day, "yyyy-MM-dd"))}
-								>
-									{menuState.copyLabel}
-								</ContextMenuItem>
-							</ContextMenuContent>
+							{openMenuId === dateKey ? (
+								<ContextMenuContent className="w-44">
+									<ContextMenuItem onClick={() => onSelectDate(day)}>
+										{menuState.openLabel}
+									</ContextMenuItem>
+									<ContextMenuItem
+										onClick={() =>
+											copyTextToClipboard(format(day, "yyyy-MM-dd"))
+										}
+									>
+										{menuState.copyLabel}
+									</ContextMenuItem>
+								</ContextMenuContent>
+							) : null}
 						</ContextMenu>
 					);
 				})}
