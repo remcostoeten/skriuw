@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	memo,
 	useRef,
 	useState,
 	useCallback,
@@ -342,7 +343,7 @@ function ActivityDots({
 	);
 }
 
-export function EditorContainer({
+function EditorContainerImpl({
 	file,
 	files = EMPTY_FILES,
 	editorMode,
@@ -1142,3 +1143,5 @@ export function EditorContainer({
 		</div>
 	);
 }
+
+export const EditorContainer = memo(EditorContainerImpl);

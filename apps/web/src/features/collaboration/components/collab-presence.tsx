@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Awareness } from "y-protocols/awareness";
-import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { AvatarFace } from "@/shared/icons/avatar-face";
 import { cn } from "@/shared/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
@@ -40,43 +39,23 @@ function statusLabel(peer: TCollabPeer, now: number): string {
 type TActivityEntry = { id: string; name: string; color: string; at: number };
 
 /**
- * Builds an ephemeral "recent edits" feed by watching peers' `lastActive`
- * timestamps climb. Resets when the editor remounts — it's a live overview,
- * not durable history.
+ * Builds a compact "recent edits" feed from the latest peer activity.
  */
 function useActivityFeed(peers: TCollabPeer[]): TActivityEntry[] {
-	const seen = useLazyRef(() => new Map<number, number>());
-	const [feed, setFeed] = useState<TActivityEntry[]>([]);
-
-	useEffect(() => {
-		let changed = false;
-		const additions: TActivityEntry[] = [];
-		for (const peer of peers) {
-			if (peer.lastActive == null) continue;
-			const prev = seen.current.get(peer.clientId);
-			if (prev === undefined) {
-				// First sighting: remember the baseline without logging it, so we
-				// don't flood the feed with "edited" lines for everyone on join.
-				seen.current.set(peer.clientId, peer.lastActive);
-				continue;
-			}
-			if (peer.lastActive > prev) {
-				seen.current.set(peer.clientId, peer.lastActive);
-				changed = true;
-				additions.push({
+	return useMemo(
+		() =>
+			[...peers]
+				.filter((peer) => peer.lastActive != null)
+				.sort((a, b) => (b.lastActive ?? 0) - (a.lastActive ?? 0))
+				.slice(0, MAX_ACTIVITY)
+				.map((peer) => ({
 					id: `${peer.clientId}-${peer.lastActive}`,
 					name: peer.isSelf ? `${peer.name} (you)` : peer.name,
 					color: peer.color,
-					at: peer.lastActive,
-				});
-			}
-		}
-		if (changed) {
-			setFeed((prev) => [...additions, ...prev].slice(0, MAX_ACTIVITY));
-		}
-	}, [peers]);
-
-	return feed;
+					at: peer.lastActive ?? Date.now(),
+				})),
+		[peers],
+	);
 }
 
 function StatusDot({ status, color }: { status: TCollabPeer["status"]; color: string }) {
@@ -110,15 +89,7 @@ export function CollabPresence({ awareness }: { awareness: Awareness | null | un
 	const peers = useCollabPresence(awareness);
 	const activity = useActivityFeed(peers);
 	const [open, setOpen] = useState(false);
-	const [now, setNow] = useState(() => Date.now());
-
-	// Keep relative labels fresh while the popover is open.
-	useEffect(() => {
-		if (!open) return;
-		setNow(Date.now());
-		const interval = window.setInterval(() => setNow(Date.now()), 5_000);
-		return () => window.clearInterval(interval);
-	}, [open]);
+	const now = Date.now();
 
 	if (peers.length === 0) return null;
 

@@ -48,9 +48,12 @@ export function TrashView() {
 	const emptyTrash = useEmptyTrash();
 	const [pendingPurge, setPendingPurge] = useState<TrashBatch | null>(null);
 	const [emptyOpen, setEmptyOpen] = useState(false);
-	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+	const [contextBatchId, setContextBatchId] = useState<string | null>(null);
 
 	const isEmpty = batches.length === 0;
+	const contextBatch = contextBatchId
+		? (batches.find((batch) => batch.id === contextBatchId) ?? null)
+		: null;
 
 	return (
 		<LayoutContainer className="bg-background">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ChevronDown, CircleAlert, LoaderCircle } from "lucide-react";
 import type { AiUsageLogRow } from "@/domain/ai/types";
 import { cn } from "@/shared/lib/utils";
@@ -130,28 +130,27 @@ export function AiUsageLog({
 	onLoadMore: (offset: number) => void;
 }) {
 	const [filter, setFilter] = useState<UsageFilter>("all");
-	const [didAutoFilter, setDidAutoFilter] = useState(false);
+	const didUserChooseFilterRef = useRef(false);
 
 	const stats = useMemo(() => {
 		const errors = usage.filter((row) => row.status !== "success").length;
 		return { total: usage.length, errors, success: usage.length - errors };
 	}, [usage]);
 
+	const effectiveFilter =
+		!didUserChooseFilterRef.current && usage.length > 0 && stats.errors > 0 && filter === "all"
+			? "errors"
+			: filter;
+
 	const filteredUsage = useMemo(() => {
-		if (filter === "errors") {
+		if (effectiveFilter === "errors") {
 			return usage.filter((row) => row.status !== "success");
 		}
-		if (filter === "success") {
+		if (effectiveFilter === "success") {
 			return usage.filter((row) => row.status === "success");
 		}
 		return usage;
-	}, [filter, usage]);
-
-	useEffect(() => {
-		if (didAutoFilter || usage.length === 0) return;
-		setDidAutoFilter(true);
-		if (stats.errors > 0) setFilter("errors");
-	}, [didAutoFilter, stats.errors, usage.length]);
+	}, [effectiveFilter, usage]);
 
 	return (
 		<div className="rounded-lg border border-border/60 bg-card/40">
@@ -180,7 +179,10 @@ export function AiUsageLog({
 						<button
 							key={option.id}
 							type="button"
-							onClick={() => setFilter(option.id)}
+							onClick={() => {
+								didUserChooseFilterRef.current = true;
+								setFilter(option.id);
+							}}
 							className={cn(
 								"border px-2.5 py-1 text-[11px] transition-colors",
 								filter === option.id

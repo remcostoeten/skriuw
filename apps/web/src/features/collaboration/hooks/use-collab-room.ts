@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import * as Y from "yjs";
 import YProvider from "y-partyserver/provider";
 import type { Awareness } from "y-protocols/awareness";
@@ -48,6 +48,21 @@ const DISABLED: TCollabRoom = {
 	user: null,
 };
 
+let currentRoom: TCollabRoom = DISABLED;
+const listeners = new Set<() => void>();
+
+function emitRoom(next: TCollabRoom) {
+	currentRoom = next;
+	for (const listener of listeners) {
+		listener();
+	}
+}
+
+function subscribeRoom(listener: () => void) {
+	listeners.add(listener);
+	return () => listeners.delete(listener);
+}
+
 /**
  * Establishes (or tears down) a Yjs collaboration room for a note backed by
  * PartyKit. Returns `disabled` immediately when `enabled` is false, so callers
@@ -55,11 +70,11 @@ const DISABLED: TCollabRoom = {
  * editor once `status === "connected"`.
  */
 export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabRoom {
-	const [room, setRoom] = useState<TCollabRoom>(DISABLED);
+	const room = useSyncExternalStore(subscribeRoom, () => currentRoom, () => DISABLED);
 
 	useEffect(() => {
 		if (!enabled || !noteId) {
-			setRoom(DISABLED);
+			emitRoom(DISABLED);
 			return;
 		}
 
@@ -68,7 +83,7 @@ export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabR
 		let provider: YProvider | null = null;
 		let cleanupListeners: (() => void) | null = null;
 
-		setRoom({ ...DISABLED, status: "connecting" });
+		emitRoom({ ...DISABLED, status: "connecting" });
 
 		(async () => {
 			let auth: TAuthResponse;
@@ -79,16 +94,16 @@ export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabR
 					body: JSON.stringify({ noteId }),
 				});
 				if (res.status === 403) {
-					if (!cancelled) setRoom({ ...DISABLED, status: "forbidden" });
+					if (!cancelled) emitRoom({ ...DISABLED, status: "forbidden" });
 					return;
 				}
 				if (!res.ok) {
-					if (!cancelled) setRoom({ ...DISABLED, status: "error" });
+					if (!cancelled) emitRoom({ ...DISABLED, status: "error" });
 					return;
 				}
 				auth = (await res.json()) as TAuthResponse;
 			} catch {
-				if (!cancelled) setRoom({ ...DISABLED, status: "error" });
+				if (!cancelled) emitRoom({ ...DISABLED, status: "error" });
 				return;
 			}
 
@@ -124,18 +139,22 @@ export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabR
 				role: auth.role,
 				user: auth.user,
 			};
-			setRoom(base);
+			emitRoom(base);
 
 			const handleStatus = ({ status }: { status: string }) => {
 				if (cancelled) return;
-				setRoom((prev) => ({
-					...prev,
+				emitRoom({
+					...(currentRoom ?? base),
 					status: status === "connected" ? "connected" : "disconnected",
-				}));
+				});
 			};
 			const handleSync = (isSynced: boolean) => {
 				if (cancelled || !isSynced) return;
-				setRoom((prev) => ({ ...prev, synced: true, status: "connected" }));
+				emitRoom({
+					...(currentRoom ?? base),
+					synced: true,
+					status: "connected",
+				});
 			};
 
 			provider.on("status", handleStatus);
@@ -152,6 +171,7 @@ export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabR
 			cleanupListeners?.();
 			provider?.destroy();
 			doc?.destroy();
+			emitRoom(DISABLED);
 		};
 	}, [noteId, enabled]);
 

@@ -53,7 +53,17 @@ export function MiniCalendar({
 	}, [currentMonth]);
 
 	const entrySet = useMemo(() => new Set(datesWithEntries), [datesWithEntries]);
-	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+	const [contextDay, setContextDay] = useState<Date | null>(null);
+
+	const contextDateKey = contextDay ? format(contextDay, "yyyy-MM-dd") : null;
+	const contextMenuState =
+		contextDay && contextDateKey
+			? getCalendarDayContextMenuState({
+					hasEntry: entrySet.has(contextDateKey),
+					isSelected: isSameDay(contextDay, selectedDate),
+					isToday: isToday(contextDay),
+				})
+			: null;
 
 	return (
 		<div className="px-2">
@@ -90,33 +100,29 @@ export function MiniCalendar({
 				))}
 			</div>
 
-			{/* Days grid */}
-			<div className="grid grid-cols-7 gap-0">
-				{calendarDays.map((day) => {
-					const dateKey = format(day, "yyyy-MM-dd");
-					const inCurrentMonth = isSameMonth(day, currentMonth);
-					const isSelected = isSameDay(day, selectedDate);
-					const hasEntry = entrySet.has(dateKey);
-					const dayIsToday = isToday(day);
-					const menuState = getCalendarDayContextMenuState({
-						hasEntry,
-						isSelected,
-						isToday: dayIsToday,
-					});
+			{/* Days grid — one shared context menu serves every day cell instead of
+			    mounting a Radix root per day; the target day is captured on
+			    right-click before Radix opens. */}
+			<ContextMenu
+				onOpenChange={(open) => {
+					if (!open) setContextDay(null);
+				}}
+			>
+				<ContextMenuTrigger asChild>
+					<div className="grid grid-cols-7 gap-0">
+						{calendarDays.map((day) => {
+							const dateKey = format(day, "yyyy-MM-dd");
+							const inCurrentMonth = isSameMonth(day, currentMonth);
+							const isSelected = isSameDay(day, selectedDate);
+							const hasEntry = entrySet.has(dateKey);
+							const dayIsToday = isToday(day);
 
-					return (
-						<ContextMenu
-							key={dateKey}
-							onOpenChange={(open) => {
-								setOpenMenuId((current) =>
-									open ? dateKey : current === dateKey ? null : current,
-								);
-							}}
-						>
-							<ContextMenuTrigger asChild>
+							return (
 								<button
+									key={dateKey}
 									type="button"
 									onClick={() => onSelectDate(day)}
+									onContextMenu={() => setContextDay(day)}
 									className={cn(
 										"relative flex h-7 w-full items-center justify-center border border-transparent text-[11px] transition-colors",
 										!inCurrentMonth && "text-muted-foreground/30",
@@ -138,25 +144,21 @@ export function MiniCalendar({
 										<span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-background/70" />
 									)}
 								</button>
-							</ContextMenuTrigger>
-							{openMenuId === dateKey ? (
-								<ContextMenuContent className="w-44">
-									<ContextMenuItem onClick={() => onSelectDate(day)}>
-										{menuState.openLabel}
-									</ContextMenuItem>
-									<ContextMenuItem
-										onClick={() =>
-											copyTextToClipboard(format(day, "yyyy-MM-dd"))
-										}
-									>
-										{menuState.copyLabel}
-									</ContextMenuItem>
-								</ContextMenuContent>
-							) : null}
-						</ContextMenu>
-					);
-				})}
-			</div>
+							);
+						})}
+					</div>
+				</ContextMenuTrigger>
+				{contextDay && contextDateKey && contextMenuState ? (
+					<ContextMenuContent className="w-44">
+						<ContextMenuItem onClick={() => onSelectDate(contextDay)}>
+							{contextMenuState.openLabel}
+						</ContextMenuItem>
+						<ContextMenuItem onClick={() => copyTextToClipboard(contextDateKey)}>
+							{contextMenuState.copyLabel}
+						</ContextMenuItem>
+					</ContextMenuContent>
+				) : null}
+			</ContextMenu>
 		</div>
 	);
 }
