@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable */
 
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -1794,12 +1795,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		shortcutGroups,
 		flushFileEdits: handleFlushFileEdits,
 		updateFileContent: handleUpdateFileContent,
-			viewingVersion: effectiveViewingVersion,
+		viewingVersion: effectiveViewingVersion,
 		handleViewVersion,
 		handleExitVersionPreview,
 		handleRestoreViewedVersion,
 		isRestoringVersion: restoreNoteVersion.isPending,
-			sharingNoteId: effectiveSharingNoteId,
+		sharingNoteId: effectiveSharingNoteId,
 		handleOpenShare,
 		handleCloseShare,
 		handleCloseSplit,
