@@ -85,18 +85,22 @@ export function TrashView() {
 							description="Notes and folders you delete will appear here before they're permanently removed."
 						/>
 					) : (
-						<ul className="flex-1 divide-y divide-border overflow-y-auto">
-							{batches.map((batch) => (
-								<ContextMenu
-									key={batch.id}
-									onOpenChange={(open) => {
-										setOpenMenuId((current) =>
-											open ? batch.id : current === batch.id ? null : current,
-										);
-									}}
-								>
-									<ContextMenuTrigger asChild>
-										<li className="flex items-center gap-3 px-6 py-3">
+						// One shared context menu serves every row; rows only set the
+						// target id in onContextMenu, instead of mounting a Radix
+						// ContextMenu root per row.
+						<ContextMenu
+							onOpenChange={(open) => {
+								if (!open) setContextBatchId(null);
+							}}
+						>
+							<ContextMenuTrigger asChild>
+								<ul className="flex-1 divide-y divide-border overflow-y-auto">
+									{batches.map((batch) => (
+										<li
+											key={batch.id}
+											className="flex items-center gap-3 px-6 py-3"
+											onContextMenu={() => setContextBatchId(batch.id)}
+										>
 											{batch.kind === "folder" ? (
 												<FolderClosed className="h-4 w-4 shrink-0 text-muted-foreground" />
 											) : (
@@ -136,30 +140,28 @@ export function TrashView() {
 												</Button>
 											</div>
 										</li>
-									</ContextMenuTrigger>
-									{openMenuId === batch.id ? (
-										<ContextMenuContent className="w-48">
-											<ContextMenuItem
-												onClick={() => restore.mutate(batch.id)}
-											>
-												<RotateCcw className="mr-2 h-3.5 w-3.5" />
-												Restore
-											</ContextMenuItem>
-											<ContextMenuSeparator />
-											<ContextMenuItem
-												className="text-destructive focus:text-destructive"
-												onClick={() => setPendingPurge(batch)}
-											>
-												<Trash2 className="mr-2 h-3.5 w-3.5" />
-												Delete permanently
-											</ContextMenuItem>
-											<ContextMenuSeparator />
-											<DevContextSubmenu />
-										</ContextMenuContent>
-									) : null}
-								</ContextMenu>
-							))}
-						</ul>
+									))}
+								</ul>
+							</ContextMenuTrigger>
+							{contextBatch ? (
+								<ContextMenuContent className="w-48">
+									<ContextMenuItem onClick={() => restore.mutate(contextBatch.id)}>
+										<RotateCcw className="mr-2 h-3.5 w-3.5" />
+										Restore
+									</ContextMenuItem>
+									<ContextMenuSeparator />
+									<ContextMenuItem
+										className="text-destructive focus:text-destructive"
+										onClick={() => setPendingPurge(contextBatch)}
+									>
+										<Trash2 className="mr-2 h-3.5 w-3.5" />
+										Delete permanently
+									</ContextMenuItem>
+									<ContextMenuSeparator />
+									<DevContextSubmenu />
+								</ContextMenuContent>
+							) : null}
+						</ContextMenu>
 					)}
 
 					<Dialog
