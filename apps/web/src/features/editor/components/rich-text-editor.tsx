@@ -235,12 +235,6 @@ export function RichTextEditor({
 		onOpenTag: handleOpenTag,
 	});
 
-	useEffect(() => {
-		if (!isMobile) return;
-		setVimCommand(null);
-		onVimModeChange?.(null);
-	}, [isMobile, onVimModeChange]);
-
 	const handleCreateNoteFromMention = useCallback(
 		(title: string) => {
 			createAndOpenNote(title);

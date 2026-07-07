@@ -73,7 +73,21 @@ function detectApplePlatform(): boolean {
 	return /mac|iphone|ipad|ipod/i.test(platform);
 }
 
-export function CommandPalette({
+export function CommandPalette(props: Props) {
+	return (
+		<CommandPaletteState
+			key={props.open ? "open" : "closed"}
+			open={props.open}
+			onOpenChange={props.onOpenChange}
+			title={props.title}
+			description={props.description}
+			items={props.items}
+			onQueryChange={props.onQueryChange}
+		/>
+	);
+}
+
+function CommandPaletteState({
 	open,
 	onOpenChange,
 	title = "Command palette",
@@ -85,16 +99,16 @@ export function CommandPalette({
 
 	function updateQuery(next: string) {
 		setQuery(next);
+		setActiveIndex(0);
 		onQueryChange?.(next);
 	}
 	const [activeIndex, setActiveIndex] = useState(0);
-	const [prevQuery, setPrevQuery] = useState(query);
 	const [isApple] = useState(detectApplePlatform);
-	const [frecency, setFrecency] = useState<Record<string, number>>({});
 	const isMobile = useIsMobile();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	const listboxId = useId();
+	const frecency = getCommandFrecency();
 
 	const groups = useMemo(
 		() => getCommandPaletteGroups(items, query, frecency),
@@ -102,22 +116,8 @@ export function CommandPalette({
 	);
 	const flatItems = useMemo(() => groups.flatMap((group) => group.items), [groups]);
 
-	if (query !== prevQuery) {
-		setPrevQuery(query);
-		setActiveIndex(0);
-	}
-
 	const boundedActiveIndex =
 		activeIndex < flatItems.length ? activeIndex : Math.max(flatItems.length - 1, 0);
-
-	useEffect(() => {
-		if (!open) return;
-
-		setQuery("");
-		onQueryChange?.("");
-		setActiveIndex(0);
-		setFrecency(getCommandFrecency());
-	}, [open, onQueryChange]);
 
 	useEffect(() => {
 		const activeElement = listRef.current?.querySelector<HTMLElement>(

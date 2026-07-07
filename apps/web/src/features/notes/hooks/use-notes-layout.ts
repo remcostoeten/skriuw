@@ -485,18 +485,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		lastActiveFileId,
 	]);
 
-	useEffect(() => {
-		if (viewingVersion && viewingVersion.noteId !== activeFileId) {
-			setViewingVersion(null);
-		}
-	}, [activeFileId, viewingVersion]);
-
-	useEffect(() => {
-		if (sharingNoteId && sharingNoteId !== activeFileId) {
-			setSharingNoteId(null);
-		}
-	}, [activeFileId, sharingNoteId]);
-
 	// Warm the neighbours of the active note so prev/next keyboard navigation
 	// resolves from cache instead of fetching (and flashing a skeleton).
 	useEffect(() => {
@@ -625,6 +613,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			syncFileSelection,
 		],
 	);
+
+	const effectiveViewingVersion =
+		viewingVersion && viewingVersion.noteId === activeFileId ? viewingVersion : null;
+	const effectiveSharingNoteId =
+		sharingNoteId && sharingNoteId === activeFileId ? sharingNoteId : null;
 
 	const handleOpenBeside = useCallback(
 		(fileId: string) => {
@@ -1801,12 +1794,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		shortcutGroups,
 		flushFileEdits: handleFlushFileEdits,
 		updateFileContent: handleUpdateFileContent,
-		viewingVersion,
+			viewingVersion: effectiveViewingVersion,
 		handleViewVersion,
 		handleExitVersionPreview,
 		handleRestoreViewedVersion,
 		isRestoringVersion: restoreNoteVersion.isPending,
-		sharingNoteId,
+			sharingNoteId: effectiveSharingNoteId,
 		handleOpenShare,
 		handleCloseShare,
 		handleCloseSplit,

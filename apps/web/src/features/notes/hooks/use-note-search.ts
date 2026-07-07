@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
 
 export type NoteSearchHit = {
@@ -13,7 +13,6 @@ type SearchCapableBackend = {
 	searchNotes?: (query: string, limit?: number) => Promise<NoteSearchHit[]>;
 };
 
-const SEARCH_DEBOUNCE_MS = 150;
 const SEARCH_RESULT_LIMIT = 20;
 
 type SearchState = {
@@ -35,49 +34,21 @@ export function useNoteSearch(query: string): SearchState {
 	const backend = useWorkspaceBackend();
 	const searchNotes = (backend as SearchCapableBackend).searchNotes;
 	const supportsContentSearch = typeof searchNotes === "function";
+	const trimmed = query.trim();
+	const searchQuery = useQuery({
+		queryKey: ["note-search", trimmed],
+		queryFn: async () => {
+			if (!searchNotes) return [];
+			return searchNotes(trimmed, SEARCH_RESULT_LIMIT);
+		},
+		enabled: supportsContentSearch && trimmed.length > 0,
+		staleTime: 0,
+		retry: false,
+	});
 
-	const [hits, setHits] = useState<NoteSearchHit[]>([]);
-	const [isSearching, setIsSearching] = useState(false);
-	const requestIdRef = useRef(0);
-
-	useEffect(() => {
-		if (!supportsContentSearch || !searchNotes) {
-			return;
-		}
-
-		const trimmed = query.trim();
-		if (!trimmed) {
-			requestIdRef.current += 1;
-			setHits([]);
-			setIsSearching(false);
-			return;
-		}
-
-		const requestId = ++requestIdRef.current;
-		setIsSearching(true);
-
-		const timer = setTimeout(() => {
-			searchNotes(trimmed, SEARCH_RESULT_LIMIT)
-				.then((results) => {
-					if (requestId !== requestIdRef.current) {
-						return;
-					}
-					setHits(results);
-					setIsSearching(false);
-				})
-				.catch(() => {
-					if (requestId !== requestIdRef.current) {
-						return;
-					}
-					setHits([]);
-					setIsSearching(false);
-				});
-		}, SEARCH_DEBOUNCE_MS);
-
-		return () => {
-			clearTimeout(timer);
-		};
-	}, [query, searchNotes, supportsContentSearch]);
-
-	return { supportsContentSearch, hits, isSearching };
+	return {
+		supportsContentSearch,
+		hits: trimmed.length > 0 ? searchQuery.data ?? [] : [],
+		isSearching: searchQuery.isFetching,
+	};
 }

@@ -93,7 +93,7 @@ export function JournalDatabaseView({
 		observer.observe(node);
 
 		return () => observer.disconnect();
-	}, [isMobile]);
+	}, []);
 
 	const filteredEntries = useMemo(() => {
 		let filtered = [...entries];
