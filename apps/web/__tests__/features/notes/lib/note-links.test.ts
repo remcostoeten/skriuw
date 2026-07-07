@@ -3,6 +3,7 @@ import {
 	buildNoteBacklinks,
 	buildNoteLinkIndex,
 	buildOutgoingNoteLinks,
+	collectNoteLinkTargetIds,
 	deriveNoteNameFromHeading,
 	extractNoteLinks,
 	extractNoteTags,
@@ -315,6 +316,58 @@ describe("note link indexing", () => {
 			{ kind: "wiki", targetLabel: "Project hub" },
 			{ kind: "markdown-note-link", targetLabel: "Target", targetNoteId: "target-id" },
 		]);
+	});
+});
+
+describe("collectNoteLinkTargetIds", () => {
+	test("collects resolved wiki and note:// targets", () => {
+		const target = note({ id: "target-id", name: "Target.md", content: "# Target" });
+		const other = note({ id: "other-id", name: "Other.md", content: "# Other" });
+		const source = note({
+			id: "source-id",
+			name: "Source.md",
+			content: "See [[Target]] and [Other](note://other-id).",
+		});
+
+		const ids = collectNoteLinkTargetIds(source, [target, other, source]);
+		expect([...ids].sort()).toEqual(["other-id", "target-id"]);
+	});
+
+	test("includes every match for an ambiguous shared title", () => {
+		const first = note({ id: "dup-1", name: "Dup.md", content: "# Dup\n\nFirst." });
+		const second = note({ id: "dup-2", name: "Dup.md", content: "# Dup\n\nSecond." });
+		const source = note({
+			id: "source-id",
+			name: "Source.md",
+			content: "See [[Dup]].",
+		});
+
+		const ids = collectNoteLinkTargetIds(source, [first, second, source]);
+		expect([...ids].sort()).toEqual(["dup-1", "dup-2"]);
+	});
+
+	test("returns nothing for unresolved links or plain notes", () => {
+		const source = note({
+			id: "source-id",
+			name: "Source.md",
+			content: "See [[Missing note]].",
+		});
+
+		expect(collectNoteLinkTargetIds(source, [source]).size).toBe(0);
+		expect(
+			collectNoteLinkTargetIds(note({ id: "plain", name: "Plain.md", content: "text" }), [])
+				.size,
+		).toBe(0);
+	});
+
+	test("never includes the note itself", () => {
+		const self = note({
+			id: "self-id",
+			name: "Self.md",
+			content: "# Self\n\nSee [[Self]].",
+		});
+
+		expect(collectNoteLinkTargetIds(self, [self]).size).toBe(0);
 	});
 });
 

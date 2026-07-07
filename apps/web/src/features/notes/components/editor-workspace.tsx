@@ -202,7 +202,8 @@ function WorkspacePane({
 		[tabBar, pane],
 	);
 	const handleTabDropNote = useCallback(
-		(targetId: string, droppedId: string) => tabBar?.onDropNoteOnTab(pane, targetId, droppedId),
+		(targetId: string | null, droppedId: string) =>
+			tabBar?.onDropNoteOnTab(pane, targetId, droppedId),
 		[tabBar, pane],
 	);
 	const handleTabActivatePane = useCallback(() => onFocusPane(pane), [onFocusPane, pane]);
