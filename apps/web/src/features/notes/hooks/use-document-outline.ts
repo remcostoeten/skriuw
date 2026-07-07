@@ -91,10 +91,7 @@ export function useDocumentOutline({ noteId, mode, content }: Params): {
 	const markdownHeadings = useMemo(() => parseMarkdownHeadings(content), [content]);
 
 	useEffect(() => {
-		if (!noteId || mode !== "block") {
-			setDomHeadings([]);
-			return;
-		}
+		if (!noteId || mode !== "block") return;
 
 		let frame = 0;
 		let root: HTMLElement | null = null;

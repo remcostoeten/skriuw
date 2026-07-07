@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { AnchoredMarkStore, getAnchoredMarkMap } from "../store";
 import { MarkRendererRegistry } from "../registry";
 import { AnchoredMarksEngine } from "../engine";
@@ -33,7 +33,6 @@ export type TUseAnchoredMarks = {
  */
 export function useAnchoredMarks(editor: any, collab: TCollabLike): TUseAnchoredMarks {
 	const engineRef = useRef<AnchoredMarksEngine | null>(null);
-	const [ready, setReady] = useState(false);
 
 	useEffect(() => {
 		if (!editor || !collab?.doc) return;
@@ -49,13 +48,11 @@ export function useAnchoredMarks(editor: any, collab: TCollabLike): TUseAnchored
 		const engine = new AnchoredMarksEngine(collab.doc, store, registry);
 		engine.attach(view);
 		engineRef.current = engine;
-		setReady(true);
 
 		return () => {
 			engine.dispose();
 			tiptap.unregisterPlugin(anchoredMarksPluginKey);
 			engineRef.current = null;
-			setReady(false);
 		};
 	}, [editor, collab?.doc]);
 
@@ -80,5 +77,5 @@ export function useAnchoredMarks(editor: any, collab: TCollabLike): TUseAnchored
 		[collab?.doc, collab?.user],
 	);
 
-	return { ready, addComment };
+	return { ready: Boolean(engineRef.current), addComment };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { format } from "date-fns";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 import {
@@ -16,30 +16,12 @@ import { TAG_COLORS, type JournalEntry, type MoodLevel } from "../types";
 const CONTENT_SAVE_DEBOUNCE_MS = 650;
 const SAVED_BADGE_DURATION_MS = 1600;
 
-type JournalEntrySnapshot = {
-	dateKey: string;
-	entryId: string | null;
-	content: string;
-};
-
 function normalizeTagName(tagName: string): string {
 	return tagName.trim().toLowerCase();
 }
 
 function uniqueTags(tagNames: string[]): string[] {
 	return [...new Set(tagNames.map(normalizeTagName))];
-}
-
-export function shouldAdoptJournalEntrySnapshot(
-	previous: JournalEntrySnapshot | null,
-	next: JournalEntrySnapshot,
-	hasPendingLocalDraft: boolean,
-): boolean {
-	if (!previous || previous.dateKey !== next.dateKey) {
-		return true;
-	}
-
-	return !hasPendingLocalDraft;
 }
 
 export function isCurrentJournalDraftAcknowledgement(
@@ -78,25 +60,24 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 		[dateKey, entries],
 	);
 
-	const [content, setContent] = useState(entry?.content ?? "");
 	const [saveState, setSaveState] = useState<SaveStatus>("idle");
 	const activeDateKeyRef = useRef(dateKey);
-	const entrySnapshotRef = useRef<JournalEntrySnapshot | null>(null);
+	activeDateKeyRef.current = dateKey;
+	const draftByDateRef = useRef(new Map<string, string>());
 	const draftRevisionRef = useRef(0);
 	const acknowledgedRevisionRef = useRef(0);
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const saveStatusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pendingEntryIdRef = useRef<string | null>(null);
 	const persistQueueRef = useLazyRef<Promise<void>>(() => Promise.resolve());
+	const [, forceRender] = useReducer((value: number) => value + 1, 0);
+
+	const content = draftByDateRef.current.get(dateKey) ?? entry?.content ?? "";
 
 	const setDraftContent = useCallback((nextContent: string) => {
-		setContent(nextContent);
-	}, []);
-
-	const hasPendingLocalDraft = useCallback(
-		() => draftRevisionRef.current !== acknowledgedRevisionRef.current,
-		[],
-	);
+		draftByDateRef.current.set(dateKey, nextContent);
+		forceRender();
+	}, [dateKey]);
 
 	const clearPendingSave = useCallback(() => {
 		if (saveTimeoutRef.current) {
@@ -130,52 +111,6 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 		clearSaveStatusReset();
 		setSaveState("error");
 	}, [clearSaveStatusReset]);
-
-	useEffect(() => {
-		const nextSnapshot = {
-			dateKey,
-			entryId: entry?.id ?? null,
-			content: entry?.content ?? "",
-		};
-		const dateChanged = activeDateKeyRef.current !== dateKey;
-
-		if (dateChanged) {
-			activeDateKeyRef.current = dateKey;
-			entrySnapshotRef.current = nextSnapshot;
-			pendingEntryIdRef.current = entry?.id ?? null;
-			draftRevisionRef.current = 0;
-			acknowledgedRevisionRef.current = 0;
-			setDraftContent(nextSnapshot.content);
-			clearPendingSave();
-			clearSaveStatusReset();
-			setSaveState("idle");
-			return;
-		}
-
-		if (entry?.id) {
-			pendingEntryIdRef.current = entry.id;
-		}
-
-		if (
-			shouldAdoptJournalEntrySnapshot(
-				entrySnapshotRef.current,
-				nextSnapshot,
-				hasPendingLocalDraft(),
-			)
-		) {
-			setDraftContent(nextSnapshot.content);
-		}
-
-		entrySnapshotRef.current = nextSnapshot;
-	}, [
-		clearPendingSave,
-		clearSaveStatusReset,
-		dateKey,
-		entry?.content,
-		entry?.id,
-		hasPendingLocalDraft,
-		setDraftContent,
-	]);
 
 	useEffect(
 		() => () => {
@@ -367,9 +302,10 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 		clearSaveStatusReset();
 
 		if (!entry?.id) {
+			draftByDateRef.current.delete(dateKey);
 			draftRevisionRef.current = 0;
 			acknowledgedRevisionRef.current = 0;
-			setDraftContent("");
+			forceRender();
 			setSaveState("idle");
 			return;
 		}
@@ -378,16 +314,17 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 		void deleteEntryMutation
 			.mutateAsync(entry.id)
 			.then(() => {
+				draftByDateRef.current.delete(dateKey);
 				draftRevisionRef.current = 0;
 				acknowledgedRevisionRef.current = 0;
-				setDraftContent("");
 				pendingEntryIdRef.current = null;
+				forceRender();
 				setSaveState("idle");
 			})
 			.catch(() => {
 				setSaveState("error");
 			});
-	}, [clearPendingSave, clearSaveStatusReset, deleteEntryMutation, entry?.id, setDraftContent]);
+	}, [clearPendingSave, clearSaveStatusReset, dateKey, deleteEntryMutation, entry?.id]);
 
 	const wordCount = useMemo(
 		() => (content.trim() ? content.trim().split(/\s+/).length : 0),

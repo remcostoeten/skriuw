@@ -502,13 +502,13 @@ export async function mergeSeedWithGuestWorkspace(
 }
 
 export async function resetGuestStorage(): Promise<void> {
-	if (isBrowser()) {
-		clearGuestWorkspaceLocalStorageSync();
-		window.localStorage.removeItem(ENGAGEMENT_STORAGE_KEY);
-	}
 	await getGuestWorkspaceStore()
 		.clear()
 		.catch(async () => {
 			await clearGuestWorkspaceIndexedDB();
 		});
+	if (isBrowser()) {
+		clearGuestWorkspaceLocalStorageSync();
+		window.localStorage.removeItem(ENGAGEMENT_STORAGE_KEY);
+	}
 }

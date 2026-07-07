@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import type { Awareness } from "y-protocols/awareness";
 import type { TCollabPresenceState, TCollabRole } from "../lib/collab-activity";
 
 /** Below this idle gap (ms) a peer counts as "active" rather than "idle". */
 const ACTIVE_WINDOW_MS = 30_000;
-/** How often we recompute idle/active so relative labels stay fresh. */
-const TICK_MS = 10_000;
-
 export type TCollabStatusKind = "typing" | "active" | "idle";
 
 export type TCollabPeer = {
@@ -73,22 +70,5 @@ function readPeers(awareness: Awareness, now: number): TCollabPeer[] {
  * a peer that goes quiet transitions active → idle without needing a new event.
  */
 export function useCollabPresence(awareness: Awareness | null | undefined): TCollabPeer[] {
-	const [peers, setPeers] = useState<TCollabPeer[]>([]);
-
-	useEffect(() => {
-		if (!awareness) {
-			setPeers([]);
-			return;
-		}
-		const update = () => setPeers(readPeers(awareness, Date.now()));
-		update();
-		awareness.on("change", update);
-		const interval = window.setInterval(update, TICK_MS);
-		return () => {
-			awareness.off("change", update);
-			window.clearInterval(interval);
-		};
-	}, [awareness]);
-
-	return peers;
+	return useMemo(() => (awareness ? readPeers(awareness, Date.now()) : []), [awareness]);
 }

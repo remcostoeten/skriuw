@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, m } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 /**
@@ -171,35 +172,23 @@ export function AnimatedReveal({
 	className = "",
 	duration = 280,
 }: AnimatedRevealProps) {
-	const [mounted, setMounted] = useState(show);
-	const [open, setOpen] = useState(false);
-	const { ref, animating } = useWillChangeOnTransition(open);
-
-	useEffect(() => {
-		if (show) {
-			setMounted(true);
-			const raf = requestAnimationFrame(() => requestAnimationFrame(() => setOpen(true)));
-			return () => cancelAnimationFrame(raf);
-		}
-		setOpen(false);
-		const t = setTimeout(() => setMounted(false), duration);
-		return () => clearTimeout(t);
-	}, [show, duration]);
-
-	if (!mounted) return null;
-
 	return (
-		<div
-			ref={ref}
-			data-state={open ? "open" : "closed"}
-			className={`grid transition-all motion-reduce:transition-opacity ${
-				animating ? "will-change-transform" : ""
-			} ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
-			style={{ transitionDuration: `${duration}ms`, transitionTimingFunction: EASE }}
-		>
-			<div className="min-h-0 overflow-hidden">
-				<div className={className}>{children}</div>
-			</div>
-		</div>
+		<AnimatePresence initial={false}>
+			{show ? (
+				<m.div
+					key="revealed"
+					initial={{ opacity: 0, gridTemplateRows: "0fr" }}
+					animate={{ opacity: 1, gridTemplateRows: "1fr" }}
+					exit={{ opacity: 0, gridTemplateRows: "0fr" }}
+					transition={{ duration: duration / 1000, ease: [0.16, 1, 0.3, 1] }}
+					className="grid motion-reduce:transition-opacity"
+					style={{ transitionDuration: `${duration}ms`, transitionTimingFunction: EASE }}
+				>
+					<div className="min-h-0 overflow-hidden">
+						<div className={className}>{children}</div>
+					</div>
+				</m.div>
+			) : null}
+		</AnimatePresence>
 	);
 }
