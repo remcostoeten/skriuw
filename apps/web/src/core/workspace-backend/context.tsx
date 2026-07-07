@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, use, useMemo, type ReactNode } from "react";
 import { useAuth } from "@/core/auth/use-auth";
 import { createLocalBackend } from "./local-backend";
 // Imported via the `@/` path (not `./server-backend`) so the desktop SPA can
@@ -31,7 +31,7 @@ export function WorkspaceBackendProvider({ children }: { children: ReactNode }) 
 }
 
 export function useWorkspaceBackend(): WorkspaceBackend {
-	const backend = useContext(WorkspaceBackendContext);
+	const backend = use(WorkspaceBackendContext);
 	if (!backend) {
 		throw new Error("useWorkspaceBackend must be used within WorkspaceBackendProvider");
 	}
@@ -39,7 +39,7 @@ export function useWorkspaceBackend(): WorkspaceBackend {
 }
 
 export function useIsGuestWorkspace(): boolean {
-	const backend = useContext(WorkspaceBackendContext);
+	const backend = use(WorkspaceBackendContext);
 	return backend?.mode === "local";
 }
 

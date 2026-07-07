@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 // auth-drawer's prebuilt CSS re-declares Tailwind utilities (`.hidden`, …) in
 // the `utilities` layer. It must enter the cascade BEFORE our own Tailwind
 // output, or its `.hidden` outranks our responsive `md:flex`/`md:block` and
@@ -106,7 +107,9 @@ export default function RootLayout({ children }: Props) {
 				    The meta is created imperatively (not via JSX) so React never
 				    reconciles its content — ThemeAttribute updates it in place to
 				    the active theme's real background once hydrated. */}
-				<script
+				<Script
+					id="theme-bootstrap"
+					strategy="beforeInteractive"
 					dangerouslySetInnerHTML={{
 						__html: `(function(){try{var t=localStorage.getItem("skriuw-active-theme");if(t){document.documentElement.setAttribute("data-theme",t);}var m=document.createElement("meta");m.setAttribute("name","theme-color");m.setAttribute("content","#121212");document.head.appendChild(m);}catch(e){}})();`,
 					}}

@@ -51,6 +51,7 @@ export function TagsOverview() {
 	const [pending, setPending] = useState<PendingAction | null>(null);
 	const [renameValue, setRenameValue] = useState("");
 	const [mergeTarget, setMergeTarget] = useState("");
+	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
 	function openRename(tag: TagSummary) {
 		setRenameValue(tag.name);
@@ -128,7 +129,17 @@ export function TagsOverview() {
 											{noteCountLabel(tag.noteCount)}
 										</p>
 									</Link>
-									<DropdownMenu>
+									<DropdownMenu
+										onOpenChange={(open) => {
+											setOpenMenuId((current) =>
+												open
+													? tag.name
+													: current === tag.name
+														? null
+														: current,
+											);
+										}}
+									>
 										<DropdownMenuTrigger asChild>
 											<Button
 												variant="ghost"
@@ -138,27 +149,31 @@ export function TagsOverview() {
 												<MoreHorizontal className="h-4 w-4" />
 											</Button>
 										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end">
-											<DropdownMenuItem onSelect={() => openRename(tag)}>
-												<Pencil className="mr-2 h-3.5 w-3.5" />
-												Rename
-											</DropdownMenuItem>
-											<DropdownMenuItem
-												onSelect={() => openMerge(tag)}
-												disabled={tags.length < 2}
-											>
-												<Merge className="mr-2 h-3.5 w-3.5" />
-												Merge into…
-											</DropdownMenuItem>
-											<DropdownMenuSeparator />
-											<DropdownMenuItem
-												className="text-destructive focus:text-destructive"
-												onSelect={() => setPending({ kind: "delete", tag })}
-											>
-												<Trash2 className="mr-2 h-3.5 w-3.5" />
-												Delete
-											</DropdownMenuItem>
-										</DropdownMenuContent>
+										{openMenuId === tag.name ? (
+											<DropdownMenuContent align="end">
+												<DropdownMenuItem onSelect={() => openRename(tag)}>
+													<Pencil className="mr-2 h-3.5 w-3.5" />
+													Rename
+												</DropdownMenuItem>
+												<DropdownMenuItem
+													onSelect={() => openMerge(tag)}
+													disabled={tags.length < 2}
+												>
+													<Merge className="mr-2 h-3.5 w-3.5" />
+													Merge into…
+												</DropdownMenuItem>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem
+													className="text-destructive focus:text-destructive"
+													onSelect={() =>
+														setPending({ kind: "delete", tag })
+													}
+												>
+													<Trash2 className="mr-2 h-3.5 w-3.5" />
+													Delete
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										) : null}
 									</DropdownMenu>
 								</li>
 							))}

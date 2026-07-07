@@ -86,30 +86,50 @@ export async function mergeArchiveImport(
 			await hardClearUserWorkspace(tx, userId);
 		}
 
-		const existingFolders = await tx.folder.findMany({
-			where: { userId, deletedAt: null },
-			select: { id: true, name: true, parentId: true, sortOrder: true },
-		});
-		const existingNotes = await tx.note.findMany({
-			where: { userId, deletedAt: null },
-			select: { id: true, name: true, parentId: true },
-		});
-		const existingJournalEntries = await tx.journalEntry.findMany({
-			where: { userId, deletedAt: null },
-			select: { id: true, dateKey: true },
-		});
-		const existingJournalTags = await tx.journalTag.findMany({
-			where: { userId, deletedAt: null },
-			select: { id: true, name: true },
-		});
-		const existingVersionIds = new Set(
-			(
-				await tx.noteVersion.findMany({
-					where: { userId },
-					select: { id: true },
-				})
-			).map((version) => version.id),
-		);
+		const [
+			existingFolders,
+			existingNotes,
+			existingJournalEntries,
+			existingJournalTags,
+			existingVersionRows,
+			allUserNoteRows,
+			allUserJournalEntryRows,
+			softDeletedJournalRows,
+		] = await Promise.all([
+			tx.folder.findMany({
+				where: { userId, deletedAt: null },
+				select: { id: true, name: true, parentId: true, sortOrder: true },
+			}),
+			tx.note.findMany({
+				where: { userId, deletedAt: null },
+				select: { id: true, name: true, parentId: true },
+			}),
+			tx.journalEntry.findMany({
+				where: { userId, deletedAt: null },
+				select: { id: true, dateKey: true },
+			}),
+			tx.journalTag.findMany({
+				where: { userId, deletedAt: null },
+				select: { id: true, name: true },
+			}),
+			tx.noteVersion.findMany({
+				where: { userId },
+				select: { id: true },
+			}),
+			tx.note.findMany({
+				where: { userId },
+				select: { id: true },
+			}),
+			tx.journalEntry.findMany({
+				where: { userId },
+				select: { id: true },
+			}),
+			tx.journalEntry.findMany({
+				where: { userId, deletedAt: { not: null } },
+				select: { id: true, dateKey: true },
+			}),
+		]);
+		const existingVersionIds = new Set(existingVersionRows.map((version) => version.id));
 
 		const folderRows: FolderRow[] = existingFolders.map((folder) => ({
 			id: folder.id,
@@ -122,35 +142,16 @@ export async function mergeArchiveImport(
 			Array.from(folderPathToId.entries()).map(([id, path]) => [path, id]),
 		);
 		const existingNoteIds = new Set(existingNotes.map((note) => note.id));
-		const allUserNoteIds = new Set(
-			(
-				await tx.note.findMany({
-					where: { userId },
-					select: { id: true },
-				})
-			).map((note) => note.id),
-		);
+		const allUserNoteIds = new Set(allUserNoteRows.map((note) => note.id));
 		const existingNoteKeys = new Set<string>();
 		const existingNoteIdByKey = new Map<string, string>();
 		const journalDateToId = new Map(
 			existingJournalEntries.map((entry) => [entry.dateKey, entry.id]),
 		);
 		const existingJournalDates = new Set(existingJournalEntries.map((entry) => entry.dateKey));
-		const allUserJournalEntryIds = new Set(
-			(
-				await tx.journalEntry.findMany({
-					where: { userId },
-					select: { id: true },
-				})
-			).map((entry) => entry.id),
-		);
+		const allUserJournalEntryIds = new Set(allUserJournalEntryRows.map((entry) => entry.id));
 		const softDeletedJournalByDate = new Map(
-			(
-				await tx.journalEntry.findMany({
-					where: { userId, deletedAt: { not: null } },
-					select: { id: true, dateKey: true },
-				})
-			).map((entry) => [entry.dateKey, entry.id]),
+			softDeletedJournalRows.map((entry) => [entry.dateKey, entry.id]),
 		);
 		const journalTagIdByName = new Map(existingJournalTags.map((tag) => [tag.name, tag.id]));
 

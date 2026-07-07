@@ -49,12 +49,22 @@ export function validateGotoTargets(targets: RegisteredGotoTarget[]): Validation
 	}
 
 	const keybinds = Array.from(byKeybind.keys());
+	const keybindSet = new Set(keybinds);
+	const shadowedByPrefix = new Map<string, string>();
+
+	for (const keybind of keybinds) {
+		for (let prefixLength = 1; prefixLength < keybind.length; prefixLength += 1) {
+			const prefix = keybind.slice(0, prefixLength);
+			if (keybindSet.has(prefix) && !shadowedByPrefix.has(prefix)) {
+				shadowedByPrefix.set(prefix, keybind);
+			}
+		}
+	}
+
 	const valid: RegisteredGotoTarget[] = [];
 
 	for (const target of byKeybind.values()) {
-		const shadowed = keybinds.find(
-			(other) => other !== target.keybind && other.startsWith(target.keybind),
-		);
+		const shadowed = shadowedByPrefix.get(target.keybind);
 		if (shadowed) {
 			issues.push({
 				destinationId: target.to.id,

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { use } from "react";
 import { useShortcutMap, type ShortcutMap } from "@remcostoeten/use-shortcut/react";
 import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
@@ -196,13 +197,13 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useShortcutManager(): ShortcutContextValue {
-	const ctx = React.useContext(ShortcutContext);
+	const ctx = use(ShortcutContext);
 	if (!ctx) throw new Error("useShortcutManager must be used inside <ShortcutProvider>");
 	return ctx;
 }
 
 export function useShortcutHint(id?: ShortcutId): string | undefined {
-	const ctx = React.useContext(ShortcutContext);
+	const ctx = use(ShortcutContext);
 	if (!id) return undefined;
 	if (ctx?.isMobile) return undefined;
 	return ctx?.getShortcutHint(id) ?? formatBinding(getShortcutDef(id).keys);

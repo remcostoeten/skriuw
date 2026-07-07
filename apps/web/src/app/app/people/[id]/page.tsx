@@ -9,8 +9,7 @@ type Props = {
 };
 
 export default async function PersonInsightsPage({ params }: Props) {
-	const { id } = await params;
-	const { user } = await getServerUser();
+	const [{ id }, { user }] = await Promise.all([params, getServerUser()]);
 	const queryClient = new QueryClient();
 
 	if (user) {

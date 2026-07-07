@@ -385,6 +385,36 @@ export function buildOutgoingNoteLinks(
 	return dedupeLinks(links, outgoingLinkKey);
 }
 
+/**
+ * Ids of every note whose backlinks list could include `note` as a source:
+ * resolved link targets plus, for ambiguous/label-only links, every note
+ * sharing the linked title (ambiguity surfaces a backlink on each match).
+ * Lets cache invalidation touch only the affected notes instead of the
+ * whole workspace.
+ */
+export function collectNoteLinkTargetIds(
+	note: Pick<NoteFile, "id" | "content" | "richContent">,
+	files: NoteFile[],
+): Set<string> {
+	const notesById = buildNoteIdIndex(files);
+	const titleIndex = buildTitleIndex(files);
+	const targetIds = new Set<string>();
+
+	for (const link of extractNoteLinks(note)) {
+		const resolved = resolveNoteLinkWithIndexes(link, notesById, titleIndex);
+		if (resolved.status === "resolved" && resolved.targetNoteId) {
+			targetIds.add(resolved.targetNoteId);
+			continue;
+		}
+		for (const match of titleIndex.get(normalizeNoteTitle(link.targetLabel)) ?? []) {
+			targetIds.add(match.id);
+		}
+	}
+
+	targetIds.delete(note.id);
+	return targetIds;
+}
+
 export function buildNoteBacklinks(
 	activeNote: NoteFile | null,
 	files: NoteFile[],

@@ -1,7 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useRef, useState, useCallback, useMemo } from "react";
-import { useShortcutScope } from "../shortcuts";
+import {
+	createContext,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type ReactNode,
+	use,
+} from "react";
+import { useShortcutScope } from "../shortcuts/provider";
 import { COMMAND_REGISTRY } from "./registry";
 import type { Scope } from "../shortcuts/scopes";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
@@ -26,7 +35,7 @@ type CommandContextValue = {
 
 const CommandContext = createContext<CommandContextValue | null>(null);
 
-export function CommandProvider({ children }: { children: React.ReactNode }) {
+export function CommandProvider({ children }: { children: ReactNode }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const [activeScopes, setActiveScopes] = useState<(Scope | "global")[]>(["global"]);
@@ -196,7 +205,7 @@ function CommandShortcutBinder() {
 }
 
 export function useCommandRegistry() {
-	const context = useContext(CommandContext);
+	const context = use(CommandContext);
 	if (!context) {
 		throw new Error("useCommandRegistry must be used within a CommandProvider");
 	}
@@ -208,7 +217,7 @@ export function useRegisterCommands(handlers: CommandHandlers) {
 	const latestHandlers = useRef(handlers);
 	latestHandlers.current = handlers;
 
-	React.useEffect(() => {
+	useEffect(() => {
 		const wrappedHandlers: CommandHandlers = {};
 		for (const key of Object.keys(handlers)) {
 			wrappedHandlers[key] = () => latestHandlers.current[key]?.();
@@ -222,7 +231,7 @@ export function useRegisterCommandItemsProvider(provider: CommandItemsProvider) 
 	const latestProvider = useRef(provider);
 	latestProvider.current = provider;
 
-	React.useEffect(() => {
+	useEffect(() => {
 		const wrappedProvider: CommandItemsProvider = (q) => latestProvider.current(q);
 		return registerItemsProvider(wrappedProvider);
 	}, [registerItemsProvider]);
@@ -230,7 +239,7 @@ export function useRegisterCommandItemsProvider(provider: CommandItemsProvider) 
 
 export function useActiveCommandScope(scope: Scope | "global") {
 	const { pushActiveScope } = useCommandRegistry();
-	React.useEffect(() => {
+	useEffect(() => {
 		return pushActiveScope(scope);
 	}, [pushActiveScope, scope]);
 }
