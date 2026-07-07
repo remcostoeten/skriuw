@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getCollaboratorsAction } from "@/domain/collaboration/actions";
+import { isGuestScopedId } from "@/domain/notes/note-id";
 import type { NoteAccessRole } from "@/domain/notes/models";
 
 // Inlined at build time by Next for the client bundle. When unset, real-time
@@ -19,6 +20,8 @@ export function useNoteCollabEnabled(
 	noteId: string | null | undefined,
 	access: NoteAccessRole | undefined,
 ): boolean {
+	if (!noteId || isGuestScopedId(noteId)) return false;
+
 	const isCollaboratorViewer = access === "editor" || access === "viewer";
 	// `access` undefined or "owner" means we're on the owner's read path; we only
 	// know it's shared by checking for collaborators. (Shares the React Query
