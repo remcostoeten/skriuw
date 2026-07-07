@@ -6,6 +6,7 @@ import { listTrashBatches } from "@/domain/trash/queries";
 import type { TrashBatch } from "@/core/workspace-backend/types";
 
 export async function fetchTrashBatches(): Promise<TrashBatch[]> {
+	await getAuthenticatedUser();
 	return listTrashBatches();
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -111,6 +112,7 @@ function MobileNavLink({ item }: { item: MobileNavItem }) {
 
 export function MobileAppNav() {
 	const pathname = usePathname();
+	const [menuOpen, setMenuOpen] = useState(false);
 	const moreActive = moreItems.some((item) => item.match(pathname));
 
 	return (
@@ -123,7 +125,7 @@ export function MobileAppNav() {
 					<MobileNavLink key={item.href} item={item} />
 				))}
 
-				<DropdownMenu>
+				<DropdownMenu onOpenChange={setMenuOpen}>
 					<DropdownMenuTrigger asChild>
 						<button
 							type="button"
@@ -140,41 +142,47 @@ export function MobileAppNav() {
 							<span>More</span>
 						</button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent
-						align="end"
-						side="top"
-						sideOffset={10}
-						className="mb-1 w-48 rounded-lg p-1.5 shadow-xl"
-					>
-						{moreItems.map((item) => {
-							const active = item.match(pathname);
-							const Icon = item.Icon;
-							return (
-								<DropdownMenuItem key={item.href} asChild className="rounded-md">
-									<Link
-										href={item.href}
-										prefetch
-										aria-current={active ? "page" : undefined}
-										className={cn(active && "bg-muted text-foreground")}
-									>
-										<Icon className="size-4" strokeWidth={1.7} />
-										{item.label}
-									</Link>
-								</DropdownMenuItem>
-							);
-						})}
-						<DropdownMenuSeparator />
-						<DropdownMenuItem
-							className="rounded-md"
-							onSelect={(event) => {
-								event.preventDefault();
-								openSettings();
-							}}
+					{menuOpen ? (
+						<DropdownMenuContent
+							align="end"
+							side="top"
+							sideOffset={10}
+							className="mb-1 w-48 rounded-lg p-1.5 shadow-xl"
 						>
-							<Settings2 className="size-4" strokeWidth={1.7} />
-							Settings
-						</DropdownMenuItem>
-					</DropdownMenuContent>
+							{moreItems.map((item) => {
+								const active = item.match(pathname);
+								const Icon = item.Icon;
+								return (
+									<DropdownMenuItem
+										key={item.href}
+										asChild
+										className="rounded-md"
+									>
+										<Link
+											href={item.href}
+											prefetch
+											aria-current={active ? "page" : undefined}
+											className={cn(active && "bg-muted text-foreground")}
+										>
+											<Icon className="size-4" strokeWidth={1.7} />
+											{item.label}
+										</Link>
+									</DropdownMenuItem>
+								);
+							})}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								className="rounded-md"
+								onSelect={(event) => {
+									event.preventDefault();
+									openSettings();
+								}}
+							>
+								<Settings2 className="size-4" strokeWidth={1.7} />
+								Settings
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					) : null}
 				</DropdownMenu>
 			</div>
 		</nav>

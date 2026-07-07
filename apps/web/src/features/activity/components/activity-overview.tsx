@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId, useMemo, useRef } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Activity, FilePlus, Pencil, Trash2, type LucideIcon } from "lucide-react";
@@ -10,6 +10,7 @@ import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import { useNotes } from "@/features/notes/hooks/use-notes";
 import { useTrash } from "@/features/notes/hooks/use-trash";
 import { cn } from "@/shared/lib/utils";
+import { ActivityScrubber } from "./activity-scrubber";
 import {
 	buildActivityEntries,
 	groupActivityByTime,
@@ -38,7 +39,7 @@ function entryHref(entry: ActivityEntry): string {
 function ActivityRow({ entry }: { entry: ActivityEntry }) {
 	const Icon = KIND_ICON[entry.kind];
 	return (
-		<li>
+		<li data-activity-ts={entry.timestamp.toISOString()}>
 			<Link
 				href={entryHref(entry)}
 				className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-muted/60"
@@ -70,6 +71,8 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 export function ActivityOverview() {
 	const { data: notes = [], isLoading: notesLoading } = useNotes();
 	const { data: trash = [] } = useTrash();
+	const scrollRef = useRef<HTMLDivElement>(null);
+	const scrollRegionId = useId();
 
 	const buckets = useMemo(() => {
 		const entries = buildActivityEntries(notes, trash);
@@ -77,6 +80,7 @@ export function ActivityOverview() {
 	}, [notes, trash]);
 
 	const isEmpty = buckets.length === 0;
+	const totalEntries = buckets.reduce((sum, bucket) => sum + bucket.entries.length, 0);
 
 	return (
 		<LayoutContainer className="bg-background">
@@ -98,19 +102,34 @@ export function ActivityOverview() {
 							description="Create or edit a note and it shows up here."
 						/>
 					) : (
-						<div className="flex-1 overflow-y-auto">
-							{buckets.map((bucket) => (
-								<section key={bucket.id}>
-									<h2 className="sticky top-0 z-10 bg-background/95 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur">
-										{bucket.label}
-									</h2>
-									<ul className="divide-y divide-border">
-										{bucket.entries.map((entry) => (
-											<ActivityRow key={entry.id} entry={entry} />
-										))}
-									</ul>
-								</section>
-							))}
+						<div className="relative min-h-0 flex-1">
+							<div
+								id={scrollRegionId}
+								ref={scrollRef}
+								className="h-full overflow-y-auto pr-2"
+							>
+								{buckets.map((bucket) => (
+									<section
+										key={bucket.id}
+										data-bucket-id={bucket.id}
+										data-bucket-label={bucket.label}
+									>
+										<h2 className="sticky top-0 z-10 bg-background/95 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur">
+											{bucket.label}
+										</h2>
+										<ul className="divide-y divide-border">
+											{bucket.entries.map((entry) => (
+												<ActivityRow key={entry.id} entry={entry} />
+											))}
+										</ul>
+									</section>
+								))}
+							</div>
+							<ActivityScrubber
+								scrollRef={scrollRef}
+								scrollRegionId={scrollRegionId}
+								revision={totalEntries}
+							/>
 						</div>
 					)}
 				</div>

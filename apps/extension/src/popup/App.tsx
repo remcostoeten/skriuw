@@ -10,6 +10,12 @@ import type {
 import { EXTENSION_VERSION } from "../shared/version";
 
 const EXPIRY_WARNING_DAYS = 7;
+const SHORT_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
+	month: "short",
+	day: "numeric",
+	hour: "2-digit",
+	minute: "2-digit",
+});
 
 function daysUntil(iso: string | null): number | null {
 	if (!iso) return null;
@@ -79,10 +85,10 @@ export function App() {
 		if (!extracted) return;
 		setStatus({ phase: "saving" });
 		await saveCapturePreferences({ parentId, openAfterSave });
-		const tagList = tags
-			.split(",")
-			.map((tag) => tag.trim())
-			.filter(Boolean);
+		const tagList = tags.split(",").flatMap((tag) => {
+			const trimmed = tag.trim();
+			return trimmed ? [trimmed] : [];
+		});
 		const result = (await chrome.runtime.sendMessage({
 			type: "clip",
 			kind: extracted.kind,
@@ -255,12 +261,7 @@ function tokenExpiryWarning(tokenInfo: TTokenInfo | null): string | null {
 }
 
 function formatShortTime(value: string): string {
-	return new Intl.DateTimeFormat(undefined, {
-		month: "short",
-		day: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	}).format(new Date(value));
+	return SHORT_TIME_FORMATTER.format(new Date(value));
 }
 
 function buildFolderOptions(folders: TFolderSummary[]): Array<{ id: string; label: string }> {

@@ -20,6 +20,25 @@ function getStreakColor(streak: number) {
 	return "text-muted-foreground";
 }
 
+function escapeHtml(value: string): string {
+	return value.replace(/[&<>"']/g, (char) => {
+		switch (char) {
+			case "&":
+				return "&amp;";
+			case "<":
+				return "&lt;";
+			case ">":
+				return "&gt;";
+			case '"':
+				return "&quot;";
+			case "'":
+				return "&#39;";
+			default:
+				return char;
+		}
+	});
+}
+
 export function JournalStats({ className }: JournalStatsProps) {
 	const { data: entries = [] } = useJournalEntries();
 	const { data: tags = [] } = useJournalTags();
@@ -223,27 +242,29 @@ export function JournalStats({ className }: JournalStatsProps) {
 
 			if (entry.mood) {
 				const mood = MOOD_OPTIONS[entry.mood];
-				html += `<p class="mood">Mood: ${mood.icon} ${mood.label}</p>`;
+				html += `<p class="mood">Mood: ${escapeHtml(mood.icon)} ${escapeHtml(mood.label)}</p>`;
 			}
 
 			if (entry.tags.length > 0) {
-				html += `<p class="tags">Tags: ${entry.tags.map((tag) => `@${tag}`).join(", ")}</p>`;
+				html += `<p class="tags">Tags: ${entry.tags.map((tag) => `@${escapeHtml(tag)}`).join(", ")}</p>`;
 			}
 
-			html += `<div class="content">${entry.content || "No content"}</div></div>`;
+			html += `<div class="content">${escapeHtml(entry.content || "No content")}</div></div>`;
 		});
 
 		html += "</body></html>";
 
-		const printWindow = window.open("", "_blank");
+		const blob = new Blob([html], { type: "text/html" });
+		const url = URL.createObjectURL(blob);
+		const printWindow = window.open(url, "_blank");
 		if (printWindow) {
-			printWindow.document.write(html);
-			printWindow.document.close();
-			printWindow.focus();
-			setTimeout(() => {
+			printWindow.addEventListener("load", () => {
+				printWindow.focus();
 				printWindow.print();
-				printWindow.close();
-			}, 250);
+				URL.revokeObjectURL(url);
+			});
+		} else {
+			URL.revokeObjectURL(url);
 		}
 	};
 

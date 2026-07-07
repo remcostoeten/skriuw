@@ -23,7 +23,7 @@ import { usePreferencesStore } from "@/features/settings/store";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { RawLogo } from "@/shared/icons/logo";
 import { useAuth } from "@/core/auth/use-auth";
@@ -182,7 +182,7 @@ function getPathWithoutAuthParams(pathname: string, searchParams: URLSearchParam
 	return query ? `${pathname}?${query}` : pathname;
 }
 
-export function IconRail() {
+function IconRailImpl() {
 	const pathname = usePathname();
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -605,3 +605,5 @@ export function IconRail() {
 		</>
 	);
 }
+
+export const IconRail = memo(IconRailImpl);

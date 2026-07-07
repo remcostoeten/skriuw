@@ -88,6 +88,7 @@ export function TabBar({
 	const showPageIcons = usePreferencesStore((s) => s.appearance.showPageIcons);
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [dragOverId, setDragOverId] = useState<string | null>(null);
+	const [openMenuFileId, setOpenMenuFileId] = useState<string | null>(null);
 	const tabRefs = useLazyRef(() => new Map<string, HTMLDivElement>());
 	const externalOverRef = useRef<string | "strip" | null>(null);
 	const dropNoteRef = useRef(onDropNote);
@@ -243,7 +244,14 @@ export function TabBar({
 			{tabs.map(({ file, pinned }) => {
 				const isActive = file.id === activeFileId;
 				return (
-					<ContextMenu key={file.id}>
+					<ContextMenu
+						key={file.id}
+						onOpenChange={(open) => {
+							setOpenMenuFileId((current) =>
+								open ? file.id : current === file.id ? null : current,
+							);
+						}}
+					>
 						<ContextMenuTrigger asChild>
 							<div
 								role="tab"
@@ -312,27 +320,29 @@ export function TabBar({
 								</button>
 							</div>
 						</ContextMenuTrigger>
-						<ContextMenuContent className="w-52">
-							<ContextMenuItem onClick={() => onTogglePin(file.id)}>
-								<Pin className="h-3.5 w-3.5" />
-								{pinned ? "Unpin" : "Pin"}
-							</ContextMenuItem>
-							<ContextMenuSeparator />
-							<ContextMenuItem onClick={() => onClose(file.id)}>
-								Close
-							</ContextMenuItem>
-							<ContextMenuItem onClick={() => onCloseOthers(file.id)}>
-								Close all but this
-							</ContextMenuItem>
-							<ContextMenuItem onClick={() => onCloseToSide(file.id, "right")}>
-								Close all to the right
-							</ContextMenuItem>
-							<ContextMenuItem onClick={() => onCloseToSide(file.id, "left")}>
-								Close all to the left
-							</ContextMenuItem>
-							<ContextMenuSeparator />
-							<DevContextSubmenu />
-						</ContextMenuContent>
+						{openMenuFileId === file.id ? (
+							<ContextMenuContent className="w-52">
+								<ContextMenuItem onClick={() => onTogglePin(file.id)}>
+									<Pin className="h-3.5 w-3.5" />
+									{pinned ? "Unpin" : "Pin"}
+								</ContextMenuItem>
+								<ContextMenuSeparator />
+								<ContextMenuItem onClick={() => onClose(file.id)}>
+									Close
+								</ContextMenuItem>
+								<ContextMenuItem onClick={() => onCloseOthers(file.id)}>
+									Close all but this
+								</ContextMenuItem>
+								<ContextMenuItem onClick={() => onCloseToSide(file.id, "right")}>
+									Close all to the right
+								</ContextMenuItem>
+								<ContextMenuItem onClick={() => onCloseToSide(file.id, "left")}>
+									Close all to the left
+								</ContextMenuItem>
+								<ContextMenuSeparator />
+								<DevContextSubmenu />
+							</ContextMenuContent>
+						) : null}
 					</ContextMenu>
 				);
 			})}

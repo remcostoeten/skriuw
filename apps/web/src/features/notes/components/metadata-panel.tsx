@@ -2,6 +2,7 @@
 
 import { formatDistanceToNow } from "date-fns";
 import {
+	ArrowDownLeft,
 	ArrowUpRight,
 	Contact,
 	Copy,
@@ -583,6 +584,28 @@ const VersionRow = memo(function VersionRow({
 	);
 });
 
+function LinkGroupHeader({
+	icon: Icon,
+	label,
+	count,
+}: {
+	icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+	label: string;
+	count: number;
+}) {
+	return (
+		<div className="mb-1.5 flex items-center gap-1.5 px-2">
+			<Icon className="h-3 w-3 shrink-0 text-muted-foreground/45" strokeWidth={2} />
+			<span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
+				{label}
+			</span>
+			<span className="ml-auto min-w-4 rounded-full bg-muted px-1.5 py-px text-center text-[10px] font-medium tabular-nums text-muted-foreground/70">
+				{count}
+			</span>
+		</div>
+	);
+}
+
 function LinkRow({
 	link,
 	direction,
@@ -1096,19 +1119,21 @@ export const MetadataPanel = memo(function MetadataPanel({
 						open={openSections.links}
 						onToggle={() => toggleSection("links")}
 					>
-						<div className="space-y-4">
+						<div className="space-y-5">
 							{backlinks.length > 0 && (
 								<div>
-									<p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/50">
-										Backlinks · {backlinks.length}
-									</p>
+									<LinkGroupHeader
+										icon={ArrowDownLeft}
+										label="Backlinks"
+										count={backlinks.length}
+									/>
 									<ul
 										aria-label="Notes linking to this note"
-										className="-mx-2 space-y-0.5"
+										className="-mx-2 space-y-0.5 border-l border-border/40 pl-1.5"
 									>
-										{backlinks.map((link, index) => (
+										{backlinks.map((link) => (
 											<LinkRow
-												key={`${link.sourceNoteId}-${link.targetNoteId ?? "unresolved"}-${index}`}
+												key={`incoming-${link.sourceNoteId}-${link.targetNoteId ?? link.targetLabel}-${link.kind}`}
 												direction="incoming"
 												link={link}
 												filesById={filesById}
@@ -1121,16 +1146,18 @@ export const MetadataPanel = memo(function MetadataPanel({
 							)}
 							{outgoingLinks.length > 0 && (
 								<div>
-									<p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/50">
-										Outgoing · {outgoingLinks.length}
-									</p>
+									<LinkGroupHeader
+										icon={ArrowUpRight}
+										label="Outgoing"
+										count={outgoingLinks.length}
+									/>
 									<ul
 										aria-label="Notes this note links to"
-										className="-mx-2 space-y-0.5"
+										className="-mx-2 space-y-0.5 border-l border-border/40 pl-1.5"
 									>
-										{outgoingLinks.map((link, index) => (
+										{outgoingLinks.map((link) => (
 											<LinkRow
-												key={`${link.targetNoteId ?? link.targetLabel}-${index}`}
+												key={`outgoing-${link.sourceNoteId}-${link.targetNoteId ?? link.targetLabel}-${link.kind}`}
 												direction="outgoing"
 												link={link}
 												filesById={filesById}
@@ -1264,11 +1291,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 								</dd>
 							</div>
 						))}
-						<div
-							aria-hidden
-							className="my-1 border-t border-border/70"
-							role="separator"
-						/>
+						<hr aria-hidden className="my-1 border-border/70" />
 						<InspectorNoteControls
 							file={file}
 							canToggleEditorMode={canToggleEditorMode}

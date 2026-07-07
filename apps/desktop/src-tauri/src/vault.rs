@@ -896,8 +896,18 @@ fn render_note(note: &Note) -> String {
     let properties = note.properties.to_string();
     let mode = serde_json::to_string(&note.preferred_editor_mode)
         .unwrap_or_else(|_| "\"block\"".to_string());
+    let icon_line = note
+        .icon
+        .as_ref()
+        .map(|v| format!("icon: {}\n", serde_json::to_string(v).unwrap_or_default()))
+        .unwrap_or_default();
+    let cover_line = note
+        .cover
+        .as_ref()
+        .map(|v| format!("cover: {}\n", serde_json::to_string(v).unwrap_or_default()))
+        .unwrap_or_default();
     format!(
-		"---\nid: {id}\ntags: {tags}\nproperties: {properties}\nsortOrder: {sort}\npreferredEditorMode: {mode}\ncreatedAt: {created}\nmodifiedAt: {modified}\n---\n{body}",
+		"---\nid: {id}\ntags: {tags}\nproperties: {properties}\nsortOrder: {sort}\npreferredEditorMode: {mode}\ncreatedAt: {created}\nmodifiedAt: {modified}\n{icon_line}{cover_line}---\n{body}",
 		sort = note.sort_order,
 		created = note.created_at,
 		modified = note.modified_at,
@@ -931,6 +941,8 @@ fn parse_note(raw: &str, name: String, parent_id: Option<String>) -> Note {
     let mut preferred_editor_mode = "block".to_string();
     let mut created_at = 0i64;
     let mut modified_at = 0i64;
+    let mut icon: Option<String> = None;
+    let mut cover: Option<String> = None;
 
     if let Some(block) = frontmatter {
         for line in block.lines() {
@@ -957,6 +969,8 @@ fn parse_note(raw: &str, name: String, parent_id: Option<String>) -> Note {
                 }
                 "createdAt" => created_at = value.parse().unwrap_or(0),
                 "modifiedAt" => modified_at = value.parse().unwrap_or(0),
+                "icon" => icon = parse_json_string(value),
+                "cover" => cover = parse_json_string(value),
                 _ => {}
             }
         }
@@ -974,6 +988,8 @@ fn parse_note(raw: &str, name: String, parent_id: Option<String>) -> Note {
         properties,
         created_at,
         modified_at,
+        icon,
+        cover,
     }
 }
 

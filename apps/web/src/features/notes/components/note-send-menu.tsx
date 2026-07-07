@@ -500,6 +500,7 @@ function NoteSendDesktopDropdown({
 	} = useNoteSend(note);
 
 	const [imageOpen, setImageOpen] = useState(false);
+	const [menuOpen, setMenuOpen] = useState(false);
 
 	const linkHandlers: LinkShareHandlers = {
 		copyShareLink,
@@ -514,7 +515,7 @@ function NoteSendDesktopDropdown({
 	return (
 		<>
 			<NoteShareImageDialog note={note} open={imageOpen} onOpenChange={setImageOpen} />
-			<DropdownMenu>
+			<DropdownMenu onOpenChange={setMenuOpen}>
 				<DropdownMenuTrigger asChild>
 					<button
 						type="button"
@@ -523,66 +524,71 @@ function NoteSendDesktopDropdown({
 						{triggerLabel}
 					</button>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" className="w-48">
-					{LINK_SHARE_ACTIONS.map((action) => (
-						<DropdownMenuItem
-							key={action.id}
-							className="gap-2"
-							disabled={isLinkShareBusy}
-							onClick={() => void runLinkShareAction(action.id, linkHandlers)}
-						>
-							{action.id === "copy" && isLinkShareBusy ? (
-								<Loader2 className="h-4 w-4 animate-spin" />
-							) : (
-								<LinkShareBrandIcon icon={action.icon} className="h-4 w-4" />
-							)}
-							{linkShareActionLabel(action, isLinkShareBusy)}
+				{menuOpen ? (
+					<DropdownMenuContent align="end" className="w-48">
+						{LINK_SHARE_ACTIONS.map((action) => (
+							<DropdownMenuItem
+								key={action.id}
+								className="gap-2"
+								disabled={isLinkShareBusy}
+								onClick={() => void runLinkShareAction(action.id, linkHandlers)}
+							>
+								{action.id === "copy" && isLinkShareBusy ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<LinkShareBrandIcon icon={action.icon} className="h-4 w-4" />
+								)}
+								{linkShareActionLabel(action, isLinkShareBusy)}
+							</DropdownMenuItem>
+						))}
+						<DropdownMenuSeparator />
+						{canNativeShare ? (
+							<DropdownMenuItem className="gap-2" onClick={() => void shareNative()}>
+								<Share2 className="h-4 w-4" />
+								Share…
+							</DropdownMenuItem>
+						) : null}
+						{canSaveAsFile ? (
+							<DropdownMenuItem className="gap-2" onClick={() => void saveAsFile()}>
+								<FileDown className="h-4 w-4" />
+								Save as file
+							</DropdownMenuItem>
+						) : null}
+						{showAppleNotes ? (
+							<DropdownMenuItem
+								className="gap-2"
+								onClick={() => void shareAppleNotes()}
+							>
+								<NotebookPen className="h-4 w-4" />
+								Apple Notes
+							</DropdownMenuItem>
+						) : null}
+						<DropdownMenuItem className="gap-2" onClick={shareWhatsApp}>
+							<MessageCircle className="h-4 w-4" />
+							WhatsApp
 						</DropdownMenuItem>
-					))}
-					<DropdownMenuSeparator />
-					{canNativeShare ? (
-						<DropdownMenuItem className="gap-2" onClick={() => void shareNative()}>
-							<Share2 className="h-4 w-4" />
-							Share…
+						<DropdownMenuItem className="gap-2" onClick={shareSms}>
+							<MessageSquare className="h-4 w-4" />
+							SMS
 						</DropdownMenuItem>
-					) : null}
-					{canSaveAsFile ? (
-						<DropdownMenuItem className="gap-2" onClick={() => void saveAsFile()}>
-							<FileDown className="h-4 w-4" />
-							Save as file
+						<DropdownMenuItem className="gap-2" onClick={() => void copyMarkdown()}>
+							<Copy className="h-4 w-4" />
+							Copy markdown
 						</DropdownMenuItem>
-					) : null}
-					{showAppleNotes ? (
-						<DropdownMenuItem className="gap-2" onClick={() => void shareAppleNotes()}>
-							<NotebookPen className="h-4 w-4" />
-							Apple Notes
+						<DropdownMenuItem className="gap-2" onSelect={() => setImageOpen(true)}>
+							<ImageIcon className="h-4 w-4" />
+							Save as image
 						</DropdownMenuItem>
-					) : null}
-					<DropdownMenuItem className="gap-2" onClick={shareWhatsApp}>
-						<MessageCircle className="h-4 w-4" />
-						WhatsApp
-					</DropdownMenuItem>
-					<DropdownMenuItem className="gap-2" onClick={shareSms}>
-						<MessageSquare className="h-4 w-4" />
-						SMS
-					</DropdownMenuItem>
-					<DropdownMenuItem className="gap-2" onClick={() => void copyMarkdown()}>
-						<Copy className="h-4 w-4" />
-						Copy markdown
-					</DropdownMenuItem>
-					<DropdownMenuItem className="gap-2" onSelect={() => setImageOpen(true)}>
-						<ImageIcon className="h-4 w-4" />
-						Save as image
-					</DropdownMenuItem>
-					<DropdownMenuItem className="gap-2" onClick={shareEmail}>
-						<Mail className="h-4 w-4" />
-						Email
-					</DropdownMenuItem>
-					<DropdownMenuItem className="gap-2" onClick={downloadMarkdown}>
-						<Download className="h-4 w-4" />
-						Download .md
-					</DropdownMenuItem>
-				</DropdownMenuContent>
+						<DropdownMenuItem className="gap-2" onClick={shareEmail}>
+							<Mail className="h-4 w-4" />
+							Email
+						</DropdownMenuItem>
+						<DropdownMenuItem className="gap-2" onClick={downloadMarkdown}>
+							<Download className="h-4 w-4" />
+							Download .md
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				) : null}
 			</DropdownMenu>
 		</>
 	);

@@ -66,13 +66,7 @@ import type { NoteFile } from "@/domain/notes/models";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { journalKeys } from "@/features/journal/hooks/journal-keys";
 import { pullWorkspaceFromServer, type PullResult } from "@/domain/sync/pull-workspace";
-import { pushWorkspaceToServer, type PushResult } from "@/domain/sync/push-workspace";
-import { syncWorkspaceWithServer, type SyncResult } from "@/domain/sync/sync-workspace";
-import {
-	getSyncClientConfig,
-	setLastSyncedAt,
-	setSyncClientConfig,
-} from "@/domain/sync/sync-client-config";
+import { getSyncClientConfig, setSyncClientConfig } from "@/domain/sync/sync-client-config";
 import { matchesDesktopResetPhrase, RESET_PHRASE } from "@/features/settings/lib/desktop-reset";
 
 type Busy =
@@ -142,20 +136,6 @@ function formatSnapshotEta(
 	const remainingSeconds = Math.ceil((progress.total - progress.completed) * secondsPerUnit);
 	if (remainingSeconds < 60) return `${remainingSeconds}s remaining`;
 	return `${Math.ceil(remainingSeconds / 60)}m remaining`;
-}
-
-function formatRelativeTime(iso: string): string | null {
-	const then = Date.parse(iso);
-	if (Number.isNaN(then)) return null;
-	const seconds = Math.round((Date.now() - then) / 1000);
-	if (seconds < 5) return "just now";
-	if (seconds < 60) return `${seconds}s ago`;
-	const minutes = Math.round(seconds / 60);
-	if (minutes < 60) return `${minutes}m ago`;
-	const hours = Math.round(minutes / 60);
-	if (hours < 24) return `${hours}h ago`;
-	const days = Math.round(hours / 24);
-	return `${days}d ago`;
 }
 
 type PullPhase = "idle" | "pulling" | "success" | "error";
@@ -382,9 +362,6 @@ export function LocalDataSection() {
 	} | null>(null);
 	const [pullFlash, setPullFlash] = useState<"success" | "error" | null>(null);
 	const pullFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const [syncError, setSyncError] = useState<string | null>(null);
-	const [syncMessage, setSyncMessage] = useState<string | null>(null);
-	const [lastSyncedAt, setLastSyncedAtState] = useState<string | null>(null);
 	const prefersReducedMotion = useReducedMotion() ?? false;
 	const [simplenoteFile, setSimplenoteFile] = useState<File | null>(null);
 	const [simplenotePreview, setSimplenotePreview] = useState<SimplenoteImportPreview | null>(
@@ -692,24 +669,27 @@ export function LocalDataSection() {
 		setBusy("simplenote");
 		try {
 			const notesById = new Map(aiTitleNotesRef.current.map((note) => [note.id, note]));
-			let applied = 0;
-			for (const suggestion of selected) {
-				const note = notesById.get(suggestion.noteId);
-				if (!note) continue;
-				const next = applyImportTitleSuggestion(note, suggestion.title);
-				const result = await backend.updateNote({
-					id: next.id,
-					name: next.name,
-					content: next.content,
-					richContent: next.richContent,
-					preferredEditorMode: next.preferredEditorMode,
-					parentId: next.parentId,
-					sortOrder: next.sortOrder,
-					tags: next.tags,
-					trackHeading: false,
-				});
-				if (result.note) applied++;
-			}
+			const applied = (
+				await Promise.all(
+					selected.map(async (suggestion) => {
+						const note = notesById.get(suggestion.noteId);
+						if (!note) return 0;
+						const next = applyImportTitleSuggestion(note, suggestion.title);
+						const result = await backend.updateNote({
+							id: next.id,
+							name: next.name,
+							content: next.content,
+							richContent: next.richContent,
+							preferredEditorMode: next.preferredEditorMode,
+							parentId: next.parentId,
+							sortOrder: next.sortOrder,
+							tags: next.tags,
+							trackHeading: false,
+						});
+						return result.note ? 1 : 0;
+					}),
+				)
+			).reduce((total, count) => total + count, 0);
 			await refreshWorkspace();
 			setNotice(`Applied ${applied} AI-generated titles.`);
 			setSimplenoteDialogOpen(false);

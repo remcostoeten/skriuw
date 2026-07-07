@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
@@ -12,6 +12,7 @@ import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { useOnboardingStore } from "@/features/onboarding/store";
 import type { WorkspaceNavItem } from "@/features/editor/components/editor-toolbar";
+import type { NoteVersion } from "@/types/notes";
 import { cn } from "@/shared/lib/utils";
 import { EditorWorkspace } from "./editor-workspace";
 import { SplitDropZone } from "./split-drop-zone";
@@ -108,7 +109,6 @@ export function NotesLayoutShell({
 		secondaryFile,
 		splitEnabled,
 		focusedEditorPane,
-		editorScrollPositions,
 		splitOrientation,
 		splitSecondaryFirst,
 		secondaryEditorMode,
@@ -184,6 +184,22 @@ export function NotesLayoutShell({
 			{ href: "/app/shared", label: "Shared", isActive: pathname === "/app/shared" },
 		],
 		[pathname],
+	);
+
+	const handleMobileViewVersion = useCallback(
+		(version: NoteVersion) => {
+			handleViewVersion(version);
+			closeMetadata();
+		},
+		[handleViewVersion, closeMetadata],
+	);
+
+	const handleMobileShareNote = useCallback(
+		(noteId: string) => {
+			handleOpenShare(noteId);
+			closeMetadata();
+		},
+		[handleOpenShare, closeMetadata],
 	);
 
 	// Local-first note swap: when moving to a note whose body isn't cached yet,
@@ -369,7 +385,6 @@ export function NotesLayoutShell({
 												focusedPane={focusedEditorPane}
 												editorMode={editorMode ?? "block"}
 												secondaryEditorMode={secondaryEditorMode}
-												scrollPositions={editorScrollPositions}
 												orientation={splitOrientation}
 												secondaryFirst={splitSecondaryFirst}
 												isMobile={isMobile}
@@ -624,14 +639,8 @@ export function NotesLayoutShell({
 											editorMode={focusedEditorMode ?? editorMode ?? "block"}
 											onToggleEditorMode={handleToggleEditorMode}
 											onFileSelect={sidebarPanelProps.actions.onFileSelect}
-											onViewVersion={(version) => {
-												handleViewVersion(version);
-												closeMetadata();
-											}}
-											onShare={(noteId) => {
-												handleOpenShare(noteId);
-												closeMetadata();
-											}}
+											onViewVersion={handleMobileViewVersion}
+											onShare={handleMobileShareNote}
 											onRequestClose={closeMetadata}
 											className="h-full w-full border-l-0"
 										/>
