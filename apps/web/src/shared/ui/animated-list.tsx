@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/no-pass-data-to-parent */
 
 import { AnimatePresence, m } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";

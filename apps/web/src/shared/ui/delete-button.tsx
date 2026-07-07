@@ -75,7 +75,6 @@ type DeleteButtonProps = {
 	successLabel?: string;
 	failedLabel?: string;
 	disabled?: boolean;
-	disabledTitle?: string;
 };
 
 export function DeleteButton({
@@ -86,7 +85,6 @@ export function DeleteButton({
 	successLabel = "Deleted",
 	failedLabel = "Retry delete",
 	disabled = false,
-	disabledTitle,
 }: DeleteButtonProps) {
 	const [status, setStatus] = useState<Status>("idle");
 
@@ -137,7 +135,6 @@ export function DeleteButton({
 				type="button"
 				onClick={handleClick}
 				disabled={disabled || busy || solid}
-				title={disabled ? disabledTitle : undefined}
 				className={cn(
 					"relative inline-flex h-10 items-center justify-center overflow-hidden rounded-md border text-sm font-medium transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",
 					(solid || busy) && "cursor-default",

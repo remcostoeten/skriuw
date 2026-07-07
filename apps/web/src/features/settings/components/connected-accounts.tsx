@@ -256,11 +256,6 @@ export function ConnectedAccounts() {
 									variant="outline"
 									size="sm"
 									disabled={isLoading || isPending || blockDisconnect}
-									title={
-										blockDisconnect
-											? "You can't remove your last sign-in method."
-											: undefined
-									}
 									onClick={() =>
 										linked &&
 										handleDisconnect({

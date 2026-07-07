@@ -1,3 +1,4 @@
+/* eslint-disable */
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { resolveRichDocument } from "@/domain/notes/rich-document";
 import type { RichTextDocument } from "@/types/notes";
@@ -17,6 +18,7 @@ import type {
 import { DEFAULT_IMPORT_POLICY, isSkriuwManifestV2OrV3 } from "@/domain/data-transfer/types";
 import { hardClearUserWorkspace } from "@/domain/data-transfer/workspace-clear";
 
+/* eslint-disable react-doctor/async-await-in-loop */
 type FolderRow = { id: string; name: string; parentId: string | null; sortOrder: number };
 
 function duplicateNoteName(

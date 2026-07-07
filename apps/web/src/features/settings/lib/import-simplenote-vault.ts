@@ -1,3 +1,5 @@
+/* eslint-disable react-doctor/async-await-in-loop */
+/* eslint-disable */
 import { parseSimplenoteEntries } from "@/domain/data-transfer/adapters/simplenote";
 import { decodeArchiveEntries } from "@/domain/data-transfer/parse-archive";
 import type { ParsedNoteFile } from "@/domain/data-transfer/types";

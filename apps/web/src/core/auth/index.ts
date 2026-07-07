@@ -38,7 +38,7 @@ type AuthPreferences = {
 	rememberMe: boolean;
 };
 
-const AUTH_PREFERENCES_STORAGE_NAME = "skriuw:auth:preferences:v1";
+const PREFERENCES_STORAGE_KEY = "skriuw:auth:preferences:v1";
 export const SIGNED_OUT_USER_SCOPE = "signed-out-local";
 
 let currentUser: AuthUser | null = null;
@@ -49,7 +49,7 @@ function readPreferences(): AuthPreferences {
 	}
 
 	try {
-		const raw = window.localStorage.getItem(AUTH_PREFERENCES_STORAGE_NAME);
+		const raw = window.localStorage.getItem(PREFERENCES_STORAGE_KEY);
 		if (!raw) return { rememberMe: true };
 		const parsed = JSON.parse(raw) as { rememberMe?: boolean };
 		return {
@@ -63,7 +63,7 @@ function readPreferences(): AuthPreferences {
 function persistPreferences(preferences: AuthPreferences): void {
 	if (typeof window === "undefined") return;
 	try {
-		window.localStorage.setItem(AUTH_PREFERENCES_STORAGE_NAME, JSON.stringify(preferences));
+		window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
 	} catch {
 		noop();
 	}
@@ -121,7 +121,7 @@ export function getRememberMePreference(): boolean {
 	return readPreferences().rememberMe;
 }
 
-export async function setRememberMe(rememberMe: boolean): Promise<AuthSnapshot> {
+async function setRememberMe(rememberMe: boolean): Promise<AuthSnapshot> {
 	persistPreferences({ rememberMe });
 	return createAuthSnapshot({ user: currentUser, rememberMe });
 }
@@ -142,6 +142,7 @@ function getPostOAuthPath(): string {
 	return next;
 }
 
+// react-doctor-disable-next-line unused-export -- used across auth flows and tests; keep the public helper.
 export function getOAuthRedirectTo(): string | undefined {
 	const origin = getBrowserAppOrigin();
 	if (!origin) return undefined;
@@ -149,6 +150,7 @@ export function getOAuthRedirectTo(): string | undefined {
 	return new URL(getPostOAuthPath(), origin).toString();
 }
 
+// react-doctor-disable-next-line unused-export, deslop/unused-export -- public auth entrypoint.
 export async function signInWithPassword(input: EmailAuthInput): Promise<AuthSnapshot> {
 	await setRememberMe(input.rememberMe);
 
@@ -167,6 +169,7 @@ export async function signInWithPassword(input: EmailAuthInput): Promise<AuthSna
 	return createAuthSnapshot({ user });
 }
 
+// react-doctor-disable-next-line unused-export, deslop/unused-export -- public auth entrypoint.
 export async function signUpWithPassword(input: EmailAuthInput): Promise<AuthSnapshot> {
 	await setRememberMe(input.rememberMe);
 
@@ -195,6 +198,7 @@ export async function signUpWithPassword(input: EmailAuthInput): Promise<AuthSna
 	return createAuthSnapshot({ user });
 }
 
+// react-doctor-disable-next-line unused-export -- public auth entrypoint.
 export async function signInWithOAuth(
 	provider: OAuthProvider,
 	options: { rememberMe: boolean },
@@ -229,7 +233,7 @@ export async function updateUserDisplayName(name: string): Promise<void> {
 	}
 }
 
-export const USERNAME_TAKEN_ERROR_CODE = "USERNAME_IS_ALREADY_TAKEN";
+const USERNAME_TAKEN_ERROR_CODE = "USERNAME_IS_ALREADY_TAKEN";
 
 export async function updateUsername(username: string): Promise<void> {
 	const { error } = await authClient.updateUser({ username });
@@ -273,13 +277,15 @@ export function getUserScopeId(): string {
 	return getUserScopeIdForUser(currentUser);
 }
 
+// react-doctor-disable-next-line unused-export -- used by workspace stores and tests.
 export function resolveUserScopeId(userScopeId?: string | null): string {
 	return userScopeId ?? getUserScopeId();
 }
 
+// react-doctor-disable-next-line unused-export, deslop/unused-export -- test-only helper.
 export function resetAuthForTests(): void {
 	currentUser = null;
 	if (typeof window !== "undefined") {
-		window.localStorage.removeItem(AUTH_PREFERENCES_STORAGE_NAME);
+		window.localStorage.removeItem(PREFERENCES_STORAGE_KEY);
 	}
 }

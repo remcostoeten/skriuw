@@ -4,10 +4,11 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
+import { ChevronRight, Contact, FileText, Hash, Info, Link2, ListTree } from "lucide-react";
+import type { ComponentType } from "react";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
-import { perf } from "@/shared/perf/track";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { useOnboardingStore } from "@/features/onboarding/store";
@@ -56,6 +57,62 @@ const WelcomeWalkthrough = dynamic(
 	{ ssr: false, loading: () => null },
 );
 
+const SHIMMER_STEP_MS = 70;
+
+function MetadataPlaceholderBar({
+	className,
+	style,
+	delay = 0,
+}: {
+	className?: string;
+	style?: React.CSSProperties;
+	delay?: number;
+}) {
+	return (
+		<div
+			className={cn("animate-skeleton-shimmer bg-foreground/[0.06]", className)}
+			style={{ animationDelay: `${delay}ms`, ...style }}
+		/>
+	);
+}
+
+function MetadataPlaceholderSection({
+	icon: Icon,
+	label,
+	children,
+}: {
+	icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+	label: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<section className="border-b border-border">
+			<div className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2">
+				<div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/45">
+					<Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+					<span className="truncate">{label}</span>
+				</div>
+				<ChevronRight
+					className="h-3.5 w-3.5 shrink-0 rotate-90 text-muted-foreground/30"
+					strokeWidth={1.5}
+				/>
+			</div>
+			<div className="px-4 pb-4">{children}</div>
+		</section>
+	);
+}
+
+function MetadataPlaceholderRow({ label, children }: { label: string; children: React.ReactNode }) {
+	return (
+		<div className="flex items-center gap-3 border-b border-border px-3 py-2.5">
+			<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/40">
+				{label}
+			</span>
+			{children}
+		</div>
+	);
+}
+
 function NotesMetadataPlaceholder({
 	isMobile = false,
 	className,
@@ -74,17 +131,105 @@ function NotesMetadataPlaceholder({
 				className,
 			)}
 		>
-			<div className="space-y-5 px-4 py-4" aria-hidden="true">
-				{Array.from({ length: 4 }).map((_, sectionIndex) => (
-					<div key={sectionIndex} className="space-y-2.5">
-						<div className="h-3 w-24 bg-muted" />
-						<div className="space-y-1.5">
-							<div className="h-2 w-full bg-muted/70" />
-							<div className="h-2 w-10/12 bg-muted/55" />
-							<div className="h-2 w-7/12 bg-muted/45" />
-						</div>
+			<div aria-hidden="true">
+				<MetadataPlaceholderSection icon={ListTree} label="Outline">
+					<div className="space-y-2.5">
+						{[
+							{ width: "72%", indent: 0 },
+							{ width: "54%", indent: 12 },
+							{ width: "64%", indent: 12 },
+							{ width: "46%", indent: 24 },
+						].map((row, index) => (
+							<div
+								key={`${row.width}-${row.indent}`}
+								className="flex items-center gap-2"
+							>
+								<span
+									className="h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/[0.08]"
+									style={{ marginLeft: row.indent }}
+								/>
+								<MetadataPlaceholderBar
+									className="h-2.5"
+									style={{ width: row.width }}
+									delay={index * SHIMMER_STEP_MS}
+								/>
+							</div>
+						))}
 					</div>
-				))}
+				</MetadataPlaceholderSection>
+
+				<MetadataPlaceholderRow label="Page Icon">
+					<MetadataPlaceholderBar className="h-6 w-6 rounded-md bg-foreground/[0.055]" />
+				</MetadataPlaceholderRow>
+
+				<MetadataPlaceholderRow label="Page Cover">
+					<MetadataPlaceholderBar
+						className="h-6 w-6 rounded-md bg-foreground/[0.055]"
+						delay={SHIMMER_STEP_MS}
+					/>
+				</MetadataPlaceholderRow>
+
+				<MetadataPlaceholderSection icon={Hash} label="Tags">
+					<div className="flex flex-wrap gap-2">
+						{["32%", "24%", "38%"].map((width, index) => (
+							<MetadataPlaceholderBar
+								key={width}
+								className="h-6 rounded-full bg-foreground/[0.055]"
+								style={{ width }}
+								delay={index * SHIMMER_STEP_MS}
+							/>
+						))}
+					</div>
+				</MetadataPlaceholderSection>
+
+				<MetadataPlaceholderSection icon={Contact} label="People">
+					<MetadataPlaceholderBar className="h-2.5 w-[64%] bg-foreground/[0.045]" />
+				</MetadataPlaceholderSection>
+
+				<MetadataPlaceholderSection icon={Link2} label="Links">
+					<div className="space-y-2">
+						{["86%", "68%", "74%"].map((width, index) => (
+							<div key={width} className="flex h-7 items-center gap-2">
+								<FileText
+									className="h-3.5 w-3.5 shrink-0 text-muted-foreground/24"
+									strokeWidth={1.5}
+								/>
+								<MetadataPlaceholderBar
+									className="h-2.5"
+									style={{ width }}
+									delay={index * SHIMMER_STEP_MS}
+								/>
+							</div>
+						))}
+					</div>
+				</MetadataPlaceholderSection>
+
+				<MetadataPlaceholderSection icon={Info} label="Details">
+					<div className="space-y-2.5">
+						{[
+							{ label: "28%", value: "18%" },
+							{ label: "34%", value: "26%" },
+							{ label: "22%", value: "38%" },
+							{ label: "30%", value: "32%" },
+						].map((row, index) => (
+							<div
+								key={`${row.label}-${row.value}`}
+								className="flex items-center justify-between gap-4"
+							>
+								<MetadataPlaceholderBar
+									className="h-2.5 bg-foreground/[0.045]"
+									style={{ width: row.label }}
+									delay={index * SHIMMER_STEP_MS}
+								/>
+								<MetadataPlaceholderBar
+									className="h-2.5 bg-foreground/[0.07]"
+									style={{ width: row.value }}
+									delay={index * SHIMMER_STEP_MS}
+								/>
+							</div>
+						))}
+					</div>
+				</MetadataPlaceholderSection>
 			</div>
 		</aside>
 	);
@@ -95,10 +240,12 @@ type NotesLayoutShellProps = {
 	initialUserScopeId?: string | null;
 };
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- shell intentionally coordinates the full notes workspace in one place.
 export function NotesLayoutShell({
 	initialActiveFileId = null,
 	initialUserScopeId = null,
 }: NotesLayoutShellProps = {}) {
+	// react-doctor-disable-next-line react-doctor/no-event-handler -- initial note/scope seeding is owned by the layout controller hook.
 	const layout = useNotesLayout({ initialActiveFileId, initialUserScopeId });
 	const pathname = usePathname();
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
@@ -220,11 +367,6 @@ export function NotesLayoutShell({
 	// Close the select→painted timer once the real body for the selected note is
 	// on screen (resolved, not a placeholder, no skeleton). No-op unless perf
 	// tracking is enabled, so it's free in production.
-	const paintedFileId =
-		!showContentSkeleton && activeFile?.id === layout.activeFileId ? activeFile?.id : null;
-	useEffect(() => {
-		if (paintedFileId) perf.openEnd(paintedFileId);
-	}, [paintedFileId]);
 
 	if (forceLoading) {
 		return <WorkspaceLoadingShell variant="notes" />;
@@ -357,7 +499,6 @@ export function NotesLayoutShell({
 														},
 													}
 										}
-										style={{ willChange: "transform, opacity" }}
 										className="flex min-h-0 flex-1 flex-col"
 									>
 										{sharingNoteId ? (
@@ -568,7 +709,6 @@ export function NotesLayoutShell({
 									dragDirectionLock
 									dragElastic={{ left: 0.14, right: 0.05 }}
 									onDragEnd={handleSidebarDragEnd}
-									style={{ willChange: "transform, opacity" }}
 									className="native-panel pointer-events-auto relative h-full w-[min(92vw,24rem)] max-w-full overflow-hidden border border-l-0 border-border touch-pan-y"
 								>
 									<div className="pointer-events-none absolute inset-y-0 right-1 z-10 flex items-center">
@@ -626,7 +766,6 @@ export function NotesLayoutShell({
 									dragElastic={{ top: 0.05, bottom: 0.16 }}
 									onPointerDownCapture={handleMetadataDragStart}
 									onDragEnd={handleMetadataDragEnd}
-									style={{ willChange: "transform, opacity" }}
 									className="native-panel pointer-events-auto mx-auto h-[min(74dvh,38rem)] w-full max-w-[36rem] overflow-hidden border border-border touch-pan-x"
 								>
 									{showContentSkeleton ? (

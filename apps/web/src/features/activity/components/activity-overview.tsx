@@ -58,7 +58,7 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 				</div>
 				<time
 					dateTime={entry.timestamp.toISOString()}
-					title={entry.timestamp.toLocaleString()}
+					aria-label={entry.timestamp.toLocaleString()}
 					className="shrink-0 text-xs tabular-nums text-muted-foreground"
 				>
 					{formatDistanceToNow(entry.timestamp, { addSuffix: true })}

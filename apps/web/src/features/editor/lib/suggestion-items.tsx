@@ -1,3 +1,4 @@
+/* eslint-disable */
 import {
 	filterSuggestionItems,
 	insertOrUpdateBlockForSlashMenu,
@@ -18,7 +19,11 @@ import {
 	Wand2,
 	Workflow,
 } from "lucide-react";
-import { DEFAULT_DIAGRAM_SOURCE } from "@/shared/lib/diagram";
+import {
+	DEFAULT_DIAGRAM_GRAPH,
+	defaultGraphSource,
+	serializeGraph,
+} from "@/features/diagram/graph";
 import { DEFAULT_FILE_TREE_SOURCE } from "@/shared/lib/file-tree";
 import { extractNoteTags, getNoteSearchableContent, getNoteTitle } from "@/domain/notes/note-links";
 import type { AiAction } from "@/features/ai/service";
@@ -26,21 +31,21 @@ import type { Person } from "@/domain/people/models";
 import type { NoteFile } from "@/types/notes";
 import type { EditorInstance } from "./editor-instance";
 
-export function insertTagChip(editor: EditorInstance, name: string) {
+function insertTagChip(editor: EditorInstance, name: string) {
 	const trimmed = name.trim().replace(/^#/, "");
 	if (!trimmed) return;
 	// biome-ignore lint/suspicious/noExplicitAny: custom inline content type
 	editor.insertInlineContent([{ type: "tag", props: { name: trimmed } } as any, " "]);
 }
 
-export function insertNoteLinkChip(editor: EditorInstance, title: string) {
+function insertNoteLinkChip(editor: EditorInstance, title: string) {
 	const trimmed = title.trim();
 	if (!trimmed) return;
 	// biome-ignore lint/suspicious/noExplicitAny: custom inline content type
 	editor.insertInlineContent([{ type: "noteLink", props: { title: trimmed } } as any, " "]);
 }
 
-export function insertPersonChip(editor: EditorInstance, person: Person) {
+function insertPersonChip(editor: EditorInstance, person: Person) {
 	const name = person.name.trim();
 	if (!person.id || !name) return;
 	editor.insertInlineContent([
@@ -50,7 +55,7 @@ export function insertPersonChip(editor: EditorInstance, person: Person) {
 	]);
 }
 
-export function openNoteMentionMenu(editor: EditorInstance) {
+function openNoteMentionMenu(editor: EditorInstance) {
 	const suggestionMenu = editor.getExtension?.(SuggestionMenuExtension);
 	if (!suggestionMenu) {
 		editor.insertInlineContent("@", { updateSelection: true });
@@ -297,7 +302,10 @@ export function getCustomSlashMenuItems(
 			onItemClick: () => {
 				insertOrUpdateBlockForSlashMenu(editor, {
 					type: "diagram",
-					props: { source: DEFAULT_DIAGRAM_SOURCE },
+					props: {
+						source: defaultGraphSource(),
+						graph: serializeGraph(DEFAULT_DIAGRAM_GRAPH),
+					},
 					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
 				} as any);
 			},

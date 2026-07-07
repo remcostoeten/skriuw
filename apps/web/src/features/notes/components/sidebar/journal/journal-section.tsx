@@ -73,7 +73,6 @@ export function JournalSection({
 				goToToday();
 			}}
 			className="flex h-6 items-center gap-1 px-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-			title="Go to today"
 		>
 			<CalendarDays className="h-3 w-3" strokeWidth={1.5} />
 			Today

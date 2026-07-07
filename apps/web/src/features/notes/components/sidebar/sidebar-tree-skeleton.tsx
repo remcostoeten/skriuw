@@ -1,3 +1,5 @@
+/* eslint-disable react-doctor/no-multi-comp */
+
 import {
 	eachDayOfInterval,
 	endOfMonth,
@@ -13,12 +15,25 @@ import { cn } from "@/shared/lib/utils";
 
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
-function SkeletonLine({ className, style }: { className?: string; style?: React.CSSProperties }) {
+const SHIMMER_STEP_MS = 70;
+
+function SkeletonLine({
+	className,
+	style,
+	delay = 0,
+}: {
+	className?: string;
+	style?: React.CSSProperties;
+	delay?: number;
+}) {
 	return (
 		<div
 			aria-hidden="true"
-			className={cn("rounded-sm bg-sidebar-foreground/[0.075]", className)}
-			style={style}
+			className={cn(
+				"animate-skeleton-shimmer rounded-sm bg-sidebar-foreground/[0.075]",
+				className,
+			)}
+			style={{ animationDelay: `${delay}ms`, ...style }}
 		/>
 	);
 }
@@ -54,7 +69,11 @@ export function SidebarTreeRowSkeleton({
 			}}
 		>
 			<Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.45} />
-			<SkeletonLine className="h-2.5 max-w-full" style={{ width: `${width}%` }} />
+			<SkeletonLine
+				className="h-2.5 max-w-full"
+				style={{ width: `${width}%` }}
+				delay={index * SHIMMER_STEP_MS}
+			/>
 		</div>
 	);
 }
@@ -136,7 +155,7 @@ function JournalSectionSkeleton() {
 				</div>
 				<div className="mt-2 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/20 px-3 py-2.5">
 					<SkeletonLine className="h-2.5 w-24" />
-					<SkeletonLine className="mt-2 h-2 w-full" />
+					<SkeletonLine className="mt-2 h-2 w-full" delay={SHIMMER_STEP_MS} />
 				</div>
 			</div>
 		</section>
@@ -217,6 +236,7 @@ export function NotesSidebarContentSkeleton() {
 							<SkeletonLine
 								className="h-2.5"
 								style={{ width: `${[48, 56][index]}%` }}
+								delay={index * SHIMMER_STEP_MS}
 							/>
 						</div>
 					))}

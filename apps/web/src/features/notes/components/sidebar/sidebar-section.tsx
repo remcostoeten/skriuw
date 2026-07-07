@@ -267,7 +267,7 @@ export function SidebarSection({
 																	onSelectColor(color.value);
 																	setShowMenu(false);
 																}}
-																title={color.name}
+																aria-label={color.name}
 																className={cn(
 																	"h-4 w-4 rounded-full transition-transform hover:scale-110",
 																	color.value,

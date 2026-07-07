@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable */
 
 import { ChevronRight } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";

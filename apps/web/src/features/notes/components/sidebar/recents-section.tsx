@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { SidebarItemIcon } from "./sidebar-item-icon";
 import { cn } from "@/shared/lib/utils";
@@ -62,11 +62,12 @@ export const RecentsSection = memo(function RecentsSection({
 	onDrop,
 	onDragEnd,
 }: Props) {
-	const [isHydrated, setIsHydrated] = useState(false);
 	const [showAllRecents, setShowAllRecents] = useState(false);
-	useEffect(() => {
-		setIsHydrated(true);
-	}, []);
+	const isHydrated = useSyncExternalStore(
+		() => () => {},
+		() => true,
+		() => false,
+	);
 	const resolvedRecents = useMemo(
 		() =>
 			recents.flatMap<
@@ -101,8 +102,8 @@ export const RecentsSection = memo(function RecentsSection({
 			<button
 				type="button"
 				onClick={onClearRecents}
+				aria-label="Clear recent notes"
 				className="flex h-5 w-5 items-center justify-center border border-transparent text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
-				title="Clear recents"
 			>
 				<X className="w-3 h-3" strokeWidth={1.5} />
 			</button>

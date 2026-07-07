@@ -39,7 +39,6 @@ export function DocumentOutline({ headings, onSelect }: Props) {
 						<button
 							type="button"
 							onClick={() => onSelect(heading)}
-							title={heading.text}
 							style={{ paddingLeft: `${indent + 8}px` }}
 							className={cn(
 								"group flex min-h-7 w-full min-w-0 cursor-pointer items-center rounded-md border border-transparent pr-2 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none",

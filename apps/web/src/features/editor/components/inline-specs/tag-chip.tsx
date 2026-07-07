@@ -43,9 +43,6 @@ export function TagChip({ name }: Props) {
 			contentEditable={false}
 			data-note-tag
 			aria-label={normalizedName ? `Open tag ${normalizedName}` : "Tag"}
-			title={
-				normalizedName ? `Open tag ${normalizedName} — Alt-click to filter in place` : "Tag"
-			}
 			className={cn(
 				"mx-[1px] inline-flex max-w-[16ch] cursor-pointer items-center gap-0.5 overflow-hidden rounded-[4px] border px-1.5 py-0 text-[0.82em] font-medium leading-[1.45] align-baseline transition-colors",
 				"border-border/80 bg-muted/60 text-foreground/82 hover:border-ring/70 hover:bg-muted hover:text-foreground",

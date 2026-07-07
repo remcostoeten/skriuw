@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/no-react19-deprecated-apis */
 
 import type { Variants } from "framer-motion";
 import { LazyMotion, domMin, m, useAnimation, useReducedMotion } from "framer-motion";
@@ -129,7 +130,7 @@ const FlaskConicalIcon = forwardRef<FlaskConicalIconHandle, FlaskConicalIconProp
 						<path d="M8.5 2h7" />
 						{BUBBLES.map((b, i) => (
 							<m.circle
-								key={i}
+								key={`${b.cx}-${b.cy}-${b.r}`}
 								cx={b.cx}
 								cy={b.cy}
 								r={b.r}

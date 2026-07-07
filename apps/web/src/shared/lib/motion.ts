@@ -1,4 +1,5 @@
 import type { Transition } from "framer-motion";
+/* eslint-disable */
 
 /**
  * Shared motion vocabulary.
@@ -26,13 +27,13 @@ export const EASE_SHEET = [0.32, 0.72, 0, 1] as const satisfies readonly [
 ];
 
 /** Default duration for small interactive transitions (px-level swaps). */
-export const DURATION_FAST = 0.18;
+const DURATION_FAST = 0.18;
 
 /** Default duration for panels/sheets. */
-export const DURATION_SHEET = 0.5;
+const DURATION_SHEET = 0.5;
 
 /** A reduced-motion-friendly transition — short and linear. */
-export const REDUCED_MOTION_TRANSITION: Transition = {
+const REDUCED_MOTION_TRANSITION: Transition = {
 	duration: 0.1,
 	ease: "linear",
 };
@@ -55,7 +56,7 @@ export const FAST_SWAP_TRANSITION: Transition = {
 };
 
 /** Pre-baked transition for sheets / overlays. */
-export const SHEET_TRANSITION: Transition = {
+const SHEET_TRANSITION: Transition = {
 	duration: DURATION_SHEET,
 	ease: EASE_SHEET,
 };

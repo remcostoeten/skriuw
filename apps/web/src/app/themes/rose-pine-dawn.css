@@ -4,7 +4,7 @@
 		--foreground: 248 22% 32%;
 		--card: 40 30% 98%;
 		--card-foreground: 248 22% 32%;
-		--popover: 35 20% 87%;
+		--popover: 40 25% 93%;
 		--popover-foreground: 248 22% 32%;
 		--primary: 2 55% 67%;
 		--primary-foreground: 0 0% 100%;
@@ -30,7 +30,7 @@
 		--input: 30 10% 82%;
 		--ring: 2 55% 67%;
 		--radius: 0.375rem;
-		--theme-bg-deep: 35 15% 86%;
+		--theme-bg-deep: 40 25% 93%;
 		--theme-bg-sidebar: 40 30% 98%;
 		--theme-bg-editor: 35 30% 95%;
 		--theme-bg-hover: 35 15% 87%;
@@ -75,8 +75,8 @@
 		--editor-link-hover: 197 50% 40%;
 		--editor-note-link: 155 20% 55%;
 		--editor-note-link-hover: 155 20% 50%;
-		--editor-selection: 35 15% 86%;
+		--editor-selection: 40 25% 93%;
 		--editor-shadow: 0 0% 0%;
-		--avatar-ink: 35 15% 86%;
+		--avatar-ink: 40 25% 93%;
 	}
 }

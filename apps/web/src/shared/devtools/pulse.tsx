@@ -1,37 +1,193 @@
-"use client";
-
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { noop } from "@/shared/lib/noop";
+// @ts-nocheck
+// Deliberately untyped devtools probe (excluded from tsconfig's normal type-check
+// scope); Next's build-time check doesn't honor that exclude, so opt out explicitly.
+import {
+	createContext,
+	memo,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 
 const PERFORMED_WORK = 0b1;
+const COMPONENT_TAGS = new Set([0, 1, 11, 14, 15]);
+const HOST_TAG = 5;
+const PROVIDER_TAG = 10;
+const MAX_LOGS = 400;
+const MAX_COMMITS = 30;
+const MAX_COMPONENTS = 400;
+const MAX_NODES_PER_COMMIT = 300;
+const MAX_OVERLAY_ENTRIES = 60;
+const MAX_CAUSES = 6;
 
-type Fiber = {
-	tag: number;
-	type: unknown;
-	flags: number;
-	stateNode: unknown;
-	actualDuration?: number;
-	child: Fiber | null;
-	sibling: Fiber | null;
-	return: Fiber | null;
-	alternate: Fiber | null;
-	memoizedProps: Record<string, unknown> | null;
-};
+function createStore() {
+	const components = new Map();
+	const logs = [];
+	const commits = [];
+	const listeners = new Set();
+	let snapshot = { components: [], logs: [], commits: [], mode: "probe" };
+	let scheduled = false;
+	let logId = 0;
+	let commitId = 0;
 
-function domFiber(el: Element): Fiber | null {
-	let node: Element | null = el;
+	function emit() {
+		if (scheduled) return;
+		scheduled = true;
+		requestAnimationFrame(() => {
+			scheduled = false;
+			snapshot = {
+				components: [...components.values()],
+				logs: logs.slice(-120),
+				commits: [...commits],
+				mode: snapshot.mode,
+			};
+			listeners.forEach((l) => l());
+		});
+	}
+
+	function evict() {
+		if (components.size <= MAX_COMPONENTS) return;
+		let oldest = null;
+		components.forEach((entry, key) => {
+			if (!oldest || entry.lastRender < components.get(oldest).lastRender) oldest = key;
+		});
+		if (oldest) components.delete(oldest);
+	}
+
+	return {
+		report(name, reason, selfTime, cause) {
+			const entry = components.get(name) ?? {
+				name,
+				renders: 0,
+				wasted: 0,
+				lastRender: 0,
+				selfTotal: 0,
+				timed: 0,
+				lastReason: "",
+				causes: {},
+			};
+			entry.renders += 1;
+			entry.lastRender = performance.now();
+			entry.lastReason = reason;
+			if (reason.includes("memo candidate")) entry.wasted += 1;
+			if (typeof selfTime === "number") {
+				entry.selfTotal += selfTime;
+				entry.timed += 1;
+			}
+			if (
+				cause &&
+				(entry.causes[cause] !== undefined || Object.keys(entry.causes).length < MAX_CAUSES)
+			) {
+				entry.causes[cause] = (entry.causes[cause] ?? 0) + 1;
+			}
+			components.set(name, entry);
+			evict();
+			logId += 1;
+			logs.push({ id: logId, time: new Date(), name, reason });
+			if (logs.length > MAX_LOGS) logs.splice(0, logs.length - MAX_LOGS);
+			emit();
+		},
+		commit(roots, total, truncated) {
+			commitId += 1;
+			commits.push({ id: commitId, time: new Date(), roots, total, truncated });
+			if (commits.length > MAX_COMMITS) commits.splice(0, commits.length - MAX_COMMITS);
+			emit();
+		},
+		log(name, reason) {
+			logId += 1;
+			logs.push({ id: logId, time: new Date(), name, reason });
+			if (logs.length > MAX_LOGS) logs.splice(0, logs.length - MAX_LOGS);
+			emit();
+		},
+		setMode(mode) {
+			if (snapshot.mode === mode) return;
+			snapshot = { ...snapshot, mode };
+			listeners.forEach((l) => l());
+		},
+		subscribe(l) {
+			listeners.add(l);
+			return () => listeners.delete(l);
+		},
+		getSnapshot() {
+			return snapshot;
+		},
+	};
+}
+
+const store = createStore();
+const HighlightContext = createContext(true);
+
+function format(value) {
+	if (typeof value === "function") return "ƒ";
+	if (typeof value === "object" && value !== null)
+		return Array.isArray(value) ? `[${value.length}]` : "{…}";
+	return JSON.stringify(value);
+}
+
+function diffProps(prev, next) {
+	if (!prev) return "first render";
+	if (!next) return "re-rendered";
+	const changed = [];
+	const keys = new Set([...Object.keys(prev), ...Object.keys(next)]);
+	keys.forEach((key) => {
+		if (key === "children") return;
+		if (!Object.is(prev[key], next[key])) {
+			const a = format(prev[key]);
+			const b = format(next[key]);
+			changed.push(
+				a === b ? `${key} changed by reference (unstable identity)` : `${key}: ${a} → ${b}`,
+			);
+		}
+	});
+	if (changed.length) return `props changed — ${changed.join(", ")}`;
+	if (prev !== next) return "parent re-rendered, props identical (memo candidate)";
+	return "hook state or context changed";
+}
+
+function fiberName(fiber) {
+	let type = fiber.type;
+	if (typeof type === "string") return type;
+	if (type?.type) type = type.type;
+	if (type?.render) type = type.render;
+	return type?.displayName || type?.name || null;
+}
+
+function providerName(fiber) {
+	const ctx = fiber.type?._context ?? fiber.type;
+	return ctx?.displayName || "Context";
+}
+
+function hostNode(fiber) {
+	let node = fiber;
+	let depth = 0;
+	while (node && depth < 40) {
+		if (node.tag === HOST_TAG && node.stateNode instanceof Element) return node.stateNode;
+		node = node.child;
+		depth += 1;
+	}
+	return null;
+}
+
+function domFiber(el) {
+	let node = el;
 	while (node) {
-		if (key) return (node as unknown as Record<string, Fiber>)[key];
+		const key = Object.keys(node).find((k) => k.startsWith("__reactFiber$"));
+		if (key) return node[key];
 		node = node.parentElement;
 	}
 	return null;
 }
 
-function ownerComponent(fiber: Fiber): { fiber: Fiber; name: string } | null {
-	let node: Fiber | null = fiber;
+function ownerComponent(fiber) {
+	let node = fiber;
 	let depth = 0;
 	while (node && depth < 60) {
 		if (COMPONENT_TAGS.has(node.tag)) {
+			const name = fiberName(node);
 			if (name) return { fiber: node, name };
 		}
 		node = node.return;
@@ -40,78 +196,204 @@ function ownerComponent(fiber: Fiber): { fiber: Fiber; name: string } | null {
 	return null;
 }
 
-async function sendPulseReport(_view: {
-	components: unknown[];
-	commits: unknown[];
-	logs: unknown[];
-}) {
-	try {
-		a.href = url;
-		a.download = "pulse-report.md";
-		document.body.appendChild(a);
-		a.click();
-		a.remove();
-		setTimeout(() => URL.revokeObjectURL(url), 1000);
-	} catch {
-		// download unavailable in this webview — clipboard fallback below still runs
-		noop();
-	}
-
-	try {
-		await navigator.clipboard?.writeText(markdown);
-		store.log("pulse", "report copied to clipboard + downloaded as pulse-report.md");
-	} catch {
-		store.log("pulse", "report downloaded as pulse-report.md (clipboard blocked)");
-	}
+function costColor(selfTime) {
+	if (typeof selfTime !== "number") return [232, 232, 232];
+	if (selfTime < 2) return [140, 140, 140];
+	if (selfTime < 8) return [217, 185, 140];
+	return [217, 140, 140];
 }
 
-let active = false;
+function createOverlay() {
+	let canvas = null;
+	let ctx = null;
+	let entries = [];
+	let hover = null;
+	let raf = 0;
+	let enabled = true;
 
-function setPulseActive(value: boolean) {
-	active = value;
-	if (!active) overlay.setEnabled(false);
-}
+	function ensure() {
+		if (canvas) return;
+		canvas = document.createElement("canvas");
+		canvas.setAttribute("data-devtool", "");
+		Object.assign(canvas.style, {
+			position: "fixed",
+			inset: "0",
+			width: "100vw",
+			height: "100vh",
+			pointerEvents: "none",
+			zIndex: "2147483646",
+		});
+		document.body.appendChild(canvas);
+		ctx = canvas.getContext("2d");
+		resize();
+		window.addEventListener("resize", resize);
+	}
 
-type TreeNode = { name: string; fiber: Fiber; children: TreeNode[] };
-type AggNode = {
-	name: string;
-	count: number;
-	reason: string;
-	selfTime: number | undefined;
-	children: AggNode[];
-};
+	function resize() {
+		const dpr = window.devicePixelRatio || 1;
+		canvas.width = window.innerWidth * dpr;
+		canvas.height = window.innerHeight * dpr;
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+	}
 
-const MAX_NODES_PER_COMMIT = 4000;
-const COMMIT_THROTTLE_MS = 200;
+	function label(rect, text, alpha, rgb) {
+		if (rect.width < 70 || rect.height < 18) return;
+		ctx.font = "10px Inter, system-ui, sans-serif";
+		const w = ctx.measureText(text).width + 10;
+		ctx.fillStyle = `rgba(${rgb}, ${alpha})`;
+		ctx.fillRect(rect.x, rect.y - 14, w, 14);
+		ctx.fillStyle = `rgba(20, 20, 22, ${Math.min(1, alpha + 0.2)})`;
+		ctx.fillText(text, rect.x + 5, rect.y - 4);
+	}
 
-function collectTree(
-	fiber: Fiber | null,
-	out: TreeNode[],
-	depth: number,
-	budget: { left: number },
-) {
-	if (!fiber || depth > 500 || budget.left <= 0) return;
-	if (COMPONENT_TAGS.has(fiber.tag) && fiber.flags & PERFORMED_WORK) {
-		if (name) {
-			if (DEVTOOL_NAMES.has(name)) {
-				collectTree(fiber.sibling, out, depth, budget);
-				return;
-			}
-			budget.left -= 1;
-			const node: TreeNode = { name, fiber, children: [] };
-			out.push(node);
-			collectTree(fiber.child, node.children, depth + 1, budget);
-			collectTree(fiber.sibling, out, depth + 1, budget);
-			return;
+	function draw() {
+		const now = performance.now();
+		ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+		entries = entries.filter((e) => now - e.start < 650);
+		entries.forEach((e) => {
+			const t = (now - e.start) / 650;
+			const ease = 1 - Math.pow(1 - t, 3);
+			const alpha = 0.9 * (1 - ease);
+			const rgb = e.rgb.join(",");
+			ctx.strokeStyle = `rgba(${rgb}, ${alpha})`;
+			ctx.fillStyle = `rgba(${rgb}, ${alpha * 0.06})`;
+			ctx.lineWidth = 1.5;
+			ctx.strokeRect(e.rect.x - 1, e.rect.y - 1, e.rect.width + 2, e.rect.height + 2);
+			ctx.fillRect(e.rect.x - 1, e.rect.y - 1, e.rect.width + 2, e.rect.height + 2);
+			label(
+				e.rect,
+				`${e.name} ×${e.count}${e.selfTime ? ` · ${e.selfTime.toFixed(1)}ms` : ""}`,
+				alpha,
+				rgb,
+			);
+		});
+		if (hover) {
+			ctx.strokeStyle = "rgba(232, 232, 232, 0.95)";
+			ctx.fillStyle = "rgba(232, 232, 232, 0.07)";
+			ctx.lineWidth = 1.5;
+			ctx.setLineDash([4, 4]);
+			ctx.strokeRect(
+				hover.rect.x - 1,
+				hover.rect.y - 1,
+				hover.rect.width + 2,
+				hover.rect.height + 2,
+			);
+			ctx.fillRect(
+				hover.rect.x - 1,
+				hover.rect.y - 1,
+				hover.rect.width + 2,
+				hover.rect.height + 2,
+			);
+			ctx.setLineDash([]);
+			label(hover.rect, hover.name, 0.95, "232,232,232");
 		}
+		raf = entries.length || hover ? requestAnimationFrame(draw) : 0;
+		if (!entries.length && !hover) ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 	}
-	collectTree(fiber.child, out, depth + 1, budget);
-	collectTree(fiber.sibling, out, depth + 1, budget);
+
+	function kick() {
+		if (!raf) raf = requestAnimationFrame(draw);
+	}
+
+	return {
+		flash(el, name, selfTime) {
+			if (!enabled) return;
+			ensure();
+			const rect = el.getBoundingClientRect();
+			if (!rect.width || !rect.height) return;
+			const existing = entries.find(
+				(e) =>
+					e.name === name &&
+					Math.abs(e.rect.x - rect.x) < 2 &&
+					Math.abs(e.rect.y - rect.y) < 2,
+			);
+			if (existing) {
+				existing.start = performance.now();
+				existing.count += 1;
+				existing.rect = rect;
+				existing.selfTime = selfTime;
+			} else {
+				if (entries.length >= MAX_OVERLAY_ENTRIES) entries.shift();
+				entries.push({
+					rect,
+					name,
+					start: performance.now(),
+					count: 1,
+					selfTime,
+					rgb: costColor(selfTime),
+				});
+			}
+			kick();
+		},
+		setHover(el, name) {
+			ensure();
+			hover = el ? { rect: el.getBoundingClientRect(), name } : null;
+			kick();
+		},
+		setEnabled(value) {
+			enabled = value;
+			if (!value) entries = [];
+		},
+		isEnabled() {
+			return enabled;
+		},
+	};
 }
 
-function aggregate(nodes: AggNode[]): AggNode[] {
-	const merged: AggNode[] = [];
+const overlay = createOverlay();
+
+function collectTree(rootFiber) {
+	const roots = [];
+	const stack = [{ fiber: rootFiber, out: roots, trigger: null }];
+	let count = 0;
+	let truncated = false;
+
+	while (stack.length) {
+		const { fiber, out, trigger } = stack.pop();
+		if (!fiber) continue;
+
+		stack.push({ fiber: fiber.sibling, out, trigger });
+
+		if (
+			fiber.tag === HOST_TAG &&
+			fiber.stateNode instanceof Element &&
+			fiber.stateNode.hasAttribute("data-devtool")
+		)
+			continue;
+
+		let nextTrigger = trigger;
+		if (
+			fiber.tag === PROVIDER_TAG &&
+			fiber.alternate &&
+			!Object.is(fiber.memoizedProps?.value, fiber.alternate.memoizedProps?.value)
+		) {
+			nextTrigger = `${providerName(fiber)} value changed`;
+		}
+
+		if (COMPONENT_TAGS.has(fiber.tag) && fiber.flags & PERFORMED_WORK) {
+			const name = fiberName(fiber);
+			if (name) {
+				count += 1;
+				if (count > MAX_NODES_PER_COMMIT) {
+					truncated = true;
+					continue;
+				}
+				const node = { name, fiber, trigger: nextTrigger, children: [] };
+				out.push(node);
+				stack.push({ fiber: fiber.child, out: node.children, trigger: nextTrigger });
+				continue;
+			}
+		}
+		stack.push({ fiber: fiber.child, out, trigger: nextTrigger });
+	}
+
+	return { roots, count, truncated };
+}
+
+function aggregate(nodes) {
+	const merged = [];
 	nodes.forEach((node) => {
+		const prev = merged.find((m) => m.name === node.name);
 		if (prev) {
 			prev.count += 1;
 			prev.children.push(...node.children);
@@ -121,7 +403,8 @@ function aggregate(nodes: AggNode[]): AggNode[] {
 			merged.push({
 				name: node.name,
 				count: 1,
-				reason: node.reason ?? "",
+				reason: node.reason,
+				trigger: node.trigger,
 				selfTime: node.selfTime,
 				children: [...node.children],
 			});
@@ -135,53 +418,72 @@ function aggregate(nodes: AggNode[]): AggNode[] {
 
 function installFiberAgent() {
 	if (typeof window === "undefined") return;
-	const hook = (window as unknown as Record<string, unknown>).__REACT_DEVTOOLS_GLOBAL_HOOK__ as
-		| { onCommitFiberRoot: (id: number, root: { current: Fiber }, ...rest: unknown[]) => void }
-		| undefined;
+	const existing = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
 
-	let lastCommitAt = 0;
-
-	function handleCommit(root: { current: Fiber }) {
-		if (!active) return;
-		const now = performance.now();
-		if (now - lastCommitAt < COMMIT_THROTTLE_MS) return;
-		lastCommitAt = now;
-
+	const handleCommit = (root) => {
 		store.setMode("fiber");
-		const roots: TreeNode[] = [];
-		collectTree(root.current, roots, 0, { left: MAX_NODES_PER_COMMIT });
+		const { roots, truncated } = collectTree(root.current);
+		const paint = overlay.isEnabled();
 		let total = 0;
 
-		if (total) store.commit(aggregate(kept as unknown as AggNode[]), total);
-	}
+		const visit = (node, origin) => {
+			const { fiber } = node;
+			total += 1;
+			node.reason = diffProps(fiber.alternate?.memoizedProps, fiber.memoizedProps);
+			node.selfTime =
+				typeof fiber.actualDuration === "number"
+					? Math.max(
+							0,
+							fiber.actualDuration -
+								node.children.reduce(
+									(sum, c) => sum + (c.fiber.actualDuration ?? 0),
+									0,
+								),
+						)
+					: undefined;
+			const cause = node.trigger ?? origin;
+			store.report(node.name, node.reason, node.selfTime, cause);
+			if (paint) {
+				const el = hostNode(fiber);
+				if (el) overlay.flash(el, node.name, node.selfTime);
+			}
+			const childOrigin = node.trigger ?? origin ?? `${node.name} state change`;
+			node.children.forEach((child) => visit(child, childOrigin));
+			delete node.fiber;
+		};
 
-	if (hook) {
-		const original = hook.onCommitFiberRoot;
-		hook.onCommitFiberRoot = (id, root, ...rest) => {
+		roots.forEach((node) => visit(node, null));
+		if (total) store.commit(aggregate(roots), total, truncated);
+	};
+
+	if (existing) {
+		const original = existing.onCommitFiberRoot;
+		existing.onCommitFiberRoot = (id, root, ...rest) => {
 			try {
 				handleCommit(root);
-			} catch {
-				// pulse must never break React's commit phase
+			} catch (e) {
+				void e;
 			}
-			return original?.call(hook, id, root, ...rest);
+			return original ? original.call(existing, id, root, ...rest) : undefined;
 		};
 		return;
 	}
 
+	const renderers = new Map();
 	let rendererId = 0;
-	(window as unknown as Record<string, unknown>).__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+	window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
 		renderers,
 		supportsFiber: true,
-		inject(_renderer: unknown) {
+		inject(renderer) {
 			rendererId += 1;
-			renderers.set(rendererId, _renderer);
+			renderers.set(rendererId, renderer);
 			return rendererId;
 		},
-		onCommitFiberRoot(_: number, root: { current: Fiber }) {
+		onCommitFiberRoot(_, root) {
 			try {
 				handleCommit(root);
-			} catch {
-				// pulse must never break React's commit phase
+			} catch (e) {
+				void e;
 			}
 		},
 		onCommitFiberUnmount() {},
@@ -192,17 +494,84 @@ function installFiberAgent() {
 
 installFiberAgent();
 
-function useFps(onDrop: (fps: number) => void) {
+function buildReport(snap, history) {
+	const avg = Math.round(history.reduce((a, b) => a + b, 0) / history.length);
+	const min = Math.min(...history);
+	const top = [...snap.components]
+		.sort((a, b) => b.wasted - a.wasted || b.renders - a.renders)
+		.slice(0, 20);
+
+	const componentLines = top.map((c) => {
+		const avgSelf = c.timed ? `${(c.selfTotal / c.timed).toFixed(1)}ms avg self` : "no timing";
+		const causes = Object.entries(c.causes)
+			.sort((a, b) => b[1] - a[1])
+			.slice(0, 3)
+			.map(([label, n]) => `${label} ×${n}`)
+			.join(", ");
+		return `- ${c.name}: ${c.renders} renders, ${c.wasted} wasted, ${avgSelf}${causes ? ` | triggered by: ${causes}` : ""}\n  last reason: ${c.lastReason}`;
+	});
+
+	const treeLines = [];
+	const renderTree = (nodes, depth) => {
+		nodes.forEach((n) => {
+			treeLines.push(
+				`${"  ".repeat(depth)}${depth ? "└ " : ""}${n.count > 1 ? `${n.count}× ` : ""}${n.name}${typeof n.selfTime === "number" ? ` (${n.selfTime.toFixed(1)}ms)` : ""}${n.reason?.includes("memo candidate") ? " [WASTED]" : ""}`,
+			);
+			renderTree(n.children, depth + 1);
+		});
+	};
+	snap.commits.slice(-8).forEach((commit) => {
+		treeLines.push(
+			`\nCommit at ${commit.time.toTimeString().slice(0, 8)} — ${commit.total} components rendered${commit.truncated ? " (truncated)" : ""}`,
+		);
+		renderTree(commit.roots, 0);
+	});
+
+	const longTasks = snap.logs
+		.filter((l) => l.name === "main thread" || l.name === "frame budget")
+		.slice(-10)
+		.map((l) => `- ${l.time.toTimeString().slice(0, 8)} ${l.reason}`);
+
+	return [
+		"# React performance telemetry (Pulse devtool)",
+		"",
+		"You are an expert React performance engineer. Below is runtime telemetry captured from a live React app: FPS statistics, per-component render counts with wasted-render detection (renders where props were referentially identical, meaning memoization would have skipped them), render cause attribution (which state owner or context provider triggered each render), commit cascade trees showing parent→child render propagation, and main-thread long tasks.",
+		"",
+		`## Frame rate`,
+		`Average ${avg}fps, minimum ${min}fps over the last ~22 seconds. Budget target: 60fps (16.7ms/frame).`,
+		"",
+		"## Components (sorted by wasted renders)",
+		...componentLines,
+		"",
+		"## Recent commit cascades",
+		...treeLines,
+		"",
+		"## Frame drops & long tasks",
+		...(longTasks.length ? longTasks : ["- none captured"]),
+		"",
+		"## Your task",
+		"1. Identify the components causing the most wasted work, using wasted counts, cascade trees, and self-times.",
+		"2. For each, name the root cause: unstable prop identity (inline callbacks/objects), missing memo boundary, over-broad context value, or state lifted too high.",
+		"3. Propose concrete fixes with code-level specificity: exactly where to add memo/useCallback/useMemo, how to split a context provider, or where React Compiler would resolve it automatically.",
+		"4. Rank the fixes by expected frame-time impact and state which metric in this report each fix should improve.",
+		"Do not suggest generic advice; tie every recommendation to a specific component and data point above.",
+	].join("\n");
+}
+
+function useFps(onDrop, enabled) {
 	const [fps, setFps] = useState(60);
+	const historyRef = useRef(new Array(90).fill(60));
 	const [, force] = useState(0);
 
 	useEffect(() => {
+		if (!enabled) return undefined;
+
 		let frames = 0;
 		let last = performance.now();
-		let raf: number;
+		let raf;
 		let dropping = false;
 
-		function loop(now: number) {
+		const loop = (now) => {
 			frames += 1;
 			if (now - last >= 250) {
 				const current = Math.min(144, Math.round((frames * 1000) / (now - last)));
@@ -219,10 +588,10 @@ function useFps(onDrop: (fps: number) => void) {
 				last = now;
 			}
 			raf = requestAnimationFrame(loop);
-		}
+		};
 		raf = requestAnimationFrame(loop);
 		return () => cancelAnimationFrame(raf);
-	}, [onDrop]);
+	}, [onDrop, enabled]);
 
 	return { fps, history: historyRef.current };
 }
@@ -241,123 +610,20 @@ function useLongTasks() {
 			});
 			observer.observe({ entryTypes: ["longtask"] });
 			return () => observer.disconnect();
-		} catch {
+		} catch (e) {
 			return undefined;
 		}
 	}, []);
 }
 
-function useFontAudit() {
-	const [fonts, setFonts] = useState<
-		{ family: string; size: string; weight: string; count: number }[]
-	>([]);
-
-	const scan = useCallback(() => {
-		const seen = new Map<
-			string,
-			{ family: string; size: string; weight: string; count: number }
-		>();
-		document.querySelectorAll("body *").forEach((el) => {
-			if (
-				!(el as HTMLElement).textContent?.trim() ||
-				(el as HTMLElement).closest("[data-devtool]")
-			)
-				return;
-			const cs = getComputedStyle(el);
-			const family = cs.fontFamily;
-			const key = `${family} · ${cs.fontSize} · ${cs.fontWeight}`;
-			if (!seen.has(key)) {
-				seen.set(key, {
-					family,
-					size: cs.fontSize,
-					weight: cs.fontWeight,
-					count: 0,
-				});
-			}
-			const entry = seen.get(key)!;
-			entry.count += 1;
-		});
-		setFonts(Array.from(seen.values()).sort((a, b) => b.count - a.count));
-	}, []);
-
-	useEffect(() => {
-		scan();
-	}, [scan]);
-
-	return { fonts, scan };
-}
-
-const COLOR_PROPS: [string, string][] = [
-	["color", "text"],
-	["backgroundColor", "bg"],
-	["borderTopColor", "border"],
-];
-
-function useColorAudit() {
-	const [colors, setColors] = useState<
-		{
-			key: string;
-			count: number;
-			kinds: Set<string>;
-			varName: string | null;
-			elements: Element[];
-		}[]
-	>([]);
-
-	const scan = useCallback(() => {
-		const cssVars = collectCssVars();
-		const seen = new Map<
-			string,
-			{
-				key: string;
-				count: number;
-				kinds: Set<string>;
-				varName: string | null;
-				elements: Element[];
-			}
-		>();
-		document.querySelectorAll("body *").forEach((el) => {
-			if ((el as HTMLElement).closest("[data-devtool]")) return;
-			const cs = getComputedStyle(el);
-			COLOR_PROPS.forEach(([prop, kind]) => {
-				if (kind === "text" && !(el as HTMLElement).textContent?.trim()) return;
-				if (kind === "border" && parseFloat(cs.borderTopWidth) === 0) return;
-				const raw = cs[prop as keyof CSSStyleDeclaration] as string;
-				if (!raw || raw === "transparent" || raw.includes("(0, 0, 0, 0)")) return;
-				const key = raw;
-				if (!key) return;
-				if (!seen.has(key)) {
-					seen.set(key, {
-						key,
-						count: 0,
-						kinds: new Set<string>(),
-						varName: cssVars.get(key) ?? null,
-						elements: [],
-					});
-				}
-				const entry = seen.get(key)!;
-				entry.count += 1;
-				entry.kinds.add(kind);
-				if (entry.elements.length < 400) entry.elements.push(el);
-			});
-		});
-		setColors(Array.from(seen.values()).sort((a, b) => b.count - a.count));
-	}, []);
-
-	useEffect(() => {
-		scan();
-		return () => overlay.setMarks([]);
-	}, [scan]);
-
-	return { colors, scan };
-}
-
 function useMeasuredHeight() {
+	const innerRef = useRef(null);
 	const [height, setHeight] = useState(120);
 
 	useEffect(() => {
 		const el = innerRef.current;
 		if (!el) return;
+		const observer = new ResizeObserver(() => setHeight(el.offsetHeight));
 		observer.observe(el);
 		setHeight(el.offsetHeight);
 		return () => observer.disconnect();
@@ -367,18 +633,17 @@ function useMeasuredHeight() {
 }
 
 function useDraggable() {
-	const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-	const dragRef = useRef<{ dx: number; dy: number; w: number; h: number; moved: boolean } | null>(
-		null,
-	);
+	const [pos, setPos] = useState(null);
+	const dragRef = useRef(null);
 
-	function onPointerDown(e: React.PointerEvent) {
-		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+	const onPointerDown = useCallback((e) => {
 		if (
-			(e.target as HTMLElement).closest("button, input, label") &&
-			!(e.currentTarget as HTMLElement).classList.contains("dt-pill")
+			e.target.closest("button, input, label") &&
+			!e.currentTarget.classList.contains("dt-pill")
 		)
 			return;
+		const panel = e.currentTarget.closest("[data-devtool]");
+		const rect = panel.getBoundingClientRect();
 		dragRef.current = {
 			dx: e.clientX - rect.x,
 			dy: e.clientY - rect.y,
@@ -387,55 +652,56 @@ function useDraggable() {
 			moved: false,
 		};
 
-		function move(ev: PointerEvent) {
-			const d = dragRef.current!;
+		const move = (ev) => {
+			const d = dragRef.current;
 			d.moved = true;
 			setPos({
 				x: Math.min(Math.max(8, ev.clientX - d.dx), window.innerWidth - d.w - 8),
 				y: Math.min(Math.max(8, ev.clientY - d.dy), window.innerHeight - d.h - 8),
 			});
-		}
-		function up() {
+		};
+		const up = () => {
 			window.removeEventListener("pointermove", move);
 			window.removeEventListener("pointerup", up);
-		}
+		};
 		window.addEventListener("pointermove", move);
 		window.addEventListener("pointerup", up);
-	}
+	}, []);
 
-	const didDrag = useRef(false);
+	const didDrag = useCallback(() => dragRef.current?.moved ?? false, []);
 
 	return { pos, onPointerDown, didDrag };
 }
 
-function useInspect(active: boolean, onPick: (name: string | null) => void) {
+function useInspect(active, onPick) {
 	useEffect(() => {
 		if (!active) {
 			overlay.setHover(null);
 			return;
 		}
-		function move(e: MouseEvent) {
-			if ((e.target as HTMLElement).closest("[data-devtool]")) {
+		const move = (e) => {
+			if (e.target.closest("[data-devtool]")) {
 				overlay.setHover(null);
 				return;
 			}
+			const owner = ownerComponent(domFiber(e.target));
 			if (owner) {
+				const el = hostNode(owner.fiber) ?? e.target;
 				overlay.setHover(el, owner.name);
 			} else {
 				overlay.setHover(null);
 			}
-		}
-		function click(e: MouseEvent) {
-			if ((e.target as HTMLElement).closest("[data-devtool]")) return;
+		};
+		const click = (e) => {
+			if (e.target.closest("[data-devtool]")) return;
 			e.preventDefault();
 			e.stopPropagation();
-			const fiber = domFiber(e.target as Element);
-			const owner = fiber ? ownerComponent(fiber) : null;
+			const owner = ownerComponent(domFiber(e.target));
 			if (owner) onPick(owner.name);
-		}
-		function key(e: KeyboardEvent) {
+		};
+		const key = (e) => {
 			if (e.key === "Escape") onPick(null);
-		}
+		};
 		document.addEventListener("mousemove", move, true);
 		document.addEventListener("click", click, true);
 		document.addEventListener("keydown", key, true);
@@ -448,7 +714,25 @@ function useInspect(active: boolean, onPick: (name: string | null) => void) {
 	}, [active, onPick]);
 }
 
-function FpsGraph({ history, fps }: { history: number[]; fps: number }) {
+function useHotkey(onToggle) {
+	useEffect(() => {
+		const handler = (e) => {
+			if (e.key !== "`") return;
+			const t = e.target;
+			if (
+				t instanceof HTMLElement &&
+				(t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
+			)
+				return;
+			e.preventDefault();
+			onToggle();
+		};
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [onToggle]);
+}
+
+const FpsGraph = memo(function FpsGraph({ history, fps }) {
 	const width = 264;
 	const height = 56;
 	const barWidth = width / history.length;
@@ -476,6 +760,7 @@ function FpsGraph({ history, fps }: { history: number[]; fps: number }) {
 					strokeWidth="1"
 				/>
 				{history.map((value, i) => {
+					const barHeight = Math.max(2, (value / 144) * height);
 					const fill = value >= 55 ? "#8c8c8c" : value >= 45 ? "#b8926a" : "#b86a6a";
 					return (
 						<rect
@@ -492,25 +777,9 @@ function FpsGraph({ history, fps }: { history: number[]; fps: number }) {
 			</svg>
 		</div>
 	);
-}
+});
 
-function ComponentRow({
-	entry,
-	now,
-	onSelect,
-}: {
-	entry: {
-		name: string;
-		lastRender: number;
-		timed: number;
-		selfTotal: number;
-		renders: number;
-		wasted: number;
-		lastReason: string;
-	};
-	now: number;
-	onSelect: (name: string) => void;
-}) {
+const ComponentRow = memo(function ComponentRow({ entry, now, onSelect }) {
 	const idleMs = now - entry.lastRender;
 	const stable = idleMs > 3000;
 	const avg = entry.timed ? entry.selfTotal / entry.timed : null;
@@ -532,23 +801,14 @@ function ComponentRow({
 			</div>
 		</button>
 	);
-}
+});
 
-function InspectCard({
-	entry,
-	onClear,
-}: {
-	entry: {
-		name: string;
-		renders: number;
-		wasted: number;
-		timed: number;
-		selfTotal: number;
-		lastReason: string;
-	};
-	onClear: () => void;
-}) {
+function InspectCard({ entry, onClear }) {
 	const avg = entry.timed ? entry.selfTotal / entry.timed : null;
+	const wasteShare = entry.renders ? Math.round((entry.wasted / entry.renders) * 100) : 0;
+	const causes = Object.entries(entry.causes)
+		.sort((a, b) => b[1] - a[1])
+		.slice(0, 3);
 	return (
 		<div className="dt-card" style={{ borderColor: "#454545" }}>
 			<div className="dt-row dt-between">
@@ -576,76 +836,51 @@ function InspectCard({
 					<div className="dt-stat-label">avg self time</div>
 				</div>
 			</div>
+			{causes.length > 0 && (
+				<div className="dt-causes">
+					{causes.map(([label, n]) => (
+						<span key={label} className="dt-badge dt-nums">
+							{label} ×{n}
+						</span>
+					))}
+				</div>
+			)}
 			<p className="dt-card-copy">Last reason: {entry.lastReason || "—"}</p>
 		</div>
 	);
 }
 
-const MAX_TREE_DEPTH = 6;
-
-function CommitTree({
-	nodes,
-	depth,
-}: {
-	nodes: {
-		name: string;
-		count: number;
-		reason?: string;
-		selfTime?: number;
-		children: unknown[];
-	}[];
-	depth: number;
-}) {
-	if (depth > MAX_TREE_DEPTH) return null;
-	const hidden = nodes.length - shown.length;
-	return (
-		<>
-			{shown.map((node, i) => (
-				<div key={`${node.name}${i}`} style={{ paddingLeft: depth * 14 }}>
-					<div className="dt-tree-row">
-						<span className="dt-tree-guide">{depth > 0 ? "└" : ""}</span>
-						<span style={{ color: "#e5e5e5" }}>
-							{node.count > 1 ? `${node.count}× ` : ""}
-							{node.name}
-						</span>
-						{typeof node.selfTime === "number" && (
-							<span className="dt-dim dt-nums" style={{ fontSize: 11 }}>
-								{node.selfTime.toFixed(1)}ms
-							</span>
-						)}
-						{node.reason?.includes("memo candidate") && (
-							<span className="dt-badge dt-badge-warn">wasted</span>
-						)}
-					</div>
-					{node.reason && depth === 0 && (
-						<div className="dt-tree-reason">{node.reason}</div>
-					)}
-					<CommitTree
-						nodes={
-							node.children as {
-								name: string;
-								count: number;
-								reason?: string;
-								selfTime?: number;
-								children: unknown[];
-							}[]
-						}
-						depth={depth + 1}
-					/>
-				</div>
-			))}
-			{hidden > 0 && (
-				<div className="dt-tree-reason" style={{ paddingLeft: depth * 14 }}>
-					+{hidden} more
-				</div>
+const CommitTree = memo(function CommitTree({ nodes, depth }) {
+	if (depth > 8) return <div className="dt-tree-reason">… deeper levels hidden</div>;
+	return nodes.slice(0, 15).map((node, i) => (
+		<div key={`${node.name}${i}`} style={{ paddingLeft: depth * 14 }}>
+			<div className="dt-tree-row">
+				<span className="dt-tree-guide">{depth > 0 ? "└" : ""}</span>
+				<span style={{ color: "#e5e5e5" }}>
+					{node.count > 1 ? `${node.count}× ` : ""}
+					{node.name}
+				</span>
+				{typeof node.selfTime === "number" && (
+					<span className="dt-dim dt-nums" style={{ fontSize: 11 }}>
+						{node.selfTime.toFixed(1)}ms
+					</span>
+				)}
+				{node.reason?.includes("memo candidate") && (
+					<span className="dt-badge dt-badge-warn">wasted</span>
+				)}
+			</div>
+			{depth === 0 && (node.trigger || node.reason) && (
+				<div className="dt-tree-reason">{node.trigger ?? node.reason}</div>
 			)}
-		</>
-	);
-}
+			<CommitTree nodes={node.children} depth={depth + 1} />
+		</div>
+	));
+});
 
-function LogRow({ log }: { log: { time: Date; name: string; reason: string } }) {
+const LogRow = memo(function LogRow({ log }) {
+	const t = log.time.toTimeString().slice(0, 8);
 	return (
-		<div className="dt-log-row dt-log-enter">
+		<div className="dt-log-row">
 			<span className="dt-nums" style={{ color: "#525252" }}>
 				{t}
 			</span>
@@ -654,174 +889,42 @@ function LogRow({ log }: { log: { time: Date; name: string; reason: string } }) 
 			<span style={{ color: "#a3a3a3" }}> · {log.reason}</span>
 		</div>
 	);
-}
-
-function ColorsPanel({
-	colors,
-	scan,
-}: {
-	colors: {
-		key: string;
-		count: number;
-		kinds: Set<string>;
-		varName: string | null;
-		elements: Element[];
-	}[];
-	scan: () => void;
-}) {
-	const [selected, setSelected] = useState<string | null>(null);
-
-	useEffect(() => () => overlay.setMarks([]), []);
-
-	return (
-		<div className="dt-stack">
-			<div className="dt-row dt-between">
-				<span className="dt-section-title">
-					Colors: {colors.length}
-					{offCount > 0 && (
-						<span className="dt-badge dt-badge-warn" style={{ marginLeft: 8 }}>
-							{offCount} without variable
-						</span>
-					)}
-				</span>
-				<button
-					onClick={() => {
-						setSelected(null);
-						overlay.setMarks([]);
-						scan();
-					}}
-					className="dt-btn dt-btn-sm dt-press"
-				>
-					Rescan
-				</button>
-			</div>
-			<p className="dt-hint">
-				Click a swatch to outline every element using that color on the page. Colors with no
-				matching CSS variable and low usage are the usual off-color suspects.
-			</p>
-			<div className="dt-color-grid">
-				{colors.map((entry) => (
-					<button
-						key={entry.key}
-						onClick={() => pick(entry)}
-						className={
-							selected === entry.key
-								? "dt-swatch dt-press dt-swatch-active"
-								: "dt-swatch dt-press"
-						}
-					>
-						<span className="dt-swatch-chip" style={{ background: entry.key }} />
-						<span className="dt-swatch-hex dt-nums">{entry.key}</span>
-						<span className="dt-swatch-var">{entry.varName ?? "no variable"}</span>
-						<span className="dt-row dt-between" style={{ width: "100%" }}>
-							<span className="dt-dim dt-nums" style={{ fontSize: 10 }}>
-								{[...entry.kinds].join(" · ")}
-							</span>
-							<span
-								className={
-									entry.varName || entry.count > 3
-										? "dt-badge dt-nums"
-										: "dt-badge dt-badge-warn dt-nums"
-								}
-							>
-								×{entry.count}
-							</span>
-						</span>
-					</button>
-				))}
-			</div>
-		</div>
-	);
-}
-
-function FontsPanel({
-	fonts,
-	scan,
-}: {
-	fonts: { family: string; size: string; weight: string; count: number }[];
-	scan: () => void;
-}) {
-	return (
-		<div className="dt-stack">
-			<div className="dt-row dt-between">
-				<span className="dt-section-title">Fonts: {fonts.length}</span>
-				<button onClick={scan} className="dt-btn dt-btn-sm dt-press">
-					Rescan
-				</button>
-			</div>
-			<div className="dt-font-grid">
-				{fonts.map((f) => (
-					<div
-						key={`${f.family}${f.size}${f.weight}`}
-						className="dt-card"
-						style={{ padding: 12 }}
-					>
-						<div
-							className="dt-font-sample"
-							style={{ fontFamily: f.family, fontWeight: f.weight }}
-						>
-							Aa Bb 0123
-						</div>
-						<div className="dt-font-family">{f.family}</div>
-						<div className="dt-dim dt-nums" style={{ fontSize: 11 }}>
-							{f.size} / {f.weight} · {f.count} el
-						</div>
-					</div>
-				))}
-			</div>
-		</div>
-	);
-}
+});
 
 const TABS = [
 	["fps", "Frames"],
 	["renders", "Renders"],
 	["log", "Log"],
-	["colors", "Colors"],
-	["fonts", "Fonts"],
-] as const;
+];
 
-export function Pulse({
-	highlight,
-	setHighlight,
-}: {
-	highlight: boolean;
-	setHighlight: (v: boolean) => void;
-}) {
+function Devtool({ highlight, setHighlight, trackFps, setTrackFps }) {
 	const [tab, setTab] = useState("fps");
-	const [collapsed, setCollapsed] = useState(false);
+	const [collapsed, setCollapsed] = useState(true);
 	const [inspecting, setInspecting] = useState(false);
-	const [pinned, setPinned] = useState<string | null>(null);
+	const [pinned, setPinned] = useState(null);
 	const [filter, setFilter] = useState("");
 	const [paused, setPaused] = useState(false);
 	const [logView, setLogView] = useState("commits");
 	const [sortBy, setSortBy] = useState("recent");
+	const [exported, setExported] = useState(null);
+	const frozenRef = useRef(null);
 
-	const [now] = useState(() => performance.now());
-	const { fonts, scan } = useFontAudit();
-	const { colors, scan: scanColors } = useColorAudit();
+	const snap = useSyncExternalStore(store.subscribe, store.getSnapshot);
+	const [now, setNow] = useState(() => performance.now());
 	const { pos, onPointerDown, didDrag } = useDraggable();
 
-	useEffect(() => {
-		setPulseActive(true);
-		return () => setPulseActive(false);
-	}, []);
-
-	useEffect(() => {
-		if (tab !== "colors") overlay.setMarks([]);
-	}, [tab]);
-
-	const onDrop = useCallback((value: number) => {
+	const onDrop = useCallback((value) => {
 		store.log(
 			"frame budget",
 			`fps dropped to ${value} — check the render log around this timestamp`,
 		);
 	}, []);
 
-	const { fps, history } = useFps(onDrop);
+	const { fps, history } = useFps(onDrop, trackFps);
 	useLongTasks();
+	useHotkey(useCallback(() => setCollapsed((v) => !v), []));
 
-	const onPick = useCallback((name: string | null) => {
+	const onPick = useCallback((name) => {
 		setInspecting(false);
 		if (name) {
 			setPinned(name);
@@ -838,48 +941,61 @@ export function Pulse({
 	}, [highlight]);
 
 	useEffect(() => {
-		function key(e: KeyboardEvent) {
-			if (e.key !== "`") return;
-			const t = e.target as HTMLElement;
-			if (t.closest?.("input, textarea, select") || t.isContentEditable) return;
-			e.preventDefault();
-			setCollapsed((v) => !v);
-		}
-		window.addEventListener("keydown", key);
-		return () => window.removeEventListener("keydown", key);
-	}, []);
-
-	useEffect(() => {
+		if (collapsed) return;
+		const id = setInterval(() => setNow(performance.now()), 1000);
 		return () => clearInterval(id);
-	}, []);
+	}, [collapsed]);
+
+	const exportReport = useCallback(
+		(kind) => {
+			const report = buildReport(store.getSnapshot(), history);
+			if (kind === "copy") {
+				navigator.clipboard?.writeText(report).catch(() => {});
+			} else {
+				const blob = new Blob([report], { type: "text/markdown" });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = `pulse-report-${Date.now()}.md`;
+				a.click();
+				URL.revokeObjectURL(url);
+			}
+			setExported(kind);
+			setTimeout(() => setExported(null), 1500);
+		},
+		[history],
+	);
+
+	const view = paused ? (frozenRef.current ?? snap) : snap;
+
+	const sorted = useMemo(() => {
+		const list = view.components.filter(
+			(c) => !filter || c.name.toLowerCase().includes(filter.toLowerCase()),
+		);
+		const s =
+			sortBy === "wasted"
+				? list.sort((a, b) => b.wasted - a.wasted || b.renders - a.renders)
+				: list.sort((a, b) => b.lastRender - a.lastRender);
+		return s.slice(0, 40);
+	}, [view.components, filter, sortBy]);
 
 	const logs = useMemo(
 		() =>
-			(view.logs as { id: number; time: Date; name: string; reason: string }[])
-				.slice()
+			[...view.logs]
 				.reverse()
-				.filter((l) => !filter || l.name.toLowerCase().includes(filter.toLowerCase())),
-		[view.logs, filter],
+				.filter((l) => !filter || l.name.toLowerCase().includes(filter.toLowerCase()))
+				.slice(0, 60),
+		[view.logs, filter, sortBy],
 	);
-	const pinnedEntry = pinned
-		? (
-				view.components as {
-					name: string;
-					renders: number;
-					wasted: number;
-					timed: number;
-					selfTotal: number;
-					lastReason: string;
-				}[]
-			).find((c) => c.name === pinned)
-		: null;
+	const commits = useMemo(() => [...view.commits].reverse().slice(0, 12), [view.commits]);
+	const pinnedEntry = pinned ? view.components.find((c) => c.name === pinned) : null;
 
 	const { innerRef, height } = useMeasuredHeight();
+	const cap = Math.max(160, (typeof window === "undefined" ? 640 : window.innerHeight) - 160);
+	const bodyHeight = Math.min(height, cap);
 	const capped = height > cap;
 
-	const posStyle = pos
-		? { left: pos.x, top: pos.y, right: "auto" as const, bottom: "auto" as const }
-		: {};
+	const posStyle = pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : {};
 
 	if (collapsed) {
 		return (
@@ -893,29 +1009,43 @@ export function Pulse({
 				}}
 			>
 				<span className="dt-logo" style={{ width: 10, height: 10 }} />
-				<span className="dt-nums" style={{ color: fps >= 55 ? "#e5e5e5" : "#d98c8c" }}>
-					{fps}
-				</span>
-				<span className="dt-dim" style={{ fontSize: 10 }}>
-					fps
-				</span>
+				{trackFps ? (
+					<>
+						<span
+							className="dt-nums"
+							style={{ color: fps >= 55 ? "#e5e5e5" : "#d98c8c" }}
+						>
+							{fps}
+						</span>
+						<span className="dt-dim" style={{ fontSize: 10 }}>
+							fps
+						</span>
+					</>
+				) : (
+					<span className="dt-dim" style={{ fontSize: 10 }}>
+						pulse
+					</span>
+				)}
 			</button>
 		);
 	}
 
 	return (
 		<aside data-devtool className="dt-panel" style={posStyle}>
+			<style>{STYLES}</style>
 			<header className="dt-header" onPointerDown={onPointerDown}>
 				<div className="dt-row" style={{ gap: 10 }}>
 					<span className="dt-logo" />
 					<span className="dt-title">Pulse</span>
-					<span
-						className={
-							fps >= 55 ? "dt-badge dt-nums" : "dt-badge dt-badge-drop dt-nums"
-						}
-					>
-						{fps} fps
-					</span>
+					{trackFps && (
+						<span
+							className={
+								fps >= 55 ? "dt-badge dt-nums" : "dt-badge dt-badge-drop dt-nums"
+							}
+						>
+							{fps} fps
+						</span>
+					)}
 					<span
 						className="dt-badge"
 						title={
@@ -983,6 +1113,14 @@ export function Pulse({
 				<label className="dt-toggle" style={{ marginLeft: "auto" }}>
 					<input
 						type="checkbox"
+						checked={trackFps}
+						onChange={(e) => setTrackFps(e.target.checked)}
+					/>
+					fps
+				</label>
+				<label className="dt-toggle">
+					<input
+						type="checkbox"
 						checked={highlight}
 						onChange={(e) => setHighlight(e.target.checked)}
 					/>
@@ -1019,7 +1157,7 @@ export function Pulse({
 				style={{ height: bodyHeight, overflowY: capped ? "auto" : "hidden" }}
 			>
 				<div ref={innerRef} className="dt-body-inner">
-					{tab === "fps" && (
+					{tab === "fps" && trackFps && (
 						<div className="dt-stack">
 							<FpsGraph history={history} fps={fps} />
 							<p className="dt-hint">
@@ -1027,6 +1165,11 @@ export function Pulse({
 								render cost: gray under 2ms, amber under 8ms, red above.
 							</p>
 						</div>
+					)}
+					{tab === "fps" && !trackFps && (
+						<p className="dt-hint">
+							FPS tracking is off. Enable the "fps" checkbox above to resume.
+						</p>
 					)}
 					{tab === "renders" && (
 						<div className="dt-stack" style={{ gap: 8 }}>
@@ -1064,7 +1207,7 @@ export function Pulse({
 									key={entry.name}
 									entry={entry}
 									now={now}
-									onSelect={(name) => setPinned(name)}
+									onSelect={setPinned}
 								/>
 							))}
 							{!sorted.length && (
@@ -1076,66 +1219,24 @@ export function Pulse({
 					)}
 					{tab === "log" && (
 						<div className="dt-stack" style={{ gap: 8 }}>
-							<div className="dt-row dt-between">
-								<div className="dt-row" style={{ gap: 4 }}>
-									{["commits", "raw"].map((v) => (
-										<button
-											key={v}
-											onClick={() => setLogView(v)}
-											className={
-												logView === v
-													? "dt-chip dt-chip-active dt-press"
-													: "dt-chip dt-press"
-											}
-										>
-											{v}
-										</button>
-									))}
-								</div>
-								<div className="dt-row" style={{ gap: 4 }}>
+							<div className="dt-row" style={{ gap: 4 }}>
+								{["commits", "raw"].map((v) => (
 									<button
-										className="dt-chip dt-press"
-										title="Write an AI-agent-readable report to .pulse/report.md"
-										onClick={() => sendPulseReport(view)}
+										key={v}
+										onClick={() => setLogView(v)}
+										className={
+											logView === v
+												? "dt-chip dt-chip-active dt-press"
+												: "dt-chip dt-press"
+										}
 									>
-										report
+										{v}
 									</button>
-									<button
-										className="dt-chip dt-press"
-										title="Copy session as JSON"
-										onClick={() => {
-											navigator.clipboard?.writeText(
-												JSON.stringify(
-													{
-														exportedAt: new Date().toISOString(),
-														components: view.components,
-														commits: view.commits,
-														logs: view.logs,
-													},
-													null,
-													2,
-												),
-											);
-											store.log(
-												"pulse",
-												"session copied to clipboard as JSON",
-											);
-										}}
-									>
-										export
-									</button>
-								</div>
+								))}
 							</div>
 							{logView === "commits" &&
-								(
-									commits as {
-										id: number;
-										time: Date;
-										total: number;
-										roots: unknown[];
-									}[]
-								).map((commit) => (
-									<div key={commit.id} className="dt-commit dt-log-enter">
+								commits.map((commit) => (
+									<div key={commit.id} className="dt-commit">
 										<div
 											className="dt-row dt-between"
 											style={{ marginBottom: 6 }}
@@ -1151,20 +1252,10 @@ export function Pulse({
 												style={{ fontSize: 11 }}
 											>
 												{commit.total} rendered
+												{commit.truncated ? " · truncated" : ""}
 											</span>
 										</div>
-										<CommitTree
-											nodes={
-												commit.roots as {
-													name: string;
-													count: number;
-													reason?: string;
-													selfTime?: number;
-													children: unknown[];
-												}[]
-											}
-											depth={0}
-										/>
+										<CommitTree nodes={commit.roots} depth={0} />
 									</div>
 								))}
 							{logView === "commits" && !commits.length && (
@@ -1175,40 +1266,39 @@ export function Pulse({
 								</p>
 							)}
 							{logView === "raw" &&
-								(
-									logs as {
-										id: number;
-										name: string;
-										time: Date;
-										reason: string;
-									}[]
-								).map((log) => <LogRow key={log.id} log={log} />)}
+								logs.map((log) => <LogRow key={log.id} log={log} />)}
 							{logView === "raw" && !logs.length && (
 								<p className="dt-hint">No render events yet.</p>
 							)}
 						</div>
 					)}
-					{tab === "colors" && <ColorsPanel colors={colors} scan={scanColors} />}
-					{tab === "fonts" && <FontsPanel fonts={fonts} scan={scan} />}
 				</div>
 			</div>
+
+			<footer className="dt-footer">
+				<span className="dt-dim" style={{ fontSize: 10 }}>
+					` to toggle
+				</span>
+				<div className="dt-row" style={{ gap: 6 }}>
+					<button
+						className="dt-btn dt-btn-sm dt-press"
+						onClick={() => exportReport("copy")}
+					>
+						{exported === "copy" ? "Copied" : "Copy for LLM"}
+					</button>
+					<button
+						className="dt-btn dt-btn-sm dt-press"
+						onClick={() => exportReport("download")}
+					>
+						{exported === "download" ? "Saved" : "Download"}
+					</button>
+				</div>
+			</footer>
 		</aside>
 	);
 }
 
-export function PulseMount() {
-	const [highlight, setHighlight] = useState(false);
-
-	return <Pulse highlight={highlight} setHighlight={setHighlight} />;
-}
-
 const STYLES = `
-  .dt-root { --surface: #171717; --line: #2a2a2a; --ink: #e5e5e5; --muted: #8a8a8a; min-height: 100vh; background: #141416; color: var(--ink); padding: 24px; font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
-  .dt-root *, .dt-root *::before, .dt-root *::after { box-sizing: border-box; }
-  .dt-root button { font: inherit; color: inherit; cursor: pointer; }
-  .dt-root p { margin: 0; }
-  .dt-root input { font: inherit; }
-
   .dt-row { display: flex; align-items: center; }
   .dt-between { justify-content: space-between; }
   .dt-baseline { justify-content: space-between; align-items: baseline; }
@@ -1217,39 +1307,39 @@ const STYLES = `
   .dt-dim { color: #737373; }
   .dt-xs { font-size: 12px; }
 
-  .dt-card { background: var(--surface); border: 1px solid var(--line); border-radius: 0; padding: 16px; }
-  .dt-card-title { font-size: 14px; color: var(--ink); }
-  .dt-card-copy { margin-top: 4px; font-size: 12px; line-height: 1.55; color: var(--muted); }
+  .dt-card { background: #171717; border: 1px solid #2a2a2a; padding: 16px; }
+  .dt-card-title { font-size: 14px; color: #e5e5e5; }
+  .dt-card-copy { margin-top: 4px; font-size: 12px; line-height: 1.55; color: #8a8a8a; }
 
-  .dt-btn { display: block; width: 100%; background: #262626; border: 1px solid #3d3d3d; border-radius: 0; padding: 7px 12px; font-size: 12px; color: #e5e5e5; }
+  .dt-btn { display: block; width: 100%; background: #262626; border: 1px solid #3d3d3d; padding: 7px 12px; font-size: 12px; color: #e5e5e5; }
   .dt-btn:hover { background: #2e2e2e; }
   .dt-btn-sm { width: auto; padding: 5px 10px; }
   .dt-btn-active { background: #3a2f26; border-color: #5a4a38; color: #d9b98c; }
 
-  .dt-icon-btn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: transparent; border: 1px solid transparent; border-radius: 0; color: #737373; }
+  .dt-icon-btn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: transparent; border: 1px solid transparent; color: #737373; }
   .dt-icon-btn:hover { color: #d4d4d4; background: #262626; }
   .dt-icon-active { color: #f5f5f5; background: #2e2e2e; border-color: #454545; }
 
-  .dt-chip { background: transparent; border: none; border-radius: 0; padding: 3px 8px; font-size: 11px; color: #737373; }
+  .dt-chip { background: transparent; border: none; padding: 3px 8px; font-size: 11px; color: #737373; }
   .dt-chip:hover { color: #d4d4d4; }
   .dt-chip-active { background: #2e2e2e; color: #f5f5f5; }
 
-  .dt-panel { position: fixed; bottom: 16px; right: 16px; width: 340px; display: flex; flex-direction: column; overflow: hidden; background: #1e1e20; border: 1px solid #2e2e2e; border-radius: 0; box-shadow: 0 24px 60px rgba(0,0,0,0.55); font-family: Inter, ui-sans-serif, system-ui, sans-serif; z-index: 2147483647; }
-  .dt-pill { position: fixed; bottom: 16px; right: 16px; display: flex; align-items: center; gap: 6px; padding: 7px 12px; background: #1e1e20; border: 1px solid #2e2e2e; border-radius: 0; box-shadow: 0 12px 30px rgba(0,0,0,0.5); font-size: 12px; z-index: 2147483647; cursor: pointer; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+  .dt-panel { position: fixed; bottom: 16px; right: 16px; width: 340px; display: flex; flex-direction: column; overflow: hidden; background: #1e1e20; border: 1px solid #2e2e2e; box-shadow: 0 24px 60px rgba(0,0,0,0.55); font-family: Inter, ui-sans-serif, system-ui, sans-serif; z-index: 2147483647; }
+  .dt-pill { position: fixed; bottom: 16px; right: 16px; display: flex; align-items: center; gap: 6px; padding: 7px 12px; background: #1e1e20; border: 1px solid #2e2e2e; box-shadow: 0 12px 30px rgba(0,0,0,0.5); font-size: 12px; z-index: 2147483647; cursor: pointer; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
   .dt-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #2a2a2a; user-select: none; cursor: grab; }
   .dt-header:active { cursor: grabbing; }
-  .dt-logo { display: block; width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(#8c8c8c, #e8e8e8, #404040, #8c8c8c); }
+  .dt-logo { display: block; width: 14px; height: 14px; background: conic-gradient(#8c8c8c, #e8e8e8, #404040, #8c8c8c); }
   .dt-title { font-size: 14px; font-weight: 500; color: #f5f5f5; }
   .dt-toggle { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #737373; cursor: pointer; }
   .dt-toggle input { accent-color: #a3a3a3; }
 
   .dt-tabs { display: flex; align-items: center; gap: 4px; padding: 8px 12px; border-bottom: 1px solid #2a2a2a; }
-  .dt-tab { background: transparent; border: none; border-radius: 0; padding: 5px 10px; font-size: 12px; color: #737373; transition: color 150ms ease, background-color 150ms ease; }
+  .dt-tab { background: transparent; border: none; padding: 5px 10px; font-size: 12px; color: #737373; transition: color 150ms ease, background-color 150ms ease; }
   .dt-tab:hover { color: #d4d4d4; }
   .dt-tab-active { background: #2e2e2e; color: #f5f5f5; }
 
   .dt-filter-bar { display: flex; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #2a2a2a; }
-  .dt-input { flex: 1; min-width: 0; background: #171717; border: 1px solid #2e2e2e; border-radius: 0; padding: 5px 10px; font-size: 12px; color: #e5e5e5; outline: none; }
+  .dt-input { flex: 1; min-width: 0; background: #171717; border: 1px solid #2e2e2e; padding: 5px 10px; font-size: 12px; color: #e5e5e5; outline: none; }
   .dt-input::placeholder { color: #5a5a5a; }
   .dt-input:focus { border-color: #454545; }
 
@@ -1259,13 +1349,15 @@ const STYLES = `
   .dt-hint { padding: 0 4px; font-size: 11px; line-height: 1.6; color: #737373; }
   .dt-fps-big { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
 
-  .dt-comp-row { display: flex; align-items: center; justify-content: space-between; width: 100%; text-align: left; background: #1c1c1c; border: 1px solid #2a2a2a; border-radius: 0; padding: 8px 12px; }
+  .dt-footer { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-top: 1px solid #2a2a2a; }
+
+  .dt-comp-row { display: flex; align-items: center; justify-content: space-between; width: 100%; text-align: left; background: #1c1c1c; border: 1px solid #2a2a2a; padding: 8px 12px; }
   .dt-comp-row:hover { border-color: #3d3d3d; }
   .dt-comp-name { font-size: 13px; color: #e5e5e5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dt-dot { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: #525252; transition: background-color 500ms ease, box-shadow 500ms ease; }
+  .dt-dot { width: 6px; height: 6px; flex-shrink: 0; background: #525252; transition: background-color 500ms ease, box-shadow 500ms ease; }
   .dt-dot-hot { background: #e8e8e8; box-shadow: 0 0 8px rgba(232,232,232,0.5); }
 
-  .dt-badge { border-radius: 0; padding: 2px 6px; font-size: 11px; background: #262626; color: #8a8a8a; white-space: nowrap; }
+  .dt-badge { padding: 2px 6px; font-size: 11px; background: #262626; color: #8a8a8a; white-space: nowrap; }
   .dt-badge-hot { background: rgba(232,232,232,0.1); color: #d4d4d4; }
   .dt-badge-drop { background: #3a2626; color: #d98c8c; }
   .dt-badge-warn { background: #34291c; color: #d9b98c; }
@@ -1273,8 +1365,9 @@ const STYLES = `
   .dt-inspect-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 12px 0 8px; }
   .dt-stat { font-size: 18px; font-weight: 600; color: #f5f5f5; font-variant-numeric: tabular-nums; }
   .dt-stat-label { font-size: 10px; color: #737373; margin-top: 2px; }
+  .dt-causes { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 
-  .dt-commit { background: #1c1c1c; border: 1px solid #2a2a2a; border-radius: 0; padding: 10px 12px; }
+  .dt-commit { background: #1c1c1c; border: 1px solid #2a2a2a; padding: 10px 12px; }
   .dt-tree-row { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.7; }
   .dt-tree-guide { color: #454545; font-size: 10px; }
   .dt-tree-reason { font-size: 11px; color: #8a8a8a; padding-left: 14px; margin-bottom: 2px; }
@@ -1282,37 +1375,12 @@ const STYLES = `
   .dt-log-row { padding: 8px 4px; font-size: 12px; line-height: 1.6; border-bottom: 1px solid rgba(42,42,42,0.6); }
   .dt-log-row:last-child { border-bottom: none; }
 
-  .dt-font-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-  .dt-color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .dt-swatch { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; background: #171717; border: 1px solid #2a2a2a; border-radius: 0; padding: 10px; text-align: left; }
-  .dt-swatch:hover { border-color: #3d3d3d; }
-  .dt-swatch-active { border-color: #6a6a6a; background: #1c1c1c; }
-  .dt-swatch-chip { display: block; width: 100%; height: 28px; border: 1px solid #2e2e2e; }
-  .dt-swatch-hex { font-size: 11px; color: #d4d4d4; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-  .dt-swatch-var { font-size: 10px; color: #737373; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-  .dt-font-sample { font-size: 18px; color: #f5f5f5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dt-font-family { margin-top: 6px; font-size: 11px; color: #a3a3a3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  .dt-log-enter { animation: dtLog 300ms cubic-bezier(0.23, 1, 0.32, 1); }
-  @keyframes dtLog {
-    from { opacity: 0; transform: translateY(-3px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
   .dt-press { transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease, color 150ms ease, border-color 150ms ease; }
   .dt-press:active { transform: scale(0.97); }
 
   @media (prefers-reduced-motion: reduce) {
-    .dt-log-enter { animation: none; }
     .dt-body { transition: none; }
   }
 `;
 
-export function PulseRoot() {
-	return (
-		<>
-			<style>{STYLES}</style>
-			<PulseMount />
-		</>
-	);
-}
+export { Devtool };

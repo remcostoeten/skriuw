@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/no-giant-component, react-doctor/no-initialize-state */
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
@@ -146,7 +147,7 @@ export function JournalDatabaseView({
 								type="button"
 								onClick={onToggleSidebar}
 								className={mobileControlClass}
-								title="Open journal"
+								aria-label="Open journal"
 							>
 								<Sidebar className="h-[18px] w-[18px]" strokeWidth={1.7} />
 							</button>
@@ -154,7 +155,7 @@ export function JournalDatabaseView({
 								type="button"
 								onClick={onGoToNotes}
 								className={mobileControlClass}
-								title="Go to notes"
+								aria-label="Go to notes"
 							>
 								<ChevronLeft className="h-[18px] w-[18px]" strokeWidth={1.7} />
 							</button>
@@ -162,7 +163,7 @@ export function JournalDatabaseView({
 								type="button"
 								onClick={onGoToToday}
 								className={mobileControlClass}
-								title="Go to today"
+								aria-label="Go to today"
 							>
 								<CalendarDays className="h-[18px] w-[18px]" strokeWidth={1.7} />
 							</button>
@@ -184,7 +185,7 @@ export function JournalDatabaseView({
 								type="button"
 								onClick={onNewEntry}
 								className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-								title="New entry"
+								aria-label="New entry"
 							>
 								<Plus className="h-[18px] w-[18px]" strokeWidth={1.7} />
 							</button>
@@ -192,7 +193,7 @@ export function JournalDatabaseView({
 								type="button"
 								onClick={onOpenSettings}
 								className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-								title="Open settings"
+								aria-label="Open settings"
 							>
 								<Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
 							</button>
@@ -227,13 +228,13 @@ export function JournalDatabaseView({
 									triggerNativeFeedback(showSearch ? "dismiss" : "selection");
 									setShowSearch(!showSearch);
 								}}
+								aria-label="Search journal entries"
 								className={cn(
 									"ml-auto flex h-11 w-11 shrink-0 items-center justify-center border transition-colors",
 									showSearch
 										? "border-border bg-muted text-foreground"
 										: "border-transparent text-muted-foreground/60 hover:border-border hover:bg-muted hover:text-foreground",
 								)}
-								title="Search"
 							>
 								<Search className="h-4 w-4" strokeWidth={1.5} />
 							</button>
@@ -244,7 +245,7 @@ export function JournalDatabaseView({
 									setSortOrder(sortOrder === "newest" ? "oldest" : "newest");
 								}}
 								className="flex h-11 w-11 shrink-0 items-center justify-center border border-transparent text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
-								title={
+								aria-label={
 									sortOrder === "newest"
 										? "Sort oldest first"
 										: "Sort newest first"
@@ -269,7 +270,7 @@ export function JournalDatabaseView({
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								placeholder="Filter entries..."
-								autoFocus
+								aria-label="Filter journal entries"
 								className="w-full border border-border bg-accent/20 py-3 pl-9 pr-3 text-base text-foreground outline-none placeholder:text-muted-foreground/30 focus:border-border focus:bg-accent/30"
 							/>
 						</div>
@@ -359,7 +360,7 @@ export function JournalDatabaseView({
 							type="button"
 							onClick={onToggleSidebar}
 							className="flex h-7 w-7 items-center justify-center border border-transparent text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-							title="Toggle sidebar"
+							aria-label="Toggle sidebar"
 						>
 							<Sidebar className="h-4 w-4" strokeWidth={1.5} />
 						</button>
@@ -367,7 +368,7 @@ export function JournalDatabaseView({
 							type="button"
 							onClick={onGoToToday}
 							className="flex h-7 w-7 items-center justify-center border border-transparent text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-							title="Go to today"
+							aria-label="Go to today"
 						>
 							<CalendarDays className="h-4 w-4" strokeWidth={1.5} />
 						</button>
@@ -387,13 +388,13 @@ export function JournalDatabaseView({
 								triggerNativeFeedback(showSearch ? "dismiss" : "selection");
 								setShowSearch(!showSearch);
 							}}
+							aria-label="Search journal entries"
 							className={cn(
 								"flex h-7 w-7 items-center justify-center border border-transparent transition-colors duration-200",
 								showSearch
 									? "border-sidebar-border bg-sidebar-accent/70 text-sidebar-foreground"
 									: "text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
 							)}
-							title="Search"
 						>
 							<Search className="h-4 w-4" strokeWidth={1.5} />
 						</button>
@@ -401,7 +402,6 @@ export function JournalDatabaseView({
 							type="button"
 							onClick={onNewEntry}
 							className="ml-1 flex h-7 items-center gap-1.5 border border-transparent px-2.5 text-[11px] text-sidebar-foreground/58 transition-colors duration-200 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-							title="New entry"
 						>
 							<Plus className="h-3.5 w-3.5" strokeWidth={1.7} />
 							<span>New</span>
@@ -445,7 +445,7 @@ export function JournalDatabaseView({
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							placeholder="Filter entries..."
-							autoFocus
+							aria-label="Filter journal entries"
 							className="w-full border border-border bg-background py-2.5 pl-8 pr-3 text-base text-foreground outline-none placeholder:text-muted-foreground/35 focus:border-border focus:bg-muted md:py-2 md:text-[13px]"
 						/>
 					</div>

@@ -88,7 +88,7 @@ function JournalEditorToolbar({
 							type="button"
 							onClick={onToggleSidebar}
 							className={mobileControlClass}
-							title="Open journal"
+							aria-label="Open journal"
 						>
 							<Sidebar className="h-[18px] w-[18px]" strokeWidth={1.7} />
 						</button>
@@ -96,7 +96,7 @@ function JournalEditorToolbar({
 							type="button"
 							onClick={onBackToList}
 							className={mobileControlClass}
-							title="Back to journal"
+							aria-label="Back to journal"
 						>
 							<ChevronLeft className="h-[18px] w-[18px]" strokeWidth={1.7} />
 						</button>
@@ -104,7 +104,7 @@ function JournalEditorToolbar({
 							type="button"
 							onClick={onGoToToday}
 							className={mobileControlClass}
-							title="Go to today"
+							aria-label="Go to today"
 						>
 							<CalendarDays className="h-[18px] w-[18px]" strokeWidth={1.7} />
 						</button>
@@ -126,7 +126,7 @@ function JournalEditorToolbar({
 							type="button"
 							onClick={onToggleEditorMode}
 							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-							title={editorModeTitle}
+							aria-label={editorModeTitle}
 						>
 							{editorMode === "plain" ? (
 								<Type className="h-[18px] w-[18px]" strokeWidth={1.7} />
@@ -138,7 +138,7 @@ function JournalEditorToolbar({
 							type="button"
 							onClick={onOpenSettings}
 							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-							title="Open settings"
+							aria-label="Open settings"
 						>
 							<Settings2 className="h-[18px] w-[18px]" strokeWidth={1.7} />
 						</button>
@@ -166,7 +166,7 @@ function JournalEditorToolbar({
 						desktopIconButtonClass,
 						"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
 					)}
-					title="Toggle sidebar"
+					aria-label="Toggle sidebar"
 				>
 					<Sidebar className="h-4 w-4" strokeWidth={1.5} />
 				</button>
@@ -177,7 +177,7 @@ function JournalEditorToolbar({
 						desktopIconButtonClass,
 						"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
 					)}
-					title="Back to journal list"
+					aria-label="Back to journal list"
 				>
 					<ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
 				</button>
@@ -188,7 +188,7 @@ function JournalEditorToolbar({
 						desktopIconButtonClass,
 						"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
 					)}
-					title="Go to today"
+					aria-label="Go to today"
 				>
 					<CalendarDays className="h-4 w-4" strokeWidth={1.5} />
 				</button>
@@ -213,7 +213,7 @@ function JournalEditorToolbar({
 						"w-auto gap-1 px-2.5 text-[11px]",
 						"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
 					)}
-					title={editorModeTitle}
+					aria-label={editorModeTitle}
 				>
 					{editorMode === "plain" ? (
 						<>
@@ -239,7 +239,6 @@ function JournalEditorToolbar({
 										"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
 										anyAiLoading && "cursor-not-allowed opacity-50",
 									)}
-									title="AI actions"
 									aria-label="AI actions"
 								>
 									{anyAiLoading ? (
@@ -299,7 +298,7 @@ function JournalEditorToolbar({
 						desktopIconButtonClass,
 						"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
 					)}
-					title="Open settings"
+					aria-label="Open settings"
 				>
 					<Settings2 className="h-4 w-4" strokeWidth={1.5} />
 				</button>

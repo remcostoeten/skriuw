@@ -1,29 +1,36 @@
 "use client";
 
-import { useState } from "react";
-import { Image as ImageIcon } from "lucide-react";
+import { memo, useEffect, useRef, useState } from "react";
+import { Check, Image as ImageIcon, Loader2, Upload } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { cn } from "@/shared/lib/utils";
+import { useWorkspaceBackend, useWorkspaceCapabilities } from "@/core/workspace-backend";
+import {
+	VAULT_ASSET_PREFIX,
+	compressCoverImage,
+	resolveVaultAssetUrl,
+} from "@/features/notes/lib/note-cover-image";
+import { showUserToast } from "@/shared/lib/user-toast";
 
-export const NOTE_COVER_GRADIENTS: Record<string, string> = {
-	sunset: "linear-gradient(135deg, #f6d365 0%, #fda085 100%)",
-	dusk: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-	ocean: "linear-gradient(135deg, #2e3192 0%, #1bffff 100%)",
-	forest: "linear-gradient(135deg, #134e5e 0%, #71b280 100%)",
-	blossom: "linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%)",
-	ember: "linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%)",
-	midnight: "linear-gradient(135deg, #232526 0%, #414345 100%)",
-	aurora: "linear-gradient(135deg, #00c9ff 0%, #92fe9d 100%)",
-	sand: "linear-gradient(135deg, #c79081 0%, #dfa579 100%)",
-	violet: "linear-gradient(135deg, #41295a 0%, #2f0743 100%)",
+const NOTE_COVER_GRADIENTS: Record<string, string> = {
+	slate: "linear-gradient(135deg, hsl(var(--project-gray) / 0.35), hsl(var(--muted) / 0.9))",
+	crimson:
+		"linear-gradient(135deg, hsl(var(--project-red) / 0.4), hsl(var(--project-orange) / 0.25))",
+	sunset: "linear-gradient(135deg, hsl(var(--project-orange) / 0.4), hsl(var(--project-amber) / 0.25))",
+	gold: "linear-gradient(135deg, hsl(var(--project-amber) / 0.4), hsl(var(--project-green) / 0.2))",
+	meadow: "linear-gradient(135deg, hsl(var(--project-green) / 0.4), hsl(var(--project-teal) / 0.25))",
+	lagoon: "linear-gradient(135deg, hsl(var(--project-teal) / 0.4), hsl(var(--project-blue) / 0.25))",
+	ocean: "linear-gradient(135deg, hsl(var(--project-blue) / 0.4), hsl(var(--project-purple) / 0.2))",
+	dusk: "linear-gradient(135deg, hsl(var(--project-purple) / 0.4), hsl(var(--project-pink) / 0.25))",
+	bloom: "linear-gradient(135deg, hsl(var(--project-pink) / 0.4), hsl(var(--project-red) / 0.2))",
 };
 
 const GRADIENT_PREFIX = "gradient:";
 
-export function resolveCoverStyle(cover: string): React.CSSProperties {
+function resolveCoverStyle(cover: string): React.CSSProperties {
 	if (cover.startsWith(GRADIENT_PREFIX)) {
 		const gradient = NOTE_COVER_GRADIENTS[cover.slice(GRADIENT_PREFIX.length)];
-		return { backgroundImage: gradient ?? NOTE_COVER_GRADIENTS.midnight };
+		return { backgroundImage: gradient ?? NOTE_COVER_GRADIENTS.slate };
 	}
 	return {
 		backgroundImage: `url(${JSON.stringify(cover)})`,
@@ -32,12 +39,42 @@ export function resolveCoverStyle(cover: string): React.CSSProperties {
 	};
 }
 
+/** Resolves any cover value to a style, awaiting the blob URL for `vault-asset:` covers. */
+function useCoverStyle(cover: string): React.CSSProperties {
+	const [resolved, setResolved] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (!cover.startsWith(VAULT_ASSET_PREFIX)) {
+			setResolved(null);
+			return;
+		}
+		let cancelled = false;
+		const result = resolveVaultAssetUrl(cover);
+		if (typeof result === "string") {
+			if (result) setResolved(result);
+			return;
+		}
+		result.then((url) => {
+			if (!cancelled) setResolved(url);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [cover]);
+
+	if (cover.startsWith(VAULT_ASSET_PREFIX)) {
+		return resolved ? resolveCoverStyle(resolved) : { backgroundColor: "hsl(var(--muted))" };
+	}
+	return resolveCoverStyle(cover);
+}
+
 export function NoteCoverBanner({ cover }: { cover: string }) {
+	const style = useCoverStyle(cover);
 	return (
 		<div
 			aria-hidden
-			className="h-32 w-full shrink-0 md:h-40"
-			style={resolveCoverStyle(cover)}
+			className="h-32 w-full shrink-0 border-b border-border md:h-40"
+			style={style}
 		/>
 	);
 }
@@ -47,9 +84,17 @@ type PickerProps = {
 	onCoverChange: (cover: string) => void;
 };
 
-export function NoteCoverPicker({ cover, onCoverChange }: PickerProps) {
+export const NoteCoverPicker = memo(function NoteCoverPicker({
+	cover,
+	onCoverChange,
+}: PickerProps) {
 	const [open, setOpen] = useState(false);
 	const [url, setUrl] = useState("");
+	const [uploading, setUploading] = useState(false);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const backend = useWorkspaceBackend();
+	const capabilities = useWorkspaceCapabilities();
+	const triggerStyle = useCoverStyle(cover ?? "");
 
 	function applyUrl() {
 		const trimmed = url.trim();
@@ -57,6 +102,27 @@ export function NoteCoverPicker({ cover, onCoverChange }: PickerProps) {
 		onCoverChange(trimmed);
 		setUrl("");
 		setOpen(false);
+	}
+
+	async function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
+		const file = event.target.files?.[0];
+		event.target.value = "";
+		if (!file || !backend.uploadCoverImage) return;
+
+		setUploading(true);
+		try {
+			const compressed = await compressCoverImage(file);
+			const value = await backend.uploadCoverImage(compressed);
+			onCoverChange(value);
+			setOpen(false);
+		} catch (error) {
+			showUserToast(
+				error instanceof Error ? error.message : "Couldn't upload cover image.",
+				"error",
+			);
+		} finally {
+			setUploading(false);
+		}
 	}
 
 	return (
@@ -74,37 +140,79 @@ export function NoteCoverPicker({ cover, onCoverChange }: PickerProps) {
 				>
 					{cover ? (
 						<span
-							className="h-4 w-6 rounded-sm border border-border"
-							style={resolveCoverStyle(cover)}
+							className="h-4 w-6 rounded-sm border border-border/60"
+							style={triggerStyle}
 						/>
 					) : (
 						<ImageIcon className="h-4 w-4" />
 					)}
 				</button>
 			</PopoverTrigger>
-			<PopoverContent className="w-[248px] p-2" align="start" side="right">
-				<div className="grid grid-cols-5 gap-1.5">
+			<PopoverContent className="w-[260px] p-2.5" align="start" side="right">
+				<p className="mb-1.5 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
+					Gradient
+				</p>
+				<div className="grid grid-cols-3 gap-1.5">
 					{Object.entries(NOTE_COVER_GRADIENTS).map(([id, gradient]) => {
 						const value = `${GRADIENT_PREFIX}${id}`;
+						const selected = cover === value;
 						return (
 							<button
 								key={id}
 								type="button"
-								title={id}
+								aria-label={`Use ${id} cover gradient`}
 								onClick={() => {
 									onCoverChange(value);
 									setOpen(false);
 								}}
 								className={cn(
-									"h-8 rounded-md border transition-transform hover:scale-105",
-									cover === value ? "border-ring" : "border-border",
+									"relative h-10 rounded-md border transition-colors",
+									selected
+										? "border-ring ring-1 ring-ring"
+										: "border-border hover:border-ring/60",
 								)}
 								style={{ backgroundImage: gradient }}
-							/>
+							>
+								{selected && (
+									<Check className="absolute inset-0 m-auto h-3.5 w-3.5 text-foreground drop-shadow-sm" />
+								)}
+							</button>
 						);
 					})}
 				</div>
-				<div className="mt-2 flex items-center gap-1.5">
+
+				{capabilities.coverUpload && backend.uploadCoverImage && (
+					<>
+						<p className="mb-1.5 mt-3 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
+							Upload
+						</p>
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept="image/png,image/jpeg,image/webp,image/gif"
+							className="hidden"
+							onChange={handleFileSelected}
+						/>
+						<button
+							type="button"
+							onClick={() => fileInputRef.current?.click()}
+							disabled={uploading}
+							className="flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-border text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							{uploading ? (
+								<Loader2 className="h-3 w-3 animate-spin" />
+							) : (
+								<Upload className="h-3 w-3" />
+							)}
+							{uploading ? "Uploading…" : "Upload image…"}
+						</button>
+					</>
+				)}
+
+				<p className="mb-1.5 mt-3 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
+					Image URL
+				</p>
+				<div className="flex items-center gap-1.5">
 					<input
 						value={url}
 						onChange={(event) => setUrl(event.target.value)}
@@ -112,7 +220,8 @@ export function NoteCoverPicker({ cover, onCoverChange }: PickerProps) {
 							if (event.key === "Enter") applyUrl();
 						}}
 						placeholder="Paste image URL…"
-						className="h-7 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-xs outline-none focus-visible:border-ring"
+						aria-label="Cover image URL"
+						className="h-7 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:border-ring"
 					/>
 					<button
 						type="button"
@@ -126,4 +235,4 @@ export function NoteCoverPicker({ cover, onCoverChange }: PickerProps) {
 			</PopoverContent>
 		</Popover>
 	);
-}
+});

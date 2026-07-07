@@ -41,6 +41,11 @@ const JOURNAL_TAGS_FILE: &str = "journal-tags.json";
 const TRASH_DIR: &str = "trash";
 const TRASH_NOTES_DIR: &str = "notes";
 const TRASH_INDEX_FILE: &str = "trash.json";
+/// Uploaded note cover images live under `.skriuw/assets/cover-images/`, named
+/// by a generated id (see `save_cover_image`), so they never collide with the
+/// note-name-derived paths under the vault root.
+const ASSETS_DIR: &str = "assets";
+const COVER_IMAGES_DIR: &str = "cover-images";
 
 /// Filesystem-backed note/folder store rooted at a user-chosen vault directory.
 pub struct VaultStore {
@@ -54,6 +59,11 @@ pub struct VaultStore {
     /// externally *added* files surface at the next launch reconcile, matching
     /// the vault's documented external-edit semantics.
     note_paths: Mutex<Option<HashMap<String, PathBuf>>>,
+    /// User-chosen override for where cover images are stored, independent of
+    /// the vault root (settings.json `coverAssetsRoot`). `None` falls back to
+    /// `.skriuw/assets/cover-images` under the vault root. Applied live via
+    /// `set_cover_root`, no restart required (unlike changing the vault root).
+    cover_root: Mutex<Option<PathBuf>>,
 }
 
 impl VaultStore {
@@ -65,6 +75,7 @@ impl VaultStore {
             root: Mutex::new(root.to_path_buf()),
             write_lock: Mutex::new(()),
             note_paths: Mutex::new(None),
+            cover_root: Mutex::new(None),
         };
         if !store.folders_path().exists() {
             store.write_folders(&[])?;
@@ -398,6 +409,54 @@ impl VaultStore {
             fs::remove_dir_all(&dir)?;
         }
         self.write_trash(&[])
+    }
+
+    /// Resolves the directory cover images are read from/written to: the
+    /// user's override if one is set, otherwise `.skriuw/assets/cover-images`
+    /// under the vault root.
+    pub fn cover_images_dir(&self) -> PathBuf {
+        if let Some(root) = self.cover_root.lock().expect("cover root mutex poisoned").clone() {
+            return root;
+        }
+        self.root().join(META_DIR).join(ASSETS_DIR).join(COVER_IMAGES_DIR)
+    }
+
+    /// Sets (or clears, with `None`) the cover-images directory override.
+    /// Takes effect immediately for subsequent saves/reads.
+    pub fn set_cover_root(&self, root: Option<PathBuf>) {
+        *self.cover_root.lock().expect("cover root mutex poisoned") = root;
+    }
+
+    /// Saves an uploaded cover image under `.skriuw/assets/cover-images/`,
+    /// keyed by a generated id so re-uploads never collide, and returns the
+    /// relative filename (e.g. `"<uuid>.png"`) to persist on the note.
+    pub fn save_cover_image(&self, file_name: &str, bytes: &[u8]) -> io::Result<String> {
+        let ext = Path::new(file_name)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_lowercase())
+            .filter(|ext| ext.chars().all(|c| c.is_ascii_alphanumeric()))
+            .unwrap_or_else(|| "png".to_string());
+        let relative = format!("{}.{ext}", uuid::Uuid::new_v4());
+        let dir = self.cover_images_dir();
+        fs::create_dir_all(&dir)?;
+        fs::write(dir.join(&relative), bytes)?;
+        Ok(relative)
+    }
+
+    /// Reads back a cover image saved by `save_cover_image`. `relative` must be
+    /// a bare filename (no path separators), so a note's cover value can never
+    /// be used to read arbitrary files off disk.
+    pub fn read_cover_image(&self, relative: &str) -> io::Result<Vec<u8>> {
+        if relative.is_empty()
+            || relative.contains('/')
+            || relative.contains('\\')
+            || relative == "."
+            || relative == ".."
+        {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid cover image path"));
+        }
+        fs::read(self.cover_images_dir().join(relative))
     }
 
     /// Absolute directory for a folder id, built by walking the parent chain and

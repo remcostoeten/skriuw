@@ -1,3 +1,4 @@
+/* eslint-disable deslop/unused-export */
 import { DEFAULT_AI_MODEL } from "@/domain/ai/constants";
 import type {
 	AiPreferences,
@@ -10,7 +11,7 @@ import type {
 	QuickAccessPreferences,
 } from "./types";
 
-export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
+const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 	defaultModeRaw: false,
 	vimMode: false,
 	defaultPlaceholder: "Start writing...",
@@ -25,7 +26,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 	customNotePropertyTemplates: [],
 };
 
-export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
+const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
 	theme: "midnight",
 	compactSidebar: false,
 	showLineNumbers: true,
@@ -36,27 +37,27 @@ export const DEFAULT_APPEARANCE_PREFERENCES: AppearancePreferences = {
 	showPageIcons: true,
 };
 
-export const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {
+const DEFAULT_PROFILE_PREFERENCES: ProfilePreferences = {
 	avatarColor: null,
 };
 
-export const DEFAULT_JOURNAL_PREFERENCES: JournalPreferences = {
+const DEFAULT_JOURNAL_PREFERENCES: JournalPreferences = {
 	diaryModeEnabled: false,
 	recentMoods: [],
 };
 
-export const DEFAULT_PRIVACY_PREFERENCES: PrivacyPreferences = {
+const DEFAULT_PRIVACY_PREFERENCES: PrivacyPreferences = {
 	analyticsEnabled: true,
 };
 
-export const DEFAULT_AI_PREFERENCES: AiPreferences = {
+const DEFAULT_AI_PREFERENCES: AiPreferences = {
 	model: DEFAULT_AI_MODEL,
 	keys: [],
 	activeKeyId: null,
 	translateLanguage: "auto",
 };
 
-export const DEFAULT_QUICK_ACCESS_PREFERENCES: QuickAccessPreferences = {
+const DEFAULT_QUICK_ACCESS_PREFERENCES: QuickAccessPreferences = {
 	enabled: true,
 	allowInEditor: false,
 	gotoModeDuration: "2s",

@@ -57,16 +57,16 @@ const SettingsIcon = forwardRef<SettingsIconHandle, SettingsIconProps>(
 		const handleEnter = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
 				if (!isAnimated || reduced) return;
-				if (!isControlled.current) controls.start("animate");
-				else onMouseEnter?.(e);
+				controls.start("animate");
+				onMouseEnter?.(e);
 			},
 			[controls, reduced, isAnimated, onMouseEnter],
 		);
 
 		const handleLeave = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
-				if (!isControlled.current) controls.start("normal");
-				else onMouseLeave?.(e);
+				controls.start("normal");
+				onMouseLeave?.(e);
 			},
 			[controls, onMouseLeave],
 		);

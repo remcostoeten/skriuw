@@ -27,7 +27,7 @@ export const userInlineSpec = createReactInlineContentSpec(
 				<span
 					contentEditable={false}
 					data-note-user
-					title={normalizedName ? `User ${normalizedName}` : "User"}
+					aria-label={normalizedName ? `User ${normalizedName}` : "User"}
 					className={cn(
 						"mx-[1px] inline-flex max-w-[16ch] items-center gap-0.5 overflow-hidden rounded-[4px] border px-1.5 py-0 text-[0.82em] font-medium leading-[1.45] align-baseline",
 						"border-primary/30 bg-primary/10 text-primary",

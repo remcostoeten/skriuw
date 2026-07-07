@@ -72,26 +72,20 @@ const Trash2Icon = forwardRef<Trash2IconHandle, Trash2IconProps>(
 		const handleEnter = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
 				if (!isAnimated || reduced) return;
-				if (!isControlled.current) {
-					binControls.start("animate");
-					lidControls.start("animate");
-					barControls.start("animate");
-				} else {
-					onMouseEnter?.(e);
-				}
+				binControls.start("animate");
+				lidControls.start("animate");
+				barControls.start("animate");
+				onMouseEnter?.(e);
 			},
 			[binControls, lidControls, barControls, reduced, isAnimated, onMouseEnter],
 		);
 
 		const handleLeave = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
-				if (!isControlled.current) {
-					binControls.start("normal");
-					lidControls.start("normal");
-					barControls.start("normal");
-				} else {
-					onMouseLeave?.(e);
-				}
+				binControls.start("normal");
+				lidControls.start("normal");
+				barControls.start("normal");
+				onMouseLeave?.(e);
 			},
 			[binControls, lidControls, barControls, onMouseLeave],
 		);

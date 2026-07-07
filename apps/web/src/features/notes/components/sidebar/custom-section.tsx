@@ -144,7 +144,7 @@ export const CustomSection = memo(function CustomSection({
 								type="button"
 								onClick={() => onRemoveFromSection(section.id, folder.id, "folder")}
 								className="hover-reveal inline-flex h-4 w-4 items-center justify-center border border-transparent text-muted-foreground/50 transition hover:border-border hover:bg-muted hover:text-foreground"
-								title="Remove from section"
+								aria-label="Remove from section"
 							>
 								<X className="h-3 w-3" strokeWidth={1.5} />
 							</button>
@@ -173,7 +173,7 @@ export const CustomSection = memo(function CustomSection({
 								type="button"
 								onClick={() => onRemoveFromSection(section.id, file.id, "file")}
 								className="hover-reveal inline-flex h-4 w-4 items-center justify-center border border-transparent text-muted-foreground/50 transition hover:border-border hover:bg-muted hover:text-foreground"
-								title="Remove from section"
+								aria-label="Remove from section"
 							>
 								<X className="h-3 w-3" strokeWidth={1.5} />
 							</button>

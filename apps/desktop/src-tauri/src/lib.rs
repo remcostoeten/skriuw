@@ -424,6 +424,20 @@ fn empty_trash(vault: State<'_, VaultStore>) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn save_cover_image(
+    vault: State<'_, VaultStore>,
+    file_name: String,
+    bytes: Vec<u8>,
+) -> Result<String, String> {
+    vault.save_cover_image(&file_name, &bytes).map_err(vault_err)
+}
+
+#[tauri::command]
+fn read_cover_image(vault: State<'_, VaultStore>, relative: String) -> Result<Vec<u8>, String> {
+    vault.read_cover_image(&relative).map_err(vault_err)
+}
+
+#[tauri::command]
 fn list_journal_entries(storage: State<'_, Storage>) -> Result<Vec<JournalEntry>, String> {
     storage.list_journal_entries().map_err(stringify)
 }
@@ -768,6 +782,47 @@ fn write_vault_root<R: Runtime>(handle: &AppHandle<R>, root: &str) -> Result<(),
     std::fs::write(&path, format!("{body}\n")).map_err(|error| error.to_string())
 }
 
+/// Reads the `coverAssetsRoot` override from `settings.json`, or `None` when
+/// unset (the vault's default `.skriuw/assets/cover-images` applies then).
+fn read_cover_assets_root<R: Runtime>(handle: &AppHandle<R>) -> Result<Option<PathBuf>, String> {
+    let path = settings_path(handle)?;
+    let raw = match std::fs::read_to_string(&path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.to_string()),
+    };
+    let parsed: serde_json::Value = serde_json::from_str(&raw).unwrap_or_default();
+    Ok(parsed
+        .get("coverAssetsRoot")
+        .and_then(|value| value.as_str())
+        .filter(|root| !root.trim().is_empty())
+        .map(PathBuf::from))
+}
+
+fn write_cover_assets_root<R: Runtime>(
+    handle: &AppHandle<R>,
+    root: Option<&str>,
+) -> Result<(), String> {
+    let path = settings_path(handle)?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let mut parsed: serde_json::Value = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    match root {
+        Some(root) => parsed["coverAssetsRoot"] = serde_json::Value::String(root.to_string()),
+        None => {
+            if let Some(map) = parsed.as_object_mut() {
+                map.remove("coverAssetsRoot");
+            }
+        }
+    }
+    let body = serde_json::to_string_pretty(&parsed).map_err(|error| error.to_string())?;
+    std::fs::write(&path, format!("{body}\n")).map_err(|error| error.to_string())
+}
+
 /// Rebuilds the SQLite index to mirror the on-disk vault (the source of truth):
 /// folders and notes present in the vault are upserted, rows absent from the
 /// vault are dropped. A note whose vault body still matches the index is left
@@ -1058,6 +1113,47 @@ fn reveal_vault(app: AppHandle) -> Result<(), String> {
     open_in_file_manager(&root)
 }
 
+/// Returns the directory cover images are currently stored in — the user's
+/// override if one is set, else `.skriuw/assets/cover-images` under the vault.
+#[tauri::command]
+fn get_cover_assets_root(vault: State<'_, VaultStore>) -> Result<String, String> {
+    Ok(vault.cover_images_dir().to_string_lossy().into_owned())
+}
+
+/// Opens a folder picker and, if a folder was chosen, persists it as the
+/// cover-images override and applies it immediately (no restart needed).
+#[tauri::command]
+fn choose_cover_assets_root(
+    app: AppHandle,
+    vault: State<'_, VaultStore>,
+) -> Result<Option<String>, String> {
+    let picked = app.dialog().file().blocking_pick_folder();
+    let Some(target) = picked else {
+        return Ok(None);
+    };
+    let dir = target.as_path().ok_or("invalid folder path")?.to_path_buf();
+    let as_str = dir.to_string_lossy().into_owned();
+    write_cover_assets_root(&app, Some(&as_str))?;
+    vault.set_cover_root(Some(dir));
+    Ok(Some(as_str))
+}
+
+/// Clears the cover-images override, reverting to the vault default.
+#[tauri::command]
+fn reset_cover_assets_root(app: AppHandle, vault: State<'_, VaultStore>) -> Result<String, String> {
+    write_cover_assets_root(&app, None)?;
+    vault.set_cover_root(None);
+    Ok(vault.cover_images_dir().to_string_lossy().into_owned())
+}
+
+/// Opens the cover-images directory in the OS file manager.
+#[tauri::command]
+fn reveal_cover_assets(vault: State<'_, VaultStore>) -> Result<(), String> {
+    let dir = vault.cover_images_dir();
+    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    open_in_file_manager(&dir)
+}
+
 fn open_in_file_manager(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     let program = "xdg-open";
@@ -1306,6 +1402,7 @@ pub fn run() {
 
             let vault_root = read_vault_root(handle)?;
             let vault = VaultStore::open(&vault_root)?;
+            vault.set_cover_root(read_cover_assets_root(handle)?);
 
             // The markdown vault is the source of truth; SQLite is a derived index
             // (FTS5 search, backlinks) kept in a separate `index.db` so the legacy
@@ -1397,6 +1494,12 @@ pub fn run() {
             restore_trash,
             purge_trash,
             empty_trash,
+            save_cover_image,
+            read_cover_image,
+            get_cover_assets_root,
+            choose_cover_assets_root,
+            reset_cover_assets_root,
+            reveal_cover_assets,
             list_journal_entries,
             upsert_journal_entry,
             delete_journal_entry,

@@ -128,7 +128,17 @@
 
 	--animate-accordion-down: accordion-down 0.2s ease-out;
 	--animate-accordion-up: accordion-up 0.2s ease-out;
+	--animate-skeleton-shimmer: skeleton-shimmer 1.6s ease-in-out infinite;
 
+	@keyframes skeleton-shimmer {
+		0%,
+		100% {
+			opacity: 0.55;
+		}
+		50% {
+			opacity: 1;
+		}
+	}
 	@keyframes sparkle-float-up {
 		0%,
 		100% {

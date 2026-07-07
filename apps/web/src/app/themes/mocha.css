@@ -1,10 +1,10 @@
 @layer base {
 	:root[data-theme="mocha"] {
-		--background: 240 21% 15%;
+		--background: 240 21% 12%;
 		--foreground: 226 64% 88%;
-		--card: 240 21% 12%;
+		--card: 240 21% 15%;
 		--card-foreground: 226 64% 88%;
-		--popover: 240 23% 9%;
+		--popover: 240 21% 12%;
 		--popover-foreground: 227 35% 80%;
 		--primary: 267 84% 81%;
 		--primary-foreground: 240 23% 9%;
@@ -32,7 +32,7 @@
 		--radius: 0.375rem;
 		--theme-bg-deep: 240 23% 9%;
 		--theme-bg-sidebar: 240 21% 12%;
-		--theme-bg-editor: 240 21% 15%;
+		--theme-bg-editor: 240 21% 12%;
 		--theme-bg-hover: 237 16% 23%;
 		--theme-bg-active: 234 13% 31%;
 		--theme-text-dim: 231 11% 47%;

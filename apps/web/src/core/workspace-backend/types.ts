@@ -28,6 +28,7 @@ export type WorkspaceCapabilities = {
 	ai: boolean;
 	trash: boolean;
 	history: boolean;
+	coverUpload: boolean;
 };
 
 /**
@@ -212,6 +213,16 @@ export type WorkspaceBackend = {
 	renameTag(from: string, to: string): Promise<ChipRewriteResult>;
 	deleteTag(name: string): Promise<ChipRewriteResult>;
 	listTagNotes(name: string): Promise<TaggedNoteSummary[]>;
+
+	/**
+	 * Uploads a note cover image and returns the value to persist on
+	 * `NoteFile.cover`. Optional: gated behind `capabilities.coverUpload` —
+	 * the server backend uploads to Vercel Blob and returns its public URL;
+	 * the desktop (`tauri`) backend saves to the vault's on-disk asset store
+	 * and returns a `vault-asset:` reference; the guest (`local`) backend has
+	 * no durable storage to put it in, so it omits this method entirely.
+	 */
+	uploadCoverImage?(file: File): Promise<string>;
 
 	updatePerson(input: UpdatePersonInput): Promise<Person>;
 	deletePerson(id: string): Promise<ChipRewriteResult>;

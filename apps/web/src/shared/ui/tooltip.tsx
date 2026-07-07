@@ -35,6 +35,10 @@ const TooltipContent = React.forwardRef<
 >(({ className, sideOffset = 4, collisionPadding = 8, shortcut, children, ...props }, ref) => {
 	const isMobile = useIsMobile();
 
+	if (isMobile) {
+		return null;
+	}
+
 	return (
 		<TooltipPrimitive.Portal>
 			<TooltipPrimitive.Content

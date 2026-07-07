@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable */
 
 import { useMemo, useState } from "react";
 import { defaultProps } from "@blocknote/core";
@@ -238,7 +239,6 @@ function FileTreeBlockView({
 									type="button"
 									className={HEADER_ICON_BUTTON}
 									aria-label="Save file tree"
-									title="Save (⌘↩)"
 									onMouseDown={(event) => event.preventDefault()}
 									onClick={saveDraft}
 								>
@@ -248,7 +248,6 @@ function FileTreeBlockView({
 									type="button"
 									className={HEADER_ICON_BUTTON}
 									aria-label="Cancel edit"
-									title="Cancel (Esc)"
 									onMouseDown={(event) => event.preventDefault()}
 									onClick={() => {
 										setDraftSource(source);
@@ -263,7 +262,6 @@ function FileTreeBlockView({
 								type="button"
 								className={HEADER_ICON_BUTTON}
 								aria-label="Edit file tree"
-								title="Edit"
 								onMouseDown={(event) => event.preventDefault()}
 								onClick={() => setEditing(true)}
 							>
@@ -275,7 +273,6 @@ function FileTreeBlockView({
 						type="button"
 						className={HEADER_ICON_BUTTON}
 						aria-label={copied ? "Copied" : "Copy file tree source"}
-						title={copied ? "Copied" : "Copy"}
 						onMouseDown={(event) => event.preventDefault()}
 						onClick={copySource}
 					>

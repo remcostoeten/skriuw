@@ -83,7 +83,7 @@ export function DesktopAboutDialog() {
 				</dl>
 
 				<div className="flex items-center justify-between border-t border-border px-6 py-3 text-xs text-muted-foreground">
-					<span>© {new Date().getFullYear()} Remco Stoeten</span>
+					<span suppressHydrationWarning>© {new Date().getFullYear()} Remco Stoeten</span>
 					<a
 						href={HOMEPAGE}
 						target="_blank"

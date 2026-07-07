@@ -199,7 +199,7 @@ function IconButton({
 	return (
 		<button
 			type="button"
-			title={title}
+			aria-label={title}
 			className="rounded p-0.5 hover:bg-muted text-muted-foreground hover:text-foreground"
 			onClick={onClick}
 		>

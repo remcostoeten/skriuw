@@ -185,7 +185,7 @@ function JournalSidebarSkeleton() {
 			>
 				{JOURNAL_TAB_ICONS.map((Icon, index) => (
 					<div
-						key={index}
+						key={Icon.name}
 						className={cn(
 							"flex h-7 w-7 items-center justify-center",
 							index === 0 ? "text-foreground/70" : "text-muted-foreground/55",
@@ -285,7 +285,7 @@ export function WorkspaceSidebarSkeleton({ variant }: { variant: WorkspaceLoadin
 	return <NotesSidebarSkeleton />;
 }
 
-export function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadingVariant }) {
+function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadingVariant }) {
 	if (variant === "journal") {
 		return <JournalContentSkeleton view="list" />;
 	}
@@ -355,7 +355,7 @@ function SettingsLoadingRail() {
 	return <IconRailSkeleton />;
 }
 
-export function SettingsLoadingShell() {
+function SettingsLoadingShell() {
 	return (
 		<LayoutContainer className="bg-background">
 			{/* Mobile skeleton — iOS-style settings list */}
