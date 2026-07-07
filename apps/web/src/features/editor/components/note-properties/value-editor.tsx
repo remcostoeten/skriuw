@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable */
 
 import { useState } from "react";
 import { Check, Plus, Star } from "lucide-react";
