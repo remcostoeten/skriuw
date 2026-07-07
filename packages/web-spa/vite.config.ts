@@ -8,7 +8,7 @@ function fromHere(path: string) {
 }
 
 const appSrc = fromHere("../../apps/web/src");
-const appGenerated = fromHere("../../apps/web/generated");
+const appGenerated = fromHere("../../generated");
 const shims = fromHere("./src/shims");
 
 export default defineConfig({

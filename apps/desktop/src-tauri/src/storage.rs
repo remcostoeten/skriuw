@@ -486,7 +486,8 @@ impl Storage {
         let conn = self.lock();
         let mut stmt = conn.prepare(
             "SELECT id, name, content, rich_content, preferred_editor_mode, \
-			 parent_id, sort_order, tags, properties, created_at, modified_at FROM notes",
+			 parent_id, sort_order, tags, properties, created_at, modified_at, \
+			 icon, cover FROM notes",
         )?;
         let rows = stmt.query_map([], row_to_note)?;
         rows.collect()
@@ -498,7 +499,7 @@ impl Storage {
         let conn = self.lock();
         let mut stmt = conn.prepare_cached(
             "SELECT id, name, preferred_editor_mode, parent_id, sort_order, \
-			 tags, properties, created_at, modified_at FROM notes",
+			 tags, properties, created_at, modified_at, icon, cover FROM notes",
         )?;
         let rows = stmt.query_map([], row_to_note_metadata)?;
         rows.collect()
@@ -508,7 +509,8 @@ impl Storage {
         let conn = self.lock();
         let mut stmt = conn.prepare_cached(
             "SELECT id, name, content, rich_content, preferred_editor_mode, \
-			 parent_id, sort_order, tags, properties, created_at, modified_at FROM notes WHERE id = ?1",
+			 parent_id, sort_order, tags, properties, created_at, modified_at, \
+			 icon, cover FROM notes WHERE id = ?1",
         )?;
         let mut rows = stmt.query_map(params![id], row_to_note)?;
         match rows.next() {
@@ -1198,15 +1200,16 @@ fn upsert_note_with(conn: &Connection, note: &Note) -> rusqlite::Result<()> {
     let mut stmt = conn.prepare_cached(
         "INSERT INTO notes \
 		 (id, name, content, rich_content, preferred_editor_mode, parent_id, \
-		  sort_order, tags, properties, created_at, modified_at) \
-		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
+		  sort_order, tags, properties, created_at, modified_at, icon, cover) \
+		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13) \
 		 ON CONFLICT(id) DO UPDATE SET \
 		  name = excluded.name, content = excluded.content, \
 		  rich_content = excluded.rich_content, \
 		  preferred_editor_mode = excluded.preferred_editor_mode, \
 		  parent_id = excluded.parent_id, sort_order = excluded.sort_order, \
 		  tags = excluded.tags, properties = excluded.properties, \
-		  modified_at = excluded.modified_at",
+		  modified_at = excluded.modified_at, \
+		  icon = excluded.icon, cover = excluded.cover",
     )?;
     stmt.execute(params![
         note.id,
@@ -1220,6 +1223,8 @@ fn upsert_note_with(conn: &Connection, note: &Note) -> rusqlite::Result<()> {
         note.properties.to_string(),
         note.created_at,
         note.modified_at,
+        note.icon,
+        note.cover,
     ])?;
     Ok(())
 }
@@ -1351,6 +1356,8 @@ fn row_to_note_offset(row: &rusqlite::Row<'_>, base: usize) -> rusqlite::Result<
             .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
         created_at: row.get(base + 9)?,
         modified_at: row.get(base + 10)?,
+        icon: row.get(base + 11)?,
+        cover: row.get(base + 12)?,
     })
 }
 
@@ -1395,6 +1402,8 @@ fn row_to_note(row: &rusqlite::Row<'_>) -> rusqlite::Result<Note> {
             .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
         created_at: row.get(9)?,
         modified_at: row.get(10)?,
+        icon: row.get(11)?,
+        cover: row.get(12)?,
     })
 }
 
@@ -1412,6 +1421,8 @@ fn row_to_note_metadata(row: &rusqlite::Row<'_>) -> rusqlite::Result<NoteMetadat
             .unwrap_or_else(|_| serde_json::Value::Array(Vec::new())),
         created_at: row.get(7)?,
         modified_at: row.get(8)?,
+        icon: row.get(9)?,
+        cover: row.get(10)?,
     })
 }
 

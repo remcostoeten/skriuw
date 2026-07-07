@@ -12,6 +12,7 @@ export async function GET() {
 	const userId = user.id;
 	const encoder = new TextEncoder();
 	let alive = true;
+	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	const stream = new ReadableStream({
 		async start(controller) {
@@ -26,15 +27,22 @@ export async function GET() {
 			// Initial unread count
 			const count = await prisma.notification.count({ where: { userId, read: false } });
 			send({ type: "init", unreadCount: count });
+			if (!alive) {
+				return;
+			}
 
 			let lastCount = count;
 
-			while (alive) {
-				await new Promise((r) => setTimeout(r, 4000));
+			const poll = async () => {
+				if (!alive) {
+					return;
+				}
+
 				try {
 					const newCount = await prisma.notification.count({
 						where: { userId, read: false },
 					});
+
 					if (newCount !== lastCount) {
 						lastCount = newCount;
 						send({ type: "update", unreadCount: newCount });
@@ -42,12 +50,29 @@ export async function GET() {
 						controller.enqueue(encoder.encode(": heartbeat\n\n"));
 					}
 				} catch {
-					break;
+					alive = false;
+					return;
 				}
-			}
+
+				if (!alive) {
+					return;
+				}
+
+				timeoutId = setTimeout(() => {
+					void poll();
+				}, 4000);
+			};
+
+			timeoutId = setTimeout(() => {
+				void poll();
+			}, 4000);
 		},
 		cancel() {
 			alive = false;
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+				timeoutId = null;
+			}
 		},
 	});
 

@@ -48,6 +48,7 @@ export function TrashView() {
 	const emptyTrash = useEmptyTrash();
 	const [pendingPurge, setPendingPurge] = useState<TrashBatch | null>(null);
 	const [emptyOpen, setEmptyOpen] = useState(false);
+	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
 	const isEmpty = batches.length === 0;
 
@@ -83,7 +84,14 @@ export function TrashView() {
 					) : (
 						<ul className="flex-1 divide-y divide-border overflow-y-auto">
 							{batches.map((batch) => (
-								<ContextMenu key={batch.id}>
+								<ContextMenu
+									key={batch.id}
+									onOpenChange={(open) => {
+										setOpenMenuId((current) =>
+											open ? batch.id : current === batch.id ? null : current,
+										);
+									}}
+								>
 									<ContextMenuTrigger asChild>
 										<li className="flex items-center gap-3 px-6 py-3">
 											{batch.kind === "folder" ? (
@@ -126,22 +134,26 @@ export function TrashView() {
 											</div>
 										</li>
 									</ContextMenuTrigger>
-									<ContextMenuContent className="w-48">
-										<ContextMenuItem onClick={() => restore.mutate(batch.id)}>
-											<RotateCcw className="mr-2 h-3.5 w-3.5" />
-											Restore
-										</ContextMenuItem>
-										<ContextMenuSeparator />
-										<ContextMenuItem
-											className="text-destructive focus:text-destructive"
-											onClick={() => setPendingPurge(batch)}
-										>
-											<Trash2 className="mr-2 h-3.5 w-3.5" />
-											Delete permanently
-										</ContextMenuItem>
-										<ContextMenuSeparator />
-										<DevContextSubmenu />
-									</ContextMenuContent>
+									{openMenuId === batch.id ? (
+										<ContextMenuContent className="w-48">
+											<ContextMenuItem
+												onClick={() => restore.mutate(batch.id)}
+											>
+												<RotateCcw className="mr-2 h-3.5 w-3.5" />
+												Restore
+											</ContextMenuItem>
+											<ContextMenuSeparator />
+											<ContextMenuItem
+												className="text-destructive focus:text-destructive"
+												onClick={() => setPendingPurge(batch)}
+											>
+												<Trash2 className="mr-2 h-3.5 w-3.5" />
+												Delete permanently
+											</ContextMenuItem>
+											<ContextMenuSeparator />
+											<DevContextSubmenu />
+										</ContextMenuContent>
+									) : null}
 								</ContextMenu>
 							))}
 						</ul>

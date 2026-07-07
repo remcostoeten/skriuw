@@ -694,6 +694,8 @@ fn restore_note_version(
         properties: version.properties,
         created_at: current.created_at,
         modified_at: now_ms(),
+        icon: current.icon,
+        cover: current.cover,
     };
 
     vault.upsert_note(&restored).map_err(vault_err)?;

@@ -1,0 +1,4 @@
+{
+	"$schema": "https://react.doctor/schema.json",
+	"projects": ["apps/web", "apps/extension"]
+}

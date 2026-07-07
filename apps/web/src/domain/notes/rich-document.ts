@@ -743,6 +743,7 @@ function inlineNodeToSearchableMarkdown(inline: unknown): string {
 	const node = inline as {
 		type?: string;
 		text?: string;
+		href?: string;
 		props?: Record<string, unknown>;
 		content?: unknown[];
 	};
@@ -767,7 +768,12 @@ function inlineNodeToSearchableMarkdown(inline: unknown): string {
 	}
 
 	if (node.type === "link" && Array.isArray(node.content)) {
-		return node.content.map(inlineNodeToSearchableMarkdown).join("");
+		const label = node.content.map(inlineNodeToSearchableMarkdown).join("");
+		const href = typeof node.href === "string" ? node.href.trim() : "";
+		if (label && href.startsWith("note://")) {
+			return `[${label}](${href})`;
+		}
+		return label;
 	}
 
 	return "";

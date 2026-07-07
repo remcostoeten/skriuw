@@ -115,7 +115,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const activeNoteQuery = useNote(activeFileId);
 	const splitSecondaryFileId = useNotesStore((state) => state.split.secondaryFileId);
 	const focusedEditorPane = useNotesStore((state) => state.split.focusedPane);
-	const editorScrollPositions = useNotesStore((state) => state.split.scrollPositions);
 	const splitOrientation = useNotesStore((state) => state.split.orientation);
 	const splitSecondaryFirst = useNotesStore((state) => state.split.secondaryFirst);
 	const openSplitBeside = useNotesStore((state) => state.openSplitBeside);
@@ -1740,7 +1739,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		secondaryFile,
 		splitEnabled,
 		focusedEditorPane,
-		editorScrollPositions,
 		splitOrientation,
 		splitSecondaryFirst,
 		secondaryEditorMode,

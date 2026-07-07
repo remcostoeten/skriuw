@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { serializeJsonForScript } from "@/shared/lib/json-script";
 
 export type SeoPageCopy = {
 	slug: string;
@@ -268,7 +269,7 @@ export function MarketingSeoPage({ page }: { page: SeoPageCopy }) {
 		<main className="min-h-dvh bg-background text-foreground">
 			<script
 				type="application/ld+json"
-				dangerouslySetInnerHTML={{ __html: JSON.stringify(getSeoJsonLd(page)) }}
+				dangerouslySetInnerHTML={{ __html: serializeJsonForScript(getSeoJsonLd(page)) }}
 			/>
 			<header className="border-b border-border">
 				<nav

@@ -12,7 +12,7 @@ type Props = {
 } & Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src" | "width" | "height">;
 
 const NextImage = forwardRef<HTMLImageElement, Props>(function NextImage(
-	{ src, fill, priority: _priority, quality: _quality, style, ...rest },
+	{ src, alt = "", fill, priority: _priority, quality: _quality, style, ...rest },
 	ref,
 ) {
 	const resolvedSrc = typeof src === "string" ? src : src.src;
@@ -20,7 +20,7 @@ const NextImage = forwardRef<HTMLImageElement, Props>(function NextImage(
 		? { position: "absolute", inset: 0, width: "100%", height: "100%", ...style }
 		: style;
 
-	return <img ref={ref} src={resolvedSrc} style={fillStyle} {...rest} />;
+	return <img ref={ref} src={resolvedSrc} alt={alt} style={fillStyle} {...rest} />;
 });
 
 export default NextImage;

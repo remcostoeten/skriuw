@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { seoPageList } from "@/features/marketing/seo-pages";
+import { serializeJsonForScript } from "@/shared/lib/json-script";
 
 const title = "Skriuw - Notes, journal, and focused writing";
 const description =
@@ -87,7 +88,7 @@ export default function Page() {
 		<main className="min-h-dvh bg-background text-foreground">
 			<script
 				type="application/ld+json"
-				dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+				dangerouslySetInnerHTML={{ __html: serializeJsonForScript(jsonLd) }}
 			/>
 
 			<section className="mx-auto grid min-h-[92dvh] w-full max-w-6xl grid-cols-1 gap-10 px-5 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] md:grid-cols-[0.9fr_1.1fr] md:px-8 md:py-8">
