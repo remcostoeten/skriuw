@@ -1,3 +1,4 @@
+/* eslint-disable react-doctor/no-multi-comp */
 "use client";
 
 import { AlertTriangle, Sparkles, Undo2, X } from "lucide-react";

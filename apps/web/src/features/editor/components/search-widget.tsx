@@ -1,6 +1,5 @@
 "use client";
 
-import { forwardRef } from "react";
 import {
 	ArrowDown,
 	ArrowUp,
@@ -17,6 +16,7 @@ import { cn } from "@/shared/lib/utils";
 import type { SearchOptions } from "@/features/editor/lib/search-plugin";
 
 type SearchWidgetProps = {
+	ref?: React.Ref<HTMLInputElement>;
 	query: string;
 	onQueryChange: (value: string) => void;
 	replaceValue: string;
@@ -53,7 +53,6 @@ function IconButton({
 			type="button"
 			aria-label={label}
 			aria-pressed={active}
-			title={label}
 			onClick={onClick}
 			disabled={disabled}
 			className={cn(
@@ -69,27 +68,25 @@ function IconButton({
 	);
 }
 
-export const SearchWidget = forwardRef<HTMLInputElement, SearchWidgetProps>(function SearchWidget(
-	{
-		query,
-		onQueryChange,
-		replaceValue,
-		onReplaceChange,
-		showReplace,
-		onToggleReplace,
-		options,
-		onToggleOption,
-		current,
-		total,
-		regexError,
-		onNext,
-		onPrevious,
-		onClose,
-		onReplaceCurrent,
-		onReplaceAll,
-	},
+export function SearchWidget({
 	ref,
-) {
+	query,
+	onQueryChange,
+	replaceValue,
+	onReplaceChange,
+	showReplace,
+	onToggleReplace,
+	options,
+	onToggleOption,
+	current,
+	total,
+	regexError,
+	onNext,
+	onPrevious,
+	onClose,
+	onReplaceCurrent,
+	onReplaceAll,
+}: SearchWidgetProps) {
 	const countLabel = regexError
 		? "Invalid regex"
 		: query.length === 0
@@ -111,8 +108,7 @@ export const SearchWidget = forwardRef<HTMLInputElement, SearchWidgetProps>(func
 	}
 
 	return (
-		<div
-			role="search"
+		<search
 			aria-label="Find and replace"
 			className={cn(
 				"flex w-[min(92vw,420px)] items-stretch gap-1 rounded-md border p-1.5 text-[13px] shadow-2xl backdrop-blur-sm",
@@ -122,7 +118,6 @@ export const SearchWidget = forwardRef<HTMLInputElement, SearchWidgetProps>(func
 			<button
 				type="button"
 				aria-label={showReplace ? "Hide replace" : "Show replace"}
-				title={showReplace ? "Hide replace" : "Show replace"}
 				aria-expanded={showReplace}
 				onClick={onToggleReplace}
 				className="flex w-5 items-center justify-center rounded-[4px] text-[color:var(--muted-foreground)] transition-colors hover:bg-[var(--search-hover)] hover:text-[color:var(--foreground)]"
@@ -255,6 +250,6 @@ export const SearchWidget = forwardRef<HTMLInputElement, SearchWidgetProps>(func
 					</div>
 				) : null}
 			</div>
-		</div>
+		</search>
 	);
-});
+}

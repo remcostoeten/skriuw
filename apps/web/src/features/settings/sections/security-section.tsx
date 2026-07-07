@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/prefer-useReducer, react-doctor/no-prevent-default */
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
@@ -25,7 +26,6 @@ function ChangePasswordInlineSection() {
 	const currentPasswordRef = useRef<HTMLInputElement | null>(null);
 	const toggleButtonRef = useRef<HTMLButtonElement | null>(null);
 	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const hasMountedRef = useRef(false);
 
 	const canSubmit =
 		currentPassword.length > 0 &&
@@ -49,6 +49,7 @@ function ChangePasswordInlineSection() {
 		}
 		setOpen(false);
 		resetForm();
+		toggleButtonRef.current?.focus();
 	};
 
 	const handleSubmit = async () => {
@@ -70,20 +71,6 @@ function ChangePasswordInlineSection() {
 			setIsPending(false);
 		}
 	};
-
-	useEffect(() => {
-		if (!hasMountedRef.current) {
-			hasMountedRef.current = true;
-			return;
-		}
-
-		if (open) {
-			currentPasswordRef.current?.focus();
-			return;
-		}
-
-		toggleButtonRef.current?.focus();
-	}, [open]);
 
 	useEffect(
 		() => () => {
@@ -108,6 +95,7 @@ function ChangePasswordInlineSection() {
 						return;
 					}
 					setOpen(true);
+					requestAnimationFrame(() => currentPasswordRef.current?.focus());
 				}}
 			>
 				{open ? "Close" : "Update"}

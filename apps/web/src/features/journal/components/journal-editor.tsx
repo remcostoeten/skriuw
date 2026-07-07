@@ -202,7 +202,7 @@ export function JournalEditor({
 														? "border-border bg-muted font-medium text-foreground shadow-[inset_0_1px_0_hsl(var(--foreground)/0.04)]"
 														: "text-muted-foreground/54 hover:border-border hover:bg-muted/70 hover:text-muted-foreground",
 												)}
-												title={mood.label}
+												aria-label={mood.label}
 											>
 												<span
 													className={cn(

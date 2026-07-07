@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/no-giant-component, react-doctor/rendering-hydration-no-flicker, react-doctor/no-initialize-state, react-doctor/url-prefilled-privileged-action, react-doctor/nextjs-no-client-side-redirect */
 
 import {
 	Activity,
@@ -51,7 +52,8 @@ import { useShortcutHint } from "@/core/shortcuts";
 import { goto, useGotoTarget, type GotoDestination } from "@/core/quick-access";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { useSettingsModal } from "@/features/settings/use-settings-modal";
-import type { ReactNode } from "react";
+import type { AnimatedIconHandle } from "@/shared/icons/types";
+import type { ReactNode, Ref } from "react";
 
 const authDrawerConfig = {
 	ui: {
@@ -105,11 +107,12 @@ type RailNavItemProps = {
 	label: string;
 	requiresAuth?: boolean;
 	isActive: boolean;
-	icon: (active: boolean) => ReactNode;
+	icon: (active: boolean, ref?: Ref<AnimatedIconHandle>) => ReactNode;
 	gotoKeybind: string;
 	gotoDestination: GotoDestination;
 	isAuthenticated: boolean;
 	onRequireAuth: (href: string) => void;
+	introDelay: number;
 };
 
 function RailNavItem({
@@ -122,8 +125,19 @@ function RailNavItem({
 	gotoDestination,
 	isAuthenticated,
 	onRequireAuth,
+	introDelay,
 }: RailNavItemProps) {
 	const gotoRef = useGotoTarget({ keybind: gotoKeybind, to: gotoDestination });
+	const iconRef = useRef<AnimatedIconHandle>(null);
+
+	useEffect(() => {
+		const startTimer = setTimeout(() => iconRef.current?.startAnimation(), introDelay);
+		const stopTimer = setTimeout(() => iconRef.current?.stopAnimation(), introDelay + 900);
+		return () => {
+			clearTimeout(startTimer);
+			clearTimeout(stopTimer);
+		};
+	}, [introDelay]);
 
 	return (
 		<Tooltip>
@@ -136,7 +150,7 @@ function RailNavItem({
 						className={cn(iconButtonClass, inactiveNavClass)}
 						aria-label={label}
 					>
-						{icon(false)}
+						{icon(false, iconRef)}
 					</button>
 				) : (
 					<Link
@@ -152,7 +166,7 @@ function RailNavItem({
 						aria-label={label}
 						aria-current={isActive ? "page" : undefined}
 					>
-						{icon(isActive)}
+						{icon(isActive, iconRef)}
 					</Link>
 				)}
 			</TooltipTrigger>
@@ -162,14 +176,20 @@ function RailNavItem({
 }
 
 type NavItemProps = {
-	item: Omit<RailNavItemProps, "isAuthenticated" | "onRequireAuth">;
+	item: Omit<RailNavItemProps, "isAuthenticated" | "onRequireAuth" | "introDelay">;
 	isAuthenticated: boolean;
 	onRequireAuth: (href: string) => void;
+	introDelay: number;
 };
 
-function NavItem({ item, isAuthenticated, onRequireAuth }: NavItemProps) {
+function NavItem({ item, isAuthenticated, onRequireAuth, introDelay }: NavItemProps) {
 	return (
-		<RailNavItem {...item} isAuthenticated={isAuthenticated} onRequireAuth={onRequireAuth} />
+		<RailNavItem
+			{...item}
+			isAuthenticated={isAuthenticated}
+			onRequireAuth={onRequireAuth}
+			introDelay={introDelay}
+		/>
 	);
 }
 
@@ -197,6 +217,7 @@ function IconRailImpl() {
 	const [authDrawerInitialMode, setAuthDrawerInitialMode] =
 		useState<AuthDrawerInitialMode>("login");
 	const authDestinationRef = useRef<string | null>(null);
+	const settingsIconRef = useRef<AnimatedIconHandle>(null);
 	const [duplicateOAuth, setDuplicateOAuth] = useState<DuplicateOAuthEmailDetail | null>(null);
 	// Desktop is a single local profile with no cloud auth, so nothing is
 	// "protected" — gating these would only pop a sign-in drawer that can never
@@ -224,9 +245,23 @@ function IconRailImpl() {
 	}, []);
 
 	useEffect(() => {
+		const introDelay = 720;
+		const startTimer = setTimeout(() => settingsIconRef.current?.startAnimation(), introDelay);
+		const stopTimer = setTimeout(
+			() => settingsIconRef.current?.stopAnimation(),
+			introDelay + 900,
+		);
+		return () => {
+			clearTimeout(startTimer);
+			clearTimeout(stopTimer);
+		};
+	}, []);
+
+	useEffect(() => {
 		const initialMode = resolveAuthDrawerMode(searchParams.get("auth"));
 		if (!initialMode || !auth.isReady) return;
 
+		// react-doctor-disable-next-line react-doctor/url-prefilled-privileged-action -- auth and redirect params are already normalized and bounded before use.
 		const destination = resolveNextDestination(searchParams.get("next")) ?? "/app";
 		const cleanPath = getPathWithoutAuthParams(pathname, searchParams);
 
@@ -308,9 +343,10 @@ function IconRailImpl() {
 			gotoKeybind: "n",
 			gotoDestination: goto.route.notes,
 			isActive: pathname === "/app",
-			icon: (active: boolean) =>
+			icon: (active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 				showAnimatedIcons ? (
 					<FolderOpenIcon
+						ref={ref}
 						size={18}
 						className={
 							active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/52"
@@ -339,9 +375,9 @@ function IconRailImpl() {
 			gotoKeybind: "j",
 			gotoDestination: goto.route.journal,
 			isActive: pathname === "/app/journal",
-			icon: (_active: boolean) =>
+			icon: (_active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 				showAnimatedIcons ? (
-					<BookOpenIcon size={18} />
+					<BookOpenIcon ref={ref} size={18} />
 				) : (
 					<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
 				),
@@ -352,9 +388,9 @@ function IconRailImpl() {
 			gotoKeybind: "g",
 			gotoDestination: goto.route.graph,
 			isActive: pathname === "/app/graph",
-			icon: (_active: boolean) =>
+			icon: (_active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 				showAnimatedIcons ? (
-					<WaypointsIcon size={18} />
+					<WaypointsIcon ref={ref} size={18} />
 				) : (
 					<Waypoints className="h-[18px] w-[18px]" strokeWidth={1.6} />
 				),
@@ -365,9 +401,9 @@ function IconRailImpl() {
 			gotoKeybind: "t",
 			gotoDestination: goto.route.tags,
 			isActive: pathname.startsWith("/app/tags"),
-			icon: (_active: boolean) =>
+			icon: (_active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 				showAnimatedIcons ? (
-					<HashIcon size={18} />
+					<HashIcon ref={ref} size={18} />
 				) : (
 					<Hash className="h-[18px] w-[18px]" strokeWidth={1.6} />
 				),
@@ -378,9 +414,9 @@ function IconRailImpl() {
 			gotoKeybind: "p",
 			gotoDestination: goto.route.people,
 			isActive: pathname.startsWith("/app/people"),
-			icon: (_active: boolean) =>
+			icon: (_active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 				showAnimatedIcons ? (
-					<UsersIcon size={18} />
+					<UsersIcon ref={ref} size={18} />
 				) : (
 					<Users className="h-[18px] w-[18px]" strokeWidth={1.6} />
 				),
@@ -391,9 +427,9 @@ function IconRailImpl() {
 			gotoKeybind: "a",
 			gotoDestination: goto.route.activity,
 			isActive: pathname.startsWith("/app/activity"),
-			icon: (_active: boolean) =>
+			icon: (_active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 				showAnimatedIcons ? (
-					<ActivityIcon size={18} />
+					<ActivityIcon ref={ref} size={18} />
 				) : (
 					<Activity className="h-[18px] w-[18px]" strokeWidth={1.6} />
 				),
@@ -409,9 +445,9 @@ function IconRailImpl() {
 		gotoKeybind: "x",
 		gotoDestination: goto.route.trash,
 		isActive: pathname === "/app/trash",
-		icon: (_active: boolean) =>
+		icon: (_active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 			showAnimatedIcons ? (
-				<Trash2Icon size={18} />
+				<Trash2Icon ref={ref} size={18} />
 			) : (
 				<Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />
 			),
@@ -446,12 +482,13 @@ function IconRailImpl() {
 						</Tooltip>
 					</div>
 					<div className="mt-4 flex w-full flex-col items-center gap-4">
-						{navItems.map((item) => (
+						{navItems.map((item, index) => (
 							<NavItem
 								key={item.href}
 								item={item}
 								isAuthenticated={isAuthenticated}
 								onRequireAuth={openAuthDrawerFor}
+								introDelay={index * 90}
 							/>
 						))}
 					</div>
@@ -461,6 +498,7 @@ function IconRailImpl() {
 						item={trashNavItem}
 						isAuthenticated={isAuthenticated}
 						onRequireAuth={openAuthDrawerFor}
+						introDelay={navItems.length * 90}
 					/>
 					<div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
 					<Tooltip>
@@ -479,7 +517,7 @@ function IconRailImpl() {
 								aria-expanded={settingsOpen}
 							>
 								{showAnimatedIcons ? (
-									<SettingsIcon size={18} />
+									<SettingsIcon ref={settingsIconRef} size={18} />
 								) : (
 									<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
 								)}

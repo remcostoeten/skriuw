@@ -12,9 +12,10 @@ import {
 	SYNC_WRITE_SCOPE,
 } from "@/domain/sync/token-utils";
 
-export { createRawSyncToken, readBearerToken, SYNC_READ_SCOPE, SYNC_WRITE_SCOPE };
+// Keep the shared token helpers available from this module for the sync routes.
+export { readBearerToken, SYNC_READ_SCOPE, SYNC_WRITE_SCOPE };
 
-export const MAX_SYNC_TOKENS_PER_USER = 20;
+const MAX_SYNC_TOKENS_PER_USER = 20;
 
 type SyncTokenRecord = {
 	id: string;

@@ -1,9 +1,23 @@
 import { ChevronRight, FileText, Hash, History, Info, Link2, ListTree } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
-function Bar({ className, style }: { className?: string; style?: React.CSSProperties }) {
+const SHIMMER_STEP_MS = 70;
+
+function Bar({
+	className,
+	style,
+	delay = 0,
+}: {
+	className?: string;
+	style?: React.CSSProperties;
+	delay?: number;
+}) {
 	return (
-		<div aria-hidden="true" className={cn("bg-foreground/[0.06]", className)} style={style} />
+		<div
+			aria-hidden="true"
+			className={cn("animate-skeleton-shimmer bg-foreground/[0.06]", className)}
+			style={{ animationDelay: `${delay}ms`, ...style }}
+		/>
 	);
 }
 
@@ -14,26 +28,35 @@ export function EditorContentSkeleton() {
 	return (
 		<div className="px-6 py-3" aria-hidden="true">
 			<div className="mx-auto w-full max-w-[42rem] space-y-7">
-				<Bar className="h-7 w-[58%] bg-foreground/[0.085]" />
+				<Bar className="h-7 w-[58%] bg-foreground/[0.085]" delay={0 * SHIMMER_STEP_MS} />
 
 				<div className="space-y-2.5">
-					<Bar className="h-2.5 w-full" />
-					<Bar className="h-2.5 w-[94%]" />
-					<Bar className="h-2.5 w-[72%]" />
+					<Bar className="h-2.5 w-full" delay={1 * SHIMMER_STEP_MS} />
+					<Bar className="h-2.5 w-[94%]" delay={2 * SHIMMER_STEP_MS} />
+					<Bar className="h-2.5 w-[72%]" delay={3 * SHIMMER_STEP_MS} />
 				</div>
 
 				<div className="space-y-2.5 pt-2">
-					<Bar className="h-5 w-[36%] bg-foreground/[0.075]" />
+					<Bar
+						className="h-5 w-[36%] bg-foreground/[0.075]"
+						delay={4 * SHIMMER_STEP_MS}
+					/>
 					<div className="space-y-2.5 pt-1">
-						<Bar className="h-2.5 w-[88%]" />
-						<Bar className="h-2.5 w-[92%]" />
-						<Bar className="h-2.5 w-[54%]" />
+						<Bar className="h-2.5 w-[88%]" delay={5 * SHIMMER_STEP_MS} />
+						<Bar className="h-2.5 w-[92%]" delay={6 * SHIMMER_STEP_MS} />
+						<Bar className="h-2.5 w-[54%]" delay={7 * SHIMMER_STEP_MS} />
 					</div>
 				</div>
 
 				<div className="space-y-2.5">
-					<Bar className="h-2.5 w-[78%] bg-foreground/[0.055]" />
-					<Bar className="h-2.5 w-[40%] bg-foreground/[0.055]" />
+					<Bar
+						className="h-2.5 w-[78%] bg-foreground/[0.055]"
+						delay={8 * SHIMMER_STEP_MS}
+					/>
+					<Bar
+						className="h-2.5 w-[40%] bg-foreground/[0.055]"
+						delay={9 * SHIMMER_STEP_MS}
+					/>
 				</div>
 			</div>
 		</div>
@@ -84,10 +107,16 @@ const DETAIL_ROWS = [
 function DetailRowsSkeleton() {
 	return (
 		<div className="space-y-2.5">
-			{DETAIL_ROWS.map((row) => (
+			{DETAIL_ROWS.map((row, index) => (
 				<div key={row.label} className="flex items-center justify-between gap-4">
-					<Bar className={cn("h-2.5 bg-foreground/[0.045]", row.label)} />
-					<Bar className={cn("h-2.5 bg-foreground/[0.07]", row.value)} />
+					<Bar
+						className={cn("h-2.5 bg-foreground/[0.045]", row.label)}
+						delay={index * SHIMMER_STEP_MS}
+					/>
+					<Bar
+						className={cn("h-2.5 bg-foreground/[0.07]", row.value)}
+						delay={index * SHIMMER_STEP_MS}
+					/>
 				</div>
 			))}
 		</div>
@@ -105,7 +134,7 @@ export function DetailsPanelSkeleton() {
 							{ width: "54%", indent: 12 },
 							{ width: "64%", indent: 12 },
 							{ width: "46%", indent: 24 },
-						].map((row) => (
+						].map((row, index) => (
 							<div
 								key={`${row.width}-${row.indent}`}
 								className="flex items-center gap-2"
@@ -117,6 +146,7 @@ export function DetailsPanelSkeleton() {
 								<Bar
 									className="h-2.5 bg-foreground/[0.06]"
 									style={{ width: row.width }}
+									delay={index * SHIMMER_STEP_MS}
 								/>
 							</div>
 						))}
@@ -125,11 +155,12 @@ export function DetailsPanelSkeleton() {
 
 				<DetailsSectionShell icon={Hash} label="Tags">
 					<div className="flex flex-wrap gap-2">
-						{["32%", "24%", "38%", "28%"].map((width) => (
+						{["32%", "24%", "38%", "28%"].map((width, index) => (
 							<Bar
 								key={width}
 								className="h-6 rounded-full bg-foreground/[0.055]"
 								style={{ width }}
+								delay={index * SHIMMER_STEP_MS}
 							/>
 						))}
 					</div>
@@ -139,13 +170,17 @@ export function DetailsPanelSkeleton() {
 					<div className="space-y-4">
 						<div className="space-y-2">
 							<Bar className="h-2 w-[34%] bg-foreground/[0.04]" />
-							{["86%", "68%"].map((width) => (
+							{["86%", "68%"].map((width, index) => (
 								<div key={width} className="flex h-7 items-center gap-2">
 									<FileText
 										className="h-3.5 w-3.5 shrink-0 text-muted-foreground/24"
 										strokeWidth={1.5}
 									/>
-									<Bar className="h-2.5 bg-foreground/[0.06]" style={{ width }} />
+									<Bar
+										className="h-2.5 bg-foreground/[0.06]"
+										style={{ width }}
+										delay={index * SHIMMER_STEP_MS}
+									/>
 								</div>
 							))}
 						</div>
@@ -156,7 +191,10 @@ export function DetailsPanelSkeleton() {
 									className="h-3.5 w-3.5 shrink-0 text-muted-foreground/24"
 									strokeWidth={1.5}
 								/>
-								<Bar className="h-2.5 w-[74%] bg-foreground/[0.06]" />
+								<Bar
+									className="h-2.5 w-[74%] bg-foreground/[0.06]"
+									delay={2 * SHIMMER_STEP_MS}
+								/>
 							</div>
 						</div>
 					</div>
@@ -169,10 +207,15 @@ export function DetailsPanelSkeleton() {
 							<div key={width} className="relative flex gap-3">
 								<span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border border-border bg-background" />
 								<div className="min-w-0 flex-1 space-y-1.5">
-									<Bar className="h-2.5 bg-foreground/[0.06]" style={{ width }} />
+									<Bar
+										className="h-2.5 bg-foreground/[0.06]"
+										style={{ width }}
+										delay={index * SHIMMER_STEP_MS}
+									/>
 									<Bar
 										className="h-2 bg-foreground/[0.04]"
 										style={{ width: `${32 + index * 8}%` }}
+										delay={index * SHIMMER_STEP_MS}
 									/>
 								</div>
 							</div>

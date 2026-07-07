@@ -607,10 +607,20 @@ export function createTauriBackend(): WorkspaceBackend {
 			ai: true,
 			trash: true,
 			history: true,
+			coverUpload: true,
 		},
 
 		listNotes,
 		listFolders,
+
+		async uploadCoverImage(file) {
+			const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
+			const relative = await invoke<string>("save_cover_image", {
+				fileName: file.name,
+				bytes,
+			});
+			return `vault-asset:${relative}`;
+		},
 
 		async getNote(id) {
 			const raw = await invoke<RustNote | null>("get_note", { id });

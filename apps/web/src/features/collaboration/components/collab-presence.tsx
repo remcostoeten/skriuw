@@ -112,7 +112,6 @@ export function CollabPresence({ awareness }: { awareness: Awareness | null | un
 							? "border-border bg-muted/50 hover:bg-muted"
 							: "border-transparent hover:bg-muted",
 					)}
-					title={summary}
 					aria-label={`${heading}: ${summary}`}
 				>
 					<span className="flex items-center -space-x-1.5">

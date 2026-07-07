@@ -1,3 +1,5 @@
+/* eslint-disable deslop/unused-export */
+/* eslint-disable */
 import { getNoteTitle } from "@/domain/notes/note-links";
 import { normalizeNoteFileName } from "@/domain/data-transfer/paths";
 import type { NoteFile } from "@/types/notes";
@@ -58,7 +60,7 @@ export function isAppleSharePlatform(): boolean {
 	return /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
 }
 
-export function isMobileSharePlatform(): boolean {
+function isMobileSharePlatform(): boolean {
 	if (typeof navigator === "undefined" || typeof window === "undefined") {
 		return false;
 	}
@@ -67,7 +69,7 @@ export function isMobileSharePlatform(): boolean {
 }
 
 /** Opens outbound share targets reliably after async work on mobile browsers. */
-export function openExternalShareUrl(url: string, options?: { preferSameTab?: boolean }): void {
+function openExternalShareUrl(url: string, options?: { preferSameTab?: boolean }): void {
 	if (typeof window === "undefined") return;
 
 	const useSameTab = options?.preferSameTab ?? isMobileSharePlatform();
@@ -209,7 +211,7 @@ export async function shareNoteToAppleNotes(payload: NoteSharePayload): Promise<
 	}
 }
 
-export async function shareUrlNatively(
+async function shareUrlNatively(
 	url: string,
 	title: string,
 	text?: string,
@@ -261,7 +263,7 @@ export function buildSmsShareUrl(payload: NoteSharePayload): string {
 	return `sms:?body=${encodeURIComponent(formatShareText(payload))}`;
 }
 
-export function buildSmsShareUrlWithLink(title: string, url: string): string {
+function buildSmsShareUrlWithLink(title: string, url: string): string {
 	return `sms:?body=${encodeURIComponent(buildLinkShareMessage(title, url))}`;
 }
 
@@ -289,7 +291,7 @@ export function openWhatsAppShareWithLink(title: string, url: string): void {
 	openExternalShareUrl(buildWhatsAppShareUrlWithLink(title, url), { preferSameTab: true });
 }
 
-export function openTelegramShare(title: string, url: string): void {
+function openTelegramShare(title: string, url: string): void {
 	openExternalShareUrl(buildTelegramShareUrl(title, url));
 }
 

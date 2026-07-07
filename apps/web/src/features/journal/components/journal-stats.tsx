@@ -429,7 +429,7 @@ export function JournalStats({ className }: JournalStatsProps) {
 									? "border-status-planned bg-status-planned"
 									: "border-border bg-background",
 							)}
-							title={`${format(day.date, "MMM d")}${day.hasEntry ? " - Entry" : " - No entry"}`}
+							aria-label={`${format(day.date, "MMM d")}${day.hasEntry ? " - Entry" : " - No entry"}`}
 						/>
 					))}
 				</div>

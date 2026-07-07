@@ -43,9 +43,16 @@ function sortPinnedFirst(tabs: WorkspaceTab[]): WorkspaceTab[] {
 	return [...pinned, ...unpinned];
 }
 
+export type NoteLinkReturn = {
+	fromId: string;
+	toId: string;
+};
+
 type NotesUiState = {
 	activeFileId: string;
 	lastActiveFileId: string;
+	noteLinkReturn: NoteLinkReturn | null;
+	setNoteLinkReturn: (returnTo: NoteLinkReturn | null) => void;
 	isHydrated: boolean;
 	folderOpenState: FolderOpenState;
 	saveStates: Record<string, SaveStatus>;
@@ -125,6 +132,7 @@ export const useNotesStore = create<NotesUiState>()(
 		(set, get) => ({
 			activeFileId: "",
 			lastActiveFileId: "",
+			noteLinkReturn: null,
 			isHydrated: false,
 			folderOpenState: {},
 			saveStates: {},
@@ -148,6 +156,7 @@ export const useNotesStore = create<NotesUiState>()(
 					isHydrated: false,
 					folderOpenState: {},
 					saveStates: {},
+					noteLinkReturn: null,
 					split: INITIAL_SPLIT_STATE,
 					primaryTabs: [],
 					secondaryTabs: [],
@@ -177,6 +186,10 @@ export const useNotesStore = create<NotesUiState>()(
 
 			setActiveFileId: (id) => {
 				set(id ? { activeFileId: id, lastActiveFileId: id } : { activeFileId: id });
+			},
+
+			setNoteLinkReturn: (returnTo) => {
+				set({ noteLinkReturn: returnTo });
 			},
 
 			pushRecentFile: (id) => {

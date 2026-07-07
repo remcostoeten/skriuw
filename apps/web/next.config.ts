@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const config: NextConfig = {
 	reactStrictMode: true,
+	output: process.env.DOCKER_BUILD ? "standalone" : undefined,
 	experimental: {
 		// Trim barrel re-export overhead for large named-import libs. framer-motion
 		// is imported across the layout shell, sidebar, and every animated icon, so

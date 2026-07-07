@@ -48,7 +48,6 @@ type AsyncActionButtonProps = {
 	successLabel?: string;
 	failedLabel?: string;
 	disabled?: boolean;
-	disabledTitle?: string;
 	resetAfterMs?: number;
 };
 
@@ -64,7 +63,6 @@ export function AsyncActionButton({
 	successLabel = "Done",
 	failedLabel = "Retry",
 	disabled = false,
-	disabledTitle,
 	resetAfterMs = 2500,
 }: AsyncActionButtonProps) {
 	const [status, setStatus] = useState<Status>("idle");
@@ -103,7 +101,6 @@ export function AsyncActionButton({
 			type="button"
 			onClick={run}
 			disabled={disabled || busy}
-			title={disabled ? disabledTitle : undefined}
 			className={cn(
 				"relative inline-flex h-9 items-center justify-center overflow-hidden rounded-md border text-sm font-medium transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",
 				busy && "cursor-default",

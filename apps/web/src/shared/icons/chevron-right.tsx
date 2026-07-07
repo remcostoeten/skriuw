@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/no-react19-deprecated-apis */
 
 import type { Transition } from "framer-motion";
 import { domAnimation, LazyMotion, m, useAnimation } from "framer-motion";

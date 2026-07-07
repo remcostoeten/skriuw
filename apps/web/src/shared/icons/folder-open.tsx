@@ -68,24 +68,18 @@ const FolderOpenIcon = forwardRef<FolderOpenIconHandle, FolderOpenIconProps>(
 		const handleEnter = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
 				if (!isAnimated || reduced) return;
-				if (!isControlled.current) {
-					folderControls.start("animate");
-					paperControls.start("animate");
-				} else {
-					onMouseEnter?.(e);
-				}
+				folderControls.start("animate");
+				paperControls.start("animate");
+				onMouseEnter?.(e);
 			},
 			[folderControls, paperControls, reduced, isAnimated, onMouseEnter],
 		);
 
 		const handleLeave = useCallback(
 			(e: React.MouseEvent<HTMLDivElement>) => {
-				if (!isControlled.current) {
-					folderControls.start("normal");
-					paperControls.start("normal");
-				} else {
-					onMouseLeave?.(e);
-				}
+				folderControls.start("normal");
+				paperControls.start("normal");
+				onMouseLeave?.(e);
 			},
 			[folderControls, paperControls, onMouseLeave],
 		);

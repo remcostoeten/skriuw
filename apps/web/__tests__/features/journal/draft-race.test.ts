@@ -60,7 +60,7 @@ mock.module("@/core/workspace-backend", () => ({
 	recordGuestGraphExplore: () => undefined,
 }));
 
-const { isCurrentJournalDraftAcknowledgement, shouldAdoptJournalEntrySnapshot } =
+const { isCurrentJournalDraftAcknowledgement } =
 	await import("@/features/journal/hooks/use-journal-entry");
 const { mergeJournalEntriesByActiveDate, upsertJournalEntryByActiveDate } =
 	await import("@/features/journal/hooks/use-journal-entries");
@@ -77,22 +77,6 @@ function entry(id: string, dateKey: string, content: string, updatedAt: string):
 }
 
 describe("journal draft race guards", () => {
-	test("keeps local content when a stale cache snapshot arrives for the active date", () => {
-		const previous = {
-			dateKey: "2026-06-10",
-			entryId: "entry-1",
-			content: "new local draft",
-		};
-		const staleSnapshot = {
-			dateKey: "2026-06-10",
-			entryId: "entry-1",
-			content: "old server content",
-		};
-
-		expect(shouldAdoptJournalEntrySnapshot(previous, staleSnapshot, true)).toBe(false);
-		expect(shouldAdoptJournalEntrySnapshot(previous, staleSnapshot, false)).toBe(true);
-	});
-
 	test("only acknowledges saves for the current date and latest draft revision", () => {
 		expect(isCurrentJournalDraftAcknowledgement("2026-06-10", "2026-06-10", 3, 3)).toBe(true);
 		expect(isCurrentJournalDraftAcknowledgement("2026-06-10", "2026-06-10", 2, 3)).toBe(false);

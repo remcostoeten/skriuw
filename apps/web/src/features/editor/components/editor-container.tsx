@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-doctor/no-multi-comp, react-doctor/no-giant-component, react-doctor/no-many-boolean-props */
 
 import {
 	memo,
@@ -507,14 +508,20 @@ function EditorContainerImpl({
 	const canExportNote = isTauriRuntime();
 	const handleExportNote = useCallback(
 		async (format: "md" | "html") => {
-			if (!file) return;
+			if (!fileId) return;
 			try {
-				await tauriInvoke<string | null>("export_note", { id: file.id, format });
+				await tauriInvoke<string | null>("export_note", { id: fileId, format });
 			} catch (err) {
 				console.error("[export_note]", err);
 			}
 		},
-		[file],
+		[fileId],
+	);
+	const handleAiGenerateTitle = useCallback(() => runAiAction("generateTitle"), [runAiAction]);
+	const handleAiSpellCheck = useCallback(() => runAiAction("spellCheck"), [runAiAction]);
+	const handleAiContinueWriting = useCallback(
+		() => runAiAction("continueWriting"),
+		[runAiAction],
 	);
 
 	// The editor calls this once the heading block is "done" — the caret left it
@@ -543,6 +550,7 @@ function EditorContainerImpl({
 		lastFileNameRef.current = fileName;
 		// Keyed on `fileId` only — re-runs when the open note changes, not on every
 		// content keystroke (which would reset tracking mid-edit).
+		// react-doctor-disable-next-line react-doctor/exhaustive-deps -- fileId is the only value that should retrigger this note-switch reset.
 	}, [fileId]);
 
 	useEffect(() => {
@@ -557,6 +565,7 @@ function EditorContainerImpl({
 		headingTracksRef.current = false;
 		const displayTitle = stripMarkdownExtension(fileName).replace(/-/g, " ");
 		aiHandleRef.current?.setTitle(displayTitle);
+		// react-doctor-disable-next-line react-doctor/exhaustive-deps -- fileName is the only signal that should update the H1 title from the sidebar rename flow.
 	}, [fileName]);
 
 	const isMdx = isMdxNote(file);
@@ -626,15 +635,11 @@ function EditorContainerImpl({
 					canNavigatePrev={canNavigatePrev}
 					canNavigateNext={canNavigateNext}
 					aiLoading={aiLoading}
-					onAiGenerateTitle={
-						canUseAi && onRenameFile ? () => runAiAction("generateTitle") : undefined
-					}
-					onAiSpellCheck={canUseAi ? () => runAiAction("spellCheck") : undefined}
-					onAiContinueWriting={
-						canUseAi ? () => runAiAction("continueWriting") : undefined
-					}
+					onAiGenerateTitle={canUseAi && onRenameFile ? handleAiGenerateTitle : undefined}
+					onAiSpellCheck={canUseAi ? handleAiSpellCheck : undefined}
+					onAiContinueWriting={canUseAi ? handleAiContinueWriting : undefined}
 					onAiAction={canUseAi ? runAiAction : undefined}
-					onExportNote={canExportNote && file ? handleExportNote : undefined}
+					onExportNote={canExportNote && fileId ? handleExportNote : undefined}
 					splitEnabled={splitEnabled}
 					onToggleSplit={onToggleSplit}
 					canToggleSplit={canToggleSplit}
@@ -1114,7 +1119,12 @@ function EditorContainerImpl({
 								</>
 							) : effectiveEditorMode === "raw" ? (
 								<>
-									Ln <AnimatedNumber value={cursorPosition.line} />, Col{" "}
+									Ln{" "}
+									<AnimatedNumber
+										value={cursorPosition.line}
+										animate={editorPrefs.animateNumbers}
+									/>
+									, Col{" "}
 									<AnimatedNumber
 										value={cursorPosition.column}
 										animate={editorPrefs.animateNumbers}
@@ -1132,7 +1142,7 @@ function EditorContainerImpl({
 						<span
 							className="mr-3 select-none rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
 							aria-live="polite"
-							title="Vim mode"
+							aria-label="Vim mode"
 						>
 							{vimMode}
 						</span>

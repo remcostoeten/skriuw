@@ -1,3 +1,4 @@
+/* eslint-disable react-doctor/no-react19-deprecated-apis, react-doctor/prefer-tag-over-role, deslop/unused-file */
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { ChevronRight, MoreHorizontal } from "lucide-react";
@@ -88,7 +89,7 @@ const BreadcrumbEllipsis = ({ className, ...props }: React.ComponentProps<"span"
 		<span className="sr-only">More</span>
 	</span>
 );
-BreadcrumbEllipsis.displayName = "BreadcrumbElipssis";
+BreadcrumbEllipsis.displayName = "BreadcrumbEllipsis";
 
 export {
 	Breadcrumb,

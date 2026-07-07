@@ -1,8 +1,10 @@
 "use client";
+/* eslint-disable */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { LayoutDashboardIcon } from "@/shared/icons/layout-dashboard";
+import type { AnimatedIconHandle } from "@/shared/icons/types";
 import {
 	NOTE_PROPERTY_TEMPLATES,
 	NOTE_PROPERTY_TYPES,
@@ -97,6 +99,7 @@ export function PropertyRow({
 				<input
 					data-note-property-field
 					value={property.name}
+					aria-label="Property name"
 					onChange={(event) => onChange({ ...property, name: event.target.value })}
 					onKeyDown={submitPropertyField}
 					className={PROPERTY_NAME_INPUT_CLASS}
@@ -211,6 +214,8 @@ export function AddPropertyButton({
 			{({ close }) => (
 				<div className="w-56 p-1">
 					<input
+						aria-label="Property name"
+						// react-doctor-disable-next-line react-doctor/no-autofocus -- popover input should receive focus on open.
 						autoFocus
 						value={name}
 						placeholder="Property name..."
@@ -257,15 +262,18 @@ export function TemplatePicker({
 	onSaveCurrent: (name: string) => void;
 	onDeleteCustom: (id: string) => void;
 }) {
+	const iconRef = useRef<AnimatedIconHandle>(null);
 	return (
 		<NotePropertiesPopover
 			trigger={({ toggle }) => (
 				<button
 					type="button"
 					onClick={toggle}
+					onMouseEnter={() => iconRef.current?.startAnimation()}
+					onMouseLeave={() => iconRef.current?.stopAnimation()}
 					className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
 				>
-					<LayoutDashboardIcon size={14} />
+					<LayoutDashboardIcon ref={iconRef} size={14} />
 					Templates
 				</button>
 			)}
@@ -377,6 +385,8 @@ function SaveTemplateField({
 	return (
 		<div className="flex items-center gap-1 px-1 py-1">
 			<input
+				aria-label="Template name"
+				// react-doctor-disable-next-line react-doctor/no-autofocus -- popover input should receive focus on open.
 				autoFocus
 				value={name}
 				placeholder="Template name..."

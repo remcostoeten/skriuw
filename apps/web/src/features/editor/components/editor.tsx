@@ -83,6 +83,7 @@ type EditorProps = {
 	collab?: TRichTextCollab;
 };
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- this shell intentionally coordinates both editor modes and their shared pane state in one place.
 export function Editor({
 	file,
 	files = EMPTY_FILES,
@@ -143,6 +144,7 @@ export function Editor({
 		() => Math.max(1, (file?.content ?? "").split(/\r?\n/).length),
 		[file?.content],
 	);
+	const fileId = file?.id;
 
 	// Auto-resize textarea
 	useEffect(() => {
@@ -234,9 +236,9 @@ export function Editor({
 
 	useEffect(() => {
 		const container = scrollContainerRef.current;
-		if (!container || !file) return;
+		if (!container || !fileId) return;
 		container.scrollTop = initialScrollTop;
-	}, [file?.id, initialScrollTop]);
+	}, [fileId, initialScrollTop]);
 
 	const reportScrollPosition = useCallback(() => {
 		const container = scrollContainerRef.current;
@@ -354,6 +356,7 @@ export function Editor({
 					<textarea
 						ref={textareaRef}
 						data-editor-surface=""
+						aria-label="Note editor"
 						value={file.content}
 						readOnly={readOnly}
 						onChange={(e) => {

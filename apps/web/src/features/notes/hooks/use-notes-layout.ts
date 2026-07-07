@@ -35,7 +35,7 @@ import {
 	focusSplitEditorPane,
 } from "@/shared/lib/focus-editor";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import { perf } from "@/shared/perf/track";
+import { useNoteLinkBackspaceNavigatesBack } from "@/shared/hooks/use-backspace-navigates-back";
 import type { CommandPaletteItem } from "@/shared/ui/command-palette";
 import {
 	useRegisterCommands,
@@ -375,6 +375,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	);
 
 	const { handleFileSelect: syncFileSelection } = useUrlSync(setActiveFileId);
+	useNoteLinkBackspaceNavigatesBack();
 	const focusedFileIdForNav =
 		splitEnabled && focusedEditorPane === "secondary" && splitSecondaryFileId
 			? splitSecondaryFileId
@@ -535,11 +536,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 			if (id) {
 				pushRecentFile(id);
-			}
-
-			// Start the select→painted timer (warm = body already cached).
-			if (id && id !== activeFileId) {
-				perf.openStart(id, queryClient.getQueryData(notesKeys.detail(id)) !== undefined);
 			}
 
 			if (splitSecondaryFileId && !isMobile) {

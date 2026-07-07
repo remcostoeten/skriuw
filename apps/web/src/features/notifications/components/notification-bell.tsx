@@ -44,7 +44,6 @@ function IconAction({
 			type="button"
 			onClick={onClick}
 			disabled={disabled}
-			title={label}
 			aria-label={label}
 			className={cn(
 				"inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40",

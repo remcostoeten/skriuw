@@ -1,23 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Copy, PencilLine, X } from "lucide-react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Check, Code, Copy, Workflow, X } from "lucide-react";
 import {
 	DEFAULT_DIAGRAM_SOURCE,
 	normalizeDiagramSource,
 	renderDiagram,
 } from "@/shared/lib/diagram";
+import {
+	DEFAULT_DIAGRAM_GRAPH,
+	parseGraph,
+	serializeGraph,
+	type DiagramGraph,
+} from "@/features/diagram/graph";
+import type { DiagramState } from "@/features/diagram/diagram-builder";
 import { cn } from "@/shared/lib/utils";
+
+const DiagramBuilder = lazy(() =>
+	import("@/features/diagram/diagram-builder").then((mod) => ({ default: mod.DiagramBuilder })),
+);
 
 export interface DiagramBlockData {
 	props: {
 		source?: string;
+		graph?: string;
 	};
 }
 
 export interface DiagramEditor {
 	isEditable?: boolean;
-	updateBlock: (block: unknown, update: { type: "diagram"; props: { source: string } }) => void;
+	updateBlock: (
+		block: unknown,
+		update: { type: "diagram"; props: { source?: string; graph?: string } },
+	) => void;
 }
 
 export function getDiagramSource(block: DiagramBlockData): string {
@@ -37,16 +52,12 @@ export function DiagramBlockView({
 }) {
 	const source = getDiagramSource(block);
 	const [editing, setEditing] = useState(false);
+	const [building, setBuilding] = useState(false);
 	const [draftSource, setDraftSource] = useState(source);
 	const [copied, setCopied] = useState(false);
 	const [svg, setSvg] = useState<string | null>(null);
 	const [renderError, setRenderError] = useState<string | null>(null);
-	const [prevSource, setPrevSource] = useState(source);
-
-	if (prevSource !== source) {
-		setPrevSource(source);
-		setDraftSource(source);
-	}
+	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -66,6 +77,17 @@ export function DiagramBlockView({
 		};
 	}, [source]);
 
+	useEffect(() => {
+		if (!editing) {
+			return;
+		}
+		textareaRef.current?.focus();
+	}, [editing]);
+
+	useEffect(() => {
+		setDraftSource(source);
+	}, [source]);
+
 	function saveDraft() {
 		const nextSource = normalizeDiagramSource(draftSource);
 		if (!nextSource) {
@@ -76,6 +98,26 @@ export function DiagramBlockView({
 			type: "diagram",
 		});
 		setEditing(false);
+	}
+
+	function initialGraph(): DiagramGraph {
+		return parseGraph(block.props.graph) ?? DEFAULT_DIAGRAM_GRAPH;
+	}
+
+	function saveFromBuilder(state: DiagramState) {
+		const nextSource = normalizeDiagramSource(state.code);
+		editor.updateBlock(block, {
+			type: "diagram",
+			props: {
+				source: nextSource || source,
+				graph: serializeGraph({
+					nodes: state.nodes,
+					edges: state.edges,
+					direction: state.direction,
+				}),
+			},
+		});
+		setBuilding(false);
 	}
 
 	async function copySource() {
@@ -107,7 +149,6 @@ export function DiagramBlockView({
 								type="button"
 								className={HEADER_ICON_BUTTON}
 								aria-label="Save diagram"
-								title="Save (⌘↩)"
 								onMouseDown={(event) => event.preventDefault()}
 								onClick={saveDraft}
 							>
@@ -117,7 +158,6 @@ export function DiagramBlockView({
 								type="button"
 								className={HEADER_ICON_BUTTON}
 								aria-label="Cancel edit"
-								title="Cancel (Esc)"
 								onMouseDown={(event) => event.preventDefault()}
 								onClick={() => {
 									setDraftSource(source);
@@ -128,23 +168,32 @@ export function DiagramBlockView({
 							</button>
 						</>
 					) : (
-						<button
-							type="button"
-							className={HEADER_ICON_BUTTON}
-							aria-label="Edit diagram"
-							title="Edit"
-							onMouseDown={(event) => event.preventDefault()}
-							onClick={() => setEditing(true)}
-						>
-							<PencilLine className="h-3.5 w-3.5" strokeWidth={1.8} />
-						</button>
+						<>
+							<button
+								type="button"
+								className={HEADER_ICON_BUTTON}
+								aria-label="Edit diagram visually"
+								onMouseDown={(event) => event.preventDefault()}
+								onClick={() => setBuilding(true)}
+							>
+								<Workflow className="h-3.5 w-3.5" strokeWidth={1.8} />
+							</button>
+							<button
+								type="button"
+								className={HEADER_ICON_BUTTON}
+								aria-label="Edit diagram source"
+								onMouseDown={(event) => event.preventDefault()}
+								onClick={() => setEditing(true)}
+							>
+								<Code className="h-3.5 w-3.5" strokeWidth={1.8} />
+							</button>
+						</>
 					)
 				) : null}
 				<button
 					type="button"
 					className={HEADER_ICON_BUTTON}
 					aria-label={copied ? "Copied" : "Copy diagram source"}
-					title={copied ? "Copied" : "Copy"}
 					onMouseDown={(event) => event.preventDefault()}
 					onClick={copySource}
 				>
@@ -158,7 +207,7 @@ export function DiagramBlockView({
 
 			{editing ? (
 				<textarea
-					autoFocus
+					ref={textareaRef}
 					spellCheck={false}
 					value={draftSource}
 					onChange={(event) => setDraftSource(event.target.value)}
@@ -208,6 +257,18 @@ export function DiagramBlockView({
 					)}
 				</div>
 			)}
+
+			{building ? (
+				<Suspense fallback={null}>
+					<DiagramBuilder
+						onClose={() => setBuilding(false)}
+						onInsert={saveFromBuilder}
+						initialNodes={initialGraph().nodes}
+						initialEdges={initialGraph().edges}
+						initialDirection={initialGraph().direction}
+					/>
+				</Suspense>
+			) : null}
 		</section>
 	);
 }

@@ -1,8 +1,8 @@
 @layer base {
 	:root[data-theme="paper"] {
-		--background: 40 18% 96%;
+		--background: 40 16% 95%;
 		--foreground: 30 10% 14%;
-		--card: 40 16% 98%;
+		--card: 40 18% 97%;
 		--card-foreground: 30 10% 14%;
 		--popover: 40 16% 95%;
 		--popover-foreground: 30 10% 18%;
@@ -37,7 +37,7 @@
 		--theme-text-dim: 30 8% 50%;
 		--theme-text-secondary: 30 8% 38%;
 		--theme-accent-blue: 213 72% 46%;
-		--theme-icon-rail: 40 16% 93%;
+		--theme-icon-rail: 40 16% 95%;
 		--theme-toolbar-bg: 40 16% 95%;
 		--theme-divider: 40 12% 84%;
 		--theme-btn-outline: 40 12% 78%;

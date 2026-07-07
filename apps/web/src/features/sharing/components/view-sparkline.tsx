@@ -54,7 +54,7 @@ export function ViewSparkline({ data, className, height = 28 }: Props) {
 				return (
 					<span
 						key={b.date}
-						title={`${b.date}: ${b.count} view${b.count === 1 ? "" : "s"}`}
+						aria-label={`${b.date}: ${b.count} view${b.count === 1 ? "" : "s"}`}
 						className={cn(
 							"flex-1 rounded-[1px] transition-colors",
 							b.count === 0 ? "bg-border" : "bg-foreground/70 hover:bg-foreground",
