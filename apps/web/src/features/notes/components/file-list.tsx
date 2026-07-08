@@ -98,6 +98,15 @@ type MobileActionTarget = {
 	selection: SelectedItem[];
 };
 
+type ActiveFileSwipe = {
+	pointerId: number;
+	key: string;
+	fileItem: SelectedItem;
+	startX: number;
+	startY: number;
+	dragging: boolean;
+};
+
 type ContextTarget =
 	| {
 			kind: "item";
@@ -112,6 +121,9 @@ const FILE_TREE_ROW_HEIGHT = 36;
 const FILE_TREE_COMPACT_ROW_HEIGHT = 30;
 const FILE_TREE_OVERSCAN = 10;
 const LONG_PRESS_DURATION_MS = 380;
+const SWIPE_MOVE_THRESHOLD_PX = 10;
+const SWIPE_DELETE_THRESHOLD_PX = 96;
+const SWIPE_MAX_TRANSLATE_PX = 140;
 
 type TreeGuidesProps = {
 	depth: number;
@@ -187,7 +199,9 @@ export const FileList = memo(function FileList({
 	const isMobile = useIsMobile();
 	const listRef = useRef<HTMLDivElement>(null);
 	const itemButtonRefs = useLazyRef(() => new Map<string, HTMLButtonElement>());
+	const swipeBackdropRefs = useLazyRef(() => new Map<string, HTMLSpanElement>());
 	const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const activeFileSwipeRef = useRef<ActiveFileSwipe | null>(null);
 	const suppressClickRef = useRef(false);
 	const rowHeight = compactMode ? FILE_TREE_COMPACT_ROW_HEIGHT : FILE_TREE_ROW_HEIGHT;
 	const isNarrow = sidebarWidth !== undefined && sidebarWidth < 220;
@@ -952,6 +966,103 @@ export const FileList = memo(function FileList({
 			}, LONG_PRESS_DURATION_MS);
 		},
 		[cancelLongPress, editingId, isMobile, openMobileActionSheet],
+	);
+
+	const resetFileSwipeVisuals = useCallback(
+		(key: string) => {
+			const button = itemButtonRefs.current.get(key);
+			if (button) {
+				button.style.transition = "transform 150ms ease-out";
+				button.style.transform = "";
+			}
+			const backdrop = swipeBackdropRefs.current.get(key);
+			if (backdrop) {
+				backdrop.style.opacity = "0";
+			}
+		},
+		[itemButtonRefs, swipeBackdropRefs],
+	);
+
+	const beginFileSwipe = useCallback(
+		(event: React.PointerEvent<HTMLButtonElement>, fileItem: SelectedItem) => {
+			if (!isMobile || event.pointerType !== "touch" || editingId) {
+				return;
+			}
+			activeFileSwipeRef.current = {
+				pointerId: event.pointerId,
+				key: getItemKey(fileItem),
+				fileItem,
+				startX: event.clientX,
+				startY: event.clientY,
+				dragging: false,
+			};
+		},
+		[editingId, getItemKey, isMobile],
+	);
+
+	const updateFileSwipe = useCallback(
+		(event: React.PointerEvent<HTMLButtonElement>) => {
+			const active = activeFileSwipeRef.current;
+			if (!active || active.pointerId !== event.pointerId) {
+				return;
+			}
+			const dx = event.clientX - active.startX;
+			const dy = event.clientY - active.startY;
+			if (!active.dragging) {
+				if (Math.abs(dx) <= SWIPE_MOVE_THRESHOLD_PX || Math.abs(dx) <= Math.abs(dy)) {
+					return;
+				}
+				active.dragging = true;
+			}
+			// Only leftward travel reveals the delete affordance; clamp so the row
+			// never drags past the swipe-to-delete threshold's visual ceiling.
+			const translate = Math.max(dx, -SWIPE_MAX_TRANSLATE_PX);
+			const clamped = Math.min(translate, 0);
+			const button = itemButtonRefs.current.get(active.key);
+			if (button) {
+				button.style.transition = "none";
+				button.style.transform = `translateX(${clamped}px)`;
+			}
+			const backdrop = swipeBackdropRefs.current.get(active.key);
+			if (backdrop) {
+				backdrop.style.opacity = String(
+					Math.min(1, Math.abs(clamped) / SWIPE_DELETE_THRESHOLD_PX),
+				);
+			}
+		},
+		[itemButtonRefs, swipeBackdropRefs],
+	);
+
+	const endFileSwipe = useCallback(
+		(event: React.PointerEvent<HTMLButtonElement>) => {
+			const active = activeFileSwipeRef.current;
+			if (!active || active.pointerId !== event.pointerId) {
+				return;
+			}
+			activeFileSwipeRef.current = null;
+			if (!active.dragging) {
+				return;
+			}
+			const dx = event.clientX - active.startX;
+			resetFileSwipeVisuals(active.key);
+			if (dx <= -SWIPE_DELETE_THRESHOLD_PX) {
+				triggerNativeFeedback("impact");
+				deleteSelection([active.fileItem]);
+			}
+		},
+		[deleteSelection, resetFileSwipeVisuals],
+	);
+
+	const cancelFileSwipe = useCallback(
+		(event: React.PointerEvent<HTMLButtonElement>) => {
+			const active = activeFileSwipeRef.current;
+			if (!active || active.pointerId !== event.pointerId) {
+				return;
+			}
+			activeFileSwipeRef.current = null;
+			resetFileSwipeVisuals(active.key);
+		},
+		[resetFileSwipeVisuals],
 	);
 
 	const handleTreeItemKeyDown = useCallback(
@@ -1933,11 +2044,26 @@ export const FileList = memo(function FileList({
 					if (event.button === 1) event.preventDefault();
 				}}
 				onPointerEnter={() => onFilePrefetch?.(file.id)}
-				onPointerDown={(event) => scheduleLongPress(event, fileItem, file.name)}
-				onPointerUp={cancelLongPress}
-				onPointerMove={cancelLongPress}
-				onPointerCancel={cancelLongPress}
-				onPointerLeave={cancelLongPress}
+				onPointerDown={(event) => {
+					scheduleLongPress(event, fileItem, file.name);
+					beginFileSwipe(event, fileItem);
+				}}
+				onPointerUp={(event) => {
+					cancelLongPress();
+					endFileSwipe(event);
+				}}
+				onPointerMove={(event) => {
+					cancelLongPress();
+					updateFileSwipe(event);
+				}}
+				onPointerCancel={(event) => {
+					cancelLongPress();
+					cancelFileSwipe(event);
+				}}
+				onPointerLeave={(event) => {
+					cancelLongPress();
+					cancelFileSwipe(event);
+				}}
 				onDoubleClick={(e) => handleDoubleClick(e, file.id, file.name, "file")}
 				draggable={!isEditing}
 				onDragStart={(e) =>
@@ -2180,6 +2306,22 @@ export const FileList = memo(function FileList({
 										onDragOver={(event) => handleSiblingDragOver(event, item)}
 										onDrop={(event) => handleSiblingDrop(event, item)}
 									>
+										{item.type === "file" && item.file && (
+											<span
+												aria-hidden="true"
+												ref={(node) => {
+													const key = getItemKey(item);
+													if (node) {
+														swipeBackdropRefs.current.set(key, node);
+													} else {
+														swipeBackdropRefs.current.delete(key);
+													}
+												}}
+												className="pointer-events-none absolute inset-0 flex items-center justify-end bg-destructive pr-4 text-xs font-medium text-destructive-foreground opacity-0"
+											>
+												Delete
+											</span>
+										)}
 										{rowContent}
 									</div>
 								);

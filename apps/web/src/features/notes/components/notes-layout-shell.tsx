@@ -2,8 +2,10 @@
 
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
+import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { ChevronRight, Contact, FileText, Hash, Info, Link2, ListTree } from "lucide-react";
 import type { ComponentType } from "react";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
@@ -58,6 +60,19 @@ const WelcomeWalkthrough = dynamic(
 );
 
 const SHIMMER_STEP_MS = 70;
+
+const SWIPE_MAX_DURATION_MS = 700;
+const SWIPE_MAX_PERPENDICULAR = 48;
+const SWIPE_EDGE_ZONE = 28;
+const SWIPE_EDGE_OPEN_DISTANCE = 48;
+const SWIPE_NAV_DISTANCE = 80;
+
+type WorkspaceSwipeStart = {
+	pointerId: number;
+	x: number;
+	y: number;
+	time: number;
+};
 
 function MetadataPlaceholderBar({
 	className,
@@ -323,6 +338,66 @@ export function NotesLayoutShell({
 	useFocusTrap(isMobile && showSidebar, mobileSidebarRef);
 	useFocusTrap(isMobile && showMetadata, mobileMetadataRef);
 	const mobileOverlayOpen = isMobile && (showSidebar || showMetadata);
+
+	const workspaceSwipeRef = useRef<WorkspaceSwipeStart | null>(null);
+
+	const handleWorkspacePointerDown = useCallback(
+		(event: ReactPointerEvent<HTMLDivElement>) => {
+			if (!isMobile || event.pointerType !== "touch") {
+				workspaceSwipeRef.current = null;
+				return;
+			}
+			workspaceSwipeRef.current = {
+				pointerId: event.pointerId,
+				x: event.clientX,
+				y: event.clientY,
+				time: event.timeStamp,
+			};
+		},
+		[isMobile],
+	);
+
+	const handleWorkspacePointerUp = useCallback(
+		(event: ReactPointerEvent<HTMLDivElement>) => {
+			const start = workspaceSwipeRef.current;
+			workspaceSwipeRef.current = null;
+			if (!start || start.pointerId !== event.pointerId) return;
+			if (event.timeStamp - start.time > SWIPE_MAX_DURATION_MS) return;
+
+			const dx = event.clientX - start.x;
+			const dy = event.clientY - start.y;
+			if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dy) > SWIPE_MAX_PERPENDICULAR) return;
+
+			if (!showSidebar && start.x <= SWIPE_EDGE_ZONE && dx > SWIPE_EDGE_OPEN_DISTANCE) {
+				handleToggleSidebar();
+				return;
+			}
+
+			if (Math.abs(dx) < SWIPE_NAV_DISTANCE) return;
+
+			if (dx > 0) {
+				if (!canNavigatePrev) return;
+				triggerNativeFeedback("selection");
+				handleNavigatePrev();
+			} else {
+				if (!canNavigateNext) return;
+				triggerNativeFeedback("selection");
+				handleNavigateNext();
+			}
+		},
+		[
+			canNavigateNext,
+			canNavigatePrev,
+			handleNavigateNext,
+			handleNavigatePrev,
+			handleToggleSidebar,
+			showSidebar,
+		],
+	);
+
+	const clearWorkspaceSwipe = useCallback(() => {
+		workspaceSwipeRef.current = null;
+	}, []);
 	const workspaceItems = useMemo<WorkspaceNavItem[]>(
 		() => [
 			{ href: "/app", label: "Notes", isActive: pathname === "/app" },
@@ -455,6 +530,9 @@ export function NotesLayoutShell({
 					<div
 						className="relative flex min-w-0 flex-1 flex-col overflow-hidden"
 						inert={mobileOverlayOpen ? true : undefined}
+						onPointerDownCapture={isMobile ? handleWorkspacePointerDown : undefined}
+						onPointerUpCapture={isMobile ? handleWorkspacePointerUp : undefined}
+						onPointerCancelCapture={isMobile ? clearWorkspaceSwipe : undefined}
 					>
 						<div className="relative flex min-w-0 flex-1 overflow-hidden">
 							<SplitDropZone

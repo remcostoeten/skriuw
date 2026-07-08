@@ -56,6 +56,7 @@
 		"check:portable": "bun scripts/check-portable.ts",
 		"colors:audit": "bun scripts/color-audit.ts",
 		"colors:audit:strict": "bun scripts/color-audit.ts --strict",
+		"react:doctor": "bun scripts/react-doctor-report.ts",
 		"seed:welcome-bundle": "bun scripts/seed-welcome-bundle.ts",
 		"party:dev": "wrangler dev",
 		"party:deploy": "wrangler deploy",

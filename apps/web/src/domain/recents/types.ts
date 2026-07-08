@@ -5,4 +5,6 @@ export type RecentItem = {
 	itemId: string;
 	itemType: RecentItemType;
 	accessedAt: Date;
+	name?: string;
+	icon?: string;
 };

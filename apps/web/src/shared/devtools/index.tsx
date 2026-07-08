@@ -6,7 +6,7 @@ import { Devtool } from "./pulse";
 const TRACK_FPS_KEY = "pulse:track-fps";
 
 export function PerfDevtools() {
-	const [highlight, setHighlight] = useState(true);
+	const [highlight, setHighlight] = useState(false);
 	const [trackFps, setTrackFpsState] = useState(true);
 	const [mounted, setMounted] = useState(false);
 

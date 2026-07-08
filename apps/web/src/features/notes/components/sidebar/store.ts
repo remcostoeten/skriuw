@@ -39,7 +39,11 @@ type SidebarState = {
 	removeFromFavorites: (itemId: string) => void;
 	isFavorite: (itemId: string) => boolean;
 
-	addToRecents: (itemId: string, itemType: "file" | "folder") => void;
+	addToRecents: (
+		itemId: string,
+		itemType: "file" | "folder",
+		meta?: { name?: string; icon?: string },
+	) => void;
 	clearRecents: () => void;
 	getRecents: () => RecentItem[];
 	setMaxRecents: (max: number) => void;
@@ -393,7 +397,11 @@ export const useSidebarStore = create<SidebarState>()(
 					return get().config.favorites.some((favorite) => favorite.itemId === itemId);
 				},
 
-				addToRecents: (itemId: string, itemType: "file" | "folder") => {
+				addToRecents: (
+					itemId: string,
+					itemType: "file" | "folder",
+					meta?: { name?: string; icon?: string },
+				) => {
 					applyUserScopeUpdate((config) => {
 						const filtered = config.recents.filter(
 							(recent) => recent.itemId !== itemId,
@@ -404,6 +412,8 @@ export const useSidebarStore = create<SidebarState>()(
 							itemId,
 							itemType,
 							accessedAt: new Date(),
+							name: meta?.name,
+							icon: meta?.icon,
 						};
 
 						return {
