@@ -14,6 +14,7 @@ type Props = {
 	recents: RecentItem[];
 	filesById: Map<string, NoteFile>;
 	foldersById: Map<string, NoteFolder>;
+	isFilesLoading?: boolean;
 	activeFileId: string;
 	isCollapsed: boolean;
 	showHeader?: boolean;
@@ -41,6 +42,7 @@ export const RecentsSection = memo(function RecentsSection({
 	recents,
 	filesById,
 	foldersById,
+	isFilesLoading = false,
 	activeFileId,
 	isCollapsed,
 	showHeader = true,
@@ -70,20 +72,27 @@ export const RecentsSection = memo(function RecentsSection({
 	);
 	const resolvedRecents = useMemo(
 		() =>
-			recents.flatMap<
-				RecentItem & { item: NoteFile | NoteFolder; name: string; icon?: string }
-			>((recent) => {
-				if (recent.itemType === "file") {
-					const file = filesById.get(recent.itemId);
-					return file
-						? [{ ...recent, item: file, name: file.name, icon: file.icon }]
-						: [];
+			recents.flatMap<RecentItem & { name: string; icon?: string }>((recent) => {
+				const live =
+					recent.itemType === "file"
+						? filesById.get(recent.itemId)
+						: foldersById.get(recent.itemId);
+
+				if (live) {
+					const icon = recent.itemType === "file" ? (live as NoteFile).icon : undefined;
+					return [{ ...recent, name: live.name, icon }];
 				}
 
-				const folder = foldersById.get(recent.itemId);
-				return folder ? [{ ...recent, item: folder, name: folder.name }] : [];
+				// filesById hasn't resolved yet: render from the persisted snapshot so the
+				// row paints instantly, then reconcile to the live name once data lands.
+				// Once files are ready, an absent id means the note is gone — drop it.
+				if (isFilesLoading && recent.name) {
+					return [{ ...recent, name: recent.name, icon: recent.icon }];
+				}
+
+				return [];
 			}),
-		[recents, filesById, foldersById],
+		[recents, filesById, foldersById, isFilesLoading],
 	);
 
 	useEffect(() => {

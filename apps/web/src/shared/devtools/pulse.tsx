@@ -7,6 +7,7 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -342,6 +343,12 @@ function createOverlay() {
 
 const overlay = createOverlay();
 
+let capturing = false;
+
+function setCapturing(value) {
+	capturing = value;
+}
+
 function collectTree(rootFiber) {
 	const roots = [];
 	const stack = [{ fiber: rootFiber, out: roots, trigger: null }];
@@ -421,6 +428,7 @@ function installFiberAgent() {
 	const existing = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
 
 	const handleCommit = (root) => {
+		if (!capturing) return;
 		store.setMode("fiber");
 		const { roots, truncated } = collectTree(root.current);
 		const paint = overlay.isEnabled();
@@ -670,7 +678,28 @@ function useDraggable() {
 
 	const didDrag = useCallback(() => dragRef.current?.moved ?? false, []);
 
-	return { pos, onPointerDown, didDrag };
+	return { pos, setPos, onPointerDown, didDrag };
+}
+
+function useClampIntoView(pos, setPos, ref, active, revision) {
+	useLayoutEffect(() => {
+		if (!active || !pos) return undefined;
+
+		const clamp = () => {
+			const el = ref.current;
+			if (!el) return;
+			const rect = el.getBoundingClientRect();
+			const maxX = Math.max(8, window.innerWidth - rect.width - 8);
+			const maxY = Math.max(8, window.innerHeight - rect.height - 8);
+			const nx = Math.min(Math.max(8, pos.x), maxX);
+			const ny = Math.min(Math.max(8, pos.y), maxY);
+			if (nx !== pos.x || ny !== pos.y) setPos({ x: nx, y: ny });
+		};
+
+		clamp();
+		window.addEventListener("resize", clamp);
+		return () => window.removeEventListener("resize", clamp);
+	}, [pos, setPos, ref, active, revision]);
 }
 
 function useInspect(active, onPick) {
@@ -911,7 +940,8 @@ function Devtool({ highlight, setHighlight, trackFps, setTrackFps }) {
 
 	const snap = useSyncExternalStore(store.subscribe, store.getSnapshot);
 	const [now, setNow] = useState(() => performance.now());
-	const { pos, onPointerDown, didDrag } = useDraggable();
+	const { pos, setPos, onPointerDown, didDrag } = useDraggable();
+	const panelRef = useRef(null);
 
 	const onDrop = useCallback((value) => {
 		store.log(
@@ -937,8 +967,13 @@ function Devtool({ highlight, setHighlight, trackFps, setTrackFps }) {
 	useInspect(inspecting, onPick);
 
 	useEffect(() => {
-		overlay.setEnabled(highlight);
-	}, [highlight]);
+		setCapturing(!collapsed);
+		return () => setCapturing(false);
+	}, [collapsed]);
+
+	useEffect(() => {
+		overlay.setEnabled(highlight && !collapsed);
+	}, [highlight, collapsed]);
 
 	useEffect(() => {
 		if (collapsed) return;
@@ -993,7 +1028,8 @@ function Devtool({ highlight, setHighlight, trackFps, setTrackFps }) {
 	const { innerRef, height } = useMeasuredHeight();
 	const cap = Math.max(160, (typeof window === "undefined" ? 640 : window.innerHeight) - 160);
 	const bodyHeight = Math.min(height, cap);
-	const capped = height > cap;
+
+	useClampIntoView(pos, setPos, panelRef, !collapsed, bodyHeight);
 
 	const posStyle = pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : {};
 
@@ -1031,7 +1067,7 @@ function Devtool({ highlight, setHighlight, trackFps, setTrackFps }) {
 	}
 
 	return (
-		<aside data-devtool className="dt-panel" style={posStyle}>
+		<aside ref={panelRef} data-devtool className="dt-panel" style={posStyle}>
 			<style>{STYLES}</style>
 			<header className="dt-header" onPointerDown={onPointerDown}>
 				<div className="dt-row" style={{ gap: 10 }}>
@@ -1152,10 +1188,7 @@ function Devtool({ highlight, setHighlight, trackFps, setTrackFps }) {
 				</div>
 			)}
 
-			<div
-				className="dt-body"
-				style={{ height: bodyHeight, overflowY: capped ? "auto" : "hidden" }}
-			>
+			<div className="dt-body" style={{ height: bodyHeight, overflowY: "auto" }}>
 				<div ref={innerRef} className="dt-body-inner">
 					{tab === "fps" && trackFps && (
 						<div className="dt-stack">
@@ -1324,7 +1357,7 @@ const STYLES = `
   .dt-chip:hover { color: #d4d4d4; }
   .dt-chip-active { background: #2e2e2e; color: #f5f5f5; }
 
-  .dt-panel { position: fixed; bottom: 16px; right: 16px; width: 340px; display: flex; flex-direction: column; overflow: hidden; background: #1e1e20; border: 1px solid #2e2e2e; box-shadow: 0 24px 60px rgba(0,0,0,0.55); font-family: Inter, ui-sans-serif, system-ui, sans-serif; z-index: 2147483647; }
+  .dt-panel { position: fixed; bottom: 16px; right: 16px; width: 340px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; background: #1e1e20; border: 1px solid #2e2e2e; box-shadow: 0 24px 60px rgba(0,0,0,0.55); font-family: Inter, ui-sans-serif, system-ui, sans-serif; z-index: 2147483647; }
   .dt-pill { position: fixed; bottom: 16px; right: 16px; display: flex; align-items: center; gap: 6px; padding: 7px 12px; background: #1e1e20; border: 1px solid #2e2e2e; box-shadow: 0 12px 30px rgba(0,0,0,0.5); font-size: 12px; z-index: 2147483647; cursor: pointer; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
   .dt-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #2a2a2a; user-select: none; cursor: grab; }
   .dt-header:active { cursor: grabbing; }
@@ -1343,7 +1376,8 @@ const STYLES = `
   .dt-input::placeholder { color: #5a5a5a; }
   .dt-input:focus { border-color: #454545; }
 
-  .dt-body { transition: height 350ms cubic-bezier(0.23, 1, 0.32, 1); }
+  .dt-header, .dt-tabs, .dt-filter-bar, .dt-footer { flex-shrink: 0; }
+  .dt-body { flex: 1 1 auto; min-height: 0; transition: height 350ms cubic-bezier(0.23, 1, 0.32, 1); }
   .dt-body-inner { padding: 12px; }
   .dt-section-title { font-size: 13px; color: #d4d4d4; padding: 0 4px; }
   .dt-hint { padding: 0 4px; font-size: 11px; line-height: 1.6; color: #737373; }

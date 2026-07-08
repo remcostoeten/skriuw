@@ -256,11 +256,15 @@ export const SidebarPanel = memo(function SidebarPanel({
 
 	const handleFileSelect = useCallback(
 		(id: string) => {
-			sidebarStore.addToRecents(id, "file");
+			const file = filesById.get(id);
+			sidebarStore.addToRecents(id, "file", {
+				name: file?.name,
+				icon: file?.icon,
+			});
 			onFileSelect(id);
 			onRequestClose?.();
 		},
-		[sidebarStore, onFileSelect, onRequestClose],
+		[sidebarStore, onFileSelect, onRequestClose, filesById],
 	);
 
 	const fileTreeActions = useMemo<NoteTreeActions>(
@@ -514,6 +518,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 						recents={sidebarStore.getRecents()}
 						filesById={filesById}
 						foldersById={foldersById}
+						isFilesLoading={isFilesLoading}
 						activeFileId={activeFileId}
 						isCollapsed={section.isCollapsed}
 						showHeader={showSectionHeaders}

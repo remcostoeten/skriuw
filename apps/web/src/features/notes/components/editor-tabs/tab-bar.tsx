@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
+import {
+	useEffect,
+	useRef,
+	useState,
+	type DragEvent,
+	type KeyboardEvent,
+	type PointerEvent,
+} from "react";
 import { Pin, X } from "lucide-react";
 import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { stripMarkdownExtension } from "@/domain/notes/note-links";
 import { cn } from "@/shared/lib/utils";
+import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
 import { usePreferencesStore } from "@/features/settings/store";
 import {
@@ -72,6 +80,24 @@ function activeDraggedFileId(): string | null {
 	return item?.type === "file" ? item.id : null;
 }
 
+// Native HTML5 DnD (draggable/onDragStart/onDragOver/onDrop) has no touch
+// equivalent, so touch pointers get a parallel long-press-then-drag path.
+const TOUCH_LONG_PRESS_MS = 320;
+const TOUCH_MOVE_CANCEL_PX = 8;
+
+type TouchPressState = {
+	fileId: string;
+	startX: number;
+	startY: number;
+	timer: ReturnType<typeof setTimeout> | null;
+};
+
+function tabIdAtPoint(x: number, y: number): string | null {
+	const el = document.elementFromPoint(x, y);
+	const tabEl = el instanceof Element ? el.closest<HTMLElement>("[data-tab-id]") : null;
+	return tabEl?.dataset.tabId ?? null;
+}
+
 export function TabBar({
 	tabs,
 	activeFileId,
@@ -93,6 +119,7 @@ export function TabBar({
 	const [contextTabId, setContextTabId] = useState<string | null>(null);
 	const tabRefs = useLazyRef(() => new Map<string, HTMLDivElement>());
 	const externalOverRef = useRef<string | "strip" | null>(null);
+	const touchPressRef = useRef<TouchPressState | null>(null);
 	const dropNoteRef = useRef(onDropNote);
 	dropNoteRef.current = onDropNote;
 
@@ -226,6 +253,64 @@ export function TabBar({
 		setDragOverId(null);
 	};
 
+	const handleTabPointerDown = (fileId: string) => (event: PointerEvent<HTMLDivElement>) => {
+		if (event.pointerType !== "touch") return;
+		const startX = event.clientX;
+		const startY = event.clientY;
+		touchPressRef.current = {
+			fileId,
+			startX,
+			startY,
+			timer: setTimeout(() => {
+				if (!touchPressRef.current || touchPressRef.current.fileId !== fileId) return;
+				touchPressRef.current.timer = null;
+				setDraggingId(fileId);
+				setDragOverId(null);
+				event.currentTarget.setPointerCapture(event.pointerId);
+				triggerNativeFeedback("impact");
+			}, TOUCH_LONG_PRESS_MS),
+		};
+	};
+
+	const handleTabPointerMove = (fileId: string) => (event: PointerEvent<HTMLDivElement>) => {
+		if (event.pointerType !== "touch") return;
+		const press = touchPressRef.current;
+		if (!press || press.fileId !== fileId) return;
+
+		if (draggingId !== fileId) {
+			if (!press.timer) return;
+			const dx = event.clientX - press.startX;
+			const dy = event.clientY - press.startY;
+			if (Math.hypot(dx, dy) > TOUCH_MOVE_CANCEL_PX) {
+				clearTimeout(press.timer);
+				touchPressRef.current = null;
+			}
+			return;
+		}
+
+		const hoveredId = tabIdAtPoint(event.clientX, event.clientY);
+		if (!hoveredId || hoveredId === dragOverId) return;
+		setDragOverId(hoveredId);
+		if (hoveredId !== draggingId) {
+			reorderAround(hoveredId);
+			triggerNativeFeedback("selection");
+		}
+	};
+
+	const handleTabPointerEnd = (fileId: string) => (event: PointerEvent<HTMLDivElement>) => {
+		if (event.pointerType !== "touch") return;
+		const press = touchPressRef.current;
+		if (press?.timer) clearTimeout(press.timer);
+		touchPressRef.current = null;
+		if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		}
+		if (draggingId === fileId) {
+			setDraggingId(null);
+			setDragOverId(null);
+		}
+	};
+
 	const focusableTabId = tabs.some((tab) => tab.file.id === activeFileId)
 		? activeFileId
 		: tabs[0].file.id;
@@ -261,6 +346,7 @@ export function TabBar({
 								role="tab"
 								aria-selected={isActive}
 								tabIndex={file.id === focusableTabId ? 0 : -1}
+								data-tab-id={file.id}
 								ref={(node) => {
 									if (node) {
 										tabRefs.current.set(file.id, node);
@@ -289,6 +375,10 @@ export function TabBar({
 								onDragOver={handleDragOver(file.id)}
 								onDrop={handleDrop(file.id)}
 								onDragEnd={handleDragEnd}
+								onPointerDown={handleTabPointerDown(file.id)}
+								onPointerMove={handleTabPointerMove(file.id)}
+								onPointerUp={handleTabPointerEnd(file.id)}
+								onPointerCancel={handleTabPointerEnd(file.id)}
 								className={cn(
 									"group flex max-w-52 min-w-28 cursor-pointer items-center gap-1.5 border-r border-border px-3 py-1.5 text-xs transition-colors select-none",
 									isActive
