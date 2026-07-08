@@ -12,6 +12,7 @@ import {
 } from "date-fns";
 import { ChevronLeft, ChevronRight, FileText, Folder } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { SidebarRecentsSkeleton } from "./sidebar-recents-skeleton";
 
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
@@ -214,17 +215,21 @@ export function NotesSidebarContentSkeleton() {
 
 			<JournalSectionSkeleton />
 
-			<section aria-hidden="true" className="mx-2 mb-0.5">
+			<section className="mx-2 mb-0.5">
 				<SidebarSectionHeaderSkeleton title="Recents" />
-				<div className="space-y-px px-1.5 pb-2 pt-0.5">
-					{Array.from({ length: 3 }).map((_, index) => (
-						<SidebarTreeRowSkeleton
-							key={index}
-							index={index}
-							labelWidth={[62, 54, 70][index]}
-						/>
-					))}
-				</div>
+				<SidebarRecentsSkeleton
+					fallback={
+						<div aria-hidden="true" className="space-y-px px-1.5 pb-2 pt-0.5">
+							{Array.from({ length: 3 }).map((_, index) => (
+								<SidebarTreeRowSkeleton
+									key={index}
+									index={index}
+									labelWidth={[62, 54, 70][index]}
+								/>
+							))}
+						</div>
+					}
+				/>
 			</section>
 
 			<section aria-hidden="true" className="mx-2 mb-0.5">
