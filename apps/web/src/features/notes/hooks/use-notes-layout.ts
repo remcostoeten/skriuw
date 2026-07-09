@@ -861,6 +861,27 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[activateTab, focusedEditorPane, primaryTabs, secondaryTabs],
 	);
 
+	const handleCycleTab = useCallback(
+		(direction: 1 | -1) => {
+			const tabs = focusedEditorPane === "secondary" ? secondaryTabs : primaryTabs;
+			if (tabs.length < 2) return;
+			const paneActiveId =
+				focusedEditorPane === "secondary" ? splitSecondaryFileId : activeFileId;
+			const current = tabs.findIndex((tab) => tab.fileId === paneActiveId);
+			const from = current < 0 ? 0 : current;
+			const next = (from + direction + tabs.length) % tabs.length;
+			activateTab(focusedEditorPane, tabs[next].fileId);
+		},
+		[
+			activateTab,
+			activeFileId,
+			focusedEditorPane,
+			primaryTabs,
+			secondaryTabs,
+			splitSecondaryFileId,
+		],
+	);
+
 	const handleCloseTab = useCallback(
 		(pane: EditorPane, fileId: string) => {
 			const tabs = pane === "primary" ? primaryTabs : secondaryTabs;
@@ -1257,6 +1278,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		shortcutGroups,
 	} = useNotesLayoutShortcuts({
 		handleSwitchToTabIndex,
+		handleCycleTab,
 	});
 
 	useEffect(() => {
