@@ -8,7 +8,7 @@ import { Button } from "@/shared/ui/button";
 
 type UsageFilter = "all" | "errors" | "success";
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
 	dateStyle: "medium",
 	timeStyle: "short",
 });

@@ -191,7 +191,7 @@ function JournalListBodySkeleton() {
 			<div className="mt-2 md:mt-0">
 				{LIST_ROW_TITLE_WIDTHS.map((width, index) => (
 					<div
-						key={index}
+						key={width}
 						className="flex h-[54px] items-center gap-3 border-b border-border px-1 py-2.5 md:px-4"
 					>
 						<span className="w-5 shrink-0 text-center text-[14px] text-muted-foreground/20">

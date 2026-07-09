@@ -302,9 +302,3 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
 };
 
 export type CommandId = keyof typeof COMMAND_REGISTRY;
-export function getCommandDef(id: CommandId): CommandDefinition {
-	return COMMAND_REGISTRY[id];
-}
-export function getCommandIds(): CommandId[] {
-	return Object.keys(COMMAND_REGISTRY) as CommandId[];
-}

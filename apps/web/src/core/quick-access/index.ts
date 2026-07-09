@@ -13,7 +13,6 @@ export {
 	type RegisteredGotoTarget,
 } from "./goto-types";
 export { GotoIndicators, type GotoIndicatorSettings } from "./goto-indicator";
-export { GotoTarget } from "./goto-target";
 export {
 	comboHasModifier,
 	isTypingContext,

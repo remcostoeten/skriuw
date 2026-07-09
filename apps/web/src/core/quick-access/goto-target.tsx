@@ -18,7 +18,7 @@ type Props = {
  * the region in an extra element is acceptable. When it isn't, use the hook
  * directly and attach its ref to an existing element.
  */
-export function GotoTarget({ keybind, to, label, enabled, className, children }: Props) {
+function GotoTarget({ keybind, to, label, enabled, className, children }: Props) {
 	const targetRef = useGotoTarget({ keybind, to, label, enabled });
 
 	return (

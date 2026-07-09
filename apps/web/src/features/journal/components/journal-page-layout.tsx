@@ -450,7 +450,6 @@ export function JournalPageLayout() {
 											: { x: -34, opacity: 0.94 }
 									}
 									transition={sidebarTransition}
-									style={{ willChange: "transform, opacity" }}
 									className="native-panel pointer-events-auto h-full w-[min(88vw,22rem)] max-w-full overflow-hidden border border-l-0 border-border"
 								>
 									<JournalSidebar

@@ -4,7 +4,7 @@
  * `focusId` like `"theme"` becomes the DOM id `"settings-focus-theme"`.
  */
 
-export const SETTINGS_FOCUS_PARAM = "focus";
+const SETTINGS_FOCUS_PARAM = "focus";
 
 const FLASH_CLASS = "settings-focus-flash";
 const FLASH_DURATION_MS = 1600;

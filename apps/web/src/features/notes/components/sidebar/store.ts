@@ -302,8 +302,11 @@ export const useSidebarStore = create<SidebarState>()(
 								folderIds: [],
 							};
 
+							const fileIdSet = new Set(customConfig.fileIds);
+							const folderIdSet = new Set(customConfig.folderIds);
+
 							if (itemType === "file") {
-								if (customConfig.fileIds?.includes(itemId)) return section;
+								if (fileIdSet.has(itemId)) return section;
 								return {
 									...section,
 									customConfig: {
@@ -313,7 +316,7 @@ export const useSidebarStore = create<SidebarState>()(
 								};
 							}
 
-							if (customConfig.folderIds?.includes(itemId)) return section;
+							if (folderIdSet.has(itemId)) return section;
 							return {
 								...section,
 								customConfig: {
