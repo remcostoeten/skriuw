@@ -55,6 +55,7 @@ import {
 	getEditorContextMenuState,
 } from "@/features/desktop/context-menu-actions";
 import { NoteCoverBanner } from "@/features/notes/components/note-cover";
+import { useUpdateNote } from "@/features/notes/hooks/use-update-note";
 
 type EditorContainerProps = {
 	file: NoteFile | null;
@@ -381,6 +382,7 @@ function EditorContainerImpl({
 	isContentLoading = false,
 }: EditorContainerProps) {
 	const isRenamingFromH1Ref = useRef(false);
+	const { mutate: mutateNoteCover } = useUpdateNote();
 	const lastFileNameRef = useRef(fileName);
 	// Whether the filename is still auto-following the first heading. True while
 	// the name is Untitled or matches the current heading; a manual rename
@@ -922,7 +924,12 @@ function EditorContainerImpl({
 				/>
 			)}
 
-			{file?.cover && <NoteCoverBanner cover={file.cover} />}
+			{file?.cover && (
+				<NoteCoverBanner
+					cover={file.cover}
+					onCoverChange={(cover) => mutateNoteCover({ id: file.id, cover })}
+				/>
+			)}
 
 			<div className="relative flex min-h-0 flex-1 flex-col">
 				{isContentLoading || collabConnecting ? (

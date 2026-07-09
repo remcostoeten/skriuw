@@ -9,6 +9,7 @@ export {
 	SHORTCUT_REGISTRY,
 	getShortcutIds,
 	getShortcutDef,
+	getShortcutDefaultKeys,
 	type ShortcutId,
 	type ShortcutDefinition,
 } from "./registry";

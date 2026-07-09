@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShortcutMap } from "@remcostoeten/use-shortcut/react";
-import { getShortcutDef, useShortcutManager, type ShortcutId } from "@/core/shortcuts";
+import { getShortcutDefaultKeys, useShortcutManager, type ShortcutId } from "@/core/shortcuts";
 import {
 	buildRegex,
 	clearSearch,
@@ -116,7 +116,7 @@ export function useEditorSearch(editor: EditorInstance) {
 
 	const { bindings } = useShortcutManager();
 	const shortcutKeys = useCallback(
-		(id: ShortcutId) => bindings[id] ?? getShortcutDef(id).keys,
+		(id: ShortcutId) => bindings[id] ?? getShortcutDefaultKeys(id),
 		[bindings],
 	);
 
