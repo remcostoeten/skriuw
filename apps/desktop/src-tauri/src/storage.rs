@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Mutex;
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
 /// A note row, serialized to match the TypeScript `NoteFile` contract
@@ -94,10 +94,19 @@ pub struct JournalEntry {
     #[serde(default)]
     pub title: Option<String>,
     pub content: String,
+    // Structured BlockNote document, kept so `$person` chips retain their id for
+    // graph/people indexing (markdown flattening drops it). Defaults to an empty
+    // document for legacy entries written before this field existed.
+    #[serde(default = "empty_rich_content")]
+    pub rich_content: serde_json::Value,
     pub tags: Vec<String>,
     pub mood: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+fn empty_rich_content() -> serde_json::Value {
+    serde_json::Value::Array(Vec::new())
 }
 
 /// A journal tag row, matching the TypeScript `JournalTag` contract. `usage_count`
@@ -372,14 +381,15 @@ END;
 -- a local-first feature whose source of truth is markdown in the vault, with
 -- these tables as the queried index (rebuilt from the vault on launch).
 CREATE TABLE IF NOT EXISTS journal_entries (
-	id          TEXT PRIMARY KEY,
-	date_key    TEXT NOT NULL,
-	title       TEXT,
-	content     TEXT NOT NULL DEFAULT '',
-	mood        TEXT,
-	tags        TEXT NOT NULL DEFAULT '[]',
-	created_at  INTEGER NOT NULL,
-	updated_at  INTEGER NOT NULL
+	id           TEXT PRIMARY KEY,
+	date_key     TEXT NOT NULL,
+	title        TEXT,
+	content      TEXT NOT NULL DEFAULT '',
+	rich_content TEXT NOT NULL DEFAULT '[]',
+	mood         TEXT,
+	tags         TEXT NOT NULL DEFAULT '[]',
+	created_at   INTEGER NOT NULL,
+	updated_at   INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date_key);
@@ -450,6 +460,12 @@ impl Storage {
         ensure_column(&conn, "notes", "icon", "TEXT")?;
         ensure_column(&conn, "notes", "cover", "TEXT")?;
         ensure_column(&conn, "journal_entries", "title", "TEXT")?;
+        ensure_column(
+            &conn,
+            "journal_entries",
+            "rich_content",
+            "TEXT NOT NULL DEFAULT '[]'",
+        )?;
         // Link-index generation, tracked in the SQLite user_version pragma.
         // v2: the index gained `tag`/`person` rows (previously wiki/markdown
         // only), so rows written by older builds are incomplete. Dropping the
@@ -786,7 +802,8 @@ impl Storage {
             "SELECT DISTINCT l.kind, l.raw, l.target_label, l.alias, l.target_note_id, \
 			   l.target_title_key, \
 			   n.id, n.name, n.content, n.rich_content, n.preferred_editor_mode, \
-			   n.parent_id, n.sort_order, n.tags, n.properties, n.created_at, n.modified_at \
+			   n.parent_id, n.sort_order, n.tags, n.properties, n.created_at, n.modified_at, \
+			   n.icon, n.cover \
 			 FROM note_links l JOIN notes n ON n.id = l.source_note_id \
 			 WHERE l.source_note_id != ?1 \
 			   AND (l.target_note_id = ?1 OR l.target_title_key IS NOT NULL)",
@@ -853,7 +870,7 @@ impl Storage {
     pub fn list_journal_entries(&self) -> rusqlite::Result<Vec<JournalEntry>> {
         let conn = self.lock();
         let mut stmt = conn.prepare(
-            "SELECT id, date_key, title, content, mood, tags, created_at, updated_at \
+            "SELECT id, date_key, title, content, rich_content, mood, tags, created_at, updated_at \
 			 FROM journal_entries ORDER BY created_at ASC",
         )?;
         let rows = stmt.query_map([], row_to_journal_entry)?;
@@ -942,9 +959,10 @@ impl Storage {
         rows.collect()
     }
 
-    /// Reuse-by-name: creating a person whose name already exists returns the
-    /// stored row untouched (id and colour preserved), so the same `$mention`
-    /// or property pick always resolves to one durable record.
+    /// Reuse-by-name (case-insensitive): creating a person whose name already
+    /// exists under any casing returns the stored row untouched (id, colour, and
+    /// original casing preserved), so `$johndoe` and `$Johndoe` always resolve to
+    /// the one durable record instead of spawning a duplicate.
     pub fn create_person(
         &self,
         id: &str,
@@ -952,13 +970,23 @@ impl Storage {
         color: Option<&str>,
     ) -> rusqlite::Result<Person> {
         let conn = self.lock();
+        if let Some(existing) = conn
+            .query_row(
+                "SELECT id, name, color FROM people WHERE name = ?1 COLLATE NOCASE",
+                params![name],
+                row_to_person,
+            )
+            .optional()?
+        {
+            return Ok(existing);
+        }
         conn.execute(
             "INSERT INTO people (id, name, color) VALUES (?1, ?2, ?3) \
 			 ON CONFLICT(name) DO NOTHING",
             params![id, name, color],
         )?;
         conn.query_row(
-            "SELECT id, name, color FROM people WHERE name = ?1",
+            "SELECT id, name, color FROM people WHERE name = ?1 COLLATE NOCASE",
             params![name],
             row_to_person,
         )
@@ -1254,11 +1282,11 @@ fn upsert_folder_with(conn: &Connection, folder: &Folder) -> rusqlite::Result<()
 fn upsert_journal_entry_with(conn: &Connection, entry: &JournalEntry) -> rusqlite::Result<()> {
     conn.execute(
         "INSERT INTO journal_entries \
-		 (id, date_key, title, content, mood, tags, created_at, updated_at) \
-		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) \
+		 (id, date_key, title, content, rich_content, mood, tags, created_at, updated_at) \
+		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) \
 		 ON CONFLICT(id) DO UPDATE SET \
 		  date_key = excluded.date_key, title = excluded.title, \
-		  content = excluded.content, \
+		  content = excluded.content, rich_content = excluded.rich_content, \
 		  mood = excluded.mood, tags = excluded.tags, \
 		  updated_at = excluded.updated_at",
         params![
@@ -1266,6 +1294,7 @@ fn upsert_journal_entry_with(conn: &Connection, entry: &JournalEntry) -> rusqlit
             entry.date_key,
             entry.title,
             entry.content,
+            entry.rich_content.to_string(),
             entry.mood,
             serde_json::Value::from(entry.tags.clone()).to_string(),
             entry.created_at,
@@ -1438,16 +1467,18 @@ fn row_to_folder(row: &rusqlite::Row<'_>) -> rusqlite::Result<Folder> {
 }
 
 fn row_to_journal_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<JournalEntry> {
-    let tags_raw: String = row.get(5)?;
+    let rich_raw: String = row.get(4)?;
+    let tags_raw: String = row.get(6)?;
     Ok(JournalEntry {
         id: row.get(0)?,
         date_key: row.get(1)?,
         title: row.get(2)?,
         content: row.get(3)?,
-        mood: row.get(4)?,
+        rich_content: serde_json::from_str(&rich_raw).unwrap_or_else(|_| empty_rich_content()),
+        mood: row.get(5)?,
         tags: serde_json::from_str(&tags_raw).unwrap_or_default(),
-        created_at: row.get(6)?,
-        updated_at: row.get(7)?,
+        created_at: row.get(7)?,
+        updated_at: row.get(8)?,
     })
 }
 
@@ -1505,6 +1536,8 @@ mod tests {
             sort_order: 0,
             tags: vec!["a".to_string()],
             properties: serde_json::json!([]),
+            icon: None,
+            cover: None,
             created_at: 1,
             modified_at: 1,
         }
@@ -1791,6 +1824,19 @@ mod tests {
     }
 
     #[test]
+    fn create_person_reuses_existing_row_case_insensitively() {
+        let store = Storage::open(Path::new(":memory:")).unwrap();
+        let first = store.create_person("p1", "Johndoe", None).unwrap();
+        // Different casing + different id must resolve to the same stored person,
+        // keeping the original casing rather than creating a duplicate.
+        let second = store.create_person("p2", "johndoe", None).unwrap();
+        assert_eq!(second.id, "p1");
+        assert_eq!(second.name, "Johndoe");
+        assert_eq!(store.list_people().unwrap().len(), 1);
+        assert_eq!(first.id, second.id);
+    }
+
+    #[test]
     fn tag_and_person_rows_aggregate() {
         let store = Storage::open(Path::new(":memory:")).unwrap();
         store.upsert_note(&note_with("n1", "A.md", "a")).unwrap();
@@ -1997,6 +2043,7 @@ mod tests {
             date_key: "2026-06-24".to_string(),
             title: Some("A good day".to_string()),
             content: "a good day".to_string(),
+            rich_content: serde_json::Value::Array(Vec::new()),
             tags: vec!["work".to_string()],
             mood: Some("good".to_string()),
             created_at: 10,

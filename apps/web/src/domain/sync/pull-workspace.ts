@@ -62,17 +62,14 @@ export function normalizeServerUrl(input: string): string {
 	}
 }
 
-export function buildSyncExportUrl(serverUrl: string): string {
+function buildSyncExportUrl(serverUrl: string): string {
 	const base = normalizeServerUrl(serverUrl);
 	// Versions aren't stored by the desktop backend (restoreNoteVersion is a
 	// no-op), so skip them to keep the payload small.
 	return `${base}/api/sync/export?includeVersions=false`;
 }
 
-export async function fetchWorkspaceArchive(
-	serverUrl: string,
-	token: string,
-): Promise<ParsedArchive> {
+async function fetchWorkspaceArchive(serverUrl: string, token: string): Promise<ParsedArchive> {
 	let response: Response;
 	try {
 		response = await fetch(buildSyncExportUrl(serverUrl), {
@@ -107,7 +104,7 @@ function manifestDeletedIds(archive: ParsedArchive) {
 	};
 }
 
-export async function importArchiveToBackend(
+async function importArchiveToBackend(
 	backend: WorkspaceBackend,
 	archive: ParsedArchive,
 ): Promise<PullResult> {

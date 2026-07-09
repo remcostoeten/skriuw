@@ -1111,8 +1111,22 @@ fn render_journal_entry(entry: &JournalEntry) -> String {
         }
         None => String::new(),
     };
+    // Structured document is written compactly on one line (no embedded newlines)
+    // so the line-oriented frontmatter parser stays intact. Omitted for entries
+    // with no rich content to keep plain journal files clean.
+    let rich_line = if entry
+        .rich_content
+        .as_array()
+        .map(|items| items.is_empty())
+        .unwrap_or(true)
+    {
+        String::new()
+    } else {
+        let value = serde_json::to_string(&entry.rich_content).unwrap_or_else(|_| "[]".to_string());
+        format!("richContent: {value}\n")
+    };
     format!(
-		"---\nid: {id}\ndateKey: {date_key}\n{title_line}{mood_line}tags: {tags}\ncreatedAt: {created}\nupdatedAt: {updated}\n---\n{body}",
+		"---\nid: {id}\ndateKey: {date_key}\n{title_line}{mood_line}tags: {tags}\n{rich_line}createdAt: {created}\nupdatedAt: {updated}\n---\n{body}",
 		created = entry.created_at,
 		updated = entry.updated_at,
 		body = entry.content,
@@ -1129,6 +1143,7 @@ fn parse_journal_entry(raw: &str) -> Option<JournalEntry> {
     let mut title: Option<String> = None;
     let mut mood: Option<String> = None;
     let mut tags: Vec<String> = Vec::new();
+    let mut rich_content = serde_json::Value::Array(Vec::new());
     let mut created_at = 0i64;
     let mut updated_at = 0i64;
 
@@ -1143,6 +1158,10 @@ fn parse_journal_entry(raw: &str) -> Option<JournalEntry> {
             "title" => title = parse_json_string(value),
             "mood" => mood = parse_json_string(value),
             "tags" => tags = serde_json::from_str(value).unwrap_or_default(),
+            "richContent" => {
+                rich_content =
+                    serde_json::from_str(value).unwrap_or(serde_json::Value::Array(Vec::new()))
+            }
             "createdAt" => created_at = value.parse().unwrap_or(0),
             "updatedAt" => updated_at = value.parse().unwrap_or(0),
             _ => {}
@@ -1154,6 +1173,7 @@ fn parse_journal_entry(raw: &str) -> Option<JournalEntry> {
         date_key,
         title,
         content: body.to_string(),
+        rich_content,
         tags,
         mood,
         created_at,
@@ -1177,6 +1197,8 @@ mod tests {
             sort_order: 3,
             tags: vec!["a".to_string(), "b".to_string()],
             properties: serde_json::json!([{ "id": "p1", "type": "text", "name": "Status", "value": "open" }]),
+            icon: None,
+            cover: None,
             created_at: 111,
             modified_at: 222,
         }
@@ -1349,6 +1371,7 @@ mod tests {
             date_key: date_key.to_string(),
             title: Some("A productive day".to_string()),
             content: "felt productive today".to_string(),
+            rich_content: serde_json::Value::Array(Vec::new()),
             tags: vec!["work".to_string()],
             mood: Some("good".to_string()),
             created_at: 100,
@@ -1379,6 +1402,26 @@ mod tests {
 
         store.delete_journal_entry("j1").unwrap();
         assert!(store.list_journal_entries().unwrap().is_empty());
+    }
+
+    #[test]
+    fn journal_entry_rich_content_roundtrips_through_markdown() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        let mut entry = journal_entry("j1", "2026-06-24");
+        entry.rich_content = serde_json::json!([
+            { "type": "paragraph", "content": [
+                { "type": "person", "props": { "id": "person-1", "name": "Alex" } }
+            ] }
+        ]);
+        store.upsert_journal_entry(&entry).unwrap();
+
+        let raw = std::fs::read_to_string(dir.path().join(".skriuw/journal/2026-06-24-j1.md")).unwrap();
+        assert!(raw.contains("richContent:"));
+        assert!(raw.contains("person-1"));
+
+        let got = store.list_journal_entries().unwrap();
+        assert_eq!(got[0].rich_content, entry.rich_content);
     }
 
     #[test]

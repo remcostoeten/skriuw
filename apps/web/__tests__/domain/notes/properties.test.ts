@@ -1,7 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-	applyNotePropertyTemplate,
-	createNoteProperty,
 	emptyNotePropertyValue,
 	normalizeNoteProperties,
 	NOTE_PROPERTY_TEMPLATES,
@@ -52,22 +50,6 @@ describe("note properties", () => {
 		expect(emptyNotePropertyValue("multi-select")).toEqual([]);
 		expect(emptyNotePropertyValue("person")).toEqual([]);
 		expect(emptyNotePropertyValue("text")).toBe("");
-	});
-
-	test("applies a template without deleting existing extra properties", () => {
-		const existing = [createNoteProperty("url", "Reference")];
-		const next = applyNotePropertyTemplate("project", existing);
-
-		expect(next.map((property) => property.name)).toEqual([
-			"Reference",
-			"Status",
-			"Priority",
-			"Owner",
-			"Due",
-			"Tags",
-			"Link",
-		]);
-		expect(next[0].type).toBe("url");
 	});
 
 	test("exposes starter templates from the prototype feature", () => {

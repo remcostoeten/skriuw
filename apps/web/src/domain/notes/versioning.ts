@@ -175,18 +175,6 @@ export function getNoteVersionDeltaValues(
 	};
 }
 
-export function formatNoteVersionDelta(currentContent: string, previousContent?: string): string {
-	const values = getNoteVersionDeltaValues(currentContent, previousContent);
-	if (!values) {
-		return "+0 -0";
-	}
-
-	const wordLabel = values.wordDelta >= 0 ? `+${values.wordDelta}` : `${values.wordDelta}`;
-	const charLabel = values.charDelta >= 0 ? `+${values.charDelta}` : `${values.charDelta}`;
-
-	return `${wordLabel} ${charLabel}`;
-}
-
 export function previewVersionContent(content: string): string[] {
 	return content
 		.split("\n")
