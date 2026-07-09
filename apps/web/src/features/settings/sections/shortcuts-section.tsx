@@ -6,6 +6,7 @@ import {
 	eventToCombo,
 	formatBinding,
 	getShortcutDef,
+	getShortcutDefaultKeys,
 	getShortcutIds,
 	useShortcutManager,
 	type ShortcutId,
@@ -55,7 +56,8 @@ function findShortcutConflict(
 		if (candidate === id) continue;
 		const candidateDef = getShortcutDef(candidate);
 		if (def.bindingGroup && candidateDef.bindingGroup === def.bindingGroup) continue;
-		if (!combosFor(bindings[candidate] ?? candidateDef.keys).includes(combo)) continue;
+		if (!combosFor(bindings[candidate] ?? getShortcutDefaultKeys(candidate)).includes(combo))
+			continue;
 		return { label: candidateDef.label, combo };
 	}
 	return null;
@@ -180,7 +182,10 @@ export function ShortcutsSection() {
 											>
 												{isRecording
 													? "Press keys…"
-													: formatBinding(bindings[id] ?? def.keys)}
+													: formatBinding(
+															bindings[id] ??
+																getShortcutDefaultKeys(id),
+														)}
 											</button>
 										</div>
 									</Row>
