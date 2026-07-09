@@ -3,7 +3,6 @@ import {
 	buildTableBlock,
 	cloneRichDocument,
 	extractRichDocumentPersonIds,
-	extractRichDocumentUsers,
 	flattenInlineChips,
 	markdownToRichDocument,
 	parseInlineContent,
@@ -264,26 +263,7 @@ describe("richDocumentToSearchableMarkdown", () => {
 	});
 });
 
-describe("extractRichDocumentUsers / extractRichDocumentPersonIds", () => {
-	test("collects unique user chip names case-insensitively, sorted", () => {
-		const document: RichTextDocument = [
-			{
-				id: "b1",
-				type: "paragraph",
-				props: {},
-				content: [
-					{ type: "user", props: { name: "Bob" } },
-					{ type: "user", props: { name: "alice" } },
-					{ type: "user", props: { name: "bob" } },
-				],
-				children: [],
-			},
-		];
-
-		expect(extractRichDocumentUsers(document)).toEqual(["alice", "bob"]);
-		expect(extractRichDocumentUsers(null)).toEqual([]);
-	});
-
+describe("extractRichDocumentPersonIds", () => {
 	test("collects unique person chip ids from nested children", () => {
 		const document: RichTextDocument = [
 			{

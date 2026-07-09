@@ -892,53 +892,6 @@ export function richDocumentToSearchableMarkdown(
 		.join("\n\n");
 }
 
-function collectInlineUsers(content: unknown, acc: Map<string, string>): void {
-	if (!Array.isArray(content)) {
-		return;
-	}
-
-	for (const inline of content) {
-		if (!inline || typeof inline !== "object") {
-			continue;
-		}
-
-		const node = inline as {
-			type?: string;
-			props?: Record<string, unknown>;
-			content?: unknown;
-		};
-		if (node.type === "user") {
-			const name = String(node.props?.name ?? "").trim();
-			if (name) {
-				acc.set(name.toLowerCase(), name);
-			}
-			continue;
-		}
-
-		collectInlineUsers(node.content, acc);
-	}
-}
-
-/** Names of every `$user` chip actually present in a rich document (not prose `$word` text). */
-export function extractRichDocumentUsers(document: RichTextDocument | null | undefined): string[] {
-	if (!document?.length) {
-		return [];
-	}
-
-	const acc = new Map<string, string>();
-	const walk = (blocks: PartialBlock[]) => {
-		for (const block of blocks) {
-			collectInlineUsers(block.content, acc);
-			if (Array.isArray(block.children)) {
-				walk(block.children as PartialBlock[]);
-			}
-		}
-	};
-	walk(document as PartialBlock[]);
-
-	return [...acc.values()].toSorted((left, right) => left.localeCompare(right));
-}
-
 function collectInlinePersonIds(content: unknown, acc: Set<string>): void {
 	if (!Array.isArray(content)) {
 		return;

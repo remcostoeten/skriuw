@@ -1,4 +1,4 @@
-import type { FolderId, MarkdownContent, NoteId, TagName } from "@/domain/persistence/types";
+import type { FolderId, MarkdownContent, NoteId, TagName } from "@/core/persistence/types";
 import type { NoteEditorMode, RichTextDocument } from "@/domain/notes/models";
 import type { NoteProperty } from "@/domain/notes/properties";
 

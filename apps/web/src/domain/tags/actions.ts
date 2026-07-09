@@ -10,10 +10,74 @@ import type {
 import { rewriteNoteForTag } from "@/domain/notes/chip-rewrite";
 import type { RichTextDocument } from "@/domain/notes/models";
 import { syncNoteLinks } from "@/domain/notes/note-link-sync";
+import { syncJournalLinks } from "@/domain/journal/journal-link-sync";
 import type { NotePropertyColor } from "@/domain/notes/properties";
 import { normalizeStoredTagEntry, normalizeTagName } from "@/domain/tags/normalize";
 
-type TagDb = Pick<PrismaClient, "note" | "noteLink" | "noteTagMeta">;
+type TagDb = Pick<
+	PrismaClient,
+	"note" | "noteLink" | "noteTagMeta" | "journalEntry" | "journalLink"
+>;
+
+async function listTaggedJournalRecords(tx: TagDb, userId: string, name: string) {
+	return tx.journalEntry.findMany({
+		where: { userId, deletedAt: null, tags: { has: name } },
+		select: {
+			id: true,
+			title: true,
+			dateKey: true,
+			content: true,
+			richContent: true,
+			tags: true,
+			updatedAt: true,
+		},
+	});
+}
+
+async function rewriteTagAcrossJournals(
+	tx: TagDb,
+	userId: string,
+	from: string,
+	to: string | null,
+): Promise<string[]> {
+	const records = await listTaggedJournalRecords(tx, userId, from);
+	const rewritten: string[] = [];
+
+	for (const record of records) {
+		const patch = rewriteNoteForTag(
+			{
+				content: record.content,
+				richContent: (record.richContent as RichTextDocument | null) ?? [],
+				tags: record.tags,
+			},
+			from,
+			to,
+		);
+		if (!patch) continue;
+
+		const data: Prisma.JournalEntryUncheckedUpdateInput = {};
+		if (patch.content !== undefined) data.content = patch.content;
+		if (patch.richContent !== undefined) {
+			data.richContent = patch.richContent as Prisma.InputJsonValue;
+		}
+		if (patch.tags !== undefined) data.tags = patch.tags;
+
+		const updated = await tx.journalEntry.update({
+			where: { id: record.id, deletedAt: null },
+			data,
+			select: { id: true, content: true, richContent: true, tags: true },
+		});
+		await syncJournalLinks(tx, userId, {
+			id: updated.id,
+			content: updated.content,
+			richContent: (updated.richContent as RichTextDocument | null) ?? [],
+			tags: updated.tags,
+		});
+		rewritten.push(record.id);
+	}
+
+	return rewritten;
+}
 
 async function listTaggedNoteRecords(tx: TagDb, userId: string, name: string) {
 	const links = await tx.noteLink.findMany({
@@ -83,7 +147,7 @@ async function rewriteTagAcrossNotes(
 export async function listTags(): Promise<TagSummary[]> {
 	const { prisma, user } = await getAuthenticatedUser();
 
-	const [links, meta] = await Promise.all([
+	const [links, meta, journals] = await Promise.all([
 		prisma.noteLink.findMany({
 			where: { userId: user.id, kind: "tag", sourceNote: { deletedAt: null } },
 			select: { targetLabel: true, sourceNoteId: true },
@@ -92,23 +156,36 @@ export async function listTags(): Promise<TagSummary[]> {
 			where: { userId: user.id },
 			select: { name: true, color: true },
 		}),
+		prisma.journalEntry.findMany({
+			where: { userId: user.id, deletedAt: null },
+			select: { id: true, tags: true },
+		}),
 	]);
 
-	const notesByTag = new Map<string, Set<string>>();
+	// Count notes and journal entries carrying each tag under one shared key set
+	// so a tag used only in a journal still surfaces in the overview.
+	const sourcesByTag = new Map<string, Set<string>>();
 	for (const link of links) {
-		const bucket = notesByTag.get(link.targetLabel) ?? new Set<string>();
-		bucket.add(link.sourceNoteId);
-		notesByTag.set(link.targetLabel, bucket);
+		const bucket = sourcesByTag.get(link.targetLabel) ?? new Set<string>();
+		bucket.add(`note:${link.sourceNoteId}`);
+		sourcesByTag.set(link.targetLabel, bucket);
+	}
+	for (const entry of journals) {
+		for (const tag of entry.tags) {
+			const bucket = sourcesByTag.get(tag) ?? new Set<string>();
+			bucket.add(`journal:${entry.id}`);
+			sourcesByTag.set(tag, bucket);
+		}
 	}
 
 	const colorByName = new Map(meta.map((row) => [row.name, row.color]));
-	const names = new Set([...notesByTag.keys(), ...colorByName.keys()]);
+	const names = new Set([...sourcesByTag.keys(), ...colorByName.keys()]);
 
 	return [...names]
 		.map((name) => ({
 			name,
 			color: (colorByName.get(name) as NotePropertyColor | null | undefined) ?? null,
-			noteCount: notesByTag.get(name)?.size ?? 0,
+			noteCount: sourcesByTag.get(name)?.size ?? 0,
 		}))
 		.toSorted((left, right) =>
 			right.noteCount !== left.noteCount
@@ -146,6 +223,7 @@ export async function renameTag(from: string, to: string): Promise<ChipRewriteRe
 	const { prisma, user } = await getAuthenticatedUser();
 	return prisma.$transaction(async (tx) => {
 		const rewrittenNoteIds = await rewriteTagAcrossNotes(tx, user.id, source, target);
+		await rewriteTagAcrossJournals(tx, user.id, source, target);
 
 		const [sourceMeta, targetMeta] = await Promise.all([
 			tx.noteTagMeta.findUnique({
@@ -175,11 +253,15 @@ export async function deleteTag(name: string): Promise<ChipRewriteResult> {
 	const { prisma, user } = await getAuthenticatedUser();
 	return prisma.$transaction(async (tx) => {
 		const rewrittenNoteIds = await rewriteTagAcrossNotes(tx, user.id, normalized, null);
-		// Rows on soft-deleted notes are not resynced by the rewrite; drop them so
-		// the tag cannot resurrect with a stale label from the trash.
+		await rewriteTagAcrossJournals(tx, user.id, normalized, null);
+		// Rows on soft-deleted notes/journals are not resynced by the rewrite; drop
+		// them so the tag cannot resurrect with a stale label from the trash.
 		await Promise.all([
 			tx.noteTagMeta.deleteMany({ where: { userId: user.id, name: normalized } }),
 			tx.noteLink.deleteMany({
+				where: { userId: user.id, kind: "tag", targetLabel: normalized },
+			}),
+			tx.journalLink.deleteMany({
 				where: { userId: user.id, kind: "tag", targetLabel: normalized },
 			}),
 		]);
@@ -192,8 +274,23 @@ export async function listTagNotes(name: string): Promise<TaggedNoteSummary[]> {
 	if (!normalized) return [];
 
 	const { prisma, user } = await getAuthenticatedUser();
-	const records = await listTaggedNoteRecords(prisma, user.id, normalized);
-	return records
-		.map((record) => ({ id: record.id, name: record.name, modifiedAt: record.updatedAt }))
-		.toSorted((left, right) => right.modifiedAt.getTime() - left.modifiedAt.getTime());
+	const [noteRecords, journalRecords] = await Promise.all([
+		listTaggedNoteRecords(prisma, user.id, normalized),
+		listTaggedJournalRecords(prisma, user.id, normalized),
+	]);
+	return [
+		...noteRecords.map((record) => ({
+			id: record.id,
+			name: record.name,
+			modifiedAt: record.updatedAt,
+			kind: "note" as const,
+		})),
+		...journalRecords.map((record) => ({
+			id: record.id,
+			name: record.title?.trim() || record.dateKey,
+			modifiedAt: record.updatedAt,
+			kind: "journal" as const,
+			dateKey: record.dateKey,
+		})),
+	].toSorted((left, right) => right.modifiedAt.getTime() - left.modifiedAt.getTime());
 }

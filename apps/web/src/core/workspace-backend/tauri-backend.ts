@@ -7,10 +7,12 @@ import {
 	type NoteChipPatch,
 } from "@/domain/notes/chip-rewrite";
 import { buildDesiredNoteLinkRows } from "@/domain/notes/note-link-sync";
+import { buildDesiredJournalLinkRows } from "@/domain/journal/journal-link-sync";
 import { normalizeStoredTagEntry, normalizeTagName } from "@/domain/tags/normalize";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
-import { buildGraphData } from "@/domain/notes/graph";
+import { buildGraphData, type JournalLinkRow } from "@/domain/notes/graph";
 import {
+	extractRichDocumentPersonIds,
 	resolveRichDocument,
 	richDocumentToSearchableMarkdown,
 } from "@/domain/notes/rich-document";
@@ -29,7 +31,7 @@ import {
 	folderFromCreateInput,
 	noteFromCreateInput,
 } from "./note-builders";
-import type { NoteSearchHit, TrashBatch, WorkspaceBackend } from "./types";
+import type { NoteSearchHit, TaggedNoteSummary, TrashBatch, WorkspaceBackend } from "./types";
 import { createWriteQueue } from "./write-queue";
 
 /** The Rust `TrashRecord` wire shape — one soft-deleted note or folder. */
@@ -278,6 +280,7 @@ type RustJournalEntry = {
 	dateKey: string;
 	title: string | null;
 	content: string;
+	richContent: JournalEntry["richContent"];
 	tags: string[];
 	mood: string | null;
 	createdAt: number;
@@ -297,6 +300,7 @@ function toRustJournalEntry(entry: JournalEntry): RustJournalEntry {
 		dateKey: entry.dateKey,
 		title: entry.title ?? null,
 		content: entry.content,
+		richContent: entry.richContent ?? [],
 		tags: entry.tags,
 		mood: entry.mood ?? null,
 		createdAt: entry.createdAt.getTime(),
@@ -310,6 +314,7 @@ function fromRustJournalEntry(raw: RustJournalEntry): JournalEntry {
 		dateKey: raw.dateKey,
 		title: raw.title ?? undefined,
 		content: raw.content,
+		richContent: raw.richContent ?? undefined,
 		tags: raw.tags,
 		mood: (raw.mood ?? undefined) as MoodLevel | undefined,
 		createdAt: new Date(raw.createdAt),
@@ -350,8 +355,18 @@ type RustGraphLinkRow = {
 	kind: string;
 };
 
-function fromRustTaggedNoteSummary(raw: RustTaggedNoteSummary) {
-	return { id: raw.id, name: raw.name, modifiedAt: new Date(raw.modifiedAt) };
+function fromRustTaggedNoteSummary(raw: RustTaggedNoteSummary): TaggedNoteSummary {
+	return { id: raw.id, name: raw.name, modifiedAt: new Date(raw.modifiedAt), kind: "note" };
+}
+
+function journalToTaggedSummary(entry: JournalEntry): TaggedNoteSummary {
+	return {
+		id: entry.id,
+		name: entry.title?.trim() || entry.dateKey,
+		modifiedAt: entry.updatedAt,
+		kind: "journal",
+		dateKey: entry.dateKey,
+	};
 }
 
 type RustBacklinkSource = {
@@ -597,6 +612,41 @@ export function createTauriBackend(): WorkspaceBackend {
 		return rewritten.filter((id): id is string => id !== null);
 	}
 
+	// Journal counterpart of rewriteNotes: applies a tag/person chip rewrite to
+	// each journal entry and re-persists it so desktop tag/person rename+delete
+	// propagate into journals like they do into notes.
+	async function rewriteJournals(
+		buildPatch: (entry: {
+			content: string;
+			richContent: NoteFile["richContent"];
+			tags: string[];
+			properties: [];
+		}) => NoteChipPatch | null,
+	): Promise<string[]> {
+		const entries = await listJournalEntries();
+		const rewritten: string[] = [];
+		for (const entry of entries) {
+			const patch = buildPatch({
+				content: entry.content,
+				richContent: entry.richContent ?? [],
+				tags: entry.tags,
+				properties: [],
+			});
+			if (!patch) continue;
+			const next: JournalEntry = {
+				...entry,
+				content: patch.content ?? entry.content,
+				richContent: (patch.richContent ??
+					entry.richContent) as JournalEntry["richContent"],
+				tags: patch.tags ?? entry.tags,
+				updatedAt: new Date(),
+			};
+			await invoke("upsert_journal_entry", { entry: toRustJournalEntry(next) });
+			rewritten.push(entry.id);
+		}
+		return rewritten;
+	}
+
 	return {
 		mode: "tauri",
 		capabilities: {
@@ -670,12 +720,37 @@ export function createTauriBackend(): WorkspaceBackend {
 		// backend feeds `buildGraphData`, instead of shipping every note body
 		// over IPC and re-extracting links in TS.
 		async getNoteGraph() {
-			const [notes, links, people] = await Promise.all([
+			const [notes, links, people, journals] = await Promise.all([
 				listNotes(),
 				invoke<RustGraphLinkRow[]>("list_note_link_rows"),
 				listPeople(),
+				listJournalEntries(),
 			]);
-			return buildGraphData(notes, links, { people });
+			// Journal link edges are derived in TS (there is no journal_links table in
+			// SQLite); the same extractor the web index uses keeps parity.
+			const journalLinks: JournalLinkRow[] = journals.flatMap((entry) =>
+				buildDesiredJournalLinkRows("local", {
+					id: entry.id,
+					content: entry.content,
+					richContent: entry.richContent ?? [],
+					tags: entry.tags,
+				}).map((row) => ({
+					sourceJournalId: row.sourceJournalId,
+					targetNoteId: row.targetNoteId ?? null,
+					targetLabel: row.targetLabel,
+					kind: row.kind,
+				})),
+			);
+			return buildGraphData(notes, links, {
+				people,
+				journals: journals.map((entry) => ({
+					id: entry.id,
+					title: entry.title ?? null,
+					dateKey: entry.dateKey,
+					createdAt: entry.createdAt,
+				})),
+				journalLinks,
+			});
 		},
 
 		async searchNotes(query, limit): Promise<NoteSearchHit[]> {
@@ -898,6 +973,9 @@ export function createTauriBackend(): WorkspaceBackend {
 			const rewrittenNoteIds = await rewriteNotes((note) =>
 				rewriteNoteForPerson(note, { fromId: id, toId: null, removalText: person.name }),
 			);
+			await rewriteJournals((entry) =>
+				rewriteNoteForPerson(entry, { fromId: id, toId: null, removalText: person.name }),
+			);
 			await invoke("delete_person", { id });
 			return { rewrittenNoteIds };
 		},
@@ -915,25 +993,60 @@ export function createTauriBackend(): WorkspaceBackend {
 					toName: target.name,
 				}),
 			);
+			await rewriteJournals((entry) =>
+				rewriteNoteForPerson(entry, {
+					fromId: sourceId,
+					toId: targetId,
+					toName: target.name,
+				}),
+			);
 			await invoke("delete_person", { id: sourceId });
 			return { rewrittenNoteIds };
 		},
 
 		async listPersonNotes(personId) {
-			const rows = await invoke<RustTaggedNoteSummary[]>("list_person_notes", { personId });
-			return rows.map(fromRustTaggedNoteSummary);
+			const [rows, journals] = await Promise.all([
+				invoke<RustTaggedNoteSummary[]>("list_person_notes", { personId }),
+				listJournalEntries(),
+			]);
+			const journalItems = journals
+				.filter((entry) =>
+					extractRichDocumentPersonIds(entry.richContent ?? []).includes(personId),
+				)
+				.map(journalToTaggedSummary);
+			return [...rows.map(fromRustTaggedNoteSummary), ...journalItems].sort(
+				(left, right) => right.modifiedAt.getTime() - left.modifiedAt.getTime(),
+			);
 		},
 
 		async listTags() {
-			const rows =
-				await invoke<Array<{ name: string; color: string | null; noteCount: number }>>(
+			const [rows, journals] = await Promise.all([
+				invoke<Array<{ name: string; color: string | null; noteCount: number }>>(
 					"list_tag_summaries",
+				),
+				listJournalEntries(),
+			]);
+			const summaries = new Map<string, { color: NotePropertyColor | null; count: number }>();
+			for (const row of rows) {
+				summaries.set(row.name, {
+					color: (row.color as NotePropertyColor | null) ?? null,
+					count: row.noteCount,
+				});
+			}
+			for (const entry of journals) {
+				for (const tag of entry.tags) {
+					const existing = summaries.get(tag);
+					if (existing) existing.count += 1;
+					else summaries.set(tag, { color: null, count: 1 });
+				}
+			}
+			return [...summaries.entries()]
+				.map(([name, value]) => ({ name, color: value.color, noteCount: value.count }))
+				.sort((left, right) =>
+					right.noteCount !== left.noteCount
+						? right.noteCount - left.noteCount
+						: left.name.localeCompare(right.name),
 				);
-			return rows.map((row) => ({
-				name: row.name,
-				color: (row.color as NotePropertyColor | null) ?? null,
-				noteCount: row.noteCount,
-			}));
 		},
 
 		async setTagColor(name, color) {
@@ -953,6 +1066,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			const rewrittenNoteIds = await rewriteNotes((note) =>
 				rewriteNoteForTag(note, source, target),
 			);
+			await rewriteJournals((entry) => rewriteNoteForTag(entry, source, target));
 			await invoke("rename_note_tag_meta", { from: source, to: target });
 			return { rewrittenNoteIds };
 		},
@@ -963,6 +1077,7 @@ export function createTauriBackend(): WorkspaceBackend {
 			const rewrittenNoteIds = await rewriteNotes((note) =>
 				rewriteNoteForTag(note, normalized, null),
 			);
+			await rewriteJournals((entry) => rewriteNoteForTag(entry, normalized, null));
 			await invoke("delete_note_tag_meta", { name: normalized });
 			return { rewrittenNoteIds };
 		},
@@ -970,10 +1085,16 @@ export function createTauriBackend(): WorkspaceBackend {
 		async listTagNotes(name) {
 			const normalized = normalizeStoredTagEntry(name);
 			if (!normalized) return [];
-			const rows = await invoke<RustTaggedNoteSummary[]>("list_tag_notes", {
-				name: normalized,
-			});
-			return rows.map(fromRustTaggedNoteSummary);
+			const [rows, journals] = await Promise.all([
+				invoke<RustTaggedNoteSummary[]>("list_tag_notes", { name: normalized }),
+				listJournalEntries(),
+			]);
+			const journalItems = journals
+				.filter((entry) => entry.tags.includes(normalized))
+				.map(journalToTaggedSummary);
+			return [...rows.map(fromRustTaggedNoteSummary), ...journalItems].sort(
+				(left, right) => right.modifiedAt.getTime() - left.modifiedAt.getTime(),
+			);
 		},
 
 		async importArchive(payload) {

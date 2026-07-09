@@ -4,16 +4,6 @@ import type { PrismaClient } from "@/generated/prisma/client";
 
 type DbClient = Pick<PrismaClient, "folder" | "note" | "journalEntry">;
 
-export class PersistenceError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = "PersistenceError";
-	}
-}
-
-// Prisma throws P2025 when an `update`/`delete` with an extended unique `where`
-// (e.g. { id, userId, deletedAt: null }) matches no row. We rely on that to do
-// ownership-scoped writes in a single round trip instead of updateMany + findFirst.
 export function isRecordNotFoundError(error: unknown): boolean {
 	return (
 		typeof error === "object" &&
@@ -22,9 +12,6 @@ export function isRecordNotFoundError(error: unknown): boolean {
 	);
 }
 
-// Prisma throws P2002 when an insert/update violates a unique constraint. Used to
-// turn a lost concurrency race (two callers inserting the same unique key) into a
-// graceful no-op instead of an unhandled 500.
 export function isUniqueConstraintError(error: unknown): boolean {
 	return (
 		typeof error === "object" &&
@@ -45,13 +32,10 @@ export async function assertOwnedParentFolder(
 		select: { id: true },
 	});
 	if (!folder) {
-		throw new PersistenceError("Parent folder not found");
+		throw new Error("Parent folder not found");
 	}
 }
 
-// True when `userId` owns the (non-deleted-agnostic) note. Used to gate
-// owner-only reads like the collaborator/request listings so the guard isn't
-// copy-pasted at each call site.
 export async function assertOwnsNote(
 	db: Pick<PrismaClient, "note">,
 	userId: string,
@@ -94,6 +78,6 @@ export async function assertResourceIdAvailable(
 	}
 
 	if (existing && existing.userId !== userId) {
-		throw new PersistenceError(`${table} id is not available`);
+		throw new Error(`${table} id is not available`);
 	}
 }
