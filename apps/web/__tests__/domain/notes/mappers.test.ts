@@ -1,37 +1,8 @@
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { describe, expect, test } from "bun:test";
-import {
-	fromPersistedNote,
-	fromPersistedNoteVersion,
-	toPersistedNote,
-} from "@/domain/notes/mappers";
+import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
 
 describe("note mappers", () => {
-	test("maps note files to persisted notes", () => {
-		const file = {
-			id: "note-1",
-			name: "Test.md",
-			content: "# Test",
-			richContent: markdownToRichDocument("# Test"),
-			preferredEditorMode: "block" as const,
-			parentId: "folder-1",
-			createdAt: new Date("2026-03-01T10:00:00.000Z"),
-			modifiedAt: new Date("2026-03-02T12:00:00.000Z"),
-		};
-
-		expect(toPersistedNote(file)).toEqual({
-			id: "note-1",
-			name: "Test.md",
-			content: "# Test",
-			richContent: markdownToRichDocument("# Test"),
-			preferredEditorMode: "block",
-			parentId: "folder-1",
-			createdAt: "2026-03-01T10:00:00.000Z",
-			updatedAt: "2026-03-02T12:00:00.000Z",
-			journalMeta: undefined,
-		});
-	});
-
 	test("maps persisted notes back to note files", () => {
 		const note = fromPersistedNote({
 			id: "note-1" as never,

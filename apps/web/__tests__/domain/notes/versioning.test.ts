@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
 	buildNoteVersionContentHash,
 	decideNoteVersionPersistence,
-	formatNoteVersionDelta,
 	getVersionContextPreview,
 	NOTE_VERSION_COALESCE_WINDOW_MS,
 	previewVersionContent,
@@ -101,7 +100,6 @@ describe("note versioning", () => {
 	});
 
 	test("formats version metadata for the sidebar", () => {
-		expect(formatNoteVersionDelta("one two three four", "one two")).toBe("+2 +11");
 		expect(previewVersionContent("# Title\n\nParagraph one\n\nParagraph two")).toEqual([
 			"# Title",
 			"Paragraph one",

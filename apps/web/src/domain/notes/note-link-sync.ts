@@ -54,53 +54,75 @@ function linkKey(link: Pick<PersistedNoteLinkRow, "kind" | "targetLabel">): stri
 	return `${link.kind}:${link.targetLabel}`;
 }
 
+// A single desired link, independent of whether the source is a note or a
+// journal entry. `key` (`kind:targetLabel`) dedupes within one source.
+export type DesiredLinkTarget = {
+	key: string;
+	kind: string;
+	targetLabel: string;
+	targetNoteId: string | null;
+};
+
+// The source-agnostic core: extracts the distinct tag/person/note-link edges
+// carried by a body + rich content + tags array. Reused by both the note and
+// journal link indexers so the two stay in lockstep.
+export function buildDesiredLinkTargets(
+	source: Pick<NoteFile, "id" | "content" | "richContent" | "tags">,
+): DesiredLinkTarget[] {
+	const rows = new Map<string, DesiredLinkTarget>();
+
+	for (const link of extractNoteLinks(source)) {
+		const targetLabel = normalizeNoteTitle(link.targetLabel);
+		if (!targetLabel) continue;
+		const key = `${link.kind}:${targetLabel}`;
+		rows.set(key, {
+			key,
+			kind: link.kind,
+			targetLabel,
+			targetNoteId: link.targetNoteId ?? null,
+		});
+	}
+
+	const tagNames = new Set<string>([
+		...extractNoteTags(getNoteSearchableContent(source)),
+		...(source.tags ?? []).map((tag) => tag.trim().replace(/^#/, "").toLowerCase()),
+	]);
+	for (const tag of tagNames) {
+		if (!tag) continue;
+		rows.set(`tag:${tag}`, {
+			key: `tag:${tag}`,
+			kind: "tag",
+			targetLabel: tag,
+			targetNoteId: null,
+		});
+	}
+
+	for (const personId of extractRichDocumentPersonIds(source.richContent)) {
+		if (!personId) continue;
+		rows.set(`person:${personId}`, {
+			key: `person:${personId}`,
+			kind: "person",
+			targetLabel: personId,
+			targetNoteId: null,
+		});
+	}
+
+	return [...rows.values()];
+}
+
 // Builds the canonical persisted note_links rows for a note. One row is kept per
 // distinct outgoing link or tag membership.
 export function buildDesiredNoteLinkRows(
 	userId: string,
 	note: Pick<NoteFile, "id" | "content" | "richContent" | "tags">,
 ): Prisma.NoteLinkCreateManyInput[] {
-	const rows = new Map<string, Prisma.NoteLinkCreateManyInput>();
-
-	for (const link of extractNoteLinks(note)) {
-		const targetLabel = normalizeNoteTitle(link.targetLabel);
-		if (!targetLabel) continue;
-		rows.set(`${link.kind}:${targetLabel}`, {
-			userId,
-			sourceNoteId: note.id,
-			targetNoteId: link.targetNoteId ?? null,
-			targetLabel,
-			kind: link.kind,
-		});
-	}
-
-	const tagNames = new Set<string>([
-		...extractNoteTags(getNoteSearchableContent(note)),
-		...(note.tags ?? []).map((tag) => tag.trim().replace(/^#/, "").toLowerCase()),
-	]);
-	for (const tag of tagNames) {
-		if (!tag) continue;
-		rows.set(`tag:${tag}`, {
-			userId,
-			sourceNoteId: note.id,
-			targetNoteId: null,
-			targetLabel: tag,
-			kind: "tag",
-		});
-	}
-
-	for (const personId of extractRichDocumentPersonIds(note.richContent)) {
-		if (!personId) continue;
-		rows.set(`person:${personId}`, {
-			userId,
-			sourceNoteId: note.id,
-			targetNoteId: null,
-			targetLabel: personId,
-			kind: "person",
-		});
-	}
-
-	return [...rows.values()];
+	return buildDesiredLinkTargets(note).map((target) => ({
+		userId,
+		sourceNoteId: note.id,
+		targetNoteId: target.targetNoteId,
+		targetLabel: target.targetLabel,
+		kind: target.kind,
+	}));
 }
 
 export function diffNoteLinkRows(

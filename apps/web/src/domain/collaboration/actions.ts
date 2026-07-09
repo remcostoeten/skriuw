@@ -2,7 +2,7 @@
 
 import { getAuthenticatedUser, tryGetAuthenticatedUser } from "@/core/db";
 import { isGuestScopedId } from "@/domain/notes/note-id";
-import { isUniqueConstraintError } from "@/domain/persistence/guards";
+import { isUniqueConstraintError } from "@/core/persistence/guards";
 import { revalidatePath } from "next/cache";
 import type { TCollabPermission } from "./models";
 import {

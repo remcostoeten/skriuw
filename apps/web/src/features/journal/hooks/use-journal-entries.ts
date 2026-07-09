@@ -99,6 +99,7 @@ export function useCreateJournalEntry() {
 						dateKey: input.dateKey,
 						title: input.title ?? undefined,
 						content: input.content,
+						richContent: input.richContent ?? undefined,
 						tags: input.tags ?? [],
 						mood: input.mood ?? undefined,
 						createdAt: new Date(),
@@ -138,6 +139,10 @@ export function useUpdateJournalEntry() {
 												? entry.title
 												: (input.title ?? undefined),
 										content: input.content ?? entry.content,
+										richContent:
+											input.richContent === undefined
+												? entry.richContent
+												: (input.richContent ?? undefined),
 										tags: input.tags ?? entry.tags,
 										mood:
 											input.mood === undefined

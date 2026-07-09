@@ -1,3 +1,5 @@
+import type { RichTextDocument } from "@/domain/notes/models";
+
 export type MoodLevel = "great" | "good" | "neutral" | "low" | "rough";
 
 export type JournalTag = {
@@ -12,6 +14,7 @@ export type JournalEntry = {
 	dateKey: string;
 	title?: string;
 	content: string;
+	richContent?: RichTextDocument;
 	tags: string[];
 	mood?: MoodLevel;
 	createdAt: Date;

@@ -175,14 +175,6 @@ export function buildExportArchiveFiles(input: {
 	return files;
 }
 
-export function getExportRootPrefix(files: Record<string, Uint8Array>): string {
-	const manifestPath = Object.keys(files).find((path) => path.endsWith("/skriuw-export.json"));
-	if (!manifestPath) {
-		throw new Error("Export archive is missing manifest.");
-	}
-	return manifestPath.slice(0, -"/skriuw-export.json".length);
-}
-
 export function getExportDownloadName(exportedAt = new Date()): string {
 	return `skriuw-export-${exportedAt.toISOString().slice(0, 10)}.zip`;
 }
