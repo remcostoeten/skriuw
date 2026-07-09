@@ -100,9 +100,3 @@ export async function getNotifications(): Promise<TNotification[]> {
 		createdAt: r.createdAt.toISOString(),
 	}));
 }
-
-export async function getUnreadNotificationCount(): Promise<number> {
-	const { prisma, user } = await tryGetAuthenticatedUser();
-	if (!user) return 0;
-	return prisma.notification.count({ where: { userId: user.id, read: false } });
-}

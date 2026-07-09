@@ -6,7 +6,6 @@ import { useAuthedApiQuery } from "@/shared/api/use-authed-api-query";
 import type { CreateJournalTagInput } from "@/domain/journal/actions";
 import { deriveWorkspaceTags } from "@/domain/tags/workspace-tags";
 import type { JournalTag } from "@/types/journal";
-import { TAG_COLORS } from "@/features/journal/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { useAuth } from "@/core/auth/use-auth";
@@ -110,5 +109,3 @@ export function useCreateJournalTag() {
 		},
 	);
 }
-
-export { TAG_COLORS };

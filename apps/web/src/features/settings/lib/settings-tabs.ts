@@ -21,8 +21,6 @@ export function isSettingsTabVisible(id: SettingsTabId): boolean {
 	return !(isTauriRuntime() && DESKTOP_HIDDEN_TABS.has(id));
 }
 
-export const SETTINGS_TABPANEL_ID = "settings-tabpanel";
-
 export function getSettingsTabId(id: SettingsTabId): string {
 	return `settings-tab-${id}`;
 }

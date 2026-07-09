@@ -125,6 +125,7 @@ export function NotePropertiesShelf({
 					}
 					inert={collapsed}
 					className="overflow-hidden"
+					layout
 				>
 					{layout === "rows" ? (
 						<div className="flex flex-col gap-0.5">
@@ -283,18 +284,20 @@ function LayoutMenu({
 							close();
 						}}
 					/>
-					{NOTE_PROPERTY_TEMPLATES.filter((template) => template.id !== "blank").map(
-						(template) => (
-							<TemplateMenuItem
-								key={template.id}
-								label={template.name}
-								selected={defaultTemplateId === template.id}
-								onSelect={() => {
-									onDefaultTemplateChange(template.id);
-									close();
-								}}
-							/>
-						),
+					{NOTE_PROPERTY_TEMPLATES.flatMap((template) =>
+						template.id !== "blank"
+							? [
+									<TemplateMenuItem
+										key={template.id}
+										label={template.name}
+										selected={defaultTemplateId === template.id}
+										onSelect={() => {
+											onDefaultTemplateChange(template.id);
+											close();
+										}}
+									/>,
+								]
+							: [],
 					)}
 				</div>
 			)}

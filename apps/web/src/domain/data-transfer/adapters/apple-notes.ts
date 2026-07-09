@@ -1,8 +1,5 @@
 import { normalizeNoteFileName } from "@/domain/data-transfer/paths";
-import {
-	buildMarkdownImportArchive,
-	inferImportFolders,
-} from "@/domain/data-transfer/adapters/markdown-import-shared";
+import { buildMarkdownImportArchive } from "@/domain/data-transfer/adapters/markdown-import-shared";
 import type { ParsedNoteFile } from "@/domain/data-transfer/types";
 
 function stripHtml(html: string): string {
@@ -69,5 +66,3 @@ export function parseAppleNotesEntries(entries: Record<string, string>) {
 		"Images, attachments, and checklists may need manual cleanup.",
 	]);
 }
-
-export { inferImportFolders as inferAppleNotesFolders };

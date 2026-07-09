@@ -258,11 +258,15 @@ export function JournalStats({ className }: JournalStatsProps) {
 		const url = URL.createObjectURL(blob);
 		const printWindow = window.open(url, "_blank");
 		if (printWindow) {
-			printWindow.addEventListener("load", () => {
-				printWindow.focus();
-				printWindow.print();
-				URL.revokeObjectURL(url);
-			});
+			printWindow.addEventListener(
+				"load",
+				() => {
+					printWindow.focus();
+					printWindow.print();
+					URL.revokeObjectURL(url);
+				},
+				{ once: true },
+			);
 		} else {
 			URL.revokeObjectURL(url);
 		}

@@ -47,6 +47,10 @@ const iconButtonClass =
 const inactiveNavClass =
 	"border-transparent text-sidebar-foreground/52 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
 
+function openAuthDrawerFor(destination: string) {
+	openAuthDrawer("login", destination);
+}
+
 type RailNavItemProps = {
 	href: string;
 	label: string;
@@ -173,9 +177,6 @@ function IconRailImpl() {
 	};
 
 	const isAuthenticated = auth.isReady && auth.phase === "authenticated";
-	const openAuthDrawerFor = (destination: string) => {
-		openAuthDrawer("login", destination);
-	};
 
 	const navItems = [
 		{
