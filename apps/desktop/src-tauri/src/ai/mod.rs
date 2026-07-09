@@ -137,6 +137,7 @@ struct TranslateDirectives {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 struct PromptRules {
     preserve_tokens_rule: String,
     match_language_rule: String,

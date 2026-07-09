@@ -1,0 +1,112 @@
+---
+title: Self-host with Docker
+description: Run the Skriuw web app on your own machine or server, backed by Postgres, quick start, required secrets, bring-your-own database, custom domains, and updating.
+---
+
+Run the Skriuw web app on your own machine or server, backed by Postgres. This
+is the containerized sibling of the Cloud deployment, identical code and Prisma
+schema, pointed at a database you control. For the full menu of ways to run
+Skriuw, see [Distribution](./distribution.mdx).
+
+## Quick start
+
+No repo clone needed, just the Compose file and an env template:
+
+```bash
+# 1. Grab the compose file and env template
+curl -O https://raw.githubusercontent.com/remcostoeten/skriuw/master/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/remcostoeten/skriuw/master/.env.example
+
+# 2. Set the two required secrets in .env (each: openssl rand -base64 32)
+#    BETTER_AUTH_SECRET
+#    AI_KEYS_ENCRYPTION_SECRET
+
+# 3. Start, pulls ghcr.io/remcostoeten/skriuw + postgres:17, runs migrations
+docker compose up -d
+```
+
+Open `http://localhost:3000`. Data persists in the `skriuw-db` named volume.
+
+## What the stack contains
+
+`docker-compose.yml` defines two services:
+
+- **`db`**, `postgres:17-alpine`, with a healthcheck (`pg_isready`) that gates
+  the app's startup and a `skriuw-db` volume for persistence.
+- **`app`**, `ghcr.io/remcostoeten/skriuw:latest`, published by CI (see
+  [Release pipeline](./release-pipeline.mdx)). Waits for the DB to be healthy,
+  applies migrations, then serves on port 3000.
+
+The image is built from the multi-stage root `Dockerfile`: a bun build stage
+runs `next build` with `DOCKER_BUILD=1` (which turns on Next's `standalone`
+output and pins `outputFileTracingRoot` to the monorepo root), and a slim
+runtime stage runs the standalone `apps/web/server.js`.
+
+## Required configuration
+
+The entrypoint (`docker-entrypoint.sh`) **fails fast** before migrations if a
+required value is missing, still a placeholder, or too short, so you get a
+clear error instead of a broken runtime:
+
+| Variable | Why | How |
+| -------- | --- | --- |
+| `DATABASE_URL` | Prisma connection | Set by Compose to the `db` service; override for BYO Postgres |
+| `BETTER_AUTH_SECRET` | Signs auth sessions | `openssl rand -base64 32` |
+| `AI_KEYS_ENCRYPTION_SECRET` | Encrypts user AI provider keys at rest | `openssl rand -base64 32` |
+
+Everything else in `.env.example` is optional and degrades gracefully when
+unset: OAuth buttons hide, analytics stays off, AI falls back to per-user keys,
+cover uploads fall back to theme gradients.
+
+## Bring your own Postgres
+
+Using Neon, RDS, or a database box you already run? Delete the `db` service from
+the Compose file and point `DATABASE_URL` at your instance. The entrypoint still
+runs `prisma migrate deploy` against whatever it points to. Use
+`sslmode=verify-full` for managed Postgres; `sslmode=disable` is only for the
+local container.
+
+## Custom domain (build from source)
+
+Because `NEXT_PUBLIC_*` values are baked in at build time, the published image
+only works cleanly on `http://localhost:3000`. To serve `https://notes.example.com`,
+build the image yourself with your own values:
+
+```bash
+git clone https://github.com/remcostoeten/skriuw && cd skriuw
+# In .env set:
+#   BETTER_AUTH_URL=https://notes.example.com
+#   NEXT_PUBLIC_BETTER_AUTH_URL=https://notes.example.com
+docker compose -f docker-compose.build.yml up --build -d
+```
+
+`docker-compose.build.yml` is identical to the pull-based file except `app`
+builds from the checkout instead of pulling from GHCR.
+
+## Realtime collaboration is not included
+
+Collaboration is a Cloudflare Worker (`party/`), not part of the Docker stack.
+It stays disabled unless you deploy that worker yourself and set
+`NEXT_PUBLIC_PARTYKIT_HOST`. `.env.example` ships it blank on purpose, a
+non-empty value pointed at a worker that isn't running makes every socket 401.
+Everything else in the app works without it.
+
+## Updating
+
+Pulled images do not update themselves. To upgrade to a newer release:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+Migrations run automatically on the next boot. Because migrations have no
+rollback, keep this a deliberate manual step rather than automating it, if you
+do want hands-off updates, add a [Watchtower](https://containrrr.dev/watchtower/)
+sidecar yourself; it is intentionally not in the default Compose.
+
+## Storage for cover uploads (optional)
+
+Cover-image uploads need object storage, which isn't in the default stack.
+Without it, covers fall back to theme gradients. To enable uploads, set the
+`DEFAULT_STORAGE_S3_*` variables at a self-hostable S3-compatible bucket
+(MinIO, R2, B2) with public reads, see the block in `.env.example`.

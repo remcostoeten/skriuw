@@ -15,15 +15,15 @@ services:
       retries: 10
 
   app:
-    # Pull the published image. To build from source instead, use:
-    #   docker compose -f docker-compose.build.yml up --build
-    image: ghcr.io/remcostoeten/skriuw:latest
+    # Builds the image from this checkout rather than pulling from GHCR. Use this
+    # for local development, or when you need to bake different NEXT_PUBLIC_* build
+    # args (e.g. a custom domain) — those are inlined at build time and cannot be
+    # changed on a pulled image.
+    build: .
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
-    # `.env` is optional: the entrypoint fails fast with a clear message if a
-    # required secret is missing, so you don't get a cryptic runtime error.
     env_file:
       - path: .env
         required: false
