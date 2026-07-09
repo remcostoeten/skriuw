@@ -199,7 +199,6 @@ export function PlainTextEditor({
 				aria-describedby={`${helpTextId} ${statusTextId}`}
 				aria-autocomplete="list"
 				aria-controls={showTagPopup ? popupId : undefined}
-				aria-expanded={showTagPopup}
 				aria-activedescendant={activeOptionId}
 				className="w-full resize-none bg-transparent text-[16px] text-foreground outline-none placeholder:text-muted-foreground/30 md:text-[17px]"
 				style={{

@@ -94,11 +94,12 @@ export function KeyboardAccessibleSlashMenu({
 			role="listbox"
 			aria-label="Editor suggestions"
 			aria-activedescendant={`${menuId}-item-${activeIndex}`}
+			tabIndex={0}
 			className="bn-suggestion-menu skriuw-editor-suggestion-menu z-[100] max-h-[min(24rem,50vh)] overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-xl shadow-black/40"
 		>
 			{items.map((item, index) => (
 				<button
-					key={`${item.title}-${index}`}
+					key={item.title}
 					id={`${menuId}-item-${index}`}
 					type="button"
 					role="option"

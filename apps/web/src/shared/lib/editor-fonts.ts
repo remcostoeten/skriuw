@@ -71,8 +71,6 @@ export const EDITOR_FONTS = defineEditorFonts([
 export type EditorFontId = (typeof EDITOR_FONTS)[number]["id"];
 export type EditorFontOption = (typeof EDITOR_FONTS)[number];
 
-export const EDITOR_FONT_IDS = EDITOR_FONTS.map((font) => font.id) as EditorFontId[];
-
 const FONT_REGISTRY = new Map<EditorFontId, EditorFontOption>(
 	EDITOR_FONTS.map((font) => [font.id, font]),
 );
@@ -91,10 +89,6 @@ export function getEditorFontFamily(fontId: EditorFontId): string {
 
 export function getEditorFontLabel(fontId: EditorFontId): string {
 	return getEditorFontDefinition(fontId).label;
-}
-
-export function getEditorFontOptions(): EditorFontOption[] {
-	return [...EDITOR_FONTS];
 }
 
 export type EditorFontCategory = EditorFontOption["category"];

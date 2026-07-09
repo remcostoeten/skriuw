@@ -85,12 +85,10 @@ export function QuickAccessSection() {
 			for (const candidate of getShortcutIds()) {
 				if (candidate === GOTO_SHORTCUT_ID) continue;
 				const candidateDef = getShortcutDef(candidate);
-				if (
-					!combosFor(bindings[candidate] ?? getShortcutDefaultKeys(candidate)).includes(
-						combo,
-					)
-				)
-					continue;
+				const candidateCombos = new Set(
+					combosFor(bindings[candidate] ?? getShortcutDefaultKeys(candidate)),
+				);
+				if (!candidateCombos.has(combo)) continue;
 				setRecordError(
 					`${formatBinding(combo)} is already assigned to ${candidateDef.label}.`,
 				);

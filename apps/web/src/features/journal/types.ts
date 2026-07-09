@@ -34,8 +34,3 @@ export const TAG_COLORS: readonly CssColorValue[] = [
 	"hsl(var(--project-green))" as CssColorValue,
 	"hsl(var(--project-teal))" as CssColorValue,
 ];
-
-export const DEFAULT_JOURNAL_CONFIG: JournalConfig = {
-	entries: [],
-	tags: [],
-};

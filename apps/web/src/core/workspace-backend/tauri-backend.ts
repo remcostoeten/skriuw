@@ -933,16 +933,19 @@ export function createTauriBackend(): WorkspaceBackend {
 			if (!target) return;
 			const entries = await listJournalEntries();
 			await Promise.all(
-				entries
-					.filter((entry) => entry.tags.includes(target.name))
-					.map((entry) => {
+				entries.flatMap((entry) => {
+					if (entry.tags.includes(target.name)) {
 						const next: JournalEntry = {
 							...entry,
 							tags: entry.tags.filter((tag) => tag !== target.name),
 							updatedAt: new Date(),
 						};
-						return invoke("upsert_journal_entry", { entry: toRustJournalEntry(next) });
-					}),
+						return [
+							invoke("upsert_journal_entry", { entry: toRustJournalEntry(next) }),
+						];
+					}
+					return [];
+				}),
 			);
 			await invoke("delete_journal_tag", { id });
 		},
@@ -1009,11 +1012,10 @@ export function createTauriBackend(): WorkspaceBackend {
 				invoke<RustTaggedNoteSummary[]>("list_person_notes", { personId }),
 				listJournalEntries(),
 			]);
-			const journalItems = journals
-				.filter((entry) =>
-					extractRichDocumentPersonIds(entry.richContent ?? []).includes(personId),
-				)
-				.map(journalToTaggedSummary);
+			const journalItems = journals.flatMap((entry) => {
+				const personIds = new Set(extractRichDocumentPersonIds(entry.richContent ?? []));
+				return personIds.has(personId) ? [journalToTaggedSummary(entry)] : [];
+			});
 			return [...rows.map(fromRustTaggedNoteSummary), ...journalItems].sort(
 				(left, right) => right.modifiedAt.getTime() - left.modifiedAt.getTime(),
 			);
@@ -1089,9 +1091,9 @@ export function createTauriBackend(): WorkspaceBackend {
 				invoke<RustTaggedNoteSummary[]>("list_tag_notes", { name: normalized }),
 				listJournalEntries(),
 			]);
-			const journalItems = journals
-				.filter((entry) => entry.tags.includes(normalized))
-				.map(journalToTaggedSummary);
+			const journalItems = journals.flatMap((entry) =>
+				entry.tags.includes(normalized) ? [journalToTaggedSummary(entry)] : [],
+			);
 			return [...rows.map(fromRustTaggedNoteSummary), ...journalItems].sort(
 				(left, right) => right.modifiedAt.getTime() - left.modifiedAt.getTime(),
 			);

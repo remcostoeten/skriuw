@@ -241,7 +241,7 @@ function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 	);
 }
 
-const SYNC_TOKEN_DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
+const SYNC_TOKEN_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
 	dateStyle: "medium",
 	timeStyle: "short",
 });

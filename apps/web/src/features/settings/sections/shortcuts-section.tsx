@@ -56,8 +56,10 @@ function findShortcutConflict(
 		if (candidate === id) continue;
 		const candidateDef = getShortcutDef(candidate);
 		if (def.bindingGroup && candidateDef.bindingGroup === def.bindingGroup) continue;
-		if (!combosFor(bindings[candidate] ?? getShortcutDefaultKeys(candidate)).includes(combo))
-			continue;
+		const candidateCombos = new Set(
+			combosFor(bindings[candidate] ?? getShortcutDefaultKeys(candidate)),
+		);
+		if (!candidateCombos.has(combo)) continue;
 		return { label: candidateDef.label, combo };
 	}
 	return null;
