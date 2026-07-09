@@ -1,7 +1,7 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/db";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { assertResourceIdAvailable, isRecordNotFoundError } from "@/core/persistence/guards";
 import { syncJournalLinks } from "@/domain/journal/journal-link-sync";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
@@ -150,10 +150,14 @@ export async function updateJournalEntry(
 			data: {
 				...(input.title !== undefined && { title: input.title }),
 				...(input.content !== undefined && { content: input.content }),
+				// `null` means a plain-markdown edit dropped the structured doc; Json
+				// columns only clear via Prisma.DbNull (plain null is skipped), and
+				// leaving it stale would resurrect old content + person links.
 				...(input.richContent !== undefined && {
-					richContent: (input.richContent ?? undefined) as
-						| Prisma.InputJsonValue
-						| undefined,
+					richContent:
+						input.richContent === null
+							? Prisma.DbNull
+							: (input.richContent as Prisma.InputJsonValue),
 				}),
 				...(input.tags !== undefined && { tags: input.tags }),
 				...(input.mood !== undefined && { mood: input.mood }),
