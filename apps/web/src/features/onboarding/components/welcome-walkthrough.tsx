@@ -55,6 +55,12 @@ const SLASH_ROWS: SlashRow[] = [
 	{ label: "File tree", hint: "File map" },
 ];
 
+const WELCOME_ICONS: Array<{ Icon: typeof SlashSquare; id: string }> = [
+	{ Icon: SlashSquare, id: "slash" },
+	{ Icon: AtSign, id: "mention" },
+	{ Icon: Hash, id: "tag" },
+];
+
 function StepVisual({ visual }: { visual: WalkthroughStep["visual"] }) {
 	const reduceMotion = useReducedMotion();
 	const rise = reduceMotion
@@ -64,9 +70,9 @@ function StepVisual({ visual }: { visual: WalkthroughStep["visual"] }) {
 	if (visual === "welcome") {
 		return (
 			<div className="flex items-center justify-center gap-3">
-				{[SlashSquare, AtSign, Hash].map((Icon, i) => (
+				{WELCOME_ICONS.map(({ Icon, id }, i) => (
 					<m.div
-						key={i}
+						key={id}
 						initial={reduceMotion ? false : { opacity: 0, scale: 0.8 }}
 						animate={{ opacity: 1, scale: 1 }}
 						transition={{

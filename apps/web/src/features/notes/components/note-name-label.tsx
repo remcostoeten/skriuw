@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "framer-motion";
 
 type TProps = {
@@ -21,6 +22,7 @@ const EASE = [0.23, 1, 0.32, 1] as const;
  * keeps a single line so the truncating sidebar row never reflows.
  */
 export function NoteNameLabel({ name, className }: TProps) {
+	const [isAnimating, setIsAnimating] = useState(false);
 	const reduceMotion = useReducedMotion();
 
 	return (
@@ -29,7 +31,9 @@ export function NoteNameLabel({ name, className }: TProps) {
 				<m.span
 					key={name}
 					className={className}
-					style={{ willChange: "opacity, transform, filter" }}
+					style={{ willChange: isAnimating ? "opacity, transform, filter" : undefined }}
+					onAnimationStart={() => setIsAnimating(true)}
+					onAnimationEnd={() => setIsAnimating(false)}
 					initial={
 						reduceMotion ? { opacity: 0 } : { opacity: 0, y: 4, filter: "blur(4px)" }
 					}

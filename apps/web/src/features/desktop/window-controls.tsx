@@ -67,12 +67,8 @@ function ControlButton({ label, onClick, className, children }: ControlButtonPro
  * the buttons is a Tauri drag region, so the window can still be moved from here.
  */
 export function WindowControls() {
-	const [isTauri, setIsTauri] = React.useState(false);
+	const [isTauri] = React.useState(() => isTauriRuntime());
 	const [isMaximized, setIsMaximized] = React.useState(false);
-
-	React.useEffect(() => {
-		setIsTauri(isTauriRuntime());
-	}, []);
 
 	React.useEffect(() => {
 		if (!isTauri) return;

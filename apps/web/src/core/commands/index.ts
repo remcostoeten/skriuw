@@ -5,10 +5,4 @@ export {
 	useRegisterCommandItemsProvider,
 	useActiveCommandScope,
 } from "./provider";
-export {
-	COMMAND_REGISTRY,
-	getCommandDef,
-	getCommandIds,
-	type CommandId,
-	type CommandDefinition,
-} from "./registry";
+export { COMMAND_REGISTRY, type CommandId, type CommandDefinition } from "./registry";

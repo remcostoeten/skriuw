@@ -11,9 +11,10 @@ import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-ancho
 
 type LoadState = "idle" | "loading" | "error";
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
 	dateStyle: "medium",
 	timeStyle: "short",
+	timeZone: "UTC",
 });
 
 function StatusBadge({ status }: { status: string }) {

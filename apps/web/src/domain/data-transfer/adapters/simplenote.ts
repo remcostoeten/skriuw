@@ -1,11 +1,6 @@
-import {
-	buildMarkdownImportArchive,
-	inferImportFolders,
-} from "@/domain/data-transfer/adapters/markdown-import-shared";
+import { buildMarkdownImportArchive } from "@/domain/data-transfer/adapters/markdown-import-shared";
 import { normalizeNoteFileName, safeArchiveName } from "@/domain/data-transfer/paths";
 import type { ParsedArchive, ParsedNoteFile } from "@/domain/data-transfer/types";
-
-export { inferImportFolders as inferSimplenoteFolders };
 
 const MAX_TITLE_LENGTH = 100;
 

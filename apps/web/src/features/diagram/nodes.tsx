@@ -79,10 +79,8 @@ function InlineLabel({
 	}
 
 	return (
-		<span
+		<button
 			className={`cursor-text select-none outline-none ${className ?? ""}`}
-			tabIndex={0}
-			role="button"
 			aria-label={`Rename: ${label}`}
 			onDoubleClick={(e) => {
 				e.stopPropagation();
@@ -97,7 +95,7 @@ function InlineLabel({
 			}}
 		>
 			{label}
-		</span>
+		</button>
 	);
 }
 

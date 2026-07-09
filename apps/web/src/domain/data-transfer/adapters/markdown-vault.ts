@@ -3,7 +3,7 @@ import {
 	parseMarkdownEntries,
 } from "@/domain/data-transfer/adapters/markdown-import-shared";
 
-export { inferImportFolders as inferMarkdownVaultFolders };
+// inferImportFolders as inferMarkdownVaultFolders is not exported (unused)
 
 export function parseMarkdownVaultEntries(entries: Record<string, string>) {
 	return parseMarkdownEntries(entries, "markdown-vault", {}, [

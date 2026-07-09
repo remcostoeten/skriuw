@@ -72,6 +72,7 @@ export function MiniCalendar({
 				<button
 					type="button"
 					onClick={() => onChangeMonth(subMonths(currentMonth, 1))}
+					aria-label="Previous month"
 					className="flex h-6 w-6 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
 				>
 					<ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -82,6 +83,7 @@ export function MiniCalendar({
 				<button
 					type="button"
 					onClick={() => onChangeMonth(addMonths(currentMonth, 1))}
+					aria-label="Next month"
 					className="flex h-6 w-6 items-center justify-center border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
 				>
 					<ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />

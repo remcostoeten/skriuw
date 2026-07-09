@@ -881,8 +881,8 @@ function InspectCard({ entry, onClear }) {
 
 const CommitTree = memo(function CommitTree({ nodes, depth }) {
 	if (depth > 8) return <div className="dt-tree-reason">… deeper levels hidden</div>;
-	return nodes.slice(0, 15).map((node, i) => (
-		<div key={`${node.name}${i}`} style={{ paddingLeft: depth * 14 }}>
+	return nodes.slice(0, 15).map((node) => (
+		<div key={node.name} style={{ paddingLeft: depth * 14 }}>
 			<div className="dt-tree-row">
 				<span className="dt-tree-guide">{depth > 0 ? "└" : ""}</span>
 				<span style={{ color: "#e5e5e5" }}>

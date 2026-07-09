@@ -533,20 +533,13 @@ export function DiagramBuilder({
 								</div>
 								<div className="px-2 pb-2 space-y-1">
 									{items.map(({ type, label, icon, hint }) => (
-										<div
+										<button
 											key={type}
-											role="button"
-											tabIndex={0}
+											type="button"
 											draggable
 											aria-label={`${hint} — drag or click to add`}
 											onDragStart={(e) => onDragStart(e, type, label)}
 											onClick={() => addAtCenter(type, label)}
-											onKeyDown={(e) => {
-												if (e.key === "Enter" || e.key === " ") {
-													e.preventDefault();
-													addAtCenter(type, label);
-												}
-											}}
 											className="group flex items-center gap-2.5 px-2.5 py-2 border border-border/30 cursor-pointer bg-background hover:border-primary/50 hover:bg-primary/5 transition-colors select-none"
 										>
 											<span className="shrink-0">{icon}</span>
@@ -555,7 +548,7 @@ export function DiagramBuilder({
 												className="w-3 h-3 opacity-0 group-hover:opacity-30 transition-opacity text-muted-foreground shrink-0"
 												aria-hidden
 											/>
-										</div>
+										</button>
 									))}
 								</div>
 							</div>

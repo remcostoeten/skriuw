@@ -27,12 +27,18 @@ const TooltipTrigger = TooltipPrimitive.Trigger;
 
 type TooltipContentProps = React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content> & {
 	shortcut?: React.ReactNode;
+	ref?: React.Ref<React.ElementRef<typeof TooltipPrimitive.Content>>;
 };
 
-const TooltipContent = React.forwardRef<
-	React.ElementRef<typeof TooltipPrimitive.Content>,
-	TooltipContentProps
->(({ className, sideOffset = 4, collisionPadding = 8, shortcut, children, ...props }, ref) => {
+function TooltipContent({
+	className,
+	sideOffset = 4,
+	collisionPadding = 8,
+	shortcut,
+	children,
+	ref,
+	...props
+}: TooltipContentProps) {
 	const isMobile = useIsMobile();
 
 	if (isMobile) {
@@ -65,7 +71,7 @@ const TooltipContent = React.forwardRef<
 			</TooltipPrimitive.Content>
 		</TooltipPrimitive.Portal>
 	);
-});
+}
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
