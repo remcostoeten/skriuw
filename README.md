@@ -113,7 +113,59 @@ skriuw-export-YYYY-MM-DD/
 
 Next.js, PostgreSQL with Prisma, Better Auth, Tauri for the desktop build, and a block-based editor with real-time collaboration. Managed with Bun in a monorepo.
 
-## Run locally
+## Install — pick how you run it
+
+Skriuw ships in a few shapes. Pick whichever fits; they all run the same app.
+
+| Mode                                   | Storage                                  | How you get it                         | Best for                                              |
+| -------------------------------------- | ---------------------------------------- | -------------------------------------- | ----------------------------------------------------- |
+| **Cloud**                              | Postgres (hosted)                        | Visit [skriuw.com](https://skriuw.com) | Just want to write, nothing to install                |
+| **Self-host (Docker)**                 | Postgres                                 | `docker pull` + Compose (below)        | A server / homelab instance you own, multi-device     |
+| **Desktop**                            | Markdown vault + SQLite (local, offline) | Native installer                       | Local-first, no server, no account                    |
+| _Self-host local-first vault (Docker)_ | Markdown vault + SQLite                  | _coming soon_                          | Homelab users who want plain `.md` files, no Postgres |
+
+### Self-host with Docker
+
+Runs the web app plus a Postgres container. No repo clone needed — just two files:
+
+```bash
+# 1. Grab the compose file and env template
+curl -O https://raw.githubusercontent.com/remcostoeten/skriuw/daddy/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/remcostoeten/skriuw/daddy/.env.example
+
+# 2. Set the two required secrets in .env
+#    BETTER_AUTH_SECRET and AI_KEYS_ENCRYPTION_SECRET
+#    (each: openssl rand -base64 32). Leave the rest at their defaults.
+
+# 3. Start — pulls ghcr.io/remcostoeten/skriuw + postgres:17, runs migrations
+docker compose up -d
+```
+
+Open `http://localhost:3000`. Data persists in the `skriuw-db` volume. The entrypoint fails fast with a clear message if a required secret is missing or still a placeholder.
+
+**Bring your own Postgres** (Neon, RDS, an existing box): drop the `db` service and point `DATABASE_URL` at it.
+
+**Custom domain:** `NEXT_PUBLIC_*` values (auth URL, etc.) are baked into the image at build time, so the published image only works cleanly on `http://localhost:3000`. To serve a custom domain, build from source with your own values:
+
+```bash
+git clone https://github.com/remcostoeten/skriuw && cd skriuw
+# set BETTER_AUTH_URL + NEXT_PUBLIC_BETTER_AUTH_URL in .env, then:
+docker compose -f docker-compose.build.yml up --build -d
+```
+
+> Realtime collaboration is a Cloudflare Worker (`party/`) and is **not** part of the Docker stack — it stays disabled unless you deploy that worker and set `NEXT_PUBLIC_PARTYKIT_HOST`. Everything else works without it.
+
+### Desktop
+
+Native app (Tauri) with fully local, offline storage — your notes are plain Markdown files plus a SQLite index, no server or account. Download from [Releases](https://github.com/remcostoeten/skriuw/releases), or:
+
+```bash
+brew install --cask skriuw        # macOS
+yay -S skriuw                     # Arch (AUR)
+sudo dpkg -i skriuw_*.deb         # Debian/Ubuntu (from Releases)
+```
+
+## Run locally (development)
 
 Copy `.env.example` to `.env.local`, set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `NEXT_PUBLIC_BETTER_AUTH_URL`, then install and start the app:
 

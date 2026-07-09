@@ -3,6 +3,21 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.18.1] — 2026-07-09
+
+### Fixed
+
+- **Docs:** the Docker self-host `curl` commands in the README pointed at a
+  `master` branch that doesn't exist (default branch is `daddy`), 404ing for
+  every self-host user copying the quickstart.
+
+### Release
+
+- Verified the Docker image builds clean (`docker build .`) and the
+  entrypoint's secret validation and `prisma migrate deploy` fail-fast paths
+  behave as designed. Align the unified web, desktop, Tauri, and Cargo
+  package versions on `0.18.1`.
+
 ## [0.18.0] — 2026-07-09
 
 ### Added

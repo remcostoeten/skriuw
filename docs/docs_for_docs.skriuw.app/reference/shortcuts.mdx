@@ -1,4 +1,7 @@
-# Keyboard shortcuts
+---
+title: Keyboard shortcuts
+description: Skriuw's keyboard-first model across the desktop shell and web app, the shortcut registry, scoped handlers, and how bindings are re-assigned per device.
+---
 
 Skriuw is keyboard-first across both the Tauri desktop shell and the hosted Next.js web app. Most application-level shortcuts live in `apps/web/src/core/shortcuts/registry.ts`. Route-owned surfaces register their local handlers through `useShortcutScope`, while `GlobalNotesShortcuts` registers the cross-route fallbacks so core note commands still work from settings, graph, trash, shared views, and other app screens. The settings shortcut recorder stores overrides in local storage, validates duplicate bindings before saving, and synchronizes shared binding groups such as settings and command palette shortcuts, so any shortcut backed by `SHORTCUT_REGISTRY` is re-assignable on the current device.
 
