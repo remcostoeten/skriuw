@@ -35,10 +35,12 @@ const CLUSTER_COLORS = [
 
 const TAG_COLOR = "#64748b";
 const PERSON_COLOR = "#cbd5e1";
+const JOURNAL_COLOR = "#f59e0b";
 
 function nodeColor(node: GraphNode): string {
 	if (node.type === "tag") return TAG_COLOR;
 	if (node.type === "person") return PERSON_COLOR;
+	if (node.type === "journal") return JOURNAL_COLOR;
 	return CLUSTER_COLORS[node.cluster % CLUSTER_COLORS.length];
 }
 
@@ -84,6 +86,7 @@ type GraphCanvasProps = {
 	onOpenNote: (id: string) => void;
 	onOpenTag: (name: string) => void;
 	onOpenPerson: (id: string) => void;
+	onOpenJournal: (dateKey: string) => void;
 	onExploreNote?: (id: string) => void;
 	isMobile: boolean;
 };
@@ -93,6 +96,7 @@ function GraphCanvas({
 	onOpenNote,
 	onOpenTag,
 	onOpenPerson,
+	onOpenJournal,
 	onExploreNote,
 	isMobile,
 }: GraphCanvasProps) {
@@ -188,10 +192,14 @@ function GraphCanvas({
 				onOpenPerson(graphNodeKey(node.id, "person"));
 				return;
 			}
+			if (node.type === "journal") {
+				onOpenJournal(graphNodeKey(node.id, "journal"));
+				return;
+			}
 			onExploreNote?.(node.id);
 			onOpenNote(node.id);
 		},
-		[onExploreNote, onOpenNote, onOpenPerson, onOpenTag],
+		[onExploreNote, onOpenNote, onOpenPerson, onOpenJournal, onOpenTag],
 	);
 
 	const handleNodeHover = useCallback((node: GraphNode | null) => {
@@ -411,6 +419,7 @@ type NodeTypeVisibility = Record<GraphNodeType, boolean>;
 
 const NODE_TYPE_FILTERS: Array<{ type: GraphNodeType; label: string }> = [
 	{ type: "note", label: "Notes" },
+	{ type: "journal", label: "Journal" },
 	{ type: "tag", label: "Tags" },
 	{ type: "person", label: "People" },
 ];
@@ -487,6 +496,7 @@ function MetricsOverlay({
 				</div>
 				<div className="mb-3 flex flex-col gap-1.5">
 					<MetricRow label="Notes" value={metrics.noteCount} />
+					<MetricRow label="Journal" value={metrics.journalCount} />
 					<MetricRow label="Tags" value={metrics.tagCount} />
 					<MetricRow label="People" value={metrics.personCount} />
 					<MetricRow label="Connections" value={metrics.edgeCount} />
@@ -564,6 +574,7 @@ export function WorkspaceGraph() {
 	const isGuest = auth.isReady && auth.phase !== "authenticated";
 	const [visible, setVisible] = useState<NodeTypeVisibility>({
 		note: true,
+		journal: true,
 		tag: true,
 		person: true,
 	});
@@ -578,6 +589,10 @@ export function WorkspaceGraph() {
 		[router],
 	);
 	const openPerson = useCallback((id: string) => router.push(`/app/people/${id}`), [router]);
+	const openJournal = useCallback(
+		(dateKey: string) => router.push(`/app/journal?date=${encodeURIComponent(dateKey)}`),
+		[router],
+	);
 	const handleExploreNote = useCallback(
 		(_id: string) => {
 			if (isGuest) recordGuestGraphExplore();
@@ -594,7 +609,7 @@ export function WorkspaceGraph() {
 	const data = useMemo<GraphData | undefined>(() => {
 		const full = query.data;
 		if (!full) return undefined;
-		if (visible.note && visible.tag && visible.person) return full;
+		if (visible.note && visible.journal && visible.tag && visible.person) return full;
 		const nodes = full.nodes.filter((node) => visible[node.type]);
 		const visibleIds = new Set(nodes.map((node) => node.id));
 		const edges = full.edges.filter(
@@ -635,6 +650,7 @@ export function WorkspaceGraph() {
 								onOpenNote={openNote}
 								onOpenTag={openTag}
 								onOpenPerson={openPerson}
+								onOpenJournal={openJournal}
 								onExploreNote={handleExploreNote}
 								isMobile={isMobile}
 							/>

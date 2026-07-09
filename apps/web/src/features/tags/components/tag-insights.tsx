@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, FileText, Hash, Waypoints } from "lucide-react";
+import { ArrowLeft, FileText, Hash, NotebookPen, Waypoints } from "lucide-react";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
@@ -62,29 +62,41 @@ export function TagInsights({ name }: Props) {
 						/>
 					) : (
 						<ul className="flex-1 divide-y divide-border overflow-y-auto">
-							{notes.map((note) => (
-								<li key={note.id}>
-									<Link
-										href={`/app?note=${note.id}`}
-										className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-muted/50"
-									>
-										<FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-										<div className="min-w-0 flex-1">
-											<p className="truncate text-sm font-medium text-foreground">
-												{note.name.replace(/\.md$/, "")}
-											</p>
-											<p className="text-xs text-muted-foreground">
-												Edited{" "}
-												<AnimatedRelativeTime
-													date={note.modifiedAt}
-													animate={false}
-													suffix=" ago"
-												/>
-											</p>
-										</div>
-									</Link>
-								</li>
-							))}
+							{notes.map((note) => {
+								const isJournal = note.kind === "journal";
+								const href = isJournal
+									? `/app/journal?date=${encodeURIComponent(note.dateKey ?? "")}`
+									: `/app?note=${note.id}`;
+								const Icon = isJournal ? NotebookPen : FileText;
+								return (
+									<li key={`${note.kind ?? "note"}:${note.id}`}>
+										<Link
+											href={href}
+											className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-muted/50"
+										>
+											<Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-sm font-medium text-foreground">
+													{note.name.replace(/\.md$/, "")}
+													{isJournal ? (
+														<span className="ml-2 text-xs font-normal text-muted-foreground">
+															Journal
+														</span>
+													) : null}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													Edited{" "}
+													<AnimatedRelativeTime
+														date={note.modifiedAt}
+														animate={false}
+														suffix=" ago"
+													/>
+												</p>
+											</div>
+										</Link>
+									</li>
+								);
+							})}
 						</ul>
 					)}
 				</div>

@@ -1,9 +1,6 @@
 /* eslint-disable */
 import type { NoteFile } from "@/types/notes";
-import {
-	extractRichDocumentUsers,
-	richDocumentToSearchableMarkdown,
-} from "@/domain/notes/rich-document";
+import { richDocumentToSearchableMarkdown } from "@/domain/notes/rich-document";
 import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
 
 export type NoteLinkKind = "wiki" | "markdown-note-link";
@@ -141,18 +138,6 @@ export function getWorkspaceTags(files: NoteFile[]): string[] {
 	}
 
 	return [...tags].toSorted((left, right) => left.localeCompare(right));
-}
-
-function getWorkspaceUsers(files: NoteFile[]): string[] {
-	const users = new Map<string, string>();
-
-	for (const file of files) {
-		for (const user of extractRichDocumentUsers(file.richContent)) {
-			users.set(user.toLowerCase(), user);
-		}
-	}
-
-	return [...users.values()].toSorted((left, right) => left.localeCompare(right));
 }
 
 function extractLinksFromMarkdown(sourceNoteId: string, markdown: string): NoteLink[] {

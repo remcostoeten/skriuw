@@ -2,7 +2,7 @@
 
 import { getAuthenticatedUser, tryGetAuthenticatedUser } from "@/core/db";
 import type { Prisma } from "@/generated/prisma/client";
-import { assertOwnedParentFolder, isRecordNotFoundError } from "@/domain/persistence/guards";
+import { assertOwnedParentFolder, isRecordNotFoundError } from "@/core/persistence/guards";
 import { parseServerInput, updateNoteInputSchema } from "@/domain/validation/schemas";
 import { isGuestScopedId } from "@/domain/notes/note-id";
 import { resolveNoteAccess, resolveReadableNote } from "@/domain/notes/note-access";
@@ -393,7 +393,7 @@ export async function fetchNoteGraph(): Promise<GraphData> {
 		return buildGraphData([], []);
 	}
 
-	const [notes, links, people] = await Promise.all([
+	const [notes, links, people, journals, journalLinks] = await Promise.all([
 		prisma.note.findMany({
 			where: { userId: user.id, deletedAt: null },
 			select: { id: true, name: true, createdAt: true },
@@ -406,7 +406,15 @@ export async function fetchNoteGraph(): Promise<GraphData> {
 			where: { userId: user.id },
 			select: { id: true, name: true },
 		}),
+		prisma.journalEntry.findMany({
+			where: { userId: user.id, deletedAt: null },
+			select: { id: true, title: true, dateKey: true, createdAt: true },
+		}),
+		prisma.journalLink.findMany({
+			where: { userId: user.id, sourceJournal: { deletedAt: null } },
+			select: { sourceJournalId: true, targetNoteId: true, targetLabel: true, kind: true },
+		}),
 	]);
 
-	return buildGraphData(notes, links, { people });
+	return buildGraphData(notes, links, { people, journals, journalLinks });
 }

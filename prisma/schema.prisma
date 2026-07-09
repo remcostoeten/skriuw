@@ -35,6 +35,7 @@ model User {
   noteLinks              NoteLink[]
   noteShares             NoteShare[]
   journalEntries         JournalEntry[]
+  journalLinks           JournalLink[]
   journalTags            JournalTag[]
   userRecents            UserRecent[]
   aiProviderKeys         AiProviderKey[]
@@ -335,20 +336,44 @@ model JournalEntry {
   id        String    @id @default(uuid()) @db.Uuid
   userId    String    @map("user_id")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dateKey   String    @map("date_key")
-  title     String?
-  content   String
-  mood      String?
-  tags      String[]  @default([])
-  deletedAt DateTime? @map("deleted_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  dateKey     String        @map("date_key")
+  title       String?
+  content     String
+  richContent Json?         @map("rich_content")
+  mood        String?
+  tags        String[]      @default([])
+  outgoingLinks JournalLink[] @relation("JournalOutgoingLinks")
+  deletedAt   DateTime?     @map("deleted_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
 
   // Active date uniqueness is enforced by a Postgres partial unique index in
   // migrations because Prisma cannot model `WHERE deleted_at IS NULL`.
   @@index([userId, dateKey, deletedAt])
   @@index([userId, deletedAt])
   @@map("journal_entries")
+}
+
+// Journal counterpart of NoteLink: the tag/person/note-link edges extracted from
+// a journal entry's body + rich content, rewritten on every journal save (see
+// syncJournalLinks in journal/journal-link-sync.ts). Kept in a separate table
+// from NoteLink because the source is a JournalEntry, not a Note. Graph/tag/
+// people surfaces union both.
+model JournalLink {
+  id              String       @id @default(uuid()) @db.Uuid
+  userId          String       @map("user_id")
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceJournalId String       @map("source_journal_id") @db.Uuid
+  sourceJournal   JournalEntry @relation("JournalOutgoingLinks", fields: [sourceJournalId], references: [id], onDelete: Cascade)
+  targetNoteId    String?      @map("target_note_id") @db.Uuid
+  targetLabel     String       @map("target_label")
+  kind            String
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@unique([sourceJournalId, kind, targetLabel])
+  @@index([userId, sourceJournalId])
+  @@index([userId, targetNoteId])
+  @@map("journal_links")
 }
 
 model JournalTag {

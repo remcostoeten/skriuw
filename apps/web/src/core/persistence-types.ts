@@ -1,1 +1,1 @@
-export * from "@/domain/persistence/types";
+export * from "@/core/persistence/types";

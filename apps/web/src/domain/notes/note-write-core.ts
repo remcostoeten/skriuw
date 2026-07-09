@@ -5,7 +5,7 @@ import {
 	assertOwnedParentFolder,
 	assertResourceIdAvailable,
 	isRecordNotFoundError,
-} from "@/domain/persistence/guards";
+} from "@/core/persistence/guards";
 import { createNoteInputSchema, parseServerInput } from "@/domain/validation/schemas";
 import { fromPersistedNote, fromPersistedNoteVersion } from "@/domain/notes/mappers";
 import type {
@@ -23,13 +23,7 @@ import {
 	NOTE_VERSION_RETENTION_LIMIT,
 } from "@/domain/notes/versioning";
 import { syncNoteLinks } from "@/domain/notes/note-link-sync";
-import type {
-	FolderId,
-	IsoTime,
-	MarkdownContent,
-	NoteId,
-	TagName,
-} from "@/domain/persistence/types";
+import type { FolderId, IsoTime, MarkdownContent, NoteId, TagName } from "@/core/persistence/types";
 
 export type NoteDb = Pick<
 	PrismaClient,

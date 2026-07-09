@@ -11,6 +11,7 @@ import {
 } from "./use-journal-entries";
 import { useCreateJournalTag, useJournalTags } from "./use-journal-tags";
 import { useLazyRef } from "@/shared/lib/use-lazy-ref";
+import type { RichTextDocument } from "@/domain/notes/models";
 import { TAG_COLORS, type JournalEntry, type MoodLevel } from "../types";
 
 const CONTENT_SAVE_DEBOUNCE_MS = 650;
@@ -36,6 +37,8 @@ export function isCurrentJournalDraftAcknowledgement(
 export type JournalEntryController = {
 	content: string;
 	setContent: (newContent: string) => void;
+	richContent: RichTextDocument | undefined;
+	setRichContent: (next: { markdown: string; richContent: RichTextDocument }) => void;
 	entry: JournalEntry | undefined;
 	tags: ReturnType<typeof useJournalTags>["data"];
 	wordCount: number;
@@ -64,6 +67,7 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 	const activeDateKeyRef = useRef(dateKey);
 	activeDateKeyRef.current = dateKey;
 	const draftByDateRef = useRef(new Map<string, string>());
+	const draftRichByDateRef = useRef(new Map<string, RichTextDocument | null>());
 	const draftRevisionRef = useRef(0);
 	const acknowledgedRevisionRef = useRef(0);
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,11 +77,15 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 	const [, forceRender] = useReducer((value: number) => value + 1, 0);
 
 	const content = draftByDateRef.current.get(dateKey) ?? entry?.content ?? "";
+	const richContent = draftRichByDateRef.current.get(dateKey) ?? entry?.richContent ?? undefined;
 
-	const setDraftContent = useCallback((nextContent: string) => {
-		draftByDateRef.current.set(dateKey, nextContent);
-		forceRender();
-	}, [dateKey]);
+	const setDraftContent = useCallback(
+		(nextContent: string) => {
+			draftByDateRef.current.set(dateKey, nextContent);
+			forceRender();
+		},
+		[dateKey],
+	);
 
 	const clearPendingSave = useCallback(() => {
 		if (saveTimeoutRef.current) {
@@ -140,6 +148,7 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 	const persistEntry = useCallback(
 		(draft: {
 			content: string;
+			richContent?: RichTextDocument | null;
 			tags?: string[];
 			mood?: MoodLevel | null;
 			revision?: number;
@@ -186,6 +195,9 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 							await updateEntryMutation.mutateAsync({
 								id: currentEntry.id,
 								content: draft.content,
+								...(draft.richContent !== undefined && {
+									richContent: draft.richContent,
+								}),
 								tags: nextTags,
 								mood: nextMood,
 							});
@@ -197,6 +209,9 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 								id: optimisticId,
 								dateKey,
 								content: draft.content,
+								...(draft.richContent !== undefined && {
+									richContent: draft.richContent,
+								}),
 								tags: nextTags,
 								mood: nextMood ?? undefined,
 							});
@@ -244,23 +259,39 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 	);
 
 	const schedulePersist = useCallback(
-		(nextContent: string, revision: number) => {
+		(nextContent: string, revision: number, nextRich: RichTextDocument | null) => {
 			clearPendingSave();
 			saveTimeoutRef.current = setTimeout(() => {
-				void persistEntry({ content: nextContent, revision });
+				void persistEntry({ content: nextContent, richContent: nextRich, revision });
 			}, CONTENT_SAVE_DEBOUNCE_MS);
 		},
 		[clearPendingSave, persistEntry],
 	);
 
+	// Plain-text edits have no structured document, so richContent is cleared and
+	// the server re-derives it from the markdown on load.
 	const handleContentChange = useCallback(
 		(newContent: string) => {
 			const nextRevision = draftRevisionRef.current + 1;
 			draftRevisionRef.current = nextRevision;
 			setDraftContent(newContent);
-			schedulePersist(newContent, nextRevision);
+			draftRichByDateRef.current.set(dateKey, null);
+			schedulePersist(newContent, nextRevision, null);
 		},
-		[schedulePersist, setDraftContent],
+		[dateKey, schedulePersist, setDraftContent],
+	);
+
+	// Rich edits keep the structured document so `$person` chips retain their id
+	// (which markdown flattening would drop) for graph/people indexing.
+	const handleRichContentChange = useCallback(
+		(next: { markdown: string; richContent: RichTextDocument }) => {
+			const nextRevision = draftRevisionRef.current + 1;
+			draftRevisionRef.current = nextRevision;
+			setDraftContent(next.markdown);
+			draftRichByDateRef.current.set(dateKey, next.richContent);
+			schedulePersist(next.markdown, nextRevision, next.richContent);
+		},
+		[dateKey, schedulePersist, setDraftContent],
 	);
 
 	const handleMoodSelect = useCallback(
@@ -334,6 +365,8 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 	return {
 		content,
 		setContent: handleContentChange,
+		richContent,
+		setRichContent: handleRichContentChange,
 		entry,
 		tags: tagsQuery.data,
 		wordCount,

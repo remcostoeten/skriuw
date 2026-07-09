@@ -24,13 +24,11 @@ export type PushResult = {
 type ArchiveInput = Parameters<typeof buildExportArchiveFiles>[0];
 type ArchiveNote = ArchiveInput["notes"][number];
 
-export function buildSyncImportUrl(serverUrl: string): string {
+function buildSyncImportUrl(serverUrl: string): string {
 	return `${normalizeServerUrl(serverUrl)}/api/sync/import`;
 }
 
-export async function buildWorkspaceArchiveFromBackend(
-	backend: WorkspaceBackend,
-): Promise<Uint8Array> {
+async function buildWorkspaceArchiveFromBackend(backend: WorkspaceBackend): Promise<Uint8Array> {
 	const [notes, folders, journalEntries, journalTags] = await Promise.all([
 		backend.listNotes?.() ?? Promise.resolve([]),
 		backend.listFolders?.() ?? Promise.resolve([]),

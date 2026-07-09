@@ -1,46 +1,7 @@
 import type { NoteFile, NoteVersion } from "@/domain/notes/models";
 import { normalizeNoteProperties } from "@/domain/notes/properties";
-import type {
-	FolderId,
-	IsoTime,
-	MarkdownContent,
-	NoteId,
-	PersistedNote,
-	TagName,
-} from "@/domain/persistence/types";
-import { markdownToRichDocument, resolveRichDocument } from "@/domain/notes/rich-document";
-
-function toIsoTime(date: Date): IsoTime {
-	return date.toISOString() as IsoTime;
-}
-
-export function toPersistedNote(note: NoteFile): PersistedNote {
-	const richContent = note.richContent ?? markdownToRichDocument(note.content);
-	const preferredEditorMode = note.preferredEditorMode ?? "block";
-	const properties = normalizeNoteProperties(note.properties);
-
-	return {
-		id: note.id as NoteId,
-		name: note.name,
-		content: note.content as MarkdownContent,
-		richContent,
-		preferredEditorMode,
-		parentId: note.parentId as FolderId | null,
-		sortOrder: note.sortOrder,
-		tags: note.tags?.map((tag) => tag as TagName),
-		...(properties.length > 0 ? { properties } : {}),
-		icon: note.icon,
-		cover: note.cover,
-		createdAt: toIsoTime(note.createdAt),
-		updatedAt: toIsoTime(note.modifiedAt),
-		journalMeta: note.journalMeta
-			? {
-					...note.journalMeta,
-					tags: note.journalMeta.tags.map((tag) => tag as TagName),
-				}
-			: undefined,
-	};
-}
+import type { PersistedNote } from "@/core/persistence/types";
+import { resolveRichDocument } from "@/domain/notes/rich-document";
 
 export function fromPersistedNote(note: PersistedNote): NoteFile {
 	const richContent = resolveRichDocument(note.content, note.richContent);
