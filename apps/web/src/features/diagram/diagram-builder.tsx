@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
 	addEdge,
 	Background,
@@ -144,6 +144,12 @@ const EDGE_COLORS = [
 	{ value: "#f59e0b", bg: "#f59e0b", label: "Amber" },
 	{ value: "#8b5cf6", bg: "#8b5cf6", label: "Purple" },
 ];
+
+function onDragStart(event: React.DragEvent, type: string, label: string) {
+	event.dataTransfer.setData("application/reactflow", type);
+	event.dataTransfer.setData("application/label", label);
+	event.dataTransfer.effectAllowed = "move";
+}
 
 function SwatchRow({
 	colors,
@@ -391,11 +397,6 @@ export function DiagramBuilder({
 		[setEdges, defEdgeType, defEdgeColor, defEdgeDash, defEdgeAnim],
 	);
 
-	const onDragStart = (event: React.DragEvent, type: string, label: string) => {
-		event.dataTransfer.setData("application/reactflow", type);
-		event.dataTransfer.setData("application/label", label);
-		event.dataTransfer.effectAllowed = "move";
-	};
 	const onDragOver = useCallback((event: React.DragEvent) => {
 		event.preventDefault();
 		event.dataTransfer.dropEffect = "move";
@@ -473,8 +474,10 @@ export function DiagramBuilder({
 		style: defEdgeColor ? { stroke: defEdgeColor, strokeWidth: 1.5 } : undefined,
 	};
 
+	const contextValue = useMemo(() => ({ onLabelChange }), [onLabelChange]);
+
 	return (
-		<DiagramContext.Provider value={{ onLabelChange }}>
+		<DiagramContext.Provider value={contextValue}>
 			<motion.div
 				initial={{ y: "100%" }}
 				animate={{ y: 0 }}
@@ -532,10 +535,18 @@ export function DiagramBuilder({
 									{items.map(({ type, label, icon, hint }) => (
 										<div
 											key={type}
+											role="button"
+											tabIndex={0}
 											draggable
 											aria-label={`${hint} — drag or click to add`}
 											onDragStart={(e) => onDragStart(e, type, label)}
 											onClick={() => addAtCenter(type, label)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault();
+													addAtCenter(type, label);
+												}
+											}}
 											className="group flex items-center gap-2.5 px-2.5 py-2 border border-border/30 cursor-pointer bg-background hover:border-primary/50 hover:bg-primary/5 transition-colors select-none"
 										>
 											<span className="shrink-0">{icon}</span>
@@ -639,9 +650,7 @@ export function DiagramBuilder({
 								<AnimatePresence>
 									{showCode && (
 										<motion.div
-											initial={{ height: 0 }}
-											animate={{ height: 160 }}
-											exit={{ height: 0 }}
+											layout
 											className="bg-card border-t overflow-hidden"
 										>
 											<div className="p-4 h-full flex flex-col">

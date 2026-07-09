@@ -8,6 +8,8 @@ import {
 	useState,
 	type ForwardRefExoticComponent,
 	type RefAttributes,
+	type Ref,
+	type ReactNode,
 } from "react";
 import {
 	Compass,
@@ -72,9 +74,10 @@ type SettingsGroup = "Account" | "Workspace" | "Intelligence" | "Advanced";
 
 const GROUP_ORDER: SettingsGroup[] = ["Account", "Workspace", "Intelligence", "Advanced"];
 
-type AnimatedIconComponent = ForwardRefExoticComponent<
-	{ size?: number; className?: string; color?: string } & RefAttributes<AnimatedIconHandle>
->;
+type AnimatedIconProps = { size?: number; className?: string; color?: string };
+type AnimatedIconComponent =
+	| ForwardRefExoticComponent<AnimatedIconProps & RefAttributes<AnimatedIconHandle>>
+	| ((props: AnimatedIconProps & { ref?: Ref<AnimatedIconHandle> }) => ReactNode);
 
 type SectionMeta = {
 	id: SettingsTabId;

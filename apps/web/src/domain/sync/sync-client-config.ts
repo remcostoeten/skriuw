@@ -29,15 +29,3 @@ export function setSyncClientConfig(config: SyncClientConfig): void {
 	if (typeof window === "undefined") return;
 	window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
 }
-
-export function setLastSyncedAt(iso: string): void {
-	if (typeof window === "undefined") return;
-	const config = getSyncClientConfig();
-	if (!config) return;
-	setSyncClientConfig({ ...config, lastSyncedAt: iso });
-}
-
-export function clearSyncClientConfig(): void {
-	if (typeof window === "undefined") return;
-	window.localStorage.removeItem(STORAGE_KEY);
-}

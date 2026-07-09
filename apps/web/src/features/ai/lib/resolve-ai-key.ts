@@ -19,9 +19,9 @@ export function pickServerProviderKey(
 	provider: NonNullable<ReturnType<typeof getProviderFromModelId>>,
 	excludeIds: string[] = [],
 ): AiProviderKeySummary | null {
+	const excludeSet = new Set(excludeIds);
 	const candidates = keys.filter(
-		(key) =>
-			key.provider === provider && !excludeIds.includes(key.id) && key.status !== "invalid",
+		(key) => key.provider === provider && !excludeSet.has(key.id) && key.status !== "invalid",
 	);
 
 	if (candidates.length === 0) return null;
@@ -60,7 +60,8 @@ export function resolveAiKey({
 		}
 	}
 
-	const availableLocal = localKeys.filter((key) => !exhaustedIds.includes(key.id));
+	const exhaustedSet = new Set(exhaustedIds);
+	const availableLocal = localKeys.filter((key) => !exhaustedSet.has(key.id));
 	if (availableLocal.length > 0) {
 		const preferred =
 			availableLocal.find((key) => key.id === activeLocalKeyId) ?? availableLocal[0];

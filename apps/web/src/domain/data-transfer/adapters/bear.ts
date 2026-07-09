@@ -1,10 +1,7 @@
 import {
 	extractBearTags,
-	inferImportFolders,
 	parseMarkdownEntries,
 } from "@/domain/data-transfer/adapters/markdown-import-shared";
-
-export { inferImportFolders as inferBearFolders };
 
 export function parseBearExportEntries(entries: Record<string, string>) {
 	return parseMarkdownEntries(
