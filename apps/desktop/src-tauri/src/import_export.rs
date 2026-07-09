@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::io::Read;
 
-/// Parse YAML frontmatter from markdown content
+#[cfg(test)]
 pub fn parse_frontmatter(content: &str) -> (HashMap<String, String>, String) {
     let mut frontmatter = HashMap::new();
     let mut body = content;
@@ -112,43 +112,6 @@ pub fn detect_duplicates(
     (unique, duplicates)
 }
 
-/// Merge folders, handling parent relationships
-pub fn merge_folders(
-    existing_folders: &[serde_json::Value],
-    imported_folders: &[ExportedFolder],
-) -> Vec<ExportedFolder> {
-    let mut result = Vec::new();
-    let mut seen = HashSet::new();
-
-    // Add existing folders
-    for folder in existing_folders {
-        if let (Some(id), Some(name)) = (
-            folder.get("id").and_then(|v| v.as_str()),
-            folder.get("name").and_then(|v| v.as_str()),
-        ) {
-            seen.insert(id.to_string());
-            result.push(ExportedFolder {
-                id: id.to_string(),
-                name: name.to_string(),
-                parent_id: folder
-                    .get("parent_id")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string()),
-            });
-        }
-    }
-
-    // Add new imported folders
-    for folder in imported_folders {
-        if !seen.contains(&folder.id) {
-            seen.insert(folder.id.clone());
-            result.push(folder.clone());
-        }
-    }
-
-    result
-}
-
 /// Deduplicate tags across notes
 pub fn deduplicate_tags(notes: &[ExportedNote]) -> HashMap<String, usize> {
     let mut tag_counts: HashMap<String, usize> = HashMap::new();
@@ -203,46 +166,6 @@ pub fn validate_import(archive: &ExportArchive) -> Vec<String> {
     }
 
     errors
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(crate = "serde")]
-#[serde(rename_all = "lowercase")]
-pub enum ConflictResolution {
-    Skip,
-    Replace,
-    Rename,
-}
-
-impl ConflictResolution {
-    pub fn apply(
-        &self,
-        note: ExportedNote,
-        existing_names: &HashSet<String>,
-    ) -> Option<ExportedNote> {
-        match self {
-            ConflictResolution::Skip => {
-                if existing_names.contains(&note.name) {
-                    None
-                } else {
-                    Some(note)
-                }
-            }
-            ConflictResolution::Replace => Some(note),
-            ConflictResolution::Rename => {
-                let original_name = note.name.clone();
-                let mut renamed = note;
-                let mut counter = 1;
-
-                while existing_names.contains(&renamed.name) {
-                    renamed.name = format!("{} ({})", original_name, counter);
-                    counter += 1;
-                }
-
-                Some(renamed)
-            }
-        }
-    }
 }
 
 /// Build export JSON from workspace data
@@ -323,30 +246,6 @@ pub fn extract_archive_json(zip_path: &Path) -> Result<ExportArchive, String> {
         .map_err(|e| format!("Failed to read archive.json: {}", e))?;
 
     parse_import_archive(&json_str)
-}
-
-/// Apply conflict resolution strategy to imported notes
-pub fn apply_conflict_resolution(
-    notes: Vec<ExportedNote>,
-    existing_names: &[String],
-    strategy: ConflictResolution,
-) -> (Vec<ExportedNote>, usize) {
-    let existing_set: HashSet<String> = existing_names.iter().cloned().collect();
-    let mut resolved = Vec::new();
-    let mut skipped = 0;
-
-    for note in notes {
-        match strategy.apply(note, &existing_set) {
-            Some(n) => {
-                resolved.push(n.clone());
-            }
-            None => {
-                skipped += 1;
-            }
-        }
-    }
-
-    (resolved, skipped)
 }
 
 #[tauri::command]
@@ -568,6 +467,69 @@ mod tests {
         let result = extract_archive_json(Path::new("/nonexistent/archive.zip"));
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Failed to open ZIP"));
+    }
+
+    #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+    #[serde(crate = "serde")]
+    #[serde(rename_all = "lowercase")]
+    enum ConflictResolution {
+        Skip,
+        Replace,
+        Rename,
+    }
+
+    impl ConflictResolution {
+        fn apply(
+            &self,
+            note: ExportedNote,
+            existing_names: &HashSet<String>,
+        ) -> Option<ExportedNote> {
+            match self {
+                ConflictResolution::Skip => {
+                    if existing_names.contains(&note.name) {
+                        None
+                    } else {
+                        Some(note)
+                    }
+                }
+                ConflictResolution::Replace => Some(note),
+                ConflictResolution::Rename => {
+                    let original_name = note.name.clone();
+                    let mut renamed = note;
+                    let mut counter = 1;
+
+                    while existing_names.contains(&renamed.name) {
+                        renamed.name = format!("{} ({})", original_name, counter);
+                        counter += 1;
+                    }
+
+                    Some(renamed)
+                }
+            }
+        }
+    }
+
+    fn apply_conflict_resolution(
+        notes: Vec<ExportedNote>,
+        existing_names: &[String],
+        strategy: ConflictResolution,
+    ) -> (Vec<ExportedNote>, usize) {
+        let existing_set: HashSet<String> = existing_names.iter().cloned().collect();
+        let mut resolved = Vec::new();
+        let mut skipped = 0;
+
+        for note in notes {
+            match strategy.apply(note, &existing_set) {
+                Some(n) => {
+                    resolved.push(n.clone());
+                }
+                None => {
+                    skipped += 1;
+                }
+            }
+        }
+
+        (resolved, skipped)
     }
 
     #[test]

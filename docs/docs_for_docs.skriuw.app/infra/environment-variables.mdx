@@ -1,0 +1,92 @@
+---
+title: Environment variables
+description: Every variable Skriuw reads, whether it is required, its default, and what stops working when it is unset. Grouped by subsystem, matching .env.example.
+---
+
+Reference for every variable Skriuw reads. The canonical template is
+`.env.example` at the repo root. Copy it to `.env` (self-host) or `.env.local`
+(local dev). Anything marked optional degrades gracefully: the related surface
+hides or falls back instead of crashing.
+
+Variables prefixed `NEXT_PUBLIC_` are inlined into the client bundle at build
+time. On a prebuilt Docker image they are frozen to the values used at build,
+so changing them at runtime has no effect. See
+[Self-host with Docker](./self-host-docker.mdx) for the custom-domain rebuild.
+
+## Database
+
+| Variable | Required | Effect |
+| -------- | -------- | ------ |
+| `DATABASE_URL` | Yes | Postgres connection string used by Prisma and the PrismaPg adapter. Use `sslmode=verify-full` for managed Postgres (Neon, RDS). `sslmode=disable` is only for the local Compose container. |
+
+## Auth (Better Auth)
+
+| Variable | Required | Effect |
+| -------- | -------- | ------ |
+| `BETTER_AUTH_SECRET` | Yes | Signs sessions. Minimum 32 chars. Generate with `openssl rand -base64 32`. |
+| `BETTER_AUTH_URL` | Yes in production | Server base URL for the trusted-origins CSRF check. If unset it falls back to the maintainer domain and auth breaks. Set to your own origin. |
+| `NEXT_PUBLIC_BETTER_AUTH_URL` | Yes in production | Client base URL read by `createAuthClient`. Set to the same value as `BETTER_AUTH_URL`. Build-time inlined. |
+| `GITHUB_CLIENT_ID` | Optional | GitHub OAuth. Leave both GitHub vars empty to hide the GitHub sign-in button. |
+| `GITHUB_CLIENT_SECRET` | Optional | GitHub OAuth secret. |
+| `GOOGLE_CLIENT_ID` | Optional | Google OAuth. Leave both Google vars empty to hide the button. |
+| `GOOGLE_CLIENT_SECRET` | Optional | Google OAuth secret. |
+
+OAuth redirect URIs follow the pattern `<your-origin>/api/auth/callback/<provider>`.
+
+## AI
+
+| Variable | Required | Effect |
+| -------- | -------- | ------ |
+| `AI_KEYS_ENCRYPTION_SECRET` | Yes | Encrypts user-supplied provider keys at rest (AES). Minimum 32 chars. |
+| `GEMINI_API_KEY` | Optional | Server-side fallback Google Generative AI key, used when a user has no saved key. Named `GEMINI_*` for backcompat. |
+| `GROQ_API_KEY` | Optional | Server-side fallback Groq key. |
+
+With no fallback keys set, AI still works for any user who saves their own key
+in settings.
+
+## Analytics
+
+Self-hosted Remco Analytics. All optional. With `NEXT_PUBLIC_ANALYTICS_URL`
+unset (or `NEXT_PUBLIC_ANALYTICS_ENABLED` not `"true"`), client analytics stays
+off.
+
+| Variable | Required | Effect |
+| -------- | -------- | ------ |
+| `NEXT_PUBLIC_ANALYTICS_URL` | Optional | Browser SDK ingest base URL (posts to `{url}/e`). |
+| `NEXT_PUBLIC_ANALYTICS_ENABLED` | Optional | Set `"false"` to disable client analytics entirely. |
+| `ANALYTICS_URL` | Optional | Server-side ingest base URL for `trackServerEvent`. |
+| `INGEST_SECRET` | Optional | Bearer token for server-side ingest. Must match the ingestion service. Required only for server-side auth events. |
+
+## Realtime collaboration
+
+Collaboration runs on a Cloudflare Worker in `party/`, not the Docker stack.
+Leave `NEXT_PUBLIC_PARTYKIT_HOST` blank to keep collaboration disabled, which is
+the correct default for self-host. Setup steps live in
+[Collaboration setup](./collaboration-setup.mdx).
+
+| Variable | Required | Effect |
+| -------- | -------- | ------ |
+| `COLLAB_AUTH_SECRET` | Only for collab | Shared HMAC secret. The app signs room tokens with it, the Worker verifies them. They must match or every socket returns 401. |
+| `NEXT_PUBLIC_PARTYKIT_HOST` | Only for collab | Host the browser opens the Yjs WebSocket to. Blank disables collab. A value pointing at a Worker that is not running makes every socket 401. Build-time inlined. |
+
+## Cover uploads
+
+Used when a user has not connected their own storage in Settings, Data and sync.
+Without either option below, cover uploads fall back to theme gradients.
+
+Option A, self-hostable S3-compatible bucket (MinIO, R2, B2) with public reads:
+
+| Variable | Required | Effect |
+| -------- | -------- | ------ |
+| `DEFAULT_STORAGE_S3_BUCKET` | Option A | Bucket name. All four core S3 vars must be set together. |
+| `DEFAULT_STORAGE_S3_REGION` | Option A | Bucket region. |
+| `DEFAULT_STORAGE_S3_ACCESS_KEY_ID` | Option A | Access key. |
+| `DEFAULT_STORAGE_S3_SECRET_ACCESS_KEY` | Option A | Secret key. |
+| `DEFAULT_STORAGE_S3_ENDPOINT` | Optional | Custom endpoint for MinIO, R2, or B2. |
+| `DEFAULT_STORAGE_S3_PUBLIC_BASE_URL` | Optional | Public base URL for serving uploaded files. |
+
+Option B, Vercel Blob:
+
+| Variable | Required | Effect |
+| -------- | -------- | ------ |
+| `BLOB_READ_WRITE_TOKEN` | Option B | Auto-provided by Vercel when a Blob store is attached. Used only if `DEFAULT_STORAGE_S3_BUCKET` is unset. |
