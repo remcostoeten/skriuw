@@ -6,6 +6,7 @@ import {
 	eventToCombo,
 	formatBinding,
 	getShortcutDef,
+	getShortcutDefaultKeys,
 	getShortcutIds,
 	useShortcutManager,
 } from "@/core/shortcuts";
@@ -84,7 +85,12 @@ export function QuickAccessSection() {
 			for (const candidate of getShortcutIds()) {
 				if (candidate === GOTO_SHORTCUT_ID) continue;
 				const candidateDef = getShortcutDef(candidate);
-				if (!combosFor(bindings[candidate] ?? candidateDef.keys).includes(combo)) continue;
+				if (
+					!combosFor(bindings[candidate] ?? getShortcutDefaultKeys(candidate)).includes(
+						combo,
+					)
+				)
+					continue;
 				setRecordError(
 					`${formatBinding(combo)} is already assigned to ${candidateDef.label}.`,
 				);
@@ -104,7 +110,7 @@ export function QuickAccessSection() {
 		setNotice(null);
 		if (checked) {
 			const combos = combosFor(
-				bindings[GOTO_SHORTCUT_ID] ?? getShortcutDef(GOTO_SHORTCUT_ID).keys,
+				bindings[GOTO_SHORTCUT_ID] ?? getShortcutDefaultKeys(GOTO_SHORTCUT_ID),
 			);
 			if (!combos.every(comboHasModifier)) {
 				resetBinding(GOTO_SHORTCUT_ID);
@@ -204,7 +210,7 @@ export function QuickAccessSection() {
 								? "Press keys…"
 								: formatBinding(
 										bindings[GOTO_SHORTCUT_ID] ??
-											getShortcutDef(GOTO_SHORTCUT_ID).keys,
+											getShortcutDefaultKeys(GOTO_SHORTCUT_ID),
 									)}
 						</button>
 					</div>

@@ -1,9 +1,18 @@
 import type { ExceptPreset } from "@remcostoeten/use-shortcut";
+import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
 import { SCOPES, type Scope } from "./scopes";
 
 export type ShortcutDefinition = {
 	/** Default binding. An array registers multiple combos for the same action. */
 	keys: string | string[];
+	/**
+	 * Desktop (Tauri) override for `keys`. Use when the web default must dodge
+	 * a reserved browser combo (e.g. `mod+n` opens a new window in Chrome and
+	 * cannot be intercepted) while desktop keeps the natural binding. User
+	 * remaps still win over both — bindings persist per device, so each
+	 * platform keeps its own overrides.
+	 */
+	desktopKeys?: string | string[];
 	/** Named scope that must be active for this shortcut to fire. */
 	scope: Scope;
 	/** Heading used to group the shortcut in the help dialog and settings UI. */
@@ -139,7 +148,10 @@ export const SHORTCUT_REGISTRY = {
 		bindingGroup: "command-palette",
 	},
 	"notes.newNote": {
-		keys: "mod+n",
+		// Chrome reserves mod+n (new window) and never delivers it to the page,
+		// so the web build follows ChatGPT's convention; desktop keeps mod+n.
+		keys: "mod+shift+o",
+		desktopKeys: "mod+n",
 		scope: SCOPES.notes,
 		group: "Notes",
 		label: "Create note",
@@ -537,4 +549,15 @@ export function getShortcutIds(): ShortcutId[] {
  */
 export function getShortcutDef(id: ShortcutId): ShortcutDefinition {
 	return SHORTCUT_REGISTRY[id];
+}
+
+/**
+ * The default combo(s) for the current platform: `desktopKeys` under Tauri
+ * when present, otherwise `keys`. Every consumer that falls back from a user
+ * binding must go through this instead of reading `def.keys` directly.
+ */
+export function getShortcutDefaultKeys(id: ShortcutId): string | string[] {
+	const def = getShortcutDef(id);
+	if (def.desktopKeys && isTauriRuntime()) return def.desktopKeys;
+	return def.keys;
 }
