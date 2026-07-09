@@ -1,8 +1,16 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const config: NextConfig = {
 	reactStrictMode: true,
 	output: process.env.DOCKER_BUILD ? "standalone" : undefined,
+	// This app lives in a bun workspace, so pin the standalone file-tracing root
+	// to the monorepo root. Without it Next only warns and infers the root, which
+	// can misplace the standalone server the Docker image copies from
+	// apps/web/.next/standalone/apps/web/server.js.
+	outputFileTracingRoot: process.env.DOCKER_BUILD
+		? path.join(import.meta.dirname, "../..")
+		: undefined,
 	experimental: {
 		// Trim barrel re-export overhead for large named-import libs. framer-motion
 		// is imported across the layout shell, sidebar, and every animated icon, so
