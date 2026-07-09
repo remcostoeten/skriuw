@@ -10,6 +10,7 @@ import { ChevronRight, Contact, FileText, Hash, Info, Link2, ListTree } from "lu
 import type { ComponentType } from "react";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
+import { AuthDrawerHost } from "@/features/layout/components/auth-drawer-host";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
@@ -452,7 +453,7 @@ export function NotesLayoutShell({
 			<LayoutContainer className="bg-background">
 				{showWelcome && <WelcomeWalkthrough />}
 				<div className="relative flex min-h-0 flex-1 overflow-hidden">
-					{!isMobile && <IconRail />}
+					{isMobile ? <AuthDrawerHost /> : <IconRail />}
 
 					{/* The chrome below (sidebar frame, toolbar, status bar) is static —
 				    it renders unconditionally on the first paint. Only the data
