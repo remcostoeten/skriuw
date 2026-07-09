@@ -1,4 +1,4 @@
-import type { FolderId } from "@/domain/persistence/types";
+import type { FolderId } from "@/core/persistence/types";
 
 export type CreateFolderInput = {
 	id?: FolderId;

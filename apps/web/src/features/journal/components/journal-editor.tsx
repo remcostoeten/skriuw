@@ -80,6 +80,8 @@ export function JournalEditor({
 	const {
 		content,
 		setContent,
+		richContent,
+		setRichContent,
 		entry,
 		wordCount,
 		handleMoodSelect,
@@ -272,13 +274,14 @@ export function JournalEditor({
 								) : (
 									<RichTextEditor
 										content={content}
+										richContent={richContent}
 										files={files}
 										people={people}
 										onCreatePerson={handleCreatePerson}
 										activeFileId={format(selectedDate, "yyyy-MM-dd")}
 										editorFontId={editorPrefs.defaultFont}
 										editorLineHeight={editorPrefs.lineHeight}
-										onChange={(next) => setContent(next.markdown)}
+										onChange={setRichContent}
 										onEditorReady={aiState?.handleEditorReady}
 										onAiSpellCheck={
 											aiState

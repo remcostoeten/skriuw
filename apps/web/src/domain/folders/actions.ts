@@ -5,7 +5,7 @@ import {
 	assertOwnedParentFolder,
 	assertResourceIdAvailable,
 	isRecordNotFoundError,
-} from "@/domain/persistence/guards";
+} from "@/core/persistence/guards";
 import {
 	createFolderInputSchema,
 	parseServerInput,

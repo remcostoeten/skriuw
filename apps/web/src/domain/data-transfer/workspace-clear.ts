@@ -2,34 +2,6 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
 type WorkspaceClient = PrismaClient | Prisma.TransactionClient;
 
-export async function softClearUserWorkspace(prisma: PrismaClient, userId: string): Promise<void> {
-	const now = new Date();
-	await prisma.$transaction([
-		prisma.noteShare.updateMany({
-			where: { userId, revokedAt: null },
-			data: { revokedAt: now },
-		}),
-		prisma.noteVersion.deleteMany({ where: { userId } }),
-		prisma.note.updateMany({
-			where: { userId, deletedAt: null },
-			data: { deletedAt: now },
-		}),
-		prisma.folder.updateMany({
-			where: { userId, deletedAt: null },
-			data: { deletedAt: now },
-		}),
-		prisma.journalEntry.updateMany({
-			where: { userId, deletedAt: null },
-			data: { deletedAt: now },
-		}),
-		prisma.journalTag.updateMany({
-			where: { userId, deletedAt: null },
-			data: { deletedAt: now },
-		}),
-		prisma.userRecent.deleteMany({ where: { userId } }),
-	]);
-}
-
 /**
  * Removes workspace rows so re-imported export IDs can be inserted again.
  * Accepts a transaction client so callers can run the clear as the first

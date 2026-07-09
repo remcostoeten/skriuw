@@ -217,3 +217,39 @@ describe("buildGraphData person nodes", () => {
 		).toBe(true);
 	});
 });
+
+describe("buildGraphData journal nodes", () => {
+	test("adds journal nodes and edges to tags and people", () => {
+		const notes = [note("a", "Alpha")];
+		const links: NoteLinkRow[] = [];
+		const graph = buildGraphData(notes, links, {
+			people: [{ id: "p1", name: "Ada" }],
+			journals: [{ id: "j1", title: "Monday", dateKey: "2026-07-06" }],
+			journalLinks: [
+				{ sourceJournalId: "j1", targetNoteId: null, targetLabel: "idea", kind: "tag" },
+				{ sourceJournalId: "j1", targetNoteId: null, targetLabel: "p1", kind: "person" },
+			],
+		});
+
+		const journalNodes = graph.nodes.filter((n) => n.type === "journal");
+		expect(journalNodes).toHaveLength(1);
+		expect(journalNodes[0].id).toBe("journal:2026-07-06");
+		expect(journalNodes[0].label).toBe("Monday");
+		expect(graph.metrics.journalCount).toBe(1);
+		expect(
+			graph.edges.some(
+				(e) =>
+					e.kind === "tag" &&
+					e.source === "journal:2026-07-06" &&
+					e.target === "tag:idea",
+			),
+		).toBe(true);
+		expect(
+			graph.edges.some(
+				(e) =>
+					e.kind === "person" &&
+					(e.source === "journal:2026-07-06" || e.target === "journal:2026-07-06"),
+			),
+		).toBe(true);
+	});
+});

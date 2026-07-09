@@ -388,15 +388,6 @@ export function normalizeNoteProperties(input: unknown): NoteProperty[] {
 	});
 }
 
-export function applyNotePropertyTemplate(
-	templateId: string,
-	existingProperties: NoteProperty[] = [],
-): NoteProperty[] {
-	const template = NOTE_PROPERTY_TEMPLATES.find((candidate) => candidate.id === templateId);
-	if (!template) return normalizeNoteProperties(existingProperties);
-	return normalizeNoteProperties([...existingProperties, ...template.build()]);
-}
-
 const TEMPLATE_NAME_MAX = 60;
 
 export function createCustomNotePropertyTemplate(

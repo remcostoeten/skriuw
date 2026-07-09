@@ -1,12 +1,3 @@
-/**
- * Persists the desktop app's sync connection (server URL + bearer token) in the
- * webview's localStorage, plus the timestamp of the last successful sync. The
- * token is a scoped, individually-revocable credential (see /api/sync/tokens):
- * a read-only token pulls, a read-write token is required to push or two-way
- * sync. It is stored in plaintext — a follow-up could move it into the OS
- * keychain via a Rust command the way AI provider keys are handled.
- */
-
 const STORAGE_KEY = "skriuw.sync.client.v1";
 
 export type SyncClientConfig = {
