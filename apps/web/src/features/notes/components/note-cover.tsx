@@ -3,6 +3,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Check, Image as ImageIcon, Loader2, Upload } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
+import { MorphingLabel } from "@/shared/ui/morphing-label";
 import { cn } from "@/shared/lib/utils";
 import { useWorkspaceBackend, useWorkspaceCapabilities } from "@/core/workspace-backend";
 import {
@@ -90,8 +91,15 @@ export const NoteCoverPicker = memo(function NoteCoverPicker({
 }: PickerProps) {
 	const [open, setOpen] = useState(false);
 	const [url, setUrl] = useState("");
-	const [uploading, setUploading] = useState(false);
+	const [uploadStatus, setUploadStatus] = useState<"idle" | "pending" | "success">("idle");
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+		};
+	}, []);
 	const backend = useWorkspaceBackend();
 	const capabilities = useWorkspaceCapabilities();
 	const triggerStyle = useCoverStyle(cover ?? "");
@@ -109,19 +117,22 @@ export const NoteCoverPicker = memo(function NoteCoverPicker({
 		event.target.value = "";
 		if (!file || !backend.uploadCoverImage) return;
 
-		setUploading(true);
+		setUploadStatus("pending");
 		try {
 			const compressed = await compressCoverImage(file);
 			const value = await backend.uploadCoverImage(compressed);
 			onCoverChange(value);
-			setOpen(false);
+			setUploadStatus("success");
+			closeTimerRef.current = setTimeout(() => {
+				setOpen(false);
+				setUploadStatus("idle");
+			}, 900);
 		} catch (error) {
+			setUploadStatus("idle");
 			showUserToast(
 				error instanceof Error ? error.message : "Couldn't upload cover image.",
 				"error",
 			);
-		} finally {
-			setUploading(false);
 		}
 	}
 
@@ -196,15 +207,48 @@ export const NoteCoverPicker = memo(function NoteCoverPicker({
 						<button
 							type="button"
 							onClick={() => fileInputRef.current?.click()}
-							disabled={uploading}
-							className="flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-border text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							{uploading ? (
-								<Loader2 className="h-3 w-3 animate-spin" />
-							) : (
-								<Upload className="h-3 w-3" />
+							disabled={uploadStatus !== "idle"}
+							className={cn(
+								"flex h-7 w-full items-center justify-center overflow-hidden rounded-md border text-xs font-medium transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
+								uploadStatus === "success"
+									? "border-emerald-500/50 bg-emerald-500/15 text-emerald-500"
+									: "border-border text-foreground hover:bg-muted",
+								uploadStatus === "pending" && "cursor-default opacity-80",
 							)}
-							{uploading ? "Uploading…" : "Upload image…"}
+						>
+							<MorphingLabel
+								activeKey={uploadStatus}
+								framePadding="px-3"
+								frames={[
+									{
+										key: "idle",
+										content: (
+											<>
+												<Upload className="h-3 w-3" />
+												Upload image…
+											</>
+										),
+									},
+									{
+										key: "pending",
+										content: (
+											<>
+												<Loader2 className="h-3 w-3 animate-spin" />
+												Uploading…
+											</>
+										),
+									},
+									{
+										key: "success",
+										content: (
+											<>
+												<Check className="h-3 w-3" />
+												Cover set
+											</>
+										),
+									},
+								]}
+							/>
 						</button>
 					</>
 				)}
