@@ -799,7 +799,11 @@ export const MetadataPanel = memo(function MetadataPanel({
 		];
 	}, [deferredFile]);
 
-	const { headings: outlineHeadings, scrollToHeading } = useDocumentOutline({
+	const {
+		headings: outlineHeadings,
+		activeKey: outlineActiveKey,
+		scrollToHeading,
+	} = useDocumentOutline({
 		noteId: file?.id ?? null,
 		mode: effectiveEditorMode,
 		content: deferredFile?.content ?? "",
@@ -978,7 +982,11 @@ export const MetadataPanel = memo(function MetadataPanel({
 					onToggle={() => toggleSection("outline")}
 					contentClassName="px-3 pb-3"
 				>
-					<DocumentOutline headings={outlineHeadings} onSelect={scrollToHeading} />
+					<DocumentOutline
+						headings={outlineHeadings}
+						activeKey={outlineActiveKey}
+						onSelect={scrollToHeading}
+					/>
 				</InspectorSection>
 
 				<div
