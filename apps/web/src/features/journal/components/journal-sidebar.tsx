@@ -18,6 +18,7 @@ import {
 	subMonths,
 } from "date-fns";
 import {
+	CalendarArrowDown,
 	ChevronLeft,
 	ChevronRight,
 	Plus,
@@ -28,6 +29,7 @@ import {
 	X,
 	BarChart3,
 } from "lucide-react";
+import { JournalIcsExportDialog } from "./journal-ics-export-dialog";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Calendar } from "@/shared/ui/calendar";
@@ -119,6 +121,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 	const [renamingId, setRenamingId] = useState<string | null>(null);
 	const [renameDraft, setRenameDraft] = useState("");
 	const [contextEntryId, setContextEntryId] = useState<string | null>(null);
+	const [icsExportOpen, setIcsExportOpen] = useState(false);
 	const deferredSearchQuery = useDeferredValue(searchQuery);
 	const selectedMood: MoodLevel | "all" = "all";
 	const selectedTag: string | "all" = "all";
@@ -225,16 +228,32 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 
 	return (
 		<div className={cn("flex h-full w-full shrink-0 flex-col bg-background", className)}>
+			<JournalIcsExportDialog
+				open={icsExportOpen}
+				onOpenChange={setIcsExportOpen}
+				entries={entries}
+			/>
 			<div className="flex h-11 items-center justify-between border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
 				<h2 className="text-sm font-semibold text-foreground">Journal</h2>
-				<button
-					type="button"
-					onClick={goToToday}
-					className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-				>
-					<CalendarDays className="h-3 w-3" strokeWidth={1.5} />
-					Today
-				</button>
+				<div className="flex items-center gap-0.5">
+					<button
+						type="button"
+						onClick={() => setIcsExportOpen(true)}
+						aria-label="Export journal to calendar (.ics)"
+						title="Export to calendar (.ics)"
+						className="flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+					>
+						<CalendarArrowDown className="h-3 w-3" strokeWidth={1.5} />
+					</button>
+					<button
+						type="button"
+						onClick={goToToday}
+						className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+					>
+						<CalendarDays className="h-3 w-3" strokeWidth={1.5} />
+						Today
+					</button>
+				</div>
 			</div>
 
 			{/* View tabs */}

@@ -6,7 +6,13 @@ import { useShortcutMap, type ShortcutMap } from "@remcostoeten/use-shortcut/rea
 import { isTauriRuntime } from "@/core/workspace-backend/tauri-backend";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
-import { SHORTCUT_REGISTRY, getShortcutDef, getShortcutIds, type ShortcutId } from "./registry";
+import {
+	SHORTCUT_REGISTRY,
+	getShortcutDef,
+	getShortcutDefaultKeys,
+	getShortcutIds,
+	type ShortcutId,
+} from "./registry";
 import type { Scope } from "./scopes";
 import { formatBinding } from "./keys";
 import { loadBindings, saveBindings } from "./storage";
@@ -154,7 +160,7 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 				existing.shortcuts.push({
 					id,
 					label: def.label,
-					combo: formatBinding(bindings[id] ?? def.keys),
+					combo: formatBinding(bindings[id] ?? getShortcutDefaultKeys(id)),
 					description: def.description,
 				});
 				groups.set(def.group, existing);
@@ -165,7 +171,7 @@ export function ShortcutProvider({ children }: { children: React.ReactNode }) {
 	);
 
 	const getShortcutHint = React.useCallback(
-		(id: ShortcutId) => formatBinding(bindings[id] ?? getShortcutDef(id).keys),
+		(id: ShortcutId) => formatBinding(bindings[id] ?? getShortcutDefaultKeys(id)),
 		[bindings],
 	);
 
@@ -206,7 +212,7 @@ export function useShortcutHint(id?: ShortcutId): string | undefined {
 	const ctx = use(ShortcutContext);
 	if (!id) return undefined;
 	if (ctx?.isMobile) return undefined;
-	return ctx?.getShortcutHint(id) ?? formatBinding(getShortcutDef(id).keys);
+	return ctx?.getShortcutHint(id) ?? formatBinding(getShortcutDefaultKeys(id));
 }
 
 type ScopedShortcutOptions = {
@@ -249,7 +255,7 @@ export function useShortcutScope(
 			// A `keys` array means "any of these combos triggers the action", but
 			// `useShortcutMap` reads an array as a multi-step chord. Register each
 			// combo as its own single-combo entry so they behave as alternatives.
-			const resolved = bindings[id] ?? def.keys;
+			const resolved = bindings[id] ?? getShortcutDefaultKeys(id);
 			const combos = Array.isArray(resolved) ? resolved : [resolved];
 			combos.forEach((combo, index) => {
 				const entryId = index === 0 ? id : `${id}__alt${index}`;
