@@ -95,7 +95,7 @@
     },
     "apps/desktop": {
       "name": "skriuw-desktop",
-      "version": "0.17.0",
+      "version": "0.18.0",
       "devDependencies": {
         "@tauri-apps/cli": "^2.11.0",
         "cross-env": "^7.0.3",
@@ -124,7 +124,7 @@
     },
     "apps/web": {
       "name": "@skriuw/web",
-      "version": "0.17.0",
+      "version": "0.18.0",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1081.0",
         "@vercel/blob": "^2.5.0",
