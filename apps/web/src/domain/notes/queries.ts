@@ -13,13 +13,7 @@ import type {
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { normalizeNoteProperties } from "@/domain/notes/properties";
 import { NOTE_VERSION_RETENTION_LIMIT } from "@/domain/notes/versioning";
-import type {
-	FolderId,
-	IsoTime,
-	MarkdownContent,
-	NoteId,
-	TagName,
-} from "@/domain/persistence/types";
+import type { FolderId, IsoTime, MarkdownContent, NoteId, TagName } from "@/core/persistence/types";
 
 type NoteRecord = {
 	id: string;

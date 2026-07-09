@@ -3,9 +3,11 @@
 import { getAuthenticatedUser } from "@/core/db";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import type { ChipRewriteResult, TaggedNoteSummary } from "@/core/workspace-backend/types";
+import { isUniqueConstraintError } from "@/core/persistence/guards";
 import { rewriteNoteForPerson, type PersonChipRewrite } from "@/domain/notes/chip-rewrite";
 import type { RichTextDocument } from "@/domain/notes/models";
 import { syncNoteLinks } from "@/domain/notes/note-link-sync";
+import { syncJournalLinks } from "@/domain/journal/journal-link-sync";
 import { normalizeNoteProperties, type NotePropertyColor } from "@/domain/notes/properties";
 import { parseServerInput } from "@/domain/validation/schemas";
 import type { Person } from "./models";
@@ -38,24 +40,42 @@ export async function listPeople(): Promise<Person[]> {
 	return rows.map(toPerson);
 }
 
-// Reuse-by-name: creating a person whose name already exists returns the
-// existing row instead of failing the @@unique([userId, name]) constraint, so
-// the same "$mention" / property pick always resolves to one durable record.
+// Reuse-by-name (case-insensitive): creating a person whose name already exists
+// under any casing returns the existing row instead of spawning a duplicate, so
+// `$johndoe` and `$Johndoe` always resolve to the one durable record (keeping the
+// first-stored casing as the canonical display name).
 export async function createPerson(input: CreatePersonInput): Promise<Person> {
 	const validated = parseServerInput(createPersonInputSchema, input);
 	const { prisma, user } = await getAuthenticatedUser();
-	const row = await prisma.person.upsert({
-		where: { userId_name: { userId: user.id, name: validated.name } },
-		update: {},
-		create: {
-			id: validated.id,
-			userId: user.id,
-			name: validated.name,
-			color: validated.color ?? null,
-		},
+
+	const existing = await prisma.person.findFirst({
+		where: { userId: user.id, name: { equals: validated.name, mode: "insensitive" } },
 		select: personSelect,
 	});
-	return toPerson(row);
+	if (existing) return toPerson(existing);
+
+	try {
+		const row = await prisma.person.create({
+			data: {
+				id: validated.id,
+				userId: user.id,
+				name: validated.name,
+				color: validated.color ?? null,
+			},
+			select: personSelect,
+		});
+		return toPerson(row);
+	} catch (error) {
+		// A concurrent create of the same (case-insensitive) name raced us; return
+		// whichever row won so the caller still resolves to one person.
+		if (!isUniqueConstraintError(error)) throw error;
+		const winner = await prisma.person.findFirst({
+			where: { userId: user.id, name: { equals: validated.name, mode: "insensitive" } },
+			select: personSelect,
+		});
+		if (winner) return toPerson(winner);
+		throw error;
+	}
 }
 
 export async function updatePerson(input: UpdatePersonInput): Promise<Person> {
@@ -72,7 +92,60 @@ export async function updatePerson(input: UpdatePersonInput): Promise<Person> {
 	return toPerson(row);
 }
 
-type PersonDb = Pick<PrismaClient, "note" | "noteLink" | "person">;
+type PersonDb = Pick<PrismaClient, "note" | "noteLink" | "person" | "journalEntry" | "journalLink">;
+
+// Journal counterpart of rewritePersonAcrossNotes. Journals carry `$` chips in
+// their rich content (indexed as journal_links) but have no person-type
+// properties, so only the chip rewrite applies.
+async function rewritePersonAcrossJournals(
+	tx: PersonDb,
+	userId: string,
+	rewrite: PersonChipRewrite,
+): Promise<string[]> {
+	const links = await tx.journalLink.findMany({
+		where: {
+			userId,
+			kind: "person",
+			targetLabel: rewrite.fromId,
+			sourceJournal: { deletedAt: null },
+		},
+		select: { sourceJournalId: true },
+	});
+	const ids = [...new Set(links.map((link) => link.sourceJournalId))];
+	if (ids.length === 0) return [];
+
+	const records = await tx.journalEntry.findMany({
+		where: { id: { in: ids }, userId, deletedAt: null },
+		select: { id: true, content: true, richContent: true, tags: true },
+	});
+
+	const rewritten: string[] = [];
+	for (const record of records) {
+		const patch = rewriteNoteForPerson(
+			{
+				richContent: (record.richContent as RichTextDocument | null) ?? [],
+				properties: normalizeNoteProperties(null),
+			},
+			rewrite,
+		);
+		if (!patch || patch.richContent === undefined) continue;
+
+		const updated = await tx.journalEntry.update({
+			where: { id: record.id, deletedAt: null },
+			data: { richContent: patch.richContent as Prisma.InputJsonValue },
+			select: { id: true, content: true, richContent: true, tags: true },
+		});
+		await syncJournalLinks(tx, userId, {
+			id: updated.id,
+			content: updated.content,
+			richContent: (updated.richContent as RichTextDocument | null) ?? [],
+			tags: updated.tags,
+		});
+		rewritten.push(record.id);
+	}
+
+	return rewritten;
+}
 
 async function rewritePersonAcrossNotes(
 	tx: PersonDb,
@@ -162,8 +235,16 @@ export async function deletePerson(id: string): Promise<ChipRewriteResult> {
 			toId: null,
 			removalText: person.name,
 		});
+		await rewritePersonAcrossJournals(tx, user.id, {
+			fromId: id,
+			toId: null,
+			removalText: person.name,
+		});
 		await Promise.all([
 			tx.noteLink.deleteMany({
+				where: { userId: user.id, kind: "person", targetLabel: id },
+			}),
+			tx.journalLink.deleteMany({
 				where: { userId: user.id, kind: "person", targetLabel: id },
 			}),
 			tx.person.deleteMany({ where: { id, userId: user.id } }),
@@ -188,8 +269,16 @@ export async function mergePersons(sourceId: string, targetId: string): Promise<
 			toId: targetId,
 			toName: target.name,
 		});
+		await rewritePersonAcrossJournals(tx, user.id, {
+			fromId: sourceId,
+			toId: targetId,
+			toName: target.name,
+		});
 		await Promise.all([
 			tx.noteLink.deleteMany({
+				where: { userId: user.id, kind: "person", targetLabel: sourceId },
+			}),
+			tx.journalLink.deleteMany({
 				where: { userId: user.id, kind: "person", targetLabel: sourceId },
 			}),
 			tx.person.deleteMany({ where: { id: sourceId, userId: user.id } }),
@@ -200,23 +289,50 @@ export async function mergePersons(sourceId: string, targetId: string): Promise<
 
 export async function listPersonNotes(personId: string): Promise<TaggedNoteSummary[]> {
 	const { prisma, user } = await getAuthenticatedUser();
-	const links = await prisma.noteLink.findMany({
-		where: {
-			userId: user.id,
-			kind: "person",
-			targetLabel: personId,
-			sourceNote: { deletedAt: null },
-		},
-		select: { sourceNote: { select: { id: true, name: true, updatedAt: true } } },
-	});
+	const [noteLinks, journalLinks] = await Promise.all([
+		prisma.noteLink.findMany({
+			where: {
+				userId: user.id,
+				kind: "person",
+				targetLabel: personId,
+				sourceNote: { deletedAt: null },
+			},
+			select: { sourceNote: { select: { id: true, name: true, updatedAt: true } } },
+		}),
+		prisma.journalLink.findMany({
+			where: {
+				userId: user.id,
+				kind: "person",
+				targetLabel: personId,
+				sourceJournal: { deletedAt: null },
+			},
+			select: {
+				sourceJournal: {
+					select: { id: true, title: true, dateKey: true, updatedAt: true },
+				},
+			},
+		}),
+	]);
 
 	const seen = new Set<string>();
-	const notes: TaggedNoteSummary[] = [];
-	for (const link of links) {
+	const items: TaggedNoteSummary[] = [];
+	for (const link of noteLinks) {
 		const note = link.sourceNote;
 		if (seen.has(note.id)) continue;
 		seen.add(note.id);
-		notes.push({ id: note.id, name: note.name, modifiedAt: note.updatedAt });
+		items.push({ id: note.id, name: note.name, modifiedAt: note.updatedAt, kind: "note" });
 	}
-	return notes.toSorted((left, right) => right.modifiedAt.getTime() - left.modifiedAt.getTime());
+	for (const link of journalLinks) {
+		const entry = link.sourceJournal;
+		if (seen.has(entry.id)) continue;
+		seen.add(entry.id);
+		items.push({
+			id: entry.id,
+			name: entry.title?.trim() || entry.dateKey,
+			modifiedAt: entry.updatedAt,
+			kind: "journal",
+			dateKey: entry.dateKey,
+		});
+	}
+	return items.toSorted((left, right) => right.modifiedAt.getTime() - left.modifiedAt.getTime());
 }

@@ -97,11 +97,15 @@ export type ChipRewriteResult = {
 	rewrittenNoteIds: string[];
 };
 
-/** One note that carries a given tag or mentions a given person. */
+/** One note or journal entry that carries a given tag or mentions a given person. */
 export type TaggedNoteSummary = {
 	id: string;
 	name: string;
 	modifiedAt: Date;
+	// "note" (default) links to the note in the editor; "journal" links to the
+	// journal view. `dateKey` is set on journal entries for that navigation.
+	kind?: "note" | "journal";
+	dateKey?: string;
 };
 
 export type WorkspaceBackend = {

@@ -1,6 +1,6 @@
 import "server-only";
 import { getAuthenticatedUser, tryGetAuthenticatedUser } from "@/core/db";
-import { assertOwnsNote } from "@/domain/persistence/guards";
+import { assertOwnsNote } from "@/core/persistence/guards";
 import type { TCollabRequest, TCollaborator, TSharedNote, TNotification } from "./models";
 
 export async function getCollaborators(noteId: string): Promise<TCollaborator[]> {

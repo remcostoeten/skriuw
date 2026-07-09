@@ -1,14 +1,18 @@
 "use server";
 
 import { getAuthenticatedUser } from "@/core/db";
-import { assertResourceIdAvailable, isRecordNotFoundError } from "@/domain/persistence/guards";
+import type { Prisma } from "@/generated/prisma/client";
+import { assertResourceIdAvailable, isRecordNotFoundError } from "@/core/persistence/guards";
+import { syncJournalLinks } from "@/domain/journal/journal-link-sync";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
+import type { RichTextDocument } from "@/domain/notes/models";
 
 type EntryRecord = {
 	id: string;
 	dateKey: string;
 	title: string | null;
 	content: string;
+	richContent: unknown;
 	mood: string | null;
 	tags: string[];
 	createdAt: Date;
@@ -28,6 +32,7 @@ function recordToEntry(record: EntryRecord): JournalEntry {
 		dateKey: record.dateKey,
 		title: record.title ?? undefined,
 		content: record.content,
+		richContent: (record.richContent as RichTextDocument | null) ?? undefined,
 		tags: record.tags,
 		mood: (record.mood ?? undefined) as MoodLevel | undefined,
 		createdAt: record.createdAt,
@@ -49,25 +54,29 @@ export type CreateJournalEntryInput = {
 	dateKey: string;
 	title?: string | null;
 	content: string;
+	richContent?: RichTextDocument | null;
 	tags?: string[];
 	mood?: MoodLevel;
 };
+
+const ENTRY_SELECT = {
+	id: true,
+	dateKey: true,
+	title: true,
+	content: true,
+	richContent: true,
+	mood: true,
+	tags: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
 
 export async function listJournalEntries(): Promise<JournalEntry[]> {
 	const { prisma, user } = await getAuthenticatedUser();
 	const records = await prisma.journalEntry.findMany({
 		where: { userId: user.id, deletedAt: null },
 		orderBy: { createdAt: "asc" },
-		select: {
-			id: true,
-			dateKey: true,
-			title: true,
-			content: true,
-			mood: true,
-			tags: true,
-			createdAt: true,
-			updatedAt: true,
-		},
+		select: ENTRY_SELECT,
 	});
 	return records.map(recordToEntry);
 }
@@ -79,27 +88,29 @@ export async function createJournalEntry(input: CreateJournalEntryInput): Promis
 		dateKey: input.dateKey,
 		title: input.title ?? null,
 		content: input.content,
+		richContent: (input.richContent ?? undefined) as Prisma.InputJsonValue | undefined,
 		mood: input.mood ?? null,
 		tags: input.tags ?? [],
 	};
-	const select = {
-		id: true,
-		dateKey: true,
-		title: true,
-		content: true,
-		mood: true,
-		tags: true,
-		createdAt: true,
-		updatedAt: true,
-	} as const;
+
+	async function persistLinks(entry: JournalEntry): Promise<void> {
+		await syncJournalLinks(prisma, user.id, {
+			id: entry.id,
+			content: entry.content,
+			richContent: entry.richContent ?? [],
+			tags: entry.tags,
+		});
+	}
 
 	try {
 		const record = await prisma.journalEntry.update({
 			where: { id, userId: user.id, deletedAt: null },
 			data: updateData,
-			select,
+			select: ENTRY_SELECT,
 		});
-		return recordToEntry(record);
+		const entry = recordToEntry(record);
+		await persistLinks(entry);
+		return entry;
 	} catch (error) {
 		if (!isRecordNotFoundError(error)) throw error;
 	}
@@ -112,15 +123,18 @@ export async function createJournalEntry(input: CreateJournalEntryInput): Promis
 			userId: user.id,
 			...updateData,
 		},
-		select,
+		select: ENTRY_SELECT,
 	});
-	return recordToEntry(record);
+	const entry = recordToEntry(record);
+	await persistLinks(entry);
+	return entry;
 }
 
 export type UpdateJournalEntryInput = {
 	id: string;
 	title?: string | null;
 	content?: string;
+	richContent?: RichTextDocument | null;
 	tags?: string[];
 	mood?: MoodLevel | null;
 };
@@ -136,21 +150,30 @@ export async function updateJournalEntry(
 			data: {
 				...(input.title !== undefined && { title: input.title }),
 				...(input.content !== undefined && { content: input.content }),
+				...(input.richContent !== undefined && {
+					richContent: (input.richContent ?? undefined) as
+						| Prisma.InputJsonValue
+						| undefined,
+				}),
 				...(input.tags !== undefined && { tags: input.tags }),
 				...(input.mood !== undefined && { mood: input.mood }),
 			},
-			select: {
-				id: true,
-				dateKey: true,
-				title: true,
-				content: true,
-				mood: true,
-				tags: true,
-				createdAt: true,
-				updatedAt: true,
-			},
+			select: ENTRY_SELECT,
 		});
-		return recordToEntry(record);
+		const entry = recordToEntry(record);
+		if (
+			input.content !== undefined ||
+			input.richContent !== undefined ||
+			input.tags !== undefined
+		) {
+			await syncJournalLinks(prisma, user.id, {
+				id: entry.id,
+				content: entry.content,
+				richContent: entry.richContent ?? [],
+				tags: entry.tags,
+			});
+		}
+		return entry;
 	} catch (error) {
 		if (isRecordNotFoundError(error)) return undefined;
 		throw error;
@@ -203,7 +226,7 @@ export async function deleteJournalTag(id: string): Promise<void> {
 
 	const entries = await prisma.journalEntry.findMany({
 		where: { userId: user.id, deletedAt: null, tags: { has: tag.name } },
-		select: { id: true, tags: true },
+		select: { id: true, content: true, richContent: true, tags: true },
 	});
 
 	const now = new Date();
@@ -219,4 +242,13 @@ export async function deleteJournalTag(id: string): Promise<void> {
 			data: { deletedAt: now },
 		}),
 	]);
+
+	for (const entry of entries) {
+		await syncJournalLinks(prisma, user.id, {
+			id: entry.id,
+			content: entry.content,
+			richContent: (entry.richContent as RichTextDocument | null) ?? [],
+			tags: entry.tags.filter((t) => t !== tag.name),
+		});
+	}
 }
