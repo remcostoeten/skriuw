@@ -82,11 +82,24 @@ function headingsEqual(a: TOutlineHeading[], b: TOutlineHeading[]): boolean {
 	});
 }
 
+function findHeadingElement(root: HTMLElement, heading: TOutlineHeading): HTMLElement | null {
+	if (heading.blockId) {
+		const container = root.querySelector<HTMLElement>(
+			`[data-id="${CSS.escape(heading.blockId)}"]`,
+		);
+		return container?.querySelector<HTMLElement>(HEADING_SELECTOR) ?? container ?? null;
+	}
+	const candidates = Array.from(root.querySelectorAll<HTMLElement>(HEADING_SELECTOR));
+	return candidates.find((node) => node.textContent?.trim() === heading.text) ?? null;
+}
+
 export function useDocumentOutline({ noteId, mode, content }: Params): {
 	headings: TOutlineHeading[];
+	activeKey: string | null;
 	scrollToHeading: (heading: TOutlineHeading) => void;
 } {
 	const [domHeadings, setDomHeadings] = useState<TOutlineHeading[]>([]);
+	const [activeKey, setActiveKey] = useState<string | null>(null);
 
 	const markdownHeadings = useMemo(() => parseMarkdownHeadings(content), [content]);
 
@@ -130,23 +143,54 @@ export function useDocumentOutline({ noteId, mode, content }: Params): {
 
 	const headings = mode === "block" ? domHeadings : markdownHeadings;
 
-	const scrollToHeading = useCallback((heading: TOutlineHeading) => {
-		const root = getEditorRoot();
-		if (!root) return;
-
-		if (heading.blockId) {
-			const container = root.querySelector<HTMLElement>(
-				`[data-id="${CSS.escape(heading.blockId)}"]`,
-			);
-			const target = container?.querySelector<HTMLElement>(HEADING_SELECTOR) ?? container;
-			target?.scrollIntoView({ behavior: "smooth", block: "center" });
+	useEffect(() => {
+		if (!noteId || mode !== "block" || headings.length === 0) {
+			setActiveKey(null);
 			return;
 		}
 
-		const candidates = Array.from(root.querySelectorAll<HTMLElement>(HEADING_SELECTOR));
-		const target = candidates.find((node) => node.textContent?.trim() === heading.text);
+		let frame = 0;
+
+		const measure = () => {
+			const root = getEditorRoot();
+			if (!root) return;
+			const threshold = root.getBoundingClientRect().top + 96;
+			let current: string | null = null;
+			for (const heading of headings) {
+				const element = findHeadingElement(root, heading);
+				if (!element) continue;
+				if (element.getBoundingClientRect().top <= threshold) {
+					current = heading.key;
+				} else {
+					break;
+				}
+			}
+			setActiveKey(current ?? headings[0]?.key ?? null);
+		};
+
+		const schedule = () => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(measure);
+		};
+
+		schedule();
+		document.addEventListener("scroll", schedule, { capture: true, passive: true });
+		window.addEventListener("resize", schedule);
+
+		return () => {
+			cancelAnimationFrame(frame);
+			document.removeEventListener("scroll", schedule, { capture: true });
+			window.removeEventListener("resize", schedule);
+		};
+	}, [noteId, mode, headings]);
+
+	const scrollToHeading = useCallback((heading: TOutlineHeading) => {
+		const root = getEditorRoot();
+		if (!root) return;
+		const target = findHeadingElement(root, heading);
 		target?.scrollIntoView({ behavior: "smooth", block: "center" });
+		setActiveKey(heading.key);
 	}, []);
 
-	return { headings, scrollToHeading };
+	return { headings, activeKey, scrollToHeading };
 }

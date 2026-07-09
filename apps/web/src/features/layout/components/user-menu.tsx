@@ -166,6 +166,30 @@ export function UserMenu({
 					firstItemRef.current?.focus();
 				}}
 			>
+				{user ? (
+					<>
+						<div className="flex items-center gap-2.5 px-2 py-2">
+							<AvatarFace
+								name={getAvatarSeed("", "account-user")}
+								size={32}
+								color={avatarColor ?? undefined}
+								className="h-8 w-8 shrink-0"
+							/>
+							<div className="min-w-0 flex-1">
+								{user.name ? (
+									<div className="truncate text-[13px] font-semibold text-popover-foreground">
+										{user.name}
+									</div>
+								) : null}
+								<div className="truncate text-[11px] text-muted-foreground">
+									{user.email}
+								</div>
+							</div>
+						</div>
+						<div className="my-0 -mx-1 h-px bg-border" aria-hidden="true" />
+					</>
+				) : null}
+
 				<div role="group" className="py-1" aria-label="User menu actions">
 					{menuItems.map((item, index) => {
 						const Icon = item.icon;
