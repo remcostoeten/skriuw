@@ -1,0 +1,35 @@
+---
+title: Web clipper extension
+description: The Chrome MV3 extension that saves pages, articles, and selections into Skriuw from outside the app.
+---
+
+`apps/extension` is a separate Chrome MV3 app (`@skriuw/extension`) that captures web content and writes it into a user's Skriuw workspace without opening the app itself.
+
+## Structure
+
+| Part | Role |
+| --- | --- |
+| `popup` | The toolbar UI — pick a destination folder, add tags, and trigger a capture. Also shows recent sync activity and token expiry warnings. |
+| `options` | Extension settings, including managing sync tokens. |
+| `content/extract.ts` | Runs in the page, converting the full article or a selection to Markdown. |
+| `background` | Service worker that queues and sends capture requests. |
+| `shared/api.ts`, `shared/storage.ts`, `shared/types.ts` | Fetch wrappers, `chrome.storage` persistence, and shared types used by popup, options, and background. |
+
+## How it authenticates
+
+The extension never uses the web session cookie. It authenticates with a **Bearer sync token**, scoped to `sync:write`, generated from the web app's settings and entered once into the extension's options page. Tokens can be rotated or revoked from `/api/sync/tokens` without affecting a user's normal login session.
+
+## Sync API
+
+The extension talks to a small set of routes under `apps/web/src/app/api/sync/`, all authenticated by Bearer token rather than session cookie (so wildcard CORS is safe — a request with no write-scoped token creates nothing):
+
+| Route | Purpose |
+| --- | --- |
+| `sync/capture` | Writes a new note from `{ url, title, markdown, selection, tags, parentId, source }`. The extension only ever sends Markdown; rich content is derived server-side. |
+| `sync/tokens` | Create, list, rotate, and revoke sync tokens. |
+| `sync/verify` | Checks a token is still valid. |
+| `sync/folders` | Lists destination folders for the popup's folder picker. |
+| `sync/activity` | Recent capture events, shown in the popup. |
+| `sync/export` | Bulk export over the same Bearer-token auth. |
+
+`sync/capture` is built on `domain/notes/note-write-core.ts` — the same note-creation path used elsewhere in the app, so a clipped note is a normal note with no separate code path to keep in sync.

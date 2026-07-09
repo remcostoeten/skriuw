@@ -1,0 +1,56 @@
+---
+title: Backup and import
+description: The portable ZIP backup format (v3), import policies (merge, overwrite, replace), the on-disk archive layout, and best-effort imports from Obsidian, Apple Notes, Bear, Notion, and plain Markdown.
+---
+
+Skriuw exports and imports your whole workspace as a portable ZIP. The format is
+plain files (Markdown notes, JSON sidecars, journal entries) so a backup stays
+readable outside the app.
+
+## Export
+
+Export from Settings, Data and sync. It downloads
+`skriuw-export-YYYY-MM-DD.zip` in the current format, v3. v3 adds SHA-256
+checksums, optional note version history, and import policies. Legacy v1 and v2
+exports still import.
+
+## Import policies
+
+Import runs under one of three policies:
+
+- **merge**: skip duplicates, add what is new.
+- **overwrite**: update entries that match, add what is new.
+- **replace workspace**: remove existing content and restore from the archive.
+
+## Archive layout
+
+```text
+skriuw-export-YYYY-MM-DD/
+├── skriuw-export.json
+├── notes/
+│   ├── [folders/]note-name.md
+│   └── [folders/]note-name.rich.json
+├── journal/
+│   └── YYYY-MM-DD.md
+└── versions/
+    └── {noteId}/{versionId}.json
+```
+
+`skriuw-export.json` is the manifest. Each note is a Markdown file plus a
+`.rich.json` sidecar carrying the block structure. Journal entries are one
+Markdown file per day. `versions/` holds per-note history when history export
+is enabled.
+
+## Third-party imports
+
+Best effort. Structure and formatting may need cleanup after import.
+
+| Source | What to upload | Notes |
+| ------ | -------------- | ----- |
+| Obsidian | Vault ZIP | Wikilinks converted to Markdown links. `.obsidian` metadata skipped. |
+| Apple Notes | HTML export ZIP | Plain text and Markdown body. Attachments not included. |
+| Bear | Markdown export ZIP | Header `#tags` mapped to note tags. |
+| Notion | Markdown export ZIP | Databases, CSVs, and attachments skipped. |
+| Markdown folder | Any folder ZIP | Generic path-based import when auto-detect is unsure. |
+
+Use Auto-detect in Settings when you are unsure which profile fits.

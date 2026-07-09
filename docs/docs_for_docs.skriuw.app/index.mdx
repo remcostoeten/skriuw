@@ -1,30 +1,36 @@
-# Skriuw
+---
+title: Skriuw
+description: A lightweight, fast, feature-rich personal knowledge base, a blend of Obsidian and Notion, built on Next.js and Tauri for native, sub-6 MB desktop binaries.
+---
 
-For more info reference the [Readme](../../README.md).
-Skriuw is lightweight, blazingly fast yet feature rich personal knowledge base. It's a combination of Obsidian and Notion, but rather than relying on Electron, Tauri is built with Rust allowing for native compilation to Mac, Windows and Linux resulting in <6 MB of total binary size.
+For more background, see the [README](../../README.md).
 
-Skriuw it's size is not the only thing making it fast. It is designed to be keyboard first allowing for you to hop through the entire application via keyboard shortcuts, which are all customizable. Read [shortcuts](./shortcuts.mdx) to reference all current shortcuts.
+Skriuw is a lightweight, fast, feature-rich personal knowledge base — a blend of Obsidian and Notion. Instead of Electron, the desktop build is native Rust via Tauri, which keeps the binary under 6 MB on Mac, Windows, and Linux.
+
+Size isn't the only thing that makes it fast. Skriuw is keyboard-first: you can move through the entire app without touching the mouse, and every shortcut is customizable. See [Shortcuts](./reference/shortcuts.mdx) for the full list.
 
 ### Table of contents
 
-// make a nice table of all topics
-[Stack & Technology](##stack--technology)
-[Desktop integration](##desktop-integration)
-[Approach](##approach)
-[Sync API keys](./sync-api-keys.mdx)
+- [Stack & technology](#stack--technology)
+- [Desktop integration](#desktop-integration)
+- [Approach](#approach)
+- [Development features](./development/features.mdx)
+- [Architecture](./development/architecture.mdx)
+- [Web clipper extension](./features/web-clipper-extension.mdx)
+- [Sync API keys](./reference/sync-api-keys.mdx)
 
-## Stack & Technology
+## Stack & technology
 
-Skriuw started of as a web application monolith written in Next.js 16 and React 19, TypeScript, TailwindCSS and PostgreSQL (via [neon.tech](https://neon.tech)). As of recent we migrated to Prisma, no particular reason rather than trying things out.
+Skriuw started as a web monolith: Next.js 16, React 19, TypeScript, Tailwind CSS, and PostgreSQL via [neon.tech](https://neon.tech). It later moved to Prisma as the data layer.
 
-Since then we've added a desktop client written in Rust (tauri 2.0). With this addition we also migrated to a monorepo through Bun and Turbopack.
+The desktop client is Rust on Tauri 2.0. That addition also pushed the project into a Bun-managed monorepo built with Turbopack.
 
 ### Desktop integration
 
-to make use of the speed of rust for the dekstop build we chose to not use the Next.js front-end as that was fully invested in API routes and server actions thus we introduced a [web-spa](https://github.com/remcostoeten/skriuw/tree/daddy/packages/web-spa/src) package. This is a "dumb", fully client-side React SPA allowing us to smartly render everything that was Next.js specific and SSR through the SPA, whilst still usingt a agostic shared layer for UI, hooks, utilities and non read/write actions.
+The desktop build doesn't ship the Next.js front-end — that surface is built around API routes and server actions, which don't translate to a native binary. Instead, [web-spa](https://github.com/remcostoeten/skriuw/tree/daddy/packages/web-spa/src) is a client-only React SPA that re-renders whatever was Next.js-specific or server-rendered, while sharing one platform-agnostic layer (UI, hooks, utilities, and read-only actions) with the web app.
 
 ### Approach
 
-We use a domain driven / feature sliced approach whilst keeping it in a modern functional approach rather than OOP style. Read [development features](./development-features.mdx) for a list of all the features and domains we have.
+Skriuw follows a domain-driven, feature-sliced structure, written in a functional style rather than OOP. See [Development features](./development/features.mdx) for the full list of feature domains.
 
-In regards of internal back-end routing we use a [adapter] pattern which contains of a ...
+Back-end access goes through a single adapter interface (`WorkspaceBackend`) with three implementations — server, local, and Tauri — so feature code never branches on auth state or platform. See [Architecture](./development/architecture.mdx) for the full contract.
