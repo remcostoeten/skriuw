@@ -27,7 +27,6 @@ export function AnimatedCheckbox({ checked, onChange }: Props) {
 				initial={false}
 				animate={{
 					borderColor: "hsl(var(--muted-foreground))",
-					borderWidth: 2,
 				}}
 				transition={{
 					duration: 0.36,
@@ -35,6 +34,7 @@ export function AnimatedCheckbox({ checked, onChange }: Props) {
 				}}
 				style={{
 					borderStyle: "solid",
+					borderWidth: 2,
 				}}
 			>
 				<m.div

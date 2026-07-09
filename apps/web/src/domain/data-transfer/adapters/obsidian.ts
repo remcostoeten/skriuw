@@ -1,11 +1,8 @@
 import {
 	convertObsidianWikilinks,
-	inferImportFolders,
 	parseMarkdownEntries,
 	skipObsidianPath,
 } from "@/domain/data-transfer/adapters/markdown-import-shared";
-
-export { inferImportFolders as inferObsidianFolders };
 
 export function parseObsidianVaultEntries(entries: Record<string, string>) {
 	return parseMarkdownEntries(

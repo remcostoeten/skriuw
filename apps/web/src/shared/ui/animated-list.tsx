@@ -159,37 +159,3 @@ export function AnimatedList<T extends Identifiable>({
 		</div>
 	);
 }
-
-type AnimatedRevealProps = {
-	show: boolean;
-	children: ReactNode;
-	className?: string;
-	duration?: number;
-};
-
-export function AnimatedReveal({
-	show,
-	children,
-	className = "",
-	duration = 280,
-}: AnimatedRevealProps) {
-	return (
-		<AnimatePresence initial={false}>
-			{show ? (
-				<m.div
-					key="revealed"
-					initial={{ opacity: 0, gridTemplateRows: "0fr" }}
-					animate={{ opacity: 1, gridTemplateRows: "1fr" }}
-					exit={{ opacity: 0, gridTemplateRows: "0fr" }}
-					transition={{ duration: duration / 1000, ease: [0.16, 1, 0.3, 1] }}
-					className="grid motion-reduce:transition-opacity"
-					style={{ transitionDuration: `${duration}ms`, transitionTimingFunction: EASE }}
-				>
-					<div className="min-h-0 overflow-hidden">
-						<div className={className}>{children}</div>
-					</div>
-				</m.div>
-			) : null}
-		</AnimatePresence>
-	);
-}

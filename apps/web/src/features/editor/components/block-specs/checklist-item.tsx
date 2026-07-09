@@ -108,7 +108,13 @@ export const createCheckListItem = createReactBlockSpec(
 		),
 		toExternalHTML: (props) => (
 			<li>
-				<input type="checkbox" checked={props.block.props.checked} disabled readOnly />
+				<input
+					type="checkbox"
+					checked={props.block.props.checked}
+					disabled
+					readOnly
+					aria-label="Toggle checklist item"
+				/>
 				<div ref={props.contentRef} />
 			</li>
 		),

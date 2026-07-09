@@ -141,6 +141,7 @@ function KeyRow({
 				<button
 					type="button"
 					onClick={onRemove}
+					aria-label="Delete API key"
 					className="flex h-6 w-6 items-center justify-center text-muted-foreground transition-colors hover:text-destructive"
 				>
 					<Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -423,6 +424,7 @@ export function AiLocalKeySettings() {
 							<button
 								type="button"
 								onClick={() => setShowDraftKey((v) => !v)}
+								aria-label={showDraftKey ? "Hide API key" : "Show API key"}
 								className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
 							>
 								{showDraftKey ? (

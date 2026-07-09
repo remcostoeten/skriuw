@@ -78,7 +78,7 @@ const SCAN_FRAMES = [
 	{ key: "error", label: "Retry scan", icon: <RotateCcw className="size-3.5 shrink-0" /> },
 ];
 
-export function NoteCleanupScanButton({
+function NoteCleanupScanButton({
 	phase,
 	onScan,
 	disabled,

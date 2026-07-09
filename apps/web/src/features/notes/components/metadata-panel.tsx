@@ -87,6 +87,8 @@ import { useUpdateNote } from "@/features/notes/hooks/use-update-note";
 import { NoteIconPicker } from "@/features/notes/components/note-icon-picker";
 import { NoteCoverPicker } from "@/features/notes/components/note-cover";
 
+const EMPTY_FILES: NoteFile[] = [];
+
 type Props = {
 	file: NoteFile | null;
 	files?: NoteFile[];
@@ -734,7 +736,7 @@ function LinkRow({
 
 export const MetadataPanel = memo(function MetadataPanel({
 	file,
-	files = [],
+	files = EMPTY_FILES,
 	className,
 	isMobile = false,
 	editorMode = "block",
@@ -831,7 +833,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 	const taggedNotes = useMemo(() => {
 		if (!file || !selectedTag) return [];
 		return files.filter(
-			(item) => item.id !== file.id && uniqueTags(item).includes(selectedTag),
+			(item) => item.id !== file.id && new Set(uniqueTags(item)).has(selectedTag),
 		);
 	}, [file, files, selectedTag]);
 	const historyItems = useMemo<VersionRowData[]>(() => {

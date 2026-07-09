@@ -247,6 +247,7 @@ export function JournalEditor({
 													<button
 														type="button"
 														onClick={() => handleRemoveTag(tagName)}
+														aria-label={`Remove tag ${tagName}`}
 														className="border border-transparent p-0.5 transition-colors hover:border-current/20 hover:bg-foreground/10"
 													>
 														<X

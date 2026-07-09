@@ -605,11 +605,11 @@ export function bestSettingsMatch(query: string, tab: SettingsTabId): SettingsSe
 	const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
 	if (tokens.length === 0) return null;
 	return (
-		SETTINGS_SEARCH_INDEX.find(
-			(entry) =>
-				entry.tab === tab &&
-				tokens.every((token) => settingsEntryHaystack(entry).includes(token)),
-		) ?? null
+		SETTINGS_SEARCH_INDEX.find((entry) => {
+			if (entry.tab !== tab) return false;
+			const haystack = settingsEntryHaystack(entry);
+			return tokens.every((token) => haystack.includes(token));
+		}) ?? null
 	);
 }
 
