@@ -7,10 +7,12 @@ import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 
 type UseNotesLayoutShortcutsOptions = {
 	handleSwitchToTabIndex: (index: number) => void;
+	handleCycleTab: (direction: 1 | -1) => void;
 };
 
 export function useNotesLayoutShortcuts({
 	handleSwitchToTabIndex,
+	handleCycleTab,
 }: UseNotesLayoutShortcutsOptions) {
 	const { getHelpGroups } = useShortcutManager();
 	const {
@@ -37,6 +39,8 @@ export function useNotesLayoutShortcuts({
 		"notes.switchTab7": () => handleSwitchToTabIndex(6),
 		"notes.switchTab8": () => handleSwitchToTabIndex(7),
 		"notes.switchTab9": () => handleSwitchToTabIndex(-1),
+		"notes.cycleTabForward": () => handleCycleTab(1),
+		"notes.cycleTabBackward": () => handleCycleTab(-1),
 	});
 
 	return {
