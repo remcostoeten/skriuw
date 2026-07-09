@@ -3,6 +3,40 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.18.0] — 2026-07-09
+
+### Added
+
+- **Self-hosting (Docker):** the web app can now be self-hosted with a single
+  `docker compose up`. Ships a `Dockerfile`, `docker-compose.yml` (bundled
+  Postgres 17 with a healthcheck), a `docker-entrypoint.sh` that runs
+  `prisma migrate deploy` before boot, and a `.dockerignore`.
+- **Mobile UX (web):** touch-gesture suite for the notes workspace — a
+  reusable `use-swipe` hook driving edge-open and navigation swipes,
+  swipe-to-delete file rows, and touch drag-and-drop for tab reordering,
+  plus sidebar recents and tree skeletons for a smoother perceived load on
+  small screens.
+- **Storage config:** new `user_storage_configs` table (Prisma migration) for
+  per-user storage settings.
+
+### Changed
+
+- **Performance (React):** a multi-batch `react-doctor` sweep across the web
+  app — memoization, render-phase state derivation, and effect-dependency
+  cleanups to cut re-renders and hold 60fps while editing. Adds a
+  `scripts/react-doctor-report.ts` reporter and `doctor.config.json`.
+
+### Fixed
+
+- **Build (Vercel):** eliminated the intermittent duplicate-copy type error by
+  deduping/pinning `prosemirror-view` to a single version and forcing a clean,
+  frozen-lockfile install on Vercel so the dedupe holds across builds.
+
+### Release
+
+- Align the unified web, desktop, Tauri, and Cargo package versions on
+  `0.18.0`.
+
 ## [0.17.0] — 2026-07-06
 
 ### Changed
