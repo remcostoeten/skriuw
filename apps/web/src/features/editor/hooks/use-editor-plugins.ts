@@ -10,6 +10,7 @@ import {
 	inlineChipNavPluginKey,
 } from "@/features/editor/lib/inline-chip-nav-plugin";
 import { createVimPlugin, vimPluginKey, type VimMode } from "@/features/editor/lib/vim-plugin";
+import { createSelectAllPlugin, selectAllPluginKey } from "@/features/editor/lib/select-all-plugin";
 import { type EditorInstance, getEditorDom } from "@/features/editor/lib/editor-instance";
 
 type Params = {
@@ -51,6 +52,20 @@ export function useEditorPlugins({
 			tiptap.unregisterPlugin(searchPluginKey);
 		};
 	}, [editor, searchPlugin]);
+
+	useEffect(() => {
+		const tiptap = editor._tiptapEditor;
+		if (!tiptap || readOnly) return;
+		// Prepend so it wins over ProseMirror's default `Mod-a`, which selects
+		// the whole document in one press instead of block-first.
+		tiptap.registerPlugin(
+			createSelectAllPlugin(),
+			(selectAllPlugin: Plugin, plugins: Plugin[]) => [selectAllPlugin, ...plugins],
+		);
+		return () => {
+			tiptap.unregisterPlugin(selectAllPluginKey);
+		};
+	}, [editor, readOnly]);
 
 	useEffect(() => {
 		const tiptap = editor._tiptapEditor;

@@ -18,6 +18,7 @@ import { useSearchParams } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
+import { AuthDrawerHost } from "@/features/layout/components/auth-drawer-host";
 import { WorkspaceSidebarSkeleton } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import {
@@ -344,7 +345,7 @@ export function JournalPageLayout() {
 		return (
 			<LayoutContainer className="bg-background">
 				<div className="relative flex min-h-0 flex-1 overflow-hidden">
-					{!isMobile && <IconRail />}
+					{isMobile ? <AuthDrawerHost /> : <IconRail />}
 					<JournalSidebarPlaceholder />
 					<JournalContentPlaceholder view={loadingView} />
 				</div>
@@ -357,7 +358,7 @@ export function JournalPageLayout() {
 			<LayoutContainer className="bg-background">
 				<div className="relative flex min-h-0 flex-1 overflow-hidden">
 					{/* Icon rail (desktop) */}
-					{!isMobile && <IconRail />}
+					{isMobile ? <AuthDrawerHost /> : <IconRail />}
 
 					{/* Sidebar (desktop) */}
 					{isHydrated && !isMobile && showSidebar ? (
