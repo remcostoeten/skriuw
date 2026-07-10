@@ -6,8 +6,6 @@ import { useCallback, useMemo, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
-import { ChevronRight, Contact, FileText, Hash, Info, Link2, ListTree } from "lucide-react";
-import type { ComponentType } from "react";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { AuthDrawerHost } from "@/features/layout/components/auth-drawer-host";
@@ -17,32 +15,12 @@ import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import { useOnboardingStore } from "@/features/onboarding/store";
 import type { WorkspaceNavItem } from "@/features/editor/components/editor-toolbar";
 import type { NoteVersion } from "@/types/notes";
-import { cn } from "@/shared/lib/utils";
-import { EditorWorkspace } from "./editor-workspace";
+import { EditorPaneHost } from "./editor-pane-host";
+import { MetadataPanelHost } from "./metadata-panel-host";
+import { NotesMetadataPlaceholder } from "./metadata-placeholder";
 import { SplitDropZone } from "./split-drop-zone";
 import { SidebarPanel } from "./sidebar-panel";
 import { useNotesLayout } from "../hooks/use-notes-layout";
-
-const VersionPreviewContainer = dynamic(
-	() =>
-		import("@/features/editor/components/version-preview-container").then((mod) => ({
-			default: mod.VersionPreviewContainer,
-		})),
-	{ ssr: false, loading: () => <WorkspaceLoadingShell variant="notes" /> },
-);
-
-const ShareScreen = dynamic(
-	() =>
-		import("@/features/sharing/components/share-screen").then((mod) => ({
-			default: mod.ShareScreen,
-		})),
-	{ ssr: false, loading: () => <WorkspaceLoadingShell variant="notes" /> },
-);
-
-const MetadataPanel = dynamic(
-	() => import("./metadata-panel").then((mod) => ({ default: mod.MetadataPanel })),
-	{ ssr: false, loading: () => <NotesMetadataPlaceholder /> },
-);
 
 const ShortcutHelpDialog = dynamic(
 	() =>
@@ -60,8 +38,6 @@ const WelcomeWalkthrough = dynamic(
 	{ ssr: false, loading: () => null },
 );
 
-const SHIMMER_STEP_MS = 70;
-
 const SWIPE_MAX_DURATION_MS = 700;
 const SWIPE_MAX_PERPENDICULAR = 48;
 const SWIPE_EDGE_ZONE = 28;
@@ -74,182 +50,6 @@ type WorkspaceSwipeStart = {
 	y: number;
 	time: number;
 };
-
-function MetadataPlaceholderBar({
-	className,
-	style,
-	delay = 0,
-}: {
-	className?: string;
-	style?: React.CSSProperties;
-	delay?: number;
-}) {
-	return (
-		<div
-			className={cn("animate-skeleton-shimmer bg-foreground/[0.06]", className)}
-			style={{ animationDelay: `${delay}ms`, ...style }}
-		/>
-	);
-}
-
-function MetadataPlaceholderSection({
-	icon: Icon,
-	label,
-	children,
-}: {
-	icon: ComponentType<{ className?: string; strokeWidth?: number }>;
-	label: string;
-	children: React.ReactNode;
-}) {
-	return (
-		<section className="border-b border-border">
-			<div className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2">
-				<div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/45">
-					<Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-					<span className="truncate">{label}</span>
-				</div>
-				<ChevronRight
-					className="h-3.5 w-3.5 shrink-0 rotate-90 text-muted-foreground/30"
-					strokeWidth={1.5}
-				/>
-			</div>
-			<div className="px-4 pb-4">{children}</div>
-		</section>
-	);
-}
-
-function MetadataPlaceholderRow({ label, children }: { label: string; children: React.ReactNode }) {
-	return (
-		<div className="flex items-center gap-3 border-b border-border px-3 py-2.5">
-			<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/40">
-				{label}
-			</span>
-			{children}
-		</div>
-	);
-}
-
-function NotesMetadataPlaceholder({
-	isMobile = false,
-	className,
-}: {
-	isMobile?: boolean;
-	className?: string;
-}) {
-	return (
-		<aside
-			aria-label="Loading note inspector"
-			aria-busy="true"
-			className={cn(
-				isMobile
-					? "h-full w-full rounded-[inherit] border-0 bg-transparent"
-					: "w-72 shrink-0 border-l border-border bg-background xl:w-80",
-				className,
-			)}
-		>
-			<div aria-hidden="true">
-				<MetadataPlaceholderSection icon={ListTree} label="Outline">
-					<div className="space-y-2.5">
-						{[
-							{ width: "72%", indent: 0 },
-							{ width: "54%", indent: 12 },
-							{ width: "64%", indent: 12 },
-							{ width: "46%", indent: 24 },
-						].map((row, index) => (
-							<div
-								key={`${row.width}-${row.indent}`}
-								className="flex items-center gap-2"
-							>
-								<span
-									className="h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/[0.08]"
-									style={{ marginLeft: row.indent }}
-								/>
-								<MetadataPlaceholderBar
-									className="h-2.5"
-									style={{ width: row.width }}
-									delay={index * SHIMMER_STEP_MS}
-								/>
-							</div>
-						))}
-					</div>
-				</MetadataPlaceholderSection>
-
-				<MetadataPlaceholderRow label="Page Icon">
-					<MetadataPlaceholderBar className="h-6 w-6 rounded-md bg-foreground/[0.055]" />
-				</MetadataPlaceholderRow>
-
-				<MetadataPlaceholderRow label="Page Cover">
-					<MetadataPlaceholderBar
-						className="h-6 w-6 rounded-md bg-foreground/[0.055]"
-						delay={SHIMMER_STEP_MS}
-					/>
-				</MetadataPlaceholderRow>
-
-				<MetadataPlaceholderSection icon={Hash} label="Tags">
-					<div className="flex flex-wrap gap-2">
-						{["32%", "24%", "38%"].map((width, index) => (
-							<MetadataPlaceholderBar
-								key={width}
-								className="h-6 rounded-full bg-foreground/[0.055]"
-								style={{ width }}
-								delay={index * SHIMMER_STEP_MS}
-							/>
-						))}
-					</div>
-				</MetadataPlaceholderSection>
-
-				<MetadataPlaceholderSection icon={Contact} label="People">
-					<MetadataPlaceholderBar className="h-2.5 w-[64%] bg-foreground/[0.045]" />
-				</MetadataPlaceholderSection>
-
-				<MetadataPlaceholderSection icon={Link2} label="Links">
-					<div className="space-y-2">
-						{["86%", "68%", "74%"].map((width, index) => (
-							<div key={width} className="flex h-7 items-center gap-2">
-								<FileText
-									className="h-3.5 w-3.5 shrink-0 text-muted-foreground/24"
-									strokeWidth={1.5}
-								/>
-								<MetadataPlaceholderBar
-									className="h-2.5"
-									style={{ width }}
-									delay={index * SHIMMER_STEP_MS}
-								/>
-							</div>
-						))}
-					</div>
-				</MetadataPlaceholderSection>
-
-				<MetadataPlaceholderSection icon={Info} label="Details">
-					<div className="space-y-2.5">
-						{[
-							{ label: "28%", value: "18%" },
-							{ label: "34%", value: "26%" },
-							{ label: "22%", value: "38%" },
-							{ label: "30%", value: "32%" },
-						].map((row, index) => (
-							<div
-								key={`${row.label}-${row.value}`}
-								className="flex items-center justify-between gap-4"
-							>
-								<MetadataPlaceholderBar
-									className="h-2.5 bg-foreground/[0.045]"
-									style={{ width: row.label }}
-									delay={index * SHIMMER_STEP_MS}
-								/>
-								<MetadataPlaceholderBar
-									className="h-2.5 bg-foreground/[0.07]"
-									style={{ width: row.value }}
-									delay={index * SHIMMER_STEP_MS}
-								/>
-							</div>
-						))}
-					</div>
-				</MetadataPlaceholderSection>
-			</div>
-		</aside>
-	);
-}
 
 type NotesLayoutShellProps = {
 	initialActiveFileId?: string | null;
@@ -267,22 +67,21 @@ export function NotesLayoutShell({
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
 	const showWelcome = useOnboardingStore((s) => s.hydrated && !s.hasSeenWelcome);
 	const {
-		activeFile,
-		focusedFile,
-		secondaryFile,
-		splitEnabled,
+		metadataFiles,
+		splitSecondaryFileId,
 		focusedEditorPane,
+		focusedFileIdForNav,
 		splitOrientation,
 		splitSecondaryFirst,
-		secondaryEditorMode,
-		focusedEditorMode,
-		files,
+		defaultModeRaw,
+		activeFileId,
+		activeFileSaveState,
 		canNavigateNext,
 		canNavigatePrev,
 		canToggleSplit,
 		closeMetadata,
 		closeSidebar,
-		editorMode,
+		toggleEditorModeFor,
 		handleCloseSplit,
 		handleDesktopMetadataResizeStart,
 		handleDesktopSidebarResizeStart,
@@ -294,14 +93,12 @@ export function NotesLayoutShell({
 		handleNavigatePrev,
 		handleOpenSettings,
 		handleSidebarDragEnd,
-		handleToggleEditorMode,
 		handleToggleMetadata,
 		handleToggleSidebar,
 		handleOpenInSplit,
 		handleToggleSplit,
 		handleToggleSplitOrientation,
 		handleSwapSplitPaneOrder,
-		isActiveNoteLoading,
 		isEditorReady,
 		isMetadataResizing,
 		isMobile,
@@ -425,25 +222,6 @@ export function NotesLayoutShell({
 		[handleOpenShare, closeMetadata],
 	);
 
-	// Local-first note swap: when moving to a note whose body isn't cached yet,
-	// keep the previously loaded note on screen instead of flashing the editor
-	// skeleton. Selection in the sidebar responds instantly (it's keyed on the
-	// target id); the document body just catches up a beat later. A genuinely
-	// cold first load (no prior note) still shows the skeleton, and an empty
-	// selection still shows the empty state.
-	const lastLoadedFileRef = useRef(activeFile);
-	if (activeFile) {
-		lastLoadedFileRef.current = activeFile;
-	}
-	const isSwappingNote =
-		isActiveNoteLoading && isEditorReady && lastLoadedFileRef.current !== null;
-	const displayFile = activeFile ?? (isSwappingNote ? lastLoadedFileRef.current : null);
-	const showContentSkeleton = (isActiveNoteLoading || !isEditorReady) && !displayFile;
-
-	// Close the select→painted timer once the real body for the selected note is
-	// on screen (resolved, not a placeholder, no skeleton). No-op unless perf
-	// tracking is enabled, so it's free in production.
-
 	if (forceLoading) {
 		return <WorkspaceLoadingShell variant="notes" />;
 	}
@@ -540,117 +318,50 @@ export function NotesLayoutShell({
 								disabled={
 									isMobile || Boolean(sharingNoteId) || Boolean(viewingVersion)
 								}
-								activeFileId={layout.activeFileId}
+								activeFileId={activeFileId}
 								onOpenInSplit={handleOpenInSplit}
 								onFileSelect={sidebarPanelProps.actions.onFileSelect}
 							>
-								<AnimatePresence mode="wait" initial={false}>
-									<m.div
-										key={
-											sharingNoteId
-												? "share"
-												: viewingVersion
-													? "version"
-													: "editor"
-										}
-										initial={
-											prefersReducedMotion
-												? { opacity: 0 }
-												: { opacity: 0, x: 18 }
-										}
-										animate={{
-											opacity: 1,
-											x: 0,
-											transition: {
-												duration: 0.24,
-												ease: [0.23, 1, 0.32, 1],
-											},
-										}}
-										exit={
-											prefersReducedMotion
-												? { opacity: 0, transition: { duration: 0.12 } }
-												: {
-														opacity: 0,
-														x: -12,
-														transition: {
-															duration: 0.16,
-															ease: [0.23, 1, 0.32, 1],
-														},
-													}
-										}
-										className="flex min-h-0 flex-1 flex-col"
-									>
-										{sharingNoteId ? (
-											<ShareScreen
-												noteId={sharingNoteId}
-												noteName={activeFile?.name ?? "this note"}
-												onBack={handleCloseShare}
-											/>
-										) : viewingVersion ? (
-											<VersionPreviewContainer
-												version={viewingVersion}
-												file={activeFile}
-												files={files}
-												isMobile={isMobile}
-												isRestoring={isRestoringVersion}
-												onBack={handleExitVersionPreview}
-												onRestore={handleRestoreViewedVersion}
-											/>
-										) : (
-											<EditorWorkspace
-												splitActive={Boolean(splitEnabled && secondaryFile)}
-												primaryFile={displayFile}
-												secondaryFile={secondaryFile}
-												files={files}
-												focusedPane={focusedEditorPane}
-												editorMode={editorMode ?? "block"}
-												secondaryEditorMode={secondaryEditorMode}
-												orientation={splitOrientation}
-												secondaryFirst={splitSecondaryFirst}
-												isMobile={isMobile}
-												canNavigatePrev={canNavigatePrev}
-												canNavigateNext={canNavigateNext}
-												canToggleSplit={canToggleSplit}
-												primarySaveState={layout.activeFileSaveState}
-												primaryContentLoading={showContentSkeleton}
-												primaryFileName={
-													// Prefer the selected note's name from metadata
-													// (always available, updates the same commit
-													// selection moves) so the toolbar tracks the
-													// sidebar instantly during a cold swap — even
-													// while the previous body is still on screen.
-													files.find(
-														(file) => file.id === layout.activeFileId,
-													)?.name ??
-													displayFile?.name ??
-													"No file selected"
-												}
-												onToggleSidebar={handleToggleSidebar}
-												onToggleMetadata={handleToggleMetadata}
-												workspaceItems={workspaceItems}
-												onOpenSettings={handleOpenSettings}
-												onNavigatePrev={handleNavigatePrev}
-												onNavigateNext={handleNavigateNext}
-												onToggleSplit={handleToggleSplit}
-												onToggleEditorMode={handleToggleEditorMode}
-												onToggleSplitOrientation={
-													handleToggleSplitOrientation
-												}
-												onSwapPaneOrder={handleSwapSplitPaneOrder}
-												onCloseSplit={handleCloseSplit}
-												onFocusPane={handleFocusEditorPane}
-												onScrollPositionChange={
-													handleEditorScrollPositionChange
-												}
-												onContentChange={updateFileContent}
-												onCreateFile={() => layout.createFile()}
-												onRenameFile={layout.renameFile}
-												onEditorBlur={flushFileEdits}
-												tabBar={tabBar}
-											/>
-										)}
-									</m.div>
-								</AnimatePresence>
+								<EditorPaneHost
+									activeFileId={activeFileId}
+									splitSecondaryFileId={splitSecondaryFileId}
+									focusedEditorPane={focusedEditorPane}
+									splitOrientation={splitOrientation}
+									splitSecondaryFirst={splitSecondaryFirst}
+									isMobile={isMobile}
+									metadataFiles={metadataFiles}
+									defaultModeRaw={defaultModeRaw}
+									isEditorReady={isEditorReady}
+									prefersReducedMotion={prefersReducedMotion}
+									sharingNoteId={sharingNoteId}
+									viewingVersion={viewingVersion}
+									isRestoringVersion={isRestoringVersion}
+									canNavigatePrev={canNavigatePrev}
+									canNavigateNext={canNavigateNext}
+									canToggleSplit={canToggleSplit}
+									primarySaveState={activeFileSaveState}
+									workspaceItems={workspaceItems}
+									tabBar={tabBar}
+									toggleEditorModeFor={toggleEditorModeFor}
+									onToggleSidebar={handleToggleSidebar}
+									onToggleMetadata={handleToggleMetadata}
+									onOpenSettings={handleOpenSettings}
+									onNavigatePrev={handleNavigatePrev}
+									onNavigateNext={handleNavigateNext}
+									onToggleSplit={handleToggleSplit}
+									onToggleSplitOrientation={handleToggleSplitOrientation}
+									onSwapPaneOrder={handleSwapSplitPaneOrder}
+									onCloseSplit={handleCloseSplit}
+									onFocusPane={handleFocusEditorPane}
+									onScrollPositionChange={handleEditorScrollPositionChange}
+									onContentChange={updateFileContent}
+									onCreateFile={() => layout.createFile()}
+									onRenameFile={layout.renameFile}
+									onEditorBlur={flushFileEdits}
+									onExitVersionPreview={handleExitVersionPreview}
+									onRestoreViewedVersion={handleRestoreViewedVersion}
+									onCloseShare={handleCloseShare}
+								/>
 							</SplitDropZone>
 
 							{!isMobile && (
@@ -717,26 +428,22 @@ export function NotesLayoutShell({
 												>
 													<div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-foreground/8 transition-colors hover:bg-foreground/20" />
 												</div>
-												{showContentSkeleton ? (
-													<NotesMetadataPlaceholder className="w-full xl:w-full" />
-												) : (
-													<MetadataPanel
-														file={focusedFile ?? displayFile}
-														files={files}
-														editorMode={
-															focusedEditorMode ??
-															editorMode ??
-															"block"
-														}
-														onToggleEditorMode={handleToggleEditorMode}
-														onFileSelect={
-															sidebarPanelProps.actions.onFileSelect
-														}
-														onViewVersion={handleViewVersion}
-														onShare={handleOpenShare}
-														className="h-full w-full shrink-0 xl:w-full"
-													/>
-												)}
+												<MetadataPanelHost
+													focusedFileId={focusedFileIdForNav}
+													metadataFiles={metadataFiles}
+													defaultModeRaw={defaultModeRaw}
+													isEditorReady={isEditorReady}
+													placeholder={
+														<NotesMetadataPlaceholder className="w-full xl:w-full" />
+													}
+													toggleEditorModeFor={toggleEditorModeFor}
+													onFileSelect={
+														sidebarPanelProps.actions.onFileSelect
+													}
+													onViewVersion={handleViewVersion}
+													onShare={handleOpenShare}
+													className="h-full w-full shrink-0 xl:w-full"
+												/>
 											</div>
 										</m.div>
 									)}
@@ -847,22 +554,20 @@ export function NotesLayoutShell({
 									onDragEnd={handleMetadataDragEnd}
 									className="native-panel pointer-events-auto mx-auto h-[min(74dvh,38rem)] w-full max-w-[36rem] overflow-hidden border border-border touch-pan-x"
 								>
-									{showContentSkeleton ? (
-										<NotesMetadataPlaceholder isMobile />
-									) : (
-										<MetadataPanel
-											file={focusedFile ?? displayFile}
-											files={files}
-											isMobile
-											editorMode={focusedEditorMode ?? editorMode ?? "block"}
-											onToggleEditorMode={handleToggleEditorMode}
-											onFileSelect={sidebarPanelProps.actions.onFileSelect}
-											onViewVersion={handleMobileViewVersion}
-											onShare={handleMobileShareNote}
-											onRequestClose={closeMetadata}
-											className="h-full w-full border-l-0"
-										/>
-									)}
+									<MetadataPanelHost
+										focusedFileId={focusedFileIdForNav}
+										metadataFiles={metadataFiles}
+										defaultModeRaw={defaultModeRaw}
+										isEditorReady={isEditorReady}
+										isMobile
+										placeholder={<NotesMetadataPlaceholder isMobile />}
+										toggleEditorModeFor={toggleEditorModeFor}
+										onFileSelect={sidebarPanelProps.actions.onFileSelect}
+										onViewVersion={handleMobileViewVersion}
+										onShare={handleMobileShareNote}
+										onRequestClose={closeMetadata}
+										className="h-full w-full border-l-0"
+									/>
 								</m.div>
 							</div>
 						</>

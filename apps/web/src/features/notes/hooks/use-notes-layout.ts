@@ -21,9 +21,10 @@ import { NOTE_TEMPLATES, getNoteTemplate } from "@/domain/notes/templates";
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import { isTauriRuntime, useWorkspaceBackend } from "@/core/workspace-backend";
 import { isGuestScopedId } from "@/domain/notes/note-id";
-import { isMdxNote, resolveEditorMode } from "@/features/editor/lib/editor-mode";
+import { isMdxNote } from "@/features/editor/lib/editor-mode";
 import { VIM_COMMAND_EVENT } from "@/features/editor/lib/vim-command-bus";
 import { generateNoteContent } from "@/features/notes/lib/generate-note-content";
+import { requestEditorModeToggle } from "@/features/notes/lib/editor-mode-toggle-bus";
 import { buildNoteIndexes } from "@/features/notes/lib/note-indexes";
 import { applyFolderUiState, useNotesStore, type EditorPane } from "@/features/notes/store";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -52,7 +53,6 @@ import { useDesktopMenuActions } from "./use-desktop-menu-actions";
 import { useDeleteFolder } from "./use-delete-folder";
 import { useDeleteNote } from "./use-delete-note";
 import { useFolders } from "./use-folders";
-import { useNote } from "./use-note";
 import { useNotes } from "./use-notes";
 import { notesKeys } from "./notes-keys";
 import {
@@ -113,7 +113,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	// note. Once an effect copies the seed into Zustand, this OR collapses to
 	// the live store value and behaves exactly as before.
 	const activeFileId = activeFileIdFromStore || seededActiveFileId;
-	const activeNoteQuery = useNote(activeFileId);
 	const splitSecondaryFileId = useNotesStore((state) => state.split.secondaryFileId);
 	const focusedEditorPane = useNotesStore((state) => state.split.focusedPane);
 	const splitOrientation = useNotesStore((state) => state.split.orientation);
@@ -138,7 +137,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const closeOtherTabs = useNotesStore((state) => state.closeOtherTabs);
 	const closeTabsToSide = useNotesStore((state) => state.closeTabsToSide);
 	const closeAllTabs = useNotesStore((state) => state.closeAllTabs);
-	const secondaryNoteQuery = useNote(splitSecondaryFileId ?? "");
 	const folderOpenState = useNotesStore((state) => state.folderOpenState);
 	const activeFileSaveState = useNotesStore((state) =>
 		state.getFileSaveState(state.activeFileId || seededActiveFileId),
@@ -190,39 +188,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		clearFileSaveState,
 	});
 	const metadataFiles = useMemo(() => notesQuery.data ?? [], [notesQuery.data]);
-	const activeNote = activeNoteQuery.isPlaceholderData ? null : (activeNoteQuery.data ?? null);
-	const secondaryNote = secondaryNoteQuery.isPlaceholderData
-		? null
-		: (secondaryNoteQuery.data ?? null);
-	const files = useMemo(() => {
-		let nextFiles = metadataFiles;
-
-		if (activeNote) {
-			let found = false;
-			nextFiles = nextFiles.map((file) => {
-				if (file.id !== activeNote.id) return file;
-				found = true;
-				return activeNote;
-			});
-			if (!found) {
-				nextFiles = [...nextFiles, activeNote];
-			}
-		}
-
-		if (secondaryNote) {
-			let found = false;
-			nextFiles = nextFiles.map((file) => {
-				if (file.id !== secondaryNote.id) return file;
-				found = true;
-				return secondaryNote;
-			});
-			if (!found) {
-				nextFiles = [...nextFiles, secondaryNote];
-			}
-		}
-
-		return nextFiles;
-	}, [activeNote, metadataFiles, secondaryNote]);
 	const folders = useMemo(
 		() => applyFolderUiState(foldersQuery.data ?? [], folderOpenState),
 		[folderOpenState, foldersQuery.data],
@@ -276,44 +241,23 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	} = useMemo(
 		// Index from metadata only: the sidebar tree never reads note content, and
 		// metadataFiles is referentially stable across content edits — so the
-		// memoized FileList stops re-rendering on every keystroke. The editor still
-		// gets the content-merged `files` below.
+		// memoized FileList stops re-rendering on every keystroke. The editor and
+		// inspector subscribe to note content independently, inside their own
+		// content hosts, so this layout hook never re-runs on a keystroke.
 		() => buildNoteIndexes(metadataFiles, folders, activeFileId),
 		[metadataFiles, folders, activeFileId],
 	);
-	const activeFile = activeNote;
-	const secondaryFile = useMemo(() => {
-		if (!splitSecondaryFileId) return null;
-		return files.find((file) => file.id === splitSecondaryFileId) ?? secondaryNote;
-	}, [files, secondaryNote, splitSecondaryFileId]);
-	const splitEnabled = Boolean(
-		splitSecondaryFileId && secondaryFile && !isMobile && !sharingNoteId && !viewingVersion,
+	// `splitActive` is the content-free split gate the chrome and internal
+	// navigation/tab logic key off. The editor host derives the live
+	// `splitEnabled` (which also checks the secondary note actually loaded) from
+	// its own content subscription.
+	const effectiveViewingVersion =
+		viewingVersion && viewingVersion.noteId === activeFileId ? viewingVersion : null;
+	const effectiveSharingNoteId =
+		sharingNoteId && sharingNoteId === activeFileId ? sharingNoteId : null;
+	const splitActive = Boolean(
+		splitSecondaryFileId && !isMobile && !effectiveSharingNoteId && !effectiveViewingVersion,
 	);
-	const focusedFile =
-		splitEnabled && focusedEditorPane === "secondary" && secondaryFile
-			? secondaryFile
-			: activeFile;
-
-	// Resolve the editor surface synchronously from the active note. Deriving
-	// (instead of holding state synced by an effect) means the mode is correct
-	// on the same commit the note becomes available — no one-frame flash where
-	// the gate clears but the mode is still null and the raw <textarea> shows.
-	// Toggling persists `preferredEditorMode` and updates the detail cache
-	// optimistically, so the toggle flows back through here without local state.
-	const editorMode = useMemo<"raw" | "block" | null>(() => {
-		if (!activeFile) return null;
-		return resolveEditorMode(activeFile, defaultModeRaw ? "raw" : "block");
-	}, [activeFile, defaultModeRaw]);
-
-	const secondaryEditorMode = useMemo<"raw" | "block">(() => {
-		if (!secondaryFile) return "block";
-		return resolveEditorMode(secondaryFile, defaultModeRaw ? "raw" : "block");
-	}, [secondaryFile, defaultModeRaw]);
-
-	const focusedEditorMode = useMemo<"raw" | "block" | null>(() => {
-		if (!focusedFile) return null;
-		return resolveEditorMode(focusedFile, defaultModeRaw ? "raw" : "block");
-	}, [focusedFile, defaultModeRaw]);
 
 	// Tabs are a desktop-only, client-only enhancement. Gating `openInTabs` on a
 	// mount flag keeps the server render and first client render identical (no
@@ -333,9 +277,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const fileById = useMemo(() => {
 		const map = new Map<string, NoteFile>();
-		for (const file of files) map.set(file.id, file);
+		for (const file of metadataFiles) map.set(file.id, file);
 		return map;
-	}, [files]);
+	}, [metadataFiles]);
 
 	const resolveTabItems = useCallback(
 		(tabs: typeof primaryTabs) =>
@@ -377,20 +321,18 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const { handleFileSelect: syncFileSelection } = useUrlSync(setActiveFileId);
 	useNoteLinkBackspaceNavigatesBack();
 	const focusedFileIdForNav =
-		splitEnabled && focusedEditorPane === "secondary" && splitSecondaryFileId
+		splitActive && focusedEditorPane === "secondary" && splitSecondaryFileId
 			? splitSecondaryFileId
 			: activeFileId;
-	const { canNavigatePrev, canNavigateNext } = useFileNavigation(files, focusedFileIdForNav);
+	const { canNavigatePrev, canNavigateNext } = useFileNavigation(
+		metadataFiles,
+		focusedFileIdForNav,
+	);
 
 	useEffect(() => {
 		if (!isMobile || !splitSecondaryFileId) return;
 		closeSplit();
 	}, [closeSplit, isMobile, splitSecondaryFileId]);
-
-	useEffect(() => {
-		if (!splitSecondaryFileId || secondaryFile) return;
-		closeSplit();
-	}, [closeSplit, secondaryFile, splitSecondaryFileId]);
 
 	useEffect(() => {
 		const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -418,10 +360,10 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		if (didCollapseDesktopMetadata.current) return;
 		if (isMobile || notesQuery.isPending) return;
 		didCollapseDesktopMetadata.current = true;
-		if (isTauriRuntime() && files.length === 0) {
+		if (isTauriRuntime() && metadataFiles.length === 0) {
 			setUIState({ showMetadata: false });
 		}
-	}, [files.length, isMobile, notesQuery.isPending, setUIState]);
+	}, [metadataFiles.length, isMobile, notesQuery.isPending, setUIState]);
 
 	useEffect(() => {
 		initializePreferences();
@@ -433,7 +375,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			return;
 		}
 
-		if (files.length === 0) {
+		if (metadataFiles.length === 0) {
 			if (activeFileId) {
 				setActiveFileId("");
 				clearNoteUrl({ mode: "replace" });
@@ -450,7 +392,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			rememberLastNote &&
 			lastActiveFileId &&
 			lastActiveFileId !== activeFileId &&
-			files.some((file) => file.id === lastActiveFileId)
+			metadataFiles.some((file) => file.id === lastActiveFileId)
 		) {
 			didInitialAutoSelect.current = true;
 			syncFileSelection(lastActiveFileId, { mode: "replace" });
@@ -458,14 +400,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		}
 
 		if (activeFileId) {
-			if (files.some((file) => file.id === activeFileId)) {
+			if (metadataFiles.some((file) => file.id === activeFileId)) {
 				didInitialAutoSelect.current = true;
 				return;
 			}
 			// The open note was deleted/renamed out of existence — fall back to
 			// the first note so the editor never points at a stale id.
 			didInitialAutoSelect.current = true;
-			syncFileSelection(files[0].id, { mode: "replace" });
+			syncFileSelection(metadataFiles[0].id, { mode: "replace" });
 			return;
 		}
 
@@ -474,11 +416,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		// empty state instead of re-opening a note behind their back.
 		if (!didInitialAutoSelect.current) {
 			didInitialAutoSelect.current = true;
-			syncFileSelection(files[0].id, { mode: "replace" });
+			syncFileSelection(metadataFiles[0].id, { mode: "replace" });
 		}
 	}, [
 		activeFileId,
-		files,
+		metadataFiles,
 		notesQuery.isPending,
 		setActiveFileId,
 		syncFileSelection,
@@ -491,11 +433,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	// resolves from cache instead of fetching (and flashing a skeleton).
 	useEffect(() => {
 		if (!activeFileId) return;
-		const index = files.findIndex((file) => file.id === activeFileId);
+		const index = metadataFiles.findIndex((file) => file.id === activeFileId);
 		if (index === -1) return;
-		prefetchNote(files[index - 1]?.id ?? "");
-		prefetchNote(files[index + 1]?.id ?? "");
-	}, [activeFileId, files, prefetchNote]);
+		prefetchNote(metadataFiles[index - 1]?.id ?? "");
+		prefetchNote(metadataFiles[index + 1]?.id ?? "");
+	}, [activeFileId, metadataFiles, prefetchNote]);
 
 	const handleViewVersion = useCallback(
 		(version: NoteVersion) => {
@@ -591,7 +533,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const handleNavigateInFocusedPane = useCallback(
 		(targetId: string, options?: NoteUrlSyncOptions) => {
-			if (splitEnabled && focusedEditorPane === "secondary" && splitSecondaryFileId) {
+			if (splitActive && focusedEditorPane === "secondary" && splitSecondaryFileId) {
 				flushContentInBackground(splitSecondaryFileId);
 				setSecondaryFile(targetId);
 				return;
@@ -605,16 +547,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			flushContentInBackground,
 			focusedEditorPane,
 			setSecondaryFile,
-			splitEnabled,
+			splitActive,
 			splitSecondaryFileId,
 			syncFileSelection,
 		],
 	);
-
-	const effectiveViewingVersion =
-		viewingVersion && viewingVersion.noteId === activeFileId ? viewingVersion : null;
-	const effectiveSharingNoteId =
-		sharingNoteId && sharingNoteId === activeFileId ? sharingNoteId : null;
 
 	const handleOpenBeside = useCallback(
 		(fileId: string) => {
@@ -645,11 +582,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const handleOpenInNewTab = useCallback(
 		(fileId: string) => {
 			if (isMobile || !fileId) return;
-			const pane = splitEnabled ? focusedEditorPane : "primary";
+			const pane = splitActive ? focusedEditorPane : "primary";
 			openTabInBackground(pane, fileId);
 			prefetchNote(fileId);
 		},
-		[focusedEditorPane, isMobile, openTabInBackground, prefetchNote, splitEnabled],
+		[focusedEditorPane, isMobile, openTabInBackground, prefetchNote, splitActive],
 	);
 
 	const handleCloseSplit = useCallback(() => {
@@ -666,14 +603,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				setSplitOrientation(orientation);
 				return;
 			}
-			if (!activeFileId || files.length < 2) return;
-			const currentIndex = files.findIndex((file) => file.id === activeFileId);
-			const neighbor = files[currentIndex + 1] ?? files[currentIndex - 1];
+			if (!activeFileId || metadataFiles.length < 2) return;
+			const currentIndex = metadataFiles.findIndex((file) => file.id === activeFileId);
+			const neighbor = metadataFiles[currentIndex + 1] ?? metadataFiles[currentIndex - 1];
 			if (!neighbor || neighbor.id === activeFileId) return;
 			setSplitOrientation(orientation);
 			handleOpenBeside(neighbor.id);
 		},
-		[activeFileId, files, handleOpenBeside, setSplitOrientation, splitSecondaryFileId],
+		[activeFileId, metadataFiles, handleOpenBeside, setSplitOrientation, splitSecondaryFileId],
 	);
 
 	const restoreEditorFocusAfterLayoutChange = useCallback(() => {
@@ -811,7 +748,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			setPaneTabs("primary", nextPrimary);
 		}
 
-		if (splitEnabled && splitSecondaryFileId) {
+		if (splitActive && splitSecondaryFileId) {
 			const nextSecondary = reconcile(secondaryTabs, splitSecondaryFileId);
 			if (!sameTabList(nextSecondary, secondaryTabs)) {
 				setPaneTabs("secondary", nextSecondary);
@@ -824,7 +761,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		primaryTabs,
 		secondaryTabs,
 		activeFileId,
-		splitEnabled,
+		splitActive,
 		splitSecondaryFileId,
 		setPaneTabs,
 	]);
@@ -1204,71 +1141,74 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		openSettings();
 	}, []);
 
-	const handleToggleEditorMode = useCallback(() => {
-		const modeTarget = focusedFile ?? activeFile;
-		const modeBaseline = focusedEditorMode ?? editorMode;
-		if (!modeTarget || !modeBaseline) return;
+	// Content-free by design: the caller (an editor/inspector content host that
+	// subscribes to the live note) supplies the focused note and its resolved
+	// mode at click time, so this hook never re-runs on a keystroke to keep the
+	// toggle handler current. All deps are stable mutation/save-controller
+	// callbacks, so the returned identity is stable too.
+	const toggleEditorModeFor = useCallback(
+		(modeTarget: NoteFile | null, modeBaseline: "raw" | "block" | null) => {
+			if (!modeTarget || !modeBaseline) return;
 
-		if (isMdxNote(modeTarget)) {
-			if (modeTarget.preferredEditorMode !== "raw") {
-				void runAfterContentFlush(modeTarget.id, () => {
-					markFileSaving(modeTarget.id);
-					updateNoteMutation.mutate(
-						{
-							id: modeTarget.id,
-							content: modeTarget.content,
-							richContent: modeTarget.richContent,
-							preferredEditorMode: "raw",
-						},
-						{
-							onSuccess: () => {
-								markFileSaved(modeTarget.id);
+			if (isMdxNote(modeTarget)) {
+				if (modeTarget.preferredEditorMode !== "raw") {
+					void runAfterContentFlush(modeTarget.id, () => {
+						markFileSaving(modeTarget.id);
+						updateNoteMutation.mutate(
+							{
+								id: modeTarget.id,
+								content: modeTarget.content,
+								richContent: modeTarget.richContent,
+								preferredEditorMode: "raw",
 							},
-							onError: () => {
-								markFileError(modeTarget.id);
+							{
+								onSuccess: () => {
+									markFileSaved(modeTarget.id);
+								},
+								onError: () => {
+									markFileError(modeTarget.id);
+								},
 							},
-						},
-					);
-				});
+						);
+					});
+				}
+				return;
 			}
-			return;
-		}
 
-		triggerNativeFeedback("impact");
-		const nextMode = modeBaseline === "raw" ? "block" : "raw";
-		void runAfterContentFlush(modeTarget.id, () => {
-			updateNoteMutation.mutate(
-				{
-					id: modeTarget.id,
-					content: modeTarget.content,
-					richContent:
-						nextMode === "block"
-							? markdownToRichDocument(modeTarget.content)
-							: modeTarget.richContent,
-					preferredEditorMode: nextMode,
-				},
-				{
-					onSuccess: () => {
-						markFileSaved(modeTarget.id);
+			triggerNativeFeedback("impact");
+			const nextMode = modeBaseline === "raw" ? "block" : "raw";
+			void runAfterContentFlush(modeTarget.id, () => {
+				updateNoteMutation.mutate(
+					{
+						id: modeTarget.id,
+						content: modeTarget.content,
+						richContent:
+							nextMode === "block"
+								? markdownToRichDocument(modeTarget.content)
+								: modeTarget.richContent,
+						preferredEditorMode: nextMode,
 					},
-					onError: () => {
-						markFileError(modeTarget.id);
+					{
+						onSuccess: () => {
+							markFileSaved(modeTarget.id);
+						},
+						onError: () => {
+							markFileError(modeTarget.id);
+						},
 					},
-				},
-			);
-			markFileSaving(modeTarget.id);
-		});
-	}, [
-		activeFile,
-		editorMode,
-		focusedEditorMode,
-		focusedFile,
-		markFileError,
-		markFileSaved,
-		markFileSaving,
-		runAfterContentFlush,
-		updateNoteMutation,
-	]);
+				);
+				markFileSaving(modeTarget.id);
+			});
+		},
+		[markFileError, markFileSaved, markFileSaving, runAfterContentFlush, updateNoteMutation],
+	);
+
+	// The keyboard/command path can't read note content here, so it asks the
+	// editor content host (which does subscribe to the live note) to run the
+	// toggle against whichever pane is focused.
+	const requestToggleEditorMode = useCallback(() => {
+		requestEditorModeToggle();
+	}, []);
 
 	const {
 		showShortcutHelp,
@@ -1418,8 +1358,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				closeSplit();
 			}
 			const isDeletingActiveFile = activeFileId === id;
-			const currentIndex = files.findIndex((file) => file.id === id);
-			const remainingFiles = files.filter((file) => file.id !== id);
+			const currentIndex = metadataFiles.findIndex((file) => file.id === id);
+			const remainingFiles = metadataFiles.filter((file) => file.id !== id);
 			const fallbackFile =
 				remainingFiles[Math.min(Math.max(currentIndex, 0), remainingFiles.length - 1)] ??
 				null;
@@ -1449,7 +1389,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			clearFileSaveState,
 			closeSplit,
 			deleteNoteMutation,
-			files,
+			metadataFiles,
 			setActiveFileId,
 			splitSecondaryFileId,
 			syncFileSelection,
@@ -1521,17 +1461,17 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 	const handleNavigatePrev = useCallback(() => {
 		if (!focusedFileIdForNav) return;
-		const index = files.findIndex((file) => file.id === focusedFileIdForNav);
+		const index = metadataFiles.findIndex((file) => file.id === focusedFileIdForNav);
 		if (index <= 0) return;
-		handleNavigateInFocusedPane(files[index - 1]!.id);
-	}, [files, focusedFileIdForNav, handleNavigateInFocusedPane]);
+		handleNavigateInFocusedPane(metadataFiles[index - 1]!.id);
+	}, [metadataFiles, focusedFileIdForNav, handleNavigateInFocusedPane]);
 
 	const handleNavigateNext = useCallback(() => {
 		if (!focusedFileIdForNav) return;
-		const index = files.findIndex((file) => file.id === focusedFileIdForNav);
-		if (index < 0 || index >= files.length - 1) return;
-		handleNavigateInFocusedPane(files[index + 1]!.id);
-	}, [files, focusedFileIdForNav, handleNavigateInFocusedPane]);
+		const index = metadataFiles.findIndex((file) => file.id === focusedFileIdForNav);
+		if (index < 0 || index >= metadataFiles.length - 1) return;
+		handleNavigateInFocusedPane(metadataFiles[index + 1]!.id);
+	}, [metadataFiles, focusedFileIdForNav, handleNavigateInFocusedPane]);
 
 	const {
 		query: commandQuery,
@@ -1651,7 +1591,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		"notes.newFolder": handleCreateFolder,
 		"notes.toggleSidebar": handleToggleSidebar,
 		"notes.toggleMetadata": handleToggleMetadata,
-		"notes.toggleEditor": handleToggleEditorMode,
+		"notes.toggleEditor": requestToggleEditorMode,
 		"notes.focusFileTree": handleFocusFileTree,
 		"notes.focusMetadata": handleFocusMetadata,
 		"notes.toggleSplit": handleToggleSplit,
@@ -1681,13 +1621,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	// so waiting on them stalls the editor/metadata skeleton behind the
 	// already-populated file list, producing two visibly staggered loaders.
 	const isEditorReady = notesQuery.data !== undefined || !notesQuery.isPending;
-	// Separate flag for "we're swapping to a note whose content has never
-	// been fetched". `activeNote` is null only while the detail query has no
-	// data for the selected id (true first fetch); cached or prefetched notes
-	// resolve on the same commit, so this stays false and the editor is never
-	// torn down for an already-loaded note.
-	const isActiveNoteLoading =
-		Boolean(activeFileId) && files.some((file) => file.id === activeFileId) && !activeNote;
 	const treeActions = useMemo<NoteTreeActions>(
 		() => ({
 			onFileSelect: handleFileSelect,
@@ -1725,6 +1658,33 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[getFilesInFolder, getFoldersInFolder, countDescendants],
 	);
 
+	const tabBar = useMemo(
+		() => ({
+			openInTabs,
+			primaryTabItems,
+			secondaryTabItems,
+			onSelectTab: activateTab,
+			onCloseTab: handleCloseTab,
+			onReorderTabs: handleReorderTabs,
+			onTogglePinTab: handleTogglePinTab,
+			onCloseOtherTabs: handleCloseOtherTabs,
+			onCloseTabsToSide: handleCloseTabsToSide,
+			onDropNoteOnTab: handleDropNoteOnTab,
+		}),
+		[
+			openInTabs,
+			primaryTabItems,
+			secondaryTabItems,
+			activateTab,
+			handleCloseTab,
+			handleReorderTabs,
+			handleTogglePinTab,
+			handleCloseOtherTabs,
+			handleCloseTabsToSide,
+			handleDropNoteOnTab,
+		],
+	);
+
 	const sidebarPanelProps = {
 		// Tree consumes metadata only; passing the stable metadataFiles (not the
 		// content-merged `files`) keeps the memoized FileList from re-rendering on
@@ -1746,28 +1706,26 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	};
 
 	return {
-		activeFile,
-		focusedFile,
-		secondaryFile,
-		splitEnabled,
+		metadataFiles,
+		splitActive,
+		splitSecondaryFileId,
 		focusedEditorPane,
+		focusedFileIdForNav,
 		splitOrientation,
 		splitSecondaryFirst,
-		secondaryEditorMode,
-		focusedEditorMode,
+		defaultModeRaw,
 		activeFileId,
 		activeFileSaveState,
 		canNavigateNext,
 		canNavigatePrev,
 		closeMetadata,
 		closeSidebar,
+		closeSplit,
 		collapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
 		countDescendants,
 		createFile: handleCreateFile,
 		createFolder: handleCreateFolder,
-		editorMode,
 		expandAllFolders: () => expandAllFolders(folders.map((folder) => folder.id)),
-		files,
 		getFilesInFolder,
 		getFoldersInFolder,
 		handleDesktopMetadataResizeStart,
@@ -1781,11 +1739,10 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleOpenCommandPalette,
 		handleOpenSettings,
 		handleOpenShortcutHelp,
-		handleToggleEditorMode,
+		toggleEditorModeFor,
 		handleToggleMetadata,
 		handleToggleSidebar,
 		handleToggleFolder,
-		isActiveNoteLoading,
 		isEditorReady,
 		isMetadataResizing,
 		isMobile,
@@ -1829,18 +1786,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleToggleSplit,
 		handleToggleSplitOrientation: toggleSplitOrientation,
 		handleSwapSplitPaneOrder: swapSplitPaneOrder,
-		canToggleSplit: files.length > 1 && Boolean(activeFileId) && !isMobile,
-		tabBar: {
-			openInTabs,
-			primaryTabItems,
-			secondaryTabItems,
-			onSelectTab: activateTab,
-			onCloseTab: handleCloseTab,
-			onReorderTabs: handleReorderTabs,
-			onTogglePinTab: handleTogglePinTab,
-			onCloseOtherTabs: handleCloseOtherTabs,
-			onCloseTabsToSide: handleCloseTabsToSide,
-			onDropNoteOnTab: handleDropNoteOnTab,
-		},
+		canToggleSplit: metadataFiles.length > 1 && Boolean(activeFileId) && !isMobile,
+		tabBar,
 	};
 }
