@@ -67,13 +67,16 @@ export async function importRustArchive(
 	if (!backend.importNotes) {
 		throw new Error("This backend cannot import notes.");
 	}
+	const importNotes = backend.importNotes;
 
 	const notes = validation.notes.map((note, index) => toNoteFile(note, index));
 
 	const batchSize = 10;
+	const batches = [];
 	for (let index = 0; index < notes.length; index += batchSize) {
-		await backend.importNotes(notes.slice(index, index + batchSize));
+		batches.push(notes.slice(index, index + batchSize));
 	}
+	await Promise.all(batches.map((batch) => importNotes(batch)));
 
 	return notes.length;
 }

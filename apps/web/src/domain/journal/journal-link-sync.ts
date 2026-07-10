@@ -101,12 +101,14 @@ export async function syncJournalLinks(
 		ids.push(row.id);
 		updatedIdsByTarget.set(target, ids);
 	}
-	for (const [targetNoteId, ids] of updatedIdsByTarget) {
-		await db.journalLink.updateMany({
-			where: { id: { in: ids }, userId, sourceJournalId: entry.id },
-			data: { targetNoteId },
-		});
-	}
+	await Promise.all(
+		Array.from(updatedIdsByTarget, ([targetNoteId, ids]) =>
+			db.journalLink.updateMany({
+				where: { id: { in: ids }, userId, sourceJournalId: entry.id },
+				data: { targetNoteId },
+			}),
+		),
+	);
 
 	const created = desired.filter((row) => !existingByKey.has(`${row.kind}:${row.targetLabel}`));
 	if (created.length > 0) {

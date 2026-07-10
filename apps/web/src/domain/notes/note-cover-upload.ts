@@ -6,7 +6,12 @@ import {
 	getDecryptedUserStorageConfig,
 	getServerDefaultStorageConfig,
 } from "@/domain/storage/config";
-import { uploadToUserStorage } from "@/domain/storage/uploader";
+import {
+	deleteUserStorageImage,
+	listUserStorageImagesDetailed,
+	type StorageImage,
+	uploadToUserStorage,
+} from "@/domain/storage/uploader";
 
 const MAX_COVER_BYTES = 2 * 1024 * 1024;
 const MAX_USER_STORAGE_BYTES = 100 * 1024 * 1024;
@@ -68,4 +73,35 @@ export async function uploadNoteCoverImage(formData: FormData): Promise<string> 
 	}
 
 	return uploadToUserStorage(defaultStorage, pathname, file);
+}
+
+/** Returns the signed-in user's uploaded cover images, newest first. */
+export async function listNoteCoverImages(): Promise<string[]> {
+	await getAuthenticatedUser();
+	const images = await listNoteCoverImagesDetailed();
+	return images.map((image) => image.url);
+}
+
+/**
+ * Returns the signed-in user's uploaded cover images newest-first, including the
+ * byte size and pathname needed to show storage totals and delete each image.
+ */
+export async function listNoteCoverImagesDetailed(): Promise<StorageImage[]> {
+	const { user } = await getAuthenticatedUser();
+	const storage =
+		(await getDecryptedUserStorageConfig(user.id)) ?? getServerDefaultStorageConfig();
+	if (!storage) return [];
+	return listUserStorageImagesDetailed(storage, `covers/${user.id}/`);
+}
+
+/** Deletes one of the signed-in user's cover images from storage. */
+export async function deleteNoteCoverImage(image: StorageImage): Promise<void> {
+	const { user } = await getAuthenticatedUser();
+	if (!image.pathname.startsWith(`covers/${user.id}/`)) {
+		throw new Error("Cannot delete this image.");
+	}
+	const storage =
+		(await getDecryptedUserStorageConfig(user.id)) ?? getServerDefaultStorageConfig();
+	if (!storage) return;
+	await deleteUserStorageImage(storage, image);
 }

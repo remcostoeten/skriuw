@@ -108,6 +108,12 @@ export type TaggedNoteSummary = {
 	dateKey?: string;
 };
 
+export type CoverImage = {
+	url: string;
+	pathname: string;
+	size: number;
+};
+
 export type WorkspaceBackend = {
 	readonly mode: "server" | "local" | "tauri";
 	readonly capabilities: WorkspaceCapabilities;
@@ -227,6 +233,19 @@ export type WorkspaceBackend = {
 	 * no durable storage to put it in, so it omits this method entirely.
 	 */
 	uploadCoverImage?(file: File): Promise<string>;
+
+	/** Lists the current user's previously uploaded cover images, newest first. */
+	listCoverImages?(): Promise<string[]>;
+
+	/**
+	 * Lists the current user's uploaded cover images newest-first with byte size
+	 * and a delete handle. Optional: only backends with a durable, listable store
+	 * (currently the server backend) implement it.
+	 */
+	listCoverImagesDetailed?(): Promise<CoverImage[]>;
+
+	/** Permanently deletes one of the current user's uploaded cover images. */
+	deleteCoverImage?(image: CoverImage): Promise<void>;
 
 	updatePerson(input: UpdatePersonInput): Promise<Person>;
 	deletePerson(id: string): Promise<ChipRewriteResult>;

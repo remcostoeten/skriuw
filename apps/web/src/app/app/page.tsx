@@ -39,6 +39,8 @@ export default async function AppHomePage(props: {
 	const searchParams = await props.searchParams;
 
 	const queryClient = new QueryClient();
+	const requestedNoteId =
+		searchParams?.note && !isGuestScopedId(searchParams.note) ? searchParams.note : null;
 
 	if (user) {
 		const notesScope = notesKeys.userScope(user.id);
@@ -62,6 +64,14 @@ export default async function AppHomePage(props: {
 		const [didSeed] = await Promise.all([
 			ensureCloudStarterContentSeeded(),
 			prefetchWorkspace(),
+			...(requestedNoteId
+				? [
+						queryClient.prefetchQuery({
+							queryKey: notesKeys.detail(requestedNoteId),
+							queryFn: () => getNote(requestedNoteId),
+						}),
+					]
+				: []),
 		]);
 
 		if (didSeed) {
@@ -71,10 +81,6 @@ export default async function AppHomePage(props: {
 		const files = queryClient.getQueryData<Awaited<ReturnType<typeof listNoteMetadata>>>(
 			notesKeys.files(notesScope),
 		);
-		// Ignore a stale `?note=guest:…` carried over from a guest session — that
-		// id isn't a persisted UUID, so prefetching it would throw P2007.
-		const requestedNoteId =
-			searchParams?.note && !isGuestScopedId(searchParams.note) ? searchParams.note : null;
 		const initialActiveFileId = requestedNoteId ?? files?.[0]?.id ?? null;
 		if (initialActiveFileId) {
 			await queryClient.prefetchQuery({

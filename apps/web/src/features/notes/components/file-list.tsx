@@ -874,6 +874,15 @@ export const FileList = memo(function FileList({
 			setFocusedItemKey(getItemKey(item));
 			lastSelectedIndexRef.current = itemIndex;
 			action();
+
+			// A pointer click leaves keyboard focus on the tree row, so a later
+			// stray key (r renames, d/Delete deletes) would land on it. Drop focus
+			// off the row for mouse/touch activation; keyboard activation
+			// (Enter/Space, where detail === 0) keeps it so arrow-key navigation and
+			// the single-key shortcuts still work when the tree is deliberately focused.
+			if (event.detail > 0) {
+				(event.currentTarget as HTMLElement).blur();
+			}
 		},
 		[flattenedVisibleItems, focusedItemKey, getItemKey, onOpenInNewTab, setSelectedItems],
 	);

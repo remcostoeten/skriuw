@@ -247,12 +247,14 @@ export async function deleteJournalTag(id: string): Promise<void> {
 		}),
 	]);
 
-	for (const entry of entries) {
-		await syncJournalLinks(prisma, user.id, {
-			id: entry.id,
-			content: entry.content,
-			richContent: (entry.richContent as RichTextDocument | null) ?? [],
-			tags: entry.tags.filter((t) => t !== tag.name),
-		});
-	}
+	await Promise.all(
+		entries.map((entry) =>
+			syncJournalLinks(prisma, user.id, {
+				id: entry.id,
+				content: entry.content,
+				richContent: (entry.richContent as RichTextDocument | null) ?? [],
+				tags: entry.tags.filter((t) => t !== tag.name),
+			}),
+		),
+	);
 }

@@ -132,8 +132,10 @@ export async function updateNoteShareSettings(
 		data.passwordHash = validated.password ? await hashSharePassword(validated.password) : null;
 	}
 
-	const share = await prisma.noteShare.update({ where: { id: existing.id }, data });
-	const note = await getNote(validated.noteId);
+	const [share, note] = await Promise.all([
+		prisma.noteShare.update({ where: { id: existing.id }, data }),
+		getNote(validated.noteId),
+	]);
 	return toShareState(share, note?.content);
 }
 

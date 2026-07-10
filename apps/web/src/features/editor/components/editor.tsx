@@ -17,6 +17,7 @@ import {
 	type EditorLineHeight,
 } from "@/features/editor/lib/editor-line-height";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
+import { preloadRichTextEditor } from "./preload-rich-text-editor";
 import type { TRichTextCollab } from "./rich-text-editor";
 import type { VimMode } from "@/features/editor/lib/vim-plugin";
 import { cn } from "@/shared/lib/utils";
@@ -35,7 +36,7 @@ function RichTextEditorLoading() {
 // boundaries share one chunk instead of bundling the editor graph twice.
 const RichTextEditor = dynamic(
 	() =>
-		import("@/features/editor/components/rich-text-editor").then((mod) => ({
+		preloadRichTextEditor().then((mod) => ({
 			default: mod.RichTextEditor,
 		})),
 	{

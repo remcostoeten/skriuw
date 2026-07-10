@@ -42,40 +42,41 @@ async function rewriteTagAcrossJournals(
 ): Promise<string[]> {
 	const records = await listTaggedJournalRecords(tx, userId, from);
 	const rewritten: string[] = [];
+	const results = await Promise.all(
+		records.map(async (record) => {
+			const patch = rewriteNoteForTag(
+				{
+					content: record.content,
+					richContent: (record.richContent as RichTextDocument | null) ?? [],
+					tags: record.tags,
+				},
+				from,
+				to,
+			);
+			if (!patch) return null;
 
-	for (const record of records) {
-		const patch = rewriteNoteForTag(
-			{
-				content: record.content,
-				richContent: (record.richContent as RichTextDocument | null) ?? [],
-				tags: record.tags,
-			},
-			from,
-			to,
-		);
-		if (!patch) continue;
+			const data: Prisma.JournalEntryUncheckedUpdateInput = {};
+			if (patch.content !== undefined) data.content = patch.content;
+			if (patch.richContent !== undefined) {
+				data.richContent = patch.richContent as Prisma.InputJsonValue;
+			}
+			if (patch.tags !== undefined) data.tags = patch.tags;
 
-		const data: Prisma.JournalEntryUncheckedUpdateInput = {};
-		if (patch.content !== undefined) data.content = patch.content;
-		if (patch.richContent !== undefined) {
-			data.richContent = patch.richContent as Prisma.InputJsonValue;
-		}
-		if (patch.tags !== undefined) data.tags = patch.tags;
-
-		const updated = await tx.journalEntry.update({
-			where: { id: record.id, deletedAt: null },
-			data,
-			select: { id: true, content: true, richContent: true, tags: true },
-		});
-		await syncJournalLinks(tx, userId, {
-			id: updated.id,
-			content: updated.content,
-			richContent: (updated.richContent as RichTextDocument | null) ?? [],
-			tags: updated.tags,
-		});
-		rewritten.push(record.id);
-	}
-
+			const updated = await tx.journalEntry.update({
+				where: { id: record.id, deletedAt: null },
+				data,
+				select: { id: true, content: true, richContent: true, tags: true },
+			});
+			await syncJournalLinks(tx, userId, {
+				id: updated.id,
+				content: updated.content,
+				richContent: (updated.richContent as RichTextDocument | null) ?? [],
+				tags: updated.tags,
+			});
+			return record.id;
+		}),
+	);
+	rewritten.push(...results.filter((id): id is string => id !== null));
 	return rewritten;
 }
 
@@ -107,40 +108,41 @@ async function rewriteTagAcrossNotes(
 ): Promise<string[]> {
 	const records = await listTaggedNoteRecords(tx, userId, from);
 	const rewritten: string[] = [];
+	const results = await Promise.all(
+		records.map(async (record) => {
+			const patch = rewriteNoteForTag(
+				{
+					content: record.content,
+					richContent: (record.richContent as RichTextDocument | null) ?? [],
+					tags: record.tags,
+				},
+				from,
+				to,
+			);
+			if (!patch) return null;
 
-	for (const record of records) {
-		const patch = rewriteNoteForTag(
-			{
-				content: record.content,
-				richContent: (record.richContent as RichTextDocument | null) ?? [],
-				tags: record.tags,
-			},
-			from,
-			to,
-		);
-		if (!patch) continue;
+			const data: Prisma.NoteUncheckedUpdateInput = {};
+			if (patch.content !== undefined) data.content = patch.content;
+			if (patch.richContent !== undefined) {
+				data.richContent = patch.richContent as Prisma.InputJsonValue;
+			}
+			if (patch.tags !== undefined) data.tags = patch.tags;
 
-		const data: Prisma.NoteUncheckedUpdateInput = {};
-		if (patch.content !== undefined) data.content = patch.content;
-		if (patch.richContent !== undefined) {
-			data.richContent = patch.richContent as Prisma.InputJsonValue;
-		}
-		if (patch.tags !== undefined) data.tags = patch.tags;
-
-		const updated = await tx.note.update({
-			where: { id: record.id, deletedAt: null },
-			data,
-			select: { id: true, content: true, richContent: true, tags: true },
-		});
-		await syncNoteLinks(tx, userId, {
-			id: updated.id,
-			content: updated.content,
-			richContent: (updated.richContent as RichTextDocument | null) ?? [],
-			tags: updated.tags,
-		});
-		rewritten.push(record.id);
-	}
-
+			const updated = await tx.note.update({
+				where: { id: record.id, deletedAt: null },
+				data,
+				select: { id: true, content: true, richContent: true, tags: true },
+			});
+			await syncNoteLinks(tx, userId, {
+				id: updated.id,
+				content: updated.content,
+				richContent: (updated.richContent as RichTextDocument | null) ?? [],
+				tags: updated.tags,
+			});
+			return record.id;
+		}),
+	);
+	rewritten.push(...results.filter((id): id is string => id !== null));
 	return rewritten;
 }
 

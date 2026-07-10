@@ -2,12 +2,7 @@
 
 import { defaultProps } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
-import {
-	DiagramBlockView,
-	getDiagramSource,
-	type DiagramBlockData,
-	type DiagramEditor,
-} from "./diagram-view";
+import { DiagramBlockView, type DiagramBlockData, type DiagramEditor } from "./diagram-view";
 import { DEFAULT_DIAGRAM_SOURCE, normalizeDiagramSource } from "@/shared/lib/diagram";
 
 export const createDiagram = createReactBlockSpec(
@@ -31,13 +26,16 @@ export const createDiagram = createReactBlockSpec(
 				editor={props.editor as DiagramEditor}
 			/>
 		),
-		toExternalHTML: (props) => (
-			<pre data-skriuw-diagram="true">
-				<code className="language-mermaid">
-					{getDiagramSource(props.block as DiagramBlockData)}
-				</code>
-			</pre>
-		),
+		toExternalHTML: (props) => {
+			const block = props.block as DiagramBlockData;
+			const source = block.props.source?.trim();
+			const diagramSource = source ? normalizeDiagramSource(source) : DEFAULT_DIAGRAM_SOURCE;
+			return (
+				<pre data-skriuw-diagram="true">
+					<code className="language-mermaid">{diagramSource}</code>
+				</pre>
+			);
+		},
 		parse: (element) => {
 			if (!element.hasAttribute("data-skriuw-diagram")) {
 				return undefined;
