@@ -531,6 +531,33 @@ function unwrapOuterMarkdownFence(markdown: string): string {
 	return inner.join("\n");
 }
 
+/** Stamp a stable `id` on every block (recursively) that lacks one. Blocks
+ *  parsed from markdown are id-less PartialBlocks; on web BlockNote backfills
+ *  ids when it hydrates the editor, but the raw JSON persisted server-side and
+ *  consumed by non-BlockNote renderers (the native app) never gets them — an
+ *  id-less block breaks list virtualization keyed on `block.id`.
+ *
+ *  Ids are derived deterministically from document position (not random), so
+ *  re-deriving the same markdown yields byte-identical richContent. That keeps
+ *  buildNoteVersionContentHash stable and version dedup working for clients
+ *  that persist markdown only (the native app) rather than a hydrated doc. */
+function assignBlockIds(blocks: PartialBlock[]): PartialBlock[] {
+	let counter = 0;
+	function walk(list: PartialBlock[]): PartialBlock[] {
+		return list.map((block) => {
+			const next = block.id
+				? { ...block }
+				: { ...block, id: `md-${(counter++).toString(36)}` };
+			const children = (next as { children?: PartialBlock[] }).children;
+			if (children && children.length > 0) {
+				next.children = walk(children);
+			}
+			return next;
+		});
+	}
+	return walk(blocks);
+}
+
 export function markdownToRichDocument(markdown: string): RichTextDocument {
 	const lines = unwrapOuterMarkdownFence(markdown).split("\n");
 	const blocks: PartialBlock[] = [];
@@ -729,10 +756,10 @@ export function markdownToRichDocument(markdown: string): RichTextDocument {
 	}
 
 	if (blocks.length === 0) {
-		return [{ type: "paragraph", content: "" }];
+		return assignBlockIds([{ type: "paragraph", content: "" }]) as RichTextDocument;
 	}
 
-	return blocks as RichTextDocument;
+	return assignBlockIds(blocks) as RichTextDocument;
 }
 
 function inlineNodeToSearchableMarkdown(inline: unknown): string {

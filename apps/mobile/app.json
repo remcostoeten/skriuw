@@ -1,0 +1,25 @@
+{
+	"expo": {
+		"name": "Skriuw",
+		"slug": "skriuw",
+		"version": "0.1.0",
+		"orientation": "portrait",
+		"scheme": "skriuw",
+		"userInterfaceStyle": "automatic",
+		"newArchEnabled": true,
+		"ios": {
+			"supportsTablet": true,
+			"bundleIdentifier": "com.skriuw.app"
+		},
+		"android": {
+			"package": "com.skriuw.app"
+		},
+		"plugins": ["expo-router", "expo-secure-store"],
+		"experiments": {
+			"typedRoutes": true
+		},
+		"extra": {
+			"apiBaseUrl": "http://10.0.2.2:3000"
+		}
+	}
+}

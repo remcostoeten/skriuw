@@ -38,9 +38,9 @@ function InlineLabel({
 	const [draft, setDraft] = useState(label);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	useEffect(() => {
-		if (!editing) setDraft(label);
-	}, [label, editing]);
+	if (!editing && draft !== label) {
+		setDraft(label);
+	}
 	useEffect(() => {
 		if (editing) {
 			inputRef.current?.focus();
@@ -80,6 +80,7 @@ function InlineLabel({
 
 	return (
 		<button
+			type="button"
 			className={`cursor-text select-none outline-none ${className ?? ""}`}
 			aria-label={`Rename: ${label}`}
 			onDoubleClick={(e) => {

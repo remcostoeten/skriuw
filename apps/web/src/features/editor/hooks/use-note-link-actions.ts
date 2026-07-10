@@ -95,7 +95,7 @@ export function useNoteLinkActions(filesOverride?: NoteFile[]) {
 				},
 			});
 		},
-		[createNote, files, openNote],
+		[createNote, files, openNote, pendingTitlesRef],
 	);
 
 	const isCreatingTitle = useCallback(

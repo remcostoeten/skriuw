@@ -1,4 +1,5 @@
 import { authAnalyticsHook } from "@/core/analytics/auth-track";
+import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
@@ -50,6 +51,9 @@ function getGithubFallbackEmail(profile: { id?: string | number; login?: string 
 
 export const auth = betterAuth({
 	baseURL: getBetterAuthBaseURL(),
+	// The Expo client has no cookie jar; the mobile app persists this custom-scheme
+	// origin as its trusted redirect/session origin instead of an http(s) host.
+	trustedOrigins: ["skriuw://"],
 	database: prismaAdapter(prisma, { provider: "postgresql" }),
 	user: {
 		additionalFields: {
@@ -99,6 +103,7 @@ export const auth = betterAuth({
 			defaultRole: "user",
 			adminRoles: ["admin"],
 		}),
+		expo(),
 		nextCookies(),
 	],
 	session: {

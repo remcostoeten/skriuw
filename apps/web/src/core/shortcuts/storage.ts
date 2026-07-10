@@ -2,7 +2,7 @@ import { SHORTCUT_REGISTRY, type ShortcutId } from "./registry";
 import type { ShortcutBindings } from "./types";
 import { noop } from "@/shared/lib/noop";
 
-const STORAGE_KEY = "shortcut-bindings";
+const STORAGE_KEY = "shortcut-bindings:v1";
 
 function isKnownId(id: string): id is ShortcutId {
 	return id in SHORTCUT_REGISTRY;

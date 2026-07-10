@@ -53,7 +53,7 @@ export const SharedSection = memo(function SharedSection({
 			}
 		}
 		prevPermsRef.current = next;
-	}, [sharedNotes, queryClient]);
+	}, [sharedNotes, queryClient, notesKeys]);
 
 	if (sharedNotes.length === 0) return null;
 

@@ -59,6 +59,7 @@ import type {
 } from "@/domain/data-transfer/types";
 import { RustImportDialog } from "@/features/settings/components/rust-import-dialog";
 import { StorageConfigManager } from "@/features/settings/components/storage/storage-config-manager";
+import { CoverGalleryManager } from "@/features/settings/components/storage/cover-gallery-manager";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 
 const REPLACE_PHRASE = "replace my workspace";
@@ -244,6 +245,7 @@ function ImportPreviewSummary({ preview }: { preview: ImportPreview }) {
 const SYNC_TOKEN_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
 	dateStyle: "medium",
 	timeStyle: "short",
+	timeZone: "UTC",
 });
 
 type SyncTokenExpiry = "never" | "30d" | "90d";
@@ -1120,6 +1122,8 @@ function CloudDataSection() {
 
 			<GroupLabel>COVER IMAGE STORAGE</GroupLabel>
 			<StorageConfigManager isSignedIn={isConnected} />
+			<GroupLabel>COVER GALLERY</GroupLabel>
+			<CoverGalleryManager isSignedIn={isConnected} />
 
 			<GroupLabel>MAINTENANCE</GroupLabel>
 			<SettingsCard>

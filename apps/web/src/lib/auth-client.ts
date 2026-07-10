@@ -11,4 +11,4 @@ export const authClient = createAuthClient({
 	plugins: [adminClient(), usernameClient()],
 });
 
-export const { signIn, signUp, signOut, useSession, getSession, isUsernameAvailable } = authClient;
+export const { isUsernameAvailable } = authClient;

@@ -49,7 +49,12 @@ function PermissionToggle({
 			</button>
 			{open && (
 				<>
-					<div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+					<button
+						type="button"
+						onClick={() => setOpen(false)}
+						className="fixed inset-0 z-10"
+						aria-label="Close permission menu"
+					/>
 					<div className="absolute right-0 top-full z-20 mt-0.5 w-24 overflow-hidden border border-border bg-popover py-1 text-popover-foreground shadow-md">
 						{(["viewer", "editor"] as TCollabPermission[]).map((p) => (
 							<button

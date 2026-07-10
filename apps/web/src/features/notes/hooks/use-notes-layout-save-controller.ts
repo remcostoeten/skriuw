@@ -88,18 +88,16 @@ export function useNotesLayoutSaveController({
 	}, [saveController]);
 
 	useEffect(() => {
-		// react-doctor-disable-next-line react-doctor/no-event-handler -- seeded layout state is intentionally reconciled after mount.
 		if (seededActiveFileId && !useNotesStore.getState().activeFileId) {
-			setActiveFileId(seededActiveFileId);
+			useNotesStore.getState().setActiveFileId(seededActiveFileId);
 		}
-		// react-doctor-disable-next-line react-doctor/no-event-handler -- initial user scope sync is intentionally deferred until mount.
 		if (
 			initialUserScopeId &&
 			useSidebarStore.getState().currentUserScopeId !== initialUserScopeId
 		) {
 			useSidebarStore.getState().syncUserScope(initialUserScopeId);
 		}
-	}, [initialUserScopeId, seededActiveFileId, setActiveFileId]);
+	}, [initialUserScopeId, seededActiveFileId]);
 
 	useEffect(() => {
 		const previousId = previousActiveFileIdRef.current;
