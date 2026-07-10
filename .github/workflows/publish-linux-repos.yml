@@ -121,9 +121,9 @@ jobs:
               run: |
                   VERSION="${{ needs.resolve.outputs.version }}"
                   cat > site/index.html <<HTML
-                  <!doctype html><meta charset="utf-8"><title>Skriuw — Linux install</title>
+                  <!doctype html><meta charset="utf-8"><title>Skriuw — Install</title>
                   <body style="font:16px/1.6 system-ui;max-width:46rem;margin:3rem auto;padding:0 1rem">
-                  <h1>Skriuw — Linux install</h1>
+                  <h1>Skriuw — Install</h1>
                   <h2>Debian / Ubuntu (apt)</h2>
                   <pre>curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
                   echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" | sudo tee /etc/apt/sources.list.d/skriuw.list
@@ -143,6 +143,9 @@ jobs:
                   <h2>Windows (Scoop)</h2>
                   <pre>scoop bucket add skriuw https://github.com/remcostoeten/skriuw
                   scoop install skriuw</pre>
+                  <h2>Self-host (Docker)</h2>
+                  <pre>docker pull ghcr.io/remcostoeten/skriuw</pre>
+                  <p>Runs the web app as a server, not the desktop app — see the <a href="https://github.com/remcostoeten/skriuw#self-host-with-docker">Docker quickstart</a> (needs Postgres + two secrets).</p>
                   <p>Latest: v$VERSION</p>
                   </body>
                   HTML
