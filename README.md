@@ -160,9 +160,12 @@ docker compose -f docker-compose.build.yml up --build -d
 Native app (Tauri) with fully local, offline storage — your notes are plain Markdown files plus a SQLite index, no server or account. Download from [Releases](https://github.com/remcostoeten/skriuw/releases), or:
 
 ```bash
-brew install --cask skriuw        # macOS
-yay -S skriuw                     # Arch (AUR)
-sudo dpkg -i skriuw_*.deb         # Debian/Ubuntu (from Releases)
+# macOS (Homebrew) — tap by URL, then install the cask
+brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw && brew install --cask skriuw
+
+winget install RemcoStoeten.Skriuw   # Windows
+yay -S skriuw-bin                    # Arch (AUR)
+sudo dpkg -i skriuw_*.deb            # Debian/Ubuntu (from Releases)
 ```
 
 ## Run locally (development)
