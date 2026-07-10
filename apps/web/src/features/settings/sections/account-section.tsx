@@ -31,6 +31,7 @@ import {
 	SettingsCard,
 	GroupLabel,
 } from "@/features/settings/components/settings-primitives";
+import type { AuthUser } from "@/core/auth";
 
 async function attemptDelete(
 	password?: string,
@@ -58,9 +59,7 @@ async function attemptDelete(
 	throw new Error(payload?.error ?? "Could not delete account.");
 }
 
-export function AccountSection() {
-	const auth = useAuth();
-	const user = auth.user;
+function useAccountIdentity(user: ReturnType<typeof useAuth>["user"]) {
 	const avatarColorPreference = usePreferencesStore((state) => state.profile.avatarColor);
 	const avatarColor =
 		user?.avatarColor ??
@@ -77,21 +76,51 @@ export function AccountSection() {
 				.slice(0, 2)
 		: "?";
 
+	return { avatarColor, avatarSeed, initials };
+}
+
+function useDisplayNameField(user: ReturnType<typeof useAuth>["user"]) {
 	const [displayName, setDisplayName] = useState(user?.name ?? "");
 	const [isSavingName, setIsSavingName] = useState(false);
 	const [saveNameError, setSaveNameError] = useState<string | null>(null);
+	const suppressNameBlurSaveRef = useRef(false);
 
 	useEffect(() => {
 		setDisplayName(user?.name ?? "");
 	}, [user?.name]);
 
+	const handleSaveName = async () => {
+		if (isSavingName) return;
+		if (!displayName.trim() || displayName === user?.name) return;
+		setIsSavingName(true);
+		setSaveNameError(null);
+		try {
+			await updateUserDisplayName(displayName.trim());
+		} catch {
+			setDisplayName(user?.name ?? "");
+			setSaveNameError("Could not update display name. Please try again.");
+		} finally {
+			setIsSavingName(false);
+		}
+	};
+
+	return {
+		displayName,
+		setDisplayName,
+		isSavingName,
+		saveNameError,
+		handleSaveName,
+		suppressNameBlurSaveRef,
+	};
+}
+
+function useUsernameField(user: ReturnType<typeof useAuth>["user"]) {
 	const [usernameValue, setUsernameValue] = useState(user?.username ?? "");
 	const [isSavingUsername, setIsSavingUsername] = useState(false);
 	const [usernameError, setUsernameError] = useState<string | null>(null);
 	const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
 	const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pendingCheckRef = useRef<string | null>(null);
-	const suppressNameBlurSaveRef = useRef(false);
 	const suppressUsernameBlurSaveRef = useRef(false);
 
 	useEffect(() => {
@@ -155,22 +184,22 @@ export function AccountSection() {
 			setUsernameAvailable(null);
 		}
 	};
-	const [isSigningOut, setIsSigningOut] = useState(false);
 
-	const handleSaveName = async () => {
-		if (isSavingName) return;
-		if (!displayName.trim() || displayName === user?.name) return;
-		setIsSavingName(true);
-		setSaveNameError(null);
-		try {
-			await updateUserDisplayName(displayName.trim());
-		} catch {
-			setDisplayName(user?.name ?? "");
-			setSaveNameError("Could not update display name. Please try again.");
-		} finally {
-			setIsSavingName(false);
-		}
+	return {
+		usernameValue,
+		setUsernameValue,
+		isSavingUsername,
+		usernameError,
+		setUsernameError,
+		usernameAvailable,
+		checkAvailability,
+		handleSaveUsername,
+		suppressUsernameBlurSaveRef,
 	};
+}
+
+function useSignOutAction() {
+	const [isSigningOut, setIsSigningOut] = useState(false);
 
 	const handleSignOut = async () => {
 		setIsSigningOut(true);
@@ -182,6 +211,10 @@ export function AccountSection() {
 		}
 	};
 
+	return { isSigningOut, handleSignOut };
+}
+
+function useAccountDeletion() {
 	const [stepUpOpen, setStepUpOpen] = useState(false);
 	const [stepUpMode, setStepUpMode] = useState<"password" | "reauth">("password");
 	const [stepUpPassword, setStepUpPassword] = useState("");
@@ -269,36 +302,95 @@ export function AccountSection() {
 		deleteResolverRef.current = null;
 	};
 
-	return (
-		<>
-			<SectionHeader
-				title="Account"
-				description="How you appear in Skriuw and where notes are tied."
-			/>
+	return {
+		stepUpOpen,
+		stepUpMode,
+		stepUpPassword,
+		setStepUpPassword,
+		stepUpError,
+		stepUpPending,
+		reauthProviders,
+		handleDeleteAccount,
+		handleStepUpConfirm,
+		handleStepUpReauth,
+		handleStepUpOpenChange,
+	};
+}
 
-			<div className="flex items-center gap-4 rounded-lg border border-border/60 bg-card/40 p-5">
-				<div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar">
-					{user ? (
-						<AvatarFace
-							name={avatarSeed}
-							size={56}
-							color={avatarColor ?? undefined}
-							className="h-full w-full"
-						/>
-					) : (
-						<div className="flex h-full w-full items-center justify-center bg-sidebar text-sm font-medium text-sidebar-foreground/80 select-none">
-							{initials}
-						</div>
-					)}
-				</div>
-				<div className="flex-1 min-w-0">
-					<div className="text-sm font-medium">{user?.name ?? "—"}</div>
-					<div className="text-xs text-muted-foreground">
-						{user?.email ?? "Not signed in"}
+function AccountProfileCard({
+	user,
+	avatarColor,
+	avatarSeed,
+	initials,
+}: {
+	user: AuthUser | null;
+	avatarColor: string | undefined;
+	avatarSeed: string;
+	initials: string;
+}) {
+	return (
+		<div className="flex items-center gap-4 rounded-lg border border-border/60 bg-card/40 p-5">
+			<div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar">
+				{user ? (
+					<AvatarFace
+						name={avatarSeed}
+						size={56}
+						color={avatarColor ?? undefined}
+						className="h-full w-full"
+					/>
+				) : (
+					<div className="flex h-full w-full items-center justify-center bg-sidebar text-sm font-medium text-sidebar-foreground/80 select-none">
+						{initials}
 					</div>
+				)}
+			</div>
+			<div className="flex-1 min-w-0">
+				<div className="text-sm font-medium">{user?.name ?? "—"}</div>
+				<div className="text-xs text-muted-foreground">
+					{user?.email ?? "Not signed in"}
 				</div>
 			</div>
+		</div>
+	);
+}
 
+function ProfileFieldsSection({
+	user,
+	displayName,
+	setDisplayName,
+	isSavingName,
+	saveNameError,
+	handleSaveName,
+	suppressNameBlurSaveRef,
+	usernameValue,
+	setUsernameValue,
+	isSavingUsername,
+	usernameError,
+	setUsernameError,
+	usernameAvailable,
+	checkAvailability,
+	handleSaveUsername,
+	suppressUsernameBlurSaveRef,
+}: {
+	user: AuthUser | null;
+	displayName: string;
+	setDisplayName: (value: string) => void;
+	isSavingName: boolean;
+	saveNameError: string | null;
+	handleSaveName: () => void;
+	suppressNameBlurSaveRef: React.MutableRefObject<boolean>;
+	usernameValue: string;
+	setUsernameValue: (value: string) => void;
+	isSavingUsername: boolean;
+	usernameError: string | null;
+	setUsernameError: (value: string | null) => void;
+	usernameAvailable: boolean | null;
+	checkAvailability: (value: string) => void;
+	handleSaveUsername: () => void;
+	suppressUsernameBlurSaveRef: React.MutableRefObject<boolean>;
+}) {
+	return (
+		<>
 			<GroupLabel>PROFILE</GroupLabel>
 			<SettingsCard>
 				<Row
@@ -415,7 +507,13 @@ export function AccountSection() {
 					/>
 				</Row>
 			</SettingsCard>
+		</>
+	);
+}
 
+function SharingSection() {
+	return (
+		<>
 			<GroupLabel>SHARING</GroupLabel>
 			<SettingsCard>
 				<Row
@@ -430,7 +528,21 @@ export function AccountSection() {
 					</Button>
 				</Row>
 			</SettingsCard>
+		</>
+	);
+}
 
+function DangerZoneSection({
+	isSigningOut,
+	handleSignOut,
+	handleDeleteAccount,
+}: {
+	isSigningOut: boolean;
+	handleSignOut: () => void;
+	handleDeleteAccount: () => Promise<boolean>;
+}) {
+	return (
+		<>
 			<GroupLabel>DANGER ZONE</GroupLabel>
 			<SettingsCard>
 				<Row
@@ -462,6 +574,92 @@ export function AccountSection() {
 					/>
 				</Row>
 			</SettingsCard>
+		</>
+	);
+}
+
+export function AccountSection() {
+	const auth = useAuth();
+	const user = auth.user;
+	const { avatarColor, avatarSeed, initials } = useAccountIdentity(user);
+
+	const {
+		displayName,
+		setDisplayName,
+		isSavingName,
+		saveNameError,
+		handleSaveName,
+		suppressNameBlurSaveRef,
+	} = useDisplayNameField(user);
+
+	const {
+		usernameValue,
+		setUsernameValue,
+		isSavingUsername,
+		usernameError,
+		setUsernameError,
+		usernameAvailable,
+		checkAvailability,
+		handleSaveUsername,
+		suppressUsernameBlurSaveRef,
+	} = useUsernameField(user);
+
+	const { isSigningOut, handleSignOut } = useSignOutAction();
+
+	const {
+		stepUpOpen,
+		stepUpMode,
+		stepUpPassword,
+		setStepUpPassword,
+		stepUpError,
+		stepUpPending,
+		reauthProviders,
+		handleDeleteAccount,
+		handleStepUpConfirm,
+		handleStepUpReauth,
+		handleStepUpOpenChange,
+	} = useAccountDeletion();
+
+	return (
+		<>
+			<SectionHeader
+				title="Account"
+				description="How you appear in Skriuw and where notes are tied."
+			/>
+
+			<AccountProfileCard
+				user={user}
+				avatarColor={avatarColor}
+				avatarSeed={avatarSeed}
+				initials={initials}
+			/>
+
+			<ProfileFieldsSection
+				user={user}
+				displayName={displayName}
+				setDisplayName={setDisplayName}
+				isSavingName={isSavingName}
+				saveNameError={saveNameError}
+				handleSaveName={handleSaveName}
+				suppressNameBlurSaveRef={suppressNameBlurSaveRef}
+				usernameValue={usernameValue}
+				setUsernameValue={setUsernameValue}
+				isSavingUsername={isSavingUsername}
+				usernameError={usernameError}
+				setUsernameError={setUsernameError}
+				usernameAvailable={usernameAvailable}
+				checkAvailability={checkAvailability}
+				handleSaveUsername={handleSaveUsername}
+				suppressUsernameBlurSaveRef={suppressUsernameBlurSaveRef}
+			/>
+
+			<SharingSection />
+
+			<DangerZoneSection
+				isSigningOut={isSigningOut}
+				handleSignOut={handleSignOut}
+				handleDeleteAccount={handleDeleteAccount}
+			/>
 
 			<StepUpDialog
 				open={stepUpOpen}

@@ -8,6 +8,8 @@ import {
 	type Edge,
 	type EdgeMouseHandler,
 	type Node,
+	type OnEdgesChange,
+	type OnNodesChange,
 	ReactFlow,
 	ReactFlowProvider,
 	useEdgesState,
@@ -254,6 +256,644 @@ function ToggleGroup<T extends string>({
 	);
 }
 
+type DiagramHeaderProps = {
+	onClose: () => void;
+	nodeCount: number;
+	edgeCount: number;
+	onPreview: () => void;
+	onInsert: () => void;
+};
+
+function DiagramHeader({ onClose, nodeCount, edgeCount, onPreview, onInsert }: DiagramHeaderProps) {
+	return (
+		<header className="flex items-center justify-between h-14 px-4 border-b bg-card shrink-0">
+			<div className="flex items-center gap-3">
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={onClose}
+					className="h-8 gap-2 text-muted-foreground hover:text-foreground"
+				>
+					<ArrowLeft className="w-4 h-4" />
+					Back
+				</Button>
+				<div className="h-4 w-px bg-border" />
+				<div className="flex items-center gap-1 text-xs text-muted-foreground/60">
+					<span className="font-medium text-foreground/80">Flowchart</span>
+					<span>·</span>
+					<span>
+						{nodeCount} nodes · {edgeCount} edges
+					</span>
+				</div>
+			</div>
+			<div className="flex items-center gap-2">
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={onPreview}
+					className="h-8 gap-2 border-border/50"
+				>
+					<Eye className="w-4 h-4" /> Preview
+				</Button>
+				<Button size="sm" onClick={onInsert} className="h-8 gap-2 font-medium">
+					<Check className="w-4 h-4" /> Insert Diagram
+				</Button>
+			</div>
+		</header>
+	);
+}
+
+type NodePaletteProps = {
+	onAddAtCenter: (type: string, label: string) => void;
+};
+
+function NodePalette({ onAddAtCenter }: NodePaletteProps) {
+	return (
+		<aside className="w-48 border-r bg-card flex flex-col shrink-0 overflow-y-auto">
+			{PALETTE.map(({ section, items }) => (
+				<div key={section}>
+					<div className="px-3 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider">
+						{section}
+					</div>
+					<div className="px-2 pb-2 space-y-1">
+						{items.map(({ type, label, icon, hint }) => (
+							<button
+								key={type}
+								type="button"
+								draggable
+								aria-label={`${hint} — drag or click to add`}
+								onDragStart={(e) => onDragStart(e, type, label)}
+								onClick={() => onAddAtCenter(type, label)}
+								className="group flex items-center gap-2.5 px-2.5 py-2 border border-border/30 cursor-pointer bg-background hover:border-primary/50 hover:bg-primary/5 transition-colors select-none"
+							>
+								<span className="shrink-0">{icon}</span>
+								<span className="text-xs flex-1">{label}</span>
+								<Plus
+									className="w-3 h-3 opacity-0 group-hover:opacity-30 transition-opacity text-muted-foreground shrink-0"
+									aria-hidden
+								/>
+							</button>
+						))}
+					</div>
+				</div>
+			))}
+
+			<div className="mt-auto p-3 border-t border-border/20">
+				<p className="text-[10px] text-muted-foreground/40 leading-relaxed space-y-0.5">
+					<span className="block">
+						<kbd className="font-mono bg-[#222] px-1 rounded text-[9px]">Del</kbd>{" "}
+						delete selected
+					</span>
+					<span className="block mt-0.5">
+						<kbd className="font-mono bg-[#222] px-1 rounded text-[9px]">Dbl‑click</kbd>{" "}
+						rename node
+					</span>
+					<span className="block mt-0.5">
+						<kbd className="font-mono bg-[#222] px-1 rounded text-[9px]">
+							Dbl‑click edge
+						</kbd>{" "}
+						label it
+					</span>
+				</p>
+			</div>
+		</aside>
+	);
+}
+
+type CodePanelProps = {
+	showCode: boolean;
+	onToggle: () => void;
+	mermaidCode: string;
+	onCopy: () => void;
+};
+
+function CodePanel({ showCode, onToggle, mermaidCode, onCopy }: CodePanelProps) {
+	return (
+		<div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none">
+			<div className="pointer-events-auto">
+				<button
+					type="button"
+					className="mx-auto w-48 h-6 bg-card border border-b-0 rounded-t-lg flex items-center justify-center cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors"
+					onClick={onToggle}
+				>
+					{showCode ? (
+						<ChevronDown className="w-3.5 h-3.5 mr-1" />
+					) : (
+						<ChevronUp className="w-3.5 h-3.5 mr-1" />
+					)}
+					Generated Mermaid
+				</button>
+				<AnimatePresence>
+					{showCode && (
+						<motion.div layout className="bg-card border-t overflow-hidden">
+							<div className="p-4 h-full flex flex-col">
+								<div className="flex items-center justify-between mb-2">
+									<span className="text-xs font-mono text-muted-foreground">
+										syntax
+									</span>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={onCopy}
+										className="h-6 text-xs gap-1"
+									>
+										<Copy className="w-3 h-3" /> Copy
+									</Button>
+								</div>
+								<pre className="flex-1 bg-[#0a0a0a] p-3 text-sm font-mono text-[#E8E8E8] overflow-auto border border-border/50">
+									{mermaidCode}
+								</pre>
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
+			</div>
+		</div>
+	);
+}
+
+type PreviewOverlayProps = {
+	show: boolean;
+	mermaidCode: string;
+	onClose: () => void;
+};
+
+function PreviewOverlay({ show, mermaidCode, onClose }: PreviewOverlayProps) {
+	return (
+		<AnimatePresence>
+			{show && (
+				<motion.div
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-8"
+					onClick={onClose}
+				>
+					<div
+						className="bg-card border w-full max-w-4xl max-h-full flex flex-col shadow-2xl rounded-sm overflow-hidden"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="flex items-center justify-between p-4 border-b">
+							<h3 className="font-semibold flex items-center gap-2">
+								<Eye className="w-4 h-4 text-primary" /> Preview
+							</h3>
+							<Button variant="ghost" size="sm" onClick={onClose}>
+								Close
+							</Button>
+						</div>
+						<div className="flex-1 overflow-auto p-8 bg-background min-h-[400px] flex items-center justify-center">
+							<MermaidPreview chart={mermaidCode} />
+						</div>
+					</div>
+				</motion.div>
+			)}
+		</AnimatePresence>
+	);
+}
+
+type NodeInspectorSectionProps = {
+	node: DiagramNode;
+	labelInputRef: React.RefObject<HTMLInputElement | null>;
+	onLabelChange: (id: string, label: string) => void;
+	onUpdateNodeData: (id: string, patch: Partial<NodeData>) => void;
+};
+
+function NodeInspectorSection({
+	node,
+	labelInputRef,
+	onLabelChange,
+	onUpdateNodeData,
+}: NodeInspectorSectionProps) {
+	return (
+		<>
+			<PanelSection title="Label">
+				<Input
+					ref={labelInputRef}
+					value={node.data?.label ?? ""}
+					onChange={(e) => onLabelChange(node.id, e.target.value)}
+					onKeyDown={(e) => e.stopPropagation()}
+					className="h-8 text-sm font-mono rounded-none border-border/50 focus-visible:ring-primary focus-visible:ring-1 focus-visible:border-primary"
+				/>
+				<p className="text-[10px] text-muted-foreground/40">
+					Double-click node to rename inline
+				</p>
+			</PanelSection>
+
+			<PanelSection title="Fill Color">
+				<SwatchRow
+					colors={FILL_COLORS}
+					value={node.data?.fillColor}
+					onChange={(v) => onUpdateNodeData(node.id, { fillColor: v })}
+				/>
+			</PanelSection>
+
+			<PanelSection title="Border Color">
+				<SwatchRow
+					colors={BORDER_COLORS}
+					value={node.data?.accent}
+					onChange={(v) => onUpdateNodeData(node.id, { accent: v })}
+				/>
+			</PanelSection>
+
+			<PanelSection title="Font Size">
+				<ToggleGroup
+					options={[
+						{ value: "sm", label: "S" },
+						{ value: "md", label: "M" },
+						{ value: "lg", label: "L" },
+					]}
+					value={(node.data?.fontSize as "sm" | "md" | "lg") ?? "md"}
+					onChange={(v) => onUpdateNodeData(node.id, { fontSize: v })}
+				/>
+			</PanelSection>
+
+			<PanelSection title="Border Style">
+				<ToggleGroup
+					options={[
+						{ value: "solid", label: "Solid" },
+						{ value: "dashed", label: "Dashed" },
+					]}
+					value={(node.data?.borderStyle as "solid" | "dashed") ?? "solid"}
+					onChange={(v) => onUpdateNodeData(node.id, { borderStyle: v })}
+				/>
+			</PanelSection>
+
+			<PanelSection title="Type">
+				<p className="text-xs text-foreground/50 font-mono capitalize">{node.type}</p>
+			</PanelSection>
+		</>
+	);
+}
+
+type EdgeInspectorSectionProps = {
+	edge: Edge;
+	// biome-ignore lint/suspicious/noExplicitAny: edge data is schema-flexible
+	onUpdateEdgeProps: (id: string, patch: Partial<Edge & { data: any }>) => void;
+};
+
+function EdgeInspectorSection({ edge, onUpdateEdgeProps }: EdgeInspectorSectionProps) {
+	return (
+		<>
+			<PanelSection title="Label">
+				<Input
+					value={(edge.label as string) ?? ""}
+					onChange={(e) =>
+						// biome-ignore lint/suspicious/noExplicitAny: label is a valid edge patch
+						onUpdateEdgeProps(edge.id, { label: e.target.value } as any)
+					}
+					onKeyDown={(e) => e.stopPropagation()}
+					placeholder="Optional label…"
+					className="h-8 text-sm font-mono rounded-none border-border/50 focus-visible:ring-primary focus-visible:ring-1 focus-visible:border-primary"
+				/>
+				<p className="text-[10px] text-muted-foreground/40">
+					Double-click edge to edit inline
+				</p>
+			</PanelSection>
+
+			<PanelSection title="Style">
+				<ToggleGroup
+					options={[
+						{ value: "default", label: "Curved" },
+						{ value: "straight", label: "Straight" },
+						{ value: "step", label: "Step" },
+					]}
+					value={(edge.type as "default" | "straight" | "step") ?? "default"}
+					// biome-ignore lint/suspicious/noExplicitAny: type is a valid edge patch
+					onChange={(v) => onUpdateEdgeProps(edge.id, { type: v } as any)}
+				/>
+			</PanelSection>
+
+			<PanelSection title="Color">
+				<SwatchRow
+					colors={EDGE_COLORS}
+					value={edge.data?.color as string | undefined}
+					onChange={(v) =>
+						onUpdateEdgeProps(edge.id, { data: { ...edge.data, color: v } })
+					}
+				/>
+			</PanelSection>
+
+			<PanelSection title="Options">
+				<label className="flex items-center gap-2 cursor-pointer group">
+					<input
+						type="checkbox"
+						checked={Boolean(edge.data?.dashed)}
+						onChange={(e) =>
+							onUpdateEdgeProps(edge.id, {
+								data: { ...edge.data, dashed: e.target.checked },
+							})
+						}
+						className="accent-primary"
+					/>
+					<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+						Dashed line
+					</span>
+				</label>
+				<label className="flex items-center gap-2 cursor-pointer group mt-2">
+					<input
+						type="checkbox"
+						checked={edge.animated ?? false}
+						onChange={(e) =>
+							// biome-ignore lint/suspicious/noExplicitAny: animated is a valid edge patch
+							onUpdateEdgeProps(edge.id, { animated: e.target.checked } as any)
+						}
+						className="accent-primary"
+					/>
+					<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+						Animated
+					</span>
+				</label>
+			</PanelSection>
+		</>
+	);
+}
+
+type DefaultInspectorSectionProps = {
+	direction: string;
+	onDirectionChange: (dir: string) => void;
+	defEdgeType: "default" | "straight" | "step";
+	onDefEdgeTypeChange: (v: "default" | "straight" | "step") => void;
+	defEdgeColor: string;
+	onDefEdgeColorChange: (v: string) => void;
+	defEdgeDash: boolean;
+	onDefEdgeDashChange: (v: boolean) => void;
+	defEdgeAnim: boolean;
+	onDefEdgeAnimChange: (v: boolean) => void;
+};
+
+function DefaultInspectorSection({
+	direction,
+	onDirectionChange,
+	defEdgeType,
+	onDefEdgeTypeChange,
+	defEdgeColor,
+	onDefEdgeColorChange,
+	defEdgeDash,
+	onDefEdgeDashChange,
+	defEdgeAnim,
+	onDefEdgeAnimChange,
+}: DefaultInspectorSectionProps) {
+	return (
+		<>
+			<PanelSection title="Flow Direction">
+				<div className="grid grid-cols-2 gap-1.5">
+					{(["TD", "LR", "RL", "BT"] as const).map((dir) => (
+						<Button
+							key={dir}
+							variant={direction === dir ? "default" : "outline"}
+							size="sm"
+							onClick={() => onDirectionChange(dir)}
+							className={`rounded-none h-8 text-xs ${direction === dir ? "bg-primary text-primary-foreground border-primary" : "border-border/50"}`}
+						>
+							{dir === "TD"
+								? "↓ TD"
+								: dir === "LR"
+									? "→ LR"
+									: dir === "RL"
+										? "← RL"
+										: "↑ BT"}
+						</Button>
+					))}
+				</div>
+			</PanelSection>
+
+			<PanelSection title="Default Edge Style">
+				<ToggleGroup
+					options={[
+						{ value: "default", label: "Curved" },
+						{ value: "straight", label: "Straight" },
+						{ value: "step", label: "Step" },
+					]}
+					value={defEdgeType}
+					onChange={(v) => onDefEdgeTypeChange(v as "default" | "straight" | "step")}
+				/>
+			</PanelSection>
+
+			<PanelSection title="Default Edge Color">
+				<SwatchRow
+					colors={EDGE_COLORS}
+					value={defEdgeColor}
+					onChange={onDefEdgeColorChange}
+				/>
+			</PanelSection>
+
+			<PanelSection title="Default Edge Options">
+				<label className="flex items-center gap-2 cursor-pointer group">
+					<input
+						type="checkbox"
+						checked={defEdgeDash}
+						onChange={(e) => onDefEdgeDashChange(e.target.checked)}
+						className="accent-primary"
+					/>
+					<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+						Dashed
+					</span>
+				</label>
+				<label className="flex items-center gap-2 cursor-pointer group mt-2">
+					<input
+						type="checkbox"
+						checked={defEdgeAnim}
+						onChange={(e) => onDefEdgeAnimChange(e.target.checked)}
+						className="accent-primary"
+					/>
+					<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+						Animated
+					</span>
+				</label>
+			</PanelSection>
+
+			<div className="pt-2 border-t border-border/20">
+				<div className="text-[10px] text-muted-foreground/40 leading-relaxed space-y-0.5">
+					<p>Click a node or edge to edit its properties.</p>
+					<p className="mt-1">Double-click node → rename inline.</p>
+					<p>Double-click edge → add a label.</p>
+					<p>Drag handle → connect nodes.</p>
+				</div>
+			</div>
+		</>
+	);
+}
+
+type DiagramCanvasProps = {
+	reactFlowWrapper: React.RefObject<HTMLDivElement | null>;
+	nodes: DiagramNode[];
+	edges: Edge[];
+	onNodesChange: OnNodesChange<DiagramNode>;
+	onEdgesChange: OnEdgesChange<Edge>;
+	onConnect: (params: Connection | Edge) => void;
+	onInit: (instance: unknown) => void;
+	onDrop: (event: React.DragEvent) => void;
+	onDragOver: (event: React.DragEvent) => void;
+	onSelectionChange: (params: { nodes: DiagramNode[]; edges: Edge[] }) => void;
+	onEdgeDoubleClick: EdgeMouseHandler;
+	// biome-ignore lint/suspicious/noExplicitAny: default edge options mix xyflow prop shapes
+	defaultEdgeOptions: any;
+	edgeLabelEdit: { edge: Edge; x: number; y: number } | null;
+	onCommitEdgeLabel: (id: string, label: string) => void;
+	onCancelEdgeLabel: () => void;
+	showCode: boolean;
+	onToggleCode: () => void;
+	mermaidCode: string;
+	onCopy: () => void;
+};
+
+function DiagramCanvas({
+	reactFlowWrapper,
+	nodes,
+	edges,
+	onNodesChange,
+	onEdgesChange,
+	onConnect,
+	onInit,
+	onDrop,
+	onDragOver,
+	onSelectionChange,
+	onEdgeDoubleClick,
+	defaultEdgeOptions,
+	edgeLabelEdit,
+	onCommitEdgeLabel,
+	onCancelEdgeLabel,
+	showCode,
+	onToggleCode,
+	mermaidCode,
+	onCopy,
+}: DiagramCanvasProps) {
+	return (
+		<main className="flex-1 relative" ref={reactFlowWrapper}>
+			<ReactFlowProvider>
+				<ReactFlow
+					nodes={nodes}
+					edges={edges}
+					onNodesChange={onNodesChange}
+					onEdgesChange={onEdgesChange}
+					onConnect={onConnect}
+					onInit={onInit}
+					onDrop={onDrop}
+					onDragOver={onDragOver}
+					onSelectionChange={onSelectionChange}
+					onEdgeDoubleClick={onEdgeDoubleClick}
+					nodeTypes={nodeTypes}
+					defaultEdgeOptions={defaultEdgeOptions}
+					deleteKeyCode={["Delete", "Backspace"]}
+					fitView
+					className="bg-[#0a0a0a]"
+				>
+					<Background
+						variant={BackgroundVariant.Dots}
+						gap={24}
+						size={1}
+						color="#2a2a2a"
+					/>
+					<Controls className="bg-card border-border fill-foreground" />
+					{nodes.length === 0 && (
+						<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+							<div className="text-center text-muted-foreground/30">
+								<MousePointer2 className="w-8 h-8 mx-auto mb-3 opacity-40" />
+								<p className="text-sm">Click or drag a node from the left panel</p>
+							</div>
+						</div>
+					)}
+				</ReactFlow>
+			</ReactFlowProvider>
+
+			{edgeLabelEdit && (
+				<EdgeLabelEditor
+					edge={edgeLabelEdit.edge}
+					position={edgeLabelEdit}
+					onCommit={onCommitEdgeLabel}
+					onCancel={onCancelEdgeLabel}
+				/>
+			)}
+
+			<CodePanel
+				showCode={showCode}
+				onToggle={onToggleCode}
+				mermaidCode={mermaidCode}
+				onCopy={onCopy}
+			/>
+		</main>
+	);
+}
+
+type InspectorSidebarProps = {
+	selectedNode: DiagramNode | null;
+	selectedEdge: Edge | null;
+	labelInputRef: React.RefObject<HTMLInputElement | null>;
+	onLabelChange: (id: string, label: string) => void;
+	onUpdateNodeData: (id: string, patch: Partial<NodeData>) => void;
+	// biome-ignore lint/suspicious/noExplicitAny: edge data is schema-flexible
+	onUpdateEdgeProps: (id: string, patch: Partial<Edge & { data: any }>) => void;
+	direction: string;
+	onDirectionChange: (dir: string) => void;
+	defEdgeType: "default" | "straight" | "step";
+	onDefEdgeTypeChange: (v: "default" | "straight" | "step") => void;
+	defEdgeColor: string;
+	onDefEdgeColorChange: (v: string) => void;
+	defEdgeDash: boolean;
+	onDefEdgeDashChange: (v: boolean) => void;
+	defEdgeAnim: boolean;
+	onDefEdgeAnimChange: (v: boolean) => void;
+};
+
+function InspectorSidebar({
+	selectedNode,
+	selectedEdge,
+	labelInputRef,
+	onLabelChange,
+	onUpdateNodeData,
+	onUpdateEdgeProps,
+	direction,
+	onDirectionChange,
+	defEdgeType,
+	onDefEdgeTypeChange,
+	defEdgeColor,
+	onDefEdgeColorChange,
+	defEdgeDash,
+	onDefEdgeDashChange,
+	defEdgeAnim,
+	onDefEdgeAnimChange,
+}: InspectorSidebarProps) {
+	return (
+		<aside className="w-64 border-l bg-card flex flex-col shrink-0">
+			<div className="p-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/50 bg-[#121212]/50">
+				{selectedNode ? "Node" : selectedEdge ? "Edge" : "Canvas"}
+			</div>
+			<div className="flex-1 overflow-y-auto p-4 space-y-5">
+				{selectedNode && (
+					<NodeInspectorSection
+						node={selectedNode}
+						labelInputRef={labelInputRef}
+						onLabelChange={onLabelChange}
+						onUpdateNodeData={onUpdateNodeData}
+					/>
+				)}
+
+				{selectedEdge && (
+					<EdgeInspectorSection
+						edge={selectedEdge}
+						onUpdateEdgeProps={onUpdateEdgeProps}
+					/>
+				)}
+
+				{!selectedNode && !selectedEdge && (
+					<DefaultInspectorSection
+						direction={direction}
+						onDirectionChange={onDirectionChange}
+						defEdgeType={defEdgeType}
+						onDefEdgeTypeChange={onDefEdgeTypeChange}
+						defEdgeColor={defEdgeColor}
+						onDefEdgeColorChange={onDefEdgeColorChange}
+						defEdgeDash={defEdgeDash}
+						onDefEdgeDashChange={onDefEdgeDashChange}
+						defEdgeAnim={defEdgeAnim}
+						onDefEdgeAnimChange={onDefEdgeAnimChange}
+					/>
+				)}
+			</div>
+		</aside>
+	);
+}
+
 export interface DiagramState {
 	nodes: DiagramNode[];
 	edges: Edge[];
@@ -485,490 +1125,64 @@ export function DiagramBuilder({
 				transition={{ type: "spring", damping: 25, stiffness: 200 }}
 				className="fixed inset-0 z-50 flex flex-col bg-background text-foreground overflow-hidden"
 			>
-				<header className="flex items-center justify-between h-14 px-4 border-b bg-card shrink-0">
-					<div className="flex items-center gap-3">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onClose}
-							className="h-8 gap-2 text-muted-foreground hover:text-foreground"
-						>
-							<ArrowLeft className="w-4 h-4" />
-							Back
-						</Button>
-						<div className="h-4 w-px bg-border" />
-						<div className="flex items-center gap-1 text-xs text-muted-foreground/60">
-							<span className="font-medium text-foreground/80">Flowchart</span>
-							<span>·</span>
-							<span>
-								{nodes.length} nodes · {edges.length} edges
-							</span>
-						</div>
-					</div>
-					<div className="flex items-center gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setShowPreview(true)}
-							className="h-8 gap-2 border-border/50"
-						>
-							<Eye className="w-4 h-4" /> Preview
-						</Button>
-						<Button
-							size="sm"
-							onClick={() => onInsert({ nodes, edges, direction, code: mermaidCode })}
-							className="h-8 gap-2 font-medium"
-						>
-							<Check className="w-4 h-4" /> Insert Diagram
-						</Button>
-					</div>
-				</header>
+				<DiagramHeader
+					onClose={onClose}
+					nodeCount={nodes.length}
+					edgeCount={edges.length}
+					onPreview={() => setShowPreview(true)}
+					onInsert={() => onInsert({ nodes, edges, direction, code: mermaidCode })}
+				/>
 
 				<div className="flex flex-1 overflow-hidden">
-					<aside className="w-48 border-r bg-card flex flex-col shrink-0 overflow-y-auto">
-						{PALETTE.map(({ section, items }) => (
-							<div key={section}>
-								<div className="px-3 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider">
-									{section}
-								</div>
-								<div className="px-2 pb-2 space-y-1">
-									{items.map(({ type, label, icon, hint }) => (
-										<button
-											key={type}
-											type="button"
-											draggable
-											aria-label={`${hint} — drag or click to add`}
-											onDragStart={(e) => onDragStart(e, type, label)}
-											onClick={() => addAtCenter(type, label)}
-											className="group flex items-center gap-2.5 px-2.5 py-2 border border-border/30 cursor-pointer bg-background hover:border-primary/50 hover:bg-primary/5 transition-colors select-none"
-										>
-											<span className="shrink-0">{icon}</span>
-											<span className="text-xs flex-1">{label}</span>
-											<Plus
-												className="w-3 h-3 opacity-0 group-hover:opacity-30 transition-opacity text-muted-foreground shrink-0"
-												aria-hidden
-											/>
-										</button>
-									))}
-								</div>
-							</div>
-						))}
+					<NodePalette onAddAtCenter={addAtCenter} />
 
-						<div className="mt-auto p-3 border-t border-border/20">
-							<p className="text-[10px] text-muted-foreground/40 leading-relaxed space-y-0.5">
-								<span className="block">
-									<kbd className="font-mono bg-[#222] px-1 rounded text-[9px]">
-										Del
-									</kbd>{" "}
-									delete selected
-								</span>
-								<span className="block mt-0.5">
-									<kbd className="font-mono bg-[#222] px-1 rounded text-[9px]">
-										Dbl‑click
-									</kbd>{" "}
-									rename node
-								</span>
-								<span className="block mt-0.5">
-									<kbd className="font-mono bg-[#222] px-1 rounded text-[9px]">
-										Dbl‑click edge
-									</kbd>{" "}
-									label it
-								</span>
-							</p>
-						</div>
-					</aside>
+					<DiagramCanvas
+						reactFlowWrapper={reactFlowWrapper}
+						nodes={nodes}
+						edges={edges}
+						onNodesChange={onNodesChange}
+						onEdgesChange={onEdgesChange}
+						onConnect={onConnect}
+						onInit={setRfInstance}
+						onDrop={onDrop}
+						onDragOver={onDragOver}
+						onSelectionChange={onSelectionChange}
+						onEdgeDoubleClick={onEdgeDoubleClick}
+						defaultEdgeOptions={defaultEdgeOptions}
+						edgeLabelEdit={edgeLabelEdit}
+						onCommitEdgeLabel={commitEdgeLabel}
+						onCancelEdgeLabel={() => setEdgeLabelEdit(null)}
+						showCode={showCode}
+						onToggleCode={() => setShowCode(!showCode)}
+						mermaidCode={mermaidCode}
+						onCopy={handleCopy}
+					/>
 
-					<main className="flex-1 relative" ref={reactFlowWrapper}>
-						<ReactFlowProvider>
-							<ReactFlow
-								nodes={nodes}
-								edges={edges}
-								onNodesChange={onNodesChange}
-								onEdgesChange={onEdgesChange}
-								onConnect={onConnect}
-								onInit={setRfInstance}
-								onDrop={onDrop}
-								onDragOver={onDragOver}
-								onSelectionChange={onSelectionChange}
-								onEdgeDoubleClick={onEdgeDoubleClick}
-								nodeTypes={nodeTypes}
-								defaultEdgeOptions={defaultEdgeOptions}
-								deleteKeyCode={["Delete", "Backspace"]}
-								fitView
-								className="bg-[#0a0a0a]"
-							>
-								<Background
-									variant={BackgroundVariant.Dots}
-									gap={24}
-									size={1}
-									color="#2a2a2a"
-								/>
-								<Controls className="bg-card border-border fill-foreground" />
-								{nodes.length === 0 && (
-									<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-										<div className="text-center text-muted-foreground/30">
-											<MousePointer2 className="w-8 h-8 mx-auto mb-3 opacity-40" />
-											<p className="text-sm">
-												Click or drag a node from the left panel
-											</p>
-										</div>
-									</div>
-								)}
-							</ReactFlow>
-						</ReactFlowProvider>
-
-						{edgeLabelEdit && (
-							<EdgeLabelEditor
-								edge={edgeLabelEdit.edge}
-								position={edgeLabelEdit}
-								onCommit={commitEdgeLabel}
-								onCancel={() => setEdgeLabelEdit(null)}
-							/>
-						)}
-
-						<div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none">
-							<div className="pointer-events-auto">
-								<button
-									type="button"
-									className="mx-auto w-48 h-6 bg-card border border-b-0 rounded-t-lg flex items-center justify-center cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors"
-									onClick={() => setShowCode(!showCode)}
-								>
-									{showCode ? (
-										<ChevronDown className="w-3.5 h-3.5 mr-1" />
-									) : (
-										<ChevronUp className="w-3.5 h-3.5 mr-1" />
-									)}
-									Generated Mermaid
-								</button>
-								<AnimatePresence>
-									{showCode && (
-										<motion.div
-											layout
-											className="bg-card border-t overflow-hidden"
-										>
-											<div className="p-4 h-full flex flex-col">
-												<div className="flex items-center justify-between mb-2">
-													<span className="text-xs font-mono text-muted-foreground">
-														syntax
-													</span>
-													<Button
-														variant="ghost"
-														size="sm"
-														onClick={handleCopy}
-														className="h-6 text-xs gap-1"
-													>
-														<Copy className="w-3 h-3" /> Copy
-													</Button>
-												</div>
-												<pre className="flex-1 bg-[#0a0a0a] p-3 text-sm font-mono text-[#E8E8E8] overflow-auto border border-border/50">
-													{mermaidCode}
-												</pre>
-											</div>
-										</motion.div>
-									)}
-								</AnimatePresence>
-							</div>
-						</div>
-					</main>
-
-					<aside className="w-64 border-l bg-card flex flex-col shrink-0">
-						<div className="p-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/50 bg-[#121212]/50">
-							{selectedNode ? "Node" : selectedEdge ? "Edge" : "Canvas"}
-						</div>
-						<div className="flex-1 overflow-y-auto p-4 space-y-5">
-							{selectedNode && (
-								<>
-									<PanelSection title="Label">
-										<Input
-											ref={labelInputRef}
-											value={selectedNode.data?.label ?? ""}
-											onChange={(e) =>
-												onLabelChange(selectedNode.id, e.target.value)
-											}
-											onKeyDown={(e) => e.stopPropagation()}
-											className="h-8 text-sm font-mono rounded-none border-border/50 focus-visible:ring-primary focus-visible:ring-1 focus-visible:border-primary"
-										/>
-										<p className="text-[10px] text-muted-foreground/40">
-											Double-click node to rename inline
-										</p>
-									</PanelSection>
-
-									<PanelSection title="Fill Color">
-										<SwatchRow
-											colors={FILL_COLORS}
-											value={selectedNode.data?.fillColor}
-											onChange={(v) =>
-												updateNodeData(selectedNode.id, { fillColor: v })
-											}
-										/>
-									</PanelSection>
-
-									<PanelSection title="Border Color">
-										<SwatchRow
-											colors={BORDER_COLORS}
-											value={selectedNode.data?.accent}
-											onChange={(v) =>
-												updateNodeData(selectedNode.id, { accent: v })
-											}
-										/>
-									</PanelSection>
-
-									<PanelSection title="Font Size">
-										<ToggleGroup
-											options={[
-												{ value: "sm", label: "S" },
-												{ value: "md", label: "M" },
-												{ value: "lg", label: "L" },
-											]}
-											value={
-												(selectedNode.data?.fontSize as
-													| "sm"
-													| "md"
-													| "lg") ?? "md"
-											}
-											onChange={(v) =>
-												updateNodeData(selectedNode.id, { fontSize: v })
-											}
-										/>
-									</PanelSection>
-
-									<PanelSection title="Border Style">
-										<ToggleGroup
-											options={[
-												{ value: "solid", label: "Solid" },
-												{ value: "dashed", label: "Dashed" },
-											]}
-											value={
-												(selectedNode.data?.borderStyle as
-													| "solid"
-													| "dashed") ?? "solid"
-											}
-											onChange={(v) =>
-												updateNodeData(selectedNode.id, { borderStyle: v })
-											}
-										/>
-									</PanelSection>
-
-									<PanelSection title="Type">
-										<p className="text-xs text-foreground/50 font-mono capitalize">
-											{selectedNode.type}
-										</p>
-									</PanelSection>
-								</>
-							)}
-
-							{selectedEdge && (
-								<>
-									<PanelSection title="Label">
-										<Input
-											value={(selectedEdge.label as string) ?? ""}
-											onChange={(e) =>
-												// biome-ignore lint/suspicious/noExplicitAny: label is a valid edge patch
-												updateEdgeProps(selectedEdge.id, {
-													label: e.target.value,
-												} as any)
-											}
-											onKeyDown={(e) => e.stopPropagation()}
-											placeholder="Optional label…"
-											className="h-8 text-sm font-mono rounded-none border-border/50 focus-visible:ring-primary focus-visible:ring-1 focus-visible:border-primary"
-										/>
-										<p className="text-[10px] text-muted-foreground/40">
-											Double-click edge to edit inline
-										</p>
-									</PanelSection>
-
-									<PanelSection title="Style">
-										<ToggleGroup
-											options={[
-												{ value: "default", label: "Curved" },
-												{ value: "straight", label: "Straight" },
-												{ value: "step", label: "Step" },
-											]}
-											value={
-												(selectedEdge.type as
-													| "default"
-													| "straight"
-													| "step") ?? "default"
-											}
-											// biome-ignore lint/suspicious/noExplicitAny: type is a valid edge patch
-											onChange={(v) =>
-												updateEdgeProps(selectedEdge.id, { type: v } as any)
-											}
-										/>
-									</PanelSection>
-
-									<PanelSection title="Color">
-										<SwatchRow
-											colors={EDGE_COLORS}
-											value={selectedEdge.data?.color as string | undefined}
-											onChange={(v) =>
-												updateEdgeProps(selectedEdge.id, {
-													data: { ...selectedEdge.data, color: v },
-												})
-											}
-										/>
-									</PanelSection>
-
-									<PanelSection title="Options">
-										<label className="flex items-center gap-2 cursor-pointer group">
-											<input
-												type="checkbox"
-												checked={Boolean(selectedEdge.data?.dashed)}
-												onChange={(e) =>
-													updateEdgeProps(selectedEdge.id, {
-														data: {
-															...selectedEdge.data,
-															dashed: e.target.checked,
-														},
-													})
-												}
-												className="accent-primary"
-											/>
-											<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-												Dashed line
-											</span>
-										</label>
-										<label className="flex items-center gap-2 cursor-pointer group mt-2">
-											<input
-												type="checkbox"
-												checked={selectedEdge.animated ?? false}
-												onChange={(e) =>
-													// biome-ignore lint/suspicious/noExplicitAny: animated is a valid edge patch
-													updateEdgeProps(selectedEdge.id, {
-														animated: e.target.checked,
-													} as any)
-												}
-												className="accent-primary"
-											/>
-											<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-												Animated
-											</span>
-										</label>
-									</PanelSection>
-								</>
-							)}
-
-							{!selectedNode && !selectedEdge && (
-								<>
-									<PanelSection title="Flow Direction">
-										<div className="grid grid-cols-2 gap-1.5">
-											{(["TD", "LR", "RL", "BT"] as const).map((dir) => (
-												<Button
-													key={dir}
-													variant={
-														direction === dir ? "default" : "outline"
-													}
-													size="sm"
-													onClick={() => setDirection(dir)}
-													className={`rounded-none h-8 text-xs ${direction === dir ? "bg-primary text-primary-foreground border-primary" : "border-border/50"}`}
-												>
-													{dir === "TD"
-														? "↓ TD"
-														: dir === "LR"
-															? "→ LR"
-															: dir === "RL"
-																? "← RL"
-																: "↑ BT"}
-												</Button>
-											))}
-										</div>
-									</PanelSection>
-
-									<PanelSection title="Default Edge Style">
-										<ToggleGroup
-											options={[
-												{ value: "default", label: "Curved" },
-												{ value: "straight", label: "Straight" },
-												{ value: "step", label: "Step" },
-											]}
-											value={defEdgeType}
-											onChange={(v) =>
-												setDefEdgeType(v as "default" | "straight" | "step")
-											}
-										/>
-									</PanelSection>
-
-									<PanelSection title="Default Edge Color">
-										<SwatchRow
-											colors={EDGE_COLORS}
-											value={defEdgeColor}
-											onChange={setDefEdgeColor}
-										/>
-									</PanelSection>
-
-									<PanelSection title="Default Edge Options">
-										<label className="flex items-center gap-2 cursor-pointer group">
-											<input
-												type="checkbox"
-												checked={defEdgeDash}
-												onChange={(e) => setDefEdgeDash(e.target.checked)}
-												className="accent-primary"
-											/>
-											<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-												Dashed
-											</span>
-										</label>
-										<label className="flex items-center gap-2 cursor-pointer group mt-2">
-											<input
-												type="checkbox"
-												checked={defEdgeAnim}
-												onChange={(e) => setDefEdgeAnim(e.target.checked)}
-												className="accent-primary"
-											/>
-											<span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-												Animated
-											</span>
-										</label>
-									</PanelSection>
-
-									<div className="pt-2 border-t border-border/20">
-										<div className="text-[10px] text-muted-foreground/40 leading-relaxed space-y-0.5">
-											<p>Click a node or edge to edit its properties.</p>
-											<p className="mt-1">
-												Double-click node → rename inline.
-											</p>
-											<p>Double-click edge → add a label.</p>
-											<p>Drag handle → connect nodes.</p>
-										</div>
-									</div>
-								</>
-							)}
-						</div>
-					</aside>
+					<InspectorSidebar
+						selectedNode={selectedNode}
+						selectedEdge={selectedEdge}
+						labelInputRef={labelInputRef}
+						onLabelChange={onLabelChange}
+						onUpdateNodeData={updateNodeData}
+						onUpdateEdgeProps={updateEdgeProps}
+						direction={direction}
+						onDirectionChange={setDirection}
+						defEdgeType={defEdgeType}
+						onDefEdgeTypeChange={setDefEdgeType}
+						defEdgeColor={defEdgeColor}
+						onDefEdgeColorChange={setDefEdgeColor}
+						defEdgeDash={defEdgeDash}
+						onDefEdgeDashChange={setDefEdgeDash}
+						defEdgeAnim={defEdgeAnim}
+						onDefEdgeAnimChange={setDefEdgeAnim}
+					/>
 				</div>
 
-				<AnimatePresence>
-					{showPreview && (
-						<motion.div
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0 }}
-							className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-8"
-							onClick={() => setShowPreview(false)}
-						>
-							<div
-								className="bg-card border w-full max-w-4xl max-h-full flex flex-col shadow-2xl rounded-sm overflow-hidden"
-								onClick={(e) => e.stopPropagation()}
-							>
-								<div className="flex items-center justify-between p-4 border-b">
-									<h3 className="font-semibold flex items-center gap-2">
-										<Eye className="w-4 h-4 text-primary" /> Preview
-									</h3>
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={() => setShowPreview(false)}
-									>
-										Close
-									</Button>
-								</div>
-								<div className="flex-1 overflow-auto p-8 bg-background min-h-[400px] flex items-center justify-center">
-									<MermaidPreview chart={mermaidCode} />
-								</div>
-							</div>
-						</motion.div>
-					)}
-				</AnimatePresence>
+				<PreviewOverlay
+					show={showPreview}
+					mermaidCode={mermaidCode}
+					onClose={() => setShowPreview(false)}
+				/>
 			</motion.div>
 		</DiagramContext.Provider>
 	);

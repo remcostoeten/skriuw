@@ -4,12 +4,33 @@ import { useMemo } from "react";
 import { format, subDays, isAfter, startOfDay } from "date-fns";
 import { Calendar, Hash, Target, Zap, Heart, Download, FileText } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { type MoodLevel, type Mood, MOOD_OPTIONS } from "@/features/journal/types";
+import {
+	type MoodLevel,
+	type Mood,
+	type JournalEntry,
+	type JournalTag,
+	MOOD_OPTIONS,
+} from "@/features/journal/types";
 import { useJournalEntries } from "../hooks/use-journal-entries";
 import { useJournalTags } from "../hooks/use-journal-tags";
 
-type JournalStatsProps = {
+type Props = {
 	className?: string;
+};
+
+type JournalStatsData = {
+	totalEntries: number;
+	todayEntries: number;
+	yesterdayEntries: number;
+	lastWeekEntries: number;
+	lastMonthEntries: number;
+	currentStreak: number;
+	longestStreak: number;
+	moodCounts: Partial<Record<MoodLevel, number>>;
+	totalWords: number;
+	tagUsage: JournalTag[];
+	heatmap: { date: Date; dateKey: string; hasEntry: boolean }[];
+	mostCommonMood: Mood | null;
 };
 
 function getStreakColor(streak: number) {
@@ -39,11 +60,8 @@ function escapeHtml(value: string): string {
 	});
 }
 
-export function JournalStats({ className }: JournalStatsProps) {
-	const { data: entries = [] } = useJournalEntries();
-	const { data: tags = [] } = useJournalTags();
-
-	const stats = useMemo(() => {
+function useJournalStats(entries: JournalEntry[], tags: JournalTag[]): JournalStatsData {
+	return useMemo(() => {
 		const now = new Date();
 		const today = startOfDay(now);
 		const yesterday = startOfDay(subDays(now, 1));
@@ -146,8 +164,10 @@ export function JournalStats({ className }: JournalStatsProps) {
 			mostCommonMood,
 		};
 	}, [entries, tags]);
+}
 
-	const exportAsMarkdown = () => {
+function useJournalExports(entries: JournalEntry[], tags: JournalTag[], stats: JournalStatsData) {
+	function exportAsMarkdown() {
 		const sortedEntries = entries.toSorted((a, b) => b.dateKey.localeCompare(a.dateKey));
 		let markdown = "# Journal Export\n\n";
 		markdown += `Exported on ${format(new Date(), "MMMM d, yyyy")}\n\n`;
@@ -177,9 +197,9 @@ export function JournalStats({ className }: JournalStatsProps) {
 		a.download = `journal-export-${format(new Date(), "yyyy-MM-dd")}.md`;
 		a.click();
 		URL.revokeObjectURL(url);
-	};
+	}
 
-	const exportAsJSON = () => {
+	function exportAsJSON() {
 		const exportData = {
 			exportedAt: new Date().toISOString(),
 			entries: entries,
@@ -200,9 +220,9 @@ export function JournalStats({ className }: JournalStatsProps) {
 		a.download = `journal-export-${format(new Date(), "yyyy-MM-dd")}.json`;
 		a.click();
 		URL.revokeObjectURL(url);
-	};
+	}
 
-	const exportAsPDF = () => {
+	function exportAsPDF() {
 		// For PDF export, we'll create a simple HTML version and trigger print
 		const sortedEntries = entries.toSorted((a, b) => b.dateKey.localeCompare(a.dateKey));
 		const rootStyles = getComputedStyle(document.documentElement);
@@ -270,220 +290,267 @@ export function JournalStats({ className }: JournalStatsProps) {
 		} else {
 			URL.revokeObjectURL(url);
 		}
-	};
+	}
+
+	return { exportAsMarkdown, exportAsJSON, exportAsPDF };
+}
+
+function EntryStatsSection({ stats }: { stats: JournalStatsData }) {
+	return (
+		<div className="space-y-2.5">
+			<div className="flex items-center gap-1.5">
+				<Calendar className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+				<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+					Entries
+				</span>
+			</div>
+
+			<div className="grid grid-cols-2 gap-2">
+				<div className="border border-border bg-background p-2">
+					<p className="text-[18px] font-bold text-foreground">{stats.totalEntries}</p>
+					<p className="text-[9px] text-muted-foreground/60">Total</p>
+				</div>
+				<div className="border border-border bg-background p-2">
+					<p className="text-[18px] font-bold text-foreground">{stats.todayEntries}</p>
+					<p className="text-[9px] text-muted-foreground/60">Today</p>
+				</div>
+			</div>
+
+			<div className="space-y-1.5">
+				<div className="flex justify-between text-[10px]">
+					<span className="text-muted-foreground/60">Last 7 days</span>
+					<span className="font-medium text-foreground">{stats.lastWeekEntries}</span>
+				</div>
+				<div className="flex justify-between text-[10px]">
+					<span className="text-muted-foreground/60">Last 30 days</span>
+					<span className="font-medium text-foreground">{stats.lastMonthEntries}</span>
+				</div>
+				<div className="flex justify-between text-[10px]">
+					<span className="text-muted-foreground/60">Total words</span>
+					<span className="font-medium text-foreground">
+						{stats.totalWords.toLocaleString()}
+					</span>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function StreaksSection({ stats }: { stats: JournalStatsData }) {
+	return (
+		<div className="space-y-2.5">
+			<div className="flex items-center gap-1.5">
+				<Zap className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+				<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+					Streaks
+				</span>
+			</div>
+
+			<div className="space-y-1.5">
+				<div className="flex justify-between">
+					<span className="text-[10px] text-muted-foreground/60">Current</span>
+					<span
+						className={cn("text-[12px] font-bold", getStreakColor(stats.currentStreak))}
+					>
+						{stats.currentStreak} {stats.currentStreak === 1 ? "day" : "days"}
+					</span>
+				</div>
+				<div className="flex justify-between">
+					<span className="text-[10px] text-muted-foreground/60">Longest</span>
+					<span className="text-[12px] font-bold text-foreground">
+						{stats.longestStreak} {stats.longestStreak === 1 ? "day" : "days"}
+					</span>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function MoodSection({ stats }: { stats: JournalStatsData }) {
+	return (
+		<div className="space-y-2.5">
+			<div className="flex items-center gap-1.5">
+				<Heart className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+				<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+					Mood
+				</span>
+			</div>
+
+			{stats.mostCommonMood && (
+				<div className="border border-border bg-background p-2">
+					<p className="text-[10px] text-muted-foreground/60">Most common</p>
+					<p className="text-[12px] font-bold text-foreground mt-0.5">
+						{stats.mostCommonMood.icon} {stats.mostCommonMood.label}
+					</p>
+				</div>
+			)}
+
+			<div className="space-y-1">
+				{(Object.entries(stats.moodCounts) as [MoodLevel, number][]).map(
+					([mood, count]) => (
+						<div key={mood} className="flex items-center gap-1.5">
+							<span className={cn("text-[10px]", MOOD_OPTIONS[mood].color)}>
+								{MOOD_OPTIONS[mood].icon}
+							</span>
+							<span className="text-[10px] text-muted-foreground/60">
+								{MOOD_OPTIONS[mood].label}
+							</span>
+							<span className="ml-auto text-[10px] font-medium text-foreground">
+								{count}
+							</span>
+						</div>
+					),
+				)}
+			</div>
+		</div>
+	);
+}
+
+function TopTagsSection({ tagUsage }: { tagUsage: JournalTag[] }) {
+	if (tagUsage.length === 0) return null;
+
+	return (
+		<div className="space-y-2.5">
+			<div className="flex items-center gap-1.5">
+				<Hash className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+				<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+					Top Tags
+				</span>
+			</div>
+
+			<div className="space-y-1">
+				{tagUsage.map((tag) => (
+					<div key={tag.id} className="flex items-center gap-1.5">
+						<span
+							className="h-1.5 w-1.5 rounded-full"
+							style={{ backgroundColor: tag.color }}
+						/>
+						<span className="text-[10px] text-muted-foreground/60">@{tag.name}</span>
+						<span className="ml-auto text-[10px] font-medium text-foreground">
+							{tag.usageCount}
+						</span>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+function ActivityHeatmapSection({ heatmap }: { heatmap: JournalStatsData["heatmap"] }) {
+	return (
+		<div className="space-y-2.5">
+			<div className="flex items-center gap-1.5">
+				<Target className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+				<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+					Activity (30 days)
+				</span>
+			</div>
+
+			<div className="grid grid-cols-7 gap-0.5">
+				{heatmap.map((day) => (
+					<div
+						key={day.dateKey}
+						className={cn(
+							"aspect-square border",
+							day.hasEntry
+								? "border-status-planned bg-status-planned"
+								: "border-border bg-background",
+						)}
+						aria-label={`${format(day.date, "MMM d")}${day.hasEntry ? " - Entry" : " - No entry"}`}
+					/>
+				))}
+			</div>
+
+			<div className="flex items-center justify-between text-[8px] text-muted-foreground/40">
+				<span>30 days ago</span>
+				<span>Today</span>
+			</div>
+		</div>
+	);
+}
+
+function ExportSection({
+	onExportMarkdown,
+	onExportJSON,
+	onExportPDF,
+}: {
+	onExportMarkdown: () => void;
+	onExportJSON: () => void;
+	onExportPDF: () => void;
+}) {
+	return (
+		<div className="space-y-2.5">
+			<div className="flex items-center gap-1.5">
+				<Download className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+				<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+					Export
+				</span>
+			</div>
+
+			<div className="space-y-1.5">
+				<button
+					type="button"
+					onClick={onExportMarkdown}
+					className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
+				>
+					<FileText className="h-3 w-3" strokeWidth={1.5} />
+					Markdown
+				</button>
+
+				<button
+					type="button"
+					onClick={onExportJSON}
+					className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
+				>
+					<Download className="h-3 w-3" strokeWidth={1.5} />
+					JSON
+				</button>
+
+				<button
+					type="button"
+					onClick={onExportPDF}
+					className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
+				>
+					<FileText className="h-3 w-3" strokeWidth={1.5} />
+					Print / PDF
+				</button>
+			</div>
+
+			<p className="text-[8px] text-muted-foreground/40">Export for backup or sharing</p>
+		</div>
+	);
+}
+
+export function JournalStats({ className }: Props) {
+	const { data: entries = [] } = useJournalEntries();
+	const { data: tags = [] } = useJournalTags();
+
+	const stats = useJournalStats(entries, tags);
+	const { exportAsMarkdown, exportAsJSON, exportAsPDF } = useJournalExports(entries, tags, stats);
 
 	return (
 		<div className={cn("p-2 space-y-4", className)}>
 			{/* Entry Stats */}
-			<div className="space-y-2.5">
-				<div className="flex items-center gap-1.5">
-					<Calendar className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-					<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-						Entries
-					</span>
-				</div>
-
-				<div className="grid grid-cols-2 gap-2">
-					<div className="border border-border bg-background p-2">
-						<p className="text-[18px] font-bold text-foreground">
-							{stats.totalEntries}
-						</p>
-						<p className="text-[9px] text-muted-foreground/60">Total</p>
-					</div>
-					<div className="border border-border bg-background p-2">
-						<p className="text-[18px] font-bold text-foreground">
-							{stats.todayEntries}
-						</p>
-						<p className="text-[9px] text-muted-foreground/60">Today</p>
-					</div>
-				</div>
-
-				<div className="space-y-1.5">
-					<div className="flex justify-between text-[10px]">
-						<span className="text-muted-foreground/60">Last 7 days</span>
-						<span className="font-medium text-foreground">{stats.lastWeekEntries}</span>
-					</div>
-					<div className="flex justify-between text-[10px]">
-						<span className="text-muted-foreground/60">Last 30 days</span>
-						<span className="font-medium text-foreground">
-							{stats.lastMonthEntries}
-						</span>
-					</div>
-					<div className="flex justify-between text-[10px]">
-						<span className="text-muted-foreground/60">Total words</span>
-						<span className="font-medium text-foreground">
-							{stats.totalWords.toLocaleString()}
-						</span>
-					</div>
-				</div>
-			</div>
+			<EntryStatsSection stats={stats} />
 
 			{/* Streaks */}
-			<div className="space-y-2.5">
-				<div className="flex items-center gap-1.5">
-					<Zap className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-					<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-						Streaks
-					</span>
-				</div>
-
-				<div className="space-y-1.5">
-					<div className="flex justify-between">
-						<span className="text-[10px] text-muted-foreground/60">Current</span>
-						<span
-							className={cn(
-								"text-[12px] font-bold",
-								getStreakColor(stats.currentStreak),
-							)}
-						>
-							{stats.currentStreak} {stats.currentStreak === 1 ? "day" : "days"}
-						</span>
-					</div>
-					<div className="flex justify-between">
-						<span className="text-[10px] text-muted-foreground/60">Longest</span>
-						<span className="text-[12px] font-bold text-foreground">
-							{stats.longestStreak} {stats.longestStreak === 1 ? "day" : "days"}
-						</span>
-					</div>
-				</div>
-			</div>
+			<StreaksSection stats={stats} />
 
 			{/* Mood Analysis */}
-			<div className="space-y-2.5">
-				<div className="flex items-center gap-1.5">
-					<Heart className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-					<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-						Mood
-					</span>
-				</div>
-
-				{stats.mostCommonMood && (
-					<div className="border border-border bg-background p-2">
-						<p className="text-[10px] text-muted-foreground/60">Most common</p>
-						<p className="text-[12px] font-bold text-foreground mt-0.5">
-							{stats.mostCommonMood.icon} {stats.mostCommonMood.label}
-						</p>
-					</div>
-				)}
-
-				<div className="space-y-1">
-					{(Object.entries(stats.moodCounts) as [MoodLevel, number][]).map(
-						([mood, count]) => (
-							<div key={mood} className="flex items-center gap-1.5">
-								<span className={cn("text-[10px]", MOOD_OPTIONS[mood].color)}>
-									{MOOD_OPTIONS[mood].icon}
-								</span>
-								<span className="text-[10px] text-muted-foreground/60">
-									{MOOD_OPTIONS[mood].label}
-								</span>
-								<span className="ml-auto text-[10px] font-medium text-foreground">
-									{count}
-								</span>
-							</div>
-						),
-					)}
-				</div>
-			</div>
+			<MoodSection stats={stats} />
 
 			{/* Top Tags */}
-			{stats.tagUsage.length > 0 && (
-				<div className="space-y-2.5">
-					<div className="flex items-center gap-1.5">
-						<Hash className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-						<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-							Top Tags
-						</span>
-					</div>
-
-					<div className="space-y-1">
-						{stats.tagUsage.map((tag) => (
-							<div key={tag.id} className="flex items-center gap-1.5">
-								<span
-									className="h-1.5 w-1.5 rounded-full"
-									style={{ backgroundColor: tag.color }}
-								/>
-								<span className="text-[10px] text-muted-foreground/60">
-									@{tag.name}
-								</span>
-								<span className="ml-auto text-[10px] font-medium text-foreground">
-									{tag.usageCount}
-								</span>
-							</div>
-						))}
-					</div>
-				</div>
-			)}
+			<TopTagsSection tagUsage={stats.tagUsage} />
 
 			{/* Activity Heatmap */}
-			<div className="space-y-2.5">
-				<div className="flex items-center gap-1.5">
-					<Target className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-					<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-						Activity (30 days)
-					</span>
-				</div>
-
-				<div className="grid grid-cols-7 gap-0.5">
-					{stats.heatmap.map((day) => (
-						<div
-							key={day.dateKey}
-							className={cn(
-								"aspect-square border",
-								day.hasEntry
-									? "border-status-planned bg-status-planned"
-									: "border-border bg-background",
-							)}
-							aria-label={`${format(day.date, "MMM d")}${day.hasEntry ? " - Entry" : " - No entry"}`}
-						/>
-					))}
-				</div>
-
-				<div className="flex items-center justify-between text-[8px] text-muted-foreground/40">
-					<span>30 days ago</span>
-					<span>Today</span>
-				</div>
-			</div>
+			<ActivityHeatmapSection heatmap={stats.heatmap} />
 
 			{/* Export Options */}
-			<div className="space-y-2.5">
-				<div className="flex items-center gap-1.5">
-					<Download className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-					<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-						Export
-					</span>
-				</div>
-
-				<div className="space-y-1.5">
-					<button
-						type="button"
-						onClick={exportAsMarkdown}
-						className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
-					>
-						<FileText className="h-3 w-3" strokeWidth={1.5} />
-						Markdown
-					</button>
-
-					<button
-						type="button"
-						onClick={exportAsJSON}
-						className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
-					>
-						<Download className="h-3 w-3" strokeWidth={1.5} />
-						JSON
-					</button>
-
-					<button
-						type="button"
-						onClick={exportAsPDF}
-						className="flex w-full items-center gap-1.5 border border-border bg-background px-2 py-1.5 text-[10px] text-foreground transition-colors hover:bg-muted"
-					>
-						<FileText className="h-3 w-3" strokeWidth={1.5} />
-						Print / PDF
-					</button>
-				</div>
-
-				<p className="text-[8px] text-muted-foreground/40">Export for backup or sharing</p>
-			</div>
+			<ExportSection
+				onExportMarkdown={exportAsMarkdown}
+				onExportJSON={exportAsJSON}
+				onExportPDF={exportAsPDF}
+			/>
 		</div>
 	);
 }
