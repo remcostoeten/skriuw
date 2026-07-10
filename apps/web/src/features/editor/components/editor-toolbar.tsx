@@ -382,6 +382,7 @@ export const EditorToolbar = memo(function EditorToolbar({
 								<DropdownMenuTrigger asChild>
 									<button
 										type="button"
+										data-tour="ai"
 										disabled={anyAiLoading}
 										className={cn(
 											sidebarIconButtonClass,

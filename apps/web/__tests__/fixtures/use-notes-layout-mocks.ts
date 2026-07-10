@@ -379,13 +379,6 @@ export async function installNotesLayoutMocks(
 				appearance: { theme: "midnight", rememberLastNote: false },
 			}),
 	}));
-	mock.module("@/features/onboarding/store", () => ({
-		useOnboardingStore: Object.assign(
-			(selector: (state: { resetWelcome: () => void }) => unknown) =>
-				selector({ resetWelcome: () => undefined }),
-			{ getState: () => ({ resetWelcome: () => undefined }) },
-		),
-	}));
 	mock.module("@/features/notes/components/sidebar/store", () => ({
 		useSidebarStore: {
 			getState: () => ({ currentUserScopeId: null, syncUserScope: () => undefined }),

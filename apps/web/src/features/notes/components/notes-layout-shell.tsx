@@ -12,7 +12,7 @@ import { AuthDrawerHost } from "@/features/layout/components/auth-drawer-host";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
-import { useOnboardingStore } from "@/features/onboarding/store";
+import { useTourStore } from "@/features/onboarding/store";
 import type { WorkspaceNavItem } from "@/features/editor/components/editor-toolbar";
 import type { NoteVersion } from "@/types/notes";
 import { EditorPaneHost } from "./editor-pane-host";
@@ -30,10 +30,10 @@ const ShortcutHelpDialog = dynamic(
 	{ ssr: false, loading: () => null },
 );
 
-const WelcomeWalkthrough = dynamic(
+const ProductTour = dynamic(
 	() =>
-		import("@/features/onboarding/components/welcome-walkthrough").then((mod) => ({
-			default: mod.WelcomeWalkthrough,
+		import("@/features/onboarding/components/product-tour").then((mod) => ({
+			default: mod.ProductTour,
 		})),
 	{ ssr: false, loading: () => null },
 );
@@ -65,7 +65,7 @@ export function NotesLayoutShell({
 	const layout = useNotesLayout({ initialActiveFileId, initialUserScopeId });
 	const pathname = usePathname();
 	const forceLoading = useDevToolsStore((s) => s.forceLoading) && isDevEnv();
-	const showWelcome = useOnboardingStore((s) => s.hydrated && !s.hasSeenWelcome);
+	const showTour = useTourStore((s) => s.hydrated && (!s.hasSeenTour || s.activeStep !== null));
 	const {
 		metadataFiles,
 		splitSecondaryFileId,
@@ -229,7 +229,9 @@ export function NotesLayoutShell({
 	return (
 		<LazyMotion features={domAnimation}>
 			<LayoutContainer className="bg-background">
-				{showWelcome && <WelcomeWalkthrough />}
+				{showTour && !isMobile && (
+					<ProductTour onToggleShortcutHelp={setShowShortcutHelp} />
+				)}
 				<div className="relative flex min-h-0 flex-1 overflow-hidden">
 					{isMobile ? <AuthDrawerHost /> : <IconRail />}
 
@@ -284,6 +286,7 @@ export function NotesLayoutShell({
 								>
 									<div
 										ref={sidebarRef}
+										data-tour="sidebar"
 										className="relative h-full bg-sidebar"
 										style={{ width: sidebarWidth }}
 									>
@@ -313,7 +316,10 @@ export function NotesLayoutShell({
 						onPointerUpCapture={isMobile ? handleWorkspacePointerUp : undefined}
 						onPointerCancelCapture={isMobile ? clearWorkspaceSwipe : undefined}
 					>
-						<div className="relative flex min-w-0 flex-1 overflow-hidden">
+						<div
+							data-tour="editor"
+							className="relative flex min-w-0 flex-1 overflow-hidden"
+						>
 							<SplitDropZone
 								disabled={
 									isMobile || Boolean(sharingNoteId) || Boolean(viewingVersion)

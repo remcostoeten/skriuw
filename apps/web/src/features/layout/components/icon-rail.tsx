@@ -301,6 +301,7 @@ function IconRailImpl() {
 			{/* The aside must NOT be inside AuthProvider — fixed positioning breaks
 			    if any ancestor creates a new containing block (transform, filter, etc.) */}
 			<aside
+				data-tour="nav"
 				data-tauri-drag-region
 				className="fixed inset-y-0 left-0 z-30 hidden w-14 flex-col
       items-center justify-between border-r border-sidebar-border bg-sidebar md:flex"
