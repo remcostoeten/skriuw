@@ -6,8 +6,8 @@
 # .github/workflows/publish-linux-repos.yml whenever a desktop release is
 # published — do not bump them by hand.
 cask "skriuw" do
-  version "0.16.0"
-  sha256 "60f6045db91e090b66c7d5ec16c3e25f74e31b7a037d465b6d50cd4f488db525"
+  version "0.19.0"
+  sha256 "65b437374ae5b0a850211308b96ea7ce2ebc72e1488b9311f6ef8fa14658a9ea"
 
   url "https://github.com/remcostoeten/skriuw/releases/download/desktop-v#{version}/Skriuw_#{version}_universal.dmg"
   name "Skriuw"
