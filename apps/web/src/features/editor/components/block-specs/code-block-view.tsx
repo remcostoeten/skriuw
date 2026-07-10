@@ -1,7 +1,19 @@
 /* eslint-disable react-doctor/only-export-components, react-doctor/interactive-supports-focus, react-doctor/prefer-tag-over-role */
 /* eslint-disable */
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, FileCode } from "lucide-react";
+import type { CSSProperties } from "react";
+import {
+	Braces,
+	Check,
+	Copy,
+	Database,
+	FileCode,
+	FileJson,
+	FileText,
+	Hash,
+	Palette,
+	Terminal,
+} from "lucide-react";
 import { noop } from "@/shared/lib/noop";
 import { highlight } from "./highlighter";
 
@@ -19,6 +31,44 @@ export const LANGUAGES = [
 	{ label: "SQL", value: "sql" },
 	{ label: "Plain text", value: "text" },
 ] as const;
+
+const LANGUAGE_ICON = {
+	typescript: FileCode,
+	tsx: FileCode,
+	javascript: Braces,
+	jsx: Braces,
+	json: FileJson,
+	bash: Terminal,
+	python: FileCode,
+	html: FileCode,
+	css: Palette,
+	markdown: Hash,
+	sql: Database,
+	text: FileText,
+} as const satisfies Record<(typeof LANGUAGES)[number]["value"], typeof FileCode>;
+
+const LANGUAGE_COLOR = {
+	typescript: "#3178c6",
+	tsx: "#3178c6",
+	javascript: "#f0db4f",
+	jsx: "#f0db4f",
+	json: "#8bc34a",
+	bash: "#8fd0e0",
+	python: "#4b8bbe",
+	html: "#e34c26",
+	css: "#2965f1",
+	markdown: "#a8a8a8",
+	sql: "#e38dae",
+	text: "#a8a8a8",
+} as const satisfies Record<(typeof LANGUAGES)[number]["value"], string>;
+
+function getLanguageIcon(language: string) {
+	return (LANGUAGE_ICON as Record<string, typeof FileCode>)[language] ?? FileCode;
+}
+
+function getLanguageColor(language: string) {
+	return (LANGUAGE_COLOR as Record<string, string>)[language] ?? "#e3794a";
+}
 
 export const LANGUAGE_VALUES = LANGUAGES.map((l) => l.value) as unknown as readonly [
 	string,
@@ -89,12 +139,19 @@ export function CodeBlockView({
 		}
 	}
 
+	const LanguageIcon = getLanguageIcon(block.props.language);
+	const languageColor = getLanguageColor(block.props.language);
+
 	return (
-		<div className="pro-code-block" data-language={block.props.language}>
+		<div
+			className="pro-code-block"
+			data-language={block.props.language}
+			style={{ "--pcb-lang-color": languageColor } as CSSProperties}
+		>
 			<div className="pro-code-head" contentEditable={false}>
 				<span className="pro-code-head-start">
 					<span className="pro-code-chip">
-						<FileCode className="pro-code-chip-icon" size={14} aria-hidden="true" />
+						<LanguageIcon className="pro-code-chip-icon" size={14} aria-hidden="true" />
 						<select
 							className="pro-code-lang"
 							value={block.props.language}

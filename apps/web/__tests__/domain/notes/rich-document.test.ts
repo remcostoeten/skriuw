@@ -203,7 +203,27 @@ describe("markdownToRichDocument", () => {
 
 	test("falls back to an empty paragraph for blank input", () => {
 		const blocks = markdownToRichDocument("");
-		expect(blocks).toEqual([{ type: "paragraph", content: "" }]);
+		expect(blocks).toHaveLength(1);
+		expect(blocks[0]).toMatchObject({ type: "paragraph", content: "" });
+	});
+
+	test("assigns a unique id to every parsed block", () => {
+		const markdown = ["# Heading", "", "A paragraph.", "", "- a bullet"].join("\n");
+		const blocks = markdownToRichDocument(markdown);
+		expect(blocks.length).toBeGreaterThan(0);
+		for (const block of blocks) {
+			expect(typeof block.id).toBe("string");
+			expect(block.id).toBeTruthy();
+		}
+		const ids = blocks.map((block) => block.id);
+		expect(new Set(ids).size).toBe(ids.length);
+	});
+
+	test("is deterministic: same markdown yields byte-identical richContent", () => {
+		const markdown = ["# Heading", "", "A paragraph.", "", "- [ ] a task"].join("\n");
+		expect(JSON.stringify(markdownToRichDocument(markdown))).toBe(
+			JSON.stringify(markdownToRichDocument(markdown)),
+		);
 	});
 
 	test("parses a mermaid fence into a diagram block", () => {

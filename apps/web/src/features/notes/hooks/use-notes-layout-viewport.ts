@@ -97,7 +97,6 @@ export function useNotesLayoutViewport({
 			});
 		};
 
-		syncViewport();
 		mediaQuery.addEventListener("change", syncViewport);
 
 		return () => mediaQuery.removeEventListener("change", syncViewport);

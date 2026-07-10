@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import { CheckCircle, CircleAlert, Clock, HardDrive, LoaderCircle } from "lucide-react";
 import { DeleteButton } from "@/shared/ui/delete-button";
 import { cn } from "@/shared/lib/utils";
@@ -9,6 +9,53 @@ import { settingsFocusDomId } from "@/features/settings/lib/settings-focus-ancho
 import type { StorageProviderId, UserStorageConfigSummary } from "@/domain/storage/types";
 
 type LoadState = "idle" | "loading" | "error";
+
+type ConfigState = {
+	config: UserStorageConfigSummary | null;
+	loadState: LoadState;
+	error: string | null;
+	saving: boolean;
+};
+
+type ConfigAction =
+	| { type: "LOAD_START" }
+	| { type: "LOAD_SUCCESS"; config: UserStorageConfigSummary | null }
+	| { type: "LOAD_ERROR"; error: string }
+	| { type: "SAVE_START" }
+	| { type: "SAVE_SUCCESS"; config: UserStorageConfigSummary }
+	| { type: "SAVE_ERROR"; error: string }
+	| { type: "REMOVE" }
+	| { type: "CLEAR_ERROR" };
+
+function configReducer(state: ConfigState, action: ConfigAction): ConfigState {
+	switch (action.type) {
+		case "LOAD_START":
+			return { ...state, loadState: "loading", error: null };
+		case "LOAD_SUCCESS":
+			return { ...state, config: action.config, loadState: "idle" };
+		case "LOAD_ERROR":
+			return { ...state, loadState: "error", error: action.error };
+		case "SAVE_START":
+			return { ...state, saving: true, error: null };
+		case "SAVE_SUCCESS":
+			return { ...state, config: action.config, saving: false };
+		case "SAVE_ERROR":
+			return { ...state, error: action.error, saving: false };
+		case "REMOVE":
+			return { ...state, config: null };
+		case "CLEAR_ERROR":
+			return { ...state, error: null };
+		default:
+			return state;
+	}
+}
+
+const CONFIG_INITIAL: ConfigState = {
+	config: null,
+	loadState: "idle",
+	error: null,
+	saving: false,
+};
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 	dateStyle: "medium",
@@ -38,10 +85,10 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export function StorageConfigManager({ isSignedIn }: { isSignedIn: boolean }) {
-	const [config, setConfig] = useState<UserStorageConfigSummary | null>(null);
-	const [state, setState] = useState<LoadState>("idle");
-	const [error, setError] = useState<string | null>(null);
-	const [saving, setSaving] = useState(false);
+	const [{ config, loadState, error, saving }, dispatch] = useReducer(
+		configReducer,
+		CONFIG_INITIAL,
+	);
 	const [provider, setProvider] = useState<StorageProviderId>("vercel-blob");
 
 	const [token, setToken] = useState("");
@@ -52,29 +99,28 @@ export function StorageConfigManager({ isSignedIn }: { isSignedIn: boolean }) {
 	const [endpoint, setEndpoint] = useState("");
 	const [publicBaseUrl, setPublicBaseUrl] = useState("");
 
-	async function loadConfig() {
+	const loadConfig = useCallback(async () => {
 		if (!isSignedIn) return;
-		setState("loading");
-		setError(null);
+		dispatch({ type: "LOAD_START" });
 		try {
 			const res = await fetch("/api/storage/config");
 			if (!res.ok) throw new Error("Could not load storage config.");
 			const data = (await res.json()) as { config: UserStorageConfigSummary | null };
-			setConfig(data.config);
-			setState("idle");
+			dispatch({ type: "LOAD_SUCCESS", config: data.config });
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Could not load storage config.");
-			setState("error");
+			dispatch({
+				type: "LOAD_ERROR",
+				error: err instanceof Error ? err.message : "Could not load storage config.",
+			});
 		}
-	}
+	}, [isSignedIn]);
 
 	useEffect(() => {
 		void loadConfig();
-	}, [isSignedIn]);
+	}, [loadConfig]);
 
 	async function saveConfig() {
-		setSaving(true);
-		setError(null);
+		dispatch({ type: "SAVE_START" });
 		try {
 			const body =
 				provider === "vercel-blob"
@@ -99,7 +145,7 @@ export function StorageConfigManager({ isSignedIn }: { isSignedIn: boolean }) {
 			};
 			if (!res.ok || !data.config)
 				throw new Error(data.error ?? "Could not save storage config.");
-			setConfig(data.config);
+			dispatch({ type: "SAVE_SUCCESS", config: data.config });
 			setToken("");
 			setRegion("");
 			setBucket("");
@@ -108,24 +154,28 @@ export function StorageConfigManager({ isSignedIn }: { isSignedIn: boolean }) {
 			setEndpoint("");
 			setPublicBaseUrl("");
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Could not save storage config.");
-		} finally {
-			setSaving(false);
+			dispatch({
+				type: "SAVE_ERROR",
+				error: err instanceof Error ? err.message : "Could not save storage config.",
+			});
 		}
 	}
 
 	async function removeConfig(): Promise<boolean> {
-		setError(null);
+		dispatch({ type: "CLEAR_ERROR" });
 		try {
 			const res = await fetch("/api/storage/config", { method: "DELETE" });
 			if (!res.ok) {
-				setError("Could not remove storage config.");
+				dispatch({ type: "SAVE_ERROR", error: "Could not remove storage config." });
 				return false;
 			}
-			setConfig(null);
+			dispatch({ type: "REMOVE" });
 			return true;
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Could not remove storage config.");
+			dispatch({
+				type: "SAVE_ERROR",
+				error: err instanceof Error ? err.message : "Could not remove storage config.",
+			});
 			return false;
 		}
 	}
@@ -160,7 +210,7 @@ export function StorageConfigManager({ isSignedIn }: { isSignedIn: boolean }) {
 
 			<div className="my-4 border-t border-border/50" />
 
-			{state === "loading" && !config ? (
+			{loadState === "loading" && !config ? (
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
 					<LoaderCircle className="h-4 w-4 animate-spin" />
 					Loading

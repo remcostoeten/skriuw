@@ -13,6 +13,8 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
 	timeStyle: "short",
 });
 
+const NUMBER_FORMATTER = new Intl.NumberFormat();
+
 function formatDate(value: string | null) {
 	if (!value) return "Never";
 	return DATE_FORMATTER.format(new Date(value));
@@ -99,9 +101,24 @@ function UsageRow({ row }: { row: AiUsageLogRow }) {
 					) : null}
 					{ok && (row.inputTokens != null || row.outputTokens != null) ? (
 						<div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-							<span>In {row.inputTokens?.toLocaleString() ?? "—"}</span>
-							<span>Out {row.outputTokens?.toLocaleString() ?? "—"}</span>
-							<span>Total {row.totalTokens?.toLocaleString() ?? "—"}</span>
+							<span>
+								In{" "}
+								{row.inputTokens != null
+									? NUMBER_FORMATTER.format(row.inputTokens)
+									: "—"}
+							</span>
+							<span>
+								Out{" "}
+								{row.outputTokens != null
+									? NUMBER_FORMATTER.format(row.outputTokens)
+									: "—"}
+							</span>
+							<span>
+								Total{" "}
+								{row.totalTokens != null
+									? NUMBER_FORMATTER.format(row.totalTokens)
+									: "—"}
+							</span>
 						</div>
 					) : null}
 				</div>

@@ -314,5 +314,5 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 		}
 
 		return { schedule, flush, flushAll, discardPending, getDirtyNoteIds };
-	}, [filesKey, queryClient]);
+	}, [filesKey, queryClient, notesKeys]);
 }

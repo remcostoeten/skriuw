@@ -35,7 +35,7 @@ export interface DiagramEditor {
 	) => void;
 }
 
-export function getDiagramSource(block: DiagramBlockData): string {
+function getDiagramSource(block: DiagramBlockData): string {
 	const source = block.props.source?.trim();
 	return source ? normalizeDiagramSource(source) : DEFAULT_DIAGRAM_SOURCE;
 }
@@ -83,10 +83,6 @@ export function DiagramBlockView({
 		}
 		textareaRef.current?.focus();
 	}, [editing]);
-
-	useEffect(() => {
-		setDraftSource(source);
-	}, [source]);
 
 	function saveDraft() {
 		const nextSource = normalizeDiagramSource(draftSource);
@@ -183,7 +179,10 @@ export function DiagramBlockView({
 								className={HEADER_ICON_BUTTON}
 								aria-label="Edit diagram source"
 								onMouseDown={(event) => event.preventDefault()}
-								onClick={() => setEditing(true)}
+								onClick={() => {
+									setDraftSource(source);
+									setEditing(true);
+								}}
 							>
 								<Code className="h-3.5 w-3.5" strokeWidth={1.8} />
 							</button>

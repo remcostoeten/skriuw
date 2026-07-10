@@ -188,12 +188,14 @@ export async function syncNoteLinks(
 		ids.push(row.id);
 		updatedIdsByTarget.set(target, ids);
 	}
-	for (const [targetNoteId, ids] of updatedIdsByTarget) {
-		await db.noteLink.updateMany({
-			where: { id: { in: ids }, userId, sourceNoteId: note.id },
-			data: { targetNoteId },
-		});
-	}
+	await Promise.all(
+		Array.from(updatedIdsByTarget, ([targetNoteId, ids]) =>
+			db.noteLink.updateMany({
+				where: { id: { in: ids }, userId, sourceNoteId: note.id },
+				data: { targetNoteId },
+			}),
+		),
+	);
 
 	if (diff.created.length > 0) {
 		await db.noteLink.createMany({ data: diff.created, skipDuplicates: true });

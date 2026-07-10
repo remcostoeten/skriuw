@@ -217,13 +217,16 @@ export function useRegisterCommands(handlers: CommandHandlers) {
 	const latestHandlers = useRef(handlers);
 	latestHandlers.current = handlers;
 
+	const handlerKeys = useMemo(() => Object.keys(handlers).sort().join(","), [handlers]);
+
 	useEffect(() => {
 		const wrappedHandlers: CommandHandlers = {};
-		for (const key of Object.keys(handlers)) {
+		for (const key of handlerKeys.split(",")) {
+			if (!key) continue;
 			wrappedHandlers[key] = () => latestHandlers.current[key]?.();
 		}
 		return registerHandlers(wrappedHandlers);
-	}, [registerHandlers, ...Object.keys(handlers)]);
+	}, [registerHandlers, handlerKeys]);
 }
 
 export function useRegisterCommandItemsProvider(provider: CommandItemsProvider) {

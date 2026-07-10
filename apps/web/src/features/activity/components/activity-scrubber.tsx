@@ -48,9 +48,11 @@ export function ActivityScrubber({ scrollRef, scrollRegionId, revision }: Props)
 	const metricsRef = useRef<Metrics>(EMPTY_METRICS);
 	const draggingRef = useRef(false);
 	const [progress, setProgress] = useState(0);
-	const [viewFraction, setViewFraction] = useState(1);
-	const [maxScroll, setMaxScroll] = useState(0);
-	const [buckets, setBuckets] = useState<Metrics["buckets"]>([]);
+	const [layout, setLayout] = useState<{
+		viewFraction: number;
+		maxScroll: number;
+		buckets: Metrics["buckets"];
+	}>({ viewFraction: 1, maxScroll: 0, buckets: [] });
 	const [readout, setReadout] = useState<{ y: number; label: string } | null>(null);
 
 	const measure = useCallback(() => {
@@ -74,9 +76,11 @@ export function ActivityScrubber({ scrollRef, scrollRegionId, revision }: Props)
 		});
 
 		metricsRef.current = { max, entries, buckets: nextBuckets };
-		setBuckets(nextBuckets);
-		setMaxScroll(max);
-		setViewFraction(scrollHeight > 0 ? clamp01(clientHeight / scrollHeight) : 1);
+		setLayout({
+			buckets: nextBuckets,
+			maxScroll: max,
+			viewFraction: scrollHeight > 0 ? clamp01(clientHeight / scrollHeight) : 1,
+		});
 	}, [scrollRef]);
 
 	const syncProgress = useCallback(() => {
@@ -151,7 +155,7 @@ export function ActivityScrubber({ scrollRef, scrollRegionId, revision }: Props)
 		if (max <= MIN_SCROLLABLE_PX) return;
 
 		const current = clamp01(el.scrollTop / max);
-		const pageStep = Math.max(viewFraction * 0.9, 0.1);
+		const pageStep = Math.max(layout.viewFraction * 0.9, 0.1);
 		const fineStep = 0.05;
 		let next = current;
 
@@ -190,9 +194,9 @@ export function ActivityScrubber({ scrollRef, scrollRegionId, revision }: Props)
 		});
 	};
 
-	if (maxScroll <= MIN_SCROLLABLE_PX) return null;
+	if (layout.maxScroll <= MIN_SCROLLABLE_PX) return null;
 
-	const thumbHeight = Math.max(viewFraction, 0.06);
+	const thumbHeight = Math.max(layout.viewFraction, 0.06);
 	const thumbTop = progress * (1 - thumbHeight);
 
 	return (
@@ -217,7 +221,7 @@ export function ActivityScrubber({ scrollRef, scrollRegionId, revision }: Props)
 				ref={trackRef}
 				className="relative h-full w-1 rounded-full bg-border/70 transition-colors group-hover:bg-border"
 			>
-				{buckets.map((bucket) => (
+				{layout.buckets.map((bucket) => (
 					<span
 						key={bucket.id}
 						className="absolute -left-0.5 h-px w-2 -translate-y-1/2 rounded-full bg-muted-foreground/40"

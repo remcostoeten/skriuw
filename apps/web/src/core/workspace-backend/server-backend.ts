@@ -36,7 +36,12 @@ import {
 	updatePerson,
 } from "@/domain/people/actions";
 import { deleteTag, listTagNotes, listTags, renameTag, setTagColor } from "@/domain/tags/actions";
-import { uploadNoteCoverImage } from "@/domain/notes/note-cover-upload";
+import {
+	deleteNoteCoverImage,
+	listNoteCoverImages,
+	listNoteCoverImagesDetailed,
+	uploadNoteCoverImage,
+} from "@/domain/notes/note-cover-upload";
 import { searchNotes } from "@/features/notes/server/search-notes";
 import type { WorkspaceBackend } from "./types";
 
@@ -60,6 +65,9 @@ export const serverBackend: WorkspaceBackend = {
 		formData.set("file", file);
 		return uploadNoteCoverImage(formData);
 	},
+	listCoverImages: listNoteCoverImages,
+	listCoverImagesDetailed: listNoteCoverImagesDetailed,
+	deleteCoverImage: deleteNoteCoverImage,
 
 	createNote,
 	updateNote,

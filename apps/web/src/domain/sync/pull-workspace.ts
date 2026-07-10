@@ -176,14 +176,16 @@ async function importArchiveToBackend(
 	// path (none pull today, but this keeps the function backend-agnostic).
 	// Parents are sorted before children, so each parentId is already mirrored
 	// by the time its children are written.
-	for (const folder of folders) {
-		await backend.createFolder({
-			id: folder.id,
-			name: folder.name,
-			parentId: folder.parentId,
-			sortOrder: folder.sortOrder,
-		});
-	}
+	await Promise.all(
+		folders.map((folder) =>
+			backend.createFolder({
+				id: folder.id,
+				name: folder.name,
+				parentId: folder.parentId,
+				sortOrder: folder.sortOrder,
+			}),
+		),
+	);
 	await Promise.all(notes.map((note) => backend.createNote(note)));
 	await Promise.all(journalEntries.map((entry) => backend.createJournalEntry(entry)));
 
@@ -194,7 +196,7 @@ async function importArchiveToBackend(
 	const createdTags = tagsToCreate.length;
 
 	await Promise.all(deletedIds.notes.map((id) => backend.deleteNote(id)));
-	for (const id of deletedIds.folders) await backend.deleteFolder(id);
+	await Promise.all(deletedIds.folders.map((id) => backend.deleteFolder(id)));
 	await Promise.all(deletedIds.journalEntries.map((id) => backend.deleteJournalEntry(id)));
 	if (deletedIds.journalTagNames.length > 0) {
 		const tagIdByName = new Map(existing.map((tag) => [tag.name, tag.id]));

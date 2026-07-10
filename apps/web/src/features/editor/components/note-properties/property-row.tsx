@@ -17,7 +17,7 @@ import {
 	type NotePropertyTemplate,
 	type NotePropertyType,
 } from "@/domain/notes/properties";
-import { TYPE_ICON } from "./primitives";
+import { TYPE_ICON } from "./type-icon";
 import { ValueEditor } from "./value-editor";
 import { NotePropertiesPopover } from "./popover";
 import { submitPropertyField } from "./keyboard";

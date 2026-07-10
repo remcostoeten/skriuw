@@ -54,7 +54,7 @@
 
 .pro-code-chip-icon {
 	flex: none;
-	color: #e3794a;
+	color: var(--pcb-lang-color, #e3794a);
 	opacity: 0.9;
 }
 
@@ -71,7 +71,7 @@
 	border: none;
 	outline: none;
 	cursor: pointer;
-	color: #e3794a;
+	color: var(--pcb-lang-color, #e3794a);
 	background-color: transparent;
 	font-family: inherit;
 	font-size: inherit;
@@ -117,6 +117,10 @@
 	background: hsl(var(--pcb-accent));
 }
 
+.pro-code-copy:active {
+	transform: scale(0.94);
+}
+
 .pro-code-copy:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 2px hsl(var(--pcb-ring));
@@ -124,11 +128,24 @@
 
 .pro-code-copy[data-copied="true"] {
 	color: hsl(var(--pcb-fg));
+	animation: pcb-copy-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .pro-code-copy {
 	position: relative;
 	overflow: hidden;
+}
+
+@keyframes pcb-copy-pop {
+	0% {
+		transform: scale(1);
+	}
+	35% {
+		transform: scale(1.22);
+	}
+	100% {
+		transform: scale(1);
+	}
 }
 
 .pro-code-copy-icon {
@@ -251,8 +268,13 @@
 .pro-code-title:empty::before {
 	content: attr(data-placeholder);
 	color: hsl(var(--pcb-muted-fg));
-	opacity: 0.4;
+	opacity: 0;
+	transition: opacity 120ms ease;
 	pointer-events: none;
+}
+
+.pro-code-head:hover .pro-code-title:empty::before {
+	opacity: 0.4;
 }
 
 .pro-code-title:focus {
@@ -267,7 +289,12 @@
 @media (prefers-reduced-motion: reduce) {
 	.pro-code-lang,
 	.pro-code-copy,
-	.pro-code-copy-icon {
+	.pro-code-copy-icon,
+	.pro-code-title:empty::before {
 		transition: none;
+	}
+
+	.pro-code-copy[data-copied="true"] {
+		animation: none;
 	}
 }

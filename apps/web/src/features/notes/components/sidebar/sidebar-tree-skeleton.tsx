@@ -179,7 +179,7 @@ const FILE_TREE_ROWS: Array<{
 	{ id: "row-8", depth: 0, kind: "file", labelWidth: 61 },
 ];
 
-export function SidebarTreeSkeleton({
+function SidebarTreeSkeleton({
 	rowCount = 8,
 	className,
 }: {

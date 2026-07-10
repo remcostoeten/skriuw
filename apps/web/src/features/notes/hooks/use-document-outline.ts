@@ -142,12 +142,10 @@ export function useDocumentOutline({ noteId, mode, content }: Params): {
 	}, [noteId, mode]);
 
 	const headings = mode === "block" ? domHeadings : markdownHeadings;
+	const isInactive = !noteId || mode !== "block" || headings.length === 0;
 
 	useEffect(() => {
-		if (!noteId || mode !== "block" || headings.length === 0) {
-			setActiveKey(null);
-			return;
-		}
+		if (isInactive) return;
 
 		let frame = 0;
 
@@ -182,7 +180,7 @@ export function useDocumentOutline({ noteId, mode, content }: Params): {
 			document.removeEventListener("scroll", schedule, { capture: true });
 			window.removeEventListener("resize", schedule);
 		};
-	}, [noteId, mode, headings]);
+	}, [noteId, mode, headings, isInactive]);
 
 	const scrollToHeading = useCallback((heading: TOutlineHeading) => {
 		const root = getEditorRoot();
@@ -192,5 +190,5 @@ export function useDocumentOutline({ noteId, mode, content }: Params): {
 		setActiveKey(heading.key);
 	}, []);
 
-	return { headings, activeKey, scrollToHeading };
+	return { headings, activeKey: isInactive ? null : activeKey, scrollToHeading };
 }

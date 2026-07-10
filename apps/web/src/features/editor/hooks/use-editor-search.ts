@@ -31,15 +31,6 @@ export function useEditorSearch(editor: EditorInstance) {
 		return buildRegex(searchQuery, searchOptions) === null;
 	}, [searchOptions, searchQuery]);
 
-	const syncMatchInfo = useCallback(() => {
-		const view = getEditorView(editor);
-		const state = view ? getSearchState(view) : undefined;
-		setMatchInfo({
-			current: state?.current ?? 0,
-			total: state?.matches.length ?? 0,
-		});
-	}, [editor]);
-
 	const focusSearchInput = useCallback(() => {
 		requestAnimationFrame(() => {
 			findInputRef.current?.focus();
@@ -83,36 +74,56 @@ export function useEditorSearch(editor: EditorInstance) {
 		const view = getEditorView(editor);
 		if (!view) return;
 		nextMatch(view);
-		syncMatchInfo();
-	}, [editor, syncMatchInfo]);
+		const state = getSearchState(view);
+		setMatchInfo({
+			current: state?.current ?? 0,
+			total: state?.matches.length ?? 0,
+		});
+	}, [editor]);
 
 	const handlePreviousMatch = useCallback(() => {
 		const view = getEditorView(editor);
 		if (!view) return;
 		previousMatch(view);
-		syncMatchInfo();
-	}, [editor, syncMatchInfo]);
+		const state = getSearchState(view);
+		setMatchInfo({
+			current: state?.current ?? 0,
+			total: state?.matches.length ?? 0,
+		});
+	}, [editor]);
 
 	const handleReplaceCurrent = useCallback(() => {
 		const view = getEditorView(editor);
 		if (!view) return;
 		replaceCurrent(view, replaceValue);
-		syncMatchInfo();
-	}, [editor, replaceValue, syncMatchInfo]);
+		const state = getSearchState(view);
+		setMatchInfo({
+			current: state?.current ?? 0,
+			total: state?.matches.length ?? 0,
+		});
+	}, [editor, replaceValue]);
 
 	const handleReplaceAll = useCallback(() => {
 		const view = getEditorView(editor);
 		if (!view) return;
 		replaceAll(view, replaceValue);
-		syncMatchInfo();
-	}, [editor, replaceValue, syncMatchInfo]);
+		const state = getSearchState(view);
+		setMatchInfo({
+			current: state?.current ?? 0,
+			total: state?.matches.length ?? 0,
+		});
+	}, [editor, replaceValue]);
 
 	useEffect(() => {
 		const view = getEditorView(editor);
 		if (!view) return;
 		setSearch(view, searchQuery, searchOptions);
-		syncMatchInfo();
-	}, [editor, searchOptions, searchQuery, syncMatchInfo]);
+		const state = getSearchState(view);
+		setMatchInfo({
+			current: state?.current ?? 0,
+			total: state?.matches.length ?? 0,
+		});
+	}, [editor, searchOptions, searchQuery]);
 
 	const { bindings } = useShortcutManager();
 	const shortcutKeys = useCallback(

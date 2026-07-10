@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Activity, FilePlus, Pencil, Trash2, type LucideIcon } from "lucide-react";
@@ -38,11 +38,7 @@ function entryHref(entry: ActivityEntry): string {
 
 function ActivityRow({ entry }: { entry: ActivityEntry }) {
 	const Icon = KIND_ICON[entry.kind];
-	const [ariaLabel, setAriaLabel] = useState("");
-
-	useEffect(() => {
-		setAriaLabel(entry.timestamp.toLocaleString());
-	}, [entry.timestamp]);
+	const ariaLabel = entry.timestamp.toLocaleString();
 
 	return (
 		<li data-activity-ts={entry.timestamp.toISOString()}>

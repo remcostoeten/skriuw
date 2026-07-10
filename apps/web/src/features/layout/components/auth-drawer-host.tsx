@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { redirect } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/core/auth/use-auth";
 import { signInWithOAuth, getRememberMePreference } from "@/core/auth";
@@ -16,6 +17,12 @@ import { authDrawerAdapter } from "@/features/auth/auth-drawer-adapter";
 import { resolveAuthError } from "@/app/(auth)/auth-errors";
 import { GUEST_SIGNUP_PROMPT_EVENT, isTauriRuntime } from "@/core/workspace-backend";
 import { showUserToast } from "@/shared/lib/user-toast";
+import {
+	OPEN_AUTH_DRAWER_EVENT,
+	openAuthDrawer,
+	type AuthDrawerInitialMode,
+	type OpenAuthDrawerDetail,
+} from "@/features/layout/components/open-auth-drawer";
 
 const authDrawerConfig = {
 	ui: {
@@ -44,28 +51,6 @@ const authDrawerConfig = {
 		},
 	},
 } satisfies AuthConfig;
-
-export type AuthDrawerInitialMode = "login" | "register";
-
-const OPEN_AUTH_DRAWER_EVENT = "skriuw:auth:open-drawer";
-
-type OpenAuthDrawerDetail = {
-	mode: AuthDrawerInitialMode;
-	destination: string;
-};
-
-/**
- * Opens the app-wide auth drawer from anywhere. The nearest mounted
- * {@link AuthDrawerHost} picks the event up, so callers don't need a ref or
- * shared store — mirroring how GUEST_SIGNUP_PROMPT_EVENT already works.
- */
-export function openAuthDrawer(mode: AuthDrawerInitialMode, destination = "/app") {
-	window.dispatchEvent(
-		new CustomEvent<OpenAuthDrawerDetail>(OPEN_AUTH_DRAWER_EVENT, {
-			detail: { mode, destination },
-		}),
-	);
-}
 
 function resolveAuthDrawerMode(value: string | null): AuthDrawerInitialMode | null {
 	if (value === "sign-in") return "login";
@@ -134,15 +119,15 @@ export function AuthDrawerHost() {
 		const cleanPath = getPathWithoutAuthParams(pathname, searchParams);
 
 		if (auth.phase === "authenticated") {
-			router.replace(destination, { scroll: false });
+			redirect(destination);
 			return;
 		}
 
 		setAuthDrawerInitialMode(initialMode);
 		authDestinationRef.current = destination;
 		setAuthDrawerOpen(true);
-		router.replace(cleanPath, { scroll: false });
-	}, [auth.isReady, auth.phase, pathname, router, searchParams]);
+		window.history.replaceState(null, "", cleanPath);
+	}, [auth.isReady, auth.phase, pathname, searchParams]);
 
 	// Intentionally excludes `authDrawerOpen`: this effect only gates entry
 	// onto a protected route, it must not re-fire (and reopen the drawer)

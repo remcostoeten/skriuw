@@ -625,25 +625,28 @@ export function createTauriBackend(): WorkspaceBackend {
 	): Promise<string[]> {
 		const entries = await listJournalEntries();
 		const rewritten: string[] = [];
-		for (const entry of entries) {
-			const patch = buildPatch({
-				content: entry.content,
-				richContent: entry.richContent ?? [],
-				tags: entry.tags,
-				properties: [],
-			});
-			if (!patch) continue;
-			const next: JournalEntry = {
-				...entry,
-				content: patch.content ?? entry.content,
-				richContent: (patch.richContent ??
-					entry.richContent) as JournalEntry["richContent"],
-				tags: patch.tags ?? entry.tags,
-				updatedAt: new Date(),
-			};
-			await invoke("upsert_journal_entry", { entry: toRustJournalEntry(next) });
-			rewritten.push(entry.id);
-		}
+		const results = await Promise.all(
+			entries.map(async (entry) => {
+				const patch = buildPatch({
+					content: entry.content,
+					richContent: entry.richContent ?? [],
+					tags: entry.tags,
+					properties: [],
+				});
+				if (!patch) return null;
+				const next: JournalEntry = {
+					...entry,
+					content: patch.content ?? entry.content,
+					richContent: (patch.richContent ??
+						entry.richContent) as JournalEntry["richContent"],
+					tags: patch.tags ?? entry.tags,
+					updatedAt: new Date(),
+				};
+				await invoke("upsert_journal_entry", { entry: toRustJournalEntry(next) });
+				return entry.id;
+			}),
+		);
+		rewritten.push(...results.filter((id): id is string => id !== null));
 		return rewritten;
 	}
 
