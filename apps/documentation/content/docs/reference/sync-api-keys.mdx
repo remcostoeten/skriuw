@@ -1,0 +1,146 @@
+---
+title: "Sync API keys"
+description: "How the Chrome web clipper and desktop app authenticate against the web backend with bearer tokens, the token model, every /api/sync/* route, rate limiting, and rotation."
+---
+
+How the Chrome web clipper and the desktop app authenticate against the web
+backend without ever touching a session cookie. Covers the token model,
+every `/api/sync/*` route, rate limiting, rotation/revocation, and the two
+client UIs (web settings, extension).
+
+## Why bearer tokens
+
+`/api/sync/*` is called from origins that can't hold a Better Auth session
+cookie: a Chrome extension service worker and the Tauri desktop webview
+(`tauri://localhost`). Both send `Authorization: Bearer <token>` instead.
+Because these routes never trust cookies, wildcard CORS on them is safe — a
+request without a valid write-scoped token can't create or read anything.
+
+## Token model
+
+`SyncToken` (`prisma/schema.prisma`):
+
+| Field         | Purpose                                                             |
+| ------------- | -------------------------------------------------------------------- |
+| `tokenHash`   | sha256 of the raw secret — the raw value is never stored             |
+| `tokenPrefix` | first 18 chars of the raw secret, kept in clear for UI display        |
+| `scopes`      | `sync:read` and/or `sync:write`                                       |
+| `expiresAt`   | optional; `null` = never expires                                     |
+| `revokedAt`   | set once revoked; revocation is soft (row kept for the activity log)  |
+| `lastUsedAt`  | bumped on most authenticated requests (see exceptions below)          |
+
+Raw tokens look like `skriuw_sync_<32 random bytes, base64url>` — 256 bits of
+entropy, generated in `domain/sync/token-utils.ts::createRawSyncToken`. The
+full secret is only ever returned once, at creation or rotation time; every
+other read returns the summary (name, prefix, scopes, timestamps) via
+`SyncTokenSummary`.
+
+`SyncEvent` logs every sync operation (`capture` / `export` / `folders`) with
+`tokenId`, `status`, an optional `idempotencyKey` (unique, so retried capture
+requests dedupe), and a `source` string. Written best-effort — a logging
+failure never fails the underlying request.
+
+A user can hold at most **20 active keys** (`MAX_SYNC_TOKENS_PER_USER` in
+`domain/sync/tokens.ts`); creating past that throws until one is revoked.
+
+## Routes
+
+All under `apps/web/src/app/api/sync/`, all bearer-authenticated via
+`authenticateSyncBearer(request, requiredScope, options)`
+(`domain/sync/tokens.ts`), which checks the hash, revocation, expiry, and
+scope in one call.
+
+| Route                          | Method | Scope        | Notes                                                              |
+| ------------------------------- | ------ | ------------ | ------------------------------------------------------------------- |
+| `sync/tokens`                   | GET    | session      | List the caller's keys                                              |
+| `sync/tokens`                   | POST   | session      | Create a key (`name`, `canWrite`, `expiresAt`)                       |
+| `sync/tokens`                   | DELETE | session      | **Revoke all** active keys                                          |
+| `sync/tokens/[tokenId]`         | DELETE | session      | Revoke one key                                                      |
+| `sync/tokens/[tokenId]/rotate`  | POST   | session      | Mint a new secret with the same name/scopes/expiry, revoke the old   |
+| `sync/verify`                   | GET    | `sync:read`  | "Is this token valid?" check used by the extension's Test & Save    |
+| `sync/capture`                  | POST   | `sync:write` | Extension clip → creates a note via `createNoteForUser`              |
+| `sync/export`                   | GET    | `sync:read`  | Desktop pull — full workspace export                                 |
+| `sync/folders`                  | GET    | `sync:read`  | Folder tree for the extension's destination picker                   |
+| `sync/activity`                 | GET    | session or `sync:read` | Recent `SyncEvent` rows; `?tokenId=` filters to one key   |
+
+`sync/tokens*` routes (create/list/revoke/rotate) use the normal session
+cookie, since they're only ever called from the logged-in web settings page.
+Everything else is bearer-only.
+
+`lastUsedAt` is **not** bumped by `verify` or `activity` (pass
+`{ updateLastUsedAt: false }`) — they're status checks, not sync operations.
+`capture`, `export`, and `folders` do bump it.
+
+## Rate limiting
+
+Every bearer route calls `checkSyncRateLimit(tokenId, operation)`
+(`domain/sync/tokens.ts`), a per-token fixed window on top of the existing
+`rate_limit` table (`lib/rate-limit.ts` — the same store Better Auth's own
+endpoints use, so this didn't need new infra). Limits per minute:
+
+- `capture`: 30
+- `export`: 10
+- `folders` / `verify` / `activity`: 60
+
+A breach returns `429` with a plain-text error; the extension's queue treats
+`429` as retryable and backs off (see below).
+
+## Rotation vs. revocation
+
+- **Revoke** (`DELETE /sync/tokens/[tokenId]`) kills a key. The connected
+  extension/desktop app starts getting `401`s until reconfigured with a new
+  key.
+- **Rotate** (`POST /sync/tokens/[tokenId]/rotate`) replaces the secret in
+  place — same name, scopes, and expiry — and reveals the new raw value
+  once. Use this when a key may have leaked but you don't want to reconfigure
+  the destination/expiry from scratch. Implemented as one Prisma
+  `$transaction`: create the new row, then `revokedAt` on the old one.
+- **Revoke all** (`DELETE /sync/tokens`) is the panic button — every active
+  key for the user dies at once. Web settings gates it behind a confirm
+  dialog.
+
+## Web settings UI
+
+`apps/web/src/features/settings/sections/data-section.tsx` (`DesktopSyncTokens`):
+
+- Create a key: label, access level (read-only vs. capture/write), expiry
+  (30d / 90d / never). The raw secret is shown once in a copy-to-clipboard
+  panel and never re-displayed.
+- Active keys list: prefix, scope badge, created/last-used/expires
+  timestamps, per-key **Rotate** and **Revoke** buttons, plus a top-level
+  **Revoke all**.
+- Clicking a key's name filters the "Recent sync activity" feed below to
+  that key's events only (`?tokenId=` on `sync/activity`); a "Clear filter"
+  chip resets it.
+
+## Extension (`apps/extension`)
+
+Chrome MV3 clipper. Auth = paste a write-scoped key into the options page.
+
+- **Options page** (`src/options/App.tsx`): "Test & save" calls
+  `verifyRawToken(apiBase, token)` *before* writing anything to
+  `chrome.storage.local`, rejects read-only keys for capture use, and on
+  success displays the key's name/scope/expiry. If the saved key expires
+  within 7 days (or already has), a warning banner tells the user to rotate
+  it in web settings.
+- **Popup** (`src/popup/App.tsx`): on open, calls `verifyToken()` against the
+  stored key. An invalid/expired key drops the popup into the "no-token"
+  state (a prompt to reconnect) instead of silently failing later. Shows the
+  same expiry warning as the options page.
+- **401 handling** (`src/shared/api.ts`): any `401` from `getWithToken` or
+  `postCapture` calls `storage.clearToken()` immediately, so a revoked/expired
+  key can't keep silently failing — the next popup open surfaces the
+  reconnect prompt. `background/index.ts` returns a specific "Sync key
+  expired or revoked. Reconnect in Settings." message for clip attempts.
+- **Offline queue** (`src/background/queue.ts`): failed captures are queued
+  only when `retryable` (5xx or 429), with exponential backoff up to 8
+  attempts; a 401 is terminal, not queued.
+
+## Extending this
+
+- New scopes: add to `SyncScope` in `domain/sync/token-utils.ts` and to the
+  scope-picker UI in `data-section.tsx` — the routes already check
+  `record.scopes.includes(requiredScope)` generically.
+- New sync operation: add a `checkSyncRateLimit` limit entry, call
+  `recordSyncEvent` on success/error, and CORS headers copy-paste cleanly
+  from any existing route in `sync/`.

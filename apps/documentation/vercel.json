@@ -1,0 +1,9 @@
+{
+	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"bunVersion": "1.3.14",
+	"buildCommand": "cd ../.. && bun run --cwd apps/documentation build",
+	"ignoreCommand": "git diff --quiet HEAD^ HEAD -- apps/documentation docs package.json bun.lock || exit 1",
+	"installCommand": "cd ../.. && bun install --frozen-lockfile",
+	"outputDirectory": ".next",
+	"regions": ["fra1"]
+}
