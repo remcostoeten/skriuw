@@ -1,0 +1,66 @@
+---
+title: "Distribution"
+description: "The four ways to run Skriuw, cloud, self-host Docker, native desktop, and the planned local-first vault image, and why the storage model, not the code, is what differs."
+---
+
+How Skriuw reaches users. There are four ways to run it, split across two
+storage models (server Postgres vs. local-first Markdown vault + SQLite) and
+two delivery mechanisms (a hosted/containerized web app vs. a native binary).
+This page is the map; the detail pages are [Self-host with Docker](/infra/self-host-docker)
+and [Release pipeline](/infra/release-pipeline).
+
+## The four modes
+
+| Mode | Storage | How a user gets it | Backend | Status |
+| ---- | ------- | ------------------ | ------- | ------ |
+| **Cloud** | Postgres (hosted, Neon) | Visit [skriuw.com](https://skriuw.com) | Next.js on Vercel | Live |
+| **Self-host (Docker)** | Postgres (local container or bring-your-own) | `docker pull` + Compose | Next.js server in a container | Live |
+| **Desktop** | Markdown vault + SQLite index (local, offline) | Native installer / brew / AUR / snap | Rust (Tauri 2), no server | Live |
+| **Self-host local-first vault (Docker)** | Markdown vault + SQLite index | `docker pull`, used in a browser | Rust vault engine as an HTTP sidecar | Planned |
+
+## Why the split
+
+The same app UI runs against a pluggable data layer. The contract lives in
+`apps/web/src/core/workspace-backend/types.ts`, and there are three
+implementations selected at runtime:
+
+- `serverBackend`, HTTP to the Next API routes, backed by **Prisma/Postgres**.
+  Powers **Cloud** and **Self-host (Docker)**.
+- `createLocalBackend`, browser **IndexedDB**. Powers guest mode.
+- `createTauriBackend`, Rust `invoke()` to the **Markdown vault + SQLite**
+  engine. Powers **Desktop**.
+
+Because the backend is swappable, the storage model, not the code, is what
+differs between modes. Cloud and Docker share the exact same Prisma schema;
+the only difference is whose Postgres it talks to.
+
+## What each mode is for
+
+- **Cloud**, you just want to write. Nothing to install, always up to date.
+- **Self-host (Docker)**, you want a server/homelab instance you own, usable
+  across devices, with accounts and a real database. See
+  [Self-host with Docker](/infra/self-host-docker).
+- **Desktop**, you want local-first: your notes as plain `.md` files on disk,
+  fully offline, no server and no account. Distributed as a native binary
+  (`.deb` / `.rpm` / `.AppImage` / `.dmg`), Homebrew cask, AUR package, and
+  Snap, **not** as a container. A headless container has no display server, so
+  the Tauri GUI can't sensibly be pulled; the web image is the better artifact
+  for a headless/SSH box.
+
+## Why "vault in Docker" is a separate build
+
+The local-first vault + SQLite engine currently only exists in **Rust**,
+reachable through Tauri `invoke`. A browser in a container can't reach it.
+Delivering the fourth mode means running that Rust engine as a **headless HTTP
+sidecar** in the image plus a new `http-vault-backend` client implementation
+that points the existing calls at HTTP instead of `invoke`. It reuses the
+mature Rust code but is real engineering, not a packaging change, hence
+"Planned" rather than shipped.
+
+## The one cross-cutting caveat
+
+`NEXT_PUBLIC_*` values (auth URL, analytics URL, collab host) are **inlined
+into the JavaScript bundle at build time**. A pulled image therefore only works
+cleanly at the URL it was built for (`http://localhost:3000`). Serving a custom
+domain requires building from source with your own values. This shapes every
+"just pull it" instruction, see the Docker page for the rebuild path.

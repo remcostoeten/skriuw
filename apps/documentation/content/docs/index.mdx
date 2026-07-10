@@ -1,0 +1,37 @@
+---
+title: "Skriuw"
+description: "A lightweight, fast, feature-rich personal knowledge base, a blend of Obsidian and Notion, built on Next.js and Tauri for native, sub-6 MB desktop binaries."
+---
+
+For more background, see the [README](https://github.com/remcostoeten/skriuw#readme).
+
+Skriuw is a lightweight, fast, feature-rich personal knowledge base — a blend of Obsidian and Notion. Instead of Electron, the desktop build is native Rust via Tauri, which keeps the binary under 6 MB on Mac, Windows, and Linux.
+
+Size isn't the only thing that makes it fast. Skriuw is keyboard-first: you can move through the entire app without touching the mouse, and every shortcut is customizable. See [Shortcuts](/reference/shortcuts) for the full list.
+
+### Table of contents
+
+- [Stack & technology](#stack--technology)
+- [Desktop integration](#desktop-integration)
+- [Approach](#approach)
+- [Development features](/development/features)
+- [Architecture](/development/architecture)
+- [Note covers](/features/note-covers)
+- [Web clipper extension](/features/web-clipper-extension)
+- [Sync API keys](/reference/sync-api-keys)
+
+## Stack & technology
+
+Skriuw started as a web monolith: Next.js 16, React 19, TypeScript, Tailwind CSS, and PostgreSQL via [neon.tech](https://neon.tech). It later moved to Prisma as the data layer.
+
+The desktop client is Rust on Tauri 2.0. That addition also pushed the project into a Bun-managed monorepo built with Turbopack.
+
+### Desktop integration
+
+The desktop build doesn't ship the Next.js front-end — that surface is built around API routes and server actions, which don't translate to a native binary. Instead, [web-spa](https://github.com/remcostoeten/skriuw/tree/daddy/packages/web-spa/src) is a client-only React SPA that re-renders whatever was Next.js-specific or server-rendered, while sharing one platform-agnostic layer (UI, hooks, utilities, and read-only actions) with the web app.
+
+### Approach
+
+Skriuw follows a domain-driven, feature-sliced structure, written in a functional style rather than OOP. See [Development features](/development/features) for the full list of feature domains.
+
+Back-end access goes through a single adapter interface (`WorkspaceBackend`) with three implementations — server, local, and Tauri — so feature code never branches on auth state or platform. See [Architecture](/development/architecture) for the full contract.
