@@ -69,3 +69,7 @@ jobs:
                   BETTER_AUTH_URL: http://localhost:3000
                   NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:3000
                   AI_KEYS_ENCRYPTION_SECRET: ci-ai-keys-encryption-secret-32c
+
+
+            - name: Documentation typecheck
+              run: bun run --cwd apps/documentation typecheck

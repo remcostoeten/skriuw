@@ -1,0 +1,11 @@
+{
+	"pages": [
+		"architecture",
+		"features",
+		"desktop-local-first",
+		"mobile-expo-architecture",
+		"settings-page-data",
+		"ai-followups-handoff"
+	],
+	"title": "Development"
+}

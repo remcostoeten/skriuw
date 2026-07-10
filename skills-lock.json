@@ -13,6 +13,18 @@
 			"skillPath": "skills/copywriting/SKILL.md",
 			"computedHash": "c8d63b1f77be04fd54981720de65697988810bd28331097dbe0aaf3e166d638a"
 		},
+		"documentation": {
+			"source": "anthropics/knowledge-work-plugins",
+			"sourceType": "github",
+			"skillPath": "engineering/skills/documentation/SKILL.md",
+			"computedHash": "c24a1672a7edad51225859d6549d9a61892f704a4527a65ce3cddd913ca04550"
+		},
+		"fumadocs-mdx-structure": {
+			"source": "theorcdev/8bitcn-ui",
+			"sourceType": "github",
+			"skillPath": ".claude/skills/fumadocs-mdx-structure/SKILL.md",
+			"computedHash": "b390c16c1316f3f97a94155c8b9c4fb81ef62026978d6d45f806642edcd6f212"
+		},
 		"pwa-development": {
 			"source": "alinaqi/claude-bootstrap",
 			"sourceType": "github",
