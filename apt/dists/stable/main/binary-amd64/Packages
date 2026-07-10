@@ -88,3 +88,18 @@ Priority: optional
 Description: Skriuw desktop shell (local-first)
  (none)
 
+Package: skriuw
+Version: 0.20.0
+Architecture: amd64
+Maintainer: Remco Stoeten
+Installed-Size: 15820
+Depends: libayatana-appindicator3-1, libwebkit2gtk-4.1-0, libgtk-3-0
+Filename: pool/main/Skriuw_0.20.0_amd64.deb
+Size: 8131914
+MD5sum: 46cda8f0fd6cdc0fa2b770a8db080de3
+SHA1: ff1ff25ad43ef574cf5a1e418e7bfcc27b95e91f
+SHA256: 038fcba7c8544f336c6b860ffe015ff3a94c4f638eff17d99fe492725bcdf405
+Priority: optional
+Description: Skriuw desktop shell (local-first)
+ (none)
+
