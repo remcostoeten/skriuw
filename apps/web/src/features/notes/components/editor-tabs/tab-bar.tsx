@@ -6,6 +6,7 @@ import {
 	useState,
 	type DragEvent,
 	type KeyboardEvent,
+	type MouseEvent,
 	type PointerEvent,
 } from "react";
 import { Pin, X } from "lucide-react";
@@ -98,26 +99,17 @@ function tabIdAtPoint(x: number, y: number): string | null {
 	return tabEl?.dataset.tabId ?? null;
 }
 
-export function TabBar({
+function useTabDragAndDrop({
 	tabs,
-	activeFileId,
-	isPaneFocused = true,
-	onSelect,
-	onClose,
 	onReorder,
-	onTogglePin,
-	onCloseOthers,
-	onCloseToSide,
 	onDropNote,
-	onActivatePane,
-}: Props) {
-	const showPageIcons = usePreferencesStore((s) => s.appearance.showPageIcons);
+}: {
+	tabs: WorkspaceTabItem[];
+	onReorder: (orderedFileIds: string[]) => void;
+	onDropNote?: (targetFileId: string | null, droppedFileId: string) => void;
+}) {
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [dragOverId, setDragOverId] = useState<string | null>(null);
-	// A single shared context menu serves every tab; right-clicking a tab
-	// records its id here instead of mounting a Radix ContextMenu per tab.
-	const [contextTabId, setContextTabId] = useState<string | null>(null);
-	const tabRefs = useLazyRef(() => new Map<string, HTMLDivElement>());
 	const externalOverRef = useRef<string | "strip" | null>(null);
 	const touchPressRef = useRef<TouchPressState | null>(null);
 	const dropNoteRef = useRef(onDropNote);
@@ -139,8 +131,6 @@ export function TabBar({
 		return () => window.removeEventListener("dragend", handleWindowDragEnd, true);
 	}, []);
 
-	if (tabs.length === 0) return null;
-
 	function reorderAround(targetId: string) {
 		if (!draggingId || draggingId === targetId) return;
 		const ids = tabs.map((tab) => tab.file.id);
@@ -150,51 +140,6 @@ export function TabBar({
 		ids.splice(from, 1);
 		ids.splice(to, 0, draggingId);
 		onReorder(ids);
-	}
-
-	const handleSelect = (fileId: string) => {
-		onActivatePane?.();
-		onSelect(fileId);
-	};
-
-	function focusAndSelectTab(fileId: string) {
-		tabRefs.current.get(fileId)?.focus();
-		handleSelect(fileId);
-	}
-
-	function handleTabKeyDown(fileId: string, event: KeyboardEvent<HTMLDivElement>) {
-		if (event.key === "Enter" || event.key === " ") {
-			event.preventDefault();
-			handleSelect(fileId);
-			return;
-		}
-
-		const ids = tabs.map((tab) => tab.file.id);
-		const currentIndex = ids.indexOf(fileId);
-		if (currentIndex === -1) return;
-
-		if (event.key === "ArrowRight") {
-			event.preventDefault();
-			focusAndSelectTab(ids[(currentIndex + 1) % ids.length]);
-		} else if (event.key === "ArrowLeft") {
-			event.preventDefault();
-			focusAndSelectTab(ids[(currentIndex - 1 + ids.length) % ids.length]);
-		} else if (event.key === "Home") {
-			event.preventDefault();
-			focusAndSelectTab(ids[0]);
-		} else if (event.key === "End") {
-			event.preventDefault();
-			focusAndSelectTab(ids[ids.length - 1]);
-		} else if (event.key === "Delete") {
-			event.preventDefault();
-			const survivorId = ids[currentIndex + 1] ?? ids[currentIndex - 1] ?? null;
-			onClose(fileId);
-			if (survivorId) {
-				requestAnimationFrame(() => {
-					tabRefs.current.get(survivorId)?.focus();
-				});
-			}
-		}
 	}
 
 	const handleDragStart = (fileId: string) => (event: DragEvent<HTMLDivElement>) => {
@@ -246,6 +191,12 @@ export function TabBar({
 		externalOverRef.current = null;
 		const droppedId = readDroppedFileId(event) ?? activeDraggedFileId();
 		if (droppedId) onDropNote(null, droppedId);
+	};
+
+	const handleStripDragLeave = () => {
+		if (draggingId) return;
+		externalOverRef.current = null;
+		setDragOverId(null);
 	};
 
 	const handleDragEnd = () => {
@@ -311,6 +262,257 @@ export function TabBar({
 		}
 	};
 
+	return {
+		draggingId,
+		dragOverId,
+		handleDragStart,
+		handleDragOver,
+		handleDrop,
+		handleStripDragOver,
+		handleStripDrop,
+		handleStripDragLeave,
+		handleDragEnd,
+		handleTabPointerDown,
+		handleTabPointerMove,
+		handleTabPointerEnd,
+	};
+}
+
+function useTabKeyboardNav({
+	tabs,
+	onSelect,
+	onClose,
+	onActivatePane,
+}: {
+	tabs: WorkspaceTabItem[];
+	onSelect: (fileId: string) => void;
+	onClose: (fileId: string) => void;
+	onActivatePane?: () => void;
+}) {
+	const tabRefs = useLazyRef(() => new Map<string, HTMLDivElement>());
+
+	const handleSelect = (fileId: string) => {
+		onActivatePane?.();
+		onSelect(fileId);
+	};
+
+	function focusAndSelectTab(fileId: string) {
+		tabRefs.current.get(fileId)?.focus();
+		handleSelect(fileId);
+	}
+
+	function handleTabKeyDown(fileId: string, event: KeyboardEvent<HTMLDivElement>) {
+		if (event.key === "Enter" || event.key === " ") {
+			event.preventDefault();
+			handleSelect(fileId);
+			return;
+		}
+
+		const ids = tabs.map((tab) => tab.file.id);
+		const currentIndex = ids.indexOf(fileId);
+		if (currentIndex === -1) return;
+
+		if (event.key === "ArrowRight") {
+			event.preventDefault();
+			focusAndSelectTab(ids[(currentIndex + 1) % ids.length]);
+		} else if (event.key === "ArrowLeft") {
+			event.preventDefault();
+			focusAndSelectTab(ids[(currentIndex - 1 + ids.length) % ids.length]);
+		} else if (event.key === "Home") {
+			event.preventDefault();
+			focusAndSelectTab(ids[0]);
+		} else if (event.key === "End") {
+			event.preventDefault();
+			focusAndSelectTab(ids[ids.length - 1]);
+		} else if (event.key === "Delete") {
+			event.preventDefault();
+			const survivorId = ids[currentIndex + 1] ?? ids[currentIndex - 1] ?? null;
+			onClose(fileId);
+			if (survivorId) {
+				requestAnimationFrame(() => {
+					tabRefs.current.get(survivorId)?.focus();
+				});
+			}
+		}
+	}
+
+	return { tabRefs, handleSelect, handleTabKeyDown };
+}
+
+type TabItemProps = {
+	file: NoteFile;
+	pinned: boolean;
+	isActive: boolean;
+	isFocusable: boolean;
+	isPaneFocused: boolean;
+	showPageIcons: boolean;
+	dragOverId: string | null;
+	draggingId: string | null;
+	registerRef: (node: HTMLDivElement | null) => void;
+	onContextMenu: () => void;
+	onClick: (event: MouseEvent<HTMLDivElement>) => void;
+	onAuxClick: (event: MouseEvent<HTMLDivElement>) => void;
+	onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
+	onDragStart: (event: DragEvent<HTMLDivElement>) => void;
+	onDragOver: (event: DragEvent<HTMLDivElement>) => void;
+	onDrop: (event: DragEvent<HTMLDivElement>) => void;
+	onDragEnd: () => void;
+	onPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
+	onPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
+	onPointerUp: (event: PointerEvent<HTMLDivElement>) => void;
+	onPointerCancel: (event: PointerEvent<HTMLDivElement>) => void;
+	onCloseClick: (event: MouseEvent<HTMLButtonElement>) => void;
+};
+
+function TabItem({
+	file,
+	pinned,
+	isActive,
+	isFocusable,
+	isPaneFocused,
+	showPageIcons,
+	dragOverId,
+	draggingId,
+	registerRef,
+	onContextMenu,
+	onClick,
+	onAuxClick,
+	onKeyDown,
+	onDragStart,
+	onDragOver,
+	onDrop,
+	onDragEnd,
+	onPointerDown,
+	onPointerMove,
+	onPointerUp,
+	onPointerCancel,
+	onCloseClick,
+}: TabItemProps) {
+	return (
+		<div
+			role="tab"
+			aria-selected={isActive}
+			tabIndex={isFocusable ? 0 : -1}
+			data-tab-id={file.id}
+			ref={registerRef}
+			draggable
+			onContextMenu={onContextMenu}
+			onClick={onClick}
+			onAuxClick={onAuxClick}
+			onKeyDown={onKeyDown}
+			onDragStart={onDragStart}
+			onDragOver={onDragOver}
+			onDrop={onDrop}
+			onDragEnd={onDragEnd}
+			onPointerDown={onPointerDown}
+			onPointerMove={onPointerMove}
+			onPointerUp={onPointerUp}
+			onPointerCancel={onPointerCancel}
+			className={cn(
+				"group flex max-w-52 min-w-28 cursor-pointer items-center gap-1.5 border-r border-border px-3 py-1.5 text-xs transition-colors select-none",
+				isActive
+					? "bg-accent text-accent-foreground"
+					: "text-muted-foreground hover:bg-muted hover:text-foreground",
+				isActive && isPaneFocused && "shadow-[inset_0_-2px_0_0_hsl(var(--ring))]",
+				dragOverId === file.id && "bg-muted",
+				draggingId === file.id && "opacity-50",
+			)}
+		>
+			{pinned ? <Pin className="h-3 w-3 shrink-0 fill-current" aria-hidden /> : null}
+			{showPageIcons && file.icon && <span className="shrink-0 text-xs">{file.icon}</span>}
+			<span className="truncate">{tabLabel(file)}</span>
+			<button
+				type="button"
+				aria-label={`Close ${tabLabel(file)}`}
+				tabIndex={-1}
+				onClick={onCloseClick}
+				className={cn(
+					"ml-auto flex h-4 w-4 shrink-0 items-center justify-center rounded-sm opacity-0 transition-opacity hover:bg-foreground/10 group-hover:opacity-100 focus-visible:opacity-100",
+					isActive && "opacity-60",
+				)}
+			>
+				<X className="h-3 w-3" />
+			</button>
+		</div>
+	);
+}
+
+function TabContextMenuContent({
+	tab,
+	onTogglePin,
+	onClose,
+	onCloseOthers,
+	onCloseToSide,
+}: {
+	tab: WorkspaceTabItem;
+	onTogglePin: (fileId: string) => void;
+	onClose: (fileId: string) => void;
+	onCloseOthers: (fileId: string) => void;
+	onCloseToSide: (fileId: string, side: "left" | "right") => void;
+}) {
+	return (
+		<ContextMenuContent className="w-52">
+			<ContextMenuItem onClick={() => onTogglePin(tab.file.id)}>
+				<Pin className="h-3.5 w-3.5" />
+				{tab.pinned ? "Unpin" : "Pin"}
+			</ContextMenuItem>
+			<ContextMenuSeparator />
+			<ContextMenuItem onClick={() => onClose(tab.file.id)}>Close</ContextMenuItem>
+			<ContextMenuItem onClick={() => onCloseOthers(tab.file.id)}>
+				Close all but this
+			</ContextMenuItem>
+			<ContextMenuItem onClick={() => onCloseToSide(tab.file.id, "right")}>
+				Close all to the right
+			</ContextMenuItem>
+			<ContextMenuItem onClick={() => onCloseToSide(tab.file.id, "left")}>
+				Close all to the left
+			</ContextMenuItem>
+			<ContextMenuSeparator />
+			<DevContextSubmenu />
+		</ContextMenuContent>
+	);
+}
+
+export function TabBar({
+	tabs,
+	activeFileId,
+	isPaneFocused = true,
+	onSelect,
+	onClose,
+	onReorder,
+	onTogglePin,
+	onCloseOthers,
+	onCloseToSide,
+	onDropNote,
+	onActivatePane,
+}: Props) {
+	const showPageIcons = usePreferencesStore((s) => s.appearance.showPageIcons);
+	// A single shared context menu serves every tab; right-clicking a tab
+	// records its id here instead of mounting a Radix ContextMenu per tab.
+	const [contextTabId, setContextTabId] = useState<string | null>(null);
+	const {
+		draggingId,
+		dragOverId,
+		handleDragStart,
+		handleDragOver,
+		handleDrop,
+		handleStripDragOver,
+		handleStripDrop,
+		handleStripDragLeave,
+		handleDragEnd,
+		handleTabPointerDown,
+		handleTabPointerMove,
+		handleTabPointerEnd,
+	} = useTabDragAndDrop({ tabs, onReorder, onDropNote });
+	const { tabRefs, handleSelect, handleTabKeyDown } = useTabKeyboardNav({
+		tabs,
+		onSelect,
+		onClose,
+		onActivatePane,
+	});
+
+	if (tabs.length === 0) return null;
+
 	const focusableTabId = tabs.some((tab) => tab.file.id === activeFileId)
 		? activeFileId
 		: tabs[0].file.id;
@@ -331,30 +533,29 @@ export function TabBar({
 					aria-label="Open notes"
 					onDragOver={handleStripDragOver}
 					onDrop={handleStripDrop}
-					onDragLeave={() => {
-						if (draggingId) return;
-						externalOverRef.current = null;
-						setDragOverId(null);
-					}}
+					onDragLeave={handleStripDragLeave}
 					className="flex min-h-9 shrink-0 items-stretch overflow-x-auto border-b border-sidebar-border bg-sidebar text-sidebar-foreground"
 				>
 					{tabs.map(({ file, pinned }) => {
 						const isActive = file.id === activeFileId;
 						return (
-							<div
+							<TabItem
 								key={file.id}
-								role="tab"
-								aria-selected={isActive}
-								tabIndex={file.id === focusableTabId ? 0 : -1}
-								data-tab-id={file.id}
-								ref={(node) => {
+								file={file}
+								pinned={pinned}
+								isActive={isActive}
+								isFocusable={file.id === focusableTabId}
+								isPaneFocused={isPaneFocused}
+								showPageIcons={showPageIcons}
+								dragOverId={dragOverId}
+								draggingId={draggingId}
+								registerRef={(node) => {
 									if (node) {
 										tabRefs.current.set(file.id, node);
 									} else {
 										tabRefs.current.delete(file.id);
 									}
 								}}
-								draggable
 								onContextMenu={() => setContextTabId(file.id)}
 								onClick={(event) => {
 									if (isCloseTabClick(event)) {
@@ -379,67 +580,23 @@ export function TabBar({
 								onPointerMove={handleTabPointerMove(file.id)}
 								onPointerUp={handleTabPointerEnd(file.id)}
 								onPointerCancel={handleTabPointerEnd(file.id)}
-								className={cn(
-									"group flex max-w-52 min-w-28 cursor-pointer items-center gap-1.5 border-r border-border px-3 py-1.5 text-xs transition-colors select-none",
-									isActive
-										? "bg-accent text-accent-foreground"
-										: "text-muted-foreground hover:bg-muted hover:text-foreground",
-									isActive &&
-										isPaneFocused &&
-										"shadow-[inset_0_-2px_0_0_hsl(var(--ring))]",
-									dragOverId === file.id && "bg-muted",
-									draggingId === file.id && "opacity-50",
-								)}
-							>
-								{pinned ? (
-									<Pin className="h-3 w-3 shrink-0 fill-current" aria-hidden />
-								) : null}
-								{showPageIcons && file.icon && (
-									<span className="shrink-0 text-xs">{file.icon}</span>
-								)}
-								<span className="truncate">{tabLabel(file)}</span>
-								<button
-									type="button"
-									aria-label={`Close ${tabLabel(file)}`}
-									tabIndex={-1}
-									onClick={(event) => {
-										event.stopPropagation();
-										onClose(file.id);
-									}}
-									className={cn(
-										"ml-auto flex h-4 w-4 shrink-0 items-center justify-center rounded-sm opacity-0 transition-opacity hover:bg-foreground/10 group-hover:opacity-100 focus-visible:opacity-100",
-										isActive && "opacity-60",
-									)}
-								>
-									<X className="h-3 w-3" />
-								</button>
-							</div>
+								onCloseClick={(event) => {
+									event.stopPropagation();
+									onClose(file.id);
+								}}
+							/>
 						);
 					})}
 				</div>
 			</ContextMenuTrigger>
 			{contextTab ? (
-				<ContextMenuContent className="w-52">
-					<ContextMenuItem onClick={() => onTogglePin(contextTab.file.id)}>
-						<Pin className="h-3.5 w-3.5" />
-						{contextTab.pinned ? "Unpin" : "Pin"}
-					</ContextMenuItem>
-					<ContextMenuSeparator />
-					<ContextMenuItem onClick={() => onClose(contextTab.file.id)}>
-						Close
-					</ContextMenuItem>
-					<ContextMenuItem onClick={() => onCloseOthers(contextTab.file.id)}>
-						Close all but this
-					</ContextMenuItem>
-					<ContextMenuItem onClick={() => onCloseToSide(contextTab.file.id, "right")}>
-						Close all to the right
-					</ContextMenuItem>
-					<ContextMenuItem onClick={() => onCloseToSide(contextTab.file.id, "left")}>
-						Close all to the left
-					</ContextMenuItem>
-					<ContextMenuSeparator />
-					<DevContextSubmenu />
-				</ContextMenuContent>
+				<TabContextMenuContent
+					tab={contextTab}
+					onTogglePin={onTogglePin}
+					onClose={onClose}
+					onCloseOthers={onCloseOthers}
+					onCloseToSide={onCloseToSide}
+				/>
 			) : null}
 		</ContextMenu>
 	);
