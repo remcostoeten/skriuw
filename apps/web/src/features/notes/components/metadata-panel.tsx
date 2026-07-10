@@ -734,55 +734,24 @@ function LinkRow({
 	);
 }
 
-export const MetadataPanel = memo(function MetadataPanel({
+function useInspectorData({
 	file,
-	files = EMPTY_FILES,
-	className,
-	isMobile = false,
-	editorMode = "block",
-	onToggleEditorMode,
-	onRequestClose,
-	onFileSelect,
-	onViewVersion,
-	onShare,
-}: Props) {
+	files,
+	effectiveEditorMode,
+}: {
+	file: NoteFile | null;
+	files: NoteFile[];
+	effectiveEditorMode: "raw" | "block";
+}) {
 	const selectedTag = useNotesStore((state) => state.ui.selectedInspectorTag);
 	const setSelectedTag = useNotesStore((state) => state.setSelectedInspectorTag);
-	const rightSidebarGotoRef = useGotoTarget({ keybind: "r", to: goto.focus.rightSidebar });
-	const isGuest = useIsGuestWorkspace();
-	const capabilities = useWorkspaceCapabilities();
-	const auth = useAuth();
 	const backlinksQuery = useNoteBacklinks(file?.id);
 	const versionsQuery = useNoteVersions(file?.id);
-	const animateNumbers = usePreferencesStore((state) => state.editor.animateNumbers);
-	const updateNoteMutation = useUpdateNote();
-	const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-		outline: true,
-		tags: true,
-		people: true,
-		links: true,
-		mentions: true,
-		history: true,
-		details: true,
-		collaborators: false,
-	});
 	// The detail cache hands this panel a new `file` object on every keystroke.
 	// All content-derived sections (details, outline, links, mentions, tags,
 	// history) compute from this deferred snapshot so their workspace-wide
 	// scans run off the urgent typing lane and never cost input frames.
 	const deferredFile = useDeferredValue(file);
-	const isMdx = isMdxNote(file);
-	const effectiveEditorMode = isMdx ? "raw" : editorMode;
-	const canToggleEditorMode = !isMdx && Boolean(onToggleEditorMode);
-	const { shareQuery } = useNoteSharing(file?.id);
-	const isDesktopRuntime = isTauriRuntime();
-	// Sharing is owner-only. `access === undefined` is the owner's own note.
-	const isOwnNote = !file?.access || file.access === "owner";
-	const inspectorControlCount = isOwnNote
-		? isMobile && !isDesktopRuntime && shareQuery.data
-			? 4
-			: 3
-		: 1;
 
 	const details = useMemo(() => {
 		if (!deferredFile) return [];
@@ -876,13 +845,6 @@ export const MetadataPanel = memo(function MetadataPanel({
 		return findRestoredSourceIndex(historyItems, forkIndex);
 	}, [hasRestoreBranch, historyBranchRoles, historyItems]);
 
-	const toggleSection = (section: SectionKey) => {
-		setOpenSections((current) => ({
-			...current,
-			[section]: !current[section],
-		}));
-	};
-
 	useEffect(() => {
 		if (!selectedTag) return;
 		if (!tags.includes(selectedTag)) {
@@ -890,12 +852,31 @@ export const MetadataPanel = memo(function MetadataPanel({
 		}
 	}, [selectedTag, tags, setSelectedTag]);
 
-	const handleShare = () => {
-		if (!file) return;
-		onShare?.(file.id);
+	return {
+		selectedTag,
+		setSelectedTag,
+		deferredFile,
+		details,
+		outlineHeadings,
+		outlineActiveKey,
+		scrollToHeading,
+		outgoingLinks,
+		unlinkedMentions,
+		backlinks,
+		filesById,
+		tags,
+		mentionedPeople,
+		taggedNotes,
+		historyItems,
+		historyBranchRoles,
+		hasRestoreBranch,
+		restoredSourceIndex,
+		versionsQuery,
 	};
+}
 
-	const { mutate: mutateNote } = updateNoteMutation;
+function useNoteAssetMutations(file: NoteFile | null) {
+	const { mutate: mutateNote } = useUpdateNote();
 	const fileRef = useRef(file);
 	fileRef.current = file;
 
@@ -916,6 +897,390 @@ export const MetadataPanel = memo(function MetadataPanel({
 		},
 		[mutateNote],
 	);
+
+	return { handleIconChange, handleCoverChange };
+}
+
+function MetadataMobileHeader({ onRequestClose }: { onRequestClose?: () => void }) {
+	return (
+		<div className="shrink-0 border-b border-border bg-background px-4 pb-2 pt-2.5">
+			<div aria-hidden className="mx-auto mb-2 h-1.5 w-11 rounded-full bg-border" />
+			<div className="relative flex min-h-11 items-center justify-end gap-3">
+				<span className="absolute left-0 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-foreground">
+					Note details
+				</span>
+				{onRequestClose && (
+					<button
+						type="button"
+						onClick={onRequestClose}
+						onPointerDown={(event) => event.stopPropagation()}
+						aria-label="Close details"
+						data-sheet-no-drag
+						className="flex h-11 w-11 items-center justify-center rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground active:bg-muted"
+					>
+						<X className="h-5 w-5" strokeWidth={1.6} />
+					</button>
+				)}
+			</div>
+		</div>
+	);
+}
+
+function PageAssetRow({
+	label,
+	hasValue,
+	onRemove,
+	isMobile = false,
+	children,
+}: {
+	label: string;
+	hasValue: boolean;
+	onRemove: () => void;
+	isMobile?: boolean;
+	children: ReactNode;
+}) {
+	return (
+		<div
+			className={cn(
+				"flex items-center gap-3 border-b border-border px-3",
+				isMobile ? "min-h-14 py-2" : "py-2.5",
+			)}
+		>
+			<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/50">
+				{label}
+			</span>
+			{children}
+			{hasValue && (
+				<button
+					type="button"
+					onClick={onRemove}
+					className={cn(
+						"ml-auto text-muted-foreground/50 underline decoration-dotted underline-offset-2 hover:text-foreground",
+						isMobile
+							? "inline-flex min-h-11 items-center px-1 text-[13px] active:text-foreground"
+							: "text-[11px]",
+					)}
+				>
+					Remove
+				</button>
+			)}
+		</div>
+	);
+}
+
+function TagsSectionContent({
+	tags,
+	selectedTag,
+	setSelectedTag,
+	taggedNotes,
+	onFileSelect,
+	isMobile = false,
+}: {
+	tags: string[];
+	selectedTag: string | null;
+	setSelectedTag: (tag: string | null) => void;
+	taggedNotes: NoteFile[];
+	onFileSelect?: (id: string) => void;
+	isMobile?: boolean;
+}) {
+	if (tags.length === 0) {
+		return <EmptyLine>No tags yet. Type # in the editor or use /tag.</EmptyLine>;
+	}
+
+	return (
+		<div className="space-y-3">
+			<ul aria-label="Tags on this note" className="flex flex-wrap gap-1.5">
+				{tags.map((tag) => {
+					const isSelected = tag === selectedTag;
+					return (
+						<li key={tag}>
+							<button
+								type="button"
+								aria-pressed={isSelected}
+								aria-label={`${isSelected ? "Hide" : "Show"} notes tagged ${tag}`}
+								onClick={() => setSelectedTag(isSelected ? null : tag)}
+								className={cn(
+									"inline-flex cursor-pointer items-center border font-medium transition-colors focus-visible:border-ring focus-visible:outline-none",
+									isMobile
+										? "min-h-11 px-3 text-[14px] active:bg-secondary"
+										: "min-h-7 px-2 text-[12px]",
+									isSelected
+										? "border-ring bg-secondary text-foreground"
+										: "border-border bg-secondary/50 text-foreground/78 hover:border-ring/70 hover:text-foreground",
+								)}
+							>
+								#{tag}
+							</button>
+						</li>
+					);
+				})}
+			</ul>
+
+			{selectedTag ? (
+				<div className="-mx-2">
+					<p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/62">
+						Tagged #{selectedTag}
+					</p>
+					{taggedNotes.length > 0 ? (
+						<ul aria-label={`Notes tagged ${selectedTag}`} className="space-y-0.5">
+							{taggedNotes.map((taggedFile) => (
+								<li key={taggedFile.id}>
+									<button
+										type="button"
+										onClick={() => onFileSelect?.(taggedFile.id)}
+										disabled={!onFileSelect}
+										className={cn(
+											"group flex w-full cursor-pointer items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60",
+											isMobile ? "min-h-11 active:bg-muted" : "min-h-9",
+										)}
+									>
+										<FileText
+											className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+											strokeWidth={1.5}
+										/>
+										<span className="min-w-0 flex-1 truncate text-[13px] text-foreground/82">
+											{getNoteTitle(taggedFile)}
+										</span>
+										<ArrowUpRight
+											className="hover-reveal h-3.5 w-3.5 shrink-0 text-muted-foreground"
+											strokeWidth={1.5}
+										/>
+									</button>
+								</li>
+							))}
+						</ul>
+					) : (
+						<EmptyLine>No other notes are tagged #{selectedTag}.</EmptyLine>
+					)}
+				</div>
+			) : null}
+		</div>
+	);
+}
+
+function PeopleSectionContent({
+	people,
+	isMobile = false,
+}: {
+	people: Person[];
+	isMobile?: boolean;
+}) {
+	if (people.length === 0) {
+		return <EmptyLine>No people mentioned yet. Type $ in the editor.</EmptyLine>;
+	}
+
+	return (
+		<ul aria-label="People mentioned in this note" className="flex flex-wrap gap-1.5">
+			{people.map((person) => (
+				<li key={person.id}>
+					<Link
+						href={`/app/people/${person.id}`}
+						className={cn(
+							"inline-flex cursor-pointer items-center border border-border bg-secondary/50 font-medium text-foreground/78 transition-colors hover:border-ring/70 hover:text-foreground focus-visible:border-ring focus-visible:outline-none",
+							isMobile
+								? "min-h-11 px-3 text-[14px] active:bg-secondary"
+								: "min-h-7 px-2 text-[12px]",
+						)}
+					>
+						{person.name}
+					</Link>
+				</li>
+			))}
+		</ul>
+	);
+}
+
+function LinksSectionContent({
+	backlinks,
+	outgoingLinks,
+	filesById,
+	onFileSelect,
+	isMobile = false,
+}: {
+	backlinks: ResolvedNoteLink[];
+	outgoingLinks: ResolvedNoteLink[];
+	filesById: Map<string, NoteFile>;
+	onFileSelect?: (id: string) => void;
+	isMobile?: boolean;
+}) {
+	return (
+		<div className="space-y-5">
+			{backlinks.length > 0 && (
+				<div>
+					<LinkGroupHeader
+						icon={ArrowDownLeft}
+						label="Backlinks"
+						count={backlinks.length}
+					/>
+					<ul
+						aria-label="Notes linking to this note"
+						className="-mx-2 space-y-0.5 border-l border-border/40 pl-1.5"
+					>
+						{backlinks.map((link) => (
+							<LinkRow
+								key={`incoming-${link.sourceNoteId}-${link.targetNoteId ?? link.targetLabel}-${link.kind}`}
+								direction="incoming"
+								link={link}
+								filesById={filesById}
+								onFileSelect={onFileSelect}
+								isMobile={isMobile}
+							/>
+						))}
+					</ul>
+				</div>
+			)}
+			{outgoingLinks.length > 0 && (
+				<div>
+					<LinkGroupHeader
+						icon={ArrowUpRight}
+						label="Outgoing"
+						count={outgoingLinks.length}
+					/>
+					<ul
+						aria-label="Notes this note links to"
+						className="-mx-2 space-y-0.5 border-l border-border/40 pl-1.5"
+					>
+						{outgoingLinks.map((link) => (
+							<LinkRow
+								key={`outgoing-${link.sourceNoteId}-${link.targetNoteId ?? link.targetLabel}-${link.kind}`}
+								direction="outgoing"
+								link={link}
+								filesById={filesById}
+								onFileSelect={onFileSelect}
+								isMobile={isMobile}
+							/>
+						))}
+					</ul>
+				</div>
+			)}
+		</div>
+	);
+}
+
+function HistorySectionContent({
+	historyItems,
+	historyBranchRoles,
+	hasRestoreBranch,
+	restoredSourceIndex,
+	animateNumbers,
+	onView,
+}: {
+	historyItems: VersionRowData[];
+	historyBranchRoles: HistoryBranchRole[];
+	hasRestoreBranch: boolean;
+	restoredSourceIndex: number | null;
+	animateNumbers: boolean;
+	onView?: (id: string) => void;
+}) {
+	if (historyItems.length === 0) {
+		return (
+			<EmptyLine>No history yet. The first checkpoint appears after the next save.</EmptyLine>
+		);
+	}
+
+	return (
+		<ol className="relative -mx-1">
+			{historyItems.map((version, index) => {
+				const forkIndex = hasRestoreBranch ? historyBranchRoles.indexOf("fork") : -1;
+				const isRestoredTrunkLink =
+					restoredSourceIndex !== null &&
+					forkIndex !== -1 &&
+					index > forkIndex &&
+					index <= restoredSourceIndex;
+
+				return (
+					<VersionRow
+						key={version.id}
+						version={version}
+						previousContent={version.previousContent}
+						branchRole={historyBranchRoles[index] ?? "trunk"}
+						isFirst={index === 0}
+						isLast={index === historyItems.length - 1}
+						hasFork={hasRestoreBranch}
+						isRestoredSource={index === restoredSourceIndex}
+						isRestoredTrunkLink={isRestoredTrunkLink}
+						animateNumbers={animateNumbers}
+						onView={onView}
+					/>
+				);
+			})}
+		</ol>
+	);
+}
+
+export const MetadataPanel = memo(function MetadataPanel({
+	file,
+	files = EMPTY_FILES,
+	className,
+	isMobile = false,
+	editorMode = "block",
+	onToggleEditorMode,
+	onRequestClose,
+	onFileSelect,
+	onViewVersion,
+	onShare,
+}: Props) {
+	const rightSidebarGotoRef = useGotoTarget({ keybind: "r", to: goto.focus.rightSidebar });
+	const isGuest = useIsGuestWorkspace();
+	const capabilities = useWorkspaceCapabilities();
+	const auth = useAuth();
+	const animateNumbers = usePreferencesStore((state) => state.editor.animateNumbers);
+	const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
+		outline: true,
+		tags: true,
+		people: true,
+		links: true,
+		mentions: true,
+		history: true,
+		details: true,
+		collaborators: false,
+	});
+	const isMdx = isMdxNote(file);
+	const effectiveEditorMode = isMdx ? "raw" : editorMode;
+	const canToggleEditorMode = !isMdx && Boolean(onToggleEditorMode);
+	const {
+		selectedTag,
+		setSelectedTag,
+		details,
+		outlineHeadings,
+		outlineActiveKey,
+		scrollToHeading,
+		outgoingLinks,
+		unlinkedMentions,
+		backlinks,
+		filesById,
+		tags,
+		mentionedPeople,
+		taggedNotes,
+		historyItems,
+		historyBranchRoles,
+		hasRestoreBranch,
+		restoredSourceIndex,
+		versionsQuery,
+	} = useInspectorData({ file, files, effectiveEditorMode });
+	const { shareQuery } = useNoteSharing(file?.id);
+	const isDesktopRuntime = isTauriRuntime();
+	// Sharing is owner-only. `access === undefined` is the owner's own note.
+	const isOwnNote = !file?.access || file.access === "owner";
+	const inspectorControlCount = isOwnNote
+		? isMobile && !isDesktopRuntime && shareQuery.data
+			? 4
+			: 3
+		: 1;
+
+	const toggleSection = (section: SectionKey) => {
+		setOpenSections((current) => ({
+			...current,
+			[section]: !current[section],
+		}));
+	};
+
+	const handleShare = () => {
+		if (!file) return;
+		onShare?.(file.id);
+	};
+
+	const { handleIconChange, handleCoverChange } = useNoteAssetMutations(file);
 
 	const handleViewVersion = useCallback(
 		(id: string) => {
@@ -946,28 +1311,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 			tabIndex={-1}
 			className={asideClass}
 		>
-			{isMobile && (
-				<div className="shrink-0 border-b border-border bg-background px-4 pb-2 pt-2.5">
-					<div aria-hidden className="mx-auto mb-2 h-1.5 w-11 rounded-full bg-border" />
-					<div className="relative flex min-h-11 items-center justify-end gap-3">
-						<span className="absolute left-0 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-foreground">
-							Note details
-						</span>
-						{onRequestClose && (
-							<button
-								type="button"
-								onClick={onRequestClose}
-								onPointerDown={(event) => event.stopPropagation()}
-								aria-label="Close details"
-								data-sheet-no-drag
-								className="flex h-11 w-11 items-center justify-center rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground active:bg-muted"
-							>
-								<X className="h-5 w-5" strokeWidth={1.6} />
-							</button>
-						)}
-					</div>
-				</div>
-			)}
+			{isMobile && <MetadataMobileHeader onRequestClose={onRequestClose} />}
 
 			<div
 				className={cn(
@@ -991,57 +1335,23 @@ export const MetadataPanel = memo(function MetadataPanel({
 					/>
 				</InspectorSection>
 
-				<div
-					className={cn(
-						"flex items-center gap-3 border-b border-border px-3",
-						isMobile ? "min-h-14 py-2" : "py-2.5",
-					)}
+				<PageAssetRow
+					label="Page Icon"
+					hasValue={Boolean(file.icon)}
+					onRemove={() => handleIconChange("")}
+					isMobile={isMobile}
 				>
-					<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/50">
-						Page Icon
-					</span>
 					<NoteIconPicker icon={file.icon} onIconChange={handleIconChange} />
-					{file.icon && (
-						<button
-							type="button"
-							onClick={() => handleIconChange("")}
-							className={cn(
-								"ml-auto text-muted-foreground/50 underline decoration-dotted underline-offset-2 hover:text-foreground",
-								isMobile
-									? "inline-flex min-h-11 items-center px-1 text-[13px] active:text-foreground"
-									: "text-[11px]",
-							)}
-						>
-							Remove
-						</button>
-					)}
-				</div>
+				</PageAssetRow>
 
-				<div
-					className={cn(
-						"flex items-center gap-3 border-b border-border px-3",
-						isMobile ? "min-h-14 py-2" : "py-2.5",
-					)}
+				<PageAssetRow
+					label="Page Cover"
+					hasValue={Boolean(file.cover)}
+					onRemove={() => handleCoverChange("")}
+					isMobile={isMobile}
 				>
-					<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/50">
-						Page Cover
-					</span>
 					<NoteCoverPicker cover={file.cover} onCoverChange={handleCoverChange} />
-					{file.cover && (
-						<button
-							type="button"
-							onClick={() => handleCoverChange("")}
-							className={cn(
-								"ml-auto text-muted-foreground/50 underline decoration-dotted underline-offset-2 hover:text-foreground",
-								isMobile
-									? "inline-flex min-h-11 items-center px-1 text-[13px] active:text-foreground"
-									: "text-[11px]",
-							)}
-						>
-							Remove
-						</button>
-					)}
-				</div>
+				</PageAssetRow>
 
 				<InspectorSection
 					id="note-inspector-tags"
@@ -1051,88 +1361,14 @@ export const MetadataPanel = memo(function MetadataPanel({
 					open={openSections.tags}
 					onToggle={() => toggleSection("tags")}
 				>
-					{tags.length > 0 ? (
-						<div className="space-y-3">
-							<ul aria-label="Tags on this note" className="flex flex-wrap gap-1.5">
-								{tags.map((tag) => {
-									const isSelected = tag === selectedTag;
-									return (
-										<li key={tag}>
-											<button
-												type="button"
-												aria-pressed={isSelected}
-												aria-label={`${isSelected ? "Hide" : "Show"} notes tagged ${tag}`}
-												onClick={() =>
-													setSelectedTag(isSelected ? null : tag)
-												}
-												className={cn(
-													"inline-flex cursor-pointer items-center border font-medium transition-colors focus-visible:border-ring focus-visible:outline-none",
-													isMobile
-														? "min-h-11 px-3 text-[14px] active:bg-secondary"
-														: "min-h-7 px-2 text-[12px]",
-													isSelected
-														? "border-ring bg-secondary text-foreground"
-														: "border-border bg-secondary/50 text-foreground/78 hover:border-ring/70 hover:text-foreground",
-												)}
-											>
-												#{tag}
-											</button>
-										</li>
-									);
-								})}
-							</ul>
-
-							{selectedTag ? (
-								<div className="-mx-2">
-									<p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/62">
-										Tagged #{selectedTag}
-									</p>
-									{taggedNotes.length > 0 ? (
-										<ul
-											aria-label={`Notes tagged ${selectedTag}`}
-											className="space-y-0.5"
-										>
-											{taggedNotes.map((taggedFile) => (
-												<li key={taggedFile.id}>
-													<button
-														type="button"
-														onClick={() =>
-															onFileSelect?.(taggedFile.id)
-														}
-														disabled={!onFileSelect}
-														className={cn(
-															"group flex w-full cursor-pointer items-center gap-2 border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-muted focus-visible:border-ring focus-visible:bg-muted focus-visible:outline-none disabled:pointer-events-none disabled:opacity-60",
-															isMobile
-																? "min-h-11 active:bg-muted"
-																: "min-h-9",
-														)}
-													>
-														<FileText
-															className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-															strokeWidth={1.5}
-														/>
-														<span className="min-w-0 flex-1 truncate text-[13px] text-foreground/82">
-															{getNoteTitle(taggedFile)}
-														</span>
-														<ArrowUpRight
-															className="hover-reveal h-3.5 w-3.5 shrink-0 text-muted-foreground"
-															strokeWidth={1.5}
-														/>
-													</button>
-												</li>
-											))}
-										</ul>
-									) : (
-										<EmptyLine>
-											No other notes are tagged #{selectedTag}.
-										</EmptyLine>
-									)}
-								</div>
-							) : null}
-						</div>
-					) : (
-						<EmptyLine>No tags yet. Type # in the editor or use /tag.</EmptyLine>
-					)}
+					<TagsSectionContent
+						tags={tags}
+						selectedTag={selectedTag}
+						setSelectedTag={setSelectedTag}
+						taggedNotes={taggedNotes}
+						onFileSelect={onFileSelect}
+						isMobile={isMobile}
+					/>
 				</InspectorSection>
 
 				<InspectorSection
@@ -1143,30 +1379,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 					open={openSections.people}
 					onToggle={() => toggleSection("people")}
 				>
-					{mentionedPeople.length > 0 ? (
-						<ul
-							aria-label="People mentioned in this note"
-							className="flex flex-wrap gap-1.5"
-						>
-							{mentionedPeople.map((person) => (
-								<li key={person.id}>
-									<Link
-										href={`/app/people/${person.id}`}
-										className={cn(
-											"inline-flex cursor-pointer items-center border border-border bg-secondary/50 font-medium text-foreground/78 transition-colors hover:border-ring/70 hover:text-foreground focus-visible:border-ring focus-visible:outline-none",
-											isMobile
-												? "min-h-11 px-3 text-[14px] active:bg-secondary"
-												: "min-h-7 px-2 text-[12px]",
-										)}
-									>
-										{person.name}
-									</Link>
-								</li>
-							))}
-						</ul>
-					) : (
-						<EmptyLine>No people mentioned yet. Type $ in the editor.</EmptyLine>
-					)}
+					<PeopleSectionContent people={mentionedPeople} isMobile={isMobile} />
 				</InspectorSection>
 
 				{(backlinks.length > 0 || outgoingLinks.length > 0) && (
@@ -1178,56 +1391,13 @@ export const MetadataPanel = memo(function MetadataPanel({
 						open={openSections.links}
 						onToggle={() => toggleSection("links")}
 					>
-						<div className="space-y-5">
-							{backlinks.length > 0 && (
-								<div>
-									<LinkGroupHeader
-										icon={ArrowDownLeft}
-										label="Backlinks"
-										count={backlinks.length}
-									/>
-									<ul
-										aria-label="Notes linking to this note"
-										className="-mx-2 space-y-0.5 border-l border-border/40 pl-1.5"
-									>
-										{backlinks.map((link) => (
-											<LinkRow
-												key={`incoming-${link.sourceNoteId}-${link.targetNoteId ?? link.targetLabel}-${link.kind}`}
-												direction="incoming"
-												link={link}
-												filesById={filesById}
-												onFileSelect={onFileSelect}
-												isMobile={isMobile}
-											/>
-										))}
-									</ul>
-								</div>
-							)}
-							{outgoingLinks.length > 0 && (
-								<div>
-									<LinkGroupHeader
-										icon={ArrowUpRight}
-										label="Outgoing"
-										count={outgoingLinks.length}
-									/>
-									<ul
-										aria-label="Notes this note links to"
-										className="-mx-2 space-y-0.5 border-l border-border/40 pl-1.5"
-									>
-										{outgoingLinks.map((link) => (
-											<LinkRow
-												key={`outgoing-${link.sourceNoteId}-${link.targetNoteId ?? link.targetLabel}-${link.kind}`}
-												direction="outgoing"
-												link={link}
-												filesById={filesById}
-												onFileSelect={onFileSelect}
-												isMobile={isMobile}
-											/>
-										))}
-									</ul>
-								</div>
-							)}
-						</div>
+						<LinksSectionContent
+							backlinks={backlinks}
+							outgoingLinks={outgoingLinks}
+							filesById={filesById}
+							onFileSelect={onFileSelect}
+							isMobile={isMobile}
+						/>
 					</InspectorSection>
 				)}
 
@@ -1277,40 +1447,14 @@ export const MetadataPanel = memo(function MetadataPanel({
 						open={openSections.history}
 						onToggle={() => toggleSection("history")}
 					>
-						{historyItems.length > 0 ? (
-							<ol className="relative -mx-1">
-								{historyItems.map((version, index) => {
-									const forkIndex = hasRestoreBranch
-										? historyBranchRoles.indexOf("fork")
-										: -1;
-									const isRestoredTrunkLink =
-										restoredSourceIndex !== null &&
-										forkIndex !== -1 &&
-										index > forkIndex &&
-										index <= restoredSourceIndex;
-
-									return (
-										<VersionRow
-											key={version.id}
-											version={version}
-											previousContent={version.previousContent}
-											branchRole={historyBranchRoles[index] ?? "trunk"}
-											isFirst={index === 0}
-											isLast={index === historyItems.length - 1}
-											hasFork={hasRestoreBranch}
-											isRestoredSource={index === restoredSourceIndex}
-											isRestoredTrunkLink={isRestoredTrunkLink}
-											animateNumbers={animateNumbers}
-											onView={onViewVersion ? handleViewVersion : undefined}
-										/>
-									);
-								})}
-							</ol>
-						) : (
-							<EmptyLine>
-								No history yet. The first checkpoint appears after the next save.
-							</EmptyLine>
-						)}
+						<HistorySectionContent
+							historyItems={historyItems}
+							historyBranchRoles={historyBranchRoles}
+							hasRestoreBranch={hasRestoreBranch}
+							restoredSourceIndex={restoredSourceIndex}
+							animateNumbers={animateNumbers}
+							onView={onViewVersion ? handleViewVersion : undefined}
+						/>
 					</InspectorSection>
 				)}
 			</div>
