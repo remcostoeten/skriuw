@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	memo,
 	useCallback,
 	useMemo,
 	useRef,
@@ -282,7 +283,7 @@ function WorkspacePane({
 	);
 }
 
-export function EditorWorkspace({
+export const EditorWorkspace = memo(function EditorWorkspace({
 	splitActive,
 	primaryFile,
 	secondaryFile,
@@ -491,4 +492,4 @@ export function EditorWorkspace({
 			</div>
 		</div>
 	);
-}
+});
