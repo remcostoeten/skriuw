@@ -1,0 +1,29 @@
+{
+	"name": "@skriuw/documentation",
+	"version": "0.19.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"generate": "fumadocs-mdx source.config.ts",
+		"dev": "--bun dev --port 6969",
+		"build": "next build",
+		"start": "next start -p 6969",
+		"lint": "oxlint app components lib source.config.ts next.config.mjs",
+		"typecheck": "bun run generate && tsc --noEmit"
+	},
+	"dependencies": {
+		"fumadocs-core": "^16.3.0",
+		"fumadocs-mdx": "^15.1.0",
+		"fumadocs-ui": "^16.3.0",
+		"next": "16.2.6",
+		"react": "19.2.4",
+		"react-dom": "19.2.4"
+	},
+	"devDependencies": {
+		"@types/mdx": "^2.0.13",
+		"@types/node": "^22.16.5",
+		"@types/react": "19.2.14",
+		"@types/react-dom": "19.2.3",
+		"typescript": "^5.8.3"
+	}
+}

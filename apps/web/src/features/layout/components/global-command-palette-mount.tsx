@@ -14,6 +14,7 @@ import {
 } from "@/features/settings/settings-command-index";
 import { toggleSettings } from "@/features/settings/use-settings-modal";
 import { usePreferencesStore } from "@/features/settings/store";
+import { useTourStore } from "@/features/onboarding/store";
 import { THEMES } from "@/features/settings/preferences/themes";
 import { useCreateFolder } from "@/features/notes/hooks/use-create-folder";
 import { useCreateNote } from "@/features/notes/hooks/use-create-note";
@@ -166,6 +167,12 @@ export function GlobalCommandPaletteMount() {
 		},
 		"settings.theme": cycleTheme,
 		"settings.vim": toggleVimMode,
+		"settings.productTour": () => {
+			const { resetTour, startTour } = useTourStore.getState();
+			resetTour();
+			startTour();
+			router.push("/app");
+		},
 		"nav.notes": () => router.push("/app"),
 		"nav.journal": () => router.push("/app/journal"),
 		"nav.graph": () => router.push("/app/graph"),
