@@ -1,0 +1,38 @@
+---
+title: "Development features"
+description: "The feature- and domain-sliced architecture, a walkthrough of each feature and domain in the codebase."
+---
+
+Skriuw's code is organized as feature slices under `apps/web/src/features/`. Each folder owns its own components, hooks, and lib code for one domain, and talks to storage through the shared `WorkspaceBackend` adapter described in [Architecture](/development/architecture) rather than reaching into another feature's internals.
+
+| Domain | What it owns |
+| --- | --- |
+| `notes` | Rich text and Markdown editing, wiki-style note links, backlinks, folders, and version history. |
+| `journal` | Calendar-based daily entries with moods, tags, autosave, and quick date navigation. |
+| `editor` | The BlockNote-based block editor shared by notes and journal, plus custom block specs (diagram, code, etc.). |
+| `tags` | The `#tag` chip system, tag detection in content, and the `/app/tags` overview and insights pages. |
+| `people` | The `$person` mention system, the reusable `Person` entity, and the `/app/people` graph view. |
+| `collaboration` | Real-time multiplayer editing via Yjs, backed by a `y-partyserver` instance on Cloudflare. |
+| `sharing` | Frozen note snapshots for external viewers, with optional passwords, expiry, and view-once access. |
+| `ai` | BYOK AI actions (title generation, spell check, continue-writing, and others), routed through a single `callAi` entry point on both web and desktop. |
+| `diagram` | The Mermaid-backed diagram block, including the visual React Flow builder for editing diagrams without writing Mermaid syntax. |
+| `auth` | Sign-in/sign-up via the `@remcostoeten/auth-drawer` package, backed by Better Auth. |
+| `admin` | Internal admin guards, seed scripts, and moderation tooling. |
+| `onboarding` | The one-time welcome walkthrough and code-defined starter content bundle for new accounts. |
+| `settings` | User preferences: themes, typography, editor behavior, AI provider keys, and account actions. |
+| `notifications` | In-app notification center and delivery hooks. |
+| `activity` | Recent-activity feeds surfaced across the workspace. |
+| `layout` | Shell-level structure: sidebar, panes, tabs, and split-view chrome shared across features. |
+| `quick-access` | The command palette / quick-open surface for jumping to notes and actions by keyboard. |
+| `desktop` | Desktop-only chrome: the about dialog, AI settings section, quit shortcut, and index sync with the Tauri backend. |
+| `dev-tools` | The in-app dev menu used during development, gated out of production builds. |
+| `marketing` | SEO-oriented marketing pages served from the web app. |
+
+New features should follow this same shape: a folder under `features/`, storage access through `WorkspaceBackend` (never a direct Prisma or Tauri call from feature code), and capability checks via `useWorkspaceCapabilities()` for anything a backend might not support.
+
+## Beyond `apps/web/src/features/`
+
+This table covers UI feature slices inside the web app. Two other surfaces are full apps in their own right and aren't feature folders:
+
+- **`apps/desktop`** — the native Tauri shell (Rust `src-tauri`, packaging, capabilities). The `desktop` row above is only the desktop-specific *chrome* rendered inside the web/SPA bundle; the actual native app lives here. See [Architecture](./architecture.mdx#desktop-storage-model) for its storage model.
+- **`apps/extension`** — the Chrome web clipper. See [Web clipper extension](/features/web-clipper-extension).

@@ -1,0 +1,61 @@
+---
+title: "Release pipeline"
+description: "How a Skriuw version becomes a pullable Docker image, what the GHCR publish workflow automates, what stays a manual tag, tag conventions, and the one-time public-package setup."
+---
+
+How a Skriuw version becomes a pullable Docker image. This is the maintainer
+view of the [Self-host with Docker](/infra/self-host-docker) story: what CI does,
+what stays manual, and the one-time setup that makes the image public.
+
+## What is automatic
+
+The image publish is CI. `.github/workflows/publish-docker.yml` triggers on any
+`v*.*.*` tag push (and on manual `workflow_dispatch`), then:
+
+1. Sets up QEMU + Buildx for multi-arch.
+2. Logs in to GHCR with the built-in `GITHUB_TOKEN`.
+3. Builds the root `Dockerfile` for `linux/amd64` and `linux/arm64`.
+4. Pushes to `ghcr.io/remcostoeten/skriuw` with tags derived from the git tag.
+
+For tag `v0.18.0` that publishes three tags: `:0.18.0`, `:0.18`, and `:latest`.
+Every subsequent `vX.Y.Z` tag re-publishes and moves `:latest` forward. GitHub
+Actions layer caching (`type=gha`) keeps rebuilds fast.
+
+## What stays manual
+
+Cutting the tag. There is no semantic-release or changesets, versioning is
+manual, matching the desktop flow (`desktop-v*` tags). To ship a release:
+
+```bash
+# bump "version" in package.json first, then:
+git tag v0.18.0
+git push origin v0.18.0
+```
+
+That single push is the whole release action; the workflow does the rest.
+
+## Tag conventions
+
+| Prefix | Triggers | Produces |
+| ------ | -------- | -------- |
+| `v*.*.*` | `publish-docker.yml` | The self-host web image on GHCR |
+| `desktop-v*` | `release-desktop.yml` | Native desktop installers + a GitHub release |
+
+The two schemes are independent. `desktop-v0.18.0` and `v0.18.0` are different
+tags that fire different pipelines; a desktop release does not build the Docker
+image and vice versa.
+
+## One-time setup: make the package public
+
+After the first successful publish, the GHCR package defaults to private. Flip
+it to public (repo → Packages → `skriuw` → Package settings → Change visibility
+→ Public). Otherwise `docker pull` demands a `docker login ghcr.io`, which
+breaks the self-host quick start.
+
+## End-user update model
+
+Publishing `:latest` does not push onto anyone's running container. Self-hosters
+upgrade deliberately with `docker compose pull && docker compose up -d`; the
+entrypoint applies migrations on the next boot. Auto-update (Watchtower) is
+intentionally left out of the default Compose because unattended migrations have
+no rollback.

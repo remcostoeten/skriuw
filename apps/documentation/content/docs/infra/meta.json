@@ -1,0 +1,10 @@
+{
+	"pages": [
+		"distribution",
+		"self-host-docker",
+		"environment-variables",
+		"collaboration-setup",
+		"release-pipeline"
+	],
+	"title": "Self-hosting and operations"
+}

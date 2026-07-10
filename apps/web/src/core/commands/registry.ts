@@ -283,6 +283,14 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
 		keywords: ["theme", "appearance", "color", "dark", "light", "switch", "cycle"],
 		description: "Cycle to the next theme.",
 	},
+	"settings.productTour": {
+		id: "settings.productTour",
+		label: "Product tour",
+		scope: "global",
+		group: "Help",
+		keywords: ["tour", "onboarding", "walkthrough", "intro", "welcome", "help"],
+		description: "Replay the guided product tour.",
+	},
 	"settings.vim": {
 		id: "settings.vim",
 		label: "Toggle Vim mode",
@@ -290,14 +298,6 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
 		group: "Editor",
 		keywords: ["vim", "modal", "keybindings", "normal", "insert", "editor"],
 		description: "Turn modal Vim keybindings on or off.",
-	},
-	"settings.welcomeTour": {
-		id: "settings.welcomeTour",
-		label: "Show welcome tour",
-		scope: "global",
-		group: "Help",
-		keywords: ["tour", "walkthrough", "onboarding", "welcome", "help", "slash", "demo"],
-		description: "Replay the quick intro to the / menu, links, and tags.",
 	},
 };
 
