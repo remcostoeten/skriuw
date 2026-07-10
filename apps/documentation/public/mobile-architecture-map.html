@@ -1,0 +1,1607 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Skriuw — Mobile (Expo) Architecture Map</title>
+		<!--
+  Interactive architecture map for the Skriuw → Expo mobile plan.
+  Companion document: docs/mobile-expo-architecture.md
+
+  LLM NOTE: the complete machine-readable model of this map (every node,
+  its portability class, MVP status, file paths, summary, mobile plan, and
+  every dependency edge) is embedded below in
+  <script type="application/json" id="architecture-data">. Read that block —
+  it is the source of truth the canvas renders from.
+
+  Human usage: drag to pan, scroll/pinch to zoom, click a node for details,
+  toggle "MVP scope only" to see exactly what the notes-only MVP touches.
+-->
+		<style>
+			:root {
+				--bg: #0d1117;
+				--panel: #161b22;
+				--panel-border: #2d333b;
+				--text: #e6edf3;
+				--text-dim: #8b949e;
+				--accent: #58a6ff;
+				--reuse: #3fb950;
+				--adapt: #58a6ff;
+				--rewrite: #d29922;
+				--server: #bc8cff;
+				--skip: #6e7681;
+				--new: #f778ba;
+				--store: #39c5cf;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				overflow: hidden;
+				background: var(--bg);
+				color: var(--text);
+				font-family:
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					"Segoe UI",
+					sans-serif;
+			}
+			#canvas {
+				display: block;
+				width: 100%;
+				height: 100%;
+				cursor: grab;
+			}
+			#canvas.dragging {
+				cursor: grabbing;
+			}
+
+			#topbar {
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				z-index: 10;
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				flex-wrap: wrap;
+				padding: 10px 16px;
+				background: color-mix(in srgb, var(--panel) 88%, transparent);
+				backdrop-filter: blur(8px);
+				border-bottom: 1px solid var(--panel-border);
+				font-size: 13px;
+			}
+			#topbar h1 {
+				font-size: 14px;
+				margin: 0;
+				font-weight: 600;
+				white-space: nowrap;
+			}
+			#topbar h1 span {
+				color: var(--text-dim);
+				font-weight: 400;
+			}
+			.legend {
+				display: flex;
+				gap: 12px;
+				flex-wrap: wrap;
+				align-items: center;
+			}
+			.legend-item {
+				display: flex;
+				align-items: center;
+				gap: 5px;
+				color: var(--text-dim);
+			}
+			.swatch {
+				width: 11px;
+				height: 11px;
+				border-radius: 3px;
+				display: inline-block;
+			}
+			label.toggle {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				cursor: pointer;
+				user-select: none;
+				color: var(--text);
+				background: var(--panel);
+				border: 1px solid var(--panel-border);
+				border-radius: 6px;
+				padding: 4px 10px;
+			}
+			button.reset {
+				background: var(--panel);
+				color: var(--text);
+				border: 1px solid var(--panel-border);
+				border-radius: 6px;
+				padding: 4px 10px;
+				cursor: pointer;
+				font-size: 13px;
+			}
+			button.reset:hover {
+				border-color: var(--accent);
+			}
+
+			#sidebar {
+				position: fixed;
+				top: 52px;
+				right: 0;
+				bottom: 0;
+				width: 380px;
+				max-width: 92vw;
+				z-index: 9;
+				background: var(--panel);
+				border-left: 1px solid var(--panel-border);
+				padding: 18px 20px 40px;
+				overflow-y: auto;
+				transform: translateX(100%);
+				transition: transform 0.18s ease;
+				font-size: 13.5px;
+				line-height: 1.55;
+			}
+			#sidebar.open {
+				transform: translateX(0);
+			}
+			#sidebar .close {
+				position: absolute;
+				top: 10px;
+				right: 12px;
+				background: none;
+				border: none;
+				color: var(--text-dim);
+				font-size: 20px;
+				cursor: pointer;
+			}
+			#sidebar h2 {
+				margin: 0 44px 4px 0;
+				font-size: 17px;
+			}
+			#sidebar .badges {
+				display: flex;
+				gap: 6px;
+				flex-wrap: wrap;
+				margin: 8px 0 14px;
+			}
+			.badge {
+				font-size: 11px;
+				padding: 2px 8px;
+				border-radius: 999px;
+				border: 1px solid;
+				font-weight: 600;
+				letter-spacing: 0.03em;
+			}
+			#sidebar h3 {
+				font-size: 11px;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				color: var(--text-dim);
+				margin: 16px 0 6px;
+			}
+			#sidebar p {
+				margin: 6px 0;
+				color: var(--text);
+			}
+			#sidebar ul {
+				margin: 4px 0;
+				padding-left: 18px;
+				color: var(--text);
+			}
+			#sidebar code {
+				background: #0d1117;
+				border: 1px solid var(--panel-border);
+				border-radius: 4px;
+				padding: 1px 5px;
+				font-size: 12px;
+				font-family: ui-monospace, "SF Mono", Menlo, monospace;
+				word-break: break-all;
+			}
+			#sidebar .paths li {
+				margin-bottom: 3px;
+			}
+			#sidebar .meta {
+				color: var(--text-dim);
+				font-size: 12px;
+			}
+			#hint {
+				position: fixed;
+				bottom: 14px;
+				left: 16px;
+				z-index: 8;
+				color: var(--text-dim);
+				font-size: 12px;
+				background: color-mix(in srgb, var(--panel) 80%, transparent);
+				padding: 6px 10px;
+				border-radius: 6px;
+				border: 1px solid var(--panel-border);
+			}
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<h1>
+				Skriuw → Expo architecture map
+				<span>· click a node · docs/mobile-expo-architecture.md</span>
+			</h1>
+			<div class="legend">
+				<span class="legend-item"
+					><span class="swatch" style="background: var(--reuse)"></span>REUSE (runs as-is
+					in RN)</span
+				>
+				<span class="legend-item"
+					><span class="swatch" style="background: var(--adapt)"></span>ADAPT (portable
+					core, new UI)</span
+				>
+				<span class="legend-item"
+					><span class="swatch" style="background: var(--rewrite)"></span>REWRITE
+					(DOM-bound)</span
+				>
+				<span class="legend-item"
+					><span class="swatch" style="background: var(--server)"></span>SERVER (cloud
+					does it)</span
+				>
+				<span class="legend-item"
+					><span class="swatch" style="background: var(--new)"></span>NEW (to build)</span
+				>
+				<span class="legend-item"
+					><span class="swatch" style="background: var(--store)"></span>DATA STORE</span
+				>
+				<span class="legend-item"
+					><span class="swatch" style="background: var(--skip)"></span>SKIP / N-A</span
+				>
+			</div>
+			<label class="toggle"
+				><input type="checkbox" id="mvpToggle" /> MVP scope only (notes)</label
+			>
+			<button class="reset" id="resetView">Reset view</button>
+		</div>
+
+		<canvas id="canvas"></canvas>
+
+		<aside id="sidebar">
+			<button class="close" id="sidebarClose">×</button>
+			<div id="sidebarContent"></div>
+		</aside>
+
+		<div id="hint">drag = pan · scroll = zoom · click node = details</div>
+
+		<script type="application/json" id="architecture-data">
+			{
+				"meta": {
+					"project": "Skriuw",
+					"purpose": "Architecture map for building an Expo (React Native) mobile app. MVP = notes only, cloud-connected. Deep write-up in docs/mobile-expo-architecture.md.",
+					"date": "2026-07-09",
+					"classes": {
+						"REUSE": "Pure TS that runs unchanged in React Native",
+						"ADAPT": "Portable core logic, needs a new thin native UI or wrapper",
+						"REWRITE": "DOM/Next.js-bound; must be rebuilt natively (or via WebView)",
+						"SERVER": "Server already implements it; mobile is just an HTTP client",
+						"NEW": "Does not exist yet; must be built for mobile",
+						"STORE": "Data store / infrastructure",
+						"SKIP": "Out of scope for mobile (desktop/keyboard/web-only)"
+					},
+					"mvpDefinition": "Sign in, browse folders, search, read rich notes (native renderer over richContent JSON), edit/create in markdown, delete. Online-required with offline READ cache. No journal, no rich block editing, no offline writes, no collab, no AI."
+				},
+				"groups": [
+					{
+						"id": "mobile",
+						"label": "APPS/MOBILE — Expo app (PROPOSED, all new)",
+						"x": 60,
+						"y": 120,
+						"w": 560,
+						"h": 900,
+						"color": "#f778ba"
+					},
+					{
+						"id": "shared",
+						"label": "PACKAGES/DOMAIN — shared pure TS (extract from apps/web/src/domain)",
+						"x": 680,
+						"y": 120,
+						"w": 470,
+						"h": 900,
+						"color": "#3fb950"
+					},
+					{
+						"id": "webapp",
+						"label": "APPS/WEB — frontend (features/*, DOM-bound)",
+						"x": 1210,
+						"y": 120,
+						"w": 470,
+						"h": 900,
+						"color": "#d29922"
+					},
+					{
+						"id": "server",
+						"label": "APPS/WEB — server side (Next.js on Vercel)",
+						"x": 1740,
+						"y": 120,
+						"w": 470,
+						"h": 900,
+						"color": "#bc8cff"
+					},
+					{
+						"id": "data",
+						"label": "DATA & INFRA",
+						"x": 2270,
+						"y": 120,
+						"w": 380,
+						"h": 900,
+						"color": "#39c5cf"
+					},
+					{
+						"id": "siblings",
+						"label": "OTHER CLIENTS (precedents for mobile)",
+						"x": 680,
+						"y": 1080,
+						"w": 1530,
+						"h": 260,
+						"color": "#6e7681"
+					}
+				],
+				"nodes": [
+					{
+						"id": "expo-shell",
+						"group": "mobile",
+						"x": 90,
+						"y": 170,
+						"w": 240,
+						"h": 74,
+						"class": "NEW",
+						"mvp": true,
+						"label": "Expo app shell",
+						"sub": "expo-router · EAS dev build",
+						"summary": "New Expo app in the bun monorepo (apps/mobile). expo-router stacks: (auth), notes list, note/[id], search, settings. Needs a dev-client build (SecureStore + deep links), not Expo Go.",
+						"mobilePlan": "Build in Phase 2 (~1-1.5wk incl. auth screens). Metro needs workspace watchFolders config for the bun monorepo.",
+						"paths": ["apps/mobile/ (new)"]
+					},
+					{
+						"id": "mobile-auth",
+						"group": "mobile",
+						"x": 350,
+						"y": 170,
+						"w": 240,
+						"h": 74,
+						"class": "NEW",
+						"mvp": true,
+						"label": "Auth client (Expo)",
+						"sub": "@better-auth/expo · SecureStore",
+						"summary": "Better Auth Expo client: stores the session cookie in expo-secure-store, attaches it to all fetches. Email/password first; GitHub/Google OAuth via skriuw:// deep link can trail to v1.1.",
+						"mobilePlan": "Phase 0 spike (version compatibility with current better-auth is the #1 risk). Fallback bridge: SyncToken bearer scheme.",
+						"paths": ["apps/mobile/src/auth/ (new)"]
+					},
+					{
+						"id": "mobile-backend",
+						"group": "mobile",
+						"x": 90,
+						"y": 270,
+						"w": 240,
+						"h": 84,
+						"class": "NEW",
+						"mvp": true,
+						"label": "mobileBackend",
+						"sub": "4th WorkspaceBackend impl (HTTP)",
+						"summary": "The structural heart of the port: a fourth implementation of the WorkspaceBackend interface, calling /api/workspace/* over HTTPS. Declares MVP capabilities (notes/folders/search only; journal/trash/history/ai/collab all false). Template: tauri-backend.ts (1155 LOC) shows wire mapping + write-queue + capability declaration.",
+						"mobilePlan": "Phase 2. Reuses write-queue.ts (per-note write serialization) and richDocumentKey() for save-echo suppression (JSONB key-reorder lesson).",
+						"paths": [
+							"apps/mobile/src/backend/http-backend.ts (new)",
+							"template: apps/web/src/core/workspace-backend/tauri-backend.ts"
+						]
+					},
+					{
+						"id": "mobile-rq",
+						"group": "mobile",
+						"x": 350,
+						"y": 270,
+						"w": 240,
+						"h": 84,
+						"class": "NEW",
+						"mvp": true,
+						"label": "React Query + offline READ cache",
+						"sub": "AsyncStorage/MMKV persister",
+						"summary": "Same TanStack Query major + same query-key discipline as web (notesKeys.files/detail). Persister ports the web rule: persist note BODIES only, not lists (7-day maxAge). Result: previously opened notes readable offline; writes disabled offline in MVP.",
+						"mobilePlan": "Phase 2. Direct port of providers/query-cache-persistence.tsx rules to AsyncStorage/MMKV.",
+						"paths": [
+							"apps/mobile/src/query/ (new)",
+							"rules from: apps/web/src/providers/query-cache-persistence.tsx"
+						]
+					},
+					{
+						"id": "read-renderer",
+						"group": "mobile",
+						"x": 90,
+						"y": 380,
+						"w": 240,
+						"h": 96,
+						"class": "NEW",
+						"mvp": true,
+						"label": "Native read renderer",
+						"sub": "richContent JSON → RN components",
+						"summary": "Biggest pure-frontend MVP chunk: renders the BlockNote JSON natively (FlashList over flat blocks): headings, lists, toggleable checklists, quotes, code, tables, images/covers, chips (#tag colored, [[wikilink]] navigable, $person/@user pills). Diagram/fileTree blocks degrade to labeled code fences. MUST have an unknown-block fallback for forward compatibility.",
+						"mobilePlan": "Phase 3 (~1.5-2wk). Consumes the shared rich-document module for parsing/derivation.",
+						"paths": ["apps/mobile/src/renderer/ (new)"]
+					},
+					{
+						"id": "md-editor",
+						"group": "mobile",
+						"x": 350,
+						"y": 380,
+						"w": 240,
+						"h": 96,
+						"class": "NEW",
+						"mvp": true,
+						"label": "Markdown editor",
+						"sub": "TextInput + accessory toolbar",
+						"summary": "MVP editing surface (strategy E1): full-screen markdown TextInput with formatting accessory bar (bold/italic/heading/list/checkbox/link). Saves as preferredEditorMode:'raw' with richContent:null — the server re-derives rich JSON. This is a first-class mode in the data model, not a hack. Consider react-native-live-markdown for inline highlight.",
+						"mobilePlan": "Phase 4 (~1.5wk incl. autosave + create/rename/move/delete).",
+						"paths": ["apps/mobile/src/editor/ (new)"]
+					},
+					{
+						"id": "md-emitter",
+						"group": "mobile",
+						"x": 90,
+						"y": 500,
+						"w": 240,
+						"h": 84,
+						"class": "NEW",
+						"mvp": "partial",
+						"label": "richContent→markdown emitter",
+						"sub": "small pure TS · ~1-2 days",
+						"summary": "The one missing portable piece: web serializes blocks→markdown via the live editor (editor.blocksToMarkdownLossy()), which mobile won't have. A small pure-TS emitter (inverse of markdownToRichDocument; schema is small and known) unlocks structured mutations WITHOUT a full editor: checkbox toggles in read view, append-to-note, share-sheet capture.",
+						"mobilePlan": "Build during Phase 4; property-test roundtrip against markdownToRichDocument. If not confident, ship read-only checkboxes.",
+						"paths": ["packages/domain/src/rich-to-markdown.ts (new)"]
+					},
+					{
+						"id": "webview-editor",
+						"group": "mobile",
+						"x": 350,
+						"y": 500,
+						"w": 240,
+						"h": 84,
+						"class": "REWRITE",
+						"mvp": false,
+						"label": "WebView BlockNote editor",
+						"sub": "V2 — full parity path",
+						"summary": "Post-MVP flagship: bundle a tiny local web page hosting the REAL BlockNote editor with the exact web schema (procode, checklists, fileTree, diagram, all inline chips); bridge via postMessage (doc load, autosave, keyboard height, native chip pickers). Full parity without a second schema. The alternative (native rich editor like 10tap) means re-implementing every custom spec on a divergent schema — the trap to avoid.",
+						"mobilePlan": "V2. Time sink is keyboard/scroll/IME quirks, not the editor itself.",
+						"paths": ["apps/mobile/src/webview-editor/ (V2)"]
+					},
+					{
+						"id": "offline-sync",
+						"group": "mobile",
+						"x": 90,
+						"y": 610,
+						"w": 240,
+						"h": 84,
+						"class": "NEW",
+						"mvp": false,
+						"label": "Offline-first writes + sync",
+						"sub": "V2/V3 — project-sized",
+						"summary": "Hardest deferred item: local SQLite (expo-sqlite) + outbox queue + delta sync + per-note conflict handling. Nothing exists server-side beyond full export. Stepping stones already planned into MVP: write-queue, updatedAt preconditions on PATCH, idempotency keys.",
+						"mobilePlan": "V2/V3. Do NOT attempt in MVP — read-cache offline covers the subway case.",
+						"paths": ["future: apps/mobile/src/sync/"]
+					},
+					{
+						"id": "mobile-post-mvp",
+						"group": "mobile",
+						"x": 350,
+						"y": 610,
+						"w": 240,
+						"h": 84,
+						"class": "SERVER",
+						"mvp": false,
+						"label": "V1.1 thin-UI wins",
+						"sub": "journal · AI sheet · history · trash",
+						"summary": "Server already does all the work for these; each is a thin native screen: journal (plain-text entries suit mobile), AI actions sheet (POST /api/ai streams today), version history list+restore, trash list. Plus V1.2: iOS Share Extension reusing POST /api/sync/capture verbatim, and Expo push notifications.",
+						"mobilePlan": "Sequenced after MVP ships; each is days not weeks.",
+						"paths": ["apps/mobile/src/features/* (post-MVP)"]
+					},
+					{
+						"id": "mobile-skips",
+						"group": "mobile",
+						"x": 90,
+						"y": 720,
+						"w": 500,
+						"h": 64,
+						"class": "SKIP",
+						"mvp": false,
+						"label": "Not coming to mobile",
+						"sub": "vim · tabs/split · import/export · admin · clipper-as-extension",
+						"summary": "Keyboard-culture and desktop-job features. Split view is ALREADY disabled on mobile web (use-notes-layout.ts ~:290). Real-time collab deferred long-term: the Yjs provider could run in RN but it's welded to BlockNote's collaboration option — pointless before the WebView editor exists.",
+						"mobilePlan": "Skip.",
+						"paths": []
+					},
+
+					{
+						"id": "rich-document",
+						"group": "shared",
+						"x": 710,
+						"y": 170,
+						"w": 195,
+						"h": 96,
+						"class": "REUSE",
+						"mvp": true,
+						"label": "rich-document.ts",
+						"sub": "markdown ↔ BlockNote JSON",
+						"summary": "Hand-written pure-TS markdown→BlockNote-document parser. Only BlockNote import is TYPE-ONLY (zero runtime dep). Exports: markdownToRichDocument, parseInlineContent, flattenInlineChips, richDocumentToSearchableMarkdown, richDocumentKey (stable stringify — REQUIRED for save-echo suppression because Postgres JSONB reorders keys), resolveRichDocument. Runs unchanged in React Native. The desktop's Rust twin (markdown.rs) needs NO porting — this TS path is already the web fallback.",
+						"mobilePlan": "Extract to packages/domain in Phase 0; the read renderer and echo suppression build on it.",
+						"paths": ["apps/web/src/domain/notes/rich-document.ts"]
+					},
+					{
+						"id": "note-links",
+						"group": "shared",
+						"x": 925,
+						"y": 170,
+						"w": 195,
+						"h": 96,
+						"class": "REUSE",
+						"mvp": true,
+						"label": "note-links + link-sync",
+						"sub": "wiki/tag/person extraction",
+						"summary": "extractNoteLinks, extractNoteTags ([[Title|alias]], [x](note://id), #tag 2-32 chars, code-fence-aware), normalizeNoteTitle, wikilink resolver, buildDesiredNoteLinkRows (index reconciliation). Pure TS. Mobile mostly does NOT need to run it — writing through the server API triggers link indexing for free — but it's available for offline later.",
+						"mobilePlan": "Extract in Phase 0. Used by mobile only for local niceties (e.g. chip nav targets).",
+						"paths": [
+							"apps/web/src/domain/notes/note-links.ts",
+							"apps/web/src/domain/notes/note-link-sync.ts"
+						]
+					},
+					{
+						"id": "search-query",
+						"group": "shared",
+						"x": 710,
+						"y": 290,
+						"w": 195,
+						"h": 80,
+						"class": "REUSE",
+						"mvp": true,
+						"label": "search-query.ts",
+						"sub": "tag:/# · person:/$ operators",
+						"summary": "parseSearchQuery — the operator grammar (tag:, #, person:, $, free text) as pure TS, plus buildSearchSnippet. Mobile parses locally for instant UI feedback; execution happens server-side via GET /api/workspace/search.",
+						"mobilePlan": "Extract in Phase 0; wire into the mobile search screen in Phase 3.",
+						"paths": [
+							"apps/web/src/domain/notes/search-query.ts",
+							"apps/web/src/domain/notes/search-snippet.ts"
+						]
+					},
+					{
+						"id": "wb-types",
+						"group": "shared",
+						"x": 925,
+						"y": 290,
+						"w": 195,
+						"h": 80,
+						"class": "REUSE",
+						"mvp": true,
+						"label": "WorkspaceBackend contract",
+						"sub": "types + write-queue + builders",
+						"summary": "THE integration seam. types.ts (235 LOC): mode + capabilities {journal, sharing, collaboration, notifications, ai, trash, history, coverUpload} + ~40 methods (optional = capability-gated; UI already degrades gracefully). Plus write-queue.ts (per-record write serialization) and note-builders.ts — all pure, shared by the guest and tauri impls today.",
+						"mobilePlan": "Extract in Phase 0; add a 'mobile' mode to the union; mobileBackend implements it.",
+						"paths": [
+							"apps/web/src/core/workspace-backend/types.ts",
+							"apps/web/src/core/workspace-backend/write-queue.ts",
+							"apps/web/src/core/workspace-backend/note-builders.ts"
+						]
+					},
+					{
+						"id": "versioning-policy",
+						"group": "shared",
+						"x": 710,
+						"y": 395,
+						"w": 195,
+						"h": 80,
+						"class": "REUSE",
+						"mvp": false,
+						"label": "versioning.ts",
+						"sub": "snapshot/coalesce policy",
+						"summary": "Version persistence policy: skip identical contentHash, skip trivial ≤2-char/whitespace deltas, coalesce autosaves within 60s, retain 200/note. Runs SERVER-side on every write — mobile gets version capture for free without shipping this code. Portable if offline mode ever needs local versioning.",
+						"mobilePlan": "No mobile work for MVP; history UI is V1.1.",
+						"paths": ["apps/web/src/domain/notes/versioning.ts"]
+					},
+					{
+						"id": "misc-domain",
+						"group": "shared",
+						"x": 925,
+						"y": 395,
+						"w": 195,
+						"h": 80,
+						"class": "REUSE",
+						"mvp": "partial",
+						"label": "templates · normalize · graph · chip-rewrite",
+						"sub": "the rest of domain/*",
+						"summary": "NOTE_TEMPLATES (static data — MVP new-note templates), normalizeTagName/formatTagLabel (⚠ the ONE canonical tag normalizer — a second one caused bugs before), graph builders (graph-from-notes.ts, V2 graph view), chip-rewrite.ts (tag/person rename propagation — stays server-side), properties.ts, note-id.ts, frontmatter.ts.",
+						"mobilePlan": "Extract wholesale in Phase 0; templates used in Phase 4.",
+						"paths": [
+							"apps/web/src/domain/notes/templates.ts",
+							"apps/web/src/domain/tags/normalize.ts",
+							"apps/web/src/domain/notes/graph-from-notes.ts",
+							"apps/web/src/domain/notes/chip-rewrite.ts"
+						]
+					},
+					{
+						"id": "shared-libs",
+						"group": "shared",
+						"x": 710,
+						"y": 500,
+						"w": 410,
+						"h": 64,
+						"class": "REUSE",
+						"mvp": "partial",
+						"label": "shared/lib utilities",
+						"sub": "diagram · file-tree · word-count · fuzzy-match — verified 0 DOM imports",
+						"summary": "Diagram fence detection, ASCII file-tree model, word count, fuzzy search. All verified free of DOM/react imports. fuzzy-match powers the quick switcher; diagram/file-tree feed the renderer's degrade path.",
+						"mobilePlan": "Extract in Phase 0.",
+						"paths": [
+							"apps/web/src/shared/lib/diagram.ts",
+							"apps/web/src/shared/lib/file-tree.ts",
+							"apps/web/src/shared/lib/word-count.ts",
+							"apps/web/src/shared/lib/fuzzy-match.ts"
+						]
+					},
+					{
+						"id": "extraction",
+						"group": "shared",
+						"x": 710,
+						"y": 595,
+						"w": 410,
+						"h": 74,
+						"class": "NEW",
+						"mvp": true,
+						"label": "⚙ packages/domain extraction (Phase 0)",
+						"sub": "~2-4 days, mechanical, de-risks everything",
+						"summary": "Move the portable inventory into packages/domain (@skriuw/domain); leave re-export stubs at old @/domain paths so web + desktop don't churn. Constraints: no @/ alias inside the package, no DOM/Next imports (enforce with an oxlint rule), @blocknote/core as type-only dev dep. Gives mobile, web, desktop, and the extension one source of truth — replaces the web-spa shim-style sharing with a real boundary.",
+						"mobilePlan": "First thing to build. Blocks nothing else once done.",
+						"paths": ["packages/domain/ (new)"]
+					},
+					{
+						"id": "not-portable",
+						"group": "shared",
+						"x": 710,
+						"y": 700,
+						"w": 410,
+						"h": 64,
+						"class": "SKIP",
+						"mvp": false,
+						"label": "NOT portable (know the boundary)",
+						"sub": "actions.ts (use server) · local-store (IndexedDB) · note-cover-image (canvas)",
+						"summary": "domain/*/actions.ts are Next server actions — not callable from native, but they define the contract the new REST layer wraps. local-backend/local-store use window.indexedDB. note-cover-image.ts compresses via <canvas> — RN needs an image lib when cover upload arrives (post-MVP).",
+						"mobilePlan": "Boundary documentation; no work.",
+						"paths": [
+							"apps/web/src/domain/notes/actions.ts",
+							"apps/web/src/core/workspace-backend/local-store.ts",
+							"apps/web/src/features/notes/lib/note-cover-image.ts"
+						]
+					},
+
+					{
+						"id": "blocknote",
+						"group": "webapp",
+						"x": 1240,
+						"y": 170,
+						"w": 410,
+						"h": 96,
+						"class": "REWRITE",
+						"mvp": false,
+						"label": "features/editor — BlockNote (69 files)",
+						"sub": "THE big DOM-coupled asset · biggest single risk",
+						"summary": "@blocknote/mantine over ProseMirror. Custom blocks: procode (Shiki), checkListItem, fileTree, diagram (mermaid). Custom inline content: noteLink, tag, person, user chips. ~10 ProseMirror plugins (vim, search, selection bubble, AI streaming applier, chip nav). NONE of it runs in React Native. What survives: the JSON document format + the portable rich-document module. Mobile strategy: E1 (native read + markdown edit) for MVP, E2 (WebView-hosted BlockNote, exact same schema) for V2. E3 (native rich editor à la 10tap) = permanent schema divergence — rejected.",
+						"mobilePlan": "Not ported. Its schema definition is the reference spec for the mobile read renderer and the V2 WebView bundle.",
+						"paths": [
+							"apps/web/src/features/editor/",
+							"apps/web/src/features/editor/components/inline-specs/schema.ts",
+							"apps/web/src/features/editor/lib/editor-serialization.ts"
+						]
+					},
+					{
+						"id": "web-notes-ui",
+						"group": "webapp",
+						"x": 1240,
+						"y": 290,
+						"w": 195,
+						"h": 88,
+						"class": "REWRITE",
+						"mvp": false,
+						"label": "features/notes (83 files)",
+						"sub": "sidebar · tree · tabs · split · graph",
+						"summary": "Note workspace UI: sidebar/tree, file list, quick switcher, backlinks, outline, covers, editor tabs + split panes (split already disabled on mobile web), workspace graph. All DOM. Mobile builds its own small equivalents (list, folder nav, switcher) in Phase 3 — far smaller surface than the desktop-grade web UI.",
+						"mobilePlan": "Reference only; hooks' query-key patterns are reused.",
+						"paths": [
+							"apps/web/src/features/notes/",
+							"apps/web/src/features/notes/lib/notes-keys.ts"
+						]
+					},
+					{
+						"id": "web-other-features",
+						"group": "webapp",
+						"x": 1455,
+						"y": 290,
+						"w": 195,
+						"h": 88,
+						"class": "REWRITE",
+						"mvp": false,
+						"label": "journal · tags · people · settings UI",
+						"sub": "post-MVP thin native screens",
+						"summary": "Journal (18 files, plain-text editor + ICS export), tags/people overview + insights, 12 settings sections (mobile needs ~3), activity timeline, notifications bell, onboarding. Each becomes a thin native screen post-MVP; the data work is all server-side already.",
+						"mobilePlan": "V1.1/V1.2 screens.",
+						"paths": [
+							"apps/web/src/features/journal/",
+							"apps/web/src/features/tags/",
+							"apps/web/src/features/people/",
+							"apps/web/src/features/settings/"
+						]
+					},
+					{
+						"id": "web-providers",
+						"group": "webapp",
+						"x": 1240,
+						"y": 405,
+						"w": 195,
+						"h": 88,
+						"class": "ADAPT",
+						"mvp": true,
+						"label": "providers + RQ persistence",
+						"sub": "patterns to port, not code",
+						"summary": "app-providers.tsx wiring (QueryClient staleTime 60s / gcTime 24h), query-cache-persistence.tsx (IndexedDB, persists note BODIES only, 7-day maxAge, per-user scope) — the exact ruleset the mobile AsyncStorage persister ports. Backend selection in context.tsx (tauri → server → guest) shows where a 4th branch would go, though mobile constructs its backend directly.",
+						"mobilePlan": "Port the rules in Phase 2.",
+						"paths": [
+							"apps/web/src/providers/app-providers.tsx",
+							"apps/web/src/providers/query-cache-persistence.tsx",
+							"apps/web/src/core/workspace-backend/context.tsx"
+						]
+					},
+					{
+						"id": "guest-backend",
+						"group": "webapp",
+						"x": 1455,
+						"y": 405,
+						"w": 195,
+						"h": 88,
+						"class": "SKIP",
+						"mvp": false,
+						"label": "guest local-backend",
+						"sub": "IndexedDB · 515+371 LOC",
+						"summary": "Guest mode = full WorkspaceBackend over a single IndexedDB JSON blob with capability errors for everything gated. Proof the capability-degradation UX works — the mobile MVP leans on the same mechanism. No guest mode planned for mobile v1 (app stores expect sign-in; revisit later).",
+						"mobilePlan": "Precedent only.",
+						"paths": [
+							"apps/web/src/core/workspace-backend/local-backend.ts",
+							"apps/web/src/core/workspace-backend/local-store.ts"
+						]
+					},
+					{
+						"id": "collab-ui",
+						"group": "webapp",
+						"x": 1240,
+						"y": 520,
+						"w": 410,
+						"h": 74,
+						"class": "SKIP",
+						"mvp": false,
+						"label": "collaboration (Yjs client) + sharing UI",
+						"sub": "welded to BlockNote — deferred long-term",
+						"summary": "use-collab-room.ts opens a y-partyserver YProvider and hands the Yjs XmlFragment straight to BlockNote's collaboration option. Technically Yjs runs in RN, but without the rich editor there is nothing to bind it to. Token-mint endpoint stays ready. Sharing management UI post-MVP; viewing shared notes is just URLs.",
+						"mobilePlan": "V3+ at earliest, after the WebView editor.",
+						"paths": [
+							"apps/web/src/features/collaboration/hooks/use-collab-room.ts",
+							"apps/web/src/features/sharing/"
+						]
+					},
+					{
+						"id": "mobile-web",
+						"group": "webapp",
+						"x": 1240,
+						"y": 625,
+						"w": 410,
+						"h": 64,
+						"class": "SKIP",
+						"mvp": false,
+						"label": "today's mobile web",
+						"sub": "responsive shell + swipe — thin",
+						"summary": "useIsMobile, use-swipe.ts, mobile-app-nav.tsx, PWA service worker (app-shell caching only; /api/* always bypasses — no offline data). Mobile web = responsive Next.js; the editor is not mobile-optimized. This is what the native app replaces.",
+						"mobilePlan": "Superseded by the native app for signed-in users.",
+						"paths": [
+							"apps/web/src/shared/hooks/use-mobile.tsx",
+							"apps/web/src/features/layout/components/mobile-app-nav.tsx",
+							"apps/web/public/sw.js"
+						]
+					},
+
+					{
+						"id": "better-auth",
+						"group": "server",
+						"x": 1770,
+						"y": 170,
+						"w": 195,
+						"h": 96,
+						"class": "ADAPT",
+						"mvp": true,
+						"label": "Better Auth",
+						"sub": "cookie sessions · +expo() plugin",
+						"summary": "betterAuth + prismaAdapter. Email/password (autoSignIn), GitHub + Google OAuth, username + admin plugins, 30-day cookie sessions, DB rate limiting. THE MOBILE GAP: sessions are cookies, native apps have no cookie jar. Fix = add the official @better-auth/expo server plugin (~20 lines: plugins array + skriuw:// in trustedOrigins). Same Session/User tables, no schema change. Rejected alternatives: extending SyncToken into a parallel auth system; JWT plugin (redundant once expo plugin handles cookie transport).",
+						"mobilePlan": "Phase 0 server change + compatibility spike.",
+						"paths": [
+							"apps/web/src/lib/auth.ts",
+							"apps/web/src/lib/auth-client.ts",
+							"apps/web/src/app/api/auth/[...all]/route.ts"
+						]
+					},
+					{
+						"id": "server-actions",
+						"group": "server",
+						"x": 1985,
+						"y": 170,
+						"w": 195,
+						"h": 96,
+						"class": "SERVER",
+						"mvp": true,
+						"label": "domain cores + server actions",
+						"sub": "note-write-core · link-sync · versioning",
+						"summary": "All web mutations are Next server actions — NOT callable from native code. But they're thin wrappers over extracted core functions (createNoteForUser in note-write-core.ts was pulled out for the clipper API for exactly this reason). Every write through the core gets link indexing, version snapshots, trash soft-delete, and richContent derivation for free.",
+						"mobilePlan": "The REST layer calls these same cores — zero business-logic duplication. Anti-drift rule: REST handlers may ONLY call domain cores.",
+						"paths": [
+							"apps/web/src/domain/notes/note-write-core.ts",
+							"apps/web/src/domain/notes/actions.ts",
+							"apps/web/src/domain/notes/note-link-sync.ts",
+							"apps/web/src/domain/trash/actions.ts"
+						]
+					},
+					{
+						"id": "workspace-api",
+						"group": "server",
+						"x": 1770,
+						"y": 290,
+						"w": 410,
+						"h": 96,
+						"class": "NEW",
+						"mvp": true,
+						"label": "★ /api/workspace/* (NEW — the mobile API)",
+						"sub": "~1-2 wk · wraps existing cores · zero business logic",
+						"summary": "The single biggest server-side gap: today NO API can EDIT a note (sync API is read+capture-only; everything else is server actions). New thin REST routes: GET/POST/PATCH/DELETE notes (list = metadata only, bodies fetched per note — mirrors web RQ strategy), folders CRUD, GET search, GET tags (colors), GET people (chip rendering). Session-authed (works for Expo after the auth plugin). Design: updatedAt preconditions on PATCH (conflict detection now, sync foundation later), idempotency-key on POST (pattern exists in /api/sync/capture), zod contracts shared with the mobile client.",
+						"mobilePlan": "Phase 1. Cheap because every handler body already exists as a domain function.",
+						"paths": [
+							"apps/web/src/app/api/workspace/ (new)",
+							"apps/web/src/features/notes/server/search-notes.ts"
+						]
+					},
+					{
+						"id": "sync-api",
+						"group": "server",
+						"x": 1770,
+						"y": 410,
+						"w": 195,
+						"h": 88,
+						"class": "SERVER",
+						"mvp": false,
+						"label": "/api/sync/* (bearer)",
+						"sub": "SyncToken · clipper + desktop",
+						"summary": "Existing bearer-token API (sha256-hashed SyncToken, scopes sync:read/sync:write, CORS *, idempotency, audit log via SyncEvent): capture (create note), export (full workspace), folders, verify, activity, token management. Read+create only — why it can't be the mobile API. Stays as-is; the iOS Share Extension (V1.2) reuses POST /api/sync/capture verbatim.",
+						"mobilePlan": "Untouched. Fallback auth bridge if the Expo plugin spike fails.",
+						"paths": [
+							"apps/web/src/app/api/sync/capture/route.ts",
+							"apps/web/src/app/api/sync/export/route.ts",
+							"apps/web/src/app/api/sync/tokens/route.ts"
+						]
+					},
+					{
+						"id": "ai-api",
+						"group": "server",
+						"x": 1985,
+						"y": 410,
+						"w": 195,
+						"h": 88,
+						"class": "SERVER",
+						"mvp": false,
+						"label": "/api/ai",
+						"sub": "Gemini + Groq · streaming · ready",
+						"summary": "Main AI endpoint already does everything mobile needs: session auth, streaming (continueWriting/customPrompt), key resolution (inline | saved encrypted key | server env), usage + error telemetry. 11 actions defined in prompts.json. Local Ollama (desktop) irrelevant on mobile.",
+						"mobilePlan": "V1.1: native AI actions sheet is client-only work.",
+						"paths": ["apps/web/src/app/api/ai/route.ts", "apps/web/src/domain/ai/"]
+					},
+					{
+						"id": "collab-auth",
+						"group": "server",
+						"x": 1770,
+						"y": 525,
+						"w": 195,
+						"h": 80,
+						"class": "SERVER",
+						"mvp": false,
+						"label": "/api/collaboration/auth",
+						"sub": "5-min HMAC room tokens",
+						"summary": "Mints short-lived HMAC tokens (COLLAB_AUTH_SECRET, shared Web-Crypto module collab-token.ts) for a note's Durable Object room after resolveNoteAccess. Ready whenever mobile collab happens (V3+).",
+						"mobilePlan": "No work.",
+						"paths": [
+							"apps/web/src/app/api/collaboration/auth/route.ts",
+							"apps/web/src/features/collaboration/lib/collab-token.ts"
+						]
+					},
+					{
+						"id": "misc-api",
+						"group": "server",
+						"x": 1985,
+						"y": 525,
+						"w": 195,
+						"h": 80,
+						"class": "SERVER",
+						"mvp": false,
+						"label": "account · storage · data · notifications",
+						"sub": "session-authed extras",
+						"summary": "/api/account/* (step-up reauth), /api/storage/config (BYO S3/Blob), /api/data/export+import, /api/notifications/stream (SSE 4s poll — mobile push would use Expo Push against the same Notification model instead).",
+						"mobilePlan": "Push notifications = V1.2 net-new server fanout work.",
+						"paths": [
+							"apps/web/src/app/api/notifications/stream/route.ts",
+							"apps/web/src/app/api/storage/config/route.ts"
+						]
+					},
+
+					{
+						"id": "postgres",
+						"group": "data",
+						"x": 2300,
+						"y": 170,
+						"w": 320,
+						"h": 110,
+						"class": "STORE",
+						"mvp": true,
+						"label": "Neon Postgres (Prisma 7 · 27 models)",
+						"sub": "ZERO schema changes for MVP",
+						"summary": "Auth: User/Session/Account/Verification/RateLimit. Notes core: Note (content=markdown + richContent=JSONB + preferredEditorMode — the dual representation), Folder (tree, soft-delete), NoteVersion (snapshots, 200/note), NoteLink (graph edges: wiki/tag/person rows, rewritten every save), Person, NoteTagMeta (colors only), NoteShare(+View). Journal: JournalEntry/Link/Tag. Sync: SyncToken/SyncEvent. AI: AiProviderKey/UsageLog/ErrorEvent. Misc: UserRecent, SeedBundle, CollaborationRequest, NoteCollaborator, Notification, UserStorageConfig. GOTCHAS for mobile: JSONB reorders keys (use richDocumentKey for comparisons); raw saves must null richContent.",
+						"mobilePlan": "No migration needed for notes MVP.",
+						"paths": ["prisma/schema.prisma"]
+					},
+					{
+						"id": "blob",
+						"group": "data",
+						"x": 2300,
+						"y": 305,
+						"w": 320,
+						"h": 64,
+						"class": "STORE",
+						"mvp": "partial",
+						"label": "Vercel Blob / BYO S3",
+						"sub": "note covers · 2MB cap",
+						"summary": "Cover image storage (uploadNoteCoverImage: 2MB cap, 100MB shared quota, per-user BYO S3 via encrypted UserStorageConfig). Mobile MVP renders cover URLs; upload comes post-MVP with an RN image-compression lib (web path uses <canvas>).",
+						"mobilePlan": "Render-only in MVP.",
+						"paths": ["apps/web/src/domain/notes/note-cover-upload.ts"]
+					},
+					{
+						"id": "cloudflare",
+						"group": "data",
+						"x": 2300,
+						"y": 395,
+						"w": 320,
+						"h": 74,
+						"class": "STORE",
+						"mvp": false,
+						"label": "Cloudflare Durable Objects (Yjs)",
+						"sub": "y-partyserver · 1 DO per note",
+						"summary": "NotesServer extends YServer; room name = note id; Yjs doc persisted in DO SQLite (debounced 2s/10s); edge HMAC auth in onBeforeConnect. Own Cloudflare account via wrangler (skriuw-notes worker). Irrelevant until mobile collab (V3+).",
+						"mobilePlan": "No work.",
+						"paths": ["party/notes.ts", "wrangler.jsonc"]
+					},
+
+					{
+						"id": "desktop",
+						"group": "siblings",
+						"x": 710,
+						"y": 1130,
+						"w": 460,
+						"h": 96,
+						"class": "SKIP",
+						"mvp": false,
+						"label": "apps/desktop — Tauri 2 (Rust ~9.6k LOC, 87 IPC commands)",
+						"sub": "nothing to port — but the best template",
+						"summary": "Local SQLite index (FTS5) + markdown vault + versioning + import/export + AI (Ollama/cloud) behind ~87 tauri commands, consumed by tauri-backend.ts. For a cloud-only mobile client ALL of it is irrelevant: CRUD commands mirror what the cloud does; markdown.rs/content_analysis.rs have portable TS twins already used as the web fallback (use-rust-content-analysis.ts returns null off-Tauri). Value to mobile: tauri-backend.ts is the reference implementation of a non-server WorkspaceBackend, and the vault+SQLite design is prior art for V3 offline.",
+						"mobilePlan": "Template, not dependency.",
+						"paths": [
+							"apps/desktop/src-tauri/src/",
+							"apps/web/src/core/workspace-backend/tauri-backend.ts"
+						]
+					},
+					{
+						"id": "extension",
+						"group": "siblings",
+						"x": 1210,
+						"y": 1130,
+						"w": 460,
+						"h": 96,
+						"class": "SKIP",
+						"mvp": false,
+						"label": "apps/extension — Chrome MV3 clipper (~1.2k LOC)",
+						"sub": "precedent for share-sheet capture",
+						"summary": "Standalone Vite+React extension: extracts page → markdown → POST /api/sync/capture with a bearer SyncToken. Proves the pattern the iOS Share Extension (V1.2) will reuse: small native surface, one idempotent create endpoint, token-scoped write.",
+						"mobilePlan": "Blueprint for 'clip to Skriuw' on iOS.",
+						"paths": ["apps/extension/src/"]
+					},
+					{
+						"id": "webspa",
+						"group": "siblings",
+						"x": 1710,
+						"y": 1130,
+						"w": 460,
+						"h": 96,
+						"class": "SKIP",
+						"mvp": false,
+						"label": "packages/web-spa — Vite shim harness (~944 LOC)",
+						"sub": "the sharing anti-pattern to replace",
+						"summary": "Runs apps/web/src as a plain SPA for the desktop by aliasing every Next.js/server module to stubs (next/navigation, @/lib/prisma, @/lib/auth → no-ops). Proves the code tolerates running without Next — but by shimming, not clean boundaries. Mobile should NOT add a second shim layer; the packages/domain extraction is the proper fix.",
+						"mobilePlan": "Motivation for Phase 0 extraction.",
+						"paths": ["packages/web-spa/vite.config.ts", "packages/web-spa/src/shims/"]
+					}
+				],
+				"edges": [
+					{ "from": "expo-shell", "to": "mobile-rq", "label": "" },
+					{ "from": "expo-shell", "to": "read-renderer", "label": "" },
+					{ "from": "expo-shell", "to": "md-editor", "label": "" },
+					{ "from": "mobile-rq", "to": "mobile-backend", "label": "queryFn" },
+					{
+						"from": "mobile-auth",
+						"to": "better-auth",
+						"label": "session cookie (SecureStore)"
+					},
+					{ "from": "mobile-backend", "to": "workspace-api", "label": "HTTPS fetch" },
+					{ "from": "mobile-backend", "to": "wb-types", "label": "implements" },
+					{
+						"from": "read-renderer",
+						"to": "rich-document",
+						"label": "parses richContent"
+					},
+					{
+						"from": "md-editor",
+						"to": "mobile-backend",
+						"label": "autosave (write-queue)"
+					},
+					{ "from": "md-emitter", "to": "read-renderer", "label": "checkbox toggle" },
+					{
+						"from": "webview-editor",
+						"to": "blocknote",
+						"label": "V2: hosts real editor"
+					},
+					{ "from": "mobile-post-mvp", "to": "ai-api", "label": "V1.1" },
+					{ "from": "extraction", "to": "rich-document", "label": "moves" },
+					{ "from": "extraction", "to": "note-links", "label": "moves" },
+					{ "from": "extraction", "to": "search-query", "label": "moves" },
+					{ "from": "extraction", "to": "wb-types", "label": "moves" },
+					{ "from": "extraction", "to": "shared-libs", "label": "moves" },
+					{
+						"from": "workspace-api",
+						"to": "server-actions",
+						"label": "calls same cores"
+					},
+					{ "from": "workspace-api", "to": "better-auth", "label": "session check" },
+					{ "from": "server-actions", "to": "postgres", "label": "Prisma" },
+					{
+						"from": "server-actions",
+						"to": "versioning-policy",
+						"label": "runs on write"
+					},
+					{ "from": "server-actions", "to": "note-links", "label": "link-sync on write" },
+					{ "from": "blocknote", "to": "rich-document", "label": "same JSON schema" },
+					{ "from": "web-notes-ui", "to": "wb-types", "label": "via hooks" },
+					{ "from": "web-providers", "to": "mobile-rq", "label": "rules ported" },
+					{ "from": "guest-backend", "to": "wb-types", "label": "implements" },
+					{ "from": "collab-ui", "to": "collab-auth", "label": "token" },
+					{ "from": "collab-auth", "to": "cloudflare", "label": "HMAC verify" },
+					{ "from": "ai-api", "to": "postgres", "label": "keys/usage" },
+					{ "from": "misc-api", "to": "blob", "label": "covers" },
+					{ "from": "sync-api", "to": "server-actions", "label": "capture → core" },
+					{ "from": "extension", "to": "sync-api", "label": "bearer POST" },
+					{ "from": "desktop", "to": "wb-types", "label": "tauri-backend implements" },
+					{ "from": "webspa", "to": "extraction", "label": "replaced by" },
+					{
+						"from": "offline-sync",
+						"to": "workspace-api",
+						"label": "V3: preconditions grow into sync"
+					}
+				]
+			}
+		</script>
+
+		<script>
+			(function () {
+				const DATA = JSON.parse(document.getElementById("architecture-data").textContent);
+				const canvas = document.getElementById("canvas");
+				const ctx = canvas.getContext("2d");
+				const sidebar = document.getElementById("sidebar");
+				const sidebarContent = document.getElementById("sidebarContent");
+				const mvpToggle = document.getElementById("mvpToggle");
+
+				const CLASS_COLORS = {
+					REUSE: "#3fb950",
+					ADAPT: "#58a6ff",
+					REWRITE: "#d29922",
+					SERVER: "#bc8cff",
+					NEW: "#f778ba",
+					STORE: "#39c5cf",
+					SKIP: "#6e7681",
+				};
+
+				const nodeById = {};
+				DATA.nodes.forEach(function (n) {
+					nodeById[n.id] = n;
+				});
+
+				let view = { x: 0, y: 0, scale: 1 };
+				let selected = null;
+				let hovered = null;
+				let mvpOnly = false;
+
+				function fitView() {
+					const pad = 60;
+					const worldW = 2700,
+						worldH = 1400;
+					const availW = window.innerWidth - pad * 2;
+					const availH = window.innerHeight - 52 - pad * 2;
+					const scale = Math.min(availW / worldW, availH / worldH, 1);
+					view.scale = Math.max(scale, 0.25);
+					view.x = (window.innerWidth - worldW * view.scale) / 2;
+					view.y = 52 + (window.innerHeight - 52 - worldH * view.scale) / 2;
+				}
+
+				function resize() {
+					const dpr = window.devicePixelRatio || 1;
+					canvas.width = window.innerWidth * dpr;
+					canvas.height = window.innerHeight * dpr;
+					canvas.style.width = window.innerWidth + "px";
+					canvas.style.height = window.innerHeight + "px";
+					ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+					draw();
+				}
+
+				function nodeVisible(n) {
+					if (!mvpOnly) return true;
+					return n.mvp === true || n.mvp === "partial";
+				}
+
+				function nodeAlpha(n) {
+					if (!mvpOnly) return 1;
+					if (n.mvp === true) return 1;
+					if (n.mvp === "partial") return 0.75;
+					return 0.13;
+				}
+
+				function anchor(from, to) {
+					const fx = from.x + from.w / 2,
+						fy = from.y + from.h / 2;
+					const tx = to.x + to.w / 2,
+						ty = to.y + to.h / 2;
+					function edgePoint(n, ox, oy) {
+						const cx = n.x + n.w / 2,
+							cy = n.y + n.h / 2;
+						const dx = ox - cx,
+							dy = oy - cy;
+						if (dx === 0 && dy === 0) return { x: cx, y: cy };
+						const sx = n.w / 2 / Math.abs(dx || 1e-9);
+						const sy = n.h / 2 / Math.abs(dy || 1e-9);
+						const s = Math.min(sx, sy);
+						return { x: cx + dx * s, y: cy + dy * s };
+					}
+					return { a: edgePoint(from, tx, ty), b: edgePoint(to, fx, fy) };
+				}
+
+				function roundRect(x, y, w, h, r) {
+					ctx.beginPath();
+					ctx.moveTo(x + r, y);
+					ctx.arcTo(x + w, y, x + w, y + h, r);
+					ctx.arcTo(x + w, y + h, x, y + h, r);
+					ctx.arcTo(x, y + h, x, y, r);
+					ctx.arcTo(x, y, x + w, y, r);
+					ctx.closePath();
+				}
+
+				function wrapText(text, maxWidth, font) {
+					ctx.font = font;
+					const words = text.split(" ");
+					const lines = [];
+					let line = "";
+					words.forEach(function (w) {
+						const test = line ? line + " " + w : w;
+						if (ctx.measureText(test).width > maxWidth && line) {
+							lines.push(line);
+							line = w;
+						} else line = test;
+					});
+					if (line) lines.push(line);
+					return lines;
+				}
+
+				function draw() {
+					ctx.save();
+					ctx.setTransform(
+						window.devicePixelRatio || 1,
+						0,
+						0,
+						window.devicePixelRatio || 1,
+						0,
+						0,
+					);
+					ctx.fillStyle = "#0d1117";
+					ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+					ctx.translate(view.x, view.y);
+					ctx.scale(view.scale, view.scale);
+
+					DATA.groups.forEach(function (g) {
+						ctx.globalAlpha = 1;
+						ctx.strokeStyle = g.color + "44";
+						ctx.fillStyle = g.color + "0a";
+						ctx.lineWidth = 1.5;
+						roundRect(g.x, g.y, g.w, g.h, 14);
+						ctx.fill();
+						ctx.stroke();
+						ctx.fillStyle = g.color + "cc";
+						ctx.font = "600 15px ui-sans-serif, system-ui";
+						ctx.fillText(g.label, g.x + 16, g.y + 28);
+					});
+
+					DATA.edges.forEach(function (e) {
+						const from = nodeById[e.from],
+							to = nodeById[e.to];
+						if (!from || !to) return;
+						const alpha = Math.min(nodeAlpha(from), nodeAlpha(to));
+						const isSel =
+							selected && (selected.id === from.id || selected.id === to.id);
+						ctx.globalAlpha = alpha * (isSel ? 1 : 0.55);
+						const pts = anchor(from, to);
+						const midX = (pts.a.x + pts.b.x) / 2,
+							midY = (pts.a.y + pts.b.y) / 2;
+						ctx.strokeStyle = isSel ? "#58a6ff" : "#8b949e";
+						ctx.lineWidth = isSel ? 2.5 : 1.2;
+						ctx.beginPath();
+						ctx.moveTo(pts.a.x, pts.a.y);
+						const dx = pts.b.x - pts.a.x;
+						ctx.bezierCurveTo(
+							pts.a.x + dx * 0.4,
+							pts.a.y,
+							pts.b.x - dx * 0.4,
+							pts.b.y,
+							pts.b.x,
+							pts.b.y,
+						);
+						ctx.stroke();
+						const angle = Math.atan2(pts.b.y - midY, pts.b.x - (pts.b.x - dx * 0.4));
+						ctx.beginPath();
+						ctx.moveTo(pts.b.x, pts.b.y);
+						ctx.lineTo(
+							pts.b.x - 9 * Math.cos(angle - 0.4),
+							pts.b.y - 9 * Math.sin(angle - 0.4),
+						);
+						ctx.lineTo(
+							pts.b.x - 9 * Math.cos(angle + 0.4),
+							pts.b.y - 9 * Math.sin(angle + 0.4),
+						);
+						ctx.closePath();
+						ctx.fillStyle = isSel ? "#58a6ff" : "#8b949e";
+						ctx.fill();
+						if (e.label && (isSel || view.scale > 0.55)) {
+							ctx.font = "11px ui-sans-serif, system-ui";
+							ctx.fillStyle = isSel ? "#58a6ff" : "#8b949e";
+							const tw = ctx.measureText(e.label).width;
+							ctx.globalAlpha = alpha * (isSel ? 1 : 0.8);
+							ctx.fillStyle = "#0d1117";
+							ctx.fillRect(midX - tw / 2 - 3, midY - 8, tw + 6, 14);
+							ctx.fillStyle = isSel ? "#79b8ff" : "#8b949e";
+							ctx.fillText(e.label, midX - tw / 2, midY + 3);
+						}
+					});
+
+					DATA.nodes.forEach(function (n) {
+						const color = CLASS_COLORS[n.class] || "#8b949e";
+						const isSel = selected && selected.id === n.id;
+						const isHov = hovered && hovered.id === n.id;
+						ctx.globalAlpha = nodeAlpha(n);
+						roundRect(n.x, n.y, n.w, n.h, 10);
+						ctx.fillStyle = isSel ? color + "33" : "#161b22";
+						ctx.fill();
+						ctx.strokeStyle = isSel ? color : isHov ? color + "dd" : color + "88";
+						ctx.lineWidth = isSel ? 3 : isHov ? 2.2 : 1.6;
+						ctx.stroke();
+
+						ctx.fillStyle = color;
+						ctx.fillRect(n.x, n.y, 5, n.h);
+
+						if (n.mvp === true || n.mvp === "partial") {
+							ctx.font = "700 10px ui-sans-serif, system-ui";
+							const tag = n.mvp === true ? "MVP" : "MVP◐";
+							const tw = ctx.measureText(tag).width;
+							ctx.fillStyle = "#3fb95022";
+							ctx.strokeStyle = "#3fb950";
+							ctx.lineWidth = 1;
+							roundRect(n.x + n.w - tw - 18, n.y + 7, tw + 10, 15, 7);
+							ctx.fill();
+							ctx.stroke();
+							ctx.fillStyle = "#3fb950";
+							ctx.fillText(tag, n.x + n.w - tw - 13, n.y + 18);
+						}
+
+						const pad = 14;
+						ctx.fillStyle = "#e6edf3";
+						const titleLines = wrapText(
+							n.label,
+							n.w - pad * 2 - (n.mvp ? 42 : 0),
+							"600 13.5px ui-sans-serif, system-ui",
+						);
+						let ty = n.y + 24;
+						titleLines.slice(0, 2).forEach(function (l) {
+							ctx.font = "600 13.5px ui-sans-serif, system-ui";
+							ctx.fillText(l, n.x + pad, ty);
+							ty += 17;
+						});
+						ctx.fillStyle = "#8b949e";
+						const subLines = wrapText(
+							n.sub || "",
+							n.w - pad * 2,
+							"12px ui-sans-serif, system-ui",
+						);
+						subLines.slice(0, 2).forEach(function (l) {
+							ctx.font = "12px ui-sans-serif, system-ui";
+							ctx.fillText(l, n.x + pad, ty);
+							ty += 15;
+						});
+					});
+
+					ctx.restore();
+				}
+
+				function screenToWorld(sx, sy) {
+					return { x: (sx - view.x) / view.scale, y: (sy - view.y) / view.scale };
+				}
+
+				function nodeAt(sx, sy) {
+					const p = screenToWorld(sx, sy);
+					for (let i = DATA.nodes.length - 1; i >= 0; i--) {
+						const n = DATA.nodes[i];
+						if (p.x >= n.x && p.x <= n.x + n.w && p.y >= n.y && p.y <= n.y + n.h)
+							return n;
+					}
+					return null;
+				}
+
+				function esc(s) {
+					return String(s)
+						.replace(/&/g, "&amp;")
+						.replace(/</g, "&lt;")
+						.replace(/>/g, "&gt;");
+				}
+
+				function openSidebar(n) {
+					const color = CLASS_COLORS[n.class];
+					const classDesc = DATA.meta.classes[n.class] || "";
+					const mvpBadge =
+						n.mvp === true
+							? '<span class="badge" style="color:#3fb950;border-color:#3fb950">IN MVP</span>'
+							: n.mvp === "partial"
+								? '<span class="badge" style="color:#3fb950;border-color:#3fb95088">PARTIALLY IN MVP</span>'
+								: '<span class="badge" style="color:#8b949e;border-color:#8b949e66">POST-MVP / N-A</span>';
+					const deps = DATA.edges
+						.filter(function (e) {
+							return e.from === n.id;
+						})
+						.map(function (e) {
+							return (
+								"→ " +
+								esc(nodeById[e.to].label) +
+								(e.label ? " <span class='meta'>(" + esc(e.label) + ")</span>" : "")
+							);
+						});
+					const dependents = DATA.edges
+						.filter(function (e) {
+							return e.to === n.id;
+						})
+						.map(function (e) {
+							return (
+								"← " +
+								esc(nodeById[e.from].label) +
+								(e.label ? " <span class='meta'>(" + esc(e.label) + ")</span>" : "")
+							);
+						});
+
+					sidebarContent.innerHTML =
+						"<h2>" +
+						esc(n.label) +
+						"</h2>" +
+						"<div class='meta'>" +
+						esc(n.sub || "") +
+						"</div>" +
+						"<div class='badges'>" +
+						"<span class='badge' style='color:" +
+						color +
+						";border-color:" +
+						color +
+						"'>" +
+						n.class +
+						"</span>" +
+						mvpBadge +
+						"</div>" +
+						"<div class='meta' style='margin-bottom:10px'>" +
+						esc(classDesc) +
+						"</div>" +
+						"<h3>What it is / why it matters</h3><p>" +
+						esc(n.summary) +
+						"</p>" +
+						"<h3>Mobile plan</h3><p>" +
+						esc(n.mobilePlan) +
+						"</p>" +
+						(n.paths && n.paths.length
+							? "<h3>Key paths</h3><ul class='paths'>" +
+								n.paths
+									.map(function (p) {
+										return "<li><code>" + esc(p) + "</code></li>";
+									})
+									.join("") +
+								"</ul>"
+							: "") +
+						(deps.length
+							? "<h3>Depends on / feeds into</h3><ul>" +
+								deps
+									.map(function (d) {
+										return "<li>" + d + "</li>";
+									})
+									.join("") +
+								"</ul>"
+							: "") +
+						(dependents.length
+							? "<h3>Consumed by</h3><ul>" +
+								dependents
+									.map(function (d) {
+										return "<li>" + d + "</li>";
+									})
+									.join("") +
+								"</ul>"
+							: "");
+					sidebar.classList.add("open");
+				}
+
+				let dragging = false,
+					moved = false,
+					last = { x: 0, y: 0 };
+
+				canvas.addEventListener("mousedown", function (e) {
+					dragging = true;
+					moved = false;
+					last = { x: e.clientX, y: e.clientY };
+					canvas.classList.add("dragging");
+				});
+				window.addEventListener("mousemove", function (e) {
+					if (dragging) {
+						const dx = e.clientX - last.x,
+							dy = e.clientY - last.y;
+						if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+						view.x += dx;
+						view.y += dy;
+						last = { x: e.clientX, y: e.clientY };
+						draw();
+					} else {
+						const n = nodeAt(e.clientX, e.clientY);
+						if (n !== hovered) {
+							hovered = n;
+							canvas.style.cursor = n ? "pointer" : "grab";
+							draw();
+						}
+					}
+				});
+				window.addEventListener("mouseup", function (e) {
+					canvas.classList.remove("dragging");
+					if (dragging && !moved) {
+						const n = nodeAt(e.clientX, e.clientY);
+						if (n && nodeVisible(n)) {
+							selected = n;
+							openSidebar(n);
+						} else {
+							selected = null;
+							sidebar.classList.remove("open");
+						}
+						draw();
+					}
+					dragging = false;
+				});
+
+				canvas.addEventListener(
+					"wheel",
+					function (e) {
+						e.preventDefault();
+						const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+						const newScale = Math.min(Math.max(view.scale * factor, 0.15), 3);
+						const wx = (e.clientX - view.x) / view.scale;
+						const wy = (e.clientY - view.y) / view.scale;
+						view.scale = newScale;
+						view.x = e.clientX - wx * newScale;
+						view.y = e.clientY - wy * newScale;
+						draw();
+					},
+					{ passive: false },
+				);
+
+				let pinchDist = null;
+				canvas.addEventListener(
+					"touchstart",
+					function (e) {
+						if (e.touches.length === 1) {
+							dragging = true;
+							moved = false;
+							last = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+						} else if (e.touches.length === 2) {
+							pinchDist = Math.hypot(
+								e.touches[0].clientX - e.touches[1].clientX,
+								e.touches[0].clientY - e.touches[1].clientY,
+							);
+						}
+					},
+					{ passive: true },
+				);
+				canvas.addEventListener(
+					"touchmove",
+					function (e) {
+						if (e.touches.length === 1 && dragging) {
+							const dx = e.touches[0].clientX - last.x,
+								dy = e.touches[0].clientY - last.y;
+							if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+							view.x += dx;
+							view.y += dy;
+							last = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+							draw();
+						} else if (e.touches.length === 2 && pinchDist) {
+							const d = Math.hypot(
+								e.touches[0].clientX - e.touches[1].clientX,
+								e.touches[0].clientY - e.touches[1].clientY,
+							);
+							const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+							const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+							const factor = d / pinchDist;
+							const newScale = Math.min(Math.max(view.scale * factor, 0.15), 3);
+							const wx = (cx - view.x) / view.scale,
+								wy = (cy - view.y) / view.scale;
+							view.scale = newScale;
+							view.x = cx - wx * newScale;
+							view.y = cy - wy * newScale;
+							pinchDist = d;
+							draw();
+						}
+						e.preventDefault();
+					},
+					{ passive: false },
+				);
+				canvas.addEventListener("touchend", function (e) {
+					if (dragging && !moved && e.changedTouches.length === 1) {
+						const t = e.changedTouches[0];
+						const n = nodeAt(t.clientX, t.clientY);
+						if (n && nodeVisible(n)) {
+							selected = n;
+							openSidebar(n);
+						} else {
+							selected = null;
+							sidebar.classList.remove("open");
+						}
+						draw();
+					}
+					dragging = false;
+					pinchDist = null;
+				});
+
+				document.getElementById("sidebarClose").addEventListener("click", function () {
+					sidebar.classList.remove("open");
+					selected = null;
+					draw();
+				});
+				document.getElementById("resetView").addEventListener("click", function () {
+					fitView();
+					draw();
+				});
+				mvpToggle.addEventListener("change", function () {
+					mvpOnly = mvpToggle.checked;
+					if (selected && !nodeVisible(selected)) {
+						selected = null;
+						sidebar.classList.remove("open");
+					}
+					draw();
+				});
+				window.addEventListener("resize", resize);
+
+				fitView();
+				resize();
+			})();
+		</script>
+	</body>
+</html>

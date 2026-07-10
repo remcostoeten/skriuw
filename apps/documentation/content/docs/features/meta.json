@@ -1,0 +1,20 @@
+{
+	"pages": [
+		"wikilinks",
+		"backlinks-and-search",
+		"tags-and-mentions",
+		"journal",
+		"tabbed-workspace",
+		"version-history",
+		"sharing",
+		"collaboration",
+		"people",
+		"ai-actions",
+		"diagrams",
+		"note-covers",
+		"web-clipper-extension",
+		"vim-mode",
+		"trash"
+	],
+	"title": "Features"
+}

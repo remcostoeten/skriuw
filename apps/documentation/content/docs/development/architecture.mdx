@@ -1,0 +1,116 @@
+---
+title: "Architecture"
+description: "The workspace-backend adapter contract, its three implementations (server, local, tauri), the capability system, and the web-spa split that lets the same UI run on web, guest, and desktop."
+---
+
+Skriuw runs the same feature UI against three different data layers: a
+Postgres-backed web server, browser storage for guests, and a local Rust engine
+on desktop. Feature code never branches on auth state or platform. It talks to
+one interface, and an adapter decides where reads and writes land.
+
+## domain/ vs features/
+
+Code splits into two layers under `apps/web/src/`:
+
+- **`domain/`** — business logic, grouped by concept (`notes`, `trash`, `sync`,
+  `sharing`, `tags`, `people`, `collaboration`, `folders`, `journal`,
+  `persistence`, `storage`, `recents`, `seed`, `data-transfer`, `validation`,
+  `ai`). This is where mutations, mappers, and rules live — for example
+  `domain/notes/note-write-core.ts` is the single place a note gets created,
+  shared by the web app's server actions and the sync API the browser
+  extension calls.
+- **`features/`** — one folder per product surface (`notes`, `journal`,
+  `editor`, `tags`, `ai`, and so on), holding the components, hooks, and
+  feature-local glue that call into `domain/` and the `WorkspaceBackend`
+  adapter. See [Development features](/development/features) for the full list.
+
+A feature slice should not reimplement business logic that already exists in
+`domain/`, and `domain/` code should not import React.
+
+## The backend contract
+
+The interface is `WorkspaceBackend` in
+`apps/web/src/core/workspace-backend/types.ts`. Every read and mutation a
+feature needs (notes, folders, journal, tags, people, trash, search, version
+history) is a method on it. Each implementation sets a `mode` and a
+`capabilities` object:
+
+```ts
+type WorkspaceBackend = {
+	readonly mode: "server" | "local" | "tauri";
+	readonly capabilities: WorkspaceCapabilities;
+	// note/folder/journal/tag/person reads and mutations...
+	searchNotes?(query: string, limit?: number): Promise<NoteSearchHit[]>;
+};
+```
+
+## Three implementations
+
+| Implementation | mode | Storage | Used by |
+| -------------- | ---- | ------- | ------- |
+| `serverBackend` | `server` | Postgres via Prisma server actions | Cloud and self-host web, authenticated users |
+| `createLocalBackend` | `local` | Browser IndexedDB plus a seed bundle | Guests (unauthenticated) |
+| `createTauriBackend` | `tauri` | Markdown vault plus SQLite index, via Rust `invoke` | Desktop app |
+
+Selection happens in `context.tsx`: the desktop runtime picks the Tauri
+backend; otherwise an authenticated session gets `serverBackend` and a guest
+gets `createLocalBackend`.
+
+## Capabilities
+
+`WorkspaceCapabilities` is a set of feature switches a backend advertises so the
+UI can hide surfaces a backend cannot serve:
+
+```ts
+type WorkspaceCapabilities = {
+	journal: boolean;
+	sharing: boolean;
+	collaboration: boolean;
+	notifications: boolean;
+	ai: boolean;
+	trash: boolean;
+	history: boolean;
+	coverUpload: boolean;
+};
+```
+
+`serverBackend` enables everything. `localBackend` and `tauriBackend` disable
+whatever they cannot back with a real, network-connected service. A hook reads
+`useWorkspaceCapabilities()` and the nav or button for a missing capability does
+not render, so there are no dead controls.
+
+## Optional methods
+
+Some methods are optional on the interface and callers fall back when they are
+absent. `searchNotes` is the clearest case: the desktop backend implements it
+with SQLite FTS5 and the web backend with Postgres full-text search, while guest
+mode omits it and the sidebar keeps doing in-memory name and tag filtering.
+
+## The web-spa split
+
+The desktop build does not ship the Next.js server. Its server actions and
+Prisma graph would pull the whole backend into a native binary. Instead there is
+a client-only React SPA in `packages/web-spa`. It renders everything that was
+Next.js specific or server-rendered, while sharing the agnostic layer (UI,
+hooks, utilities, and non read/write actions) with the web app.
+
+To keep the Prisma action graph out of the desktop bundle, `context.tsx`
+imports `serverBackend` through the `@/` path rather than a relative one, so the
+SPA can alias-shim it in `vite.config` (see
+`packages/web-spa/src/shims/server-stub-backend.ts`).
+
+## Desktop storage model
+
+On desktop the source of truth is a folder of Markdown files (the vault),
+handled by `apps/desktop/src-tauri/src/vault.rs`. A SQLite index
+(`storage.rs`) mirrors those files for search, backlinks, and tag queries. The
+index is disposable and can be rebuilt from the vault. No Postgres, no server,
+no account.
+
+## Trash batches
+
+Trash is backend-agnostic through `TrashBatch`. A single note delete is a
+one-item batch. A folder delete groups the folder, its subfolders, and every
+note it contained into one batch, so the Trash UI shows one row instead of
+fifty. The `id` keys the batch for restore or purge: a `deletedAt` ISO string on
+the web backend, a generated `batchId` on the desktop backend.
