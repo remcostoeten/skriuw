@@ -1,5 +1,7 @@
 /* eslint-disable react-doctor/no-multi-comp */
+"use client";
 
+import { useEffect, useState } from "react";
 import {
 	eachDayOfInterval,
 	endOfMonth,
@@ -99,11 +101,19 @@ function SidebarSectionHeaderSkeleton({ title }: { title: string }) {
 function JournalSectionSkeleton() {
 	// Mirror MiniCalendar's real grid for the current month so the calendar
 	// doesn't visibly change month/today when the live component takes over.
-	const now = new Date();
-	const days = eachDayOfInterval({
-		start: startOfWeek(startOfMonth(now), { weekStartsOn: 1 }),
-		end: endOfWeek(endOfMonth(now), { weekStartsOn: 1 }),
-	});
+	// The clock is read at mount, not render: this skeleton is part of the
+	// statically prerendered loading shell, so a render-time date would be
+	// baked at build time (and cacheComponents rejects it outright).
+	const [now, setNow] = useState<Date | null>(null);
+	useEffect(() => {
+		setNow(new Date());
+	}, []);
+	const days = now
+		? eachDayOfInterval({
+				start: startOfWeek(startOfMonth(now), { weekStartsOn: 1 }),
+				end: endOfWeek(endOfMonth(now), { weekStartsOn: 1 }),
+			})
+		: Array.from({ length: 35 }, () => null);
 
 	return (
 		<section aria-hidden="true" className="mx-2 mb-0.5">
@@ -122,7 +132,7 @@ function JournalSectionSkeleton() {
 						<ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
 					</div>
 					<span className="text-[11px] font-medium text-foreground/80">
-						{format(now, "MMMM yyyy")}
+						{now ? format(now, "MMMM yyyy") : " "}
 					</span>
 					<div className="flex h-6 w-6 items-center justify-center text-muted-foreground">
 						<ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -139,18 +149,26 @@ function JournalSectionSkeleton() {
 					))}
 				</div>
 				<div className="grid grid-cols-7 gap-0">
-					{days.map((day) => (
+					{days.map((day, index) => (
 						<div
-							key={format(day, "yyyy-MM-dd")}
+							key={day ? format(day, "yyyy-MM-dd") : index}
 							className={cn(
 								"relative flex h-7 w-full items-center justify-center border border-transparent text-[11px]",
-								!isSameMonth(day, now) && "text-muted-foreground/30",
-								isSameMonth(day, now) && !isToday(day) && "text-foreground/70",
-								isToday(day) &&
+								day &&
+									now &&
+									!isSameMonth(day, now) &&
+									"text-muted-foreground/30",
+								day &&
+									now &&
+									isSameMonth(day, now) &&
+									!isToday(day) &&
+									"text-foreground/70",
+								day &&
+									isToday(day) &&
 									"border-border bg-muted font-medium text-foreground",
 							)}
 						>
-							{format(day, "d")}
+							{day ? format(day, "d") : " "}
 						</div>
 					))}
 				</div>

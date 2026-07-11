@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
 const authOnlyRoutes = new Set(["/", "/sign-in", "/sign-up"]);
@@ -34,8 +34,9 @@ function isPublicRoute(path: string) {
 
 export default async function proxy(req: NextRequest) {
 	const path = req.nextUrl.pathname;
-	const session = await auth.api.getSession({ headers: req.headers });
-	const hasSession = Boolean(session);
+	// Cookie presence only — no session-table lookup on every navigation.
+	// Pages still verify the session server-side via getServerUser().
+	const hasSession = Boolean(getSessionCookie(req));
 
 	if (hasSession && authOnlyRoutes.has(path)) {
 		return NextResponse.redirect(new URL("/app", req.nextUrl));

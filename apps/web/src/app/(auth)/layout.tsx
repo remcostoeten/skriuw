@@ -6,6 +6,8 @@ import { getServerUser } from "@/core/db";
 import { AuthHeroCopy } from "@/features/auth/components/auth-hero-copy";
 import { ContinueAsGuestLink } from "@/features/auth/components/continue-as-guest-link";
 
+export const instant = false;
+
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
 	const { user } = await getServerUser();
 	if (user) {

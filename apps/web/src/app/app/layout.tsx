@@ -6,6 +6,8 @@ import { SettingsModal } from "@/features/settings/components/settings-modal";
 import { MobileAppNav } from "@/features/layout/components/mobile-app-nav";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
 
+export const instant = false;
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
 	const { user } = await getServerUser();
 	const initialEditorPreferences: EditorPreferencesRecord | null = user

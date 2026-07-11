@@ -78,16 +78,16 @@ function closeSharedSource() {
 
 export function useNotifications() {
 	const queryClient = useQueryClient();
-	const [unreadCount, setUnreadCount] = useState(
-		query.data ? query.data.filter((n) => !n.read).length : lastUnreadCount,
-	);
-
 	const query = useQuery({
 		queryKey: notificationKeys.list(),
 		queryFn: () => getNotificationsAction(),
 		staleTime: 30_000,
 		refetchInterval: 60_000,
 	});
+
+	const [unreadCount, setUnreadCount] = useState(
+		query.data ? query.data.filter((n) => !n.read).length : lastUnreadCount,
+	);
 
 	// Subscribe to the shared real-time stream.
 	useEffect(() => {

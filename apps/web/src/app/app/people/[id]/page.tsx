@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import { getServerUser } from "@/core/db";
 import { listPeople, listPersonNotes } from "@/domain/people/actions";
@@ -8,7 +9,9 @@ type Props = {
 	params: Promise<{ id: string }>;
 };
 
-export default async function PersonInsightsPage({ params }: Props) {
+export const instant = false;
+
+async function PersonInsightsContent({ params }: Props) {
 	const [{ id }, { user }] = await Promise.all([params, getServerUser()]);
 	const queryClient = new QueryClient();
 
@@ -30,5 +33,13 @@ export default async function PersonInsightsPage({ params }: Props) {
 		<HydrationBoundary state={dehydrate(queryClient)}>
 			<PersonInsights personId={id} />
 		</HydrationBoundary>
+	);
+}
+
+export default function PersonInsightsPage({ params }: Props) {
+	return (
+		<Suspense>
+			<PersonInsightsContent params={params} />
+		</Suspense>
 	);
 }

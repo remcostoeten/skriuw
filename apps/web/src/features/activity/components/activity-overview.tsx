@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { format, formatDistanceToNow } from "date-fns";
 import { Activity, FilePlus, Pencil, Trash2, type LucideIcon } from "lucide-react";
@@ -77,10 +77,18 @@ export function ActivityOverview() {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const scrollRegionId = useId();
 
+	// Reading the clock during SSR makes the prerender non-deterministic, which
+	// cacheComponents rejects; bucket relative to a mount-time clock instead.
+	const [now, setNow] = useState<Date | null>(null);
+	useEffect(() => {
+		setNow(new Date());
+	}, []);
+
 	const buckets = useMemo(() => {
+		if (!now) return [];
 		const entries = buildActivityEntries(notes, trash);
-		return groupActivityByTime(entries);
-	}, [notes, trash]);
+		return groupActivityByTime(entries, now);
+	}, [notes, trash, now]);
 
 	const isEmpty = buckets.length === 0;
 	const totalEntries = buckets.reduce((sum, bucket) => sum + bucket.entries.length, 0);
@@ -98,7 +106,7 @@ export function ActivityOverview() {
 						</p>
 					</header>
 
-					{notesLoading ? null : isEmpty ? (
+					{notesLoading || !now ? null : isEmpty ? (
 						<NotesEmptyState
 							icon={Activity}
 							title="No activity yet"
