@@ -17,6 +17,9 @@ const config: NextConfig = {
 	outputFileTracingRoot: process.env.DOCKER_BUILD
 		? path.join(import.meta.dirname, "../..")
 		: undefined,
+	// In-viewport links prefetch the shared app shell so navigations resolve
+	// from the client cache.
+	partialPrefetching: true,
 	experimental: {
 		// Trim barrel re-export overhead for large named-import libs. framer-motion
 		// is imported across the layout shell, sidebar, and every animated icon, so
