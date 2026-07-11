@@ -13,7 +13,7 @@ client UIs (web settings, extension).
 `/api/sync/*` is called from origins that can't hold a Better Auth session
 cookie: a Chrome extension service worker and the Tauri desktop webview
 (`tauri://localhost`). Both send `Authorization: Bearer <token>` instead.
-Because these routes never trust cookies, wildcard CORS on them is safe — a
+Because these routes never trust cookies, wildcard CORS on them is safe - a
 request without a valid write-scoped token can't create or read anything.
 
 ## Token model
@@ -22,14 +22,14 @@ request without a valid write-scoped token can't create or read anything.
 
 | Field         | Purpose                                                             |
 | ------------- | -------------------------------------------------------------------- |
-| `tokenHash`   | sha256 of the raw secret — the raw value is never stored             |
+| `tokenHash`   | sha256 of the raw secret - the raw value is never stored             |
 | `tokenPrefix` | first 18 chars of the raw secret, kept in clear for UI display        |
 | `scopes`      | `sync:read` and/or `sync:write`                                       |
 | `expiresAt`   | optional; `null` = never expires                                     |
 | `revokedAt`   | set once revoked; revocation is soft (row kept for the activity log)  |
 | `lastUsedAt`  | bumped on most authenticated requests (see exceptions below)          |
 
-Raw tokens look like `skriuw_sync_<32 random bytes, base64url>` — 256 bits of
+Raw tokens look like `skriuw_sync_<32 random bytes, base64url>` - 256 bits of
 entropy, generated in `domain/sync/token-utils.ts::createRawSyncToken`. The
 full secret is only ever returned once, at creation or rotation time; every
 other read returns the summary (name, prefix, scopes, timestamps) via
@@ -37,7 +37,7 @@ other read returns the summary (name, prefix, scopes, timestamps) via
 
 `SyncEvent` logs every sync operation (`capture` / `export` / `folders`) with
 `tokenId`, `status`, an optional `idempotencyKey` (unique, so retried capture
-requests dedupe), and a `source` string. Written best-effort — a logging
+requests dedupe), and a `source` string. Written best-effort - a logging
 failure never fails the underlying request.
 
 A user can hold at most **20 active keys** (`MAX_SYNC_TOKENS_PER_USER` in
@@ -59,7 +59,7 @@ scope in one call.
 | `sync/tokens/[tokenId]/rotate`  | POST   | session      | Mint a new secret with the same name/scopes/expiry, revoke the old   |
 | `sync/verify`                   | GET    | `sync:read`  | "Is this token valid?" check used by the extension's Test & Save    |
 | `sync/capture`                  | POST   | `sync:write` | Extension clip → creates a note via `createNoteForUser`              |
-| `sync/export`                   | GET    | `sync:read`  | Desktop pull — full workspace export                                 |
+| `sync/export`                   | GET    | `sync:read`  | Desktop pull - full workspace export                                 |
 | `sync/folders`                  | GET    | `sync:read`  | Folder tree for the extension's destination picker                   |
 | `sync/activity`                 | GET    | session or `sync:read` | Recent `SyncEvent` rows; `?tokenId=` filters to one key   |
 
@@ -68,14 +68,14 @@ cookie, since they're only ever called from the logged-in web settings page.
 Everything else is bearer-only.
 
 `lastUsedAt` is **not** bumped by `verify` or `activity` (pass
-`{ updateLastUsedAt: false }`) — they're status checks, not sync operations.
+`{ updateLastUsedAt: false }`) - they're status checks, not sync operations.
 `capture`, `export`, and `folders` do bump it.
 
 ## Rate limiting
 
 Every bearer route calls `checkSyncRateLimit(tokenId, operation)`
 (`domain/sync/tokens.ts`), a per-token fixed window on top of the existing
-`rate_limit` table (`lib/rate-limit.ts` — the same store Better Auth's own
+`rate_limit` table (`lib/rate-limit.ts` - the same store Better Auth's own
 endpoints use, so this didn't need new infra). Limits per minute:
 
 - `capture`: 30
@@ -91,11 +91,11 @@ A breach returns `429` with a plain-text error; the extension's queue treats
   extension/desktop app starts getting `401`s until reconfigured with a new
   key.
 - **Rotate** (`POST /sync/tokens/[tokenId]/rotate`) replaces the secret in
-  place — same name, scopes, and expiry — and reveals the new raw value
+  place - same name, scopes, and expiry - and reveals the new raw value
   once. Use this when a key may have leaked but you don't want to reconfigure
   the destination/expiry from scratch. Implemented as one Prisma
   `$transaction`: create the new row, then `revokedAt` on the old one.
-- **Revoke all** (`DELETE /sync/tokens`) is the panic button — every active
+- **Revoke all** (`DELETE /sync/tokens`) is the panic button - every active
   key for the user dies at once. Web settings gates it behind a confirm
   dialog.
 
@@ -129,7 +129,7 @@ Chrome MV3 clipper. Auth = paste a write-scoped key into the options page.
   same expiry warning as the options page.
 - **401 handling** (`src/shared/api.ts`): any `401` from `getWithToken` or
   `postCapture` calls `storage.clearToken()` immediately, so a revoked/expired
-  key can't keep silently failing — the next popup open surfaces the
+  key can't keep silently failing - the next popup open surfaces the
   reconnect prompt. `background/index.ts` returns a specific "Sync key
   expired or revoked. Reconnect in Settings." message for clip attempts.
 - **Offline queue** (`src/background/queue.ts`): failed captures are queued
@@ -139,7 +139,7 @@ Chrome MV3 clipper. Auth = paste a write-scoped key into the options page.
 ## Extending this
 
 - New scopes: add to `SyncScope` in `domain/sync/token-utils.ts` and to the
-  scope-picker UI in `data-section.tsx` — the routes already check
+  scope-picker UI in `data-section.tsx` - the routes already check
   `record.scopes.includes(requiredScope)` generically.
 - New sync operation: add a `checkSyncRateLimit` limit entry, call
   `recordSyncEvent` on success/error, and CORS headers copy-paste cleanly

@@ -1,6 +1,6 @@
 /* eslint-disable */
 import type { NoteFile } from "@/types/notes";
-import { richDocumentToSearchableMarkdown } from "@/domain/notes/rich-document";
+import { PERSON_LINK_PATTERN, richDocumentToSearchableMarkdown } from "@/domain/notes/rich-document";
 import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
 
 export type NoteLinkKind = "wiki" | "markdown-note-link";
@@ -123,6 +123,25 @@ export function extractNoteTags(content: string): string[] {
 	}
 
 	return [...tags].toSorted((left, right) => left.localeCompare(right));
+}
+
+/**
+ * Ids of every `$[Name](person://id)` person mention in markdown content.
+ * The markdown counterpart of `extractRichDocumentPersonIds`, so person
+ * mentions survive on sources that only carry markdown (plain journal
+ * entries, vault edits, markdown-mode saves).
+ */
+export function extractMarkdownPersonIds(content: string): string[] {
+	const ids = new Set<string>();
+
+	for (const match of searchableContent(content).matchAll(PERSON_LINK_PATTERN)) {
+		const id = match[2]?.trim();
+		if (id) {
+			ids.add(id);
+		}
+	}
+
+	return [...ids].toSorted((left, right) => left.localeCompare(right));
 }
 
 export function getWorkspaceTags(files: NoteFile[]): string[] {

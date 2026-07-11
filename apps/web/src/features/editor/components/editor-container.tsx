@@ -16,11 +16,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { Editor } from "./editor";
 import type { TRichTextCollab } from "./rich-text-editor";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
-import {
-	AiWritingIndicator,
-	AI_WRITING_LABELS,
-	type AiWritingAction,
-} from "./ai-writing-indicator";
+import { AiWritingIndicator } from "./ai-writing-indicator";
+import { AI_WRITING_LABELS, type AiWritingAction } from "./ai-writing-constants";
 import { EditorToolbar } from "./editor-toolbar";
 import type { EditorSaveState, WorkspaceNavItem } from "./editor-toolbar";
 import { useCollabRoom } from "@/features/collaboration/hooks/use-collab-room";
@@ -54,7 +51,13 @@ import {
 	copyTextToClipboard,
 	getEditorContextMenuState,
 } from "@/features/desktop/context-menu-actions";
-import { NoteCoverBanner } from "@/features/notes/components/note-cover";
+import {
+	NoteCoverBanner,
+	NoteCoverMenuItems,
+	NoteCoverUploadInput,
+	useNoteCoverMenu,
+	type NoteCoverBannerHandle,
+} from "@/features/notes/components/note-cover";
 import { useUpdateNote } from "@/features/notes/hooks/use-update-note";
 
 type EditorContainerProps = {
@@ -399,6 +402,17 @@ function EditorContainerImpl({
 	const [aiNotice, setAiNotice] = useState<string | null>(null);
 
 	const fileId = file?.id ?? null;
+	const coverBannerRef = useRef<NoteCoverBannerHandle>(null);
+	const handleCoverChange = useCallback(
+		(cover: string) => {
+			if (fileId) mutateNoteCover({ id: fileId, cover });
+		},
+		[fileId, mutateNoteCover],
+	);
+	const coverUpload = useNoteCoverMenu(handleCoverChange);
+	const canEditCover =
+		!!file &&
+		(file.access === undefined || file.access === "owner" || file.access === "editor");
 	const [prevFileId, setPrevFileId] = useState(fileId);
 	if (fileId !== prevFileId) {
 		setPrevFileId(fileId);
@@ -603,12 +617,16 @@ function EditorContainerImpl({
 					shouldSeed: collabRoom.role === "owner" || collabRoom.role === "editor",
 				}
 			: undefined;
-	// Hold the editor behind the skeleton while the room is still syncing, so we
-	// never briefly mount a plain (non-collaborative) editor and then swap it.
 	const collabConnecting =
 		collabEnabled &&
 		(collabRoom.status === "connecting" ||
 			(!collabRoom.synced && collabRoom.status === "connected"));
+	// While the room syncs, show the cached note read-only instead of a skeleton —
+	// real content beats fake bars. `useCreateBlockNote` reads `collab` once at
+	// creation, so the editor is keyed to remount when the CRDT binding attaches;
+	// read-only during the window means no local edits can diverge from the room.
+	const showEditorSkeleton = isContentLoading || (collabConnecting && !file);
+	const editorCollabKey = collab ? `collab:${file?.id}` : "solo";
 
 	const availableKeysForFallback = rateLimitPrompt
 		? listFallbackAiKeys({
@@ -926,13 +944,15 @@ function EditorContainerImpl({
 
 			{file?.cover && (
 				<NoteCoverBanner
+					ref={coverBannerRef}
 					cover={file.cover}
-					onCoverChange={(cover) => mutateNoteCover({ id: file.id, cover })}
+					onCoverChange={canEditCover ? handleCoverChange : undefined}
 				/>
 			)}
+			{canEditCover && <NoteCoverUploadInput upload={coverUpload} />}
 
 			<div className="relative flex min-h-0 flex-1 flex-col">
-				{isContentLoading || collabConnecting ? (
+				{showEditorSkeleton ? (
 					<div
 						className="flex-1 overflow-y-auto overscroll-contain bg-card"
 						aria-busy="true"
@@ -944,6 +964,7 @@ function EditorContainerImpl({
 						<ContextMenuTrigger asChild>
 							<div className="flex min-h-0 flex-1 flex-col">
 								<Editor
+									key={editorCollabKey}
 									file={file}
 									files={files}
 									collab={collab}
@@ -951,11 +972,14 @@ function EditorContainerImpl({
 									// or an explicit "editor" gets a writable surface. Any other role
 									// (viewer today, future roles) is read-only so keystrokes aren't
 									// optimistically "saved" and then silently dropped server-side.
+									// Also read-only while the collab room syncs, so interim edits
+									// can't diverge from the CRDT document about to take over.
 									readOnly={
-										!!file &&
-										file.access !== undefined &&
-										file.access !== "owner" &&
-										file.access !== "editor"
+										collabConnecting ||
+										(!!file &&
+											file.access !== undefined &&
+											file.access !== "owner" &&
+											file.access !== "editor")
 									}
 									editorMode={effectiveEditorMode}
 									editorFontId={editorPrefs.defaultFont}
@@ -1009,6 +1033,22 @@ function EditorContainerImpl({
 							>
 								Copy markdown
 							</ContextMenuItem>
+							{canEditCover ? (
+								<>
+									<ContextMenuSeparator />
+									<NoteCoverMenuItems
+										cover={file?.cover ?? ""}
+										onCoverChange={handleCoverChange}
+										upload={coverUpload}
+										onViewFullSize={() =>
+											coverBannerRef.current?.openLightbox()
+										}
+										onReposition={() =>
+											coverBannerRef.current?.beginReposition()
+										}
+									/>
+								</>
+							) : null}
 							{onToggleEditorMode || onToggleSplit || onClosePane ? (
 								<ContextMenuSeparator />
 							) : null}
@@ -1088,7 +1128,7 @@ function EditorContainerImpl({
 						</ContextMenuContent>
 					</ContextMenu>
 				)}
-				{!(isContentLoading || collabConnecting) && (
+				{!showEditorSkeleton && (
 					<AiWritingIndicator
 						action={activeWritingAction}
 						onCancel={

@@ -25,6 +25,7 @@ export const metadata: Metadata = {
 	metadataBase: new URL(site.url),
 	openGraph: {
 		description: site.description,
+		images: [{ url: "/opengraph-preview.png" }],
 		siteName: "Skriuw",
 		type: "website",
 		url: site.url,
@@ -38,8 +39,9 @@ export const metadata: Metadata = {
 		template: "%s | Skriuw Documentation",
 	},
 	twitter: {
-		card: "summary",
+		card: "summary_large_image",
 		description: site.description,
+		images: ["/opengraph-preview.png"],
 		title: "Skriuw Documentation",
 	},
 };

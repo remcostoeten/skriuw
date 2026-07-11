@@ -16,7 +16,7 @@ import {
 	useNodesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
 import {
 	ArrowLeft,
 	Check,
@@ -42,7 +42,8 @@ import { DiagramContext } from "./diagram-context";
 import { defaultEdges, defaultNodes } from "./default-diagram";
 import { generateMermaid } from "./mermaid-utils";
 import { MermaidPreview } from "./mermaid-preview";
-import { nodeTypes, type NodeData } from "./nodes";
+import { nodeTypes } from "./node-types";
+import type { NodeData } from "./nodes";
 
 type DiagramNodeData = NodeData;
 type DiagramNode = Node<DiagramNodeData>;
@@ -385,7 +386,7 @@ function CodePanel({ showCode, onToggle, mermaidCode, onCopy }: CodePanelProps) 
 				</button>
 				<AnimatePresence>
 					{showCode && (
-						<motion.div layout className="bg-card border-t overflow-hidden">
+						<m.div layout className="bg-card border-t overflow-hidden">
 							<div className="p-4 h-full flex flex-col">
 								<div className="flex items-center justify-between mb-2">
 									<span className="text-xs font-mono text-muted-foreground">
@@ -404,7 +405,7 @@ function CodePanel({ showCode, onToggle, mermaidCode, onCopy }: CodePanelProps) 
 									{mermaidCode}
 								</pre>
 							</div>
-						</motion.div>
+						</m.div>
 					)}
 				</AnimatePresence>
 			</div>
@@ -422,7 +423,7 @@ function PreviewOverlay({ show, mermaidCode, onClose }: PreviewOverlayProps) {
 	return (
 		<AnimatePresence>
 			{show && (
-				<motion.div
+				<m.div
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
 					exit={{ opacity: 0 }}
@@ -445,7 +446,7 @@ function PreviewOverlay({ show, mermaidCode, onClose }: PreviewOverlayProps) {
 							<MermaidPreview chart={mermaidCode} />
 						</div>
 					</div>
-				</motion.div>
+				</m.div>
 			)}
 		</AnimatePresence>
 	);
@@ -1117,8 +1118,9 @@ export function DiagramBuilder({
 	const contextValue = useMemo(() => ({ onLabelChange }), [onLabelChange]);
 
 	return (
+		<LazyMotion features={domAnimation}>
 		<DiagramContext.Provider value={contextValue}>
-			<motion.div
+			<m.div
 				initial={{ y: "100%" }}
 				animate={{ y: 0 }}
 				exit={{ y: "100%" }}
@@ -1183,7 +1185,8 @@ export function DiagramBuilder({
 					mermaidCode={mermaidCode}
 					onClose={() => setShowPreview(false)}
 				/>
-			</motion.div>
+			</m.div>
 		</DiagramContext.Provider>
+		</LazyMotion>
 	);
 }

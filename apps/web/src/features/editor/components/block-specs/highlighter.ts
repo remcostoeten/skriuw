@@ -33,7 +33,7 @@ async function getHighlighter(): Promise<HighlighterCore> {
 					import("shiki/core"),
 					import("shiki/engine/oniguruma"),
 					import("shiki/wasm"),
-					import("shiki/themes/github-dark-default.mjs"),
+					import("shiki/themes/vesper.mjs"),
 				]);
 			return createHighlighterCore({
 				themes: [theme],
@@ -62,7 +62,7 @@ export async function highlight(code: string, lang: string): Promise<string> {
 		}
 		return hl.codeToHtml(code, {
 			lang: target,
-			theme: "github-dark-default",
+			theme: "vesper",
 		});
 	} catch {
 		// Never leave a code block unrendered: fall back to plain, escaped text so

@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { NoteFile } from "@/domain/notes/models";
 import {
+	extractMarkdownPersonIds,
 	extractNoteLinks,
 	extractNoteTags,
 	getNoteSearchableContent,
@@ -97,7 +98,11 @@ export function buildDesiredLinkTargets(
 		});
 	}
 
-	for (const personId of extractRichDocumentPersonIds(source.richContent)) {
+	const personIds = new Set<string>([
+		...extractRichDocumentPersonIds(source.richContent),
+		...extractMarkdownPersonIds(getNoteSearchableContent(source)),
+	]);
+	for (const personId of personIds) {
 		if (!personId) continue;
 		rows.set(`person:${personId}`, {
 			key: `person:${personId}`,

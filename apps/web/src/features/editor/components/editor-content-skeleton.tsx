@@ -25,38 +25,22 @@ export function EditorContentSkeleton() {
 	// Geometry mirrors the BlockNote content box (.blocknote-wrapper px-6 py-3
 	// with an inner `.bn-editor { max-width: 42rem; margin: 0 auto }`) so the
 	// text doesn't shift horizontally or vertically when the editor resolves.
+	// Bars are static (no shimmer) — motion draws the eye and makes the wait
+	// feel longer; the root fades in after the appear-delay window.
 	return (
-		<div className="px-6 py-3" aria-hidden="true">
+		<div className="animate-skeleton-appear px-6 py-3" aria-hidden="true">
 			<div className="mx-auto w-full max-w-[42rem] space-y-7">
-				<Bar className="h-7 w-[58%] bg-foreground/[0.085]" delay={0 * SHIMMER_STEP_MS} />
+				<div className="h-7 w-[58%] bg-foreground/[0.06]" />
 
 				<div className="space-y-2.5">
-					<Bar className="h-2.5 w-full" delay={1 * SHIMMER_STEP_MS} />
-					<Bar className="h-2.5 w-[94%]" delay={2 * SHIMMER_STEP_MS} />
-					<Bar className="h-2.5 w-[72%]" delay={3 * SHIMMER_STEP_MS} />
-				</div>
-
-				<div className="space-y-2.5 pt-2">
-					<Bar
-						className="h-5 w-[36%] bg-foreground/[0.075]"
-						delay={4 * SHIMMER_STEP_MS}
-					/>
-					<div className="space-y-2.5 pt-1">
-						<Bar className="h-2.5 w-[88%]" delay={5 * SHIMMER_STEP_MS} />
-						<Bar className="h-2.5 w-[92%]" delay={6 * SHIMMER_STEP_MS} />
-						<Bar className="h-2.5 w-[54%]" delay={7 * SHIMMER_STEP_MS} />
-					</div>
+					<div className="h-2.5 w-full bg-foreground/[0.045]" />
+					<div className="h-2.5 w-[94%] bg-foreground/[0.045]" />
+					<div className="h-2.5 w-[72%] bg-foreground/[0.045]" />
 				</div>
 
 				<div className="space-y-2.5">
-					<Bar
-						className="h-2.5 w-[78%] bg-foreground/[0.055]"
-						delay={8 * SHIMMER_STEP_MS}
-					/>
-					<Bar
-						className="h-2.5 w-[40%] bg-foreground/[0.055]"
-						delay={9 * SHIMMER_STEP_MS}
-					/>
+					<div className="h-2.5 w-[88%] bg-foreground/[0.035]" />
+					<div className="h-2.5 w-[54%] bg-foreground/[0.035]" />
 				</div>
 			</div>
 		</div>
@@ -125,7 +109,7 @@ function DetailRowsSkeleton() {
 
 export function DetailsPanelSkeleton() {
 	return (
-		<div aria-hidden="true" className="flex h-full min-h-0 flex-col">
+		<div aria-hidden="true" className="animate-skeleton-appear flex h-full min-h-0 flex-col">
 			<div className="min-h-0 flex-1 overflow-hidden">
 				<DetailsSectionShell icon={ListTree} label="Outline">
 					<div className="space-y-2.5">

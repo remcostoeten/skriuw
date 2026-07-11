@@ -20,12 +20,12 @@ describe("file tree block data", () => {
 
 		expect(parsed.rootName).toBe("Skriuw workspace");
 		expect(parsed.children.map((node) => [node.name, node.kind])).toEqual([
-			["Welcome to Skriuw", "file"],
-			["Skriuw handbook", "file"],
-			["Guides", "folder"],
+			["Start here", "folder"],
+			["Product launch", "folder"],
+			["Reference", "folder"],
 		]);
-		expect(parsed.children[2]?.children[0]?.name).toBe("Workflows");
-		expect(totals).toEqual({ folders: 2, files: 3 });
+		expect(parsed.children[0]?.children[0]?.name).toBe("Skriuw, at a glance");
+		expect(totals).toEqual({ folders: 5, files: 6 });
 	});
 
 	test("detects explicit filetree fences and legacy text tree fences", () => {
@@ -49,6 +49,6 @@ describe("file tree block data", () => {
 
 		expect(firstFlattenedBlock?.type).toBe("procode");
 		expect(firstFlattenedBlock?.props?.language).toBe("filetree");
-		expect(firstFlattenedBlock?.content).toContain("Guides/");
+		expect(firstFlattenedBlock?.content).toContain("Start here/");
 	});
 });
