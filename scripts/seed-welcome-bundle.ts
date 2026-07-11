@@ -1,9 +1,7 @@
 /**
- * Seeds the active SeedBundle with a real welcome bundle.
+ * Replaces the active starter bundle for both guest workspaces and new accounts.
  *
  * Run with: bun scripts/seed-welcome-bundle.ts
- *
- * Uses DATABASE_URL from .env (dotenv/config loaded automatically via Bun).
  */
 
 import "dotenv/config";
@@ -17,34 +15,14 @@ const adapter = new PrismaPg({
 });
 const prisma = new PrismaClient({ adapter });
 
-// ─── Block helpers ────────────────────────────────────────────────────────────
-
-let _seq = 0;
-function bid(): string {
-	_seq++;
-	return `seed-${_seq.toString().padStart(4, "0")}`;
+let sequence = 0;
+function id(): string {
+	sequence += 1;
+	return `starter-${sequence.toString().padStart(4, "0")}`;
 }
 
-type TextStyle = { bold?: true; italic?: true; code?: true; strike?: true };
-type InlineText = { type: "text"; text: string; styles: TextStyle };
-type Inline = InlineText;
-
-function t(text: string, styles: TextStyle = {}): InlineText {
-	return { type: "text", text, styles };
-}
-function bold(text: string): InlineText {
-	return t(text, { bold: true });
-}
-function code(text: string): InlineText {
-	return t(text, { code: true });
-}
-function wiki(title: string): InlineText {
-	return t(`[[${title}]]`);
-}
-function hashTag(name: string): InlineText {
-	return t(`#${name}`);
-}
-
+type TextStyle = { bold?: true; code?: true };
+type Inline = { type: "text"; text: string; styles: TextStyle };
 type Block = {
 	id: string;
 	type: string;
@@ -53,408 +31,278 @@ type Block = {
 	children: Block[];
 };
 
-function p(...content: Inline[]): Block {
-	return { id: bid(), type: "paragraph", props: {}, content, children: [] };
+function text(value: string, styles: TextStyle = {}): Inline {
+	return { type: "text", text: value, styles };
 }
-
-function h(level: 1 | 2 | 3, ...content: Inline[]): Block {
+function bold(value: string): Inline {
+	return text(value, { bold: true });
+}
+function code(value: string): Inline {
+	return text(value, { code: true });
+}
+function link(title: string): Inline {
+	return text(`[[${title}]]`);
+}
+function tag(name: string): Inline {
+	return text(`#${name}`);
+}
+function paragraph(...content: Inline[]): Block {
+	return { id: id(), type: "paragraph", props: {}, content, children: [] };
+}
+function heading(level: 1 | 2 | 3, ...content: Inline[]): Block {
 	return {
-		id: bid(),
+		id: id(),
 		type: "heading",
 		props: { level, textColor: "default", backgroundColor: "default", textAlignment: "left" },
 		content,
 		children: [],
 	};
 }
-
 function bullet(...content: Inline[]): Block {
 	return {
-		id: bid(),
+		id: id(),
 		type: "bulletListItem",
 		props: { textColor: "default", backgroundColor: "default", textAlignment: "left" },
 		content,
 		children: [],
 	};
 }
-
-function check(checked: boolean, ...content: Inline[]): Block {
+function checklist(checked: boolean, ...content: Inline[]): Block {
 	return {
-		id: bid(),
+		id: id(),
 		type: "checkListItem",
 		props: { checked, textColor: "default", backgroundColor: "default", textAlignment: "left" },
 		content,
 		children: [],
 	};
 }
-
-function codeBlock(language: string, code: string): Block {
-	return { id: bid(), type: "procode", props: { language }, content: code, children: [] };
-}
-
 function fileTree(source: string): Block {
 	return {
-		id: bid(),
+		id: id(),
 		type: "fileTree",
 		props: { source, defaultExpanded: true },
 		content: [],
 		children: [],
 	};
 }
-
 function table(headers: string[], rows: string[][]): Block {
-	return {
-		...buildTableBlock(headers, rows),
-		id: bid(),
-		children: [],
-	} as Block;
+	return { ...buildTableBlock(headers, rows), id: id(), children: [] } as Block;
 }
 
-const STARTER_WORKSPACE_TREE = `Skriuw workspace
-|-- Welcome to Skriuw
-|-- Skriuw handbook
-\`-- Guides/
-    \`-- Workflows/
-        \`-- From idea to published note`;
+const WORKSPACE_TREE = `Skriuw workspace
+|-- Start here/
+|   |-- Skriuw, at a glance
+|   \`-- Make this yours
+|-- Product launch/
+|   |-- Launch brief
+|   |-- Research/
+|   |   \`-- Audience signals
+|   \`-- Delivery/
+|       \`-- Ship checklist
+\`-- Reference/
+    \`-- Your connected workspace`;
 
-const EXAMPLE_PROJECT_TREE = `Example project map
-|-- Brief.md
-|-- Research/
-|   |-- Interview notes.md
-|   \`-- Competitor scan.md
-\`-- Ship/
-    |-- Launch checklist.md
-    \`-- Post-launch retro.md`;
-
-// ─── Note content ─────────────────────────────────────────────────────────────
-
-const welcomeNote: Block[] = [
-	h(1, t("Welcome to Skriuw")),
-	p(
-		t(
-			"Skriuw is a notes workspace that stays out of your way — scratchpad, journal, or linked knowledge base. This note is tagged ",
-		),
-		hashTag("getting-started"),
-		t(". The companion note "),
-		wiki("Skriuw handbook"),
-		t(" goes deeper."),
-	),
-	p(),
-	h(2, t("Try this in the next two minutes")),
-	check(false, t("Type "), code("/"), t(" on a blank line to see everything you can insert")),
-	check(
-		false,
-		t("Press "),
-		code("Cmd/Ctrl + Shift + Alt + B"),
-		t(
-			" to open the inspector — the panel on the right with this note's links, tags, and outline",
+const overview: Block[] = [
+	heading(1, text("Skriuw, at a glance")),
+	paragraph(
+		text(
+			"A calm workspace for ideas that need somewhere to go. This small sample is a working system: capture a thought, connect it to context, then move it forward.",
 		),
 	),
-	check(
-		false,
-		t("Click "),
-		wiki("Skriuw handbook"),
-		t(" below, then look at its Outgoing links and Backlinks in the inspector"),
+	paragraph(
+		text("Start with "),
+		link("Launch brief"),
+		text(" to see a project note connected to research and a delivery checklist. Then open "),
+		link("Your connected workspace"),
+		text(" to see how links, tags, and the graph fit together."),
 	),
-	check(
-		false,
-		t("Click "),
-		hashTag("getting-started"),
-		t(" in the inspector to filter to every note with that tag"),
-	),
-	p(),
-	h(2, t("Block editor")),
-	p(
-		t(
-			"Each paragraph is a block. Hover the handle to reorder. The slash menu gives you headings, lists, quotes, code, tables, and more.",
+	paragraph(),
+	heading(2, text("A workspace with a shape")),
+	fileTree(WORKSPACE_TREE),
+	paragraph(),
+	heading(2, text("Try it")),
+	checklist(false, text("Open "), link("Launch brief"), text(" and follow one of its links")),
+	checklist(false, text("Click "), tag("launch"), text(" to filter the related notes")),
+	checklist(false, text("Press "), code("Cmd/Ctrl + K"), text(" and search for “graph”")),
+	paragraph(),
+	heading(2, text("Keep or clear it")),
+	paragraph(
+		text(
+			"Everything here is safe to edit, rename, or delete. The useful part is the pattern: a few deliberate notes, clear folders, and links where context matters.",
 		),
-	),
-	bullet(
-		t("Type markdown inline — "),
-		code("##"),
-		t(" becomes a heading, "),
-		code("[ ]"),
-		t(" becomes a checkbox"),
-	),
-	bullet(t("Switch to raw MDX in the toolbar when you want source view")),
-	bullet(
-		t("Insert a "),
-		bold("file tree"),
-		t(" block with "),
-		code("/file tree"),
-		t(" — see "),
-		wiki("Skriuw handbook"),
-		t(" for a live example"),
-	),
-	p(),
-	h(2, t("Link notes")),
-	p(
-		t("The easy way: type "),
-		code("@"),
-		t(
-			" and pick a note from the list — or type a new name to create and link it in one step. It shows up as ",
-		),
-		code("[[Note title]]"),
-		t(
-			", which you can also type by hand. Unresolved links are clickable to create the target note. Open ",
-		),
-		wiki("Skriuw handbook"),
-		t(" for a worked example with backlinks."),
-	),
-	p(),
-	h(2, t("Tags")),
-	p(
-		t("Add tags inline with "),
-		code("#tag"),
-		t(" or the "),
-		code("/tag"),
-		t(
-			" slash command. Tags show up in the inspector and can be clicked to filter the workspace.",
-		),
-	),
-	p(),
-	h(2, t("Your note web")),
-	p(
-		t("Open the "),
-		bold("Graph"),
-		t(" view in the left rail to see how "),
-		wiki("Welcome to Skriuw"),
-		t(", "),
-		wiki("Skriuw handbook"),
-		t(", and "),
-		wiki("From idea to published note"),
-		t(" connect through links and shared tags like "),
-		hashTag("getting-started"),
-		t(". Hover a node to highlight its neighbors, then click to jump back to the note."),
-	),
-	p(),
-	h(2, t("Handy shortcuts")),
-	bullet(
-		code("Cmd/Ctrl + N"),
-		t(" new note · "),
-		code("Cmd/Ctrl + K"),
-		t(" command palette · "),
-		code("Cmd/Ctrl + Shift + B"),
-		t(" toggle sidebar · press "),
-		code("?"),
-		t(" for the full list"),
-	),
-	p(
-		t("Everything else lives in "),
-		wiki("Skriuw handbook"),
-		t(". For a longer example of linked notes in folders, open "),
-		wiki("From idea to published note"),
-		t(" under "),
-		bold("Guides → Workflows"),
-		t("."),
 	),
 ];
 
-const researchWorkflowNote: Block[] = [
-	h(1, t("From idea to published note")),
-	p(
-		hashTag("workflow"),
-		t(" "),
-		hashTag("getting-started"),
-		t(" — a compact example in "),
-		bold("Guides → Workflows"),
-		t(". Links to "),
-		wiki("Welcome to Skriuw"),
-		t(" and "),
-		wiki("Skriuw handbook"),
-		t("."),
-	),
-	p(),
-	h(2, t("Sidebar layout")),
-	p(
-		t(
-			"This note lives in nested folders. The tree below mirrors the starter workspace (folders open by default):",
+const makeItYours: Block[] = [
+	heading(1, text("Make this yours")),
+	paragraph(
+		text(
+			"You do not need a perfect system. Give each note a job, then let the structure grow only when it earns its place.",
 		),
 	),
-	fileTree(STARTER_WORKSPACE_TREE),
-	p(),
-	h(2, t("Four-step loop")),
-	table(
-		["Step", "Do this", "Tag"],
-		[
-			["Capture", "One sentence, no polish", "#inbox"],
-			["Connect", "Link to a hub or handbook note", "#workflow"],
-			["Compress", "Rewrite in your words; cut the rest", "#reference"],
-			["Check back", "Weekly pass on links and tags", "#workflow"],
-		],
-	),
-	p(
-		t("Insert tables with "),
-		code("/table"),
-		t(
-			". Edit cells inline, add rows from the block handle, and switch to raw MDX to see the markdown source.",
-		),
-	),
-	p(),
-	check(false, t("Open the inspector — confirm outgoing links to the two starter notes")),
-	p(
-		t("When you are done exploring, edit or delete this note. Mechanics live in "),
-		wiki("Skriuw handbook"),
-		t("."),
-	),
-];
-
-const handbookNote: Block[] = [
-	h(1, t("Skriuw handbook")),
-	p(
-		hashTag("getting-started"),
-		t(" "),
-		hashTag("reference"),
-		t(" — links, tags, editor modes, shortcuts, and copy-paste templates."),
-	),
-	p(
-		t("Linked from "),
-		wiki("Welcome to Skriuw"),
-		t(". Keep both notes open in split view while you explore the inspector."),
-	),
-	p(),
-	h(2, t("Links and backlinks")),
-	p(
-		t("This note links back to "),
-		wiki("Welcome to Skriuw"),
-		t(
-			". That creates an outgoing link here and a backlink there. Use the inspector Links section to jump between notes.",
-		),
-	),
-	p(
-		t("Create links with "),
-		code("[["),
-		t("title"),
-		code("]]"),
-		t(", the "),
-		code("/link note"),
-		t(
-			" slash command, or the note mention menu. Titles resolve against note names and H1 headings.",
-		),
-	),
-	p(),
-	h(2, t("Tags")),
-	p(
-		t("Tags such as "),
-		hashTag("getting-started"),
-		t(" and "),
-		hashTag("reference"),
-		t(
-			" are plain text markers upgraded into chips when the note loads. Click a tag in the inspector to see every note that uses it.",
-		),
-	),
-	p(
-		t("Shared tag example: both this handbook and "),
-		wiki("Welcome to Skriuw"),
-		t(" use "),
-		hashTag("getting-started"),
-		t("."),
-	),
-	p(),
-	h(2, t("Editor modes")),
-	p(
-		t(
-			"Block mode (default) keeps structured blocks and the slash menu. Raw MDX mode shows markdown source and round-trips most syntax.",
-		),
-	),
-	bullet(bold("Headings"), t(" — H1 / H2 / H3")),
-	bullet(bold("Lists"), t(" — bullet, numbered, and check lists")),
-	bullet(bold("Code"), t(" — fenced code blocks with language tags")),
-	bullet(bold("Tables"), t(" — full grid editing")),
+	paragraph(),
+	heading(2, text("Three simple moves")),
+	bullet(bold("Capture"), text(" — make a note before the thought disappears.")),
 	bullet(
-		bold("File tree"),
-		t(" — "),
-		code("/file tree"),
-		t(" inserts a collapsible directory map"),
+		bold("Connect"),
+		text(" — link it to the project, decision, or person it belongs with."),
 	),
-	p(),
-	h(2, t("File tree blocks")),
-	p(
-		t(
-			"Use a file tree when a list of paths is clearer than prose — project layouts, repo maps, or “where does this live?” diagrams. Type ",
-		),
-		code("/file tree"),
-		t(" or paste a tree inside a "),
-		code("```filetree"),
-		t(" fence."),
+	bullet(
+		bold("Return"),
+		text(" — use a short checklist or tag to make the next action obvious."),
 	),
-	fileTree(EXAMPLE_PROJECT_TREE),
-	p(
-		t(
-			"Click a folder row to expand or collapse. Use the edit control on the block to change paths — handy for planning before you create real folders.",
-		),
-	),
-	p(),
-	h(2, t("Keyboard shortcuts")),
+	paragraph(),
+	heading(2, text("Useful shortcuts")),
 	bullet(
 		code("Cmd/Ctrl + N"),
-		t(" — New note · "),
+		text(" creates a note; "),
 		code("Cmd/Ctrl + Shift + N"),
-		t(" — New folder"),
+		text(" creates a folder."),
 	),
-	bullet(
-		code("Cmd/Ctrl + K"),
-		t(" — Command palette (or "),
-		code("Cmd/Ctrl + Shift + P"),
-		t(")"),
-	),
-	bullet(
-		code("Cmd/Ctrl + Shift + B"),
-		t(" — Toggle sidebar · "),
-		code("Cmd/Ctrl + Shift + Alt + B"),
-		t(" — Toggle inspector"),
-	),
-	bullet(code("Cmd/Ctrl + E"), t(" — Switch between blocks and raw MDX")),
 	bullet(
 		code("/"),
-		t(" — Slash menu · "),
+		text(" opens blocks and commands; "),
 		code("@"),
-		t(" — link a note · "),
+		text(" links a note; "),
 		code("#"),
-		t(" — add a tag"),
+		text(" adds a tag."),
 	),
-	bullet(code("?"), t(" — Show every shortcut")),
-	bullet(
-		t("While editing text: "),
-		code("Cmd/Ctrl + B"),
-		t(" bold · "),
-		code("Cmd/Ctrl + I"),
-		t(" italic · "),
-		code("Cmd/Ctrl + `"),
-		t(" inline code"),
-	),
-	p(t("Notes save automatically while you type.")),
-	p(
-		t("For a compact example with a table and nested folders, see "),
-		wiki("From idea to published note"),
-		t(" under "),
-		bold("Guides → Workflows"),
-		t("."),
-	),
-	p(),
-	h(2, t("Templates")),
-	p(bold("Meeting notes")),
-	p(bold("Date:"), t(" …")),
-	p(bold("Attendees:"), t(" …")),
-	bullet(t("Agenda item")),
-	check(false, t("Action item — owner")),
-	p(),
-	p(bold("Daily note")),
-	p(bold("Today's focus:"), t(" …")),
-	check(false, t("Task")),
-	p(bold("End of day:"), t(" What went well? What to improve?")),
-	p(),
-	h(2, t("Code sample")),
-	codeBlock(
-		"typescript",
-		`function greet(name: string): string {
-  return \`Hello, \${name}!\`;
-}
-
-console.log(greet("Skriuw"));`,
+	bullet(code("Cmd/Ctrl + K"), text(" opens the command palette.")),
+	paragraph(
+		text("The sample project in "),
+		link("Launch brief"),
+		text(" shows those moves in context."),
 	),
 ];
 
-// ─── Bundle payload ────────────────────────────────────────────────────────────
+const launchBrief: Block[] = [
+	heading(1, text("Launch brief")),
+	paragraph(
+		tag("launch"),
+		text(" "),
+		tag("active"),
+		text(" — a compact project hub. Keep the decision here; keep the evidence in "),
+		link("Audience signals"),
+		text("; keep the execution in "),
+		link("Ship checklist"),
+		text("."),
+	),
+	paragraph(),
+	heading(2, text("The bet")),
+	paragraph(
+		text(
+			"Help first-time visitors understand Skriuw’s connected-note workflow in one focused session.",
+		),
+	),
+	paragraph(),
+	heading(2, text("What good looks like")),
+	table(
+		["Signal", "Target", "Where to look"],
+		[
+			["People open a linked note", "A clear next step", "[[Audience signals]]"],
+			["People finish setup", "No missing context", "[[Ship checklist]]"],
+			["The workspace stays calm", "Only useful defaults", "#active"],
+		],
+	),
+	paragraph(),
+	heading(2, text("Decision log")),
+	bullet(text("Use one clear project hub instead of scattered status notes.")),
+	bullet(text("Keep supporting material in folders, but link it from the hub.")),
+	bullet(text("Make the next action visible in a checklist.")),
+	paragraph(
+		text("Related: "),
+		link("Audience signals"),
+		text(" · "),
+		link("Ship checklist"),
+		text(" · "),
+		link("Your connected workspace"),
+	),
+];
+
+const audienceSignals: Block[] = [
+	heading(1, text("Audience signals")),
+	paragraph(
+		tag("research"),
+		text(" "),
+		tag("launch"),
+		text(" — lightweight research belongs next to the decision it informs."),
+	),
+	paragraph(),
+	heading(2, text("What people need")),
+	bullet(text("A clear first action instead of an empty workspace.")),
+	bullet(text("A small example they can understand at a glance.")),
+	bullet(text("The freedom to replace the example without cleaning up a mess.")),
+	paragraph(),
+	heading(2, text("Turn insight into action")),
+	paragraph(
+		text("The answer is recorded in "),
+		link("Launch brief"),
+		text(". The work that follows is in "),
+		link("Ship checklist"),
+		text(". That trail is the value of linking notes: the why and the what stay close."),
+	),
+];
+
+const shipChecklist: Block[] = [
+	heading(1, text("Ship checklist")),
+	paragraph(
+		tag("launch"),
+		text(" "),
+		tag("delivery"),
+		text(" — a checklist is a good home for the next concrete actions."),
+	),
+	paragraph(),
+	checklist(true, text("Write the intent in "), link("Launch brief")),
+	checklist(true, text("Collect supporting signals in "), link("Audience signals")),
+	checklist(false, text("Review the first-run experience")),
+	checklist(false, text("Share the decision with the team")),
+	checklist(false, text("Capture what to improve next")),
+	paragraph(),
+	heading(2, text("A small ritual")),
+	paragraph(
+		text(
+			"When a task changes shape, link it back to the note that explains why. You get a calm checklist without losing the context behind it.",
+		),
+	),
+];
+
+const connectedWorkspace: Block[] = [
+	heading(1, text("Your connected workspace")),
+	paragraph(
+		tag("reference"),
+		text(
+			" — Skriuw keeps notes independent, then lets you connect them when the relationship is useful.",
+		),
+	),
+	paragraph(),
+	heading(2, text("Links create a trail")),
+	paragraph(
+		text("Open "),
+		link("Launch brief"),
+		text(
+			" and its connected notes. The inspector shows outgoing links and backlinks; the graph turns those relationships into a map.",
+		),
+	),
+	paragraph(),
+	heading(2, text("Tags create useful views")),
+	paragraph(
+		text("The shared "),
+		tag("launch"),
+		text(
+			" tag brings the brief, research, and delivery notes together without forcing them into one folder.",
+		),
+	),
+	paragraph(),
+	heading(2, text("Use the right shape")),
+	bullet(text("Folders for stable homes.")),
+	bullet(text("Links for context across those homes.")),
+	bullet(text("Tags for temporary or cross-cutting views.")),
+	paragraph(
+		text("Return to "),
+		link("Skriuw, at a glance"),
+		text(" whenever you want a fresh starting point."),
+	),
+];
 
 type SeedFolder = { ref: string; name: string; parentRef: string | null; order: number };
 type SeedNote = {
@@ -463,86 +311,90 @@ type SeedNote = {
 	parentRef: string | null;
 	order: number;
 	richContent: Block[];
-	tags?: string[];
+	tags: string[];
 };
 
 const folders: SeedFolder[] = [
-	{ ref: "folder-guides", name: "Guides", parentRef: null, order: 2 },
-	{ ref: "folder-workflows", name: "Workflows", parentRef: "folder-guides", order: 0 },
+	{ ref: "folder-start", name: "Start here", parentRef: null, order: 0 },
+	{ ref: "folder-launch", name: "Product launch", parentRef: null, order: 1 },
+	{ ref: "folder-research", name: "Research", parentRef: "folder-launch", order: 0 },
+	{ ref: "folder-delivery", name: "Delivery", parentRef: "folder-launch", order: 1 },
+	{ ref: "folder-reference", name: "Reference", parentRef: null, order: 2 },
 ];
 
 const notes: SeedNote[] = [
 	{
 		ref: "note-welcome",
-		name: "Welcome to Skriuw",
-		parentRef: null,
+		name: "Skriuw, at a glance",
+		parentRef: "folder-start",
 		order: 0,
-		tags: ["getting-started"],
-		richContent: welcomeNote,
+		tags: ["start-here"],
+		richContent: overview,
 	},
 	{
-		ref: "note-handbook",
-		name: "Skriuw handbook",
-		parentRef: null,
+		ref: "note-make-it-yours",
+		name: "Make this yours",
+		parentRef: "folder-start",
 		order: 1,
-		tags: ["getting-started", "reference"],
-		richContent: handbookNote,
+		tags: ["start-here"],
+		richContent: makeItYours,
 	},
 	{
-		ref: "note-research-workflow",
-		name: "From idea to published note",
-		parentRef: "folder-workflows",
+		ref: "note-launch-brief",
+		name: "Launch brief",
+		parentRef: "folder-launch",
 		order: 0,
-		tags: ["getting-started", "workflow", "inbox"],
-		richContent: researchWorkflowNote,
+		tags: ["launch", "active"],
+		richContent: launchBrief,
+	},
+	{
+		ref: "note-audience-signals",
+		name: "Audience signals",
+		parentRef: "folder-research",
+		order: 0,
+		tags: ["research", "launch"],
+		richContent: audienceSignals,
+	},
+	{
+		ref: "note-ship-checklist",
+		name: "Ship checklist",
+		parentRef: "folder-delivery",
+		order: 0,
+		tags: ["launch", "delivery"],
+		richContent: shipChecklist,
+	},
+	{
+		ref: "note-connected-workspace",
+		name: "Your connected workspace",
+		parentRef: "folder-reference",
+		order: 0,
+		tags: ["reference"],
+		richContent: connectedWorkspace,
 	},
 ];
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
 	const bundle = await prisma.seedBundle.findFirst({
 		where: { isActive: true },
 		select: { id: true, name: true },
 	});
-
-	if (!bundle) {
-		console.error("No active seed bundle found. Run migrations first.");
-		process.exit(1);
-	}
-
-	console.log(`Updating bundle "${bundle.name}" (${bundle.id}) …`);
-
+	if (!bundle) throw new Error("No active seed bundle found. Run migrations first.");
 	await prisma.seedBundle.update({
 		where: { id: bundle.id },
 		data: {
-			name: "Welcome bundle",
+			name: "Connected workspace starter",
 			folders: folders as unknown as object,
 			notes: notes as unknown as object,
 			tags: [],
 			journals: [],
 		},
 	});
-
-	console.log(`✓ Bundle updated with ${folders.length} folders and ${notes.length} notes.`);
-	console.log("\nStructure:");
-	for (const note of notes.filter((item) => !item.parentRef)) {
-		console.log(`  ${note.name}`);
-	}
-	for (const folder of folders.filter((item) => !item.parentRef)) {
-		console.log(`  ${folder.name}/`);
-		for (const childFolder of folders.filter((item) => item.parentRef === folder.ref)) {
-			console.log(`    ${childFolder.name}/`);
-			for (const note of notes.filter((item) => item.parentRef === childFolder.ref)) {
-				console.log(`      ${note.name}`);
-			}
-		}
-	}
+	console.log(`Updated ${bundle.name} with ${folders.length} folders and ${notes.length} notes.`);
 }
 
 main()
-	.catch((err) => {
-		console.error(err);
-		process.exit(1);
+	.catch((error) => {
+		console.error(error);
+		process.exitCode = 1;
 	})
 	.finally(() => prisma.$disconnect());

@@ -1,73 +1,27 @@
 /* eslint-disable react-doctor/only-export-components, react-doctor/interactive-supports-focus, react-doctor/prefer-tag-over-role */
 /* eslint-disable */
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
-import {
-	Braces,
-	Check,
-	Copy,
-	Database,
-	FileCode,
-	FileJson,
-	FileText,
-	Hash,
-	Palette,
-	Terminal,
-} from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { noop } from "@/shared/lib/noop";
 import { highlight } from "./highlighter";
 
 export const LANGUAGES = [
-	{ label: "TypeScript", value: "typescript" },
-	{ label: "JavaScript", value: "javascript" },
-	{ label: "TSX", value: "tsx" },
-	{ label: "JSX", value: "jsx" },
-	{ label: "JSON", value: "json" },
-	{ label: "Bash", value: "bash" },
-	{ label: "Python", value: "python" },
-	{ label: "HTML", value: "html" },
-	{ label: "CSS", value: "css" },
-	{ label: "Markdown", value: "markdown" },
-	{ label: "SQL", value: "sql" },
-	{ label: "Plain text", value: "text" },
+	{ label: "TypeScript", short: "TS", value: "typescript" },
+	{ label: "JavaScript", short: "JS", value: "javascript" },
+	{ label: "TSX", short: "TSX", value: "tsx" },
+	{ label: "JSX", short: "JSX", value: "jsx" },
+	{ label: "JSON", short: "JSON", value: "json" },
+	{ label: "Bash", short: "BASH", value: "bash" },
+	{ label: "Python", short: "PY", value: "python" },
+	{ label: "HTML", short: "HTML", value: "html" },
+	{ label: "CSS", short: "CSS", value: "css" },
+	{ label: "Markdown", short: "MD", value: "markdown" },
+	{ label: "SQL", short: "SQL", value: "sql" },
+	{ label: "Plain text", short: "TXT", value: "text" },
 ] as const;
 
-const LANGUAGE_ICON = {
-	typescript: FileCode,
-	tsx: FileCode,
-	javascript: Braces,
-	jsx: Braces,
-	json: FileJson,
-	bash: Terminal,
-	python: FileCode,
-	html: FileCode,
-	css: Palette,
-	markdown: Hash,
-	sql: Database,
-	text: FileText,
-} as const satisfies Record<(typeof LANGUAGES)[number]["value"], typeof FileCode>;
-
-const LANGUAGE_COLOR = {
-	typescript: "#3178c6",
-	tsx: "#3178c6",
-	javascript: "#f0db4f",
-	jsx: "#f0db4f",
-	json: "#8bc34a",
-	bash: "#8fd0e0",
-	python: "#4b8bbe",
-	html: "#e34c26",
-	css: "#2965f1",
-	markdown: "#a8a8a8",
-	sql: "#e38dae",
-	text: "#a8a8a8",
-} as const satisfies Record<(typeof LANGUAGES)[number]["value"], string>;
-
-function getLanguageIcon(language: string) {
-	return (LANGUAGE_ICON as Record<string, typeof FileCode>)[language] ?? FileCode;
-}
-
-function getLanguageColor(language: string) {
-	return (LANGUAGE_COLOR as Record<string, string>)[language] ?? "#e3794a";
+function getLanguageShort(language: string) {
+	return LANGUAGES.find((l) => l.value === language)?.short ?? language.toUpperCase();
 }
 
 export const LANGUAGE_VALUES = LANGUAGES.map((l) => l.value) as unknown as readonly [
@@ -139,21 +93,45 @@ export function CodeBlockView({
 		}
 	}
 
-	const LanguageIcon = getLanguageIcon(block.props.language);
-	const languageColor = getLanguageColor(block.props.language);
-
 	return (
-		<div
-			className="pro-code-block"
-			data-language={block.props.language}
-			style={{ "--pcb-lang-color": languageColor } as CSSProperties}
-		>
+		<div className="pro-code-block" data-language={block.props.language}>
 			<div className="pro-code-head" contentEditable={false}>
 				<span className="pro-code-head-start">
-					<span className="pro-code-chip">
-						<LanguageIcon className="pro-code-chip-icon" size={14} aria-hidden="true" />
+					<span className="pro-code-dot" aria-hidden="true" />
+					<span
+						className="pro-code-title"
+						role="textbox"
+						contentEditable
+						suppressContentEditableWarning
+						aria-label="Code block title"
+						data-placeholder="filename"
+						onBlur={(e) => {
+							const next = (e.currentTarget.textContent ?? "").trim();
+							if (next !== block.props.title) {
+								editor.updateBlock(block, {
+									props: { title: next },
+									type: "procode",
+								});
+							}
+						}}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") {
+								e.preventDefault();
+								(e.target as HTMLElement).blur();
+							}
+						}}
+					>
+						{block.props.title}
+					</span>
+				</span>
+				<span className="pro-code-head-end">
+					<span className="pro-code-lang-pill">
+						<span className="pro-code-lang-label" aria-hidden="true">
+							{getLanguageShort(block.props.language)}
+						</span>
 						<select
 							className="pro-code-lang"
+							aria-label="Code language"
 							value={block.props.language}
 							onChange={(e) =>
 								editor.updateBlock(block, {
@@ -168,47 +146,22 @@ export function CodeBlockView({
 								</option>
 							))}
 						</select>
-						<span
-							className="pro-code-title"
-							role="textbox"
-							contentEditable
-							suppressContentEditableWarning
-							aria-label="Code block title"
-							data-placeholder="filename"
-							onBlur={(e) => {
-								const next = (e.currentTarget.textContent ?? "").trim();
-								if (next !== block.props.title) {
-									editor.updateBlock(block, {
-										props: { title: next },
-										type: "procode",
-									});
-								}
-							}}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									e.preventDefault();
-									(e.target as HTMLElement).blur();
-								}
-							}}
-						>
-							{block.props.title}
+					</span>
+					<button
+						type="button"
+						className="pro-code-copy"
+						data-copied={copied ? "true" : "false"}
+						onClick={onCopy}
+						aria-label={copied ? "Copied" : "Copy code"}
+					>
+						<span className="pro-code-copy-icon pro-code-copy-copy">
+							<Copy size={14} />
 						</span>
-					</span>
+						<span className="pro-code-copy-icon pro-code-copy-check">
+							<Check size={14} />
+						</span>
+					</button>
 				</span>
-				<button
-					type="button"
-					className="pro-code-copy"
-					data-copied={copied ? "true" : "false"}
-					onClick={onCopy}
-					aria-label={copied ? "Copied" : "Copy code"}
-				>
-					<span className="pro-code-copy-icon pro-code-copy-copy">
-						<Copy size={14} />
-					</span>
-					<span className="pro-code-copy-icon pro-code-copy-check">
-						<Check size={14} />
-					</span>
-				</button>
 			</div>
 			<div className="pro-code-body">
 				<div

@@ -117,8 +117,8 @@ export function PwaSetup() {
 	if (mode === "hidden") return null;
 
 	return (
-		<div
-			role="dialog"
+		<dialog
+			open
 			aria-label="Install Skriuw"
 			// Sit above the iOS home indicator: hold the visual 0.75rem gap but
 			// grow it by the safe-area inset on notched devices.
@@ -161,6 +161,6 @@ export function PwaSetup() {
 			>
 				<X className="size-4" />
 			</button>
-		</div>
+		</dialog>
 	);
 }

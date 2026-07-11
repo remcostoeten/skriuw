@@ -78,7 +78,9 @@ function closeSharedSource() {
 
 export function useNotifications() {
 	const queryClient = useQueryClient();
-	const [unreadCount, setUnreadCount] = useState(lastUnreadCount);
+	const [unreadCount, setUnreadCount] = useState(
+		query.data ? query.data.filter((n) => !n.read).length : lastUnreadCount,
+	);
 
 	const query = useQuery({
 		queryKey: notificationKeys.list(),
@@ -97,13 +99,6 @@ export function useNotifications() {
 			closeSharedSource();
 		};
 	}, [queryClient]);
-
-	// Fall back to the polled list for the count (covers the no-SSE path).
-	useEffect(() => {
-		if (query.data) {
-			setUnreadCount(query.data.filter((n) => !n.read).length);
-		}
-	}, [query.data]);
 
 	const refresh = () => queryClient.invalidateQueries({ queryKey: notificationKeys.list() });
 

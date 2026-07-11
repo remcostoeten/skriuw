@@ -550,13 +550,13 @@ function GraphEmptyState({
 				<>
 					Connect notes with <code className="font-mono">[[wiki links]]</code>, mentions,
 					and <code className="font-mono">#tags</code>. The demo workspace already has a
-					small web - open the welcome note to see how it links to the handbook and
-					workflow guide.
+					small web — open the starter note to see how its project brief connects research
+					and delivery.
 				</>
 			}
 			action={
 				onOpenStarterNote
-					? { label: "Open welcome note", onClick: onOpenStarterNote }
+					? { label: "Open starter note", onClick: onOpenStarterNote }
 					: { label: "Back to notes", href: "/app" }
 			}
 		/>

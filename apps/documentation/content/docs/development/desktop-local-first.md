@@ -5,8 +5,8 @@ description: "Skriuw runs one product across three storage backends behind a sin
 
 Skriuw runs one product across three storage backends behind a single interface.
 The desktop build is the Obsidian-class one: **local-first, private, offline**.
-This document records the deciding constraints and — because most of it is already
-built — maps each decision to the code that implements it, then lists the gaps
+This document records the deciding constraints and - because most of it is already
+built - maps each decision to the code that implements it, then lists the gaps
 that are genuinely still open.
 
 ## Positioning
@@ -29,17 +29,17 @@ Feature code never branches on platform or auth. It talks to `WorkspaceBackend`
 
 Desktop capabilities (`tauri-backend.ts`): `sharing: false`, `collaboration: false`,
 `ai: true`, `journal/trash/history: true`. Sharing and collaboration are
-server-bound and therefore off — the capability flag is what greys them out.
+server-bound and therefore off - the capability flag is what greys them out.
 
 ## Desktop storage model
 
 Two Rust stores, one source of truth:
 
-- **`vault.rs` — the source of truth.** Notes are real `.md` files with YAML
+- **`vault.rs` - the source of truth.** Notes are real `.md` files with YAML
   frontmatter; folders are directories. Identity (`id`) lives in frontmatter, so a
   rename on disk preserves the note and a move between folders re-parents it.
   Journal, trash, and folder metadata live under `.skriuw/`.
-- **`storage.rs` — a derived index.** SQLite (`index.db`) with FTS5 for
+- **`storage.rs` - a derived index.** SQLite (`index.db`) with FTS5 for
   `searchNotes`, the backlink graph (`get_backlink_sources`), and version history.
   Rebuilt from the vault by `reconcile_index` on launch (deferred to a background
   thread when `index.db` already exists; the frontend waits on the
@@ -47,24 +47,24 @@ Two Rust stores, one source of truth:
 
 Writes are dual-write, vault first: `lib.rs::create_note` calls
 `vault.upsert_note` then `storage.upsert_note`. If the index is ever lost or
-corrupted, `reconcile_index` reconstructs it from the vault — the markdown is
+corrupted, `reconcile_index` reconstructs it from the vault - the markdown is
 authoritative.
 
 ## Sync
 
 Decision: **ship serverless now (silos), add sync later.** The pull seam already
-exists — `importArchive` (`ImportArchivePayload`) applies a full workspace pull,
+exists - `importArchive` (`ImportArchivePayload`) applies a full workspace pull,
 including `deletedIds` tombstones, in one transaction
 (`storage.rs::import_workspace`). The `Note` row already carries `id` (uuid),
 `created_at`, and `modified_at`; deletes are tombstoned through the trash and the
 pull payload. That is enough for last-write-wins reconciliation.
 
-What is missing is the **push** half and a conflict policy — see gaps.
+What is missing is the **push** half and a conflict policy - see gaps.
 
 ## AI
 
 Desktop default is **local Ollama** (private, offline). Cloud AI is optional and,
-for v1, **bring-your-own-key only** — Skriuw's own fallback keys cannot ship inside
+for v1, **bring-your-own-key only** - Skriuw's own fallback keys cannot ship inside
 a desktop binary and a proxy would require the server we are deliberately not
 shipping yet. Enabling cloud AI sends note text off the machine, so it must sit
 behind an explicit consent toggle; "fully private" holds only in Ollama mode.

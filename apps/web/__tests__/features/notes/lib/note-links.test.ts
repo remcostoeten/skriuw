@@ -5,6 +5,7 @@ import {
 	buildOutgoingNoteLinks,
 	collectNoteLinkTargetIds,
 	deriveNoteNameFromHeading,
+	extractMarkdownPersonIds,
 	extractNoteLinks,
 	extractNoteTags,
 	isUntitledNoteName,
@@ -316,6 +317,26 @@ describe("note link indexing", () => {
 			{ kind: "wiki", targetLabel: "Project hub" },
 			{ kind: "markdown-note-link", targetLabel: "Target", targetNoteId: "target-id" },
 		]);
+	});
+});
+
+describe("extractMarkdownPersonIds", () => {
+	test("collects unique person ids from $[Name](person://id) mentions", () => {
+		const ids = extractMarkdownPersonIds(
+			"Met $[Ada](person://p1) and $[Bob](person://p2), then $[Ada](person://p1) again",
+		);
+		expect(ids).toEqual(["p1", "p2"]);
+	});
+
+	test("ignores mentions inside code fences and inline code", () => {
+		const ids = extractMarkdownPersonIds(
+			"```\n$[Ada](person://p1)\n```\nand `$[Bob](person://p2)` but $[Cee](person://p3)",
+		);
+		expect(ids).toEqual(["p3"]);
+	});
+
+	test("ignores plain $name text and regular links", () => {
+		expect(extractMarkdownPersonIds("just $ada and [Ada](https://x.test)")).toEqual([]);
 	});
 });
 

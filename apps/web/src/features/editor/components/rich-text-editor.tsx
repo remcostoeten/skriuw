@@ -33,7 +33,8 @@ import {
 } from "@/features/editor/lib/editor-line-height";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
 import type { NoteProperty } from "@/domain/notes/properties";
-import { getWorkspaceTags } from "@/domain/notes/note-links";
+import { getWorkspaceTagNames } from "@/domain/tags/workspace-tags";
+import { useJournalEntries } from "@/features/journal/hooks/use-journal-entries";
 import { useNoteLinkActions } from "@/features/editor/hooks/use-note-link-actions";
 import {
 	cloneRichDocument,
@@ -192,9 +193,9 @@ export function RichTextEditor({
 
 	// When collaborating, content comes from the shared Yjs fragment — passing
 	// `initialContent` alongside `collaboration` is invalid and would duplicate
-	// the document. `collab` is fixed for this editor's lifetime (the parent only
-	// mounts the collaborative editor once the room is synced, and keys it by
-	// note), so reading it once at creation is correct.
+	// the document. `collab` is fixed for this editor's lifetime (the parent keys
+	// the editor by collab presence + note id, remounting when the room binding
+	// attaches or detaches), so reading it once at creation is correct.
 	const editor = useCreateBlockNote(
 		collab
 			? {
@@ -221,7 +222,11 @@ export function RichTextEditor({
 	const [customPromptOpen, setCustomPromptOpen] = useState(false);
 	const prefersReducedMotion = useReducedMotion() ?? false;
 	const searchWidgetTransition = pickTransition(prefersReducedMotion, FAST_SWAP_TRANSITION);
-	const workspaceTags = useMemo(() => getWorkspaceTags(files), [files]);
+	const { data: journalEntries } = useJournalEntries();
+	const workspaceTags = useMemo(
+		() => getWorkspaceTagNames(files, journalEntries ?? []),
+		[files, journalEntries],
+	);
 	const { createAndOpenNote, openNote } = useNoteLinkActions(files);
 
 	// Anchored comments live alongside the document in the same Yjs room; the

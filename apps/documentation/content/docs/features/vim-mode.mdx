@@ -1,9 +1,11 @@
 ---
 title: "Vim mode"
-description: "If you're used to Vim's keyboard-driven editing, Skiruw has an optional Vim mode that brings familiar modal shortcuts into your"
+description: "An optional Vim mode that brings familiar modal, keyboard-driven editing shortcuts into your Skriuw notes."
 ---
 
-If you're used to Vim's keyboard-driven editing, Skiruw has an optional Vim mode that brings familiar modal shortcuts into your notes.
+If you're used to Vim's keyboard-driven editing, Skriuw has an optional Vim mode that brings familiar modal shortcuts into your notes.
+
+<Media label="Vim mode in action" caption="Modal editing with the mode indicator at the bottom." />
 
 ## How it works
 
@@ -11,18 +13,18 @@ Turn it on in **Settings → Editor → Vim mode**. Once enabled, your notes ope
 
 ## What's supported
 
-- **Motions** — `h j k l`, word jumps (`w b e`), line jumps (`0 ^ $`), find-on-line (`f F t T` and repeat with `; ,`), and jumping to the start or end of your note (`gg G`)
-- **Editing** — delete, change, and yank combined with a motion (`dw`, `ce`, `d$`, `yy`, `dd`), plus `x`, `r`, `~`, `J`, `p`/`P` for paste, and undo/redo (`u`, `Ctrl+R`)
-- **Text objects** — act on a word or the contents of quotes/brackets, like `diw`, `ci"`, `ya(`
-- **Visual mode** — select text with `v` or whole lines with `V`, then delete, change, yank, or paste over the selection
-- **Commands** — type `:w` to save, `:q` to close the current tab, or `:wq` to save and close
+- **Motions** - `h j k l`, word jumps (`w b e`), line jumps (`0 ^ $`), find-on-line (`f F t T` and repeat with `; ,`), and jumping to the start or end of your note (`gg G`)
+- **Editing** - delete, change, and yank combined with a motion (`dw`, `ce`, `d$`, `yy`, `dd`), plus `x`, `r`, `~`, `J`, `p`/`P` for paste, and undo/redo (`u`, `Ctrl+R`)
+- **Text objects** - act on a word or the contents of quotes/brackets, like `diw`, `ci"`, `ya(`
+- **Visual mode** - select text with `v` or whole lines with `V`, then delete, change, yank, or paste over the selection
+- **Commands** - type `:w` to save, `:q` to close the current tab, or `:wq` to save and close
 
 ## Tips
 
-- If a keyboard shortcut you normally use "does nothing" while Vim mode is on, check which mode you're in — in normal mode, single keys like `$` are treated as cursor motions rather than triggering other editor shortcuts. Switch to insert mode (press `i`) and those shortcuts work as expected.
+- If a keyboard shortcut you normally use "does nothing" while Vim mode is on, check which mode you're in - in normal mode, single keys like `$` are treated as cursor motions rather than triggering other editor shortcuts. Switch to insert mode (press `i`) and those shortcuts work as expected.
 - `Tab` always stays available to move focus out of the editor, even in normal mode.
 - Vim mode applies per note, so different open notes or split panes can each show their own mode indicator independently.
 
 ## Why use Vim mode?
 
-If your fingers already know Vim, this lets you navigate and edit notes without reaching for the mouse or arrow keys. It's entirely optional — turn it off any time and the editor goes back to normal typing.
+If your fingers already know Vim, this lets you navigate and edit notes without reaching for the mouse or arrow keys. It's entirely optional - turn it off any time and the editor goes back to normal typing.

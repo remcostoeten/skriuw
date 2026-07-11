@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useShortcutMap } from "@remcostoeten/use-shortcut/react";
 import { getShortcutDefaultKeys, useShortcutManager, type ShortcutId } from "@/core/shortcuts";
 import {
@@ -30,6 +30,28 @@ export function useEditorSearch(editor: EditorInstance) {
 		if (!searchOptions.regex || searchQuery.length === 0) return false;
 		return buildRegex(searchQuery, searchOptions) === null;
 	}, [searchOptions, searchQuery]);
+
+	const performSearch = useCallback(
+		(query: string, options: SearchOptions) => {
+			const view = getEditorView(editor);
+			if (!view) return;
+			setSearch(view, query, options);
+			const state = getSearchState(view);
+			setMatchInfo({
+				current: state?.current ?? 0,
+				total: state?.matches.length ?? 0,
+			});
+		},
+		[editor],
+	);
+
+	const handleSearchQueryChange = useCallback(
+		(value: string) => {
+			setSearchQuery(value);
+			performSearch(value, searchOptions);
+		},
+		[performSearch, searchOptions],
+	);
 
 	const focusSearchInput = useCallback(() => {
 		requestAnimationFrame(() => {
@@ -66,9 +88,14 @@ export function useEditorSearch(editor: EditorInstance) {
 		openSearch();
 	}, [closeSearch, openSearch, searchOpen]);
 
-	const toggleSearchOption = useCallback((key: keyof SearchOptions) => {
-		setSearchOptions((prev) => ({ ...prev, [key]: !prev[key] }));
-	}, []);
+	const toggleSearchOption = useCallback(
+		(key: keyof SearchOptions) => {
+			const next = { ...searchOptions, [key]: !searchOptions[key] };
+			setSearchOptions(next);
+			performSearch(searchQuery, next);
+		},
+		[performSearch, searchOptions, searchQuery],
+	);
 
 	const handleNextMatch = useCallback(() => {
 		const view = getEditorView(editor);
@@ -113,17 +140,6 @@ export function useEditorSearch(editor: EditorInstance) {
 			total: state?.matches.length ?? 0,
 		});
 	}, [editor, replaceValue]);
-
-	useEffect(() => {
-		const view = getEditorView(editor);
-		if (!view) return;
-		setSearch(view, searchQuery, searchOptions);
-		const state = getSearchState(view);
-		setMatchInfo({
-			current: state?.current ?? 0,
-			total: state?.matches.length ?? 0,
-		});
-	}, [editor, searchOptions, searchQuery]);
 
 	const { bindings } = useShortcutManager();
 	const shortcutKeys = useCallback(
@@ -184,7 +200,7 @@ export function useEditorSearch(editor: EditorInstance) {
 	return {
 		searchOpen,
 		searchQuery,
-		setSearchQuery,
+		setSearchQuery: handleSearchQueryChange,
 		replaceValue,
 		setReplaceValue,
 		showReplace,

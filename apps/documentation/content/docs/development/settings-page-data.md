@@ -1,5 +1,5 @@
 ---
-title: "Settings — Data Reference for Redesign"
+title: "Settings - Data Reference for Redesign"
 description: "Desktop: sidebar nav (220px, sticky) + content panel. Mobile: two-screen drilldown (list → detail). Each tab = one section. Section = SectionHeader (title"
 ---
 
@@ -61,7 +61,7 @@ SettingsCard [
     description: "Used for sign-in and account recovery.",
     readOnly:    true,
     className:   "w-52 h-8 opacity-60 cursor-not-allowed",
-    title:       "Email changes require re-authentication — contact support",
+    title:       "Email changes require re-authentication - contact support",
   },
 ]
 
@@ -114,7 +114,7 @@ SectionHeader: {
 
 GroupLabel: "THEME"
 
-// Not a SettingsCard — uses settingsAnchorProps + grid layout
+// Not a SettingsCard - uses settingsAnchorProps + grid layout
 theme: {
   type:        "ButtonGrid" (grid-cols-3 gap-3),
   label:       "Theme",
@@ -191,7 +191,7 @@ SectionHeader: {
 
 GroupLabel: "TYPOGRAPHY"
 
-// Custom card (not SettingsCard) — rounded-lg border border-border/60 bg-card/40 p-5
+// Custom card (not SettingsCard) - rounded-lg border border-border/60 bg-card/40 p-5
 // Contains two settings stacked vertically with a border-t divider
 TypographyCard [
   defaultFont: {
@@ -259,7 +259,7 @@ SettingsCard [
   detectTagsInText: {
     type:        "Switch",
     label:       "Detect #tags in note text",
-    description: "Turn #words written in plain text into workspace tags. Disable if your notes contain code comments or .env snippets — tags inserted via the # menu keep working either way.",
+    description: "Turn #words written in plain text into workspace tags. Disable if your notes contain code comments or .env snippets - tags inserted via the # menu keep working either way.",
     focusId:     "detect-tags-in-text",
   },
 ]
@@ -275,7 +275,7 @@ SectionHeader: {
   description: "Rebind keyboard shortcuts. Changes are saved to this device.",
 }
 
-// "Reset all to defaults" button — visible only when overrides exist, positioned top-right
+// "Reset all to defaults" button - visible only when overrides exist, positioned top-right
 resetAllButton: {
   type:        "Button",
   text:        "Reset all to defaults",
@@ -317,7 +317,7 @@ SettingsCard [
     label:       "Export notes",
     description: "Download notes, folders, journal entries, tags, and optional version history as a Skriuw v3 ZIP.",
     checkbox:    { label: "Include version history", checked: true },
-    button:      { text: "Export" | "Exporting…" | "Failed — retry", icon: Download, variant: "outline", disabledWhen: "pending or !connected" },
+    button:      { text: "Export" | "Exporting…" | "Failed - retry", icon: Download, variant: "outline", disabledWhen: "pending or !connected" },
     guestGate:   "export",
   },
   importBackup: {
@@ -377,7 +377,7 @@ SettingsCard [
 
 GroupLabel: "DESKTOP APP"
 
-// Custom layout (not standard Row) — SettingsCard with KeyRound icon, token name input, Create button, list of active tokens
+// Custom layout (not standard Row) - SettingsCard with KeyRound icon, token name input, Create button, list of active tokens
 desktopSyncTokens: {
   type:         "CustomCard",
   label:        "Desktop sync",
@@ -478,8 +478,8 @@ SettingsCard [
         type:  "Input(password)", placeholder: "sk_sync_…",
       },
     ],
-    button: "PullButton" — morphs between idle/pulling/success/error with animated label swap,
-    resultPanel: "SyncResultPanel" — shows counts of notes/folders/journal/tags pulled with staggered animation,
+    button: "PullButton" - morphs between idle/pulling/success/error with animated label swap,
+    resultPanel: "SyncResultPanel" - shows counts of notes/folders/journal/tags pulled with staggered animation,
     errorPanel:  "Alert" with AlertCircle icon,
   },
 ]
@@ -541,7 +541,7 @@ SettingsCard [
       },
     },
     postImportStates: {
-      generating: "Progress bar — generating AI title suggestions",
+      generating: "Progress bar - generating AI title suggestions",
       review:     "List of <title> / <original name> with Selected/Skipped toggle per item + Discard all / Apply N titles buttons",
     },
   },
@@ -584,7 +584,7 @@ SettingsCard [
   usageAnalytics: {
     type:        "Switch" (authenticated) | "Text: On" (guest),
     label:       "Usage analytics",
-    description (authenticated): "Anonymous page views and product events while you browse. On by default for accounts — turn off to opt out. No note content, no cookies. Sign-in events are recorded separately on the server.",
+    description (authenticated): "Anonymous page views and product events while you browse. On by default for accounts - turn off to opt out. No note content, no cookies. Sign-in events are recorded separately on the server.",
     description (guest):         "Anonymous page views and product events are collected while you explore the demo. Create an account to manage analytics preferences.",
   },
 ]
@@ -631,7 +631,7 @@ SettingsCard [
         glyph:    "<Google SVG>",
         state:    "connected" | "not connected",
         button:   "Disconnect" (variant:outline) | "Connect",
-        desc (connected):  "Connected. Used to sign in." | "Your only sign-in method — add a password or another provider first.",
+        desc (connected):  "Connected. Used to sign in." | "Your only sign-in method - add a password or another provider first.",
         desc (disconnected): "Connect Google to sign in with one click.",
       },
       {
@@ -663,7 +663,7 @@ SettingsCard [
   preferredModel: {
     type:   "CustomSection" (with Label + description),
     label:  "Preferred model",
-    desc:   "Applied to all AI actions — spell check, continue writing, title generation.",
+    desc:   "Applied to all AI actions - spell check, continue writing, title generation.",
     groups: [
       {
         provider: "Google",
@@ -727,7 +727,7 @@ SettingsCard [
 
 GroupLabel: "PROVIDER KEYS"
 
-// No SettingsCard wrapper — AiKeysManager is its own component (renders two cards stacked vertically)
+// No SettingsCard wrapper - AiKeysManager is its own component (renders two cards stacked vertically)
 providerKeysManager: [
   // Card 1: Server keys
   {
@@ -866,7 +866,7 @@ TagsSection: {
           badgeStyle: "min-w-[60px] border px-2 py-0.5 text-xs font-medium (colored border + bg20 + text)",
           usageCount: "<N> uses",
           menu:       { type: "ContextMenu", icon: MoreHorizontal, items: ["Delete tag" (destructive styling)] },
-          // Derived/optimistic tags can't be deleted — no menu shown
+          // Derived/optimistic tags can't be deleted - no menu shown
         },
       ],
     },
@@ -935,7 +935,7 @@ SettingsCard [
   ollamaRuntime: {
     type:   "Row with state-dependent control",
     label:  "Ollama runtime",
-    desc:   "Running · v<version>" | "Installed but not running" | "Not installed — one click downloads and starts it.",
+    desc:   "Running · v<version>" | "Installed but not running" | "Not installed - one click downloads and starts it.",
     control: {
       notInstalled:  { button: "Install Ollama",  icon: Download },
       installed:     { button: "Start",            icon: Play },
@@ -1055,7 +1055,7 @@ GroupLabel: {
 
 | Pattern                    | Usage                                                                                                                                                 |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Type-to-confirm**        | All destructive actions (delete account, clear data, reset app) — user must type an exact phrase into a text input before the confirm button enables. |
+| **Type-to-confirm**        | All destructive actions (delete account, clear data, reset app) - user must type an exact phrase into a text input before the confirm button enables. |
 | **Auto-save on blur**      | Display name, username, model inputs (desktop AI) save when the field loses focus.                                                                    |
 | **Debounced validation**   | Username availability checks fire 400ms after last keystroke, with inline ✓/✗ indicator.                                                              |
 | **Live visualizations**    | Many switches have inline demo components that toggle/show the effect in real time.                                                                   |

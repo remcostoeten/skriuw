@@ -1,4 +1,5 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+import { Logo } from "@/components/logo";
 import { site } from "@/lib/site";
 
 export const baseOptions: BaseLayoutProps = {
@@ -15,7 +16,12 @@ export const baseOptions: BaseLayoutProps = {
 		},
 	],
 	nav: {
-		title: site.name,
+		title: (
+			<span className="inline-flex items-center gap-2 font-semibold">
+				<Logo className="text-[var(--fd-primary)]" />
+				{site.name}
+			</span>
+		),
 		url: "/",
 	},
 };

@@ -353,15 +353,12 @@ export async function organizeWorkspaceNotesByYear(
 		const year = yearFromDate(note.createdAt);
 		const parentId = year ? folderIdByYear.get(year) : undefined;
 		if (!parentId || note.parentId === parentId) continue;
+		// parentId-only patch: `listNotes` returns metadata-only notes on the
+		// desktop backend (content is ""), so echoing note.content back through
+		// updateNote would wipe every moved note's body on disk.
 		const result = await backend.updateNote({
 			id: note.id,
-			name: note.name,
-			content: note.content,
-			richContent: note.richContent,
-			preferredEditorMode: note.preferredEditorMode,
 			parentId,
-			sortOrder: note.sortOrder,
-			tags: note.tags,
 			trackHeading: false,
 		});
 		if (result.note) moved++;

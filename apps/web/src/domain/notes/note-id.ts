@@ -1,7 +1,7 @@
 /**
  * Prefix used for guest/demo workspace note & folder ids (see
  * {@link file://./../seed/guest-bundle.ts}). Guest ids look like
- * `guest:note-research-workflow` and are NOT persisted UUIDs.
+ * `guest:note-launch-brief` and are NOT persisted UUIDs.
  */
 export const GUEST_ID_PREFIX = "guest:";
 

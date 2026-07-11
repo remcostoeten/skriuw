@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useRef } from "react";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { Activity, FilePlus, Pencil, Trash2, type LucideIcon } from "lucide-react";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
@@ -38,7 +38,7 @@ function entryHref(entry: ActivityEntry): string {
 
 function ActivityRow({ entry }: { entry: ActivityEntry }) {
 	const Icon = KIND_ICON[entry.kind];
-	const ariaLabel = entry.timestamp.toLocaleString();
+	const ariaLabel = format(entry.timestamp, "PPpp");
 
 	return (
 		<li data-activity-ts={entry.timestamp.toISOString()}>
@@ -61,6 +61,7 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 				<time
 					dateTime={entry.timestamp.toISOString()}
 					aria-label={ariaLabel}
+					suppressHydrationWarning
 					className="shrink-0 text-xs tabular-nums text-muted-foreground"
 				>
 					{formatDistanceToNow(entry.timestamp, { addSuffix: true })}

@@ -10,14 +10,29 @@ function normalizeTagName(tag: string): string {
 	return tag.trim().replace(/^#/, "").toLowerCase();
 }
 
+// Counts both the explicit tags array and inline #tags in the entry body,
+// matching what buildDesiredLinkTargets indexes for journal entries.
 function collectJournalEntryTagUsage(entries: JournalEntry[]): Map<string, number> {
 	const usageCounts = new Map<string, number>();
 
 	for (const entry of entries) {
+		const entryTags = new Set<string>();
+
 		for (const tagName of entry.tags) {
 			const normalized = normalizeTagName(tagName);
-			if (!normalized) continue;
-			usageCounts.set(normalized, (usageCounts.get(normalized) ?? 0) + 1);
+			if (normalized) entryTags.add(normalized);
+		}
+
+		const searchable = getNoteSearchableContent({
+			content: entry.content,
+			richContent: entry.richContent ?? [],
+		});
+		for (const tagName of extractNoteTags(searchable)) {
+			entryTags.add(tagName);
+		}
+
+		for (const tagName of entryTags) {
+			usageCounts.set(tagName, (usageCounts.get(tagName) ?? 0) + 1);
 		}
 	}
 
@@ -45,6 +60,20 @@ function collectNoteTagUsage(notes: NoteTagSource[]): Map<string, number> {
 	}
 
 	return usageCounts;
+}
+
+/**
+ * Every distinct tag name used anywhere in the workspace — notes and journal
+ * entries alike. Feeds the editor `#` suggestion menu so a tag defined in
+ * either surface is offered in both.
+ */
+export function getWorkspaceTagNames(notes: NoteTagSource[], entries: JournalEntry[]): string[] {
+	const tags = new Set<string>([
+		...collectNoteTagUsage(notes).keys(),
+		...collectJournalEntryTagUsage(entries).keys(),
+	]);
+
+	return [...tags].toSorted((left, right) => left.localeCompare(right));
 }
 
 export function deriveWorkspaceTags(

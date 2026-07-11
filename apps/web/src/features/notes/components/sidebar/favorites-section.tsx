@@ -125,7 +125,7 @@ export const FavoritesSection = memo(function FavoritesSection({
 								onPointerEnter={() =>
 									fav.itemType === "file" && onFilePrefetch?.(fav.itemId)
 								}
-								className="flex min-w-0 flex-1 items-center gap-2 text-left"
+								className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
 							>
 								{fav.icon ? (
 									<span
@@ -134,13 +134,13 @@ export const FavoritesSection = memo(function FavoritesSection({
 									>
 										{fav.icon}
 									</span>
-								) : fav.itemType === "folder" ? (
+								) : (
 									<SidebarItemIcon
-										kind="folder"
+										kind={fav.itemType === "folder" ? "folder" : "file"}
 										size={compactMode ? 12 : 14}
 										className="shrink-0 text-muted-foreground/70"
 									/>
-								) : null}
+								)}
 								<span className="flex-1 truncate">{fav.name}</span>
 							</button>
 							<button

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, CircleAlert, LoaderCircle } from "lucide-react";
 import type { AiUsageLogRow } from "@/domain/ai/types";
 import { cn } from "@/shared/lib/utils";
@@ -18,6 +18,10 @@ const NUMBER_FORMATTER = new Intl.NumberFormat();
 function formatDate(value: string | null) {
 	if (!value) return "Never";
 	return DATE_FORMATTER.format(new Date(value));
+}
+
+function FormattedDate({ value }: { value: string | null }) {
+	return <span suppressHydrationWarning>{formatDate(value)}</span>;
 }
 
 function UsageStatusBadge({ status }: { status: string }) {
@@ -63,7 +67,7 @@ function UsageRow({ row }: { row: AiUsageLogRow }) {
 					</div>
 					<p className="text-[11px] text-muted-foreground">
 						{row.provider} · {row.model ?? "Unknown model"} ·{" "}
-						{formatDate(row.createdAt)}
+						<FormattedDate value={row.createdAt} />
 					</p>
 					{row.errorMessage && !expanded ? (
 						<p className="line-clamp-1 text-[11px] text-destructive/90">

@@ -489,14 +489,3 @@ export function NoteNode({ id, data, selected }: NodeProps<Node<NodeData>>) {
 	);
 }
 
-export const nodeTypes = {
-	process: ProcessNode,
-	decision: DecisionNode,
-	terminal: TerminalNode,
-	data: DataNode,
-	circle: CircleNode,
-	subroutine: SubroutineNode,
-	cylinder: CylinderNode,
-	hexagon: HexagonNode,
-	note: NoteNode,
-};

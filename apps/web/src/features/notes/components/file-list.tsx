@@ -26,6 +26,7 @@ import {
 	Check,
 	Columns2,
 	FilePlus,
+	FileText,
 	Rows2,
 	SplitSquareHorizontal,
 	Folder,
@@ -2127,31 +2128,35 @@ export const FileList = memo(function FileList({
 						)}
 					/>
 				)}
-				<span
-					className={cn(
-						"flex min-w-0 flex-1 items-center truncate",
-						isEditing ? "h-[18px]" : "h-[18px]",
-					)}
-				>
-					{isEditing ? (
-						<input
-							ref={inputRef}
-							type="text"
-							aria-label={`Rename file ${file.name}`}
-							value={editingName}
-							onChange={(e) => setEditingName(e.target.value)}
-							onBlur={finishRename}
-							onKeyDown={handleKeyDown}
-							onClick={(e) => e.stopPropagation()}
-							className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden selection:bg-primary/30 md:text-xs"
-							style={{ caretColor: "currentColor" }}
-						/>
-					) : (
-						<>
+				<div className={cn("flex min-w-0 items-center", isNarrow ? "gap-1" : "gap-1.5")}>
+					<FileText
+						className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70"
+						strokeWidth={1.5}
+					/>
+					<span
+						className={cn(
+							"flex min-w-0 flex-1 items-center truncate",
+							isEditing ? "h-[18px]" : "h-[18px]",
+						)}
+					>
+						{isEditing ? (
+							<input
+								ref={inputRef}
+								type="text"
+								aria-label={`Rename file ${file.name}`}
+								value={editingName}
+								onChange={(e) => setEditingName(e.target.value)}
+								onBlur={finishRename}
+								onKeyDown={handleKeyDown}
+								onClick={(e) => e.stopPropagation()}
+								className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-base caret-foreground outline-hidden selection:bg-primary/30 md:text-xs"
+								style={{ caretColor: "currentColor" }}
+							/>
+						) : (
 							<NoteNameLabel name={file.name} className="truncate select-none" />
-						</>
-					)}
-				</span>
+						)}
+					</span>
+				</div>
 			</button>
 		);
 	}

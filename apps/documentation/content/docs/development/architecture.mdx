@@ -12,14 +12,14 @@ one interface, and an adapter decides where reads and writes land.
 
 Code splits into two layers under `apps/web/src/`:
 
-- **`domain/`** — business logic, grouped by concept (`notes`, `trash`, `sync`,
+- **`domain/`** - business logic, grouped by concept (`notes`, `trash`, `sync`,
   `sharing`, `tags`, `people`, `collaboration`, `folders`, `journal`,
   `persistence`, `storage`, `recents`, `seed`, `data-transfer`, `validation`,
-  `ai`). This is where mutations, mappers, and rules live — for example
+  `ai`). This is where mutations, mappers, and rules live - for example
   `domain/notes/note-write-core.ts` is the single place a note gets created,
   shared by the web app's server actions and the sync API the browser
   extension calls.
-- **`features/`** — one folder per product surface (`notes`, `journal`,
+- **`features/`** - one folder per product surface (`notes`, `journal`,
   `editor`, `tags`, `ai`, and so on), holding the components, hooks, and
   feature-local glue that call into `domain/` and the `WorkspaceBackend`
   adapter. See [Development features](/development/features) for the full list.

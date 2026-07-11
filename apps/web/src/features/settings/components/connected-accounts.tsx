@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import {
@@ -53,16 +53,53 @@ function ProviderGlyph({ id }: { id: OAuthProvider }) {
 	return null;
 }
 
+type StepUpState = {
+	open: boolean;
+	mode: "password" | "reauth";
+	password: string;
+	error: string | null;
+	pending: boolean;
+};
+
+const initialStepUpState: StepUpState = {
+	open: false,
+	mode: "password",
+	password: "",
+	error: null,
+	pending: false,
+};
+
+type StepUpAction =
+	| { type: "open"; mode: StepUpState["mode"] }
+	| { type: "close" }
+	| { type: "setPassword"; password: string }
+	| { type: "setError"; error: string | null }
+	| { type: "setPending"; pending: boolean }
+	| { type: "reset" };
+
+function stepUpReducer(state: StepUpState, action: StepUpAction): StepUpState {
+	switch (action.type) {
+		case "open":
+			return { ...initialStepUpState, open: true, mode: action.mode };
+		case "close":
+			return { ...state, open: false, password: "", error: null, pending: false };
+		case "setPassword":
+			return { ...state, password: action.password };
+		case "setError":
+			return { ...state, error: action.error };
+		case "setPending":
+			return { ...state, pending: action.pending };
+		case "reset":
+			return initialStepUpState;
+	}
+}
+
 export function ConnectedAccounts() {
 	const [snapshot, setSnapshot] = useState<ConnectionsSnapshot | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [pendingProvider, setPendingProvider] = useState<string | null>(null);
-	const [stepUpOpen, setStepUpOpen] = useState(false);
-	const [stepUpMode, setStepUpMode] = useState<"password" | "reauth">("password");
-	const [stepUpPassword, setStepUpPassword] = useState("");
-	const [stepUpError, setStepUpError] = useState<string | null>(null);
-	const [stepUpPending, setStepUpPending] = useState(false);
+	const [stepUp, dispatchStepUp] = useReducer(stepUpReducer, initialStepUpState);
 	const pendingUnlinkRef = useRef<{ providerId: string; accountId: string } | null>(null);
 
 	const refresh = useCallback(async () => {
@@ -93,11 +130,13 @@ export function ConnectedAccounts() {
 	};
 
 	function openStepUp(code: StepUpCode) {
-		setStepUpMode(code === "reauth_required" ? "reauth" : "password");
-		setStepUpError(code === "invalid_password" ? "Incorrect password." : null);
-		setStepUpPassword("");
-		setStepUpPending(false);
-		setStepUpOpen(true);
+		dispatchStepUp({
+			type: "open",
+			mode: code === "reauth_required" ? "reauth" : "password",
+		});
+		if (code === "invalid_password") {
+			dispatchStepUp({ type: "setError", error: "Incorrect password." });
+		}
 	}
 
 	const handleDisconnect = async (account: { providerId: string; accountId: string }) => {
@@ -123,49 +162,48 @@ export function ConnectedAccounts() {
 
 	const handleStepUpConfirm = async () => {
 		const target = pendingUnlinkRef.current;
-		if (!target || stepUpMode !== "password" || stepUpPending) return;
-		setStepUpPending(true);
-		setStepUpError(null);
+		if (!target || stepUp.mode !== "password" || stepUp.pending) return;
+		dispatchStepUp({ type: "setPending", pending: true });
+		dispatchStepUp({ type: "setError", error: null });
 		try {
 			await unlinkProvider({
 				providerId: target.providerId,
 				accountId: target.accountId,
-				password: stepUpPassword,
+				password: stepUp.password,
 			});
 			pendingUnlinkRef.current = null;
-			setStepUpOpen(false);
-			setStepUpPending(false);
-			setStepUpPassword("");
+			dispatchStepUp({ type: "close" });
 			await refresh();
 		} catch (err) {
 			if (isStepUpError(err)) {
 				openStepUp(err.code);
 			} else {
-				setStepUpError(
-					err instanceof Error ? err.message : "Could not disconnect account.",
-				);
-				setStepUpPending(false);
+				dispatchStepUp({
+					type: "setError",
+					error: err instanceof Error ? err.message : "Could not disconnect account.",
+				});
+				dispatchStepUp({ type: "setPending", pending: false });
 			}
 		}
 	};
 
 	const handleStepUpReauth = async (provider: OAuthProvider) => {
-		setStepUpPending(true);
-		setStepUpError(null);
+		dispatchStepUp({ type: "setPending", pending: true });
+		dispatchStepUp({ type: "setError", error: null });
 		try {
 			await signInWithOAuth(provider, { rememberMe: true });
 		} catch {
-			setStepUpError("Could not start re-authentication. Please try again.");
-			setStepUpPending(false);
+			dispatchStepUp({
+				type: "setError",
+				error: "Could not start re-authentication. Please try again.",
+			});
+			dispatchStepUp({ type: "setPending", pending: false });
 		}
 	};
 
 	const handleStepUpOpenChange = (open: boolean) => {
 		if (open) return;
-		setStepUpOpen(false);
-		setStepUpPending(false);
-		setStepUpPassword("");
-		setStepUpError(null);
+		dispatchStepUp({ type: "close" });
 		pendingUnlinkRef.current = null;
 	};
 
@@ -286,20 +324,20 @@ export function ConnectedAccounts() {
 			)}
 
 			<StepUpDialog
-				open={stepUpOpen}
-				mode={stepUpMode}
+				open={stepUp.open}
+				mode={stepUp.mode}
 				title="Confirm it's you"
 				description={
-					stepUpMode === "password"
+					stepUp.mode === "password"
 						? "Enter your password to disconnect this sign-in method."
 						: "For your security, re-authenticate before disconnecting this sign-in method."
 				}
 				confirmLabel="Disconnect"
-				password={stepUpPassword}
-				error={stepUpError}
-				pending={stepUpPending}
+				password={stepUp.password}
+				error={stepUp.error}
+				pending={stepUp.pending}
 				reauthProviders={reauthProviders}
-				onPasswordChange={setStepUpPassword}
+				onPasswordChange={(value) => dispatchStepUp({ type: "setPassword", password: value })}
 				onConfirm={handleStepUpConfirm}
 				onReauth={handleStepUpReauth}
 				onOpenChange={handleStepUpOpenChange}

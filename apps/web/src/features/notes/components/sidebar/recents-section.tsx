@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { memo, useMemo, useState, useSyncExternalStore } from "react";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { SidebarItemIcon } from "./sidebar-item-icon";
 import { cn } from "@/shared/lib/utils";
@@ -95,13 +95,8 @@ export const RecentsSection = memo(function RecentsSection({
 		[recents, filesById, foldersById, isFilesLoading],
 	);
 
-	useEffect(() => {
-		if (resolvedRecents.length <= RECENTS_PREVIEW_LIMIT) {
-			setShowAllRecents(false);
-		}
-	}, [resolvedRecents.length]);
-
-	const visibleRecents = showAllRecents
+	const isOverLimit = resolvedRecents.length > RECENTS_PREVIEW_LIMIT;
+	const visibleRecents = showAllRecents && isOverLimit
 		? resolvedRecents
 		: resolvedRecents.slice(0, RECENTS_PREVIEW_LIMIT);
 	const hiddenRecentCount = resolvedRecents.length - visibleRecents.length;
@@ -163,7 +158,7 @@ export const RecentsSection = memo(function RecentsSection({
 								recent.itemType === "file" && onFilePrefetch?.(recent.itemId)
 							}
 							className={cn(
-								"group flex w-full items-center gap-2 rounded-md px-2 text-left text-xs transition-colors active:scale-[0.985] [@media(pointer:coarse)]:min-h-11",
+								"group flex w-full items-center gap-1.5 rounded-md px-2 text-left text-xs transition-colors active:scale-[0.985] [@media(pointer:coarse)]:min-h-11",
 								compactMode ? "h-6" : "h-7",
 								recent.itemType === "file" && recent.itemId === activeFileId
 									? "bg-foreground/[0.07] text-foreground"
@@ -177,17 +172,17 @@ export const RecentsSection = memo(function RecentsSection({
 								>
 									{recent.icon}
 								</span>
-							) : recent.itemType === "folder" ? (
+							) : (
 								<SidebarItemIcon
-									kind="folder"
+									kind={recent.itemType === "folder" ? "folder" : "file"}
 									size={compactMode ? 12 : 14}
 									className="shrink-0 text-muted-foreground/70"
 								/>
-							) : null}
+							)}
 							<span className="flex-1 truncate">{recent.name}</span>
 						</button>
 					))}
-					{(hiddenRecentCount > 0 || showAllRecents) && (
+					{isOverLimit && (
 						<button
 							type="button"
 							onClick={() => setShowAllRecents((value) => !value)}

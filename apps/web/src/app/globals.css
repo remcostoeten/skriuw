@@ -129,7 +129,18 @@
 	--animate-accordion-down: accordion-down 0.2s ease-out;
 	--animate-accordion-up: accordion-up 0.2s ease-out;
 	--animate-skeleton-shimmer: skeleton-shimmer 1.6s ease-in-out infinite;
+	--animate-skeleton-appear: skeleton-appear 0.25s ease-out 0.2s both;
 
+	/* Skeletons stay invisible for the first 200ms so loads that resolve faster
+	   never flash them — a sub-200ms skeleton flash reads as slowness. */
+	@keyframes skeleton-appear {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
 	@keyframes skeleton-shimmer {
 		0%,
 		100% {

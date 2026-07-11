@@ -85,10 +85,6 @@ function useDisplayNameField(user: ReturnType<typeof useAuth>["user"]) {
 	const [saveNameError, setSaveNameError] = useState<string | null>(null);
 	const suppressNameBlurSaveRef = useRef(false);
 
-	useEffect(() => {
-		setDisplayName(user?.name ?? "");
-	}, [user?.name]);
-
 	const handleSaveName = async () => {
 		if (isSavingName) return;
 		if (!displayName.trim() || displayName === user?.name) return;
@@ -122,10 +118,6 @@ function useUsernameField(user: ReturnType<typeof useAuth>["user"]) {
 	const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pendingCheckRef = useRef<string | null>(null);
 	const suppressUsernameBlurSaveRef = useRef(false);
-
-	useEffect(() => {
-		setUsernameValue(user?.username ?? "");
-	}, [user?.username]);
 
 	useEffect(() => {
 		return () => {
