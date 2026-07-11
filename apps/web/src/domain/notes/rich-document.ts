@@ -459,19 +459,48 @@ function isBlockNoteTableContent(content: unknown): boolean {
 	return (content as { type?: string }).type === "tableContent";
 }
 
+/**
+ * Every block type the editor schema can render (see `editor/components/
+ * inline-specs/schema.ts`). Stored `rich_content` can name a type this build has
+ * no spec for — a `drawing` block written on a feature branch, a block removed
+ * since, a document from a newer client — and BlockNote does not degrade there:
+ * it looks the type up in the ProseMirror schema, gets `undefined`, and throws
+ * out of `useCreateBlockNote`, taking the whole page down with it. So an
+ * unrecognized type counts as damage and sends the document back through the
+ * markdown parser, which only ever emits types in this set.
+ */
+const SUPPORTED_BLOCK_TYPES = new Set([
+	"paragraph",
+	"heading",
+	"quote",
+	"bulletListItem",
+	"numberedListItem",
+	"checkListItem",
+	"toggleListItem",
+	"table",
+	"image",
+	"video",
+	"audio",
+	"file",
+	"divider",
+	"procode",
+	"fileTree",
+	"diagram",
+]);
+
 function blockNeedsRichDocumentRepair(block: PartialBlock): boolean {
 	const blockType = String(block.type ?? "");
 	const content = block.content;
+
+	if (!SUPPORTED_BLOCK_TYPES.has(blockType)) {
+		return true;
+	}
 
 	if (blockType === "table" && !isBlockNoteTableContent(content)) {
 		return true;
 	}
 
 	if (blockType === "procode" && Array.isArray(content)) {
-		return true;
-	}
-
-	if (blockType === "codeBlock") {
 		return true;
 	}
 

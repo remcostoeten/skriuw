@@ -31,6 +31,7 @@ import { usePreferencesStore } from "@/features/settings/store";
 import { openSettings } from "@/features/settings/use-settings-modal";
 import {
 	focusActiveEditor,
+	focusNoteEditor,
 	focusActiveMetadataPanel,
 	focusActiveNoteTreeItem,
 	focusSplitEditorPane,
@@ -1112,12 +1113,12 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				setUIState({ showSidebar: false });
 				window.setTimeout(() => {
 					syncFileSelection(newId);
-					window.setTimeout(() => focusActiveEditor(), 0);
+					focusNoteEditor(newId);
 				}, MOBILE_SIDEBAR_EXIT_DEFER_MS);
 				return;
 			}
 			syncFileSelection(newId);
-			window.setTimeout(() => focusActiveEditor(), 0);
+			focusNoteEditor(newId);
 		},
 		[
 			creationParentFolderId,
@@ -1712,7 +1713,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		filesById,
 		foldersById,
 		activeFileId,
-		isFilesLoading: notesQuery.isFetching && metadataFiles.length === 0,
+		isFilesLoading:
+			(notesQuery.isPending || notesQuery.isFetching) && metadataFiles.length === 0,
 		actions: treeActions,
 		queries: treeQueries,
 		onCollapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
