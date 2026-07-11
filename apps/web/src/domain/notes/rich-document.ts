@@ -516,6 +516,7 @@ const SUPPORTED_BLOCK_TYPES = new Set([
 	"procode",
 	"fileTree",
 	"diagram",
+	"drawing",
 ]);
 
 function blockNeedsRichDocumentRepair(block: PartialBlock): boolean {
