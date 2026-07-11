@@ -151,6 +151,87 @@ export function focusActiveEditor(): boolean {
 	return focusEditorWithin(document);
 }
 
+const NOTE_EDITOR_FOCUS_TIMEOUT_MS = 3000;
+
+/**
+ * Focuses the writing surface of one specific note, and keeps it focused until
+ * the caret actually stays there.
+ *
+ * Two races defeat a plain `focusActiveEditor()` on a timer. First, a freshly
+ * created note is only selected in React state — its editor is not in the DOM
+ * yet (the pane swaps, BlockNote initializes, mobile defers past the sidebar
+ * exit animation), so the focus call lands on the previously open note's editor
+ * or on nothing. Second, the editor is keyed by note id, so it remounts: the
+ * create mutation settling and the collaboration binding attaching each swap in
+ * a fresh `contenteditable`, silently dropping the focus we just placed.
+ *
+ * So this both waits for the pane tagged with this note's id and re-focuses
+ * whenever the caret leaves it, until the focus sticks for
+ * {@link FOCUS_SETTLE_FRAMES} consecutive frames. Scoping by note id means it
+ * can never focus the wrong note. It stops on real user input — clicking or
+ * typing elsewhere wins over this — and gives up after
+ * {@link NOTE_EDITOR_FOCUS_TIMEOUT_MS} so a note that never opens (deleted
+ * mid-flight, navigated away from) can't leave a frame loop running.
+ *
+ * Returns a cancel function for callers that unmount before the editor appears.
+ */
+const FOCUS_SETTLE_FRAMES = 10;
+
+export function focusNoteEditor(noteId: string): () => void {
+	if (typeof document === "undefined") return () => {};
+
+	let frame = 0;
+	let settled = 0;
+	let done = false;
+	const deadline = performance.now() + NOTE_EDITOR_FOCUS_TIMEOUT_MS;
+	const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(noteId) : noteId;
+
+	function stop() {
+		if (done) return;
+		done = true;
+		cancelAnimationFrame(frame);
+		document.removeEventListener("pointerdown", stop, true);
+		document.removeEventListener("keydown", stop, true);
+	}
+
+	const attempt = () => {
+		if (done) return;
+		if (performance.now() >= deadline) {
+			stop();
+			return;
+		}
+
+		const pane = document.querySelector<HTMLElement>(`[data-editor-note-id="${escaped}"]`);
+		if (pane) {
+			if (pane.contains(document.activeElement)) {
+				settled += 1;
+				if (settled >= FOCUS_SETTLE_FRAMES) {
+					stop();
+					return;
+				}
+			} else {
+				settled = 0;
+				focusEditorWithin(pane);
+			}
+		}
+
+		frame = requestAnimationFrame(attempt);
+	};
+
+	// Registered a frame late, on purpose: this runs from the keydown handler of
+	// the very shortcut that creates the note, and a listener added mid-dispatch
+	// still sees that same event on its way up — it would cancel the focus we
+	// were asked to place.
+	frame = requestAnimationFrame(() => {
+		if (done) return;
+		document.addEventListener("pointerdown", stop, true);
+		document.addEventListener("keydown", stop, true);
+		attempt();
+	});
+
+	return stop;
+}
+
 export function focusSplitEditorPane(pane: "primary" | "secondary"): boolean {
 	if (typeof document === "undefined") return false;
 

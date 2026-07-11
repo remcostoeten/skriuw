@@ -7,6 +7,7 @@ import { useCommandRegistry, useRegisterCommands, COMMAND_REGISTRY } from "@/cor
 import { useShortcutManager } from "@/core/shortcuts";
 import { useWorkspaceCapabilities } from "@/core/workspace-backend";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
+import { focusNoteEditor } from "@/shared/lib/focus-editor";
 import { CommandPalette, type CommandPaletteItem } from "@/shared/ui/command-palette";
 import {
 	buildSettingsCommandItems,
@@ -118,6 +119,7 @@ export function GlobalCommandPaletteMount() {
 		createNoteMutation.mutate(input, {
 			onSuccess: () => {
 				router.push(`/app?note=${encodeURIComponent(id)}`);
+				focusNoteEditor(id);
 			},
 			// The seeded detail cache lives outside the mutation's own optimistic
 			// rollback, so drop it on failure to avoid an orphan entry that would
