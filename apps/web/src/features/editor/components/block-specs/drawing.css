@@ -1,0 +1,21 @@
+.skriuw-drawing .excalidraw {
+	background: transparent;
+}
+
+.skriuw-drawing--idle .excalidraw .layer-ui__wrapper,
+.skriuw-drawing--idle .excalidraw footer,
+.skriuw-drawing--idle .excalidraw .App-bottom-bar,
+.skriuw-drawing--idle .excalidraw .App-menu {
+	display: none;
+}
+
+/* BlockNote/ProseMirror paints a selection outline around content:"none"
+   blocks when they become a NodeSelection; the drawing block must stay
+   frameless in every state. */
+.bn-block-content[data-content-type="drawing"].ProseMirror-selectednode,
+.bn-block-content[data-content-type="drawing"] .ProseMirror-selectednode,
+[data-content-type="drawing"].ProseMirror-selectednode {
+	outline: none !important;
+	box-shadow: none !important;
+	border: none !important;
+}

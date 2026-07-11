@@ -5,6 +5,7 @@ import { userInlineSpec } from "./user-spec";
 import { personInlineSpec } from "./person-spec";
 import { createCheckListItem } from "../block-specs/checklist-item";
 import { createDiagram } from "../block-specs/diagram";
+import { createDrawing } from "../block-specs/drawing";
 import { createFileTree } from "../block-specs/file-tree";
 import { CodeBlock } from "../block-specs/CodeBlock";
 
@@ -17,6 +18,7 @@ export const editorSchema = BlockNoteSchema.create({
 		checkListItem: createCheckListItem(),
 		fileTree: createFileTree(),
 		diagram: createDiagram(),
+		drawing: createDrawing(),
 	},
 	inlineContentSpecs: {
 		...defaultInlineContentSpecs,

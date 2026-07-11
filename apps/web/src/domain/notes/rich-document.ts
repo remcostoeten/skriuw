@@ -1,6 +1,7 @@
 import type { Block, PartialBlock } from "@blocknote/core";
 import { isDiagramFence, normalizeDiagramSource } from "@/shared/lib/diagram";
 import { isFileTreeFence, normalizeFileTreeSource } from "@/shared/lib/file-tree";
+import { isDrawingFence, normalizeDrawingScene } from "@/shared/lib/drawing";
 import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
 import type { RichTextDocument } from "@/types/notes";
 
@@ -271,6 +272,19 @@ function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
 			} as any;
 		}
 
+		if (blockType === "drawing") {
+			return {
+				type: "drawing",
+				props: {
+					scene: normalizeDrawingScene(String(blockProps?.scene ?? "")),
+					...(typeof blockProps?.height === "number"
+						? { height: blockProps.height }
+						: {}),
+				},
+				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+			} as any;
+		}
+
 		if (blockType === "procode" || blockType === "codeBlock") {
 			const language = String(blockProps?.language ?? "");
 			const source = getPlainBlockContent(content);
@@ -285,6 +299,13 @@ function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
 				return {
 					type: "fileTree",
 					props: { source: normalizeFileTreeSource(source) },
+					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+				} as any;
+			}
+			if (isDrawingFence(language)) {
+				return {
+					type: "drawing",
+					props: { scene: normalizeDrawingScene(source) },
 					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
 				} as any;
 			}
@@ -342,6 +363,15 @@ export function flattenInlineChips(blocks: Block[] | PartialBlock[]): PartialBlo
 				type: "procode",
 				props: { language: "mermaid" },
 				content: normalizeDiagramSource(String(blockProps?.source ?? "")),
+				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+			} as any;
+		}
+
+		if (blockType === "drawing") {
+			return {
+				type: "procode",
+				props: { language: "excalidraw" },
+				content: String(blockProps?.scene ?? ""),
 				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
 			} as any;
 		}
@@ -738,6 +768,14 @@ export function markdownToRichDocument(markdown: string): RichTextDocument {
 				blocks.push({
 					type: "fileTree",
 					props: { source: normalizeFileTreeSource(code) },
+					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+				} as any);
+				continue;
+			}
+			if (isDrawingFence(language)) {
+				blocks.push({
+					type: "drawing",
+					props: { scene: normalizeDrawingScene(code) },
 					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
 				} as any);
 				continue;
