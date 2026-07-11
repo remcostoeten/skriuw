@@ -165,10 +165,14 @@ export function NotificationBell({ variant = "sidebar" }: { variant?: "sidebar" 
 	return <NotificationBellInner variant={variant} />;
 }
 
-function NotificationBellInner({ variant = "sidebar" }: { variant?: "sidebar" | "rail" }) {
-	const { notifications, unreadCount, markRead, markUnread, remove, respondToRequest } =
-		useNotifications();
-	const [open, setOpen] = useState(false);
+export function useUnreadNotificationCount() {
+	const capabilities = useWorkspaceCapabilities();
+	const { unreadCount } = useNotifications();
+	return capabilities.notifications ? unreadCount : 0;
+}
+
+export function NotificationPanel({ onNavigate }: { onNavigate?: () => void }) {
+	const { notifications, markRead, markUnread, remove, respondToRequest } = useNotifications();
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const router = useRouter();
 
@@ -176,7 +180,7 @@ function NotificationBellInner({ variant = "sidebar" }: { variant?: "sidebar" | 
 
 	const handleOpen = (n: TNotification) => {
 		void markRead([n.id]);
-		setOpen(false);
+		onNavigate?.();
 		const payload = n.payload as NotificationPayload;
 		if (payload.noteId) {
 			const inspector = n.type === "collab_request" ? "&inspector=collaborators" : "";
@@ -216,12 +220,70 @@ function NotificationBellInner({ variant = "sidebar" }: { variant?: "sidebar" | 
 		}
 	};
 
+	return (
+		<div>
+			<div className="flex items-center justify-between border-b border-border px-3 py-2">
+				<p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+					Notifications
+				</p>
+				{unread.length > 0 && (
+					<button
+						type="button"
+						onClick={() => void markRead(unread.map((n) => n.id))}
+						className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/70 transition-colors hover:text-foreground"
+					>
+						<CheckCheck className="h-3 w-3" strokeWidth={1.6} />
+						Mark all read
+					</button>
+				)}
+			</div>
+
+			{notifications.length === 0 ? (
+				<div className="px-3 py-8 text-center text-[13px] text-muted-foreground/60">
+					You&rsquo;re all caught up.
+				</div>
+			) : (
+				<div className="max-h-96 overflow-y-auto">
+					{notifications.slice(0, 30).map((n) => (
+						<NotificationRow
+							key={n.id}
+							n={n}
+							busy={busyId === n.id}
+							onOpen={handleOpen}
+							onToggleRead={handleToggleRead}
+							onDelete={(item) => void remove([item.id])}
+							onRespond={(item, accept, permission) =>
+								void handleRespond(item, accept, permission)
+							}
+						/>
+					))}
+				</div>
+			)}
+
+			{notifications.length > 0 && (
+				<div className="flex items-center justify-end border-t border-border px-3 py-2">
+					<button
+						type="button"
+						onClick={() => void remove(notifications.map((n) => n.id))}
+						className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60 transition-colors hover:text-destructive"
+					>
+						<Trash2 className="h-3 w-3" strokeWidth={1.6} />
+						Clear all
+					</button>
+				</div>
+			)}
+		</div>
+	);
+}
+
+function NotificationBellInner({ variant = "sidebar" }: { variant?: "sidebar" | "rail" }) {
+	const { unreadCount } = useNotifications();
+	const [open, setOpen] = useState(false);
+
 	const triggerClass =
 		variant === "rail"
 			? "relative flex h-9 w-9 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/78 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
 			: "relative inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground";
-
-	const iconSize = variant === "rail" ? "h-4 w-4" : "h-4 w-4";
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -229,7 +291,7 @@ function NotificationBellInner({ variant = "sidebar" }: { variant?: "sidebar" | 
 				className={triggerClass}
 				aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
 			>
-				<Bell className={iconSize} strokeWidth={1.5} />
+				<Bell className="h-4 w-4" strokeWidth={1.5} />
 				{unreadCount > 0 && (
 					<span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold leading-none text-destructive-foreground tabular-nums">
 						{unreadCount > 9 ? "9+" : unreadCount}
@@ -243,56 +305,7 @@ function NotificationBellInner({ variant = "sidebar" }: { variant?: "sidebar" | 
 				sideOffset={8}
 				className="w-80 p-0"
 			>
-				<div className="flex items-center justify-between border-b border-border px-3 py-2">
-					<p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-						Notifications
-					</p>
-					{unread.length > 0 && (
-						<button
-							type="button"
-							onClick={() => void markRead(unread.map((n) => n.id))}
-							className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/70 transition-colors hover:text-foreground"
-						>
-							<CheckCheck className="h-3 w-3" strokeWidth={1.6} />
-							Mark all read
-						</button>
-					)}
-				</div>
-
-				{notifications.length === 0 ? (
-					<div className="px-3 py-8 text-center text-[13px] text-muted-foreground/60">
-						You&rsquo;re all caught up.
-					</div>
-				) : (
-					<div className="max-h-96 overflow-y-auto">
-						{notifications.slice(0, 30).map((n) => (
-							<NotificationRow
-								key={n.id}
-								n={n}
-								busy={busyId === n.id}
-								onOpen={handleOpen}
-								onToggleRead={handleToggleRead}
-								onDelete={(item) => void remove([item.id])}
-								onRespond={(item, accept, permission) =>
-									void handleRespond(item, accept, permission)
-								}
-							/>
-						))}
-					</div>
-				)}
-
-				{notifications.length > 0 && (
-					<div className="flex items-center justify-end border-t border-border px-3 py-2">
-						<button
-							type="button"
-							onClick={() => void remove(notifications.map((n) => n.id))}
-							className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60 transition-colors hover:text-destructive"
-						>
-							<Trash2 className="h-3 w-3" strokeWidth={1.6} />
-							Clear all
-						</button>
-					</div>
-				)}
+				<NotificationPanel onNavigate={() => setOpen(false)} />
 			</PopoverContent>
 		</Popover>
 	);
