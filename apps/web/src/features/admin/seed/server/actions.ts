@@ -2,7 +2,7 @@
 
 import "server-only";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/features/admin/guards/require-admin";
 import { prisma } from "@/lib/prisma";
@@ -36,5 +36,6 @@ export async function saveSeedBundle(input: SaveBundleInput): Promise<void> {
 		},
 	});
 
+	updateTag("seed-bundle");
 	revalidatePath(ADMIN_SEED_ROUTE);
 }
