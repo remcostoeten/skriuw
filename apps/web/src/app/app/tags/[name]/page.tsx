@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 import { getServerUser } from "@/core/db";
 import { normalizeStoredTagEntry } from "@/domain/tags/normalize";
@@ -9,7 +10,9 @@ type Props = {
 	params: Promise<{ name: string }>;
 };
 
-export default async function TagInsightsPage({ params }: Props) {
+export const instant = false;
+
+async function TagInsightsContent({ params }: Props) {
 	const { name } = await params;
 	const tagName = normalizeStoredTagEntry(decodeURIComponent(name));
 	const { user } = await getServerUser();
@@ -26,5 +29,13 @@ export default async function TagInsightsPage({ params }: Props) {
 		<HydrationBoundary state={dehydrate(queryClient)}>
 			<TagInsights name={tagName} />
 		</HydrationBoundary>
+	);
+}
+
+export default function TagInsightsPage({ params }: Props) {
+	return (
+		<Suspense>
+			<TagInsightsContent params={params} />
+		</Suspense>
 	);
 }

@@ -4,6 +4,8 @@ import { listTags } from "@/domain/tags/actions";
 import { tagsKeys } from "@/features/tags/lib/tags-keys";
 import { TagsOverview } from "@/features/tags/components/tags-overview";
 
+export const instant = false;
+
 export default async function TagsPage() {
 	const { user } = await getServerUser();
 	const queryClient = new QueryClient();
