@@ -326,28 +326,22 @@ describe("person mention markdown round-trip", () => {
 	test("flattenInlineChips serializes a person chip as $[Name](person://id)", () => {
 		const flattened = flattenInlineChips(personDocument);
 		const content = (flattened[0] as { content?: Array<{ text?: string }> }).content ?? [];
-		expect(content.map((node) => node.text).join("")).toBe(
-			"Met $[Alex](person://p1) today",
-		);
+		expect(content.map((node) => node.text).join("")).toBe("Met $[Alex](person://p1) today");
 	});
 
 	test("richDocumentToSearchableMarkdown keeps the person id", () => {
-		expect(richDocumentToSearchableMarkdown(personDocument)).toContain(
-			"$[Alex](person://p1)",
-		);
+		expect(richDocumentToSearchableMarkdown(personDocument)).toContain("$[Alex](person://p1)");
 	});
 
 	test("markdownToRichDocument parses $[Name](person://id) back into a person chip", () => {
 		const document = markdownToRichDocument("Met $[Alex](person://p1) today");
 		const content = (document[0] as { content?: unknown[] }).content ?? [];
-		const person = content.find(
-			(node) => (node as { type?: string }).type === "person",
-		) as { props?: { id?: string; name?: string } } | undefined;
+		const person = content.find((node) => (node as { type?: string }).type === "person") as
+			| { props?: { id?: string; name?: string } }
+			| undefined;
 		expect(person?.props?.id).toBe("p1");
 		expect(person?.props?.name).toBe("Alex");
-		expect(
-			content.some((node) => (node as { type?: string }).type === "link"),
-		).toBe(false);
+		expect(content.some((node) => (node as { type?: string }).type === "link")).toBe(false);
 	});
 
 	test("a person chip without an id degrades to plain $Name text", () => {
@@ -401,5 +395,62 @@ describe("cloneRichDocument", () => {
 		expect(cloned).toEqual(original);
 		expect(cloned).not.toBe(original);
 		expect(cloned[0]).not.toBe(original[0]);
+	});
+});
+
+describe("drawing block markdown round-trip", () => {
+	const scene = JSON.stringify({
+		type: "excalidraw",
+		version: 2,
+		elements: [{ id: "el1", type: "rectangle", isDeleted: false }],
+		appState: {},
+		files: {},
+	});
+
+	test("excalidraw fence parses into a drawing block", () => {
+		const markdown = "before\n\n```excalidraw\n" + scene + "\n```\n\nafter";
+		const blocks = markdownToRichDocument(markdown);
+		const drawing = blocks.find((block) => String(block.type) === "drawing") as
+			| { props?: { scene?: string } }
+			| undefined;
+
+		expect(drawing).toBeDefined();
+		const parsed = JSON.parse(drawing?.props?.scene ?? "{}");
+		expect(parsed.elements).toHaveLength(1);
+		expect(parsed.elements[0].id).toBe("el1");
+	});
+
+	test("drawing block flattens to an excalidraw fence source", () => {
+		const flattened = flattenInlineChips([
+			// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+			{ type: "drawing", props: { scene } } as any,
+		]);
+
+		expect(flattened[0]?.type).toBe("procode");
+		expect((flattened[0] as { props?: { language?: string } }).props?.language).toBe(
+			"excalidraw",
+		);
+		expect(flattened[0]?.content).toBe(scene);
+	});
+
+	test("scene survives a full flatten → markdown-parse cycle", () => {
+		const flattened = flattenInlineChips([
+			// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+			{ type: "drawing", props: { scene } } as any,
+		]);
+		const markdown = "```excalidraw\n" + String(flattened[0]?.content ?? "") + "\n```";
+		const blocks = markdownToRichDocument(markdown);
+		const drawing = blocks[0] as { type?: string; props?: { scene?: string } };
+
+		expect(drawing.type).toBe("drawing");
+		expect(JSON.parse(drawing.props?.scene ?? "{}").elements[0].id).toBe("el1");
+	});
+
+	test("malformed scene falls back to an empty drawing", () => {
+		const blocks = markdownToRichDocument("```excalidraw\nnot json\n```");
+		const drawing = blocks[0] as { type?: string; props?: { scene?: string } };
+
+		expect(drawing.type).toBe("drawing");
+		expect(drawing.props?.scene).toBe("");
 	});
 });
