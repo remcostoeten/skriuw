@@ -10,6 +10,7 @@ import { generateNoteContent } from "@/features/notes/lib/generate-note-content"
 import { markdownToRichDocument } from "@/domain/notes/rich-document";
 import type { CreateNoteInput } from "@/domain/notes/note-write-core";
 import type { NoteFile } from "@/types/notes";
+import { focusNoteEditor } from "@/shared/lib/focus-editor";
 import { SCOPES } from "./scopes";
 import { useShortcutScope } from "./provider";
 
@@ -65,6 +66,7 @@ export function GlobalShortcutHandlers(): null {
 			},
 		});
 		router.push(buildNoteUrl(newId, `${window.location.origin}/app`));
+		focusNoteEditor(newId);
 	}, [createNoteMutation, queryClient, router]);
 
 	useShortcutScope(SCOPES.global, {
