@@ -4,6 +4,8 @@ import { fetchTrashBatches } from "@/domain/trash/actions";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { TrashView } from "@/features/notes/components/trash/trash-view";
 
+export const instant = false;
+
 export default async function TrashPage() {
 	const { user } = await getServerUser();
 	const queryClient = new QueryClient();

@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { resolveNoteAccess } from "@/domain/notes/note-access";
 import { deriveAvatarColor, signCollabToken } from "@/features/collaboration/lib/collab-token";
 
-export const dynamic = "force-dynamic";
 
 // How long a minted room token is valid. Short — the client re-fetches on
 // reconnect, so a revoked collaborator loses access within this window.

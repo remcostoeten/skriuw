@@ -15,6 +15,8 @@ export const metadata: Metadata = {
 	},
 };
 
+export const instant = false;
+
 export default async function ActivityPage() {
 	const { user } = await getServerUser();
 	const queryClient = new QueryClient();
