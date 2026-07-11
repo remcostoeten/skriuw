@@ -1,21 +1,68 @@
-.skriuw-drawing .excalidraw {
+.skriuw-drawing {
+	border-radius: var(--radius);
+	overflow: hidden;
 	background: transparent;
+	box-shadow: none;
+	outline: none;
 }
 
-.skriuw-drawing--idle .excalidraw .layer-ui__wrapper,
-.skriuw-drawing--idle .excalidraw footer,
-.skriuw-drawing--idle .excalidraw .App-bottom-bar,
-.skriuw-drawing--idle .excalidraw .App-menu {
+.skriuw-drawing .excalidraw {
+	background: transparent;
+	--color-primary: hsl(var(--foreground));
+	--color-primary-darker: hsl(var(--foreground));
+	--color-primary-darkest: hsl(var(--foreground));
+	--color-primary-light: hsl(var(--accent));
+	--color-primary-contrast-offset: hsl(var(--accent));
+	--color-on-primary-container: hsl(var(--accent-foreground));
+	--color-surface-primary-container: hsl(var(--accent));
+	--color-surface-low: hsl(var(--muted));
+	--color-surface-mid: hsl(var(--muted));
+	--color-surface-high: hsl(var(--accent));
+	--color-surface-lowest: hsl(var(--popover));
+	--island-bg-color: hsl(var(--popover) / 0.92);
+	--popup-bg-color: hsl(var(--popover));
+	--popup-text-color: hsl(var(--popover-foreground));
+	--default-border-color: hsl(var(--border));
+	--button-hover-bg: hsl(var(--accent));
+	--button-gray-1: hsl(var(--muted));
+	--icon-fill-color: hsl(var(--foreground));
+	--text-primary-color: hsl(var(--foreground));
+	--shadow-island: 0 1px 2px hsl(0 0% 0% / 0.24), 0 0 0 1px hsl(var(--border));
+	--border-radius-lg: var(--radius);
+	--border-radius-md: calc(var(--radius) - 2px);
+}
+
+/* All of Excalidraw's own chrome is replaced by our toolbar; only the canvas
+   and its transient overlays (text editor, context menu) stay. */
+.skriuw-drawing .excalidraw .layer-ui__wrapper,
+.skriuw-drawing .excalidraw .App-bottom-bar,
+.skriuw-drawing .excalidraw .App-menu,
+.skriuw-drawing .excalidraw .App-toolbar-container,
+.skriuw-drawing .excalidraw footer,
+.skriuw-drawing .excalidraw .HelpButton,
+.skriuw-drawing .excalidraw .help-icon,
+.skriuw-drawing .excalidraw .disable-zen-mode {
 	display: none;
+}
+
+.skriuw-drawing--idle {
+	background: transparent;
 }
 
 /* BlockNote/ProseMirror paints a selection outline around content:"none"
    blocks when they become a NodeSelection; the drawing block must stay
    frameless in every state. */
-.bn-block-content[data-content-type="drawing"].ProseMirror-selectednode,
-.bn-block-content[data-content-type="drawing"] .ProseMirror-selectednode,
-[data-content-type="drawing"].ProseMirror-selectednode {
+.bn-block-outer:has([data-content-type="drawing"]),
+.bn-block:has([data-content-type="drawing"]),
+.bn-block-content[data-content-type="drawing"],
+[data-content-type="drawing"].ProseMirror-selectednode,
+.bn-block-content[data-content-type="drawing"] .ProseMirror-selectednode {
 	outline: none !important;
 	box-shadow: none !important;
 	border: none !important;
+}
+
+.skriuw-drawing .excalidraw .excalidraw__canvas {
+	outline: none !important;
+	box-shadow: none !important;
 }

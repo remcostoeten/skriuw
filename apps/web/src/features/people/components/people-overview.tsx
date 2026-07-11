@@ -35,7 +35,7 @@ type PendingAction =
 	| { kind: "delete"; person: Person };
 
 export function PeopleOverview() {
-	const { data: people = [], isLoading } = useWorkspacePeople();
+	const { data: people = [], isPending } = useWorkspacePeople();
 	const updatePerson = useUpdatePerson();
 	const deletePerson = useDeletePerson();
 	const mergePersons = useMergePersons();
@@ -81,7 +81,7 @@ export function PeopleOverview() {
 						</p>
 					</header>
 
-					{isLoading ? null : people.length === 0 ? (
+					{isPending ? null : people.length === 0 ? (
 						<NotesEmptyState
 							icon={Users}
 							title="No people yet"

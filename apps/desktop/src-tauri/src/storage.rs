@@ -25,6 +25,11 @@ pub struct Note {
     pub icon: Option<String>,
     #[serde(default)]
     pub cover: Option<String>,
+    // Serialized Excalidraw scene drawn over the whole note (annotate mode).
+    // SQLite-only like a note's `rich_content` — never written to the vault
+    // markdown, so it survives reconcile only while the body fields match.
+    #[serde(default)]
+    pub annotation_scene: String,
     pub created_at: i64,
     pub modified_at: i64,
 }
@@ -308,6 +313,7 @@ CREATE TABLE IF NOT EXISTS notes (
 	properties            TEXT NOT NULL DEFAULT '[]',
 	icon                  TEXT,
 	cover                 TEXT,
+	annotation_scene      TEXT NOT NULL DEFAULT '',
 	created_at            INTEGER NOT NULL,
 	modified_at           INTEGER NOT NULL
 );
@@ -459,6 +465,12 @@ impl Storage {
         ensure_column(&conn, "notes", "properties", "TEXT NOT NULL DEFAULT '[]'")?;
         ensure_column(&conn, "notes", "icon", "TEXT")?;
         ensure_column(&conn, "notes", "cover", "TEXT")?;
+        ensure_column(
+            &conn,
+            "notes",
+            "annotation_scene",
+            "TEXT NOT NULL DEFAULT ''",
+        )?;
         ensure_column(&conn, "journal_entries", "title", "TEXT")?;
         ensure_column(
             &conn,
@@ -503,7 +515,7 @@ impl Storage {
         let mut stmt = conn.prepare(
             "SELECT id, name, content, rich_content, preferred_editor_mode, \
 			 parent_id, sort_order, tags, properties, created_at, modified_at, \
-			 icon, cover FROM notes",
+			 icon, cover, annotation_scene FROM notes",
         )?;
         let rows = stmt.query_map([], row_to_note)?;
         rows.collect()
@@ -526,7 +538,7 @@ impl Storage {
         let mut stmt = conn.prepare_cached(
             "SELECT id, name, content, rich_content, preferred_editor_mode, \
 			 parent_id, sort_order, tags, properties, created_at, modified_at, \
-			 icon, cover FROM notes WHERE id = ?1",
+			 icon, cover, annotation_scene FROM notes WHERE id = ?1",
         )?;
         let mut rows = stmt.query_map(params![id], row_to_note)?;
         match rows.next() {
@@ -803,7 +815,7 @@ impl Storage {
 			   l.target_title_key, \
 			   n.id, n.name, n.content, n.rich_content, n.preferred_editor_mode, \
 			   n.parent_id, n.sort_order, n.tags, n.properties, n.created_at, n.modified_at, \
-			   n.icon, n.cover \
+			   n.icon, n.cover, n.annotation_scene \
 			 FROM note_links l JOIN notes n ON n.id = l.source_note_id \
 			 WHERE l.source_note_id != ?1 \
 			   AND (l.target_note_id = ?1 OR l.target_title_key IS NOT NULL)",
@@ -1228,8 +1240,9 @@ fn upsert_note_with(conn: &Connection, note: &Note) -> rusqlite::Result<()> {
     let mut stmt = conn.prepare_cached(
         "INSERT INTO notes \
 		 (id, name, content, rich_content, preferred_editor_mode, parent_id, \
-		  sort_order, tags, properties, created_at, modified_at, icon, cover) \
-		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13) \
+		  sort_order, tags, properties, created_at, modified_at, icon, cover, \
+		  annotation_scene) \
+		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14) \
 		 ON CONFLICT(id) DO UPDATE SET \
 		  name = excluded.name, content = excluded.content, \
 		  rich_content = excluded.rich_content, \
@@ -1237,7 +1250,8 @@ fn upsert_note_with(conn: &Connection, note: &Note) -> rusqlite::Result<()> {
 		  parent_id = excluded.parent_id, sort_order = excluded.sort_order, \
 		  tags = excluded.tags, properties = excluded.properties, \
 		  modified_at = excluded.modified_at, \
-		  icon = excluded.icon, cover = excluded.cover",
+		  icon = excluded.icon, cover = excluded.cover, \
+		  annotation_scene = excluded.annotation_scene",
     )?;
     stmt.execute(params![
         note.id,
@@ -1253,6 +1267,7 @@ fn upsert_note_with(conn: &Connection, note: &Note) -> rusqlite::Result<()> {
         note.modified_at,
         note.icon,
         note.cover,
+        note.annotation_scene,
     ])?;
     Ok(())
 }
@@ -1387,6 +1402,7 @@ fn row_to_note_offset(row: &rusqlite::Row<'_>, base: usize) -> rusqlite::Result<
         modified_at: row.get(base + 10)?,
         icon: row.get(base + 11)?,
         cover: row.get(base + 12)?,
+        annotation_scene: row.get(base + 13)?,
     })
 }
 
@@ -1433,6 +1449,7 @@ fn row_to_note(row: &rusqlite::Row<'_>) -> rusqlite::Result<Note> {
         modified_at: row.get(10)?,
         icon: row.get(11)?,
         cover: row.get(12)?,
+        annotation_scene: row.get(13)?,
     })
 }
 
@@ -1538,6 +1555,7 @@ mod tests {
             properties: serde_json::json!([]),
             icon: None,
             cover: None,
+            annotation_scene: String::new(),
             created_at: 1,
             modified_at: 1,
         }

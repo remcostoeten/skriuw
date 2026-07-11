@@ -44,7 +44,7 @@ function noteCountLabel(count: number): string {
 }
 
 export function TagsOverview() {
-	const { data: tags = [], isLoading } = useWorkspaceTagSummaries();
+	const { data: tags = [], isPending } = useWorkspaceTagSummaries();
 	const renameTag = useRenameTag();
 	const deleteTag = useDeleteTag();
 	const setTagColor = useSetTagColor();
@@ -101,7 +101,7 @@ export function TagsOverview() {
 						</p>
 					</header>
 
-					{isLoading ? null : isEmpty ? (
+					{isPending ? null : isEmpty ? (
 						<NotesEmptyState
 							icon={Hash}
 							title="No tags yet"

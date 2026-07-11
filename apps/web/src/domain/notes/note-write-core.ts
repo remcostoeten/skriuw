@@ -42,6 +42,7 @@ export type NoteRecord = {
 	properties: Prisma.JsonValue | null;
 	icon: string | null;
 	cover: string | null;
+	annotationScene: string | null;
 	journalMeta: Prisma.JsonValue | null;
 	createdAt: Date;
 	updatedAt: Date;
@@ -74,6 +75,7 @@ export const noteSelect = {
 	properties: true,
 	icon: true,
 	cover: true,
+	annotationScene: true,
 	journalMeta: true,
 	createdAt: true,
 	updatedAt: true,
@@ -103,6 +105,7 @@ export function recordToNoteFile(
 		properties: normalizeNoteProperties(record.properties),
 		icon: record.icon ?? undefined,
 		cover: record.cover ?? undefined,
+		annotationScene: record.annotationScene ?? undefined,
 		journalMeta: meta
 			? {
 					...meta,

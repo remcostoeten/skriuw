@@ -1049,6 +1049,9 @@ fn parse_note(raw: &str, name: String, parent_id: Option<String>) -> Note {
         modified_at,
         icon,
         cover,
+        // SQLite-only, never in frontmatter — reconcile keeps the index row's
+        // value while the body fields match (same deal as rich_content).
+        annotation_scene: String::new(),
     }
 }
 
@@ -1199,6 +1202,7 @@ mod tests {
             properties: serde_json::json!([{ "id": "p1", "type": "text", "name": "Status", "value": "open" }]),
             icon: None,
             cover: None,
+            annotation_scene: String::new(),
             created_at: 111,
             modified_at: 222,
         }

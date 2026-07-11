@@ -14,6 +14,7 @@ import {
 } from "@/domain/notes/properties";
 import { AddPropertyButton, InlinePropertyChip, PropertyRow, TemplatePicker } from "./property-row";
 import { NotePropertiesPopover } from "./popover";
+import { hasNoteAssetsSurface, NoteAssetsChips, NoteAssetsRows } from "./note-assets";
 
 type Layout = "rows" | "inline";
 
@@ -21,10 +22,20 @@ export function NotePropertiesShelf({
 	properties,
 	readOnly,
 	onChange,
+	icon,
+	cover,
+	isMobile,
+	onIconChange,
+	onCoverChange,
 }: {
 	properties: NoteProperty[];
 	readOnly?: boolean;
 	onChange?: (properties: NoteProperty[]) => void;
+	icon?: string;
+	cover?: string;
+	isMobile?: boolean;
+	onIconChange?: (icon: string) => void;
+	onCoverChange?: (cover: string) => void;
 }) {
 	const layout = usePreferencesStore((state) => state.editor.notePropertiesLayout);
 	const collapsed = usePreferencesStore((state) => state.editor.notePropertiesCollapsed);
@@ -73,6 +84,9 @@ export function NotePropertiesShelf({
 		);
 	}
 
+	const assetProps = { icon, cover, readOnly, isMobile, onIconChange, onCoverChange };
+	const showAssets = hasNoteAssetsSurface(assetProps);
+
 	const templatePickerProps = {
 		customTemplates,
 		canSaveCurrent: normalizedProperties.length > 0,
@@ -101,6 +115,7 @@ export function NotePropertiesShelf({
 					}`}
 				/>
 				<span>Properties</span>
+				{collapsed && icon ? <span className="text-sm leading-none">{icon}</span> : null}
 				{collapsed && normalizedProperties.length > 0 ? (
 					<span className="rounded-full border border-border/60 bg-card/70 px-1.5 text-[9px] tabular-nums text-muted-foreground">
 						{normalizedProperties.length}
@@ -118,6 +133,7 @@ export function NotePropertiesShelf({
 				<div className="min-h-0 overflow-hidden">
 					{layout === "rows" ? (
 						<div className="flex flex-col gap-0.5">
+							{showAssets ? <NoteAssetsRows {...assetProps} /> : null}
 							{normalizedProperties.map((property) => (
 								<PropertyRow
 									key={property.id}
@@ -144,6 +160,7 @@ export function NotePropertiesShelf({
 					) : (
 						<div>
 							<div className="flex flex-wrap items-center gap-1.5">
+								{showAssets ? <NoteAssetsChips {...assetProps} /> : null}
 								{normalizedProperties.map((property) => (
 									<InlinePropertyChip
 										key={property.id}

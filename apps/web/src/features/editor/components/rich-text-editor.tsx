@@ -99,9 +99,13 @@ type RichTextEditorProps = {
 	editorFontId: EditorFontId;
 	editorLineHeight: EditorLineHeight;
 	properties?: NoteProperty[];
+	icon?: string;
+	cover?: string;
 	readOnly?: boolean;
 	onChange: (next: { markdown: string; richContent: RichTextDocument }) => void;
 	onPropertiesChange?: (properties: NoteProperty[]) => void;
+	onIconChange?: (icon: string) => void;
+	onCoverChange?: (cover: string) => void;
 	onEditorReady?: (handle: AiEditorHandle) => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
@@ -133,9 +137,13 @@ export function RichTextEditor({
 	editorFontId,
 	editorLineHeight,
 	properties = EMPTY_PROPERTIES,
+	icon,
+	cover,
 	readOnly = false,
 	onChange,
 	onPropertiesChange,
+	onIconChange,
+	onCoverChange,
 	onEditorReady,
 	onAiSpellCheck,
 	onAiContinueWriting,
@@ -590,6 +598,11 @@ export function RichTextEditor({
 								properties={properties}
 								readOnly={readOnly}
 								onChange={onPropertiesChange}
+								icon={icon}
+								cover={cover}
+								isMobile={isMobile}
+								onIconChange={onIconChange}
+								onCoverChange={onCoverChange}
 							/>
 						) : null}
 						<NoteLinkProvider files={files} activeFileId={activeFileId}>

@@ -32,7 +32,7 @@ import { signOut } from "@/core/auth";
 import { isAdmin } from "@/lib/roles";
 import { UserMenu } from "./user-menu";
 import { AvatarSkeleton } from "./avatar-skeleton";
-import { AuthDrawerHost } from "./auth-drawer-host";
+import { AuthDrawerHost } from "./auth-drawer-host-lazy";
 import { openAuthDrawer } from "./open-auth-drawer";
 import { isTauriRuntime, useWorkspaceCapabilities } from "@/core/workspace-backend";
 import { useShortcutHint } from "@/core/shortcuts";

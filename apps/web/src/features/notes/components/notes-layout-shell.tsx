@@ -8,7 +8,7 @@ import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import { AuthDrawerHost } from "@/features/layout/components/auth-drawer-host";
+import { AuthDrawerHost } from "@/features/layout/components/auth-drawer-host-lazy";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
@@ -105,6 +105,7 @@ export function NotesLayoutShell({
 		isSidebarResizing,
 		metadataDragControls,
 		metadataRef,
+		metadataExitTransition,
 		metadataTransition,
 		metadataWidth,
 		overlayTransition,
@@ -112,6 +113,7 @@ export function NotesLayoutShell({
 		setShowShortcutHelp,
 		sidebarPanelProps,
 		sidebarRef,
+		sidebarExitTransition,
 		sidebarTransition,
 		sidebarWidth,
 		showMetadata,
@@ -142,6 +144,14 @@ export function NotesLayoutShell({
 	const handleWorkspacePointerDown = useCallback(
 		(event: ReactPointerEvent<HTMLDivElement>) => {
 			if (!isMobile || event.pointerType !== "touch") {
+				workspaceSwipeRef.current = null;
+				return;
+			}
+			// Strokes drawn in annotate mode must never read as nav swipes.
+			if (
+				event.target instanceof Element &&
+				event.target.closest('[data-annotation-overlay="active"]')
+			) {
 				workspaceSwipeRef.current = null;
 				return;
 			}
@@ -487,15 +497,22 @@ export function NotesLayoutShell({
 									initial={
 										prefersReducedMotion
 											? { x: -12, opacity: 0 }
-											: { x: -24, opacity: 0.96 }
+											: { x: "-100%", opacity: 1 }
 									}
-									animate={{ x: 0, opacity: 1 }}
+									animate={{ x: 0, opacity: 1, transition: sidebarTransition }}
 									exit={
 										prefersReducedMotion
-											? { x: -8, opacity: 0 }
-											: { x: -32, opacity: 0.94 }
+											? {
+													x: -8,
+													opacity: 0,
+													transition: sidebarExitTransition,
+												}
+											: {
+													x: "-100%",
+													opacity: 1,
+													transition: sidebarExitTransition,
+												}
 									}
-									transition={sidebarTransition}
 									drag="x"
 									dragConstraints={{ left: 0, right: 0 }}
 									dragDirectionLock
@@ -541,15 +558,22 @@ export function NotesLayoutShell({
 									initial={
 										prefersReducedMotion
 											? { y: 16, opacity: 0 }
-											: { y: 56, opacity: 0.98 }
+											: { y: "100%", opacity: 1 }
 									}
-									animate={{ y: 0, opacity: 1 }}
+									animate={{ y: 0, opacity: 1, transition: metadataTransition }}
 									exit={
 										prefersReducedMotion
-											? { y: 12, opacity: 0 }
-											: { y: 88, opacity: 0.94 }
+											? {
+													y: 12,
+													opacity: 0,
+													transition: metadataExitTransition,
+												}
+											: {
+													y: "100%",
+													opacity: 1,
+													transition: metadataExitTransition,
+												}
 									}
-									transition={metadataTransition}
 									drag="y"
 									dragControls={metadataDragControls}
 									dragListener={false}

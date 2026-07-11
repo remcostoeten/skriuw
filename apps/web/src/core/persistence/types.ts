@@ -39,6 +39,7 @@ export type PersistedNote = Entity<NoteId> & {
 	properties?: NoteProperty[];
 	icon?: string;
 	cover?: string;
+	annotationScene?: string;
 	journalMeta?: PersistedNoteJournalMetadata;
 };
 

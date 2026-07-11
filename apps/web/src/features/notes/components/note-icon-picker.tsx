@@ -128,7 +128,7 @@ export const NoteIconPicker = memo(function NoteIconPicker({ icon, onIconChange 
 					{icon || <Smile className="h-4 w-4" />}
 				</button>
 			</PopoverTrigger>
-			<PopoverContent className="w-[232px] p-2" align="start" side="right">
+			<PopoverContent className="w-[232px] p-2" align="start" side="bottom">
 				<div className="grid grid-cols-8 gap-0.5">
 					{NOTE_ICON_EMOJIS.map((emoji) => (
 						<button

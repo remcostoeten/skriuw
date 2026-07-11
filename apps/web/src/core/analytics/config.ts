@@ -41,3 +41,28 @@ export function isClientAnalyticsDisabled(): boolean {
 export function isServerAnalyticsConfigured(): boolean {
 	return Boolean(resolveServerIngestUrl() && resolveIngestSecret());
 }
+
+export const POSTHOG_PROXY_PATH = "/ph-ingest";
+
+export function resolvePostHogKey(): string | undefined {
+	const key = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
+	return key || undefined;
+}
+
+export function resolvePostHogUiHost(): string {
+	const host = process.env.NEXT_PUBLIC_POSTHOG_UI_HOST?.trim();
+	return host || "https://us.posthog.com";
+}
+
+export function isPostHogDisabled(): boolean {
+	return !resolvePostHogKey();
+}
+
+/**
+ * Whether every telemetry backend is switched off. The analytics gate uses this
+ * so PostHog can run even when the first-party ingest URL is unset, and vice
+ * versa — neither backend forces the other to be configured.
+ */
+export function isAllTelemetryDisabled(): boolean {
+	return isClientAnalyticsDisabled() && isPostHogDisabled();
+}

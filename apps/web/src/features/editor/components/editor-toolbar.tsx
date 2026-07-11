@@ -80,6 +80,8 @@ type Props = {
 	canToggleSplit?: boolean;
 	splitOrientation?: "vertical" | "horizontal";
 	onToggleSplitOrientation?: () => void;
+	annotating?: boolean;
+	onToggleAnnotate?: () => void;
 	/** Yjs awareness for the active note's collab room; drives the presence avatars. */
 	presenceAwareness?: Awareness | null;
 };
@@ -182,6 +184,8 @@ export const EditorToolbar = memo(function EditorToolbar({
 	canToggleSplit = true,
 	splitOrientation = "vertical",
 	onToggleSplitOrientation,
+	annotating = false,
+	onToggleAnnotate,
 	presenceAwareness,
 }: Props) {
 	const [isTauri, setIsTauri] = useState(false);
@@ -335,6 +339,23 @@ export const EditorToolbar = memo(function EditorToolbar({
 
 				<div className="flex shrink-0 items-center gap-1">
 					<CollabPresence awareness={presenceAwareness} />
+					{onToggleAnnotate && (
+						<ToolbarTooltip label={annotating ? "Stop annotating" : "Annotate note"}>
+							<button
+								type="button"
+								onClick={onToggleAnnotate}
+								className={cn(
+									sidebarIconButtonClass,
+									annotating &&
+										"border-border bg-muted text-foreground hover:bg-muted",
+								)}
+								aria-label={annotating ? "Stop annotating" : "Annotate note"}
+								aria-pressed={annotating}
+							>
+								<PenTool className="h-4 w-4" strokeWidth={1.5} />
+							</button>
+						</ToolbarTooltip>
+					)}
 					{onToggleSplit && (
 						<ToolbarTooltip
 							label={splitEnabled ? "Close split editor" : "Split editor"}

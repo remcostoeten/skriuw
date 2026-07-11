@@ -66,7 +66,7 @@ export function JournalDatabaseView({
 	onOpenSettings,
 	isMobile,
 }: JournalDatabaseViewProps) {
-	const { data: entries = [] } = useJournalEntries();
+	const { data: entries = [], isPending } = useJournalEntries();
 
 	const [activeTab, setActiveTab] = useState<FilterTab>("all");
 	const [searchQuery, setSearchQuery] = useState("");
@@ -283,7 +283,7 @@ export function JournalDatabaseView({
 					onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
 				>
 					<div className="mt-2">
-						{filteredEntries.length === 0 ? (
+						{isPending ? null : filteredEntries.length === 0 ? (
 							<EmptyState
 								variant={searchQuery ? "search" : "files"}
 								title={searchQuery ? "No entries found." : "No entries yet."}
@@ -457,7 +457,7 @@ export function JournalDatabaseView({
 				className="flex-1 overflow-y-auto"
 				onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
 			>
-				{filteredEntries.length === 0 ? (
+				{isPending ? null : filteredEntries.length === 0 ? (
 					<EmptyState
 						variant={searchQuery ? "search" : "files"}
 						title={searchQuery ? "No entries found." : "No entries yet."}

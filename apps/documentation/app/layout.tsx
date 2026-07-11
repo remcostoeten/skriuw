@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { ReactNode } from "react";
+import { PostHogAnalytics } from "@/components/posthog-analytics";
 import { site } from "@/lib/site";
 import "./globals.css";
 
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
 				className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col`}
 			>
 				<RootProvider>{children}</RootProvider>
+				<PostHogAnalytics />
 			</body>
 		</html>
 	);

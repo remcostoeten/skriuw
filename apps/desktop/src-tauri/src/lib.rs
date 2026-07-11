@@ -710,6 +710,8 @@ fn restore_note_version(
         modified_at: now_ms(),
         icon: current.icon,
         cover: current.cover,
+        // Versions don't capture annotations; a restore keeps the current ink.
+        annotation_scene: current.annotation_scene,
     };
 
     vault.upsert_note(&restored).map_err(vault_err)?;

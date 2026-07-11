@@ -73,9 +73,9 @@ import { useUpdateNote } from "./use-update-note";
 const SHEET_DISMISS_VELOCITY = 480;
 // Mounting the editor for a newly selected note blocks the main thread right
 // as the mobile sidebar's exit animation starts, making its first frames
-// stutter. Deferring the selection past the bulk of the 500ms exit keeps the
-// animation smooth (#227).
-const MOBILE_SIDEBAR_EXIT_DEFER_MS = 300;
+// stutter. Deferring the selection past the exit keeps the animation smooth
+// (#227). Must track the sidebar exit duration in use-notes-layout-viewport.
+const MOBILE_SIDEBAR_EXIT_DEFER_MS = 240;
 const SHEET_DRAG_BLOCKLIST =
 	"button, a, input, textarea, select, option, [role='button'], [role='tab'], [contenteditable='true'], [data-sheet-no-drag]";
 
@@ -229,7 +229,9 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		isSidebarResizing,
 		overlayTransition,
 		sidebarTransition,
+		sidebarExitTransition,
 		metadataTransition,
+		metadataExitTransition,
 	} = useNotesLayoutViewport({
 		isMobile,
 		showSidebar,
@@ -1168,6 +1170,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 	const toggleEditorModeFor = useCallback(
 		(modeTarget: NoteFile | null, modeBaseline: "raw" | "block" | null) => {
 			if (!modeTarget || !modeBaseline) return;
+			if (isMobile) return;
 
 			if (isMdxNote(modeTarget)) {
 				if (modeTarget.preferredEditorMode !== "raw") {
@@ -1219,7 +1222,14 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				markFileSaving(modeTarget.id);
 			});
 		},
-		[markFileError, markFileSaved, markFileSaving, runAfterContentFlush, updateNoteMutation],
+		[
+			isMobile,
+			markFileError,
+			markFileSaved,
+			markFileSaving,
+			runAfterContentFlush,
+			updateNoteMutation,
+		],
 	);
 
 	// The keyboard/command path can't read note content here, so it asks the
@@ -1770,6 +1780,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		metadataDragControls,
 		metadataRef,
 		metadataTransition,
+		metadataExitTransition,
 		metadataWidth,
 		moveFile,
 		moveFolder,
@@ -1782,6 +1793,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		sidebarPanelProps,
 		sidebarRef,
 		sidebarTransition,
+		sidebarExitTransition,
 		sidebarWidth,
 		showCommandPalette,
 		showMetadata,

@@ -28,10 +28,13 @@ import { UserToastHost } from "@/shared/ui/user-toast-host";
 import { PerfDevtools } from "@/shared/devtools";
 import { EDITOR_PREFERENCES_STORAGE_KEY } from "@/features/settings/lib/editor-preferences";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
+import type { AuthUser } from "@/core/auth/auth-user";
+import { InitialAuthUserProvider } from "@/core/auth/initial-auth-user";
 
 type Props = {
 	children: React.ReactNode;
 	initialEditorPreferences: EditorPreferencesRecord | null;
+	initialAuthUser: AuthUser | null;
 };
 
 function EditorPreferencesBootstrap({
@@ -59,7 +62,7 @@ function EditorPreferencesBootstrap({
 	return null;
 }
 
-export function AppProviders({ children, initialEditorPreferences }: Props) {
+export function AppProviders({ children, initialEditorPreferences, initialAuthUser }: Props) {
 	const [queryClient] = useState(
 		() =>
 			new QueryClient({
@@ -81,40 +84,42 @@ export function AppProviders({ children, initialEditorPreferences }: Props) {
 	);
 
 	return (
-		<QueryClientProvider client={queryClient}>
-			<QueryCachePersistence />
-			<MotionPreferences>
-				<TooltipProvider>
-					<EditorPreferencesBootstrap
-						initialEditorPreferences={initialEditorPreferences}
-					/>
-					<ProtectedAppGuard>
-						<WorkspaceBackendProvider>
-							<DesktopIndexSync />
-							<WindowControls />
-							<PersistenceBootstrap />
-							<GuestWorkspaceBootstrap />
-							<AppRoutePrefetcher />
-							<WorkspaceWarmup />
-							<ThemeAttribute />
-							<ShortcutProvider>
-								<DesktopQuitShortcut />
-								<DesktopToggleSize />
-								<CommandProvider>
-									<GlobalShortcutHandlers />
-									{children}
-									<GlobalCommandPaletteMount />
-									<QuickSwitcherMount />
-									<QuickAccessMount />
-								</CommandProvider>
-							</ShortcutProvider>
-							<PendingCollabReplay />
-							<UserToastHost />
-							<PerfDevtools />
-						</WorkspaceBackendProvider>
-					</ProtectedAppGuard>
-				</TooltipProvider>
-			</MotionPreferences>
-		</QueryClientProvider>
+		<InitialAuthUserProvider value={initialAuthUser}>
+			<QueryClientProvider client={queryClient}>
+				<QueryCachePersistence />
+				<MotionPreferences>
+					<TooltipProvider>
+						<EditorPreferencesBootstrap
+							initialEditorPreferences={initialEditorPreferences}
+						/>
+						<ProtectedAppGuard>
+							<WorkspaceBackendProvider>
+								<DesktopIndexSync />
+								<WindowControls />
+								<PersistenceBootstrap />
+								<GuestWorkspaceBootstrap />
+								<AppRoutePrefetcher />
+								<WorkspaceWarmup />
+								<ThemeAttribute />
+								<ShortcutProvider>
+									<DesktopQuitShortcut />
+									<DesktopToggleSize />
+									<CommandProvider>
+										<GlobalShortcutHandlers />
+										{children}
+										<GlobalCommandPaletteMount />
+										<QuickSwitcherMount />
+										<QuickAccessMount />
+									</CommandProvider>
+								</ShortcutProvider>
+								<PendingCollabReplay />
+								<UserToastHost />
+								<PerfDevtools />
+							</WorkspaceBackendProvider>
+						</ProtectedAppGuard>
+					</TooltipProvider>
+				</MotionPreferences>
+			</QueryClientProvider>
+		</InitialAuthUserProvider>
 	);
 }
