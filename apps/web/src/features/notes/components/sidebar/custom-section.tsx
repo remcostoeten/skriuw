@@ -167,11 +167,6 @@ export const CustomSection = memo(function CustomSection({
 								onPointerEnter={() => onFilePrefetch?.(file.id)}
 								className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
 							>
-								<SidebarItemIcon
-									kind="file"
-									size={14}
-									className="shrink-0 text-muted-foreground/70"
-								/>
 								<span className="truncate">{file.name}</span>
 							</button>
 							<button

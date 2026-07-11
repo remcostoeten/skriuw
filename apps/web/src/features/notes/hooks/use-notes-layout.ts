@@ -70,6 +70,11 @@ import { useUpdateFolder } from "./use-update-folder";
 import { useUpdateNote } from "./use-update-note";
 
 const SHEET_DISMISS_VELOCITY = 480;
+// Mounting the editor for a newly selected note blocks the main thread right
+// as the mobile sidebar's exit animation starts, making its first frames
+// stutter. Deferring the selection past the bulk of the 500ms exit keeps the
+// animation smooth (#227).
+const MOBILE_SIDEBAR_EXIT_DEFER_MS = 300;
 const SHEET_DRAG_BLOCKLIST =
 	"button, a, input, textarea, select, option, [role='button'], [role='tab'], [contenteditable='true'], [data-sheet-no-drag]";
 
@@ -511,16 +516,22 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			}
 
 			flushContentInBackground(activeFileId);
-			syncFileSelection(id, options);
-			if (isMobile) {
+			if (isMobile && showSidebar) {
 				setUIState({ showSidebar: false });
+				window.setTimeout(
+					() => syncFileSelection(id, options),
+					MOBILE_SIDEBAR_EXIT_DEFER_MS,
+				);
+				return;
 			}
+			syncFileSelection(id, options);
 		},
 		[
 			activeFileId,
 			flushContentInBackground,
 			focusedEditorPane,
 			isMobile,
+			showSidebar,
 			pushRecentFile,
 			queryClient,
 			setFocusedEditorPane,
@@ -1096,11 +1107,16 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 					markFileError(newId);
 				},
 			});
-			syncFileSelection(newId);
 			markFileSaving(newId);
-			if (isMobile) {
+			if (isMobile && showSidebar) {
 				setUIState({ showSidebar: false });
+				window.setTimeout(() => {
+					syncFileSelection(newId);
+					window.setTimeout(() => focusActiveEditor(), 0);
+				}, MOBILE_SIDEBAR_EXIT_DEFER_MS);
+				return;
 			}
+			syncFileSelection(newId);
 			window.setTimeout(() => focusActiveEditor(), 0);
 		},
 		[
@@ -1117,6 +1133,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			markFileSaving,
 			setUIState,
 			setFolderOpen,
+			showSidebar,
 			syncFileSelection,
 		],
 	);
