@@ -27,7 +27,6 @@ import {
 	useDeferredValue,
 	useEffect,
 	useMemo,
-	useRef,
 	useState,
 	useSyncExternalStore,
 } from "react";
@@ -83,9 +82,6 @@ import { UnlinkedMentionsSection } from "@/features/notes/components/unlinked-me
 import { findUnlinkedMentions } from "@/domain/notes/unlinked-mentions";
 import { useAuth } from "@/core/auth/use-auth";
 import { goto, useGotoTarget } from "@/core/quick-access";
-import { useUpdateNote } from "@/features/notes/hooks/use-update-note";
-import { NoteIconPicker } from "@/features/notes/components/note-icon-picker";
-import { NoteCoverPicker } from "@/features/notes/components/note-cover";
 
 const EMPTY_FILES: NoteFile[] = [];
 
@@ -251,10 +247,7 @@ function InspectorNoteControls({
 
 	const formatControl = canToggleEditorMode ? (
 		<div
-			className={cn(
-				"inline-flex items-center gap-1.5",
-				isMobile ? "min-h-11 text-[15px]" : "text-[13px]",
-			)}
+			className="inline-flex items-center gap-1.5 text-[13px]"
 			role="group"
 			aria-label="Editor mode"
 		>
@@ -264,7 +257,6 @@ function InspectorNoteControls({
 				aria-pressed={effectiveEditorMode === "block"}
 				className={cn(
 					"rounded-md transition-colors",
-					isMobile ? "min-h-11 px-3" : "",
 					effectiveEditorMode === "block"
 						? "font-medium text-foreground/80"
 						: "text-muted-foreground/70 hover:text-foreground",
@@ -281,7 +273,6 @@ function InspectorNoteControls({
 				aria-pressed={effectiveEditorMode === "raw"}
 				className={cn(
 					"rounded-md transition-colors",
-					isMobile ? "min-h-11 px-3" : "",
 					effectiveEditorMode === "raw"
 						? "font-medium text-foreground/80"
 						: "text-muted-foreground/70 hover:text-foreground",
@@ -291,24 +282,12 @@ function InspectorNoteControls({
 			</button>
 		</div>
 	) : (
-		<span
-			className={cn(
-				"font-medium text-foreground/80",
-				isMobile ? "text-[15px]" : "text-[13px]",
-			)}
-		>
-			Source
-		</span>
+		<span className="text-[13px] font-medium text-foreground/80">Source</span>
 	);
 
 	if (isMobile) {
 		return (
 			<div className="space-y-3">
-				<div className="flex items-center justify-between gap-4 py-1">
-					<span className="text-[13px] text-muted-foreground">Format</span>
-					{formatControl}
-				</div>
-
 				{/* Publishing a share link is owner-only; collaborators don't see it. */}
 				{isOwnNote && !isDesktop ? (
 					<div className="overflow-hidden rounded-2xl border border-foreground/8 bg-foreground/[0.03]">
@@ -597,6 +576,10 @@ const VersionRow = memo(function VersionRow({
 	);
 }, areVersionRowsEqual);
 
+function versionTime(value: Date | string): number {
+	return value instanceof Date ? value.getTime() : new Date(value).getTime();
+}
+
 function areVersionRowsEqual(prev: VersionRowProps, next: VersionRowProps): boolean {
 	return (
 		prev.version.id === next.version.id &&
@@ -604,7 +587,7 @@ function areVersionRowsEqual(prev: VersionRowProps, next: VersionRowProps): bool
 		prev.version.current === next.version.current &&
 		prev.version.reason === next.version.reason &&
 		prev.version.reasonKind === next.version.reasonKind &&
-		prev.version.createdAt.getTime() === next.version.createdAt.getTime() &&
+		versionTime(prev.version.createdAt) === versionTime(next.version.createdAt) &&
 		prev.previousContent === next.previousContent &&
 		prev.branchRole === next.branchRole &&
 		prev.isFirst === next.isFirst &&
@@ -875,32 +858,6 @@ function useInspectorData({
 	};
 }
 
-function useNoteAssetMutations(file: NoteFile | null) {
-	const { mutate: mutateNote } = useUpdateNote();
-	const fileRef = useRef(file);
-	fileRef.current = file;
-
-	const handleIconChange = useCallback(
-		(icon: string) => {
-			const current = fileRef.current;
-			if (!current || icon === current.icon) return;
-			mutateNote({ id: current.id, icon: icon || "" });
-		},
-		[mutateNote],
-	);
-
-	const handleCoverChange = useCallback(
-		(cover: string) => {
-			const current = fileRef.current;
-			if (!current || cover === current.cover) return;
-			mutateNote({ id: current.id, cover: cover || "" });
-		},
-		[mutateNote],
-	);
-
-	return { handleIconChange, handleCoverChange };
-}
-
 function MetadataMobileHeader({ onRequestClose }: { onRequestClose?: () => void }) {
 	return (
 		<div className="shrink-0 border-b border-border bg-background px-4 pb-2 pt-2.5">
@@ -922,48 +879,6 @@ function MetadataMobileHeader({ onRequestClose }: { onRequestClose?: () => void 
 					</button>
 				)}
 			</div>
-		</div>
-	);
-}
-
-function PageAssetRow({
-	label,
-	hasValue,
-	onRemove,
-	isMobile = false,
-	children,
-}: {
-	label: string;
-	hasValue: boolean;
-	onRemove: () => void;
-	isMobile?: boolean;
-	children: ReactNode;
-}) {
-	return (
-		<div
-			className={cn(
-				"flex items-center gap-3 border-b border-border px-3",
-				isMobile ? "min-h-14 py-2" : "py-2.5",
-			)}
-		>
-			<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/50">
-				{label}
-			</span>
-			{children}
-			{hasValue && (
-				<button
-					type="button"
-					onClick={onRemove}
-					className={cn(
-						"ml-auto text-muted-foreground/50 underline decoration-dotted underline-offset-2 hover:text-foreground",
-						isMobile
-							? "inline-flex min-h-11 items-center px-1 text-[13px] active:text-foreground"
-							: "text-[11px]",
-					)}
-				>
-					Remove
-				</button>
-			)}
 		</div>
 	);
 }
@@ -1163,6 +1078,7 @@ function HistorySectionContent({
 	hasRestoreBranch,
 	restoredSourceIndex,
 	animateNumbers,
+	isPending,
 	onView,
 }: {
 	historyItems: VersionRowData[];
@@ -1170,9 +1086,11 @@ function HistorySectionContent({
 	hasRestoreBranch: boolean;
 	restoredSourceIndex: number | null;
 	animateNumbers: boolean;
+	isPending: boolean;
 	onView?: (id: string) => void;
 }) {
 	if (historyItems.length === 0) {
+		if (isPending) return null;
 		return (
 			<EmptyLine>No history yet. The first checkpoint appears after the next save.</EmptyLine>
 		);
@@ -1280,8 +1198,6 @@ export const MetadataPanel = memo(function MetadataPanel({
 		onShare?.(file.id);
 	};
 
-	const { handleIconChange, handleCoverChange } = useNoteAssetMutations(file);
-
 	const handleViewVersion = useCallback(
 		(id: string) => {
 			if (!onViewVersion) return;
@@ -1334,24 +1250,6 @@ export const MetadataPanel = memo(function MetadataPanel({
 						onSelect={scrollToHeading}
 					/>
 				</InspectorSection>
-
-				<PageAssetRow
-					label="Page Icon"
-					hasValue={Boolean(file.icon)}
-					onRemove={() => handleIconChange("")}
-					isMobile={isMobile}
-				>
-					<NoteIconPicker icon={file.icon} onIconChange={handleIconChange} />
-				</PageAssetRow>
-
-				<PageAssetRow
-					label="Page Cover"
-					hasValue={Boolean(file.cover)}
-					onRemove={() => handleCoverChange("")}
-					isMobile={isMobile}
-				>
-					<NoteCoverPicker cover={file.cover} onCoverChange={handleCoverChange} />
-				</PageAssetRow>
 
 				<InspectorSection
 					id="note-inspector-tags"
@@ -1453,6 +1351,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 							hasRestoreBranch={hasRestoreBranch}
 							restoredSourceIndex={restoredSourceIndex}
 							animateNumbers={animateNumbers}
+							isPending={versionsQuery.isPending}
 							onView={onViewVersion ? handleViewVersion : undefined}
 						/>
 					</InspectorSection>

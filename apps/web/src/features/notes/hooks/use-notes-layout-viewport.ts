@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Transition, useDragControls, useReducedMotion } from "framer-motion";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { EASE_SHEET } from "@/shared/lib/motion";
+import { EASE_SHEET, EASE_SHEET_OUT } from "@/shared/lib/motion";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { DESKTOP_METADATA_MIN_WIDTH, DESKTOP_SIDEBAR_MIN_WIDTH } from "../constants";
 
@@ -222,11 +222,19 @@ export function useNotesLayoutViewport({
 
 	const sidebarTransition: Transition = prefersReducedMotion
 		? { duration: 0.16, ease: "easeOut" }
-		: { duration: 0.5, ease: EASE_SHEET };
+		: { duration: 0.42, ease: EASE_SHEET };
+
+	const sidebarExitTransition: Transition = prefersReducedMotion
+		? { duration: 0.12, ease: "easeOut" }
+		: { duration: 0.24, ease: EASE_SHEET_OUT };
 
 	const metadataTransition: Transition = prefersReducedMotion
 		? { duration: 0.16, ease: "easeOut" }
-		: { duration: 0.5, ease: EASE_SHEET };
+		: { duration: 0.42, ease: EASE_SHEET };
+
+	const metadataExitTransition: Transition = prefersReducedMotion
+		? { duration: 0.12, ease: "easeOut" }
+		: { duration: 0.24, ease: EASE_SHEET_OUT };
 
 	return {
 		prefersReducedMotion: Boolean(prefersReducedMotion),
@@ -239,7 +247,9 @@ export function useNotesLayoutViewport({
 		handleDesktopMetadataResizeStart,
 		overlayTransition,
 		sidebarTransition,
+		sidebarExitTransition,
 		metadataTransition,
+		metadataExitTransition,
 		isSidebarResizing: activeResizePanel === "sidebar",
 		isMetadataResizing: activeResizePanel === "metadata",
 	};

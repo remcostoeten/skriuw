@@ -14,7 +14,15 @@ export function useNoteVersions(noteId: string | null | undefined) {
 	// backend stores versions locally with no auth at all.
 	const canLoad = Boolean(id) && backend.capabilities.history && !isGuestScopedId(id);
 
+	// Persisted (IndexedDB) cache entries come back with `createdAt` as an ISO
+	// string, so every read path has to re-hydrate it into a Date.
 	return useApiQuery<NoteVersion[]>(notesKeys.versions(id), () => backend.getNoteVersions(id), {
+		select: (versions) =>
+			versions.map((version) =>
+				version.createdAt instanceof Date
+					? version
+					: { ...version, createdAt: new Date(version.createdAt) },
+			),
 		// Versions only grow via the user's own saves, which invalidate
 		// versionsAll(). Cache between mounts instead of refetching.
 		enabled: canLoad,

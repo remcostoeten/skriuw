@@ -21,6 +21,29 @@ mock.module("@/features/people/hooks/use-people", () => ({
 mock.module("@/features/people/hooks/use-create-person", () => ({
 	useCreatePerson: () => ({ mutate: () => {}, isPending: false }),
 }));
+// Raw mode now statically imports note-assets.tsx (icon/cover pickers), which
+// pulls in this barrel's server-only re-exports (server-backend.ts) the same
+// way the people hooks above do. Stub the full export surface so other
+// modules resolving named exports from the barrel don't fail either.
+mock.module("@/core/workspace-backend", () => ({
+	serverBackend: undefined,
+	createLocalBackend: () => null,
+	mergeSeedWithGuestNotes: () => [],
+	mergeSeedWithGuestFolders: () => [],
+	mergeSeedWithGuestWorkspace: (workspace: unknown) => workspace,
+	resetGuestStorage: () => {},
+	GUEST_SIGNUP_PROMPT_EVENT: "guest-signup-prompt",
+	createTauriBackend: () => null,
+	isTauriRuntime: () => false,
+	tauriInvoke: async () => undefined,
+	tauriChannel: () => () => {},
+	recordGuestGraphExplore: () => {},
+	WorkspaceBackendProvider: ({ children }: { children: unknown }) => children,
+	useWorkspaceBackend: () => null,
+	useIsGuestWorkspace: () => false,
+	useWorkspaceCapabilities: () => ({}),
+	WorkspaceCapabilityError: class WorkspaceCapabilityError extends Error {},
+}));
 
 describe("Editor focus styles", () => {
 	test("raw editor surface suppresses the global focus-visible box shadow", async () => {

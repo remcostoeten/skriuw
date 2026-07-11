@@ -157,9 +157,10 @@ export function useJournalLayout(): UseJournalLayoutResult {
 	}, []);
 
 	const handleToggleEditorMode = useCallback(() => {
+		if (isMobile) return;
 		triggerNativeFeedback("impact");
 		setEditorMode((current) => (current === "plain" ? "rich" : "plain"));
-	}, []);
+	}, [isMobile]);
 
 	const handleGoToToday = useCallback(() => {
 		triggerNativeFeedback("selection");
@@ -220,7 +221,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 		setShowCommandPalette,
 		showShortcutHelp,
 		setShowShortcutHelp,
-		editorMode,
+		editorMode: isMobile ? "rich" : editorMode,
 		view,
 		isHydrated,
 		isMobile,

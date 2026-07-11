@@ -72,7 +72,7 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 }
 
 export function ActivityOverview() {
-	const { data: notes = [], isLoading: notesLoading } = useNotes();
+	const { data: notes = [], isPending: notesLoading } = useNotes();
 	const { data: trash = [] } = useTrash();
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const scrollRegionId = useId();

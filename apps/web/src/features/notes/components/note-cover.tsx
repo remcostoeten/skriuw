@@ -1130,7 +1130,7 @@ export const NoteCoverPicker = memo(function NoteCoverPicker({
 					)}
 				</button>
 			</PopoverTrigger>
-			<PopoverContent className="w-[260px] p-2.5" align="start" side="right">
+			<PopoverContent className="w-[260px] p-2.5" align="start" side="bottom">
 				<p className="mb-1.5 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
 					Gradient
 				</p>

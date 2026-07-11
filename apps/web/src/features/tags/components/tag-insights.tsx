@@ -17,7 +17,7 @@ type Props = {
 
 export function TagInsights({ name }: Props) {
 	useBackspaceNavigatesBack();
-	const { data: notes = [], isLoading } = useTagNotes(name);
+	const { data: notes = [], isPending } = useTagNotes(name);
 	const { data: tags = [] } = useWorkspaceTagSummaries();
 	const setTagColor = useSetTagColor();
 	const summary = tags.find((tag) => tag.name === name);
@@ -54,7 +54,7 @@ export function TagInsights({ name }: Props) {
 						</div>
 					</header>
 
-					{isLoading ? null : notes.length === 0 ? (
+					{isPending ? null : notes.length === 0 ? (
 						<NotesEmptyState
 							icon={Hash}
 							title={`Nothing tagged #${name}`}

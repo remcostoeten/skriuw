@@ -166,20 +166,22 @@ export function EditorPaneHost({
 	// (instead of holding state synced by an effect) means the mode is correct
 	// on the same commit the note becomes available — no one-frame flash where
 	// the gate clears but the mode is still null and the raw <textarea> shows.
+	const allowRaw = !isMobile;
+
 	const editorMode = useMemo<"raw" | "block" | null>(() => {
 		if (!activeFile) return null;
-		return resolveEditorMode(activeFile, defaultModeRaw ? "raw" : "block");
-	}, [activeFile, defaultModeRaw]);
+		return resolveEditorMode(activeFile, defaultModeRaw ? "raw" : "block", allowRaw);
+	}, [activeFile, defaultModeRaw, allowRaw]);
 
 	const secondaryEditorMode = useMemo<"raw" | "block">(() => {
 		if (!secondaryFile) return "block";
-		return resolveEditorMode(secondaryFile, defaultModeRaw ? "raw" : "block");
-	}, [secondaryFile, defaultModeRaw]);
+		return resolveEditorMode(secondaryFile, defaultModeRaw ? "raw" : "block", allowRaw);
+	}, [secondaryFile, defaultModeRaw, allowRaw]);
 
 	const focusedEditorMode = useMemo<"raw" | "block" | null>(() => {
 		if (!focusedFile) return null;
-		return resolveEditorMode(focusedFile, defaultModeRaw ? "raw" : "block");
-	}, [focusedFile, defaultModeRaw]);
+		return resolveEditorMode(focusedFile, defaultModeRaw ? "raw" : "block", allowRaw);
+	}, [focusedFile, defaultModeRaw, allowRaw]);
 
 	useEffect(() => {
 		if (!splitSecondaryFileId || secondaryFile) return;

@@ -19,7 +19,7 @@ type Props = {
 export function PersonInsights({ personId }: Props) {
 	useBackspaceNavigatesBack();
 	const { data: people = [] } = useWorkspacePeople();
-	const { data: notes = [], isLoading } = usePersonNotes(personId);
+	const { data: notes = [], isPending } = usePersonNotes(personId);
 	const person = people.find((entry) => entry.id === personId);
 	const dot = person?.color ? NOTE_PROPERTY_COLORS[person.color].dot : undefined;
 
@@ -59,7 +59,7 @@ export function PersonInsights({ personId }: Props) {
 						</div>
 					</header>
 
-					{isLoading ? null : notes.length === 0 ? (
+					{isPending ? null : notes.length === 0 ? (
 						<NotesEmptyState
 							icon={Users}
 							title={`No mentions of ${person?.name ?? "this person"}`}

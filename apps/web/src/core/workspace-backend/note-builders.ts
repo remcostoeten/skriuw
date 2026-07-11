@@ -90,6 +90,10 @@ export function applyNoteUpdate(
 				: normalizeNoteProperties(note.properties),
 		icon: input.icon !== undefined ? input.icon : note.icon,
 		cover: input.cover !== undefined ? input.cover : note.cover,
+		annotationScene:
+			input.annotationScene !== undefined
+				? input.annotationScene || undefined
+				: note.annotationScene,
 		modifiedAt: new Date(),
 	};
 }

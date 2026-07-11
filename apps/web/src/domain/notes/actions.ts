@@ -60,6 +60,7 @@ export type UpdateNoteInput = {
 	properties?: NoteProperty[];
 	icon?: string;
 	cover?: string;
+	annotationScene?: string;
 	createCheckpoint?: boolean;
 	sessionVersionId?: string | null;
 	/**
@@ -116,6 +117,9 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 	}
 	if (validated.cover !== undefined) {
 		basePatch.cover = validated.cover || null;
+	}
+	if (validated.annotationScene !== undefined) {
+		basePatch.annotationScene = validated.annotationScene || null;
 	}
 
 	const ownerPatch: Prisma.NoteUncheckedUpdateInput = { ...basePatch };

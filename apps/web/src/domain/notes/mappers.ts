@@ -19,6 +19,7 @@ export function fromPersistedNote(note: PersistedNote): NoteFile {
 		properties: normalizeNoteProperties(note.properties),
 		icon: note.icon,
 		cover: note.cover,
+		annotationScene: note.annotationScene,
 		createdAt: new Date(note.createdAt),
 		modifiedAt: new Date(note.updatedAt),
 		journalMeta: note.journalMeta

@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { isBraveBrowser, isClientAnalyticsDisabled } from "./config";
+import { isAllTelemetryDisabled, isBraveBrowser } from "./config";
 
 const LazyAnalyticsMount = dynamic(
 	() => import("./analytics-mount").then((module) => module.AnalyticsMount),
@@ -28,7 +28,7 @@ export function AnalyticsGate() {
 	const [braveDetected] = useState(() => typeof window !== "undefined" && isBraveBrowser());
 
 	useEffect(() => {
-		if (!browserChecked || braveDetected || isClientAnalyticsDisabled()) {
+		if (!browserChecked || braveDetected || isAllTelemetryDisabled()) {
 			return;
 		}
 
@@ -37,7 +37,7 @@ export function AnalyticsGate() {
 		});
 	}, [browserChecked, braveDetected]);
 
-	if (!browserChecked || braveDetected || isClientAnalyticsDisabled()) {
+	if (!browserChecked || braveDetected || isAllTelemetryDisabled()) {
 		return null;
 	}
 

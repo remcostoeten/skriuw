@@ -100,12 +100,13 @@ type RustNote = {
 	properties: NoteFile["properties"];
 	icon?: string;
 	cover?: string;
+	annotationScene: string;
 	createdAt: number;
 	modifiedAt: number;
 };
 
 /** The Rust `NoteMetadata` wire shape — a `RustNote` without its body columns. */
-type RustNoteMetadata = Omit<RustNote, "content" | "richContent">;
+type RustNoteMetadata = Omit<RustNote, "content" | "richContent" | "annotationScene">;
 
 type RustFolder = {
 	id: string;
@@ -188,6 +189,7 @@ function toRustNote(note: NoteFile): RustNote {
 		properties: normalizeNoteProperties(note.properties),
 		icon: note.icon,
 		cover: note.cover,
+		annotationScene: note.annotationScene ?? "",
 		createdAt: note.createdAt.getTime(),
 		modifiedAt: note.modifiedAt.getTime(),
 	};
@@ -209,6 +211,7 @@ function fromRustNote(raw: RustNote): NoteFile {
 		properties: normalizeNoteProperties(raw.properties),
 		icon: raw.icon,
 		cover: raw.cover,
+		annotationScene: raw.annotationScene || undefined,
 		createdAt: new Date(raw.createdAt),
 		modifiedAt: new Date(raw.modifiedAt),
 	};

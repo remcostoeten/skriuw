@@ -101,11 +101,8 @@ function useAiKeysManagement(isSignedIn: boolean) {
 	});
 
 	const keys = keysQuery.data ?? [];
-	const keyState: LoadState = keysQuery.isLoading
-		? "loading"
-		: keysQuery.isError
-			? "error"
-			: "idle";
+	const keyState: LoadState =
+		isSignedIn && keysQuery.isPending ? "loading" : keysQuery.isError ? "error" : "idle";
 
 	async function saveKey() {
 		if (!label.trim() || !apiKey.trim()) return;

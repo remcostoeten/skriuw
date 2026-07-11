@@ -44,6 +44,8 @@ export type NoteFile = {
 	// Optional journal metadata
 	icon?: string;
 	cover?: string;
+	// Serialized Excalidraw scene drawn over the whole note (annotate mode).
+	annotationScene?: string;
 	journalMeta?: JournalMetadata;
 	// Set on the collaborator-aware read path. `ownerId` is the note's real owner;
 	// `access` is this viewer's role. Undefined → owner (legacy owner-scoped read).

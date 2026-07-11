@@ -28,7 +28,10 @@ function isPublicRoute(path: string) {
 		path.endsWith("/opengraph-image") ||
 		path.endsWith("/twitter-image") ||
 		path === "/app" ||
-		path.startsWith("/app/")
+		path.startsWith("/app/") ||
+		// The docs recording stages render a fake, auth-free workspace. They 404
+		// unless NEXT_PUBLIC_ENABLE_DEMO_ROUTES is set, so this stays closed in prod.
+		path.startsWith("/demo")
 	);
 }
 

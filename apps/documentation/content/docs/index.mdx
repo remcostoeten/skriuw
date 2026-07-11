@@ -4,25 +4,23 @@ description: "A lightweight, fast, feature-rich personal knowledge base, a blend
 ---
 
 **Skriuw** _(noun)_  
-/skrɪu̯/ — _Frisian, “to write.”_
+/skrɪu̯/ - _Frisian, “to write.”_
 
-A fast, aesthetic, privacy focused built for people who prefer a full keyboard experience over a mouse. Providing minimalism, as well as opt-in packed with features only at 15mb due to it being build in Rust.
+Skriuw is a personal knowledge base for people who would rather not reach for the mouse. It's minimal by default and feature-rich when you ask it to be, and because the desktop client is built on Rust and Tauri, the whole thing ships as a native binary under 6 MB.
 
-Skriuw fits everyone's needs. Want no hassle? Use the hosted cloud version authentiated with email+password or oAuth.
+Size isn't the only reason it feels fast. Skriuw is keyboard-first: you can move through the entire app without touching a mouse, and every binding is customizable. See [Shortcuts](/reference/shortcuts) for the full list.
 
-Feel like hosting your own in a serverless enviorment? Skriuw is fully open source so that is no problem.
+## Run it your way
 
-Prefer something on your own infrastructure? Skriuw is dockerized and will be setup within on time.
+You choose where your notes live, and the app works the same either way:
 
-You prefer to not store things in a database? Skriuw has a adapter pattern allowing for full local filesystem storage. Notes will get stored as `.md` on your prefered location without any telemetry.
+- **Hosted cloud** - sign in with email and password, or GitHub and Google OAuth. Nothing to set up.
+- **Self-hosted** - Skriuw is fully open source, and ships with a Docker setup for your own infrastructure or a serverless deploy.
+- **Fully local** - a storage adapter writes your notes as plain `.md` files wherever you point it. No database, no telemetry.
 
-Skriuw runs in the cloud, authenticated with email and password, GitHub or Google oAuth as well as fully local on your filesystem without any telemetry. It's a single binary, with a native desktop app and a web app.
+There's a web app and a native desktop app, and both talk to the same `WorkspaceBackend` adapter, so feature code never branches on where your data lives.
 
 For more background, see the [README](https://github.com/remcostoeten/skriuw#readme).
-
-Skriuw is a note taking application that can be expanded
-
-Size isn't the only thing that makes it fast. Skriuw is keyboard-first: you can move through the entire app without touching the mouse, and every shortcut is customizable. See [Shortcuts](/reference/shortcuts) for the full list.
 
 ### Explore the docs
 

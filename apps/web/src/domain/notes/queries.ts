@@ -27,6 +27,7 @@ type NoteRecord = {
 	properties: Prisma.JsonValue | null;
 	icon: string | null;
 	cover: string | null;
+	annotationScene: string | null;
 	journalMeta: Prisma.JsonValue | null;
 	createdAt: Date;
 	updatedAt: Date;
@@ -34,7 +35,7 @@ type NoteRecord = {
 
 type NoteMetadataRecord = Omit<
 	NoteRecord,
-	"content" | "richContent" | "properties" | "journalMeta" | "cover"
+	"content" | "richContent" | "properties" | "journalMeta" | "cover" | "annotationScene"
 >;
 
 type NoteVersionRecord = {
@@ -76,6 +77,7 @@ function recordToNoteFile(
 		properties: normalizeNoteProperties(record.properties),
 		icon: record.icon ?? undefined,
 		cover: record.cover ?? undefined,
+		annotationScene: record.annotationScene ?? undefined,
 		journalMeta: meta
 			? {
 					...meta,

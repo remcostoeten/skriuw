@@ -59,8 +59,26 @@ export function PwaSetup() {
 	const installEventRef = useRef<TBeforeInstallPromptEvent | null>(null);
 
 	useEffect(function registerServiceWorker() {
-		if (process.env.NODE_ENV !== "production") return;
 		if (!("serviceWorker" in navigator)) return;
+		if (process.env.NODE_ENV !== "production") {
+			// A worker registered by a past local production run (`next start`)
+			// persists on this origin and keeps serving /_next/static cache-first,
+			// which feeds dev stale chunks after HMR ("module factory is not
+			// available"). Evict it and its caches whenever dev boots.
+			navigator.serviceWorker.getRegistrations().then(function (registrations) {
+				for (const registration of registrations) {
+					registration.unregister();
+				}
+			});
+			if ("caches" in window) {
+				caches.keys().then(function (keys) {
+					for (const key of keys) {
+						caches.delete(key);
+					}
+				});
+			}
+			return;
+		}
 		navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function () {
 			// Registration failure only costs offline support; never surface it.
 		});

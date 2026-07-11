@@ -19,6 +19,7 @@
 		"test:skeleton": "bun run build && playwright test __tests__/e2e/skeleton-qa.e2e.ts --project=chromium"
 	},
 	"dependencies": {
+		"@animateicons/react": "^0.3.4",
 		"@aws-sdk/client-s3": "^3.1081.0",
 		"@better-auth/expo": "^1.6.11",
 		"@excalidraw/excalidraw": "^0.18.1",
@@ -26,6 +27,7 @@
 		"@xyflow/react": "^12.11.2",
 		"html-to-image": "^1.11.13",
 		"mermaid": "^11.16.0",
+		"posthog-js": "^1.399.2",
 		"yaml": "^2.9.0"
 	},
 	"devDependencies": {

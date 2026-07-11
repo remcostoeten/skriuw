@@ -84,7 +84,9 @@ export default async function AppHomePage(props: {
 			notesKeys.files(notesScope),
 		);
 		const initialActiveFileId = requestedNoteId ?? files?.[0]?.id ?? null;
-		if (initialActiveFileId) {
+		// The ?note= detail was already prefetched in the parallel block above;
+		// only the files[0] fallback still needs this serial hop after the list.
+		if (initialActiveFileId && initialActiveFileId !== requestedNoteId) {
 			await queryClient.prefetchQuery({
 				queryKey: notesKeys.detail(initialActiveFileId),
 				queryFn: () => getNote(initialActiveFileId),
