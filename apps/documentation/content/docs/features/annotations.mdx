@@ -1,0 +1,58 @@
+---
+title: "Note annotations"
+description: "Draw freehand over an entire note with annotate mode - ink that scrolls with your content and saves with the note."
+---
+
+Annotate mode lets you draw freehand across the whole note, on top of your
+text. Circle a paragraph, scribble in the margin, sketch an arrow between two
+sections - the ink lives on a transparent layer above the note and scrolls
+with the content it was drawn over.
+
+<Media label="Annotating a note" caption="Toggling annotate mode, drawing over the text, and scrolling with the ink anchored in place." />
+
+## Annotate a note
+
+Select the **pen tool** button in the editor toolbar to enter annotate mode.
+A small toolbar appears over the note with three tools:
+
+- **Draw** - freehand ink, active by default
+- **Erase** - remove strokes
+- **Select** - move or delete existing strokes
+
+Select **Done** (or press **Escape**) to exit. While annotating, the note
+itself is paused - pointer input goes to the drawing layer, and the mouse
+wheel still scrolls the note underneath so you can annotate anywhere in a
+long document.
+
+## How annotations behave
+
+- Ink is anchored to the note's content, not the screen: scroll away and
+  back, and every stroke is exactly where you left it.
+- Outside annotate mode the ink is display-only. It never blocks typing,
+  selecting text, or clicking links.
+- Annotations save automatically with the note and sync like any other note
+  change. They are restored on every device.
+- Erasing every stroke clears the annotation layer entirely.
+
+## Annotations vs. drawing blocks
+
+Skriuw also has a **drawing block** - a bounded canvas inserted into the
+document flow, with the full shape toolset (rectangles, arrows, text, images).
+Use whichever fits:
+
+- **Annotate mode** for marking up existing content: highlights, margin
+  notes, quick arrows across the page.
+- **Drawing block** for a diagram or sketch that is part of the document
+  itself and should sit between paragraphs.
+
+## Good to know
+
+- Annotate mode is available in the **block editor** (not raw markdown mode).
+- Ink is positioned against the note's layout. If you heavily edit the text
+  afterwards and paragraphs reflow, strokes keep their original position on
+  the page rather than following the words - annotations work best on notes
+  whose content is settled.
+- Annotations are not included in note version history; restoring an old
+  version keeps your current ink.
+- Shared notes: only the owner and editors can annotate; viewers see the ink
+  read-only.

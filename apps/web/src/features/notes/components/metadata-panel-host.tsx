@@ -75,7 +75,7 @@ export function MetadataPanelHost({
 	const showContentSkeleton = (isFocusedNoteLoading || !isEditorReady) && !displayFile;
 
 	const editorMode = displayFile
-		? resolveEditorMode(displayFile, defaultModeRaw ? "raw" : "block")
+		? resolveEditorMode(displayFile, defaultModeRaw ? "raw" : "block", !isMobile)
 		: "block";
 
 	if (showContentSkeleton) {

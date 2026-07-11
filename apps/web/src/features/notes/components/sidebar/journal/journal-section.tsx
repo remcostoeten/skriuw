@@ -47,7 +47,7 @@ export function JournalSection({
 	onDragEnd,
 }: JournalSectionProps) {
 	const router = useRouter();
-	const { data: entries = [] } = useJournalEntries();
+	const { data: entries = [], isPending } = useJournalEntries();
 	const [selectedDate, setSelectedDate] = useState(new Date());
 	const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -87,7 +87,7 @@ export function JournalSection({
 			showHeader={showHeader}
 			showCollapseToggle
 			compactMode={compactMode}
-			itemCount={entryCount}
+			itemCount={isPending ? undefined : entryCount}
 			onToggleCollapse={onToggleCollapse}
 			onToggleVisibility={onToggleVisibility}
 			onMoveUp={onMoveUp}

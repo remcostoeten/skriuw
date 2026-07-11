@@ -47,17 +47,6 @@ function MetadataPlaceholderSection({
 	);
 }
 
-function MetadataPlaceholderRow({ label, children }: { label: string; children: React.ReactNode }) {
-	return (
-		<div className="flex items-center gap-3 border-b border-border px-3 py-2.5">
-			<span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/40">
-				{label}
-			</span>
-			{children}
-		</div>
-	);
-}
-
 export function NotesMetadataPlaceholder({
 	isMobile = false,
 	className,
@@ -102,17 +91,6 @@ export function NotesMetadataPlaceholder({
 						))}
 					</div>
 				</MetadataPlaceholderSection>
-
-				<MetadataPlaceholderRow label="Page Icon">
-					<MetadataPlaceholderBar className="h-6 w-6 rounded-md bg-foreground/[0.055]" />
-				</MetadataPlaceholderRow>
-
-				<MetadataPlaceholderRow label="Page Cover">
-					<MetadataPlaceholderBar
-						className="h-6 w-6 rounded-md bg-foreground/[0.055]"
-						delay={SHIMMER_STEP_MS}
-					/>
-				</MetadataPlaceholderRow>
 
 				<MetadataPlaceholderSection icon={Hash} label="Tags">
 					<div className="flex flex-wrap gap-2">

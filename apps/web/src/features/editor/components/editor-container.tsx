@@ -18,6 +18,7 @@ import type { TRichTextCollab } from "./rich-text-editor";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
 import { AiWritingIndicator } from "./ai-writing-indicator";
 import { AI_WRITING_LABELS, type AiWritingAction } from "./ai-writing-constants";
+import { AnnotationOverlay } from "./annotation-overlay";
 import { EditorToolbar } from "./editor-toolbar";
 import type { EditorSaveState, WorkspaceNavItem } from "./editor-toolbar";
 import { useCollabRoom } from "@/features/collaboration/hooks/use-collab-room";
@@ -385,7 +386,7 @@ function EditorContainerImpl({
 	isContentLoading = false,
 }: EditorContainerProps) {
 	const isRenamingFromH1Ref = useRef(false);
-	const { mutate: mutateNoteCover } = useUpdateNote();
+	const { mutate: mutateNote } = useUpdateNote();
 	const lastFileNameRef = useRef(fileName);
 	// Whether the filename is still auto-following the first heading. True while
 	// the name is Untitled or matches the current heading; a manual rename
@@ -400,14 +401,21 @@ function EditorContainerImpl({
 	const [customPromptRevert, setCustomPromptRevert] = useState<string[] | null>(null);
 	const [suggestedTags, setSuggestedTags] = useState<string[] | null>(null);
 	const [aiNotice, setAiNotice] = useState<string | null>(null);
+	const [annotating, setAnnotating] = useState(false);
 
 	const fileId = file?.id ?? null;
 	const coverBannerRef = useRef<NoteCoverBannerHandle>(null);
 	const handleCoverChange = useCallback(
 		(cover: string) => {
-			if (fileId) mutateNoteCover({ id: fileId, cover });
+			if (fileId) mutateNote({ id: fileId, cover });
 		},
-		[fileId, mutateNoteCover],
+		[fileId, mutateNote],
+	);
+	const handleIconChange = useCallback(
+		(icon: string) => {
+			if (fileId) mutateNote({ id: fileId, icon });
+		},
+		[fileId, mutateNote],
 	);
 	const coverUpload = useNoteCoverMenu(handleCoverChange);
 	const canEditCover =
@@ -421,6 +429,7 @@ function EditorContainerImpl({
 		setCustomPromptRevert(null);
 		setSuggestedTags(null);
 		setAiNotice(null);
+		setAnnotating(false);
 	}
 
 	const aiPrefs = usePreferencesStore((s) => s.ai);
@@ -663,6 +672,12 @@ function EditorContainerImpl({
 					splitEnabled={splitEnabled}
 					onToggleSplit={onToggleSplit}
 					canToggleSplit={canToggleSplit}
+					annotating={annotating}
+					onToggleAnnotate={
+						file && effectiveEditorMode === "block"
+							? () => setAnnotating((current) => !current)
+							: undefined
+					}
 					presenceAwareness={collabRoom.awareness}
 				/>
 			) : paneLabel ? (
@@ -987,6 +1002,8 @@ function EditorContainerImpl({
 									showLineNumbers={showLineNumbers}
 									isMobile={isMobile}
 									onContentChange={onContentChange}
+									onIconChange={canEditCover ? handleIconChange : undefined}
+									onCoverChange={canEditCover ? handleCoverChange : undefined}
 									onEditorReady={handleEditorReady}
 									onAiSpellCheck={
 										canUseAi ? () => runAiAction("spellCheck") : undefined
@@ -1128,6 +1145,20 @@ function EditorContainerImpl({
 						</ContextMenuContent>
 					</ContextMenu>
 				)}
+				{file && effectiveEditorMode === "block" && !showEditorSkeleton ? (
+					<AnnotationOverlay
+						key={file.id}
+						noteId={file.id}
+						scene={file.annotationScene}
+						active={annotating}
+						readOnly={
+							file.access !== undefined &&
+							file.access !== "owner" &&
+							file.access !== "editor"
+						}
+						onDone={() => setAnnotating(false)}
+					/>
+				) : null}
 				{!showEditorSkeleton && (
 					<AiWritingIndicator
 						action={activeWritingAction}

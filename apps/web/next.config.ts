@@ -47,6 +47,21 @@ const config: NextConfig = {
 		root: path.join(import.meta.dirname, "../.."),
 	},
 	serverExternalPackages: ["@prisma/client", "@prisma/adapter-pg"],
+	// posthog-js posts to this same-origin path instead of us.i.posthog.com, so
+	// content blockers don't drop the requests. Deliberately not /ingest — that
+	// name already belongs to the first-party @remcostoeten/analytics ingest.
+	async rewrites() {
+		return [
+			{
+				source: "/ph-ingest/static/:path*",
+				destination: "https://us-assets.i.posthog.com/static/:path*",
+			},
+			{
+				source: "/ph-ingest/:path*",
+				destination: "https://us.i.posthog.com/:path*",
+			},
+		];
+	},
 	async headers() {
 		return [
 			{

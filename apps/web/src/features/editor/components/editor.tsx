@@ -16,6 +16,7 @@ import {
 	getEditorLineHeightValue,
 	type EditorLineHeight,
 } from "@/features/editor/lib/editor-line-height";
+import { hasNoteAssetsSurface, NoteAssetsRows } from "./note-properties/note-assets";
 import { EditorContentSkeleton } from "./editor-content-skeleton";
 import { preloadRichTextEditor } from "./preload-rich-text-editor";
 import type { TRichTextCollab } from "./rich-text-editor";
@@ -63,6 +64,8 @@ type EditorProps = {
 			properties?: NoteProperty[];
 		},
 	) => void;
+	onIconChange?: (icon: string) => void;
+	onCoverChange?: (cover: string) => void;
 	onEditorReady?: (handle: AiEditorHandle) => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
@@ -95,6 +98,8 @@ export function Editor({
 	isMobile = false,
 	readOnly = false,
 	onContentChange,
+	onIconChange,
+	onCoverChange,
 	onEditorReady,
 	onAiSpellCheck,
 	onAiContinueWriting,
@@ -296,6 +301,7 @@ export function Editor({
 		return (
 			<div
 				ref={scrollContainerRef}
+				data-editor-scroll=""
 				className={containerClass}
 				onScroll={reportScrollPosition}
 				onPointerDown={handlePanePointerDown}
@@ -313,6 +319,10 @@ export function Editor({
 					onChange={handleRichTextChange}
 					properties={file.properties ?? []}
 					onPropertiesChange={handlePropertiesChange}
+					icon={file.icon}
+					cover={file.cover}
+					onIconChange={onIconChange}
+					onCoverChange={onCoverChange}
 					onEditorReady={onEditorReady}
 					onAiSpellCheck={onAiSpellCheck}
 					onAiContinueWriting={onAiContinueWriting}
@@ -329,6 +339,14 @@ export function Editor({
 		);
 	}
 
+	const showRawAssets = hasNoteAssetsSurface({
+		icon: file.icon,
+		cover: file.cover,
+		readOnly,
+		onIconChange,
+		onCoverChange,
+	});
+
 	// Raw mode
 	return (
 		<div
@@ -338,6 +356,18 @@ export function Editor({
 			onPointerDown={handlePanePointerDown}
 		>
 			<div className={contentClass}>
+				{showRawAssets ? (
+					<div className="mb-4">
+						<NoteAssetsRows
+							icon={file.icon}
+							cover={file.cover}
+							readOnly={readOnly}
+							isMobile={isMobile}
+							onIconChange={onIconChange}
+							onCoverChange={onCoverChange}
+						/>
+					</div>
+				) : null}
 				<div className={showLineNumbers ? "flex items-start gap-3" : undefined}>
 					{showLineNumbers ? (
 						<div

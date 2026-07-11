@@ -6,7 +6,13 @@ import { useEffect } from "react";
 import { useAuth } from "@/core/auth/use-auth";
 import { usePreferencesStore } from "@/features/settings/store";
 import { resolveAnalyticsConsent } from "./client";
-import { isClientAnalyticsDisabled, resolveClientIngestUrl, SKRIUW_PROJECT_ID } from "./config";
+import {
+	isClientAnalyticsDisabled,
+	isPostHogDisabled,
+	resolveClientIngestUrl,
+	SKRIUW_PROJECT_ID,
+} from "./config";
+import { identifyPostHogPerson, initPostHog, syncPostHogConsent } from "./posthog";
 
 export function AnalyticsMount() {
 	const pathname = usePathname();
@@ -16,6 +22,10 @@ export function AnalyticsMount() {
 	const analyticsEnabled = usePreferencesStore((state) => state.privacy.analyticsEnabled);
 	const ingestUrl = resolveClientIngestUrl();
 	const consent = resolveAnalyticsConsent(auth.phase, analyticsEnabled);
+
+	const isSharedRoute = pathname?.startsWith("/s/") ?? false;
+	const consentResolved = auth.isReady && (auth.phase !== "authenticated" || isHydrated);
+	const canTrack = consentResolved && !isSharedRoute;
 
 	useEffect(() => {
 		initialize();
@@ -43,13 +53,20 @@ export function AnalyticsMount() {
 		optOut();
 	}, [analyticsEnabled, auth.isReady, auth.phase, isHydrated]);
 
-	if (
-		isClientAnalyticsDisabled() ||
-		!ingestUrl ||
-		!auth.isReady ||
-		pathname?.startsWith("/s/") ||
-		(auth.phase === "authenticated" && !isHydrated)
-	) {
+	useEffect(() => {
+		if (isPostHogDisabled() || !canTrack) {
+			return;
+		}
+
+		initPostHog();
+		syncPostHogConsent(consent.consentGranted);
+
+		if (auth.phase === "authenticated" && auth.user && consent.consentGranted) {
+			identifyPostHogPerson(auth.user);
+		}
+	}, [canTrack, consent.consentGranted, auth.phase, auth.user]);
+
+	if (isClientAnalyticsDisabled() || !ingestUrl || !canTrack) {
 		return null;
 	}
 

@@ -15,11 +15,18 @@ export function isMdxNote(file: Pick<NoteFile, "name" | "content"> | null | unde
 	);
 }
 
+/**
+ * Resolves the editor mode for a note. Pass `allowRaw: false` on surfaces that
+ * have no raw editor (mobile) — it overrides both the note's preference and the
+ * MDX force-to-raw rule.
+ */
 export function resolveEditorMode(
 	file: Pick<NoteFile, "name" | "content" | "preferredEditorMode"> | null | undefined,
 	fallbackMode: "raw" | "block",
+	allowRaw = true,
 ): "raw" | "block" {
 	if (!file) return "block";
+	if (!allowRaw) return "block";
 	if (isMdxNote(file)) return "raw";
 	return file.preferredEditorMode ?? fallbackMode;
 }

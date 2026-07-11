@@ -190,10 +190,13 @@ export const SHORTCUT_REGISTRY = {
 		bindingGroup: "settings",
 	},
 	"notes.toggleEditor": {
-		keys: "mod+alt+e",
+		keys: "ctrl+m",
 		scope: SCOPES.notes,
 		group: "Notes",
 		label: "Switch editor mode",
+		description: "Toggle between the block editor and raw markdown.",
+		except: false,
+		preventDefault: true,
 	},
 	"notes.focusFileTree": {
 		keys: "ctrl+e",

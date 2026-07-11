@@ -96,9 +96,10 @@ export const RecentsSection = memo(function RecentsSection({
 	);
 
 	const isOverLimit = resolvedRecents.length > RECENTS_PREVIEW_LIMIT;
-	const visibleRecents = showAllRecents && isOverLimit
-		? resolvedRecents
-		: resolvedRecents.slice(0, RECENTS_PREVIEW_LIMIT);
+	const visibleRecents =
+		showAllRecents && isOverLimit
+			? resolvedRecents
+			: resolvedRecents.slice(0, RECENTS_PREVIEW_LIMIT);
 	const hiddenRecentCount = resolvedRecents.length - visibleRecents.length;
 
 	const clearButton =
@@ -172,13 +173,13 @@ export const RecentsSection = memo(function RecentsSection({
 								>
 									{recent.icon}
 								</span>
-							) : (
+							) : recent.itemType === "folder" ? (
 								<SidebarItemIcon
-									kind={recent.itemType === "folder" ? "folder" : "file"}
+									kind="folder"
 									size={compactMode ? 12 : 14}
 									className="shrink-0 text-muted-foreground/70"
 								/>
-							)}
+							) : null}
 							<span className="flex-1 truncate">{recent.name}</span>
 						</button>
 					))}

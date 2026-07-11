@@ -18,7 +18,7 @@ import { useSearchParams } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { IconRail } from "@/features/layout/components/icon-rail";
-import { AuthDrawerHost } from "@/features/layout/components/auth-drawer-host";
+import { AuthDrawerHost } from "@/features/layout/components/auth-drawer-host-lazy";
 import { WorkspaceSidebarSkeleton } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import {
@@ -123,18 +123,6 @@ function JournalEditorToolbar({
 					</div>
 
 					<div className="flex h-11 items-center gap-1.5 sm:gap-2">
-						<button
-							type="button"
-							onClick={onToggleEditorMode}
-							className="flex h-11 w-11 shrink-0 items-center justify-center border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-							aria-label={editorModeTitle}
-						>
-							{editorMode === "plain" ? (
-								<Type className="h-[18px] w-[18px]" strokeWidth={1.7} />
-							) : (
-								<Code className="h-[18px] w-[18px]" strokeWidth={1.7} />
-							)}
-						</button>
 						<button
 							type="button"
 							onClick={onOpenSettings}
@@ -408,7 +396,9 @@ export function JournalPageLayout() {
 										editorMode={editorMode}
 										entryState={journalEntry}
 										aiState={journalAi}
-										onToggleEditorMode={handleToggleEditorMode}
+										onToggleEditorMode={
+											isMobile ? undefined : handleToggleEditorMode
+										}
 										onGoToToday={handleGoToToday}
 										onBackToList={handleBackToList}
 									/>

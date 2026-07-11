@@ -1,9 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	CheckIcon,
+	ChevronsRightLeftIcon,
+	MoveDiagonalIcon,
+	SprayCanIcon,
+} from "@animateicons/react/lucide";
 import { defaultProps } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
-import { Check, Maximize2, Minimize2, Pencil } from "lucide-react";
+import {
+	ArrowRight,
+	Circle,
+	Diamond,
+	Eraser,
+	GripVertical,
+	Image as ImageIcon,
+	Minus,
+	MousePointer2,
+	Pencil,
+	Square,
+	Type,
+} from "lucide-react";
 import {
 	countDrawingElements,
 	DEFAULT_DRAWING_SCENE,
@@ -15,30 +33,68 @@ import "./drawing.css";
 
 type TExcalidrawModule = typeof import("@excalidraw/excalidraw");
 
+type TToolType =
+	| "selection"
+	| "rectangle"
+	| "diamond"
+	| "ellipse"
+	| "arrow"
+	| "line"
+	| "freedraw"
+	| "text"
+	| "image"
+	| "eraser";
+
 type TExcalidrawAPI = {
 	updateScene: (scene: { elements?: readonly unknown[] }) => void;
 	addFiles: (files: unknown[]) => void;
+	setActiveTool: (tool: { type: TToolType }) => void;
 };
 
 type TDrawingBlockData = {
 	props: {
 		scene?: string;
 		height?: number;
+		toolbarX?: number;
+		toolbarY?: number;
 	};
+};
+
+type TDrawingBlockProps = {
+	scene?: string;
+	height?: number;
+	toolbarX?: number;
+	toolbarY?: number;
 };
 
 type TDrawingEditor = {
 	isEditable?: boolean;
-	updateBlock: (
-		block: unknown,
-		update: { type: "drawing"; props: { scene?: string; height?: number } },
-	) => void;
+	updateBlock: (block: unknown, update: { type: "drawing"; props: TDrawingBlockProps }) => void;
 };
+
+const TOOLS: Array<{ type: TToolType; icon: typeof Square; label: string }> = [
+	{ type: "selection", icon: MousePointer2, label: "Select" },
+	{ type: "rectangle", icon: Square, label: "Rectangle" },
+	{ type: "diamond", icon: Diamond, label: "Diamond" },
+	{ type: "ellipse", icon: Circle, label: "Ellipse" },
+	{ type: "arrow", icon: ArrowRight, label: "Arrow" },
+	{ type: "line", icon: Minus, label: "Line" },
+	{ type: "freedraw", icon: Pencil, label: "Draw" },
+	{ type: "text", icon: Type, label: "Text" },
+	{ type: "image", icon: ImageIcon, label: "Image" },
+	{ type: "eraser", icon: Eraser, label: "Eraser" },
+];
 
 const SCENE_COMMIT_DEBOUNCE_MS = 500;
 const MIN_CANVAS_HEIGHT = 180;
 const MAX_CANVAS_HEIGHT = 1200;
 const DEFAULT_CANVAS_HEIGHT = 400;
+const DEFAULT_TOOLBAR_X = 0.5;
+const DEFAULT_TOOLBAR_Y = 0.04;
+
+function clampFraction(value: number): number {
+	return Math.min(1, Math.max(0, value));
+}
 
 let excalidrawModulePromise: Promise<TExcalidrawModule> | null = null;
 
@@ -64,8 +120,115 @@ function clampHeight(height: number): number {
 	return Math.min(MAX_CANVAS_HEIGHT, Math.max(MIN_CANVAS_HEIGHT, Math.round(height)));
 }
 
-const HEADER_ICON_BUTTON =
-	"flex h-6 w-6 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-foreground/8 hover:text-foreground";
+const UI_OPTIONS = {
+	canvasActions: {
+		changeViewBackgroundColor: false,
+		clearCanvas: false,
+		export: false,
+		loadScene: false,
+		saveToActiveFile: false,
+		saveAsImage: false,
+		toggleTheme: false,
+	},
+};
+
+type TAnimatedIcon = React.ForwardRefExoticComponent<
+	{ size?: number; className?: string } & React.RefAttributes<{
+		startAnimation: () => void;
+		stopAnimation: () => void;
+	}>
+>;
+
+type TToolbarButtonProps = {
+	icon: TAnimatedIcon;
+	label: string;
+	hint: string;
+	onClick: () => void;
+};
+
+function ToolbarButton({ icon: Icon, label, hint, onClick }: TToolbarButtonProps) {
+	const iconRef = useRef<{ startAnimation: () => void; stopAnimation: () => void }>(null);
+
+	return (
+		<button
+			type="button"
+			aria-label={label}
+			title={hint}
+			className={cn(
+				"group/tool relative flex h-7 w-7 items-center justify-center rounded-md",
+				"text-muted-foreground/70 transition-colors",
+				"hover:bg-foreground/8 hover:text-foreground",
+				"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+			)}
+			onMouseDown={(event) => event.preventDefault()}
+			onMouseEnter={() => iconRef.current?.startAnimation()}
+			onMouseLeave={() => iconRef.current?.stopAnimation()}
+			onFocus={() => iconRef.current?.startAnimation()}
+			onBlur={() => iconRef.current?.stopAnimation()}
+			onClick={onClick}
+		>
+			<Icon ref={iconRef} size={15} className="pointer-events-none" />
+		</button>
+	);
+}
+
+type TDrawingToolbarProps = {
+	activeTool: TToolType;
+	position: { x: number; y: number };
+	onSelectTool: (tool: TToolType) => void;
+	onDragStart: (event: React.PointerEvent) => void;
+};
+
+function DrawingToolbar({ activeTool, position, onSelectTool, onDragStart }: TDrawingToolbarProps) {
+	return (
+		<div
+			className={cn(
+				"absolute z-20 flex items-center gap-0.5 rounded-lg",
+				"border border-border/60 bg-popover/80 p-1 shadow-md backdrop-blur-md",
+			)}
+			style={{
+				left: `${position.x * 100}%`,
+				top: `${position.y * 100}%`,
+				transform: "translate(-50%, 0)",
+			}}
+			onPointerDown={(event) => event.stopPropagation()}
+		>
+			<button
+				type="button"
+				aria-label="Move toolbar"
+				title="Drag to move"
+				className="flex h-7 w-4 cursor-grab items-center justify-center text-muted-foreground/50 hover:text-foreground active:cursor-grabbing"
+				onPointerDown={onDragStart}
+			>
+				<GripVertical size={13} />
+			</button>
+			{TOOLS.map((tool) => {
+				const Icon = tool.icon;
+				const selected = activeTool === tool.type;
+				return (
+					<button
+						key={tool.type}
+						type="button"
+						aria-label={tool.label}
+						aria-pressed={selected}
+						title={tool.label}
+						className={cn(
+							"flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+							"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+							selected
+								? "bg-foreground/12 text-foreground"
+								: "text-muted-foreground/70 hover:bg-foreground/8 hover:text-foreground",
+						)}
+						onMouseDown={(event) => event.preventDefault()}
+						onClick={() => onSelectTool(tool.type)}
+					>
+						<Icon size={15} className="pointer-events-none" />
+					</button>
+				);
+			})}
+		</div>
+	);
+}
 
 function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor: TDrawingEditor }) {
 	const scene = block.props.scene ?? DEFAULT_DRAWING_SCENE;
@@ -91,6 +254,9 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 	const [fullscreen, setFullscreen] = useState(false);
 	const [dragHeight, setDragHeight] = useState<number | null>(null);
 	const [darkTheme, setDarkTheme] = useState(true);
+	const [activeTool, setActiveTool] = useState<TToolType>("freedraw");
+	const [dragToolbar, setDragToolbar] = useState<{ x: number; y: number } | null>(null);
+	const canvasBoxRef = useRef<HTMLDivElement | null>(null);
 
 	blockRef.current = block;
 	editorRef.current = editor;
@@ -99,6 +265,11 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 	fullscreenRef.current = fullscreen;
 
 	const elementCount = useMemo(() => countDrawingElements(scene), [scene]);
+
+	const toolbarPosition = dragToolbar ?? {
+		x: clampFraction(block.props.toolbarX ?? DEFAULT_TOOLBAR_X),
+		y: clampFraction(block.props.toolbarY ?? DEFAULT_TOOLBAR_Y),
+	};
 
 	const initialData = useMemo(() => {
 		const parsed = parseDrawingScene(lastSceneRef.current);
@@ -203,6 +374,11 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 
 	const handleCanvasChange = useCallback(
 		(elements: readonly unknown[], appState: unknown, files: unknown) => {
+			const tool = (appState as { activeTool?: { type?: TToolType } } | null)?.activeTool
+				?.type;
+			if (tool) {
+				setActiveTool(tool);
+			}
 			if (!activeRef.current || !editorRef.current.isEditable) {
 				return;
 			}
@@ -292,6 +468,41 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 		};
 	}, [active, deactivate]);
 
+	function selectTool(tool: TToolType) {
+		apiRef.current?.setActiveTool({ type: tool });
+		setActiveTool(tool);
+	}
+
+	function startToolbarDrag(event: React.PointerEvent) {
+		const box = canvasBoxRef.current;
+		if (!box) {
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		const bounds = box.getBoundingClientRect();
+		let next = { x: toolbarPosition.x, y: toolbarPosition.y };
+
+		function onMove(moveEvent: PointerEvent) {
+			next = {
+				x: clampFraction((moveEvent.clientX - bounds.left) / bounds.width),
+				y: clampFraction((moveEvent.clientY - bounds.top) / bounds.height),
+			};
+			setDragToolbar(next);
+		}
+		function onUp() {
+			document.removeEventListener("pointermove", onMove);
+			document.removeEventListener("pointerup", onUp);
+			setDragToolbar(null);
+			editorRef.current.updateBlock(blockRef.current, {
+				type: "drawing",
+				props: { toolbarX: next.x, toolbarY: next.y },
+			});
+		}
+		document.addEventListener("pointermove", onMove);
+		document.addEventListener("pointerup", onUp);
+	}
+
 	function startHeightDrag(event: React.PointerEvent) {
 		if (fullscreen || !editor.isEditable) {
 			return;
@@ -334,6 +545,7 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 			)}
 		>
 			<div
+				ref={canvasBoxRef}
 				className={cn("relative", fullscreen && "min-h-0 flex-1")}
 				style={fullscreen ? undefined : { height: canvasHeight }}
 			>
@@ -347,6 +559,7 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 							onChange={handleCanvasChange as never}
 							viewModeEnabled={!active || !editable}
 							theme={darkTheme ? "dark" : "light"}
+							UIOptions={UI_OPTIONS as never}
 						/>
 					</div>
 				) : (
@@ -375,45 +588,46 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 					/>
 				) : null}
 
+				{active && editable && Excalidraw ? (
+					<DrawingToolbar
+						activeTool={activeTool}
+						position={toolbarPosition}
+						onSelectTool={selectTool}
+						onDragStart={startToolbarDrag}
+					/>
+				) : null}
+
 				<div
 					className={cn(
-						"absolute right-1.5 top-1.5 z-20 flex items-center gap-0.5 rounded-md",
-						"bg-popover/80 p-0.5 shadow-sm backdrop-blur-sm",
-						"opacity-0 transition-opacity group-hover/drawing:opacity-100 focus-within:opacity-100",
-						active && "opacity-100",
+						"absolute right-2 top-2 z-20 flex items-center gap-0.5 rounded-lg",
+						"border border-border/60 bg-popover/70 p-1 shadow-md backdrop-blur-md",
+						"opacity-0 transition-all duration-200 group-hover/drawing:opacity-100 focus-within:opacity-100",
+						active
+							? "opacity-100"
+							: "translate-y-[-2px] group-hover/drawing:translate-y-0",
 					)}
 				>
 					{editable ? (
 						active ? (
-							<button
-								type="button"
-								className={HEADER_ICON_BUTTON}
-								aria-label="Done drawing"
-								title="Done (Esc)"
-								onMouseDown={(event) => event.preventDefault()}
+							<ToolbarButton
+								icon={CheckIcon}
+								label="Done drawing"
+								hint="Done (Esc)"
 								onClick={deactivate}
-							>
-								<Check className="h-3.5 w-3.5" strokeWidth={1.8} />
-							</button>
+							/>
 						) : (
-							<button
-								type="button"
-								className={HEADER_ICON_BUTTON}
-								aria-label="Edit drawing"
-								title="Edit"
-								onMouseDown={(event) => event.preventDefault()}
+							<ToolbarButton
+								icon={SprayCanIcon}
+								label="Edit drawing"
+								hint="Edit"
 								onClick={() => setActive(true)}
-							>
-								<Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
-							</button>
+							/>
 						)
 					) : null}
-					<button
-						type="button"
-						className={HEADER_ICON_BUTTON}
-						aria-label={fullscreen ? "Exit fullscreen" : "Edit fullscreen"}
-						title={fullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"}
-						onMouseDown={(event) => event.preventDefault()}
+					<ToolbarButton
+						icon={fullscreen ? ChevronsRightLeftIcon : MoveDiagonalIcon}
+						label={fullscreen ? "Exit fullscreen" : "Edit fullscreen"}
+						hint={fullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"}
 						onClick={() => {
 							if (fullscreen) {
 								setFullscreen(false);
@@ -424,13 +638,7 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 								setActive(true);
 							}
 						}}
-					>
-						{fullscreen ? (
-							<Minimize2 className="h-3.5 w-3.5" strokeWidth={1.8} />
-						) : (
-							<Maximize2 className="h-3.5 w-3.5" strokeWidth={1.8} />
-						)}
-					</button>
+					/>
 				</div>
 			</div>
 
@@ -459,6 +667,12 @@ export const createDrawing = createReactBlockSpec(
 			},
 			height: {
 				default: DEFAULT_CANVAS_HEIGHT,
+			},
+			toolbarX: {
+				default: DEFAULT_TOOLBAR_X,
+			},
+			toolbarY: {
+				default: DEFAULT_TOOLBAR_Y,
 			},
 		},
 		content: "none" as const,

@@ -78,6 +78,7 @@ export const updateNoteInputSchema = z
 		properties: notePropertiesSchema.optional(),
 		icon: z.string().max(32).optional(),
 		cover: z.string().max(2048).optional(),
+		annotationScene: z.string().max(2_000_000).optional(),
 		createCheckpoint: z.boolean().optional(),
 		sessionVersionId: uuidSchema.nullable().optional(),
 		// When false, the save must not auto-rename the note from its first
@@ -97,6 +98,7 @@ export const updateNoteInputSchema = z
 			input.properties !== undefined ||
 			input.icon !== undefined ||
 			input.cover !== undefined ||
+			input.annotationScene !== undefined ||
 			input.createCheckpoint !== undefined ||
 			input.sessionVersionId !== undefined,
 		{ message: "At least one field must be provided." },

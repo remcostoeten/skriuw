@@ -71,7 +71,6 @@ export function SidebarTreeRowSkeleton({
 				opacity: Math.max(0.22, 1 - index * 0.04),
 			}}
 		>
-			<Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.45} />
 			<SkeletonLine
 				className="h-2.5 max-w-full"
 				style={{ width: `${width}%` }}
@@ -154,10 +153,7 @@ function JournalSectionSkeleton() {
 							key={day ? format(day, "yyyy-MM-dd") : index}
 							className={cn(
 								"relative flex h-7 w-full items-center justify-center border border-transparent text-[11px]",
-								day &&
-									now &&
-									!isSameMonth(day, now) &&
-									"text-muted-foreground/30",
+								day && now && !isSameMonth(day, now) && "text-muted-foreground/30",
 								day &&
 									now &&
 									isSameMonth(day, now) &&

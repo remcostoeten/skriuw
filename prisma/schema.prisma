@@ -185,6 +185,7 @@ model Note {
   properties            Json?                  @map("properties")
   icon                  String?
   cover                 String?
+  annotationScene       String?                @map("annotation_scene")
   journalMeta           Json?                  @map("journal_meta")
   versions              NoteVersion[]
   outgoingLinks         NoteLink[]             @relation("NoteOutgoingLinks")
