@@ -41,6 +41,11 @@ const config: NextConfig = {
 			static: 300,
 		},
 	},
+	// A stray ~/package-lock.json makes Turbopack infer the wrong workspace
+	// root; pin it to the monorepo root.
+	turbopack: {
+		root: path.join(import.meta.dirname, "../.."),
+	},
 	serverExternalPackages: ["@prisma/client", "@prisma/adapter-pg"],
 	async headers() {
 		return [
