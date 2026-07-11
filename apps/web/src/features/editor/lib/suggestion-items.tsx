@@ -25,6 +25,7 @@ import {
 	serializeGraph,
 } from "@/features/diagram/graph";
 import { DEFAULT_FILE_TREE_SOURCE } from "@/shared/lib/file-tree";
+import { DEFAULT_DRAWING_SCENE } from "@/shared/lib/drawing";
 import { extractNoteTags, getNoteSearchableContent, getNoteTitle } from "@/domain/notes/note-links";
 import type { AiAction } from "@/features/ai/service";
 import type { Person } from "@/domain/people/models";
@@ -289,6 +290,20 @@ export function getCustomSlashMenuItems(
 				insertOrUpdateBlockForSlashMenu(editor, {
 					type: "fileTree",
 					props: { source: DEFAULT_FILE_TREE_SOURCE },
+					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+				} as any);
+			},
+		},
+		{
+			title: "Drawing",
+			aliases: ["draw", "sketch", "canvas", "excalidraw", "whiteboard"],
+			group: "Structure",
+			icon: <PenTool size={16} />,
+			subtext: "Insert an interactive drawing canvas",
+			onItemClick: () => {
+				insertOrUpdateBlockForSlashMenu(editor, {
+					type: "drawing",
+					props: { scene: DEFAULT_DRAWING_SCENE },
 					// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
 				} as any);
 			},
