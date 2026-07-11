@@ -240,7 +240,7 @@ export function EditorPaneHost({
 								transition: { duration: 0.16, ease: [0.23, 1, 0.32, 1] },
 							}
 				}
-				className="flex min-h-0 flex-1 flex-col"
+				className="flex min-h-0 min-w-0 flex-1 flex-col"
 			>
 				{sharingNoteId ? (
 					<ShareScreen
