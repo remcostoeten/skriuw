@@ -1,3 +1,4 @@
+import { cacheLife, cacheTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import type { SeedBundlePayload, SeedFolder, SeedJournalEntry, SeedNote, SeedTag } from "./types";
 
@@ -18,6 +19,10 @@ function asArray<T>(value: unknown): T[] {
  * design (see ADMIN_SEED_PLAN.md §1).
  */
 export async function loadActiveSeedBundle(): Promise<ActiveSeedBundle | null> {
+	"use cache";
+	cacheTag("seed-bundle");
+	cacheLife("hours");
+
 	const row = await prisma.seedBundle.findFirst({
 		where: { isActive: true },
 		select: {

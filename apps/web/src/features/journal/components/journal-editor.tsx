@@ -11,10 +11,8 @@ import type { JournalAiAction, JournalAiController } from "../hooks/use-journal-
 import dynamic from "next/dynamic";
 import { PlainTextEditor } from "./plain-text-editor";
 import { EditorContentSkeleton } from "@/features/editor/components/editor-content-skeleton";
-import {
-	AiWritingIndicator,
-	type AiWritingAction,
-} from "@/features/editor/components/ai-writing-indicator";
+import { AiWritingIndicator } from "@/features/editor/components/ai-writing-indicator";
+import type { AiWritingAction } from "@/features/editor/components/ai-writing-constants";
 import { useNotes } from "@/features/notes/hooks/use-notes";
 import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
 import {

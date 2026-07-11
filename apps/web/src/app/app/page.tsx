@@ -32,6 +32,8 @@ export const metadata: Metadata = {
 	},
 };
 
+export const instant = false;
+
 export default async function AppHomePage(props: {
 	searchParams?: Promise<Record<string, string>>;
 }) {

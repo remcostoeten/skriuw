@@ -19,6 +19,13 @@ export const revalidateTag = function () {};
 export const unstable_cache = function <T>(fn: T): T {
 	return fn;
 };
+export const cacheTag = function () {};
+export const cacheLife = function () {};
+export const revalidate = function () {};
+export const updateTag = function () {};
+export const refresh = function () {};
+export const expireTag = function () {};
+export const expirePath = function () {};
 
 export class NextResponse {}
 export class NextRequest {}
