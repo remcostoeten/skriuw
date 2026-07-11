@@ -21,6 +21,11 @@ type InlineHit = {
 
 const TAG_PATTERN = /(^|[\s([{])#([a-zA-Z][a-zA-Z0-9_-]{1,31})\b/g;
 const WIKI_LINK_PATTERN = /\[\[([^\]\n|]+?)(?:\|([^\]\n]+?))?\]\]/g;
+// The markdown form of a `$person` chip: `$[Name](person://id)`. The id is the
+// durable reference (names resolve live from the People store); the label is a
+// cached fallback. Mirrors `[label](note://id)` so person mentions survive
+// markdown round-trips instead of degrading to plain `$Name` text.
+export const PERSON_LINK_PATTERN = /\$\[([^\]\n]*?)\]\(person:\/\/([^)\n\s]+?)\)/g;
 const INLINE_LINK_PATTERN = /\[([^\]\n]+?)\]\(([^)\n\s]+?)(?:\s+"[^"]*")?\)/g;
 const CODE_SPAN_PATTERN = /(?<!`)`([^`\n]+?)`(?!`)/g;
 const BOLD_STAR_PATTERN = /\*\*((?:[^*\n]|\*(?!\*))+?)\*\*/g;
@@ -59,6 +64,18 @@ function findInlineHits(text: string): InlineHit[] {
 			start,
 			end: start + match[0].length,
 			produce: () => [{ type: "noteLink", props: { title } }],
+		});
+	}
+
+	for (const match of text.matchAll(PERSON_LINK_PATTERN)) {
+		const name = match[1]?.trim() ?? "";
+		const id = match[2]?.trim();
+		if (!id) continue;
+		const start = match.index ?? 0;
+		hits.push({
+			start,
+			end: start + match[0].length,
+			produce: () => [{ type: "person", props: { id, name } }],
 		});
 	}
 
@@ -299,6 +316,22 @@ function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
 	});
 }
 
+/**
+ * Serializes a `person` chip's props to its markdown form `$[Name](person://id)`.
+ * The cached name is only a display fallback, so characters that would break
+ * the link syntax are dropped from the label. Returns `$Name` when the chip has
+ * no id (nothing durable to reference) and `""` when it has neither.
+ */
+function personChipToMarkdown(props: Record<string, unknown> | undefined): string {
+	const id = String(props?.id ?? "").trim();
+	const name = String(props?.name ?? "")
+		.replace(/[[\]\n]/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+	if (!id) return name ? `$${name}` : "";
+	return `$[${name}](person://${id})`;
+}
+
 export function flattenInlineChips(blocks: Block[] | PartialBlock[]): PartialBlock[] {
 	return (blocks as PartialBlock[]).map((block) => {
 		const blockType = String(block.type ?? "");
@@ -342,6 +375,11 @@ export function flattenInlineChips(blocks: Block[] | PartialBlock[]): PartialBlo
 					const name = String(inline.props?.name ?? "").trim();
 					if (!name) return [];
 					return [{ type: "text", text: `$${name}`, styles: {} }];
+				}
+				if (inline?.type === "person") {
+					const markdown = personChipToMarkdown(inline.props);
+					if (!markdown) return [];
+					return [{ type: "text", text: markdown, styles: {} }];
 				}
 				return [inline];
 				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible content
@@ -792,6 +830,10 @@ function inlineNodeToSearchableMarkdown(inline: unknown): string {
 	if (node.type === "user") {
 		const name = String(node.props?.name ?? "").trim();
 		return name ? `$${name}` : "";
+	}
+
+	if (node.type === "person") {
+		return personChipToMarkdown(node.props);
 	}
 
 	if (node.type === "link" && Array.isArray(node.content)) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useImperativeHandle, useRef, useState } from "react";
 import Image from "next/image";
 import {
 	Check,
@@ -233,6 +233,24 @@ function useCoverUpload(
 
 type CoverUpload = ReturnType<typeof useCoverUpload>;
 
+/** Upload flow for cover actions embedded in an external context menu (the editor body). */
+export function useNoteCoverMenu(onCoverChange: (cover: string) => void): CoverUpload {
+	return useCoverUpload(onCoverChange, undefined, (value) => pendingCoverEdits.add(value));
+}
+
+/** Hidden file input backing a cover upload; render it outside the menu so it survives menu close. */
+export function NoteCoverUploadInput({ upload }: { upload: CoverUpload }) {
+	return (
+		<input
+			ref={upload.fileInputRef}
+			type="file"
+			accept="image/png,image/jpeg,image/webp,image/gif"
+			className="hidden"
+			onChange={upload.handleFileSelected}
+		/>
+	);
+}
+
 type DragState = {
 	pointerX: number;
 	pointerY: number;
@@ -368,9 +386,13 @@ function useCoverReposition({
 	};
 }
 
-/** Applies a just-uploaded cover's pending edit handoff during render, before paint. */
+/**
+ * Applies a just-uploaded cover's pending edit handoff during render, before
+ * paint. Starts at `null` so a banner that mounts *because of* the upload
+ * (first cover on a note) also picks up the handoff.
+ */
 function useCoverEditHandoff(cover: string, imageCover: boolean, onHandoff: () => void) {
-	const prevCoverRef = useRef(cover);
+	const prevCoverRef = useRef<string | null>(null);
 
 	if (cover !== prevCoverRef.current) {
 		prevCoverRef.current = cover;
@@ -571,15 +593,17 @@ function CoverBannerSurface({
 function CoverChangeSubmenu({
 	onCoverChange,
 	upload,
+	label = "Change cover",
 }: {
 	onCoverChange: (cover: string) => void;
 	upload: CoverUpload;
+	label?: string;
 }) {
 	return (
 		<ContextMenuSub>
 			<ContextMenuSubTrigger>
 				<ImageIcon className="mr-2 h-3.5 w-3.5" />
-				Change cover
+				{label}
 			</ContextMenuSubTrigger>
 			<ContextMenuSubContent className="w-[196px]">
 				<div className="grid grid-cols-3 gap-1.5 p-1">
@@ -659,6 +683,63 @@ function CoverContextMenu({
 	);
 }
 
+/**
+ * Cover section for the editor body's context menu: an "Add cover" submenu
+ * when the note has none, the full edit set (view, reposition, change,
+ * remove) under a "Cover" submenu when it does.
+ */
+export function NoteCoverMenuItems({
+	cover,
+	onCoverChange,
+	upload,
+	onViewFullSize,
+	onReposition,
+}: {
+	cover: string;
+	onCoverChange: (cover: string) => void;
+	upload: CoverUpload;
+	onViewFullSize: () => void;
+	onReposition: () => void;
+}) {
+	if (!cover) {
+		return (
+			<CoverChangeSubmenu label="Add cover" onCoverChange={onCoverChange} upload={upload} />
+		);
+	}
+	return (
+		<ContextMenuSub>
+			<ContextMenuSubTrigger>
+				<ImageIcon className="mr-2 h-3.5 w-3.5" />
+				Cover
+			</ContextMenuSubTrigger>
+			<ContextMenuSubContent className="w-52">
+				{isImageCover(cover) && (
+					<>
+						<ContextMenuItem onSelect={onViewFullSize}>
+							<Expand className="mr-2 h-3.5 w-3.5" />
+							View full size
+						</ContextMenuItem>
+						<ContextMenuItem onSelect={onReposition}>
+							<MoveVertical className="mr-2 h-3.5 w-3.5" />
+							Reposition
+						</ContextMenuItem>
+						<ContextMenuSeparator />
+					</>
+				)}
+				<CoverChangeSubmenu onCoverChange={onCoverChange} upload={upload} />
+				<ContextMenuSeparator />
+				<ContextMenuItem
+					className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+					onSelect={() => onCoverChange("")}
+				>
+					<Trash2 className="mr-2 h-3.5 w-3.5" />
+					Remove cover
+				</ContextMenuItem>
+			</ContextMenuSubContent>
+		</ContextMenuSub>
+	);
+}
+
 function CoverLightboxDialog({
 	open,
 	onOpenChange,
@@ -689,13 +770,20 @@ function CoverLightboxDialog({
 	);
 }
 
+export type NoteCoverBannerHandle = {
+	beginReposition: () => void;
+	openLightbox: () => void;
+};
+
 type BannerProps = {
 	cover: string;
 	/** When provided, the banner becomes interactive: right-click menu, lightbox, reposition. */
 	onCoverChange?: (cover: string) => void;
+	/** Lets an external menu (the editor body's context menu) drive banner edit actions. */
+	ref?: React.Ref<NoteCoverBannerHandle>;
 };
 
-export function NoteCoverBanner({ cover, onCoverChange }: BannerProps) {
+export function NoteCoverBanner({ cover, onCoverChange, ref }: BannerProps) {
 	const [lightboxOpen, setLightboxOpen] = useState(false);
 	const bannerRef = useRef<HTMLDivElement>(null);
 	const { position: savedPosition } = splitCoverPosition(cover);
@@ -722,6 +810,11 @@ export function NoteCoverBanner({ cover, onCoverChange }: BannerProps) {
 	const imageCover = isImageCover(cover);
 
 	useCoverEditHandoff(cover, imageCover, startRepositioning);
+
+	useImperativeHandle(ref, () => ({
+		beginReposition,
+		openLightbox: () => setLightboxOpen(true),
+	}));
 
 	const coverHeight = draftHeight ?? savedPosition.height;
 	const bannerStyle = {
@@ -769,13 +862,7 @@ export function NoteCoverBanner({ cover, onCoverChange }: BannerProps) {
 				onCoverChange={onCoverChange}
 			/>
 
-			<input
-				ref={upload.fileInputRef}
-				type="file"
-				accept="image/png,image/jpeg,image/webp,image/gif"
-				className="hidden"
-				onChange={upload.handleFileSelected}
-			/>
+			<NoteCoverUploadInput upload={upload} />
 
 			<CoverLightboxDialog
 				open={lightboxOpen}
@@ -850,13 +937,7 @@ function PickerUploadSection({ upload }: { upload: CoverUpload }) {
 			<p className="mb-1.5 mt-3 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
 				Upload
 			</p>
-			<input
-				ref={upload.fileInputRef}
-				type="file"
-				accept="image/png,image/jpeg,image/webp,image/gif"
-				className="hidden"
-				onChange={upload.handleFileSelected}
-			/>
+			<NoteCoverUploadInput upload={upload} />
 			<button
 				type="button"
 				onClick={upload.openFilePicker}

@@ -26,11 +26,17 @@ const CONNECTOR_PATTERN = /(?:\|--|`--|\u251c\u2500\u2500|\u2514\u2500\u2500)/;
 const FILE_TREE_LANGUAGES = new Set(["filetree", "tree"]);
 
 export const DEFAULT_FILE_TREE_SOURCE = `Skriuw workspace
-|-- Welcome to Skriuw
-|-- Skriuw handbook
-\`-- Guides/
-    \`-- Workflows/
-        \`-- From idea to published note`;
+|-- Start here/
+|   |-- Skriuw, at a glance
+|   \`-- Make this yours
+|-- Product launch/
+|   |-- Launch brief
+|   |-- Research/
+|   |   \`-- Audience signals
+|   \`-- Delivery/
+|       \`-- Ship checklist
+\`-- Reference/
+    \`-- Your connected workspace`;
 
 function removeCommonIndent(lines: string[]): string[] {
 	const indents = lines.flatMap((line) =>

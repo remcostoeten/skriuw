@@ -167,6 +167,9 @@
 		],
 		"*.{json,css,md,html}": [
 			"oxfmt"
+		],
+		"apps/documentation/content/**/*.{md,mdx}": [
+			"node scripts/no-emdash.mjs"
 		]
 	},
 	"engines": {

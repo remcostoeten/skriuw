@@ -1101,6 +1101,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			if (isMobile) {
 				setUIState({ showSidebar: false });
 			}
+			window.setTimeout(() => focusActiveEditor(), 0);
 		},
 		[
 			creationParentFolderId,

@@ -308,6 +308,64 @@ describe("extractRichDocumentPersonIds", () => {
 	});
 });
 
+describe("person mention markdown round-trip", () => {
+	const personDocument = [
+		{
+			id: "b1",
+			type: "paragraph",
+			props: {},
+			content: [
+				{ type: "text", text: "Met ", styles: {} },
+				{ type: "person", props: { id: "p1", name: "Alex" } },
+				{ type: "text", text: " today", styles: {} },
+			],
+			children: [],
+		},
+	] as unknown as RichTextDocument;
+
+	test("flattenInlineChips serializes a person chip as $[Name](person://id)", () => {
+		const flattened = flattenInlineChips(personDocument);
+		const content = (flattened[0] as { content?: Array<{ text?: string }> }).content ?? [];
+		expect(content.map((node) => node.text).join("")).toBe(
+			"Met $[Alex](person://p1) today",
+		);
+	});
+
+	test("richDocumentToSearchableMarkdown keeps the person id", () => {
+		expect(richDocumentToSearchableMarkdown(personDocument)).toContain(
+			"$[Alex](person://p1)",
+		);
+	});
+
+	test("markdownToRichDocument parses $[Name](person://id) back into a person chip", () => {
+		const document = markdownToRichDocument("Met $[Alex](person://p1) today");
+		const content = (document[0] as { content?: unknown[] }).content ?? [];
+		const person = content.find(
+			(node) => (node as { type?: string }).type === "person",
+		) as { props?: { id?: string; name?: string } } | undefined;
+		expect(person?.props?.id).toBe("p1");
+		expect(person?.props?.name).toBe("Alex");
+		expect(
+			content.some((node) => (node as { type?: string }).type === "link"),
+		).toBe(false);
+	});
+
+	test("a person chip without an id degrades to plain $Name text", () => {
+		const noIdDocument = [
+			{
+				id: "b1",
+				type: "paragraph",
+				props: {},
+				content: [{ type: "person", props: { id: "", name: "Alex" } }],
+				children: [],
+			},
+		] as unknown as RichTextDocument;
+		const flattened = flattenInlineChips(noIdDocument);
+		const content = (flattened[0] as { content?: Array<{ text?: string }> }).content ?? [];
+		expect(content.map((node) => node.text).join("")).toBe("$Alex");
+	});
+});
+
 describe("upgradeRichDocumentChips", () => {
 	test("re-parses stringified inline content into structured chips", () => {
 		const document = [

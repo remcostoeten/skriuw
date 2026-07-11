@@ -2,6 +2,11 @@
 # Its Rust target dir alone is ~5GB.
 apps/desktop
 
+# Mobile (Expo/React Native) app — not part of the Vercel web deployment.
+# Its Android build outputs include 150MB native .so files that exceed
+# Vercel's 100MB per-file upload limit.
+apps/mobile
+
 # Build artifacts / caches
 .next
 node_modules

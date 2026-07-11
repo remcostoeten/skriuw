@@ -9,7 +9,7 @@ description: "The Chrome MV3 extension that saves pages, articles, and selection
 
 | Part | Role |
 | --- | --- |
-| `popup` | The toolbar UI — pick a destination folder, add tags, and trigger a capture. Also shows recent sync activity and token expiry warnings. |
+| `popup` | The toolbar UI - pick a destination folder, add tags, and trigger a capture. Also shows recent sync activity and token expiry warnings. |
 | `options` | Extension settings, including managing sync tokens. |
 | `content/extract.ts` | Runs in the page, converting the full article or a selection to Markdown. |
 | `background` | Service worker that queues and sends capture requests. |
@@ -21,7 +21,7 @@ The extension never uses the web session cookie. It authenticates with a **Beare
 
 ## Sync API
 
-The extension talks to a small set of routes under `apps/web/src/app/api/sync/`, all authenticated by Bearer token rather than session cookie (so wildcard CORS is safe — a request with no write-scoped token creates nothing):
+The extension talks to a small set of routes under `apps/web/src/app/api/sync/`, all authenticated by Bearer token rather than session cookie (so wildcard CORS is safe - a request with no write-scoped token creates nothing):
 
 | Route | Purpose |
 | --- | --- |
@@ -32,4 +32,4 @@ The extension talks to a small set of routes under `apps/web/src/app/api/sync/`,
 | `sync/activity` | Recent capture events, shown in the popup. |
 | `sync/export` | Bulk export over the same Bearer-token auth. |
 
-`sync/capture` is built on `domain/notes/note-write-core.ts` — the same note-creation path used elsewhere in the app, so a clipped note is a normal note with no separate code path to keep in sync.
+`sync/capture` is built on `domain/notes/note-write-core.ts` - the same note-creation path used elsewhere in the app, so a clipped note is a normal note with no separate code path to keep in sync.

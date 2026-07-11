@@ -3,7 +3,10 @@
 import { getAuthenticatedUser } from "@/core/db";
 import { Prisma } from "@/generated/prisma/client";
 import { assertResourceIdAvailable, isRecordNotFoundError } from "@/core/persistence/guards";
-import { syncJournalLinks } from "@/domain/journal/journal-link-sync";
+import {
+	backfillMissingJournalLinks,
+	syncJournalLinks,
+} from "@/domain/journal/journal-link-sync";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 import type { RichTextDocument } from "@/domain/notes/models";
 
@@ -78,7 +81,18 @@ export async function listJournalEntries(): Promise<JournalEntry[]> {
 		orderBy: { createdAt: "asc" },
 		select: ENTRY_SELECT,
 	});
-	return records.map(recordToEntry);
+	const entries = records.map(recordToEntry);
+	await backfillMissingJournalLinks(
+		prisma,
+		user.id,
+		entries.map((entry) => ({
+			id: entry.id,
+			content: entry.content,
+			richContent: entry.richContent ?? [],
+			tags: entry.tags,
+		})),
+	);
+	return entries;
 }
 
 export async function createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry> {

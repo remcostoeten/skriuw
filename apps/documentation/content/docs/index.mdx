@@ -3,22 +3,61 @@ title: "Skriuw"
 description: "A lightweight, fast, feature-rich personal knowledge base, a blend of Obsidian and Notion, built on Next.js and Tauri for native, sub-6 MB desktop binaries."
 ---
 
+**Skriuw** _(noun)_  
+/skrɪu̯/ — _Frisian, “to write.”_
+
+A fast, aesthetic, privacy focused built for people who prefer a full keyboard experience over a mouse. Providing minimalism, as well as opt-in packed with features only at 15mb due to it being build in Rust.
+
+Skriuw fits everyone's needs. Want no hassle? Use the hosted cloud version authentiated with email+password or oAuth.
+
+Feel like hosting your own in a serverless enviorment? Skriuw is fully open source so that is no problem.
+
+Prefer something on your own infrastructure? Skriuw is dockerized and will be setup within on time.
+
+You prefer to not store things in a database? Skriuw has a adapter pattern allowing for full local filesystem storage. Notes will get stored as `.md` on your prefered location without any telemetry.
+
+Skriuw runs in the cloud, authenticated with email and password, GitHub or Google oAuth as well as fully local on your filesystem without any telemetry. It's a single binary, with a native desktop app and a web app.
+
 For more background, see the [README](https://github.com/remcostoeten/skriuw#readme).
 
-Skriuw is a lightweight, fast, feature-rich personal knowledge base — a blend of Obsidian and Notion. Instead of Electron, the desktop build is native Rust via Tauri, which keeps the binary under 6 MB on Mac, Windows, and Linux.
+Skriuw is a note taking application that can be expanded
 
 Size isn't the only thing that makes it fast. Skriuw is keyboard-first: you can move through the entire app without touching the mouse, and every shortcut is customizable. See [Shortcuts](/reference/shortcuts) for the full list.
 
-### Table of contents
+### Explore the docs
 
-- [Stack & technology](#stack--technology)
-- [Desktop integration](#desktop-integration)
-- [Approach](#approach)
-- [Development features](/development/features)
-- [Architecture](/development/architecture)
-- [Note covers](/features/note-covers)
-- [Web clipper extension](/features/web-clipper-extension)
-- [Sync API keys](/reference/sync-api-keys)
+<Cards>
+  <Card
+    title="Development features"
+    href="/development/features"
+    description="The feature- and domain-sliced architecture, with a walkthrough of each feature domain in the codebase."
+  />
+  <Card
+    title="Architecture"
+    href="/development/architecture"
+    description="The WorkspaceBackend adapter contract, its server, local, and Tauri implementations, and the web-spa split."
+  />
+  <Card
+    title="Note covers"
+    href="/features/note-covers"
+    description="Add, reuse, position, and store cover images for notes on web and desktop."
+  />
+  <Card
+    title="Web clipper extension"
+    href="/features/web-clipper-extension"
+    description="The Chrome extension that saves pages, articles, and selections into Skriuw."
+  />
+  <Card
+    title="Sync API keys"
+    href="/reference/sync-api-keys"
+    description="How the clipper and desktop app authenticate against the web backend with bearer tokens."
+  />
+  <Card
+    title="Keyboard shortcuts"
+    href="/reference/shortcuts"
+    description="The keyboard-first model, the shortcut registry, and how bindings are re-assigned per device."
+  />
+</Cards>
 
 ## Stack & technology
 
@@ -28,10 +67,10 @@ The desktop client is Rust on Tauri 2.0. That addition also pushed the project i
 
 ### Desktop integration
 
-The desktop build doesn't ship the Next.js front-end — that surface is built around API routes and server actions, which don't translate to a native binary. Instead, [web-spa](https://github.com/remcostoeten/skriuw/tree/daddy/packages/web-spa/src) is a client-only React SPA that re-renders whatever was Next.js-specific or server-rendered, while sharing one platform-agnostic layer (UI, hooks, utilities, and read-only actions) with the web app.
+The desktop build doesn't ship the Next.js front-end - that surface is built around API routes and server actions, which don't translate to a native binary. Instead, [web-spa](https://github.com/remcostoeten/skriuw/tree/daddy/packages/web-spa/src) is a client-only React SPA that re-renders whatever was Next.js-specific or server-rendered, while sharing one platform-agnostic layer (UI, hooks, utilities, and read-only actions) with the web app.
 
 ### Approach
 
 Skriuw follows a domain-driven, feature-sliced structure, written in a functional style rather than OOP. See [Development features](/development/features) for the full list of feature domains.
 
-Back-end access goes through a single adapter interface (`WorkspaceBackend`) with three implementations — server, local, and Tauri — so feature code never branches on auth state or platform. See [Architecture](/development/architecture) for the full contract.
+Back-end access goes through a single adapter interface (`WorkspaceBackend`) with three implementations - server, local, and Tauri - so feature code never branches on auth state or platform. See [Architecture](/development/architecture) for the full contract.

@@ -42,6 +42,16 @@ export type JournalLinkSource = {
 	tags?: string[];
 };
 
+export type JournalLinkBackfillDb = JournalLinkSyncDb & {
+	journalLink: {
+		findMany(args: {
+			where: { userId: string };
+			select: { sourceJournalId: true };
+			distinct: ["sourceJournalId"];
+		}): Promise<Array<{ sourceJournalId: string }>>;
+	};
+};
+
 function linkKey(link: Pick<PersistedJournalLinkRow, "kind" | "targetLabel">): string {
 	return `${link.kind}:${link.targetLabel}`;
 }
@@ -64,6 +74,32 @@ export function buildDesiredJournalLinkRows(
 		targetLabel: target.targetLabel,
 		kind: target.kind,
 	}));
+}
+
+// Entries saved before journal link indexing shipped have no journal_links
+// rows, leaving their #tags and $person mentions invisible to the graph and
+// the tag/people pages until re-saved. Indexes those entries once on read.
+export async function backfillMissingJournalLinks(
+	db: JournalLinkBackfillDb,
+	userId: string,
+	entries: JournalLinkSource[],
+): Promise<number> {
+	const indexed = new Set(
+		(
+			await db.journalLink.findMany({
+				where: { userId },
+				select: { sourceJournalId: true },
+				distinct: ["sourceJournalId"],
+			})
+		).map((row) => row.sourceJournalId),
+	);
+
+	const missing = entries.filter(
+		(entry) =>
+			!indexed.has(entry.id) && buildDesiredJournalLinkRows(userId, entry).length > 0,
+	);
+	await Promise.all(missing.map((entry) => syncJournalLinks(db, userId, entry)));
+	return missing.length;
 }
 
 export async function syncJournalLinks(

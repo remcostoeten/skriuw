@@ -130,7 +130,7 @@ export const CustomSection = memo(function CustomSection({
 						<div
 							key={folder.id}
 							className={cn(
-								"group flex w-full items-center gap-2 border border-transparent px-2 text-xs text-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground [@media(pointer:coarse)]:min-h-11",
+								"group flex w-full items-center gap-1.5 border border-transparent px-2 text-xs text-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-foreground [@media(pointer:coarse)]:min-h-11",
 								compactMode ? "h-6" : "h-7",
 							)}
 						>
@@ -154,7 +154,7 @@ export const CustomSection = memo(function CustomSection({
 						<div
 							key={file.id}
 							className={cn(
-								"group flex w-full items-center gap-2 border border-transparent px-2 text-xs transition-colors [@media(pointer:coarse)]:min-h-11",
+								"group flex w-full items-center gap-1.5 border border-transparent px-2 text-xs transition-colors [@media(pointer:coarse)]:min-h-11",
 								compactMode ? "h-6" : "h-7",
 								file.id === activeFileId
 									? "border-border bg-muted text-foreground"
@@ -165,8 +165,13 @@ export const CustomSection = memo(function CustomSection({
 								type="button"
 								onClick={() => onFileSelect(file.id)}
 								onPointerEnter={() => onFilePrefetch?.(file.id)}
-								className="flex min-w-0 flex-1 items-center gap-2 text-left"
+								className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
 							>
+								<SidebarItemIcon
+									kind="file"
+									size={14}
+									className="shrink-0 text-muted-foreground/70"
+								/>
 								<span className="truncate">{file.name}</span>
 							</button>
 							<button

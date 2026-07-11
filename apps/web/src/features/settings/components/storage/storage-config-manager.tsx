@@ -67,6 +67,10 @@ function formatDate(value: string | null) {
 	return DATE_FORMATTER.format(new Date(value));
 }
 
+function FormattedDate({ value }: { value: string | null }) {
+	return <span suppressHydrationWarning>{formatDate(value)}</span>;
+}
+
 function StatusBadge({ status }: { status: string }) {
 	const ok = status === "valid";
 	return (
@@ -234,7 +238,7 @@ export function StorageConfigManager({ isSignedIn }: { isSignedIn: boolean }) {
 							</p>
 							<p className="flex items-center gap-1 text-xs text-muted-foreground/70">
 								<Clock className="h-3 w-3" />
-								Verified {formatDate(config.lastTestedAt)}
+								Verified <FormattedDate value={config.lastTestedAt} />
 							</p>
 						</div>
 						<DeleteButton
