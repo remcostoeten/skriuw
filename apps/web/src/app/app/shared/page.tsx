@@ -3,8 +3,7 @@ import { getSharedNotesOverview } from "@/domain/sharing/overview";
 import { SharedWorkspace } from "@/features/sharing/components/shared-workspace";
 import { SharedWorkspaceShell } from "@/features/sharing/components/shared-workspace-shell";
 
-// View activity must reflect live opens, never a cached snapshot.
-export const dynamic = "force-dynamic";
+export const instant = false;
 
 export default async function SharedNotesRoute() {
 	// Sharing is account-only. getSharedNotesOverview() calls

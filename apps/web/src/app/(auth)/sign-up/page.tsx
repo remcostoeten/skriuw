@@ -13,6 +13,8 @@ export const metadata: Metadata = {
 	},
 };
 
+export const instant = false;
+
 export default function SignUpPage() {
 	redirect("/app?auth=sign-up");
 }

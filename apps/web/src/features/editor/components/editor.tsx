@@ -254,7 +254,7 @@ export function Editor({
 	}, [file, onScrollPositionChange]);
 
 	const containerClass = cn(
-		"flex min-h-full flex-1 flex-col overflow-y-auto overscroll-contain bg-card",
+		"flex min-h-full min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-card",
 		isPaneFocused === false && "opacity-95",
 		isPaneFocused === true && "ring-1 ring-inset ring-foreground/12",
 	);

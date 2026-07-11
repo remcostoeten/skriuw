@@ -7,6 +7,8 @@ import { JournalContentSkeleton } from "@/features/journal/components/journal-co
 import { JournalPageLayout } from "@/features/journal/components/journal-page-layout";
 import { journalKeys } from "@/features/journal/hooks/journal-keys";
 
+export const instant = false;
+
 export default async function JournalPage() {
 	return <JournalContent />;
 }
