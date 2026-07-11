@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { peekShare } from "@/domain/sharing/public";
@@ -52,10 +53,9 @@ export async function generateMetadata({
 	};
 }
 
-// Snapshots can change (re-publish, expiry, consumption) — never statically cache.
-export const dynamic = "force-dynamic";
+export const instant = false;
 
-export default async function PublicSharePage({ params }: { params: Promise<{ token: string }> }) {
+async function PublicShareContent({ params }: { params: Promise<{ token: string }> }) {
 	const { token } = await params;
 	const peek = await peekShare(token);
 
@@ -72,5 +72,13 @@ export default async function PublicSharePage({ params }: { params: Promise<{ to
 			viewOnce={peek.viewOnce}
 			initialCollabStatus={initialCollabStatus}
 		/>
+	);
+}
+
+export default function PublicSharePage({ params }: { params: Promise<{ token: string }> }) {
+	return (
+		<Suspense>
+			<PublicShareContent params={params} />
+		</Suspense>
 	);
 }

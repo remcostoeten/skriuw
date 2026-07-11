@@ -7,6 +7,8 @@ import { buildGraphFromNotes } from "@/domain/notes/graph-from-notes";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { WorkspaceGraph } from "@/features/notes/components/workspace-graph";
 
+export const instant = false;
+
 export default async function GraphPage() {
 	const { user } = await getServerUser();
 	const queryClient = new QueryClient();

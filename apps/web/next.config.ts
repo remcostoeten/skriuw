@@ -6,6 +6,9 @@ const config: NextConfig = {
 	// Automatic memoization; replaces the hand-written memo()/useMemo sweeps
 	// that kept the notes layout shell from re-rendering per keystroke.
 	reactCompiler: true,
+	// 'use cache' + cacheTag/cacheLife; static shell prerenders, dynamic
+	// (cookie/session) reads must sit under Suspense.
+	cacheComponents: true,
 	output: process.env.DOCKER_BUILD ? "standalone" : undefined,
 	// This app lives in a bun workspace, so pin the standalone file-tracing root
 	// to the monorepo root. Without it Next only warns and infers the root, which

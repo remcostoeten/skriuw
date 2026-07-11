@@ -4,6 +4,8 @@ import { listPeople } from "@/domain/people/actions";
 import { peopleKeys } from "@/features/people/lib/people-keys";
 import { PeopleOverview } from "@/features/people/components/people-overview";
 
+export const instant = false;
+
 export default async function PeoplePage() {
 	const { user } = await getServerUser();
 	const queryClient = new QueryClient();
