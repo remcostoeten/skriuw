@@ -38,6 +38,7 @@
 		"postinstall": "prisma generate && husky",
 		"dev": "bun run --cwd apps/web dev",
 		"mobile": "bun run --cwd apps/mobile start",
+		"mobile:web": "bun run --cwd apps/mobile web",
 		"mobile:check": "bun run --cwd apps/mobile check",
 		"coverage:check": "bun scripts/coverage-tui.ts --json coverage.json --threshold=65",
 		"coverage:report": "bun scripts/coverage-tui.ts --markdown",
@@ -70,6 +71,7 @@
 	"dependencies": {
 		"@ai-sdk/google": "^3",
 		"@ai-sdk/groq": "^3",
+		"@better-auth/passkey": "^1.6.23",
 		"@blocknote/core": "^0.46.2",
 		"@blocknote/mantine": "0.46.2",
 		"@blocknote/react": "^0.46.2",
