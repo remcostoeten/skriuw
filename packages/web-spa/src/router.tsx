@@ -19,6 +19,7 @@ import { JournalPageLayout } from "@/features/journal/components/journal-page-la
 import { TrashView } from "@/features/notes/components/trash/trash-view";
 import { ActivityOverview } from "@/features/activity/components/activity-overview";
 import { SettingsModal } from "@/features/settings/components/settings-modal";
+import { TasksPage } from "@/features/tasks/components/tasks-page";
 
 const WorkspaceGraph = lazy(() =>
 	import("@/features/notes/components/workspace-graph").then((m) => ({
@@ -105,6 +106,12 @@ const journalRoute = createRoute({
 	component: JournalPageLayout,
 });
 
+const tasksRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/app/tasks",
+	component: TasksPage,
+});
+
 const trashRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/app/trash",
@@ -172,6 +179,7 @@ const routeTree = rootRoute.addChildren([
 	notesRoute,
 	graphRoute,
 	journalRoute,
+	tasksRoute,
 	trashRoute,
 	activityRoute,
 	tagsRoute,

@@ -222,6 +222,39 @@ export function RichTextEditor({
 					initialContent: initialBlocks,
 				},
 	);
+	// Only syncs checklist items already promoted to a task (block.props.taskId
+	// set via the checklist item's "Convert to task" action). Promotion itself
+	// is opt-in — every checkbox in a note is not a task by default.
+	const reconcileChecklistTasks = useCallback(
+		async (document: RichTextDocument) => {
+			if (!backend.capabilities.tasks || !backend.updateTask) return;
+			const blocks: any[] = [];
+			const visit = (items: any[]) => {
+				for (const block of items) {
+					if (block.type === "checkListItem" && block.props?.taskId) blocks.push(block);
+					if (Array.isArray(block.children)) visit(block.children);
+				}
+			};
+			visit(document as any[]);
+			await Promise.all(
+				blocks.map((block) => {
+					const title = Array.isArray(block.content)
+						? block.content
+								.map((node: any) => node.text ?? "")
+								.join("")
+								.trim()
+						: "";
+					if (!title) return;
+					return backend.updateTask?.({
+						id: block.props.taskId,
+						title,
+						status: block.props.checked ? "done" : "todo",
+					});
+				}),
+			);
+		},
+		[backend],
+	);
 	const editorDom = useEditorDom(editor);
 	useResolveVaultAssetImages(editorDom);
 	const vimModeEnabled = usePreferencesStore((state) => state.editor.vimMode);
@@ -402,11 +435,12 @@ export function RichTextEditor({
 		lastContentRef.current = markdown;
 		lastRichContentRef.current = nextRichContentKey;
 		onChange({ markdown, richContent: nextRichContent });
+		void reconcileChecklistTasks(nextRichContent);
 
 		window.setTimeout(() => {
 			isInternalChangeRef.current = false;
 		}, 80);
-	}, [editor, onChange, readOnly]);
+	}, [editor, onChange, readOnly, reconcileChecklistTasks]);
 
 	// Per-keystroke handler: cheap. It only re-arms the debounce timer; no
 	// serialization, cloning, or stringify happens here.
