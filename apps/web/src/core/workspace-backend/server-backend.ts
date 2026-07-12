@@ -43,12 +43,14 @@ import {
 	uploadNoteCoverImage,
 } from "@/domain/notes/note-cover-upload";
 import { searchNotes } from "@/features/notes/server/search-notes";
+import { createTask, deleteTask, listTasks, updateTask } from "@/domain/tasks/actions";
 import type { WorkspaceBackend } from "./types";
 
 export const serverBackend: WorkspaceBackend = {
 	mode: "server",
 	capabilities: {
 		journal: true,
+		tasks: true,
 		sharing: true,
 		collaboration: true,
 		notifications: true,
@@ -98,6 +100,11 @@ export const serverBackend: WorkspaceBackend = {
 	listJournalEntries,
 	createJournalTag,
 	deleteJournalTag,
+
+	listTasks,
+	createTask,
+	updateTask,
+	deleteTask,
 	listJournalTags,
 
 	listPeople,

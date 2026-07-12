@@ -16,7 +16,7 @@ import { normalizeStoredTagEntry, normalizeTagName } from "@/domain/tags/normali
 
 type TagDb = Pick<
 	PrismaClient,
-	"note" | "noteLink" | "noteTagMeta" | "journalEntry" | "journalLink"
+	"note" | "noteLink" | "noteTagMeta" | "journalEntry" | "journalLink" | "person"
 >;
 
 async function listTaggedJournalRecords(tx: TagDb, userId: string, name: string) {

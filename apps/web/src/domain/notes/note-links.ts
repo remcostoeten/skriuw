@@ -1,6 +1,9 @@
 /* eslint-disable */
 import type { NoteFile } from "@/types/notes";
-import { PERSON_LINK_PATTERN, richDocumentToSearchableMarkdown } from "@/domain/notes/rich-document";
+import {
+	PERSON_LINK_PATTERN,
+	richDocumentToSearchableMarkdown,
+} from "@/domain/notes/rich-document";
 import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
 
 export type NoteLinkKind = "wiki" | "markdown-note-link";
@@ -142,6 +145,28 @@ export function extractMarkdownPersonIds(content: string): string[] {
 	}
 
 	return [...ids].toSorted((left, right) => left.localeCompare(right));
+}
+
+const BARE_PERSON_PATTERN = /(^|[\s([{])\$([a-zA-Z][a-zA-Z0-9_-]{1,31})\b/g;
+
+/**
+ * Names of every bare `$Name` person mention typed as plain text — i.e. a `$`
+ * mention that was never converted into a `$[Name](person://id)` chip (plain
+ * journal mode, or rich mode without picking from the mention menu). Requires
+ * a leading letter so `$100`/`$PATH`-style tokens starting with a digit are
+ * skipped, mirroring `TAG_PATTERN`.
+ */
+export function extractBarePersonNames(content: string): string[] {
+	const names = new Set<string>();
+
+	for (const match of searchableContent(content).matchAll(BARE_PERSON_PATTERN)) {
+		const name = match[2]?.trim();
+		if (name) {
+			names.add(name);
+		}
+	}
+
+	return [...names].toSorted((left, right) => left.localeCompare(right));
 }
 
 export function getWorkspaceTags(files: NoteFile[]): string[] {
