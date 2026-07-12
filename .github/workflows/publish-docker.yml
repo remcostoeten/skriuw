@@ -13,6 +13,11 @@ on:
         tags:
             - "v*.*.*"
     workflow_dispatch:
+        inputs:
+            version:
+                description: "Optional semver tags to publish from the selected branch (for example 0.21.0)"
+                required: false
+                type: string
 
 permissions:
     contents: read
@@ -43,6 +48,8 @@ jobs:
                   tags: |
                       type=semver,pattern={{version}}
                       type=semver,pattern={{major}}.{{minor}}
+                      type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version != '' }}
+                      type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version != '' }}
                       type=raw,value=latest,enable={{is_default_branch}}
                       type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
 
