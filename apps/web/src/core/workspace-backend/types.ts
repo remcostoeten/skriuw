@@ -13,6 +13,8 @@ import type {
 import type { Person } from "@/domain/people/models";
 import type { CreatePersonInput, UpdatePersonInput } from "@/domain/people/validation";
 import type { NotePropertyColor } from "@/domain/notes/properties";
+import type { Task } from "@/domain/tasks/models";
+import type { CreateTaskInput, UpdateTaskInput } from "@/domain/tasks/actions";
 
 /**
  * Feature switches a backend advertises so the UI can hide surfaces a given
@@ -22,6 +24,7 @@ import type { NotePropertyColor } from "@/domain/notes/properties";
  */
 export type WorkspaceCapabilities = {
 	journal: boolean;
+	tasks: boolean;
 	sharing: boolean;
 	collaboration: boolean;
 	notifications: boolean;
@@ -201,6 +204,12 @@ export type WorkspaceBackend = {
 	deleteJournalEntry(id: string): Promise<void>;
 	createJournalTag(input: CreateJournalTagInput): Promise<JournalTag>;
 	deleteJournalTag(id: string): Promise<void>;
+
+	/** Task lists are available to authenticated web workspaces and the local desktop vault. */
+	listTasks?(): Promise<Task[]>;
+	createTask?(input: CreateTaskInput): Promise<Task>;
+	updateTask?(input: UpdateTaskInput): Promise<Task | undefined>;
+	deleteTask?(id: string): Promise<void>;
 
 	/**
 	 * The shared workspace people directory backing `$mention` chips and

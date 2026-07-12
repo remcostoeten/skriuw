@@ -222,6 +222,24 @@ function GraphCanvas({
 		return hexToRgba(base, 0.1);
 	}, []);
 
+	// biome-ignore lint/suspicious/noExplicitAny: runtime node shape from force-graph
+	const nodeColorAccessor = useCallback(
+		(node: any): string => getNodeColor(node as GraphNode),
+		[getNodeColor],
+	);
+
+	// biome-ignore lint/suspicious/noExplicitAny: runtime node shape from force-graph
+	const nodeValAccessor = useCallback(
+		(node: any): number => nodeRadius(node as GraphNode, isMobile) ** 2,
+		[isMobile],
+	);
+
+	// biome-ignore lint/suspicious/noExplicitAny: runtime node shape from force-graph
+	const nodeLabelAccessor = useCallback((node: any): string => {
+		const typed = node as GraphNode;
+		return `${typed.label} · ${typed.degree} link${typed.degree === 1 ? "" : "s"}`;
+	}, []);
+
 	// biome-ignore lint/suspicious/noExplicitAny: runtime link shape from force-graph
 	const getLinkColor = useCallback((link: any): string => {
 		const hovered = hoveredIdRef.current;
@@ -274,10 +292,13 @@ function GraphCanvas({
 			const isTag = typed.type === "tag";
 			const isHub = typed.degree >= 4;
 
-			// Glow halo
-			if (isHovered || isHub) {
+			// Glow halo — shadowBlur is a software-rasterized blur with no GPU fast
+			// path, so it's reserved for the single hovered node. Hub nodes get a
+			// cheap stroked ring below instead (drawn per-frame for every hub, so
+			// it must be cheap).
+			if (isHovered) {
 				ctx.shadowColor = nodeColor(typed);
-				ctx.shadowBlur = isHovered ? 20 : 8;
+				ctx.shadowBlur = 20;
 			}
 
 			if (isTag) {
@@ -313,6 +334,12 @@ function GraphCanvas({
 				ctx.arc(typed.x, typed.y, r + 2.5, 0, 2 * Math.PI);
 				ctx.strokeStyle = hexToRgba(nodeColor(typed), 0.7);
 				ctx.lineWidth = 1.2 / globalScale;
+				ctx.stroke();
+			} else if (isHub) {
+				ctx.beginPath();
+				ctx.arc(typed.x, typed.y, r + 1.5, 0, 2 * Math.PI);
+				ctx.strokeStyle = hexToRgba(nodeColor(typed), 0.35);
+				ctx.lineWidth = 1 / globalScale;
 				ctx.stroke();
 			}
 
@@ -352,12 +379,9 @@ function GraphCanvas({
 					graphData={graphData}
 					backgroundColor="transparent"
 					nodeRelSize={1}
-					nodeVal={(node) => nodeRadius(node as GraphNode, isMobile) ** 2}
-					nodeColor={(node) => getNodeColor(node as GraphNode)}
-					nodeLabel={(node) => {
-						const typed = node as GraphNode;
-						return `${typed.label} · ${typed.degree} link${typed.degree === 1 ? "" : "s"}`;
-					}}
+					nodeVal={nodeValAccessor}
+					nodeColor={nodeColorAccessor}
+					nodeLabel={nodeLabelAccessor}
 					linkColor={getLinkColor}
 					linkWidth={getLinkWidth}
 					linkDirectionalParticles={2}
