@@ -7,6 +7,10 @@ import { SeedEditorPage } from "@/features/admin/seed/components/seed-editor-pag
 export const instant = false;
 
 export default async function AdminSeedPage() {
+	// The seed bundle DB read has no dynamic API (cookies/headers) to signal
+	// "don't prerender me" to Cache Components, so without this it gets baked
+	// into the static build — failing when no DB is reachable at build time,
+	// and otherwise shipping stale admin data forever.
 	await connection();
 	const bundle = await loadActiveSeedBundle();
 

@@ -3,6 +3,87 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.22.1] — 2026-07-12
+
+### Added
+
+- **DevTUI:** a terminal dashboard for the repo (`scripts/devtui`, Go + Bubble
+  Tea) covering dev servers, build artifacts, and release inspection. Prebuilt
+  `skriuw-dev` binaries for Linux and macOS (amd64 + arm64) are attached to the
+  desktop release. Unix-only: it drives child processes with `setsid` and shells
+  out to `bash`, so there is no Windows build.
+
+### Fixed
+
+- **Desktop (Linux): black window on NVIDIA.** WebKit's dmabuf renderer cannot
+  allocate GBM buffers on the NVIDIA driver under X11/XWayland (`Failed to
+create GBM buffer: Invalid argument`), so the window never received a valid
+  frame and painted black. `0.22.0` removed the blanket
+  `WEBKIT_DISABLE_DMABUF_RENDERER=1` guard — correctly, since it had forced CPU
+  compositing and capped the editor near 10fps — but verified only the Wayland
+  backend. That left every X11 session broken, and every AppImage regardless of
+  session: linuxdeploy's GTK hook hard-codes `GDK_BACKEND=x11` into the AppImage
+  launcher, so it always runs through XWayland.
+
+    `main.rs` now picks per backend rather than globally. On NVIDIA it overrides
+    the AppImage's forced X11 back to Wayland, and disables the dmabuf renderer
+    only when genuinely landing on X11 — the sole path that renders there. GPU
+    compositing is kept everywhere it works, so the 0.22.0 typing-performance win
+    is retained. `SKRIUW_GDK_BACKEND` forces a specific backend.
+
+### Release
+
+- Unified release `0.22.1` across the web, desktop, Tauri, and Cargo packages.
+  Supersedes `desktop-v0.22.0`, which was cut from an unmerged branch.
+
+## [0.22.0] — 2026-07-12
+
+Consolidates the `0.19.0` and `0.20.0` tags, which shipped without changelog
+entries of their own. Released from a branch that never landed on `daddy`; the
+work is folded into the mainline as of `0.22.1`.
+
+### Added
+
+- **Tasks:** a workspace task list at `/app/tasks`, backed by a new `tasks`
+  table. Checklist items in a note can be promoted to a task from the block
+  itself and stay linked to their source block, so a task knows the note and
+  block it came from. Tasks carry status, priority, due date, tags, assignees,
+  and a description. Available on desktop too — the Rust backend indexes tasks
+  in local SQLite so the list works without a signed-in account.
+- **Note annotation overlay:** free-hand Excalidraw drawing across a whole
+  note, on a viewport canvas slaved to scroll position.
+- **Drawing block:** an Excalidraw block for the editor, round-tripping through
+  an `excalidraw` fence.
+- **Onboarding:** a guided product tour replacing the welcome walkthrough.
+- **Documentation site:** a Fumadocs site as `apps/documentation`.
+- **Analytics:** PostHog integration.
+
+### Changed
+
+- Auth is seeded from the server (`initialAuthUser`), removing the multi-second
+  session skeleton gate on first paint.
+- Next.js 16.3 canary with the React Compiler, `cacheComponents`, a cookie-only
+  middleware auth gate, and partial prefetching.
+- The notification bell moved into the user menu popover.
+
+### Fixed
+
+- **Desktop (Linux):** the editor ran at roughly 10fps while typing. `main.rs`
+  unconditionally set `WEBKIT_DISABLE_DMABUF_RENDERER=1` — a stale workaround
+  for an NVIDIA GBM allocation failure — which dropped WebKitGTK onto the
+  shared-memory compositing path, so every frame was rendered and blitted on
+  the CPU and the GPU went unused entirely. The guard is removed and the dmabuf
+  renderer now runs by default. `__NV_DISABLE_EXPLICIT_SYNC` is kept; it
+  prevents a GTK crash on Wayland rather than a slowdown.
+- Unknown and drawing blocks no longer trip the unsupported-block guard and
+  crash the editor.
+- A newly created note takes focus.
+- Note selection is deferred past the mobile sidebar's exit animation.
+
+### Release
+
+- Align the unified web, desktop, Tauri, and Cargo package versions on `0.22.0`.
+
 ## [0.21.0] — 2026-07-12
 
 ### Added

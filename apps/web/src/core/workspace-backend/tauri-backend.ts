@@ -7,12 +7,14 @@ import {
 	type NoteChipPatch,
 } from "@/domain/notes/chip-rewrite";
 import { buildDesiredNoteLinkRows } from "@/domain/notes/note-link-sync";
-import { buildDesiredJournalLinkRows } from "@/domain/journal/journal-link-sync";
+import {
+	buildDesiredJournalLinkRows,
+	buildPersonNameResolutionMap,
+} from "@/domain/journal/journal-link-sync";
 import { normalizeStoredTagEntry, normalizeTagName } from "@/domain/tags/normalize";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 import { buildGraphData, type JournalLinkRow } from "@/domain/notes/graph";
 import {
-	extractRichDocumentPersonIds,
 	resolveRichDocument,
 	richDocumentToSearchableMarkdown,
 } from "@/domain/notes/rich-document";
@@ -25,6 +27,7 @@ import {
 import type { NoteLink, ResolvedNoteLink } from "@/domain/notes/note-links";
 import { parseSearchQuery } from "@/domain/notes/search-query";
 import type { Person } from "@/domain/people/models";
+import type { Task } from "@/domain/tasks/models";
 import {
 	applyFolderUpdate,
 	applyNoteUpdate,
@@ -296,6 +299,39 @@ type RustJournalTag = {
 	color: string;
 	usageCount: number;
 };
+
+type RustTask = Omit<
+	Task,
+	"dueDate" | "sourceNoteId" | "sourceBlockId" | "createdAt" | "updatedAt"
+> & {
+	dueDate: string | null;
+	sourceNoteId: string | null;
+	sourceBlockId: string | null;
+	createdAt: number;
+	updatedAt: number;
+};
+
+function fromRustTask(raw: RustTask): Task {
+	return {
+		...raw,
+		dueDate: raw.dueDate ?? undefined,
+		sourceNoteId: raw.sourceNoteId ?? undefined,
+		sourceBlockId: raw.sourceBlockId ?? undefined,
+		createdAt: new Date(raw.createdAt),
+		updatedAt: new Date(raw.updatedAt),
+	};
+}
+
+function toRustTask(task: Task): RustTask {
+	return {
+		...task,
+		dueDate: task.dueDate ?? null,
+		sourceNoteId: task.sourceNoteId ?? null,
+		sourceBlockId: task.sourceBlockId ?? null,
+		createdAt: task.createdAt.getTime(),
+		updatedAt: task.updatedAt.getTime(),
+	};
+}
 
 function toRustJournalEntry(entry: JournalEntry): RustJournalEntry {
 	return {
@@ -657,6 +693,7 @@ export function createTauriBackend(): WorkspaceBackend {
 		mode: "tauri",
 		capabilities: {
 			journal: true,
+			tasks: true,
 			sharing: false,
 			collaboration: false,
 			notifications: false,
@@ -734,13 +771,18 @@ export function createTauriBackend(): WorkspaceBackend {
 			]);
 			// Journal link edges are derived in TS (there is no journal_links table in
 			// SQLite); the same extractor the web index uses keeps parity.
+			const personIdsByName = buildPersonNameResolutionMap(people);
 			const journalLinks: JournalLinkRow[] = journals.flatMap((entry) =>
-				buildDesiredJournalLinkRows("local", {
-					id: entry.id,
-					content: entry.content,
-					richContent: entry.richContent ?? [],
-					tags: entry.tags,
-				}).map((row) => ({
+				buildDesiredJournalLinkRows(
+					"local",
+					{
+						id: entry.id,
+						content: entry.content,
+						richContent: entry.richContent ?? [],
+						tags: entry.tags,
+					},
+					personIdsByName,
+				).map((row) => ({
 					sourceJournalId: row.sourceJournalId,
 					targetNoteId: row.targetNoteId ?? null,
 					targetLabel: row.targetLabel,
@@ -920,6 +962,50 @@ export function createTauriBackend(): WorkspaceBackend {
 			await invoke("delete_journal_entry", { id });
 		},
 
+		async listTasks() {
+			return (await invoke<RustTask[]>("list_tasks")).map(fromRustTask);
+		},
+
+		async createTask(input) {
+			const now = new Date();
+			const task: Task = {
+				id: crypto.randomUUID(),
+				title: input.title.trim(),
+				status: input.status ?? "todo",
+				priority: input.priority ?? "medium",
+				dueDate: input.dueDate ?? undefined,
+				tags: input.tags ?? [],
+				assigneeIds: input.assigneeIds ?? [],
+				description: input.description ?? "",
+				sourceNoteId: input.sourceNoteId,
+				sourceBlockId: input.sourceBlockId,
+				createdAt: now,
+				updatedAt: now,
+			};
+			return fromRustTask(await invoke<RustTask>("upsert_task", { task: toRustTask(task) }));
+		},
+
+		async updateTask(input) {
+			const existing = (await invoke<RustTask[]>("list_tasks"))
+				.map(fromRustTask)
+				.find((task) => task.id === input.id);
+			if (!existing) return undefined;
+			const { id: _id, ...patch } = input;
+			const next: Task = {
+				...existing,
+				...patch,
+				title: patch.title?.trim() ?? existing.title,
+				dueDate:
+					patch.dueDate === undefined ? existing.dueDate : (patch.dueDate ?? undefined),
+				updatedAt: new Date(),
+			};
+			return fromRustTask(await invoke<RustTask>("upsert_task", { task: toRustTask(next) }));
+		},
+
+		async deleteTask(id) {
+			await invoke("delete_task", { id });
+		},
+
 		async createJournalTag(input) {
 			const tag: JournalTag = {
 				id: crypto.randomUUID(),
@@ -1014,12 +1100,27 @@ export function createTauriBackend(): WorkspaceBackend {
 		},
 
 		async listPersonNotes(personId) {
-			const [rows, journals] = await Promise.all([
+			const [rows, journals, people] = await Promise.all([
 				invoke<RustTaggedNoteSummary[]>("list_person_notes", { personId }),
 				listJournalEntries(),
+				listPeople(),
 			]);
+			const personIdsByName = buildPersonNameResolutionMap(people);
 			const journalItems = journals.flatMap((entry) => {
-				const personIds = new Set(extractRichDocumentPersonIds(entry.richContent ?? []));
+				const personIds = new Set(
+					buildDesiredJournalLinkRows(
+						"local",
+						{
+							id: entry.id,
+							content: entry.content,
+							richContent: entry.richContent ?? [],
+							tags: entry.tags,
+						},
+						personIdsByName,
+					)
+						.filter((row) => row.kind === "person")
+						.map((row) => row.targetLabel),
+				);
 				return personIds.has(personId) ? [journalToTaggedSummary(entry)] : [];
 			});
 			return [...rows.map(fromRustTaggedNoteSummary), ...journalItems].sort(

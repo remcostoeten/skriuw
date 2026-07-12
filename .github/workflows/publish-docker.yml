@@ -15,7 +15,7 @@ on:
     workflow_dispatch:
         inputs:
             version:
-                description: "Optional semver tags to publish from the selected branch (for example 0.21.0)"
+                description: "Optional semver tags to publish from the selected branch (for example 0.22.1)"
                 required: false
                 type: string
 
