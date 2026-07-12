@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { redirect } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { KeyRound } from "lucide-react";
 import { useAuth } from "@/core/auth/use-auth";
 import { signInWithOAuth, getRememberMePreference } from "@/core/auth";
 import {
@@ -17,9 +18,9 @@ import { authDrawerAdapter } from "@/features/auth/auth-drawer-adapter";
 import { resolveAuthError } from "@/app/(auth)/auth-errors";
 import { GUEST_SIGNUP_PROMPT_EVENT, isTauriRuntime } from "@/core/workspace-backend";
 import { showUserToast } from "@/shared/lib/user-toast";
+import { authClient } from "@/lib/auth-client";
 import {
 	OPEN_AUTH_DRAWER_EVENT,
-	openAuthDrawer,
 	type AuthDrawerInitialMode,
 	type OpenAuthDrawerDetail,
 } from "@/features/layout/components/open-auth-drawer";
@@ -72,6 +73,36 @@ function getPathWithoutAuthParams(pathname: string, searchParams: URLSearchParam
 	return query ? `${pathname}?${query}` : pathname;
 }
 
+function PasskeySignInButton({ onSignedIn }: { onSignedIn: () => void }) {
+	const [isPending, setIsPending] = useState(false);
+
+	return (
+		<button
+			type="button"
+			disabled={isPending}
+			onClick={async () => {
+				setIsPending(true);
+				try {
+					const { error } = await authClient.signIn.passkey();
+					if (error) throw new Error(error.message ?? "Passkey sign-in failed");
+					onSignedIn();
+				} catch (error) {
+					showUserToast(
+						error instanceof Error ? error.message : "Passkey sign-in failed",
+						"error",
+					);
+				} finally {
+					setIsPending(false);
+				}
+			}}
+			className="flex w-full items-center justify-center gap-2 border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+		>
+			<KeyRound className="size-4" aria-hidden />
+			{isPending ? "Waiting for passkey…" : "Sign in with a passkey"}
+		</button>
+	);
+}
+
 /**
  * Owns the sign-in/sign-up drawer plus every trigger that opens it: the
  * `?auth=` URL param, protected-route gating, the guest sign-up prompt event,
@@ -89,6 +120,17 @@ export function AuthDrawerHost() {
 		useState<AuthDrawerInitialMode>("login");
 	const authDestinationRef = useRef<string | null>(null);
 	const [duplicateOAuth, setDuplicateOAuth] = useState<DuplicateOAuthEmailDetail | null>(null);
+	const finishAuthentication = useCallback(() => {
+		setDuplicateOAuth(null);
+		setAuthDrawerOpen(false);
+		const destination = authDestinationRef.current;
+		if (destination && destination !== pathname) {
+			router.push(destination);
+		} else {
+			router.refresh();
+		}
+		authDestinationRef.current = null;
+	}, [pathname, router]);
 	// Desktop is a single local profile with no cloud auth, so nothing is
 	// "protected" — gating these would only pop a sign-in drawer that can never
 	// resolve and would block the user out of Settings/Journal.
@@ -105,9 +147,10 @@ export function AuthDrawerHost() {
 					auth: {
 						initialMode: authDrawerInitialMode,
 					},
+					footer: <PasskeySignInButton onSignedIn={finishAuthentication} />,
 				},
 			}) satisfies AuthConfig,
-		[authDrawerInitialMode],
+		[authDrawerInitialMode, finishAuthentication],
 	);
 
 	useEffect(() => {
@@ -237,14 +280,7 @@ export function AuthDrawerHost() {
 						authDestinationRef.current = null;
 					}
 				}}
-				onSuccess={() => {
-					setDuplicateOAuth(null);
-					const destination = authDestinationRef.current;
-					if (destination && destination !== pathname) {
-						router.push(destination);
-					}
-					authDestinationRef.current = null;
-				}}
+				onSuccess={finishAuthentication}
 				onError={(error) => {
 					const fallbackMessage =
 						error instanceof Error
