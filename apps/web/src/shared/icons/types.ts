@@ -1,7 +1,7 @@
 import type { SVGProps } from "react";
 
 /** Standard stroke width for 24×24 outline icons */
-const DEFAULT_STROKE_WIDTH = 2;
+const DEFAULT_STROKE_WIDTH = 1.5;
 
 /** Scale stroke to match DEFAULT_STROKE_WIDTH on non-24 viewBoxes */
 export function scaledStrokeWidth(strokeWidth: number, viewBoxSize: number): number {

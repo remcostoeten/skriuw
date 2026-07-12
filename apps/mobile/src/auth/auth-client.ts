@@ -13,6 +13,7 @@
 
 import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
+import { expoPasskeyClient } from "expo-better-auth-passkey";
 import * as SecureStore from "expo-secure-store";
 import { getApiBaseUrl } from "@/lib/config";
 
@@ -24,6 +25,7 @@ export const authClient = createAuthClient({
 			storagePrefix: "skriuw",
 			storage: SecureStore,
 		}),
+		expoPasskeyClient(),
 	],
 });
 

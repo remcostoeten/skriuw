@@ -307,6 +307,21 @@ function RichTextEditorImpl({
 		},
 		[createAndOpenNote],
 	);
+	const slashMenuItems = useMemo(
+		() =>
+			getCustomSlashMenuItems(
+				editor,
+				onAiSpellCheck,
+				onAiContinueWriting,
+				onAiAction,
+				onAiCustomPrompt ? () => setCustomPromptOpen(true) : undefined,
+			),
+		[editor, onAiSpellCheck, onAiContinueWriting, onAiAction, onAiCustomPrompt],
+	);
+	const getSlashMenuItems = useCallback(
+		async (query: string) => filterSuggestionItems(slashMenuItems, query),
+		[slashMenuItems],
+	);
 
 	useEffect(() => {
 		const domElement = editorDom;
@@ -663,20 +678,7 @@ function RichTextEditorImpl({
 									<SuggestionMenuController
 										triggerCharacter="/"
 										suggestionMenuComponent={KeyboardAccessibleSlashMenu}
-										getItems={async (query) =>
-											filterSuggestionItems(
-												getCustomSlashMenuItems(
-													editor,
-													onAiSpellCheck,
-													onAiContinueWriting,
-													onAiAction,
-													onAiCustomPrompt
-														? () => setCustomPromptOpen(true)
-														: undefined,
-												),
-												query,
-											)
-										}
+										getItems={getSlashMenuItems}
 									/>
 									<SuggestionMenuController
 										triggerCharacter="@"

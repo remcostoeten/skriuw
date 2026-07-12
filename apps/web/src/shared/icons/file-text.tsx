@@ -75,7 +75,7 @@ function FileTextIcon({
 					stroke="currentColor"
 					strokeLinecap="round"
 					strokeLinejoin="round"
-					strokeWidth="2"
+					strokeWidth="1.5"
 					variants={{
 						normal: { scale: 1 },
 						animate: {
@@ -96,7 +96,7 @@ function FileTextIcon({
 					<m.path
 						d="M10 9H8"
 						stroke="currentColor"
-						strokeWidth="2"
+						strokeWidth="1.5"
 						variants={{
 							normal: {
 								pathLength: 1,
@@ -117,7 +117,7 @@ function FileTextIcon({
 					<m.path
 						d="M16 13H8"
 						stroke="currentColor"
-						strokeWidth="2"
+						strokeWidth="1.5"
 						variants={{
 							normal: {
 								pathLength: 1,
@@ -138,7 +138,7 @@ function FileTextIcon({
 					<m.path
 						d="M16 17H8"
 						stroke="currentColor"
-						strokeWidth="2"
+						strokeWidth="1.5"
 						variants={{
 							normal: {
 								pathLength: 1,
