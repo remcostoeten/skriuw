@@ -9,7 +9,7 @@ import type { AnimatedIconHandle, AnimatedIconProps } from "./types";
 import { scaledStrokeWidth } from "./types";
 
 const BookOpenIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
-	({ size = 24, color = "currentColor", strokeWidth = 2, className = "" }, ref) => {
+	({ size = 24, color = "currentColor", strokeWidth = 1.5, className = "" }, ref) => {
 		const [scope, animate] = useAnimate();
 
 		const start = async () => {

@@ -17,6 +17,7 @@
 // ---------------------------------------------------------------------------
 
 import { randomUUID } from "expo-crypto";
+import { Platform } from "react-native";
 import { getApiBaseUrl } from "@/lib/config";
 import { getSessionCookie } from "@/auth/auth-client";
 import { WriteQueue } from "@/backend/write-queue";
@@ -46,12 +47,17 @@ class HttpWorkspaceBackend implements WorkspaceBackend {
 	private readonly queue = new WriteQueue();
 
 	private async request<T>(path: string, init?: RequestInit): Promise<T> {
+		const isWeb = Platform.OS === "web";
 		const res = await fetch(`${this.baseUrl}/api/workspace${path}`, {
 			...init,
+			// Browsers own their cookie jar and forbid setting Cookie manually. The
+			// native Expo client has no cookie jar, so it keeps sending the cookie
+			// persisted by @better-auth/expo instead.
+			credentials: isWeb ? "include" : init?.credentials,
 			headers: {
 				"Content-Type": "application/json",
 				Accept: "application/json",
-				Cookie: getSessionCookie(),
+				...(isWeb ? {} : { Cookie: getSessionCookie() }),
 				...init?.headers,
 			},
 		});
