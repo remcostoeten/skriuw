@@ -17,7 +17,7 @@ The image publish is CI. `.github/workflows/publish-docker.yml` triggers on any
 3. Builds the root `Dockerfile` for `linux/amd64` and `linux/arm64`.
 4. Pushes to `ghcr.io/remcostoeten/skriuw` with tags derived from the git tag.
 
-For tag `v0.21.0` that publishes three tags: `:0.21.0`, `:0.21`, and `:latest`.
+For tag `v0.22.1` that publishes three tags: `:0.22.1`, `:0.22`, and `:latest`.
 Every subsequent `vX.Y.Z` tag re-publishes and moves `:latest` forward. GitHub
 Actions layer caching (`type=gha`) keeps rebuilds fast.
 
@@ -28,8 +28,8 @@ manual, matching the desktop flow (`desktop-v*` tags). To ship a release:
 
 ```bash
 # bump "version" in package.json first, then:
-git tag v0.21.0
-git push origin v0.21.0
+git tag v0.22.1
+git push origin v0.22.1
 ```
 
 That single push is the whole release action; the workflow does the rest.
@@ -41,9 +41,29 @@ That single push is the whole release action; the workflow does the rest.
 | `v*.*.*` | `publish-docker.yml` | The self-host web image on GHCR |
 | `desktop-v*` | `release-desktop.yml` | Native desktop installers + a GitHub release |
 
-The two schemes are independent. `desktop-v0.22.0` and `v0.21.0` are different
-tags that fire different pipelines; a desktop release does not build the Docker
-image and vice versa.
+The two prefixes fire different pipelines: a `v*` tag does not build the desktop
+installers, and a `desktop-v*` tag does not build the Docker image. Since
+`0.22.1` the *number* is unified: web, desktop, Tauri, and Cargo packages all
+carry one version, so a full release means cutting both tags at the same
+commit:
+
+```bash
+git tag v0.22.1 && git tag desktop-v0.22.1
+git push origin v0.22.1 desktop-v0.22.1
+```
+
+Letting them drift is how `desktop-v0.22.0` came to be cut from a branch that
+never landed on `daddy`, publishing a desktop feature the mainline did not have.
+
+## Publishing the install channels
+
+`release-desktop.yml` only *drafts* the GitHub release. Publishing that draft is
+what triggers `publish-linux-repos.yml`, which fans the artifacts out to apt,
+dnf, AUR, Homebrew, Scoop, winget, and Snap. A draft that is never published
+ships nothing to any channel.
+
+The DevTUI (`scripts/devtui`) is cross-compiled in the same workflow and its
+`skriuw-dev` binaries are attached to the desktop release as assets.
 
 ## One-time setup: make the package public
 

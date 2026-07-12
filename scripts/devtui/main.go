@@ -829,7 +829,7 @@ type artifact struct {
 	mtime   time.Time
 }
 
-// rpm names carry a release+arch tail (Skriuw-0.21.0-1.x86_64), so the
+// rpm names carry a release+arch tail (Skriuw-0.22.1-1.x86_64), so the
 // prerelease suffix is matched explicitly rather than as a greedy tail.
 var versionRe = regexp.MustCompile(`[_-]v?(\d+\.\d+\.\d+(?:-(?:alpha|beta|rc|pre)[0-9A-Za-z.]*)?)`)
 

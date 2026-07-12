@@ -643,6 +643,7 @@ function useMeasuredHeight() {
 function useDraggable() {
 	const [pos, setPos] = useState(null);
 	const dragRef = useRef(null);
+	const rafRef = useRef(null);
 
 	const onPointerDown = useCallback((e) => {
 		if (
@@ -653,24 +654,46 @@ function useDraggable() {
 		const panel = e.currentTarget.closest("[data-devtool]");
 		const rect = panel.getBoundingClientRect();
 		dragRef.current = {
+			el: panel,
 			dx: e.clientX - rect.x,
 			dy: e.clientY - rect.y,
 			w: rect.width,
 			h: rect.height,
+			baseX: rect.x,
+			baseY: rect.y,
+			x: rect.x,
+			y: rect.y,
 			moved: false,
 		};
+		panel.style.willChange = "transform";
 
 		const move = (ev) => {
 			const d = dragRef.current;
 			d.moved = true;
-			setPos({
-				x: Math.min(Math.max(8, ev.clientX - d.dx), window.innerWidth - d.w - 8),
-				y: Math.min(Math.max(8, ev.clientY - d.dy), window.innerHeight - d.h - 8),
-			});
+			d.x = Math.min(Math.max(8, ev.clientX - d.dx), window.innerWidth - d.w - 8);
+			d.y = Math.min(Math.max(8, ev.clientY - d.dy), window.innerHeight - d.h - 8);
+			if (rafRef.current == null) {
+				rafRef.current = requestAnimationFrame(() => {
+					rafRef.current = null;
+					const cur = dragRef.current;
+					if (!cur) return;
+					cur.el.style.transform = `translate3d(${cur.x - cur.baseX}px, ${cur.y - cur.baseY}px, 0)`;
+				});
+			}
 		};
 		const up = () => {
 			window.removeEventListener("pointermove", move);
 			window.removeEventListener("pointerup", up);
+			if (rafRef.current != null) {
+				cancelAnimationFrame(rafRef.current);
+				rafRef.current = null;
+			}
+			const d = dragRef.current;
+			if (d) {
+				d.el.style.willChange = "";
+				d.el.style.transform = "";
+				if (d.moved) setPos({ x: d.x, y: d.y });
+			}
 		};
 		window.addEventListener("pointermove", move);
 		window.addEventListener("pointerup", up);
