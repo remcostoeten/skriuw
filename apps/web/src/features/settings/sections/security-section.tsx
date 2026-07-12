@@ -2,12 +2,13 @@
 /* eslint-disable react-doctor/prefer-useReducer, react-doctor/no-prevent-default */
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, KeyRound } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { cn } from "@/shared/lib/utils";
 import { updatePassword } from "@/core/auth";
+import { authClient } from "@/lib/auth-client";
 import {
 	SectionHeader,
 	Row,
@@ -204,6 +205,43 @@ function ChangePasswordInlineSection() {
 	);
 }
 
+function PairPasskeySection() {
+	const [isPending, setIsPending] = useState(false);
+	const [message, setMessage] = useState<string | null>(null);
+
+	const pairPasskey = async () => {
+		setIsPending(true);
+		setMessage(null);
+		try {
+			const { error } = await authClient.passkey.addPasskey({
+				name: "This device",
+				authenticatorAttachment: "platform",
+			});
+			if (error) throw new Error(error.message ?? "Could not add passkey.");
+			setMessage("Passkey added to your account.");
+		} catch (error) {
+			setMessage(error instanceof Error ? error.message : "Could not add passkey.");
+		} finally {
+			setIsPending(false);
+		}
+	};
+
+	return (
+		<div className="space-y-2">
+			<Button
+				variant="outline"
+				size="sm"
+				disabled={isPending}
+				onClick={() => void pairPasskey()}
+			>
+				<KeyRound className="size-4" aria-hidden />
+				{isPending ? "Waiting for passkey…" : "Pair this device"}
+			</Button>
+			{message ? <p className="text-xs text-muted-foreground">{message}</p> : null}
+		</div>
+	);
+}
+
 export function SecuritySection() {
 	return (
 		<>
@@ -215,6 +253,13 @@ export function SecuritySection() {
 					description="Update your sign-in password."
 				>
 					<ChangePasswordInlineSection />
+				</Row>
+				<Row
+					focusId="pair-passkey"
+					title="Passkey"
+					description="Add this device as a passwordless sign-in method."
+				>
+					<PairPasskeySection />
 				</Row>
 			</SettingsCard>
 			<ConnectedAccounts />

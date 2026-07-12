@@ -29,6 +29,7 @@ model User {
 
   sessions               Session[]
   accounts               Account[]
+	passkeys               Passkey[]
   notes                  Note[]
   folders                Folder[]
   noteVersions           NoteVersion[]
@@ -88,6 +89,25 @@ model Account {
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
   @@map("account")
+}
+
+model Passkey {
+  id           String   @id
+  name         String?
+  publicKey    String   @map("public_key")
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID String   @map("credential_id")
+  counter      Int
+  deviceType   String   @map("device_type")
+  backedUp     Boolean  @map("backed_up")
+  transports   String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  aaguid       String?
+
+  @@index([userId])
+  @@index([credentialID])
+  @@map("passkey")
 }
 
 model Verification {

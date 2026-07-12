@@ -8,7 +8,7 @@ import type { AnimatedIconHandle, AnimatedIconProps } from "./types";
 function SparklesIcon({
 	size = 24,
 	color = "currentColor",
-	strokeWidth = 2,
+	strokeWidth = 1.5,
 	className = "",
 	ref,
 }: AnimatedIconProps & { ref?: Ref<AnimatedIconHandle> }) {

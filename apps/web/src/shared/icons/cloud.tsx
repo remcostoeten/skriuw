@@ -12,7 +12,7 @@ type Props = AnimatedIconProps & {
 function CloudIcon({
 	size = 24,
 	color = "currentColor",
-	strokeWidth = 2,
+	strokeWidth = 1.5,
 	className = "",
 	ref,
 }: Props) {
