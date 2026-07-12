@@ -2,7 +2,18 @@
   <img src="apps/web/public/icons/128x128.png" width="88" alt="Skriuw logo" />
 </p>
 
-<h1 align="center">Skriuw</h1>
+<p align="center">
+  <strong>Skriuw</strong> <em>(noun)</em><br />
+  /skrɪu̯/, <em>Frisian, “to write.”</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/remcostoeten/skriuw/releases"><img src="https://img.shields.io/github/downloads/remcostoeten/skriuw/total?label=downloads&logo=github" alt="GitHub release downloads" /></a>
+  <img src="https://img.shields.io/badge/platforms-web%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20iOS%20%7C%20Android-4c6ef5" alt="Supported platforms: web, macOS, Windows, Linux, iOS, and Android" />
+  <img src="https://img.shields.io/badge/package%20managers-Homebrew%20%7C%20winget%20%7C%20Scoop%20%7C%20AUR%20%7C%20Snap%20%7C%20apt%20%7C%20dnf-f59e0b" alt="Available through Homebrew, winget, Scoop, AUR, Snap, apt, and dnf" />
+  <img src="https://img.shields.io/badge/release%20assets-DMG%20%7C%20EXE%20%7C%20DEB%20%7C%20RPM%20%7C%20AppImage-737373" alt="Direct downloads are available as DMG, EXE, DEB, RPM, and AppImage files" />
+  <img src="https://img.shields.io/badge/self--host-Docker-2496ED?logo=docker&logoColor=white" alt="Self-host with Docker" />
+</p>
 
 <p align="center">
   <b>Open source note-taking, journaling, and knowledge base for web, mobile, and desktop.</b>
@@ -13,25 +24,19 @@
 </p>
 
 <p align="center">
-  <i>Skriuw is Frisian for "to write."</i>
-</p>
-
-<p align="center">
   <img src="apps/web/public/readme/app-main.png" alt="Skriuw notes workspace showing the Markdown editor, sidebar, and note links" />
 </p>
 
-## What is Skriuw
+## A place to think in public or in private
 
-Skriuw is a privacy-first writing app that keeps your notes, daily journal, and lightweight roadmap planning in one workspace. It is built for people who want a quiet interface, fast keyboard-driven navigation, and a plain path for thinking and drafting without friction.
+Skriuw brings notes, a daily journal, and lightweight planning into one calm workspace. It is for people who want to stay with their thoughts, not hunt through menus or rearrange a dashboard.
 
-Everything is minimal by default and feature-rich when you opt in. It runs in
-the browser, as a cloud-synced Expo mobile app, and as a local-first native
-desktop app. You can also self-host it.
+The surface stays quiet until you need more: links between ideas, rich and Markdown editing, a command palette, or optional AI. Use Skriuw in the browser, on your phone, as a local-first desktop app, or on infrastructure you control.
 
 > [!NOTE]
 > AI is optional. Bring your own provider key or use the app's fallback keys. User keys are encrypted at rest.
 
-## Features
+## Keep the whole thread
 
 | Area           | What it gives you                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------------- |
@@ -43,7 +48,7 @@ desktop app. You can also self-host it.
 | Planning       | A public roadmap board for features, issues, and upcoming work.                                     |
 | Control        | Export, import, account deletion, themes, typography, and editor preferences.                       |
 
-## Screenshots
+## See the workspace
 
 <table>
   <tr>
@@ -61,29 +66,26 @@ desktop app. You can also self-host it.
   </tr>
 </table>
 
-## Why it feels fast
+## Stay with the thought
 
-- Keyboard-first navigation
-- Command palette and quick search
-- Rich and Markdown editor modes in the same workspace
-- Minimal chrome around the writing surface
-- Local-first caching and private-by-default AI
+- Move through the app from the keyboard, with a command palette and quick search close at hand
+- Switch between rich text and Markdown without leaving the same workspace
+- Keep the interface out of the way, so the writing surface has room to breathe
+- Read and work from a local cache, with AI private by default
 
-## Privacy and control
+## Your words, your terms
 
 - Your notes and journal entries live in your own database-backed account
 - Shared notes are frozen snapshots, not live views of the source document
 - AI provider keys are encrypted at rest when stored in the app
 - You can export your workspace and delete your account from inside the app
 
-## Backup and import
+## Bring your library with you
 
 Skriuw uses a portable ZIP backup format for your workspace:
 
-- Export from **Settings → Data & sync** downloads `skriuw-export-YYYY-MM-DD.zip` (v3)
-- v3 adds SHA-256 checksums, optional note version history, and import policies
+- Export from **Settings → Data & sync** downloads `skriuw-export-YYYY-MM-DD.zip`
 - Import supports **merge** (skip duplicates), **overwrite** (update matches), or **replace workspace**
-- Legacy v1 and v2 Skriuw exports still import
 
 Third-party imports (best effort, structure and formatting may need cleanup):
 
@@ -111,15 +113,15 @@ skriuw-export-YYYY-MM-DD/
     └── {noteId}/{versionId}.json
 ```
 
-## Tech stack
+## Built to last
 
 Next.js, Expo/React Native, PostgreSQL with Prisma, Better Auth, Tauri for the
 desktop build, and a block-based editor with real-time collaboration. Managed
 with Bun 1.3.14 in a monorepo.
 
-## Install — pick how you run it
+## Choose where Skriuw lives
 
-Skriuw ships in a few shapes. Pick whichever fits; they all run the same app.
+Whether you want the convenience of the web app, a private server, or a folder of plain Markdown files on your own machine, there is a version of Skriuw for that.
 
 | Mode                                   | Storage                                  | How you get it                         | Best for                                              |
 | -------------------------------------- | ---------------------------------------- | -------------------------------------- | ----------------------------------------------------- |
@@ -131,7 +133,7 @@ Skriuw ships in a few shapes. Pick whichever fits; they all run the same app.
 
 ### Self-host with Docker
 
-Runs the web app plus a Postgres container. No repo clone needed — just two files:
+Runs the web app plus a Postgres container. No repo clone needed, just two files:
 
 ```bash
 # 1. Grab the compose file and env template
@@ -142,7 +144,7 @@ curl -o .env https://raw.githubusercontent.com/remcostoeten/skriuw/daddy/.env.ex
 #    BETTER_AUTH_SECRET and AI_KEYS_ENCRYPTION_SECRET
 #    (each: openssl rand -base64 32). Leave the rest at their defaults.
 
-# 3. Start — pulls ghcr.io/remcostoeten/skriuw + postgres:17, runs migrations
+# 3. Start: pulls ghcr.io/remcostoeten/skriuw + postgres:17, runs migrations
 docker compose up -d
 ```
 
@@ -158,22 +160,25 @@ git clone https://github.com/remcostoeten/skriuw && cd skriuw
 docker compose -f docker-compose.build.yml up --build -d
 ```
 
-> Realtime collaboration is a Cloudflare Worker (`party/`) and is **not** part of the Docker stack — it stays disabled unless you deploy that worker and set `NEXT_PUBLIC_PARTYKIT_HOST`. Everything else works without it.
+> Realtime collaboration is a Cloudflare Worker (`party/`) and is **not** part of the Docker stack. It stays disabled unless you deploy that worker and set `NEXT_PUBLIC_PARTYKIT_HOST`. Everything else works without it.
 
 ### Desktop
 
-Native app (Tauri) with fully local, offline storage — your notes are plain Markdown files plus a SQLite index, no server or account. Download from [Releases](https://github.com/remcostoeten/skriuw/releases), or:
+Native app (Tauri) with fully local, offline storage. Your notes are plain Markdown files plus a SQLite index, with no server or account. Download from [Releases](https://github.com/remcostoeten/skriuw/releases), or:
 
 ```bash
-# macOS (Homebrew) — tap by URL, then install the cask
+# macOS (Homebrew): tap by URL, then install the cask
 brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw && brew install --cask skriuw
 
 winget install RemcoStoeten.Skriuw   # Windows
+scoop bucket add skriuw https://github.com/remcostoeten/skriuw
+scoop install skriuw                 # Windows, via Scoop
 yay -S skriuw-bin                    # Arch (AUR)
+sudo snap install skriuw             # Linux, via Snap
 sudo dpkg -i skriuw_*.deb            # Debian/Ubuntu (from Releases)
 ```
 
-## Run locally (development)
+## Work on Skriuw
 
 Copy `.env.example` to `.env.local`, set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `NEXT_PUBLIC_BETTER_AUTH_URL`, then install and start the app:
 
