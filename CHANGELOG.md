@@ -3,6 +3,53 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.22.0] — 2026-07-12
+
+Consolidates everything since `0.18.1`; the `0.19.0`–`0.21.0` tags shipped
+without changelog entries and are folded in here.
+
+### Added
+
+- **Tasks:** a workspace task list at `/app/tasks`, backed by a new `tasks`
+  table. Checklist items in a note can be promoted to a task from the block
+  itself and stay linked to their source block, so a task knows the note and
+  block it came from. Tasks carry status, priority, due date, tags, assignees,
+  and a description. Available on desktop too — the Rust backend indexes tasks
+  in local SQLite so the list works without a signed-in account.
+- **Note annotation overlay:** free-hand Excalidraw drawing across a whole
+  note, on a viewport canvas slaved to scroll position.
+- **Drawing block:** an Excalidraw block for the editor, round-tripping through
+  an `excalidraw` fence.
+- **Onboarding:** a guided product tour replacing the welcome walkthrough.
+- **Documentation site:** a Fumadocs site as `apps/documentation`.
+- **Analytics:** PostHog integration.
+
+### Changed
+
+- Auth is seeded from the server (`initialAuthUser`), removing the multi-second
+  session skeleton gate on first paint.
+- Next.js 16.3 canary with the React Compiler, `cacheComponents`, a cookie-only
+  middleware auth gate, and partial prefetching.
+- The notification bell moved into the user menu popover.
+
+### Fixed
+
+- **Desktop (Linux):** the editor ran at roughly 10fps while typing. `main.rs`
+  unconditionally set `WEBKIT_DISABLE_DMABUF_RENDERER=1` — a stale workaround
+  for an NVIDIA GBM allocation failure — which dropped WebKitGTK onto the
+  shared-memory compositing path, so every frame was rendered and blitted on
+  the CPU and the GPU went unused entirely. The guard is removed and the dmabuf
+  renderer now runs by default. `__NV_DISABLE_EXPLICIT_SYNC` is kept; it
+  prevents a GTK crash on Wayland rather than a slowdown.
+- Unknown and drawing blocks no longer trip the unsupported-block guard and
+  crash the editor.
+- A newly created note takes focus.
+- Note selection is deferred past the mobile sidebar's exit animation.
+
+### Release
+
+- Align the unified web, desktop, Tauri, and Cargo package versions on `0.22.0`.
+
 ## [0.18.1] — 2026-07-09
 
 ### Fixed

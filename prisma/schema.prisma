@@ -50,6 +50,7 @@ model User {
   notifications          Notification[]
   people                 Person[]
   noteTagMeta            NoteTagMeta[]
+  tasks                  Task[]
   storageConfig          UserStorageConfig?
 
   @@map("user")
@@ -391,6 +392,30 @@ model JournalTag {
 
   @@index([userId, deletedAt])
   @@map("tags")
+}
+
+// Tasks are a first-class workspace record. A task may originate from a
+// checklist block, but its metadata remains useful after the source note moves.
+model Task {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  status        String   @default("todo")
+  priority      String   @default("medium")
+  dueDate       String?  @map("due_date")
+  tags          String[] @default([])
+  assigneeIds   String[] @default([]) @map("assignee_ids")
+  description   String   @default("")
+  sourceNoteId  String?  @map("source_note_id") @db.Uuid
+  sourceBlockId String?  @map("source_block_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, sourceNoteId, sourceBlockId])
+  @@index([userId, status, dueDate])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("tasks")
 }
 
 // ─── Recents ─────────────────────────────────────────────────────────────────

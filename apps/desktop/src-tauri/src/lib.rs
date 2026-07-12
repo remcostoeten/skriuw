@@ -16,7 +16,7 @@ use serde::Serialize;
 use storage::{
     BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteLinkReplacement,
     NoteLinkRow, NoteMetadata, NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person, SearchHit,
-    Storage, TagSummaryRow, TaggedNoteSummaryRow, TrashRecord,
+    Storage, TagSummaryRow, TaggedNoteSummaryRow, Task, TrashRecord,
 };
 
 /// Current wall-clock time in epoch milliseconds, for stamping deletions.
@@ -487,6 +487,22 @@ fn delete_journal_tag(
 ) -> Result<(), String> {
     vault.delete_journal_tag(&id).map_err(vault_err)?;
     storage.delete_journal_tag(&id).map_err(stringify)
+}
+
+#[tauri::command]
+fn list_tasks(storage: State<'_, Storage>) -> Result<Vec<Task>, String> {
+    storage.list_tasks().map_err(stringify)
+}
+
+#[tauri::command]
+fn upsert_task(storage: State<'_, Storage>, task: Task) -> Result<Task, String> {
+    storage.upsert_task(&task).map_err(stringify)?;
+    Ok(task)
+}
+
+#[tauri::command]
+fn delete_task(storage: State<'_, Storage>, id: String) -> Result<(), String> {
+    storage.delete_task(&id).map_err(stringify)
 }
 
 #[tauri::command]
@@ -1508,6 +1524,9 @@ pub fn run() {
             list_journal_tags,
             upsert_journal_tag,
             delete_journal_tag,
+            list_tasks,
+            upsert_task,
+            delete_task,
             list_people,
             create_person,
             update_person,

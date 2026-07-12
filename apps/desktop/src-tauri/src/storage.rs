@@ -126,6 +126,25 @@ pub struct JournalTag {
     pub usage_count: i64,
 }
 
+/// Local counterpart of the web Task record. Tasks are kept in the desktop
+/// SQLite index so the task workspace works without a signed-in account.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Task {
+    pub id: String,
+    pub title: String,
+    pub status: String,
+    pub priority: String,
+    pub due_date: Option<String>,
+    pub tags: Vec<String>,
+    pub assignee_ids: Vec<String>,
+    pub description: String,
+    pub source_note_id: Option<String>,
+    pub source_block_id: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
 /// A person row, serialized to match the TypeScript `Person` contract
 /// (`src/domain/people/models.ts`). `color` is a nullable property-colour key.
 /// Names are unique so a `$mention` or property pick always resolves to one
@@ -399,6 +418,22 @@ CREATE TABLE IF NOT EXISTS journal_entries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date_key);
+
+CREATE TABLE IF NOT EXISTS tasks (
+	id TEXT PRIMARY KEY,
+	title TEXT NOT NULL,
+	status TEXT NOT NULL DEFAULT 'todo',
+	priority TEXT NOT NULL DEFAULT 'medium',
+	due_date TEXT,
+	tags TEXT NOT NULL DEFAULT '[]',
+	assignee_ids TEXT NOT NULL DEFAULT '[]',
+	description TEXT NOT NULL DEFAULT '',
+	source_note_id TEXT,
+	source_block_id TEXT,
+	created_at INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_status_due_date ON tasks(status, due_date);
 
 CREATE TABLE IF NOT EXISTS journal_tags (
 	id          TEXT PRIMARY KEY,
@@ -914,6 +949,28 @@ impl Storage {
     pub fn delete_journal_tag(&self, id: &str) -> rusqlite::Result<()> {
         self.lock()
             .execute("DELETE FROM journal_tags WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn list_tasks(&self) -> rusqlite::Result<Vec<Task>> {
+        let conn = self.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, title, status, priority, due_date, tags, assignee_ids, description, source_note_id, source_block_id, created_at, updated_at FROM tasks ORDER BY updated_at DESC",
+        )?;
+        let tasks = stmt.query_map([], row_to_task)?.collect();
+        tasks
+    }
+
+    pub fn upsert_task(&self, task: &Task) -> rusqlite::Result<()> {
+        self.lock().execute(
+            "INSERT INTO tasks (id, title, status, priority, due_date, tags, assignee_ids, description, source_note_id, source_block_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12) ON CONFLICT(id) DO UPDATE SET title=excluded.title, status=excluded.status, priority=excluded.priority, due_date=excluded.due_date, tags=excluded.tags, assignee_ids=excluded.assignee_ids, description=excluded.description, source_note_id=excluded.source_note_id, source_block_id=excluded.source_block_id, updated_at=excluded.updated_at",
+            params![task.id, task.title, task.status, task.priority, task.due_date, serde_json::to_string(&task.tags).unwrap_or_else(|_| "[]".to_string()), serde_json::to_string(&task.assignee_ids).unwrap_or_else(|_| "[]".to_string()), task.description, task.source_note_id, task.source_block_id, task.created_at, task.updated_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_task(&self, id: &str) -> rusqlite::Result<()> {
+        self.lock().execute("DELETE FROM tasks WHERE id = ?1", params![id])?;
         Ok(())
     }
 
@@ -1505,6 +1562,16 @@ fn row_to_journal_tag(row: &rusqlite::Row<'_>) -> rusqlite::Result<JournalTag> {
         name: row.get(1)?,
         color: row.get(2)?,
         usage_count: row.get(3)?,
+    })
+}
+
+fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
+    Ok(Task {
+        id: row.get(0)?, title: row.get(1)?, status: row.get(2)?, priority: row.get(3)?,
+        due_date: row.get(4)?, tags: serde_json::from_str(&row.get::<_, String>(5)?).unwrap_or_default(),
+        assignee_ids: serde_json::from_str(&row.get::<_, String>(6)?).unwrap_or_default(),
+        description: row.get(7)?, source_note_id: row.get(8)?, source_block_id: row.get(9)?,
+        created_at: row.get(10)?, updated_at: row.get(11)?,
     })
 }
 

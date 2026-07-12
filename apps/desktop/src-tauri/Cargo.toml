@@ -1,7 +1,9 @@
 [package]
-name = "skriuw-desktop"
-version = "0.21.0"
-description = "Skriuw desktop shell (local-first)"
+name = "skriuw"
+version = "0.22.0"
+description = "Skriuw is a simple, cross-platform, Markdown note-taking app."
+repository = "https://github.com/remcostoeten/skriuw"
+license = "MIT"
 authors = ["Remco Stoeten"]
 edition = "2021"
 

@@ -153,6 +153,7 @@ export function createLocalBackend(queryClient: QueryClient): WorkspaceBackend {
 		mode: "local",
 		capabilities: {
 			journal: false,
+			tasks: false,
 			sharing: false,
 			collaboration: false,
 			notifications: false,
