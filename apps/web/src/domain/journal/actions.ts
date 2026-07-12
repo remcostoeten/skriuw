@@ -2,11 +2,12 @@
 
 import { getAuthenticatedUser } from "@/core/db";
 import { Prisma } from "@/generated/prisma/client";
-import { assertResourceIdAvailable, isRecordNotFoundError } from "@/core/persistence/guards";
 import {
-	backfillMissingJournalLinks,
-	syncJournalLinks,
-} from "@/domain/journal/journal-link-sync";
+	assertResourceIdAvailable,
+	isRecordNotFoundError,
+	isUniqueConstraintError,
+} from "@/core/persistence/guards";
+import { backfillMissingJournalLinks, syncJournalLinks } from "@/domain/journal/journal-link-sync";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 import type { RichTextDocument } from "@/domain/notes/models";
 
@@ -131,14 +132,25 @@ export async function createJournalEntry(input: CreateJournalEntryInput): Promis
 
 	await assertResourceIdAvailable(prisma, "journalEntry", id, user.id);
 
-	const record = await prisma.journalEntry.create({
-		data: {
-			id,
-			userId: user.id,
-			...updateData,
-		},
-		select: ENTRY_SELECT,
-	});
+	let record: EntryRecord;
+	try {
+		record = await prisma.journalEntry.create({
+			data: { id, userId: user.id, ...updateData },
+			select: ENTRY_SELECT,
+		});
+	} catch (error) {
+		if (!isUniqueConstraintError(error)) throw error;
+		const active = await prisma.journalEntry.findFirst({
+			where: { userId: user.id, dateKey: input.dateKey, deletedAt: null },
+			select: { id: true },
+		});
+		if (!active) throw error;
+		record = await prisma.journalEntry.update({
+			where: { id: active.id, userId: user.id, deletedAt: null },
+			data: updateData,
+			select: ENTRY_SELECT,
+		});
+	}
 	const entry = recordToEntry(record);
 	await persistLinks(entry);
 	return entry;

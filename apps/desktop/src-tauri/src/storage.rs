@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use rusqlite::{params, Connection, OptionalExtension};
@@ -283,12 +284,18 @@ pub struct NoteLinkRow {
     pub kind: String,
 }
 
-/// Tauri-managed handle around the single SQLite connection. Every command
-/// locks the mutex for the duration of its query; SQLite itself serializes
-/// writers, and the workspace is single-user/local so contention is trivial.
+/// Tauri-managed handle around the SQLite connections. Writes go through the
+/// single `conn` mutex (SQLite serializes writers anyway); reads round-robin
+/// over a small pool of `query_only` connections so graph/tags/backlinks
+/// queries don't stall behind a long write or each other — WAL permits any
+/// number of concurrent readers alongside the one writer.
 pub struct Storage {
     conn: Mutex<Connection>,
+    read_conns: Vec<Mutex<Connection>>,
+    next_read: AtomicUsize,
 }
+
+const READ_POOL_SIZE: usize = 3;
 
 const LINK_INDEX_VERSION: i64 = 2;
 
@@ -446,9 +453,33 @@ impl Storage {
     /// foreign keys, and applies the schema.
     pub fn open(path: &Path) -> rusqlite::Result<Self> {
         let conn = Self::open_connection(path)?;
+        let read_conns = Self::open_read_pool(path)?;
         Ok(Self {
             conn: Mutex::new(conn),
+            read_conns,
+            next_read: AtomicUsize::new(0),
         })
+    }
+
+    /// Read-only companions to the writer connection. Opened AFTER the writer
+    /// so the schema/migrations have already run; `query_only` makes any stray
+    /// write on them a hard error instead of a lock conflict. An `:memory:`
+    /// database can't be shared across plain opens (each open is a fresh empty
+    /// DB), so it gets an empty pool and reads fall back to the writer.
+    fn open_read_pool(path: &Path) -> rusqlite::Result<Vec<Mutex<Connection>>> {
+        if path == Path::new(":memory:") {
+            return Ok(Vec::new());
+        }
+        (0..READ_POOL_SIZE)
+            .map(|_| Self::open_read_connection(path).map(Mutex::new))
+            .collect()
+    }
+
+    fn open_read_connection(path: &Path) -> rusqlite::Result<Connection> {
+        let conn = Connection::open(path)?;
+        conn.pragma_update(None, "query_only", "ON")?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        Ok(conn)
     }
 
     fn open_connection(path: &Path) -> rusqlite::Result<Connection> {
@@ -500,6 +531,16 @@ impl Storage {
         self.conn.lock().expect("storage mutex poisoned")
     }
 
+    fn read_lock(&self) -> std::sync::MutexGuard<'_, Connection> {
+        if self.read_conns.is_empty() {
+            return self.lock();
+        }
+        let idx = self.next_read.fetch_add(1, Ordering::Relaxed) % self.read_conns.len();
+        self.read_conns[idx]
+            .lock()
+            .expect("storage read mutex poisoned")
+    }
+
     /// Reopens the storage file in place. Used after snapshot/reset flows replace
     /// the database on disk so the long-lived Tauri state does not keep talking to
     /// an unlinked SQLite handle.
@@ -507,11 +548,17 @@ impl Storage {
         let conn = Self::open_connection(path)?;
         let mut guard = self.lock();
         *guard = conn;
+        drop(guard);
+        for slot in &self.read_conns {
+            let fresh = Self::open_read_connection(path)?;
+            let mut read_guard = slot.lock().expect("storage read mutex poisoned");
+            *read_guard = fresh;
+        }
         Ok(())
     }
 
     pub fn list_notes(&self) -> rusqlite::Result<Vec<Note>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare(
             "SELECT id, name, content, rich_content, preferred_editor_mode, \
 			 parent_id, sort_order, tags, properties, created_at, modified_at, \
@@ -524,7 +571,7 @@ impl Storage {
     /// Lists every note WITHOUT its body columns. This is the sidebar/list hot
     /// path; bodies are fetched per note via `get_note`/`get_notes`.
     pub fn list_note_metadata(&self) -> rusqlite::Result<Vec<NoteMetadata>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare_cached(
             "SELECT id, name, preferred_editor_mode, parent_id, sort_order, \
 			 tags, properties, created_at, modified_at, icon, cover FROM notes",
@@ -534,7 +581,7 @@ impl Storage {
     }
 
     pub fn get_note(&self, id: &str) -> rusqlite::Result<Option<Note>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare_cached(
             "SELECT id, name, content, rich_content, preferred_editor_mode, \
 			 parent_id, sort_order, tags, properties, created_at, modified_at, \
@@ -581,7 +628,7 @@ impl Storage {
             [tag_clause.repeat(tags.len()), person_clause.repeat(people.len())].concat();
         let person_patterns: Vec<String> =
             people.iter().map(|name| format!("%{name}%")).collect();
-        let conn = self.lock();
+        let conn = self.read_lock();
 
         let (sql, text_param) = match build_fts_match(query) {
             Some(expr) => (
@@ -656,7 +703,7 @@ impl Storage {
     /// (those are written for every indexed note, even link-free ones). Filled
     /// by the frontend backfill, since link extraction semantics live in TS.
     pub fn list_unindexed_note_ids(&self) -> rusqlite::Result<Vec<String>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare(
             "SELECT id FROM notes WHERE id NOT IN (SELECT DISTINCT note_id FROM note_titles)",
         )?;
@@ -683,7 +730,7 @@ impl Storage {
     /// indexed. The TS side uses this to fall back to the legacy JS scan and run
     /// a one-time backfill for a workspace whose notes predate the index.
     pub fn has_indexed_links(&self) -> rusqlite::Result<bool> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let titles: i64 =
             conn.query_row("SELECT COUNT(*) FROM note_titles", [], |row| row.get(0))?;
         if titles > 0 {
@@ -709,7 +756,7 @@ impl Storage {
     /// rows — plus color-only entries from `note_tags` that no note carries.
     /// Sorted by count desc then name asc, matching the web `listTags` action.
     pub fn list_tag_summaries(&self) -> rusqlite::Result<Vec<TagSummaryRow>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare(
             "SELECT c.label AS name, t.color AS color, c.cnt AS note_count \
 			 FROM (SELECT target_label AS label, COUNT(DISTINCT source_note_id) AS cnt \
@@ -737,7 +784,7 @@ impl Storage {
         kind: &str,
         label: &str,
     ) -> rusqlite::Result<Vec<TaggedNoteSummaryRow>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare(
             "SELECT DISTINCT n.id, n.name, n.modified_at \
 			 FROM note_links l JOIN notes n ON n.id = l.source_note_id \
@@ -757,7 +804,7 @@ impl Storage {
     /// Every persisted link row, narrowed to the fields the TS graph builder
     /// consumes. Replaces shipping all note bodies over IPC for the graph view.
     pub fn list_note_link_rows(&self) -> rusqlite::Result<Vec<NoteLinkRow>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare(
             "SELECT source_note_id, target_note_id, target_label, kind FROM note_links",
         )?;
@@ -781,7 +828,7 @@ impl Storage {
         target_id: &str,
         title_keys: &[String],
     ) -> rusqlite::Result<BacklinkSources> {
-        let conn = self.lock();
+        let conn = self.read_lock();
 
         // A wiki link whose title is shared by multiple notes counts as a
         // backlink of each of them, matching the web server's note_links
@@ -860,7 +907,7 @@ impl Storage {
     }
 
     pub fn list_folders(&self) -> rusqlite::Result<Vec<Folder>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt =
             conn.prepare("SELECT id, name, parent_id, sort_order, is_open FROM folders")?;
         let rows = stmt.query_map([], row_to_folder)?;
@@ -880,7 +927,7 @@ impl Storage {
     }
 
     pub fn list_journal_entries(&self) -> rusqlite::Result<Vec<JournalEntry>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare(
             "SELECT id, date_key, title, content, rich_content, mood, tags, created_at, updated_at \
 			 FROM journal_entries ORDER BY created_at ASC",
@@ -900,7 +947,7 @@ impl Storage {
     }
 
     pub fn list_journal_tags(&self) -> rusqlite::Result<Vec<JournalTag>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn
             .prepare("SELECT id, name, color, usage_count FROM journal_tags ORDER BY name ASC")?;
         let rows = stmt.query_map([], row_to_journal_tag)?;
@@ -965,7 +1012,7 @@ impl Storage {
     }
 
     pub fn list_people(&self) -> rusqlite::Result<Vec<Person>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare("SELECT id, name, color FROM people ORDER BY name ASC")?;
         let rows = stmt.query_map([], row_to_person)?;
         rows.collect()
@@ -1031,7 +1078,7 @@ impl Storage {
     }
 
     pub fn list_note_tag_meta(&self) -> rusqlite::Result<Vec<NoteTagMeta>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare("SELECT name, color FROM note_tags ORDER BY name ASC")?;
         let rows = stmt.query_map([], |row| {
             Ok(NoteTagMeta {
@@ -1188,7 +1235,7 @@ impl Storage {
     }
 
     pub fn list_note_versions(&self, note_id: &str, limit: i64) -> rusqlite::Result<Vec<NoteVersion>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare_cached(
             "SELECT id, note_id, name, content, rich_content, preferred_editor_mode, \
 				 parent_id, tags, properties, reason, content_hash, created_at \
@@ -1199,7 +1246,7 @@ impl Storage {
     }
 
     pub fn get_note_version(&self, version_id: &str) -> rusqlite::Result<Option<NoteVersion>> {
-        let conn = self.lock();
+        let conn = self.read_lock();
         let mut stmt = conn.prepare_cached(
             "SELECT id, note_id, name, content, rich_content, preferred_editor_mode, \
 				 parent_id, tags, properties, reason, content_hash, created_at \

@@ -4,6 +4,7 @@ import {
 	KeyboardAvoidingView,
 	Platform,
 	Pressable,
+	ScrollView,
 	Text,
 	TextInput,
 	View,
@@ -12,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
 import { signIn, signUp } from "@/auth/auth-client";
 import { GithubIcon } from "@/components/github-icon";
+import { SkriuwLogo } from "@/components/SkriuwLogo";
 import { authSurface as ui } from "@/theme/colors";
 
 const CONTROL_HEIGHT = 44;
@@ -98,186 +100,224 @@ export default function SignInScreen() {
 		<SafeAreaView style={{ flex: 1, backgroundColor: ui.bg }}>
 			<KeyboardAvoidingView
 				behavior={Platform.OS === "ios" ? "padding" : undefined}
-				style={{ flex: 1, justifyContent: "center", paddingHorizontal: 20 }}
+				style={{ flex: 1 }}
 			>
-				<View
-					style={{
-						backgroundColor: ui.card,
-						borderWidth: 1,
-						borderColor: ui.cardBorder,
-						padding: 28,
+				<ScrollView
+					contentContainerStyle={{
+						flexGrow: 1,
+						justifyContent: "center",
+						padding: 24,
 					}}
+					keyboardShouldPersistTaps="handled"
+					showsVerticalScrollIndicator={false}
 				>
-					<Text
-						style={{
-							color: ui.text,
-							fontSize: 24,
-							fontWeight: "500",
-							letterSpacing: -0.5,
-							marginBottom: 6,
-						}}
-					>
-						{copy.title}
-					</Text>
-					<Text
-						style={{
-							color: ui.textSubtle,
-							fontSize: 14,
-							letterSpacing: 0.14,
-							marginBottom: 26,
-						}}
-					>
-						{copy.subtitle}
-					</Text>
+					<View style={{ width: "100%", maxWidth: 440, alignSelf: "center" }}>
+						<View style={{ marginBottom: 34 }}>
+							<SkriuwLogo size={34} color={ui.text} />
+						</View>
 
-					<Pressable
-						onPress={onGithub}
-						disabled={busy}
-						style={({ pressed }) => ({
-							height: CONTROL_HEIGHT,
-							flexDirection: "row",
-							justifyContent: "center",
-							alignItems: "center",
-							gap: 12,
-							backgroundColor: pressed ? "rgba(255,255,255,0.04)" : ui.inputBg,
-							borderWidth: 1,
-							borderColor: ui.border,
-							paddingHorizontal: 20,
-							opacity: busy ? 0.55 : 1,
-						})}
-					>
-						{social ? (
-							<ActivityIndicator color={ui.text} />
-						) : (
-							<>
-								<GithubIcon size={17} color={ui.text} />
-								<Text
-									style={{
-										color: ui.text,
-										fontSize: 14,
-										fontWeight: "500",
-										letterSpacing: 0.14,
-									}}
-								>
-									Continue with GitHub
-								</Text>
-							</>
-						)}
-					</Pressable>
-
-					<View
-						style={{ flexDirection: "row", alignItems: "center", marginVertical: 22 }}
-					>
-						<View style={{ flex: 1, height: 1, backgroundColor: ui.divider }} />
 						<Text
 							style={{
-								color: ui.textMuted,
-								fontSize: 11,
-								textTransform: "uppercase",
-								letterSpacing: 1,
-								marginHorizontal: 12,
+								color: ui.textSubtle,
+								fontSize: 29,
+								fontWeight: "400",
+								lineHeight: 38,
+								letterSpacing: -0.7,
+								marginBottom: 36,
 							}}
 						>
-							or continue with
+							Keep your{" "}
+							<Text style={{ color: ui.text, fontFamily: "serif" }}>notes</Text> and{" "}
+							<Text style={{ color: ui.text, fontFamily: "serif" }}>journal</Text> in
+							sync with{" "}
+							<Text style={{ color: ui.text, fontFamily: "serif" }}>Skriuw</Text>
 						</Text>
-						<View style={{ flex: 1, height: 1, backgroundColor: ui.divider }} />
-					</View>
 
-					<Field
-						label="Email"
-						value={email}
-						onChangeText={setEmail}
-						keyboardType="email-address"
-						autoCapitalize="none"
-						autoComplete="email"
-						placeholder="you@example.com"
-					/>
-					<Field
-						label="Password"
-						value={password}
-						onChangeText={setPassword}
-						secureTextEntry
-						autoComplete={mode === "signin" ? "password" : "password-new"}
-						placeholder="••••••••"
-					/>
-					{mode === "signup" ? (
-						<Field
-							label="Confirm password"
-							value={confirm}
-							onChangeText={setConfirm}
-							secureTextEntry
-							autoComplete="password-new"
-							placeholder="••••••••"
-						/>
-					) : null}
-
-					{error ? (
-						<Text
+						<View
 							style={{
-								color: ui.error,
-								fontSize: 13,
-								marginTop: 4,
-								marginBottom: 12,
+								borderTopWidth: 1,
+								borderTopColor: ui.cardBorder,
+								paddingTop: 28,
 							}}
 						>
-							{error}
-						</Text>
-					) : null}
-
-					<Pressable
-						onPress={onSubmit}
-						disabled={busy || !canSubmit}
-						style={({ pressed }) => ({
-							height: CONTROL_HEIGHT,
-							backgroundColor: ui.primary,
-							alignItems: "center",
-							justifyContent: "center",
-							marginTop: error ? 0 : 10,
-							opacity: busy || !canSubmit ? 0.35 : pressed ? 0.85 : 1,
-						})}
-					>
-						{loading ? (
-							<ActivityIndicator color={ui.onPrimary} />
-						) : (
-							<Text
-								style={{
-									color: ui.onPrimary,
-									fontSize: 14,
-									fontWeight: "600",
-									letterSpacing: 0.14,
-								}}
-							>
-								{copy.submit}
-							</Text>
-						)}
-					</Pressable>
-
-					<View
-						style={{
-							flexDirection: "row",
-							justifyContent: "center",
-							alignItems: "center",
-							gap: 5,
-							marginTop: 22,
-						}}
-					>
-						<Text style={{ color: ui.textSubtle, fontSize: 13 }}>
-							{copy.switchPrompt}
-						</Text>
-						<Pressable onPress={toggleMode} disabled={busy} hitSlop={8}>
 							<Text
 								style={{
 									color: ui.text,
-									fontSize: 13,
+									fontSize: 24,
 									fontWeight: "500",
-									textDecorationLine: "underline",
+									letterSpacing: -0.5,
+									marginBottom: 6,
 								}}
 							>
-								{copy.switchAction}
+								{copy.title}
 							</Text>
-						</Pressable>
+							<Text
+								style={{
+									color: ui.textSubtle,
+									fontSize: 14,
+									letterSpacing: 0.14,
+									marginBottom: 26,
+								}}
+							>
+								{copy.subtitle}
+							</Text>
+
+							<Pressable
+								onPress={onGithub}
+								disabled={busy}
+								style={({ pressed }) => ({
+									height: CONTROL_HEIGHT,
+									flexDirection: "row",
+									justifyContent: "center",
+									alignItems: "center",
+									gap: 12,
+									backgroundColor: pressed
+										? "rgba(255,255,255,0.04)"
+										: ui.inputBg,
+									borderWidth: 1,
+									borderColor: ui.border,
+									paddingHorizontal: 20,
+									opacity: busy ? 0.55 : 1,
+								})}
+							>
+								{social ? (
+									<ActivityIndicator color={ui.text} />
+								) : (
+									<>
+										<GithubIcon size={17} color={ui.text} />
+										<Text
+											style={{
+												color: ui.text,
+												fontSize: 14,
+												fontWeight: "500",
+												letterSpacing: 0.14,
+											}}
+										>
+											Continue with GitHub
+										</Text>
+									</>
+								)}
+							</Pressable>
+
+							<View
+								style={{
+									flexDirection: "row",
+									alignItems: "center",
+									marginVertical: 22,
+								}}
+							>
+								<View style={{ flex: 1, height: 1, backgroundColor: ui.divider }} />
+								<Text
+									style={{
+										color: ui.textMuted,
+										fontSize: 11,
+										textTransform: "uppercase",
+										letterSpacing: 1,
+										marginHorizontal: 12,
+									}}
+								>
+									or continue with
+								</Text>
+								<View style={{ flex: 1, height: 1, backgroundColor: ui.divider }} />
+							</View>
+
+							<Field
+								label="Email"
+								value={email}
+								onChangeText={setEmail}
+								keyboardType="email-address"
+								autoCapitalize="none"
+								autoComplete="email"
+								placeholder="you@example.com"
+							/>
+							<Field
+								label="Password"
+								value={password}
+								onChangeText={setPassword}
+								secureTextEntry
+								autoComplete={mode === "signin" ? "password" : "password-new"}
+								placeholder="••••••••"
+							/>
+							{mode === "signup" ? (
+								<Field
+									label="Confirm password"
+									value={confirm}
+									onChangeText={setConfirm}
+									secureTextEntry
+									autoComplete="password-new"
+									placeholder="••••••••"
+								/>
+							) : null}
+
+							{error ? (
+								<Text
+									style={{
+										color: ui.error,
+										fontSize: 13,
+										marginTop: 4,
+										marginBottom: 12,
+									}}
+								>
+									{error}
+								</Text>
+							) : null}
+
+							<Pressable
+								onPress={onSubmit}
+								disabled={busy || !canSubmit}
+								style={({ pressed }) => ({
+									height: CONTROL_HEIGHT,
+									backgroundColor: ui.primary,
+									alignItems: "center",
+									justifyContent: "center",
+									marginTop: error ? 0 : 10,
+									opacity: busy || !canSubmit ? 0.35 : pressed ? 0.85 : 1,
+								})}
+							>
+								{loading ? (
+									<ActivityIndicator color={ui.onPrimary} />
+								) : (
+									<Text
+										style={{
+											color: ui.onPrimary,
+											fontSize: 14,
+											fontWeight: "600",
+											letterSpacing: 0.14,
+										}}
+									>
+										{copy.submit}
+									</Text>
+								)}
+							</Pressable>
+
+							<View
+								style={{
+									flexDirection: "row",
+									justifyContent: "center",
+									alignItems: "center",
+									gap: 5,
+									marginTop: 22,
+								}}
+							>
+								<Text style={{ color: ui.textSubtle, fontSize: 13 }}>
+									{copy.switchPrompt}
+								</Text>
+								<Pressable onPress={toggleMode} disabled={busy} hitSlop={8}>
+									<Text
+										style={{
+											color: ui.text,
+											fontSize: 13,
+											fontWeight: "500",
+											textDecorationLine: "underline",
+										}}
+									>
+										{copy.switchAction}
+									</Text>
+								</Pressable>
+							</View>
+						</View>
 					</View>
-				</View>
+				</ScrollView>
 			</KeyboardAvoidingView>
 		</SafeAreaView>
 	);

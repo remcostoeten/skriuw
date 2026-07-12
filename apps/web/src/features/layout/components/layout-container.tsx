@@ -4,12 +4,9 @@ type Props = {
 };
 
 export function LayoutContainer({ children, className = "" }: Props) {
-	// max-h-full clamps to the parent when it has a definite height (the /app
-	// shell, where a guest banner may sit above); elsewhere it resolves to none
-	// and h-dvh keeps standalone pages (/s) full-height.
-	return (
-		<div className={`relative flex h-dvh max-h-full min-h-0 flex-col ${className}`}>
-			{children}
-		</div>
-	);
+	// Every workspace surface lives inside the /app shell's definite h-dvh flex
+	// track. Filling that track avoids a second viewport-height calculation while
+	// a loading boundary is being replaced, which previously made the mobile
+	// chrome jump vertically during hydration.
+	return <div className={`relative flex h-full min-h-0 flex-col ${className}`}>{children}</div>;
 }

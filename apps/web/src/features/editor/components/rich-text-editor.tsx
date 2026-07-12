@@ -3,7 +3,7 @@
 /* eslint-disable react-doctor/no-giant-component, react-doctor/exhaustive-deps, react-doctor/no-static-element-interactions */
 /* eslint-disable */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { filterSuggestionItems } from "@blocknote/core/extensions";
@@ -127,7 +127,7 @@ const EMPTY_FILES: NoteFile[] = [];
 const EMPTY_PEOPLE: Person[] = [];
 const EMPTY_PROPERTIES: NoteProperty[] = [];
 
-export function RichTextEditor({
+function RichTextEditorImpl({
 	content,
 	richContent,
 	files = EMPTY_FILES,
@@ -771,3 +771,5 @@ export function RichTextEditor({
 		</LazyMotion>
 	);
 }
+
+export const RichTextEditor = memo(RichTextEditorImpl);

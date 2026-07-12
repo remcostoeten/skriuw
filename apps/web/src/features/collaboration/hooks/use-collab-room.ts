@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import * as Y from "yjs";
-import YProvider from "y-partyserver/provider";
+import type * as Y from "yjs";
+import type YProvider from "y-partyserver/provider";
 import type { Awareness } from "y-protocols/awareness";
 
 // Both clients must read/write the same named fragment for edits to converge.
@@ -70,7 +70,11 @@ function subscribeRoom(listener: () => void) {
  * editor once `status === "connected"`.
  */
 export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabRoom {
-	const room = useSyncExternalStore(subscribeRoom, () => currentRoom, () => DISABLED);
+	const room = useSyncExternalStore(
+		subscribeRoom,
+		() => currentRoom,
+		() => DISABLED,
+	);
 
 	useEffect(() => {
 		if (!enabled || !noteId) {
@@ -86,6 +90,11 @@ export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabR
 		emitRoom({ ...DISABLED, status: "connecting" });
 
 		(async () => {
+			// Yjs + the PartyServer provider are dynamic imports so the whole CRDT
+			// stack stays out of the layout chunk — most sessions (and all desktop
+			// sessions) never open a room. Kicked off before the auth roundtrip so
+			// both resolve concurrently.
+			const modulesPromise = Promise.all([import("yjs"), import("y-partyserver/provider")]);
 			let auth: TAuthResponse;
 			try {
 				const res = await fetch("/api/collaboration/auth", {
@@ -109,9 +118,22 @@ export function useCollabRoom(noteId: string | null, enabled: boolean): TCollabR
 
 			if (cancelled) return;
 
-			doc = new Y.Doc();
+			let YDoc: typeof Y.Doc;
+			let Provider: typeof YProvider;
+			try {
+				const [yjsModule, providerModule] = await modulesPromise;
+				YDoc = yjsModule.Doc;
+				Provider = providerModule.default;
+			} catch {
+				if (!cancelled) emitRoom({ ...DISABLED, status: "error" });
+				return;
+			}
+
+			if (cancelled) return;
+
+			doc = new YDoc();
 			const fragment = doc.getXmlFragment(COLLAB_FRAGMENT);
-			provider = new YProvider(auth.host, noteId, doc, {
+			provider = new Provider(auth.host, noteId, doc, {
 				// Routes to the "Notes" Durable Object binding (case-insensitive);
 				// without this the provider would target the default "main" party.
 				party: "notes",

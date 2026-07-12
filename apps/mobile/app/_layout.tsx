@@ -8,6 +8,7 @@ import { View } from "react-native";
 import { AppProviders } from "@/providers/AppProviders";
 import { useSession } from "@/auth/auth-client";
 import { ThemeProvider, useTheme } from "@/theme/theme-provider";
+import { MobilePreferencesProvider } from "@/preferences/preferences-provider";
 
 /** Redirects between the (auth) and (app) groups based on session state. */
 function AuthGate() {
@@ -45,7 +46,9 @@ export default function RootLayout() {
 		<GestureHandlerRootView style={{ flex: 1 }}>
 			<SafeAreaProvider>
 				<ThemeProvider>
-					<ThemedRoot />
+					<MobilePreferencesProvider>
+						<ThemedRoot />
+					</MobilePreferencesProvider>
 				</ThemeProvider>
 			</SafeAreaProvider>
 		</GestureHandlerRootView>

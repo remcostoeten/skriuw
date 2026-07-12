@@ -161,7 +161,7 @@ export type TTheme = { [K in keyof TRawTheme]: TRawTheme[K] extends boolean ? bo
 
 function resolve(raw: TRawTheme): TTheme {
 	const out = { radius: 6 } as TTheme;
-	for (const key of Object.keys(raw) as Array<keyof TRawTheme>) {
+	for (const key of Object.keys(raw) as (keyof TRawTheme)[]) {
 		const value = raw[key];
 		// @ts-expect-error narrowed per-key: isDark stays boolean, colors become strings
 		out[key] = typeof value === "boolean" ? value : toHsl(value);
@@ -176,7 +176,7 @@ export const themes: Record<TThemeName, TTheme> = Object.fromEntries(
 ) as Record<TThemeName, TTheme>;
 
 /** Display metadata for the theme picker, in menu order. */
-export const themeList: Array<{ name: TThemeName; label: string }> = [
+export const themeList: { name: TThemeName; label: string }[] = [
 	{ name: "midnight", label: "Midnight" },
 	{ name: "mocha", label: "Mocha" },
 	{ name: "paper", label: "Paper" },

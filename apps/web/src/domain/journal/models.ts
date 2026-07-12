@@ -1,6 +1,6 @@
 import type { RichTextDocument } from "@/domain/notes/models";
-
-export type MoodLevel = "great" | "good" | "neutral" | "low" | "rough";
+export type { MoodLevel } from "@skriuw/domain/journal";
+import type { MoodLevel } from "@skriuw/domain/journal";
 
 export type JournalTag = {
 	id: string;
