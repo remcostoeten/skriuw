@@ -30,6 +30,20 @@ jobs:
 
     test:
         runs-on: ubuntu-latest
+        services:
+            postgres:
+                image: postgres:17
+                env:
+                    POSTGRES_USER: ci
+                    POSTGRES_PASSWORD: ci
+                    POSTGRES_DB: ci
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U ci -d ci"
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 10
         steps:
             - uses: actions/checkout@v4
 
@@ -39,6 +53,11 @@ jobs:
 
             - name: Install dependencies
               run: bun install --frozen-lockfile
+
+            - name: Apply database migrations
+              run: bunx prisma migrate deploy
+              env:
+                  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?sslmode=disable
 
             - name: Unit tests with coverage
               run: bun scripts/coverage-tui.ts --json coverage.json --markdown coverage.md --threshold=65
