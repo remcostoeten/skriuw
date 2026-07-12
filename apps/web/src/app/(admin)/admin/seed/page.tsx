@@ -1,7 +1,13 @@
+import { connection } from "next/server";
 import { loadActiveSeedBundle } from "@/domain/seed/queries";
 import { SeedEditorPage } from "@/features/admin/seed/components/seed-editor-page";
 
+// Admin data only exists at runtime. Prevent Docker builds from prerendering
+// this route against the build-time placeholder DATABASE_URL.
+export const instant = false;
+
 export default async function AdminSeedPage() {
+	await connection();
 	const bundle = await loadActiveSeedBundle();
 
 	if (!bundle) {
