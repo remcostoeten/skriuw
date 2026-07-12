@@ -28,6 +28,7 @@ concurrency:
 
 jobs:
     resolve:
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'desktop-v')
         runs-on: ubuntu-latest
         outputs:
             tag: ${{ steps.pick.outputs.tag }}
