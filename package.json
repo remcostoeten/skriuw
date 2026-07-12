@@ -64,7 +64,8 @@
 		"seed:welcome-bundle": "bun scripts/seed-welcome-bundle.ts",
 		"party:dev": "wrangler dev",
 		"party:deploy": "wrangler deploy",
-		"dev:all": "bun scripts/dev-all.ts"
+		"dev:all": "bun scripts/dev-all.ts",
+		"tui": "bash scripts/devtui/build.sh --run"
 	},
 	"dependencies": {
 		"@ai-sdk/google": "^3",
