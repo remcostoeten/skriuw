@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useMemo } from "react";
+import { memo, useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import type { AiAction, AiEditorHandle } from "@/features/ai/service";
 import type { NoteProperty } from "@/domain/notes/properties";
@@ -27,6 +27,7 @@ type EditorMode = "raw" | "block";
 
 const EMPTY_PEOPLE: Person[] = [];
 const EMPTY_FILES: NoteFile[] = [];
+const EMPTY_PROPERTIES: NoteProperty[] = [];
 
 function RichTextEditorLoading() {
 	return <EditorContentSkeleton />;
@@ -88,7 +89,7 @@ type EditorProps = {
 };
 
 // react-doctor-disable-next-line react-doctor/no-giant-component -- this shell intentionally coordinates both editor modes and their shared pane state in one place.
-export function Editor({
+function EditorImpl({
 	file,
 	files = EMPTY_FILES,
 	editorMode,
@@ -125,6 +126,7 @@ export function Editor({
 	const peopleQuery = useWorkspacePeople();
 	const people = peopleQuery.data ?? EMPTY_PEOPLE;
 	const createPersonMutation = useCreatePerson();
+	const createPersonAsync = createPersonMutation.mutateAsync;
 	const handleCreatePerson = useCallback(
 		async (name: string): Promise<Person | null> => {
 			const trimmed = name.trim();
@@ -134,7 +136,7 @@ export function Editor({
 			);
 			if (existing) return existing;
 			try {
-				return await createPersonMutation.mutateAsync({
+				return await createPersonAsync({
 					id: crypto.randomUUID(),
 					name: trimmed,
 				});
@@ -143,8 +145,14 @@ export function Editor({
 				return null;
 			}
 		},
-		[people, createPersonMutation],
+		[people, createPersonAsync],
 	);
+	// The save-settle cycle hands this component a fresh `file` object identity
+	// every ~180ms while content is unchanged. Handlers read the latest file
+	// through this ref so their own identity survives that churn — otherwise the
+	// memoized RichTextEditor below re-renders on every settle anyway.
+	const fileRef = useRef(file);
+	fileRef.current = file;
 	const lineHeightValue = getEditorLineHeightValue(editorLineHeight);
 	const lineCount = useMemo(
 		() => Math.max(1, (file?.content ?? "").split(/\r?\n/).length),
@@ -162,35 +170,38 @@ export function Editor({
 
 	const handleMarkdownChange = useCallback(
 		(content: string) => {
-			if (file) {
-				onContentChange(file.id, content);
+			const current = fileRef.current;
+			if (current) {
+				onContentChange(current.id, content);
 			}
 		},
-		[file, onContentChange],
+		[onContentChange],
 	);
 
 	const handleRichTextChange = useCallback(
 		(next: { markdown: string; richContent: RichTextDocument }) => {
-			if (file) {
-				onContentChange(file.id, next.markdown, {
+			const current = fileRef.current;
+			if (current) {
+				onContentChange(current.id, next.markdown, {
 					richContent: next.richContent,
 					preferredEditorMode: "block",
 				});
 			}
 		},
-		[file, onContentChange],
+		[onContentChange],
 	);
 
 	const handlePropertiesChange = useCallback(
 		(properties: NoteProperty[]) => {
-			if (!file) return;
-			onContentChange(file.id, file.content, {
-				richContent: file.richContent,
-				preferredEditorMode: file.preferredEditorMode,
+			const current = fileRef.current;
+			if (!current) return;
+			onContentChange(current.id, current.content, {
+				richContent: current.richContent,
+				preferredEditorMode: current.preferredEditorMode,
 				properties,
 			});
 		},
-		[file, onContentChange],
+		[onContentChange],
 	);
 
 	const reportTextareaCursor = useCallback(() => {
@@ -248,7 +259,7 @@ export function Editor({
 
 	const reportScrollPosition = useCallback(() => {
 		const container = scrollContainerRef.current;
-		if (!container || !file || !onScrollPositionChange) return;
+		if (!container || !fileRef.current || !onScrollPositionChange) return;
 		if (scrollReportFrameRef.current !== null) {
 			window.cancelAnimationFrame(scrollReportFrameRef.current);
 		}
@@ -256,7 +267,7 @@ export function Editor({
 			scrollReportFrameRef.current = null;
 			onScrollPositionChange(container.scrollTop);
 		});
-	}, [file, onScrollPositionChange]);
+	}, [onScrollPositionChange]);
 
 	const containerClass = cn(
 		"flex min-h-full min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain bg-card",
@@ -317,7 +328,7 @@ export function Editor({
 					editorLineHeight={editorLineHeight}
 					readOnly={readOnly}
 					onChange={handleRichTextChange}
-					properties={file.properties ?? []}
+					properties={file.properties ?? EMPTY_PROPERTIES}
 					onPropertiesChange={handlePropertiesChange}
 					icon={file.icon}
 					cover={file.cover}
@@ -433,3 +444,5 @@ export function Editor({
 		</div>
 	);
 }
+
+export const Editor = memo(EditorImpl);

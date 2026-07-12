@@ -3,7 +3,7 @@
 //
 // Ports the exact ruleset from web (providers/query-cache-persistence.tsx):
 //   - staleTime 60s, gcTime 24h
-//   - persist note BODIES only (never lists), 7-day maxAge, per-user scope
+//   - persist note bodies and journal entries, 7-day maxAge, per-user scope
 // Result: previously opened notes are readable offline. Writes are disabled
 // offline in the MVP (offline-first writes are V2/V3).
 //
@@ -46,7 +46,7 @@ export function createPersister() {
 export const persistOptions = {
 	maxAge: SEVEN_DAYS,
 	dehydrateOptions: {
-		// BODIES only — never persist list/search/folder queries.
+		// Writing bodies only — never persist note list/search/folder queries.
 		shouldDehydrateQuery: (query: { queryKey: readonly unknown[] }) =>
 			isPersistableKey(query.queryKey),
 	},

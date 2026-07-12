@@ -60,6 +60,11 @@ import {
 	type NoteCoverBannerHandle,
 } from "@/features/notes/components/note-cover";
 import { useUpdateNote } from "@/features/notes/hooks/use-update-note";
+import {
+	useCursorStatus,
+	useCursorStatusStore,
+	type CursorStatusStore,
+} from "@/features/editor/hooks/use-cursor-status";
 
 type EditorContainerProps = {
 	file: NoteFile | null;
@@ -104,15 +109,6 @@ type EditorContainerProps = {
 	onToggleEditorMode?: () => void;
 	onCreateFile?: () => void;
 	isContentLoading?: boolean;
-};
-
-type EditorCursorStatus = {
-	line: number;
-	column: number;
-	selection?: {
-		words: number;
-		characters: number;
-	};
 };
 
 const EMPTY_FILES: NoteFile[] = [];
@@ -286,6 +282,44 @@ function BottomStatusText({
 	);
 }
 
+function EditorCursorStatusText({
+	store,
+	rawMode,
+	animateNumbers,
+}: {
+	store: CursorStatusStore;
+	rawMode: boolean;
+	animateNumbers: boolean;
+}) {
+	const cursorPosition = useCursorStatus(store);
+
+	return (
+		<BottomStatusText isSelection={Boolean(cursorPosition.selection)}>
+			{cursorPosition.selection ? (
+				<>
+					<AnimatedNumber
+						value={cursorPosition.selection.words}
+						animate={animateNumbers}
+					/>{" "}
+					selected {cursorPosition.selection.words === 1 ? "word" : "words"} ·{" "}
+					<AnimatedNumber
+						value={cursorPosition.selection.characters}
+						animate={animateNumbers}
+					/>{" "}
+					{cursorPosition.selection.characters === 1 ? "char" : "chars"}
+				</>
+			) : rawMode ? (
+				<>
+					Ln <AnimatedNumber value={cursorPosition.line} animate={animateNumbers} />, Col{" "}
+					<AnimatedNumber value={cursorPosition.column} animate={animateNumbers} />
+				</>
+			) : (
+				<>Block editor</>
+			)}
+		</BottomStatusText>
+	);
+}
+
 function ActivityDots({
 	saveState,
 	aiLoading,
@@ -392,10 +426,7 @@ function EditorContainerImpl({
 	// the name is Untitled or matches the current heading; a manual rename
 	// permanently opts out. Re-evaluated when a different note is opened.
 	const headingTracksRef = useRef(true);
-	const [cursorPosition, setCursorPosition] = useState<EditorCursorStatus>({
-		line: 1,
-		column: 1,
-	});
+	const cursorStatusStore = useCursorStatusStore();
 	const [vimMode, setVimMode] = useState<VimMode | null>(null);
 	const [spellCheckRevert, setSpellCheckRevert] = useState<string | null>(null);
 	const [customPromptRevert, setCustomPromptRevert] = useState<string[] | null>(null);
@@ -424,13 +455,19 @@ function EditorContainerImpl({
 	const [prevFileId, setPrevFileId] = useState(fileId);
 	if (fileId !== prevFileId) {
 		setPrevFileId(fileId);
-		setCursorPosition({ line: 1, column: 1 });
 		setSpellCheckRevert(null);
 		setCustomPromptRevert(null);
 		setSuggestedTags(null);
 		setAiNotice(null);
 		setAnnotating(false);
 	}
+
+	// Reset in an effect, not the render-phase block above: notifying the
+	// store's status-bar subscriber mid-render would update a component while
+	// another is rendering.
+	useEffect(() => {
+		cursorStatusStore.reset();
+	}, [cursorStatusStore, fileId]);
 
 	const aiPrefs = usePreferencesStore((s) => s.ai);
 	const editorPrefs = usePreferencesStore((s) => s.editor);
@@ -548,6 +585,16 @@ function EditorContainerImpl({
 		() => runAiAction("continueWriting"),
 		[runAiAction],
 	);
+	const handleAiCustomPrompt = useCallback(
+		(instruction: string) => runAiAction("customPrompt", undefined, [], instruction),
+		[runAiAction],
+	);
+	const handleToggleAnnotate = useCallback(() => {
+		setAnnotating((current) => !current);
+	}, []);
+	const handleAnnotateDone = useCallback(() => {
+		setAnnotating(false);
+	}, []);
 
 	// The editor calls this once the heading block is "done" — the caret left it
 	// (blur / Enter / navigate away). That's the only point the sidebar filename
@@ -674,9 +721,7 @@ function EditorContainerImpl({
 					canToggleSplit={canToggleSplit}
 					annotating={annotating}
 					onToggleAnnotate={
-						file && effectiveEditorMode === "block"
-							? () => setAnnotating((current) => !current)
-							: undefined
+						file && effectiveEditorMode === "block" ? handleToggleAnnotate : undefined
 					}
 					presenceAwareness={collabRoom.awareness}
 				/>
@@ -1005,28 +1050,16 @@ function EditorContainerImpl({
 									onIconChange={canEditCover ? handleIconChange : undefined}
 									onCoverChange={canEditCover ? handleCoverChange : undefined}
 									onEditorReady={handleEditorReady}
-									onAiSpellCheck={
-										canUseAi ? () => runAiAction("spellCheck") : undefined
-									}
+									onAiSpellCheck={canUseAi ? handleAiSpellCheck : undefined}
 									onAiContinueWriting={
-										canUseAi ? () => runAiAction("continueWriting") : undefined
+										canUseAi ? handleAiContinueWriting : undefined
 									}
 									onAiAction={canUseAi ? runAiAction : undefined}
-									onAiCustomPrompt={
-										canUseAi
-											? (instruction) =>
-													runAiAction(
-														"customPrompt",
-														undefined,
-														[],
-														instruction,
-													)
-											: undefined
-									}
+									onAiCustomPrompt={canUseAi ? handleAiCustomPrompt : undefined}
 									onTitleCommit={handleTitleCommit}
 									onBlur={onEditorBlur}
 									onCursorChange={
-										isPane && !isPaneFocused ? undefined : setCursorPosition
+										isPane && !isPaneFocused ? undefined : cursorStatusStore.set
 									}
 									onVimModeChange={setVimMode}
 									initialScrollTop={initialScrollTop}
@@ -1156,7 +1189,7 @@ function EditorContainerImpl({
 							file.access !== "owner" &&
 							file.access !== "editor"
 						}
-						onDone={() => setAnnotating(false)}
+						onDone={handleAnnotateDone}
 					/>
 				) : null}
 				{!showEditorSkeleton && (
@@ -1180,38 +1213,11 @@ function EditorContainerImpl({
 							<span className="ml-1">{wordCount === 1 ? "word" : "words"}</span>
 						</span>
 						<span className="h-4 w-px bg-border" aria-hidden="true" />
-						<BottomStatusText isSelection={Boolean(cursorPosition.selection)}>
-							{cursorPosition.selection ? (
-								<>
-									<AnimatedNumber
-										value={cursorPosition.selection.words}
-										animate={editorPrefs.animateNumbers}
-									/>{" "}
-									selected{" "}
-									{cursorPosition.selection.words === 1 ? "word" : "words"} ·{" "}
-									<AnimatedNumber
-										value={cursorPosition.selection.characters}
-										animate={editorPrefs.animateNumbers}
-									/>{" "}
-									{cursorPosition.selection.characters === 1 ? "char" : "chars"}
-								</>
-							) : effectiveEditorMode === "raw" ? (
-								<>
-									Ln{" "}
-									<AnimatedNumber
-										value={cursorPosition.line}
-										animate={editorPrefs.animateNumbers}
-									/>
-									, Col{" "}
-									<AnimatedNumber
-										value={cursorPosition.column}
-										animate={editorPrefs.animateNumbers}
-									/>
-								</>
-							) : (
-								<>Block editor</>
-							)}
-						</BottomStatusText>
+						<EditorCursorStatusText
+							store={cursorStatusStore}
+							rawMode={effectiveEditorMode === "raw"}
+							animateNumbers={editorPrefs.animateNumbers}
+						/>
 					</div>
 					{!isMobile &&
 					editorPrefs.vimMode &&

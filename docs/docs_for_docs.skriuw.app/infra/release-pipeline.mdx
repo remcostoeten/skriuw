@@ -17,7 +17,7 @@ The image publish is CI. `.github/workflows/publish-docker.yml` triggers on any
 3. Builds the root `Dockerfile` for `linux/amd64` and `linux/arm64`.
 4. Pushes to `ghcr.io/remcostoeten/skriuw` with tags derived from the git tag.
 
-For tag `v0.18.0` that publishes three tags: `:0.18.0`, `:0.18`, and `:latest`.
+For tag `v0.21.0` that publishes three tags: `:0.21.0`, `:0.21`, and `:latest`.
 Every subsequent `vX.Y.Z` tag re-publishes and moves `:latest` forward. GitHub
 Actions layer caching (`type=gha`) keeps rebuilds fast.
 
@@ -28,8 +28,8 @@ manual, matching the desktop flow (`desktop-v*` tags). To ship a release:
 
 ```bash
 # bump "version" in package.json first, then:
-git tag v0.18.0
-git push origin v0.18.0
+git tag v0.21.0
+git push origin v0.21.0
 ```
 
 That single push is the whole release action; the workflow does the rest.
@@ -41,7 +41,7 @@ That single push is the whole release action; the workflow does the rest.
 | `v*.*.*` | `publish-docker.yml` | The self-host web image on GHCR |
 | `desktop-v*` | `release-desktop.yml` | Native desktop installers + a GitHub release |
 
-The two schemes are independent. `desktop-v0.18.0` and `v0.18.0` are different
+The two schemes are independent. `desktop-v0.22.0` and `v0.21.0` are different
 tags that fire different pipelines; a desktop release does not build the Docker
 image and vice versa.
 

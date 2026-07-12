@@ -2,7 +2,7 @@
 // folder can be reparented. When moving a folder we hide its own subtree — you
 // can't move a folder into itself or a descendant.
 import { useMemo } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Check, ChevronRight, FolderIcon, Home } from "lucide-react-native";
 import type { Folder } from "@/backend/types";

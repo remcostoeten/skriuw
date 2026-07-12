@@ -1,6 +1,6 @@
 {
 	"name": "@skriuw/web",
-	"version": "0.20.0",
+	"version": "0.21.0",
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -23,6 +23,7 @@
 		"@aws-sdk/client-s3": "^3.1081.0",
 		"@better-auth/expo": "^1.6.11",
 		"@excalidraw/excalidraw": "^0.18.1",
+		"@skriuw/domain": "workspace:*",
 		"@vercel/blob": "^2.5.0",
 		"@xyflow/react": "^12.11.2",
 		"html-to-image": "^1.11.13",

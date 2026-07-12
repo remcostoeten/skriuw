@@ -1,0 +1,66 @@
+Build a new mobile-first Daily Journal feature for Skriuw.
+
+Skriuw is a privacy-first writing app for notes and daily journaling. It already has a web and desktop product; this feature is for its upcoming iPhone-first Expo / React Native app. You do not have access to the codebase, so build a high-fidelity UI prototype with local fixture data and simulated interactions only. Do not build a backend, auth, database, API calls, real sync, or persistence.
+
+Existing product contract — preserve this exactly:
+- Journal is separate from regular notes: it is a dedicated daily-writing space.
+- There is exactly one journal entry per calendar date. Selecting a date opens its existing entry or an empty composer for that day.
+- Entries support a title, plain Markdown text content, one optional mood, and tags.
+- Moods are: Great, Good, Neutral, Low, Rough. Use calm, tasteful visual treatment; do not use oversized emoji.
+- On the real app, content autosaves and is available on web and desktop. In this prototype, only simulate “Saving…” and “Saved”.
+- The web product also has rich text, AI actions, export, and journal statistics. Do not build those in this feature; mobile V1 should deliberately be focused and lightweight.
+
+Design direction:
+- Build as Expo / React Native components if possible. Otherwise create an interactive iPhone viewport prototype that is easy to port to Expo.
+- Quiet, focused, literary, warm. It should feel like a private writing place, not a productivity dashboard.
+- Use generous whitespace, a refined serif for journal reading/writing where appropriate, and a clean sans-serif for controls.
+- Support both light and dark themes.
+- Respect iPhone safe areas, 44px minimum touch targets, native-feeling bottom sheets, and keyboard-aware layouts.
+- Do not use a desktop sidebar, dense data tables, cards everywhere, gradients, gamification, or generic dashboard patterns.
+
+Build these connected, reusable screens and states:
+
+1. Today / entry screen
+- Header with a compact month label, calendar action, and overflow menu.
+- A warm contextual date title: “Today”, “Yesterday”, “Tomorrow”, or weekday + date for any other day.
+- Optional editable entry title with a graceful fallback when absent.
+- A simple Markdown text editor designed for reflective writing, not a rich block editor.
+- Quiet save status and word count at the bottom.
+- A horizontal mood selector that can be set, changed, or cleared.
+- Tags shown as subtle pills. Provide an add-tag interaction with suggestions from existing tags.
+- An empty-day state with a short, non-prescriptive writing prompt and a clear “Start writing” affordance.
+- Include the keyboard-visible state and a compact Markdown formatting accessory row: bold, italic, heading, checklist, bullet list, link.
+
+2. Calendar
+- Full-screen month calendar opened from Today.
+- Previous/next month controls, a visible Today button, and a date picker / jump-to-date action.
+- Dates with entries have small, unobtrusive status dots whose tone can reflect their mood.
+- Selected date state and future dates must be supported.
+- Tapping a date opens that date’s entry.
+- Include a sparse-month empty state.
+
+3. Entry history
+- A chronological, mobile-native list of past entries.
+- Each row includes day/date, title or text preview, mood marker, tags, and word count.
+- Search field for entry text and tags.
+- Filter chips: All, Tagged, Mood.
+- Empty search state.
+- Tapping an entry opens it; use plausible static fixture content from a writer’s life.
+
+4. Journal navigation
+- A minimal bottom navigation or another clearly native mobile navigation pattern that connects Today, Calendar, and Entries.
+- Do not add regular Notes navigation or Settings to this feature; keep the feature self-contained so it can be integrated into a larger mobile shell later.
+
+5. Supporting interactions
+- Date jump sheet.
+- Mood picker sheet if it does not fit elegantly inline.
+- Tag picker / create-tag sheet.
+- Overflow actions sheet containing Rename, Delete entry, and Cancel; deletion must require confirmation.
+- Loading skeleton, offline read-only state, and save-error state. These are visual states only.
+
+Implementation constraints:
+- Use a single clearly isolated mock-data module with entries, tags, moods, calendar metadata, and UI state examples.
+- Make all navigation and interactions work locally with mocked state.
+- Add concise TODO comments only at integration seams: fetch entries, save entry, delete entry, autocomplete tags, and offline cache.
+- Use components with intentional names and a clean structure, suitable for later migration into an Expo app.
+- Do not invent new backend concepts, user accounts, collaboration, AI chat, streak rewards, push notifications, social sharing, or analytics.

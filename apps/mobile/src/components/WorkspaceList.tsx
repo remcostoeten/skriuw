@@ -116,6 +116,13 @@ export function WorkspaceList({ folderId }: { folderId: string | null }) {
 		[reorder],
 	);
 
+	const openNewNote = useCallback(() => {
+		router.push({
+			pathname: "/(app)/note/new",
+			params: folderId ? { folderId } : {},
+		});
+	}, [router, folderId]);
+
 	const confirmDelete = useCallback(
 		(row: Row) => {
 			const isFolder = row.kind === "folder";
@@ -208,13 +215,6 @@ export function WorkspaceList({ folderId }: { folderId: string | null }) {
 		);
 	}
 
-	const openNewNote = useCallback(() => {
-		router.push({
-			pathname: "/(app)/note/new",
-			params: folderId ? { folderId } : {},
-		});
-	}, [router, folderId]);
-
 	return (
 		<View style={{ flex: 1, backgroundColor: theme.background }}>
 			<DraggableFlatList
@@ -233,10 +233,11 @@ export function WorkspaceList({ folderId }: { folderId: string | null }) {
 					<View
 						style={{
 							flexDirection: "row",
-							gap: 10,
+							gap: 6,
 							paddingHorizontal: 16,
-							paddingTop: 12,
-							paddingBottom: 8,
+							paddingVertical: 8,
+							borderBottomWidth: 1,
+							borderBottomColor: theme.divider,
 						}}
 					>
 						<ActionButton label="New note" icon={Plus} onPress={openNewNote} />
@@ -330,9 +331,9 @@ function WorkspaceRow({
 			style={{
 				flexDirection: "row",
 				alignItems: "center",
-				gap: 12,
+				gap: 10,
 				paddingHorizontal: 16,
-				paddingVertical: 14,
+				paddingVertical: 11,
 				borderBottomWidth: 1,
 				borderBottomColor: theme.divider,
 				backgroundColor: isActive ? theme.bgActive : theme.background,
@@ -349,8 +350,8 @@ function WorkspaceRow({
 					numberOfLines={1}
 					style={{
 						color: theme.foreground,
-						fontSize: 16,
-						fontWeight: isFolder ? "600" : "600",
+						fontSize: 15,
+						fontWeight: "500",
 					}}
 				>
 					{rowLabel(row)}
@@ -358,7 +359,7 @@ function WorkspaceRow({
 				{preview ? (
 					<Text
 						numberOfLines={1}
-						style={{ color: theme.mutedForeground, fontSize: 13, marginTop: 3 }}
+						style={{ color: theme.mutedForeground, fontSize: 12, marginTop: 2 }}
 					>
 						{preview}
 					</Text>
@@ -395,17 +396,15 @@ function ActionButton({
 			style={{
 				flexDirection: "row",
 				alignItems: "center",
-				gap: 7,
-				backgroundColor: theme.card,
-				borderWidth: 1,
-				borderColor: theme.border,
-				borderRadius: theme.radius + 4,
-				paddingHorizontal: 14,
-				paddingVertical: 9,
+				gap: 6,
+				backgroundColor: "transparent",
+				borderRadius: 4,
+				paddingHorizontal: 9,
+				paddingVertical: 7,
 			}}
 		>
 			<Icon size={17} color={theme.foreground} strokeWidth={2} />
-			<Text style={{ color: theme.foreground, fontSize: 14, fontWeight: "600" }}>
+			<Text style={{ color: theme.foreground, fontSize: 12, fontWeight: "500" }}>
 				{label}
 			</Text>
 		</Pressable>

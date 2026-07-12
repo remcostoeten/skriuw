@@ -2,24 +2,43 @@
 	"expo": {
 		"name": "Skriuw",
 		"slug": "skriuw",
-		"version": "0.1.0",
+		"version": "0.2.0",
 		"orientation": "portrait",
+		"icon": "../desktop/src-tauri/icons/ios/AppIcon-512@2x.png",
 		"scheme": "skriuw",
 		"userInterfaceStyle": "automatic",
 		"newArchEnabled": true,
 		"ios": {
 			"supportsTablet": true,
-			"bundleIdentifier": "com.skriuw.app"
+			"bundleIdentifier": "com.skriuw.app",
+			"icon": "../desktop/src-tauri/icons/ios/AppIcon-512@2x.png"
 		},
 		"android": {
-			"package": "com.skriuw.app"
+			"package": "com.skriuw.app",
+			"versionCode": 2,
+			"adaptiveIcon": {
+				"foregroundImage": "../desktop/src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
+				"backgroundColor": "#111111"
+			}
 		},
-		"plugins": ["expo-router", "expo-secure-store"],
+		"plugins": [
+			"expo-router",
+			"expo-secure-store",
+			[
+				"expo-splash-screen",
+				{
+					"backgroundColor": "#111111",
+					"image": "../desktop/src-tauri/icons/ios/AppIcon-512@2x.png",
+					"imageWidth": 112,
+					"resizeMode": "contain"
+				}
+			]
+		],
 		"experiments": {
 			"typedRoutes": true
 		},
 		"extra": {
-			"apiBaseUrl": "http://10.0.2.2:3000"
+			"apiBaseUrl": "https://skriuw.com"
 		}
 	}
 }

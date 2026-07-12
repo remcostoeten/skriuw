@@ -24,13 +24,16 @@ import {
 	ConflictError,
 	MOBILE_CAPABILITIES,
 	type Capabilities,
+	type CreateJournalEntryInput,
 	type CreateFolderInput,
 	type CreateNoteInput,
 	type Folder,
+	type JournalEntry,
 	type Note,
 	type NoteSummary,
 	type SearchResult,
 	type UpdateFolderInput,
+	type UpdateJournalEntryInput,
 	type UpdateNoteInput,
 	type WorkspaceBackend,
 } from "@/backend/types";
@@ -143,6 +146,34 @@ class HttpWorkspaceBackend implements WorkspaceBackend {
 
 	search(query: string): Promise<SearchResult[]> {
 		return this.request<SearchResult[]>(`/search?q=${encodeURIComponent(query)}`);
+	}
+
+	listJournalEntries(): Promise<JournalEntry[]> {
+		return this.request<JournalEntry[]>("/journal");
+	}
+
+	createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry> {
+		return this.request<JournalEntry>("/journal", {
+			method: "POST",
+			headers: { "Idempotency-Key": randomUUID() },
+			body: JSON.stringify(input),
+		});
+	}
+
+	updateJournalEntry(input: UpdateJournalEntryInput): Promise<JournalEntry> {
+		return this.queue.enqueue(`journal:${input.id}`, () => {
+			const { id, ...patch } = input;
+			return this.request<JournalEntry>(`/journal/${encodeURIComponent(id)}`, {
+				method: "PATCH",
+				body: JSON.stringify(patch),
+			});
+		});
+	}
+
+	deleteJournalEntry(id: string): Promise<void> {
+		return this.queue.enqueue(`journal:${id}`, () =>
+			this.request<void>(`/journal/${encodeURIComponent(id)}`, { method: "DELETE" }),
+		);
 	}
 }
 
