@@ -3,6 +3,43 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.21.0] — 2026-07-12
+
+### Added
+
+- **Native mobile app:** cloud-authenticated Expo client with notes, folders,
+  search, settings, theme preferences, bottom navigation, and polished sign-in.
+- **Mobile journal:** daily editor, moods, tags, calendar, searchable archive,
+  autosave, deletion, offline read cache, and shared cloud persistence with web.
+- **Shared journal domain:** cross-platform journal contracts, mood/date helpers,
+  validation, merge rules, and focused tests in `@skriuw/domain`.
+- **Mobile CI:** dedicated Expo TypeScript and lint job on every push and pull
+  request.
+
+### Changed
+
+- **Cloud synchronization:** web and mobile journals refresh every 30 seconds;
+  mobile also refreshes after returning to foreground or reconnecting.
+- **Desktop storage:** SQLite reads use a three-connection read-only pool while
+  writes remain serialized, reducing contention for graph, tags, backlinks,
+  notes, folders, journal, people, and history queries.
+- **Web mobile navigation:** reworked responsive navigation and editor cursor
+  state handling for more predictable touch layouts and editor focus.
+
+### Fixed
+
+- **Journal saves:** concurrent first saves for one date now converge on the
+  active daily entry instead of failing the partial unique constraint.
+- **Desktop Linux:** align GTK program name with the installed desktop entry so
+  Wayland compositors display the correct taskbar icon.
+- **Collaboration/editor:** improve room cleanup, cursor state propagation, and
+  editor lifecycle handling.
+
+### Release
+
+- Unified web/cloud release `0.21.0`; mobile app advances to `0.2.0` with
+  Android version code `2`.
+
 ## [0.18.1] — 2026-07-09
 
 ### Fixed
@@ -279,4 +316,5 @@ hardening work accumulated during the preview builds.
 - Security/IDOR hardening on upserts and debounced-save race fixes.
 - Monorepo restructure (Next.js app moved to `apps/web`, shared `packages/web-spa`).
 
+[0.21.0]: https://github.com/remcostoeten/skriuw/releases/tag/v0.21.0
 [0.1.0]: https://github.com/remcostoeten/skriuw/releases/tag/desktop-v0.1.0

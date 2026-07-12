@@ -10,6 +10,12 @@
 // ---------------------------------------------------------------------------
 
 import type { RichDocument } from "@/domain/rich-document";
+import type {
+	CreateJournalEntryWireInput,
+	JournalEntryWire,
+	MoodLevel,
+	UpdateJournalEntryWireInput,
+} from "@skriuw/domain/journal";
 
 export type BackendMode = "server" | "guest" | "tauri" | "mobile";
 
@@ -27,7 +33,7 @@ export type Capabilities = {
 };
 
 export const MOBILE_CAPABILITIES: Capabilities = {
-	journal: false,
+	journal: true,
 	sharing: false,
 	collaboration: false,
 	notifications: false,
@@ -36,6 +42,11 @@ export const MOBILE_CAPABILITIES: Capabilities = {
 	history: false,
 	coverUpload: false,
 };
+
+export type JournalEntry = JournalEntryWire;
+export type CreateJournalEntryInput = CreateJournalEntryWireInput;
+export type UpdateJournalEntryInput = UpdateJournalEntryWireInput;
+export type { MoodLevel };
 
 export type PreferredEditorMode = "rich" | "raw";
 
@@ -126,6 +137,12 @@ export interface WorkspaceBackend {
 
 	// Search
 	search(query: string): Promise<SearchResult[]>;
+
+	// Journal
+	listJournalEntries(): Promise<JournalEntry[]>;
+	createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry>;
+	updateJournalEntry(input: UpdateJournalEntryInput): Promise<JournalEntry>;
+	deleteJournalEntry(id: string): Promise<void>;
 }
 
 /** Thrown when a PATCH precondition fails (someone else edited the note). */

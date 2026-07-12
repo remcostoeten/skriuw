@@ -9,7 +9,10 @@ export const notesKeys = {
 	search: (query: string) => ["notes", "search", query] as const,
 };
 
-/** True for query keys whose data should survive offline (note bodies only). */
+/** True for query keys whose data should survive offline. */
 export function isPersistableKey(key: readonly unknown[]): boolean {
-	return key[0] === "notes" && key[1] === "detail";
+	return (
+		(key[0] === "notes" && key[1] === "detail") ||
+		(key[0] === "journal" && key[1] === "entries")
+	);
 }

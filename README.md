@@ -5,7 +5,7 @@
 <h1 align="center">Skriuw</h1>
 
 <p align="center">
-  <b>Open source note-taking, journaling, and knowledge base for web and desktop.</b>
+  <b>Open source note-taking, journaling, and knowledge base for web, mobile, and desktop.</b>
 </p>
 
 <p align="center">
@@ -24,7 +24,9 @@
 
 Skriuw is a privacy-first writing app that keeps your notes, daily journal, and lightweight roadmap planning in one workspace. It is built for people who want a quiet interface, fast keyboard-driven navigation, and a plain path for thinking and drafting without friction.
 
-Everything is minimal by default and feature-rich when you opt in. It runs in the browser and as a native desktop app, and you can self-host it.
+Everything is minimal by default and feature-rich when you opt in. It runs in
+the browser, as a cloud-synced Expo mobile app, and as a local-first native
+desktop app. You can also self-host it.
 
 > [!NOTE]
 > AI is optional. Bring your own provider key or use the app's fallback keys. User keys are encrypted at rest.
@@ -111,7 +113,9 @@ skriuw-export-YYYY-MM-DD/
 
 ## Tech stack
 
-Next.js, PostgreSQL with Prisma, Better Auth, Tauri for the desktop build, and a block-based editor with real-time collaboration. Managed with Bun in a monorepo.
+Next.js, Expo/React Native, PostgreSQL with Prisma, Better Auth, Tauri for the
+desktop build, and a block-based editor with real-time collaboration. Managed
+with Bun 1.3.14 in a monorepo.
 
 ## Install — pick how you run it
 
@@ -120,6 +124,7 @@ Skriuw ships in a few shapes. Pick whichever fits; they all run the same app.
 | Mode                                   | Storage                                  | How you get it                         | Best for                                              |
 | -------------------------------------- | ---------------------------------------- | -------------------------------------- | ----------------------------------------------------- |
 | **Cloud**                              | Postgres (hosted)                        | Visit [skriuw.com](https://skriuw.com) | Just want to write, nothing to install                |
+| **Mobile**                             | Cloud account + offline read cache       | Expo development build                 | Notes and journal across phone and web                |
 | **Self-host (Docker)**                 | Postgres                                 | `docker pull` + Compose (below)        | A server / homelab instance you own, multi-device     |
 | **Desktop**                            | Markdown vault + SQLite (local, offline) | Native installer                       | Local-first, no server, no account                    |
 | _Self-host local-first vault (Docker)_ | Markdown vault + SQLite                  | _coming soon_                          | Homelab users who want plain `.md` files, no Postgres |
@@ -175,6 +180,13 @@ Copy `.env.example` to `.env.local`, set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `
 ```bash
 bun install
 bun dev
+```
+
+Run the mobile app with a development client:
+
+```bash
+bun mobile
+bun mobile:check
 ```
 
 ## License

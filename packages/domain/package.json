@@ -1,0 +1,9 @@
+{
+	"name": "@skriuw/domain",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./journal": "./src/journal.ts"
+	}
+}

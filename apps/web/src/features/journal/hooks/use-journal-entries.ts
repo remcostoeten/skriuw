@@ -1,43 +1,15 @@
 "use client";
 
 import { useApiQuery, useApiMutation } from "@/shared/api";
+import { mergeJournalEntriesByDate } from "@skriuw/domain/journal";
 import type { CreateJournalEntryInput, UpdateJournalEntryInput } from "@/domain/journal/actions";
 import type { JournalEntry } from "@/types/journal";
-import { useQueryClient } from "@tanstack/react-query";
 import { journalKeys } from "./journal-keys";
 import { useAuth } from "@/core/auth/use-auth";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
 
-function timeValue(value: Date): number {
-	return value instanceof Date ? value.getTime() : new Date(value).getTime();
-}
-
-function entryTimestamp(entry: JournalEntry): number {
-	return timeValue(entry.updatedAt) || timeValue(entry.createdAt);
-}
-
-function isNewerJournalEntry(candidate: JournalEntry, current: JournalEntry): boolean {
-	const candidateTime = entryTimestamp(candidate);
-	const currentTime = entryTimestamp(current);
-
-	if (candidateTime !== currentTime) {
-		return candidateTime > currentTime;
-	}
-
-	return candidate.id > current.id;
-}
-
 export function mergeJournalEntriesByActiveDate(entries: JournalEntry[]): JournalEntry[] {
-	const entryByDate = new Map<string, JournalEntry>();
-
-	for (const entry of entries) {
-		const current = entryByDate.get(entry.dateKey);
-		if (!current || isNewerJournalEntry(entry, current)) {
-			entryByDate.set(entry.dateKey, entry);
-		}
-	}
-
-	return [...entryByDate.values()];
+	return mergeJournalEntriesByDate(entries);
 }
 
 export function upsertJournalEntryByActiveDate(
@@ -51,7 +23,6 @@ export function upsertJournalEntryByActiveDate(
 }
 
 export function useJournalEntries() {
-	const queryClient = useQueryClient();
 	const auth = useAuth();
 	const backend = useWorkspaceBackend();
 	const scope =
@@ -65,14 +36,12 @@ export function useJournalEntries() {
 		// Cache-first: on web the list is RSC-hydrated, so this returns it without a
 		// network hit. On desktop there is no prefetch, so fall through to the
 		// backend (Tauri → local SQLite); guest backends have no list method → [].
-		async () => {
-			const cached = queryClient.getQueryData<JournalEntry[]>(entriesKey);
-			if (cached !== undefined) return cached;
-			return (await backend.listJournalEntries?.()) ?? [];
-		},
+		async () => (await backend.listJournalEntries?.()) ?? [],
 		{
 			enabled: auth.isReady,
-			staleTime: Infinity,
+			staleTime: 30_000,
+			refetchInterval: 30_000,
+			refetchOnWindowFocus: true,
 			select: mergeJournalEntriesByActiveDate,
 		},
 	);

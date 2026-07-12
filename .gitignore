@@ -59,6 +59,8 @@ TODO.*
 .pnpm-store/
 .claude/
 .env*
+!.env.example
+!apps/mobile/.env.example
 dev-menu.config.ts
 apps/desktop/skriuw_*_amd64-working-directory/
 
