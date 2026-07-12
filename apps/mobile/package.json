@@ -5,6 +5,7 @@
 	"main": "expo-router/entry",
 	"scripts": {
 		"start": "expo start --dev-client",
+		"web": "EXPO_PUBLIC_API_BASE_URL=http://localhost:3000 expo start --web --port 8081",
 		"android": "expo run:android",
 		"ios": "expo run:ios",
 		"prebuild": "expo prebuild",
@@ -15,6 +16,7 @@
 	"dependencies": {
 		"@babel/runtime": "^7.25.0",
 		"@better-auth/expo": "^1.6.11",
+		"@better-auth/passkey": "^1.6.23",
 		"@expo/metro-runtime": "~4.0.1",
 		"@react-native-async-storage/async-storage": "1.23.1",
 		"@shopify/flash-list": "1.7.3",
@@ -26,6 +28,7 @@
 		"better-auth": "^1.6.11",
 		"expo": "~52.0.0",
 		"expo-asset": "~11.0.5",
+		"expo-better-auth-passkey": "^1.4.3",
 		"expo-constants": "~17.0.0",
 		"expo-crypto": "~14.0.2",
 		"expo-linking": "~7.0.0",
