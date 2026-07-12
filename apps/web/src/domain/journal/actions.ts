@@ -7,6 +7,7 @@ import {
 	isRecordNotFoundError,
 	isUniqueConstraintError,
 } from "@/core/persistence/guards";
+import { isDateKey, isMoodLevel } from "@skriuw/domain/journal";
 import { backfillMissingJournalLinks, syncJournalLinks } from "@/domain/journal/journal-link-sync";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 import type { RichTextDocument } from "@/domain/notes/models";
@@ -97,6 +98,10 @@ export async function listJournalEntries(): Promise<JournalEntry[]> {
 }
 
 export async function createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry> {
+	if (!isDateKey(input.dateKey)) throw new Error("Invalid journal entry date.");
+	if (input.mood !== undefined && !isMoodLevel(input.mood)) {
+		throw new Error("Invalid journal entry mood.");
+	}
 	const { prisma, user } = await getAuthenticatedUser();
 	const id = input.id ?? crypto.randomUUID();
 	const updateData = {
@@ -168,6 +173,9 @@ export type UpdateJournalEntryInput = {
 export async function updateJournalEntry(
 	input: UpdateJournalEntryInput,
 ): Promise<JournalEntry | undefined> {
+	if (input.mood != null && !isMoodLevel(input.mood)) {
+		throw new Error("Invalid journal entry mood.");
+	}
 	const { prisma, user } = await getAuthenticatedUser();
 
 	try {

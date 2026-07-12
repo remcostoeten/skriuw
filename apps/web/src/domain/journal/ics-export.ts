@@ -1,3 +1,4 @@
+import { isDateKey } from "@skriuw/domain/journal";
 import type { JournalEntry, MoodLevel } from "@/domain/journal/models";
 import { extractRichDocumentPersonIds } from "@/domain/notes/rich-document";
 
@@ -68,6 +69,18 @@ function toIcsTimestamp(date: Date): string {
 	return `${date.toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`;
 }
 
+/**
+ * DTSTAMP source with fallbacks: `updatedAt`, then `createdAt`, then "now" —
+ * so an entry with a corrupt timestamp still serializes as a valid VEVENT.
+ */
+function entryTimestamp(entry: JournalEntry): string {
+	for (const candidate of [entry.updatedAt, entry.createdAt]) {
+		const date = new Date(candidate);
+		if (Number.isFinite(date.getTime())) return toIcsTimestamp(date);
+	}
+	return toIcsTimestamp(new Date());
+}
+
 function buildDescription(
 	entry: JournalEntry,
 	resolvePersonName?: IcsExportOptions["resolvePersonName"],
@@ -113,9 +126,9 @@ export function filterEntriesByRange(
  * imports directly into Apple Calendar, Outlook, and Google Calendar.
  */
 export function buildJournalIcs(entries: JournalEntry[], options: IcsExportOptions = {}): string {
-	const selected = filterEntriesByRange(entries, options.from, options.to).toSorted((a, b) =>
-		a.dateKey.localeCompare(b.dateKey),
-	);
+	const selected = filterEntriesByRange(entries, options.from, options.to)
+		.filter((entry) => isDateKey(entry.dateKey))
+		.toSorted((a, b) => a.dateKey.localeCompare(b.dateKey) || a.id.localeCompare(b.id));
 
 	const lines: string[] = [
 		"BEGIN:VCALENDAR",
@@ -130,7 +143,7 @@ export function buildJournalIcs(entries: JournalEntry[], options: IcsExportOptio
 		lines.push(
 			"BEGIN:VEVENT",
 			`UID:${escapeIcsText(entry.id)}@skriuw`,
-			`DTSTAMP:${toIcsTimestamp(entry.updatedAt)}`,
+			`DTSTAMP:${entryTimestamp(entry)}`,
 			`DTSTART;VALUE=DATE:${toIcsDate(entry.dateKey)}`,
 			`DTEND;VALUE=DATE:${nextDayIcsDate(entry.dateKey)}`,
 			`SUMMARY:${escapeIcsText(buildSummary(entry))}`,
