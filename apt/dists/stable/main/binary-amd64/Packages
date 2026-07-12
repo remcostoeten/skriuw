@@ -103,3 +103,18 @@ Priority: optional
 Description: Skriuw desktop shell (local-first)
  (none)
 
+Package: skriuw
+Version: 0.22.0
+Architecture: amd64
+Maintainer: Remco Stoeten
+Installed-Size: 17416
+Depends: libayatana-appindicator3-1, libwebkit2gtk-4.1-0, libgtk-3-0
+Filename: pool/main/Skriuw_0.22.0_amd64.deb
+Size: 9737838
+MD5sum: e115bcc4fbc3cefe9a370f798327a4f4
+SHA1: 46612b597e42e3c48b604a073c7f2b2711027c02
+SHA256: e17880bc7371a4c5c17c6ce9efa1bb1074b8ecd3ee6f10f5c9bcf185b89227d2
+Priority: optional
+Description: Skriuw is a simple, cross-platform, Markdown note-taking app.
+ (none)
+

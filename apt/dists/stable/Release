@@ -1,24 +1,24 @@
 Architectures: amd64
 Codename: stable
 Components: main
-Date: Fri, 10 Jul 2026 14:56:11 +0000
+Date: Sun, 12 Jul 2026 02:25:40 +0000
 Description: Skriuw desktop apt repository
 Label: Skriuw
 Origin: Skriuw
 Suite: stable
 MD5Sum:
- 9bbf2c28a46b31ed51cf090c1bc96c97              179 Release
- 8365c3d9caf5b880c465ebc37fb0d38d             3248 main/binary-amd64/Packages
- 48ea328d7a37ef08af2bf5a773c850d6             1016 main/binary-amd64/Packages.gz
+ b6b4813ba61dd3a334b3988bb477a917              179 Release
+ 9f80e6a0ddc56ba6a8f3226166b9e392             3739 main/binary-amd64/Packages
+ a25a88481074ea49d45ca7cb0c6bcdc3             1173 main/binary-amd64/Packages.gz
 SHA1:
- 1b9b1fb09660ada5be76cebbd2e64740761479b3              179 Release
- 45fab6759c206856a30c46e562e3c240a233cbbe             3248 main/binary-amd64/Packages
- be637eb9ea2aff0f414a2cb08b24dc827d60cce7             1016 main/binary-amd64/Packages.gz
+ ed7208d5127659b5ec663f58f86241313f2e7516              179 Release
+ 03f4707b0c22b8cb8de94014e09b0b6ff3ef6ab2             3739 main/binary-amd64/Packages
+ 63a48f743ca54170686467857812f0f2b3ef63f9             1173 main/binary-amd64/Packages.gz
 SHA256:
- f3be1e663e5855129dfe53392a6769137cd4d05aca82a9e69b2894e443a22de8              179 Release
- 6255777f12af90b16c539e1226c48c35f7e61125a188b62e04bb1dfa0acb551e             3248 main/binary-amd64/Packages
- 9eee0d1b0356ede10a7e8d313665ae323b57eade51310aa45de5059cbf5c1cc2             1016 main/binary-amd64/Packages.gz
+ 76f570ea609caaf77ca5a996af0e64a65ef4b3c5ce970db96ea24fcbeef16a86              179 Release
+ 19bef16a63934e21bce339c85afb27292472dbce59f04b7cc57c704de33f79b9             3739 main/binary-amd64/Packages
+ c2b1e7897ff92d516f8c352a2269a9113065597e23703590330ed250772de07b             1173 main/binary-amd64/Packages.gz
 SHA512:
- 66506a95d4dc04b6cf53ec6d21a787cbb5b01507d4ae22587c3208464b554e9b1f2697a4814851c413bbf068a951442c054c148f6d6f86b09305466681e3ec78              179 Release
- 661d48dc1266f841556132abf2e1ce41c85c02dd33f404b1e076bc1aeb344521406fbade47457a5ef26036a2beb4b66455d4ef41c3f50a47f1144b78483883b5             3248 main/binary-amd64/Packages
- 0ba083779df3c179a0dc2a7a8d5f859c54e0fab78c7a1796a48245eda70af596ce0ef71045c2d421c5139f1517898f84e060a3267b0ac7b5ae28f65cfbcbf6ea             1016 main/binary-amd64/Packages.gz
+ eec4d96596722ee0065b451809111f19c59d3050414580014d0a4a596de0c3530a1771cc24a75daff1aaa4fc270a22ae26dd04cc47dcfbbce9976e66f0c430c5              179 Release
+ 5de40dfe5c1a2c1085ae6de14d8cdd0f2bde37dabc75a2bb04ff1f9dd8cdcea808a3b9d825cab37bfb7dc008dea797f22dda38dcad8e154ad39a471150b2590f             3739 main/binary-amd64/Packages
+ 11dc8b9c5694bc50c8d455e1eefd093f843fcf6b5a70cc979e8f76805088472971e63c13b897bf2287e6bfbaf87d196495500c773e4d9dc1d35e5db19c7d8a23             1173 main/binary-amd64/Packages.gz
