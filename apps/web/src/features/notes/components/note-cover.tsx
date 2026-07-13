@@ -48,7 +48,23 @@ const NOTE_COVER_GRADIENTS: Record<string, string> = {
 	bloom: "linear-gradient(135deg, hsl(var(--project-pink) / 0.4), hsl(var(--project-red) / 0.2))",
 };
 
+const NOTE_COVER_COLORS: Record<string, string> = {
+	gray: "hsl(var(--project-gray) / 0.45)",
+	red: "hsl(var(--project-red) / 0.45)",
+	orange: "hsl(var(--project-orange) / 0.45)",
+	amber: "hsl(var(--project-amber) / 0.45)",
+	green: "hsl(var(--project-green) / 0.45)",
+	teal: "hsl(var(--project-teal) / 0.45)",
+	blue: "hsl(var(--project-blue) / 0.45)",
+	purple: "hsl(var(--project-purple) / 0.45)",
+	pink: "hsl(var(--project-pink) / 0.45)",
+};
+
 const GRADIENT_PREFIX = "gradient:";
+const COLOR_PREFIX = "color:";
+/** Hexes are stored without `#` so the value can't collide with the position fragment markers. */
+const CUSTOM_GRADIENT_PREFIX = "gradient-custom:";
+const HEX_PATTERN = /^[0-9a-f]{6}$/i;
 const POSITION_MARKER = "#y=";
 const TRANSFORM_MARKER = "#cover-position=";
 const MIN_ZOOM = 1;
@@ -120,14 +136,40 @@ function withCoverPosition(cover: string, position: CoverPosition): string {
 		: `${src}${TRANSFORM_MARKER}${x},${y},${zoom}${height === null ? "" : `,${height}`}`;
 }
 
+function isDecorativeCover(cover: string): boolean {
+	return (
+		cover.startsWith(GRADIENT_PREFIX) ||
+		cover.startsWith(COLOR_PREFIX) ||
+		cover.startsWith(CUSTOM_GRADIENT_PREFIX)
+	);
+}
+
 function isImageCover(cover: string): boolean {
-	return Boolean(cover) && !cover.startsWith(GRADIENT_PREFIX);
+	return Boolean(cover) && !isDecorativeCover(cover);
+}
+
+function customGradientCss(value: string): string | null {
+	const [from, to, angle] = value.split(",");
+	if (!from || !to || !HEX_PATTERN.test(from) || !HEX_PATTERN.test(to)) return null;
+	const degrees = Number(angle);
+	const clamped = Number.isFinite(degrees) ? ((Math.round(degrees) % 360) + 360) % 360 : 135;
+	return `linear-gradient(${clamped}deg, #${from}, #${to})`;
 }
 
 function resolveCoverStyle(src: string, y: number): React.CSSProperties {
 	if (src.startsWith(GRADIENT_PREFIX)) {
 		const gradient = NOTE_COVER_GRADIENTS[src.slice(GRADIENT_PREFIX.length)];
 		return { backgroundImage: gradient ?? NOTE_COVER_GRADIENTS.slate };
+	}
+	if (src.startsWith(COLOR_PREFIX)) {
+		const color = NOTE_COVER_COLORS[src.slice(COLOR_PREFIX.length)];
+		return { backgroundColor: color ?? NOTE_COVER_COLORS.gray };
+	}
+	if (src.startsWith(CUSTOM_GRADIENT_PREFIX)) {
+		const gradient = customGradientCss(src.slice(CUSTOM_GRADIENT_PREFIX.length));
+		return gradient
+			? { backgroundImage: gradient }
+			: { backgroundImage: NOTE_COVER_GRADIENTS.slate };
 	}
 	return {
 		backgroundImage: `url(${JSON.stringify(src)})`,
@@ -197,10 +239,8 @@ function useCoverUpload(
 		};
 	}, []);
 
-	async function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
-		const file = event.target.files?.[0];
-		event.target.value = "";
-		if (!file || !backend.uploadCoverImage) return;
+	async function uploadFile(file: File) {
+		if (!backend.uploadCoverImage) return;
 
 		setStatus("pending");
 		try {
@@ -222,10 +262,17 @@ function useCoverUpload(
 		}
 	}
 
+	function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
+		const file = event.target.files?.[0];
+		event.target.value = "";
+		if (file) void uploadFile(file);
+	}
+
 	return {
 		status,
 		fileInputRef,
 		handleFileSelected,
+		uploadFile,
 		openFilePicker: () => fileInputRef.current?.click(),
 		canUpload: Boolean(capabilities.coverUpload && backend.uploadCoverImage),
 	};
@@ -386,6 +433,38 @@ function useCoverReposition({
 	};
 }
 
+/** Drop-an-image-onto-the-banner upload path; inert when the backend can't store uploads. */
+function useCoverDrop(upload: CoverUpload, enabled: boolean) {
+	const [dropActive, setDropActive] = useState(false);
+
+	function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
+		if (!enabled || !event.dataTransfer.types.includes("Files")) return;
+		event.preventDefault();
+		event.dataTransfer.dropEffect = "copy";
+		setDropActive(true);
+	}
+
+	function handleDragLeave(event: React.DragEvent<HTMLDivElement>) {
+		if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+		setDropActive(false);
+	}
+
+	function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+		setDropActive(false);
+		if (!enabled) return;
+		const file = Array.from(event.dataTransfer.files).find((item) =>
+			item.type.startsWith("image/"),
+		);
+		if (!file) return;
+		event.preventDefault();
+		void upload.uploadFile(file);
+	}
+
+	return { dropActive, handleDragOver, handleDragLeave, handleDrop };
+}
+
+type CoverDrop = ReturnType<typeof useCoverDrop>;
+
 /**
  * Applies a just-uploaded cover's pending edit handoff during render, before
  * paint. Starts at `null` so a banner that mounts *because of* the upload
@@ -535,6 +614,7 @@ function CoverBannerSurface({
 	resizeCover,
 	commitResize,
 	style,
+	drop,
 }: {
 	bannerRef: React.RefObject<HTMLDivElement | null>;
 	coverHeight: number | null;
@@ -554,6 +634,7 @@ function CoverBannerSurface({
 	resizeCover: (event: React.PointerEvent<HTMLButtonElement>) => void;
 	commitResize: (event: React.PointerEvent<HTMLButtonElement>) => void;
 	style: React.CSSProperties;
+	drop?: CoverDrop;
 }) {
 	return (
 		<div
@@ -567,9 +648,19 @@ function CoverBannerSurface({
 			onPointerDown={handlePointerDown}
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerUp}
+			onDragOver={drop?.handleDragOver}
+			onDragLeave={drop?.handleDragLeave}
+			onDrop={drop?.handleDrop}
 		>
 			{imageCover && resolvedSrc && (
 				<CoverBannerImage resolvedSrc={resolvedSrc} position={position} />
+			)}
+			{drop?.dropActive && (
+				<div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-ring bg-background/60 backdrop-blur-[2px]">
+					<span className="rounded-md bg-background/85 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm">
+						Drop image to set cover
+					</span>
+				</div>
 			)}
 			{repositioning && (
 				<CoverRepositionToolbar
@@ -614,6 +705,17 @@ function CoverChangeSubmenu({
 							style={{ backgroundImage: gradient }}
 							aria-label={`Use ${id} cover gradient`}
 							onSelect={() => onCoverChange(`${GRADIENT_PREFIX}${id}`)}
+						/>
+					))}
+				</div>
+				<div className="grid grid-cols-9 gap-1 p-1 pt-0">
+					{Object.entries(NOTE_COVER_COLORS).map(([id, color]) => (
+						<ContextMenuItem
+							key={id}
+							className="aspect-square rounded-sm border border-border p-0 focus:border-ring"
+							style={{ backgroundColor: color }}
+							aria-label={`Use ${id} cover color`}
+							onSelect={() => onCoverChange(`${COLOR_PREFIX}${id}`)}
 						/>
 					))}
 				</div>
@@ -807,6 +909,7 @@ export function NoteCoverBanner({ cover, onCoverChange, ref }: BannerProps) {
 	const style = useCoverStyle(cover, repositioning ? position.y : null);
 	const resolvedSrc = useResolvedCoverSrc(cover);
 	const upload = useCoverUpload((value) => onCoverChange?.(value), undefined, startRepositioning);
+	const drop = useCoverDrop(upload, Boolean(onCoverChange) && upload.canUpload && !repositioning);
 	const imageCover = isImageCover(cover);
 
 	useCoverEditHandoff(cover, imageCover, startRepositioning);
@@ -842,6 +945,7 @@ export function NoteCoverBanner({ cover, onCoverChange, ref }: BannerProps) {
 			resizeCover={resizeCover}
 			commitResize={commitResize}
 			style={bannerStyle}
+			drop={drop}
 		/>
 	);
 
@@ -929,6 +1033,111 @@ function GradientGrid({ cover, onSelect }: { cover?: string; onSelect: (value: s
 			})}
 		</div>
 	);
+}
+
+function ColorGrid({ cover, onSelect }: { cover?: string; onSelect: (value: string) => void }) {
+	return (
+		<div className="grid grid-cols-9 gap-1">
+			{Object.entries(NOTE_COVER_COLORS).map(([id, color]) => {
+				const value = `${COLOR_PREFIX}${id}`;
+				const selected = cover === value;
+				return (
+					<button
+						key={id}
+						type="button"
+						aria-label={`Use ${id} cover color`}
+						onClick={() => onSelect(value)}
+						className={cn(
+							"relative aspect-square rounded-sm border transition-colors",
+							selected
+								? "border-ring ring-1 ring-ring"
+								: "border-border hover:border-ring/60",
+						)}
+						style={{ backgroundColor: color }}
+					>
+						{selected && (
+							<Check className="absolute inset-0 m-auto h-3 w-3 text-foreground drop-shadow-sm" />
+						)}
+					</button>
+				);
+			})}
+		</div>
+	);
+}
+
+function PickerCustomGradientSection({ onSelect }: { onSelect: (value: string) => void }) {
+	const [from, setFrom] = useState("#6366f1");
+	const [to, setTo] = useState("#ec4899");
+	const [angle, setAngle] = useState(135);
+	const value = `${CUSTOM_GRADIENT_PREFIX}${from.slice(1)},${to.slice(1)},${angle}`;
+
+	return (
+		<>
+			<p className="mb-1.5 mt-3 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
+				Custom gradient
+			</p>
+			<div className="flex items-center gap-1.5">
+				<input
+					type="color"
+					value={from}
+					onChange={(event) => setFrom(event.target.value)}
+					aria-label="Gradient start color"
+					className="h-7 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
+				/>
+				<input
+					type="color"
+					value={to}
+					onChange={(event) => setTo(event.target.value)}
+					aria-label="Gradient end color"
+					className="h-7 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
+				/>
+				<input
+					type="range"
+					min={0}
+					max={360}
+					step={15}
+					value={angle}
+					onChange={(event) => setAngle(Number(event.target.value))}
+					aria-label="Gradient angle"
+					className="min-w-0 flex-1 accent-foreground"
+				/>
+			</div>
+			<button
+				type="button"
+				onClick={() => onSelect(value)}
+				className="mt-1.5 flex h-7 w-full items-center justify-center rounded-md border border-border text-xs font-medium text-foreground transition-colors hover:border-ring/60"
+				style={{
+					backgroundImage:
+						customGradientCss(value.slice(CUSTOM_GRADIENT_PREFIX.length)) ?? undefined,
+				}}
+			>
+				<span className="rounded bg-background/70 px-1.5 py-0.5 backdrop-blur-sm">
+					Use gradient
+				</span>
+			</button>
+		</>
+	);
+}
+
+/** Sets the cover from an image pasted while the picker is open; text paste is untouched. */
+function usePickerPaste(open: boolean, upload: CoverUpload) {
+	const uploadRef = useRef(upload);
+	uploadRef.current = upload;
+
+	useEffect(() => {
+		if (!open) return;
+		function handlePaste(event: ClipboardEvent) {
+			if (!uploadRef.current.canUpload) return;
+			const file = Array.from(event.clipboardData?.files ?? []).find((item) =>
+				item.type.startsWith("image/"),
+			);
+			if (!file) return;
+			event.preventDefault();
+			void uploadRef.current.uploadFile(file);
+		}
+		window.addEventListener("paste", handlePaste);
+		return () => window.removeEventListener("paste", handlePaste);
+	}, [open]);
 }
 
 function PickerUploadSection({ upload }: { upload: CoverUpload }) {
@@ -1094,6 +1303,8 @@ export const NoteCoverPicker = memo(function NoteCoverPicker({
 	);
 	const triggerStyle = useCoverStyle(cover ?? "");
 
+	usePickerPaste(open, upload);
+
 	function applyUrl() {
 		const trimmed = url.trim();
 		if (!trimmed) return;
@@ -1135,6 +1346,13 @@ export const NoteCoverPicker = memo(function NoteCoverPicker({
 					Gradient
 				</p>
 				<GradientGrid cover={cover} onSelect={selectCover} />
+
+				<p className="mb-1.5 mt-3 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
+					Color
+				</p>
+				<ColorGrid cover={cover} onSelect={selectCover} />
+
+				<PickerCustomGradientSection onSelect={selectCover} />
 
 				{upload.canUpload && <PickerUploadSection upload={upload} />}
 
