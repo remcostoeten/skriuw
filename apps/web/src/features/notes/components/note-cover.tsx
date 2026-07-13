@@ -595,6 +595,36 @@ function CoverResizeHandle({
 	);
 }
 
+function CoverChangeIndicator({
+	cover,
+	onCoverChange,
+}: {
+	cover: string;
+	onCoverChange: (cover: string) => void;
+}) {
+	return (
+		<div
+			className="absolute right-2.5 top-2.5 z-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+			onPointerDown={(event) => event.stopPropagation()}
+		>
+			<NoteCoverPicker
+				cover={cover}
+				onCoverChange={onCoverChange}
+				renderTrigger={() => (
+					<button
+						type="button"
+						aria-label="Change cover"
+						className="flex items-center gap-1.5 rounded-full border border-border/50 bg-background/80 px-2.5 py-1.5 text-xs font-medium text-foreground/90 shadow-sm backdrop-blur-md transition-colors hover:border-border hover:bg-background hover:text-foreground"
+					>
+						<ImageIcon className="h-3.5 w-3.5" />
+						Change cover
+					</button>
+				)}
+			/>
+		</div>
+	);
+}
+
 function CoverBannerSurface({
 	bannerRef,
 	coverHeight,
@@ -609,6 +639,7 @@ function CoverBannerSurface({
 	setDraftPosition,
 	commitReposition,
 	cancelReposition,
+	cover,
 	onCoverChange,
 	beginResize,
 	resizeCover,
@@ -629,6 +660,7 @@ function CoverBannerSurface({
 	setDraftPosition: React.Dispatch<React.SetStateAction<CoverPosition | null>>;
 	commitReposition: () => void;
 	cancelReposition: () => void;
+	cover: string;
 	onCoverChange?: (cover: string) => void;
 	beginResize: (event: React.PointerEvent<HTMLButtonElement>) => void;
 	resizeCover: (event: React.PointerEvent<HTMLButtonElement>) => void;
@@ -640,7 +672,7 @@ function CoverBannerSurface({
 		<div
 			ref={bannerRef}
 			className={cn(
-				"relative h-32 w-full shrink-0 overflow-hidden border-b border-border md:h-40",
+				"group relative h-32 w-full shrink-0 overflow-hidden border-b border-border md:h-40",
 				coverHeight === 0 && "border-b-0",
 				repositioning && "cursor-grab touch-none select-none active:cursor-grabbing",
 			)}
@@ -669,6 +701,9 @@ function CoverBannerSurface({
 					commitReposition={commitReposition}
 					cancelReposition={cancelReposition}
 				/>
+			)}
+			{onCoverChange && !repositioning && (
+				<CoverChangeIndicator cover={cover} onCoverChange={onCoverChange} />
 			)}
 			{onCoverChange && coverHeight !== 0 && !repositioning && (
 				<CoverResizeHandle
@@ -940,6 +975,7 @@ export function NoteCoverBanner({ cover, onCoverChange, ref }: BannerProps) {
 			setDraftPosition={setDraftPosition}
 			commitReposition={commitReposition}
 			cancelReposition={cancelReposition}
+			cover={cover}
 			onCoverChange={onCoverChange}
 			beginResize={beginResize}
 			resizeCover={resizeCover}
@@ -1284,11 +1320,14 @@ function PickerUrlRow({
 type PickerProps = {
 	cover?: string;
 	onCoverChange: (cover: string) => void;
+	/** Overrides the default swatch/icon trigger button, e.g. for a banner overlay. */
+	renderTrigger?: (cover: string | undefined) => React.ReactNode;
 };
 
 export const NoteCoverPicker = memo(function NoteCoverPicker({
 	cover,
 	onCoverChange,
+	renderTrigger,
 }: PickerProps) {
 	const [open, setOpen] = useState(false);
 	const [url, setUrl] = useState("");
@@ -1321,25 +1360,29 @@ export const NoteCoverPicker = memo(function NoteCoverPicker({
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
-				<button
-					type="button"
-					className={cn(
-						"flex h-8 w-8 items-center justify-center rounded-md transition-colors",
-						cover
-							? "hover:bg-accent"
-							: "text-muted-foreground hover:bg-accent hover:text-foreground",
-					)}
-					aria-label={cover ? "Change cover" : "Add cover"}
-				>
-					{cover ? (
-						<span
-							className="h-4 w-6 rounded-sm border border-border/60"
-							style={triggerStyle}
-						/>
-					) : (
-						<ImageIcon className="h-4 w-4" />
-					)}
-				</button>
+				{renderTrigger ? (
+					renderTrigger(cover)
+				) : (
+					<button
+						type="button"
+						className={cn(
+							"flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+							cover
+								? "hover:bg-accent"
+								: "text-muted-foreground hover:bg-accent hover:text-foreground",
+						)}
+						aria-label={cover ? "Change cover" : "Add cover"}
+					>
+						{cover ? (
+							<span
+								className="h-4 w-6 rounded-sm border border-border/60"
+								style={triggerStyle}
+							/>
+						) : (
+							<ImageIcon className="h-4 w-4" />
+						)}
+					</button>
+				)}
 			</PopoverTrigger>
 			<PopoverContent className="w-[260px] p-2.5" align="start" side="bottom">
 				<p className="mb-1.5 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
