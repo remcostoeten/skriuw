@@ -369,7 +369,7 @@ export function SidebarSection({
 																	onDelete();
 																	setShowMenu(false);
 																}}
-																className="relative flex w-full cursor-default select-none items-center gap-2 px-2 py-1.5 text-left text-sm text-destructive outline-none hover:bg-muted"
+																className="relative flex w-full cursor-default select-none items-center gap-2 px-2 py-1.5 text-left text-sm text-[#ff808a] outline-none hover:bg-[#ff808a4d]"
 															>
 																<Trash2 className="w-3.5 h-3.5" />
 																Delete
@@ -448,7 +448,7 @@ export function SidebarSection({
 									<>
 										<ContextMenuSeparator />
 										<ContextMenuItem
-											className="gap-2 text-destructive focus:text-destructive"
+											className="gap-2 text-[#ff808a] focus:bg-[#ff808a4d]"
 											onSelect={onDelete}
 										>
 											<Trash2 className="h-3.5 w-3.5" />

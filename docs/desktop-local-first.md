@@ -49,14 +49,22 @@ authoritative.
 
 ## Sync
 
-Decision: **ship serverless now (silos), add sync later.** The pull seam already
-exists — `importArchive` (`ImportArchivePayload`) applies a full workspace pull,
+Decision: **local-first by default, cloud sync only after explicit consent.** The pull seam
+— `importArchive` (`ImportArchivePayload`) — applies a full workspace pull,
 including `deletedIds` tombstones, in one transaction
 (`storage.rs::import_workspace`). The `Note` row already carries `id` (uuid),
 `created_at`, and `modified_at`; deletes are tombstoned through the trash and the
 pull payload. That is enough for last-write-wins reconciliation.
 
-What is missing is the **push** half and a conflict policy — see gaps.
+The push half uses a writable, revocable sync credential created automatically
+through Better Auth's browser device flow. Desktop opens the normal web sign-in,
+so GitHub and the user's existing browser session work without credentials ever
+entering the desktop webview. Connecting the account does not enable sync. After
+the user separately opts in, desktop uploads its snapshot and then pulls the merged cloud workspace. Later
+syncs run every two minutes while online. A successful baseline records ids so
+later local deletions can be propagated safely; failed requests leave local files
+untouched and retry. Concurrent note edits preserve the desktop body as a dated
+conflict copy rather than choosing a silent winner.
 
 ## AI
 
@@ -68,10 +76,10 @@ behind an explicit consent toggle; "fully private" holds only in Ollama mode.
 
 ## Open gaps
 
-1. **Sync push + conflict policy.** Only the pull direction is built. Two-way sync
-   needs a desktop→cloud push and an explicit LWW-vs-merge decision. The seam
-   (stable ids, `modified_at`, tombstones) is in place; the transport and the
-   merge rule are not.
+1. **OS keychain storage.** Browser pairing removes manual credential handling,
+   and the credential is revocable/disconnected from the server, but it is still
+   persisted in the desktop webview store. Move it to Keychain, Credential Manager,
+   or Secret Service before treating a compromised desktop profile as protected.
 2. **`richContent` is not persisted in the vault.** It is derived from the markdown
    on read (`rich-document.ts`), so block-editor-only structure is lossy on a
    desktop round-trip. Decide: accept lossy markdown-canonical, or add a

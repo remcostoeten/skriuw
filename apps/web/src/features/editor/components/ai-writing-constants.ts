@@ -9,6 +9,7 @@ export const AI_WRITING_LABELS: Record<AiWritingAction, string> = {
 	summarize: "Summarizing this note",
 	extractTasks: "Extracting action items",
 	suggestTags: "Suggesting tags",
+	generateDiagram: "Creating a diagram",
 	fixSelection: "Fixing the selection",
 	rewriteSelection: "Rewriting the selection",
 	shortenSelection: "Shortening the selection",

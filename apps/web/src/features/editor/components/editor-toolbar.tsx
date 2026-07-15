@@ -50,6 +50,33 @@ export type EditorSaveState = "idle" | "saving" | "saved" | "error";
 
 const EMPTY_WORKSPACE_ITEMS: WorkspaceNavItem[] = [];
 
+function ToolbarTooltip({
+	label,
+	shortcutId,
+	hideShortcut = false,
+	children,
+}: {
+	label: string;
+	shortcutId?: ShortcutId;
+	hideShortcut?: boolean;
+	children: React.ReactNode;
+}) {
+	const shortcut = useShortcutHint(shortcutId);
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>{children}</TooltipTrigger>
+			<TooltipContent
+				side="bottom"
+				className="px-2 py-1 text-xs"
+				shortcut={hideShortcut ? undefined : shortcut}
+			>
+				{label}
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
 function runAiAction(handler?: () => void) {
 	return () => {
 		handler?.();
@@ -101,14 +128,11 @@ function WorkspaceMenu({
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<button
-					type="button"
-					className={buttonClassName}
-					aria-label="Workspaces"
-					title="Workspaces"
-				>
-					<Columns2 className="h-4 w-4" strokeWidth={1.5} />
-				</button>
+				<ToolbarTooltip label="Switch workspace">
+					<button type="button" className={buttonClassName} aria-label="Switch workspace">
+						<Columns2 className="h-4 w-4" strokeWidth={1.5} />
+					</button>
+				</ToolbarTooltip>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" className="w-44 rounded-none shadow-none">
 				{items.map((item) => (
@@ -132,33 +156,6 @@ function WorkspaceMenu({
 				))}
 			</DropdownMenuContent>
 		</DropdownMenu>
-	);
-}
-
-function ToolbarTooltip({
-	label,
-	shortcutId,
-	hideShortcut = false,
-	children,
-}: {
-	label: string;
-	shortcutId?: ShortcutId;
-	hideShortcut?: boolean;
-	children: React.ReactNode;
-}) {
-	const shortcut = useShortcutHint(shortcutId);
-
-	return (
-		<Tooltip>
-			<TooltipTrigger asChild>{children}</TooltipTrigger>
-			<TooltipContent
-				side="bottom"
-				className="px-2 py-1 text-xs"
-				shortcut={hideShortcut ? undefined : shortcut}
-			>
-				{label}
-			</TooltipContent>
-		</Tooltip>
 	);
 }
 
@@ -289,30 +286,34 @@ export const EditorToolbar = memo(function EditorToolbar({
 					</button>
 				</ToolbarTooltip>
 				<WorkspaceMenu items={workspaceItems} buttonClassName={sidebarIconButtonClass} />
-				<button
-					type="button"
-					onClick={onNavigatePrev}
-					disabled={!canNavigatePrev}
-					className={cn(
-						sidebarIconButtonClass,
-						!canNavigatePrev && "cursor-not-allowed text-muted-foreground/30",
-					)}
-					aria-label="Previous file"
-				>
-					<ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
-				</button>
-				<button
-					type="button"
-					onClick={onNavigateNext}
-					disabled={!canNavigateNext}
-					className={cn(
-						sidebarIconButtonClass,
-						!canNavigateNext && "cursor-not-allowed text-muted-foreground/30",
-					)}
-					aria-label="Next file"
-				>
-					<ChevronRight className="h-4 w-4" strokeWidth={1.5} />
-				</button>
+				<ToolbarTooltip label="Previous file">
+					<button
+						type="button"
+						onClick={onNavigatePrev}
+						disabled={!canNavigatePrev}
+						className={cn(
+							sidebarIconButtonClass,
+							!canNavigatePrev && "cursor-not-allowed text-muted-foreground/30",
+						)}
+						aria-label="Previous file"
+					>
+						<ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
+					</button>
+				</ToolbarTooltip>
+				<ToolbarTooltip label="Next file">
+					<button
+						type="button"
+						onClick={onNavigateNext}
+						disabled={!canNavigateNext}
+						className={cn(
+							sidebarIconButtonClass,
+							!canNavigateNext && "cursor-not-allowed text-muted-foreground/30",
+						)}
+						aria-label="Next file"
+					>
+						<ChevronRight className="h-4 w-4" strokeWidth={1.5} />
+					</button>
+				</ToolbarTooltip>
 
 				<div
 					data-tauri-drag-region
@@ -398,47 +399,58 @@ export const EditorToolbar = memo(function EditorToolbar({
 						</ToolbarTooltip>
 					)}
 					{splitEnabled && onToggleSplitOrientation ? (
-						<button
-							type="button"
-							onClick={onToggleSplitOrientation}
-							className={sidebarIconButtonClass}
-							aria-label={
+						<ToolbarTooltip
+							label={
 								splitOrientation === "vertical"
 									? "Switch to horizontal split"
 									: "Switch to vertical split"
 							}
+							shortcutId="notes.splitHorizontal"
 						>
-							{splitOrientation === "vertical" ? (
-								<Rows2 className="h-4 w-4" strokeWidth={1.5} />
-							) : (
-								<Columns2 className="h-4 w-4" strokeWidth={1.5} />
-							)}
-						</button>
+							<button
+								type="button"
+								onClick={onToggleSplitOrientation}
+								className={sidebarIconButtonClass}
+								aria-label={
+									splitOrientation === "vertical"
+										? "Switch to horizontal split"
+										: "Switch to vertical split"
+								}
+							>
+								{splitOrientation === "vertical" ? (
+									<Rows2 className="h-4 w-4" strokeWidth={1.5} />
+								) : (
+									<Columns2 className="h-4 w-4" strokeWidth={1.5} />
+								)}
+							</button>
+						</ToolbarTooltip>
 					) : null}
 					{hasAiActions && (
 						<GuestGate feature="ai">
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
-									<button
-										type="button"
-										data-tour="ai"
-										disabled={anyAiLoading}
-										className={cn(
-											sidebarIconButtonClass,
-											"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
-											anyAiLoading && "cursor-not-allowed opacity-50",
-										)}
-										aria-label="AI actions"
-									>
-										{anyAiLoading ? (
-											<Loader2
-												className="h-3.5 w-3.5 animate-spin"
-												strokeWidth={1.6}
-											/>
-										) : (
-											<SparkleIcon className="h-3.5 w-3.5" />
-										)}
-									</button>
+									<ToolbarTooltip label="AI actions">
+										<button
+											type="button"
+											data-tour="ai"
+											disabled={anyAiLoading}
+											className={cn(
+												sidebarIconButtonClass,
+												"text-sidebar-foreground/58 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+												anyAiLoading && "cursor-not-allowed opacity-50",
+											)}
+											aria-label="AI actions"
+										>
+											{anyAiLoading ? (
+												<Loader2
+													className="h-3.5 w-3.5 animate-spin"
+													strokeWidth={1.6}
+												/>
+											) : (
+												<SparkleIcon className="h-3.5 w-3.5" />
+											)}
+										</button>
+									</ToolbarTooltip>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent
 									align="end"

@@ -82,7 +82,10 @@ fn changed_regions(prev: &str, next: &str) -> (Vec<char>, Vec<char>) {
         prev_end -= 1;
         next_end -= 1;
     }
-    (prev[start..prev_end].to_vec(), next[start..next_end].to_vec())
+    (
+        prev[start..prev_end].to_vec(),
+        next[start..next_end].to_vec(),
+    )
 }
 
 fn is_trivial_content_edit(prev: &str, next: &str) -> bool {
@@ -213,11 +216,21 @@ mod tests {
     fn one_or_two_char_edit_is_skipped() {
         let l = latest("hello", "autosave", 0);
         assert_eq!(
-            decide(&snapshot("hello!"), "autosave", COALESCE_WINDOW_MS * 10, Some(&l)),
+            decide(
+                &snapshot("hello!"),
+                "autosave",
+                COALESCE_WINDOW_MS * 10,
+                Some(&l)
+            ),
             VersionDecision::Skip
         );
         assert_eq!(
-            decide(&snapshot("heLLo"), "autosave", COALESCE_WINDOW_MS * 10, Some(&l)),
+            decide(
+                &snapshot("heLLo"),
+                "autosave",
+                COALESCE_WINDOW_MS * 10,
+                Some(&l)
+            ),
             VersionDecision::Skip
         );
     }
@@ -240,7 +253,12 @@ mod tests {
     fn meaningful_edit_within_window_coalesces() {
         let l = latest("hello", "autosave", 0);
         assert_eq!(
-            decide(&snapshot("hello brave new world"), "autosave", 1_000, Some(&l)),
+            decide(
+                &snapshot("hello brave new world"),
+                "autosave",
+                1_000,
+                Some(&l)
+            ),
             VersionDecision::Coalesce("v1".to_string())
         );
     }
@@ -263,7 +281,12 @@ mod tests {
     fn never_coalesces_into_explicit_versions() {
         let l = latest("hello", "restore", 0);
         assert_eq!(
-            decide(&snapshot("hello brave new world"), "autosave", 1_000, Some(&l)),
+            decide(
+                &snapshot("hello brave new world"),
+                "autosave",
+                1_000,
+                Some(&l)
+            ),
             VersionDecision::Insert
         );
     }

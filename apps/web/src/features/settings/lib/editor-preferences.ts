@@ -7,6 +7,11 @@ export const EDITOR_PREFERENCES_STORAGE_KEY = "skriuw:editor:preferences:v1";
 export type StoredEditorPreferences = {
 	defaultFont?: EditorFontId;
 	animateNumbers?: boolean;
+	ai?: {
+		semanticProvider?: "google" | "ollama";
+		semanticModel?: string;
+		semanticOllamaUrl?: string;
+	};
 };
 
 export function getUserEditorPreferences(): StoredEditorPreferences | null {
@@ -21,10 +26,15 @@ export function getUserEditorPreferences(): StoredEditorPreferences | null {
 				: undefined;
 		const animateNumbers =
 			typeof parsed.animateNumbers === "boolean" ? parsed.animateNumbers : undefined;
-		if (!defaultFont && animateNumbers === undefined) return null;
+		const ai =
+			parsed.ai && typeof parsed.ai === "object"
+				? (parsed.ai as StoredEditorPreferences["ai"])
+				: undefined;
+		if (!defaultFont && animateNumbers === undefined && !ai) return null;
 		return {
 			...(defaultFont ? { defaultFont } : {}),
 			...(animateNumbers !== undefined ? { animateNumbers } : {}),
+			...(ai ? { ai } : {}),
 		};
 	} catch {
 		return null;

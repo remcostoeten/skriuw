@@ -154,8 +154,7 @@ struct PromptSpec {
 static PROMPT_CATALOG: OnceLock<PromptCatalog> = OnceLock::new();
 
 fn prompt_catalog() -> &'static PromptCatalog {
-    PROMPT_CATALOG
-        .get_or_init(|| serde_json::from_str(PROMPTS_JSON).expect("invalid prompts.json"))
+    PROMPT_CATALOG.get_or_init(|| serde_json::from_str(PROMPTS_JSON).expect("invalid prompts.json"))
 }
 
 /// Mirrors the web-side sanitizer: a short plain language name, nothing that
@@ -185,7 +184,10 @@ fn prompt_for(
         .get(action)
         .ok_or_else(|| format!("Unsupported AI action: {action}"))?;
     let translate_directive = match sanitize_target_language(target_language) {
-        Some(language) => catalog.translate.target.replace("{targetLanguage}", &language),
+        Some(language) => catalog
+            .translate
+            .target
+            .replace("{targetLanguage}", &language),
         None => catalog.translate.auto.clone(),
     };
     let user = spec

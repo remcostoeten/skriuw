@@ -155,8 +155,96 @@ export function AiSettings() {
 	return (
 		<div className="space-y-7">
 			<AiModelSettings />
+			<AiSemanticSearchSettings />
 			<AiTranslateLanguageSettings />
 			<AiLocalKeySettings />
+		</div>
+	);
+}
+
+export function AiSemanticSearchSettings() {
+	const { ai, updateAiPreference } = usePreferencesStore();
+	const options = [
+		{
+			value: "google" as const,
+			label: "Google embeddings",
+			description: "Cloud semantic search using Gemini embeddings.",
+		},
+		{
+			value: "ollama" as const,
+			label: "Ollama (local)",
+			description: "Keep note text local using an embedding-capable Ollama model.",
+		},
+	];
+
+	return (
+		<div
+			id={settingsFocusDomId("semantic-search")}
+			data-settings-focus="semantic-search"
+			className="space-y-3 scroll-mt-24"
+		>
+			<div className="space-y-1">
+				<Label className="text-sm font-medium">Semantic search</Label>
+				<p className="text-xs text-muted-foreground">
+					Choose where note embeddings are generated. Groq remains available for writing
+					actions, but its current models do not provide embeddings.
+				</p>
+			</div>
+			<div
+				className="flex flex-wrap gap-2"
+				role="group"
+				aria-label="Semantic search provider"
+			>
+				{options.map((option) => (
+					<button
+						key={option.value}
+						type="button"
+						onClick={() => updateAiPreference("semanticProvider", option.value)}
+						aria-pressed={ai.semanticProvider === option.value}
+						className={cn(
+							"flex min-w-[150px] flex-col items-start border px-3 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+							ai.semanticProvider === option.value
+								? "border-ring bg-accent text-accent-foreground"
+								: "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+						)}
+					>
+						<span className="text-xs font-medium">{option.label}</span>
+						<span className="mt-0.5 text-[10px] opacity-70">{option.description}</span>
+					</button>
+				))}
+			</div>
+			{ai.semanticProvider === "ollama" && (
+				<div className="grid gap-2 sm:grid-cols-2">
+					<div className="space-y-1">
+						<Label htmlFor="semantic-ollama-model" className="text-xs">
+							Embedding model
+						</Label>
+						<input
+							id="semantic-ollama-model"
+							value={ai.semanticModel}
+							onChange={(event) =>
+								updateAiPreference("semanticModel", event.target.value)
+							}
+							placeholder="embeddinggemma"
+							className="h-8 w-full border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						/>
+					</div>
+					<div className="space-y-1">
+						<Label htmlFor="semantic-ollama-url" className="text-xs">
+							Ollama endpoint
+						</Label>
+						<input
+							id="semantic-ollama-url"
+							value={ai.semanticOllamaUrl}
+							onChange={(event) =>
+								updateAiPreference("semanticOllamaUrl", event.target.value)
+							}
+							placeholder="http://127.0.0.1:11434"
+							className="h-8 w-full border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						/>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

@@ -14,6 +14,7 @@ export type AiAction =
 	| "summarize"
 	| "extractTasks"
 	| "suggestTags"
+	| "generateDiagram"
 	| "customPrompt"
 	| AiSelectionAction;
 

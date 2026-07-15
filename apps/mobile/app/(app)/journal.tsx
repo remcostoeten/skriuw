@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	Alert,
 	Animated,
+	ActivityIndicator,
+	Platform,
 	Pressable,
 	ScrollView,
 	StyleSheet,
@@ -12,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
 	CalendarDays,
+	CalendarSync,
 	ChevronLeft,
 	ChevronRight,
 	List,
@@ -32,6 +35,7 @@ import { useTheme } from "@/theme/theme-provider";
 import { AppWordmark } from "@/components/AppWordmark";
 import { ContentLoading, ErrorState } from "@/components/AsyncState";
 import { useReducedMotion } from "@/shared/use-reduced-motion";
+import { syncJournalWithAppleCalendar } from "@/calendar/apple-calendar";
 
 type Screen = "today" | "calendar" | "entries";
 const SCREEN_ORDER: Record<Screen, number> = { today: 0, calendar: 1, entries: 2 };
@@ -66,6 +70,47 @@ export default function JournalScreen() {
 		() => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
 	);
 	const entries = entriesQuery.data ?? [];
+	const [calendarSyncing, setCalendarSyncing] = useState(false);
+
+	const runCalendarSync = async () => {
+		setCalendarSyncing(true);
+		try {
+			const result = await syncJournalWithAppleCalendar(entries);
+			const changes = [
+				result.created ? `${result.created} added` : null,
+				result.updated ? `${result.updated} updated` : null,
+				result.deleted ? `${result.deleted} removed` : null,
+			].filter(Boolean);
+			Alert.alert(
+				"Apple Calendar is up to date",
+				changes.length > 0
+					? `${changes.join(", ")} in the Skriuw Journal calendar.${result.failed ? ` ${result.failed} entries could not be synced.` : ""}`
+					: "No calendar changes were needed.",
+			);
+		} catch (error) {
+			Alert.alert(
+				"Calendar sync failed",
+				error instanceof Error ? error.message : "Could not update Apple Calendar.",
+			);
+		} finally {
+			setCalendarSyncing(false);
+		}
+	};
+
+	const confirmCalendarSync = () => {
+		if (entries.length === 0) {
+			Alert.alert("Nothing to sync", "Write a journal entry first, then try again.");
+			return;
+		}
+		Alert.alert(
+			"Sync with Apple Calendar?",
+			"Skriuw will create a dedicated calendar with one all-day event per journal entry. Future syncs update those events; Apple Calendar never overwrites your journal.",
+			[
+				{ text: "Cancel", style: "cancel" },
+				{ text: "Sync", onPress: () => void runCalendarSync() },
+			],
+		);
+	};
 	useEffect(() => {
 		if (previousScreen.current === screen) return;
 		const direction = SCREEN_ORDER[screen] > SCREEN_ORDER[previousScreen.current] ? 1 : -1;
@@ -101,7 +146,29 @@ export default function JournalScreen() {
 		<SafeAreaView edges={["top", "left", "right"]} style={styles.root}>
 			<View style={styles.brandBar}>
 				<AppWordmark section="Journal" />
-				<Text style={styles.sectionMark}>{entries.length} WRITTEN DAYS</Text>
+				{Platform.OS === "ios" ? (
+					<Pressable
+						onPress={confirmCalendarSync}
+						disabled={calendarSyncing || entriesQuery.isLoading}
+						accessibilityRole="button"
+						accessibilityLabel="Sync journal with Apple Calendar"
+						style={({ pressed }) => [
+							styles.calendarSyncButton,
+							pressed && styles.calendarSyncButtonPressed,
+						]}
+					>
+						{calendarSyncing ? (
+							<ActivityIndicator size="small" color={styles.muted.color} />
+						) : (
+							<CalendarSync size={14} color={styles.muted.color} strokeWidth={1.8} />
+						)}
+						<Text style={styles.calendarSyncText}>
+							{calendarSyncing ? "SYNCING…" : "APPLE CALENDAR"}
+						</Text>
+					</Pressable>
+				) : (
+					<Text style={styles.sectionMark}>{entries.length} WRITTEN DAYS</Text>
+				)}
 			</View>
 			<View style={styles.localNav} accessibilityRole="tablist">
 				<LocalTab
@@ -592,6 +659,23 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 			borderBottomColor: theme.divider,
 		},
 		sectionMark: { color: theme.textDim, fontSize: 9, letterSpacing: 2.2, fontWeight: "700" },
+		calendarSyncButton: {
+			minHeight: 34,
+			flexDirection: "row",
+			alignItems: "center",
+			gap: 6,
+			paddingHorizontal: 10,
+			borderRadius: 17,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: theme.border,
+		},
+		calendarSyncButtonPressed: { opacity: 0.7 },
+		calendarSyncText: {
+			color: theme.textSecondary,
+			fontSize: 8,
+			letterSpacing: 1.1,
+			fontWeight: "700",
+		},
 		editor: { padding: 22, paddingBottom: 50 },
 		screenPad: { padding: 22, paddingBottom: 38 },
 		headingRow: {

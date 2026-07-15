@@ -5,6 +5,12 @@ import { tryGetAuthenticatedUser } from "@/core/db";
 import type { NoteSearchHit } from "@/core/workspace-backend/types";
 import { parseSearchQuery } from "@/domain/notes/search-query";
 import { buildSearchSnippet } from "@/domain/notes/search-snippet";
+import {
+	cosineSimilarity,
+	createNoteEmbedding,
+	type SemanticSearchConfig,
+} from "@/features/notes/server/semantic-embeddings";
+import type { NoteSearchOptions } from "@/core/workspace-backend/types";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -13,6 +19,7 @@ type NoteSearchRow = {
 	id: string;
 	name: string;
 	content: string;
+	semanticEmbedding?: unknown;
 };
 
 /**
@@ -25,7 +32,11 @@ type NoteSearchRow = {
  * lexeme index misses still surface. Returns ranked `NoteSearchHit`s with a
  * highlighted body excerpt.
  */
-export async function searchNotes(query: string, limit = DEFAULT_LIMIT): Promise<NoteSearchHit[]> {
+export async function searchNotes(
+	query: string,
+	limit = DEFAULT_LIMIT,
+	options: NoteSearchOptions = {},
+): Promise<NoteSearchHit[]> {
 	const { text, tags, people } = parseSearchQuery(query);
 	if (!text && tags.length === 0 && people.length === 0) return [];
 
@@ -33,7 +44,14 @@ export async function searchNotes(query: string, limit = DEFAULT_LIMIT): Promise
 	if (!user) return [];
 
 	const take = Math.min(Math.max(1, limit), MAX_LIMIT);
-	const likePattern = `%${text}%`;
+	const userRecord = await prisma.user.findUnique({
+		where: { id: user.id },
+		select: { editorPreferences: true },
+	});
+	const semanticConfig = ((userRecord?.editorPreferences as { ai?: SemanticSearchConfig } | null)
+		?.ai ?? {
+		provider: "google",
+	}) as SemanticSearchConfig;
 
 	// `tag:foo`/`#foo` operators AND-filter on the persisted note_links tag rows.
 	const tagFilter = tags.length
@@ -59,6 +77,39 @@ export async function searchNotes(query: string, limit = DEFAULT_LIMIT): Promise
 				)
 			)`
 		: Prisma.empty;
+
+	if (options.semantic && text) {
+		const queryEmbedding = await createNoteEmbedding("search", text, semanticConfig);
+		if (queryEmbedding) {
+			const rows = await prisma.$queryRaw<NoteSearchRow[]>`
+				SELECT n.id, n.name, n.content, n.semantic_embedding AS "semanticEmbedding"
+				FROM notes n
+				WHERE n.user_id = ${user.id} AND n.deleted_at IS NULL
+				${tagFilter} ${personFilter}
+				AND n.semantic_embedding IS NOT NULL
+				ORDER BY n.updated_at DESC LIMIT 500
+			`;
+			const ranked = rows
+				.map((row) => ({
+					row,
+					score: cosineSimilarity(
+						queryEmbedding,
+						Array.isArray(row.semanticEmbedding) ? row.semanticEmbedding : [],
+					),
+				}))
+				.filter(({ score }) => score > 0.25)
+				.sort((a, b) => b.score - a.score)
+				.slice(0, take)
+				.map(({ row }) => ({
+					id: row.id,
+					name: row.name,
+					snippet: row.content.slice(0, 120),
+				}));
+			if (ranked.length > 0) return ranked;
+		}
+	}
+
+	const likePattern = `%${text}%`;
 
 	const rows = text
 		? await prisma.$queryRaw<NoteSearchRow[]>`

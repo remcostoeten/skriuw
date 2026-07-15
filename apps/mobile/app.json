@@ -12,7 +12,10 @@
 			"supportsTablet": true,
 			"bundleIdentifier": "com.skriuw.app",
 			"associatedDomains": ["webcredentials:skriuw.com"],
-			"icon": "../desktop/src-tauri/icons/ios/AppIcon-512@2x.png"
+			"icon": "../desktop/src-tauri/icons/ios/AppIcon-512@2x.png",
+			"infoPlist": {
+				"ITSAppUsesNonExemptEncryption": false
+			}
 		},
 		"android": {
 			"package": "com.skriuw.app",
@@ -20,11 +23,19 @@
 			"adaptiveIcon": {
 				"foregroundImage": "../desktop/src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
 				"backgroundColor": "#111111"
-			}
+			},
+			"permissions": ["android.permission.READ_CALENDAR", "android.permission.WRITE_CALENDAR"]
 		},
 		"plugins": [
 			"expo-router",
 			"expo-secure-store",
+			[
+				"expo-calendar",
+				{
+					"calendarPermission": "Allow Skriuw to create and keep your journal entries up to date in Apple Calendar.",
+					"remindersPermission": false
+				}
+			],
 			[
 				"expo-splash-screen",
 				{
@@ -40,7 +51,12 @@
 		},
 		"extra": {
 			"apiBaseUrl": "https://skriuw.com",
-			"nativePasskeysEnabled": false
-		}
+			"nativePasskeysEnabled": false,
+			"router": {},
+			"eas": {
+				"projectId": "cf3b8939-0f17-4f6f-969a-313c48900b56"
+			}
+		},
+		"owner": "remcostoeten"
 	}
 }

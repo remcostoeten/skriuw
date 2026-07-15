@@ -232,6 +232,58 @@ describe("auth session state", () => {
 		).rejects.toThrow("bad password");
 	});
 
+	test("adds a password through the protected account endpoint", async () => {
+		const originalFetch = globalThis.fetch;
+		const capture: { input: RequestInfo | URL | null; init: RequestInit | null } = {
+			input: null,
+			init: null,
+		};
+		globalThis.fetch = (async (input, init) => {
+			capture.input = input;
+			capture.init = init ?? null;
+			return new Response(JSON.stringify({ ok: true }), { status: 200 });
+		}) as typeof fetch;
+
+		try {
+			const authModule = await import(
+				`@/core/auth/index?add-password=${Math.random().toString(36).slice(2)}`
+			);
+
+			await authModule.addPassword("a-strong-password");
+
+			expect(capture.input).toBe("/api/account/password");
+			expect(capture.init?.method).toBe("POST");
+			expect(capture.init?.body).toBe(JSON.stringify({ newPassword: "a-strong-password" }));
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	test("preserves the re-authentication code when adding a password is denied", async () => {
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (async () =>
+			new Response(
+				JSON.stringify({
+					error: "For your security, re-authenticate before continuing.",
+					code: "reauth_required",
+				}),
+				{ status: 401 },
+			)) as unknown as typeof fetch;
+
+		try {
+			const authModule = await import(
+				`@/core/auth/index?add-password-reauth=${Math.random().toString(36).slice(2)}`
+			);
+
+			await expect(authModule.addPassword("a-strong-password")).rejects.toMatchObject({
+				message: "For your security, re-authenticate before continuing.",
+				code: "reauth_required",
+			});
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	test("updateUsername attaches the error code for taken usernames", async () => {
 		mock.module("@/lib/auth-client", () => ({
 			authClient: {

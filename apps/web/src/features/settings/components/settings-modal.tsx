@@ -331,7 +331,7 @@ function SettingsTabButton({ section, active, query, rovingTabId, onSelect, onHo
 					className={`flex h-4 w-4 shrink-0 items-center justify-center [&_svg]:[stroke-width:1.5] ${active ? "text-foreground" : "text-muted-foreground"}`}
 				>
 					{AnimatedIcon ? (
-						<AnimatedIcon ref={iconRef} size={16} />
+						<AnimatedIcon ref={iconRef} size={16} className="skriuw-animated-icon" />
 					) : (
 						<Icon className="h-4 w-4" />
 					)}

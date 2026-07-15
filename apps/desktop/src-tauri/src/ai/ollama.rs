@@ -163,9 +163,15 @@ impl OllamaClient {
 
         for (name, label, description) in RECOMMENDED_MODELS {
             let matched = installed.iter().find(|m| Self::models_match(name, &m.name));
-            seen.insert(matched.map(|m| m.name.clone()).unwrap_or_else(|| name.to_string()));
+            seen.insert(
+                matched
+                    .map(|m| m.name.clone())
+                    .unwrap_or_else(|| name.to_string()),
+            );
             catalog.push(OllamaCatalogEntry {
-                name: matched.map(|m| m.name.clone()).unwrap_or_else(|| name.to_string()),
+                name: matched
+                    .map(|m| m.name.clone())
+                    .unwrap_or_else(|| name.to_string()),
                 label: label.to_string(),
                 description: description.to_string(),
                 installed: matched.is_some(),

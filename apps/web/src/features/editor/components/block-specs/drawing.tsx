@@ -174,7 +174,11 @@ function ToolbarButton({ icon: Icon, label, hint, onClick }: TToolbarButtonProps
 				onBlur={() => iconRef.current?.stopAnimation()}
 				onClick={onClick}
 			>
-				<Icon ref={iconRef} size={15} className="pointer-events-none" />
+				<Icon
+					ref={iconRef}
+					size={15}
+					className="skriuw-animated-icon pointer-events-none"
+				/>
 			</button>
 		</DrawingTooltip>
 	);
@@ -253,7 +257,7 @@ function DrawingToolbar({ activeTool, position, onSelectTool, onDragStart }: TDr
 							onMouseDown={(event) => event.preventDefault()}
 							onClick={() => onSelectTool(tool.type)}
 						>
-							<Icon size={15} className="pointer-events-none" />
+							<Icon size={15} className="skriuw-animated-icon pointer-events-none" />
 						</button>
 					</DrawingTooltip>
 				);
