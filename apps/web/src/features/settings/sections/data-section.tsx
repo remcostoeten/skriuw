@@ -86,7 +86,7 @@ type CreatedSyncToken = SyncTokenSummary & {
 type SyncEventSummary = {
 	id: string;
 	tokenId: string | null;
-	operation: "capture" | "export" | "folders";
+	operation: "capture" | "export" | "folders" | "push";
 	status: "success" | "error";
 	resourceId: string | null;
 	resourceName: string | null;
@@ -103,6 +103,8 @@ function syncEventOperationLabel(operation: SyncEventSummary["operation"]): stri
 			return "Export";
 		case "folders":
 			return "Folders";
+		case "push":
+			return "Desktop sync";
 	}
 }
 

@@ -17,6 +17,8 @@ export type JournalEntry = {
 	richContent?: RichTextDocument;
 	tags: string[];
 	mood?: MoodLevel;
+	calendarSourceId?: string;
+	calendarSourceUid?: string;
 	createdAt: Date;
 	updatedAt: Date;
 };

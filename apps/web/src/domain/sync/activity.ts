@@ -2,7 +2,7 @@ import "server-only";
 
 import { prisma } from "@/core/db";
 
-export type SyncEventOperation = "capture" | "export" | "folders";
+export type SyncEventOperation = "capture" | "export" | "folders" | "push";
 export type SyncEventStatus = "success" | "error";
 
 export type SyncEventSummary = {

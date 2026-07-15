@@ -42,6 +42,8 @@ tauri-plugin-single-instance = "2"
 # OS-level shortcuts (registered in `GLOBAL_SHORTCUTS` in lib.rs) that fire
 # even while the app is unfocused or minimized.
 tauri-plugin-global-shortcut = "2"
+# Open account authorization in the user's real browser instead of inside the webview.
+tauri-plugin-opener = "2"
 # Markdown → HTML rendering for the "Export note → HTML" command.
 pulldown-cmark = { version = "0.12", default-features = false, features = ["html"] }
 # Vault backup / export-import as a portable .zip of the markdown vault.

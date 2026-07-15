@@ -55,7 +55,7 @@ import {
 } from "./sidebar";
 import { SharedSection } from "./sidebar/shared-section";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
-import { useIsGuestWorkspace } from "@/core/workspace-backend";
+import { useIsGuestWorkspace, useWorkspaceBackend } from "@/core/workspace-backend";
 import { FileList } from "./file-list";
 import { NewFolderNoteIcon, NewNoteIcon } from "./sidebar/header-icons";
 import type { NoteTreeActions, NoteTreeQueries } from "../lib/tree-actions";
@@ -160,6 +160,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 	const newNoteHint = useShortcutHint("notes.newNote");
 	const newFolderHint = useShortcutHint("notes.newFolder");
 	const isGuest = useIsGuestWorkspace();
+	const backend = useWorkspaceBackend();
 	const sidebarStore = useSidebarStore();
 	const prefersReducedMotion = useReducedMotion();
 	const showSectionHeaders = sidebarStore.config.showSectionHeaders;
@@ -177,6 +178,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 	const [isSearchOpen, setIsSearchOpen] = useState(false);
 	const [sharedSectionCollapsed, setSharedSectionCollapsed] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
+	const [semanticSearch, setSemanticSearch] = useState(false);
 	const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
 	const [dropTargetSectionId, setDropTargetSectionId] = useState<string | null>(null);
 	const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -197,7 +199,12 @@ export const SidebarPanel = memo(function SidebarPanel({
 		[sections],
 	);
 
-	const { supportsContentSearch, hits: searchHits, isSearching } = useNoteSearch(searchQuery);
+	const {
+		supportsContentSearch,
+		supportsSemanticSearch,
+		hits: searchHits,
+		isSearching,
+	} = useNoteSearch(searchQuery, semanticSearch && backend.mode === "server");
 
 	const searchedFolders = useMemo(() => {
 		if (!deferredSearchQuery.trim()) {
@@ -827,6 +834,22 @@ export const SidebarPanel = memo(function SidebarPanel({
 											className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
 											strokeWidth={1.5}
 										/>
+										<button
+											type="button"
+											onClick={() => setSemanticSearch((value) => !value)}
+											aria-pressed={semanticSearch}
+											aria-label="Search by meaning"
+											title="Search by meaning"
+											disabled={!supportsSemanticSearch}
+											className={cn(
+												"shrink-0 rounded px-1.5 py-1 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+												semanticSearch
+													? "bg-accent text-foreground"
+													: "text-muted-foreground hover:text-foreground",
+											)}
+										>
+											Meaning
+										</button>
 										<input
 											ref={searchInputRef}
 											type="text"
@@ -839,10 +862,23 @@ export const SidebarPanel = memo(function SidebarPanel({
 											}}
 											placeholder="Search"
 											aria-label="Search notes"
+											aria-describedby="sidebar-search-help"
 											inputMode="search"
 											enterKeyHint="search"
 											className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground/60 focus-visible:shadow-none md:text-[13px]"
 										/>
+										<span
+											id="sidebar-search-help"
+											className="sr-only"
+											aria-live="polite"
+										>
+											{semanticSearch
+												? "Meaning search."
+												: "Exact word search."}{" "}
+											{isSearching
+												? "Searching."
+												: `${totalSearchResults} results.`}
+										</span>
 										<button
 											type="button"
 											onClick={closeSearch}

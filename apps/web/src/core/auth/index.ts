@@ -251,6 +251,26 @@ export async function updatePassword(input: {
 	}
 }
 
+/** Adds email/password sign-in to an OAuth-only account. */
+export async function addPassword(newPassword: string): Promise<void> {
+	const response = await fetch("/api/account/password", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ newPassword }),
+	});
+	const payload = (await response.json().catch(() => null)) as {
+		error?: string;
+		code?: string;
+	} | null;
+	if (!response.ok) {
+		const error = new Error(payload?.error ?? "Could not add a password.") as Error & {
+			code?: string;
+		};
+		if (payload?.code) error.code = payload.code;
+		throw error;
+	}
+}
+
 export function getUserScopeId(): string {
 	return getUserScopeIdForUser(currentUser);
 }

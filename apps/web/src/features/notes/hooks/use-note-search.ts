@@ -10,13 +10,18 @@ export type NoteSearchHit = {
 };
 
 type SearchCapableBackend = {
-	searchNotes?: (query: string, limit?: number) => Promise<NoteSearchHit[]>;
+	searchNotes?: (
+		query: string,
+		limit?: number,
+		options?: { semantic?: boolean },
+	) => Promise<NoteSearchHit[]>;
 };
 
 const SEARCH_RESULT_LIMIT = 20;
 
 type SearchState = {
 	supportsContentSearch: boolean;
+	supportsSemanticSearch: boolean;
 	hits: NoteSearchHit[];
 	isSearching: boolean;
 };
@@ -30,16 +35,17 @@ type SearchState = {
  * Debounces the query, ignores stale/out-of-order responses, and never leaves a
  * lingering loading state for an empty query.
  */
-export function useNoteSearch(query: string): SearchState {
+export function useNoteSearch(query: string, semantic = false): SearchState {
 	const backend = useWorkspaceBackend();
 	const searchNotes = (backend as SearchCapableBackend).searchNotes;
 	const supportsContentSearch = typeof searchNotes === "function";
+	const supportsSemanticSearch = backend.mode === "server";
 	const trimmed = query.trim();
 	const searchQuery = useQuery({
-		queryKey: ["note-search", trimmed],
+		queryKey: ["note-search", trimmed, semantic],
 		queryFn: async () => {
 			if (!searchNotes) return [];
-			return searchNotes(trimmed, SEARCH_RESULT_LIMIT);
+			return searchNotes(trimmed, SEARCH_RESULT_LIMIT, { semantic });
 		},
 		enabled: supportsContentSearch && trimmed.length > 0,
 		staleTime: 0,
@@ -48,7 +54,8 @@ export function useNoteSearch(query: string): SearchState {
 
 	return {
 		supportsContentSearch,
-		hits: trimmed.length > 0 ? searchQuery.data ?? [] : [],
+		supportsSemanticSearch,
+		hits: trimmed.length > 0 ? (searchQuery.data ?? []) : [],
 		isSearching: searchQuery.isFetching,
 	};
 }

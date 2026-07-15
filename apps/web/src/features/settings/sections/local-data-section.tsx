@@ -8,6 +8,8 @@ import {
 	AlertCircle,
 	CalendarDays,
 	CloudDownload,
+	Cloud,
+	CloudOff,
 	Download,
 	FileDown,
 	FileText,
@@ -15,6 +17,7 @@ import {
 	FolderTree,
 	CheckCircle2,
 	Loader2,
+	LogIn,
 	RotateCcw,
 	Tag,
 	Upload,
@@ -67,7 +70,21 @@ import type { NoteFile } from "@/domain/notes/models";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { journalKeys } from "@/features/journal/hooks/journal-keys";
 import { pullWorkspaceFromServer, type PullResult } from "@/domain/sync/pull-workspace";
-import { getSyncClientConfig, setSyncClientConfig } from "@/domain/sync/sync-client-config";
+import {
+	clearSyncClientConfig,
+	getSyncClientConfig,
+	setSyncClientConfig,
+} from "@/domain/sync/sync-client-config";
+import { syncDesktopWorkspace } from "@/domain/sync/sync-workspace";
+import {
+	beginDesktopPairing,
+	finishDesktopPairing,
+	openDesktopPairingPage,
+	revokeDesktopCredential,
+	type DesktopPairingRequest,
+} from "@/domain/sync/device-pairing";
+import type { SyncClientConfig } from "@/domain/sync/sync-client-config";
+import { getBrowserAppOrigin } from "@/lib/app-origin";
 import { matchesDesktopResetPhrase, RESET_PHRASE } from "@/features/settings/lib/desktop-reset";
 
 type Busy =
@@ -78,6 +95,7 @@ type Busy =
 	| "pull"
 	| "push"
 	| "sync"
+	| "pair"
 	| "simplenote"
 	| "snapshot"
 	| "reset"
@@ -354,8 +372,14 @@ export function LocalDataSection() {
 	const [coverAssetsRoot, setCoverAssetsRoot] = useState<string>("");
 	const [busy, setBusy] = useState<Busy>("idle");
 	const [notice, setNotice] = useState<string | null>(null);
-	const [serverUrl, setServerUrl] = useState<string>("");
+	const [serverUrl, setServerUrl] = useState<string>(
+		() => getBrowserAppOrigin() ?? "https://skriuw.com",
+	);
 	const [token, setToken] = useState<string>("");
+	const [syncEnabled, setSyncEnabled] = useState(false);
+	const [syncAccount, setSyncAccount] = useState<SyncClientConfig["account"]>();
+	const [pairing, setPairing] = useState<DesktopPairingRequest | null>(null);
+	const pairingAbortRef = useRef<AbortController | null>(null);
 	const [pullError, setPullError] = useState<string | null>(null);
 	const [pullResult, setPullResult] = useState<{
 		result: PullResult;
@@ -443,14 +467,55 @@ export function LocalDataSection() {
 		if (config) {
 			setServerUrl(config.serverUrl);
 			setToken(config.token);
+			setSyncEnabled(config.enabled);
+			setSyncAccount(config.account);
 		}
 	}, []);
 
 	useEffect(() => {
 		return () => {
 			if (pullFlashTimer.current) clearTimeout(pullFlashTimer.current);
+			pairingAbortRef.current?.abort();
 		};
 	}, []);
+
+	const handleConnectAccount = async () => {
+		setBusy("pair");
+		setPullError(null);
+		const controller = new AbortController();
+		pairingAbortRef.current = controller;
+		try {
+			const request = await beginDesktopPairing(serverUrl);
+			setPairing(request);
+			await openDesktopPairingPage(request.verificationUrl);
+			const result = await finishDesktopPairing(request, controller.signal);
+			setToken(result.token);
+			setServerUrl(request.serverUrl);
+			setSyncAccount(result.account);
+			setSyncEnabled(false);
+			setSyncClientConfig({
+				serverUrl: request.serverUrl,
+				token: result.token,
+				enabled: false,
+				account: result.account,
+			});
+			setNotice(`Connected as ${result.account.email}. Cloud sync is still off.`);
+		} catch (error) {
+			if (!(error instanceof DOMException && error.name === "AbortError")) {
+				setPullError(error instanceof Error ? error.message : "Desktop sign-in failed.");
+			}
+		} finally {
+			pairingAbortRef.current = null;
+			setPairing(null);
+			setBusy("idle");
+		}
+	};
+
+	const cancelPairing = () => {
+		pairingAbortRef.current?.abort();
+		setPairing(null);
+		setBusy("idle");
+	};
 
 	const handlePull = async () => {
 		const url = serverUrl.trim();
@@ -464,7 +529,7 @@ export function LocalDataSection() {
 		setPullError(null);
 		try {
 			const result = await pullWorkspaceFromServer(backend, url, tok);
-			setSyncClientConfig({ serverUrl: url, token: tok });
+			setSyncClientConfig({ serverUrl: url, token: tok, enabled: false });
 			await queryClient.invalidateQueries({ queryKey: notesKeys.all });
 			await queryClient.invalidateQueries({ queryKey: journalKeys.all });
 			setPullResult({ result, origin: url, at: Date.now() });
@@ -475,6 +540,70 @@ export function LocalDataSection() {
 		} finally {
 			setBusy("idle");
 		}
+	};
+
+	const handleSync = async () => {
+		const url = serverUrl.trim();
+		const tok = token.trim();
+		if (!url || !tok) {
+			setPullError("Reconnect your Skriuw account before enabling sync.");
+			return;
+		}
+		const previous = getSyncClientConfig();
+		if (!syncEnabled) {
+			const accepted = window.confirm(
+				"Enable cloud sync? Notes, journal entries, folders, tags, and future changes will be sent to your Skriuw server. Your local vault remains the source of truth and you can disable sync at any time.",
+			);
+			if (!accepted) return;
+		}
+		setBusy("sync");
+		setPullError(null);
+		try {
+			const config = {
+				serverUrl: url,
+				token: tok,
+				enabled: true,
+				lastSyncedAt: previous?.lastSyncedAt,
+				lastSnapshotIds: previous?.lastSnapshotIds,
+				account: syncAccount,
+			};
+			const result = await syncDesktopWorkspace(backend, config);
+			setSyncEnabled(true);
+			await queryClient.invalidateQueries({ queryKey: notesKeys.all });
+			await queryClient.invalidateQueries({ queryKey: journalKeys.all });
+			setPullResult({ result: result.pull, origin: url, at: Date.now() });
+			setNotice(
+				result.push.conflicts > 0
+					? `Synced with ${result.push.conflicts} conflict ${result.push.conflicts === 1 ? "copy" : "copies"} preserved.`
+					: "Cloud sync completed.",
+			);
+		} catch (error) {
+			setPullError(error instanceof Error ? error.message : "Cloud sync failed.");
+		} finally {
+			setBusy("idle");
+		}
+	};
+
+	const handleDisableSync = () => {
+		const existing = getSyncClientConfig();
+		if (existing) setSyncClientConfig({ ...existing, enabled: false });
+		setSyncEnabled(false);
+		setPullResult(null);
+		setNotice(
+			"Cloud sync turned off. Your account stays connected and local files were not deleted.",
+		);
+	};
+
+	const handleDisconnectAccount = async () => {
+		setBusy("pair");
+		await revokeDesktopCredential(serverUrl, token);
+		clearSyncClientConfig();
+		setSyncEnabled(false);
+		setSyncAccount(undefined);
+		setToken("");
+		setPullResult(null);
+		setBusy("idle");
+		setNotice("Desktop disconnected. Local files and cloud data were not deleted.");
 	};
 
 	function flashPull(kind: "success" | "error") {
@@ -856,68 +985,131 @@ export function LocalDataSection() {
 						className="py-4 scroll-mt-24"
 					>
 						<div className="flex items-center gap-2 text-sm font-medium">
-							<CloudDownload className="size-4 text-muted-foreground" />
-							Pull from server
+							{syncEnabled ? (
+								<Cloud className="size-4 text-emerald-600" />
+							) : (
+								<CloudOff className="size-4 text-muted-foreground" />
+							)}
+							{busy === "pair"
+								? "Connecting your account…"
+								: syncEnabled
+									? "Cloud sync enabled"
+									: token
+										? "Account connected · sync off"
+										: "Cloud sync off"}
 						</div>
 						<p className="mt-1 text-xs text-muted-foreground">
-							Download your cloud workspace into this device. Create a token in the
-							web app under{" "}
-							<span className="font-mono text-foreground">
-								Settings → Data &amp; sync
-							</span>
-							, then paste it here. This is one-way: it never uploads local changes.
-						</p>
-						<p className="mt-1 text-xs text-muted-foreground">
-							Include the full address with scheme — e.g.{" "}
-							<span className="font-mono text-foreground">http://localhost:3000</span>{" "}
-							for local dev, or{" "}
-							<span className="font-mono text-foreground">https://your-host.com</span>
-							.
+							Connect using the same web account and GitHub sign-in you already use.
+							Connecting does not enable sync: your local vault stays private until
+							you explicitly turn sync on.
 						</p>
 
 						<div className="mt-4 flex flex-col gap-3">
-							<div className="flex flex-col gap-1.5">
-								<Label
-									htmlFor="sync-server-url"
-									className="text-xs text-muted-foreground"
-								>
-									Server URL
-								</Label>
-								<Input
-									id="sync-server-url"
-									value={serverUrl}
-									onChange={(event) => setServerUrl(event.target.value)}
-									disabled={busy === "pull"}
-									placeholder="https://your-skriuw-host.com"
-									autoComplete="off"
-									spellCheck={false}
-								/>
-							</div>
-							<div className="flex flex-col gap-1.5">
-								<Label
-									htmlFor="sync-token"
-									className="text-xs text-muted-foreground"
-								>
-									Sync token
-								</Label>
-								<Input
-									id="sync-token"
-									type="password"
-									value={token}
-									onChange={(event) => setToken(event.target.value)}
-									disabled={busy === "pull"}
-									placeholder="sk_sync_…"
-									autoComplete="off"
-									spellCheck={false}
-								/>
-							</div>
-							<div className="flex justify-end">
-								<PullButton
-									phase={busy === "pull" ? "pulling" : (pullFlash ?? "idle")}
-									disabled={busy !== "idle" || !serverUrl.trim() || !token.trim()}
-									reduceMotion={prefersReducedMotion}
-									onClick={handlePull}
-								/>
+							{pairing ? (
+								<div className="rounded-lg border bg-muted/30 p-4 text-center">
+									<Loader2 className="mx-auto size-5 animate-spin text-primary" />
+									<p className="mt-2 text-sm font-medium">
+										Finish signing in in your browser
+									</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										Confirm this code on the web
+									</p>
+									<p className="mt-1 font-mono text-lg font-semibold tracking-[0.16em]">
+										{pairing.userCode}
+									</p>
+									<div className="mt-3 flex justify-center gap-2">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												void openDesktopPairingPage(pairing.verificationUrl)
+											}
+										>
+											Open browser again
+										</Button>
+										<Button variant="ghost" size="sm" onClick={cancelPairing}>
+											Cancel
+										</Button>
+									</div>
+								</div>
+							) : token ? (
+								<div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
+									<div className="min-w-0">
+										<p className="truncate text-sm font-medium">
+											{syncAccount?.name || "Skriuw account"}
+										</p>
+										<p className="truncate text-xs text-muted-foreground">
+											{syncAccount?.email || serverUrl}
+										</p>
+									</div>
+									<span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+										Connected
+									</span>
+								</div>
+							) : (
+								<details className="text-xs text-muted-foreground">
+									<summary className="cursor-pointer select-none">
+										Using a self-hosted server?
+									</summary>
+									<div className="mt-2 flex flex-col gap-1.5">
+										<Label htmlFor="sync-server-url" className="text-xs">
+											Server URL
+										</Label>
+										<Input
+											id="sync-server-url"
+											value={serverUrl}
+											onChange={(event) => setServerUrl(event.target.value)}
+											placeholder="https://your-skriuw-host.com"
+											autoComplete="off"
+											spellCheck={false}
+										/>
+									</div>
+								</details>
+							)}
+							<div className="flex flex-wrap justify-end gap-2">
+								{token ? (
+									<Button
+										variant="ghost"
+										size="sm"
+										disabled={busy !== "idle"}
+										onClick={() => void handleDisconnectAccount()}
+									>
+										Disconnect account
+									</Button>
+								) : null}
+								{syncEnabled ? (
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={busy !== "idle"}
+										onClick={handleDisableSync}
+									>
+										<CloudOff className="mr-1.5 h-3.5 w-3.5" /> Turn off sync
+									</Button>
+								) : null}
+								{token ? (
+									<Button
+										size="sm"
+										disabled={busy !== "idle"}
+										onClick={() => void handleSync()}
+									>
+										{busy === "sync" ? (
+											<Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+										) : (
+											<Cloud className="mr-1.5 h-3.5 w-3.5" />
+										)}
+										{syncEnabled ? "Sync now" : "Enable cloud sync"}
+									</Button>
+								) : !pairing ? (
+									<Button
+										size="sm"
+										disabled={busy !== "idle" || !serverUrl.trim()}
+										onClick={() => void handleConnectAccount()}
+									>
+										<LogIn className="mr-1.5 h-3.5 w-3.5" /> Connect Skriuw
+										account
+									</Button>
+								) : null}
 							</div>
 
 							<AnimatePresence mode="wait" initial={false}>

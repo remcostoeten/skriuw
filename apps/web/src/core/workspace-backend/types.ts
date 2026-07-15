@@ -73,6 +73,8 @@ export type NoteSearchHit = {
 	snippet: string;
 };
 
+export type NoteSearchOptions = { semantic?: boolean };
+
 /** One atomic desktop-sync pull payload — see `WorkspaceBackend.importArchive`. */
 export type ImportArchivePayload = {
 	folders: { id: string; name: string; parentId: string | null; sortOrder: number }[];
@@ -129,7 +131,11 @@ export type WorkspaceBackend = {
 	 * (`server`) backend via Postgres full-text; guest mode omits it, so the
 	 * sidebar keeps doing in-memory name/tag filtering there.
 	 */
-	searchNotes?(query: string, limit?: number): Promise<NoteSearchHit[]>;
+	searchNotes?(
+		query: string,
+		limit?: number,
+		options?: NoteSearchOptions,
+	): Promise<NoteSearchHit[]>;
 
 	/**
 	 * Whole-list note/folder reads for client-only backends. Optional because the

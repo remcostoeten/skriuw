@@ -1621,7 +1621,7 @@ export const FileList = memo(function FileList({
 					<ContextMenuSeparator />
 					<ContextMenuItem
 						onClick={() => deleteSelection(selectionForAction)}
-						className="gap-2 text-destructive focus:text-destructive"
+						className="gap-2 text-[#ff808a] focus:bg-[#ff808a4d]"
 					>
 						<Trash2 className="w-4 h-4" />
 						{selectionHasMultiple ? "Delete selected" : "Delete"}

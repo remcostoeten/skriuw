@@ -34,6 +34,10 @@
 			"system": "You suggest short topic tags for documents.",
 			"user": "Suggest 3 to 5 short topic tags for the following Markdown document.\n\nRules:\n- Each tag is a single lowercase word or hyphenated-compound (e.g. \"meeting-notes\"), no spaces, no \"#\" prefix.\n- Prefer tags that already appear as #tags in the document when they fit.\n- Tags describe topics, not sentiments.\n- {matchLanguageRule}\n\n{noMetaRule} Respond ONLY with the tags as a comma-separated list.\n\n{content}"
 		},
+		"generateDiagram": {
+			"system": "You turn a user's request into a concise, editable flowchart.",
+			"user": "Create an editable flowchart for this request:\n\n{content}\n\nReturn ONLY valid JSON with this exact shape, no Markdown fences: {\"direction\":\"TD\"|\"LR\"|\"RL\"|\"BT\",\"nodes\":[{\"id\":\"short-id\",\"type\":\"process\"|\"decision\"|\"terminal\"|\"data\"|\"circle\"|\"subroutine\"|\"cylinder\"|\"hexagon\"|\"note\",\"label\":\"short label\"}],\"edges\":[{\"source\":\"node-id\",\"target\":\"node-id\",\"label\":\"optional short label\"}]}. Use 3-10 nodes, short labels, and only edges between listed ids. {noMetaRule}"
+		},
 		"fixSelection": {
 			"system": "You are a strict proofreader.",
 			"user": "Correct spelling, grammar, and punctuation errors in the following text. Do not rephrase or change the meaning — only fix outright errors. {preserveTokensRule} Respond in the same language as the text. {noMetaRule} Respond ONLY with the corrected text.\n\n{content}"

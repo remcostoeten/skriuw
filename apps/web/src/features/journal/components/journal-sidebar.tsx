@@ -19,20 +19,30 @@ import {
 } from "date-fns";
 import {
 	CalendarArrowDown,
+	CalendarArrowUp,
 	ChevronLeft,
 	ChevronRight,
 	Plus,
 	CalendarDays,
+	CalendarClock,
 	Clock,
 	Search,
 	X,
 	BarChart3,
 } from "lucide-react";
 import { JournalIcsExportDialog } from "./journal-ics-export-dialog";
+import { JournalIcsImportDialog } from "./journal-ics-import-dialog";
+import { JournalCalendarFeedDialog } from "./journal-calendar-feed-dialog";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Calendar } from "@/shared/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
 import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
 import {
 	ContextMenu,
@@ -52,6 +62,7 @@ import {
 	useUpdateJournalEntry,
 	useDeleteJournalEntry,
 } from "../hooks/use-journal-entries";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
 
 function journalEntryTitle(entry: JournalEntry): string {
 	const title = entry.title?.trim();
@@ -109,6 +120,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 	const { data: entries = [] } = useJournalEntries();
 	const updateEntry = useUpdateJournalEntry();
 	const deleteEntry = useDeleteJournalEntry();
+	const backend = useWorkspaceBackend();
 
 	const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
 	const [jumpPopoverOpen, setJumpPopoverOpen] = useState(false);
@@ -118,6 +130,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 	const [renameDraft, setRenameDraft] = useState("");
 	const [contextEntryId, setContextEntryId] = useState<string | null>(null);
 	const [icsExportOpen, setIcsExportOpen] = useState(false);
+	const [icsImportOpen, setIcsImportOpen] = useState(false);
+	const [calendarFeedOpen, setCalendarFeedOpen] = useState(false);
 	const deferredSearchQuery = useDeferredValue(searchQuery);
 	const selectedMood: MoodLevel | "all" = "all";
 
@@ -204,18 +218,48 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 				onOpenChange={setIcsExportOpen}
 				entries={entries}
 			/>
+			<JournalIcsImportDialog
+				open={icsImportOpen}
+				onOpenChange={setIcsImportOpen}
+				entries={entries}
+			/>
+			<JournalCalendarFeedDialog open={calendarFeedOpen} onOpenChange={setCalendarFeedOpen} />
 			<div className="flex h-11 items-center justify-between border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
 				<h2 className="text-sm font-semibold text-foreground">Journal</h2>
 				<div className="flex items-center gap-0.5">
-					<button
-						type="button"
-						onClick={() => setIcsExportOpen(true)}
-						aria-label="Export journal to calendar (.ics)"
-						title="Export to calendar (.ics)"
-						className="flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
-					>
-						<CalendarArrowDown className="h-3 w-3" strokeWidth={1.5} />
-					</button>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<button
+								type="button"
+								className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+								aria-label="Calendar import and export"
+							>
+								<CalendarDays className="h-3 w-3" strokeWidth={1.5} />
+								Calendar
+							</button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-48">
+							<DropdownMenuItem onSelect={() => setIcsImportOpen(true)}>
+								<CalendarArrowUp className="h-3.5 w-3.5" strokeWidth={1.5} />
+								Import .ics file
+							</DropdownMenuItem>
+							<DropdownMenuItem onSelect={() => setIcsExportOpen(true)}>
+								<CalendarArrowDown className="h-3.5 w-3.5" strokeWidth={1.5} />
+								Export .ics file
+							</DropdownMenuItem>
+							{backend.mode === "server" ? (
+								<DropdownMenuItem onSelect={() => setCalendarFeedOpen(true)}>
+									<CalendarClock className="h-3.5 w-3.5" strokeWidth={1.5} />
+									Live subscription
+								</DropdownMenuItem>
+							) : (
+								<DropdownMenuItem disabled>
+									<CalendarClock className="h-3.5 w-3.5" strokeWidth={1.5} />
+									Live subscription (web only)
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
 					<button
 						type="button"
 						onClick={goToToday}

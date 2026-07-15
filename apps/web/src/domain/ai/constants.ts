@@ -52,6 +52,7 @@ export const ACTION_MODEL_DEFAULTS: Record<string, AiModelId> = {
 	summarize: "google.gemini-2.5-flash",
 	extractTasks: "google.gemini-2.5-flash",
 	suggestTags: "google.gemini-2.5-flash-lite",
+	generateDiagram: "google.gemini-2.5-flash",
 	fixSelection: "google.gemini-2.5-flash",
 	rewriteSelection: "google.gemini-2.5-flash",
 	shortenSelection: "google.gemini-2.5-flash",

@@ -9,7 +9,11 @@ export async function updateUserEditorPreferences(
 	const { prisma, user } = await getAuthenticatedUser();
 	const current =
 		(user as { editorPreferences?: EditorPreferencesRecord | null }).editorPreferences ?? {};
-	const next = { ...current, ...preferences };
+	const next = {
+		...current,
+		...preferences,
+		...(preferences.ai ? { ai: { ...current.ai, ...preferences.ai } } : {}),
+	};
 
 	await prisma.user.update({
 		where: { id: user.id },

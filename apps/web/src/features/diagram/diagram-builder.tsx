@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
 	addEdge,
 	Background,
@@ -33,20 +33,27 @@ import {
 	Layers,
 	MousePointer2,
 	Plus,
+	Sparkles,
+	LoaderCircle,
+	Redo2,
 	Square,
+	Undo2,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { showUserToast } from "@/shared/lib/user-toast";
 import { DiagramContext } from "./diagram-context";
 import { defaultEdges, defaultNodes } from "./default-diagram";
+import { cloneDiagramPreset, DIAGRAM_PRESETS, getDiagramPreset } from "./diagram-presets";
 import { generateMermaid } from "./mermaid-utils";
 import { MermaidPreview } from "./mermaid-preview";
 import { nodeTypes } from "./node-types";
 import type { NodeData } from "./nodes";
+import { useDiagramAi } from "./use-diagram-ai";
 
 type DiagramNodeData = NodeData;
 type DiagramNode = Node<DiagramNodeData>;
+type DiagramSnapshot = { nodes: DiagramNode[]; edges: Edge[]; direction: string };
 
 const PALETTE: {
 	section: string;
@@ -261,11 +268,29 @@ type DiagramHeaderProps = {
 	onClose: () => void;
 	nodeCount: number;
 	edgeCount: number;
+	onApplyPreset: (presetId: string) => void;
+	onOpenAi: () => void;
+	canUndo: boolean;
+	canRedo: boolean;
+	onUndo: () => void;
+	onRedo: () => void;
 	onPreview: () => void;
 	onInsert: () => void;
 };
 
-function DiagramHeader({ onClose, nodeCount, edgeCount, onPreview, onInsert }: DiagramHeaderProps) {
+function DiagramHeader({
+	onClose,
+	nodeCount,
+	edgeCount,
+	onApplyPreset,
+	onOpenAi,
+	canUndo,
+	canRedo,
+	onUndo,
+	onRedo,
+	onPreview,
+	onInsert,
+}: DiagramHeaderProps) {
 	return (
 		<header className="flex items-center justify-between h-14 px-4 border-b bg-card shrink-0">
 			<div className="flex items-center gap-3">
@@ -289,6 +314,50 @@ function DiagramHeader({ onClose, nodeCount, edgeCount, onPreview, onInsert }: D
 			</div>
 			<div className="flex items-center gap-2">
 				<Button
+					variant="ghost"
+					size="icon"
+					onClick={onUndo}
+					disabled={!canUndo}
+					aria-label="Undo"
+					className="h-8 w-8"
+				>
+					<Undo2 className="h-4 w-4" />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={onRedo}
+					disabled={!canRedo}
+					aria-label="Redo"
+					className="h-8 w-8"
+				>
+					<Redo2 className="h-4 w-4" />
+				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={onOpenAi}
+					className="h-8 gap-2 border-border/50"
+				>
+					<Sparkles className="w-3.5 h-3.5" /> Create with AI
+				</Button>
+				<select
+					aria-label="Choose a diagram preset"
+					defaultValue=""
+					onChange={(event) => {
+						if (event.target.value) onApplyPreset(event.target.value);
+						event.currentTarget.value = "";
+					}}
+					className="h-8 max-w-40 border border-border/50 bg-card px-2 text-xs text-foreground outline-none focus:border-primary"
+				>
+					<option value="">Presets…</option>
+					{DIAGRAM_PRESETS.map((preset) => (
+						<option key={preset.id} value={preset.id}>
+							{preset.label}
+						</option>
+					))}
+				</select>
+				<Button
 					variant="outline"
 					size="sm"
 					onClick={onPreview}
@@ -301,6 +370,61 @@ function DiagramHeader({ onClose, nodeCount, edgeCount, onPreview, onInsert }: D
 				</Button>
 			</div>
 		</header>
+	);
+}
+
+function AiDiagramOverlay({
+	onClose,
+	onGenerate,
+	isGenerating,
+	error,
+}: {
+	onClose: () => void;
+	onGenerate: (request: string) => void;
+	isGenerating: boolean;
+	error: string | null;
+}) {
+	const [request, setRequest] = useState("");
+	return (
+		<div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
+			<div className="w-full max-w-lg border bg-card p-5 shadow-2xl">
+				<div className="mb-4 flex items-center gap-2">
+					<Sparkles className="h-4 w-4 text-primary" />
+					<h3 className="font-semibold">Create diagram with AI</h3>
+				</div>
+				<p className="mb-3 text-sm text-muted-foreground">
+					Describe the workflow you want. It will use your selected AI provider and
+					replace the current canvas when ready.
+				</p>
+				<textarea
+					autoFocus
+					value={request}
+					onChange={(event) => setRequest(event.target.value)}
+					disabled={isGenerating}
+					placeholder="For example: employee expense approval with finance review and reimbursement"
+					className="min-h-28 w-full resize-y border bg-background p-3 text-sm outline-none focus:border-primary disabled:opacity-60"
+				/>
+				{error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+				<div className="mt-4 flex justify-end gap-2">
+					<Button variant="ghost" size="sm" onClick={onClose} disabled={isGenerating}>
+						Cancel
+					</Button>
+					<Button
+						size="sm"
+						disabled={!request.trim() || isGenerating}
+						onClick={() => onGenerate(request)}
+						className="gap-2"
+					>
+						{isGenerating ? (
+							<LoaderCircle className="h-4 w-4 animate-spin" />
+						) : (
+							<Sparkles className="h-4 w-4" />
+						)}
+						{isGenerating ? "Generating…" : "Generate diagram"}
+					</Button>
+				</div>
+			</div>
+		</div>
 	);
 }
 
@@ -459,6 +583,54 @@ type NodeInspectorSectionProps = {
 	onUpdateNodeData: (id: string, patch: Partial<NodeData>) => void;
 };
 
+function NodeLabelInput({
+	node,
+	inputRef,
+	onCommit,
+}: {
+	node: DiagramNode;
+	inputRef: React.RefObject<HTMLInputElement | null>;
+	onCommit: (id: string, label: string) => void;
+}) {
+	const [draft, setDraft] = useState(node.data?.label ?? "");
+	const discardOnBlurRef = useRef(false);
+
+	// Keep typing local. Committing each keypress makes the controlled canvas
+	// reconcile every node and edge while the user is still editing one label.
+	useEffect(() => {
+		setDraft(node.data?.label ?? "");
+	}, [node.id, node.data?.label]);
+
+	const commit = useCallback(() => {
+		if (discardOnBlurRef.current) {
+			discardOnBlurRef.current = false;
+			setDraft(node.data?.label ?? "");
+			return;
+		}
+		const next = draft.trim() || node.data?.label || "";
+		if (next !== node.data?.label) onCommit(node.id, next);
+		else setDraft(next);
+	}, [draft, node.data?.label, node.id, onCommit]);
+
+	return (
+		<Input
+			ref={inputRef}
+			value={draft}
+			onChange={(event) => setDraft(event.target.value)}
+			onBlur={commit}
+			onKeyDown={(event) => {
+				event.stopPropagation();
+				if (event.key === "Enter") event.currentTarget.blur();
+				if (event.key === "Escape") {
+					discardOnBlurRef.current = true;
+					event.currentTarget.blur();
+				}
+			}}
+			className="h-8 text-sm font-mono rounded-none border-border/50 focus-visible:ring-primary focus-visible:ring-1 focus-visible:border-primary"
+		/>
+	);
+}
+
 function NodeInspectorSection({
 	node,
 	labelInputRef,
@@ -468,13 +640,7 @@ function NodeInspectorSection({
 	return (
 		<>
 			<PanelSection title="Label">
-				<Input
-					ref={labelInputRef}
-					value={node.data?.label ?? ""}
-					onChange={(e) => onLabelChange(node.id, e.target.value)}
-					onKeyDown={(e) => e.stopPropagation()}
-					className="h-8 text-sm font-mono rounded-none border-border/50 focus-visible:ring-primary focus-visible:ring-1 focus-visible:border-primary"
-				/>
+				<NodeLabelInput node={node} inputRef={labelInputRef} onCommit={onLabelChange} />
 				<p className="text-[10px] text-muted-foreground/40">
 					Double-click node to rename inline
 				</p>
@@ -738,7 +904,7 @@ type DiagramCanvasProps = {
 	onCopy: () => void;
 };
 
-function DiagramCanvas({
+const DiagramCanvas = memo(function DiagramCanvas({
 	reactFlowWrapper,
 	nodes,
 	edges,
@@ -814,7 +980,7 @@ function DiagramCanvas({
 			/>
 		</main>
 	);
-}
+});
 
 type InspectorSidebarProps = {
 	selectedNode: DiagramNode | null;
@@ -836,7 +1002,7 @@ type InspectorSidebarProps = {
 	onDefEdgeAnimChange: (v: boolean) => void;
 };
 
-function InspectorSidebar({
+const InspectorSidebar = memo(function InspectorSidebar({
 	selectedNode,
 	selectedEdge,
 	labelInputRef,
@@ -893,7 +1059,7 @@ function InspectorSidebar({
 			</div>
 		</aside>
 	);
-}
+});
 
 export interface DiagramState {
 	nodes: DiagramNode[];
@@ -917,8 +1083,8 @@ export function DiagramBuilder({
 	initialEdges = defaultEdges,
 	initialDirection = "TD",
 }: DiagramBuilderProps) {
-	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+	const [nodes, setNodes, onNodesChangeInternal] = useNodesState(initialNodes);
+	const [edges, setEdges, onEdgesChangeInternal] = useEdgesState(initialEdges);
 	const [direction, setDirection] = useState(initialDirection);
 
 	const [selectedNode, setSelectedNode] = useState<DiagramNode | null>(null);
@@ -931,6 +1097,7 @@ export function DiagramBuilder({
 
 	const [showCode, setShowCode] = useState(false);
 	const [showPreview, setShowPreview] = useState(false);
+	const [showAi, setShowAi] = useState(false);
 	const [edgeLabelEdit, setEdgeLabelEdit] = useState<{ edge: Edge; x: number; y: number } | null>(
 		null,
 	);
@@ -940,8 +1107,55 @@ export function DiagramBuilder({
 	const [rfInstance, setRfInstance] = useState<any>(null);
 	const labelInputRef = useRef<HTMLInputElement>(null);
 	const labelFocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const historyRef = useRef<{ past: DiagramSnapshot[]; future: DiagramSnapshot[] }>({
+		past: [],
+		future: [],
+	});
+	const [historyAvailability, setHistoryAvailability] = useState({
+		canUndo: false,
+		canRedo: false,
+	});
+	const {
+		generate: generateDiagram,
+		isGenerating,
+		error: aiError,
+		dismissError,
+	} = useDiagramAi();
+	const snapshot = useCallback(
+		(): DiagramSnapshot => ({ nodes, edges, direction }),
+		[nodes, edges, direction],
+	);
+	const syncHistoryAvailability = useCallback(() => {
+		setHistoryAvailability({
+			canUndo: historyRef.current.past.length > 0,
+			canRedo: historyRef.current.future.length > 0,
+		});
+	}, []);
+	const pushHistory = useCallback(() => {
+		historyRef.current.past.push(snapshot());
+		if (historyRef.current.past.length > 50) historyRef.current.past.shift();
+		historyRef.current.future = [];
+		syncHistoryAvailability();
+	}, [snapshot, syncHistoryAvailability]);
+	const onNodesChange = useCallback(
+		(changes: Parameters<OnNodesChange<DiagramNode>>[0]) => {
+			if (changes.some((change) => change.type === "remove")) pushHistory();
+			onNodesChangeInternal(changes);
+		},
+		[onNodesChangeInternal, pushHistory],
+	);
+	const onEdgesChange = useCallback(
+		(changes: Parameters<OnEdgesChange<Edge>>[0]) => {
+			if (changes.some((change) => change.type === "remove")) pushHistory();
+			onEdgesChangeInternal(changes);
+		},
+		[onEdgesChangeInternal, pushHistory],
+	);
 
-	const mermaidCode = generateMermaid(nodes, edges, direction);
+	const mermaidCode = useMemo(
+		() => generateMermaid(nodes, edges, direction),
+		[nodes, edges, direction],
+	);
 
 	useEffect(() => {
 		if (labelFocusTimerRef.current) {
@@ -960,6 +1174,7 @@ export function DiagramBuilder({
 
 	const onLabelChange = useCallback(
 		(id: string, label: string) => {
+			pushHistory();
 			setNodes((nds) =>
 				nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, label } } : n)),
 			);
@@ -967,11 +1182,12 @@ export function DiagramBuilder({
 				prev?.id === id ? { ...prev, data: { ...prev.data, label } } : prev,
 			);
 		},
-		[setNodes],
+		[setNodes, pushHistory],
 	);
 
 	const updateNodeData = useCallback(
 		(id: string, patch: Partial<NodeData>) => {
+			pushHistory();
 			setNodes((nds) =>
 				nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)),
 			);
@@ -979,12 +1195,13 @@ export function DiagramBuilder({
 				prev?.id === id ? { ...prev, data: { ...prev.data, ...patch } } : prev,
 			);
 		},
-		[setNodes],
+		[setNodes, pushHistory],
 	);
 
 	const updateEdgeProps = useCallback(
 		// biome-ignore lint/suspicious/noExplicitAny: edge data is schema-flexible
 		(id: string, patch: Partial<Edge & { data: any }>) => {
+			pushHistory();
 			setEdges((eds) =>
 				eds.map((e) => {
 					if (e.id !== id) return e;
@@ -1003,7 +1220,7 @@ export function DiagramBuilder({
 				return merged;
 			});
 		},
-		[setEdges],
+		[setEdges, pushHistory],
 	);
 
 	const commitEdgeLabel = useCallback(
@@ -1017,6 +1234,7 @@ export function DiagramBuilder({
 
 	const onConnect = useCallback(
 		(params: Connection | Edge) => {
+			pushHistory();
 			const color = defEdgeColor || undefined;
 			setEdges((eds) => {
 				const newEdges = addEdge(
@@ -1035,7 +1253,7 @@ export function DiagramBuilder({
 				);
 			});
 		},
-		[setEdges, defEdgeType, defEdgeColor, defEdgeDash, defEdgeAnim],
+		[setEdges, defEdgeType, defEdgeColor, defEdgeDash, defEdgeAnim, pushHistory],
 	);
 
 	const onDragOver = useCallback((event: React.DragEvent) => {
@@ -1049,6 +1267,7 @@ export function DiagramBuilder({
 			const type = event.dataTransfer.getData("application/reactflow");
 			const label = event.dataTransfer.getData("application/label");
 			if (!type) return;
+			pushHistory();
 			const position = rfInstance.screenToFlowPosition({
 				x: event.clientX,
 				y: event.clientY,
@@ -1062,12 +1281,13 @@ export function DiagramBuilder({
 				} as DiagramNode),
 			);
 		},
-		[rfInstance, setNodes],
+		[rfInstance, setNodes, pushHistory],
 	);
 
 	const addAtCenter = useCallback(
 		(type: string, label: string) => {
 			if (!rfInstance || !reactFlowWrapper.current) return;
+			pushHistory();
 			const b = reactFlowWrapper.current.getBoundingClientRect();
 			const pos = rfInstance.screenToFlowPosition({
 				x: b.left + b.width / 2,
@@ -1083,13 +1303,15 @@ export function DiagramBuilder({
 				} as DiagramNode);
 			});
 		},
-		[rfInstance, setNodes],
+		[rfInstance, setNodes, pushHistory],
 	);
 
 	const onSelectionChange = useCallback(
 		({ nodes: sn, edges: se }: { nodes: DiagramNode[]; edges: Edge[] }) => {
-			setSelectedNode(sn.length > 0 ? sn[0] : null);
-			setSelectedEdge(se.length > 0 && sn.length === 0 ? se[0] : null);
+			const nextNode = sn[0] ?? null;
+			const nextEdge = sn.length === 0 ? (se[0] ?? null) : null;
+			setSelectedNode((current) => (current?.id === nextNode?.id ? current : nextNode));
+			setSelectedEdge((current) => (current?.id === nextEdge?.id ? current : nextEdge));
 		},
 		[],
 	);
@@ -1103,90 +1325,188 @@ export function DiagramBuilder({
 		});
 	}, []);
 
-	const handleCopy = () => {
+	const handleCopy = useCallback(() => {
 		void navigator.clipboard.writeText(mermaidCode);
 		showUserToast("Mermaid syntax copied.", "success");
-	};
+	}, [mermaidCode]);
 
-	const defaultEdgeOptions = {
-		type: defEdgeType,
-		animated: defEdgeAnim,
-		data: { dashed: defEdgeDash, color: defEdgeColor || undefined },
-		style: defEdgeColor ? { stroke: defEdgeColor, strokeWidth: 1.5 } : undefined,
-	};
+	const defaultEdgeOptions = useMemo(
+		() => ({
+			type: defEdgeType,
+			animated: defEdgeAnim,
+			data: { dashed: defEdgeDash, color: defEdgeColor || undefined },
+			style: defEdgeColor ? { stroke: defEdgeColor, strokeWidth: 1.5 } : undefined,
+		}),
+		[defEdgeType, defEdgeAnim, defEdgeDash, defEdgeColor],
+	);
+	const openPreview = useCallback(() => setShowPreview(true), []);
+	const closePreview = useCallback(() => setShowPreview(false), []);
+	const closeEdgeLabelEditor = useCallback(() => setEdgeLabelEdit(null), []);
+	const toggleCode = useCallback(() => setShowCode((visible) => !visible), []);
+	const insertDiagram = useCallback(
+		() => onInsert({ nodes, edges, direction, code: mermaidCode }),
+		[onInsert, nodes, edges, direction, mermaidCode],
+	);
+	const undo = useCallback(() => {
+		const previous = historyRef.current.past.pop();
+		if (!previous) return;
+		historyRef.current.future.push(snapshot());
+		setNodes(previous.nodes);
+		setEdges(previous.edges);
+		setDirection(previous.direction);
+		setSelectedNode(null);
+		setSelectedEdge(null);
+		syncHistoryAvailability();
+	}, [snapshot, setNodes, setEdges, syncHistoryAvailability]);
+	const redo = useCallback(() => {
+		const next = historyRef.current.future.pop();
+		if (!next) return;
+		historyRef.current.past.push(snapshot());
+		setNodes(next.nodes);
+		setEdges(next.edges);
+		setDirection(next.direction);
+		setSelectedNode(null);
+		setSelectedEdge(null);
+		syncHistoryAvailability();
+	}, [snapshot, setNodes, setEdges, syncHistoryAvailability]);
+	const changeDirection = useCallback(
+		(nextDirection: string) => {
+			if (nextDirection === direction) return;
+			pushHistory();
+			setDirection(nextDirection);
+		},
+		[direction, pushHistory],
+	);
+	const applyPreset = useCallback(
+		(presetId: string) => {
+			const preset = getDiagramPreset(presetId);
+			if (!preset) return;
+			if (
+				nodes.length &&
+				!window.confirm(`Replace this diagram with the ${preset.label} preset?`)
+			) {
+				return;
+			}
+			pushHistory();
+			const next = cloneDiagramPreset(preset);
+			setNodes(next.nodes);
+			setEdges(next.edges);
+			setDirection(next.direction);
+			setSelectedNode(null);
+			setSelectedEdge(null);
+			setEdgeLabelEdit(null);
+			showUserToast(`${preset.label} preset applied.`, "success");
+		},
+		[nodes.length, setNodes, setEdges, pushHistory],
+	);
+	const openAi = useCallback(() => {
+		dismissError();
+		setShowAi(true);
+	}, [dismissError]);
+	const closeAi = useCallback(() => setShowAi(false), []);
+	const createWithAi = useCallback(
+		(request: string) => {
+			void generateDiagram(request).then((diagram) => {
+				if (!diagram) return;
+				pushHistory();
+				setNodes(diagram.nodes);
+				setEdges(diagram.edges);
+				setDirection(diagram.direction);
+				setSelectedNode(null);
+				setSelectedEdge(null);
+				setShowAi(false);
+				showUserToast("AI diagram created.", "success");
+			});
+		},
+		[generateDiagram, setNodes, setEdges, pushHistory],
+	);
 
 	const contextValue = useMemo(() => ({ onLabelChange }), [onLabelChange]);
 
 	return (
 		<LazyMotion features={domAnimation}>
-		<DiagramContext.Provider value={contextValue}>
-			<m.div
-				initial={{ y: "100%" }}
-				animate={{ y: 0 }}
-				exit={{ y: "100%" }}
-				transition={{ type: "spring", damping: 25, stiffness: 200 }}
-				className="fixed inset-0 z-50 flex flex-col bg-background text-foreground overflow-hidden"
-			>
-				<DiagramHeader
-					onClose={onClose}
-					nodeCount={nodes.length}
-					edgeCount={edges.length}
-					onPreview={() => setShowPreview(true)}
-					onInsert={() => onInsert({ nodes, edges, direction, code: mermaidCode })}
-				/>
+			<DiagramContext.Provider value={contextValue}>
+				<m.div
+					initial={{ y: "100%" }}
+					animate={{ y: 0 }}
+					exit={{ y: "100%" }}
+					transition={{ type: "spring", damping: 25, stiffness: 200 }}
+					className="fixed inset-0 z-50 flex flex-col bg-background text-foreground overflow-hidden"
+				>
+					<DiagramHeader
+						onClose={onClose}
+						nodeCount={nodes.length}
+						edgeCount={edges.length}
+						onApplyPreset={applyPreset}
+						onOpenAi={openAi}
+						canUndo={historyAvailability.canUndo}
+						canRedo={historyAvailability.canRedo}
+						onUndo={undo}
+						onRedo={redo}
+						onPreview={openPreview}
+						onInsert={insertDiagram}
+					/>
 
-				<div className="flex flex-1 overflow-hidden">
-					<NodePalette onAddAtCenter={addAtCenter} />
+					<div className="flex flex-1 overflow-hidden">
+						<NodePalette onAddAtCenter={addAtCenter} />
 
-					<DiagramCanvas
-						reactFlowWrapper={reactFlowWrapper}
-						nodes={nodes}
-						edges={edges}
-						onNodesChange={onNodesChange}
-						onEdgesChange={onEdgesChange}
-						onConnect={onConnect}
-						onInit={setRfInstance}
-						onDrop={onDrop}
-						onDragOver={onDragOver}
-						onSelectionChange={onSelectionChange}
-						onEdgeDoubleClick={onEdgeDoubleClick}
-						defaultEdgeOptions={defaultEdgeOptions}
-						edgeLabelEdit={edgeLabelEdit}
-						onCommitEdgeLabel={commitEdgeLabel}
-						onCancelEdgeLabel={() => setEdgeLabelEdit(null)}
-						showCode={showCode}
-						onToggleCode={() => setShowCode(!showCode)}
+						<DiagramCanvas
+							reactFlowWrapper={reactFlowWrapper}
+							nodes={nodes}
+							edges={edges}
+							onNodesChange={onNodesChange}
+							onEdgesChange={onEdgesChange}
+							onConnect={onConnect}
+							onInit={setRfInstance}
+							onDrop={onDrop}
+							onDragOver={onDragOver}
+							onSelectionChange={onSelectionChange}
+							onEdgeDoubleClick={onEdgeDoubleClick}
+							defaultEdgeOptions={defaultEdgeOptions}
+							edgeLabelEdit={edgeLabelEdit}
+							onCommitEdgeLabel={commitEdgeLabel}
+							onCancelEdgeLabel={closeEdgeLabelEditor}
+							showCode={showCode}
+							onToggleCode={toggleCode}
+							mermaidCode={mermaidCode}
+							onCopy={handleCopy}
+						/>
+
+						<InspectorSidebar
+							selectedNode={selectedNode}
+							selectedEdge={selectedEdge}
+							labelInputRef={labelInputRef}
+							onLabelChange={onLabelChange}
+							onUpdateNodeData={updateNodeData}
+							onUpdateEdgeProps={updateEdgeProps}
+							direction={direction}
+							onDirectionChange={changeDirection}
+							defEdgeType={defEdgeType}
+							onDefEdgeTypeChange={setDefEdgeType}
+							defEdgeColor={defEdgeColor}
+							onDefEdgeColorChange={setDefEdgeColor}
+							defEdgeDash={defEdgeDash}
+							onDefEdgeDashChange={setDefEdgeDash}
+							defEdgeAnim={defEdgeAnim}
+							onDefEdgeAnimChange={setDefEdgeAnim}
+						/>
+					</div>
+
+					<PreviewOverlay
+						show={showPreview}
 						mermaidCode={mermaidCode}
-						onCopy={handleCopy}
+						onClose={closePreview}
 					/>
-
-					<InspectorSidebar
-						selectedNode={selectedNode}
-						selectedEdge={selectedEdge}
-						labelInputRef={labelInputRef}
-						onLabelChange={onLabelChange}
-						onUpdateNodeData={updateNodeData}
-						onUpdateEdgeProps={updateEdgeProps}
-						direction={direction}
-						onDirectionChange={setDirection}
-						defEdgeType={defEdgeType}
-						onDefEdgeTypeChange={setDefEdgeType}
-						defEdgeColor={defEdgeColor}
-						onDefEdgeColorChange={setDefEdgeColor}
-						defEdgeDash={defEdgeDash}
-						onDefEdgeDashChange={setDefEdgeDash}
-						defEdgeAnim={defEdgeAnim}
-						onDefEdgeAnimChange={setDefEdgeAnim}
-					/>
-				</div>
-
-				<PreviewOverlay
-					show={showPreview}
-					mermaidCode={mermaidCode}
-					onClose={() => setShowPreview(false)}
-				/>
-			</m.div>
-		</DiagramContext.Provider>
+					{showAi ? (
+						<AiDiagramOverlay
+							onClose={closeAi}
+							onGenerate={createWithAi}
+							isGenerating={isGenerating}
+							error={aiError}
+						/>
+					) : null}
+				</m.div>
+			</DiagramContext.Provider>
 		</LazyMotion>
 	);
 }

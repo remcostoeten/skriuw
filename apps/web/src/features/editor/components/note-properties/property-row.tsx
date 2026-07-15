@@ -197,7 +197,7 @@ export function AddPropertyButton({
 						aria-label="Add property"
 						className="inline-flex items-center gap-1 rounded-lg border border-dashed border-border/70 px-2 py-1 text-[12px] font-medium uppercase tracking-wide text-muted-foreground/70 transition-colors hover:border-border hover:text-foreground"
 					>
-						<AnimatedPlusIcon size={14} />
+						<AnimatedPlusIcon size={14} className="skriuw-animated-icon" />
 						Property
 					</button>
 				) : (
@@ -206,7 +206,7 @@ export function AddPropertyButton({
 						onClick={toggle}
 						className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
 					>
-						<AnimatedPlusIcon size={14} />
+						<AnimatedPlusIcon size={14} className="skriuw-animated-icon" />
 						Add property
 					</button>
 				)
@@ -377,7 +377,7 @@ function SaveTemplateField({
 				onClick={() => setOpen(true)}
 				className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
 			>
-				<AnimatedPlusIcon size={14} />
+				<AnimatedPlusIcon size={14} className="skriuw-animated-icon" />
 				Save current as template
 			</button>
 		);

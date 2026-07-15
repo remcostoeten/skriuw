@@ -65,7 +65,10 @@ fn validate_cover_image_name(relative: &str) -> io::Result<()> {
         || relative == "."
         || relative == ".."
     {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid cover image path"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "invalid cover image path",
+        ));
     }
     Ok(())
 }
@@ -438,10 +441,18 @@ impl VaultStore {
     /// user's override if one is set, otherwise `.skriuw/assets/cover-images`
     /// under the vault root.
     pub fn cover_images_dir(&self) -> PathBuf {
-        if let Some(root) = self.cover_root.lock().expect("cover root mutex poisoned").clone() {
+        if let Some(root) = self
+            .cover_root
+            .lock()
+            .expect("cover root mutex poisoned")
+            .clone()
+        {
             return root;
         }
-        self.root().join(META_DIR).join(ASSETS_DIR).join(COVER_IMAGES_DIR)
+        self.root()
+            .join(META_DIR)
+            .join(ASSETS_DIR)
+            .join(COVER_IMAGES_DIR)
     }
 
     /// Sets (or clears, with `None`) the cover-images directory override.
@@ -1475,7 +1486,8 @@ mod tests {
         ]);
         store.upsert_journal_entry(&entry).unwrap();
 
-        let raw = std::fs::read_to_string(dir.path().join(".skriuw/journal/2026-06-24-j1.md")).unwrap();
+        let raw =
+            std::fs::read_to_string(dir.path().join(".skriuw/journal/2026-06-24-j1.md")).unwrap();
         assert!(raw.contains("richContent:"));
         assert!(raw.contains("person-1"));
 

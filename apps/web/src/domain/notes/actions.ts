@@ -29,8 +29,15 @@ import type { ResolvedNoteLink } from "@/domain/notes/note-links";
 import { deriveNoteNameFromHeading, nameTracksHeading } from "@/domain/notes/note-links";
 import { syncNoteLinks } from "@/domain/notes/note-link-sync";
 import { buildGraphData, type GraphData } from "@/domain/notes/graph";
+import { refreshNoteEmbedding } from "@/features/notes/server/semantic-embeddings";
+import type { SemanticSearchConfig } from "@/features/notes/server/semantic-embeddings";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function getSemanticConfig(user: unknown): SemanticSearchConfig | undefined {
+	return (user as { editorPreferences?: { ai?: SemanticSearchConfig } } | null)?.editorPreferences
+		?.ai;
+}
 
 function uniquePersistedNoteIds(ids: string[]): string[] {
 	return Array.from(
@@ -45,7 +52,9 @@ export async function listNotes(): Promise<NoteFile[]> {
 
 export async function createNote(input: CreateNoteInput): Promise<NoteFile> {
 	const { prisma, user } = await getAuthenticatedUser();
-	return createNoteForUser(prisma, user.id, input);
+	const note = await createNoteForUser(prisma, user.id, input);
+	refreshNoteEmbedding(prisma, note, getSemanticConfig(user), user.id);
+	return note;
 }
 
 export type UpdateNoteInput = {
@@ -130,7 +139,7 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 		ownerPatch.sortOrder = validated.sortOrder;
 	}
 
-	return prisma.$transaction(async (tx) => {
+	const result = await prisma.$transaction(async (tx) => {
 		// Owner fast path: one round trip, no `resolveNoteAccess`. This is the hot
 		// path (every batched keystroke autosaves), so we attempt the cheap
 		// owner-scoped update first and only resolve collaborator access on P2025
@@ -254,6 +263,10 @@ export async function updateNote(input: UpdateNoteInput): Promise<UpdateNoteResu
 			versionId,
 		};
 	});
+	if (result.note && (validated.content !== undefined || validated.name !== undefined)) {
+		refreshNoteEmbedding(prisma, result.note, getSemanticConfig(user), user.id);
+	}
+	return result;
 }
 
 export async function restoreNoteVersion(versionId: string): Promise<UpdateNoteResult> {

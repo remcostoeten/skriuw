@@ -190,6 +190,7 @@ const SYNC_RATE_LIMIT_WINDOW_MS = 60_000;
 const SYNC_RATE_LIMITS: Record<string, number> = {
 	capture: 30,
 	export: 10,
+	push: 10,
 	folders: 60,
 	verify: 60,
 	activity: 60,

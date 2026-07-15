@@ -29,7 +29,7 @@ model User {
 
   sessions               Session[]
   accounts               Account[]
-	passkeys               Passkey[]
+  passkeys               Passkey[]
   notes                  Note[]
   folders                Folder[]
   noteVersions           NoteVersion[]
@@ -38,6 +38,7 @@ model User {
   journalEntries         JournalEntry[]
   journalLinks           JournalLink[]
   journalTags            JournalTag[]
+  journalFeedTokens      JournalFeedToken[]
   userRecents            UserRecent[]
   aiProviderKeys         AiProviderKey[]
   syncTokens             SyncToken[]
@@ -130,6 +131,22 @@ model RateLimit {
   @@map("rate_limit")
 }
 
+model DeviceCode {
+  id              String    @id
+  deviceCode      String    @unique @map("device_code")
+  userCode        String    @unique @map("user_code")
+  userId          String?   @map("user_id")
+  expiresAt       DateTime  @map("expires_at")
+  status          String
+  lastPolledAt    DateTime? @map("last_polled_at")
+  pollingInterval Int?      @map("polling_interval")
+  clientId        String?   @map("client_id")
+  scope           String?
+
+  @@index([userId])
+  @@map("device_codes")
+}
+
 // ─── Desktop Sync ────────────────────────────────────────────────────────────
 
 model SyncToken {
@@ -208,6 +225,7 @@ model Note {
   cover                 String?
   annotationScene       String?                @map("annotation_scene")
   journalMeta           Json?                  @map("journal_meta")
+  semanticEmbedding     Json?                  @map("semantic_embedding")
   versions              NoteVersion[]
   outgoingLinks         NoteLink[]             @relation("NoteOutgoingLinks")
   shares                NoteShare[]
@@ -355,25 +373,44 @@ model NoteTagMeta {
 // ─── Journal ─────────────────────────────────────────────────────────────────
 
 model JournalEntry {
-  id        String    @id @default(uuid()) @db.Uuid
-  userId    String    @map("user_id")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dateKey     String        @map("date_key")
-  title       String?
-  content     String
-  richContent Json?         @map("rich_content")
-  mood        String?
-  tags        String[]      @default([])
-  outgoingLinks JournalLink[] @relation("JournalOutgoingLinks")
-  deletedAt   DateTime?     @map("deleted_at")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id                String        @id @default(uuid()) @db.Uuid
+  userId            String        @map("user_id")
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dateKey           String        @map("date_key")
+  title             String?
+  content           String
+  richContent       Json?         @map("rich_content")
+  mood              String?
+  tags              String[]      @default([])
+  calendarSourceId  String?       @map("calendar_source_id")
+  calendarSourceUid String?       @map("calendar_source_uid")
+  outgoingLinks     JournalLink[] @relation("JournalOutgoingLinks")
+  deletedAt         DateTime?     @map("deleted_at")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
 
   // Active date uniqueness is enforced by a Postgres partial unique index in
   // migrations because Prisma cannot model `WHERE deleted_at IS NULL`.
   @@index([userId, dateKey, deletedAt])
   @@index([userId, deletedAt])
+  @@index([userId, calendarSourceId, calendarSourceUid])
   @@map("journal_entries")
+}
+
+model JournalFeedToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  tokenHash   String    @unique @map("token_hash")
+  tokenPrefix String    @map("token_prefix")
+  revokedAt   DateTime? @map("revoked_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, revokedAt, createdAt(sort: Desc)])
+  @@map("journal_feed_tokens")
 }
 
 // Journal counterpart of NoteLink: the tag/person/note-link edges extracted from

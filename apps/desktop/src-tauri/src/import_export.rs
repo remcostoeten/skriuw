@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
 use std::io::Read;
+use std::path::Path;
 
 #[cfg(test)]
 pub fn parse_frontmatter(content: &str) -> (HashMap<String, String>, String) {
@@ -202,7 +202,10 @@ pub fn build_export(
 
     let tags: Vec<ExportedTag> = deduplicate_tags(&notes)
         .into_iter()
-        .map(|(name, count)| ExportedTag { name, note_count: count })
+        .map(|(name, count)| ExportedTag {
+            name,
+            note_count: count,
+        })
         .collect();
 
     let manifest = ExportManifest {
@@ -213,7 +216,12 @@ pub fn build_export(
         tag_count: tags.len(),
     };
 
-    let export = ExportArchive { notes, folders, tags, manifest };
+    let export = ExportArchive {
+        notes,
+        folders,
+        tags,
+        manifest,
+    };
 
     serde_json::to_string(&export).map_err(|e| format!("Failed to serialize export: {}", e))
 }
@@ -229,11 +237,9 @@ pub fn build_export_archive(
 
 /// Extract and parse archive.json from a ZIP file
 pub fn extract_archive_json(zip_path: &Path) -> Result<ExportArchive, String> {
-    let file = std::fs::File::open(zip_path)
-        .map_err(|e| format!("Failed to open ZIP: {}", e))?;
+    let file = std::fs::File::open(zip_path).map_err(|e| format!("Failed to open ZIP: {}", e))?;
 
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| format!("Invalid ZIP file: {}", e))?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("Invalid ZIP file: {}", e))?;
 
     // Look for archive.json
     let mut archive_file = archive
@@ -566,21 +572,18 @@ mod tests {
 
     #[test]
     fn test_conflict_resolution_rename() {
-        let notes = vec![
-            ExportedNote {
-                id: "n1".to_string(),
-                name: "Note".to_string(),
-                content: "".to_string(),
-                created_at: "".to_string(),
-                modified_at: "".to_string(),
-                folder_id: None,
-                tags: vec![],
-            },
-        ];
+        let notes = vec![ExportedNote {
+            id: "n1".to_string(),
+            name: "Note".to_string(),
+            content: "".to_string(),
+            created_at: "".to_string(),
+            modified_at: "".to_string(),
+            folder_id: None,
+            tags: vec![],
+        }];
 
         let existing = vec!["Note".to_string(), "Note (1)".to_string()];
-        let (resolved, _) =
-            apply_conflict_resolution(notes, &existing, ConflictResolution::Rename);
+        let (resolved, _) = apply_conflict_resolution(notes, &existing, ConflictResolution::Rename);
 
         assert_eq!(resolved[0].name, "Note (2)");
     }
