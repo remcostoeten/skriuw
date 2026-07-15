@@ -23,7 +23,6 @@ export function RichRenderer({
 	return (
 		<FlashList
 			data={data}
-			estimatedItemSize={44}
 			keyExtractor={(item, index) => item.block?.id ?? `block-${index}`}
 			ListHeaderComponent={ListHeaderComponent}
 			contentContainerStyle={{ padding: 16 }}

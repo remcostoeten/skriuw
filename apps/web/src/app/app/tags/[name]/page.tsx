@@ -1,10 +1,11 @@
 import { Suspense } from "react";
-import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getServerUser } from "@/core/db";
 import { normalizeStoredTagEntry } from "@/domain/tags/normalize";
 import { listTagNotes } from "@/domain/tags/actions";
 import { tagsKeys } from "@/features/tags/lib/tags-keys";
 import { TagInsights } from "@/features/tags/components/tag-insights";
+import { createServerQueryClient } from "@/shared/api/create-server-query-client";
 
 type Props = {
 	params: Promise<{ name: string }>;
@@ -16,7 +17,7 @@ async function TagInsightsContent({ params }: Props) {
 	const { name } = await params;
 	const tagName = normalizeStoredTagEntry(decodeURIComponent(name));
 	const { user } = await getServerUser();
-	const queryClient = new QueryClient();
+	const queryClient = await createServerQueryClient();
 
 	if (user && tagName) {
 		await queryClient.prefetchQuery({

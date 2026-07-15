@@ -23,8 +23,8 @@ describe("deriveWorkspaceTags", () => {
 				},
 			],
 			[
-				{ tags: ["manual"], content: "#draft" },
-				{ tags: [], content: "#shared #idea" },
+				{ tags: ["manual"], content: "#draft", richContent: [] },
+				{ tags: [], content: "#shared #idea", richContent: [] },
 			],
 		);
 

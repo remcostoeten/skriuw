@@ -78,7 +78,6 @@ function buildDescription(
 
 	const frontmatter: string[] = [];
 	if (entry.mood) frontmatter.push(`mood: ${MOOD_LABELS[entry.mood]}`);
-	if (entry.tags.length > 0) frontmatter.push(`tags: ${entry.tags.join(", ")}`);
 	if (people.length > 0) frontmatter.push(`people: ${people.join(", ")}`);
 
 	const parts: string[] = [];
@@ -108,7 +107,7 @@ export function filterEntriesByRange(
 
 /**
  * Serializes journal entries as an iCalendar (RFC 5545) document of all-day
- * events, one VEVENT per entry. Mood, tags, and people mentions ride in the
+ * events, one VEVENT per entry. Mood and people mentions ride in the
  * DESCRIPTION as a frontmatter-style intro above the entry body. The output
  * imports directly into Apple Calendar, Outlook, and Google Calendar.
  */
@@ -138,9 +137,6 @@ export function buildJournalIcs(entries: JournalEntry[], options: IcsExportOptio
 		const description = buildDescription(entry, options.resolvePersonName);
 		if (description) {
 			lines.push(`DESCRIPTION:${escapeIcsText(description)}`);
-		}
-		if (entry.tags.length > 0) {
-			lines.push(`CATEGORIES:${entry.tags.map(escapeIcsText).join(",")}`);
 		}
 		lines.push("END:VEVENT");
 	}

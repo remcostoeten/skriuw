@@ -21,6 +21,7 @@ export type EditorPreferences = {
 	animateNumbers: boolean;
 	openNotesInTabs: boolean;
 	detectTagsInText: boolean;
+	detectMarksInText: boolean;
 	notePropertiesLayout: "rows" | "inline";
 	notePropertiesCollapsed: boolean;
 	notePropertiesDefaultTemplateId: string | null;

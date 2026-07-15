@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getServerUser } from "@/core/db";
 import { listFolders } from "@/domain/folders/queries";
 import { getNote, listNoteMetadata } from "@/domain/notes/queries";
@@ -8,6 +8,7 @@ import { loadGuestWorkspaceSnapshot } from "@/domain/seed/guest-bundle";
 import { isGuestScopedId } from "@/domain/notes/note-id";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
+import { createServerQueryClient } from "@/shared/api/create-server-query-client";
 
 export const metadata: Metadata = {
 	title: "App",
@@ -40,7 +41,7 @@ export default async function AppHomePage(props: {
 	const { user } = await getServerUser();
 	const searchParams = await props.searchParams;
 
-	const queryClient = new QueryClient();
+	const queryClient = await createServerQueryClient();
 	const requestedNoteId =
 		searchParams?.note && !isGuestScopedId(searchParams.note) ? searchParams.note : null;
 

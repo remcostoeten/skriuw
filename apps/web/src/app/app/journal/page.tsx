@@ -1,11 +1,12 @@
 import { Suspense } from "react";
-import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getServerUser } from "@/core/db";
-import { listJournalEntries, listJournalTags } from "@/domain/journal/queries";
+import { listJournalEntries } from "@/domain/journal/queries";
 import { ensureCloudStarterContentSeeded } from "@/domain/seed/api";
 import { JournalContentSkeleton } from "@/features/journal/components/journal-content-skeleton";
 import { JournalPageLayout } from "@/features/journal/components/journal-page-layout";
 import { journalKeys } from "@/features/journal/hooks/journal-keys";
+import { createServerQueryClient } from "@/shared/api/create-server-query-client";
 
 export const instant = false;
 
@@ -16,10 +17,10 @@ export default async function JournalPage() {
 async function JournalContent() {
 	const { user } = await getServerUser();
 
-	const queryClient = new QueryClient();
+	const queryClient = await createServerQueryClient();
 
 	// Journal is account-only. Skip seeding + prefetch entirely when signed out —
-	// listJournalEntries / listJournalTags call getAuthenticatedUser() and
+	// listJournalEntries calls getAuthenticatedUser() and
 	// would throw → 500 for guests.
 	if (user) {
 		const journalScope = journalKeys.userScope(user.id);
@@ -30,10 +31,6 @@ async function JournalContent() {
 				queryClient.prefetchQuery({
 					queryKey: journalKeys.entries(journalScope),
 					queryFn: () => listJournalEntries(),
-				}),
-				queryClient.prefetchQuery({
-					queryKey: journalKeys.tags(journalScope),
-					queryFn: () => listJournalTags(),
 				}),
 			]);
 

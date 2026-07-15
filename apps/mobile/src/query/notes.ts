@@ -90,6 +90,45 @@ export function useDeleteNote() {
 	});
 }
 
+// --- Trash -------------------------------------------------------------------
+
+export function useTrash() {
+	return useQuery({
+		queryKey: notesKeys.trash,
+		queryFn: () => mobileBackend.listTrash(),
+	});
+}
+
+export function useRestoreTrash() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (batchId: string) => mobileBackend.restoreTrash(batchId),
+		onSettled: () => {
+			qc.invalidateQueries({ queryKey: notesKeys.all });
+		},
+	});
+}
+
+export function usePurgeTrash() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: (batchId: string) => mobileBackend.purgeTrash(batchId),
+		onSettled: () => {
+			qc.invalidateQueries({ queryKey: notesKeys.trash });
+		},
+	});
+}
+
+export function useEmptyTrash() {
+	const qc = useQueryClient();
+	return useMutation({
+		mutationFn: () => mobileBackend.emptyTrash(),
+		onSettled: () => {
+			qc.invalidateQueries({ queryKey: notesKeys.trash });
+		},
+	});
+}
+
 /** Move a note into another folder. Broader invalidation than useUpdateNote:
  *  both the source and target lists change, so we refresh every note list. */
 export function useMoveNote() {

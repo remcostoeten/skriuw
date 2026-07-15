@@ -47,6 +47,29 @@ const TRASH_INDEX_FILE: &str = "trash.json";
 const ASSETS_DIR: &str = "assets";
 const COVER_IMAGES_DIR: &str = "cover-images";
 
+/// One stored cover image, as returned by `list_cover_images`.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CoverImageEntry {
+    pub file_name: String,
+    pub size: u64,
+    pub modified_ms: u64,
+}
+
+/// Rejects anything other than a bare filename, so a note's cover value can
+/// never be used to touch arbitrary files off disk.
+fn validate_cover_image_name(relative: &str) -> io::Result<()> {
+    if relative.is_empty()
+        || relative.contains('/')
+        || relative.contains('\\')
+        || relative == "."
+        || relative == ".."
+    {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid cover image path"));
+    }
+    Ok(())
+}
+
 /// Filesystem-backed note/folder store rooted at a user-chosen vault directory.
 pub struct VaultStore {
     root: Mutex<PathBuf>,
@@ -448,15 +471,47 @@ impl VaultStore {
     /// a bare filename (no path separators), so a note's cover value can never
     /// be used to read arbitrary files off disk.
     pub fn read_cover_image(&self, relative: &str) -> io::Result<Vec<u8>> {
-        if relative.is_empty()
-            || relative.contains('/')
-            || relative.contains('\\')
-            || relative == "."
-            || relative == ".."
-        {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid cover image path"));
-        }
+        validate_cover_image_name(relative)?;
         fs::read(self.cover_images_dir().join(relative))
+    }
+
+    /// Lists stored cover images newest-first with byte size and mtime.
+    pub fn list_cover_images(&self) -> io::Result<Vec<CoverImageEntry>> {
+        let dir = self.cover_images_dir();
+        if !dir.exists() {
+            return Ok(Vec::new());
+        }
+        let mut entries: Vec<CoverImageEntry> = Vec::new();
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let metadata = entry.metadata()?;
+            if !metadata.is_file() {
+                continue;
+            }
+            let Some(file_name) = entry.file_name().to_str().map(str::to_owned) else {
+                continue;
+            };
+            let modified_ms = metadata
+                .modified()
+                .ok()
+                .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|duration| duration.as_millis() as u64)
+                .unwrap_or(0);
+            entries.push(CoverImageEntry {
+                file_name,
+                size: metadata.len(),
+                modified_ms,
+            });
+        }
+        entries.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
+        Ok(entries)
+    }
+
+    /// Permanently deletes a cover image saved by `save_cover_image`, with the
+    /// same bare-filename guard as `read_cover_image`.
+    pub fn delete_cover_image(&self, relative: &str) -> io::Result<()> {
+        validate_cover_image_name(relative)?;
+        fs::remove_file(self.cover_images_dir().join(relative))
     }
 
     /// Absolute directory for a folder id, built by walking the parent chain and

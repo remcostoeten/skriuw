@@ -22,6 +22,7 @@ import { preloadRichTextEditor } from "./preload-rich-text-editor";
 import type { TRichTextCollab } from "./rich-text-editor";
 import type { VimMode } from "@/features/editor/lib/vim-plugin";
 import { cn } from "@/shared/lib/utils";
+import type { EditorInstance } from "@/features/editor/lib/editor-instance";
 
 type EditorMode = "raw" | "block";
 
@@ -69,6 +70,7 @@ type EditorProps = {
 	onIconChange?: (icon: string) => void;
 	onCoverChange?: (cover: string) => void;
 	onEditorReady?: (handle: AiEditorHandle) => void;
+	onBlockEditorReady?: (editor: EditorInstance | null) => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
 	onAiAction?: (action: AiAction) => void;
@@ -103,6 +105,7 @@ function EditorImpl({
 	onIconChange,
 	onCoverChange,
 	onEditorReady,
+	onBlockEditorReady,
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onAiAction,
@@ -340,6 +343,7 @@ function EditorImpl({
 					onIconChange={onIconChange}
 					onCoverChange={onCoverChange}
 					onEditorReady={onEditorReady}
+					onBlockEditorReady={onBlockEditorReady}
 					onAiSpellCheck={onAiSpellCheck}
 					onAiContinueWriting={onAiContinueWriting}
 					onAiAction={onAiAction}

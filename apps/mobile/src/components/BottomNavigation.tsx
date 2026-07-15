@@ -68,7 +68,17 @@ function NavigationButton({
 			accessibilityRole="tab"
 			accessibilityLabel={label}
 			accessibilityState={{ selected: active }}
-			style={{ flex: 1, alignItems: "center", gap: 2, paddingVertical: 4 }}
+			style={({ pressed }) => ({
+				flex: 1,
+				alignItems: "center",
+				gap: 2,
+				paddingVertical: 6,
+				marginHorizontal: 2,
+				borderRadius: 10,
+				backgroundColor: active ? theme.bgActive : "transparent",
+				opacity: pressed ? 0.72 : 1,
+				transform: [{ scale: pressed ? 0.97 : 1 }],
+			})}
 		>
 			<Icon
 				size={19}

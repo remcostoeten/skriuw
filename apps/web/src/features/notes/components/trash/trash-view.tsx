@@ -4,7 +4,6 @@ import { useState } from "react";
 import { FileText, FolderClosed, RotateCcw, Trash2 } from "lucide-react";
 import type { TrashBatch } from "@/core/workspace-backend/types";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
-import { IconRail } from "@/features/layout/components/icon-rail";
 import { Button } from "@/shared/ui/button";
 import {
 	Dialog,
@@ -58,7 +57,6 @@ export function TrashView() {
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<IconRail />
 				<div className="mx-auto flex h-full w-full max-w-3xl flex-col">
 					<header className="flex items-center justify-between gap-4 border-b border-border px-6 py-5">
 						<div>
@@ -145,7 +143,9 @@ export function TrashView() {
 							</ContextMenuTrigger>
 							{contextBatch ? (
 								<ContextMenuContent className="w-48">
-									<ContextMenuItem onClick={() => restore.mutate(contextBatch.id)}>
+									<ContextMenuItem
+										onClick={() => restore.mutate(contextBatch.id)}
+									>
 										<RotateCcw className="mr-2 h-3.5 w-3.5" />
 										Restore
 									</ContextMenuItem>

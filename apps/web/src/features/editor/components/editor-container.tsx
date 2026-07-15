@@ -65,6 +65,9 @@ import {
 	useCursorStatusStore,
 	type CursorStatusStore,
 } from "@/features/editor/hooks/use-cursor-status";
+import { insertOrUpdateBlockForSlashMenu } from "@blocknote/core/extensions";
+import { DEFAULT_DRAWING_SCENE } from "@/shared/lib/drawing";
+import type { EditorInstance } from "@/features/editor/lib/editor-instance";
 
 type EditorContainerProps = {
 	file: NoteFile | null;
@@ -433,6 +436,7 @@ function EditorContainerImpl({
 	const [suggestedTags, setSuggestedTags] = useState<string[] | null>(null);
 	const [aiNotice, setAiNotice] = useState<string | null>(null);
 	const [annotating, setAnnotating] = useState(false);
+	const blockEditorRef = useRef<EditorInstance | null>(null);
 
 	const fileId = file?.id ?? null;
 	const coverBannerRef = useRef<NoteCoverBannerHandle>(null);
@@ -452,6 +456,15 @@ function EditorContainerImpl({
 	const canEditCover =
 		!!file &&
 		(file.access === undefined || file.access === "owner" || file.access === "editor");
+	const handleInsertDrawing = useCallback(() => {
+		const blockEditor = blockEditorRef.current;
+		if (!blockEditor) return;
+		insertOrUpdateBlockForSlashMenu(blockEditor, {
+			type: "drawing",
+			props: { scene: DEFAULT_DRAWING_SCENE },
+			// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+		} as any);
+	}, []);
 	const [prevFileId, setPrevFileId] = useState(fileId);
 	if (fileId !== prevFileId) {
 		setPrevFileId(fileId);
@@ -722,6 +735,11 @@ function EditorContainerImpl({
 					annotating={annotating}
 					onToggleAnnotate={
 						file && effectiveEditorMode === "block" ? handleToggleAnnotate : undefined
+					}
+					onInsertDrawing={
+						canEditCover && effectiveEditorMode === "block"
+							? handleInsertDrawing
+							: undefined
 					}
 					presenceAwareness={collabRoom.awareness}
 				/>
@@ -1050,6 +1068,9 @@ function EditorContainerImpl({
 									onIconChange={canEditCover ? handleIconChange : undefined}
 									onCoverChange={canEditCover ? handleCoverChange : undefined}
 									onEditorReady={handleEditorReady}
+									onBlockEditorReady={(blockEditor) => {
+										blockEditorRef.current = blockEditor;
+									}}
 									onAiSpellCheck={canUseAi ? handleAiSpellCheck : undefined}
 									onAiContinueWriting={
 										canUseAi ? handleAiContinueWriting : undefined

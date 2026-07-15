@@ -21,6 +21,11 @@ const config: NextConfig = {
 	// from the client cache.
 	partialPrefetching: true,
 	experimental: {
+		// TypeScript 7 ships the Go compiler and no longer exposes the JS compiler
+		// API that Next resolves to detect and run type checking. Without this,
+		// `next build` reports TypeScript as not installed. Drop it once Next
+		// supports the 7.1 programmatic API natively.
+		useTypeScriptCli: true,
 		// Trim barrel re-export overhead for large named-import libs. framer-motion
 		// is imported across the layout shell, sidebar, and every animated icon, so
 		// rewriting its barrel to direct paths cuts the dev compile module count on

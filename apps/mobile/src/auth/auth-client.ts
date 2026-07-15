@@ -13,9 +13,23 @@
 
 import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
-import { expoPasskeyClient } from "expo-better-auth-passkey";
 import * as SecureStore from "expo-secure-store";
 import { getApiBaseUrl } from "@/lib/config";
+import { noop } from "@/shared/noop";
+
+// expo-better-auth-passkey calls requireNativeModule() at import time, which
+// throws inside Expo Go (the native module only exists in dev/production
+// builds). Loading it lazily lets the rest of auth work there.
+function loadPasskeyPlugins() {
+	try {
+		const { expoPasskeyClient } =
+			require("expo-better-auth-passkey") as typeof import("expo-better-auth-passkey");
+		return [expoPasskeyClient()];
+	} catch {
+		noop();
+		return [];
+	}
+}
 
 export const authClient = createAuthClient({
 	baseURL: getApiBaseUrl(),
@@ -25,7 +39,7 @@ export const authClient = createAuthClient({
 			storagePrefix: "skriuw",
 			storage: SecureStore,
 		}),
-		expoPasskeyClient(),
+		...loadPasskeyPlugins(),
 	],
 });
 

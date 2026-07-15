@@ -3,6 +3,16 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## Unreleased
+
+### Added
+
+- **Text highlights:** select text in block editor, choose one of four colors,
+  and optionally add a short label. Highlights remain inline, preserve their
+  semantic kind, and round-trip through Skriuw Markdown metadata.
+- **Tasks from prose:** selected text can now create a workspace task directly
+  from editor toolbar. Task keeps source note and block IDs for traceability.
+
 ## [0.23.0] — 2026-07-12
 
 ### Added
@@ -38,11 +48,11 @@ create GBM buffer: Invalid argument`), so the window never received a valid
   session: linuxdeploy's GTK hook hard-codes `GDK_BACKEND=x11` into the AppImage
   launcher, so it always runs through XWayland.
 
-        `main.rs` now picks per backend rather than globally. On NVIDIA it overrides
-        the AppImage's forced X11 back to Wayland, and disables the dmabuf renderer
-        only when genuinely landing on X11 — the sole path that renders there. GPU
-        compositing is kept everywhere it works, so the 0.22.0 typing-performance win
-        is retained. `SKRIUW_GDK_BACKEND` forces a specific backend.
+            `main.rs` now picks per backend rather than globally. On NVIDIA it overrides
+            the AppImage's forced X11 back to Wayland, and disables the dmabuf renderer
+            only when genuinely landing on X11 — the sole path that renders there. GPU
+            compositing is kept everywhere it works, so the 0.22.0 typing-performance win
+            is retained. `SKRIUW_GDK_BACKEND` forces a specific backend.
 
 ### Release
 

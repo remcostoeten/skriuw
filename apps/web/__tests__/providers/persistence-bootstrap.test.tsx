@@ -109,6 +109,8 @@ beforeEach(() => {
 			email: "user-a@example.com",
 			name: "User A",
 			role: null,
+			username: null,
+			avatarColor: null,
 		},
 		error: null,
 	};
@@ -151,6 +153,8 @@ describe("PersistenceBootstrap", () => {
 				email: "user-b@example.com",
 				name: "User B",
 				role: null,
+				username: null,
+				avatarColor: null,
 			},
 		};
 

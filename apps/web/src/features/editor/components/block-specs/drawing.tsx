@@ -28,6 +28,8 @@ import {
 	parseDrawingScene,
 } from "@/shared/lib/drawing";
 import { cn } from "@/shared/lib/utils";
+import { useShortcutHint, useShortcutScope, type ShortcutId } from "@/core/shortcuts";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import "@excalidraw/excalidraw/index.css";
 import "./drawing.css";
 
@@ -72,17 +74,22 @@ type TDrawingEditor = {
 	updateBlock: (block: unknown, update: { type: "drawing"; props: TDrawingBlockProps }) => void;
 };
 
-const TOOLS: Array<{ type: TToolType; icon: typeof Square; label: string }> = [
-	{ type: "selection", icon: MousePointer2, label: "Select" },
-	{ type: "rectangle", icon: Square, label: "Rectangle" },
-	{ type: "diamond", icon: Diamond, label: "Diamond" },
-	{ type: "ellipse", icon: Circle, label: "Ellipse" },
-	{ type: "arrow", icon: ArrowRight, label: "Arrow" },
-	{ type: "line", icon: Minus, label: "Line" },
-	{ type: "freedraw", icon: Pencil, label: "Draw" },
-	{ type: "text", icon: Type, label: "Text" },
-	{ type: "image", icon: ImageIcon, label: "Image" },
-	{ type: "eraser", icon: Eraser, label: "Eraser" },
+const TOOLS: Array<{
+	type: TToolType;
+	icon: typeof Square;
+	label: string;
+	shortcutId: ShortcutId;
+}> = [
+	{ type: "selection", icon: MousePointer2, label: "Select", shortcutId: "drawing.selection" },
+	{ type: "rectangle", icon: Square, label: "Rectangle", shortcutId: "drawing.rectangle" },
+	{ type: "diamond", icon: Diamond, label: "Diamond", shortcutId: "drawing.diamond" },
+	{ type: "ellipse", icon: Circle, label: "Ellipse", shortcutId: "drawing.ellipse" },
+	{ type: "arrow", icon: ArrowRight, label: "Arrow", shortcutId: "drawing.arrow" },
+	{ type: "line", icon: Minus, label: "Line", shortcutId: "drawing.line" },
+	{ type: "freedraw", icon: Pencil, label: "Draw", shortcutId: "drawing.freedraw" },
+	{ type: "text", icon: Type, label: "Text", shortcutId: "drawing.text" },
+	{ type: "image", icon: ImageIcon, label: "Image", shortcutId: "drawing.image" },
+	{ type: "eraser", icon: Eraser, label: "Eraser", shortcutId: "drawing.eraser" },
 ];
 
 const SCENE_COMMIT_DEBOUNCE_MS = 500;
@@ -150,25 +157,26 @@ function ToolbarButton({ icon: Icon, label, hint, onClick }: TToolbarButtonProps
 	const iconRef = useRef<{ startAnimation: () => void; stopAnimation: () => void }>(null);
 
 	return (
-		<button
-			type="button"
-			aria-label={label}
-			title={hint}
-			className={cn(
-				"group/tool relative flex h-7 w-7 items-center justify-center rounded-md",
-				"text-muted-foreground/70 transition-colors",
-				"hover:bg-foreground/8 hover:text-foreground",
-				"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-			)}
-			onMouseDown={(event) => event.preventDefault()}
-			onMouseEnter={() => iconRef.current?.startAnimation()}
-			onMouseLeave={() => iconRef.current?.stopAnimation()}
-			onFocus={() => iconRef.current?.startAnimation()}
-			onBlur={() => iconRef.current?.stopAnimation()}
-			onClick={onClick}
-		>
-			<Icon ref={iconRef} size={15} className="pointer-events-none" />
-		</button>
+		<DrawingTooltip label={hint}>
+			<button
+				type="button"
+				aria-label={label}
+				className={cn(
+					"group/tool relative flex h-7 w-7 items-center justify-center rounded-md",
+					"text-muted-foreground/70 transition-colors",
+					"hover:bg-foreground/8 hover:text-foreground",
+					"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				)}
+				onMouseDown={(event) => event.preventDefault()}
+				onMouseEnter={() => iconRef.current?.startAnimation()}
+				onMouseLeave={() => iconRef.current?.stopAnimation()}
+				onFocus={() => iconRef.current?.startAnimation()}
+				onBlur={() => iconRef.current?.stopAnimation()}
+				onClick={onClick}
+			>
+				<Icon ref={iconRef} size={15} className="pointer-events-none" />
+			</button>
+		</DrawingTooltip>
 	);
 }
 
@@ -179,9 +187,32 @@ type TDrawingToolbarProps = {
 	onDragStart: (event: React.PointerEvent) => void;
 };
 
+function DrawingTooltip({
+	label,
+	shortcutId,
+	children,
+}: {
+	label: string;
+	shortcutId?: ShortcutId;
+	children: React.ReactNode;
+}) {
+	const shortcut = useShortcutHint(shortcutId);
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>{children}</TooltipTrigger>
+			<TooltipContent side="bottom" className="px-2 py-1 text-xs" shortcut={shortcut}>
+				{label}
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
 function DrawingToolbar({ activeTool, position, onSelectTool, onDragStart }: TDrawingToolbarProps) {
 	return (
 		<div
+			role="toolbar"
+			aria-label="Drawing tools"
 			className={cn(
 				"absolute z-20 flex items-center gap-0.5 rounded-lg",
 				"border border-border/60 bg-popover/80 p-1 shadow-md backdrop-blur-md",
@@ -193,37 +224,38 @@ function DrawingToolbar({ activeTool, position, onSelectTool, onDragStart }: TDr
 			}}
 			onPointerDown={(event) => event.stopPropagation()}
 		>
-			<button
-				type="button"
-				aria-label="Move toolbar"
-				title="Drag to move"
-				className="flex h-7 w-4 cursor-grab items-center justify-center text-muted-foreground/50 hover:text-foreground active:cursor-grabbing"
-				onPointerDown={onDragStart}
-			>
-				<GripVertical size={13} />
-			</button>
+			<DrawingTooltip label="Move toolbar">
+				<button
+					type="button"
+					aria-label="Move toolbar"
+					className="flex h-7 w-4 cursor-grab items-center justify-center text-muted-foreground/50 hover:text-foreground active:cursor-grabbing"
+					onPointerDown={onDragStart}
+				>
+					<GripVertical size={13} />
+				</button>
+			</DrawingTooltip>
 			{TOOLS.map((tool) => {
 				const Icon = tool.icon;
 				const selected = activeTool === tool.type;
 				return (
-					<button
-						key={tool.type}
-						type="button"
-						aria-label={tool.label}
-						aria-pressed={selected}
-						title={tool.label}
-						className={cn(
-							"flex h-7 w-7 items-center justify-center rounded-md transition-colors",
-							"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-							selected
-								? "bg-foreground/12 text-foreground"
-								: "text-muted-foreground/70 hover:bg-foreground/8 hover:text-foreground",
-						)}
-						onMouseDown={(event) => event.preventDefault()}
-						onClick={() => onSelectTool(tool.type)}
-					>
-						<Icon size={15} className="pointer-events-none" />
-					</button>
+					<DrawingTooltip key={tool.type} label={tool.label} shortcutId={tool.shortcutId}>
+						<button
+							type="button"
+							aria-label={tool.label}
+							aria-pressed={selected}
+							className={cn(
+								"flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+								"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+								selected
+									? "bg-foreground/12 text-foreground"
+									: "text-muted-foreground/70 hover:bg-foreground/8 hover:text-foreground",
+							)}
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={() => onSelectTool(tool.type)}
+						>
+							<Icon size={15} className="pointer-events-none" />
+						</button>
+					</DrawingTooltip>
 				);
 			})}
 		</div>
@@ -257,6 +289,7 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 	const [activeTool, setActiveTool] = useState<TToolType>("freedraw");
 	const [dragToolbar, setDragToolbar] = useState<{ x: number; y: number } | null>(null);
 	const canvasBoxRef = useRef<HTMLDivElement | null>(null);
+	const editable = editor.isEditable !== false;
 
 	blockRef.current = block;
 	editorRef.current = editor;
@@ -451,7 +484,8 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 				}
 				return;
 			}
-			event.stopPropagation();
+			// Drawing tool bindings are registered on `window` by the shared
+			// shortcut system, so non-Escape keys must bubble out of the canvas.
 		}
 		function stopClipboardPropagation(event: Event) {
 			event.stopPropagation();
@@ -472,6 +506,23 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 		apiRef.current?.setActiveTool({ type: tool });
 		setActiveTool(tool);
 	}
+
+	useShortcutScope(
+		"drawing",
+		{
+			"drawing.selection": () => selectTool("selection"),
+			"drawing.rectangle": () => selectTool("rectangle"),
+			"drawing.diamond": () => selectTool("diamond"),
+			"drawing.ellipse": () => selectTool("ellipse"),
+			"drawing.arrow": () => selectTool("arrow"),
+			"drawing.line": () => selectTool("line"),
+			"drawing.freedraw": () => selectTool("freedraw"),
+			"drawing.text": () => selectTool("text"),
+			"drawing.image": () => selectTool("image"),
+			"drawing.eraser": () => selectTool("eraser"),
+		},
+		{ active: active && editable },
+	);
 
 	function startToolbarDrag(event: React.PointerEvent) {
 		const box = canvasBoxRef.current;
@@ -532,7 +583,6 @@ function DrawingBlockView({ block, editor }: { block: TDrawingBlockData; editor:
 	}
 
 	const canvasHeight = dragHeight ?? storedHeight;
-	const editable = editor.isEditable !== false;
 	const Excalidraw = excalidrawModule?.Excalidraw;
 
 	return (

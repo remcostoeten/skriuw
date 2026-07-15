@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getServerUser } from "@/core/db";
 import { listNoteMetadata } from "@/domain/notes/queries";
 import { fetchTrashBatches } from "@/domain/trash/actions";
 import { loadGuestWorkspaceSnapshot } from "@/domain/seed/guest-bundle";
 import { notesKeys } from "@/features/notes/hooks/notes-keys";
 import { ActivityOverview } from "@/features/activity/components/activity-overview";
+import { createServerQueryClient } from "@/shared/api/create-server-query-client";
 
 export const metadata: Metadata = {
 	title: "Activity",
@@ -19,7 +20,7 @@ export const instant = false;
 
 export default async function ActivityPage() {
 	const { user } = await getServerUser();
-	const queryClient = new QueryClient();
+	const queryClient = await createServerQueryClient();
 
 	if (user) {
 		const scope = notesKeys.userScope(user.id);

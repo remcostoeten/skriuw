@@ -1,5 +1,10 @@
+import { inlineContentToNodes } from "@blocknote/core";
 import { useEffect, useRef, type RefObject } from "react";
-import { markdownToRichDocument } from "@/domain/notes/rich-document";
+import {
+	inlineChipToText,
+	markdownToRichDocument,
+	parseInlineContent,
+} from "@/domain/notes/rich-document";
 import type { AiEditorHandle } from "@/features/ai/service";
 import {
 	type AiDiffHighlightHandle,
@@ -79,7 +84,16 @@ export function useAiEditorHandle({ editor, onEditorReady, wrapperRef }: Params)
 					return "";
 				}
 				capturedSelection = { from: selection.from, to: selection.to };
-				return view.state.doc.textBetween(selection.from, selection.to, "\n");
+				// Chips (tags/people/wikilinks) are atom leaf nodes with no text,
+				// so serialize them as their typed syntax — the AI sees `#tag` /
+				// `$[Name](person://id)` instead of a hole in the sentence.
+				return view.state.doc.textBetween(
+					selection.from,
+					selection.to,
+					"\n",
+					(leaf: { type: { name: string }; attrs: Record<string, unknown> }) =>
+						inlineChipToText(leaf.type.name, leaf.attrs) ?? "",
+				);
 			},
 			replaceSelection: (text) => {
 				const view = getEditorView(editor);
@@ -87,7 +101,14 @@ export function useAiEditorHandle({ editor, onEditorReady, wrapperRef }: Params)
 				capturedSelection = null;
 				if (!view || !range) return;
 				if (range.to > view.state.doc.content.size) return;
-				view.dispatch(view.state.tr.insertText(text, range.from, range.to));
+				try {
+					const content = parseInlineContent(text);
+					// biome-ignore lint/suspicious/noExplicitAny: schema-shaped inline content
+					const nodes = inlineContentToNodes(content as any, view.state.schema);
+					view.dispatch(view.state.tr.replaceWith(range.from, range.to, nodes));
+				} catch {
+					view.dispatch(view.state.tr.insertText(text, range.from, range.to));
+				}
 			},
 			appendMarkdown: (markdown) => {
 				const blocks = markdownToRichDocument(markdown);

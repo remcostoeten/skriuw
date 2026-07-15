@@ -66,9 +66,9 @@ export function JournalIcsExportDialog({ open, onOpenChange, entries }: Props) {
 				<DialogHeader>
 					<DialogTitle>Export journal to calendar</DialogTitle>
 					<DialogDescription>
-						Downloads an .ics file with one all-day event per entry — mood, tags, and
-						people ride along in the event description. Opening the file imports it into
-						Apple Calendar, Outlook, or Google Calendar.
+						Downloads an .ics file with one all-day event per entry — mood and people
+						ride along in the event description. Opening the file imports it into Apple
+						Calendar, Outlook, or Google Calendar.
 					</DialogDescription>
 				</DialogHeader>
 

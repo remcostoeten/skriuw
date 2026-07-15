@@ -8,6 +8,7 @@ import {
 	Image as ImageIcon,
 	Loader2,
 	MoveVertical,
+	RefreshCw,
 	Trash2,
 	Upload,
 	ZoomIn,
@@ -28,6 +29,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/shared/ui/dialog";
 import { MorphingLabel } from "@/shared/ui/morphing-label";
 import { cn } from "@/shared/lib/utils";
 import { useWorkspaceBackend, useWorkspaceCapabilities } from "@/core/workspace-backend";
+import type { CoverImage } from "@/core/workspace-backend";
 import {
 	VAULT_ASSET_PREFIX,
 	compressCoverImage,
@@ -46,6 +48,28 @@ const NOTE_COVER_GRADIENTS: Record<string, string> = {
 	ocean: "linear-gradient(135deg, hsl(var(--project-blue) / 0.4), hsl(var(--project-purple) / 0.2))",
 	dusk: "linear-gradient(135deg, hsl(var(--project-purple) / 0.4), hsl(var(--project-pink) / 0.25))",
 	bloom: "linear-gradient(135deg, hsl(var(--project-pink) / 0.4), hsl(var(--project-red) / 0.2))",
+	ember: "linear-gradient(160deg, hsl(var(--project-red) / 0.45), hsl(var(--project-amber) / 0.2))",
+	aurora: "linear-gradient(115deg, hsl(var(--project-green) / 0.35), hsl(var(--project-purple) / 0.3))",
+	midnight:
+		"linear-gradient(160deg, hsl(var(--project-blue) / 0.35), hsl(var(--project-gray) / 0.25))",
+	orchid: "linear-gradient(115deg, hsl(var(--project-purple) / 0.4), hsl(var(--project-blue) / 0.25))",
+	rose: "linear-gradient(160deg, hsl(var(--project-pink) / 0.45), hsl(var(--project-purple) / 0.2))",
+	sage: "linear-gradient(115deg, hsl(var(--project-green) / 0.3), hsl(var(--project-gray) / 0.3))",
+	storm: "linear-gradient(160deg, hsl(var(--project-gray) / 0.45), hsl(var(--project-blue) / 0.2))",
+	flame: "linear-gradient(115deg, hsl(var(--project-orange) / 0.45), hsl(var(--project-pink) / 0.25))",
+	tide: "linear-gradient(160deg, hsl(var(--project-teal) / 0.45), hsl(var(--project-green) / 0.2))",
+};
+
+const NOTE_COVER_SOLIDS: Record<string, string> = Object.fromEntries(
+	["gray", "red", "orange", "amber", "green", "teal", "blue", "purple", "pink"].map((token) => [
+		`solid-${token}`,
+		`linear-gradient(hsl(var(--project-${token}) / 0.45), hsl(var(--project-${token}) / 0.45))`,
+	]),
+);
+
+const NOTE_COVER_PRESETS: Record<string, string> = {
+	...NOTE_COVER_GRADIENTS,
+	...NOTE_COVER_SOLIDS,
 };
 
 const GRADIENT_PREFIX = "gradient:";
@@ -126,7 +150,7 @@ function isImageCover(cover: string): boolean {
 
 function resolveCoverStyle(src: string, y: number): React.CSSProperties {
 	if (src.startsWith(GRADIENT_PREFIX)) {
-		const gradient = NOTE_COVER_GRADIENTS[src.slice(GRADIENT_PREFIX.length)];
+		const gradient = NOTE_COVER_PRESETS[src.slice(GRADIENT_PREFIX.length)];
 		return { backgroundImage: gradient ?? NOTE_COVER_GRADIENTS.slate };
 	}
 	return {
@@ -516,6 +540,36 @@ function CoverResizeHandle({
 	);
 }
 
+function CoverChangeIndicator({
+	cover,
+	onCoverChange,
+}: {
+	cover: string;
+	onCoverChange: (cover: string) => void;
+}) {
+	return (
+		<div
+			className="absolute right-2.5 top-2.5 z-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+			onPointerDown={(event) => event.stopPropagation()}
+		>
+			<NoteCoverPicker
+				cover={cover}
+				onCoverChange={onCoverChange}
+				renderTrigger={() => (
+					<button
+						type="button"
+						aria-label="Change cover"
+						className="flex items-center gap-1.5 rounded-full border border-border/50 bg-background/80 px-2.5 py-1.5 text-xs font-medium text-foreground/90 shadow-sm backdrop-blur-md transition-colors hover:border-border hover:bg-background hover:text-foreground"
+					>
+						<ImageIcon className="h-3.5 w-3.5" />
+						Change cover
+					</button>
+				)}
+			/>
+		</div>
+	);
+}
+
 function CoverBannerSurface({
 	bannerRef,
 	coverHeight,
@@ -530,11 +584,13 @@ function CoverBannerSurface({
 	setDraftPosition,
 	commitReposition,
 	cancelReposition,
+	cover,
 	onCoverChange,
 	beginResize,
 	resizeCover,
 	commitResize,
 	style,
+	...rest
 }: {
 	bannerRef: React.RefObject<HTMLDivElement | null>;
 	coverHeight: number | null;
@@ -549,24 +605,39 @@ function CoverBannerSurface({
 	setDraftPosition: React.Dispatch<React.SetStateAction<CoverPosition | null>>;
 	commitReposition: () => void;
 	cancelReposition: () => void;
+	cover: string;
 	onCoverChange?: (cover: string) => void;
 	beginResize: (event: React.PointerEvent<HTMLButtonElement>) => void;
 	resizeCover: (event: React.PointerEvent<HTMLButtonElement>) => void;
 	commitResize: (event: React.PointerEvent<HTMLButtonElement>) => void;
 	style: React.CSSProperties;
-}) {
+	// ContextMenuTrigger asChild slots its handlers (onContextMenu, pointer
+	// events) in as rest props; they must reach the DOM node and compose with
+	// the banner's own pointer handlers or the right-click menu never opens.
+} & React.HTMLAttributes<HTMLDivElement>) {
 	return (
 		<div
+			{...rest}
 			ref={bannerRef}
 			className={cn(
-				"relative h-32 w-full shrink-0 overflow-hidden border-b border-border md:h-40",
+				"group relative h-32 w-full shrink-0 overflow-hidden border-b border-border md:h-40",
 				coverHeight === 0 && "border-b-0",
 				repositioning && "cursor-grab touch-none select-none active:cursor-grabbing",
+				rest.className,
 			)}
 			style={style}
-			onPointerDown={handlePointerDown}
-			onPointerMove={handlePointerMove}
-			onPointerUp={handlePointerUp}
+			onPointerDown={(event) => {
+				rest.onPointerDown?.(event);
+				handlePointerDown(event);
+			}}
+			onPointerMove={(event) => {
+				rest.onPointerMove?.(event);
+				handlePointerMove(event);
+			}}
+			onPointerUp={(event) => {
+				rest.onPointerUp?.(event);
+				handlePointerUp();
+			}}
 		>
 			{imageCover && resolvedSrc && (
 				<CoverBannerImage resolvedSrc={resolvedSrc} position={position} />
@@ -578,6 +649,9 @@ function CoverBannerSurface({
 					commitReposition={commitReposition}
 					cancelReposition={cancelReposition}
 				/>
+			)}
+			{onCoverChange && !repositioning && (
+				<CoverChangeIndicator cover={cover} onCoverChange={onCoverChange} />
 			)}
 			{onCoverChange && coverHeight !== 0 && !repositioning && (
 				<CoverResizeHandle
@@ -599,8 +673,11 @@ function CoverChangeSubmenu({
 	upload: CoverUpload;
 	label?: string;
 }) {
+	const [open, setOpen] = useState(false);
+	const { gallery, galleryLoading, backend } = usePickerGallery(open);
+
 	return (
-		<ContextMenuSub>
+		<ContextMenuSub onOpenChange={setOpen}>
 			<ContextMenuSubTrigger>
 				<ImageIcon className="mr-2 h-3.5 w-3.5" />
 				{label}
@@ -617,6 +694,35 @@ function CoverChangeSubmenu({
 						/>
 					))}
 				</div>
+				{backend.listCoverImages && (galleryLoading || gallery.length > 0) && (
+					<>
+						<ContextMenuSeparator />
+						<p className="px-2 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
+							Your uploads
+						</p>
+						{galleryLoading ? (
+							<div className="flex h-14 items-center justify-center text-muted-foreground">
+								<Loader2 className="h-3.5 w-3.5 animate-spin" />
+							</div>
+						) : (
+							<div className="grid max-h-40 grid-cols-3 gap-1.5 overflow-y-auto p-1">
+								{gallery.slice(0, 9).map((image) => (
+									<ContextMenuItem
+										key={image}
+										className="relative aspect-[3/2] overflow-hidden rounded-md border border-border p-0 focus:border-ring"
+										aria-label="Use uploaded cover image"
+										onSelect={() => onCoverChange(image)}
+									>
+										<CoverThumbImage
+											src={image}
+											sizes="(max-width: 260px) 33vw, 100px"
+										/>
+									</ContextMenuItem>
+								))}
+							</div>
+						)}
+					</>
+				)}
 				{upload.canUpload && (
 					<>
 						<ContextMenuSeparator />
@@ -837,6 +943,7 @@ export function NoteCoverBanner({ cover, onCoverChange, ref }: BannerProps) {
 			setDraftPosition={setDraftPosition}
 			commitReposition={commitReposition}
 			cancelReposition={cancelReposition}
+			cover={cover}
 			onCoverChange={onCoverChange}
 			beginResize={beginResize}
 			resizeCover={resizeCover}
@@ -901,10 +1008,18 @@ function usePickerGallery(open: boolean) {
 	return { gallery, setGallery, galleryLoading, backend };
 }
 
-function GradientGrid({ cover, onSelect }: { cover?: string; onSelect: (value: string) => void }) {
+function GradientGrid({
+	cover,
+	onSelect,
+	presets = NOTE_COVER_GRADIENTS,
+}: {
+	cover?: string;
+	onSelect: (value: string) => void;
+	presets?: Record<string, string>;
+}) {
 	return (
 		<div className="grid grid-cols-3 gap-1.5">
-			{Object.entries(NOTE_COVER_GRADIENTS).map(([id, gradient]) => {
+			{Object.entries(presets).map(([id, gradient]) => {
 				const value = `${GRADIENT_PREFIX}${id}`;
 				const selected = cover === value;
 				return (
@@ -988,27 +1103,58 @@ function PickerUploadSection({ upload }: { upload: CoverUpload }) {
 	);
 }
 
+/** Renders a cover image thumbnail, resolving `vault-asset:` refs to blob URLs first. */
+function CoverThumbImage({ src, sizes }: { src: string; sizes: string }) {
+	const resolvedSrc = useResolvedCoverSrc(src);
+	if (!resolvedSrc) {
+		return <span className="absolute inset-0 bg-muted" />;
+	}
+	return (
+		<Image
+			src={resolvedSrc}
+			alt=""
+			fill
+			sizes={sizes}
+			unoptimized
+			className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+		/>
+	);
+}
+
 function PickerGallerySection({
 	gallery,
 	galleryLoading,
 	onSelect,
+	onBrowseLibrary,
 }: {
 	gallery: string[];
 	galleryLoading: boolean;
 	onSelect: (image: string) => void;
+	onBrowseLibrary?: () => void;
 }) {
 	return (
 		<>
-			<p className="mb-1.5 mt-3 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
-				Your uploads
-			</p>
+			<div className="mb-1.5 mt-3 flex items-center justify-between px-0.5">
+				<p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
+					Your uploads
+				</p>
+				{onBrowseLibrary && (
+					<button
+						type="button"
+						onClick={onBrowseLibrary}
+						className="text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+					>
+						Browse all…
+					</button>
+				)}
+			</div>
 			{galleryLoading ? (
 				<div className="flex h-16 items-center justify-center rounded-md border border-border text-muted-foreground">
 					<Loader2 className="h-3.5 w-3.5 animate-spin" />
 				</div>
 			) : gallery.length > 0 ? (
 				<div className="grid max-h-40 grid-cols-3 gap-1.5 overflow-y-auto pr-0.5">
-					{gallery.map((image) => (
+					{gallery.slice(0, 9).map((image) => (
 						<button
 							key={image}
 							type="button"
@@ -1016,20 +1162,446 @@ function PickerGallerySection({
 							className="group relative aspect-[3/2] overflow-hidden rounded-md border border-border transition-colors hover:border-ring focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 							aria-label="Use uploaded cover image"
 						>
-							<Image
-								src={image}
-								alt=""
-								fill
-								sizes="(max-width: 260px) 33vw, 100px"
-								unoptimized
-								className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-							/>
+							<CoverThumbImage src={image} sizes="(max-width: 260px) 33vw, 100px" />
 						</button>
 					))}
 				</div>
 			) : (
 				<p className="px-0.5 text-xs text-muted-foreground">No uploaded images yet.</p>
 			)}
+		</>
+	);
+}
+
+function formatBytes(bytes: number): string {
+	if (bytes < 1024) return `${bytes} B`;
+	const units = ["KB", "MB", "GB"];
+	let value = bytes / 1024;
+	let unit = 0;
+	while (value >= 1024 && unit < units.length - 1) {
+		value /= 1024;
+		unit += 1;
+	}
+	return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`;
+}
+
+function formatUploadDate(ms?: number): string | null {
+	if (!ms) return null;
+	return new Date(ms).toLocaleDateString(undefined, {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	});
+}
+
+type LibrarySort = "newest" | "oldest" | "largest";
+
+const LIBRARY_SORTS: Array<{ id: LibrarySort; label: string }> = [
+	{ id: "newest", label: "Newest" },
+	{ id: "oldest", label: "Oldest" },
+	{ id: "largest", label: "Largest" },
+];
+
+function sortLibraryImages(images: CoverImage[], sort: LibrarySort): CoverImage[] {
+	const sorted = [...images];
+	if (sort === "largest") {
+		sorted.sort((left, right) => right.size - left.size);
+	} else {
+		const direction = sort === "newest" ? -1 : 1;
+		sorted.sort(
+			(left, right) => direction * ((left.uploadedAt ?? 0) - (right.uploadedAt ?? 0)),
+		);
+	}
+	return sorted;
+}
+
+/** Counts how many notes use each uploaded image as their cover, keyed by cover src. */
+function useCoverUsage(open: boolean): Map<string, number> {
+	const [usage, setUsage] = useState<Map<string, number>>(new Map());
+	const backend = useWorkspaceBackend();
+
+	useEffect(() => {
+		const listNotes = backend.listNotes;
+		if (!open || !listNotes) return;
+		let cancelled = false;
+		listNotes()
+			.then((notes) => {
+				if (cancelled) return;
+				const counts = new Map<string, number>();
+				for (const note of notes) {
+					if (!note.cover || !isImageCover(note.cover)) continue;
+					const { src } = splitCoverPosition(note.cover);
+					counts.set(src, (counts.get(src) ?? 0) + 1);
+				}
+				setUsage(counts);
+			})
+			.catch(() => {
+				// Usage badges are decorative; the library works without them.
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [backend, open]);
+
+	return usage;
+}
+
+function LibraryDeleteButton({
+	usageCount,
+	armed,
+	deleting,
+	onArm,
+	onDelete,
+	className,
+}: {
+	usageCount: number;
+	armed: boolean;
+	deleting: boolean;
+	onArm: () => void;
+	onDelete: () => void;
+	className?: string;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={() => (armed ? onDelete() : onArm())}
+			disabled={deleting}
+			className={cn(
+				"flex items-center gap-1 rounded-md p-1.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				armed
+					? "bg-destructive text-destructive-foreground"
+					: "bg-black/40 text-white/90 hover:bg-destructive hover:text-destructive-foreground",
+				className,
+			)}
+			aria-label={armed ? "Confirm delete cover image" : "Delete cover image"}
+		>
+			{deleting ? (
+				<Loader2 className="size-3.5 animate-spin" />
+			) : (
+				<Trash2 className="size-3.5" />
+			)}
+			{armed && (usageCount > 0 ? `Used by ${usageCount} — delete?` : "Delete?")}
+		</button>
+	);
+}
+
+function LibraryPreviewDialog({
+	image,
+	usageCount,
+	onClose,
+	onUse,
+	onDelete,
+	canDelete,
+	deleting,
+}: {
+	image: CoverImage | null;
+	usageCount: number;
+	onClose: () => void;
+	onUse: (image: CoverImage) => void;
+	onDelete: (image: CoverImage) => void;
+	canDelete: boolean;
+	deleting: boolean;
+}) {
+	const resolvedSrc = useResolvedCoverSrc(image?.url ?? "");
+	const [armed, setArmed] = useState(false);
+
+	useEffect(() => {
+		setArmed(false);
+	}, [image?.pathname]);
+
+	const meta = image
+		? [
+				formatBytes(image.size),
+				formatUploadDate(image.uploadedAt),
+				usageCount > 0 && `Used by ${usageCount} note${usageCount === 1 ? "" : "s"}`,
+			]
+				.filter(Boolean)
+				.join(" · ")
+		: "";
+
+	return (
+		<Dialog open={image !== null} onOpenChange={(next) => !next && onClose()}>
+			<DialogContent className="max-w-[min(94vw,1100px)] border-border bg-background/95 backdrop-blur">
+				<DialogTitle className="sr-only">Cover image preview</DialogTitle>
+				{image && (
+					<>
+						<div className="relative h-[70vh] overflow-hidden rounded-md bg-muted/30">
+							{resolvedSrc && (
+								<Image
+									src={resolvedSrc}
+									alt="Cover image preview"
+									fill
+									sizes="(max-width: 1100px) 94vw, 1100px"
+									unoptimized
+									className="object-contain"
+								/>
+							)}
+						</div>
+						<div className="flex items-center justify-between gap-3">
+							<span className="truncate text-xs text-muted-foreground">{meta}</span>
+							<div className="flex shrink-0 items-center gap-1.5">
+								{canDelete && (
+									<button
+										type="button"
+										onClick={() => (armed ? onDelete(image) : setArmed(true))}
+										disabled={deleting}
+										className={cn(
+											"flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors",
+											armed
+												? "border-destructive bg-destructive text-destructive-foreground"
+												: "border-border text-muted-foreground hover:border-destructive/50 hover:text-destructive",
+										)}
+									>
+										{deleting ? (
+											<Loader2 className="size-3.5 animate-spin" />
+										) : (
+											<Trash2 className="size-3.5" />
+										)}
+										{armed ? "Really delete?" : "Delete"}
+									</button>
+								)}
+								<button
+									type="button"
+									onClick={() => onUse(image)}
+									className="flex h-7 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
+								>
+									<ImageIcon className="size-3.5" />
+									Use as cover
+								</button>
+							</div>
+						</div>
+					</>
+				)}
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+/**
+ * Full media-library overview of every uploaded cover image: sortable grid
+ * with size/date/usage metadata, full-size preview, upload, and deletion
+ * (armed two-step button instead of a nested confirm dialog).
+ */
+function CoverLibraryDialog({
+	open,
+	onOpenChange,
+	onSelect,
+	onDeleted,
+	onUploaded,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onSelect: (image: string) => void;
+	onDeleted: (image: string) => void;
+	onUploaded: (image: string) => void;
+}) {
+	const backend = useWorkspaceBackend();
+	const [images, setImages] = useState<CoverImage[]>([]);
+	const [loading, setLoading] = useState(false);
+	const [sort, setSort] = useState<LibrarySort>("newest");
+	const [preview, setPreview] = useState<CoverImage | null>(null);
+	const [armedDelete, setArmedDelete] = useState<string | null>(null);
+	const [deleting, setDeleting] = useState<string | null>(null);
+	const usage = useCoverUsage(open);
+	const upload = useCoverUpload(onSelect, undefined, (value) => {
+		pendingCoverEdits.add(value);
+		onUploaded(value);
+	});
+
+	const [refreshTick, setRefreshTick] = useState(0);
+
+	useEffect(() => {
+		if (!open || !backend.listCoverImagesDetailed) return;
+		let cancelled = false;
+		setLoading(true);
+		setArmedDelete(null);
+		backend
+			.listCoverImagesDetailed()
+			.then((rows) => {
+				if (!cancelled) setImages(rows);
+			})
+			.catch(() => {
+				if (!cancelled) showUserToast("Couldn't load your cover images.", "error");
+			})
+			.finally(() => {
+				if (!cancelled) setLoading(false);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [backend, open, refreshTick]);
+
+	async function deleteImage(image: CoverImage) {
+		if (!backend.deleteCoverImage) return;
+		setDeleting(image.pathname);
+		try {
+			await backend.deleteCoverImage(image);
+			setImages((current) => current.filter((row) => row.pathname !== image.pathname));
+			if (preview?.pathname === image.pathname) setPreview(null);
+			onDeleted(image.url);
+		} catch {
+			showUserToast("Couldn't delete this image.", "error");
+		} finally {
+			setDeleting(null);
+			setArmedDelete(null);
+		}
+	}
+
+	const sorted = sortLibraryImages(images, sort);
+	const totalBytes = images.reduce((sum, image) => sum + image.size, 0);
+
+	return (
+		<>
+			<Dialog open={open} onOpenChange={onOpenChange}>
+				<DialogContent className="max-w-[min(94vw,1080px)]">
+					<div className="flex flex-wrap items-center justify-between gap-3 pr-6">
+						<div className="flex items-baseline gap-2">
+							<DialogTitle>Image library</DialogTitle>
+							{images.length > 0 && (
+								<span className="text-xs text-muted-foreground">
+									{images.length} image{images.length === 1 ? "" : "s"} ·{" "}
+									{formatBytes(totalBytes)}
+								</span>
+							)}
+						</div>
+						<div className="flex items-center gap-1.5">
+							<div className="flex items-center rounded-md border border-border p-0.5">
+								{LIBRARY_SORTS.map(({ id, label }) => (
+									<button
+										key={id}
+										type="button"
+										onClick={() => setSort(id)}
+										className={cn(
+											"rounded-[5px] px-2 py-1 text-[11px] font-medium transition-colors",
+											sort === id
+												? "bg-muted text-foreground"
+												: "text-muted-foreground hover:text-foreground",
+										)}
+									>
+										{label}
+									</button>
+								))}
+							</div>
+							<button
+								type="button"
+								onClick={() => setRefreshTick((tick) => tick + 1)}
+								disabled={loading}
+								aria-label="Refresh image library"
+								className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+							>
+								<RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
+							</button>
+							{upload.canUpload && (
+								<button
+									type="button"
+									onClick={upload.openFilePicker}
+									disabled={upload.status !== "idle"}
+									className="flex h-7 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+								>
+									{upload.status === "pending" ? (
+										<Loader2 className="size-3.5 animate-spin" />
+									) : (
+										<Upload className="size-3.5" />
+									)}
+									Upload
+								</button>
+							)}
+						</div>
+					</div>
+
+					{loading && images.length === 0 ? (
+						<div className="flex h-56 items-center justify-center text-muted-foreground">
+							<Loader2 className="h-4 w-4 animate-spin" />
+						</div>
+					) : images.length === 0 ? (
+						<div className="flex h-56 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+							<ImageIcon className="size-6" />
+							No uploaded images yet.
+							{upload.canUpload && (
+								<button
+									type="button"
+									onClick={upload.openFilePicker}
+									className="flex h-7 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+								>
+									<Upload className="size-3.5" />
+									Upload your first image
+								</button>
+							)}
+						</div>
+					) : (
+						<div className="grid max-h-[68vh] grid-cols-2 gap-2.5 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">
+							{sorted.map((image) => {
+								const armed = armedDelete === image.pathname;
+								const usageCount = usage.get(image.url) ?? 0;
+								const date = formatUploadDate(image.uploadedAt);
+								return (
+									<div
+										key={image.pathname}
+										className="group relative aspect-[3/2] overflow-hidden rounded-lg border border-border transition-colors hover:border-ring"
+									>
+										<button
+											type="button"
+											onClick={() => onSelect(image.url)}
+											className="block h-full w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+											aria-label="Use this cover image"
+										>
+											<CoverThumbImage
+												src={image.url}
+												sizes="(max-width: 1080px) 50vw, 260px"
+											/>
+										</button>
+										{usageCount > 0 && (
+											<span className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-sm">
+												In use{usageCount > 1 ? ` ×${usageCount}` : ""}
+											</span>
+										)}
+										<div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/70 to-transparent px-2 pb-1.5 pt-8 opacity-0 transition-opacity group-hover:opacity-100">
+											<span className="truncate text-[11px] font-medium text-white/90">
+												{formatBytes(image.size)}
+												{date ? ` · ${date}` : ""}
+											</span>
+											<span className="flex shrink-0 items-center gap-1">
+												<button
+													type="button"
+													onClick={() => setPreview(image)}
+													className="pointer-events-auto rounded-md bg-black/40 p-1.5 text-white/90 transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+													aria-label="View full size"
+												>
+													<Expand className="size-3.5" />
+												</button>
+												{backend.deleteCoverImage && (
+													<LibraryDeleteButton
+														usageCount={usageCount}
+														armed={armed}
+														deleting={deleting === image.pathname}
+														onArm={() => setArmedDelete(image.pathname)}
+														onDelete={() => deleteImage(image)}
+														className="pointer-events-auto"
+													/>
+												)}
+											</span>
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					)}
+					<NoteCoverUploadInput upload={upload} />
+				</DialogContent>
+			</Dialog>
+
+			<LibraryPreviewDialog
+				image={preview}
+				usageCount={preview ? (usage.get(preview.url) ?? 0) : 0}
+				onClose={() => setPreview(null)}
+				onUse={(image) => {
+					setPreview(null);
+					onSelect(image.url);
+				}}
+				onDelete={deleteImage}
+				canDelete={Boolean(backend.deleteCoverImage)}
+				deleting={preview !== null && deleting === preview.pathname}
+			/>
 		</>
 	);
 }
@@ -1075,13 +1647,17 @@ function PickerUrlRow({
 type PickerProps = {
 	cover?: string;
 	onCoverChange: (cover: string) => void;
+	/** Overrides the default swatch/icon trigger button, e.g. for a banner overlay. */
+	renderTrigger?: (cover: string | undefined) => React.ReactNode;
 };
 
 export const NoteCoverPicker = memo(function NoteCoverPicker({
 	cover,
 	onCoverChange,
+	renderTrigger,
 }: PickerProps) {
 	const [open, setOpen] = useState(false);
+	const [libraryOpen, setLibraryOpen] = useState(false);
 	const [url, setUrl] = useState("");
 	const { gallery, setGallery, galleryLoading, backend } = usePickerGallery(open);
 	const upload = useCoverUpload(
@@ -1110,44 +1686,88 @@ export const NoteCoverPicker = memo(function NoteCoverPicker({
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
-				<button
-					type="button"
-					className={cn(
-						"flex h-8 w-8 items-center justify-center rounded-md transition-colors",
-						cover
-							? "hover:bg-accent"
-							: "text-muted-foreground hover:bg-accent hover:text-foreground",
-					)}
-					aria-label={cover ? "Change cover" : "Add cover"}
-				>
-					{cover ? (
-						<span
-							className="h-4 w-6 rounded-sm border border-border/60"
-							style={triggerStyle}
-						/>
-					) : (
-						<ImageIcon className="h-4 w-4" />
-					)}
-				</button>
+				{renderTrigger ? (
+					renderTrigger(cover)
+				) : (
+					<button
+						type="button"
+						className={cn(
+							"flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+							cover
+								? "hover:bg-accent"
+								: "text-muted-foreground hover:bg-accent hover:text-foreground",
+						)}
+						aria-label={cover ? "Change cover" : "Add cover"}
+					>
+						{cover ? (
+							<span
+								className="h-4 w-6 rounded-sm border border-border/60"
+								style={triggerStyle}
+							/>
+						) : (
+							<ImageIcon className="h-4 w-4" />
+						)}
+					</button>
+				)}
 			</PopoverTrigger>
 			<PopoverContent className="w-[260px] p-2.5" align="start" side="bottom">
-				<p className="mb-1.5 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
-					Gradient
-				</p>
-				<GradientGrid cover={cover} onSelect={selectCover} />
+				<div className="max-h-[min(70vh,520px)] overflow-y-auto pr-0.5">
+					<p className="mb-1.5 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
+						Gradient
+					</p>
+					<GradientGrid cover={cover} onSelect={selectCover} />
 
-				{upload.canUpload && <PickerUploadSection upload={upload} />}
-
-				{backend.listCoverImages && (
-					<PickerGallerySection
-						gallery={gallery}
-						galleryLoading={galleryLoading}
+					<p className="mb-1.5 mt-3 px-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/60">
+						Color
+					</p>
+					<GradientGrid
+						cover={cover}
 						onSelect={selectCover}
+						presets={NOTE_COVER_SOLIDS}
 					/>
-				)}
 
-				<PickerUrlRow url={url} setUrl={setUrl} applyUrl={applyUrl} />
+					{upload.canUpload && <PickerUploadSection upload={upload} />}
+
+					{backend.listCoverImages && (
+						<PickerGallerySection
+							gallery={gallery}
+							galleryLoading={galleryLoading}
+							onSelect={selectCover}
+							onBrowseLibrary={
+								backend.listCoverImagesDetailed
+									? () => {
+											setOpen(false);
+											setLibraryOpen(true);
+										}
+									: undefined
+							}
+						/>
+					)}
+
+					<PickerUrlRow url={url} setUrl={setUrl} applyUrl={applyUrl} />
+				</div>
 			</PopoverContent>
+
+			{backend.listCoverImagesDetailed && (
+				<CoverLibraryDialog
+					open={libraryOpen}
+					onOpenChange={setLibraryOpen}
+					onSelect={(image) => {
+						setLibraryOpen(false);
+						selectCover(image);
+					}}
+					onDeleted={(image) =>
+						setGallery((images) => images.filter((entry) => entry !== image))
+					}
+					onUploaded={(image) => {
+						setLibraryOpen(false);
+						setGallery((images) => [
+							image,
+							...images.filter((entry) => entry !== image),
+						]);
+					}}
+				/>
+			)}
 		</Popover>
 	);
 });

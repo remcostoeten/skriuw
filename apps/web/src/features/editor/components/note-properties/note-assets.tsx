@@ -53,17 +53,9 @@ export function NoteAssetsRows({
 				</AssetRow>
 			) : null}
 
-			{canEditCover || cover ? (
-				<AssetRow
-					label="Cover"
-					isMobile={isMobile}
-					onRemove={canEditCover && cover ? () => onCoverChange?.("") : undefined}
-				>
-					{canEditCover && onCoverChange ? (
-						<NoteCoverPicker cover={cover} onCoverChange={onCoverChange} />
-					) : (
-						<span className="px-1 text-[13px] text-muted-foreground">Cover set</span>
-					)}
+			{canEditCover && !cover && onCoverChange ? (
+				<AssetRow label="Cover" isMobile={isMobile}>
+					<NoteCoverPicker cover={cover} onCoverChange={onCoverChange} />
 				</AssetRow>
 			) : null}
 		</div>

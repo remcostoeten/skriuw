@@ -24,6 +24,7 @@ const MAX_COMPONENTS = 400;
 const MAX_NODES_PER_COMMIT = 300;
 const MAX_OVERLAY_ENTRIES = 60;
 const MAX_CAUSES = 6;
+const DEVTOOL_COMPONENTS = new Set(["Devtool", "PerfDevtools"]);
 
 function createStore() {
 	const components = new Map();
@@ -379,6 +380,10 @@ function collectTree(rootFiber) {
 
 		if (COMPONENT_TAGS.has(fiber.tag) && fiber.flags & PERFORMED_WORK) {
 			const name = fiberName(fiber);
+			// The probe updates its own panel from this store. Observing that update
+			// would schedule another store emission and create a self-sustaining
+			// render loop that also re-counts stale flags from the application tree.
+			if (name && DEVTOOL_COMPONENTS.has(name)) continue;
 			if (name) {
 				count += 1;
 				if (count > MAX_NODES_PER_COMMIT) {

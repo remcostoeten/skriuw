@@ -3,7 +3,21 @@ import type { MoodLevel } from "@/domain/journal/models";
 import type { NoteProperty } from "@/domain/notes/properties";
 
 export type NoteEditorMode = "raw" | "block";
-export type RichTextDocument = PartialBlock[];
+
+/**
+ * A persisted note body, stored as JSONB.
+ *
+ * The schema parameters stay open because the document carries whatever
+ * `editorSchema` produced — custom blocks (procode, diagram) and
+ * custom inline content (noteLink, tag, person, mark) that BlockNote's default
+ * schema types reject. Naming the concrete schema here would invert the layering
+ * and make the domain depend on the editor feature.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: schema-agnostic by construction; see above
+export type RichTextDocument = PartialBlock<any, any, any>[];
+
+/** A single block within a {@link RichTextDocument}. */
+export type RichTextBlock = RichTextDocument[number];
 
 export type NoteVersionReason = "created" | "autosave" | "checkpoint" | "rename" | "restore";
 
