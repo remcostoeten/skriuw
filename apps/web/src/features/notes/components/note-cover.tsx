@@ -880,7 +880,7 @@ function CoverContextMenu({
 				<CoverChangeSubmenu onCoverChange={onCoverChange} upload={upload} />
 				<ContextMenuSeparator />
 				<ContextMenuItem
-					className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+					className="text-[#ff808a] focus:bg-[#ff808a4d]"
 					onSelect={() => onCoverChange("")}
 				>
 					<Trash2 className="mr-2 h-3.5 w-3.5" />
@@ -937,7 +937,7 @@ export function NoteCoverMenuItems({
 				<CoverChangeSubmenu onCoverChange={onCoverChange} upload={upload} />
 				<ContextMenuSeparator />
 				<ContextMenuItem
-					className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+					className="text-[#ff808a] focus:bg-[#ff808a4d]"
 					onSelect={() => onCoverChange("")}
 				>
 					<Trash2 className="mr-2 h-3.5 w-3.5" />

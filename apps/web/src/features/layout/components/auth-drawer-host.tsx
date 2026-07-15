@@ -249,7 +249,8 @@ export function AuthDrawerHost() {
 						<p className="mt-1 text-sm text-muted-foreground">
 							An account with this email already exists via{" "}
 							{getProviderLabel(duplicateOAuth.provider)}. Would you like to sign in
-							with {getProviderLabel(duplicateOAuth.provider)} instead?
+							with {getProviderLabel(duplicateOAuth.provider)} and connect this
+							sign-in method in Security settings?
 						</p>
 						<div className="mt-3 flex items-center gap-2">
 							<button

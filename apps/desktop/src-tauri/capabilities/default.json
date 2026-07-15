@@ -17,6 +17,7 @@
 		"core:webview:allow-internal-toggle-devtools",
 		"fs:default",
 		"dialog:default",
+		"opener:default",
 		"window-state:default"
 	]
 }

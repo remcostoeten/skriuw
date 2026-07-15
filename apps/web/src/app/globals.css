@@ -295,6 +295,15 @@
 		stroke-width: var(--icon-stroke-width, 1.5);
 	}
 
+	/*
+	 * Animate Icons wraps its SVGs in a div and often omits Lucide's class,
+	 * so the rule above cannot reach them. Mark animated-icon instances at
+	 * their call sites and keep them on the same quiet 1.5px visual weight.
+	 */
+	.skriuw-animated-icon svg[stroke-width="2"] {
+		stroke-width: var(--icon-stroke-width, 1.5);
+	}
+
 	:root {
 		--surface-overlay: var(--popover);
 		--surface-overlay-alpha-high: 0.96;

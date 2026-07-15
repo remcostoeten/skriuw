@@ -659,10 +659,12 @@ impl Storage {
     ) -> rusqlite::Result<Vec<SearchHit>> {
         let tag_clause = " AND EXISTS (SELECT 1 FROM note_links l WHERE l.source_note_id = n.id AND l.kind = 'tag' AND l.target_label = ?)";
         let person_clause = " AND EXISTS (SELECT 1 FROM note_links l JOIN people p ON p.id = l.target_label WHERE l.source_note_id = n.id AND l.kind = 'person' AND LOWER(p.name) LIKE ?)";
-        let filter_clauses =
-            [tag_clause.repeat(tags.len()), person_clause.repeat(people.len())].concat();
-        let person_patterns: Vec<String> =
-            people.iter().map(|name| format!("%{name}%")).collect();
+        let filter_clauses = [
+            tag_clause.repeat(tags.len()),
+            person_clause.repeat(people.len()),
+        ]
+        .concat();
+        let person_patterns: Vec<String> = people.iter().map(|name| format!("%{name}%")).collect();
         let conn = self.read_lock();
 
         let (sql, text_param) = match build_fts_match(query) {
@@ -747,10 +749,7 @@ impl Storage {
     }
 
     /// Replaces the link rows + title keys for many notes in one transaction.
-    pub fn replace_note_links_bulk(
-        &self,
-        entries: &[NoteLinkReplacement],
-    ) -> rusqlite::Result<()> {
+    pub fn replace_note_links_bulk(&self, entries: &[NoteLinkReplacement]) -> rusqlite::Result<()> {
         let mut conn = self.lock();
         let tx = conn.transaction()?;
         for entry in entries {
@@ -840,9 +839,8 @@ impl Storage {
     /// consumes. Replaces shipping all note bodies over IPC for the graph view.
     pub fn list_note_link_rows(&self) -> rusqlite::Result<Vec<NoteLinkRow>> {
         let conn = self.read_lock();
-        let mut stmt = conn.prepare(
-            "SELECT source_note_id, target_note_id, target_label, kind FROM note_links",
-        )?;
+        let mut stmt = conn
+            .prepare("SELECT source_note_id, target_note_id, target_label, kind FROM note_links")?;
         let rows = stmt.query_map([], |row| {
             Ok(NoteLinkRow {
                 source_note_id: row.get(0)?,
@@ -1017,7 +1015,8 @@ impl Storage {
     }
 
     pub fn delete_task(&self, id: &str) -> rusqlite::Result<()> {
-        self.lock().execute("DELETE FROM tasks WHERE id = ?1", params![id])?;
+        self.lock()
+            .execute("DELETE FROM tasks WHERE id = ?1", params![id])?;
         Ok(())
     }
 
@@ -1116,10 +1115,16 @@ impl Storage {
     ) -> rusqlite::Result<Person> {
         let conn = self.lock();
         if let Some(name) = name {
-            conn.execute("UPDATE people SET name = ?2 WHERE id = ?1", params![id, name])?;
+            conn.execute(
+                "UPDATE people SET name = ?2 WHERE id = ?1",
+                params![id, name],
+            )?;
         }
         if let Some(color) = color {
-            conn.execute("UPDATE people SET color = ?2 WHERE id = ?1", params![id, color])?;
+            conn.execute(
+                "UPDATE people SET color = ?2 WHERE id = ?1",
+                params![id, color],
+            )?;
         }
         conn.query_row(
             "SELECT id, name, color FROM people WHERE id = ?1",
@@ -1291,7 +1296,11 @@ impl Storage {
         Ok(())
     }
 
-    pub fn list_note_versions(&self, note_id: &str, limit: i64) -> rusqlite::Result<Vec<NoteVersion>> {
+    pub fn list_note_versions(
+        &self,
+        note_id: &str,
+        limit: i64,
+    ) -> rusqlite::Result<Vec<NoteVersion>> {
         let conn = self.read_lock();
         let mut stmt = conn.prepare_cached(
             "SELECT id, note_id, name, content, rich_content, preferred_editor_mode, \
@@ -1614,11 +1623,18 @@ fn row_to_journal_tag(row: &rusqlite::Row<'_>) -> rusqlite::Result<JournalTag> {
 
 fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
     Ok(Task {
-        id: row.get(0)?, title: row.get(1)?, status: row.get(2)?, priority: row.get(3)?,
-        due_date: row.get(4)?, tags: serde_json::from_str(&row.get::<_, String>(5)?).unwrap_or_default(),
+        id: row.get(0)?,
+        title: row.get(1)?,
+        status: row.get(2)?,
+        priority: row.get(3)?,
+        due_date: row.get(4)?,
+        tags: serde_json::from_str(&row.get::<_, String>(5)?).unwrap_or_default(),
         assignee_ids: serde_json::from_str(&row.get::<_, String>(6)?).unwrap_or_default(),
-        description: row.get(7)?, source_note_id: row.get(8)?, source_block_id: row.get(9)?,
-        created_at: row.get(10)?, updated_at: row.get(11)?,
+        description: row.get(7)?,
+        source_note_id: row.get(8)?,
+        source_block_id: row.get(9)?,
+        created_at: row.get(10)?,
+        updated_at: row.get(11)?,
     })
 }
 
@@ -1746,14 +1762,23 @@ mod tests {
         assert!(hits[0].snippet.contains('['));
 
         // name match + prefix
-        assert_eq!(store.search_notes("road", &[], &[], 10).unwrap()[0].id, "n2");
+        assert_eq!(
+            store.search_notes("road", &[], &[], 10).unwrap()[0].id,
+            "n2"
+        );
 
         // edits flow through the UPDATE trigger
         store
             .upsert_note(&note_with("n2", "Roadmap.md", "ship the mobile build"))
             .unwrap();
-        assert!(store.search_notes("desktop", &[], &[], 10).unwrap().is_empty());
-        assert_eq!(store.search_notes("mobile", &[], &[], 10).unwrap()[0].id, "n2");
+        assert!(store
+            .search_notes("desktop", &[], &[], 10)
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            store.search_notes("mobile", &[], &[], 10).unwrap()[0].id,
+            "n2"
+        );
 
         // delete removes from the index
         store.delete_note("n1").unwrap();
@@ -1805,7 +1830,9 @@ mod tests {
             .is_empty());
 
         // tag-only query (no free text) lists matching notes
-        let tag_only = store.search_notes("", &["food".to_string()], &[], 10).unwrap();
+        let tag_only = store
+            .search_notes("", &["food".to_string()], &[], 10)
+            .unwrap();
         assert_eq!(tag_only.len(), 2);
 
         // person filter joins people by name fragment, case-insensitive
@@ -1850,7 +1877,10 @@ mod tests {
             .upsert_note(&note_with("n1", "Note.md", "content"))
             .unwrap();
         assert!(store.search_notes("   ", &[], &[], 10).unwrap().is_empty());
-        assert!(store.search_notes("!!! ??? \"", &[], &[], 10).unwrap().is_empty());
+        assert!(store
+            .search_notes("!!! ??? \"", &[], &[], 10)
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -1863,7 +1893,10 @@ mod tests {
             ])
             .unwrap();
         assert_eq!(store.list_notes().unwrap().len(), 2);
-        assert_eq!(store.search_notes("second", &[], &[], 10).unwrap()[0].id, "n2");
+        assert_eq!(
+            store.search_notes("second", &[], &[], 10).unwrap()[0].id,
+            "n2"
+        );
     }
 
     #[test]
@@ -1902,7 +1935,10 @@ mod tests {
 
         let store = Storage::open(&db_path).unwrap();
         assert!(store.list_note_link_rows().unwrap().is_empty());
-        assert_eq!(store.list_unindexed_note_ids().unwrap(), vec!["n1".to_string()]);
+        assert_eq!(
+            store.list_unindexed_note_ids().unwrap(),
+            vec!["n1".to_string()]
+        );
     }
 
     fn wiki_link(raw: &str, label: &str, key: &str) -> NoteLinkInput {
@@ -2010,7 +2046,9 @@ mod tests {
         assert_eq!(mentions[0].id, "n1");
 
         // Tag/person rows never surface as backlinks: no target id or title key.
-        let backlinks = store.get_backlink_sources("n2", &["b".to_string()]).unwrap();
+        let backlinks = store
+            .get_backlink_sources("n2", &["b".to_string()])
+            .unwrap();
         assert!(backlinks.sources.is_empty());
 
         assert_eq!(store.list_note_link_rows().unwrap().len(), 4);
@@ -2278,12 +2316,18 @@ mod tests {
         let dup = store
             .insert_note_version("n1", &version_snapshot("hello"), "checkpoint", 1)
             .unwrap();
-        assert!(dup.is_none(), "identical content must not create a second row");
+        assert!(
+            dup.is_none(),
+            "identical content must not create a second row"
+        );
 
         let coalesced = store
             .insert_note_version("n1", &version_snapshot("hello wide world"), "checkpoint", 2)
             .unwrap();
-        assert_eq!(coalesced, first, "same-burst change must overwrite the latest row");
+        assert_eq!(
+            coalesced, first,
+            "same-burst change must overwrite the latest row"
+        );
         assert_eq!(store.list_note_versions("n1", 10).unwrap().len(), 1);
 
         let after_window = store
@@ -2318,7 +2362,9 @@ mod tests {
         let versions = store.list_note_versions("n1", 1000).unwrap();
         assert_eq!(versions.len(), crate::versioning::RETENTION_LIMIT as usize);
         // The newest rows survive pruning, not the oldest.
-        assert!(versions[0].content.contains(&(crate::versioning::RETENTION_LIMIT + 4).to_string()));
+        assert!(versions[0]
+            .content
+            .contains(&(crate::versioning::RETENTION_LIMIT + 4).to_string()));
     }
 
     #[test]

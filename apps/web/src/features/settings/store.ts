@@ -216,6 +216,13 @@ export const usePreferencesStore = create<PreferencesState>()(
 						...profile,
 						ai: { ...profile.ai, [key]: value },
 					}));
+					if (
+						key === "semanticProvider" ||
+						key === "semanticModel" ||
+						key === "semanticOllamaUrl"
+					) {
+						void updateUserEditorPreferences({ ai: { [key]: value } });
+					}
 				},
 
 				updateQuickAccessPreference: (key, value) => {

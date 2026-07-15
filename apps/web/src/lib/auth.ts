@@ -4,7 +4,7 @@ import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
-import { admin, username } from "better-auth/plugins";
+import { admin, bearer, deviceAuthorization, username } from "better-auth/plugins";
 import { deriveAvatarColor } from "@/features/collaboration/lib/collab-token";
 import { getBetterAuthBaseURL, getServerAppOrigin } from "./app-origin";
 import { prisma } from "./prisma";
@@ -22,10 +22,12 @@ const hasGoogleCredentials = Boolean(
 const mobileWebDevelopmentOrigins =
 	process.env.NODE_ENV === "production"
 		? []
-		: ["http://localhost:8081", "http://127.0.0.1:8081", "exp://*"];
+		: ["http://localhost:8081", "http://127.0.0.1:8081", "exp://**"];
 // Escape hatch for testing Expo Go against a deployed server: Expo Go requests
 // carry an exp:// origin that production would otherwise reject. Set e.g.
-// AUTH_EXTRA_TRUSTED_ORIGINS="exp://*" on the deployment while testing.
+// AUTH_EXTRA_TRUSTED_ORIGINS="exp://**" on the deployment while testing.
+// The globstar matters: exp:// URLs have no standard origin, so Better Auth
+// matches the full URL (exp://host/--/path) and a single * stops at "/".
 const extraTrustedOrigins =
 	process.env.AUTH_EXTRA_TRUSTED_ORIGINS?.split(",")
 		.map((origin) => origin.trim())
@@ -117,6 +119,11 @@ export const auth = betterAuth({
 		},
 	},
 	plugins: [
+		deviceAuthorization({
+			verificationUri: "/connect/desktop",
+			validateClient: (clientId) => clientId === "skriuw-desktop",
+		}),
+		bearer(),
 		username({
 			minUsernameLength: 3,
 			maxUsernameLength: 30,

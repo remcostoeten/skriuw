@@ -7,6 +7,7 @@ import {
 	isRecordNotFoundError,
 	isUniqueConstraintError,
 } from "@/core/persistence/guards";
+import { isDateKey, isMoodLevel } from "@skriuw/domain/journal";
 import { backfillMissingJournalLinks, syncJournalLinks } from "@/domain/journal/journal-link-sync";
 import type { JournalEntry, JournalTag, MoodLevel } from "@/domain/journal/models";
 import type { RichTextDocument } from "@/domain/notes/models";
@@ -19,6 +20,8 @@ type EntryRecord = {
 	richContent: unknown;
 	mood: string | null;
 	tags: string[];
+	calendarSourceId: string | null;
+	calendarSourceUid: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -39,6 +42,8 @@ function recordToEntry(record: EntryRecord): JournalEntry {
 		richContent: (record.richContent as RichTextDocument | null) ?? undefined,
 		tags: record.tags,
 		mood: (record.mood ?? undefined) as MoodLevel | undefined,
+		calendarSourceId: record.calendarSourceId ?? undefined,
+		calendarSourceUid: record.calendarSourceUid ?? undefined,
 		createdAt: record.createdAt,
 		updatedAt: record.updatedAt,
 	};
@@ -61,6 +66,8 @@ export type CreateJournalEntryInput = {
 	richContent?: RichTextDocument | null;
 	tags?: string[];
 	mood?: MoodLevel;
+	calendarSourceId?: string;
+	calendarSourceUid?: string;
 };
 
 const ENTRY_SELECT = {
@@ -71,6 +78,8 @@ const ENTRY_SELECT = {
 	richContent: true,
 	mood: true,
 	tags: true,
+	calendarSourceId: true,
+	calendarSourceUid: true,
 	createdAt: true,
 	updatedAt: true,
 } as const;
@@ -97,6 +106,10 @@ export async function listJournalEntries(): Promise<JournalEntry[]> {
 }
 
 export async function createJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry> {
+	if (!isDateKey(input.dateKey)) throw new Error("Invalid journal entry date.");
+	if (input.mood !== undefined && !isMoodLevel(input.mood)) {
+		throw new Error("Invalid journal entry mood.");
+	}
 	const { prisma, user } = await getAuthenticatedUser();
 	const id = input.id ?? crypto.randomUUID();
 	const updateData = {
@@ -106,6 +119,12 @@ export async function createJournalEntry(input: CreateJournalEntryInput): Promis
 		richContent: (input.richContent ?? undefined) as Prisma.InputJsonValue | undefined,
 		mood: input.mood ?? null,
 		tags: input.tags ?? [],
+		...(input.calendarSourceId !== undefined && {
+			calendarSourceId: input.calendarSourceId,
+		}),
+		...(input.calendarSourceUid !== undefined && {
+			calendarSourceUid: input.calendarSourceUid,
+		}),
 	};
 
 	async function persistLinks(entry: JournalEntry): Promise<void> {
@@ -168,6 +187,9 @@ export type UpdateJournalEntryInput = {
 export async function updateJournalEntry(
 	input: UpdateJournalEntryInput,
 ): Promise<JournalEntry | undefined> {
+	if (input.mood != null && !isMoodLevel(input.mood)) {
+		throw new Error("Invalid journal entry mood.");
+	}
 	const { prisma, user } = await getAuthenticatedUser();
 
 	try {

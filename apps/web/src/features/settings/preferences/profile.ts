@@ -69,6 +69,16 @@ function normalizeAi(
 		typeof rawAi?.translateLanguage === "string" && rawAi.translateLanguage.trim()
 			? rawAi.translateLanguage
 			: fallback.translateLanguage;
+	const semanticProvider =
+		rawAi?.semanticProvider === "ollama" ? "ollama" : fallback.semanticProvider;
+	const semanticModel =
+		typeof rawAi?.semanticModel === "string" && rawAi.semanticModel.trim()
+			? rawAi.semanticModel.trim()
+			: fallback.semanticModel;
+	const semanticOllamaUrl =
+		typeof rawAi?.semanticOllamaUrl === "string" && rawAi.semanticOllamaUrl.trim()
+			? rawAi.semanticOllamaUrl.trim()
+			: fallback.semanticOllamaUrl;
 
 	// Migrate legacy single apiKey → keys array
 	if (!Array.isArray(rawAi?.keys) && typeof rawAi?.apiKey === "string" && rawAi.apiKey) {
@@ -78,7 +88,15 @@ function normalizeAi(
 			apiKey: rawAi.apiKey as string,
 			tested: true,
 		};
-		return { model, keys: [migratedKey], activeKeyId: "migrated-key", translateLanguage };
+		return {
+			model,
+			keys: [migratedKey],
+			activeKeyId: "migrated-key",
+			translateLanguage,
+			semanticProvider,
+			semanticModel,
+			semanticOllamaUrl,
+		};
 	}
 
 	const keys: AiKey[] = Array.isArray(rawAi?.keys)
@@ -97,7 +115,15 @@ function normalizeAi(
 			? (rawAi.activeKeyId as string)
 			: (keys[0]?.id ?? null);
 
-	return { model, keys, activeKeyId, translateLanguage };
+	return {
+		model,
+		keys,
+		activeKeyId,
+		translateLanguage,
+		semanticProvider,
+		semanticModel,
+		semanticOllamaUrl,
+	};
 }
 
 export function normalizeProfile(
@@ -272,7 +298,7 @@ export function createActivityItem(action: ActivityAction): ActivityItem {
 
 export function applyAuthEditorPreferences(profile: PreferencesProfile): PreferencesProfile {
 	const authPreferences = getUserEditorPreferences();
-	if (!authPreferences?.defaultFont) {
+	if (!authPreferences?.defaultFont && !authPreferences?.ai) {
 		return profile;
 	}
 
@@ -280,8 +306,9 @@ export function applyAuthEditorPreferences(profile: PreferencesProfile): Prefere
 		...profile,
 		editor: {
 			...profile.editor,
-			defaultFont: authPreferences.defaultFont,
+			...(authPreferences.defaultFont ? { defaultFont: authPreferences.defaultFont } : {}),
 		},
+		ai: { ...profile.ai, ...authPreferences.ai },
 	};
 }
 

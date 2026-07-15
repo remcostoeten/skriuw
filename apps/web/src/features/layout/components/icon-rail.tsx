@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import {
 	ActivityIcon as AnimatedActivityIcon,
-	SettingsIcon as AnimatedSettingsIcon,
 	Trash2Icon as AnimatedTrash2Icon,
 	BookOpenIcon as AnimatedBookOpenIcon,
 	FolderOpenIcon as AnimatedFolderOpenIcon,
@@ -22,6 +21,7 @@ import {
 } from "@animateicons/react/lucide";
 import { HashIcon } from "@/shared/icons/hash";
 import { WaypointsIcon } from "@/shared/icons/waypoints";
+import { SettingsIcon as AnimatedSettingsIcon } from "@/shared/icons/settings";
 import { usePreferencesStore } from "@/features/settings/store";
 import { cn } from "@/shared/lib/utils";
 import Link from "next/link";
@@ -192,9 +192,12 @@ function IconRailImpl() {
 					<AnimatedFolderOpenIcon
 						ref={ref}
 						size={18}
-						className={
-							active ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/52"
-						}
+						className={cn(
+							"skriuw-animated-icon",
+							active
+								? "text-sidebar-accent-foreground"
+								: "text-sidebar-foreground/52",
+						)}
 					/>
 				) : (
 					<FolderOpen
@@ -221,7 +224,7 @@ function IconRailImpl() {
 			isActive: pathname === "/app/journal",
 			icon: (_active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 				showAnimatedIcons ? (
-					<AnimatedBookOpenIcon ref={ref} size={18} />
+					<AnimatedBookOpenIcon ref={ref} size={18} className="skriuw-animated-icon" />
 				) : (
 					<BookOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
 				),
@@ -260,7 +263,7 @@ function IconRailImpl() {
 			isActive: pathname.startsWith("/app/people"),
 			icon: (_active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 				showAnimatedIcons ? (
-					<AnimatedUsersIcon ref={ref} size={18} />
+					<AnimatedUsersIcon ref={ref} size={18} className="skriuw-animated-icon" />
 				) : (
 					<Users className="h-[18px] w-[18px]" strokeWidth={1.6} />
 				),
@@ -273,7 +276,7 @@ function IconRailImpl() {
 			isActive: pathname.startsWith("/app/activity"),
 			icon: (_active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 				showAnimatedIcons ? (
-					<AnimatedActivityIcon ref={ref} size={18} />
+					<AnimatedActivityIcon ref={ref} size={18} className="skriuw-animated-icon" />
 				) : (
 					<Activity className="h-[18px] w-[18px]" strokeWidth={1.6} />
 				),
@@ -291,7 +294,7 @@ function IconRailImpl() {
 		isActive: pathname === "/app/trash",
 		icon: (_active: boolean, ref?: Ref<AnimatedIconHandle>) =>
 			showAnimatedIcons ? (
-				<AnimatedTrash2Icon ref={ref} size={18} />
+				<AnimatedTrash2Icon ref={ref} size={18} className="skriuw-animated-icon" />
 			) : (
 				<Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />
 			),
@@ -362,7 +365,11 @@ function IconRailImpl() {
 								aria-expanded={settingsOpen}
 							>
 								{showAnimatedIcons ? (
-									<AnimatedSettingsIcon ref={settingsIconRef} size={18} />
+									<AnimatedSettingsIcon
+										ref={settingsIconRef}
+										size={18}
+										className="skriuw-animated-icon"
+									/>
 								) : (
 									<Settings className="h-[18px] w-[18px]" strokeWidth={1.6} />
 								)}

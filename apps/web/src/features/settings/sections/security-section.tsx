@@ -7,7 +7,14 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { cn } from "@/shared/lib/utils";
-import { updatePassword } from "@/core/auth";
+import {
+	addPassword,
+	getRememberMePreference,
+	signInWithOAuth,
+	updatePassword,
+	type OAuthProvider,
+} from "@/core/auth";
+import { listConnections } from "@/core/auth/connections";
 import { authClient } from "@/lib/auth-client";
 import {
 	SectionHeader,
@@ -17,19 +24,22 @@ import {
 import { ConnectedAccounts } from "@/features/settings/components/connected-accounts";
 
 function ChangePasswordInlineSection() {
+	const [hasPassword, setHasPassword] = useState<boolean | null>(null);
 	const [open, setOpen] = useState(false);
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirm, setConfirm] = useState("");
 	const [isPending, setIsPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [reauthProviders, setReauthProviders] = useState<OAuthProvider[]>([]);
+	const [reauthRequired, setReauthRequired] = useState(false);
 	const [success, setSuccess] = useState(false);
 	const currentPasswordRef = useRef<HTMLInputElement | null>(null);
 	const toggleButtonRef = useRef<HTMLButtonElement | null>(null);
 	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const canSubmit =
-		currentPassword.length > 0 &&
+		(hasPassword === false || currentPassword.length > 0) &&
 		newPassword.length >= 8 &&
 		newPassword === confirm &&
 		!isPending;
@@ -39,6 +49,7 @@ function ChangePasswordInlineSection() {
 		setNewPassword("");
 		setConfirm("");
 		setError(null);
+		setReauthRequired(false);
 		setSuccess(false);
 		setIsPending(false);
 	};
@@ -58,7 +69,12 @@ function ChangePasswordInlineSection() {
 		setIsPending(true);
 		setError(null);
 		try {
-			await updatePassword({ currentPassword, newPassword });
+			if (hasPassword) {
+				await updatePassword({ currentPassword, newPassword });
+			} else {
+				await addPassword(newPassword);
+				setHasPassword(true);
+			}
 			setSuccess(true);
 			if (closeTimerRef.current) {
 				clearTimeout(closeTimerRef.current);
@@ -68,6 +84,9 @@ function ChangePasswordInlineSection() {
 			}, 1200);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Could not update password.");
+			setReauthRequired(
+				err instanceof Error && "code" in err && err.code === "reauth_required",
+			);
 		} finally {
 			setIsPending(false);
 		}
@@ -81,6 +100,44 @@ function ChangePasswordInlineSection() {
 		},
 		[],
 	);
+
+	useEffect(() => {
+		let active = true;
+		void listConnections()
+			.then((snapshot) => {
+				if (!active) return;
+				setHasPassword(snapshot.credential);
+				setReauthProviders(
+					snapshot.accounts
+						.map((account) => account.providerId)
+						.filter(
+							(provider): provider is OAuthProvider =>
+								provider === "github" || provider === "google",
+						),
+				);
+			})
+			.catch(() => {
+				if (active) setHasPassword(true);
+			});
+		return () => {
+			active = false;
+		};
+	}, []);
+
+	const addingPassword = hasPassword === false;
+	const reauthenticate = async (provider: OAuthProvider) => {
+		setIsPending(true);
+		try {
+			await signInWithOAuth(provider, { rememberMe: getRememberMePreference() });
+		} catch (reauthError) {
+			setError(
+				reauthError instanceof Error
+					? reauthError.message
+					: "Could not start re-authentication.",
+			);
+			setIsPending(false);
+		}
+	};
 
 	return (
 		<div className="space-y-0">
@@ -99,7 +156,7 @@ function ChangePasswordInlineSection() {
 					requestAnimationFrame(() => currentPasswordRef.current?.focus());
 				}}
 			>
-				{open ? "Close" : "Update"}
+				{open ? "Close" : addingPassword ? "Add password" : "Update"}
 				<ChevronDown
 					className={cn("size-4 transition-transform duration-200", open && "rotate-180")}
 				/>
@@ -115,10 +172,13 @@ function ChangePasswordInlineSection() {
 				<div className="min-h-0 overflow-hidden">
 					<div className="space-y-4 rounded-md border border-border/60 bg-background/40 p-4">
 						<div className="space-y-1">
-							<div className="text-sm font-medium">Change password</div>
+							<div className="text-sm font-medium">
+								{addingPassword ? "Add a password" : "Change password"}
+							</div>
 							<p className="text-xs text-muted-foreground">
-								Enter your current password, then choose a strong new password of at
-								least 8 characters.
+								{addingPassword
+									? "Create an email/password sign-in method for this account. For your security, you may be asked to re-authenticate first."
+									: "Enter your current password, then choose a strong new password of at least 8 characters."}
 							</p>
 						</div>
 						<form
@@ -128,23 +188,25 @@ function ChangePasswordInlineSection() {
 								void handleSubmit();
 							}}
 						>
-							<div className="space-y-1">
-								<Label
-									htmlFor="current-password"
-									className="text-xs text-muted-foreground"
-								>
-									Current password
-								</Label>
-								<Input
-									ref={currentPasswordRef}
-									id="current-password"
-									type="password"
-									value={currentPassword}
-									onChange={(e) => setCurrentPassword(e.target.value)}
-									autoComplete="current-password"
-									disabled={isPending}
-								/>
-							</div>
+							{!addingPassword && (
+								<div className="space-y-1">
+									<Label
+										htmlFor="current-password"
+										className="text-xs text-muted-foreground"
+									>
+										Current password
+									</Label>
+									<Input
+										ref={currentPasswordRef}
+										id="current-password"
+										type="password"
+										value={currentPassword}
+										onChange={(e) => setCurrentPassword(e.target.value)}
+										autoComplete="current-password"
+										disabled={isPending}
+									/>
+								</div>
+							)}
 							<div className="space-y-1">
 								<Label
 									htmlFor="new-password"
@@ -182,6 +244,23 @@ function ChangePasswordInlineSection() {
 									{error}
 								</p>
 							)}
+							{reauthRequired && reauthProviders.length > 0 && (
+								<div className="flex flex-wrap gap-2">
+									{reauthProviders.map((provider) => (
+										<Button
+											key={provider}
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() => void reauthenticate(provider)}
+											disabled={isPending}
+										>
+											Re-authenticate with{" "}
+											{provider === "github" ? "GitHub" : "Google"}
+										</Button>
+									))}
+								</div>
+							)}
 							{success && <p className="text-xs text-success">Password updated.</p>}
 							<div className="flex flex-wrap gap-2 pt-1">
 								<Button
@@ -194,7 +273,11 @@ function ChangePasswordInlineSection() {
 									Cancel
 								</Button>
 								<Button type="submit" size="sm" disabled={!canSubmit}>
-									{isPending ? "Saving…" : "Save password"}
+									{isPending
+										? "Saving…"
+										: addingPassword
+											? "Add password"
+											: "Save password"}
 								</Button>
 							</div>
 						</form>
@@ -249,8 +332,8 @@ export function SecuritySection() {
 			<SettingsCard>
 				<Row
 					focusId="change-password"
-					title="Change password"
-					description="Update your sign-in password."
+					title="Password"
+					description="Add or update your email/password sign-in method."
 				>
 					<ChangePasswordInlineSection />
 				</Row>

@@ -61,6 +61,9 @@ export type AiKey = {
 
 export type AiPreferences = {
 	model: string;
+	semanticProvider: "google" | "ollama";
+	semanticModel: string;
+	semanticOllamaUrl: string;
 	keys: AiKey[];
 	activeKeyId: string | null;
 	/** Translate-selection target language name; "auto" keeps the EN↔NL heuristic. */

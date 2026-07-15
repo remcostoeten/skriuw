@@ -7,7 +7,8 @@ export async function GET(request: Request) {
 	if (!ctx) return unauthorized();
 
 	const query = new URL(request.url).searchParams.get("q") ?? "";
-	const hits = await searchNotes(query);
+	const semantic = new URL(request.url).searchParams.get("mode") === "semantic";
+	const hits = await searchNotes(query, 20, { semantic });
 
 	return NextResponse.json(
 		hits.map((hit) => ({ noteId: hit.id, title: hit.name, snippet: hit.snippet })),

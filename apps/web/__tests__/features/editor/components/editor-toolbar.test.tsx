@@ -33,8 +33,7 @@ describe("EditorToolbar", () => {
 			/>,
 		);
 
-		expect(html).toContain('aria-label="Workspaces"');
-		expect(html).toContain('title="Workspaces"');
+		expect(html).toContain('aria-label="Switch workspace"');
 		mock.restore();
 	});
 });

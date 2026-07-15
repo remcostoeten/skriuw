@@ -53,6 +53,9 @@ const DEFAULT_PRIVACY_PREFERENCES: PrivacyPreferences = {
 
 const DEFAULT_AI_PREFERENCES: AiPreferences = {
 	model: DEFAULT_AI_MODEL,
+	semanticProvider: "google",
+	semanticModel: "embeddinggemma",
+	semanticOllamaUrl: "http://127.0.0.1:11434",
 	keys: [],
 	activeKeyId: null,
 	translateLanguage: "auto",

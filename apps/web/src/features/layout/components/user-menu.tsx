@@ -295,7 +295,7 @@ export function UserMenu({
 								type="button"
 								onClick={() => void handleSignOut()}
 								disabled={isSigningOut}
-								className="flex w-full cursor-default items-center rounded-none px-2 py-1.5 text-left text-[13px] font-medium text-destructive outline-none focus:bg-destructive/10 focus:text-destructive disabled:pointer-events-none disabled:opacity-50"
+								className="flex w-full cursor-default items-center rounded-none px-2 py-1.5 text-left text-[13px] font-medium text-[#ff808a] outline-none hover:bg-[#ff808a4d] focus:bg-[#ff808a4d] disabled:pointer-events-none disabled:opacity-50"
 							>
 								{isSigningOut ? (
 									<LoaderCircle className="mr-2 h-[15px] w-[15px] animate-spin" />
