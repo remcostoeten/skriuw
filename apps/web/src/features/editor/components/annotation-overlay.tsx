@@ -1,21 +1,38 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Eraser, MousePointer2, Pencil } from "lucide-react";
+import { Check, Eraser, Highlighter, MousePointer2, Pencil } from "lucide-react";
+import {
+	getShortcutDefaultKeys,
+	useShortcutHint,
+	useShortcutManager,
+	type ShortcutId,
+} from "@/core/shortcuts";
+import {
+	ANNOTATION_COLORS,
+	ANNOTATION_SIZES,
+	DEFAULT_BRUSH,
+	getAnnotationColor,
+	getAnnotationSize,
+	resolveBrush,
+	resolveColorHex,
+	stepSize,
+	type TAnnotationTool,
+	type TBrush,
+} from "@/features/editor/lib/annotation-brush";
 import { useUpdateNote } from "@/features/notes/hooks/use-update-note";
 import { countDrawingElements, parseDrawingScene } from "@/shared/lib/drawing";
 import { cn } from "@/shared/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import "@excalidraw/excalidraw/index.css";
 import "./block-specs/drawing.css";
 
 type TExcalidrawModule = typeof import("@excalidraw/excalidraw");
 
-type TAnnotationTool = "freedraw" | "eraser" | "selection";
-
 type TExcalidrawAPI = {
 	updateScene: (scene: { elements?: readonly unknown[]; appState?: unknown }) => void;
 	addFiles: (files: unknown[]) => void;
-	setActiveTool: (tool: { type: TAnnotationTool }) => void;
+	setActiveTool: (tool: { type: string }) => void;
 };
 
 type Props = {
@@ -28,11 +45,28 @@ type Props = {
 
 const COMMIT_DEBOUNCE_MS = 600;
 
-const TOOLS: Array<{ type: TAnnotationTool; icon: typeof Pencil; label: string }> = [
-	{ type: "freedraw", icon: Pencil, label: "Draw" },
-	{ type: "eraser", icon: Eraser, label: "Erase" },
-	{ type: "selection", icon: MousePointer2, label: "Select" },
+const TOOLS: Array<{
+	type: TAnnotationTool;
+	icon: typeof Pencil;
+	label: string;
+	shortcutId?: ShortcutId;
+	hint?: string;
+}> = [
+	{ type: "pen", icon: Pencil, label: "Draw", shortcutId: "drawing.freedraw" },
+	{ type: "highlighter", icon: Highlighter, label: "Highlight", hint: "H" },
+	{ type: "eraser", icon: Eraser, label: "Erase", shortcutId: "drawing.eraser" },
+	{ type: "selection", icon: MousePointer2, label: "Select", shortcutId: "drawing.selection" },
 ];
+
+/**
+ * Single-character binding for a tool shortcut, honoring a user remap. Combos
+ * with modifiers are ignored: the overlay only claims bare keys.
+ */
+function boundKey(id: ShortcutId, override?: string): string | null {
+	const resolved = override ?? getShortcutDefaultKeys(id);
+	const combo = Array.isArray(resolved) ? resolved[0] : resolved;
+	return combo.length === 1 ? combo.toLowerCase() : null;
+}
 
 let excalidrawModulePromise: Promise<TExcalidrawModule> | null = null;
 
@@ -54,6 +88,33 @@ function isDarkSurface(): boolean {
 	return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128;
 }
 
+function AnnotationTooltip({
+	label,
+	shortcutId,
+	hint,
+	children,
+}: {
+	label: string;
+	shortcutId?: ShortcutId;
+	hint?: string;
+	children: React.ReactNode;
+}) {
+	const registered = useShortcutHint(shortcutId);
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>{children}</TooltipTrigger>
+			<TooltipContent
+				side="bottom"
+				className="px-2 py-1 text-xs"
+				shortcut={registered ?? hint}
+			>
+				{label}
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
 /**
  * Full-pane freehand layer drawn over the whole note ("annotate mode").
  *
@@ -64,6 +125,7 @@ function isDarkSurface(): boolean {
  */
 export function AnnotationOverlay({ noteId, scene = "", active, readOnly, onDone }: Props) {
 	const wrapperRef = useRef<HTMLDivElement | null>(null);
+	const toolbarRef = useRef<HTMLDivElement | null>(null);
 	const scrollElRef = useRef<HTMLElement | null>(null);
 	const apiRef = useRef<TExcalidrawAPI | null>(null);
 	const moduleRef = useRef<TExcalidrawModule | null>(null);
@@ -79,8 +141,11 @@ export function AnnotationOverlay({ noteId, scene = "", active, readOnly, onDone
 
 	const [excalidrawModule, setExcalidrawModule] = useState<TExcalidrawModule | null>(null);
 	const [darkTheme, setDarkTheme] = useState(true);
-	const [activeTool, setActiveTool] = useState<TAnnotationTool>("freedraw");
+	const [brush, setBrush] = useState<TBrush>(DEFAULT_BRUSH);
+	const [rovingIndex, setRovingIndex] = useState(0);
 
+	const brushRef = useRef(brush);
+	brushRef.current = brush;
 	moduleRef.current = excalidrawModule;
 	activeRef.current = active;
 
@@ -88,8 +153,24 @@ export function AnnotationOverlay({ noteId, scene = "", active, readOnly, onDone
 	const mutateRef = useRef(mutateNote);
 	mutateRef.current = mutateNote;
 
+	const { bindings } = useShortcutManager();
+	const toolKeys = useMemo(() => {
+		const map = new Map<string, TAnnotationTool>();
+		for (const tool of TOOLS) {
+			if (!tool.shortcutId) continue;
+			const key = boundKey(tool.shortcutId, bindings[tool.shortcutId]);
+			if (key) map.set(key, tool.type);
+		}
+		return map;
+	}, [bindings]);
+	const toolKeysRef = useRef(toolKeys);
+	toolKeysRef.current = toolKeys;
+
 	const elementCount = useMemo(() => countDrawingElements(scene), [scene]);
 	const shouldRender = active || elementCount > 0;
+	const resolved = useMemo(() => resolveBrush(brush, darkTheme), [brush, darkTheme]);
+	const resolvedRef = useRef(resolved);
+	resolvedRef.current = resolved;
 
 	const desiredScrollY = useCallback(() => -(scrollElRef.current?.scrollTop ?? 0), []);
 
@@ -138,6 +219,33 @@ export function AnnotationOverlay({ noteId, scene = "", active, readOnly, onDone
 			});
 		});
 	}, [desiredScrollY]);
+
+	const applyBrush = useCallback(() => {
+		const api = apiRef.current;
+		if (!api) {
+			return;
+		}
+		const next = resolvedRef.current;
+		api.setActiveTool({ type: next.excalidrawTool });
+		// Only inking tools carry stroke settings; pushing appState for the eraser
+		// or selection would echo back through onChange for no reason.
+		if (next.excalidrawTool === "freedraw") {
+			api.updateScene({
+				appState: {
+					currentItemStrokeColor: next.strokeColor,
+					currentItemStrokeWidth: next.strokeWidth,
+					currentItemOpacity: next.opacity,
+				},
+			});
+		}
+	}, []);
+
+	useEffect(() => {
+		if (!active) {
+			return;
+		}
+		applyBrush();
+	}, [active, applyBrush, brush.tool, brush.colorId, brush.sizeId, darkTheme]);
 
 	useEffect(() => {
 		const wrapper = wrapperRef.current;
@@ -229,12 +337,13 @@ export function AnnotationOverlay({ noteId, scene = "", active, readOnly, onDone
 				scrollX?: number;
 				scrollY?: number;
 				zoom?: { value?: number };
-				activeTool?: { type?: TAnnotationTool };
 			} | null;
-			const tool = state?.activeTool?.type;
-			if (tool && TOOLS.some((entry) => entry.type === tool)) {
-				setActiveTool(tool);
-			}
+			// The brush is never read back from `appState`: onChange reports the tool
+			// as it was *before* the change, so feeding it into state ping-pongs
+			// forever (eraser -> pen -> eraser). The overlay owns the tool instead,
+			// and the key handler below stops Excalidraw's own bindings from ever
+			// changing it behind our back.
+			//
 			// The annotation space is pinned: zoom 1, x 0, y following the editor
 			// scroll. Anything else (pinch, space-drag, hand tool) is snapped back.
 			if (
@@ -293,27 +402,113 @@ export function AnnotationOverlay({ noteId, scene = "", active, readOnly, onDone
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	// Entering annotate mode from the editor toolbar leaves focus on that button,
+	// outside the overlay — move it in so the canvas key handling below is live.
+	useEffect(() => {
+		if (!active || readOnly) {
+			return;
+		}
+		wrapperRef.current?.focus({ preventScroll: true });
+	}, [active, readOnly]);
+
+	// Excalidraw claims digits, `h` and the bracket keys on a capture-phase
+	// document listener and stops them there, so a listener on the overlay would
+	// never see them. Capturing on `window` runs ahead of that and lets us keep
+	// the keys for the brush. The remaining tool keys stay on the shared shortcut
+	// scope below, which listens on `window` and needs them to bubble.
 	useEffect(() => {
 		const wrapper = wrapperRef.current;
 		if (!wrapper || !active) {
 			return;
 		}
+		const overlay = wrapper;
+		function ownsFocus() {
+			const focused = document.activeElement;
+			return !focused || focused === document.body || overlay.contains(focused);
+		}
 		function onKeyDown(event: KeyboardEvent) {
+			if (!ownsFocus()) {
+				return;
+			}
 			if (event.key === "Escape") {
 				event.preventDefault();
 				event.stopPropagation();
 				onDone();
 				return;
 			}
-			event.stopPropagation();
+			if (readOnly || event.metaKey || event.ctrlKey || event.altKey) {
+				return;
+			}
+			const color = ANNOTATION_COLORS.find((entry) => entry.key === event.key);
+			if (color) {
+				event.preventDefault();
+				event.stopPropagation();
+				setBrush((current) => ({ ...current, colorId: color.id }));
+				return;
+			}
+			const key = event.key.toLowerCase();
+			if (key === "h") {
+				event.preventDefault();
+				event.stopPropagation();
+				setBrush((current) => ({ ...current, tool: "highlighter" }));
+				return;
+			}
+			const tool = toolKeysRef.current.get(key);
+			if (tool) {
+				event.preventDefault();
+				event.stopPropagation();
+				setBrush((current) => ({ ...current, tool }));
+				return;
+			}
+			if (event.key === "[" || event.key === "]") {
+				event.preventDefault();
+				event.stopPropagation();
+				const direction = event.key === "]" ? 1 : -1;
+				setBrush((current) => ({
+					...current,
+					sizeId: stepSize(current.sizeId, direction),
+				}));
+				return;
+			}
+			// Annotate mode exposes four tools; every other bare key is one of
+			// Excalidraw's own tool bindings (r, o, a, t, …) and would put the canvas
+			// on a shape the toolbar can't represent. Swallow them. Modifier combos
+			// (undo/redo) and named keys (arrows, Delete, Tab) still pass through.
+			if (event.key.length === 1) {
+				event.preventDefault();
+				event.stopPropagation();
+			}
 		}
-		wrapper.addEventListener("keydown", onKeyDown);
-		return () => wrapper.removeEventListener("keydown", onKeyDown);
-	}, [active, onDone]);
+		window.addEventListener("keydown", onKeyDown, { capture: true });
+		return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+	}, [active, onDone, readOnly]);
 
 	function selectTool(tool: TAnnotationTool) {
-		apiRef.current?.setActiveTool({ type: tool });
-		setActiveTool(tool);
+		setBrush((current) => ({ ...current, tool }));
+	}
+
+	function moveRovingFocus(event: React.KeyboardEvent<HTMLDivElement>) {
+		if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) {
+			return;
+		}
+		const items = Array.from(
+			event.currentTarget.querySelectorAll<HTMLButtonElement>("[data-toolbar-item]"),
+		);
+		if (items.length === 0) {
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		const current = items.findIndex((item) => item === document.activeElement);
+		const from = current === -1 ? rovingIndex : current;
+		const next =
+			event.key === "Home"
+				? 0
+				: event.key === "End"
+					? items.length - 1
+					: (from + (event.key === "ArrowRight" ? 1 : -1) + items.length) % items.length;
+		setRovingIndex(next);
+		items[next].focus();
 	}
 
 	if (!shouldRender) {
@@ -321,14 +516,30 @@ export function AnnotationOverlay({ noteId, scene = "", active, readOnly, onDone
 	}
 
 	const Excalidraw = excalidrawModule?.Excalidraw;
+	const inkable = brush.tool === "pen" || brush.tool === "highlighter";
+	const activeColor = getAnnotationColor(brush.colorId);
+	const activeSize = getAnnotationSize(brush.sizeId);
+	const activeToolLabel = TOOLS.find((tool) => tool.type === brush.tool)?.label ?? "";
+	let itemIndex = -1;
+
+	function toolbarItemProps() {
+		itemIndex += 1;
+		const index = itemIndex;
+		return {
+			"data-toolbar-item": "",
+			tabIndex: index === rovingIndex ? 0 : -1,
+			onFocus: () => setRovingIndex(index),
+		} as const;
+	}
 
 	return (
 		<div
 			ref={wrapperRef}
 			data-annotation-overlay={active ? "active" : "idle"}
 			contentEditable={false}
+			tabIndex={active ? -1 : undefined}
 			className={cn(
-				"absolute inset-0 z-30",
+				"absolute inset-0 z-30 outline-none",
 				active ? "pointer-events-auto" : "pointer-events-none",
 			)}
 		>
@@ -340,9 +551,7 @@ export function AnnotationOverlay({ noteId, scene = "", active, readOnly, onDone
 							syncViewport();
 							// Deferred: Excalidraw resets to "selection" during its own
 							// mount, which would clobber a synchronous setActiveTool.
-							window.setTimeout(() => {
-								apiRef.current?.setActiveTool({ type: "freedraw" });
-							}, 0);
+							window.setTimeout(applyBrush, 0);
 						}}
 						initialData={initialData as never}
 						onChange={handleCanvasChange as never}
@@ -354,6 +563,11 @@ export function AnnotationOverlay({ noteId, scene = "", active, readOnly, onDone
 
 			{active ? (
 				<div
+					ref={toolbarRef}
+					role="toolbar"
+					aria-label="Annotation tools"
+					aria-orientation="horizontal"
+					onKeyDown={moveRovingFocus}
 					className={cn(
 						"absolute left-1/2 top-3 z-40 flex -translate-x-1/2 items-center gap-0.5",
 						"rounded-lg border border-border/60 bg-popover/85 p-1 shadow-md backdrop-blur-md",
@@ -362,44 +576,158 @@ export function AnnotationOverlay({ noteId, scene = "", active, readOnly, onDone
 				>
 					{TOOLS.map((tool) => {
 						const Icon = tool.icon;
-						const selected = activeTool === tool.type;
+						const selected = brush.tool === tool.type;
 						return (
-							<button
+							<AnnotationTooltip
 								key={tool.type}
-								type="button"
-								aria-label={tool.label}
-								aria-pressed={selected}
-								title={tool.label}
-								className={cn(
-									"flex h-7 w-7 items-center justify-center rounded-md transition-colors",
-									"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-									selected
-										? "bg-foreground/12 text-foreground"
-										: "text-muted-foreground/70 hover:bg-foreground/8 hover:text-foreground",
-								)}
-								onMouseDown={(event) => event.preventDefault()}
-								onClick={() => selectTool(tool.type)}
+								label={tool.label}
+								shortcutId={tool.shortcutId}
+								hint={tool.hint}
 							>
-								<Icon size={15} className="pointer-events-none" />
-							</button>
+								<button
+									type="button"
+									aria-label={tool.label}
+									aria-pressed={selected}
+									className={cn(
+										"flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+										"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+										selected
+											? "bg-foreground/12 text-foreground"
+											: "text-muted-foreground/70 hover:bg-foreground/8 hover:text-foreground",
+									)}
+									onMouseDown={(event) => event.preventDefault()}
+									onClick={() => selectTool(tool.type)}
+									{...toolbarItemProps()}
+								>
+									<Icon size={15} className="pointer-events-none" />
+								</button>
+							</AnnotationTooltip>
 						);
 					})}
+
 					<div className="mx-0.5 h-4 w-px bg-border/70" />
-					<button
-						type="button"
-						aria-label="Done annotating"
-						title="Done (Esc)"
-						className={cn(
-							"flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium",
-							"text-muted-foreground/80 transition-colors hover:bg-foreground/8 hover:text-foreground",
-							"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-						)}
-						onMouseDown={(event) => event.preventDefault()}
-						onClick={onDone}
+
+					<div
+						role="radiogroup"
+						aria-label="Ink color"
+						className="flex items-center gap-0.5"
 					>
-						<Check size={13} className="pointer-events-none" />
-						Done
-					</button>
+						{ANNOTATION_COLORS.map((color) => {
+							const selected = brush.colorId === color.id;
+							const hex = resolveColorHex(color.id, darkTheme);
+							return (
+								<AnnotationTooltip
+									key={color.id}
+									label={color.label}
+									hint={color.key}
+								>
+									<button
+										type="button"
+										role="radio"
+										aria-label={color.label}
+										aria-checked={selected}
+										disabled={!inkable}
+										className={cn(
+											"flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+											"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+											"disabled:cursor-not-allowed disabled:opacity-40",
+											selected && "bg-foreground/12",
+										)}
+										onMouseDown={(event) => event.preventDefault()}
+										onClick={() =>
+											setBrush((current) => ({
+												...current,
+												colorId: color.id,
+											}))
+										}
+										{...toolbarItemProps()}
+									>
+										<span
+											className={cn(
+												"pointer-events-none h-3.5 w-3.5 rounded-full ring-1 ring-inset ring-black/20",
+												selected && "ring-2 ring-foreground/70",
+											)}
+											style={{
+												backgroundColor: hex,
+												opacity: brush.tool === "highlighter" ? 0.55 : 1,
+											}}
+										/>
+									</button>
+								</AnnotationTooltip>
+							);
+						})}
+					</div>
+
+					<div className="mx-0.5 h-4 w-px bg-border/70" />
+
+					<div
+						role="radiogroup"
+						aria-label="Stroke size"
+						className="flex items-center gap-0.5"
+					>
+						{ANNOTATION_SIZES.map((size) => {
+							const selected = brush.sizeId === size.id;
+							return (
+								<AnnotationTooltip
+									key={size.id}
+									label={size.label}
+									hint={size.id === "s" ? "[" : size.id === "l" ? "]" : undefined}
+								>
+									<button
+										type="button"
+										role="radio"
+										aria-label={`${size.label} stroke`}
+										aria-checked={selected}
+										disabled={!inkable}
+										className={cn(
+											"flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+											"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+											"disabled:cursor-not-allowed disabled:opacity-40",
+											selected
+												? "bg-foreground/12 text-foreground"
+												: "text-muted-foreground/70 hover:bg-foreground/8",
+										)}
+										onMouseDown={(event) => event.preventDefault()}
+										onClick={() =>
+											setBrush((current) => ({ ...current, sizeId: size.id }))
+										}
+										{...toolbarItemProps()}
+									>
+										<span
+											className="pointer-events-none rounded-full bg-current"
+											style={{ height: size.dot, width: size.dot }}
+										/>
+									</button>
+								</AnnotationTooltip>
+							);
+						})}
+					</div>
+
+					<div className="mx-0.5 h-4 w-px bg-border/70" />
+
+					<AnnotationTooltip label="Done" hint="Esc">
+						<button
+							type="button"
+							aria-label="Done annotating"
+							className={cn(
+								"flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium",
+								"text-muted-foreground/80 transition-colors hover:bg-foreground/8 hover:text-foreground",
+								"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+							)}
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={onDone}
+							{...toolbarItemProps()}
+						>
+							<Check size={13} className="pointer-events-none" />
+							Done
+						</button>
+					</AnnotationTooltip>
+
+					<span aria-live="polite" className="sr-only">
+						{inkable
+							? `${activeToolLabel}, ${activeColor.label}, ${activeSize.label}`
+							: activeToolLabel}
+					</span>
 				</div>
 			) : null}
 		</div>

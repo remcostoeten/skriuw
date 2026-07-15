@@ -69,7 +69,14 @@ describe("PublicNoteReader", () => {
 			phase: "authenticated",
 			rememberMe: true,
 			isReady: true,
-			user: { id: "user-1", email: "user@example.com", name: "User", role: null },
+			user: {
+				id: "user-1",
+				email: "user@example.com",
+				name: "User",
+				role: null,
+				username: null,
+				avatarColor: null,
+			},
 			error: null,
 		});
 
@@ -83,7 +90,14 @@ describe("PublicNoteReader", () => {
 				phase: "authenticated",
 				rememberMe: true,
 				isReady: true,
-				user: { id: "user-1", email: "user@example.com", name: "User", role: null },
+				user: {
+					id: "user-1",
+					email: "user@example.com",
+					name: "User",
+					role: null,
+					username: null,
+					avatarColor: null,
+				},
 				error: null,
 			},
 			"collaborator",

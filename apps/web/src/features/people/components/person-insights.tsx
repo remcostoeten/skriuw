@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowLeft, FileText, NotebookPen, Users, Waypoints } from "lucide-react";
 import { NOTE_PROPERTY_COLORS } from "@/domain/notes/properties";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
-import { IconRail } from "@/features/layout/components/icon-rail";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import { AnimatedRelativeTime } from "@/shared/ui/animated-relative-time";
 import { Button } from "@/shared/ui/button";
@@ -26,7 +25,6 @@ export function PersonInsights({ personId }: Props) {
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<IconRail />
 				<div className="mx-auto flex h-full w-full max-w-3xl flex-col">
 					<header className="border-b border-border px-6 py-5">
 						<div className="flex items-center gap-2">

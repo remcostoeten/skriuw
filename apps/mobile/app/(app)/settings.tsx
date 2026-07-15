@@ -2,7 +2,8 @@ import { useState, type ReactNode } from "react";
 import { Alert, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
-import { Check, Database, LogOut } from "lucide-react-native";
+import { router } from "expo-router";
+import { Check, Database, LogOut, Trash2 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { signOut, useSession } from "@/auth/auth-client";
 import { getApiBaseUrl } from "@/lib/config";
@@ -66,6 +67,12 @@ export default function SettingsScreen() {
 
 				<Section title="Data & sync" description="Offline storage and cloud sync">
 					<InfoRow label="Sync" value="Cloud workspace" />
+					<ActionRow
+						icon={<Trash2 size={18} color={theme.mutedForeground} />}
+						label="Trash"
+						description="Restore or permanently delete removed notes"
+						onPress={() => router.push("/trash")}
+					/>
 					<ActionRow
 						icon={<Database size={18} color={theme.mutedForeground} />}
 						label={clearing ? "Clearing…" : "Clear offline data"}

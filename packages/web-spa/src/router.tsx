@@ -14,6 +14,7 @@ import { editorFontVariables } from "@/app/editor-font-loaders";
 import { WindowResizeHandles } from "./components/window-resize-handles";
 import { WindowDragRegion } from "./components/window-drag-region";
 import { DesktopZoom } from "@/features/desktop/desktop-zoom";
+import { IconRail } from "@/features/layout/components/icon-rail";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
 import { JournalPageLayout } from "@/features/journal/components/journal-page-layout";
 import { TrashView } from "@/features/notes/components/trash/trash-view";
@@ -66,8 +67,11 @@ function DesktopShell() {
 				style={{ height: "100dvh" }}
 				className={cn(editorFontVariables, "flex flex-col overflow-hidden bg-background")}
 			>
-				<div className="relative min-h-0 flex-1 overflow-hidden">
-					<Outlet />
+				<div className="relative flex min-h-0 flex-1 overflow-hidden">
+					<IconRail />
+					<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+						<Outlet />
+					</div>
 				</div>
 				<WindowDragRegion />
 				<WindowResizeHandles />

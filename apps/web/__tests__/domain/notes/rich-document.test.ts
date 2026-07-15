@@ -152,6 +152,25 @@ describe("parseInlineContent", () => {
 		expect(parseInlineContent("")).toEqual([]);
 	});
 
+	test("parses bare $name mentions into id-less person chips", () => {
+		const result = parseInlineContent("in de ban van $Eline. En $daphne ook.");
+		expect(result).toEqual([
+			expect.objectContaining({ type: "text", text: "in de ban van " }),
+			expect.objectContaining({ type: "person", props: { id: "", name: "Eline" } }),
+			expect.objectContaining({ type: "text", text: ". En " }),
+			expect.objectContaining({ type: "person", props: { id: "", name: "daphne" } }),
+			expect.objectContaining({ type: "text", text: " ook." }),
+		]);
+	});
+
+	test("does not treat mid-word or numeric dollars as person mentions", () => {
+		const price = parseInlineContent("kost $100 euro");
+		expect(price.some((node) => node.type === "person")).toBe(false);
+
+		const glued = parseInlineContent("woord$naam blijft tekst");
+		expect(glued.some((node) => node.type === "person")).toBe(false);
+	});
+
 	test("parses inline markdown links", () => {
 		const result = parseInlineContent("[label](https://example.com)");
 		expect(result[0]).toEqual(
@@ -250,6 +269,33 @@ describe("flattenInlineChips", () => {
 		expect(flattened[0]?.type).toBe("procode");
 		expect((flattened[0] as { props?: { language?: string } }).props?.language).toBe("mermaid");
 		expect(flattened[0]?.content).toBe("flowchart TD\n    A --> B");
+	});
+
+	test("flattens a mark chip to portable markdown metadata", () => {
+		const flattened = flattenInlineChips([
+			{
+				type: "paragraph",
+				props: {},
+				content: [
+					{ type: "text", text: "Budget: ", styles: {} },
+					{
+						type: "mark",
+						props: {
+							id: "mark_budget",
+							kind: "amount",
+							text: "€1,250",
+							value: "€1,250",
+						},
+					},
+				],
+				children: [],
+			},
+		] as unknown as RichTextDocument);
+
+		const content = (flattened[0] as { content?: Array<{ text?: string }> }).content ?? [];
+		expect(content.map((node) => node.text).join("")).toBe(
+			"Budget: [€1,250](mark://amount/mark_budget/%E2%82%AC1%2C250/yellow)",
+		);
 	});
 });
 
@@ -360,6 +406,53 @@ describe("person mention markdown round-trip", () => {
 	});
 });
 
+describe("mark markdown round-trip", () => {
+	test("keeps mark text and metadata searchable and reparses it as a mark", () => {
+		const document = [
+			{
+				id: "b1",
+				type: "paragraph",
+				props: {},
+				content: [
+					{
+						type: "mark",
+						props: {
+							id: "mark_launch",
+							kind: "moment",
+							text: "18 September",
+							value: "2026-09-18",
+							color: "blue",
+							label: "Launch date",
+						},
+					},
+				],
+				children: [],
+			},
+		] as unknown as RichTextDocument;
+
+		const markdown = richDocumentToSearchableMarkdown(document);
+		expect(markdown).toBe(
+			"[18 September](mark://moment/mark_launch/2026-09-18/blue/Launch%20date)",
+		);
+
+		const reparsed = markdownToRichDocument(markdown);
+		const content = (reparsed[0] as { content?: unknown[] }).content ?? [];
+		expect(content).toContainEqual(
+			expect.objectContaining({
+				type: "mark",
+				props: expect.objectContaining({
+					id: "mark_launch",
+					kind: "moment",
+					text: "18 September",
+					value: "2026-09-18",
+					color: "blue",
+					label: "Launch date",
+				}),
+			}),
+		);
+	});
+});
+
 describe("upgradeRichDocumentChips", () => {
 	test("re-parses stringified inline content into structured chips", () => {
 		const document = [
@@ -376,6 +469,53 @@ describe("upgradeRichDocumentChips", () => {
 		const content = (upgraded[0] as { content?: unknown[] }).content ?? [];
 		expect(content.some((node) => (node as { type?: string }).type === "noteLink")).toBe(true);
 		expect(content.some((node) => (node as { type?: string }).type === "tag")).toBe(true);
+	});
+
+	test("preserves boundary whitespace on text nodes next to chips", () => {
+		const document = [
+			{
+				id: "b1",
+				type: "paragraph",
+				props: {},
+				content: [
+					{ type: "text", text: "tijdens de ", styles: {} },
+					{ type: "tag", props: { name: "date" } },
+					{ type: "text", text: " dat er niks", styles: {} },
+				],
+				children: [],
+			},
+		] as unknown as RichTextDocument;
+
+		const upgraded = upgradeRichDocumentChips(document);
+		const content = ((upgraded[0] as { content?: unknown[] }).content ?? []) as Array<{
+			type: string;
+			text?: string;
+		}>;
+		expect(content[0]).toEqual(expect.objectContaining({ type: "text", text: "tijdens de " }));
+		expect(content[2]).toEqual(expect.objectContaining({ type: "text", text: " dat er niks" }));
+	});
+
+	test("preserves boundary whitespace on text nodes next to styled runs", () => {
+		const document = [
+			{
+				id: "b1",
+				type: "paragraph",
+				props: {},
+				content: [
+					{ type: "text", text: "Ik moet wel. ", styles: {} },
+					{ type: "text", text: "Inshallah", styles: { italic: true } },
+					{ type: "text", text: ".", styles: {} },
+				],
+				children: [],
+			},
+		] as unknown as RichTextDocument;
+
+		const upgraded = upgradeRichDocumentChips(document);
+		const content = ((upgraded[0] as { content?: unknown[] }).content ?? []) as Array<{
+			type: string;
+			text?: string;
+		}>;
+		expect(content.map((node) => node.text)).toEqual(["Ik moet wel. ", "Inshallah", "."]);
 	});
 });
 

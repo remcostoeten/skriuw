@@ -18,7 +18,8 @@
 				"name": "next"
 			}
 		],
-		"baseUrl": ".",
+		"types": ["node", "bun", "react", "react-dom"],
+		"noUncheckedSideEffectImports": false,
 		"paths": {
 			"@/generated/*": ["../../generated/*"],
 			"@/*": ["./src/*"]

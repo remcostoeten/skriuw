@@ -1,19 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-	ActivityIndicator,
-	FlatList,
-	Pressable,
-	ScrollView,
-	Text,
-	TextInput,
-	View,
-} from "react-native";
+import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronRight, Clock3, Hash, Search, UserRound, X } from "lucide-react-native";
 import { useNotes, useSearch } from "@/query/notes";
 import { useTheme } from "@/theme/theme-provider";
+import { ContentLoading, ErrorState } from "@/components/AsyncState";
 
 const RECENT_SEARCHES_KEY = "skriuw.recent-searches";
 const MAX_RECENT_SEARCHES = 6;
@@ -30,7 +23,8 @@ export default function SearchScreen() {
 	const [query, setQuery] = useState("");
 	const [recentSearches, setRecentSearches] = useState<string[]>([]);
 	const trimmedQuery = query.trim();
-	const { data: results = [], isFetching } = useSearch(query);
+	const searchQuery = useSearch(query);
+	const { data: results = [], isFetching } = searchQuery;
 	const { data: notes = [] } = useNotes(null);
 	const recentNotes = useMemo(
 		() =>
@@ -131,7 +125,13 @@ export default function SearchScreen() {
 			</View>
 
 			{trimmedQuery ? (
-				<SearchResults results={results} isFetching={isFetching} onOpen={openResult} />
+				<SearchResults
+					results={results}
+					isFetching={isFetching}
+					isError={searchQuery.isError}
+					onRetry={() => searchQuery.refetch()}
+					onOpen={openResult}
+				/>
 			) : (
 				<ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28 }}>
 					{recentSearches.length > 0 ? (
@@ -228,18 +228,27 @@ export default function SearchScreen() {
 function SearchResults({
 	results,
 	isFetching,
+	isError,
+	onRetry,
 	onOpen,
 }: {
 	results: { noteId: string; title: string; snippet: string }[];
 	isFetching: boolean;
+	isError: boolean;
+	onRetry: () => void;
 	onOpen: (noteId: string) => void;
 }) {
 	const { theme } = useTheme();
 	if (isFetching) {
+		return <ContentLoading variant="list" label="Looking through your notes" />;
+	}
+	if (isError) {
 		return (
-			<View style={{ padding: 28, alignItems: "center" }}>
-				<ActivityIndicator color={theme.mutedForeground} />
-			</View>
+			<ErrorState
+				title="Search couldn't finish"
+				description="We couldn't reach the rest of your notes. Check your connection and search again."
+				onRetry={onRetry}
+			/>
 		);
 	}
 	return (

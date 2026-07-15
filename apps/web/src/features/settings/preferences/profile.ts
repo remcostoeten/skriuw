@@ -138,6 +138,10 @@ export function normalizeProfile(
 				profile?.editor?.detectTagsInText,
 				fallback.editor.detectTagsInText,
 			),
+			detectMarksInText: normalizeBoolean(
+				profile?.editor?.detectMarksInText,
+				fallback.editor.detectMarksInText,
+			),
 			notePropertiesLayout: normalizeNotePropertiesLayout(
 				profile?.editor?.notePropertiesLayout,
 				fallback.editor.notePropertiesLayout,

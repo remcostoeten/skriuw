@@ -2,17 +2,15 @@
 
 import { useMemo } from "react";
 import { format, subDays, isAfter, startOfDay } from "date-fns";
-import { Calendar, Hash, Target, Zap, Heart, Download, FileText } from "lucide-react";
+import { Calendar, Target, Zap, Heart, Download, FileText } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import {
 	type MoodLevel,
 	type Mood,
 	type JournalEntry,
-	type JournalTag,
 	MOOD_OPTIONS,
 } from "@/features/journal/types";
 import { useJournalEntries } from "../hooks/use-journal-entries";
-import { useJournalTags } from "../hooks/use-journal-tags";
 
 type Props = {
 	className?: string;
@@ -28,7 +26,6 @@ type JournalStatsData = {
 	longestStreak: number;
 	moodCounts: Partial<Record<MoodLevel, number>>;
 	totalWords: number;
-	tagUsage: JournalTag[];
 	heatmap: { date: Date; dateKey: string; hasEntry: boolean }[];
 	mostCommonMood: Mood | null;
 };
@@ -60,7 +57,7 @@ function escapeHtml(value: string): string {
 	});
 }
 
-function useJournalStats(entries: JournalEntry[], tags: JournalTag[]): JournalStatsData {
+function useJournalStats(entries: JournalEntry[]): JournalStatsData {
 	return useMemo(() => {
 		const now = new Date();
 		const today = startOfDay(now);
@@ -130,9 +127,6 @@ function useJournalStats(entries: JournalEntry[], tags: JournalTag[]): JournalSt
 			return acc + (trimmed ? trimmed.split(/\s+/).length : 0);
 		}, 0);
 
-		// Tag usage
-		const tagUsage = tags.slice(0, 5);
-
 		// Activity heatmap (last 30 days)
 		const entryDateSet = new Set(entries.map((e) => e.dateKey as string));
 		const heatmap = [];
@@ -159,14 +153,13 @@ function useJournalStats(entries: JournalEntry[], tags: JournalTag[]): JournalSt
 			longestStreak,
 			moodCounts,
 			totalWords,
-			tagUsage,
 			heatmap,
 			mostCommonMood,
 		};
-	}, [entries, tags]);
+	}, [entries]);
 }
 
-function useJournalExports(entries: JournalEntry[], tags: JournalTag[], stats: JournalStatsData) {
+function useJournalExports(entries: JournalEntry[], stats: JournalStatsData) {
 	function exportAsMarkdown() {
 		const sortedEntries = entries.toSorted((a, b) => b.dateKey.localeCompare(a.dateKey));
 		let markdown = "# Journal Export\n\n";
@@ -181,10 +174,6 @@ function useJournalExports(entries: JournalEntry[], tags: JournalTag[], stats: J
 			if (entry.mood) {
 				const mood = MOOD_OPTIONS[entry.mood];
 				markdown += `**Mood:** ${mood.icon} ${mood.label}\n\n`;
-			}
-
-			if (entry.tags.length > 0) {
-				markdown += `**Tags:** ${entry.tags.map((tag) => `@${tag}`).join(", ")}\n\n`;
 			}
 
 			markdown += `${entry.content || "*No content*"}\n\n---\n\n`;
@@ -203,7 +192,6 @@ function useJournalExports(entries: JournalEntry[], tags: JournalTag[], stats: J
 		const exportData = {
 			exportedAt: new Date().toISOString(),
 			entries: entries,
-			tags: tags,
 			stats: {
 				totalEntries: stats.totalEntries,
 				totalWords: stats.totalWords,
@@ -240,7 +228,6 @@ function useJournalExports(entries: JournalEntry[], tags: JournalTag[], stats: J
           h1 { color: hsl(${foreground}); }
           h2 { color: hsl(${mutedForeground}); margin-top: 2rem; border-bottom: 1px solid hsl(${border}); padding-bottom: 0.5rem; }
           .mood { color: hsl(${mutedForeground}); font-size: 0.9em; }
-          .tags { color: hsl(${mutedForeground}); font-size: 0.9em; }
           .content { white-space: pre-wrap; margin: 1rem 0; }
           .entry { margin-bottom: 2rem; page-break-inside: avoid; }
           @media print { body { padding: 1rem; } }
@@ -263,10 +250,6 @@ function useJournalExports(entries: JournalEntry[], tags: JournalTag[], stats: J
 			if (entry.mood) {
 				const mood = MOOD_OPTIONS[entry.mood];
 				html += `<p class="mood">Mood: ${escapeHtml(mood.icon)} ${escapeHtml(mood.label)}</p>`;
-			}
-
-			if (entry.tags.length > 0) {
-				html += `<p class="tags">Tags: ${entry.tags.map((tag) => `@${escapeHtml(tag)}`).join(", ")}</p>`;
 			}
 
 			html += `<div class="content">${escapeHtml(entry.content || "No content")}</div></div>`;
@@ -406,36 +389,6 @@ function MoodSection({ stats }: { stats: JournalStatsData }) {
 	);
 }
 
-function TopTagsSection({ tagUsage }: { tagUsage: JournalTag[] }) {
-	if (tagUsage.length === 0) return null;
-
-	return (
-		<div className="space-y-2.5">
-			<div className="flex items-center gap-1.5">
-				<Hash className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-				<span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
-					Top Tags
-				</span>
-			</div>
-
-			<div className="space-y-1">
-				{tagUsage.map((tag) => (
-					<div key={tag.id} className="flex items-center gap-1.5">
-						<span
-							className="h-1.5 w-1.5 rounded-full"
-							style={{ backgroundColor: tag.color }}
-						/>
-						<span className="text-[10px] text-muted-foreground/60">@{tag.name}</span>
-						<span className="ml-auto text-[10px] font-medium text-foreground">
-							{tag.usageCount}
-						</span>
-					</div>
-				))}
-			</div>
-		</div>
-	);
-}
-
 function ActivityHeatmapSection({ heatmap }: { heatmap: JournalStatsData["heatmap"] }) {
 	return (
 		<div className="space-y-2.5">
@@ -523,10 +476,8 @@ function ExportSection({
 
 export function JournalStats({ className }: Props) {
 	const { data: entries = [] } = useJournalEntries();
-	const { data: tags = [] } = useJournalTags();
-
-	const stats = useJournalStats(entries, tags);
-	const { exportAsMarkdown, exportAsJSON, exportAsPDF } = useJournalExports(entries, tags, stats);
+	const stats = useJournalStats(entries);
+	const { exportAsMarkdown, exportAsJSON, exportAsPDF } = useJournalExports(entries, stats);
 
 	return (
 		<div className={cn("p-2 space-y-4", className)}>
@@ -538,9 +489,6 @@ export function JournalStats({ className }: Props) {
 
 			{/* Mood Analysis */}
 			<MoodSection stats={stats} />
-
-			{/* Top Tags */}
-			<TopTagsSection tagUsage={stats.tagUsage} />
 
 			{/* Activity Heatmap */}
 			<ActivityHeatmapSection heatmap={stats.heatmap} />

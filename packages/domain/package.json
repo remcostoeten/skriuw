@@ -4,6 +4,7 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		"./journal": "./src/journal.ts"
+		"./journal": "./src/journal.ts",
+		"./living-information": "./src/living-information.ts"
 	}
 }

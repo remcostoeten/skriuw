@@ -1,6 +1,6 @@
 {
 	"rules": {
-		"preserveTokensRule": "Treat [[wikilinks]], #tags, @mentions, and $person mentions as immutable tokens: copy them byte-for-byte, never translate, correct, or reformat them.",
+		"preserveTokensRule": "Treat [[wikilinks]], #tags, @mentions, $person mentions, and $[Name](person://id) or [text](mark://...) links as immutable tokens: copy them byte-for-byte, never translate, correct, or reformat them. You may move them within the text, but never drop them.",
 		"matchLanguageRule": "Respond in the same language as the document.",
 		"noMetaRule": "Never explain, apologize, hedge, or comment on what you are doing. Never wrap the output in quotes or code fences. Output only the requested text.",
 		"voiceRule": "Mirror the author's exact voice: sentence length, vocabulary, rhythm, formality, and Markdown formatting. Do not sound more formal, more generic, or more \"AI\" than the source."

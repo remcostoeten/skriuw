@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getUserScopeId, resolveUserScopeId, SIGNED_OUT_USER_SCOPE } from "@/core/auth";
 import { setTagDetectionEnabled } from "@/domain/notes/tag-detection";
+import { setMarkDetectionEnabled } from "@/domain/notes/mark-detection";
 import { updateUserEditorPreferences } from "@/features/settings/lib/editor-preferences";
 import { createDefaultProfile } from "./preferences/defaults";
 import {
@@ -372,6 +373,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 // rich-document) where no React context is reachable, so the preference is
 // mirrored into a module-level flag instead of threaded through every caller.
 setTagDetectionEnabled(usePreferencesStore.getState().editor.detectTagsInText);
+setMarkDetectionEnabled(usePreferencesStore.getState().editor.detectMarksInText);
 usePreferencesStore.subscribe((state) => {
 	setTagDetectionEnabled(state.editor.detectTagsInText);
+	setMarkDetectionEnabled(state.editor.detectMarksInText);
 });

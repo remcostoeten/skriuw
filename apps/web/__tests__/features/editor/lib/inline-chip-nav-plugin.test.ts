@@ -147,16 +147,16 @@ describe("inline chip keyboard navigation", () => {
 		const editor = buildEditor("noteLink");
 		editor.setNodeSelection();
 
-		let openedTitle: string | null = null;
+		const openedTitles: string[] = [];
 		const { handled, wasPrevented } = pressKey(editor.view, "Enter", {
 			onOpenNoteLink: (title: string) => {
-				openedTitle = title;
+				openedTitles.push(title);
 			},
 		});
 
 		expect(handled).toBe(true);
 		expect(wasPrevented()).toBe(true);
-		expect(openedTitle).toBe("Project Alpha");
+		expect(openedTitles).toEqual(["Project Alpha"]);
 	});
 
 	test("Backspace from the right of a chip deletes it", () => {

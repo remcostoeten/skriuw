@@ -12,6 +12,7 @@ import { LegalFooter } from "@/components/auth/legal-footer";
 import { ValidationMessage } from "@/components/auth/validation-message";
 import { KeyRound } from "lucide-react-native";
 import { GithubIcon } from "@/components/github-icon";
+import { GoogleIcon } from "@/components/google-icon";
 import { SkriuwLogo } from "@/components/SkriuwLogo";
 import { authMetrics, authSurface as ui } from "@/theme/colors";
 
@@ -50,10 +51,10 @@ export default function SignInScreen() {
 	const [feedback, setFeedback] = useState<AuthButtonFeedback | null>(null);
 	const [oauthError, setOauthError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
-	const [social, setSocial] = useState(false);
+	const [social, setSocial] = useState<"github" | "google" | null>(null);
 	const [passkey, setPasskey] = useState(false);
 
-	const busy = loading || social || passkey;
+	const busy = loading || social !== null || passkey;
 	const nativePasskeysEnabled =
 		Platform.OS === "web" || Constants.expoConfig?.extra?.nativePasskeysEnabled === true;
 	const copy = COPY[mode];
@@ -125,20 +126,21 @@ export default function SignInScreen() {
 		}
 	}
 
-	async function onGithub() {
+	async function onSocial(provider: "github" | "google") {
+		const providerLabel = provider === "github" ? "GitHub" : "Google";
 		setFeedback(null);
 		setOauthError(null);
-		setSocial(true);
+		setSocial(provider);
 		try {
 			const res = await signIn.social({
-				provider: "github",
+				provider,
 				callbackURL: Linking.createURL("/"),
 			});
-			if (res.error) setOauthError(res.error.message ?? "GitHub sign in failed");
+			if (res.error) setOauthError(res.error.message ?? `${providerLabel} sign in failed`);
 		} catch {
 			setOauthError("Network error. Check your connection and try again.");
 		} finally {
-			setSocial(false);
+			setSocial(null);
 		}
 	}
 
@@ -213,11 +215,20 @@ export default function SignInScreen() {
 
 						<AuthButton
 							label="Continue with GitHub"
-							onPress={onGithub}
+							onPress={() => onSocial("github")}
 							disabled={busy}
-							loading={social}
+							loading={social === "github"}
 							icon={<GithubIcon size={16} color={ui.text} />}
 						/>
+						<View style={{ marginTop: 10 }}>
+							<AuthButton
+								label="Continue with Google"
+								onPress={() => onSocial("google")}
+								disabled={busy}
+								loading={social === "google"}
+								icon={<GoogleIcon size={16} />}
+							/>
+						</View>
 						<View style={{ marginTop: 10 }}>
 							<AuthButton
 								label={
