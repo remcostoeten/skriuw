@@ -16,10 +16,20 @@ const hasGoogleCredentials = Boolean(
 	process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
 );
 
-// Expo web runs as a separate development origin. Keep this development-only:
+// Expo web runs as a separate development origin, and Expo Go deep-links back
+// via exp:// instead of the skriuw:// scheme. Keep these development-only:
 // production browser origins must be configured explicitly with the deployment.
 const mobileWebDevelopmentOrigins =
-	process.env.NODE_ENV === "production" ? [] : ["http://localhost:8081", "http://127.0.0.1:8081"];
+	process.env.NODE_ENV === "production"
+		? []
+		: ["http://localhost:8081", "http://127.0.0.1:8081", "exp://*"];
+// Escape hatch for testing Expo Go against a deployed server: Expo Go requests
+// carry an exp:// origin that production would otherwise reject. Set e.g.
+// AUTH_EXTRA_TRUSTED_ORIGINS="exp://*" on the deployment while testing.
+const extraTrustedOrigins =
+	process.env.AUTH_EXTRA_TRUSTED_ORIGINS?.split(",")
+		.map((origin) => origin.trim())
+		.filter(Boolean) ?? [];
 const passkeyOrigin = getServerAppOrigin() ?? "https://skriuw.com";
 const passkeyOrigins = [
 	passkeyOrigin,
@@ -65,7 +75,7 @@ export const auth = betterAuth({
 	baseURL: getBetterAuthBaseURL(),
 	// The Expo client has no cookie jar; the mobile app persists this custom-scheme
 	// origin as its trusted redirect/session origin instead of an http(s) host.
-	trustedOrigins: ["skriuw://", ...mobileWebDevelopmentOrigins],
+	trustedOrigins: ["skriuw://", ...mobileWebDevelopmentOrigins, ...extraTrustedOrigins],
 	database: prismaAdapter(prisma, { provider: "postgresql" }),
 	user: {
 		additionalFields: {
