@@ -6,8 +6,9 @@
 	"scripts": {
 		"dev": "env -u NODE_ENV bun --env-file=../../.env --bun next dev --turbopack",
 		"prebuild": "bun run test:unit",
-		"build": "env -u NODE_ENV bun --env-file=../../.env --bun next build",
+		"build": "env -u NODE_ENV bun --env-file=../../.env next build",
 		"start": "bun --env-file=../../.env --bun next start",
+		"typecheck": "tsc",
 		"test:unit": "bun scripts/run-unit-tests.ts",
 		"test:unit:isolate": "bun test --isolate __tests__",
 		"test:unit:coverage": "bun test --coverage --isolate __tests__",
