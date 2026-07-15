@@ -7,6 +7,7 @@ export const notesKeys = {
 	detail: (id: string) => ["notes", "detail", id] as const,
 	folders: ["notes", "folders"] as const,
 	search: (query: string) => ["notes", "search", query] as const,
+	trash: ["notes", "trash"] as const,
 };
 
 /** True for query keys whose data should survive offline. */

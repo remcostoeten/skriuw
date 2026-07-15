@@ -2,9 +2,8 @@
 
 import { useCallback, useState } from "react";
 import { format, isToday, isYesterday, isTomorrow } from "date-fns";
-import { X, Trash2, Type } from "lucide-react";
+import { Trash2, Type } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { colorWithAlpha } from "@/shared/lib/theme-colors";
 import { MOOD_OPTIONS, type MoodLevel } from "@/features/journal/types";
 import type { JournalEntryController } from "../hooks/use-journal-entry";
 import type { JournalAiAction, JournalAiController } from "../hooks/use-journal-ai";
@@ -39,7 +38,6 @@ const RichTextEditor = dynamic(
 	{ ssr: false, loading: () => <EditorContentSkeleton /> },
 );
 import { usePreferencesStore } from "@/features/settings/store";
-import { useJournalTags } from "../hooks/use-journal-tags";
 import type { Person } from "@/domain/people/models";
 import { useWorkspacePeople } from "@/features/people/hooks/use-people";
 import { useCreatePerson } from "@/features/people/hooks/use-create-person";
@@ -104,16 +102,6 @@ function useJournalAiWritingState(editorMode: "plain" | "rich", aiState?: Journa
 	return { isAiAvailable, activeWritingAction };
 }
 
-function useTagColorResolver(allTags: { name: string; color: string }[]) {
-	return useCallback(
-		(name: string): string => {
-			const tag = allTags.find((t) => t.name === name);
-			return tag?.color ?? "hsl(var(--project-blue))";
-		},
-		[allTags],
-	);
-}
-
 type JournalAiBannersProps = {
 	isAiAvailable: boolean;
 	aiState?: JournalAiController;
@@ -153,20 +141,14 @@ type JournalEntryHeaderProps = {
 	selectedDate: Date;
 	editorMode: "plain" | "rich";
 	entryMood: MoodLevel | undefined;
-	entryTags: string[];
 	handleMoodSelect: (mood: MoodLevel) => void;
-	handleRemoveTag: (tagName: string) => void;
-	getTagColor: (name: string) => string;
 };
 
 function JournalEntryHeader({
 	selectedDate,
 	editorMode,
 	entryMood,
-	entryTags,
 	handleMoodSelect,
-	handleRemoveTag,
-	getTagColor,
 }: JournalEntryHeaderProps) {
 	return (
 		<header className="border-b border-border/55 pb-5 md:pb-6">
@@ -220,38 +202,6 @@ function JournalEntryHeader({
 					))}
 				</div>
 			</div>
-
-			{/* Tags row */}
-			{entryTags.length > 0 && (
-				<div className="mt-3 grid gap-2 sm:grid-cols-[4.5rem_1fr] sm:items-start">
-					<span className="pt-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/42">
-						Tags
-					</span>
-					<div className="flex flex-wrap items-center gap-1.5">
-						{entryTags.map((tagName) => (
-							<span
-								key={tagName}
-								className="inline-flex items-center gap-1.5 border px-2.5 py-1 text-[11px] font-medium"
-								style={{
-									backgroundColor: colorWithAlpha(getTagColor(tagName), 0.08),
-									color: getTagColor(tagName),
-									borderColor: colorWithAlpha(getTagColor(tagName), 0.21),
-								}}
-							>
-								@{tagName}
-								<button
-									type="button"
-									onClick={() => handleRemoveTag(tagName)}
-									aria-label={`Remove tag ${tagName}`}
-									className="border border-transparent p-0.5 transition-colors hover:border-current/20 hover:bg-foreground/10"
-								>
-									<X className="h-2.5 w-2.5" strokeWidth={2} />
-								</button>
-							</span>
-						))}
-					</div>
-				</div>
-			)}
 		</header>
 	);
 }
@@ -260,7 +210,6 @@ type JournalEditorAreaProps = {
 	editorMode: "plain" | "rich";
 	content: string;
 	setContent: (content: string) => void;
-	handleAddTag: (tagName: string) => void;
 	editorFontId: EditorPreferences["defaultFont"];
 	editorLineHeight: EditorPreferences["lineHeight"];
 	richContent: JournalEntryController["richContent"];
@@ -278,7 +227,6 @@ function JournalEditorArea({
 	editorMode,
 	content,
 	setContent,
-	handleAddTag,
 	editorFontId,
 	editorLineHeight,
 	richContent,
@@ -297,7 +245,6 @@ function JournalEditorArea({
 				<PlainTextEditor
 					content={content}
 					onChange={setContent}
-					onInsertTag={handleAddTag}
 					editorFontId={editorFontId}
 					editorLineHeight={editorLineHeight}
 				/>
@@ -512,19 +459,14 @@ export function JournalEditor({
 		entry,
 		wordCount,
 		handleMoodSelect,
-		handleAddTag,
-		handleRemoveTag,
 		handleDeleteEntry,
 	} = entryState;
-	const { data: allTags = [] } = useJournalTags();
 	const { people, handleCreatePerson } = useJournalPeopleWithCreate();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-	const entryTags = entry?.tags ?? [];
 	const entryMood = entry?.mood;
 
 	const { isAiAvailable, activeWritingAction } = useJournalAiWritingState(editorMode, aiState);
-	const getTagColor = useTagColorResolver(allTags);
 
 	return (
 		<ContextMenu>
@@ -537,17 +479,13 @@ export function JournalEditor({
 								selectedDate={selectedDate}
 								editorMode={editorMode}
 								entryMood={entryMood}
-								entryTags={entryTags}
 								handleMoodSelect={handleMoodSelect}
-								handleRemoveTag={handleRemoveTag}
-								getTagColor={getTagColor}
 							/>
 
 							<JournalEditorArea
 								editorMode={editorMode}
 								content={content}
 								setContent={setContent}
-								handleAddTag={handleAddTag}
 								editorFontId={editorPrefs.defaultFont}
 								editorLineHeight={editorPrefs.lineHeight}
 								richContent={richContent}

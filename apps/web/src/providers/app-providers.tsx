@@ -11,7 +11,6 @@ import { ProtectedAppGuard } from "@/providers/protected-app-guard";
 import { ThemeAttribute } from "@/providers/theme-attribute";
 import { WorkspaceBackendProvider } from "@/core/workspace-backend";
 import { GuestWorkspaceBootstrap } from "@/providers/guest-workspace-bootstrap";
-import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
 import { QueryCachePersistence } from "@/providers/query-cache-persistence";
 import { WorkspaceWarmup } from "@/providers/workspace-warmup";
 import { ShortcutProvider } from "@/core/shortcuts";
@@ -103,7 +102,6 @@ export function AppProviders({ children, initialEditorPreferences, initialAuthUs
 								<WindowControls />
 								<PersistenceBootstrap />
 								<GuestWorkspaceBootstrap />
-								<AppRoutePrefetcher />
 								<WorkspaceWarmup />
 								<ThemeAttribute />
 								<ShortcutProvider>

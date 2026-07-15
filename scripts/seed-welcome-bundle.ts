@@ -22,7 +22,19 @@ function id(): string {
 }
 
 type TextStyle = { bold?: true; code?: true };
-type Inline = { type: "text"; text: string; styles: TextStyle };
+type Inline =
+	| { type: "text"; text: string; styles: TextStyle }
+	| {
+			type: "mark";
+			props: {
+				id: string;
+				kind: string;
+				text: string;
+				value: string;
+				color: string;
+				label: string;
+			};
+	  };
 type Block = {
 	id: string;
 	type: string;
@@ -45,6 +57,9 @@ function link(title: string): Inline {
 }
 function tag(name: string): Inline {
 	return text(`#${name}`);
+}
+function mark(id: string, kind: string, value: string, color = "yellow", label = ""): Inline {
+	return { type: "mark", props: { id: `demo-${id}`, kind, text: value, value, color, label } };
 }
 function paragraph(...content: Inline[]): Block {
 	return { id: id(), type: "paragraph", props: {}, content, children: [] };
@@ -304,6 +319,51 @@ const connectedWorkspace: Block[] = [
 	),
 ];
 
+const livingInformationDemo: Block[] = [
+	heading(1, text("Highlights & annotations")),
+	paragraph(
+		text(
+			"This is an ordinary note with a few useful highlights. Select text and choose the highlighter to add one.",
+		),
+	),
+	paragraph(),
+	heading(2, text("Launch snapshot")),
+	paragraph(
+		text("The approved budget is "),
+		mark("budget", "amount", "€1,250", "yellow", "Budget"),
+		text("."),
+	),
+	paragraph(
+		text("Research has cost "),
+		mark("research", "amount", "€100", "pink", "Spend"),
+		text(" so far."),
+	),
+	paragraph(
+		text("The launch is planned for "),
+		mark("launch-date", "moment", "18 September", "blue", "Deadline"),
+		text("."),
+	),
+	paragraph(
+		text("Current status: "),
+		mark("status", "state", "Active", "green", "In progress"),
+		text("."),
+	),
+	paragraph(
+		text("We have "),
+		mark("interviews", "count", "12", "yellow", "Evidence"),
+		text(" customer interviews."),
+	),
+	paragraph(),
+	heading(2, text("Try it")),
+	bullet(text("Highlight the next decision, deadline, or figure you want to find again.")),
+	bullet(text("Hover a highlight to see what it represents.")),
+	bullet(
+		text(
+			"The note stays readable first; highlights only give important words a little more weight.",
+		),
+	),
+];
+
 type SeedFolder = { ref: string; name: string; parentRef: string | null; order: number };
 type SeedNote = {
 	ref: string;
@@ -338,6 +398,14 @@ const notes: SeedNote[] = [
 		order: 1,
 		tags: ["start-here"],
 		richContent: makeItYours,
+	},
+	{
+		ref: "note-living-information-demo",
+		name: "Highlights & annotations",
+		parentRef: "folder-start",
+		order: 2,
+		tags: ["start-here", "living-information"],
+		richContent: livingInformationDemo,
 	},
 	{
 		ref: "note-launch-brief",

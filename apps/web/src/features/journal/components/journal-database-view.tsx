@@ -23,13 +23,12 @@ const JOURNAL_ROW_HEIGHT = 54;
 const JOURNAL_OVERSCAN = 8;
 const JOURNAL_INITIAL_VIEWPORT_HEIGHT = JOURNAL_ROW_HEIGHT * 12;
 
-type FilterTab = "all" | "daily" | "tagged" | "moods";
+type FilterTab = "all" | "daily" | "moods";
 type SortOrder = "newest" | "oldest";
 
 const FILTER_TABS: { id: FilterTab; label: string }[] = [
 	{ id: "all", label: "All" },
 	{ id: "daily", label: "Daily" },
-	{ id: "tagged", label: "Tagged" },
 	{ id: "moods", label: "Mood" },
 ];
 
@@ -100,9 +99,7 @@ export function JournalDatabaseView({
 		let filtered = [...entries];
 
 		// Tab filters
-		if (activeTab === "tagged") {
-			filtered = filtered.filter((e) => e.tags.length > 0);
-		} else if (activeTab === "moods") {
+		if (activeTab === "moods") {
 			filtered = filtered.filter((e) => e.mood);
 		} else if (activeTab === "daily") {
 			filtered = filtered.filter((e) => e.content.trim().length > 0);
@@ -111,11 +108,7 @@ export function JournalDatabaseView({
 		// Search
 		if (deferredSearchQuery.trim()) {
 			const q = deferredSearchQuery.toLowerCase();
-			filtered = filtered.filter(
-				(e) =>
-					e.content.toLowerCase().includes(q) ||
-					e.tags.some((t) => t.toLowerCase().includes(q)),
-			);
+			filtered = filtered.filter((e) => e.content.toLowerCase().includes(q));
 		}
 
 		// Sort

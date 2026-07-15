@@ -9,6 +9,7 @@ import {
 	createInlineChipNavPlugin,
 	inlineChipNavPluginKey,
 } from "@/features/editor/lib/inline-chip-nav-plugin";
+import { autoMarkPluginKey, createAutoMarkPlugin } from "@/features/editor/lib/auto-mark-plugin";
 import { createVimPlugin, vimPluginKey, type VimMode } from "@/features/editor/lib/vim-plugin";
 import { createSelectAllPlugin, selectAllPluginKey } from "@/features/editor/lib/select-all-plugin";
 import { type EditorInstance, getEditorDom } from "@/features/editor/lib/editor-instance";
@@ -64,6 +65,15 @@ export function useEditorPlugins({
 		);
 		return () => {
 			tiptap.unregisterPlugin(selectAllPluginKey);
+		};
+	}, [editor, readOnly]);
+
+	useEffect(() => {
+		const tiptap = editor._tiptapEditor;
+		if (!tiptap || readOnly) return;
+		tiptap.registerPlugin(createAutoMarkPlugin());
+		return () => {
+			tiptap.unregisterPlugin(autoMarkPluginKey);
 		};
 	}, [editor, readOnly]);
 

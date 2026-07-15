@@ -2,7 +2,7 @@
 
 import { FileText, FolderOpen } from "lucide-react";
 import { FileTextIcon } from "@/shared/icons/file-text";
-import { FolderOpenIcon } from "@/shared/icons/folder-open";
+import { FolderOpenIcon as AnimatedFolderOpenIcon } from "@animateicons/react/lucide";
 import { usePreferencesStore } from "@/features/settings/store";
 
 type Props = {
@@ -23,7 +23,7 @@ export function SidebarItemIcon({ kind, size = 14, className }: Props) {
 	}
 
 	return showAnimatedIcons ? (
-		<FolderOpenIcon size={size} className={className} />
+		<AnimatedFolderOpenIcon size={size} className={className} />
 	) : (
 		<FolderOpen size={size} className={className} strokeWidth={1.6} />
 	);

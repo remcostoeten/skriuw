@@ -33,6 +33,7 @@ import {
 	type Note,
 	type NoteSummary,
 	type SearchResult,
+	type TrashBatch,
 	type UpdateFolderInput,
 	type UpdateJournalEntryInput,
 	type UpdateNoteInput,
@@ -152,6 +153,28 @@ class HttpWorkspaceBackend implements WorkspaceBackend {
 
 	search(query: string): Promise<SearchResult[]> {
 		return this.request<SearchResult[]>(`/search?q=${encodeURIComponent(query)}`);
+	}
+
+	// --- Trash ----------------------------------------------------------------
+
+	listTrash(): Promise<TrashBatch[]> {
+		return this.request<TrashBatch[]>("/trash");
+	}
+
+	restoreTrash(batchId: string): Promise<void> {
+		return this.request<void>(`/trash/${encodeURIComponent(batchId)}`, {
+			method: "PATCH",
+		});
+	}
+
+	purgeTrash(batchId: string): Promise<void> {
+		return this.request<void>(`/trash/${encodeURIComponent(batchId)}`, {
+			method: "DELETE",
+		});
+	}
+
+	emptyTrash(): Promise<void> {
+		return this.request<void>("/trash", { method: "DELETE" });
 	}
 
 	listJournalEntries(): Promise<JournalEntry[]> {

@@ -26,12 +26,10 @@ import {
 import { LayoutContainer } from "./layout-container";
 import { IconRailSkeleton } from "./icon-rail-skeleton";
 import { cn } from "@/shared/lib/utils";
-import { DESKTOP_SIDEBAR_MIN_WIDTH } from "@/features/notes/constants";
-import {
-	DetailsPanelSkeleton,
-	EditorContentSkeleton,
-} from "@/features/editor/components/editor-content-skeleton";
+import { DESKTOP_METADATA_MIN_WIDTH, DESKTOP_SIDEBAR_MIN_WIDTH } from "@/features/notes/constants";
+import { EditorContentSkeleton } from "@/features/editor/components/editor-content-skeleton";
 import { JournalContentSkeleton } from "@/features/journal/components/journal-content-skeleton";
+import { NotesMetadataPlaceholder } from "@/features/notes/components/metadata-placeholder";
 import { NotesSidebarSkeleton } from "@/features/notes/components/sidebar/notes-sidebar-skeleton";
 
 type WorkspaceLoadingVariant = "notes" | "journal";
@@ -292,7 +290,7 @@ function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadingVarian
 
 	return (
 		<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-card">
-			<MobileTopBar variant="notes" title="Loading note data" />
+			<MobileTopBar variant="notes" title="Notes" />
 			<div className="flex min-h-0 flex-1 overflow-hidden md:hidden">
 				<div className="flex min-h-full flex-1 flex-col overflow-y-auto bg-card">
 					<EditorContentSkeleton />
@@ -310,9 +308,7 @@ function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadingVarian
 				</StaticIconButton>
 
 				<div className="ml-2 flex min-w-0 flex-1 items-center gap-1.5 text-sm">
-					<span className="truncate font-medium text-muted-foreground/50">
-						Loading note data
-					</span>
+					<span className="truncate font-medium text-muted-foreground/50">Notes</span>
 				</div>
 
 				<div className="flex shrink-0 items-center gap-1">
@@ -343,9 +339,12 @@ function WorkspaceContentSkeleton({ variant }: { variant: WorkspaceLoadingVarian
 						</div>
 					</div>
 				</div>
-				<div className="w-72 shrink-0 border-l border-border bg-background xl:w-80">
-					<DetailsPanelSkeleton />
-				</div>
+				<NotesMetadataPlaceholder
+					style={{
+						width: DESKTOP_METADATA_MIN_WIDTH,
+						minWidth: DESKTOP_METADATA_MIN_WIDTH,
+					}}
+				/>
 			</div>
 		</div>
 	);
@@ -470,12 +469,9 @@ function SettingsLoadingShell() {
 }
 
 export function WorkspaceLoadingShell({ variant }: { variant: WorkspaceLoadingVariant }) {
-	const activeHref = variant === "journal" ? "/app/journal" : "/app";
-
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<IconRailSkeleton activeHref={activeHref} />
 				<WorkspaceSidebarSkeleton variant={variant} />
 				<WorkspaceContentSkeleton variant={variant} />
 			</div>

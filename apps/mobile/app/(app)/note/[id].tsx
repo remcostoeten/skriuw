@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { useNote, useUpdateNote } from "@/query/notes";
 import { notesKeys } from "@/query/notes-keys";
 import { RichRenderer } from "@/renderer/RichRenderer";
@@ -11,6 +11,7 @@ import { richToMarkdown } from "@/domain/rich-to-markdown";
 import { ConflictError, type Note } from "@/backend/types";
 import { useTheme } from "@/theme/theme-provider";
 import { fonts } from "@/theme/fonts";
+import { ContentLoading, ErrorState } from "@/components/AsyncState";
 
 export default function NoteScreen() {
 	const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
@@ -18,7 +19,8 @@ export default function NoteScreen() {
 	const navigation = useNavigation();
 	const { theme } = useTheme();
 	const qc = useQueryClient();
-	const { data: note, isLoading, isError } = useNote(id);
+	const noteQuery = useNote(id);
+	const { data: note, isLoading, isError } = noteQuery;
 	const updateNote = useUpdateNote();
 
 	const [mode, setMode] = useState<"view" | "edit">(edit === "1" ? "edit" : "view");
@@ -142,18 +144,16 @@ export default function NoteScreen() {
 	}, [navigation, mode, note, beginEdit, handleSave, handleCancel, updateNote.isPending]);
 
 	if (isLoading) {
-		return (
-			<Centered>
-				<ActivityIndicator color={theme.mutedForeground} />
-			</Centered>
-		);
+		return <ContentLoading variant="document" label="Opening your note" />;
 	}
 
 	if (isError || !note) {
 		return (
-			<Centered>
-				<Text style={{ color: theme.mutedForeground }}>Note unavailable offline.</Text>
-			</Centered>
+			<ErrorState
+				title="This note isn't available yet"
+				description="It may not be stored on this device. Connect to the internet and try loading it again."
+				onRetry={() => noteQuery.refetch()}
+			/>
 		);
 	}
 
@@ -230,21 +230,5 @@ function HeaderButton({
 				{label}
 			</Text>
 		</Pressable>
-	);
-}
-
-function Centered({ children }: { children: React.ReactNode }) {
-	const { theme } = useTheme();
-	return (
-		<View
-			style={{
-				flex: 1,
-				alignItems: "center",
-				justifyContent: "center",
-				backgroundColor: theme.background,
-			}}
-		>
-			{children}
-		</View>
 	);
 }

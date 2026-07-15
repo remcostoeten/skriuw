@@ -38,7 +38,7 @@ export const MOBILE_CAPABILITIES: Capabilities = {
 	collaboration: false,
 	notifications: false,
 	ai: false,
-	trash: false,
+	trash: true,
 	history: false,
 	coverUpload: false,
 };
@@ -99,6 +99,17 @@ export type SearchResult = {
 	snippet: string;
 };
 
+/** One restorable unit in the trash: a single note, or a deleted folder subtree
+ *  plus everything inside it. Mirrors web's TrashBatch with wire-format dates. */
+export type TrashBatch = {
+	id: string;
+	deletedAt: string;
+	kind: "note" | "folder";
+	primary: { id: string; name: string };
+	noteCount: number;
+	folderCount: number;
+};
+
 export type CreateNoteInput = {
 	title: string;
 	content?: string;
@@ -137,6 +148,12 @@ export interface WorkspaceBackend {
 
 	// Search
 	search(query: string): Promise<SearchResult[]>;
+
+	// Trash (capability: trash)
+	listTrash(): Promise<TrashBatch[]>;
+	restoreTrash(batchId: string): Promise<void>;
+	purgeTrash(batchId: string): Promise<void>;
+	emptyTrash(): Promise<void>;
 
 	// Journal
 	listJournalEntries(): Promise<JournalEntry[]>;

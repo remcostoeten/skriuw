@@ -10,7 +10,7 @@
 		"resolveJsonModule": true,
 		"isolatedModules": true,
 		"noEmit": true,
-		"baseUrl": ".",
+		"types": ["node", "bun"],
 		"paths": {
 			"@/*": ["./apps/web/src/*"]
 		}

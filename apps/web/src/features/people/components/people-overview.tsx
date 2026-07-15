@@ -5,7 +5,6 @@ import Link from "next/link";
 import { MoreHorizontal, Pencil, Trash2, Merge, Users } from "lucide-react";
 import type { Person } from "@/domain/people/models";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
-import { IconRail } from "@/features/layout/components/icon-rail";
 import { NotesEmptyState } from "@/features/notes/components/notes-empty-state";
 import { ColorSwatchPicker } from "@/features/tags/components/color-swatch-picker";
 import { Button } from "@/shared/ui/button";
@@ -71,7 +70,6 @@ export function PeopleOverview() {
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<IconRail />
 				<div className="mx-auto flex h-full w-full max-w-3xl flex-col">
 					<header className="border-b border-border px-6 py-5">
 						<h1 className="text-base font-semibold text-foreground">People</h1>

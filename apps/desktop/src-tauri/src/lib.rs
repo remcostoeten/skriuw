@@ -438,6 +438,18 @@ fn read_cover_image(vault: State<'_, VaultStore>, relative: String) -> Result<Ve
 }
 
 #[tauri::command]
+fn list_cover_images(
+    vault: State<'_, VaultStore>,
+) -> Result<Vec<crate::vault::CoverImageEntry>, String> {
+    vault.list_cover_images().map_err(vault_err)
+}
+
+#[tauri::command]
+fn delete_cover_image(vault: State<'_, VaultStore>, relative: String) -> Result<(), String> {
+    vault.delete_cover_image(&relative).map_err(vault_err)
+}
+
+#[tauri::command]
 fn list_journal_entries(storage: State<'_, Storage>) -> Result<Vec<JournalEntry>, String> {
     storage.list_journal_entries().map_err(stringify)
 }
@@ -1514,6 +1526,8 @@ pub fn run() {
             empty_trash,
             save_cover_image,
             read_cover_image,
+            list_cover_images,
+            delete_cover_image,
             get_cover_assets_root,
             choose_cover_assets_root,
             reset_cover_assets_root,

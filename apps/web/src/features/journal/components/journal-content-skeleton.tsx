@@ -144,7 +144,7 @@ function JournalDesktopToolbarSkeleton({
 	);
 }
 
-const JOURNAL_LIST_TAB_LABELS = ["All", "Daily", "Tagged", "Mood"];
+const JOURNAL_LIST_TAB_LABELS = ["All", "Daily", "Mood"];
 
 function JournalListTabsSkeleton() {
 	return (

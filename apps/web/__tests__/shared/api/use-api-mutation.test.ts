@@ -109,10 +109,10 @@ describe("useApiMutation optimistic updates", () => {
 		useApiMutation(async () => ({ ok: true }), {
 			optimistic: {
 				updates: [
-					{ queryKey: ["items"], updater: (current) => current },
+					{ queryKey: ["items"], updater: (current: unknown) => current },
 					{
 						queryKey: (input: { id: string }) => ["items", input.id],
-						updater: (current) => current,
+						updater: (current: unknown) => current,
 					},
 				],
 			},

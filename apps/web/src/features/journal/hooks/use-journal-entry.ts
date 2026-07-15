@@ -9,21 +9,12 @@ import {
 	useJournalEntries,
 	useUpdateJournalEntry,
 } from "./use-journal-entries";
-import { useCreateJournalTag, useJournalTags } from "./use-journal-tags";
 import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import type { RichTextDocument } from "@/domain/notes/models";
-import { TAG_COLORS, type JournalEntry, type MoodLevel } from "../types";
+import { type JournalEntry, type MoodLevel } from "../types";
 
 const CONTENT_SAVE_DEBOUNCE_MS = 650;
 const SAVED_BADGE_DURATION_MS = 1600;
-
-function normalizeTagName(tagName: string): string {
-	return tagName.trim().toLowerCase();
-}
-
-function uniqueTags(tagNames: string[]): string[] {
-	return [...new Set(tagNames.map(normalizeTagName))];
-}
 
 export function isCurrentJournalDraftAcknowledgement(
 	activeDateKey: string,
@@ -40,23 +31,18 @@ export type JournalEntryController = {
 	richContent: RichTextDocument | undefined;
 	setRichContent: (next: { markdown: string; richContent: RichTextDocument }) => void;
 	entry: JournalEntry | undefined;
-	tags: ReturnType<typeof useJournalTags>["data"];
 	wordCount: number;
 	saveState: SaveStatus;
 	handleMoodSelect: (mood: MoodLevel) => void;
-	handleAddTag: (tagName: string, color?: string) => void;
-	handleRemoveTag: (tagName: string) => void;
 	handleDeleteEntry: () => void;
 };
 
 export function useJournalEntry(selectedDate: Date): JournalEntryController {
 	const dateKey = format(selectedDate, "yyyy-MM-dd");
 	const { data: entries = [] } = useJournalEntries();
-	const tagsQuery = useJournalTags();
 	const createEntryMutation = useCreateJournalEntry();
 	const updateEntryMutation = useUpdateJournalEntry();
 	const deleteEntryMutation = useDeleteJournalEntry();
-	const createTagMutation = useCreateJournalTag();
 
 	const entry = useMemo(
 		() => entries.find((item) => item.dateKey === dateKey),
@@ -128,28 +114,10 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 		[clearPendingSave, clearSaveStatusReset],
 	);
 
-	const ensureTag = useCallback(
-		async (tagName: string, color?: string) => {
-			const normalizedTag = normalizeTagName(tagName);
-			const existingTag = (tagsQuery.data ?? []).find((tag) => tag.name === normalizedTag);
-
-			if (!existingTag) {
-				await createTagMutation.mutateAsync({
-					name: normalizedTag,
-					color: color ?? TAG_COLORS[0],
-				});
-			}
-
-			return normalizedTag;
-		},
-		[createTagMutation, tagsQuery.data],
-	);
-
 	const persistEntry = useCallback(
 		(draft: {
 			content: string;
 			richContent?: RichTextDocument | null;
-			tags?: string[];
 			mood?: MoodLevel | null;
 			revision?: number;
 		}) => {
@@ -162,7 +130,6 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 					console.error("[persistJournalEntry] Previous persist failed:", err);
 				})
 				.then(async () => {
-					const nextTags = uniqueTags(draft.tags ?? currentEntry?.tags ?? []);
 					const nextMood =
 						draft.mood === undefined
 							? (currentEntry?.mood ?? undefined)
@@ -170,7 +137,6 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 					const shouldPersist =
 						Boolean(currentEntry) ||
 						draft.content.trim().length > 0 ||
-						nextTags.length > 0 ||
 						nextMood !== null;
 
 					if (!shouldPersist) {
@@ -195,10 +161,10 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 							await updateEntryMutation.mutateAsync({
 								id: currentEntry.id,
 								content: draft.content,
+								tags: [],
 								...(draft.richContent !== undefined && {
 									richContent: draft.richContent,
 								}),
-								tags: nextTags,
 								mood: nextMood,
 							});
 						} else {
@@ -209,10 +175,10 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 								id: optimisticId,
 								dateKey,
 								content: draft.content,
+								tags: [],
 								...(draft.richContent !== undefined && {
 									richContent: draft.richContent,
 								}),
-								tags: nextTags,
 								mood: nextMood ?? undefined,
 							});
 						}
@@ -303,31 +269,6 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 		[clearPendingSave, content, entry?.mood, persistEntry],
 	);
 
-	const handleAddTag = useCallback(
-		(tagName: string, color?: string) => {
-			clearPendingSave();
-
-			void (async () => {
-				const normalizedTag = await ensureTag(tagName, color);
-				const nextTags = uniqueTags([...(entry?.tags ?? []), normalizedTag]);
-				await persistEntry({ content, tags: nextTags });
-			})();
-		},
-		[clearPendingSave, content, ensureTag, entry?.tags, persistEntry],
-	);
-
-	const handleRemoveTag = useCallback(
-		(tagName: string) => {
-			clearPendingSave();
-			const normalizedTag = normalizeTagName(tagName);
-			const nextTags = (entry?.tags ?? []).filter(
-				(currentTag) => currentTag !== normalizedTag,
-			);
-			void persistEntry({ content, tags: nextTags });
-		},
-		[clearPendingSave, content, entry?.tags, persistEntry],
-	);
-
 	const handleDeleteEntry = useCallback(() => {
 		clearPendingSave();
 		clearSaveStatusReset();
@@ -368,12 +309,9 @@ export function useJournalEntry(selectedDate: Date): JournalEntryController {
 		richContent,
 		setRichContent: handleRichContentChange,
 		entry,
-		tags: tagsQuery.data,
 		wordCount,
 		saveState,
 		handleMoodSelect,
-		handleAddTag,
-		handleRemoveTag,
 		handleDeleteEntry,
 	};
 }

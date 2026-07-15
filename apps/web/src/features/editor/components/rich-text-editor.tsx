@@ -47,7 +47,7 @@ import { usePreferencesStore } from "@/features/settings/store";
 import { markCollabActivity } from "@/features/collaboration/lib/collab-activity";
 import { useAnchoredMarks } from "@/features/collaboration/anchored-marks/react/use-anchored-marks";
 import type { VimMode } from "@/features/editor/lib/vim-plugin";
-import { useEditorDom } from "@/features/editor/lib/editor-instance";
+import { useEditorDom, type EditorInstance } from "@/features/editor/lib/editor-instance";
 import { blocksToMarkdown } from "@/features/editor/lib/editor-serialization";
 import {
 	getCustomSlashMenuItems,
@@ -107,6 +107,7 @@ type RichTextEditorProps = {
 	onIconChange?: (icon: string) => void;
 	onCoverChange?: (cover: string) => void;
 	onEditorReady?: (handle: AiEditorHandle) => void;
+	onBlockEditorReady?: (editor: EditorInstance | null) => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
 	onAiAction?: (action: AiAction) => void;
@@ -145,6 +146,7 @@ function RichTextEditorImpl({
 	onIconChange,
 	onCoverChange,
 	onEditorReady,
+	onBlockEditorReady,
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onAiAction,
@@ -222,6 +224,10 @@ function RichTextEditorImpl({
 					initialContent: initialBlocks,
 				},
 	);
+	useEffect(() => {
+		onBlockEditorReady?.(editor);
+		return () => onBlockEditorReady?.(null);
+	}, [editor, onBlockEditorReady]);
 	// Only syncs checklist items already promoted to a task (block.props.taskId
 	// set via the checklist item's "Convert to task" action). Promotion itself
 	// is opt-in — every checkbox in a note is not a task by default.
@@ -423,8 +429,7 @@ function RichTextEditorImpl({
 			return;
 		}
 
-		// biome-ignore lint/suspicious/noExplicitAny: schema-flexible blocks
-		const nextRichContent = cloneRichDocument(editor.document as any);
+		const nextRichContent = cloneRichDocument(editor.document);
 		const nextRichContentKey = richDocumentKey(nextRichContent);
 
 		pendingMarkdownRef.current = markdown;

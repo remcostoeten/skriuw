@@ -34,8 +34,21 @@ import {
 	folderFromCreateInput,
 	noteFromCreateInput,
 } from "./note-builders";
-import type { NoteSearchHit, TaggedNoteSummary, TrashBatch, WorkspaceBackend } from "./types";
+import type {
+	CoverImage,
+	NoteSearchHit,
+	TaggedNoteSummary,
+	TrashBatch,
+	WorkspaceBackend,
+} from "./types";
 import { createWriteQueue } from "./write-queue";
+
+/** The Rust `CoverImageEntry` wire shape — one stored cover image. */
+type RustCoverImage = {
+	fileName: string;
+	size: number;
+	modifiedMs: number;
+};
 
 /** The Rust `TrashRecord` wire shape — one soft-deleted note or folder. */
 type RustTrashRecord = {
@@ -713,6 +726,27 @@ export function createTauriBackend(): WorkspaceBackend {
 				bytes,
 			});
 			return `vault-asset:${relative}`;
+		},
+
+		async listCoverImages() {
+			const rows = await invoke<RustCoverImage[]>("list_cover_images");
+			return rows.map((row) => `vault-asset:${row.fileName}`);
+		},
+
+		async listCoverImagesDetailed() {
+			const rows = await invoke<RustCoverImage[]>("list_cover_images");
+			return rows.map(
+				(row): CoverImage => ({
+					url: `vault-asset:${row.fileName}`,
+					pathname: row.fileName,
+					size: row.size,
+					uploadedAt: row.modifiedMs || undefined,
+				}),
+			);
+		},
+
+		async deleteCoverImage(image) {
+			await invoke("delete_cover_image", { relative: image.pathname });
 		},
 
 		async getNote(id) {
