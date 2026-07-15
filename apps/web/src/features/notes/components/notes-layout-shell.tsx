@@ -7,8 +7,6 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
-import { IconRail } from "@/features/layout/components/icon-rail";
-import { AuthDrawerHost } from "@/features/layout/components/auth-drawer-host-lazy";
 import { useFocusTrap } from "@/shared/hooks/use-focus-trap";
 import { WorkspaceLoadingShell } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
@@ -243,8 +241,6 @@ export function NotesLayoutShell({
 					<ProductTour onToggleShortcutHelp={setShowShortcutHelp} />
 				)}
 				<div className="relative flex min-h-0 flex-1 overflow-hidden">
-					{isMobile ? <AuthDrawerHost /> : <IconRail />}
-
 					{/* The chrome below (sidebar frame, toolbar, status bar) is static —
 				    it renders unconditionally on the first paint. Only the data
 				    regions inside it (file tree, document body, metadata) swap to

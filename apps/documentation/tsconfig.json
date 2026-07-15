@@ -18,6 +18,8 @@
 				"name": "next"
 			}
 		],
+		"types": ["node", "react", "react-dom"],
+		"noUncheckedSideEffectImports": false,
 		"paths": {
 			"@/*": ["./*"],
 			"collections/*": ["./.source/*"]

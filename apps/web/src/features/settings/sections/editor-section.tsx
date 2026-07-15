@@ -140,6 +140,16 @@ export function EditorSection() {
 						onCheckedChange={(v) => update("detectTagsInText", v)}
 					/>
 				</Row>
+				<Row
+					focusId="detect-marks-in-text"
+					title="Highlight amounts, dates & status as you type"
+					description="Automatically highlight living information — amounts like €1,250, dates like 18 September, counts, and status words — as you write. Manual highlights from the toolbar are unaffected."
+				>
+					<Switch
+						checked={editor.detectMarksInText}
+						onCheckedChange={(v) => update("detectMarksInText", v)}
+					/>
+				</Row>
 			</SettingsCard>
 		</>
 	);

@@ -13,8 +13,8 @@
 		"isolatedModules": true,
 		"esModuleInterop": true,
 		"skipLibCheck": true,
-		"types": ["vite/client"],
-		"baseUrl": ".",
+		"types": ["vite/client", "react", "react-dom"],
+		"noUncheckedSideEffectImports": false,
 		"paths": {
 			"@/generated/*": ["../../apps/web/generated/*"],
 			"@/*": ["../../apps/web/src/*"]

@@ -6,9 +6,14 @@ import type { Person } from "@/domain/people/models";
 type PeopleContextValue = {
 	people: Person[];
 	byId: Map<string, Person>;
+	byName: Map<string, Person>;
 };
 
-const PeopleContext = createContext<PeopleContextValue>({ people: [], byId: new Map() });
+const PeopleContext = createContext<PeopleContextValue>({
+	people: [],
+	byId: new Map(),
+	byName: new Map(),
+});
 
 type PeopleProviderProps = {
 	people: Person[];
@@ -17,7 +22,11 @@ type PeopleProviderProps = {
 
 export function PeopleProvider({ people, children }: PeopleProviderProps) {
 	const value = useMemo<PeopleContextValue>(
-		() => ({ people, byId: new Map(people.map((person) => [person.id, person])) }),
+		() => ({
+			people,
+			byId: new Map(people.map((person) => [person.id, person])),
+			byName: new Map(people.map((person) => [person.name.trim().toLowerCase(), person])),
+		}),
 		[people],
 	);
 	return <PeopleContext.Provider value={value}>{children}</PeopleContext.Provider>;

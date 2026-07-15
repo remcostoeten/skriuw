@@ -36,8 +36,13 @@ export function GuestWorkspaceBootstrap() {
 			const merged = await mergeSeedWithGuestWorkspace(seedNotes, seedFolders);
 			if (cancelled) return;
 
-			queryClient.setQueryData(filesKey, merged.notes);
-			queryClient.setQueryData(foldersKey, merged.folders);
+			// The merge helpers return the hydrated arrays unchanged when the guest
+			// has no local edits. Avoiding a no-op cache write preserves dataUpdatedAt,
+			// which is also the revision used by derived guest queries such as graph.
+			if (merged.notes !== seedNotes) queryClient.setQueryData(filesKey, merged.notes);
+			if (merged.folders !== seedFolders) {
+				queryClient.setQueryData(foldersKey, merged.folders);
+			}
 
 			for (const note of merged.notes) {
 				if (seedMetadataNotes.has(note)) continue;

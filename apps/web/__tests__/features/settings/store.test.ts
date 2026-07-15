@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { createStore } from "zustand/vanilla";
+import { createStore, type StateCreator } from "zustand/vanilla";
 import { MemoryStorage } from "../../lib/memory-storage";
 import { installMockLocalStorage } from "../../lib/mock-globals";
 
@@ -14,7 +14,7 @@ async function flushMicrotasks() {
 
 async function loadStoreModule() {
 	mock.module("zustand", () => {
-		const createBoundStore = (creator: Parameters<typeof createStore>[0]) => {
+		const createBoundStore = (creator: StateCreator<unknown>) => {
 			const store = createStore(creator);
 			const useBoundStore = (selector?: (state: unknown) => unknown) =>
 				selector ? selector(store.getState()) : store.getState();
@@ -22,7 +22,7 @@ async function loadStoreModule() {
 		};
 
 		return {
-			create: (creator?: Parameters<typeof createStore>[0]) =>
+			create: (creator?: StateCreator<unknown>) =>
 				creator ? createBoundStore(creator) : createBoundStore,
 		};
 	});

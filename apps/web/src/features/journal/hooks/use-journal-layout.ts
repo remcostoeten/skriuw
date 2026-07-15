@@ -19,7 +19,6 @@ import { openSettings } from "@/features/settings/use-settings-modal";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
 import type { ShortcutHelpGroup } from "@/shared/ui/shortcut-help-dialog";
 import { useJournalEntries } from "./use-journal-entries";
-import { useJournalTags } from "./use-journal-tags";
 
 export type JournalView = "list" | "editor";
 export type JournalEditorMode = "plain" | "rich";
@@ -73,7 +72,6 @@ export function useJournalLayout(): UseJournalLayoutResult {
 	} = useCommandRegistry();
 
 	const entriesQuery = useJournalEntries();
-	const tagsQuery = useJournalTags();
 	const dateParam = searchParams.get("date");
 	const ui = useNotesStore((state) => state.ui);
 	const setUIState = useNotesStore((state) => state.setUIState);
@@ -84,7 +82,7 @@ export function useJournalLayout(): UseJournalLayoutResult {
 	const [view, setView] = useState<JournalView>("list");
 	const prefersReducedMotion = Boolean(useReducedMotion());
 	const { isMobile, sidebarWidth } = ui;
-	const isHydrated = entriesQuery.isSuccess && tagsQuery.isSuccess;
+	const isHydrated = entriesQuery.isSuccess;
 
 	useEffect(() => {
 		const requestedDate = parseDateParam(dateParam);

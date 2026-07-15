@@ -28,16 +28,18 @@ import {
 	type LucideIcon,
 } from "lucide-react";
 
-import { EyeIcon } from "@/shared/icons/eye";
 import { SprayCanIcon } from "@/shared/icons/spray-can";
 import { PenIcon } from "@/shared/icons/pen";
-import { SparklesIcon } from "@/shared/icons/sparkles";
-import { CloudIcon } from "@/shared/icons/cloud";
 import { FlaskConicalIcon } from "@/shared/icons/flask-conical";
 import { KeyboardIcon } from "@/shared/icons/keyboard";
-import { ShieldIcon } from "@/shared/icons/shield";
 import { TagIcon } from "@/shared/icons/tag";
 import { UserIcon } from "@/shared/icons/user";
+import {
+	EyeIcon as AnimatedEyeIcon,
+	SparklesIcon as AnimatedSparklesIcon,
+	ShieldCheckIcon as AnimatedShieldIcon,
+	CloudUploadIcon as AnimatedCloudIcon,
+} from "@animateicons/react/lucide";
 import type { AnimatedIconHandle } from "@/shared/icons/types";
 
 import { usePreferencesStore } from "@/features/settings/store";
@@ -120,7 +122,7 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 		id: "security",
 		label: "Security",
 		icon: Shield,
-		animatedIcon: ShieldIcon,
+		animatedIcon: AnimatedShieldIcon,
 		description: "Password and sessions",
 		group: "Account",
 		keywords:
@@ -130,7 +132,7 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 		id: "privacy",
 		label: "Privacy",
 		icon: Eye,
-		animatedIcon: EyeIcon,
+		animatedIcon: AnimatedEyeIcon,
 		description: "Analytics and data use",
 		group: "Account",
 		keywords:
@@ -187,7 +189,7 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 		id: "ai",
 		label: "AI",
 		icon: Sparkles,
-		animatedIcon: SparklesIcon,
+		animatedIcon: AnimatedSparklesIcon,
 		description: "Providers and keys",
 		group: "Intelligence",
 		keywords:
@@ -197,7 +199,7 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 		id: "data",
 		label: "Data & sync",
 		icon: Database,
-		animatedIcon: CloudIcon,
+		animatedIcon: AnimatedCloudIcon,
 		description: "Export and backup",
 		group: "Advanced",
 		keywords:

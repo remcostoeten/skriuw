@@ -115,6 +115,8 @@ export type CoverImage = {
 	url: string;
 	pathname: string;
 	size: number;
+	/** Epoch millis of upload (or last modification), when the store exposes it. */
+	uploadedAt?: number;
 };
 
 export type WorkspaceBackend = {
