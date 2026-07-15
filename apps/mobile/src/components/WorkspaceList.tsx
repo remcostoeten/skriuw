@@ -4,7 +4,7 @@
 // (folder/[folderId].tsx) — the only difference is the `folderId` it browses.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
-import { ActivityIndicator, Alert, Pressable, RefreshControl, Text, View } from "react-native";
+import { Alert, Pressable, RefreshControl, Text, View } from "react-native";
 import DraggableFlatList, {
 	ScaleDecorator,
 	type RenderItemParams,
@@ -36,6 +36,7 @@ import { ActionSheet, type SheetAction } from "@/components/ActionSheet";
 import { FolderPickerModal } from "@/components/FolderPickerModal";
 import { TextPromptModal } from "@/components/TextPromptModal";
 import { useTheme } from "@/theme/theme-provider";
+import { ContentLoading, ErrorState } from "@/components/AsyncState";
 
 type Row =
 	| { kind: "folder"; id: string; sortOrder: number; folder: Folder }
@@ -56,7 +57,8 @@ export function WorkspaceList({ folderId }: { folderId: string | null }) {
 		refetch,
 		isRefetching,
 	} = useNotes(folderId);
-	const { data: folders, isLoading: foldersLoading } = useFolders();
+	const foldersQuery = useFolders();
+	const { data: folders, isLoading: foldersLoading } = foldersQuery;
 
 	const deleteNote = useDeleteNote();
 	const deleteFolder = useDeleteFolder();
@@ -197,21 +199,19 @@ export function WorkspaceList({ folderId }: { folderId: string | null }) {
 	}, [menuTarget, confirmDelete]);
 
 	if ((notesLoading || foldersLoading) && rows.length === 0) {
-		return (
-			<Centered>
-				<ActivityIndicator color={theme.mutedForeground} />
-			</Centered>
-		);
+		return <ContentLoading variant="list" label="Arranging your workspace" />;
 	}
 
-	if (isError) {
+	if (isError || foldersQuery.isError) {
 		return (
-			<Centered>
-				<Text style={{ color: theme.mutedForeground }}>Could not load notes.</Text>
-				<Pressable onPress={() => refetch()} style={{ marginTop: 12 }}>
-					<Text style={{ color: theme.foreground }}>Retry</Text>
-				</Pressable>
-			</Centered>
+			<ErrorState
+				title="Your workspace didn't open"
+				description="Your notes are safe. Reconnect and we'll pick up where you left off."
+				onRetry={() => {
+					void refetch();
+					void foldersQuery.refetch();
+				}}
+			/>
 		);
 	}
 
@@ -328,7 +328,7 @@ function WorkspaceRow({
 			onPress={onOpen}
 			onLongPress={onLongPress}
 			delayLongPress={200}
-			style={{
+			style={({ pressed }) => ({
 				flexDirection: "row",
 				alignItems: "center",
 				gap: 10,
@@ -336,8 +336,9 @@ function WorkspaceRow({
 				paddingVertical: 11,
 				borderBottomWidth: 1,
 				borderBottomColor: theme.divider,
-				backgroundColor: isActive ? theme.bgActive : theme.background,
-			}}
+				backgroundColor: isActive || pressed ? theme.bgActive : theme.background,
+				transform: [{ scale: pressed && !isActive ? 0.995 : 1 }],
+			})}
 		>
 			{isFolder ? (
 				<FolderIcon size={20} color={theme.mutedForeground} strokeWidth={2} />

@@ -8,7 +8,6 @@ import { useAuth } from "@/core/auth/use-auth";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { recordGuestGraphExplore } from "@/core/workspace-backend";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
-import { IconRail } from "@/features/layout/components/icon-rail";
 import {
 	graphNodeKey,
 	type GraphData,
@@ -650,7 +649,6 @@ export function WorkspaceGraph() {
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
-				<IconRail />
 				<div className="relative min-w-0 flex-1">
 					{query.isPending ? (
 						<div className="flex h-full items-center justify-center text-sm text-muted-foreground">

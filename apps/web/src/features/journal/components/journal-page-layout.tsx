@@ -17,8 +17,6 @@ import { AnimatePresence, domAnimation, LazyMotion, m } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/shared/lib/utils";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
-import { IconRail } from "@/features/layout/components/icon-rail";
-import { AuthDrawerHost } from "@/features/layout/components/auth-drawer-host-lazy";
 import { WorkspaceSidebarSkeleton } from "@/features/layout/components/app-loading-shell";
 import { isDevEnv, useDevToolsStore } from "@/features/dev-tools/store";
 import {
@@ -333,7 +331,6 @@ export function JournalPageLayout() {
 		return (
 			<LayoutContainer className="bg-background">
 				<div className="relative flex min-h-0 flex-1 overflow-hidden">
-					{isMobile ? <AuthDrawerHost /> : <IconRail />}
 					<JournalSidebarPlaceholder />
 					<JournalContentPlaceholder view={loadingView} />
 				</div>
@@ -342,77 +339,74 @@ export function JournalPageLayout() {
 	}
 
 	return (
-		<LazyMotion features={domAnimation} strict>
-			<LayoutContainer className="bg-background">
-				<div className="relative flex min-h-0 flex-1 overflow-hidden">
-					{/* Icon rail (desktop) */}
-					{isMobile ? <AuthDrawerHost /> : <IconRail />}
+		<LayoutContainer className="bg-background">
+			<div className="relative flex min-h-0 flex-1 overflow-hidden">
+				{/* Sidebar (desktop) */}
+				{isHydrated && !isMobile && showSidebar ? (
+					<div className="relative shrink-0" style={{ width: sidebarWidth }}>
+						<JournalSidebar
+							selectedDate={selectedDate}
+							onSelectDate={handleSelectDate}
+						/>
+					</div>
+				) : !isMobile ? (
+					<JournalSidebarPlaceholder />
+				) : null}
 
-					{/* Sidebar (desktop) */}
-					{isHydrated && !isMobile && showSidebar ? (
-						<div className="relative shrink-0" style={{ width: sidebarWidth }}>
-							<JournalSidebar
-								selectedDate={selectedDate}
-								onSelectDate={handleSelectDate}
+				{/* Main content area */}
+				{isHydrated ? (
+					<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-card">
+						{view === "list" ? (
+							<JournalDatabaseView
+								onSelectEntry={handleSelectEntry}
+								onNewEntry={handleNewEntry}
+								onToggleSidebar={handleToggleSidebar}
+								onGoToToday={handleGoToToday}
+								onGoToNotes={handleGoToNotes}
+								onOpenSettings={handleOpenSettings}
+								isMobile={isMobile}
 							/>
-						</div>
-					) : !isMobile ? (
-						<JournalSidebarPlaceholder />
-					) : null}
-
-					{/* Main content area */}
-					{isHydrated ? (
-						<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-card">
-							{view === "list" ? (
-								<JournalDatabaseView
-									onSelectEntry={handleSelectEntry}
-									onNewEntry={handleNewEntry}
-									onToggleSidebar={handleToggleSidebar}
-									onGoToToday={handleGoToToday}
-									onGoToNotes={handleGoToNotes}
-									onOpenSettings={handleOpenSettings}
+						) : (
+							<>
+								<JournalEditorToolbar
+									selectedDate={selectedDate}
+									editorMode={editorMode}
 									isMobile={isMobile}
+									onToggleSidebar={handleToggleSidebar}
+									onBackToList={handleBackToList}
+									onToggleEditorMode={handleToggleEditorMode}
+									onGoToToday={handleGoToToday}
+									onOpenSettings={handleOpenSettings}
+									aiLoading={journalAi.aiLoading}
+									onAiSpellCheck={() => journalAi.runAiAction("spellCheck")}
+									onAiContinueWriting={() =>
+										journalAi.runAiAction("continueWriting")
+									}
 								/>
-							) : (
-								<>
-									<JournalEditorToolbar
-										selectedDate={selectedDate}
-										editorMode={editorMode}
-										isMobile={isMobile}
-										onToggleSidebar={handleToggleSidebar}
-										onBackToList={handleBackToList}
-										onToggleEditorMode={handleToggleEditorMode}
-										onGoToToday={handleGoToToday}
-										onOpenSettings={handleOpenSettings}
-										aiLoading={journalAi.aiLoading}
-										onAiSpellCheck={() => journalAi.runAiAction("spellCheck")}
-										onAiContinueWriting={() =>
-											journalAi.runAiAction("continueWriting")
-										}
-									/>
 
-									<JournalEditor
-										selectedDate={selectedDate}
-										editorMode={editorMode}
-										entryState={journalEntry}
-										aiState={journalAi}
-										onToggleEditorMode={
-											isMobile ? undefined : handleToggleEditorMode
-										}
-										onGoToToday={handleGoToToday}
-										onBackToList={handleBackToList}
-									/>
-								</>
-							)}
-						</div>
-					) : (
-						<JournalContentPlaceholder view={loadingView} />
-					)}
-				</div>
+								<JournalEditor
+									selectedDate={selectedDate}
+									editorMode={editorMode}
+									entryState={journalEntry}
+									aiState={journalAi}
+									onToggleEditorMode={
+										isMobile ? undefined : handleToggleEditorMode
+									}
+									onGoToToday={handleGoToToday}
+									onBackToList={handleBackToList}
+								/>
+							</>
+						)}
+					</div>
+				) : (
+					<JournalContentPlaceholder view={loadingView} />
+				)}
+			</div>
 
-				{/* Mobile sidebar overlay */}
+			{/* Mobile sidebar overlay */}
+			<LazyMotion features={domAnimation} strict>
 				<AnimatePresence>
-					{isHydrated && isMobile && showSidebar && (
+					{isHydrated && isMobile && showSidebar ? (
 						<>
 							<m.button
 								key="journal-sidebar-backdrop"
@@ -450,16 +444,16 @@ export function JournalPageLayout() {
 								</m.div>
 							</div>
 						</>
-					)}
+					) : null}
 				</AnimatePresence>
+			</LazyMotion>
 
-				<ShortcutHelpDialog
-					open={showShortcutHelp}
-					onOpenChange={setShowShortcutHelp}
-					groups={shortcutGroups}
-					description="Global shortcuts for the journal."
-				/>
-			</LayoutContainer>
-		</LazyMotion>
+			<ShortcutHelpDialog
+				open={showShortcutHelp}
+				onOpenChange={setShowShortcutHelp}
+				groups={shortcutGroups}
+				description="Global shortcuts for the journal."
+			/>
+		</LayoutContainer>
 	);
 }

@@ -46,14 +46,14 @@ function installWindow(path: string) {
 		},
 	};
 
-	(globalThis as typeof globalThis & { window: FakeWindow }).window = fakeWindow;
+	Reflect.set(globalThis, "window", fakeWindow);
 	applyUrl(path);
 
 	return { calls, fakeWindow };
 }
 
 afterEach(() => {
-	delete (globalThis as typeof globalThis & { window?: FakeWindow }).window;
+	Reflect.deleteProperty(globalThis, "window");
 });
 
 describe("note URL sync helpers", () => {

@@ -761,6 +761,7 @@ function useInspectorData({
 		noteId: file?.id ?? null,
 		mode: effectiveEditorMode,
 		content: deferredFile?.content ?? "",
+		richContent: deferredFile?.richContent,
 	});
 
 	const outgoingLinks = useMemo(

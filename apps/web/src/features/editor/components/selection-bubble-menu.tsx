@@ -10,9 +10,12 @@ import {
 	Bold,
 	Code,
 	Italic,
+	ListTodo,
 	Strikethrough,
 	Underline,
 } from "lucide-react";
+import { useWorkspaceBackend } from "@/core/workspace-backend";
+import { useShortcutScope } from "@/core/shortcuts";
 import { noop } from "@/shared/lib/noop";
 import { shouldClearSelectionBubbleRect } from "@/features/editor/lib/selection-bubble";
 import {
@@ -27,6 +30,7 @@ import {
 	BlockTypeMenu,
 	CommentPopover,
 	FmtIconButton,
+	HighlightPopover,
 	InternalNoteLinkMenu,
 	LinkPopover,
 	useOpenFmtMenu,
@@ -212,6 +216,7 @@ export function SelectionBubbleMenu({
 	const focusRingRef = useRef<HTMLSpanElement>(null);
 	const visualViewport = useVisualViewportState();
 	const [toolbarHeight, setToolbarHeight] = useState(40);
+	const backend = useWorkspaceBackend();
 
 	// Slides a single highlight pill to sit behind whichever control holds focus.
 	const moveFocusRing = useCallback((target: EventTarget | null) => {
@@ -368,6 +373,18 @@ export function SelectionBubbleMenu({
 		},
 	});
 
+	useShortcutScope(
+		"formatting",
+		{
+			"formatting.bold": () => editor.toggleStyles({ bold: true }),
+			"formatting.italic": () => editor.toggleStyles({ italic: true }),
+			"formatting.underline": () => editor.toggleStyles({ underline: true }),
+			"formatting.strikethrough": () => editor.toggleStyles({ strike: true }),
+			"formatting.inlineCode": () => editor.toggleStyles({ code: true }),
+		},
+		{ active: rect !== null },
+	);
+
 	if (!rect) return null;
 
 	const mobileViewport = visualViewport?.isMobile ? visualViewport : null;
@@ -467,30 +484,35 @@ export function SelectionBubbleMenu({
 			<span className="skriuw-fmt-sep" />
 			<FmtIconButton
 				label="Bold"
+				shortcutId="formatting.bold"
 				active={state.bold}
 				icon={<Bold size={15} />}
 				onRun={() => editor.toggleStyles({ bold: true })}
 			/>
 			<FmtIconButton
 				label="Italic"
+				shortcutId="formatting.italic"
 				active={state.italic}
 				icon={<Italic size={15} />}
 				onRun={() => editor.toggleStyles({ italic: true })}
 			/>
 			<FmtIconButton
 				label="Underline"
+				shortcutId="formatting.underline"
 				active={state.underline}
 				icon={<Underline size={15} />}
 				onRun={() => editor.toggleStyles({ underline: true })}
 			/>
 			<FmtIconButton
 				label="Strikethrough"
+				shortcutId="formatting.strikethrough"
 				active={state.strike}
 				icon={<Strikethrough size={15} />}
 				onRun={() => editor.toggleStyles({ strike: true })}
 			/>
 			<FmtIconButton
 				label="Inline code"
+				shortcutId="formatting.inlineCode"
 				active={state.code}
 				icon={<Code size={15} />}
 				onRun={() => editor.toggleStyles({ code: true })}
@@ -514,6 +536,25 @@ export function SelectionBubbleMenu({
 				icon={<AlignRight size={15} />}
 				onRun={() => applyAlignment(editor, "right")}
 			/>
+			<span className="skriuw-fmt-sep" />
+			<HighlightPopover editor={editor} />
+			{backend.capabilities.tasks && backend.createTask ? (
+				<FmtIconButton
+					label="Create task from selection"
+					active={false}
+					icon={<ListTodo size={15} />}
+					onRun={() => {
+						const title = String(editor.getSelectedText?.() ?? "").trim();
+						if (!title) return;
+						const sourceBlockId = editor.getTextCursorPosition?.().block?.id;
+						void backend.createTask?.({
+							title,
+							sourceNoteId: activeFileId,
+							sourceBlockId,
+						});
+					}}
+				/>
+			) : null}
 			<span className="skriuw-fmt-sep" />
 			<LinkPopover editor={editor} />
 			<InternalNoteLinkMenu editor={editor} files={files} activeFileId={activeFileId} />

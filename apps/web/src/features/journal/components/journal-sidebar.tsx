@@ -24,7 +24,6 @@ import {
 	Plus,
 	CalendarDays,
 	Clock,
-	Tag,
 	Search,
 	X,
 	BarChart3,
@@ -53,7 +52,6 @@ import {
 	useUpdateJournalEntry,
 	useDeleteJournalEntry,
 } from "../hooks/use-journal-entries";
-import { useJournalTags } from "../hooks/use-journal-tags";
 
 function journalEntryTitle(entry: JournalEntry): string {
 	const title = entry.title?.trim();
@@ -99,7 +97,6 @@ const JOURNAL_TABS = [
 	{ id: "stats" as const, label: "Stats", icon: BarChart3 },
 	{ id: "search" as const, label: "Search", icon: Search },
 	{ id: "all" as const, label: "All entries", icon: Clock },
-	{ id: "tags" as const, label: "Tags", icon: Tag },
 ];
 
 type JournalSidebarProps = {
@@ -110,13 +107,12 @@ type JournalSidebarProps = {
 
 export function JournalSidebar({ selectedDate, onSelectDate, className }: JournalSidebarProps) {
 	const { data: entries = [] } = useJournalEntries();
-	const { data: allTags = [] } = useJournalTags();
 	const updateEntry = useUpdateJournalEntry();
 	const deleteEntry = useDeleteJournalEntry();
 
 	const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
 	const [jumpPopoverOpen, setJumpPopoverOpen] = useState(false);
-	const [view, setView] = useState<"calendar" | "stats" | "search" | "all" | "tags">("calendar");
+	const [view, setView] = useState<"calendar" | "stats" | "search" | "all">("calendar");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [renamingId, setRenamingId] = useState<string | null>(null);
 	const [renameDraft, setRenameDraft] = useState("");
@@ -124,7 +120,6 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 	const [icsExportOpen, setIcsExportOpen] = useState(false);
 	const deferredSearchQuery = useDeferredValue(searchQuery);
 	const selectedMood: MoodLevel | "all" = "all";
-	const selectedTag: string | "all" = "all";
 
 	const datesWithEntries = useMemo(() => entries.map((e) => e.dateKey), [entries]);
 	const entrySet = useMemo(() => new Set(datesWithEntries), [datesWithEntries]);
@@ -147,11 +142,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 		// Search filter
 		if (deferredSearchQuery.trim()) {
 			const query = deferredSearchQuery.toLowerCase();
-			filtered = filtered.filter(
-				(entry) =>
-					entry.content.toLowerCase().includes(query) ||
-					entry.tags.some((tag) => tag.toLowerCase().includes(query)),
-			);
+			filtered = filtered.filter((entry) => entry.content.toLowerCase().includes(query));
 		}
 
 		// Mood filter
@@ -159,28 +150,8 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 			filtered = filtered.filter((entry) => entry.mood === selectedMood);
 		}
 
-		// Tag filter
-		if (selectedTag !== "all") {
-			filtered = filtered.filter((entry) => entry.tags.includes(selectedTag));
-		}
-
 		return filtered.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
-	}, [entries, deferredSearchQuery, selectedMood, selectedTag]);
-
-	const entriesByTagName = useMemo(() => {
-		const tagMap = new Map<string, typeof entries>();
-		for (const entry of entries) {
-			for (const tagName of entry.tags) {
-				const existing = tagMap.get(tagName);
-				if (existing) {
-					existing.push(entry);
-				} else {
-					tagMap.set(tagName, [entry]);
-				}
-			}
-		}
-		return tagMap;
-	}, [entries]);
+	}, [entries, deferredSearchQuery, selectedMood]);
 
 	const entriesForMonth = useMemo(() => {
 		const prefix = format(currentMonth, "yyyy-MM");
@@ -658,64 +629,6 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 											</p>
 										</div>
 									</button>
-								);
-							})}
-						</div>
-					</div>
-				)}
-
-				{view === "tags" && (
-					<div className="p-3">
-						<div className="space-y-1">
-							{allTags.map((tag) => {
-								const tagEntries = entriesByTagName.get(tag.name) ?? [];
-								return (
-									<div
-										key={tag.id}
-										className="border border-transparent px-2.5 py-2 transition-colors hover:border-border hover:bg-muted"
-									>
-										<div className="flex items-center gap-2">
-											<span
-												className="h-2.5 w-2.5 shrink-0 rounded-full"
-												style={{ backgroundColor: tag.color }}
-											/>
-											<span className="text-[12px] font-medium text-foreground/80">
-												@{tag.name}
-											</span>
-										</div>
-										{tagEntries.length > 0 && (
-											<div className="mt-1.5 space-y-0.5 pl-[18px]">
-												{tagEntries.slice(0, 3).map((entry) => (
-													<button
-														type="button"
-														key={entry.id}
-														onClick={() => {
-															const [y, m, d] = entry.dateKey
-																.split("-")
-																.map(Number);
-															const date = new Date(y, m - 1, d);
-															setCurrentMonth(date);
-															onSelectDate(date);
-															setView("calendar");
-														}}
-														className="flex w-full items-center gap-1.5 border border-transparent px-1.5 py-1 text-left text-[11px] text-muted-foreground/60 transition-colors hover:border-border hover:bg-muted hover:text-muted-foreground"
-													>
-														<span>
-															{format(
-																new Date(
-																	entry.dateKey + "T00:00:00",
-																),
-																"dd MM yyyy",
-															)}
-														</span>
-														<span className="truncate">
-															{entry.content.slice(0, 30)}
-														</span>
-													</button>
-												))}
-											</div>
-										)}
-									</div>
 								);
 							})}
 						</div>

@@ -1,3 +1,4 @@
 .next/
 .source/
 node_modules/
+.vercel

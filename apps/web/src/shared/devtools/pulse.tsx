@@ -24,6 +24,7 @@ const MAX_COMPONENTS = 400;
 const MAX_NODES_PER_COMMIT = 300;
 const MAX_OVERLAY_ENTRIES = 60;
 const MAX_CAUSES = 6;
+const DEVTOOL_COMPONENTS = new Set(["Devtool", "PerfDevtools"]);
 
 function createStore() {
 	const components = new Map();
@@ -379,6 +380,10 @@ function collectTree(rootFiber) {
 
 		if (COMPONENT_TAGS.has(fiber.tag) && fiber.flags & PERFORMED_WORK) {
 			const name = fiberName(fiber);
+			// The probe updates its own panel from this store. Observing that update
+			// would schedule another store emission and create a self-sustaining
+			// render loop that also re-counts stale flags from the application tree.
+			if (name && DEVTOOL_COMPONENTS.has(name)) continue;
 			if (name) {
 				count += 1;
 				if (count > MAX_NODES_PER_COMMIT) {
@@ -546,7 +551,7 @@ function buildReport(snap, history) {
 		"You are an expert React performance engineer. Below is runtime telemetry captured from a live React app: FPS statistics, per-component render counts with wasted-render detection (renders where props were referentially identical, meaning memoization would have skipped them), render cause attribution (which state owner or context provider triggered each render), commit cascade trees showing parent→child render propagation, and main-thread long tasks.",
 		"",
 		`## Frame rate`,
-		`Average ${avg}fps, minimum ${min}fps over the last ~22 seconds. Budget target: 60fps (16.7ms/frame).`,
+		`Average ${avg}fps, minimum ${min}fps over the last ~60 seconds. Budget target: 60fps (16.7ms/frame).`,
 		"",
 		"## Components (sorted by wasted renders)",
 		...componentLines,
@@ -568,7 +573,7 @@ function buildReport(snap, history) {
 
 function useFps(onDrop, enabled) {
 	const [fps, setFps] = useState(60);
-	const historyRef = useRef(new Array(90).fill(60));
+	const historyRef = useRef(Array.from({ length: 60 }, () => 60));
 	const [, force] = useState(0);
 
 	useEffect(() => {
@@ -581,7 +586,9 @@ function useFps(onDrop, enabled) {
 
 		const loop = (now) => {
 			frames += 1;
-			if (now - last >= 250) {
+			// A one-second window reports sustained throughput instead of presenting
+			// one busy navigation or selection frame as if the app ran at 10fps.
+			if (now - last >= 1000) {
 				const current = Math.min(144, Math.round((frames * 1000) / (now - last)));
 				historyRef.current.push(current);
 				historyRef.current.shift();
@@ -796,7 +803,7 @@ const FpsGraph = memo(function FpsGraph({ history, fps }) {
 				<span className="dt-fps-big" style={{ color }}>
 					{fps}
 				</span>
-				<span className="dt-dim dt-xs">fps · last ~22s</span>
+				<span className="dt-dim dt-xs">fps · last ~60s</span>
 			</div>
 			<svg
 				viewBox={`0 0 ${width} ${height}`}

@@ -1,5 +1,7 @@
 import { useEffect, type RefObject } from "react";
 
+const WHITESPACE_PATTERN = /\s/;
+
 type CursorChange = (position: {
 	line: number;
 	column: number;
@@ -18,8 +20,9 @@ export function useSelectionReporter({ editorDom, wrapperRef, onCursorChange }: 
 		const root = wrapperRef.current ?? editorDom;
 		if (!root) return;
 
-		let animationFrame: number | null = null;
+		let reportTimeout: ReturnType<typeof setTimeout> | null = null;
 		let suppressUntil = 0;
+		const REPORT_DELAY_MS = 120;
 
 		const clearSelectionStatus = () => {
 			onCursorChange({ line: 1, column: 1 });
@@ -44,12 +47,18 @@ export function useSelectionReporter({ editorDom, wrapperRef, onCursorChange }: 
 				return;
 			}
 
-			const trimmed = selectedText.trim();
+			let words = 0;
+			let insideWord = false;
+			for (let index = 0; index < selectedText.length; index += 1) {
+				const isWhitespace = WHITESPACE_PATTERN.test(selectedText[index]);
+				if (!isWhitespace && !insideWord) words += 1;
+				insideWord = !isWhitespace;
+			}
 			onCursorChange({
 				line: 1,
 				column: 1,
 				selection: {
-					words: trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0,
+					words,
 					characters: selectedText.length,
 				},
 			});
@@ -71,35 +80,28 @@ export function useSelectionReporter({ editorDom, wrapperRef, onCursorChange }: 
 				return;
 			}
 
-			if (animationFrame !== null) {
-				window.cancelAnimationFrame(animationFrame);
+			if (reportTimeout !== null) {
+				clearTimeout(reportTimeout);
 			}
 
-			animationFrame = window.requestAnimationFrame(() => {
-				animationFrame = null;
+			// Selection painting is latency-sensitive and can already be expensive for
+			// a large ProseMirror document. Count only after drag-selection / Ctrl+A
+			// settles instead of scanning the selected text in the same frame.
+			reportTimeout = setTimeout(() => {
+				reportTimeout = null;
 				reportSelection();
-			});
+			}, REPORT_DELAY_MS);
 		};
 
 		document.addEventListener("selectionchange", queueSelectionReport);
-		document.addEventListener("pointerup", queueSelectionReport);
-		root.addEventListener("blur", queueSelectionReport, true);
-		root.addEventListener("focusout", queueSelectionReport);
-		root.addEventListener("keyup", queueSelectionReport);
 		root.addEventListener("pointerdown", queueSelectionReport);
-		root.addEventListener("pointerup", queueSelectionReport);
 		return () => {
-			if (animationFrame !== null) {
-				window.cancelAnimationFrame(animationFrame);
+			if (reportTimeout !== null) {
+				clearTimeout(reportTimeout);
 			}
 
 			document.removeEventListener("selectionchange", queueSelectionReport);
-			document.removeEventListener("pointerup", queueSelectionReport);
-			root.removeEventListener("blur", queueSelectionReport, true);
-			root.removeEventListener("focusout", queueSelectionReport);
-			root.removeEventListener("keyup", queueSelectionReport);
 			root.removeEventListener("pointerdown", queueSelectionReport);
-			root.removeEventListener("pointerup", queueSelectionReport);
 		};
 	}, [editorDom, wrapperRef, onCursorChange]);
 }

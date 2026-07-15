@@ -9,7 +9,7 @@ import { scaledStrokeWidth } from "./types";
 function PenIcon({
 	size = 24,
 	color = "currentColor",
-	strokeWidth = 2,
+	strokeWidth = 1.5,
 	className = "",
 	ref,
 }: AnimatedIconProps & { ref?: React.Ref<AnimatedIconHandle> }) {

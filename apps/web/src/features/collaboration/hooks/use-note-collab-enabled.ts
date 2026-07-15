@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getCollaboratorsAction } from "@/domain/collaboration/actions";
 import type { NoteAccessRole } from "@/domain/notes/models";
+import { shouldQueryNoteCollaborators } from "./should-query-note-collaborators";
 
 // Inlined at build time by Next for the client bundle. When unset, real-time
 // collaboration is fully disabled and the editor behaves exactly as before —
@@ -23,12 +24,16 @@ export function useNoteCollabEnabled(
 	// `access` undefined or "owner" means we're on the owner's read path; we only
 	// know it's shared by checking for collaborators. (Shares the React Query
 	// cache key used by the collaborators panel, so this is usually a cache hit.)
-	const ownerSide = !isCollaboratorViewer;
+	const shouldQueryCollaborators = shouldQueryNoteCollaborators(
+		noteId,
+		access,
+		Boolean(PARTYKIT_HOST),
+	);
 
 	const collaboratorsQuery = useQuery({
 		queryKey: ["collaborators", noteId ?? ""],
 		queryFn: () => getCollaboratorsAction(noteId as string),
-		enabled: Boolean(PARTYKIT_HOST) && Boolean(noteId) && ownerSide,
+		enabled: shouldQueryCollaborators,
 		staleTime: 5 * 60 * 1000,
 		retry: false,
 	});

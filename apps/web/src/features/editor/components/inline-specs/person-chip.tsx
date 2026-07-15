@@ -16,13 +16,14 @@ interface Props {
 }
 
 export function PersonChip({ id, cachedName }: Props) {
-	const { byId } = usePeopleContext();
+	const { byId, byName } = usePeopleContext();
 	const router = useRouter();
 
 	// The Person row is the source of truth: renaming it updates every
-	// Mention. Fall back to the cached name only when the row is missing
-	// (deleted person, or a guest/offline read with no people list).
-	const resolved = id ? byId.get(id) : undefined;
+	// Mention. Id-less chips (bare `$name` text upgraded on load) resolve by
+	// name; the cached name is the last fallback (deleted person, or a
+	// guest/offline read with no people list).
+	const resolved = id ? byId.get(id) : byName.get(cachedName.trim().toLowerCase());
 	const name = normalizeInlinePersonName(resolved?.name ?? cachedName);
 	const label = formatInlinePersonLabel(name);
 	const dot = resolved?.color ? NOTE_PROPERTY_COLORS[resolved.color].dot : undefined;
@@ -30,10 +31,11 @@ export function PersonChip({ id, cachedName }: Props) {
 	function handleClick(event: MouseEvent<HTMLButtonElement>) {
 		event.preventDefault();
 		event.stopPropagation();
-		if (!id) {
+		const targetId = id || resolved?.id;
+		if (!targetId) {
 			return;
 		}
-		router.push(`/app/people/${id}`);
+		router.push(`/app/people/${targetId}`);
 	}
 
 	return (

@@ -111,6 +111,21 @@ afterEach(() => {
 });
 
 describe("GuestWorkspaceBootstrap", () => {
+	test("preserves hydrated cache timestamps when the guest has no local edits", async () => {
+		const localScope = notesKeys.localScope();
+		store.set(keyStr(notesKeys.files(localScope)), [note("guest:a")]);
+		store.set(keyStr(notesKeys.folders(localScope)), []);
+
+		registerModuleMocks();
+		const { GuestWorkspaceBootstrap } = await import(
+			`@/providers/guest-workspace-bootstrap?unchanged=${Math.random().toString(36).slice(2)}`
+		);
+		renderComponent(GuestWorkspaceBootstrap);
+		await Promise.resolve();
+
+		expect(setCalls).toHaveLength(0);
+	});
+
 	test("merges seed data and only seeds detail cache for local guest overrides", async () => {
 		const seedA = note("guest:a");
 		const seedB = note("guest:b");
@@ -147,7 +162,7 @@ describe("GuestWorkspaceBootstrap", () => {
 		authSnapshot = {
 			...authSnapshot,
 			phase: "authenticated",
-			user: { id: "u", email: "", name: "", role: null },
+			user: { id: "u", email: "", name: "", role: null, username: null, avatarColor: null },
 		};
 		store.set(keyStr(notesKeys.files(notesKeys.localScope())), [note("guest:a")]);
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { richDocumentToSearchableMarkdown } from "@/domain/notes/rich-document";
+import type { RichTextDocument } from "@/types/notes";
 
 export type TOutlineHeading = {
 	key: string;
@@ -13,6 +15,7 @@ type Params = {
 	noteId: string | null | undefined;
 	mode: "raw" | "block";
 	content: string;
+	richContent?: RichTextDocument | null;
 };
 
 const HEADING_SELECTOR = '[data-content-type="heading"]';
@@ -93,7 +96,7 @@ function findHeadingElement(root: HTMLElement, heading: TOutlineHeading): HTMLEl
 	return candidates.find((node) => node.textContent?.trim() === heading.text) ?? null;
 }
 
-export function useDocumentOutline({ noteId, mode, content }: Params): {
+export function useDocumentOutline({ noteId, mode, content, richContent }: Params): {
 	headings: TOutlineHeading[];
 	activeKey: string | null;
 	scrollToHeading: (heading: TOutlineHeading) => void;
@@ -101,7 +104,15 @@ export function useDocumentOutline({ noteId, mode, content }: Params): {
 	const [domHeadings, setDomHeadings] = useState<TOutlineHeading[]>([]);
 	const [activeKey, setActiveKey] = useState<string | null>(null);
 
-	const markdownHeadings = useMemo(() => parseMarkdownHeadings(content), [content]);
+	// Block notes can keep their canonical text in `richContent` while the legacy
+	// markdown field is empty. Derive the first outline from the note payload so
+	// the inspector has its final geometry on the first paint; the DOM scan below
+	// then enriches the same rows with block ids once BlockNote mounts.
+	const outlineSource = useMemo(
+		() => (content.trim().length > 0 ? content : richDocumentToSearchableMarkdown(richContent)),
+		[content, richContent],
+	);
+	const markdownHeadings = useMemo(() => parseMarkdownHeadings(outlineSource), [outlineSource]);
 
 	useEffect(() => {
 		if (!noteId || mode !== "block") return;
@@ -141,7 +152,7 @@ export function useDocumentOutline({ noteId, mode, content }: Params): {
 		};
 	}, [noteId, mode]);
 
-	const headings = mode === "block" ? domHeadings : markdownHeadings;
+	const headings = mode === "block" && domHeadings.length > 0 ? domHeadings : markdownHeadings;
 	const isInactive = !noteId || mode !== "block" || headings.length === 0;
 
 	useEffect(() => {

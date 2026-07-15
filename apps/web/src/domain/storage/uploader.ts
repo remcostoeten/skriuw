@@ -8,7 +8,7 @@ import {
 import { del, list, put } from "@vercel/blob";
 import type { UserStorageProviderConfig } from "@/domain/storage/types";
 
-export type StorageImage = { url: string; pathname: string; size: number };
+export type StorageImage = { url: string; pathname: string; size: number; uploadedAt?: number };
 
 function s3Client(config: Extract<UserStorageProviderConfig, { provider: "s3" }>): S3Client {
 	return new S3Client({
@@ -86,9 +86,7 @@ export async function listUserStorageImagesDetailed(
 			);
 			cursor = page.hasMore ? page.cursor : undefined;
 		} while (cursor);
-		return images
-			.sort((left, right) => right.uploadedAt - left.uploadedAt)
-			.map(({ url, pathname, size }) => ({ url, pathname, size }));
+		return images.sort((left, right) => right.uploadedAt - left.uploadedAt);
 	}
 
 	const client = s3Client(config);
@@ -117,7 +115,12 @@ export async function listUserStorageImagesDetailed(
 
 	return images
 		.sort((left, right) => right.modifiedAt - left.modifiedAt)
-		.map(({ url, pathname, size }) => ({ url, pathname, size }));
+		.map(({ url, pathname, size, modifiedAt }) => ({
+			url,
+			pathname,
+			size,
+			uploadedAt: modifiedAt || undefined,
+		}));
 }
 
 /** Deletes a single object from the user's storage backend. */

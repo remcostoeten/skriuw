@@ -21,7 +21,7 @@ export default defineConfig({
 		video: "retain-on-failure",
 	},
 	webServer: {
-		command: `bun --bun next start --port ${PORT}`,
+		command: `bun --env-file=../../.env --bun next start --port ${PORT}`,
 		url: BASE_URL,
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000,

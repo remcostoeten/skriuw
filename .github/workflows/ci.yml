@@ -93,6 +93,9 @@ jobs:
                         body: coverage
                       });
 
+            - name: Typecheck
+              run: bun run typecheck
+
             - name: Lint
               run: bun run lint
 
@@ -108,3 +111,63 @@ jobs:
 
             - name: Documentation typecheck
               run: bun run --cwd apps/documentation typecheck
+
+    deploy-docs:
+        name: Deploy docs
+        needs: test
+        runs-on: ubuntu-latest
+        # Vercel builds remotely, so this only needs the repo + the CLI.
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # Needed so the path filter can diff against the base commit.
+                  fetch-depth: 0
+
+            - name: Check whether the docs changed
+              id: changed
+              run: |
+                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                      base="${{ github.event.pull_request.base.sha }}"
+                  else
+                      base="${{ github.event.before }}"
+                  fi
+                  # First push to a branch has a null base; treat as changed.
+                  if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+                      echo "result=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  if git diff --quiet "$base" HEAD -- apps/documentation docs package.json bun.lock; then
+                      echo "result=false" >> "$GITHUB_OUTPUT"
+                      echo "No docs changes — skipping deploy."
+                  else
+                      echo "result=true" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Deploy to Vercel
+              if: steps.changed.outputs.result == 'true'
+              id: deploy
+              env:
+                  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+                  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+                  # `daddy` publishes to docs.skriuw.com; every other ref gets a
+                  # throwaway preview URL.
+                  PROD: ${{ github.ref == 'refs/heads/daddy' && '--prod' || '' }}
+              run: |
+                  url=$(npx vercel@latest deploy $PROD --yes \
+                      --token "${{ secrets.VERCEL_TOKEN }}")
+                  echo "url=$url" >> "$GITHUB_OUTPUT"
+                  echo "Deployed: $url"
+
+            - name: Comment preview URL on the PR
+              if: >-
+                  steps.changed.outputs.result == 'true' &&
+                  github.event_name == 'pull_request'
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      github.rest.issues.createComment({
+                        issue_number: context.issue.number,
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        body: `📚 Docs preview: ${{ steps.deploy.outputs.url }}`
+                      });

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-	ActivityIndicator,
 	Alert,
+	Animated,
 	Pressable,
 	ScrollView,
 	StyleSheet,
@@ -18,6 +18,7 @@ import {
 	MoreHorizontal,
 	PenLine,
 	Search,
+	WifiOff,
 } from "lucide-react-native";
 import { dateFromKey, localDateKey, MOOD_OPTIONS } from "@skriuw/domain/journal";
 import type { JournalEntry, MoodLevel } from "@/backend/types";
@@ -28,8 +29,12 @@ import {
 	useUpdateJournalEntry,
 } from "@/query/journal";
 import { useTheme } from "@/theme/theme-provider";
+import { AppWordmark } from "@/components/AppWordmark";
+import { ContentLoading, ErrorState } from "@/components/AsyncState";
+import { useReducedMotion } from "@/shared/use-reduced-motion";
 
 type Screen = "today" | "calendar" | "entries";
+const SCREEN_ORDER: Record<Screen, number> = { today: 0, calendar: 1, entries: 2 };
 const MOOD_COLORS: Record<MoodLevel, string> = {
 	rough: "#b65a61",
 	low: "#c88357",
@@ -51,12 +56,40 @@ export default function JournalScreen() {
 	const { theme } = useTheme();
 	const styles = useMemo(() => makeStyles(theme), [theme]);
 	const entriesQuery = useJournalEntries();
+	const reducedMotion = useReducedMotion();
 	const [screen, setScreen] = useState<Screen>("today");
+	const previousScreen = useRef<Screen>("today");
+	const contentX = useRef(new Animated.Value(0)).current;
+	const contentOpacity = useRef(new Animated.Value(1)).current;
 	const [selectedDate, setSelectedDate] = useState(localDateKey());
 	const [month, setMonth] = useState(
 		() => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
 	);
 	const entries = entriesQuery.data ?? [];
+	useEffect(() => {
+		if (previousScreen.current === screen) return;
+		const direction = SCREEN_ORDER[screen] > SCREEN_ORDER[previousScreen.current] ? 1 : -1;
+		previousScreen.current = screen;
+		if (reducedMotion) {
+			contentX.setValue(0);
+			contentOpacity.setValue(1);
+			return;
+		}
+		contentX.setValue(direction * 26);
+		contentOpacity.setValue(0.72);
+		Animated.parallel([
+			Animated.timing(contentX, {
+				toValue: 0,
+				duration: 230,
+				useNativeDriver: true,
+			}),
+			Animated.timing(contentOpacity, {
+				toValue: 1,
+				duration: 170,
+				useNativeDriver: true,
+			}),
+		]).start();
+	}, [contentOpacity, contentX, reducedMotion, screen]);
 	const openDate = (key: string) => {
 		setSelectedDate(key);
 		const date = dateFromKey(key);
@@ -67,43 +100,18 @@ export default function JournalScreen() {
 	return (
 		<SafeAreaView edges={["top", "left", "right"]} style={styles.root}>
 			<View style={styles.brandBar}>
-				<Text style={styles.wordmark}>Skriuw</Text>
-				<Text style={styles.sectionMark}>JOURNAL</Text>
+				<AppWordmark section="Journal" />
+				<Text style={styles.sectionMark}>{entries.length} WRITTEN DAYS</Text>
 			</View>
-			{entriesQuery.isLoading ? (
-				<View style={styles.center}>
-					<ActivityIndicator color={theme.foreground} />
-				</View>
-			) : null}
-			{entriesQuery.isError ? (
-				<View style={styles.center}>
-					<Text style={styles.error}>Journal could not load.</Text>
-					<Pressable onPress={() => entriesQuery.refetch()}>
-						<Text style={styles.retry}>Try again</Text>
-					</Pressable>
-				</View>
-			) : null}
-			{!entriesQuery.isLoading && !entriesQuery.isError && screen === "today" ? (
-				<TodayView entries={entries} selectedDate={selectedDate} styles={styles} />
-			) : null}
-			{screen === "calendar" ? (
-				<CalendarView
-					entries={entries}
-					month={month}
-					selectedDate={selectedDate}
-					styles={styles}
-					onMonth={setMonth}
-					onOpen={openDate}
-				/>
-			) : null}
-			{screen === "entries" ? (
-				<EntriesView entries={entries} styles={styles} onOpen={openDate} />
-			) : null}
-			<View style={styles.localNav}>
+			<View style={styles.localNav} accessibilityRole="tablist">
 				<LocalTab
 					active={screen === "today"}
 					icon={PenLine}
 					label="Today"
+					detail={new Intl.DateTimeFormat(undefined, {
+						month: "short",
+						day: "numeric",
+					}).format(new Date())}
 					styles={styles}
 					onPress={() => openDate(localDateKey())}
 				/>
@@ -111,6 +119,7 @@ export default function JournalScreen() {
 					active={screen === "calendar"}
 					icon={CalendarDays}
 					label="Calendar"
+					detail={new Intl.DateTimeFormat(undefined, { month: "short" }).format(month)}
 					styles={styles}
 					onPress={() => setScreen("calendar")}
 				/>
@@ -118,10 +127,48 @@ export default function JournalScreen() {
 					active={screen === "entries"}
 					icon={List}
 					label="Entries"
+					detail={`${entries.length} total`}
 					styles={styles}
 					onPress={() => setScreen("entries")}
 				/>
 			</View>
+			{entriesQuery.isLoading ? (
+				<ContentLoading variant="journal" label="Opening your journal" />
+			) : null}
+			{entriesQuery.isError ? (
+				<ErrorState
+					icon={WifiOff}
+					title="Your journal is out of reach"
+					description="We couldn't sync your written days. Check your connection and try once more."
+					onRetry={() => entriesQuery.refetch()}
+				/>
+			) : null}
+			{!entriesQuery.isLoading && !entriesQuery.isError ? (
+				<Animated.View
+					style={{
+						flex: 1,
+						opacity: contentOpacity,
+						transform: [{ translateX: contentX }],
+					}}
+				>
+					{screen === "today" ? (
+						<TodayView entries={entries} selectedDate={selectedDate} styles={styles} />
+					) : null}
+					{screen === "calendar" ? (
+						<CalendarView
+							entries={entries}
+							month={month}
+							selectedDate={selectedDate}
+							styles={styles}
+							onMonth={setMonth}
+							onOpen={openDate}
+						/>
+					) : null}
+					{screen === "entries" ? (
+						<EntriesView entries={entries} styles={styles} onOpen={openDate} />
+					) : null}
+				</Animated.View>
+			) : null}
 		</SafeAreaView>
 	);
 }
@@ -206,6 +253,7 @@ function TodayView({
 			{ text: "Delete", style: "destructive", onPress: () => deleteEntry.mutate(entry.id) },
 		]);
 	const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+	const saveFailed = createEntry.isError || updateEntry.isError;
 
 	return (
 		<ScrollView
@@ -239,6 +287,21 @@ function TodayView({
 				</Text>
 				<Text style={styles.metaText}>{words} words</Text>
 			</View>
+			{saveFailed ? (
+				<Pressable
+					accessibilityRole="alert"
+					onPress={() => setDirty(true)}
+					style={styles.saveError}
+				>
+					<WifiOff size={16} color={styles.error.color} />
+					<View style={styles.flex}>
+						<Text style={styles.saveErrorTitle}>Changes not synced</Text>
+						<Text style={styles.saveErrorCopy}>
+							Your words are still here. Tap to try saving again.
+						</Text>
+					</View>
+				</Pressable>
+			) : null}
 			{!entry && !title && !content ? (
 				<View style={styles.blank}>
 					<PenLine size={22} color={styles.muted.color} />
@@ -479,23 +542,37 @@ function LocalTab({
 	active,
 	icon: Icon,
 	label,
+	detail,
 	styles,
 	onPress,
 }: {
 	active: boolean;
 	icon: typeof PenLine;
 	label: string;
+	detail: string;
 	styles: ReturnType<typeof makeStyles>;
 	onPress: () => void;
 }) {
 	return (
-		<Pressable onPress={onPress} style={styles.localTab}>
+		<Pressable
+			onPress={onPress}
+			accessibilityRole="tab"
+			accessibilityState={{ selected: active }}
+			style={({ pressed }) => [
+				styles.localTab,
+				active && styles.localTabActiveSurface,
+				pressed && styles.localTabPressed,
+			]}
+		>
 			<Icon
-				size={18}
+				size={17}
 				color={active ? styles.icon.color : styles.muted.color}
 				strokeWidth={active ? 2.2 : 1.7}
 			/>
-			<Text style={[styles.localTabText, active && styles.localTabActive]}>{label}</Text>
+			<View>
+				<Text style={[styles.localTabText, active && styles.localTabActive]}>{label}</Text>
+				<Text style={styles.localTabDetail}>{detail}</Text>
+			</View>
 		</Pressable>
 	);
 }
@@ -514,7 +591,6 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 			borderBottomWidth: StyleSheet.hairlineWidth,
 			borderBottomColor: theme.divider,
 		},
-		wordmark: { color: theme.foreground, fontFamily: "serif", fontSize: 20, fontWeight: "600" },
 		sectionMark: { color: theme.textDim, fontSize: 9, letterSpacing: 2.2, fontWeight: "700" },
 		editor: { padding: 22, paddingBottom: 50 },
 		screenPad: { padding: 22, paddingBottom: 38 },
@@ -610,13 +686,29 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 		},
 		localNav: {
 			flexDirection: "row",
-			height: 55,
-			borderTopWidth: StyleSheet.hairlineWidth,
-			borderTopColor: theme.divider,
-			backgroundColor: theme.toolbar,
+			marginHorizontal: 14,
+			marginTop: 10,
+			marginBottom: 7,
+			padding: 4,
+			gap: 3,
+			borderRadius: 14,
+			backgroundColor: theme.card,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: theme.border,
 		},
-		localTab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2 },
-		localTabText: { color: theme.textSecondary, fontSize: 9 },
+		localTab: {
+			flex: 1,
+			minHeight: 47,
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "center",
+			gap: 7,
+			borderRadius: 10,
+		},
+		localTabActiveSurface: { backgroundColor: theme.bgActive },
+		localTabPressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
+		localTabText: { color: theme.textSecondary, fontSize: 11, fontWeight: "600" },
+		localTabDetail: { color: theme.textDim, fontSize: 8, marginTop: 1 },
 		localTabActive: { color: theme.foreground, fontWeight: "700" },
 		monthControls: {
 			flexDirection: "row",
@@ -690,5 +782,18 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 		tags: { color: theme.tag, fontSize: 10, marginTop: 10 },
 		error: { color: theme.destructive, fontSize: 13 },
 		retry: { color: theme.link, fontSize: 13 },
+		saveError: {
+			flexDirection: "row",
+			gap: 10,
+			alignItems: "flex-start",
+			marginTop: 12,
+			padding: 12,
+			borderRadius: 10,
+			backgroundColor: theme.card,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: theme.destructive,
+		},
+		saveErrorTitle: { color: theme.foreground, fontSize: 12, fontWeight: "700" },
+		saveErrorCopy: { color: theme.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 2 },
 	});
 }

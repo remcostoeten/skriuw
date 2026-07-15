@@ -1,11 +1,12 @@
 import { authAnalyticsHook } from "@/core/analytics/auth-track";
 import { expo } from "@better-auth/expo";
+import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { admin, username } from "better-auth/plugins";
 import { deriveAvatarColor } from "@/features/collaboration/lib/collab-token";
-import { getBetterAuthBaseURL } from "./app-origin";
+import { getBetterAuthBaseURL, getServerAppOrigin } from "./app-origin";
 import { prisma } from "./prisma";
 
 const hasGithubCredentials = Boolean(
@@ -14,6 +15,27 @@ const hasGithubCredentials = Boolean(
 const hasGoogleCredentials = Boolean(
 	process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
 );
+
+// Expo web runs as a separate development origin, and Expo Go deep-links back
+// via exp:// instead of the skriuw:// scheme. Keep these development-only:
+// production browser origins must be configured explicitly with the deployment.
+const mobileWebDevelopmentOrigins =
+	process.env.NODE_ENV === "production"
+		? []
+		: ["http://localhost:8081", "http://127.0.0.1:8081", "exp://*"];
+// Escape hatch for testing Expo Go against a deployed server: Expo Go requests
+// carry an exp:// origin that production would otherwise reject. Set e.g.
+// AUTH_EXTRA_TRUSTED_ORIGINS="exp://*" on the deployment while testing.
+const extraTrustedOrigins =
+	process.env.AUTH_EXTRA_TRUSTED_ORIGINS?.split(",")
+		.map((origin) => origin.trim())
+		.filter(Boolean) ?? [];
+const passkeyOrigin = getServerAppOrigin() ?? "https://skriuw.com";
+const passkeyOrigins = [
+	passkeyOrigin,
+	...mobileWebDevelopmentOrigins,
+	...(process.env.PASSKEY_NATIVE_ORIGINS?.split(",").map((origin) => origin.trim()) ?? []),
+].filter(Boolean);
 
 const socialProviders = {
 	...(hasGithubCredentials
@@ -53,7 +75,7 @@ export const auth = betterAuth({
 	baseURL: getBetterAuthBaseURL(),
 	// The Expo client has no cookie jar; the mobile app persists this custom-scheme
 	// origin as its trusted redirect/session origin instead of an http(s) host.
-	trustedOrigins: ["skriuw://"],
+	trustedOrigins: ["skriuw://", ...mobileWebDevelopmentOrigins, ...extraTrustedOrigins],
 	database: prismaAdapter(prisma, { provider: "postgresql" }),
 	user: {
 		additionalFields: {
@@ -102,6 +124,16 @@ export const auth = betterAuth({
 		admin({
 			defaultRole: "user",
 			adminRoles: ["admin"],
+		}),
+		passkey({
+			rpName: "Skriuw",
+			// Native clients do not send a browser Origin header. Their verified
+			// Android APK origins can be supplied through PASSKEY_NATIVE_ORIGINS.
+			origin: passkeyOrigins,
+			authenticatorSelection: {
+				residentKey: "required",
+				userVerification: "preferred",
+			},
 		}),
 		expo(),
 		nextCookies(),

@@ -1,9 +1,8 @@
-import type { Block, PartialBlock } from "@blocknote/core";
 import { isDiagramFence, normalizeDiagramSource } from "@/shared/lib/diagram";
 import { isFileTreeFence, normalizeFileTreeSource } from "@/shared/lib/file-tree";
 import { isDrawingFence, normalizeDrawingScene } from "@/shared/lib/drawing";
 import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
-import type { RichTextDocument } from "@/types/notes";
+import type { RichTextBlock, RichTextDocument } from "@/types/notes";
 
 type InlineNode = {
 	type: string;
@@ -21,12 +20,18 @@ type InlineHit = {
 };
 
 const TAG_PATTERN = /(^|[\s([{])#([a-zA-Z][a-zA-Z0-9_-]{1,31})\b/g;
+// Bare `$name` typed as plain text (mobile, plain mode, or typing past the
+// mention menu). Produces an id-less person chip; the id form below stays the
+// durable reference, so this only upgrades text that never became a chip.
+const BARE_PERSON_PATTERN = /(^|[\s([{])\$([a-zA-Z][a-zA-Z0-9_-]{0,31})\b/g;
 const WIKI_LINK_PATTERN = /\[\[([^\]\n|]+?)(?:\|([^\]\n]+?))?\]\]/g;
 // The markdown form of a `$person` chip: `$[Name](person://id)`. The id is the
 // durable reference (names resolve live from the People store); the label is a
 // cached fallback. Mirrors `[label](note://id)` so person mentions survive
 // markdown round-trips instead of degrading to plain `$Name` text.
 export const PERSON_LINK_PATTERN = /\$\[([^\]\n]*?)\]\(person:\/\/([^)\n\s]+?)\)/g;
+const MARK_LINK_PATTERN =
+	/\[([^\]\n]+?)\]\(mark:\/\/([a-z]+)\/([^/\s)]+)\/([^/\s)]+)(?:\/([a-z]+))?(?:\/([^\s)]+))?\)/g;
 const INLINE_LINK_PATTERN = /\[([^\]\n]+?)\]\(([^)\n\s]+?)(?:\s+"[^"]*")?\)/g;
 const CODE_SPAN_PATTERN = /(?<!`)`([^`\n]+?)`(?!`)/g;
 const BOLD_STAR_PATTERN = /\*\*((?:[^*\n]|\*(?!\*))+?)\*\*/g;
@@ -39,7 +44,7 @@ const ITALIC_UNDERSCORE_PATTERN = /(^|[^_\w])_([^_\n]+?)_(?!\w)/g;
 // (the overwhelming majority in an already-upgraded document) skips the whole
 // nine-regex battery with one scan. This runs per text node on the editor
 // mount and note-switch paths.
-const INLINE_TRIGGER_PATTERN = /[`[*_~#]/;
+const INLINE_TRIGGER_PATTERN = /[`[*_~#$]/;
 
 function findInlineHits(text: string): InlineHit[] {
 	if (!INLINE_TRIGGER_PATTERN.test(text)) return [];
@@ -77,6 +82,54 @@ function findInlineHits(text: string): InlineHit[] {
 			start,
 			end: start + match[0].length,
 			produce: () => [{ type: "person", props: { id, name } }],
+		});
+	}
+
+	if (isTagDetectionEnabled()) {
+		for (const match of text.matchAll(BARE_PERSON_PATTERN)) {
+			const prefix = match[1] ?? "";
+			const name = match[2]?.trim();
+			if (!name) continue;
+			const start = (match.index ?? 0) + prefix.length;
+			hits.push({
+				start,
+				end: start + 1 + name.length,
+				produce: () => [{ type: "person", props: { id: "", name } }],
+			});
+		}
+	}
+
+	for (const match of text.matchAll(MARK_LINK_PATTERN)) {
+		const label = match[1]?.trim();
+		const kind = match[2]?.trim();
+		const id = match[3]?.trim();
+		if (!label || !kind || !id) continue;
+		let value = label;
+		try {
+			value = decodeURIComponent(match[4]);
+		} catch {
+			// Keep readable label when imported metadata is malformed.
+		}
+		const color =
+			match[5] === "green" || match[5] === "blue" || match[5] === "pink"
+				? match[5]
+				: "yellow";
+		let annotationLabel = "";
+		try {
+			annotationLabel = decodeURIComponent(match[6] ?? "");
+		} catch {
+			// Omit malformed optional labels; visible text remains usable.
+		}
+		const start = match.index ?? 0;
+		hits.push({
+			start,
+			end: start + match[0].length,
+			produce: () => [
+				{
+					type: "mark",
+					props: { id, kind, text: label, value, color, label: annotationLabel },
+				},
+			],
 		});
 	}
 
@@ -193,14 +246,32 @@ export function stripSidebarDragArtifacts(text: string): string {
 }
 
 function parseStyledText(text: string, baseStyles: Record<string, unknown>): InlineNode[] {
-	return parseInlineContent(text, baseStyles).filter((node) => node.type === "text");
+	return parseInlineContent(text, baseStyles).flatMap((node) => {
+		if (node.type === "text") return [node];
+		const chipText = inlineChipToText(node.type, node.props);
+		if (!chipText) return [];
+		return [{ type: "text", text: chipText, styles: baseStyles }];
+	});
 }
 
 export function parseInlineContent(
 	text: string,
 	baseStyles: Record<string, unknown> = {},
 ): InlineNode[] {
-	const cleaned = stripSidebarDragArtifacts(text);
+	return parseInlineNodes(stripSidebarDragArtifacts(text), baseStyles);
+}
+
+/**
+ * Parses inline syntax without reflowing whitespace. Existing inline text
+ * nodes carry meaningful boundary spaces next to chips and styled runs, so
+ * the upgrade path must never trim them — trimming here is what used to glue
+ * `de #date dat` into `de#datedat` on every editor load.
+ */
+function parseUpgradedInlineText(text: string, baseStyles: Record<string, unknown>): InlineNode[] {
+	return parseInlineNodes(text.replace(SIDEBAR_DRAG_JSON_PATTERN, ""), baseStyles);
+}
+
+function parseInlineNodes(cleaned: string, baseStyles: Record<string, unknown>): InlineNode[] {
 	if (!cleaned) return [];
 	const hits = findInlineHits(cleaned);
 	if (hits.length === 0) {
@@ -231,14 +302,19 @@ export function parseInlineContent(
 
 function upgradeInlineNode(inline: InlineNode): InlineNode | InlineNode[] {
 	if (inline.type === "text" && typeof inline.text === "string") {
-		return parseInlineContent(inline.text, inline.styles ?? {});
+		return parseUpgradedInlineText(inline.text, inline.styles ?? {});
 	}
 	if (inline.type === "link" && Array.isArray(inline.content)) {
 		const upgraded = inline.content.flatMap((child) => {
 			if (child.type === "text" && typeof child.text === "string") {
-				return parseInlineContent(child.text, child.styles ?? {}).filter(
-					(node) => node.type === "text",
-				);
+				// Chips cannot live inside a link, so anything parsed into a chip
+				// is demoted back to its typed syntax instead of being dropped.
+				return parseUpgradedInlineText(child.text, child.styles ?? {}).flatMap((node) => {
+					if (node.type === "text") return [node];
+					const chipText = inlineChipToText(node.type, node.props);
+					if (!chipText) return [];
+					return [{ type: "text", text: chipText, styles: child.styles ?? {} }];
+				});
 			}
 			return [child];
 		});
@@ -247,9 +323,9 @@ function upgradeInlineNode(inline: InlineNode): InlineNode | InlineNode[] {
 	return inline;
 }
 
-function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
+function upgradeBlockContent(blocks: RichTextDocument): RichTextDocument {
 	return blocks.map((block) => {
-		const next: PartialBlock = { ...block };
+		const next: RichTextBlock = { ...block };
 		const content = block.content;
 		const blockType = String(block.type ?? "");
 		const blockProps = (block as { props?: Record<string, unknown> }).props;
@@ -330,7 +406,7 @@ function upgradeBlockContent(blocks: PartialBlock[]): PartialBlock[] {
 		}
 
 		if (Array.isArray(block.children) && block.children.length > 0) {
-			next.children = upgradeBlockContent(block.children as PartialBlock[]);
+			next.children = upgradeBlockContent(block.children as RichTextDocument);
 		}
 
 		return next;
@@ -353,8 +429,54 @@ function personChipToMarkdown(props: Record<string, unknown> | undefined): strin
 	return `$[${name}](person://${id})`;
 }
 
-export function flattenInlineChips(blocks: Block[] | PartialBlock[]): PartialBlock[] {
-	return (blocks as PartialBlock[]).map((block) => {
+function markChipToMarkdown(props: Record<string, unknown> | undefined): string {
+	const id = String(props?.id ?? "").trim();
+	const kind = String(props?.kind ?? "reference").trim();
+	const text = String(props?.text ?? "")
+		.replace(/[[\]\n]/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+	const value = encodeURIComponent(String(props?.value ?? text));
+	const color = ["yellow", "green", "blue", "pink"].includes(String(props?.color))
+		? String(props?.color)
+		: "yellow";
+	const label = String(props?.label ?? "").trim();
+	if (!text || !id) return text;
+	return `[${text}](mark://${kind}/${id}/${value}/${color}${label ? `/${encodeURIComponent(label)}` : ""})`;
+}
+
+/**
+ * Textual syntax for an inline chip node (`#tag`, `$name`, `[[title]]`, …).
+ * Returns `null` for non-chip inline content and `""` for a chip with nothing
+ * durable to serialize, so callers can distinguish passthrough from drop.
+ */
+export function inlineChipToText(
+	type: string,
+	props: Record<string, unknown> | undefined,
+): string | null {
+	if (type === "noteLink") {
+		const title = String(props?.title ?? "").trim();
+		return title ? `[[${title}]]` : "";
+	}
+	if (type === "tag") {
+		const name = String(props?.name ?? "").trim();
+		return name ? `#${name}` : "";
+	}
+	if (type === "user") {
+		const name = String(props?.name ?? "").trim();
+		return name ? `$${name}` : "";
+	}
+	if (type === "person") {
+		return personChipToMarkdown(props);
+	}
+	if (type === "mark") {
+		return markChipToMarkdown(props);
+	}
+	return null;
+}
+
+export function flattenInlineChips(blocks: RichTextDocument): RichTextDocument {
+	return (blocks as RichTextDocument).map((block) => {
 		const blockType = String(block.type ?? "");
 		const blockProps = (block as { props?: Record<string, unknown> }).props;
 
@@ -385,39 +507,22 @@ export function flattenInlineChips(blocks: Block[] | PartialBlock[]): PartialBlo
 			} as any;
 		}
 
-		const next: PartialBlock = { ...block };
+		const next: RichTextBlock = { ...block };
 		const content = block.content;
 
 		if (Array.isArray(content)) {
 			// biome-ignore lint/suspicious/noExplicitAny: schema-flexible content
 			next.content = content.flatMap((inline: any) => {
-				if (inline?.type === "noteLink") {
-					const title = String(inline.props?.title ?? "").trim();
-					if (!title) return [];
-					return [{ type: "text", text: `[[${title}]]`, styles: {} }];
-				}
-				if (inline?.type === "tag") {
-					const name = String(inline.props?.name ?? "").trim();
-					if (!name) return [];
-					return [{ type: "text", text: `#${name}`, styles: {} }];
-				}
-				if (inline?.type === "user") {
-					const name = String(inline.props?.name ?? "").trim();
-					if (!name) return [];
-					return [{ type: "text", text: `$${name}`, styles: {} }];
-				}
-				if (inline?.type === "person") {
-					const markdown = personChipToMarkdown(inline.props);
-					if (!markdown) return [];
-					return [{ type: "text", text: markdown, styles: {} }];
-				}
-				return [inline];
+				const chipText = inlineChipToText(String(inline?.type ?? ""), inline?.props);
+				if (chipText === null) return [inline];
+				if (!chipText) return [];
+				return [{ type: "text", text: chipText, styles: {} }];
 				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible content
 			}) as any;
 		}
 
 		if (Array.isArray(block.children) && block.children.length > 0) {
-			next.children = flattenInlineChips(block.children as PartialBlock[]);
+			next.children = flattenInlineChips(block.children as RichTextDocument);
 		}
 
 		return next;
@@ -519,7 +624,7 @@ const SUPPORTED_BLOCK_TYPES = new Set([
 	"drawing",
 ]);
 
-function blockNeedsRichDocumentRepair(block: PartialBlock): boolean {
+function blockNeedsRichDocumentRepair(block: RichTextBlock): boolean {
 	const blockType = String(block.type ?? "");
 	const content = block.content;
 
@@ -536,7 +641,7 @@ function blockNeedsRichDocumentRepair(block: PartialBlock): boolean {
 	}
 
 	if (Array.isArray(block.children) && block.children.length > 0) {
-		return (block.children as PartialBlock[]).some(blockNeedsRichDocumentRepair);
+		return (block.children as RichTextDocument).some(blockNeedsRichDocumentRepair);
 	}
 
 	return false;
@@ -546,11 +651,11 @@ export function richDocumentNeedsRepair(document: RichTextDocument | null | unde
 	if (!document?.length) {
 		return false;
 	}
-	return document.some((block) => blockNeedsRichDocumentRepair(block as PartialBlock));
+	return document.some((block) => blockNeedsRichDocumentRepair(block as RichTextBlock));
 }
 
 /** Builds a BlockNote-compatible table block from plain cell strings. */
-export function buildTableBlock(headers: string[], rows: string[][]): PartialBlock {
+export function buildTableBlock(headers: string[], rows: string[][]): RichTextBlock {
 	const cellToInline = (cell: string): InlineNode[] => {
 		const parsed = parseInlineContent(cell);
 		return parsed.length > 0 ? parsed : [{ type: "text", text: "", styles: {} }];
@@ -639,14 +744,14 @@ function unwrapOuterMarkdownFence(markdown: string): string {
  *  re-deriving the same markdown yields byte-identical richContent. That keeps
  *  buildNoteVersionContentHash stable and version dedup working for clients
  *  that persist markdown only (the native app) rather than a hydrated doc. */
-function assignBlockIds(blocks: PartialBlock[]): PartialBlock[] {
+function assignBlockIds(blocks: RichTextDocument): RichTextDocument {
 	let counter = 0;
-	function walk(list: PartialBlock[]): PartialBlock[] {
+	function walk(list: RichTextDocument): RichTextDocument {
 		return list.map((block) => {
 			const next = block.id
 				? { ...block }
 				: { ...block, id: `md-${(counter++).toString(36)}` };
-			const children = (next as { children?: PartialBlock[] }).children;
+			const children = (next as { children?: RichTextDocument }).children;
 			if (children && children.length > 0) {
 				next.children = walk(children);
 			}
@@ -658,7 +763,7 @@ function assignBlockIds(blocks: PartialBlock[]): PartialBlock[] {
 
 export function markdownToRichDocument(markdown: string): RichTextDocument {
 	const lines = unwrapOuterMarkdownFence(markdown).split("\n");
-	const blocks: PartialBlock[] = [];
+	const blocks: RichTextDocument = [];
 	let i = 0;
 
 	while (i < lines.length) {
@@ -904,6 +1009,10 @@ function inlineNodeToSearchableMarkdown(inline: unknown): string {
 		return personChipToMarkdown(node.props);
 	}
 
+	if (node.type === "mark") {
+		return markChipToMarkdown(node.props);
+	}
+
 	if (node.type === "link" && Array.isArray(node.content)) {
 		const label = node.content.map(inlineNodeToSearchableMarkdown).join("");
 		const href = typeof node.href === "string" ? node.href.trim() : "";
@@ -916,7 +1025,7 @@ function inlineNodeToSearchableMarkdown(inline: unknown): string {
 	return "";
 }
 
-function blockToSearchableMarkdown(block: PartialBlock): string {
+function blockToSearchableMarkdown(block: RichTextBlock): string {
 	const blockType = String(block.type ?? "paragraph");
 	const blockProps = (block as { props?: Record<string, unknown> }).props;
 	const content = block.content;
@@ -929,7 +1038,7 @@ function blockToSearchableMarkdown(block: PartialBlock): string {
 	}
 
 	const childText = Array.isArray(block.children)
-		? (block.children as PartialBlock[])
+		? (block.children as RichTextDocument)
 				.flatMap((child) => {
 					const text = blockToSearchableMarkdown(child);
 					return text ? [text] : [];
@@ -1023,7 +1132,7 @@ export function richDocumentToSearchableMarkdown(
 
 	return document
 		.flatMap((block) => {
-			const text = blockToSearchableMarkdown(block as PartialBlock);
+			const text = blockToSearchableMarkdown(block as RichTextBlock);
 			return text ? [text] : [];
 		})
 		.join("\n\n");
@@ -1065,15 +1174,15 @@ export function extractRichDocumentPersonIds(
 	}
 
 	const acc = new Set<string>();
-	const walk = (blocks: PartialBlock[]) => {
+	const walk = (blocks: RichTextDocument) => {
 		for (const block of blocks) {
 			collectInlinePersonIds(block.content, acc);
 			if (Array.isArray(block.children)) {
-				walk(block.children as PartialBlock[]);
+				walk(block.children as RichTextDocument);
 			}
 		}
 	};
-	walk(document as PartialBlock[]);
+	walk(document as RichTextDocument);
 
 	return [...acc].toSorted((left, right) => left.localeCompare(right));
 }
@@ -1108,7 +1217,7 @@ export function resolveRichDocument(
 	return richContent;
 }
 
-export function cloneRichDocument(document: Block[]): RichTextDocument {
+export function cloneRichDocument(document: RichTextDocument): RichTextDocument {
 	try {
 		return structuredClone(document) as RichTextDocument;
 	} catch (err) {
