@@ -13,7 +13,8 @@
 		"esModuleInterop": true,
 		"resolveJsonModule": true,
 		"isolatedModules": true,
-		"types": ["chrome", "vite/client"]
+		"types": ["chrome", "vite/client", "react", "react-dom"],
+		"noUncheckedSideEffectImports": false
 	},
 	"include": ["src", "manifest.config.ts", "vite.config.ts"]
 }

@@ -50,20 +50,23 @@ function MetadataPlaceholderSection({
 export function NotesMetadataPlaceholder({
 	isMobile = false,
 	className,
+	style,
 }: {
 	isMobile?: boolean;
 	className?: string;
+	style?: React.CSSProperties;
 }) {
 	return (
 		<aside
-			aria-label="Loading note inspector"
+			aria-label="Note inspector"
 			aria-busy="true"
 			className={cn(
 				isMobile
 					? "h-full w-full rounded-[inherit] border-0 bg-transparent"
-					: "w-72 shrink-0 border-l border-border bg-background xl:w-80",
+					: "h-full w-72 shrink-0 border-l border-border bg-background",
 				className,
 			)}
+			style={style}
 		>
 			<div aria-hidden="true">
 				<MetadataPlaceholderSection icon={ListTree} label="Outline">

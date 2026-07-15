@@ -22,12 +22,14 @@ import { preloadRichTextEditor } from "./preload-rich-text-editor";
 import type { TRichTextCollab } from "./rich-text-editor";
 import type { VimMode } from "@/features/editor/lib/vim-plugin";
 import { cn } from "@/shared/lib/utils";
+import type { EditorInstance } from "@/features/editor/lib/editor-instance";
 
 type EditorMode = "raw" | "block";
 
 const EMPTY_PEOPLE: Person[] = [];
 const EMPTY_FILES: NoteFile[] = [];
 const EMPTY_PROPERTIES: NoteProperty[] = [];
+const WHITESPACE_PATTERN = /\s/;
 
 function RichTextEditorLoading() {
 	return <EditorContentSkeleton />;
@@ -68,6 +70,7 @@ type EditorProps = {
 	onIconChange?: (icon: string) => void;
 	onCoverChange?: (cover: string) => void;
 	onEditorReady?: (handle: AiEditorHandle) => void;
+	onBlockEditorReady?: (editor: EditorInstance | null) => void;
 	onAiSpellCheck?: () => void;
 	onAiContinueWriting?: () => void;
 	onAiAction?: (action: AiAction) => void;
@@ -102,6 +105,7 @@ function EditorImpl({
 	onIconChange,
 	onCoverChange,
 	onEditorReady,
+	onBlockEditorReady,
 	onAiSpellCheck,
 	onAiContinueWriting,
 	onAiAction,
@@ -120,7 +124,7 @@ function EditorImpl({
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const gutterRef = useRef<HTMLDivElement>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
-	const cursorAnimationFrameRef = useRef<number | null>(null);
+	const cursorReportTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const scrollReportFrameRef = useRef<number | null>(null);
 	const newNoteHint = useShortcutHint("notes.newNote");
 	const peopleQuery = useWorkspacePeople();
@@ -214,9 +218,13 @@ function EditorImpl({
 		const selectionEnd = textarea.selectionEnd ?? cursorOffset;
 		const selectedText =
 			selectionEnd > selectionStart ? textarea.value.slice(selectionStart, selectionEnd) : "";
-		const selectedWords = selectedText.trim()
-			? selectedText.trim().split(/\s+/).filter(Boolean).length
-			: 0;
+		let selectedWords = 0;
+		let insideWord = false;
+		for (let index = 0; index < selectedText.length; index += 1) {
+			const isWhitespace = WHITESPACE_PATTERN.test(selectedText[index]);
+			if (!isWhitespace && !insideWord) selectedWords += 1;
+			insideWord = !isWhitespace;
+		}
 		onCursorChange({
 			line: lines.length,
 			column: (lines.at(-1)?.length ?? 0) + 1,
@@ -230,20 +238,20 @@ function EditorImpl({
 	}, [onCursorChange]);
 
 	const queueTextareaCursorReport = useCallback(() => {
-		if (cursorAnimationFrameRef.current !== null) {
-			window.cancelAnimationFrame(cursorAnimationFrameRef.current);
+		if (cursorReportTimeoutRef.current !== null) {
+			clearTimeout(cursorReportTimeoutRef.current);
 		}
 
-		cursorAnimationFrameRef.current = window.requestAnimationFrame(() => {
-			cursorAnimationFrameRef.current = null;
+		cursorReportTimeoutRef.current = setTimeout(() => {
+			cursorReportTimeoutRef.current = null;
 			reportTextareaCursor();
-		});
+		}, 120);
 	}, [reportTextareaCursor]);
 
 	useEffect(() => {
 		return () => {
-			if (cursorAnimationFrameRef.current !== null) {
-				window.cancelAnimationFrame(cursorAnimationFrameRef.current);
+			if (cursorReportTimeoutRef.current !== null) {
+				clearTimeout(cursorReportTimeoutRef.current);
 			}
 			if (scrollReportFrameRef.current !== null) {
 				window.cancelAnimationFrame(scrollReportFrameRef.current);
@@ -335,6 +343,7 @@ function EditorImpl({
 					onIconChange={onIconChange}
 					onCoverChange={onCoverChange}
 					onEditorReady={onEditorReady}
+					onBlockEditorReady={onBlockEditorReady}
 					onAiSpellCheck={onAiSpellCheck}
 					onAiContinueWriting={onAiContinueWriting}
 					onAiAction={onAiAction}

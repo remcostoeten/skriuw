@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { AlignLeft, Check, ChevronRight, Rows3, SlidersHorizontal } from "lucide-react";
 import { usePreferencesStore } from "@/features/settings/store";
 import {
@@ -47,7 +47,17 @@ export function NotePropertiesShelf({
 	);
 	const updateEditorPreference = usePreferencesStore((state) => state.updateEditorPreference);
 	const bodyId = useId();
+	const [bodyOverflowVisible, setBodyOverflowVisible] = useState(!collapsed);
 	const normalizedProperties = normalizeNoteProperties(properties);
+
+	useEffect(() => {
+		if (collapsed) {
+			setBodyOverflowVisible(false);
+			return;
+		}
+		const id = setTimeout(() => setBodyOverflowVisible(true), 220);
+		return () => clearTimeout(id);
+	}, [collapsed]);
 
 	function toggleCollapsed() {
 		updateEditorPreference("notePropertiesCollapsed", !collapsed);
@@ -130,7 +140,9 @@ export function NotePropertiesShelf({
 					collapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
 				}`}
 			>
-				<div className="min-h-0 overflow-hidden">
+				<div
+					className={`min-h-0 ${bodyOverflowVisible ? "overflow-visible" : "overflow-hidden"}`}
+				>
 					{layout === "rows" ? (
 						<div className="flex flex-col gap-0.5">
 							{showAssets ? <NoteAssetsRows {...assetProps} /> : null}

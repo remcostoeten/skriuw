@@ -284,6 +284,17 @@
 		text-size-adjust: 100%;
 	}
 
+	/*
+	 * Lucide ships stroke-width="2", which reads heavy at our icon sizes and
+	 * clashes with the ~1.5–1.7 most call sites already opt into. Matching the
+	 * literal attribute value retargets only the icons still on the default —
+	 * anything that passes an explicit strokeWidth (spinner arcs, check marks)
+	 * emits a different attribute and is left alone.
+	 */
+	svg.lucide[stroke-width="2"] {
+		stroke-width: var(--icon-stroke-width, 1.5);
+	}
+
 	:root {
 		--surface-overlay: var(--popover);
 		--surface-overlay-alpha-high: 0.96;

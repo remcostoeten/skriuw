@@ -8,6 +8,7 @@ import { createDiagram } from "../block-specs/diagram";
 import { createDrawing } from "../block-specs/drawing";
 import { createFileTree } from "../block-specs/file-tree";
 import { CodeBlock } from "../block-specs/CodeBlock";
+import { markInlineSpec } from "./mark-spec";
 
 const { codeBlock: _discarded, ...blockSpecsWithoutCodeBlock } = defaultBlockSpecs;
 
@@ -26,6 +27,7 @@ export const editorSchema = BlockNoteSchema.create({
 		tag: tagInlineSpec,
 		user: userInlineSpec,
 		person: personInlineSpec,
+		mark: markInlineSpec,
 	},
 });
 

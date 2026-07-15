@@ -6,11 +6,12 @@ import { resolveEditorMode } from "@/features/editor/lib/editor-mode";
 import { useNote } from "@/features/notes/hooks/use-note";
 import type { NoteFile, NoteVersion } from "@/types/notes";
 import { NotesMetadataPlaceholder } from "./metadata-placeholder";
+import { loadMetadataPanel } from "./load-metadata-panel";
 
-const MetadataPanel = dynamic(
-	() => import("./metadata-panel").then((mod) => ({ default: mod.MetadataPanel })),
-	{ ssr: false, loading: () => <NotesMetadataPlaceholder /> },
-);
+const MetadataPanel = dynamic(loadMetadataPanel, {
+	ssr: false,
+	loading: () => <NotesMetadataPlaceholder />,
+});
 
 type Props = {
 	focusedFileId: string | null;

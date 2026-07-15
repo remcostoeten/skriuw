@@ -9,6 +9,7 @@ import {
 	ListChecks,
 	Loader2,
 	PenTool,
+	Pencil,
 	Rows2,
 	ScrollText,
 	Settings2,
@@ -25,6 +26,7 @@ import type { Awareness } from "y-protocols/awareness";
 import { cn } from "@/shared/lib/utils";
 import { PanelLeftToggleIcon } from "@/shared/icons/panel-left-toggle";
 import { PanelRightToggleIcon } from "@/shared/icons/panel-right-toggle";
+import { preloadMetadataPanel } from "@/features/notes/components/load-metadata-panel";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -82,6 +84,7 @@ type Props = {
 	onToggleSplitOrientation?: () => void;
 	annotating?: boolean;
 	onToggleAnnotate?: () => void;
+	onInsertDrawing?: () => void;
 	/** Yjs awareness for the active note's collab room; drives the presence avatars. */
 	presenceAwareness?: Awareness | null;
 };
@@ -186,6 +189,7 @@ export const EditorToolbar = memo(function EditorToolbar({
 	onToggleSplitOrientation,
 	annotating = false,
 	onToggleAnnotate,
+	onInsertDrawing,
 	presenceAwareness,
 }: Props) {
 	const [isTauri, setIsTauri] = useState(false);
@@ -240,6 +244,8 @@ export const EditorToolbar = memo(function EditorToolbar({
 					<button
 						type="button"
 						onClick={onToggleMetadata}
+						onPointerEnter={preloadMetadataPanel}
+						onFocus={preloadMetadataPanel}
 						className={mobileIconButton}
 						aria-label="Open note details"
 					>
@@ -339,6 +345,18 @@ export const EditorToolbar = memo(function EditorToolbar({
 
 				<div className="flex shrink-0 items-center gap-1">
 					<CollabPresence awareness={presenceAwareness} />
+					{onInsertDrawing ? (
+						<ToolbarTooltip label="Insert drawing">
+							<button
+								type="button"
+								onClick={onInsertDrawing}
+								className={sidebarIconButtonClass}
+								aria-label="Insert drawing"
+							>
+								<Pencil className="h-4 w-4" strokeWidth={1.5} />
+							</button>
+						</ToolbarTooltip>
+					) : null}
 					{onToggleAnnotate && (
 						<ToolbarTooltip label={annotating ? "Stop annotating" : "Annotate note"}>
 							<button
@@ -564,6 +582,8 @@ export const EditorToolbar = memo(function EditorToolbar({
 						<button
 							type="button"
 							onClick={onToggleMetadata}
+							onPointerEnter={preloadMetadataPanel}
+							onFocus={preloadMetadataPanel}
 							className={sidebarIconButtonClass}
 							aria-label="Toggle metadata"
 						>

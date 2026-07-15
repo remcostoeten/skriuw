@@ -99,22 +99,6 @@ function activeIndexFor(pathname: string) {
 	return -1;
 }
 
-function useNavDirection(activeIndex: number) {
-	const previousIndex = useRef(activeIndex);
-	const direction = useRef(0);
-
-	if (activeIndex !== previousIndex.current) {
-		if (activeIndex !== -1 && previousIndex.current !== -1) {
-			direction.current = activeIndex > previousIndex.current ? 1 : -1;
-		} else {
-			direction.current = 0;
-		}
-		previousIndex.current = activeIndex;
-	}
-
-	return direction.current;
-}
-
 const baseSlotClass =
 	"group relative isolate flex h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md text-[11px] font-medium transition-colors";
 
@@ -149,16 +133,17 @@ type SlotContentProps = {
 	Icon: LucideIcon;
 	label: string;
 	active: boolean;
-	direction: number;
-	reducedMotion: boolean;
 };
 
-function SlotContent({ Icon, label, active, direction, reducedMotion }: SlotContentProps) {
+function SlotContent({ Icon, label, active }: SlotContentProps) {
 	return (
 		<motion.span
 			key={active ? "active" : "idle"}
 			className="flex flex-col items-center justify-center gap-0.5"
-			initial={active && !reducedMotion ? { x: direction * -10, scale: 0.94 } : false}
+			// The OS motion preference is client-only. A deterministic first frame
+			// avoids a server/client transform mismatch; later keyed transitions still
+			// animate through `animate` and respect MotionConfig.
+			initial={false}
 			animate={{ x: 0, scale: active ? 1 : 0.98 }}
 			transition={PILL_TRANSITION}
 		>
@@ -173,18 +158,9 @@ type MobileNavLinkProps = {
 	index: number;
 	activeIndex: number;
 	active: boolean;
-	direction: number;
-	reducedMotion: boolean;
 };
 
-function MobileNavLink({
-	item,
-	index,
-	activeIndex,
-	active,
-	direction,
-	reducedMotion,
-}: MobileNavLinkProps) {
+function MobileNavLink({ item, index, activeIndex, active }: MobileNavLinkProps) {
 	const hoverOrigin =
 		activeIndex === -1 || index === activeIndex
 			? "center"
@@ -209,13 +185,7 @@ function MobileNavLink({
 		>
 			{active ? <ActivePill /> : null}
 			{active ? null : <HoverPill origin={hoverOrigin} />}
-			<SlotContent
-				Icon={item.Icon}
-				label={item.label}
-				active={active}
-				direction={direction}
-				reducedMotion={reducedMotion}
-			/>
+			<SlotContent Icon={item.Icon} label={item.label} active={active} />
 		</Link>
 	);
 }
@@ -226,7 +196,6 @@ export function MobileAppNav() {
 	const menuRef = useRef<HTMLDivElement>(null);
 	const reducedMotion = useReducedMotion() ?? false;
 	const activeIndex = activeIndexFor(pathname);
-	const direction = useNavDirection(activeIndex);
 	const moreActive = activeIndex === MORE_INDEX;
 	const moreHoverOrigin =
 		activeIndex === -1 || moreActive ? "center" : MORE_INDEX > activeIndex ? "left" : "right";
@@ -264,8 +233,6 @@ export function MobileAppNav() {
 								index={index}
 								activeIndex={activeIndex}
 								active={index === activeIndex}
-								direction={direction}
-								reducedMotion={reducedMotion}
 							/>
 						))}
 
@@ -284,13 +251,7 @@ export function MobileAppNav() {
 						>
 							{moreActive ? <ActivePill /> : null}
 							{moreActive ? null : <HoverPill origin={moreHoverOrigin} />}
-							<SlotContent
-								Icon={Ellipsis}
-								label="More"
-								active={moreActive}
-								direction={direction}
-								reducedMotion={reducedMotion}
-							/>
+							<SlotContent Icon={Ellipsis} label="More" active={moreActive} />
 						</button>
 					</div>
 				</LayoutGroup>

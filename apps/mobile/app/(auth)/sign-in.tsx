@@ -1,37 +1,41 @@
 import { useState } from "react";
-import {
-	ActivityIndicator,
-	KeyboardAvoidingView,
-	Platform,
-	Pressable,
-	ScrollView,
-	Text,
-	TextInput,
-	View,
-} from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
+import Constants from "expo-constants";
 import { signIn, signUp } from "@/auth/auth-client";
+import { AuthButton, type AuthButtonFeedback } from "@/components/auth/auth-button";
+import { AuthDivider } from "@/components/auth/auth-divider";
+import { AuthField } from "@/components/auth/auth-field";
+import { LegalFooter } from "@/components/auth/legal-footer";
+import { ValidationMessage } from "@/components/auth/validation-message";
+import { KeyRound } from "lucide-react-native";
 import { GithubIcon } from "@/components/github-icon";
+import { GoogleIcon } from "@/components/google-icon";
 import { SkriuwLogo } from "@/components/SkriuwLogo";
-import { authSurface as ui } from "@/theme/colors";
+import { authMetrics, authSurface as ui } from "@/theme/colors";
 
-const CONTROL_HEIGHT = 44;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 8;
 
 type Mode = "signin" | "signup";
+type FieldName = "name" | "email" | "password" | "confirm";
 
 const COPY = {
 	signin: {
 		title: "Welcome back",
-		subtitle: "Sign in to sync your notes anywhere",
+		subtitle: "Sign in to sync your notes anywhere while keeping local-first saves intact",
 		submit: "Sign in",
+		success: "Signed in",
 		switchPrompt: "Don't have an account?",
 		switchAction: "Register",
 	},
 	signup: {
-		title: "Create an account",
-		subtitle: "Create an account to back up and sync your notes",
+		title: "Create your account",
+		subtitle: "Create an account to back up and sync your notes across devices",
 		submit: "Create account",
+		success: "Account created",
 		switchPrompt: "Already have an account?",
 		switchAction: "Sign in",
 	},
@@ -39,60 +43,118 @@ const COPY = {
 
 export default function SignInScreen() {
 	const [mode, setMode] = useState<Mode>("signin");
+	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirm, setConfirm] = useState("");
-	const [error, setError] = useState<string | null>(null);
+	const [touched, setTouched] = useState<Partial<Record<FieldName, boolean>>>({});
+	const [feedback, setFeedback] = useState<AuthButtonFeedback | null>(null);
+	const [oauthError, setOauthError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
-	const [social, setSocial] = useState(false);
+	const [social, setSocial] = useState<"github" | "google" | null>(null);
+	const [passkey, setPasskey] = useState(false);
 
-	const busy = loading || social;
+	const busy = loading || social !== null || passkey;
+	const nativePasskeysEnabled =
+		Platform.OS === "web" || Constants.expoConfig?.extra?.nativePasskeysEnabled === true;
 	const copy = COPY[mode];
-	const canSubmit =
-		mode === "signin" ? Boolean(email && password) : Boolean(email && password && confirm);
+	const isSignup = mode === "signup";
+
+	const emailError = !email.trim()
+		? "Enter your email address."
+		: EMAIL_PATTERN.test(email.trim())
+			? null
+			: "Enter a valid email address.";
+	const passwordError = !password
+		? "Enter your password."
+		: isSignup && password.length < MIN_PASSWORD_LENGTH
+			? `Use at least ${MIN_PASSWORD_LENGTH} characters.`
+			: null;
+	const confirmError = !confirm ? "Confirm your password." : null;
+	const passwordsMatch = password === confirm;
+
+	const canSubmit = isSignup
+		? !emailError && !passwordError && !confirmError && passwordsMatch
+		: !emailError && !passwordError;
+
+	function markTouched(field: FieldName) {
+		setTouched((prev) => ({ ...prev, [field]: true }));
+	}
 
 	function toggleMode() {
-		setError(null);
+		setFeedback(null);
+		setOauthError(null);
+		setTouched({});
 		setConfirm("");
 		setMode((m) => (m === "signin" ? "signup" : "signin"));
 	}
 
 	async function onSubmit() {
-		if (mode === "signup" && password !== confirm) {
-			setError("Passwords don't match");
-			return;
-		}
-		setError(null);
+		setTouched({ name: true, email: true, password: true, confirm: true });
+		if (!canSubmit) return;
+
+		setFeedback(null);
+		setOauthError(null);
 		setLoading(true);
 		try {
 			if (mode === "signin") {
-				const res = await signIn.email({ email, password });
-				if (res.error) setError(res.error.message ?? "Sign in failed");
+				const res = await signIn.email({ email: email.trim(), password });
+				if (res.error) {
+					setFeedback({ tone: "error", message: res.error.message ?? "Sign in failed" });
+					return;
+				}
 			} else {
-				const name = email.split("@")[0] || "Skriuw user";
-				const res = await signUp.email({ email, password, name });
-				if (res.error) setError(res.error.message ?? "Sign up failed");
+				const displayName = name.trim() || email.split("@")[0] || "Skriuw user";
+				const res = await signUp.email({
+					email: email.trim(),
+					password,
+					name: displayName,
+				});
+				if (res.error) {
+					setFeedback({ tone: "error", message: res.error.message ?? "Sign up failed" });
+					return;
+				}
 			}
+			setFeedback({ tone: "success", message: copy.success });
 		} catch {
-			setError("Network error. Check your connection and try again.");
+			setFeedback({
+				tone: "error",
+				message: "Network error. Check your connection and try again.",
+			});
 		} finally {
 			setLoading(false);
 		}
 	}
 
-	async function onGithub() {
-		setError(null);
-		setSocial(true);
+	async function onSocial(provider: "github" | "google") {
+		const providerLabel = provider === "github" ? "GitHub" : "Google";
+		setFeedback(null);
+		setOauthError(null);
+		setSocial(provider);
 		try {
 			const res = await signIn.social({
-				provider: "github",
+				provider,
 				callbackURL: Linking.createURL("/"),
 			});
-			if (res.error) setError(res.error.message ?? "GitHub sign in failed");
+			if (res.error) setOauthError(res.error.message ?? `${providerLabel} sign in failed`);
 		} catch {
-			setError("Network error. Check your connection and try again.");
+			setOauthError("Network error. Check your connection and try again.");
 		} finally {
-			setSocial(false);
+			setSocial(null);
+		}
+	}
+
+	async function onPasskey() {
+		setFeedback(null);
+		setOauthError(null);
+		setPasskey(true);
+		try {
+			const res = await signIn.passkey();
+			if (res.error) setOauthError(res.error.message ?? "Passkey sign in failed");
+		} catch {
+			setOauthError("Passkey sign in failed. Try again or use another sign-in method.");
+		} finally {
+			setPasskey(false);
 		}
 	}
 
@@ -106,261 +168,224 @@ export default function SignInScreen() {
 					contentContainerStyle={{
 						flexGrow: 1,
 						justifyContent: "center",
-						padding: 24,
+						paddingHorizontal: 24,
+						paddingVertical: 32,
 					}}
 					keyboardShouldPersistTaps="handled"
 					showsVerticalScrollIndicator={false}
 				>
-					<View style={{ width: "100%", maxWidth: 440, alignSelf: "center" }}>
-						<View style={{ marginBottom: 34 }}>
-							<SkriuwLogo size={34} color={ui.text} />
+					<Animated.View
+						entering={FadeInDown.duration(420)}
+						style={{
+							width: "100%",
+							maxWidth: authMetrics.maxWidth,
+							alignSelf: "center",
+						}}
+					>
+						<View style={{ alignItems: "center", marginBottom: 24 }}>
+							<SkriuwLogo size={30} color={ui.text} />
 						</View>
 
-						<Text
-							style={{
-								color: ui.textSubtle,
-								fontSize: 29,
-								fontWeight: "400",
-								lineHeight: 38,
-								letterSpacing: -0.7,
-								marginBottom: 36,
-							}}
-						>
-							Keep your{" "}
-							<Text style={{ color: ui.text, fontFamily: "serif" }}>notes</Text> and{" "}
-							<Text style={{ color: ui.text, fontFamily: "serif" }}>journal</Text> in
-							sync with{" "}
-							<Text style={{ color: ui.text, fontFamily: "serif" }}>Skriuw</Text>
-						</Text>
-
-						<View
-							style={{
-								borderTopWidth: 1,
-								borderTopColor: ui.cardBorder,
-								paddingTop: 28,
-							}}
-						>
+						<View style={{ alignItems: "center", marginBottom: 24 }}>
 							<Text
 								style={{
 									color: ui.text,
+									fontFamily: "serif",
 									fontSize: 24,
 									fontWeight: "500",
-									letterSpacing: -0.5,
-									marginBottom: 6,
+									lineHeight: 32,
+									letterSpacing: -0.4,
+									textAlign: "center",
+									marginBottom: 8,
 								}}
 							>
 								{copy.title}
 							</Text>
 							<Text
 								style={{
-									color: ui.textSubtle,
+									color: ui.textMuted,
 									fontSize: 14,
-									letterSpacing: 0.14,
-									marginBottom: 26,
+									lineHeight: 20,
+									textAlign: "center",
 								}}
 							>
 								{copy.subtitle}
 							</Text>
-
-							<Pressable
-								onPress={onGithub}
-								disabled={busy}
-								style={({ pressed }) => ({
-									height: CONTROL_HEIGHT,
-									flexDirection: "row",
-									justifyContent: "center",
-									alignItems: "center",
-									gap: 12,
-									backgroundColor: pressed
-										? "rgba(255,255,255,0.04)"
-										: ui.inputBg,
-									borderWidth: 1,
-									borderColor: ui.border,
-									paddingHorizontal: 20,
-									opacity: busy ? 0.55 : 1,
-								})}
-							>
-								{social ? (
-									<ActivityIndicator color={ui.text} />
-								) : (
-									<>
-										<GithubIcon size={17} color={ui.text} />
-										<Text
-											style={{
-												color: ui.text,
-												fontSize: 14,
-												fontWeight: "500",
-												letterSpacing: 0.14,
-											}}
-										>
-											Continue with GitHub
-										</Text>
-									</>
-								)}
-							</Pressable>
-
-							<View
-								style={{
-									flexDirection: "row",
-									alignItems: "center",
-									marginVertical: 22,
-								}}
-							>
-								<View style={{ flex: 1, height: 1, backgroundColor: ui.divider }} />
-								<Text
-									style={{
-										color: ui.textMuted,
-										fontSize: 11,
-										textTransform: "uppercase",
-										letterSpacing: 1,
-										marginHorizontal: 12,
-									}}
-								>
-									or continue with
-								</Text>
-								<View style={{ flex: 1, height: 1, backgroundColor: ui.divider }} />
-							</View>
-
-							<Field
-								label="Email"
-								value={email}
-								onChangeText={setEmail}
-								keyboardType="email-address"
-								autoCapitalize="none"
-								autoComplete="email"
-								placeholder="you@example.com"
-							/>
-							<Field
-								label="Password"
-								value={password}
-								onChangeText={setPassword}
-								secureTextEntry
-								autoComplete={mode === "signin" ? "password" : "password-new"}
-								placeholder="••••••••"
-							/>
-							{mode === "signup" ? (
-								<Field
-									label="Confirm password"
-									value={confirm}
-									onChangeText={setConfirm}
-									secureTextEntry
-									autoComplete="password-new"
-									placeholder="••••••••"
-								/>
-							) : null}
-
-							{error ? (
-								<Text
-									style={{
-										color: ui.error,
-										fontSize: 13,
-										marginTop: 4,
-										marginBottom: 12,
-									}}
-								>
-									{error}
-								</Text>
-							) : null}
-
-							<Pressable
-								onPress={onSubmit}
-								disabled={busy || !canSubmit}
-								style={({ pressed }) => ({
-									height: CONTROL_HEIGHT,
-									backgroundColor: ui.primary,
-									alignItems: "center",
-									justifyContent: "center",
-									marginTop: error ? 0 : 10,
-									opacity: busy || !canSubmit ? 0.35 : pressed ? 0.85 : 1,
-								})}
-							>
-								{loading ? (
-									<ActivityIndicator color={ui.onPrimary} />
-								) : (
-									<Text
-										style={{
-											color: ui.onPrimary,
-											fontSize: 14,
-											fontWeight: "600",
-											letterSpacing: 0.14,
-										}}
-									>
-										{copy.submit}
-									</Text>
-								)}
-							</Pressable>
-
-							<View
-								style={{
-									flexDirection: "row",
-									justifyContent: "center",
-									alignItems: "center",
-									gap: 5,
-									marginTop: 22,
-								}}
-							>
-								<Text style={{ color: ui.textSubtle, fontSize: 13 }}>
-									{copy.switchPrompt}
-								</Text>
-								<Pressable onPress={toggleMode} disabled={busy} hitSlop={8}>
-									<Text
-										style={{
-											color: ui.text,
-											fontSize: 13,
-											fontWeight: "500",
-											textDecorationLine: "underline",
-										}}
-									>
-										{copy.switchAction}
-									</Text>
-								</Pressable>
-							</View>
 						</View>
-					</View>
+
+						<AuthButton
+							label="Continue with GitHub"
+							onPress={() => onSocial("github")}
+							disabled={busy}
+							loading={social === "github"}
+							icon={<GithubIcon size={16} color={ui.text} />}
+						/>
+						<View style={{ marginTop: 10 }}>
+							<AuthButton
+								label="Continue with Google"
+								onPress={() => onSocial("google")}
+								disabled={busy}
+								loading={social === "google"}
+								icon={<GoogleIcon size={16} />}
+							/>
+						</View>
+						<View style={{ marginTop: 10 }}>
+							<AuthButton
+								label={
+									nativePasskeysEnabled
+										? "Continue with a passkey"
+										: "Passkeys unavailable in this build"
+								}
+								onPress={onPasskey}
+								disabled={busy || !nativePasskeysEnabled}
+								loading={passkey}
+								icon={<KeyRound size={16} color={ui.text} />}
+							/>
+						</View>
+
+						{oauthError ? (
+							<View style={{ marginTop: 6 }}>
+								<ValidationMessage tone="error" message={oauthError} />
+							</View>
+						) : null}
+
+						<View style={{ marginVertical: 24 }}>
+							<AuthDivider label="Or continue with email" />
+						</View>
+
+						<Animated.View layout={LinearTransition.duration(200)} style={{ gap: 12 }}>
+							{isSignup ? (
+								<Animated.View
+									entering={FadeIn.duration(200)}
+									exiting={FadeOut.duration(120)}
+								>
+									<AuthField
+										label="Name"
+										value={name}
+										onChangeText={setName}
+										onBlur={() => markTouched("name")}
+										autoCapitalize="words"
+										autoComplete="name"
+										textContentType="name"
+										editable={!busy}
+									/>
+								</Animated.View>
+							) : null}
+
+							<View style={{ gap: 6 }}>
+								<AuthField
+									label="Email"
+									value={email}
+									onChangeText={setEmail}
+									onBlur={() => markTouched("email")}
+									invalid={Boolean(touched.email && emailError)}
+									keyboardType="email-address"
+									autoCapitalize="none"
+									autoCorrect={false}
+									autoComplete="email"
+									textContentType="emailAddress"
+									editable={!busy}
+								/>
+								{touched.email && emailError ? (
+									<ValidationMessage tone="error" message={emailError} />
+								) : null}
+							</View>
+
+							<View style={{ gap: 6 }}>
+								<AuthField
+									label="Password"
+									value={password}
+									onChangeText={setPassword}
+									onBlur={() => markTouched("password")}
+									invalid={Boolean(touched.password && passwordError)}
+									secureTextEntry
+									autoCapitalize="none"
+									autoComplete={isSignup ? "password-new" : "password"}
+									textContentType={isSignup ? "newPassword" : "password"}
+									editable={!busy}
+								/>
+								{touched.password && passwordError ? (
+									<ValidationMessage tone="error" message={passwordError} />
+								) : null}
+							</View>
+
+							{isSignup ? (
+								<Animated.View
+									entering={FadeIn.duration(200)}
+									exiting={FadeOut.duration(120)}
+									style={{ gap: 6 }}
+								>
+									<AuthField
+										label="Confirm password"
+										value={confirm}
+										onChangeText={setConfirm}
+										onBlur={() => markTouched("confirm")}
+										invalid={Boolean(
+											touched.confirm && confirm && !passwordsMatch,
+										)}
+										secureTextEntry
+										autoCapitalize="none"
+										autoComplete="password-new"
+										textContentType="newPassword"
+										editable={!busy}
+									/>
+									{confirm ? (
+										<ValidationMessage
+											variant="chip"
+											tone={passwordsMatch ? "success" : "error"}
+											message={
+												passwordsMatch
+													? "Passwords match."
+													: "Passwords do not match."
+											}
+										/>
+									) : null}
+								</Animated.View>
+							) : null}
+						</Animated.View>
+
+						<View style={{ marginTop: 16 }}>
+							<AuthButton
+								label={copy.submit}
+								onPress={onSubmit}
+								disabled={busy}
+								loading={loading}
+								feedback={feedback}
+							/>
+						</View>
+
+						<View
+							style={{
+								flexDirection: "row",
+								flexWrap: "wrap",
+								justifyContent: "center",
+								alignItems: "baseline",
+								gap: 8,
+								marginTop: 16,
+							}}
+						>
+							<Text style={{ color: ui.textMuted, fontSize: 14 }}>
+								{copy.switchPrompt}
+							</Text>
+							<Pressable onPress={toggleMode} disabled={busy} hitSlop={8}>
+								<Text
+									style={{
+										color: ui.text,
+										fontSize: 14,
+										textDecorationLine: "underline",
+									}}
+								>
+									{copy.switchAction}
+								</Text>
+							</Pressable>
+						</View>
+
+						<View style={{ marginTop: 20 }}>
+							<LegalFooter />
+						</View>
+					</Animated.View>
 				</ScrollView>
 			</KeyboardAvoidingView>
 		</SafeAreaView>
-	);
-}
-
-type FieldProps = { label: string } & React.ComponentProps<typeof TextInput>;
-
-function Field({ label, ...props }: FieldProps) {
-	const [focused, setFocused] = useState(false);
-	return (
-		<View style={{ marginBottom: 14 }}>
-			<Text
-				style={{
-					color: ui.textMuted,
-					fontSize: 13,
-					fontWeight: "500",
-					marginBottom: 8,
-				}}
-			>
-				{label}
-			</Text>
-			<TextInput
-				{...props}
-				onFocus={(e) => {
-					setFocused(true);
-					props.onFocus?.(e);
-				}}
-				onBlur={(e) => {
-					setFocused(false);
-					props.onBlur?.(e);
-				}}
-				placeholderTextColor={ui.textSubtle}
-				style={{
-					height: CONTROL_HEIGHT,
-					backgroundColor: ui.inputBg,
-					borderWidth: 1,
-					borderColor: focused ? ui.borderFocus : ui.border,
-					paddingHorizontal: 16,
-					color: ui.text,
-					fontSize: 14,
-					letterSpacing: 0.14,
-				}}
-			/>
-		</View>
 	);
 }

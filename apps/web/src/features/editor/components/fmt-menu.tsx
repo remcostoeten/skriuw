@@ -8,6 +8,7 @@ import {
 	Heading1,
 	Heading2,
 	Heading3,
+	Highlighter,
 	Languages,
 	Link2,
 	List,
@@ -24,12 +25,20 @@ import {
 	SpellCheck,
 	Wand2,
 } from "lucide-react";
+import {
+	createMarkId,
+	inferMarkKind,
+	MARK_COLORS,
+	type MarkColor,
+} from "@skriuw/domain/living-information";
 import { getNoteTitle } from "@/domain/notes/note-links";
 import { type EditorInstance, getEditorView } from "@/features/editor/lib/editor-instance";
 import type { AiAction } from "@/features/ai/service";
 import type { NoteFile } from "@/types/notes";
 import { NoteLinkMenuList } from "./note-link-menu-list";
 import { applyBlockType } from "./fmt-menu-actions";
+import { useShortcutHint, type ShortcutId } from "@/core/shortcuts";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 
 type TBlockTypeOption = {
 	id: string;
@@ -106,21 +115,31 @@ type TFmtIconButtonProps = {
 	icon: ReactNode;
 	active: boolean;
 	onRun: () => void;
+	shortcutId?: ShortcutId;
 };
 
-export function FmtIconButton({ label, icon, active, onRun }: TFmtIconButtonProps) {
+export function FmtIconButton({ label, icon, active, onRun, shortcutId }: TFmtIconButtonProps) {
+	const shortcut = useShortcutHint(shortcutId);
+
 	return (
-		<button
-			type="button"
-			className="skriuw-fmt-btn"
-			data-active={active ? "true" : undefined}
-			aria-label={label}
-			aria-pressed={active}
-			onMouseDown={(event) => event.preventDefault()}
-			onClick={onRun}
-		>
-			{icon}
-		</button>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					type="button"
+					className="skriuw-fmt-btn"
+					data-active={active ? "true" : undefined}
+					aria-label={label}
+					aria-pressed={active}
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={onRun}
+				>
+					{icon}
+				</button>
+			</TooltipTrigger>
+			<TooltipContent side="top" className="px-2 py-1 text-xs" shortcut={shortcut}>
+				{label}
+			</TooltipContent>
+		</Tooltip>
 	);
 }
 
@@ -176,9 +195,10 @@ type TFmtMenuProps = {
 	children: (close: () => void) => ReactNode;
 	onOpen?: () => void;
 	width?: string;
+	label?: string;
 };
 
-function FmtMenu({ id, trigger, children, onOpen, width }: TFmtMenuProps) {
+function FmtMenu({ id, trigger, children, onOpen, width, label }: TFmtMenuProps) {
 	const open = useOpenFmtMenu() === id;
 	const ref = useRef<HTMLDivElement>(null);
 	const dropdownRef = useRef<HTMLDivElement>(null);
@@ -235,7 +255,16 @@ function FmtMenu({ id, trigger, children, onOpen, width }: TFmtMenuProps) {
 
 	return (
 		<div className="skriuw-fmt-menu" ref={ref}>
-			{trigger({ open, toggle })}
+			{label ? (
+				<Tooltip>
+					<TooltipTrigger asChild>{trigger({ open, toggle })}</TooltipTrigger>
+					<TooltipContent side="top" className="px-2 py-1 text-xs">
+						{label}
+					</TooltipContent>
+				</Tooltip>
+			) : (
+				trigger({ open, toggle })
+			)}
 			{open ? (
 				<div
 					ref={dropdownRef}
@@ -286,6 +315,7 @@ export function BlockTypeMenu({ editor, blockType, level }: TBlockTypeMenuProps)
 	return (
 		<FmtMenu
 			id="block-type"
+			label="Block type"
 			width="12rem"
 			trigger={({ open, toggle }) => (
 				<button
@@ -332,6 +362,7 @@ export function LinkPopover({ editor }: { editor: EditorInstance }) {
 	return (
 		<FmtMenu
 			id="link"
+			label="Create link"
 			width="16rem"
 			onOpen={() => {
 				selectedTextRef.current = editor.getSelectedText?.() ?? "";
@@ -390,6 +421,108 @@ export function LinkPopover({ editor }: { editor: EditorInstance }) {
 	);
 }
 
+const HIGHLIGHT_COLOR_CLASS: Record<MarkColor, string> = {
+	yellow: "bg-amber-300 text-amber-950",
+	green: "bg-emerald-300 text-emerald-950",
+	blue: "bg-sky-300 text-sky-950",
+	pink: "bg-rose-300 text-rose-950",
+	purple: "bg-violet-300 text-violet-950",
+	orange: "bg-orange-300 text-orange-950",
+};
+
+export function HighlightPopover({ editor }: { editor: EditorInstance }) {
+	const selectedTextRef = useRef("");
+	const [color, setColor] = useState<MarkColor>("yellow");
+	const [label, setLabel] = useState("");
+
+	return (
+		<FmtMenu
+			id="highlight"
+			label="Highlight selection"
+			width="15rem"
+			onOpen={() => {
+				selectedTextRef.current = String(editor.getSelectedText?.() ?? "").trim();
+				setColor("yellow");
+				setLabel("");
+			}}
+			trigger={({ open, toggle }) => (
+				<button
+					type="button"
+					className="skriuw-fmt-btn"
+					aria-label="Highlight selection"
+					aria-expanded={open}
+					onMouseDown={(event) => event.preventDefault()}
+					onClick={toggle}
+				>
+					<Highlighter size={15} />
+				</button>
+			)}
+		>
+			{(close) => {
+				const submit = () => {
+					const text = selectedTextRef.current;
+					if (!text) return;
+					editor.focus();
+					editor.insertInlineContent([
+						{
+							type: "mark",
+							props: {
+								id: createMarkId(),
+								kind: inferMarkKind(text),
+								text,
+								value: text,
+								color,
+								label: label.trim(),
+							},
+						} as any,
+					]);
+					close();
+				};
+				return (
+					<div className="skriuw-fmt-form gap-2">
+						<div className="flex gap-1" aria-label="Highlight color" role="group">
+							{MARK_COLORS.map((option) => (
+								<button
+									key={option}
+									type="button"
+									className={`size-7 rounded-full ring-offset-2 ring-offset-popover focus-visible:outline-none focus-visible:ring-2 ${HIGHLIGHT_COLOR_CLASS[option]}`}
+									aria-label={`${option} highlight`}
+									aria-pressed={color === option}
+									data-active={color === option ? "true" : undefined}
+									onMouseDown={(event) => event.preventDefault()}
+									onClick={() => setColor(option)}
+								/>
+							))}
+						</div>
+						<input
+							autoFocus
+							value={label}
+							onChange={(event) => setLabel(event.target.value)}
+							onKeyDown={(event) => {
+								if (event.key === "Enter") {
+									event.preventDefault();
+									submit();
+								}
+								if (event.key === "Escape") close();
+							}}
+							placeholder="Label (optional)"
+							className="skriuw-fmt-input"
+						/>
+						<button
+							type="button"
+							className="skriuw-fmt-apply"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={submit}
+						>
+							Highlight
+						</button>
+					</div>
+				);
+			}}
+		</FmtMenu>
+	);
+}
+
 type TInternalNoteLinkMenuProps = {
 	editor: EditorInstance;
 	files: NoteFile[];
@@ -402,6 +535,7 @@ export function InternalNoteLinkMenu({ editor, files, activeFileId }: TInternalN
 	return (
 		<FmtMenu
 			id="note-link"
+			label="Link to a note"
 			width="14rem"
 			onOpen={() => {
 				selectedTextRef.current = editor.getSelectedText?.() ?? "";
@@ -453,6 +587,7 @@ export function CommentPopover({
 	return (
 		<FmtMenu
 			id="comment"
+			label="Comment on selection"
 			width="17rem"
 			onOpen={() => {
 				const selection = getEditorView(editor)?.state.selection;
@@ -569,6 +704,7 @@ export function AiMenu({
 	return (
 		<FmtMenu
 			id="ai"
+			label="AI actions"
 			width="13rem"
 			trigger={({ open, toggle }) => (
 				<button

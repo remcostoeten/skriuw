@@ -4,13 +4,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { MotionPreferences } from "@/providers/motion-preferences";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { PersistenceBootstrap } from "@/providers/persistence-bootstrap";
 import { noop } from "@/shared/lib/noop";
 import { ProtectedAppGuard } from "@/providers/protected-app-guard";
 import { ThemeAttribute } from "@/providers/theme-attribute";
 import { WorkspaceBackendProvider } from "@/core/workspace-backend";
 import { GuestWorkspaceBootstrap } from "@/providers/guest-workspace-bootstrap";
-import { AppRoutePrefetcher } from "@/providers/app-route-prefetcher";
 import { QueryCachePersistence } from "@/providers/query-cache-persistence";
 import { WorkspaceWarmup } from "@/providers/workspace-warmup";
 import { ShortcutProvider } from "@/core/shortcuts";
@@ -25,11 +25,15 @@ import { DesktopQuitShortcut } from "@/features/desktop/desktop-quit-shortcut";
 import { DesktopToggleSize } from "@/features/desktop/desktop-toggle-size";
 import { WindowControls } from "@/features/desktop/window-controls";
 import { UserToastHost } from "@/shared/ui/user-toast-host";
-import { PerfDevtools } from "@/shared/devtools";
 import { EDITOR_PREFERENCES_STORAGE_KEY } from "@/features/settings/lib/editor-preferences";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
 import type { AuthUser } from "@/core/auth/auth-user";
 import { InitialAuthUserProvider } from "@/core/auth/initial-auth-user";
+
+const PerfDevtools = dynamic(
+	() => import("@/shared/devtools").then((module) => module.PerfDevtools),
+	{ ssr: false },
+);
 
 type Props = {
 	children: React.ReactNode;
@@ -98,7 +102,6 @@ export function AppProviders({ children, initialEditorPreferences, initialAuthUs
 								<WindowControls />
 								<PersistenceBootstrap />
 								<GuestWorkspaceBootstrap />
-								<AppRoutePrefetcher />
 								<WorkspaceWarmup />
 								<ThemeAttribute />
 								<ShortcutProvider>
@@ -114,7 +117,7 @@ export function AppProviders({ children, initialEditorPreferences, initialAuthUs
 								</ShortcutProvider>
 								<PendingCollabReplay />
 								<UserToastHost />
-								<PerfDevtools />
+								{process.env.NODE_ENV === "development" ? <PerfDevtools /> : null}
 							</WorkspaceBackendProvider>
 						</ProtectedAppGuard>
 					</TooltipProvider>

@@ -11,6 +11,7 @@
 		"ios": {
 			"supportsTablet": true,
 			"bundleIdentifier": "com.skriuw.app",
+			"associatedDomains": ["webcredentials:skriuw.com"],
 			"icon": "../desktop/src-tauri/icons/ios/AppIcon-512@2x.png"
 		},
 		"android": {
@@ -38,7 +39,8 @@
 			"typedRoutes": true
 		},
 		"extra": {
-			"apiBaseUrl": "https://skriuw.com"
+			"apiBaseUrl": "https://skriuw.com",
+			"nativePasskeysEnabled": false
 		}
 	}
 }
