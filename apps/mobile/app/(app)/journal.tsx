@@ -327,6 +327,8 @@ function TodayView({
 			style={styles.flex}
 			contentContainerStyle={styles.editor}
 			keyboardShouldPersistTaps="handled"
+			keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+			automaticallyAdjustKeyboardInsets
 		>
 			<View style={styles.headingRow}>
 				<View>
@@ -337,6 +339,7 @@ function TodayView({
 					accessibilityLabel="Entry options"
 					onPress={remove}
 					disabled={!entry}
+					hitSlop={5}
 					style={styles.iconButton}
 				>
 					<MoreHorizontal size={21} color={styles.icon.color} />
@@ -623,6 +626,7 @@ function LocalTab({
 	return (
 		<Pressable
 			onPress={onPress}
+			hitSlop={2}
 			accessibilityRole="tab"
 			accessibilityState={{ selected: active }}
 			style={({ pressed }) => [
@@ -676,8 +680,8 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 			letterSpacing: 1.1,
 			fontWeight: "700",
 		},
-		editor: { padding: 22, paddingBottom: 50 },
-		screenPad: { padding: 22, paddingBottom: 38 },
+		editor: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 28 },
+		screenPad: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 30 },
 		headingRow: {
 			flexDirection: "row",
 			justifyContent: "space-between",
@@ -699,9 +703,9 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 		},
 		screenTitle: { color: theme.foreground, fontFamily: "serif", fontSize: 31, lineHeight: 38 },
 		iconButton: {
-			width: 38,
-			height: 38,
-			borderRadius: 19,
+			width: 34,
+			height: 34,
+			borderRadius: 17,
 			borderWidth: StyleSheet.hairlineWidth,
 			borderColor: theme.border,
 			alignItems: "center",
@@ -712,7 +716,7 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 		meta: {
 			flexDirection: "row",
 			justifyContent: "space-between",
-			paddingVertical: 14,
+			paddingVertical: 11,
 			borderBottomWidth: StyleSheet.hairlineWidth,
 			borderBottomColor: theme.divider,
 		},
@@ -730,7 +734,7 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 			color: theme.foreground,
 			fontFamily: "serif",
 			fontSize: 25,
-			paddingVertical: 16,
+			paddingVertical: 11,
 		},
 		bodyInput: {
 			color: theme.foreground,
@@ -782,7 +786,7 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 		},
 		localTab: {
 			flex: 1,
-			minHeight: 47,
+			minHeight: 40,
 			flexDirection: "row",
 			alignItems: "center",
 			justifyContent: "center",
@@ -798,8 +802,8 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 			flexDirection: "row",
 			justifyContent: "space-between",
 			alignItems: "center",
-			marginTop: 25,
-			marginBottom: 18,
+			marginTop: 18,
+			marginBottom: 14,
 		},
 		calendarGrid: { flexDirection: "row", flexWrap: "wrap" },
 		weekday: {
@@ -851,7 +855,7 @@ function makeStyles(theme: ReturnType<typeof useTheme>["theme"]) {
 		searchInput: { color: theme.foreground, flex: 1, paddingVertical: 11 },
 		entryList: { paddingTop: 12, paddingBottom: 30 },
 		entryRow: {
-			paddingVertical: 17,
+			paddingVertical: 13,
 			borderBottomWidth: StyleSheet.hairlineWidth,
 			borderBottomColor: theme.divider,
 		},

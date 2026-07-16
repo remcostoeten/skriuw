@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
@@ -160,18 +160,17 @@ export default function SignInScreen() {
 
 	return (
 		<SafeAreaView style={{ flex: 1, backgroundColor: ui.bg }}>
-			<KeyboardAvoidingView
-				behavior={Platform.OS === "ios" ? "padding" : undefined}
-				style={{ flex: 1 }}
-			>
+			<View style={{ flex: 1 }}>
 				<ScrollView
 					contentContainerStyle={{
 						flexGrow: 1,
 						justifyContent: "center",
 						paddingHorizontal: 24,
-						paddingVertical: 32,
+						paddingVertical: 24,
 					}}
 					keyboardShouldPersistTaps="handled"
+					keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+					automaticallyAdjustKeyboardInsets
 					showsVerticalScrollIndicator={false}
 				>
 					<Animated.View
@@ -385,7 +384,7 @@ export default function SignInScreen() {
 						</View>
 					</Animated.View>
 				</ScrollView>
-			</KeyboardAvoidingView>
+			</View>
 		</SafeAreaView>
 	);
 }
