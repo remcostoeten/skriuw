@@ -48,8 +48,8 @@ export function ActionSheet({ visible, title, actions, onClose }: Props) {
 									color: theme.mutedForeground,
 									fontSize: 13,
 									fontWeight: "600",
-									paddingHorizontal: 20,
-									paddingTop: 16,
+									paddingHorizontal: 16,
+									paddingTop: 12,
 									paddingBottom: 4,
 								}}
 							>
@@ -61,6 +61,7 @@ export function ActionSheet({ visible, title, actions, onClose }: Props) {
 						{actions.map((action) => (
 							<Pressable
 								key={action.key}
+								accessibilityRole="button"
 								onPress={() => {
 									onClose();
 									action.onPress();
@@ -68,14 +69,15 @@ export function ActionSheet({ visible, title, actions, onClose }: Props) {
 								style={{
 									flexDirection: "row",
 									alignItems: "center",
-									gap: 14,
-									paddingHorizontal: 20,
-									paddingVertical: 15,
+									gap: 11,
+									paddingHorizontal: 16,
+									paddingVertical: 12,
+									minHeight: 44,
 								}}
 							>
 								{action.icon ? (
 									<action.icon
-										size={20}
+										size={18}
 										color={
 											action.destructive
 												? theme.destructive
@@ -89,7 +91,7 @@ export function ActionSheet({ visible, title, actions, onClose }: Props) {
 										color: action.destructive
 											? theme.destructive
 											: theme.foreground,
-										fontSize: 16,
+										fontSize: 14,
 										fontWeight: "500",
 									}}
 								>
