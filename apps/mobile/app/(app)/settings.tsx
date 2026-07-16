@@ -99,7 +99,7 @@ export default function SettingsScreen() {
 						borderWidth: 1,
 						borderColor: theme.border,
 						borderRadius: theme.radius + 4,
-						paddingVertical: 14,
+						paddingVertical: 11,
 					}}
 				>
 					<LogOut size={18} color={theme.destructive} />
@@ -201,7 +201,7 @@ function EditorSettings() {
 function ThemePicker() {
 	const { name, setTheme } = useTheme();
 	return (
-		<View style={{ flexDirection: "row", gap: 8, paddingVertical: 14 }}>
+		<View style={{ flexDirection: "row", gap: 8, paddingVertical: 10 }}>
 			{themeList.map((option) => (
 				<ThemePreviewCard
 					key={option.name}
@@ -234,7 +234,7 @@ function ThemePreviewCard({
 			accessibilityState={{ checked: selected }}
 			style={{
 				flex: 1,
-				height: 132,
+				height: 112,
 				borderRadius: 9,
 				backgroundColor: preview.background,
 				overflow: "hidden",
@@ -425,7 +425,7 @@ function ControlRow({
 	return (
 		<View
 			style={{
-				paddingVertical: 13,
+				paddingVertical: 11,
 				borderBottomWidth: 1,
 				borderBottomColor: theme.divider,
 				gap: 10,
@@ -466,7 +466,7 @@ function ActionRow({
 				flexDirection: "row",
 				alignItems: "center",
 				gap: 12,
-				paddingVertical: 14,
+				paddingVertical: 11,
 				opacity: disabled ? 0.5 : 1,
 			}}
 		>
@@ -513,7 +513,7 @@ function SegmentedControl<T extends string>({
 						style={{
 							flex: 1,
 							alignItems: "center",
-							paddingVertical: 8,
+							paddingVertical: 7,
 							borderRadius: theme.radius,
 							backgroundColor: selected ? theme.card : "transparent",
 						}}

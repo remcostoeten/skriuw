@@ -127,13 +127,13 @@ function WorkspaceMenu({
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<ToolbarTooltip label="Switch workspace">
+			<ToolbarTooltip label="Switch workspace">
+				<DropdownMenuTrigger asChild>
 					<button type="button" className={buttonClassName} aria-label="Switch workspace">
 						<Columns2 className="h-4 w-4" strokeWidth={1.5} />
 					</button>
-				</ToolbarTooltip>
-			</DropdownMenuTrigger>
+				</DropdownMenuTrigger>
+			</ToolbarTooltip>
 			<DropdownMenuContent align="start" className="w-44 rounded-none shadow-none">
 				{items.map((item) => (
 					<DropdownMenuItem key={item.href} asChild className="gap-2 text-xs">
@@ -559,15 +559,17 @@ export const EditorToolbar = memo(function EditorToolbar({
 
 					{onExportNote && (
 						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<button
-									type="button"
-									className={sidebarIconButtonClass}
-									aria-label="Export note"
-								>
-									<Download className="h-4 w-4" strokeWidth={1.5} />
-								</button>
-							</DropdownMenuTrigger>
+							<ToolbarTooltip label="Export note">
+								<DropdownMenuTrigger asChild>
+									<button
+										type="button"
+										className={sidebarIconButtonClass}
+										aria-label="Export note"
+									>
+										<Download className="h-4 w-4" strokeWidth={1.5} />
+									</button>
+								</DropdownMenuTrigger>
+							</ToolbarTooltip>
 							<DropdownMenuContent
 								align="end"
 								className="w-48 rounded-none shadow-none"

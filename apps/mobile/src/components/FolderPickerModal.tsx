@@ -94,9 +94,9 @@ export function FolderPickerModal({
 								color: theme.foreground,
 								fontSize: 17,
 								fontWeight: "700",
-								paddingHorizontal: 20,
-								paddingTop: 18,
-								paddingBottom: 10,
+								paddingHorizontal: 16,
+								paddingTop: 14,
+								paddingBottom: 8,
 							}}
 						>
 							Move to…
@@ -156,18 +156,21 @@ function FolderOption({
 	return (
 		<Pressable
 			onPress={onPress}
+			accessibilityRole="button"
+			accessibilityState={{ selected }}
 			style={{
 				flexDirection: "row",
 				alignItems: "center",
 				gap: 10,
-				paddingVertical: 13,
-				paddingRight: 20,
-				paddingLeft: 20 + depth * 18,
+				paddingVertical: 11,
+				paddingRight: 16,
+				paddingLeft: 16 + depth * 16,
+				minHeight: 44,
 			}}
 		>
 			{depth > 0 ? <ChevronRight size={14} color={theme.textDim} strokeWidth={2} /> : null}
 			<Icon size={18} color={theme.mutedForeground} strokeWidth={2} />
-			<Text style={{ flex: 1, color: theme.foreground, fontSize: 16 }} numberOfLines={1}>
+			<Text style={{ flex: 1, color: theme.foreground, fontSize: 14 }} numberOfLines={1}>
 				{label}
 			</Text>
 			{selected ? <Check size={18} color={theme.foreground} strokeWidth={2.5} /> : null}

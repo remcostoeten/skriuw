@@ -48,7 +48,7 @@ export function TextPromptModal({
 				style={{
 					flex: 1,
 					justifyContent: "center",
-					padding: 24,
+					padding: 18,
 					backgroundColor: "rgba(0,0,0,0.5)",
 				}}
 			>
@@ -58,13 +58,13 @@ export function TextPromptModal({
 						borderWidth: 1,
 						borderColor: theme.border,
 						borderRadius: theme.radius + 6,
-						padding: 20,
+						padding: 16,
 					}}
 				>
 					<Text
 						style={{
 							color: theme.foreground,
-							fontSize: 17,
+							fontSize: 16,
 							fontWeight: "700",
 							marginBottom: 14,
 						}}
@@ -81,7 +81,7 @@ export function TextPromptModal({
 						onSubmitEditing={() => trimmed && onConfirm(trimmed)}
 						style={{
 							color: theme.foreground,
-							fontSize: 16,
+							fontSize: 15,
 							backgroundColor: theme.input,
 							borderWidth: 1,
 							borderColor: theme.border,
@@ -129,12 +129,12 @@ function ModalButton({
 			onPress={onPress}
 			disabled={disabled}
 			hitSlop={8}
-			style={{ paddingHorizontal: 14, paddingVertical: 8 }}
+			style={{ paddingHorizontal: 12, paddingVertical: 7 }}
 		>
 			<Text
 				style={{
 					color: disabled ? theme.textDim : theme.foreground,
-					fontSize: 16,
+					fontSize: 14,
 					fontWeight: bold ? "700" : "500",
 				}}
 			>
