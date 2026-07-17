@@ -65,7 +65,6 @@ import {
 	useCursorStatusStore,
 	type CursorStatusStore,
 } from "@/features/editor/hooks/use-cursor-status";
-import { insertOrUpdateBlockForSlashMenu } from "@blocknote/core/extensions";
 import { DEFAULT_DRAWING_SCENE } from "@/shared/lib/drawing";
 import type { EditorInstance } from "@/features/editor/lib/editor-instance";
 
@@ -508,11 +507,18 @@ function EditorContainerImpl({
 	const handleInsertDrawing = useCallback(() => {
 		const blockEditor = blockEditorRef.current;
 		if (!blockEditor) return;
-		insertOrUpdateBlockForSlashMenu(blockEditor, {
-			type: "drawing",
-			props: { scene: DEFAULT_DRAWING_SCENE },
-			// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
-		} as any);
+		// Dynamic import so this @blocknote helper — the only static reference to
+		// the editor package outside the already-lazy RichTextEditor subtree —
+		// does not pull the whole ~486 KB gzip editor chunk into shell startup.
+		// This is a user-triggered slash-menu action, so the one-time async load
+		// is imperceptible.
+		void import("@blocknote/core/extensions").then(({ insertOrUpdateBlockForSlashMenu }) => {
+			insertOrUpdateBlockForSlashMenu(blockEditor, {
+				type: "drawing",
+				props: { scene: DEFAULT_DRAWING_SCENE },
+				// biome-ignore lint/suspicious/noExplicitAny: schema-flexible block
+			} as any);
+		});
 	}, []);
 	const [prevFileId, setPrevFileId] = useState(fileId);
 	if (fileId !== prevFileId) {
