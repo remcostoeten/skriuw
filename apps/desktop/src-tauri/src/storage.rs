@@ -127,6 +127,18 @@ pub struct JournalTag {
     pub usage_count: i64,
 }
 
+/// Borrowed archive slices applied as one SQLite transaction.
+pub struct WorkspaceImport<'a> {
+    pub folders: &'a [Folder],
+    pub notes: &'a [Note],
+    pub journal_entries: &'a [JournalEntry],
+    pub journal_tags: &'a [JournalTag],
+    pub deleted_note_ids: &'a [String],
+    pub deleted_folder_ids: &'a [String],
+    pub deleted_journal_entry_ids: &'a [String],
+    pub deleted_journal_tag_ids: &'a [String],
+}
+
 /// Local counterpart of the web Task record. Tasks are kept in the desktop
 /// SQLite index so the task workspace works without a signed-in account.
 #[derive(Debug, Serialize, Deserialize)]
@@ -1027,41 +1039,31 @@ impl Storage {
     /// files, written by the caller before/after this call) isn't part of this
     /// transaction; it's the source of truth and can always be resynced into the
     /// index via `reconcile_index`.
-    pub fn import_workspace(
-        &self,
-        folders: &[Folder],
-        notes: &[Note],
-        journal_entries: &[JournalEntry],
-        journal_tags: &[JournalTag],
-        deleted_note_ids: &[String],
-        deleted_folder_ids: &[String],
-        deleted_journal_entry_ids: &[String],
-        deleted_journal_tag_ids: &[String],
-    ) -> rusqlite::Result<()> {
+    pub fn import_workspace(&self, import: WorkspaceImport<'_>) -> rusqlite::Result<()> {
         let mut conn = self.lock();
         let tx = conn.transaction()?;
-        for folder in folders {
+        for folder in import.folders {
             upsert_folder_with(&tx, folder)?;
         }
-        for note in notes {
+        for note in import.notes {
             upsert_note_with(&tx, note)?;
         }
-        for entry in journal_entries {
+        for entry in import.journal_entries {
             upsert_journal_entry_with(&tx, entry)?;
         }
-        for tag in journal_tags {
+        for tag in import.journal_tags {
             upsert_journal_tag_with(&tx, tag)?;
         }
-        for id in deleted_note_ids {
+        for id in import.deleted_note_ids {
             tx.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
         }
-        for id in deleted_folder_ids {
+        for id in import.deleted_folder_ids {
             tx.execute("DELETE FROM folders WHERE id = ?1", params![id])?;
         }
-        for id in deleted_journal_entry_ids {
+        for id in import.deleted_journal_entry_ids {
             tx.execute("DELETE FROM journal_entries WHERE id = ?1", params![id])?;
         }
-        for id in deleted_journal_tag_ids {
+        for id in import.deleted_journal_tag_ids {
             tx.execute("DELETE FROM journal_tags WHERE id = ?1", params![id])?;
         }
         tx.commit()
