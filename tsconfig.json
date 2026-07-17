@@ -12,6 +12,7 @@
 		"noEmit": true,
 		"types": ["node", "bun"],
 		"paths": {
+			"@/generated/*": ["./generated/*"],
 			"@/*": ["./apps/web/src/*"]
 		}
 	},

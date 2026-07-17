@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { FlatList, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronRight, Clock3, Hash, Search, UserRound, X } from "lucide-react-native";
 import { useNotes, useSearch } from "@/query/notes";
@@ -25,7 +25,7 @@ export default function SearchScreen() {
 	const trimmedQuery = query.trim();
 	const searchQuery = useSearch(query);
 	const { data: results = [], isFetching } = searchQuery;
-	const { data: notes = [] } = useNotes(null);
+	const { data: notes = [] } = useNotes();
 	const recentNotes = useMemo(
 		() =>
 			[...notes]
@@ -133,7 +133,11 @@ export default function SearchScreen() {
 					onOpen={openResult}
 				/>
 			) : (
-				<ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28 }}>
+				<ScrollView
+					contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28 }}
+					keyboardShouldPersistTaps="handled"
+					keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+				>
 					{recentSearches.length > 0 ? (
 						<SearchSection
 							title="Recent searches"
@@ -255,6 +259,8 @@ function SearchResults({
 		<FlatList
 			data={results}
 			keyExtractor={(item) => item.noteId}
+			keyboardShouldPersistTaps="handled"
+			keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
 			contentContainerStyle={results.length === 0 ? { flexGrow: 1 } : undefined}
 			ListEmptyComponent={
 				<View
@@ -343,6 +349,7 @@ function SuggestionChip({
 	return (
 		<Pressable
 			onPress={onPress}
+			hitSlop={6}
 			style={{
 				flexDirection: "row",
 				alignItems: "center",

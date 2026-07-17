@@ -70,6 +70,7 @@ function NavigationButton({
 			accessibilityState={{ selected: active }}
 			style={({ pressed }) => ({
 				flex: 1,
+				minHeight: 44,
 				alignItems: "center",
 				gap: 2,
 				paddingVertical: 6,

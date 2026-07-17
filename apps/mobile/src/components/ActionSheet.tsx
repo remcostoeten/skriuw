@@ -33,6 +33,9 @@ export function ActionSheet({ visible, title, actions, onClose }: Props) {
 				<Pressable
 					onPress={() => {}}
 					style={{
+						width: "100%",
+						maxWidth: 560,
+						alignSelf: "center",
 						backgroundColor: theme.popover,
 						borderTopLeftRadius: theme.radius + 12,
 						borderTopRightRadius: theme.radius + 12,

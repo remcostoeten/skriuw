@@ -1,6 +1,6 @@
 import "react-native-gesture-handler";
 import { useEffect } from "react";
-import { Slot, useRouter, useSegments } from "expo-router";
+import { Slot, useRootNavigationState, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -15,16 +15,17 @@ function AuthGate() {
 	const { data: session, isPending } = useSession();
 	const segments = useSegments();
 	const router = useRouter();
+	const rootNavigationState = useRootNavigationState();
 
 	useEffect(() => {
-		if (isPending) return;
+		if (isPending || !rootNavigationState?.key) return;
 		const inAuthGroup = segments[0] === "(auth)";
 		if (!session && !inAuthGroup) {
 			router.replace("/(auth)/sign-in");
 		} else if (session && inAuthGroup) {
 			router.replace("/(app)");
 		}
-	}, [session, isPending, segments, router]);
+	}, [session, isPending, segments, router, rootNavigationState?.key]);
 
 	return <Slot />;
 }

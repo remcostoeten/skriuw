@@ -118,7 +118,7 @@ export default function TrashScreen() {
 								borderColor: theme.border,
 								borderRadius: theme.radius + 4,
 								paddingHorizontal: 14,
-								paddingVertical: 13,
+								paddingVertical: 11,
 								marginBottom: 8,
 							}}
 						>
