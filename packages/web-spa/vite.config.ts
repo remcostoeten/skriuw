@@ -47,6 +47,7 @@ export default defineConfig({
 	build: {
 		outDir: "dist",
 		emptyOutDir: true,
+		manifest: true,
 		target: "esnext",
 		minify: "esbuild",
 		rollupOptions: {

@@ -10,7 +10,6 @@ use zip::ZipArchive;
 /// `.skriuw/` metadata). The SQLite index is NOT included — it is a derived
 /// cache the app rebuilds from the vault on import, so a backup stays a plain,
 /// inspectable folder of markdown.
-
 fn map_zip(error: zip::result::ZipError) -> io::Error {
     io::Error::other(error)
 }

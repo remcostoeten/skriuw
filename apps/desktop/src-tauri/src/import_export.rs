@@ -9,9 +9,9 @@ pub fn parse_frontmatter(content: &str) -> (HashMap<String, String>, String) {
     let mut frontmatter = HashMap::new();
     let mut body = content;
 
-    if content.starts_with("---") {
-        if let Some(end_pos) = content[3..].find("---") {
-            let fm_section = &content[3..end_pos + 3];
+    if let Some(content_without_prefix) = content.strip_prefix("---") {
+        if let Some(end_pos) = content_without_prefix.find("---") {
+            let fm_section = &content_without_prefix[..end_pos];
             body = content[end_pos + 6..].trim_start();
 
             // Simple YAML parser for key: value pairs

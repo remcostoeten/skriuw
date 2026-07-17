@@ -6,6 +6,9 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
+		"typecheck": "tsc -p tsconfig.json",
+		"test": "bun test src",
+		"check": "bun run typecheck && bun run test && bun run build",
 		"preview": "vite preview",
 		"start": "bun run preview"
 	},

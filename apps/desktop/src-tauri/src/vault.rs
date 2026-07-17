@@ -514,7 +514,7 @@ impl VaultStore {
                 modified_ms,
             });
         }
-        entries.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
+        entries.sort_by_key(|entry| std::cmp::Reverse(entry.modified_ms));
         Ok(entries)
     }
 
