@@ -42,10 +42,35 @@ Two Rust stores, one source of truth:
   thread when `index.db` already exists; the frontend waits on the
   `index://reconciled` event).
 
-Writes are dual-write, vault first: `lib.rs::create_note` calls
-`vault.upsert_note` then `storage.upsert_note`. If the index is ever lost or
-corrupted, `reconcile_index` reconstructs it from the vault — the markdown is
-authoritative.
+Writes are dual-write, vault first: `lib.rs::save_note` performs exactly two
+top-level operations — the canonical vault commit, then one derived-index
+SQLite transaction. If the index is ever lost or corrupted, `reconcile_index`
+reconstructs it from the vault — the markdown is authoritative.
+
+### Durability model
+
+- **Atomic canonical writes.** Every vault file — note Markdown, journal
+  Markdown, `folders.json`, `trash.json`, journal tags, cover assets — is
+  replaced through `atomic_file::atomic_write`: a uniquely named sibling
+  temporary file is written, `sync_all`-flushed, then renamed over the
+  destination (`MoveFileExW` with `MOVEFILE_REPLACE_EXISTING | WRITE_THROUGH`
+  on Windows, `rename(2)` elsewhere, parent directory fsynced on Unix). A crash
+  or write error at any stage leaves the complete old file or the complete new
+  file, never a truncated mixture, and cleans up the temporary file.
+- **Rename/move installs before it deletes.** When a note or journal entry
+  moves to a new path, the new file is durably installed first and only then is
+  the old path removed. If that removal fails, both complete files are kept and
+  the error names both paths — duplicate cleanup is safer than data loss.
+- **One SQLite transaction per logical save.** `Storage::save_note_index`
+  commits the note row, its link/title rows, and the version-history decision
+  together; a failure rolls all of them back. SQLite is never treated as part
+  of a cross-filesystem transaction — it stays a derived index.
+- **Detectable index lag.** If the derived transaction fails after the vault
+  commit, the save returns an error stating the note file was saved but the
+  index refresh failed, emits `index://dirty`, and reruns `reconcile_index`
+  off the command thread (completion flagged via `index://reconciled`). A
+  restart repairs the note row through the launch reconcile, and missing link
+  rows through the frontend link backfill (`list_unindexed_note_ids`).
 
 ## Desktop settings
 
@@ -107,10 +132,10 @@ behind an explicit consent toggle; "fully private" holds only in Ollama mode.
    on read (`rich-document.ts`), so block-editor-only structure is lossy on a
    desktop round-trip. Decide: accept lossy markdown-canonical, or add a
    `.skriuw/rich/<id>.json` sidecar.
-3. **Read path still goes through SQLite, and `vault.rs`'s header comment is
-   stale** (it claims it is "not yet wired into the live IPC commands" while
-   `lib.rs` already dual-writes to it). Confirm the vault-authoritative-on-conflict
-   invariant and correct the comment.
+3. **Read path still goes through SQLite.** The stale `vault.rs` header was
+   corrected in DH-01; the vault-authoritative-on-conflict invariant now holds
+   through atomic writes plus reconcile/backfill repair, but reads still serve
+   from the derived index.
 4. **Ollama absence UX.** `capabilities.ai` is `true`, but the degrade path when no
    Ollama daemon is on `localhost:11434` needs to be explicit: greyed action plus a
    one-click in-app install trigger, never a silent failure.

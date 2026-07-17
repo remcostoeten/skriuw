@@ -1,6 +1,6 @@
 # DH-01: Crash-safe workspace persistence
 
-Status: **planned**  
+Status: **implemented**  
 Priority: **P0 — data safety**  
 Primary owner: Rust desktop persistence  
 Estimated size: 2–4 focused implementation days
@@ -165,15 +165,15 @@ Use an injectable internal operation or test-only failure hook rather than relyi
 
 ## Acceptance criteria
 
-- [ ] No canonical vault or metadata update uses truncating in-place writes.
-- [ ] A note rename never deletes the previous file before the new file is durable.
-- [ ] Normal note saves use one SQLite transaction for note, links/titles, and version history.
-- [ ] Every injected failure leaves at least one complete canonical Markdown file.
-- [ ] Derived-index failure is distinguishable from canonical-save failure.
-- [ ] Restart/reconciliation repairs an intentionally stale derived index.
-- [ ] `cargo test` passes.
-- [ ] Strict Clippy passes after DH-05 baseline fixes.
-- [ ] `docs/desktop-local-first.md` reflects the implemented durability model.
+- [x] No canonical vault or metadata update uses truncating in-place writes.
+- [x] A note rename never deletes the previous file before the new file is durable.
+- [x] Normal note saves use one SQLite transaction for note, links/titles, and version history.
+- [x] Every injected failure leaves at least one complete canonical Markdown file.
+- [x] Derived-index failure is distinguishable from canonical-save failure.
+- [x] Restart/reconciliation repairs an intentionally stale derived index.
+- [x] `cargo test` passes (103 tests).
+- [x] Strict Clippy passes after DH-05 baseline fixes.
+- [x] `docs/desktop-local-first.md` reflects the implemented durability model.
 
 ## Verification commands
 
