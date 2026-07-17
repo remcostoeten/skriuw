@@ -159,6 +159,22 @@ mod tests {
     }
 
     #[test]
+    fn unicode_and_long_but_valid_filenames_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let unicode = dir.path().join("Notiz — überfällig 📝.md");
+        atomic_write(&unicode, "inhoud".as_bytes()).unwrap();
+        assert_eq!(fs::read_to_string(&unicode).unwrap(), "inhoud");
+
+        // Long but valid: the temp sibling adds ~50 chars of prefix/suffix, so
+        // stay far enough under the common 255-byte component limit.
+        let long_name = format!("{}.md", "a".repeat(180));
+        let long = dir.path().join(long_name);
+        atomic_write(&long, b"long").unwrap();
+        assert_eq!(fs::read(&long).unwrap(), b"long");
+        assert!(temp_entries(dir.path()).is_empty());
+    }
+
+    #[test]
     fn injected_failures_keep_old_file_and_clean_temp_file() {
         for stage in [
             AtomicWriteStage::Write,
