@@ -1,8 +1,9 @@
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createNoteEmbedding } from "@/features/notes/server/semantic-embeddings";
 
 const notes = await prisma.note.findMany({
-	where: { deletedAt: null, semanticEmbedding: null },
+	where: { deletedAt: null, semanticEmbedding: { equals: Prisma.AnyNull } },
 	select: { id: true, name: true, content: true },
 });
 
