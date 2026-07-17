@@ -31,7 +31,7 @@ const graph = collectManifestGraph(manifest);
 
 function bytes(relativePath: string) {
 	const content = readFileSync(join(dist, relativePath));
-	return { raw: statSync(join(dist, relativePath)).size, gzip: gzipSync(content).byteLength };
+	return { raw: content.byteLength, gzip: gzipSync(content).byteLength };
 }
 
 const jsFiles = graph.staticKeys
