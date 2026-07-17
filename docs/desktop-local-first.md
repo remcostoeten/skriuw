@@ -97,7 +97,15 @@ with a newer Skriuw release, then restart the app.
 
 ## Sync
 
-Decision: **local-first by default, cloud sync only after explicit consent.** The pull seam
+Decision: **local-first by default, cloud sync only after explicit consent.** Backup restore is staged and non-destructive (DH-02): vault and full-snapshot
+restores are inspected, extracted into marker-tagged staging directories on the
+same filesystem, and validated before any live root is touched. Commit swaps
+each live root aside into a rollback directory; a failed rebind rolls every
+root back in reverse order, and the previous workspace is kept until the
+restored one has reconciled and passed a smoke read. Abandoned staging/rollback
+directories are cleaned at the next launch, after reconciliation.
+
+The pull seam
 — `importArchive` (`ImportArchivePayload`) — applies a full workspace pull,
 including `deletedIds` tombstones, in one transaction
 (`storage.rs::import_workspace`). The `Note` row already carries `id` (uuid),
