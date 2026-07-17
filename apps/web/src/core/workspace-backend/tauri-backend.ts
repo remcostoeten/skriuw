@@ -649,12 +649,14 @@ export function createTauriBackend(): WorkspaceBackend {
 					if (!patch) return null;
 					const next: NoteFile = { ...fresh, ...patch, modifiedAt: new Date() };
 					await invoke("save_note", {
-						note: toRustNote(next),
-						links: buildRustNoteLinkRows(next),
-						titleKeys: noteTitleKeys(next),
-						reason: "autosave",
-						createCheckpoint: false,
-						sessionVersionId: null,
+						request: {
+							note: toRustNote(next),
+							links: buildRustNoteLinkRows(next),
+							titleKeys: noteTitleKeys(next),
+							reason: "autosave",
+							createCheckpoint: false,
+							sessionVersionId: null,
+						},
 					});
 					return candidate.id;
 				});
@@ -854,12 +856,14 @@ export function createTauriBackend(): WorkspaceBackend {
 		async createNote(input) {
 			const note = noteFromCreateInput(input);
 			await invoke("save_note", {
-				note: toRustNote(note),
-				links: buildRustNoteLinkRows(note),
-				titleKeys: noteTitleKeys(note),
-				reason: "created",
-				createCheckpoint: false,
-				sessionVersionId: null,
+				request: {
+					note: toRustNote(note),
+					links: buildRustNoteLinkRows(note),
+					titleKeys: noteTitleKeys(note),
+					reason: "created",
+					createCheckpoint: false,
+					sessionVersionId: null,
+				},
 			});
 			return note;
 		},
@@ -893,12 +897,16 @@ export function createTauriBackend(): WorkspaceBackend {
 				// version bookkeeping; the snapshot is derived Rust-side so the
 				// note body crosses IPC once per save instead of three times.
 				const versionResult = await invoke<RustVersionWriteResult>("save_note", {
-					note: toRustNote(next),
-					links: buildRustNoteLinkRows(next),
-					titleKeys: noteTitleKeys(next),
-					reason,
-					createCheckpoint,
-					sessionVersionId: createCheckpoint ? (input.sessionVersionId ?? null) : null,
+					request: {
+						note: toRustNote(next),
+						links: buildRustNoteLinkRows(next),
+						titleKeys: noteTitleKeys(next),
+						reason,
+						createCheckpoint,
+						sessionVersionId: createCheckpoint
+							? (input.sessionVersionId ?? null)
+							: null,
+					},
 				});
 
 				return {
@@ -1284,14 +1292,16 @@ export function createTauriBackend(): WorkspaceBackend {
 				.filter((id): id is string => Boolean(id));
 
 			await invoke("import_workspace_archive", {
-				folders,
-				notes,
-				journalEntries,
-				journalTags,
-				deletedNoteIds: payload.deletedIds.notes,
-				deletedFolderIds: payload.deletedIds.folders,
-				deletedJournalEntryIds: payload.deletedIds.journalEntries,
-				deletedJournalTagIds,
+				request: {
+					folders,
+					notes,
+					journalEntries,
+					journalTags,
+					deletedNoteIds: payload.deletedIds.notes,
+					deletedFolderIds: payload.deletedIds.folders,
+					deletedJournalEntryIds: payload.deletedIds.journalEntries,
+					deletedJournalTagIds,
+				},
 			});
 		},
 	};
