@@ -1,8 +1,10 @@
 mod ai;
+mod atomic_file;
 mod backup;
 mod content_analysis;
 mod import_export;
 mod markdown;
+mod settings;
 mod storage;
 mod vault;
 mod versioning;
@@ -13,6 +15,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+use settings::SettingsStore;
 use storage::{
     BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteLinkReplacement,
     NoteLinkRow, NoteMetadata, NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person, SearchHit,
@@ -851,7 +854,6 @@ fn vault_err(error: std::io::Error) -> String {
     error.to_string()
 }
 
-const SETTINGS_FILE: &str = "settings.json";
 const VAULT_DIR_NAME: &str = ".skriuw";
 
 /// The default vault location — a hidden `~/.skriuw` directory. Used when the
@@ -864,85 +866,16 @@ fn default_vault_root<R: Runtime>(handle: &AppHandle<R>) -> Result<PathBuf, Stri
     Ok(home.join(VAULT_DIR_NAME))
 }
 
-fn settings_path<R: Runtime>(handle: &AppHandle<R>) -> Result<PathBuf, String> {
-    let dir = handle
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("resolve app data dir: {error}"))?;
-    Ok(dir.join(SETTINGS_FILE))
-}
-
-/// Reads the configured vault root from `settings.json`, falling back to the
-/// `~/.skriuw` default when the file or the `vaultRoot` key is absent.
-fn read_vault_root<R: Runtime>(handle: &AppHandle<R>) -> Result<PathBuf, String> {
-    let path = settings_path(handle)?;
-    let raw = match std::fs::read_to_string(&path) {
-        Ok(raw) => raw,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return default_vault_root(handle)
-        }
-        Err(error) => return Err(error.to_string()),
-    };
-    let parsed: serde_json::Value = serde_json::from_str(&raw).unwrap_or_default();
-    match parsed.get("vaultRoot").and_then(|value| value.as_str()) {
-        Some(root) if !root.trim().is_empty() => Ok(PathBuf::from(root)),
-        _ => default_vault_root(handle),
-    }
-}
-
-fn write_vault_root<R: Runtime>(handle: &AppHandle<R>, root: &str) -> Result<(), String> {
-    let path = settings_path(handle)?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    }
-    let mut parsed: serde_json::Value = std::fs::read_to_string(&path)
-        .ok()
-        .and_then(|raw| serde_json::from_str(&raw).ok())
-        .unwrap_or_else(|| serde_json::json!({}));
-    parsed["vaultRoot"] = serde_json::Value::String(root.to_string());
-    let body = serde_json::to_string_pretty(&parsed).map_err(|error| error.to_string())?;
-    std::fs::write(&path, format!("{body}\n")).map_err(|error| error.to_string())
-}
-
-/// Reads the `coverAssetsRoot` override from `settings.json`, or `None` when
-/// unset (the vault's default `.skriuw/assets/cover-images` applies then).
-fn read_cover_assets_root<R: Runtime>(handle: &AppHandle<R>) -> Result<Option<PathBuf>, String> {
-    let path = settings_path(handle)?;
-    let raw = match std::fs::read_to_string(&path) {
-        Ok(raw) => raw,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(error.to_string()),
-    };
-    let parsed: serde_json::Value = serde_json::from_str(&raw).unwrap_or_default();
-    Ok(parsed
-        .get("coverAssetsRoot")
-        .and_then(|value| value.as_str())
-        .filter(|root| !root.trim().is_empty())
-        .map(PathBuf::from))
-}
-
-fn write_cover_assets_root<R: Runtime>(
+/// Combines the typed settings snapshot with the OS home-directory fallback.
+fn configured_vault_root<R: Runtime>(
     handle: &AppHandle<R>,
-    root: Option<&str>,
-) -> Result<(), String> {
-    let path = settings_path(handle)?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    }
-    let mut parsed: serde_json::Value = std::fs::read_to_string(&path)
-        .ok()
-        .and_then(|raw| serde_json::from_str(&raw).ok())
-        .unwrap_or_else(|| serde_json::json!({}));
-    match root {
-        Some(root) => parsed["coverAssetsRoot"] = serde_json::Value::String(root.to_string()),
-        None => {
-            if let Some(map) = parsed.as_object_mut() {
-                map.remove("coverAssetsRoot");
-            }
-        }
-    }
-    let body = serde_json::to_string_pretty(&parsed).map_err(|error| error.to_string())?;
-    std::fs::write(&path, format!("{body}\n")).map_err(|error| error.to_string())
+    settings: &SettingsStore,
+) -> Result<PathBuf, String> {
+    let default = default_vault_root(handle)?;
+    Ok(settings
+        .snapshot()
+        .map_err(|error| error.to_string())?
+        .vault_root_or(default))
 }
 
 /// Rebuilds the SQLite index to mirror the on-disk vault (the source of truth):
@@ -1015,26 +948,41 @@ fn note_body_matches(indexed: &Note, vault: &Note) -> bool {
 }
 
 #[tauri::command]
-fn get_vault_root(app: AppHandle) -> Result<String, String> {
-    Ok(read_vault_root(&app)?.to_string_lossy().into_owned())
+fn get_vault_root(app: AppHandle, settings: State<'_, SettingsStore>) -> Result<String, String> {
+    Ok(configured_vault_root(&app, &settings)?
+        .to_string_lossy()
+        .into_owned())
+}
+
+#[tauri::command]
+fn get_settings_diagnostics(
+    settings: State<'_, SettingsStore>,
+) -> Result<settings::SettingsDiagnostics, String> {
+    settings.diagnostics().map_err(|error| error.to_string())
 }
 
 /// Persists a new vault root. Takes effect on the next launch (the live vault +
 /// index are opened once at startup).
 #[tauri::command]
-fn set_vault_root(app: AppHandle, path: String) -> Result<(), String> {
+fn set_vault_root(settings: State<'_, SettingsStore>, path: String) -> Result<(), String> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
         return Err("vault root must not be empty".to_string());
     }
-    write_vault_root(&app, trimmed)
+    settings
+        .set_vault_root(PathBuf::from(trimmed))
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 /// Exports the markdown vault to a user-chosen `.zip`. Returns the chosen path,
 /// or `None` if the save dialog was cancelled.
 #[tauri::command]
-async fn export_vault(app: AppHandle) -> Result<Option<String>, String> {
-    let root = read_vault_root(&app)?;
+async fn export_vault(
+    app: AppHandle,
+    settings: State<'_, SettingsStore>,
+) -> Result<Option<String>, String> {
+    let root = configured_vault_root(&app, &settings)?;
     let picked = app
         .dialog()
         .file()
@@ -1054,6 +1002,7 @@ async fn export_vault(app: AppHandle) -> Result<Option<String>, String> {
 #[tauri::command]
 async fn export_snapshot(
     app: AppHandle,
+    settings: State<'_, SettingsStore>,
     progress: Channel<backup::SnapshotEvent>,
 ) -> Result<Option<String>, String> {
     let app_data_dir = app
@@ -1064,7 +1013,7 @@ async fn export_snapshot(
         .path()
         .app_local_data_dir()
         .map_err(|error| format!("resolve local data dir: {error}"))?;
-    let vault_root = read_vault_root(&app)?;
+    let vault_root = configured_vault_root(&app, &settings)?;
     let picked = app
         .dialog()
         .file()
@@ -1098,8 +1047,12 @@ async fn export_snapshot(
 /// Restores the vault from a backup `.zip`, REPLACING the current vault, then
 /// rebuilds the SQLite index from it. Returns `false` if the pick was cancelled.
 #[tauri::command]
-async fn import_vault(app: AppHandle, storage: State<'_, Storage>) -> Result<bool, String> {
-    let root = read_vault_root(&app)?;
+async fn import_vault(
+    app: AppHandle,
+    settings: State<'_, SettingsStore>,
+    storage: State<'_, Storage>,
+) -> Result<bool, String> {
+    let root = configured_vault_root(&app, &settings)?;
     let picked = app
         .dialog()
         .file()
@@ -1127,6 +1080,7 @@ async fn import_snapshot(
     app: AppHandle,
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
+    settings: State<'_, SettingsStore>,
     progress: Channel<backup::SnapshotEvent>,
 ) -> Result<(), String> {
     let picked = app
@@ -1152,25 +1106,37 @@ async fn import_snapshot(
     let _ = progress.send(backup::SnapshotEvent::Status {
         message: "Restoring snapshot".to_string(),
     });
-    let manifest = backup::restore_snapshot(&archive, &app_data_dir, &app_local_data_dir)
+    backup::restore_snapshot(&archive, &app_data_dir, &app_local_data_dir)
         .map_err(|error| error.to_string())?;
     let _ = progress.send(backup::SnapshotEvent::Status {
         message: "Snapshot restored. Rebinding workspace".to_string(),
     });
     ai::stop_managed_server();
+    settings.reload().map_err(|error| error.to_string())?;
+    let vault_root = configured_vault_root(&app, &settings)?;
     storage
         .reload(&app_data_dir.join("index.db"))
         .map_err(stringify)?;
-    vault.reload_root(PathBuf::from(manifest.vault_root));
-    ai::autostart_managed(&app);
+    vault.reload_root(vault_root);
+    vault.set_cover_root(
+        settings
+            .snapshot()
+            .map_err(|error| error.to_string())?
+            .cover_assets_root,
+    );
+    ai::autostart_managed(&app, &settings);
     Ok(())
 }
 
 /// Permanently deletes all local notes/folders: empties the vault directory and
 /// rebuilds (now-empty) the SQLite index from it.
 #[tauri::command]
-fn clear_local_data(app: AppHandle, storage: State<'_, Storage>) -> Result<(), String> {
-    let root = read_vault_root(&app)?;
+fn clear_local_data(
+    app: AppHandle,
+    settings: State<'_, SettingsStore>,
+    storage: State<'_, Storage>,
+) -> Result<(), String> {
+    let root = configured_vault_root(&app, &settings)?;
     backup::clear_dir_contents(&root).map_err(|error| error.to_string())?;
     let vault = VaultStore::open(&root).map_err(vault_err)?;
     reconcile_index(&storage, &vault)
@@ -1184,6 +1150,7 @@ async fn reset_desktop_data(
     app: AppHandle,
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
+    settings: State<'_, SettingsStore>,
     progress: Channel<backup::SnapshotEvent>,
 ) -> Result<(), String> {
     let app_data_dir = app
@@ -1194,7 +1161,7 @@ async fn reset_desktop_data(
         .path()
         .app_local_data_dir()
         .map_err(|error| format!("resolve local data dir: {error}"))?;
-    let vault_root = read_vault_root(&app)?;
+    let vault_root = configured_vault_root(&app, &settings)?;
     backup::clear_desktop_state_with_progress(
         &app_data_dir,
         &app_local_data_dir,
@@ -1205,10 +1172,13 @@ async fn reset_desktop_data(
     )
     .map_err(|error| error.to_string())?;
     ai::stop_managed_server();
+    settings.reload().map_err(|error| error.to_string())?;
+    let next_vault_root = configured_vault_root(&app, &settings)?;
     storage
         .reload(&app_data_dir.join("index.db"))
         .map_err(stringify)?;
-    vault.reload_root(vault_root);
+    vault.reload_root(next_vault_root);
+    vault.set_cover_root(None);
     Ok(())
 }
 
@@ -1216,21 +1186,26 @@ async fn reset_desktop_data(
 /// root (takes effect next launch). Returns the chosen path, or `None` if
 /// cancelled.
 #[tauri::command]
-fn choose_vault_root(app: AppHandle) -> Result<Option<String>, String> {
+fn choose_vault_root(
+    app: AppHandle,
+    settings: State<'_, SettingsStore>,
+) -> Result<Option<String>, String> {
     let picked = app.dialog().file().blocking_pick_folder();
     let Some(target) = picked else {
         return Ok(None);
     };
     let dir = target.as_path().ok_or("invalid folder path")?.to_path_buf();
     let as_str = dir.to_string_lossy().into_owned();
-    write_vault_root(&app, &as_str)?;
+    settings
+        .set_vault_root(dir)
+        .map_err(|error| error.to_string())?;
     Ok(Some(as_str))
 }
 
 /// Opens the vault directory in the OS file manager.
 #[tauri::command]
-fn reveal_vault(app: AppHandle) -> Result<(), String> {
-    let root = read_vault_root(&app)?;
+fn reveal_vault(app: AppHandle, settings: State<'_, SettingsStore>) -> Result<(), String> {
+    let root = configured_vault_root(&app, &settings)?;
     std::fs::create_dir_all(&root).map_err(|error| error.to_string())?;
     open_in_file_manager(&root)
 }
@@ -1247,6 +1222,7 @@ fn get_cover_assets_root(vault: State<'_, VaultStore>) -> Result<String, String>
 #[tauri::command]
 fn choose_cover_assets_root(
     app: AppHandle,
+    settings: State<'_, SettingsStore>,
     vault: State<'_, VaultStore>,
 ) -> Result<Option<String>, String> {
     let picked = app.dialog().file().blocking_pick_folder();
@@ -1255,15 +1231,22 @@ fn choose_cover_assets_root(
     };
     let dir = target.as_path().ok_or("invalid folder path")?.to_path_buf();
     let as_str = dir.to_string_lossy().into_owned();
-    write_cover_assets_root(&app, Some(&as_str))?;
+    settings
+        .set_cover_assets_root(Some(dir.clone()))
+        .map_err(|error| error.to_string())?;
     vault.set_cover_root(Some(dir));
     Ok(Some(as_str))
 }
 
 /// Clears the cover-images override, reverting to the vault default.
 #[tauri::command]
-fn reset_cover_assets_root(app: AppHandle, vault: State<'_, VaultStore>) -> Result<String, String> {
-    write_cover_assets_root(&app, None)?;
+fn reset_cover_assets_root(
+    settings: State<'_, SettingsStore>,
+    vault: State<'_, VaultStore>,
+) -> Result<String, String> {
+    settings
+        .set_cover_assets_root(None)
+        .map_err(|error| error.to_string())?;
     vault.set_cover_root(None);
     Ok(vault.cover_images_dir().to_string_lossy().into_owned())
 }
@@ -1523,9 +1506,15 @@ pub fn run() {
             let dir = app.path().app_data_dir().expect("resolve app data dir");
             std::fs::create_dir_all(&dir)?;
 
-            let vault_root = read_vault_root(handle)?;
+            let settings = SettingsStore::load_in(&dir)?;
+            let settings_snapshot = settings.snapshot()?;
+            if let Some(error) = settings.diagnostics()?.recovery_error {
+                eprintln!("[skriuw] settings recovery mode: {error}");
+            }
+            let vault_root = settings_snapshot.vault_root_or(default_vault_root(handle)?);
             let vault = VaultStore::open(&vault_root)?;
-            vault.set_cover_root(read_cover_assets_root(handle)?);
+            vault.set_cover_root(settings_snapshot.cover_assets_root);
+            app.manage(settings);
 
             // The markdown vault is the source of truth; SQLite is a derived index
             // (FTS5 search, backlinks) kept in a separate `index.db` so the legacy
@@ -1571,7 +1560,7 @@ pub fn run() {
 
             // If a managed Ollama is already installed, warm it up in the
             // background so the first local AI action is instant.
-            ai::autostart_managed(handle);
+            ai::autostart_managed(handle, &handle.state::<SettingsStore>());
             Ok(())
         });
 
@@ -1646,6 +1635,7 @@ pub fn run() {
             get_note_versions,
             restore_note_version,
             get_vault_root,
+            get_settings_diagnostics,
             set_vault_root,
             export_vault,
             import_vault,

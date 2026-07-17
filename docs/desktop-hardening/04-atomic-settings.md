@@ -1,6 +1,6 @@
 # DH-04: One atomic settings module
 
-Status: **planned**  
+Status: **implemented**
 Priority: **P0 — correctness foundation**  
 Primary owner: Rust desktop configuration  
 Estimated size: 2–3 focused implementation days
@@ -188,15 +188,15 @@ In backup/restore:
 
 ## Acceptance criteria
 
-- [ ] Only `settings.rs` performs normal `settings.json` I/O.
-- [ ] A shared lock covers complete updates.
-- [ ] Writes are atomic and failed writes retain old file and memory state.
-- [ ] Malformed JSON is never silently replaced with `{}`.
-- [ ] Unknown fields survive updates.
-- [ ] Settings version and migration tests exist.
-- [ ] Vault, cover, AI, reset, export, and restore callers use the module.
-- [ ] No secret field exists in the long-term typed schema.
-- [ ] Rust tests and strict Clippy pass.
+- [x] Only `settings.rs` performs normal `settings.json` I/O.
+- [x] A shared lock covers complete updates.
+- [x] Writes are atomic and failed writes retain old file and memory state.
+- [x] Malformed JSON is never silently replaced with `{}`.
+- [x] Unknown fields survive updates.
+- [x] Settings version and migration tests exist.
+- [x] Vault, cover, AI, reset, export, and restore callers use the module.
+- [x] No secret field exists in the long-term typed schema.
+- [x] Rust tests and strict Clippy pass.
 
 ## Verification commands
 

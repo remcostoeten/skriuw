@@ -1,6 +1,6 @@
 //! Desktop AI: local-first inference via a managed Ollama runtime, with Groq
 //! and Gemini as optional cloud providers. Configuration (provider, models, and
-//! API keys) lives in the same `settings.json` as the vault root. The web app's
+//! legacy API keys) lives in the same `settings.json` as the vault root. The web app's
 //! editor actions route here through the `ai_complete` and `ai_complete_stream`
 //! commands.
 
@@ -13,16 +13,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tauri::ipc::Channel;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
+
+use crate::settings::SettingsStore;
 
 pub use installer::{
     stop_managed_server, OllamaInstallEvent, OllamaInstallStatus, DEFAULT_ENDPOINT,
 };
 pub use ollama::{OllamaCatalogEntry, OllamaPullEvent};
-
-const SETTINGS_FILE: &str = "settings.json";
 
 static INSTALL_CANCEL: AtomicBool = AtomicBool::new(false);
 static PULL_CANCEL: AtomicBool = AtomicBool::new(false);
@@ -58,56 +57,42 @@ pub struct AiConfigPatch {
     pub gemini_model: Option<String>,
 }
 
-fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("resolve app data dir: {error}"))?;
-    Ok(dir.join(SETTINGS_FILE))
-}
-
-fn read_settings(app: &AppHandle) -> Result<Value, String> {
-    let path = settings_path(app)?;
-    match std::fs::read_to_string(&path) {
-        Ok(raw) => Ok(serde_json::from_str(&raw).unwrap_or_else(|_| serde_json::json!({}))),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(serde_json::json!({})),
-        Err(error) => Err(error.to_string()),
-    }
-}
-
-fn write_settings(app: &AppHandle, value: &Value) -> Result<(), String> {
-    let path = settings_path(app)?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    }
-    let body = serde_json::to_string_pretty(value).map_err(|error| error.to_string())?;
-    std::fs::write(&path, format!("{body}\n")).map_err(|error| error.to_string())
-}
-
-fn ai_str(settings: &Value, key: &str) -> Option<String> {
-    settings
-        .get("ai")
-        .and_then(|ai| ai.get(key))
-        .and_then(|value| value.as_str())
-        .map(|value| value.trim().to_string())
+fn configured(value: Option<&str>) -> Option<String> {
+    value
+        .map(str::trim)
         .filter(|value| !value.is_empty())
+        .map(str::to_owned)
 }
 
-fn load_config(app: &AppHandle) -> Result<AiConfig, String> {
-    let settings = read_settings(app)?;
+fn load_config(settings: &SettingsStore) -> Result<AiConfig, String> {
+    let snapshot = settings.snapshot().map_err(|error| error.to_string())?;
     Ok(AiConfig {
-        provider: ai_str(&settings, "provider").unwrap_or_else(|| "ollama".to_string()),
-        ollama_endpoint: ai_str(&settings, "ollamaEndpoint")
+        provider: configured(snapshot.ai.provider.as_deref())
+            .unwrap_or_else(|| "ollama".to_string()),
+        ollama_endpoint: configured(snapshot.ai.ollama_endpoint.as_deref())
             .unwrap_or_else(|| DEFAULT_ENDPOINT.to_string()),
-        ollama_model: ai_str(&settings, "ollamaModel")
+        ollama_model: configured(snapshot.ai.ollama_model.as_deref())
             .unwrap_or_else(|| DEFAULT_OLLAMA_MODEL.to_string()),
-        groq_model: ai_str(&settings, "groqModel")
+        groq_model: configured(snapshot.ai.groq_model.as_deref())
             .unwrap_or_else(|| DEFAULT_GROQ_MODEL.to_string()),
-        gemini_model: ai_str(&settings, "geminiModel")
+        gemini_model: configured(snapshot.ai.gemini_model.as_deref())
             .unwrap_or_else(|| DEFAULT_GEMINI_MODEL.to_string()),
-        has_groq_key: ai_str(&settings, "groqApiKey").is_some(),
-        has_gemini_key: ai_str(&settings, "geminiApiKey").is_some(),
+        has_groq_key: settings
+            .legacy_ai_secret("groqApiKey")
+            .map_err(|error| error.to_string())?
+            .is_some(),
+        has_gemini_key: settings
+            .legacy_ai_secret("geminiApiKey")
+            .map_err(|error| error.to_string())?
+            .is_some(),
     })
+}
+
+fn legacy_key(settings: &SettingsStore, field: &str) -> Result<String, String> {
+    Ok(settings
+        .legacy_ai_secret(field)
+        .map_err(|error| error.to_string())?
+        .unwrap_or_default())
 }
 
 fn ollama_root(app: &AppHandle) -> Result<PathBuf, String> {
@@ -201,66 +186,61 @@ fn prompt_for(
 }
 
 #[tauri::command]
-pub fn ai_get_config(app: AppHandle) -> Result<AiConfig, String> {
-    load_config(&app)
+pub fn ai_get_config(settings: State<'_, SettingsStore>) -> Result<AiConfig, String> {
+    load_config(&settings)
 }
 
 #[tauri::command]
-pub fn ai_set_config(app: AppHandle, patch: AiConfigPatch) -> Result<AiConfig, String> {
-    let mut settings = read_settings(&app)?;
-    if !settings.get("ai").map(Value::is_object).unwrap_or(false) {
-        settings["ai"] = serde_json::json!({});
-    }
-    let ai = settings
-        .get_mut("ai")
-        .and_then(Value::as_object_mut)
-        .ok_or("settings.ai is not an object")?;
-
-    let mut put = |key: &str, value: Option<String>| {
-        if let Some(value) = value {
-            ai.insert(key.to_string(), Value::String(value));
-        }
-    };
-    put("provider", patch.provider);
-    put("ollamaEndpoint", patch.ollama_endpoint);
-    put("ollamaModel", patch.ollama_model);
-    put("groqModel", patch.groq_model);
-    put("geminiModel", patch.gemini_model);
-
-    write_settings(&app, &settings)?;
-    load_config(&app)
+pub fn ai_set_config(
+    settings: State<'_, SettingsStore>,
+    patch: AiConfigPatch,
+) -> Result<AiConfig, String> {
+    settings
+        .update(|current| {
+            if let Some(value) = patch.provider {
+                current.ai.provider = Some(value);
+            }
+            if let Some(value) = patch.ollama_endpoint {
+                current.ai.ollama_endpoint = Some(value);
+            }
+            if let Some(value) = patch.ollama_model {
+                current.ai.ollama_model = Some(value);
+            }
+            if let Some(value) = patch.groq_model {
+                current.ai.groq_model = Some(value);
+            }
+            if let Some(value) = patch.gemini_model {
+                current.ai.gemini_model = Some(value);
+            }
+            Ok(())
+        })
+        .map_err(|error| error.to_string())?;
+    load_config(&settings)
 }
 
 /// Stores a provider API key. `provider` is "groq" or "gemini"; an empty value
 /// clears the stored key.
 #[tauri::command]
-pub fn ai_set_key(app: AppHandle, provider: String, key: String) -> Result<AiConfig, String> {
+pub fn ai_set_key(
+    settings: State<'_, SettingsStore>,
+    provider: String,
+    key: String,
+) -> Result<AiConfig, String> {
     let field = match provider.as_str() {
         "groq" => "groqApiKey",
         "gemini" | "google" => "geminiApiKey",
         other => return Err(format!("Unknown AI provider: {other}")),
     };
-    let mut settings = read_settings(&app)?;
-    if !settings.get("ai").map(Value::is_object).unwrap_or(false) {
-        settings["ai"] = serde_json::json!({});
-    }
-    let ai = settings
-        .get_mut("ai")
-        .and_then(Value::as_object_mut)
-        .ok_or("settings.ai is not an object")?;
     let trimmed = key.trim();
-    if trimmed.is_empty() {
-        ai.remove(field);
-    } else {
-        ai.insert(field.to_string(), Value::String(trimmed.to_string()));
-    }
-    write_settings(&app, &settings)?;
-    load_config(&app)
+    settings
+        .set_legacy_ai_secret(field, (!trimmed.is_empty()).then(|| trimmed.to_string()))
+        .map_err(|error| error.to_string())?;
+    load_config(&settings)
 }
 
 #[tauri::command]
 pub async fn ai_complete(
-    app: AppHandle,
+    settings: State<'_, SettingsStore>,
     action: String,
     content: String,
     target_language: Option<String>,
@@ -275,16 +255,15 @@ pub async fn ai_complete(
         target_language.as_deref(),
         instruction.as_deref(),
     )?;
-    let settings = read_settings(&app)?;
-    let config = load_config(&app)?;
+    let config = load_config(&settings)?;
 
     let result = match config.provider.as_str() {
         "groq" => {
-            let key = ai_str(&settings, "groqApiKey").unwrap_or_default();
+            let key = legacy_key(&settings, "groqApiKey")?;
             cloud::groq_complete(&key, &config.groq_model, &system, &user).await?
         }
         "gemini" | "google" => {
-            let key = ai_str(&settings, "geminiApiKey").unwrap_or_default();
+            let key = legacy_key(&settings, "geminiApiKey")?;
             cloud::gemini_complete(&key, &config.gemini_model, &system, &user).await?
         }
         _ => {
@@ -304,7 +283,7 @@ pub async fn ai_complete(
 /// accumulated so far is returned instead of an error.
 #[tauri::command]
 pub async fn ai_complete_stream(
-    app: AppHandle,
+    settings: State<'_, SettingsStore>,
     action: String,
     content: String,
     target_language: Option<String>,
@@ -320,8 +299,7 @@ pub async fn ai_complete_stream(
         target_language.as_deref(),
         instruction.as_deref(),
     )?;
-    let settings = read_settings(&app)?;
-    let config = load_config(&app)?;
+    let config = load_config(&settings)?;
 
     STREAM_CANCEL.store(false, Ordering::Relaxed);
     let cancel = Arc::new(AtomicBool::new(false));
@@ -342,12 +320,12 @@ pub async fn ai_complete_stream(
 
     let result = match config.provider.as_str() {
         "groq" => {
-            let key = ai_str(&settings, "groqApiKey").unwrap_or_default();
+            let key = legacy_key(&settings, "groqApiKey")?;
             cloud::groq_complete_stream(&key, &config.groq_model, &system, &user, emit, cancel)
                 .await?
         }
         "gemini" | "google" => {
-            let key = ai_str(&settings, "geminiApiKey").unwrap_or_default();
+            let key = legacy_key(&settings, "geminiApiKey")?;
             cloud::gemini_complete_stream(&key, &config.gemini_model, &system, &user, emit, cancel)
                 .await?
         }
@@ -379,9 +357,8 @@ pub struct AiPingResult {
 /// Sends a minimal "ping" completion to the active provider/model and reports
 /// whether it responded, so settings can show a live connectivity check.
 #[tauri::command]
-pub async fn ai_ping(app: AppHandle) -> Result<AiPingResult, String> {
-    let settings = read_settings(&app)?;
-    let config = load_config(&app)?;
+pub async fn ai_ping(settings: State<'_, SettingsStore>) -> Result<AiPingResult, String> {
+    let config = load_config(&settings)?;
     let system = "Reply with exactly one word: pong.";
     let user = "ping";
     let model = match config.provider.as_str() {
@@ -393,11 +370,11 @@ pub async fn ai_ping(app: AppHandle) -> Result<AiPingResult, String> {
     let started = std::time::Instant::now();
     let result = match config.provider.as_str() {
         "groq" => {
-            let key = ai_str(&settings, "groqApiKey").unwrap_or_default();
+            let key = legacy_key(&settings, "groqApiKey")?;
             cloud::groq_complete(&key, &config.groq_model, system, user).await
         }
         "gemini" | "google" => {
-            let key = ai_str(&settings, "geminiApiKey").unwrap_or_default();
+            let key = legacy_key(&settings, "geminiApiKey")?;
             cloud::gemini_complete(&key, &config.gemini_model, system, user).await
         }
         _ => {
@@ -426,34 +403,43 @@ pub async fn ai_ping(app: AppHandle) -> Result<AiPingResult, String> {
 }
 
 #[tauri::command]
-pub async fn ai_ollama_status(app: AppHandle) -> Result<OllamaInstallStatus, String> {
+pub async fn ai_ollama_status(
+    app: AppHandle,
+    settings: State<'_, SettingsStore>,
+) -> Result<OllamaInstallStatus, String> {
     let root = ollama_root(&app)?;
-    let config = load_config(&app)?;
+    let config = load_config(&settings)?;
     Ok(installer::get_install_status(&root, &config.ollama_endpoint).await)
 }
 
 #[tauri::command]
-pub async fn ai_ollama_catalog(app: AppHandle) -> Result<Vec<OllamaCatalogEntry>, String> {
-    let config = load_config(&app)?;
+pub async fn ai_ollama_catalog(
+    settings: State<'_, SettingsStore>,
+) -> Result<Vec<OllamaCatalogEntry>, String> {
+    let config = load_config(&settings)?;
     ollama::OllamaClient::new(config.ollama_endpoint)
         .list_catalog()
         .await
 }
 
 #[tauri::command]
-pub async fn ai_start_ollama(app: AppHandle) -> Result<(), String> {
+pub async fn ai_start_ollama(
+    app: AppHandle,
+    settings: State<'_, SettingsStore>,
+) -> Result<(), String> {
     let root = ollama_root(&app)?;
-    let config = load_config(&app)?;
+    let config = load_config(&settings)?;
     installer::start_managed_server(&root, &config.ollama_endpoint).await
 }
 
 #[tauri::command]
 pub async fn ai_install_ollama(
     app: AppHandle,
+    settings: State<'_, SettingsStore>,
     on_event: Channel<OllamaInstallEvent>,
 ) -> Result<(), String> {
     let root = ollama_root(&app)?;
-    let config = load_config(&app)?;
+    let config = load_config(&settings)?;
     INSTALL_CANCEL.store(false, Ordering::Relaxed);
     let cancel = Arc::new(AtomicBool::new(false));
     let mirror = cancel.clone();
@@ -484,11 +470,11 @@ pub fn ai_cancel_ollama_install() {
 
 #[tauri::command]
 pub async fn ai_pull_ollama_model(
-    app: AppHandle,
+    settings: State<'_, SettingsStore>,
     model: String,
     on_event: Channel<OllamaPullEvent>,
 ) -> Result<(), String> {
-    let config = load_config(&app)?;
+    let config = load_config(&settings)?;
     PULL_CANCEL.store(false, Ordering::Relaxed);
     let cancel = Arc::new(AtomicBool::new(false));
     let mirror = cancel.clone();
@@ -512,8 +498,11 @@ pub fn ai_cancel_ollama_pull() {
 }
 
 #[tauri::command]
-pub async fn ai_delete_ollama_model(app: AppHandle, model: String) -> Result<(), String> {
-    let config = load_config(&app)?;
+pub async fn ai_delete_ollama_model(
+    settings: State<'_, SettingsStore>,
+    model: String,
+) -> Result<(), String> {
+    let config = load_config(&settings)?;
     ollama::OllamaClient::new(config.ollama_endpoint)
         .delete_model(&model)
         .await
@@ -521,14 +510,14 @@ pub async fn ai_delete_ollama_model(app: AppHandle, model: String) -> Result<(),
 
 /// Best-effort: if a managed Ollama is already installed, start it in the
 /// background at launch so the first AI action doesn't pay the cold-start.
-pub fn autostart_managed(app: &AppHandle) {
+pub fn autostart_managed(app: &AppHandle, settings: &SettingsStore) {
     let Ok(root) = ollama_root(app) else {
         return;
     };
     if !installer::managed_install_exists(&root) {
         return;
     }
-    let Ok(config) = load_config(app) else {
+    let Ok(config) = load_config(settings) else {
         return;
     };
     tauri::async_runtime::spawn(async move {

@@ -47,6 +47,29 @@ Writes are dual-write, vault first: `lib.rs::create_note` calls
 corrupted, `reconcile_index` reconstructs it from the vault — the markdown is
 authoritative.
 
+## Desktop settings
+
+Desktop configuration is owned by the typed Rust `SettingsStore` in
+`apps/desktop/src-tauri/src/settings.rs`. The current schema is version 1 and
+contains the optional vault and cover roots plus non-secret AI configuration.
+Unknown top-level and AI fields are retained across updates so settings written
+by another compatible release are not erased. Secrets are deliberately outside
+the long-term typed schema; legacy plaintext keys remain accessible only through
+the transitional migration accessor until DH-03 moves them to OS secret storage.
+
+Every mutation holds one process-wide write lock for clone, validation, atomic
+file replacement, and in-memory publication. A failed disk write therefore
+leaves both the previous file and the previous in-memory snapshot intact. A
+missing file starts with defaults in memory and is created on the first update.
+
+Malformed JSON is copied byte-for-byte to a unique sibling named
+`settings.corrupt-*.json`. The desktop then starts with safe defaults in an
+explicit read-only recovery mode: diagnostics and the Local Data settings panel
+show the affected path and error, and no command may overwrite the malformed
+file. A settings version newer than this build supports uses the same read-only
+mode without replacing the file. Repair the original `settings.json` or open it
+with a newer Skriuw release, then restart the app.
+
 ## Sync
 
 Decision: **local-first by default, cloud sync only after explicit consent.** The pull seam
