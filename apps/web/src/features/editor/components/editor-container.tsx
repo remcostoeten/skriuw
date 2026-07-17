@@ -386,6 +386,55 @@ function ActivityDots({
 	);
 }
 
+/**
+ * Persistent, non-modal banner shown while the active note's last save failed.
+ * A save error is durable state (not a transient toast): the note stays in
+ * `error` until a retry succeeds, and the draft can be copied out so nothing is
+ * lost. `onRetry` re-enqueues the current content through the debounced save
+ * path; `getUnsavedText` returns the live draft for the clipboard.
+ */
+function SaveErrorBanner({
+	onRetry,
+	getUnsavedText,
+}: {
+	onRetry: () => void;
+	getUnsavedText: () => string;
+}) {
+	const [copied, setCopied] = useState(false);
+	return (
+		<div
+			role="alert"
+			className="flex items-center gap-3 border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-xs text-destructive"
+		>
+			<span className="font-medium">This note couldn&apos;t be saved.</span>
+			<span className="text-destructive/80">
+				Your text is still here — retry or copy it out.
+			</span>
+			<div className="ml-auto flex gap-2">
+				<button
+					type="button"
+					onClick={onRetry}
+					className="rounded border border-destructive/50 px-2 py-1 font-medium hover:bg-destructive/15"
+				>
+					Retry save
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						void navigator.clipboard
+							?.writeText(getUnsavedText())
+							.then(() => setCopied(true))
+							.catch(() => setCopied(false));
+					}}
+					className="rounded border border-destructive/50 px-2 py-1 font-medium hover:bg-destructive/15"
+				>
+					{copied ? "Copied" : "Copy unsaved text"}
+				</button>
+			</div>
+		</div>
+	);
+}
+
 function EditorContainerImpl({
 	file,
 	files = EMPTY_FILES,
@@ -1028,6 +1077,18 @@ function EditorContainerImpl({
 				/>
 			)}
 			{canEditCover && <NoteCoverUploadInput upload={coverUpload} />}
+
+			{saveState === "error" && file ? (
+				<SaveErrorBanner
+					onRetry={() =>
+						onContentChange(file.id, file.content, {
+							richContent: file.richContent,
+							preferredEditorMode: file.preferredEditorMode,
+						})
+					}
+					getUnsavedText={() => file.content}
+				/>
+			) : null}
 
 			<div className="relative flex min-h-0 flex-1 flex-col">
 				{showEditorSkeleton ? (

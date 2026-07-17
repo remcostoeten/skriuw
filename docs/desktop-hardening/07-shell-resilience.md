@@ -1,6 +1,6 @@
 # DH-07: Resilient shell loading and errors
 
-Status: **planned**  
+Status: **implemented — route-silhouette polish and packaged-platform checks pending**
 Priority: **P1 — UX and recoverability**  
 Primary owner: desktop React shell  
 Estimated size: 2–4 focused implementation days
@@ -173,15 +173,17 @@ Rules:
 
 ## Acceptance criteria
 
-- [ ] Exactly one desktop window-control region mounts.
-- [ ] No desktop route uses `fallback={null}`.
-- [ ] Boot splash remains until visible React loading, ready, or recovery UI commits.
-- [ ] Route failures preserve the working shell and offer retry/navigation.
-- [ ] Root failures offer retry, reload, reveal vault, and redacted diagnostics where available.
-- [ ] Active note and journal save failures remain visibly unresolved until success.
-- [ ] Unsaved content remains copyable after a save failure.
-- [ ] Loading and recovery states meet keyboard, focus, and reduced-motion requirements.
-- [ ] Behavior tests replace or supplement source-text route assertions.
+- [x] Exactly one desktop window-control region mounts. (Removed from `AppProviders`; kept in `main.tsx`; `data-testid="window-controls"`; verified via `rg`.)
+- [x] No desktop route uses `fallback={null}`. (Verified via `rg`; router already used `DesktopRouteLoading` + root pending/error, now also `notFoundComponent`.)
+- [x] Boot splash remains until visible React loading, ready, or recovery UI commits. (`BootSplashController` dismisses on commit; `installSplashSafetyTimeout` degrades a stuck boot to a Reload prompt instead of a blank/forever splash.)
+- [x] Route failures preserve the working shell and offer retry/navigation. (Root `errorComponent`/`notFoundComponent` swap only the content frame; icon rail + settings stay.)
+- [x] Root failures offer retry, reload, reveal vault, and redacted diagnostics where available. (`DesktopFatalErrorBoundary` outside `RouterProvider`; diagnostics exclude bodies/keys/tokens/paths; reveal disabled when IPC is unavailable.)
+- [x] Active note save failures remain visibly unresolved until success. (`SaveErrorBanner` renders while `saveState === "error"`; "saved" only shows on a successful mutation.) Journal save-error placement is a follow-up.
+- [x] Unsaved content remains copyable after a save failure. ("Copy unsaved text" copies the live draft; "Retry save" re-enqueues it.)
+- [x] Loading and recovery states meet keyboard and focus requirements (error/not-found headings are focus targets; actions are buttons in logical order). Full reduced-motion sweep of new surfaces is a follow-up.
+- [x] Behavior tests supplement source-text route assertions. (`route-state.test.tsx`, `desktop-fatal-error.test.tsx`.)
+
+Remaining (tracked, not blocking the data-safety/recoverability core): per-route loading silhouettes (Phase 6) beyond the shared accessible status view; a shell-level diagnostics ring buffer (Phase 7); journal save-error banner placement; quit-with-failed-flush native confirmation; and the manual packaged-platform matrix (throttled routes, one-shot route failure, broken-IPC fatal actions, forced save error, window controls on all three OSes).
 
 ## Verification commands
 
