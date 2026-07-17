@@ -141,6 +141,23 @@ store disables cloud providers while Ollama keeps working. Complete snapshots
 intentionally exclude these keys (they live outside app-data); a reset only
 removes them when the user explicitly opts in.
 
+### External edits and conflict-safe saves
+
+Provider keys aside, the vault is a folder of plain Markdown that other tools can
+edit. Saves are **conflict-safe** (DH-08 Phase 1): every desktop note read
+records the file's content-derived revision (`note_vault_revision`, a SHA-256 of
+the canonical bytes), and `save_note` carries that `expectedVaultRevision`. Rust
+re-reads the file's current revision under the vault write lock immediately
+before writing; if it no longer matches, the save is rejected
+(`VAULT_CONFLICT:<id>`) and the external content is left untouched rather than
+overwritten. An explicit `force` flag exists for a future "keep my version"
+resolution and is never set by autosave.
+
+Live passive watching (surfacing external add/edit/delete/rename without a
+restart) and the full conflict-resolution UI are the remaining DH-08 phases; the
+revision check above protects data whenever a save happens, independent of the
+watcher.
+
 ## Open gaps
 
 1. **OS keychain storage (sync credential).** AI provider keys now live in the OS
