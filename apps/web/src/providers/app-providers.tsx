@@ -24,7 +24,6 @@ import { PendingCollabReplay } from "@/features/collaboration/components/pending
 import { DesktopIndexSync } from "@/features/desktop/desktop-index-sync";
 import { DesktopQuitShortcut } from "@/features/desktop/desktop-quit-shortcut";
 import { DesktopToggleSize } from "@/features/desktop/desktop-toggle-size";
-import { WindowControls } from "@/features/desktop/window-controls";
 import { UserToastHost } from "@/shared/ui/user-toast-host";
 import { EDITOR_PREFERENCES_STORAGE_KEY } from "@/features/settings/lib/editor-preferences";
 import type { EditorPreferencesRecord } from "@/features/settings/server/queries";
@@ -100,7 +99,8 @@ export function AppProviders({ children, initialEditorPreferences, initialAuthUs
 						<ProtectedAppGuard>
 							<WorkspaceBackendProvider>
 								<DesktopIndexSync />
-								<WindowControls />
+								{/* WindowControls mounts once in the desktop entry
+								    shell (packages/web-spa/src/main.tsx), never here. */}
 								<PersistenceBootstrap />
 								<GuestWorkspaceBootstrap />
 								<WorkspaceWarmup />

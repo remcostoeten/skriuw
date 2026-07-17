@@ -9,6 +9,8 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { DesktopAboutDialog } from "@/features/desktop/about-dialog";
 import { WindowControls } from "@/features/desktop/window-controls";
+import { DesktopFatalErrorBoundary } from "./components/desktop-fatal-error";
+import { installSplashSafetyTimeout } from "./components/boot-splash-controller";
 import { initDesktopMenuBridge } from "./desktop-menu-bridge";
 import { router } from "./router";
 
@@ -17,29 +19,21 @@ initDesktopMenuBridge();
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing #root element");
 
+// The boot splash (painted in index.html) is now dismissed by
+// `BootSplashController` once React commits a visible shell/loading/recovery
+// state — never on a blind timer. This safety net only fires if the shell never
+// commits at all, replacing the splash with a recoverable Reload prompt.
+installSplashSafetyTimeout();
+
+// The single desktop WindowControls mount lives here in the explicit entry
+// shell (it was previously also mounted inside shared AppProviders, producing
+// duplicate fixed controls and resize listeners in the desktop bundle).
 createRoot(rootElement).render(
 	<StrictMode>
-		<RouterProvider router={router} />
-		<DesktopAboutDialog />
-		<WindowControls />
+		<DesktopFatalErrorBoundary>
+			<RouterProvider router={router} />
+			<DesktopAboutDialog />
+			<WindowControls />
+		</DesktopFatalErrorBoundary>
 	</StrictMode>,
 );
-
-// Fade out the boot splash (painted in index.html) once the app has had a
-// frame to paint, then drop it from the DOM after the transition.
-function dismissSplash() {
-	const splash = document.getElementById("splash");
-	if (!splash) return;
-	splash.classList.add("is-hidden");
-	splash.addEventListener(
-		"transitionend",
-		function remove() {
-			splash.remove();
-		},
-		{ once: true },
-	);
-}
-
-requestAnimationFrame(function afterFirstFrame() {
-	requestAnimationFrame(dismissSplash);
-});
