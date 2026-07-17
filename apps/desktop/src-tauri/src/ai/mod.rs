@@ -351,14 +351,17 @@ fn set_provider_key(
         .ok_or_else(|| format!("Unknown AI provider: {provider}"))?;
     let trimmed = key.trim();
     if trimmed.is_empty() {
+        // Clearing must always remove any legacy plaintext first, so a locked or
+        // unavailable credential store (which may hold nothing to delete anyway)
+        // can never leave the old plaintext key in settings.json or backups.
+        let _ = settings.set_legacy_ai_secret(provider.legacy_field(), None);
         creds.delete(provider).map_err(|error| error.to_string())?;
-    } else {
-        creds
-            .set(provider, trimmed)
-            .map_err(|error| error.to_string())?;
+        return Ok(());
     }
-    // The secret now lives in the OS store (or was cleared); a legacy plaintext
-    // value for this provider must never linger in settings.json.
+    creds
+        .set(provider, trimmed)
+        .map_err(|error| error.to_string())?;
+    // The secret now lives in the OS store; drop any legacy plaintext for it.
     let _ = settings.set_legacy_ai_secret(provider.legacy_field(), None);
     Ok(())
 }
@@ -730,6 +733,20 @@ mod tests {
         assert!(creds.get(CredentialProvider::Gemini).unwrap().is_some());
         set_provider_key(&settings, &creds, "gemini", "   ").unwrap();
         assert!(creds.get(CredentialProvider::Gemini).unwrap().is_none());
+    }
+
+    #[test]
+    fn clearing_removes_legacy_plaintext_even_when_store_unavailable() {
+        let (_dir, settings) = settings_store();
+        let creds = InMemoryCredentialStore::new();
+        settings
+            .set_legacy_ai_secret("groqApiKey", Some("stranded".to_string()))
+            .unwrap();
+        // Store is locked/unavailable: the secure delete fails, but the legacy
+        // plaintext must still be gone so it never lingers in backups.
+        creds.set_unavailable(true);
+        assert!(set_provider_key(&settings, &creds, "groq", "  ").is_err());
+        assert!(settings.legacy_ai_secret("groqApiKey").unwrap().is_none());
     }
 
     #[test]

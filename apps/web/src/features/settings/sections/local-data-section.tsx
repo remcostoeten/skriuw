@@ -913,8 +913,21 @@ export function LocalDataSection() {
 			});
 			// OS-stored AI keys live outside the app-data directories a reset
 			// wipes, so they are only removed when the user explicitly opts in.
+			// If that removal fails (locked/unavailable keychain), abort BEFORE
+			// wiping anything — otherwise the reset would report success while
+			// the keys survive on the machine.
 			if (removeAiKeys) {
-				await tauriInvoke<void>("ai_clear_credentials").catch(() => undefined);
+				try {
+					await tauriInvoke<void>("ai_clear_credentials");
+				} catch (error) {
+					setResetState("error");
+					setNotice(
+						error instanceof Error
+							? `Couldn't remove your saved AI keys: ${error.message}. Unlock your keychain and try again, or uncheck that option.`
+							: "Couldn't remove your saved AI keys. Unlock your keychain and try again, or uncheck that option.",
+					);
+					return;
+				}
 			}
 			await tauriInvoke<void>("reset_desktop_data", { progress });
 			window.location.reload();
