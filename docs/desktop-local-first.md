@@ -130,12 +130,24 @@ a desktop binary and a proxy would require the server we are deliberately not
 shipping yet. Enabling cloud AI sends note text off the machine, so it must sit
 behind an explicit consent toggle; "fully private" holds only in Ollama mode.
 
+Provider API keys are stored in the **OS credential store** (macOS Keychain,
+Windows Credential Manager, Linux Secret Service) via `credentials.rs` (DH-03),
+never in `settings.json`, snapshots, or logs. The service name is
+`nl.remcostoeten.skriuw` (`.dev`-suffixed in debug builds); accounts are
+`ai:groq` and `ai:gemini`. A legacy plaintext key from an older build is
+migrated on launch — stored securely and read back before the plaintext is
+removed — and cloud AI has no plaintext fallback: an unavailable credential
+store disables cloud providers while Ollama keeps working. Complete snapshots
+intentionally exclude these keys (they live outside app-data); a reset only
+removes them when the user explicitly opts in.
+
 ## Open gaps
 
-1. **OS keychain storage.** Browser pairing removes manual credential handling,
-   and the credential is revocable/disconnected from the server, but it is still
-   persisted in the desktop webview store. Move it to Keychain, Credential Manager,
-   or Secret Service before treating a compromised desktop profile as protected.
+1. **OS keychain storage (sync credential).** AI provider keys now live in the OS
+   credential store (DH-03), but the desktop _sync_ bearer credential from browser
+   pairing is still persisted in the webview store. Move it to the same adapter
+   before treating a compromised desktop profile as protected. (DH-03 out of scope
+   deliberately covered only the AI keys.)
 2. **`richContent` is not persisted in the vault.** It is derived from the markdown
    on read (`rich-document.ts`), so block-editor-only structure is lossy on a
    desktop round-trip. Decide: accept lossy markdown-canonical, or add a

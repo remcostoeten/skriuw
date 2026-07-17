@@ -1,7 +1,9 @@
 //! Desktop AI: local-first inference via a managed Ollama runtime, with Groq
-//! and Gemini as optional cloud providers. Configuration (provider, models, and
-//! legacy API keys) lives in the same `settings.json` as the vault root. The web app's
-//! editor actions route here through the `ai_complete` and `ai_complete_stream`
+//! and Gemini as optional cloud providers. Non-secret configuration (provider
+//! and models) lives in the same `settings.json` as the vault root; provider
+//! API keys live in the OS credential store (see `credentials.rs`, DH-03) and
+//! never touch `settings.json`, snapshots, or logs. The web app's editor
+//! actions route here through the `ai_complete` and `ai_complete_stream`
 //! commands.
 
 mod cloud;
@@ -16,6 +18,10 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 
+use crate::credentials::{
+    migrate_legacy_secret, CredentialProvider, CredentialState, CredentialStore, MigrationOutcome,
+    SecretString,
+};
 use crate::settings::SettingsStore;
 
 pub use installer::{
@@ -31,8 +37,24 @@ const DEFAULT_GROQ_MODEL: &str = "llama-3.3-70b-versatile";
 const DEFAULT_GEMINI_MODEL: &str = "gemini-2.5-flash";
 const DEFAULT_OLLAMA_MODEL: &str = "llama3.2";
 
+/// Per-provider key status surfaced to the settings UI. The secret value is
+/// never returned — only which of these states the provider is in.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyState {
+    /// A key is stored securely in the OS credential store.
+    Present,
+    /// No key is stored and none is pending.
+    Missing,
+    /// A legacy plaintext key exists but could not be moved to secure storage
+    /// yet (store unavailable/locked); the plaintext is NOT used for cloud AI.
+    MigrationPending,
+    /// The OS credential store is unavailable, so cloud AI is disabled.
+    Unavailable,
+}
+
 /// The non-secret AI configuration surfaced to the settings UI. API keys are
-/// never returned — only whether each provider has one stored.
+/// never returned — only each provider's [`KeyState`].
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiConfig {
@@ -43,6 +65,8 @@ pub struct AiConfig {
     pub gemini_model: String,
     pub has_groq_key: bool,
     pub has_gemini_key: bool,
+    pub groq_key_state: KeyState,
+    pub gemini_key_state: KeyState,
 }
 
 /// Partial update from the settings UI — every field is optional so a single
@@ -64,8 +88,42 @@ fn configured(value: Option<&str>) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn load_config(settings: &SettingsStore) -> Result<AiConfig, String> {
+/// Computes a provider's [`KeyState`] from the secure store plus any leftover
+/// legacy plaintext, without ever reading the secret value into a return type.
+fn key_state(
+    creds: &dyn CredentialStore,
+    settings: &SettingsStore,
+    provider: CredentialProvider,
+) -> KeyState {
+    let legacy_present = settings
+        .legacy_ai_secret(provider.legacy_field())
+        .ok()
+        .flatten()
+        .is_some();
+    match creds.get(provider) {
+        Ok(Some(_)) => KeyState::Present,
+        Ok(None) => {
+            if legacy_present {
+                KeyState::MigrationPending
+            } else {
+                KeyState::Missing
+            }
+        }
+        Err(crate::credentials::CredentialError::Unavailable(_)) => {
+            if legacy_present {
+                KeyState::MigrationPending
+            } else {
+                KeyState::Unavailable
+            }
+        }
+        Err(_) => KeyState::Unavailable,
+    }
+}
+
+fn load_config(settings: &SettingsStore, creds: &dyn CredentialStore) -> Result<AiConfig, String> {
     let snapshot = settings.snapshot().map_err(|error| error.to_string())?;
+    let groq_key_state = key_state(creds, settings, CredentialProvider::Groq);
+    let gemini_key_state = key_state(creds, settings, CredentialProvider::Gemini);
     Ok(AiConfig {
         provider: configured(snapshot.ai.provider.as_deref())
             .unwrap_or_else(|| "ollama".to_string()),
@@ -77,22 +135,66 @@ fn load_config(settings: &SettingsStore) -> Result<AiConfig, String> {
             .unwrap_or_else(|| DEFAULT_GROQ_MODEL.to_string()),
         gemini_model: configured(snapshot.ai.gemini_model.as_deref())
             .unwrap_or_else(|| DEFAULT_GEMINI_MODEL.to_string()),
-        has_groq_key: settings
-            .legacy_ai_secret("groqApiKey")
-            .map_err(|error| error.to_string())?
-            .is_some(),
-        has_gemini_key: settings
-            .legacy_ai_secret("geminiApiKey")
-            .map_err(|error| error.to_string())?
-            .is_some(),
+        has_groq_key: groq_key_state == KeyState::Present,
+        has_gemini_key: gemini_key_state == KeyState::Present,
+        groq_key_state,
+        gemini_key_state,
     })
 }
 
-fn legacy_key(settings: &SettingsStore, field: &str) -> Result<String, String> {
-    Ok(settings
-        .legacy_ai_secret(field)
-        .map_err(|error| error.to_string())?
-        .unwrap_or_default())
+/// Fetches a provider's secret for an outgoing cloud call. A missing or
+/// unavailable key is a hard error that points the user at local Ollama —
+/// after DH-03 there is no plaintext fallback. The returned [`SecretString`] is
+/// dropped as soon as the request is built.
+fn require_secret(
+    creds: &dyn CredentialStore,
+    provider: CredentialProvider,
+) -> Result<SecretString, String> {
+    match creds.get(provider) {
+        Ok(Some(secret)) => Ok(secret),
+        Ok(None) => Err(
+            "No API key is stored for this cloud provider. Add one in AI settings, \
+			 or switch to local Ollama."
+                .to_string(),
+        ),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+/// Migrates both providers' legacy plaintext keys into the OS store and removes
+/// the plaintext only once a secure copy is verified. Idempotent and safe to
+/// re-run on every launch. Never logs a key value.
+pub fn migrate_legacy_secrets(settings: &SettingsStore, creds: &dyn CredentialStore) {
+    for provider in [CredentialProvider::Groq, CredentialProvider::Gemini] {
+        let legacy = settings
+            .legacy_ai_secret(provider.legacy_field())
+            .ok()
+            .flatten();
+        let outcome = migrate_legacy_secret(creds, provider, legacy.as_deref());
+        if outcome.should_remove_legacy() {
+            let _ = settings.set_legacy_ai_secret(provider.legacy_field(), None);
+        }
+        if let MigrationOutcome::Failed(reason) = &outcome {
+            eprintln!(
+                "[skriuw] cloud AI key for {} could not be migrated to secure storage: {reason}",
+                provider.account()
+            );
+        }
+    }
+}
+
+/// The Ollama-only runtime config (no provider keys involved), for the local
+/// model-management commands that never touch the credential store.
+struct OllamaRuntime {
+    endpoint: String,
+}
+
+fn ollama_runtime(settings: &SettingsStore) -> Result<OllamaRuntime, String> {
+    let snapshot = settings.snapshot().map_err(|error| error.to_string())?;
+    Ok(OllamaRuntime {
+        endpoint: configured(snapshot.ai.ollama_endpoint.as_deref())
+            .unwrap_or_else(|| DEFAULT_ENDPOINT.to_string()),
+    })
 }
 
 fn ollama_root(app: &AppHandle) -> Result<PathBuf, String> {
@@ -186,13 +288,17 @@ fn prompt_for(
 }
 
 #[tauri::command]
-pub fn ai_get_config(settings: State<'_, SettingsStore>) -> Result<AiConfig, String> {
-    load_config(&settings)
+pub fn ai_get_config(
+    settings: State<'_, SettingsStore>,
+    creds: State<'_, CredentialState>,
+) -> Result<AiConfig, String> {
+    load_config(&settings, creds.store())
 }
 
 #[tauri::command]
 pub fn ai_set_config(
     settings: State<'_, SettingsStore>,
+    creds: State<'_, CredentialState>,
     patch: AiConfigPatch,
 ) -> Result<AiConfig, String> {
     settings
@@ -215,32 +321,55 @@ pub fn ai_set_config(
             Ok(())
         })
         .map_err(|error| error.to_string())?;
-    load_config(&settings)
+    load_config(&settings, creds.store())
 }
 
-/// Stores a provider API key. `provider` is "groq" or "gemini"; an empty value
-/// clears the stored key.
+/// Stores a provider API key in the OS credential store. `provider` is "groq"
+/// or "gemini"; an empty value clears the stored key. The key is never written
+/// to `settings.json`; any leftover legacy plaintext for the provider is
+/// removed on a successful save so a re-save also cleans up old state.
 #[tauri::command]
 pub fn ai_set_key(
     settings: State<'_, SettingsStore>,
+    creds: State<'_, CredentialState>,
     provider: String,
     key: String,
 ) -> Result<AiConfig, String> {
-    let field = match provider.as_str() {
-        "groq" => "groqApiKey",
-        "gemini" | "google" => "geminiApiKey",
-        other => return Err(format!("Unknown AI provider: {other}")),
-    };
+    set_provider_key(settings.inner(), creds.store(), &provider, &key)?;
+    load_config(&settings, creds.store())
+}
+
+/// Testable core of `ai_set_key`: validates the provider, stores or clears the
+/// secret in the credential store, and drops any legacy plaintext field.
+fn set_provider_key(
+    settings: &SettingsStore,
+    creds: &dyn CredentialStore,
+    provider: &str,
+    key: &str,
+) -> Result<(), String> {
+    let provider = CredentialProvider::from_str(provider)
+        .ok_or_else(|| format!("Unknown AI provider: {provider}"))?;
     let trimmed = key.trim();
-    settings
-        .set_legacy_ai_secret(field, (!trimmed.is_empty()).then(|| trimmed.to_string()))
+    if trimmed.is_empty() {
+        // Clearing must always remove any legacy plaintext first, so a locked or
+        // unavailable credential store (which may hold nothing to delete anyway)
+        // can never leave the old plaintext key in settings.json or backups.
+        let _ = settings.set_legacy_ai_secret(provider.legacy_field(), None);
+        creds.delete(provider).map_err(|error| error.to_string())?;
+        return Ok(());
+    }
+    creds
+        .set(provider, trimmed)
         .map_err(|error| error.to_string())?;
-    load_config(&settings)
+    // The secret now lives in the OS store; drop any legacy plaintext for it.
+    let _ = settings.set_legacy_ai_secret(provider.legacy_field(), None);
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn ai_complete(
     settings: State<'_, SettingsStore>,
+    creds: State<'_, CredentialState>,
     action: String,
     content: String,
     target_language: Option<String>,
@@ -255,16 +384,16 @@ pub async fn ai_complete(
         target_language.as_deref(),
         instruction.as_deref(),
     )?;
-    let config = load_config(&settings)?;
+    let config = load_config(&settings, creds.store())?;
 
     let result = match config.provider.as_str() {
         "groq" => {
-            let key = legacy_key(&settings, "groqApiKey")?;
-            cloud::groq_complete(&key, &config.groq_model, &system, &user).await?
+            let secret = require_secret(creds.store(), CredentialProvider::Groq)?;
+            cloud::groq_complete(secret.expose(), &config.groq_model, &system, &user).await?
         }
         "gemini" | "google" => {
-            let key = legacy_key(&settings, "geminiApiKey")?;
-            cloud::gemini_complete(&key, &config.gemini_model, &system, &user).await?
+            let secret = require_secret(creds.store(), CredentialProvider::Gemini)?;
+            cloud::gemini_complete(secret.expose(), &config.gemini_model, &system, &user).await?
         }
         _ => {
             let client = ollama::OllamaClient::new(config.ollama_endpoint.clone());
@@ -284,6 +413,7 @@ pub async fn ai_complete(
 #[tauri::command]
 pub async fn ai_complete_stream(
     settings: State<'_, SettingsStore>,
+    creds: State<'_, CredentialState>,
     action: String,
     content: String,
     target_language: Option<String>,
@@ -299,7 +429,7 @@ pub async fn ai_complete_stream(
         target_language.as_deref(),
         instruction.as_deref(),
     )?;
-    let config = load_config(&settings)?;
+    let config = load_config(&settings, creds.store())?;
 
     STREAM_CANCEL.store(false, Ordering::Relaxed);
     let cancel = Arc::new(AtomicBool::new(false));
@@ -320,14 +450,28 @@ pub async fn ai_complete_stream(
 
     let result = match config.provider.as_str() {
         "groq" => {
-            let key = legacy_key(&settings, "groqApiKey")?;
-            cloud::groq_complete_stream(&key, &config.groq_model, &system, &user, emit, cancel)
-                .await?
+            let secret = require_secret(creds.store(), CredentialProvider::Groq)?;
+            cloud::groq_complete_stream(
+                secret.expose(),
+                &config.groq_model,
+                &system,
+                &user,
+                emit,
+                cancel,
+            )
+            .await?
         }
         "gemini" | "google" => {
-            let key = legacy_key(&settings, "geminiApiKey")?;
-            cloud::gemini_complete_stream(&key, &config.gemini_model, &system, &user, emit, cancel)
-                .await?
+            let secret = require_secret(creds.store(), CredentialProvider::Gemini)?;
+            cloud::gemini_complete_stream(
+                secret.expose(),
+                &config.gemini_model,
+                &system,
+                &user,
+                emit,
+                cancel,
+            )
+            .await?
         }
         _ => {
             let client = ollama::OllamaClient::new(config.ollama_endpoint.clone());
@@ -357,8 +501,11 @@ pub struct AiPingResult {
 /// Sends a minimal "ping" completion to the active provider/model and reports
 /// whether it responded, so settings can show a live connectivity check.
 #[tauri::command]
-pub async fn ai_ping(settings: State<'_, SettingsStore>) -> Result<AiPingResult, String> {
-    let config = load_config(&settings)?;
+pub async fn ai_ping(
+    settings: State<'_, SettingsStore>,
+    creds: State<'_, CredentialState>,
+) -> Result<AiPingResult, String> {
+    let config = load_config(&settings, creds.store())?;
     let system = "Reply with exactly one word: pong.";
     let user = "ping";
     let model = match config.provider.as_str() {
@@ -369,14 +516,18 @@ pub async fn ai_ping(settings: State<'_, SettingsStore>) -> Result<AiPingResult,
 
     let started = std::time::Instant::now();
     let result = match config.provider.as_str() {
-        "groq" => {
-            let key = legacy_key(&settings, "groqApiKey")?;
-            cloud::groq_complete(&key, &config.groq_model, system, user).await
-        }
-        "gemini" | "google" => {
-            let key = legacy_key(&settings, "geminiApiKey")?;
-            cloud::gemini_complete(&key, &config.gemini_model, system, user).await
-        }
+        "groq" => match require_secret(creds.store(), CredentialProvider::Groq) {
+            Ok(secret) => {
+                cloud::groq_complete(secret.expose(), &config.groq_model, system, user).await
+            }
+            Err(error) => Err(error),
+        },
+        "gemini" | "google" => match require_secret(creds.store(), CredentialProvider::Gemini) {
+            Ok(secret) => {
+                cloud::gemini_complete(secret.expose(), &config.gemini_model, system, user).await
+            }
+            Err(error) => Err(error),
+        },
         _ => {
             let client = ollama::OllamaClient::new(config.ollama_endpoint.clone());
             client.complete(&config.ollama_model, system, user).await
@@ -402,22 +553,34 @@ pub async fn ai_ping(settings: State<'_, SettingsStore>) -> Result<AiPingResult,
     })
 }
 
+/// Deletes every stored cloud-AI provider key from the OS credential store.
+/// Used by the desktop reset flow, which must explicitly address credentials
+/// because they live outside the app-data directories a reset wipes.
+#[tauri::command]
+pub fn ai_clear_credentials(creds: State<'_, CredentialState>) -> Result<(), String> {
+    let store = creds.store();
+    for provider in [CredentialProvider::Groq, CredentialProvider::Gemini] {
+        store.delete(provider).map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn ai_ollama_status(
     app: AppHandle,
     settings: State<'_, SettingsStore>,
 ) -> Result<OllamaInstallStatus, String> {
     let root = ollama_root(&app)?;
-    let config = load_config(&settings)?;
-    Ok(installer::get_install_status(&root, &config.ollama_endpoint).await)
+    let runtime = ollama_runtime(&settings)?;
+    Ok(installer::get_install_status(&root, &runtime.endpoint).await)
 }
 
 #[tauri::command]
 pub async fn ai_ollama_catalog(
     settings: State<'_, SettingsStore>,
 ) -> Result<Vec<OllamaCatalogEntry>, String> {
-    let config = load_config(&settings)?;
-    ollama::OllamaClient::new(config.ollama_endpoint)
+    let runtime = ollama_runtime(&settings)?;
+    ollama::OllamaClient::new(runtime.endpoint)
         .list_catalog()
         .await
 }
@@ -428,8 +591,8 @@ pub async fn ai_start_ollama(
     settings: State<'_, SettingsStore>,
 ) -> Result<(), String> {
     let root = ollama_root(&app)?;
-    let config = load_config(&settings)?;
-    installer::start_managed_server(&root, &config.ollama_endpoint).await
+    let runtime = ollama_runtime(&settings)?;
+    installer::start_managed_server(&root, &runtime.endpoint).await
 }
 
 #[tauri::command]
@@ -439,7 +602,7 @@ pub async fn ai_install_ollama(
     on_event: Channel<OllamaInstallEvent>,
 ) -> Result<(), String> {
     let root = ollama_root(&app)?;
-    let config = load_config(&settings)?;
+    let runtime = ollama_runtime(&settings)?;
     INSTALL_CANCEL.store(false, Ordering::Relaxed);
     let cancel = Arc::new(AtomicBool::new(false));
     let mirror = cancel.clone();
@@ -454,7 +617,7 @@ pub async fn ai_install_ollama(
     });
 
     let outcome =
-        installer::install_managed(root, config.ollama_endpoint, on_event.clone(), cancel).await;
+        installer::install_managed(root, runtime.endpoint, on_event.clone(), cancel).await;
     if let Err(message) = &outcome {
         let _ = on_event.send(OllamaInstallEvent::Error {
             message: message.clone(),
@@ -474,7 +637,7 @@ pub async fn ai_pull_ollama_model(
     model: String,
     on_event: Channel<OllamaPullEvent>,
 ) -> Result<(), String> {
-    let config = load_config(&settings)?;
+    let runtime = ollama_runtime(&settings)?;
     PULL_CANCEL.store(false, Ordering::Relaxed);
     let cancel = Arc::new(AtomicBool::new(false));
     let mirror = cancel.clone();
@@ -488,7 +651,7 @@ pub async fn ai_pull_ollama_model(
         }
     });
 
-    let client = ollama::OllamaClient::new(config.ollama_endpoint);
+    let client = ollama::OllamaClient::new(runtime.endpoint);
     client.pull_model(&model, on_event, cancel).await
 }
 
@@ -502,8 +665,8 @@ pub async fn ai_delete_ollama_model(
     settings: State<'_, SettingsStore>,
     model: String,
 ) -> Result<(), String> {
-    let config = load_config(&settings)?;
-    ollama::OllamaClient::new(config.ollama_endpoint)
+    let runtime = ollama_runtime(&settings)?;
+    ollama::OllamaClient::new(runtime.endpoint)
         .delete_model(&model)
         .await
 }
@@ -517,10 +680,159 @@ pub fn autostart_managed(app: &AppHandle, settings: &SettingsStore) {
     if !installer::managed_install_exists(&root) {
         return;
     }
-    let Ok(config) = load_config(settings) else {
+    let Ok(runtime) = ollama_runtime(settings) else {
         return;
     };
     tauri::async_runtime::spawn(async move {
-        let _ = installer::start_managed_server(&root, &config.ollama_endpoint).await;
+        let _ = installer::start_managed_server(&root, &runtime.endpoint).await;
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::credentials::InMemoryCredentialStore;
+
+    fn settings_store() -> (tempfile::TempDir, SettingsStore) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = SettingsStore::load(dir.path().join(crate::settings::SETTINGS_FILE)).unwrap();
+        (dir, store)
+    }
+
+    #[test]
+    fn set_provider_key_stores_in_creds_never_in_settings_json() {
+        let (dir, settings) = settings_store();
+        let creds = InMemoryCredentialStore::new();
+
+        set_provider_key(&settings, &creds, "groq", "sk-sentinel-secret").unwrap();
+
+        // The key is in the credential store.
+        assert_eq!(
+            creds
+                .get(CredentialProvider::Groq)
+                .unwrap()
+                .unwrap()
+                .expose(),
+            "sk-sentinel-secret"
+        );
+        // settings.json (if written at all) never contains the secret.
+        let path = dir.path().join(crate::settings::SETTINGS_FILE);
+        if path.exists() {
+            let bytes = std::fs::read(&path).unwrap();
+            let text = String::from_utf8_lossy(&bytes);
+            assert!(!text.contains("sk-sentinel-secret"));
+            assert!(!text.contains("groqApiKey"));
+        }
+    }
+
+    #[test]
+    fn empty_key_clears_the_credential() {
+        let (_dir, settings) = settings_store();
+        let creds = InMemoryCredentialStore::new();
+        set_provider_key(&settings, &creds, "gemini", "gemini-key").unwrap();
+        assert!(creds.get(CredentialProvider::Gemini).unwrap().is_some());
+        set_provider_key(&settings, &creds, "gemini", "   ").unwrap();
+        assert!(creds.get(CredentialProvider::Gemini).unwrap().is_none());
+    }
+
+    #[test]
+    fn clearing_removes_legacy_plaintext_even_when_store_unavailable() {
+        let (_dir, settings) = settings_store();
+        let creds = InMemoryCredentialStore::new();
+        settings
+            .set_legacy_ai_secret("groqApiKey", Some("stranded".to_string()))
+            .unwrap();
+        // Store is locked/unavailable: the secure delete fails, but the legacy
+        // plaintext must still be gone so it never lingers in backups.
+        creds.set_unavailable(true);
+        assert!(set_provider_key(&settings, &creds, "groq", "  ").is_err());
+        assert!(settings.legacy_ai_secret("groqApiKey").unwrap().is_none());
+    }
+
+    #[test]
+    fn unknown_provider_changes_nothing() {
+        let (_dir, settings) = settings_store();
+        let creds = InMemoryCredentialStore::new();
+        assert!(set_provider_key(&settings, &creds, "openai", "key").is_err());
+        assert!(creds.get(CredentialProvider::Groq).unwrap().is_none());
+        assert!(creds.get(CredentialProvider::Gemini).unwrap().is_none());
+    }
+
+    #[test]
+    fn key_state_reflects_secure_missing_and_pending() {
+        let (_dir, settings) = settings_store();
+        let creds = InMemoryCredentialStore::new();
+        // Missing by default.
+        assert_eq!(
+            key_state(&creds, &settings, CredentialProvider::Groq),
+            KeyState::Missing
+        );
+        // A leftover legacy plaintext with no secure key reads as pending.
+        settings
+            .set_legacy_ai_secret("groqApiKey", Some("legacy".to_string()))
+            .unwrap();
+        assert_eq!(
+            key_state(&creds, &settings, CredentialProvider::Groq),
+            KeyState::MigrationPending
+        );
+        // Once secured, it reads as present.
+        creds.set(CredentialProvider::Groq, "secure").unwrap();
+        assert_eq!(
+            key_state(&creds, &settings, CredentialProvider::Groq),
+            KeyState::Present
+        );
+    }
+
+    #[test]
+    fn startup_migration_moves_plaintext_out_of_settings() {
+        let (dir, settings) = settings_store();
+        let creds = InMemoryCredentialStore::new();
+        settings
+            .set_legacy_ai_secret("groqApiKey", Some("plaintext-sentinel".to_string()))
+            .unwrap();
+
+        migrate_legacy_secrets(&settings, &creds);
+
+        // Secure store now holds it; settings.json no longer does.
+        assert_eq!(
+            creds
+                .get(CredentialProvider::Groq)
+                .unwrap()
+                .unwrap()
+                .expose(),
+            "plaintext-sentinel"
+        );
+        assert!(settings.legacy_ai_secret("groqApiKey").unwrap().is_none());
+        let bytes = std::fs::read(dir.path().join(crate::settings::SETTINGS_FILE)).unwrap();
+        assert!(!String::from_utf8_lossy(&bytes).contains("plaintext-sentinel"));
+    }
+
+    #[test]
+    fn failed_migration_keeps_plaintext_for_retry() {
+        let (_dir, settings) = settings_store();
+        let creds = InMemoryCredentialStore::new();
+        creds.set_unavailable(true);
+        settings
+            .set_legacy_ai_secret("geminiApiKey", Some("keep-me".to_string()))
+            .unwrap();
+
+        migrate_legacy_secrets(&settings, &creds);
+
+        // Store was unavailable → plaintext retained so a later launch can retry.
+        assert_eq!(
+            settings
+                .legacy_ai_secret("geminiApiKey")
+                .unwrap()
+                .as_deref(),
+            Some("keep-me")
+        );
+    }
+
+    #[test]
+    fn require_secret_has_no_plaintext_fallback() {
+        let creds = InMemoryCredentialStore::new();
+        // No secure key and no fallback: cloud calls must error, not silently
+        // use a plaintext value.
+        assert!(require_secret(&creds, CredentialProvider::Groq).is_err());
+    }
 }
