@@ -54,13 +54,15 @@ export default defineConfig({
 			output: {
 				manualChunks(id) {
 					if (!id.includes("node_modules")) return;
-					if (
-						id.includes("@blocknote") ||
-						id.includes("y-prosemirror") ||
-						id.includes("prosemirror")
-					) {
-						return "editor";
-					}
+					// NOTE: @blocknote/prosemirror are deliberately NOT grouped into a
+					// manual "editor" chunk. That grouping forced the ~486 KB gzip
+					// editor code into the static startup graph even though the
+					// RichTextEditor is dynamically imported — a shared manual chunk
+					// gets hoisted static. Letting Rollup split them keeps the editor
+					// fully on-demand and cut static initial JS gzip ~31% (DH-06).
+					// force-graph/three (graph route) and shiki (code highlighting)
+					// stay grouped: both are already reached only through dynamic
+					// imports, and grouping keeps each feature a single cached chunk.
 					if (id.includes("react-force-graph") || id.includes("/three/")) {
 						return "graph";
 					}
