@@ -1,22 +1,25 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const here = dirname(fileURLToPath(import.meta.url));
+import { resolveDesktopRoute } from "./route-contract";
 
 describe("desktop router", () => {
-	test("registers the trash page route", () => {
-		const source = readFileSync(join(here, "router.tsx"), "utf8");
-
-		expect(source).toContain('path: "/app/trash"');
-		expect(source).toContain("trashRoute");
+	test("resolves every static workspace route under hash history", () => {
+		expect(resolveDesktopRoute("#/app")).toBe("notes");
+		expect(resolveDesktopRoute("#/app/graph")).toBe("graph");
+		expect(resolveDesktopRoute("#/app/journal")).toBe("journal");
+		expect(resolveDesktopRoute("#/app/tasks")).toBe("tasks");
+		expect(resolveDesktopRoute("#/app/trash")).toBe("trash");
+		expect(resolveDesktopRoute("#/app/activity")).toBe("activity");
+		expect(resolveDesktopRoute("#/app/tags")).toBe("tags");
+		expect(resolveDesktopRoute("#/app/people")).toBe("people");
 	});
 
-	test("registers the activity page route", () => {
-		const source = readFileSync(join(here, "router.tsx"), "utf8");
+	test("resolves dynamic tag and person routes with query strings", () => {
+		expect(resolveDesktopRoute("#/app/tags/local-first?panel=notes")).toBe("tag");
+		expect(resolveDesktopRoute("/app/people/person-1?tab=mentions")).toBe("person");
+	});
 
-		expect(source).toContain('path: "/app/activity"');
-		expect(source).toContain("activityRoute");
+	test("rejects unknown and nested routes", () => {
+		expect(resolveDesktopRoute("#/app/unknown")).toBeNull();
+		expect(resolveDesktopRoute("#/app/trash/nested")).toBeNull();
 	});
 });
