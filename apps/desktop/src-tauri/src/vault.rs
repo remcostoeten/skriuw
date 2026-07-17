@@ -1,10 +1,13 @@
 //! Filesystem "vault" storage — the Obsidian-style backend where notes are real
 //! `.md` files on disk with YAML frontmatter and folders are directories. This is
-//! the eventual replacement for the SQLite `Storage`; it is currently ADDITIVE
-//! and not yet wired into the live IPC commands (see lib.rs). The on-disk markdown
-//! is the portable source of truth; `richContent` is intentionally NOT persisted
-//! here — the TypeScript layer derives it from the markdown via `rich-document.ts`,
-//! so reads return an empty rich document.
+//! the canonical store behind the live IPC commands in lib.rs; the SQLite
+//! `Storage` is a derived index reconciled from it on launch. Canonical files and
+//! metadata are replaced through `atomic_file::atomic_write` (temp sibling +
+//! fsync + rename), so a crash mid-write leaves either the old or the new
+//! complete file. The on-disk markdown is the portable source of truth;
+//! `richContent` is intentionally NOT persisted here — the TypeScript layer
+//! derives it from the markdown via `rich-document.ts`, so reads return an empty
+//! rich document.
 //!
 //! Layout:
 //!   <root>/
@@ -24,6 +27,7 @@ use std::sync::Mutex;
 
 use serde_json::Value;
 
+use crate::atomic_file::atomic_write;
 use crate::storage::{Folder, JournalEntry, JournalTag, Note, TrashRecord};
 
 const META_DIR: &str = ".skriuw";
@@ -85,6 +89,11 @@ pub struct VaultStore {
     /// externally *added* files surface at the next launch reconcile, matching
     /// the vault's documented external-edit semantics.
     note_paths: Mutex<Option<HashMap<String, PathBuf>>>,
+    /// Test-only hook: makes the next old-path removal after a rename/move fail,
+    /// so the keep-both-complete-files contract is testable without relying on
+    /// filesystem permissions (which behave differently under root and CI).
+    #[cfg(test)]
+    fail_next_remove: std::sync::atomic::AtomicBool,
     /// User-chosen override for where cover images are stored, independent of
     /// the vault root (settings.json `coverAssetsRoot`). `None` falls back to
     /// `.skriuw/assets/cover-images` under the vault root. Applied live via
@@ -101,6 +110,8 @@ impl VaultStore {
             root: Mutex::new(root.to_path_buf()),
             write_lock: Mutex::new(()),
             note_paths: Mutex::new(None),
+            #[cfg(test)]
+            fail_next_remove: std::sync::atomic::AtomicBool::new(false),
             cover_root: Mutex::new(None),
         };
         if !store.folders_path().exists() {
@@ -144,7 +155,7 @@ impl VaultStore {
 
     fn write_folders(&self, folders: &[Folder]) -> io::Result<()> {
         let body = serde_json::to_string_pretty(folders).unwrap_or_else(|_| "[]".to_string());
-        fs::write(self.folders_path(), format!("{body}\n"))
+        atomic_write(&self.folders_path(), format!("{body}\n").as_bytes())
     }
 
     pub fn list_folders(&self) -> io::Result<Vec<Folder>> {
@@ -197,8 +208,11 @@ impl VaultStore {
     }
 
     /// Writes a note as `<parent folder dir>/<name>.md`. If the same id already
-    /// lives at a different path (renamed or moved between folders), the old file
-    /// is removed first so identity follows the note rather than the path.
+    /// lives at a different path (renamed or moved between folders), the new
+    /// path is durably installed FIRST and only then is the old file removed —
+    /// so a crash or write failure at any point leaves at least one complete
+    /// copy. If old-path removal fails, both complete files are retained and an
+    /// error naming both paths is returned (duplicate cleanup beats data loss).
     pub fn upsert_note(&self, note: &Note) -> io::Result<()> {
         let _guard = self.write_lock.lock().expect("vault write lock poisoned");
         let folders = self.read_folders()?;
@@ -206,19 +220,42 @@ impl VaultStore {
             Some(parent) => self.folder_dir(&folders, parent),
             None => self.root(),
         };
-        fs::create_dir_all(&dir)?;
+        let target = dir.join(note_file_name(&note.name));
+        let previous = self.find_note_path(note.id.as_str())?;
 
-        if let Some(previous) = self.find_note_path(note.id.as_str())? {
-            let target = dir.join(note_file_name(&note.name));
+        atomic_write(&target, render_note(note).as_bytes())?;
+        self.cache_note_path(&note.id, target.clone());
+
+        if let Some(previous) = previous {
             if previous != target {
-                let _ = fs::remove_file(previous);
+                if let Err(error) = self.remove_stale_file(&previous) {
+                    self.invalidate_note_paths();
+                    return Err(io::Error::new(
+                        error.kind(),
+                        format!(
+                            "note saved to {} but the previous file {} could not be removed: {error}",
+                            target.display(),
+                            previous.display()
+                        ),
+                    ));
+                }
             }
         }
-
-        let target = dir.join(note_file_name(&note.name));
-        fs::write(&target, render_note(note))?;
-        self.cache_note_path(&note.id, target);
         Ok(())
+    }
+
+    /// Removes the previous file of a renamed/moved note or journal entry,
+    /// after the new path is durably installed. Split out so tests can inject a
+    /// removal failure via `fail_next_remove`.
+    fn remove_stale_file(&self, path: &Path) -> io::Result<()> {
+        #[cfg(test)]
+        if self
+            .fail_next_remove
+            .swap(false, std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(io::Error::other("injected old-path removal failure"));
+        }
+        fs::remove_file(path)
     }
 
     pub fn delete_note(&self, id: &str) -> io::Result<()> {
@@ -256,9 +293,8 @@ impl VaultStore {
     }
 
     fn write_trash(&self, records: &[TrashRecord]) -> io::Result<()> {
-        fs::create_dir_all(self.trash_dir())?;
         let body = serde_json::to_string_pretty(records).unwrap_or_else(|_| "[]".to_string());
-        fs::write(self.trash_index_path(), format!("{body}\n"))
+        atomic_write(&self.trash_index_path(), format!("{body}\n").as_bytes())
     }
 
     pub fn list_trash(&self) -> io::Result<Vec<TrashRecord>> {
@@ -472,9 +508,7 @@ impl VaultStore {
             .filter(|ext| ext.chars().all(|c| c.is_ascii_alphanumeric()))
             .unwrap_or_else(|| "png".to_string());
         let relative = format!("{}.{ext}", uuid::Uuid::new_v4());
-        let dir = self.cover_images_dir();
-        fs::create_dir_all(&dir)?;
-        fs::write(dir.join(&relative), bytes)?;
+        atomic_write(&self.cover_images_dir().join(&relative), bytes)?;
         Ok(relative)
     }
 
@@ -705,19 +739,29 @@ impl VaultStore {
     }
 
     /// Writes a journal entry as `.skriuw/journal/<dateKey>-<id>.md`. If the same
-    /// id already lives at a different filename (its dateKey changed), the stale
-    /// file is removed first so identity follows the entry.
+    /// id already lives at a different filename (its dateKey changed), the new
+    /// file is durably installed first, then the stale file is removed — a
+    /// failed removal keeps both complete files and reports both paths.
     pub fn upsert_journal_entry(&self, entry: &JournalEntry) -> io::Result<()> {
         let _guard = self.write_lock.lock().expect("vault write lock poisoned");
-        let dir = self.journal_dir();
-        fs::create_dir_all(&dir)?;
-        let target = dir.join(journal_file_name(entry));
-        if let Some(previous) = self.find_journal_path(&entry.id)? {
+        let target = self.journal_dir().join(journal_file_name(entry));
+        let previous = self.find_journal_path(&entry.id)?;
+        atomic_write(&target, render_journal_entry(entry).as_bytes())?;
+        if let Some(previous) = previous {
             if previous != target {
-                let _ = fs::remove_file(previous);
+                if let Err(error) = self.remove_stale_file(&previous) {
+                    return Err(io::Error::new(
+                        error.kind(),
+                        format!(
+                            "journal entry saved to {} but the previous file {} could not be removed: {error}",
+                            target.display(),
+                            previous.display()
+                        ),
+                    ));
+                }
             }
         }
-        fs::write(&target, render_journal_entry(entry))
+        Ok(())
     }
 
     pub fn delete_journal_entry(&self, id: &str) -> io::Result<()> {
@@ -911,9 +955,8 @@ impl VaultStore {
     }
 
     fn write_journal_tags(&self, tags: &[JournalTag]) -> io::Result<()> {
-        fs::create_dir_all(self.root().join(META_DIR))?;
         let body = serde_json::to_string_pretty(tags).unwrap_or_else(|_| "[]".to_string());
-        fs::write(self.journal_tags_path(), format!("{body}\n"))
+        atomic_write(&self.journal_tags_path(), format!("{body}\n").as_bytes())
     }
 }
 
@@ -1542,6 +1585,94 @@ mod tests {
         assert!(dir.path().join("New.md").exists());
         assert_eq!(store.list_notes().unwrap().len(), 1);
         assert_eq!(store.get_note("n1").unwrap().unwrap().content, "renamed");
+    }
+
+    #[test]
+    fn failed_new_target_write_leaves_the_old_path_untouched() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        store.upsert_note(&note("n1", "Old.md", None)).unwrap();
+
+        // A directory squatting on the target path makes the atomic rename fail.
+        fs::create_dir_all(dir.path().join("New.md")).unwrap();
+        let mut renamed = note("n1", "New.md", None);
+        renamed.content = "renamed".to_string();
+        store.upsert_note(&renamed).unwrap_err();
+
+        assert!(dir.path().join("Old.md").exists());
+        assert_eq!(
+            store.get_note("n1").unwrap().unwrap().content,
+            "hello world"
+        );
+    }
+
+    #[test]
+    fn failed_old_path_cleanup_keeps_two_complete_copies_and_reports_both() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        store.upsert_note(&note("n1", "Old.md", None)).unwrap();
+
+        store
+            .fail_next_remove
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        let mut renamed = note("n1", "New.md", None);
+        renamed.content = "renamed".to_string();
+        let error = store.upsert_note(&renamed).unwrap_err();
+
+        let message = error.to_string();
+        assert!(message.contains("Old.md"), "error must name the old path");
+        assert!(message.contains("New.md"), "error must name the new path");
+        assert!(dir.path().join("Old.md").exists());
+        assert!(dir.path().join("New.md").exists());
+        let raw = fs::read_to_string(dir.path().join("New.md")).unwrap();
+        assert!(raw.contains("renamed"));
+    }
+
+    #[test]
+    fn failed_move_between_folders_leaves_the_source_folder_copy() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        store.upsert_folder(&folder("f1", "Archive", None)).unwrap();
+        store.upsert_note(&note("n1", "Note.md", None)).unwrap();
+
+        fs::create_dir_all(dir.path().join("Archive/Note.md")).unwrap();
+        store
+            .upsert_note(&note("n1", "Note.md", Some("f1")))
+            .unwrap_err();
+
+        assert!(dir.path().join("Note.md").exists());
+        assert_eq!(
+            store.get_note("n1").unwrap().unwrap().content,
+            "hello world"
+        );
+    }
+
+    #[test]
+    fn note_saves_leave_no_temporary_files_behind() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        store.upsert_note(&note("n1", "Note.md", None)).unwrap();
+        store.upsert_note(&note("n1", "Renamed.md", None)).unwrap();
+
+        let mut leftovers = Vec::new();
+        store
+            .walk_markdown(&store.root(), &mut |path, _| {
+                if path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.starts_with('.'))
+                {
+                    leftovers.push(path.to_path_buf());
+                }
+            })
+            .unwrap();
+        let temps: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("tmp"))
+            .collect();
+        assert!(leftovers.is_empty());
+        assert!(temps.is_empty());
     }
 
     #[test]

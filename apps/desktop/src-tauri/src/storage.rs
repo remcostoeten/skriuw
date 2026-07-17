@@ -252,6 +252,19 @@ pub struct NoteLinkInput {
     pub target_title_key: Option<String>,
 }
 
+/// Everything derived from one logical note save, committed as ONE SQLite
+/// transaction by `Storage::save_note_index`: the note row, its link/title
+/// rows, and the version-history decision. Grouping them means a crash or
+/// error can never leave the derived index with a new note row but stale
+/// links, or a version without its note.
+pub struct SaveNoteIndex<'a> {
+    pub note: &'a Note,
+    pub links: &'a [NoteLinkInput],
+    pub title_keys: &'a [String],
+    pub reason: &'a str,
+    pub now_ms: i64,
+}
+
 /// One note's link-index replacement, for the bulk backfill path.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1183,33 +1196,55 @@ impl Storage {
         Ok(())
     }
 
-    fn latest_note_version_lean(
+    /// Commits everything derived from one logical note save — note row,
+    /// link/title rows, and the version decision — in ONE transaction. Returns
+    /// the persisted version row's id, or `None` if the snapshot was skipped.
+    /// A failure at any statement rolls the whole derived index back to its
+    /// pre-save state; the canonical vault file (written by the caller before
+    /// this) is never touched.
+    pub fn save_note_index(&self, input: SaveNoteIndex<'_>) -> rusqlite::Result<Option<String>> {
+        self.save_note_index_inner(input, false)
+    }
+
+    #[cfg(test)]
+    pub fn save_note_index_failing(
         &self,
-        note_id: &str,
-    ) -> rusqlite::Result<Option<crate::versioning::LatestVersionLean>> {
-        let conn = self.lock();
-        let mut stmt = conn.prepare_cached(
-            "SELECT id, content_hash, created_at, content, reason FROM note_versions \
-				 WHERE note_id = ?1 ORDER BY created_at DESC LIMIT 1",
+        input: SaveNoteIndex<'_>,
+    ) -> rusqlite::Result<Option<String>> {
+        self.save_note_index_inner(input, true)
+    }
+
+    fn save_note_index_inner(
+        &self,
+        input: SaveNoteIndex<'_>,
+        #[cfg_attr(not(test), allow(unused_variables))] fail_before_commit: bool,
+    ) -> rusqlite::Result<Option<String>> {
+        let mut conn = self.lock();
+        let tx = conn.transaction()?;
+        upsert_note_with(&tx, input.note)?;
+        replace_note_links_with(&tx, &input.note.id, input.links, input.title_keys)?;
+        let snapshot = NoteVersionSnapshot::from(input.note);
+        let version_id = apply_version_decision_with(
+            &tx,
+            &input.note.id,
+            &snapshot,
+            input.reason,
+            input.now_ms,
         )?;
-        let mut rows = stmt.query_map(params![note_id], |row| {
-            Ok(crate::versioning::LatestVersionLean {
-                id: row.get(0)?,
-                content_hash: row.get(1)?,
-                created_at: row.get(2)?,
-                content: row.get(3)?,
-                reason: row.get(4)?,
-            })
-        })?;
-        match rows.next() {
-            Some(latest) => Ok(Some(latest?)),
-            None => Ok(None),
+        #[cfg(test)]
+        if fail_before_commit {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "injected derived-index failure before commit".to_string(),
+            ));
         }
+        tx.commit()?;
+        Ok(version_id)
     }
 
     /// Applies the dedupe/trivial-edit/coalesce decision against the note's
-    /// latest version, then inserts (or overwrites the latest row) and prunes.
-    /// Returns the persisted row's id, or `None` if the snapshot was skipped.
+    /// latest version, then inserts (or overwrites the latest row) and prunes —
+    /// all inside one transaction. Returns the persisted row's id, or `None`
+    /// if the snapshot was skipped.
     pub fn insert_note_version(
         &self,
         note_id: &str,
@@ -1217,85 +1252,25 @@ impl Storage {
         reason: &str,
         created_at: i64,
     ) -> rusqlite::Result<Option<String>> {
-        let latest = self.latest_note_version_lean(note_id)?;
-        match crate::versioning::decide(snapshot, reason, created_at, latest.as_ref()) {
-            crate::versioning::VersionDecision::Skip => return Ok(None),
-            crate::versioning::VersionDecision::Coalesce(version_id) => {
-                self.update_existing_note_version(&version_id, note_id, snapshot)?;
-                return Ok(Some(version_id));
-            }
-            crate::versioning::VersionDecision::Insert => {}
-        }
-
-        let id = uuid::Uuid::new_v4().to_string();
-        let hash = crate::versioning::content_hash(snapshot);
-        self.lock().execute(
-            "INSERT INTO note_versions \
-				 (id, note_id, name, content, rich_content, preferred_editor_mode, \
-				  parent_id, tags, properties, reason, content_hash, created_at) \
-				 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-            params![
-                id,
-                note_id,
-                snapshot.name,
-                snapshot.content,
-                snapshot.rich_content.to_string(),
-                snapshot.preferred_editor_mode,
-                snapshot.parent_id,
-                serde_json::Value::from(snapshot.tags.clone()).to_string(),
-                snapshot.properties.to_string(),
-                reason,
-                hash,
-                created_at,
-            ],
-        )?;
-
-        self.prune_note_versions(note_id)?;
-        Ok(Some(id))
+        let mut conn = self.lock();
+        let tx = conn.transaction()?;
+        let version_id = apply_version_decision_with(&tx, note_id, snapshot, reason, created_at)?;
+        tx.commit()?;
+        Ok(version_id)
     }
 
     /// Overwrites an existing version row in place (same-session checkpoint
     /// reuse, mirroring web's `updateExistingNoteVersion`), unless the content
-    /// hash is unchanged. Returns whether a row was actually updated.
+    /// hash is unchanged. Returns whether a row was actually updated. Live
+    /// saves reach the same body through `save_note_index`'s coalesce path.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn update_existing_note_version(
         &self,
         version_id: &str,
         note_id: &str,
         snapshot: &NoteVersionSnapshot,
     ) -> rusqlite::Result<bool> {
-        let hash = crate::versioning::content_hash(snapshot);
-        let changed = self.lock().execute(
-            "UPDATE note_versions SET name = ?, content = ?, rich_content = ?, \
-				 preferred_editor_mode = ?, parent_id = ?, tags = ?, properties = ?, content_hash = ? \
-				 WHERE id = ? AND note_id = ? AND content_hash != ?",
-            params![
-                snapshot.name,
-                snapshot.content,
-                snapshot.rich_content.to_string(),
-                snapshot.preferred_editor_mode,
-                snapshot.parent_id,
-                serde_json::Value::from(snapshot.tags.clone()).to_string(),
-                snapshot.properties.to_string(),
-                hash,
-                version_id,
-                note_id,
-                hash,
-            ],
-        )?;
-        Ok(changed > 0)
-    }
-
-    /// Drops everything but the most recent `RETENTION_LIMIT` versions for a
-    /// note, so full-content snapshots cannot grow unbounded.
-    fn prune_note_versions(&self, note_id: &str) -> rusqlite::Result<()> {
-        self.lock().execute(
-            "DELETE FROM note_versions WHERE note_id = ?1 AND id NOT IN (\
-					SELECT id FROM note_versions WHERE note_id = ?1 \
-					ORDER BY created_at DESC LIMIT ?2\
-				 )",
-            params![note_id, crate::versioning::RETENTION_LIMIT],
-        )?;
-        Ok(())
+        update_existing_note_version_with(&self.lock(), version_id, note_id, snapshot)
     }
 
     pub fn list_note_versions(
@@ -1492,6 +1467,120 @@ fn replace_note_links_with(
             stmt.execute(params![source_note_id, key])?;
         }
     }
+    Ok(())
+}
+
+/// Reads the lean latest-version row for a note. Takes `&Connection` so it runs
+/// inside the one-save transaction as well as standalone.
+fn latest_note_version_lean_with(
+    conn: &Connection,
+    note_id: &str,
+) -> rusqlite::Result<Option<crate::versioning::LatestVersionLean>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, content_hash, created_at, content, reason FROM note_versions \
+		 WHERE note_id = ?1 ORDER BY created_at DESC LIMIT 1",
+    )?;
+    let mut rows = stmt.query_map(params![note_id], |row| {
+        Ok(crate::versioning::LatestVersionLean {
+            id: row.get(0)?,
+            content_hash: row.get(1)?,
+            created_at: row.get(2)?,
+            content: row.get(3)?,
+            reason: row.get(4)?,
+        })
+    })?;
+    match rows.next() {
+        Some(latest) => Ok(Some(latest?)),
+        None => Ok(None),
+    }
+}
+
+/// Applies the full version decision (skip/coalesce/insert + prune) against one
+/// connection/transaction, returning the persisted row id when one exists. This
+/// is the single body behind both `insert_note_version` and `save_note_index`,
+/// so the coalescing rules cannot drift between the two paths.
+fn apply_version_decision_with(
+    conn: &Connection,
+    note_id: &str,
+    snapshot: &NoteVersionSnapshot,
+    reason: &str,
+    created_at: i64,
+) -> rusqlite::Result<Option<String>> {
+    let latest = latest_note_version_lean_with(conn, note_id)?;
+    match crate::versioning::decide(snapshot, reason, created_at, latest.as_ref()) {
+        crate::versioning::VersionDecision::Skip => return Ok(None),
+        crate::versioning::VersionDecision::Coalesce(version_id) => {
+            update_existing_note_version_with(conn, &version_id, note_id, snapshot)?;
+            return Ok(Some(version_id));
+        }
+        crate::versioning::VersionDecision::Insert => {}
+    }
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let hash = crate::versioning::content_hash(snapshot);
+    conn.execute(
+        "INSERT INTO note_versions \
+		 (id, note_id, name, content, rich_content, preferred_editor_mode, \
+		  parent_id, tags, properties, reason, content_hash, created_at) \
+		 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        params![
+            id,
+            note_id,
+            snapshot.name,
+            snapshot.content,
+            snapshot.rich_content.to_string(),
+            snapshot.preferred_editor_mode,
+            snapshot.parent_id,
+            serde_json::Value::from(snapshot.tags.clone()).to_string(),
+            snapshot.properties.to_string(),
+            reason,
+            hash,
+            created_at,
+        ],
+    )?;
+
+    prune_note_versions_with(conn, note_id)?;
+    Ok(Some(id))
+}
+
+fn update_existing_note_version_with(
+    conn: &Connection,
+    version_id: &str,
+    note_id: &str,
+    snapshot: &NoteVersionSnapshot,
+) -> rusqlite::Result<bool> {
+    let hash = crate::versioning::content_hash(snapshot);
+    let changed = conn.execute(
+        "UPDATE note_versions SET name = ?, content = ?, rich_content = ?, \
+		 preferred_editor_mode = ?, parent_id = ?, tags = ?, properties = ?, content_hash = ? \
+		 WHERE id = ? AND note_id = ? AND content_hash != ?",
+        params![
+            snapshot.name,
+            snapshot.content,
+            snapshot.rich_content.to_string(),
+            snapshot.preferred_editor_mode,
+            snapshot.parent_id,
+            serde_json::Value::from(snapshot.tags.clone()).to_string(),
+            snapshot.properties.to_string(),
+            hash,
+            version_id,
+            note_id,
+            hash,
+        ],
+    )?;
+    Ok(changed > 0)
+}
+
+/// Drops everything but the most recent `RETENTION_LIMIT` versions for a note,
+/// so full-content snapshots cannot grow unbounded.
+fn prune_note_versions_with(conn: &Connection, note_id: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "DELETE FROM note_versions WHERE note_id = ?1 AND id NOT IN (\
+			SELECT id FROM note_versions WHERE note_id = ?1 \
+			ORDER BY created_at DESC LIMIT ?2\
+		 )",
+        params![note_id, crate::versioning::RETENTION_LIMIT],
+    )?;
     Ok(())
 }
 
@@ -2291,6 +2380,102 @@ mod tests {
             ids(&store.get_backlink_sources("b", &["b".to_string()]).unwrap()),
             vec!["src".to_string()]
         );
+    }
+
+    fn save_input<'a>(
+        note: &'a Note,
+        links: &'a [NoteLinkInput],
+        title_keys: &'a [String],
+        now_ms: i64,
+    ) -> SaveNoteIndex<'a> {
+        SaveNoteIndex {
+            note,
+            links,
+            title_keys,
+            reason: "autosave",
+            now_ms,
+        }
+    }
+
+    #[test]
+    fn save_note_index_commits_note_links_titles_and_version_together() {
+        let store = Storage::open(Path::new(":memory:")).unwrap();
+        let saved = note_with("n1", "Source.md", "[[Target]] body");
+        let links = [wiki_link("[[Target]]", "Target", "target")];
+        let titles = ["source".to_string()];
+
+        let version_id = store
+            .save_note_index(save_input(&saved, &links, &titles, 0))
+            .unwrap();
+
+        assert!(version_id.is_some());
+        assert_eq!(
+            store.get_note("n1").unwrap().unwrap().content,
+            "[[Target]] body"
+        );
+        assert_eq!(store.list_note_link_rows().unwrap().len(), 1);
+        assert!(store.has_indexed_links().unwrap());
+        assert_eq!(store.list_note_versions("n1", 10).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn save_note_index_failure_rolls_back_every_derived_row() {
+        let store = Storage::open(Path::new(":memory:")).unwrap();
+        let first = note_with("n1", "Source.md", "original");
+        let links = [wiki_link("[[Old]]", "Old", "old")];
+        let titles = ["source".to_string()];
+        store
+            .save_note_index(save_input(&first, &links, &titles, 0))
+            .unwrap();
+
+        let edited = note_with("n1", "Source.md", "edited body with plenty of change");
+        let new_links = [wiki_link("[[New]]", "New", "new")];
+        store
+            .save_note_index_failing(save_input(
+                &edited,
+                &new_links,
+                &titles,
+                crate::versioning::COALESCE_WINDOW_MS * 10,
+            ))
+            .unwrap_err();
+
+        assert_eq!(store.get_note("n1").unwrap().unwrap().content, "original");
+        let rows = store.list_note_link_rows().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].target_label, "Old");
+        assert_eq!(store.list_note_versions("n1", 10).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn save_note_index_keeps_the_coalescing_rules() {
+        let store = Storage::open(Path::new(":memory:")).unwrap();
+        let titles = ["source".to_string()];
+
+        let first = note_with("n1", "Source.md", "hello");
+        let first_id = store
+            .save_note_index(save_input(&first, &[], &titles, 0))
+            .unwrap();
+        assert!(first_id.is_some());
+
+        // Same-burst meaningful edit overwrites the latest row in place.
+        let burst = note_with("n1", "Source.md", "hello brave new world");
+        let coalesced = store
+            .save_note_index(save_input(&burst, &[], &titles, 1_000))
+            .unwrap();
+        assert_eq!(coalesced, first_id);
+        assert_eq!(store.list_note_versions("n1", 10).unwrap().len(), 1);
+
+        // A trivial edit is skipped entirely.
+        let trivial = note_with("n1", "Source.md", "hello brave new world!");
+        let skipped = store
+            .save_note_index(save_input(
+                &trivial,
+                &[],
+                &titles,
+                crate::versioning::COALESCE_WINDOW_MS * 10,
+            ))
+            .unwrap();
+        assert!(skipped.is_none());
     }
 
     fn version_snapshot(content: &str) -> NoteVersionSnapshot {

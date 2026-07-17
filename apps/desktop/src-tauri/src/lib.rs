@@ -18,8 +18,9 @@ use serde::{Deserialize, Serialize};
 use settings::SettingsStore;
 use storage::{
     BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteLinkReplacement,
-    NoteLinkRow, NoteMetadata, NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person, SearchHit,
-    Storage, TagSummaryRow, TaggedNoteSummaryRow, Task, TrashRecord, WorkspaceImport,
+    NoteLinkRow, NoteMetadata, NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person,
+    SaveNoteIndex, SearchHit, Storage, TagSummaryRow, TaggedNoteSummaryRow, Task, TrashRecord,
+    WorkspaceImport,
 };
 
 /// Current wall-clock time in epoch milliseconds, for stamping deletions.
@@ -679,12 +680,17 @@ struct SaveNoteRequest {
     links: Vec<NoteLinkInput>,
     title_keys: Vec<String>,
     reason: String,
+    // Retained for IPC wire compatibility; versioning no longer reads them
+    // (Storage::save_note_index applies the coalescing rules itself).
+    #[allow(dead_code)]
     create_checkpoint: bool,
+    #[allow(dead_code)]
     session_version_id: Option<String>,
 }
 
 #[tauri::command]
 fn save_note(
+    app: AppHandle,
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
     request: SaveNoteRequest,
@@ -694,23 +700,51 @@ fn save_note(
         links,
         title_keys,
         reason,
-        create_checkpoint,
-        session_version_id,
+        ..
     } = request;
+    // Exactly two top-level operations: the canonical vault commit, then one
+    // derived-index transaction. A vault failure aborts before the index is
+    // touched; an index failure after the vault commit means the note file is
+    // safe on disk and only the derived rows lag, so repair is scheduled and
+    // the error says precisely that.
     vault.upsert_note(&note).map_err(vault_err)?;
-    storage.upsert_note(&note).map_err(stringify)?;
-    storage
-        .replace_note_links(&note.id, &links, &title_keys)
-        .map_err(stringify)?;
-    let snapshot = NoteVersionSnapshot::from(&note);
-    record_note_version_inner(
-        &storage,
-        &note.id,
-        &snapshot,
-        &reason,
-        create_checkpoint,
-        session_version_id,
-    )
+    match storage.save_note_index(SaveNoteIndex {
+        note: &note,
+        links: &links,
+        title_keys: &title_keys,
+        reason: &reason,
+        now_ms: now_ms(),
+    }) {
+        Ok(version_id) => Ok(VersionWriteResult {
+            version_changed: version_id.is_some(),
+            version_id,
+        }),
+        Err(error) => {
+            schedule_index_repair(&app);
+            Err(format!(
+                "Your note was saved to its vault file, but refreshing the search index failed: {error}. \
+				 No content was lost; the index repairs itself automatically."
+            ))
+        }
+    }
+}
+
+/// After a derived-index failure whose canonical vault write succeeded, tells
+/// the frontend the index is stale (`index://dirty`) and reruns the launch
+/// reconcile off the command thread, flagging completion the same way the
+/// deferred startup reconcile does (`index://reconciled`).
+fn schedule_index_repair(app: &AppHandle) {
+    let _ = app.emit("index://dirty", ());
+    let bg = app.clone();
+    std::thread::spawn(move || {
+        let storage = bg.state::<Storage>();
+        let vault = bg.state::<VaultStore>();
+        if let Err(error) = reconcile_index(&storage, &vault) {
+            eprintln!("[skriuw] index repair reconcile failed: {error}");
+            return;
+        }
+        let _ = bg.emit("index://reconciled", ());
+    });
 }
 
 #[cfg(test)]
@@ -765,6 +799,55 @@ mod ipc_contract_tests {
         assert_eq!(request.note.id, "note-1");
         assert_eq!(request.title_keys, ["note"]);
         assert!(!request.create_checkpoint);
+    }
+}
+
+#[cfg(test)]
+mod index_lag_tests {
+    use super::{reconcile_index, Note, Storage, VaultStore};
+    use std::path::Path;
+
+    /// The vault-success/SQLite-failure scenario: the canonical file exists but
+    /// the derived index never saw the save. The launch/repair reconcile must
+    /// restore the note row from the vault without touching the markdown.
+    #[test]
+    fn reconcile_repairs_an_index_that_missed_a_vault_commit() {
+        let dir = tempfile::tempdir().unwrap();
+        let vault = VaultStore::open(dir.path()).unwrap();
+        let storage = Storage::open(Path::new(":memory:")).unwrap();
+
+        let note = Note {
+            id: "n1".to_string(),
+            name: "Saved.md".to_string(),
+            content: "survived the crash".to_string(),
+            rich_content: serde_json::Value::Array(Vec::new()),
+            preferred_editor_mode: "block".to_string(),
+            parent_id: None,
+            sort_order: 0,
+            tags: Vec::new(),
+            properties: serde_json::Value::Array(Vec::new()),
+            icon: None,
+            cover: None,
+            annotation_scene: String::new(),
+            created_at: 1,
+            modified_at: 2,
+        };
+        vault.upsert_note(&note).unwrap();
+        assert!(storage.get_note("n1").unwrap().is_none());
+
+        reconcile_index(&storage, &vault).unwrap();
+
+        let repaired = storage.get_note("n1").unwrap().unwrap();
+        assert_eq!(repaired.content, "survived the crash");
+        assert!(std::fs::read_to_string(dir.path().join("Saved.md"))
+            .unwrap()
+            .contains("survived the crash"));
+        // The repaired note has no note_titles rows yet, so the frontend
+        // link backfill picks it up and restores its link rows.
+        assert_eq!(
+            storage.list_unindexed_note_ids().unwrap(),
+            vec!["n1".to_string()]
+        );
     }
 }
 
