@@ -13,7 +13,12 @@ import { cn } from "@/shared/lib/utils";
 import { editorFontVariables } from "@/app/editor-font-loaders";
 import { WindowResizeHandles } from "./components/window-resize-handles";
 import { WindowDragRegion } from "./components/window-drag-region";
-import { DesktopRouteError, DesktopRouteLoading } from "./components/route-state";
+import {
+	DesktopRouteError,
+	DesktopRouteLoading,
+	DesktopRouteNotFound,
+} from "./components/route-state";
+import { BootSplashController } from "./components/boot-splash-controller";
 import { DESKTOP_ROUTE_PATHS } from "./route-contract";
 import { DesktopZoom } from "@/features/desktop/desktop-zoom";
 import { IconRail } from "@/features/layout/components/icon-rail";
@@ -80,6 +85,9 @@ function DesktopShell() {
 			</div>
 			<DesktopZoom />
 			<SettingsModal />
+			{/* Dismisses the index.html boot splash once this shell chrome has
+			    committed, so the splash never hides a blank frame. */}
+			<BootSplashController />
 		</AppProviders>
 	);
 }
@@ -88,6 +96,7 @@ const rootRoute = createRootRoute({
 	component: DesktopShell,
 	pendingComponent: DesktopRouteLoading,
 	errorComponent: DesktopRouteError,
+	notFoundComponent: DesktopRouteNotFound,
 });
 
 const indexRoute = createRoute({

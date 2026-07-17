@@ -96,6 +96,7 @@ type WorkspacePaneProps = {
 	isMobile: boolean;
 	primaryFileName: string;
 	primarySaveState?: EditorSaveState;
+	secondarySaveState?: EditorSaveState;
 	primaryContentLoading: boolean;
 	workspaceItems?: WorkspaceNavItem[];
 	onOpenSettings?: () => void;
@@ -137,6 +138,7 @@ function WorkspacePane({
 	isMobile,
 	primaryFileName,
 	primarySaveState,
+	secondarySaveState,
 	primaryContentLoading,
 	workspaceItems,
 	onOpenSettings,
@@ -253,7 +255,9 @@ function WorkspacePane({
 				canNavigatePrev={canNavigatePrev}
 				canNavigateNext={canNavigateNext}
 				fileName={isPrimary ? primaryFileName : file?.name || ""}
-				saveState={isPrimary ? primarySaveState : undefined}
+				// Both panes surface save errors: the primary uses the controller's
+				// live state, the secondary reads its file's state from the store.
+				saveState={isPrimary ? primarySaveState : secondarySaveState}
 				isContentLoading={isPrimary ? primaryContentLoading : false}
 				workspaceItems={!splitActive ? workspaceItems : undefined}
 				onOpenSettings={!splitActive ? onOpenSettings : undefined}
@@ -331,6 +335,12 @@ export const EditorWorkspace = memo(function EditorWorkspace({
 	const focusedFileName = focusedFile?.name || "No file selected";
 	const focusedSaveState = useNotesStore(
 		(state) => state.saveStates[focusedFile?.id ?? ""] ?? "idle",
+	);
+	// The secondary pane's own save state, so a failed save in the split's
+	// second pane shows its persistent error banner (the primary uses the
+	// controller-driven `primarySaveState`).
+	const secondarySaveState = useNotesStore(
+		(state) => state.saveStates[secondaryFile?.id ?? ""] ?? "idle",
 	);
 
 	const primaryPane: PaneConfig = {
@@ -464,6 +474,7 @@ export const EditorWorkspace = memo(function EditorWorkspace({
 							isMobile={isMobile}
 							primaryFileName={primaryFileName}
 							primarySaveState={primarySaveState}
+							secondarySaveState={secondarySaveState}
 							primaryContentLoading={primaryContentLoading}
 							workspaceItems={workspaceItems}
 							onOpenSettings={onOpenSettings}
