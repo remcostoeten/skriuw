@@ -12,11 +12,11 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use storage::{
     BacklinkSources, Folder, JournalEntry, JournalTag, Note, NoteLinkInput, NoteLinkReplacement,
     NoteLinkRow, NoteMetadata, NoteTagMeta, NoteVersion, NoteVersionSnapshot, Person, SearchHit,
-    Storage, TagSummaryRow, TaggedNoteSummaryRow, Task, TrashRecord,
+    Storage, TagSummaryRow, TaggedNoteSummaryRow, Task, TrashRecord, WorkspaceImport,
 };
 
 /// Current wall-clock time in epoch milliseconds, for stamping deletions.
@@ -173,6 +173,19 @@ fn bulk_upsert_notes(
     storage.upsert_notes(&notes).map_err(stringify)
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportWorkspaceArchiveRequest {
+    folders: Vec<Folder>,
+    notes: Vec<Note>,
+    journal_entries: Vec<JournalEntry>,
+    journal_tags: Vec<JournalTag>,
+    deleted_note_ids: Vec<String>,
+    deleted_folder_ids: Vec<String>,
+    deleted_journal_entry_ids: Vec<String>,
+    deleted_journal_tag_ids: Vec<String>,
+}
+
 /// Atomically imports a full pulled archive (desktop sync `pullWorkspaceFromServer`):
 /// writes every entity to the vault, then upserts + applies tombstone deletes to
 /// the SQLite index in one transaction (`Storage::import_workspace`). Unlike the
@@ -182,17 +195,22 @@ fn bulk_upsert_notes(
 fn import_workspace_archive(
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
-    folders: Vec<Folder>,
-    notes: Vec<Note>,
-    journal_entries: Vec<JournalEntry>,
-    journal_tags: Vec<JournalTag>,
-    deleted_note_ids: Vec<String>,
-    deleted_folder_ids: Vec<String>,
-    deleted_journal_entry_ids: Vec<String>,
-    deleted_journal_tag_ids: Vec<String>,
+    request: ImportWorkspaceArchiveRequest,
 ) -> Result<(), String> {
+    let ImportWorkspaceArchiveRequest {
+        folders,
+        notes,
+        journal_entries,
+        journal_tags,
+        deleted_note_ids,
+        deleted_folder_ids,
+        deleted_journal_entry_ids,
+        deleted_journal_tag_ids,
+    } = request;
     // 1. Create a backup of the vault
-    vault.create_import_backup().map_err(|e| format!("Failed to create backup: {e}"))?;
+    vault
+        .create_import_backup()
+        .map_err(|e| format!("Failed to create backup: {e}"))?;
 
     // 2. Perform the sequential filesystem writes
     let mut import_failed = false;
@@ -234,16 +252,16 @@ fn import_workspace_archive(
 
     // 3. If filesystem writes succeeded, perform SQLite write
     if !import_failed {
-        if let Err(e) = storage.import_workspace(
-            &folders,
-            &notes,
-            &journal_entries,
-            &journal_tags,
-            &deleted_note_ids,
-            &deleted_folder_ids,
-            &deleted_journal_entry_ids,
-            &deleted_journal_tag_ids,
-        ) {
+        if let Err(e) = storage.import_workspace(WorkspaceImport {
+            folders: &folders,
+            notes: &notes,
+            journal_entries: &journal_entries,
+            journal_tags: &journal_tags,
+            deleted_note_ids: &deleted_note_ids,
+            deleted_folder_ids: &deleted_folder_ids,
+            deleted_journal_entry_ids: &deleted_journal_entry_ids,
+            deleted_journal_tag_ids: &deleted_journal_tag_ids,
+        }) {
             import_failed = true;
             err_msg = stringify(e);
         }
@@ -429,7 +447,9 @@ fn save_cover_image(
     file_name: String,
     bytes: Vec<u8>,
 ) -> Result<String, String> {
-    vault.save_cover_image(&file_name, &bytes).map_err(vault_err)
+    vault
+        .save_cover_image(&file_name, &bytes)
+        .map_err(vault_err)
 }
 
 #[tauri::command]
@@ -649,17 +669,31 @@ fn record_note_version_inner(
 /// from `note` server-side so the body crosses the boundary once. Replaces the
 /// `upsert_note` → `replace_note_links` → `record_note_version` sequence the
 /// autosave and create paths used to issue as three separate invokes.
-#[tauri::command]
-fn save_note(
-    storage: State<'_, Storage>,
-    vault: State<'_, VaultStore>,
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveNoteRequest {
     note: Note,
     links: Vec<NoteLinkInput>,
     title_keys: Vec<String>,
     reason: String,
     create_checkpoint: bool,
     session_version_id: Option<String>,
+}
+
+#[tauri::command]
+fn save_note(
+    storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    request: SaveNoteRequest,
 ) -> Result<VersionWriteResult, String> {
+    let SaveNoteRequest {
+        note,
+        links,
+        title_keys,
+        reason,
+        create_checkpoint,
+        session_version_id,
+    } = request;
     vault.upsert_note(&note).map_err(vault_err)?;
     storage.upsert_note(&note).map_err(stringify)?;
     storage
@@ -676,6 +710,61 @@ fn save_note(
     )
 }
 
+#[cfg(test)]
+mod ipc_contract_tests {
+    use super::{ImportWorkspaceArchiveRequest, SaveNoteRequest};
+    use serde_json::json;
+
+    #[test]
+    fn import_workspace_request_uses_camel_case_wire_fields() {
+        let request: ImportWorkspaceArchiveRequest = serde_json::from_value(json!({
+            "folders": [],
+            "notes": [],
+            "journalEntries": [],
+            "journalTags": [],
+            "deletedNoteIds": ["note-1"],
+            "deletedFolderIds": [],
+            "deletedJournalEntryIds": [],
+            "deletedJournalTagIds": []
+        }))
+        .expect("desktop import request should deserialize");
+
+        assert_eq!(request.deleted_note_ids, ["note-1"]);
+    }
+
+    #[test]
+    fn save_note_request_uses_nested_camel_case_wire_fields() {
+        let request: SaveNoteRequest = serde_json::from_value(json!({
+            "note": {
+                "id": "note-1",
+                "name": "Note",
+                "content": "Body",
+                "richContent": [],
+                "preferredEditorMode": "rich",
+                "parentId": null,
+                "sortOrder": 0,
+                "tags": [],
+                "properties": {},
+                "icon": null,
+                "cover": null,
+                "annotationScene": "",
+                "createdAt": 1,
+                "modifiedAt": 2
+            },
+            "links": [],
+            "titleKeys": ["note"],
+            "reason": "autosave",
+            "createCheckpoint": false,
+            "sessionVersionId": null
+        }))
+        .expect("desktop save request should deserialize");
+
+        assert_eq!(request.note.id, "note-1");
+        assert_eq!(request.title_keys, ["note"]);
+        assert!(!request.create_checkpoint);
+    }
+}
+
 #[tauri::command]
 fn get_note_versions(
     storage: State<'_, Storage>,
@@ -683,7 +772,10 @@ fn get_note_versions(
     limit: Option<i64>,
 ) -> Result<Vec<NoteVersion>, String> {
     storage
-        .list_note_versions(&note_id, limit.unwrap_or(crate::versioning::RETENTION_LIMIT))
+        .list_note_versions(
+            &note_id,
+            limit.unwrap_or(crate::versioning::RETENTION_LIMIT),
+        )
         .map_err(stringify)
 }
 

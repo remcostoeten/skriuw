@@ -170,7 +170,7 @@ pub fn markdown_to_rich_document(markdown: &str) -> Vec<serde_json::Value> {
 }
 
 fn parse_heading(line: &str) -> (serde_json::Value, usize) {
-    let level = line.chars().take_while(|c| *c == '#').count().min(6).max(1);
+    let level = line.chars().take_while(|c| *c == '#').count().clamp(1, 6);
     let title = line[level..].trim();
 
     (

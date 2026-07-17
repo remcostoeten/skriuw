@@ -1,6 +1,6 @@
 # DH-05: Desktop CI and release gates
 
-Status: **planned**  
+Status: **in progress**
 Priority: **P0 — regression prevention**  
 Primary owner: CI/release engineering  
 Estimated size: 1–3 focused implementation days
@@ -182,14 +182,14 @@ Use a temporary local patch or dedicated script fixture; do not commit broken ex
 
 ## Acceptance criteria
 
-- [ ] One local script defines the desktop verification command sequence.
-- [ ] Strict Clippy passes with no broad warning suppression.
-- [ ] Normal CI runs desktop Rust and SPA checks.
-- [ ] Release jobs depend on verification of the same SHA.
-- [ ] Desktop SPA has behavior-level route/shell tests.
-- [ ] Bundle reports are uploaded or printed clearly.
-- [ ] A failed gate prevents release creation/upload.
-- [ ] Developer and release documentation names the gate and troubleshooting steps.
+- [x] One local script defines the desktop verification command sequence.
+- [x] Strict Clippy passes with no broad warning suppression.
+- [x] Normal CI runs desktop Rust and SPA checks.
+- [x] Release jobs depend on verification of the same SHA.
+- [x] Desktop SPA has behavior-level route/shell tests.
+- [x] Bundle reports are uploaded or printed clearly.
+- [x] A failed gate prevents release creation/upload.
+- [x] Developer and release documentation names the gate and troubleshooting steps.
 - [ ] The existing web/mobile CI jobs remain green.
 
 ## Verification commands
