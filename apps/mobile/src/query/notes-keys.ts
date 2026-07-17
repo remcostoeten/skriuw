@@ -3,7 +3,8 @@
 // `detail` shape to persist BODIES only.
 export const notesKeys = {
 	all: ["notes"] as const,
-	files: (folderId?: string | null) => ["notes", "files", folderId ?? "root"] as const,
+	files: (folderId?: string | null) =>
+		["notes", "files", folderId === undefined ? "all" : (folderId ?? "root")] as const,
 	detail: (id: string) => ["notes", "detail", id] as const,
 	folders: ["notes", "folders"] as const,
 	search: (query: string) => ["notes", "search", query] as const,

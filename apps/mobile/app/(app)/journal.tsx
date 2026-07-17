@@ -471,6 +471,8 @@ function CalendarView({
 			<View style={styles.monthControls}>
 				<Pressable
 					style={styles.iconButton}
+					hitSlop={5}
+					accessibilityLabel="Previous month"
 					onPress={() => onMonth(new Date(year, monthIndex - 1, 1))}
 				>
 					<ChevronLeft size={21} color={styles.icon.color} />
@@ -480,6 +482,8 @@ function CalendarView({
 				</Text>
 				<Pressable
 					style={styles.iconButton}
+					hitSlop={5}
+					accessibilityLabel="Next month"
 					onPress={() => onMonth(new Date(year, monthIndex + 1, 1))}
 				>
 					<ChevronRight size={21} color={styles.icon.color} />
@@ -561,7 +565,11 @@ function EntriesView({
 					style={styles.searchInput}
 				/>
 			</View>
-			<ScrollView contentContainerStyle={styles.entryList}>
+			<ScrollView
+				contentContainerStyle={styles.entryList}
+				keyboardShouldPersistTaps="handled"
+				keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+			>
 				{list.map((entry) => (
 					<Pressable
 						key={entry.id}
