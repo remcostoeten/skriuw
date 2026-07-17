@@ -460,6 +460,18 @@ export function LocalDataSection() {
 		tauriInvoke<string>("get_cover_assets_root")
 			.then(setCoverAssetsRoot)
 			.catch(() => setCoverAssetsRoot(""));
+		tauriInvoke<{
+			path: string;
+			recoveryError: string | null;
+		}>("get_settings_diagnostics")
+			.then((diagnostics) => {
+				if (diagnostics.recoveryError) {
+					setNotice(
+						`Settings are read-only because ${diagnostics.path} could not be parsed. ${diagnostics.recoveryError}`,
+					);
+				}
+			})
+			.catch(() => undefined);
 	}, []);
 
 	useEffect(() => {
