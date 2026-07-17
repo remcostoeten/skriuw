@@ -40,6 +40,8 @@
 		"mobile": "bun run --cwd apps/mobile start",
 		"mobile:web": "bun run --cwd apps/mobile web",
 		"mobile:check": "bun run --cwd apps/mobile check",
+		"desktop:check": "bash scripts/check-desktop.sh full",
+		"desktop:test": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml",
 		"coverage:check": "bun scripts/coverage-tui.ts --json coverage.json --threshold=65",
 		"coverage:report": "bun scripts/coverage-tui.ts --markdown",
 		"coverage:dashboard": "bun scripts/coverage-dashboard.ts",

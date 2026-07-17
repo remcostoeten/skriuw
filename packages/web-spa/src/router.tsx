@@ -13,6 +13,8 @@ import { cn } from "@/shared/lib/utils";
 import { editorFontVariables } from "@/app/editor-font-loaders";
 import { WindowResizeHandles } from "./components/window-resize-handles";
 import { WindowDragRegion } from "./components/window-drag-region";
+import { DesktopRouteError, DesktopRouteLoading } from "./components/route-state";
+import { DESKTOP_ROUTE_PATHS } from "./route-contract";
 import { DesktopZoom } from "@/features/desktop/desktop-zoom";
 import { IconRail } from "@/features/layout/components/icon-rail";
 import { NotesLayout } from "@/features/notes/components/notes-layout";
@@ -54,7 +56,7 @@ const PersonInsights = lazy(() =>
 
 function GraphRouteComponent() {
 	return (
-		<Suspense fallback={null}>
+		<Suspense fallback={<DesktopRouteLoading />}>
 			<WorkspaceGraph />
 		</Suspense>
 	);
@@ -62,7 +64,7 @@ function GraphRouteComponent() {
 
 function DesktopShell() {
 	return (
-		<AppProviders initialEditorPreferences={null}>
+		<AppProviders initialEditorPreferences={null} initialAuthUser={null}>
 			<div
 				style={{ height: "100dvh" }}
 				className={cn(editorFontVariables, "flex flex-col overflow-hidden bg-background")}
@@ -82,11 +84,15 @@ function DesktopShell() {
 	);
 }
 
-const rootRoute = createRootRoute({ component: DesktopShell });
+const rootRoute = createRootRoute({
+	component: DesktopShell,
+	pendingComponent: DesktopRouteLoading,
+	errorComponent: DesktopRouteError,
+});
 
 const indexRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/",
+	path: DESKTOP_ROUTE_PATHS.root,
 	beforeLoad: () => {
 		throw redirect({ to: "/app" });
 	},
@@ -94,45 +100,45 @@ const indexRoute = createRoute({
 
 const notesRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/app",
+	path: DESKTOP_ROUTE_PATHS.notes,
 	component: () => <NotesLayout initialActiveFileId={null} initialUserScopeId={null} />,
 });
 
 const graphRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/app/graph",
+	path: DESKTOP_ROUTE_PATHS.graph,
 	component: GraphRouteComponent,
 });
 
 const journalRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/app/journal",
+	path: DESKTOP_ROUTE_PATHS.journal,
 	component: JournalPageLayout,
 });
 
 const tasksRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/app/tasks",
+	path: DESKTOP_ROUTE_PATHS.tasks,
 	component: TasksPage,
 });
 
 const trashRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/app/trash",
+	path: DESKTOP_ROUTE_PATHS.trash,
 	component: TrashView,
 });
 
 const activityRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/app/activity",
+	path: DESKTOP_ROUTE_PATHS.activity,
 	component: ActivityOverview,
 });
 
 const tagsRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/app/tags",
+	path: DESKTOP_ROUTE_PATHS.tags,
 	component: () => (
-		<Suspense fallback={null}>
+		<Suspense fallback={<DesktopRouteLoading />}>
 			<TagsOverview />
 		</Suspense>
 	),
@@ -141,7 +147,7 @@ const tagsRoute = createRoute({
 function TagInsightsRouteComponent() {
 	const { name } = tagDetailRoute.useParams();
 	return (
-		<Suspense fallback={null}>
+		<Suspense fallback={<DesktopRouteLoading />}>
 			<TagInsights name={normalizeStoredTagEntry(decodeURIComponent(name))} />
 		</Suspense>
 	);
@@ -149,15 +155,15 @@ function TagInsightsRouteComponent() {
 
 const tagDetailRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/app/tags/$name",
+	path: DESKTOP_ROUTE_PATHS.tag,
 	component: TagInsightsRouteComponent,
 });
 
 const peopleRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/app/people",
+	path: DESKTOP_ROUTE_PATHS.people,
 	component: () => (
-		<Suspense fallback={null}>
+		<Suspense fallback={<DesktopRouteLoading />}>
 			<PeopleOverview />
 		</Suspense>
 	),
@@ -166,7 +172,7 @@ const peopleRoute = createRoute({
 function PersonInsightsRouteComponent() {
 	const { id } = personDetailRoute.useParams();
 	return (
-		<Suspense fallback={null}>
+		<Suspense fallback={<DesktopRouteLoading />}>
 			<PersonInsights personId={id} />
 		</Suspense>
 	);
@@ -174,7 +180,7 @@ function PersonInsightsRouteComponent() {
 
 const personDetailRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: "/app/people/$id",
+	path: DESKTOP_ROUTE_PATHS.person,
 	component: PersonInsightsRouteComponent,
 });
 

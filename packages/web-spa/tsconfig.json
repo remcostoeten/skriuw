@@ -1,8 +1,8 @@
 {
 	"compilerOptions": {
-		"target": "ES2020",
+		"target": "ES2023",
 		"useDefineForClassFields": true,
-		"lib": ["ES2020", "DOM", "DOM.Iterable"],
+		"lib": ["ES2023", "DOM", "DOM.Iterable"],
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"jsx": "react-jsx",
@@ -13,10 +13,11 @@
 		"isolatedModules": true,
 		"esModuleInterop": true,
 		"skipLibCheck": true,
-		"types": ["vite/client", "react", "react-dom"],
+		"types": ["vite/client", "bun", "react", "react-dom"],
 		"noUncheckedSideEffectImports": false,
 		"paths": {
-			"@/generated/*": ["../../apps/web/generated/*"],
+			"@/core/workspace-backend/server-backend": ["./src/shims/server-stub-backend.ts"],
+			"@/generated/*": ["../../generated/*"],
 			"@/*": ["../../apps/web/src/*"]
 		}
 	},

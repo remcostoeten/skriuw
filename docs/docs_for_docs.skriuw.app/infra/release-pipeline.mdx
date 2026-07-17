@@ -36,14 +36,14 @@ That single push is the whole release action; the workflow does the rest.
 
 ## Tag conventions
 
-| Prefix | Triggers | Produces |
-| ------ | -------- | -------- |
-| `v*.*.*` | `publish-docker.yml` | The self-host web image on GHCR |
+| Prefix       | Triggers              | Produces                                     |
+| ------------ | --------------------- | -------------------------------------------- |
+| `v*.*.*`     | `publish-docker.yml`  | The self-host web image on GHCR              |
 | `desktop-v*` | `release-desktop.yml` | Native desktop installers + a GitHub release |
 
 The two prefixes fire different pipelines: a `v*` tag does not build the desktop
 installers, and a `desktop-v*` tag does not build the Docker image. Since
-`0.22.1` the *number* is unified: web, desktop, Tauri, and Cargo packages all
+`0.22.1` the _number_ is unified: web, desktop, Tauri, and Cargo packages all
 carry one version, so a full release means cutting both tags at the same
 commit:
 
@@ -57,13 +57,46 @@ never landed on `daddy`, publishing a desktop feature the mainline did not have.
 
 ## Publishing the install channels
 
-`release-desktop.yml` only *drafts* the GitHub release. Publishing that draft is
+`release-desktop.yml` only _drafts_ the GitHub release. Publishing that draft is
 what triggers `publish-linux-repos.yml`, which fans the artifacts out to apt,
 dnf, AUR, Homebrew, Scoop, winget, and Snap. A draft that is never published
 ships nothing to any channel.
 
 The DevTUI (`scripts/devtui`) is cross-compiled in the same workflow and its
 `skriuw-dev` binaries are attached to the desktop release as assets.
+
+## Desktop verification gate
+
+The stable required check is **Desktop verification**. Pull requests run it in
+the `desktop-check` job, while `release-desktop.yml` runs the same gate in its
+`verify` job before creating a draft release. Every installer and DevTUI build
+depends on that verified revision, so a failed check creates and uploads no
+release artifacts.
+
+Run the same commands locally from the repository root:
+
+```bash
+bash scripts/check-desktop.sh quick
+bash scripts/check-desktop.sh full
+# equivalent full package script
+bun run desktop:check
+```
+
+The quick gate checks Rust formatting, strict Clippy, Rust tests, desktop SPA
+typechecking, and SPA tests. Full mode also builds the production SPA and checks
+the transitive static entry graph against `packages/web-spa/bundle-budget.json`.
+The machine-readable report is written to
+`packages/web-spa/dist/desktop-bundle-report.json` and uploaded by CI even when
+the gate fails.
+
+If Linux compilation cannot find GTK/WebKit, install the same packages listed in
+the workflow's **Install Linux build dependencies** step. For stale Cargo cache
+errors, delete only `apps/desktop/src-tauri/target` and rerun the gate. For bundle
+failures, inspect the report's largest static assets and dynamic import list;
+do not raise a threshold without reviewing the new transitive dependency.
+
+Repository administrators must require **Desktop verification** in the `daddy`
+branch protection rules after the first successful CI run.
 
 ## One-time setup: make the package public
 
