@@ -645,11 +645,19 @@ export function LocalDataSection() {
 		setBusy("import");
 		setNotice(null);
 		try {
-			const restored = await tauriInvoke<boolean>("import_vault");
+			// Rust stages and validates the backup before it touches the live
+			// vault, forwarding each phase (inspecting → staging → swapping →
+			// rebuilding → verifying) so the notice reflects real progress.
+			const progress = tauriChannel<SnapshotEvent>((event) => {
+				if (event.type === "status") setNotice(`${event.message}…`);
+			});
+			const restored = await tauriInvoke<boolean>("import_vault", { progress });
 			if (restored) {
 				await refreshWorkspace();
 				setNotice("Vault restored from backup.");
 				setCleanupPrompt(true);
+			} else {
+				setNotice(null);
 			}
 		} catch (error) {
 			setNotice(error instanceof Error ? error.message : "Restore failed.");
@@ -696,6 +704,12 @@ export function LocalDataSection() {
 	};
 
 	const handleSnapshotImport = async () => {
+		const accepted = window.confirm(
+			"Restoring a full snapshot replaces this device's entire workspace — every note, " +
+				"folder, journal entry, setting, and local AI model — with the snapshot's contents. " +
+				"Your current data is moved aside first and can be recovered if the restore fails. Continue?",
+		);
+		if (!accepted) return;
 		setBusy("snapshot");
 		setSnapshotMode("import");
 		setSnapshotState("working");

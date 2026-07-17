@@ -1127,13 +1127,52 @@ async fn export_snapshot(
     Ok(Some(out.to_string_lossy().into_owned()))
 }
 
-/// Restores the vault from a backup `.zip`, REPLACING the current vault, then
-/// rebuilds the SQLite index from it. Returns `false` if the pick was cancelled.
+/// Phase status forwarded to the restore UI so it can show inspecting →
+/// staging → validating → swapping → rebuilding → verifying → complete.
+fn restore_phase(progress: &Channel<backup::SnapshotEvent>, message: &str) {
+    let _ = progress.send(backup::SnapshotEvent::Status {
+        message: message.to_string(),
+    });
+}
+
+/// Smoke-reads the rebound workspace: folders, note metadata, and one note
+/// body if any note exists. Run after every restore before reporting success.
+fn verify_restored_workspace(storage: &Storage) -> Result<(), String> {
+    storage.list_folders().map_err(stringify)?;
+    let metadata = storage.list_note_metadata().map_err(stringify)?;
+    if let Some(first) = metadata.first() {
+        storage.get_note(&first.id).map_err(stringify)?;
+    }
+    Ok(())
+}
+
+/// Builds the recovery message shown when a restore rolls back or, worse, when
+/// rollback itself leaves data parked in recovery directories.
+fn recovery_error(primary: &str, unrecovered: &[std::path::PathBuf]) -> String {
+    if unrecovered.is_empty() {
+        return format!("Restore failed and the previous workspace was restored: {primary}");
+    }
+    let paths = unrecovered
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "Restore failed: {primary}. Your previous data is safe but could not be moved back \
+		 automatically. Recover it from: {paths}"
+    )
+}
+
+/// Restores the vault from a backup `.zip` without destroying the live vault
+/// until the replacement is staged, validated, committed, and smoke-read.
+/// Returns `false` if the pick was cancelled.
 #[tauri::command]
 async fn import_vault(
     app: AppHandle,
     settings: State<'_, SettingsStore>,
     storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    progress: Channel<backup::SnapshotEvent>,
 ) -> Result<bool, String> {
     let root = configured_vault_root(&app, &settings)?;
     let picked = app
@@ -1148,16 +1187,54 @@ async fn import_vault(
         .as_path()
         .ok_or("invalid archive path")?
         .to_path_buf();
-    backup::clear_dir_contents(&root).map_err(|error| error.to_string())?;
-    backup::unzip_into(&archive, &root).map_err(|error| error.to_string())?;
-    let vault = VaultStore::open(&root).map_err(vault_err)?;
-    reconcile_index(&storage, &vault)?;
-    Ok(true)
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("resolve app data dir: {error}"))?;
+
+    restore_phase(&progress, "Inspecting backup");
+    let plan = backup::inspect_restore(&archive, &root).map_err(|error| error.to_string())?;
+    if plan.kind != backup::RestoreKind::VaultBackup {
+        return Err(
+            "This file is a full desktop snapshot, not a vault backup. Use \"Restore snapshot\" instead."
+                .to_string(),
+        );
+    }
+
+    restore_phase(&progress, "Staging and validating");
+    let staged =
+        backup::stage_restore(&archive, &plan, &app_data_dir, &app_data_dir).map_err(|error| {
+            format!("Restore failed; your current workspace was not changed: {error}")
+        })?;
+
+    restore_phase(&progress, "Swapping in restored vault");
+    let receipt = backup::commit_restore(staged).map_err(|error| {
+        format!("Restore failed; your current workspace was not changed: {error}")
+    })?;
+
+    restore_phase(&progress, "Rebuilding index and verifying");
+    vault.reload_root(root.clone());
+    let rebound =
+        reconcile_index(&storage, &vault).and_then(|()| verify_restored_workspace(&storage));
+    match rebound {
+        Ok(()) => {
+            backup::discard_restore_receipt(&receipt);
+            restore_phase(&progress, "Restore complete");
+            Ok(true)
+        }
+        Err(primary) => {
+            let unrecovered = backup::rollback_receipt(&receipt);
+            vault.reload_root(root);
+            let _ = reconcile_index(&storage, &vault);
+            Err(recovery_error(&primary, &unrecovered))
+        }
+    }
 }
 
-/// Restores a full desktop snapshot, replacing the app data, local AI data, and
-/// vault contents. The long-lived Rust state is rebound in place, then the
-/// frontend reloads.
+/// Restores a full desktop snapshot. App data, local AI data, and vault are
+/// staged and validated first; the live roots are swapped only once the
+/// replacement is proven, and a failed rebind rolls every root back. The
+/// long-lived Rust state is rebound in place, then the frontend reloads.
 #[tauri::command]
 async fn import_snapshot(
     app: AppHandle,
@@ -1186,29 +1263,69 @@ async fn import_snapshot(
         .path()
         .app_local_data_dir()
         .map_err(|error| format!("resolve local data dir: {error}"))?;
-    let _ = progress.send(backup::SnapshotEvent::Status {
-        message: "Restoring snapshot".to_string(),
-    });
-    backup::restore_snapshot(&archive, &app_data_dir, &app_local_data_dir)
-        .map_err(|error| error.to_string())?;
-    let _ = progress.send(backup::SnapshotEvent::Status {
-        message: "Snapshot restored. Rebinding workspace".to_string(),
-    });
+    let current_vault = configured_vault_root(&app, &settings)?;
+
+    restore_phase(&progress, "Inspecting snapshot");
+    let plan =
+        backup::inspect_restore(&archive, &current_vault).map_err(|error| error.to_string())?;
+    if plan.kind != backup::RestoreKind::Snapshot {
+        return Err(
+            "This file is a vault backup, not a full snapshot. Use \"Restore vault\" instead."
+                .to_string(),
+        );
+    }
+
+    restore_phase(&progress, "Staging and validating");
+    let staged = backup::stage_restore(&archive, &plan, &app_data_dir, &app_local_data_dir)
+        .map_err(|error| {
+            format!("Restore failed; your current workspace was not changed: {error}")
+        })?;
+
+    // Stop managed Ollama before the local-data root is swapped underneath it.
     ai::stop_managed_server();
-    settings.reload().map_err(|error| error.to_string())?;
-    let vault_root = configured_vault_root(&app, &settings)?;
-    storage
-        .reload(&app_data_dir.join("index.db"))
-        .map_err(stringify)?;
-    vault.reload_root(vault_root);
-    vault.set_cover_root(
-        settings
-            .snapshot()
-            .map_err(|error| error.to_string())?
-            .cover_assets_root,
-    );
-    ai::autostart_managed(&app, &settings);
-    Ok(())
+
+    restore_phase(&progress, "Swapping in restored data");
+    let receipt = backup::commit_restore(staged).map_err(|error| {
+        ai::autostart_managed(&app, &settings);
+        format!("Restore failed; your current workspace was not changed: {error}")
+    })?;
+
+    restore_phase(&progress, "Rebuilding index and verifying");
+    let rebound = (|| -> Result<(), String> {
+        settings.reload().map_err(|error| error.to_string())?;
+        let vault_root = configured_vault_root(&app, &settings)?;
+        storage
+            .reload(&app_data_dir.join("index.db"))
+            .map_err(stringify)?;
+        vault.reload_root(vault_root);
+        vault.set_cover_root(
+            settings
+                .snapshot()
+                .map_err(|error| error.to_string())?
+                .cover_assets_root,
+        );
+        reconcile_index(&storage, &vault)?;
+        verify_restored_workspace(&storage)
+    })();
+
+    match rebound {
+        Ok(()) => {
+            backup::discard_restore_receipt(&receipt);
+            ai::autostart_managed(&app, &settings);
+            restore_phase(&progress, "Restore complete");
+            Ok(())
+        }
+        Err(primary) => {
+            let unrecovered = backup::rollback_receipt(&receipt);
+            let _ = settings.reload();
+            let previous_vault = configured_vault_root(&app, &settings).unwrap_or(current_vault);
+            let _ = storage.reload(&app_data_dir.join("index.db"));
+            vault.reload_root(previous_vault);
+            let _ = reconcile_index(&storage, &vault);
+            ai::autostart_managed(&app, &settings);
+            Err(recovery_error(&primary, &unrecovered))
+        }
+    }
 }
 
 /// Permanently deletes all local notes/folders: empties the vault directory and
@@ -1614,6 +1731,21 @@ pub fn run() {
 
             app.manage(IndexReady(AtomicBool::new(false)));
 
+            // Marker-tagged staging/rollback directories left by a crashed
+            // restore are cleaned only AFTER the live workspace reconciles, so
+            // a rollback directory is never deleted before we know the live
+            // roots are readable. Roots share parents with app data + vault.
+            let app_local_data_dir = app.path().app_local_data_dir().ok();
+            let cleanup_data_dir = dir.clone();
+            let cleanup_roots = move |vault_root: &Path| {
+                let mut roots: Vec<PathBuf> = vec![cleanup_data_dir.clone(), vault_root.to_path_buf()];
+                if let Some(local) = &app_local_data_dir {
+                    roots.push(local.clone());
+                }
+                let borrowed: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
+                backup::cleanup_restore_artifacts(&borrowed);
+            };
+
             if index_existed {
                 app.manage(storage);
                 app.manage(vault);
@@ -1623,17 +1755,20 @@ pub fn run() {
                 // `index://reconciled` so the frontend refetches any list that
                 // resolved against the pre-reconcile index.
                 let bg = handle.clone();
+                let vault_root_bg = vault_root.clone();
                 std::thread::spawn(move || {
                     let storage = bg.state::<Storage>();
                     let vault = bg.state::<VaultStore>();
                     if let Err(err) = reconcile_index(&storage, &vault) {
                         eprintln!("[skriuw] background index reconcile failed: {err}");
                     }
+                    cleanup_roots(&vault_root_bg);
                     bg.state::<IndexReady>().0.store(true, Ordering::SeqCst);
                     let _ = bg.emit("index://reconciled", ());
                 });
             } else {
                 reconcile_index(&storage, &vault)?;
+                cleanup_roots(&vault_root);
                 app.manage(storage);
                 app.manage(vault);
                 handle.state::<IndexReady>().0.store(true, Ordering::SeqCst);
