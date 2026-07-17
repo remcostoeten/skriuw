@@ -1,6 +1,26 @@
 # DH-08: Live external Markdown reconciliation
 
-Status: **planned**  
+Status: **partially implemented — conflict-safe saves (Phase 1) landed; passive watcher + conflict UI pending**
+
+## What landed (Phase 1: revision-checked saves)
+
+The plan's non-negotiable foundation — "do not implement watching without conflict-safe saves", and per the Rollback section the revision check stays enabled even without the watcher:
+
+- `vault.rs` computes a content-derived revision (`note_revision` / `current_note_revision`, SHA-256 of the canonical file bytes) — not modification-time based.
+- `note_vault_revision(id)` Tauri command returns a note's current on-disk revision; the desktop backend records it on every `getNote`/`getNotes` in a private `vaultRevisions` map (never added to the shared `NoteFile`).
+- `save_note` gained `expectedVaultRevision` and `force`. Under the vault write lock it re-reads the file's current revision immediately before writing; a mismatch returns `VAULT_CONFLICT:<id>` and leaves the external content untouched. Its result now carries the new `vaultRevision`, which the backend caches for the next save.
+- Tests: revision is stable across reads, changes on content/frontmatter edits, changes on an external edit, and is `None` for a note with no file. 134 Rust tests, clippy, fmt green; SPA typecheck/build and 23 workspace-backend tests green.
+
+Result: normal autosave can no longer overwrite a newer external edit — the save is rejected and surfaces through the existing DH-07 save-error banner (which never overwrites on retry).
+
+## What remains
+
+The passive watcher and full conflict workflow (Phases 2–9): `vault_watcher.rs` (notify-based recursive watch, debounce, rename coalescing, ignored-path filtering), targeted per-entity reconciliation, revision-aware internal-write suppression, the `DesktopVaultSync` frontend listener + "Updated from disk" clean refresh, the dirty/conflict state machine and conflict-copy resolution UI, external create/delete/rename handling, watcher lifecycle (pause on DH-02 restore, rebind on root change, shutdown on exit), status UI, and the 10,000-file performance validation.
+
+---
+
+Original plan follows.
+
 Priority: **P1 — local-first product promise**  
 Primary owner: Rust vault plus desktop backend synchronization  
 Estimated size: 5–8 focused implementation days
@@ -259,16 +279,16 @@ Document median event-to-UI latency and CPU usage methodology. Target ordinary s
 
 ## Acceptance criteria
 
-- [ ] External note add/edit/delete/rename/move appears without restart.
-- [ ] Ordinary single-file changes appear within one second on local storage.
-- [ ] Internal saves do not cause event loops or redundant UI refresh.
-- [ ] Normal autosave cannot overwrite a newer external revision.
-- [ ] Every conflict resolution preserves both external and local content.
-- [ ] Targeted changes avoid full-vault scans; overflow has a bounded fallback.
-- [ ] Watcher pauses/rebinds across restore, reset, root change, and shutdown.
-- [ ] Invalid external files remain untouched and produce actionable warnings.
-- [ ] 10,000-file and burst tests remain responsive and memory-bounded.
-- [ ] `docs/desktop-local-first.md` documents live-edit and conflict semantics.
+- [ ] External note add/edit/delete/rename/move appears without restart. **PENDING (watcher).**
+- [ ] Ordinary single-file changes appear within one second on local storage. **PENDING (watcher).**
+- [ ] Internal saves do not cause event loops or redundant UI refresh. **PENDING (suppression registry, with the watcher).**
+- [x] Normal autosave cannot overwrite a newer external revision. (`expectedVaultRevision` check in `save_note`.)
+- [ ] Every conflict resolution preserves both external and local content. **PARTIAL — data is preserved (the save is rejected, external content untouched); the resolution UI (keep-both conflict copy) is pending.**
+- [ ] Targeted changes avoid full-vault scans; overflow has a bounded fallback. **PENDING (targeted reconcile, with the watcher).**
+- [ ] Watcher pauses/rebinds across restore, reset, root change, and shutdown. **PENDING (watcher lifecycle).**
+- [ ] Invalid external files remain untouched and produce actionable warnings. **PENDING (watcher).**
+- [ ] 10,000-file and burst tests remain responsive and memory-bounded. **PENDING (watcher).**
+- [x] `docs/desktop-local-first.md` documents live-edit and conflict semantics. (Conflict-safe save section added; watcher semantics to follow.)
 
 ## Verification commands
 

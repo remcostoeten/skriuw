@@ -151,7 +151,40 @@ type RustNoteVersion = {
 type RustVersionWriteResult = {
 	versionId: string | null;
 	versionChanged: boolean;
+	vaultRevision?: string | null;
 };
+
+/**
+ * Content-derived vault revision per note id (DH-08), private to the desktop
+ * backend. Populated whenever a note body is read; sent back as
+ * `expectedVaultRevision` on the next save so an external edit made in between
+ * is rejected as a conflict instead of silently overwritten. Never added to the
+ * shared `NoteFile` (revisions are a desktop-only concept).
+ */
+const vaultRevisions = new Map<string, string>();
+
+/** Sentinel that `save_note` returns when a save was rejected as an external
+ * conflict. Mirrors `VAULT_CONFLICT_PREFIX` in the Rust `lib.rs`. */
+const VAULT_CONFLICT_PREFIX = "VAULT_CONFLICT:";
+
+export function isVaultConflictError(error: unknown): boolean {
+	const message = error instanceof Error ? error.message : String(error);
+	return message.startsWith(VAULT_CONFLICT_PREFIX);
+}
+
+async function recordVaultRevision(
+	invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>,
+	id: string,
+): Promise<void> {
+	try {
+		const revision = await invoke<string | null>("note_vault_revision", { id });
+		if (revision) vaultRevisions.set(id, revision);
+		else vaultRevisions.delete(id);
+	} catch {
+		// Revision capture is best-effort; a failure just means the next save
+		// skips the conflict check for this note rather than blocking editing.
+	}
+}
 
 type RustRestoreVersionResult = {
 	note: RustNote | null;
@@ -753,11 +786,16 @@ export function createTauriBackend(): WorkspaceBackend {
 
 		async getNote(id) {
 			const raw = await invoke<RustNote | null>("get_note", { id });
-			return raw ? fromRustNote(raw) : null;
+			if (!raw) return null;
+			// Capture the canonical vault revision the editor is now showing, so
+			// the next save can detect an external edit made before it (DH-08).
+			await recordVaultRevision(invoke, id);
+			return fromRustNote(raw);
 		},
 
 		async getNotes(ids) {
 			const rows = await invoke<RustNote[]>("get_notes", { ids });
+			await Promise.all(rows.map((row) => recordVaultRevision(invoke, row.id)));
 			return rows.map(fromRustNote);
 		},
 
@@ -906,8 +944,17 @@ export function createTauriBackend(): WorkspaceBackend {
 						sessionVersionId: createCheckpoint
 							? (input.sessionVersionId ?? null)
 							: null,
+						// The revision the editor last read for this note. Rust
+						// rejects the save if the file changed on disk since, so an
+						// external edit is never overwritten (DH-08).
+						expectedVaultRevision: vaultRevisions.get(input.id) ?? null,
 					},
 				});
+
+				// Track the note's new on-disk revision for the next save.
+				if (versionResult.vaultRevision) {
+					vaultRevisions.set(input.id, versionResult.vaultRevision);
+				}
 
 				return {
 					note: next,

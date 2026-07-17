@@ -615,10 +615,23 @@ fn rename_note_tag_meta(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VersionWriteResult {
     pub version_id: Option<String>,
     pub version_changed: bool,
+    // The note's canonical vault revision after this write (DH-08). None for
+    // version-only writes that don't touch the vault. The frontend caches this
+    // and sends it back as `expectedVaultRevision` on the next save so an
+    // external edit in between is rejected instead of overwritten.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vault_revision: Option<String>,
 }
+
+/// Sentinel prefix on the `save_note` error string when the save was rejected
+/// because the vault file changed on disk since the editor last read it. The
+/// frontend detects this to surface an external-edit/conflict state instead of
+/// a generic save failure — the canonical file is left untouched.
+pub const VAULT_CONFLICT_PREFIX: &str = "VAULT_CONFLICT:";
 
 #[derive(Serialize)]
 pub struct RestoreVersionResult {
@@ -666,6 +679,7 @@ fn record_note_version_inner(
     Ok(VersionWriteResult {
         version_changed: version_id.is_some(),
         version_id,
+        vault_revision: None,
     })
 }
 
@@ -687,6 +701,16 @@ struct SaveNoteRequest {
     create_checkpoint: bool,
     #[allow(dead_code)]
     session_version_id: Option<String>,
+    // The vault revision the editor last read for this note (DH-08). When
+    // present and it no longer matches the file on disk, the save is rejected
+    // as a conflict rather than overwriting an external edit. `None` skips the
+    // check (new/imported notes, or an explicit force path).
+    #[serde(default)]
+    expected_vault_revision: Option<String>,
+    // Set by an explicit user "keep my version" conflict resolution to bypass
+    // the revision check for one save. Normal autosave never sets it.
+    #[serde(default)]
+    force: bool,
 }
 
 #[tauri::command]
@@ -701,14 +725,31 @@ fn save_note(
         links,
         title_keys,
         reason,
+        expected_vault_revision,
+        force,
         ..
     } = request;
+    // Conflict-safe save: if the editor told us which revision it last saw and
+    // the file on disk no longer matches, an external tool changed it since —
+    // reject rather than overwrite. A missing file (None) is a create and is
+    // always allowed. `force` is the explicit user "keep my version" override.
+    if !force {
+        if let Some(expected) = &expected_vault_revision {
+            let current = vault.current_note_revision(&note.id).map_err(vault_err)?;
+            if let Some(current) = current {
+                if &current != expected {
+                    return Err(format!("{VAULT_CONFLICT_PREFIX}{}", note.id));
+                }
+            }
+        }
+    }
     // Exactly two top-level operations: the canonical vault commit, then one
     // derived-index transaction. A vault failure aborts before the index is
     // touched; an index failure after the vault commit means the note file is
     // safe on disk and only the derived rows lag, so repair is scheduled and
     // the error says precisely that.
     vault.upsert_note(&note).map_err(vault_err)?;
+    let vault_revision = Some(vault::note_revision(&note));
     match storage.save_note_index(SaveNoteIndex {
         note: &note,
         links: &links,
@@ -719,6 +760,7 @@ fn save_note(
         Ok(version_id) => Ok(VersionWriteResult {
             version_changed: version_id.is_some(),
             version_id,
+            vault_revision,
         }),
         Err(error) => {
             schedule_index_repair(&app);
@@ -728,6 +770,14 @@ fn save_note(
             ))
         }
     }
+}
+
+/// Returns a note's current canonical vault revision (content hash), or `None`
+/// if no file exists. The desktop backend records this when it reads a note so
+/// the next save can prove the file has not changed on disk since (DH-08).
+#[tauri::command]
+fn note_vault_revision(vault: State<'_, VaultStore>, id: String) -> Result<Option<String>, String> {
+    vault.current_note_revision(&id).map_err(vault_err)
 }
 
 /// After a derived-index failure whose canonical vault write succeeded, tells
@@ -1815,6 +1865,7 @@ pub fn run() {
             get_notes,
             upsert_note,
             save_note,
+            note_vault_revision,
             bulk_upsert_notes,
             import_workspace_archive,
             delete_note,
