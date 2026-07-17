@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
 	errorTitle: { fontSize: 17, fontWeight: "600", textAlign: "center" },
 	errorCopy: { fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 6, maxWidth: 290 },
 	retryButton: {
-		minHeight: 42,
+		minHeight: 44,
 		borderRadius: 21,
 		paddingHorizontal: 17,
 		marginTop: 18,

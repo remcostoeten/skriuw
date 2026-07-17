@@ -3,11 +3,12 @@ import { Alert, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { router } from "expo-router";
-import { Check, Database, LogOut, Trash2 } from "lucide-react-native";
+import { Check, Database, LogOut, RefreshCw, Trash2 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { signOut, useSession } from "@/auth/auth-client";
 import { getApiBaseUrl } from "@/lib/config";
 import { queryClient } from "@/query/client";
+import { useCloudSyncStatus } from "@/query/sync-status";
 import { useTheme } from "@/theme/theme-provider";
 import { themeList, themes, type TThemeName } from "@/theme/tokens";
 import {
@@ -16,11 +17,26 @@ import {
 	type EditorLineHeight,
 } from "@/preferences/preferences-provider";
 
+function countLabel(count: number, singular: string) {
+	return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
+
 export default function SettingsScreen() {
 	const { data: session } = useSession();
 	const { theme } = useTheme();
 	const [clearing, setClearing] = useState(false);
+	const [refreshing, setRefreshing] = useState(false);
 	const userId = session?.user?.id ?? "anon";
+	const syncStatus = useCloudSyncStatus();
+
+	const refreshCloudData = async () => {
+		setRefreshing(true);
+		try {
+			await queryClient.invalidateQueries();
+		} finally {
+			setRefreshing(false);
+		}
+	};
 
 	const clearOfflineData = () => {
 		Alert.alert(
@@ -66,7 +82,23 @@ export default function SettingsScreen() {
 				<EditorSettings />
 
 				<Section title="Data & sync" description="Offline storage and cloud sync">
-					<InfoRow label="Sync" value="Cloud workspace" />
+					<InfoRow
+						label="Cloud data"
+						value={
+							syncStatus.isError
+								? "Could not reach this workspace"
+								: syncStatus.data
+									? `${countLabel(syncStatus.data.noteCount, "note")} · ${countLabel(syncStatus.data.folderCount, "folder")} · ${countLabel(syncStatus.data.journalEntryCount, "journal entry")}`
+									: "Checking…"
+						}
+					/>
+					<ActionRow
+						icon={<RefreshCw size={18} color={theme.mutedForeground} />}
+						label={refreshing ? "Refreshing…" : "Refresh cloud data"}
+						description="Reload notes and journal entries from this account"
+						onPress={() => void refreshCloudData()}
+						disabled={refreshing}
+					/>
 					<ActionRow
 						icon={<Trash2 size={18} color={theme.mutedForeground} />}
 						label="Trash"
@@ -89,6 +121,8 @@ export default function SettingsScreen() {
 
 				<Pressable
 					onPress={() => signOut()}
+					accessibilityRole="button"
+					accessibilityLabel="Sign out"
 					style={{
 						marginTop: 28,
 						flexDirection: "row",
@@ -462,6 +496,8 @@ function ActionRow({
 		<Pressable
 			onPress={onPress}
 			disabled={disabled}
+			accessibilityRole="button"
+			accessibilityState={{ disabled: Boolean(disabled) }}
 			style={{
 				flexDirection: "row",
 				alignItems: "center",
@@ -508,6 +544,7 @@ function SegmentedControl<T extends string>({
 					<Pressable
 						key={option}
 						onPress={() => onChange(option)}
+						hitSlop={6}
 						accessibilityRole="radio"
 						accessibilityState={{ checked: selected }}
 						style={{

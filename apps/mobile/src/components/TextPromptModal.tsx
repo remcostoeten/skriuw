@@ -54,6 +54,9 @@ export function TextPromptModal({
 			>
 				<View
 					style={{
+						width: "100%",
+						maxWidth: 420,
+						alignSelf: "center",
 						backgroundColor: theme.popover,
 						borderWidth: 1,
 						borderColor: theme.border,

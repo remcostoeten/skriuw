@@ -80,6 +80,9 @@ export function FolderPickerModal({
 				<Pressable
 					onPress={() => {}}
 					style={{
+						width: "100%",
+						alignSelf: "center",
+						maxWidth: 560,
 						maxHeight: "70%",
 						backgroundColor: theme.popover,
 						borderTopLeftRadius: theme.radius + 12,
