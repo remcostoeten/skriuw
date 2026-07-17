@@ -267,6 +267,19 @@ impl VaultStore {
         Ok(())
     }
 
+    /// Content-derived revision of the note's CURRENT on-disk canonical bytes,
+    /// or `None` when no file exists for `id` (a new note). Reads the actual
+    /// file, so an edit made by an external tool changes the revision — this is
+    /// what a conflict-safe save compares against (DH-08). Not modification-time
+    /// based: a truncate+rewrite that restores identical bytes is not a change.
+    pub fn current_note_revision(&self, id: &str) -> io::Result<Option<String>> {
+        let _guard = self.write_lock.lock().expect("vault write lock poisoned");
+        match self.find_note_path(id)? {
+            Some(path) => Ok(Some(note_revision_bytes(&fs::read(path)?))),
+            None => Ok(None),
+        }
+    }
+
     fn trash_dir(&self) -> PathBuf {
         self.root().join(META_DIR).join(TRASH_DIR)
     }
@@ -1056,6 +1069,23 @@ fn sanitize_segment(name: &str) -> String {
     }
 }
 
+/// SHA-256 hex of a note file's canonical bytes — the content-derived vault
+/// revision used to detect external edits (DH-08). Stable across repeated reads
+/// of unchanged bytes; changes whenever frontmatter or body bytes change.
+fn note_revision_bytes(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
+
+/// Revision the given note WOULD have on disk once written. Equal to
+/// `current_note_revision` immediately after a successful `upsert_note`, so the
+/// save path can return the new revision without re-reading the file.
+pub fn note_revision(note: &Note) -> String {
+    note_revision_bytes(render_note(note).as_bytes())
+}
+
 /// Renders a note to its on-disk form: YAML frontmatter (JSON-valued, which is
 /// valid YAML) followed by the markdown body.
 fn render_note(note: &Note) -> String {
@@ -1462,6 +1492,47 @@ mod tests {
         assert_eq!(notes.len(), 1);
         assert_eq!(notes[0].id, "n2");
         assert!(!dir.path().join("Root").exists());
+    }
+
+    #[test]
+    fn note_revision_is_stable_and_changes_with_content() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        store.upsert_note(&note("n1", "Note.md", None)).unwrap();
+
+        let first = store.current_note_revision("n1").unwrap().unwrap();
+        // Repeated reads of unchanged bytes yield the same revision.
+        assert_eq!(store.current_note_revision("n1").unwrap().unwrap(), first);
+        // The revision the note WOULD have on disk matches what is on disk.
+        assert_eq!(note_revision(&note("n1", "Note.md", None)), first);
+
+        let mut edited = note("n1", "Note.md", None);
+        edited.content = "different body".to_string();
+        store.upsert_note(&edited).unwrap();
+        assert_ne!(store.current_note_revision("n1").unwrap().unwrap(), first);
+    }
+
+    #[test]
+    fn external_edit_changes_the_note_revision() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        store.upsert_note(&note("n1", "Note.md", None)).unwrap();
+        let before = store.current_note_revision("n1").unwrap().unwrap();
+
+        // Simulate an external editor rewriting the file body.
+        let path = dir.path().join("Note.md");
+        let raw = fs::read_to_string(&path).unwrap();
+        fs::write(&path, raw.replace("hello world", "edited by another app")).unwrap();
+
+        let after = store.current_note_revision("n1").unwrap().unwrap();
+        assert_ne!(after, before, "an external edit must change the revision");
+    }
+
+    #[test]
+    fn revision_is_none_for_a_note_with_no_file() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        assert!(store.current_note_revision("missing").unwrap().is_none());
     }
 
     #[test]
