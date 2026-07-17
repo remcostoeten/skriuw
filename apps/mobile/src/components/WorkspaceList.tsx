@@ -328,6 +328,8 @@ function WorkspaceRow({
 			onPress={onOpen}
 			onLongPress={onLongPress}
 			delayLongPress={200}
+			accessibilityRole="button"
+			accessibilityLabel={rowLabel(row)}
 			style={({ pressed }) => ({
 				flexDirection: "row",
 				alignItems: "center",
@@ -394,6 +396,8 @@ function ActionButton({
 	return (
 		<Pressable
 			onPress={onPress}
+			accessibilityRole="button"
+			hitSlop={6}
 			style={{
 				flexDirection: "row",
 				alignItems: "center",

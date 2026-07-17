@@ -4,11 +4,13 @@ import { useTheme } from "@/theme/theme-provider";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { AppWordmark } from "@/components/AppWordmark";
 import { useReducedMotion } from "@/shared/use-reduced-motion";
+import { useKeyboardVisible } from "@/shared/use-keyboard-visible";
 
 export default function AppLayout() {
 	const { theme } = useTheme();
 	const pathname = usePathname();
 	const reducedMotion = useReducedMotion();
+	const keyboardVisible = useKeyboardVisible();
 	const showBottomNavigation =
 		pathname === "/" ||
 		pathname === "/journal" ||
@@ -42,7 +44,7 @@ export default function AppLayout() {
 				<Stack.Screen name="settings" options={{ title: "Settings" }} />
 				<Stack.Screen name="trash" options={{ title: "Trash" }} />
 			</Stack>
-			{showBottomNavigation ? <BottomNavigation /> : null}
+			{showBottomNavigation && !keyboardVisible ? <BottomNavigation /> : null}
 		</View>
 	);
 }
