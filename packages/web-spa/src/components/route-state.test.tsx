@@ -9,7 +9,7 @@ describe("desktop route states", () => {
 		expect(html).toContain("Loading workspace");
 	});
 
-	test("renders recovery copy for a route import failure", () => {
+	test("renders recovery copy for a route import failure with collapsible details", () => {
 		const html = renderToStaticMarkup(
 			<DesktopRouteError
 				error={new Error("lazy route failed")}
@@ -18,6 +18,8 @@ describe("desktop route states", () => {
 			/>,
 		);
 		expect(html).toContain('role="alert"');
+		// The raw error is behind a details/summary, not the primary message.
+		expect(html).toContain("Technical details");
 		expect(html).toContain("lazy route failed");
 		expect(html).toContain("Try again");
 	});

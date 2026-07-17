@@ -99,6 +99,7 @@ export function WindowControls() {
 	return (
 		<div
 			data-tauri-drag-region
+			data-testid="window-controls"
 			className="fixed right-0 top-0 z-50 flex h-9 items-center gap-0.5 rounded-bl-lg border-b border-l border-sidebar-border/70 bg-sidebar pl-3 pr-1"
 		>
 			<ControlButton label="Minimize" onClick={runWindowAction((w) => w.minimize())}>
