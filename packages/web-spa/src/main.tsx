@@ -1,3 +1,7 @@
+// Arms the boot-splash safety timeout as the very first side effect, before the
+// router/provider modules below are evaluated — a module-eval failure there
+// must still leave a recoverable Reload prompt rather than a frozen splash.
+import "./boot-splash-safety";
 import "./raf-fallback";
 import "@remcostoeten/auth-drawer/styles.css";
 import "@/app/globals.css";
@@ -10,7 +14,6 @@ import { RouterProvider } from "@tanstack/react-router";
 import { DesktopAboutDialog } from "@/features/desktop/about-dialog";
 import { WindowControls } from "@/features/desktop/window-controls";
 import { DesktopFatalErrorBoundary } from "./components/desktop-fatal-error";
-import { installSplashSafetyTimeout } from "./components/boot-splash-controller";
 import { initDesktopMenuBridge } from "./desktop-menu-bridge";
 import { router } from "./router";
 
@@ -19,21 +22,17 @@ initDesktopMenuBridge();
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing #root element");
 
-// The boot splash (painted in index.html) is now dismissed by
-// `BootSplashController` once React commits a visible shell/loading/recovery
-// state — never on a blind timer. This safety net only fires if the shell never
-// commits at all, replacing the splash with a recoverable Reload prompt.
-installSplashSafetyTimeout();
-
 // The single desktop WindowControls mount lives here in the explicit entry
 // shell (it was previously also mounted inside shared AppProviders, producing
-// duplicate fixed controls and resize listeners in the desktop bundle).
+// duplicate fixed controls and resize listeners). It sits OUTSIDE the fatal
+// error boundary so minimize/close/drag remain available even when the router
+// or providers throw — the window runs with `decorations: false`.
 createRoot(rootElement).render(
 	<StrictMode>
 		<DesktopFatalErrorBoundary>
 			<RouterProvider router={router} />
 			<DesktopAboutDialog />
-			<WindowControls />
 		</DesktopFatalErrorBoundary>
+		<WindowControls />
 	</StrictMode>,
 );
