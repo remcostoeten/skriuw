@@ -17,6 +17,8 @@ import { tauriChannel, tauriInvoke } from "@/core/workspace-backend";
 
 type AiProvider = "ollama" | "groq" | "gemini";
 
+type KeyState = "present" | "missing" | "migration_pending" | "unavailable";
+
 type AiConfig = {
 	provider: AiProvider;
 	ollamaEndpoint: string;
@@ -25,6 +27,8 @@ type AiConfig = {
 	geminiModel: string;
 	hasGroqKey: boolean;
 	hasGeminiKey: boolean;
+	groqKeyState: KeyState;
+	geminiKeyState: KeyState;
 };
 
 type OllamaStatus = {
@@ -675,6 +679,19 @@ type CloudSectionProps = {
 	onPatchConfig: (patch: Partial<AiConfig>) => Promise<void>;
 };
 
+function keyDescription(state: KeyState): string {
+	switch (state) {
+		case "present":
+			return "Stored securely by your operating system. Enter a new one to replace it, or save empty to clear.";
+		case "migration_pending":
+			return "An older key from a previous version could not be moved to secure storage yet, so it is NOT being used. Save it again to store it securely, or save empty to remove it.";
+		case "unavailable":
+			return "Your operating system credential store is unavailable, so cloud keys can't be saved. Unlock your keychain (or use local Ollama), then reopen settings.";
+		default:
+			return "Stored securely by your operating system — never written to settings.json or backups.";
+	}
+}
+
 function CloudSection({
 	config,
 	keyDraft,
@@ -682,6 +699,8 @@ function CloudSection({
 	onSaveKey,
 	onPatchConfig,
 }: CloudSectionProps) {
+	const keyState = config.provider === "groq" ? config.groqKeyState : config.geminiKeyState;
+	const unavailable = keyState === "unavailable";
 	return (
 		<>
 			<GroupLabel>{config.provider === "groq" ? "Groq" : "Gemini"}</GroupLabel>
@@ -712,33 +731,31 @@ function CloudSection({
 				<Row
 					focusId="desktop-cloud-key"
 					title="API key"
-					description={
-						(config.provider === "groq" ? config.hasGroqKey : config.hasGeminiKey)
-							? "A key is saved on this device. Enter a new one to replace it, or save empty to clear."
-							: "Stored locally in settings.json on this device."
-					}
+					description={keyDescription(keyState)}
 				>
 					<div className="flex gap-2">
 						<Input
 							type="password"
 							className="w-56"
-							placeholder={
-								(
-									config.provider === "groq"
-										? config.hasGroqKey
-										: config.hasGeminiKey
-								)
-									? "••••••••"
-									: "Paste API key"
-							}
+							disabled={unavailable}
+							placeholder={keyState === "present" ? "••••••••" : "Paste API key"}
 							value={keyDraft}
 							onChange={(event) => onKeyDraftChange(event.target.value)}
 						/>
-						<Button variant="outline" size="sm" onClick={onSaveKey}>
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={unavailable}
+							onClick={onSaveKey}
+						>
 							Save
 						</Button>
 					</div>
 				</Row>
+				<p className="px-1 pt-1 text-xs text-muted-foreground">
+					Using a cloud provider sends your note text off this device. Local Ollama keeps
+					everything private.
+				</p>
 			</SettingsCard>
 		</>
 	);
