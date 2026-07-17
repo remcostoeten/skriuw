@@ -1,6 +1,6 @@
 # DH-03: OS-backed AI secret storage
 
-Status: **planned**  
+Status: **implemented — pending manual platform-matrix verification**
 Priority: **P0 — privacy and trust**  
 Primary owner: Rust desktop AI/settings  
 Estimated size: 2–4 focused implementation days plus platform verification
@@ -190,15 +190,15 @@ Do not print the secret while verifying. Inspect only credential labels and app 
 
 ## Acceptance criteria
 
-- [ ] New provider keys never enter `settings.json`.
-- [ ] Existing plaintext keys migrate idempotently and are deleted only after verified secure storage.
-- [ ] TypeScript never receives stored provider-key values.
-- [ ] Snapshots contain no AI provider secrets.
-- [ ] Unavailable credential storage disables cloud AI without affecting Ollama.
-- [ ] Reset behavior explicitly addresses external OS credentials.
-- [ ] Secret values are absent from logs, errors, analytics, serialization, and `Debug` output.
-- [ ] macOS, Windows, and Linux verification matrix passes.
-- [ ] Public encryption-at-rest copy matches the verified implementation.
+- [x] New provider keys never enter `settings.json`. (`ai_set_key` → credential store; test asserts no key/`groqApiKey` in `settings.json` bytes.)
+- [x] Existing plaintext keys migrate idempotently and are deleted only after verified secure storage. (`migrate_legacy_secret` + `set`'s read-back; idempotency test.)
+- [x] TypeScript never receives stored provider-key values. (`AiConfig` returns only `KeyState`/booleans.)
+- [x] Snapshots contain no AI provider secrets. (Keys live in the OS store, outside app-data; snapshot packs only app-data/local-data/vault.)
+- [x] Unavailable credential storage disables cloud AI without affecting Ollama. (`require_secret` errors to Ollama; Ollama commands never touch the store.)
+- [x] Reset behavior explicitly addresses external OS credentials. (`ai_clear_credentials` + opt-in reset checkbox, default unchecked.)
+- [x] Secret values are absent from logs, errors, analytics, serialization, and `Debug` output. (`SecretString` redacts `Debug`; errors carry no value; secret scan clean.)
+- [ ] macOS, Windows, and Linux verification matrix passes. **PENDING — requires manual runs on production-like installs; cannot be done headless in CI.**
+- [ ] Public encryption-at-rest copy matches the verified implementation. **PENDING the platform matrix above; README encryption copy left untouched until then per Phase 7.1.**
 
 ## Verification commands
 

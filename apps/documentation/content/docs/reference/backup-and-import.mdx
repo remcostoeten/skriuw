@@ -41,6 +41,12 @@ skriuw-export-YYYY-MM-DD/
 Markdown file per day. `versions/` holds per-note history when history export
 is enabled.
 
+Desktop full snapshots and vault backups **never contain cloud-AI provider
+keys**. Those are stored in your operating system's credential store (Keychain,
+Credential Manager, or Secret Service), which lives outside the app data a
+backup captures, so restoring a snapshot leaves the keys on the machine
+unchanged.
+
 ## Third-party imports
 
 Best effort. Structure and formatting may need cleanup after import.
