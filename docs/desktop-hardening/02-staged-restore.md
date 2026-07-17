@@ -1,6 +1,6 @@
 # DH-02: Staged, non-destructive restore
 
-Status: **planned**  
+Status: **implemented**  
 Priority: **P0 — data safety**  
 Primary owner: Rust backup and restore  
 Estimated size: 3–5 focused implementation days
@@ -173,15 +173,15 @@ Update `local-data-section.tsx`:
 
 ## Acceptance criteria
 
-- [ ] No restore implementation calls `clear_dir_contents` or `clear_root` on live data before staging succeeds.
-- [ ] Unsafe archive entries cause rejection, not silent skipping.
-- [ ] A corrupt archive leaves the live workspace unchanged.
-- [ ] Partial multi-root commits roll back in reverse order.
-- [ ] The restored workspace is reconciled and smoke-read before success.
-- [ ] UI progress reports the current restore phase.
-- [ ] Error messages state whether the original workspace is untouched, restored, or needs manual recovery.
-- [ ] Recovery/staging directories have a safe startup cleanup policy.
-- [ ] Rust and relevant UI tests pass.
+- [x] No restore implementation calls `clear_dir_contents` or `clear_root` on live data before staging succeeds. (`clear_root` deleted; `import_vault`/`import_snapshot` never clear live roots.)
+- [x] Unsafe archive entries cause rejection, not silent skipping. (`inspect_restore` rejects path escapes, duplicates, encrypted entries.)
+- [x] A corrupt archive leaves the live workspace unchanged.
+- [x] Partial multi-root commits roll back in reverse order.
+- [x] The restored workspace is reconciled and smoke-read before success. (`verify_restored_workspace`.)
+- [x] UI progress reports the current restore phase.
+- [x] Error messages state whether the original workspace is untouched, restored, or needs manual recovery. (`recovery_error`.)
+- [x] Recovery/staging directories have a safe startup cleanup policy. (`cleanup_restore_artifacts`, marker-gated, post-reconcile.)
+- [x] Rust and relevant UI tests pass. (110 Rust tests; SPA build green.)
 
 ## Verification commands
 
