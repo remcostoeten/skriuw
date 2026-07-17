@@ -420,6 +420,7 @@ export function LocalDataSection() {
 	const [snapshotResult, setSnapshotResult] = useState<string | null>(null);
 	const [resetDialogOpen, setResetDialogOpen] = useState(false);
 	const [resetConfirm, setResetConfirm] = useState("");
+	const [removeAiKeys, setRemoveAiKeys] = useState(false);
 	const [resetStatus, setResetStatus] = useState<string | null>(null);
 	const [resetProgress, setResetProgress] = useState<{
 		completed: number;
@@ -447,6 +448,7 @@ export function LocalDataSection() {
 
 	function resetDesktopResetFlow() {
 		setResetConfirm("");
+		setRemoveAiKeys(false);
 		setResetStatus(null);
 		setResetProgress(null);
 		setResetStartedAt(null);
@@ -909,6 +911,24 @@ export function LocalDataSection() {
 				setResetProgress((current) => current ?? { completed: 0, total: 0, percent: 100 });
 				setResetStatus("Desktop data cleared. Reloading Skriuw…");
 			});
+			// OS-stored AI keys live outside the app-data directories a reset
+			// wipes, so they are only removed when the user explicitly opts in.
+			// If that removal fails (locked/unavailable keychain), abort BEFORE
+			// wiping anything — otherwise the reset would report success while
+			// the keys survive on the machine.
+			if (removeAiKeys) {
+				try {
+					await tauriInvoke<void>("ai_clear_credentials");
+				} catch (error) {
+					setResetState("error");
+					setNotice(
+						error instanceof Error
+							? `Couldn't remove your saved AI keys: ${error.message}. Unlock your keychain and try again, or uncheck that option.`
+							: "Couldn't remove your saved AI keys. Unlock your keychain and try again, or uncheck that option.",
+					);
+					return;
+				}
+			}
 			await tauriInvoke<void>("reset_desktop_data", { progress });
 			window.location.reload();
 		} catch (error) {
@@ -1723,6 +1743,22 @@ export function LocalDataSection() {
 											placeholder={RESET_PHRASE}
 										/>
 									</div>
+									<label className="flex items-start gap-2 text-xs text-muted-foreground">
+										<input
+											type="checkbox"
+											className="mt-0.5"
+											checked={removeAiKeys}
+											disabled={busy === "reset"}
+											onChange={(event) =>
+												setRemoveAiKeys(event.target.checked)
+											}
+										/>
+										<span>
+											Also remove saved AI provider keys from this computer's
+											credential store. They live outside the app data a reset
+											clears, so they are kept unless you check this.
+										</span>
+									</label>
 									{busy === "reset" && (
 										<div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
 											<div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">

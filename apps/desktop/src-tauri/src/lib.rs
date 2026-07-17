@@ -2,6 +2,7 @@ mod ai;
 mod atomic_file;
 mod backup;
 mod content_analysis;
+mod credentials;
 mod import_export;
 mod markdown;
 mod settings;
@@ -1715,6 +1716,17 @@ pub fn run() {
             let vault = VaultStore::open(&vault_root)?;
             vault.set_cover_root(settings_snapshot.cover_assets_root);
             app.manage(settings);
+            app.manage(credentials::CredentialState::os());
+
+            // Move any legacy plaintext AI keys from settings.json into the OS
+            // credential store off the main thread (keychain access can block or
+            // prompt). Idempotent: retried on every launch until it succeeds.
+            let mig = handle.clone();
+            std::thread::spawn(move || {
+                let settings = mig.state::<SettingsStore>();
+                let creds = mig.state::<credentials::CredentialState>();
+                ai::migrate_legacy_secrets(&settings, creds.store());
+            });
 
             // The markdown vault is the source of truth; SQLite is a derived index
             // (FTS5 search, backlinks) kept in a separate `index.db` so the legacy
@@ -1873,6 +1885,7 @@ pub fn run() {
             ai::ai_get_config,
             ai::ai_set_config,
             ai::ai_set_key,
+            ai::ai_clear_credentials,
             ai::ai_complete,
             ai::ai_complete_stream,
             ai::ai_cancel_ai_stream,
