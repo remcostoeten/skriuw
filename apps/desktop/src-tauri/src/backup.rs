@@ -48,20 +48,6 @@ pub enum SnapshotEvent {
     },
 }
 
-#[cfg(test)]
-fn snapshot_manifest(
-    app_data_dir: &Path,
-    app_local_data_dir: &Path,
-    vault_root: &Path,
-) -> SnapshotManifest {
-    SnapshotManifest {
-        version: 1,
-        app_data_dir: app_data_dir.to_string_lossy().into_owned(),
-        app_local_data_dir: app_local_data_dir.to_string_lossy().into_owned(),
-        vault_root: vault_root.to_string_lossy().into_owned(),
-    }
-}
-
 fn add_dir_prefixed<F>(
     zip: &mut zip::ZipWriter<File>,
     base: &Path,
@@ -121,11 +107,6 @@ pub fn read_snapshot_manifest(zip_path: &Path) -> io::Result<SnapshotManifest> {
     let mut body = Vec::new();
     io::Read::read_to_end(&mut manifest, &mut body)?;
     serde_json::from_slice(&body).map_err(io::Error::other)
-}
-
-fn clear_root(dir: &Path) -> io::Result<()> {
-    fs::create_dir_all(dir)?;
-    clear_dir_contents(dir)
 }
 
 fn clear_dir_contents_with_progress<F>(dir: &Path, on_file: &mut F) -> io::Result<()>
@@ -495,7 +476,9 @@ fn add_dir(
 
 /// Extract every entry of `zip_path` under `dest_dir` (created if missing).
 /// Entries are confined to `dest_dir`; any path that would escape it (zip-slip)
-/// is rejected.
+/// is rejected. Superseded for restore by the staged flow; retained to test the
+/// plain zip roundtrip.
+#[cfg(test)]
 pub fn unzip_into(zip_path: &Path, dest_dir: &Path) -> io::Result<()> {
     fs::create_dir_all(dest_dir)?;
     let file = File::open(zip_path)?;
@@ -526,62 +509,578 @@ pub fn unzip_into(zip_path: &Path, dest_dir: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Restores a full desktop snapshot into the given app data, local data, and
-/// vault roots. Existing contents at those targets are removed first.
-pub fn restore_snapshot(
-    zip_path: &Path,
-    app_data_dir: &Path,
-    app_local_data_dir: &Path,
-) -> io::Result<SnapshotManifest> {
-    let manifest = read_snapshot_manifest(zip_path)?;
-    clear_root(app_data_dir)?;
-    clear_root(app_local_data_dir)?;
-    let vault_root = PathBuf::from(&manifest.vault_root);
-    clear_root(&vault_root)?;
+// ---------------------------------------------------------------------------
+// Staged, non-destructive restore (DH-02)
+//
+// Restores never clear live data before the replacement is fully extracted and
+// validated. The flow is inspect → stage → commit → verify → cleanup:
+//
+// - `inspect_restore` reads only the archive's central directory and rejects
+//   anything unsafe (path escapes, duplicates, encrypted entries, oversized
+//   archives, unsupported manifest versions) before any byte is extracted.
+// - `stage_restore` extracts into uniquely named, marker-tagged sibling
+//   staging directories on the same filesystem as each live root and validates
+//   the staged vault (and SQLite index, when present) there.
+// - `commit_restore` swaps each live root aside into a rollback directory and
+//   renames the staged directory into place; a failure rolls completed swaps
+//   back in reverse order.
+// - The caller verifies the rebound workspace and only then calls
+//   `discard_restore_receipt`. Rollback directories from a crashed restore are
+//   removed at the next launch, after the live workspace has reconciled
+//   (`cleanup_restore_artifacts`), and only when they carry our marker file.
+// ---------------------------------------------------------------------------
 
+const RESTORE_MARKER_FILE: &str = ".skriuw-restore-marker";
+const STAGING_PREFIX: &str = ".skriuw-restore-staging-";
+const ROLLBACK_PREFIX: &str = ".skriuw-restore-rollback-";
+
+/// Conservative archive limits. The entry cap defends against pathological
+/// central directories; the byte cap defends against ZIP bombs while still
+/// allowing complete snapshots that legitimately contain multi-gigabyte local
+/// Ollama models under `app-local-data/`.
+const MAX_RESTORE_ENTRIES: u64 = 500_000;
+const MAX_RESTORE_UNCOMPRESSED_BYTES: u64 = 256 * 1024 * 1024 * 1024;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RestoreKind {
+    VaultBackup,
+    Snapshot,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RestorePlan {
+    pub kind: RestoreKind,
+    pub manifest: Option<SnapshotManifest>,
+    pub entry_count: u64,
+    pub uncompressed_bytes: u64,
+    pub target_vault_root: PathBuf,
+}
+
+struct RestoreLimits {
+    max_entries: u64,
+    max_uncompressed_bytes: u64,
+}
+
+const DEFAULT_RESTORE_LIMITS: RestoreLimits = RestoreLimits {
+    max_entries: MAX_RESTORE_ENTRIES,
+    max_uncompressed_bytes: MAX_RESTORE_UNCOMPRESSED_BYTES,
+};
+
+fn invalid(message: impl Into<String>) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, message.into())
+}
+
+/// Reads the archive's central directory without extracting anything and
+/// builds a validated restore plan. Unsafe archives fail loudly here.
+pub fn inspect_restore(zip_path: &Path, current_vault: &Path) -> io::Result<RestorePlan> {
+    inspect_restore_with_limits(zip_path, current_vault, &DEFAULT_RESTORE_LIMITS)
+}
+
+fn inspect_restore_with_limits(
+    zip_path: &Path,
+    current_vault: &Path,
+    limits: &RestoreLimits,
+) -> io::Result<RestorePlan> {
     let file = File::open(zip_path)?;
     let mut archive = ZipArchive::new(file).map_err(map_zip)?;
+
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut entry_count: u64 = 0;
+    let mut uncompressed_bytes: u64 = 0;
+    let mut has_manifest = false;
+    let mut has_vault_artifact = false;
+    let mut top_level: std::collections::HashSet<String> = std::collections::HashSet::new();
+
     for index in 0..archive.len() {
-        let mut entry = archive.by_index(index).map_err(map_zip)?;
-        let rel = match entry.enclosed_name() {
-            Some(name) => name,
-            None => continue,
-        };
-        if rel == Path::new(SNAPSHOT_MANIFEST_FILE) {
-            continue;
+        let entry = archive.by_index_raw(index).map_err(map_zip)?;
+        if entry.encrypted() {
+            return Err(invalid("archive contains encrypted entries"));
         }
-        let mut components = rel.components();
-        let Some(prefix) = components
+        let raw_name = entry.name().to_string();
+        let Some(rel) = entry.enclosed_name() else {
+            return Err(invalid(format!(
+                "archive entry escapes its destination: {raw_name}"
+            )));
+        };
+        if !entry.is_dir() && !seen.insert(raw_name.clone()) {
+            return Err(invalid(format!(
+                "archive contains duplicate entry: {raw_name}"
+            )));
+        }
+        if !entry.is_dir() {
+            entry_count = entry_count
+                .checked_add(1)
+                .ok_or_else(|| invalid("archive entry count overflows"))?;
+            uncompressed_bytes = uncompressed_bytes
+                .checked_add(entry.size())
+                .ok_or_else(|| invalid("archive declared size overflows"))?;
+        }
+        if rel == Path::new(SNAPSHOT_MANIFEST_FILE) {
+            has_manifest = true;
+        }
+        if let Some(first) = rel
+            .components()
             .next()
             .and_then(|component| component.as_os_str().to_str())
-        else {
-            continue;
-        };
-        let target_dir = match prefix {
-            SNAPSHOT_APP_DATA_DIR => app_data_dir,
-            SNAPSHOT_APP_LOCAL_DATA_DIR => app_local_data_dir,
-            SNAPSHOT_VAULT_DIR => vault_root.as_path(),
-            _ => continue,
-        };
-        let stripped = components.collect::<PathBuf>();
-        let out = target_dir.join(stripped);
-        if !out.starts_with(target_dir) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "zip entry escapes destination",
-            ));
+        {
+            top_level.insert(first.to_string());
         }
-        if entry.is_dir() {
-            fs::create_dir_all(&out)?;
-        } else {
-            if let Some(parent) = out.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            let mut writer = File::create(&out)?;
-            io::copy(&mut entry, &mut writer)?;
+        let name = rel.to_string_lossy();
+        if name.ends_with(".md") || name.starts_with(".skriuw/") || name == ".skriuw" {
+            has_vault_artifact = true;
         }
     }
-    Ok(manifest)
+
+    if entry_count == 0 {
+        return Err(invalid("archive contains no files"));
+    }
+    if entry_count > limits.max_entries {
+        return Err(invalid(format!(
+            "archive has too many entries ({entry_count}; limit {})",
+            limits.max_entries
+        )));
+    }
+    if uncompressed_bytes > limits.max_uncompressed_bytes {
+        return Err(invalid(format!(
+            "archive is too large uncompressed ({uncompressed_bytes} bytes; limit {})",
+            limits.max_uncompressed_bytes
+        )));
+    }
+
+    if has_manifest {
+        let manifest = read_snapshot_manifest(zip_path)?;
+        if manifest.version == 0 {
+            return Err(invalid("snapshot manifest version 0 is not valid"));
+        }
+        if manifest.version > 1 {
+            return Err(invalid(format!(
+                "snapshot was created by a newer Skriuw (manifest version {}); update Skriuw to restore it",
+                manifest.version
+            )));
+        }
+        if manifest.vault_root.trim().is_empty() {
+            return Err(invalid("snapshot manifest has an empty vault root"));
+        }
+        for name in &top_level {
+            if !matches!(
+                name.as_str(),
+                SNAPSHOT_MANIFEST_FILE
+                    | SNAPSHOT_APP_DATA_DIR
+                    | SNAPSHOT_APP_LOCAL_DATA_DIR
+                    | SNAPSHOT_VAULT_DIR
+            ) {
+                return Err(invalid(format!(
+                    "snapshot contains an unexpected top-level entry: {name}"
+                )));
+            }
+        }
+        let target_vault_root = PathBuf::from(&manifest.vault_root);
+        return Ok(RestorePlan {
+            kind: RestoreKind::Snapshot,
+            manifest: Some(manifest),
+            entry_count,
+            uncompressed_bytes,
+            target_vault_root,
+        });
+    }
+
+    // A vault backup must actually look like a vault: at least one markdown
+    // note or `.skriuw/` metadata entry. An archive of unrelated files is
+    // rejected rather than emptied into the vault root. (An intentionally
+    // empty vault still exports `.skriuw/folders.json`, so it passes.)
+    if !has_vault_artifact {
+        return Err(invalid(
+            "archive does not look like a Skriuw vault backup (no .md notes or .skriuw metadata)",
+        ));
+    }
+    Ok(RestorePlan {
+        kind: RestoreKind::VaultBackup,
+        manifest: None,
+        entry_count,
+        uncompressed_bytes,
+        target_vault_root: current_vault.to_path_buf(),
+    })
+}
+
+/// One planned live-root replacement: fully staged content plus the live
+/// directory it will replace at commit time.
+#[derive(Debug)]
+struct PlannedSwap {
+    staged: PathBuf,
+    live: PathBuf,
+}
+
+#[derive(Debug)]
+pub struct StagedRestore {
+    swaps: Vec<PlannedSwap>,
+}
+
+#[cfg(test)]
+fn staged_restore_for_test(swaps: Vec<(PathBuf, PathBuf)>) -> StagedRestore {
+    StagedRestore {
+        swaps: swaps
+            .into_iter()
+            .map(|(staged, live)| PlannedSwap { staged, live })
+            .collect(),
+    }
+}
+
+/// Creates a uniquely named, marker-tagged staging directory next to `live` —
+/// same parent, therefore same filesystem, so the commit rename is atomic.
+fn create_staging_dir(live: &Path) -> io::Result<PathBuf> {
+    let parent = live
+        .parent()
+        .ok_or_else(|| invalid(format!("live root has no parent: {}", live.display())))?;
+    fs::create_dir_all(parent)?;
+    let dir = parent.join(format!("{STAGING_PREFIX}{}", uuid::Uuid::new_v4()));
+    fs::create_dir(&dir)?;
+    fs::write(dir.join(RESTORE_MARKER_FILE), b"skriuw restore staging\n")?;
+    Ok(dir)
+}
+
+fn remove_dirs(dirs: &[PathBuf]) {
+    for dir in dirs {
+        let _ = fs::remove_dir_all(dir);
+    }
+}
+
+fn extract_entry_into(
+    entry: &mut zip::read::ZipFile<'_>,
+    target_dir: &Path,
+    rel: &Path,
+) -> io::Result<()> {
+    let out = target_dir.join(rel);
+    if !out.starts_with(target_dir) {
+        return Err(invalid("zip entry escapes destination"));
+    }
+    if entry.is_dir() {
+        fs::create_dir_all(&out)?;
+        return Ok(());
+    }
+    if let Some(parent) = out.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut writer = File::create(&out)?;
+    io::copy(entry, &mut writer)?;
+    // Staged content becomes canonical user data at commit; flush it so a
+    // crash right after the swap cannot surface half-written notes.
+    writer.sync_all()?;
+    Ok(())
+}
+
+/// Extracts the archive into staging directories and validates the staged
+/// data. Live roots are never touched; any failure removes the staging
+/// directories and leaves the workspace exactly as it was.
+pub fn stage_restore(
+    zip_path: &Path,
+    plan: &RestorePlan,
+    app_data_dir: &Path,
+    app_local_data_dir: &Path,
+) -> io::Result<StagedRestore> {
+    let result = stage_restore_inner(zip_path, plan, app_data_dir, app_local_data_dir);
+    if let Err(error) = &result {
+        let _ = error;
+    }
+    result
+}
+
+fn stage_restore_inner(
+    zip_path: &Path,
+    plan: &RestorePlan,
+    app_data_dir: &Path,
+    app_local_data_dir: &Path,
+) -> io::Result<StagedRestore> {
+    let mut staging_dirs: Vec<PathBuf> = Vec::new();
+    let staged = (|| -> io::Result<StagedRestore> {
+        let file = File::open(zip_path)?;
+        let mut archive = ZipArchive::new(file).map_err(map_zip)?;
+
+        match plan.kind {
+            RestoreKind::VaultBackup => {
+                let staged_vault = create_staging_dir(&plan.target_vault_root)?;
+                staging_dirs.push(staged_vault.clone());
+                for index in 0..archive.len() {
+                    let mut entry = archive.by_index(index).map_err(map_zip)?;
+                    let Some(rel) = entry.enclosed_name() else {
+                        return Err(invalid("zip entry escapes destination"));
+                    };
+                    extract_entry_into(&mut entry, &staged_vault, &rel)?;
+                }
+                validate_staged_vault(&staged_vault)?;
+                Ok(StagedRestore {
+                    swaps: vec![PlannedSwap {
+                        staged: staged_vault,
+                        live: plan.target_vault_root.clone(),
+                    }],
+                })
+            }
+            RestoreKind::Snapshot => {
+                let local_is_distinct = !same_dir(app_data_dir, app_local_data_dir);
+                let staged_app_data = create_staging_dir(app_data_dir)?;
+                staging_dirs.push(staged_app_data.clone());
+                let staged_app_local = if local_is_distinct {
+                    let dir = create_staging_dir(app_local_data_dir)?;
+                    staging_dirs.push(dir.clone());
+                    Some(dir)
+                } else {
+                    None
+                };
+                let staged_vault = create_staging_dir(&plan.target_vault_root)?;
+                staging_dirs.push(staged_vault.clone());
+
+                for index in 0..archive.len() {
+                    let mut entry = archive.by_index(index).map_err(map_zip)?;
+                    let Some(rel) = entry.enclosed_name() else {
+                        return Err(invalid("zip entry escapes destination"));
+                    };
+                    if rel == Path::new(SNAPSHOT_MANIFEST_FILE) {
+                        continue;
+                    }
+                    let mut components = rel.components();
+                    let Some(prefix) = components
+                        .next()
+                        .and_then(|component| component.as_os_str().to_str())
+                        .map(str::to_owned)
+                    else {
+                        continue;
+                    };
+                    let target_dir = match prefix.as_str() {
+                        SNAPSHOT_APP_DATA_DIR => &staged_app_data,
+                        SNAPSHOT_APP_LOCAL_DATA_DIR => {
+                            staged_app_local.as_ref().unwrap_or(&staged_app_data)
+                        }
+                        SNAPSHOT_VAULT_DIR => &staged_vault,
+                        _ => {
+                            return Err(invalid(format!(
+                                "snapshot contains an unexpected top-level entry: {prefix}"
+                            )))
+                        }
+                    };
+                    let stripped = components.collect::<PathBuf>();
+                    extract_entry_into(&mut entry, target_dir, &stripped)?;
+                }
+
+                validate_staged_vault(&staged_vault)?;
+                validate_staged_index(&staged_app_data)?;
+
+                let mut swaps = vec![PlannedSwap {
+                    staged: staged_app_data,
+                    live: app_data_dir.to_path_buf(),
+                }];
+                if let Some(staged) = staged_app_local {
+                    swaps.push(PlannedSwap {
+                        staged,
+                        live: app_local_data_dir.to_path_buf(),
+                    });
+                }
+                swaps.push(PlannedSwap {
+                    staged: staged_vault,
+                    live: plan.target_vault_root.clone(),
+                });
+                Ok(StagedRestore { swaps })
+            }
+        }
+    })();
+    if staged.is_err() {
+        remove_dirs(&staging_dirs);
+    }
+    staged
+}
+
+/// Opens the staged vault with the real `VaultStore` and runs the same reads
+/// launch reconciliation performs, so a restore that would immediately fail
+/// reconciliation fails here instead — before any live data is touched.
+fn validate_staged_vault(staged_vault: &Path) -> io::Result<()> {
+    let marker = staged_vault.join(RESTORE_MARKER_FILE);
+    let vault = crate::vault::VaultStore::open(staged_vault)
+        .map_err(|error| invalid(format!("staged vault is not usable: {error}")))?;
+    vault
+        .list_folders()
+        .map_err(|error| invalid(format!("staged vault folders are unreadable: {error}")))?;
+    vault
+        .list_notes()
+        .map_err(|error| invalid(format!("staged vault notes are unreadable: {error}")))?;
+    vault
+        .list_journal_entries()
+        .map_err(|error| invalid(format!("staged vault journal is unreadable: {error}")))?;
+    vault
+        .list_trash()
+        .map_err(|error| invalid(format!("staged vault trash index is unreadable: {error}")))?;
+    // `VaultStore::open` writes an empty folder index when missing; that is
+    // also what a fresh vault gets, so it is safe for staged content. Restore
+    // the marker in case open touched the directory.
+    if !marker.exists() {
+        fs::write(&marker, b"skriuw restore staging\n")?;
+    }
+    Ok(())
+}
+
+/// A staged snapshot may carry `index.db`. If it opens, keep it; if it is
+/// corrupt, discard it (plus WAL/SHM sidecars) so the post-restore reconcile
+/// rebuilds the index from the staged vault instead of failing the restore.
+fn validate_staged_index(staged_app_data: &Path) -> io::Result<()> {
+    let index_path = staged_app_data.join("index.db");
+    if !index_path.exists() {
+        return Ok(());
+    }
+    if crate::storage::Storage::open(&index_path).is_err() {
+        fs::remove_file(&index_path)?;
+        for sidecar in ["index.db-wal", "index.db-shm"] {
+            let _ = fs::remove_file(staged_app_data.join(sidecar));
+        }
+    }
+    Ok(())
+}
+
+/// One completed live-root swap: where the live data now is, and where the
+/// previous data was parked for rollback (`None` when the live root did not
+/// exist before the restore).
+#[derive(Debug)]
+pub struct CompletedSwap {
+    pub live: PathBuf,
+    pub rollback: Option<PathBuf>,
+    staged_origin: PathBuf,
+}
+
+#[derive(Debug, Default)]
+pub struct RestoreReceipt {
+    pub swaps: Vec<CompletedSwap>,
+}
+
+impl RestoreReceipt {
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn rollback_paths(&self) -> Vec<PathBuf> {
+        self.swaps
+            .iter()
+            .filter_map(|swap| swap.rollback.clone())
+            .collect()
+    }
+}
+
+/// Swaps every staged directory into its live path. Each live root is renamed
+/// aside to a rollback sibling first, so the previous workspace stays complete
+/// on disk until `discard_restore_receipt`. If any swap fails, all completed
+/// swaps are undone in reverse order and the error reports whether the
+/// original workspace was preserved.
+pub fn commit_restore(staged: StagedRestore) -> io::Result<RestoreReceipt> {
+    let mut receipt = RestoreReceipt::default();
+    for swap in &staged.swaps {
+        // The marker never belongs in live data.
+        let _ = fs::remove_file(swap.staged.join(RESTORE_MARKER_FILE));
+
+        let rollback = if swap.live.exists() {
+            let parent = swap.live.parent().ok_or_else(|| {
+                invalid(format!("live root has no parent: {}", swap.live.display()))
+            })?;
+            let rollback = parent.join(format!("{ROLLBACK_PREFIX}{}", uuid::Uuid::new_v4()));
+            if let Err(error) = fs::rename(&swap.live, &rollback) {
+                rollback_receipt(&receipt);
+                return Err(io::Error::new(
+                    error.kind(),
+                    format!(
+                        "could not move the current data aside ({} -> {}): {error}",
+                        swap.live.display(),
+                        rollback.display()
+                    ),
+                ));
+            }
+            Some(rollback)
+        } else {
+            None
+        };
+
+        if let Err(error) = fs::rename(&swap.staged, &swap.live) {
+            if let Some(rollback) = &rollback {
+                let _ = fs::rename(rollback, &swap.live);
+            }
+            rollback_receipt(&receipt);
+            return Err(io::Error::new(
+                error.kind(),
+                format!(
+                    "could not install the restored data at {}: {error}",
+                    swap.live.display()
+                ),
+            ));
+        }
+        if let Some(rollback) = &rollback {
+            let _ = fs::write(
+                rollback.join(RESTORE_MARKER_FILE),
+                b"skriuw restore rollback\n",
+            );
+        }
+        receipt.swaps.push(CompletedSwap {
+            live: swap.live.clone(),
+            rollback,
+            staged_origin: swap.staged.clone(),
+        });
+    }
+    Ok(receipt)
+}
+
+/// Undoes every completed swap in reverse order: the restored content moves
+/// back to its staging name and the rollback directory returns to the live
+/// path. Returns the paths that could NOT be restored (empty on full success).
+pub fn rollback_receipt(receipt: &RestoreReceipt) -> Vec<PathBuf> {
+    let mut failed = Vec::new();
+    for swap in receipt.swaps.iter().rev() {
+        let undone = fs::rename(&swap.live, &swap.staged_origin).is_ok()
+            || fs::remove_dir_all(&swap.live).is_ok();
+        if !undone {
+            failed.push(swap.live.clone());
+            continue;
+        }
+        if let Some(rollback) = &swap.rollback {
+            let _ = fs::remove_file(rollback.join(RESTORE_MARKER_FILE));
+            if fs::rename(rollback, &swap.live).is_err() {
+                failed.push(rollback.clone());
+            }
+        }
+    }
+    failed
+}
+
+/// Deletes the retained previous-workspace directories. Call only after the
+/// restored workspace has rebound and passed its post-restore smoke read.
+pub fn discard_restore_receipt(receipt: &RestoreReceipt) {
+    for swap in &receipt.swaps {
+        if let Some(rollback) = &swap.rollback {
+            let _ = fs::remove_dir_all(rollback);
+        }
+        let _ = fs::remove_dir_all(&swap.staged_origin);
+    }
+}
+
+/// Startup cleanup for restore leftovers: removes marker-tagged staging and
+/// rollback siblings of the given live roots. Only directories carrying our
+/// marker file are touched — a name that merely resembles ours is left alone.
+/// Call after the live workspace has been opened and reconciled, which is the
+/// verification the rollback-retention policy requires.
+pub fn cleanup_restore_artifacts(live_roots: &[&Path]) {
+    let mut parents: Vec<PathBuf> = Vec::new();
+    for root in live_roots {
+        if let Some(parent) = root.parent() {
+            if !parents.contains(&parent.to_path_buf()) {
+                parents.push(parent.to_path_buf());
+            }
+        }
+    }
+    for parent in parents {
+        let Ok(entries) = fs::read_dir(&parent) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            let is_ours = name.starts_with(STAGING_PREFIX) || name.starts_with(ROLLBACK_PREFIX);
+            if is_ours && path.join(RESTORE_MARKER_FILE).exists() {
+                let _ = fs::remove_dir_all(&path);
+            }
+        }
+    }
 }
 
 /// Remove every entry inside `dir` while keeping `dir` itself.
@@ -668,60 +1167,238 @@ mod tests {
         );
     }
 
-    #[test]
-    fn snapshot_roundtrips_app_data_local_data_and_vault() {
-        let app_data = tempfile::tempdir().unwrap();
+    /// Builds a valid version-1 snapshot zip inside `home`. The manifest's
+    /// `vaultRoot` points at `vault_target` so restore installs there.
+    fn build_snapshot(home: &Path, vault_target: &Path) -> PathBuf {
+        let app_data = home.join("src/app-data");
+        let app_local = home.join("src/app-local");
+        let vault = home.join("src/vault");
         write(
-            &app_data.path().join("settings.json"),
+            &app_data.join("settings.json"),
             "{\"vaultRoot\":\"/vault\"}",
         );
-        write(&app_data.path().join("index.db"), "index");
+        write(&app_data.join("index.db"), "not-a-real-db");
+        write(&app_local.join("ollama/models/model.bin"), "model");
+        write(&vault.join("note.md"), "---\nid: \"n1\"\n---\n# Hello");
+        write(&vault.join(".skriuw/folders.json"), "[]");
 
-        let app_local = tempfile::tempdir().unwrap();
-        write(&app_local.path().join("ollama/models/model.bin"), "model");
+        let zip_path = home.join("snapshot.zip");
+        let manifest = SnapshotManifest {
+            version: 1,
+            app_data_dir: "/old/app-data".to_string(),
+            app_local_data_dir: "/old/app-local".to_string(),
+            vault_root: vault_target.to_string_lossy().into_owned(),
+        };
+        zip_snapshot(&manifest, &app_data, &app_local, &vault, &zip_path).unwrap();
+        zip_path
+    }
 
-        let vault = tempfile::tempdir().unwrap();
-        write(&vault.path().join("note.md"), "# Hello");
-        write(&vault.path().join(".skriuw/folders.json"), "[]");
+    fn build_vault_backup(home: &Path) -> PathBuf {
+        let src = home.join("vault-src");
+        write(&src.join("Note.md"), "---\nid: \"n1\"\n---\nbody");
+        write(&src.join(".skriuw/folders.json"), "[]");
+        let zip_path = home.join("vault.zip");
+        zip_dir(&src, &zip_path).unwrap();
+        zip_path
+    }
 
+    #[test]
+    fn inspect_accepts_valid_snapshot_and_vault_and_reports_target() {
+        let home = tempfile::tempdir().unwrap();
+        let live_vault = tempfile::tempdir().unwrap();
+        let snap_zip = build_snapshot(home.path(), live_vault.path());
+        let plan = inspect_restore(&snap_zip, live_vault.path()).unwrap();
+        assert_eq!(plan.kind, RestoreKind::Snapshot);
+        assert_eq!(plan.target_vault_root, live_vault.path());
+        assert!(plan.manifest.is_some());
+
+        let vault_zip = build_vault_backup(home.path());
+        let vplan = inspect_restore(&vault_zip, live_vault.path()).unwrap();
+        assert_eq!(vplan.kind, RestoreKind::VaultBackup);
+        assert_eq!(vplan.target_vault_root, live_vault.path());
+    }
+
+    #[test]
+    fn inspect_rejects_future_manifest_version() {
+        let live_vault = tempfile::tempdir().unwrap();
+        let src = tempfile::tempdir().unwrap();
+        let vault = src.path().join("vault");
+        write(&vault.join("note.md"), "# Hello");
         let zip_dir = tempfile::tempdir().unwrap();
-        let zip_path = zip_dir.path().join("snapshot.zip");
-        let manifest = snapshot_manifest(app_data.path(), app_local.path(), vault.path());
-        zip_snapshot(
-            &manifest,
-            app_data.path(),
-            app_local.path(),
-            vault.path(),
-            &zip_path,
+        let zip_path = zip_dir.path().join("future.zip");
+        let manifest = SnapshotManifest {
+            version: 99,
+            app_data_dir: String::new(),
+            app_local_data_dir: String::new(),
+            vault_root: live_vault.path().to_string_lossy().into_owned(),
+        };
+        zip_snapshot(&manifest, src.path(), src.path(), &vault, &zip_path).unwrap();
+        let error = inspect_restore(&zip_path, live_vault.path()).unwrap_err();
+        assert!(error.to_string().contains("newer Skriuw"));
+    }
+
+    #[test]
+    fn inspect_rejects_non_vault_archive_without_manifest() {
+        let home = tempfile::tempdir().unwrap();
+        let live_vault = tempfile::tempdir().unwrap();
+        let src = home.path().join("random-src");
+        write(&src.join("random.txt"), "not a vault");
+        let zip_path = home.path().join("random.zip");
+        zip_dir(&src, &zip_path).unwrap();
+        let error = inspect_restore(&zip_path, live_vault.path()).unwrap_err();
+        assert!(error.to_string().contains("does not look like"));
+    }
+
+    #[test]
+    fn inspect_rejects_oversized_archive_via_limits() {
+        let home = tempfile::tempdir().unwrap();
+        let live_vault = tempfile::tempdir().unwrap();
+        let vault_zip = build_vault_backup(home.path());
+        let tight = RestoreLimits {
+            max_entries: 1,
+            max_uncompressed_bytes: MAX_RESTORE_UNCOMPRESSED_BYTES,
+        };
+        let error = inspect_restore_with_limits(&vault_zip, live_vault.path(), &tight).unwrap_err();
+        assert!(error.to_string().contains("too many entries"));
+    }
+
+    /// A live root inside its own private parent, so scanning the parent for
+    /// staging/rollback leftovers is not polluted by other parallel tests that
+    /// also create tempdirs under the shared system temp directory.
+    fn isolated_live_root(home: &Path, name: &str) -> PathBuf {
+        let root = home.join(format!("live-{name}"));
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    fn has_restore_leftovers(parent: &Path) -> bool {
+        fs::read_dir(parent)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .any(|entry| {
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                name.starts_with(STAGING_PREFIX) || name.starts_with(ROLLBACK_PREFIX)
+            })
+    }
+
+    #[test]
+    fn vault_restore_swaps_content_and_leaves_no_staging() {
+        let home = tempfile::tempdir().unwrap();
+        let vault_home = tempfile::tempdir().unwrap();
+        let live_vault = isolated_live_root(vault_home.path(), "vault");
+        write(&live_vault.join("Old.md"), "old content");
+        let vault_zip = build_vault_backup(home.path());
+
+        let plan = inspect_restore(&vault_zip, &live_vault).unwrap();
+        let app_data = tempfile::tempdir().unwrap();
+        let staged = stage_restore(&vault_zip, &plan, app_data.path(), app_data.path()).unwrap();
+        // Live root untouched until commit.
+        assert!(live_vault.join("Old.md").exists());
+        let receipt = commit_restore(staged).unwrap();
+
+        assert!(live_vault.join("Note.md").exists());
+        assert!(!live_vault.join("Old.md").exists());
+        // Previous workspace retained for rollback until discard.
+        assert_eq!(receipt.rollback_paths().len(), 1);
+        assert!(receipt.rollback_paths()[0].join("Old.md").exists());
+
+        discard_restore_receipt(&receipt);
+        cleanup_restore_artifacts(&[&live_vault]);
+        assert!(!has_restore_leftovers(vault_home.path()));
+    }
+
+    #[test]
+    fn corrupt_archive_leaves_live_roots_unchanged() {
+        let home = tempfile::tempdir().unwrap();
+        let vault_home = tempfile::tempdir().unwrap();
+        let live_vault = isolated_live_root(vault_home.path(), "vault");
+        write(&live_vault.join("Old.md"), "keep me");
+        // A ZIP whose central directory is fine but whose entry data is
+        // truncated: build a normal zip then chop its tail.
+        let vault_zip = build_vault_backup(home.path());
+        let bytes = fs::read(&vault_zip).unwrap();
+        let truncated = vault_zip.with_extension("trunc.zip");
+        fs::write(&truncated, &bytes[..bytes.len() / 2]).unwrap();
+
+        // Inspection or staging must fail; either way the live root is intact.
+        let result = inspect_restore(&truncated, &live_vault).and_then(|plan| {
+            let app_data = tempfile::tempdir().unwrap();
+            stage_restore(&truncated, &plan, app_data.path(), app_data.path())?;
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(live_vault.join("Old.md")).unwrap(),
+            "keep me"
+        );
+        assert!(
+            !has_restore_leftovers(vault_home.path()),
+            "failed staging must remove its staging dirs"
+        );
+    }
+
+    #[test]
+    fn partial_commit_rolls_back_completed_swaps_in_reverse() {
+        // Two completed swaps, then a rollback: both live roots return to their
+        // previous content and the restored content goes back to staging.
+        let parent = tempfile::tempdir().unwrap();
+        let live_a = parent.path().join("a");
+        let live_b = parent.path().join("b");
+        let staged_a = parent.path().join(".skriuw-restore-staging-a");
+        let staged_b = parent.path().join(".skriuw-restore-staging-b");
+        write(&live_a.join("f"), "old-a");
+        write(&live_b.join("f"), "old-b");
+        write(&staged_a.join("f"), "new-a");
+        write(&staged_b.join("f"), "new-b");
+
+        let staged = staged_restore_for_test(vec![
+            (staged_a.clone(), live_a.clone()),
+            (staged_b.clone(), live_b.clone()),
+        ]);
+        let receipt = commit_restore(staged).unwrap();
+        assert_eq!(fs::read_to_string(live_a.join("f")).unwrap(), "new-a");
+        assert_eq!(fs::read_to_string(live_b.join("f")).unwrap(), "new-b");
+
+        let failed = rollback_receipt(&receipt);
+        assert!(failed.is_empty());
+        assert_eq!(fs::read_to_string(live_a.join("f")).unwrap(), "old-a");
+        assert_eq!(fs::read_to_string(live_b.join("f")).unwrap(), "old-b");
+    }
+
+    #[test]
+    fn snapshot_restore_installs_all_three_roots() {
+        let home = tempfile::tempdir().unwrap();
+        let live_vault = tempfile::tempdir().unwrap();
+        write(&live_vault.path().join("Old.md"), "old");
+        let live_app_data = tempfile::tempdir().unwrap();
+        write(&live_app_data.path().join("stale"), "stale");
+        let live_app_local = tempfile::tempdir().unwrap();
+
+        let snap_zip = build_snapshot(home.path(), live_vault.path());
+        let plan = inspect_restore(&snap_zip, live_vault.path()).unwrap();
+        let staged = stage_restore(
+            &snap_zip,
+            &plan,
+            live_app_data.path(),
+            live_app_local.path(),
         )
         .unwrap();
+        let receipt = commit_restore(staged).unwrap();
 
-        clear_dir_contents(app_data.path()).unwrap();
-        clear_dir_contents(app_local.path()).unwrap();
-        clear_dir_contents(vault.path()).unwrap();
-
-        let restored = restore_snapshot(&zip_path, app_data.path(), app_local.path()).unwrap();
-        assert_eq!(restored, manifest);
+        assert!(live_vault.path().join("note.md").exists());
+        assert!(!live_vault.path().join("Old.md").exists());
         assert_eq!(
-            fs::read_to_string(app_data.path().join("settings.json")).unwrap(),
+            fs::read_to_string(live_app_data.path().join("settings.json")).unwrap(),
             "{\"vaultRoot\":\"/vault\"}"
         );
-        assert_eq!(
-            fs::read_to_string(app_data.path().join("index.db")).unwrap(),
-            "index"
-        );
-        assert_eq!(
-            fs::read_to_string(app_local.path().join("ollama/models/model.bin")).unwrap(),
-            "model"
-        );
-        assert_eq!(
-            fs::read_to_string(vault.path().join("note.md")).unwrap(),
-            "# Hello"
-        );
-        assert_eq!(
-            fs::read_to_string(vault.path().join(".skriuw/folders.json")).unwrap(),
-            "[]"
-        );
+        assert!(live_app_local
+            .path()
+            .join("ollama/models/model.bin")
+            .exists());
+        // A corrupt staged index.db is dropped, not restored.
+        assert!(!live_app_data.path().join("index.db").exists());
+        discard_restore_receipt(&receipt);
     }
 
     #[test]
