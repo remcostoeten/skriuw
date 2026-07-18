@@ -33,6 +33,7 @@ import {
 import { JournalIcsExportDialog } from "./journal-ics-export-dialog";
 import { JournalIcsImportDialog } from "./journal-ics-import-dialog";
 import { JournalCalendarFeedDialog } from "./journal-calendar-feed-dialog";
+import { JournalCalendarSubscriptionsDialog } from "./journal-calendar-subscriptions-dialog";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Calendar } from "@/shared/ui/calendar";
@@ -132,6 +133,7 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 	const [icsExportOpen, setIcsExportOpen] = useState(false);
 	const [icsImportOpen, setIcsImportOpen] = useState(false);
 	const [calendarFeedOpen, setCalendarFeedOpen] = useState(false);
+	const [subscriptionsOpen, setSubscriptionsOpen] = useState(false);
 	const deferredSearchQuery = useDeferredValue(searchQuery);
 	const selectedMood: MoodLevel | "all" = "all";
 
@@ -224,6 +226,10 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 				entries={entries}
 			/>
 			<JournalCalendarFeedDialog open={calendarFeedOpen} onOpenChange={setCalendarFeedOpen} />
+			<JournalCalendarSubscriptionsDialog
+				open={subscriptionsOpen}
+				onOpenChange={setSubscriptionsOpen}
+			/>
 			<div className="flex h-11 items-center justify-between border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
 				<h2 className="text-sm font-semibold text-foreground">Journal</h2>
 				<div className="flex items-center gap-0.5">
@@ -258,6 +264,10 @@ export function JournalSidebar({ selectedDate, onSelectDate, className }: Journa
 									Live subscription (web only)
 								</DropdownMenuItem>
 							)}
+							<DropdownMenuItem onSelect={() => setSubscriptionsOpen(true)}>
+								<CalendarDays className="h-3.5 w-3.5" strokeWidth={1.5} />
+								Auto-import calendars
+							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
 					<button

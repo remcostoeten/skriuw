@@ -14,6 +14,7 @@ import { GuestWorkspaceBootstrap } from "@/providers/guest-workspace-bootstrap";
 import { QueryCachePersistence } from "@/providers/query-cache-persistence";
 import { WorkspaceWarmup } from "@/providers/workspace-warmup";
 import { DesktopCloudSync } from "@/features/desktop/desktop-cloud-sync";
+import { DesktopCalendarSync } from "@/features/desktop/desktop-calendar-sync";
 import { ShortcutProvider } from "@/core/shortcuts";
 import { GlobalShortcutHandlers } from "@/core/shortcuts/global-shortcut-handlers";
 import { CommandProvider } from "@/core/commands";
@@ -105,6 +106,7 @@ export function AppProviders({ children, initialEditorPreferences, initialAuthUs
 								<GuestWorkspaceBootstrap />
 								<WorkspaceWarmup />
 								<DesktopCloudSync />
+								<DesktopCalendarSync />
 								<ThemeAttribute />
 								<ShortcutProvider>
 									<DesktopQuitShortcut />
