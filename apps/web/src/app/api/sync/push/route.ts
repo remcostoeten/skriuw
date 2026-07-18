@@ -61,6 +61,7 @@ export async function POST(request: Request) {
 			headers: CORS,
 		});
 	} catch (error) {
+		console.error("[sync/push] failed", error);
 		const message =
 			error instanceof SyntaxError
 				? "Invalid sync snapshot."
