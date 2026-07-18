@@ -10,18 +10,21 @@ type MobilePreferences = {
 	editorFontSize: EditorFontSize;
 	editorLineHeight: EditorLineHeight;
 	spellCheck: boolean;
+	calendarAutoSync: boolean;
 };
 
 type MobilePreferencesContext = MobilePreferences & {
 	setEditorFontSize: (value: EditorFontSize) => void;
 	setEditorLineHeight: (value: EditorLineHeight) => void;
 	setSpellCheck: (value: boolean) => void;
+	setCalendarAutoSync: (value: boolean) => void;
 };
 
 const defaults: MobilePreferences = {
 	editorFontSize: "medium",
 	editorLineHeight: "comfortable",
 	spellCheck: true,
+	calendarAutoSync: false,
 };
 
 const PreferencesContext = createContext<MobilePreferencesContext | null>(null);
@@ -54,6 +57,10 @@ export function MobilePreferencesProvider({ children }: { children: ReactNode })
 						typeof value.spellCheck === "boolean"
 							? value.spellCheck
 							: defaults.spellCheck,
+					calendarAutoSync:
+						typeof value.calendarAutoSync === "boolean"
+							? value.calendarAutoSync
+							: defaults.calendarAutoSync,
 				});
 			} catch {
 				// Ignore malformed local preferences and retain safe defaults.
@@ -78,6 +85,7 @@ export function MobilePreferencesProvider({ children }: { children: ReactNode })
 			setEditorFontSize: (editorFontSize) => update({ editorFontSize }),
 			setEditorLineHeight: (editorLineHeight) => update({ editorLineHeight }),
 			setSpellCheck: (spellCheck) => update({ spellCheck }),
+			setCalendarAutoSync: (calendarAutoSync) => update({ calendarAutoSync }),
 		}),
 		[preferences],
 	);

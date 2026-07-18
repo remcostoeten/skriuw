@@ -62,6 +62,26 @@ Authenticated web users can create a subscription URL from **Journal → Calenda
 
 The feed is read-only and calendar apps choose their own refresh interval. Treat its URL like a password: anyone holding it can read journal event titles and descriptions. Creating and managing feed URLs remains web-only because the desktop vault has no public server. When the user explicitly enables desktop cloud sync, synced desktop journal entries are included in that web feed. File import/export continues to work without cloud sync.
 
+## Automatic sync
+
+### Inbound: subscribe to external calendars
+
+**Journal → Calendar → Auto-import calendars** stores up to 5 external ICS URLs and imports their events into your journal roughly once a day. Where to find the URL:
+
+- **Google Calendar**: Settings → your calendar → "Integrate calendar" → **Secret address in iCal format**. Treat it like a password. Google serves this feed with its own lag (up to ~12–24 h), so total freshness is "within a day".
+- **Apple iCloud**: Calendar → share the calendar publicly → copy the `webcal://` link (accepted and rewritten to https).
+
+Per-subscription import mode: **Never overwrite my entries** (default; a day that already has an entry is left untouched) or **Update matching entries** (reconciles by calendar UID and replaces the entry's text). Each row shows the last sync result and has Sync now / pause / delete controls.
+
+- **Web**: subscriptions live in the database (`CalendarSubscription`); a Vercel cron (`/api/cron/sync-calendars`, daily at 05:00 UTC, guarded by `CRON_SECRET`) fetches each due URL server-side through an SSRF-guarded fetcher (`apps/web/src/lib/safe-fetch-ics.ts`: https-only, public-IP-only including redirect hops, 15 s timeout, 5 MB cap) and applies it via the transactional import pipeline.
+- **Desktop**: subscriptions live in local storage (`skriuw.calendar.subscriptions.v1`); a background task (`DesktopCalendarSync`) checks hourly while the app runs and imports any subscription older than ~20 h straight into the vault. Some hosts without CORS headers may fail in the desktop webview; the row shows the error and the sync retries next cycle.
+
+### Outbound: your journal in other calendars
+
+- **Web**: the live feed (above) is the auto-sync path — calendar apps re-poll it themselves.
+- **Desktop**: enable cloud sync, then use the web live feed; there is no local feed server.
+- **iPhone/iPad**: Settings → Editor → **Auto-sync Apple Calendar** re-runs the Apple Calendar sync ~5 s after every journal save. It is off by default and never prompts for permission — run the manual Apple Calendar sync once first to grant access.
+
 ## Apple Calendar on iPhone and iPad
 
 The mobile Journal header has a labeled **Apple Calendar** action. After the user grants iOS calendar access, Skriuw creates a dedicated **Skriuw Journal** calendar and reconciles journal entries into all-day events.
