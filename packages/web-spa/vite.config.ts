@@ -1,7 +1,10 @@
 import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
+
+const analyze = process.env.ANALYZE === "true";
 
 function fromHere(path: string) {
 	return fileURLToPath(new URL(path, import.meta.url));
@@ -12,7 +15,17 @@ const appGenerated = fromHere("../../generated");
 const shims = fromHere("./src/shims");
 
 export default defineConfig({
-	plugins: [react(), tailwindcss()],
+	plugins: [
+		react(),
+		tailwindcss(),
+		analyze &&
+			visualizer({
+				filename: "dist/bundle-report.html",
+				template: "treemap",
+				gzipSize: true,
+				brotliSize: true,
+			}),
+	],
 	resolve: {
 		dedupe: ["react", "react-dom", "@tanstack/react-query"],
 		alias: [
