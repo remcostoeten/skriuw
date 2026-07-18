@@ -195,6 +195,8 @@ function EditorSettings() {
 		setEditorLineHeight,
 		spellCheck,
 		setSpellCheck,
+		calendarAutoSync,
+		setCalendarAutoSync,
 	} = useMobilePreferences();
 	return (
 		<Section title="Editor" description="Writing experience">
@@ -226,6 +228,17 @@ function EditorSettings() {
 					onValueChange={setSpellCheck}
 					trackColor={{ false: theme.border, true: theme.foreground }}
 					thumbColor={spellCheck ? theme.background : theme.mutedForeground}
+				/>
+			</ControlRow>
+			<ControlRow
+				label="Auto-sync Apple Calendar"
+				description="Update the Skriuw Journal calendar after every save (iPhone/iPad, after the first manual sync)"
+			>
+				<Switch
+					value={calendarAutoSync}
+					onValueChange={setCalendarAutoSync}
+					trackColor={{ false: theme.border, true: theme.foreground }}
+					thumbColor={calendarAutoSync ? theme.background : theme.mutedForeground}
 				/>
 			</ControlRow>
 		</Section>

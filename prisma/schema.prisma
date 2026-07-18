@@ -39,6 +39,7 @@ model User {
   journalLinks           JournalLink[]
   journalTags            JournalTag[]
   journalFeedTokens      JournalFeedToken[]
+  calendarSubscriptions  CalendarSubscription[]
   userRecents            UserRecent[]
   aiProviderKeys         AiProviderKey[]
   syncTokens             SyncToken[]
@@ -411,6 +412,29 @@ model JournalFeedToken {
 
   @@index([userId, revokedAt, createdAt(sort: Desc)])
   @@map("journal_feed_tokens")
+}
+
+// A saved external ICS URL (Google secret address, iCloud share link) that the
+// daily cron fetches and imports into the owner's journal. `mode` mirrors
+// JournalImportMode: "skip" never touches existing entries, "update" reconciles
+// by calendar UID.
+model CalendarSubscription {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url            String
+  label          String
+  mode           String    @default("skip")
+  enabled        Boolean   @default(true)
+  lastSyncAt     DateTime? @map("last_sync_at")
+  lastSyncStatus String?   @map("last_sync_status")
+  lastSyncError  String?   @map("last_sync_error")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([enabled, lastSyncAt])
+  @@map("calendar_subscriptions")
 }
 
 // Journal counterpart of NoteLink: the tag/person/note-link edges extracted from
