@@ -106,6 +106,7 @@ export function NotesLayoutShell({
 		metadataExitTransition,
 		metadataTransition,
 		metadataWidth,
+		metadataWidthMotion,
 		overlayTransition,
 		prefersReducedMotion,
 		setShowShortcutHelp,
@@ -114,6 +115,7 @@ export function NotesLayoutShell({
 		sidebarExitTransition,
 		sidebarTransition,
 		sidebarWidth,
+		sidebarWidthMotion,
 		showMetadata,
 		showSidebar,
 		showShortcutHelp,
@@ -262,16 +264,19 @@ export function NotesLayoutShell({
 													opacity: 1,
 													transition: { duration: 0.1, ease: "linear" },
 												}
-											: {
-													width: sidebarWidth,
-													opacity: 1,
-													transition: isSidebarResizing
-														? { duration: 0 }
-														: {
-																duration: 0.22,
-																ease: [0.23, 1, 0.32, 1],
-															},
-												}
+											: isSidebarResizing
+												? // While the drag streams into sidebarWidthMotion,
+													// width must stay out of `animate` or any unrelated
+													// commit snaps the panel back to the stale target.
+													{ opacity: 1 }
+												: {
+														width: sidebarWidth,
+														opacity: 1,
+														transition: {
+															duration: 0.22,
+															ease: [0.23, 1, 0.32, 1],
+														},
+													}
 									}
 									exit={
 										prefersReducedMotion
@@ -288,13 +293,24 @@ export function NotesLayoutShell({
 													},
 												}
 									}
-									style={{ overflow: "hidden", flexShrink: 0 }}
+									style={{
+										width: sidebarWidthMotion,
+										overflow: "hidden",
+										flexShrink: 0,
+									}}
 								>
-									<div
+									<m.div
 										ref={sidebarRef}
 										data-tour="sidebar"
 										className="relative h-full bg-sidebar"
-										style={{ width: sidebarWidth }}
+										style={{
+											// Committed width while idle keeps the open/close clip
+											// reveal (content never squishes); the live motion value
+											// takes over only while the drag handle is active.
+											width: isSidebarResizing
+												? sidebarWidthMotion
+												: sidebarWidth,
+										}}
 									>
 										<SidebarPanel
 											{...sidebarPanelProps}
@@ -309,7 +325,7 @@ export function NotesLayoutShell({
 										>
 											<div className="flex h-12 w-0.5 items-center justify-center rounded-full bg-foreground/8 transition-colors hover:bg-foreground/20" />
 										</div>
-									</div>
+									</m.div>
 								</m.div>
 							)}
 						</AnimatePresence>
@@ -395,16 +411,16 @@ export function NotesLayoutShell({
 																ease: "linear",
 															},
 														}
-													: {
-															width: metadataWidth,
-															opacity: 1,
-															transition: isMetadataResizing
-																? { duration: 0 }
-																: {
-																		duration: 0.22,
-																		ease: [0.23, 1, 0.32, 1],
-																	},
-														}
+													: isMetadataResizing
+														? { opacity: 1 }
+														: {
+																width: metadataWidth,
+																opacity: 1,
+																transition: {
+																	duration: 0.22,
+																	ease: [0.23, 1, 0.32, 1],
+																},
+															}
 											}
 											exit={
 												prefersReducedMotion
@@ -424,12 +440,20 @@ export function NotesLayoutShell({
 															},
 														}
 											}
-											style={{ overflow: "hidden", flexShrink: 0 }}
+											style={{
+												width: metadataWidthMotion,
+												overflow: "hidden",
+												flexShrink: 0,
+											}}
 										>
-											<div
+											<m.div
 												ref={metadataRef}
 												className="relative h-full bg-background"
-												style={{ width: metadataWidth }}
+												style={{
+													width: isMetadataResizing
+														? metadataWidthMotion
+														: metadataWidth,
+												}}
 											>
 												<div
 													role="separator"
@@ -456,7 +480,7 @@ export function NotesLayoutShell({
 													onShare={handleOpenShare}
 													className="h-full w-full shrink-0 xl:w-full"
 												/>
-											</div>
+											</m.div>
 										</m.div>
 									)}
 								</AnimatePresence>

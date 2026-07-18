@@ -274,6 +274,15 @@ export async function installNotesLayoutMocks(
 				set: () => undefined,
 			}),
 			useDragControls: () => ({}),
+			useMotionValue: (initial: unknown) => {
+				let value = initial;
+				return {
+					get: () => value,
+					set: (next: unknown) => {
+						value = next;
+					},
+				};
+			},
 			useReducedMotion: () => false,
 		};
 	});

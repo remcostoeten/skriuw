@@ -227,6 +227,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		handleDesktopSidebarResizeStart,
 		isMetadataResizing,
 		isSidebarResizing,
+		sidebarWidthMotion,
+		metadataWidthMotion,
 		overlayTransition,
 		sidebarTransition,
 		sidebarExitTransition,
@@ -236,6 +238,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		isMobile,
 		showSidebar,
 		showMetadata,
+		sidebarWidth,
+		metadataWidth,
 		setUIState,
 		setSidebarWidth,
 		setMetadataWidth,
@@ -1687,6 +1691,17 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[getFilesInFolder, getFoldersInFolder, countDescendants],
 	);
 
+	// Stable identities: inline arrows here would defeat memo(SidebarPanel) on
+	// every layout render, cascading into the full sidebar Radix/tooltip tree.
+	const handleCollapseAllFolders = useCallback(
+		() => collapseAllFolders(folders.map((folder) => folder.id)),
+		[collapseAllFolders, folders],
+	);
+	const handleExpandAllFolders = useCallback(
+		() => expandAllFolders(folders.map((folder) => folder.id)),
+		[expandAllFolders, folders],
+	);
+
 	const tabBar = useMemo(
 		() => ({
 			openInTabs,
@@ -1727,8 +1742,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 			(notesQuery.isPending || notesQuery.isFetching) && metadataFiles.length === 0,
 		actions: treeActions,
 		queries: treeQueries,
-		onCollapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
-		onExpandAllFolders: () => expandAllFolders(folders.map((folder) => folder.id)),
+		onCollapseAllFolders: handleCollapseAllFolders,
+		onExpandAllFolders: handleExpandAllFolders,
 		onCreateFile: handleCreateFile,
 		onCreateFolder: handleCreateFolder,
 		onCreationParentChange: setCreationParentFolderId,
@@ -1751,11 +1766,11 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		closeMetadata,
 		closeSidebar,
 		closeSplit,
-		collapseAllFolders: () => collapseAllFolders(folders.map((folder) => folder.id)),
+		collapseAllFolders: handleCollapseAllFolders,
 		countDescendants,
 		createFile: handleCreateFile,
 		createFolder: handleCreateFolder,
-		expandAllFolders: () => expandAllFolders(folders.map((folder) => folder.id)),
+		expandAllFolders: handleExpandAllFolders,
 		getFilesInFolder,
 		getFoldersInFolder,
 		handleDesktopMetadataResizeStart,
@@ -1782,6 +1797,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		metadataTransition,
 		metadataExitTransition,
 		metadataWidth,
+		metadataWidthMotion,
 		moveFile,
 		moveFolder,
 		overlayTransition,
@@ -1795,6 +1811,7 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		sidebarTransition,
 		sidebarExitTransition,
 		sidebarWidth,
+		sidebarWidthMotion,
 		showCommandPalette,
 		showMetadata,
 		showShortcutHelp,
