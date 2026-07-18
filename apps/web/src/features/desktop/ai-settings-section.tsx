@@ -81,6 +81,12 @@ const PROVIDER_LABELS: Record<AiProvider, string> = {
 	gemini: "Gemini (cloud)",
 };
 
+function providerKeyState(config: AiConfig, provider = config.provider): KeyState | null {
+	if (provider === "groq") return config.groqKeyState;
+	if (provider === "gemini") return config.geminiKeyState;
+	return null;
+}
+
 function formatBytes(bytes: number): string {
 	if (bytes <= 0) return "0 B";
 	const units = ["B", "KB", "MB", "GB"];
@@ -342,6 +348,10 @@ function DesktopAiSectionContent({
 	onSaveKey,
 }: DesktopAiSectionContentProps) {
 	const installedModels = catalog.filter((entry) => entry.installed);
+	const activeKeyState = providerKeyState(config);
+	const canPing = activeKeyState === null || activeKeyState === "present";
+	const pingLabel =
+		activeKeyState === "unavailable" ? "Keychain unavailable" : "API key required";
 
 	return (
 		<div>
@@ -366,7 +376,11 @@ function DesktopAiSectionContent({
 						</SelectTrigger>
 						<SelectContent>
 							{(Object.keys(PROVIDER_LABELS) as AiProvider[]).map((provider) => (
-								<SelectItem key={provider} value={provider}>
+								<SelectItem
+									key={provider}
+									value={provider}
+									disabled={providerKeyState(config, provider) === "unavailable"}
+								>
 									{PROVIDER_LABELS[provider]}
 								</SelectItem>
 							))}
@@ -390,8 +404,9 @@ function DesktopAiSectionContent({
 				>
 					<AsyncActionButton
 						onRun={onPing}
+						disabled={!canPing}
 						idleIcon={<Radio className="h-3.5 w-3.5" />}
-						label="Send ping"
+						label={canPing ? "Send ping" : pingLabel}
 						pendingLabel="Pinging\u2026"
 						successLabel="Replied"
 						failedLabel="Failed"

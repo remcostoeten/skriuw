@@ -1338,7 +1338,13 @@ export const FileList = memo(function FileList({
 			}
 
 			e.dataTransfer.dropEffect = "move";
-			setDropTarget({ id: targetId, type: targetType });
+			// dragover fires per pointer frame; bail out unless the target actually
+			// changed so the whole tree doesn't re-render at 60Hz mid-drag.
+			setDropTarget((prev) =>
+				prev && prev.id === targetId && prev.type === targetType
+					? prev
+					: { id: targetId, type: targetType },
+			);
 		},
 		[dragItem, getDescendantIds],
 	);
@@ -1362,11 +1368,15 @@ export const FileList = memo(function FileList({
 			}
 
 			e.dataTransfer.dropEffect = "move";
-			setDropTarget({
-				id: target.id,
-				type: "sibling",
-				position: getDropPosition(e) as DropPosition,
-			});
+			const position = getDropPosition(e) as DropPosition;
+			setDropTarget((prev) =>
+				prev &&
+				prev.id === target.id &&
+				prev.type === "sibling" &&
+				prev.position === position
+					? prev
+					: { id: target.id, type: "sibling", position },
+			);
 		},
 		[dragItem, getDescendantIds, getDropPosition],
 	);
