@@ -36,7 +36,6 @@ const config: NextConfig = {
 			"framer-motion",
 			"@blocknote/core",
 			"@blocknote/react",
-			"@blocknote/shadcn",
 		],
 		staleTimes: {
 			// Next 16 gives dynamic page segments a 0s client cache by default.
@@ -81,7 +80,7 @@ const config: NextConfig = {
 			},
 		];
 	},
-	transpilePackages: ["@blocknote/core", "@blocknote/react", "@blocknote/shadcn"],
+	transpilePackages: ["@blocknote/core", "@blocknote/react"],
 };
 
 export default config;
