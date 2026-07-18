@@ -58,12 +58,19 @@ export function AnalyticsMount() {
 			return;
 		}
 
-		initPostHog();
-		syncPostHogConsent(consent.consentGranted);
+		let cancelled = false;
+		void initPostHog().then(() => {
+			if (cancelled) return;
+			syncPostHogConsent(consent.consentGranted);
 
-		if (auth.phase === "authenticated" && auth.user && consent.consentGranted) {
-			identifyPostHogPerson(auth.user);
-		}
+			if (auth.phase === "authenticated" && auth.user && consent.consentGranted) {
+				identifyPostHogPerson(auth.user);
+			}
+		});
+
+		return () => {
+			cancelled = true;
+		};
 	}, [canTrack, consent.consentGranted, auth.phase, auth.user]);
 
 	if (isClientAnalyticsDisabled() || !ingestUrl || !canTrack) {
