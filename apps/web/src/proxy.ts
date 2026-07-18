@@ -70,6 +70,9 @@ export default async function proxy(req: NextRequest) {
 	// API routes return their own authentication responses; the page-navigation
 	// redirects below must never turn an API 401 into HTML.
 	if (path.startsWith("/api/")) return next();
+	// PostHog ingest traffic is rewritten upstream; a sign-in redirect here would
+	// silently drop every guest analytics event.
+	if (path.startsWith("/ph-ingest/")) return next();
 	// Cookie presence only — no session-table lookup on every navigation.
 	// Pages still verify the session server-side via getServerUser().
 	const hasSession = Boolean(getSessionCookie(req));

@@ -15,6 +15,9 @@ export function PostHogAnalytics() {
 		const key = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
 		if (!key || posthog.__loaded) return;
 
+		const { hostname } = window.location;
+		if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") return;
+
 		posthog.init(key, {
 			api_host: "/ph-ingest",
 			ui_host: process.env.NEXT_PUBLIC_POSTHOG_UI_HOST?.trim() || "https://us.posthog.com",
