@@ -34,6 +34,7 @@ export function JournalCalendarFeedDialog({ open, onOpenChange }: Props) {
 	const [error, setError] = useState<string>();
 	const [revealedToken, setRevealedToken] = useState<string>();
 	const [copied, setCopied] = useState(false);
+	const [target, setTarget] = useState<"apple" | "google" | "outlook">("apple");
 
 	async function loadTokens() {
 		setBusy(true);
@@ -146,29 +147,87 @@ export function JournalCalendarFeedDialog({ open, onOpenChange }: Props) {
 							This secret is shown once. Anyone with it can read your journal
 							calendar.
 						</p>
-						<div className="flex gap-2">
-							<button
-								type="button"
-								onClick={async () => {
-									await navigator.clipboard.writeText(httpsUrl);
-									setCopied(true);
-								}}
-								className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs"
-							>
-								{copied ? (
-									<Check className="h-3.5 w-3.5" />
-								) : (
-									<Copy className="h-3.5 w-3.5" />
-								)}
-								{copied ? "Copied" : "Copy URL"}
-							</button>
-							<a
-								href={webcalUrl}
-								className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-2.5 text-xs font-medium text-background"
-							>
-								<CalendarClock className="h-3.5 w-3.5" /> Subscribe
-							</a>
+						<div className="flex gap-1.5" role="tablist" aria-label="Calendar app">
+							{(
+								[
+									["apple", "Apple"],
+									["google", "Google"],
+									["outlook", "Outlook"],
+								] as const
+							).map(([id, name]) => (
+								<button
+									key={id}
+									type="button"
+									role="tab"
+									aria-selected={target === id}
+									onClick={() => setTarget(id)}
+									className={
+										target === id
+											? "rounded-md bg-foreground px-2 py-1 text-[11px] font-medium text-background"
+											: "rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+									}
+								>
+									{name}
+								</button>
+							))}
 						</div>
+						{target === "apple" ? (
+							<div className="space-y-2">
+								<p className="text-[11px] text-muted-foreground">
+									One click: the Subscribe button opens Apple Calendar (or your
+									default calendar app) with this feed pre-filled.
+								</p>
+								<a
+									href={webcalUrl}
+									className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-2.5 text-xs font-medium text-background"
+								>
+									<CalendarClock className="h-3.5 w-3.5" /> Subscribe
+								</a>
+							</div>
+						) : (
+							<div className="space-y-2">
+								<ol className="list-decimal space-y-1 pl-4 text-[11px] text-muted-foreground">
+									<li>Copy the URL.</li>
+									<li>
+										{target === "google"
+											? 'The button opens Google Calendar’s "From URL" page — paste and click "Add calendar".'
+											: 'The button opens Outlook’s "Subscribe from web" — paste, name it, and click "Import".'}
+									</li>
+								</ol>
+								<div className="flex gap-2">
+									<button
+										type="button"
+										onClick={async () => {
+											await navigator.clipboard.writeText(httpsUrl);
+											setCopied(true);
+										}}
+										className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs"
+									>
+										{copied ? (
+											<Check className="h-3.5 w-3.5" />
+										) : (
+											<Copy className="h-3.5 w-3.5" />
+										)}
+										{copied ? "Copied" : "Copy URL"}
+									</button>
+									<a
+										href={
+											target === "google"
+												? "https://calendar.google.com/calendar/r/settings/addbyurl"
+												: "https://outlook.live.com/calendar/0/addcalendar"
+										}
+										target="_blank"
+										rel="noreferrer"
+										className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-2.5 text-xs font-medium text-background"
+									>
+										<CalendarClock className="h-3.5 w-3.5" />
+										{target === "google"
+											? "Open Google Calendar"
+											: "Open Outlook"}
+									</a>
+								</div>
+							</div>
+						)}
 					</div>
 				)}
 
