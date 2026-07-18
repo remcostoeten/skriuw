@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type Transition, useDragControls, useReducedMotion } from "framer-motion";
+import { type Transition, useDragControls, useMotionValue, useReducedMotion } from "framer-motion";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { EASE_SHEET, EASE_SHEET_OUT } from "@/shared/lib/motion";
 import { triggerNativeFeedback } from "@/shared/lib/native-feedback";
@@ -10,6 +10,19 @@ import { DESKTOP_METADATA_MIN_WIDTH, DESKTOP_SIDEBAR_MIN_WIDTH } from "../consta
 const DESKTOP_SIDEBAR_MAX_WIDTH = 420;
 const DESKTOP_METADATA_MAX_WIDTH = 440;
 const PANEL_SNAP_CLOSE_RATIO = 0.5;
+const SIDEBAR_VERY_NARROW_WIDTH = 176;
+const SIDEBAR_NARROW_WIDTH = 220;
+
+/**
+ * Buckets a live sidebar width into the compact-layout tiers SidebarPanel keys
+ * off (very narrow / narrow / normal). Live resizing writes React state only at
+ * these bucket crossings; every other pixel goes straight to the motion value.
+ */
+function sidebarWidthBucket(width: number) {
+	if (width < SIDEBAR_VERY_NARROW_WIDTH) return 0;
+	if (width < SIDEBAR_NARROW_WIDTH) return 1;
+	return 2;
+}
 
 type ResizePanel = "sidebar" | "metadata";
 
@@ -24,6 +37,8 @@ type UseNotesLayoutViewportOptions = {
 	isMobile: boolean;
 	showSidebar: boolean;
 	showMetadata: boolean;
+	sidebarWidth: number;
+	metadataWidth: number;
 	setUIState: (
 		next: Partial<{ isMobile: boolean; showSidebar: boolean; showMetadata: boolean }>,
 	) => void;
@@ -35,6 +50,8 @@ export function useNotesLayoutViewport({
 	isMobile,
 	showSidebar,
 	showMetadata,
+	sidebarWidth,
+	metadataWidth,
 	setUIState,
 	setSidebarWidth,
 	setMetadataWidth,
@@ -44,8 +61,23 @@ export function useNotesLayoutViewport({
 	const [activeResizePanel, setActiveResizePanel] = useState<ResizePanel | null>(null);
 	const activeResizeRef = useRef<ActiveResize | null>(null);
 	const resizeFrameRef = useRef<number | null>(null);
+	const sidebarBucketRef = useRef(sidebarWidthBucket(sidebarWidth));
 	const sidebarRef = useRef<HTMLDivElement>(null);
 	const metadataRef = useRef<HTMLDivElement>(null);
+
+	// Live panel widths. Pointer-frame resize updates go straight into these
+	// motion values (DOM writes, zero React renders); the store widths above are
+	// only committed on release, snap-close, or a narrow-mode bucket crossing.
+	const sidebarWidthMotion = useMotionValue(sidebarWidth);
+	const metadataWidthMotion = useMotionValue(metadataWidth);
+
+	useEffect(() => {
+		if (activeResizeRef.current?.panel !== "sidebar") sidebarWidthMotion.set(sidebarWidth);
+	}, [sidebarWidth, sidebarWidthMotion]);
+
+	useEffect(() => {
+		if (activeResizeRef.current?.panel !== "metadata") metadataWidthMotion.set(metadataWidth);
+	}, [metadataWidth, metadataWidthMotion]);
 
 	const closeSidebar = useCallback(() => {
 		triggerNativeFeedback("dismiss");
@@ -74,6 +106,9 @@ export function useNotesLayoutViewport({
 				pointerId: event.pointerId,
 				latestWidth: initialWidth,
 			};
+			if (panel === "sidebar") {
+				sidebarBucketRef.current = sidebarWidthBucket(initialWidth);
+			}
 			setActiveResizePanel(panel);
 			handle.setPointerCapture(event.pointerId);
 			document.body.style.cursor = "col-resize";
@@ -155,12 +190,15 @@ export function useNotesLayoutViewport({
 			const minWidth =
 				panel === "sidebar" ? DESKTOP_SIDEBAR_MIN_WIDTH : DESKTOP_METADATA_MIN_WIDTH;
 
-			if (latestWidth < minWidth) {
-				if (panel === "sidebar") {
-					setSidebarWidth(minWidth);
-				} else {
-					setMetadataWidth(minWidth);
-				}
+			// The drag streamed into the motion value only, so the release always
+			// commits the final width back to the store.
+			const committedWidth = Math.max(minWidth, latestWidth);
+			if (panel === "sidebar") {
+				sidebarWidthMotion.set(committedWidth);
+				setSidebarWidth(committedWidth);
+			} else {
+				metadataWidthMotion.set(committedWidth);
+				setMetadataWidth(committedWidth);
 			}
 		};
 
@@ -183,7 +221,12 @@ export function useNotesLayoutViewport({
 						Math.max(0, pointerX - left),
 					);
 					activeResize.latestWidth = nextWidth;
-					setSidebarWidth(nextWidth);
+					sidebarWidthMotion.set(nextWidth);
+					const bucket = sidebarWidthBucket(nextWidth);
+					if (bucket !== sidebarBucketRef.current) {
+						sidebarBucketRef.current = bucket;
+						setSidebarWidth(nextWidth);
+					}
 					if (nextWidth <= DESKTOP_SIDEBAR_MIN_WIDTH * PANEL_SNAP_CLOSE_RATIO) {
 						closeResizedPanel(activeResize, DESKTOP_SIDEBAR_MIN_WIDTH);
 					}
@@ -197,7 +240,7 @@ export function useNotesLayoutViewport({
 					Math.max(0, right - pointerX),
 				);
 				activeResize.latestWidth = nextWidth;
-				setMetadataWidth(nextWidth);
+				metadataWidthMotion.set(nextWidth);
 				if (nextWidth <= DESKTOP_METADATA_MIN_WIDTH * PANEL_SNAP_CLOSE_RATIO) {
 					closeResizedPanel(activeResize, DESKTOP_METADATA_MIN_WIDTH);
 				}
@@ -214,7 +257,14 @@ export function useNotesLayoutViewport({
 			window.removeEventListener("pointercancel", stopResizing);
 			stopResizing();
 		};
-	}, [prefersReducedMotion, setMetadataWidth, setSidebarWidth, setUIState]);
+	}, [
+		prefersReducedMotion,
+		setMetadataWidth,
+		setSidebarWidth,
+		setUIState,
+		sidebarWidthMotion,
+		metadataWidthMotion,
+	]);
 
 	const overlayTransition: Transition = prefersReducedMotion
 		? { duration: 0.12, ease: "linear" }
@@ -245,6 +295,8 @@ export function useNotesLayoutViewport({
 		closeMetadata,
 		handleDesktopSidebarResizeStart,
 		handleDesktopMetadataResizeStart,
+		sidebarWidthMotion,
+		metadataWidthMotion,
 		overlayTransition,
 		sidebarTransition,
 		sidebarExitTransition,

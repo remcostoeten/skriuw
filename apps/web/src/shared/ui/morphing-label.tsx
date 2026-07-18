@@ -50,7 +50,7 @@ export function MorphingLabel({ activeKey, frames, framePadding }: Props) {
 
 	return (
 		<span
-			className="relative inline-flex h-full items-center justify-center overflow-hidden"
+			className="relative inline-flex h-full max-w-full items-center justify-center overflow-hidden"
 			style={{ width: width ?? undefined }}
 		>
 			<span
