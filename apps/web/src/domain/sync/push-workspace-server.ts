@@ -80,7 +80,22 @@ export async function pushDesktopWorkspace(
 				deletedAt: null,
 			};
 			if (existing) await tx.folder.update({ where: { id: folder.id }, data });
-			else await tx.folder.create({ data: { id: folder.id, userId, ...data } });
+			else {
+				try {
+					await tx.folder.create({ data: { id: folder.id, userId, ...data } });
+				} catch (error) {
+					const owner = await tx.folder.findUnique({
+						where: { id: folder.id },
+						select: { userId: true, deletedAt: true, name: true },
+					});
+					console.error("[sync/push] folder id conflict", {
+						folderId: folder.id,
+						pushingUserId: userId,
+						existingOwner: owner,
+					});
+					throw error;
+				}
+			}
 		}
 		const folderIds = new Set(folders.map((folder) => folder.id));
 		for (const folder of folders) {
