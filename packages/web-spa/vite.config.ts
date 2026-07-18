@@ -16,7 +16,13 @@ const shims = fromHere("./src/shims");
 
 export default defineConfig({
 	plugins: [
-		react(),
+		react({
+			babel: {
+				// Auto-memoizes components/hooks; bails out per-file on rule
+				// violations, so hand-written memo boundaries keep working as-is.
+				plugins: [["babel-plugin-react-compiler", {}]],
+			},
+		}),
 		tailwindcss(),
 		analyze &&
 			visualizer({
