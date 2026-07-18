@@ -23,6 +23,20 @@ export function isBraveBrowser(
 	return /brave/i.test(userAgent);
 }
 
+function readBrowserHostname(): string {
+	if (typeof window === "undefined") return "";
+	return window.location?.hostname ?? "";
+}
+
+export function isLocalhost(hostname = readBrowserHostname()): boolean {
+	return (
+		hostname === "localhost" ||
+		hostname === "127.0.0.1" ||
+		hostname === "::1" ||
+		hostname === "[::1]"
+	);
+}
+
 export function resolveServerIngestUrl(): string | undefined {
 	const url = process.env.ANALYTICS_URL?.trim();
 	return url || resolveClientIngestUrl();
@@ -34,7 +48,7 @@ export function resolveIngestSecret(): string | undefined {
 }
 
 export function isClientAnalyticsDisabled(): boolean {
-	if (!resolveClientIngestUrl()) return true;
+	if (!resolveClientIngestUrl() || isLocalhost()) return true;
 	return process.env.NEXT_PUBLIC_ANALYTICS_ENABLED !== "true";
 }
 
@@ -55,7 +69,7 @@ export function resolvePostHogUiHost(): string {
 }
 
 export function isPostHogDisabled(): boolean {
-	return !resolvePostHogKey();
+	return !resolvePostHogKey() || isLocalhost();
 }
 
 /**
