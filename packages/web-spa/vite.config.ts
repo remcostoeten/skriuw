@@ -2,7 +2,7 @@ import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 
 const analyze = process.env.ANALYZE === "true";
 
@@ -24,13 +24,18 @@ export default defineConfig({
 			},
 		}),
 		tailwindcss(),
-		analyze &&
-			visualizer({
-				filename: "dist/bundle-report.html",
-				template: "treemap",
-				gzipSize: true,
-				brotliSize: true,
-			}),
+		// The visualizer's types resolve against a rollup 2 copy elsewhere in
+		// the tree, so its Plugin shape mismatches Vite's rollup 4 PluginOption.
+		...(analyze
+			? [
+					visualizer({
+						filename: "dist/bundle-report.html",
+						template: "treemap",
+						gzipSize: true,
+						brotliSize: true,
+					}) as PluginOption,
+				]
+			: []),
 	],
 	resolve: {
 		dedupe: ["react", "react-dom", "@tanstack/react-query"],
