@@ -16,7 +16,7 @@ jobs:
         name: Desktop verification
         runs-on: ubuntu-22.04
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             # Keep this list aligned with release-desktop.yml's Linux Tauri dependencies.
             - name: Install Linux build dependencies
@@ -51,7 +51,7 @@ jobs:
 
             - name: Upload desktop bundle report
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: desktop-bundle-report
                   if-no-files-found: warn
@@ -63,7 +63,7 @@ jobs:
         name: Mobile typecheck and lint
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - uses: oven-sh/setup-bun@v2
               with:
@@ -92,7 +92,7 @@ jobs:
                     --health-timeout 5s
                     --health-retries 10
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - uses: oven-sh/setup-bun@v2
               with:
@@ -117,7 +117,7 @@ jobs:
 
             - name: Upload coverage artifacts
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: coverage-reports
                   path: |
@@ -128,7 +128,7 @@ jobs:
             - name: Comment coverage on PR
               if: github.event_name == 'pull_request' && always()
               continue-on-error: true
-              uses: actions/github-script@v7
+              uses: actions/github-script@v9
               with:
                   script: |
                       const fs = require('fs');
@@ -164,7 +164,7 @@ jobs:
         runs-on: ubuntu-latest
         # Vercel builds remotely, so this only needs the repo + the CLI.
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   # Needed so the path filter can diff against the base commit.
                   fetch-depth: 0
@@ -208,7 +208,7 @@ jobs:
               if: >-
                   steps.changed.outputs.result == 'true' &&
                   github.event_name == 'pull_request'
-              uses: actions/github-script@v7
+              uses: actions/github-script@v9
               with:
                   script: |
                       github.rest.issues.createComment({
