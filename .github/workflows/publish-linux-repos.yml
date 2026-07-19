@@ -56,6 +56,8 @@ jobs:
             contents: write # push to gh-pages
         steps:
             - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
 
             # Bring the existing published repo into ./site so the package pool (every
             # previously released .deb) is re-indexed, not clobbered. First release has
@@ -64,6 +66,7 @@ jobs:
               continue-on-error: true
               uses: actions/checkout@v7
               with:
+                  persist-credentials: false
                   ref: gh-pages
                   path: site
 
@@ -170,6 +173,8 @@ jobs:
             AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
         steps:
             - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
 
             - name: Update PKGBUILD version
               run: |
@@ -235,6 +240,7 @@ jobs:
         steps:
             - uses: actions/checkout@v7
               with:
+                  persist-credentials: false
                   ref: daddy
 
             - name: Download .dmg and -setup.exe from release
@@ -287,6 +293,8 @@ jobs:
                   mv bucket/skriuw.json.tmp bucket/skriuw.json
 
             - name: Commit manifests
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -295,7 +303,7 @@ jobs:
                     echo "Manifests already up to date."
                   else
                     git commit -m "chore(manifests): brew + scoop ${{ needs.resolve.outputs.version }}"
-                    git push origin HEAD:daddy
+                    git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:daddy
                   fi
 
     # Submits a version PR to microsoft/winget-pkgs pointing at the NSIS
@@ -332,6 +340,8 @@ jobs:
             SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         steps:
             - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
 
             - name: Download .deb from release
               env:

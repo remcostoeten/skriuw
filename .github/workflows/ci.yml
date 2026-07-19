@@ -17,6 +17,8 @@ jobs:
         runs-on: ubuntu-22.04
         steps:
             - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
 
             # Keep this list aligned with release-desktop.yml's Linux Tauri dependencies.
             - name: Install Linux build dependencies
@@ -64,6 +66,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
 
             - uses: oven-sh/setup-bun@v2
               with:
@@ -93,6 +97,8 @@ jobs:
                     --health-retries 10
         steps:
             - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
 
             - uses: oven-sh/setup-bun@v2
               with:
@@ -166,6 +172,7 @@ jobs:
         steps:
             - uses: actions/checkout@v7
               with:
+                  persist-credentials: false
                   # Needed so the path filter can diff against the base commit.
                   fetch-depth: 0
 
