@@ -1,0 +1,71 @@
+---
+title: Analytics and privacy
+description: Configure PostHog and understand Skriuw's telemetry and opt-out behavior.
+---
+
+Skriuw uses two telemetry backends in the hosted web app:
+
+- `@remcostoeten/analytics` receives product and server events.
+- PostHog receives browser analytics through the same-origin `/ph-ingest` proxy.
+
+Neither backend receives note content. The native desktop app does not include a
+browser or PostHog telemetry client.
+
+## Configure PostHog
+
+Set the following environment variable in the Vercel project that deploys the
+web app:
+
+```dotenv
+NEXT_PUBLIC_POSTHOG_KEY=phc_...
+```
+
+`NEXT_PUBLIC_POSTHOG_UI_HOST` is optional and defaults to
+`https://us.posthog.com`. Browser requests use `/ph-ingest`, which the Next.js
+app rewrites to PostHog; do not point clients directly at the PostHog ingest
+host.
+
+The documentation site is a separate Vercel project (`skriuw-docs`). Configure
+the same public key there as well when documentation traffic should be recorded
+in the same PostHog project. The key is public by design; never expose a
+PostHog personal API key in a `NEXT_PUBLIC_*` variable.
+
+For production traffic, set the variable before deploying. Preview and
+development environments are optional and are useful only when test traffic is
+intended to appear in PostHog.
+
+## Consent and opt-out
+
+Guest/demo visitors are tracked anonymously. Authenticated accounts have
+**Usage analytics** enabled by default and can turn it off in
+**Settings → Privacy & analytics**.
+
+When an authenticated user opts out, Skriuw stops both client-side telemetry
+paths:
+
+- `@remcostoeten/analytics` receives an opt-out signal and product-event helpers
+  refuse to dispatch events.
+- PostHog stops capturing and does not identify the user.
+
+The preference is loaded before analytics makes a decision for an authenticated
+user, so a stored opt-out does not briefly enable capture during app startup.
+
+Sign-in and sign-up completion are separate, server-side operational events in
+`@remcostoeten/analytics`; they are not sent to PostHog and do not depend on the
+browser preference.
+
+## Desktop behavior
+
+The native desktop application has no PostHog SDK or client telemetry path.
+Normal local desktop use therefore sends no analytics. If a desktop user signs
+in through the hosted authentication backend, that backend may record the
+server-side sign-in/sign-up event described above.
+
+## Verify a deployment
+
+After deployment, open the production web app as a guest, or enable Usage
+analytics for an authenticated account. In the browser network panel, confirm a
+request to `/ph-ingest` succeeds. A corresponding event should then appear in
+the configured PostHog project.
+
+Localhost is intentionally excluded from PostHog capture.

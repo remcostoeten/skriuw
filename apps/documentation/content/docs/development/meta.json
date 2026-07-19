@@ -1,6 +1,7 @@
 {
 	"pages": [
 		"architecture",
+		"analytics",
 		"features",
 		"desktop-local-first",
 		"mobile-expo-architecture",
