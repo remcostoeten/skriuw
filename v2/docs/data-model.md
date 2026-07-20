@@ -45,6 +45,7 @@ Small JSON values such as last active note and settings. Secrets never belong he
 
 - Create note: node, document, FTS row, history outbox row.
 - Save note: revision check, document update, node timestamp, FTS replacement, history outbox row.
+- Consecutive queued saves: at most 64 request groups share one outer transaction; each group uses a savepoint so its conflict or failure does not roll back successful neighbors, and completions resolve only after the outer commit.
 - Claim history: short lease update only; materialization runs after the transaction releases.
 - Complete history: cached header insert and matching leased outbox deletion.
 - Failed history: release lease and persist bounded diagnostic text for retry.
@@ -53,7 +54,7 @@ Small JSON values such as last active note and settings. Secrets never belong he
 - Restore subtree: clear the root deletion marker and assign an active parent/rank; independently trashed descendants stay trashed.
 - Purge subtree: enforce the retention cutoff, delete FTS rows, then delete canonical nodes so document, history-cache, and history-outbox rows cascade in the same transaction.
 
-Any partial failure rolls back the complete logical operation.
+Any partial failure rolls back the complete logical operation. In a grouped save transaction, the logical operation remains the original submitted request rather than the complete runtime batch.
 
 ## Portable archive
 

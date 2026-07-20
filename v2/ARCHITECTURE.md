@@ -28,6 +28,8 @@ Backend access is owned by one serialized runtime queue. Callers submit work and
 
 Every runtime clone shares one lifecycle state. Shutdown atomically stops submissions, drains accepted FIFO work, resolves pending completions, and joins the worker. Dropping the final handle performs the same join. Shell teardown and database replacement must call shutdown away from latency-sensitive threads.
 
+Consecutive queued save-only requests may share one storage call without sharing acknowledgements. The runtime never waits to form a batch, caps each batch at 64 requests, and treats every other request as a FIFO barrier. SQLite commits each bounded batch in one outer transaction with one savepoint per original request, so conflicts remain isolated and every successful revision keeps its own FTS update and history-outbox row.
+
 ## Runtime contract
 
 Startup calls `bootstrap()` once. Returned snapshot contains nodes, document JSON, settings, active note, and cached history headers. Renderer normalizes this data and prepares editor states before dismissing startup UI.
@@ -39,7 +41,8 @@ User action
 ├── synchronous local state update
 ├── same-frame paint
 └── queued operation
-    ├── one SQLite transaction
+    ├── one bounded SQLite transaction
+    ├── one request savepoint and acknowledgement
     ├── search projection update
     ├── durable history outbox append
     └── revision acknowledgment
@@ -53,11 +56,11 @@ User action
 
 ### Storage port
 
-`skriuw-storage` defines required backend behavior. Interfaces describe use cases, not generic table CRUD.
+`skriuw-storage` defines required backend behavior. Interfaces describe use cases, not generic table CRUD. Its ordered operation-group capability defaults to sequential execution so adapters remain correct without implementing transaction coalescing.
 
 ### Storage runtime
 
-`skriuw-runtime` owns the backend worker and FIFO request queue. It never owns product rules or SQL. It serializes bootstrap, operation batches, and search against a selected storage adapter and returns waitable completion handles for shell adapters.
+`skriuw-runtime` owns the backend worker and FIFO request queue. It never owns product rules or SQL. It serializes bootstrap, operation batches, and search against a selected storage adapter, groups only already-queued consecutive save requests, and returns waitable completion handles for shell adapters.
 
 ### SQLite adapter
 
@@ -105,3 +108,4 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0009: subtree trash and permanent purge](docs/adr/0009-subtree-trash-and-purge.md)
 - [ADR-0010: backend-owned node ranking](docs/adr/0010-backend-owned-node-ranking.md)
 - [ADR-0011: graceful storage runtime shutdown](docs/adr/0011-graceful-runtime-shutdown.md)
+- [ADR-0012: lossless save batching](docs/adr/0012-lossless-save-batching.md)

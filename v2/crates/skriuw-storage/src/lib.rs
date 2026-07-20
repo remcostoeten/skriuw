@@ -6,7 +6,7 @@ use skriuw_domain::{
 };
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum StorageError {
     #[error("unsupported workspace protocol version {0}")]
     UnsupportedProtocol(u16),
@@ -33,6 +33,16 @@ pub trait WorkspaceStorage: Send + Sync {
         &self,
         operations: &[WorkspaceOperationEnvelope],
     ) -> Result<OperationAck, StorageError>;
+
+    fn apply_operation_batches(
+        &self,
+        batches: &[Vec<WorkspaceOperationEnvelope>],
+    ) -> Result<Vec<Result<OperationAck, StorageError>>, StorageError> {
+        Ok(batches
+            .iter()
+            .map(|operations| self.apply_operations(operations))
+            .collect())
+    }
 
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, StorageError>;
 }
@@ -117,6 +127,13 @@ where
         operations: &[WorkspaceOperationEnvelope],
     ) -> Result<OperationAck, StorageError> {
         self.as_ref().apply_operations(operations)
+    }
+
+    fn apply_operation_batches(
+        &self,
+        batches: &[Vec<WorkspaceOperationEnvelope>],
+    ) -> Result<Vec<Result<OperationAck, StorageError>>, StorageError> {
+        self.as_ref().apply_operation_batches(batches)
     }
 
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, StorageError> {

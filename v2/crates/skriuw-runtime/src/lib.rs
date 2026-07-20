@@ -2,7 +2,7 @@ use std::{
     mem,
     sync::{
         Arc, Mutex,
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, Receiver, Sender, TryRecvError},
     },
     thread::{self, JoinHandle},
 };
@@ -10,6 +10,8 @@ use std::{
 use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
 use skriuw_storage::{StorageError, WorkspaceStorage};
 use thiserror::Error;
+
+const MAX_SAVE_BATCH_REQUESTS: usize = 64;
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
@@ -168,10 +170,36 @@ enum Request {
 }
 
 fn run(storage: impl WorkspaceStorage, receiver: Receiver<Request>) {
-    for request in receiver {
+    let mut pending = None;
+    loop {
+        let request = match pending.take() {
+            Some(request) => request,
+            None => match receiver.recv() {
+                Ok(request) => request,
+                Err(_) => break,
+            },
+        };
         match request {
             Request::Bootstrap { sender } => {
                 let _ = sender.send(storage.bootstrap());
+            }
+            Request::Apply { operations, sender } if is_save_only(&operations) => {
+                let mut batches = vec![operations];
+                let mut senders = vec![sender];
+                while batches.len() < MAX_SAVE_BATCH_REQUESTS {
+                    match receiver.try_recv() {
+                        Ok(Request::Apply { operations, sender }) if is_save_only(&operations) => {
+                            batches.push(operations);
+                            senders.push(sender);
+                        }
+                        Ok(request) => {
+                            pending = Some(request);
+                            break;
+                        }
+                        Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
+                    }
+                }
+                send_batch_results(storage.apply_operation_batches(&batches), senders);
             }
             Request::Apply { operations, sender } => {
                 let _ = sender.send(storage.apply_operations(&operations));
@@ -182,6 +210,42 @@ fn run(storage: impl WorkspaceStorage, receiver: Receiver<Request>) {
                 sender,
             } => {
                 let _ = sender.send(storage.search(&query, limit));
+            }
+        }
+    }
+}
+
+fn is_save_only(operations: &[WorkspaceOperationEnvelope]) -> bool {
+    !operations.is_empty()
+        && operations.iter().all(|envelope| {
+            matches!(
+                envelope.operation,
+                skriuw_domain::WorkspaceOperation::SaveDocument { .. }
+            )
+        })
+}
+
+fn send_batch_results(
+    results: Result<Vec<Result<OperationAck, StorageError>>, StorageError>,
+    senders: Vec<Sender<Result<OperationAck, StorageError>>>,
+) {
+    match results {
+        Ok(results) if results.len() == senders.len() => {
+            for (sender, result) in senders.into_iter().zip(results) {
+                let _ = sender.send(result);
+            }
+        }
+        Ok(_) => {
+            let error = StorageError::Backend(
+                "storage adapter returned the wrong number of batch results".into(),
+            );
+            for sender in senders {
+                let _ = sender.send(Err(error.clone()));
+            }
+        }
+        Err(error) => {
+            for sender in senders {
+                let _ = sender.send(Err(error.clone()));
             }
         }
     }
@@ -201,8 +265,8 @@ mod tests {
 
     use serde_json::json;
     use skriuw_domain::{
-        NodePlacement, OperationAck, SearchHit, WorkspaceOperation, WorkspaceOperationEnvelope,
-        WorkspaceSnapshot,
+        EntityRevision, NodePlacement, OperationAck, SearchHit, WorkspaceOperation,
+        WorkspaceOperationEnvelope, WorkspaceSnapshot,
     };
     use skriuw_sqlite::SqliteWorkspace;
     use skriuw_storage::{StorageError, WorkspaceStorage};
@@ -221,6 +285,17 @@ mod tests {
             document_json: json!({"type": "doc", "content": []}),
             markdown: title.into(),
             at: 1,
+        })
+    }
+
+    fn save_document(note_id: &str, expected_revision: i64) -> WorkspaceOperationEnvelope {
+        op(WorkspaceOperation::SaveDocument {
+            note_id: note_id.into(),
+            document_json: json!({"type": "doc", "revision": expected_revision + 1}),
+            markdown: format!("revision {}", expected_revision + 1),
+            word_count: 2,
+            expected_revision,
+            at: expected_revision + 1,
         })
     }
 
@@ -454,6 +529,118 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn batches_queued_saves_and_drains_them_during_shutdown() {
+        let (started, started_signals) = mpsc::channel();
+        let (release, release_signals) = mpsc::channel();
+        let batch_sizes = Arc::new(Mutex::new(Vec::new()));
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let runtime = WorkspaceRuntime::spawn(BatchProbeStorage {
+            gate_started: started,
+            gate_release: Mutex::new(release_signals),
+            batch_sizes: Arc::clone(&batch_sizes),
+            events: Arc::clone(&events),
+        });
+        let gate = runtime.search("gate", 1).expect("submit gate");
+        started_signals.recv().expect("gate started");
+        let saves = (1..=3)
+            .map(|revision| {
+                runtime
+                    .apply_operations(vec![save_document("note-1", revision)])
+                    .expect("submit save")
+            })
+            .collect::<Vec<_>>();
+        let shutdown = {
+            let runtime = runtime.clone();
+            thread::spawn(move || runtime.shutdown())
+        };
+
+        release.send(()).expect("release gate");
+        gate.wait().expect("gate completion");
+        for (index, save) in saves.into_iter().enumerate() {
+            let acknowledgement = save.wait().expect("save completion");
+            assert_eq!(
+                acknowledgement.revisions[0].revision,
+                i64::try_from(index).expect("revision index") + 2
+            );
+        }
+        shutdown.join().expect("shutdown thread").expect("shutdown");
+
+        assert_eq!(*batch_sizes.lock().expect("batch sizes"), [3]);
+        assert_eq!(*events.lock().expect("events"), ["search:gate", "batch:3"]);
+    }
+
+    #[test]
+    fn non_save_request_is_a_fifo_batch_barrier() {
+        let (started, started_signals) = mpsc::channel();
+        let (release, release_signals) = mpsc::channel();
+        let batch_sizes = Arc::new(Mutex::new(Vec::new()));
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let runtime = WorkspaceRuntime::spawn(BatchProbeStorage {
+            gate_started: started,
+            gate_release: Mutex::new(release_signals),
+            batch_sizes: Arc::clone(&batch_sizes),
+            events: Arc::clone(&events),
+        });
+        let gate = runtime.search("gate", 1).expect("submit gate");
+        started_signals.recv().expect("gate started");
+        let first = runtime
+            .apply_operations(vec![save_document("note-1", 1)])
+            .expect("submit first save");
+        let barrier = runtime.search("barrier", 1).expect("submit barrier");
+        let second = runtime
+            .apply_operations(vec![save_document("note-1", 2)])
+            .expect("submit second save");
+
+        release.send(()).expect("release gate");
+        gate.wait().expect("gate completion");
+        first.wait().expect("first save");
+        barrier.wait().expect("barrier search");
+        second.wait().expect("second save");
+        runtime.shutdown().expect("shutdown");
+
+        assert_eq!(*batch_sizes.lock().expect("batch sizes"), [1, 1]);
+        assert_eq!(
+            *events.lock().expect("events"),
+            ["search:gate", "batch:1", "search:barrier", "batch:1"]
+        );
+    }
+
+    #[test]
+    fn caps_each_save_batch_without_reordering_completions() {
+        let (started, started_signals) = mpsc::channel();
+        let (release, release_signals) = mpsc::channel();
+        let batch_sizes = Arc::new(Mutex::new(Vec::new()));
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let runtime = WorkspaceRuntime::spawn(BatchProbeStorage {
+            gate_started: started,
+            gate_release: Mutex::new(release_signals),
+            batch_sizes: Arc::clone(&batch_sizes),
+            events,
+        });
+        let gate = runtime.search("gate", 1).expect("submit gate");
+        started_signals.recv().expect("gate started");
+        let saves = (1..=70)
+            .map(|revision| {
+                runtime
+                    .apply_operations(vec![save_document("note-1", revision)])
+                    .expect("submit save")
+            })
+            .collect::<Vec<_>>();
+
+        release.send(()).expect("release gate");
+        gate.wait().expect("gate completion");
+        for (index, save) in saves.into_iter().enumerate() {
+            assert_eq!(
+                save.wait().expect("save completion").revisions[0].revision,
+                i64::try_from(index).expect("revision index") + 2
+            );
+        }
+        runtime.shutdown().expect("shutdown");
+
+        assert_eq!(*batch_sizes.lock().expect("batch sizes"), [64, 6]);
+    }
+
     struct ProbeStorage {
         active: Arc<AtomicUsize>,
         maximum: Arc<AtomicUsize>,
@@ -555,6 +742,83 @@ mod tests {
 
         fn search(&self, _query: &str, _limit: usize) -> Result<Vec<SearchHit>, StorageError> {
             panic!("expected storage panic")
+        }
+    }
+
+    struct BatchProbeStorage {
+        gate_started: Sender<()>,
+        gate_release: Mutex<Receiver<()>>,
+        batch_sizes: Arc<Mutex<Vec<usize>>>,
+        events: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl WorkspaceStorage for BatchProbeStorage {
+        fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
+            unreachable!()
+        }
+
+        fn apply_operations(
+            &self,
+            operations: &[WorkspaceOperationEnvelope],
+        ) -> Result<OperationAck, StorageError> {
+            self.events.lock().expect("events").push("apply".into());
+            Ok(save_acknowledgement(operations))
+        }
+
+        fn apply_operation_batches(
+            &self,
+            batches: &[Vec<WorkspaceOperationEnvelope>],
+        ) -> Result<Vec<Result<OperationAck, StorageError>>, StorageError> {
+            self.batch_sizes
+                .lock()
+                .expect("batch sizes")
+                .push(batches.len());
+            self.events
+                .lock()
+                .expect("events")
+                .push(format!("batch:{}", batches.len()));
+            Ok(batches
+                .iter()
+                .map(|operations| Ok(save_acknowledgement(operations)))
+                .collect())
+        }
+
+        fn search(&self, query: &str, _limit: usize) -> Result<Vec<SearchHit>, StorageError> {
+            if query == "gate" {
+                self.gate_started.send(()).expect("report gate");
+                self.gate_release
+                    .lock()
+                    .expect("gate release")
+                    .recv()
+                    .expect("receive gate release");
+            }
+            self.events
+                .lock()
+                .expect("events")
+                .push(format!("search:{query}"));
+            Ok(Vec::new())
+        }
+    }
+
+    fn save_acknowledgement(operations: &[WorkspaceOperationEnvelope]) -> OperationAck {
+        let revisions = operations
+            .iter()
+            .filter_map(|envelope| match &envelope.operation {
+                WorkspaceOperation::SaveDocument {
+                    note_id,
+                    expected_revision,
+                    ..
+                } => Some(EntityRevision {
+                    id: note_id.clone(),
+                    revision: expected_revision + 1,
+                }),
+                _ => None,
+            })
+            .collect();
+        OperationAck {
+            applied: operations.len(),
+            revisions,
+            rank_changes: Vec::new(),
         }
     }
 }

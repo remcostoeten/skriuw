@@ -367,30 +367,46 @@ impl WorkspaceStorage for SqliteWorkspace {
         &self,
         operations: &[WorkspaceOperationEnvelope],
     ) -> Result<OperationAck, StorageError> {
-        for envelope in operations {
-            envelope.validate().map_err(validation)?;
-        }
-
+        validate_operations(operations)?;
         let mut connection = self.lock()?;
         let transaction = connection.transaction().map_err(backend)?;
-        let mut revisions = Vec::new();
-        let mut rank_changes = BTreeMap::new();
-
-        for envelope in operations {
-            apply_operation(
-                &transaction,
-                &envelope.operation,
-                &mut revisions,
-                &mut rank_changes,
-            )?;
-        }
-
+        let acknowledgement = apply_operations_in_transaction(&transaction, operations)?;
         transaction.commit().map_err(backend)?;
-        Ok(OperationAck {
-            applied: operations.len(),
-            revisions,
-            rank_changes: rank_changes.into_values().collect(),
-        })
+        Ok(acknowledgement)
+    }
+
+    fn apply_operation_batches(
+        &self,
+        batches: &[Vec<WorkspaceOperationEnvelope>],
+    ) -> Result<Vec<Result<OperationAck, StorageError>>, StorageError> {
+        let mut connection = self.lock()?;
+        let transaction = connection.transaction().map_err(backend)?;
+        let mut results = Vec::with_capacity(batches.len());
+        for operations in batches {
+            if let Err(error) = validate_operations(operations) {
+                results.push(Err(error));
+                continue;
+            }
+            transaction
+                .execute_batch("SAVEPOINT operation_batch")
+                .map_err(backend)?;
+            match apply_operations_in_transaction(&transaction, operations) {
+                Ok(acknowledgement) => {
+                    transaction
+                        .execute_batch("RELEASE operation_batch")
+                        .map_err(backend)?;
+                    results.push(Ok(acknowledgement));
+                }
+                Err(error) => {
+                    transaction
+                        .execute_batch("ROLLBACK TO operation_batch; RELEASE operation_batch")
+                        .map_err(backend)?;
+                    results.push(Err(error));
+                }
+            }
+        }
+        transaction.commit().map_err(backend)?;
+        Ok(results)
     }
 
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, StorageError> {
@@ -436,6 +452,34 @@ impl WorkspaceStorage for SqliteWorkspace {
 
         rows.collect::<Result<Vec<_>, _>>().map_err(backend)
     }
+}
+
+fn validate_operations(operations: &[WorkspaceOperationEnvelope]) -> Result<(), StorageError> {
+    for envelope in operations {
+        envelope.validate().map_err(validation)?;
+    }
+    Ok(())
+}
+
+fn apply_operations_in_transaction(
+    transaction: &Transaction<'_>,
+    operations: &[WorkspaceOperationEnvelope],
+) -> Result<OperationAck, StorageError> {
+    let mut revisions = Vec::new();
+    let mut rank_changes = BTreeMap::new();
+    for envelope in operations {
+        apply_operation(
+            transaction,
+            &envelope.operation,
+            &mut revisions,
+            &mut rank_changes,
+        )?;
+    }
+    Ok(OperationAck {
+        applied: operations.len(),
+        revisions,
+        rank_changes: rank_changes.into_values().collect(),
+    })
 }
 
 impl WorkspaceMaintenance for SqliteWorkspace {
@@ -1788,6 +1832,22 @@ mod tests {
         })
     }
 
+    fn save_document(
+        note_id: &str,
+        expected_revision: i64,
+        markdown: &str,
+        at: i64,
+    ) -> WorkspaceOperationEnvelope {
+        op(WorkspaceOperation::SaveDocument {
+            note_id: note_id.into(),
+            document_json: json!({"type": "doc", "revision": expected_revision + 1}),
+            markdown: markdown.into(),
+            word_count: markdown.split_whitespace().count() as i64,
+            expected_revision,
+            at,
+        })
+    }
+
     fn ordered_ids(storage: &SqliteWorkspace, parent_id: Option<&str>) -> Vec<String> {
         storage
             .bootstrap()
@@ -2178,6 +2238,150 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn batches_saves_without_losing_conflicts_or_history() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[create_note("note-1")])
+            .expect("create note");
+        let batches = vec![
+            vec![save_document("note-1", 1, "revision two", 2)],
+            vec![save_document("note-1", 1, "stale revision", 3)],
+            vec![save_document("note-1", 2, "revision three", 4)],
+        ];
+
+        let results = storage
+            .apply_operation_batches(&batches)
+            .expect("apply save batches");
+
+        assert_eq!(results.len(), 3);
+        assert_eq!(
+            results[0].as_ref().expect("first save").revisions[0].revision,
+            2
+        );
+        assert!(matches!(
+            results[1],
+            Err(StorageError::RevisionConflict {
+                expected: 1,
+                current: 2,
+                ..
+            })
+        ));
+        assert_eq!(
+            results[2].as_ref().expect("third save").revisions[0].revision,
+            3
+        );
+        let snapshot = storage.bootstrap().expect("bootstrap");
+        assert_eq!(snapshot.documents[0].revision, 3);
+        assert_eq!(snapshot.documents[0].markdown, "revision three");
+        let connection = storage.lock().expect("database lock");
+        let revisions = connection
+            .prepare(
+                "SELECT revision FROM history_outbox WHERE note_id = 'note-1' ORDER BY revision",
+            )
+            .expect("prepare history query")
+            .query_map([], |row| row.get::<_, i64>(0))
+            .expect("query history")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("collect history revisions");
+        assert_eq!(revisions, [1, 2, 3]);
+    }
+
+    #[test]
+    fn savepoint_rolls_back_only_the_failed_request_group() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[create_note("note-1")])
+            .expect("create note");
+        let batches = vec![
+            vec![
+                save_document("note-1", 1, "rolled back", 2),
+                op(WorkspaceOperation::RenameNode {
+                    id: "missing".into(),
+                    title: "Missing".into(),
+                    at: 2,
+                }),
+            ],
+            vec![save_document("note-1", 1, "committed", 3)],
+        ];
+
+        let results = storage
+            .apply_operation_batches(&batches)
+            .expect("apply grouped operations");
+
+        assert!(matches!(results[0], Err(StorageError::NotFound(_))));
+        assert_eq!(
+            results[1].as_ref().expect("second group").revisions[0].revision,
+            2
+        );
+        let snapshot = storage.bootstrap().expect("bootstrap");
+        assert_eq!(snapshot.documents[0].revision, 2);
+        assert_eq!(snapshot.documents[0].markdown, "committed");
+    }
+
+    #[test]
+    #[ignore = "manual backend performance measurement"]
+    fn benchmarks_1000_lossless_save_requests() {
+        let directory = tempdir().expect("temporary directory");
+        let grouped = SqliteWorkspace::open(directory.path().join("grouped.sqlite"))
+            .expect("open grouped database");
+        let sequential = SqliteWorkspace::open(directory.path().join("sequential.sqlite"))
+            .expect("open sequential database");
+        grouped
+            .apply_operations(&[create_note("note-1")])
+            .expect("seed grouped database");
+        sequential
+            .apply_operations(&[create_note("note-1")])
+            .expect("seed sequential database");
+        let batches = (1..=1000)
+            .map(|expected_revision| {
+                vec![save_document(
+                    "note-1",
+                    expected_revision,
+                    &format!("revision {}", expected_revision + 1),
+                    expected_revision + 1,
+                )]
+            })
+            .collect::<Vec<_>>();
+
+        let grouped_started = Instant::now();
+        let mut grouped_results = Vec::with_capacity(batches.len());
+        for batch_group in batches.chunks(64) {
+            grouped_results.extend(
+                grouped
+                    .apply_operation_batches(batch_group)
+                    .expect("apply grouped saves"),
+            );
+        }
+        let grouped_elapsed = grouped_started.elapsed();
+
+        let sequential_started = Instant::now();
+        for operations in &batches {
+            sequential
+                .apply_operations(operations)
+                .expect("apply sequential save");
+        }
+        let sequential_elapsed = sequential_started.elapsed();
+
+        assert_eq!(grouped_results.len(), 1000);
+        assert!(grouped_results.iter().all(Result::is_ok));
+        assert_eq!(
+            grouped.bootstrap().expect("grouped snapshot").documents[0].revision,
+            1001
+        );
+        assert_eq!(
+            sequential
+                .bootstrap()
+                .expect("sequential snapshot")
+                .documents[0]
+                .revision,
+            1001
+        );
+        eprintln!(
+            "1000 lossless saves: grouped {grouped_elapsed:?}; sequential {sequential_elapsed:?}"
+        );
     }
 
     #[test]
