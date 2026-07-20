@@ -14,7 +14,8 @@ use skriuw_domain::{
     WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use skriuw_storage::{
-    HistoryMaterialization, HistoryQueue, PendingHistoryRevision, StorageError, WorkspaceStorage,
+    HistoryCache, HistoryMaterialization, HistoryQueue, PendingHistoryRevision, StorageError,
+    WorkspaceStorage,
 };
 use uuid::Uuid;
 
@@ -486,6 +487,44 @@ impl HistoryQueue for SqliteWorkspace {
             )
             .map_err(backend)?;
         require_changed(changed, item_id)
+    }
+}
+
+impl HistoryCache for SqliteWorkspace {
+    fn replace_history_headers(&self, headers: &[HistoryHeader]) -> Result<usize, StorageError> {
+        let mut connection = self.lock()?;
+        let transaction = connection.transaction().map_err(backend)?;
+        transaction
+            .execute("DELETE FROM history_cache", [])
+            .map_err(backend)?;
+        let mut inserted = 0;
+        for header in headers {
+            if header.note_id.trim().is_empty()
+                || header.version_id.trim().is_empty()
+                || header.created_at < 0
+            {
+                return Err(StorageError::InvalidOperation(
+                    "invalid history cache header".into(),
+                ));
+            }
+            inserted += transaction
+                .execute(
+                    "INSERT INTO history_cache(note_id, version_id, created_at, summary) \
+                     SELECT ?1, ?2, ?3, ?4 \
+                     WHERE EXISTS(SELECT 1 FROM workspace_nodes WHERE id = ?1) \
+                     ON CONFLICT(note_id, version_id) DO UPDATE SET \
+                         created_at = excluded.created_at, summary = excluded.summary",
+                    params![
+                        header.note_id,
+                        header.version_id,
+                        header.created_at,
+                        header.summary
+                    ],
+                )
+                .map_err(backend)?;
+        }
+        transaction.commit().map_err(backend)?;
+        Ok(inserted)
     }
 }
 
@@ -978,8 +1017,8 @@ fn validation(error: OperationValidationError) -> StorageError {
 mod tests {
     use rusqlite::Connection;
     use serde_json::json;
-    use skriuw_domain::{WorkspaceOperation, WorkspaceOperationEnvelope};
-    use skriuw_storage::{StorageError, WorkspaceStorage};
+    use skriuw_domain::{HistoryHeader, WorkspaceOperation, WorkspaceOperationEnvelope};
+    use skriuw_storage::{HistoryCache, StorageError, WorkspaceStorage};
 
     use super::{SqliteWorkspace, checksum};
 
@@ -1187,5 +1226,42 @@ mod tests {
                 .iter()
                 .any(|column| column == "version_id")
         );
+    }
+
+    #[test]
+    fn rolls_back_invalid_history_cache_rebuild() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[create_note("note-1")])
+            .expect("create note");
+        storage
+            .replace_history_headers(&[HistoryHeader {
+                note_id: "note-1".into(),
+                version_id: "version-old".into(),
+                created_at: 1,
+                summary: "Old".into(),
+            }])
+            .expect("seed history cache");
+
+        storage
+            .replace_history_headers(&[
+                HistoryHeader {
+                    note_id: "note-1".into(),
+                    version_id: "version-new".into(),
+                    created_at: 2,
+                    summary: "New".into(),
+                },
+                HistoryHeader {
+                    note_id: "note-1".into(),
+                    version_id: "version-invalid".into(),
+                    created_at: -1,
+                    summary: "Invalid".into(),
+                },
+            ])
+            .expect_err("invalid cache rebuild");
+        let snapshot = storage.bootstrap().expect("bootstrap");
+
+        assert_eq!(snapshot.history_headers.len(), 1);
+        assert_eq!(snapshot.history_headers[0].version_id, "version-old");
     }
 }

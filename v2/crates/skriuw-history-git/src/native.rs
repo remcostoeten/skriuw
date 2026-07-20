@@ -4,8 +4,11 @@ use std::{
     sync::Mutex,
 };
 
-use git2::{Commit, Repository, Signature, Time};
-use skriuw_history::{HistoryMaterializer, MaterializationError};
+use git2::{Commit, Oid, Repository, Signature, Time};
+use skriuw_domain::HistoryHeader;
+use skriuw_history::{
+    HistoryMaterializer, HistoryReadError, HistoryReader, HistoryVersion, MaterializationError,
+};
 use skriuw_storage::{HistoryMaterialization, PendingHistoryRevision};
 use thiserror::Error;
 
@@ -81,8 +84,8 @@ impl GitHistoryMaterializer {
         let signature = signature(item.created_at)?;
         let summary = summary(item.revision);
         let message = format!(
-            "{summary}\n\nSkriuw-Outbox: {}\nSkriuw-Note: {}\nSkriuw-Revision: {}",
-            item.id, item.note_id, item.revision
+            "{summary}\n\nSkriuw-Outbox: {}\nSkriuw-Note: {}\nSkriuw-Revision: {}\nSkriuw-Created-At: {}",
+            item.id, item.note_id, item.revision, item.created_at
         );
         let commit_id = repository.commit(
             Some(HISTORY_REF),
@@ -99,6 +102,73 @@ impl GitHistoryMaterializer {
             summary,
         })
     }
+
+    pub fn list_history_headers(&self) -> Result<Vec<HistoryHeader>, HistoryReadError> {
+        let _guard = self
+            .gate
+            .lock()
+            .map_err(|_| HistoryReadError::backend("history materializer lock is poisoned"))?;
+        let repository = Repository::open(&self.root).map_err(read_backend)?;
+        let mut walk = repository.revwalk().map_err(read_backend)?;
+        match walk.push_ref(HISTORY_REF) {
+            Ok(()) => {}
+            Err(error) if error.code() == git2::ErrorCode::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(read_backend(error)),
+        }
+        let mut headers = Vec::new();
+        for commit_id in walk {
+            let commit = repository
+                .find_commit(commit_id.map_err(read_backend)?)
+                .map_err(read_backend)?;
+            headers.push(commit_metadata(&commit)?.header);
+        }
+        Ok(headers)
+    }
+
+    pub fn read_history_version(
+        &self,
+        note_id: &str,
+        version_id: &str,
+    ) -> Result<HistoryVersion, HistoryReadError> {
+        if !valid_identifier(note_id) {
+            return Err(HistoryReadError::NotFound(version_id.into()));
+        }
+        let commit_id =
+            Oid::from_str(version_id).map_err(|_| HistoryReadError::NotFound(version_id.into()))?;
+        let _guard = self
+            .gate
+            .lock()
+            .map_err(|_| HistoryReadError::backend("history materializer lock is poisoned"))?;
+        let repository = Repository::open(&self.root).map_err(read_backend)?;
+        let commit = repository.find_commit(commit_id).map_err(|error| {
+            if error.code() == git2::ErrorCode::NotFound {
+                HistoryReadError::NotFound(version_id.into())
+            } else {
+                read_backend(error)
+            }
+        })?;
+        let metadata = commit_metadata(&commit)?;
+        if metadata.header.note_id != note_id {
+            return Err(HistoryReadError::NotFound(version_id.into()));
+        }
+        let path = PathBuf::from("notes").join(format!("{note_id}.md"));
+        let tree = commit.tree().map_err(read_backend)?;
+        let entry = tree
+            .get_path(&path)
+            .map_err(|_| HistoryReadError::NotFound(version_id.into()))?;
+        let object = entry.to_object(&repository).map_err(read_backend)?;
+        let blob = object
+            .peel_to_blob()
+            .map_err(|_| HistoryReadError::NotFound(version_id.into()))?;
+        let markdown = std::str::from_utf8(blob.content())
+            .map_err(|error| HistoryReadError::backend(error.to_string()))?
+            .to_owned();
+        Ok(HistoryVersion {
+            header: metadata.header,
+            revision: metadata.revision,
+            markdown,
+        })
+    }
 }
 
 impl HistoryMaterializer for GitHistoryMaterializer {
@@ -109,6 +179,73 @@ impl HistoryMaterializer for GitHistoryMaterializer {
         self.materialize_revision(item)
             .map_err(|error| MaterializationError::new(error.to_string()))
     }
+}
+
+impl HistoryReader for GitHistoryMaterializer {
+    fn list_headers(&self) -> Result<Vec<HistoryHeader>, HistoryReadError> {
+        self.list_history_headers()
+    }
+
+    fn read_version(
+        &self,
+        note_id: &str,
+        version_id: &str,
+    ) -> Result<HistoryVersion, HistoryReadError> {
+        self.read_history_version(note_id, version_id)
+    }
+}
+
+struct CommitMetadata {
+    header: HistoryHeader,
+    revision: i64,
+}
+
+fn commit_metadata(commit: &Commit<'_>) -> Result<CommitMetadata, HistoryReadError> {
+    let message = commit
+        .message()
+        .map_err(|_| HistoryReadError::backend("history commit message is not UTF-8"))?;
+    let note_id = trailer(message, "Skriuw-Note")
+        .filter(|value| valid_identifier(value))
+        .ok_or_else(|| HistoryReadError::backend("history commit has invalid note metadata"))?;
+    trailer(message, "Skriuw-Outbox")
+        .filter(|value| valid_identifier(value))
+        .ok_or_else(|| HistoryReadError::backend("history commit has invalid outbox metadata"))?;
+    let revision = trailer(message, "Skriuw-Revision")
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|revision| *revision > 0)
+        .ok_or_else(|| HistoryReadError::backend("history commit has invalid revision metadata"))?;
+    let created_at = trailer(message, "Skriuw-Created-At")
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or_else(|| commit.time().seconds().saturating_mul(1_000));
+    if created_at < 0 {
+        return Err(HistoryReadError::backend(
+            "history commit has invalid timestamp metadata",
+        ));
+    }
+    let summary = commit
+        .summary()
+        .ok()
+        .flatten()
+        .unwrap_or("Saved note")
+        .to_owned();
+    Ok(CommitMetadata {
+        header: HistoryHeader {
+            note_id: note_id.into(),
+            version_id: commit.id().to_string(),
+            created_at,
+            summary,
+        },
+        revision,
+    })
+}
+
+fn trailer<'a>(message: &'a str, key: &str) -> Option<&'a str> {
+    let prefix = format!("{key}: ");
+    message.lines().find_map(|line| line.strip_prefix(&prefix))
+}
+
+fn read_backend(error: impl std::fmt::Display) -> HistoryReadError {
+    HistoryReadError::backend(error.to_string())
 }
 
 fn validate_item(item: &PendingHistoryRevision) -> Result<(), GitHistoryError> {
@@ -193,9 +330,10 @@ mod tests {
     use git2::Repository;
     use serde_json::json;
     use skriuw_domain::{WorkspaceOperation, WorkspaceOperationEnvelope};
+    use skriuw_history::rebuild_history_cache;
     use skriuw_history::{HistoryWorkResult, HistoryWorker};
     use skriuw_sqlite::SqliteWorkspace;
-    use skriuw_storage::{PendingHistoryRevision, WorkspaceStorage};
+    use skriuw_storage::{HistoryCache, PendingHistoryRevision, WorkspaceStorage};
     use tempfile::tempdir;
 
     use super::{GitHistoryError, GitHistoryMaterializer, HISTORY_REF};
@@ -322,6 +460,76 @@ mod tests {
                 .expect("note projection"),
             "# History"
         );
+    }
+
+    #[test]
+    fn lists_headers_and_reads_historical_markdown() {
+        let directory = tempdir().expect("temporary directory");
+        let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
+        let first = materializer
+            .materialize_revision(&PendingHistoryRevision {
+                created_at: 1_234,
+                ..item("item-1", 1, "# First")
+            })
+            .expect("first materialization");
+        materializer
+            .materialize_revision(&PendingHistoryRevision {
+                created_at: 2_345,
+                ..item("item-2", 2, "# Second")
+            })
+            .expect("second materialization");
+
+        let headers = materializer.list_history_headers().expect("list history");
+        let version = materializer
+            .read_history_version("note-1", &first.version_id)
+            .expect("read first version");
+
+        assert_eq!(headers.len(), 2);
+        assert_eq!(headers[0].created_at, 2_345);
+        assert_eq!(headers[1].created_at, 1_234);
+        assert_eq!(version.revision, 1);
+        assert_eq!(version.markdown, "# First");
+    }
+
+    #[test]
+    fn rebuilds_sqlite_history_cache_from_git() {
+        let directory = tempdir().expect("temporary directory");
+        let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
+        storage
+            .apply_operations(&[WorkspaceOperationEnvelope::v1(
+                WorkspaceOperation::CreateNote {
+                    id: "note-1".into(),
+                    parent_id: None,
+                    title: "History".into(),
+                    rank: 1024,
+                    document_json: json!({"type": "doc", "content": []}),
+                    markdown: "# History".into(),
+                    at: 1_000,
+                },
+            )])
+            .expect("create note");
+        let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
+        let worker = HistoryWorker::new("worker-1", Arc::clone(&storage), materializer)
+            .expect("create worker");
+        worker.process_next(2_000, 30_000).expect("process history");
+        storage
+            .replace_history_headers(&[])
+            .expect("clear history cache");
+        assert!(
+            storage
+                .bootstrap()
+                .expect("empty bootstrap")
+                .history_headers
+                .is_empty()
+        );
+        let reader = GitHistoryMaterializer::open(directory.path()).expect("open history reader");
+
+        let rebuilt = rebuild_history_cache(&reader, storage.as_ref()).expect("rebuild cache");
+        let snapshot = storage.bootstrap().expect("rebuilt bootstrap");
+
+        assert_eq!(rebuilt, 1);
+        assert_eq!(snapshot.history_headers.len(), 1);
+        assert_eq!(snapshot.history_headers[0].summary, "Created note");
     }
 
     fn item(id: &str, revision: i64, markdown: &str) -> PendingHistoryRevision {

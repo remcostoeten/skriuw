@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
+use skriuw_domain::{
+    HistoryHeader, OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -71,6 +73,10 @@ pub trait HistoryQueue: Send + Sync {
     ) -> Result<(), StorageError>;
 }
 
+pub trait HistoryCache: Send + Sync {
+    fn replace_history_headers(&self, headers: &[HistoryHeader]) -> Result<usize, StorageError>;
+}
+
 impl<T> WorkspaceStorage for Arc<T>
 where
     T: WorkspaceStorage + ?Sized,
@@ -123,5 +129,14 @@ where
     ) -> Result<(), StorageError> {
         self.as_ref()
             .release_history_revision(worker_id, item_id, error)
+    }
+}
+
+impl<T> HistoryCache for Arc<T>
+where
+    T: HistoryCache + ?Sized,
+{
+    fn replace_history_headers(&self, headers: &[HistoryHeader]) -> Result<usize, StorageError> {
+        self.as_ref().replace_history_headers(headers)
     }
 }

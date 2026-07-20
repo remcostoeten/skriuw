@@ -15,11 +15,11 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Serialized FIFO storage runtime.
 - Backend-neutral leased history queue and retryable materialization worker.
 - Native idempotent Git materializer isolated from portable and web crates.
+- Backend-neutral history reads and atomic cache rebuild from Git.
 - Repository rules, scripts, CI, ADRs, data model, and performance contract.
 
 ## Remaining backend work
 
-- Git history reader and cache-rebuild workflow.
 - Backup, restore, integrity recovery, export, and import workflows.
 - Explicit trash retention and permanent-delete rules.
 - Rank allocation and transactional sibling-rank compaction.

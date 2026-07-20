@@ -63,7 +63,7 @@ User action
 
 ### History
 
-History is a separate capability. `skriuw-history` coordinates leased queue items through a backend-neutral materializer port. Desktop uses the native-only `skriuw-history-git` adapter to materialize Markdown into a hidden Git repository. Web may retain structured revisions locally or use remote history. SQLite remains authoritative. History failures cannot prevent saves. Persisted leases make retries crash-safe. Materializers must be idempotent by outbox item ID.
+History is a separate capability. `skriuw-history` coordinates leased queue items through backend-neutral materializer, reader, and cache ports. Desktop uses the native-only `skriuw-history-git` adapter to materialize Markdown into a hidden Git repository. Header walks rebuild the transactional SQLite cache; version Markdown loads only when opened. Web may retain structured revisions locally or use remote history. SQLite remains authoritative. History failures cannot prevent saves. Persisted leases make retries crash-safe. Materializers must be idempotent by outbox item ID.
 
 ### Future web runtime
 

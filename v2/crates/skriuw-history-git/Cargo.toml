@@ -6,6 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+skriuw-domain = { path = "../skriuw-domain" }
 skriuw-history = { path = "../skriuw-history" }
 skriuw-storage = { path = "../skriuw-storage" }
 thiserror.workspace = true

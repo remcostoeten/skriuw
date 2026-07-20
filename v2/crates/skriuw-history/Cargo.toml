@@ -6,10 +6,10 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+skriuw-domain = { path = "../skriuw-domain" }
 skriuw-storage = { path = "../skriuw-storage" }
 thiserror.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
-skriuw-domain = { path = "../skriuw-domain" }
 skriuw-sqlite = { path = "../skriuw-sqlite" }

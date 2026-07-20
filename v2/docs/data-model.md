@@ -25,7 +25,7 @@ FTS5 projection over title and Markdown. Updated in the same transaction as cano
 
 ### `history_cache`
 
-Note-specific commit headers for instant right-sidebar rendering. Rebuildable from history backend.
+Note-specific version headers for instant right-sidebar rendering. Rebuildable atomically from the selected history backend. Historical Markdown remains in that backend and loads only when the user opens a version.
 
 ## Operational tables
 

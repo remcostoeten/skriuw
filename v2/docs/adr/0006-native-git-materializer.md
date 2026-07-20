@@ -13,10 +13,12 @@ Use `git2` with vendored libgit2 inside the native-only `skriuw-history-git` ada
 
 Commit messages contain the history outbox ID, note ID, and revision. A retry whose outbox ID matches the branch head returns the existing commit instead of creating a duplicate. The generic history worker remains unaware of Git.
 
+The adapter exposes backend-neutral header listing and individual-version reads. Header listing rebuilds the SQLite cache atomically. Historical Markdown is read from the selected commit only when requested.
+
 ## Consequences
 
 - End users do not need a Git executable or system libgit2 installation.
 - Native builds gain vendored C compilation time and binary size.
 - Git work never enters renderer, navigation, editing, or portable web crates.
 - Browser builds select another `HistoryMaterializer` and do not compile this adapter.
-- Repository rebuild and history-reading APIs remain separate follow-up work.
+- Corrupt commit metadata fails cache rebuild without replacing the previous cache.

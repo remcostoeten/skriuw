@@ -1,4 +1,7 @@
-use skriuw_storage::{HistoryMaterialization, HistoryQueue, PendingHistoryRevision, StorageError};
+use skriuw_domain::HistoryHeader;
+use skriuw_storage::{
+    HistoryCache, HistoryMaterialization, HistoryQueue, PendingHistoryRevision, StorageError,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -21,6 +24,56 @@ pub trait HistoryMaterializer: Send + Sync {
         &self,
         item: &PendingHistoryRevision,
     ) -> Result<HistoryMaterialization, MaterializationError>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HistoryVersion {
+    pub header: HistoryHeader,
+    pub revision: i64,
+    pub markdown: String,
+}
+
+#[derive(Debug, Error)]
+pub enum HistoryReadError {
+    #[error("history version not found: {0}")]
+    NotFound(String),
+    #[error("history backend failed: {0}")]
+    Backend(String),
+}
+
+impl HistoryReadError {
+    #[must_use]
+    pub fn backend(error: impl Into<String>) -> Self {
+        Self::Backend(error.into())
+    }
+}
+
+pub trait HistoryReader: Send + Sync {
+    fn list_headers(&self) -> Result<Vec<HistoryHeader>, HistoryReadError>;
+
+    fn read_version(
+        &self,
+        note_id: &str,
+        version_id: &str,
+    ) -> Result<HistoryVersion, HistoryReadError>;
+}
+
+#[derive(Debug, Error)]
+pub enum HistoryRebuildError {
+    #[error(transparent)]
+    Reader(#[from] HistoryReadError),
+    #[error(transparent)]
+    Storage(#[from] StorageError),
+}
+
+pub fn rebuild_history_cache(
+    reader: &impl HistoryReader,
+    cache: &impl HistoryCache,
+) -> Result<usize, HistoryRebuildError> {
+    let headers = reader.list_headers()?;
+    cache
+        .replace_history_headers(&headers)
+        .map_err(HistoryRebuildError::Storage)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
