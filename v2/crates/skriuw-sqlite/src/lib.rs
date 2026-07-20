@@ -20,6 +20,13 @@ use skriuw_storage::{
 };
 use uuid::Uuid;
 
+mod recovery;
+
+pub use recovery::{
+    BackupRetentionPolicy, BackupRotationOutcome, RECOVERY_MANIFEST_VERSION, RecoveryArtifact,
+    RecoveryManifest,
+};
+
 const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -42,6 +49,7 @@ struct Migration {
 
 pub struct SqliteWorkspace {
     connection: Mutex<Connection>,
+    recovery_gate: Mutex<()>,
 }
 
 impl SqliteWorkspace {
@@ -51,6 +59,7 @@ impl SqliteWorkspace {
         Self::migrate(&mut connection)?;
         Ok(Self {
             connection: Mutex::new(connection),
+            recovery_gate: Mutex::new(()),
         })
     }
 
@@ -60,6 +69,7 @@ impl SqliteWorkspace {
         Self::migrate(&mut connection)?;
         Ok(Self {
             connection: Mutex::new(connection),
+            recovery_gate: Mutex::new(()),
         })
     }
 

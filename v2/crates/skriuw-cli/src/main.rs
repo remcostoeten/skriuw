@@ -12,7 +12,7 @@ use serde_json::json;
 use skriuw_domain::{
     NodePlacement, WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope,
 };
-use skriuw_sqlite::SqliteWorkspace;
+use skriuw_sqlite::{BackupRetentionPolicy, BackupRotationOutcome, SqliteWorkspace};
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, WorkspaceMaintenance, WorkspaceStorage,
 };
@@ -113,6 +113,45 @@ fn run() -> Result<(), Box<dyn Error>> {
                 .backup_to(&backup_path)
                 .map_err(|error| error.diagnostic(DiagnosticContext::Backup))?;
             println!("backed up {} to {}", path.display(), backup_path.display());
+        }
+        "backup-rotate" => {
+            let path = required_path(arguments.next())?;
+            let directory = required_path(arguments.next())?;
+            let storage = SqliteWorkspace::open(&path)
+                .map_err(|error| error.diagnostic(DiagnosticContext::Backup))?;
+            match storage
+                .create_scheduled_backup(&directory, now_ms()?, BackupRetentionPolicy::default())
+                .map_err(|error| error.diagnostic(DiagnosticContext::Backup))?
+            {
+                BackupRotationOutcome::Skipped { next_due_at } => {
+                    println!("scheduled backup is not due until {next_due_at}");
+                }
+                BackupRotationOutcome::Created {
+                    artifact,
+                    manifest_filename,
+                    pruned,
+                } => {
+                    println!(
+                        "created {} with {}; pruned {} artifact(s)",
+                        artifact.filename,
+                        manifest_filename,
+                        pruned.len()
+                    );
+                }
+            }
+        }
+        "backup-manifest" => {
+            let directory = required_path(arguments.next())?;
+            let manifest = SqliteWorkspace::read_recovery_manifest(&directory)
+                .map_err(|error| error.diagnostic(DiagnosticContext::Recovery))?
+                .ok_or_else(|| {
+                    Diagnostic::new(
+                        DiagnosticContext::Recovery,
+                        DiagnosticCategory::NotFound,
+                        "recovery manifest was not found",
+                    )
+                })?;
+            println!("{}", serde_json::to_string_pretty(&manifest)?);
         }
         "restore" => {
             let backup_path = required_path(arguments.next())?;
@@ -225,6 +264,8 @@ fn print_help() {
            search <database> <query>\n\
            integrity <database>\n\
            backup <database> <backup>\n\
+           backup-rotate <database> <recovery-directory>\n\
+           backup-manifest <recovery-directory>\n\
            restore <backup> <new-database>\n\
            export <database> <archive.json>\n\
            import <database> <archive.json>"

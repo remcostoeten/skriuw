@@ -80,7 +80,7 @@ Web uses the same operation protocol and renderer store. A dedicated worker owns
 
 `WorkspaceArchive` is the versioned interchange contract for export, import, and cross-runtime migration. It contains canonical workspace state only. Each adapter rebuilds search, history caches, and operational queues locally. Native raw-database backup is a separate SQLite capability and never becomes the web interchange format.
 
-Native backup uses SQLite's Online Backup API against a live WAL database. It publishes only a create-new, single-file artifact after integrity, foreign-key, migration, and domain validation. Restore writes a new verified database rather than replacing the open workspace.
+Native backup uses SQLite's Online Backup API against a live WAL database. It publishes only a create-new, single-file artifact after integrity, foreign-key, migration, and domain validation. Scheduled rotation enforces a six-hour default cadence and publishes immutable relative-path recovery manifests before checksum-guarded pruning. Restore writes a new verified database rather than replacing the open workspace. See [docs/recovery.md](docs/recovery.md).
 
 ## Data ownership
 
@@ -113,3 +113,4 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0012: lossless save batching](docs/adr/0012-lossless-save-batching.md)
 - [ADR-0013: versioned settings and note metadata](docs/adr/0013-versioned-settings-and-note-metadata.md)
 - [ADR-0014: bounded failure diagnostics](docs/adr/0014-bounded-failure-diagnostics.md)
+- [ADR-0015: scheduled backup rotation](docs/adr/0015-scheduled-backup-rotation.md)

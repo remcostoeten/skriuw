@@ -64,4 +64,4 @@ Deletion timestamps are direct trash markers. Active-tree projections derive eff
 
 ## Native backup
 
-Raw desktop backup uses the SQLite Online Backup API and publishes a normalized single-file database only after SQLite, foreign-key, migration-checksum, and domain validation. Restore creates another validated database path; it never overwrites the open workspace.
+Raw desktop backup uses the SQLite Online Backup API and publishes a normalized single-file database only after SQLite, foreign-key, migration-checksum, and domain validation. Scheduled artifacts are indexed by immutable versioned manifest generations containing relative names, timestamps, sizes, file checksums, schema versions, migration-ledger fingerprints, verification state, and retryable pending deletions. Count- and age-based pruning requires an exact manifest record, regular file, byte size, and checksum match. Restore creates another validated database path; it never overwrites the open workspace.
