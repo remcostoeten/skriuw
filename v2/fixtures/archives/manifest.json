@@ -1,0 +1,13 @@
+{
+  "supportedArchiveVersions": [1],
+  "fixtures": [
+    {
+      "archiveVersion": 1,
+      "file": "v1/minimal.json"
+    },
+    {
+      "archiveVersion": 1,
+      "file": "v1/representative.json"
+    }
+  ]
+}
