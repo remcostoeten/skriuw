@@ -6,6 +6,7 @@ members = [
     "crates/skriuw-runtime",
     "crates/skriuw-history",
     "crates/skriuw-history-git",
+    "crates/skriuw-lifecycle",
     "crates/skriuw-cli",
     "xtask",
 ]

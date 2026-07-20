@@ -79,6 +79,16 @@ impl SqliteWorkspace {
             .map_err(backend)
     }
 
+    pub fn verify_database_file(path: impl AsRef<Path>) -> Result<WorkspaceSnapshot, StorageError> {
+        let connection = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(backend)?;
+        verify_database(&connection)?;
+        read_snapshot(&connection)
+    }
+
     pub fn backup_to(&self, target: impl AsRef<Path>) -> Result<(), StorageError> {
         let target = target.as_ref();
         prepare_new_target(target)?;
@@ -363,20 +373,7 @@ fn checksum(sql: &str) -> String {
 impl WorkspaceStorage for SqliteWorkspace {
     fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
         let connection = self.lock()?;
-        let nodes = read_nodes(&connection)?;
-        let documents = read_documents(&connection)?;
-        let history_headers = read_history_headers(&connection)?;
-        let settings = read_settings(&connection)?;
-        let active_note_id = read_active_note(&connection)?;
-
-        Ok(WorkspaceSnapshot {
-            protocol_version: WORKSPACE_PROTOCOL_VERSION,
-            active_note_id,
-            nodes,
-            documents,
-            history_headers,
-            settings,
-        })
+        read_snapshot(&connection)
     }
 
     fn apply_operations(
@@ -468,6 +465,17 @@ impl WorkspaceStorage for SqliteWorkspace {
 
         rows.collect::<Result<Vec<_>, _>>().map_err(backend)
     }
+}
+
+fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot, StorageError> {
+    Ok(WorkspaceSnapshot {
+        protocol_version: WORKSPACE_PROTOCOL_VERSION,
+        active_note_id: read_active_note(connection)?,
+        nodes: read_nodes(connection)?,
+        documents: read_documents(connection)?,
+        history_headers: read_history_headers(connection)?,
+        settings: read_settings(connection)?,
+    })
 }
 
 fn validate_operations(operations: &[WorkspaceOperationEnvelope]) -> Result<(), StorageError> {

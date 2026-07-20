@@ -25,11 +25,12 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Versioned portable settings with defaults, extension preservation, migration, and an explicit reduced metadata contract.
 - Bounded categorized diagnostics across runtime, storage, history retry, backup, recovery, and integrity boundaries.
 - Scheduled verified backup rotation with immutable recovery manifests and checksum-guarded retention.
+- Native runtime shutdown, verified live-database swap, rollback, reopen, and bootstrap orchestration.
 - Repository rules, scripts, CI, ADRs, data model, and performance contract.
 
 ## Remaining backend work
 
-- Desktop recovery UI and verified live-database swap lifecycle.
+- Desktop recovery UI and rollback-retention presentation.
 - Durable sidebar expansion operation and native-only persistence.
 - Representative 1,000-note and 5,000-note fixtures.
 

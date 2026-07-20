@@ -12,6 +12,8 @@ use serde_json::json;
 use skriuw_domain::{
     NodePlacement, WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope,
 };
+use skriuw_lifecycle::{DatabaseSwapOutcome, replace_live_database};
+use skriuw_runtime::WorkspaceRuntime;
 use skriuw_sqlite::{BackupRetentionPolicy, BackupRotationOutcome, SqliteWorkspace};
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, WorkspaceMaintenance, WorkspaceStorage,
@@ -160,6 +162,36 @@ fn run() -> Result<(), Box<dyn Error>> {
                 .map_err(|error| error.diagnostic(DiagnosticContext::Recovery))?;
             println!("restored {} to {}", backup_path.display(), target.display());
         }
+        "swap-database" => {
+            let canonical = required_path(arguments.next())?;
+            let candidate = required_path(arguments.next())?;
+            let rollback = required_path(arguments.next())?;
+            let storage = SqliteWorkspace::open(&canonical)
+                .map_err(|error| error.diagnostic(DiagnosticContext::Recovery))?;
+            let current = WorkspaceRuntime::spawn(storage);
+            match replace_live_database(&current, &canonical, &candidate, &rollback)
+                .map_err(|error| error.diagnostic())?
+            {
+                DatabaseSwapOutcome::Replaced {
+                    runtime,
+                    snapshot,
+                    rollback_path,
+                } => {
+                    runtime.shutdown().map_err(|error| error.diagnostic())?;
+                    println!(
+                        "replaced database with {} node(s); rollback {}",
+                        snapshot.nodes.len(),
+                        rollback_path.display()
+                    );
+                }
+                DatabaseSwapOutcome::RolledBack {
+                    runtime, failure, ..
+                } => {
+                    runtime.shutdown().map_err(|error| error.diagnostic())?;
+                    return Err(failure.diagnostic().into());
+                }
+            }
+        }
         "export" => {
             let path = required_path(arguments.next())?;
             let archive_path = required_path(arguments.next())?;
@@ -267,6 +299,7 @@ fn print_help() {
            backup-rotate <database> <recovery-directory>\n\
            backup-manifest <recovery-directory>\n\
            restore <backup> <new-database>\n\
+           swap-database <canonical> <candidate> <rollback>\n\
            export <database> <archive.json>\n\
            import <database> <archive.json>"
     );

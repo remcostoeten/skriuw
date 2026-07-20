@@ -25,7 +25,20 @@ target/debug/skriuw-cli restore \
 target/debug/skriuw-cli integrity .data/restored-skriuw.db
 ```
 
-Restore verifies the source and writes another normalized create-new database. It never overwrites the open workspace. Replacing a live desktop database still requires explicit runtime shutdown, connection closure, verified path swap, rollback handling, and restart; that shell lifecycle is not implemented yet.
+Restore verifies the source and writes another normalized create-new database. It never overwrites the open workspace.
+
+## Replace the canonical database
+
+The candidate and rollback must be unused sibling paths in the same directory as the canonical database. The command verifies the candidate before shutdown, drains the live runtime, preserves the original at the rollback path, and bootstraps the replacement before success:
+
+```bash
+target/debug/skriuw-cli swap-database \
+  .data/skriuw.db \
+  .data/restored-skriuw.db \
+  .data/skriuw.pre-swap.rollback.db
+```
+
+On success, retain the rollback until the replacement has been exercised and accepted. The command never deletes it. If replacement validation fails after the moves, the lifecycle restores and reopens the original database and reports a recovery failure. If rollback itself fails, inspect every reported path before taking manual action; do not rerun with an existing rollback target.
 
 ## Safety boundaries
 
@@ -34,3 +47,4 @@ Restore verifies the source and writes another normalized create-new database. I
 - Manual `backup` artifacts and pre-import safety backups are not part of rotation.
 - An unrecognized or malformed newest manifest stops rotation instead of guessing.
 - A changed pending artifact is retained and reported as an error.
+- Live swap rejects distinct-directory paths, existing rollback targets, non-regular files, active SQLite sidecars after shutdown, and invalid candidates.

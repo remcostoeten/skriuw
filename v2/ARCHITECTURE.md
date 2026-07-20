@@ -64,6 +64,10 @@ User action
 
 `skriuw-runtime` owns the backend worker and FIFO request queue. It never owns product rules or SQL. It serializes bootstrap, operation batches, and search against a selected storage adapter, groups only already-queued consecutive save requests, and returns waitable completion handles for shell adapters.
 
+### Native lifecycle
+
+`skriuw-lifecycle` coordinates runtime shutdown with native database replacement. It verifies a create-new candidate before revoking the current runtime, drains and joins every clone, requires closed WAL state, moves the original to an explicit rollback sibling, moves the candidate into the canonical path, and resumes only after integrity and bootstrap succeed. Post-move failure restores and reopens the original when possible.
+
 ### SQLite adapter
 
 `skriuw-sqlite` owns schema migration, transactions, optimistic revision checks, FTS projections, and the durable history outbox.
@@ -114,3 +118,4 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0013: versioned settings and note metadata](docs/adr/0013-versioned-settings-and-note-metadata.md)
 - [ADR-0014: bounded failure diagnostics](docs/adr/0014-bounded-failure-diagnostics.md)
 - [ADR-0015: scheduled backup rotation](docs/adr/0015-scheduled-backup-rotation.md)
+- [ADR-0017: verified live database swap](docs/adr/0017-verified-live-database-swap.md)
