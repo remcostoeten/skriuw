@@ -6,9 +6,9 @@ Last reviewed: 2026-07-20
 
 - [x] Repository created at `/home/remcostoeten/dev/skriuw-standalone`.
 - [x] Work isolated on `feat/instant-local-first-foundation`.
-- [x] Logical commits created; working tree clean at last review.
+- [x] Logical commits created; working tree clean after the last verified implementation commit.
 - [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
-- [x] 52 backend tests pass; one manual rank benchmark is ignored by the default suite.
+- [x] 57 backend tests pass; two manual backend benchmarks are ignored by the default suite.
 - [x] No frontend, desktop shell, router, React dependency, or editor dependency exists.
 - [x] No Git remote is configured.
 
@@ -66,13 +66,15 @@ Measured result: five optimized-build samples for one atomic batch of 5,000 root
 ## P1: storage lifecycle and recovery
 
 - [x] Add graceful shutdown and worker join semantics.
-- [ ] Define save batching/coalescing without losing revision acknowledgements.
+- [x] Define save batching/coalescing without losing revision acknowledgements.
 - [ ] Add bounded diagnostics for runtime, storage, history, backup, and recovery failures.
 - [ ] Add scheduled backup rotation policy.
 - [ ] Add recovery-manifest metadata and retention tests.
 - [ ] Add desktop lifecycle flow for verified database swap after restore.
 - [ ] Add Git repository integrity check and cache-rebuild command.
 - [ ] Add full export/import compatibility fixtures for every archive version.
+
+Implemented save contract: the runtime groups at most 64 already-queued consecutive save-only requests without waiting, preserves non-save FIFO barriers, and returns one result per original request. SQLite uses one outer transaction with request savepoints, so conflicts remain isolated and every successful revision retains its own FTS and history-outbox update. Five optimized 1,000-save samples had a 79.965-millisecond grouped median versus 107.098 milliseconds sequential. See `docs/benchmarks/2026-07-20-save-batching.md`.
 
 ## P1: settings and metadata
 

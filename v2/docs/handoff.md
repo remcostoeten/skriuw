@@ -24,9 +24,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit before this handoff: `60a2337 feat: add graceful runtime shutdown`.
+- Last implementation commit before this handoff: `f87d72a feat: batch lossless document saves`.
 - Expected worktree state: clean.
-- Current verification result: 52 tests plus formatting, Clippy, and generated-schema drift checks pass; one manual rank benchmark is ignored by the default suite and passes when selected.
+- Current verification result: 57 tests plus formatting, Clippy, and generated-schema drift checks pass; two manual backend benchmarks are ignored by the default suite and pass when selected.
 - Rust toolchain: 1.95.0.
 - Ignored local development database: `.data/skriuw.db`.
 
@@ -64,6 +64,7 @@ skriuw-sqlite
 
 skriuw-runtime
 ├── serialized FIFO storage worker
+├── bounded lossless save batching
 └── clone-safe shutdown and worker join
 
 skriuw-history
@@ -94,6 +95,8 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Operation acknowledgements coalesce final parent/rank changes by node ID for optimistic renderer reconciliation.
 - Runtime shutdown rejects new work, drains accepted requests, resolves completions, and joins the worker exactly once across all clones.
 - Dropping the final runtime handle joins the worker; abnormal termination is reported as `RuntimeError::WorkerFailure`.
+- The runtime groups at most 64 already-queued consecutive save-only requests without waiting; every non-save or mixed request remains a FIFO barrier.
+- SQLite commits each grouped save burst in one outer transaction with one savepoint and one result per original request.
 - Generated schemas live in `generated/contracts`.
 - No frontend framework, desktop shell, editor, router, React, React Scan, or package manager has been added.
 - No remote exists; do not claim work is pushed.
@@ -124,17 +127,28 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - All runtime clones share one sender and worker state. Concurrent and repeated shutdown calls join at most once and replay the stored outcome.
 - Six deterministic regressions cover draining, post-shutdown rejection, clone state, concurrent shutdown, final drop, and worker panic without new sleep-based coordination.
 
+## Completed save-batching slice
+
+- ADR-0012 defines no-wait save grouping, the 64-request cap, FIFO barriers, request-level savepoints, commit-before-completion, and lossless history semantics.
+- The storage port supplies correct sequential group behavior by default; SQLite optimizes grouped requests under one outer transaction.
+- Conflicting or otherwise failed requests roll back only to their own savepoint. Successful neighbors retain independent revision acknowledgements, FTS replacements, and history-outbox rows.
+- Deterministic runtime regressions cover queued batching, non-save barriers, the cap, completion order, and shutdown draining. SQLite regressions cover revision conflicts, history preservation, and group rollback isolation.
+- Five optimized file-backed samples for 1,000 saves capped at 64 requests per transaction had a 79.965-millisecond grouped median versus 107.098 milliseconds sequential, a 25.3% reduction.
+- Raw samples and environment metadata are in `docs/benchmarks/2026-07-20-save-batching.md`.
+
 ## Known correctness gap
 
-Every `SaveDocument` request currently enters the runtime queue and SQLite transaction independently. No batching/coalescing contract exists, so rapid editor saves can create avoidable queue pressure; any solution must preserve an acknowledgement for every expected revision and may not delay synchronous renderer updates.
+Failures currently cross runtime and storage boundaries as broad string-bearing variants without a bounded diagnostic record or stable category/context contract. Backend text can grow without a persistence limit, and runtime, storage, history, backup, and recovery failures cannot yet be correlated consistently.
 
 Immediate next slice:
 
-1. Define save batching/coalescing semantics in an ADR without moving editor state or revision decisions into the runtime.
-2. Preserve FIFO ordering relative to non-save operations and return a completion for every submitted expected revision.
-3. Coalesce only revisions whose acknowledgement and history semantics remain lossless; never hide revision conflicts.
-4. Add deterministic queue, conflict, shutdown-drain, and acknowledgement regressions without timing-based tests.
-5. Measure burst behavior, update persistent docs, and commit before bounded diagnostics.
+1. Inventory existing failure variants and persisted error text across runtime, storage, history, backup, restore, import, and integrity paths.
+2. Define a backend-neutral stable error category and bounded diagnostic context contract without exposing filesystem paths or database internals to portable callers.
+3. Cap persisted retry diagnostics deterministically while preserving actionable recent context.
+4. Add regressions for category mapping, maximum sizes, truncation boundaries, and source-error display behavior.
+5. Keep telemetry transport and UI presentation out of this slice; update persistent docs and commit before backup rotation.
+
+Parallel work note: settings and note metadata are reserved for Claude in `/home/remcostoeten/dev/skriuw-claude-settings` on `feat/settings-metadata-contract`, based on `ef22a69`, with ADR-0013 reserved. Do not overlap that domain/SQLite/generated-contract slice; review and integrate it manually after its two commits are reported.
 
 ## Verification model
 
