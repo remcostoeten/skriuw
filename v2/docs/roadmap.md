@@ -16,6 +16,7 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Backend-neutral leased history queue and retryable materialization worker.
 - Native idempotent Git materializer isolated from portable and web crates.
 - Backend-neutral history reads and atomic cache rebuild from Git.
+- Read-only Git history integrity verification and explicit transactional cache-rebuild CLI.
 - Versioned portable archive with transactional replace import and integrity reporting.
 - Verified online SQLite backup, create-new restore, and import safety backup.
 - Explicit inherited subtree trash, restore fallback, retention-guarded permanent purge, and atomic projection cleanup.
@@ -33,7 +34,6 @@ Keep domain records, operations, editor documents, and renderer state portable e
 
 - Desktop recovery UI and rollback-retention presentation.
 - Durable sidebar expansion operation and native-only persistence.
-- Git repository integrity verification and explicit history-cache rebuild command.
 - Archive-version export/import compatibility fixtures.
 - Import, bootstrap, and history workload measurements over the deterministic fixture generators.
 

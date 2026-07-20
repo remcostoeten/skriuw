@@ -8,7 +8,7 @@ Last reviewed: 2026-07-21
 - [x] Work isolated on `feat/instant-local-first-foundation`.
 - [x] Logical commits created; working tree clean after the last verified implementation commit.
 - [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
-- [x] 95 backend tests pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
+- [x] 102 backend tests pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
 - [x] No frontend, desktop shell, router, React dependency, or editor dependency exists.
 - [x] No Git remote is configured.
 
@@ -71,8 +71,10 @@ Measured result: five optimized-build samples for one atomic batch of 5,000 root
 - [x] Add scheduled backup rotation policy.
 - [x] Add recovery-manifest metadata and retention tests.
 - [x] Add desktop lifecycle flow for verified database swap after restore.
-- [ ] Add Git repository integrity check and cache-rebuild command.
+- [x] Add Git repository integrity check and cache-rebuild command.
 - [ ] Add full export/import compatibility fixtures for every archive version.
+
+Implemented Git integrity contract: an exact existing non-bare repository is inspected without mutation from `refs/heads/history`. Reachable commits must form one linear chain with unique valid identities, complete metadata, and readable UTF-8 note blobs. Cache rebuild enumerates and validates Git before one transactional SQLite replacement; Git or SQLite failure preserves the old cache. CLI integrity and rebuild commands are explicit maintenance work outside startup and interaction paths. See ADR-0018.
 
 Implemented save contract: the runtime groups at most 64 already-queued consecutive save-only requests without waiting, preserves non-save FIFO barriers, and returns one result per original request. SQLite uses one outer transaction with request savepoints, so conflicts remain isolated and every successful revision retains its own FTS and history-outbox update. Five optimized 1,000-save samples had a 79.965-millisecond grouped median versus 107.098 milliseconds sequential. See `docs/benchmarks/2026-07-20-save-batching.md`.
 

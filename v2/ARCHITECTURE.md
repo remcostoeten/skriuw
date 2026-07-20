@@ -76,7 +76,7 @@ User action
 
 ### History
 
-History is a separate capability. `skriuw-history` coordinates leased queue items through backend-neutral materializer, reader, and cache ports. Desktop uses the native-only `skriuw-history-git` adapter to materialize Markdown into a hidden Git repository. Header walks rebuild the transactional SQLite cache; version Markdown loads only when opened. Web may retain structured revisions locally or use remote history. SQLite remains authoritative. History failures cannot prevent saves. Persisted leases make retries crash-safe. Materializers must be idempotent by outbox item ID.
+History is a separate capability. `skriuw-history` coordinates leased queue items through backend-neutral materializer, reader, and cache ports. Desktop uses the native-only `skriuw-history-git` adapter to materialize Markdown into a hidden Git repository. Its separate read-only reader checks only `refs/heads/history`: reachable commits must form one linear chain with unique valid identities, complete metadata, and readable UTF-8 note blobs. Cache rebuild validates and enumerates all headers before one transactional SQLite replacement; version Markdown loads only when opened. Web may retain structured revisions locally or use remote history. SQLite remains authoritative. History failures cannot prevent saves. Persisted leases make retries crash-safe. Materializers must be idempotent by outbox item ID. Integrity and rebuild run only when explicitly requested, never during startup or interaction paths.
 
 ### Future web runtime
 
@@ -122,3 +122,4 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0015: scheduled backup rotation](docs/adr/0015-scheduled-backup-rotation.md)
 - [ADR-0016: deterministic operation-sequence scale fixtures](docs/adr/0016-deterministic-scale-fixtures.md)
 - [ADR-0017: verified live database swap](docs/adr/0017-verified-live-database-swap.md)
+- [ADR-0018: read-only Git history integrity and cache rebuild](docs/adr/0018-read-only-git-history-integrity.md)

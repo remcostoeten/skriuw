@@ -4,7 +4,7 @@ Last reviewed: 2026-07-21
 
 ## Start here
 
-Fresh-session execution prompts are available at `codex-promt.md` for the primary Git-integrity slice and `claude-promt.md` for the isolated archive-compatibility slice.
+The Git-integrity slice is complete on the primary branch. Claude completed the archive-compatibility slice in its isolated worktree; it has not been reviewed or integrated.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -26,9 +26,11 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commits before this handoff: `95d30b0 feat: swap verified live databases` and `3346343 feat: add deterministic scale fixtures`.
+- Last implementation commit: `6a65abb feat: verify Git history integrity`.
 - Expected worktree state: clean.
-- Current verification result: 95 tests plus formatting, Clippy, and generated-schema drift checks pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite and pass when selected.
+- Current verification result: 102 tests plus formatting, Clippy, generated-schema drift checks, and `git diff --check` pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
+- CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
+- Claude archive status: isolated branch `feat/archive-compatibility-fixtures` contains `33cf41d test: add archive compatibility fixtures` and `24dddb3 docs: hand off archive compatibility fixtures`. Neither commit is integrated into the primary branch.
 - Rust toolchain: 1.95.0.
 - Ignored local development database: `.data/skriuw.db`.
 
@@ -81,7 +83,8 @@ skriuw-history
 └── cache rebuild orchestration
 
 skriuw-history-git
-└── native-only Git implementation
+├── native-only Git materializer
+└── read-only integrity reader
 
 skriuw-fixtures
 └── portable deterministic operation-sequence workloads
@@ -97,6 +100,8 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - CLI import creates a verified safety backup first.
 - Raw restore writes a new path and never swaps the live database.
 - History Markdown loads only when a version is opened.
+- Git integrity checks only the exact existing repository and `refs/heads/history`; missing, non-repository, bare, worktree-less, corrupt, nonlinear, ambiguous, or unreadable history fails without repository mutation.
+- History-cache rebuild validates and enumerates complete Git history before replacing SQLite headers in one transaction.
 - Direct deletion markers make their complete subtree unavailable without rewriting descendant timestamps.
 - `WorkspaceSnapshot::unavailable_node_ids()` derives the active-tree projection from the hydrated parent graph.
 - Search, active-note state, commands, history headers, and history claims enforce inherited unavailability.
@@ -194,19 +199,20 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - `skriuw-fixtures` generates wide, nested, and mixed workspaces at 1,000 and 5,000 notes. Metadata declares node, folder, document, operation, depth, and FTS match expectations.
 - Six generator regressions cover determinism, pinned digests, validation, tree shape, search tokens, timestamps, and settings. One default SQLite test materializes a smaller fixture; the ignored manual 5,000-note run remains outside CI timing gates.
 
-## Known correctness gap
+## Completed Git-integrity slice
 
-Git history can materialize revisions, enumerate headers, read Markdown, and atomically replace the SQLite history cache, but it has no explicit repository-integrity operation. The existing cache rebuild helper is exercised only through tests and has no CLI/native maintenance command. Corrupt refs, commit ancestry, metadata, trees, or blobs therefore cannot be distinguished cleanly from cache drift before a rebuild is attempted.
+- ADR-0018 defines the exact-repository read-only boundary, owned history ref, linear-history invariant, required metadata and content rules, cache replacement order, and failure behavior.
+- `GitHistoryReader` never initializes or repairs repositories. An existing repository without `refs/heads/history` is healthy empty history.
+- Inspection visits every reachable commit deterministically, rejects merges or broken ancestry, validates all four trailers, rejects duplicate outbox and note-revision identities, and requires each commit's note path to be a UTF-8 blob.
+- Typed reports expose commit/note counts and typed issues. Public diagnostics redact paths, Git object IDs, libgit2 text, and backend internals.
+- `history-integrity` and `history-rebuild-cache` expose explicit maintenance boundaries. Rebuild completes Git validation before opening SQLite and publishes only through transactional `replace_history_headers`.
+- Seven new deterministic regressions cover healthy empty and multi-note history, non-mutating repository rejection, merges, metadata and identity corruption, note-object corruption, empty/successful rebuild, corrupt-Git cache preservation, and diagnostic redaction. Existing SQLite rollback coverage proves failed cache replacement restores the old cache.
 
-Immediate next slice:
+## Known correctness gap and next task
 
-1. Reserve ADR-0018 for a read-only Git repository integrity contract covering repository/worktree presence, the history ref, linear reachable commits, required metadata, safe note paths, and readable Markdown blobs.
-2. Expose typed, bounded/redacted integrity results without leaking repository paths or libgit2 details across the public boundary. A check must never create or repair a repository implicitly.
-3. Make cache rebuild an explicit native maintenance command. Enumerate and validate the complete history first, then use the existing transactional `replace_history_headers` boundary so failure leaves the old cache unchanged.
-4. Add deterministic corruption and rollback regressions without sleeps, plus CLI smoke for a healthy check, successful rebuild, and corrupt-history failure.
-5. Keep Git native-only, preserve lazy Markdown reads, avoid scanning Git during startup/navigation, update ADR/roadmap/persistent docs, and commit before UI work.
+The primary branch still lacks archive-version export/import compatibility fixtures. Claude's isolated implementation and handoff commits are complete but deliberately unintegrated. Next task: with user direction, review `33cf41d` against current primary history, run its focused tests, integrate only the implementation changes that preserve ADR-0018 and current handoff state, then rerun `./scripts/check.sh`. Do not cherry-pick `24dddb3` blindly because it edits shared handoff documentation.
 
-Parallel next slice: archive-version export/import compatibility fixtures can run in a separate worktree from the final handoff commit. Reserve ADR-0019 only if that work changes a durable compatibility policy. Keep it centered on domain/archive fixtures and SQLite adapter tests; do not edit history, Git, CLI, ADR-0018, or the primary handoff files until integration.
+After archive fixture integration, remaining backend gaps are durable sidebar expansion persistence and import/bootstrap/history workload measurements. UI/editor selection remains blocked on the performance spikes in `docs/performance-contract.md`.
 
 ## Verification model
 
