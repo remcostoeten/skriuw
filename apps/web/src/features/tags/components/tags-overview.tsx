@@ -18,6 +18,13 @@ import {
 	DialogTitle,
 } from "@/shared/ui/dialog";
 import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger,
+} from "@/shared/ui/context-menu";
+import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
@@ -51,6 +58,7 @@ export function TagsOverview() {
 	const [renameValue, setRenameValue] = useState("");
 	const [mergeTarget, setMergeTarget] = useState("");
 	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+	const [contextTagName, setContextTagName] = useState<string | null>(null);
 
 	function openRename(tag: TagSummary) {
 		setRenameValue(tag.name);
@@ -86,6 +94,10 @@ export function TagsOverview() {
 	}
 
 	const isEmpty = tags.length === 0;
+	const totalNotes = tags.reduce((sum, tag) => sum + tag.noteCount, 0);
+	const contextTag = contextTagName
+		? (tags.find((tag) => tag.name === contextTagName) ?? null)
+		: null;
 
 	return (
 		<LayoutContainer className="bg-background">
@@ -97,6 +109,27 @@ export function TagsOverview() {
 							Every #tag across your notes. Rename, recolor, merge, or delete —
 							changes rewrite the notes that use them.
 						</p>
+						{!isEmpty ? (
+							<div className="mt-3 flex flex-wrap gap-2">
+								<div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
+									<Hash className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
+									<span className="text-sm font-semibold tabular-nums text-foreground">
+										{tags.length}
+									</span>
+									<span className="text-xs text-muted-foreground">
+										{tags.length === 1 ? "tag" : "tags"}
+									</span>
+								</div>
+								<div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
+									<span className="text-sm font-semibold tabular-nums text-foreground">
+										{totalNotes}
+									</span>
+									<span className="text-xs text-muted-foreground">
+										tagged {totalNotes === 1 ? "note" : "notes"}
+									</span>
+								</div>
+							</div>
+						) : null}
 					</header>
 
 					{isPending ? null : isEmpty ? (
@@ -106,76 +139,128 @@ export function TagsOverview() {
 							description="Type # in a note to tag it. Tags collect here automatically."
 						/>
 					) : (
-						<ul className="flex-1 divide-y divide-border overflow-y-auto">
-							{tags.map((tag) => (
-								<li key={tag.name} className="flex items-center gap-3 px-6 py-3">
-									<ColorSwatchPicker
-										value={tag.color}
-										label={`#${tag.name}`}
-										onChange={(color) =>
-											setTagColor.mutate({ name: tag.name, color })
-										}
-									/>
-									<Link
-										href={`/app/tags/${encodeURIComponent(tag.name)}`}
-										className="min-w-0 flex-1"
-									>
-										<p className="truncate text-sm font-medium text-foreground">
-											#{tag.name}
-										</p>
-										<p className="text-xs text-muted-foreground">
-											{noteCountLabel(tag.noteCount)}
-										</p>
-									</Link>
-									<DropdownMenu
-										onOpenChange={(open) => {
-											setOpenMenuId((current) =>
-												open
-													? tag.name
-													: current === tag.name
-														? null
-														: current,
-											);
-										}}
-									>
-										<DropdownMenuTrigger asChild>
-											<Button
-												variant="ghost"
-												size="sm"
-												aria-label={`Actions for #${tag.name}`}
-											>
-												<MoreHorizontal className="h-4 w-4" />
-											</Button>
-										</DropdownMenuTrigger>
-										{openMenuId === tag.name ? (
-											<DropdownMenuContent align="end">
-												<DropdownMenuItem onSelect={() => openRename(tag)}>
-													<Pencil className="mr-2 h-3.5 w-3.5" />
-													Rename
-												</DropdownMenuItem>
-												<DropdownMenuItem
-													onSelect={() => openMerge(tag)}
-													disabled={tags.length < 2}
-												>
-													<Merge className="mr-2 h-3.5 w-3.5" />
-													Merge into…
-												</DropdownMenuItem>
-												<DropdownMenuSeparator />
-												<DropdownMenuItem
-													className="text-destructive focus:text-destructive"
-													onSelect={() =>
-														setPending({ kind: "delete", tag })
+						<ContextMenu
+							onOpenChange={(open) => {
+								if (!open) setContextTagName(null);
+							}}
+						>
+							<ContextMenuTrigger asChild>
+								<ul className="flex-1 overflow-y-auto px-3 py-2">
+									{tags.map((tag) => (
+										<li
+											key={tag.name}
+											onContextMenu={() => setContextTagName(tag.name)}
+										>
+											<div className="group/row flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/60">
+												<ColorSwatchPicker
+													value={tag.color}
+													label={`#${tag.name}`}
+													onChange={(color) =>
+														setTagColor.mutate({
+															name: tag.name,
+															color,
+														})
 													}
+												/>
+												<Link
+													href={`/app/tags/${encodeURIComponent(tag.name)}`}
+													className="min-w-0 flex-1"
 												>
-													<Trash2 className="mr-2 h-3.5 w-3.5" />
-													Delete
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										) : null}
-									</DropdownMenu>
-								</li>
-							))}
-						</ul>
+													<p className="truncate text-sm font-medium text-foreground">
+														#{tag.name}
+													</p>
+												</Link>
+												<span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] tabular-nums text-muted-foreground">
+													{noteCountLabel(tag.noteCount)}
+												</span>
+												<DropdownMenu
+													onOpenChange={(open) => {
+														setOpenMenuId((current) =>
+															open
+																? tag.name
+																: current === tag.name
+																	? null
+																	: current,
+														);
+													}}
+												>
+													<DropdownMenuTrigger asChild>
+														<Button
+															variant="ghost"
+															size="sm"
+															aria-label={`Actions for #${tag.name}`}
+														>
+															<MoreHorizontal className="h-4 w-4" />
+														</Button>
+													</DropdownMenuTrigger>
+													{openMenuId === tag.name ? (
+														<DropdownMenuContent align="end">
+															<DropdownMenuItem
+																className="gap-2"
+																onSelect={() => openRename(tag)}
+															>
+																<Pencil className="h-3.5 w-3.5" />
+																Rename
+															</DropdownMenuItem>
+															<DropdownMenuItem
+																className="gap-2"
+																onSelect={() => openMerge(tag)}
+																disabled={tags.length < 2}
+															>
+																<Merge className="h-3.5 w-3.5" />
+																Merge into…
+															</DropdownMenuItem>
+															<DropdownMenuSeparator />
+															<DropdownMenuItem
+																className="gap-2 text-[#ff808a] focus:bg-[#ff808a4d]"
+																onSelect={() =>
+																	setPending({
+																		kind: "delete",
+																		tag,
+																	})
+																}
+															>
+																<Trash2 className="h-3.5 w-3.5" />
+																Delete
+															</DropdownMenuItem>
+														</DropdownMenuContent>
+													) : null}
+												</DropdownMenu>
+											</div>
+										</li>
+									))}
+								</ul>
+							</ContextMenuTrigger>
+							{contextTag ? (
+								<ContextMenuContent className="w-48">
+									<ContextMenuItem
+										className="gap-2"
+										onClick={() => openRename(contextTag)}
+									>
+										<Pencil className="h-3.5 w-3.5" />
+										Rename
+									</ContextMenuItem>
+									<ContextMenuItem
+										className="gap-2"
+										disabled={tags.length < 2}
+										onClick={() => openMerge(contextTag)}
+									>
+										<Merge className="h-3.5 w-3.5" />
+										Merge into…
+									</ContextMenuItem>
+									<ContextMenuSeparator />
+									<ContextMenuItem
+										className="gap-2 text-[#ff808a] focus:bg-[#ff808a4d]"
+										onClick={() =>
+											setPending({ kind: "delete", tag: contextTag })
+										}
+									>
+										<Trash2 className="h-3.5 w-3.5" />
+										Delete
+									</ContextMenuItem>
+								</ContextMenuContent>
+							) : null}
+						</ContextMenu>
 					)}
 				</div>
 			</div>

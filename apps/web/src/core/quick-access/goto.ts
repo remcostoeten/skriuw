@@ -36,6 +36,7 @@ export const goto = {
 	route: {
 		notes: createGotoRoute("notes", "Notes", "/app"),
 		journal: createGotoRoute("journal", "Journal", "/app/journal"),
+		tasks: createGotoRoute("tasks", "Tasks", "/app/tasks"),
 		graph: createGotoRoute("graph", "Graph", "/app/graph"),
 		tags: createGotoRoute("tags", "Tags", "/app/tags"),
 		people: createGotoRoute("people", "People", "/app/people"),

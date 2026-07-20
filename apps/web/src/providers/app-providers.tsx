@@ -23,6 +23,7 @@ import { QuickSwitcherMount } from "@/features/notes/components/quick-switcher-m
 import { QuickAccessMount } from "@/features/quick-access/quick-access-mount";
 import { PendingCollabReplay } from "@/features/collaboration/components/pending-collab-replay";
 import { DesktopIndexSync } from "@/features/desktop/desktop-index-sync";
+import { DesktopVaultSync } from "@/features/desktop/desktop-vault-sync";
 import { DesktopQuitShortcut } from "@/features/desktop/desktop-quit-shortcut";
 import { DesktopToggleSize } from "@/features/desktop/desktop-toggle-size";
 import { UserToastHost } from "@/shared/ui/user-toast-host";
@@ -100,6 +101,7 @@ export function AppProviders({ children, initialEditorPreferences, initialAuthUs
 						<ProtectedAppGuard>
 							<WorkspaceBackendProvider>
 								<DesktopIndexSync />
+								<DesktopVaultSync />
 								{/* WindowControls mounts once in the desktop entry
 								    shell (packages/web-spa/src/main.tsx), never here. */}
 								<PersistenceBootstrap />

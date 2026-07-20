@@ -249,6 +249,15 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
 		group: "Navigation",
 		keywords: ["links", "connections", "graph"],
 	},
+	"nav.tasks": {
+		id: "nav.tasks",
+		label: "Go to Tasks",
+		scope: "global",
+		group: "Navigation",
+		keywords: ["todo", "action items", "tasks", "calendar"],
+		description: "Open your workspace tasks and due dates.",
+		shortcutId: "app.tasks",
+	},
 	"nav.shared": {
 		id: "nav.shared",
 		label: "Go to Shared",

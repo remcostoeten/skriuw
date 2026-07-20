@@ -79,8 +79,9 @@ Desktop configuration is owned by the typed Rust `SettingsStore` in
 contains the optional vault and cover roots plus non-secret AI configuration.
 Unknown top-level and AI fields are retained across updates so settings written
 by another compatible release are not erased. Secrets are deliberately outside
-the long-term typed schema; legacy plaintext keys remain accessible only through
-the transitional migration accessor until DH-03 moves them to OS secret storage.
+the long-term typed schema. Legacy plaintext credentials are exposed only to a
+one-way migration that verifies OS credential-store persistence before deleting
+the old value.
 
 Every mutation holds one process-wide write lock for clone, validation, atomic
 file replacement, and in-memory publication. A failed disk write therefore
@@ -122,6 +123,12 @@ later local deletions can be propagated safely; failed requests leave local file
 untouched and retry. Concurrent note edits preserve the desktop body as a dated
 conflict copy rather than choosing a silent winner.
 
+The pairing bearer is stored under the same OS credential-store service as AI
+keys (`sync:device`), never in the webview store after migration. Disconnect and
+credential-inclusive reset remove it from the keychain. If secure storage is
+locked or unavailable, sync stays disconnected rather than falling back to
+plaintext.
+
 ## AI
 
 Desktop default is **local Ollama** (private, offline). Cloud AI is optional and,
@@ -129,6 +136,11 @@ for v1, **bring-your-own-key only** — Skriuw's own fallback keys cannot ship i
 a desktop binary and a proxy would require the server we are deliberately not
 shipping yet. Enabling cloud AI sends note text off the machine, so it must sit
 behind an explicit consent toggle; "fully private" holds only in Ollama mode.
+Both the settings UI and Rust command boundary enforce that consent, and the UI
+states plainly that note text leaves the device. Withdrawing consent immediately
+blocks cloud calls. Missing local Ollama disables local actions, explains the
+condition, and offers the supported managed install/start flow; it never causes
+a silent cloud fallback.
 
 Provider API keys are stored in the **OS credential store** (macOS Keychain,
 Windows Credential Manager, Linux Secret Service) via `credentials.rs` (DH-03),
@@ -141,7 +153,7 @@ store disables cloud providers while Ollama keeps working. Complete snapshots
 intentionally exclude these keys (they live outside app-data); a reset only
 removes them when the user explicitly opts in.
 
-### External edits and conflict-safe saves
+### External edits, live reconciliation, and conflict-safe saves
 
 Provider keys aside, the vault is a folder of plain Markdown that other tools can
 edit. Saves are **conflict-safe** (DH-08 Phase 1): every desktop note read
@@ -153,28 +165,56 @@ before writing; if it no longer matches, the save is rejected
 overwritten. An explicit `force` flag exists for a future "keep my version"
 resolution and is never set by autosave.
 
-Live passive watching (surfacing external add/edit/delete/rename without a
-restart) and the full conflict-resolution UI are the remaining DH-08 phases; the
-revision check above protects data whenever a save happens, independent of the
-watcher.
+The desktop recursively watches the configured vault. Note events are debounced
+and reconciled by path; stable frontmatter ids preserve identity across external
+rename/move. Folder and journal metadata use a convergent bounded reconcile, and
+watcher errors or very large bursts fall back to one full rescan. Events carry
+ids and invalidation flags, never note bodies. Ordinary internal saves are
+suppressed once by exact path + content revision, so a later external edit at the
+same path cannot be hidden. The watcher pauses around restore/reset, rebinds on a
+live vault-root change, and joins on shutdown. Data settings shows active,
+rescanning, degraded, or stopped state and provides Rescan/Restart actions.
+
+A clean active editor refreshes and shows “Updated from disk”. A saving/error
+editor remains mounted and enters a persistent conflict state. If its stale save
+reaches Rust, the external file remains canonical and the local draft is first
+written as a uniquely named, timestamped conflict-copy note with a new id. Thus
+closing the window cannot discard either body; the banner also offers copying
+the mounted draft. Its resolution actions are **Compare versions** (opens the
+preserved draft beside the disk note), **Keep disk** (loads canonical disk and
+retains the draft copy), and **Keep mine** (first copies the disk body, then uses
+the sole explicit force-save path). Resolving also discards the stale autosave
+queue entry so it cannot recreate the conflict.
+
+### Structured editor sidecars
+
+Block-editor-only `richContent` is persisted crash-safely at
+`.skriuw/rich/<note-id>.json`. Each sidecar stores the SHA-256 revision of the
+exact Markdown bytes it accompanies. Markdown is still canonical: when another
+editor changes the file, the hash no longer matches and Skriuw ignores the stale
+structure and derives a new rich document from Markdown. Markdown is committed
+first and both files use atomic replacement, so a crash between commits degrades
+to safe derivation instead of applying old structure to a new body. Sidecars move
+through trash/restore, are removed on purge/delete, and are included in vault
+backups and full snapshots.
+
+## Desktop updates
+
+The Tauri updater is opt-in at release-build time. `SKRIUW_UPDATE_ENDPOINT` must
+be HTTPS and `SKRIUW_UPDATE_PUBKEY` must contain the updater verification key;
+when either is absent, the app reports an unconfigured state and makes no update
+request. Settings can check, show release notes, and install a signature-verified
+update. Normal local builds do not need release secrets; CI uses
+`bun run --cwd apps/desktop build:release`, publishes each installer with its
+`.sig`, and serves Tauri-compatible update JSON.
 
 ## Open gaps
 
-1. **OS keychain storage (sync credential).** AI provider keys now live in the OS
-   credential store (DH-03), but the desktop _sync_ bearer credential from browser
-   pairing is still persisted in the webview store. Move it to the same adapter
-   before treating a compromised desktop profile as protected. (DH-03 out of scope
-   deliberately covered only the AI keys.)
-2. **`richContent` is not persisted in the vault.** It is derived from the markdown
-   on read (`rich-document.ts`), so block-editor-only structure is lossy on a
-   desktop round-trip. Decide: accept lossy markdown-canonical, or add a
-   `.skriuw/rich/<id>.json` sidecar.
-3. **Read path still goes through SQLite.** The stale `vault.rs` header was
+1. **Read path still goes through SQLite.** The stale `vault.rs` header was
    corrected in DH-01; the vault-authoritative-on-conflict invariant now holds
    through atomic writes plus reconcile/backfill repair, but reads still serve
    from the derived index.
-4. **Ollama absence UX.** `capabilities.ai` is `true`, but the degrade path when no
-   Ollama daemon is on `localhost:11434` needs to be explicit: greyed action plus a
-   one-click in-app install trigger, never a silent failure.
-5. **Cloud-AI consent surface.** The BYO-key cloud path needs the privacy consent
-   toggle and a clear "text leaves this device" label before it is enabled.
+2. **External release infrastructure.** Repository support for signed updates is
+   complete, but production still needs a protected updater private key, hosted
+   artifacts/update JSON, Apple signing and notarization, and a Windows
+   code-signing certificate.

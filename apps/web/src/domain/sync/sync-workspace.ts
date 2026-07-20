@@ -35,9 +35,9 @@ async function runDesktopSync(
 	};
 	// Persist the successful push boundary before pulling. If the pull is
 	// interrupted, a retry will not misclassify the same writes as conflicts.
-	setSyncClientConfig(pushedConfig);
+	await setSyncClientConfig(pushedConfig);
 	const pull = await pullWorkspaceFromServer(backend, config.serverUrl, config.token);
 	const lastSnapshotIds = await getWorkspaceSnapshotIds(backend);
-	setSyncClientConfig({ ...pushedConfig, lastSnapshotIds });
+	await setSyncClientConfig({ ...pushedConfig, lastSnapshotIds });
 	return { push, pull };
 }

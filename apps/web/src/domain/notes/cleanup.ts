@@ -15,10 +15,8 @@ export type CleanupScanResult = {
 	scanned: number;
 };
 
-// Body of `generateNoteContent` (use-notes-layout.ts / global-notes-shortcuts.tsx)
-// minus the `# <title>` heading, normalized the same way `normalizedBody` does.
-// Notes are matched against this fuzzily so a starter note with a few stray
-// keystrokes still counts as untouched.
+// Legacy starter copy from releases before new notes became blank. Keep this
+// recognizer so Note Cleanup can remove untouched tutorial notes after upgrade.
 const DEFAULT_NOTE_BODY =
 	"#draft #idea start writing here. use # for tags, @ to mention notes, or /tag and /link note from the block editor.";
 

@@ -25,6 +25,8 @@ const CREDENTIAL_SERVICE: &str = "nl.remcostoeten.skriuw";
 pub enum CredentialProvider {
     Groq,
     Gemini,
+    /// Bearer credential issued by the user's Skriuw sync server.
+    SyncBearer,
 }
 
 impl CredentialProvider {
@@ -33,6 +35,7 @@ impl CredentialProvider {
         match self {
             CredentialProvider::Groq => "ai:groq",
             CredentialProvider::Gemini => "ai:gemini",
+            CredentialProvider::SyncBearer => "sync:bearer",
         }
     }
 
@@ -52,6 +55,7 @@ impl CredentialProvider {
         match self {
             CredentialProvider::Groq => "groqApiKey",
             CredentialProvider::Gemini => "geminiApiKey",
+            CredentialProvider::SyncBearer => "syncToken",
         }
     }
 }
@@ -104,7 +108,7 @@ impl fmt::Display for CredentialError {
             CredentialError::Unavailable(reason) => write!(
                 formatter,
                 "the operating system credential store is unavailable ({reason}); \
-				 cloud AI is disabled. Local Ollama still works."
+				 features that require a saved credential are disabled. Local Ollama still works."
             ),
             CredentialError::AccessDenied(reason) => write!(
                 formatter,
@@ -112,11 +116,11 @@ impl fmt::Display for CredentialError {
 				 unlock your keychain and try again."
             ),
             CredentialError::InvalidSecret(reason) => {
-                write!(formatter, "invalid API key: {reason}")
+                write!(formatter, "invalid credential: {reason}")
             }
             CredentialError::VerificationFailed => write!(
                 formatter,
-                "the API key could not be read back after saving; it was not stored."
+                "the credential could not be read back after saving; it was not stored."
             ),
             CredentialError::Unexpected(reason) => {
                 write!(formatter, "credential store error: {reason}")
@@ -129,7 +133,7 @@ impl std::error::Error for CredentialError {}
 
 /// Conservative maximum stored-key length, to reject obviously wrong pastes
 /// without knowing each provider's exact format.
-const MAX_SECRET_LEN: usize = 512;
+const MAX_SECRET_LEN: usize = 4096;
 
 /// The credential-store seam. Production uses [`OsCredentialStore`]; tests use
 /// an in-memory adapter with injectable failures.
@@ -402,6 +406,9 @@ mod tests {
 
         store.set(CredentialProvider::Groq, "groq-key").unwrap();
         store.set(CredentialProvider::Gemini, "gemini-key").unwrap();
+        store
+            .set(CredentialProvider::SyncBearer, "sync-bearer")
+            .unwrap();
         assert_eq!(
             store
                 .get(CredentialProvider::Groq)
@@ -419,11 +426,20 @@ mod tests {
                 .expose(),
             "gemini-key"
         );
+        assert_eq!(
+            store
+                .get(CredentialProvider::SyncBearer)
+                .unwrap()
+                .unwrap()
+                .expose(),
+            "sync-bearer"
+        );
 
         store.delete(CredentialProvider::Groq).unwrap();
         assert!(store.get(CredentialProvider::Groq).unwrap().is_none());
         // Deleting one leaves the other intact.
         assert!(store.get(CredentialProvider::Gemini).unwrap().is_some());
+        assert!(store.get(CredentialProvider::SyncBearer).unwrap().is_some());
     }
 
     #[test]

@@ -15,7 +15,7 @@ import { useNotesCacheScope } from "./use-notes-cache-scope";
 type DebouncedUpdateOptions = {
 	onSaving?: (noteId: string) => void;
 	onSaved?: (noteId: string) => void;
-	onError?: (noteId: string) => void;
+	onError?: (noteId: string, error: unknown) => void;
 };
 
 // Idle window after the last keystroke before a note's pending edits are
@@ -154,7 +154,7 @@ export function useDebouncedSave(options: DebouncedUpdateOptions = {}): Debounce
 				if ((versionsRef.current.get(id) ?? 0) !== baselineVersion) {
 					return false;
 				}
-				optionsRef.current.onError?.(id);
+				optionsRef.current.onError?.(id, error);
 				return false;
 			}
 		}

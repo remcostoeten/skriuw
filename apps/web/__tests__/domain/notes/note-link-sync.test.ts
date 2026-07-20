@@ -71,6 +71,14 @@ function createDb(existing: PersistedNoteLinkRow[]): {
 					return { count: args.data.length };
 				},
 			},
+			person: {
+				async findMany() {
+					return [];
+				},
+				async create(args) {
+					return { id: `person-${args.data.name}`, name: args.data.name };
+				},
+			},
 		},
 	};
 }

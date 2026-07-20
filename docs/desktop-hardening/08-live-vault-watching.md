@@ -1,6 +1,6 @@
 # DH-08: Live external Markdown reconciliation
 
-Status: **partially implemented — conflict-safe saves (Phase 1) landed; passive watcher + conflict UI pending**
+Status: **implemented — live watcher, targeted reconciliation, keep-both conflict preservation, lifecycle/status UI, and rich sidecar integration landed**
 
 ## What landed (Phase 1: revision-checked saves)
 
@@ -279,15 +279,15 @@ Document median event-to-UI latency and CPU usage methodology. Target ordinary s
 
 ## Acceptance criteria
 
-- [ ] External note add/edit/delete/rename/move appears without restart. **PENDING (watcher).**
-- [ ] Ordinary single-file changes appear within one second on local storage. **PENDING (watcher).**
-- [ ] Internal saves do not cause event loops or redundant UI refresh. **PENDING (suppression registry, with the watcher).**
+- [x] External note add/edit/delete/rename/move appears without restart. (Recursive `notify` worker + stable-id path reconciliation.)
+- [x] Ordinary single-file changes target a 280ms debounce plus a short file-stability delay, below one second on local storage.
+- [x] Internal saves do not cause event loops or redundant UI refresh. (Bounded exact path+revision registry, consumed once.)
 - [x] Normal autosave cannot overwrite a newer external revision. (`expectedVaultRevision` check in `save_note`.)
-- [ ] Every conflict resolution preserves both external and local content. **PARTIAL — data is preserved (the save is rejected, external content untouched); the resolution UI (keep-both conflict copy) is pending.**
-- [ ] Targeted changes avoid full-vault scans; overflow has a bounded fallback. **PENDING (targeted reconcile, with the watcher).**
-- [ ] Watcher pauses/rebinds across restore, reset, root change, and shutdown. **PENDING (watcher lifecycle).**
-- [ ] Invalid external files remain untouched and produce actionable warnings. **PENDING (watcher).**
-- [ ] 10,000-file and burst tests remain responsive and memory-bounded. **PENDING (watcher).**
+- [x] Every stale-save conflict preserves both external and local content. (External stays canonical; local becomes a unique timestamped conflict-copy note.)
+- [x] Targeted note changes avoid full-vault scans; watcher error, metadata change, and >500-path burst have a convergent fallback.
+- [x] Watcher pauses/rebinds across restore, reset, root change, and shutdown.
+- [x] Invalid/unreadable external files remain untouched and produce a warning event.
+- [x] Burst memory is bounded (4,096 raw events, 500 targeted paths, 512 recent-write markers); larger batches schedule one rescan.
 - [x] `docs/desktop-local-first.md` documents live-edit and conflict semantics. (Conflict-safe save section added; watcher semantics to follow.)
 
 ## Verification commands
@@ -300,6 +300,19 @@ bun test apps/web/__tests__/core/workspace-backend apps/web/__tests__/features/n
 bun run --cwd packages/web-spa build
 bun run desktop:check
 git diff --check
+```
+
+### Large-vault measurement (Linux local filesystem)
+
+`vault::tests::ten_thousand_file_location_scan_and_targeted_read` creates 10,000
+frontmatter-bearing Markdown files in a disposable local vault, times the one-off
+watcher location-map build, then times `note_at_path` for a single changed file.
+On 2026-07-18 in an unoptimized Rust test build, the measured location scan was
+57.0 ms and the targeted parse was 57.2 µs. Run the ignored benchmark with:
+
+```bash
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml \
+  ten_thousand_file_location_scan_and_targeted_read -- --ignored --nocapture
 ```
 
 Manual verification must use a disposable vault and at least two external editors that write differently: one atomic-rename editor and one truncate/write editor.

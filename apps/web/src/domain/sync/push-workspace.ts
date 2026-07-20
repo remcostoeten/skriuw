@@ -35,10 +35,11 @@ export async function pushWorkspaceToServer(
 	backend: WorkspaceBackend,
 	config: SyncClientConfig,
 ): Promise<PushResult> {
-	const [noteMetadata, folders, journalEntries] = await Promise.all([
+	const [noteMetadata, folders, journalEntries, people] = await Promise.all([
 		backend.listNotes?.() ?? Promise.resolve([]),
 		backend.listFolders?.() ?? Promise.resolve([]),
 		backend.listJournalEntries?.() ?? Promise.resolve([]),
+		backend.listPeople?.() ?? Promise.resolve([]),
 	]);
 	const notes = await backend.getNotes(noteMetadata.map((note) => note.id));
 	const snapshotIds = {
@@ -70,6 +71,11 @@ export async function pushWorkspaceToServer(
 			annotationScene: note.annotationScene,
 			createdAt: note.createdAt.toISOString(),
 			modifiedAt: note.modifiedAt.toISOString(),
+		})),
+		people: people.map((person) => ({
+			id: person.id,
+			name: person.name,
+			color: person.color ?? null,
 		})),
 		journalEntries: journalEntries.map((entry) => ({
 			id: entry.id,

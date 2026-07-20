@@ -46,7 +46,7 @@ export type WorkspaceNavItem = {
 	isActive?: boolean;
 };
 
-export type EditorSaveState = "idle" | "saving" | "saved" | "error";
+export type EditorSaveState = "idle" | "saving" | "saved" | "error" | "conflict";
 
 const EMPTY_WORKSPACE_ITEMS: WorkspaceNavItem[] = [];
 

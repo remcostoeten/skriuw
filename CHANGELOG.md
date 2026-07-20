@@ -3,15 +3,53 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
-## Unreleased
+## [0.24.0] — 2026-07-20
 
 ### Added
 
-- **Text highlights:** select text in block editor, choose one of four colors,
-  and optionally add a short label. Highlights remain inline, preserve their
-  semantic kind, and round-trip through Skriuw Markdown metadata.
+- **Desktop snapshot import on web:** upload a desktop snapshot ZIP under
+  Settings → Data & sync → Import backup to move a local desktop workspace
+  into a cloud account. Imports notes with their folder tree, journal entries
+  (mood and tags included), and journal tag colors from the snapshot's vault;
+  auto-detected alongside the other import formats, with the usual preview
+  before anything is written. Desktop-only state (app settings, AI keys,
+  search index, version history) is intentionally left out.
+
+- **Calendar settings section:** a new "Calendar" tab in settings lists every
+  journal calendar connection in one place — incoming ICS auto-import
+  subscriptions (with status, last sync, pause/resume, sync now, delete, and
+  new inline editing of label and import mode) and outgoing live-feed links
+  (last refresh, rotate, revoke). The journal sidebar dialogs remain and now
+  share the same components.
+
+- **Living Information:** turn selected text into a typed Mark, optionally group
+  it into a Thread, and see source-linked Readings with live amount, count, and
+  state summaries in the note inspector. Marks are editable, removable back to
+  text, use six colors, and round-trip through Skriuw Markdown metadata.
 - **Tasks from prose:** selected text can now create a workspace task directly
   from editor toolbar. Task keeps source note and block IDs for traceability.
+- **Complete Tasks workspace:** explicit loading/error/unsupported/empty states,
+  calendar filtering, future scheduling, tags, assignees, source navigation,
+  safe inline editing, and confirmed deletion.
+- **Desktop vault trust:** live external-file watching, visible vault lifecycle
+  status, revision-safe conflict resolution with preserved conflict copies, and
+  rich-content sidecars that retain block-only structure across restarts.
+- **Desktop privacy and updates:** sync credentials now live in the OS keychain,
+  cloud AI requires explicit consent, missing Ollama is surfaced without a
+  cloud fallback, and signed updater checks/install controls are available when
+  a release endpoint and public key are configured.
+
+### Changed
+
+- New notes start as a quiet title and blank page, the product tour is shorter,
+  and primary navigation focuses on Notes, Journal, and Tasks with secondary
+  workspace views grouped under Explore.
+- Automatic Mark detection is opt-in by default so ordinary prose is never
+  converted into atomic semantic nodes unexpectedly.
+
+### Release
+
+- Unified release `0.24.0` across web, desktop, Tauri, and Cargo packages.
 
 ## [0.23.0] — 2026-07-12
 
@@ -48,11 +86,11 @@ create GBM buffer: Invalid argument`), so the window never received a valid
   session: linuxdeploy's GTK hook hard-codes `GDK_BACKEND=x11` into the AppImage
   launcher, so it always runs through XWayland.
 
-                `main.rs` now picks per backend rather than globally. On NVIDIA it overrides
-                the AppImage's forced X11 back to Wayland, and disables the dmabuf renderer
-                only when genuinely landing on X11 — the sole path that renders there. GPU
-                compositing is kept everywhere it works, so the 0.22.0 typing-performance win
-                is retained. `SKRIUW_GDK_BACKEND` forces a specific backend.
+                    `main.rs` now picks per backend rather than globally. On NVIDIA it overrides
+                    the AppImage's forced X11 back to Wayland, and disables the dmabuf renderer
+                    only when genuinely landing on X11 — the sole path that renders there. GPU
+                    compositing is kept everywhere it works, so the 0.22.0 typing-performance win
+                    is retained. `SKRIUW_GDK_BACKEND` forces a specific backend.
 
 ### Release
 

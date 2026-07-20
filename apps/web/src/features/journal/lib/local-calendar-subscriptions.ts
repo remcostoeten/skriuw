@@ -110,27 +110,34 @@ export type LocalSyncOutcome = {
 };
 
 /**
- * Fetches one subscription in the webview and applies it through the local
- * workspace backend. Records the outcome on the stored subscription. CORS
- * failures surface as a normal error and are retried on the next cycle.
+ * Fetches one subscription through the server-side ICS proxy (iCloud/Google/
+ * Outlook feeds don't send CORS headers, so a direct browser fetch always
+ * fails) and applies it through the local workspace backend. Records the
+ * outcome on the stored subscription.
  */
 export async function syncLocalCalendarSubscription(
 	backend: WorkspaceBackend,
 	subscription: LocalCalendarSubscription,
 ): Promise<LocalSyncOutcome> {
 	try {
-		const response = await fetch(subscription.url, {
+		const response = await fetch("/api/calendar/subscriptions/fetch", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ url: subscription.url }),
 			signal: AbortSignal.timeout(15_000),
 			cache: "no-store",
 		});
-		if (!response.ok) {
-			throw new Error(`The calendar host responded with status ${response.status}.`);
+		const payload = (await response.json().catch(() => ({}))) as {
+			ics?: string;
+			error?: string;
+		};
+		if (typeof payload.ics !== "string") {
+			throw new Error(payload.error || "Could not fetch that calendar.");
 		}
-		const text = await response.text();
-		if (new TextEncoder().encode(text).length > MAX_ICS_IMPORT_BYTES) {
+		if (new TextEncoder().encode(payload.ics).length > MAX_ICS_IMPORT_BYTES) {
 			throw new Error("The calendar file is too large — the limit is 5 MB.");
 		}
-		const parsed = parseJournalIcs(text);
+		const parsed = parseJournalIcs(payload.ics);
 		const entries = (await backend.listJournalEntries?.()) ?? [];
 		const plan = planJournalIcsImport(parsed, entries, subscription.mode);
 		let created = 0;

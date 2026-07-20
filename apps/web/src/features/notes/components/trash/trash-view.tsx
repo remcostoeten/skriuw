@@ -5,15 +5,7 @@ import { FileText, FolderClosed, RotateCcw, Trash2 } from "lucide-react";
 import type { TrashBatch } from "@/core/workspace-backend/types";
 import { LayoutContainer } from "@/features/layout/components/layout-container";
 import { Button } from "@/shared/ui/button";
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/shared/ui/dialog";
+import { DeleteButton } from "@/shared/ui/delete-button";
 import { DevContextSubmenu } from "@/features/desktop/dev-context-menu";
 import {
 	ContextMenu,
@@ -45,8 +37,6 @@ export function TrashView() {
 	const restore = useRestoreTrash();
 	const purge = usePurgeTrash();
 	const emptyTrash = useEmptyTrash();
-	const [pendingPurge, setPendingPurge] = useState<TrashBatch | null>(null);
-	const [emptyOpen, setEmptyOpen] = useState(false);
 	const [contextBatchId, setContextBatchId] = useState<string | null>(null);
 
 	const isEmpty = batches.length === 0;
@@ -65,15 +55,22 @@ export function TrashView() {
 								Deleted notes and folders. Restore them, or delete them permanently.
 							</p>
 						</div>
-						<Button
-							variant="outline"
+						<DeleteButton
+							label="Empty trash"
+							confirmLabel="Confirm empty"
+							pendingLabel="Emptying"
+							successLabel="Emptied"
+							disabled={isEmpty}
 							size="sm"
-							disabled={isEmpty || emptyTrash.isPending}
-							onClick={() => setEmptyOpen(true)}
-						>
-							<Trash2 className="mr-1.5 h-3.5 w-3.5" />
-							Empty trash
-						</Button>
+							onDelete={async () => {
+								try {
+									await emptyTrash.mutateAsync();
+									return true;
+								} catch {
+									return false;
+								}
+							}}
+						/>
 					</header>
 
 					{isLoading ? null : isEmpty ? (
@@ -127,15 +124,17 @@ export function TrashView() {
 													<RotateCcw className="mr-1.5 h-3.5 w-3.5" />
 													Restore
 												</Button>
-												<Button
-													variant="ghost"
+												<DeleteButton
 													size="sm"
-													className="text-destructive hover:text-destructive"
-													onClick={() => setPendingPurge(batch)}
-												>
-													<Trash2 className="mr-1.5 h-3.5 w-3.5" />
-													Delete
-												</Button>
+													onDelete={async () => {
+														try {
+															await purge.mutateAsync(batch.id);
+															return true;
+														} catch {
+															return false;
+														}
+													}}
+												/>
 											</div>
 										</li>
 									))}
@@ -144,17 +143,18 @@ export function TrashView() {
 							{contextBatch ? (
 								<ContextMenuContent className="w-48">
 									<ContextMenuItem
+										className="gap-2"
 										onClick={() => restore.mutate(contextBatch.id)}
 									>
-										<RotateCcw className="mr-2 h-3.5 w-3.5" />
+										<RotateCcw className="h-3.5 w-3.5" />
 										Restore
 									</ContextMenuItem>
 									<ContextMenuSeparator />
 									<ContextMenuItem
-										className="text-destructive focus:text-destructive"
-										onClick={() => setPendingPurge(contextBatch)}
+										className="gap-2 text-[#ff808a] focus:bg-[#ff808a4d]"
+										onClick={() => purge.mutate(contextBatch.id)}
 									>
-										<Trash2 className="mr-2 h-3.5 w-3.5" />
+										<Trash2 className="h-3.5 w-3.5" />
 										Delete permanently
 									</ContextMenuItem>
 									<ContextMenuSeparator />
@@ -163,68 +163,6 @@ export function TrashView() {
 							) : null}
 						</ContextMenu>
 					)}
-
-					<Dialog
-						open={pendingPurge !== null}
-						onOpenChange={(open) => !open && setPendingPurge(null)}
-					>
-						<DialogContent>
-							<DialogHeader>
-								<DialogTitle>Delete permanently?</DialogTitle>
-								<DialogDescription>
-									{pendingPurge?.kind === "folder"
-										? `"${pendingPurge?.primary.name.replace(/\.md$/, "")}" and everything inside it will be permanently deleted. This cannot be undone.`
-										: `"${pendingPurge?.primary.name.replace(/\.md$/, "")}" will be permanently deleted. This cannot be undone.`}
-								</DialogDescription>
-							</DialogHeader>
-							<DialogFooter>
-								<DialogClose asChild>
-									<Button variant="outline" size="sm">
-										Cancel
-									</Button>
-								</DialogClose>
-								<Button
-									variant="destructive"
-									size="sm"
-									onClick={() => {
-										if (pendingPurge) purge.mutate(pendingPurge.id);
-										setPendingPurge(null);
-									}}
-								>
-									Delete permanently
-								</Button>
-							</DialogFooter>
-						</DialogContent>
-					</Dialog>
-
-					<Dialog open={emptyOpen} onOpenChange={setEmptyOpen}>
-						<DialogContent>
-							<DialogHeader>
-								<DialogTitle>Empty trash?</DialogTitle>
-								<DialogDescription>
-									Every note and folder in the trash will be permanently deleted.
-									This cannot be undone.
-								</DialogDescription>
-							</DialogHeader>
-							<DialogFooter>
-								<DialogClose asChild>
-									<Button variant="outline" size="sm">
-										Cancel
-									</Button>
-								</DialogClose>
-								<Button
-									variant="destructive"
-									size="sm"
-									onClick={() => {
-										emptyTrash.mutate();
-										setEmptyOpen(false);
-									}}
-								>
-									Empty trash
-								</Button>
-							</DialogFooter>
-						</DialogContent>
-					</Dialog>
 				</div>
 			</div>
 		</LayoutContainer>

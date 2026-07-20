@@ -11,6 +11,7 @@ import {
 	type PointerEvent as ReactPointerEvent,
 } from "react";
 import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, GripVertical, Sparkles, Undo2, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { Editor } from "./editor";
@@ -27,6 +28,14 @@ import type { NoteFile, RichTextDocument } from "@/types/notes";
 import type { NoteProperty } from "@/domain/notes/properties";
 import { type AiEditorHandle, type AiAction, type AiSelectionAction } from "@/features/ai/service";
 import { isTauriRuntime, tauriInvoke } from "@/core/workspace-backend";
+import {
+	forceKeepLocalVaultVersion,
+	preserveVaultConflictCopy,
+	releasePreservedVaultConflictCopy,
+} from "@/core/workspace-backend/tauri-backend";
+import { notesKeys } from "@/features/notes/lib/notes-keys";
+import { useNotesStore } from "@/features/notes/store";
+import { showUserToast } from "@/shared/lib/user-toast";
 import { useAiProviderKeys } from "@/features/ai/hooks/use-ai-provider-keys";
 import { listFallbackAiKeys } from "@/features/ai/lib/resolve-ai-key";
 import { usePreferencesStore } from "@/features/settings/store";
@@ -428,6 +437,118 @@ function SaveErrorBanner({
 					className="rounded border border-destructive/50 px-2 py-1 font-medium hover:bg-destructive/15"
 				>
 					{copied ? "Copied" : "Copy unsaved text"}
+				</button>
+			</div>
+		</div>
+	);
+}
+
+function VaultConflictBanner({ file }: { file: NoteFile }) {
+	const queryClient = useQueryClient();
+	const [copied, setCopied] = useState(false);
+	const [busy, setBusy] = useState<"compare" | "disk" | "local" | null>(null);
+
+	function discardPending() {
+		window.dispatchEvent(
+			new CustomEvent("vault-conflict:discard-draft", { detail: { id: file.id } }),
+		);
+	}
+
+	async function compareVersions() {
+		setBusy("compare");
+		try {
+			const copyId = await preserveVaultConflictCopy(file);
+			await queryClient.invalidateQueries({ queryKey: notesKeys.files() });
+			useNotesStore.getState().openSplitBeside(copyId, file.id);
+		} catch {
+			showUserToast("Could not open the preserved draft", "error");
+		} finally {
+			setBusy(null);
+		}
+	}
+
+	async function keepDiskVersion() {
+		setBusy("disk");
+		try {
+			await preserveVaultConflictCopy(file);
+			discardPending();
+			useNotesStore.getState().clearFileSaveState(file.id);
+			releasePreservedVaultConflictCopy(file.id);
+			await queryClient.invalidateQueries({
+				queryKey: notesKeys.detail(file.id),
+				exact: true,
+			});
+			await queryClient.invalidateQueries({ queryKey: notesKeys.files() });
+			showUserToast("Disk version loaded; your draft remains as a conflict copy", "info");
+		} catch {
+			showUserToast("Could not finish conflict resolution", "error");
+		} finally {
+			setBusy(null);
+		}
+	}
+
+	async function keepLocalVersion() {
+		setBusy("local");
+		try {
+			await preserveVaultConflictCopy(file);
+			await forceKeepLocalVaultVersion(file);
+			discardPending();
+			useNotesStore.getState().setFileSaveState(file.id, "saved");
+			releasePreservedVaultConflictCopy(file.id);
+			releasePreservedVaultConflictCopy(`${file.id}:disk`);
+			queryClient.setQueryData(notesKeys.detail(file.id), file);
+			await queryClient.invalidateQueries({ queryKey: notesKeys.files() });
+			showUserToast("Your version is canonical; the disk version was preserved", "info");
+		} catch {
+			showUserToast("Could not keep your version; both current copies remain safe", "error");
+		} finally {
+			setBusy(null);
+		}
+	}
+
+	return (
+		<div
+			role="alert"
+			className="flex items-center gap-3 border-b border-amber-500/35 bg-amber-500/10 px-4 py-2 text-xs text-foreground"
+		>
+			<span className="font-medium">This note changed on disk.</span>
+			<span className="text-muted-foreground">Both versions are preserved.</span>
+			<div className="ml-auto flex gap-2">
+				<button
+					type="button"
+					disabled={busy !== null}
+					onClick={() => void compareVersions()}
+					className="rounded border border-amber-500/40 px-2 py-1 font-medium hover:bg-amber-500/15 disabled:opacity-50"
+				>
+					{busy === "compare" ? "Opening…" : "Compare versions"}
+				</button>
+				<button
+					type="button"
+					disabled={busy !== null}
+					onClick={() => void keepDiskVersion()}
+					className="rounded border border-amber-500/40 px-2 py-1 font-medium hover:bg-amber-500/15 disabled:opacity-50"
+				>
+					{busy === "disk" ? "Loading…" : "Keep disk"}
+				</button>
+				<button
+					type="button"
+					disabled={busy !== null}
+					onClick={() => void keepLocalVersion()}
+					className="rounded border border-amber-500/40 px-2 py-1 font-medium hover:bg-amber-500/15 disabled:opacity-50"
+				>
+					{busy === "local" ? "Saving…" : "Keep mine"}
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						void navigator.clipboard
+							?.writeText(file.content)
+							.then(() => setCopied(true))
+							.catch(() => setCopied(false));
+					}}
+					className="rounded border border-amber-500/40 px-2 py-1 font-medium hover:bg-amber-500/15"
+				>
+					{copied ? "Copied" : "Copy my draft"}
 				</button>
 			</div>
 		</div>
@@ -1095,6 +1216,7 @@ function EditorContainerImpl({
 					getUnsavedText={() => file.content}
 				/>
 			) : null}
+			{saveState === "conflict" && file ? <VaultConflictBanner file={file} /> : null}
 
 			<div className="relative flex min-h-0 flex-1 flex-col">
 				{showEditorSkeleton ? (

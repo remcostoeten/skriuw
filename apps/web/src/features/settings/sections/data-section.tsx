@@ -479,8 +479,8 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 				data-settings-focus="desktop-sync"
 				className="py-5 scroll-mt-24"
 			>
-				<div className="overflow-hidden rounded-xl border border-border/70 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)_/_0.14),transparent_34%),linear-gradient(135deg,hsl(var(--card)_/_0.88),hsl(var(--muted)_/_0.24))] shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.06)]">
-					<div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+				<div className="@container overflow-hidden rounded-xl border border-border/70 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)_/_0.14),transparent_34%),linear-gradient(135deg,hsl(var(--card)_/_0.88),hsl(var(--muted)_/_0.24))] shadow-[inset_0_1px_0_hsl(var(--foreground)_/_0.06)]">
+					<div className="grid gap-5 p-4 @sm:p-5 @2xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
 						<div className="min-w-0">
 							<div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
 								<KeyRound className="size-3.5" />
@@ -495,7 +495,7 @@ function DesktopSyncTokens({ isConnected }: { isConnected: boolean }) {
 								extension or desktop app. Keys can be revoked individually when a
 								device is lost or replaced.
 							</p>
-							<div className="mt-4 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+							<div className="mt-4 grid gap-2 text-xs text-muted-foreground @sm:grid-cols-3">
 								<div className="rounded-lg border border-border/60 bg-background/45 p-3">
 									<p className="font-medium text-foreground">One-time reveal</p>
 									<p className="mt-1">
@@ -1084,7 +1084,7 @@ function CloudDataSection() {
 				<Row
 					focusId="import-backup"
 					title="Import backup"
-					description="Import a Skriuw backup or Markdown folder ZIP. Choose merge, overwrite, or full workspace replace."
+					description="Import a Skriuw backup, desktop snapshot, or Markdown folder ZIP. Choose merge, overwrite, or full workspace replace."
 				>
 					<>
 						<input
@@ -1195,6 +1195,9 @@ function CloudDataSection() {
 								<SelectContent>
 									<SelectItem value="auto">Auto-detect</SelectItem>
 									<SelectItem value="skriuw">Skriuw backup</SelectItem>
+									<SelectItem value="desktop-snapshot">
+										Desktop snapshot (vault only)
+									</SelectItem>
 									<SelectItem value="obsidian">
 										Obsidian vault (best effort)
 									</SelectItem>

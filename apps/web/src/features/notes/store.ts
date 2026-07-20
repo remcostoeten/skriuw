@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-type SaveStatus = "idle" | "saving" | "saved" | "error";
+type SaveStatus = "idle" | "saving" | "saved" | "error" | "conflict";
 import type { NoteFile, NoteFolder } from "@/types/notes";
 import { DESKTOP_METADATA_MIN_WIDTH, DESKTOP_SIDEBAR_MIN_WIDTH } from "./constants";
 

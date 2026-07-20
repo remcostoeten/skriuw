@@ -27,6 +27,9 @@ pub struct AiSettings {
     pub groq_model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gemini_model: Option<String>,
+    /// Explicit opt-in required before note text may be sent to any cloud AI.
+    #[serde(default)]
+    pub cloud_consent: bool,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
 }

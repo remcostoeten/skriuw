@@ -451,6 +451,48 @@ describe("mark markdown round-trip", () => {
 			}),
 		);
 	});
+
+	test("round-trips a thread independently from a mark note", () => {
+		const document = [
+			{
+				id: "b1",
+				type: "paragraph",
+				props: {},
+				content: [
+					{
+						type: "mark",
+						props: {
+							id: "mark_hotel",
+							kind: "amount",
+							text: "€840",
+							value: "€840",
+							color: "purple",
+							label: "Quoted price (hotel)",
+							thread: "Accommodation / Utrecht",
+						},
+					},
+				],
+				children: [],
+			},
+		] as unknown as RichTextDocument;
+
+		const markdown = richDocumentToSearchableMarkdown(document);
+		expect(markdown).toContain(
+			"/purple/Quoted%20price%20%28hotel%29/Accommodation%20%2F%20Utrecht)",
+		);
+		const content =
+			(markdownToRichDocument(markdown)[0] as { content?: unknown[] }).content ?? [];
+		expect(content).toContainEqual(
+			expect.objectContaining({
+				type: "mark",
+				props: expect.objectContaining({
+					label: "Quoted price (hotel)",
+					thread: "Accommodation / Utrecht",
+					color: "purple",
+				}),
+			}),
+		);
+	});
 });
 
 describe("upgradeRichDocumentChips", () => {

@@ -35,6 +35,19 @@ async function renderLayout() {
 }
 
 describe("useNotesLayout note switching saves", () => {
+	test("creates new notes in block mode even when raw mode is the preference", async () => {
+		const mutate = createMock(() => undefined);
+		await installNotesLayoutMocks(notes, notesStoreState, flush, flushAll, {
+			defaultModeRaw: true,
+			createNoteMutation: { mutate, isPending: false },
+		});
+		const layout = await renderNotesLayout();
+
+		layout.createFile();
+
+		expect(mutate.mock.calls[0]?.[0]).toMatchObject({ preferredEditorMode: "block" });
+	});
+
 	test("selects another note immediately while the previous note flush is pending", async () => {
 		const layout = await renderLayout();
 

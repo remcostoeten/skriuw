@@ -1,0 +1,1413 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Skriuw — connected work views concept</title>
+		<style>
+			:root {
+				color-scheme: dark;
+				--ink: #0d0e12;
+				--rail: #101116;
+				--panel: #15171d;
+				--panel-raised: #1b1d24;
+				--line: #2a2d35;
+				--line-soft: #202229;
+				--paper: #f0efe9;
+				--muted: #92959f;
+				--quiet: #646873;
+				--violet: #9b8cff;
+				--violet-soft: #2b2748;
+				--amber: #efb56d;
+				--green: #76c69b;
+				--red: #ee8a88;
+				--blue: #79aef2;
+				--radius: 8px;
+				--sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+				--data: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			html,
+			body {
+				height: 100%;
+			}
+
+			body {
+				margin: 0;
+				overflow: hidden;
+				background: var(--ink);
+				color: var(--paper);
+				font-family: var(--sans);
+				font-size: 14px;
+				letter-spacing: -0.01em;
+			}
+
+			button,
+			input,
+			select {
+				font: inherit;
+			}
+
+			button {
+				color: inherit;
+				border: 0;
+				cursor: pointer;
+			}
+
+			button:focus-visible,
+			select:focus-visible,
+			input:focus-visible {
+				outline: 2px solid var(--violet);
+				outline-offset: 2px;
+			}
+
+			.app {
+				display: grid;
+				grid-template-columns: 52px 232px minmax(0, 1fr);
+				height: 100dvh;
+				min-width: 0;
+			}
+
+			.rail {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				border-right: 1px solid var(--line-soft);
+				background: var(--rail);
+				padding: 12px 8px;
+			}
+
+			.brand {
+				display: grid;
+				width: 30px;
+				height: 30px;
+				place-items: center;
+				margin-bottom: 22px;
+				border: 1px solid #3b3e48;
+				border-radius: 9px;
+				background: var(--paper);
+				color: var(--ink);
+				font-family: Georgia, serif;
+				font-size: 17px;
+				font-style: italic;
+				box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.025);
+			}
+
+			.rail-button {
+				display: grid;
+				width: 34px;
+				height: 34px;
+				place-items: center;
+				margin-bottom: 6px;
+				border-radius: 8px;
+				background: transparent;
+				color: var(--quiet);
+				transition:
+					background 150ms ease,
+					color 150ms ease;
+			}
+
+			.rail-button:hover,
+			.rail-button.active {
+				background: #20222a;
+				color: var(--paper);
+			}
+			.rail-button svg {
+				width: 16px;
+				height: 16px;
+			}
+			.rail-spacer {
+				flex: 1;
+			}
+
+			.sidebar {
+				min-width: 0;
+				border-right: 1px solid var(--line);
+				background: #121319;
+				padding: 18px 12px;
+			}
+
+			.workspace-name {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				margin: 0 6px 23px;
+				font-size: 12px;
+				font-weight: 650;
+			}
+
+			.workspace-name span:last-child {
+				color: var(--quiet);
+			}
+
+			.sidebar-label {
+				margin: 20px 8px 7px;
+				color: var(--quiet);
+				font-family: var(--data);
+				font-size: 9px;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+			}
+
+			.side-link {
+				display: flex;
+				width: 100%;
+				align-items: center;
+				gap: 9px;
+				padding: 8px 9px;
+				border-radius: 7px;
+				background: transparent;
+				color: var(--muted);
+				text-align: left;
+				transition: 140ms ease;
+			}
+
+			.side-link:hover {
+				background: #1b1d23;
+				color: var(--paper);
+			}
+			.side-link.active {
+				background: #24212f;
+				color: #d8d3ff;
+			}
+			.side-link .glyph {
+				width: 16px;
+				color: var(--quiet);
+				text-align: center;
+			}
+			.side-link.active .glyph {
+				color: var(--violet);
+			}
+			.side-link small {
+				margin-left: auto;
+				color: var(--quiet);
+				font-family: var(--data);
+				font-size: 10px;
+			}
+
+			.main {
+				display: flex;
+				min-width: 0;
+				flex-direction: column;
+				background:
+					radial-gradient(circle at 85% 0%, rgba(155, 140, 255, 0.045), transparent 26%),
+					var(--ink);
+			}
+
+			.topbar {
+				display: flex;
+				height: 52px;
+				flex: 0 0 auto;
+				align-items: center;
+				gap: 10px;
+				border-bottom: 1px solid var(--line-soft);
+				padding: 0 22px;
+				color: var(--muted);
+				font-size: 12px;
+			}
+
+			.crumb-current {
+				color: var(--paper);
+			}
+			.topbar-spacer {
+				flex: 1;
+			}
+
+			.sync-state {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font-family: var(--data);
+				font-size: 10px;
+			}
+
+			.sync-dot {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				background: var(--green);
+			}
+
+			.content {
+				min-height: 0;
+				flex: 1;
+				overflow: auto;
+				padding: 36px clamp(22px, 4vw, 64px) 64px;
+			}
+
+			.content-inner {
+				width: min(1180px, 100%);
+				margin: 0 auto;
+			}
+
+			.eyebrow {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-bottom: 10px;
+				color: var(--violet);
+				font-family: var(--data);
+				font-size: 10px;
+				letter-spacing: 0.1em;
+				text-transform: uppercase;
+			}
+
+			.eyebrow::before {
+				content: "";
+				width: 22px;
+				height: 1px;
+				background: currentColor;
+			}
+
+			h1 {
+				margin: 0;
+				font-family: Georgia, "Times New Roman", serif;
+				font-size: clamp(34px, 4vw, 52px);
+				font-weight: 400;
+				letter-spacing: -0.045em;
+			}
+
+			.lede {
+				max-width: 620px;
+				margin: 11px 0 28px;
+				color: var(--muted);
+				font-size: 14px;
+				line-height: 1.6;
+			}
+
+			.view-toolbar {
+				display: flex;
+				align-items: center;
+				gap: 7px;
+				margin-bottom: 14px;
+				overflow-x: auto;
+				scrollbar-width: none;
+			}
+
+			.view-toolbar::-webkit-scrollbar {
+				display: none;
+			}
+
+			.view-switcher {
+				display: flex;
+				padding: 3px;
+				border: 1px solid var(--line);
+				border-radius: 9px;
+				background: #111217;
+			}
+
+			.view-button {
+				padding: 7px 11px;
+				border-radius: 6px;
+				background: transparent;
+				color: var(--quiet);
+				font-size: 11px;
+				white-space: nowrap;
+			}
+
+			.view-button:hover {
+				color: var(--paper);
+			}
+			.view-button.active {
+				background: var(--panel-raised);
+				color: var(--paper);
+				box-shadow: inset 0 0 0 1px #30333c;
+			}
+
+			.toolbar-spacer {
+				flex: 1;
+			}
+
+			.soft-button,
+			.filter-chip {
+				height: 34px;
+				padding: 0 11px;
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				background: #111217;
+				color: var(--muted);
+				font-size: 11px;
+				white-space: nowrap;
+			}
+
+			.soft-button:hover,
+			.filter-chip:hover {
+				border-color: #3a3d47;
+				color: var(--paper);
+			}
+			.filter-chip b {
+				color: var(--paper);
+				font-weight: 550;
+			}
+
+			.view-stage {
+				min-height: 420px;
+				border: 1px solid var(--line);
+				border-radius: 11px;
+				background: rgba(19, 20, 26, 0.9);
+				box-shadow:
+					0 22px 70px rgba(0, 0, 0, 0.24),
+					inset 0 1px rgba(255, 255, 255, 0.02);
+				overflow: hidden;
+			}
+
+			.stage-header {
+				display: flex;
+				min-height: 45px;
+				align-items: center;
+				gap: 9px;
+				border-bottom: 1px solid var(--line-soft);
+				padding: 0 15px;
+				color: var(--quiet);
+				font-size: 11px;
+			}
+
+			.stage-header strong {
+				color: var(--paper);
+				font-weight: 550;
+			}
+			.stage-header .count {
+				font-family: var(--data);
+				font-size: 10px;
+			}
+
+			.new-task {
+				display: flex;
+				min-width: 210px;
+				align-items: center;
+				gap: 8px;
+				margin-left: auto;
+				padding: 5px 9px;
+				border: 1px solid transparent;
+				border-radius: 6px;
+				background: transparent;
+				color: var(--muted);
+			}
+
+			.new-task:hover {
+				border-color: var(--line);
+				background: var(--panel);
+				color: var(--paper);
+			}
+
+			.list {
+				padding: 8px;
+			}
+
+			.task-row {
+				position: relative;
+				display: grid;
+				grid-template-columns: 24px minmax(210px, 1fr) 112px 98px 88px 150px;
+				align-items: center;
+				min-height: 53px;
+				border-bottom: 1px solid var(--line-soft);
+				border-radius: 6px;
+				padding: 0 10px;
+				transition: background 140ms ease;
+				cursor: pointer;
+			}
+
+			.task-row:hover {
+				background: var(--panel-raised);
+			}
+			.task-row:last-child {
+				border-bottom-color: transparent;
+			}
+
+			.task-row::before {
+				content: "";
+				position: absolute;
+				left: 0;
+				top: 12px;
+				bottom: 12px;
+				width: 2px;
+				border-radius: 2px;
+				background: transparent;
+			}
+
+			.task-row.from-note::before {
+				background: var(--violet);
+			}
+
+			.check {
+				width: 15px;
+				height: 15px;
+				border: 1px solid #474b57;
+				border-radius: 4px;
+				background: transparent;
+			}
+
+			.check.checked {
+				border-color: #526f60;
+				background: var(--green);
+			}
+			.task-title {
+				min-width: 0;
+				padding-right: 12px;
+			}
+			.task-title > div {
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.task-title small {
+				display: block;
+				margin-top: 3px;
+				color: var(--quiet);
+				font-size: 10px;
+			}
+			.done-title {
+				color: var(--quiet);
+				text-decoration: line-through;
+			}
+
+			.pill {
+				display: inline-flex;
+				width: fit-content;
+				align-items: center;
+				gap: 6px;
+				padding: 4px 7px;
+				border-radius: 5px;
+				font-family: var(--data);
+				font-size: 9px;
+				text-transform: uppercase;
+				letter-spacing: 0.035em;
+			}
+
+			.pill::before {
+				content: "";
+				width: 5px;
+				height: 5px;
+				border-radius: 50%;
+				background: currentColor;
+			}
+			.status-todo {
+				color: #9da1aa;
+				background: #25272d;
+			}
+			.status-progress {
+				color: var(--amber);
+				background: #30271e;
+			}
+			.status-done {
+				color: var(--green);
+				background: #1d2d26;
+			}
+			.priority-urgent {
+				color: var(--red);
+			}
+			.priority-high {
+				color: var(--amber);
+			}
+			.priority-medium {
+				color: var(--blue);
+			}
+			.priority-low {
+				color: var(--quiet);
+			}
+
+			.cell-muted {
+				color: var(--muted);
+				font-size: 11px;
+			}
+			.source-link {
+				color: #aaa0ef;
+				font-size: 10px;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.board {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(230px, 1fr));
+				gap: 1px;
+				min-width: 760px;
+				background: var(--line-soft);
+			}
+
+			.board-column {
+				min-height: 450px;
+				background: var(--panel);
+				padding: 14px;
+			}
+			.column-head {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-bottom: 12px;
+				font-size: 11px;
+			}
+			.column-head .count {
+				color: var(--quiet);
+				font-family: var(--data);
+			}
+
+			.card {
+				position: relative;
+				margin-bottom: 9px;
+				padding: 13px;
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				background: #191b21;
+				box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12);
+				cursor: pointer;
+				transition:
+					transform 140ms ease,
+					border-color 140ms ease;
+			}
+
+			.card:hover {
+				transform: translateY(-1px);
+				border-color: #444750;
+			}
+			.card.from-note {
+				border-left: 2px solid var(--violet);
+			}
+			.card-title {
+				margin-bottom: 15px;
+				line-height: 1.4;
+			}
+			.card-meta {
+				display: flex;
+				align-items: center;
+				gap: 9px;
+				color: var(--quiet);
+				font-size: 10px;
+			}
+			.card-meta .priority {
+				margin-left: auto;
+			}
+			.card-source {
+				margin-top: 10px;
+				padding-top: 9px;
+				border-top: 1px solid var(--line-soft);
+				color: #aaa0ef;
+				font-size: 9px;
+			}
+
+			.table-wrap {
+				overflow-x: auto;
+			}
+			table {
+				width: 100%;
+				min-width: 800px;
+				border-collapse: collapse;
+			}
+			th,
+			td {
+				height: 46px;
+				padding: 0 13px;
+				border-bottom: 1px solid var(--line-soft);
+				text-align: left;
+			}
+			th {
+				height: 38px;
+				color: var(--quiet);
+				font-family: var(--data);
+				font-size: 9px;
+				font-weight: 500;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+			}
+			td {
+				color: var(--muted);
+				font-size: 11px;
+			}
+			tbody tr {
+				cursor: pointer;
+				transition: background 140ms ease;
+			}
+			tbody tr:hover {
+				background: var(--panel-raised);
+			}
+			td:first-child {
+				color: var(--paper);
+				font-size: 12px;
+			}
+			.table-source {
+				color: #aaa0ef;
+			}
+
+			.calendar {
+				padding: 17px;
+			}
+			.calendar-head {
+				display: flex;
+				align-items: baseline;
+				justify-content: space-between;
+				margin-bottom: 14px;
+			}
+			.calendar-head strong {
+				font-family: Georgia, serif;
+				font-size: 22px;
+				font-weight: 400;
+			}
+			.calendar-head span {
+				color: var(--quiet);
+				font-family: var(--data);
+				font-size: 10px;
+			}
+			.calendar-grid {
+				display: grid;
+				grid-template-columns: repeat(7, minmax(100px, 1fr));
+				min-width: 740px;
+				border-left: 1px solid var(--line-soft);
+				border-top: 1px solid var(--line-soft);
+			}
+			.day-name {
+				padding: 8px;
+				color: var(--quiet);
+				font-family: var(--data);
+				font-size: 9px;
+				text-transform: uppercase;
+			}
+			.day {
+				min-height: 100px;
+				border-right: 1px solid var(--line-soft);
+				border-bottom: 1px solid var(--line-soft);
+				padding: 8px;
+			}
+			.day-number {
+				color: var(--quiet);
+				font-family: var(--data);
+				font-size: 9px;
+			}
+			.day.today .day-number {
+				display: grid;
+				width: 20px;
+				height: 20px;
+				place-items: center;
+				border-radius: 50%;
+				background: var(--violet);
+				color: white;
+			}
+			.calendar-task {
+				margin-top: 7px;
+				padding: 6px 7px;
+				border-left: 2px solid var(--blue);
+				border-radius: 3px;
+				background: #20242d;
+				color: #c9d6e8;
+				font-size: 9px;
+				line-height: 1.25;
+				cursor: pointer;
+			}
+			.calendar-task.from-note {
+				border-left-color: var(--violet);
+				background: #252139;
+				color: #d8d3ff;
+			}
+
+			.project-view {
+				padding: 8px;
+			}
+			.project-row {
+				display: grid;
+				grid-template-columns: minmax(190px, 1fr) 112px 90px 100px 86px;
+				align-items: center;
+				min-height: 58px;
+				padding: 0 12px;
+				border-bottom: 1px solid var(--line-soft);
+				border-radius: 7px;
+			}
+			.project-row:hover {
+				background: var(--panel-raised);
+			}
+			.project-title {
+				color: var(--paper);
+			}
+			.project-title small {
+				display: block;
+				margin-top: 4px;
+				color: var(--quiet);
+				font-size: 10px;
+			}
+			.progress {
+				width: 74px;
+				height: 5px;
+				overflow: hidden;
+				border-radius: 8px;
+				background: #292c33;
+			}
+			.progress span {
+				display: block;
+				height: 100%;
+				background: var(--violet);
+			}
+
+			.legend {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-top: 14px;
+				color: var(--quiet);
+				font-size: 10px;
+			}
+			.thread-key {
+				width: 14px;
+				height: 2px;
+				background: var(--violet);
+			}
+
+			.drawer-scrim {
+				position: fixed;
+				inset: 0;
+				z-index: 10;
+				visibility: hidden;
+				background: rgba(0, 0, 0, 0);
+				transition:
+					background 220ms ease,
+					visibility 220ms;
+			}
+			.drawer-scrim.open {
+				visibility: visible;
+				background: rgba(0, 0, 0, 0.34);
+			}
+
+			.drawer {
+				position: absolute;
+				inset: 0 0 0 auto;
+				width: min(440px, 92vw);
+				border-left: 1px solid var(--line);
+				background: #121319;
+				padding: 25px;
+				transform: translateX(100%);
+				transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+				box-shadow: -30px 0 80px rgba(0, 0, 0, 0.35);
+			}
+			.drawer-scrim.open .drawer {
+				transform: translateX(0);
+			}
+			.drawer-close {
+				float: right;
+				width: 30px;
+				height: 30px;
+				border-radius: 6px;
+				background: transparent;
+				color: var(--muted);
+			}
+			.drawer-close:hover {
+				background: var(--panel-raised);
+				color: var(--paper);
+			}
+			.drawer-kicker {
+				margin: 3px 0 18px;
+				color: var(--violet);
+				font-family: var(--data);
+				font-size: 9px;
+				text-transform: uppercase;
+				letter-spacing: 0.1em;
+			}
+			.drawer h2 {
+				max-width: 350px;
+				margin: 0 0 28px;
+				font-family: Georgia, serif;
+				font-size: 28px;
+				font-weight: 400;
+				line-height: 1.15;
+			}
+			.field {
+				display: grid;
+				grid-template-columns: 105px 1fr;
+				align-items: center;
+				min-height: 44px;
+				border-top: 1px solid var(--line-soft);
+			}
+			.field label {
+				color: var(--quiet);
+				font-size: 10px;
+			}
+			.field select {
+				width: 100%;
+				border: 0;
+				background: transparent;
+				color: var(--paper);
+			}
+			.field-value {
+				color: var(--muted);
+				font-size: 12px;
+			}
+			.source-panel {
+				position: relative;
+				margin-top: 28px;
+				padding: 15px 15px 15px 20px;
+				border: 1px solid #37304f;
+				border-radius: 8px;
+				background: #1b1827;
+			}
+			.source-panel::before {
+				content: "";
+				position: absolute;
+				left: -1px;
+				top: 14px;
+				bottom: 14px;
+				width: 2px;
+				background: var(--violet);
+			}
+			.source-panel small {
+				color: #9f95d8;
+				font-family: var(--data);
+				font-size: 9px;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+			}
+			.source-panel strong {
+				display: block;
+				margin: 7px 0;
+				font-size: 12px;
+			}
+			.source-panel p {
+				margin: 0;
+				color: #aaa6ba;
+				font-size: 11px;
+				line-height: 1.55;
+			}
+
+			.mobile-menu {
+				display: none;
+			}
+
+			@media (max-width: 860px) {
+				.app {
+					grid-template-columns: 48px minmax(0, 1fr);
+				}
+				.sidebar {
+					display: none;
+				}
+				.task-row {
+					grid-template-columns: 24px minmax(170px, 1fr) 105px 80px;
+				}
+				.task-row > :nth-child(5),
+				.task-row > :nth-child(6) {
+					display: none;
+				}
+				.content {
+					padding-inline: 18px;
+				}
+				.soft-button {
+					display: none;
+				}
+			}
+
+			@media (max-width: 560px) {
+				.app {
+					display: block;
+				}
+				.rail {
+					display: none;
+				}
+				.topbar {
+					padding-inline: 15px;
+				}
+				.mobile-menu {
+					display: inline;
+					color: var(--paper);
+				}
+				.content {
+					padding: 26px 12px 50px;
+				}
+				h1 {
+					font-size: 38px;
+				}
+				.view-toolbar {
+					align-items: stretch;
+					flex-wrap: wrap;
+				}
+				.view-switcher {
+					width: 100%;
+				}
+				.view-button {
+					flex: 1;
+					padding-inline: 7px;
+				}
+				.toolbar-spacer {
+					display: none;
+				}
+				.filter-chip {
+					flex: 1;
+				}
+				.task-row {
+					grid-template-columns: 24px minmax(160px, 1fr) 98px;
+				}
+				.task-row > :nth-child(4),
+				.task-row > :nth-child(5),
+				.task-row > :nth-child(6) {
+					display: none;
+				}
+				.stage-header {
+					padding-inline: 11px;
+				}
+				.new-task {
+					min-width: 0;
+					width: 34px;
+					overflow: hidden;
+					white-space: nowrap;
+				}
+				.project-row {
+					grid-template-columns: 1fr 100px;
+				}
+				.project-row > :nth-child(n + 3) {
+					display: none;
+				}
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				*,
+				*::before,
+				*::after {
+					scroll-behavior: auto !important;
+					transition-duration: 0.01ms !important;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="app">
+			<nav class="rail" aria-label="Primary navigation">
+				<div class="brand" aria-label="Skriuw">s</div>
+				<button class="rail-button" aria-label="Notes" title="Notes">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+						<path d="M5 3h10l4 4v14H5zM15 3v5h4M8 12h8M8 16h6" />
+					</svg>
+				</button>
+				<button class="rail-button" aria-label="Journal" title="Journal">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+						<path d="M4 5h16v15H4zM8 3v4M16 3v4M4 10h16" />
+					</svg>
+				</button>
+				<button class="rail-button active" aria-label="Work" title="Work">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+						<path d="M5 7h14v13H5zM9 7V4h6v3M5 12h14" />
+					</svg>
+				</button>
+				<div class="rail-spacer"></div>
+				<button class="rail-button" aria-label="Settings" title="Settings">⌘</button>
+			</nav>
+
+			<aside class="sidebar">
+				<div class="workspace-name"><span>Skriuw studio</span><span>⌄</span></div>
+				<div class="sidebar-label">Workspace</div>
+				<button class="side-link" data-scope="inbox">
+					<span class="glyph">⌁</span>Inbox<small>7</small>
+				</button>
+				<button class="side-link active" data-scope="tasks">
+					<span class="glyph">✓</span>Tasks<small>6</small>
+				</button>
+				<button class="side-link" data-scope="projects">
+					<span class="glyph">◫</span>Active projects<small>4</small>
+				</button>
+				<div class="sidebar-label">Saved views</div>
+				<button class="side-link" data-scope="tasks" data-filter="today">
+					<span class="glyph">·</span>Due this week<small>3</small>
+				</button>
+				<button class="side-link" data-scope="tasks" data-filter="mine">
+					<span class="glyph">·</span>Assigned to me<small>4</small>
+				</button>
+				<button class="side-link" data-scope="tasks" data-filter="from-notes">
+					<span class="glyph">·</span>From meeting notes<small>3</small>
+				</button>
+			</aside>
+
+			<main class="main">
+				<header class="topbar">
+					<button class="mobile-menu" aria-label="Open menu">☰</button>
+					<span>Work</span><span>›</span
+					><span class="crumb-current" id="crumb">Tasks</span>
+					<span class="topbar-spacer"></span>
+					<span class="sync-state"><span class="sync-dot"></span>local + cloud</span>
+				</header>
+
+				<div class="content">
+					<div class="content-inner">
+						<div class="eyebrow" id="eyebrow">One source, four useful shapes</div>
+						<h1 id="page-title">Work, seen your way.</h1>
+						<p class="lede" id="lede">
+							Tasks stay connected to the writing that created them. Switch the view;
+							the information itself does not move or duplicate.
+						</p>
+
+						<div class="view-toolbar">
+							<div class="view-switcher" id="view-switcher" aria-label="Choose view">
+								<button class="view-button active" data-view="list">List</button>
+								<button class="view-button" data-view="board">Board</button>
+								<button class="view-button" data-view="table">Table</button>
+								<button class="view-button" data-view="calendar">Calendar</button>
+							</div>
+							<span class="toolbar-spacer"></span>
+							<button class="filter-chip">Status: <b>Open</b> ×</button>
+							<button class="soft-button">＋ Filter</button>
+							<button class="soft-button">↕ Sort</button>
+						</div>
+
+						<section class="view-stage" aria-live="polite">
+							<div class="stage-header">
+								<strong id="stage-title">Open tasks</strong>
+								<span class="count" id="stage-count">6 items</span>
+								<button class="new-task" id="new-task">
+									＋ <span>Add a task</span>
+								</button>
+							</div>
+							<div id="stage"></div>
+						</section>
+
+						<div class="legend" id="legend">
+							<span class="thread-key"></span> Violet thread = this task came from a
+							note. Open it to jump back to the original context.
+						</div>
+					</div>
+				</div>
+			</main>
+		</div>
+
+		<div class="drawer-scrim" id="drawer-scrim" aria-hidden="true">
+			<aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+				<button class="drawer-close" id="drawer-close" aria-label="Close">×</button>
+				<div class="drawer-kicker">Task details</div>
+				<h2 id="drawer-title"></h2>
+				<div class="field">
+					<label for="drawer-status">Status</label
+					><select id="drawer-status">
+						<option value="todo">To do</option>
+						<option value="progress">In progress</option>
+						<option value="done">Done</option>
+					</select>
+				</div>
+				<div class="field">
+					<label>Priority</label><span class="field-value" id="drawer-priority"></span>
+				</div>
+				<div class="field">
+					<label>Due</label><span class="field-value" id="drawer-due"></span>
+				</div>
+				<div class="field">
+					<label>Assignee</label><span class="field-value" id="drawer-assignee"></span>
+				</div>
+				<div class="source-panel" id="source-panel">
+					<small>Source thread</small>
+					<strong id="drawer-source"></strong>
+					<p id="drawer-excerpt"></p>
+				</div>
+			</aside>
+		</div>
+
+		<script>
+			const tasks = [
+				{
+					id: 1,
+					title: "Publish the desktop sync guide",
+					status: "progress",
+					priority: "high",
+					due: "Jul 21",
+					day: 21,
+					assignee: "Remco",
+					source: "Desktop sync review",
+					excerpt:
+						"Document the pairing flow and explain what happens when the local vault is ahead of cloud.",
+				},
+				{
+					id: 2,
+					title: "Test conflict recovery on Windows",
+					status: "todo",
+					priority: "urgent",
+					due: "Jul 22",
+					day: 22,
+					assignee: "Remco",
+					source: "Desktop hardening — July 18",
+					excerpt:
+						"Before release, force a conflicting edit on Windows and verify that neither version disappears.",
+				},
+				{
+					id: 3,
+					title: "Polish the quick-capture shortcut",
+					status: "todo",
+					priority: "medium",
+					due: "Jul 24",
+					day: 24,
+					assignee: "Mara",
+					source: null,
+					excerpt: "",
+				},
+				{
+					id: 4,
+					title: "Write empty state for calendar feeds",
+					status: "progress",
+					priority: "medium",
+					due: "Jul 24",
+					day: 24,
+					assignee: "Mara",
+					source: "Calendar subscriptions critique",
+					excerpt:
+						"The empty state should explain the first useful action instead of describing the feature.",
+				},
+				{
+					id: 5,
+					title: "Review import regression tests",
+					status: "todo",
+					priority: "low",
+					due: "Jul 27",
+					day: 27,
+					assignee: "Remco",
+					source: null,
+					excerpt: "",
+				},
+				{
+					id: 6,
+					title: "Ship v0.23 release notes",
+					status: "done",
+					priority: "high",
+					due: "Jul 18",
+					day: 18,
+					assignee: "Remco",
+					source: "Release planning",
+					excerpt:
+						"Keep the release notes focused on what changed for writers, then link the technical diff.",
+				},
+			];
+
+			const projects = [
+				{
+					title: "Desktop hardening",
+					note: "Project note · 12 linked tasks",
+					status: "Active",
+					due: "Jul 29",
+					owner: "Remco",
+					progress: 68,
+					updates: "Today",
+				},
+				{
+					title: "Calendar interoperability",
+					note: "Project note · 7 linked tasks",
+					status: "Active",
+					due: "Aug 02",
+					owner: "Mara",
+					progress: 82,
+					updates: "Today",
+				},
+				{
+					title: "Living information",
+					note: "Project note · 4 linked tasks",
+					status: "Planned",
+					due: "Aug 08",
+					owner: "Remco",
+					progress: 24,
+					updates: "Yesterday",
+				},
+				{
+					title: "Mobile capture",
+					note: "Project note · 9 linked tasks",
+					status: "Active",
+					due: "Aug 15",
+					owner: "Mara",
+					progress: 41,
+					updates: "Jul 17",
+				},
+			];
+
+			let currentView = "list";
+			let currentScope = "tasks";
+			let activeTask = null;
+
+			const stage = document.querySelector("#stage");
+			const stageTitle = document.querySelector("#stage-title");
+			const stageCount = document.querySelector("#stage-count");
+			const switcher = document.querySelector("#view-switcher");
+
+			const statusLabel = { todo: "To do", progress: "In progress", done: "Done" };
+			const statusClass = {
+				todo: "status-todo",
+				progress: "status-progress",
+				done: "status-done",
+			};
+
+			function statusPill(task) {
+				return `<span class="pill ${statusClass[task.status]}">${statusLabel[task.status]}</span>`;
+			}
+
+			function taskTitle(task) {
+				return `<div class="task-title"><div class="${task.status === "done" ? "done-title" : ""}">${task.title}</div>${task.source ? `<small>↳ ${task.source}</small>` : ""}</div>`;
+			}
+
+			function renderList() {
+				stage.innerHTML = `<div class="list">${tasks
+					.map(
+						(task) => `
+        <div class="task-row ${task.source ? "from-note" : ""}" data-task="${task.id}" tabindex="0">
+          <button class="check ${task.status === "done" ? "checked" : ""}" aria-label="Toggle ${task.title}" data-check="${task.id}"></button>
+          ${taskTitle(task)}
+          ${statusPill(task)}
+          <span class="priority-${task.priority} cell-muted">${task.priority}</span>
+          <span class="cell-muted">${task.due}</span>
+          <span class="source-link">${task.source ? `↗ ${task.source}` : "—"}</span>
+        </div>`,
+					)
+					.join("")}</div>`;
+			}
+
+			function renderBoard() {
+				const states = ["todo", "progress", "done"];
+				stage.innerHTML = `<div class="table-wrap"><div class="board">${states
+					.map((status) => {
+						const items = tasks.filter((task) => task.status === status);
+						return `<section class="board-column"><div class="column-head">${statusPill({ status })}<span class="count">${items.length}</span></div>${items
+							.map(
+								(task) => `
+          <article class="card ${task.source ? "from-note" : ""}" data-task="${task.id}" tabindex="0">
+            <div class="card-title">${task.title}</div>
+            <div class="card-meta"><span>${task.due}</span><span>${task.assignee}</span><span class="priority priority-${task.priority}">${task.priority}</span></div>
+            ${task.source ? `<div class="card-source">↳ ${task.source}</div>` : ""}
+          </article>`,
+							)
+							.join("")}</section>`;
+					})
+					.join("")}</div></div>`;
+			}
+
+			function renderTable() {
+				stage.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Task</th><th>Status</th><th>Priority</th><th>Due</th><th>Assignee</th><th>Source note</th></tr></thead><tbody>${tasks
+					.map(
+						(task) => `
+        <tr data-task="${task.id}" tabindex="0"><td>${task.title}</td><td>${statusPill(task)}</td><td class="priority-${task.priority}">${task.priority}</td><td>${task.due}</td><td>${task.assignee}</td><td class="table-source">${task.source || "—"}</td></tr>`,
+					)
+					.join("")}</tbody></table></div>`;
+			}
+
+			function renderCalendar() {
+				const days = Array.from({ length: 35 }, (_, index) => index + 13);
+				stage.innerHTML = `<div class="calendar"><div class="calendar-head"><strong>July 2026</strong><span>Today · Jul 19</span></div><div class="table-wrap"><div class="calendar-grid">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => `<div class="day-name">${day}</div>`).join("")}${days
+					.map((rawDay) => {
+						const day = rawDay > 31 ? rawDay - 31 : rawDay;
+						const items = rawDay <= 31 ? tasks.filter((task) => task.day === day) : [];
+						return `<div class="day ${day === 19 && rawDay === 19 ? "today" : ""}"><span class="day-number">${day}</span>${items.map((task) => `<div class="calendar-task ${task.source ? "from-note" : ""}" data-task="${task.id}">${task.title}</div>`).join("")}</div>`;
+					})
+					.join("")}</div></div></div>`;
+			}
+
+			function renderProjects() {
+				stage.innerHTML = `<div class="project-view">${projects.map((project) => `<div class="project-row"><div class="project-title">${project.title}<small>${project.note}</small></div><span class="pill ${project.status === "Active" ? "status-progress" : "status-todo"}">${project.status}</span><span class="cell-muted">${project.owner}</span><span class="cell-muted">${project.due}</span><div><div class="progress"><span style="width:${project.progress}%"></span></div><small class="cell-muted">${project.progress}%</small></div></div>`).join("")}</div>`;
+			}
+
+			function bindTaskInteractions() {
+				document.querySelectorAll("[data-task]").forEach((element) => {
+					element.addEventListener("click", (event) => {
+						if (event.target.closest("[data-check]")) return;
+						openTask(Number(element.dataset.task));
+					});
+					element.addEventListener("keydown", (event) => {
+						if (event.key === "Enter") openTask(Number(element.dataset.task));
+					});
+				});
+				document.querySelectorAll("[data-check]").forEach((button) =>
+					button.addEventListener("click", (event) => {
+						event.stopPropagation();
+						const task = tasks.find((item) => item.id === Number(button.dataset.check));
+						task.status = task.status === "done" ? "todo" : "done";
+						render();
+					}),
+				);
+			}
+
+			function render() {
+				if (currentScope === "projects") {
+					renderProjects();
+				} else if (currentView === "list") renderList();
+				else if (currentView === "board") renderBoard();
+				else if (currentView === "table") renderTable();
+				else renderCalendar();
+				bindTaskInteractions();
+			}
+
+			function openTask(id) {
+				activeTask = tasks.find((task) => task.id === id);
+				if (!activeTask) return;
+				document.querySelector("#drawer-title").textContent = activeTask.title;
+				document.querySelector("#drawer-status").value = activeTask.status;
+				document.querySelector("#drawer-priority").textContent = activeTask.priority;
+				document.querySelector("#drawer-due").textContent = activeTask.due;
+				document.querySelector("#drawer-assignee").textContent = activeTask.assignee;
+				document.querySelector("#drawer-source").textContent =
+					activeTask.source || "Created directly in Tasks";
+				document.querySelector("#drawer-excerpt").textContent =
+					activeTask.excerpt ||
+					"This task has no source note. Add one when more context is needed.";
+				document.querySelector("#source-panel").style.borderColor = activeTask.source
+					? "#37304f"
+					: "var(--line)";
+				const scrim = document.querySelector("#drawer-scrim");
+				scrim.classList.add("open");
+				scrim.setAttribute("aria-hidden", "false");
+				document.querySelector("#drawer-close").focus();
+			}
+
+			function closeDrawer() {
+				const scrim = document.querySelector("#drawer-scrim");
+				scrim.classList.remove("open");
+				scrim.setAttribute("aria-hidden", "true");
+				activeTask = null;
+			}
+
+			switcher.addEventListener("click", (event) => {
+				const button = event.target.closest("[data-view]");
+				if (!button || currentScope === "projects") return;
+				currentView = button.dataset.view;
+				document
+					.querySelectorAll(".view-button")
+					.forEach((item) => item.classList.toggle("active", item === button));
+				render();
+			});
+
+			document.querySelectorAll("[data-scope]").forEach((link) =>
+				link.addEventListener("click", () => {
+					currentScope = link.dataset.scope === "projects" ? "projects" : "tasks";
+					document
+						.querySelectorAll(".side-link")
+						.forEach((item) => item.classList.toggle("active", item === link));
+					const isProjects = currentScope === "projects";
+					document.querySelector("#crumb").textContent = isProjects
+						? "Active projects"
+						: link.textContent.trim().replace(/\d+$/, "");
+					document.querySelector("#eyebrow").textContent = isProjects
+						? "Saved note view"
+						: "One source, four useful shapes";
+					document.querySelector("#page-title").textContent = isProjects
+						? "Projects without a database."
+						: "Work, seen your way.";
+					document.querySelector("#lede").textContent = isProjects
+						? "A live view of project notes selected by tag and shared property keys. Each row still opens as a full note."
+						: "Tasks stay connected to the writing that created them. Switch the view; the information itself does not move or duplicate.";
+					stageTitle.textContent = isProjects
+						? "#project · Status is not Shipped"
+						: "Open tasks";
+					stageCount.textContent = isProjects ? "4 notes" : "6 items";
+					switcher.style.opacity = isProjects ? ".35" : "1";
+					switcher.style.pointerEvents = isProjects ? "none" : "auto";
+					document.querySelector("#new-task span").textContent = isProjects
+						? "New project note"
+						: "Add a task";
+					document.querySelector("#legend").innerHTML = isProjects
+						? '<span class="thread-key"></span> This is a saved view over notes, not a separate collection of copied records.'
+						: '<span class="thread-key"></span> Violet thread = this task came from a note. Open it to jump back to the original context.';
+					render();
+				}),
+			);
+
+			document.querySelector("#drawer-close").addEventListener("click", closeDrawer);
+			document.querySelector("#drawer-scrim").addEventListener("click", (event) => {
+				if (event.target.id === "drawer-scrim") closeDrawer();
+			});
+			document.addEventListener("keydown", (event) => {
+				if (event.key === "Escape") closeDrawer();
+			});
+			document.querySelector("#drawer-status").addEventListener("change", (event) => {
+				if (!activeTask) return;
+				activeTask.status = event.target.value;
+				render();
+			});
+
+			render();
+		</script>
+	</body>
+</html>

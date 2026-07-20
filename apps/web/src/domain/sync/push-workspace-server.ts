@@ -23,6 +23,7 @@ export type DesktopPushPayload = {
 		createdAt: string;
 		modifiedAt: string;
 	}>;
+	people?: Array<{ id: string; name: string; color?: string | null }>;
 	journalEntries: Array<{
 		id: string;
 		dateKey: string;
@@ -104,6 +105,32 @@ export async function pushDesktopWorkspace(
 				where: { id: folder.id, userId },
 				data: { parentId: folder.parentId },
 			});
+		}
+
+		for (const person of (payload.people ?? []).slice(0, 5_000)) {
+			const name = person.name.trim().slice(0, 200);
+			if (!name) continue;
+			const color = person.color ? person.color.slice(0, 32) : null;
+			const [byId, nameOwner] = await Promise.all([
+				tx.person.findUnique({ where: { id: person.id }, select: { userId: true } }),
+				tx.person.findFirst({ where: { userId, name }, select: { id: true } }),
+			]);
+			if (byId && byId.userId !== userId) {
+				// Cross-user id collision (same snapshot pushed into two accounts)
+				// must not sink the whole workspace push.
+				console.error("[sync/push] person id conflict", {
+					personId: person.id,
+					pushingUserId: userId,
+				});
+				continue;
+			}
+			if (byId) {
+				if (!nameOwner || nameOwner.id === person.id) {
+					await tx.person.update({ where: { id: person.id }, data: { name, color } });
+				}
+			} else if (!nameOwner) {
+				await tx.person.create({ data: { id: person.id, userId, name, color } });
+			}
 		}
 
 		for (const note of payload.notes.slice(0, 25_000)) {
