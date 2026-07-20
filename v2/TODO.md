@@ -1,6 +1,6 @@
 # Detailed delivery checklist
 
-Last reviewed: 2026-07-20
+Last reviewed: 2026-07-21
 
 ## Current state
 
@@ -8,7 +8,7 @@ Last reviewed: 2026-07-20
 - [x] Work isolated on `feat/instant-local-first-foundation`.
 - [x] Logical commits created; working tree clean after the last verified implementation commit.
 - [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
-- [x] 81 backend tests pass; two manual backend benchmarks are ignored by the default suite.
+- [x] 95 backend tests pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
 - [x] No frontend, desktop shell, router, React dependency, or editor dependency exists.
 - [x] No Git remote is configured.
 
@@ -70,7 +70,7 @@ Measured result: five optimized-build samples for one atomic batch of 5,000 root
 - [x] Add bounded diagnostics for runtime, storage, history, backup, and recovery failures.
 - [x] Add scheduled backup rotation policy.
 - [x] Add recovery-manifest metadata and retention tests.
-- [ ] Add desktop lifecycle flow for verified database swap after restore.
+- [x] Add desktop lifecycle flow for verified database swap after restore.
 - [ ] Add Git repository integrity check and cache-rebuild command.
 - [ ] Add full export/import compatibility fixtures for every archive version.
 
@@ -90,13 +90,17 @@ Implemented diagnostic contract: stable context/category enums project typed sub
 
 Implemented recovery rotation: the native default is one verified backup every six hours, at most 28 retained artifacts, and a 30-day age ceiling. Immutable create-new manifests record relative names, timestamps, sizes, file SHA-256 values, schema versions, migration fingerprints, verification state, and retryable pending deletions. Pruning requires an exact manifest record plus regular-file, size, and checksum matches.
 
+Implemented live-swap contract: preflight verifies a create-new candidate before runtime shutdown. Shutdown drains and joins all clones, the canonical database moves to an explicit rollback sibling, the candidate moves into place, and the replacement must pass read-only verification, normal open, integrity, and bootstrap before a new runtime is returned. Post-move failures restore and reopen the original when possible; failed rollback is reported explicitly without deleting remaining files.
+
 ## P1: scale fixtures and backend budgets
 
-- [ ] Generate deterministic 1,000-note and 5,000-note workspaces.
+- [x] Generate deterministic 1,000-note and 5,000-note workspaces.
 - [ ] Generate 50, 500, and 2,000-block documents after editor schema selection.
-- [ ] Add nested-tree, wide-tree, FTS, import, bootstrap, and history workloads.
+- [ ] Add import, bootstrap, and history workload measurements on the fixture generators.
 - [ ] Record raw samples and environment metadata.
-- [ ] Keep shared CI correctness-only until a fixed performance runner exists.
+- [x] Keep shared CI correctness-only until a fixed performance runner exists.
+
+Implemented fixture contract: the portable `skriuw-fixtures` crate generates deterministic wide, nested, and mixed operation-sequence workspaces at 1,000 and 5,000 notes with pinned SHA-256 digests. Semantic placement keeps ranks adapter-owned, and declared tree and FTS expectations support native and future web workloads. The default suite materializes a smaller fixture through SQLite; the ignored 5,000-note run carries no CI timing budget. See `docs/fixtures.md` and ADR-0016.
 
 ## UI architecture gate
 

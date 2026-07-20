@@ -1,6 +1,6 @@
 # Session handoff
 
-Last reviewed: 2026-07-20
+Last reviewed: 2026-07-21
 
 ## Start here
 
@@ -24,9 +24,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit before this handoff: `bc2329c feat: rotate verified recovery backups`.
+- Last implementation commits before this handoff: `95d30b0 feat: swap verified live databases` and `3346343 feat: add deterministic scale fixtures`.
 - Expected worktree state: clean.
-- Current verification result: 81 tests plus formatting, Clippy, and generated-schema drift checks pass; two manual backend benchmarks are ignored by the default suite and pass when selected.
+- Current verification result: 95 tests plus formatting, Clippy, and generated-schema drift checks pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite and pass when selected.
 - Rust toolchain: 1.95.0.
 - Ignored local development database: `.data/skriuw.db`.
 
@@ -70,6 +70,9 @@ skriuw-runtime
 ├── bounded lossless save batching
 └── clone-safe shutdown and worker join
 
+skriuw-lifecycle
+└── verified live-database swap and rollback orchestration
+
 skriuw-history
 ├── leased retry worker
 ├── reader/materializer ports
@@ -77,6 +80,9 @@ skriuw-history
 
 skriuw-history-git
 └── native-only Git implementation
+
+skriuw-fixtures
+└── portable deterministic operation-sequence workloads
 ```
 
 The UI contract remains a fully hydrated in-memory workspace. Navigation is renderer-only. Persistence acknowledgements reconcile revisions later.
@@ -106,6 +112,9 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Local history retry diagnostics are bounded before SQLite persistence, cleared on the next claim, and excluded from snapshots and archives.
 - Scheduled native recovery defaults to a six-hour cadence, 28 artifacts, and a 30-day age ceiling. The capability enforces cadence without owning a timer.
 - Immutable recovery manifests contain relative paths only and publish before checksum-guarded pruning; manual and pre-import backups remain outside rotation.
+- Live replacement verifies the candidate before shutdown, drains every runtime clone, retains the old canonical file as an explicit rollback sibling, and resumes only after replacement integrity and bootstrap pass.
+- Failed post-move replacement restores and reopens the original when possible; unrecoverable rollback reports exact stage/status and preserves remaining files.
+- Deterministic fixture generators create wide, nested, and mixed 1,000-note and 5,000-note operation sequences with pinned digests, declared FTS counts, and no committed generated data.
 - Generated schemas live in `generated/contracts`.
 - No frontend framework, desktop shell, editor, router, React, React Scan, or package manager has been added.
 - No remote exists; do not claim work is pushed.
@@ -167,21 +176,35 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Retention deletes only manifest-listed regular files whose size and checksum still match. Missing pending files are idempotent; changed files, directories, symlinks, unrelated files, manual backups, and pre-import backups are never pruned.
 - One workspace gate serializes concurrent attempts. Eight deterministic regressions cover publication metadata, cadence skips, count and age retention, changed-file refusal, invalid policy/manifest handling, concurrent calls, and preservation of two valid manifest generations around corrupt older files.
 - CLI commands `backup-rotate` and `backup-manifest` expose the native boundary. The full smoke created and listed a backup, skipped an early second call, restored to a new database, and passed integrity.
-- Recovery procedures and the still-missing live swap lifecycle are documented in `docs/recovery.md`.
+- Recovery procedures, live replacement, rollback retention, and CLI smoke are documented in `docs/recovery.md`.
+
+## Completed live-database-swap slice
+
+- ADR-0017 defines preflight, runtime shutdown, closed-WAL verification, same-directory moves, directory synchronization, replacement verification, rollback, reopen, and failure reporting.
+- The native `skriuw-lifecycle` crate owns orchestration without introducing a runtime/SQLite dependency cycle. Candidate validation happens while the old runtime is usable; accepted saves drain into the retained rollback artifact before SQLite closes.
+- Success returns a newly bootstrapped runtime and snapshot while every old clone remains unavailable. Post-move failure restores and reopens the original when possible; unrecoverable rollback reports the failed stage/status and preserves remaining files.
+- Seven deterministic tests cover clone draining, accepted-save durability, invalid candidate and existing rollback preflight, replacement-move failure, post-move verification failure, and rollback failure. The `swap-database` CLI smoke replaced a seeded database and passed integrity for both canonical and rollback files.
+
+## Completed scale-fixture slice
+
+- Parallel implementation commit `3c85506` was reviewed and integrated as `3346343`; stale parallel handoff commit `584b1fb` was not cherry-picked.
+- ADR-0016 defines fixtures as portable generated operation sequences with semantic placement, fixed values, and pinned SHA-256 digests rather than committed JSON or database artifacts.
+- `skriuw-fixtures` generates wide, nested, and mixed workspaces at 1,000 and 5,000 notes. Metadata declares node, folder, document, operation, depth, and FTS match expectations.
+- Six generator regressions cover determinism, pinned digests, validation, tree shape, search tokens, timestamps, and settings. One default SQLite test materializes a smaller fixture; the ignored manual 5,000-note run remains outside CI timing gates.
 
 ## Known correctness gap
 
-A verified backup can be restored only to a new path. No lifecycle orchestrator yet revokes submissions, joins the runtime, closes the live SQLite connection, swaps a verified candidate into the canonical path, reopens and bootstraps it, or rolls the filesystem state back if reopen fails. The CLI and future shell must not improvise this destructive boundary.
+Git history can materialize revisions, enumerate headers, read Markdown, and atomically replace the SQLite history cache, but it has no explicit repository-integrity operation. The existing cache rebuild helper is exercised only through tests and has no CLI/native maintenance command. Corrupt refs, commit ancestry, metadata, trees, or blobs therefore cannot be distinguished cleanly from cache drift before a rebuild is attempted.
 
 Immediate next slice:
 
-1. Reserve ADR-0017 because ADR-0016 belongs to the optional concurrent scale-fixture slice; define shutdown, close, swap, reopen, bootstrap, rollback, and failure-reporting order.
-2. Require a verified create-new restore candidate and explicit canonical/rollback paths; never overwrite an open connection or delete a broad directory.
-3. Move the existing canonical database to a uniquely named rollback sibling, move the candidate into place, reopen and run integrity/bootstrap checks, then retain or remove the rollback only according to the contract.
-4. On any post-move failure, restore the original canonical file and report whether rollback itself succeeded. Add deterministic failure injection without sleeps.
-5. Keep Tauri/UI presentation out until shell selection; expose a native orchestration boundary and CLI smoke, update persistent docs, and commit before Git integrity work.
+1. Reserve ADR-0018 for a read-only Git repository integrity contract covering repository/worktree presence, the history ref, linear reachable commits, required metadata, safe note paths, and readable Markdown blobs.
+2. Expose typed, bounded/redacted integrity results without leaking repository paths or libgit2 details across the public boundary. A check must never create or repair a repository implicitly.
+3. Make cache rebuild an explicit native maintenance command. Enumerate and validate the complete history first, then use the existing transactional `replace_history_headers` boundary so failure leaves the old cache unchanged.
+4. Add deterministic corruption and rollback regressions without sleeps, plus CLI smoke for a healthy check, successful rebuild, and corrupt-history failure.
+5. Keep Git native-only, preserve lazy Markdown reads, avoid scanning Git during startup/navigation, update ADR/roadmap/persistent docs, and commit before UI work.
 
-Parallel work reservation: deterministic 1,000-note and 5,000-note scale fixtures may run in `/home/remcostoeten/dev/skriuw-claude-fixtures` on `feat/deterministic-scale-fixtures`, based on `21a000f`; ADR-0016 is reserved for that slice if needed. Do not overlap its new fixture crate, workspace membership, or fixture documentation when integrating later.
+Parallel next slice: archive-version export/import compatibility fixtures can run in a separate worktree from the final handoff commit. Reserve ADR-0019 only if that work changes a durable compatibility policy. Keep it centered on domain/archive fixtures and SQLite adapter tests; do not edit history, Git, CLI, ADR-0018, or the primary handoff files until integration.
 
 ## Verification model
 
