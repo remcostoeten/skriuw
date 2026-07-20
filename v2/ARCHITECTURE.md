@@ -84,7 +84,7 @@ Web uses the same operation protocol and renderer store. A dedicated worker owns
 
 ### Recovery and portability
 
-`WorkspaceArchive` is the versioned interchange contract for export, import, and cross-runtime migration. It contains canonical workspace state only. Each adapter rebuilds search, history caches, and operational queues locally. Native raw-database backup is a separate SQLite capability and never becomes the web interchange format.
+`WorkspaceArchive` is the versioned interchange contract for export, import, and cross-runtime migration. It contains canonical workspace state only. Each adapter rebuilds search, history caches, and operational queues locally. Immutable golden JSON fixtures catalogue every supported archive version and must keep passing domain validation plus two complete SQLite import/export round trips. Native raw-database backup is a separate SQLite capability and never becomes the web interchange format.
 
 Native backup uses SQLite's Online Backup API against a live WAL database. It publishes only a create-new, single-file artifact after integrity, foreign-key, migration, and domain validation. Scheduled rotation enforces a six-hour default cadence and publishes immutable relative-path recovery manifests before checksum-guarded pruning. Restore writes a new verified database rather than replacing the open workspace. See [docs/recovery.md](docs/recovery.md).
 
@@ -123,3 +123,4 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0016: deterministic operation-sequence scale fixtures](docs/adr/0016-deterministic-scale-fixtures.md)
 - [ADR-0017: verified live database swap](docs/adr/0017-verified-live-database-swap.md)
 - [ADR-0018: read-only Git history integrity and cache rebuild](docs/adr/0018-read-only-git-history-integrity.md)
+- [ADR-0019: archive compatibility fixtures](docs/adr/0019-archive-compatibility-fixtures.md)

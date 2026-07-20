@@ -18,6 +18,7 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Backend-neutral history reads and atomic cache rebuild from Git.
 - Read-only Git history integrity verification and explicit transactional cache-rebuild CLI.
 - Versioned portable archive with transactional replace import and integrity reporting.
+- Immutable golden archive fixtures covering every supported version through domain and SQLite round trips.
 - Verified online SQLite backup, create-new restore, and import safety backup.
 - Explicit inherited subtree trash, restore fallback, retention-guarded permanent purge, and atomic projection cleanup.
 - Backend-owned semantic tree placement, midpoint ranks, destination-only compaction, and reconciliation acknowledgements.
@@ -34,7 +35,6 @@ Keep domain records, operations, editor documents, and renderer state portable e
 
 - Desktop recovery UI and rollback-retention presentation.
 - Durable sidebar expansion operation and native-only persistence.
-- Archive-version export/import compatibility fixtures.
 - Import, bootstrap, and history workload measurements over the deterministic fixture generators.
 
 ## UI architecture gate

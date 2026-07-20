@@ -4,7 +4,7 @@ Last reviewed: 2026-07-21
 
 ## Start here
 
-The Git-integrity slice is complete on the primary branch. Claude completed the archive-compatibility slice in its isolated worktree; it has not been reviewed or integrated.
+Git integrity and archive compatibility fixtures are complete on the primary branch.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -26,11 +26,12 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit: `6a65abb feat: verify Git history integrity`.
+- Last implementation commits: `6a65abb feat: verify Git history integrity` and `a3f87e2 test: add archive compatibility fixtures`.
 - Expected worktree state: clean.
-- Current verification result: 102 tests plus formatting, Clippy, generated-schema drift checks, and `git diff --check` pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
+- Current verification result: 110 tests plus formatting, Clippy, generated-schema drift checks, and `git diff --check` pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
-- Claude archive status: isolated branch `feat/archive-compatibility-fixtures` contains `33cf41d test: add archive compatibility fixtures` and `24dddb3 docs: hand off archive compatibility fixtures`. Neither commit is integrated into the primary branch.
+- Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
+- Archive CLI smoke imported the representative fixture, passed source integrity, exported it, imported that export into a second database, and passed second integrity; both imports reported 7 nodes and 4 documents.
 - Rust toolchain: 1.95.0.
 - Ignored local development database: `.data/skriuw.db`.
 
@@ -123,6 +124,7 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Failed post-move replacement restores and reopens the original when possible; unrecoverable rollback reports exact stage/status and preserves remaining files.
 - Deterministic fixture generators create wide, nested, and mixed 1,000-note and 5,000-note operation sequences with pinned digests, declared FTS counts, and no committed generated data.
 - Generated schemas live in `generated/contracts`.
+- Golden archive fixtures live in `fixtures/archives`; the manifest must match every production-supported archive version.
 - No frontend framework, desktop shell, editor, router, React, React Scan, or package manager has been added.
 - No remote exists; do not claim work is pushed.
 - No WASM target is installed; do not claim web compilation has passed.
@@ -208,11 +210,17 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - `history-integrity` and `history-rebuild-cache` expose explicit maintenance boundaries. Rebuild completes Git validation before opening SQLite and publishes only through transactional `replace_history_headers`.
 - Seven new deterministic regressions cover healthy empty and multi-note history, non-mutating repository rejection, merges, metadata and identity corruption, note-object corruption, empty/successful rebuild, corrupt-Git cache preservation, and diagnostic redaction. Existing SQLite rollback coverage proves failed cache replacement restores the old cache.
 
+## Completed archive-compatibility slice
+
+- Claude implementation `33cf41d` was reviewed in its isolated worktree and integrated as `a3f87e2`; stale handoff commit `24dddb3` was excluded.
+- ADR-0019 defines immutable versioned golden fixtures, exact manifest coverage, supported-version policy, canonical ordering, and the migration-plus-fixture requirement for future versions.
+- Version 1 includes minimal and representative fixtures covering nesting, inherited trash, active note, non-default settings, unknown extensions, Unicode Markdown/document JSON, and deterministic timestamps and ranks.
+- Five domain regressions enforce catalogue coverage, supported-version agreement, validation, semantic round trips, sensitive fields, and explicit future-version rejection.
+- Three SQLite regressions prove import/bootstrap/export across two complete round trips, search and inherited unavailability, integrity, and failure-before-mutation preservation.
+
 ## Known correctness gap and next task
 
-The primary branch still lacks archive-version export/import compatibility fixtures. Claude's isolated implementation and handoff commits are complete but deliberately unintegrated. Next task: with user direction, review `33cf41d` against current primary history, run its focused tests, integrate only the implementation changes that preserve ADR-0018 and current handoff state, then rerun `./scripts/check.sh`. Do not cherry-pick `24dddb3` blindly because it edits shared handoff documentation.
-
-After archive fixture integration, remaining backend gaps are durable sidebar expansion persistence and import/bootstrap/history workload measurements. UI/editor selection remains blocked on the performance spikes in `docs/performance-contract.md`.
+Next backend slice: add deterministic import, bootstrap, and history workload measurements over existing scale fixtures, recording raw samples and environment metadata without adding timing gates to shared CI. Durable sidebar expansion persistence remains a later UI-linked operation. UI/editor selection remains blocked on the performance spikes in `docs/performance-contract.md`.
 
 ## Verification model
 
