@@ -32,7 +32,13 @@ See [ARCHITECTURE.md](ARCHITECTURE.md), [docs/roadmap.md](docs/roadmap.md), and 
 ./scripts/generate.sh
 ./scripts/dev-db.sh
 cargo run -p skriuw-cli -- snapshot .data/skriuw.db
+cargo run -p skriuw-cli -- integrity .data/skriuw.db
+cargo run -p skriuw-cli -- export .data/skriuw.db workspace.json
+cargo run -p skriuw-cli -- backup .data/skriuw.db workspace.backup.db
+cargo run -p skriuw-cli -- restore workspace.backup.db restored.db
 ```
+
+`import <database> <archive.json>` validates the portable archive and creates a timestamped safety backup before transactional replacement. Backup, restore, and export refuse to overwrite existing targets.
 
 `generate.sh` creates JSON Schema contracts from Rust domain types. Generated files are committed and checked for drift.
 

@@ -1,16 +1,17 @@
 use std::{
     env,
     error::Error,
-    fs,
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
     process::ExitCode,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde_json::json;
-use skriuw_domain::{WorkspaceOperation, WorkspaceOperationEnvelope};
+use skriuw_domain::{WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope};
 use skriuw_sqlite::SqliteWorkspace;
-use skriuw_storage::WorkspaceStorage;
+use skriuw_storage::{WorkspaceMaintenance, WorkspaceStorage};
 use uuid::Uuid;
 
 fn main() -> ExitCode {
@@ -82,6 +83,56 @@ fn run() -> Result<(), Box<dyn Error>> {
                 serde_json::to_string_pretty(&storage.search(&query, 20)?)?
             );
         }
+        "integrity" => {
+            let path = required_path(arguments.next())?;
+            let storage = SqliteWorkspace::open(&path)?;
+            let report = storage.integrity_check()?;
+            if report.healthy {
+                println!("ok");
+            } else {
+                return Err(format!("integrity failed: {}", report.issues.join("; ")).into());
+            }
+        }
+        "backup" => {
+            let path = required_path(arguments.next())?;
+            let backup_path = required_path(arguments.next())?;
+            let storage = SqliteWorkspace::open(&path)?;
+            storage.backup_to(&backup_path)?;
+            println!("backed up {} to {}", path.display(), backup_path.display());
+        }
+        "restore" => {
+            let backup_path = required_path(arguments.next())?;
+            let target = required_path(arguments.next())?;
+            SqliteWorkspace::restore_backup_to(&backup_path, &target)?;
+            println!("restored {} to {}", backup_path.display(), target.display());
+        }
+        "export" => {
+            let path = required_path(arguments.next())?;
+            let archive_path = required_path(arguments.next())?;
+            let storage = SqliteWorkspace::open(&path)?;
+            let archive = storage.export_archive(now_ms()?)?;
+            let mut bytes = serde_json::to_vec_pretty(&archive)?;
+            bytes.push(b'\n');
+            write_new(&archive_path, &bytes)?;
+            println!("exported {} to {}", path.display(), archive_path.display());
+        }
+        "import" => {
+            let path = required_path(arguments.next())?;
+            let archive_path = required_path(arguments.next())?;
+            let raw = fs::read(&archive_path)?;
+            let archive = serde_json::from_slice::<WorkspaceArchive>(&raw)?;
+            archive.validate()?;
+            let storage = SqliteWorkspace::open(&path)?;
+            let backup_path = pre_import_backup_path(&path, now_ms()?)?;
+            storage.backup_to(&backup_path)?;
+            let summary = storage.replace_from_archive(&archive)?;
+            println!(
+                "imported {} nodes and {} documents; safety backup {}",
+                summary.nodes,
+                summary.documents,
+                backup_path.display()
+            );
+        }
         "help" | "--help" | "-h" => print_help(),
         other => return Err(format!("unknown command: {other}").into()),
     }
@@ -109,6 +160,22 @@ fn now_ms() -> Result<i64, Box<dyn Error>> {
     Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as i64)
 }
 
+fn write_new(path: &Path, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
+    ensure_parent(path)?;
+    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    Ok(())
+}
+
+fn pre_import_backup_path(path: &Path, at: i64) -> Result<PathBuf, Box<dyn Error>> {
+    let filename = path
+        .file_name()
+        .and_then(|filename| filename.to_str())
+        .ok_or("database path has no filename")?;
+    Ok(path.with_file_name(format!("{filename}.pre-import-{at}.backup")))
+}
+
 fn print_help() {
     println!(
         "skriuw-cli\n\n\
@@ -117,6 +184,11 @@ fn print_help() {
            check <database>\n\
            snapshot <database>\n\
            seed <database>\n\
-           search <database> <query>"
+           search <database> <query>\n\
+           integrity <database>\n\
+           backup <database> <backup>\n\
+           restore <backup> <new-database>\n\
+           export <database> <archive.json>\n\
+           import <database> <archive.json>"
     );
 }

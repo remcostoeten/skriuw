@@ -57,3 +57,7 @@ Any partial failure rolls back the complete logical operation.
 ## Portable archive
 
 The versioned archive contains `workspace_nodes`, `documents`, settings, and active-note state. Import validates the complete domain graph before opening a transaction, replaces canonical state atomically, rebuilds FTS, and enqueues one history baseline per document. It never transports migration rows, FTS internals, cache rows, or queue leases.
+
+## Native backup
+
+Raw desktop backup uses the SQLite Online Backup API and publishes a normalized single-file database only after SQLite, foreign-key, migration-checksum, and domain validation. Restore creates another validated database path; it never overwrites the open workspace.

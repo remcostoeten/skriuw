@@ -20,6 +20,8 @@ pub enum StorageError {
     },
     #[error("invalid workspace operation: {0}")]
     InvalidOperation(String),
+    #[error("target already exists: {0}")]
+    AlreadyExists(String),
     #[error("storage backend failed: {0}")]
     Backend(String),
 }

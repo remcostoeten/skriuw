@@ -1,11 +1,12 @@
 use std::{
     collections::BTreeMap,
-    path::Path,
+    fs,
+    path::{Path, PathBuf},
     sync::{Mutex, MutexGuard},
     time::Duration,
 };
 
-use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, backup::Backup, params};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use skriuw_domain::{
@@ -58,6 +59,63 @@ impl SqliteWorkspace {
         self.lock()?
             .query_row("PRAGMA quick_check", [], |row| row.get(0))
             .map_err(backend)
+    }
+
+    pub fn backup_to(&self, target: impl AsRef<Path>) -> Result<(), StorageError> {
+        let target = target.as_ref();
+        prepare_new_target(target)?;
+        let temporary = temporary_sibling(target)?;
+        let result = (|| {
+            let mut destination = Connection::open(&temporary).map_err(backend)?;
+            {
+                let source = self.lock()?;
+                let backup = Backup::new(&source, &mut destination).map_err(backend)?;
+                backup
+                    .run_to_completion(128, Duration::from_millis(2), None)
+                    .map_err(backend)?;
+            }
+            normalize_backup(&destination)?;
+            verify_database(&destination)?;
+            drop(destination);
+            fs::rename(&temporary, target).map_err(backend)
+        })();
+        if result.is_err() {
+            let _ = fs::remove_file(&temporary);
+        }
+        result
+    }
+
+    pub fn restore_backup_to(
+        backup_path: impl AsRef<Path>,
+        target: impl AsRef<Path>,
+    ) -> Result<(), StorageError> {
+        let backup_path = backup_path.as_ref();
+        let target = target.as_ref();
+        prepare_new_target(target)?;
+        let source = Connection::open_with_flags(
+            backup_path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(backend)?;
+        verify_database(&source)?;
+        let temporary = temporary_sibling(target)?;
+        let result = (|| {
+            let mut destination = Connection::open(&temporary).map_err(backend)?;
+            {
+                let backup = Backup::new(&source, &mut destination).map_err(backend)?;
+                backup
+                    .run_to_completion(128, Duration::from_millis(2), None)
+                    .map_err(backend)?;
+            }
+            normalize_backup(&destination)?;
+            verify_database(&destination)?;
+            drop(destination);
+            fs::rename(&temporary, target).map_err(backend)
+        })();
+        if result.is_err() {
+            let _ = fs::remove_file(&temporary);
+        }
+        result
     }
 
     fn configure(connection: &Connection) -> Result<(), StorageError> {
@@ -291,17 +349,7 @@ impl WorkspaceStorage for SqliteWorkspace {
         let documents = read_documents(&connection)?;
         let history_headers = read_history_headers(&connection)?;
         let settings = read_settings(&connection)?;
-        let active_note_id = connection
-            .query_row(
-                "SELECT value_json FROM app_state WHERE key = 'active_note_id'",
-                [],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()
-            .map_err(backend)?
-            .map(|raw| serde_json::from_str::<Option<String>>(&raw).map_err(json_backend))
-            .transpose()?
-            .flatten();
+        let active_note_id = read_active_note(&connection)?;
 
         Ok(WorkspaceSnapshot {
             protocol_version: WORKSPACE_PROTOCOL_VERSION,
@@ -372,7 +420,8 @@ impl WorkspaceStorage for SqliteWorkspace {
 
 impl WorkspaceMaintenance for SqliteWorkspace {
     fn export_archive(&self, exported_at: i64) -> Result<WorkspaceArchive, StorageError> {
-        let archive = WorkspaceArchive::v1(self.bootstrap()?, exported_at);
+        let connection = self.lock()?;
+        let archive = read_archive(&connection, exported_at)?;
         archive
             .validate()
             .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
@@ -996,6 +1045,112 @@ fn read_settings(connection: &Connection) -> Result<BTreeMap<String, Value>, Sto
     Ok(settings)
 }
 
+fn read_active_note(connection: &Connection) -> Result<Option<String>, StorageError> {
+    connection
+        .query_row(
+            "SELECT value_json FROM app_state WHERE key = 'active_note_id'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(backend)?
+        .map(|raw| serde_json::from_str::<Option<String>>(&raw).map_err(json_backend))
+        .transpose()
+        .map(Option::flatten)
+}
+
+fn read_archive(
+    connection: &Connection,
+    exported_at: i64,
+) -> Result<WorkspaceArchive, StorageError> {
+    Ok(WorkspaceArchive {
+        archive_version: skriuw_domain::WORKSPACE_ARCHIVE_VERSION,
+        protocol_version: WORKSPACE_PROTOCOL_VERSION,
+        exported_at,
+        active_note_id: read_active_note(connection)?,
+        nodes: read_nodes(connection)?,
+        documents: read_documents(connection)?,
+        settings: read_settings(connection)?,
+    })
+}
+
+fn prepare_new_target(target: &Path) -> Result<(), StorageError> {
+    if fs::symlink_metadata(target).is_ok() {
+        return Err(StorageError::AlreadyExists(target.display().to_string()));
+    }
+    let parent = target
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent).map_err(backend)
+}
+
+fn temporary_sibling(target: &Path) -> Result<PathBuf, StorageError> {
+    let parent = target
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let filename = target
+        .file_name()
+        .and_then(|filename| filename.to_str())
+        .ok_or_else(|| StorageError::InvalidOperation("backup target has no filename".into()))?;
+    Ok(parent.join(format!(".{filename}.{}.partial", Uuid::new_v4())))
+}
+
+fn verify_database(connection: &Connection) -> Result<(), StorageError> {
+    let mut statement = connection
+        .prepare("PRAGMA integrity_check")
+        .map_err(backend)?;
+    let integrity = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)?;
+    if integrity.as_slice() != ["ok"] {
+        return Err(StorageError::Backend(format!(
+            "database integrity check failed: {}",
+            integrity.join("; ")
+        )));
+    }
+    drop(statement);
+    let mut statement = connection
+        .prepare("PRAGMA foreign_key_check")
+        .map_err(backend)?;
+    if statement.exists([]).map_err(backend)? {
+        return Err(StorageError::Backend(
+            "database foreign key check failed".into(),
+        ));
+    }
+    drop(statement);
+    let applied = read_migrations(connection)?;
+    if applied.len() != MIGRATIONS.len() {
+        return Err(StorageError::Backend(
+            "database migration set is incomplete".into(),
+        ));
+    }
+    for migration in MIGRATIONS {
+        let record = applied.get(&migration.version).ok_or_else(|| {
+            StorageError::Backend(format!(
+                "database migration {} is missing",
+                migration.version
+            ))
+        })?;
+        verify_migration(migration, record)?;
+    }
+    read_archive(connection, 0)?
+        .validate()
+        .map_err(|error| StorageError::Backend(error.to_string()))
+}
+
+fn normalize_backup(connection: &Connection) -> Result<(), StorageError> {
+    connection
+        .pragma_update(None, "journal_mode", "DELETE")
+        .map_err(backend)?;
+    connection
+        .pragma_update(None, "synchronous", "FULL")
+        .map_err(backend)
+}
+
 fn require_parent_folder(
     transaction: &Transaction<'_>,
     parent_id: Option<&str>,
@@ -1185,10 +1340,13 @@ fn validation(error: OperationValidationError) -> StorageError {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use rusqlite::Connection;
     use serde_json::json;
     use skriuw_domain::{HistoryHeader, WorkspaceOperation, WorkspaceOperationEnvelope};
     use skriuw_storage::{HistoryCache, StorageError, WorkspaceMaintenance, WorkspaceStorage};
+    use tempfile::tempdir;
 
     use super::{SqliteWorkspace, checksum};
 
@@ -1528,5 +1686,70 @@ mod tests {
             .expect("delete note");
 
         assert!(storage.search("SQLite", 10).expect("search").is_empty());
+    }
+
+    #[test]
+    fn creates_verified_online_backup() {
+        let directory = tempdir().expect("temporary directory");
+        let backup_path = directory.path().join("workspace.backup.db");
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[create_note("note-1")])
+            .expect("create note");
+
+        storage.backup_to(&backup_path).expect("create backup");
+        assert!(!PathBuf::from(format!("{}-wal", backup_path.display())).exists());
+        assert!(!PathBuf::from(format!("{}-shm", backup_path.display())).exists());
+        let backup = SqliteWorkspace::open(&backup_path).expect("open backup");
+
+        assert_eq!(backup.bootstrap().expect("backup snapshot").nodes.len(), 1);
+        assert_eq!(backup.quick_check().expect("backup check"), "ok");
+    }
+
+    #[test]
+    fn backup_refuses_existing_target() {
+        let directory = tempdir().expect("temporary directory");
+        let backup_path = directory.path().join("workspace.backup.db");
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage.backup_to(&backup_path).expect("create backup");
+
+        let error = storage
+            .backup_to(&backup_path)
+            .expect_err("existing backup target");
+
+        assert!(matches!(error, StorageError::AlreadyExists(_)));
+    }
+
+    #[test]
+    fn restores_verified_backup_to_new_database() {
+        let directory = tempdir().expect("temporary directory");
+        let backup_path = directory.path().join("workspace.backup.db");
+        let restore_path = directory.path().join("restored.db");
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[create_note("note-1")])
+            .expect("create note");
+        storage.backup_to(&backup_path).expect("create backup");
+
+        SqliteWorkspace::restore_backup_to(&backup_path, &restore_path).expect("restore backup");
+        let restored = SqliteWorkspace::open(&restore_path).expect("open restored database");
+
+        assert_eq!(
+            restored.bootstrap().expect("restored snapshot").nodes[0].id,
+            "note-1"
+        );
+    }
+
+    #[test]
+    fn rejects_corrupt_backup_without_creating_target() {
+        let directory = tempdir().expect("temporary directory");
+        let backup_path = directory.path().join("corrupt.db");
+        let restore_path = directory.path().join("restored.db");
+        std::fs::write(&backup_path, b"not a SQLite database").expect("write corrupt backup");
+
+        SqliteWorkspace::restore_backup_to(&backup_path, &restore_path)
+            .expect_err("reject corrupt backup");
+
+        assert!(!restore_path.exists());
     }
 }

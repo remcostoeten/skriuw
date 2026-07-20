@@ -73,6 +73,8 @@ Web uses the same operation protocol and renderer store. A dedicated worker owns
 
 `WorkspaceArchive` is the versioned interchange contract for export, import, and cross-runtime migration. It contains canonical workspace state only. Each adapter rebuilds search, history caches, and operational queues locally. Native raw-database backup is a separate SQLite capability and never becomes the web interchange format.
 
+Native backup uses SQLite's Online Backup API against a live WAL database. It publishes only a create-new, single-file artifact after integrity, foreign-key, migration, and domain validation. Restore writes a new verified database rather than replacing the open workspace.
+
 ## Data ownership
 
 - `workspace_nodes`: tree metadata.
@@ -97,3 +99,4 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0005: asynchronous Git history](docs/adr/0005-background-git-history.md)
 - [ADR-0006: native Git history materializer](docs/adr/0006-native-git-materializer.md)
 - [ADR-0007: portable workspace archive](docs/adr/0007-portable-workspace-archive.md)
+- [ADR-0008: verified native SQLite backups](docs/adr/0008-verified-native-backups.md)
