@@ -26,16 +26,7 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 import type { CreateNoteInput } from "@/domain/notes/note-write-core";
 import type { CreateFolderInput } from "@/domain/folders/actions";
 import type { NoteFile } from "@/types/notes";
-
-function generateNoteContent(name: string): string {
-	const title = name.replace(/\.md$/, "");
-	return `# ${title}
-
-#draft #idea
-
-Start writing here. Use # for tags, @ to mention notes, or /tag and /link note from the block editor.
-`;
-}
+import { generateNoteContent } from "@/features/notes/lib/generate-note-content";
 
 function shortcutParam(param: string): string {
 	return `/app?shortcut=${encodeURIComponent(param)}`;
@@ -178,6 +169,7 @@ export function GlobalCommandPaletteMount() {
 		"nav.notes": () => router.push("/app"),
 		"nav.journal": () => router.push("/app/journal"),
 		"nav.graph": () => router.push("/app/graph"),
+		"nav.tasks": () => router.push("/app/tasks"),
 		"nav.shared": () => router.push("/app/shared"),
 		"nav.trash": () => router.push("/app/trash"),
 	});
@@ -193,6 +185,7 @@ export function GlobalCommandPaletteMount() {
 			// Skip journal commands if journal capability is disabled
 			if (cmd.id.startsWith("journal.") && !capabilities.journal) continue;
 			if (cmd.id === "nav.journal" && !capabilities.journal) continue;
+			if (cmd.id === "nav.tasks" && !capabilities.tasks) continue;
 			if (cmd.id === "nav.shared" && !capabilities.sharing) continue;
 			if (cmd.id === "nav.trash" && !capabilities.trash) continue;
 			if (isMobile && MOBILE_HIDDEN_COMMAND_IDS.has(cmd.id)) continue;
@@ -236,6 +229,7 @@ export function GlobalCommandPaletteMount() {
 		return [...staticItems, ...dynamicItems];
 	}, [
 		capabilities.journal,
+		capabilities.tasks,
 		capabilities.sharing,
 		capabilities.trash,
 		activeScope,

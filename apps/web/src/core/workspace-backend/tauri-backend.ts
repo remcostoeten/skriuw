@@ -172,6 +172,82 @@ export function isVaultConflictError(error: unknown): boolean {
 	return message.startsWith(VAULT_CONFLICT_PREFIX);
 }
 
+export function buildVaultConflictCopy(
+	note: NoteFile,
+	now = new Date(),
+	copyId = crypto.randomUUID(),
+): NoteFile {
+	const stamp = now.toISOString().replaceAll(":", "-").replace(".", "-");
+	return {
+		...note,
+		id: copyId,
+		name: `${note.name.replace(/\.md$/i, "")} — conflict ${stamp} ${copyId.slice(0, 6)}.md`,
+		createdAt: now,
+		modifiedAt: now,
+	};
+}
+
+/** Persist an in-memory draft as a new keep-both note. Used both after a stale
+ * revision rejection and when an external tool deletes a dirty open note. */
+const preservedConflictCopies = new Map<string, Promise<string>>();
+
+export function preserveVaultConflictCopy(note: NoteFile, key = note.id): Promise<string> {
+	const existing = preservedConflictCopies.get(key);
+	if (existing) return existing;
+	const pending = persistVaultConflictCopy(note).catch((error) => {
+		preservedConflictCopies.delete(key);
+		throw error;
+	});
+	preservedConflictCopies.set(key, pending);
+	return pending;
+}
+
+async function persistVaultConflictCopy(note: NoteFile): Promise<string> {
+	const invoke = getInvoke();
+	const copy = buildVaultConflictCopy(note);
+	const copyId = copy.id;
+	const result = await invoke<RustVersionWriteResult>("save_note", {
+		request: {
+			note: toRustNote(copy),
+			links: buildRustNoteLinkRows(copy),
+			titleKeys: noteTitleKeys(copy),
+			reason: "created",
+			createCheckpoint: false,
+			sessionVersionId: null,
+			force: false,
+		},
+	});
+	if (result.vaultRevision) vaultRevisions.set(copyId, result.vaultRevision);
+	return copyId;
+}
+
+export function releasePreservedVaultConflictCopy(key: string): void {
+	preservedConflictCopies.delete(key);
+}
+
+/** Preserve the current disk body as a copy, then explicitly replace the
+ * original with the mounted local draft. This is the only force-save path. */
+export async function forceKeepLocalVaultVersion(note: NoteFile): Promise<void> {
+	const invoke = getInvoke();
+	const diskRaw = await invoke<RustNote | null>("get_note", { id: note.id });
+	if (diskRaw) {
+		await preserveVaultConflictCopy(fromRustNote(diskRaw), `${note.id}:disk`);
+	}
+	const result = await invoke<RustVersionWriteResult>("save_note", {
+		request: {
+			note: toRustNote(note),
+			links: buildRustNoteLinkRows(note),
+			titleKeys: noteTitleKeys(note),
+			reason: "checkpoint",
+			createCheckpoint: true,
+			sessionVersionId: null,
+			expectedVaultRevision: null,
+			force: true,
+		},
+	});
+	if (result.vaultRevision) vaultRevisions.set(note.id, result.vaultRevision);
+}
+
 async function recordVaultRevision(
 	invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>,
 	id: string,
@@ -934,22 +1010,40 @@ export function createTauriBackend(): WorkspaceBackend {
 				// One command for vault write + index upsert + link index +
 				// version bookkeeping; the snapshot is derived Rust-side so the
 				// note body crosses IPC once per save instead of three times.
-				const versionResult = await invoke<RustVersionWriteResult>("save_note", {
-					request: {
-						note: toRustNote(next),
-						links: buildRustNoteLinkRows(next),
-						titleKeys: noteTitleKeys(next),
-						reason,
-						createCheckpoint,
-						sessionVersionId: createCheckpoint
-							? (input.sessionVersionId ?? null)
-							: null,
-						// The revision the editor last read for this note. Rust
-						// rejects the save if the file changed on disk since, so an
-						// external edit is never overwritten (DH-08).
-						expectedVaultRevision: vaultRevisions.get(input.id) ?? null,
-					},
-				});
+				let versionResult: RustVersionWriteResult;
+				try {
+					versionResult = await invoke<RustVersionWriteResult>("save_note", {
+						request: {
+							note: toRustNote(next),
+							links: buildRustNoteLinkRows(next),
+							titleKeys: noteTitleKeys(next),
+							reason,
+							createCheckpoint,
+							sessionVersionId: createCheckpoint
+								? (input.sessionVersionId ?? null)
+								: null,
+							// The revision the editor last read for this note. Rust
+							// rejects the save if the file changed on disk since, so an
+							// external edit is never overwritten (DH-08).
+							expectedVaultRevision: vaultRevisions.get(input.id) ?? null,
+						},
+					});
+				} catch (error) {
+					if (!isVaultConflictError(error)) throw error;
+
+					// Preserve the local draft durably before surfacing the conflict.
+					// The external file remains canonical; the conflict copy gets a new
+					// identity and filename, so neither body can overwrite the other even
+					// if the window closes while the conflict banner is visible.
+					try {
+						await preserveVaultConflictCopy(next);
+					} catch (copyError) {
+						throw new Error(
+							`${String(error)} Local draft recovery copy failed: ${String(copyError)}`,
+						);
+					}
+					throw error;
+				}
 
 				// Track the note's new on-disk revision for the next save.
 				if (versionResult.vaultRevision) {

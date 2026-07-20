@@ -29,6 +29,9 @@ function backend(): WorkspaceBackend {
 		getNotes: async () => [local],
 		listFolders: async () => [],
 		listJournalEntries: async () => [],
+		listPeople: async () => [
+			{ id: "22222222-2222-4222-8222-222222222222", name: "Eline", color: null },
+		],
 	} as unknown as WorkspaceBackend;
 }
 
@@ -65,9 +68,13 @@ describe("pushWorkspaceToServer", () => {
 		const payload = JSON.parse(request?.body as string) as {
 			deletedIds: { notes: string[] };
 			notes: Array<{ content: string }>;
+			people: Array<{ id: string; name: string; color: string | null }>;
 		};
 		expect(payload.deletedIds.notes).toEqual(["deleted-note"]);
 		expect(payload.notes[0]?.content).toBe("# Local");
+		expect(payload.people).toEqual([
+			{ id: "22222222-2222-4222-8222-222222222222", name: "Eline", color: null },
+		]);
 		expect(result.snapshotIds.notes).toEqual(["11111111-1111-4111-8111-111111111111"]);
 	});
 

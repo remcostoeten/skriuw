@@ -1,6 +1,6 @@
 ---
 title: Backup and import
-description: The portable ZIP backup format (v3), import policies (merge, overwrite, replace), the on-disk archive layout, and best-effort imports from Obsidian, Apple Notes, Bear, Notion, and plain Markdown.
+description: The portable ZIP backup format (v3), import policies (merge, overwrite, replace), the on-disk archive layout, desktop snapshot import, and best-effort imports from Obsidian, Apple Notes, Bear, Notion, Simplenote, and plain Markdown.
 ---
 
 Skriuw exports and imports your whole workspace as a portable ZIP. The format is
@@ -51,6 +51,25 @@ Best effort. Structure and formatting may need cleanup after import.
 | Apple Notes | HTML export ZIP | Plain text and Markdown body. Attachments not included. |
 | Bear | Markdown export ZIP | Header `#tags` mapped to note tags. |
 | Notion | Markdown export ZIP | Databases, CSVs, and attachments skipped. |
+| Simplenote | Export ZIP (`notes.json`) | Titles derived from the first line. Trashed notes land in Trash. |
+| Desktop snapshot | Snapshot ZIP from the desktop app | Notes, folders, journal entries, and journal tags from the snapshot's vault. |
 | Markdown folder | Any folder ZIP | Generic path-based import when auto-detect is unsure. |
 
 Use Auto-detect in Settings when you are unsure which profile fits.
+
+## Importing a desktop snapshot on web
+
+The desktop app's snapshot export (Settings, Data on desktop) is a full-app
+backup: the markdown vault plus desktop app state. The web import reads only
+the vault part and brings over:
+
+- notes with their folder tree, tags, and frontmatter metadata
+- journal entries, including mood and tags, and journal tag colors
+
+Not imported, because it only applies to the desktop app: app settings, AI
+keys, the local search index, and desktop note version history (stored in the
+desktop database, not the vault). To move a desktop workspace into a cloud
+account: export a snapshot on desktop, then upload the ZIP under Settings,
+Data and sync, Import backup on web. Auto-detect recognizes the snapshot
+format; the preview shows exactly what will be created before anything is
+written.

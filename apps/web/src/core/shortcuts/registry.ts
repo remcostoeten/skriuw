@@ -137,6 +137,14 @@ export const SHORTCUT_REGISTRY = {
 		except: false,
 		preventDefault: true,
 	},
+	"app.tasks": {
+		keys: "mod+shift+t",
+		scope: SCOPES.app,
+		group: "General",
+		label: "Go to tasks",
+		description: "Open workspace tasks and due dates.",
+		preventDefault: true,
+	},
 
 	"notes.commandPalette": {
 		keys: ["mod+k", "mod+shift+p"],

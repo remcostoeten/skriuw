@@ -8,6 +8,7 @@ mod markdown;
 mod settings;
 mod storage;
 mod vault;
+mod vault_watcher;
 mod versioning;
 
 use std::collections::HashSet;
@@ -40,7 +41,14 @@ use tauri::Emitter;
 use tauri::{AppHandle, LogicalSize, Manager, Runtime, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri_plugin_updater::UpdaterExt;
 use vault::VaultStore;
+
+/// Release CI injects these at compile time. Development builds deliberately
+/// remain unconfigured: the UI explains that update checks are unavailable and
+/// no request is made to a placeholder or third-party host.
+const UPDATE_ENDPOINT: Option<&str> = option_env!("SKRIUW_UPDATE_ENDPOINT");
+const UPDATE_PUBKEY: Option<&str> = option_env!("SKRIUW_UPDATE_PUBKEY");
 
 /// Custom (non-predefined) menu item ids forwarded to the frontend. Predefined
 /// items (undo/copy/quit/…) are handled natively by Tauri and never reach here.
@@ -66,6 +74,164 @@ pub struct AppInfo {
     pub shell: String,
     pub status: String,
     pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopUpdateStatus {
+    configured: bool,
+    current_version: String,
+    available_version: Option<String>,
+    notes: Option<String>,
+    published_at: Option<String>,
+    state: String,
+    message: String,
+}
+
+fn update_configuration() -> Result<(&'static str, &'static str), String> {
+    let endpoint = UPDATE_ENDPOINT
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let pubkey = UPDATE_PUBKEY
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    match (endpoint, pubkey) {
+        (Some(endpoint), Some(pubkey)) if endpoint.starts_with("https://") => {
+            Ok((endpoint, pubkey))
+        }
+        _ => Err(
+            "Automatic updates are not configured for this build. Install releases manually from the official Skriuw release page."
+                .to_string(),
+        ),
+    }
+}
+
+fn unconfigured_update_status() -> DesktopUpdateStatus {
+    let message = update_configuration()
+        .err()
+        .unwrap_or_else(|| "Update checks are ready.".to_string());
+    DesktopUpdateStatus {
+        configured: update_configuration().is_ok(),
+        current_version: env!("CARGO_PKG_VERSION").to_string(),
+        available_version: None,
+        notes: None,
+        published_at: None,
+        state: "idle".to_string(),
+        message,
+    }
+}
+
+#[tauri::command]
+fn desktop_update_status() -> DesktopUpdateStatus {
+    unconfigured_update_status()
+}
+
+async fn available_update(app: &AppHandle) -> Result<Option<tauri_plugin_updater::Update>, String> {
+    let (endpoint, _) = update_configuration()?;
+    let endpoint = endpoint
+        .parse()
+        .map_err(|_| "The configured update endpoint is not a valid HTTPS URL.".to_string())?;
+    let updater = app
+        .updater_builder()
+        .endpoints(vec![endpoint])
+        .map_err(|error| format!("Invalid update configuration: {error}"))?
+        .build()
+        .map_err(|error| format!("Could not initialize update checking: {error}"))?;
+    updater
+        .check()
+        .await
+        .map_err(|error| format!("Could not check for updates: {error}"))
+}
+
+fn release_status(
+    update: &tauri_plugin_updater::Update,
+    state: &str,
+    message: String,
+) -> DesktopUpdateStatus {
+    DesktopUpdateStatus {
+        configured: true,
+        current_version: update.current_version.clone(),
+        available_version: Some(update.version.clone()),
+        notes: update.body.clone(),
+        published_at: update.date.map(|date| date.to_string()),
+        state: state.to_string(),
+        message,
+    }
+}
+
+#[tauri::command]
+async fn desktop_check_update(app: AppHandle) -> Result<DesktopUpdateStatus, String> {
+    match available_update(&app).await? {
+        Some(update) => Ok(release_status(
+            &update,
+            "available",
+            format!("Skriuw {} is ready to install.", update.version),
+        )),
+        None => Ok(DesktopUpdateStatus {
+            configured: true,
+            current_version: env!("CARGO_PKG_VERSION").to_string(),
+            available_version: None,
+            notes: None,
+            published_at: None,
+            state: "current".to_string(),
+            message: "You're running the latest version.".to_string(),
+        }),
+    }
+}
+
+#[tauri::command]
+async fn desktop_install_update(app: AppHandle) -> Result<DesktopUpdateStatus, String> {
+    let Some(update) = available_update(&app).await? else {
+        return Ok(DesktopUpdateStatus {
+            configured: true,
+            current_version: env!("CARGO_PKG_VERSION").to_string(),
+            available_version: None,
+            notes: None,
+            published_at: None,
+            state: "current".to_string(),
+            message: "You're already running the latest version.".to_string(),
+        });
+    };
+    let status = release_status(
+        &update,
+        "installing",
+        format!("Installing Skriuw {}…", update.version),
+    );
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|error| format!("The signed update could not be installed: {error}"))?;
+    Ok(status)
+}
+
+#[tauri::command]
+fn sync_store_credential(
+    creds: State<'_, credentials::CredentialState>,
+    token: String,
+) -> Result<(), String> {
+    creds
+        .store()
+        .set(credentials::CredentialProvider::SyncBearer, &token)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn sync_load_credential(
+    creds: State<'_, credentials::CredentialState>,
+) -> Result<Option<String>, String> {
+    creds
+        .store()
+        .get(credentials::CredentialProvider::SyncBearer)
+        .map(|secret| secret.map(|value| value.expose().to_string()))
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn sync_clear_credential(creds: State<'_, credentials::CredentialState>) -> Result<(), String> {
+    creds
+        .store()
+        .delete(credentials::CredentialProvider::SyncBearer)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -159,9 +325,13 @@ fn get_notes(storage: State<'_, Storage>, ids: Vec<String>) -> Result<Vec<Note>,
 fn upsert_note(
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
     note: Note,
 ) -> Result<Note, String> {
     vault.upsert_note(&note).map_err(vault_err)?;
+    if let Some(path) = vault.note_path(&note.id).map_err(vault_err)? {
+        watcher.record_internal_write(path, vault::note_revision(&note));
+    }
     storage.upsert_note(&note).map_err(stringify)?;
     Ok(note)
 }
@@ -170,10 +340,14 @@ fn upsert_note(
 fn bulk_upsert_notes(
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
     notes: Vec<Note>,
 ) -> Result<(), String> {
     for note in &notes {
         vault.upsert_note(note).map_err(vault_err)?;
+        if let Some(path) = vault.note_path(&note.id).map_err(vault_err)? {
+            watcher.record_internal_write(path, vault::note_revision(note));
+        }
     }
     storage.upsert_notes(&notes).map_err(stringify)
 }
@@ -200,6 +374,7 @@ struct ImportWorkspaceArchiveRequest {
 fn import_workspace_archive(
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
     request: ImportWorkspaceArchiveRequest,
 ) -> Result<(), String> {
     let ImportWorkspaceArchiveRequest {
@@ -227,6 +402,9 @@ fn import_workspace_archive(
         }
         for note in &notes {
             vault.upsert_note(note).map_err(vault_err)?;
+            if let Some(path) = vault.note_path(&note.id).map_err(vault_err)? {
+                watcher.record_internal_write(path, vault::note_revision(note));
+            }
         }
         for entry in &journal_entries {
             vault.upsert_journal_entry(entry).map_err(vault_err)?;
@@ -718,6 +896,7 @@ fn save_note(
     app: AppHandle,
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
     request: SaveNoteRequest,
 ) -> Result<VersionWriteResult, String> {
     let SaveNoteRequest {
@@ -729,27 +908,28 @@ fn save_note(
         force,
         ..
     } = request;
-    // Conflict-safe save: if the editor told us which revision it last saw and
-    // the file on disk no longer matches, an external tool changed it since —
-    // reject rather than overwrite. A missing file (None) is a create and is
-    // always allowed. `force` is the explicit user "keep my version" override.
-    if !force {
-        if let Some(expected) = &expected_vault_revision {
-            let current = vault.current_note_revision(&note.id).map_err(vault_err)?;
-            if let Some(current) = current {
-                if &current != expected {
-                    return Err(format!("{VAULT_CONFLICT_PREFIX}{}", note.id));
-                }
-            }
-        }
-    }
     // Exactly two top-level operations: the canonical vault commit, then one
     // derived-index transaction. A vault failure aborts before the index is
     // touched; an index failure after the vault commit means the note file is
     // safe on disk and only the derived rows lag, so repair is scheduled and
     // the error says precisely that.
-    vault.upsert_note(&note).map_err(vault_err)?;
-    let vault_revision = Some(vault::note_revision(&note));
+    let vault_revision =
+        match vault.upsert_note_checked(&note, expected_vault_revision.as_deref(), force) {
+            Ok(revision) => Some(revision),
+            Err(error)
+                if error.kind() == std::io::ErrorKind::InvalidData
+                    && error.to_string() == "vault revision conflict" =>
+            {
+                return Err(format!("{VAULT_CONFLICT_PREFIX}{}", note.id));
+            }
+            Err(error) => return Err(vault_err(error)),
+        };
+    if let (Some(path), Some(revision)) = (
+        vault.note_path(&note.id).map_err(vault_err)?,
+        vault_revision.as_ref(),
+    ) {
+        watcher.record_internal_write(path, revision.clone());
+    }
     match storage.save_note_index(SaveNoteIndex {
         note: &note,
         links: &links,
@@ -1017,7 +1197,7 @@ fn configured_vault_root<R: Runtime>(
 /// vault are dropped. A note whose vault body still matches the index is left
 /// untouched so its derived `richContent` survives; a changed body is re-upserted
 /// with an empty `richContent`, which the TypeScript layer re-derives on read.
-fn reconcile_index(storage: &Storage, vault: &VaultStore) -> Result<(), String> {
+pub(crate) fn reconcile_index(storage: &Storage, vault: &VaultStore) -> Result<(), String> {
     let vault_folders = vault.list_folders().map_err(vault_err)?;
     for folder in &vault_folders {
         storage.upsert_folder(folder).map_err(stringify)?;
@@ -1072,7 +1252,7 @@ fn reconcile_index(storage: &Storage, vault: &VaultStore) -> Result<(), String> 
 
 /// True when every vault-persisted field of a note matches the index row, so the
 /// index row (and its derived `richContent`) can be kept as-is.
-fn note_body_matches(indexed: &Note, vault: &Note) -> bool {
+pub(crate) fn note_body_matches(indexed: &Note, vault: &Note) -> bool {
     indexed.name == vault.name
         && indexed.content == vault.content
         && indexed.parent_id == vault.parent_id
@@ -1095,18 +1275,86 @@ fn get_settings_diagnostics(
     settings.diagnostics().map_err(|error| error.to_string())
 }
 
-/// Persists a new vault root. Takes effect on the next launch (the live vault +
-/// index are opened once at startup).
 #[tauri::command]
-fn set_vault_root(settings: State<'_, SettingsStore>, path: String) -> Result<(), String> {
+fn set_vault_root(
+    app: AppHandle,
+    settings: State<'_, SettingsStore>,
+    storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
+    path: String,
+) -> Result<(), String> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
         return Err("vault root must not be empty".to_string());
     }
+    let root = PathBuf::from(trimmed);
     settings
         .set_vault_root(PathBuf::from(trimmed))
-        .map(|_| ())
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    watcher.stop();
+    std::fs::create_dir_all(&root).map_err(|error| error.to_string())?;
+    vault.reload_root(root.clone());
+    reconcile_index(&storage, &vault)?;
+    watcher.rebind(app, root)
+}
+
+#[tauri::command]
+fn vault_watcher_status(
+    watcher: State<'_, vault_watcher::VaultWatcher>,
+) -> vault_watcher::WatcherStatus {
+    watcher.status()
+}
+
+#[tauri::command]
+fn restart_vault_watcher(
+    app: AppHandle,
+    vault: State<'_, VaultStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
+) -> Result<(), String> {
+    watcher.rebind(app, vault.root_path())
+}
+
+#[tauri::command]
+fn rescan_vault(
+    app: AppHandle,
+    storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
+) -> Result<(), String> {
+    watcher.set_status(
+        "rescanning",
+        Some(vault.root_path().to_string_lossy().into_owned()),
+        None,
+    );
+    let result = reconcile_index(&storage, &vault);
+    match result {
+        Ok(()) => {
+            watcher.set_status(
+                "active",
+                Some(vault.root_path().to_string_lossy().into_owned()),
+                None,
+            );
+            let generation = watcher.next_generation();
+            let _ = app.emit(
+                "vault://changed",
+                vault_watcher::VaultChangeEvent {
+                    generation,
+                    full_rescan: true,
+                    ..vault_watcher::VaultChangeEvent::default()
+                },
+            );
+            Ok(())
+        }
+        Err(error) => {
+            watcher.set_status(
+                "degraded",
+                Some(vault.root_path().to_string_lossy().into_owned()),
+                Some(error.clone()),
+            );
+            Err(error)
+        }
+    }
 }
 
 /// Exports the markdown vault to a user-chosen `.zip`. Returns the chosen path,
@@ -1223,6 +1471,7 @@ async fn import_vault(
     settings: State<'_, SettingsStore>,
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
     progress: Channel<backup::SnapshotEvent>,
 ) -> Result<bool, String> {
     let root = configured_vault_root(&app, &settings)?;
@@ -1258,10 +1507,17 @@ async fn import_vault(
             format!("Restore failed; your current workspace was not changed: {error}")
         })?;
 
+    watcher.stop();
     restore_phase(&progress, "Swapping in restored vault");
-    let receipt = backup::commit_restore(staged).map_err(|error| {
-        format!("Restore failed; your current workspace was not changed: {error}")
-    })?;
+    let receipt = match backup::commit_restore(staged) {
+        Ok(receipt) => receipt,
+        Err(error) => {
+            let _ = watcher.rebind(app.clone(), root.clone());
+            return Err(format!(
+                "Restore failed; your current workspace was not changed: {error}"
+            ));
+        }
+    };
 
     restore_phase(&progress, "Rebuilding index and verifying");
     vault.reload_root(root.clone());
@@ -1270,6 +1526,7 @@ async fn import_vault(
     match rebound {
         Ok(()) => {
             backup::discard_restore_receipt(&receipt);
+            watcher.rebind(app.clone(), root.clone())?;
             restore_phase(&progress, "Restore complete");
             Ok(true)
         }
@@ -1277,6 +1534,7 @@ async fn import_vault(
             let unrecovered = backup::rollback_receipt(&receipt);
             vault.reload_root(root);
             let _ = reconcile_index(&storage, &vault);
+            let _ = watcher.rebind(app.clone(), vault.root_path());
             Err(recovery_error(&primary, &unrecovered))
         }
     }
@@ -1292,6 +1550,7 @@ async fn import_snapshot(
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
     settings: State<'_, SettingsStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
     progress: Channel<backup::SnapshotEvent>,
 ) -> Result<(), String> {
     let picked = app
@@ -1334,10 +1593,12 @@ async fn import_snapshot(
 
     // Stop managed Ollama before the local-data root is swapped underneath it.
     ai::stop_managed_server();
+    watcher.stop();
 
     restore_phase(&progress, "Swapping in restored data");
     let receipt = backup::commit_restore(staged).map_err(|error| {
         ai::autostart_managed(&app, &settings);
+        let _ = watcher.rebind(app.clone(), current_vault.clone());
         format!("Restore failed; your current workspace was not changed: {error}")
     })?;
 
@@ -1362,6 +1623,7 @@ async fn import_snapshot(
     match rebound {
         Ok(()) => {
             backup::discard_restore_receipt(&receipt);
+            watcher.rebind(app.clone(), vault.root_path())?;
             ai::autostart_managed(&app, &settings);
             restore_phase(&progress, "Restore complete");
             Ok(())
@@ -1373,6 +1635,7 @@ async fn import_snapshot(
             let _ = storage.reload(&app_data_dir.join("index.db"));
             vault.reload_root(previous_vault);
             let _ = reconcile_index(&storage, &vault);
+            let _ = watcher.rebind(app.clone(), vault.root_path());
             ai::autostart_managed(&app, &settings);
             Err(recovery_error(&primary, &unrecovered))
         }
@@ -1386,11 +1649,16 @@ fn clear_local_data(
     app: AppHandle,
     settings: State<'_, SettingsStore>,
     storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
 ) -> Result<(), String> {
     let root = configured_vault_root(&app, &settings)?;
+    watcher.stop();
     backup::clear_dir_contents(&root).map_err(|error| error.to_string())?;
-    let vault = VaultStore::open(&root).map_err(vault_err)?;
-    reconcile_index(&storage, &vault)
+    vault.reload_root(root.clone());
+    let result = reconcile_index(&storage, &vault);
+    let restart = watcher.rebind(app, root);
+    result.and(restart)
 }
 
 /// Wipes the full desktop workspace: app data, local AI data, and the vault.
@@ -1402,6 +1670,7 @@ async fn reset_desktop_data(
     storage: State<'_, Storage>,
     vault: State<'_, VaultStore>,
     settings: State<'_, SettingsStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
     progress: Channel<backup::SnapshotEvent>,
 ) -> Result<(), String> {
     let app_data_dir = app
@@ -1413,6 +1682,7 @@ async fn reset_desktop_data(
         .app_local_data_dir()
         .map_err(|error| format!("resolve local data dir: {error}"))?;
     let vault_root = configured_vault_root(&app, &settings)?;
+    watcher.stop();
     backup::clear_desktop_state_with_progress(
         &app_data_dir,
         &app_local_data_dir,
@@ -1428,18 +1698,21 @@ async fn reset_desktop_data(
     storage
         .reload(&app_data_dir.join("index.db"))
         .map_err(stringify)?;
-    vault.reload_root(next_vault_root);
+    vault.reload_root(next_vault_root.clone());
     vault.set_cover_root(None);
-    Ok(())
+    watcher.rebind(app, next_vault_root)
 }
 
 /// Opens a folder picker and persists the chosen directory as the new vault
-/// root (takes effect next launch). Returns the chosen path, or `None` if
-/// cancelled.
+/// root, rebinding the live store and watcher. Returns the chosen path, or
+/// `None` if cancelled.
 #[tauri::command]
 fn choose_vault_root(
     app: AppHandle,
     settings: State<'_, SettingsStore>,
+    storage: State<'_, Storage>,
+    vault: State<'_, VaultStore>,
+    watcher: State<'_, vault_watcher::VaultWatcher>,
 ) -> Result<Option<String>, String> {
     let picked = app.dialog().file().blocking_pick_folder();
     let Some(target) = picked else {
@@ -1448,8 +1721,12 @@ fn choose_vault_root(
     let dir = target.as_path().ok_or("invalid folder path")?.to_path_buf();
     let as_str = dir.to_string_lossy().into_owned();
     settings
-        .set_vault_root(dir)
+        .set_vault_root(dir.clone())
         .map_err(|error| error.to_string())?;
+    watcher.stop();
+    vault.reload_root(dir.clone());
+    reconcile_index(&storage, &vault)?;
+    watcher.rebind(app, dir)?;
     Ok(Some(as_str))
 }
 
@@ -1724,6 +2001,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(
+            tauri_plugin_updater::Builder::new()
+                .pubkey(UPDATE_PUBKEY.unwrap_or(""))
+                .build(),
+        )
+        .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(
                     tauri_plugin_window_state::StateFlags::all()
@@ -1792,6 +2074,7 @@ pub fn run() {
             let storage = Storage::open(&index_path)?;
 
             app.manage(IndexReady(AtomicBool::new(false)));
+            app.manage(vault_watcher::VaultWatcher::default());
 
             // Marker-tagged staging/rollback directories left by a crashed
             // restore are cleaned only AFTER the live workspace reconciles, so
@@ -1827,6 +2110,13 @@ pub fn run() {
                     cleanup_roots(&vault_root_bg);
                     bg.state::<IndexReady>().0.store(true, Ordering::SeqCst);
                     let _ = bg.emit("index://reconciled", ());
+                    let root = bg.state::<VaultStore>().root_path();
+                    if let Err(error) = bg
+                        .state::<vault_watcher::VaultWatcher>()
+                        .start(bg.clone(), root)
+                    {
+                        eprintln!("[skriuw] failed to start vault watcher: {error}");
+                    }
                 });
             } else {
                 reconcile_index(&storage, &vault)?;
@@ -1834,6 +2124,10 @@ pub fn run() {
                 app.manage(storage);
                 app.manage(vault);
                 handle.state::<IndexReady>().0.store(true, Ordering::SeqCst);
+                handle
+                    .state::<vault_watcher::VaultWatcher>()
+                    .start(handle.clone(), vault_root.clone())
+                    .map_err(std::io::Error::other)?;
             }
 
             build_tray(handle)?;
@@ -1856,6 +2150,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             app_info,
+            desktop_update_status,
+            desktop_check_update,
+            desktop_install_update,
+            sync_store_credential,
+            sync_load_credential,
+            sync_clear_credential,
             quit_app,
             toggle_window_size,
             index_ready,
@@ -1918,6 +2218,9 @@ pub fn run() {
             get_vault_root,
             get_settings_diagnostics,
             set_vault_root,
+            vault_watcher_status,
+            restart_vault_watcher,
+            rescan_vault,
             export_vault,
             import_vault,
             export_snapshot,
@@ -1952,8 +2255,9 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building the Skriuw desktop shell")
-        .run(|_app, event| {
+        .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
+                app.state::<vault_watcher::VaultWatcher>().stop();
                 ai::stop_managed_server();
             }
         });

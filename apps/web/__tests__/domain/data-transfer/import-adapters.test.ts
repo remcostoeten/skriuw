@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { parseAppleNotesEntries } from "@/domain/data-transfer/adapters/apple-notes";
 import { parseBearExportEntries } from "@/domain/data-transfer/adapters/bear";
+import { parseDesktopSnapshotEntries } from "@/domain/data-transfer/adapters/desktop-snapshot";
 import {
 	convertObsidianWikilinks,
 	extractBearTags,
@@ -154,4 +155,53 @@ describe("import adapters", () => {
 		expect(trashed?.deleted).toBe(true);
 		expect(trashed?.name).toBe("Old idea.md");
 	});
+
+	test("detects desktop snapshots by manifest.json shape", () => {
+		expect(detectImportProfile(desktopSnapshotFixture())).toBe("desktop-snapshot");
+	});
+
+	test("parses desktop snapshot vault notes, journal entries, folders, and tags", () => {
+		const archive = parseDesktopSnapshotEntries(desktopSnapshotFixture());
+
+		expect(archive.profile).toBe("desktop-snapshot");
+		expect(archive.notes).toHaveLength(1);
+		expect(archive.notes[0]?.name).toBe("plan.md");
+		expect(archive.notes[0]?.parentPath).toBe("Projects");
+
+		expect(archive.journalEntries).toHaveLength(1);
+		const entry = archive.journalEntries[0];
+		expect(entry?.dateKey).toBe("2026-07-01");
+		expect(entry?.mood).toBe("great");
+		expect(entry?.tags).toEqual(["gym"]);
+		expect(entry?.content).toBe("Went for a run.");
+
+		expect(archive.manifest.version).toBe(2);
+		if (archive.manifest.version === 2) {
+			expect(archive.manifest.folders).toEqual([
+				{ id: "f1", name: "Projects", parentId: null, sortOrder: 0 },
+			]);
+			expect(archive.manifest.journalTags).toEqual([{ name: "gym", color: "#fff" }]);
+		}
+	});
 });
+
+function desktopSnapshotFixture(): Record<string, string> {
+	return {
+		"manifest.json": JSON.stringify({
+			version: 1,
+			appDataDir: "/home/u/.local/share/skriuw",
+			appLocalDataDir: "/home/u/.local/share/skriuw",
+			vaultRoot: "/home/u/skriuw",
+		}),
+		"app-data/settings.json": "{}",
+		"vault/Projects/plan.md": '---\nid: "n1"\ntags: ["work"]\n---\n# Plan',
+		"vault/.skriuw/folders.json": JSON.stringify([
+			{ id: "f1", name: "Projects", parentId: null, sortOrder: 0, isOpen: true },
+		]),
+		"vault/.skriuw/journal-tags.json": JSON.stringify([
+			{ id: "t1", name: "gym", color: "#fff", usageCount: 3 },
+		]),
+		"vault/.skriuw/journal/2026-07-01-j1.md":
+			'---\nid: "j1"\ndateKey: "2026-07-01"\nmood: "great"\ntags: ["gym"]\ncreatedAt: 1751364000000\nupdatedAt: 1751364000000\n---\nWent for a run.',
+	};
+}

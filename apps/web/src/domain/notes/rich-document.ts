@@ -3,6 +3,7 @@ import { isFileTreeFence, normalizeFileTreeSource } from "@/shared/lib/file-tree
 import { isDrawingFence, normalizeDrawingScene } from "@/shared/lib/drawing";
 import { isTagDetectionEnabled } from "@/domain/notes/tag-detection";
 import type { RichTextBlock, RichTextDocument } from "@/types/notes";
+import { isMarkColor } from "@skriuw/domain/living-information";
 
 type InlineNode = {
 	type: string;
@@ -31,7 +32,7 @@ const WIKI_LINK_PATTERN = /\[\[([^\]\n|]+?)(?:\|([^\]\n]+?))?\]\]/g;
 // markdown round-trips instead of degrading to plain `$Name` text.
 export const PERSON_LINK_PATTERN = /\$\[([^\]\n]*?)\]\(person:\/\/([^)\n\s]+?)\)/g;
 const MARK_LINK_PATTERN =
-	/\[([^\]\n]+?)\]\(mark:\/\/([a-z]+)\/([^/\s)]+)\/([^/\s)]+)(?:\/([a-z]+))?(?:\/([^\s)]+))?\)/g;
+	/\[([^\]\n]+?)\]\(mark:\/\/([a-z]+)\/([^/\s)]+)\/([^/\s)]+)(?:\/([a-z]+))?(?:\/([^/\s)]+))?(?:\/([^/\s)]+))?\)/g;
 const INLINE_LINK_PATTERN = /\[([^\]\n]+?)\]\(([^)\n\s]+?)(?:\s+"[^"]*")?\)/g;
 const CODE_SPAN_PATTERN = /(?<!`)`([^`\n]+?)`(?!`)/g;
 const BOLD_STAR_PATTERN = /\*\*((?:[^*\n]|\*(?!\*))+?)\*\*/g;
@@ -110,15 +111,18 @@ function findInlineHits(text: string): InlineHit[] {
 		} catch {
 			// Keep readable label when imported metadata is malformed.
 		}
-		const color =
-			match[5] === "green" || match[5] === "blue" || match[5] === "pink"
-				? match[5]
-				: "yellow";
+		const color = isMarkColor(match[5]) ? match[5] : "yellow";
 		let annotationLabel = "";
 		try {
-			annotationLabel = decodeURIComponent(match[6] ?? "");
+			annotationLabel = match[6] === "~" ? "" : decodeURIComponent(match[6] ?? "");
 		} catch {
 			// Omit malformed optional labels; visible text remains usable.
+		}
+		let thread = "";
+		try {
+			thread = decodeURIComponent(match[7] ?? "");
+		} catch {
+			// Omit malformed optional thread names; the mark remains readable.
 		}
 		const start = match.index ?? 0;
 		hits.push({
@@ -127,7 +131,7 @@ function findInlineHits(text: string): InlineHit[] {
 			produce: () => [
 				{
 					type: "mark",
-					props: { id, kind, text: label, value, color, label: annotationLabel },
+					props: { id, kind, text: label, value, color, label: annotationLabel, thread },
 				},
 			],
 		});
@@ -429,6 +433,13 @@ function personChipToMarkdown(props: Record<string, unknown> | undefined): strin
 	return `$[${name}](person://${id})`;
 }
 
+function encodeMarkSegment(value: string): string {
+	return encodeURIComponent(value).replace(
+		/[!'()*]/g,
+		(character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+	);
+}
+
 function markChipToMarkdown(props: Record<string, unknown> | undefined): string {
 	const id = String(props?.id ?? "").trim();
 	const kind = String(props?.kind ?? "reference").trim();
@@ -436,13 +447,15 @@ function markChipToMarkdown(props: Record<string, unknown> | undefined): string 
 		.replace(/[[\]\n]/g, " ")
 		.replace(/\s+/g, " ")
 		.trim();
-	const value = encodeURIComponent(String(props?.value ?? text));
-	const color = ["yellow", "green", "blue", "pink"].includes(String(props?.color))
-		? String(props?.color)
-		: "yellow";
+	const value = encodeMarkSegment(String(props?.value ?? text));
+	const rawColor = String(props?.color);
+	const color = isMarkColor(rawColor) ? rawColor : "yellow";
 	const label = String(props?.label ?? "").trim();
+	const thread = String(props?.thread ?? "").trim();
 	if (!text || !id) return text;
-	return `[${text}](mark://${kind}/${id}/${value}/${color}${label ? `/${encodeURIComponent(label)}` : ""})`;
+	const labelPart = label || thread ? `/${label ? encodeMarkSegment(label) : "~"}` : "";
+	const threadPart = thread ? `/${encodeMarkSegment(thread)}` : "";
+	return `[${text}](mark://${kind}/${id}/${value}/${color}${labelPart}${threadPart})`;
 }
 
 /**

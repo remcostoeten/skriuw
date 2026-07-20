@@ -56,28 +56,114 @@ function hexToRgba(hex: string, alpha: number): string {
 	return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-type SimulationNode = GraphNode & { x?: number; vx?: number };
+type SimulationNode = GraphNode & { x?: number; y?: number; vx?: number; vy?: number };
+
+/** Nodes below this cluster size get no island anchor or hull — mostly orphans. */
+const ISLAND_MIN_SIZE = 3;
 
 /**
- * A d3-force that nudges note nodes toward an x position derived from their
- * creation time, so the layout reads as a loose timeline: oldest notes drift
- * left, newest right. Weak on purpose — link/charge forces still dominate, the
- * timeline only biases where clusters settle. Tag/person nodes (no createdAt)
- * are left to the other forces.
+ * Assigns each sufficiently large cluster an anchor point on a golden-angle
+ * spiral (big clusters near the center) so the islands spread evenly instead
+ * of queuing on a line. Spacing scales with cluster size so dense islands
+ * get more room.
  */
-function makeTimelineForce(minCreatedAt: number, span: number, spread: number) {
+function computeClusterAnchors(nodes: GraphNode[]): Map<number, { x: number; y: number }> {
+	const sizes = new Map<number, number>();
+	for (const node of nodes) {
+		sizes.set(node.cluster, (sizes.get(node.cluster) ?? 0) + 1);
+	}
+	const islands = [...sizes.entries()]
+		.filter(([, size]) => size >= ISLAND_MIN_SIZE)
+		.toSorted((a, b) => b[1] - a[1]);
+
+	const anchors = new Map<number, { x: number; y: number }>();
+	const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+	islands.forEach(([cluster, size], index) => {
+		const radius = (55 + Math.sqrt(size) * 14) * Math.sqrt(index);
+		const angle = index * goldenAngle;
+		anchors.set(cluster, { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
+	});
+	return anchors;
+}
+
+/**
+ * A d3-force pulling every node toward its cluster's island anchor. Weak on
+ * purpose — link/charge forces still shape each island internally, the anchor
+ * only decides where the island settles. Tiny clusters (orphans) have no
+ * anchor and are left to the other forces.
+ */
+function makeClusterForce(anchors: Map<number, { x: number; y: number }>) {
 	let nodes: SimulationNode[] = [];
 	function force(alpha: number) {
 		for (const node of nodes) {
-			if (node.createdAt === undefined || node.x === undefined) continue;
-			const target = ((node.createdAt - minCreatedAt) / span - 0.5) * spread;
-			node.vx = (node.vx ?? 0) + (target - node.x) * 0.06 * alpha;
+			const anchor = anchors.get(node.cluster);
+			if (!anchor || node.x === undefined || node.y === undefined) continue;
+			node.vx = (node.vx ?? 0) + (anchor.x - node.x) * 0.08 * alpha;
+			node.vy = (node.vy ?? 0) + (anchor.y - node.y) * 0.08 * alpha;
 		}
 	}
 	force.initialize = (simulationNodes: SimulationNode[]) => {
 		nodes = simulationNodes;
 	};
 	return force;
+}
+
+/** Andrew's monotone chain; returns hull points in counter-clockwise order. */
+function convexHull(points: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+	if (points.length < 3) return points;
+	const sorted = points.toSorted((a, b) => a.x - b.x || a.y - b.y);
+	const cross = (
+		o: { x: number; y: number },
+		a: { x: number; y: number },
+		b: { x: number; y: number },
+	) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+	const lower: Array<{ x: number; y: number }> = [];
+	for (const point of sorted) {
+		while (
+			lower.length >= 2 &&
+			cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0
+		)
+			lower.pop();
+		lower.push(point);
+	}
+	const upper: Array<{ x: number; y: number }> = [];
+	for (const point of sorted.toReversed()) {
+		while (
+			upper.length >= 2 &&
+			cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0
+		)
+			upper.pop();
+		upper.push(point);
+	}
+	lower.pop();
+	upper.pop();
+	return [...lower, ...upper];
+}
+
+/**
+ * Fills a soft rounded blob around a cluster's nodes: the convex hull is both
+ * filled and stroked with a fat round-join stroke, which expands it by the
+ * padding and rounds every corner without any curve math.
+ */
+function drawIslandHull(
+	ctx: CanvasRenderingContext2D,
+	points: Array<{ x: number; y: number }>,
+	color: string,
+	padding: number,
+) {
+	const hull = convexHull(points);
+	if (hull.length === 0) return;
+	ctx.beginPath();
+	ctx.moveTo(hull[0].x, hull[0].y);
+	for (let i = 1; i < hull.length; i += 1) ctx.lineTo(hull[i].x, hull[i].y);
+	ctx.closePath();
+	ctx.fillStyle = hexToRgba(color, 0.07);
+	ctx.strokeStyle = hexToRgba(color, 0.07);
+	ctx.lineWidth = padding * 2;
+	ctx.lineJoin = "round";
+	ctx.lineCap = "round";
+	ctx.stroke();
+	ctx.fill();
 }
 
 type GraphCanvasProps = {
@@ -147,29 +233,24 @@ function GraphCanvas({
 	// The canvas is lazy-loaded, so the ref may still be empty when effects
 	// first run — the engine-tick callback retries until the instance exists,
 	// and the guard keeps re-registration to once per dataset.
-	const timelineForNodes = useRef<GraphData["nodes"] | null>(null);
-	const ensureTimelineForce = useCallback(() => {
+	const clusterForNodes = useRef<GraphData["nodes"] | null>(null);
+	const ensureClusterForce = useCallback(() => {
 		const graph = graphRef.current;
-		if (!graph || timelineForNodes.current === data.nodes) return;
-		timelineForNodes.current = data.nodes;
+		if (!graph || clusterForNodes.current === data.nodes) return;
+		clusterForNodes.current = data.nodes;
 
-		const stamps = data.nodes
-			.map((node) => node.createdAt)
-			.filter((value): value is number => value !== undefined);
-		if (stamps.length < 2) {
-			graph.d3Force("timeline", null);
+		const anchors = computeClusterAnchors(data.nodes);
+		if (anchors.size === 0) {
+			graph.d3Force("cluster", null);
 			return;
 		}
-		const min = Math.min(...stamps);
-		const span = Math.max(1, Math.max(...stamps) - min);
-		const spread = 60 * Math.sqrt(data.nodes.length);
-		graph.d3Force("timeline", makeTimelineForce(min, span, spread));
+		graph.d3Force("cluster", makeClusterForce(anchors));
 		graph.d3ReheatSimulation?.();
 	}, [data.nodes]);
 
 	useEffect(() => {
-		ensureTimelineForce();
-	}, [ensureTimelineForce]);
+		ensureClusterForce();
+	}, [ensureClusterForce]);
 
 	// Capture latest values in refs so canvas callbacks never go stale.
 	const hoveredIdRef = useRef(hoveredId);
@@ -211,6 +292,13 @@ function GraphCanvas({
 			graphRef.current?.zoomToFit(600, isMobile ? 32 : 80);
 		}
 	}, [isMobile]);
+
+	// Re-fit the camera whenever the filtered node/edge set changes — a
+	// filtered graph's simulation settles at different coordinates, and
+	// without this the view stays at the last fit (often off-screen).
+	useEffect(() => {
+		hasFitRef.current = false;
+	}, [data]);
 
 	const getNodeColor = useCallback((node: GraphNode): string => {
 		const hovered = hoveredIdRef.current;
@@ -277,6 +365,25 @@ function GraphCanvas({
 		const t = typeof link.target === "object" ? link.target.id : link.target;
 		return s === hovered || t === hovered ? 2.5 : 0;
 	}, []);
+
+	// Islands are drawn behind nodes/links each frame; the simulation mutates
+	// x/y on the cloned graphData nodes, so grouping here sees live positions.
+	const drawIslands = useCallback(
+		(ctx: CanvasRenderingContext2D) => {
+			const byCluster = new Map<number, Array<{ x: number; y: number }>>();
+			for (const node of graphData.nodes as SimulationNode[]) {
+				if (node.x === undefined || node.y === undefined) continue;
+				const bucket = byCluster.get(node.cluster);
+				if (bucket) bucket.push({ x: node.x, y: node.y });
+				else byCluster.set(node.cluster, [{ x: node.x, y: node.y }]);
+			}
+			for (const [cluster, points] of byCluster) {
+				if (points.length < ISLAND_MIN_SIZE) continue;
+				drawIslandHull(ctx, points, CLUSTER_COLORS[cluster % CLUSTER_COLORS.length], 16);
+			}
+		},
+		[graphData],
+	);
 
 	const drawNode = useCallback(
 		// biome-ignore lint/suspicious/noExplicitAny: canvas ctx + node from force-graph
@@ -390,8 +497,9 @@ function GraphCanvas({
 					onNodeClick={(node) => handleNodeClick(node as GraphNode)}
 					onNodeHover={(node) => handleNodeHover(node as GraphNode | null)}
 					cooldownTicks={150}
-					onEngineTick={ensureTimelineForce}
+					onEngineTick={ensureClusterForce}
 					onEngineStop={handleEngineStop}
+					onRenderFramePre={drawIslands}
 					nodeCanvasObjectMode={() => "replace"}
 					nodeCanvasObject={drawNode}
 				/>
@@ -422,8 +530,8 @@ function GraphLegend() {
 				<span>Person</span>
 			</div>
 			<p className="pt-1 leading-relaxed">
-				Bigger = more connections. Older notes sit left, newer right. Click any node to open
-				it.
+				Bigger = more connections. Each tinted island is a cluster of related notes. Click
+				any node to open it.
 			</p>
 		</div>
 	);

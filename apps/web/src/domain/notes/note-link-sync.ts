@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { NoteFile } from "@/domain/notes/models";
 import {
+	extractBarePersonNames,
 	extractMarkdownPersonIds,
 	extractNoteLinks,
 	extractNoteTags,
@@ -17,6 +18,8 @@ export type PersistedNoteLinkRow = {
 	targetLabel: string;
 	targetNoteId: string | null;
 };
+
+type PersonNameRow = { id: string; name: string };
 
 export type NoteLinkSyncDb = {
 	noteLink: {
@@ -39,6 +42,16 @@ export type NoteLinkSyncDb = {
 			data: Prisma.NoteLinkCreateManyInput[];
 			skipDuplicates?: boolean;
 		}): Promise<BatchPayload>;
+	};
+	person: {
+		findMany(args: {
+			where: { userId: string };
+			select: { id: true; name: true };
+		}): Promise<PersonNameRow[]>;
+		create(args: {
+			data: { userId: string; name: string };
+			select: { id: true; name: true };
+		}): Promise<PersonNameRow>;
 	};
 };
 
@@ -115,19 +128,116 @@ export function buildDesiredLinkTargets(
 	return [...rows.values()];
 }
 
+/** Bare `$Name` mentions in a note's searchable text (chips excluded). */
+export function extractNoteBarePersonNames(
+	note: Pick<NoteFile, "content" | "richContent">,
+): string[] {
+	return extractBarePersonNames(
+		getNoteSearchableContent({ content: note.content, richContent: note.richContent ?? [] }),
+	);
+}
+
+/**
+ * Lowercased name → person id lookup for resolving bare `$Name` mentions.
+ * Full names always win; a first name resolves only when exactly one person
+ * carries it, so `$Remco` finds "Remco Stoeten" without guessing between
+ * two Remcos.
+ */
+export function buildPersonNameResolutionMap(people: PersonNameRow[]): Map<string, string> {
+	const byFullName = new Map<string, string>();
+	const byFirstName = new Map<string, string | null>();
+
+	for (const person of people) {
+		const fullName = person.name.trim().toLowerCase();
+		if (!fullName) continue;
+		if (!byFullName.has(fullName)) byFullName.set(fullName, person.id);
+
+		const firstName = fullName.split(/\s+/)[0];
+		if (!firstName || firstName === fullName) continue;
+		byFirstName.set(firstName, byFirstName.has(firstName) ? null : person.id);
+	}
+
+	for (const [firstName, personId] of byFirstName) {
+		if (personId && !byFullName.has(firstName)) byFullName.set(firstName, personId);
+	}
+
+	return byFullName;
+}
+
+// Resolves bare names against existing people and creates a Person row for any
+// name that matches nobody, so every `$Name` typed in a note ends up on the
+// people overview — mirrors the journal-side resolver in journal-link-sync.ts.
+export async function ensurePersonIdsForBareNames(
+	db: NoteLinkSyncDb,
+	userId: string,
+	names: string[],
+): Promise<Map<string, string>> {
+	if (names.length === 0) return new Map();
+
+	const people = await db.person.findMany({
+		where: { userId },
+		select: { id: true, name: true },
+	});
+	const resolution = buildPersonNameResolutionMap(people);
+
+	for (const name of names) {
+		const key = name.toLowerCase();
+		if (resolution.has(key)) continue;
+		try {
+			const created = await db.person.create({
+				data: { userId, name },
+				select: { id: true, name: true },
+			});
+			resolution.set(key, created.id);
+		} catch {
+			// A concurrent save raced us on the (userId, name) unique constraint;
+			// re-read so the mention still resolves to whichever row won.
+			const winner = (
+				await db.person.findMany({ where: { userId }, select: { id: true, name: true } })
+			).find((person) => person.name.trim().toLowerCase() === key);
+			if (winner) resolution.set(key, winner.id);
+		}
+	}
+
+	return resolution;
+}
+
 // Builds the canonical persisted note_links rows for a note. One row is kept per
-// distinct outgoing link or tag membership.
+// distinct outgoing link or tag membership. `personIdsByName` additionally
+// resolves bare `$Name` mentions into person rows; without it only
+// `$[Name](person://id)` chips are indexed.
 export function buildDesiredNoteLinkRows(
 	userId: string,
 	note: Pick<NoteFile, "id" | "content" | "richContent" | "tags">,
+	personIdsByName?: Map<string, string>,
 ): Prisma.NoteLinkCreateManyInput[] {
-	return buildDesiredLinkTargets(note).map((target) => ({
+	const rows = buildDesiredLinkTargets(note).map((target) => ({
 		userId,
 		sourceNoteId: note.id,
 		targetNoteId: target.targetNoteId,
 		targetLabel: target.targetLabel,
 		kind: target.kind,
 	}));
+
+	if (personIdsByName && personIdsByName.size > 0) {
+		const seen = new Set(
+			rows.filter((row) => row.kind === "person").map((row) => row.targetLabel),
+		);
+		for (const name of extractNoteBarePersonNames(note)) {
+			const personId = personIdsByName.get(name.toLowerCase());
+			if (!personId || seen.has(personId)) continue;
+			seen.add(personId);
+			rows.push({
+				userId,
+				sourceNoteId: note.id,
+				targetNoteId: null,
+				targetLabel: personId,
+				kind: "person",
+			});
+		}
+	}
+
+	return rows;
 }
 
 export function diffNoteLinkRows(
@@ -160,12 +270,59 @@ export function diffNoteLinkRows(
 	return { removed, updated, created };
 }
 
+export type NoteLinkBackfillDb = NoteLinkSyncDb & {
+	noteLink: {
+		findMany(args: {
+			where: { userId: string };
+			select: { sourceNoteId: true; kind: true; targetLabel: true };
+		}): Promise<Array<{ sourceNoteId: string; kind: string; targetLabel: string }>>;
+	};
+};
+
+// Reconciles persisted note_links against what each note's content should
+// produce, re-syncing any note with missing rows. Covers notes saved before
+// bare `$Name` mention indexing shipped for notes — mirrors the journal-side
+// backfill in journal-link-sync.ts.
+export async function backfillMissingNoteLinks(
+	db: NoteLinkBackfillDb,
+	userId: string,
+	notes: Array<Pick<NoteFile, "id" | "content" | "richContent" | "tags">>,
+): Promise<number> {
+	const persisted = await db.noteLink.findMany({
+		where: { userId },
+		select: { sourceNoteId: true, kind: true, targetLabel: true },
+	});
+	const persistedByNote = new Map<string, Set<string>>();
+	for (const row of persisted) {
+		const keys = persistedByNote.get(row.sourceNoteId) ?? new Set();
+		keys.add(linkKey(row));
+		persistedByNote.set(row.sourceNoteId, keys);
+	}
+
+	const bareNames = [...new Set(notes.flatMap(extractNoteBarePersonNames))];
+	const personIdsByName = await ensurePersonIdsForBareNames(db, userId, bareNames);
+
+	const missing = notes.filter((note) => {
+		const desired = buildDesiredNoteLinkRows(userId, note, personIdsByName);
+		if (desired.length === 0) return false;
+		const existing = persistedByNote.get(note.id);
+		return !existing || desired.some((row) => !existing.has(linkKey(row)));
+	});
+	await Promise.all(missing.map((note) => syncNoteLinks(db, userId, note)));
+	return missing.length;
+}
+
 export async function syncNoteLinks(
 	db: NoteLinkSyncDb,
 	userId: string,
 	note: Pick<NoteFile, "id" | "content" | "richContent" | "tags">,
 ): Promise<void> {
-	const desired = buildDesiredNoteLinkRows(userId, note);
+	const personIdsByName = await ensurePersonIdsForBareNames(
+		db,
+		userId,
+		extractNoteBarePersonNames(note),
+	);
+	const desired = buildDesiredNoteLinkRows(userId, note, personIdsByName);
 	const existing = await db.noteLink.findMany({
 		where: { userId, sourceNoteId: note.id },
 		select: { id: true, kind: true, targetLabel: true, targetNoteId: true },

@@ -5,9 +5,9 @@
 //! metadata are replaced through `atomic_file::atomic_write` (temp sibling +
 //! fsync + rename), so a crash mid-write leaves either the old or the new
 //! complete file. The on-disk markdown is the portable source of truth;
-//! `richContent` is intentionally NOT persisted here — the TypeScript layer
-//! derives it from the markdown via `rich-document.ts`, so reads return an empty
-//! rich document.
+//! Structured `richContent` is persisted separately in revision-keyed sidecars
+//! under `.skriuw/rich/`. Markdown remains canonical: a sidecar is used only
+//! while its Markdown revision matches the exact current file bytes.
 //!
 //! Layout:
 //!   <root>/
@@ -30,8 +30,16 @@ use serde_json::Value;
 use crate::atomic_file::atomic_write;
 use crate::storage::{Folder, JournalEntry, JournalTag, Note, TrashRecord};
 
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RichSidecar {
+    markdown_revision: String,
+    rich_content: Value,
+}
+
 const META_DIR: &str = ".skriuw";
 const FOLDERS_FILE: &str = "folders.json";
+const RICH_DIR: &str = "rich";
 /// Journal entries live as markdown under `.skriuw/journal/` (kept out of the
 /// notes tree so they never surface as notes), and their tag palette in a JSON
 /// index beside them. The markdown is the portable source of truth; the SQLite
@@ -44,6 +52,7 @@ const JOURNAL_TAGS_FILE: &str = "journal-tags.json";
 /// the index of what's in the bin and where it came from.
 const TRASH_DIR: &str = "trash";
 const TRASH_NOTES_DIR: &str = "notes";
+const TRASH_RICH_DIR: &str = "rich";
 const TRASH_INDEX_FILE: &str = "trash.json";
 /// Uploaded note cover images live under `.skriuw/assets/cover-images/`, named
 /// by a generated id (see `save_cover_image`), so they never collide with the
@@ -127,6 +136,11 @@ impl VaultStore {
         self.root.lock().expect("vault root mutex poisoned").clone()
     }
 
+    /// Current canonical root, exposed to the watcher/lifecycle layer.
+    pub(crate) fn root_path(&self) -> PathBuf {
+        self.root()
+    }
+
     /// Rebinds the store to a different vault root in place. Snapshot restore
     /// can replace the configured vault path, so the long-lived Tauri state has
     /// to follow it without a full app restart.
@@ -203,6 +217,52 @@ impl VaultStore {
         Ok(notes)
     }
 
+    /// Reads one canonical note path without scanning the rest of the vault.
+    /// Returns `None` for paths outside the root, metadata paths, and non-Markdown
+    /// files. Parent identity is derived using the same folder mapping as the
+    /// launch reconciliation.
+    pub(crate) fn note_at_path(&self, path: &Path) -> io::Result<Option<Note>> {
+        let root = self.root();
+        if !path.starts_with(&root)
+            || path.starts_with(root.join(META_DIR))
+            || !is_markdown(path)
+            || !path.is_file()
+        {
+            return Ok(None);
+        }
+        let folders = self.read_folders()?;
+        let parents = self.dir_to_folder_id(&folders);
+        let parent_id = path
+            .parent()
+            .and_then(|parent| parents.get(parent))
+            .cloned();
+        self.read_note(path, parent_id)
+    }
+
+    /// Initial path map for the watcher. This is built once when binding a root;
+    /// ordinary events subsequently use `note_at_path` and remain targeted.
+    pub(crate) fn note_locations(&self) -> io::Result<HashMap<PathBuf, String>> {
+        let mut locations = HashMap::new();
+        let root = self.root();
+        self.walk_markdown(&root, &mut |path, raw| {
+            let name = path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or("Untitled.md");
+            let id = frontmatter_id(raw).unwrap_or_else(|| name_stem(name));
+            locations.insert(path.to_path_buf(), id);
+        })?;
+        Ok(locations)
+    }
+
+    pub(crate) fn note_path(&self, id: &str) -> io::Result<Option<PathBuf>> {
+        self.find_note_path(id)
+    }
+
+    pub(crate) fn revision_at_path(path: &Path) -> io::Result<String> {
+        Ok(note_revision_bytes(&fs::read(path)?))
+    }
+
     pub fn get_note(&self, id: &str) -> io::Result<Option<Note>> {
         Ok(self.list_notes()?.into_iter().find(|note| note.id == id))
     }
@@ -214,7 +274,33 @@ impl VaultStore {
     /// copy. If old-path removal fails, both complete files are retained and an
     /// error naming both paths is returned (duplicate cleanup beats data loss).
     pub fn upsert_note(&self, note: &Note) -> io::Result<()> {
+        self.upsert_note_checked(note, None, true).map(|_| ())
+    }
+
+    /// Revision-check and canonical replacement under the SAME write lock.
+    /// Returning `InvalidData` is translated into the typed IPC conflict by the
+    /// caller. Keeping comparison and rename in one critical section closes the
+    /// last-writer race between a separate revision read and `upsert_note`.
+    pub fn upsert_note_checked(
+        &self,
+        note: &Note,
+        expected_revision: Option<&str>,
+        force: bool,
+    ) -> io::Result<String> {
         let _guard = self.write_lock.lock().expect("vault write lock poisoned");
+        if !force {
+            if let Some(expected) = expected_revision {
+                if let Some(path) = self.find_note_path(&note.id)? {
+                    let current = note_revision_bytes(&fs::read(path)?);
+                    if current != expected {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "vault revision conflict",
+                        ));
+                    }
+                }
+            }
+        }
         let folders = self.read_folders()?;
         let dir = match &note.parent_id {
             Some(parent) => self.folder_dir(&folders, parent),
@@ -223,7 +309,12 @@ impl VaultStore {
         let target = dir.join(note_file_name(&note.name));
         let previous = self.find_note_path(note.id.as_str())?;
 
-        atomic_write(&target, render_note(note).as_bytes())?;
+        let rendered = render_note(note);
+        atomic_write(&target, rendered.as_bytes())?;
+        // Commit Markdown first. A crash before the sidecar replacement leaves
+        // an old revision-keyed sidecar that reads will safely ignore.
+        let revision = note_revision_bytes(rendered.as_bytes());
+        self.write_rich_sidecar(note, revision.clone())?;
         self.cache_note_path(&note.id, target.clone());
 
         if let Some(previous) = previous {
@@ -241,7 +332,7 @@ impl VaultStore {
                 }
             }
         }
-        Ok(())
+        Ok(revision)
     }
 
     /// Removes the previous file of a renamed/moved note or journal entry,
@@ -264,6 +355,7 @@ impl VaultStore {
             fs::remove_file(path)?;
         }
         self.uncache_note_path(id);
+        let _ = fs::remove_file(self.rich_path(id));
         Ok(())
     }
 
@@ -296,6 +388,20 @@ impl VaultStore {
         self.trash_notes_dir().join(format!("{id}.md"))
     }
 
+    fn rich_dir(&self) -> PathBuf {
+        self.root().join(META_DIR).join(RICH_DIR)
+    }
+
+    fn rich_path(&self, id: &str) -> PathBuf {
+        self.rich_dir().join(format!("{id}.json"))
+    }
+
+    fn trash_rich_path(&self, id: &str) -> PathBuf {
+        self.trash_dir()
+            .join(TRASH_RICH_DIR)
+            .join(format!("{id}.json"))
+    }
+
     fn read_trash(&self) -> io::Result<Vec<TrashRecord>> {
         let raw = match fs::read_to_string(self.trash_index_path()) {
             Ok(raw) => raw,
@@ -326,6 +432,10 @@ impl VaultStore {
         };
         fs::create_dir_all(self.trash_notes_dir())?;
         move_file(&path, &self.trash_note_file(id))?;
+        let rich = self.rich_path(id);
+        if rich.exists() {
+            move_file(&rich, &self.trash_rich_path(id))?;
+        }
         self.uncache_note_path(id);
 
         let mut records = self.read_trash()?;
@@ -365,6 +475,10 @@ impl VaultStore {
             }
             if let Some(path) = self.find_note_path(&note.id)? {
                 move_file(&path, &self.trash_note_file(&note.id))?;
+            }
+            let rich = self.rich_path(&note.id);
+            if rich.exists() {
+                move_file(&rich, &self.trash_rich_path(&note.id))?;
             }
             records.push(TrashRecord {
                 batch_id: batch_id.clone(),
@@ -456,6 +570,10 @@ impl VaultStore {
             if source.exists() {
                 move_file(&source, &dir.join(note_file_name(&record.name)))?;
             }
+            let rich = self.trash_rich_path(&record.id);
+            if rich.exists() {
+                move_file(&rich, &self.rich_path(&record.id))?;
+            }
         }
 
         self.invalidate_note_paths();
@@ -472,6 +590,7 @@ impl VaultStore {
             .partition(|record| record.batch_id == batch_id);
         for record in members.iter().filter(|record| record.kind == "note") {
             let _ = fs::remove_file(self.trash_note_file(&record.id));
+            let _ = fs::remove_file(self.trash_rich_path(&record.id));
         }
         self.write_trash(&rest)
     }
@@ -636,13 +755,43 @@ impl VaultStore {
     }
 
     fn read_note(&self, path: &Path, parent_id: Option<String>) -> io::Result<Option<Note>> {
-        let raw = fs::read_to_string(path)?;
+        let bytes = fs::read(path)?;
+        let raw = String::from_utf8_lossy(&bytes);
         let name = path
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("Untitled.md")
             .to_string();
-        Ok(Some(parse_note(&raw, name, parent_id)))
+        let mut note = parse_note(&raw, name, parent_id);
+        if let Some(rich) = self.read_rich_sidecar(&note.id, &note_revision_bytes(&bytes))? {
+            note.rich_content = rich;
+        }
+        Ok(Some(note))
+    }
+
+    fn read_rich_sidecar(&self, id: &str, markdown_revision: &str) -> io::Result<Option<Value>> {
+        let raw = match fs::read(self.rich_path(id)) {
+            Ok(raw) => raw,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        let sidecar: RichSidecar = match serde_json::from_slice(&raw) {
+            Ok(sidecar) => sidecar,
+            // Corrupt optional metadata must never prevent opening Markdown.
+            Err(_) => return Ok(None),
+        };
+        Ok((sidecar.markdown_revision == markdown_revision).then_some(sidecar.rich_content))
+    }
+
+    fn write_rich_sidecar(&self, note: &Note, markdown_revision: String) -> io::Result<()> {
+        fs::create_dir_all(self.rich_dir())?;
+        let sidecar = RichSidecar {
+            markdown_revision,
+            rich_content: note.rich_content.clone(),
+        };
+        let mut raw = serde_json::to_vec(&sidecar).map_err(io::Error::other)?;
+        raw.push(b'\n');
+        atomic_write(&self.rich_path(&note.id), &raw)
     }
 
     fn find_note_path(&self, id: &str) -> io::Result<Option<PathBuf>> {
@@ -891,7 +1040,7 @@ impl VaultStore {
             }
         }
 
-        let dirs_to_copy = [JOURNAL_DIR, TRASH_DIR];
+        let dirs_to_copy = [JOURNAL_DIR, TRASH_DIR, RICH_DIR];
         for dir in &dirs_to_copy {
             let src_dir = meta_src.join(dir);
             if src_dir.exists() {
@@ -943,6 +1092,10 @@ impl VaultStore {
         let journal_dir = meta_dir.join(JOURNAL_DIR);
         if journal_dir.exists() {
             let _ = fs::remove_dir_all(journal_dir);
+        }
+        let rich_dir = meta_dir.join(RICH_DIR);
+        if rich_dir.exists() {
+            let _ = fs::remove_dir_all(rich_dir);
         }
 
         // 3. Copy everything from backup_dir back to the vault root
@@ -1374,8 +1527,51 @@ mod tests {
         assert_eq!(got.sort_order, 3);
         assert_eq!(got.created_at, 111);
         assert_eq!(got.modified_at, 222);
-        // richContent is derived TS-side; the vault returns an empty document.
+        assert_eq!(
+            got.rich_content,
+            serde_json::json!([{ "type": "paragraph" }])
+        );
+    }
+
+    #[test]
+    fn external_markdown_edit_invalidates_stale_rich_sidecar() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        store.upsert_note(&note("n1", "Note.md", None)).unwrap();
+
+        let path = dir.path().join("Note.md");
+        let mut raw = fs::read_to_string(&path).unwrap();
+        raw.push_str("\nexternal edit");
+        fs::write(&path, raw).unwrap();
+
+        let got = store.get_note("n1").unwrap().unwrap();
+        assert!(got.content.ends_with("external edit"));
         assert_eq!(got.rich_content, Value::Array(Vec::new()));
+        assert!(
+            store.rich_path("n1").exists(),
+            "stale sidecar stays recoverable"
+        );
+    }
+
+    #[test]
+    fn rich_sidecar_follows_trash_restore_and_purge() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        store.upsert_note(&note("n1", "Note.md", None)).unwrap();
+
+        store.trash_note("n1", 100).unwrap();
+        assert!(!store.rich_path("n1").exists());
+        assert!(store.trash_rich_path("n1").exists());
+        store.restore_batch("note:n1").unwrap();
+        assert!(store.rich_path("n1").exists());
+        assert_eq!(
+            store.get_note("n1").unwrap().unwrap().rich_content,
+            serde_json::json!([{ "type": "paragraph" }])
+        );
+
+        store.trash_note("n1", 200).unwrap();
+        store.purge_batch("note:n1").unwrap();
+        assert!(!store.trash_rich_path("n1").exists());
     }
 
     #[test]
@@ -1529,10 +1725,64 @@ mod tests {
     }
 
     #[test]
+    fn checked_save_rejects_stale_revision_and_force_is_explicit() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        let original = note("n1", "Note.md", None);
+        store.upsert_note(&original).unwrap();
+        let expected = store.current_note_revision("n1").unwrap().unwrap();
+
+        let path = dir.path().join("Note.md");
+        let mut external = fs::read_to_string(&path).unwrap();
+        external.push_str("\nexternal");
+        fs::write(&path, &external).unwrap();
+
+        let mut local = original;
+        local.content = "local draft".into();
+        let error = store
+            .upsert_note_checked(&local, Some(&expected), false)
+            .unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert_eq!(fs::read_to_string(&path).unwrap(), external);
+
+        store
+            .upsert_note_checked(&local, Some(&expected), true)
+            .unwrap();
+        assert!(fs::read_to_string(path).unwrap().ends_with("local draft"));
+    }
+
+    #[test]
     fn revision_is_none_for_a_note_with_no_file() {
         let dir = tempdir().unwrap();
         let store = VaultStore::open(dir.path()).unwrap();
         assert!(store.current_note_revision("missing").unwrap().is_none());
+    }
+
+    #[test]
+    #[ignore = "large-vault performance validation"]
+    fn ten_thousand_file_location_scan_and_targeted_read() {
+        let dir = tempdir().unwrap();
+        let store = VaultStore::open(dir.path()).unwrap();
+        for index in 0..10_000 {
+            fs::write(
+                dir.path().join(format!("note-{index}.md")),
+                format!("---\nid: \"n-{index}\"\n---\nbody {index}"),
+            )
+            .unwrap();
+        }
+        let started = std::time::Instant::now();
+        let locations = store.note_locations().unwrap();
+        let scan_elapsed = started.elapsed();
+        assert_eq!(locations.len(), 10_000);
+
+        let target_started = std::time::Instant::now();
+        let target = store
+            .note_at_path(&dir.path().join("note-9999.md"))
+            .unwrap()
+            .unwrap();
+        let target_elapsed = target_started.elapsed();
+        assert_eq!(target.id, "n-9999");
+        eprintln!("10k initial location scan: {scan_elapsed:?}; targeted read: {target_elapsed:?}");
     }
 
     #[test]

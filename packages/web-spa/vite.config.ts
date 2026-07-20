@@ -2,7 +2,7 @@ import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 
 const analyze = process.env.ANALYZE === "true";
 
@@ -19,12 +19,12 @@ export default defineConfig({
 		react(),
 		tailwindcss(),
 		analyze &&
-			visualizer({
+			(visualizer({
 				filename: "dist/bundle-report.html",
 				template: "treemap",
 				gzipSize: true,
 				brotliSize: true,
-			}),
+			}) as unknown as PluginOption),
 	],
 	resolve: {
 		dedupe: ["react", "react-dom", "@tanstack/react-query"],

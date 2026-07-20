@@ -1059,7 +1059,10 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 
 			triggerNativeFeedback("success");
 			const parentId = creationParentFolderId;
-			const preferredEditorMode = defaultModeRaw ? "raw" : "block";
+			// A fresh note always starts in the block editor. The raw-mode
+			// preference remains a fallback for existing notes that do not carry
+			// their own mode, but must not leak into newly created notes.
+			const preferredEditorMode = "block" as const;
 			const templateBody = template?.build();
 			const name = templateBody?.name ?? "Untitled.md";
 			const content = templateBody?.content ?? generateNoteContent("Untitled");
@@ -1106,8 +1109,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 				onSuccess: () => {
 					markFileSaved(newId);
 				},
-				onError: () => {
-					markFileError(newId);
+				onError: (error) => {
+					markFileError(newId, error);
 				},
 			});
 			markFileSaving(newId);
@@ -1125,7 +1128,6 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 		[
 			creationParentFolderId,
 			createNoteMutation,
-			defaultModeRaw,
 			defaultPropertiesTemplateId,
 			diaryModeEnabled,
 			isMobile,
@@ -1187,8 +1189,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 								onSuccess: () => {
 									markFileSaved(modeTarget.id);
 								},
-								onError: () => {
-									markFileError(modeTarget.id);
+								onError: (error) => {
+									markFileError(modeTarget.id, error);
 								},
 							},
 						);
@@ -1214,8 +1216,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 						onSuccess: () => {
 							markFileSaved(modeTarget.id);
 						},
-						onError: () => {
-							markFileError(modeTarget.id);
+						onError: (error) => {
+							markFileError(modeTarget.id, error);
 						},
 					},
 				);
@@ -1360,8 +1362,8 @@ export function useNotesLayout(options: UseNotesLayoutOptions = {}) {
 						onSuccess: () => {
 							markFileSaved(id);
 						},
-						onError: () => {
-							markFileError(id);
+						onError: (error) => {
+							markFileError(id, error);
 						},
 					},
 				);

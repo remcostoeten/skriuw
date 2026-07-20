@@ -134,6 +134,10 @@ export async function installNotesLayoutMocks(
 	notesStoreState: NotesStoreState,
 	flush: ReturnType<typeof createMock>,
 	flushAll: ReturnType<typeof createMock>,
+	options: {
+		defaultModeRaw?: boolean;
+		createNoteMutation?: { mutate: MockFn; isPending: boolean };
+	} = {},
 ) {
 	const actualReact = await import("react");
 	const reactMock = {
@@ -288,6 +292,11 @@ export async function installNotesLayoutMocks(
 	mock.module("@/domain/notes/rich-document", () => ({
 		markdownToRichDocument: () => [],
 		richDocumentKey: () => "",
+		richDocumentToSearchableMarkdown: () => "",
+		resolveRichDocument: (_content: string, rich: unknown) => rich ?? [],
+		extractRichDocumentPersonIds: () => [],
+		PERSON_LINK_PATTERN: /$^/g,
+		TAG_LINK_PATTERN: /$^/g,
 	}));
 	mock.module("@/core/workspace-backend", () => ({
 		useIsGuestWorkspace: () => false,
@@ -345,7 +354,7 @@ export async function installNotesLayoutMocks(
 
 	const mutation = { mutate: () => undefined, isPending: false };
 	mock.module("@/features/notes/hooks/use-create-note", () => ({
-		useCreateNote: () => mutation,
+		useCreateNote: () => options.createNoteMutation ?? mutation,
 	}));
 	mock.module("@/features/notes/hooks/use-create-folder", () => ({
 		useCreateFolder: () => mutation,
@@ -371,7 +380,7 @@ export async function installNotesLayoutMocks(
 			selector({
 				initialize: () => undefined,
 				editor: {
-					defaultModeRaw: false,
+					defaultModeRaw: options.defaultModeRaw ?? false,
 					notePropertiesDefaultTemplateId: null,
 					vimMode: false,
 				},

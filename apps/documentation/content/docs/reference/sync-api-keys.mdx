@@ -11,7 +11,7 @@ client UIs (web settings, extension).
 ## Why bearer tokens
 
 `/api/sync/*` is called from origins that can't hold a Better Auth session
-cookie: a Chrome extension service worker and the Tauri desktop webview
+cookie: a Chrome extension service worker and the Tauri desktop runtime
 (`tauri://localhost`). Both send `Authorization: Bearer <token>` instead.
 Because these routes never trust cookies, wildcard CORS on them is safe - a
 request without a valid write-scoped token can't create or read anything.
@@ -20,14 +20,14 @@ request without a valid write-scoped token can't create or read anything.
 
 `SyncToken` (`prisma/schema.prisma`):
 
-| Field         | Purpose                                                             |
+| Field         | Purpose                                                              |
 | ------------- | -------------------------------------------------------------------- |
 | `tokenHash`   | sha256 of the raw secret - the raw value is never stored             |
-| `tokenPrefix` | first 18 chars of the raw secret, kept in clear for UI display        |
-| `scopes`      | `sync:read` and/or `sync:write`                                       |
+| `tokenPrefix` | first 18 chars of the raw secret, kept in clear for UI display       |
+| `scopes`      | `sync:read` and/or `sync:write`                                      |
 | `expiresAt`   | optional; `null` = never expires                                     |
-| `revokedAt`   | set once revoked; revocation is soft (row kept for the activity log)  |
-| `lastUsedAt`  | bumped on most authenticated requests (see exceptions below)          |
+| `revokedAt`   | set once revoked; revocation is soft (row kept for the activity log) |
+| `lastUsedAt`  | bumped on most authenticated requests (see exceptions below)         |
 
 Raw tokens look like `skriuw_sync_<32 random bytes, base64url>` - 256 bits of
 entropy, generated in `domain/sync/token-utils.ts::createRawSyncToken`. The
@@ -50,18 +50,18 @@ All under `apps/web/src/app/api/sync/`, all bearer-authenticated via
 (`domain/sync/tokens.ts`), which checks the hash, revocation, expiry, and
 scope in one call.
 
-| Route                          | Method | Scope        | Notes                                                              |
-| ------------------------------- | ------ | ------------ | ------------------------------------------------------------------- |
-| `sync/tokens`                   | GET    | session      | List the caller's keys                                              |
-| `sync/tokens`                   | POST   | session      | Create a key (`name`, `canWrite`, `expiresAt`)                       |
-| `sync/tokens`                   | DELETE | session      | **Revoke all** active keys                                          |
-| `sync/tokens/[tokenId]`         | DELETE | session      | Revoke one key                                                      |
-| `sync/tokens/[tokenId]/rotate`  | POST   | session      | Mint a new secret with the same name/scopes/expiry, revoke the old   |
-| `sync/verify`                   | GET    | `sync:read`  | "Is this token valid?" check used by the extension's Test & Save    |
-| `sync/capture`                  | POST   | `sync:write` | Extension clip → creates a note via `createNoteForUser`              |
-| `sync/export`                   | GET    | `sync:read`  | Desktop pull - full workspace export                                 |
-| `sync/folders`                  | GET    | `sync:read`  | Folder tree for the extension's destination picker                   |
-| `sync/activity`                 | GET    | session or `sync:read` | Recent `SyncEvent` rows; `?tokenId=` filters to one key   |
+| Route                          | Method | Scope                  | Notes                                                              |
+| ------------------------------ | ------ | ---------------------- | ------------------------------------------------------------------ |
+| `sync/tokens`                  | GET    | session                | List the caller's keys                                             |
+| `sync/tokens`                  | POST   | session                | Create a key (`name`, `canWrite`, `expiresAt`)                     |
+| `sync/tokens`                  | DELETE | session                | **Revoke all** active keys                                         |
+| `sync/tokens/[tokenId]`        | DELETE | session                | Revoke one key                                                     |
+| `sync/tokens/[tokenId]/rotate` | POST   | session                | Mint a new secret with the same name/scopes/expiry, revoke the old |
+| `sync/verify`                  | GET    | `sync:read`            | "Is this token valid?" check used by the extension's Test & Save   |
+| `sync/capture`                 | POST   | `sync:write`           | Extension clip → creates a note via `createNoteForUser`            |
+| `sync/export`                  | GET    | `sync:read`            | Desktop pull - full workspace export                               |
+| `sync/folders`                 | GET    | `sync:read`            | Folder tree for the extension's destination picker                 |
+| `sync/activity`                | GET    | session or `sync:read` | Recent `SyncEvent` rows; `?tokenId=` filters to one key            |
 
 `sync/tokens*` routes (create/list/revoke/rotate) use the normal session
 cookie, since they're only ever called from the logged-in web settings page.
@@ -113,12 +113,23 @@ A breach returns `429` with a plain-text error; the extension's queue treats
   that key's events only (`?tokenId=` on `sync/activity`); a "Clear filter"
   chip resets it.
 
+## Desktop storage and connection
+
+Desktop connects through browser device flow, then stores its `sync:device`
+bearer in the operating system credential store. It is not kept in browser
+`localStorage`, desktop settings JSON, snapshots, or logs. A legacy local value
+is deleted only after secure storage is verified by reading it back.
+
+Disconnecting desktop sync or choosing a credential-inclusive reset deletes the
+secure credential. If the OS credential store is locked or unavailable, desktop
+does not connect or fall back to plaintext storage.
+
 ## Extension (`apps/extension`)
 
 Chrome MV3 clipper. Auth = paste a write-scoped key into the options page.
 
 - **Options page** (`src/options/App.tsx`): "Test & save" calls
-  `verifyRawToken(apiBase, token)` *before* writing anything to
+  `verifyRawToken(apiBase, token)` _before_ writing anything to
   `chrome.storage.local`, rejects read-only keys for capture use, and on
   success displays the key's name/scope/expiry. If the saved key expires
   within 7 days (or already has), a warning banner tells the user to rotate

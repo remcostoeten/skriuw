@@ -75,6 +75,7 @@ type DeleteButtonProps = {
 	successLabel?: string;
 	failedLabel?: string;
 	disabled?: boolean;
+	size?: "default" | "sm";
 };
 
 export function DeleteButton({
@@ -85,6 +86,7 @@ export function DeleteButton({
 	successLabel = "Deleted",
 	failedLabel = "Retry delete",
 	disabled = false,
+	size = "default",
 }: DeleteButtonProps) {
 	const [status, setStatus] = useState<Status>("idle");
 
@@ -136,7 +138,8 @@ export function DeleteButton({
 				onClick={handleClick}
 				disabled={disabled || busy || solid}
 				className={cn(
-					"relative inline-flex h-10 items-center justify-center overflow-hidden rounded-md border text-sm font-medium transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",
+					"relative inline-flex items-center justify-center overflow-hidden rounded-md border text-sm font-medium transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",
+					size === "default" ? "h-10" : "h-8 text-xs",
 					(solid || busy) && "cursor-default",
 					disabled && "cursor-not-allowed opacity-50",
 					!disabled &&
@@ -169,7 +172,8 @@ export function DeleteButton({
 					type="button"
 					onClick={cancel}
 					className={cn(
-						"h-10 overflow-hidden whitespace-nowrap rounded-md border border-input bg-background text-sm font-medium text-muted-foreground transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-accent hover:text-accent-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",
+						"overflow-hidden whitespace-nowrap rounded-md border border-input bg-background text-sm font-medium text-muted-foreground transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-accent hover:text-accent-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",
+						size === "default" ? "h-10" : "h-8 text-xs",
 						showCancel
 							? "max-w-[160px] cursor-pointer px-4 opacity-100"
 							: "pointer-events-none max-w-0 border-transparent px-0 opacity-0",

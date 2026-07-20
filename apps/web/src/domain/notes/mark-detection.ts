@@ -7,7 +7,9 @@
  * the ProseMirror plugin can read it without threading React context through.
  */
 
-let markDetectionEnabled = true;
+// Explicit marking is the safe default. Automatic conversion creates atomic
+// inline nodes, so users opt in after learning how Marks behave.
+let markDetectionEnabled = false;
 
 export function isMarkDetectionEnabled(): boolean {
 	return markDetectionEnabled;

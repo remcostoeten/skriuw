@@ -89,13 +89,15 @@ Skriuw uses a portable ZIP backup format for your workspace:
 
 Third-party imports (best effort, structure and formatting may need cleanup):
 
-| Source          | What to upload      | Notes                                                               |
-| --------------- | ------------------- | ------------------------------------------------------------------- |
-| Obsidian        | Vault ZIP           | Wikilinks converted to Markdown links; `.obsidian` metadata skipped |
-| Apple Notes     | HTML export ZIP     | Plain text and Markdown body; attachments not included              |
-| Bear            | Markdown export ZIP | Header `#tags` mapped to note tags                                  |
-| Notion          | Markdown export ZIP | Databases, CSVs, and attachments skipped                            |
-| Markdown folder | Any folder ZIP      | Generic path-based import when auto-detect is unsure                |
+| Source           | What to upload                    | Notes                                                               |
+| ---------------- | --------------------------------- | ------------------------------------------------------------------- |
+| Obsidian         | Vault ZIP                         | Wikilinks converted to Markdown links; `.obsidian` metadata skipped |
+| Apple Notes      | HTML export ZIP                   | Plain text and Markdown body; attachments not included              |
+| Bear             | Markdown export ZIP               | Header `#tags` mapped to note tags                                  |
+| Notion           | Markdown export ZIP               | Databases, CSVs, and attachments skipped                            |
+| Simplenote       | Export ZIP                        | Titles derived from first line; trashed notes land in Trash         |
+| Desktop snapshot | Snapshot ZIP from the desktop app | Notes, folders, journal entries, and journal tags                   |
+| Markdown folder  | Any folder ZIP                    | Generic path-based import when auto-detect is unsure                |
 
 Use **Auto-detect** in Settings when you are not sure which profile fits.
 

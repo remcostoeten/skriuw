@@ -67,6 +67,7 @@ pub struct AiConfig {
     pub has_gemini_key: bool,
     pub groq_key_state: KeyState,
     pub gemini_key_state: KeyState,
+    pub cloud_consent: bool,
 }
 
 /// Partial update from the settings UI — every field is optional so a single
@@ -79,6 +80,7 @@ pub struct AiConfigPatch {
     pub ollama_model: Option<String>,
     pub groq_model: Option<String>,
     pub gemini_model: Option<String>,
+    pub cloud_consent: Option<bool>,
 }
 
 fn configured(value: Option<&str>) -> Option<String> {
@@ -139,6 +141,7 @@ fn load_config(settings: &SettingsStore, creds: &dyn CredentialStore) -> Result<
         has_gemini_key: gemini_key_state == KeyState::Present,
         groq_key_state,
         gemini_key_state,
+        cloud_consent: snapshot.ai.cloud_consent,
     })
 }
 
@@ -303,7 +306,18 @@ pub fn ai_set_config(
 ) -> Result<AiConfig, String> {
     settings
         .update(|current| {
+            if let Some(value) = patch.cloud_consent {
+                current.ai.cloud_consent = value;
+            }
             if let Some(value) = patch.provider {
+                if matches!(value.as_str(), "groq" | "gemini" | "google")
+                    && !current.ai.cloud_consent
+                {
+                    return Err(crate::settings::SettingsError::Validation(
+                        "cloud AI requires explicit consent because note text leaves this device"
+                            .to_string(),
+                    ));
+                }
                 current.ai.provider = Some(value);
             }
             if let Some(value) = patch.ollama_endpoint {
@@ -322,6 +336,16 @@ pub fn ai_set_config(
         })
         .map_err(|error| error.to_string())?;
     load_config(&settings, creds.store())
+}
+
+fn ensure_cloud_consent(config: &AiConfig) -> Result<(), String> {
+    if matches!(config.provider.as_str(), "groq" | "gemini" | "google") && !config.cloud_consent {
+        return Err(
+            "Cloud AI is disabled until you consent in AI settings. Your note text leaves this device when a cloud provider is used."
+                .to_string(),
+        );
+    }
+    Ok(())
 }
 
 /// Stores a provider API key in the OS credential store. `provider` is "groq"
@@ -385,6 +409,7 @@ pub async fn ai_complete(
         instruction.as_deref(),
     )?;
     let config = load_config(&settings, creds.store())?;
+    ensure_cloud_consent(&config)?;
 
     let result = match config.provider.as_str() {
         "groq" => {
@@ -430,6 +455,7 @@ pub async fn ai_complete_stream(
         instruction.as_deref(),
     )?;
     let config = load_config(&settings, creds.store())?;
+    ensure_cloud_consent(&config)?;
 
     STREAM_CANCEL.store(false, Ordering::Relaxed);
     let cancel = Arc::new(AtomicBool::new(false));
@@ -506,6 +532,7 @@ pub async fn ai_ping(
     creds: State<'_, CredentialState>,
 ) -> Result<AiPingResult, String> {
     let config = load_config(&settings, creds.store())?;
+    ensure_cloud_consent(&config)?;
     let system = "Reply with exactly one word: pong.";
     let user = "ping";
     let model = match config.provider.as_str() {
@@ -723,6 +750,29 @@ mod tests {
             assert!(!text.contains("sk-sentinel-secret"));
             assert!(!text.contains("groqApiKey"));
         }
+    }
+
+    #[test]
+    fn cloud_provider_is_blocked_until_explicit_consent() {
+        let (_dir, settings) = settings_store();
+        let creds = InMemoryCredentialStore::new();
+        settings
+            .update(|current| {
+                current.ai.provider = Some("groq".to_string());
+                Ok(())
+            })
+            .unwrap();
+        let blocked = load_config(&settings, &creds).unwrap();
+        assert!(ensure_cloud_consent(&blocked).is_err());
+
+        settings
+            .update(|current| {
+                current.ai.cloud_consent = true;
+                Ok(())
+            })
+            .unwrap();
+        let allowed = load_config(&settings, &creds).unwrap();
+        assert!(ensure_cloud_consent(&allowed).is_ok());
     }
 
     #[test]

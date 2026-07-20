@@ -1,6 +1,6 @@
 [package]
 name = "skriuw"
-version = "0.23.0"
+version = "0.24.0"
 description = "Skriuw is a simple, cross-platform, Markdown note-taking app."
 repository = "https://github.com/remcostoeten/skriuw"
 license = "MIT"
@@ -44,6 +44,9 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-global-shortcut = "2"
 # Open account authorization in the user's real browser instead of inside the webview.
 tauri-plugin-opener = "2"
+# Signed, HTTPS-only desktop updates. The repository ships inert placeholders;
+# release builds must replace them in tauri.conf.json and provide signing keys.
+tauri-plugin-updater = "2"
 # Markdown → HTML rendering for the "Export note → HTML" command.
 pulldown-cmark = { version = "0.12", default-features = false, features = ["html"] }
 # Vault backup / export-import as a portable .zip of the markdown vault.
@@ -71,6 +74,10 @@ keyring = { version = "3", default-features = false, features = [
 	"sync-secret-service",
 	"crypto-rust",
 ] }
+# Cross-platform recursive vault watching. Events are normalized and debounced
+# in our own worker so platform-specific rename/write sequences share one
+# reconciliation contract.
+notify = "8"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 # Same 0.18 line the gtk stack in the lockfile resolves to; used only for

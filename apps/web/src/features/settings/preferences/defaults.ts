@@ -20,7 +20,7 @@ const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
 	animateNumbers: true,
 	openNotesInTabs: false,
 	detectTagsInText: true,
-	detectMarksInText: true,
+	detectMarksInText: false,
 	notePropertiesLayout: "rows",
 	notePropertiesCollapsed: false,
 	notePropertiesDefaultTemplateId: null,

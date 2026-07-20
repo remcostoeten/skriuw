@@ -21,7 +21,7 @@ export function DesktopCloudSync() {
 		let cancelled = false;
 
 		const sync = async () => {
-			const config = getSyncClientConfig();
+			const config = await getSyncClientConfig();
 			if (!config?.enabled || running.current || !navigator.onLine) return;
 			running.current = true;
 			try {

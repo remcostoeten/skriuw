@@ -9,7 +9,8 @@ export type ImportProfile =
 	| "apple-notes"
 	| "bear"
 	| "notion"
-	| "simplenote";
+	| "simplenote"
+	| "desktop-snapshot";
 
 export const DEFAULT_IMPORT_POLICY: ImportPolicy = "merge";
 
@@ -194,6 +195,7 @@ export function parseImportProfile(value: FormDataEntryValue | null): ImportProf
 		value === "bear" ||
 		value === "notion" ||
 		value === "simplenote" ||
+		value === "desktop-snapshot" ||
 		value === "skriuw"
 	) {
 		return value;

@@ -4,9 +4,11 @@
 import {
 	Activity,
 	BookOpen,
+	Compass,
 	FolderOpen,
 	Hash,
 	Settings,
+	ListTodo,
 	Trash2,
 	UserRound,
 	Users,
@@ -28,6 +30,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { memo, useEffect, useRef, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
 import { RawLogo } from "@/shared/icons/logo";
 import { useAuth } from "@/core/auth/use-auth";
 import { signOut } from "@/core/auth";
@@ -144,6 +152,23 @@ function NavItem({ item, isAuthenticated, onRequireAuth, introDelay }: NavItemPr
 	);
 }
 
+/**
+ * Route targets inside the collapsed Explore menu must remain registered while
+ * its Radix content is unmounted. Route execution does not need a DOM anchor;
+ * keeping the element null intentionally avoids stacking several visual goto
+ * indicators on the single Explore trigger.
+ */
+function PersistentRouteGotoTarget({
+	keybind,
+	destination,
+}: {
+	keybind: string;
+	destination: GotoDestination;
+}) {
+	useGotoTarget({ keybind, to: destination });
+	return null;
+}
+
 function IconRailImpl() {
 	const pathname = usePathname();
 	const router = useRouter();
@@ -243,6 +268,15 @@ function IconRailImpl() {
 				),
 		},
 		{
+			href: "/app/tasks",
+			requiresAuth: !capabilities.tasks,
+			label: "Tasks",
+			gotoKeybind: "k",
+			gotoDestination: goto.route.tasks,
+			isActive: pathname === "/app/tasks",
+			icon: () => <ListTodo className="h-[18px] w-[18px]" strokeWidth={1.6} />,
+		},
+		{
 			href: "/app/tags",
 			label: "Tags",
 			gotoKeybind: "t",
@@ -299,6 +333,13 @@ function IconRailImpl() {
 				<Trash2 className="h-[18px] w-[18px]" strokeWidth={1.6} />
 			),
 	};
+	const primaryNavItems = navItems.filter(
+		(item) => item.label === "Notes" || item.label === "Journal" || item.label === "Tasks",
+	);
+	const exploreNavItems = navItems.filter(
+		(item) => item.label !== "Notes" && item.label !== "Journal" && item.label !== "Tasks",
+	);
+	const exploreActive = exploreNavItems.some((item) => item.isActive);
 
 	return (
 		<>
@@ -330,7 +371,7 @@ function IconRailImpl() {
 						</Tooltip>
 					</div>
 					<div className="mt-4 flex w-full flex-col items-center gap-4">
-						{navItems.map((item, index) => (
+						{primaryNavItems.map((item, index) => (
 							<NavItem
 								key={item.href}
 								item={item}
@@ -339,6 +380,47 @@ function IconRailImpl() {
 								introDelay={index * 90}
 							/>
 						))}
+						{exploreNavItems.map((item) => (
+							<PersistentRouteGotoTarget
+								key={item.href}
+								keybind={item.gotoKeybind}
+								destination={item.gotoDestination}
+							/>
+						))}
+						<DropdownMenu>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<DropdownMenuTrigger asChild>
+										<button
+											type="button"
+											aria-label="Explore workspace"
+											className={cn(
+												iconButtonClass,
+												exploreActive
+													? "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground"
+													: inactiveNavClass,
+											)}
+										>
+											<Compass
+												className="h-[18px] w-[18px]"
+												strokeWidth={1.6}
+											/>
+										</button>
+									</DropdownMenuTrigger>
+								</TooltipTrigger>
+								<TooltipContent side="right">Explore</TooltipContent>
+							</Tooltip>
+							<DropdownMenuContent side="right" align="start" className="w-44">
+								{exploreNavItems.map((item) => (
+									<DropdownMenuItem key={item.href} asChild>
+										<Link href={item.href} className="flex items-center gap-2">
+											{item.icon(item.isActive)}
+											<span>{item.label}</span>
+										</Link>
+									</DropdownMenuItem>
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 				</div>
 				<div className="flex w-full flex-col items-center gap-3 pb-4">

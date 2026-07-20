@@ -10,6 +10,7 @@ import {
 	Ellipsis,
 	FolderOpen,
 	Hash,
+	ListTodo,
 	Settings2,
 	Share2,
 	Trash2,
@@ -44,6 +45,15 @@ const primaryItems: MobileNavItem[] = [
 		match: (pathname) => pathname === "/app/journal",
 	},
 	{
+		href: "/app/tasks",
+		label: "Tasks",
+		Icon: ListTodo,
+		match: (pathname) => pathname === "/app/tasks",
+	},
+];
+
+const moreItems: MobileNavItem[] = [
+	{
 		href: "/app/graph",
 		label: "Graph",
 		Icon: Waypoints,
@@ -55,9 +65,6 @@ const primaryItems: MobileNavItem[] = [
 		Icon: Hash,
 		match: (pathname) => pathname.startsWith("/app/tags"),
 	},
-];
-
-const moreItems: MobileNavItem[] = [
 	{
 		href: "/app/people",
 		label: "People",
@@ -279,11 +286,17 @@ export function MobileAppNav() {
 							role="dialog"
 							aria-modal="true"
 							aria-labelledby="mobile-more-title"
-							initial={reducedMotion ? { opacity: 0, y: 16 } : { y: "100%" }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={reducedMotion ? { opacity: 0, y: 12 } : { y: "100%" }}
+							initial={
+								reducedMotion ? { opacity: 0 } : { transform: "translateY(100%)" }
+							}
+							animate={
+								reducedMotion ? { opacity: 1 } : { transform: "translateY(0%)" }
+							}
+							exit={
+								reducedMotion ? { opacity: 0 } : { transform: "translateY(100%)" }
+							}
 							transition={{
-								duration: reducedMotion ? 0.16 : 0.5,
+								duration: reducedMotion ? 0.14 : 0.26,
 								ease: [0.32, 0.72, 0, 1],
 							}}
 							drag={reducedMotion ? false : "y"}

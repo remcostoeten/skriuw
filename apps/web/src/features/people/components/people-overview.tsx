@@ -18,6 +18,13 @@ import {
 	DialogTitle,
 } from "@/shared/ui/dialog";
 import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger,
+} from "@/shared/ui/context-menu";
+import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
@@ -42,6 +49,7 @@ export function PeopleOverview() {
 	const [renameValue, setRenameValue] = useState("");
 	const [mergeTargetId, setMergeTargetId] = useState("");
 	const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+	const [contextPersonId, setContextPersonId] = useState<string | null>(null);
 
 	function submitRename() {
 		if (pending?.kind !== "rename") return;
@@ -67,6 +75,11 @@ export function PeopleOverview() {
 		setPending(null);
 	}
 
+	const isEmpty = people.length === 0;
+	const contextPerson = contextPersonId
+		? (people.find((person) => person.id === contextPersonId) ?? null)
+		: null;
+
 	return (
 		<LayoutContainer className="bg-background">
 			<div className="relative flex min-h-0 flex-1 overflow-hidden">
@@ -77,90 +90,165 @@ export function PeopleOverview() {
 							Everyone you've mentioned with $. Renames update every mention
 							instantly; merges and deletes rewrite the notes involved.
 						</p>
+						{!isEmpty ? (
+							<div className="mt-3 flex flex-wrap gap-2">
+								<div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
+									<Users className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
+									<span className="text-sm font-semibold tabular-nums text-foreground">
+										{people.length}
+									</span>
+									<span className="text-xs text-muted-foreground">
+										{people.length === 1 ? "person" : "people"}
+									</span>
+								</div>
+							</div>
+						) : null}
 					</header>
 
-					{isPending ? null : people.length === 0 ? (
+					{isPending ? null : isEmpty ? (
 						<NotesEmptyState
 							icon={Users}
 							title="No people yet"
 							description="Type $ in a note to mention someone. People collect here automatically."
 						/>
 					) : (
-						<ul className="flex-1 divide-y divide-border overflow-y-auto">
-							{people.map((person) => (
-								<li key={person.id} className="flex items-center gap-3 px-6 py-3">
-									<ColorSwatchPicker
-										value={person.color}
-										label={person.name}
-										onChange={(color) =>
-											updatePerson.mutate({ id: person.id, color })
-										}
-									/>
-									<Link
-										href={`/app/people/${person.id}`}
-										className="min-w-0 flex-1"
-									>
-										<p className="truncate text-sm font-medium text-foreground">
-											{person.name}
-										</p>
-									</Link>
-									<DropdownMenu
-										onOpenChange={(open) => {
-											setOpenMenuId((current) =>
-												open
-													? person.id
-													: current === person.id
-														? null
-														: current,
-											);
+						<ContextMenu
+							onOpenChange={(open) => {
+								if (!open) setContextPersonId(null);
+							}}
+						>
+							<ContextMenuTrigger asChild>
+								<ul className="flex-1 overflow-y-auto px-3 py-2">
+									{people.map((person) => (
+										<li
+											key={person.id}
+											onContextMenu={() => setContextPersonId(person.id)}
+										>
+											<div className="group/row flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/60">
+												<ColorSwatchPicker
+													value={person.color}
+													label={person.name}
+													onChange={(color) =>
+														updatePerson.mutate({
+															id: person.id,
+															color,
+														})
+													}
+												/>
+												<Link
+													href={`/app/people/${person.id}`}
+													className="min-w-0 flex-1"
+												>
+													<p className="truncate text-sm font-medium text-foreground">
+														{person.name}
+													</p>
+												</Link>
+												<DropdownMenu
+													onOpenChange={(open) => {
+														setOpenMenuId((current) =>
+															open
+																? person.id
+																: current === person.id
+																	? null
+																	: current,
+														);
+													}}
+												>
+													<DropdownMenuTrigger asChild>
+														<Button
+															variant="ghost"
+															size="sm"
+															aria-label={`Actions for ${person.name}`}
+														>
+															<MoreHorizontal className="h-4 w-4" />
+														</Button>
+													</DropdownMenuTrigger>
+													{openMenuId === person.id ? (
+														<DropdownMenuContent align="end">
+															<DropdownMenuItem
+																className="gap-2"
+																onSelect={() => {
+																	setRenameValue(person.name);
+																	setPending({
+																		kind: "rename",
+																		person,
+																	});
+																}}
+															>
+																<Pencil className="h-3.5 w-3.5" />
+																Rename
+															</DropdownMenuItem>
+															<DropdownMenuItem
+																className="gap-2"
+																disabled={people.length < 2}
+																onSelect={() => {
+																	setMergeTargetId("");
+																	setPending({
+																		kind: "merge",
+																		person,
+																	});
+																}}
+															>
+																<Merge className="h-3.5 w-3.5" />
+																Merge into…
+															</DropdownMenuItem>
+															<DropdownMenuSeparator />
+															<DropdownMenuItem
+																className="gap-2 text-[#ff808a] focus:bg-[#ff808a4d]"
+																onSelect={() =>
+																	setPending({
+																		kind: "delete",
+																		person,
+																	})
+																}
+															>
+																<Trash2 className="h-3.5 w-3.5" />
+																Delete
+															</DropdownMenuItem>
+														</DropdownMenuContent>
+													) : null}
+												</DropdownMenu>
+											</div>
+										</li>
+									))}
+								</ul>
+							</ContextMenuTrigger>
+							{contextPerson ? (
+								<ContextMenuContent className="w-48">
+									<ContextMenuItem
+										className="gap-2"
+										onClick={() => {
+											setRenameValue(contextPerson.name);
+											setPending({ kind: "rename", person: contextPerson });
 										}}
 									>
-										<DropdownMenuTrigger asChild>
-											<Button
-												variant="ghost"
-												size="sm"
-												aria-label={`Actions for ${person.name}`}
-											>
-												<MoreHorizontal className="h-4 w-4" />
-											</Button>
-										</DropdownMenuTrigger>
-										{openMenuId === person.id ? (
-											<DropdownMenuContent align="end">
-												<DropdownMenuItem
-													onSelect={() => {
-														setRenameValue(person.name);
-														setPending({ kind: "rename", person });
-													}}
-												>
-													<Pencil className="mr-2 h-3.5 w-3.5" />
-													Rename
-												</DropdownMenuItem>
-												<DropdownMenuItem
-													disabled={people.length < 2}
-													onSelect={() => {
-														setMergeTargetId("");
-														setPending({ kind: "merge", person });
-													}}
-												>
-													<Merge className="mr-2 h-3.5 w-3.5" />
-													Merge into…
-												</DropdownMenuItem>
-												<DropdownMenuSeparator />
-												<DropdownMenuItem
-													className="text-destructive focus:text-destructive"
-													onSelect={() =>
-														setPending({ kind: "delete", person })
-													}
-												>
-													<Trash2 className="mr-2 h-3.5 w-3.5" />
-													Delete
-												</DropdownMenuItem>
-											</DropdownMenuContent>
-										) : null}
-									</DropdownMenu>
-								</li>
-							))}
-						</ul>
+										<Pencil className="h-3.5 w-3.5" />
+										Rename
+									</ContextMenuItem>
+									<ContextMenuItem
+										className="gap-2"
+										disabled={people.length < 2}
+										onClick={() => {
+											setMergeTargetId("");
+											setPending({ kind: "merge", person: contextPerson });
+										}}
+									>
+										<Merge className="h-3.5 w-3.5" />
+										Merge into…
+									</ContextMenuItem>
+									<ContextMenuSeparator />
+									<ContextMenuItem
+										className="gap-2 text-[#ff808a] focus:bg-[#ff808a4d]"
+										onClick={() =>
+											setPending({ kind: "delete", person: contextPerson })
+										}
+									>
+										<Trash2 className="h-3.5 w-3.5" />
+										Delete
+									</ContextMenuItem>
+								</ContextMenuContent>
+							) : null}
+						</ContextMenu>
 					)}
 				</div>
 			</div>

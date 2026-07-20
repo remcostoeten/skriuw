@@ -82,6 +82,18 @@ function placeCaretInView(element: HTMLElement): void {
 	scrollCaretIntoView(selection, visibleTop, visibleBottom);
 }
 
+function placeCaretAtStart(element: HTMLElement): void {
+	element.focus({ preventScroll: true });
+	const selection = window.getSelection();
+	if (!selection) return;
+
+	const range = document.createRange();
+	range.selectNodeContents(element);
+	range.collapse(true);
+	selection.removeAllRanges();
+	selection.addRange(range);
+}
+
 function scrollCaretIntoView(
 	selection: Selection,
 	visibleTop: number,
@@ -120,16 +132,32 @@ function focusPlainTextarea(plain: HTMLTextAreaElement): void {
 	plain.setSelectionRange(offset, offset);
 }
 
-function focusEditorWithin(root: ParentNode): boolean {
+function focusPlainTextareaAtStart(plain: HTMLTextAreaElement): void {
+	plain.focus({ preventScroll: true });
+	plain.setSelectionRange(0, 0);
+}
+
+function focusEditorWithin(
+	root: ParentNode,
+	caretPlacement: "start" | "in-view" = "in-view",
+): boolean {
 	const rich = root.querySelector<HTMLElement>(".blocknote-wrapper [contenteditable='true']");
 	if (rich) {
-		placeCaretInView(rich);
+		if (caretPlacement === "start") {
+			placeCaretAtStart(rich);
+		} else {
+			placeCaretInView(rich);
+		}
 		return true;
 	}
 
 	const plain = root.querySelector<HTMLTextAreaElement>("[data-editor-surface]");
 	if (plain) {
-		focusPlainTextarea(plain);
+		if (caretPlacement === "start") {
+			focusPlainTextareaAtStart(plain);
+		} else {
+			focusPlainTextarea(plain);
+		}
 		return true;
 	}
 
@@ -137,9 +165,8 @@ function focusEditorWithin(root: ParentNode): boolean {
 }
 
 /**
- * Focuses the active writing surface, dropping the caret on the currently
- * visible line (or the document end when that end is already in view) so a long
- * note never scrolls out from under the user. Handles both editor modes: the
+ * Focuses the active writing surface and places the caret at the start of the
+ * document. Handles both editor modes: the
  * BlockNote rich editor (a ProseMirror `contenteditable` inside
  * `.blocknote-wrapper`) and the plain-markdown `textarea` (tagged with
  * `data-editor-surface`). Returns `false` when no editor is mounted, so callers
@@ -148,7 +175,7 @@ function focusEditorWithin(root: ParentNode): boolean {
 export function focusActiveEditor(): boolean {
 	if (typeof document === "undefined") return false;
 
-	return focusEditorWithin(document);
+	return focusEditorWithin(document, "start");
 }
 
 const NOTE_EDITOR_FOCUS_TIMEOUT_MS = 3000;

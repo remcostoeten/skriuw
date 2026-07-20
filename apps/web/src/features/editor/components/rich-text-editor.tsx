@@ -604,47 +604,49 @@ function RichTextEditorImpl({
 					>
 						<AnimatePresence>
 							{search.searchOpen ? (
-								<m.div
-									className="absolute top-3 right-4 z-40 origin-top-right"
-									initial={
-										prefersReducedMotion
-											? { opacity: 0 }
-											: { opacity: 0, y: -6, scale: 0.98 }
-									}
-									animate={
-										prefersReducedMotion
-											? { opacity: 1 }
-											: { opacity: 1, y: 0, scale: 1 }
-									}
-									exit={
-										prefersReducedMotion
-											? { opacity: 0 }
-											: { opacity: 0, y: -4, scale: 0.98 }
-									}
-									transition={searchWidgetTransition}
-								>
-									<SearchWidget
-										ref={search.findInputRef}
-										query={search.searchQuery}
-										onQueryChange={search.setSearchQuery}
-										replaceValue={search.replaceValue}
-										onReplaceChange={search.setReplaceValue}
-										showReplace={search.showReplace}
-										onToggleReplace={() =>
-											search.setShowReplace((value) => !value)
+								<div className="sticky top-3 z-40 flex h-0 justify-end pr-4">
+									<m.div
+										className="origin-top-right"
+										initial={
+											prefersReducedMotion
+												? { opacity: 0 }
+												: { opacity: 0, y: -6, scale: 0.98 }
 										}
-										options={search.searchOptions}
-										onToggleOption={search.toggleSearchOption}
-										current={search.matchInfo.current}
-										total={search.matchInfo.total}
-										regexError={search.regexError}
-										onNext={search.handleNextMatch}
-										onPrevious={search.handlePreviousMatch}
-										onClose={search.closeSearch}
-										onReplaceCurrent={search.handleReplaceCurrent}
-										onReplaceAll={search.handleReplaceAll}
-									/>
-								</m.div>
+										animate={
+											prefersReducedMotion
+												? { opacity: 1 }
+												: { opacity: 1, y: 0, scale: 1 }
+										}
+										exit={
+											prefersReducedMotion
+												? { opacity: 0 }
+												: { opacity: 0, y: -4, scale: 0.98 }
+										}
+										transition={searchWidgetTransition}
+									>
+										<SearchWidget
+											ref={search.findInputRef}
+											query={search.searchQuery}
+											onQueryChange={search.setSearchQuery}
+											replaceValue={search.replaceValue}
+											onReplaceChange={search.setReplaceValue}
+											showReplace={search.showReplace}
+											onToggleReplace={() =>
+												search.setShowReplace((value) => !value)
+											}
+											options={search.searchOptions}
+											onToggleOption={search.toggleSearchOption}
+											current={search.matchInfo.current}
+											total={search.matchInfo.total}
+											regexError={search.regexError}
+											onNext={search.handleNextMatch}
+											onPrevious={search.handlePreviousMatch}
+											onClose={search.closeSearch}
+											onReplaceCurrent={search.handleReplaceCurrent}
+											onReplaceAll={search.handleReplaceAll}
+										/>
+									</m.div>
+								</div>
 							) : null}
 						</AnimatePresence>
 						{onPropertiesChange ? (

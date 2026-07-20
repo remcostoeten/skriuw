@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
-import { useWorkspaceBackend } from "@/core/workspace-backend";
 import { cn } from "@/shared/lib/utils";
-import { parseJournalIcs, MAX_ICS_IMPORT_BYTES } from "@/domain/journal/ics-import";
-import { normalizeLocalSubscriptionUrl } from "@/features/journal/lib/local-calendar-subscriptions";
 
 type Provider = "google" | "icloud" | "outlook" | "other";
 
@@ -79,7 +76,6 @@ function stepIndex(step: Step): number {
 }
 
 export function JournalCalendarSubscriptionWizard({ onComplete, onCancel }: Props) {
-	const backend = useWorkspaceBackend();
 	const [step, setStep] = useState<Step>("provider");
 	const [provider, setProvider] = useState<Provider>("google");
 	const [url, setUrl] = useState("");
@@ -92,42 +88,18 @@ export function JournalCalendarSubscriptionWizard({ onComplete, onCancel }: Prop
 		setBusy(true);
 		setError(undefined);
 		try {
-			if (backend.mode === "server") {
-				const response = await fetch("/api/calendar/subscriptions/preview", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ url }),
-				});
-				const payload = (await response.json().catch(() => ({}))) as {
-					preview?: Preview;
-					error?: string;
-				};
-				if (!payload.preview)
-					throw new Error(payload.error || "Could not fetch that calendar.");
-				setPreview(payload.preview);
-			} else {
-				const normalized = normalizeLocalSubscriptionUrl(url);
-				const response = await fetch(normalized, {
-					signal: AbortSignal.timeout(15_000),
-					cache: "no-store",
-				});
-				if (!response.ok) {
-					throw new Error(`The calendar host responded with status ${response.status}.`);
-				}
-				const text = await response.text();
-				if (new TextEncoder().encode(text).length > MAX_ICS_IMPORT_BYTES) {
-					throw new Error("The calendar file is too large — the limit is 5 MB.");
-				}
-				const parsed = parseJournalIcs(text);
-				setPreview({
-					calendarName: parsed.calendarName ?? null,
-					importable: parsed.events.length,
-					skipped: parsed.skipped.length,
-					sampleTitles: parsed.events
-						.slice(0, 3)
-						.map((event) => event.title || event.dateKey),
-				});
-			}
+			const response = await fetch("/api/calendar/subscriptions/preview", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ url }),
+			});
+			const payload = (await response.json().catch(() => ({}))) as {
+				preview?: Preview;
+				error?: string;
+			};
+			if (!payload.preview)
+				throw new Error(payload.error || "Could not fetch that calendar.");
+			setPreview(payload.preview);
 			setStep("mode");
 		} catch (caught) {
 			setError(caught instanceof Error ? caught.message : "Could not fetch that calendar.");

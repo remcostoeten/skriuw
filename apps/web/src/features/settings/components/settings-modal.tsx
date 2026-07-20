@@ -12,6 +12,7 @@ import {
 	type ReactNode,
 } from "react";
 import {
+	CalendarClock,
 	Compass,
 	Database,
 	Eye,
@@ -70,6 +71,7 @@ import { PrivacySection } from "@/features/settings/sections/privacy-section";
 import { SecuritySection } from "@/features/settings/sections/security-section";
 import { AiSection } from "@/features/settings/sections/ai-section";
 import { TagsSection } from "@/features/settings/sections/tags-section";
+import { CalendarSection } from "@/features/settings/sections/calendar-section";
 import { ExperimentalSection } from "@/features/settings/sections/experimental-section";
 
 type SettingsGroup = "Account" | "Workspace" | "Intelligence" | "Advanced";
@@ -104,6 +106,8 @@ const SECTION_DEEP_KEYWORDS: Partial<Record<SettingsTabId, string>> = {
 	tags: "merge rename delete organize",
 	data: "export import backup restore sync download json markdown simplenote migration vault storage",
 	ai: "providers api keys ollama groq gemini openai model completion prompts translate language",
+	calendar:
+		"external calendar subscriptions auto-import skip duplicates update existing live feed token rotate revoke pause resume last sync",
 	experimental: "preview beta flags features labs early access diary mode",
 };
 
@@ -186,6 +190,15 @@ const SECTIONS: ReadonlyArray<SectionMeta> = [
 		keywords: "tags labels people mentions rename merge delete organize",
 	},
 	{
+		id: "calendar",
+		label: "Calendar",
+		icon: CalendarClock,
+		description: "Journal calendar connections",
+		group: "Workspace",
+		keywords:
+			"calendar connections subscriptions ics feed google icloud outlook apple import export sync incoming outgoing live link auto-import journal",
+	},
+	{
 		id: "ai",
 		label: "AI",
 		icon: Sparkles,
@@ -254,6 +267,8 @@ function renderSection(id: SettingsTabId, isGuest: boolean) {
 			return isTauriRuntime() ? <DesktopAiSection /> : <AiSection />;
 		case "tags":
 			return <TagsSection />;
+		case "calendar":
+			return <CalendarSection />;
 		case "experimental":
 			return <ExperimentalSection />;
 	}

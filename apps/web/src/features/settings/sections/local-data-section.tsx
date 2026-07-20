@@ -18,6 +18,8 @@ import {
 	CheckCircle2,
 	Loader2,
 	LogIn,
+	RefreshCw,
+	Rocket,
 	RotateCcw,
 	Tag,
 	Upload,
@@ -106,6 +108,33 @@ type SnapshotEvent =
 	| { type: "status"; message: string }
 	| { type: "progress"; completed: number; total: number; percent: number }
 	| { type: "done"; path: string };
+
+type DesktopUpdateStatus = {
+	configured: boolean;
+	currentVersion: string;
+	availableVersion: string | null;
+	notes: string | null;
+	publishedAt: string | null;
+	state: "idle" | "checking" | "available" | "current" | "installing";
+	message: string;
+};
+
+type VaultWatcherStatus = {
+	state: "active" | "rescanning" | "degraded" | "stopped";
+	root: string | null;
+	message: string | null;
+};
+
+/**
+ * Human-readable message for a caught error. Tauri commands reject with plain
+ * strings rather than Error instances, so both shapes must surface their
+ * message instead of the generic fallback.
+ */
+function describeError(error: unknown, fallback: string): string {
+	if (error instanceof Error) return error.message;
+	if (typeof error === "string" && error.trim()) return error;
+	return fallback;
+}
 
 function ImportProgress({ imported, total }: { imported: number; total: number }) {
 	const safeTotal = Math.max(total, 1);
@@ -372,6 +401,10 @@ export function LocalDataSection() {
 	const [coverAssetsRoot, setCoverAssetsRoot] = useState<string>("");
 	const [busy, setBusy] = useState<Busy>("idle");
 	const [notice, setNotice] = useState<string | null>(null);
+	const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus | null>(null);
+	const [updateBusy, setUpdateBusy] = useState<"idle" | "checking" | "installing">("idle");
+	const [watcherStatus, setWatcherStatus] = useState<VaultWatcherStatus | null>(null);
+	const [watcherBusy, setWatcherBusy] = useState(false);
 	const [serverUrl, setServerUrl] = useState<string>(
 		() => getBrowserAppOrigin() ?? "https://skriuw.com",
 	);
@@ -474,16 +507,63 @@ export function LocalDataSection() {
 				}
 			})
 			.catch(() => undefined);
+		tauriInvoke<DesktopUpdateStatus>("desktop_update_status")
+			.then(setUpdateStatus)
+			.catch(() => setUpdateStatus(null));
+		tauriInvoke<VaultWatcherStatus>("vault_watcher_status")
+			.then(setWatcherStatus)
+			.catch(() => setWatcherStatus(null));
 	}, []);
 
-	useEffect(() => {
-		const config = getSyncClientConfig();
-		if (config) {
-			setServerUrl(config.serverUrl);
-			setToken(config.token);
-			setSyncEnabled(config.enabled);
-			setSyncAccount(config.account);
+	const runWatcherAction = async (command: "rescan_vault" | "restart_vault_watcher") => {
+		setWatcherBusy(true);
+		try {
+			await tauriInvoke<void>(command);
+			setWatcherStatus(await tauriInvoke<VaultWatcherStatus>("vault_watcher_status"));
+			setNotice(
+				command === "rescan_vault" ? "Vault rescan complete." : "Vault watcher restarted.",
+			);
+		} catch (error) {
+			setNotice(describeError(error, "Vault watcher recovery failed."));
+		} finally {
+			setWatcherBusy(false);
 		}
+	};
+
+	const handleCheckUpdate = async () => {
+		setUpdateBusy("checking");
+		try {
+			setUpdateStatus(await tauriInvoke<DesktopUpdateStatus>("desktop_check_update"));
+		} catch (error) {
+			setNotice(describeError(error, "Could not check for updates."));
+		} finally {
+			setUpdateBusy("idle");
+		}
+	};
+
+	const handleInstallUpdate = async () => {
+		if (!window.confirm("Install the signed update now? Skriuw may restart to finish.")) return;
+		setUpdateBusy("installing");
+		try {
+			setUpdateStatus(await tauriInvoke<DesktopUpdateStatus>("desktop_install_update"));
+		} catch (error) {
+			setNotice(describeError(error, "Could not install the update."));
+			setUpdateBusy("idle");
+		}
+	};
+
+	useEffect(() => {
+		void getSyncClientConfig()
+			.then((config) => {
+				if (!config) return;
+				setServerUrl(config.serverUrl);
+				setToken(config.token);
+				setSyncEnabled(config.enabled);
+				setSyncAccount(config.account);
+			})
+			.catch((error) => {
+				setPullError(describeError(error, "The secure credential store is unavailable."));
+			});
 	}, []);
 
 	useEffect(() => {
@@ -503,20 +583,20 @@ export function LocalDataSection() {
 			setPairing(request);
 			await openDesktopPairingPage(request.verificationUrl);
 			const result = await finishDesktopPairing(request, controller.signal);
-			setToken(result.token);
-			setServerUrl(request.serverUrl);
-			setSyncAccount(result.account);
-			setSyncEnabled(false);
-			setSyncClientConfig({
+			await setSyncClientConfig({
 				serverUrl: request.serverUrl,
 				token: result.token,
 				enabled: false,
 				account: result.account,
 			});
+			setToken(result.token);
+			setServerUrl(request.serverUrl);
+			setSyncAccount(result.account);
+			setSyncEnabled(false);
 			setNotice(`Connected as ${result.account.email}. Cloud sync is still off.`);
 		} catch (error) {
 			if (!(error instanceof DOMException && error.name === "AbortError")) {
-				setPullError(error instanceof Error ? error.message : "Desktop sign-in failed.");
+				setPullError(describeError(error, "Desktop sign-in failed."));
 			}
 		} finally {
 			pairingAbortRef.current = null;
@@ -543,13 +623,13 @@ export function LocalDataSection() {
 		setPullError(null);
 		try {
 			const result = await pullWorkspaceFromServer(backend, url, tok);
-			setSyncClientConfig({ serverUrl: url, token: tok, enabled: false });
+			await setSyncClientConfig({ serverUrl: url, token: tok, enabled: false });
 			await queryClient.invalidateQueries({ queryKey: notesKeys.all });
 			await queryClient.invalidateQueries({ queryKey: journalKeys.all });
 			setPullResult({ result, origin: url, at: Date.now() });
 			flashPull("success");
 		} catch (error) {
-			setPullError(error instanceof Error ? error.message : "Sync failed.");
+			setPullError(describeError(error, "Sync failed."));
 			flashPull("error");
 		} finally {
 			setBusy("idle");
@@ -563,7 +643,7 @@ export function LocalDataSection() {
 			setPullError("Reconnect your Skriuw account before enabling sync.");
 			return;
 		}
-		const previous = getSyncClientConfig();
+		const previous = await getSyncClientConfig();
 		if (!syncEnabled) {
 			const accepted = window.confirm(
 				"Enable cloud sync? Notes, journal entries, folders, tags, and future changes will be sent to your Skriuw server. Your local vault remains the source of truth and you can disable sync at any time.",
@@ -592,15 +672,15 @@ export function LocalDataSection() {
 					: "Cloud sync completed.",
 			);
 		} catch (error) {
-			setPullError(error instanceof Error ? error.message : "Cloud sync failed.");
+			setPullError(describeError(error, "Cloud sync failed."));
 		} finally {
 			setBusy("idle");
 		}
 	};
 
-	const handleDisableSync = () => {
-		const existing = getSyncClientConfig();
-		if (existing) setSyncClientConfig({ ...existing, enabled: false });
+	const handleDisableSync = async () => {
+		const existing = await getSyncClientConfig();
+		if (existing) await setSyncClientConfig({ ...existing, enabled: false });
 		setSyncEnabled(false);
 		setPullResult(null);
 		setNotice(
@@ -611,7 +691,7 @@ export function LocalDataSection() {
 	const handleDisconnectAccount = async () => {
 		setBusy("pair");
 		await revokeDesktopCredential(serverUrl, token);
-		clearSyncClientConfig();
+		await clearSyncClientConfig();
 		setSyncEnabled(false);
 		setSyncAccount(undefined);
 		setToken("");
@@ -637,7 +717,7 @@ export function LocalDataSection() {
 			const out = await tauriInvoke<string | null>("export_vault");
 			setNotice(out ? `Backed up to ${out}` : null);
 		} catch (error) {
-			setNotice(error instanceof Error ? error.message : "Backup failed.");
+			setNotice(describeError(error, "Backup failed."));
 		} finally {
 			setBusy("idle");
 		}
@@ -662,7 +742,7 @@ export function LocalDataSection() {
 				setNotice(null);
 			}
 		} catch (error) {
-			setNotice(error instanceof Error ? error.message : "Restore failed.");
+			setNotice(describeError(error, "Restore failed."));
 		} finally {
 			setBusy("idle");
 		}
@@ -698,7 +778,7 @@ export function LocalDataSection() {
 			setNotice(out ? `Snapshot saved to ${out}` : null);
 		} catch (error) {
 			setSnapshotState("error");
-			setNotice(error instanceof Error ? error.message : "Snapshot export failed.");
+			setNotice(describeError(error, "Snapshot export failed."));
 		} finally {
 			setBusy("idle");
 			setSnapshotMode(null);
@@ -729,7 +809,7 @@ export function LocalDataSection() {
 			window.location.reload();
 		} catch (error) {
 			setSnapshotState("error");
-			setNotice(error instanceof Error ? error.message : "Snapshot restore failed.");
+			setNotice(describeError(error, "Snapshot restore failed."));
 			setBusy("idle");
 			setSnapshotMode(null);
 		}
@@ -754,7 +834,7 @@ export function LocalDataSection() {
 		try {
 			setSimplenotePreview(await previewSimplenoteFile(file, backend));
 		} catch (error) {
-			setNotice(error instanceof Error ? error.message : "Simplenote import failed.");
+			setNotice(describeError(error, "Simplenote import failed."));
 			setSimplenoteDialogOpen(false);
 		} finally {
 			setBusy("idle");
@@ -814,7 +894,7 @@ export function LocalDataSection() {
 				resetSimplenoteFlow();
 			}
 		} catch (error) {
-			setNotice(error instanceof Error ? error.message : "Simplenote import failed.");
+			setNotice(describeError(error, "Simplenote import failed."));
 		} finally {
 			setBusy("idle");
 		}
@@ -857,7 +937,7 @@ export function LocalDataSection() {
 			setSimplenoteDialogOpen(false);
 			resetSimplenoteFlow();
 		} catch (error) {
-			setNotice(error instanceof Error ? error.message : "Applying AI titles failed.");
+			setNotice(describeError(error, "Applying AI titles failed."));
 		} finally {
 			setBusy("idle");
 		}
@@ -881,7 +961,7 @@ export function LocalDataSection() {
 					: "No root notes with creation dates needed moving.",
 			);
 		} catch (error) {
-			setNotice(error instanceof Error ? error.message : "Organizing notes failed.");
+			setNotice(describeError(error, "Organizing notes failed."));
 		} finally {
 			setBusy("idle");
 		}
@@ -922,19 +1002,26 @@ export function LocalDataSection() {
 				} catch (error) {
 					setResetState("error");
 					setNotice(
-						error instanceof Error
-							? `Couldn't remove your saved AI keys: ${error.message}. Unlock your keychain and try again, or uncheck that option.`
-							: "Couldn't remove your saved AI keys. Unlock your keychain and try again, or uncheck that option.",
+						`Couldn't remove your saved AI keys: ${describeError(error, "keychain error")}. Unlock your keychain and try again, or uncheck that option.`,
 					);
 					return;
 				}
+			}
+			try {
+				await clearSyncClientConfig();
+			} catch (error) {
+				setResetState("error");
+				setNotice(
+					`Couldn't remove your desktop sync credential: ${describeError(error, "keychain error")}. Unlock your keychain and try again.`,
+				);
+				return;
 			}
 			await tauriInvoke<void>("reset_desktop_data", { progress });
 			window.location.reload();
 		} catch (error) {
 			if (resetSucceeded) return;
 			setResetState("error");
-			setNotice(error instanceof Error ? error.message : "Reset failed.");
+			setNotice(describeError(error, "Reset failed."));
 		} finally {
 			setBusy("idle");
 		}
@@ -948,7 +1035,8 @@ export function LocalDataSection() {
 		const next = await tauriInvoke<string | null>("choose_vault_root");
 		if (next) {
 			setVaultRoot(next);
-			setNotice("Vault directory updated. Reload Skriuw to load it.");
+			setWatcherStatus(await tauriInvoke<VaultWatcherStatus>("vault_watcher_status"));
+			setNotice("Vault directory updated and loaded.");
 		}
 	};
 
@@ -996,6 +1084,36 @@ export function LocalDataSection() {
 						</div>
 					</Row>
 					<Row
+						focusId="local-vault-watcher"
+						title={`Live vault watching · ${watcherStatus?.state ?? "loading"}`}
+						description={
+							watcherStatus?.message ??
+							"Changes made by other Markdown editors appear automatically."
+						}
+					>
+						<div className="flex gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={watcherBusy}
+								onClick={() => void runWatcherAction("rescan_vault")}
+							>
+								<RefreshCw
+									className={cn("mr-1.5 size-3.5", watcherBusy && "animate-spin")}
+								/>
+								Rescan now
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={watcherBusy}
+								onClick={() => void runWatcherAction("restart_vault_watcher")}
+							>
+								Restart watcher
+							</Button>
+						</div>
+					</Row>
+					<Row
 						focusId="local-cover-assets-directory"
 						title="Cover image storage"
 						description={coverAssetsRoot || "Loading…"}
@@ -1021,6 +1139,57 @@ export function LocalDataSection() {
 							</Button>
 						</div>
 					</Row>
+				</SettingsCard>
+
+				<GroupLabel>App updates</GroupLabel>
+				<SettingsCard>
+					<Row
+						focusId="desktop-app-update"
+						title={
+							updateStatus?.availableVersion
+								? `Skriuw ${updateStatus.availableVersion} available`
+								: `Skriuw ${updateStatus?.currentVersion ?? ""}`.trim()
+						}
+						description={
+							updateStatus?.message ?? "Loading signed-update configuration…"
+						}
+					>
+						<div className="flex gap-2">
+							{updateStatus?.availableVersion ? (
+								<Button
+									size="sm"
+									disabled={updateBusy !== "idle"}
+									onClick={() => void handleInstallUpdate()}
+								>
+									{updateBusy === "installing" ? (
+										<Loader2 className="mr-1.5 size-3.5 animate-spin" />
+									) : (
+										<Rocket className="mr-1.5 size-3.5" />
+									)}
+									Install update
+								</Button>
+							) : null}
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={!updateStatus?.configured || updateBusy !== "idle"}
+								onClick={() => void handleCheckUpdate()}
+							>
+								<RefreshCw
+									className={cn(
+										"mr-1.5 size-3.5",
+										updateBusy === "checking" && "animate-spin",
+									)}
+								/>
+								Check now
+							</Button>
+						</div>
+					</Row>
+					{updateStatus?.notes ? (
+						<p className="px-1 pb-3 text-xs text-muted-foreground">
+							{updateStatus.notes}
+						</p>
+					) : null}
 				</SettingsCard>
 
 				<GroupLabel>Cloud sync</GroupLabel>
@@ -1128,7 +1297,7 @@ export function LocalDataSection() {
 										variant="outline"
 										size="sm"
 										disabled={busy !== "idle"}
-										onClick={handleDisableSync}
+										onClick={() => void handleDisableSync()}
 									>
 										<CloudOff className="mr-1.5 h-3.5 w-3.5" /> Turn off sync
 									</Button>
@@ -1181,7 +1350,9 @@ export function LocalDataSection() {
 										aria-live="polite"
 									>
 										<AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-										<p className="text-xs text-destructive">{pullError}</p>
+										<p className="min-w-0 break-words text-xs text-destructive">
+											{pullError}
+										</p>
 									</m.div>
 								) : pullResult && busy !== "pull" ? (
 									<SyncResultPanel
@@ -1803,7 +1974,9 @@ export function LocalDataSection() {
 										</div>
 									)}
 									{resetState === "error" && notice ? (
-										<p className="text-xs text-destructive">{notice}</p>
+										<p className="break-words text-xs text-destructive">
+											{notice}
+										</p>
 									) : null}
 								</div>
 								<DialogFooter>
@@ -1831,7 +2004,9 @@ export function LocalDataSection() {
 					</Row>
 				</SettingsCard>
 
-				{notice ? <p className="mt-4 text-xs text-muted-foreground">{notice}</p> : null}
+				{notice ? (
+					<p className="mt-4 break-words text-xs text-muted-foreground">{notice}</p>
+				) : null}
 			</div>
 		</LazyMotion>
 	);

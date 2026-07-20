@@ -41,6 +41,22 @@ For actions like Continue Writing and custom "Ask AI…" requests, the response 
 - Selection actions only appear once you've highlighted text
 - Whole-note actions are available any time via the slash menu, no selection needed
 
+## Desktop privacy
+
+The desktop app defaults to local Ollama. In that mode, note text stays on your
+device. If Ollama is not installed or running, local actions are disabled with a
+clear explanation and an install/start path; Skriuw does not silently switch to a
+cloud provider.
+
+Cloud providers are bring-your-own-key. Before one can run, desktop settings ask
+for explicit consent and state that note text leaves your device. You can withdraw
+that consent by switching back to Ollama; cloud requests stop immediately.
+
+Provider keys and the desktop sync credential are stored in your operating
+system's credential store, not in `settings.json`, backups, or the webview's
+local storage. If the credential store is locked or unavailable, cloud AI and
+sync stay disabled rather than falling back to plaintext storage.
+
 ## Why use AI actions?
 
 Instead of switching to a separate chat window to get help with your writing, AI actions work right where your text already lives - highlight, pick an action, and the result lands directly in your note.
