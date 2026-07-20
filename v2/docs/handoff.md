@@ -4,7 +4,7 @@ Last reviewed: 2026-07-21
 
 ## Start here
 
-Git integrity and archive compatibility fixtures are complete on the primary branch.
+Git integrity and archive compatibility fixtures are complete on the primary branch. `claude-promt.md` now assigns the isolated backend workload-measurement slice to Claude with cheap read-only subagents; the primary agent owns the non-overlapping UI architecture gate.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
