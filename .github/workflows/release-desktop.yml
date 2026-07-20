@@ -34,7 +34,9 @@ jobs:
         outputs:
             sha: ${{ steps.revision.outputs.sha }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
 
             - name: Record verified revision
               id: revision
@@ -73,7 +75,7 @@ jobs:
 
             - name: Upload desktop bundle report
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: release-desktop-bundle-report
                   if-no-files-found: warn
@@ -90,8 +92,9 @@ jobs:
         permissions:
             contents: write
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
+                  persist-credentials: false
                   # Full history so release notes can diff against the previous tag.
                   fetch-depth: 0
 
@@ -146,8 +149,9 @@ jobs:
             CARGO_TERM_COLOR: always
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
+                  persist-credentials: false
                   fetch-depth: 0
 
             # System libraries Tauri needs on Linux. `appindicator` is required by the
@@ -187,10 +191,16 @@ jobs:
             # the GTK plugin) into ~/.cache/tauri on the first AppImage build. Cache it
             # so later runs skip the downloads entirely.
             - name: Cache Tauri bundler tooling
-              uses: actions/cache@v4
+              if: startsWith(github.ref, 'refs/tags/desktop-v') || github.ref == 'refs/heads/daddy'
+              uses: actions/cache@v6
               with:
                   path: ~/.cache/tauri
-                  key: tauri-bundler-${{ runner.os }}
+                  key: >-
+                      tauri-bundler-${{ runner.os }}-${{ hashFiles(
+                        'apps/desktop/src-tauri/Cargo.lock',
+                        'apps/desktop/src-tauri/tauri.conf.json',
+                        'apps/desktop/src-tauri/tauri.release.conf.json'
+                      ) }}
 
             # bun caches downloaded packages between runs (~/.bun/install/cache).
             - name: Install JS dependencies
@@ -214,7 +224,7 @@ jobs:
             # On manual runs there is no release, so expose the artifacts for download.
             - name: Upload artifacts (manual runs)
               if: ${{ github.event_name == 'workflow_dispatch' }}
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: skriuw-desktop-linux
                   if-no-files-found: error
@@ -235,6 +245,8 @@ jobs:
             # a warning, not a build failure (the release artifacts are already
             # uploaded by this point).
             - name: Commit build metrics
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -243,7 +255,7 @@ jobs:
                   if git diff --cached --quiet; then
                     echo "No changes to commit"
                   elif git commit -m "chore: track build metrics for ${{ github.ref_name }}" \
-                      && git push origin HEAD:daddy; then
+                      && git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:daddy; then
                     echo "Metrics pushed to daddy"
                   else
                     echo "::warning::could not push build metrics to daddy (tag not a fast-forward?); skipping"
@@ -258,7 +270,9 @@ jobs:
             CARGO_INCREMENTAL: "0"
             CARGO_TERM_COLOR: always
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
 
             - uses: oven-sh/setup-bun@v2
               with:
@@ -296,7 +310,7 @@ jobs:
 
             - name: Upload artifacts (manual runs)
               if: ${{ github.event_name == 'workflow_dispatch' }}
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: skriuw-desktop-macos
                   if-no-files-found: error
@@ -311,7 +325,9 @@ jobs:
             CARGO_INCREMENTAL: "0"
             CARGO_TERM_COLOR: always
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
 
             - uses: oven-sh/setup-bun@v2
               with:
@@ -346,7 +362,7 @@ jobs:
 
             - name: Upload artifacts (manual runs)
               if: ${{ github.event_name == 'workflow_dispatch' }}
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: skriuw-desktop-windows
                   if-no-files-found: error
@@ -382,9 +398,11 @@ jobs:
                       goarch: arm64
                       ext: ""
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
 
-            - uses: actions/setup-go@v5
+            - uses: actions/setup-go@v7
               with:
                   go-version-file: scripts/devtui/go.mod
                   cache-dependency-path: scripts/devtui/go.sum
@@ -411,7 +429,7 @@ jobs:
 
             - name: Upload artifacts (manual runs)
               if: ${{ github.event_name == 'workflow_dispatch' }}
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: skriuw-dev-${{ matrix.goos }}-${{ matrix.goarch }}
                   if-no-files-found: error
