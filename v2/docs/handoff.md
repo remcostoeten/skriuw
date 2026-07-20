@@ -24,9 +24,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit before this handoff: `92c3e2f feat: allocate durable sibling ranks`.
+- Last implementation commit before this handoff: `60a2337 feat: add graceful runtime shutdown`.
 - Expected worktree state: clean.
-- Current verification result: 46 tests plus formatting, Clippy, and generated-schema drift checks pass; one manual rank benchmark is ignored by the default suite and passes when selected.
+- Current verification result: 52 tests plus formatting, Clippy, and generated-schema drift checks pass; one manual rank benchmark is ignored by the default suite and passes when selected.
 - Rust toolchain: 1.95.0.
 - Ignored local development database: `.data/skriuw.db`.
 
@@ -63,7 +63,8 @@ skriuw-sqlite
 └── backend-owned rank allocation/compaction
 
 skriuw-runtime
-└── serialized FIFO storage worker
+├── serialized FIFO storage worker
+└── clone-safe shutdown and worker join
 
 skriuw-history
 ├── leased retry worker
@@ -91,6 +92,8 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Create, move, and restore operations request first, last, before, or after placement instead of supplying raw ranks.
 - SQLite uses immediate-neighbor midpoint allocation and compacts only the active destination sibling set when necessary.
 - Operation acknowledgements coalesce final parent/rank changes by node ID for optimistic renderer reconciliation.
+- Runtime shutdown rejects new work, drains accepted requests, resolves completions, and joins the worker exactly once across all clones.
+- Dropping the final runtime handle joins the worker; abnormal termination is reported as `RuntimeError::WorkerFailure`.
 - Generated schemas live in `generated/contracts`.
 - No frontend framework, desktop shell, editor, router, React, React Scan, or package manager has been added.
 - No remote exists; do not claim work is pushed.
@@ -114,17 +117,24 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Five optimized-build samples for 5,000 root-note placements had a 1.805-second median after neighbor-only allocation replaced full sibling scans.
 - Raw samples and environment metadata are in `docs/benchmarks/2026-07-20-rank-allocation.md`.
 
+## Completed runtime shutdown slice
+
+- Parallel implementation commit `c1654a8` was reviewed and integrated as `60a2337`; stale parallel handoff commit `d046277` was not cherry-picked.
+- ADR-0011 defines submission revocation, FIFO draining, completion resolution, join ownership, final-drop behavior, and failure replay.
+- All runtime clones share one sender and worker state. Concurrent and repeated shutdown calls join at most once and replay the stored outcome.
+- Six deterministic regressions cover draining, post-shutdown rejection, clone state, concurrent shutdown, final drop, and worker panic without new sleep-based coordination.
+
 ## Known correctness gap
 
-The primary branch still has a detached storage worker with no explicit shutdown or join. A parallel agent is implementing this in isolated branch `feat/graceful-runtime-shutdown` from base `e8fbd31`; do not duplicate that work or merge its shared-document commit blindly.
+Every `SaveDocument` request currently enters the runtime queue and SQLite transaction independently. No batching/coalescing contract exists, so rapid editor saves can create avoidable queue pressure; any solution must preserve an acknowledgement for every expected revision and may not delay synchronous renderer updates.
 
 Immediate next slice:
 
-1. Obtain the parallel agent's runtime implementation and documentation commit hashes.
-2. Cherry-pick only its implementation commit, resolving the expected `NodePlacement` test-helper overlap in `crates/skriuw-runtime/src/lib.rs`.
-3. Preserve ADR-0010 and use ADR-0011 for runtime shutdown if supplied.
-4. Run `./scripts/check.sh`, then incorporate the parallel documentation facts manually instead of blindly cherry-picking stale `TODO.md` or handoff state.
-5. Commit the verified runtime integration and refresh this handoff. After that, continue save batching/coalescing and bounded diagnostics.
+1. Define save batching/coalescing semantics in an ADR without moving editor state or revision decisions into the runtime.
+2. Preserve FIFO ordering relative to non-save operations and return a completion for every submitted expected revision.
+3. Coalesce only revisions whose acknowledgement and history semantics remain lossless; never hide revision conflicts.
+4. Add deterministic queue, conflict, shutdown-drain, and acknowledgement regressions without timing-based tests.
+5. Measure burst behavior, update persistent docs, and commit before bounded diagnostics.
 
 ## Verification model
 

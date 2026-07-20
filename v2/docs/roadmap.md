@@ -20,6 +20,7 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Verified online SQLite backup, create-new restore, and import safety backup.
 - Explicit inherited subtree trash, restore fallback, retention-guarded permanent purge, and atomic projection cleanup.
 - Backend-owned semantic tree placement, midpoint ranks, destination-only compaction, and reconciliation acknowledgements.
+- Clone-safe runtime shutdown that drains accepted work and joins the storage worker.
 - Repository rules, scripts, CI, ADRs, data model, and performance contract.
 
 ## Remaining backend work
@@ -27,7 +28,7 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Scheduled backup rotation and desktop recovery UI.
 - Settings and metadata schemas with compatibility tests.
 - Representative 1,000-note and 5,000-note fixtures.
-- Storage lifecycle, error taxonomy, diagnostics, and graceful worker shutdown.
+- Save batching, error taxonomy, and bounded diagnostics.
 
 ## UI architecture gate
 

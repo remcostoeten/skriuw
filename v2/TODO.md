@@ -8,7 +8,7 @@ Last reviewed: 2026-07-20
 - [x] Work isolated on `feat/instant-local-first-foundation`.
 - [x] Logical commits created; working tree clean at last review.
 - [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
-- [x] 46 backend tests pass; one manual rank benchmark is ignored by the default suite.
+- [x] 52 backend tests pass; one manual rank benchmark is ignored by the default suite.
 - [x] No frontend, desktop shell, router, React dependency, or editor dependency exists.
 - [x] No Git remote is configured.
 
@@ -65,7 +65,7 @@ Measured result: five optimized-build samples for one atomic batch of 5,000 root
 
 ## P1: storage lifecycle and recovery
 
-- [ ] Add graceful shutdown and worker join semantics.
+- [x] Add graceful shutdown and worker join semantics.
 - [ ] Define save batching/coalescing without losing revision acknowledgements.
 - [ ] Add bounded diagnostics for runtime, storage, history, backup, and recovery failures.
 - [ ] Add scheduled backup rotation policy.

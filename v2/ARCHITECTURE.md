@@ -26,6 +26,8 @@ Only the backend foundation exists today. Application shell and adapters beyond 
 
 Backend access is owned by one serialized runtime queue. Callers submit work and receive a completion handle. The desktop bridge must wait for completions away from the renderer and UI threads. FIFO execution makes write ordering explicit and prevents SQLite lock contention inside the process.
 
+Every runtime clone shares one lifecycle state. Shutdown atomically stops submissions, drains accepted FIFO work, resolves pending completions, and joins the worker. Dropping the final handle performs the same join. Shell teardown and database replacement must call shutdown away from latency-sensitive threads.
+
 ## Runtime contract
 
 Startup calls `bootstrap()` once. Returned snapshot contains nodes, document JSON, settings, active note, and cached history headers. Renderer normalizes this data and prepares editor states before dismissing startup UI.
@@ -102,3 +104,4 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0008: verified native SQLite backups](docs/adr/0008-verified-native-backups.md)
 - [ADR-0009: subtree trash and permanent purge](docs/adr/0009-subtree-trash-and-purge.md)
 - [ADR-0010: backend-owned node ranking](docs/adr/0010-backend-owned-node-ranking.md)
+- [ADR-0011: graceful storage runtime shutdown](docs/adr/0011-graceful-runtime-shutdown.md)
