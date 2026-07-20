@@ -3,6 +3,22 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.25.0] — 2026-07-20
+
+### Changed
+
+- **Analytics SDK 1.7:** upgraded `@remcostoeten/analytics` from 1.5 to 1.7,
+  picking up the new ingestion pipeline — offline event queue with batch
+  flushing, client-side event timestamps (accurate timing for queued events),
+  and browser timezone enrichment used for country-level geo fallback.
+
+### Fixed
+
+- **CI typecheck:** `createMarkId` in the shared domain package accessed
+  `globalThis.crypto` in a way the root TypeScript config (no DOM lib) rejects;
+  the global is now typed structurally so web, desktop, and mobile keep sharing
+  the module unchanged.
+
 ## [0.24.0] — 2026-07-20
 
 ### Added
@@ -86,11 +102,11 @@ create GBM buffer: Invalid argument`), so the window never received a valid
   session: linuxdeploy's GTK hook hard-codes `GDK_BACKEND=x11` into the AppImage
   launcher, so it always runs through XWayland.
 
-                    `main.rs` now picks per backend rather than globally. On NVIDIA it overrides
-                    the AppImage's forced X11 back to Wayland, and disables the dmabuf renderer
-                    only when genuinely landing on X11 — the sole path that renders there. GPU
-                    compositing is kept everywhere it works, so the 0.22.0 typing-performance win
-                    is retained. `SKRIUW_GDK_BACKEND` forces a specific backend.
+                        `main.rs` now picks per backend rather than globally. On NVIDIA it overrides
+                        the AppImage's forced X11 back to Wayland, and disables the dmabuf renderer
+                        only when genuinely landing on X11 — the sole path that renders there. GPU
+                        compositing is kept everywhere it works, so the 0.22.0 typing-performance win
+                        is retained. `SKRIUW_GDK_BACKEND` forces a specific backend.
 
 ### Release
 
