@@ -336,22 +336,69 @@
         {
           "type": "object",
           "properties": {
-            "key": {
-              "type": "string"
+            "settings": {
+              "$ref": "#/$defs/WorkspaceSettings"
             },
             "type": {
               "type": "string",
-              "const": "set_setting"
-            },
-            "value": true
+              "const": "update_settings"
+            }
           },
           "required": [
             "type",
-            "key",
-            "value"
+            "settings"
           ]
         }
       ]
+    },
+    "WorkspaceSettings": {
+      "type": "object",
+      "properties": {
+        "compactSidebar": {
+          "type": "boolean",
+          "default": false
+        },
+        "editorFont": {
+          "type": "string",
+          "default": "inter"
+        },
+        "editorLineHeight": {
+          "type": "string",
+          "default": "comfortable"
+        },
+        "editorPlaceholder": {
+          "type": "string",
+          "default": "Start writing..."
+        },
+        "reduceMotion": {
+          "type": "boolean",
+          "default": false
+        },
+        "rememberLastNote": {
+          "type": "boolean",
+          "default": true
+        },
+        "settingsVersion": {
+          "type": "integer",
+          "format": "uint16",
+          "default": 1,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "showLineNumbers": {
+          "type": "boolean",
+          "default": true
+        },
+        "showPageIcons": {
+          "type": "boolean",
+          "default": true
+        },
+        "theme": {
+          "type": "string",
+          "default": "midnight"
+        }
+      },
+      "additionalProperties": true
     }
   }
 }

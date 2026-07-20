@@ -7,13 +7,12 @@ use std::{
 };
 
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, backup::Backup, params};
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 use skriuw_domain::{
     EntityRevision, HistoryHeader, NodeKind, NodePlacement, NodePosition, NodeRankChange,
     OperationAck, OperationValidationError, SearchHit, WORKSPACE_PROTOCOL_VERSION,
     WorkspaceArchive, WorkspaceDocument, WorkspaceNode, WorkspaceOperation,
-    WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceSnapshot,
 };
 use skriuw_storage::{
     HistoryCache, HistoryMaterialization, HistoryQueue, ImportSummary, IntegrityReport,
@@ -21,11 +20,18 @@ use skriuw_storage::{
 };
 use uuid::Uuid;
 
-const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    name: "initial",
-    sql: include_str!("../../../migrations/0001_initial.sql"),
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        name: "initial",
+        sql: include_str!("../../../migrations/0001_initial.sql"),
+    },
+    Migration {
+        version: 2,
+        name: "settings_document",
+        sql: include_str!("../../../migrations/0002_settings_document.sql"),
+    },
+];
 const NODE_RANK_GAP: i64 = 1024;
 
 struct Migration {
@@ -579,14 +585,12 @@ impl WorkspaceMaintenance for SqliteWorkspace {
             )?;
         }
 
-        for (key, value) in &archive.settings {
-            transaction
-                .execute(
-                    "INSERT INTO app_state(key, value_json) VALUES (?1, ?2)",
-                    params![format!("setting:{key}"), value.to_string()],
-                )
-                .map_err(backend)?;
-        }
+        transaction
+            .execute(
+                "INSERT INTO app_state(key, value_json) VALUES ('settings', ?1)",
+                [serde_json::to_string(&archive.settings).map_err(json_backend)?],
+            )
+            .map_err(backend)?;
         if let Some(active_note_id) = &archive.active_note_id {
             transaction
                 .execute(
@@ -1060,12 +1064,12 @@ fn apply_operation(
                 )
                 .map_err(backend)?;
         }
-        WorkspaceOperation::SetSetting { key, value } => {
+        WorkspaceOperation::UpdateSettings { settings } => {
             transaction
                 .execute(
-                    "INSERT INTO app_state(key, value_json) VALUES (?1, ?2) \
+                    "INSERT INTO app_state(key, value_json) VALUES ('settings', ?1) \
                      ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
-                    params![format!("setting:{key}"), value.to_string()],
+                    [serde_json::to_string(settings).map_err(json_backend)?],
                 )
                 .map_err(backend)?;
         }
@@ -1170,23 +1174,20 @@ fn read_history_headers(connection: &Connection) -> Result<Vec<HistoryHeader>, S
     rows.collect::<Result<Vec<_>, _>>().map_err(backend)
 }
 
-fn read_settings(connection: &Connection) -> Result<BTreeMap<String, Value>, StorageError> {
-    let mut statement = connection
-        .prepare_cached(
-            "SELECT substr(key, 9), value_json FROM app_state \
-             WHERE key LIKE 'setting:%' ORDER BY key",
+fn read_settings(connection: &Connection) -> Result<WorkspaceSettings, StorageError> {
+    let raw = connection
+        .query_row(
+            "SELECT value_json FROM app_state WHERE key = 'settings'",
+            [],
+            |row| row.get::<_, String>(0),
         )
+        .optional()
         .map_err(backend)?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })
-        .map_err(backend)?;
-    let mut settings = BTreeMap::new();
-    for row in rows {
-        let (key, raw) = row.map_err(backend)?;
-        settings.insert(key, serde_json::from_str(&raw).map_err(json_backend)?);
-    }
+    let settings = match raw {
+        Some(raw) => serde_json::from_str::<WorkspaceSettings>(&raw).map_err(json_backend)?,
+        None => WorkspaceSettings::default(),
+    };
+    settings.validate().map_err(validation)?;
     Ok(settings)
 }
 
@@ -1801,6 +1802,7 @@ mod tests {
     use serde_json::json;
     use skriuw_domain::{
         HistoryHeader, NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope,
+        WorkspaceSettings,
     };
     use skriuw_storage::{
         HistoryCache, HistoryQueue, StorageError, WorkspaceMaintenance, WorkspaceStorage,
@@ -1846,6 +1848,17 @@ mod tests {
             expected_revision,
             at,
         })
+    }
+
+    fn custom_settings() -> WorkspaceSettings {
+        let mut extensions = std::collections::BTreeMap::new();
+        extensions.insert("futureFlag".into(), json!(true));
+        WorkspaceSettings {
+            theme: "paper".into(),
+            compact_sidebar: true,
+            extensions,
+            ..WorkspaceSettings::default()
+        }
     }
 
     fn ordered_ids(storage: &SqliteWorkspace, parent_id: Option<&str>) -> Vec<String> {
@@ -2436,24 +2449,28 @@ mod tests {
     fn records_immutable_migration_checksum() {
         let storage = SqliteWorkspace::open_in_memory().expect("open database");
         let connection = storage.lock().expect("database lock");
-        let (version, name, stored_checksum) = connection
-            .query_row(
-                "SELECT version, name, checksum FROM schema_migrations",
-                [],
-                |row| {
-                    Ok((
-                        row.get::<_, i64>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                    ))
-                },
-            )
-            .expect("migration row");
+        let mut statement = connection
+            .prepare("SELECT version, name, checksum FROM schema_migrations ORDER BY version")
+            .expect("prepare migration query");
+        let recorded = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .expect("migration rows")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("collect migration rows");
 
-        assert_eq!(version, 1);
-        assert_eq!(name, "initial");
-        assert_eq!(stored_checksum.len(), 64);
-        assert_eq!(stored_checksum, checksum(super::MIGRATIONS[0].sql));
+        assert_eq!(recorded.len(), super::MIGRATIONS.len());
+        for (record, migration) in recorded.iter().zip(super::MIGRATIONS) {
+            assert_eq!(record.0, migration.version);
+            assert_eq!(record.1, migration.name);
+            assert_eq!(record.2.len(), 64);
+            assert_eq!(record.2, checksum(migration.sql));
+        }
     }
 
     #[test]
@@ -2498,6 +2515,12 @@ mod tests {
                 [],
             )
             .expect("create legacy history item");
+        connection
+            .execute_batch(
+                "INSERT INTO app_state(key, value_json) VALUES ('setting:theme', '\"dark\"');\
+                 INSERT INTO app_state(key, value_json) VALUES ('setting:custom_flag', 'true');",
+            )
+            .expect("create legacy setting rows");
 
         SqliteWorkspace::migrate(&mut connection).expect("upgrade database");
 
@@ -2523,6 +2546,74 @@ mod tests {
                 .expect("history columns")
                 .iter()
                 .any(|column| column == "version_id")
+        );
+
+        let settings = super::read_settings(&connection).expect("normalized settings");
+        assert_eq!(settings.theme, "dark");
+        assert_eq!(settings.extensions["custom_flag"], json!(true));
+        let stray = connection
+            .query_row(
+                "SELECT count(*) FROM app_state WHERE key LIKE 'setting:%'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .expect("count stray rows");
+        assert_eq!(stray, 0);
+    }
+
+    #[test]
+    fn persists_normalized_settings_document_and_defaults() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        assert_eq!(
+            storage.bootstrap().expect("bootstrap defaults").settings,
+            WorkspaceSettings::default()
+        );
+
+        let settings = custom_settings();
+        storage
+            .apply_operations(&[op(WorkspaceOperation::UpdateSettings {
+                settings: settings.clone(),
+            })])
+            .expect("update settings");
+        assert_eq!(storage.bootstrap().expect("bootstrap").settings, settings);
+
+        let unsupported = WorkspaceSettings {
+            settings_version: 2,
+            ..WorkspaceSettings::default()
+        };
+        storage
+            .apply_operations(&[op(WorkspaceOperation::UpdateSettings {
+                settings: unsupported,
+            })])
+            .expect_err("reject unsupported settings version");
+        assert_eq!(
+            storage
+                .bootstrap()
+                .expect("bootstrap after rejection")
+                .settings,
+            settings
+        );
+    }
+
+    #[test]
+    fn settings_update_rolls_back_with_failed_batch() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[
+                op(WorkspaceOperation::UpdateSettings {
+                    settings: custom_settings(),
+                }),
+                op(WorkspaceOperation::RenameNode {
+                    id: "missing".into(),
+                    title: "Nope".into(),
+                    at: 1,
+                }),
+            ])
+            .expect_err("failed batch");
+
+        assert_eq!(
+            storage.bootstrap().expect("bootstrap").settings,
+            WorkspaceSettings::default()
         );
     }
 
@@ -2582,9 +2673,8 @@ mod tests {
                     markdown: "# Portable archive".into(),
                     at: 2,
                 }),
-                op(WorkspaceOperation::SetSetting {
-                    key: "theme".into(),
-                    value: json!("dark"),
+                op(WorkspaceOperation::UpdateSettings {
+                    settings: custom_settings(),
                 }),
                 op(WorkspaceOperation::SetActiveNote {
                     note_id: Some("note-1".into()),

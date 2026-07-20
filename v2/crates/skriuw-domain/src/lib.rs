@@ -7,9 +7,24 @@ use thiserror::Error;
 
 pub const WORKSPACE_PROTOCOL_VERSION: u16 = 1;
 pub const WORKSPACE_ARCHIVE_VERSION: u16 = 1;
+pub const WORKSPACE_SETTINGS_VERSION: u16 = 1;
 pub const MAX_ENTITY_ID_BYTES: usize = 128;
 pub const MAX_TITLE_BYTES: usize = 512;
 pub const MAX_SETTING_KEY_BYTES: usize = 128;
+pub const MAX_SETTING_TEXT_BYTES: usize = 512;
+
+pub const SETTINGS_FIELDS: [&str; 10] = [
+    "settingsVersion",
+    "theme",
+    "compactSidebar",
+    "showPageIcons",
+    "reduceMotion",
+    "rememberLastNote",
+    "editorFont",
+    "editorLineHeight",
+    "showLineNumbers",
+    "editorPlaceholder",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum OperationValidationError {
@@ -33,6 +48,10 @@ pub enum OperationValidationError {
     SelfParent,
     #[error("node cannot be placed relative to itself")]
     SelfAnchor,
+    #[error("unsupported workspace settings version {0}")]
+    UnsupportedSettingsVersion(u16),
+    #[error("extension setting {key} collides with a schema field")]
+    SettingFieldCollision { key: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -87,13 +106,103 @@ pub struct HistoryHeader {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct WorkspaceSettings {
+    #[serde(default = "default_settings_version")]
+    pub settings_version: u16,
+    #[serde(default = "default_theme")]
+    pub theme: String,
+    #[serde(default)]
+    pub compact_sidebar: bool,
+    #[serde(default = "default_enabled")]
+    pub show_page_icons: bool,
+    #[serde(default)]
+    pub reduce_motion: bool,
+    #[serde(default = "default_enabled")]
+    pub remember_last_note: bool,
+    #[serde(default = "default_editor_font")]
+    pub editor_font: String,
+    #[serde(default = "default_editor_line_height")]
+    pub editor_line_height: String,
+    #[serde(default = "default_enabled")]
+    pub show_line_numbers: bool,
+    #[serde(default = "default_editor_placeholder")]
+    pub editor_placeholder: String,
+    #[serde(flatten)]
+    pub extensions: BTreeMap<String, Value>,
+}
+
+impl Default for WorkspaceSettings {
+    fn default() -> Self {
+        Self {
+            settings_version: default_settings_version(),
+            theme: default_theme(),
+            compact_sidebar: false,
+            show_page_icons: default_enabled(),
+            reduce_motion: false,
+            remember_last_note: default_enabled(),
+            editor_font: default_editor_font(),
+            editor_line_height: default_editor_line_height(),
+            show_line_numbers: default_enabled(),
+            editor_placeholder: default_editor_placeholder(),
+            extensions: BTreeMap::new(),
+        }
+    }
+}
+
+impl WorkspaceSettings {
+    pub fn validate(&self) -> Result<(), OperationValidationError> {
+        if self.settings_version != WORKSPACE_SETTINGS_VERSION {
+            return Err(OperationValidationError::UnsupportedSettingsVersion(
+                self.settings_version,
+            ));
+        }
+        validate_id("theme", &self.theme)?;
+        validate_id("editor font", &self.editor_font)?;
+        validate_id("editor line height", &self.editor_line_height)?;
+        validate_setting_text("editor placeholder", &self.editor_placeholder)?;
+        for key in self.extensions.keys() {
+            validate_setting_key(key)?;
+            if SETTINGS_FIELDS.contains(&key.as_str()) {
+                return Err(OperationValidationError::SettingFieldCollision { key: key.clone() });
+            }
+        }
+        Ok(())
+    }
+}
+
+fn default_settings_version() -> u16 {
+    WORKSPACE_SETTINGS_VERSION
+}
+
+fn default_enabled() -> bool {
+    true
+}
+
+fn default_theme() -> String {
+    "midnight".into()
+}
+
+fn default_editor_font() -> String {
+    "inter".into()
+}
+
+fn default_editor_line_height() -> String {
+    "comfortable".into()
+}
+
+fn default_editor_placeholder() -> String {
+    "Start writing...".into()
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkspaceSnapshot {
     pub protocol_version: u16,
     pub active_note_id: Option<String>,
     pub nodes: Vec<WorkspaceNode>,
     pub documents: Vec<WorkspaceDocument>,
     pub history_headers: Vec<HistoryHeader>,
-    pub settings: BTreeMap<String, Value>,
+    pub settings: WorkspaceSettings,
 }
 
 impl WorkspaceSnapshot {
@@ -132,7 +241,7 @@ pub struct WorkspaceArchive {
     pub active_note_id: Option<String>,
     pub nodes: Vec<WorkspaceNode>,
     pub documents: Vec<WorkspaceDocument>,
-    pub settings: BTreeMap<String, Value>,
+    pub settings: WorkspaceSettings,
 }
 
 impl WorkspaceArchive {
@@ -263,9 +372,7 @@ impl WorkspaceArchive {
             }
         }
 
-        for key in self.settings.keys() {
-            validate_setting_key(key).map_err(archive_operation_error)?;
-        }
+        self.settings.validate().map_err(archive_operation_error)?;
         Ok(())
     }
 }
@@ -417,9 +524,8 @@ pub enum WorkspaceOperation {
     SetActiveNote {
         note_id: Option<String>,
     },
-    SetSetting {
-        key: String,
-        value: Value,
+    UpdateSettings {
+        settings: WorkspaceSettings,
     },
 }
 
@@ -502,7 +608,7 @@ impl WorkspaceOperation {
                 validate_timestamp(*trashed_before)
             }
             Self::SetActiveNote { note_id } => validate_optional_id("note id", note_id),
-            Self::SetSetting { key, .. } => validate_setting_key(key),
+            Self::UpdateSettings { settings } => settings.validate(),
         }
     }
 }
@@ -559,6 +665,16 @@ fn validate_setting_key(key: &str) -> Result<(), OperationValidationError> {
         return Err(OperationValidationError::TooLong {
             field: "setting key",
             maximum: MAX_SETTING_KEY_BYTES,
+        });
+    }
+    Ok(())
+}
+
+fn validate_setting_text(field: &'static str, value: &str) -> Result<(), OperationValidationError> {
+    if value.len() > MAX_SETTING_TEXT_BYTES {
+        return Err(OperationValidationError::TooLong {
+            field,
+            maximum: MAX_SETTING_TEXT_BYTES,
         });
     }
     Ok(())
@@ -642,9 +758,10 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArchiveValidationError, NodeKind, NodePlacement, OperationValidationError,
-        WORKSPACE_ARCHIVE_VERSION, WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument,
-        WorkspaceNode, WorkspaceOperation, WorkspaceOperationEnvelope,
+        ArchiveValidationError, NodeKind, NodePlacement, OperationValidationError, SETTINGS_FIELDS,
+        WORKSPACE_ARCHIVE_VERSION, WORKSPACE_PROTOCOL_VERSION, WORKSPACE_SETTINGS_VERSION,
+        WorkspaceArchive, WorkspaceDocument, WorkspaceNode, WorkspaceOperation,
+        WorkspaceOperationEnvelope, WorkspaceSettings,
     };
 
     #[test]
@@ -773,7 +890,7 @@ mod tests {
                 revision: 1,
                 word_count: 1,
             }],
-            settings: BTreeMap::new(),
+            settings: WorkspaceSettings::default(),
         };
 
         archive.validate().expect("valid archive");
@@ -811,7 +928,7 @@ mod tests {
                 },
             ],
             documents: Vec::new(),
-            settings: BTreeMap::new(),
+            settings: WorkspaceSettings::default(),
         };
 
         assert!(matches!(
@@ -820,6 +937,152 @@ mod tests {
         ));
         archive.nodes[1].parent_id = None;
         archive.validate().expect("repaired archive");
+    }
+
+    #[test]
+    fn settings_wire_format_is_stable() {
+        let envelope = WorkspaceOperationEnvelope::v1(WorkspaceOperation::UpdateSettings {
+            settings: WorkspaceSettings::default(),
+        });
+
+        let value = serde_json::to_value(envelope).expect("serialize settings operation");
+        assert_eq!(value["operation"]["type"], "update_settings");
+        assert_eq!(
+            value["operation"]["settings"]["settingsVersion"],
+            WORKSPACE_SETTINGS_VERSION
+        );
+        assert_eq!(value["operation"]["settings"]["theme"], "midnight");
+
+        let keys = value["operation"]["settings"]
+            .as_object()
+            .expect("settings object")
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut expected = SETTINGS_FIELDS.map(String::from).to_vec();
+        expected.sort();
+        let mut sorted = keys.clone();
+        sorted.sort();
+        assert_eq!(sorted, expected);
+    }
+
+    #[test]
+    fn settings_default_from_empty_document() {
+        let settings =
+            serde_json::from_value::<WorkspaceSettings>(json!({})).expect("empty document");
+
+        assert_eq!(settings, WorkspaceSettings::default());
+        settings.validate().expect("default settings");
+        assert_eq!(settings.settings_version, WORKSPACE_SETTINGS_VERSION);
+        assert!(settings.remember_last_note);
+        assert_eq!(settings.editor_line_height, "comfortable");
+    }
+
+    #[test]
+    fn settings_fill_missing_fields_with_defaults() {
+        let settings = serde_json::from_value::<WorkspaceSettings>(json!({
+            "theme": "paper",
+            "compactSidebar": true
+        }))
+        .expect("partial document");
+
+        settings.validate().expect("partial settings");
+        assert_eq!(settings.theme, "paper");
+        assert!(settings.compact_sidebar);
+        assert_eq!(settings.editor_font, "inter");
+        assert_eq!(settings.editor_placeholder, "Start writing...");
+    }
+
+    #[test]
+    fn settings_preserve_unknown_fields_losslessly() {
+        let document = json!({
+            "theme": "paper",
+            "futureFlag": true,
+            "futureSection": {"nested": 3}
+        });
+
+        let settings =
+            serde_json::from_value::<WorkspaceSettings>(document).expect("extended document");
+        settings.validate().expect("extended settings");
+        assert_eq!(settings.extensions["futureFlag"], json!(true));
+        assert_eq!(settings.extensions["futureSection"], json!({"nested": 3}));
+
+        let round_trip = serde_json::to_value(&settings).expect("serialize settings");
+        assert_eq!(round_trip["futureFlag"], json!(true));
+        assert_eq!(round_trip["futureSection"], json!({"nested": 3}));
+        assert_eq!(
+            serde_json::from_value::<WorkspaceSettings>(round_trip).expect("reparse settings"),
+            settings
+        );
+    }
+
+    #[test]
+    fn settings_reject_unsupported_versions_and_invalid_fields() {
+        let future = serde_json::from_value::<WorkspaceSettings>(json!({"settingsVersion": 2}))
+            .expect("future document");
+        assert_eq!(
+            future.validate(),
+            Err(OperationValidationError::UnsupportedSettingsVersion(2))
+        );
+
+        let invalid_theme = WorkspaceSettings {
+            theme: "../theme".into(),
+            ..WorkspaceSettings::default()
+        };
+        assert!(matches!(
+            invalid_theme.validate(),
+            Err(OperationValidationError::InvalidIdentifier { .. })
+        ));
+
+        let oversized = WorkspaceSettings {
+            editor_placeholder: "x".repeat(513),
+            ..WorkspaceSettings::default()
+        };
+        assert!(matches!(
+            oversized.validate(),
+            Err(OperationValidationError::TooLong { .. })
+        ));
+
+        let collision = WorkspaceSettings {
+            extensions: BTreeMap::from([("theme".to_string(), json!("paper"))]),
+            ..WorkspaceSettings::default()
+        };
+        assert_eq!(
+            collision.validate(),
+            Err(OperationValidationError::SettingFieldCollision {
+                key: "theme".into()
+            })
+        );
+
+        let empty_key = WorkspaceSettings {
+            extensions: BTreeMap::from([(" ".to_string(), json!(true))]),
+            ..WorkspaceSettings::default()
+        };
+        assert!(matches!(
+            empty_key.validate(),
+            Err(OperationValidationError::Empty { .. })
+        ));
+    }
+
+    #[test]
+    fn archive_rejects_unsupported_settings_version() {
+        let mut archive = WorkspaceArchive {
+            archive_version: WORKSPACE_ARCHIVE_VERSION,
+            protocol_version: WORKSPACE_PROTOCOL_VERSION,
+            exported_at: 10,
+            active_note_id: None,
+            nodes: Vec::new(),
+            documents: Vec::new(),
+            settings: WorkspaceSettings::default(),
+        };
+        archive.settings.settings_version = 2;
+
+        assert!(matches!(
+            archive.validate(),
+            Err(ArchiveValidationError::Invalid(_))
+        ));
+        archive.settings.settings_version = WORKSPACE_SETTINGS_VERSION;
+        archive.validate().expect("supported settings version");
     }
 
     #[test]
@@ -860,7 +1123,7 @@ mod tests {
                 revision: 1,
                 word_count: 1,
             }],
-            settings: BTreeMap::new(),
+            settings: WorkspaceSettings::default(),
         };
 
         assert!(matches!(

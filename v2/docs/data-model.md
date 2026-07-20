@@ -39,7 +39,7 @@ Durable leased queue containing committed document revisions not yet materialize
 
 ### `app_state`
 
-Small JSON values such as last active note and settings. Secrets never belong here.
+Small JSON values: the last active note and one versioned `WorkspaceSettings` document under the `settings` key. Missing fields deserialize to defaults, unknown fields are preserved as extension data, and unsupported future versions are rejected explicitly. Secrets never belong here.
 
 ## Transaction rules
 
