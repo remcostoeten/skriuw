@@ -1,8 +1,8 @@
 {
-	"staticJsRaw": 2850000,
-	"staticJsGzip": 802000,
+	"staticJsRaw": 2920000,
+	"staticJsGzip": 820000,
 	"staticCssRaw": 439402,
 	"staticCssGzip": 64862,
 	"staticJsChunks": 2,
-	"largestStaticJsRaw": 2596000
+	"largestStaticJsRaw": 2665000
 }

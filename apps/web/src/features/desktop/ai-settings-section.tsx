@@ -433,16 +433,16 @@ function DesktopAiSectionContent({
 				>
 					<AsyncActionButton
 						onRun={onPing}
-						disabled={!canPing}
+						disabled={
+							!canPing ||
+							(config.provider === "ollama" && !status?.running) ||
+							(config.provider !== "ollama" && !config.cloudConsent)
+						}
 						idleIcon={<Radio className="h-3.5 w-3.5" />}
 						label={canPing ? "Send ping" : pingLabel}
 						pendingLabel="Pinging\u2026"
 						successLabel="Replied"
 						failedLabel="Failed"
-						disabled={
-							(config.provider === "ollama" && !status?.running) ||
-							(config.provider !== "ollama" && !config.cloudConsent)
-						}
 					/>
 				</Row>
 			</SettingsCard>
