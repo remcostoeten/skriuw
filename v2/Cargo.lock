@@ -457,6 +457,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "skriuw-runtime"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "skriuw-domain",
+ "skriuw-sqlite",
+ "skriuw-storage",
+ "thiserror",
+]
+
+[[package]]
 name = "skriuw-sqlite"
 version = "0.1.0"
 dependencies = [
