@@ -88,6 +88,7 @@ export function AsyncActionButton({
 	const busy = status === "pending";
 	const solid = status === "success";
 	const danger = status === "failed";
+	const activeResultLabel = status === "success" || status === "failed" ? resultLabel : null;
 
 	const frames = [
 		{ key: "idle", label: [idleIcon, label] },
@@ -101,8 +102,9 @@ export function AsyncActionButton({
 			type="button"
 			onClick={run}
 			disabled={disabled || busy}
+			title={activeResultLabel ?? undefined}
 			className={cn(
-				"relative inline-flex h-9 items-center justify-center overflow-hidden rounded-md border text-sm font-medium transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",
+				"relative inline-flex h-9 max-w-full items-center justify-center overflow-hidden rounded-md border text-sm font-medium transition-all duration-[350ms] ease-[cubic-bezier(0.32,0.72,0,1)] focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring/70",
 				busy && "cursor-default",
 				disabled && "cursor-not-allowed opacity-50",
 				!disabled &&
@@ -123,7 +125,7 @@ export function AsyncActionButton({
 					content: (
 						<>
 							{frame.label[0]}
-							{frame.label[1]}
+							<span className="max-w-64 truncate">{frame.label[1]}</span>
 						</>
 					),
 				}))}
