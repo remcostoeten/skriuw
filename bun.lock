@@ -23,7 +23,7 @@
         "@radix-ui/react-slot": "^1.2.4",
         "@radix-ui/react-switch": "^1.2.5",
         "@radix-ui/react-tooltip": "^1.2.8",
-        "@remcostoeten/analytics": "^1.5.0",
+        "@remcostoeten/analytics": "^1.7.0",
         "@remcostoeten/auth-drawer": "^0.3.2",
         "@remcostoeten/use-shortcut": "^2.3.0",
         "@tanstack/query-async-storage-persister": "^5.101.0",
@@ -96,7 +96,7 @@
     },
     "apps/desktop": {
       "name": "skriuw-desktop",
-      "version": "0.23.0",
+      "version": "0.24.0",
       "devDependencies": {
         "@tauri-apps/cli": "^2.11.0",
         "cross-env": "^7.0.3",
@@ -104,7 +104,7 @@
     },
     "apps/documentation": {
       "name": "@skriuw/documentation",
-      "version": "0.23.0",
+      "version": "0.24.0",
       "dependencies": {
         "fumadocs-core": "^16.3.0",
         "fumadocs-mdx": "^15.1.0",
@@ -200,7 +200,7 @@
     },
     "apps/web": {
       "name": "@skriuw/web",
-      "version": "0.23.0",
+      "version": "0.24.0",
       "dependencies": {
         "@animateicons/react": "^0.3.4",
         "@aws-sdk/client-s3": "^3.1081.0",
@@ -1230,7 +1230,7 @@
 
     "@react-navigation/routers": ["@react-navigation/routers@7.6.0", "", { "dependencies": { "nanoid": "^3.3.11" } }, "sha512-lblhDXfS75jLc7G2K7BZGM+7cjqQXk13X/MA4fq/12r62zM+fBhhreLzYflSitrDDXFRJpSvJXy0ziiGU04Xow=="],
 
-    "@remcostoeten/analytics": ["@remcostoeten/analytics@1.5.0", "", { "peerDependencies": { "react": "^18.0.0 || ^19.0.0" } }, "sha512-QdYAbiwA1vS3tQ0xGsr6iuNTuntlauJfpzdwyRpJNyLjpw6prZSTBhWLffQ22/nv+o2aQDrYHOOEGDmD+IPNBw=="],
+    "@remcostoeten/analytics": ["@remcostoeten/analytics@1.7.0", "", { "peerDependencies": { "react": "^18.0.0 || ^19.0.0" } }, "sha512-6zBomBUckjOk7osPfrFnX+8v8pmy/ygFZiJYxehAni/KdcHdJBMN8gg6t6MnQB3XSjr3GqKCzzosFgk7otkJjQ=="],
 
     "@remcostoeten/auth-drawer": ["@remcostoeten/auth-drawer@0.3.2", "", { "dependencies": { "clsx": "^2.1.1", "tailwind-merge": "^2.6.0" }, "peerDependencies": { "framer-motion": "^12.0.0", "lucide-react": "^0.400.0", "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" } }, "sha512-c95Wk5TLZ7szqFKamPCRxuML9kCAci8zDy7ZVN6vVw60zzx4yONdDxR/u2blQWgpZbkZeNOWD8hIcOP86RxJTg=="],
 
