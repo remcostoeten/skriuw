@@ -1,6 +1,7 @@
 use skriuw_domain::HistoryHeader;
 use skriuw_storage::{
-    HistoryCache, HistoryMaterialization, HistoryQueue, PendingHistoryRevision, StorageError,
+    Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryMaterialization,
+    HistoryQueue, PendingHistoryRevision, StorageError,
 };
 use thiserror::Error;
 
@@ -16,6 +17,15 @@ impl MaterializationError {
         Self {
             message: message.into(),
         }
+    }
+
+    #[must_use]
+    pub fn diagnostic(&self) -> Diagnostic {
+        Diagnostic::new(
+            DiagnosticContext::History,
+            DiagnosticCategory::Backend,
+            "history materialization failed",
+        )
     }
 }
 
@@ -46,6 +56,22 @@ impl HistoryReadError {
     pub fn backend(error: impl Into<String>) -> Self {
         Self::Backend(error.into())
     }
+
+    #[must_use]
+    pub fn diagnostic(&self) -> Diagnostic {
+        match self {
+            Self::NotFound(_) => Diagnostic::new(
+                DiagnosticContext::History,
+                DiagnosticCategory::NotFound,
+                "history version was not found",
+            ),
+            Self::Backend(_) => Diagnostic::new(
+                DiagnosticContext::History,
+                DiagnosticCategory::Backend,
+                "history backend failed",
+            ),
+        }
+    }
 }
 
 pub trait HistoryReader: Send + Sync {
@@ -64,6 +90,16 @@ pub enum HistoryRebuildError {
     Reader(#[from] HistoryReadError),
     #[error(transparent)]
     Storage(#[from] StorageError),
+}
+
+impl HistoryRebuildError {
+    #[must_use]
+    pub fn diagnostic(&self) -> Diagnostic {
+        match self {
+            Self::Reader(error) => error.diagnostic(),
+            Self::Storage(error) => error.diagnostic(DiagnosticContext::History),
+        }
+    }
 }
 
 pub fn rebuild_history_cache(
@@ -95,6 +131,26 @@ pub enum HistoryWorkerError {
         materialization: String,
         release: StorageError,
     },
+}
+
+impl HistoryWorkerError {
+    #[must_use]
+    pub fn diagnostic(&self) -> Diagnostic {
+        match self {
+            Self::InvalidWorkerId => Diagnostic::new(
+                DiagnosticContext::History,
+                DiagnosticCategory::InvalidInput,
+                "history worker id is invalid",
+            ),
+            Self::Queue(error) => error.diagnostic(DiagnosticContext::History),
+            Self::Materialization(error) => error.diagnostic(),
+            Self::ReleaseAfterFailure { .. } => Diagnostic::new(
+                DiagnosticContext::History,
+                DiagnosticCategory::Backend,
+                "history materialization and queue release failed",
+            ),
+        }
+    }
 }
 
 pub struct HistoryWorker<Q, M> {
@@ -138,15 +194,19 @@ where
         let materialization = match self.materializer.materialize(&item) {
             Ok(materialization) => materialization,
             Err(error) => {
-                let message = error.to_string();
+                let diagnostic = Diagnostic::new(
+                    DiagnosticContext::History,
+                    DiagnosticCategory::Backend,
+                    error.to_string(),
+                );
                 return match self.queue.release_history_revision(
                     &self.worker_id,
                     &item.id,
-                    &message,
+                    &diagnostic,
                 ) {
                     Ok(()) => Err(HistoryWorkerError::Materialization(error)),
                     Err(release) => Err(HistoryWorkerError::ReleaseAfterFailure {
-                        materialization: message,
+                        materialization: diagnostic.to_string(),
                         release,
                     }),
                 };
@@ -163,16 +223,20 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     use serde_json::json;
     use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
     use skriuw_sqlite::SqliteWorkspace;
     use skriuw_storage::{
-        HistoryMaterialization, HistoryQueue, PendingHistoryRevision, WorkspaceStorage,
+        DiagnosticCategory, DiagnosticContext, HistoryMaterialization, HistoryQueue,
+        MAX_DIAGNOSTIC_MESSAGE_BYTES, PendingHistoryRevision, StorageError, WorkspaceStorage,
     };
 
-    use super::{HistoryMaterializer, HistoryWorkResult, HistoryWorker, MaterializationError};
+    use super::{
+        HistoryMaterializer, HistoryReadError, HistoryWorkResult, HistoryWorker,
+        MaterializationError,
+    };
 
     #[test]
     fn materializes_and_completes_history() {
@@ -237,6 +301,51 @@ mod tests {
         assert_eq!(recovered.attempts, 2);
     }
 
+    #[test]
+    fn persists_bounded_categorized_retry_diagnostics() {
+        let released = Arc::new(Mutex::new(None));
+        let queue = CapturingQueue {
+            item: Mutex::new(Some(PendingHistoryRevision {
+                id: "item-1".into(),
+                note_id: "note-1".into(),
+                revision: 1,
+                markdown: "history".into(),
+                created_at: 1,
+                attempts: 1,
+            })),
+            released: Arc::clone(&released),
+        };
+        let worker =
+            HistoryWorker::new("worker-1", queue, LargeFailingMaterializer).expect("create worker");
+
+        let error = worker
+            .process_next(100, 30_000)
+            .expect_err("materialization failure");
+        let persisted = released
+            .lock()
+            .expect("released diagnostic")
+            .clone()
+            .expect("persisted diagnostic");
+
+        assert!(persisted.starts_with("history.backend: "));
+        assert!(persisted.len() <= "history.backend: ".len() + MAX_DIAGNOSTIC_MESSAGE_BYTES);
+        assert!(!persisted.contains(char::is_control));
+        let diagnostic = error.diagnostic();
+        assert_eq!(diagnostic.context, DiagnosticContext::History);
+        assert_eq!(diagnostic.category, DiagnosticCategory::Backend);
+        assert_eq!(diagnostic.message(), "history materialization failed");
+    }
+
+    #[test]
+    fn maps_history_reads_without_exposing_backend_details() {
+        let diagnostic = HistoryReadError::backend("/private/history.git: corrupt").diagnostic();
+
+        assert_eq!(diagnostic.context, DiagnosticContext::History);
+        assert_eq!(diagnostic.category, DiagnosticCategory::Backend);
+        assert_eq!(diagnostic.message(), "history backend failed");
+        assert!(!diagnostic.to_string().contains("/private"));
+    }
+
     fn seeded_storage() -> Arc<SqliteWorkspace> {
         let storage = Arc::new(SqliteWorkspace::open_in_memory().expect("open database"));
         storage
@@ -276,6 +385,55 @@ mod tests {
             _item: &PendingHistoryRevision,
         ) -> Result<HistoryMaterialization, MaterializationError> {
             Err(MaterializationError::new("history backend unavailable"))
+        }
+    }
+
+    struct LargeFailingMaterializer;
+
+    impl HistoryMaterializer for LargeFailingMaterializer {
+        fn materialize(
+            &self,
+            _item: &PendingHistoryRevision,
+        ) -> Result<HistoryMaterialization, MaterializationError> {
+            Err(MaterializationError::new(format!(
+                "\n{}\t",
+                "failure".repeat(300)
+            )))
+        }
+    }
+
+    struct CapturingQueue {
+        item: Mutex<Option<PendingHistoryRevision>>,
+        released: Arc<Mutex<Option<String>>>,
+    }
+
+    impl HistoryQueue for CapturingQueue {
+        fn claim_history_revision(
+            &self,
+            _worker_id: &str,
+            _now_ms: i64,
+            _lease_ms: i64,
+        ) -> Result<Option<PendingHistoryRevision>, StorageError> {
+            Ok(self.item.lock().expect("queue item").take())
+        }
+
+        fn complete_history_revision(
+            &self,
+            _worker_id: &str,
+            _item_id: &str,
+            _materialization: &HistoryMaterialization,
+        ) -> Result<(), StorageError> {
+            unreachable!()
+        }
+
+        fn release_history_revision(
+            &self,
+            _worker_id: &str,
+            _item_id: &str,
+            diagnostic: &skriuw_storage::Diagnostic,
+        ) -> Result<(), StorageError> {
+            *self.released.lock().expect("released diagnostic") = Some(diagnostic.to_string());
+            Ok(())
         }
     }
 }

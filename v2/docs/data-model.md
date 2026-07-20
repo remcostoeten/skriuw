@@ -35,7 +35,7 @@ Ordered migration version, immutable name, SHA-256 checksum, and application tim
 
 ### `history_outbox`
 
-Durable leased queue containing committed document revisions not yet materialized by the selected history backend. Successful processing records history metadata and removes the queue row. Failed or abandoned leases remain retryable.
+Durable leased queue containing committed document revisions not yet materialized by the selected history backend. Successful processing records history metadata and removes the queue row. Failed or abandoned leases remain retryable. `last_error` stores only the bounded deterministic display of a categorized local history diagnostic, is cleared on the next claim, and is excluded from snapshots and portable archives.
 
 ### `app_state`
 

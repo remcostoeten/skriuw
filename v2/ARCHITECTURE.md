@@ -30,6 +30,8 @@ Every runtime clone shares one lifecycle state. Shutdown atomically stops submis
 
 Consecutive queued save-only requests may share one storage call without sharing acknowledgements. The runtime never waits to form a batch, caps each batch at 64 requests, and treats every other request as a FIFO barrier. SQLite commits each bounded batch in one outer transaction with one savepoint per original request, so conflicts remain isolated and every successful revision keeps its own FTS update and history-outbox row.
 
+Typed subsystem errors project to bounded diagnostics only at shell or persistence boundaries. Diagnostics carry stable context and category enums plus a normalized 1,024-byte message ceiling. Public projections redact adapter detail; the local history retry queue may persist bounded materializer detail and never includes it in bootstrap or portable archives.
+
 ## Runtime contract
 
 Startup calls `bootstrap()` once. Returned snapshot contains nodes, document JSON, settings, active note, and cached history headers. Renderer normalizes this data and prepares editor states before dismissing startup UI.
@@ -109,3 +111,5 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0010: backend-owned node ranking](docs/adr/0010-backend-owned-node-ranking.md)
 - [ADR-0011: graceful storage runtime shutdown](docs/adr/0011-graceful-runtime-shutdown.md)
 - [ADR-0012: lossless save batching](docs/adr/0012-lossless-save-batching.md)
+- [ADR-0013: versioned settings and note metadata](docs/adr/0013-versioned-settings-and-note-metadata.md)
+- [ADR-0014: bounded failure diagnostics](docs/adr/0014-bounded-failure-diagnostics.md)

@@ -22,14 +22,15 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Backend-owned semantic tree placement, midpoint ranks, destination-only compaction, and reconciliation acknowledgements.
 - Clone-safe runtime shutdown that drains accepted work and joins the storage worker.
 - Lossless bounded save batching with FIFO barriers, request savepoints, and individual acknowledgements.
+- Versioned portable settings with defaults, extension preservation, migration, and an explicit reduced metadata contract.
+- Bounded categorized diagnostics across runtime, storage, history retry, backup, recovery, and integrity boundaries.
 - Repository rules, scripts, CI, ADRs, data model, and performance contract.
 
 ## Remaining backend work
 
 - Scheduled backup rotation and desktop recovery UI.
-- Settings and metadata schemas with compatibility tests.
+- Durable sidebar expansion operation and native-only persistence.
 - Representative 1,000-note and 5,000-note fixtures.
-- Error taxonomy and bounded diagnostics.
 
 ## UI architecture gate
 

@@ -8,7 +8,9 @@ use std::{
 };
 
 use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
-use skriuw_storage::{StorageError, WorkspaceStorage};
+use skriuw_storage::{
+    Diagnostic, DiagnosticCategory, DiagnosticContext, StorageError, WorkspaceStorage,
+};
 use thiserror::Error;
 
 const MAX_SAVE_BATCH_REQUESTS: usize = 64;
@@ -21,6 +23,25 @@ pub enum RuntimeError {
     WorkerFailure,
     #[error(transparent)]
     Storage(#[from] StorageError),
+}
+
+impl RuntimeError {
+    #[must_use]
+    pub fn diagnostic(&self) -> Diagnostic {
+        match self {
+            Self::Unavailable => Diagnostic::new(
+                DiagnosticContext::Runtime,
+                DiagnosticCategory::Unavailable,
+                "storage runtime is unavailable",
+            ),
+            Self::WorkerFailure => Diagnostic::new(
+                DiagnosticContext::Runtime,
+                DiagnosticCategory::Internal,
+                "storage worker terminated abnormally",
+            ),
+            Self::Storage(error) => error.diagnostic(DiagnosticContext::Runtime),
+        }
+    }
 }
 
 pub struct Completion<T> {
@@ -269,7 +290,7 @@ mod tests {
         WorkspaceOperationEnvelope, WorkspaceSnapshot,
     };
     use skriuw_sqlite::SqliteWorkspace;
-    use skriuw_storage::{StorageError, WorkspaceStorage};
+    use skriuw_storage::{DiagnosticCategory, DiagnosticContext, StorageError, WorkspaceStorage};
 
     use super::{RuntimeError, WorkspaceRuntime};
 
@@ -527,6 +548,21 @@ mod tests {
             runtime.shutdown(),
             Err(RuntimeError::WorkerFailure)
         ));
+    }
+
+    #[test]
+    fn maps_runtime_failures_to_stable_diagnostics() {
+        let unavailable = RuntimeError::Unavailable.diagnostic();
+        let worker = RuntimeError::WorkerFailure.diagnostic();
+        let storage =
+            RuntimeError::Storage(StorageError::Backend("private detail".into())).diagnostic();
+
+        assert_eq!(unavailable.context, DiagnosticContext::Runtime);
+        assert_eq!(unavailable.category, DiagnosticCategory::Unavailable);
+        assert_eq!(worker.category, DiagnosticCategory::Internal);
+        assert_eq!(storage.category, DiagnosticCategory::Backend);
+        assert_eq!(storage.message(), "storage backend failed");
+        assert!(!storage.to_string().contains("private detail"));
     }
 
     #[test]

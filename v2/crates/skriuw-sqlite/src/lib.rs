@@ -15,7 +15,7 @@ use skriuw_domain::{
     WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceSnapshot,
 };
 use skriuw_storage::{
-    HistoryCache, HistoryMaterialization, HistoryQueue, ImportSummary, IntegrityReport,
+    Diagnostic, HistoryCache, HistoryMaterialization, HistoryQueue, ImportSummary, IntegrityReport,
     PendingHistoryRevision, StorageError, WorkspaceMaintenance, WorkspaceStorage,
 };
 use uuid::Uuid;
@@ -771,17 +771,17 @@ impl HistoryQueue for SqliteWorkspace {
         &self,
         worker_id: &str,
         item_id: &str,
-        error: &str,
+        diagnostic: &Diagnostic,
     ) -> Result<(), StorageError> {
         require_worker(worker_id)?;
         let connection = self.lock()?;
-        let error = error.chars().take(4096).collect::<String>();
+        let diagnostic = diagnostic.to_string();
         let changed = connection
             .execute(
                 "UPDATE history_outbox \
                  SET claimed_by = NULL, claimed_at = NULL, last_error = ?3 \
                  WHERE id = ?1 AND claimed_by = ?2",
-                params![item_id, worker_id, error],
+                params![item_id, worker_id, diagnostic],
             )
             .map_err(backend)?;
         require_changed(changed, item_id)
@@ -1805,7 +1805,8 @@ mod tests {
         WorkspaceSettings,
     };
     use skriuw_storage::{
-        HistoryCache, HistoryQueue, StorageError, WorkspaceMaintenance, WorkspaceStorage,
+        Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryQueue,
+        MAX_DIAGNOSTIC_MESSAGE_BYTES, StorageError, WorkspaceMaintenance, WorkspaceStorage,
     };
     use tempfile::tempdir;
 
@@ -2652,6 +2653,41 @@ mod tests {
 
         assert_eq!(snapshot.history_headers.len(), 1);
         assert_eq!(snapshot.history_headers[0].version_id, "version-old");
+    }
+
+    #[test]
+    fn persists_bounded_history_diagnostic_records() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[create_note("note-1")])
+            .expect("create note");
+        let item = storage
+            .claim_history_revision("worker-1", 10, 1_000)
+            .expect("claim history")
+            .expect("history item");
+        let diagnostic = Diagnostic::new(
+            DiagnosticContext::History,
+            DiagnosticCategory::Backend,
+            format!("\n{}\t", "failure".repeat(300)),
+        );
+
+        storage
+            .release_history_revision("worker-1", &item.id, &diagnostic)
+            .expect("release history");
+
+        let persisted = storage
+            .lock()
+            .expect("database lock")
+            .query_row(
+                "SELECT last_error FROM history_outbox WHERE id = ?1",
+                [&item.id],
+                |row| row.get::<_, String>(0),
+            )
+            .expect("persisted diagnostic");
+        assert_eq!(persisted, diagnostic.to_string());
+        assert!(persisted.starts_with("history.backend: "));
+        assert!(persisted.len() <= "history.backend: ".len() + MAX_DIAGNOSTIC_MESSAGE_BYTES);
+        assert!(!persisted.contains(char::is_control));
     }
 
     #[test]

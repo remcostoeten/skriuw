@@ -13,7 +13,9 @@ use skriuw_domain::{
     NodePlacement, WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope,
 };
 use skriuw_sqlite::SqliteWorkspace;
-use skriuw_storage::{WorkspaceMaintenance, WorkspaceStorage};
+use skriuw_storage::{
+    Diagnostic, DiagnosticCategory, DiagnosticContext, WorkspaceMaintenance, WorkspaceStorage,
+};
 use uuid::Uuid;
 
 fn main() -> ExitCode {
@@ -86,25 +88,37 @@ fn run() -> Result<(), Box<dyn Error>> {
         }
         "integrity" => {
             let path = required_path(arguments.next())?;
-            let storage = SqliteWorkspace::open(&path)?;
-            let report = storage.integrity_check()?;
+            let storage = SqliteWorkspace::open(&path)
+                .map_err(|error| error.diagnostic(DiagnosticContext::Integrity))?;
+            let report = storage
+                .integrity_check()
+                .map_err(|error| error.diagnostic(DiagnosticContext::Integrity))?;
             if report.healthy {
                 println!("ok");
             } else {
-                return Err(format!("integrity failed: {}", report.issues.join("; ")).into());
+                return Err(Diagnostic::new(
+                    DiagnosticContext::Integrity,
+                    DiagnosticCategory::Backend,
+                    format!("integrity check found {} issue(s)", report.issues.len()),
+                )
+                .into());
             }
         }
         "backup" => {
             let path = required_path(arguments.next())?;
             let backup_path = required_path(arguments.next())?;
-            let storage = SqliteWorkspace::open(&path)?;
-            storage.backup_to(&backup_path)?;
+            let storage = SqliteWorkspace::open(&path)
+                .map_err(|error| error.diagnostic(DiagnosticContext::Backup))?;
+            storage
+                .backup_to(&backup_path)
+                .map_err(|error| error.diagnostic(DiagnosticContext::Backup))?;
             println!("backed up {} to {}", path.display(), backup_path.display());
         }
         "restore" => {
             let backup_path = required_path(arguments.next())?;
             let target = required_path(arguments.next())?;
-            SqliteWorkspace::restore_backup_to(&backup_path, &target)?;
+            SqliteWorkspace::restore_backup_to(&backup_path, &target)
+                .map_err(|error| error.diagnostic(DiagnosticContext::Recovery))?;
             println!("restored {} to {}", backup_path.display(), target.display());
         }
         "export" => {
@@ -120,13 +134,36 @@ fn run() -> Result<(), Box<dyn Error>> {
         "import" => {
             let path = required_path(arguments.next())?;
             let archive_path = required_path(arguments.next())?;
-            let raw = fs::read(&archive_path)?;
-            let archive = serde_json::from_slice::<WorkspaceArchive>(&raw)?;
-            archive.validate()?;
-            let storage = SqliteWorkspace::open(&path)?;
+            let raw = fs::read(&archive_path).map_err(|_| {
+                Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::Backend,
+                    "workspace archive could not be read",
+                )
+            })?;
+            let archive = serde_json::from_slice::<WorkspaceArchive>(&raw).map_err(|_| {
+                Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::InvalidInput,
+                    "workspace archive is not valid JSON",
+                )
+            })?;
+            archive.validate().map_err(|_| {
+                Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::InvalidInput,
+                    "workspace archive is invalid",
+                )
+            })?;
+            let storage = SqliteWorkspace::open(&path)
+                .map_err(|error| error.diagnostic(DiagnosticContext::Recovery))?;
             let backup_path = pre_import_backup_path(&path, now_ms()?)?;
-            storage.backup_to(&backup_path)?;
-            let summary = storage.replace_from_archive(&archive)?;
+            storage
+                .backup_to(&backup_path)
+                .map_err(|error| error.diagnostic(DiagnosticContext::Backup))?;
+            let summary = storage
+                .replace_from_archive(&archive)
+                .map_err(|error| error.diagnostic(DiagnosticContext::Recovery))?;
             println!(
                 "imported {} nodes and {} documents; safety backup {}",
                 summary.nodes,
