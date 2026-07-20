@@ -329,7 +329,7 @@ mod tests {
 
     use git2::Repository;
     use serde_json::json;
-    use skriuw_domain::{WorkspaceOperation, WorkspaceOperationEnvelope};
+    use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
     use skriuw_history::rebuild_history_cache;
     use skriuw_history::{HistoryWorkResult, HistoryWorker};
     use skriuw_sqlite::SqliteWorkspace;
@@ -436,9 +436,8 @@ mod tests {
             .apply_operations(&[WorkspaceOperationEnvelope::v1(
                 WorkspaceOperation::CreateNote {
                     id: "note-1".into(),
-                    parent_id: None,
                     title: "History".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(None),
                     document_json: json!({"type": "doc", "content": []}),
                     markdown: "# History".into(),
                     at: 1_000,
@@ -499,9 +498,8 @@ mod tests {
             .apply_operations(&[WorkspaceOperationEnvelope::v1(
                 WorkspaceOperation::CreateNote {
                     id: "note-1".into(),
-                    parent_id: None,
                     title: "History".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(None),
                     document_json: json!({"type": "doc", "content": []}),
                     markdown: "# History".into(),
                     at: 1_000,

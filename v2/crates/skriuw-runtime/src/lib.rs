@@ -128,7 +128,8 @@ mod tests {
 
     use serde_json::json;
     use skriuw_domain::{
-        OperationAck, SearchHit, WorkspaceOperation, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+        NodePlacement, OperationAck, SearchHit, WorkspaceOperation, WorkspaceOperationEnvelope,
+        WorkspaceSnapshot,
     };
     use skriuw_sqlite::SqliteWorkspace;
     use skriuw_storage::{StorageError, WorkspaceStorage};
@@ -142,9 +143,8 @@ mod tests {
     fn create_note(id: &str, title: &str) -> WorkspaceOperationEnvelope {
         op(WorkspaceOperation::CreateNote {
             id: id.into(),
-            parent_id: None,
             title: title.into(),
-            rank: 1024,
+            placement: NodePlacement::last(None),
             document_json: json!({"type": "doc", "content": []}),
             markdown: title.into(),
             at: 1,

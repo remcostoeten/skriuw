@@ -9,7 +9,9 @@ use std::{
 };
 
 use serde_json::json;
-use skriuw_domain::{WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope};
+use skriuw_domain::{
+    NodePlacement, WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope,
+};
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::{WorkspaceMaintenance, WorkspaceStorage};
 use uuid::Uuid;
@@ -57,9 +59,8 @@ fn run() -> Result<(), Box<dyn Error>> {
             storage.apply_operations(&[WorkspaceOperationEnvelope::v1(
                 WorkspaceOperation::CreateNote {
                     id: id.clone(),
-                    parent_id: None,
                     title: "Welcome".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(None),
                     document_json: json!({
                         "type": "doc",
                         "content": [{

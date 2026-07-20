@@ -8,6 +8,12 @@
       "format": "uint",
       "minimum": 0
     },
+    "rankChanges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NodeRankChange"
+      }
+    },
     "revisions": {
       "type": "array",
       "items": {
@@ -17,7 +23,8 @@
   },
   "required": [
     "applied",
-    "revisions"
+    "revisions",
+    "rankChanges"
   ],
   "$defs": {
     "EntityRevision": {
@@ -34,6 +41,28 @@
       "required": [
         "id",
         "revision"
+      ]
+    },
+    "NodeRankChange": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rank": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "rank"
       ]
     }
   }

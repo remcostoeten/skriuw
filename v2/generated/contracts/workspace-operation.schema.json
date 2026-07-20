@@ -18,6 +18,83 @@
     "operation"
   ],
   "$defs": {
+    "NodePlacement": {
+      "type": "object",
+      "properties": {
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "position": {
+          "$ref": "#/$defs/NodePosition"
+        }
+      },
+      "required": [
+        "position"
+      ]
+    },
+    "NodePosition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "first"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "last"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "anchorId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "before"
+            }
+          },
+          "required": [
+            "type",
+            "anchorId"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "anchorId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "after"
+            }
+          },
+          "required": [
+            "type",
+            "anchorId"
+          ]
+        }
+      ]
+    },
     "WorkspaceOperation": {
       "oneOf": [
         {
@@ -30,15 +107,8 @@
             "id": {
               "type": "string"
             },
-            "parentId": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "rank": {
-              "type": "integer",
-              "format": "int64"
+            "placement": {
+              "$ref": "#/$defs/NodePlacement"
             },
             "title": {
               "type": "string"
@@ -52,7 +122,7 @@
             "type",
             "id",
             "title",
-            "rank",
+            "placement",
             "at"
           ]
         },
@@ -70,15 +140,8 @@
             "markdown": {
               "type": "string"
             },
-            "parentId": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "rank": {
-              "type": "integer",
-              "format": "int64"
+            "placement": {
+              "$ref": "#/$defs/NodePlacement"
             },
             "title": {
               "type": "string"
@@ -92,7 +155,7 @@
             "type",
             "id",
             "title",
-            "rank",
+            "placement",
             "documentJson",
             "markdown",
             "at"
@@ -133,15 +196,8 @@
             "id": {
               "type": "string"
             },
-            "parentId": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "rank": {
-              "type": "integer",
-              "format": "int64"
+            "placement": {
+              "$ref": "#/$defs/NodePlacement"
             },
             "type": {
               "type": "string",
@@ -151,7 +207,7 @@
           "required": [
             "type",
             "id",
-            "rank",
+            "placement",
             "at"
           ]
         },
@@ -220,15 +276,8 @@
               "type": "integer",
               "format": "int64"
             },
-            "parentId": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "rank": {
-              "type": "integer",
-              "format": "int64"
+            "placement": {
+              "$ref": "#/$defs/NodePlacement"
             },
             "rootId": {
               "type": "string"
@@ -241,7 +290,7 @@
           "required": [
             "type",
             "rootId",
-            "rank",
+            "placement",
             "at"
           ]
         },

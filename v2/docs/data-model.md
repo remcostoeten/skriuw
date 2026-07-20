@@ -4,7 +4,7 @@
 
 ### `workspace_nodes`
 
-One tree for notes and folders. Stable string IDs cross desktop, browser, import, and eventual sync boundaries. Sibling `rank` values use gaps; rare compaction runs transactionally.
+One tree for notes and folders. Stable string IDs cross desktop, browser, import, and eventual sync boundaries. Callers request first, last, before, or after placement. Storage allocates gapped sibling `rank` values and transactionally compacts only the active destination sibling set when no midpoint remains.
 
 ### `documents`
 
@@ -48,7 +48,7 @@ Small JSON values such as last active note and settings. Secrets never belong he
 - Claim history: short lease update only; materialization runs after the transaction releases.
 - Complete history: cached header insert and matching leased outbox deletion.
 - Failed history: release lease and persist bounded diagnostic text for retry.
-- Move/reorder: node parent and rank only.
+- Create, move, and restore placement: allocate a midpoint rank when possible; otherwise compact the active destination sibling set and acknowledge every changed rank.
 - Trash subtree: set the selected root's deletion marker; descendants inherit unavailability without changing their timestamps.
 - Restore subtree: clear the root deletion marker and assign an active parent/rank; independently trashed descendants stay trashed.
 - Purge subtree: enforce the retention cutoff, delete FTS rows, then delete canonical nodes so document, history-cache, and history-outbox rows cascade in the same transaction.

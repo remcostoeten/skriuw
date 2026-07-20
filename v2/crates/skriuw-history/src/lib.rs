@@ -166,7 +166,7 @@ mod tests {
     use std::sync::Arc;
 
     use serde_json::json;
-    use skriuw_domain::{WorkspaceOperation, WorkspaceOperationEnvelope};
+    use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
     use skriuw_sqlite::SqliteWorkspace;
     use skriuw_storage::{
         HistoryMaterialization, HistoryQueue, PendingHistoryRevision, WorkspaceStorage,
@@ -243,9 +243,8 @@ mod tests {
             .apply_operations(&[WorkspaceOperationEnvelope::v1(
                 WorkspaceOperation::CreateNote {
                     id: "note-1".into(),
-                    parent_id: None,
                     title: "History".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(None),
                     document_json: json!({"type": "doc", "content": []}),
                     markdown: "# History".into(),
                     at: 1,

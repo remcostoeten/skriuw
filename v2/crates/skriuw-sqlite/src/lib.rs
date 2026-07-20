@@ -10,9 +10,10 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, backup::Ba
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use skriuw_domain::{
-    EntityRevision, HistoryHeader, NodeKind, OperationAck, OperationValidationError, SearchHit,
-    WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument, WorkspaceNode,
-    WorkspaceOperation, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    EntityRevision, HistoryHeader, NodeKind, NodePlacement, NodePosition, NodeRankChange,
+    OperationAck, OperationValidationError, SearchHit, WORKSPACE_PROTOCOL_VERSION,
+    WorkspaceArchive, WorkspaceDocument, WorkspaceNode, WorkspaceOperation,
+    WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use skriuw_storage::{
     HistoryCache, HistoryMaterialization, HistoryQueue, ImportSummary, IntegrityReport,
@@ -25,6 +26,7 @@ const MIGRATIONS: &[Migration] = &[Migration {
     name: "initial",
     sql: include_str!("../../../migrations/0001_initial.sql"),
 }];
+const NODE_RANK_GAP: i64 = 1024;
 
 struct Migration {
     version: i64,
@@ -372,15 +374,22 @@ impl WorkspaceStorage for SqliteWorkspace {
         let mut connection = self.lock()?;
         let transaction = connection.transaction().map_err(backend)?;
         let mut revisions = Vec::new();
+        let mut rank_changes = BTreeMap::new();
 
         for envelope in operations {
-            apply_operation(&transaction, &envelope.operation, &mut revisions)?;
+            apply_operation(
+                &transaction,
+                &envelope.operation,
+                &mut revisions,
+                &mut rank_changes,
+            )?;
         }
 
         transaction.commit().map_err(backend)?;
         Ok(OperationAck {
             applied: operations.len(),
             revisions,
+            rank_changes: rank_changes.into_values().collect(),
         })
     }
 
@@ -773,41 +782,43 @@ fn apply_operation(
     transaction: &Transaction<'_>,
     operation: &WorkspaceOperation,
     revisions: &mut Vec<EntityRevision>,
+    rank_changes: &mut BTreeMap<String, NodeRankChange>,
 ) -> Result<(), StorageError> {
     match operation {
         WorkspaceOperation::CreateFolder {
             id,
-            parent_id,
             title,
-            rank,
+            placement,
             at,
         } => {
-            require_parent_folder(transaction, parent_id.as_deref())?;
+            require_parent_folder(transaction, placement.parent_id.as_deref())?;
+            let rank = allocate_rank(transaction, id, placement, rank_changes)?;
             transaction
                 .execute(
                     "INSERT INTO workspace_nodes \
                      (id, kind, parent_id, rank, title, created_at, updated_at) \
                      VALUES (?1, 'folder', ?2, ?3, ?4, ?5, ?5)",
-                    params![id, parent_id, rank, title, at],
+                    params![id, placement.parent_id, rank, title, at],
                 )
                 .map_err(backend)?;
+            record_rank_change(rank_changes, id, &placement.parent_id, rank);
         }
         WorkspaceOperation::CreateNote {
             id,
-            parent_id,
             title,
-            rank,
+            placement,
             document_json,
             markdown,
             at,
         } => {
-            require_parent_folder(transaction, parent_id.as_deref())?;
+            require_parent_folder(transaction, placement.parent_id.as_deref())?;
+            let rank = allocate_rank(transaction, id, placement, rank_changes)?;
             transaction
                 .execute(
                     "INSERT INTO workspace_nodes \
                      (id, kind, parent_id, rank, title, created_at, updated_at) \
                      VALUES (?1, 'note', ?2, ?3, ?4, ?5, ?5)",
-                    params![id, parent_id, rank, title, at],
+                    params![id, placement.parent_id, rank, title, at],
                 )
                 .map_err(backend)?;
             transaction
@@ -829,6 +840,7 @@ fn apply_operation(
                 id: id.clone(),
                 revision: 1,
             });
+            record_rank_change(rank_changes, id, &placement.parent_id, rank);
         }
         WorkspaceOperation::RenameNode { id, title, at } => {
             require_available_node(transaction, id)?;
@@ -846,24 +858,21 @@ fn apply_operation(
                 )
                 .map_err(backend)?;
         }
-        WorkspaceOperation::MoveNode {
-            id,
-            parent_id,
-            rank,
-            at,
-        } => {
+        WorkspaceOperation::MoveNode { id, placement, at } => {
             require_available_node(transaction, id)?;
-            require_parent_folder(transaction, parent_id.as_deref())?;
-            require_acyclic_parent(transaction, id, parent_id.as_deref())?;
+            require_parent_folder(transaction, placement.parent_id.as_deref())?;
+            require_acyclic_parent(transaction, id, placement.parent_id.as_deref())?;
+            let rank = allocate_rank(transaction, id, placement, rank_changes)?;
             let changed = transaction
                 .execute(
                     "UPDATE workspace_nodes \
                      SET parent_id = ?2, rank = ?3, updated_at = ?4 \
                      WHERE id = ?1",
-                    params![id, parent_id, rank, at],
+                    params![id, placement.parent_id, rank, at],
                 )
                 .map_err(backend)?;
             require_changed(changed, id)?;
+            record_rank_change(rank_changes, id, &placement.parent_id, rank);
         }
         WorkspaceOperation::SaveDocument {
             note_id,
@@ -925,22 +934,23 @@ fn apply_operation(
         }
         WorkspaceOperation::RestoreSubtree {
             root_id,
-            parent_id,
-            rank,
+            placement,
             at,
         } => {
             require_directly_trashed(transaction, root_id)?;
-            require_parent_folder(transaction, parent_id.as_deref())?;
-            require_acyclic_parent(transaction, root_id, parent_id.as_deref())?;
+            require_parent_folder(transaction, placement.parent_id.as_deref())?;
+            require_acyclic_parent(transaction, root_id, placement.parent_id.as_deref())?;
+            let rank = allocate_rank(transaction, root_id, placement, rank_changes)?;
             let changed = transaction
                 .execute(
                     "UPDATE workspace_nodes \
                      SET deleted_at = NULL, parent_id = ?2, rank = ?3, updated_at = ?4 \
                      WHERE id = ?1",
-                    params![root_id, parent_id, rank, at],
+                    params![root_id, placement.parent_id, rank, at],
                 )
                 .map_err(backend)?;
             require_changed(changed, root_id)?;
+            record_rank_change(rank_changes, root_id, &placement.parent_id, rank);
         }
         WorkspaceOperation::PurgeSubtree {
             root_id,
@@ -1255,6 +1265,214 @@ fn normalize_backup(connection: &Connection) -> Result<(), StorageError> {
         .map_err(backend)
 }
 
+struct RankedSibling {
+    id: String,
+    rank: i64,
+}
+
+fn allocate_rank(
+    transaction: &Transaction<'_>,
+    node_id: &str,
+    placement: &NodePlacement,
+    rank_changes: &mut BTreeMap<String, NodeRankChange>,
+) -> Result<i64, StorageError> {
+    let (left, right) = placement_neighbors(transaction, node_id, placement)?;
+    if let Some(rank) = rank_between(left, right) {
+        return Ok(rank);
+    }
+
+    let siblings = load_active_siblings(transaction, node_id, &placement.parent_id)?;
+    let insertion_index = match &placement.position {
+        NodePosition::First => 0,
+        NodePosition::Last => siblings.len(),
+        NodePosition::Before { anchor_id } => siblings
+            .iter()
+            .position(|sibling| sibling.id == *anchor_id)
+            .ok_or_else(|| StorageError::NotFound(anchor_id.clone()))?,
+        NodePosition::After { anchor_id } => {
+            siblings
+                .iter()
+                .position(|sibling| sibling.id == *anchor_id)
+                .ok_or_else(|| StorageError::NotFound(anchor_id.clone()))?
+                + 1
+        }
+    };
+
+    let mut target_rank = None;
+    for final_index in 0..=siblings.len() {
+        let rank = i64::try_from(final_index + 1)
+            .ok()
+            .and_then(|position| position.checked_mul(NODE_RANK_GAP))
+            .ok_or_else(|| StorageError::InvalidOperation("sibling rank range exhausted".into()))?;
+        if final_index == insertion_index {
+            target_rank = Some(rank);
+            continue;
+        }
+        let sibling_index = if final_index < insertion_index {
+            final_index
+        } else {
+            final_index - 1
+        };
+        let sibling = &siblings[sibling_index];
+        if sibling.rank == rank {
+            continue;
+        }
+        transaction
+            .execute(
+                "UPDATE workspace_nodes SET rank = ?2 WHERE id = ?1",
+                params![sibling.id, rank],
+            )
+            .map_err(backend)?;
+        record_rank_change(rank_changes, &sibling.id, &placement.parent_id, rank);
+    }
+    target_rank
+        .ok_or_else(|| StorageError::InvalidOperation("node placement could not be ranked".into()))
+}
+
+fn placement_neighbors(
+    transaction: &Transaction<'_>,
+    node_id: &str,
+    placement: &NodePlacement,
+) -> Result<(Option<i64>, Option<i64>), StorageError> {
+    match &placement.position {
+        NodePosition::First => {
+            let right = transaction
+                .query_row(
+                    "SELECT rank FROM workspace_nodes \
+                     WHERE parent_id IS ?1 AND deleted_at IS NULL AND id <> ?2 \
+                     ORDER BY rank, id LIMIT 1",
+                    params![placement.parent_id, node_id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(backend)?;
+            Ok((None, right))
+        }
+        NodePosition::Last => {
+            let left = transaction
+                .query_row(
+                    "SELECT rank FROM workspace_nodes \
+                     WHERE parent_id IS ?1 AND deleted_at IS NULL AND id <> ?2 \
+                     ORDER BY rank DESC, id DESC LIMIT 1",
+                    params![placement.parent_id, node_id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(backend)?;
+            Ok((left, None))
+        }
+        NodePosition::Before { anchor_id } => {
+            let anchor = require_placement_anchor(transaction, placement, anchor_id)?;
+            let left = transaction
+                .query_row(
+                    "SELECT rank FROM workspace_nodes \
+                     WHERE parent_id IS ?1 AND deleted_at IS NULL AND id <> ?2 \
+                     AND (rank < ?3 OR (rank = ?3 AND id < ?4)) \
+                     ORDER BY rank DESC, id DESC LIMIT 1",
+                    params![placement.parent_id, node_id, anchor.rank, anchor.id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(backend)?;
+            Ok((left, Some(anchor.rank)))
+        }
+        NodePosition::After { anchor_id } => {
+            let anchor = require_placement_anchor(transaction, placement, anchor_id)?;
+            let right = transaction
+                .query_row(
+                    "SELECT rank FROM workspace_nodes \
+                     WHERE parent_id IS ?1 AND deleted_at IS NULL AND id <> ?2 \
+                     AND (rank > ?3 OR (rank = ?3 AND id > ?4)) \
+                     ORDER BY rank, id LIMIT 1",
+                    params![placement.parent_id, node_id, anchor.rank, anchor.id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(backend)?;
+            Ok((Some(anchor.rank), right))
+        }
+    }
+}
+
+fn require_placement_anchor(
+    transaction: &Transaction<'_>,
+    placement: &NodePlacement,
+    anchor_id: &str,
+) -> Result<RankedSibling, StorageError> {
+    require_available_node(transaction, anchor_id)?;
+    let (parent_id, rank) = transaction
+        .query_row(
+            "SELECT parent_id, rank FROM workspace_nodes WHERE id = ?1",
+            [anchor_id],
+            |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .map_err(backend)?;
+    if parent_id != placement.parent_id {
+        return Err(StorageError::InvalidOperation(format!(
+            "anchor {anchor_id} is not a child of the requested parent"
+        )));
+    }
+    Ok(RankedSibling {
+        id: anchor_id.into(),
+        rank,
+    })
+}
+
+fn load_active_siblings(
+    transaction: &Transaction<'_>,
+    node_id: &str,
+    parent_id: &Option<String>,
+) -> Result<Vec<RankedSibling>, StorageError> {
+    let mut statement = transaction
+        .prepare_cached(
+            "SELECT id, rank FROM workspace_nodes \
+             WHERE parent_id IS ?1 AND deleted_at IS NULL AND id <> ?2 \
+             ORDER BY rank, id",
+        )
+        .map_err(backend)?;
+    statement
+        .query_map(params![parent_id, node_id], |row| {
+            Ok(RankedSibling {
+                id: row.get(0)?,
+                rank: row.get(1)?,
+            })
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
+fn rank_between(left: Option<i64>, right: Option<i64>) -> Option<i64> {
+    match (left, right) {
+        (None, None) => Some(NODE_RANK_GAP),
+        (None, Some(right)) => right.checked_sub(NODE_RANK_GAP),
+        (Some(left), None) => left.checked_add(NODE_RANK_GAP),
+        (Some(left), Some(right)) => {
+            let distance = i128::from(right) - i128::from(left);
+            (distance > 1).then(|| {
+                i64::try_from(i128::from(left) + distance / 2)
+                    .expect("midpoint of two i64 ranks must fit i64")
+            })
+        }
+    }
+}
+
+fn record_rank_change(
+    rank_changes: &mut BTreeMap<String, NodeRankChange>,
+    id: &str,
+    parent_id: &Option<String>,
+    rank: i64,
+) {
+    rank_changes.insert(
+        id.into(),
+        NodeRankChange {
+            id: id.into(),
+            parent_id: parent_id.clone(),
+            rank,
+        },
+    );
+}
+
 fn require_parent_folder(
     transaction: &Transaction<'_>,
     parent_id: Option<&str>,
@@ -1533,11 +1751,13 @@ fn validation(error: OperationValidationError) -> StorageError {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, time::Instant};
 
     use rusqlite::Connection;
     use serde_json::json;
-    use skriuw_domain::{HistoryHeader, WorkspaceOperation, WorkspaceOperationEnvelope};
+    use skriuw_domain::{
+        HistoryHeader, NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope,
+    };
     use skriuw_storage::{
         HistoryCache, HistoryQueue, StorageError, WorkspaceMaintenance, WorkspaceStorage,
     };
@@ -1550,15 +1770,33 @@ mod tests {
     }
 
     fn create_note(id: &str) -> WorkspaceOperationEnvelope {
+        create_placed_note(id, NodePlacement::last(None), 1)
+    }
+
+    fn create_placed_note(
+        id: &str,
+        placement: NodePlacement,
+        at: i64,
+    ) -> WorkspaceOperationEnvelope {
         op(WorkspaceOperation::CreateNote {
             id: id.into(),
-            parent_id: None,
             title: "Fast notes".into(),
-            rank: 1024,
+            placement,
             document_json: json!({"type": "doc", "content": []}),
             markdown: "# Fast notes\n\nSQLite search".into(),
-            at: 1,
+            at,
         })
+    }
+
+    fn ordered_ids(storage: &SqliteWorkspace, parent_id: Option<&str>) -> Vec<String> {
+        storage
+            .bootstrap()
+            .expect("bootstrap")
+            .nodes
+            .into_iter()
+            .filter(|node| node.parent_id.as_deref() == parent_id && node.deleted_at.is_none())
+            .map(|node| node.id)
+            .collect()
     }
 
     fn seed_nested_workspace(storage: &SqliteWorkspace) {
@@ -1566,32 +1804,28 @@ mod tests {
             .apply_operations(&[
                 op(WorkspaceOperation::CreateFolder {
                     id: "folder-root".into(),
-                    parent_id: None,
                     title: "Root".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(None),
                     at: 1,
                 }),
                 op(WorkspaceOperation::CreateFolder {
                     id: "folder-child".into(),
-                    parent_id: Some("folder-root".into()),
                     title: "Child".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(Some("folder-root".into())),
                     at: 2,
                 }),
                 op(WorkspaceOperation::CreateNote {
                     id: "note-nested".into(),
-                    parent_id: Some("folder-child".into()),
                     title: "Nested".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(Some("folder-child".into())),
                     document_json: json!({"type": "doc", "content": []}),
                     markdown: "nested search phrase".into(),
                     at: 3,
                 }),
                 op(WorkspaceOperation::CreateNote {
                     id: "note-outside".into(),
-                    parent_id: None,
                     title: "Outside".into(),
-                    rank: 2048,
+                    placement: NodePlacement::last(None),
                     document_json: json!({"type": "doc", "content": []}),
                     markdown: "outside search phrase".into(),
                     at: 4,
@@ -1615,6 +1849,307 @@ mod tests {
         let hits = storage.search("SQLite", 10).expect("search");
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].note_id, "note-1");
+    }
+
+    #[test]
+    fn allocates_semantic_placements_and_reports_rank_changes() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        let first_ack = storage
+            .apply_operations(&[create_placed_note("a", NodePlacement::last(None), 1)])
+            .expect("create first note");
+        assert_eq!(first_ack.rank_changes.len(), 1);
+        assert_eq!(first_ack.rank_changes[0].id, "a");
+        assert_eq!(first_ack.rank_changes[0].rank, 1024);
+
+        storage
+            .apply_operations(&[create_placed_note("b", NodePlacement::last(None), 2)])
+            .expect("create last note");
+        storage
+            .apply_operations(&[create_placed_note("c", NodePlacement::first(None), 3)])
+            .expect("create first note");
+        storage
+            .apply_operations(&[create_placed_note("d", NodePlacement::after(None, "a"), 4)])
+            .expect("create after note");
+        storage
+            .apply_operations(&[create_placed_note("e", NodePlacement::before(None, "a"), 5)])
+            .expect("create before note");
+        assert_eq!(ordered_ids(&storage, None), ["c", "e", "a", "d", "b"]);
+
+        storage
+            .apply_operations(&[op(WorkspaceOperation::CreateFolder {
+                id: "folder".into(),
+                title: "Folder".into(),
+                placement: NodePlacement::last(None),
+                at: 6,
+            })])
+            .expect("create folder");
+        storage
+            .apply_operations(&[
+                create_placed_note("nested-a", NodePlacement::last(Some("folder".into())), 7),
+                create_placed_note("nested-b", NodePlacement::first(Some("folder".into())), 8),
+            ])
+            .expect("create nested notes");
+        let move_ack = storage
+            .apply_operations(&[op(WorkspaceOperation::MoveNode {
+                id: "d".into(),
+                placement: NodePlacement::last(Some("folder".into())),
+                at: 9,
+            })])
+            .expect("move into folder");
+
+        assert_eq!(
+            ordered_ids(&storage, Some("folder")),
+            ["nested-b", "nested-a", "d"]
+        );
+        assert_eq!(move_ack.rank_changes.len(), 1);
+        assert_eq!(move_ack.rank_changes[0].id, "d");
+        assert_eq!(
+            move_ack.rank_changes[0].parent_id.as_deref(),
+            Some("folder")
+        );
+        assert_eq!(move_ack.rank_changes[0].rank, 2048);
+    }
+
+    #[test]
+    fn rejects_anchor_outside_requested_active_siblings() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[
+                op(WorkspaceOperation::CreateFolder {
+                    id: "folder".into(),
+                    title: "Folder".into(),
+                    placement: NodePlacement::last(None),
+                    at: 1,
+                }),
+                create_placed_note("nested", NodePlacement::last(Some("folder".into())), 2),
+            ])
+            .expect("seed nodes");
+
+        assert!(matches!(
+            storage.apply_operations(&[create_placed_note(
+                "wrong-parent",
+                NodePlacement::before(None, "nested"),
+                3,
+            )]),
+            Err(StorageError::InvalidOperation(_))
+        ));
+        storage
+            .apply_operations(&[op(WorkspaceOperation::TrashSubtree {
+                root_id: "nested".into(),
+                at: 3,
+            })])
+            .expect("trash anchor");
+        assert!(matches!(
+            storage.apply_operations(&[create_placed_note(
+                "trashed-anchor",
+                NodePlacement::before(Some("folder".into()), "nested"),
+                4,
+            )]),
+            Err(StorageError::InvalidOperation(_))
+        ));
+    }
+
+    #[test]
+    fn repeated_insertion_compacts_only_destination_siblings() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[
+                create_placed_note("a", NodePlacement::last(None), 1),
+                create_placed_note("b", NodePlacement::last(None), 2),
+                op(WorkspaceOperation::CreateFolder {
+                    id: "folder".into(),
+                    title: "Folder".into(),
+                    placement: NodePlacement::last(None),
+                    at: 3,
+                }),
+                create_placed_note("nested", NodePlacement::last(Some("folder".into())), 4),
+            ])
+            .expect("seed sibling sets");
+
+        let mut compaction_ack = None;
+        for index in 0..11 {
+            let id = format!("x{index:02}");
+            let ack = storage
+                .apply_operations(&[create_placed_note(
+                    &id,
+                    NodePlacement::after(None, "a"),
+                    10 + index,
+                )])
+                .expect("insert after anchor");
+            if ack.rank_changes.len() > 1 {
+                compaction_ack = Some(ack);
+            }
+        }
+
+        let ack = compaction_ack.expect("rank compaction acknowledgement");
+        assert!(ack.rank_changes.iter().any(|change| change.id == "x10"));
+        assert!(!ack.rank_changes.iter().any(|change| change.id == "nested"));
+        let snapshot = storage.bootstrap().expect("bootstrap");
+        let root_ranks = snapshot
+            .nodes
+            .iter()
+            .filter(|node| node.parent_id.is_none())
+            .map(|node| node.rank)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            root_ranks,
+            (1..=root_ranks.len())
+                .map(|position| i64::try_from(position).expect("rank position") * 1024)
+                .collect::<Vec<_>>()
+        );
+        let nested = snapshot
+            .nodes
+            .iter()
+            .find(|node| node.id == "nested")
+            .expect("nested note");
+        assert_eq!(nested.rank, 1024);
+        assert_eq!(
+            ordered_ids(&storage, None),
+            [
+                "a", "x10", "x09", "x08", "x07", "x06", "x05", "x04", "x03", "x02", "x01", "x00",
+                "b", "folder",
+            ]
+        );
+    }
+
+    #[test]
+    fn compaction_uses_id_ties_deterministically() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[
+                create_placed_note("b", NodePlacement::last(None), 1),
+                create_placed_note("a", NodePlacement::last(None), 2),
+            ])
+            .expect("seed notes");
+        {
+            let connection = storage.lock().expect("database lock");
+            connection
+                .execute("UPDATE workspace_nodes SET rank = 100", [])
+                .expect("create deterministic tie");
+        }
+
+        let ack = storage
+            .apply_operations(&[create_placed_note(
+                "between",
+                NodePlacement::after(None, "a"),
+                3,
+            )])
+            .expect("compact tied ranks");
+
+        assert_eq!(ordered_ids(&storage, None), ["a", "between", "b"]);
+        assert_eq!(ack.rank_changes.len(), 3);
+        assert_eq!(
+            ack.rank_changes
+                .iter()
+                .map(|change| change.id.as_str())
+                .collect::<Vec<_>>(),
+            ["a", "b", "between"]
+        );
+    }
+
+    #[test]
+    fn compaction_rolls_back_with_failed_operation_batch() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[
+                create_placed_note("a", NodePlacement::last(None), 1),
+                create_placed_note("b", NodePlacement::last(None), 2),
+            ])
+            .expect("seed notes");
+        for index in 0..10 {
+            let id = format!("x{index:02}");
+            storage
+                .apply_operations(&[create_placed_note(
+                    &id,
+                    NodePlacement::after(None, "a"),
+                    10 + index,
+                )])
+                .expect("consume midpoint gap");
+        }
+        let before = storage
+            .bootstrap()
+            .expect("bootstrap before rollback")
+            .nodes
+            .into_iter()
+            .map(|node| (node.id, node.rank))
+            .collect::<Vec<_>>();
+
+        storage
+            .apply_operations(&[
+                create_placed_note("x10", NodePlacement::after(None, "a"), 30),
+                op(WorkspaceOperation::RenameNode {
+                    id: "missing".into(),
+                    title: "Missing".into(),
+                    at: 30,
+                }),
+            ])
+            .expect_err("rollback compaction batch");
+        let after = storage
+            .bootstrap()
+            .expect("bootstrap after rollback")
+            .nodes
+            .into_iter()
+            .map(|node| (node.id, node.rank))
+            .collect::<Vec<_>>();
+
+        assert_eq!(after, before);
+        assert!(!after.iter().any(|(id, _)| id == "x10"));
+    }
+
+    #[test]
+    fn batched_rank_changes_coalesce_to_final_state() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[
+                create_placed_note("a", NodePlacement::last(None), 1),
+                create_placed_note("b", NodePlacement::last(None), 2),
+            ])
+            .expect("seed notes");
+
+        let ack = storage
+            .apply_operations(&[
+                op(WorkspaceOperation::MoveNode {
+                    id: "a".into(),
+                    placement: NodePlacement::last(None),
+                    at: 3,
+                }),
+                op(WorkspaceOperation::MoveNode {
+                    id: "a".into(),
+                    placement: NodePlacement::first(None),
+                    at: 4,
+                }),
+            ])
+            .expect("move note twice");
+
+        assert_eq!(ack.rank_changes.len(), 1);
+        assert_eq!(ack.rank_changes[0].id, "a");
+        assert_eq!(ack.rank_changes[0].rank, 1024);
+        assert_eq!(ordered_ids(&storage, None), ["a", "b"]);
+    }
+
+    #[test]
+    #[ignore = "manual backend performance measurement"]
+    fn benchmarks_5000_sibling_placements() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        let operations = (0..5000)
+            .map(|index| {
+                create_placed_note(
+                    &format!("note-{index:04}"),
+                    NodePlacement::last(None),
+                    i64::from(index),
+                )
+            })
+            .collect::<Vec<_>>();
+        let started = Instant::now();
+        let ack = storage
+            .apply_operations(&operations)
+            .expect("place 5000 siblings");
+        let elapsed = started.elapsed();
+
+        assert_eq!(ack.applied, 5000);
+        assert_eq!(ack.rank_changes.len(), 5000);
+        assert_eq!(storage.bootstrap().expect("bootstrap").nodes.len(), 5000);
+        eprintln!("5000 sibling placements: {elapsed:?}");
     }
 
     #[test]
@@ -1670,16 +2205,14 @@ mod tests {
             .apply_operations(&[
                 op(WorkspaceOperation::CreateFolder {
                     id: "parent".into(),
-                    parent_id: None,
                     title: "Parent".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(None),
                     at: 1,
                 }),
                 op(WorkspaceOperation::CreateFolder {
                     id: "child".into(),
-                    parent_id: Some("parent".into()),
                     title: "Child".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(Some("parent".into())),
                     at: 2,
                 }),
             ])
@@ -1688,8 +2221,7 @@ mod tests {
         let error = storage
             .apply_operations(&[op(WorkspaceOperation::MoveNode {
                 id: "parent".into(),
-                parent_id: Some("child".into()),
-                rank: 1024,
+                placement: NodePlacement::last(Some("child".into())),
                 at: 3,
             })])
             .expect_err("cycle must fail");
@@ -1834,16 +2366,14 @@ mod tests {
             .apply_operations(&[
                 op(WorkspaceOperation::CreateFolder {
                     id: "folder-1".into(),
-                    parent_id: None,
                     title: "Folder".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(None),
                     at: 1,
                 }),
                 op(WorkspaceOperation::CreateNote {
                     id: "note-1".into(),
-                    parent_id: Some("folder-1".into()),
                     title: "Imported".into(),
-                    rank: 1024,
+                    placement: NodePlacement::last(Some("folder-1".into())),
                     document_json: json!({"type": "doc", "content": []}),
                     markdown: "# Portable archive".into(),
                     at: 2,
@@ -2007,8 +2537,7 @@ mod tests {
             },
             WorkspaceOperation::MoveNode {
                 id: "folder-child".into(),
-                parent_id: None,
-                rank: 2048,
+                placement: NodePlacement::last(None),
                 at: 11,
             },
             WorkspaceOperation::SaveDocument {
@@ -2024,9 +2553,8 @@ mod tests {
             },
             WorkspaceOperation::CreateNote {
                 id: "hidden-new-note".into(),
-                parent_id: Some("folder-child".into()),
                 title: "Hidden".into(),
-                rank: 2048,
+                placement: NodePlacement::last(Some("folder-child".into())),
                 document_json: json!({"type": "doc"}),
                 markdown: String::new(),
                 at: 11,
@@ -2061,8 +2589,7 @@ mod tests {
         assert!(matches!(
             storage.apply_operations(&[op(WorkspaceOperation::RestoreSubtree {
                 root_id: "note-nested".into(),
-                parent_id: Some("folder-child".into()),
-                rank: 1024,
+                placement: NodePlacement::last(Some("folder-child".into())),
                 at: 7,
             })]),
             Err(StorageError::InvalidOperation(_))
@@ -2070,8 +2597,7 @@ mod tests {
         assert!(matches!(
             storage.apply_operations(&[op(WorkspaceOperation::RestoreSubtree {
                 root_id: "note-nested".into(),
-                parent_id: Some("missing-folder".into()),
-                rank: 1024,
+                placement: NodePlacement::last(Some("missing-folder".into())),
                 at: 7,
             })]),
             Err(StorageError::NotFound(_))
@@ -2080,8 +2606,7 @@ mod tests {
         storage
             .apply_operations(&[op(WorkspaceOperation::RestoreSubtree {
                 root_id: "folder-root".into(),
-                parent_id: None,
-                rank: 1024,
+                placement: NodePlacement::last(None),
                 at: 8,
             })])
             .expect("restore parent subtree");
@@ -2095,8 +2620,7 @@ mod tests {
         storage
             .apply_operations(&[op(WorkspaceOperation::RestoreSubtree {
                 root_id: "note-nested".into(),
-                parent_id: Some("folder-child".into()),
-                rank: 1024,
+                placement: NodePlacement::last(Some("folder-child".into())),
                 at: 9,
             })])
             .expect("restore independent note");

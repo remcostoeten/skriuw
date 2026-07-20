@@ -19,12 +19,12 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Versioned portable archive with transactional replace import and integrity reporting.
 - Verified online SQLite backup, create-new restore, and import safety backup.
 - Explicit inherited subtree trash, restore fallback, retention-guarded permanent purge, and atomic projection cleanup.
+- Backend-owned semantic tree placement, midpoint ranks, destination-only compaction, and reconciliation acknowledgements.
 - Repository rules, scripts, CI, ADRs, data model, and performance contract.
 
 ## Remaining backend work
 
 - Scheduled backup rotation and desktop recovery UI.
-- Rank allocation and transactional sibling-rank compaction.
 - Settings and metadata schemas with compatibility tests.
 - Representative 1,000-note and 5,000-note fixtures.
 - Storage lifecycle, error taxonomy, diagnostics, and graceful worker shutdown.

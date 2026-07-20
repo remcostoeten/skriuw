@@ -31,6 +31,8 @@ pub enum OperationValidationError {
     InvalidRevision { maximum: i64 },
     #[error("node cannot be its own parent")]
     SelfParent,
+    #[error("node cannot be placed relative to itself")]
+    SelfAnchor,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -283,6 +285,64 @@ pub struct WorkspaceOperationEnvelope {
     pub operation: WorkspaceOperation,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NodePlacement {
+    pub parent_id: Option<String>,
+    pub position: NodePosition,
+}
+
+impl NodePlacement {
+    #[must_use]
+    pub fn first(parent_id: Option<String>) -> Self {
+        Self {
+            parent_id,
+            position: NodePosition::First,
+        }
+    }
+
+    #[must_use]
+    pub fn last(parent_id: Option<String>) -> Self {
+        Self {
+            parent_id,
+            position: NodePosition::Last,
+        }
+    }
+
+    #[must_use]
+    pub fn before(parent_id: Option<String>, anchor_id: impl Into<String>) -> Self {
+        Self {
+            parent_id,
+            position: NodePosition::Before {
+                anchor_id: anchor_id.into(),
+            },
+        }
+    }
+
+    #[must_use]
+    pub fn after(parent_id: Option<String>, anchor_id: impl Into<String>) -> Self {
+        Self {
+            parent_id,
+            position: NodePosition::After {
+                anchor_id: anchor_id.into(),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(
+    tag = "type",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum NodePosition {
+    First,
+    Last,
+    Before { anchor_id: String },
+    After { anchor_id: String },
+}
+
 impl WorkspaceOperationEnvelope {
     #[must_use]
     pub fn v1(operation: WorkspaceOperation) -> Self {
@@ -311,16 +371,14 @@ impl WorkspaceOperationEnvelope {
 pub enum WorkspaceOperation {
     CreateFolder {
         id: String,
-        parent_id: Option<String>,
         title: String,
-        rank: i64,
+        placement: NodePlacement,
         at: i64,
     },
     CreateNote {
         id: String,
-        parent_id: Option<String>,
         title: String,
-        rank: i64,
+        placement: NodePlacement,
         document_json: Value,
         markdown: String,
         at: i64,
@@ -332,8 +390,7 @@ pub enum WorkspaceOperation {
     },
     MoveNode {
         id: String,
-        parent_id: Option<String>,
-        rank: i64,
+        placement: NodePlacement,
         at: i64,
     },
     SaveDocument {
@@ -350,8 +407,7 @@ pub enum WorkspaceOperation {
     },
     RestoreSubtree {
         root_id: String,
-        parent_id: Option<String>,
-        rank: i64,
+        placement: NodePlacement,
         at: i64,
     },
     PurgeSubtree {
@@ -372,31 +428,29 @@ impl WorkspaceOperation {
         match self {
             Self::CreateFolder {
                 id,
-                parent_id,
                 title,
+                placement,
                 at,
                 ..
             } => {
                 validate_id("id", id)?;
-                validate_optional_id("parent id", parent_id)?;
                 validate_title(title)?;
                 validate_timestamp(*at)?;
-                validate_parent(id, parent_id)
+                validate_placement(id, placement)
             }
             Self::CreateNote {
                 id,
-                parent_id,
                 title,
+                placement,
                 document_json,
                 at,
                 ..
             } => {
                 validate_id("id", id)?;
-                validate_optional_id("parent id", parent_id)?;
                 validate_title(title)?;
                 validate_document(document_json)?;
                 validate_timestamp(*at)?;
-                validate_parent(id, parent_id)
+                validate_placement(id, placement)
             }
             Self::RenameNode { id, title, at } => {
                 validate_id("id", id)?;
@@ -404,18 +458,17 @@ impl WorkspaceOperation {
                 validate_timestamp(*at)
             }
             Self::MoveNode {
-                id, parent_id, at, ..
+                id, placement, at, ..
             }
             | Self::RestoreSubtree {
                 root_id: id,
-                parent_id,
+                placement,
                 at,
                 ..
             } => {
                 validate_id("id", id)?;
-                validate_optional_id("parent id", parent_id)?;
                 validate_timestamp(*at)?;
-                validate_parent(id, parent_id)
+                validate_placement(id, placement)
             }
             Self::SaveDocument {
                 note_id,
@@ -535,6 +588,21 @@ fn validate_parent(id: &str, parent_id: &Option<String>) -> Result<(), Operation
     }
 }
 
+fn validate_placement(id: &str, placement: &NodePlacement) -> Result<(), OperationValidationError> {
+    validate_optional_id("parent id", &placement.parent_id)?;
+    validate_parent(id, &placement.parent_id)?;
+    let anchor_id = match &placement.position {
+        NodePosition::First | NodePosition::Last => return Ok(()),
+        NodePosition::Before { anchor_id } | NodePosition::After { anchor_id } => anchor_id,
+    };
+    validate_id("anchor id", anchor_id)?;
+    if anchor_id == id {
+        Err(OperationValidationError::SelfAnchor)
+    } else {
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct EntityRevision {
@@ -544,9 +612,18 @@ pub struct EntityRevision {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct NodeRankChange {
+    pub id: String,
+    pub parent_id: Option<String>,
+    pub rank: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct OperationAck {
     pub applied: usize,
     pub revisions: Vec<EntityRevision>,
+    pub rank_changes: Vec<NodeRankChange>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -565,9 +642,9 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArchiveValidationError, NodeKind, OperationValidationError, WORKSPACE_ARCHIVE_VERSION,
-        WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument, WorkspaceNode,
-        WorkspaceOperation, WorkspaceOperationEnvelope,
+        ArchiveValidationError, NodeKind, NodePlacement, OperationValidationError,
+        WORKSPACE_ARCHIVE_VERSION, WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument,
+        WorkspaceNode, WorkspaceOperation, WorkspaceOperationEnvelope,
     };
 
     #[test]
@@ -594,15 +671,30 @@ mod tests {
         assert_eq!(value["operation"]["type"], "purge_subtree");
         assert_eq!(value["operation"]["rootId"], "folder-1");
         assert_eq!(value["operation"]["trashedBefore"], 86_400);
+
+        let placement = WorkspaceOperationEnvelope::v1(WorkspaceOperation::MoveNode {
+            id: "note-1".into(),
+            placement: NodePlacement::before(Some("folder-1".into()), "note-2"),
+            at: 43,
+        });
+        let value = serde_json::to_value(placement).expect("serialize node placement");
+        assert_eq!(value["operation"]["placement"]["parentId"], "folder-1");
+        assert_eq!(
+            value["operation"]["placement"]["position"]["type"],
+            "before"
+        );
+        assert_eq!(
+            value["operation"]["placement"]["position"]["anchorId"],
+            "note-2"
+        );
     }
 
     #[test]
     fn validates_portable_operation_rules() {
         let invalid_id = WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreateFolder {
             id: "../folder".into(),
-            parent_id: None,
             title: "Folder".into(),
-            rank: 1024,
+            placement: NodePlacement::last(None),
             at: 1,
         });
         assert!(matches!(
@@ -630,6 +722,16 @@ mod tests {
         assert_eq!(
             invalid_cutoff.validate(),
             Err(OperationValidationError::NegativeTimestamp)
+        );
+
+        let self_anchor = WorkspaceOperationEnvelope::v1(WorkspaceOperation::MoveNode {
+            id: "note-1".into(),
+            placement: NodePlacement::after(None, "note-1"),
+            at: 1,
+        });
+        assert_eq!(
+            self_anchor.validate(),
+            Err(OperationValidationError::SelfAnchor)
         );
     }
 

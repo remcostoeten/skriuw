@@ -8,7 +8,7 @@ Last reviewed: 2026-07-20
 - [x] Work isolated on `feat/instant-local-first-foundation`.
 - [x] Logical commits created; working tree clean at last review.
 - [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
-- [x] 40 backend tests pass.
+- [x] 46 backend tests pass; one manual rank benchmark is ignored by the default suite.
 - [x] No frontend, desktop shell, router, React dependency, or editor dependency exists.
 - [x] No Git remote is configured.
 
@@ -51,15 +51,17 @@ Implemented contract: direct trash markers are inherited through ancestry. Resto
 
 ## P0: ordering and rank allocation
 
-- [ ] Record rank-allocation decision in an ADR.
-- [ ] Stop requiring UI code to invent durable raw ranks without backend guidance.
-- [ ] Define first, last, before, after, and move-to-folder placement semantics.
-- [ ] Allocate midpoint ranks when space exists.
-- [ ] Compact only one sibling set when no midpoint exists.
-- [ ] Return all rank changes required for optimistic-state reconciliation.
-- [ ] Preserve stable ordering across desktop and future web adapters.
-- [ ] Test root and nested lists, repeated insertion, compaction, rollback, and deterministic ties.
-- [ ] Benchmark 5,000 sibling operations outside the navigation path.
+- [x] Record rank-allocation decision in an ADR.
+- [x] Stop requiring UI code to invent durable raw ranks without backend guidance.
+- [x] Define first, last, before, after, and move-to-folder placement semantics.
+- [x] Allocate midpoint ranks when space exists.
+- [x] Compact only one sibling set when no midpoint exists.
+- [x] Return all rank changes required for optimistic-state reconciliation.
+- [x] Preserve stable ordering across desktop and future web adapters.
+- [x] Test root and nested lists, repeated insertion, compaction, rollback, and deterministic ties.
+- [x] Benchmark 5,000 sibling operations outside the navigation path.
+
+Measured result: five optimized-build samples for one atomic batch of 5,000 root-note placements had a 1.805-second median on the recorded development machine. See `docs/benchmarks/2026-07-20-rank-allocation.md`.
 
 ## P1: storage lifecycle and recovery
 
