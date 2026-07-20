@@ -4,6 +4,7 @@ members = [
     "crates/skriuw-storage",
     "crates/skriuw-sqlite",
     "crates/skriuw-runtime",
+    "crates/skriuw-history",
     "crates/skriuw-cli",
     "xtask",
 ]

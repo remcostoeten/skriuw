@@ -1,0 +1,15 @@
+[package]
+name = "skriuw-history"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+skriuw-storage = { path = "../skriuw-storage" }
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+skriuw-domain = { path = "../skriuw-domain" }
+skriuw-sqlite = { path = "../skriuw-sqlite" }
