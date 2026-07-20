@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Waypoints } from "lucide-react";
+import { Maximize, Minus, Plus, Waypoints } from "lucide-react";
 import { useAuth } from "@/core/auth/use-auth";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { recordGuestGraphExplore } from "@/core/workspace-backend";
@@ -468,6 +468,18 @@ function GraphCanvas({
 		[getNodeColor, isMobile],
 	);
 
+	const zoomBy = useCallback((factor: number) => {
+		const graph = graphRef.current;
+		if (!graph) return;
+		graph.zoom(graph.zoom() * factor, 250);
+	}, []);
+
+	const zoomIn = useCallback(() => zoomBy(1.5), [zoomBy]);
+	const zoomOut = useCallback(() => zoomBy(1 / 1.5), [zoomBy]);
+	const fitView = useCallback(() => {
+		graphRef.current?.zoomToFit(500, isMobile ? 32 : 80);
+	}, [isMobile]);
+
 	return (
 		<div
 			ref={containerRef}
@@ -477,6 +489,12 @@ function GraphCanvas({
 				overscrollBehavior: "none",
 			}}
 		>
+			<GraphZoomControls
+				onZoomIn={zoomIn}
+				onZoomOut={zoomOut}
+				onFit={fitView}
+				isMobile={isMobile}
+			/>
 			{size.width > 0 && (
 				<ForceGraph2D
 					ref={graphRef}
@@ -484,6 +502,10 @@ function GraphCanvas({
 					height={size.height}
 					graphData={graphData}
 					backgroundColor="transparent"
+					enableZoomInteraction
+					enablePanInteraction
+					minZoom={0.05}
+					maxZoom={12}
 					nodeRelSize={1}
 					nodeVal={nodeValAccessor}
 					nodeColor={nodeColorAccessor}
@@ -504,6 +526,45 @@ function GraphCanvas({
 					nodeCanvasObject={drawNode}
 				/>
 			)}
+		</div>
+	);
+}
+
+function GraphZoomControls({
+	onZoomIn,
+	onZoomOut,
+	onFit,
+	isMobile,
+}: {
+	onZoomIn: () => void;
+	onZoomOut: () => void;
+	onFit: () => void;
+	isMobile: boolean;
+}) {
+	const buttonClass = `flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground ${
+		isMobile ? "h-11 w-11" : "h-8 w-8"
+	}`;
+	return (
+		<div
+			className="absolute right-3 z-10 flex flex-col divide-y divide-border/60 overflow-hidden rounded-md border border-border bg-card/90 backdrop-blur"
+			style={{
+				bottom: isMobile ? "calc(env(safe-area-inset-bottom) + 4.75rem)" : "1rem",
+			}}
+		>
+			<button type="button" aria-label="Zoom in" onClick={onZoomIn} className={buttonClass}>
+				<Plus className="h-4 w-4" strokeWidth={1.7} />
+			</button>
+			<button type="button" aria-label="Zoom out" onClick={onZoomOut} className={buttonClass}>
+				<Minus className="h-4 w-4" strokeWidth={1.7} />
+			</button>
+			<button
+				type="button"
+				aria-label="Fit graph to view"
+				onClick={onFit}
+				className={buttonClass}
+			>
+				<Maximize className="h-4 w-4" strokeWidth={1.7} />
+			</button>
 		</div>
 	);
 }
