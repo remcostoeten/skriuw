@@ -53,3 +53,7 @@ Small JSON values such as last active note and settings. Secrets never belong he
 - Restore: clear deletion marker and assign parent/rank.
 
 Any partial failure rolls back the complete logical operation.
+
+## Portable archive
+
+The versioned archive contains `workspace_nodes`, `documents`, settings, and active-note state. Import validates the complete domain graph before opening a transaction, replaces canonical state atomically, rebuilds FTS, and enqueues one history baseline per document. It never transports migration rows, FTS internals, cache rows, or queue leases.

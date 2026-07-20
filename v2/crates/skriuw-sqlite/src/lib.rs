@@ -10,12 +10,12 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use skriuw_domain::{
     EntityRevision, HistoryHeader, NodeKind, OperationAck, OperationValidationError, SearchHit,
-    WORKSPACE_PROTOCOL_VERSION, WorkspaceDocument, WorkspaceNode, WorkspaceOperation,
-    WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument, WorkspaceNode,
+    WorkspaceOperation, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use skriuw_storage::{
-    HistoryCache, HistoryMaterialization, HistoryQueue, PendingHistoryRevision, StorageError,
-    WorkspaceStorage,
+    HistoryCache, HistoryMaterialization, HistoryQueue, ImportSummary, IntegrityReport,
+    PendingHistoryRevision, StorageError, WorkspaceMaintenance, WorkspaceStorage,
 };
 use uuid::Uuid;
 
@@ -345,10 +345,12 @@ impl WorkspaceStorage for SqliteWorkspace {
         let connection = self.lock()?;
         let mut statement = connection
             .prepare_cached(
-                "SELECT note_id, title, snippet(documents_fts, 2, '<mark>', '</mark>', '…', 24), \
+                "SELECT documents_fts.note_id, documents_fts.title, \
+                 snippet(documents_fts, 2, '<mark>', '</mark>', '…', 24), \
                  bm25(documents_fts) \
                  FROM documents_fts \
-                 WHERE documents_fts MATCH ?1 \
+                 JOIN workspace_nodes ON workspace_nodes.id = documents_fts.note_id \
+                 WHERE documents_fts MATCH ?1 AND workspace_nodes.deleted_at IS NULL \
                  ORDER BY bm25(documents_fts) \
                  LIMIT ?2",
             )
@@ -365,6 +367,174 @@ impl WorkspaceStorage for SqliteWorkspace {
             .map_err(backend)?;
 
         rows.collect::<Result<Vec<_>, _>>().map_err(backend)
+    }
+}
+
+impl WorkspaceMaintenance for SqliteWorkspace {
+    fn export_archive(&self, exported_at: i64) -> Result<WorkspaceArchive, StorageError> {
+        let archive = WorkspaceArchive::v1(self.bootstrap()?, exported_at);
+        archive
+            .validate()
+            .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
+        Ok(archive)
+    }
+
+    fn replace_from_archive(
+        &self,
+        archive: &WorkspaceArchive,
+    ) -> Result<ImportSummary, StorageError> {
+        archive
+            .validate()
+            .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
+        let mut connection = self.lock()?;
+        let transaction = connection.transaction().map_err(backend)?;
+        transaction
+            .execute_batch(
+                "DELETE FROM history_outbox;\
+                 DELETE FROM history_cache;\
+                 DELETE FROM documents_fts;\
+                 DELETE FROM documents;\
+                 DELETE FROM workspace_nodes;\
+                 DELETE FROM app_state;",
+            )
+            .map_err(backend)?;
+
+        for node in &archive.nodes {
+            transaction
+                .execute(
+                    "INSERT INTO workspace_nodes \
+                     (id, kind, parent_id, rank, title, icon, created_at, updated_at, deleted_at) \
+                     VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    params![
+                        node.id,
+                        match node.kind {
+                            NodeKind::Note => "note",
+                            NodeKind::Folder => "folder",
+                        },
+                        node.rank,
+                        node.title,
+                        node.icon,
+                        node.created_at,
+                        node.updated_at,
+                        node.deleted_at
+                    ],
+                )
+                .map_err(backend)?;
+        }
+        for node in archive.nodes.iter().filter(|node| node.parent_id.is_some()) {
+            transaction
+                .execute(
+                    "UPDATE workspace_nodes SET parent_id = ?2 WHERE id = ?1",
+                    params![node.id, node.parent_id],
+                )
+                .map_err(backend)?;
+        }
+
+        for document in &archive.documents {
+            transaction
+                .execute(
+                    "INSERT INTO documents \
+                     (note_id, document_json, markdown, revision, word_count) \
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        document.note_id,
+                        document.document_json.to_string(),
+                        document.markdown,
+                        document.revision,
+                        document.word_count
+                    ],
+                )
+                .map_err(backend)?;
+            let title = archive
+                .nodes
+                .iter()
+                .find(|node| node.id == document.note_id)
+                .map(|node| node.title.as_str())
+                .ok_or_else(|| StorageError::NotFound(document.note_id.clone()))?;
+            replace_fts(&transaction, &document.note_id, title, &document.markdown)?;
+            enqueue_history(
+                &transaction,
+                &document.note_id,
+                document.revision,
+                &document.markdown,
+                archive
+                    .nodes
+                    .iter()
+                    .find(|node| node.id == document.note_id)
+                    .map(|node| node.updated_at)
+                    .unwrap_or(archive.exported_at),
+            )?;
+        }
+
+        for (key, value) in &archive.settings {
+            transaction
+                .execute(
+                    "INSERT INTO app_state(key, value_json) VALUES (?1, ?2)",
+                    params![format!("setting:{key}"), value.to_string()],
+                )
+                .map_err(backend)?;
+        }
+        if let Some(active_note_id) = &archive.active_note_id {
+            transaction
+                .execute(
+                    "INSERT INTO app_state(key, value_json) VALUES ('active_note_id', ?1)",
+                    [serde_json::to_string(&Some(active_note_id)).map_err(json_backend)?],
+                )
+                .map_err(backend)?;
+        }
+
+        transaction.commit().map_err(backend)?;
+        Ok(ImportSummary {
+            nodes: archive.nodes.len(),
+            documents: archive.documents.len(),
+            history_items: archive.documents.len(),
+        })
+    }
+
+    fn integrity_check(&self) -> Result<IntegrityReport, StorageError> {
+        let mut issues = {
+            let connection = self.lock()?;
+            let results = {
+                let mut statement = connection
+                    .prepare("PRAGMA integrity_check")
+                    .map_err(backend)?;
+                statement
+                    .query_map([], |row| row.get::<_, String>(0))
+                    .map_err(backend)?
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(backend)?
+            };
+            let violations = {
+                let mut statement = connection
+                    .prepare("PRAGMA foreign_key_check")
+                    .map_err(backend)?;
+                statement
+                    .query_map([], |row| {
+                        Ok(format!(
+                            "foreign key violation in {} row {} referencing {}",
+                            row.get::<_, String>(0)?,
+                            row.get::<_, i64>(1)?,
+                            row.get::<_, String>(2)?
+                        ))
+                    })
+                    .map_err(backend)?
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(backend)?
+            };
+            let mut issues = results
+                .into_iter()
+                .filter(|result| result != "ok")
+                .collect::<Vec<_>>();
+            issues.extend(violations);
+            issues
+        };
+        if let Err(error) = WorkspaceArchive::v1(self.bootstrap()?, 0).validate() {
+            issues.push(error.to_string());
+        }
+        Ok(IntegrityReport {
+            healthy: issues.is_empty(),
+            issues,
+        })
     }
 }
 
@@ -1018,7 +1188,7 @@ mod tests {
     use rusqlite::Connection;
     use serde_json::json;
     use skriuw_domain::{HistoryHeader, WorkspaceOperation, WorkspaceOperationEnvelope};
-    use skriuw_storage::{HistoryCache, StorageError, WorkspaceStorage};
+    use skriuw_storage::{HistoryCache, StorageError, WorkspaceMaintenance, WorkspaceStorage};
 
     use super::{SqliteWorkspace, checksum};
 
@@ -1263,5 +1433,100 @@ mod tests {
 
         assert_eq!(snapshot.history_headers.len(), 1);
         assert_eq!(snapshot.history_headers[0].version_id, "version-old");
+    }
+
+    #[test]
+    fn exports_and_replaces_workspace_from_portable_archive() {
+        let source = SqliteWorkspace::open_in_memory().expect("open source database");
+        source
+            .apply_operations(&[
+                op(WorkspaceOperation::CreateFolder {
+                    id: "folder-1".into(),
+                    parent_id: None,
+                    title: "Folder".into(),
+                    rank: 1024,
+                    at: 1,
+                }),
+                op(WorkspaceOperation::CreateNote {
+                    id: "note-1".into(),
+                    parent_id: Some("folder-1".into()),
+                    title: "Imported".into(),
+                    rank: 1024,
+                    document_json: json!({"type": "doc", "content": []}),
+                    markdown: "# Portable archive".into(),
+                    at: 2,
+                }),
+                op(WorkspaceOperation::SetSetting {
+                    key: "theme".into(),
+                    value: json!("dark"),
+                }),
+                op(WorkspaceOperation::SetActiveNote {
+                    note_id: Some("note-1".into()),
+                }),
+            ])
+            .expect("seed source");
+        let archive = source.export_archive(100).expect("export archive");
+        let target = SqliteWorkspace::open_in_memory().expect("open target database");
+        target
+            .apply_operations(&[create_note("replaced-note")])
+            .expect("seed target");
+
+        let summary = target
+            .replace_from_archive(&archive)
+            .expect("replace from archive");
+        let round_trip = target.export_archive(100).expect("export imported archive");
+
+        assert_eq!(summary.nodes, 2);
+        assert_eq!(summary.documents, 1);
+        assert_eq!(summary.history_items, 1);
+        assert_eq!(round_trip, archive);
+        assert_eq!(target.search("Portable", 10).expect("search").len(), 1);
+    }
+
+    #[test]
+    fn invalid_archive_cannot_replace_existing_workspace() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[create_note("note-1")])
+            .expect("create note");
+        let before = storage.bootstrap().expect("bootstrap before import");
+        let mut archive = storage.export_archive(100).expect("export archive");
+        archive.documents.clear();
+
+        storage
+            .replace_from_archive(&archive)
+            .expect_err("reject invalid archive");
+        let after = storage.bootstrap().expect("bootstrap after import");
+
+        assert_eq!(after, before);
+    }
+
+    #[test]
+    fn integrity_check_covers_sqlite_and_domain_state() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[create_note("note-1")])
+            .expect("create note");
+
+        let report = storage.integrity_check().expect("integrity check");
+
+        assert!(report.healthy);
+        assert!(report.issues.is_empty());
+    }
+
+    #[test]
+    fn search_excludes_deleted_notes() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[create_note("note-1")])
+            .expect("create note");
+        storage
+            .apply_operations(&[op(WorkspaceOperation::SoftDeleteNode {
+                id: "note-1".into(),
+                at: 2,
+            })])
+            .expect("delete note");
+
+        assert!(storage.search("SQLite", 10).expect("search").is_empty());
     }
 }

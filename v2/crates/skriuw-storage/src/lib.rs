@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use skriuw_domain::{
-    HistoryHeader, OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    HistoryHeader, OperationAck, SearchHit, WorkspaceArchive, WorkspaceOperationEnvelope,
+    WorkspaceSnapshot,
 };
 use thiserror::Error;
 
@@ -32,6 +33,30 @@ pub trait WorkspaceStorage: Send + Sync {
     ) -> Result<OperationAck, StorageError>;
 
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, StorageError>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportSummary {
+    pub nodes: usize,
+    pub documents: usize,
+    pub history_items: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IntegrityReport {
+    pub healthy: bool,
+    pub issues: Vec<String>,
+}
+
+pub trait WorkspaceMaintenance: Send + Sync {
+    fn export_archive(&self, exported_at: i64) -> Result<WorkspaceArchive, StorageError>;
+
+    fn replace_from_archive(
+        &self,
+        archive: &WorkspaceArchive,
+    ) -> Result<ImportSummary, StorageError>;
+
+    fn integrity_check(&self) -> Result<IntegrityReport, StorageError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,6 +119,26 @@ where
 
     fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, StorageError> {
         self.as_ref().search(query, limit)
+    }
+}
+
+impl<T> WorkspaceMaintenance for Arc<T>
+where
+    T: WorkspaceMaintenance + ?Sized,
+{
+    fn export_archive(&self, exported_at: i64) -> Result<WorkspaceArchive, StorageError> {
+        self.as_ref().export_archive(exported_at)
+    }
+
+    fn replace_from_archive(
+        &self,
+        archive: &WorkspaceArchive,
+    ) -> Result<ImportSummary, StorageError> {
+        self.as_ref().replace_from_archive(archive)
+    }
+
+    fn integrity_check(&self) -> Result<IntegrityReport, StorageError> {
+        self.as_ref().integrity_check()
     }
 }
 

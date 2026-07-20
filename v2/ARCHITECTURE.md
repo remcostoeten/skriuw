@@ -69,6 +69,10 @@ History is a separate capability. `skriuw-history` coordinates leased queue item
 
 Web uses the same operation protocol and renderer store. A dedicated worker owns SQLite WASM over OPFS. Network sync, if added, consumes a durable outbox and never services note navigation.
 
+### Recovery and portability
+
+`WorkspaceArchive` is the versioned interchange contract for export, import, and cross-runtime migration. It contains canonical workspace state only. Each adapter rebuilds search, history caches, and operational queues locally. Native raw-database backup is a separate SQLite capability and never becomes the web interchange format.
+
 ## Data ownership
 
 - `workspace_nodes`: tree metadata.
@@ -92,3 +96,4 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0004: defer UI and editor selection](docs/adr/0004-defer-ui-editor.md)
 - [ADR-0005: asynchronous Git history](docs/adr/0005-background-git-history.md)
 - [ADR-0006: native Git history materializer](docs/adr/0006-native-git-materializer.md)
+- [ADR-0007: portable workspace archive](docs/adr/0007-portable-workspace-archive.md)

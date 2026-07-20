@@ -7,7 +7,9 @@ use std::{
 };
 
 use schemars::{JsonSchema, schema_for};
-use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
+use skriuw_domain::{
+    OperationAck, SearchHit, WorkspaceArchive, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+};
 
 fn main() -> ExitCode {
     match run() {
@@ -33,6 +35,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     write_schema::<WorkspaceOperationEnvelope>(&output, "workspace-operation.schema.json", check)?;
     write_schema::<WorkspaceSnapshot>(&output, "workspace-snapshot.schema.json", check)?;
+    write_schema::<WorkspaceArchive>(&output, "workspace-archive.schema.json", check)?;
     write_schema::<OperationAck>(&output, "operation-ack.schema.json", check)?;
     write_schema::<SearchHit>(&output, "search-hit.schema.json", check)?;
     Ok(())

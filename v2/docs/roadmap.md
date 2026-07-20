@@ -16,11 +16,12 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Backend-neutral leased history queue and retryable materialization worker.
 - Native idempotent Git materializer isolated from portable and web crates.
 - Backend-neutral history reads and atomic cache rebuild from Git.
+- Versioned portable archive with transactional replace import and integrity reporting.
 - Repository rules, scripts, CI, ADRs, data model, and performance contract.
 
 ## Remaining backend work
 
-- Backup, restore, integrity recovery, export, and import workflows.
+- Native online backup, verified restore, and user-facing recovery workflow.
 - Explicit trash retention and permanent-delete rules.
 - Rank allocation and transactional sibling-rank compaction.
 - Settings and metadata schemas with compatibility tests.

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -6,6 +6,7 @@ use serde_json::Value;
 use thiserror::Error;
 
 pub const WORKSPACE_PROTOCOL_VERSION: u16 = 1;
+pub const WORKSPACE_ARCHIVE_VERSION: u16 = 1;
 pub const MAX_ENTITY_ID_BYTES: usize = 128;
 pub const MAX_TITLE_BYTES: usize = 512;
 pub const MAX_SETTING_KEY_BYTES: usize = 128;
@@ -30,6 +31,16 @@ pub enum OperationValidationError {
     InvalidRevision { maximum: i64 },
     #[error("node cannot be its own parent")]
     SelfParent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ArchiveValidationError {
+    #[error("unsupported workspace archive version {0}")]
+    UnsupportedArchiveVersion(u16),
+    #[error("unsupported workspace protocol version {0}")]
+    UnsupportedProtocol(u16),
+    #[error("invalid workspace archive: {0}")]
+    Invalid(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -81,6 +92,151 @@ pub struct WorkspaceSnapshot {
     pub documents: Vec<WorkspaceDocument>,
     pub history_headers: Vec<HistoryHeader>,
     pub settings: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceArchive {
+    pub archive_version: u16,
+    pub protocol_version: u16,
+    pub exported_at: i64,
+    pub active_note_id: Option<String>,
+    pub nodes: Vec<WorkspaceNode>,
+    pub documents: Vec<WorkspaceDocument>,
+    pub settings: BTreeMap<String, Value>,
+}
+
+impl WorkspaceArchive {
+    #[must_use]
+    pub fn v1(snapshot: WorkspaceSnapshot, exported_at: i64) -> Self {
+        Self {
+            archive_version: WORKSPACE_ARCHIVE_VERSION,
+            protocol_version: snapshot.protocol_version,
+            exported_at,
+            active_note_id: snapshot.active_note_id,
+            nodes: snapshot.nodes,
+            documents: snapshot.documents,
+            settings: snapshot.settings,
+        }
+    }
+
+    pub fn validate(&self) -> Result<(), ArchiveValidationError> {
+        if self.archive_version != WORKSPACE_ARCHIVE_VERSION {
+            return Err(ArchiveValidationError::UnsupportedArchiveVersion(
+                self.archive_version,
+            ));
+        }
+        if self.protocol_version != WORKSPACE_PROTOCOL_VERSION {
+            return Err(ArchiveValidationError::UnsupportedProtocol(
+                self.protocol_version,
+            ));
+        }
+        if self.exported_at < 0 {
+            return archive_error("export timestamp cannot be negative");
+        }
+
+        let mut nodes = BTreeMap::new();
+        for node in &self.nodes {
+            validate_id("node id", &node.id).map_err(archive_operation_error)?;
+            validate_title(&node.title).map_err(archive_operation_error)?;
+            validate_timestamp(node.created_at).map_err(archive_operation_error)?;
+            validate_timestamp(node.updated_at).map_err(archive_operation_error)?;
+            if node.created_at > node.updated_at {
+                return archive_error(format!("node {} is updated before creation", node.id));
+            }
+            if node
+                .deleted_at
+                .is_some_and(|deleted_at| deleted_at < node.created_at)
+            {
+                return archive_error(format!("node {} is deleted before creation", node.id));
+            }
+            if nodes.insert(node.id.as_str(), node).is_some() {
+                return archive_error(format!("duplicate node {}", node.id));
+            }
+        }
+
+        for node in &self.nodes {
+            let Some(parent_id) = node.parent_id.as_deref() else {
+                continue;
+            };
+            let parent = nodes.get(parent_id).ok_or_else(|| {
+                ArchiveValidationError::Invalid(format!("missing parent {parent_id}"))
+            })?;
+            if parent.kind != NodeKind::Folder {
+                return archive_error(format!("parent {parent_id} is not a folder"));
+            }
+            let mut ancestors = BTreeSet::new();
+            let mut current = Some(parent_id);
+            while let Some(ancestor_id) = current {
+                if !ancestors.insert(ancestor_id) || ancestor_id == node.id {
+                    return archive_error(format!("node {} has a parent cycle", node.id));
+                }
+                current = nodes
+                    .get(ancestor_id)
+                    .and_then(|ancestor| ancestor.parent_id.as_deref());
+            }
+        }
+
+        let mut documents = BTreeSet::new();
+        for document in &self.documents {
+            validate_id("note id", &document.note_id).map_err(archive_operation_error)?;
+            let node = nodes.get(document.note_id.as_str()).ok_or_else(|| {
+                ArchiveValidationError::Invalid(format!(
+                    "document references missing note {}",
+                    document.note_id
+                ))
+            })?;
+            if node.kind != NodeKind::Note {
+                return archive_error(format!("document {} belongs to a folder", document.note_id));
+            }
+            validate_document(&document.document_json).map_err(archive_operation_error)?;
+            if document.revision < 1 {
+                return archive_error(format!(
+                    "document {} has invalid revision",
+                    document.note_id
+                ));
+            }
+            if document.word_count < 0 {
+                return archive_error(format!(
+                    "document {} has negative word count",
+                    document.note_id
+                ));
+            }
+            if !documents.insert(document.note_id.as_str()) {
+                return archive_error(format!("duplicate document {}", document.note_id));
+            }
+        }
+
+        for node in self.nodes.iter().filter(|node| node.kind == NodeKind::Note) {
+            if !documents.contains(node.id.as_str()) {
+                return archive_error(format!("note {} has no document", node.id));
+            }
+        }
+
+        if let Some(active_note_id) = self.active_note_id.as_deref() {
+            let active = nodes.get(active_note_id).ok_or_else(|| {
+                ArchiveValidationError::Invalid(format!(
+                    "active note {active_note_id} does not exist"
+                ))
+            })?;
+            if active.kind != NodeKind::Note || active.deleted_at.is_some() {
+                return archive_error(format!("active note {active_note_id} is unavailable"));
+            }
+        }
+
+        for key in self.settings.keys() {
+            validate_setting_key(key).map_err(archive_operation_error)?;
+        }
+        Ok(())
+    }
+}
+
+fn archive_error<T>(message: impl Into<String>) -> Result<T, ArchiveValidationError> {
+    Err(ArchiveValidationError::Invalid(message.into()))
+}
+
+fn archive_operation_error(error: OperationValidationError) -> ArchiveValidationError {
+    ArchiveValidationError::Invalid(error.to_string())
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -353,11 +509,14 @@ pub struct SearchHit {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use serde_json::json;
 
     use super::{
-        OperationValidationError, WORKSPACE_PROTOCOL_VERSION, WorkspaceOperation,
-        WorkspaceOperationEnvelope,
+        ArchiveValidationError, NodeKind, OperationValidationError, WORKSPACE_ARCHIVE_VERSION,
+        WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument, WorkspaceNode,
+        WorkspaceOperation, WorkspaceOperationEnvelope,
     };
 
     #[test]
@@ -403,5 +562,92 @@ mod tests {
             invalid_document.validate(),
             Err(OperationValidationError::InvalidDocument)
         );
+    }
+
+    #[test]
+    fn validates_portable_archive_graph() {
+        let archive = WorkspaceArchive {
+            archive_version: WORKSPACE_ARCHIVE_VERSION,
+            protocol_version: WORKSPACE_PROTOCOL_VERSION,
+            exported_at: 10,
+            active_note_id: Some("note-1".into()),
+            nodes: vec![
+                WorkspaceNode {
+                    id: "folder-1".into(),
+                    kind: NodeKind::Folder,
+                    parent_id: None,
+                    rank: 1024,
+                    title: "Folder".into(),
+                    icon: None,
+                    created_at: 1,
+                    updated_at: 1,
+                    deleted_at: None,
+                },
+                WorkspaceNode {
+                    id: "note-1".into(),
+                    kind: NodeKind::Note,
+                    parent_id: Some("folder-1".into()),
+                    rank: 1024,
+                    title: "Note".into(),
+                    icon: None,
+                    created_at: 2,
+                    updated_at: 2,
+                    deleted_at: None,
+                },
+            ],
+            documents: vec![WorkspaceDocument {
+                note_id: "note-1".into(),
+                document_json: json!({"type": "doc"}),
+                markdown: "# Note".into(),
+                revision: 1,
+                word_count: 1,
+            }],
+            settings: BTreeMap::new(),
+        };
+
+        archive.validate().expect("valid archive");
+    }
+
+    #[test]
+    fn rejects_archive_parent_cycle() {
+        let mut archive = WorkspaceArchive {
+            archive_version: WORKSPACE_ARCHIVE_VERSION,
+            protocol_version: WORKSPACE_PROTOCOL_VERSION,
+            exported_at: 10,
+            active_note_id: None,
+            nodes: vec![
+                WorkspaceNode {
+                    id: "folder-1".into(),
+                    kind: NodeKind::Folder,
+                    parent_id: Some("folder-2".into()),
+                    rank: 1024,
+                    title: "One".into(),
+                    icon: None,
+                    created_at: 1,
+                    updated_at: 1,
+                    deleted_at: None,
+                },
+                WorkspaceNode {
+                    id: "folder-2".into(),
+                    kind: NodeKind::Folder,
+                    parent_id: Some("folder-1".into()),
+                    rank: 1024,
+                    title: "Two".into(),
+                    icon: None,
+                    created_at: 1,
+                    updated_at: 1,
+                    deleted_at: None,
+                },
+            ],
+            documents: Vec::new(),
+            settings: BTreeMap::new(),
+        };
+
+        assert!(matches!(
+            archive.validate(),
+            Err(ArchiveValidationError::Invalid(_))
+        ));
+        archive.nodes[1].parent_id = None;
+        archive.validate().expect("repaired archive");
     }
 }
