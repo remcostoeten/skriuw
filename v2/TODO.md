@@ -8,7 +8,7 @@ Last reviewed: 2026-07-20
 - [x] Work isolated on `feat/instant-local-first-foundation`.
 - [x] Logical commits created; working tree clean after the last verified implementation commit.
 - [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
-- [x] 57 backend tests pass; two manual backend benchmarks are ignored by the default suite.
+- [x] 73 backend tests pass; two manual backend benchmarks are ignored by the default suite.
 - [x] No frontend, desktop shell, router, React dependency, or editor dependency exists.
 - [x] No Git remote is configured.
 
@@ -67,7 +67,7 @@ Measured result: five optimized-build samples for one atomic batch of 5,000 root
 
 - [x] Add graceful shutdown and worker join semantics.
 - [x] Define save batching/coalescing without losing revision acknowledgements.
-- [ ] Add bounded diagnostics for runtime, storage, history, backup, and recovery failures.
+- [x] Add bounded diagnostics for runtime, storage, history, backup, and recovery failures.
 - [ ] Add scheduled backup rotation policy.
 - [ ] Add recovery-manifest metadata and retention tests.
 - [ ] Add desktop lifecycle flow for verified database swap after restore.
@@ -78,11 +78,15 @@ Implemented save contract: the runtime groups at most 64 already-queued consecut
 
 ## P1: settings and metadata
 
-- [ ] Define versioned settings schema and defaults.
-- [ ] Define note metadata required by the right sidebar.
-- [ ] Keep people and tags outside MVP.
-- [ ] Add compatibility and unknown-field tests.
-- [ ] Decide which UI state is durable, session-only, or renderer-only.
+- [x] Define versioned settings schema and defaults.
+- [x] Define note metadata required by the right sidebar.
+- [x] Keep people and tags outside MVP.
+- [x] Add compatibility and unknown-field tests.
+- [x] Decide which UI state is durable, session-only, or renderer-only.
+
+Implemented settings contract: one typed version-1 document with explicit defaults replaces untyped per-key values. Unknown fields survive load, save, export, and import; unsupported future versions fail explicitly. Existing canonical node/document/history fields cover the reduced right sidebar, so people, tags, properties, secrets, and renderer-only state remain excluded. Native sidebar expansion persistence is a later UI-linked operation.
+
+Implemented diagnostic contract: stable context/category enums project typed subsystem errors into redacted, normalized messages capped at 1,024 UTF-8 bytes. History retry persistence accepts only a bounded diagnostic record; backup, restore, import, and integrity CLI failures map at their operation boundary. No telemetry or diagnostic upload exists.
 
 ## P1: scale fixtures and backend budgets
 

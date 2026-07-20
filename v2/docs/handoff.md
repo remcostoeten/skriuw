@@ -24,9 +24,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit before this handoff: `f87d72a feat: batch lossless document saves`.
+- Last implementation commit before this handoff: `07ee2f4 feat: add bounded failure diagnostics`.
 - Expected worktree state: clean.
-- Current verification result: 57 tests plus formatting, Clippy, and generated-schema drift checks pass; two manual backend benchmarks are ignored by the default suite and pass when selected.
+- Current verification result: 73 tests plus formatting, Clippy, and generated-schema drift checks pass; two manual backend benchmarks are ignored by the default suite and pass when selected.
 - Rust toolchain: 1.95.0.
 - Ignored local development database: `.data/skriuw.db`.
 
@@ -44,6 +44,7 @@ A later offline-capable web runtime must reuse domain operations, archives, rend
 skriuw-domain
 ├── transport records
 ├── workspace operations
+├── versioned portable settings
 ├── archive contract
 └── pure validation
 
@@ -51,6 +52,7 @@ skriuw-storage
 ├── workspace port
 ├── maintenance port
 ├── history queue/cache ports
+├── bounded diagnostic contract
 └── recovery result types
 
 skriuw-sqlite
@@ -97,6 +99,10 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Dropping the final runtime handle joins the worker; abnormal termination is reported as `RuntimeError::WorkerFailure`.
 - The runtime groups at most 64 already-queued consecutive save-only requests without waiting; every non-save or mixed request remains a FIFO barrier.
 - SQLite commits each grouped save burst in one outer transaction with one savepoint and one result per original request.
+- Settings are one typed version-1 document with explicit defaults and lossless unknown-field extensions; unsupported future versions fail validation.
+- The reduced metadata sidebar derives from canonical node, document, and history fields. People, tags, properties, covers, secrets, and editor-specific metadata remain excluded.
+- Diagnostics use stable context/category enums and normalized messages capped at 1,024 UTF-8 bytes. Public mappings redact adapter details.
+- Local history retry diagnostics are bounded before SQLite persistence, cleared on the next claim, and excluded from snapshots and archives.
 - Generated schemas live in `generated/contracts`.
 - No frontend framework, desktop shell, editor, router, React, React Scan, or package manager has been added.
 - No remote exists; do not claim work is pushed.
@@ -136,19 +142,32 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Five optimized file-backed samples for 1,000 saves capped at 64 requests per transaction had a 79.965-millisecond grouped median versus 107.098 milliseconds sequential, a 25.3% reduction.
 - Raw samples and environment metadata are in `docs/benchmarks/2026-07-20-save-batching.md`.
 
+## Completed settings and metadata slice
+
+- Parallel implementation commit `64cea3f` was reviewed and integrated as `5d0fff5`; stale parallel handoff commit `7a7563d` was not cherry-picked.
+- ADR-0013 defines the complete version-1 settings defaults, whole-document update operation, compatibility policy, extension preservation, state ownership, and reduced metadata surface.
+- Migration 0002 folds pre-release `setting:` rows into the versioned settings document. Generated operation, snapshot, and archive schemas are current.
+- Domain and SQLite regressions cover defaults, partial documents, extension round trips, unsupported versions, migration, persistence, transactional rollback, export, and import.
+
+## Completed bounded-diagnostics slice
+
+- ADR-0014 defines stable runtime, storage, history, backup, recovery, and integrity contexts plus unavailable, invalid-input, not-found, conflict, already-exists, backend, and internal categories.
+- Diagnostic messages normalize whitespace and control characters, preserve UTF-8 boundaries, and cap message data at 1,024 bytes.
+- Typed errors remain internal control flow. Public projections redact backend text, entity IDs, filesystem paths, Git details, and SQLite details.
+- The history queue accepts a bounded diagnostic value instead of an arbitrary error string; SQLite persists its deterministic local display only in operational outbox state.
+- Runtime, storage, history, SQLite persistence, and category-boundary regressions pass. Rebuilt CLI smoke failures produced `backup.already_exists`, `recovery.backend`, and `recovery.invalid_input` without source-path leakage.
+
 ## Known correctness gap
 
-Failures currently cross runtime and storage boundaries as broad string-bearing variants without a bounded diagnostic record or stable category/context contract. Backend text can grow without a persistence limit, and runtime, storage, history, backup, and recovery failures cannot yet be correlated consistently.
+Backups are verified one at a time, but no scheduler, rotation policy, recovery manifest, or retention cleanup contract exists. A desktop shell therefore cannot yet create and prune periodic recovery points deterministically or explain which artifacts are safe to remove.
 
 Immediate next slice:
 
-1. Inventory existing failure variants and persisted error text across runtime, storage, history, backup, restore, import, and integrity paths.
-2. Define a backend-neutral stable error category and bounded diagnostic context contract without exposing filesystem paths or database internals to portable callers.
-3. Cap persisted retry diagnostics deterministically while preserving actionable recent context.
-4. Add regressions for category mapping, maximum sizes, truncation boundaries, and source-error display behavior.
-5. Keep telemetry transport and UI presentation out of this slice; update persistent docs and commit before backup rotation.
-
-Parallel work note: settings and note metadata are reserved for Claude in `/home/remcostoeten/dev/skriuw-claude-settings` on `feat/settings-metadata-contract`, based on `ef22a69`, with ADR-0013 reserved. Do not overlap that domain/SQLite/generated-contract slice; review and integrate it manually after its two commits are reported.
+1. Define scheduled-backup cadence, maximum artifact count, age retention, naming, and create-new publication semantics in an ADR.
+2. Add a recovery manifest that records artifact name, creation time, source schema/migration state, size, and verification result without storing machine-specific absolute paths.
+3. Generate and publish the backup before updating the manifest; never list a partial or unverified artifact.
+4. Prune only manifest-owned artifacts after a successful publication, with deterministic count/age tests and no broad directory deletion.
+5. Keep scheduling orchestration outside renderer and navigation paths; update CLI/native boundaries, persistent docs, and commit before live database-swap work.
 
 ## Verification model
 
