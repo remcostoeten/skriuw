@@ -100,3 +100,4 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0006: native Git history materializer](docs/adr/0006-native-git-materializer.md)
 - [ADR-0007: portable workspace archive](docs/adr/0007-portable-workspace-archive.md)
 - [ADR-0008: verified native SQLite backups](docs/adr/0008-verified-native-backups.md)
+- [ADR-0009: subtree trash and permanent purge](docs/adr/0009-subtree-trash-and-purge.md)

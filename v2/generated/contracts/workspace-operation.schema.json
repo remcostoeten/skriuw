@@ -199,17 +199,17 @@
               "type": "integer",
               "format": "int64"
             },
-            "id": {
+            "rootId": {
               "type": "string"
             },
             "type": {
               "type": "string",
-              "const": "soft_delete_node"
+              "const": "trash_subtree"
             }
           },
           "required": [
             "type",
-            "id",
+            "rootId",
             "at"
           ]
         },
@@ -219,9 +219,6 @@
             "at": {
               "type": "integer",
               "format": "int64"
-            },
-            "id": {
-              "type": "string"
             },
             "parentId": {
               "type": [
@@ -233,16 +230,40 @@
               "type": "integer",
               "format": "int64"
             },
+            "rootId": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
-              "const": "restore_node"
+              "const": "restore_subtree"
             }
           },
           "required": [
             "type",
-            "id",
+            "rootId",
             "rank",
             "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "rootId": {
+              "type": "string"
+            },
+            "trashedBefore": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "type": {
+              "type": "string",
+              "const": "purge_subtree"
+            }
+          },
+          "required": [
+            "type",
+            "rootId",
+            "trashedBefore"
           ]
         },
         {

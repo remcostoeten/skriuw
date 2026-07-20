@@ -8,7 +8,7 @@ Last reviewed: 2026-07-20
 - [x] Work isolated on `feat/instant-local-first-foundation`.
 - [x] Logical commits created; working tree clean at last review.
 - [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
-- [x] 33 backend tests pass.
+- [x] 40 backend tests pass.
 - [x] No frontend, desktop shell, router, React dependency, or editor dependency exists.
 - [x] No Git remote is configured.
 
@@ -37,17 +37,17 @@ Last reviewed: 2026-07-20
 
 ## P0: tree and trash correctness
 
-- [ ] Define subtree trash semantics in an ADR.
-- [ ] Replace ambiguous single-node delete behavior with explicit subtree behavior.
-- [ ] Ensure descendants of a trashed folder cannot appear in tree, search, active-note state, or commands.
-- [ ] Decide whether descendant timestamps are changed or ancestor trash state is inherited.
-- [ ] Define restore behavior when the original parent is missing, purged, or still trashed.
-- [ ] Add permanent purge operation with explicit scope.
-- [ ] Add retention-policy boundary; scheduling may remain deferred.
-- [ ] Remove purged documents from canonical tables, FTS, history cache, and pending history queue atomically.
-- [ ] Add tests for nested trash, restore, active note, search, rollback, and purge.
+- [x] Define subtree trash semantics in an ADR.
+- [x] Replace ambiguous single-node delete behavior with explicit subtree behavior.
+- [x] Ensure descendants of a trashed folder cannot appear in tree, search, active-note state, or commands.
+- [x] Decide whether descendant timestamps are changed or ancestor trash state is inherited.
+- [x] Define restore behavior when the original parent is missing, purged, or still trashed.
+- [x] Add permanent purge operation with explicit scope.
+- [x] Add retention-policy boundary; scheduling may remain deferred.
+- [x] Remove purged documents from canonical tables, FTS, history cache, and pending history queue atomically.
+- [x] Add tests for nested trash, restore, active note, search, rollback, and purge.
 
-Known gap: `SoftDeleteNode` currently marks only the selected row. A folder's descendants remain individually active. Do not build sidebar trash UI on this behavior.
+Implemented contract: direct trash markers are inherited through ancestry. Restore requires an active destination or explicit root fallback. Purge is subtree-scoped and rejects direct trash markers newer than its retention cutoff.
 
 ## P0: ordering and rank allocation
 

@@ -49,14 +49,17 @@ Small JSON values such as last active note and settings. Secrets never belong he
 - Complete history: cached header insert and matching leased outbox deletion.
 - Failed history: release lease and persist bounded diagnostic text for retry.
 - Move/reorder: node parent and rank only.
-- Delete: soft-delete node. Purge is a separate explicit operation.
-- Restore: clear deletion marker and assign parent/rank.
+- Trash subtree: set the selected root's deletion marker; descendants inherit unavailability without changing their timestamps.
+- Restore subtree: clear the root deletion marker and assign an active parent/rank; independently trashed descendants stay trashed.
+- Purge subtree: enforce the retention cutoff, delete FTS rows, then delete canonical nodes so document, history-cache, and history-outbox rows cascade in the same transaction.
 
 Any partial failure rolls back the complete logical operation.
 
 ## Portable archive
 
 The versioned archive contains `workspace_nodes`, `documents`, settings, and active-note state. Import validates the complete domain graph before opening a transaction, replaces canonical state atomically, rebuilds FTS, and enqueues one history baseline per document. It never transports migration rows, FTS internals, cache rows, or queue leases.
+
+Deletion timestamps are direct trash markers. Active-tree projections derive effective unavailability from the complete ancestor chain. Search, active-note state, history reads, history claims, and commands use the same inherited rule. Reversible trash keeps rebuildable projections intact; permanent purge removes them.
 
 ## Native backup
 

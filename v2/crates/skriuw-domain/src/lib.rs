@@ -94,6 +94,33 @@ pub struct WorkspaceSnapshot {
     pub settings: BTreeMap<String, Value>,
 }
 
+impl WorkspaceSnapshot {
+    #[must_use]
+    pub fn unavailable_node_ids(&self) -> BTreeSet<&str> {
+        let mut children = BTreeMap::<&str, Vec<&str>>::new();
+        let mut pending = Vec::new();
+        for node in &self.nodes {
+            if let Some(parent_id) = node.parent_id.as_deref() {
+                children.entry(parent_id).or_default().push(&node.id);
+            }
+            if node.deleted_at.is_some() {
+                pending.push(node.id.as_str());
+            }
+        }
+
+        let mut unavailable = BTreeSet::new();
+        while let Some(id) = pending.pop() {
+            if !unavailable.insert(id) {
+                continue;
+            }
+            if let Some(descendants) = children.get(id) {
+                pending.extend(descendants.iter().copied());
+            }
+        }
+        unavailable
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceArchive {
@@ -219,8 +246,18 @@ impl WorkspaceArchive {
                     "active note {active_note_id} does not exist"
                 ))
             })?;
-            if active.kind != NodeKind::Note || active.deleted_at.is_some() {
+            if active.kind != NodeKind::Note {
                 return archive_error(format!("active note {active_note_id} is unavailable"));
+            }
+            let mut current = Some(*active);
+            while let Some(node) = current {
+                if node.deleted_at.is_some() {
+                    return archive_error(format!("active note {active_note_id} is unavailable"));
+                }
+                current = node
+                    .parent_id
+                    .as_deref()
+                    .and_then(|parent_id| nodes.get(parent_id).copied());
             }
         }
 
@@ -307,15 +344,19 @@ pub enum WorkspaceOperation {
         expected_revision: i64,
         at: i64,
     },
-    SoftDeleteNode {
-        id: String,
+    TrashSubtree {
+        root_id: String,
         at: i64,
     },
-    RestoreNode {
-        id: String,
+    RestoreSubtree {
+        root_id: String,
         parent_id: Option<String>,
         rank: i64,
         at: i64,
+    },
+    PurgeSubtree {
+        root_id: String,
+        trashed_before: i64,
     },
     SetActiveNote {
         note_id: Option<String>,
@@ -365,8 +406,11 @@ impl WorkspaceOperation {
             Self::MoveNode {
                 id, parent_id, at, ..
             }
-            | Self::RestoreNode {
-                id, parent_id, at, ..
+            | Self::RestoreSubtree {
+                root_id: id,
+                parent_id,
+                at,
+                ..
             } => {
                 validate_id("id", id)?;
                 validate_optional_id("parent id", parent_id)?;
@@ -393,9 +437,16 @@ impl WorkspaceOperation {
                 }
                 validate_timestamp(*at)
             }
-            Self::SoftDeleteNode { id, at } => {
-                validate_id("id", id)?;
+            Self::TrashSubtree { root_id, at } => {
+                validate_id("root id", root_id)?;
                 validate_timestamp(*at)
+            }
+            Self::PurgeSubtree {
+                root_id,
+                trashed_before,
+            } => {
+                validate_id("root id", root_id)?;
+                validate_timestamp(*trashed_before)
             }
             Self::SetActiveNote { note_id } => validate_optional_id("note id", note_id),
             Self::SetSetting { key, .. } => validate_setting_key(key),
@@ -534,6 +585,15 @@ mod tests {
         assert_eq!(value["protocolVersion"], WORKSPACE_PROTOCOL_VERSION);
         assert_eq!(value["operation"]["type"], "save_document");
         assert_eq!(value["operation"]["expectedRevision"], 3);
+
+        let purge = WorkspaceOperationEnvelope::v1(WorkspaceOperation::PurgeSubtree {
+            root_id: "folder-1".into(),
+            trashed_before: 86_400,
+        });
+        let value = serde_json::to_value(purge).expect("serialize purge operation");
+        assert_eq!(value["operation"]["type"], "purge_subtree");
+        assert_eq!(value["operation"]["rootId"], "folder-1");
+        assert_eq!(value["operation"]["trashedBefore"], 86_400);
     }
 
     #[test]
@@ -561,6 +621,15 @@ mod tests {
         assert_eq!(
             invalid_document.validate(),
             Err(OperationValidationError::InvalidDocument)
+        );
+
+        let invalid_cutoff = WorkspaceOperationEnvelope::v1(WorkspaceOperation::PurgeSubtree {
+            root_id: "folder-1".into(),
+            trashed_before: -1,
+        });
+        assert_eq!(
+            invalid_cutoff.validate(),
+            Err(OperationValidationError::NegativeTimestamp)
         );
     }
 
@@ -649,5 +718,52 @@ mod tests {
         ));
         archive.nodes[1].parent_id = None;
         archive.validate().expect("repaired archive");
+    }
+
+    #[test]
+    fn rejects_active_note_below_trashed_ancestor() {
+        let archive = WorkspaceArchive {
+            archive_version: WORKSPACE_ARCHIVE_VERSION,
+            protocol_version: WORKSPACE_PROTOCOL_VERSION,
+            exported_at: 10,
+            active_note_id: Some("note-1".into()),
+            nodes: vec![
+                WorkspaceNode {
+                    id: "folder-1".into(),
+                    kind: NodeKind::Folder,
+                    parent_id: None,
+                    rank: 1024,
+                    title: "Folder".into(),
+                    icon: None,
+                    created_at: 1,
+                    updated_at: 5,
+                    deleted_at: Some(5),
+                },
+                WorkspaceNode {
+                    id: "note-1".into(),
+                    kind: NodeKind::Note,
+                    parent_id: Some("folder-1".into()),
+                    rank: 1024,
+                    title: "Note".into(),
+                    icon: None,
+                    created_at: 2,
+                    updated_at: 2,
+                    deleted_at: None,
+                },
+            ],
+            documents: vec![WorkspaceDocument {
+                note_id: "note-1".into(),
+                document_json: json!({"type": "doc"}),
+                markdown: "# Note".into(),
+                revision: 1,
+                word_count: 1,
+            }],
+            settings: BTreeMap::new(),
+        };
+
+        assert!(matches!(
+            archive.validate(),
+            Err(ArchiveValidationError::Invalid(_))
+        ));
     }
 }

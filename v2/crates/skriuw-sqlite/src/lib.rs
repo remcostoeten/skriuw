@@ -398,7 +398,18 @@ impl WorkspaceStorage for SqliteWorkspace {
                  bm25(documents_fts) \
                  FROM documents_fts \
                  JOIN workspace_nodes ON workspace_nodes.id = documents_fts.note_id \
-                 WHERE documents_fts MATCH ?1 AND workspace_nodes.deleted_at IS NULL \
+                 WHERE documents_fts MATCH ?1 \
+                 AND NOT EXISTS (\
+                     WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
+                         SELECT id, parent_id, deleted_at FROM workspace_nodes \
+                         WHERE id = documents_fts.note_id \
+                         UNION ALL \
+                         SELECT parent.id, parent.parent_id, parent.deleted_at \
+                         FROM workspace_nodes parent \
+                         JOIN ancestors ON parent.id = ancestors.parent_id\
+                     ) \
+                     SELECT 1 FROM ancestors WHERE deleted_at IS NOT NULL\
+                 ) \
                  ORDER BY bm25(documents_fts) \
                  LIMIT ?2",
             )
@@ -607,7 +618,18 @@ impl HistoryQueue for SqliteWorkspace {
             .query_row(
                 "SELECT id, note_id, revision, markdown, created_at, attempts \
                  FROM history_outbox \
-                 WHERE claimed_at IS NULL OR claimed_at <= ?1 \
+                 WHERE (claimed_at IS NULL OR claimed_at <= ?1) \
+                 AND NOT EXISTS (\
+                     WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
+                         SELECT id, parent_id, deleted_at FROM workspace_nodes \
+                         WHERE id = history_outbox.note_id \
+                         UNION ALL \
+                         SELECT parent.id, parent.parent_id, parent.deleted_at \
+                         FROM workspace_nodes parent \
+                         JOIN ancestors ON parent.id = ancestors.parent_id\
+                     ) \
+                     SELECT 1 FROM ancestors WHERE deleted_at IS NOT NULL\
+                 ) \
                  ORDER BY created_at, id LIMIT 1",
                 [lease_expired_before],
                 |row| {
@@ -809,6 +831,7 @@ fn apply_operation(
             });
         }
         WorkspaceOperation::RenameNode { id, title, at } => {
+            require_available_node(transaction, id)?;
             let changed = transaction
                 .execute(
                     "UPDATE workspace_nodes SET title = ?2, updated_at = ?3 WHERE id = ?1",
@@ -829,6 +852,7 @@ fn apply_operation(
             rank,
             at,
         } => {
+            require_available_node(transaction, id)?;
             require_parent_folder(transaction, parent_id.as_deref())?;
             require_acyclic_parent(transaction, id, parent_id.as_deref())?;
             let changed = transaction
@@ -888,32 +912,87 @@ fn apply_operation(
                 revision: next_revision,
             });
         }
-        WorkspaceOperation::SoftDeleteNode { id, at } => {
+        WorkspaceOperation::TrashSubtree { root_id, at } => {
+            require_available_node(transaction, root_id)?;
+            clear_active_note_in_subtree(transaction, root_id)?;
             let changed = transaction
                 .execute(
                     "UPDATE workspace_nodes SET deleted_at = ?2, updated_at = ?2 WHERE id = ?1",
-                    params![id, at],
+                    params![root_id, at],
                 )
                 .map_err(backend)?;
-            require_changed(changed, id)?;
+            require_changed(changed, root_id)?;
         }
-        WorkspaceOperation::RestoreNode {
-            id,
+        WorkspaceOperation::RestoreSubtree {
+            root_id,
             parent_id,
             rank,
             at,
         } => {
+            require_directly_trashed(transaction, root_id)?;
             require_parent_folder(transaction, parent_id.as_deref())?;
-            require_acyclic_parent(transaction, id, parent_id.as_deref())?;
+            require_acyclic_parent(transaction, root_id, parent_id.as_deref())?;
             let changed = transaction
                 .execute(
                     "UPDATE workspace_nodes \
                      SET deleted_at = NULL, parent_id = ?2, rank = ?3, updated_at = ?4 \
                      WHERE id = ?1",
-                    params![id, parent_id, rank, at],
+                    params![root_id, parent_id, rank, at],
                 )
                 .map_err(backend)?;
-            require_changed(changed, id)?;
+            require_changed(changed, root_id)?;
+        }
+        WorkspaceOperation::PurgeSubtree {
+            root_id,
+            trashed_before,
+        } => {
+            require_directly_trashed(transaction, root_id)?;
+            let newest_trash = transaction
+                .query_row(
+                    "WITH RECURSIVE subtree(id) AS (\
+                         SELECT id FROM workspace_nodes WHERE id = ?1 \
+                         UNION ALL \
+                         SELECT child.id FROM workspace_nodes child \
+                         JOIN subtree parent ON child.parent_id = parent.id\
+                     ) \
+                     SELECT MAX(deleted_at) FROM workspace_nodes \
+                     WHERE id IN (SELECT id FROM subtree)",
+                    [root_id],
+                    |row| row.get::<_, Option<i64>>(0),
+                )
+                .map_err(backend)?
+                .ok_or_else(|| StorageError::NotFound(root_id.clone()))?;
+            if newest_trash > *trashed_before {
+                return Err(StorageError::InvalidOperation(format!(
+                    "subtree {root_id} contains trash newer than retention cutoff {trashed_before}"
+                )));
+            }
+            clear_active_note_in_subtree(transaction, root_id)?;
+            transaction
+                .execute(
+                    "WITH RECURSIVE subtree(id) AS (\
+                         SELECT id FROM workspace_nodes WHERE id = ?1 \
+                         UNION ALL \
+                         SELECT child.id FROM workspace_nodes child \
+                         JOIN subtree parent ON child.parent_id = parent.id\
+                     ) \
+                     DELETE FROM documents_fts WHERE note_id IN (SELECT id FROM subtree)",
+                    [root_id],
+                )
+                .map_err(backend)?;
+            let changed = transaction
+                .execute(
+                    "WITH RECURSIVE subtree(id) AS (\
+                         SELECT id FROM workspace_nodes WHERE id = ?1 \
+                         UNION ALL \
+                         SELECT child.id FROM workspace_nodes child \
+                         JOIN subtree parent ON child.parent_id = parent.id\
+                     ) \
+                     DELETE FROM workspace_nodes WHERE id IN (SELECT id FROM subtree)",
+                    [root_id],
+                )
+                .map_err(backend)?;
+            require_changed(changed, root_id)?;
         }
         WorkspaceOperation::SetActiveNote { note_id } => {
             if let Some(id) = note_id {
@@ -1008,8 +1087,20 @@ fn read_documents(connection: &Connection) -> Result<Vec<WorkspaceDocument>, Sto
 fn read_history_headers(connection: &Connection) -> Result<Vec<HistoryHeader>, StorageError> {
     let mut statement = connection
         .prepare_cached(
-            "SELECT note_id, version_id, created_at, summary \
-             FROM history_cache ORDER BY note_id, created_at DESC",
+            "SELECT history_cache.note_id, version_id, created_at, summary \
+             FROM history_cache \
+             WHERE NOT EXISTS (\
+                 WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
+                     SELECT id, parent_id, deleted_at FROM workspace_nodes \
+                     WHERE id = history_cache.note_id \
+                     UNION ALL \
+                     SELECT parent.id, parent.parent_id, parent.deleted_at \
+                     FROM workspace_nodes parent \
+                     JOIN ancestors ON parent.id = ancestors.parent_id\
+                 ) \
+                 SELECT 1 FROM ancestors WHERE deleted_at IS NOT NULL\
+             ) \
+             ORDER BY history_cache.note_id, created_at DESC",
         )
         .map_err(backend)?;
     let rows = statement
@@ -1046,6 +1137,19 @@ fn read_settings(connection: &Connection) -> Result<BTreeMap<String, Value>, Sto
 }
 
 fn read_active_note(connection: &Connection) -> Result<Option<String>, StorageError> {
+    let active_note_id = read_stored_active_note(connection)?;
+    match active_note_id {
+        Some(note_id)
+            if node_is_available(connection, &note_id)?
+                && node_kind(connection, &note_id)?.as_deref() == Some("note") =>
+        {
+            Ok(Some(note_id))
+        }
+        _ => Ok(None),
+    }
+}
+
+fn read_stored_active_note(connection: &Connection) -> Result<Option<String>, StorageError> {
     connection
         .query_row(
             "SELECT value_json FROM app_state WHERE key = 'active_note_id'",
@@ -1160,14 +1264,17 @@ fn require_parent_folder(
     };
     let kind = transaction
         .query_row(
-            "SELECT kind FROM workspace_nodes WHERE id = ?1 AND deleted_at IS NULL",
+            "SELECT kind FROM workspace_nodes WHERE id = ?1",
             [parent_id],
             |row| row.get::<_, String>(0),
         )
         .optional()
         .map_err(backend)?;
     match kind.as_deref() {
-        Some("folder") => Ok(()),
+        Some("folder") if node_is_available(transaction, parent_id)? => Ok(()),
+        Some("folder") => Err(StorageError::InvalidOperation(format!(
+            "parent {parent_id} is unavailable"
+        ))),
         Some(_) => Err(StorageError::InvalidOperation(format!(
             "parent {parent_id} is not a folder"
         ))),
@@ -1205,21 +1312,107 @@ fn require_acyclic_parent(
 }
 
 fn require_note(transaction: &Transaction<'_>, id: &str) -> Result<(), StorageError> {
+    match require_available_node(transaction, id)?.as_str() {
+        "note" => Ok(()),
+        _ => Err(StorageError::InvalidOperation(format!(
+            "active entity {id} is not a note"
+        ))),
+    }
+}
+
+fn require_available_node(transaction: &Transaction<'_>, id: &str) -> Result<String, StorageError> {
     let kind = transaction
         .query_row(
-            "SELECT kind FROM workspace_nodes WHERE id = ?1 AND deleted_at IS NULL",
+            "SELECT kind FROM workspace_nodes WHERE id = ?1",
             [id],
             |row| row.get::<_, String>(0),
         )
         .optional()
         .map_err(backend)?;
-    match kind.as_deref() {
-        Some("note") => Ok(()),
-        Some(_) => Err(StorageError::InvalidOperation(format!(
-            "active entity {id} is not a note"
-        ))),
-        None => Err(StorageError::NotFound(id.into())),
+    let kind = kind.ok_or_else(|| StorageError::NotFound(id.into()))?;
+    if !node_is_available(transaction, id)? {
+        return Err(StorageError::InvalidOperation(format!(
+            "node {id} is unavailable"
+        )));
     }
+    Ok(kind)
+}
+
+fn node_is_available(connection: &Connection, id: &str) -> Result<bool, StorageError> {
+    connection
+        .query_row(
+            "WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
+                 SELECT id, parent_id, deleted_at FROM workspace_nodes WHERE id = ?1 \
+                 UNION ALL \
+                 SELECT parent.id, parent.parent_id, parent.deleted_at \
+                 FROM workspace_nodes parent \
+                 JOIN ancestors ON parent.id = ancestors.parent_id\
+             ) \
+             SELECT COUNT(*) > 0 AND COALESCE(MAX(deleted_at IS NOT NULL), 0) = 0 \
+             FROM ancestors",
+            [id],
+            |row| row.get(0),
+        )
+        .map_err(backend)
+}
+
+fn node_kind(connection: &Connection, id: &str) -> Result<Option<String>, StorageError> {
+    connection
+        .query_row(
+            "SELECT kind FROM workspace_nodes WHERE id = ?1",
+            [id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(backend)
+}
+
+fn require_directly_trashed(transaction: &Transaction<'_>, id: &str) -> Result<i64, StorageError> {
+    transaction
+        .query_row(
+            "SELECT deleted_at FROM workspace_nodes WHERE id = ?1",
+            [id],
+            |row| row.get::<_, Option<i64>>(0),
+        )
+        .optional()
+        .map_err(backend)?
+        .ok_or_else(|| StorageError::NotFound(id.into()))?
+        .ok_or_else(|| StorageError::InvalidOperation(format!("node {id} is not trashed")))
+}
+
+fn subtree_contains(
+    connection: &Connection,
+    root_id: &str,
+    node_id: &str,
+) -> Result<bool, StorageError> {
+    connection
+        .query_row(
+            "WITH RECURSIVE subtree(id) AS (\
+                 SELECT id FROM workspace_nodes WHERE id = ?1 \
+                 UNION ALL \
+                 SELECT child.id FROM workspace_nodes child \
+                 JOIN subtree parent ON child.parent_id = parent.id\
+             ) \
+             SELECT EXISTS(SELECT 1 FROM subtree WHERE id = ?2)",
+            params![root_id, node_id],
+            |row| row.get(0),
+        )
+        .map_err(backend)
+}
+
+fn clear_active_note_in_subtree(
+    transaction: &Transaction<'_>,
+    root_id: &str,
+) -> Result<(), StorageError> {
+    let Some(active_note_id) = read_stored_active_note(transaction)? else {
+        return Ok(());
+    };
+    if subtree_contains(transaction, root_id, &active_note_id)? {
+        transaction
+            .execute("DELETE FROM app_state WHERE key = 'active_note_id'", [])
+            .map_err(backend)?;
+    }
+    Ok(())
 }
 
 fn require_changed(changed: usize, id: &str) -> Result<(), StorageError> {
@@ -1345,7 +1538,9 @@ mod tests {
     use rusqlite::Connection;
     use serde_json::json;
     use skriuw_domain::{HistoryHeader, WorkspaceOperation, WorkspaceOperationEnvelope};
-    use skriuw_storage::{HistoryCache, StorageError, WorkspaceMaintenance, WorkspaceStorage};
+    use skriuw_storage::{
+        HistoryCache, HistoryQueue, StorageError, WorkspaceMaintenance, WorkspaceStorage,
+    };
     use tempfile::tempdir;
 
     use super::{SqliteWorkspace, checksum};
@@ -1364,6 +1559,45 @@ mod tests {
             markdown: "# Fast notes\n\nSQLite search".into(),
             at: 1,
         })
+    }
+
+    fn seed_nested_workspace(storage: &SqliteWorkspace) {
+        storage
+            .apply_operations(&[
+                op(WorkspaceOperation::CreateFolder {
+                    id: "folder-root".into(),
+                    parent_id: None,
+                    title: "Root".into(),
+                    rank: 1024,
+                    at: 1,
+                }),
+                op(WorkspaceOperation::CreateFolder {
+                    id: "folder-child".into(),
+                    parent_id: Some("folder-root".into()),
+                    title: "Child".into(),
+                    rank: 1024,
+                    at: 2,
+                }),
+                op(WorkspaceOperation::CreateNote {
+                    id: "note-nested".into(),
+                    parent_id: Some("folder-child".into()),
+                    title: "Nested".into(),
+                    rank: 1024,
+                    document_json: json!({"type": "doc", "content": []}),
+                    markdown: "nested search phrase".into(),
+                    at: 3,
+                }),
+                op(WorkspaceOperation::CreateNote {
+                    id: "note-outside".into(),
+                    parent_id: None,
+                    title: "Outside".into(),
+                    rank: 2048,
+                    document_json: json!({"type": "doc", "content": []}),
+                    markdown: "outside search phrase".into(),
+                    at: 4,
+                }),
+            ])
+            .expect("seed nested workspace");
     }
 
     #[test]
@@ -1679,13 +1913,331 @@ mod tests {
             .apply_operations(&[create_note("note-1")])
             .expect("create note");
         storage
-            .apply_operations(&[op(WorkspaceOperation::SoftDeleteNode {
-                id: "note-1".into(),
+            .apply_operations(&[op(WorkspaceOperation::TrashSubtree {
+                root_id: "note-1".into(),
                 at: 2,
             })])
             .expect("delete note");
 
         assert!(storage.search("SQLite", 10).expect("search").is_empty());
+    }
+
+    #[test]
+    fn trash_hides_complete_subtree_and_clears_active_note() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        seed_nested_workspace(&storage);
+        storage
+            .replace_history_headers(&[
+                HistoryHeader {
+                    note_id: "note-nested".into(),
+                    version_id: "nested-version".into(),
+                    created_at: 3,
+                    summary: "Nested".into(),
+                },
+                HistoryHeader {
+                    note_id: "note-outside".into(),
+                    version_id: "outside-version".into(),
+                    created_at: 4,
+                    summary: "Outside".into(),
+                },
+            ])
+            .expect("seed history cache");
+        storage
+            .apply_operations(&[op(WorkspaceOperation::SetActiveNote {
+                note_id: Some("note-nested".into()),
+            })])
+            .expect("activate nested note");
+
+        storage
+            .apply_operations(&[op(WorkspaceOperation::TrashSubtree {
+                root_id: "folder-root".into(),
+                at: 10,
+            })])
+            .expect("trash subtree");
+
+        let snapshot = storage.bootstrap().expect("bootstrap");
+        let root = snapshot
+            .nodes
+            .iter()
+            .find(|node| node.id == "folder-root")
+            .expect("root node");
+        let child = snapshot
+            .nodes
+            .iter()
+            .find(|node| node.id == "folder-child")
+            .expect("child node");
+        assert_eq!(root.deleted_at, Some(10));
+        assert_eq!(child.deleted_at, None);
+        assert_eq!(snapshot.active_note_id, None);
+        assert_eq!(
+            snapshot.unavailable_node_ids(),
+            ["folder-child", "folder-root", "note-nested"]
+                .into_iter()
+                .collect()
+        );
+        assert_eq!(snapshot.history_headers.len(), 1);
+        assert_eq!(snapshot.history_headers[0].note_id, "note-outside");
+        assert!(storage.search("nested", 10).expect("search").is_empty());
+        assert_eq!(
+            storage
+                .claim_history_revision("worker", 20, 10)
+                .expect("claim history")
+                .expect("available history item")
+                .note_id,
+            "note-outside"
+        );
+    }
+
+    #[test]
+    fn commands_reject_descendants_of_trashed_folder() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        seed_nested_workspace(&storage);
+        storage
+            .apply_operations(&[op(WorkspaceOperation::TrashSubtree {
+                root_id: "folder-root".into(),
+                at: 10,
+            })])
+            .expect("trash subtree");
+
+        let operations = [
+            WorkspaceOperation::RenameNode {
+                id: "note-nested".into(),
+                title: "Hidden rename".into(),
+                at: 11,
+            },
+            WorkspaceOperation::MoveNode {
+                id: "folder-child".into(),
+                parent_id: None,
+                rank: 2048,
+                at: 11,
+            },
+            WorkspaceOperation::SaveDocument {
+                note_id: "note-nested".into(),
+                document_json: json!({"type": "doc"}),
+                markdown: "hidden save".into(),
+                word_count: 2,
+                expected_revision: 1,
+                at: 11,
+            },
+            WorkspaceOperation::SetActiveNote {
+                note_id: Some("note-nested".into()),
+            },
+            WorkspaceOperation::CreateNote {
+                id: "hidden-new-note".into(),
+                parent_id: Some("folder-child".into()),
+                title: "Hidden".into(),
+                rank: 2048,
+                document_json: json!({"type": "doc"}),
+                markdown: String::new(),
+                at: 11,
+            },
+        ];
+
+        for operation in operations {
+            assert!(matches!(
+                storage.apply_operations(&[op(operation)]),
+                Err(StorageError::InvalidOperation(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn restore_requires_active_destination_and_preserves_independent_trash() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        seed_nested_workspace(&storage);
+        storage
+            .apply_operations(&[
+                op(WorkspaceOperation::TrashSubtree {
+                    root_id: "note-nested".into(),
+                    at: 5,
+                }),
+                op(WorkspaceOperation::TrashSubtree {
+                    root_id: "folder-root".into(),
+                    at: 6,
+                }),
+            ])
+            .expect("trash nested roots");
+
+        assert!(matches!(
+            storage.apply_operations(&[op(WorkspaceOperation::RestoreSubtree {
+                root_id: "note-nested".into(),
+                parent_id: Some("folder-child".into()),
+                rank: 1024,
+                at: 7,
+            })]),
+            Err(StorageError::InvalidOperation(_))
+        ));
+        assert!(matches!(
+            storage.apply_operations(&[op(WorkspaceOperation::RestoreSubtree {
+                root_id: "note-nested".into(),
+                parent_id: Some("missing-folder".into()),
+                rank: 1024,
+                at: 7,
+            })]),
+            Err(StorageError::NotFound(_))
+        ));
+
+        storage
+            .apply_operations(&[op(WorkspaceOperation::RestoreSubtree {
+                root_id: "folder-root".into(),
+                parent_id: None,
+                rank: 1024,
+                at: 8,
+            })])
+            .expect("restore parent subtree");
+        let snapshot = storage.bootstrap().expect("bootstrap restored parent");
+        assert_eq!(
+            snapshot.unavailable_node_ids(),
+            ["note-nested"].into_iter().collect()
+        );
+        assert!(storage.search("nested", 10).expect("search").is_empty());
+
+        storage
+            .apply_operations(&[op(WorkspaceOperation::RestoreSubtree {
+                root_id: "note-nested".into(),
+                parent_id: Some("folder-child".into()),
+                rank: 1024,
+                at: 9,
+            })])
+            .expect("restore independent note");
+        assert_eq!(storage.search("nested", 10).expect("search").len(), 1);
+    }
+
+    #[test]
+    fn trash_rolls_back_active_note_and_visibility_with_failed_batch() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        seed_nested_workspace(&storage);
+        storage
+            .apply_operations(&[op(WorkspaceOperation::SetActiveNote {
+                note_id: Some("note-nested".into()),
+            })])
+            .expect("activate nested note");
+
+        storage
+            .apply_operations(&[
+                op(WorkspaceOperation::TrashSubtree {
+                    root_id: "folder-root".into(),
+                    at: 10,
+                }),
+                op(WorkspaceOperation::RenameNode {
+                    id: "missing".into(),
+                    title: "Missing".into(),
+                    at: 10,
+                }),
+            ])
+            .expect_err("rollback trash batch");
+
+        let snapshot = storage.bootstrap().expect("bootstrap");
+        assert_eq!(snapshot.active_note_id.as_deref(), Some("note-nested"));
+        assert!(snapshot.unavailable_node_ids().is_empty());
+        assert_eq!(storage.search("nested", 10).expect("search").len(), 1);
+    }
+
+    #[test]
+    fn purge_removes_subtree_projections_and_history_atomically() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        seed_nested_workspace(&storage);
+        storage
+            .replace_history_headers(&[HistoryHeader {
+                note_id: "note-nested".into(),
+                version_id: "nested-version".into(),
+                created_at: 3,
+                summary: "Nested".into(),
+            }])
+            .expect("seed history cache");
+        storage
+            .apply_operations(&[
+                op(WorkspaceOperation::TrashSubtree {
+                    root_id: "folder-root".into(),
+                    at: 10,
+                }),
+                op(WorkspaceOperation::PurgeSubtree {
+                    root_id: "folder-root".into(),
+                    trashed_before: 10,
+                }),
+            ])
+            .expect("purge subtree");
+
+        let snapshot = storage.bootstrap().expect("bootstrap");
+        assert_eq!(snapshot.nodes.len(), 1);
+        assert_eq!(snapshot.nodes[0].id, "note-outside");
+        assert_eq!(snapshot.documents.len(), 1);
+        assert!(snapshot.history_headers.is_empty());
+        let connection = storage.lock().expect("database lock");
+        for (table, expected) in [
+            ("workspace_nodes", 1),
+            ("documents", 1),
+            ("documents_fts", 1),
+            ("history_cache", 0),
+            ("history_outbox", 1),
+        ] {
+            let count = connection
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .expect("count rows");
+            assert_eq!(count, expected, "unexpected surviving rows in {table}");
+        }
+    }
+
+    #[test]
+    fn purge_enforces_retention_and_rolls_back_with_batch() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        seed_nested_workspace(&storage);
+        storage
+            .replace_history_headers(&[HistoryHeader {
+                note_id: "note-nested".into(),
+                version_id: "nested-version".into(),
+                created_at: 3,
+                summary: "Nested".into(),
+            }])
+            .expect("seed history cache");
+        storage
+            .apply_operations(&[
+                op(WorkspaceOperation::TrashSubtree {
+                    root_id: "note-nested".into(),
+                    at: 11,
+                }),
+                op(WorkspaceOperation::TrashSubtree {
+                    root_id: "folder-root".into(),
+                    at: 10,
+                }),
+            ])
+            .expect("trash subtree");
+
+        assert!(matches!(
+            storage.apply_operations(&[op(WorkspaceOperation::PurgeSubtree {
+                root_id: "folder-root".into(),
+                trashed_before: 10,
+            })]),
+            Err(StorageError::InvalidOperation(_))
+        ));
+        storage
+            .apply_operations(&[
+                op(WorkspaceOperation::PurgeSubtree {
+                    root_id: "folder-root".into(),
+                    trashed_before: 11,
+                }),
+                op(WorkspaceOperation::RenameNode {
+                    id: "missing".into(),
+                    title: "Missing".into(),
+                    at: 11,
+                }),
+            ])
+            .expect_err("rollback purge batch");
+
+        let snapshot = storage.bootstrap().expect("bootstrap");
+        assert_eq!(snapshot.nodes.len(), 4);
+        assert_eq!(snapshot.documents.len(), 2);
+        let connection = storage.lock().expect("database lock");
+        let projection_counts = ["documents_fts", "history_cache", "history_outbox"].map(|table| {
+            connection
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .expect("count projection rows")
+        });
+        assert_eq!(projection_counts, [2, 1, 2]);
     }
 
     #[test]
