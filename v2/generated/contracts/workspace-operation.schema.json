@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkspaceOperationEnvelope",
+  "type": "object",
+  "properties": {
+    "operation": {
+      "$ref": "#/$defs/WorkspaceOperation"
+    },
+    "protocolVersion": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "operation"
+  ],
+  "$defs": {
+    "WorkspaceOperation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "parentId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rank": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "create_folder"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "title",
+            "rank",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "documentJson": true,
+            "id": {
+              "type": "string"
+            },
+            "markdown": {
+              "type": "string"
+            },
+            "parentId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rank": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "create_note"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "title",
+            "rank",
+            "documentJson",
+            "markdown",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "rename_node"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "title",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "parentId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rank": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "type": {
+              "type": "string",
+              "const": "move_node"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "rank",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "documentJson": true,
+            "expectedRevision": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "markdown": {
+              "type": "string"
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "save_document"
+            },
+            "wordCount": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "documentJson",
+            "markdown",
+            "wordCount",
+            "expectedRevision",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "soft_delete_node"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "parentId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rank": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "type": {
+              "type": "string",
+              "const": "restore_node"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "rank",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "noteId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "set_active_note"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_setting"
+            },
+            "value": true
+          },
+          "required": [
+            "type",
+            "key",
+            "value"
+          ]
+        }
+      ]
+    }
+  }
+}

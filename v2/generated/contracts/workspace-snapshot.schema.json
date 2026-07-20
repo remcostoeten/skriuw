@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkspaceSnapshot",
+  "type": "object",
+  "properties": {
+    "activeNoteId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "documents": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/WorkspaceDocument"
+      }
+    },
+    "historyHeaders": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/HistoryHeader"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/WorkspaceNode"
+      }
+    },
+    "protocolVersion": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "nodes",
+    "documents",
+    "historyHeaders",
+    "settings"
+  ],
+  "$defs": {
+    "HistoryHeader": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "versionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "noteId",
+        "versionId",
+        "createdAt",
+        "summary"
+      ]
+    },
+    "NodeKind": {
+      "type": "string",
+      "enum": [
+        "note",
+        "folder"
+      ]
+    },
+    "WorkspaceDocument": {
+      "type": "object",
+      "properties": {
+        "documentJson": true,
+        "markdown": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "wordCount": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "noteId",
+        "documentJson",
+        "markdown",
+        "revision",
+        "wordCount"
+      ]
+    },
+    "WorkspaceNode": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "deletedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/NodeKind"
+        },
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rank": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "rank",
+        "title",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  }
+}

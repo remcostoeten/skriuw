@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OperationAck",
+  "type": "object",
+  "properties": {
+    "applied": {
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
+    },
+    "revisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EntityRevision"
+      }
+    }
+  },
+  "required": [
+    "applied",
+    "revisions"
+  ],
+  "$defs": {
+    "EntityRevision": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ]
+    }
+  }
+}
