@@ -11,7 +11,7 @@ Backend-first foundation for a local, standalone notes application. No frontend 
 - Native desktop ships first. Browser-local storage remains possible later.
 - Git history runs asynchronously and never blocks editing or navigation.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md), [docs/roadmap.md](docs/roadmap.md), and [docs/adr](docs/adr).
+See [ARCHITECTURE.md](ARCHITECTURE.md), [TODO.md](TODO.md), [docs/handoff.md](docs/handoff.md), [docs/roadmap.md](docs/roadmap.md), and [docs/adr](docs/adr).
 
 ## Requirements
 

@@ -1,0 +1,145 @@
+# Detailed delivery checklist
+
+Last reviewed: 2026-07-20
+
+## Current state
+
+- [x] Repository created at `/home/remcostoeten/dev/skriuw-standalone`.
+- [x] Work isolated on `feat/instant-local-first-foundation`.
+- [x] Logical commits created; working tree clean at last review.
+- [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
+- [x] 33 backend tests pass.
+- [x] No frontend, desktop shell, router, React dependency, or editor dependency exists.
+- [x] No Git remote is configured.
+
+## Completed backend foundation
+
+- [x] Versioned workspace operation envelope.
+- [x] Generated JSON Schema contracts with drift checking.
+- [x] Pure operation and archive validation.
+- [x] SQLite canonical schema with FTS5 and WAL mode.
+- [x] Ordered SHA-256 migration ledger.
+- [x] Legacy development-database upgrade.
+- [x] Atomic operation batches and optimistic document revisions.
+- [x] Serialized FIFO storage runtime.
+- [x] Leased, crash-retryable history outbox.
+- [x] Native-only idempotent Git materializer.
+- [x] Lazy Git history headers and Markdown version reads.
+- [x] Atomic history-cache rebuild.
+- [x] Portable desktop/web workspace archive.
+- [x] Transactional replace import.
+- [x] SQLite, foreign-key, migration, and domain integrity reporting.
+- [x] WAL-safe online backup producing one normalized file.
+- [x] Verified create-new restore.
+- [x] CLI backup, restore, export, import, integrity, search, seed, and snapshot flows.
+- [x] Import safety backup.
+- [x] Deleted notes excluded from FTS search.
+
+## P0: tree and trash correctness
+
+- [ ] Define subtree trash semantics in an ADR.
+- [ ] Replace ambiguous single-node delete behavior with explicit subtree behavior.
+- [ ] Ensure descendants of a trashed folder cannot appear in tree, search, active-note state, or commands.
+- [ ] Decide whether descendant timestamps are changed or ancestor trash state is inherited.
+- [ ] Define restore behavior when the original parent is missing, purged, or still trashed.
+- [ ] Add permanent purge operation with explicit scope.
+- [ ] Add retention-policy boundary; scheduling may remain deferred.
+- [ ] Remove purged documents from canonical tables, FTS, history cache, and pending history queue atomically.
+- [ ] Add tests for nested trash, restore, active note, search, rollback, and purge.
+
+Known gap: `SoftDeleteNode` currently marks only the selected row. A folder's descendants remain individually active. Do not build sidebar trash UI on this behavior.
+
+## P0: ordering and rank allocation
+
+- [ ] Record rank-allocation decision in an ADR.
+- [ ] Stop requiring UI code to invent durable raw ranks without backend guidance.
+- [ ] Define first, last, before, after, and move-to-folder placement semantics.
+- [ ] Allocate midpoint ranks when space exists.
+- [ ] Compact only one sibling set when no midpoint exists.
+- [ ] Return all rank changes required for optimistic-state reconciliation.
+- [ ] Preserve stable ordering across desktop and future web adapters.
+- [ ] Test root and nested lists, repeated insertion, compaction, rollback, and deterministic ties.
+- [ ] Benchmark 5,000 sibling operations outside the navigation path.
+
+## P1: storage lifecycle and recovery
+
+- [ ] Add graceful shutdown and worker join semantics.
+- [ ] Define save batching/coalescing without losing revision acknowledgements.
+- [ ] Add bounded diagnostics for runtime, storage, history, backup, and recovery failures.
+- [ ] Add scheduled backup rotation policy.
+- [ ] Add recovery-manifest metadata and retention tests.
+- [ ] Add desktop lifecycle flow for verified database swap after restore.
+- [ ] Add Git repository integrity check and cache-rebuild command.
+- [ ] Add full export/import compatibility fixtures for every archive version.
+
+## P1: settings and metadata
+
+- [ ] Define versioned settings schema and defaults.
+- [ ] Define note metadata required by the right sidebar.
+- [ ] Keep people and tags outside MVP.
+- [ ] Add compatibility and unknown-field tests.
+- [ ] Decide which UI state is durable, session-only, or renderer-only.
+
+## P1: scale fixtures and backend budgets
+
+- [ ] Generate deterministic 1,000-note and 5,000-note workspaces.
+- [ ] Generate 50, 500, and 2,000-block documents after editor schema selection.
+- [ ] Add nested-tree, wide-tree, FTS, import, bootstrap, and history workloads.
+- [ ] Record raw samples and environment metadata.
+- [ ] Keep shared CI correctness-only until a fixed performance runner exists.
+
+## UI architecture gate
+
+- [ ] Benchmark direct ProseMirror against at least one viable alternative.
+- [ ] Measure cached editor-state switching and memory ceiling.
+- [ ] Benchmark nested tree virtualization.
+- [ ] Prototype fine-grained external renderer store selectors.
+- [ ] Verify persistent editor host without remounting.
+- [ ] Measure desktop bridge overhead outside navigation.
+- [ ] Write ADR selecting editor, renderer store, build tool, and desktop shell.
+- [ ] Reject any option failing `docs/performance-contract.md`.
+
+React requirements if selected:
+
+- [ ] Install React Scan for development/profiling only.
+- [ ] Add production React Profiler harness.
+- [ ] Add render-count assertions.
+- [ ] Prove editor keystrokes do not render the application shell.
+- [ ] Prove note selection renders selected-note consumers only.
+- [ ] Prove 100 cached note switches drop zero frames on reference hardware.
+
+## MVP UI
+
+- [ ] Persistent application shell and icon navigation.
+- [ ] Reorderable and nestable note/folder sidebar.
+- [ ] Sidebar creation, rename, trash, restore, context menus, and shortcuts.
+- [ ] Structured Markdown editor with inline rendering.
+- [ ] Slash-command menu.
+- [ ] Metadata and history sidebar without people or tags.
+- [ ] Version preview and restore.
+- [ ] Central command registry and command palette.
+- [ ] User settings.
+- [ ] Keyboard-first navigation.
+- [ ] No journal.
+- [ ] No post-startup loading UI for cached workspace data.
+
+## Future web runtime
+
+- [ ] Compile and test portable crates for `wasm32-unknown-unknown`.
+- [ ] Add worker-owned SQLite-WASM adapter over durable browser storage.
+- [ ] Run shared operation, archive, tree, and recovery fixtures against native and web adapters.
+- [ ] Select local revision or remote history materializer.
+- [ ] Add durable sync outbox only if sync enters scope.
+- [ ] Keep network work outside navigation and editing paths.
+
+Current caveat: the WASM target is not installed and no WASM build has been claimed. Git exclusion is structural through target-gated dependencies.
+
+## Required proof before every completed slice
+
+- [ ] `git diff --check` passes.
+- [ ] `./scripts/check.sh` passes.
+- [ ] New invariants have regression tests.
+- [ ] Generated schemas are committed when contracts change.
+- [ ] ADR and roadmap are updated when architecture changes.
+- [ ] `docs/handoff.md` and this file reflect new state.
+- [ ] Changes are committed on the feature branch in logical order.
