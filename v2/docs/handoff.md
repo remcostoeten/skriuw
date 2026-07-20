@@ -4,6 +4,8 @@ Last reviewed: 2026-07-21
 
 ## Start here
 
+Fresh-session execution prompts are available at `codex-promt.md` for the primary Git-integrity slice and `claude-promt.md` for the isolated archive-compatibility slice.
+
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
 git status --short
