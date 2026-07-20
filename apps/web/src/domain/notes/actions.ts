@@ -27,7 +27,7 @@ import { listNoteMetadata, listNoteVersions } from "@/domain/notes/queries";
 import { listNoteBacklinks } from "@/features/notes/server/backlinks-queries";
 import type { ResolvedNoteLink } from "@/domain/notes/note-links";
 import { deriveNoteNameFromHeading, nameTracksHeading } from "@/domain/notes/note-links";
-import { syncNoteLinks } from "@/domain/notes/note-link-sync";
+import { backfillMissingNoteLinks, syncNoteLinks } from "@/domain/notes/note-link-sync";
 import { buildGraphData, type GraphData } from "@/domain/notes/graph";
 import { refreshNoteEmbedding } from "@/features/notes/server/semantic-embeddings";
 import type { SemanticSearchConfig } from "@/features/notes/server/semantic-embeddings";
@@ -410,18 +410,17 @@ export async function fetchNoteGraph(): Promise<GraphData> {
 		return buildGraphData([], []);
 	}
 
-	const [notes, links, people, journals, journalLinks] = await Promise.all([
+	const [notesForBackfill, journals, journalLinks] = await Promise.all([
 		prisma.note.findMany({
 			where: { userId: user.id, deletedAt: null },
-			select: { id: true, name: true, createdAt: true },
-		}),
-		prisma.noteLink.findMany({
-			where: { userId: user.id },
-			select: { sourceNoteId: true, targetNoteId: true, targetLabel: true, kind: true },
-		}),
-		prisma.person.findMany({
-			where: { userId: user.id },
-			select: { id: true, name: true },
+			select: {
+				id: true,
+				name: true,
+				createdAt: true,
+				content: true,
+				richContent: true,
+				tags: true,
+			},
 		}),
 		prisma.journalEntry.findMany({
 			where: { userId: user.id, deletedAt: null },
@@ -433,5 +432,32 @@ export async function fetchNoteGraph(): Promise<GraphData> {
 		}),
 	]);
 
-	return buildGraphData(notes, links, { people, journals, journalLinks });
+	await backfillMissingNoteLinks(
+		prisma,
+		user.id,
+		notesForBackfill.map((note) => ({
+			id: note.id,
+			content: note.content,
+			richContent: (note.richContent ?? []) as RichTextDocument,
+			tags: note.tags,
+		})),
+	);
+
+	const notes = notesForBackfill.map((note) => ({
+		id: note.id,
+		name: note.name,
+		createdAt: note.createdAt,
+	}));
+	const [links, refreshedPeople] = await Promise.all([
+		prisma.noteLink.findMany({
+			where: { userId: user.id },
+			select: { sourceNoteId: true, targetNoteId: true, targetLabel: true, kind: true },
+		}),
+		prisma.person.findMany({
+			where: { userId: user.id },
+			select: { id: true, name: true },
+		}),
+	]);
+
+	return buildGraphData(notes, links, { people: refreshedPeople, journals, journalLinks });
 }

@@ -1,90 +1,101 @@
 ---
 title: "Desktop local-first architecture"
-description: "Skriuw runs one product across three storage backends behind a single interface. The desktop build is the Obsidian-class one: **local-first, private,"
+description: "How the Tauri desktop app keeps a Markdown vault authoritative while providing live reconciliation, private AI, optional sync, and signed updates."
 ---
 
-Skriuw runs one product across three storage backends behind a single interface.
-The desktop build is the Obsidian-class one: **local-first, private, offline**.
-This document records the deciding constraints and - because most of it is already
-built - maps each decision to the code that implements it, then lists the gaps
-that are genuinely still open.
+Skriuw desktop is local-first, private, and offline-capable. It shares product
+features with web through `WorkspaceBackend`, but the desktop backend treats a
+user-owned Markdown vault as the source of truth.
 
-## Positioning
+## Storage model
 
-Skriuw wins on **local ownership + privacy**, not collaboration. The web build keeps
-cloud, sharing, and real-time collaboration; the desktop build deliberately does
-not. Obsidian is the benchmark for the desktop experience only.
+Desktop uses two stores:
 
-## One interface, three backends
+- **Vault** (`vault.rs`) - real Markdown files with YAML frontmatter. Stable IDs
+  in frontmatter preserve a note across renames and moves. Journal, trash, and
+  folder metadata live beneath `.skriuw/`.
+- **SQLite index** (`storage.rs`) - derived FTS, backlinks, and history. It can be
+  rebuilt from the vault after corruption or lag.
 
-Feature code never branches on platform or auth. It talks to `WorkspaceBackend`
-(`apps/web/src/core/workspace-backend/types.ts`), which advertises a
-`capabilities` set so the UI hides surfaces a backend can't serve.
+Canonical writes are atomic: write a sibling temporary file, flush it, then
+replace the destination. A note save commits the vault first and refreshes the
+derived index afterward. An index failure never means a note body was lost.
 
-| Backend  | File                | Storage                          | Role                      |
-| -------- | ------------------- | -------------------------------- | ------------------------- |
-| `server` | `server-backend.ts` | Prisma / Postgres                | Authenticated web user    |
-| `local`  | `local-backend.ts`  | `localStorage` + seed            | Unauthenticated web guest |
-| `tauri`  | `tauri-backend.ts`  | Rust: `.md` vault + SQLite index | Desktop                   |
+## Structured editor sidecars
 
-Desktop capabilities (`tauri-backend.ts`): `sharing: false`, `collaboration: false`,
-`ai: true`, `journal/trash/history: true`. Sharing and collaboration are
-server-bound and therefore off - the capability flag is what greys them out.
+Markdown is portable, but some block-editor structure cannot be represented in
+plain Markdown alone. Desktop stores that structure in
+`.skriuw/rich/<note-id>.json` sidecars.
 
-## Desktop storage model
+Each sidecar records the SHA-256 revision of the exact Markdown it belongs to.
+When another app changes the Markdown, the revision no longer matches and
+Skriuw safely derives a fresh rich document instead of applying stale structure.
+Sidecars move through trash and restore, are purged with their note, and travel
+in vault backups and full snapshots.
 
-Two Rust stores, one source of truth:
+## External edits and conflicts
 
-- **`vault.rs` - the source of truth.** Notes are real `.md` files with YAML
-  frontmatter; folders are directories. Identity (`id`) lives in frontmatter, so a
-  rename on disk preserves the note and a move between folders re-parents it.
-  Journal, trash, and folder metadata live under `.skriuw/`.
-- **`storage.rs` - a derived index.** SQLite (`index.db`) with FTS5 for
-  `searchNotes`, the backlink graph (`get_backlink_sources`), and version history.
-  Rebuilt from the vault by `reconcile_index` on launch (deferred to a background
-  thread when `index.db` already exists; the frontend waits on the
-  `index://reconciled` event).
+The vault is designed to be edited by other tools. Desktop recursively watches
+the configured vault and debounces events by path. Stable frontmatter IDs let it
+recognize external rename and move operations; metadata changes use a bounded
+reconcile, while large bursts and watcher errors fall back to a full rescan.
 
-Writes are dual-write, vault first: `lib.rs::create_note` calls
-`vault.upsert_note` then `storage.upsert_note`. If the index is ever lost or
-corrupted, `reconcile_index` reconstructs it from the vault - the markdown is
-authoritative.
+Events carry IDs and invalidation flags, never note bodies. Internal saves are
+suppressed once using their exact path and revision, so a subsequent external
+edit is not hidden.
 
-## Sync
+Every loaded note carries a content-derived vault revision. A save with a stale
+revision is rejected rather than overwriting the file on disk. If a stale draft
+has already been edited locally, Skriuw first preserves it as a uniquely named,
+timestamped conflict-copy note with a new ID. The editor keeps both versions
+available and can copy the mounted draft. Data settings exposes active,
+rescanning, degraded, and stopped watcher state with **Rescan** and **Restart**
+actions.
 
-Decision: **ship serverless now (silos), add sync later.** The pull seam already
-exists - `importArchive` (`ImportArchivePayload`) applies a full workspace pull,
-including `deletedIds` tombstones, in one transaction
-(`storage.rs::import_workspace`). The `Note` row already carries `id` (uuid),
-`created_at`, and `modified_at`; deletes are tombstoned through the trash and the
-pull payload. That is enough for last-write-wins reconciliation.
+## Sync and credentials
 
-What is missing is the **push** half and a conflict policy - see gaps.
+Sync is opt-in. Browser device flow connects an account; the user then separately
+enables snapshot push/pull. Local deletions are tracked after a successful
+baseline, and concurrent edits preserve a conflict copy instead of silently
+choosing one body.
 
-## AI
+The desktop sync bearer is stored as `sync:device` in the OS credential store.
+Legacy webview storage is migrated one way only after the secure value is read
+back successfully. Disconnect and credential-inclusive reset remove it. A locked
+or unavailable keychain leaves sync disconnected; it never falls back to
+plaintext.
 
-Desktop default is **local Ollama** (private, offline). Cloud AI is optional and,
-for v1, **bring-your-own-key only** - Skriuw's own fallback keys cannot ship inside
-a desktop binary and a proxy would require the server we are deliberately not
-shipping yet. Enabling cloud AI sends note text off the machine, so it must sit
-behind an explicit consent toggle; "fully private" holds only in Ollama mode.
+## AI privacy
 
-## Open gaps
+Local Ollama is the default desktop provider. It works offline and keeps note
+text on the device. When Ollama is unavailable, local actions are disabled with
+an explanation and supported install/start controls; there is no automatic cloud
+fallback.
 
-1. **Sync push + conflict policy.** Only the pull direction is built. Two-way sync
-   needs a desktop→cloud push and an explicit LWW-vs-merge decision. The seam
-   (stable ids, `modified_at`, tombstones) is in place; the transport and the
-   merge rule are not.
-2. **`richContent` is not persisted in the vault.** It is derived from the markdown
-   on read (`rich-document.ts`), so block-editor-only structure is lossy on a
-   desktop round-trip. Decide: accept lossy markdown-canonical, or add a
-   `.skriuw/rich/<id>.json` sidecar.
-3. **Read path still goes through SQLite, and `vault.rs`'s header comment is
-   stale** (it claims it is "not yet wired into the live IPC commands" while
-   `lib.rs` already dual-writes to it). Confirm the vault-authoritative-on-conflict
-   invariant and correct the comment.
-4. **Ollama absence UX.** `capabilities.ai` is `true`, but the degrade path when no
-   Ollama daemon is on `localhost:11434` needs to be explicit: greyed action plus a
-   one-click in-app install trigger, never a silent failure.
-5. **Cloud-AI consent surface.** The BYO-key cloud path needs the privacy consent
-   toggle and a clear "text leaves this device" label before it is enabled.
+Cloud AI is bring-your-own-key and requires explicit consent in both the UI and
+Rust command boundary. Settings states that note text leaves the device, and
+withdrawing consent blocks cloud calls. AI keys live in the OS credential store,
+outside settings files, snapshots, and logs.
+
+## Signed updates
+
+The updater is configured only for release builds. It needs an HTTPS
+`SKRIUW_UPDATE_ENDPOINT` and `SKRIUW_UPDATE_PUBKEY`. Without both, desktop shows
+an unconfigured state and makes no network request. With both, Data settings can
+check, show release notes, and install signature-verified updates.
+
+Local builds do not need signing secrets. A release uses:
+
+```sh
+bun run --cwd apps/desktop build:release
+```
+
+CI must provide the protected updater private key, publish installers with their
+`.sig` files, and serve Tauri-compatible update JSON. Production distribution
+also needs Apple signing/notarization and a Windows code-signing certificate.
+
+## Remaining architecture gap
+
+The read path still serves from the derived SQLite index. The vault remains
+authoritative for writes and conflict checks, but direct vault reads are the next
+architectural improvement for the strictest local-first model.

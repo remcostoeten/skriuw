@@ -1,14 +1,9 @@
 /**
- * Default markdown body seeded into a freshly created note, named after it.
- * Shared by every "create note" entry point (sidebar, command palette, quick
- * capture) so the starter content stays identical everywhere.
+ * Minimal markdown body for a new note. Feature teaching belongs in contextual
+ * UI and the replayable tour, never in a person's document or automatic tags.
+ * Shared by every create entry point so quick capture is just as calm.
  */
 export function generateNoteContent(name: string): string {
 	const title = name.replace(/\.md$/, "");
-	return `# ${title}
-
-#draft #idea
-
-Start writing here. Use # for tags, @ to mention notes, or /tag and /link note from the block editor.
-`;
+	return `# ${title}\n\n`;
 }

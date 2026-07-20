@@ -18,6 +18,7 @@ import {
 	Plus,
 	Unlink,
 	Users,
+	Waypoints,
 	X,
 } from "lucide-react";
 import Link from "next/link";
@@ -82,6 +83,12 @@ import { UnlinkedMentionsSection } from "@/features/notes/components/unlinked-me
 import { findUnlinkedMentions } from "@/domain/notes/unlinked-mentions";
 import { useAuth } from "@/core/auth/use-auth";
 import { goto, useGotoTarget } from "@/core/quick-access";
+import {
+	buildThreadReadings,
+	extractLivingMarks,
+	type MarkAmount,
+	type ThreadReading,
+} from "@skriuw/domain/living-information";
 
 const EMPTY_FILES: NoteFile[] = [];
 
@@ -100,6 +107,7 @@ type Props = {
 
 type SectionKey =
 	| "outline"
+	| "readings"
 	| "tags"
 	| "people"
 	| "links"
@@ -107,6 +115,117 @@ type SectionKey =
 	| "history"
 	| "details"
 	| "collaborators";
+
+function formatReadingAmount(amount: MarkAmount): string {
+	return new Intl.NumberFormat(undefined, {
+		style: "currency",
+		currency: amount.currency,
+		maximumFractionDigits: 2,
+	}).format(amount.value);
+}
+
+function focusMarkSource(id: string) {
+	if (!id) return;
+	const escaped =
+		typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/["\\]/g, "\\$&");
+	const targets = [
+		...document.querySelectorAll<HTMLElement>(`[data-skriuw-mark-id="${escaped}"]`),
+	];
+	const target = targets.find((candidate) => candidate.getClientRects().length > 0) ?? targets[0];
+	if (!target) return;
+	const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+	target.scrollIntoView({ behavior: reduceMotion ? "instant" : "smooth", block: "center" });
+	target.focus({ preventScroll: true });
+	if (reduceMotion) return;
+	target.animate(
+		[
+			{ outline: "0 solid color-mix(in srgb, var(--ring) 0%, transparent)" },
+			{ outline: "3px solid color-mix(in srgb, var(--ring) 70%, transparent)" },
+			{ outline: "0 solid color-mix(in srgb, var(--ring) 0%, transparent)" },
+		],
+		{ duration: 420, easing: "ease-out" },
+	);
+}
+
+function ThreadReadingCard({ reading }: { reading: ThreadReading }) {
+	const amountTotals = [...new Set(reading.amounts.map((amount) => amount.currency))].map(
+		(currency) => ({
+			currency,
+			value: reading.amounts
+				.filter((amount) => amount.currency === currency)
+				.reduce((sum, amount) => sum + amount.value, 0),
+		}),
+	);
+	return (
+		<li className="border border-border bg-card/45 p-2.5">
+			<div className="flex items-baseline justify-between gap-2">
+				<h3 className="truncate text-[12px] font-medium text-foreground/88">
+					{reading.name}
+				</h3>
+				<span className="text-[10px] tabular-nums text-muted-foreground/55">
+					{reading.marks.length} {reading.marks.length === 1 ? "source" : "sources"}
+				</span>
+			</div>
+			{amountTotals.length > 0 || reading.countTotal !== null || reading.states.length > 0 ? (
+				<div className="mt-2 flex flex-wrap gap-1.5">
+					{amountTotals.map((amount) => (
+						<span
+							key={amount.currency}
+							className="border border-border bg-background px-1.5 py-0.5 text-[11px] font-medium tabular-nums"
+						>
+							{formatReadingAmount(amount)}
+						</span>
+					))}
+					{reading.countTotal !== null ? (
+						<span className="border border-border bg-background px-1.5 py-0.5 text-[11px] font-medium tabular-nums">
+							{reading.countTotal.toLocaleString()} total
+						</span>
+					) : null}
+					{reading.states.map((state) => (
+						<span
+							key={state}
+							className="border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground/78"
+						>
+							{state}
+						</span>
+					))}
+				</div>
+			) : null}
+			<ul className="mt-2 space-y-0.5" aria-label={`Sources for ${reading.name}`}>
+				{reading.marks.map((mark) => (
+					<li key={mark.id}>
+						<button
+							type="button"
+							onClick={() => focusMarkSource(mark.id)}
+							className="flex min-h-8 w-full items-center gap-2 px-1.5 text-left text-[12px] text-foreground/75 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+						>
+							<span className="min-w-0 flex-1 truncate">{mark.text}</span>
+							<span className="shrink-0 text-[9px] uppercase tracking-[0.1em] text-muted-foreground/55">
+								{mark.kind}
+							</span>
+							<ArrowUpRight className="h-3 w-3 shrink-0" aria-hidden />
+						</button>
+					</li>
+				))}
+			</ul>
+		</li>
+	);
+}
+
+function ReadingsSectionContent({ readings }: { readings: ThreadReading[] }) {
+	if (readings.length === 0) {
+		return (
+			<EmptyLine>Select text and choose Mark to create a source-linked Reading.</EmptyLine>
+		);
+	}
+	return (
+		<ul className="space-y-2" aria-label="Living information readings">
+			{readings.map((reading) => (
+				<ThreadReadingCard key={reading.id} reading={reading} />
+			))}
+		</ul>
+	);
+}
 
 function normalizeTag(tag: string): string {
 	return tag.trim().replace(/^#/, "").toLowerCase();
@@ -783,6 +902,10 @@ function useInspectorData({
 		const byId = new Map((peopleQuery.data ?? []).map((person) => [person.id, person]));
 		return ids.map((id) => byId.get(id)).filter((person): person is Person => Boolean(person));
 	}, [deferredFile, peopleQuery.data]);
+	const readings = useMemo(
+		() => buildThreadReadings(extractLivingMarks(deferredFile?.richContent)),
+		[deferredFile?.richContent],
+	);
 	const taggedNotes = useMemo(() => {
 		if (!file || !selectedTag) return [];
 		return files.filter(
@@ -850,6 +973,7 @@ function useInspectorData({
 		filesById,
 		tags,
 		mentionedPeople,
+		readings,
 		taggedNotes,
 		historyItems,
 		historyBranchRoles,
@@ -1146,6 +1270,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 	const animateNumbers = usePreferencesStore((state) => state.editor.animateNumbers);
 	const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
 		outline: true,
+		readings: true,
 		tags: true,
 		people: true,
 		links: true,
@@ -1170,6 +1295,7 @@ export const MetadataPanel = memo(function MetadataPanel({
 		filesById,
 		tags,
 		mentionedPeople,
+		readings,
 		taggedNotes,
 		historyItems,
 		historyBranchRoles,
@@ -1250,6 +1376,17 @@ export const MetadataPanel = memo(function MetadataPanel({
 						activeKey={outlineActiveKey}
 						onSelect={scrollToHeading}
 					/>
+				</InspectorSection>
+
+				<InspectorSection
+					id="note-inspector-readings"
+					title="Readings"
+					icon={Waypoints}
+					count={readings.length}
+					open={openSections.readings}
+					onToggle={() => toggleSection("readings")}
+				>
+					<ReadingsSectionContent readings={readings} />
 				</InspectorSection>
 
 				<InspectorSection

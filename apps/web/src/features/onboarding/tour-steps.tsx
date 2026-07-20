@@ -1,8 +1,3 @@
-import { ImageDemo } from "./components/demos/image-demo";
-import { MentionDemo } from "./components/demos/mention-demo";
-import { PersonDemo } from "./components/demos/person-demo";
-import { SlashDemo } from "./components/demos/slash-demo";
-import { TagDemo } from "./components/demos/tag-demo";
 import type { ComponentType } from "react";
 import type { ShortcutId } from "@/core/shortcuts/registry";
 import type { WorkspaceCapabilities } from "@/core/workspace-backend";
@@ -58,31 +53,6 @@ export const TOUR_STEPS: TourStep[] = [
 		body: "A local-first, keyboard-first notebook. Here's a quick tour of where everything lives and the keystrokes that do the most work.",
 	},
 	{
-		id: "nav",
-		act: 1,
-		kind: "spotlight",
-		anchor: '[data-tour="nav"]',
-		title: "Everything on one rail",
-		body: "Jump between Notes, Journal, Graph, Tags, and People from here.",
-	},
-	{
-		id: "journal",
-		act: 1,
-		kind: "spotlight",
-		anchor: 'a[href="/app/journal"]',
-		title: "A page for every day",
-		body: "Quick daily capture with templates — #tags and $people work there too, and entries feed the graph. Export it to your calendar.",
-		predicate: (ctx) => ctx.capabilities.journal,
-	},
-	{
-		id: "sidebar",
-		act: 1,
-		kind: "spotlight",
-		anchor: '[data-tour="sidebar"]',
-		title: "Your notes live here",
-		body: "Nest notes into folders and sections, drag to reorder, and search the tree.",
-	},
-	{
 		id: "new-note",
 		act: 1,
 		kind: "spotlight",
@@ -100,46 +70,6 @@ export const TOUR_STEPS: TourStep[] = [
 		body: "Headings, lists, code, diagrams, images — everything starts with a keystroke.",
 	},
 	{
-		id: "slash",
-		act: 2,
-		kind: "demo",
-		demo: SlashDemo,
-		title: "Type / for blocks",
-		body: "Code, Mermaid diagrams, toggles, AI, and more — pick from the menu or keep typing to filter.",
-	},
-	{
-		id: "tags",
-		act: 2,
-		kind: "demo",
-		demo: TagDemo,
-		title: "Tag inline with #",
-		body: "Tags roll up into the Tags overview and the graph — no separate step to organize.",
-	},
-	{
-		id: "mentions",
-		act: 2,
-		kind: "demo",
-		demo: MentionDemo,
-		title: "Link notes with @",
-		body: "Mention a note to link it — it creates the note if it doesn't exist yet, and every @ becomes a backlink in the note's inspector.",
-	},
-	{
-		id: "people",
-		act: 2,
-		kind: "demo",
-		demo: PersonDemo,
-		title: "Mention people with $",
-		body: "Each person gets a profile and a node in the graph.",
-	},
-	{
-		id: "images",
-		act: 2,
-		kind: "demo",
-		demo: ImageDemo,
-		title: "Images & covers",
-		body: "Drag-drop or paste images; give any page a cover. Nothing to upload now — just showing you.",
-	},
-	{
 		id: "palette",
 		act: 3,
 		kind: "deeplink",
@@ -148,16 +78,6 @@ export const TOUR_STEPS: TourStep[] = [
 		shortcutId: "app.commandPalette",
 		onEnter: (fx) => fx.openPalette(),
 		onExit: (fx) => fx.closePalette(),
-	},
-	{
-		id: "shortcuts",
-		act: 3,
-		kind: "deeplink",
-		title: "Keyboard-first, remappable",
-		body: "Every shortcut is listed here and remappable in Settings.",
-		shortcutId: "notes.help",
-		onEnter: (fx) => fx.openShortcutHelp(),
-		onExit: (fx) => fx.closeShortcutHelp(),
 	},
 	{
 		id: "settings",
@@ -169,15 +89,6 @@ export const TOUR_STEPS: TourStep[] = [
 		onExit: (fx) => fx.closeSettings(),
 	},
 	{
-		id: "ai",
-		act: 3,
-		kind: "spotlight",
-		anchor: '[data-tour="ai"]',
-		title: "AI in the editor",
-		body: "Summarize, continue writing, extract tasks, suggest tags — right where you write.",
-		predicate: (ctx) => ctx.capabilities.ai && !ctx.isGuest,
-	},
-	{
 		id: "local-ai",
 		act: 3,
 		kind: "deeplink",
@@ -186,14 +97,6 @@ export const TOUR_STEPS: TourStep[] = [
 		predicate: (ctx) => ctx.isDesktop,
 		onEnter: (fx) => fx.openAiSettings(),
 		onExit: (fx) => fx.closeSettings(),
-	},
-	{
-		id: "sync",
-		act: 3,
-		kind: "card",
-		title: "Synced & collaborative",
-		body: "Signed in on the web, your notes sync to the cloud and you can collaborate in real time.",
-		predicate: (ctx) => !ctx.isDesktop && !ctx.isGuest,
 	},
 	{
 		id: "guest-cta",

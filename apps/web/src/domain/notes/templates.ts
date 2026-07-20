@@ -20,15 +20,10 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
 	{
 		id: "blank",
 		name: "Blank note",
-		description: "An empty note with the default starter hints.",
+		description: "A genuinely blank writing surface.",
 		build: () => ({
 			name: "Untitled.md",
-			content: `# Untitled
-
-#draft #idea
-
-Start writing here. Use # for tags, @ to mention notes, or /tag and /link note from the block editor.
-`,
+			content: "# Untitled\n\n",
 		}),
 	},
 	{

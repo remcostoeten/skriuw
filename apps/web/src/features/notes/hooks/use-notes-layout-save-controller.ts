@@ -6,6 +6,7 @@ import { useLazyRef } from "@/shared/lib/use-lazy-ref";
 import { useSidebarStore } from "@/features/notes/components/sidebar/store";
 import { useNotesStore } from "@/features/notes/store";
 import { useWorkspaceBackend, isTauriRuntime } from "@/core/workspace-backend";
+import { isVaultConflictError } from "@/core/workspace-backend/tauri-backend";
 import { richDocumentKey } from "@/domain/notes/rich-document";
 import { noop } from "@/shared/lib/noop";
 import type { NoteFile, RichTextDocument } from "@/types/notes";
@@ -13,7 +14,7 @@ import type { NoteProperty } from "@/domain/notes/properties";
 import { notesKeys } from "./notes-keys";
 import { useDebouncedSave } from "./use-debounced-save";
 
-type SaveState = "saving" | "saved" | "error";
+type SaveState = "saving" | "saved" | "error" | "conflict";
 
 type UseNotesLayoutSaveControllerOptions = {
 	activeFileId: string;
@@ -70,9 +71,9 @@ export function useNotesLayoutSaveController({
 	);
 
 	const markFileError = useCallback(
-		(id: string) => {
+		(id: string, error: unknown) => {
 			clearPendingSaveReset(id);
-			setFileSaveState(id, "error");
+			setFileSaveState(id, isVaultConflictError(error) ? "conflict" : "error");
 		},
 		[clearPendingSaveReset, setFileSaveState],
 	);
@@ -82,6 +83,17 @@ export function useNotesLayoutSaveController({
 		onSaved: markFileSaved,
 		onError: markFileError,
 	});
+
+	useEffect(() => {
+		const discardResolvedDraft = (event: Event) => {
+			const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+			if (id) saveController.discardPending(id);
+		};
+		window.addEventListener("vault-conflict:discard-draft", discardResolvedDraft);
+		return () => {
+			window.removeEventListener("vault-conflict:discard-draft", discardResolvedDraft);
+		};
+	}, [saveController]);
 
 	useEffect(() => {
 		saveControllerRef.current = saveController;

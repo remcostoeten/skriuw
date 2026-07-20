@@ -1,10 +1,11 @@
 {
 	"name": "skriuw-desktop",
-	"version": "0.23.0",
+	"version": "0.24.0",
 	"private": true,
 	"scripts": {
 		"dev": "tauri dev",
 		"build": "cross-env NO_STRIP=1 tauri build",
+		"build:release": "cross-env NO_STRIP=1 tauri build --config src-tauri/tauri.release.conf.json",
 		"build:snap": "bun run build && snapcraft pack",
 		"tauri": "tauri"
 	},

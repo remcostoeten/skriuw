@@ -11,6 +11,7 @@ export type SettingsTabId =
 	| "security"
 	| "ai"
 	| "tags"
+	| "calendar"
 	| "experimental";
 
 // Cloud-only tabs hidden in the desktop build: there is no cloud auth (account/

@@ -1,329 +1,524 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	AlertCircle,
+	CalendarDays,
+	ChevronRight,
+	FileText,
+	Loader2,
+	Plus,
+	RotateCcw,
+	Tag,
+	Trash2,
+	UserRound,
+	X,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/core/auth/use-auth";
 import { useWorkspaceBackend } from "@/core/workspace-backend";
+import type { Person } from "@/domain/people/models";
 import type { Task, TaskPriority } from "@/domain/tasks/models";
 import { useJournalEntries } from "@/features/journal/hooks/use-journal-entries";
-import { cn } from "@/shared/lib/utils";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/shared/ui/sheet";
+import { tasksForDate } from "../lib/task-view-model";
+import { TaskViewSwitcher, type TaskView } from "./task-view-switcher";
+import { TaskViewStage } from "./task-views";
 
 const priorities: TaskPriority[] = ["urgent", "high", "medium", "low"];
-const dayKey = (date: Date) => date.toISOString().slice(0, 10);
+
+type LoadState = "loading" | "ready" | "error";
 
 export function TasksPage() {
 	const backend = useWorkspaceBackend();
 	const auth = useAuth();
+	const router = useRouter();
 	const { data: journalEntries = [] } = useJournalEntries();
 	const [tasks, setTasks] = useState<Task[]>([]);
+	const [people, setPeople] = useState<Person[]>([]);
 	const [draft, setDraft] = useState("");
-	const [selected, setSelected] = useState<Task | null>(null);
-	const [month, setMonth] = useState(() => new Date());
+	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const [selectedDate, setSelectedDate] = useState<string | null>(null);
+	const [month, setMonth] = useState<Date | null>(null);
+	const [view, setView] = useState<TaskView>("list");
+	const [showCompleted, setShowCompleted] = useState(true);
+	const [loadState, setLoadState] = useState<LoadState>("loading");
+	const [loadAttempt, setLoadAttempt] = useState(0);
+	const [operationError, setOperationError] = useState<string | null>(null);
+	const [isCreating, setIsCreating] = useState(false);
+	const mutationQueues = useRef(new Map<string, Promise<void>>());
 
 	useEffect(() => {
 		if (!backend.capabilities.tasks) return;
-		backend
-			.listTasks?.()
-			.then(setTasks)
-			.catch(() => setTasks([]));
-	}, [backend]);
+		let active = true;
+		setLoadState("loading");
+		setOperationError(null);
+
+		Promise.all([backend.listTasks?.() ?? Promise.resolve([]), backend.listPeople()])
+			.then(([nextTasks, nextPeople]) => {
+				if (!active) return;
+				setTasks(nextTasks);
+				setPeople(nextPeople);
+				setLoadState("ready");
+			})
+			.catch(() => {
+				if (active) setLoadState("error");
+			});
+
+		return () => {
+			active = false;
+		};
+	}, [backend, loadAttempt]);
+
+	useEffect(() => {
+		setMonth(new Date());
+	}, []);
+
+	const completionFilteredTasks = useMemo(
+		() => (showCompleted ? tasks : tasks.filter((task) => task.status !== "done")),
+		[tasks, showCompleted],
+	);
+	const visibleTasks = useMemo(
+		() => tasksForDate(completionFilteredTasks, selectedDate),
+		[completionFilteredTasks, selectedDate],
+	);
+	const journalDates = useMemo(
+		() => new Set(journalEntries.map((entry) => entry.dateKey)),
+		[journalEntries],
+	);
+
+	if (!auth.isReady) {
+		return (
+			<TaskStatusPage
+				icon={<Loader2 className="size-5 animate-spin" />}
+				title="Loading tasks…"
+			/>
+		);
+	}
 
 	if (!backend.capabilities.tasks) {
-		return auth.isReady ? null : (
-			<div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-				Loading tasks…
-			</div>
+		return (
+			<TaskStatusPage
+				icon={<CalendarDays className="size-5" />}
+				title="Tasks aren’t available in this workspace"
+				description="Open a desktop vault or sign in to a workspace to create and manage tasks."
+			/>
+		);
+	}
+
+	if (loadState === "loading") {
+		return (
+			<TaskStatusPage
+				icon={<Loader2 className="size-5 animate-spin" />}
+				title="Loading tasks…"
+			/>
+		);
+	}
+
+	if (loadState === "error") {
+		return (
+			<TaskStatusPage
+				icon={<AlertCircle className="size-5" />}
+				title="Tasks couldn’t be loaded"
+				description="Your tasks are unchanged. Check the connection and try again."
+				action={
+					<button
+						type="button"
+						onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+						className="mt-4 inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-medium hover:bg-muted"
+					>
+						<RotateCcw className="size-4" /> Try again
+					</button>
+				}
+			/>
 		);
 	}
 
 	async function createTask(event: React.FormEvent) {
 		event.preventDefault();
-		if (!draft.trim() || !backend.createTask) return;
-		const task = await backend.createTask({ title: draft });
-		setTasks((current) => [task, ...current]);
-		setDraft("");
+		const title = draft.trim();
+		if (!title || !backend.createTask || isCreating) return;
+		setIsCreating(true);
+		setOperationError(null);
+		try {
+			const task = await backend.createTask({ title });
+			setTasks((current) => [task, ...current]);
+			setDraft("");
+		} catch {
+			setOperationError("The task couldn’t be created. Try again.");
+		} finally {
+			setIsCreating(false);
+		}
 	}
 
-	async function patchTask(task: Task, patch: Partial<Task>) {
-		if (!backend.updateTask) return;
-		const saved = await backend.updateTask({ id: task.id, ...patch });
-		if (!saved) return;
-		setTasks((current) => current.map((item) => (item.id === saved.id ? saved : item)));
-		setSelected(saved);
+	function patchTask(id: string, patch: Partial<Task>): Promise<void> {
+		if (!backend.updateTask) return Promise.resolve();
+		setOperationError(null);
+
+		const previous = mutationQueues.current.get(id) ?? Promise.resolve();
+		const queued = previous
+			.catch(() => undefined)
+			.then(async () => {
+				const saved = await backend.updateTask?.({ id, ...patch });
+				if (!saved) throw new Error("Task no longer exists");
+				setTasks((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+			})
+			.catch(() => {
+				setOperationError("A task change couldn’t be saved. Reload before trying again.");
+			});
+		mutationQueues.current.set(id, queued);
+		queued.finally(() => {
+			if (mutationQueues.current.get(id) === queued) mutationQueues.current.delete(id);
+		});
+		return queued;
 	}
+
+	async function deleteTask(id: string) {
+		if (!backend.deleteTask) return;
+		setOperationError(null);
+		try {
+			await (mutationQueues.current.get(id) ?? Promise.resolve());
+			await backend.deleteTask(id);
+			setTasks((current) => current.filter((task) => task.id !== id));
+			setSelectedId(null);
+		} catch {
+			setOperationError("The task couldn’t be deleted. Try again.");
+			throw new Error("Task deletion failed");
+		}
+	}
+
+	const selected = selectedId ? (tasks.find((task) => task.id === selectedId) ?? null) : null;
+	const openCount = tasks.filter((task) => task.status !== "done").length;
 
 	return (
 		<div className="flex h-full min-h-0 bg-background text-foreground">
-			<main className="min-w-0 flex-1 overflow-auto px-5 py-6 md:px-10">
-				<div className="mx-auto max-w-5xl">
+			<main className="min-w-0 flex-1 overflow-auto px-4 py-6 sm:px-6 md:px-10">
+				<div className="mx-auto max-w-7xl">
 					<header className="mb-7 flex items-end justify-between gap-4">
 						<div>
 							<p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
 								Workspace
 							</p>
 							<h1 className="mt-1 text-3xl font-semibold tracking-tight">Tasks</h1>
+							<p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+								One set of tasks, shaped for the way you need to work.
+							</p>
 						</div>
-						<span className="text-sm text-muted-foreground">
-							{tasks.filter((task) => task.status !== "done").length} open
-						</span>
+						<span className="text-sm text-muted-foreground">{openCount} open</span>
 					</header>
 					<form
 						onSubmit={createTask}
-						className="mb-8 flex items-center gap-2 rounded-lg border bg-card p-2 shadow-sm"
+						className="mb-3 flex items-center gap-2 rounded-lg border bg-card p-2 shadow-sm"
 					>
-						<Plus className="ml-1 size-4 text-muted-foreground" />
+						{isCreating ? (
+							<Loader2 className="ml-1 size-4 animate-spin text-muted-foreground" />
+						) : (
+							<Plus className="ml-1 size-4 text-muted-foreground" />
+						)}
 						<input
 							value={draft}
 							onChange={(event) => setDraft(event.target.value)}
-							className="min-w-0 flex-1 bg-transparent px-1 py-1.5 text-sm outline-none"
+							disabled={isCreating}
+							className="min-w-0 flex-1 bg-transparent px-1 py-1.5 text-sm outline-none disabled:opacity-60"
 							placeholder="Add a task and press Enter"
+							aria-label="New task title"
 						/>
 					</form>
-					<section className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_330px]">
-						<TaskList
-							tasks={tasks}
-							onSelect={setSelected}
+					{operationError ? (
+						<p
+							role="alert"
+							className="mb-3 flex items-center gap-2 text-xs text-destructive"
+						>
+							<AlertCircle className="size-3.5" /> {operationError}
+						</p>
+					) : null}
+					<div className="mb-3 flex items-center gap-2 overflow-x-auto pb-0.5">
+						<TaskViewSwitcher view={view} onChange={setView} />
+						<div className="flex-1" />
+						{selectedDate ? (
+							<button
+								type="button"
+								onClick={() => setSelectedDate(null)}
+								className="h-9 shrink-0 rounded-lg border bg-card px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+							>
+								Due{" "}
+								{new Date(`${selectedDate}T12:00:00`).toLocaleDateString(
+									undefined,
+									{ month: "short", day: "numeric" },
+								)}{" "}
+								×
+							</button>
+						) : null}
+						<button
+							type="button"
+							onClick={() => setShowCompleted((current) => !current)}
+							aria-pressed={!showCompleted}
+							className="h-9 shrink-0 rounded-lg border bg-card px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+						>
+							{showCompleted ? "Hide completed" : "Show completed"}
+						</button>
+					</div>
+					<section className="overflow-hidden rounded-xl border bg-card/35 shadow-sm">
+						<header className="flex h-11 items-center gap-2 border-b px-3 sm:px-4">
+							<span className="text-xs font-medium">
+								{selectedDate
+									? "Tasks due this day"
+									: view === "calendar"
+										? "Schedule"
+										: "All tasks"}
+							</span>
+							<span className="font-mono text-[10px] text-muted-foreground">
+								{view === "calendar"
+									? completionFilteredTasks.length
+									: visibleTasks.length}{" "}
+								items
+							</span>
+							{tasks.some((task) => task.sourceNoteId) ? (
+								<span className="ml-auto hidden items-center gap-1.5 text-[10px] text-muted-foreground sm:flex">
+									<i className="h-3 w-0.5 rounded-full bg-[hsl(var(--project-purple))]" />
+									From a note
+								</span>
+							) : null}
+						</header>
+						<TaskViewStage
+							view={view}
+							tasks={visibleTasks}
+							calendarTasks={completionFilteredTasks}
+							people={people}
+							isFiltered={selectedDate !== null || !showCompleted}
+							month={month}
+							onMonthChange={setMonth}
+							journalDates={journalDates}
+							selectedDate={selectedDate}
+							onSelect={setSelectedId}
 							onToggle={(task) =>
-								patchTask(task, {
+								patchTask(task.id, {
 									status: task.status === "done" ? "todo" : "done",
 								})
 							}
-						/>
-						<UnifiedCalendar
-							month={month}
-							onMonthChange={setMonth}
-							tasks={tasks}
-							journalDates={new Set(journalEntries.map((entry) => entry.dateKey))}
+							onPatch={patchTask}
+							onShowDay={(dateKey) => {
+								setSelectedDate(dateKey);
+								setView("list");
+							}}
 						/>
 					</section>
 				</div>
 			</main>
-			{selected ? (
-				<TaskDrawer task={selected} onClose={() => setSelected(null)} onPatch={patchTask} />
-			) : null}
+			<TaskDrawer
+				task={selected}
+				people={people}
+				onClose={() => setSelectedId(null)}
+				onPatch={patchTask}
+				onDelete={deleteTask}
+				onOpenSource={(noteId) => {
+					setSelectedId(null);
+					router.push(`/app?note=${encodeURIComponent(noteId)}`);
+				}}
+			/>
 		</div>
 	);
 }
 
-function TaskList({
-	tasks,
-	onSelect,
-	onToggle,
+function TaskStatusPage({
+	icon,
+	title,
+	description,
+	action,
 }: {
-	tasks: Task[];
-	onSelect: (task: Task) => void;
-	onToggle: (task: Task) => void;
+	icon: React.ReactNode;
+	title: string;
+	description?: string;
+	action?: React.ReactNode;
 }) {
-	const groups = [
-		[
-			"Overdue",
-			tasks.filter(
-				(task) =>
-					task.status !== "done" && task.dueDate && task.dueDate < dayKey(new Date()),
-			),
-		],
-		[
-			"Today",
-			tasks.filter((task) => task.status !== "done" && task.dueDate === dayKey(new Date())),
-		],
-		["Inbox", tasks.filter((task) => task.status !== "done" && !task.dueDate)],
-		["Completed", tasks.filter((task) => task.status === "done")],
-	] as const;
 	return (
-		<div className="space-y-6">
-			{groups
-				.filter(([, items]) => items.length)
-				.map(([label, items]) => (
-					<section key={label}>
-						<h2 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-							{label} · {items.length}
-						</h2>
-						<div className="overflow-hidden rounded-lg border bg-card">
-							{items.map((task) => (
-								<div
-									key={task.id}
-									className="flex cursor-pointer items-center gap-3 border-b px-3 py-3 last:border-b-0 hover:bg-muted/50"
-									onClick={() => onSelect(task)}
-								>
-									<button
-										type="button"
-										onClick={(event) => {
-											event.stopPropagation();
-											onToggle(task);
-										}}
-										className={cn(
-											"flex size-5 shrink-0 items-center justify-center rounded border",
-											task.status === "done" &&
-												"border-emerald-500 bg-emerald-500 text-white",
-										)}
-										aria-label="Toggle task"
-									>
-										{task.status === "done" ? (
-											<Check className="size-3.5" />
-										) : null}
-									</button>
-									<span
-										className={cn(
-											"min-w-0 flex-1 text-sm",
-											task.status === "done" &&
-												"text-muted-foreground line-through",
-										)}
-									>
-										{task.title}
-									</span>
-									<span className="text-xs capitalize text-muted-foreground">
-										{task.priority}
-									</span>
-									{task.dueDate ? (
-										<span className="text-xs text-muted-foreground">
-											{task.dueDate}
-										</span>
-									) : null}
-								</div>
-							))}
-						</div>
-					</section>
-				))}
+		<div className="flex h-full items-center justify-center px-6 text-center">
+			<div className="max-w-sm">
+				<div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+					{icon}
+				</div>
+				<h1 className="text-base font-medium">{title}</h1>
+				{description ? (
+					<p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+				) : null}
+				{action}
+			</div>
 		</div>
-	);
-}
-
-function UnifiedCalendar({
-	month,
-	onMonthChange,
-	tasks,
-	journalDates,
-}: {
-	month: Date;
-	onMonthChange: (month: Date) => void;
-	tasks: Task[];
-	journalDates: Set<string>;
-}) {
-	const first = new Date(month.getFullYear(), month.getMonth(), 1);
-	const leading = (first.getDay() + 6) % 7;
-	const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-	return (
-		<aside className="h-fit rounded-lg border bg-card p-4">
-			<div className="mb-4 flex items-center justify-between">
-				<button
-					type="button"
-					onClick={() =>
-						onMonthChange(new Date(month.getFullYear(), month.getMonth() - 1, 1))
-					}
-				>
-					<ChevronLeft className="size-4" />
-				</button>
-				<h2 className="text-sm font-medium">
-					{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
-				</h2>
-				<button
-					type="button"
-					onClick={() =>
-						onMonthChange(new Date(month.getFullYear(), month.getMonth() + 1, 1))
-					}
-				>
-					<ChevronRight className="size-4" />
-				</button>
-			</div>
-			<div className="grid grid-cols-7 gap-1 text-center text-[10px] text-muted-foreground">
-				{"MTWTFSS".split("").map((day, index) => (
-					<span key={`${day}-${index}`}>{day}</span>
-				))}
-				{Array.from({ length: leading }, (_, index) => (
-					<span key={`blank-${index}`} />
-				))}
-				{Array.from({ length: days }, (_, index) => {
-					const date = new Date(month.getFullYear(), month.getMonth(), index + 1);
-					const key = dayKey(date);
-					const taskCount = tasks.filter(
-						(task) => task.dueDate === key && task.status !== "done",
-					).length;
-					const hasJournal = journalDates.has(key);
-					return (
-						<div
-							key={key}
-							className={cn(
-								"min-h-9 rounded pt-1",
-								key === dayKey(new Date()) && "bg-muted",
-							)}
-						>
-							<span>{index + 1}</span>
-							<div className="mt-1 flex justify-center gap-0.5">
-								{taskCount ? (
-									<i
-										className="size-1.5 rounded-full bg-amber-500"
-										title={`${taskCount} tasks`}
-									/>
-								) : null}
-								{hasJournal ? (
-									<i
-										className="size-1.5 rounded-full bg-sky-500"
-										title="Journal entry"
-									/>
-								) : null}
-							</div>
-						</div>
-					);
-				})}
-			</div>
-			<p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-				<CalendarDays className="size-3.5" /> amber tasks · blue diary
-			</p>
-		</aside>
 	);
 }
 
 function TaskDrawer({
 	task,
+	people,
 	onClose,
 	onPatch,
+	onDelete,
+	onOpenSource,
 }: {
-	task: Task;
+	task: Task | null;
+	people: Person[];
 	onClose: () => void;
-	onPatch: (task: Task, patch: Partial<Task>) => void;
+	onPatch: (id: string, patch: Partial<Task>) => Promise<void>;
+	onDelete: (id: string) => Promise<void>;
+	onOpenSource: (noteId: string) => void;
 }) {
 	return (
-		<aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col border-l bg-background shadow-2xl">
+		<Sheet
+			open={task !== null}
+			onOpenChange={(open) => {
+				if (!open) onClose();
+			}}
+		>
+			<SheetContent
+				side="right"
+				hideClose
+				className="flex w-full max-w-lg flex-col gap-0 p-0 sm:max-w-lg"
+			>
+				{task ? (
+					<TaskDrawerContent
+						key={task.id}
+						task={task}
+						people={people}
+						onClose={onClose}
+						onPatch={onPatch}
+						onDelete={onDelete}
+						onOpenSource={onOpenSource}
+					/>
+				) : null}
+			</SheetContent>
+		</Sheet>
+	);
+}
+
+function TaskDrawerContent({
+	task,
+	people,
+	onClose,
+	onPatch,
+	onDelete,
+	onOpenSource,
+}: {
+	task: Task;
+	people: Person[];
+	onClose: () => void;
+	onPatch: (id: string, patch: Partial<Task>) => Promise<void>;
+	onDelete: (id: string) => Promise<void>;
+	onOpenSource: (noteId: string) => void;
+}) {
+	const [title, setTitle] = useState(task.title);
+	const [description, setDescription] = useState(task.description);
+	const [tags, setTags] = useState(task.tags);
+	const [assigneeIds, setAssigneeIds] = useState(task.assigneeIds);
+	const [tagDraft, setTagDraft] = useState("");
+	const [confirmDelete, setConfirmDelete] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
+	const tagsRef = useRef(task.tags);
+	const assigneeIdsRef = useRef(task.assigneeIds);
+
+	function commitTitle() {
+		const next = title.trim();
+		if (!next) {
+			setTitle(task.title);
+			return;
+		}
+		if (next !== task.title) void onPatch(task.id, { title: next });
+	}
+
+	function addTag() {
+		const tag = tagDraft.trim().replace(/^#/, "");
+		if (!tag) return;
+		setTagDraft("");
+		if (
+			!tagsRef.current.some(
+				(current) => current.toLocaleLowerCase() === tag.toLocaleLowerCase(),
+			)
+		) {
+			const next = [...tagsRef.current, tag];
+			tagsRef.current = next;
+			setTags(next);
+			void onPatch(task.id, { tags: next });
+		}
+	}
+
+	function removeTag(tag: string) {
+		const next = tagsRef.current.filter((current) => current !== tag);
+		tagsRef.current = next;
+		setTags(next);
+		void onPatch(task.id, { tags: next });
+	}
+
+	function toggleAssignee(personId: string) {
+		const next = assigneeIdsRef.current.includes(personId)
+			? assigneeIdsRef.current.filter((id) => id !== personId)
+			: [...assigneeIdsRef.current, personId];
+		assigneeIdsRef.current = next;
+		setAssigneeIds(next);
+		void onPatch(task.id, { assigneeIds: next });
+	}
+
+	return (
+		<>
 			<header className="flex h-12 items-center justify-between border-b px-4">
-				<span className="text-xs text-muted-foreground">Task</span>
-				<button type="button" onClick={onClose} aria-label="Close task">
+				<div>
+					<SheetTitle className="text-xs font-medium text-foreground">Task</SheetTitle>
+					<SheetDescription className="sr-only">
+						Edit task details, assignees, tags, and source note.
+					</SheetDescription>
+				</div>
+				<button
+					type="button"
+					onClick={onClose}
+					aria-label="Close task"
+					className="rounded p-1 hover:bg-muted"
+				>
 					<X className="size-4" />
 				</button>
 			</header>
 			<div className="space-y-6 overflow-auto p-6">
 				<input
 					className="w-full bg-transparent text-2xl font-semibold outline-none"
-					value={task.title}
-					onChange={(event) => onPatch(task, { title: event.target.value })}
+					value={title}
+					onChange={(event) => setTitle(event.target.value)}
+					onBlur={commitTitle}
+					onKeyDown={(event) => {
+						if (event.key === "Enter") event.currentTarget.blur();
+					}}
+					aria-label="Task title"
 				/>
-				<label className="block text-xs text-muted-foreground">
-					Status
-					<select
-						className="mt-1 block w-full rounded border bg-card p-2 text-sm text-foreground"
-						value={task.status}
-						onChange={(event) =>
-							onPatch(task, { status: event.target.value as Task["status"] })
-						}
-					>
-						<option value="todo">To do</option>
-						<option value="in_progress">In progress</option>
-						<option value="done">Done</option>
-					</select>
-				</label>
-				<label className="block text-xs text-muted-foreground">
-					Priority
-					<select
-						className="mt-1 block w-full rounded border bg-card p-2 text-sm capitalize text-foreground"
-						value={task.priority}
-						onChange={(event) =>
-							onPatch(task, { priority: event.target.value as TaskPriority })
-						}
-					>
-						{priorities.map((priority) => (
-							<option key={priority}>{priority}</option>
-						))}
-					</select>
-				</label>
+				<div className="grid gap-4 sm:grid-cols-2">
+					<label className="block text-xs text-muted-foreground">
+						Status
+						<select
+							className="mt-1 block w-full rounded border bg-card p-2 text-sm text-foreground"
+							value={task.status}
+							onChange={(event) =>
+								void onPatch(task.id, {
+									status: event.target.value as Task["status"],
+								})
+							}
+						>
+							<option value="todo">To do</option>
+							<option value="in_progress">In progress</option>
+							<option value="done">Done</option>
+						</select>
+					</label>
+					<label className="block text-xs text-muted-foreground">
+						Priority
+						<select
+							className="mt-1 block w-full rounded border bg-card p-2 text-sm capitalize text-foreground"
+							value={task.priority}
+							onChange={(event) =>
+								void onPatch(task.id, {
+									priority: event.target.value as TaskPriority,
+								})
+							}
+						>
+							{priorities.map((priority) => (
+								<option key={priority}>{priority}</option>
+							))}
+						</select>
+					</label>
+				</div>
 				<label className="block text-xs text-muted-foreground">
 					Due date
 					<input
@@ -331,7 +526,7 @@ function TaskDrawer({
 						className="mt-1 block w-full rounded border bg-card p-2 text-sm text-foreground"
 						value={task.dueDate ?? ""}
 						onChange={(event) =>
-							onPatch(task, { dueDate: event.target.value || undefined })
+							void onPatch(task.id, { dueDate: event.target.value || undefined })
 						}
 					/>
 				</label>
@@ -339,14 +534,138 @@ function TaskDrawer({
 					Description
 					<textarea
 						className="mt-1 block min-h-28 w-full rounded border bg-card p-2 text-sm text-foreground"
-						value={task.description}
-						onChange={(event) => onPatch(task, { description: event.target.value })}
+						value={description}
+						onChange={(event) => setDescription(event.target.value)}
+						onBlur={() => {
+							if (description !== task.description)
+								void onPatch(task.id, { description });
+						}}
 					/>
 				</label>
+				<section>
+					<h2 className="flex items-center gap-2 text-xs text-muted-foreground">
+						<Tag className="size-3.5" /> Tags
+					</h2>
+					<div className="mt-2 flex flex-wrap gap-1.5">
+						{tags.map((tag) => (
+							<button
+								type="button"
+								key={tag}
+								onClick={() => removeTag(tag)}
+								className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs hover:bg-destructive/10 hover:text-destructive"
+								aria-label={`Remove ${tag} tag`}
+							>
+								#{tag}
+								<X className="size-3" />
+							</button>
+						))}
+						<input
+							value={tagDraft}
+							onChange={(event) => setTagDraft(event.target.value)}
+							onBlur={addTag}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === ",") {
+									event.preventDefault();
+									addTag();
+								}
+							}}
+							className="min-w-28 flex-1 rounded border bg-card px-2 py-1 text-xs outline-none"
+							placeholder="Add a tag"
+							aria-label="Add task tag"
+						/>
+					</div>
+				</section>
+				<section>
+					<h2 className="flex items-center gap-2 text-xs text-muted-foreground">
+						<UserRound className="size-3.5" /> Assignees
+					</h2>
+					{people.length > 0 ? (
+						<div className="mt-2 grid gap-1 rounded border bg-card p-2">
+							{people.map((person) => {
+								const checked = assigneeIds.includes(person.id);
+								return (
+									<label
+										key={person.id}
+										className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted"
+									>
+										<input
+											type="checkbox"
+											checked={checked}
+											onChange={() => toggleAssignee(person.id)}
+										/>
+										<span
+											className="size-2 rounded-full bg-muted-foreground"
+											style={
+												person.color
+													? { backgroundColor: person.color }
+													: undefined
+											}
+										/>
+										<span className="truncate">{person.name}</span>
+									</label>
+								);
+							})}
+						</div>
+					) : (
+						<p className="mt-2 text-xs text-muted-foreground">
+							Add people to your workspace to assign them here.
+						</p>
+					)}
+				</section>
 				{task.sourceNoteId ? (
-					<p className="text-xs text-muted-foreground">Linked to a source note.</p>
+					<button
+						type="button"
+						onClick={() => onOpenSource(task.sourceNoteId as string)}
+						className="flex w-full items-center gap-3 rounded-md border bg-card px-3 py-2 text-left text-sm hover:bg-muted"
+					>
+						<FileText className="size-4 text-muted-foreground" />
+						<span className="min-w-0 flex-1">Open source note</span>
+						<ChevronRight className="size-4 text-muted-foreground" />
+					</button>
 				) : null}
+				<div className="border-t pt-5">
+					{confirmDelete ? (
+						<div className="flex items-center justify-between gap-3">
+							<p className="text-xs text-muted-foreground">
+								Delete this task permanently?
+							</p>
+							<div className="flex gap-2">
+								<button
+									type="button"
+									onClick={() => setConfirmDelete(false)}
+									className="rounded border px-2.5 py-1.5 text-xs hover:bg-muted"
+								>
+									Cancel
+								</button>
+								<button
+									type="button"
+									disabled={isDeleting}
+									onClick={async () => {
+										setIsDeleting(true);
+										try {
+											await onDelete(task.id);
+										} catch {
+											setIsDeleting(false);
+											setConfirmDelete(false);
+										}
+									}}
+									className="rounded bg-destructive px-2.5 py-1.5 text-xs text-destructive-foreground disabled:opacity-60"
+								>
+									{isDeleting ? "Deleting…" : "Delete"}
+								</button>
+							</div>
+						</div>
+					) : (
+						<button
+							type="button"
+							onClick={() => setConfirmDelete(true)}
+							className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-destructive"
+						>
+							<Trash2 className="size-3.5" /> Delete task
+						</button>
+					)}
+				</div>
 			</div>
-		</aside>
+		</>
 	);
 }

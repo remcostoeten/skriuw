@@ -14,6 +14,7 @@ export const markInlineSpec = createReactInlineContentSpec(
 			value: { default: "" },
 			color: { default: "yellow" },
 			label: { default: "" },
+			thread: { default: "" },
 		},
 		content: "none",
 	},
@@ -22,18 +23,40 @@ export const markInlineSpec = createReactInlineContentSpec(
 			const kind = isMarkKind(inlineContent.props.kind)
 				? inlineContent.props.kind
 				: "reference";
-			return <span data-skriuw-mark={kind}>{String(inlineContent.props.text ?? "")}</span>;
+			return (
+				<span
+					data-skriuw-mark={kind}
+					data-skriuw-mark-id={String(inlineContent.props.id ?? "")}
+					data-skriuw-mark-value={String(inlineContent.props.value ?? "")}
+					data-skriuw-mark-color={String(inlineContent.props.color ?? "yellow")}
+					data-skriuw-mark-label={String(inlineContent.props.label ?? "")}
+					data-skriuw-mark-thread={String(inlineContent.props.thread ?? "")}
+				>
+					{String(inlineContent.props.text ?? "")}
+				</span>
+			);
 		},
-		render: ({ inlineContent }) => {
+		render: ({ inlineContent, updateInlineContent }) => {
 			const kind = isMarkKind(inlineContent.props.kind)
 				? inlineContent.props.kind
 				: "reference";
 			return (
 				<MarkChip
+					id={String(inlineContent.props.id ?? "")}
 					kind={kind}
 					color={inlineContent.props.color}
 					label={String(inlineContent.props.label ?? "")}
+					thread={String(inlineContent.props.thread ?? "")}
 					text={String(inlineContent.props.text ?? "")}
+					onUpdate={(update) =>
+						updateInlineContent({
+							type: "mark",
+							props: { ...inlineContent.props, ...update },
+						})
+					}
+					onUnmark={() =>
+						updateInlineContent(String(inlineContent.props.text ?? "") as never)
+					}
 				/>
 			);
 		},

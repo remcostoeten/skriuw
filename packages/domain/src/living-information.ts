@@ -35,12 +35,27 @@ export type LivingMark = {
 	value: string;
 	color: MarkColor;
 	label?: string;
+	thread?: string;
+};
+
+export type MarkAmount = {
+	currency: "EUR" | "USD" | "GBP";
+	value: number;
+};
+
+export type ThreadReading = {
+	id: string;
+	name: string;
+	marks: LivingMark[];
+	amounts: MarkAmount[];
+	countTotal: number | null;
+	states: string[];
 };
 
 const AMOUNT_PATTERN = /^\s*([€$£])\s*(-?\d[\d.,\s]*)\s*$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const HUMAN_DATE_PATTERN =
-	/^\d{1,2}\s+(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i;
+	/^\d{1,2}\s+(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:\s+\d{4})?\b/i;
 const STATE_WORDS = new Set([
 	"backlog",
 	"planned",
@@ -87,7 +102,10 @@ type Detector = { kind: MarkKind; pattern: RegExp };
 const DETECTORS: Detector[] = [
 	{ kind: "amount", pattern: /[€$£]\s?-?\d[\d.,]*\d|[€$£]\s?\d/g },
 	{ kind: "moment", pattern: /\b\d{4}-\d{2}-\d{2}\b/g },
-	{ kind: "moment", pattern: new RegExp(`\\b\\d{1,2}\\s+(?:${MONTHS})\\b`, "gi") },
+	{
+		kind: "moment",
+		pattern: new RegExp(`\\b\\d{1,2}\\s+(?:${MONTHS})(?:\\s+\\d{4})?\\b`, "gi"),
+	},
 	{
 		kind: "state",
 		pattern:
@@ -134,6 +152,7 @@ export function normalizeMark(input: Partial<LivingMark>): LivingMark | null {
 		value: String(input.value ?? text).trim(),
 		color: isMarkColor(input.color) ? input.color : "yellow",
 		label: String(input.label ?? "").trim() || undefined,
+		thread: String(input.thread ?? "").trim() || undefined,
 	};
 }
 
@@ -142,4 +161,111 @@ export function createMarkId(): string {
 		return `mark_${globalThis.crypto.randomUUID().slice(0, 12)}`;
 	}
 	return `mark_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Reads durable inline marks from a schema-shaped rich document. The traversal
+ * deliberately accepts unknown input so web, desktop and mobile can share the
+ * semantic layer without importing an editor implementation.
+ */
+export function extractLivingMarks(document: unknown): LivingMark[] {
+	const marks: LivingMark[] = [];
+	const seen = new Set<string>();
+	const visit = (value: unknown) => {
+		if (Array.isArray(value)) {
+			for (const child of value) visit(child);
+			return;
+		}
+		if (!value || typeof value !== "object") return;
+		const node = value as Record<string, unknown>;
+		if (node.type === "mark" && node.props && typeof node.props === "object") {
+			const mark = normalizeMark(node.props as Partial<LivingMark>);
+			if (mark && !seen.has(mark.id)) {
+				seen.add(mark.id);
+				marks.push(mark);
+			}
+		}
+		for (const [key, child] of Object.entries(node)) {
+			if (key !== "props") visit(child);
+		}
+	};
+	visit(document);
+	return marks;
+}
+
+function parseLocalizedNumber(input: string): number | null {
+	const raw = input.replace(/\s/g, "");
+	if (!/^-?\d[\d.,]*$/.test(raw)) return null;
+	const commaIndex = raw.lastIndexOf(",");
+	const dotIndex = raw.lastIndexOf(".");
+	const decimalSeparator =
+		raw.includes(",") && raw.includes(".")
+			? commaIndex > dotIndex
+				? ","
+				: "."
+			: /^-?\d+[,.]\d{1,2}$/.test(raw)
+				? raw.includes(",")
+					? ","
+					: "."
+				: null;
+	const normalized =
+		decimalSeparator === ","
+			? raw.replace(/\./g, "").replace(",", ".")
+			: decimalSeparator === "."
+				? raw.replace(/,/g, "")
+				: raw.replace(/[.,]/g, "");
+	const value = Number(normalized);
+	return Number.isFinite(value) ? value : null;
+}
+
+function parseAmount(mark: LivingMark): MarkAmount | null {
+	if (mark.kind !== "amount") return null;
+	const match = String(mark.value || mark.text)
+		.trim()
+		.match(/^([€$£])\s*(-?[\d.,\s]+)$/);
+	if (!match) return null;
+	const currency = match[1] === "€" ? "EUR" : match[1] === "$" ? "USD" : "GBP";
+	const value = parseLocalizedNumber(match[2]);
+	return value === null ? null : { currency, value };
+}
+
+/**
+ * A Thread name groups related sources. Unthreaded marks remain
+ * visible in a quiet "Unthreaded" reading instead of disappearing.
+ */
+export function buildThreadReadings(marks: readonly LivingMark[]): ThreadReading[] {
+	const groups = new Map<string, LivingMark[]>();
+	for (const mark of marks) {
+		const name = mark.thread?.trim() || "Unthreaded";
+		const current = groups.get(name) ?? [];
+		current.push(mark);
+		groups.set(name, current);
+	}
+	return [...groups.entries()].map(([name, groupedMarks]) => {
+		const amounts = groupedMarks.flatMap((mark) => {
+			const parsed = parseAmount(mark);
+			return parsed ? [parsed] : [];
+		});
+		const counts = groupedMarks.flatMap((mark) => {
+			if (mark.kind !== "count") return [];
+			const value = parseLocalizedNumber(String(mark.value || mark.text));
+			return value === null ? [] : [value];
+		});
+		return {
+			// Keep the exact name in the identity. A slug alone can collide for
+			// distinct Unicode, punctuation, or case-sensitive thread names.
+			id: `thread:${name}`,
+			name,
+			marks: groupedMarks,
+			amounts,
+			countTotal: counts.length ? counts.reduce((sum, value) => sum + value, 0) : null,
+			states: [
+				...new Set(
+					groupedMarks
+						.filter((mark) => mark.kind === "state")
+						.map((mark) => mark.value || mark.text),
+				),
+			],
+		};
+	});
 }

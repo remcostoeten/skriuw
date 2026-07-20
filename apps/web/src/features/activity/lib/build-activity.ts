@@ -1,3 +1,4 @@
+import { format, isSameDay, isSameYear } from "date-fns";
 import type { NoteFile } from "@/types/notes";
 import type { TrashBatch } from "@/core/workspace-backend/types";
 
@@ -11,16 +12,18 @@ export type ActivityEntry = {
 	timestamp: Date;
 };
 
-export type ActivityBucketId = "today" | "week" | "older";
-
-export type ActivityBucket = {
-	id: ActivityBucketId;
+export type ActivityDay = {
+	id: string;
 	label: string;
+	sublabel: string;
 	entries: ActivityEntry[];
 };
 
+export type ActivityStats = Record<ActivityKind, number>;
+
 const EDIT_VISIBILITY_THRESHOLD_MS = 60 * 1000;
 const UNTITLED_LABEL = "Untitled note";
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function resolveNoteName(name: string): string {
 	const trimmed = name.trim();
@@ -72,31 +75,41 @@ function startOfDay(date: Date): Date {
 	return next;
 }
 
-export function groupActivityByTime(
+function dayLabel(day: Date, now: Date): { label: string; sublabel: string } {
+	const todayStart = startOfDay(now).getTime();
+	const dayStart = startOfDay(day).getTime();
+	const sublabel = isSameYear(day, now) ? format(day, "MMMM d") : format(day, "MMMM d, yyyy");
+
+	if (isSameDay(day, now)) return { label: "Today", sublabel };
+	if (todayStart - dayStart <= DAY_MS) return { label: "Yesterday", sublabel };
+	if (todayStart - dayStart < 7 * DAY_MS) return { label: format(day, "EEEE"), sublabel };
+	return { label: sublabel, sublabel: format(day, "EEEE") };
+}
+
+export function groupActivityByDay(
 	entries: ActivityEntry[],
 	now: Date = new Date(),
-): ActivityBucket[] {
-	const todayStart = startOfDay(now).getTime();
-	const weekStart = todayStart - 6 * 24 * 60 * 60 * 1000;
-
-	const today: ActivityEntry[] = [];
-	const week: ActivityEntry[] = [];
-	const older: ActivityEntry[] = [];
+): ActivityDay[] {
+	const days: ActivityDay[] = [];
 
 	for (const entry of entries) {
-		const time = entry.timestamp.getTime();
-		if (time >= todayStart) {
-			today.push(entry);
-		} else if (time >= weekStart) {
-			week.push(entry);
-		} else {
-			older.push(entry);
+		const id = format(entry.timestamp, "yyyy-MM-dd");
+		const current = days.at(-1);
+		if (current && current.id === id) {
+			current.entries.push(entry);
+			continue;
 		}
+		const { label, sublabel } = dayLabel(entry.timestamp, now);
+		days.push({ id, label, sublabel, entries: [entry] });
 	}
 
-	return [
-		{ id: "today", label: "Today", entries: today },
-		{ id: "week", label: "This week", entries: week },
-		{ id: "older", label: "Older", entries: older },
-	].filter((bucket) => bucket.entries.length > 0) as ActivityBucket[];
+	return days;
+}
+
+export function countActivityByKind(entries: ActivityEntry[]): ActivityStats {
+	const stats: ActivityStats = { created: 0, edited: 0, deleted: 0 };
+	for (const entry of entries) {
+		stats[entry.kind] += 1;
+	}
+	return stats;
 }

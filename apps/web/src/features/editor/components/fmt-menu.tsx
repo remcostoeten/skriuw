@@ -27,9 +27,12 @@ import {
 } from "lucide-react";
 import {
 	createMarkId,
+	defaultColorForKind,
 	inferMarkKind,
 	MARK_COLORS,
+	MARK_KINDS,
 	type MarkColor,
+	type MarkKind,
 } from "@skriuw/domain/living-information";
 import { getNoteTitle } from "@/domain/notes/note-links";
 import { type EditorInstance, getEditorView } from "@/features/editor/lib/editor-instance";
@@ -196,9 +199,18 @@ type TFmtMenuProps = {
 	onOpen?: () => void;
 	width?: string;
 	label?: string;
+	dropdownRole?: "menu" | "dialog";
 };
 
-function FmtMenu({ id, trigger, children, onOpen, width, label }: TFmtMenuProps) {
+function FmtMenu({
+	id,
+	trigger,
+	children,
+	onOpen,
+	width,
+	label,
+	dropdownRole = "menu",
+}: TFmtMenuProps) {
 	const open = useOpenFmtMenu() === id;
 	const ref = useRef<HTMLDivElement>(null);
 	const dropdownRef = useRef<HTMLDivElement>(null);
@@ -269,7 +281,8 @@ function FmtMenu({ id, trigger, children, onOpen, width, label }: TFmtMenuProps)
 				<div
 					ref={dropdownRef}
 					className="skriuw-fmt-dropdown"
-					role="menu"
+					role={dropdownRole}
+					aria-label={dropdownRole === "dialog" ? label : undefined}
 					style={width ? ({ minWidth: width } as CSSProperties) : undefined}
 					onKeyDown={(event) => {
 						if (event.key === "Escape") {
@@ -279,13 +292,19 @@ function FmtMenu({ id, trigger, children, onOpen, width, label }: TFmtMenuProps)
 							return;
 						}
 
-						if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+						if (
+							dropdownRole === "menu" &&
+							(event.key === "ArrowDown" || event.key === "ArrowUp")
+						) {
 							event.preventDefault();
 							focusDropdownItem(event.key === "ArrowDown" ? 1 : -1);
 							return;
 						}
 
-						if (event.key === "Home" || event.key === "End") {
+						if (
+							dropdownRole === "menu" &&
+							(event.key === "Home" || event.key === "End")
+						) {
 							event.preventDefault();
 							focusDropdownBoundary(event.key === "Home" ? "first" : "last");
 						}
@@ -433,23 +452,30 @@ const HIGHLIGHT_COLOR_CLASS: Record<MarkColor, string> = {
 export function HighlightPopover({ editor }: { editor: EditorInstance }) {
 	const selectedTextRef = useRef("");
 	const [color, setColor] = useState<MarkColor>("yellow");
+	const [kind, setKind] = useState<MarkKind>("reference");
 	const [label, setLabel] = useState("");
+	const [thread, setThread] = useState("");
 
 	return (
 		<FmtMenu
 			id="highlight"
-			label="Highlight selection"
+			label="Mark selection"
+			dropdownRole="dialog"
 			width="15rem"
 			onOpen={() => {
-				selectedTextRef.current = String(editor.getSelectedText?.() ?? "").trim();
-				setColor("yellow");
+				const text = String(editor.getSelectedText?.() ?? "").trim();
+				const inferred = inferMarkKind(text);
+				selectedTextRef.current = text;
+				setKind(inferred);
+				setColor(defaultColorForKind(inferred));
 				setLabel("");
+				setThread("");
 			}}
 			trigger={({ open, toggle }) => (
 				<button
 					type="button"
 					className="skriuw-fmt-btn"
-					aria-label="Highlight selection"
+					aria-label="Mark selection"
 					aria-expanded={open}
 					onMouseDown={(event) => event.preventDefault()}
 					onClick={toggle}
@@ -468,11 +494,12 @@ export function HighlightPopover({ editor }: { editor: EditorInstance }) {
 							type: "mark",
 							props: {
 								id: createMarkId(),
-								kind: inferMarkKind(text),
+								kind,
 								text,
 								value: text,
 								color,
 								label: label.trim(),
+								thread: thread.trim(),
 							},
 						} as any,
 					]);
@@ -480,41 +507,83 @@ export function HighlightPopover({ editor }: { editor: EditorInstance }) {
 				};
 				return (
 					<div className="skriuw-fmt-form gap-2">
-						<div className="flex gap-1" aria-label="Highlight color" role="group">
-							{MARK_COLORS.map((option) => (
-								<button
-									key={option}
-									type="button"
-									className={`size-7 rounded-full ring-offset-2 ring-offset-popover focus-visible:outline-none focus-visible:ring-2 ${HIGHLIGHT_COLOR_CLASS[option]}`}
-									aria-label={`${option} highlight`}
-									aria-pressed={color === option}
-									data-active={color === option ? "true" : undefined}
-									onMouseDown={(event) => event.preventDefault()}
-									onClick={() => setColor(option)}
-								/>
-							))}
-						</div>
-						<input
-							autoFocus
-							value={label}
-							onChange={(event) => setLabel(event.target.value)}
-							onKeyDown={(event) => {
-								if (event.key === "Enter") {
-									event.preventDefault();
-									submit();
-								}
-								if (event.key === "Escape") close();
-							}}
-							placeholder="Label (optional)"
-							className="skriuw-fmt-input"
-						/>
+						<label className="grid gap-1 text-[11px] text-muted-foreground">
+							Meaning
+							<select
+								value={kind}
+								onChange={(event) => {
+									const next = event.target.value as MarkKind;
+									setKind(next);
+									setColor(defaultColorForKind(next));
+								}}
+								className="skriuw-fmt-input"
+							>
+								{MARK_KINDS.map((option) => (
+									<option key={option} value={option}>
+										{option[0].toUpperCase() + option.slice(1)}
+									</option>
+								))}
+							</select>
+						</label>
+						<fieldset>
+							<legend className="mb-1 text-[11px] text-muted-foreground">
+								Color
+							</legend>
+							<div className="flex gap-1">
+								{MARK_COLORS.map((option) => (
+									<button
+										key={option}
+										type="button"
+										className={`size-7 rounded-full ring-offset-2 ring-offset-popover focus-visible:outline-none focus-visible:ring-2 ${color === option ? "ring-2 ring-ring" : ""} ${HIGHLIGHT_COLOR_CLASS[option]}`}
+										aria-label={`${option} Mark color`}
+										aria-pressed={color === option}
+										data-active={color === option ? "true" : undefined}
+										onMouseDown={(event) => event.preventDefault()}
+										onClick={() => setColor(option)}
+									/>
+								))}
+							</div>
+						</fieldset>
+						<label className="grid gap-1 text-[11px] text-muted-foreground">
+							Thread
+							<input
+								autoFocus
+								value={thread}
+								onChange={(event) => setThread(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key === "Enter") {
+										event.preventDefault();
+										submit();
+									}
+									if (event.key === "Escape") close();
+								}}
+								placeholder="Optional group name"
+								className="skriuw-fmt-input"
+							/>
+						</label>
+						<label className="grid gap-1 text-[11px] text-muted-foreground">
+							Note
+							<input
+								value={label}
+								onChange={(event) => setLabel(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key === "Enter") {
+										event.preventDefault();
+										submit();
+									}
+									if (event.key === "Escape") close();
+								}}
+								placeholder="Optional context"
+								className="skriuw-fmt-input"
+							/>
+						</label>
 						<button
 							type="button"
 							className="skriuw-fmt-apply"
 							onMouseDown={(event) => event.preventDefault()}
 							onClick={submit}
 						>
-							Highlight
+							Create Mark
 						</button>
 					</div>
 				);

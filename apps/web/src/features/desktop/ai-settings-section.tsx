@@ -29,6 +29,7 @@ type AiConfig = {
 	hasGeminiKey: boolean;
 	groqKeyState: KeyState;
 	geminiKeyState: KeyState;
+	cloudConsent: boolean;
 };
 
 type OllamaStatus = {
@@ -127,6 +128,25 @@ export function DesktopAiSection() {
 		const next = await tauriInvoke<AiConfig>("ai_set_config", { patch });
 		setConfig(next);
 	}, []);
+
+	const handleProviderChange = useCallback(
+		async (provider: AiProvider) => {
+			if (provider === "ollama") {
+				await patchConfig({ provider, cloudConsent: false });
+				return;
+			}
+			if (!config?.cloudConsent || provider !== config.provider) {
+				const accepted = window.confirm(
+					"Allow cloud AI? The current note text and your AI instruction will leave this device and be sent to the selected provider. Skriuw never switches to cloud AI automatically.",
+				);
+				if (!accepted) return;
+				await patchConfig({ provider, cloudConsent: true });
+				return;
+			}
+			await patchConfig({ provider });
+		},
+		[config?.cloudConsent, config?.provider, patchConfig],
+	);
 
 	const handleInstall = useCallback(async () => {
 		setNotice(null);
@@ -289,6 +309,7 @@ export function DesktopAiSection() {
 			keyDraft={keyDraft}
 			notice={notice}
 			onPatchConfig={patchConfig}
+			onProviderChange={handleProviderChange}
 			onInstall={handleInstall}
 			onCancelInstall={handleCancelInstall}
 			onStart={handleStart}
@@ -311,6 +332,7 @@ type DesktopAiSectionContentProps = {
 	keyDraft: string;
 	notice: string | null;
 	onPatchConfig: (patch: Partial<AiConfig>) => Promise<void>;
+	onProviderChange: (provider: AiProvider) => Promise<void>;
 	onInstall: () => Promise<void>;
 	onCancelInstall: () => Promise<void>;
 	onStart: () => Promise<void>;
@@ -331,6 +353,7 @@ function DesktopAiSectionContent({
 	keyDraft,
 	notice,
 	onPatchConfig,
+	onProviderChange,
 	onInstall,
 	onCancelInstall,
 	onStart,
@@ -359,7 +382,7 @@ function DesktopAiSectionContent({
 				>
 					<Select
 						value={config.provider}
-						onValueChange={(value) => onPatchConfig({ provider: value as AiProvider })}
+						onValueChange={(value) => void onProviderChange(value as AiProvider)}
 					>
 						<SelectTrigger className="w-44">
 							<SelectValue />
@@ -374,6 +397,12 @@ function DesktopAiSectionContent({
 					</Select>
 				</Row>
 			</SettingsCard>
+			{config.provider === "ollama" && status && !status.running ? (
+				<div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+					Local AI actions are unavailable until Ollama is installed and running. Skriuw
+					will not send note text to a cloud provider as a fallback.
+				</div>
+			) : null}
 
 			<GroupLabel>Test model</GroupLabel>
 			<SettingsCard>
@@ -395,6 +424,10 @@ function DesktopAiSectionContent({
 						pendingLabel="Pinging\u2026"
 						successLabel="Replied"
 						failedLabel="Failed"
+						disabled={
+							(config.provider === "ollama" && !status?.running) ||
+							(config.provider !== "ollama" && !config.cloudConsent)
+						}
 					/>
 				</Row>
 			</SettingsCard>
@@ -422,6 +455,7 @@ function DesktopAiSectionContent({
 					onKeyDraftChange={onKeyDraftChange}
 					onSaveKey={onSaveKey}
 					onPatchConfig={onPatchConfig}
+					onGrantConsent={() => onProviderChange(config.provider)}
 				/>
 			)}
 
@@ -677,6 +711,7 @@ type CloudSectionProps = {
 	onKeyDraftChange: React.Dispatch<React.SetStateAction<string>>;
 	onSaveKey: () => Promise<void>;
 	onPatchConfig: (patch: Partial<AiConfig>) => Promise<void>;
+	onGrantConsent: () => Promise<void>;
 };
 
 function keyDescription(state: KeyState): string {
@@ -698,6 +733,7 @@ function CloudSection({
 	onKeyDraftChange,
 	onSaveKey,
 	onPatchConfig,
+	onGrantConsent,
 }: CloudSectionProps) {
 	const keyState = config.provider === "groq" ? config.groqKeyState : config.geminiKeyState;
 	const unavailable = keyState === "unavailable";
@@ -705,6 +741,20 @@ function CloudSection({
 		<>
 			<GroupLabel>{config.provider === "groq" ? "Groq" : "Gemini"}</GroupLabel>
 			<SettingsCard>
+				<div className="flex items-center justify-between gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+					<span>
+						{config.cloudConsent
+							? "Cloud AI is enabled with your consent."
+							: "Cloud AI is blocked until you consent."}{" "}
+						Note text and instructions leave this device and are processed by{" "}
+						{config.provider === "groq" ? "Groq" : "Google Gemini"}.
+					</span>
+					{!config.cloudConsent ? (
+						<Button size="sm" variant="outline" onClick={() => void onGrantConsent()}>
+							Review and allow
+						</Button>
+					) : null}
+				</div>
 				<Row
 					focusId="desktop-cloud-model"
 					title="Model"
@@ -753,8 +803,8 @@ function CloudSection({
 					</div>
 				</Row>
 				<p className="px-1 pt-1 text-xs text-muted-foreground">
-					Using a cloud provider sends your note text off this device. Local Ollama keeps
-					everything private.
+					Local Ollama keeps note text on this device. To withdraw consent, switch back to
+					Ollama; cloud requests stop immediately.
 				</p>
 			</SettingsCard>
 		</>

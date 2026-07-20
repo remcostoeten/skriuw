@@ -1,5 +1,9 @@
 import { parseAppleNotesEntries } from "@/domain/data-transfer/adapters/apple-notes";
 import { parseBearExportEntries } from "@/domain/data-transfer/adapters/bear";
+import {
+	isDesktopSnapshotArchive,
+	parseDesktopSnapshotEntries,
+} from "@/domain/data-transfer/adapters/desktop-snapshot";
 import { parseMarkdownVaultEntries } from "@/domain/data-transfer/adapters/markdown-vault";
 import { parseNotionExportEntries } from "@/domain/data-transfer/adapters/notion";
 import { parseObsidianVaultEntries } from "@/domain/data-transfer/adapters/obsidian";
@@ -25,6 +29,10 @@ export function detectImportProfile(entries: Record<string, string>): ImportProf
 
 	if (isSimplenoteArchive(entries)) {
 		return "simplenote";
+	}
+
+	if (isDesktopSnapshotArchive(entries)) {
+		return "desktop-snapshot";
 	}
 
 	const paths = Object.keys(entries);
@@ -82,6 +90,8 @@ function parseThirdPartyArchive(
 			return parseNotionExportEntries(entries);
 		case "simplenote":
 			return parseSimplenoteEntries(entries);
+		case "desktop-snapshot":
+			return parseDesktopSnapshotEntries(entries);
 		case "markdown-vault":
 		default:
 			return parseMarkdownVaultEntries(entries);
