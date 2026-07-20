@@ -5,6 +5,7 @@ members = [
     "crates/skriuw-sqlite",
     "crates/skriuw-runtime",
     "crates/skriuw-history",
+    "crates/skriuw-history-git",
     "crates/skriuw-cli",
     "xtask",
 ]
@@ -17,6 +18,7 @@ license = "MIT"
 rust-version = "1.95"
 
 [workspace.dependencies]
+git2 = { version = "0.21", default-features = false, features = ["vendored-libgit2"] }
 rusqlite = { version = "0.40", features = ["bundled"] }
 schemars = { version = "1", features = ["derive", "uuid1"] }
 serde = { version = "1", features = ["derive"] }

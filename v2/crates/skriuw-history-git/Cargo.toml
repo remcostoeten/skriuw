@@ -1,0 +1,20 @@
+[package]
+name = "skriuw-history-git"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+skriuw-history = { path = "../skriuw-history" }
+skriuw-storage = { path = "../skriuw-storage" }
+thiserror.workspace = true
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+git2.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+skriuw-domain = { path = "../skriuw-domain" }
+skriuw-sqlite = { path = "../skriuw-sqlite" }
+tempfile.workspace = true

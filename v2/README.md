@@ -44,6 +44,7 @@ crates/skriuw-storage  Storage port
 crates/skriuw-sqlite   Native SQLite adapter
 crates/skriuw-runtime  Serialized backend worker and request queue
 crates/skriuw-history  Portable leased history worker
+crates/skriuw-history-git  Native Git history adapter
 crates/skriuw-cli      Database development utility
 xtask                   Repository automation and contract generation
 migrations              Ordered SQL migrations

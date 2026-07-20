@@ -63,7 +63,7 @@ User action
 
 ### History
 
-History is a separate capability. `skriuw-history` coordinates leased queue items through a backend-neutral materializer port. Desktop may materialize Markdown into a hidden Git repository. Web may retain structured revisions locally or use remote history. SQLite remains authoritative. History failures cannot prevent saves. Persisted leases make retries crash-safe. Materializers must be idempotent by outbox item ID.
+History is a separate capability. `skriuw-history` coordinates leased queue items through a backend-neutral materializer port. Desktop uses the native-only `skriuw-history-git` adapter to materialize Markdown into a hidden Git repository. Web may retain structured revisions locally or use remote history. SQLite remains authoritative. History failures cannot prevent saves. Persisted leases make retries crash-safe. Materializers must be idempotent by outbox item ID.
 
 ### Future web runtime
 
@@ -91,3 +91,4 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0003: operation protocol and runtime adapters](docs/adr/0003-operation-protocol.md)
 - [ADR-0004: defer UI and editor selection](docs/adr/0004-defer-ui-editor.md)
 - [ADR-0005: asynchronous Git history](docs/adr/0005-background-git-history.md)
+- [ADR-0006: native Git history materializer](docs/adr/0006-native-git-materializer.md)

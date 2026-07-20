@@ -14,11 +14,12 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Ordered SHA-256 migration ledger with drift detection and legacy development-data upgrade.
 - Serialized FIFO storage runtime.
 - Backend-neutral leased history queue and retryable materialization worker.
+- Native idempotent Git materializer isolated from portable and web crates.
 - Repository rules, scripts, CI, ADRs, data model, and performance contract.
 
 ## Remaining backend work
 
-- Native Git materializer behind `HistoryMaterializer` with idempotent outbox handling.
+- Git history reader and cache-rebuild workflow.
 - Backup, restore, integrity recovery, export, and import workflows.
 - Explicit trash retention and permanent-delete rules.
 - Rank allocation and transactional sibling-rank compaction.
