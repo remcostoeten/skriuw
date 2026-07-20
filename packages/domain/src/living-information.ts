@@ -157,8 +157,9 @@ export function normalizeMark(input: Partial<LivingMark>): LivingMark | null {
 }
 
 export function createMarkId(): string {
-	if (typeof globalThis.crypto?.randomUUID === "function") {
-		return `mark_${globalThis.crypto.randomUUID().slice(0, 12)}`;
+	const cryptoApi = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+	if (typeof cryptoApi?.randomUUID === "function") {
+		return `mark_${cryptoApi.randomUUID().slice(0, 12)}`;
 	}
 	return `mark_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
