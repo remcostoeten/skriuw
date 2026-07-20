@@ -24,9 +24,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit before this handoff: `08144e8 feat: add verified workspace recovery`.
+- Last implementation commit before this handoff: `307a1e0 feat: define subtree trash and purge`.
 - Expected worktree state: clean.
-- Current verification result: 33 tests plus formatting, Clippy, and generated-schema drift checks pass.
+- Current verification result: 40 tests plus formatting, Clippy, and generated-schema drift checks pass.
 - Rust toolchain: 1.95.0.
 - Ignored local development database: `.data/skriuw.db`.
 
@@ -58,7 +58,8 @@ skriuw-sqlite
 ├── migrations and checksums
 ├── FTS projection
 ├── atomic import
-└── verified backup/restore
+├── verified backup/restore
+└── transactional subtree trash/purge
 
 skriuw-runtime
 └── serialized FIFO storage worker
@@ -82,25 +83,36 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - CLI import creates a verified safety backup first.
 - Raw restore writes a new path and never swaps the live database.
 - History Markdown loads only when a version is opened.
-- Search filters directly trashed notes.
+- Direct deletion markers make their complete subtree unavailable without rewriting descendant timestamps.
+- `WorkspaceSnapshot::unavailable_node_ids()` derives the active-tree projection from the hydrated parent graph.
+- Search, active-note state, commands, history headers, and history claims enforce inherited unavailability.
+- Trash keeps FTS and history state for instant restore; retention-guarded purge removes the complete subtree and every projection atomically.
 - Generated schemas live in `generated/contracts`.
 - No frontend framework, desktop shell, editor, router, React, React Scan, or package manager has been added.
 - No remote exists; do not claim work is pushed.
 - No WASM target is installed; do not claim web compilation has passed.
 
+## Completed trash slice
+
+- ADR-0009 defines inherited trash, explicit restore destinations, retention cutoff ownership, and irreversible purge scope.
+- Portable operations are `TrashSubtree`, `RestoreSubtree`, and `PurgeSubtree`; generated JSON Schema is current.
+- Trashing clears an active note anywhere below the selected root.
+- Restoring an ancestor preserves descendants that were independently trashed.
+- Missing, purged, and still-trashed restore destinations fail; passing `None` is the explicit workspace-root fallback.
+- Purge deletes nodes, documents, FTS, history cache, and history outbox rows in one transaction.
+- Nested tree, search, command, active-note, history, restore, retention, purge, and rollback regressions pass.
+
 ## Known correctness gap
 
-`SoftDeleteNode` updates only one node. Deleting a folder does not explicitly trash descendants. Descendants may remain individually active even when hidden through their parent. This must be resolved before tree UI or trash UI.
+Create and move operations still require callers to invent raw durable `i64` ranks. Repeated insertion can exhaust gaps, duplicate ranks rely on ID tie-breaking, no sibling compaction exists, and acknowledgements do not report rank changes needed for optimistic reconciliation.
 
 Immediate next slice:
 
-1. Write ADR defining subtree trash, restore, purge, active-note, FTS, history-cache, and outbox behavior.
-2. Update portable operations and regenerate schemas.
-3. Implement one-transaction SQLite behavior.
-4. Add nested-tree, search, active-note, restore, purge, and rollback tests.
-5. Update `TODO.md`, roadmap, handoff, and commit logically.
-
-After trash semantics, implement backend-owned rank placement and sibling compaction.
+1. Write an ADR defining backend-owned first, last, before, after, and move-to-folder placement semantics.
+2. Update portable operations and acknowledgements so callers request placement and receive every resulting rank change.
+3. Allocate midpoint ranks when space exists and compact only the affected sibling set when it does not.
+4. Add root, nested, repeated-insertion, deterministic-tie, compaction, and rollback tests.
+5. Benchmark 5,000 sibling operations outside navigation, then update contracts and persistent docs and commit logically.
 
 ## Verification model
 
