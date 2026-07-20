@@ -12,11 +12,14 @@ use serde_json::json;
 use skriuw_domain::{
     NodePlacement, WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope,
 };
+use skriuw_history::HistoryReader;
+use skriuw_history_git::GitHistoryReader;
 use skriuw_lifecycle::{DatabaseSwapOutcome, replace_live_database};
 use skriuw_runtime::WorkspaceRuntime;
 use skriuw_sqlite::{BackupRetentionPolicy, BackupRotationOutcome, SqliteWorkspace};
 use skriuw_storage::{
-    Diagnostic, DiagnosticCategory, DiagnosticContext, WorkspaceMaintenance, WorkspaceStorage,
+    Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, WorkspaceMaintenance,
+    WorkspaceStorage,
 };
 use uuid::Uuid;
 
@@ -105,6 +108,34 @@ fn run() -> Result<(), Box<dyn Error>> {
                 )
                 .into());
             }
+        }
+        "history-integrity" => {
+            let repository_path = required_path(arguments.next())?;
+            let reader =
+                GitHistoryReader::open(&repository_path).map_err(|error| error.diagnostic())?;
+            let report = reader
+                .integrity_check()
+                .map_err(|error| error.diagnostic())?;
+            if !report.healthy() {
+                return Err(report.diagnostic().into());
+            }
+            println!(
+                "ok: {} commit(s), {} note(s)",
+                report.commit_count, report.note_count
+            );
+        }
+        "history-rebuild-cache" => {
+            let database_path = required_path(arguments.next())?;
+            let repository_path = required_path(arguments.next())?;
+            let reader =
+                GitHistoryReader::open(&repository_path).map_err(|error| error.diagnostic())?;
+            let headers = reader.list_headers().map_err(|error| error.diagnostic())?;
+            let storage = SqliteWorkspace::open(&database_path)
+                .map_err(|error| error.diagnostic(DiagnosticContext::History))?;
+            let cached = storage
+                .replace_history_headers(&headers)
+                .map_err(|error| error.diagnostic(DiagnosticContext::History))?;
+            println!("cached {cached} history header(s)");
         }
         "backup" => {
             let path = required_path(arguments.next())?;
@@ -295,6 +326,8 @@ fn print_help() {
            seed <database>\n\
            search <database> <query>\n\
            integrity <database>\n\
+           history-integrity <history-repository>\n\
+           history-rebuild-cache <database> <history-repository>\n\
            backup <database> <backup>\n\
            backup-rotate <database> <recovery-directory>\n\
            backup-manifest <recovery-directory>\n\

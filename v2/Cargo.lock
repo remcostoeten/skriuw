@@ -495,6 +495,8 @@ version = "0.1.0"
 dependencies = [
  "serde_json",
  "skriuw-domain",
+ "skriuw-history",
+ "skriuw-history-git",
  "skriuw-lifecycle",
  "skriuw-runtime",
  "skriuw-sqlite",

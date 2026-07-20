@@ -2,4 +2,7 @@
 mod native;
 
 #[cfg(not(target_family = "wasm"))]
-pub use native::{GitHistoryError, GitHistoryMaterializer};
+pub use native::{
+    GitHistoryError, GitHistoryIntegrityError, GitHistoryMaterializer, GitHistoryReader,
+    HistoryIntegrityIssue, HistoryIntegrityReport, HistoryMetadataField,
+};

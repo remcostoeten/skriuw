@@ -8,6 +8,8 @@ rust-version.workspace = true
 [dependencies]
 serde_json.workspace = true
 skriuw-domain = { path = "../skriuw-domain" }
+skriuw-history = { path = "../skriuw-history" }
+skriuw-history-git = { path = "../skriuw-history-git" }
 skriuw-lifecycle = { path = "../skriuw-lifecycle" }
 skriuw-runtime = { path = "../skriuw-runtime" }
 skriuw-sqlite = { path = "../skriuw-sqlite" }

@@ -1,14 +1,16 @@
 use std::{
+    collections::HashSet,
     fs,
     path::{Path, PathBuf},
     sync::Mutex,
 };
 
-use git2::{Commit, Oid, Repository, Signature, Time};
+use git2::{Commit, ObjectType, Oid, Repository, RepositoryOpenFlags, Signature, Time};
 use skriuw_domain::HistoryHeader;
 use skriuw_history::{
     HistoryMaterializer, HistoryReadError, HistoryReader, HistoryVersion, MaterializationError,
 };
+use skriuw_storage::{Diagnostic, DiagnosticCategory, DiagnosticContext};
 use skriuw_storage::{HistoryMaterialization, PendingHistoryRevision};
 use thiserror::Error;
 
@@ -30,6 +32,126 @@ pub enum GitHistoryError {
     InvalidRevision,
     #[error("history repository has no worktree")]
     MissingWorktree,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HistoryMetadataField {
+    CommitMessage,
+    Outbox,
+    Note,
+    Revision,
+    CreatedAt,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HistoryIntegrityIssue {
+    InvalidHistoryReference,
+    MergeCommit,
+    BrokenAncestry,
+    InvalidMetadata(HistoryMetadataField),
+    DuplicateOutbox,
+    DuplicateNoteRevision,
+    MissingNoteContent,
+    NonBlobNoteContent,
+    InvalidMarkdownUtf8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HistoryIntegrityReport {
+    pub commit_count: usize,
+    pub note_count: usize,
+    pub issues: Vec<HistoryIntegrityIssue>,
+}
+
+impl HistoryIntegrityReport {
+    #[must_use]
+    pub fn healthy(&self) -> bool {
+        self.issues.is_empty()
+    }
+
+    #[must_use]
+    pub fn diagnostic(&self) -> Diagnostic {
+        Diagnostic::new(
+            DiagnosticContext::Integrity,
+            DiagnosticCategory::Backend,
+            format!(
+                "Git history integrity check found {} issue(s)",
+                self.issues.len()
+            ),
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum GitHistoryIntegrityError {
+    #[error("history repository was not found")]
+    MissingRepository,
+    #[error("history repository is not a repository")]
+    NotRepository,
+    #[error("history repository could not be read")]
+    UnreadableRepository,
+    #[error("history repository is bare")]
+    BareRepository,
+    #[error("history repository has no worktree")]
+    MissingWorktree,
+}
+
+impl GitHistoryIntegrityError {
+    #[must_use]
+    pub fn diagnostic(self) -> Diagnostic {
+        let (category, message) = match self {
+            Self::MissingRepository => (
+                DiagnosticCategory::NotFound,
+                "history repository was not found",
+            ),
+            Self::NotRepository => (
+                DiagnosticCategory::InvalidInput,
+                "history repository is not a valid repository",
+            ),
+            Self::UnreadableRepository => (
+                DiagnosticCategory::Backend,
+                "history repository could not be read",
+            ),
+            Self::BareRepository => (
+                DiagnosticCategory::InvalidInput,
+                "history repository must not be bare",
+            ),
+            Self::MissingWorktree => (
+                DiagnosticCategory::InvalidInput,
+                "history repository must have a worktree",
+            ),
+        };
+        Diagnostic::new(DiagnosticContext::Integrity, category, message)
+    }
+}
+
+#[derive(Debug)]
+pub struct GitHistoryReader {
+    root: PathBuf,
+}
+
+impl GitHistoryReader {
+    pub fn open(root: impl AsRef<Path>) -> Result<Self, GitHistoryIntegrityError> {
+        let root = root.as_ref().to_path_buf();
+        open_read_only(&root)?;
+        Ok(Self { root })
+    }
+
+    pub fn integrity_check(&self) -> Result<HistoryIntegrityReport, GitHistoryIntegrityError> {
+        Ok(inspect_history(&self.root)?.report)
+    }
+
+    fn validated_headers(&self) -> Result<Vec<HistoryHeader>, HistoryReadError> {
+        let inspection = inspect_history(&self.root).map_err(integrity_read_error)?;
+        if inspection.report.healthy() {
+            Ok(inspection.headers)
+        } else {
+            Err(HistoryReadError::backend(format!(
+                "history integrity check found {} issue(s)",
+                inspection.report.issues.len()
+            )))
+        }
+    }
 }
 
 pub struct GitHistoryMaterializer {
@@ -108,21 +230,10 @@ impl GitHistoryMaterializer {
             .gate
             .lock()
             .map_err(|_| HistoryReadError::backend("history materializer lock is poisoned"))?;
-        let repository = Repository::open(&self.root).map_err(read_backend)?;
-        let mut walk = repository.revwalk().map_err(read_backend)?;
-        match walk.push_ref(HISTORY_REF) {
-            Ok(()) => {}
-            Err(error) if error.code() == git2::ErrorCode::NotFound => return Ok(Vec::new()),
-            Err(error) => return Err(read_backend(error)),
+        GitHistoryReader {
+            root: self.root.clone(),
         }
-        let mut headers = Vec::new();
-        for commit_id in walk {
-            let commit = repository
-                .find_commit(commit_id.map_err(read_backend)?)
-                .map_err(read_backend)?;
-            headers.push(commit_metadata(&commit)?.header);
-        }
-        Ok(headers)
+        .validated_headers()
     }
 
     pub fn read_history_version(
@@ -130,44 +241,11 @@ impl GitHistoryMaterializer {
         note_id: &str,
         version_id: &str,
     ) -> Result<HistoryVersion, HistoryReadError> {
-        if !valid_identifier(note_id) {
-            return Err(HistoryReadError::NotFound(version_id.into()));
-        }
-        let commit_id =
-            Oid::from_str(version_id).map_err(|_| HistoryReadError::NotFound(version_id.into()))?;
         let _guard = self
             .gate
             .lock()
             .map_err(|_| HistoryReadError::backend("history materializer lock is poisoned"))?;
-        let repository = Repository::open(&self.root).map_err(read_backend)?;
-        let commit = repository.find_commit(commit_id).map_err(|error| {
-            if error.code() == git2::ErrorCode::NotFound {
-                HistoryReadError::NotFound(version_id.into())
-            } else {
-                read_backend(error)
-            }
-        })?;
-        let metadata = commit_metadata(&commit)?;
-        if metadata.header.note_id != note_id {
-            return Err(HistoryReadError::NotFound(version_id.into()));
-        }
-        let path = PathBuf::from("notes").join(format!("{note_id}.md"));
-        let tree = commit.tree().map_err(read_backend)?;
-        let entry = tree
-            .get_path(&path)
-            .map_err(|_| HistoryReadError::NotFound(version_id.into()))?;
-        let object = entry.to_object(&repository).map_err(read_backend)?;
-        let blob = object
-            .peel_to_blob()
-            .map_err(|_| HistoryReadError::NotFound(version_id.into()))?;
-        let markdown = std::str::from_utf8(blob.content())
-            .map_err(|error| HistoryReadError::backend(error.to_string()))?
-            .to_owned();
-        Ok(HistoryVersion {
-            header: metadata.header,
-            revision: metadata.revision,
-            markdown,
-        })
+        read_history_version(&self.root, note_id, version_id)
     }
 }
 
@@ -195,6 +273,25 @@ impl HistoryReader for GitHistoryMaterializer {
     }
 }
 
+impl HistoryReader for GitHistoryReader {
+    fn list_headers(&self) -> Result<Vec<HistoryHeader>, HistoryReadError> {
+        self.validated_headers()
+    }
+
+    fn read_version(
+        &self,
+        note_id: &str,
+        version_id: &str,
+    ) -> Result<HistoryVersion, HistoryReadError> {
+        read_history_version(&self.root, note_id, version_id)
+    }
+}
+
+struct HistoryInspection {
+    report: HistoryIntegrityReport,
+    headers: Vec<HistoryHeader>,
+}
+
 struct CommitMetadata {
     header: HistoryHeader,
     revision: i64,
@@ -216,12 +313,10 @@ fn commit_metadata(commit: &Commit<'_>) -> Result<CommitMetadata, HistoryReadErr
         .ok_or_else(|| HistoryReadError::backend("history commit has invalid revision metadata"))?;
     let created_at = trailer(message, "Skriuw-Created-At")
         .and_then(|value| value.parse::<i64>().ok())
-        .unwrap_or_else(|| commit.time().seconds().saturating_mul(1_000));
-    if created_at < 0 {
-        return Err(HistoryReadError::backend(
-            "history commit has invalid timestamp metadata",
-        ));
-    }
+        .filter(|created_at| *created_at >= 0)
+        .ok_or_else(|| {
+            HistoryReadError::backend("history commit has invalid timestamp metadata")
+        })?;
     let summary = commit
         .summary()
         .ok()
@@ -241,7 +336,277 @@ fn commit_metadata(commit: &Commit<'_>) -> Result<CommitMetadata, HistoryReadErr
 
 fn trailer<'a>(message: &'a str, key: &str) -> Option<&'a str> {
     let prefix = format!("{key}: ");
-    message.lines().find_map(|line| line.strip_prefix(&prefix))
+    let mut values = message
+        .lines()
+        .filter_map(|line| line.strip_prefix(&prefix));
+    let value = values.next()?;
+    values.next().is_none().then_some(value)
+}
+
+fn open_read_only(root: &Path) -> Result<Repository, GitHistoryIntegrityError> {
+    match fs::metadata(root) {
+        Ok(metadata) if metadata.is_dir() => {}
+        Ok(_) => return Err(GitHistoryIntegrityError::NotRepository),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Err(GitHistoryIntegrityError::MissingRepository);
+        }
+        Err(_) => return Err(GitHistoryIntegrityError::UnreadableRepository),
+    }
+    let repository = Repository::open_ext(
+        root,
+        RepositoryOpenFlags::NO_SEARCH,
+        std::iter::empty::<&Path>(),
+    )
+    .map_err(|error| match error.code() {
+        git2::ErrorCode::NotFound | git2::ErrorCode::Invalid => {
+            GitHistoryIntegrityError::NotRepository
+        }
+        _ => GitHistoryIntegrityError::UnreadableRepository,
+    })?;
+    if repository.is_bare() {
+        return Err(GitHistoryIntegrityError::BareRepository);
+    }
+    if repository.workdir().is_none() {
+        return Err(GitHistoryIntegrityError::MissingWorktree);
+    }
+    Ok(repository)
+}
+
+fn inspect_history(root: &Path) -> Result<HistoryInspection, GitHistoryIntegrityError> {
+    let repository = open_read_only(root)?;
+    let reference = match repository.find_reference(HISTORY_REF) {
+        Ok(reference) => reference,
+        Err(error) if error.code() == git2::ErrorCode::NotFound => {
+            return Ok(HistoryInspection {
+                report: HistoryIntegrityReport {
+                    commit_count: 0,
+                    note_count: 0,
+                    issues: Vec::new(),
+                },
+                headers: Vec::new(),
+            });
+        }
+        Err(_) => return Err(GitHistoryIntegrityError::UnreadableRepository),
+    };
+    let mut issues = Vec::new();
+    let tip = match reference.peel_to_commit() {
+        Ok(commit) => Some(commit),
+        Err(_) => {
+            issues.push(HistoryIntegrityIssue::InvalidHistoryReference);
+            None
+        }
+    };
+    let mut commit_count = 0;
+    let mut notes = HashSet::new();
+    let mut outboxes = HashSet::new();
+    let mut note_revisions = HashSet::new();
+    let mut visited = HashSet::new();
+    let mut headers = Vec::new();
+    let mut pending = tip.into_iter().collect::<Vec<_>>();
+
+    while let Some(commit) = pending.pop() {
+        if !visited.insert(commit.id()) {
+            continue;
+        }
+        commit_count += 1;
+        if commit.parent_count() > 1 {
+            issues.push(HistoryIntegrityIssue::MergeCommit);
+        }
+
+        let metadata = inspect_commit_metadata(&commit, &mut issues);
+        if let Some(metadata) = metadata {
+            if !outboxes.insert(metadata.outbox) {
+                issues.push(HistoryIntegrityIssue::DuplicateOutbox);
+            }
+            if !note_revisions.insert((metadata.header.note_id.clone(), metadata.revision)) {
+                issues.push(HistoryIntegrityIssue::DuplicateNoteRevision);
+            }
+            notes.insert(metadata.header.note_id.clone());
+            inspect_note_content(&repository, &commit, &metadata.header.note_id, &mut issues);
+            headers.push(metadata.header);
+        }
+
+        for parent_index in (0..commit.parent_count()).rev() {
+            match commit.parent(parent_index) {
+                Ok(parent) => pending.push(parent),
+                Err(_) => {
+                    issues.push(HistoryIntegrityIssue::BrokenAncestry);
+                }
+            }
+        }
+    }
+
+    Ok(HistoryInspection {
+        report: HistoryIntegrityReport {
+            commit_count,
+            note_count: notes.len(),
+            issues,
+        },
+        headers,
+    })
+}
+
+struct IntegrityCommitMetadata {
+    header: HistoryHeader,
+    outbox: String,
+    revision: i64,
+}
+
+fn inspect_commit_metadata(
+    commit: &Commit<'_>,
+    issues: &mut Vec<HistoryIntegrityIssue>,
+) -> Option<IntegrityCommitMetadata> {
+    let Ok(message) = commit.message() else {
+        issues.push(HistoryIntegrityIssue::InvalidMetadata(
+            HistoryMetadataField::CommitMessage,
+        ));
+        return None;
+    };
+    let outbox = inspect_identifier_trailer(
+        message,
+        "Skriuw-Outbox",
+        HistoryMetadataField::Outbox,
+        issues,
+    );
+    let note_id =
+        inspect_identifier_trailer(message, "Skriuw-Note", HistoryMetadataField::Note, issues);
+    let revision = inspect_number_trailer(
+        message,
+        "Skriuw-Revision",
+        HistoryMetadataField::Revision,
+        |value| value > 0,
+        issues,
+    );
+    let created_at = inspect_number_trailer(
+        message,
+        "Skriuw-Created-At",
+        HistoryMetadataField::CreatedAt,
+        |value| value >= 0,
+        issues,
+    );
+    let (Some(outbox), Some(note_id), Some(revision), Some(created_at)) =
+        (outbox, note_id, revision, created_at)
+    else {
+        return None;
+    };
+    let summary = commit
+        .summary()
+        .ok()
+        .flatten()
+        .unwrap_or("Saved note")
+        .to_owned();
+    Some(IntegrityCommitMetadata {
+        header: HistoryHeader {
+            note_id,
+            version_id: commit.id().to_string(),
+            created_at,
+            summary,
+        },
+        outbox,
+        revision,
+    })
+}
+
+fn inspect_identifier_trailer(
+    message: &str,
+    key: &str,
+    field: HistoryMetadataField,
+    issues: &mut Vec<HistoryIntegrityIssue>,
+) -> Option<String> {
+    let value = trailer(message, key).filter(|value| valid_identifier(value));
+    if value.is_none() {
+        issues.push(HistoryIntegrityIssue::InvalidMetadata(field));
+    }
+    value.map(str::to_owned)
+}
+
+fn inspect_number_trailer(
+    message: &str,
+    key: &str,
+    field: HistoryMetadataField,
+    valid: impl FnOnce(i64) -> bool,
+    issues: &mut Vec<HistoryIntegrityIssue>,
+) -> Option<i64> {
+    let value = trailer(message, key)
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|value| valid(*value));
+    if value.is_none() {
+        issues.push(HistoryIntegrityIssue::InvalidMetadata(field));
+    }
+    value
+}
+
+fn inspect_note_content(
+    repository: &Repository,
+    commit: &Commit<'_>,
+    note_id: &str,
+    issues: &mut Vec<HistoryIntegrityIssue>,
+) {
+    let path = PathBuf::from("notes").join(format!("{note_id}.md"));
+    let Ok(tree) = commit.tree() else {
+        issues.push(HistoryIntegrityIssue::MissingNoteContent);
+        return;
+    };
+    let Ok(entry) = tree.get_path(&path) else {
+        issues.push(HistoryIntegrityIssue::MissingNoteContent);
+        return;
+    };
+    if entry.kind() != Some(ObjectType::Blob) {
+        issues.push(HistoryIntegrityIssue::NonBlobNoteContent);
+        return;
+    }
+    let Ok(blob) = repository.find_blob(entry.id()) else {
+        issues.push(HistoryIntegrityIssue::MissingNoteContent);
+        return;
+    };
+    if std::str::from_utf8(blob.content()).is_err() {
+        issues.push(HistoryIntegrityIssue::InvalidMarkdownUtf8);
+    }
+}
+
+fn integrity_read_error(error: GitHistoryIntegrityError) -> HistoryReadError {
+    HistoryReadError::backend(error.to_string())
+}
+
+fn read_history_version(
+    root: &Path,
+    note_id: &str,
+    version_id: &str,
+) -> Result<HistoryVersion, HistoryReadError> {
+    if !valid_identifier(note_id) {
+        return Err(HistoryReadError::NotFound(version_id.into()));
+    }
+    let commit_id =
+        Oid::from_str(version_id).map_err(|_| HistoryReadError::NotFound(version_id.into()))?;
+    let repository = Repository::open(root).map_err(read_backend)?;
+    let commit = repository.find_commit(commit_id).map_err(|error| {
+        if error.code() == git2::ErrorCode::NotFound {
+            HistoryReadError::NotFound(version_id.into())
+        } else {
+            read_backend(error)
+        }
+    })?;
+    let metadata = commit_metadata(&commit)?;
+    if metadata.header.note_id != note_id {
+        return Err(HistoryReadError::NotFound(version_id.into()));
+    }
+    let path = PathBuf::from("notes").join(format!("{note_id}.md"));
+    let tree = commit.tree().map_err(read_backend)?;
+    let entry = tree
+        .get_path(&path)
+        .map_err(|_| HistoryReadError::NotFound(version_id.into()))?;
+    let object = entry.to_object(&repository).map_err(read_backend)?;
+    let blob = object
+        .peel_to_blob()
+        .map_err(|_| HistoryReadError::NotFound(version_id.into()))?;
+    let markdown = std::str::from_utf8(blob.content())
+        .map_err(|error| HistoryReadError::backend(error.to_string()))?
+        .to_owned();
+    Ok(HistoryVersion {
+        header: metadata.header,
+        revision: metadata.revision,
+        markdown,
+    })
 }
 
 fn read_backend(error: impl std::fmt::Display) -> HistoryReadError {
@@ -325,9 +690,9 @@ fn summary(revision: i64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{fs, sync::Arc};
 
-    use git2::Repository;
+    use git2::{Oid, Repository, Signature, Time};
     use serde_json::json;
     use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
     use skriuw_history::rebuild_history_cache;
@@ -336,7 +701,10 @@ mod tests {
     use skriuw_storage::{HistoryCache, PendingHistoryRevision, WorkspaceStorage};
     use tempfile::tempdir;
 
-    use super::{GitHistoryError, GitHistoryMaterializer, HISTORY_REF};
+    use super::{
+        GitHistoryError, GitHistoryIntegrityError, GitHistoryMaterializer, GitHistoryReader,
+        HISTORY_REF, HistoryIntegrityIssue, HistoryMetadataField,
+    };
 
     #[test]
     fn creates_repository_commit_and_stable_note_path() {
@@ -530,6 +898,287 @@ mod tests {
         assert_eq!(snapshot.history_headers[0].summary, "Created note");
     }
 
+    #[test]
+    fn verifies_healthy_empty_and_multi_note_repositories() {
+        let empty_directory = tempdir().expect("temporary directory");
+        Repository::init(empty_directory.path()).expect("initialize empty repository");
+        let empty_reader = GitHistoryReader::open(empty_directory.path()).expect("open reader");
+        let empty_report = empty_reader.integrity_check().expect("check empty history");
+
+        assert!(empty_report.healthy());
+        assert_eq!(empty_report.commit_count, 0);
+        assert_eq!(empty_report.note_count, 0);
+
+        let directory = tempdir().expect("temporary directory");
+        let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
+        materializer
+            .materialize_revision(&item("item-1", 1, "# First"))
+            .expect("first note");
+        materializer
+            .materialize_revision(&PendingHistoryRevision {
+                id: "item-2".into(),
+                note_id: "note-2".into(),
+                revision: 1,
+                markdown: "# Second".into(),
+                created_at: 2_000,
+                attempts: 1,
+            })
+            .expect("second note");
+        let report = GitHistoryReader::open(directory.path())
+            .expect("open reader")
+            .integrity_check()
+            .expect("check history");
+
+        assert!(report.healthy());
+        assert_eq!(report.commit_count, 2);
+        assert_eq!(report.note_count, 2);
+    }
+
+    #[test]
+    fn rejects_missing_non_repository_and_bare_paths_without_creation() {
+        let directory = tempdir().expect("temporary directory");
+        let missing = directory.path().join("missing-history");
+        let error = GitHistoryReader::open(&missing).expect_err("missing repository");
+        assert_eq!(error, GitHistoryIntegrityError::MissingRepository);
+        assert!(!missing.exists());
+
+        let non_repository = directory.path().join("not-a-repository");
+        fs::create_dir(&non_repository).expect("create ordinary directory");
+        fs::write(non_repository.join("sentinel"), b"unchanged").expect("write sentinel");
+        let error = GitHistoryReader::open(&non_repository).expect_err("non repository");
+        assert_eq!(error, GitHistoryIntegrityError::NotRepository);
+        assert_eq!(
+            fs::read(non_repository.join("sentinel")).expect("read sentinel"),
+            b"unchanged"
+        );
+        assert!(!non_repository.join(".git").exists());
+
+        let bare = directory.path().join("bare.git");
+        Repository::init_bare(&bare).expect("initialize bare repository");
+        let before = directory_entries(&bare);
+        let error = GitHistoryReader::open(&bare).expect_err("bare repository");
+        assert_eq!(error, GitHistoryIntegrityError::BareRepository);
+        assert_eq!(directory_entries(&bare), before);
+    }
+
+    #[test]
+    fn rejects_merge_history() {
+        let directory = tempdir().expect("temporary directory");
+        let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
+        let first = materializer
+            .materialize_revision(&item("item-1", 1, "# First"))
+            .expect("first commit");
+        let second = materializer
+            .materialize_revision(&item("item-2", 2, "# Second"))
+            .expect("second commit");
+        let repository = Repository::open(directory.path()).expect("open repository");
+        let side = raw_commit(
+            &repository,
+            valid_message("item-side", "note-2", 1, 2_500),
+            RawContent::Blob("note-2", b"# Side"),
+            &[oid(&first.version_id)],
+            None,
+        );
+        raw_commit(
+            &repository,
+            valid_message("item-merge", "note-3", 1, 3_000),
+            RawContent::Blob("note-3", b"# Merge"),
+            &[oid(&second.version_id), side],
+            Some(HISTORY_REF),
+        );
+
+        let report = GitHistoryReader::open(directory.path())
+            .expect("open reader")
+            .integrity_check()
+            .expect("check history");
+
+        assert!(report.issues.contains(&HistoryIntegrityIssue::MergeCommit));
+    }
+
+    #[test]
+    fn rejects_invalid_metadata_and_duplicate_identities() {
+        let directory = tempdir().expect("temporary directory");
+        let materializer = GitHistoryMaterializer::open(directory.path()).expect("open history");
+        let first = materializer
+            .materialize_revision(&item("item-1", 1, "# First"))
+            .expect("first commit");
+        let repository = Repository::open(directory.path()).expect("open repository");
+        let duplicate = raw_commit(
+            &repository,
+            valid_message("item-1", "note-1", 1, 2_000),
+            RawContent::Blob("note-1", b"# Duplicate"),
+            &[oid(&first.version_id)],
+            Some(HISTORY_REF),
+        );
+        raw_commit(
+            &repository,
+            "Saved note\n\nSkriuw-Outbox: invalid/path".into(),
+            RawContent::Blob("note-1", b"# Invalid"),
+            &[duplicate],
+            Some(HISTORY_REF),
+        );
+
+        let report = GitHistoryReader::open(directory.path())
+            .expect("open reader")
+            .integrity_check()
+            .expect("check history");
+
+        assert!(
+            report
+                .issues
+                .contains(&HistoryIntegrityIssue::DuplicateOutbox)
+        );
+        assert!(
+            report
+                .issues
+                .contains(&HistoryIntegrityIssue::DuplicateNoteRevision)
+        );
+        for field in [
+            HistoryMetadataField::Outbox,
+            HistoryMetadataField::Note,
+            HistoryMetadataField::Revision,
+            HistoryMetadataField::CreatedAt,
+        ] {
+            assert!(
+                report
+                    .issues
+                    .contains(&HistoryIntegrityIssue::InvalidMetadata(field))
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_missing_non_blob_and_non_utf8_note_content() {
+        let cases = [
+            (
+                RawContent::Missing,
+                HistoryIntegrityIssue::MissingNoteContent,
+            ),
+            (
+                RawContent::Tree("note-1"),
+                HistoryIntegrityIssue::NonBlobNoteContent,
+            ),
+            (
+                RawContent::Blob("note-1", &[0xff, 0xfe]),
+                HistoryIntegrityIssue::InvalidMarkdownUtf8,
+            ),
+        ];
+
+        for (content, expected) in cases {
+            let directory = tempdir().expect("temporary directory");
+            let repository = Repository::init(directory.path()).expect("initialize repository");
+            raw_commit(
+                &repository,
+                valid_message("item-1", "note-1", 1, 1_000),
+                content,
+                &[],
+                Some(HISTORY_REF),
+            );
+            let report = GitHistoryReader::open(directory.path())
+                .expect("open reader")
+                .integrity_check()
+                .expect("check history");
+            assert!(report.issues.contains(&expected));
+        }
+    }
+
+    #[test]
+    fn rebuilds_empty_cache_and_preserves_old_cache_after_corrupt_git() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[WorkspaceOperationEnvelope::v1(
+                WorkspaceOperation::CreateNote {
+                    id: "note-1".into(),
+                    title: "History".into(),
+                    placement: NodePlacement::last(None),
+                    document_json: json!({"type": "doc", "content": []}),
+                    markdown: "# History".into(),
+                    at: 1_000,
+                },
+            )])
+            .expect("create note");
+        storage
+            .replace_history_headers(&[skriuw_domain::HistoryHeader {
+                note_id: "note-1".into(),
+                version_id: "version-old".into(),
+                created_at: 1,
+                summary: "Old".into(),
+            }])
+            .expect("seed cache");
+
+        let empty_directory = tempdir().expect("temporary directory");
+        Repository::init(empty_directory.path()).expect("initialize empty repository");
+        let empty_reader = GitHistoryReader::open(empty_directory.path()).expect("open reader");
+        assert_eq!(
+            rebuild_history_cache(&empty_reader, &storage).expect("empty rebuild"),
+            0
+        );
+        assert!(
+            storage
+                .bootstrap()
+                .expect("empty cache")
+                .history_headers
+                .is_empty()
+        );
+
+        storage
+            .replace_history_headers(&[skriuw_domain::HistoryHeader {
+                note_id: "note-1".into(),
+                version_id: "version-old".into(),
+                created_at: 1,
+                summary: "Old".into(),
+            }])
+            .expect("restore old cache");
+        let corrupt_directory = tempdir().expect("temporary directory");
+        let repository = Repository::init(corrupt_directory.path()).expect("initialize repository");
+        raw_commit(
+            &repository,
+            "invalid metadata".into(),
+            RawContent::Missing,
+            &[],
+            Some(HISTORY_REF),
+        );
+        let corrupt_reader = GitHistoryReader::open(corrupt_directory.path()).expect("open reader");
+
+        rebuild_history_cache(&corrupt_reader, &storage).expect_err("corrupt rebuild");
+        let snapshot = storage.bootstrap().expect("old cache");
+        assert_eq!(snapshot.history_headers.len(), 1);
+        assert_eq!(snapshot.history_headers[0].version_id, "version-old");
+    }
+
+    #[test]
+    fn public_integrity_diagnostics_redact_paths_object_ids_and_backend_text() {
+        let directory = tempdir().expect("temporary directory");
+        let repository = Repository::init(directory.path()).expect("initialize repository");
+        let commit = raw_commit(
+            &repository,
+            "backend exploded at /private/history.git".into(),
+            RawContent::Missing,
+            &[],
+            Some(HISTORY_REF),
+        );
+        let report = GitHistoryReader::open(directory.path())
+            .expect("open reader")
+            .integrity_check()
+            .expect("check history");
+        let diagnostic = report.diagnostic().to_string();
+
+        assert!(!diagnostic.contains(directory.path().to_string_lossy().as_ref()));
+        assert!(!diagnostic.contains(&commit.to_string()));
+        assert!(!diagnostic.contains("backend exploded"));
+        assert_eq!(
+            diagnostic,
+            "integrity.backend: Git history integrity check found 4 issue(s)"
+        );
+
+        let missing = directory.path().join("secret-repository");
+        let diagnostic = GitHistoryReader::open(&missing)
+            .expect_err("missing repository")
+            .diagnostic()
+            .to_string();
+        assert!(!diagnostic.contains("secret-repository"));
+    }
+
     fn item(id: &str, revision: i64, markdown: &str) -> PendingHistoryRevision {
         PendingHistoryRevision {
             id: id.into(),
@@ -539,5 +1188,92 @@ mod tests {
             created_at: revision * 1_000,
             attempts: 1,
         }
+    }
+
+    #[derive(Clone, Copy)]
+    enum RawContent<'a> {
+        Missing,
+        Blob(&'a str, &'a [u8]),
+        Tree(&'a str),
+    }
+
+    fn raw_commit(
+        repository: &Repository,
+        message: String,
+        content: RawContent<'_>,
+        parent_ids: &[Oid],
+        reference: Option<&str>,
+    ) -> Oid {
+        let mut root_builder = repository.treebuilder(None).expect("root tree builder");
+        if let RawContent::Blob(note_id, _) | RawContent::Tree(note_id) = content {
+            let mut notes_builder = repository.treebuilder(None).expect("notes tree builder");
+            match content {
+                RawContent::Blob(_, bytes) => {
+                    let blob = repository.blob(bytes).expect("note blob");
+                    notes_builder
+                        .insert(format!("{note_id}.md"), blob, 0o100644)
+                        .expect("insert note blob");
+                }
+                RawContent::Tree(_) => {
+                    let empty_tree = repository
+                        .treebuilder(None)
+                        .expect("empty tree builder")
+                        .write()
+                        .expect("empty tree");
+                    notes_builder
+                        .insert(format!("{note_id}.md"), empty_tree, 0o040000)
+                        .expect("insert note tree");
+                }
+                RawContent::Missing => unreachable!(),
+            }
+            let notes = notes_builder.write().expect("notes tree");
+            root_builder
+                .insert("notes", notes, 0o040000)
+                .expect("insert notes tree");
+        }
+        let tree_id = root_builder.write().expect("root tree");
+        let tree = repository.find_tree(tree_id).expect("find root tree");
+        let parents = parent_ids
+            .iter()
+            .map(|id| repository.find_commit(*id).expect("find parent"))
+            .collect::<Vec<_>>();
+        let parent_refs = parents.iter().collect::<Vec<_>>();
+        let signature =
+            Signature::new("Skriuw", "history@skriuw.local", &Time::new(1, 0)).expect("signature");
+        repository
+            .commit(
+                reference,
+                &signature,
+                &signature,
+                &message,
+                &tree,
+                &parent_refs,
+            )
+            .expect("commit")
+    }
+
+    fn valid_message(outbox: &str, note: &str, revision: i64, created_at: i64) -> String {
+        format!(
+            "Saved note\n\nSkriuw-Outbox: {outbox}\nSkriuw-Note: {note}\nSkriuw-Revision: {revision}\nSkriuw-Created-At: {created_at}"
+        )
+    }
+
+    fn oid(value: &str) -> Oid {
+        Oid::from_str(value).expect("object id")
+    }
+
+    fn directory_entries(path: &std::path::Path) -> Vec<String> {
+        let mut entries = fs::read_dir(path)
+            .expect("read directory")
+            .map(|entry| {
+                entry
+                    .expect("directory entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect::<Vec<_>>();
+        entries.sort();
+        entries
     }
 }
