@@ -16,15 +16,26 @@ const shims = fromHere("./src/shims");
 
 export default defineConfig({
 	plugins: [
-		react(),
+		react({
+			babel: {
+				// Auto-memoizes components/hooks; bails out per-file on rule
+				// violations, so hand-written memo boundaries keep working as-is.
+				plugins: [["babel-plugin-react-compiler", {}]],
+			},
+		}),
 		tailwindcss(),
-		analyze &&
-			(visualizer({
-				filename: "dist/bundle-report.html",
-				template: "treemap",
-				gzipSize: true,
-				brotliSize: true,
-			}) as unknown as PluginOption),
+		// The visualizer's types resolve against a rollup 2 copy elsewhere in
+		// the tree, so its Plugin shape mismatches Vite's rollup 4 PluginOption.
+		...(analyze
+			? [
+					visualizer({
+						filename: "dist/bundle-report.html",
+						template: "treemap",
+						gzipSize: true,
+						brotliSize: true,
+					}) as PluginOption,
+				]
+			: []),
 	],
 	resolve: {
 		dedupe: ["react", "react-dom", "@tanstack/react-query"],
