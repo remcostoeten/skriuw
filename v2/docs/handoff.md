@@ -24,9 +24,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit before this handoff: `07ee2f4 feat: add bounded failure diagnostics`.
+- Last implementation commit before this handoff: `bc2329c feat: rotate verified recovery backups`.
 - Expected worktree state: clean.
-- Current verification result: 73 tests plus formatting, Clippy, and generated-schema drift checks pass; two manual backend benchmarks are ignored by the default suite and pass when selected.
+- Current verification result: 81 tests plus formatting, Clippy, and generated-schema drift checks pass; two manual backend benchmarks are ignored by the default suite and pass when selected.
 - Rust toolchain: 1.95.0.
 - Ignored local development database: `.data/skriuw.db`.
 
@@ -61,6 +61,7 @@ skriuw-sqlite
 ├── FTS projection
 ├── atomic import
 ├── verified backup/restore
+├── scheduled recovery manifests/retention
 ├── transactional subtree trash/purge
 └── backend-owned rank allocation/compaction
 
@@ -103,6 +104,8 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - The reduced metadata sidebar derives from canonical node, document, and history fields. People, tags, properties, covers, secrets, and editor-specific metadata remain excluded.
 - Diagnostics use stable context/category enums and normalized messages capped at 1,024 UTF-8 bytes. Public mappings redact adapter details.
 - Local history retry diagnostics are bounded before SQLite persistence, cleared on the next claim, and excluded from snapshots and archives.
+- Scheduled native recovery defaults to a six-hour cadence, 28 artifacts, and a 30-day age ceiling. The capability enforces cadence without owning a timer.
+- Immutable recovery manifests contain relative paths only and publish before checksum-guarded pruning; manual and pre-import backups remain outside rotation.
 - Generated schemas live in `generated/contracts`.
 - No frontend framework, desktop shell, editor, router, React, React Scan, or package manager has been added.
 - No remote exists; do not claim work is pushed.
@@ -157,17 +160,28 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - The history queue accepts a bounded diagnostic value instead of an arbitrary error string; SQLite persists its deterministic local display only in operational outbox state.
 - Runtime, storage, history, SQLite persistence, and category-boundary regressions pass. Rebuilt CLI smoke failures produced `backup.already_exists`, `recovery.backend`, and `recovery.invalid_input` without source-path leakage.
 
+## Completed backup-rotation slice
+
+- ADR-0015 defines default cadence, count and age retention, immutable manifest generations, publication order, pending-deletion recovery, and strict artifact ownership.
+- Every scheduled artifact is normalized and verified before its manifest generation records relative filename, creation time, size, SHA-256, schema version, complete migration fingerprint, and verification state.
+- Retention deletes only manifest-listed regular files whose size and checksum still match. Missing pending files are idempotent; changed files, directories, symlinks, unrelated files, manual backups, and pre-import backups are never pruned.
+- One workspace gate serializes concurrent attempts. Eight deterministic regressions cover publication metadata, cadence skips, count and age retention, changed-file refusal, invalid policy/manifest handling, concurrent calls, and preservation of two valid manifest generations around corrupt older files.
+- CLI commands `backup-rotate` and `backup-manifest` expose the native boundary. The full smoke created and listed a backup, skipped an early second call, restored to a new database, and passed integrity.
+- Recovery procedures and the still-missing live swap lifecycle are documented in `docs/recovery.md`.
+
 ## Known correctness gap
 
-Backups are verified one at a time, but no scheduler, rotation policy, recovery manifest, or retention cleanup contract exists. A desktop shell therefore cannot yet create and prune periodic recovery points deterministically or explain which artifacts are safe to remove.
+A verified backup can be restored only to a new path. No lifecycle orchestrator yet revokes submissions, joins the runtime, closes the live SQLite connection, swaps a verified candidate into the canonical path, reopens and bootstraps it, or rolls the filesystem state back if reopen fails. The CLI and future shell must not improvise this destructive boundary.
 
 Immediate next slice:
 
-1. Define scheduled-backup cadence, maximum artifact count, age retention, naming, and create-new publication semantics in an ADR.
-2. Add a recovery manifest that records artifact name, creation time, source schema/migration state, size, and verification result without storing machine-specific absolute paths.
-3. Generate and publish the backup before updating the manifest; never list a partial or unverified artifact.
-4. Prune only manifest-owned artifacts after a successful publication, with deterministic count/age tests and no broad directory deletion.
-5. Keep scheduling orchestration outside renderer and navigation paths; update CLI/native boundaries, persistent docs, and commit before live database-swap work.
+1. Reserve ADR-0017 because ADR-0016 belongs to the optional concurrent scale-fixture slice; define shutdown, close, swap, reopen, bootstrap, rollback, and failure-reporting order.
+2. Require a verified create-new restore candidate and explicit canonical/rollback paths; never overwrite an open connection or delete a broad directory.
+3. Move the existing canonical database to a uniquely named rollback sibling, move the candidate into place, reopen and run integrity/bootstrap checks, then retain or remove the rollback only according to the contract.
+4. On any post-move failure, restore the original canonical file and report whether rollback itself succeeded. Add deterministic failure injection without sleeps.
+5. Keep Tauri/UI presentation out until shell selection; expose a native orchestration boundary and CLI smoke, update persistent docs, and commit before Git integrity work.
+
+Parallel work reservation: deterministic 1,000-note and 5,000-note scale fixtures may run in `/home/remcostoeten/dev/skriuw-claude-fixtures` on `feat/deterministic-scale-fixtures`, based on `21a000f`; ADR-0016 is reserved for that slice if needed. Do not overlap its new fixture crate, workspace membership, or fixture documentation when integrating later.
 
 ## Verification model
 
