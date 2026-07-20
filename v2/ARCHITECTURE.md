@@ -24,6 +24,8 @@ Application shell
 
 Only the backend foundation exists today. Application shell and adapters beyond native SQLite come later.
 
+`skriuw-fixtures` generates deterministic operation-sequence workspaces for scale and adapter testing. It depends only on the domain contracts, never on storage adapters, and no generated fixture data is committed. See [docs/fixtures.md](docs/fixtures.md).
+
 Backend access is owned by one serialized runtime queue. Callers submit work and receive a completion handle. The desktop bridge must wait for completions away from the renderer and UI threads. FIFO execution makes write ordering explicit and prevents SQLite lock contention inside the process.
 
 Every runtime clone shares one lifecycle state. Shutdown atomically stops submissions, drains accepted FIFO work, resolves pending completions, and joins the worker. Dropping the final handle performs the same join. Shell teardown and database replacement must call shutdown away from latency-sensitive threads.
@@ -118,4 +120,5 @@ Architecture performance is tested as a contract, not assumed from framework cho
 - [ADR-0013: versioned settings and note metadata](docs/adr/0013-versioned-settings-and-note-metadata.md)
 - [ADR-0014: bounded failure diagnostics](docs/adr/0014-bounded-failure-diagnostics.md)
 - [ADR-0015: scheduled backup rotation](docs/adr/0015-scheduled-backup-rotation.md)
+- [ADR-0016: deterministic operation-sequence scale fixtures](docs/adr/0016-deterministic-scale-fixtures.md)
 - [ADR-0017: verified live database swap](docs/adr/0017-verified-live-database-swap.md)

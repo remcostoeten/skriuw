@@ -3,6 +3,7 @@ members = [
     "crates/skriuw-domain",
     "crates/skriuw-storage",
     "crates/skriuw-sqlite",
+    "crates/skriuw-fixtures",
     "crates/skriuw-runtime",
     "crates/skriuw-history",
     "crates/skriuw-history-git",

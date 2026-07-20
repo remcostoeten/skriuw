@@ -513,6 +513,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "skriuw-fixtures"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "skriuw-domain",
+ "skriuw-sqlite",
+ "skriuw-storage",
+ "tempfile",
+]
+
+[[package]]
 name = "skriuw-history"
 version = "0.1.0"
 dependencies = [
