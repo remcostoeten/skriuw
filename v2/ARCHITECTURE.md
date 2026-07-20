@@ -1,0 +1,93 @@
+# Architecture
+
+## Context
+
+Skriuw Standalone starts as one local desktop application. Post-start interaction must feel immediate. A later web runtime must preserve that behavior without turning the desktop application into a web client.
+
+Initial loading may perform expensive preparation. Navigation after loading may not depend on disk, IPC, network, route loading, Markdown parsing, or Git.
+
+## System shape
+
+```text
+Application shell
+├── normalized workspace store
+├── persistent editor host
+├── command registry
+└── WorkspacePort
+    ├── desktop adapter
+    │   └── native SQLite and background Git
+    ├── browser adapter
+    │   └── worker-owned SQLite WASM and OPFS
+    └── memory adapter
+        └── tests and fixtures
+```
+
+Only the backend foundation exists today. Application shell and adapters beyond native SQLite come later.
+
+Backend access is owned by one serialized runtime queue. Callers submit work and receive a completion handle. The desktop bridge must wait for completions away from the renderer and UI threads. FIFO execution makes write ordering explicit and prevents SQLite lock contention inside the process.
+
+## Runtime contract
+
+Startup calls `bootstrap()` once. Returned snapshot contains nodes, document JSON, settings, active note, and cached history headers. Renderer normalizes this data and prepares editor states before dismissing startup UI.
+
+Every user action first updates renderer state synchronously. Durable work is submitted as a `WorkspaceOperation`. Acknowledgments carry resulting revisions. Navigation never waits for acknowledgments.
+
+```text
+User action
+├── synchronous local state update
+├── same-frame paint
+└── queued operation
+    ├── one SQLite transaction
+    ├── search projection update
+    ├── durable history outbox append
+    └── revision acknowledgment
+```
+
+## Boundaries
+
+### Domain
+
+`skriuw-domain` owns transport-safe records and versioned operations. It performs no database, filesystem, framework, or operating-system work.
+
+### Storage port
+
+`skriuw-storage` defines required backend behavior. Interfaces describe use cases, not generic table CRUD.
+
+### Storage runtime
+
+`skriuw-runtime` owns the backend worker and FIFO request queue. It never owns product rules or SQL. It serializes bootstrap, operation batches, and search against a selected storage adapter and returns waitable completion handles for shell adapters.
+
+### SQLite adapter
+
+`skriuw-sqlite` owns schema migration, transactions, optimistic revision checks, FTS projections, and the durable history outbox.
+
+### History
+
+History is a separate capability. `skriuw-history` coordinates leased queue items through a backend-neutral materializer port. Desktop may materialize Markdown into a hidden Git repository. Web may retain structured revisions locally or use remote history. SQLite remains authoritative. History failures cannot prevent saves. Persisted leases make retries crash-safe. Materializers must be idempotent by outbox item ID.
+
+### Future web runtime
+
+Web uses the same operation protocol and renderer store. A dedicated worker owns SQLite WASM over OPFS. Network sync, if added, consumes a durable outbox and never services note navigation.
+
+## Data ownership
+
+- `workspace_nodes`: tree metadata.
+- `documents`: canonical structured document plus Markdown projection.
+- `documents_fts`: rebuildable search projection.
+- `app_state`: durable workspace/UI state.
+- `history_cache`: rebuildable history headers.
+- `history_outbox`: durable pending history materialization.
+
+See [docs/data-model.md](docs/data-model.md).
+
+## Performance
+
+Architecture performance is tested as a contract, not assumed from framework choice. See [docs/performance-contract.md](docs/performance-contract.md).
+
+## Decisions
+
+- [ADR-0001: standalone local-first product](docs/adr/0001-standalone-local-first.md)
+- [ADR-0002: SQLite is canonical](docs/adr/0002-sqlite-canonical.md)
+- [ADR-0003: operation protocol and runtime adapters](docs/adr/0003-operation-protocol.md)
+- [ADR-0004: defer UI and editor selection](docs/adr/0004-defer-ui-editor.md)
+- [ADR-0005: asynchronous Git history](docs/adr/0005-background-git-history.md)
