@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc --noEmit && vite build",
     "dev": "vite",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test src/editors/bounded-correctness.test.ts"
   },
   "dependencies": {
     "@lexical/rich-text": "0.48.0",
