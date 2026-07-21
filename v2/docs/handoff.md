@@ -223,8 +223,8 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 ## UI architecture gate progress
 
 - `6a3dad2` adds a production browser harness with deterministic equivalent 50, 500, and 2,000-block editor corpora, eight prepared notes, one persistent host, 100 cached switches, 30 editor-owned updates, raw timing samples, frame-gap/long-task observation, DOM counts, and preparation counters.
-- Initial ProseMirror switch P95 values were 1.4, 8.7, and 39.0 ms at 50, 500, and 2,000 blocks. Initial Lexical values were 0.9, 5.3, and 20.5 ms.
-- Both candidates had zero dropped observed frames at 50 and 500 blocks. Both dropped 99 observed frames across the 2,000-block switch/update run. Every run retained one host and performed zero preparation calls during navigation.
+- Corrected representative end-to-layout ProseMirror switch P95 values were 1.4, 7.2, and 48.8 ms at 50, 500, and 2,000 blocks. Lexical values were 1.9, 10.3, and 40.8 ms. Five repeated 500-block runs produced median P95 values of 9.1 ms for ProseMirror and 10.9 ms for Lexical, so neither reliably passes.
+- Both candidates had zero dropped observed frames in the representative 50 and 500-block runs, but repeated 500-block runs exposed five ProseMirror and nine Lexical dropped frames. Both dropped 99 observed frames in the representative 2,000-block run. Every run retained one host and performed zero preparation calls during navigation.
 - The result rejects naive full rendered-document replacement for large notes. It does not select Lexical: memory, state preparation, selection restoration, product plugins, native keyboard paint, structured Markdown fidelity, and a bounded or retained DOM strategy remain unmeasured.
 - Full method, environment, limitations, and initial observations are in `docs/benchmarks/2026-07-21-editor-candidates-initial.md`.
 

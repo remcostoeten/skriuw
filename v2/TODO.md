@@ -117,7 +117,7 @@ Implemented fixture contract: the portable `skriuw-fixtures` crate generates det
 - [ ] Write ADR selecting editor, renderer store, build tool, and desktop shell.
 - [ ] Reject any option failing `docs/performance-contract.md`.
 
-Initial editor spike: a production vanilla-TypeScript harness compares direct ProseMirror and Lexical over equivalent deterministic 50, 500, and 2,000-block corpora. Both pass cached switching at 50 blocks with one host mount and zero preparation during navigation. Lexical passes the initial 500-block sample; ProseMirror misses the 8 ms P95 target. Neither naive full-DOM swap survives 2,000 blocks. Memory, retained/bounded rendering, selection restoration, real product plugins, native keyboard paint, and final editor selection remain open. See `docs/benchmarks/2026-07-21-editor-candidates-initial.md`.
+Initial editor spike: a production vanilla-TypeScript harness compares direct ProseMirror and Lexical over equivalent deterministic 50, 500, and 2,000-block corpora. Both pass cached switching at 50 blocks with one host mount and zero preparation during navigation. Five repeated 500-block runs produced 9.1 ms ProseMirror and 10.9 ms Lexical median P95 values, so neither reliably passes. Neither naive full-DOM swap survives 2,000 blocks. Memory, retained/bounded rendering, selection restoration, real product plugins, native keyboard paint, and final editor selection remain open. See `docs/benchmarks/2026-07-21-editor-candidates-initial.md`.
 
 React requirements if selected:
 
