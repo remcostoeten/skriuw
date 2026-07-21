@@ -194,3 +194,13 @@ Current caveat: the WASM target is not installed and no WASM build has been clai
 - [ ] ADR and roadmap are updated when architecture changes.
 - [ ] `docs/handoff.md` and this file reflect new state.
 - [ ] Changes are committed on the feature branch in logical order.
+
+## Build and verification experience
+
+- [x] Route workspace, renderer, Tauri, and CI builds through one native orchestrator.
+- [x] Run generated-contract, formatting, lint, backend, desktop, UI-architecture, renderer-store, renderer, coverage, and type-safety checks before artifacts are produced.
+- [x] Keep successful output compact while retaining complete per-step logs and focused failure diagnostics.
+- [x] Print terminal hyperlinks for local binaries and bundles and upload CI artifacts and logs.
+- [x] Keep Tauri's internal frontend build command recursion-free.
+
+Verified result: the public `pnpm build` and `pnpm tauri build` paths pass generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, 69 renderer tests, renderer type safety, and production bundling. Executed-source renderer coverage is 76.68% lines, 85.83% branches, and 56.08% functions. The desktop build produced a 14 MiB release binary and linked it together with the renderer bundle and complete build logs.

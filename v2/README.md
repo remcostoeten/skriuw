@@ -1,6 +1,6 @@
 # Skriuw Standalone
 
-Backend-first foundation for a local, standalone notes application. No frontend or desktop shell is selected yet.
+Local-first notes application with a Rust backend, React renderer, and Tauri desktop shell.
 
 ## Current decisions
 
@@ -16,6 +16,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md), [TODO.md](TODO.md), [docs/handoff.md](do
 ## Requirements
 
 - Rust 1.95.0. `rust-toolchain.toml` installs required components through rustup.
+- Node.js 24 and pnpm 11.
 - Bash.
 
 ## Bootstrap
@@ -28,6 +29,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md), [TODO.md](TODO.md), [docs/handoff.md](do
 
 ```bash
 ./scripts/build.sh
+./scripts/build.sh web
+./scripts/build.sh desktop
+./scripts/build.sh ci
 ./scripts/check.sh
 ./scripts/generate.sh
 ./scripts/dev-db.sh
@@ -37,6 +41,8 @@ cargo run -p skriuw-cli -- export .data/skriuw.db workspace.json
 cargo run -p skriuw-cli -- backup .data/skriuw.db workspace.backup.db
 cargo run -p skriuw-cli -- restore workspace.backup.db restored.db
 ```
+
+Every build entry point runs generated-contract checks, Rust formatting and linting, all default backend, desktop, renderer, renderer-store, and UI-architecture tests, executed-source renderer coverage, and TypeScript validation before producing artifacts. `pnpm build`, `pnpm tauri build`, and `pnpm tauri:build` route through the same orchestrator. Successful local builds print terminal links to their artifacts; CI uploads the release binaries, renderer bundle, and complete logs.
 
 `import <database> <archive.json>` validates the portable archive and creates a timestamped safety backup before transactional replacement. Backup, restore, and export refuse to overwrite existing targets.
 
