@@ -1,4 +1,5 @@
 import type {
+  HistoryHeader,
   OperationAck,
   WorkspaceNode,
   WorkspaceOperation,
@@ -80,6 +81,15 @@ export function createInitialState(snapshot: WorkspaceSnapshot): RendererState {
   const expandedIds = new Set(
     snapshot.nodes.filter((node) => node.kind === "folder").map((node) => node.id),
   );
+  const historyHeaders = new Map<string, HistoryHeader[]>();
+  for (const header of snapshot.historyHeaders) {
+    const existing = historyHeaders.get(header.noteId) ?? [];
+    existing.push(header);
+    historyHeaders.set(header.noteId, existing);
+  }
+  for (const headers of historyHeaders.values()) {
+    headers.sort((left, right) => right.createdAt - left.createdAt);
+  }
   const derived = derive({
     sourceNodes,
     expandedIds,
@@ -87,6 +97,7 @@ export function createInitialState(snapshot: WorkspaceSnapshot): RendererState {
     focusedNodeId: snapshot.activeNoteId,
     editingNodeId: null,
     documents,
+    historyHeaders,
     settings: snapshot.settings,
   });
   if (derived.activeNoteId === null) {

@@ -1,4 +1,5 @@
 import type {
+  HistoryHeader,
   OperationAck,
   WorkspaceNode,
   WorkspaceOperation,
@@ -42,6 +43,7 @@ export type RendererState = {
   editingNodeId: string | null;
   documents: ReadonlyMap<string, DocumentRecord>;
   metadata: ReadonlyMap<string, NoteMetadata>;
+  historyHeaders: ReadonlyMap<string, readonly HistoryHeader[]>;
   settings: WorkspaceSettings;
 };
 

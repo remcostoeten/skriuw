@@ -306,6 +306,32 @@ body,
   margin: 0;
 }
 
+.metadata-versions h3 {
+  margin: 16px 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+.metadata-versions ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.metadata-versions li {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.version-date {
+  opacity: 0.55;
+}
+
 .boot-failure {
   padding: 24px;
   color: #c0392b;
