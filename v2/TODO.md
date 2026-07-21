@@ -157,6 +157,7 @@ React requirements if selected:
 - [x] Persistent application shell and icon navigation.
 - [ ] Reorderable and nestable note/folder sidebar. (Sibling reorder via Alt+Arrow ships; drag-and-drop and cross-folder move remain.)
 - [x] Sidebar creation, rename, trash, restore, context menus, and shortcuts.
+- [x] Dedicated Trash route with renderer-local preview, restore, permanent delete, empty state, and bounded 5,000-item rendering.
 - [x] Structured Markdown editor with inline rendering. (Whole-document ProseMirror path per ADR-0020; bounded-window fallback not yet wired.)
 - [x] Slash-command menu.
 - [ ] Metadata and history sidebar without people or tags.
@@ -166,6 +167,8 @@ React requirements if selected:
 - [ ] Keyboard-first navigation.
 - [ ] No journal.
 - [ ] No post-startup loading UI for cached workspace data.
+
+Trash implementation: `#/trash` is eager in the startup bundle and reads only the hydrated renderer store. Active notes and folders no longer surface trashed roots in the notes sidebar. The Trash view previews canonical ProseMirror JSON without Markdown parsing, restores complete subtrees optimistically, preserves independently trashed descendants, confirms permanent deletion, and mounts at most 22 list rows for a 5,000-item trash fixture at the tested 720 px viewport.
 
 ## Future web runtime
 

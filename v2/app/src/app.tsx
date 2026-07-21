@@ -5,19 +5,33 @@ import { CommandPaletteHost } from "./shell/command-palette-host";
 import { EditorHost } from "./shell/editor-host";
 import { MetadataPanel } from "./shell/metadata-panel";
 import { SettingsDialog } from "./shell/settings-dialog";
+import { TrashView } from "./shell/trash-view";
+import { WindowControls } from "./shell/window-controls";
 import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
 import { createFolder, createNote } from "./actions/workspace";
+import { useAppRoute } from "./app-route";
 import {
-  BookOpenIcon,
-  CompassIcon,
   FolderOpenIcon,
-  ListTodoIcon,
+  PanelLeftToggleIcon,
+  PanelRightToggleIcon,
   SettingsIcon,
   SkriuwLogo,
   Trash2Icon,
 } from "./shared/icons";
 import { Tooltip } from "./shared/ui/tooltip";
 import type { RendererStore } from "./store/types";
+
+const iconButtonClass =
+  "relative flex h-9 w-9 items-center justify-center rounded-lg border transition-colors duration-200";
+
+const inactiveNavClass =
+  "border-transparent text-sidebar-foreground/52 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
+
+const activeNavClass =
+  "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none";
+
+const toolbarIconButtonClass =
+  "flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground";
 
 type Props = {
   store: RendererStore;
@@ -26,46 +40,71 @@ type Props = {
 export function App({ store }: Props) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [metadataOpen, setMetadataOpen] = useState(true);
+  const route = useAppRoute();
+  const gridTemplateColumns = `56px${route === "notes" && sidebarOpen ? " 260px" : ""} 1fr${
+    route === "notes" && metadataOpen ? " 240px" : ""
+  }`;
   return (
-    <div className="shell">
-      <nav className="icon-rail" aria-label="Primary">
-        <div className="icon-rail-logo">
-          <SkriuwLogo size={26} />
+    <div className="shell" style={{ gridTemplateColumns }}>
+      <WindowControls />
+      <nav
+        aria-label="Primary"
+        className="flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar"
+      >
+        <div className="flex w-full flex-col items-center">
+          <div className="flex h-11 w-full items-center justify-center border-b border-sidebar-border">
+            <Tooltip label="Skriuw" side="right">
+              <a
+                href="#/notes"
+                className="rounded-2xl border border-transparent p-1.5 text-sidebar-foreground/92 transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+                aria-label="Go to home"
+              >
+                <SkriuwLogo size={26} />
+              </a>
+            </Tooltip>
+          </div>
+          <div className="mt-4 flex w-full flex-col items-center gap-4">
+            <Tooltip label="Notes" side="right">
+              <a
+                href="#/notes"
+                className={`${iconButtonClass} ${route === "notes" ? activeNavClass : inactiveNavClass}`}
+                aria-label="Notes"
+                aria-current={route === "notes" ? "page" : undefined}
+              >
+                <FolderOpenIcon
+                  size={18}
+                  strokeWidth={1.6}
+                  className={
+                    route === "notes"
+                      ? "text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/52"
+                  }
+                />
+              </a>
+            </Tooltip>
+          </div>
         </div>
-        <div className="icon-rail-nav">
-          <Tooltip label="Notes" side="right">
-            <button type="button" className="icon-rail-button is-active" aria-label="Notes">
-              <FolderOpenIcon size={18} strokeWidth={1.6} />
-            </button>
-          </Tooltip>
-          <Tooltip label="Journal" side="right">
-            <button type="button" className="icon-rail-button" aria-label="Journal" disabled>
-              <BookOpenIcon size={18} strokeWidth={1.6} />
-            </button>
-          </Tooltip>
-          <Tooltip label="Tasks" side="right">
-            <button type="button" className="icon-rail-button" aria-label="Tasks" disabled>
-              <ListTodoIcon size={18} strokeWidth={1.6} />
-            </button>
-          </Tooltip>
-          <Tooltip label="Explore" side="right">
-            <button type="button" className="icon-rail-button" aria-label="Explore" disabled>
-              <CompassIcon size={18} strokeWidth={1.6} />
-            </button>
-          </Tooltip>
-        </div>
-        <div className="icon-rail-bottom">
+        <div className="flex w-full flex-col items-center gap-3 pb-4">
           <Tooltip label="Trash" side="right">
-            <button type="button" className="icon-rail-button" aria-label="Trash" disabled>
+            <a
+              href="#/trash"
+              className={`${iconButtonClass} ${route === "trash" ? activeNavClass : inactiveNavClass}`}
+              aria-label="Trash"
+              aria-current={route === "trash" ? "page" : undefined}
+            >
               <Trash2Icon size={18} strokeWidth={1.6} />
-            </button>
+            </a>
           </Tooltip>
-          <div className="icon-rail-divider" aria-hidden="true" />
+          <div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
           <Tooltip label="Settings" side="right" shortcut={formatShortcut("mod+,")}>
             <button
               type="button"
-              className="icon-rail-button"
+              className={`${iconButtonClass} ${settingsOpen ? activeNavClass : inactiveNavClass}`}
               aria-label="Settings"
+              aria-haspopup="dialog"
+              aria-expanded={settingsOpen}
               onClick={() => setSettingsOpen(true)}
             >
               <SettingsIcon size={18} strokeWidth={1.6} />
@@ -73,16 +112,45 @@ export function App({ store }: Props) {
           </Tooltip>
         </div>
       </nav>
-      <Sidebar store={store} />
-      <main className="editor-pane">
-        <EditorHost store={store} />
-      </main>
-      <MetadataPanel store={store} />
+      <div className="notes-view" hidden={route !== "notes"}>
+        {sidebarOpen && <Sidebar store={store} />}
+        <main className="flex min-w-0 flex-col">
+          <div className="flex h-11 items-center gap-1 border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
+            <Tooltip label="Toggle sidebar" side="bottom">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen((current) => !current)}
+                className={toolbarIconButtonClass}
+                aria-label="Toggle sidebar"
+                aria-expanded={sidebarOpen}
+              >
+                <PanelLeftToggleIcon size={16} strokeWidth={1.5} />
+              </button>
+            </Tooltip>
+            <Tooltip label="Toggle metadata" side="bottom">
+              <button
+                type="button"
+                onClick={() => setMetadataOpen((current) => !current)}
+                className={`${toolbarIconButtonClass} ml-auto`}
+                aria-label="Toggle metadata"
+                aria-expanded={metadataOpen}
+              >
+                <PanelRightToggleIcon size={16} strokeWidth={1.5} />
+              </button>
+            </Tooltip>
+          </div>
+          <div className="editor-pane min-h-0 flex-1">
+            <EditorHost store={store} />
+          </div>
+        </main>
+        {metadataOpen && <MetadataPanel store={store} />}
+      </div>
+      {route === "trash" && <TrashView store={store} />}
       <CommandPaletteHost store={store} open={paletteOpen} onOpenChange={setPaletteOpen} />
       <SettingsDialog store={store} open={settingsOpen} onOpenChange={setSettingsOpen} />
       <WorkspaceShortcuts
         store={store}
-        suspended={settingsOpen}
+        suspended={settingsOpen || route !== "notes"}
         actions={{
           toggleCommandPalette: () => setPaletteOpen((current) => !current),
           createNote: () => createNote(store, null),

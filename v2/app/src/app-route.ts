@@ -2,8 +2,12 @@ import { useSyncExternalStore } from "react";
 
 export type AppRoute = "notes" | "trash";
 
+export function resolveAppRoute(hash: string): AppRoute {
+  return hash === "#/trash" ? "trash" : "notes";
+}
+
 function readRoute(): AppRoute {
-  return window.location.hash === "#/trash" ? "trash" : "notes";
+  return resolveAppRoute(window.location.hash);
 }
 
 function subscribe(listener: () => void): () => void {

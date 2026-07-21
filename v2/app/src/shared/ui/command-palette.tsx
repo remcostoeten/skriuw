@@ -102,9 +102,12 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
   const activeItem = flatItems[boundedIndex];
 
   return (
-    <div className="command-palette-overlay" onPointerDown={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex justify-center bg-black/55 backdrop-blur-[1px]"
+      onPointerDown={onClose}
+    >
       <div
-        className="command-palette"
+        className="command-palette mt-[12vh] flex h-fit max-h-[64vh] w-[calc(100vw-1.5rem)] max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl shadow-black/40"
         role="dialog"
         aria-modal="true"
         aria-label={aria["aria-label"]}
@@ -115,11 +118,11 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
           }
         }}
       >
-        <div className="command-palette-header">
+        <div className="flex items-center gap-2.5 border-b border-border px-3.5 py-3 text-muted-foreground">
           <SearchIcon size={16} />
           <input
             autoFocus
-            className="command-palette-input"
+            className="min-w-0 flex-1 border-none bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
             value={query}
             onChange={(event) => updateQuery(event.target.value)}
             onKeyDown={onInputKeyDown}
@@ -133,13 +136,17 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
           <kbd>Esc</kbd>
         </div>
 
-        <div ref={listRef} id={listboxId} role="listbox" className="command-palette-list">
+        <div ref={listRef} id={listboxId} role="listbox" className="min-h-0 overflow-y-auto p-1.5">
           {flatItems.length === 0 ? (
-            <div className="command-palette-empty">No results for “{query}”</div>
+            <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">
+              No results for “{query}”
+            </div>
           ) : (
             groups.map((group) => (
               <div key={group.group}>
-                <div className="command-palette-group-label">{group.group}</div>
+                <div className="px-2.5 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
+                  {group.group}
+                </div>
                 {group.items.map((item) => {
                   runningIndex += 1;
                   const index = runningIndex;
@@ -153,18 +160,28 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
                       data-index={index}
                       role="option"
                       aria-selected={isActive}
-                      className={`command-palette-item${isActive ? " is-active" : ""}`}
+                      className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md border-none bg-transparent px-2.5 py-2 text-left text-[13px] transition-colors ${
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                      }`}
                       onMouseMove={() => setActiveIndex(index)}
                       onClick={() => runItem(item)}
                     >
-                      <span className="command-palette-item-icon">{item.icon}</span>
-                      <span className="command-palette-item-label">{item.label}</span>
+                      <span
+                        className={`inline-flex w-4 flex-none justify-center ${
+                          isActive ? "text-foreground" : "text-muted-foreground"
+                        }`}
+                      >
+                        {item.icon}
+                      </span>
+                      <span className="truncate">{item.label}</span>
                       {(item.hint ?? item.description) && (
-                        <span className="command-palette-item-hint">
+                        <span className="min-w-0 truncate text-[11px] text-muted-foreground">
                           {item.hint ?? item.description}
                         </span>
                       )}
-                      <span className="command-palette-item-meta">
+                      <span className="ml-auto flex flex-none items-center gap-1.5">
                         {item.shortcut && <kbd>{formatShortcut(item.shortcut)}</kbd>}
                         {isActive && <kbd aria-hidden="true">↵</kbd>}
                       </span>
@@ -176,17 +193,17 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
           )}
         </div>
 
-        <div className="command-palette-footer">
+        <div className="flex items-center gap-4 border-t border-border px-3.5 py-2 text-[11px] text-muted-foreground">
           <span>↑↓ navigate</span>
           <span>↵ select</span>
-          <span className="command-palette-footer-bangs">
+          <span className="flex items-center gap-2.5">
             {Object.entries(COMMAND_BANGS).map(([key, bang]) => (
               <span key={key}>
                 <kbd>!{key}</kbd> {bang.label.toLowerCase()}
               </span>
             ))}
           </span>
-          <span className="command-palette-footer-end">
+          <span className="ml-auto flex items-center gap-1">
             <kbd>{formatShortcut("mod+k")}</kbd> command palette
           </span>
         </div>

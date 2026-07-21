@@ -100,6 +100,20 @@ export function restoreSubtree(store: RendererStore, rootId: string): void {
   ]).catch(reportRejection("restore"));
 }
 
+export function purgeSubtree(store: RendererStore, rootId: string): void {
+  void commitOperations(store, [
+    { type: "purge_subtree", rootId, trashedBefore: Date.now() },
+  ]).catch(reportRejection("delete permanently"));
+}
+
+export function emptyTrash(store: RendererStore, rootIds: readonly string[]): void {
+  const trashedBefore = Date.now();
+  void commitOperations(
+    store,
+    rootIds.map((rootId) => ({ type: "purge_subtree", rootId, trashedBefore })),
+  ).catch(reportRejection("empty trash"));
+}
+
 export function moveNode(
   store: RendererStore,
   id: string,

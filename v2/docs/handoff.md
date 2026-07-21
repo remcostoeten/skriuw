@@ -141,6 +141,17 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Purge deletes nodes, documents, FTS, history cache, and history outbox rows in one transaction.
 - Nested tree, search, command, active-note, history, restore, retention, purge, and rollback regressions pass.
 
+## Completed Trash UI slice
+
+- Trash is a dedicated eager `#/trash` renderer route reachable from the persistent icon rail. The normal notes sidebar no longer renders a second trash section.
+- The notes workspace is hidden rather than unmounted while Trash is open; browser verification preserved the exact ProseMirror DOM instance across Notes → Trash → Notes.
+- The view reads only the fully hydrated `sourceNodes` and `documents` maps. Route changes, item selection, folder traversal, and rich read-only preview perform no IPC, database, filesystem, Git, network, lazy-module, or Markdown-parse work.
+- Restoring a root is optimistic and uses its active original parent when possible, otherwise the explicit workspace-root fallback. Independently trashed descendants correctly become their own Trash roots after an ancestor is restored.
+- Permanent subtree deletion and Empty trash use the existing retention-aware purge operation and require confirmation in a native dialog.
+- The root projection is linear over the hydrated tree. The fixed-row list is keyboard navigable and virtualized; the 5,000-item regression mounts no more than 22 rows in a 720 px viewport.
+- Empty, active, hover, focus, narrow-window, destructive-confirmation, and folder/note preview states are implemented with existing theme tokens and reduced-motion-safe behavior.
+- Renderer verification passes 35 tests, TypeScript, the production Vite build, and `git diff --check`. Browser verification at 1440×900 and 820×760 passed route navigation, nested preview, Escape cancellation, optimistic restore, subtree promotion, accessible landmarks, and zero application console/page errors.
+
 ## Completed rank slice
 
 - ADR-0010 defines semantic placement, 1024-point gaps, deterministic `(rank, id)` ordering, destination-only compaction, and acknowledgement behavior.

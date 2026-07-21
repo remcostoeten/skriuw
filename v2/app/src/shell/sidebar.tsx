@@ -5,7 +5,6 @@ import {
   createNote,
   moveNode,
   renameNode,
-  restoreSubtree,
   trashSubtree,
 } from "../actions/workspace";
 import { useRendererSelector } from "../store/use-renderer-selector";
@@ -31,6 +30,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "../shared/ui/context-menu";
+import { Tooltip } from "../shared/ui/tooltip";
 import type { RendererState, RendererStore } from "../store/types";
 
 type Props = {
@@ -39,34 +39,19 @@ type Props = {
 
 type ContextTarget = { kind: "root" } | { kind: "item"; id: string };
 
-function sameIdList(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((id, index) => id === right[index]);
-}
+const headerActionClass =
+  "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground";
 
-function trashedRootIds(state: RendererState): string[] {
-  const roots: string[] = [];
-  for (const node of state.sourceNodes.values()) {
-    if (node.deletedAt === null) {
-      continue;
-    }
-    let ancestorTrashed = false;
-    let parentId = node.parentId;
-    while (parentId !== null) {
-      const parent = state.sourceNodes.get(parentId);
-      if (!parent) {
-        break;
-      }
-      if (parent.deletedAt !== null) {
-        ancestorTrashed = true;
-        break;
-      }
-      parentId = parent.parentId;
-    }
-    if (!ancestorTrashed) {
-      roots.push(node.id);
-    }
+const rowBaseClass =
+  "relative flex h-[34px] w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors active:scale-[0.985]";
+
+function countDescendants(state: RendererState, id: string): number {
+  const children = state.childrenByParent.get(id) ?? [];
+  let total = children.length;
+  for (const childId of children) {
+    total += countDescendants(state, childId);
   }
-  return roots.sort();
+  return total;
 }
 
 function isInSubtree(state: RendererState, nodeId: string, rootId: string): boolean {
@@ -114,7 +99,6 @@ function moveWithinSiblings(store: RendererStore, id: string, direction: -1 | 1)
 
 export function Sidebar({ store }: Props) {
   const visibleIds = useRendererSelector(store, (state) => state.visibleIds);
-  const trashedIds = useRendererSelector(store, trashedRootIds, sameIdList);
   // A single shared context menu serves every row. Rows carry `data-row-key`;
   // right-clicking the list resolves the row under the cursor and points the
   // one menu at it, instead of mounting a Radix ContextMenu per row.
@@ -331,31 +315,37 @@ export function Sidebar({ store }: Props) {
   }
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <button
-          type="button"
-          className="sidebar-action"
-          aria-label="New note"
-          title="New note"
-          onClick={() => createNote(store, null)}
-        >
-          <NewNoteIcon size={18} />
-        </button>
-        <button
-          type="button"
-          className="sidebar-action"
-          aria-label="New folder"
-          title="New folder"
-          onClick={() => createFolder(store, null)}
-        >
-          <NewFolderIcon size={18} />
-        </button>
+    <aside className="flex h-full min-w-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar">
+        <div className="relative flex h-11 items-center justify-between overflow-hidden px-3">
+          <div className="flex w-full min-w-0 items-center gap-2 md:gap-2.5">
+            <Tooltip label="New note" side="bottom">
+              <button
+                type="button"
+                className={headerActionClass}
+                aria-label="New note"
+                onClick={() => createNote(store, null)}
+              >
+                <NewNoteIcon size={18} />
+              </button>
+            </Tooltip>
+            <Tooltip label="New folder" side="bottom">
+              <button
+                type="button"
+                className={headerActionClass}
+                aria-label="New folder"
+                onClick={() => createFolder(store, null)}
+              >
+                <NewFolderIcon size={18} />
+              </button>
+            </Tooltip>
+          </div>
+        </div>
       </div>
       <ContextMenu onOpenChange={(open) => !open && setContextTarget(null)}>
         <ContextMenuTrigger asChild>
           <ul
-            className="sidebar-tree"
+            className="m-0 min-h-0 flex-1 list-none space-y-px overflow-y-auto px-1.5 pb-4 pt-2"
             role="tree"
             aria-label="Workspace"
             tabIndex={0}
@@ -379,19 +369,6 @@ export function Sidebar({ store }: Props) {
           </ContextMenuContent>
         )}
       </ContextMenu>
-      {trashedIds.length > 0 && (
-        <div className="sidebar-trash">
-          <div className="sidebar-trash-header">
-            <Trash2Icon size={12} />
-            Trash
-          </div>
-          <ul>
-            {trashedIds.map((id) => (
-              <TrashRow key={id} store={store} id={id} />
-            ))}
-          </ul>
-        </div>
-      )}
     </aside>
   );
 }
@@ -407,10 +384,18 @@ const SidebarRow = memo(function SidebarRow({ store, id }: RowProps) {
   const isFocused = useRendererSelector(store, (state) => state.focusedNodeId === id);
   const isExpanded = useRendererSelector(store, (state) => state.expandedIds.has(id));
   const isEditing = useRendererSelector(store, (state) => state.editingNodeId === id);
+  const descendantCount = useRendererSelector(store, (state) => countDescendants(state, id));
   if (!node) {
     return null;
   }
   const isFolder = node.kind === "folder";
+  const stateClass = isFocused
+    ? "bg-foreground/[0.22] text-foreground"
+    : isActive
+      ? "border-border bg-muted text-foreground"
+      : isFolder
+        ? "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88"
+        : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85";
   return (
     <li
       role="treeitem"
@@ -425,8 +410,8 @@ const SidebarRow = memo(function SidebarRow({ store, id }: RowProps) {
       ) : (
         <button
           type="button"
-          className={`tree-row${isActive ? " is-active" : ""}${isFocused ? " is-focused" : ""}`}
-          style={{ paddingLeft: `${12 + node.depth * 16}px` }}
+          className={`${rowBaseClass} ${isFolder ? "justify-between " : ""}${stateClass}`}
+          style={{ paddingLeft: `${12 + node.depth * 16}px`, paddingRight: "10px" }}
           tabIndex={-1}
           data-row-key={id}
           onClick={() => {
@@ -438,12 +423,22 @@ const SidebarRow = memo(function SidebarRow({ store, id }: RowProps) {
             }
           }}
         >
+          <span className="flex min-w-0 items-center gap-1.5">
+            {isFolder &&
+              (isExpanded ? (
+                <FolderOpenIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
+              ) : (
+                <FolderIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
+              ))}
+            <span className="flex h-[18px] min-w-0 flex-1 items-center">
+              <span className="select-none truncate text-left">{node.title}</span>
+            </span>
+          </span>
           {isFolder && (
-            <span className="tree-row-glyph">
-              {isExpanded ? <FolderOpenIcon size={14} /> : <FolderIcon size={14} />}
+            <span className="ml-1.5 w-4 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground/50">
+              {descendantCount}
             </span>
           )}
-          <span className="tree-row-title">{node.title}</span>
         </button>
       )}
     </li>
@@ -466,8 +461,8 @@ function RenameInput({ store, id, initialTitle, depth }: RenameProps) {
   return (
     <input
       ref={inputRef}
-      className="tree-rename-input"
-      style={{ marginLeft: `${12 + depth * 16}px` }}
+      className="m-0 block h-[34px] w-full border border-border bg-muted p-0 text-xs font-medium text-foreground caret-foreground outline-none selection:bg-primary/30"
+      style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "10px" }}
       defaultValue={initialTitle}
       onBlur={(event) => renameNode(store, id, event.currentTarget.value)}
       onKeyDown={(event) => {
@@ -480,25 +475,5 @@ function RenameInput({ store, id, initialTitle, depth }: RenameProps) {
         event.stopPropagation();
       }}
     />
-  );
-}
-
-type TrashRowProps = {
-  store: RendererStore;
-  id: string;
-};
-
-function TrashRow({ store, id }: TrashRowProps) {
-  const title = useRendererSelector(
-    store,
-    (state) => state.sourceNodes.get(id)?.title ?? "",
-  );
-  return (
-    <li className="trash-row">
-      <span className="tree-row-title">{title}</span>
-      <button type="button" className="sidebar-action" onClick={() => restoreSubtree(store, id)}>
-        Restore
-      </button>
-    </li>
   );
 }

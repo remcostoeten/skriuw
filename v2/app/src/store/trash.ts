@@ -10,6 +10,27 @@ export type TrashRoot = {
   folderCount: number;
 };
 
+export type TrashWindow = {
+  start: number;
+  end: number;
+};
+
+export function trashWindowRange(
+  itemCount: number,
+  scrollTop: number,
+  viewportHeight: number,
+  rowHeight: number,
+  overscan: number,
+): TrashWindow {
+  return {
+    start: Math.max(0, Math.floor(scrollTop / rowHeight) - overscan),
+    end: Math.min(
+      itemCount,
+      Math.ceil((scrollTop + viewportHeight) / rowHeight) + overscan,
+    ),
+  };
+}
+
 function compareNodes(left: WorkspaceNode, right: WorkspaceNode): number {
   if (left.rank !== right.rank) {
     return left.rank - right.rank;
@@ -74,41 +95,58 @@ export function trashedSubtreeNodes(
 }
 
 export function trashedRoots(nodes: ReadonlyMap<string, WorkspaceNode>): TrashRoot[] {
-  const roots: TrashRoot[] = [];
+  const children = new Map<string, WorkspaceNode[]>();
   for (const node of nodes.values()) {
-    if (node.deletedAt === null) {
+    if (node.parentId === null) {
       continue;
     }
-    let parentId = node.parentId;
-    let inherited = false;
-    const visited = new Set<string>();
-    while (parentId !== null && !visited.has(parentId)) {
-      visited.add(parentId);
-      const parent = nodes.get(parentId);
-      if (!parent) {
-        break;
-      }
-      if (parent.deletedAt !== null) {
-        inherited = true;
-        break;
-      }
-      parentId = parent.parentId;
-    }
-    if (inherited) {
-      continue;
-    }
-    const subtree = trashedSubtreeNodes(nodes, node.id);
-    roots.push({
-      id: node.id,
-      kind: node.kind,
-      title: node.title,
-      deletedAt: node.deletedAt,
-      descendantCount: Math.max(0, subtree.length - 1),
-      noteCount: subtree.filter((entry) => entry.kind === "note").length,
-      folderCount: subtree.filter((entry) => entry.kind === "folder").length,
-    });
+    const siblings = children.get(node.parentId) ?? [];
+    siblings.push(node);
+    children.set(node.parentId, siblings);
   }
-  return roots.sort((left, right) => {
+  const roots = new Map<string, TrashRoot>();
+  const visited = new Set<string>();
+
+  function visit(node: WorkspaceNode, inheritedRootId: string | null): void {
+    if (visited.has(node.id)) {
+      return;
+    }
+    visited.add(node.id);
+    const rootId = inheritedRootId ?? (node.deletedAt === null ? null : node.id);
+    if (rootId !== null) {
+      const existing = roots.get(rootId);
+      if (existing) {
+        existing.descendantCount += 1;
+        existing.noteCount += node.kind === "note" ? 1 : 0;
+        existing.folderCount += node.kind === "folder" ? 1 : 0;
+      } else {
+        roots.set(rootId, {
+          id: node.id,
+          kind: node.kind,
+          title: node.title,
+          deletedAt: node.deletedAt ?? 0,
+          descendantCount: 0,
+          noteCount: node.kind === "note" ? 1 : 0,
+          folderCount: node.kind === "folder" ? 1 : 0,
+        });
+      }
+    }
+    for (const child of children.get(node.id) ?? []) {
+      visit(child, rootId);
+    }
+  }
+
+  for (const node of nodes.values()) {
+    if (node.parentId === null || !nodes.has(node.parentId)) {
+      visit(node, null);
+    }
+  }
+  for (const node of nodes.values()) {
+    visit(node, null);
+  }
+
+  const ordered = [...roots.values()];
+  return ordered.sort((left, right) => {
     if (left.deletedAt !== right.deletedAt) {
       return right.deletedAt - left.deletedAt;
     }
