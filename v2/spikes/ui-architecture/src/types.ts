@@ -22,6 +22,7 @@ export type EditorCandidate = {
   preparationCount(): number;
   mountCount(): number;
   domNodeCount(): number;
+  layoutHeight(): number;
   destroy(): void;
 };
 
@@ -29,6 +30,7 @@ export type TimingSample = {
   index: number;
   syncMs: number;
   layoutMs: number;
+  settledMs: number;
   nextFrameMs: number;
   frameGapMs: number;
 };
@@ -44,6 +46,7 @@ export type ScenarioResult = {
   samples: TimingSample[];
   sync: TimingSummary;
   layout: TimingSummary;
+  settled: TimingSummary;
   nextFrame: TimingSummary;
   droppedFrames: number;
   longTasks: number;

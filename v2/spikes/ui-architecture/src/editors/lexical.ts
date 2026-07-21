@@ -109,6 +109,9 @@ export function createLexicalCandidate(): EditorCandidate {
     domNodeCount() {
       return editor.getRootElement()?.querySelectorAll("*").length ?? 0;
     },
+    layoutHeight() {
+      return editor.getRootElement()?.offsetHeight ?? 0;
+    },
     destroy() {
       editor.setRootElement(null);
     },

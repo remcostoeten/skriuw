@@ -51,7 +51,8 @@ export async function measureScenario(
     : new PerformanceObserver((list) => {
         longTasks.push(...(list.getEntries() as LongTaskEntry[]));
       });
-  if (PerformanceObserver.supportedEntryTypes.includes("longtask")) {
+  if (typeof PerformanceObserver !== "undefined"
+    && PerformanceObserver.supportedEntryTypes.includes("longtask")) {
     observer?.observe({ type: "longtask", buffered: false });
   }
 
@@ -72,19 +73,20 @@ export async function measureScenario(
     const started = performance.now();
     action(index, state);
     const syncFinished = performance.now();
-    candidate.domNodeCount();
+    candidate.layoutHeight();
     const layoutFinished = performance.now();
     const paintedAt = await nextFrame();
     samples.push({
       index,
       syncMs: syncFinished - started,
       layoutMs: layoutFinished - syncFinished,
+      settledMs: layoutFinished - started,
       nextFrameMs: paintedAt - started,
       frameGapMs: paintedAt - frameStart,
     });
   }
   const measurementEnd = performance.now();
-  observer?.takeRecords();
+  longTasks.push(...((observer?.takeRecords() ?? []) as LongTaskEntry[]));
   observer?.disconnect();
   const relevantLongTasks = longTasks.filter(
     (entry) => entry.startTime >= measurementStart && entry.startTime <= measurementEnd,
@@ -95,6 +97,7 @@ export async function measureScenario(
     samples,
     sync: summarize(samples.map((sample) => sample.syncMs)),
     layout: summarize(samples.map((sample) => sample.layoutMs)),
+    settled: summarize(samples.map((sample) => sample.settledMs)),
     nextFrame: summarize(samples.map((sample) => sample.nextFrameMs)),
     droppedFrames: samples.filter((sample) => sample.frameGapMs > droppedThreshold).length,
     longTasks: relevantLongTasks.length,

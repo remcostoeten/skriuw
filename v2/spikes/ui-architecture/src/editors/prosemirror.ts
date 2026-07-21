@@ -81,6 +81,9 @@ export function createProseMirrorCandidate(): EditorCandidate {
     domNodeCount() {
       return view?.dom.querySelectorAll("*").length ?? 0;
     },
+    layoutHeight() {
+      return view?.dom.offsetHeight ?? 0;
+    },
     destroy() {
       view?.destroy();
       view = null;

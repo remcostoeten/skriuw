@@ -20,12 +20,12 @@ The automation boundary is also exposed as `window.__SKRIUW_BENCHMARK__.run(cand
 - Eight deterministic cached note states are prepared before measurement.
 - One persistent editor host is mounted once.
 - One warm-up is excluded.
-- One hundred state switches record synchronous reconciliation, forced layout, next-frame opportunity, frame gaps, and long tasks.
+- One hundred state switches record synchronous reconciliation, an explicit editor-height read that forces layout, total end-to-layout duration, next-frame opportunity, frame gaps, and long tasks.
 - Thirty editor-owned text updates record the same metrics separately.
 - Preparation-call counts before and after navigation prove no fixture generation or state parsing entered measured switching.
 - Frame duration is estimated from twelve animation frames; a frame gap above 1.5 times that estimate is counted as dropped.
 
-Synchronous reconciliation is compared with the 8 ms P95 and 16.67 ms maximum interaction targets. Next-frame timing is reported separately and is not mislabeled as synchronous editor work.
+End-to-layout duration is compared with the 8 ms P95 and 16.67 ms maximum interaction targets. Synchronous reconciliation and forced-layout time remain separate diagnostic fields. Next-frame timing is reported separately.
 
 ## Limits
 

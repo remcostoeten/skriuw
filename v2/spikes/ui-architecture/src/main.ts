@@ -46,8 +46,8 @@ app.innerHTML = `
     </aside>
     <section class="lab-main" aria-label="Benchmark results">
       <div class="metrics">
-        <div class="metric"><span class="metric-label">Switch P95</span><strong class="metric-value" id="switch-p95">—</strong></div>
-        <div class="metric"><span class="metric-label">Switch max</span><strong class="metric-value" id="switch-max">—</strong></div>
+        <div class="metric"><span class="metric-label">End-to-layout P95</span><strong class="metric-value" id="switch-p95">—</strong></div>
+        <div class="metric"><span class="metric-label">End-to-layout max</span><strong class="metric-value" id="switch-max">—</strong></div>
         <div class="metric"><span class="metric-label">Typing P95</span><strong class="metric-value" id="typing-p95">—</strong></div>
         <div class="metric"><span class="metric-label">Dropped frames</span><strong class="metric-value" id="dropped">—</strong></div>
         <div class="metric"><span class="metric-label">Host mounts</span><strong class="metric-value" id="mounts">—</strong></div>
@@ -95,9 +95,9 @@ function formatMs(value: number): string {
 }
 
 function renderResult(result: BenchmarkResult): void {
-  requiredElement("switch-p95").textContent = formatMs(result.switching.sync.p95Ms);
-  requiredElement("switch-max").textContent = formatMs(result.switching.sync.maxMs);
-  requiredElement("typing-p95").textContent = formatMs(result.typing.sync.p95Ms);
+  requiredElement("switch-p95").textContent = formatMs(result.switching.settled.p95Ms);
+  requiredElement("switch-max").textContent = formatMs(result.switching.settled.maxMs);
+  requiredElement("typing-p95").textContent = formatMs(result.typing.settled.p95Ms);
   requiredElement("dropped").textContent = String(
     result.switching.droppedFrames + result.typing.droppedFrames,
   );
@@ -105,13 +105,15 @@ function renderResult(result: BenchmarkResult): void {
   requiredElement("workspace-label").textContent = `${result.candidate} · ${result.blockCount.toLocaleString()} blocks × ${result.noteCount} cached notes`;
   requiredElement("dom-count").textContent = `${result.domNodes.toLocaleString()} DOM nodes`;
   const marker = requiredElement<HTMLElement>("latency-marker");
-  marker.style.left = `${Math.min(100, (result.switching.sync.p95Ms / 16.67) * 100)}%`;
+  marker.style.left = `${Math.min(100, (result.switching.settled.p95Ms / 16.67) * 100)}%`;
   rawOutput.textContent = JSON.stringify(result, null, 2);
-  const syncPass = result.switching.sync.p95Ms < 8
-    && result.switching.sync.maxMs < 16.67;
+  const settledPass = result.switching.settled.p95Ms < 8
+    && result.switching.settled.maxMs < 16.67
+    && result.switching.droppedFrames === 0;
   const invariantPass = result.hostMounts === 1
     && result.preparationCallsBefore === result.preparationCallsAfter;
-  status.textContent = `${syncPass && invariantPass ? "PASS" : "REVIEW"} · sync navigation P95 ${formatMs(result.switching.sync.p95Ms)} · preparation calls during navigation 0`;
+  const preparationCalls = result.preparationCallsAfter - result.preparationCallsBefore;
+  status.textContent = `${settledPass && invariantPass ? "PASS" : "REVIEW"} · end-to-layout navigation P95 ${formatMs(result.switching.settled.p95Ms)} · preparation calls during navigation ${preparationCalls}`;
 }
 
 export async function runBenchmark(
