@@ -4,7 +4,7 @@ Last reviewed: 2026-07-22
 
 ## Start here
 
-The backend foundation, UI architecture measurements, product shell, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented on the active feature branch.
+The backend foundation, UI architecture measurements, product shell, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented on the active feature branch. Claude's original-product audit is integrated and reconciled in `docs/product-scope-v1.md`; `docs/implementation-backlog.md` is the authoritative remaining v1 plan.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -24,7 +24,7 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be 23 commits ahead of `origin/feat/daddy-2` after this handoff commit.
+- Active branch: `feat/daddy-2`, expected to be 25 commits ahead of `origin/feat/daddy-2` after the scope-audit and reconciliation commits.
 - Remote: `origin` is configured; the active branch has not been pushed to its upstream state.
 - Last implementation commit: `aa443ef feat: complete search and responsive sidebar interactions`; the unified build workflow is `c3fbb8a`, settings consumers are `885ecb1`, metadata/history restore is `4660827`, and the UI architecture decision is ADR-0020.
 - Expected primary worktree state: only unrelated untracked `.claude/` content remains after this documentation commit; it was preserved and excluded.
@@ -356,7 +356,7 @@ The disposable renderer proves selector isolation but does not select or impleme
 - Local component props type is `Props`.
 - Prefer named function declarations and functional composition.
 - Keep native filesystem, Git, SQLite, and shell code outside portable crates.
-- Do not scaffold UI before benchmark gates are complete.
+- Preserve ADR-0020's measured UI choices; new architecture changes require replacement evidence.
 - Commit completed slices separately after verification.
 - Update this handoff whenever branch state, test count, current limitation, or next task changes.
 
@@ -435,6 +435,16 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The bounded-window editor fallback is validated in the architecture harness but not wired into the product.
 - React Scan remains uninstalled, and 100 cached note switches still need production presentation evidence on reference hardware.
 - History headers still refresh only through snapshot replacement; live-session version publication remains deferred.
-- Drag-and-drop/cross-folder pointer movement, recovery UI, journal, people, tags, and other new product features were not started in this slice.
+- Portable archive, backup, restore, scheduled rotation, live swap, and rollback exist below the product shell but are not exposed through the desktop UI.
+- Sidebar expansion is renderer-only and extreme-depth visual indentation is unclamped.
+- Pointer drag-and-drop is post-v1. Cross-folder movement already ships through the sidebar context menu. Journal, people, tags, and the other excluded product surfaces remain out of scope.
 
-Immediate next task: run and record the remaining product-renderer performance proof, then address only correctness gaps exposed by that evidence.
+## Product-scope reconciliation and final backlog
+
+- Claude commit `733b1dc` audited the original Skriuw surface and added `docs/product-scope-v1.md`. It forked from `835f5dc`, before the completed `aa443ef` search/sidebar slice, so its open find, whole-document interaction, and cross-folder movement claims were stale when reviewed.
+- The reconciled scope marks whole-document find/replace, native whole-document select/copy/IME/accessibility, sidebar title search, responsive panels, keyboard sibling reorder, and context-menu cross-folder movement complete. Pointer drag-and-drop and Markdown-vault formats are post-v1.
+- Product decisions are fixed: the bounded fallback is required for v1 with a measured threshold; history freshness uses post-materialization publication rather than polling; Tauri owns a fixed six-hour backup timer; semantic tree depth remains unlimited while visual indentation clamps; Linux is the only currently evidenced platform.
+- `docs/implementation-backlog.md` splits the remaining work into conflict-free Codex C1–C3 and Claude N1–N4 slices. Shared continuity files, generated contracts, manifests, and lockfiles remain integration-owned.
+- Current verification on the reconciled baseline: `./scripts/check.sh` passes all 10 stages with 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, and 76 renderer tests.
+
+Immediate next task: Codex executes C1, the production product-renderer performance runner. Claude may execute N1 concurrently in its isolated native worktree. Do not implement C2 or N2 until both Wave 1 slices are integrated.

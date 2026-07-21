@@ -5,7 +5,7 @@ Last reviewed: 2026-07-22
 ## Current state
 
 - [x] Repository created at `/home/remcostoeten/dev/skriuw-standalone`.
-- [x] Current work is isolated on `feat/daddy-2`, expected to be 23 commits ahead of `origin/feat/daddy-2` after the implementation and handoff commits.
+- [x] Current work is isolated on `feat/daddy-2`, expected to be 25 commits ahead of `origin/feat/daddy-2` after the scope-audit and reconciliation commits.
 - [x] Scoped product changes are committed; unrelated untracked `.claude/` content remains preserved and excluded.
 - [x] Rust 1.95 backend workspace and the product renderer pass `./scripts/check.sh`.
 - [x] 112 backend tests, 1 desktop bridge test, 9 UI-architecture tests, 7 renderer-store tests, and 76 renderer tests pass; 6 backend tests remain ignored manual workloads.
@@ -137,15 +137,15 @@ Structured bounded editor: canonical windows now preserve schema-validated Prose
 
 Tree virtualization spike: a dependency-free fixed-row-height tree uses the canonical Rust fixture projections and keeps all six 1,000/5,000-node workspaces at no more than 40 rendered rows and 163 total DOM elements. Keyboard selection, deep toggles, scroll jumps, and trusted input stay within the provisional P95 budget. Full-subtree expansion and deep reveal at nested-5000 show sporadic 8–12 ms samples but remain below the 16.67 ms maximum with zero observed dropped frames. Correctness covers deterministic flattening, collapsed descendants, selection, keyboard navigation, ARIA metadata, and mutation bounds. Extreme-depth indentation and fixed-runner evidence remain open. See `docs/benchmarks/2026-07-21-tree-virtualization.md`.
 
-Renderer-store selector spike: a disposable React harness normalizes the canonical 1,000/5,000-node projections behind a dependency-free external store and narrow `useSyncExternalStore` bindings. Exact production/profiling allowlists prove selection leaves the shell, tree host, persistent editor host, unrelated metadata, settings, and offscreen rows untouched; editor-owned typing and equivalent updates produce zero store notifications or React commits. Clean exploratory runs kept every P95 below 8 ms and every maximum below 16.67 ms, with 100 exact trusted transitions per fixture and no listener leak. React, the store shape, and the build tool remain unselected; fixed-runner presentation and final editor evidence remain open. See `docs/benchmarks/2026-07-21-renderer-store-selectors.md`.
+Renderer-store selector spike: a disposable React harness normalizes the canonical 1,000/5,000-node projections behind a dependency-free external store and narrow `useSyncExternalStore` bindings. Exact production/profiling allowlists prove selection leaves the shell, tree host, persistent editor host, unrelated metadata, settings, and offscreen rows untouched; editor-owned typing and equivalent updates produce zero store notifications or React commits. Clean exploratory runs kept every P95 below 8 ms and every maximum below 16.67 ms, with 100 exact trusted transitions per fixture and no listener leak. ADR-0020 subsequently selected React, this store shape, and Vite; fixed-runner product presentation evidence remains open. See `docs/benchmarks/2026-07-21-renderer-store-selectors.md`.
 
 Desktop bridge spike: an isolated Tauri 2.11.5 production application proves 1,000 navigation updates issue zero commands. Five-run median throughput means were 0.220 ms for empty IPC, 0.180 ms for 1 KiB, 0.420 ms for 64 KiB, and 0.215 ms through the real serialized runtime. A 100-operation delayed burst queued optimistic work in 7 ms median, preserved FIFO acknowledgements, and observed zero dropped frames while settlement took 107 ms. Linux WebKit timer quantization, fixed-runner evidence, and Windows/macOS platform runs remain open. See `docs/benchmarks/2026-07-21-desktop-bridge.md`.
 
-Immediate next task: record the remaining MVP performance evidence against the product renderer, including 100 cached note switches on reference hardware, and decide whether React Scan adds useful development-only diagnostics. The whole-document editor path now includes local find/replace; the validated bounded-window fallback remains unwired. Drag-and-drop, recovery UI, and new product features remain outside this slice.
+Immediate next task: execute C1 from `docs/implementation-backlog.md`: add the production product-renderer performance runner and record the 50-, 500-, and 2,000-block plus 100-switch baseline. In parallel, Claude may execute N1's isolated native maintenance/lifecycle boundary. Do not start C2 or N2 before their Wave 1 dependencies integrate.
 
 React requirements if selected:
 
-- [ ] Install React Scan for development/profiling only.
+- [ ] Add React Scan only if production Profiler and render-count evidence exposes a diagnostic gap.
 - [x] Add production React Profiler harness.
 - [x] Add render-count assertions.
 - [x] Prove editor keystrokes do not render the application shell.
@@ -155,7 +155,7 @@ React requirements if selected:
 ## MVP UI
 
 - [x] Persistent application shell and icon navigation.
-- [ ] Reorderable and nestable note/folder sidebar. (Sibling reorder via Alt+Arrow ships; drag-and-drop and cross-folder move remain.)
+- [x] Reorderable and nestable note/folder sidebar for v1. (Sibling reorder uses Alt+Arrow; cross-folder movement uses the context menu. Pointer drag-and-drop is post-v1.)
 - [x] Sidebar creation, rename, trash, restore, context menus, and shortcuts.
 - [x] Dedicated Trash route with renderer-local preview, restore, permanent delete, empty state, and bounded 5,000-item rendering.
 - [x] Structured Markdown editor with inline rendering. (Whole-document ProseMirror path per ADR-0020; bounded-window fallback not yet wired.)
@@ -177,6 +177,18 @@ User settings implementation: the centered, headerless 896 × 720 modal matches 
 Settings-consumer integration: every dialog setting is applied by a renderer consumer with no startup or navigation IPC. Theme and reduced motion project onto `<html data-theme>` / `data-reduce-motion` at boot and on every settings change; editor font (sans/serif/mono system stacks), line spacing (1.45/1.7/1.95), and the empty-note placeholder apply through editor-host data attributes plus an empty-document decoration plugin; compact density and the new `showTreeGuides` indent guides toggle sidebar classes; `rememberLastNote === false` makes bootstrap ignore the persisted active note. `showPageIcons` and `showLineNumbers` were removed from the dialog and view model because no product surface consumes them; both fields remain in the version-1 wire contract and stored documents, and `showTreeGuides` rides losslessly in the unknown-field extension bag.
 
 Search and responsive-panel implementation: editor search is a ProseMirror plugin over the active canonical document and never crosses IPC. `Ctrl+F` opens and refocuses the widget; configurable `Alt+C`, `Alt+W`, and `Alt+R` options bind only while it is open, and Escape closes from the widget or editor. Sidebar title search mounts its node subscriptions only while results are visible, caps each result type at 10, reveals collapsed ancestors on selection, restores keyboard focus, and keeps empty/active states explicit. Sidebar and metadata tracks shrink to 152 and 180 CSS pixels around a 300-pixel editor minimum, collapse by unmounting their subscribers, and reserve the native window-control hit area. A clean 720 × 800 browser pass had no horizontal overflow or page errors.
+
+## Final v1 backlog
+
+- [ ] C1: production product-renderer performance runner and baseline.
+- [ ] N1: native archive, backup, recovery, live-swap, and rollback coordinator.
+- [ ] C2: measured-threshold bounded product editor with complete off-window semantics.
+- [ ] N2: desktop Data/Recovery UI and fixed six-hour scheduled rotation.
+- [ ] N3: non-polling live history-header publication after successful materialization.
+- [ ] N4: native-only durable expansion state and clamped deep-tree indentation.
+- [ ] C3: integrated keyboard end-to-end suite and fixed-hardware/platform performance sign-off.
+
+The authoritative dependencies, file ownership, acceptance criteria, integration order, and v1 terminal condition are in `docs/implementation-backlog.md`. `docs/product-scope-v1.md` owns the v1/post-v1/excluded classification.
 
 ## Future web runtime
 

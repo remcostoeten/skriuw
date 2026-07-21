@@ -46,7 +46,7 @@ storage/domain implications, performance risk against
 - Dependencies: renderer store, backend rank allocation, ADR-0009 trash semantics.
 - Storage/domain: `workspace_nodes` + `documents`; no new tables.
 - Performance risk: low. Tree virtualization spike holds P95 < 8 ms at 5,000 nodes; extreme-depth indentation still needs a clamp policy.
-- Acceptance: create/rename/move/reorder/nest via keyboard and context menu with no IPC before paint; sibling reorder and cross-folder move both work (Alt+Arrow ships today; drag-and-drop and cross-folder move are the open gap in `TODO.md`); 5,000-node workspace stays within the tree budgets; rank acknowledgements reconcile optimistic state without visible reorder flicker.
+- Acceptance: create/rename/move/reorder/nest via keyboard and context menu with no IPC before paint; sibling reorder works through Alt+Arrow and cross-folder movement works through the context menu; 5,000-node workspace stays within the tree budgets; rank acknowledgements reconcile optimistic state without visible reorder flicker. Pointer drag-and-drop is post-v1.
 
 ### Structured Markdown editor with inline rendering
 
@@ -72,11 +72,11 @@ storage/domain implications, performance risk against
 
 - Original: `features/editor/components/search-widget.tsx`.
 - Value: locating text inside the open note; baseline editor capability.
-- Rationale: ADR-0020 names whole-note find as required product work against the canonical document (bounded rendering makes DOM-only find incorrect).
-- Dependencies: canonical document access outside the rendered window.
+- Rationale: shipped in `aa443ef` as a ProseMirror plugin over the active canonical document, with replace, match-case, whole-word, and regular-expression options. Bounded rendering still requires off-window matching when that fallback is wired.
+- Dependencies: bounded-window integration must retain canonical-document matching.
 - Storage/domain: none.
 - Performance risk: low for whole-document notes; must search canonical blocks, not the DOM, once the bounded fallback is active.
-- Acceptance: find matches across the entire note including off-window blocks; next/previous navigation moves selection and scroll; no Markdown parse during matching.
+- Acceptance: met for the whole-document path. The bounded-window fallback must preserve whole-note matches, next/previous selection and scrolling, and the no-Markdown-parse invariant.
 
 ### Workspace search (full text)
 
@@ -87,6 +87,8 @@ storage/domain implications, performance risk against
 - Storage/domain: `documents_fts` (rebuildable); already implemented.
 - Performance risk: low-medium. Queries are async by design; typing in the palette must never block the frame, and trashed subtrees must stay excluded.
 - Acceptance: title and content search from the palette; inherited-trash exclusion holds; results render snippets; continuous typing during search updates drops zero frames.
+
+Sidebar title search is also complete in `aa443ef`: it searches the hydrated tree without IPC, groups folders and notes in stable order, caps each group at 10 results, reveals ancestors on selection, and unmounts search-only subscriptions when closed.
 
 ### Trash (subtree trash, restore, purge, dedicated view)
 
@@ -174,9 +176,9 @@ storage/domain implications, performance risk against
 
 Ordered here by theme; the priority order is at the end.
 
-### Drag-and-drop tree reorder and cross-folder move
+### Pointer drag-and-drop tree reorder
 
-- Original: `note-drag.ts`, sidebar drag targets. Keyboard reorder ships in v1; pointer drag is the post-v1 completion. Value: direct manipulation for mouse users. Dependencies: virtualized tree drop targets. Storage: existing placement operations. Risk: medium (drag over a virtualized tree must not force broad renders). Acceptance: drag between folders and across scroll boundaries with the same acknowledgement reconciliation as keyboard moves.
+- Original: `note-drag.ts`, sidebar drag targets. Keyboard sibling reorder and context-menu cross-folder movement ship in v1; pointer drag is the post-v1 completion. Value: direct manipulation for mouse users. Dependencies: virtualized tree drop targets. Storage: existing placement operations. Risk: medium (drag over a virtualized tree must not force broad renders). Acceptance: drag between folders and across scroll boundaries with the same acknowledgement reconciliation as keyboard and context-menu moves.
 
 ### Third-party importers (Obsidian, Notion, Bear, Apple Notes, Simplenote, Markdown vault)
 
@@ -251,16 +253,16 @@ Every box must hold before v1 is declared. Items marked ✅ are complete per
 
 - ✅ Persistent shell, icon navigation, theming, no post-startup loading UI for cached data
 - ✅ Notes/folders: create, rename, nest, trash, restore, context menus, keyboard sibling reorder
-- ☐ Cross-folder move and pointer drag-and-drop reorder (or an explicit decision that keyboard-only ships v1)
+- ✅ Cross-folder move through the context menu; keyboard sibling reorder through Alt+Arrow
 - ✅ Structured Markdown editor (whole-document ProseMirror, ADR-0020 schema, undo policy)
-- ☐ Bounded-window fallback wired behind a chosen block-count threshold, or explicitly deferred with the threshold decision recorded
+- ☐ Bounded-window fallback wired behind a threshold selected from product measurements
 - ✅ Slash-command menu
-- ☐ Find in note against the canonical document
-- ☐ Whole-note select-all/copy, IME completion, accessible whole-document traversal (ADR-0020 consequences)
+- ✅ Find/replace in the whole-document editor against the canonical document
+- ✅ Whole-note select-all/copy, IME completion, and accessible traversal through the native whole-document ProseMirror path
 - ✅ Workspace full-text search from the palette with inherited-trash exclusion
 - ✅ Dedicated Trash route with restore, purge, empty state, bounded rendering
 - ✅ Version history list, preview, restore
-- ☐ History-header freshness decision implemented (see unresolved decisions)
+- ☐ Post-materialization history-header publication implemented without polling
 - ✅ Command palette + typed registry covering all global actions
 - ✅ Shortcuts with rebinding, conflict rejection, settings persistence
 - ✅ Settings dialog with every offered setting applied by a renderer consumer
@@ -276,7 +278,7 @@ Every box must hold before v1 is declared. Items marked ✅ are complete per
 ## 2. Post-v1 priority order
 
 1. **Third-party importers** (Obsidian and Markdown vault first) — highest adoption leverage, lowest architectural risk, reuses the shipped archive path.
-2. **Drag-and-drop reorder + cross-folder move** — completes the sidebar's expected interaction surface.
+2. **Pointer drag-and-drop reorder** — completes the sidebar's expected direct-manipulation surface; cross-folder movement already ships through the context menu.
 3. **Wiki links and backlinks** (with unlinked mentions) — the knowledge-base identity feature; brings the link-index projection that graph views would later need.
 4. **Favorites and recents sections** — cheap, high-frequency navigation value.
 5. **Document outline** — pairs with the bounded-window fallback for long notes.
@@ -295,13 +297,15 @@ not deletions of user-visible features:
 - The `skriuw-cli` maintenance surface (seed, snapshot, integrity, rebuild) ships for operators/development but must not be presented as the primary user path for backup/restore/import once the desktop UI entries exist.
 - No journal, people, tags, tasks, sharing, AI, or sync code exists in the rebuild — keep it that way; the roadmap's product gate ("no journal, people, or tags enter MVP scope without a new decision") stands.
 
-## 4. Unresolved decisions for the product owner
+## 4. Reconciled product decisions
 
-1. **Drag-and-drop in v1 or not.** `TODO.md` lists pointer drag and cross-folder move as remaining. Shipping v1 keyboard-only is defensible for a keyboard-first product but diverges from the original sidebar. Decide: v1 blocker or first post-v1 item.
-2. **Bounded-window threshold.** ADR-0020 defers the block-count threshold that switches a document to the 192-block window. Decide the threshold (evidence suggests somewhere between 500 and 2,000 blocks) and whether the fallback must be wired before v1 or documented as a known v1 limit.
-3. **History-header freshness.** Versions saved this session don't appear until the next bootstrap. Options: accept and document, refresh headers on history-drain acknowledgement, or a bounded poll. This is user-visible in a headline v1 feature.
-4. **Backup cadence ownership.** The rotation capability enforces cadence but owns no timer. Decide where the six-hour timer lives (Tauri background task is the obvious candidate) and whether the user can change cadence in Settings (a new settings field → archive-fixture work per ADR-0013).
-5. **Reference hardware.** The performance contract requires fixed reference hardware before v1 verification. Someone must pick and provision it.
-6. **Extreme-depth indentation policy.** Depth-33 fixtures push content out of the sidebar pane. Clamp indentation, cap nesting depth at creation, or horizontal-scroll the pane — a product call with a schema implication only if depth is capped.
-7. **Markdown-vault export in v1.** The archive is JSON. The original exported Markdown folders (`domain/data-transfer`). Decide whether a plain Markdown-files export (data-ownership optics, Obsidian-compatible) belongs in v1's export surface or arrives with the post-v1 importers.
-8. **v1 platform targets.** Bridge and presentation evidence is Linux-only; Windows WebView2 and macOS WKWebView runs remain open. Decide whether v1 releases on all three desktop platforms or Linux-first.
+1. **Pointer drag-and-drop is post-v1.** Keyboard sibling reorder and context-menu cross-folder movement provide complete v1 movement without adding a high-frequency virtualized drag path.
+2. **The bounded-window fallback remains a v1 performance requirement.** Its threshold is selected from product-runner measurements, not guessed in advance. The 2,000-block fixture must stay inside the performance contract.
+3. **History headers become fresh through bounded publication after materialization.** Polling is rejected. Navigation and editor actions remain independent from Git and IPC.
+4. **Tauri owns the fixed six-hour v1 backup timer.** Cadence is not user-configurable in v1, so no settings-schema or archive-fixture change is needed.
+5. **Deep nesting remains valid, while visual indentation is clamped.** The data model keeps arbitrary depth and the sidebar preserves level semantics without horizontal scrolling.
+6. **Markdown-vault import/export remains post-v1.** The v1 desktop surface exposes the portable archive; third-party and file-tree formats arrive through fixture-backed adapters.
+7. **Linux is the currently evidenced platform.** Windows and macOS may only be included in a v1 release claim after the same bridge, correctness, and presentation suite passes there.
+8. **Reference hardware selection is a release-operation dependency.** Engineering supplies a reproducible product runner and records environment metadata; release sign-off supplies and names the fixed machine.
+
+The executable ordering, worktree ownership, dependencies, and acceptance criteria are in `docs/implementation-backlog.md`.

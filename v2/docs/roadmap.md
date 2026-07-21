@@ -33,41 +33,19 @@ Keep domain records, operations, editor documents, and renderer state portable e
 
 ## Remaining backend work
 
-- Desktop recovery UI and rollback-retention presentation.
+- Native application coordinator and desktop UI for archive import/export, backup, restore, live swap, and rollback presentation.
+- Fixed six-hour desktop backup-timer ownership.
+- Non-polling live history-header publication after successful materialization.
 - Durable sidebar expansion operation and native-only persistence.
-- Fixed-runner confirmation of the recorded import, bootstrap, and history workload measurements.
+- Fixed-runner confirmation of recorded workloads and final product interactions.
 
-## UI architecture gate
+## UI architecture and MVP state
 
-Do not scaffold the product UI before measured spikes answer these questions:
+ADR-0020 accepted React, Vite, direct ProseMirror, the dependency-free external renderer store, and Tauri 2 after the editor, tree, selector, and bridge gates completed. The product shell, persistent whole-document editor, slash menu, tree, trash, metadata/history, command registry, palette, settings, keyboard navigation, editor find/replace, sidebar title search, and responsive panel behavior are implemented.
 
-- Editor engine under 50, 500, and 2,000-block documents.
-- Cached document-state switching cost and memory ceiling.
-- Tree virtualization behavior with nested 1,000-node and 5,000-node fixtures.
-- Renderer store selector granularity and React commit counts.
-- Desktop shell bridge overhead outside navigation paths.
+The remaining renderer work is the production measurement runner, measured-threshold integration of the validated 192-block bounded fallback with complete off-window semantics, deep-tree indentation clamping, and the integrated end-to-end/fixed-hardware proof. React Scan remains optional diagnostic tooling, never production evidence.
 
-Initial replacement, retained, native-presentation, and static bounded-projection editor spikes are complete. Whole-document replacement is unreliable at 500 blocks and fails at 2,000. Eight stacked editors do not scale to 2,000 blocks. Precomputed 192-block state swaps restore provisional end-to-layout headroom for both candidates, but they do not implement a runtime viewport or canonical edit reconciliation. Next editor spike must move the window, anchor scroll, restore focus/selection, reconcile edits, and expose the known clipboard, find, IME, undo, and accessibility limits before symmetric product plugins and ADR-0020.
-
-The tree virtualization spike is complete across all six canonical 1,000-node and 5,000-node fixtures. A dependency-free 28 px fixed-row candidate caps the mounted pool at 40 rows and keeps keyboard navigation comfortably within the provisional budget. Nested-5000 full-subtree expansion and deep reveal have sporadic 8–12 ms samples, while extreme depth exhausts the sidebar width. Those paths need targeted optimization and an indentation policy, but tree virtualization itself no longer blocks store-selector work.
-
-The renderer-store selector spike is complete across four canonical 1,000-node and 5,000-node projections. A normalized dependency-free store, stable selector bindings, bounded row pool, and persistent editor host passed exact production/profiling render allowlists. Clean exploratory P95 values stayed below 8 ms, 100 trusted transitions completed per fixture, and teardown returned to zero listeners. The result keeps React viable for later consideration but does not select it, the store, or Vite.
-
-The DOM-backed ProseMirror correctness slice and desktop bridge measurement are complete. One persistent editor now moves a bounded canonical window with selection, focus, scroll, edit, note-switch, and IME guards. The isolated Tauri candidate proves navigation issues no IPC and runtime completion waits stay off renderer and UI threads. Remaining ADR-0020 gates are editor schema and representative plugins, explicit cross-window semantics, Lexical parity or rejection, fixed-runner presentation evidence, and platform bridge confirmation.
-
-The bounded-editor correctness model now drives the DOM-backed ProseMirror candidate. Pure and fresh-profile browser regressions cover window movement, visual scroll anchoring, canonical edit reconciliation, focus and selection restoration, note switching, outside-window edit rejection, and an IME movement guard. Cross-window clipboard/find/undo/accessibility policy, the final schema, representative plugins, Lexical parity or rejection, and fixed-runner evidence remain the editor gate.
-
-If React is selected, React Scan runs only during development and profiling. Editor internals, keystrokes, and transient selection state may not fan out through broad React subscriptions. Fixed-runner React Scan investigation still needs to agree with the production Profiler and render-count evidence.
-
-## MVP application work
-
-- Persistent application shell and icon navigation.
-- Reorderable, nestable note/folder sidebar with shortcuts and context menus.
-- Persistent editor host with Markdown input, rendered structure, and slash commands.
-- Backend-neutral metadata and history sidebar.
-- Command palette and centralized command registry.
-- User settings.
-- Keyboard-first navigation without post-startup loading UI.
+The final sequence, worktree ownership, and measurable acceptance criteria are maintained in `docs/implementation-backlog.md`.
 
 ## Web path
 
