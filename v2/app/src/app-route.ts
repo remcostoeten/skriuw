@@ -18,3 +18,7 @@ function subscribe(listener: () => void): () => void {
 export function useAppRoute(): AppRoute {
   return useSyncExternalStore(subscribe, readRoute, () => "notes");
 }
+
+export function appRouteHash(route: AppRoute): string {
+  return route === "trash" ? "#/trash" : "#/notes";
+}

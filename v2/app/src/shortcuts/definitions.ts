@@ -2,7 +2,14 @@ export type ShortcutActionId =
   | "toggleCommandPalette"
   | "createNote"
   | "createFolder"
-  | "openSettings";
+  | "openSettings"
+  | "toggleSidebar"
+  | "toggleMetadata"
+  | "focusSidebar"
+  | "focusEditor"
+  | "focusMetadata"
+  | "goToNotes"
+  | "goToTrash";
 
 export type ShortcutDefinition = {
   id: ShortcutActionId;
@@ -44,6 +51,55 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+,",
     label: "Open settings",
     group: "General",
+    worksWhileTyping: true,
+  },
+  {
+    id: "toggleSidebar",
+    keys: "mod+b",
+    label: "Toggle sidebar",
+    group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "toggleMetadata",
+    keys: "mod+alt+b",
+    label: "Toggle metadata panel",
+    group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "focusSidebar",
+    keys: "mod+1",
+    label: "Focus sidebar",
+    group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "focusEditor",
+    keys: "mod+2",
+    label: "Focus editor",
+    group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "focusMetadata",
+    keys: "mod+3",
+    label: "Focus metadata panel",
+    group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "goToNotes",
+    keys: "mod+shift+1",
+    label: "Go to notes",
+    group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "goToTrash",
+    keys: "mod+shift+2",
+    label: "Go to trash",
+    group: "Navigation",
     worksWhileTyping: true,
   },
 ];
