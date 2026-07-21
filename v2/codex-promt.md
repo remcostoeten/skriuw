@@ -3,125 +3,202 @@
 Copy everything below into a new Codex session.
 
 ```text
-Continue the Skriuw Standalone implementation as the primary agent.
+Continue Skriuw Standalone as the primary implementation agent.
 
-Repository and branch:
+Repository:
 - Work only in /home/remcostoeten/dev/skriuw-standalone.
 - Stay on feat/instant-local-first-foundation.
-- The verified implementation/handoff baseline is commit 6575670.
-- Fresh-session prompt documentation may be committed on top of that baseline.
-- No Git remote is configured. Do not claim work is pushed.
-- Claude may concurrently work in an isolated archive-fixture worktree. Do not edit that worktree, merge it, rebase it, or integrate it until the user supplies its completed commits.
+- Verified implementation/handoff baseline: 8c1abff.
+- This prompt file may be committed on top of that baseline.
+- No Git remote exists. Do not claim anything is pushed.
+- Do not edit, merge, reset, or delete any skriuw-claude-* or skriuw-fable-tree worktree.
 
-Before editing, run:
+Communication:
+- Be concise and concrete.
+- Continue autonomously while safe work remains.
+- Give progress updates at meaningful checkpoints and at least once per minute during long work.
+- Lead the final response with what was completed, verification, commits, and the immediate next task.
 
-cd /home/remcostoeten/dev/skriuw-standalone
-git status --short
-git branch --show-current
-git log --oneline --decorate -15
+Mandatory start:
+1. Run:
+   cd /home/remcostoeten/dev/skriuw-standalone
+   git status --short
+   git branch --show-current
+   git log --oneline --decorate -15
+   git worktree list --porcelain
+2. Stop if the primary worktree is dirty or the branch is wrong. Preserve all user changes.
+3. Read completely, in order:
+   - AGENTS.md
+   - TODO.md
+   - docs/handoff.md
+   - ARCHITECTURE.md
+   - docs/roadmap.md
+   - docs/performance-contract.md
+   - docs/fixtures.md
+   - docs/adr/0004-defer-ui-editor.md
+   - docs/adr/0016-deterministic-scale-fixtures.md
+   - spikes/tree-virtualization/README.md
+   - docs/benchmarks/2026-07-21-tree-virtualization.md
+   - spikes/tree-virtualization/src/types.ts
+   - spikes/tree-virtualization/src/tree.ts
+   - spikes/tree-virtualization/src/view.ts
+   - spikes/ui-architecture/README.md
+   - docs/benchmarks/2026-07-21-editor-bounded.md
+4. Verify the baseline instead of trusting handoff numbers:
+   - ./scripts/check.sh
+   - Expected current result: 112 tests pass; five manual backend benchmarks and one manual fixture materialization remain ignored.
+   - Build both existing spikes with pnpm build.
 
-The primary worktree must be clean before implementation. Read these files completely in this order:
-1. AGENTS.md
-2. TODO.md
-3. docs/handoff.md
-4. ARCHITECTURE.md
-5. docs/roadmap.md
-6. docs/performance-contract.md
-7. docs/adr/0005-background-git-history.md
-8. docs/adr/0006-native-git-materializer.md
-9. docs/adr/0014-bounded-failure-diagnostics.md
-10. crates/skriuw-history/src/lib.rs
-11. crates/skriuw-history-git/src/lib.rs
-12. crates/skriuw-history-git/src/native.rs
-13. crates/skriuw-storage/src/lib.rs
-14. crates/skriuw-sqlite/src/lib.rs, focusing on HistoryCache
-15. crates/skriuw-cli/src/main.rs
+Primary task:
+Prototype and measure fine-grained external renderer-store selectors against the integrated 1,000-node and 5,000-node tree fixtures. Determine whether React can preserve the repository's render invariants without placing navigation or editor-hot state in broad context.
 
-Verify the baseline before trusting it:
-- ./scripts/check.sh
-- Expected baseline: 95 tests pass.
-- Three manual tests are ignored by the default suite: two backend benchmarks and one 5,000-note fixture materialization.
-- Rust toolchain is 1.95.0.
+Agent policy:
+- You are the only writer and committer.
+- If subagents are available, start up to three cheap read-only agents concurrently.
+- Prefer Haiku, then Sonnet, or the cheapest capable configured model. Do not use Opus when a cheaper model can do the bounded review.
+- Give them exact read-only scopes and the repository rules.
+- Suggested assignments:
+  1. Audit the existing tree harness and propose the smallest normalized renderer-store shape and selector API.
+  2. Review React external-store subscription, Profiler, and render-count measurement requirements from primary documentation.
+  3. Audit the final diff and benchmark claims against docs/performance-contract.md.
+- Subagents must not edit, commit, create worktrees, or make architecture decisions.
+- Independently verify every useful finding. Continue alone if cheap subagents are unavailable.
 
-Reserved architecture numbering:
-- ADR-0018 belongs to this Git integrity slice.
-- ADR-0019 is reserved for Claude's concurrent archive-compatibility slice.
-- Do not reuse or renumber either ADR.
+Scope:
+- Create a disposable isolated spike, preferably spikes/renderer-store/**.
+- Reuse the canonical Rust tree projection/export boundary. Do not copy or reimplement fixture generation.
+- Add only focused documentation under docs/benchmarks/** plus required TODO/handoff/architecture/roadmap updates.
+- Do not modify editor adapters or claim the bounded editor correctness gap is solved.
+- Do not scaffold the product application or desktop shell.
+- Do not write ADR-0020 or select the final framework/store.
+- Do not add a state library unless a measured deficiency in a small dependency-free external store requires comparison.
 
-Your isolated task:
-Implement read-only Git history repository integrity verification and an explicit transactional history-cache rebuild command.
+Implementation contract:
+- Build a normalized in-memory workspace store with stable node records, parent-to-children indices, expansion state, active note, document metadata, and minimal renderer-only selection state.
+- Keep editor keystrokes and transient editor selection outside the broad application store.
+- Expose narrow selectors and stable subscriptions. A subscriber must not be notified or rendered when its selected value is referentially/equivalently unchanged.
+- Use functional updates, Set/Map where measured, stable listener identities, and direct imports.
+- No context provider may carry the complete mutable workspace snapshot.
+- No component may subscribe to state it does not render.
+- Keep one persistent editor-host sentinel mounted across all note selections.
+- Navigation must synchronously update local renderer state and must not perform fetch, filesystem, IPC, database, Git, parsing, route loading, dynamic import, or asynchronous work.
+- Load all fixture and navigation-critical code before measurement starts.
+- No animation for keyboard navigation or measured high-frequency actions.
 
-Required integrity behavior:
-- Checking an existing repository must never create, initialize, repair, fetch, reset, checkout, or otherwise mutate it.
-- Keep Git and libgit2 types inside the native-only skriuw-history-git adapter.
-- Treat an existing, valid non-bare repository with no refs/heads/history ref as healthy empty history.
-- Reject a missing repository, a bare repository, a repository without a worktree, and an unreadable repository explicitly.
-- Starting at refs/heads/history, verify that reachable history is one linear chain: a root has no parent and every later history commit has exactly one parent. Reject merges and broken ancestry.
-- Validate every commit's required Skriuw-Outbox, Skriuw-Note, Skriuw-Revision, and Skriuw-Created-At metadata using the existing identifier, positive-revision, and non-negative timestamp rules.
-- Reject duplicate outbox IDs and invalid or duplicate history identities where they would make retry/cache semantics ambiguous.
-- For every commit, verify that notes/<note-id>.md resolves in that commit to a readable blob containing valid UTF-8 Markdown.
-- Produce a typed report/result with deterministic counts and typed issues. Public diagnostics must use the existing bounded, redacted integrity/history diagnostic contract and must not expose filesystem paths, Git object IDs, libgit2 messages, or repository internals.
-- Preserve lazy history Markdown reads. Integrity work must run only when explicitly requested, never during startup, bootstrap, save, navigation, or version-header rendering.
+Required UI decomposition in the spike:
+- Stable application shell.
+- Virtualized tree host using or adapting the proven fixed-row approach.
+- Visible tree-row consumers with selection derived through narrow subscriptions.
+- Persistent editor-host sentinel that changes the selected prepared-document identity without remounting.
+- Metadata consumer for the active note.
+- An unrelated sidebar/settings consumer used to prove isolation.
+- Complete empty, selected, disabled, error, and reduced-motion states where relevant.
 
-Required cache-rebuild behavior:
-- Reuse the existing backend-neutral HistoryReader and HistoryCache boundaries where they remain correct.
-- Validate/enumerate the complete Git history before changing SQLite history_cache.
-- Replace the cache only through the existing transactional replace_history_headers operation.
-- Any Git validation/read failure must leave the old SQLite cache unchanged.
-- Any SQLite replacement failure must roll back the complete cache replacement.
-- An empty valid history repository must rebuild to an empty cache successfully.
-- Do not rewrite Git, materialize outbox work, or load Markdown into the cache.
+Render invariants to prove:
+- Selecting a note does not render the application shell.
+- Selecting a note does not remount the editor host.
+- A selection change renders only the previous selected row, next selected row, editor selection consumer, metadata consumer, and any direct focus consumer.
+- Offscreen rows do not render for selection changes.
+- Expanding/collapsing a folder does not render unrelated rows or editor/metadata consumers.
+- Editor-owned typing does not render shell, tree, metadata, or unrelated consumers.
+- Updating one metadata field renders only the owning field/consumer.
+- Reapplying equivalent state produces zero subscriber notifications and zero React commits.
+- Subscriber counts and listener counts remain stable across repeated navigation and cleanup.
 
-CLI boundary:
-- Add history-integrity <history-repository>.
-- Add history-rebuild-cache <database> <history-repository>.
-- A healthy integrity check exits successfully and prints a concise count.
-- An unhealthy check or failed rebuild exits non-zero through a bounded/redacted Diagnostic.
-- The rebuild command prints the number of cached headers only after commit.
-- Update CLI help.
+Benchmark fixtures and scenarios:
+- Use canonical nested-1000, nested-5000, wide-5000, and mixed-5000 projections. Justify any additional fixture.
+- Use fresh browser contexts and a production build.
+- Record preparation/indexing outside interaction timing.
+- Measure at least:
+  - 100 cached keyboard note selections across top, middle, and bottom.
+  - 100 direct active-note changes involving visible and offscreen rows.
+  - 40 shallow and deep expansion changes.
+  - 30 editor-owned typing updates.
+  - 30 metadata-only updates.
+  - 100 equivalent/no-op store updates.
+  - subscription setup and complete teardown.
+- Record raw samples, P50, P95, P99, maximum, frame gaps, dropped-frame diagnostics, Long Tasks, Long Animation Frames, subscriber notifications, React commits, component render counts, host mounts, and DOM row ceilings.
+- Instrument React Profiler in production profiling builds. Keep React Scan development/profiling-only if it is used at all; it is diagnostic, never proof.
+- Use trusted CDP keyboard input for the native navigation path. Synthetic handlers may be separate work diagnostics only.
+- Use Chrome Performance traces for presentation inspection where available.
+- Treat requestAnimationFrame as pre-paint.
+- Event Timing below 16 ms is censored and cannot prove the 8 ms contract.
+- Long Tasks and Long Animation Frames only cover their browser thresholds; zero entries cannot prove an 8 ms pass.
+- Preserve machine-readable raw outputs for claimed production-selection evidence. If raw artifacts are not committed, label results exploratory.
 
-Regression tests must be deterministic and must not use sleeps. Cover at least:
-1. Healthy empty existing repository.
-2. Healthy multi-note linear history.
-3. Missing/non-repository and bare repository rejection without creating files.
-4. Merge history rejection.
-5. Invalid/missing metadata rejection.
-6. Duplicate outbox identity rejection.
-7. Missing, non-blob, or non-UTF-8 note content rejection.
-8. Successful cache rebuild including the empty case.
-9. Corrupt Git history leaves an existing SQLite cache byte-for-byte/semantically unchanged.
-10. SQLite cache replacement failure rolls back.
-11. Public diagnostics redact paths, object IDs, and backend text.
+Correctness checks:
+- Selector equality suppresses equivalent updates.
+- Unsubscribe prevents later notification.
+- Subscription mutation during notification is deterministic and safe.
+- One subscriber failure cannot corrupt store state or listener bookkeeping.
+- Selection remains valid when an ancestor collapses; hidden selection follows the existing tree contract.
+- Unavailable/disabled nodes cannot become active through keyboard navigation.
+- Node ordering remains the canonical fixture order.
+- The tree row pool stays bounded independently of workspace size.
+- The editor sentinel mount count remains one.
+- No fixture hydration, parsing, indexing, or lazy loading occurs during measured interactions.
+- Concurrent benchmark runs and incomplete native-capture lifecycles are rejected.
+- Browser console errors, page exceptions, failed correctness checks, incorrect trusted-key counts, or leaked subscribers fail the automation command.
+- The benchmark CLI exits deterministically after browser cleanup.
 
-Architecture and scope constraints:
-- Write ADR-0018 describing the integrity model, read-only boundary, linear-history invariant, cache replacement order, and failure behavior.
-- Keep changes centered on crates/skriuw-history, crates/skriuw-history-git, crates/skriuw-cli, tests, ADR-0018, and relevant maintenance documentation.
-- Do not change workspace operations, archive versions, generated contracts, ranking, trash, settings, backup, database swap, fixture generation, or UI architecture.
-- Do not add dependencies, frameworks, network Git features, sleeps-based synchronization, or code comments.
-- Do not scan all Git refs; refs/heads/history is the owned history boundary.
-- Do not place Git types in skriuw-domain or skriuw-storage.
-- Preserve unrelated work and user changes. Use apply_patch for edits.
+Performance comparison:
+- Compare interaction work provisionally with P95 below 8 ms and maximum below 16.67 ms.
+- Treat any unnecessary shell/sidebar/editor-host/metadata render as a correctness failure even when timing passes.
+- Ordinary shared CI remains correctness-only. Do not add timing assertions without a fixed runner.
+- Report fresh-context variance and do not turn one development-machine run into a universal guarantee.
+
+Invalid shortcuts:
+- One React subscription at the application root followed by prop fan-out.
+- A broad mutable React context for the workspace.
+- Remounting the editor host during note selection.
+- Pre-rendering all 5,000 rows or using display:none as virtualization.
+- Updating every visible row to change selection.
+- Counting handler invocation as paint.
+- Synthetic dispatchEvent as trusted input evidence.
+- Adding Zustand, Redux, Jotai, or another store merely for convenience.
+- Changing production architecture based only on React Scan or headless timing.
+
+Documentation:
+- Add docs/benchmarks/2026-07-21-renderer-store-selectors.md, or use the current date if the repository date has changed.
+- Include objective, exact fixture digests, architecture, selector contract, component ownership, method, commands, raw-evidence location, environment, render-count tables, timing distributions, correctness assertions, limitations, and budget result.
+- Update the spike README with exact run and automation commands.
+- After the implementation commit, update TODO.md, docs/handoff.md, ARCHITECTURE.md, and docs/roadmap.md in a separate handoff commit.
+- Keep the immediate next task explicit: bounded-editor window correctness and desktop bridge measurement still precede ADR-0020.
 
 Verification:
-1. cargo fmt --all
-2. cargo test -p skriuw-history --locked
-3. cargo test -p skriuw-history-git --locked
-4. cargo test -p skriuw-cli --locked
-5. ./scripts/check.sh
-6. Run CLI smoke in a mktemp -d directory for healthy integrity, successful empty/cache rebuild, and a corrupt-history failure. Do not rely on broad or user-owned paths.
-7. git diff --check
+1. Generate canonical browser fixtures with the existing exporter.
+2. Typecheck and production-build the new spike.
+3. Run deterministic store/selector correctness tests.
+4. Run browser automation against the production preview.
+5. Verify meaningful content, expected controls, no overlay, no console/page errors, and bounded DOM.
+6. Screenshot-inspect representative nested-5000 states and render-count output.
+7. Run the trusted keyboard scenario and at least five fresh-context nested-5000 repetitions.
+8. ./scripts/generate.sh
+9. ./scripts/check.sh
+10. git diff --check
+11. Confirm generated contracts and canonical fixture digests did not drift.
+12. Confirm generated fixtures, build output, browser profiles, traces, screenshots, and temporary results are not accidentally tracked.
+13. Run the cheap final-review subagent and resolve every valid finding.
 
 Commit discipline:
-1. Commit implementation, deterministic tests, ADR-0018, CLI help, and focused maintenance docs:
-   feat: verify Git history integrity
-2. In a separate commit, update TODO.md, docs/handoff.md, ARCHITECTURE.md, and docs/roadmap.md with the exact result, new test count, verification result, remaining gap, and Claude integration status:
-   docs: hand off archive compatibility slice
+1. Implement and verify the store-selector spike, tests, harness README, and benchmark report:
+   perf: benchmark renderer store selectors
+2. Update TODO.md, docs/handoff.md, ARCHITECTURE.md, and docs/roadmap.md:
+   docs: hand off renderer store findings
 
-Do not begin another implementation slice and do not integrate Claude automatically. At completion report:
-- Both commit hashes.
-- Files changed by each commit.
-- Exact passing and ignored test counts.
-- CLI smoke results.
-- Any unresolved issue.
-- Whether the primary worktree is clean.
+Keep dependency order and omit a commit only when it has no changes. Do not begin the bounded-editor or desktop-bridge implementation in this session.
+
+Completion report:
+- Commit hashes and files per commit.
+- Exact test/build/browser commands and results.
+- Render counts per interaction.
+- Subscriber notification counts and leak result.
+- Representative and repeated timing results.
+- DOM row ceiling, editor-host mount count, and dropped-frame observations.
+- Honest pass/fail against every render and timing invariant.
+- Useful cheap-subagent findings.
+- Known limitations and immediate next task.
+- Final git status.
+
+Do not merge other worktrees, push, or start product UI scaffolding. Stop after the verified clean handoff.
 ```
