@@ -123,6 +123,8 @@ Initial editor spike: a production vanilla-TypeScript harness compares direct Pr
 
 Retained editor spike: eight pre-laid-out editor panes produce representative 500-block end-to-layout P95 values of 4.93 ms for ProseMirror and 8.53 ms for Lexical, with measured memory deltas of 3.00 and 4.34 MiB. Neither meets the provisional gate at 2,000 blocks, while total DOM grows to 16,808 and 32,008 elements. This rejects an unbounded retained pool for large notes. Repeated measurements, next-paint and Long Animation Frame evidence, a bounded viewport, focus/selection and scroll restoration, plugins, native keyboard paint, and the final memory ceiling remain open. See `docs/benchmarks/2026-07-21-editor-retained.md`.
 
+Native presentation spike: trusted ArrowDown input now records handler/layout marks, Event Timing, Long Animation Frames, and Chrome traces. A five-key retained-ProseMirror trace at 500 blocks exposed a 35 ms first interaction followed by four 16 ms Event Timing entries. A rapid 100-key run had 1.175 ms handler-through-layout P95, but only 37 entries were visible at the 16 ms Event Timing threshold. This proves Event Timing and zero LoAF cannot establish the 8 ms contract; Chrome traces remain the presentation boundary. See `docs/benchmarks/2026-07-21-editor-native-presentation.md`.
+
 React requirements if selected:
 
 - [ ] Install React Scan for development/profiling only.

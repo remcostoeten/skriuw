@@ -232,6 +232,10 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Retained residency reached 16,808 ProseMirror and 32,008 Lexical elements at 2,000 blocks. User-agent-specific memory deltas were 10.88 and 14.76 MiB. This rejects an unbounded retained pool as the large-note solution.
 - These are provisional layout-boundary observations, not full interaction passes. Presentation timing, Long Animation Frames, repeat runs, and focus/selection restoration remain open.
 - Full retained method and representative observations are in `docs/benchmarks/2026-07-21-editor-retained.md`.
+- `fee2038` adds trusted ArrowDown instrumentation with exact handler/layout marks, timestamp-correlated Event Timing entries, ambient Long Animation Frames, and lifecycle guards against synthetic or partial runs.
+- A production Chrome trace over five retained-ProseMirror 500-block switches recorded a 35 ms first keydown: 0.3 ms input delay, 18 ms processing, and 17 ms presentation delay. The next four Event Timing durations were 16 ms; no frame exceeded the LoAF API's 50 ms threshold.
+- A separate 100-key rapid run recorded 1.175 ms handler-through-layout P95 and 1.730 ms maximum. Only 37 trusted keydown entries were exposed at the 16 ms Event Timing threshold, so missing entries remain censored rather than counted as passes.
+- Full native-input method, API limitations, observations, and trace boundary are in `docs/benchmarks/2026-07-21-editor-native-presentation.md`.
 
 ## Completed backend-workload slice
 
@@ -244,7 +248,7 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 
 ## Known correctness gap and next task
 
-Primary next slice: add presentation and Long Animation Frame measurement, then prototype a genuinely bounded editor viewport at 2,000 blocks and measure focus/selection and scroll restoration, equivalent product plugins, and native keyboard-to-paint behavior. Repeat retained 500-block runs before using their margins for selection. Tree virtualization, external store selectors, and desktop bridge measurements still precede ADR-0020 and product UI scaffolding. Durable sidebar expansion persistence remains a later UI-linked operation.
+Primary next slice: prototype a genuinely bounded editor projection at 2,000 blocks with one persistent host and at most 192 rendered blocks. Measure note switching and window shifts, then test focus/selection and scroll restoration honestly against the known cross-window selection, clipboard, find, IME, undo, and accessibility limitations. Fable owns tree virtualization in an isolated worktree from `fable-promt.md`. External store selectors and desktop bridge measurements still precede ADR-0020 and product UI scaffolding.
 
 ## Verification model
 
