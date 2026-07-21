@@ -380,6 +380,13 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The shared native-dialog primitive now accepts dialog-bound keyboard behavior and restores focus explicitly to the opening control after close. Headings follow the Settings `h2`, section `h3`, group `h4` hierarchy.
 - Three pure navigation regressions cover deep multi-token search, roving fallback, wrapping arrows, Home, and End. A 1200 × 800 browser pass verified the exact centered bounds, accessible tree, `/`, filtered Enter, `Ctrl+E`, arrow selection, F6 cycling, two-stage Escape, trigger-focus restoration, and zero application console errors.
 
+## Completed settings interaction parity follow-up
+
+- `13ff3db` removes the standalone dialog header and matches the original Skriuw desktop settings geometry: 896 × 720 CSS pixels, a 220 px rail, 32/40/48 px content padding, and 24 px section `h1` headings. The dialog retains a visually hidden accessible name and an explicit content close control.
+- Search keeps native focus without the previous custom focus ring. Enter from a filtered category, Enter or Space on a section tab, and ArrowRight now move focus to that section's first enabled setting control; subsequent Tab presses follow the form controls in document order.
+- The registry-backed `Ctrl+,` binding now toggles Settings closed as well as open. While the modal is active, only that explicitly retained binding remains registered, so unrelated workspace shortcuts stay suspended.
+- A shortcut-suspension regression covers the retained-binding model. All 62 frontend tests, TypeScript, the production build, generated-contract drift, 112 backend tests, and `git diff --check` pass. A 1200 × 800 browser pass verified the exact bounds, neutral search focus, filtered Editor activation into its first select, Tab into the next select, `Ctrl+,` close, trigger-focus restoration, and zero application console errors.
+
 ## Completed command-registry and keyboard-navigation slice
 
 - `app/src/commands/registry.ts` defines the typed command registry: id, label, group, optional icon/keywords/hint, optional `ShortcutActionId` binding, `enabled`/`visible` predicates over `RendererState` plus a `CommandUiState` (route, sidebar/metadata/settings open), and an action. Duplicate ids and duplicate shortcut claims fail at registration.
