@@ -41,6 +41,9 @@ export type BoundedEditorSnapshot = {
   renderedTexts: string[];
   canonicalTexts: string[];
   composing: boolean;
+  undoDepth: number;
+  slashMenuOpen: boolean;
+  slashMenuQuery: string;
 };
 
 export type BoundedEditorControl = {
@@ -48,6 +51,8 @@ export type BoundedEditorControl = {
   focus(selection: BoundedSelection): void;
   moveWindow(start: number): void;
   reconcileCanonical(edit: BoundedCanonicalEdit): void;
+  insertText(text: string): void;
+  undo(): boolean;
 };
 
 export type EditorCandidate = {

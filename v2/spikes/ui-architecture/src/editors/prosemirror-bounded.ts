@@ -1,5 +1,5 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
-import { schema } from "prosemirror-schema-basic";
+import { undo as undoCommand, undoDepth } from "prosemirror-history";
 import {
   EditorState,
   TextSelection,
@@ -10,6 +10,11 @@ import "prosemirror-view/style/prosemirror.css";
 
 import { BOUNDED_BLOCK_LIMIT, createBoundedCorpus } from "../corpus";
 import { createBoundedEditorProjection } from "./bounded-correctness";
+import {
+  createProductPlugins,
+  productSchema,
+  slashMenuState,
+} from "./prosemirror-product";
 import type {
   BlockCount,
   BoundedEditorSnapshot,
@@ -20,13 +25,13 @@ import type {
 } from "../types";
 
 function toNode(block: CanonicalBlock): ProseMirrorNode {
-  const text = block.text.length > 0 ? schema.text(block.text) : undefined;
+  const text = block.text.length > 0 ? productSchema.text(block.text) : undefined;
   if (block.kind === "heading") {
-    return schema.node("heading", { level: 2 }, text);
+    return productSchema.node("heading", { level: 2 }, text);
   }
-  const paragraph = schema.node("paragraph", null, text);
+  const paragraph = productSchema.node("paragraph", null, text);
   if (block.kind === "quote") {
-    return schema.node("blockquote", null, paragraph);
+    return productSchema.node("blockquote", null, paragraph);
   }
   return paragraph;
 }
@@ -58,7 +63,8 @@ type BoundedDocument = {
 
 function createState(blocks: readonly CanonicalBlock[]): EditorState {
   return EditorState.create({
-    doc: schema.node("doc", null, blocks.map(toNode)),
+    doc: productSchema.node("doc", null, blocks.map(toNode)),
+    plugins: createProductPlugins(),
   });
 }
 
@@ -132,6 +138,7 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
           view.state.tr.setSelection(TextSelection.create(view.state.doc, position)),
         ),
       );
+      document.state = view.state;
       view.focus();
     }
     if (mountedHost) {
@@ -172,6 +179,8 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
   function snapshot(): BoundedEditorSnapshot {
     const document = activeDocument();
     const window = document.projection.getWindow();
+    const currentState = view?.state ?? document.state;
+    const slashMenu = slashMenuState(currentState);
     return {
       noteId: activeId ?? "",
       ...window,
@@ -181,6 +190,9 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
       renderedTexts: document.projection.getRenderedBlocks().map((block) => block.text),
       canonicalTexts: document.projection.getCanonicalBlocks().map((block) => block.text),
       composing,
+      undoDepth: undoDepth(currentState),
+      slashMenuOpen: slashMenu.open,
+      slashMenuQuery: slashMenu.query,
     };
   }
 
@@ -228,6 +240,16 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
     if (edit.blockIndex < window.start || edit.blockIndex >= window.end) return;
     document.state = createState(document.projection.getRenderedBlocks());
     installDocument(document);
+  }
+
+  function insertText(text: string): void {
+    if (!view) throw new Error("bounded editor is not mounted");
+    view.dispatch(view.state.tr.insertText(text));
+  }
+
+  function undo(): boolean {
+    if (!view) return false;
+    return undoCommand(view.state, view.dispatch);
   }
 
   function handleCompositionStart(): void {
@@ -294,9 +316,7 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
       installDocument(activeDocument());
     },
     edit(sampleIndex: number) {
-      if (view) {
-        view.dispatch(view.state.tr.insertText(String(sampleIndex % 10)));
-      }
+      insertText(String(sampleIndex % 10));
     },
     preparationCount() {
       return preparations;
@@ -321,6 +341,8 @@ export function createProseMirrorBoundedCandidate(): EditorCandidate {
       focus,
       moveWindow,
       reconcileCanonical,
+      insertText,
+      undo,
     },
     destroy() {
       mountedHost?.removeEventListener("compositionstart", handleCompositionStart);

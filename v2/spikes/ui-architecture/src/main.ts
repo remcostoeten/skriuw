@@ -34,6 +34,9 @@ type BoundedCorrectnessResult = {
   reconciled: BoundedEditorSnapshot;
   edited: BoundedEditorSnapshot;
   restored: BoundedEditorSnapshot;
+  undone: BoundedEditorSnapshot;
+  slash: BoundedEditorSnapshot;
+  slashUndone: BoundedEditorSnapshot;
   compositionGuarded: boolean;
   unsupported: readonly string[];
 };
@@ -366,6 +369,25 @@ export function runBoundedCorrectnessScenario(): BoundedCorrectnessResult {
     edited.renderedTexts[target - edited.start],
     "restored rendered edit",
   );
+  requireEqual(restored.undoDepth, 1, "restored bounded undo depth");
+  requireEqual(control.undo(), true, "bounded undo command");
+  const undone = control.snapshot();
+  requireEqual(undone.canonicalTexts[target], reconciledText, "undone canonical edit");
+  requireEqual(
+    undone.renderedTexts[target - undone.start],
+    reconciledText,
+    "undone rendered edit",
+  );
+
+  control.focus({ blockIndex: target, offset: 0 });
+  control.insertText("/heading");
+  const slash = control.snapshot();
+  requireEqual(slash.slashMenuOpen, true, "slash menu state");
+  requireEqual(slash.slashMenuQuery, "heading", "slash menu query");
+  requireEqual(control.undo(), true, "slash insertion undo");
+  const slashUndone = control.snapshot();
+  requireEqual(slashUndone.slashMenuOpen, false, "closed slash menu state");
+  requireEqual(slashUndone.canonicalTexts[target], reconciledText, "slash undo canonical edit");
 
   host.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
   let compositionGuarded = false;
@@ -385,6 +407,9 @@ export function runBoundedCorrectnessScenario(): BoundedCorrectnessResult {
     reconciled,
     edited,
     restored,
+    undone,
+    slash,
+    slashUndone,
     compositionGuarded,
     unsupported: BOUNDED_EDITOR_UNSUPPORTED,
   };

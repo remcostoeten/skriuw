@@ -162,7 +162,7 @@ try {
     client,
     sessionId,
     `(async () => {
-      const benchmark = await window.__SKRIUW_BENCHMARK__.run("prosemirror", 500, "bounded");
+      const benchmark = await window.__SKRIUW_BENCHMARK__.run("prosemirror", 2000, "bounded");
       const scenario = window.__SKRIUW_BENCHMARK__.runBoundedCorrectnessScenario();
       return {
         benchmark: {
@@ -171,6 +171,12 @@ try {
           activeDomNodes: benchmark.activeDomNodes,
           renderedBlocks: benchmark.renderedBlocks,
           canonicalBlocks: benchmark.canonicalBlocks,
+          switchingP95Ms: benchmark.switching.settled.p95Ms,
+          switchingMaxMs: benchmark.switching.settled.maxMs,
+          switchingDroppedFrames: benchmark.switching.droppedFrames,
+          typingP95Ms: benchmark.typing.settled.p95Ms,
+          typingMaxMs: benchmark.typing.settled.maxMs,
+          typingDroppedFrames: benchmark.typing.droppedFrames,
         },
         scenario: {
           start: scenario.moved.start,
@@ -189,6 +195,13 @@ try {
           restoredCanonicalEdit: scenario.restored.canonicalTexts[
             scenario.restored.selection.blockIndex
           ],
+          restoredUndoDepth: scenario.restored.undoDepth,
+          undoneCanonicalEdit: scenario.undone.canonicalTexts[
+            scenario.undone.selection.blockIndex
+          ],
+          slashMenuOpen: scenario.slash.slashMenuOpen,
+          slashMenuQuery: scenario.slash.slashMenuQuery,
+          slashUndone: !scenario.slashUndone.slashMenuOpen,
           compositionGuarded: scenario.compositionGuarded,
           unsupported: scenario.unsupported,
         },
@@ -198,7 +211,7 @@ try {
   requireEqual(result.benchmark.hostMounts, 1, "host mounts");
   requireEqual(result.benchmark.editorInstances, 1, "editor instances");
   requireEqual(result.benchmark.renderedBlocks, 192, "rendered blocks");
-  requireEqual(result.benchmark.canonicalBlocks, 500, "canonical blocks");
+  requireEqual(result.benchmark.canonicalBlocks, 2_000, "canonical blocks");
   if (result.benchmark.activeDomNodes > 512) throw new Error("bounded DOM limit exceeded");
   requireEqual(result.scenario.selection.blockIndex, result.scenario.domSelection.blockIndex, "selection block");
   requireEqual(result.scenario.selection.offset, result.scenario.domSelection.offset, "selection offset");
@@ -223,6 +236,15 @@ try {
     result.scenario.restoredCanonicalEdit,
     "restored canonical edit",
   );
+  requireEqual(result.scenario.restoredUndoDepth, 1, "restored undo depth");
+  requireEqual(
+    result.scenario.undoneCanonicalEdit,
+    "Canonical reconciliation remains visible",
+    "undone canonical edit",
+  );
+  requireEqual(result.scenario.slashMenuOpen, true, "slash menu state");
+  requireEqual(result.scenario.slashMenuQuery, "heading", "slash menu query");
+  requireEqual(result.scenario.slashUndone, true, "slash menu undo");
   requireEqual(result.scenario.compositionGuarded, true, "composition guard");
   requireEqual(consoleErrors.length, 0, "console errors");
   requireEqual(pageErrors.length, 0, "page errors");
