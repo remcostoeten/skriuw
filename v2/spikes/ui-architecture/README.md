@@ -8,6 +8,8 @@ This isolated browser harness compares direct ProseMirror and direct Lexical sta
 cd spikes/ui-architecture
 pnpm install --frozen-lockfile
 pnpm build
+pnpm test
+pnpm test:browser
 pnpm exec vite preview --host 127.0.0.1 --port 4173
 ```
 
@@ -20,7 +22,7 @@ After a benchmark prepares and mounts a candidate, `window.__SKRIUW_BENCHMARK__.
 ## Measured contract
 
 - Eight deterministic cached note states are prepared before measurement.
-- One outer editor host is mounted once. Replacement uses one editor instance; retained mode stacks eight pre-laid-out editor instances and switches visibility. Bounded mode keeps eight complete canonical arrays outside one persistent editor and installs prepared contiguous states of at most 192 blocks.
+- One outer editor host is mounted once. Replacement uses one editor instance; retained mode stacks eight pre-laid-out editor instances and switches visibility. Bounded mode keeps eight complete canonical arrays outside one persistent editor and installs contiguous states of at most 192 blocks.
 - Preparation, mount, and priming cost are recorded outside navigation timing.
 - Active and total DOM elements, editor instances, and user-agent-specific memory delta are recorded when Chromium supports the memory API.
 - One warm-up is excluded.
@@ -34,6 +36,8 @@ End-to-layout duration is compared provisionally with the 8 ms P95 and 16.67 ms 
 
 ## Limits
 
-The first corpus uses equivalent headings, paragraphs, and quotes rather than a final editor schema. Measurements use a headless Chromium process and one development machine. Memory numbers require a fresh browser context and are unavailable where `measureUserAgentSpecificMemory` is unsupported. Bounded mode is a note-switching projection, not full document virtualization: window shifting, spacers, scroll anchoring, canonical edit reconciliation, cross-window selection, undo, find, clipboard, IME, and accessibility behavior are absent. Paint presentation, structured Markdown fidelity, and product plugins remain separate gates. No result here selects an editor or establishes a universal budget.
+The first corpus uses equivalent headings, paragraphs, and quotes rather than a final editor schema. Measurements use a headless Chromium process and one development machine. Memory numbers require a fresh browser context and are unavailable where `measureUserAgentSpecificMemory` is unsupported. Paint presentation, structured Markdown fidelity, and product plugins remain separate gates. No result here selects an editor or establishes a universal budget.
 
-The ProseMirror bounded-correctness model in `src/editors/bounded-correctness.ts` exercises the smallest runtime contract: one canonical block array, a movable rendered window, scroll/selection restoration, and edit reconciliation. It is intentionally pure and is not wired into the DOM-backed benchmark candidate yet. Run its regression assertions with `pnpm test`. Edits outside the rendered window are rejected; cross-window clipboard/find, IME composition, undo history, and screen-reader traversal remain explicitly unsupported. This is a correctness harness, not a product editor or editor selection.
+The ProseMirror bounded-correctness model in `src/editors/bounded-correctness.ts` exercises the smallest runtime contract: one canonical block array, a movable rendered window, scroll/selection restoration, and edit reconciliation. The DOM-backed ProseMirror candidate now uses that projection. `pnpm test:browser` runs a production build in a fresh Chrome profile and proves one persistent editor, a 192-of-500 block bound, live window movement, exact DOM selection and focus restoration, scroll-anchor adjustment, canonical reconciliation of editor and external edits, note-switch restoration, and rejection of window movement during IME composition.
+
+The result remains a bounded projection rather than complete document virtualization. ProseMirror and Lexical both leave cross-window clipboard and browser find, composition spanning a required window move, cross-window undo history, and screen-reader traversal outside the rendered window unsupported. Lexical does not yet use the live correctness controller. Neither candidate includes the final structured Markdown schema or representative product plugins. These are explicit selection gates, not implied capabilities.

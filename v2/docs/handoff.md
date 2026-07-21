@@ -26,9 +26,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit: `2fba493 test: add bounded editor correctness model`; renderer-store implementation is `424db78` and earlier tree slices are `d00b017`, `a6ca660`, and `c8c2cd1`.
-- Expected primary worktree state: clean after the handoff commit following `2fba493`.
-- Current verification result: 112 backend tests, seven renderer-store tests, and five bounded-editor correctness tests pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, the UI spike typecheck/build, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
+- Last implementation commit: `23c88b6 feat: wire bounded ProseMirror projection`; the pure bounded model is `2fba493`, renderer-store implementation is `424db78`, and earlier tree slices are `d00b017`, `a6ca660`, and `c8c2cd1`.
+- Expected primary worktree state: clean after the handoff commit following `23c88b6`.
+- Current verification result: 112 backend tests, seven renderer-store tests, five pure bounded-editor tests, and one fresh-profile bounded-editor browser regression pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, the UI spike typecheck/build, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
@@ -264,6 +264,14 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - It intentionally does not wire into the ProseMirror DOM candidate. Browser selection, window recycling, clipboard/find, IME, undo, accessibility traversal, product plugins, and native presentation remain unmeasured.
 - `spikes/ui-architecture/README.md` records the boundary and `pnpm test`, `pnpm typecheck`, and `pnpm build` pass.
 
+## Completed DOM-backed bounded-editor correctness slice
+
+- The ProseMirror bounded candidate now connects one persistent `EditorView` to one canonical projection per prepared note instead of treating static prepared windows as the complete model.
+- Live window movement rebuilds only the bounded state, restores exact canonical block/offset selection and editor focus, applies the projection's scroll-anchor adjustment, and refuses to recycle during IME composition.
+- ProseMirror transactions reconcile rendered block text into canonical content. External canonical edits update a visible window immediately, while note switching retains the live state, canonical edit, selection, focus, and scroll projection.
+- `pnpm test:browser` starts the production preview and a fresh headless Chrome profile through CDP. The 500-block regression retains one mount and one editor instance, renders 192 blocks in 203 DOM nodes, passes window, DOM selection/focus, scroll, editor/external reconciliation, note restoration, composition guard, console-error, and page-error assertions, and terminates deterministically.
+- Both candidates still explicitly lack complete cross-window clipboard/find, composition requiring a window move, undo, and off-window screen-reader traversal. Lexical lacks the live controller. Final schema behavior, representative plugins, fixed-runner presentation evidence, and an editor decision remain open.
+
 ## Completed backend-workload slice
 
 - Claude implementation `0f646bb` was reviewed in its isolated worktree and integrated as `97937f2`; its stale shared-doc commit `23511fd` was excluded and reconciled here.
@@ -275,7 +283,7 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 
 ## Known correctness gap and next task
 
-Wire the bounded correctness model into one DOM-backed candidate, beginning with ProseMirror window recycling and browser selection restoration. Record clipboard, find, IME, undo, accessibility, and representative-plugin limits symmetrically for both editor candidates. Then measure desktop bridge overhead outside navigation. Durable fixed-runner evidence and those two slices still precede ADR-0020 and product UI scaffolding.
+Measure desktop bridge overhead outside navigation. Then close the remaining editor-selection gates: representative plugins and final schema behavior, cross-window clipboard/find/undo/accessibility policy, Lexical parity or explicit rejection, and fixed-runner presentation evidence. These still precede ADR-0020 and product UI scaffolding.
 
 ## Verification model
 
