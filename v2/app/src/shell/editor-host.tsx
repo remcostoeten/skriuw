@@ -1,4 +1,4 @@
-import { NoteEditor } from "../editor/NoteEditor";
+import { NoteEditor } from "../editor/note-editor";
 import type { RendererStore } from "../store/types";
 
 type Props = {

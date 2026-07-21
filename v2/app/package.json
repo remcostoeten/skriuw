@@ -6,13 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
+    "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@radix-ui/react-context-menu": "^2.3.4",
+    "@remcostoeten/use-shortcut": "^2.4.0",
     "@tauri-apps/api": "2.11.1",
+    "clsx": "^2.1.1",
     "prosemirror-commands": "1.7.1",
     "prosemirror-history": "1.5.0",
     "prosemirror-inputrules": "1.5.1",
@@ -24,14 +28,18 @@
     "prosemirror-state": "1.4.4",
     "prosemirror-view": "1.42.1",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "2.9.6",
     "@types/node": "26.1.1",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.3",
+    "tailwindcss": "^4.3.3",
     "tsx": "4.20.6",
     "typescript": "7.0.2",
     "vite": "8.1.5"

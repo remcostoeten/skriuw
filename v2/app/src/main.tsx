@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
+import { App } from "./app";
 import { bootstrapWorkspace } from "./bridge/commands";
 import { createInitialState, createRendererStore } from "./store/store";
 import "./styles.css";

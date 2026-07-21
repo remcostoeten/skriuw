@@ -7,6 +7,7 @@ use tauri::{Manager, RunEvent, State};
 
 struct AppState {
     runtime: WorkspaceRuntime,
+    storage_path: PathBuf,
 }
 
 fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -61,6 +62,32 @@ async fn search_workspace(
     wait_for(completion).await
 }
 
+#[tauri::command]
+fn workspace_storage_path(state: State<'_, AppState>) -> String {
+    state.storage_path.display().to_string()
+}
+
+#[tauri::command]
+fn reveal_workspace_storage(state: State<'_, AppState>) -> Result<(), String> {
+    let target = state
+        .storage_path
+        .parent()
+        .unwrap_or(&state.storage_path)
+        .to_path_buf();
+    let opener = if cfg!(target_os = "macos") {
+        "open"
+    } else if cfg!(target_os = "windows") {
+        "explorer"
+    } else {
+        "xdg-open"
+    };
+    std::process::Command::new(opener)
+        .arg(&target)
+        .spawn()
+        .map_err(|error| format!("open {}: {error}", target.display()))?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -70,13 +97,16 @@ pub fn run() {
                 .map_err(|error| format!("open {}: {error}", path.display()))?;
             app.manage(AppState {
                 runtime: WorkspaceRuntime::spawn(storage),
+                storage_path: path,
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap_workspace,
             apply_workspace_operations,
-            search_workspace
+            search_workspace,
+            workspace_storage_path,
+            reveal_workspace_storage
         ])
         .build(tauri::generate_context!())
         .expect("skriuw app must build")

@@ -19,3 +19,11 @@ export function applyWorkspaceOperations(
 export function searchWorkspace(query: string, limit: number): Promise<SearchHit[]> {
   return invoke<SearchHit[]>("search_workspace", { query, limit });
 }
+
+export function workspaceStoragePath(): Promise<string> {
+  return invoke<string>("workspace_storage_path");
+}
+
+export function revealWorkspaceStorage(): Promise<void> {
+  return invoke<void>("reveal_workspace_storage");
+}

@@ -3,7 +3,7 @@ import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { commitOperations } from "../actions/workspace";
-import { useRendererSelector } from "../store/useRendererSelector";
+import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererStore } from "../store/types";
 import {
   countWords,
