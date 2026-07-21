@@ -4,12 +4,12 @@ use std::{
     env, fs,
     path::{Path, PathBuf},
     sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use maintenance::{
-    ArchiveExportReport, ArchiveImportReport, BackupRotationReport, DatabaseSwapReport,
-    MaintenanceCoordinator, RecoveryInventoryReport,
+    ArchiveImportReport, BackupRotationHandle, BackupRotationReport, DatabaseSwapReport,
+    MaintenanceCoordinator, RecoveryInventoryReport, spawn_backup_rotation,
 };
 use serde::Serialize;
 use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
@@ -20,9 +20,12 @@ use tauri::{Manager, RunEvent, State};
 
 struct AppState {
     maintenance: Arc<MaintenanceCoordinator>,
+    rotation: BackupRotationHandle,
     storage_path: PathBuf,
     history_reader: Arc<GitHistoryMaterializer>,
 }
+
+const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
 
 fn now_millis() -> i64 {
     SystemTime::now()
@@ -142,16 +145,39 @@ async fn read_history_version(
     .map_err(|error| error.to_string())?
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ArchiveExportPayload {
+    nodes: usize,
+    documents: usize,
+    exported_at: i64,
+    file_name: String,
+}
+
 #[tauri::command]
 async fn export_workspace_archive(
-    target_path: String,
     state: State<'_, AppState>,
-) -> Result<ArchiveExportReport, String> {
+) -> Result<ArchiveExportPayload, String> {
+    let exports_directory = state
+        .storage_path
+        .parent()
+        .unwrap_or(Path::new("."))
+        .join("exports");
+    fs::create_dir_all(&exports_directory)
+        .map_err(|_| "export directory could not be created".to_string())?;
+    let file_name = format!("skriuw-archive-{}.json", now_millis());
+    let target = exports_directory.join(&file_name);
     let coordinator = Arc::clone(&state.maintenance);
-    run_maintenance(coordinator, move |maintenance| {
-        maintenance.export_archive(Path::new(&target_path))
+    let report = run_maintenance(coordinator, move |maintenance| {
+        maintenance.export_archive(&target)
     })
-    .await
+    .await?;
+    Ok(ArchiveExportPayload {
+        nodes: report.nodes,
+        documents: report.documents,
+        exported_at: report.exported_at,
+        file_name,
+    })
 }
 
 #[tauri::command]
@@ -252,8 +278,10 @@ pub fn run() {
                 repository_path,
                 now_millis,
             )?);
+            let rotation = spawn_backup_rotation(Arc::clone(&maintenance), ROTATION_RETRY_DELAY)?;
             app.manage(AppState {
                 maintenance,
+                rotation,
                 storage_path: path,
                 history_reader,
             });
@@ -280,6 +308,7 @@ pub fn run() {
             if let RunEvent::Exit = event
                 && let Some(state) = app.try_state::<AppState>()
             {
+                state.rotation.shutdown();
                 state.maintenance.shutdown();
             }
         });

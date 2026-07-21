@@ -985,6 +985,108 @@ dialog.dialog::backdrop {
   color: hsl(var(--accent-foreground));
 }
 
+.settings-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-button:disabled:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.settings-button-danger {
+  border-color: hsl(var(--destructive) / 0.5);
+  color: hsl(var(--destructive));
+}
+
+.settings-button-danger:hover {
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
+.settings-inline-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.settings-inline-controls .settings-text-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 320px;
+}
+
+.settings-backup-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.settings-backup-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.settings-backup-item + .settings-backup-item {
+  border-top: 1px solid hsl(var(--border));
+}
+
+.settings-maintenance-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 8px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+.settings-maintenance-status.is-success {
+  color: hsl(var(--foreground));
+}
+
+.settings-maintenance-status.is-error {
+  border-color: hsl(var(--destructive) / 0.5);
+  color: hsl(var(--destructive));
+}
+
+.settings-maintenance-error {
+  color: hsl(var(--destructive));
+}
+
+.settings-maintenance-loading {
+  margin: 4px 0 0;
+}
+
+.settings-confirm-dialog {
+  max-width: 420px;
+}
+
+.settings-confirm-body {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .shortcut-recorder {
   display: flex;
   align-items: center;

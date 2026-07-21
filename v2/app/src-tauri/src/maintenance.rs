@@ -3,7 +3,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
     sync::{
-        Arc, Mutex,
+        Arc, Condvar, Mutex,
         atomic::{AtomicBool, Ordering},
     },
     thread::{self, JoinHandle},
@@ -80,6 +80,75 @@ pub fn spawn_history_drain(
         stop,
         worker: Mutex::new(Some(handle)),
     })
+}
+
+pub struct BackupRotationHandle {
+    stop: Arc<(Mutex<bool>, Condvar)>,
+    worker: Mutex<Option<JoinHandle<()>>>,
+}
+
+impl BackupRotationHandle {
+    pub fn shutdown(&self) {
+        let (stopped, wake) = &*self.stop;
+        if let Ok(mut flag) = stopped.lock() {
+            *flag = true;
+        }
+        wake.notify_all();
+        if let Ok(mut guard) = self.worker.lock()
+            && let Some(handle) = guard.take()
+        {
+            let _ = handle.join();
+        }
+    }
+}
+
+pub fn spawn_backup_rotation(
+    coordinator: Arc<MaintenanceCoordinator>,
+    retry_delay: Duration,
+) -> Result<BackupRotationHandle, String> {
+    let stop = Arc::new((Mutex::new(false), Condvar::new()));
+    let stop_signal = Arc::clone(&stop);
+    let handle = thread::Builder::new()
+        .name("skriuw-backup-rotation".into())
+        .spawn(move || {
+            let cadence =
+                Duration::from_millis(BackupRetentionPolicy::default().cadence_ms as u64);
+            loop {
+                let now = (coordinator.now_millis)();
+                let delay = match coordinator.rotate_backups(false) {
+                    Ok(report) => rotation_delay(report.next_due_at, now, cadence, retry_delay),
+                    Err(_) => retry_delay,
+                };
+                let (stopped, wake) = &*stop_signal;
+                let Ok(flag) = stopped.lock() else {
+                    break;
+                };
+                let Ok((flag, _)) = wake.wait_timeout_while(flag, delay, |value| !*value) else {
+                    break;
+                };
+                if *flag {
+                    break;
+                }
+            }
+        })
+        .map_err(|error| error.to_string())?;
+    Ok(BackupRotationHandle {
+        stop,
+        worker: Mutex::new(Some(handle)),
+    })
+}
+
+fn rotation_delay(
+    next_due_at: Option<i64>,
+    now: i64,
+    cadence: Duration,
+    retry_delay: Duration,
+) -> Duration {
+    match next_due_at {
+        Some(due) if due > now => Duration::from_millis((due - now) as u64).min(cadence),
+        Some(_) => retry_delay,
+        None => cadence,
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -611,7 +680,7 @@ mod tests {
     use std::{
         fs,
         sync::atomic::Ordering,
-        time::{SystemTime, UNIX_EPOCH},
+        time::{Duration, SystemTime, UNIX_EPOCH},
     };
 
     use serde_json::json;
@@ -1019,5 +1088,97 @@ mod tests {
             .rotate_backups(true)
             .expect("rotation after release");
     }
-}
 
+    fn shared_fixture() -> (TempDir, std::sync::Arc<MaintenanceCoordinator>) {
+        let fixture = fixture();
+        let Fixture {
+            directory,
+            coordinator,
+        } = fixture;
+        (directory, std::sync::Arc::new(coordinator))
+    }
+
+    fn wait_for_artifacts(
+        coordinator: &MaintenanceCoordinator,
+        expected: usize,
+    ) -> Vec<String> {
+        for _ in 0..200 {
+            let inventory = coordinator.recovery_inventory().expect("inventory");
+            let artifacts: Vec<String> = inventory
+                .manifest
+                .map(|manifest| {
+                    manifest
+                        .artifacts
+                        .into_iter()
+                        .map(|artifact| artifact.filename)
+                        .collect()
+                })
+                .unwrap_or_default();
+            if artifacts.len() >= expected {
+                return artifacts;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        panic!("rotation never produced {expected} artifact(s)");
+    }
+
+    #[test]
+    fn scheduled_rotation_backs_up_once_and_shuts_down_promptly() {
+        let (_directory, coordinator) = shared_fixture();
+        let scheduler = super::spawn_backup_rotation(
+            std::sync::Arc::clone(&coordinator),
+            Duration::from_millis(10),
+        )
+        .expect("spawn rotation");
+
+        let artifacts = wait_for_artifacts(&coordinator, 1);
+        assert_eq!(artifacts.len(), 1);
+        std::thread::sleep(Duration::from_millis(150));
+        assert_eq!(wait_for_artifacts(&coordinator, 1).len(), 1);
+
+        let started = std::time::Instant::now();
+        scheduler.shutdown();
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "shutdown must interrupt the six-hour wait"
+        );
+        assert_eq!(coordinator.status(), None);
+    }
+
+    #[test]
+    fn scheduled_rotation_retries_after_conflicting_maintenance() {
+        let (_directory, coordinator) = shared_fixture();
+        let guard = coordinator.begin("test").expect("begin operation");
+
+        let scheduler = super::spawn_backup_rotation(
+            std::sync::Arc::clone(&coordinator),
+            Duration::from_millis(10),
+        )
+        .expect("spawn rotation");
+        std::thread::sleep(Duration::from_millis(100));
+        assert!(
+            coordinator.recovery_inventory().expect("inventory").manifest.is_none(),
+            "rotation must not run while another operation holds the guard"
+        );
+
+        drop(guard);
+        assert_eq!(wait_for_artifacts(&coordinator, 1).len(), 1);
+        scheduler.shutdown();
+    }
+
+    #[test]
+    fn rotation_delay_clamps_between_retry_and_cadence() {
+        let cadence = Duration::from_secs(60);
+        let retry = Duration::from_secs(5);
+        assert_eq!(
+            super::rotation_delay(Some(1_000), 0, cadence, retry),
+            Duration::from_secs(1)
+        );
+        assert_eq!(
+            super::rotation_delay(Some(i64::MAX), 0, cadence, retry),
+            cadence
+        );
+        assert_eq!(super::rotation_delay(Some(100), 200, cadence, retry), retry);
+        assert_eq!(super::rotation_delay(None, 0, cadence, retry), cadence);
+    }
+}

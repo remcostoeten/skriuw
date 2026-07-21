@@ -43,3 +43,84 @@ export function workspaceStoragePath(): Promise<string> {
 export function revealWorkspaceStorage(): Promise<void> {
   return invoke<void>("reveal_workspace_storage");
 }
+
+export type ArchiveExportReport = {
+  nodes: number;
+  documents: number;
+  exportedAt: number;
+  fileName: string;
+};
+
+export type ArchiveImportReport = {
+  nodes: number;
+  documents: number;
+  safetyBackupFileName: string;
+  snapshot: WorkspaceSnapshot;
+};
+
+export type BackupRotationReport = {
+  status: "created" | "skipped";
+  artifactFileName: string | null;
+  pruned: number;
+  nextDueAt: number | null;
+};
+
+export type RecoveryArtifact = {
+  filename: string;
+  createdAt: number;
+  sizeBytes: number;
+  sha256: string;
+  schemaVersion: number;
+  migrationFingerprint: string;
+  verified: boolean;
+};
+
+export type RecoveryInventory = {
+  manifest: {
+    manifestVersion: number;
+    generatedAt: number;
+    policy: { cadenceMs: number; maxArtifacts: number; maxAgeMs: number };
+    artifacts: RecoveryArtifact[];
+    pendingDeletions: RecoveryArtifact[];
+  } | null;
+  rollbacks: {
+    fileName: string;
+    createdAt: number;
+    sizeBytes: number;
+  }[];
+};
+
+export type DatabaseSwapReport = {
+  status: "replaced" | "rolledBack";
+  snapshot: WorkspaceSnapshot;
+  rollbackFileName: string | null;
+  failure: string | null;
+};
+
+export function exportWorkspaceArchive(): Promise<ArchiveExportReport> {
+  return invoke<ArchiveExportReport>("export_workspace_archive");
+}
+
+export function importWorkspaceArchive(
+  archivePath: string,
+): Promise<ArchiveImportReport> {
+  return invoke<ArchiveImportReport>("import_workspace_archive", { archivePath });
+}
+
+export function createWorkspaceBackup(force: boolean): Promise<BackupRotationReport> {
+  return invoke<BackupRotationReport>("create_workspace_backup", { force });
+}
+
+export function listWorkspaceRecovery(): Promise<RecoveryInventory> {
+  return invoke<RecoveryInventory>("list_workspace_recovery");
+}
+
+export function restoreWorkspaceBackup(
+  artifactFileName: string,
+): Promise<DatabaseSwapReport> {
+  return invoke<DatabaseSwapReport>("restore_workspace_backup", { artifactFileName });
+}
+
+export function cancelWorkspaceMaintenance(): Promise<boolean> {
+  return invoke<boolean>("cancel_workspace_maintenance");
+}
