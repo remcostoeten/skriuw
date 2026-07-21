@@ -42,7 +42,7 @@ Bounded rendering makes whole-document browser semantics application responsibil
 - ProseMirror history is sufficient while a note remains in one mounted window. Window replacement must use a canonical structured transaction history; silently clearing undo at a window boundary is not acceptable.
 - The editor must expose canonical position and navigation semantics to assistive technology. A bounded DOM alone is not a complete screen-reader representation of the note, so an accessible whole-document path or equivalent virtual navigation remains required.
 
-The first three policies can reuse the canonical document and selection projection. Cross-window undo and complete assistive-technology traversal still need an implementation and browser regression.
+The first three policies can reuse the canonical document and selection projection. A follow-up now provides structured canonical undo and redo across recycled windows; complete assistive-technology traversal still needs an implementation and browser regression. See `docs/benchmarks/2026-07-21-editor-structured-window.md`.
 
 ## Candidate decision
 
@@ -53,7 +53,7 @@ ProseMirror is the selected editor candidate for the remaining architecture work
 - The retained 500-block median P95 was 4.93 ms for ProseMirror versus 8.53 ms for Lexical, with lower retained memory and roughly half the DOM.
 - ProseMirror now passes the live movement, selection, reconciliation, history, slash-menu, and composition-guard scenario. Implementing a second live controller would not close a remaining product requirement or compensate for a measured ProseMirror failure.
 
-This selects the editor candidate, not the complete UI architecture. ADR-0020 and product UI scaffolding remain blocked on lossless structured window projection, canonical cross-window undo, accessible whole-document behavior, and fixed-runner presentation evidence.
+This selects the editor candidate, not the complete UI architecture. The structured-window follow-up closes the first lossless projection and cross-window history baseline. ADR-0020 and product UI scaffolding remain blocked on whole-note browser semantics, complete IME and accessible behavior, bounded history policy, and fixed-runner presentation evidence.
 
 ## Verification
 

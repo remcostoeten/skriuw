@@ -26,9 +26,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit: `a20d669 perf: verify representative ProseMirror contract`; the desktop bridge is `cc58d22`, DOM-backed editor is `23c88b6`, pure bounded model is `2fba493`, renderer-store implementation is `424db78`, and earlier tree slices are `d00b017`, `a6ca660`, and `c8c2cd1`.
-- Expected primary worktree state: clean after the handoff commit following `a20d669`.
-- Current verification result: 112 backend tests, seven renderer-store tests, seven UI editor tests, one fresh-profile 2,000-block bounded-editor browser regression, and five native desktop-bridge measurement runs pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, the UI spike typecheck/build, the Tauri release build, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
+- Last implementation commit: `596859a feat: preserve rich bounded editor history`; the representative editor contract is `a20d669`, desktop bridge is `cc58d22`, DOM-backed editor is `23c88b6`, pure bounded model is `2fba493`, and renderer-store implementation is `424db78`.
+- Expected primary worktree state: clean after the handoff commit following `596859a`.
+- Current verification result: 112 backend tests, seven renderer-store tests, nine UI editor tests, one fresh-profile structured 2,000-block bounded-editor browser regression, and five native desktop-bridge measurement runs pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, the UI spike typecheck/build, the Tauri release build, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
@@ -282,6 +282,15 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Whole-note copy and find are canonical application commands; composition pins the window. Cross-window undo requires canonical structured transaction history, and bounded rendering requires an explicit accessible whole-document path. The current text-only canonical corpus is not lossless for rich product structure.
 - Full method, decision basis, policies, and limitations are in `docs/benchmarks/2026-07-21-editor-product-contract.md`.
 
+## Completed structured bounded-editor history slice
+
+- Canonical bounded blocks now retain deep-cloned, schema-validated ProseMirror node JSON. The product corpus exercises marked paragraphs, bullet and ordered lists, code blocks, horizontal rules, headings, quotes, and paragraphs without flattening mounted windows to text.
+- Per-note canonical undo and redo stacks survive window reconstruction. Equal prefixes and suffixes are removed from history entries so a single-block edit retains one changed block rather than a complete 192-block window; new edits clear redo.
+- Product undo and redo keymaps route to the canonical boundary. The browser scenario recycles the affected block out of the DOM before undo and again before redo, then verifies exact canonical restoration and a second undo.
+- The final fresh-profile run retained one host, one editor, 192 of 2,000 blocks, and 225 DOM elements. Switching measured 3.845 ms P95 / 4.950 ms maximum and typing measured 1.160 ms P95 / 1.585 ms maximum with zero observed dropped frames.
+- Nine UI editor regressions, typecheck, production build, production-browser correctness, repository-wide checks, and `git diff --check` pass. One earlier exploratory structured run reached a 16.775 ms switching maximum, so fixed-runner presentation evidence remains necessary.
+- Whole-note copy/find, post-composition movement, accessible whole-document behavior, history grouping/retention, and fixed-runner evidence remain open. See `docs/benchmarks/2026-07-21-editor-structured-window.md`.
+
 ## Completed desktop-bridge slice
 
 - `spikes/desktop-bridge` is an isolated Tauri 2.11.5 production harness over the actual `WorkspaceRuntime`; it does not add a product shell or workspace dependency.
@@ -301,7 +310,7 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 
 ## Known correctness gap and next task
 
-Replace the text-only bounded corpus with lossless structured ProseMirror top-level slices and implement canonical cross-window transaction history. Then verify canonical whole-note find/copy, composition pinning, the accessible navigation path, and fixed-runner presentation evidence. These still precede ADR-0020 and product UI scaffolding.
+Implement canonical whole-note select-all/copy and find, complete deferred movement after IME composition, and prototype an accessible whole-document path. Define bounded history grouping and retention before fixed-runner presentation evidence. These still precede ADR-0020 and product UI scaffolding.
 
 ## Verification model
 
