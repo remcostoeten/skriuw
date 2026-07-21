@@ -372,6 +372,14 @@ The disposable renderer proves selector isolation but does not select or impleme
 
 The settings surface and persistence path are complete. Renderer consumers still need to apply hydrated theme, sidebar density and icons, reduced-motion preference, continuity, editor typography and line spacing, line numbers, and placeholder values. Keep that consumption renderer-local and selector-isolated; it must not add startup or navigation IPC.
 
+## Completed settings accessibility refinement
+
+- `69161aa` aligns the standalone dialog with the original Skriuw settings interaction model while retaining only the MVP sections and fields.
+- The native dialog is explicitly centered at a maximum 896 × 720 CSS pixels. Its section rail is a vertical ARIA tablist with one roving tab stop, searchable section descriptions and deep setting terms, a live no-results state, and compact shortcut guidance.
+- `/` focuses search from every dialog region. Search supports ArrowDown, Enter, and clear-before-close Escape behavior. `Ctrl+E` focuses the active visible section. ArrowUp/Down, Home/End, Enter, Space, ArrowRight, ArrowLeft, and F6/Shift+F6 provide section and pane navigation.
+- The shared native-dialog primitive now accepts dialog-bound keyboard behavior and restores focus explicitly to the opening control after close. Headings follow the Settings `h2`, section `h3`, group `h4` hierarchy.
+- Three pure navigation regressions cover deep multi-token search, roving fallback, wrapping arrows, Home, and End. A 1200 × 800 browser pass verified the exact centered bounds, accessible tree, `/`, filtered Enter, `Ctrl+E`, arrow selection, F6 cycling, two-stage Escape, trigger-focus restoration, and zero application console errors.
+
 ## Completed command-registry and keyboard-navigation slice
 
 - `app/src/commands/registry.ts` defines the typed command registry: id, label, group, optional icon/keywords/hint, optional `ShortcutActionId` binding, `enabled`/`visible` predicates over `RendererState` plus a `CommandUiState` (route, sidebar/metadata/settings open), and an action. Duplicate ids and duplicate shortcut claims fail at registration.
