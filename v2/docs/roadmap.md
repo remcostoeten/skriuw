@@ -49,6 +49,8 @@ Do not scaffold the product UI before measured spikes answer these questions:
 
 Initial replacement, retained, native-presentation, and static bounded-projection editor spikes are complete. Whole-document replacement is unreliable at 500 blocks and fails at 2,000. Eight stacked editors do not scale to 2,000 blocks. Precomputed 192-block state swaps restore provisional end-to-layout headroom for both candidates, but they do not implement a runtime viewport or canonical edit reconciliation. Next editor spike must move the window, anchor scroll, restore focus/selection, reconcile edits, and expose the known clipboard, find, IME, undo, and accessibility limits before symmetric product plugins and ADR-0020.
 
+The tree virtualization spike is complete across all six canonical 1,000-node and 5,000-node fixtures. A dependency-free 28 px fixed-row candidate caps the mounted pool at 40 rows and keeps keyboard navigation comfortably within the provisional budget. Nested-5000 full-subtree expansion and deep reveal have sporadic 8–12 ms samples, while extreme depth exhausts the sidebar width. Those paths need targeted optimization and an indentation policy, but tree virtualization itself no longer blocks store-selector work.
+
 React remains acceptable only if production profiling proves the render invariants. React Scan runs only during development and profiling. Editor internals, keystrokes, and transient selection state may not fan out through broad React subscriptions.
 
 ## MVP application work

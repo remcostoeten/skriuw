@@ -4,7 +4,7 @@ Last reviewed: 2026-07-21
 
 ## Start here
 
-Backend workload measurements and the replacement, retained, native-presentation, and static bounded editor spikes are complete on the primary branch.
+Backend workload measurements plus the replacement, retained, native-presentation, static bounded-editor, and tree-virtualization spikes are complete on the primary branch.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -26,10 +26,10 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commits: `38c6cac perf: benchmark bounded editor projections`, `fee2038 perf: trace native editor presentation`, and `97937f2 perf: measure backend fixture workloads`.
-- Expected worktree state: clean after the handoff commit following `38c6cac`.
+- Last implementation commits: `d00b017 fix: harden tree benchmark lifecycle`, `a6ca660 perf: benchmark nested tree virtualization`, `c8c2cd1 feat: expose tree benchmark fixtures`, and `38c6cac perf: benchmark bounded editor projections`.
+- Expected primary worktree state: clean after the handoff commit following `d00b017`.
 - Current verification result: 112 tests plus formatting, Clippy, generated-schema drift checks, and `git diff --check` pass; five manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
-- UI spike verification: TypeScript checking and the Vite production build pass. Fresh headless Chromium contexts exercised replacement, retained, and bounded cases, found no page errors, confirmed bounded concurrent-run/native-input guards, one outer host mount, one editor instance, capped DOM, and zero preparation calls during switching.
+- UI spike verification: both Vite production builds pass. Fresh headless Chromium contexts exercised editor and tree candidates without page errors. The tree rerun passed all correctness/gallery checks with 32 of 1,032 rows mounted, 163 total DOM elements, 100 trusted keydowns, and deterministic process exit. Concurrent tasks and unfinished trusted captures are rejected.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
 - Archive CLI smoke imported the representative fixture, passed source integrity, exported it, imported that export into a second database, and passed second integrity; both imports reported 7 nodes and 4 documents.
@@ -241,6 +241,12 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Trusted rapid-input handler-through-layout P95 values were 3.75 ms for ProseMirror and 5.12 ms for Lexical. A five-key ProseMirror trace reached 42 ms and materially perturbed handler timing, so it remains presentation-phase diagnostic evidence rather than an unperturbed pass.
 - This is only a precomputed static-window swap. It does not shift windows, reconcile edits into the canonical document, anchor scroll, restore selection, or preserve complete cross-window clipboard, find, IME, undo, and accessibility semantics. Raw session JSON and the trace were not committed, so fixed-runner contract evidence remains open.
 - Full method, observations, evidence status, and limitations are in `docs/benchmarks/2026-07-21-editor-bounded.md`.
+- Fable commits `c650d7e`, `2f56699`, and `5886aa0` were reviewed and integrated in dependency order as `c8c2cd1`, `a6ca660`, and `50cc50d`. Its later shared-doc commit `5a980e9` was not cherry-picked; its `TODO.md` and handoff intent was reconciled here against the newer primary documents.
+- The Rust example exports browser tree projections from all six canonical fixtures without committing generated data. The fixed-row browser candidate uses one host, 8-row overscan, and a hard 40-row cap; recorded total DOM stayed at 163 elements for 1,000 and 5,000 nodes.
+- Correctness checks cover projection metadata, iterative/reference flatten agreement, collapsed subtree exclusion, deterministic re-expansion, selection restoration after row recycling, deep parent navigation, disabled-row skipping, ARIA metadata, bounded mutation, and zero hydration during measurement.
+- Nested-5000 keyboard, deep-toggle, scroll, and trusted-input paths stay within the provisional P95 budget. Full-subtree shallow expansion and deep reveal have intermittent 8–12 ms observations but stay below 16.67 ms with zero observed dropped frames. Depth-33 indentation can move content outside the narrow pane and requires a product policy.
+- `d00b017` adds lifecycle guards, observer flushing, exact trusted-key verification, failure exits for correctness/browser errors, and deterministic CLI termination after the original script left a completed Node process alive.
+- Full tree method, raw representative samples, variance, and limitations are in `docs/benchmarks/2026-07-21-tree-virtualization.md`.
 
 ## Completed backend-workload slice
 
@@ -253,7 +259,7 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 
 ## Known correctness gap and next task
 
-Primary next editor slice: turn one static bounded candidate into a correctness prototype that shifts its window, anchors scroll, reconciles edits into the canonical document, and restores focus/selection. Record which cross-window clipboard, find, IME, undo, and accessibility behaviors can be preserved before adding symmetric product plugins. Fable owns tree virtualization in the isolated `feat/tree-virtualization-benchmark` worktree from `fable-promt.md`; it has not produced a commit yet. External store selectors and desktop bridge measurements still precede ADR-0020 and product UI scaffolding.
+Two parallel UI-gate slices are now ready: turn one static bounded editor candidate into a correctness prototype with window movement, scroll anchoring, canonical edit reconciliation, and focus/selection restoration; and prototype fine-grained external renderer-store selectors against the integrated tree fixture. Desktop bridge measurements, representative editor plugins, durable fixed-runner evidence, and ADR-0020 still precede product UI scaffolding.
 
 ## Verification model
 
