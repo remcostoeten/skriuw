@@ -1,25 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { activateNote, createFolder, createNote } from "../actions/workspace";
+import { activateNote } from "../actions/workspace";
 import { searchWorkspace } from "../bridge/commands";
+import type { CommandRegistry, CommandUiState } from "../commands/registry";
 import type { SearchHit } from "../contracts/workspace";
-import { FileTextIcon, NewFolderIcon, NewNoteIcon, SearchIcon } from "../shared/icons";
+import { FileTextIcon, SearchIcon } from "../shared/icons";
 import { fuzzyMatchScore } from "../shared/lib/fuzzy-match";
 import { CommandPalette } from "../shared/ui/command-palette";
 import type { CommandPaletteItem } from "../shared/ui/command-palette-model";
+import { effectiveShortcutKeys, shortcutOverridesFromSettings } from "../shortcuts/bindings";
+import type { ShortcutOverrides } from "../shortcuts/bindings";
 import { SHORTCUT_DEFINITIONS } from "../shortcuts/definitions";
-import type { ShortcutActionId } from "../shortcuts/definitions";
+import type { ShortcutActionId, ShortcutDefinition } from "../shortcuts/definitions";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererState, RendererStore } from "../store/types";
 
 const SEARCH_DEBOUNCE_MS = 120;
 const SEARCH_LIMIT = 8;
 
-const SHORTCUT_KEYS: ReadonlyMap<ShortcutActionId, string> = new Map(
-  SHORTCUT_DEFINITIONS.map((definition) => [
-    definition.id,
-    Array.isArray(definition.keys) ? (definition.keys[0] ?? "") : definition.keys,
-  ]),
+const DEFINITION_BY_ID: ReadonlyMap<ShortcutActionId, ShortcutDefinition> = new Map(
+  SHORTCUT_DEFINITIONS.map((definition) => [definition.id, definition]),
 );
+
+function sameOverrides(left: ShortcutOverrides, right: ShortcutOverrides): boolean {
+  const leftKeys = Object.keys(left) as (keyof ShortcutOverrides)[];
+  return (
+    leftKeys.length === Object.keys(right).length &&
+    leftKeys.every((key) => left[key] === right[key])
+  );
+}
 
 type NoteEntry = {
   id: string;
@@ -76,12 +84,19 @@ function contentItems(
 
 type Props = {
   store: RendererStore;
+  registry: CommandRegistry;
+  ui: CommandUiState;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-export function CommandPaletteHost({ store, open, onOpenChange }: Props) {
+export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: Props) {
   const notes = useRendererSelector(store, selectNoteEntries, sameNoteEntries);
+  const overrides = useRendererSelector(
+    store,
+    (state) => shortcutOverridesFromSettings(state.settings),
+    sameOverrides,
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [hits, setHits] = useState<readonly SearchHit[]>([]);
   const requestRef = useRef(0);
@@ -120,24 +135,12 @@ export function CommandPaletteHost({ store, open, onOpenChange }: Props) {
 
   const items = useMemo<CommandPaletteItem[]>(
     () => [
-      {
-        id: "new-note",
-        label: "New note",
-        shortcut: SHORTCUT_KEYS.get("createNote"),
-        keywords: ["create"],
-        group: "Actions",
-        icon: <NewNoteIcon size={15} />,
-        action: () => createNote(store, null),
-      },
-      {
-        id: "new-folder",
-        label: "New folder",
-        shortcut: SHORTCUT_KEYS.get("createFolder"),
-        keywords: ["create"],
-        group: "Actions",
-        icon: <NewFolderIcon size={15} />,
-        action: () => createFolder(store, null),
-      },
+      ...(open
+        ? registry.paletteItems(store.getState(), ui, (actionId) => {
+            const definition = DEFINITION_BY_ID.get(actionId);
+            return definition ? effectiveShortcutKeys(definition, overrides) : "";
+          })
+        : []),
       ...notes.map(
         (note): CommandPaletteItem => ({
           id: `note:${note.id}`,
@@ -150,7 +153,7 @@ export function CommandPaletteHost({ store, open, onOpenChange }: Props) {
       ),
       ...contentItems(store, hits, searchQuery.trim()),
     ],
-    [notes, hits, searchQuery, store],
+    [open, registry, ui, overrides, notes, hits, searchQuery, store],
   );
 
   return (

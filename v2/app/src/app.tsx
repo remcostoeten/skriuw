@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { Sidebar } from "./shell/sidebar";
 import { CommandPaletteHost } from "./shell/command-palette-host";
@@ -8,8 +8,10 @@ import { SettingsDialog } from "./shell/settings-dialog";
 import { TrashView } from "./shell/trash-view";
 import { WindowControls } from "./shell/window-controls";
 import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
-import { createFolder, createNote } from "./actions/workspace";
-import { useAppRoute } from "./app-route";
+import { appRouteHash, useAppRoute } from "./app-route";
+import { createCommandRegistry, registryShortcutActions } from "./commands/registry";
+import type { CommandUiState } from "./commands/registry";
+import { createWorkspaceCommands } from "./commands/workspace-commands";
 import {
   FolderOpenIcon,
   PanelLeftToggleIcon,
@@ -43,6 +45,28 @@ export function App({ store }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [metadataOpen, setMetadataOpen] = useState(true);
   const route = useAppRoute();
+  const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
+  const uiRef = useRef(ui);
+  uiRef.current = ui;
+  const registry = useMemo(
+    () =>
+      createCommandRegistry(
+        createWorkspaceCommands(store, {
+          togglePalette: () => setPaletteOpen((current) => !current),
+          openSettings: () => setSettingsOpen(true),
+          toggleSidebar: () => setSidebarOpen((current) => !current),
+          toggleMetadata: () => setMetadataOpen((current) => !current),
+          navigate: (target) => {
+            window.location.hash = appRouteHash(target);
+          },
+        }),
+      ),
+    [store],
+  );
+  const shortcutActions = useMemo(
+    () => registryShortcutActions(registry, () => store.getState(), () => uiRef.current),
+    [registry, store],
+  );
   const gridTemplateColumns = `56px${route === "notes" && sidebarOpen ? " 260px" : ""} 1fr${
     route === "notes" && metadataOpen ? " 240px" : ""
   }`;
@@ -146,18 +170,15 @@ export function App({ store }: Props) {
         {metadataOpen && <MetadataPanel store={store} />}
       </div>
       {route === "trash" && <TrashView store={store} />}
-      <CommandPaletteHost store={store} open={paletteOpen} onOpenChange={setPaletteOpen} />
-      <SettingsDialog store={store} open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <WorkspaceShortcuts
+      <CommandPaletteHost
         store={store}
-        suspended={settingsOpen || route !== "notes"}
-        actions={{
-          toggleCommandPalette: () => setPaletteOpen((current) => !current),
-          createNote: () => createNote(store, null),
-          createFolder: () => createFolder(store, null),
-          openSettings: () => setSettingsOpen(true),
-        }}
+        registry={registry}
+        ui={ui}
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
       />
+      <SettingsDialog store={store} open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <WorkspaceShortcuts store={store} suspended={settingsOpen} actions={shortcutActions} />
     </div>
   );
 }
