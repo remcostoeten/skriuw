@@ -163,12 +163,14 @@ React requirements if selected:
 - [ ] Metadata and history sidebar without people or tags.
 - [ ] Version preview and restore.
 - [ ] Central command registry and command palette.
-- [ ] User settings.
+- [x] User settings.
 - [ ] Keyboard-first navigation.
 - [ ] No journal.
 - [ ] No post-startup loading UI for cached workspace data.
 
 Trash implementation: `#/trash` is eager in the startup bundle and reads only the hydrated renderer store. Active notes and folders no longer surface trashed roots in the notes sidebar. The Trash view previews canonical ProseMirror JSON without Markdown parsing, restores complete subtrees optimistically, preserves independently trashed descendants, confirms permanent deletion, and mounts at most 22 list rows for a 5,000-item trash fixture at the tested 720 px viewport.
+
+User settings implementation: the existing modal now opens on a renderer-local Appearance section and covers every typed version-1 field across Appearance and Editor, plus every registered shortcut and the existing explicitly selected Data section. Every change constructs and optimistically submits a complete settings document. Unsupported identifiers project to defaults without rewriting stored values, and unknown top-level plus nested shortcut extension data survives field changes, rebinds, and resets. Applying the persisted appearance and editor preferences to their renderer consumers remains an explicit integration gap.
 
 ## Future web runtime
 

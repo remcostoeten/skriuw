@@ -359,3 +359,15 @@ The disposable renderer proves selector isolation but does not select or impleme
 - Do not scaffold UI before benchmark gates are complete.
 - Commit completed slices separately after verification.
 - Update this handoff whenever branch state, test count, current limitation, or next task changes.
+
+## Completed user-settings UI slice
+
+- `56369b9` adds the pure version-1 settings view model and whole-document mutation helpers. `c0e382c` completes the existing settings modal without adding a route, dependency, persistence path, or lazy-loaded surface.
+- Appearance and Editor expose all nine typed version-1 settings. Unrecognized theme, font, and line-height identifiers render with explicit defaults without mutating the stored document. Unknown extension fields are never rendered as editable.
+- Shortcut settings enumerate `SHORTCUT_DEFINITIONS`, show effective bindings, reject conflicts, and support rebind and reset through the existing recorder. Mutations preserve unknown top-level settings and unknown nested shortcut entries.
+- Opening Settings reads only the hydrated renderer store. The existing Data section remains unmounted until selected, so its storage-path IPC does not enter the open path. Saves remain optimistic complete-document `update_settings` operations with later acknowledgements.
+- Five pure settings regressions cover default projection, unsupported identifier fallback, changed-field construction, unknown-field preservation, shortcut mutation, and override reset. The app has 40 passing tests; typecheck, production build, generated-contract drift, 112 backend tests, and `git diff --check` pass.
+
+## User-settings integration gap and next task
+
+The settings surface and persistence path are complete. Renderer consumers still need to apply hydrated theme, sidebar density and icons, reduced-motion preference, continuity, editor typography and line spacing, line numbers, and placeholder values. Keep that consumption renderer-local and selector-isolated; it must not add startup or navigation IPC.
