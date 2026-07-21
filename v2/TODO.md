@@ -125,6 +125,8 @@ Retained editor spike: eight pre-laid-out editor panes produce representative 50
 
 Native presentation spike: trusted ArrowDown input now records handler/layout marks, Event Timing, Long Animation Frames, and Chrome traces. A five-key retained-ProseMirror trace at 500 blocks exposed a 35 ms first interaction followed by four 16 ms Event Timing entries. A rapid 100-key run had 1.175 ms handler-through-layout P95, but only 37 entries were visible at the 16 ms Event Timing threshold. This proves Event Timing and zero LoAF cannot establish the 8 ms contract; Chrome traces remain the presentation boundary. See `docs/benchmarks/2026-07-21-editor-native-presentation.md`.
 
+Bounded projection spike: one persistent editor swaps precomputed static windows capped at 192 of 2,000 canonical blocks. Five fresh-context end-to-layout runs produced median P95 values of 3.64 ms for ProseMirror and 5.08 ms for Lexical with zero observed dropped frames. Representative memory deltas were 2.38 and 2.90 MiB, and DOM counts were 203 and 385. This removes raw full-document swap cost but does not implement runtime window movement, canonical edit reconciliation, scroll anchoring, selection restoration, or cross-window browser/editor semantics. See `docs/benchmarks/2026-07-21-editor-bounded.md`.
+
 React requirements if selected:
 
 - [ ] Install React Scan for development/profiling only.
