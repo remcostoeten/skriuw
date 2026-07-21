@@ -4,12 +4,31 @@ import type {
   ScenarioResult,
   TimingSample,
   TimingSummary,
+  MemoryPerformance,
 } from "./types";
 
 type LongTaskEntry = PerformanceEntry & { duration: number };
 
 function nextFrame(): Promise<number> {
   return new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+export async function nextPaint(): Promise<void> {
+  await nextFrame();
+  await nextFrame();
+}
+
+export async function measureMemory(): Promise<number | null> {
+  const memoryPerformance = performance as MemoryPerformance;
+  if (!memoryPerformance.measureUserAgentSpecificMemory) {
+    return null;
+  }
+  try {
+    const result = await memoryPerformance.measureUserAgentSpecificMemory();
+    return result.bytes;
+  } catch {
+    return null;
+  }
 }
 
 function percentile(sorted: readonly number[], fraction: number): number {

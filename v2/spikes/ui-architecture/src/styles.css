@@ -201,6 +201,7 @@ button:disabled {
 }
 
 .editor-host {
+  position: relative;
   min-height: 0;
   padding: 34px max(48px, calc((100% - 720px) / 2));
   overflow: auto;
@@ -209,6 +210,23 @@ button:disabled {
   caret-color: #315e73;
   line-height: 1.65;
   outline: none;
+}
+
+.editor-host--retained {
+  padding: 0;
+  overflow: hidden;
+}
+
+.editor-surface {
+  position: absolute;
+  inset: 0;
+  padding: 34px max(48px, calc((100% - 720px) / 2));
+  overflow: auto;
+  visibility: hidden;
+}
+
+.editor-surface[data-active="true"] {
+  visibility: visible;
 }
 
 .editor-host p,

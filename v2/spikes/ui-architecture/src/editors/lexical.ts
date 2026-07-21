@@ -20,7 +20,19 @@ import type {
   CanonicalBlock,
   EditorCandidate,
   PreparedState,
+  RenderingStrategy,
 } from "../types";
+
+type RetainedEntry = {
+  editor: LexicalEditor;
+  root: HTMLElement;
+};
+
+function setRootActive(root: HTMLElement, active: boolean): void {
+  root.dataset.active = String(active);
+  root.setAttribute("aria-hidden", String(!active));
+  root.inert = !active;
+}
 
 function appendBlock(block: CanonicalBlock): void {
   const text = $createTextNode(block.text);
@@ -54,43 +66,99 @@ function createLexicalEditor(): LexicalEditor {
   });
 }
 
-export function createLexicalCandidate(): EditorCandidate {
-  const editor = createLexicalEditor();
+export function createLexicalCandidate(strategy: RenderingStrategy): EditorCandidate {
+  const replaceEditor = strategy === "replace" ? createLexicalEditor() : null;
+  let preparationEditor = strategy === "retained" ? createLexicalEditor() : null;
+  const retainedEntries = new Map<string, RetainedEntry>();
+  let activeEditor: LexicalEditor | null = null;
+  let activeRoot: HTMLElement | null = null;
+  let mountedHost: HTMLElement | null = null;
   let preparations = 0;
   let mounts = 0;
+
+  const prepareWithEditor = (
+    editor: LexicalEditor,
+    blockCount: BlockCount,
+    noteCount: number,
+  ): PreparedState[] => Array.from({ length: noteCount }, (_, noteIndex) => {
+    editor.update(
+      () => {
+        const root = $getRoot();
+        root.clear();
+        for (const block of createCorpus(blockCount, noteIndex)) {
+          appendBlock(block);
+        }
+      },
+      { discrete: true, tag: `prepare-${blockCount}-${noteIndex}` },
+    );
+    return {
+      id: `lexical-${blockCount}-${noteIndex}`,
+      value: editor.getEditorState().clone(null),
+    };
+  });
+
+  const activateRetained = (state: PreparedState): void => {
+    const entry = retainedEntries.get(state.id);
+    if (!entry) {
+      throw new Error(`missing retained Lexical editor: ${state.id}`);
+    }
+    if (activeRoot !== entry.root) {
+      if (activeRoot) {
+        setRootActive(activeRoot, false);
+      }
+      setRootActive(entry.root, true);
+      activeRoot = entry.root;
+    }
+    activeEditor = entry.editor;
+  };
 
   return {
     id: "lexical",
     label: "Direct Lexical",
+    strategy,
     prepare(blockCount: BlockCount, noteCount: number) {
       preparations += 1;
-      return Array.from({ length: noteCount }, (_, noteIndex) => {
-        editor.update(
-          () => {
-            const root = $getRoot();
-            root.clear();
-            for (const block of createCorpus(blockCount, noteIndex)) {
-              appendBlock(block);
-            }
-          },
-          { discrete: true, tag: `prepare-${blockCount}-${noteIndex}` },
-        );
-        return {
-          id: `lexical-${blockCount}-${noteIndex}`,
-          value: editor.getEditorState().clone(null),
-        };
-      });
+      const editor = replaceEditor ?? preparationEditor;
+      if (!editor) {
+        throw new Error("Lexical preparation editor is unavailable");
+      }
+      return prepareWithEditor(editor, blockCount, noteCount);
     },
-    mount(host: HTMLElement, initial: PreparedState) {
+    mount(host: HTMLElement, states: readonly PreparedState[], initial: PreparedState) {
       mounts += 1;
-      editor.setRootElement(host);
-      editor.setEditorState(asState(initial), { tag: "initial-state" });
+      mountedHost = host;
+      if (replaceEditor) {
+        replaceEditor.setRootElement(host);
+        replaceEditor.setEditorState(asState(initial), { tag: "initial-state" });
+        activeEditor = replaceEditor;
+        activeRoot = host;
+        return;
+      }
+      host.classList.add("editor-host--retained");
+      states.forEach((state, index) => {
+        const root = document.createElement("div");
+        root.className = "editor-surface";
+        setRootActive(root, false);
+        const editor = index === 0 && preparationEditor
+          ? preparationEditor
+          : createLexicalEditor();
+        host.append(root);
+        editor.setRootElement(root);
+        editor.setEditorState(asState(state), { tag: "initial-state" });
+        retainedEntries.set(state.id, { editor, root });
+      });
+      preparationEditor = null;
+      activateRetained(initial);
     },
     install(state: PreparedState) {
-      editor.setEditorState(asState(state), { tag: "cached-note-switch" });
+      if (replaceEditor) {
+        replaceEditor.setEditorState(asState(state), { tag: "cached-note-switch" });
+        return;
+      }
+      activateRetained(state);
     },
     edit(sampleIndex: number) {
-      editor.update(
+      activeEditor?.update(
         () => {
           const text = $getRoot().getFirstDescendant();
           if ($isTextNode(text)) {
@@ -106,14 +174,38 @@ export function createLexicalCandidate(): EditorCandidate {
     mountCount() {
       return mounts;
     },
-    domNodeCount() {
-      return editor.getRootElement()?.querySelectorAll("*").length ?? 0;
+    editorInstanceCount() {
+      return replaceEditor ? 1 : retainedEntries.size;
+    },
+    activeDomNodeCount() {
+      return activeRoot ? activeRoot.querySelectorAll("*").length + 1 : 0;
+    },
+    totalDomNodeCount() {
+      if (replaceEditor) {
+        return activeRoot ? activeRoot.querySelectorAll("*").length + 1 : 0;
+      }
+      let count = 0;
+      for (const entry of retainedEntries.values()) {
+        count += entry.root.querySelectorAll("*").length + 1;
+      }
+      return count;
     },
     layoutHeight() {
-      return editor.getRootElement()?.offsetHeight ?? 0;
+      return activeRoot?.offsetHeight ?? 0;
     },
     destroy() {
-      editor.setRootElement(null);
+      if (replaceEditor) {
+        replaceEditor.setRootElement(null);
+      }
+      for (const entry of retainedEntries.values()) {
+        entry.editor.setRootElement(null);
+        entry.root.remove();
+      }
+      retainedEntries.clear();
+      activeEditor = null;
+      activeRoot = null;
+      mountedHost?.classList.remove("editor-host--retained");
+      mountedHost = null;
     },
   };
 }

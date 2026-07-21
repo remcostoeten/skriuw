@@ -1,5 +1,7 @@
 export type CandidateId = "prosemirror" | "lexical";
 
+export type RenderingStrategy = "replace" | "retained";
+
 export type BlockCount = 50 | 500 | 2_000;
 
 export type CanonicalBlock = {
@@ -15,15 +17,25 @@ export type PreparedState = {
 export type EditorCandidate = {
   id: CandidateId;
   label: string;
+  strategy: RenderingStrategy;
   prepare(blockCount: BlockCount, noteCount: number): PreparedState[];
-  mount(host: HTMLElement, initial: PreparedState): void;
+  mount(host: HTMLElement, states: readonly PreparedState[], initial: PreparedState): void;
   install(state: PreparedState): void;
   edit(sampleIndex: number): void;
   preparationCount(): number;
   mountCount(): number;
-  domNodeCount(): number;
+  editorInstanceCount(): number;
+  activeDomNodeCount(): number;
+  totalDomNodeCount(): number;
   layoutHeight(): number;
   destroy(): void;
+};
+
+export type MemoryMeasurement = {
+  baselineBytes: number;
+  residentBytes: number;
+  deltaBytes: number;
+  source: "measureUserAgentSpecificMemory";
 };
 
 export type TimingSample = {
@@ -54,16 +66,26 @@ export type ScenarioResult = {
 
 export type BenchmarkResult = {
   candidate: CandidateId;
+  strategy: RenderingStrategy;
   blockCount: BlockCount;
   noteCount: number;
   preparationMs: number;
+  mountMs: number;
+  primeMs: number;
   preparationCallsBefore: number;
   preparationCallsAfter: number;
   hostMounts: number;
-  domNodes: number;
+  editorInstances: number;
+  activeDomNodes: number;
+  totalDomNodes: number;
+  memory: MemoryMeasurement | null;
   estimatedFrameMs: number;
   switching: ScenarioResult;
   typing: ScenarioResult;
   measuredAt: string;
   userAgent: string;
+};
+
+export type MemoryPerformance = Performance & {
+  measureUserAgentSpecificMemory?: () => Promise<{ bytes: number }>;
 };

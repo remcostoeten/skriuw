@@ -3,12 +3,18 @@ import "./styles.css";
 import { BLOCK_COUNTS } from "./corpus";
 import { createLexicalCandidate } from "./editors/lexical";
 import { createProseMirrorCandidate } from "./editors/prosemirror";
-import { estimateFrameDuration, measureScenario } from "./metrics";
+import {
+  estimateFrameDuration,
+  measureMemory,
+  measureScenario,
+  nextPaint,
+} from "./metrics";
 import type {
   BenchmarkResult,
   BlockCount,
   CandidateId,
   EditorCandidate,
+  RenderingStrategy,
 } from "./types";
 
 const NOTE_COUNT = 8;
@@ -25,13 +31,20 @@ app.innerHTML = `
     <aside class="lab-sidebar">
       <p class="eyebrow">SKRIUW / UI LAB 01</p>
       <h1>Cached editor switching</h1>
-      <p class="lede">One persistent host. Prepared states. No router, parser, IPC, database, Git, or lazy loading inside measured navigation.</p>
+      <p class="lede">One outer host. Prepared states. Replacement or retained editors. No router, parser, IPC, database, Git, or lazy loading inside measured navigation.</p>
       <div class="controls">
         <label class="control">
           <span>Editor candidate</span>
           <select id="candidate">
             <option value="prosemirror">Direct ProseMirror</option>
             <option value="lexical">Direct Lexical</option>
+          </select>
+        </label>
+        <label class="control">
+          <span>Rendering strategy</span>
+          <select id="strategy">
+            <option value="replace">Replace active state</option>
+            <option value="retained">Retain eight editors</option>
           </select>
         </label>
         <label class="control">
@@ -50,7 +63,7 @@ app.innerHTML = `
         <div class="metric"><span class="metric-label">End-to-layout max</span><strong class="metric-value" id="switch-max">—</strong></div>
         <div class="metric"><span class="metric-label">Typing P95</span><strong class="metric-value" id="typing-p95">—</strong></div>
         <div class="metric"><span class="metric-label">Dropped frames</span><strong class="metric-value" id="dropped">—</strong></div>
-        <div class="metric"><span class="metric-label">Host mounts</span><strong class="metric-value" id="mounts">—</strong></div>
+        <div class="metric"><span class="metric-label">Resident delta</span><strong class="metric-value" id="memory">—</strong></div>
       </div>
       <div class="latency-rail" aria-label="Eight millisecond target within a 16.67 millisecond frame">
         <span class="latency-marker" id="latency-marker" style="left: 0%"></span>
@@ -68,6 +81,7 @@ app.innerHTML = `
 `;
 
 const candidateSelect = requiredElement<HTMLSelectElement>("candidate");
+const strategySelect = requiredElement<HTMLSelectElement>("strategy");
 const blockSelect = requiredElement<HTMLSelectElement>("blocks");
 const runButton = requiredElement<HTMLButtonElement>("run");
 const status = requiredElement<HTMLElement>("status");
@@ -84,14 +98,21 @@ function requiredElement<T extends HTMLElement>(id: string): T {
   return element as T;
 }
 
-function createCandidate(id: CandidateId): EditorCandidate {
+function createCandidate(
+  id: CandidateId,
+  strategy: RenderingStrategy,
+): EditorCandidate {
   return id === "prosemirror"
-    ? createProseMirrorCandidate()
-    : createLexicalCandidate();
+    ? createProseMirrorCandidate(strategy)
+    : createLexicalCandidate(strategy);
 }
 
 function formatMs(value: number): string {
   return `${value.toFixed(2)} ms`;
+}
+
+function formatBytes(value: number | null): string {
+  return value === null ? "unsupported" : `${(value / 1_048_576).toFixed(1)} MiB`;
 }
 
 function renderResult(result: BenchmarkResult): void {
@@ -101,9 +122,9 @@ function renderResult(result: BenchmarkResult): void {
   requiredElement("dropped").textContent = String(
     result.switching.droppedFrames + result.typing.droppedFrames,
   );
-  requiredElement("mounts").textContent = String(result.hostMounts);
-  requiredElement("workspace-label").textContent = `${result.candidate} · ${result.blockCount.toLocaleString()} blocks × ${result.noteCount} cached notes`;
-  requiredElement("dom-count").textContent = `${result.domNodes.toLocaleString()} DOM nodes`;
+  requiredElement("memory").textContent = formatBytes(result.memory?.deltaBytes ?? null);
+  requiredElement("workspace-label").textContent = `${result.candidate} · ${result.strategy} · ${result.blockCount.toLocaleString()} blocks × ${result.noteCount} notes`;
+  requiredElement("dom-count").textContent = `${result.activeDomNodes.toLocaleString()} active / ${result.totalDomNodes.toLocaleString()} total DOM elements · ${result.editorInstances} editor instances`;
   const marker = requiredElement<HTMLElement>("latency-marker");
   marker.style.left = `${Math.min(100, (result.switching.settled.p95Ms / 16.67) * 100)}%`;
   rawOutput.textContent = JSON.stringify(result, null, 2);
@@ -113,15 +134,17 @@ function renderResult(result: BenchmarkResult): void {
   const invariantPass = result.hostMounts === 1
     && result.preparationCallsBefore === result.preparationCallsAfter;
   const preparationCalls = result.preparationCallsAfter - result.preparationCallsBefore;
-  status.textContent = `${settledPass && invariantPass ? "PASS" : "REVIEW"} · end-to-layout navigation P95 ${formatMs(result.switching.settled.p95Ms)} · preparation calls during navigation ${preparationCalls}`;
+  status.textContent = `${settledPass && invariantPass ? "END-TO-LAYOUT PASS" : "REVIEW"} · navigation P95 ${formatMs(result.switching.settled.p95Ms)} · preparation calls during navigation ${preparationCalls}`;
 }
 
 export async function runBenchmark(
   candidateId = candidateSelect.value as CandidateId,
   blockCount = Number(blockSelect.value) as BlockCount,
+  strategy = strategySelect.value as RenderingStrategy,
 ): Promise<BenchmarkResult> {
   candidateSelect.value = candidateId;
   blockSelect.value = String(blockCount);
+  strategySelect.value = strategy;
   runButton.disabled = true;
   status.textContent = "Preparing deterministic editor states outside measured navigation…";
   activeCandidate?.destroy();
@@ -130,7 +153,9 @@ export async function runBenchmark(
   host.removeAttribute("contenteditable");
   host.className = "editor-host";
 
-  const candidate = createCandidate(candidateId);
+  await nextPaint();
+  const baselineBytes = await measureMemory();
+  const candidate = createCandidate(candidateId, strategy);
   activeCandidate = candidate;
   const preparationStarted = performance.now();
   const states = candidate.prepare(blockCount, NOTE_COUNT);
@@ -139,7 +164,21 @@ export async function runBenchmark(
   if (!initial) {
     throw new Error("candidate did not prepare an initial state");
   }
-  candidate.mount(host, initial);
+  const mountStarted = performance.now();
+  candidate.mount(host, states, initial);
+  const mountMs = performance.now() - mountStarted;
+  status.textContent = `Priming ${NOTE_COUNT} prepared notes outside measured navigation…`;
+  const primeStarted = performance.now();
+  for (const state of states) {
+    candidate.install(state);
+    candidate.layoutHeight();
+    await nextPaint();
+  }
+  candidate.install(initial);
+  candidate.layoutHeight();
+  await nextPaint();
+  const primeMs = performance.now() - primeStarted;
+  const residentBytes = await measureMemory();
   const estimatedFrameMs = await estimateFrameDuration();
   const preparationCallsBefore = candidate.preparationCount();
   status.textContent = `Measuring ${SWITCH_SAMPLES} cached note switches…`;
@@ -161,13 +200,26 @@ export async function runBenchmark(
   const preparationCallsAfter = candidate.preparationCount();
   const result: BenchmarkResult = {
     candidate: candidate.id,
+    strategy,
     blockCount,
     noteCount: NOTE_COUNT,
     preparationMs,
+    mountMs,
+    primeMs,
     preparationCallsBefore,
     preparationCallsAfter,
     hostMounts: candidate.mountCount(),
-    domNodes: candidate.domNodeCount(),
+    editorInstances: candidate.editorInstanceCount(),
+    activeDomNodes: candidate.activeDomNodeCount(),
+    totalDomNodes: candidate.totalDomNodeCount(),
+    memory: baselineBytes === null || residentBytes === null
+      ? null
+      : {
+          baselineBytes,
+          residentBytes,
+          deltaBytes: residentBytes - baselineBytes,
+          source: "measureUserAgentSpecificMemory",
+        },
     estimatedFrameMs,
     switching,
     typing,
@@ -196,7 +248,11 @@ window.__SKRIUW_BENCHMARK__ = {
 declare global {
   interface Window {
     __SKRIUW_BENCHMARK__: {
-      run(candidate?: CandidateId, blockCount?: BlockCount): Promise<BenchmarkResult>;
+      run(
+        candidate?: CandidateId,
+        blockCount?: BlockCount,
+        strategy?: RenderingStrategy,
+      ): Promise<BenchmarkResult>;
       lastResult(): BenchmarkResult | null;
     };
   }
