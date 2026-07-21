@@ -47,7 +47,7 @@ Do not scaffold the product UI before measured spikes answer these questions:
 - Renderer store selector granularity and React commit counts.
 - Desktop shell bridge overhead outside navigation paths.
 
-First editor spike is complete. A production vanilla-TypeScript harness compares direct ProseMirror and Lexical with one persistent host over deterministic 50, 500, and 2,000-block notes. Both pass the 50-block switching target. Neither reliably passes repeated 500-block end-to-layout measurements, and neither passes naive 2,000-block full-DOM switching. Next spike must measure bounded or retained rendering plus memory before adding product plugins and making ADR-0020.
+Initial and retained editor spikes are complete. Whole-document replacement is unreliable at 500 blocks and fails at 2,000. Eight stacked, pre-laid-out editors give ProseMirror provisional 500-block end-to-layout headroom but still fail at 2,000 while retaining 16,808 elements; Lexical narrowly misses at 500 and retains 32,008 elements at 2,000. Next spike must measure presentation, bound the rendered viewport, restore focus/selection and scroll, and add symmetric product plugins before ADR-0020.
 
 React remains acceptable only if production profiling proves the render invariants. React Scan runs only during development and profiling. Editor internals, keystrokes, and transient selection state may not fan out through broad React subscriptions.
 

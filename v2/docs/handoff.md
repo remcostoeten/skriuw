@@ -225,14 +225,19 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - `6a3dad2` adds a production browser harness with deterministic equivalent 50, 500, and 2,000-block editor corpora, eight prepared notes, one persistent host, 100 cached switches, 30 editor-owned updates, raw timing samples, frame-gap/long-task observation, DOM counts, and preparation counters.
 - Corrected representative end-to-layout ProseMirror switch P95 values were 1.4, 7.2, and 48.8 ms at 50, 500, and 2,000 blocks. Lexical values were 1.9, 10.3, and 40.8 ms. Five repeated 500-block runs produced median P95 values of 9.1 ms for ProseMirror and 10.9 ms for Lexical, so neither reliably passes.
 - Both candidates had zero dropped observed frames in the representative 50 and 500-block runs, but repeated 500-block runs exposed five ProseMirror and nine Lexical dropped frames. Both dropped 99 observed frames in the representative 2,000-block run. Every run retained one host and performed zero preparation calls during navigation.
-- The result rejects naive full rendered-document replacement for large notes. It does not select Lexical: memory, state preparation, selection restoration, product plugins, native keyboard paint, structured Markdown fidelity, and a bounded or retained DOM strategy remain unmeasured.
+- The initial result rejects naive full rendered-document replacement for large notes. It does not select an editor; retained-mode evidence follows, while selection restoration, product plugins, native keyboard paint, structured Markdown fidelity, and a bounded viewport remain unmeasured.
 - Full method, environment, limitations, and initial observations are in `docs/benchmarks/2026-07-21-editor-candidates-initial.md`.
+- Retained mode stacks eight real, pre-laid-out inert editors and switches visibility only. Representative 500-block end-to-layout P95 values were 4.93 ms for ProseMirror and 8.53 ms for Lexical with zero dropped switch frames.
+- Retained 2,000-block end-to-layout P95 values were 16.75 ms for ProseMirror and 10.22 ms for Lexical. Lexical also exceeded the frame maximum and dropped one observed switch frame.
+- Retained residency reached 16,808 ProseMirror and 32,008 Lexical elements at 2,000 blocks. User-agent-specific memory deltas were 10.88 and 14.76 MiB. This rejects an unbounded retained pool as the large-note solution.
+- These are provisional layout-boundary observations, not full interaction passes. Presentation timing, Long Animation Frames, repeat runs, and focus/selection restoration remain open.
+- Full retained method and representative observations are in `docs/benchmarks/2026-07-21-editor-retained.md`.
 
 ## Known correctness gap and next task
 
 Claude is implementing deterministic import, bootstrap, and history workload measurements in the isolated `feat/backend-workload-measurements` worktree. Do not integrate until its commits are complete and reviewed.
 
-Primary next slice: extend the editor harness with a bounded rendered viewport or retained per-note view strategy, repeat 2,000-block switching, and measure cached-state memory with a repeatable heap protocol. Then add selection restoration and equivalent product plugins. Tree virtualization, external store selectors, and desktop bridge measurements still precede ADR-0020 and product UI scaffolding. Durable sidebar expansion persistence remains a later UI-linked operation.
+Primary next slice: add presentation and Long Animation Frame measurement, then prototype a genuinely bounded editor viewport at 2,000 blocks and measure focus/selection and scroll restoration, equivalent product plugins, and native keyboard-to-paint behavior. Repeat retained 500-block runs before using their margins for selection. Tree virtualization, external store selectors, and desktop bridge measurements still precede ADR-0020 and product UI scaffolding. Durable sidebar expansion persistence remains a later UI-linked operation.
 
 ## Verification model
 

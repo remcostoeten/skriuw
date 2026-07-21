@@ -34,7 +34,7 @@ Consecutive queued save-only requests may share one storage call without sharing
 
 Typed subsystem errors project to bounded diagnostics only at shell or persistence boundaries. Diagnostics carry stable context and category enums plus a normalized 1,024-byte message ceiling. Public projections redact adapter detail; the local history retry queue may persist bounded materializer detail and never includes it in bootstrap or portable archives.
 
-The disposable `spikes/ui-architecture` harness compares direct editor engines without React, routing, persistence, or desktop IPC. It prepares deterministic states before measurement and retains one editor host across 100 switches. Initial evidence rejects naive whole-document DOM replacement at 2,000 blocks for both ProseMirror and Lexical. Editor selection remains deferred until bounded or retained rendering, memory, selection restoration, product plugins, tree/store behavior, and bridge overhead are measured.
+The disposable `spikes/ui-architecture` harness compares direct editor engines without React, routing, persistence, or desktop IPC. It prepares deterministic states before measurement and retains one outer editor host across 100 switches. Evidence rejects whole-document replacement and an unbounded pool of pre-laid-out editors as 2,000-block solutions for both ProseMirror and Lexical. Editor selection remains deferred until a bounded viewport, repeated memory measurements, selection restoration, product plugins, tree/store behavior, and bridge overhead are measured.
 
 ## Runtime contract
 
