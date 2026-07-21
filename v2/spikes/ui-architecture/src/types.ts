@@ -1,6 +1,6 @@
 export type CandidateId = "prosemirror" | "lexical";
 
-export type RenderingStrategy = "replace" | "retained";
+export type RenderingStrategy = "replace" | "retained" | "bounded";
 
 export type BlockCount = 50 | 500 | 2_000;
 
@@ -12,6 +12,10 @@ export type CanonicalBlock = {
 export type PreparedState = {
   id: string;
   value: unknown;
+  canonicalBlockCount?: number;
+  renderedBlockCount?: number;
+  windowStart?: number;
+  windowEnd?: number;
 };
 
 export type EditorCandidate = {
@@ -36,6 +40,11 @@ export type MemoryMeasurement = {
   residentBytes: number;
   deltaBytes: number;
   source: "measureUserAgentSpecificMemory";
+};
+
+export type BlockRange = {
+  start: number;
+  end: number;
 };
 
 export type TimingSample = {
@@ -113,6 +122,9 @@ export type BenchmarkResult = {
   strategy: RenderingStrategy;
   blockCount: BlockCount;
   noteCount: number;
+  canonicalBlocks: number;
+  renderedBlocks: number;
+  windowRanges: BlockRange[] | null;
   preparationMs: number;
   mountMs: number;
   primeMs: number;

@@ -13,14 +13,14 @@ pnpm exec vite preview --host 127.0.0.1 --port 4173
 
 Open `http://127.0.0.1:4173`, choose a candidate, rendering strategy, and block count, then run the benchmark. Raw sample JSON remains available in the disclosure below the editor.
 
-The automation boundary is also exposed as `window.__SKRIUW_BENCHMARK__.run(candidate, blockCount, strategy)`, where candidate is `prosemirror` or `lexical`, block count is `50`, `500`, or `2000`, and strategy is `replace` or `retained`.
+The automation boundary is also exposed as `window.__SKRIUW_BENCHMARK__.run(candidate, blockCount, strategy)`, where candidate is `prosemirror` or `lexical`, block count is `50`, `500`, or `2000`, and strategy is `replace`, `retained`, or `bounded`.
 
 After a benchmark prepares and mounts a candidate, `window.__SKRIUW_BENCHMARK__.armNativeNavigation(count)` arms trusted ArrowDown measurement. Send physical or browser-automation key input, then call `finishNativeNavigation()`. Synthetic `dispatchEvent` input is not valid evidence.
 
 ## Measured contract
 
 - Eight deterministic cached note states are prepared before measurement.
-- One outer editor host is mounted once. Replacement uses one editor instance; retained mode stacks eight pre-laid-out editor instances and switches visibility.
+- One outer editor host is mounted once. Replacement uses one editor instance; retained mode stacks eight pre-laid-out editor instances and switches visibility. Bounded mode keeps eight complete canonical arrays outside one persistent editor and installs prepared contiguous states of at most 192 blocks.
 - Preparation, mount, and priming cost are recorded outside navigation timing.
 - Active and total DOM elements, editor instances, and user-agent-specific memory delta are recorded when Chromium supports the memory API.
 - One warm-up is excluded.
@@ -34,4 +34,4 @@ End-to-layout duration is compared provisionally with the 8 ms P95 and 16.67 ms 
 
 ## Limits
 
-The first corpus uses equivalent headings, paragraphs, and quotes rather than a final editor schema. Measurements use a headless Chromium process and one development machine. Memory numbers require a fresh browser context and are unavailable where `measureUserAgentSpecificMemory` is unsupported. Paint presentation, Long Animation Frames, selection restoration, undo ownership, IME, native keyboard events, structured Markdown fidelity, and product plugins remain separate gates. No result here selects an editor or establishes a universal budget.
+The first corpus uses equivalent headings, paragraphs, and quotes rather than a final editor schema. Measurements use a headless Chromium process and one development machine. Memory numbers require a fresh browser context and are unavailable where `measureUserAgentSpecificMemory` is unsupported. Bounded mode is a note-switching projection, not full document virtualization: window shifting, spacers, scroll anchoring, canonical edit reconciliation, cross-window selection, undo, find, clipboard, IME, and accessibility behavior are absent. Paint presentation, structured Markdown fidelity, and product plugins remain separate gates. No result here selects an editor or establishes a universal budget.

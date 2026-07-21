@@ -1,8 +1,10 @@
 import "./styles.css";
 
-import { BLOCK_COUNTS } from "./corpus";
+import { BLOCK_COUNTS, BOUNDED_BLOCK_LIMIT } from "./corpus";
 import { createLexicalCandidate } from "./editors/lexical";
+import { createLexicalBoundedCandidate } from "./editors/lexical-bounded";
 import { createProseMirrorCandidate } from "./editors/prosemirror";
+import { createProseMirrorBoundedCandidate } from "./editors/prosemirror-bounded";
 import {
   estimateFrameDuration,
   measureMemory,
@@ -51,6 +53,7 @@ app.innerHTML = `
           <select id="strategy">
             <option value="replace">Replace active state</option>
             <option value="retained">Retain eight editors</option>
+            <option value="bounded">Bound to 192 blocks</option>
           </select>
         </label>
         <label class="control">
@@ -105,6 +108,7 @@ let lastNativeResult: NativeInteractionResult | null = null;
 let nativeMeasurement: NativeMeasurement | null = null;
 let nativeExpectedInteractions = 0;
 let nativeHandledInteractions = 0;
+let benchmarkRunning = false;
 
 function requiredElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -118,6 +122,11 @@ function createCandidate(
   id: CandidateId,
   strategy: RenderingStrategy,
 ): EditorCandidate {
+  if (strategy === "bounded") {
+    return id === "prosemirror"
+      ? createProseMirrorBoundedCandidate()
+      : createLexicalBoundedCandidate();
+  }
   return id === "prosemirror"
     ? createProseMirrorCandidate(strategy)
     : createLexicalCandidate(strategy);
@@ -131,6 +140,33 @@ function formatBytes(value: number | null): string {
   return value === null ? "unsupported" : `${(value / 1_048_576).toFixed(1)} MiB`;
 }
 
+function validateBoundedStates(
+  states: readonly PreparedState[],
+  blockCount: BlockCount,
+): void {
+  if (states.length !== NOTE_COUNT) {
+    throw new Error(`bounded candidate prepared ${states.length} of ${NOTE_COUNT} notes`);
+  }
+  const stateIds = new Set<string>();
+  for (const state of states) {
+    const rendered = state.renderedBlockCount ?? Number.POSITIVE_INFINITY;
+    const start = state.windowStart ?? -1;
+    const end = state.windowEnd ?? -1;
+    if (state.canonicalBlockCount !== blockCount
+      || rendered <= 0
+      || rendered > BOUNDED_BLOCK_LIMIT
+      || start < 0
+      || end > blockCount
+      || end - start !== rendered) {
+      throw new Error(`invalid bounded state: ${state.id}`);
+    }
+    if (stateIds.has(state.id)) {
+      throw new Error(`duplicate bounded state: ${state.id}`);
+    }
+    stateIds.add(state.id);
+  }
+}
+
 function renderResult(result: BenchmarkResult): void {
   requiredElement("switch-p95").textContent = formatMs(result.switching.settled.p95Ms);
   requiredElement("switch-max").textContent = formatMs(result.switching.settled.maxMs);
@@ -139,7 +175,7 @@ function renderResult(result: BenchmarkResult): void {
     result.switching.droppedFrames + result.typing.droppedFrames,
   );
   requiredElement("memory").textContent = formatBytes(result.memory?.deltaBytes ?? null);
-  requiredElement("workspace-label").textContent = `${result.candidate} · ${result.strategy} · ${result.blockCount.toLocaleString()} blocks × ${result.noteCount} notes`;
+  requiredElement("workspace-label").textContent = `${result.candidate} · ${result.strategy} · ${result.renderedBlocks.toLocaleString()} of ${result.canonicalBlocks.toLocaleString()} blocks × ${result.noteCount} notes`;
   requiredElement("dom-count").textContent = `${result.activeDomNodes.toLocaleString()} active / ${result.totalDomNodes.toLocaleString()} total DOM elements · ${result.editorInstances} editor instances`;
   const marker = requiredElement<HTMLElement>("latency-marker");
   marker.style.left = `${Math.min(100, (result.switching.settled.p95Ms / 16.67) * 100)}%`;
@@ -195,6 +231,9 @@ function handleNativeKeydown(event: KeyboardEvent): void {
 }
 
 export function armNativeNavigation(expectedInteractions = 100): void {
+  if (benchmarkRunning) {
+    throw new Error("wait for the benchmark run to finish before arming native navigation");
+  }
   if (!activeCandidate || activeStates.length === 0) {
     throw new Error("run a benchmark before arming native navigation");
   }
@@ -245,13 +284,19 @@ export async function runBenchmark(
   blockCount = Number(blockSelect.value) as BlockCount,
   strategy = strategySelect.value as RenderingStrategy,
 ): Promise<BenchmarkResult> {
+  if (benchmarkRunning) {
+    throw new Error("a benchmark run is already in progress");
+  }
   if (nativeMeasurement) {
     throw new Error("finish native navigation before running another benchmark");
   }
+  benchmarkRunning = true;
+  runButton.disabled = true;
+  armNativeButton.disabled = true;
+  try {
   candidateSelect.value = candidateId;
   blockSelect.value = String(blockCount);
   strategySelect.value = strategy;
-  runButton.disabled = true;
   status.textContent = "Preparing deterministic editor states outside measured navigation…";
   activeCandidate?.destroy();
   activeCandidate = null;
@@ -266,6 +311,9 @@ export async function runBenchmark(
   activeCandidate = candidate;
   const preparationStarted = performance.now();
   const states = candidate.prepare(blockCount, NOTE_COUNT);
+  if (strategy === "bounded") {
+    validateBoundedStates(states, blockCount);
+  }
   activeStates = states;
   const preparationMs = performance.now() - preparationStarted;
   const initial = states[0];
@@ -306,11 +354,26 @@ export async function runBenchmark(
     (sampleIndex) => candidate.edit(sampleIndex),
   );
   const preparationCallsAfter = candidate.preparationCount();
+  if (strategy === "bounded"
+    && (candidate.mountCount() !== 1
+      || candidate.editorInstanceCount() !== 1
+      || candidate.activeDomNodeCount() > 512
+      || candidate.totalDomNodeCount() > 512)) {
+    throw new Error("bounded editor exceeded its host, instance, or DOM limit");
+  }
   const result: BenchmarkResult = {
     candidate: candidate.id,
     strategy,
     blockCount,
     noteCount: NOTE_COUNT,
+    canonicalBlocks: blockCount,
+    renderedBlocks: initial.renderedBlockCount ?? blockCount,
+    windowRanges: strategy === "bounded"
+      ? states.map((state) => ({
+          start: state.windowStart ?? 0,
+          end: state.windowEnd ?? 0,
+        }))
+      : null,
     preparationMs,
     mountMs,
     primeMs,
@@ -336,9 +399,12 @@ export async function runBenchmark(
   };
   lastResult = result;
   renderResult(result);
-  runButton.disabled = false;
-  armNativeButton.disabled = false;
   return result;
+  } finally {
+    benchmarkRunning = false;
+    runButton.disabled = nativeMeasurement !== null;
+    armNativeButton.disabled = nativeMeasurement !== null;
+  }
 }
 
 runButton.addEventListener("click", () => {
