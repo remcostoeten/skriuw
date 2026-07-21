@@ -55,6 +55,24 @@ cargo test -p skriuw-fixtures --release --locked -- --ignored --nocapture
 
 One release-mode run on the development machine materialized the 5,018 `mixed-5000` operations in 2.119 s, then passed bootstrap-count, search-count, archive, and integrity assertions.
 
+## Backend workload measurements
+
+`tests/backend_workloads.rs` adds deterministic correctness coverage plus manual optimized-build measurements for import, bootstrap, and native Git history workloads over the `mixed-1000` and `mixed-5000` fixtures. The default suite proves the complete pipeline with a 120-note mixed fixture: archive import, bootstrap state, search counts, SQLite integrity, outbox-to-Git drain, Git history integrity, and validated cache rebuild.
+
+The three ignored manual measurements run individually:
+
+```bash
+cargo test -p skriuw-fixtures --release --locked benchmarks_import_workloads -- --ignored --nocapture
+cargo test -p skriuw-fixtures --release --locked benchmarks_bootstrap_workloads -- --ignored --nocapture
+cargo test -p skriuw-fixtures --release --locked benchmarks_history_workloads -- --ignored --nocapture
+```
+
+- Import measures `SqliteWorkspace::open` and `replace_from_archive` separately against a fresh file-backed database; the source archive is materialized, verified, and exported before timing.
+- Bootstrap measures `open` and `bootstrap` separately against one fully materialized file-backed database; page-cache state is warm and uncontrolled.
+- History measures the outbox-to-Git drain and the validated Git-to-SQLite cache rebuild as two separate numbers; every count and integrity assertion runs outside the timed intervals, and historical Markdown stays lazy.
+
+Raw samples, medians, environment metadata, and limitations are recorded in [benchmarks/2026-07-21-backend-workloads.md](benchmarks/2026-07-21-backend-workloads.md). No timing assertion exists in any test.
+
 ## Deferred
 
 - 50, 500, and 2,000-block document bodies wait for editor schema selection (ADR-0004).

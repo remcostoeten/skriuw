@@ -12,6 +12,8 @@ sha2.workspace = true
 skriuw-domain = { path = "../skriuw-domain" }
 
 [dev-dependencies]
+skriuw-history = { path = "../skriuw-history" }
+skriuw-history-git = { path = "../skriuw-history-git" }
 skriuw-sqlite = { path = "../skriuw-sqlite" }
 skriuw-storage = { path = "../skriuw-storage" }
 tempfile.workspace = true
