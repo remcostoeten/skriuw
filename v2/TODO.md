@@ -115,7 +115,7 @@ Measured backend workloads: optimized-build medians over `mixed-1000` and `mixed
 - [x] Benchmark nested tree virtualization.
 - [x] Prototype fine-grained external renderer store selectors.
 - [x] Verify persistent editor host without remounting.
-- [ ] Measure desktop bridge overhead outside navigation.
+- [x] Measure desktop bridge overhead outside navigation.
 - [ ] Write ADR selecting editor, renderer store, build tool, and desktop shell.
 - [ ] Reject any option failing `docs/performance-contract.md`.
 
@@ -133,9 +133,11 @@ DOM-backed bounded correctness: the ProseMirror candidate now uses the canonical
 
 Tree virtualization spike: a dependency-free fixed-row-height tree uses the canonical Rust fixture projections and keeps all six 1,000/5,000-node workspaces at no more than 40 rendered rows and 163 total DOM elements. Keyboard selection, deep toggles, scroll jumps, and trusted input stay within the provisional P95 budget. Full-subtree expansion and deep reveal at nested-5000 show sporadic 8–12 ms samples but remain below the 16.67 ms maximum with zero observed dropped frames. Correctness covers deterministic flattening, collapsed descendants, selection, keyboard navigation, ARIA metadata, and mutation bounds. Extreme-depth indentation and fixed-runner evidence remain open. See `docs/benchmarks/2026-07-21-tree-virtualization.md`.
 
-Renderer-store selector spike: a disposable React harness normalizes the canonical 1,000/5,000-node projections behind a dependency-free external store and narrow `useSyncExternalStore` bindings. Exact production/profiling allowlists prove selection leaves the shell, tree host, persistent editor host, unrelated metadata, settings, and offscreen rows untouched; editor-owned typing and equivalent updates produce zero store notifications or React commits. Clean exploratory runs kept every P95 below 8 ms and every maximum below 16.67 ms, with 100 exact trusted transitions per fixture and no listener leak. React, the store shape, and the build tool remain unselected; fixed-runner presentation evidence, bounded-editor correctness, and bridge overhead remain open. See `docs/benchmarks/2026-07-21-renderer-store-selectors.md`.
+Renderer-store selector spike: a disposable React harness normalizes the canonical 1,000/5,000-node projections behind a dependency-free external store and narrow `useSyncExternalStore` bindings. Exact production/profiling allowlists prove selection leaves the shell, tree host, persistent editor host, unrelated metadata, settings, and offscreen rows untouched; editor-owned typing and equivalent updates produce zero store notifications or React commits. Clean exploratory runs kept every P95 below 8 ms and every maximum below 16.67 ms, with 100 exact trusted transitions per fixture and no listener leak. React, the store shape, and the build tool remain unselected; fixed-runner presentation and final editor evidence remain open. See `docs/benchmarks/2026-07-21-renderer-store-selectors.md`.
 
-Immediate next task: measure desktop bridge overhead outside navigation. Then close the remaining editor-selection gates: representative plugins and final schema behavior, cross-window clipboard/find/undo/accessibility policy, Lexical parity or rejection, and fixed-runner presentation evidence. These still precede ADR-0020.
+Desktop bridge spike: an isolated Tauri 2.11.5 production application proves 1,000 navigation updates issue zero commands. Five-run median throughput means were 0.220 ms for empty IPC, 0.180 ms for 1 KiB, 0.420 ms for 64 KiB, and 0.215 ms through the real serialized runtime. A 100-operation delayed burst queued optimistic work in 7 ms median, preserved FIFO acknowledgements, and observed zero dropped frames while settlement took 107 ms. Linux WebKit timer quantization, fixed-runner evidence, and Windows/macOS platform runs remain open. See `docs/benchmarks/2026-07-21-desktop-bridge.md`.
+
+Immediate next task: close the remaining editor-selection gates: representative plugins and final schema behavior, cross-window clipboard/find/undo/accessibility policy, Lexical parity or rejection, and fixed-runner presentation evidence. These still precede ADR-0020.
 
 React requirements if selected:
 

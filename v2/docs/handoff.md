@@ -4,7 +4,7 @@ Last reviewed: 2026-07-21
 
 ## Start here
 
-Backend workload measurements plus the replacement, retained, native-presentation, static bounded-editor, bounded-editor correctness model, tree-virtualization, and renderer-store selector spikes are complete on the primary branch.
+Backend workload measurements plus the replacement, retained, native-presentation, static and DOM-backed bounded-editor, tree-virtualization, renderer-store selector, and desktop-bridge spikes are complete on the primary branch.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -26,9 +26,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit: `23c88b6 feat: wire bounded ProseMirror projection`; the pure bounded model is `2fba493`, renderer-store implementation is `424db78`, and earlier tree slices are `d00b017`, `a6ca660`, and `c8c2cd1`.
-- Expected primary worktree state: clean after the handoff commit following `23c88b6`.
-- Current verification result: 112 backend tests, seven renderer-store tests, five pure bounded-editor tests, and one fresh-profile bounded-editor browser regression pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, the UI spike typecheck/build, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
+- Last implementation commit: `cc58d22 perf: measure desktop bridge boundary`; the DOM-backed editor is `23c88b6`, pure bounded model is `2fba493`, renderer-store implementation is `424db78`, and earlier tree slices are `d00b017`, `a6ca660`, and `c8c2cd1`.
+- Expected primary worktree state: clean after the handoff commit following `cc58d22`.
+- Current verification result: 112 backend tests, seven renderer-store tests, five pure bounded-editor tests, one fresh-profile bounded-editor browser regression, and five native desktop-bridge measurement runs pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, the UI spike typecheck/build, the Tauri release build, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
@@ -126,7 +126,7 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Deterministic fixture generators create wide, nested, and mixed 1,000-note and 5,000-note operation sequences with pinned digests, declared FTS counts, and no committed generated data.
 - Generated schemas live in `generated/contracts`.
 - Golden archive fixtures live in `fixtures/archives`; the manifest must match every production-supported archive version.
-- No product frontend framework, desktop shell, editor, router, React, React Scan, or package-manager workspace has been added.
+- No product frontend framework, desktop shell, editor, router, React, React Scan, or package-manager workspace has been added. Tauri, React, Vite, ProseMirror, and Lexical remain isolated measurement dependencies only.
 - The isolated `spikes/ui-architecture` package uses pnpm, Vite, direct ProseMirror, and direct Lexical only as disposable measurement dependencies; none is selected for the product.
 - No remote exists; do not claim work is pushed.
 - No WASM target is installed; do not claim web compilation has passed.
@@ -272,6 +272,14 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - `pnpm test:browser` starts the production preview and a fresh headless Chrome profile through CDP. The 500-block regression retains one mount and one editor instance, renders 192 blocks in 203 DOM nodes, passes window, DOM selection/focus, scroll, editor/external reconciliation, note restoration, composition guard, console-error, and page-error assertions, and terminates deterministically.
 - Both candidates still explicitly lack complete cross-window clipboard/find, composition requiring a window move, undo, and off-window screen-reader traversal. Lexical lacks the live controller. Final schema behavior, representative plugins, fixed-runner presentation evidence, and an editor decision remain open.
 
+## Completed desktop-bridge slice
+
+- `spikes/desktop-bridge` is an isolated Tauri 2.11.5 production harness over the actual `WorkspaceRuntime`; it does not add a product shell or workspace dependency.
+- The async command submits work before yielding and moves only `Completion::wait` to Tauri's blocking pool. One thousand local navigation projections prove zero bridge-command calls.
+- Five fresh application launches recorded median throughput means of 0.220 ms empty, 0.180 ms at 1 KiB, 0.420 ms at 64 KiB, and 0.215 ms through the runtime boundary. WebKit's one-millisecond timer resolution censors individual sub-millisecond samples.
+- A one-millisecond-per-item serialized storage probe queued 100 optimistic actions in 7 ms median and settled in 107 ms. All five runs kept FIFO acknowledgement order, zero dropped-frame diagnostics, and 16–17 ms maximum frame gaps while completions waited.
+- Linux WebKit only was measured. Fixed-runner confirmation, Windows WebView2, macOS WKWebView, final operation envelopes, startup bootstrap payloads, and durable storage work remain outside this result. See `docs/benchmarks/2026-07-21-desktop-bridge.md`.
+
 ## Completed backend-workload slice
 
 - Claude implementation `0f646bb` was reviewed in its isolated worktree and integrated as `97937f2`; its stale shared-doc commit `23511fd` was excluded and reconciled here.
@@ -283,7 +291,7 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 
 ## Known correctness gap and next task
 
-Measure desktop bridge overhead outside navigation. Then close the remaining editor-selection gates: representative plugins and final schema behavior, cross-window clipboard/find/undo/accessibility policy, Lexical parity or explicit rejection, and fixed-runner presentation evidence. These still precede ADR-0020 and product UI scaffolding.
+Close the remaining editor-selection gates: representative plugins and final schema behavior, cross-window clipboard/find/undo/accessibility policy, Lexical parity or explicit rejection, and fixed-runner presentation evidence. These still precede ADR-0020 and product UI scaffolding.
 
 ## Verification model
 
