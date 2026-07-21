@@ -1,5 +1,10 @@
 import type { WorkspaceSettings } from "../contracts/workspace";
-import { shortcutOverridesFromSettings } from "../shortcuts/bindings";
+import {
+  changeSetting,
+  changeShortcutOverride,
+  resetShortcutOverride,
+} from "../settings/settings-model";
+import type { EditableSettings } from "../settings/settings-model";
 import type { ShortcutActionId } from "../shortcuts/definitions";
 import type { RendererStore } from "../store/types";
 import { commitOperations } from "./workspace";
@@ -12,12 +17,19 @@ function reportRejection(action: string) {
 
 export function updateSettings(
   store: RendererStore,
-  patch: Partial<WorkspaceSettings>,
+  settings: WorkspaceSettings,
 ): void {
-  const settings = { ...store.getState().settings, ...patch };
   void commitOperations(store, [{ type: "update_settings", settings }]).catch(
     reportRejection("update settings"),
   );
+}
+
+export function updateSetting<K extends keyof EditableSettings>(
+  store: RendererStore,
+  field: K,
+  value: EditableSettings[K],
+): void {
+  updateSettings(store, changeSetting(store.getState().settings, field, value));
 }
 
 export function setShortcutOverride(
@@ -25,18 +37,20 @@ export function setShortcutOverride(
   actionId: ShortcutActionId,
   combo: string,
 ): void {
-  const overrides = shortcutOverridesFromSettings(store.getState().settings);
-  updateSettings(store, { shortcutOverrides: { ...overrides, [actionId]: combo } });
+  updateSettings(
+    store,
+    changeShortcutOverride(store.getState().settings, actionId, combo),
+  );
 }
 
 export function clearShortcutOverride(
   store: RendererStore,
   actionId: ShortcutActionId,
 ): void {
-  const overrides = shortcutOverridesFromSettings(store.getState().settings);
-  if (!(actionId in overrides)) {
+  const current = store.getState().settings;
+  const settings = resetShortcutOverride(current, actionId);
+  if (settings === current) {
     return;
   }
-  const { [actionId]: _removed, ...rest } = overrides;
-  updateSettings(store, { shortcutOverrides: rest });
+  updateSettings(store, settings);
 }
