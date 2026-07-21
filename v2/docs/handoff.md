@@ -24,11 +24,11 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be 25 commits ahead of `origin/feat/daddy-2` after the scope-audit and reconciliation commits.
+- Active branch: `feat/daddy-2`, expected to be 27 commits ahead of `origin/feat/daddy-2` after the C1 implementation and evidence commits.
 - Remote: `origin` is configured; the active branch has not been pushed to its upstream state.
-- Last implementation commit: `aa443ef feat: complete search and responsive sidebar interactions`; the unified build workflow is `c3fbb8a`, settings consumers are `885ecb1`, metadata/history restore is `4660827`, and the UI architecture decision is ADR-0020.
+- Last implementation commit: `57dfb4d perf: add product renderer baseline runner`; the latest prior product slice is `aa443ef`, the unified build workflow is `c3fbb8a`, and the UI architecture decision is ADR-0020.
 - Expected primary worktree state: only unrelated untracked `.claude/` content remains after this documentation commit; it was preserved and excluded.
-- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop bridge test, 9 UI-architecture tests, 7 renderer-store tests, 76 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 80.82% lines, 85.74% branches, and 64.55% functions.
+- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop bridge test, 9 UI-architecture tests, 7 renderer-store tests, 80 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 81.38% lines, 85.62% branches, and 65.49% functions.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
@@ -345,7 +345,7 @@ cargo build -p skriuw-cli --locked
 "$cli" integrity "$recovery_dir/restored.db"
 ```
 
-The disposable renderer proves selector isolation but does not select or implement the product renderer. React Scan alone is never proof. Final proof still requires production traces, fixed fixtures, long-frame/presentation measurements, memory data, and zero dropped frames during 100 cached note switches on reference hardware.
+The product renderer now has a production profiling runner with fixed fixtures, raw timing samples, trusted keyboard input, Chrome event traces, long-task/LoAF evidence, React commits, editor mounts, DOM counts, and bridge-call assertions. C3 still requires fixed-reference-hardware and claimed-platform sign-off; React Scan remains uninstalled.
 
 ## Working rules
 
@@ -433,7 +433,10 @@ The settings surface and persistence path are complete. Renderer consumers still
 ## Known gaps and immediate next task
 
 - The bounded-window editor fallback is validated in the architecture harness but not wired into the product.
-- React Scan remains uninstalled, and 100 cached note switches still need production presentation evidence on reference hardware.
+- C1 proves the whole-document path passes at 50 blocks and crosses the fallback boundary by 500 blocks; C2 must activate the bounded path conservatively between those fixtures.
+- The product sidebar mounts all 5,000 tree rows (25,614 elements with the 500-block editor), so the isolated tree spike's bounded row pool still needs product integration before C3.
+- Note activation is renderer-only to satisfy zero navigation IPC. `rememberLastNote` now needs persistence at shutdown or another non-navigation lifecycle boundary; per-selection persistence must not return.
+- React Scan remains uninstalled. C1 records production presentation evidence on the named development machine; C3 still owns fixed-reference-hardware sign-off.
 - History headers still refresh only through snapshot replacement; live-session version publication remains deferred.
 - Portable archive, backup, restore, scheduled rotation, live swap, and rollback exist below the product shell but are not exposed through the desktop UI.
 - Sidebar expansion is renderer-only and extreme-depth visual indentation is unclamped.
@@ -445,6 +448,15 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The reconciled scope marks whole-document find/replace, native whole-document select/copy/IME/accessibility, sidebar title search, responsive panels, keyboard sibling reorder, and context-menu cross-folder movement complete. Pointer drag-and-drop and Markdown-vault formats are post-v1.
 - Product decisions are fixed: the bounded fallback is required for v1 with a measured threshold; history freshness uses post-materialization publication rather than polling; Tauri owns a fixed six-hour backup timer; semantic tree depth remains unlimited while visual indentation clamps; Linux is the only currently evidenced platform.
 - `docs/implementation-backlog.md` splits the remaining work into conflict-free Codex C1–C3 and Claude N1–N4 slices. Shared continuity files, generated contracts, manifests, and lockfiles remain integration-owned.
-- Current verification on the reconciled baseline: `./scripts/check.sh` passes all 10 stages with 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, and 76 renderer tests.
+- Current verification after C1: `./scripts/check.sh` passes all 10 stages with 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, and 80 renderer tests.
 
-Immediate next task: Codex executes C1, the production product-renderer performance runner. Claude may execute N1 concurrently in its isolated native worktree. Do not implement C2 or N2 until both Wave 1 slices are integrated.
+## Completed C1 product-renderer performance runner
+
+- `57dfb4d` adds a production-only profiling entry around the real `App`, renderer store, sidebar, metadata consumers, and persistent ProseMirror editor. `node app/performance/run.mjs --output <path>` generates canonical tree projections, builds the runner, launches fresh Chrome profiles, and writes raw samples plus summaries and machine/revision metadata.
+- Correctness failures are deterministic command failures; machine timing is evidence and does not gate shared CI. The runner asserts exact trusted-input counts, zero navigation bridge calls, zero navigation resource loads, one persistent editor host/view, zero typing React commits, and clean console/page state.
+- On the named i7-10700F Linux development machine, wide-1000/50 measured 3.8 ms selection-dispatch P95, 2.0 ms editor-install P95 / 2.4 ms maximum, 7.1 ms keystroke-to-next-paint P95 / maximum, and zero dropped gaps. It meets every current budget.
+- Wide-5000/500 is the first measured failing fixture: 15.0 ms selection-dispatch P95, 9.0 ms editor-install P95, and two dropped gaps. Wide-5000/2,000 reaches 56.2 ms dispatch P95, 44.3 ms editor-install P95, 102 dropped gaps, five long tasks, and 95 Long Animation Frames.
+- The product sidebar mounts 1,000/5,000 tree items rather than the spike's bounded row pool. This produces 5,164 elements at 50 blocks and 25,614 at 500 blocks and remains an explicit N4/C3 correctness gap.
+- The method, limitations, crossover, command, and summary are in `docs/benchmarks/2026-07-22-product-renderer.md`; complete raw samples are in `docs/benchmarks/raw/2026-07-22-product-renderer-c1.json`.
+
+Immediate next task: integrate or complete N1. After both Wave 1 slices are present, C2 can wire the bounded editor using the measured crossover between 50 and 500 blocks. N2 remains blocked on N1.
