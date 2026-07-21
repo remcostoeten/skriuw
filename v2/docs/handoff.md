@@ -1,10 +1,10 @@
 # Session handoff
 
-Last reviewed: 2026-07-21
+Last reviewed: 2026-07-22
 
 ## Start here
 
-Backend workload measurements plus the replacement, retained, native-presentation, static and DOM-backed bounded-editor, tree-virtualization, renderer-store selector, and desktop-bridge spikes are complete on the primary branch.
+The backend foundation, UI architecture measurements, product shell, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented on the active feature branch.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -24,11 +24,11 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/instant-local-first-foundation`.
-- Remote: none configured.
-- Last implementation commit: `596859a feat: preserve rich bounded editor history`; the representative editor contract is `a20d669`, desktop bridge is `cc58d22`, DOM-backed editor is `23c88b6`, pure bounded model is `2fba493`, and renderer-store implementation is `424db78`.
-- Expected primary worktree state: clean after the handoff commit following `596859a`.
-- Current verification result: 112 backend tests, seven renderer-store tests, nine UI editor tests, one fresh-profile structured 2,000-block bounded-editor browser regression, and five native desktop-bridge measurement runs pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, the UI spike typecheck/build, the Tauri release build, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
+- Active branch: `feat/daddy-2`, expected to be 23 commits ahead of `origin/feat/daddy-2` after this handoff commit.
+- Remote: `origin` is configured; the active branch has not been pushed to its upstream state.
+- Last implementation commit: `aa443ef feat: complete search and responsive sidebar interactions`; the unified build workflow is `c3fbb8a`, settings consumers are `885ecb1`, metadata/history restore is `4660827`, and the UI architecture decision is ADR-0020.
+- Expected primary worktree state: only unrelated untracked `.claude/` content remains after this documentation commit; it was preserved and excluded.
+- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop bridge test, 9 UI-architecture tests, 7 renderer-store tests, 76 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 80.82% lines, 85.74% branches, and 64.55% functions.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
@@ -126,9 +126,9 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Deterministic fixture generators create wide, nested, and mixed 1,000-note and 5,000-note operation sequences with pinned digests, declared FTS counts, and no committed generated data.
 - Generated schemas live in `generated/contracts`.
 - Golden archive fixtures live in `fixtures/archives`; the manifest must match every production-supported archive version.
-- No product frontend framework, desktop shell, editor, router, React, React Scan, or package-manager workspace has been added. Tauri, React, Vite, ProseMirror, and Lexical remain isolated measurement dependencies only.
-- The isolated `spikes/ui-architecture` package uses pnpm, Vite, direct ProseMirror, and direct Lexical only as disposable measurement dependencies; none is selected for the product.
-- No remote exists; do not claim work is pushed.
+- ADR-0020 selects React, Vite, direct ProseMirror, the dependency-free external renderer store, and Tauri 2 for the product. React Scan remains uninstalled.
+- The isolated spike packages remain measurement evidence; Lexical is rejected and is not a product dependency.
+- `origin` exists, but the active branch is ahead of its upstream; do not claim these commits are pushed.
 - No WASM target is installed; do not claim web compilation has passed.
 
 ## Completed trash slice
@@ -319,9 +319,9 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Import currently scales worse than linearly because document projection scans archive nodes. History drain dominates at 5,000 commits but remains outside startup, editing, and navigation paths. Page-cache state was warm and uncontrolled.
 - Raw samples, environment, commands, and limitations are in `docs/benchmarks/2026-07-21-backend-workloads.md`; manual commands are also in `docs/fixtures.md`.
 
-## Known correctness gap and next task
+## Architecture-gate follow-through
 
-Implement canonical whole-note select-all/copy and find, complete deferred movement after IME composition, and prototype an accessible whole-document path. Define bounded history grouping and retention before fixed-runner presentation evidence. These still precede ADR-0020 and product UI scaffolding.
+ADR-0020 is accepted and the product UI now exists. The whole-document ProseMirror path owns native selection, copy, IME, and accessible traversal, and `aa443ef` adds canonical-document find/replace. The validated bounded-window fallback is still not wired into the product. Fixed-runner presentation evidence and the 100-cached-switch proof remain open.
 
 ## Verification model
 
@@ -416,8 +416,25 @@ The settings surface and persistence path are complete. Renderer consumers still
 
 ## Build and verification orchestrator
 
-- `scripts/build.sh` is now the single native entry point for `check`, `web`, `desktop`, `workspace`, and `ci` modes. Every mode verifies generated contracts, the build-entrypoint contract, Rust formatting and linting, 112 backend tests, the separate Tauri smoke test, 9 UI-architecture tests, 7 renderer-store tests, 69 renderer tests with native Node coverage, and renderer type safety before producing an artifact.
+- `scripts/build.sh` is now the single native entry point for `check`, `web`, `desktop`, `workspace`, and `ci` modes. Every mode verifies generated contracts, the build-entrypoint contract, Rust formatting and linting, 112 backend tests, the separate Tauri smoke test, 9 UI-architecture tests, 7 renderer-store tests, 76 renderer tests with native Node coverage, and renderer type safety before producing an artifact.
 - `pnpm build`, `pnpm tauri build`, and `pnpm tauri:build` route into the orchestrator. Tauri's `beforeBuildCommand` uses the internal `build:frontend` command so a desktop build cannot recurse. `scripts/check.sh` delegates to the same verification-only mode.
 - Successful steps print compact counts and timings. Failures print the focused final 240 log lines and retain the complete per-step log under `.build/logs`. Local supported terminals receive OSC-8 file links for logs, renderer bundles, the CLI, and the desktop binary.
 - CI installs the official Linux Tauri prerequisites, installs the active app and spike dependencies, runs `./scripts/build.sh ci`, and uploads release artifacts plus logs. Bootstrap installs the same JavaScript test dependencies before verification.
-- The public `pnpm build` and `pnpm tauri build` paths are verified end to end. Contracts, the build-entrypoint regression, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, 69 renderer tests, renderer type safety, Vite production bundling, and the optimized Tauri build pass. Executed-source renderer coverage is 76.68% lines, 85.83% branches, and 56.08% functions. The desktop run completed in 2 minutes 1 second and linked the 14 MiB release binary, renderer bundle, and complete log directory.
+- The public `pnpm build` and `pnpm tauri build` paths were last verified end to end at 69 renderer tests. The latest `./scripts/check.sh` run verifies 76 renderer tests with 80.82% line, 85.74% branch, and 64.55% function coverage, alongside generated contracts, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, and renderer type safety. The last optimized desktop build completed in 2 minutes 1 second and linked the 14 MiB release binary, renderer bundle, and complete log directory.
+
+## Completed search, sidebar, and responsive-panel slice
+
+- `aa443ef` completes the inherited interaction work without adding dependencies or backend calls. A ProseMirror search plugin computes canonical-document matches and decorations for literal, case-sensitive, whole-word, and regular-expression queries, with wrapping navigation, replace-one, replace-all, invalid-regex handling, and save/history participation through ordinary editor transactions.
+- `Ctrl+F` is a registry command and repeated use refocuses and selects the query instead of closing it. Search-only `Alt+C`, `Alt+W`, and `Alt+R` bindings remain in `SHORTCUT_DEFINITIONS` for settings overrides but mount only while the widget is open; Escape closes from either the widget or editor. The widget exposes pressed, expanded, invalid, disabled, live-result, and no-result accessibility states.
+- Sidebar search filters the hydrated node projection by title with stable workspace ordering, separate folder/note groups, a 10-result cap per type, keyboard transfer between query and results, ancestor reveal, active-note state, empty results, and trigger/tree focus restoration. Expand-all and collapse-all are available from the toolbar and root context menu. Search-only node subscriptions unmount with the result surface.
+- Notes layout tracks now shrink between 260/152 pixels for the sidebar and 240/180 pixels for metadata around a 300-pixel editor minimum. Closed panels unmount their subscribers, and the metadata toggle reserves the native window-control hit area when the right panel is closed. Sidebar spacing, indentation, guide intervals, and descendant counts adapt at measured width thresholds.
+- New pure regressions cover search-controller lifetime, search options/navigation/replacement, sidebar result ordering/bounds, folder expansion, and panel projection. `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass: 112 backend tests, 1 desktop bridge test, 9 UI-architecture tests, 7 renderer-store tests, and 76 renderer tests. A clean mocked-native browser pass at 1200 × 800 and 720 × 800 verified load, keyboard search and replacement, option shortcuts, Escape/focus restoration, panel collapse, zero horizontal overflow, and zero page errors.
+
+## Known gaps and immediate next task
+
+- The bounded-window editor fallback is validated in the architecture harness but not wired into the product.
+- React Scan remains uninstalled, and 100 cached note switches still need production presentation evidence on reference hardware.
+- History headers still refresh only through snapshot replacement; live-session version publication remains deferred.
+- Drag-and-drop/cross-folder pointer movement, recovery UI, journal, people, tags, and other new product features were not started in this slice.
+
+Immediate next task: run and record the remaining product-renderer performance proof, then address only correctness gaps exposed by that evidence.

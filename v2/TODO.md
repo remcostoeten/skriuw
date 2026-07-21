@@ -1,16 +1,16 @@
 # Detailed delivery checklist
 
-Last reviewed: 2026-07-21
+Last reviewed: 2026-07-22
 
 ## Current state
 
 - [x] Repository created at `/home/remcostoeten/dev/skriuw-standalone`.
-- [x] Work isolated on `feat/instant-local-first-foundation`.
-- [x] Logical commits created; working tree clean after the last verified implementation commit.
-- [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
-- [x] 112 backend tests pass; five manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
-- [x] No product frontend, desktop shell, or router exists; React and editor dependencies remain isolated in disposable measurement spikes.
-- [x] No Git remote is configured.
+- [x] Current work is isolated on `feat/daddy-2`, expected to be 23 commits ahead of `origin/feat/daddy-2` after the implementation and handoff commits.
+- [x] Scoped product changes are committed; unrelated untracked `.claude/` content remains preserved and excluded.
+- [x] Rust 1.95 backend workspace and the product renderer pass `./scripts/check.sh`.
+- [x] 112 backend tests, 1 desktop bridge test, 9 UI-architecture tests, 7 renderer-store tests, and 76 renderer tests pass; 6 backend tests remain ignored manual workloads.
+- [x] The React/Vite product renderer, persistent ProseMirror editor, Tauri desktop shell, and notes/trash hash routes are implemented.
+- [x] `origin/feat/daddy-2` is configured as the upstream branch.
 
 ## Completed backend foundation
 
@@ -141,7 +141,7 @@ Renderer-store selector spike: a disposable React harness normalizes the canonic
 
 Desktop bridge spike: an isolated Tauri 2.11.5 production application proves 1,000 navigation updates issue zero commands. Five-run median throughput means were 0.220 ms for empty IPC, 0.180 ms for 1 KiB, 0.420 ms for 64 KiB, and 0.215 ms through the real serialized runtime. A 100-operation delayed burst queued optimistic work in 7 ms median, preserved FIFO acknowledgements, and observed zero dropped frames while settlement took 107 ms. Linux WebKit timer quantization, fixed-runner evidence, and Windows/macOS platform runs remain open. See `docs/benchmarks/2026-07-21-desktop-bridge.md`.
 
-Immediate next task: build the MVP UI per ADR-0020. Notes are expected to stay short, so the product ships the whole-document editor path first with the bounded window retained as the validated large-document fallback. Whole-note select-all/copy, find, IME completion, and accessible traversal are implemented in the product against the canonical document, not in further spikes. History policy is fixed by ADR-0020 (500 ms grouping, 200-entry cap). Fixed-runner presentation evidence is deferred until the MVP exists.
+Immediate next task: record the remaining MVP performance evidence against the product renderer, including 100 cached note switches on reference hardware, and decide whether React Scan adds useful development-only diagnostics. The whole-document editor path now includes local find/replace; the validated bounded-window fallback remains unwired. Drag-and-drop, recovery UI, and new product features remain outside this slice.
 
 React requirements if selected:
 
@@ -160,19 +160,23 @@ React requirements if selected:
 - [x] Dedicated Trash route with renderer-local preview, restore, permanent delete, empty state, and bounded 5,000-item rendering.
 - [x] Structured Markdown editor with inline rendering. (Whole-document ProseMirror path per ADR-0020; bounded-window fallback not yet wired.)
 - [x] Slash-command menu.
+- [x] Editor find/replace with match-case, whole-word, regex, next/previous, replace-one, replace-all, accessible status, and rebindable shortcuts.
+- [x] Sidebar title search, expand/collapse-all controls, narrow-density adaptation, and bounded responsive panel tracks.
 - [x] Metadata and history sidebar without people or tags.
 - [x] Version preview and restore.
 - [x] Central command registry and command palette. (Typed registry in `app/src/commands/` is the single source for palette items and shortcut actions; per-item sidebar context-menu entries remain local because they need a target node.)
 - [x] User settings.
 - [x] Keyboard-first navigation. (Registry-backed shortcuts cover sidebar/editor/metadata focus, sidebar and metadata toggles, route switching, and palette access from every route; all bindings flow through `SHORTCUT_DEFINITIONS` and the settings override path.)
-- [ ] No journal.
-- [ ] No post-startup loading UI for cached workspace data.
+- [x] Journal excluded from MVP.
+- [x] No post-startup loading UI for cached workspace data.
 
 Trash implementation: `#/trash` is eager in the startup bundle and reads only the hydrated renderer store. Active notes and folders no longer surface trashed roots in the notes sidebar. The Trash view previews canonical ProseMirror JSON without Markdown parsing, restores complete subtrees optimistically, preserves independently trashed descendants, confirms permanent deletion, and mounts at most 22 list rows for a 5,000-item trash fixture at the tested 720 px viewport.
 
 User settings implementation: the centered, headerless 896 × 720 modal matches the original Skriuw desktop proportions, 220 px rail, content spacing, and 24 px section headings. It opens on a renderer-local Appearance section and covers every applied setting across Appearance and Editor, plus every registered shortcut and the existing explicitly selected Data section. Every change constructs and optimistically submits a complete settings document. Unsupported identifiers project to defaults without rewriting stored values, and unknown top-level plus nested shortcut extension data survives field changes, rebinds, and resets. The section rail has searchable deep terms, a vertical roving tablist, `/`, `Ctrl+E`, F6/Shift+F6, arrows, Home/End, first-control activation, sequential form tabbing, clear-before-close Escape behavior, native modal semantics, and explicit trigger-focus restoration. `Ctrl+,` toggles the dialog while other workspace shortcuts remain suspended inside it.
 
 Settings-consumer integration: every dialog setting is applied by a renderer consumer with no startup or navigation IPC. Theme and reduced motion project onto `<html data-theme>` / `data-reduce-motion` at boot and on every settings change; editor font (sans/serif/mono system stacks), line spacing (1.45/1.7/1.95), and the empty-note placeholder apply through editor-host data attributes plus an empty-document decoration plugin; compact density and the new `showTreeGuides` indent guides toggle sidebar classes; `rememberLastNote === false` makes bootstrap ignore the persisted active note. `showPageIcons` and `showLineNumbers` were removed from the dialog and view model because no product surface consumes them; both fields remain in the version-1 wire contract and stored documents, and `showTreeGuides` rides losslessly in the unknown-field extension bag.
+
+Search and responsive-panel implementation: editor search is a ProseMirror plugin over the active canonical document and never crosses IPC. `Ctrl+F` opens and refocuses the widget; configurable `Alt+C`, `Alt+W`, and `Alt+R` options bind only while it is open, and Escape closes from the widget or editor. Sidebar title search mounts its node subscriptions only while results are visible, caps each result type at 10, reveals collapsed ancestors on selection, restores keyboard focus, and keeps empty/active states explicit. Sidebar and metadata tracks shrink to 152 and 180 CSS pixels around a 300-pixel editor minimum, collapse by unmounting their subscribers, and reserve the native window-control hit area. A clean 720 × 800 browser pass had no horizontal overflow or page errors.
 
 ## Future web runtime
 
@@ -203,4 +207,4 @@ Current caveat: the WASM target is not installed and no WASM build has been clai
 - [x] Print terminal hyperlinks for local binaries and bundles and upload CI artifacts and logs.
 - [x] Keep Tauri's internal frontend build command recursion-free.
 
-Verified result: the public `pnpm build` and `pnpm tauri build` paths pass generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, 69 renderer tests, renderer type safety, and production bundling. Executed-source renderer coverage is 76.68% lines, 85.83% branches, and 56.08% functions. The desktop build produced a 14 MiB release binary and linked it together with the renderer bundle and complete build logs.
+Verified result: the public `pnpm build` and `pnpm tauri build` paths were last exercised end to end at 69 renderer tests and produced a 14 MiB release binary with linked renderer and log artifacts. The latest `./scripts/check.sh` passes generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, 76 renderer tests, and renderer type safety. Current executed-source renderer coverage is 80.82% lines, 85.74% branches, and 64.55% functions.
