@@ -24,11 +24,11 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be 27 commits ahead of `origin/feat/daddy-2` after the C1 implementation and evidence commits.
+- Active branch: `feat/daddy-2`, expected to be 29 commits ahead of `origin/feat/daddy-2` after C1, N1 integration, and the reconciled Wave 1 handoff.
 - Remote: `origin` is configured; the active branch has not been pushed to its upstream state.
-- Last implementation commit: `57dfb4d perf: add product renderer baseline runner`; the latest prior product slice is `aa443ef`, the unified build workflow is `c3fbb8a`, and the UI architecture decision is ADR-0020.
+- Last implementation commit: `5935264 feat: add native maintenance and lifecycle coordinator (N1)`; C1 is `57dfb4d`, the latest prior product slice is `aa443ef`, and the UI architecture decision is ADR-0020.
 - Expected primary worktree state: only unrelated untracked `.claude/` content remains after this documentation commit; it was preserved and excluded.
-- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop bridge test, 9 UI-architecture tests, 7 renderer-store tests, 80 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 81.38% lines, 85.62% branches, and 65.49% functions.
+- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 80 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 81.38% lines, 85.62% branches, and 65.49% functions.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
@@ -416,11 +416,11 @@ The settings surface and persistence path are complete. Renderer consumers still
 
 ## Build and verification orchestrator
 
-- `scripts/build.sh` is now the single native entry point for `check`, `web`, `desktop`, `workspace`, and `ci` modes. Every mode verifies generated contracts, the build-entrypoint contract, Rust formatting and linting, 112 backend tests, the separate Tauri smoke test, 9 UI-architecture tests, 7 renderer-store tests, 76 renderer tests with native Node coverage, and renderer type safety before producing an artifact.
+- `scripts/build.sh` is now the single native entry point for `check`, `web`, `desktop`, `workspace`, and `ci` modes. Every mode verifies generated contracts, the build-entrypoint contract, Rust formatting and linting, 112 backend tests, 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 80 renderer tests with native Node coverage, and renderer type safety before producing an artifact.
 - `pnpm build`, `pnpm tauri build`, and `pnpm tauri:build` route into the orchestrator. Tauri's `beforeBuildCommand` uses the internal `build:frontend` command so a desktop build cannot recurse. `scripts/check.sh` delegates to the same verification-only mode.
 - Successful steps print compact counts and timings. Failures print the focused final 240 log lines and retain the complete per-step log under `.build/logs`. Local supported terminals receive OSC-8 file links for logs, renderer bundles, the CLI, and the desktop binary.
 - CI installs the official Linux Tauri prerequisites, installs the active app and spike dependencies, runs `./scripts/build.sh ci`, and uploads release artifacts plus logs. Bootstrap installs the same JavaScript test dependencies before verification.
-- The public `pnpm build` and `pnpm tauri build` paths were last verified end to end at 69 renderer tests. The latest `./scripts/check.sh` run verifies 76 renderer tests with 80.82% line, 85.74% branch, and 64.55% function coverage, alongside generated contracts, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, and renderer type safety. The last optimized desktop build completed in 2 minutes 1 second and linked the 14 MiB release binary, renderer bundle, and complete log directory.
+- The public `pnpm build` and `pnpm tauri build` paths were last verified end to end at 69 renderer tests. The latest `./scripts/check.sh` run verifies 80 renderer tests with 81.38% line, 85.62% branch, and 65.49% function coverage, alongside generated contracts, formatting, Clippy, 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and renderer type safety. The last optimized desktop build completed in 2 minutes 1 second and linked the 14 MiB release binary, renderer bundle, and complete log directory.
 
 ## Completed search, sidebar, and responsive-panel slice
 
@@ -448,7 +448,7 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The reconciled scope marks whole-document find/replace, native whole-document select/copy/IME/accessibility, sidebar title search, responsive panels, keyboard sibling reorder, and context-menu cross-folder movement complete. Pointer drag-and-drop and Markdown-vault formats are post-v1.
 - Product decisions are fixed: the bounded fallback is required for v1 with a measured threshold; history freshness uses post-materialization publication rather than polling; Tauri owns a fixed six-hour backup timer; semantic tree depth remains unlimited while visual indentation clamps; Linux is the only currently evidenced platform.
 - `docs/implementation-backlog.md` splits the remaining work into conflict-free Codex C1–C3 and Claude N1–N4 slices. Shared continuity files, generated contracts, manifests, and lockfiles remain integration-owned.
-- Current verification after C1: `./scripts/check.sh` passes all 10 stages with 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, and 80 renderer tests.
+- Current verification after Wave 1 integration: `./scripts/check.sh` passes all 10 stages with 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 80 renderer tests.
 
 ## Completed C1 product-renderer performance runner
 
@@ -459,4 +459,13 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The product sidebar mounts 1,000/5,000 tree items rather than the spike's bounded row pool. This produces 5,164 elements at 50 blocks and 25,614 at 500 blocks and remains an explicit N4/C3 correctness gap.
 - The method, limitations, crossover, command, and summary are in `docs/benchmarks/2026-07-22-product-renderer.md`; complete raw samples are in `docs/benchmarks/raw/2026-07-22-product-renderer-c1.json`.
 
-Immediate next task: integrate or complete N1. After both Wave 1 slices are present, C2 can wire the bounded editor using the measured crossover between 50 and 500 blocks. N2 remains blocked on N1.
+## Integrated N1 native maintenance and lifecycle coordinator
+
+- Claude's isolated implementation `0e7d9a2` was reviewed and integrated as `5935264`; its stale shared-doc commit `40bdf67` was excluded and reconciled here against the completed C1 handoff.
+- `MaintenanceCoordinator` is the single owner of the workspace runtime and history-drain thread. Every existing command obtains the current runtime through it, and desktop exit shuts both down through one path.
+- New blocking-pool Tauri commands cover portable archive export/import, forced or cadence-gated backup rotation, recovery and rollback inventory, manifest-listed restore/live swap, cancellation, and maintenance status. Overlapping operations fail with a bounded conflict diagnostic.
+- Export uses create-new targets. Import validates fully, stops the workspace, creates a sibling safety backup before mutation, and reopens the runtime. Restore only accepts current-manifest filenames, creates a restore candidate, drains accepted work, delegates the gated live swap, and reopens the replacement or rolled-back original before reporting a fresh snapshot.
+- Eleven coordinator integration tests plus the existing history-drain smoke test cover target collision, malformed/future archives without mutation, safety-backup ordering, import/swap cancellation, cadence and inventory, successful swap/bootstrap/apply, injected replacement failure with rollback, manifest traversal rejection, overlap rejection, and diagnostic path redaction.
+- Focused desktop verification and the complete `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` sequence pass: 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 80 renderer tests.
+
+Immediate next task: C2 wires the bounded product editor using C1's measured crossover between 50 and 500 blocks. N2 is unblocked and may proceed concurrently in the isolated native lane.

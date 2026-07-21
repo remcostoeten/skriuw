@@ -5,10 +5,10 @@ Last reviewed: 2026-07-22
 ## Current state
 
 - [x] Repository created at `/home/remcostoeten/dev/skriuw-standalone`.
-- [x] Current work is isolated on `feat/daddy-2`, expected to be 27 commits ahead of `origin/feat/daddy-2` after the C1 implementation and evidence commits.
+- [x] Current work is isolated on `feat/daddy-2`, expected to be 29 commits ahead of `origin/feat/daddy-2` after C1, N1 integration, and the reconciled Wave 1 handoff.
 - [x] Scoped product changes are committed; unrelated untracked `.claude/` content remains preserved and excluded.
 - [x] Rust 1.95 backend workspace and the product renderer pass `./scripts/check.sh`.
-- [x] 112 backend tests, 1 desktop bridge test, 9 UI-architecture tests, 7 renderer-store tests, and 80 renderer tests pass; 6 backend tests remain ignored manual workloads.
+- [x] 112 backend tests, 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 80 renderer tests pass; 6 backend tests remain ignored manual workloads.
 - [x] The React/Vite product renderer, persistent ProseMirror editor, Tauri desktop shell, and notes/trash hash routes are implemented.
 - [x] `origin/feat/daddy-2` is configured as the upstream branch.
 
@@ -143,7 +143,9 @@ Desktop bridge spike: an isolated Tauri 2.11.5 production application proves 1,0
 
 Product renderer baseline: `node app/performance/run.mjs --output <path>` builds a production profiling entry around the real application and records deterministic 50-, 500-, and 2,000-block notes against canonical 1,000- and 5,000-node projections. The 50-block fixture passes every current budget at 3.8 ms selection-dispatch P95, 2.0 ms editor-install P95, 7.1 ms keystroke-to-next-paint P95, and zero dropped gaps. The 500-block fixture is the measured fallback crossover at 9.0 ms editor-install P95 and two dropped gaps; 2,000 blocks reaches 44.3 ms editor-install P95 and 102 dropped gaps. Navigation issues zero bridge calls and typing causes zero React commits. See `docs/benchmarks/2026-07-22-product-renderer.md`.
 
-Immediate next task: integrate/complete N1 before Wave 2. Once N1 is present, execute C2 using the measured threshold between 50 and 500 blocks. Do not start N2 before N1 integrates.
+N1 integration: `5935264` adds the native maintenance/lifecycle coordinator from Claude's isolated `0e7d9a2` implementation. It owns runtime/history shutdown and reopen, archive export/import with safety backup, verified backup rotation, manifest inventory, create-new restore, live swap, rollback reporting, cancellation, overlap exclusion, and bounded diagnostics. Twelve desktop tests pass. Claude's stale shared handoff commit `40bdf67` was not integrated.
+
+Immediate next task: execute C2 using the measured threshold between 50 and 500 blocks. N2 is also unblocked and may proceed concurrently in the isolated native lane.
 
 Known continuity gap: renderer navigation no longer persists `set_active_note`, because doing so violated the zero-navigation-IPC contract. Preserve `rememberLastNote` through a shutdown or other non-navigation lifecycle boundary; do not restore per-selection IPC.
 
@@ -185,7 +187,7 @@ Search and responsive-panel implementation: editor search is a ProseMirror plugi
 ## Final v1 backlog
 
 - [x] C1: production product-renderer performance runner and baseline.
-- [ ] N1: native archive, backup, recovery, live-swap, and rollback coordinator.
+- [x] N1: native archive, backup, recovery, live-swap, and rollback coordinator.
 - [ ] C2: measured-threshold bounded product editor with complete off-window semantics.
 - [ ] N2: desktop Data/Recovery UI and fixed six-hour scheduled rotation.
 - [ ] N3: non-polling live history-header publication after successful materialization.
@@ -223,4 +225,4 @@ Current caveat: the WASM target is not installed and no WASM build has been clai
 - [x] Print terminal hyperlinks for local binaries and bundles and upload CI artifacts and logs.
 - [x] Keep Tauri's internal frontend build command recursion-free.
 
-Verified result: the public `pnpm build` and `pnpm tauri build` paths were last exercised end to end at 69 renderer tests and produced a 14 MiB release binary with linked renderer and log artifacts. The latest `./scripts/check.sh` passes generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 1 desktop test, 9 UI-architecture tests, 7 renderer-store tests, 80 renderer tests, and renderer type safety. Current executed-source renderer coverage is 81.38% lines, 85.62% branches, and 65.49% functions.
+Verified result: the public `pnpm build` and `pnpm tauri build` paths were last exercised end to end at 69 renderer tests and produced a 14 MiB release binary with linked renderer and log artifacts. The latest `./scripts/check.sh` passes generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 80 renderer tests, and renderer type safety. Current executed-source renderer coverage is 81.38% lines, 85.62% branches, and 65.49% functions.
