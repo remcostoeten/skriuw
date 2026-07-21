@@ -162,9 +162,9 @@ React requirements if selected:
 - [x] Slash-command menu.
 - [ ] Metadata and history sidebar without people or tags.
 - [ ] Version preview and restore.
-- [ ] Central command registry and command palette.
+- [x] Central command registry and command palette. (Typed registry in `app/src/commands/` is the single source for palette items and shortcut actions; per-item sidebar context-menu entries remain local because they need a target node.)
 - [x] User settings.
-- [ ] Keyboard-first navigation.
+- [x] Keyboard-first navigation. (Registry-backed shortcuts cover sidebar/editor/metadata focus, sidebar and metadata toggles, route switching, and palette access from every route; all bindings flow through `SHORTCUT_DEFINITIONS` and the settings override path.)
 - [ ] No journal.
 - [ ] No post-startup loading UI for cached workspace data.
 

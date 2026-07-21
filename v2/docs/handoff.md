@@ -371,3 +371,13 @@ The disposable renderer proves selector isolation but does not select or impleme
 ## User-settings integration gap and next task
 
 The settings surface and persistence path are complete. Renderer consumers still need to apply hydrated theme, sidebar density and icons, reduced-motion preference, continuity, editor typography and line spacing, line numbers, and placeholder values. Keep that consumption renderer-local and selector-isolated; it must not add startup or navigation IPC.
+
+## Completed command-registry and keyboard-navigation slice
+
+- `app/src/commands/registry.ts` defines the typed command registry: id, label, group, optional icon/keywords/hint, optional `ShortcutActionId` binding, `enabled`/`visible` predicates over `RendererState` plus a `CommandUiState` (route, sidebar/metadata/settings open), and an action. Duplicate ids and duplicate shortcut claims fail at registration.
+- `app/src/commands/workspace-commands.tsx` is the single command source. It migrates the palette's former ad-hoc "New note"/"New folder" items and every `SHORTCUT_DEFINITIONS` action, and adds toggle-sidebar, toggle-metadata, focus-sidebar/editor/metadata, and go-to-notes/go-to-trash commands. Note-open and full-text "Content" palette items remain data-driven in the host.
+- `WorkspaceShortcuts` actions now come from `registryShortcutActions`, so every binding runs through the registry's enabled gate. Shortcuts are no longer suspended off the notes route; per-command predicates gate workspace actions instead, so the palette, settings, and route switching work from Trash.
+- New bindings (all through `SHORTCUT_DEFINITIONS`, all modifier combos honoring `worksWhileTyping` and the settings override path): mod+b sidebar, mod+alt+b metadata, mod+1/2/3 focus sidebar/editor/metadata, mod+shift+1/2 notes/trash routes.
+- `app/src/commands/focus-regions.ts` focuses regions by stable selectors (`[role="tree"]` sidebar, `.prosemirror-host .ProseMirror` editor, `aside[aria-label="Note metadata"]` metadata) with no new key listeners. Lane 2: if the metadata panel's `aria-label` changes, update that selector.
+- Eleven new model tests under `app/__tests__/commands/` cover registration guards, id/shortcut lookup, predicate defaults, enabled-gated run and dispatch, palette projection, shortcut coverage, route gating, and navigation. `pnpm --dir app test` (51 tests), typecheck, and the production build pass.
+- Per-item sidebar context-menu entries stay component-local: they act on a right-clicked target node, which the global registry has no parameter channel for yet.
