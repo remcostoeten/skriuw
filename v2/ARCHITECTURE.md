@@ -22,7 +22,7 @@ Application shell
         └── tests and fixtures
 ```
 
-Only the backend foundation exists today. Application shell and adapters beyond native SQLite come later.
+The backend foundation and an isolated UI architecture benchmark harness exist today. No product application shell exists. The harness is not a runtime adapter and does not select an editor or framework.
 
 `skriuw-fixtures` generates deterministic operation-sequence workspaces for scale and adapter testing. It depends only on the domain contracts, never on storage adapters, and no generated fixture data is committed. See [docs/fixtures.md](docs/fixtures.md).
 
@@ -33,6 +33,8 @@ Every runtime clone shares one lifecycle state. Shutdown atomically stops submis
 Consecutive queued save-only requests may share one storage call without sharing acknowledgements. The runtime never waits to form a batch, caps each batch at 64 requests, and treats every other request as a FIFO barrier. SQLite commits each bounded batch in one outer transaction with one savepoint per original request, so conflicts remain isolated and every successful revision keeps its own FTS update and history-outbox row.
 
 Typed subsystem errors project to bounded diagnostics only at shell or persistence boundaries. Diagnostics carry stable context and category enums plus a normalized 1,024-byte message ceiling. Public projections redact adapter detail; the local history retry queue may persist bounded materializer detail and never includes it in bootstrap or portable archives.
+
+The disposable `spikes/ui-architecture` harness compares direct editor engines without React, routing, persistence, or desktop IPC. It prepares deterministic states before measurement and retains one editor host across 100 switches. Initial evidence rejects naive whole-document DOM replacement at 2,000 blocks for both ProseMirror and Lexical. Editor selection remains deferred until bounded or retained rendering, memory, selection restoration, product plugins, tree/store behavior, and bridge overhead are measured.
 
 ## Runtime contract
 

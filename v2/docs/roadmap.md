@@ -47,6 +47,8 @@ Do not scaffold the product UI before measured spikes answer these questions:
 - Renderer store selector granularity and React commit counts.
 - Desktop shell bridge overhead outside navigation paths.
 
+First editor spike is complete. A production vanilla-TypeScript harness compares direct ProseMirror and Lexical with one persistent host over deterministic 50, 500, and 2,000-block notes. Both pass the initial 50-block switching target; Lexical alone passes the initial 500-block P95/max sample; neither passes naive 2,000-block full-DOM switching. Next spike must measure bounded or retained rendering plus memory before adding product plugins and making ADR-0020.
+
 React remains acceptable only if production profiling proves the render invariants. React Scan runs only during development and profiling. Editor internals, keystrokes, and transient selection state may not fan out through broad React subscriptions.
 
 ## MVP application work

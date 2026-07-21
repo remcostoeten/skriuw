@@ -26,9 +26,10 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commits: `6a65abb feat: verify Git history integrity` and `a3f87e2 test: add archive compatibility fixtures`.
+- Last implementation commits: `a3f87e2 test: add archive compatibility fixtures` and `6a3dad2 perf: benchmark editor state switching`.
 - Expected worktree state: clean.
 - Current verification result: 110 tests plus formatting, Clippy, generated-schema drift checks, and `git diff --check` pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
+- UI spike verification: TypeScript checking and the Vite production build pass. `agent-browser` exercised both candidates at 50, 500, and 2,000 blocks, found no page errors, confirmed one host mount and zero preparation calls during switching, and visually verified the dense benchmark surface.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
 - Archive CLI smoke imported the representative fixture, passed source integrity, exported it, imported that export into a second database, and passed second integrity; both imports reported 7 nodes and 4 documents.
@@ -125,7 +126,8 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Deterministic fixture generators create wide, nested, and mixed 1,000-note and 5,000-note operation sequences with pinned digests, declared FTS counts, and no committed generated data.
 - Generated schemas live in `generated/contracts`.
 - Golden archive fixtures live in `fixtures/archives`; the manifest must match every production-supported archive version.
-- No frontend framework, desktop shell, editor, router, React, React Scan, or package manager has been added.
+- No product frontend framework, desktop shell, editor, router, React, React Scan, or package-manager workspace has been added.
+- The isolated `spikes/ui-architecture` package uses pnpm, Vite, direct ProseMirror, and direct Lexical only as disposable measurement dependencies; none is selected for the product.
 - No remote exists; do not claim work is pushed.
 - No WASM target is installed; do not claim web compilation has passed.
 
@@ -218,9 +220,19 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Five domain regressions enforce catalogue coverage, supported-version agreement, validation, semantic round trips, sensitive fields, and explicit future-version rejection.
 - Three SQLite regressions prove import/bootstrap/export across two complete round trips, search and inherited unavailability, integrity, and failure-before-mutation preservation.
 
+## UI architecture gate progress
+
+- `6a3dad2` adds a production browser harness with deterministic equivalent 50, 500, and 2,000-block editor corpora, eight prepared notes, one persistent host, 100 cached switches, 30 editor-owned updates, raw timing samples, frame-gap/long-task observation, DOM counts, and preparation counters.
+- Initial ProseMirror switch P95 values were 1.4, 8.7, and 39.0 ms at 50, 500, and 2,000 blocks. Initial Lexical values were 0.9, 5.3, and 20.5 ms.
+- Both candidates had zero dropped observed frames at 50 and 500 blocks. Both dropped 99 observed frames across the 2,000-block switch/update run. Every run retained one host and performed zero preparation calls during navigation.
+- The result rejects naive full rendered-document replacement for large notes. It does not select Lexical: memory, state preparation, selection restoration, product plugins, native keyboard paint, structured Markdown fidelity, and a bounded or retained DOM strategy remain unmeasured.
+- Full method, environment, limitations, and initial observations are in `docs/benchmarks/2026-07-21-editor-candidates-initial.md`.
+
 ## Known correctness gap and next task
 
-Next backend slice: add deterministic import, bootstrap, and history workload measurements over existing scale fixtures, recording raw samples and environment metadata without adding timing gates to shared CI. Durable sidebar expansion persistence remains a later UI-linked operation. UI/editor selection remains blocked on the performance spikes in `docs/performance-contract.md`.
+Claude is implementing deterministic import, bootstrap, and history workload measurements in the isolated `feat/backend-workload-measurements` worktree. Do not integrate until its commits are complete and reviewed.
+
+Primary next slice: extend the editor harness with a bounded rendered viewport or retained per-note view strategy, repeat 2,000-block switching, and measure cached-state memory with a repeatable heap protocol. Then add selection restoration and equivalent product plugins. Tree virtualization, external store selectors, and desktop bridge measurements still precede ADR-0020 and product UI scaffolding. Durable sidebar expansion persistence remains a later UI-linked operation.
 
 ## Verification model
 
