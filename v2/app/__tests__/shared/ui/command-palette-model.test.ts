@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { noop } from "../../../shared/lib/noop";
+import { noop } from "../../../src/shared/lib/noop";
 import {
   getCommandPaletteGroups,
   parseCommandQuery,
   type CommandPaletteItem,
-} from "../../../shared/ui/command-palette-model";
+} from "../../../src/shared/ui/command-palette-model";
 
 test("filters commands by label, description, shortcut, keywords, hint, and group", () => {
   const items: CommandPaletteItem[] = [

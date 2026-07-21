@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceNode } from "../../contracts/workspace";
-import { isNodeInSubtree, trashedRoots, trashedSubtreeNodes } from "../../store/trash";
+import type { WorkspaceNode } from "../../src/contracts/workspace";
+import {
+  isNodeInSubtree,
+  trashWindowRange,
+  trashedRoots,
+  trashedSubtreeNodes,
+} from "../../src/store/trash";
 
 function node(
   partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">,
@@ -60,4 +65,20 @@ test("trash subtree projection is parents-first and cycle-safe", () => {
   );
   assert.equal(isNodeInSubtree(nodes(), "nested-note", "folder"), true);
   assert.equal(isNodeInSubtree(nodes(), "active", "folder"), false);
+});
+
+test("trash list rendering stays bounded for a 5,000-item workspace", () => {
+  const large = new Map<string, WorkspaceNode>();
+  for (let index = 0; index < 5_000; index += 1) {
+    const value = node({
+      id: `deleted-${index}`,
+      kind: "note",
+      rank: index * 1024,
+      deletedAt: index + 1,
+    });
+    large.set(value.id, value);
+  }
+  assert.equal(trashedRoots(large).length, 5_000);
+  const window = trashWindowRange(5_000, 120_000, 720, 60, 5);
+  assert.ok(window.end - window.start <= 22);
 });

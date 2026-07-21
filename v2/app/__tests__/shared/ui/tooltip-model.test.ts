@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   computeTooltipPlacement,
   resolveOpenTiming,
-} from "../../../shared/ui/tooltip-model";
+} from "../../../src/shared/ui/tooltip-model";
 
 const viewport = { width: 1000, height: 600 };
 

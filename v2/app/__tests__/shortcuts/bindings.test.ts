@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceSettings } from "../../contracts/workspace";
+import type { WorkspaceSettings } from "../../src/contracts/workspace";
 import {
   effectiveShortcutKeys,
   findShortcutConflict,
   isDefaultBinding,
   normalizeCombo,
   shortcutOverridesFromSettings,
-} from "../../shortcuts/bindings";
-import { SHORTCUT_DEFINITIONS } from "../../shortcuts/definitions";
+} from "../../src/shortcuts/bindings";
+import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
 
 function settingsWith(overrides: unknown): WorkspaceSettings {
   return {

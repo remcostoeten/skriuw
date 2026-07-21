@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceNode, WorkspaceSnapshot } from "../../contracts/workspace";
-import { createInitialState, createRendererStore } from "../../store/store";
+import type { WorkspaceNode, WorkspaceSnapshot } from "../../src/contracts/workspace";
+import { createInitialState, createRendererStore } from "../../src/store/store";
 
 function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {
   return {
