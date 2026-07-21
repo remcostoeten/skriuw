@@ -9,7 +9,7 @@ Last reviewed: 2026-07-21
 - [x] Logical commits created; working tree clean after the last verified implementation commit.
 - [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
 - [x] 112 backend tests pass; five manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
-- [x] No product frontend, desktop shell, router, or React dependency exists; editor dependencies remain isolated in the disposable UI spike.
+- [x] No product frontend, desktop shell, or router exists; React and editor dependencies remain isolated in disposable measurement spikes.
 - [x] No Git remote is configured.
 
 ## Completed backend foundation
@@ -113,7 +113,7 @@ Measured backend workloads: optimized-build medians over `mixed-1000` and `mixed
 - [x] Benchmark direct ProseMirror against at least one viable alternative.
 - [ ] Measure cached editor-state switching and memory ceiling.
 - [x] Benchmark nested tree virtualization.
-- [ ] Prototype fine-grained external renderer store selectors.
+- [x] Prototype fine-grained external renderer store selectors.
 - [x] Verify persistent editor host without remounting.
 - [ ] Measure desktop bridge overhead outside navigation.
 - [ ] Write ADR selecting editor, renderer store, build tool, and desktop shell.
@@ -129,13 +129,17 @@ Bounded projection spike: one persistent editor swaps precomputed static windows
 
 Tree virtualization spike: a dependency-free fixed-row-height tree uses the canonical Rust fixture projections and keeps all six 1,000/5,000-node workspaces at no more than 40 rendered rows and 163 total DOM elements. Keyboard selection, deep toggles, scroll jumps, and trusted input stay within the provisional P95 budget. Full-subtree expansion and deep reveal at nested-5000 show sporadic 8–12 ms samples but remain below the 16.67 ms maximum with zero observed dropped frames. Correctness covers deterministic flattening, collapsed descendants, selection, keyboard navigation, ARIA metadata, and mutation bounds. Extreme-depth indentation and fixed-runner evidence remain open. See `docs/benchmarks/2026-07-21-tree-virtualization.md`.
 
+Renderer-store selector spike: a disposable React harness normalizes the canonical 1,000/5,000-node projections behind a dependency-free external store and narrow `useSyncExternalStore` bindings. Exact production/profiling allowlists prove selection leaves the shell, tree host, persistent editor host, unrelated metadata, settings, and offscreen rows untouched; editor-owned typing and equivalent updates produce zero store notifications or React commits. Clean exploratory runs kept every P95 below 8 ms and every maximum below 16.67 ms, with 100 exact trusted transitions per fixture and no listener leak. React, the store shape, and the build tool remain unselected; fixed-runner presentation evidence, bounded-editor correctness, and bridge overhead remain open. See `docs/benchmarks/2026-07-21-renderer-store-selectors.md`.
+
+Immediate next task: implement bounded-editor window movement, scroll anchoring, canonical edit reconciliation, and focus/selection restoration with explicit clipboard, find, IME, undo, accessibility, and representative-plugin limits. Measure desktop bridge overhead next; both still precede ADR-0020.
+
 React requirements if selected:
 
 - [ ] Install React Scan for development/profiling only.
-- [ ] Add production React Profiler harness.
-- [ ] Add render-count assertions.
-- [ ] Prove editor keystrokes do not render the application shell.
-- [ ] Prove note selection renders selected-note consumers only.
+- [x] Add production React Profiler harness.
+- [x] Add render-count assertions.
+- [x] Prove editor keystrokes do not render the application shell.
+- [x] Prove note selection renders selected-note consumers only.
 - [ ] Prove 100 cached note switches drop zero frames on reference hardware.
 
 ## MVP UI

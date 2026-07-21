@@ -4,7 +4,7 @@ Last reviewed: 2026-07-21
 
 ## Start here
 
-Backend workload measurements plus the replacement, retained, native-presentation, static bounded-editor, and tree-virtualization spikes are complete on the primary branch.
+Backend workload measurements plus the replacement, retained, native-presentation, static bounded-editor, tree-virtualization, and renderer-store selector spikes are complete on the primary branch.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -26,10 +26,10 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commits: `d00b017 fix: harden tree benchmark lifecycle`, `a6ca660 perf: benchmark nested tree virtualization`, `c8c2cd1 feat: expose tree benchmark fixtures`, and `38c6cac perf: benchmark bounded editor projections`.
-- Expected primary worktree state: clean after the handoff commit following `d00b017`.
-- Current verification result: 112 tests plus formatting, Clippy, generated-schema drift checks, and `git diff --check` pass; five manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
-- UI spike verification: both Vite production builds pass. Fresh headless Chromium contexts exercised editor and tree candidates without page errors. The tree rerun passed all correctness/gallery checks with 32 of 1,032 rows mounted, 163 total DOM elements, 100 trusted keydowns, and deterministic process exit. Concurrent tasks and unfinished trusted captures are rejected.
+- Last implementation commit: `424db78 perf: benchmark renderer store selectors`; earlier tree slices are `d00b017`, `a6ca660`, and `c8c2cd1`.
+- Expected primary worktree state: clean after the handoff commit following `424db78`.
+- Current verification result: 112 backend tests and seven renderer-store tests pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
+- UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
 - Archive CLI smoke imported the representative fixture, passed source integrity, exported it, imported that export into a second database, and passed second integrity; both imports reported 7 nodes and 4 documents.
@@ -248,6 +248,15 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - `d00b017` adds lifecycle guards, observer flushing, exact trusted-key verification, failure exits for correctness/browser errors, and deterministic CLI termination after the original script left a completed Node process alive.
 - Full tree method, raw representative samples, variance, and limitations are in `docs/benchmarks/2026-07-21-tree-virtualization.md`.
 
+## Completed renderer-store selector slice
+
+- `424db78` adds `spikes/renderer-store`, generated-at-run-time canonical fixture inputs, separate ordinary/profiling React production artifacts, seven deterministic store regressions, and a fresh-profile CDP automation command.
+- The normalized external store owns stable node, child, visible-order, expansion, disabled, active-note, independent focus, prepared-document, metadata, and settings identities. Equivalent updates stop before selector traversal; notification mutation, reentrant FIFO delivery, subscriber failure, disabled activation, hidden selection, and complete teardown are tested.
+- The application shell and persistent editor host have no workspace subscription. Selection renders only affected mounted rows plus the editor-selection and changed metadata consumers. Editor-owned typing, equivalent updates, and selector setup/teardown produce zero React commits; expansion stays inside the tree projection.
+- Clean ordinary-production observations kept every interaction-work P95 below 8 ms and every maximum below 16.67 ms. The largest was 12.165 ms for mixed-5000 expansion. Each fixture passed exactly 100 trusted keys, 100 expected active-note transitions, and 100 trace dispatch samples with no observed Long Task, LoAF, dropped-frame diagnostic, console error, page exception, or listener leak.
+- Timing remains exploratory: raw results are ignored, no fixed reference runner exists, Event Timing is censored, requestAnimationFrame is pre-paint, and trace dispatch does not include final presentation. React, Vite, and this store shape are candidates only.
+- Full architecture, method, raw sample summaries, render evidence, lifecycle checks, and limitations are in `docs/benchmarks/2026-07-21-renderer-store-selectors.md`.
+
 ## Completed backend-workload slice
 
 - Claude implementation `0f646bb` was reviewed in its isolated worktree and integrated as `97937f2`; its stale shared-doc commit `23511fd` was excluded and reconciled here.
@@ -259,7 +268,7 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 
 ## Known correctness gap and next task
 
-Two parallel UI-gate slices are now ready: turn one static bounded editor candidate into a correctness prototype with window movement, scroll anchoring, canonical edit reconciliation, and focus/selection restoration; and prototype fine-grained external renderer-store selectors against the integrated tree fixture. Desktop bridge measurements, representative editor plugins, durable fixed-runner evidence, and ADR-0020 still precede product UI scaffolding.
+Turn one static bounded editor candidate into a correctness prototype with window movement, scroll anchoring, canonical edit reconciliation, and focus/selection restoration. Record clipboard, find, IME, undo, accessibility, and representative-plugin limits symmetrically for both editor candidates. Then measure desktop bridge overhead outside navigation. Durable fixed-runner evidence and those two slices still precede ADR-0020 and product UI scaffolding.
 
 ## Verification model
 
@@ -283,7 +292,7 @@ cargo build -p skriuw-cli --locked
 "$cli" integrity "$recovery_dir/restored.db"
 ```
 
-Performance is not yet proven because no renderer exists. React Scan alone is never proof. Final proof requires production traces, fixed fixtures, render-count assertions, long-frame measurements, memory data, and zero dropped frames during 100 cached note switches on reference hardware.
+The disposable renderer proves selector isolation but does not select or implement the product renderer. React Scan alone is never proof. Final proof still requires production traces, fixed fixtures, long-frame/presentation measurements, memory data, and zero dropped frames during 100 cached note switches on reference hardware.
 
 ## Working rules
 

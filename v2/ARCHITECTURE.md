@@ -38,6 +38,8 @@ The disposable `spikes/ui-architecture` harness compares direct editor engines w
 
 The disposable `spikes/tree-virtualization` harness projects the canonical Rust fixtures into a dependency-free fixed-row tree. One mounted host and a recycled row pool keep rendered DOM independent of 1,000-node and 5,000-node workspace size. The candidate preserves deterministic sibling order, collapsed-subtree exclusion, roving keyboard focus, selection across viewport movement, and explicit virtualized tree ARIA metadata. Full-subtree expansion and deep reveal remain optimization targets, and the product must clamp or otherwise handle extreme indentation before this design enters the shell.
 
+The disposable `spikes/renderer-store` harness combines those projections with a normalized dependency-free external store and narrow React selectors. The application shell and persistent editor host hold no workspace subscription; mounted rows, editor selection, metadata fields, and settings observe only stable values they render. Editor typing remains editor-owned, equivalent updates stop before selector traversal, and collapse preserves hidden active-note identity while moving tree focus independently. Production and profiling artifacts are separate. Exact scenario allowlists and trusted native input make this a viable later ADR-0020 candidate, not a framework or store selection; fixed-runner evidence, bounded-editor correctness, representative plugins, and desktop bridge measurement remain gates.
+
 ## Runtime contract
 
 Startup calls `bootstrap()` once. Returned snapshot contains nodes, document JSON, settings, active note, and cached history headers. Renderer normalizes this data and prepares editor states before dismissing startup UI.

@@ -51,7 +51,9 @@ Initial replacement, retained, native-presentation, and static bounded-projectio
 
 The tree virtualization spike is complete across all six canonical 1,000-node and 5,000-node fixtures. A dependency-free 28 px fixed-row candidate caps the mounted pool at 40 rows and keeps keyboard navigation comfortably within the provisional budget. Nested-5000 full-subtree expansion and deep reveal have sporadic 8–12 ms samples, while extreme depth exhausts the sidebar width. Those paths need targeted optimization and an indentation policy, but tree virtualization itself no longer blocks store-selector work.
 
-React remains acceptable only if production profiling proves the render invariants. React Scan runs only during development and profiling. Editor internals, keystrokes, and transient selection state may not fan out through broad React subscriptions.
+The renderer-store selector spike is complete across four canonical 1,000-node and 5,000-node projections. A normalized dependency-free store, stable selector bindings, bounded row pool, and persistent editor host passed exact production/profiling render allowlists. Clean exploratory P95 values stayed below 8 ms, 100 trusted transitions completed per fixture, and teardown returned to zero listeners. The result keeps React viable for later consideration but does not select it, the store, or Vite. Bounded-editor window correctness and desktop bridge overhead still precede ADR-0020.
+
+If React is selected, React Scan runs only during development and profiling. Editor internals, keystrokes, and transient selection state may not fan out through broad React subscriptions. Fixed-runner React Scan investigation still needs to agree with the production Profiler and render-count evidence.
 
 ## MVP application work
 
