@@ -6,6 +6,7 @@ import { EditorState, TextSelection } from "prosemirror-state";
 
 import {
   createProductPlugins,
+  createProductCanonicalBlocks,
   createRepresentativeProductDocument,
   productSchema,
   serializeProductMarkdown,
@@ -57,4 +58,24 @@ test("representative plugins track slash state and bounded undo", () => {
   );
   assert.deepEqual(slashMenuState(state), { open: true, query: "heading" });
   assert.equal(undoDepth(state), 1);
+});
+
+test("bounded product corpus includes lossless rich top-level nodes", () => {
+  const source = Array.from({ length: 48 }, (_, index) => ({
+    kind: "paragraph" as const,
+    text: `block ${index}`,
+  }));
+  const blocks = createProductCanonicalBlocks(source);
+  assert.equal(blocks[8]?.node?.content?.[0]?.marks?.[0]?.type, "strong");
+  assert.equal(blocks[12]?.node?.type, "bullet_list");
+  assert.equal(blocks[18]?.node?.type, "ordered_list");
+  assert.equal(blocks[18]?.node?.attrs?.order, 3);
+  assert.equal(blocks[24]?.node?.type, "code_block");
+  assert.equal(blocks[30]?.node?.type, "horizontal_rule");
+  const document = productSchema.node(
+    "doc",
+    null,
+    blocks.map((block) => productSchema.nodeFromJSON(block.node)),
+  );
+  assert.deepEqual(document.toJSON().content, blocks.map((block) => block.node));
 });

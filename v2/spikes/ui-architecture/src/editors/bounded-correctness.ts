@@ -1,9 +1,8 @@
-import type { CanonicalBlock } from "../types.ts";
+import type { CanonicalBlock, CanonicalNode } from "../types.ts";
 
 export const BOUNDED_EDITOR_UNSUPPORTED = [
   "cross-window clipboard and find",
   "IME composition spanning a window move",
-  "cross-window undo history",
   "screen-reader traversal outside the rendered window",
 ] as const;
 
@@ -41,7 +40,27 @@ export type BoundedEditorProjection = {
   moveWindow(requestedStart: number): void;
   applyEditorEdit(edit: CanonicalEdit): void;
   reconcileCanonical(edit: CanonicalEdit): void;
+  replaceRenderedBlocks(blocks: readonly CanonicalBlock[]): void;
+  replaceCanonicalRange(
+    start: number,
+    deleteCount: number,
+    blocks: readonly CanonicalBlock[],
+  ): void;
 };
+
+function cloneNode(node: CanonicalNode): CanonicalNode {
+  const clone = { ...node };
+  if (node.attrs) clone.attrs = { ...node.attrs };
+  if (node.content) clone.content = node.content.map(cloneNode);
+  if (node.marks) clone.marks = node.marks.map(cloneNode);
+  return clone;
+}
+
+function cloneBlock(block: CanonicalBlock): CanonicalBlock {
+  const clone = { ...block };
+  if (block.node) clone.node = cloneNode(block.node);
+  return clone;
+}
 
 export function createBoundedEditorProjection(
   blocks: readonly CanonicalBlock[],
@@ -50,7 +69,7 @@ export function createBoundedEditorProjection(
   if (windowSize <= 0) {
     throw new Error("window size must be positive");
   }
-  const canonical = blocks.map((block) => ({ ...block }));
+  const canonical = blocks.map(cloneBlock);
   let windowStart = 0;
   let windowEnd = Math.min(canonical.length, windowSize);
   let scrollTop = 0;
@@ -68,11 +87,11 @@ export function createBoundedEditorProjection(
   }
 
   function getRenderedBlocks(): CanonicalBlock[] {
-    return canonical.slice(windowStart, windowEnd).map((block) => ({ ...block }));
+    return canonical.slice(windowStart, windowEnd).map(cloneBlock);
   }
 
   function getCanonicalBlocks(): CanonicalBlock[] {
-    return canonical.map((block) => ({ ...block }));
+    return canonical.map(cloneBlock);
   }
 
   function focus(next: BoundedSelection): void {
@@ -117,6 +136,22 @@ export function createBoundedEditorProjection(
     canonical[edit.blockIndex] = { ...current, text: edit.text };
   }
 
+  function replaceCanonicalRange(
+    start: number,
+    deleteCount: number,
+    blocks: readonly CanonicalBlock[],
+  ): void {
+    if (start < 0 || start + deleteCount > canonical.length) {
+      throw new Error("canonical replacement range is outside the document");
+    }
+    canonical.splice(start, deleteCount, ...blocks.map(cloneBlock));
+    windowEnd = Math.min(canonical.length, windowStart + windowSize);
+  }
+
+  function replaceRenderedBlocks(blocks: readonly CanonicalBlock[]): void {
+    replaceCanonicalRange(windowStart, windowEnd - windowStart, blocks);
+  }
+
   return {
     getWindow,
     getCanonicalBlocks,
@@ -127,5 +162,7 @@ export function createBoundedEditorProjection(
     moveWindow,
     applyEditorEdit,
     reconcileCanonical,
+    replaceRenderedBlocks,
+    replaceCanonicalRange,
   };
 }

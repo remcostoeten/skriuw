@@ -4,9 +4,18 @@ export type RenderingStrategy = "replace" | "retained" | "bounded";
 
 export type BlockCount = 50 | 500 | 2_000;
 
+export type CanonicalNode = {
+  type: string;
+  attrs?: Record<string, unknown>;
+  content?: CanonicalNode[];
+  marks?: CanonicalNode[];
+  text?: string;
+};
+
 export type CanonicalBlock = {
   kind: "heading" | "paragraph" | "quote";
   text: string;
+  node?: CanonicalNode;
 };
 
 export type PreparedState = {
@@ -40,8 +49,13 @@ export type BoundedEditorSnapshot = {
   domFocused: boolean;
   renderedTexts: string[];
   canonicalTexts: string[];
+  renderedNodes: (CanonicalNode | null)[];
+  canonicalNodes: (CanonicalNode | null)[];
   composing: boolean;
   undoDepth: number;
+  undoRetainedBlocks: number;
+  redoDepth: number;
+  redoRetainedBlocks: number;
   slashMenuOpen: boolean;
   slashMenuQuery: string;
 };
@@ -53,6 +67,7 @@ export type BoundedEditorControl = {
   reconcileCanonical(edit: BoundedCanonicalEdit): void;
   insertText(text: string): void;
   undo(): boolean;
+  redo(): boolean;
 };
 
 export type EditorCandidate = {

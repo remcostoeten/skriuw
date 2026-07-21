@@ -179,6 +179,8 @@ try {
           typingDroppedFrames: benchmark.typing.droppedFrames,
         },
         scenario: {
+          initialUndoDepth: scenario.initialUndoDepth,
+          initialUndoRetainedBlocks: scenario.initialUndoRetainedBlocks,
           start: scenario.moved.start,
           selection: scenario.moved.selection,
           domSelection: scenario.moved.domSelection,
@@ -196,12 +198,22 @@ try {
             scenario.restored.selection.blockIndex
           ],
           restoredUndoDepth: scenario.restored.undoDepth,
+          restoredUndoRetainedBlocks: scenario.restored.undoRetainedBlocks,
           undoneCanonicalEdit: scenario.undone.canonicalTexts[
-            scenario.undone.selection.blockIndex
+            scenario.reconciled.selection.blockIndex
+          ],
+          redoneCanonicalEdit: scenario.redone.canonicalTexts[
+            scenario.reconciled.selection.blockIndex
+          ],
+          secondUndoneCanonicalEdit: scenario.undoneAgain.canonicalTexts[
+            scenario.reconciled.selection.blockIndex
           ],
           slashMenuOpen: scenario.slash.slashMenuOpen,
           slashMenuQuery: scenario.slash.slashMenuQuery,
           slashUndone: !scenario.slashUndone.slashMenuOpen,
+          richStructurePreserved: scenario.richStructurePreserved,
+          recycledBeforeUndo: scenario.recycledBeforeUndo,
+          recycledBeforeRedo: scenario.recycledBeforeRedo,
           compositionGuarded: scenario.compositionGuarded,
           unsupported: scenario.unsupported,
         },
@@ -236,15 +248,37 @@ try {
     result.scenario.restoredCanonicalEdit,
     "restored canonical edit",
   );
-  requireEqual(result.scenario.restoredUndoDepth, 1, "restored undo depth");
+  requireEqual(
+    result.scenario.restoredUndoDepth,
+    result.scenario.initialUndoDepth + 1,
+    "restored undo depth",
+  );
+  requireEqual(
+    result.scenario.restoredUndoRetainedBlocks,
+    result.scenario.initialUndoRetainedBlocks + 1,
+    "retained undo blocks",
+  );
   requireEqual(
     result.scenario.undoneCanonicalEdit,
     "Canonical reconciliation remains visible",
     "undone canonical edit",
   );
+  requireEqual(
+    result.scenario.redoneCanonicalEdit,
+    result.scenario.restoredCanonicalEdit,
+    "redone canonical edit",
+  );
+  requireEqual(
+    result.scenario.secondUndoneCanonicalEdit,
+    "Canonical reconciliation remains visible",
+    "second undone canonical edit",
+  );
   requireEqual(result.scenario.slashMenuOpen, true, "slash menu state");
   requireEqual(result.scenario.slashMenuQuery, "heading", "slash menu query");
   requireEqual(result.scenario.slashUndone, true, "slash menu undo");
+  requireEqual(result.scenario.richStructurePreserved, true, "rich structure preservation");
+  requireEqual(result.scenario.recycledBeforeUndo, true, "cross-window undo setup");
+  requireEqual(result.scenario.recycledBeforeRedo, true, "cross-window redo setup");
   requireEqual(result.scenario.compositionGuarded, true, "composition guard");
   requireEqual(consoleErrors.length, 0, "console errors");
   requireEqual(pageErrors.length, 0, "page errors");

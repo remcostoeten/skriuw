@@ -28,6 +28,8 @@ import type {
 } from "./types";
 
 type BoundedCorrectnessResult = {
+  initialUndoDepth: number;
+  initialUndoRetainedBlocks: number;
   before: BoundedEditorSnapshot;
   anchored: BoundedEditorSnapshot;
   moved: BoundedEditorSnapshot;
@@ -35,8 +37,13 @@ type BoundedCorrectnessResult = {
   edited: BoundedEditorSnapshot;
   restored: BoundedEditorSnapshot;
   undone: BoundedEditorSnapshot;
+  redone: BoundedEditorSnapshot;
+  undoneAgain: BoundedEditorSnapshot;
   slash: BoundedEditorSnapshot;
   slashUndone: BoundedEditorSnapshot;
+  richStructurePreserved: boolean;
+  recycledBeforeUndo: boolean;
+  recycledBeforeRedo: boolean;
   compositionGuarded: boolean;
   unsupported: readonly string[];
 };
@@ -331,6 +338,21 @@ export function runBoundedCorrectnessScenario(): BoundedCorrectnessResult {
   requireEqual(moved.domSelection?.offset, 4, "DOM selection offset");
   requireEqual(moved.focused, true, "projection focus");
   requireEqual(moved.domFocused, true, "DOM focus");
+  const richIndex = before.canonicalNodes.findIndex((node, index) => {
+    if (index < moved.start || index >= moved.end || !node) return false;
+    return (
+      node.type === "bullet_list" ||
+      node.type === "ordered_list" ||
+      node.type === "code_block" ||
+      node.type === "horizontal_rule" ||
+      JSON.stringify(node).includes('"marks"')
+    );
+  });
+  if (richIndex < 0) throw new Error("bounded window has no rich structured block");
+  const richStructurePreserved =
+    JSON.stringify(before.canonicalNodes[richIndex]) ===
+    JSON.stringify(moved.renderedNodes[richIndex - moved.start]);
+  requireEqual(richStructurePreserved, true, "rich structure after window movement");
 
   const reconciledText = "Canonical reconciliation remains visible";
   control.reconcileCanonical({ blockIndex: target, text: reconciledText });
@@ -369,7 +391,20 @@ export function runBoundedCorrectnessScenario(): BoundedCorrectnessResult {
     edited.renderedTexts[target - edited.start],
     "restored rendered edit",
   );
-  requireEqual(restored.undoDepth, 1, "restored bounded undo depth");
+  requireEqual(
+    restored.undoDepth,
+    before.undoDepth + 1,
+    "restored bounded undo depth",
+  );
+  requireEqual(
+    restored.undoRetainedBlocks,
+    before.undoRetainedBlocks + 1,
+    "bounded undo retained blocks",
+  );
+  control.moveWindow(restored.end + 32);
+  const recycled = control.snapshot();
+  const recycledBeforeUndo = target < recycled.start || target >= recycled.end;
+  requireEqual(recycledBeforeUndo, true, "edited block recycled before undo");
   requireEqual(control.undo(), true, "bounded undo command");
   const undone = control.snapshot();
   requireEqual(undone.canonicalTexts[target], reconciledText, "undone canonical edit");
@@ -378,6 +413,17 @@ export function runBoundedCorrectnessScenario(): BoundedCorrectnessResult {
     reconciledText,
     "undone rendered edit",
   );
+  control.moveWindow(undone.end + 32);
+  const recycledForRedo = control.snapshot();
+  const recycledBeforeRedo = target < recycledForRedo.start || target >= recycledForRedo.end;
+  requireEqual(recycledBeforeRedo, true, "edited block recycled before redo");
+  requireEqual(control.redo(), true, "bounded redo command");
+  const redone = control.snapshot();
+  requireEqual(redone.canonicalTexts[target], edited.canonicalTexts[target], "redone edit");
+  requireEqual(redone.redoDepth, 0, "cleared bounded redo depth");
+  requireEqual(control.undo(), true, "second bounded undo command");
+  const undoneAgain = control.snapshot();
+  requireEqual(undoneAgain.canonicalTexts[target], reconciledText, "second undone edit");
 
   control.focus({ blockIndex: target, offset: 0 });
   control.insertText("/heading");
@@ -401,6 +447,8 @@ export function runBoundedCorrectnessScenario(): BoundedCorrectnessResult {
   requireEqual(compositionGuarded, true, "IME composition guard");
 
   return {
+    initialUndoDepth: before.undoDepth,
+    initialUndoRetainedBlocks: before.undoRetainedBlocks,
     before,
     anchored,
     moved,
@@ -408,8 +456,13 @@ export function runBoundedCorrectnessScenario(): BoundedCorrectnessResult {
     edited,
     restored,
     undone,
+    redone,
+    undoneAgain,
     slash,
     slashUndone,
+    richStructurePreserved,
+    recycledBeforeUndo,
+    recycledBeforeRedo,
     compositionGuarded,
     unsupported: BOUNDED_EDITOR_UNSUPPORTED,
   };

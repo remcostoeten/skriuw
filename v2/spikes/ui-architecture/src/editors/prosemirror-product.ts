@@ -12,8 +12,10 @@ import { keymap } from "prosemirror-keymap";
 import { defaultMarkdownSerializer } from "prosemirror-markdown";
 import { Schema, type Node as ProseMirrorNode } from "prosemirror-model";
 import { schema as basicSchema } from "prosemirror-schema-basic";
-import { Plugin, PluginKey, type EditorState } from "prosemirror-state";
+import { Plugin, PluginKey, type Command, type EditorState } from "prosemirror-state";
 import { addListNodes, liftListItem, sinkListItem, splitListItem } from "prosemirror-schema-list";
+
+import type { CanonicalBlock, CanonicalNode } from "../types";
 
 type SlashMenuState = {
   open: boolean;
@@ -48,7 +50,12 @@ function createSlashMenuPlugin(): Plugin<SlashMenuState> {
   });
 }
 
-export function createProductPlugins(): Plugin[] {
+type ProductPluginCommands = {
+  undo?: Command;
+  redo?: Command;
+};
+
+export function createProductPlugins(commands: ProductPluginCommands = {}): Plugin[] {
   const blockquote = productSchema.nodes.blockquote;
   const codeBlock = productSchema.nodes.code_block;
   const listItem = productSchema.nodes.list_item;
@@ -68,9 +75,9 @@ export function createProductPlugins(): Plugin[] {
       ],
     }),
     keymap({
-      "Mod-z": undo,
-      "Shift-Mod-z": redo,
-      "Mod-y": redo,
+      "Mod-z": commands.undo ?? undo,
+      "Shift-Mod-z": commands.redo ?? redo,
+      "Mod-y": commands.redo ?? redo,
       Enter: splitListItem(listItem),
       Tab: sinkListItem(listItem),
       "Shift-Tab": liftListItem(listItem),
@@ -151,4 +158,50 @@ export function createRepresentativeProductDocument(): ProseMirrorNode {
 
 export function serializeProductMarkdown(document: ProseMirrorNode): string {
   return defaultMarkdownSerializer.serialize(document);
+}
+
+function canonicalBlock(node: ProseMirrorNode, kind: CanonicalBlock["kind"]): CanonicalBlock {
+  return {
+    kind,
+    text: node.textContent,
+    node: node.toJSON() as CanonicalNode,
+  };
+}
+
+export function createProductCanonicalBlocks(
+  blocks: readonly CanonicalBlock[],
+): CanonicalBlock[] {
+  return blocks.map((block, index) => {
+    const text = block.text.length > 0 ? [{ type: "text", text: block.text }] : undefined;
+    let json: CanonicalNode;
+    if (index % 48 === 8) {
+      json = {
+        type: "paragraph",
+        content: [{ type: "text", marks: [{ type: "strong" }], text: block.text }],
+      };
+    } else if (index % 48 === 12) {
+      json = {
+        type: "bullet_list",
+        content: [{ type: "list_item", content: [{ type: "paragraph", content: text }] }],
+      };
+    } else if (index % 48 === 18) {
+      json = {
+        type: "ordered_list",
+        attrs: { order: 3 },
+        content: [{ type: "list_item", content: [{ type: "paragraph", content: text }] }],
+      };
+    } else if (index % 48 === 24) {
+      json = { type: "code_block", content: text };
+    } else if (index % 48 === 30) {
+      json = { type: "horizontal_rule" };
+    } else if (block.kind === "heading") {
+      json = { type: "heading", attrs: { level: 2 }, content: text };
+    } else if (block.kind === "quote") {
+      json = { type: "blockquote", content: [{ type: "paragraph", content: text }] };
+    } else {
+      json = { type: "paragraph", content: text };
+    }
+    const node = productSchema.nodeFromJSON(json);
+    return canonicalBlock(node, block.kind);
+  });
 }
