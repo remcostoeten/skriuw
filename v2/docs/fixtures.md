@@ -55,6 +55,16 @@ cargo test -p skriuw-fixtures --release --locked -- --ignored --nocapture
 
 One release-mode run on the development machine materialized the 5,018 `mixed-5000` operations in 2.119 s, then passed bootstrap-count, search-count, archive, and integrity assertions.
 
+## Browser tree projection
+
+The `export_tree_projection` example writes one JSON file per canonical fixture for browser tree workloads. Each file contains the fixture metadata, the pinned operations digest, the active note ID, and every node as `{id, parentId, kind, title}` in creation order, which equals sibling order because every fixture placement is semantic `last`. The example generates each projection twice and asserts byte equality before writing; nothing generated is committed.
+
+```bash
+cargo run --release --locked -p skriuw-fixtures --example export_tree_projection -- spikes/tree-virtualization/public/fixtures
+```
+
+`spikes/tree-virtualization/scripts/export-fixtures.sh` wraps the same command for the tree-virtualization harness, which asserts node, folder, and document counts, maximum depth, and parent relationships against the embedded metadata after hydration.
+
 ## Backend workload measurements
 
 `tests/backend_workloads.rs` adds deterministic correctness coverage plus manual optimized-build measurements for import, bootstrap, and native Git history workloads over the `mixed-1000` and `mixed-5000` fixtures. The default suite proves the complete pipeline with a 120-note mixed fixture: archive import, bootstrap state, search counts, SQLite integrity, outbox-to-Git drain, Git history integrity, and validated cache rebuild.
