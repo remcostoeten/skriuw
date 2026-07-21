@@ -24,7 +24,7 @@ Application shell
 
 Only the backend foundation exists today. Application shell and adapters beyond native SQLite come later.
 
-`skriuw-fixtures` generates deterministic operation-sequence workspaces for scale and adapter testing. It depends only on the domain contracts, never on storage adapters, and no generated fixture data is committed. See [docs/fixtures.md](docs/fixtures.md).
+`skriuw-fixtures` generates deterministic operation-sequence workspaces for scale and adapter testing. It depends only on the domain contracts, never on storage adapters, and no generated fixture data is committed. Its integration tests carry the deterministic import, bootstrap, and native Git history correctness harnesses plus ignored manual optimized-build measurements recorded in [docs/benchmarks/2026-07-21-backend-workloads.md](docs/benchmarks/2026-07-21-backend-workloads.md). See [docs/fixtures.md](docs/fixtures.md).
 
 Backend access is owned by one serialized runtime queue. Callers submit work and receive a completion handle. The desktop bridge must wait for completions away from the renderer and UI threads. FIFO execution makes write ordering explicit and prevents SQLite lock contention inside the process.
 

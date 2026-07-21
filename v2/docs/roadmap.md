@@ -29,13 +29,13 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Scheduled verified backup rotation with immutable recovery manifests and checksum-guarded retention.
 - Native runtime shutdown, verified live-database swap, rollback, reopen, and bootstrap orchestration.
 - Deterministic portable 1,000-note and 5,000-note fixture generators with tree and FTS expectations.
+- Deterministic import, bootstrap, and native Git history workload harnesses with recorded optimized-build measurements.
 - Repository rules, scripts, CI, ADRs, data model, and performance contract.
 
 ## Remaining backend work
 
 - Desktop recovery UI and rollback-retention presentation.
 - Durable sidebar expansion operation and native-only persistence.
-- Import, bootstrap, and history workload measurements over the deterministic fixture generators.
 
 ## UI architecture gate
 

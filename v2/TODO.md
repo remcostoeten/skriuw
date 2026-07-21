@@ -8,7 +8,7 @@ Last reviewed: 2026-07-21
 - [x] Work isolated on `feat/instant-local-first-foundation`.
 - [x] Logical commits created; working tree clean after the last verified implementation commit.
 - [x] Rust 1.95 backend workspace builds with `./scripts/check.sh`.
-- [x] 110 backend tests pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
+- [x] 112 backend tests pass; five manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
 - [x] No frontend, desktop shell, router, React dependency, or editor dependency exists.
 - [x] No Git remote is configured.
 
@@ -100,11 +100,13 @@ Implemented live-swap contract: preflight verifies a create-new candidate before
 
 - [x] Generate deterministic 1,000-note and 5,000-note workspaces.
 - [ ] Generate 50, 500, and 2,000-block documents after editor schema selection.
-- [ ] Add import, bootstrap, and history workload measurements on the fixture generators.
-- [ ] Record raw samples and environment metadata.
+- [x] Add import, bootstrap, and history workload measurements on the fixture generators.
+- [x] Record raw samples and environment metadata.
 - [x] Keep shared CI correctness-only until a fixed performance runner exists.
 
 Implemented fixture contract: the portable `skriuw-fixtures` crate generates deterministic wide, nested, and mixed operation-sequence workspaces at 1,000 and 5,000 notes with pinned SHA-256 digests. Semantic placement keeps ranks adapter-owned, and declared tree and FTS expectations support native and future web workloads. The default suite materializes a smaller fixture through SQLite; the ignored 5,000-note run carries no CI timing budget. See `docs/fixtures.md` and ADR-0016.
+
+Measured backend workloads: optimized-build medians over `mixed-1000`/`mixed-5000` were 122.090 ms / 1962.093 ms for `replace_from_archive` into a fresh file-backed database, 2.720 ms / 13.409 ms for `bootstrap` of a fully materialized database, 4159.794 ms / 96283.068 ms for the outbox-to-Git drain (1,000 / 5,000 commits), and 140.193 ms / 2773.599 ms for validated cache rebuild. Database open was timed separately; the 5,000-note drain used a documented three samples after a ~96 s probe. Raw samples, commands, environment, and limitations are in `docs/benchmarks/2026-07-21-backend-workloads.md`.
 
 ## UI architecture gate
 

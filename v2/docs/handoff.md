@@ -4,7 +4,7 @@ Last reviewed: 2026-07-21
 
 ## Start here
 
-Git integrity and archive compatibility fixtures are complete on the primary branch.
+Backend import, bootstrap, and history workload measurements are complete on the isolated `feat/backend-workload-measurements` worktree (base `a3f15c5`); primary Codex reconciles this handoff manually.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -28,7 +28,7 @@ Read, in order:
 - Remote: none configured.
 - Last implementation commits: `6a65abb feat: verify Git history integrity` and `a3f87e2 test: add archive compatibility fixtures`.
 - Expected worktree state: clean.
-- Current verification result: 110 tests plus formatting, Clippy, generated-schema drift checks, and `git diff --check` pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
+- Current verification result: 112 tests plus formatting, Clippy, generated-schema drift checks, and `git diff --check` pass; five manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
 - Archive CLI smoke imported the representative fixture, passed source integrity, exported it, imported that export into a second database, and passed second integrity; both imports reported 7 nodes and 4 documents.
@@ -218,9 +218,17 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Five domain regressions enforce catalogue coverage, supported-version agreement, validation, semantic round trips, sensitive fields, and explicit future-version rejection.
 - Three SQLite regressions prove import/bootstrap/export across two complete round trips, search and inherited unavailability, integrity, and failure-before-mutation preservation.
 
+## Completed backend-workload slice
+
+- `crates/skriuw-fixtures/tests/backend_workloads.rs` adds two default correctness tests (120-note mixed pipeline: archive import, bootstrap, search, integrity, outbox-to-Git drain, Git integrity, validated cache rebuild) and three ignored manual measurements over `mixed-1000` and `mixed-5000`.
+- Optimized-build medians on the recorded development machine: `replace_from_archive` 122.090 ms / 1962.093 ms, `bootstrap` 2.720 ms / 13.409 ms, outbox-to-Git drain 4159.794 ms / 96283.068 ms, validated cache rebuild 140.193 ms / 2773.599 ms. Database open was timed separately (all medians below 1.1 ms).
+- The 5,000-note drain used a documented three samples after a ~96 s single-sample probe; correctness still validates all 5,000 commits, headers, and outbox emptiness in every sample. Page-cache state was warm and uncontrolled; no cold-start behavior is claimed.
+- Import scales quadratically today because `replace_from_archive` linearly scans `archive.nodes` per document; recorded as an observation, not fixed, because it is a maintenance-path operation and production code was out of scope.
+- Dev-dependencies added to `skriuw-fixtures`: existing workspace crates `skriuw-history` and `skriuw-history-git` only. Raw samples, commands, environment, and limitations: `docs/benchmarks/2026-07-21-backend-workloads.md`; manual commands also in `docs/fixtures.md`.
+
 ## Known correctness gap and next task
 
-Next backend slice: add deterministic import, bootstrap, and history workload measurements over existing scale fixtures, recording raw samples and environment metadata without adding timing gates to shared CI. Durable sidebar expansion persistence remains a later UI-linked operation. UI/editor selection remains blocked on the performance spikes in `docs/performance-contract.md`.
+Next slice: the UI architecture gate. Benchmark editor candidates, cached editor-state switching, nested tree virtualization, renderer-store selectors, and desktop bridge overhead against `docs/performance-contract.md`, then record ADR-0020 selecting editor, renderer store, build tool, and desktop shell. Durable sidebar expansion persistence remains a later UI-linked operation. Block-count document fixtures remain deferred until editor schema selection.
 
 ## Verification model
 
