@@ -213,11 +213,71 @@ body,
   text-align: center;
 }
 
-.editor-placeholder-markdown {
-  font-family: inherit;
-  white-space: pre-wrap;
-  max-width: 68ch;
+.editor-host {
+  max-width: 72ch;
   margin: 0 auto;
+}
+
+.prosemirror-host .ProseMirror {
+  outline: none;
+  min-height: 60vh;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.prosemirror-host .ProseMirror pre {
+  padding: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  overflow-x: auto;
+}
+
+.prosemirror-host .ProseMirror blockquote {
+  margin: 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--border);
+  opacity: 0.85;
+}
+
+.prosemirror-host .ProseMirror code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  font-size: 0.9em;
+}
+
+.prosemirror-host .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.slash-menu {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: Canvas;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.slash-menu button {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.slash-menu button:hover,
+.slash-menu button.is-selected {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .metadata-panel {
