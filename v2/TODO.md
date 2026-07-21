@@ -111,7 +111,7 @@ Measured backend workloads: optimized-build medians over `mixed-1000` and `mixed
 ## UI architecture gate
 
 - [x] Benchmark direct ProseMirror against at least one viable alternative.
-- [ ] Measure cached editor-state switching and memory ceiling.
+- [x] Measure cached editor-state switching and memory ceiling.
 - [x] Benchmark nested tree virtualization.
 - [x] Prototype fine-grained external renderer store selectors.
 - [x] Verify persistent editor host without remounting.
@@ -131,13 +131,15 @@ Bounded correctness model: `spikes/ui-architecture/src/editors/bounded-correctne
 
 DOM-backed bounded correctness: the ProseMirror candidate now uses the canonical projection through one persistent editor. A fresh-profile Chrome regression verifies a 192-of-500 block bound, live window movement, exact DOM selection/focus and scroll restoration, editor/external canonical reconciliation, note-switch restoration, an IME movement guard, one mount, one editor instance, and 203 active DOM nodes. Cross-window clipboard/find, composition requiring a window move, undo, off-window accessibility, Lexical parity, the final schema, representative plugins, and fixed-runner presentation evidence remain open.
 
+Representative editor contract: the ProseMirror candidate now loads history, core keymaps, list commands, Markdown input rules, and slash-query state against a schema covering the selected Markdown blocks and marks. Its production browser regression uses 2,000 canonical blocks and verifies note-switch undo plus slash-query undo while retaining one editor, 192 rendered blocks, and 203 DOM elements. ProseMirror is selected for the remaining architecture work; Lexical is rejected because it showed no product capability advantage and consistently used more DOM, memory, and interaction time in the bounded and retained measurements. Lossless rich-structure window projection, canonical cross-window undo, complete find/clipboard and assistive-technology behavior, and fixed-runner presentation evidence remain gates. See `docs/benchmarks/2026-07-21-editor-product-contract.md`.
+
 Tree virtualization spike: a dependency-free fixed-row-height tree uses the canonical Rust fixture projections and keeps all six 1,000/5,000-node workspaces at no more than 40 rendered rows and 163 total DOM elements. Keyboard selection, deep toggles, scroll jumps, and trusted input stay within the provisional P95 budget. Full-subtree expansion and deep reveal at nested-5000 show sporadic 8–12 ms samples but remain below the 16.67 ms maximum with zero observed dropped frames. Correctness covers deterministic flattening, collapsed descendants, selection, keyboard navigation, ARIA metadata, and mutation bounds. Extreme-depth indentation and fixed-runner evidence remain open. See `docs/benchmarks/2026-07-21-tree-virtualization.md`.
 
 Renderer-store selector spike: a disposable React harness normalizes the canonical 1,000/5,000-node projections behind a dependency-free external store and narrow `useSyncExternalStore` bindings. Exact production/profiling allowlists prove selection leaves the shell, tree host, persistent editor host, unrelated metadata, settings, and offscreen rows untouched; editor-owned typing and equivalent updates produce zero store notifications or React commits. Clean exploratory runs kept every P95 below 8 ms and every maximum below 16.67 ms, with 100 exact trusted transitions per fixture and no listener leak. React, the store shape, and the build tool remain unselected; fixed-runner presentation and final editor evidence remain open. See `docs/benchmarks/2026-07-21-renderer-store-selectors.md`.
 
 Desktop bridge spike: an isolated Tauri 2.11.5 production application proves 1,000 navigation updates issue zero commands. Five-run median throughput means were 0.220 ms for empty IPC, 0.180 ms for 1 KiB, 0.420 ms for 64 KiB, and 0.215 ms through the real serialized runtime. A 100-operation delayed burst queued optimistic work in 7 ms median, preserved FIFO acknowledgements, and observed zero dropped frames while settlement took 107 ms. Linux WebKit timer quantization, fixed-runner evidence, and Windows/macOS platform runs remain open. See `docs/benchmarks/2026-07-21-desktop-bridge.md`.
 
-Immediate next task: close the remaining editor-selection gates: representative plugins and final schema behavior, cross-window clipboard/find/undo/accessibility policy, Lexical parity or rejection, and fixed-runner presentation evidence. These still precede ADR-0020.
+Immediate next task: replace the text-only bounded corpus with lossless structured top-level ProseMirror slices and add canonical cross-window transaction history. Then verify whole-note find/copy, IME pinning, and the accessible navigation path before capturing fixed-runner presentation evidence. These still precede ADR-0020.
 
 React requirements if selected:
 

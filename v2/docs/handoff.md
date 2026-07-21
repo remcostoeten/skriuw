@@ -26,9 +26,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit: `cc58d22 perf: measure desktop bridge boundary`; the DOM-backed editor is `23c88b6`, pure bounded model is `2fba493`, renderer-store implementation is `424db78`, and earlier tree slices are `d00b017`, `a6ca660`, and `c8c2cd1`.
-- Expected primary worktree state: clean after the handoff commit following `cc58d22`.
-- Current verification result: 112 backend tests, seven renderer-store tests, five pure bounded-editor tests, one fresh-profile bounded-editor browser regression, and five native desktop-bridge measurement runs pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, the UI spike typecheck/build, the Tauri release build, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
+- Last implementation commit: `a20d669 perf: verify representative ProseMirror contract`; the desktop bridge is `cc58d22`, DOM-backed editor is `23c88b6`, pure bounded model is `2fba493`, renderer-store implementation is `424db78`, and earlier tree slices are `d00b017`, `a6ca660`, and `c8c2cd1`.
+- Expected primary worktree state: clean after the handoff commit following `a20d669`.
+- Current verification result: 112 backend tests, seven renderer-store tests, seven UI editor tests, one fresh-profile 2,000-block bounded-editor browser regression, and five native desktop-bridge measurement runs pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, the UI spike typecheck/build, the Tauri release build, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
@@ -272,6 +272,16 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - `pnpm test:browser` starts the production preview and a fresh headless Chrome profile through CDP. The 500-block regression retains one mount and one editor instance, renders 192 blocks in 203 DOM nodes, passes window, DOM selection/focus, scroll, editor/external reconciliation, note restoration, composition guard, console-error, and page-error assertions, and terminates deterministically.
 - Both candidates still explicitly lack complete cross-window clipboard/find, composition requiring a window move, undo, and off-window screen-reader traversal. Lexical lacks the live controller. Final schema behavior, representative plugins, fixed-runner presentation evidence, and an editor decision remain open.
 
+## Completed representative editor-contract slice
+
+- The ProseMirror candidate now has a representative schema for headings, paragraphs, lists, blockquotes, fenced code, rules, links, strong and regular emphasis, and inline code. Its plugin set adds history, base and list keymaps, Markdown input rules, and slash-command query state.
+- Seven UI editor regressions pass. Two product-contract tests verify every selected node and mark, Markdown serialization, slash-query state, and history depth.
+- The fresh-profile production browser regression now uses 2,000 canonical blocks. It retains one host, one editor, 192 rendered blocks, and 203 DOM elements; cached switching measured 4.185 ms P95 / 6.930 ms maximum and typing measured 0.845 ms P95 / 1.305 ms maximum with zero observed dropped frames.
+- The live scenario verifies undo after switching away and back, slash-query detection and undo, selection/focus restoration, scroll anchoring, bidirectional canonical reconciliation, and composition movement refusal.
+- ProseMirror is selected for the remaining editor architecture. Lexical is rejected because it supplied no missing product capability and had higher bounded and retained interaction, DOM, and memory observations.
+- Whole-note copy and find are canonical application commands; composition pins the window. Cross-window undo requires canonical structured transaction history, and bounded rendering requires an explicit accessible whole-document path. The current text-only canonical corpus is not lossless for rich product structure.
+- Full method, decision basis, policies, and limitations are in `docs/benchmarks/2026-07-21-editor-product-contract.md`.
+
 ## Completed desktop-bridge slice
 
 - `spikes/desktop-bridge` is an isolated Tauri 2.11.5 production harness over the actual `WorkspaceRuntime`; it does not add a product shell or workspace dependency.
@@ -291,7 +301,7 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 
 ## Known correctness gap and next task
 
-Close the remaining editor-selection gates: representative plugins and final schema behavior, cross-window clipboard/find/undo/accessibility policy, Lexical parity or explicit rejection, and fixed-runner presentation evidence. These still precede ADR-0020 and product UI scaffolding.
+Replace the text-only bounded corpus with lossless structured ProseMirror top-level slices and implement canonical cross-window transaction history. Then verify canonical whole-note find/copy, composition pinning, the accessible navigation path, and fixed-runner presentation evidence. These still precede ADR-0020 and product UI scaffolding.
 
 ## Verification model
 
