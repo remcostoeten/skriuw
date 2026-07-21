@@ -145,10 +145,5 @@ export function restoreNoteVersion(
 }
 
 export function activateNote(store: RendererStore, id: string | null): void {
-  if (!store.setActiveNote(id)) {
-    return;
-  }
-  void applyWorkspaceOperations([
-    envelope({ type: "set_active_note", noteId: id }),
-  ]).catch(reportRejection("persist active note"));
+  store.setActiveNote(id);
 }
