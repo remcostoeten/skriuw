@@ -2868,6 +2868,7 @@ dependencies = [
  "skriuw-domain",
  "skriuw-history",
  "skriuw-history-git",
+ "skriuw-lifecycle",
  "skriuw-runtime",
  "skriuw-sqlite",
  "skriuw-storage",
@@ -2902,6 +2903,17 @@ dependencies = [
  "git2",
  "skriuw-domain",
  "skriuw-history",
+ "skriuw-storage",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "skriuw-lifecycle"
+version = "0.1.0"
+dependencies = [
+ "skriuw-domain",
+ "skriuw-runtime",
+ "skriuw-sqlite",
  "skriuw-storage",
  "thiserror 2.0.19",
 ]

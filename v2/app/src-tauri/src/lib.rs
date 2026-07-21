@@ -1,47 +1,27 @@
+mod maintenance;
+
 use std::{
     env, fs,
     path::{Path, PathBuf},
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
-    },
-    thread::{self, JoinHandle},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
+use maintenance::{
+    ArchiveExportReport, ArchiveImportReport, BackupRotationReport, DatabaseSwapReport,
+    MaintenanceCoordinator, RecoveryInventoryReport,
+};
 use serde::Serialize;
 use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
-use skriuw_history::{HistoryReader, HistoryWorkResult, HistoryWorker};
+use skriuw_history::HistoryReader;
 use skriuw_history_git::GitHistoryMaterializer;
 use skriuw_runtime::{Completion, WorkspaceRuntime};
-use skriuw_sqlite::SqliteWorkspace;
 use tauri::{Manager, RunEvent, State};
 
-const HISTORY_DRAIN_WORKER_ID: &str = "desktop-history-drain";
-const HISTORY_DRAIN_IDLE_DELAY: Duration = Duration::from_millis(250);
-const HISTORY_DRAIN_LEASE_MS: i64 = 30_000;
-
 struct AppState {
-    runtime: WorkspaceRuntime,
+    maintenance: Arc<MaintenanceCoordinator>,
     storage_path: PathBuf,
     history_reader: Arc<GitHistoryMaterializer>,
-    history_drain: HistoryDrainHandle,
-}
-
-struct HistoryDrainHandle {
-    stop: Arc<AtomicBool>,
-    worker: Mutex<Option<JoinHandle<()>>>,
-}
-
-impl HistoryDrainHandle {
-    fn shutdown(&self) {
-        self.stop.store(true, Ordering::Relaxed);
-        if let Ok(mut guard) = self.worker.lock()
-            && let Some(handle) = guard.take()
-        {
-            let _ = handle.join();
-        }
-    }
 }
 
 fn now_millis() -> i64 {
@@ -56,41 +36,6 @@ fn history_repository_path(database_path: &Path) -> PathBuf {
         .parent()
         .unwrap_or(database_path)
         .join("history")
-}
-
-fn spawn_history_drain(
-    database_path: &Path,
-    repository_path: &Path,
-) -> Result<HistoryDrainHandle, String> {
-    let storage = Arc::new(
-        SqliteWorkspace::open(database_path)
-            .map_err(|error| format!("open {}: {error}", database_path.display()))?,
-    );
-    let materializer = GitHistoryMaterializer::open(repository_path)
-        .map_err(|error| format!("open {}: {error}", repository_path.display()))?;
-    let worker = HistoryWorker::new(HISTORY_DRAIN_WORKER_ID, storage, materializer)
-        .map_err(|error| error.to_string())?;
-    let stop = Arc::new(AtomicBool::new(false));
-    let stop_flag = Arc::clone(&stop);
-    let handle = thread::Builder::new()
-        .name("skriuw-history-drain".into())
-        .spawn(move || {
-            while !stop_flag.load(Ordering::Relaxed) {
-                match worker.process_next(now_millis(), HISTORY_DRAIN_LEASE_MS) {
-                    Ok(HistoryWorkResult::Materialized { .. }) => {}
-                    Ok(HistoryWorkResult::Idle) => thread::sleep(HISTORY_DRAIN_IDLE_DELAY),
-                    Err(error) => {
-                        eprintln!("history drain failed: {error}");
-                        thread::sleep(HISTORY_DRAIN_IDLE_DELAY);
-                    }
-                }
-            }
-        })
-        .map_err(|error| error.to_string())?;
-    Ok(HistoryDrainHandle {
-        stop,
-        worker: Mutex::new(Some(handle)),
-    })
 }
 
 #[derive(Serialize)]
@@ -116,16 +61,35 @@ fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(data_dir.join("skriuw.db"))
 }
 
+fn workspace_runtime(state: &State<'_, AppState>) -> Result<WorkspaceRuntime, String> {
+    state
+        .maintenance
+        .runtime()
+        .map_err(|error| error.to_string())
+}
+
 async fn wait_for<T: Send + 'static>(completion: Completion<T>) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(move || completion.wait().map_err(|error| error.to_string()))
         .await
         .map_err(|error| error.to_string())?
 }
 
+async fn run_maintenance<T: Send + 'static>(
+    coordinator: Arc<MaintenanceCoordinator>,
+    work: impl FnOnce(&MaintenanceCoordinator) -> Result<T, skriuw_storage::Diagnostic>
+    + Send
+    + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        work(&coordinator).map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
 async fn bootstrap_workspace(state: State<'_, AppState>) -> Result<WorkspaceSnapshot, String> {
-    let completion = state
-        .runtime
+    let completion = workspace_runtime(&state)?
         .bootstrap()
         .map_err(|error| error.to_string())?;
     wait_for(completion).await
@@ -136,8 +100,7 @@ async fn apply_workspace_operations(
     operations: Vec<WorkspaceOperationEnvelope>,
     state: State<'_, AppState>,
 ) -> Result<OperationAck, String> {
-    let completion = state
-        .runtime
+    let completion = workspace_runtime(&state)?
         .apply_operations(operations)
         .map_err(|error| error.to_string())?;
     wait_for(completion).await
@@ -149,8 +112,7 @@ async fn search_workspace(
     limit: usize,
     state: State<'_, AppState>,
 ) -> Result<Vec<SearchHit>, String> {
-    let completion = state
-        .runtime
+    let completion = workspace_runtime(&state)?
         .search(query, limit)
         .map_err(|error| error.to_string())?;
     wait_for(completion).await
@@ -178,6 +140,75 @@ async fn read_history_version(
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn export_workspace_archive(
+    target_path: String,
+    state: State<'_, AppState>,
+) -> Result<ArchiveExportReport, String> {
+    let coordinator = Arc::clone(&state.maintenance);
+    run_maintenance(coordinator, move |maintenance| {
+        maintenance.export_archive(Path::new(&target_path))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn import_workspace_archive(
+    archive_path: String,
+    state: State<'_, AppState>,
+) -> Result<ArchiveImportReport, String> {
+    let coordinator = Arc::clone(&state.maintenance);
+    run_maintenance(coordinator, move |maintenance| {
+        maintenance.import_archive(Path::new(&archive_path))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn create_workspace_backup(
+    force: bool,
+    state: State<'_, AppState>,
+) -> Result<BackupRotationReport, String> {
+    let coordinator = Arc::clone(&state.maintenance);
+    run_maintenance(coordinator, move |maintenance| {
+        maintenance.rotate_backups(force)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn list_workspace_recovery(
+    state: State<'_, AppState>,
+) -> Result<RecoveryInventoryReport, String> {
+    let coordinator = Arc::clone(&state.maintenance);
+    run_maintenance(coordinator, move |maintenance| {
+        maintenance.recovery_inventory()
+    })
+    .await
+}
+
+#[tauri::command]
+async fn restore_workspace_backup(
+    artifact_file_name: String,
+    state: State<'_, AppState>,
+) -> Result<DatabaseSwapReport, String> {
+    let coordinator = Arc::clone(&state.maintenance);
+    run_maintenance(coordinator, move |maintenance| {
+        maintenance.restore_backup(&artifact_file_name)
+    })
+    .await
+}
+
+#[tauri::command]
+fn cancel_workspace_maintenance(state: State<'_, AppState>) -> bool {
+    state.maintenance.cancel_active_operation()
+}
+
+#[tauri::command]
+fn workspace_maintenance_status(state: State<'_, AppState>) -> Option<&'static str> {
+    state.maintenance.status()
 }
 
 #[tauri::command]
@@ -211,19 +242,20 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let path = database_path(app.handle())?;
-            let storage = SqliteWorkspace::open(&path)
-                .map_err(|error| format!("open {}: {error}", path.display()))?;
             let repository_path = history_repository_path(&path);
             let history_reader = Arc::new(
                 GitHistoryMaterializer::open(&repository_path)
                     .map_err(|error| format!("open {}: {error}", repository_path.display()))?,
             );
-            let history_drain = spawn_history_drain(&path, &repository_path)?;
+            let maintenance = Arc::new(MaintenanceCoordinator::start(
+                path.clone(),
+                repository_path,
+                now_millis,
+            )?);
             app.manage(AppState {
-                runtime: WorkspaceRuntime::spawn(storage),
+                maintenance,
                 storage_path: path,
                 history_reader,
-                history_drain,
             });
             Ok(())
         })
@@ -232,6 +264,13 @@ pub fn run() {
             apply_workspace_operations,
             search_workspace,
             read_history_version,
+            export_workspace_archive,
+            import_workspace_archive,
+            create_workspace_backup,
+            list_workspace_recovery,
+            restore_workspace_backup,
+            cancel_workspace_maintenance,
+            workspace_maintenance_status,
             workspace_storage_path,
             reveal_workspace_storage
         ])
@@ -241,10 +280,7 @@ pub fn run() {
             if let RunEvent::Exit = event
                 && let Some(state) = app.try_state::<AppState>()
             {
-                state.history_drain.shutdown();
-                if let Err(error) = state.runtime.shutdown() {
-                    eprintln!("runtime shutdown failed: {error}");
-                }
+                state.maintenance.shutdown();
             }
         });
 }
@@ -252,7 +288,9 @@ pub fn run() {
 #[cfg(test)]
 mod smoke_tests {
     use super::*;
+    use std::{thread, time::Duration};
     use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
+    use skriuw_sqlite::SqliteWorkspace;
     use skriuw_storage::WorkspaceStorage;
     use tempfile::tempdir;
 
@@ -276,7 +314,8 @@ mod smoke_tests {
                 .expect("create note");
         }
 
-        let drain = spawn_history_drain(&db_path, &repo_path).expect("spawn drain");
+        let drain =
+            maintenance::spawn_history_drain(&db_path, &repo_path, now_millis).expect("spawn drain");
         let reader = GitHistoryMaterializer::open(&repo_path).expect("open reader");
 
         let mut headers = Vec::new();

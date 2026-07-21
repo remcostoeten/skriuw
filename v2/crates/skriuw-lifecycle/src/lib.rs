@@ -120,12 +120,28 @@ pub fn replace_live_database(
     candidate_path: impl AsRef<Path>,
     rollback_path: impl AsRef<Path>,
 ) -> Result<DatabaseSwapOutcome, DatabaseSwapError> {
+    replace_live_database_gated(
+        runtime,
+        canonical_path,
+        candidate_path,
+        rollback_path,
+        |_| Ok(()),
+    )
+}
+
+pub fn replace_live_database_gated(
+    runtime: &WorkspaceRuntime,
+    canonical_path: impl AsRef<Path>,
+    candidate_path: impl AsRef<Path>,
+    rollback_path: impl AsRef<Path>,
+    gate: impl FnMut(DatabaseSwapStage) -> Result<(), String>,
+) -> Result<DatabaseSwapOutcome, DatabaseSwapError> {
     replace_live_database_inner(
         runtime,
         canonical_path.as_ref(),
         candidate_path.as_ref(),
         rollback_path.as_ref(),
-        |_| Ok(()),
+        gate,
     )
 }
 
