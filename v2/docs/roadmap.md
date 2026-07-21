@@ -53,6 +53,8 @@ The tree virtualization spike is complete across all six canonical 1,000-node an
 
 The renderer-store selector spike is complete across four canonical 1,000-node and 5,000-node projections. A normalized dependency-free store, stable selector bindings, bounded row pool, and persistent editor host passed exact production/profiling render allowlists. Clean exploratory P95 values stayed below 8 ms, 100 trusted transitions completed per fixture, and teardown returned to zero listeners. The result keeps React viable for later consideration but does not select it, the store, or Vite. Bounded-editor window correctness and desktop bridge overhead still precede ADR-0020.
 
+A pure bounded-editor correctness model now covers window movement, scroll-anchor adjustment, canonical edit reconciliation, focus restoration, and outside-window edit rejection with five regressions. It is not yet wired into the DOM-backed ProseMirror candidate, so browser selection, window recycling, and cross-window semantics remain the next editor gate.
+
 If React is selected, React Scan runs only during development and profiling. Editor internals, keystrokes, and transient selection state may not fan out through broad React subscriptions. Fixed-runner React Scan investigation still needs to agree with the production Profiler and render-count evidence.
 
 ## MVP application work

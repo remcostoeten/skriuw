@@ -4,7 +4,7 @@ Last reviewed: 2026-07-21
 
 ## Start here
 
-Backend workload measurements plus the replacement, retained, native-presentation, static bounded-editor, tree-virtualization, and renderer-store selector spikes are complete on the primary branch.
+Backend workload measurements plus the replacement, retained, native-presentation, static bounded-editor, bounded-editor correctness model, tree-virtualization, and renderer-store selector spikes are complete on the primary branch.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -26,9 +26,9 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commit: `424db78 perf: benchmark renderer store selectors`; earlier tree slices are `d00b017`, `a6ca660`, and `c8c2cd1`.
-- Expected primary worktree state: clean after the handoff commit following `424db78`.
-- Current verification result: 112 backend tests and seven renderer-store tests pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
+- Last implementation commit: `2fba493 test: add bounded editor correctness model`; renderer-store implementation is `424db78` and earlier tree slices are `d00b017`, `a6ca660`, and `c8c2cd1`.
+- Expected primary worktree state: clean after the handoff commit following `2fba493`.
+- Current verification result: 112 backend tests, seven renderer-store tests, and five bounded-editor correctness tests pass with formatting, Clippy, generated-schema drift checks, both renderer-store production builds, the UI spike typecheck/build, and `git diff --check`; five manual backend benchmarks and one manual fixture materialization remain ignored by the default suite.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
@@ -257,6 +257,13 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - Timing remains exploratory: raw results are ignored, no fixed reference runner exists, Event Timing is censored, requestAnimationFrame is pre-paint, and trace dispatch does not include final presentation. React, Vite, and this store shape are candidates only.
 - Full architecture, method, raw sample summaries, render evidence, lifecycle checks, and limitations are in `docs/benchmarks/2026-07-21-renderer-store-selectors.md`.
 
+## Completed bounded-editor correctness model slice
+
+- `2fba493` adds a pure `createBoundedEditorProjection` model and five Node regressions to the existing UI architecture spike.
+- The model keeps one canonical block array, exposes a bounded `[start, end)` window, adjusts scroll anchoring when the window moves, restores block/offset focus state, reconciles canonical edits, and rejects edits outside the rendered window.
+- It intentionally does not wire into the ProseMirror DOM candidate. Browser selection, window recycling, clipboard/find, IME, undo, accessibility traversal, product plugins, and native presentation remain unmeasured.
+- `spikes/ui-architecture/README.md` records the boundary and `pnpm test`, `pnpm typecheck`, and `pnpm build` pass.
+
 ## Completed backend-workload slice
 
 - Claude implementation `0f646bb` was reviewed in its isolated worktree and integrated as `97937f2`; its stale shared-doc commit `23511fd` was excluded and reconciled here.
@@ -268,7 +275,7 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 
 ## Known correctness gap and next task
 
-Turn one static bounded editor candidate into a correctness prototype with window movement, scroll anchoring, canonical edit reconciliation, and focus/selection restoration. Record clipboard, find, IME, undo, accessibility, and representative-plugin limits symmetrically for both editor candidates. Then measure desktop bridge overhead outside navigation. Durable fixed-runner evidence and those two slices still precede ADR-0020 and product UI scaffolding.
+Wire the bounded correctness model into one DOM-backed candidate, beginning with ProseMirror window recycling and browser selection restoration. Record clipboard, find, IME, undo, accessibility, and representative-plugin limits symmetrically for both editor candidates. Then measure desktop bridge overhead outside navigation. Durable fixed-runner evidence and those two slices still precede ADR-0020 and product UI scaffolding.
 
 ## Verification model
 
