@@ -3,14 +3,17 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.1.3",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "test": "tsx --test \"__tests__/**/*.test.ts\"",
+    "build": "../scripts/build.sh web",
+    "build:frontend": "tsc --noEmit && vite build",
+    "test": "tsx --test --experimental-test-coverage \"__tests__/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
-    "tauri": "tauri",
+    "tauri": "../scripts/tauri.sh",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "../scripts/build.sh desktop",
+    "tauri:build:raw": "tauri build"
   },
   "dependencies": {
     "@radix-ui/react-context-menu": "^2.3.4",
