@@ -6,6 +6,15 @@ import type {
   WorkspaceSnapshot,
 } from "../contracts/workspace";
 
+export type HistoryVersionContent = {
+  noteId: string;
+  versionId: string;
+  createdAt: number;
+  summary: string;
+  revision: number;
+  markdown: string;
+};
+
 export function bootstrapWorkspace(): Promise<WorkspaceSnapshot> {
   return invoke<WorkspaceSnapshot>("bootstrap_workspace");
 }
@@ -18,6 +27,13 @@ export function applyWorkspaceOperations(
 
 export function searchWorkspace(query: string, limit: number): Promise<SearchHit[]> {
   return invoke<SearchHit[]>("search_workspace", { query, limit });
+}
+
+export function readHistoryVersion(
+  noteId: string,
+  versionId: string,
+): Promise<HistoryVersionContent> {
+  return invoke<HistoryVersionContent>("read_history_version", { noteId, versionId });
 }
 
 export function workspaceStoragePath(): Promise<string> {

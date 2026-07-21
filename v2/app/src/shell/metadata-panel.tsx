@@ -1,7 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import { ChevronRightIcon, HistoryIcon, InfoIcon } from "../shared/icons";
 import { cn } from "../shared/lib/utils";
+import { projectVersionList } from "../history/version-model";
+import { VersionHistoryPanel } from "../history/version-history-panel";
 import type { RendererStore } from "../store/types";
 
 type Props = {
@@ -63,12 +65,14 @@ function InspectorSection({
 const asideClass = "flex h-full min-h-0 w-full flex-col border-l border-border bg-background";
 
 export function MetadataPanel({ store }: Props) {
+  const activeNoteId = useRendererSelector(store, (state) => state.activeNoteId);
   const metadata = useRendererSelector(store, (state) =>
     state.activeNoteId === null ? null : (state.metadata.get(state.activeNoteId) ?? null),
   );
-  const versions = useRendererSelector(store, (state) =>
+  const historyHeaders = useRendererSelector(store, (state) =>
     state.activeNoteId === null ? null : (state.historyHeaders.get(state.activeNoteId) ?? null),
   );
+  const versions = useMemo(() => projectVersionList(historyHeaders), [historyHeaders]);
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     history: true,
     details: true,
@@ -85,7 +89,7 @@ export function MetadataPanel({ store }: Props) {
   return (
     <aside className={asideClass} aria-label="Note metadata">
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        {versions && versions.length > 0 && (
+        {versions.length > 0 && activeNoteId && (
           <InspectorSection
             id="metadata-history"
             title="History"
@@ -94,20 +98,12 @@ export function MetadataPanel({ store }: Props) {
             open={openSections.history}
             onToggle={() => toggleSection("history")}
           >
-            <ol className="relative -mx-1 list-none p-0">
-              {versions.map((version) => (
-                <li key={version.versionId} className="flex min-w-0 flex-col gap-0.5 px-1 py-2">
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <span className="shrink-0 text-[11px] text-muted-foreground">
-                      {new Date(version.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="m-0 truncate text-[11px] leading-4 text-muted-foreground/50">
-                    {version.summary}
-                  </p>
-                </li>
-              ))}
-            </ol>
+            <VersionHistoryPanel
+              key={activeNoteId}
+              store={store}
+              noteId={activeNoteId}
+              versions={versions}
+            />
           </InspectorSection>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { applyWorkspaceOperations, bootstrapWorkspace } from "../bridge/commands";
 import { envelope } from "../contracts/workspace";
 import type { NodePlacement, WorkspaceOperation } from "../contracts/workspace";
+import { buildRestoreOperation } from "../history/version-model";
 import type { RendererStore } from "../store/types";
 
 /**
@@ -122,6 +123,25 @@ export function moveNode(
   void commitOperations(store, [
     { type: "move_node", id, placement, at: Date.now() },
   ]).catch(reportRejection("move"));
+}
+
+export function restoreNoteVersion(
+  store: RendererStore,
+  noteId: string,
+  versionMarkdown: string,
+): Promise<void> {
+  const record = store.getState().documents.get(noteId);
+  if (!record) {
+    return Promise.resolve();
+  }
+  return commitOperations(store, [
+    buildRestoreOperation({
+      noteId,
+      versionMarkdown,
+      expectedRevision: record.revision,
+      at: Date.now(),
+    }),
+  ]);
 }
 
 export function activateNote(store: RendererStore, id: string | null): void {
