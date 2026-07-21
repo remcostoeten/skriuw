@@ -1,0 +1,266 @@
+:root {
+  font-family: Aptos, "Segoe UI", sans-serif;
+  color: #273033;
+  background: #e5e9e6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 960px;
+  min-height: 100vh;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+.editor-host:focus-visible {
+  outline: 2px solid #315e73;
+  outline-offset: 2px;
+}
+
+.lab-shell {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.lab-sidebar {
+  padding: 34px 28px;
+  border-right: 1px solid #bdc6c1;
+  background: #dce2de;
+}
+
+.eyebrow,
+.metric-label,
+.status-line,
+pre {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.eyebrow {
+  margin: 0 0 20px;
+  color: #315e73;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+h1 {
+  max-width: 250px;
+  margin: 0;
+  color: #20272a;
+  font-family: "Iowan Old Style", Palatino, Georgia, serif;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+}
+
+.lede {
+  margin: 20px 0 34px;
+  color: #536064;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.controls {
+  display: grid;
+  gap: 18px;
+}
+
+.control {
+  display: grid;
+  gap: 7px;
+}
+
+.control span,
+.metric-label {
+  color: #5c686b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+select,
+button {
+  min-height: 38px;
+  border: 1px solid #aab5b0;
+  border-radius: 3px;
+}
+
+select {
+  width: 100%;
+  padding: 0 10px;
+  color: #273033;
+  background: #f1f3f0;
+}
+
+button {
+  padding: 0 16px;
+  color: #f5f7f5;
+  background: #315e73;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #284f61;
+}
+
+button:disabled {
+  color: #7f8986;
+  background: #c8cfcb;
+  cursor: wait;
+}
+
+.status-line {
+  min-height: 42px;
+  margin: 24px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid #bdc6c1;
+  color: #596568;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.lab-main {
+  min-width: 0;
+  padding: 28px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  margin-bottom: 18px;
+  border: 1px solid #bdc6c1;
+  background: #f1f3f0;
+}
+
+.metric {
+  min-height: 88px;
+  padding: 15px 16px;
+  border-right: 1px solid #cbd2ce;
+}
+
+.metric:last-child {
+  border-right: 0;
+}
+
+.metric-value {
+  display: block;
+  margin-top: 9px;
+  color: #20272a;
+  font-family: "Iowan Old Style", Palatino, Georgia, serif;
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+}
+
+.latency-rail {
+  position: relative;
+  height: 5px;
+  margin: 0 0 18px;
+  background: linear-gradient(to right, #4f7567 0 48%, #a46d36 48% 100%);
+}
+
+.latency-marker {
+  position: absolute;
+  top: -5px;
+  width: 2px;
+  height: 15px;
+  background: #8f3f38;
+  transform: translateX(-1px);
+}
+
+.workspace {
+  display: grid;
+  grid-template-rows: auto minmax(420px, 66vh);
+  min-height: 500px;
+  border: 1px solid #bdc6c1;
+  background: #f4f5f2;
+  box-shadow: 0 12px 30px rgba(45, 61, 56, 0.09);
+}
+
+.workspace-bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #ccd3cf;
+  color: #687477;
+  font-size: 12px;
+}
+
+.editor-host {
+  min-height: 0;
+  padding: 34px max(48px, calc((100% - 720px) / 2));
+  overflow: auto;
+  color: #283033;
+  background: #f8f8f5;
+  caret-color: #315e73;
+  line-height: 1.65;
+  outline: none;
+}
+
+.editor-host p,
+.editor-paragraph {
+  margin: 0 0 0.8em;
+}
+
+.editor-host h2,
+.editor-heading {
+  margin: 1.4em 0 0.55em;
+  font-family: "Iowan Old Style", Palatino, Georgia, serif;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.editor-host blockquote,
+.editor-quote {
+  margin: 1em 0;
+  padding-left: 16px;
+  border-left: 2px solid #76909a;
+  color: #536064;
+}
+
+details {
+  margin-top: 18px;
+  border: 1px solid #bdc6c1;
+  background: #eef1ee;
+}
+
+summary {
+  padding: 12px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+pre {
+  max-height: 320px;
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  border-top: 1px solid #ccd3cf;
+  color: #3d494c;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}

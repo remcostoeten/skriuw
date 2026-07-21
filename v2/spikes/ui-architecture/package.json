@@ -1,0 +1,24 @@
+{
+  "name": "skriuw-ui-architecture-spike",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "dev": "vite",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lexical/rich-text": "0.48.0",
+    "lexical": "0.48.0",
+    "prosemirror-model": "1.25.11",
+    "prosemirror-schema-basic": "1.2.4",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-view": "1.42.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  }
+}

@@ -1,0 +1,201 @@
+import "./styles.css";
+
+import { BLOCK_COUNTS } from "./corpus";
+import { createLexicalCandidate } from "./editors/lexical";
+import { createProseMirrorCandidate } from "./editors/prosemirror";
+import { estimateFrameDuration, measureScenario } from "./metrics";
+import type {
+  BenchmarkResult,
+  BlockCount,
+  CandidateId,
+  EditorCandidate,
+} from "./types";
+
+const NOTE_COUNT = 8;
+const SWITCH_SAMPLES = 100;
+const TYPING_SAMPLES = 30;
+
+const app = document.querySelector<HTMLElement>("#app");
+if (!app) {
+  throw new Error("benchmark root was not found");
+}
+
+app.innerHTML = `
+  <div class="lab-shell">
+    <aside class="lab-sidebar">
+      <p class="eyebrow">SKRIUW / UI LAB 01</p>
+      <h1>Cached editor switching</h1>
+      <p class="lede">One persistent host. Prepared states. No router, parser, IPC, database, Git, or lazy loading inside measured navigation.</p>
+      <div class="controls">
+        <label class="control">
+          <span>Editor candidate</span>
+          <select id="candidate">
+            <option value="prosemirror">Direct ProseMirror</option>
+            <option value="lexical">Direct Lexical</option>
+          </select>
+        </label>
+        <label class="control">
+          <span>Blocks per note</span>
+          <select id="blocks">
+            ${BLOCK_COUNTS.map((count) => `<option value="${count}">${count.toLocaleString()} blocks</option>`).join("")}
+          </select>
+        </label>
+        <button id="run" type="button">Run benchmark</button>
+      </div>
+      <p class="status-line" id="status">Ready. Production-build measurements required for evidence.</p>
+    </aside>
+    <section class="lab-main" aria-label="Benchmark results">
+      <div class="metrics">
+        <div class="metric"><span class="metric-label">Switch P95</span><strong class="metric-value" id="switch-p95">—</strong></div>
+        <div class="metric"><span class="metric-label">Switch max</span><strong class="metric-value" id="switch-max">—</strong></div>
+        <div class="metric"><span class="metric-label">Typing P95</span><strong class="metric-value" id="typing-p95">—</strong></div>
+        <div class="metric"><span class="metric-label">Dropped frames</span><strong class="metric-value" id="dropped">—</strong></div>
+        <div class="metric"><span class="metric-label">Host mounts</span><strong class="metric-value" id="mounts">—</strong></div>
+      </div>
+      <div class="latency-rail" aria-label="Eight millisecond target within a 16.67 millisecond frame">
+        <span class="latency-marker" id="latency-marker" style="left: 0%"></span>
+      </div>
+      <div class="workspace">
+        <div class="workspace-bar"><span id="workspace-label">No candidate mounted</span><span id="dom-count">0 DOM nodes</span></div>
+        <div class="editor-host" id="editor-host" aria-label="Editor benchmark host"></div>
+      </div>
+      <details>
+        <summary>Raw measurement JSON</summary>
+        <pre id="raw-output">No measurement yet.</pre>
+      </details>
+    </section>
+  </div>
+`;
+
+const candidateSelect = requiredElement<HTMLSelectElement>("candidate");
+const blockSelect = requiredElement<HTMLSelectElement>("blocks");
+const runButton = requiredElement<HTMLButtonElement>("run");
+const status = requiredElement<HTMLElement>("status");
+const host = requiredElement<HTMLElement>("editor-host");
+const rawOutput = requiredElement<HTMLElement>("raw-output");
+let activeCandidate: EditorCandidate | null = null;
+let lastResult: BenchmarkResult | null = null;
+
+function requiredElement<T extends HTMLElement>(id: string): T {
+  const element = document.getElementById(id);
+  if (!element) {
+    throw new Error(`missing benchmark element: ${id}`);
+  }
+  return element as T;
+}
+
+function createCandidate(id: CandidateId): EditorCandidate {
+  return id === "prosemirror"
+    ? createProseMirrorCandidate()
+    : createLexicalCandidate();
+}
+
+function formatMs(value: number): string {
+  return `${value.toFixed(2)} ms`;
+}
+
+function renderResult(result: BenchmarkResult): void {
+  requiredElement("switch-p95").textContent = formatMs(result.switching.sync.p95Ms);
+  requiredElement("switch-max").textContent = formatMs(result.switching.sync.maxMs);
+  requiredElement("typing-p95").textContent = formatMs(result.typing.sync.p95Ms);
+  requiredElement("dropped").textContent = String(
+    result.switching.droppedFrames + result.typing.droppedFrames,
+  );
+  requiredElement("mounts").textContent = String(result.hostMounts);
+  requiredElement("workspace-label").textContent = `${result.candidate} · ${result.blockCount.toLocaleString()} blocks × ${result.noteCount} cached notes`;
+  requiredElement("dom-count").textContent = `${result.domNodes.toLocaleString()} DOM nodes`;
+  const marker = requiredElement<HTMLElement>("latency-marker");
+  marker.style.left = `${Math.min(100, (result.switching.sync.p95Ms / 16.67) * 100)}%`;
+  rawOutput.textContent = JSON.stringify(result, null, 2);
+  const syncPass = result.switching.sync.p95Ms < 8
+    && result.switching.sync.maxMs < 16.67;
+  const invariantPass = result.hostMounts === 1
+    && result.preparationCallsBefore === result.preparationCallsAfter;
+  status.textContent = `${syncPass && invariantPass ? "PASS" : "REVIEW"} · sync navigation P95 ${formatMs(result.switching.sync.p95Ms)} · preparation calls during navigation 0`;
+}
+
+export async function runBenchmark(
+  candidateId = candidateSelect.value as CandidateId,
+  blockCount = Number(blockSelect.value) as BlockCount,
+): Promise<BenchmarkResult> {
+  candidateSelect.value = candidateId;
+  blockSelect.value = String(blockCount);
+  runButton.disabled = true;
+  status.textContent = "Preparing deterministic editor states outside measured navigation…";
+  activeCandidate?.destroy();
+  activeCandidate = null;
+  host.replaceChildren();
+  host.removeAttribute("contenteditable");
+  host.className = "editor-host";
+
+  const candidate = createCandidate(candidateId);
+  activeCandidate = candidate;
+  const preparationStarted = performance.now();
+  const states = candidate.prepare(blockCount, NOTE_COUNT);
+  const preparationMs = performance.now() - preparationStarted;
+  const initial = states[0];
+  if (!initial) {
+    throw new Error("candidate did not prepare an initial state");
+  }
+  candidate.mount(host, initial);
+  const estimatedFrameMs = await estimateFrameDuration();
+  const preparationCallsBefore = candidate.preparationCount();
+  status.textContent = `Measuring ${SWITCH_SAMPLES} cached note switches…`;
+  const switching = await measureScenario(
+    candidate,
+    states,
+    SWITCH_SAMPLES,
+    estimatedFrameMs,
+    (_sampleIndex, state) => candidate.install(state),
+  );
+  status.textContent = `Measuring ${TYPING_SAMPLES} editor-owned updates…`;
+  const typing = await measureScenario(
+    candidate,
+    [states.at(-1) ?? initial],
+    TYPING_SAMPLES,
+    estimatedFrameMs,
+    (sampleIndex) => candidate.edit(sampleIndex),
+  );
+  const preparationCallsAfter = candidate.preparationCount();
+  const result: BenchmarkResult = {
+    candidate: candidate.id,
+    blockCount,
+    noteCount: NOTE_COUNT,
+    preparationMs,
+    preparationCallsBefore,
+    preparationCallsAfter,
+    hostMounts: candidate.mountCount(),
+    domNodes: candidate.domNodeCount(),
+    estimatedFrameMs,
+    switching,
+    typing,
+    measuredAt: new Date().toISOString(),
+    userAgent: navigator.userAgent,
+  };
+  lastResult = result;
+  renderResult(result);
+  runButton.disabled = false;
+  return result;
+}
+
+runButton.addEventListener("click", () => {
+  void runBenchmark().catch((error: unknown) => {
+    runButton.disabled = false;
+    status.textContent = error instanceof Error ? error.message : "Benchmark failed";
+    throw error;
+  });
+});
+
+window.__SKRIUW_BENCHMARK__ = {
+  run: runBenchmark,
+  lastResult: () => lastResult,
+};
+
+declare global {
+  interface Window {
+    __SKRIUW_BENCHMARK__: {
+      run(candidate?: CandidateId, blockCount?: BlockCount): Promise<BenchmarkResult>;
+      lastResult(): BenchmarkResult | null;
+    };
+  }
+}
