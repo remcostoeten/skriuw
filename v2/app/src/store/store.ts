@@ -90,11 +90,13 @@ export function createInitialState(snapshot: WorkspaceSnapshot): RendererState {
   for (const headers of historyHeaders.values()) {
     headers.sort((left, right) => right.createdAt - left.createdAt);
   }
+  const rememberedNoteId =
+    snapshot.settings.rememberLastNote === false ? null : snapshot.activeNoteId;
   const derived = derive({
     sourceNodes,
     expandedIds,
-    activeNoteId: snapshot.activeNoteId,
-    focusedNodeId: snapshot.activeNoteId,
+    activeNoteId: rememberedNoteId,
+    focusedNodeId: rememberedNoteId,
     editingNodeId: null,
     documents,
     historyHeaders,

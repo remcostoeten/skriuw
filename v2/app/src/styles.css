@@ -91,9 +91,33 @@ body {
 .prosemirror-host .ProseMirror {
   outline: none;
   min-height: 60vh;
-  line-height: 1.6;
+  line-height: 1.7;
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+.prosemirror-host[data-editor-line-height="cozy"] .ProseMirror {
+  line-height: 1.45;
+}
+
+.prosemirror-host[data-editor-line-height="relaxed"] .ProseMirror {
+  line-height: 1.95;
+}
+
+.prosemirror-host[data-editor-font="serif"] .ProseMirror {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.prosemirror-host[data-editor-font="mono"] .ProseMirror {
+  font-family: var(--font-mono);
+}
+
+.prosemirror-host .ProseMirror .is-editor-empty::before {
+  content: var(--editor-placeholder, "Start writing...");
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  float: left;
+  height: 0;
 }
 
 .prosemirror-host .ProseMirror a {
@@ -131,6 +155,31 @@ body {
 .prosemirror-host .ProseMirror hr {
   border: none;
   border-top: 1px solid hsl(var(--border));
+}
+
+:root[data-reduce-motion] *,
+:root[data-reduce-motion] *::before,
+:root[data-reduce-motion] *::after {
+  transition-duration: 1ms !important;
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+.sidebar-compact li > button,
+.sidebar-compact li > div {
+  height: 28px;
+}
+
+.sidebar-guides li > button,
+.sidebar-guides li > div {
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0 15px,
+    hsl(var(--sidebar-border)) 15px 16px
+  );
+  background-position: 20px 0;
+  background-size: calc(var(--tree-indent, 0px) - 8px) 100%;
+  background-repeat: no-repeat;
 }
 
 .slash-menu {

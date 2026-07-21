@@ -13,6 +13,7 @@ import { defaultMarkdownSerializer } from "prosemirror-markdown";
 import { Schema, type Node as ProseMirrorNode } from "prosemirror-model";
 import { schema as basicSchema } from "prosemirror-schema-basic";
 import { Plugin, PluginKey, type EditorState } from "prosemirror-state";
+import { Decoration, DecorationSet } from "prosemirror-view";
 import { addListNodes, liftListItem, sinkListItem, splitListItem } from "prosemirror-schema-list";
 
 export type SlashMenuState = {
@@ -51,6 +52,31 @@ function createSlashMenuPlugin(): Plugin<SlashMenuState> {
   });
 }
 
+export function isDocEmpty(doc: ProseMirrorNode): boolean {
+  return (
+    doc.childCount === 1 &&
+    doc.firstChild !== null &&
+    doc.firstChild.type.name === "paragraph" &&
+    doc.firstChild.childCount === 0
+  );
+}
+
+function createPlaceholderPlugin(): Plugin {
+  return new Plugin({
+    props: {
+      decorations(state) {
+        const first = state.doc.firstChild;
+        if (!first || !isDocEmpty(state.doc)) {
+          return null;
+        }
+        return DecorationSet.create(state.doc, [
+          Decoration.node(0, first.nodeSize, { class: "is-editor-empty" }),
+        ]);
+      },
+    },
+  });
+}
+
 export function createProductPlugins(): Plugin[] {
   const blockquote = productSchema.nodes.blockquote;
   const codeBlock = productSchema.nodes.code_block;
@@ -64,6 +90,7 @@ export function createProductPlugins(): Plugin[] {
   return [
     history({ newGroupDelay: HISTORY_GROUP_DELAY_MS, depth: HISTORY_DEPTH }),
     createSlashMenuPlugin(),
+    createPlaceholderPlugin(),
     inputRules({
       rules: [
         ...smartQuotes,

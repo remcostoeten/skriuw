@@ -76,6 +76,17 @@ test("active note falls back to the first available document", () => {
   assert.equal(state.activeNoteId, "note-child");
 });
 
+test("disabling remember-last-note ignores the persisted active note", () => {
+  const source = snapshot();
+  source.settings = { ...source.settings, rememberLastNote: false };
+  const state = createInitialState(source);
+  assert.equal(state.activeNoteId, "note-child");
+  assert.equal(state.focusedNodeId, "note-child");
+  source.activeNoteId = "note-root";
+  const rerun = createInitialState(source);
+  assert.equal(rerun.activeNoteId, "note-child");
+});
+
 test("setActiveNote rejects unknown notes and moves focus", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   assert.equal(store.setActiveNote("missing"), false);

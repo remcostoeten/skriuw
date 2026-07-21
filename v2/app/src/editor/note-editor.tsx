@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { commitOperations } from "../actions/workspace";
+import { cssStringLiteral } from "../settings/apply-settings";
+import { projectSettings } from "../settings/settings-model";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererStore } from "../store/types";
 import {
@@ -60,6 +63,8 @@ export function NoteEditor({ store }: Props) {
   const slashMenuRef = useRef(slashMenu);
   slashMenuRef.current = slashMenu;
   const activeNoteId = useRendererSelector(store, (state) => state.activeNoteId);
+  const settingsDocument = useRendererSelector(store, (state) => state.settings);
+  const editorSettings = projectSettings(settingsDocument);
 
   function saveNow(noteId: string): void {
     const cached = cacheRef.current.get(noteId);
@@ -232,7 +237,17 @@ export function NoteEditor({ store }: Props) {
 
   return (
     <div className="editor-host">
-      <div ref={hostRef} className="prosemirror-host" />
+      <div
+        ref={hostRef}
+        className="prosemirror-host"
+        data-editor-font={editorSettings.editorFont}
+        data-editor-line-height={editorSettings.editorLineHeight}
+        style={
+          {
+            "--editor-placeholder": cssStringLiteral(editorSettings.editorPlaceholder),
+          } as CSSProperties
+        }
+      />
       {activeNoteId === null && <div className="editor-empty">Select a note</div>}
       {slashMenu.open && slashItems.length > 0 && (
         <div className="slash-menu" role="listbox" style={{ left: slashMenu.x, top: slashMenu.y }}>

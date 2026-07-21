@@ -47,7 +47,7 @@ const SECTIONS = [
     label: "Appearance",
     description: "Theme and density",
     searchText:
-      "color midnight paper embers mocha rose pine catppuccin gruvbox tokyo night compact sidebar page icons reduce motion remember last note workspace",
+      "color midnight paper embers mocha rose pine catppuccin gruvbox tokyo night compact sidebar tree guides indent reduce motion remember last note workspace",
     icon: SettingsIcon,
   },
   {
@@ -55,7 +55,7 @@ const SECTIONS = [
     label: "Editor",
     description: "Writing experience",
     searchText:
-      "font typography inter line spacing cozy comfortable relaxed line numbers empty note prompt placeholder writing",
+      "font typography sans serif mono line spacing cozy comfortable relaxed empty note prompt placeholder writing",
     icon: FileTextIcon,
   },
   {
@@ -412,10 +412,16 @@ function AppearanceSection({ store }: SectionProps) {
           onChange={(checked) => change("compactSidebar", checked)}
         />
         <SettingToggle
-          label="Show page icons"
-          detail="Display note icons beside titles."
-          checked={settings.showPageIcons}
-          onChange={(checked) => change("showPageIcons", checked)}
+          label="Show tree guides"
+          detail="Draw indent guides for nested notes and folders."
+          checked={settings.showTreeGuides}
+          onChange={(checked) => change("showTreeGuides", checked)}
+        />
+        <SettingToggle
+          label="Tree indent guides"
+          detail="Show vertical guide lines for nested notes and folders."
+          checked={settings.showTreeGuides}
+          onChange={(checked) => change("showTreeGuides", checked)}
         />
         <SettingToggle
           label="Reduce motion"
@@ -486,12 +492,6 @@ function EditorSection({ store }: SectionProps) {
       </div>
       <div className="settings-group">
         <div className="settings-group-title">Writing</div>
-        <SettingToggle
-          label="Show line numbers"
-          detail="Display line numbers beside editor content."
-          checked={settings.showLineNumbers}
-          onChange={(checked) => change("showLineNumbers", checked)}
-        />
         <PlaceholderField store={store} settings={settings} />
       </div>
     </section>

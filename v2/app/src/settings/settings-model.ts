@@ -14,7 +14,9 @@ export const THEME_OPTIONS = [
 ] as const;
 
 export const EDITOR_FONT_OPTIONS = [
-  { value: "inter", label: "Inter" },
+  { value: "inter", label: "Sans" },
+  { value: "serif", label: "Serif" },
+  { value: "mono", label: "Mono" },
 ] as const;
 
 export const EDITOR_LINE_HEIGHT_OPTIONS = [
@@ -27,6 +29,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   settingsVersion: 1,
   theme: "midnight",
   compactSidebar: false,
+  showTreeGuides: false,
   showPageIcons: true,
   reduceMotion: false,
   rememberLastNote: true,
@@ -39,12 +42,11 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
 export type SettingsViewModel = {
   theme: string;
   compactSidebar: boolean;
-  showPageIcons: boolean;
+  showTreeGuides: boolean;
   reduceMotion: boolean;
   rememberLastNote: boolean;
   editorFont: string;
   editorLineHeight: string;
-  showLineNumbers: boolean;
   editorPlaceholder: string;
 };
 
@@ -66,7 +68,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
       DEFAULT_WORKSPACE_SETTINGS.theme,
     ),
     compactSidebar: settings.compactSidebar,
-    showPageIcons: settings.showPageIcons,
+    showTreeGuides: settings.showTreeGuides === true,
     reduceMotion: settings.reduceMotion,
     rememberLastNote: settings.rememberLastNote,
     editorFont: supportedValue(
@@ -79,7 +81,6 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
       EDITOR_LINE_HEIGHT_OPTIONS,
       DEFAULT_WORKSPACE_SETTINGS.editorLineHeight,
     ),
-    showLineNumbers: settings.showLineNumbers,
     editorPlaceholder: settings.editorPlaceholder,
   };
 }

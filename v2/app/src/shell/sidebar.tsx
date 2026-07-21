@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import {
   activateNote,
   createFolder,
@@ -44,6 +45,14 @@ const headerActionClass =
 
 const rowBaseClass =
   "relative flex h-[34px] w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors active:scale-[0.985]";
+
+function rowIndentStyle(depth: number): CSSProperties {
+  return {
+    paddingLeft: `${12 + depth * 16}px`,
+    paddingRight: "10px",
+    "--tree-indent": `${12 + depth * 16}px`,
+  } as CSSProperties;
+}
 
 function countDescendants(state: RendererState, id: string): number {
   const children = state.childrenByParent.get(id) ?? [];
@@ -99,6 +108,14 @@ function moveWithinSiblings(store: RendererStore, id: string, direction: -1 | 1)
 
 export function Sidebar({ store }: Props) {
   const visibleIds = useRendererSelector(store, (state) => state.visibleIds);
+  const compactSidebar = useRendererSelector(
+    store,
+    (state) => state.settings.compactSidebar === true,
+  );
+  const showTreeGuides = useRendererSelector(
+    store,
+    (state) => state.settings["showTreeGuides"] === true,
+  );
   // A single shared context menu serves every row. Rows carry `data-row-key`;
   // right-clicking the list resolves the row under the cursor and points the
   // one menu at it, instead of mounting a Radix ContextMenu per row.
@@ -315,7 +332,9 @@ export function Sidebar({ store }: Props) {
   }
 
   return (
-    <aside className="flex h-full min-w-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <aside
+      className={`flex h-full min-w-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground${compactSidebar ? " sidebar-compact" : ""}${showTreeGuides ? " sidebar-guides" : ""}`}
+    >
       <div className="sticky top-0 z-10 border-b border-sidebar-border bg-sidebar">
         <div className="relative flex h-11 items-center justify-between overflow-hidden px-3">
           <div className="flex w-full min-w-0 items-center gap-2 md:gap-2.5">
@@ -345,7 +364,7 @@ export function Sidebar({ store }: Props) {
       <ContextMenu onOpenChange={(open) => !open && setContextTarget(null)}>
         <ContextMenuTrigger asChild>
           <ul
-            className="m-0 min-h-0 flex-1 list-none space-y-px overflow-y-auto px-1.5 pb-4 pt-2"
+            className="m-0 min-h-0 flex-1 list-none space-y-px overflow-y-auto px-1.5 pb-4 pt-3"
             role="tree"
             aria-label="Workspace"
             tabIndex={0}
@@ -406,12 +425,27 @@ const SidebarRow = memo(function SidebarRow({ store, id }: RowProps) {
       {...(isFolder ? { "aria-expanded": isExpanded } : {})}
     >
       {isEditing ? (
-        <RenameInput store={store} id={id} initialTitle={node.title} depth={node.depth} />
+        <div
+          className={`relative flex h-[34px] w-full items-center overflow-hidden border border-border bg-muted text-left text-xs font-medium text-foreground${isFolder ? " justify-between" : ""}`}
+          style={rowIndentStyle(node.depth)}
+        >
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            {isFolder &&
+              (isExpanded ? (
+                <FolderOpenIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
+              ) : (
+                <FolderIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
+              ))}
+            <span className="flex h-[18px] min-w-0 flex-1 items-center">
+              <RenameInput store={store} id={id} initialTitle={node.title} />
+            </span>
+          </span>
+        </div>
       ) : (
         <button
           type="button"
           className={`${rowBaseClass} ${isFolder ? "justify-between " : ""}${stateClass}`}
-          style={{ paddingLeft: `${12 + node.depth * 16}px`, paddingRight: "10px" }}
+          style={rowIndentStyle(node.depth)}
           tabIndex={-1}
           data-row-key={id}
           onClick={() => {
@@ -449,20 +483,18 @@ type RenameProps = {
   store: RendererStore;
   id: string;
   initialTitle: string;
-  depth: number;
 };
 
-function RenameInput({ store, id, initialTitle, depth }: RenameProps) {
+function RenameInput({ store, id, initialTitle }: RenameProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     inputRef.current?.focus();
-    inputRef.current?.select();
+    inputRef.current?.setSelectionRange(0, 0);
   }, []);
   return (
     <input
       ref={inputRef}
-      className="m-0 block h-[34px] w-full border border-border bg-muted p-0 text-xs font-medium text-foreground caret-foreground outline-none selection:bg-primary/30"
-      style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "10px" }}
+      className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-xs font-medium text-foreground caret-foreground outline-none selection:bg-primary/30"
       defaultValue={initialTitle}
       onBlur={(event) => renameNode(store, id, event.currentTarget.value)}
       onKeyDown={(event) => {

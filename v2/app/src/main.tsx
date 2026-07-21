@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app";
 import { bootstrapWorkspace } from "./bridge/commands";
+import { bindSettingsToRoot } from "./settings/apply-settings";
 import { createInitialState, createRendererStore } from "./store/store";
 import "./styles.css";
 
@@ -14,6 +15,7 @@ async function start(): Promise<void> {
   try {
     const snapshot = await bootstrapWorkspace();
     const store = createRendererStore(createInitialState(snapshot));
+    bindSettingsToRoot(store, document.documentElement);
     root.render(
       <StrictMode>
         <App store={store} />

@@ -21,16 +21,15 @@ function extendedSettings(): WorkspaceSettings {
   };
 }
 
-test("default settings project every version-one field", () => {
+test("default settings project every editable field", () => {
   assert.deepEqual(projectSettings(DEFAULT_WORKSPACE_SETTINGS), {
     theme: "midnight",
     compactSidebar: false,
-    showPageIcons: true,
+    showTreeGuides: false,
     reduceMotion: false,
     rememberLastNote: true,
     editorFont: "inter",
     editorLineHeight: "comfortable",
-    showLineNumbers: true,
     editorPlaceholder: "Start writing...",
   });
 });
