@@ -33,6 +33,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
 
 export type BoundedEditorProjection = {
   getWindow(): BoundedWindow;
+  getCanonicalBlocks(): CanonicalBlock[];
   getRenderedBlocks(): CanonicalBlock[];
   focus(selection: BoundedSelection): void;
   blur(): void;
@@ -68,6 +69,10 @@ export function createBoundedEditorProjection(
 
   function getRenderedBlocks(): CanonicalBlock[] {
     return canonical.slice(windowStart, windowEnd).map((block) => ({ ...block }));
+  }
+
+  function getCanonicalBlocks(): CanonicalBlock[] {
+    return canonical.map((block) => ({ ...block }));
   }
 
   function focus(next: BoundedSelection): void {
@@ -114,6 +119,7 @@ export function createBoundedEditorProjection(
 
   return {
     getWindow,
+    getCanonicalBlocks,
     getRenderedBlocks,
     focus,
     blur,

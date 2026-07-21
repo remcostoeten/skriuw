@@ -18,6 +18,38 @@ export type PreparedState = {
   windowEnd?: number;
 };
 
+export type BoundedSelection = {
+  blockIndex: number;
+  offset: number;
+};
+
+export type BoundedCanonicalEdit = {
+  blockIndex: number;
+  text: string;
+};
+
+export type BoundedEditorSnapshot = {
+  noteId: string;
+  start: number;
+  end: number;
+  scrollTop: number;
+  selection: BoundedSelection | null;
+  domSelection: BoundedSelection | null;
+  selectionTop: number | null;
+  focused: boolean;
+  domFocused: boolean;
+  renderedTexts: string[];
+  canonicalTexts: string[];
+  composing: boolean;
+};
+
+export type BoundedEditorControl = {
+  snapshot(): BoundedEditorSnapshot;
+  focus(selection: BoundedSelection): void;
+  moveWindow(start: number): void;
+  reconcileCanonical(edit: BoundedCanonicalEdit): void;
+};
+
 export type EditorCandidate = {
   id: CandidateId;
   label: string;
@@ -32,6 +64,7 @@ export type EditorCandidate = {
   activeDomNodeCount(): number;
   totalDomNodeCount(): number;
   layoutHeight(): number;
+  boundedControl?: BoundedEditorControl;
   destroy(): void;
 };
 

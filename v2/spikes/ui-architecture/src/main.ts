@@ -5,6 +5,7 @@ import { createLexicalCandidate } from "./editors/lexical";
 import { createLexicalBoundedCandidate } from "./editors/lexical-bounded";
 import { createProseMirrorCandidate } from "./editors/prosemirror";
 import { createProseMirrorBoundedCandidate } from "./editors/prosemirror-bounded";
+import { BOUNDED_EDITOR_UNSUPPORTED } from "./editors/bounded-correctness";
 import {
   estimateFrameDuration,
   measureMemory,
@@ -18,12 +19,24 @@ import {
 import type {
   BenchmarkResult,
   BlockCount,
+  BoundedEditorSnapshot,
   CandidateId,
   EditorCandidate,
   NativeInteractionResult,
   PreparedState,
   RenderingStrategy,
 } from "./types";
+
+type BoundedCorrectnessResult = {
+  before: BoundedEditorSnapshot;
+  anchored: BoundedEditorSnapshot;
+  moved: BoundedEditorSnapshot;
+  reconciled: BoundedEditorSnapshot;
+  edited: BoundedEditorSnapshot;
+  restored: BoundedEditorSnapshot;
+  compositionGuarded: boolean;
+  unsupported: readonly string[];
+};
 
 const NOTE_COUNT = 8;
 const SWITCH_SAMPLES = 100;
@@ -279,6 +292,104 @@ export async function finishNativeNavigation(): Promise<NativeInteractionResult>
   return result;
 }
 
+function requireEqual(actual: unknown, expected: unknown, label: string): void {
+  if (actual !== expected) {
+    throw new Error(`${label}: expected ${String(expected)}, received ${String(actual)}`);
+  }
+}
+
+function requireClose(actual: number | null, expected: number | null, label: string): void {
+  if (actual === null || expected === null || Math.abs(actual - expected) > 1) {
+    throw new Error(`${label}: expected ${String(expected)}, received ${String(actual)}`);
+  }
+}
+
+export function runBoundedCorrectnessScenario(): BoundedCorrectnessResult {
+  const control = activeCandidate?.boundedControl;
+  if (!control || activeCandidate?.id !== "prosemirror") {
+    throw new Error("run the bounded ProseMirror candidate before its correctness scenario");
+  }
+  const before = control.snapshot();
+  if (before.canonicalTexts.length <= before.renderedTexts.length) {
+    throw new Error("bounded correctness requires a canonical document larger than its window");
+  }
+  const target = before.start + 8;
+  const nextStart = before.start + 4;
+  control.focus({ blockIndex: target, offset: 4 });
+  host.scrollTop = 400;
+  const anchored = control.snapshot();
+  control.moveWindow(nextStart);
+  const moved = control.snapshot();
+  requireEqual(moved.start, nextStart, "window start");
+  requireClose(moved.selectionTop, anchored.selectionTop, "anchored selection position");
+  requireEqual(moved.selection?.blockIndex, target, "projection selection block");
+  requireEqual(moved.selection?.offset, 4, "projection selection offset");
+  requireEqual(moved.domSelection?.blockIndex, target, "DOM selection block");
+  requireEqual(moved.domSelection?.offset, 4, "DOM selection offset");
+  requireEqual(moved.focused, true, "projection focus");
+  requireEqual(moved.domFocused, true, "DOM focus");
+
+  const reconciledText = "Canonical reconciliation remains visible";
+  control.reconcileCanonical({ blockIndex: target, text: reconciledText });
+  const reconciled = control.snapshot();
+  requireEqual(reconciled.canonicalTexts[target], reconciledText, "canonical reconciliation");
+  requireEqual(
+    reconciled.renderedTexts[target - reconciled.start],
+    reconciledText,
+    "rendered reconciliation",
+  );
+
+  activeCandidate.edit(7);
+  const edited = control.snapshot();
+  requireEqual(
+    edited.canonicalTexts[target],
+    edited.renderedTexts[target - edited.start],
+    "editor transaction reconciliation",
+  );
+  if (edited.canonicalTexts[target] === reconciledText) {
+    throw new Error("editor transaction did not update canonical content");
+  }
+
+  const otherState = activeStates.find((state) => state.id !== edited.noteId);
+  const editedState = activeStates.find((state) => state.id === edited.noteId);
+  if (!otherState || !editedState || !activeCandidate) {
+    throw new Error("bounded correctness requires two prepared note states");
+  }
+  activeCandidate.install(otherState);
+  activeCandidate.install(editedState);
+  const restored = control.snapshot();
+  requireEqual(restored.selection?.blockIndex, target, "restored note selection block");
+  requireEqual(restored.selection?.offset, edited.selection?.offset, "restored note selection offset");
+  requireEqual(restored.canonicalTexts[target], edited.canonicalTexts[target], "restored canonical edit");
+  requireEqual(
+    restored.renderedTexts[target - restored.start],
+    edited.renderedTexts[target - edited.start],
+    "restored rendered edit",
+  );
+
+  host.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+  let compositionGuarded = false;
+  try {
+    control.moveWindow(nextStart + 1);
+  } catch (error) {
+    compositionGuarded = error instanceof Error && error.message.includes("IME composition");
+  } finally {
+    host.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
+  }
+  requireEqual(compositionGuarded, true, "IME composition guard");
+
+  return {
+    before,
+    anchored,
+    moved,
+    reconciled,
+    edited,
+    restored,
+    compositionGuarded,
+    unsupported: BOUNDED_EDITOR_UNSUPPORTED,
+  };
+}
+
 export async function runBenchmark(
   candidateId = candidateSelect.value as CandidateId,
   blockCount = Number(blockSelect.value) as BlockCount,
@@ -427,6 +538,7 @@ window.__SKRIUW_BENCHMARK__ = {
   run: runBenchmark,
   armNativeNavigation,
   finishNativeNavigation,
+  runBoundedCorrectnessScenario,
   lastResult: () => lastResult,
   lastNativeResult: () => lastNativeResult,
 };
@@ -441,6 +553,7 @@ declare global {
       ): Promise<BenchmarkResult>;
       armNativeNavigation(expectedInteractions?: number): void;
       finishNativeNavigation(): Promise<NativeInteractionResult>;
+      runBoundedCorrectnessScenario(): BoundedCorrectnessResult;
       lastResult(): BenchmarkResult | null;
       lastNativeResult(): NativeInteractionResult | null;
     };

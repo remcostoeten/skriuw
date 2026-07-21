@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc --noEmit && vite build",
     "dev": "vite",
+    "test:browser": "node scripts/bounded-correctness.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test src/editors/bounded-correctness.test.ts"
   },
