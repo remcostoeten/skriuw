@@ -93,6 +93,95 @@ test("collapsing a folder hides descendants and refocuses the folder", () => {
   assert.equal(store.toggleExpanded("note-root"), false);
 });
 
+test("optimistic create places the node last and activates new notes", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.applyOperations([
+    {
+      type: "create_note",
+      id: "note-new",
+      title: "Untitled",
+      placement: { parentId: "folder", position: { type: "last" } },
+      documentJson: { type: "doc" },
+      markdown: "",
+      at: 10,
+    },
+  ]);
+  const state = store.getState();
+  assert.deepEqual([...state.visibleIds], ["folder", "note-child", "note-new", "note-root"]);
+  assert.equal(state.activeNoteId, "note-new");
+  assert.equal(state.documents.get("note-new")?.revision, 0);
+});
+
+test("optimistic move honors before placement until the ack lands", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.applyOperations([
+    {
+      type: "move_node",
+      id: "note-root",
+      placement: { parentId: null, position: { type: "before", anchorId: "folder" } },
+      at: 10,
+    },
+  ]);
+  assert.deepEqual([...store.getState().visibleIds], ["note-root", "folder", "note-child"]);
+  store.applyAck({
+    applied: 1,
+    revisions: [],
+    rankChanges: [{ id: "note-root", parentId: null, rank: 50 }],
+  });
+  assert.deepEqual([...store.getState().visibleIds], ["note-root", "folder", "note-child"]);
+});
+
+test("trashing the active subtree clears the active note and lists a trash root", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.setActiveNote("note-child");
+  store.applyOperations([{ type: "trash_subtree", rootId: "folder", at: 20 }]);
+  const state = store.getState();
+  assert.equal(state.activeNoteId, null);
+  assert.equal(state.nodes.has("folder"), false);
+  assert.equal(state.nodes.has("note-child"), false);
+  assert.equal(state.sourceNodes.get("folder")?.deletedAt, 20);
+  store.applyOperations([
+    {
+      type: "restore_subtree",
+      rootId: "folder",
+      placement: { parentId: null, position: { type: "last" } },
+      at: 30,
+    },
+  ]);
+  assert.deepEqual([...store.getState().visibleIds], ["note-root", "folder", "note-child"]);
+});
+
+test("purging a trashed subtree drops its documents", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.applyOperations([
+    { type: "trash_subtree", rootId: "folder", at: 20 },
+    { type: "purge_subtree", rootId: "folder", trashedBefore: 100 },
+  ]);
+  const state = store.getState();
+  assert.equal(state.sourceNodes.has("folder"), false);
+  assert.equal(state.sourceNodes.has("note-child"), false);
+  assert.equal(state.documents.has("note-child"), false);
+});
+
+test("save_document updates content, word count, and metadata timestamp", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.applyOperations([
+    {
+      type: "save_document",
+      noteId: "note-root",
+      documentJson: { type: "doc", content: [] },
+      markdown: "updated",
+      wordCount: 12,
+      expectedRevision: 1,
+      at: 99,
+    },
+  ]);
+  const state = store.getState();
+  assert.equal(state.documents.get("note-root")?.markdown, "updated");
+  assert.equal(state.metadata.get("note-root")?.wordCount, 12);
+  assert.equal(state.metadata.get("note-root")?.updatedAt, 99);
+});
+
 test("selector subscribers only fire when their slice changes", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   let activeNotifications = 0;

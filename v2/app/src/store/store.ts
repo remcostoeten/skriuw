@@ -1,4 +1,10 @@
-import type { WorkspaceSnapshot } from "../contracts/workspace";
+import type {
+  OperationAck,
+  WorkspaceNode,
+  WorkspaceOperation,
+  WorkspaceSnapshot,
+} from "../contracts/workspace";
+import { reduceOperation } from "./operations";
 import { ancestorIds, buildNodeIndex, flattenVisible, orderAvailableNodes } from "./tree";
 import type {
   DocumentRecord,
@@ -22,18 +28,14 @@ function strictEqual<T>(left: T, right: T): boolean {
   return Object.is(left, right);
 }
 
-export function createInitialState(snapshot: WorkspaceSnapshot): RendererState {
-  const ordered = orderAvailableNodes(snapshot.nodes);
+function derive(
+  base: Omit<
+    RendererState,
+    "nodes" | "childrenByParent" | "nodeOrder" | "visibleIds" | "metadata"
+  >,
+): RendererState {
+  const ordered = orderAvailableNodes([...base.sourceNodes.values()]);
   const index = buildNodeIndex(ordered);
-  const expandedIds = new Set(
-    ordered.filter((node) => node.kind === "folder").map((node) => node.id),
-  );
-  const documents = new Map<string, DocumentRecord>();
-  for (const document of snapshot.documents) {
-    if (index.nodes.has(document.noteId)) {
-      documents.set(document.noteId, document);
-    }
-  }
   const metadata = new Map<string, NoteMetadata>();
   for (const node of ordered) {
     if (node.kind !== "note") {
@@ -41,24 +43,146 @@ export function createInitialState(snapshot: WorkspaceSnapshot): RendererState {
     }
     metadata.set(node.id, {
       title: node.title,
-      wordCount: documents.get(node.id)?.wordCount ?? 0,
+      wordCount: base.documents.get(node.id)?.wordCount ?? 0,
       updatedAt: node.updatedAt,
     });
   }
   const activeNoteId =
-    snapshot.activeNoteId && documents.has(snapshot.activeNoteId)
-      ? snapshot.activeNoteId
-      : ([...documents.keys()][0] ?? null);
+    base.activeNoteId !== null && metadata.has(base.activeNoteId) ? base.activeNoteId : null;
+  const focusedNodeId =
+    base.focusedNodeId !== null && index.nodes.has(base.focusedNodeId)
+      ? base.focusedNodeId
+      : activeNoteId;
+  const editingNodeId =
+    base.editingNodeId !== null && index.nodes.has(base.editingNodeId)
+      ? base.editingNodeId
+      : null;
   return {
+    ...base,
     ...index,
-    visibleIds: flattenVisible(index.nodes, index.childrenByParent, expandedIds),
-    expandedIds,
+    visibleIds: flattenVisible(index.nodes, index.childrenByParent, base.expandedIds),
     activeNoteId,
-    focusedNodeId: activeNoteId,
-    documents,
+    focusedNodeId,
+    editingNodeId,
     metadata,
-    settings: snapshot.settings,
   };
+}
+
+export function createInitialState(snapshot: WorkspaceSnapshot): RendererState {
+  const sourceNodes = new Map<string, WorkspaceNode>();
+  for (const node of snapshot.nodes) {
+    sourceNodes.set(node.id, node);
+  }
+  const documents = new Map<string, DocumentRecord>();
+  for (const document of snapshot.documents) {
+    documents.set(document.noteId, document);
+  }
+  const expandedIds = new Set(
+    snapshot.nodes.filter((node) => node.kind === "folder").map((node) => node.id),
+  );
+  const derived = derive({
+    sourceNodes,
+    expandedIds,
+    activeNoteId: snapshot.activeNoteId,
+    focusedNodeId: snapshot.activeNoteId,
+    editingNodeId: null,
+    documents,
+    settings: snapshot.settings,
+  });
+  if (derived.activeNoteId === null) {
+    const firstNote = derived.nodeOrder.find(
+      (id) => derived.nodes.get(id)?.kind === "note",
+    );
+    if (firstNote) {
+      return { ...derived, activeNoteId: firstNote, focusedNodeId: firstNote };
+    }
+  }
+  return derived;
+}
+
+function reduceState(
+  current: RendererState,
+  operation: WorkspaceOperation,
+): RendererState {
+  if (operation.type === "set_active_note") {
+    if (
+      operation.noteId !== null &&
+      current.nodes.get(operation.noteId)?.kind !== "note"
+    ) {
+      return current;
+    }
+    if (operation.noteId === current.activeNoteId) {
+      return current;
+    }
+    return {
+      ...current,
+      activeNoteId: operation.noteId,
+      focusedNodeId: operation.noteId ?? current.focusedNodeId,
+    };
+  }
+  if (operation.type === "update_settings") {
+    return { ...current, settings: operation.settings };
+  }
+  if (operation.type === "save_document") {
+    const existing = current.documents.get(operation.noteId);
+    if (!existing) {
+      return current;
+    }
+    const documents = new Map(current.documents);
+    documents.set(operation.noteId, {
+      ...existing,
+      documentJson: operation.documentJson,
+      markdown: operation.markdown,
+      wordCount: operation.wordCount,
+    });
+    const sourceNode = current.sourceNodes.get(operation.noteId);
+    const sourceNodes = new Map(current.sourceNodes);
+    if (sourceNode) {
+      sourceNodes.set(operation.noteId, { ...sourceNode, updatedAt: operation.at });
+    }
+    return derive({ ...current, sourceNodes, documents });
+  }
+
+  const sourceNodes = reduceOperation(current.sourceNodes, operation);
+  if (sourceNodes === current.sourceNodes) {
+    return current;
+  }
+  let documents: ReadonlyMap<string, DocumentRecord> = current.documents;
+  let expandedIds: ReadonlySet<string> = current.expandedIds;
+  let focusedNodeId = current.focusedNodeId;
+  let activeNoteId = current.activeNoteId;
+  if (operation.type === "create_note") {
+    const withCreated = new Map(documents);
+    withCreated.set(operation.id, {
+      noteId: operation.id,
+      documentJson: operation.documentJson,
+      markdown: operation.markdown,
+      revision: 0,
+      wordCount: 0,
+    });
+    documents = withCreated;
+    activeNoteId = operation.id;
+    focusedNodeId = operation.id;
+  }
+  if (operation.type === "create_folder") {
+    const withCreated = new Set(expandedIds);
+    withCreated.add(operation.id);
+    expandedIds = withCreated;
+    focusedNodeId = operation.id;
+  }
+  if (operation.type === "purge_subtree") {
+    documents = new Map(
+      [...documents].filter(([noteId]) => sourceNodes.has(noteId)),
+    );
+  }
+  return derive({
+    ...current,
+    sourceNodes,
+    documents,
+    expandedIds,
+    focusedNodeId,
+    activeNoteId,
+  });
 }
 
 export function createRendererStore(initialState: RendererState): RendererStore {
@@ -146,14 +270,30 @@ export function createRendererStore(initialState: RendererState): RendererStore 
   }
 
   function setActiveNote(id: string | null): boolean {
+    return update((current) => reduceState(current, { type: "set_active_note", noteId: id }));
+  }
+
+  function setFocusedNode(id: string | null): boolean {
     return update((current) => {
-      if (id === current.activeNoteId) {
+      if (id === current.focusedNodeId) {
         return current;
       }
-      if (id !== null && !current.documents.has(id)) {
+      if (id !== null && !current.nodes.has(id)) {
         return current;
       }
-      return { ...current, activeNoteId: id, focusedNodeId: id };
+      return { ...current, focusedNodeId: id };
+    });
+  }
+
+  function setEditingNode(id: string | null): boolean {
+    return update((current) => {
+      if (id === current.editingNodeId) {
+        return current;
+      }
+      if (id !== null && !current.nodes.has(id)) {
+        return current;
+      }
+      return { ...current, editingNodeId: id };
     });
   }
 
@@ -181,6 +321,65 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     });
   }
 
+  function applyOperations(operations: readonly WorkspaceOperation[]): boolean {
+    return update((current) => {
+      let next = current;
+      for (const operation of operations) {
+        next = reduceState(next, operation);
+      }
+      return next;
+    });
+  }
+
+  function applyAck(ack: OperationAck): boolean {
+    return update((current) => {
+      let rankChanged = false;
+      const sourceNodes = new Map(current.sourceNodes);
+      for (const change of ack.rankChanges) {
+        const existing = sourceNodes.get(change.id);
+        if (!existing) {
+          continue;
+        }
+        sourceNodes.set(change.id, {
+          ...existing,
+          parentId: change.parentId,
+          rank: change.rank,
+        });
+        rankChanged = true;
+      }
+      let revisionChanged = false;
+      const documents = new Map(current.documents);
+      for (const revision of ack.revisions) {
+        const existing = documents.get(revision.id);
+        if (!existing || existing.revision === revision.revision) {
+          continue;
+        }
+        documents.set(revision.id, { ...existing, revision: revision.revision });
+        revisionChanged = true;
+      }
+      if (!rankChanged && !revisionChanged) {
+        return current;
+      }
+      return derive({ ...current, sourceNodes, documents });
+    });
+  }
+
+  function replaceFromSnapshot(snapshot: WorkspaceSnapshot): boolean {
+    return update((current) => {
+      const fresh = createInitialState(snapshot);
+      const expandedIds = new Set(
+        [...current.expandedIds].filter((id) => fresh.nodes.get(id)?.kind === "folder"),
+      );
+      return derive({
+        ...fresh,
+        expandedIds,
+        activeNoteId: current.activeNoteId,
+        focusedNodeId: current.focusedNodeId,
+        editingNodeId: null,
+      });
+    });
+  }
+
   return {
     getState: () => state,
     select: (selector) => selector(state),
@@ -200,7 +399,12 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     },
     update,
     setActiveNote,
+    setFocusedNode,
+    setEditingNode,
     toggleExpanded,
+    applyOperations,
+    applyAck,
+    replaceFromSnapshot,
     destroy: () => {
       destroyed = true;
       for (const subscriber of subscribers) {

@@ -154,9 +154,9 @@ React requirements if selected:
 
 ## MVP UI
 
-- [ ] Persistent application shell and icon navigation.
-- [ ] Reorderable and nestable note/folder sidebar.
-- [ ] Sidebar creation, rename, trash, restore, context menus, and shortcuts.
+- [x] Persistent application shell and icon navigation.
+- [ ] Reorderable and nestable note/folder sidebar. (Sibling reorder via Alt+Arrow ships; drag-and-drop and cross-folder move remain.)
+- [x] Sidebar creation, rename, trash, restore, context menus, and shortcuts.
 - [ ] Structured Markdown editor with inline rendering.
 - [ ] Slash-command menu.
 - [ ] Metadata and history sidebar without people or tags.

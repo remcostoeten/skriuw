@@ -1,9 +1,15 @@
-import type { NodeKind, WorkspaceSettings } from "../contracts/workspace";
+import type {
+  OperationAck,
+  WorkspaceNode,
+  WorkspaceOperation,
+  WorkspaceSettings,
+  WorkspaceSnapshot,
+} from "../contracts/workspace";
 
 export type NodeRecord = {
   id: string;
   parentId: string | null;
-  kind: NodeKind;
+  kind: WorkspaceNode["kind"];
   title: string;
   depth: number;
   setSize: number;
@@ -25,6 +31,7 @@ export type NoteMetadata = {
 };
 
 export type RendererState = {
+  sourceNodes: ReadonlyMap<string, WorkspaceNode>;
   nodes: ReadonlyMap<string, NodeRecord>;
   childrenByParent: ReadonlyMap<string | null, readonly string[]>;
   nodeOrder: readonly string[];
@@ -32,6 +39,7 @@ export type RendererState = {
   expandedIds: ReadonlySet<string>;
   activeNoteId: string | null;
   focusedNodeId: string | null;
+  editingNodeId: string | null;
   documents: ReadonlyMap<string, DocumentRecord>;
   metadata: ReadonlyMap<string, NoteMetadata>;
   settings: WorkspaceSettings;
@@ -59,6 +67,11 @@ export type RendererStore = {
   createBinding: <T>(selector: Selector<T>, equality?: Equality<T>) => SelectorBinding<T>;
   update: (updater: (state: RendererState) => RendererState) => boolean;
   setActiveNote: (id: string | null) => boolean;
+  setFocusedNode: (id: string | null) => boolean;
+  setEditingNode: (id: string | null) => boolean;
   toggleExpanded: (id: string) => boolean;
+  applyOperations: (operations: readonly WorkspaceOperation[]) => boolean;
+  applyAck: (ack: OperationAck) => boolean;
+  replaceFromSnapshot: (snapshot: WorkspaceSnapshot) => boolean;
   destroy: () => void;
 };

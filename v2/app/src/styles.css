@@ -58,8 +58,29 @@ body,
 }
 
 .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 12px 16px;
   font-weight: 600;
+}
+
+.sidebar-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.sidebar-action {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  padding: 2px 8px;
+}
+
+.sidebar-action:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
 }
 
 .sidebar-tree {
@@ -92,6 +113,81 @@ body,
 
 .tree-row.is-active {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.tree-row.is-focused {
+  outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.sidebar-tree:focus {
+  outline: none;
+}
+
+.tree-rename-input {
+  width: calc(100% - 16px);
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font: inherit;
+  background: transparent;
+  color: inherit;
+}
+
+.sidebar-trash {
+  border-top: 1px solid var(--border);
+  padding: 8px 12px 12px;
+  font-size: 13px;
+}
+
+.sidebar-trash-header {
+  font-weight: 600;
+  opacity: 0.6;
+  margin-bottom: 4px;
+}
+
+.sidebar-trash ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.trash-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: Canvas;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.context-menu button {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.context-menu button:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.context-menu .is-destructive {
+  color: #c0392b;
 }
 
 .tree-row-glyph {
