@@ -459,8 +459,13 @@ async function runScenarios(harness: Harness, estimatedFrameMs: number): Promise
   return scenarios;
 }
 
-export async function runBenchmark(fixtureName: string, host: HTMLElement): Promise<BenchmarkResult> {
+export async function runBenchmark(
+  fixtureName: string,
+  host: HTMLElement,
+  onHydrated?: (harness: Harness) => void,
+): Promise<BenchmarkResult> {
   const harness = await hydrate(fixtureName, host);
+  onHydrated?.(harness);
   const hydrationBefore = harness.hydrationCalls();
   const estimatedFrameMs = await estimateFrameDuration();
   const correctness = runCorrectness(harness);
@@ -555,21 +560,24 @@ export async function prepareTrustedKeys(
 
   const eventEntries: EventTimingSample[] = [];
   const eventSupported = supportsEntryType("event");
+  const recordEventEntries = (entries: PerformanceEntryList) => {
+    for (const entry of entries) {
+      const timing = entry as PerformanceEntry & {
+        processingStart: number;
+        processingEnd: number;
+      };
+      if (entry.name === "keydown") {
+        eventEntries.push({
+          name: entry.name,
+          processingMs: timing.processingEnd - timing.processingStart,
+          durationMs: entry.duration,
+        });
+      }
+    }
+  };
   const eventObserver = eventSupported
     ? new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          const timing = entry as PerformanceEntry & {
-            processingStart: number;
-            processingEnd: number;
-          };
-          if (entry.name === "keydown") {
-            eventEntries.push({
-              name: entry.name,
-              processingMs: timing.processingEnd - timing.processingStart,
-              durationMs: entry.duration,
-            });
-          }
-        }
+        recordEventEntries(list.getEntries());
       })
     : null;
   eventObserver?.observe({
@@ -584,6 +592,7 @@ export async function prepareTrustedKeys(
       const endedAt = performance.now();
       view.element().removeEventListener("keydown", onCaptureKeydown, { capture: true });
       view.element().removeEventListener("keydown", onBubbleKeydown);
+      recordEventEntries(eventObserver?.takeRecords() ?? []);
       eventObserver?.disconnect();
       const { longTasks, longFrames } = blocking.stop(startedAt, endedAt);
       const timing = samples.map((sample, at) => ({

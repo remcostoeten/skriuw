@@ -293,6 +293,7 @@ async function main() {
   for (const fixture of fixtures) {
     const record = await runFixture(baseUrl, fixture, resultsDir);
     const failing = record.benchmark.correctness.filter((entry) => !entry.pass);
+    const failingGallery = record.galleryChecks.filter((entry) => !entry.pass);
     const keyboard = record.benchmark.scenarios.find(
       (scenario) => scenario.name === "keyboard-selection-100",
     );
@@ -313,7 +314,28 @@ async function main() {
         console.error(`  FAIL ${entry.name}: ${entry.detail}`);
       }
     }
+    if (failingGallery.length > 0) {
+      for (const entry of failingGallery) {
+        console.error(`  FAIL ${entry.name}: ${entry.detail}`);
+      }
+    }
+    if (
+      failing.length > 0 ||
+      failingGallery.length > 0 ||
+      record.trusted.keydownCount !== KEY_COUNT ||
+      record.consoleErrors.length > 0 ||
+      record.pageErrors.length > 0
+    ) {
+      throw new Error(`verification failed for ${record.fixture}`);
+    }
   }
 }
 
-await main();
+try {
+  await main();
+} catch (error) {
+  console.error(error);
+  process.exitCode = 1;
+} finally {
+  process.exit();
+}

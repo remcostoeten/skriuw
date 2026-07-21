@@ -36,9 +36,25 @@ const galleryChecks = renderGallery(galleryHost);
 
 let interactiveHarness: Harness | null = null;
 let trustedCapture: TrustedKeyCapture | null = null;
+let taskRunning = false;
 
 function setStatus(message: string): void {
   statusLine.textContent = message;
+}
+
+function setControlsDisabled(disabled: boolean): void {
+  loadButton.disabled = disabled;
+  runButton.disabled = disabled;
+  fixtureSelect.disabled = disabled;
+}
+
+function assertIdle(): void {
+  if (taskRunning) {
+    throw new Error("a tree harness task is already running");
+  }
+  if (trustedCapture) {
+    throw new Error("finish the trusted-key capture before starting another task");
+  }
 }
 
 function resetHost(): void {
@@ -88,9 +104,12 @@ function renderResult(result: BenchmarkResult): void {
 }
 
 async function loadFixture(fixtureName: string): Promise<void> {
-  resetHost();
-  setStatus(`Loading ${fixtureName}…`);
+  assertIdle();
+  taskRunning = true;
+  setControlsDisabled(true);
   try {
+    resetHost();
+    setStatus(`Loading ${fixtureName}…`);
     interactiveHarness = await hydrate(fixtureName, treeHost);
     const first = interactiveHarness.view.visibleRows()[0];
     if (first) {
@@ -107,29 +126,37 @@ async function loadFixture(fixtureName: string): Promise<void> {
     message.textContent = `Fixture ${fixtureName} failed to load: ${String(error)}. Run scripts/export-fixtures.sh and reload.`;
     treeHost.appendChild(message);
     throw error;
+  } finally {
+    taskRunning = false;
+    setControlsDisabled(false);
   }
 }
 
 async function runInteractive(fixtureName: string): Promise<BenchmarkResult> {
-  resetHost();
-  setStatus(`Benchmarking ${fixtureName}…`);
-  const result = await runBenchmark(fixtureName, treeHost);
-  globalThis.__SKRIUW_TREE_RESULT__ = result;
-  renderResult(result);
-  setStatus(`Finished ${fixtureName}.`);
-  return result;
+  assertIdle();
+  taskRunning = true;
+  setControlsDisabled(true);
+  try {
+    resetHost();
+    setStatus(`Benchmarking ${fixtureName}…`);
+    const result = await runBenchmark(fixtureName, treeHost, (harness) => {
+      interactiveHarness = harness;
+    });
+    globalThis.__SKRIUW_TREE_RESULT__ = result;
+    renderResult(result);
+    setStatus(`Finished ${fixtureName}.`);
+    return result;
+  } finally {
+    taskRunning = false;
+    setControlsDisabled(false);
+  }
 }
 
 loadButton.addEventListener("click", () => {
   void loadFixture(fixtureSelect.value);
 });
 runButton.addEventListener("click", () => {
-  loadButton.disabled = true;
-  runButton.disabled = true;
-  void runInteractive(fixtureSelect.value).finally(() => {
-    loadButton.disabled = false;
-    runButton.disabled = false;
-  });
+  void runInteractive(fixtureSelect.value);
 });
 
 globalThis.__SKRIUW_TREE_BENCHMARK__ = {
@@ -137,18 +164,32 @@ globalThis.__SKRIUW_TREE_BENCHMARK__ = {
     return runInteractive(fixtureName);
   },
   async prepareTrusted(fixtureName) {
-    resetHost();
-    trustedCapture = await prepareTrustedKeys(fixtureName, treeHost);
-    setStatus(`Trusted-key capture armed for ${fixtureName}.`);
-    return trustedCapture.harness.view.visibleRows().length;
+    assertIdle();
+    taskRunning = true;
+    setControlsDisabled(true);
+    try {
+      resetHost();
+      trustedCapture = await prepareTrustedKeys(fixtureName, treeHost);
+      setStatus(`Trusted-key capture armed for ${fixtureName}.`);
+      return trustedCapture.harness.view.visibleRows().length;
+    } finally {
+      taskRunning = false;
+      setControlsDisabled(trustedCapture !== null);
+    }
   },
   finishTrusted() {
     if (!trustedCapture) {
       throw new Error("trusted capture not prepared");
     }
-    const result = trustedCapture.finish();
-    trustedCapture = null;
-    return result;
+    const capture = trustedCapture;
+    try {
+      return capture.finish();
+    } finally {
+      capture.harness.view.destroy();
+      treeHost.replaceChildren();
+      trustedCapture = null;
+      setControlsDisabled(false);
+    }
   },
   galleryChecks() {
     return galleryChecks;
