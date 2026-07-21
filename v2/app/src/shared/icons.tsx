@@ -195,6 +195,21 @@ export function UnfoldVerticalIcon(props: IconProps) {
   );
 }
 
+export function FoldVerticalIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M12 22v-6" />
+      <path d="M12 8V2" />
+      <path d="M4 12H2" />
+      <path d="M10 12H8" />
+      <path d="M16 12h-2" />
+      <path d="M22 12h-2" />
+      <path d="m15 19-3-3-3 3" />
+      <path d="m15 5-3 3-3-3" />
+    </LucideIcon>
+  );
+}
+
 export function ChevronDownIcon(props: IconProps) {
   return (
     <LucideIcon {...props}>
@@ -353,6 +368,90 @@ export function PanelRightToggleIcon(props: IconProps) {
     <LucideIcon {...props}>
       <path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
       <path d="M15 4l0 16" />
+    </LucideIcon>
+  );
+}
+
+export function ArrowUpIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="m5 12 7-7 7 7" />
+      <path d="M12 19V5" />
+    </LucideIcon>
+  );
+}
+
+export function ArrowDownIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M12 5v14" />
+      <path d="m19 12-7 7-7-7" />
+    </LucideIcon>
+  );
+}
+
+export function CaseSensitiveIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="m3 15 4-8 4 8" />
+      <path d="M4 13h6" />
+      <circle cx="18" cy="12" r="3" />
+      <path d="M21 9v6" />
+    </LucideIcon>
+  );
+}
+
+export function WholeWordIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <circle cx="7" cy="12" r="3" />
+      <path d="M10 9v6" />
+      <circle cx="17" cy="12" r="3" />
+      <path d="M14 7v8" />
+      <path d="M22 17v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1" />
+    </LucideIcon>
+  );
+}
+
+export function RegexIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M17 3v10" />
+      <path d="m12.67 5.5 8.66 5" />
+      <path d="m12.67 10.5 8.66-5" />
+      <path d="M9 17a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2z" />
+    </LucideIcon>
+  );
+}
+
+export function ReplaceIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M14 4a2 2 0 0 1 2-2" />
+      <path d="M16 10a2 2 0 0 1-2-2" />
+      <path d="M20 2a2 2 0 0 1 2 2" />
+      <path d="M22 8a2 2 0 0 1-2 2" />
+      <path d="m3 7 3 3 3-3" />
+      <path d="M6 10V5a3 3 0 0 1 3-3h1" />
+      <rect x="2" y="14" width="8" height="8" rx="2" />
+    </LucideIcon>
+  );
+}
+
+export function ReplaceAllIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M14 4a2 2 0 0 1 2-2" />
+      <path d="M16 10a2 2 0 0 1-2-2" />
+      <path d="M20 2a2 2 0 0 1 2 2" />
+      <path d="M22 8a2 2 0 0 1-2 2" />
+      <path d="m3 7 3 3 3-3" />
+      <path d="M6 10V5a3 3 0 0 1 3-3h1" />
+      <rect x="2" y="14" width="8" height="8" rx="2" />
+      <path d="M14 14a2 2 0 0 1 2-2" />
+      <path d="M20 12a2 2 0 0 1 2 2" />
+      <path d="M14 20a2 2 0 0 0 2 2" />
+      <path d="M20 22a2 2 0 0 0 2-2" />
     </LucideIcon>
   );
 }

@@ -2,8 +2,11 @@ import { useEffect, useRef } from "react";
 import { useShortcut } from "@remcostoeten/use-shortcut/react";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererStore } from "../store/types";
-import { effectiveShortcutKeys, shortcutOverridesFromSettings } from "./bindings";
-import type { ShortcutOverrides } from "./bindings";
+import {
+  effectiveShortcutKeys,
+  sameShortcutOverrides,
+  shortcutOverridesFromSettings,
+} from "./bindings";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId } from "./definitions";
 
@@ -25,14 +28,6 @@ function neverExcept(): boolean {
   return false;
 }
 
-function sameOverrides(left: ShortcutOverrides, right: ShortcutOverrides): boolean {
-  const leftKeys = Object.keys(left) as (keyof ShortcutOverrides)[];
-  return (
-    leftKeys.length === Object.keys(right).length &&
-    leftKeys.every((key) => left[key] === right[key])
-  );
-}
-
 /**
  * Headless binder for app-wide shortcuts. Definitions live in
  * `definitions.ts`; user overrides come from workspace settings and rebind
@@ -43,11 +38,12 @@ export function shortcutDefinitionsForState(
   suspended: boolean,
   activeWhileSuspended?: ShortcutActionId,
 ) {
+  const bindable = SHORTCUT_DEFINITIONS.filter((definition) => !definition.boundInEditor);
   if (!suspended) {
-    return SHORTCUT_DEFINITIONS;
+    return bindable;
   }
   return activeWhileSuspended
-    ? SHORTCUT_DEFINITIONS.filter((definition) => definition.id === activeWhileSuspended)
+    ? bindable.filter((definition) => definition.id === activeWhileSuspended)
     : [];
 }
 
@@ -63,23 +59,29 @@ export function WorkspaceShortcuts({
   const overrides = useRendererSelector(
     store,
     (state) => shortcutOverridesFromSettings(state.settings),
-    sameOverrides,
+    sameShortcutOverrides,
   );
 
   useEffect(() => {
     const definitions = shortcutDefinitionsForState(suspended, activeWhileSuspended);
-    const results = definitions.map((definition) =>
-      $.bind(effectiveShortcutKeys(definition, overrides)).on(
-        () => {
-          actionsRef.current[definition.id]();
-        },
-        {
-          description: definition.label,
-          preventDefault: true,
-          except: definition.worksWhileTyping ? neverExcept : undefined,
-        },
-      ),
-    );
+    const results = definitions.flatMap((definition) => {
+      const handler = () => {
+        actionsRef.current[definition.id]();
+      };
+      const primary = $.bind(effectiveShortcutKeys(definition, overrides)).on(handler, {
+        description: definition.label,
+        preventDefault: true,
+        except: definition.worksWhileTyping ? neverExcept : undefined,
+      });
+      if (!definition.secondaryKeys) {
+        return [primary];
+      }
+      const secondary = $.bind(definition.secondaryKeys).on(handler, {
+        description: definition.label,
+        preventDefault: true,
+      });
+      return [primary, secondary];
+    });
     return () => {
       for (const result of results) {
         result.unbind();

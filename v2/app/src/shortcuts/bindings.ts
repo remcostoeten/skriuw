@@ -45,6 +45,25 @@ export function shortcutOverridesFromSettings(
   return overrides;
 }
 
+export function sameShortcutOverrides(
+  left: ShortcutOverrides,
+  right: ShortcutOverrides,
+): boolean {
+  const leftKeys = Object.keys(left) as (keyof ShortcutOverrides)[];
+  return (
+    leftKeys.length === Object.keys(right).length &&
+    leftKeys.every((key) => left[key] === right[key])
+  );
+}
+
+export function shortcutDefinition(id: ShortcutActionId): ShortcutDefinition {
+  const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
+  if (!definition) {
+    throw new Error(`unknown shortcut action: ${id}`);
+  }
+  return definition;
+}
+
 export function effectiveShortcutKeys(
   definition: ShortcutDefinition,
   overrides: ShortcutOverrides,

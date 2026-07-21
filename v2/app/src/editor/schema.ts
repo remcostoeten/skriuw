@@ -15,6 +15,7 @@ import { schema as basicSchema } from "prosemirror-schema-basic";
 import { Plugin, PluginKey, type EditorState } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import { addListNodes, liftListItem, sinkListItem, splitListItem } from "prosemirror-schema-list";
+import { createSearchPlugin } from "./search-plugin";
 
 export type SlashMenuState = {
   open: boolean;
@@ -91,6 +92,7 @@ export function createProductPlugins(): Plugin[] {
     history({ newGroupDelay: HISTORY_GROUP_DELAY_MS, depth: HISTORY_DEPTH }),
     createSlashMenuPlugin(),
     createPlaceholderPlugin(),
+    createSearchPlugin(),
     inputRules({
       rules: [
         ...smartQuotes,

@@ -27,10 +27,14 @@ function fakeUi(overrides: Partial<CommandUiState> = {}): CommandUiState {
   };
 }
 
-test("every shortcut definition maps to exactly one workspace command", () => {
+test("every globally bound shortcut definition maps to exactly one workspace command", () => {
   const registry = createCommandRegistry(createWorkspaceCommands(fakeStore, controls));
   for (const definition of SHORTCUT_DEFINITIONS) {
     const command = registry.commandForShortcut(definition.id);
+    if (definition.boundInEditor) {
+      assert.equal(command, undefined, `editor-bound shortcut ${definition.id} has a command`);
+      continue;
+    }
     assert.ok(command, `no command bound to shortcut ${definition.id}`);
   }
 });

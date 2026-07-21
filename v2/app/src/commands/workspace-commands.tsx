@@ -1,11 +1,13 @@
 import { createFolder, createNote } from "../actions/workspace";
 import type { AppRoute } from "../app-route";
+import { openEditorSearch } from "../editor/search-controller";
 import {
   FolderOpenIcon,
   NewFolderIcon,
   NewNoteIcon,
   PanelLeftToggleIcon,
   PanelRightToggleIcon,
+  SearchIcon,
   SettingsIcon,
   Trash2Icon,
 } from "../shared/icons";
@@ -112,6 +114,16 @@ export function createWorkspaceCommands(
       run: () => {
         focusRegion("metadata");
       },
+    },
+    {
+      id: "find-in-note",
+      label: "Find in note",
+      group: "Editor",
+      keywords: ["search", "replace", "find"],
+      icon: <SearchIcon size={15} />,
+      shortcut: "findInNote",
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
+      run: openEditorSearch,
     },
     {
       id: "go-to-notes",

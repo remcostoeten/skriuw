@@ -418,12 +418,6 @@ function AppearanceSection({ store }: SectionProps) {
           onChange={(checked) => change("showTreeGuides", checked)}
         />
         <SettingToggle
-          label="Tree indent guides"
-          detail="Show vertical guide lines for nested notes and folders."
-          checked={settings.showTreeGuides}
-          onChange={(checked) => change("showTreeGuides", checked)}
-        />
-        <SettingToggle
           label="Reduce motion"
           detail="Minimize non-essential interface motion."
           checked={settings.reduceMotion}

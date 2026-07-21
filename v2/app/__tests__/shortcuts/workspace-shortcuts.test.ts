@@ -9,5 +9,8 @@ test("suspended shortcuts retain only the explicitly active binding", () => {
     shortcutDefinitionsForState(true, "openSettings").map((definition) => definition.id),
     ["openSettings"],
   );
-  assert.equal(shortcutDefinitionsForState(false), SHORTCUT_DEFINITIONS);
+  assert.deepEqual(
+    shortcutDefinitionsForState(false),
+    SHORTCUT_DEFINITIONS.filter((definition) => !definition.boundInEditor),
+  );
 });

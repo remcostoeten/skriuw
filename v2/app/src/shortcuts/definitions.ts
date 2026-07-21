@@ -9,7 +9,11 @@ export type ShortcutActionId =
   | "focusEditor"
   | "focusMetadata"
   | "goToNotes"
-  | "goToTrash";
+  | "goToTrash"
+  | "findInNote"
+  | "searchMatchCase"
+  | "searchWholeWord"
+  | "searchRegex";
 
 export type ShortcutDefinition = {
   id: ShortcutActionId;
@@ -22,6 +26,8 @@ export type ShortcutDefinition = {
    * they never steal typed characters.
    */
   worksWhileTyping?: boolean;
+  secondaryKeys?: string;
+  boundInEditor?: boolean;
 };
 
 export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
@@ -62,7 +68,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   },
   {
     id: "toggleMetadata",
-    keys: "mod+alt+b",
+    keys: "ctrl+shift+b",
     label: "Toggle metadata panel",
     group: "Navigation",
     worksWhileTyping: true,
@@ -77,6 +83,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   {
     id: "focusEditor",
     keys: "mod+2",
+    secondaryKeys: "slash",
     label: "Focus editor",
     group: "Navigation",
     worksWhileTyping: true,
@@ -101,5 +108,36 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Go to trash",
     group: "Navigation",
     worksWhileTyping: true,
+  },
+  {
+    id: "findInNote",
+    keys: "mod+f",
+    label: "Find in note",
+    group: "Editor search",
+    worksWhileTyping: true,
+  },
+  {
+    id: "searchMatchCase",
+    keys: "alt+c",
+    label: "Toggle match case",
+    group: "Editor search",
+    worksWhileTyping: true,
+    boundInEditor: true,
+  },
+  {
+    id: "searchWholeWord",
+    keys: "alt+w",
+    label: "Toggle whole word",
+    group: "Editor search",
+    worksWhileTyping: true,
+    boundInEditor: true,
+  },
+  {
+    id: "searchRegex",
+    keys: "alt+r",
+    label: "Toggle regular expression",
+    group: "Editor search",
+    worksWhileTyping: true,
+    boundInEditor: true,
   },
 ];

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
@@ -16,6 +16,8 @@ import {
   slashMenuState,
 } from "./schema";
 import { applySlashCommand, filterSlashCommands } from "./slash-commands";
+import { SearchWidget } from "./search-widget";
+import { useEditorSearch } from "./use-editor-search";
 
 const SAVE_DEBOUNCE_MS = 500;
 
@@ -65,6 +67,10 @@ export function NoteEditor({ store }: Props) {
   const activeNoteId = useRendererSelector(store, (state) => state.activeNoteId);
   const settingsDocument = useRendererSelector(store, (state) => state.settings);
   const editorSettings = projectSettings(settingsDocument);
+  const getEditorView = useCallback(() => viewRef.current, []);
+  const search = useEditorSearch(store, getEditorView);
+  const searchRef = useRef(search);
+  searchRef.current = search;
 
   function saveNow(noteId: string): void {
     const cached = cacheRef.current.get(noteId);
@@ -146,6 +152,9 @@ export function NoteEditor({ store }: Props) {
             schedulePendingSave();
           }
         }
+        if (transaction.docChanged && searchRef.current.searchOpen) {
+          searchRef.current.syncMatchInfo();
+        }
         const menu = slashMenuState(next);
         if (!menu.open) {
           if (slashMenuRef.current.open) {
@@ -207,6 +216,7 @@ export function NoteEditor({ store }: Props) {
     if (!view) {
       return;
     }
+    searchRef.current.resetSearch();
     flushPendingSave();
     activeIdRef.current = activeNoteId;
     setSlashMenu(closedSlashMenu);
@@ -237,6 +247,29 @@ export function NoteEditor({ store }: Props) {
 
   return (
     <div className="editor-host">
+      {search.searchOpen && (
+        <div className="editor-search-anchor">
+          <SearchWidget
+            ref={search.findInputRef}
+            query={search.searchQuery}
+            onQueryChange={search.setSearchQuery}
+            replaceValue={search.replaceValue}
+            onReplaceChange={search.setReplaceValue}
+            showReplace={search.showReplace}
+            onToggleReplace={() => search.setShowReplace((value) => !value)}
+            options={search.searchOptions}
+            onToggleOption={search.toggleSearchOption}
+            current={search.matchInfo.current}
+            total={search.matchInfo.total}
+            regexError={search.regexError}
+            onNext={search.handleNextMatch}
+            onPrevious={search.handlePreviousMatch}
+            onClose={search.closeSearch}
+            onReplaceCurrent={search.handleReplaceCurrent}
+            onReplaceAll={search.handleReplaceAll}
+          />
+        </div>
+      )}
       <div
         ref={hostRef}
         className="prosemirror-host"

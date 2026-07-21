@@ -7,6 +7,7 @@ import { MetadataPanel } from "./shell/metadata-panel";
 import { SettingsDialog } from "./shell/settings-dialog";
 import { TrashView } from "./shell/trash-view";
 import { WindowControls } from "./shell/window-controls";
+import { panelGridTemplate } from "./shell/panel-layout";
 import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
 import { appRouteHash, useAppRoute } from "./app-route";
 import { createCommandRegistry, registryShortcutActions } from "./commands/registry";
@@ -67,9 +68,7 @@ export function App({ store }: Props) {
     () => registryShortcutActions(registry, () => store.getState(), () => uiRef.current),
     [registry, store],
   );
-  const gridTemplateColumns = `56px${route === "notes" && sidebarOpen ? " 260px" : ""} 1fr${
-    route === "notes" && metadataOpen ? " 240px" : ""
-  }`;
+  const gridTemplateColumns = panelGridTemplate(route, sidebarOpen, metadataOpen);
   return (
     <div className="shell" style={{ gridTemplateColumns }}>
       <WindowControls />
@@ -137,7 +136,9 @@ export function App({ store }: Props) {
         </div>
       </nav>
       <div className="notes-view" hidden={route !== "notes"}>
-        {sidebarOpen && <Sidebar store={store} />}
+        <div className="panel-col" aria-hidden={!sidebarOpen}>
+          {sidebarOpen ? <Sidebar store={store} /> : null}
+        </div>
         <main className="flex min-w-0 flex-col">
           <div className="flex h-11 items-center gap-1 border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
             <Tooltip label="Toggle sidebar" side="bottom">
@@ -155,7 +156,7 @@ export function App({ store }: Props) {
               <button
                 type="button"
                 onClick={() => setMetadataOpen((current) => !current)}
-                className={`${toolbarIconButtonClass} ml-auto`}
+                className={`${toolbarIconButtonClass} ml-auto${metadataOpen ? "" : " mr-[116px]"}`}
                 aria-label="Toggle metadata"
                 aria-expanded={metadataOpen}
               >
@@ -167,7 +168,9 @@ export function App({ store }: Props) {
             <EditorHost store={store} />
           </div>
         </main>
-        {metadataOpen && <MetadataPanel store={store} />}
+        <div className="panel-col" aria-hidden={!metadataOpen}>
+          {metadataOpen ? <MetadataPanel store={store} /> : null}
+        </div>
       </div>
       {route === "trash" && <TrashView store={store} />}
       <CommandPaletteHost
