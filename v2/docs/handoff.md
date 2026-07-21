@@ -4,7 +4,7 @@ Last reviewed: 2026-07-21
 
 ## Start here
 
-Git integrity and archive compatibility fixtures are complete on the primary branch. `claude-promt.md` now assigns the isolated backend workload-measurement slice to Claude with cheap read-only subagents; the primary agent owns the non-overlapping UI architecture gate.
+Backend workload measurements and the initial editor replacement/retained spikes are complete on the primary branch.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -26,10 +26,10 @@ Read, in order:
 
 - Active branch: `feat/instant-local-first-foundation`.
 - Remote: none configured.
-- Last implementation commits: `a3f87e2 test: add archive compatibility fixtures` and `6a3dad2 perf: benchmark editor state switching`.
+- Last implementation commits: `6018b60 perf: benchmark retained editor views` and `97937f2 perf: measure backend fixture workloads`.
 - Expected worktree state: clean.
-- Current verification result: 110 tests plus formatting, Clippy, generated-schema drift checks, and `git diff --check` pass; two manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
-- UI spike verification: TypeScript checking and the Vite production build pass. `agent-browser` exercised both candidates at 50, 500, and 2,000 blocks, found no page errors, confirmed one host mount and zero preparation calls during switching, and visually verified the dense benchmark surface.
+- Current verification result: 112 tests plus formatting, Clippy, generated-schema drift checks, and `git diff --check` pass; five manual backend benchmarks and one manual fixture materialization are ignored by the default suite.
+- UI spike verification: TypeScript checking and the Vite production build pass. Fresh headless Chromium contexts exercised replacement regression cases and retained 500/2,000-block cases, found no page errors, confirmed one outer host mount and zero preparation calls during switching, and visually verified the dense benchmark surface.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
 - Archive CLI smoke imported the representative fixture, passed source integrity, exported it, imported that export into a second database, and passed second integrity; both imports reported 7 nodes and 4 documents.
@@ -233,9 +233,16 @@ The UI contract remains a fully hydrated in-memory workspace. Navigation is rend
 - These are provisional layout-boundary observations, not full interaction passes. Presentation timing, Long Animation Frames, repeat runs, and focus/selection restoration remain open.
 - Full retained method and representative observations are in `docs/benchmarks/2026-07-21-editor-retained.md`.
 
-## Known correctness gap and next task
+## Completed backend-workload slice
 
-Claude is implementing deterministic import, bootstrap, and history workload measurements in the isolated `feat/backend-workload-measurements` worktree. Do not integrate until its commits are complete and reviewed.
+- Claude implementation `0f646bb` was reviewed in its isolated worktree and integrated as `97937f2`; its stale shared-doc commit `23511fd` was excluded and reconciled here.
+- Two default 120-note regressions cover archive import, bootstrap, search and SQLite integrity, outbox-to-Git drain, Git integrity, validated cache rebuild, header publication, and outbox emptiness.
+- Three ignored release-mode workloads record import, bootstrap, outbox-to-Git drain, and validated cache rebuild over deterministic `mixed-1000` and `mixed-5000` fixtures without adding CI timing gates.
+- Recorded medians for 1,000 / 5,000 notes: archive replacement 122.090 / 1962.093 ms; bootstrap 2.720 / 13.409 ms; outbox-to-Git drain 4159.794 / 96283.068 ms; validated cache rebuild 140.193 / 2773.599 ms.
+- Import currently scales worse than linearly because document projection scans archive nodes. History drain dominates at 5,000 commits but remains outside startup, editing, and navigation paths. Page-cache state was warm and uncontrolled.
+- Raw samples, environment, commands, and limitations are in `docs/benchmarks/2026-07-21-backend-workloads.md`; manual commands are also in `docs/fixtures.md`.
+
+## Known correctness gap and next task
 
 Primary next slice: add presentation and Long Animation Frame measurement, then prototype a genuinely bounded editor viewport at 2,000 blocks and measure focus/selection and scroll restoration, equivalent product plugins, and native keyboard-to-paint behavior. Repeat retained 500-block runs before using their margins for selection. Tree virtualization, external store selectors, and desktop bridge measurements still precede ADR-0020 and product UI scaffolding. Durable sidebar expansion persistence remains a later UI-linked operation.
 

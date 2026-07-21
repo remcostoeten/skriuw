@@ -35,7 +35,7 @@ Keep domain records, operations, editor documents, and renderer state portable e
 
 - Desktop recovery UI and rollback-retention presentation.
 - Durable sidebar expansion operation and native-only persistence.
-- Import, bootstrap, and history workload measurements over the deterministic fixture generators.
+- Fixed-runner confirmation of the recorded import, bootstrap, and history workload measurements.
 
 ## UI architecture gate
 
