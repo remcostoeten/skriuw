@@ -116,8 +116,8 @@ Measured backend workloads: optimized-build medians over `mixed-1000` and `mixed
 - [x] Prototype fine-grained external renderer store selectors.
 - [x] Verify persistent editor host without remounting.
 - [x] Measure desktop bridge overhead outside navigation.
-- [ ] Write ADR selecting editor, renderer store, build tool, and desktop shell.
-- [ ] Reject any option failing `docs/performance-contract.md`.
+- [x] Write ADR selecting editor, renderer store, build tool, and desktop shell.
+- [x] Reject any option failing `docs/performance-contract.md`.
 
 Initial editor spike: a production vanilla-TypeScript harness compares direct ProseMirror and Lexical over equivalent deterministic 50, 500, and 2,000-block corpora. Both meet the provisional cached end-to-layout target at 50 blocks with one host mount and zero preparation during navigation. Five repeated 500-block runs produced 9.1 ms ProseMirror and 10.9 ms Lexical median P95 values, so neither reliably meets it. Neither naive full-DOM swap survives 2,000 blocks. Repeated memory, genuinely bounded rendering, presentation timing, selection restoration, real product plugins, native keyboard paint, and final editor selection remain open. See `docs/benchmarks/2026-07-21-editor-candidates-initial.md`.
 
@@ -141,7 +141,7 @@ Renderer-store selector spike: a disposable React harness normalizes the canonic
 
 Desktop bridge spike: an isolated Tauri 2.11.5 production application proves 1,000 navigation updates issue zero commands. Five-run median throughput means were 0.220 ms for empty IPC, 0.180 ms for 1 KiB, 0.420 ms for 64 KiB, and 0.215 ms through the real serialized runtime. A 100-operation delayed burst queued optimistic work in 7 ms median, preserved FIFO acknowledgements, and observed zero dropped frames while settlement took 107 ms. Linux WebKit timer quantization, fixed-runner evidence, and Windows/macOS platform runs remain open. See `docs/benchmarks/2026-07-21-desktop-bridge.md`.
 
-Immediate next task: implement canonical whole-note select-all/copy and find, complete deferred IME window movement, and prototype the accessible whole-document path. Define bounded history grouping and retention before capturing fixed-runner presentation evidence. These still precede ADR-0020.
+Immediate next task: build the MVP UI per ADR-0020. Notes are expected to stay short, so the product ships the whole-document editor path first with the bounded window retained as the validated large-document fallback. Whole-note select-all/copy, find, IME completion, and accessible traversal are implemented in the product against the canonical document, not in further spikes. History policy is fixed by ADR-0020 (500 ms grouping, 200-entry cap). Fixed-runner presentation evidence is deferred until the MVP exists.
 
 React requirements if selected:
 
