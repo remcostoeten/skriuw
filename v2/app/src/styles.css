@@ -1066,3 +1066,205 @@ dialog.dialog::backdrop {
     transition-duration: 1ms;
   }
 }
+
+dialog.settings-dialog {
+  width: min(896px, calc(100vw - 48px));
+  height: min(720px, calc(100vh - 64px));
+  max-height: calc(100vh - 64px);
+  margin: auto;
+}
+
+.settings-dialog .dialog-header {
+  flex: none;
+}
+
+.settings-dialog .settings-nav {
+  display: flex;
+  width: 220px;
+  padding: 14px 10px 10px;
+  background: hsl(var(--sidebar-background));
+}
+
+.settings-search-wrap {
+  position: relative;
+  flex: none;
+  margin: 0 2px 12px;
+}
+
+.settings-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 9px;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.settings-search {
+  width: 100%;
+  height: 32px;
+  padding: 5px 32px 5px 30px;
+  border: 1px solid hsl(var(--sidebar-border));
+  border-radius: var(--radius);
+  outline: 0;
+  background: hsl(var(--background) / 0.62);
+  color: hsl(var(--sidebar-foreground));
+  font: inherit;
+  font-size: 12px;
+}
+
+.settings-search::placeholder {
+  color: hsl(var(--muted-foreground) / 0.78);
+}
+
+.settings-search::-webkit-search-cancel-button {
+  display: none;
+}
+
+.settings-search:focus-visible {
+  border-color: hsl(var(--foreground) / 0.42);
+  box-shadow: 0 0 0 2px hsl(var(--sidebar-background)), 0 0 0 3px hsl(var(--foreground) / 0.24);
+}
+
+.settings-search-hint {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  min-width: 18px;
+  padding: 1px 5px;
+  border: 1px solid hsl(var(--sidebar-border));
+  border-radius: calc(var(--radius) - 2px);
+  background: hsl(var(--background) / 0.66);
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.45;
+  text-align: center;
+  transform: translateY(-50%);
+}
+
+.settings-tablist {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+}
+
+.settings-dialog .settings-nav-item {
+  min-height: 38px;
+  padding: 6px 9px;
+}
+
+.settings-dialog .settings-nav-item[role="tab"]:focus-visible {
+  background: hsl(var(--sidebar-accent));
+  color: hsl(var(--sidebar-accent-foreground));
+  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.2);
+}
+
+.settings-nav-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.05;
+}
+
+.settings-nav-copy > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-nav-copy > span + span {
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+}
+
+.settings-search-empty {
+  margin: 2px 6px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settings-nav-help {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: auto 4px 0;
+  padding-top: 12px;
+  color: hsl(var(--muted-foreground) / 0.78);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.settings-nav-help kbd {
+  padding: 1px 4px;
+  border: 1px solid hsl(var(--sidebar-border));
+  border-radius: calc(var(--radius) - 2px);
+  background: hsl(var(--background) / 0.5);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.settings-dialog .settings-content {
+  padding: 28px 36px 36px;
+}
+
+.settings-content > section {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.settings-content:focus-visible {
+  background-image: linear-gradient(
+    hsl(var(--foreground) / 0.025),
+    hsl(var(--foreground) / 0.025)
+  );
+  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.12);
+}
+
+@media (max-width: 620px) {
+  dialog.settings-dialog {
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
+    max-height: calc(100vh - 24px);
+  }
+
+  .settings-dialog .settings-nav {
+    display: grid;
+    width: auto;
+    padding: 10px;
+    grid-template-columns: 1fr;
+  }
+
+  .settings-search-wrap {
+    width: 100%;
+    margin: 0 0 8px;
+  }
+
+  .settings-tablist {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .settings-dialog .settings-nav-item {
+    flex: none;
+    min-height: 34px;
+  }
+
+  .settings-nav-help {
+    display: none;
+  }
+
+  .settings-search-empty {
+    margin: 4px 2px;
+  }
+
+  .settings-dialog .settings-content {
+    padding: 20px 18px 28px;
+  }
+}

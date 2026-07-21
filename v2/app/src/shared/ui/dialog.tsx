@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from "react";
-import type { ReactNode } from "react";
+import type { KeyboardEventHandler, ReactNode } from "react";
 import { CloseIcon } from "../icons";
 
 type Props = {
@@ -7,6 +7,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   title: string;
   children: ReactNode;
+  onKeyDown?: KeyboardEventHandler<HTMLDialogElement>;
   /** Extra class on the dialog element, e.g. for per-dialog sizing. */
   className?: string;
 };
@@ -17,12 +18,17 @@ type Props = {
  * Renders nothing while closed and mounts its content fresh on every open;
  * callers own the open state, mirroring the CommandPalette contract.
  */
-export function Dialog({ open, onOpenChange, title, children, className }: Props) {
+export function Dialog({ open, onOpenChange, title, children, className, onKeyDown }: Props) {
   if (!open) {
     return null;
   }
   return (
-    <DialogShell title={title} className={className} onClose={() => onOpenChange(false)}>
+    <DialogShell
+      title={title}
+      className={className}
+      onClose={() => onOpenChange(false)}
+      onKeyDown={onKeyDown}
+    >
       {children}
     </DialogShell>
   );
@@ -33,14 +39,23 @@ type ShellProps = {
   children: ReactNode;
   className?: string;
   onClose: () => void;
+  onKeyDown?: KeyboardEventHandler<HTMLDialogElement>;
 };
 
-function DialogShell({ title, children, className, onClose }: ShellProps) {
+function DialogShell({ title, children, className, onClose, onKeyDown }: ShellProps) {
   const ref = useRef<HTMLDialogElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
   const titleId = useId();
 
   useEffect(() => {
     ref.current?.showModal();
+    return () => {
+      if (previousFocusRef.current?.isConnected) {
+        previousFocusRef.current.focus();
+      }
+    };
   }, []);
 
   return (
@@ -49,6 +64,7 @@ function DialogShell({ title, children, className, onClose }: ShellProps) {
       className={`dialog${className ? ` ${className}` : ""}`}
       aria-labelledby={titleId}
       onClose={onClose}
+      onKeyDown={onKeyDown}
       onPointerDown={(event) => {
         if (event.target === ref.current) {
           ref.current?.close();

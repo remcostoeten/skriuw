@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   clearShortcutOverride,
   setShortcutOverride,
@@ -10,6 +11,7 @@ import {
   FileTextIcon,
   FolderOpenIcon,
   KeyboardIcon,
+  SearchIcon,
   SettingsIcon,
 } from "../shared/icons";
 import { Dialog } from "../shared/ui/dialog";
@@ -21,6 +23,11 @@ import {
   projectSettings,
 } from "../settings/settings-model";
 import type { EditableSettings, SettingsViewModel } from "../settings/settings-model";
+import {
+  filterSettingsSections,
+  moveSettingsSection,
+  rovingSettingsSection,
+} from "../settings/settings-navigation";
 import {
   effectiveShortcutKeys,
   findShortcutConflict,
@@ -34,10 +41,36 @@ import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererState, RendererStore } from "../store/types";
 
 const SECTIONS = [
-  { id: "appearance", label: "Appearance", icon: SettingsIcon },
-  { id: "editor", label: "Editor", icon: FileTextIcon },
-  { id: "shortcuts", label: "Shortcuts", icon: KeyboardIcon },
-  { id: "data", label: "Data", icon: DatabaseIcon },
+  {
+    id: "appearance",
+    label: "Appearance",
+    description: "Theme and density",
+    searchText:
+      "color midnight paper embers mocha rose pine catppuccin gruvbox tokyo night compact sidebar page icons reduce motion remember last note workspace",
+    icon: SettingsIcon,
+  },
+  {
+    id: "editor",
+    label: "Editor",
+    description: "Writing experience",
+    searchText:
+      "font typography inter line spacing cozy comfortable relaxed line numbers empty note prompt placeholder writing",
+    icon: FileTextIcon,
+  },
+  {
+    id: "shortcuts",
+    label: "Shortcuts",
+    description: "Keyboard bindings",
+    searchText: `keys hotkeys remap commands ${SHORTCUT_DEFINITIONS.map((definition) => `${definition.label} ${definition.group}`).join(" ")}`,
+    icon: KeyboardIcon,
+  },
+  {
+    id: "data",
+    label: "Data",
+    description: "Local workspace files",
+    searchText: "database storage local file manager workspace path",
+    icon: DatabaseIcon,
+  },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -66,24 +99,211 @@ type Props = {
 
 export function SettingsDialog({ store, open, onOpenChange }: Props) {
   const [section, setSection] = useState<SectionId>("appearance");
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const filteredSections = useMemo(
+    () => filterSettingsSections(SECTIONS, query),
+    [query],
+  );
+  const filteredIds = filteredSections.map((entry) => entry.id);
+  const rovingSection = rovingSettingsSection(filteredIds, section);
+  const activeMeta = SECTIONS.find((entry) => entry.id === section) ?? SECTIONS[0];
+
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+    }
+  }, [open]);
+
+  function focusSection(id: SectionId): void {
+    requestAnimationFrame(() => {
+      document.getElementById(`settings-tab-${id}`)?.focus();
+    });
+  }
+
+  function focusContent(): void {
+    requestAnimationFrame(() => contentRef.current?.focus());
+  }
+
+  function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLDialogElement>): void {
+    if (event.key === "/" && !isTypingTarget(event.target)) {
+      event.preventDefault();
+      searchRef.current?.focus();
+      return;
+    }
+    if (
+      event.key.toLocaleLowerCase() === "e" &&
+      event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+      if (rovingSection) {
+        focusSection(rovingSection);
+      }
+      return;
+    }
+    if (event.key !== "F6") {
+      return;
+    }
+    event.preventDefault();
+    const activeTab = rovingSection
+      ? document.getElementById(`settings-tab-${rovingSection}`)
+      : null;
+    const regions = [searchRef.current, activeTab, contentRef.current].filter(
+      (region): region is HTMLElement => region !== null,
+    );
+    const active = document.activeElement;
+    const currentIndex = Math.max(
+      0,
+      regions.findIndex((region) => region === active || region.contains(active)),
+    );
+    const offset = event.shiftKey ? -1 : 1;
+    regions[(currentIndex + offset + regions.length) % regions.length]?.focus();
+  }
+
+  function handleNavKeyDown(event: ReactKeyboardEvent<HTMLElement>): void {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || target.getAttribute("role") !== "tab") {
+      return;
+    }
+    const current = target.dataset.sectionId as SectionId | undefined;
+    if (!current) {
+      return;
+    }
+    if (
+      event.key === "Enter" ||
+      event.key === " " ||
+      event.key === "ArrowRight"
+    ) {
+      event.preventDefault();
+      setSection(current);
+      focusContent();
+      return;
+    }
+    if (
+      event.key !== "ArrowDown" &&
+      event.key !== "ArrowUp" &&
+      event.key !== "Home" &&
+      event.key !== "End"
+    ) {
+      return;
+    }
+    event.preventDefault();
+    if (event.key === "ArrowUp" && filteredIds[0] === current) {
+      searchRef.current?.focus();
+      return;
+    }
+    const next = moveSettingsSection(filteredIds, current, event.key);
+    if (next) {
+      setSection(next);
+      focusSection(next);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Settings" className="settings-dialog">
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Settings"
+      className="settings-dialog"
+      onKeyDown={handleDialogKeyDown}
+    >
       <div className="settings-layout">
-        <nav className="settings-nav" aria-label="Settings sections">
-          {SECTIONS.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              className={`settings-nav-item${section === entry.id ? " is-active" : ""}`}
-              aria-current={section === entry.id}
-              onClick={() => setSection(entry.id)}
-            >
-              <entry.icon size={15} />
-              {entry.label}
-            </button>
-          ))}
+        <nav
+          ref={navRef}
+          className="settings-nav"
+          aria-label="Settings sections"
+          onKeyDown={handleNavKeyDown}
+        >
+          <div className="settings-search-wrap">
+            <SearchIcon size={14} aria-hidden="true" className="settings-search-icon" />
+            <input
+              ref={searchRef}
+              type="search"
+              autoFocus
+              value={query}
+              className="settings-search"
+              placeholder="Search settings"
+              aria-label="Search settings"
+              aria-controls="settings-tablist"
+              onChange={(event) => setQuery(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && query) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setQuery("");
+                  return;
+                }
+                if (event.key === "ArrowDown" && rovingSection) {
+                  event.preventDefault();
+                  focusSection(rovingSection);
+                  return;
+                }
+                if (event.key === "Enter" && filteredSections[0]) {
+                  event.preventDefault();
+                  setSection(filteredSections[0].id);
+                  focusContent();
+                }
+              }}
+            />
+            <kbd className="settings-search-hint" aria-hidden="true">/</kbd>
+          </div>
+          <div
+            id="settings-tablist"
+            role="tablist"
+            aria-orientation="vertical"
+            aria-label="Settings sections"
+            className="settings-tablist"
+          >
+            {filteredSections.map((entry) => (
+              <button
+                key={entry.id}
+                id={`settings-tab-${entry.id}`}
+                type="button"
+                role="tab"
+                data-section-id={entry.id}
+                tabIndex={rovingSection === entry.id ? 0 : -1}
+                className={`settings-nav-item${section === entry.id ? " is-active" : ""}`}
+                aria-selected={section === entry.id}
+                aria-controls="settings-tabpanel"
+                onClick={() => setSection(entry.id)}
+              >
+                <entry.icon size={15} aria-hidden="true" />
+                <span className="settings-nav-copy">
+                  <span>{entry.label}</span>
+                  {query && <span>{entry.description}</span>}
+                </span>
+              </button>
+            ))}
+          </div>
+          {filteredSections.length === 0 && (
+            <p className="settings-search-empty" role="status">
+              No settings match “{query.trim()}”.
+            </p>
+          )}
+          <p className="settings-nav-help">
+            <kbd>/</kbd> Search <span aria-hidden="true">·</span> <kbd>Ctrl E</kbd> Sections
+          </p>
         </nav>
-        <div className="settings-content">
+        <div
+          ref={contentRef}
+          id="settings-tabpanel"
+          role="tabpanel"
+          aria-label={`${activeMeta.label} settings`}
+          tabIndex={0}
+          className="settings-content"
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft" && event.target === event.currentTarget) {
+              event.preventDefault();
+              if (rovingSection) {
+                focusSection(rovingSection);
+              }
+            }
+          }}
+        >
           {section === "appearance" && <AppearanceSection store={store} />}
           {section === "editor" && <EditorSection store={store} />}
           {section === "shortcuts" && <ShortcutsSection store={store} />}
@@ -91,6 +311,14 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
         </div>
       </div>
     </Dialog>
+  );
+}
+
+function isTypingTarget(target: EventTarget): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
   );
 }
 
@@ -140,7 +368,7 @@ function AppearanceSection({ store }: SectionProps) {
         <p>Choose how the workspace looks and behaves.</p>
       </div>
       <div className="settings-group">
-        <h3 className="settings-group-title">Theme</h3>
+        <h4 className="settings-group-title">Theme</h4>
         <label className="settings-row" htmlFor="settings-theme">
           <span className="settings-row-label">
             Color theme
@@ -161,7 +389,7 @@ function AppearanceSection({ store }: SectionProps) {
         </label>
       </div>
       <div className="settings-group">
-        <h3 className="settings-group-title">Workspace</h3>
+        <h4 className="settings-group-title">Workspace</h4>
         <SettingToggle
           label="Compact sidebar"
           detail="Use tighter spacing in the notes tree."
@@ -209,7 +437,7 @@ function EditorSection({ store }: SectionProps) {
         <p>Tune the writing surface without changing note content.</p>
       </div>
       <div className="settings-group">
-        <h3 className="settings-group-title">Typography</h3>
+        <h4 className="settings-group-title">Typography</h4>
         <label className="settings-row" htmlFor="settings-editor-font">
           <span className="settings-row-label">Editor font</span>
           <select
@@ -242,7 +470,7 @@ function EditorSection({ store }: SectionProps) {
         </label>
       </div>
       <div className="settings-group">
-        <h3 className="settings-group-title">Writing</h3>
+        <h4 className="settings-group-title">Writing</h4>
         <SettingToggle
           label="Show line numbers"
           detail="Display line numbers beside editor content."
@@ -302,7 +530,7 @@ function ShortcutsSection({ store }: SectionProps) {
       </div>
       {groups.map((group) => (
         <div key={group} className="settings-group">
-          <h3 className="settings-group-title">{group}</h3>
+          <h4 className="settings-group-title">{group}</h4>
           {SHORTCUT_DEFINITIONS.filter((definition) => definition.group === group).map(
             (definition) => (
               <div key={definition.id} className="settings-row">
@@ -362,7 +590,7 @@ function DataSection() {
         <p>Find the local files that hold this workspace.</p>
       </div>
       <div className="settings-group">
-        <h3 className="settings-group-title">Storage</h3>
+        <h4 className="settings-group-title">Storage</h4>
         <div className="settings-row">
           <span className="settings-row-label">
             Workspace database
