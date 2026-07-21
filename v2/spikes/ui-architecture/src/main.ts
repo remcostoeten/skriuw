@@ -9,11 +9,17 @@ import {
   measureScenario,
   nextPaint,
 } from "./metrics";
+import {
+  createNativeMeasurement,
+  type NativeMeasurement,
+} from "./native-metrics";
 import type {
   BenchmarkResult,
   BlockCount,
   CandidateId,
   EditorCandidate,
+  NativeInteractionResult,
+  PreparedState,
   RenderingStrategy,
 } from "./types";
 
@@ -54,6 +60,8 @@ app.innerHTML = `
           </select>
         </label>
         <button id="run" type="button">Run benchmark</button>
+        <button id="arm-native" type="button" disabled>Arm native input</button>
+        <button id="finish-native" type="button" disabled>Finish native input</button>
       </div>
       <p class="status-line" id="status">Ready. Production-build measurements required for evidence.</p>
     </aside>
@@ -69,7 +77,7 @@ app.innerHTML = `
         <span class="latency-marker" id="latency-marker" style="left: 0%"></span>
       </div>
       <div class="workspace">
-        <div class="workspace-bar"><span id="workspace-label">No candidate mounted</span><span id="dom-count">0 DOM nodes</span></div>
+        <div class="workspace-bar"><span id="workspace-label">No candidate mounted</span><span id="native-sentinel">Native input idle</span><span id="dom-count">0 DOM nodes</span></div>
         <div class="editor-host" id="editor-host" aria-label="Editor benchmark host"></div>
       </div>
       <details>
@@ -84,11 +92,19 @@ const candidateSelect = requiredElement<HTMLSelectElement>("candidate");
 const strategySelect = requiredElement<HTMLSelectElement>("strategy");
 const blockSelect = requiredElement<HTMLSelectElement>("blocks");
 const runButton = requiredElement<HTMLButtonElement>("run");
+const armNativeButton = requiredElement<HTMLButtonElement>("arm-native");
+const finishNativeButton = requiredElement<HTMLButtonElement>("finish-native");
 const status = requiredElement<HTMLElement>("status");
 const host = requiredElement<HTMLElement>("editor-host");
 const rawOutput = requiredElement<HTMLElement>("raw-output");
+const nativeSentinel = requiredElement<HTMLElement>("native-sentinel");
 let activeCandidate: EditorCandidate | null = null;
+let activeStates: readonly PreparedState[] = [];
 let lastResult: BenchmarkResult | null = null;
+let lastNativeResult: NativeInteractionResult | null = null;
+let nativeMeasurement: NativeMeasurement | null = null;
+let nativeExpectedInteractions = 0;
+let nativeHandledInteractions = 0;
 
 function requiredElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -137,11 +153,101 @@ function renderResult(result: BenchmarkResult): void {
   status.textContent = `${settledPass && invariantPass ? "END-TO-LAYOUT PASS" : "REVIEW"} · navigation P95 ${formatMs(result.switching.settled.p95Ms)} · preparation calls during navigation ${preparationCalls}`;
 }
 
+function handleNativeKeydown(event: KeyboardEvent): void {
+  if (event.key !== "ArrowDown"
+    || !event.isTrusted
+    || event.repeat
+    || event.altKey
+    || event.ctrlKey
+    || event.metaKey
+    || event.shiftKey
+    || !nativeMeasurement
+    || !activeCandidate
+    || activeStates.length === 0
+    || nativeHandledInteractions >= nativeExpectedInteractions) {
+    return;
+  }
+  event.preventDefault();
+  const index = nativeHandledInteractions;
+  const state = activeStates[(index + 1) % activeStates.length];
+  if (!state) {
+    return;
+  }
+  const processingStarted = performance.now();
+  performance.mark(`skriuw-native-${index}-start`);
+  activeCandidate.install(state);
+  nativeSentinel.textContent = `Switch ${index + 1} · ${state.id}`;
+  nativeHandledInteractions += 1;
+  status.textContent = `Native ArrowDown ${nativeHandledInteractions}/${nativeExpectedInteractions} · finish after keyup delivery`;
+  const syncFinished = performance.now();
+  performance.mark(`skriuw-native-${index}-installed`);
+  activeCandidate.layoutHeight();
+  const layoutFinished = performance.now();
+  performance.mark(`skriuw-native-${index}-layout`);
+  nativeMeasurement.record({
+    index,
+    eventTime: event.timeStamp,
+    processingStarted,
+    syncMs: syncFinished - processingStarted,
+    layoutMs: layoutFinished - syncFinished,
+    settledMs: layoutFinished - processingStarted,
+  });
+}
+
+export function armNativeNavigation(expectedInteractions = 100): void {
+  if (!activeCandidate || activeStates.length === 0) {
+    throw new Error("run a benchmark before arming native navigation");
+  }
+  if (nativeMeasurement) {
+    throw new Error("native navigation measurement is already armed");
+  }
+  if (!Number.isInteger(expectedInteractions) || expectedInteractions <= 0) {
+    throw new Error("native interaction count must be a positive integer");
+  }
+  performance.clearMarks();
+  nativeExpectedInteractions = expectedInteractions;
+  nativeHandledInteractions = 0;
+  lastNativeResult = null;
+  nativeMeasurement = createNativeMeasurement(expectedInteractions);
+  document.addEventListener("keydown", handleNativeKeydown);
+  runButton.disabled = true;
+  armNativeButton.disabled = true;
+  finishNativeButton.disabled = false;
+  nativeSentinel.textContent = "Native input armed · press ArrowDown";
+  status.textContent = `Waiting for ${expectedInteractions} trusted ArrowDown interactions…`;
+}
+
+export async function finishNativeNavigation(): Promise<NativeInteractionResult> {
+  const measurement = nativeMeasurement;
+  if (!measurement) {
+    throw new Error("native navigation measurement is not armed");
+  }
+  if (nativeHandledInteractions !== nativeExpectedInteractions) {
+    throw new Error(
+      `native navigation handled ${nativeHandledInteractions} of ${nativeExpectedInteractions} interactions`,
+    );
+  }
+  document.removeEventListener("keydown", handleNativeKeydown);
+  nativeMeasurement = null;
+  const result = await measurement.finish();
+  lastNativeResult = result;
+  rawOutput.textContent = JSON.stringify({ benchmark: lastResult, native: result }, null, 2);
+  runButton.disabled = false;
+  armNativeButton.disabled = false;
+  finishNativeButton.disabled = true;
+  nativeSentinel.textContent = `${result.handledInteractions} handled · ${result.reportedEventEntries} Event Timing entries`;
+  status.textContent = `NATIVE EVIDENCE · ${result.unreportedEventEntries} key events unreported at the 16 ms Event Timing threshold · ${result.longAnimationFrames.length} frames above 50 ms`;
+  return result;
+}
+
 export async function runBenchmark(
   candidateId = candidateSelect.value as CandidateId,
   blockCount = Number(blockSelect.value) as BlockCount,
   strategy = strategySelect.value as RenderingStrategy,
 ): Promise<BenchmarkResult> {
+  if (nativeMeasurement) {
+    throw new Error("finish native navigation before running another benchmark");
+  }
   candidateSelect.value = candidateId;
   blockSelect.value = String(blockCount);
   strategySelect.value = strategy;
@@ -149,6 +255,7 @@ export async function runBenchmark(
   status.textContent = "Preparing deterministic editor states outside measured navigation…";
   activeCandidate?.destroy();
   activeCandidate = null;
+  activeStates = [];
   host.replaceChildren();
   host.removeAttribute("contenteditable");
   host.className = "editor-host";
@@ -159,6 +266,7 @@ export async function runBenchmark(
   activeCandidate = candidate;
   const preparationStarted = performance.now();
   const states = candidate.prepare(blockCount, NOTE_COUNT);
+  activeStates = states;
   const preparationMs = performance.now() - preparationStarted;
   const initial = states[0];
   if (!initial) {
@@ -229,6 +337,7 @@ export async function runBenchmark(
   lastResult = result;
   renderResult(result);
   runButton.disabled = false;
+  armNativeButton.disabled = false;
   return result;
 }
 
@@ -240,9 +349,20 @@ runButton.addEventListener("click", () => {
   });
 });
 
+armNativeButton.addEventListener("click", () => {
+  armNativeNavigation();
+});
+
+finishNativeButton.addEventListener("click", () => {
+  void finishNativeNavigation();
+});
+
 window.__SKRIUW_BENCHMARK__ = {
   run: runBenchmark,
+  armNativeNavigation,
+  finishNativeNavigation,
   lastResult: () => lastResult,
+  lastNativeResult: () => lastNativeResult,
 };
 
 declare global {
@@ -253,7 +373,10 @@ declare global {
         blockCount?: BlockCount,
         strategy?: RenderingStrategy,
       ): Promise<BenchmarkResult>;
+      armNativeNavigation(expectedInteractions?: number): void;
+      finishNativeNavigation(): Promise<NativeInteractionResult>;
       lastResult(): BenchmarkResult | null;
+      lastNativeResult(): NativeInteractionResult | null;
     };
   }
 }

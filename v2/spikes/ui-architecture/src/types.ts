@@ -54,6 +54,50 @@ export type TimingSummary = {
   maxMs: number;
 };
 
+export type NativeHandlerSample = {
+  index: number;
+  eventTime: number;
+  processingStarted: number;
+  syncMs: number;
+  layoutMs: number;
+  settledMs: number;
+};
+
+export type EventTimingRecord = {
+  name: string;
+  startTime: number;
+  durationMs: number;
+  processingStart: number;
+  processingEnd: number;
+  interactionId: number;
+  inputDelayMs: number;
+  processingMs: number;
+  quantizedPresentationDelayMs: number;
+};
+
+export type LongAnimationFrameRecord = {
+  startTime: number;
+  durationMs: number;
+  blockingDurationMs: number;
+  renderStart: number;
+  styleAndLayoutStart: number;
+  firstUIEventTimestamp: number;
+};
+
+export type NativeInteractionResult = {
+  supported: boolean;
+  expectedInteractions: number;
+  handledInteractions: number;
+  reportedEventEntries: number;
+  reportedInteractions: number;
+  unreportedEventEntries: number;
+  durationThresholdMs: 16;
+  handlerSamples: NativeHandlerSample[];
+  entries: EventTimingRecord[];
+  longAnimationFramesSupported: boolean;
+  longAnimationFrames: LongAnimationFrameRecord[];
+};
+
 export type ScenarioResult = {
   samples: TimingSample[];
   sync: TimingSummary;
