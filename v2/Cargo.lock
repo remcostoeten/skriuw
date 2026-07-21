@@ -522,6 +522,8 @@ dependencies = [
  "serde_json",
  "sha2",
  "skriuw-domain",
+ "skriuw-history",
+ "skriuw-history-git",
  "skriuw-sqlite",
  "skriuw-storage",
  "tempfile",
