@@ -53,7 +53,7 @@ export function App({ store }: Props) {
       createCommandRegistry(
         createWorkspaceCommands(store, {
           togglePalette: () => setPaletteOpen((current) => !current),
-          openSettings: () => setSettingsOpen(true),
+          openSettings: () => setSettingsOpen((current) => !current),
           toggleSidebar: () => setSidebarOpen((current) => !current),
           toggleMetadata: () => setMetadataOpen((current) => !current),
           navigate: (target) => {
@@ -178,7 +178,12 @@ export function App({ store }: Props) {
         onOpenChange={setPaletteOpen}
       />
       <SettingsDialog store={store} open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <WorkspaceShortcuts store={store} suspended={settingsOpen} actions={shortcutActions} />
+      <WorkspaceShortcuts
+        store={store}
+        suspended={settingsOpen}
+        activeWhileSuspended="openSettings"
+        actions={shortcutActions}
+      />
     </div>
   );
 }

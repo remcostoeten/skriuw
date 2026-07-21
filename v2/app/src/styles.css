@@ -1060,6 +1060,47 @@ dialog.dialog::backdrop {
   }
 }
 
+.settings-section-heading {
+  margin-bottom: 32px;
+}
+
+.settings-section-heading h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.settings-section-heading p {
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.settings-close-button {
+  position: absolute;
+  z-index: 1;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.settings-close-button:hover,
+.settings-close-button:focus-visible {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .settings-toggle-input,
   .settings-toggle-input::after {
@@ -1266,5 +1307,21 @@ dialog.settings-dialog {
 
   .settings-dialog .settings-content {
     padding: 20px 18px 28px;
+  }
+}
+
+.settings-search:focus-visible {
+  border-color: hsl(var(--sidebar-border));
+  box-shadow: none;
+}
+
+.settings-dialog .settings-content {
+  position: relative;
+  padding: 32px 40px 48px;
+}
+
+@media (max-width: 620px) {
+  .settings-dialog .settings-content {
+    padding: 24px 18px 36px;
   }
 }

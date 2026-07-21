@@ -18,6 +18,7 @@ type Props = {
    * bindings.
    */
   suspended?: boolean;
+  activeWhileSuspended?: ShortcutActionId;
 };
 
 function neverExcept(): boolean {
@@ -38,7 +39,24 @@ function sameOverrides(left: ShortcutOverrides, right: ShortcutOverrides): boole
  * live when they change. Adding a shortcut means adding a definition there
  * and an action here — no new listeners or components.
  */
-export function WorkspaceShortcuts({ store, actions, suspended = false }: Props) {
+export function shortcutDefinitionsForState(
+  suspended: boolean,
+  activeWhileSuspended?: ShortcutActionId,
+) {
+  if (!suspended) {
+    return SHORTCUT_DEFINITIONS;
+  }
+  return activeWhileSuspended
+    ? SHORTCUT_DEFINITIONS.filter((definition) => definition.id === activeWhileSuspended)
+    : [];
+}
+
+export function WorkspaceShortcuts({
+  store,
+  actions,
+  suspended = false,
+  activeWhileSuspended,
+}: Props) {
   const $ = useShortcut();
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
@@ -49,10 +67,8 @@ export function WorkspaceShortcuts({ store, actions, suspended = false }: Props)
   );
 
   useEffect(() => {
-    if (suspended) {
-      return;
-    }
-    const results = SHORTCUT_DEFINITIONS.map((definition) =>
+    const definitions = shortcutDefinitionsForState(suspended, activeWhileSuspended);
+    const results = definitions.map((definition) =>
       $.bind(effectiveShortcutKeys(definition, overrides)).on(
         () => {
           actionsRef.current[definition.id]();
@@ -69,7 +85,7 @@ export function WorkspaceShortcuts({ store, actions, suspended = false }: Props)
         result.unbind();
       }
     };
-  }, [$, overrides, suspended]);
+  }, [$, activeWhileSuspended, overrides, suspended]);
 
   return null;
 }

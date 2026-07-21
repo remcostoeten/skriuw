@@ -7,6 +7,7 @@ import {
 } from "../actions/settings";
 import { revealWorkspaceStorage, workspaceStoragePath } from "../bridge/commands";
 import {
+  CloseIcon,
   DatabaseIcon,
   FileTextIcon,
   FolderOpenIcon,
@@ -123,8 +124,14 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
     });
   }
 
-  function focusContent(): void {
-    requestAnimationFrame(() => contentRef.current?.focus());
+  function focusFirstSetting(): void {
+    requestAnimationFrame(() => {
+      contentRef.current
+        ?.querySelector<HTMLElement>(
+          "section select:not([disabled]), section input:not([disabled]), section button:not([disabled]), section a[href]",
+        )
+        ?.focus();
+    });
   }
 
   function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLDialogElement>): void {
@@ -180,7 +187,7 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
     ) {
       event.preventDefault();
       setSection(current);
-      focusContent();
+      focusFirstSetting();
       return;
     }
     if (
@@ -210,6 +217,7 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
       title="Settings"
       className="settings-dialog"
       onKeyDown={handleDialogKeyDown}
+      showHeader={false}
     >
       <div className="settings-layout">
         <nav
@@ -223,7 +231,6 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
             <input
               ref={searchRef}
               type="search"
-              autoFocus
               value={query}
               className="settings-search"
               placeholder="Search settings"
@@ -245,7 +252,7 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
                 if (event.key === "Enter" && filteredSections[0]) {
                   event.preventDefault();
                   setSection(filteredSections[0].id);
-                  focusContent();
+                  focusFirstSetting();
                 }
               }}
             />
@@ -304,6 +311,14 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
             }
           }}
         >
+          <button
+            type="button"
+            className="settings-close-button"
+            aria-label="Close settings"
+            onClick={() => onOpenChange(false)}
+          >
+            <CloseIcon size={16} />
+          </button>
           {section === "appearance" && <AppearanceSection store={store} />}
           {section === "editor" && <EditorSection store={store} />}
           {section === "shortcuts" && <ShortcutsSection store={store} />}
@@ -364,11 +379,11 @@ function AppearanceSection({ store }: SectionProps) {
   return (
     <section aria-label="Appearance">
       <div className="settings-section-heading">
-        <h3>Appearance</h3>
+        <h1>Appearance</h1>
         <p>Choose how the workspace looks and behaves.</p>
       </div>
       <div className="settings-group">
-        <h4 className="settings-group-title">Theme</h4>
+        <div className="settings-group-title">Theme</div>
         <label className="settings-row" htmlFor="settings-theme">
           <span className="settings-row-label">
             Color theme
@@ -389,7 +404,7 @@ function AppearanceSection({ store }: SectionProps) {
         </label>
       </div>
       <div className="settings-group">
-        <h4 className="settings-group-title">Workspace</h4>
+        <div className="settings-group-title">Workspace</div>
         <SettingToggle
           label="Compact sidebar"
           detail="Use tighter spacing in the notes tree."
@@ -433,11 +448,11 @@ function EditorSection({ store }: SectionProps) {
   return (
     <section aria-label="Editor preferences">
       <div className="settings-section-heading">
-        <h3>Editor</h3>
+        <h1>Editor</h1>
         <p>Tune the writing surface without changing note content.</p>
       </div>
       <div className="settings-group">
-        <h4 className="settings-group-title">Typography</h4>
+        <div className="settings-group-title">Typography</div>
         <label className="settings-row" htmlFor="settings-editor-font">
           <span className="settings-row-label">Editor font</span>
           <select
@@ -470,7 +485,7 @@ function EditorSection({ store }: SectionProps) {
         </label>
       </div>
       <div className="settings-group">
-        <h4 className="settings-group-title">Writing</h4>
+        <div className="settings-group-title">Writing</div>
         <SettingToggle
           label="Show line numbers"
           detail="Display line numbers beside editor content."
@@ -525,12 +540,12 @@ function ShortcutsSection({ store }: SectionProps) {
   return (
     <section aria-label="Keyboard shortcuts">
       <div className="settings-section-heading">
-        <h3>Shortcuts</h3>
+        <h1>Shortcuts</h1>
         <p>Click a shortcut, then press a new key combination. Escape cancels.</p>
       </div>
       {groups.map((group) => (
         <div key={group} className="settings-group">
-          <h4 className="settings-group-title">{group}</h4>
+          <div className="settings-group-title">{group}</div>
           {SHORTCUT_DEFINITIONS.filter((definition) => definition.group === group).map(
             (definition) => (
               <div key={definition.id} className="settings-row">
@@ -586,11 +601,11 @@ function DataSection() {
   return (
     <section aria-label="Data">
       <div className="settings-section-heading">
-        <h3>Data</h3>
+        <h1>Data</h1>
         <p>Find the local files that hold this workspace.</p>
       </div>
       <div className="settings-group">
-        <h4 className="settings-group-title">Storage</h4>
+        <div className="settings-group-title">Storage</div>
         <div className="settings-row">
           <span className="settings-row-label">
             Workspace database

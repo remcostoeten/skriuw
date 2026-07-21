@@ -8,6 +8,7 @@ type Props = {
   title: string;
   children: ReactNode;
   onKeyDown?: KeyboardEventHandler<HTMLDialogElement>;
+  showHeader?: boolean;
   /** Extra class on the dialog element, e.g. for per-dialog sizing. */
   className?: string;
 };
@@ -18,7 +19,15 @@ type Props = {
  * Renders nothing while closed and mounts its content fresh on every open;
  * callers own the open state, mirroring the CommandPalette contract.
  */
-export function Dialog({ open, onOpenChange, title, children, className, onKeyDown }: Props) {
+export function Dialog({
+  open,
+  onOpenChange,
+  title,
+  children,
+  className,
+  onKeyDown,
+  showHeader = true,
+}: Props) {
   if (!open) {
     return null;
   }
@@ -28,6 +37,7 @@ export function Dialog({ open, onOpenChange, title, children, className, onKeyDo
       className={className}
       onClose={() => onOpenChange(false)}
       onKeyDown={onKeyDown}
+      showHeader={showHeader}
     >
       {children}
     </DialogShell>
@@ -40,9 +50,17 @@ type ShellProps = {
   className?: string;
   onClose: () => void;
   onKeyDown?: KeyboardEventHandler<HTMLDialogElement>;
+  showHeader: boolean;
 };
 
-function DialogShell({ title, children, className, onClose, onKeyDown }: ShellProps) {
+function DialogShell({
+  title,
+  children,
+  className,
+  onClose,
+  onKeyDown,
+  showHeader,
+}: ShellProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(
     document.activeElement instanceof HTMLElement ? document.activeElement : null,
@@ -71,19 +89,25 @@ function DialogShell({ title, children, className, onClose, onKeyDown }: ShellPr
         }
       }}
     >
-      <header className="dialog-header">
-        <h2 id={titleId} className="dialog-title">
+      {showHeader ? (
+        <header className="dialog-header">
+          <h2 id={titleId} className="dialog-title">
+            {title}
+          </h2>
+          <button
+            type="button"
+            className="dialog-close"
+            aria-label="Close dialog"
+            onClick={() => ref.current?.close()}
+          >
+            <CloseIcon size={16} />
+          </button>
+        </header>
+      ) : (
+        <h2 id={titleId} className="sr-only">
           {title}
         </h2>
-        <button
-          type="button"
-          className="dialog-close"
-          aria-label="Close dialog"
-          onClick={() => ref.current?.close()}
-        >
-          <CloseIcon size={16} />
-        </button>
-      </header>
+      )}
       <div className="dialog-body">{children}</div>
     </dialog>
   );
