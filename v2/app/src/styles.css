@@ -102,6 +102,34 @@ body {
   word-wrap: break-word;
 }
 
+.bounded-editor-spacer {
+  width: 1px;
+  pointer-events: none;
+}
+
+.bounded-editor-accessible-document {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: pre-wrap;
+  border: 0;
+}
+
+.bounded-editor-accessible-document:focus {
+  position: relative;
+  width: 100%;
+  height: 8rem;
+  padding: 8px;
+  margin: 12px 0;
+  overflow: auto;
+  clip: auto;
+  border: 1px solid hsl(var(--ring));
+}
+
 .prosemirror-host[data-editor-line-height="cozy"] .ProseMirror {
   line-height: 1.45;
 }

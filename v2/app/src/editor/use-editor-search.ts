@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShortcut } from "@remcostoeten/use-shortcut/react";
-import type { EditorView } from "prosemirror-view";
 import {
   effectiveShortcutKeys,
   sameShortcutOverrides,
@@ -21,9 +20,10 @@ import {
   replaceCurrent,
   setSearch,
   type SearchOptions,
+  type EditorSearchTarget,
 } from "./search-plugin";
 
-export function useEditorSearch(store: RendererStore, getView: () => EditorView | null) {
+export function useEditorSearch(store: RendererStore, getView: () => EditorSearchTarget | null) {
   const $ = useShortcut({ ignoreInputs: false });
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

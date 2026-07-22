@@ -325,6 +325,8 @@ export async function createPerformanceController(
       prosemirrorViews,
       editorRemounts: editor === initialEditor ? 0 : 1,
     };
+    const renderedEditorBlocks = editor?.children.length ?? 0;
+    const boundedReader = document.querySelector("#bounded-editor-full-document");
     const correctness = [
       {
         name: "navigation-has-zero-bridge-calls",
@@ -357,6 +359,16 @@ export async function createPerformanceController(
         name: "trusted-keystroke-count-is-exact",
         pass: typing.handled === TYPING_COUNT,
         detail: `${typing.handled}/${TYPING_COUNT}`,
+      },
+      {
+        name: "large-editor-dom-is-bounded",
+        pass: fixture.blockCount <= 192 || renderedEditorBlocks <= 192,
+        detail: `${renderedEditorBlocks}/${fixture.blockCount} top-level blocks`,
+      },
+      {
+        name: "large-editor-has-whole-document-reader",
+        pass: fixture.blockCount <= 192 || boundedReader instanceof HTMLTextAreaElement,
+        detail: boundedReader?.getAttribute("aria-label") ?? "missing",
       },
     ];
     return {

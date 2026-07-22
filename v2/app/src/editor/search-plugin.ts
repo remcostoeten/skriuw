@@ -1,5 +1,5 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
-import { Plugin, PluginKey } from "prosemirror-state";
+import { Plugin, PluginKey, type EditorState, type Transaction } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
 
 export type SearchOptions = {
@@ -16,6 +16,14 @@ export type SearchState = {
   matches: SearchMatch[];
   current: number;
   decorations: DecorationSet;
+};
+
+export type EditorSearchTarget = {
+  readonly state: EditorState;
+  dispatch(transaction: Transaction): void;
+  focus(): void;
+  domAtPos?(position: number): ReturnType<EditorView["domAtPos"]>;
+  revealPosition?(position: number): void;
 };
 
 export const defaultSearchOptions: SearchOptions = {
@@ -44,7 +52,10 @@ export function buildRegex(term: string, options: SearchOptions): RegExp | null 
   }
 }
 
-function getMatches(doc: ProseMirrorNode, regex: RegExp | null): SearchMatch[] {
+export function findSearchMatches(
+  doc: ProseMirrorNode,
+  regex: RegExp | null,
+): SearchMatch[] {
   const matches: SearchMatch[] = [];
   if (!regex) return matches;
 
@@ -103,7 +114,7 @@ function buildDecorations(
 
 function recompute(state: SearchState, doc: ProseMirrorNode): SearchState {
   const regex = buildRegex(state.term, state.options);
-  const matches = getMatches(doc, regex);
+  const matches = findSearchMatches(doc, regex);
   let current = state.current;
   if (current >= matches.length) current = matches.length > 0 ? matches.length - 1 : 0;
   if (current < 0) current = 0;
@@ -147,26 +158,31 @@ export function createSearchPlugin(): Plugin<SearchState> {
   });
 }
 
-export function getSearchState(view: EditorView): SearchState | undefined {
+export function getSearchState(view: EditorSearchTarget): SearchState | undefined {
   return searchPluginKey.getState(view.state);
 }
 
-function dispatchMeta(view: EditorView, meta: Partial<SearchState>): void {
+function dispatchMeta(view: EditorSearchTarget, meta: Partial<SearchState>): void {
   const tr = view.state.tr.setMeta(searchPluginKey, meta);
   tr.setMeta("addToHistory", false);
   view.dispatch(tr);
 }
 
-function scrollMatchIntoView(view: EditorView, match: SearchMatch): void {
+function scrollMatchIntoView(view: EditorSearchTarget, match: SearchMatch): void {
+  if (view.revealPosition) {
+    view.revealPosition(match.from);
+    return;
+  }
   try {
-    const dom = view.domAtPos(match.from);
+    const dom = view.domAtPos?.(match.from);
+    if (!dom) return;
     const node = dom.node;
     const element = node instanceof Element ? node : node.parentElement;
     element?.scrollIntoView({ block: "center" });
   } catch {}
 }
 
-export function setSearch(view: EditorView, term: string, options: SearchOptions): void {
+export function setSearch(view: EditorSearchTarget, term: string, options: SearchOptions): void {
   dispatchMeta(view, { term, options, current: 0 });
   const state = getSearchState(view);
   const match = state?.matches[state.current];
@@ -175,11 +191,11 @@ export function setSearch(view: EditorView, term: string, options: SearchOptions
   }
 }
 
-export function clearSearch(view: EditorView): void {
+export function clearSearch(view: EditorSearchTarget): void {
   dispatchMeta(view, { term: "", current: 0 });
 }
 
-export function goToMatch(view: EditorView, index: number): void {
+export function goToMatch(view: EditorSearchTarget, index: number): void {
   const state = getSearchState(view);
   if (!state || state.matches.length === 0) return;
   const count = state.matches.length;
@@ -191,19 +207,19 @@ export function goToMatch(view: EditorView, index: number): void {
   }
 }
 
-export function nextMatch(view: EditorView): void {
+export function nextMatch(view: EditorSearchTarget): void {
   const state = getSearchState(view);
   if (!state || state.matches.length === 0) return;
   goToMatch(view, state.current + 1);
 }
 
-export function previousMatch(view: EditorView): void {
+export function previousMatch(view: EditorSearchTarget): void {
   const state = getSearchState(view);
   if (!state || state.matches.length === 0) return;
   goToMatch(view, state.current - 1);
 }
 
-export function replaceCurrent(view: EditorView, replacement: string): void {
+export function replaceCurrent(view: EditorSearchTarget, replacement: string): void {
   const state = getSearchState(view);
   if (!state || state.matches.length === 0) return;
   const match = state.matches[state.current];
@@ -218,7 +234,7 @@ export function replaceCurrent(view: EditorView, replacement: string): void {
   view.focus();
 }
 
-export function replaceAll(view: EditorView, replacement: string): void {
+export function replaceAll(view: EditorSearchTarget, replacement: string): void {
   const state = getSearchState(view);
   if (!state || state.matches.length === 0) return;
   const tr = view.state.tr;

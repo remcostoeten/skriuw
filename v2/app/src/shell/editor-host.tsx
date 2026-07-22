@@ -10,7 +10,7 @@ type Props = {
 export function EditorHost({ store }: Props) {
   const hasActiveNote = useRendererSelector(store, (state) => state.activeNoteId !== null);
   return (
-    <div className="h-full min-w-0 overflow-y-auto bg-theme-editor px-12 py-8">
+    <div className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor px-12 py-8">
       <div className={hasActiveNote ? "mx-auto w-full max-w-[72ch]" : "hidden"}>
         <NoteEditor store={store} />
       </div>
