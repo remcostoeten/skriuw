@@ -4,7 +4,7 @@ Last reviewed: 2026-07-22
 
 ## Start here
 
-The backend foundation, UI architecture measurements, product shell, bounded product editor, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented on the active feature branch. Claude's original-product audit is integrated and reconciled in `docs/product-scope-v1.md`; `docs/implementation-backlog.md` is the authoritative remaining v1 plan.
+The backend foundation, UI architecture measurements, product shell, bounded product editor, desktop Data/Recovery surface, scheduled backups, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented on the active feature branch. Claude's original-product audit is integrated and reconciled in `docs/product-scope-v1.md`; `docs/implementation-backlog.md` is the authoritative remaining v1 plan.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -24,11 +24,11 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be 31 commits ahead of `origin/feat/daddy-2` after C2 implementation and this handoff.
+- Active branch: `feat/daddy-2`, expected to be 33 commits ahead of `origin/feat/daddy-2` after N2 implementation and this handoff.
 - Remote: `origin` is configured; the active branch has not been pushed to its upstream state.
-- Last implementation commit: `b2563e8 feat: add bounded product editor fallback (C2)`; N1 is `5935264`, C1 is `57dfb4d`, and the UI architecture decision is ADR-0020.
+- Last implementation commit: `4e68559 feat: add desktop Data and Recovery surface with scheduled rotation (N2)`; C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`.
 - Expected primary worktree state: only unrelated untracked `.claude/` and `b` content remains after this documentation commit; both are preserved and excluded.
-- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 80 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 81.38% lines, 85.62% branches, and 65.49% functions.
+- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 15 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 99 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 83.14% lines, 84.67% branches, and 68.04% functions.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.
@@ -437,7 +437,7 @@ The settings surface and persistence path are complete. Renderer consumers still
 - Note activation is renderer-only to satisfy zero navigation IPC. `rememberLastNote` now needs persistence at shutdown or another non-navigation lifecycle boundary; per-selection persistence must not return.
 - React Scan remains uninstalled. C1 records production presentation evidence on the named development machine; C3 still owns fixed-reference-hardware sign-off.
 - History headers still refresh only through snapshot replacement; live-session version publication remains deferred.
-- Portable archive, backup, restore, scheduled rotation, live swap, and rollback exist below the product shell but are not exposed through the desktop UI.
+- Portable archive, backup, restore, scheduled rotation, live swap, and rollback are exposed through the desktop Data settings surface.
 - Sidebar expansion is renderer-only and extreme-depth visual indentation is unclamped.
 - Pointer drag-and-drop is post-v1. Cross-folder movement already ships through the sidebar context menu. Journal, people, tags, and the other excluded product surfaces remain out of scope.
 
@@ -447,7 +447,7 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The reconciled scope marks whole-document find/replace, native whole-document select/copy/IME/accessibility, sidebar title search, responsive panels, keyboard sibling reorder, and context-menu cross-folder movement complete. Pointer drag-and-drop and Markdown-vault formats are post-v1.
 - Product decisions are fixed: the bounded fallback is required for v1 with a measured threshold; history freshness uses post-materialization publication rather than polling; Tauri owns a fixed six-hour backup timer; semantic tree depth remains unlimited while visual indentation clamps; Linux is the only currently evidenced platform.
 - `docs/implementation-backlog.md` splits the remaining work into conflict-free Codex C1–C3 and Claude N1–N4 slices. Shared continuity files, generated contracts, manifests, and lockfiles remain integration-owned.
-- Current verification after C2: `./scripts/check.sh` passes all 10 stages with 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 86 renderer tests.
+- Current verification after N2: `./scripts/check.sh` passes all 10 stages with 112 backend tests (6 ignored), 15 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 99 renderer tests.
 
 ## Completed C1 product-renderer performance runner
 
@@ -476,4 +476,13 @@ The settings surface and persistence path are complete. Renderer consumers still
 - On the named Linux development machine, the 2,000-block fixture measured 3.7 ms editor-install P95 / 4.5 ms maximum and 6.9 ms keystroke-to-paint P95 / 7.0 ms maximum, with zero typing React commits, navigation bridge calls, resource loads, or editor remounts. Integrated selection still records frame gaps while 5,000 sidebar rows remain mounted; N4 and C3 own that final shell proof.
 - Browser verification loaded meaningful product content with one ProseMirror view, no Vite overlay, no recorded console errors, and no page-level horizontal overflow. `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass with 86 renderer tests.
 
-Immediate next task: integrate N2, then execute N3 and N4 sequentially. C3 begins after those native slices are integrated.
+## Integrated N2 desktop Data and Recovery surface
+
+- Claude's isolated implementation `eb7947a` was reviewed and integrated as `4e68559`; its stale shared-doc commit `c283860` was excluded and reconciled here against the completed C2 handoff.
+- The Data settings section now exposes portable export/import, backup-now, retained-backup and rollback inventory, and restore-and-swap through keyboard-reachable controls. Import and restore state their destructive scope before confirmation, reject duplicate submission, expose safe cancellation, and replace the renderer snapshot before interaction resumes.
+- The pure maintenance phase model covers idle, confirmation, running, cancellation-requested, cancelled, not-due, success, and failure states. Recovery listings include explicit loading, empty, verification, rollback, and retry presentation without a circular spinner.
+- Tauri starts a fixed six-hour backup worker with the desktop lifecycle. The coordinator enforces cadence and overlap exclusion; the worker retries after contention and uses an interruptible condition-variable wait so desktop exit joins it before shutting down the maintenance coordinator.
+- Shutdown is the correct conceptual boundary for `rememberLastNote`, but the renderer-local selection is not currently available at the native exit boundary. Preserve this as an explicit lifecycle gap; do not restore per-selection navigation IPC.
+- `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass with 112 backend tests (6 ignored), 15 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 99 renderer tests.
+
+Immediate next task: execute N3, then N4. C3 begins after both native slices are integrated.

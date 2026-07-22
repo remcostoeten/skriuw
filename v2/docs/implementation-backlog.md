@@ -70,7 +70,7 @@ Acceptance:
 - The threshold and evidence are recorded; notes below it retain the simpler whole-document path.
 - Editor keystrokes cause no application-shell render and navigation performs no IPC or parsing.
 
-### N2 — Desktop Data and Recovery surface plus scheduled rotation
+### N2 — Desktop Data and Recovery surface plus scheduled rotation (complete in `4e68559`)
 
 Owner: Claude. Dependencies: N1.
 

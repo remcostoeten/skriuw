@@ -268,9 +268,9 @@ Every box must hold before v1 is declared. Items marked ✅ are complete per
 - ✅ Settings dialog with every offered setting applied by a renderer consumer
 - ☐ Durable sidebar-expansion persistence (native-only `app_state` operation, per ADR-0013)
 - ✅ Archive export/import with validation-before-mutation and safety backup (backend + CLI)
-- ☐ Export/import and backup/restore reachable from the desktop UI, not only the CLI
-- ☐ Scheduled backup rotation actually firing in the running desktop app (timer owner)
-- ☐ Desktop recovery UI: restore, live swap, rollback presentation
+- ✅ Export/import and backup/restore reachable from the desktop UI, not only the CLI
+- ✅ Scheduled backup rotation actually firing in the running desktop app (timer owner)
+- ✅ Desktop recovery UI: restore, live swap, rollback presentation
 - ☐ Extreme-depth tree indentation policy implemented
 - ☐ Fixed reference hardware selected; performance contract verified on it (100 cached switches, zero dropped frames; all hard invariants)
 - ☐ Keyboard-driven end-to-end tests over sidebar, editor, metadata, history, palette, settings (roadmap product gate)
