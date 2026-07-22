@@ -52,10 +52,10 @@ storage/domain implications, performance risk against
 
 - Original: BlockNote rich-text editor with Markdown shortcuts (`features/editor`).
 - Value: the writing surface itself.
-- Rationale: intended v1. Rebuild selected direct ProseMirror by measurement (ADR-0020); whole-document path ships first, bounded 192-block window is the validated large-note fallback.
+- Rationale: shipped with direct ProseMirror by measurement (ADR-0020); the whole-document path covers at most 192 top-level blocks and a 192-block canonical window handles larger notes.
 - Dependencies: persistent editor host, canonical ProseMirror JSON in `documents`, undo policy (500 ms grouping, 200-entry cap by ADR-0020 fiat).
 - Storage/domain: canonical structured document plus Markdown projection; already implemented.
-- Performance risk: medium. Whole-document swap is marginal at 500 blocks; the fallback threshold and its wiring are unresolved (see decisions).
+- Performance risk: medium. The bounded editor meets editor-install and keystroke budgets at 2,000 blocks; integrated 5,000-row shell presentation remains for N4/C3.
 - Acceptance: headings, lists, quotes, code, rules, links, emphasis, inline code render structurally; Markdown input rules work; keystroke-to-paint P95 < 8 ms; zero editor remounts across 100 note switches; undo groups per policy.
 
 ### Slash-command menu
@@ -72,11 +72,11 @@ storage/domain implications, performance risk against
 
 - Original: `features/editor/components/search-widget.tsx`.
 - Value: locating text inside the open note; baseline editor capability.
-- Rationale: shipped in `aa443ef` as a ProseMirror plugin over the active canonical document, with replace, match-case, whole-word, and regular-expression options. Bounded rendering still requires off-window matching when that fallback is wired.
-- Dependencies: bounded-window integration must retain canonical-document matching.
+- Rationale: shipped in `aa443ef` for whole documents and extended in C2 to search the full canonical document behind the bounded view, with replace, match-case, whole-word, and regular-expression options.
+- Dependencies: complete.
 - Storage/domain: none.
-- Performance risk: low for whole-document notes; must search canonical blocks, not the DOM, once the bounded fallback is active.
-- Acceptance: met for the whole-document path. The bounded-window fallback must preserve whole-note matches, next/previous selection and scrolling, and the no-Markdown-parse invariant.
+- Performance risk: low; bounded search traverses canonical blocks rather than the DOM.
+- Acceptance: met for whole-document and bounded paths, including off-window next/previous reveal and replacement without Markdown parsing.
 
 ### Workspace search (full text)
 
@@ -255,10 +255,10 @@ Every box must hold before v1 is declared. Items marked ✅ are complete per
 - ✅ Notes/folders: create, rename, nest, trash, restore, context menus, keyboard sibling reorder
 - ✅ Cross-folder move through the context menu; keyboard sibling reorder through Alt+Arrow
 - ✅ Structured Markdown editor (whole-document ProseMirror, ADR-0020 schema, undo policy)
-- ☐ Bounded-window fallback wired behind a threshold selected from product measurements
+- ✅ Bounded-window fallback wired above the measured 192-block threshold
 - ✅ Slash-command menu
-- ✅ Find/replace in the whole-document editor against the canonical document
-- ✅ Whole-note select-all/copy, IME completion, and accessible traversal through the native whole-document ProseMirror path
+- ✅ Find/replace across the full canonical document in whole-document and bounded modes
+- ✅ Whole-note select-all/copy, deferred IME window movement, and on-demand accessible traversal in both editor modes
 - ✅ Workspace full-text search from the palette with inherited-trash exclusion
 - ✅ Dedicated Trash route with restore, purge, empty state, bounded rendering
 - ✅ Version history list, preview, restore

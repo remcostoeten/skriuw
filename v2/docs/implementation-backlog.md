@@ -56,7 +56,7 @@ Acceptance:
 
 Wave 2 starts after both Wave 1 commits are integrated. C2 and N2 may run concurrently.
 
-### C2 — Product bounded-editor fallback
+### C2 — Product bounded-editor fallback (complete in `b2563e8`)
 
 Owner: Codex. Dependencies: C1.
 

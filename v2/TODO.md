@@ -5,10 +5,10 @@ Last reviewed: 2026-07-22
 ## Current state
 
 - [x] Repository created at `/home/remcostoeten/dev/skriuw-standalone`.
-- [x] Current work is isolated on `feat/daddy-2`, expected to be 29 commits ahead of `origin/feat/daddy-2` after C1, N1 integration, and the reconciled Wave 1 handoff.
+- [x] Current work is isolated on `feat/daddy-2`, expected to be 31 commits ahead of `origin/feat/daddy-2` after C2 implementation and handoff.
 - [x] Scoped product changes are committed; unrelated untracked `.claude/` content remains preserved and excluded.
 - [x] Rust 1.95 backend workspace and the product renderer pass `./scripts/check.sh`.
-- [x] 112 backend tests, 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 80 renderer tests pass; 6 backend tests remain ignored manual workloads.
+- [x] 112 backend tests, 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 86 renderer tests pass; 6 backend tests remain ignored manual workloads.
 - [x] The React/Vite product renderer, persistent ProseMirror editor, Tauri desktop shell, and notes/trash hash routes are implemented.
 - [x] `origin/feat/daddy-2` is configured as the upstream branch.
 
@@ -145,7 +145,9 @@ Product renderer baseline: `node app/performance/run.mjs --output <path>` builds
 
 N1 integration: `5935264` adds the native maintenance/lifecycle coordinator from Claude's isolated `0e7d9a2` implementation. It owns runtime/history shutdown and reopen, archive export/import with safety backup, verified backup rotation, manifest inventory, create-new restore, live swap, rollback reporting, cancellation, overlap exclusion, and bounded diagnostics. Twelve desktop tests pass. Claude's stale shared handoff commit `40bdf67` was not integrated.
 
-Immediate next task: execute C2 using the measured threshold between 50 and 500 blocks. N2 is also unblocked and may proceed concurrently in the isolated native lane.
+C2 integration: `b2563e8` keeps the whole-document editor through 192 blocks and activates a 192-block canonical window above that measured threshold. Structured range reconciliation, 200-entry grouped undo/redo, full-canonical find/replace, whole-note select/copy, deferred IME movement, focus/selection/scroll restoration, on-demand accessible traversal, external reconciliation, zero-navigation IPC, and one persistent ProseMirror view are implemented. The 2,000-block production fixture records 3.7 ms editor-install P95 / 4.5 ms maximum and 6.9 ms keystroke-to-paint P95 / 7.0 ms maximum with 192 editor blocks and zero typing React commits. Integrated 5,000-row shell frame gaps remain for N4/C3.
+
+Immediate next task: integrate N2, then execute N3 and N4 sequentially. C3 begins after those native slices are integrated.
 
 Known continuity gap: renderer navigation no longer persists `set_active_note`, because doing so violated the zero-navigation-IPC contract. Preserve `rememberLastNote` through a shutdown or other non-navigation lifecycle boundary; do not restore per-selection IPC.
 
@@ -164,7 +166,7 @@ React requirements if selected:
 - [x] Reorderable and nestable note/folder sidebar for v1. (Sibling reorder uses Alt+Arrow; cross-folder movement uses the context menu. Pointer drag-and-drop is post-v1.)
 - [x] Sidebar creation, rename, trash, restore, context menus, and shortcuts.
 - [x] Dedicated Trash route with renderer-local preview, restore, permanent delete, empty state, and bounded 5,000-item rendering.
-- [x] Structured Markdown editor with inline rendering. (Whole-document ProseMirror path per ADR-0020; bounded-window fallback not yet wired.)
+- [x] Structured Markdown editor with inline rendering and a measured 192-block bounded fallback above 192 top-level blocks.
 - [x] Slash-command menu.
 - [x] Editor find/replace with match-case, whole-word, regex, next/previous, replace-one, replace-all, accessible status, and rebindable shortcuts.
 - [x] Sidebar title search, expand/collapse-all controls, narrow-density adaptation, and bounded responsive panel tracks.
@@ -188,7 +190,7 @@ Search and responsive-panel implementation: editor search is a ProseMirror plugi
 
 - [x] C1: production product-renderer performance runner and baseline.
 - [x] N1: native archive, backup, recovery, live-swap, and rollback coordinator.
-- [ ] C2: measured-threshold bounded product editor with complete off-window semantics.
+- [x] C2: measured-threshold bounded product editor with complete off-window semantics.
 - [ ] N2: desktop Data/Recovery UI and fixed six-hour scheduled rotation.
 - [ ] N3: non-polling live history-header publication after successful materialization.
 - [ ] N4: native-only durable expansion state and clamped deep-tree indentation.

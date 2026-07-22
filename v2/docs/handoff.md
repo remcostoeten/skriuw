@@ -4,7 +4,7 @@ Last reviewed: 2026-07-22
 
 ## Start here
 
-The backend foundation, UI architecture measurements, product shell, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented on the active feature branch. Claude's original-product audit is integrated and reconciled in `docs/product-scope-v1.md`; `docs/implementation-backlog.md` is the authoritative remaining v1 plan.
+The backend foundation, UI architecture measurements, product shell, bounded product editor, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented on the active feature branch. Claude's original-product audit is integrated and reconciled in `docs/product-scope-v1.md`; `docs/implementation-backlog.md` is the authoritative remaining v1 plan.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -24,10 +24,10 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be 29 commits ahead of `origin/feat/daddy-2` after C1, N1 integration, and the reconciled Wave 1 handoff.
+- Active branch: `feat/daddy-2`, expected to be 31 commits ahead of `origin/feat/daddy-2` after C2 implementation and this handoff.
 - Remote: `origin` is configured; the active branch has not been pushed to its upstream state.
-- Last implementation commit: `5935264 feat: add native maintenance and lifecycle coordinator (N1)`; C1 is `57dfb4d`, the latest prior product slice is `aa443ef`, and the UI architecture decision is ADR-0020.
-- Expected primary worktree state: only unrelated untracked `.claude/` content remains after this documentation commit; it was preserved and excluded.
+- Last implementation commit: `b2563e8 feat: add bounded product editor fallback (C2)`; N1 is `5935264`, C1 is `57dfb4d`, and the UI architecture decision is ADR-0020.
+- Expected primary worktree state: only unrelated untracked `.claude/` and `b` content remains after this documentation commit; both are preserved and excluded.
 - Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 80 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 81.38% lines, 85.62% branches, and 65.49% functions.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
@@ -432,9 +432,8 @@ The settings surface and persistence path are complete. Renderer consumers still
 
 ## Known gaps and immediate next task
 
-- The bounded-window editor fallback is validated in the architecture harness but not wired into the product.
-- C1 proves the whole-document path passes at 50 blocks and crosses the fallback boundary by 500 blocks; C2 must activate the bounded path conservatively between those fixtures.
-- The product sidebar mounts all 5,000 tree rows (25,614 elements with the 500-block editor), so the isolated tree spike's bounded row pool still needs product integration before C3.
+- C2 is integrated. Notes through 192 top-level blocks retain the whole-document editor; larger notes use a 192-block canonical window with complete off-window semantics.
+- The product sidebar still mounts all 5,000 tree rows (25,309 elements with the bounded editor), so the isolated tree spike's bounded row pool still needs product integration before C3.
 - Note activation is renderer-only to satisfy zero navigation IPC. `rememberLastNote` now needs persistence at shutdown or another non-navigation lifecycle boundary; per-selection persistence must not return.
 - React Scan remains uninstalled. C1 records production presentation evidence on the named development machine; C3 still owns fixed-reference-hardware sign-off.
 - History headers still refresh only through snapshot replacement; live-session version publication remains deferred.
@@ -448,7 +447,7 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The reconciled scope marks whole-document find/replace, native whole-document select/copy/IME/accessibility, sidebar title search, responsive panels, keyboard sibling reorder, and context-menu cross-folder movement complete. Pointer drag-and-drop and Markdown-vault formats are post-v1.
 - Product decisions are fixed: the bounded fallback is required for v1 with a measured threshold; history freshness uses post-materialization publication rather than polling; Tauri owns a fixed six-hour backup timer; semantic tree depth remains unlimited while visual indentation clamps; Linux is the only currently evidenced platform.
 - `docs/implementation-backlog.md` splits the remaining work into conflict-free Codex C1–C3 and Claude N1–N4 slices. Shared continuity files, generated contracts, manifests, and lockfiles remain integration-owned.
-- Current verification after Wave 1 integration: `./scripts/check.sh` passes all 10 stages with 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 80 renderer tests.
+- Current verification after C2: `./scripts/check.sh` passes all 10 stages with 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 86 renderer tests.
 
 ## Completed C1 product-renderer performance runner
 
@@ -468,4 +467,13 @@ The settings surface and persistence path are complete. Renderer consumers still
 - Eleven coordinator integration tests plus the existing history-drain smoke test cover target collision, malformed/future archives without mutation, safety-backup ordering, import/swap cancellation, cadence and inventory, successful swap/bootstrap/apply, injected replacement failure with rollback, manifest traversal rejection, overlap rejection, and diagnostic path redaction.
 - Focused desktop verification and the complete `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` sequence pass: 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 80 renderer tests.
 
-Immediate next task: C2 wires the bounded product editor using C1's measured crossover between 50 and 500 blocks. N2 is unblocked and may proceed concurrently in the isolated native lane.
+## Completed C2 product bounded-editor fallback
+
+- `b2563e8` activates the bounded product path above 192 top-level blocks, retaining the existing whole-document path at and below the validated window size. One persistent ProseMirror view and per-note prepared states survive navigation.
+- The canonical model preserves structured ProseMirror nodes, reconciles changed ranges, groups undo bursts within 500 milliseconds, caps history at 200 compact entries, and supports undo/redo across recycled windows.
+- Find/replace targets the full canonical document and reveals off-window matches. Whole-note select/copy emits canonical plain text and HTML; IME composition defers window movement; focus, selection, scroll, external replacement, and note-switch state restore without remounting.
+- The full-note accessibility surface materializes canonical text only when focused, avoiding large accessibility-tree writes during navigation. The production runner now asserts the 192-block DOM cap and the reader path.
+- On the named Linux development machine, the 2,000-block fixture measured 3.7 ms editor-install P95 / 4.5 ms maximum and 6.9 ms keystroke-to-paint P95 / 7.0 ms maximum, with zero typing React commits, navigation bridge calls, resource loads, or editor remounts. Integrated selection still records frame gaps while 5,000 sidebar rows remain mounted; N4 and C3 own that final shell proof.
+- Browser verification loaded meaningful product content with one ProseMirror view, no Vite overlay, no recorded console errors, and no page-level horizontal overflow. `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass with 86 renderer tests.
+
+Immediate next task: integrate N2, then execute N3 and N4 sequentially. C3 begins after those native slices are integrated.

@@ -41,9 +41,9 @@ Keep domain records, operations, editor documents, and renderer state portable e
 
 ## UI architecture and MVP state
 
-ADR-0020 accepted React, Vite, direct ProseMirror, the dependency-free external renderer store, and Tauri 2 after the editor, tree, selector, and bridge gates completed. The product shell, persistent whole-document editor, slash menu, tree, trash, metadata/history, command registry, palette, settings, keyboard navigation, editor find/replace, sidebar title search, and responsive panel behavior are implemented.
+ADR-0020 accepted React, Vite, direct ProseMirror, the dependency-free external renderer store, and Tauri 2 after the editor, tree, selector, and bridge gates completed. The product shell, persistent whole-document editor, measured 192-block large-note fallback, slash menu, tree, trash, metadata/history, command registry, palette, settings, keyboard navigation, editor find/replace, sidebar title search, and responsive panel behavior are implemented.
 
-The remaining renderer work is the production measurement runner, measured-threshold integration of the validated 192-block bounded fallback with complete off-window semantics, deep-tree indentation clamping, and the integrated end-to-end/fixed-hardware proof. React Scan remains optional diagnostic tooling, never production evidence.
+The remaining renderer work is deep-tree indentation and tree-row bounding through N4, followed by the integrated end-to-end/fixed-hardware proof in C3. React Scan remains optional diagnostic tooling, never production evidence.
 
 The final sequence, worktree ownership, and measurable acceptance criteria are maintained in `docs/implementation-backlog.md`.
 

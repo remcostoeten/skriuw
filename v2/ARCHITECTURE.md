@@ -22,7 +22,7 @@ Application shell
         └── tests and fixtures
 ```
 
-The backend foundation and an isolated UI architecture benchmark harness exist today. No product application shell exists. The harness is not a runtime adapter and does not select an editor or framework.
+The backend foundation, React product shell, and direct ProseMirror editor exist today. The isolated UI architecture harness remains measurement evidence rather than a runtime adapter.
 
 `skriuw-fixtures` generates deterministic operation-sequence workspaces for scale and adapter testing. It depends only on the domain contracts, never on storage adapters, and no generated fixture data is committed. See [docs/fixtures.md](docs/fixtures.md).
 
@@ -34,7 +34,7 @@ Consecutive queued save-only requests may share one storage call without sharing
 
 Typed subsystem errors project to bounded diagnostics only at shell or persistence boundaries. Diagnostics carry stable context and category enums plus a normalized 1,024-byte message ceiling. Public projections redact adapter detail; the local history retry queue may persist bounded materializer detail and never includes it in bootstrap or portable archives.
 
-The disposable `spikes/ui-architecture` harness compares direct editor engines without React, routing, persistence, or desktop IPC. It prepares deterministic states before measurement and retains one outer editor host across 100 switches. Evidence rejects whole-document replacement and an unbounded pool of pre-laid-out editors as 2,000-block solutions for both ProseMirror and Lexical. States capped at 192 rendered blocks remove that raw switching bottleneck. The ProseMirror candidate now connects one persistent DOM editor to the canonical projection and has browser regressions for window movement, scroll anchoring, edit reconciliation, focus and selection restoration, note switching, and an IME movement guard. Cross-window clipboard, find, composition, undo, accessibility traversal, Lexical parity, and representative plugins remain selection gates. Trusted-input traces, rather than requestAnimationFrame or censored Event Timing entries, own presentation verification. Editor selection remains deferred until those semantics, durable raw performance evidence, product plugins, tree/store behavior, and bridge overhead are measured.
+The product uses one persistent direct ProseMirror view. Documents through 192 top-level blocks use the whole-document path; larger documents keep one canonical structured document behind a 192-block rendered window. Canonical range reconciliation, compact grouped undo/redo, full-document find/replace and clipboard output, deferred IME movement, accessible traversal, selection/focus/scroll restoration, and external reconciliation remain renderer-local. Product measurements keep 2,000-block editor installation and typing inside their budgets; the unbounded 5,000-row product tree remains the integrated presentation gap for N4 and C3.
 
 The disposable `spikes/tree-virtualization` harness projects the canonical Rust fixtures into a dependency-free fixed-row tree. One mounted host and a recycled row pool keep rendered DOM independent of 1,000-node and 5,000-node workspace size. The candidate preserves deterministic sibling order, collapsed-subtree exclusion, roving keyboard focus, selection across viewport movement, and explicit virtualized tree ARIA metadata. Full-subtree expansion and deep reveal remain optimization targets, and the product must clamp or otherwise handle extreme indentation before this design enters the shell.
 
