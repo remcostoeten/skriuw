@@ -24,11 +24,12 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be 33 commits ahead of `origin/feat/daddy-2` after N2 implementation and this handoff.
+- Active branch: `feat/daddy-2`, expected to be 34 commits ahead of `origin/feat/daddy-2` after the dev-menu launch fix.
 - Remote: `origin` is configured; the active branch has not been pushed to its upstream state.
-- Last implementation commit: `4e68559 feat: add desktop Data and Recovery surface with scheduled rotation (N2)`; C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`.
-- Expected primary worktree state: only unrelated untracked `.claude/` and `b` content remains after this documentation commit; both are preserved and excluded.
+- Last product implementation commit: `4e68559 feat: add desktop Data and Recovery surface with scheduled rotation (N2)`; C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`. The dev-menu launch fix follows it as a tooling slice.
+- Expected primary worktree state: only unrelated untracked `.claude/`, `b`, and `scripts/cli.sh` content remains after the dev-menu tooling commit; all are preserved and excluded.
 - Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 15 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 99 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 83.14% lines, 84.67% branches, and 68.04% functions.
+- Dev-menu launch: `dev-menu run tauri` clears stale listeners on port 5183 and delegates to `pnpm tauri dev`, which reaches `scripts/tauri.sh`; bypassing that wrapper with `pnpm tauri:dev` reproduced a Wayland protocol error and process exit. The wrapper also removes only the nonfatal missing `appmenu-gtk-module` GTK line that dev-menu otherwise misclassifies. The corrected path remained running with Vite listening, the desktop process alive, and no captured error block.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
 - Archive integration status: Claude implementation `33cf41d` was reviewed and cherry-picked as `a3f87e2`. Its stale shared-doc commit `24dddb3` was not cherry-picked.

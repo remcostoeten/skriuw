@@ -5,11 +5,12 @@ Last reviewed: 2026-07-22
 ## Current state
 
 - [x] Repository created at `/home/remcostoeten/dev/skriuw-standalone`.
-- [x] Current work is isolated on `feat/daddy-2`, expected to be 33 commits ahead of `origin/feat/daddy-2` after N2 implementation and handoff.
-- [x] Scoped product changes are committed; unrelated untracked `.claude/` and `b` content remains preserved and excluded.
+- [x] Current work is isolated on `feat/daddy-2`, expected to be 34 commits ahead of `origin/feat/daddy-2` after the dev-menu launch fix.
+- [x] Scoped product and dev-menu changes are committed; unrelated untracked `.claude/`, `b`, and `scripts/cli.sh` content remains preserved and excluded.
 - [x] Rust 1.95 backend workspace and the product renderer pass `./scripts/check.sh`.
 - [x] 112 backend tests, 15 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 99 renderer tests pass; 6 backend tests remain ignored manual workloads.
 - [x] The React/Vite product renderer, persistent ProseMirror editor, Tauri desktop shell, and notes/trash hash routes are implemented.
+- [x] The dev-menu Tauri entrypoint clears stale port 5183 listeners, launches through the Linux WebKit compatibility wrapper, and suppresses only the unavailable appmenu module's nonfatal GTK warning.
 - [x] `origin/feat/daddy-2` is configured as the upstream branch.
 
 ## Completed backend foundation
