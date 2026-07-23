@@ -317,6 +317,11 @@ async function runContext(context) {
       sessionId,
       "window.__SKRIUW_PRODUCT_PERFORMANCE__.finishTyping()",
     );
+    const referenceSuggestions = await evaluate(
+      cdp,
+      sessionId,
+      "window.__SKRIUW_PRODUCT_PERFORMANCE__.runReferenceSuggestions()",
+    );
     await cdp.send("Tracing.end");
     await Promise.race([traceComplete, sleep(20_000)]);
     if (!traceFinished) {
@@ -325,7 +330,7 @@ async function runContext(context) {
     const result = await evaluate(
       cdp,
       sessionId,
-      `window.__SKRIUW_PRODUCT_PERFORMANCE__.finish(${JSON.stringify(selection)}, ${JSON.stringify(keyboardSwitches)}, ${JSON.stringify(typing)})`,
+      `window.__SKRIUW_PRODUCT_PERFORMANCE__.finish(${JSON.stringify(selection)}, ${JSON.stringify(keyboardSwitches)}, ${JSON.stringify(typing)}, ${JSON.stringify(referenceSuggestions)})`,
     );
     result.correctness.push(
       {
@@ -386,6 +391,10 @@ function budgetStatus(record) {
     selectionDispatch: record.selection.summary.dispatch.p95Ms < 8,
     keystrokeToPaint: below(record.typing.summary.nextPaint, 8, 16.67),
     hundredSwitchesDroppedNoFrames: record.keyboardSwitches.droppedFrames === 0,
+    referenceSuggestions:
+      record.referenceSuggestions.p95Ms < 8 &&
+      record.referenceSuggestions.maxMs < 16.67 &&
+      record.referenceSuggestions.bridgeCalls.length === 0,
   };
 }
 

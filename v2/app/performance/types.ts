@@ -65,6 +65,15 @@ export type ProductRendererResult = {
     expected: number;
     handled: number;
   };
+  referenceSuggestions: {
+    samplesMs: number[];
+    p95Ms: number;
+    maxMs: number;
+    bridgeCalls: string[];
+    tagResults: number;
+    peopleResults: number;
+    noteResults: number;
+  };
   mounts: {
     editorHosts: number;
     prosemirrorViews: number;
@@ -91,10 +100,28 @@ export type PerformanceController = {
   prepareTyping: () => Promise<{ expected: number }>;
   confirmTyping: () => void;
   finishTyping: () => Promise<PhaseResult & { expected: number; handled: number }>;
+  runReferenceSuggestions: () => {
+    samplesMs: number[];
+    p95Ms: number;
+    maxMs: number;
+    bridgeCalls: string[];
+    tagResults: number;
+    peopleResults: number;
+    noteResults: number;
+  };
   finish: (
     selection: PhaseResult,
     keyboardSwitches: PhaseResult & { expected: number; handled: number; selections: number },
     typing: PhaseResult & { expected: number; handled: number },
+    referenceSuggestions: {
+      samplesMs: number[];
+      p95Ms: number;
+      maxMs: number;
+      bridgeCalls: string[];
+      tagResults: number;
+      peopleResults: number;
+      noteResults: number;
+    },
   ) => ProductRendererResult;
   destroy: () => void;
 };

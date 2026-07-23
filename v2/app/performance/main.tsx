@@ -23,8 +23,8 @@ async function start(): Promise<void> {
     throw new Error(`fixture ${fixtureName} failed with ${response.status}`);
   }
   const projection = (await response.json()) as TreeProjection;
-  const { snapshot, identity } = createPerformanceSnapshot(projection, blockCount);
-  const store = createRendererStore(createInitialState(snapshot));
+  const { snapshot, identity, references } = createPerformanceSnapshot(projection, blockCount);
+  const store = createRendererStore(createInitialState(snapshot, undefined, references));
   bindSettingsToRoot(store, document.documentElement);
   const container = document.getElementById("root");
   if (!container) {

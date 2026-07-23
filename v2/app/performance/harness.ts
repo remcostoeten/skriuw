@@ -4,6 +4,7 @@ import type { ProfilerOnRenderCallback } from "react";
 import type { RendererStore } from "../src/store/types";
 import { estimateFrameDuration, nextFrame, summarize } from "./metrics";
 import { readBridgeCalls, resetBridgeCalls } from "./bridge-mock";
+import { queryMentionSuggestions, queryTagSuggestions } from "../src/references/suggestion-index";
 import type {
   FixtureIdentity,
   LongAnimationFrameSample,
@@ -311,10 +312,47 @@ export async function createPerformanceController(
     };
   }
 
+  function runReferenceSuggestions() {
+    resetBridgeCalls();
+    const samplesMs: number[] = [];
+    let tagResults = 0;
+    let peopleResults = 0;
+    let noteResults = 0;
+    for (let round = 0; round < 20; round += 1) {
+      for (const query of ["", "performance", "performance tag 0999", "missing"]) {
+        const started = performance.now();
+        tagResults += queryTagSuggestions(store.getState(), query).length;
+        const mentions = queryMentionSuggestions(store.getState(), query);
+        peopleResults += mentions.people.length;
+        noteResults += mentions.notes.length;
+        samplesMs.push(performance.now() - started);
+      }
+    }
+    const summary = summarize(samplesMs);
+    return {
+      samplesMs,
+      p95Ms: summary.p95Ms,
+      maxMs: summary.maxMs,
+      bridgeCalls: readBridgeCalls(),
+      tagResults,
+      peopleResults,
+      noteResults,
+    };
+  }
+
   function finish(
     selection: PhaseResult,
     keyboardSwitches: PhaseResult & { expected: number; handled: number; selections: number },
     typing: PhaseResult & { expected: number; handled: number },
+    referenceSuggestions: {
+      samplesMs: number[];
+      p95Ms: number;
+      maxMs: number;
+      bridgeCalls: string[];
+      tagResults: number;
+      peopleResults: number;
+      noteResults: number;
+    },
   ): ProductRendererResult {
     const editor = document.querySelector(".ProseMirror");
     const loadedResources = performance
@@ -364,6 +402,17 @@ export async function createPerformanceController(
         detail: `${typing.handled}/${TYPING_COUNT}`,
       },
       {
+        name: "reference-suggestions-stay-local-and-bounded",
+        pass:
+          referenceSuggestions.p95Ms < 8 &&
+          referenceSuggestions.maxMs < 16.67 &&
+          referenceSuggestions.bridgeCalls.length === 0 &&
+          referenceSuggestions.tagResults > 0 &&
+          referenceSuggestions.peopleResults > 0 &&
+          referenceSuggestions.noteResults > 0,
+        detail: JSON.stringify(referenceSuggestions),
+      },
+      {
         name: "large-editor-dom-is-bounded",
         pass: fixture.blockCount <= 192 || renderedEditorBlocks <= 192,
         detail: `${renderedEditorBlocks}/${fixture.blockCount} top-level blocks`,
@@ -390,6 +439,7 @@ export async function createPerformanceController(
       selection,
       keyboardSwitches,
       typing,
+      referenceSuggestions,
       mounts,
       dom: {
         elements: document.querySelectorAll("*").length,
@@ -415,6 +465,7 @@ export async function createPerformanceController(
     prepareTyping,
     confirmTyping,
     finishTyping,
+    runReferenceSuggestions,
     finish,
     destroy: () => {
       restoreEditor();
