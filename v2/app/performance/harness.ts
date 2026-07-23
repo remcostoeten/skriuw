@@ -278,11 +278,12 @@ export async function createPerformanceController(
       throw new Error("performance phase already active");
     }
     typingHandled = 0;
-    phase = startPhase("typing");
     const editor = document.querySelector<HTMLElement>(".ProseMirror");
     typingPreviousText = editor?.textContent ?? "";
     editor?.focus();
     await nextFrame();
+    await nextFrame();
+    phase = startPhase("typing");
     return { expected: TYPING_COUNT };
   }
 
@@ -326,6 +327,8 @@ export async function createPerformanceController(
       editorRemounts: editor === initialEditor ? 0 : 1,
     };
     const renderedEditorBlocks = editor?.children.length ?? 0;
+    const renderedTreeItems = document.querySelectorAll("[role='treeitem']").length;
+    const shellHeight = document.querySelector<HTMLElement>(".shell")?.getBoundingClientRect().height;
     const boundedReader = document.querySelector("#bounded-editor-full-document");
     const correctness = [
       {
@@ -370,6 +373,16 @@ export async function createPerformanceController(
         pass: fixture.blockCount <= 192 || boundedReader instanceof HTMLTextAreaElement,
         detail: boundedReader?.getAttribute("aria-label") ?? "missing",
       },
+      {
+        name: "workspace-tree-dom-is-bounded",
+        pass: renderedTreeItems <= 40,
+        detail: `${renderedTreeItems}/${fixture.nodeCount} tree items`,
+      },
+      {
+        name: "workspace-shell-height-is-bounded",
+        pass: shellHeight !== undefined && shellHeight <= window.innerHeight + 1,
+        detail: `${shellHeight ?? "missing"}/${window.innerHeight} CSS pixels`,
+      },
     ];
     return {
       fixture,
@@ -380,7 +393,7 @@ export async function createPerformanceController(
       mounts,
       dom: {
         elements: document.querySelectorAll("*").length,
-        treeItems: document.querySelectorAll("[role='treeitem']").length,
+        treeItems: renderedTreeItems,
         editorBlocks: document.querySelectorAll(".ProseMirror > *").length,
       },
       resourcesLoadedDuringNavigation: loadedResources,

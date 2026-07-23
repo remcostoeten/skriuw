@@ -84,6 +84,23 @@ impl WorkspaceRuntime {
         Ok(Completion { receiver })
     }
 
+    pub fn load_sidebar_expansion(&self) -> Result<Completion<Option<Vec<String>>>, RuntimeError> {
+        let (sender, receiver) = mpsc::channel();
+        self.shared
+            .submit(Request::LoadSidebarExpansion { sender })?;
+        Ok(Completion { receiver })
+    }
+
+    pub fn save_sidebar_expansion(
+        &self,
+        folder_ids: Vec<String>,
+    ) -> Result<Completion<()>, RuntimeError> {
+        let (sender, receiver) = mpsc::channel();
+        self.shared
+            .submit(Request::SaveSidebarExpansion { folder_ids, sender })?;
+        Ok(Completion { receiver })
+    }
+
     pub fn apply_operations(
         &self,
         operations: Vec<WorkspaceOperationEnvelope>,
@@ -179,6 +196,13 @@ enum Request {
     Bootstrap {
         sender: Sender<Result<WorkspaceSnapshot, StorageError>>,
     },
+    LoadSidebarExpansion {
+        sender: Sender<Result<Option<Vec<String>>, StorageError>>,
+    },
+    SaveSidebarExpansion {
+        folder_ids: Vec<String>,
+        sender: Sender<Result<(), StorageError>>,
+    },
     Apply {
         operations: Vec<WorkspaceOperationEnvelope>,
         sender: Sender<Result<OperationAck, StorageError>>,
@@ -203,6 +227,12 @@ fn run(storage: impl WorkspaceStorage, receiver: Receiver<Request>) {
         match request {
             Request::Bootstrap { sender } => {
                 let _ = sender.send(storage.bootstrap());
+            }
+            Request::LoadSidebarExpansion { sender } => {
+                let _ = sender.send(storage.load_sidebar_expansion());
+            }
+            Request::SaveSidebarExpansion { folder_ids, sender } => {
+                let _ = sender.send(storage.save_sidebar_expansion(&folder_ids));
             }
             Request::Apply { operations, sender } if is_save_only(&operations) => {
                 let mut batches = vec![operations];

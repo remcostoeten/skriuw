@@ -90,6 +90,7 @@ export function buildNodeIndex(
       depth: parent ? parent.depth + 1 : 1,
       setSize: 0,
       posInSet: siblings.length + 1,
+      descendantCount: 0,
     };
     siblings.push(node.id);
     children.set(projected.parentId, siblings);
@@ -103,6 +104,16 @@ export function buildNodeIndex(
       if (node) {
         node.setSize = siblingIds.length;
       }
+    }
+  }
+  for (let position = order.length - 1; position >= 0; position -= 1) {
+    const node = byId.get(order[position] ?? "");
+    if (!node || node.parentId === null) {
+      continue;
+    }
+    const parent = byId.get(node.parentId);
+    if (parent) {
+      parent.descendantCount += node.descendantCount + 1;
     }
   }
 
@@ -146,4 +157,51 @@ export function ancestorIds(nodes: ReadonlyMap<string, NodeRecord>, id: string):
     current = nodes.get(current.parentId);
   }
   return ancestors;
+}
+
+export type VirtualTreeWindow = {
+  start: number;
+  end: number;
+  offset: number;
+  totalHeight: number;
+};
+
+export function visualTreeIndent(
+  depth: number,
+  basePadding: number,
+  depthIndent: number,
+  maximumIndent: number,
+): number {
+  return Math.min(
+    basePadding + Math.max(0, depth - 1) * depthIndent,
+    maximumIndent,
+  );
+}
+
+export function virtualTreeWindow(
+  rowCount: number,
+  scrollTop: number,
+  viewportHeight: number,
+  rowPitch: number,
+  overscan = 8,
+  maximumRows = 40,
+): VirtualTreeWindow {
+  if (rowCount === 0 || rowPitch <= 0) {
+    return { start: 0, end: 0, offset: 0, totalHeight: 0 };
+  }
+  const visibleRows = Math.max(1, Math.ceil(viewportHeight / rowPitch));
+  const windowRows = Math.min(maximumRows, visibleRows + overscan * 2, rowCount);
+  const firstVisible = Math.max(0, Math.floor(scrollTop / rowPitch));
+  const leadingOverscan = Math.min(overscan, Math.max(0, windowRows - visibleRows));
+  const start = Math.min(
+    Math.max(0, firstVisible - leadingOverscan),
+    Math.max(0, rowCount - windowRows),
+  );
+  const end = Math.min(rowCount, start + windowRows);
+  return {
+    start,
+    end,
+    offset: start * rowPitch,
+    totalHeight: rowCount * rowPitch,
+  };
 }

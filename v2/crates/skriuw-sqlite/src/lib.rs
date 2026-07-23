@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
     sync::{Mutex, MutexGuard},
@@ -376,6 +376,18 @@ impl WorkspaceStorage for SqliteWorkspace {
         read_snapshot(&connection)
     }
 
+    fn load_sidebar_expansion(&self) -> Result<Option<Vec<String>>, StorageError> {
+        let connection = self.lock()?;
+        read_sidebar_expansion(&connection)
+    }
+
+    fn save_sidebar_expansion(&self, folder_ids: &[String]) -> Result<(), StorageError> {
+        let mut connection = self.lock()?;
+        let transaction = connection.transaction().map_err(backend)?;
+        write_sidebar_expansion(&transaction, folder_ids)?;
+        transaction.commit().map_err(backend)
+    }
+
     fn apply_operations(
         &self,
         operations: &[WorkspaceOperationEnvelope],
@@ -476,6 +488,66 @@ fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot, StorageEr
         history_headers: read_history_headers(connection)?,
         settings: read_settings(connection)?,
     })
+}
+
+fn read_sidebar_expansion(connection: &Connection) -> Result<Option<Vec<String>>, StorageError> {
+    let raw = connection
+        .query_row(
+            "SELECT value_json FROM app_state WHERE key = 'sidebar_expanded_folder_ids'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(backend)?;
+    let Some(raw) = raw else {
+        return Ok(None);
+    };
+    let stored = serde_json::from_str::<Vec<String>>(&raw).map_err(json_backend)?;
+    let mut retained = BTreeSet::new();
+    let mut statement = connection
+        .prepare_cached("SELECT kind FROM workspace_nodes WHERE id = ?1")
+        .map_err(backend)?;
+    for id in stored {
+        let kind = statement
+            .query_row([&id], |row| row.get::<_, String>(0))
+            .optional()
+            .map_err(backend)?;
+        if kind.as_deref() == Some("folder") {
+            retained.insert(id);
+        }
+    }
+    Ok(Some(retained.into_iter().collect()))
+}
+
+fn write_sidebar_expansion(
+    transaction: &Transaction<'_>,
+    folder_ids: &[String],
+) -> Result<(), StorageError> {
+    let mut retained = BTreeSet::new();
+    let mut statement = transaction
+        .prepare_cached("SELECT kind FROM workspace_nodes WHERE id = ?1")
+        .map_err(backend)?;
+    for id in folder_ids {
+        let kind = statement
+            .query_row([id], |row| row.get::<_, String>(0))
+            .optional()
+            .map_err(backend)?;
+        if kind.as_deref() == Some("folder") {
+            retained.insert(id);
+        }
+    }
+    transaction
+        .execute(
+            "INSERT INTO app_state(key, value_json) \
+             VALUES ('sidebar_expanded_folder_ids', ?1) \
+             ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
+            [
+                serde_json::to_string(&retained.into_iter().collect::<Vec<_>>())
+                    .map_err(json_backend)?,
+            ],
+        )
+        .map_err(backend)?;
+    Ok(())
 }
 
 fn validate_operations(operations: &[WorkspaceOperationEnvelope]) -> Result<(), StorageError> {
@@ -3110,6 +3182,66 @@ mod tests {
                 .expect("count projection rows")
         });
         assert_eq!(projection_counts, [2, 1, 2]);
+    }
+
+    #[test]
+    fn sidebar_expansion_is_native_durable_state_and_drops_purged_ids() {
+        let storage = SqliteWorkspace::open_in_memory().expect("open database");
+        storage
+            .apply_operations(&[
+                op(WorkspaceOperation::CreateFolder {
+                    id: "folder-a".into(),
+                    title: "A".into(),
+                    placement: NodePlacement::last(None),
+                    at: 1,
+                }),
+                op(WorkspaceOperation::CreateFolder {
+                    id: "folder-b".into(),
+                    title: "B".into(),
+                    placement: NodePlacement::last(Some("folder-a".into())),
+                    at: 2,
+                }),
+            ])
+            .expect("create folders");
+        storage
+            .save_sidebar_expansion(&["folder-b".into(), "folder-a".into(), "missing".into()])
+            .expect("save expansion");
+        assert_eq!(
+            storage.load_sidebar_expansion().expect("load expansion"),
+            Some(vec!["folder-a".to_string(), "folder-b".to_string()])
+        );
+
+        storage
+            .apply_operations(&[op(WorkspaceOperation::MoveNode {
+                id: "folder-b".into(),
+                placement: NodePlacement::last(None),
+                at: 3,
+            })])
+            .expect("move folder");
+        assert_eq!(
+            storage.load_sidebar_expansion().expect("load after move"),
+            Some(vec!["folder-a".to_string(), "folder-b".to_string()])
+        );
+        let archive = storage.export_archive(4).expect("export archive");
+        let encoded = serde_json::to_string(&archive).expect("encode archive");
+        assert!(!encoded.contains("sidebar_expanded_folder_ids"));
+
+        storage
+            .apply_operations(&[
+                op(WorkspaceOperation::TrashSubtree {
+                    root_id: "folder-a".into(),
+                    at: 5,
+                }),
+                op(WorkspaceOperation::PurgeSubtree {
+                    root_id: "folder-a".into(),
+                    trashed_before: 5,
+                }),
+            ])
+            .expect("purge folder");
+        assert_eq!(
+            storage.load_sidebar_expansion().expect("load after purge"),
+            Some(vec!["folder-b".to_string()])
+        );
     }
 
     #[test]

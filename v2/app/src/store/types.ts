@@ -15,6 +15,7 @@ export type NodeRecord = {
   depth: number;
   setSize: number;
   posInSet: number;
+  descendantCount: number;
 };
 
 export type DocumentRecord = {

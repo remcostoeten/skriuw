@@ -2,10 +2,15 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { App } from "./app";
-import { bootstrapWorkspace } from "./bridge/commands";
+import {
+  bootstrapWorkspace,
+  loadSidebarExpansion,
+  saveSidebarExpansion,
+} from "./bridge/commands";
 import type { HistoryHeader } from "./contracts/workspace";
 import { listenForHistoryHeaders } from "./history/live-history";
 import { bindSettingsToRoot } from "./settings/apply-settings";
+import { bindSidebarExpansionPersistence } from "./store/sidebar-expansion-persistence";
 import { createInitialState, createRendererStore } from "./store/store";
 import type { RendererStore } from "./store/types";
 import "./styles.css";
@@ -27,12 +32,24 @@ async function start(): Promise<void> {
       }
       pendingHeaders.push(header);
     });
-    const snapshot = await bootstrapWorkspace();
-    store = createRendererStore(createInitialState(snapshot));
+    const [snapshot, expandedFolderIds] = await Promise.all([
+      bootstrapWorkspace(),
+      loadSidebarExpansion().catch((error) => {
+        console.error("sidebar expansion load failed", error);
+        return [];
+      }),
+    ]);
+    store = createRendererStore(createInitialState(snapshot, expandedFolderIds ?? []));
+    const unbindExpansionPersistence = bindSidebarExpansionPersistence(
+      store,
+      saveSidebarExpansion,
+      { onError: (error) => console.error("sidebar expansion persistence failed", error) },
+    );
     for (const header of pendingHeaders) {
       store.publishHistoryHeader(header);
     }
     window.addEventListener("pagehide", unlistenHistory, { once: true });
+    window.addEventListener("pagehide", unbindExpansionPersistence, { once: true });
     bindSettingsToRoot(store, document.documentElement);
     root.render(
       <StrictMode>

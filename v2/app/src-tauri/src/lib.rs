@@ -102,6 +102,25 @@ async fn bootstrap_workspace(state: State<'_, AppState>) -> Result<WorkspaceSnap
 }
 
 #[tauri::command]
+async fn load_sidebar_expansion(state: State<'_, AppState>) -> Result<Option<Vec<String>>, String> {
+    let completion = workspace_runtime(&state)?
+        .load_sidebar_expansion()
+        .map_err(|error| error.to_string())?;
+    wait_for(completion).await
+}
+
+#[tauri::command]
+async fn save_sidebar_expansion(
+    folder_ids: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let completion = workspace_runtime(&state)?
+        .save_sidebar_expansion(folder_ids)
+        .map_err(|error| error.to_string())?;
+    wait_for(completion).await
+}
+
+#[tauri::command]
 async fn apply_workspace_operations(
     operations: Vec<WorkspaceOperationEnvelope>,
     state: State<'_, AppState>,
@@ -301,6 +320,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap_workspace,
+            load_sidebar_expansion,
+            save_sidebar_expansion,
             apply_workspace_operations,
             search_workspace,
             read_history_version,

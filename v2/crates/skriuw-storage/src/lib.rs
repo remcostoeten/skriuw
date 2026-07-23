@@ -187,6 +187,14 @@ impl StorageError {
 pub trait WorkspaceStorage: Send + Sync {
     fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError>;
 
+    fn load_sidebar_expansion(&self) -> Result<Option<Vec<String>>, StorageError> {
+        Ok(None)
+    }
+
+    fn save_sidebar_expansion(&self, _folder_ids: &[String]) -> Result<(), StorageError> {
+        Ok(())
+    }
+
     fn apply_operations(
         &self,
         operations: &[WorkspaceOperationEnvelope],
@@ -278,6 +286,14 @@ where
 {
     fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
         self.as_ref().bootstrap()
+    }
+
+    fn load_sidebar_expansion(&self) -> Result<Option<Vec<String>>, StorageError> {
+        self.as_ref().load_sidebar_expansion()
+    }
+
+    fn save_sidebar_expansion(&self, folder_ids: &[String]) -> Result<(), StorageError> {
+        self.as_ref().save_sidebar_expansion(folder_ids)
     }
 
     fn apply_operations(

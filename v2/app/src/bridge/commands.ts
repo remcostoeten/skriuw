@@ -19,6 +19,14 @@ export function bootstrapWorkspace(): Promise<WorkspaceSnapshot> {
   return invoke<WorkspaceSnapshot>("bootstrap_workspace");
 }
 
+export function loadSidebarExpansion(): Promise<string[] | null> {
+  return invoke<string[] | null>("load_sidebar_expansion");
+}
+
+export function saveSidebarExpansion(folderIds: readonly string[]): Promise<void> {
+  return invoke<void>("save_sidebar_expansion", { folderIds });
+}
+
 export function applyWorkspaceOperations(
   operations: WorkspaceOperationEnvelope[],
 ): Promise<OperationAck> {

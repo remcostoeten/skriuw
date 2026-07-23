@@ -37,7 +37,12 @@ import {
   ContextMenuTrigger,
 } from "../shared/ui/context-menu";
 import { Tooltip } from "../shared/ui/tooltip";
-import { ancestorIds, flattenVisible } from "../store/tree";
+import {
+  ancestorIds,
+  flattenVisible,
+  virtualTreeWindow,
+  visualTreeIndent,
+} from "../store/tree";
 import type { RendererState, RendererStore } from "../store/types";
 import { nextFolderExpansion, searchSidebarNodes } from "./sidebar-search";
 
@@ -58,6 +63,8 @@ type TreeMetrics = {
 const NARROW_WIDTH_PX = 220;
 const VERY_NARROW_WIDTH_PX = 176;
 const MAX_SEARCH_RESULTS_PER_TYPE = 10;
+const TREE_OVERSCAN_ROWS = 3;
+const MAX_RENDERED_TREE_ROWS = 80;
 
 const headerActionBaseClass =
   "inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground";
@@ -78,7 +85,13 @@ function treeMetrics(sidebarWidth: number | null): TreeMetrics {
 }
 
 function rowIndentStyle(depth: number, metrics: TreeMetrics): CSSProperties {
-  const indent = metrics.basePadding + depth * metrics.depthIndent;
+  const maximumIndent = metrics.isVeryNarrow ? 40 : metrics.isNarrow ? 56 : 80;
+  const indent = visualTreeIndent(
+    depth,
+    metrics.basePadding,
+    metrics.depthIndent,
+    maximumIndent,
+  );
   return {
     paddingLeft: `${indent}px`,
     paddingRight: `${metrics.rightPadding}px`,
@@ -110,15 +123,6 @@ function toggleAllFolders(store: RendererStore): void {
     expandedIds,
     visibleIds: flattenVisible(current.nodes, current.childrenByParent, expandedIds),
   }));
-}
-
-function countDescendants(state: RendererState, id: string): number {
-  const children = state.childrenByParent.get(id) ?? [];
-  let total = children.length;
-  for (const childId of children) {
-    total += countDescendants(state, childId);
-  }
-  return total;
 }
 
 function isInSubtree(state: RendererState, nodeId: string, rootId: string): boolean {
@@ -181,12 +185,15 @@ export function Sidebar({ store }: Props) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [metrics, setMetrics] = useState(() => treeMetrics(null));
+  const [treeScrollTop, setTreeScrollTop] = useState(0);
+  const [treeViewportHeight, setTreeViewportHeight] = useState(0);
   const asideRef = useRef<HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const searchOverlayRef = useRef<HTMLDivElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
-  const treeRef = useRef<HTMLUListElement>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
+  const effectiveCompact = compactSidebar || metrics.isNarrow;
 
   useEffect(() => {
     const element = asideRef.current;
@@ -210,14 +217,70 @@ export function Sidebar({ store }: Props) {
   }, []);
 
   useEffect(() => {
+    const revealFocusedNode = () => {
+      const element = treeRef.current;
+      const state = store.getState();
+      const focusedId = state.focusedNodeId;
+      const index = focusedId ? state.visibleIds.indexOf(focusedId) : -1;
+      if (!element || index < 0 || focusedId === null) {
+        element?.removeAttribute("aria-activedescendant");
+        return;
+      }
+      element.setAttribute("aria-activedescendant", `treeitem-${focusedId}`);
+      const rowPitch = (effectiveCompact ? 28 : 34) + 1;
+      const top = index * rowPitch;
+      const bottom = top + rowPitch;
+      let nextScrollTop = element.scrollTop;
+      if (top < element.scrollTop) {
+        nextScrollTop = top;
+      } else if (bottom > element.scrollTop + element.clientHeight) {
+        nextScrollTop = bottom - element.clientHeight;
+      }
+      if (nextScrollTop !== element.scrollTop) {
+        element.scrollTop = nextScrollTop;
+        setTreeScrollTop(nextScrollTop);
+      }
+    };
+    revealFocusedNode();
+    return store.subscribe((state) => state.focusedNodeId, revealFocusedNode);
+  }, [effectiveCompact, isSearchOpen, store]);
+
+  useEffect(() => {
+    const element = treeRef.current;
+    if (!element) {
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      const height = entries[0]?.contentRect.height;
+      if (height !== undefined) {
+        setTreeViewportHeight(height);
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [isSearchOpen]);
+
+  useEffect(() => {
     if (isSearchOpen) {
       searchInputRef.current?.focus();
     }
   }, [isSearchOpen]);
 
-  const effectiveCompact = compactSidebar || metrics.isNarrow;
   const headerActionClass = `${headerActionBaseClass} ${metrics.isNarrow ? "h-6 w-6" : "h-7 w-7"}`;
-
+  const rowPitch = (effectiveCompact ? 28 : 34) + 1;
+  const treeWindow = useMemo(
+    () =>
+      virtualTreeWindow(
+        visibleIds.length,
+        treeScrollTop,
+        Math.max(rowPitch, treeViewportHeight),
+        rowPitch,
+        TREE_OVERSCAN_ROWS,
+        MAX_RENDERED_TREE_ROWS,
+      ),
+    [rowPitch, treeScrollTop, treeViewportHeight, visibleIds.length],
+  );
+  const renderedIds = visibleIds.slice(treeWindow.start, treeWindow.end);
   const trimmedQuery = searchQuery.trim();
 
   function closeSearch(restoreTrigger = false): void {
@@ -653,19 +716,31 @@ export function Sidebar({ store }: Props) {
       ) : (
         <ContextMenu onOpenChange={(open) => !open && setContextTarget(null)}>
           <ContextMenuTrigger asChild>
-            <ul
+            <div
               ref={treeRef}
-              className={`m-0 min-h-0 flex-1 list-none space-y-px overflow-y-auto px-1.5 pb-4 ${effectiveCompact ? "pt-2" : "pt-3"}`}
+              className="relative min-h-0 flex-1 overflow-y-auto px-1.5"
               role="tree"
               aria-label="Workspace"
               tabIndex={0}
               onKeyDown={onTreeKeyDown}
               onContextMenu={onListContextMenu}
+              onScroll={(event) => setTreeScrollTop(event.currentTarget.scrollTop)}
             >
-              {visibleIds.map((id) => (
-                <SidebarRow key={id} store={store} id={id} metrics={metrics} />
-              ))}
-            </ul>
+              <div
+                className="relative w-full"
+                style={{ height: `${treeWindow.totalHeight}px` }}
+              >
+                {renderedIds.map((id, position) => (
+                  <SidebarRow
+                    key={id}
+                    store={store}
+                    id={id}
+                    metrics={metrics}
+                    top={(treeWindow.start + position) * rowPitch}
+                  />
+                ))}
+              </div>
+            </div>
           </ContextMenuTrigger>
           {contextTarget?.kind === "root" && (
             <ContextMenuContent className="w-48">{renderRootContextItems()}</ContextMenuContent>
@@ -800,18 +875,26 @@ type RowProps = {
   store: RendererStore;
   id: string;
   metrics: TreeMetrics;
+  top: number;
 };
 
-const SidebarRow = memo(function SidebarRow({ store, id, metrics }: RowProps) {
+const SidebarRow = memo(function SidebarRow({ store, id, metrics, top }: RowProps) {
   const node = useRendererSelector(store, (state) => state.nodes.get(id));
-  const isActive = useRendererSelector(store, (state) => state.activeNoteId === id);
-  const isFocused = useRendererSelector(store, (state) => state.focusedNodeId === id);
-  const isExpanded = useRendererSelector(store, (state) => state.expandedIds.has(id));
-  const isEditing = useRendererSelector(store, (state) => state.editingNodeId === id);
-  const descendantCount = useRendererSelector(store, (state) => countDescendants(state, id));
+  const status = useRendererSelector(
+    store,
+    (state) =>
+      Number(state.activeNoteId === id) |
+      (Number(state.focusedNodeId === id) << 1) |
+      (Number(state.expandedIds.has(id)) << 2) |
+      (Number(state.editingNodeId === id) << 3),
+  );
   if (!node) {
     return null;
   }
+  const isActive = (status & 1) !== 0;
+  const isFocused = (status & 2) !== 0;
+  const isExpanded = (status & 4) !== 0;
+  const isEditing = (status & 8) !== 0;
   const isFolder = node.kind === "folder";
   const stateClass = isFocused
     ? "bg-foreground/[0.22] text-foreground"
@@ -821,7 +904,10 @@ const SidebarRow = memo(function SidebarRow({ store, id, metrics }: RowProps) {
         ? "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88"
         : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85";
   return (
-    <li
+    <div
+      id={`treeitem-${id}`}
+      className="absolute inset-x-0"
+      style={{ top: `${top}px` }}
       role="treeitem"
       aria-level={node.depth}
       aria-setsize={node.setSize}
@@ -879,12 +965,12 @@ const SidebarRow = memo(function SidebarRow({ store, id, metrics }: RowProps) {
           </span>
           {isFolder && !metrics.isVeryNarrow && (
             <span className="ml-1.5 w-4 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground/50">
-              {descendantCount}
+              {node.descendantCount}
             </span>
           )}
         </button>
       )}
-    </li>
+    </div>
   );
 });
 

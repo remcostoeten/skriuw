@@ -72,6 +72,7 @@ body {
 .shell {
   display: grid;
   grid-template-columns: 56px 260px 1fr 240px;
+  grid-template-rows: minmax(0, 1fr);
   height: 100%;
 }
 
@@ -200,13 +201,13 @@ body {
   animation-iteration-count: 1 !important;
 }
 
-.sidebar-compact li > button,
-.sidebar-compact li > div {
+.sidebar-compact [role="treeitem"] > button,
+.sidebar-compact [role="treeitem"] > div {
   height: 28px;
 }
 
-.sidebar-guides li > button,
-.sidebar-guides li > div {
+.sidebar-guides [role="treeitem"] > button,
+.sidebar-guides [role="treeitem"] > div {
   background-image: repeating-linear-gradient(
     to right,
     transparent 0 calc(var(--tree-step, 16px) - 1px),

@@ -79,7 +79,10 @@ function derive(
   };
 }
 
-export function createInitialState(snapshot: WorkspaceSnapshot): RendererState {
+export function createInitialState(
+  snapshot: WorkspaceSnapshot,
+  expandedFolderIds?: readonly string[],
+): RendererState {
   const sourceNodes = new Map<string, WorkspaceNode>();
   for (const node of snapshot.nodes) {
     sourceNodes.set(node.id, node);
@@ -88,8 +91,11 @@ export function createInitialState(snapshot: WorkspaceSnapshot): RendererState {
   for (const document of snapshot.documents) {
     documents.set(document.noteId, document);
   }
+  const requestedExpansion =
+    expandedFolderIds ??
+    snapshot.nodes.filter((node) => node.kind === "folder").map((node) => node.id);
   const expandedIds = new Set(
-    snapshot.nodes.filter((node) => node.kind === "folder").map((node) => node.id),
+    requestedExpansion.filter((id) => sourceNodes.get(id)?.kind === "folder"),
   );
   const historyHeaders = new Map<string, HistoryHeader[]>();
   for (const header of snapshot.historyHeaders) {
@@ -196,6 +202,9 @@ function reduceState(
   if (operation.type === "purge_subtree") {
     documents = new Map(
       [...documents].filter(([noteId]) => sourceNodes.has(noteId)),
+    );
+    expandedIds = new Set(
+      [...expandedIds].filter((id) => sourceNodes.get(id)?.kind === "folder"),
     );
   }
   return derive({

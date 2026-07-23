@@ -69,6 +69,14 @@ test("initial state orders siblings by rank and excludes trashed subtrees", () =
   assert.equal(state.metadata.get("note-child")?.wordCount, 7);
 });
 
+test("initial state restores only durable folder expansion ids", () => {
+  const state = createInitialState(snapshot(), ["folder", "note-root", "missing"]);
+  assert.deepEqual([...state.expandedIds], ["folder"]);
+  assert.deepEqual([...state.visibleIds], ["folder", "note-child", "note-root"]);
+  const collapsed = createInitialState(snapshot(), []);
+  assert.deepEqual([...collapsed.visibleIds], ["folder", "note-root"]);
+});
+
 test("active note falls back to the first available document", () => {
   const source = snapshot();
   source.activeNoteId = "trashed-child";
@@ -172,6 +180,7 @@ test("purging a trashed subtree drops its documents", () => {
   assert.equal(state.sourceNodes.has("folder"), false);
   assert.equal(state.sourceNodes.has("note-child"), false);
   assert.equal(state.documents.has("note-child"), false);
+  assert.equal(state.expandedIds.has("folder"), false);
 });
 
 test("save_document updates content, word count, and metadata timestamp", () => {
