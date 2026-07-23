@@ -5,7 +5,7 @@ Last reviewed: 2026-07-23
 ## Current state
 
 - [x] Repository created at `/home/remcostoeten/dev/skriuw-standalone`.
-- [x] Current work is isolated on `feat/daddy-2`, expected to be five commits ahead of `origin/feat/daddy-2` after the N4 implementation, handoff, and next-session instruction commits.
+- [x] Linux v1 was merged from `feat/daddy-2` into `feat/instant-local-first-foundation` as pull request #2 on 2026-07-23.
 - [x] Scoped product and dev-menu changes are committed; unrelated untracked `.claude/` content remains preserved and excluded.
 - [x] Rust 1.95 backend workspace and the product renderer pass `./scripts/check.sh`.
 - [x] 114 backend tests, 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 109 renderer tests pass; 6 backend tests remain ignored manual workloads.

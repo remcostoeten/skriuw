@@ -4,7 +4,7 @@ Last reviewed: 2026-07-23
 
 ## Start here
 
-The backend foundation, UI architecture measurements, product shell, bounded product editor, desktop Data/Recovery surface, scheduled backups, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented on the active feature branch. Claude's original-product audit is integrated and reconciled in `docs/product-scope-v1.md`; `docs/implementation-backlog.md` is the authoritative remaining v1 plan.
+Linux v1 is merged into `feat/instant-local-first-foundation` through pull request #2. The backend foundation, UI architecture measurements, product shell, bounded product editor, desktop Data/Recovery surface, scheduled backups, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented. The next approved product exploration is the performant tags, people, and note-mentions system specified in `docs/implementation-prompts/tags-people-note-mentions.md`.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -24,8 +24,8 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be seven commits ahead of `origin/feat/daddy-2` after the lifecycle implementation and this handoff commit.
-- Remote: `origin` is configured; the N3 and N4 implementation/handoff commits have not been pushed.
+- Merged branch: `feat/daddy-2`; pull request #2 merged into `feat/instant-local-first-foundation` at `d52ebbb` on 2026-07-23.
+- Remote: `origin` is configured; both the v1 branch and its merge are published.
 - Last product implementation commit: `9554d43 fix: persist active note at desktop close`; N4 is `1e426ba`, N3 is `9b96d19`, N2 is `4e68559`, C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`.
 - Expected primary worktree state: only this integration-owned handoff update plus unrelated untracked `.claude/` content remains; `.claude/` is preserved and excluded.
 - Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 114 backend tests (6 ignored), 17 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 119 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 84.37% lines, 85.68% branches, and 70.24% functions.
