@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
-import { AllSelection, EditorState, TextSelection, type Transaction } from "prosemirror-state";
+import {
+  AllSelection,
+  EditorState,
+  TextSelection,
+  type Plugin,
+  type Transaction,
+} from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
+import { createMentionPlugin, type MentionContext } from "../references/mention-plugin";
+import { createReferenceNodeViews } from "../references/reference-nodeview";
 import { commitOperations } from "../actions/workspace";
 import { cssStringLiteral } from "../settings/apply-settings";
 import { projectSettings } from "../settings/settings-model";
@@ -65,8 +73,14 @@ function emptyDocument(): ProseMirrorNode {
   return productSchema.nodeFromJSON({ type: "doc", content: [{ type: "paragraph" }] });
 }
 
-function createEditorState(document: ProseMirrorNode): EditorState {
-  return EditorState.create({ doc: document, plugins: createProductPlugins() });
+function createEditorState(
+  document: ProseMirrorNode,
+  extraPlugins: readonly Plugin[] = [],
+): EditorState {
+  return EditorState.create({
+    doc: document,
+    plugins: [...createProductPlugins(), ...extraPlugins],
+  });
 }
 
 function createSearchState(document: ProseMirrorNode): EditorState {
@@ -81,11 +95,14 @@ function documentFromJson(json: unknown): ProseMirrorNode {
   }
 }
 
-function createCachedNote(record: DocumentRecord): CachedNote {
+function createCachedNote(
+  record: DocumentRecord,
+  extraPlugins: readonly Plugin[],
+): CachedNote {
   const document = documentFromJson(record.documentJson);
   const bounded = shouldUseBoundedEditor(document) ? createBoundedDocument(document) : null;
   return {
-    state: createEditorState(bounded?.windowDocument() ?? document),
+    state: createEditorState(bounded?.windowDocument() ?? document, extraPlugins),
     revision: record.revision,
     bounded,
     searchState: bounded ? createSearchState(document) : null,
@@ -138,6 +155,17 @@ export function NoteEditor({ store }: Props) {
   const activeNoteId = useRendererSelector(store, (state) => state.activeNoteId);
   const settingsDocument = useRendererSelector(store, (state) => state.settings);
   const editorSettings = projectSettings(settingsDocument);
+  const mentionPluginsRef = useRef<Plugin[] | null>(null);
+  if (mentionPluginsRef.current === null) {
+    const mentionContext: MentionContext = {
+      getState: () => store.getState(),
+      applyReferenceOperations: (operations) => {
+        store.applyReferenceOperations(operations);
+      },
+    };
+    mentionPluginsRef.current = [createMentionPlugin(mentionContext)];
+  }
+  const mentionPlugins = mentionPluginsRef.current;
 
   function activeEntry(): CachedNote | null {
     const noteId = activeIdRef.current;
@@ -210,7 +238,7 @@ export function NoteEditor({ store }: Props) {
     const view = viewRef.current;
     if (!bounded || !view) return;
     if (rebuild) {
-      entry.state = createEditorState(bounded.windowDocument());
+      entry.state = createEditorState(bounded.windowDocument(), mentionPlugins);
       const remembered = bounded.selection();
       if (
         remembered &&
@@ -387,9 +415,11 @@ export function NoteEditor({ store }: Props) {
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
+    const referenceViews = createReferenceNodeViews(store);
     const view = new EditorView(host, {
-      state: createEditorState(emptyDocument()),
+      state: createEditorState(emptyDocument(), mentionPlugins),
       editable: () => activeIdRef.current !== null,
+      nodeViews: referenceViews.nodeViews,
       dispatchTransaction,
       handleKeyDown(currentView, event) {
         const entry = activeEntry();
@@ -492,6 +522,7 @@ export function NoteEditor({ store }: Props) {
       view.dom.removeEventListener("copy", handleCopy);
       viewRef.current = null;
       view.destroy();
+      referenceViews.destroy();
     };
   }, []);
 
@@ -510,7 +541,7 @@ export function NoteEditor({ store }: Props) {
     activeIdRef.current = activeNoteId;
     setSlashMenu(closedSlashMenu);
     if (activeNoteId === null) {
-      view.updateState(createEditorState(emptyDocument()));
+      view.updateState(createEditorState(emptyDocument(), mentionPlugins));
       syncBoundedSurface({
         state: view.state,
         revision: 0,
@@ -523,7 +554,7 @@ export function NoteEditor({ store }: Props) {
     }
     const record = store.getState().documents.get(activeNoteId);
     if (!record) {
-      view.updateState(createEditorState(emptyDocument()));
+      view.updateState(createEditorState(emptyDocument(), mentionPlugins));
       return;
     }
     let entry = cacheRef.current.get(activeNoteId);
@@ -531,7 +562,7 @@ export function NoteEditor({ store }: Props) {
       entry.bounded?.fullDocument() ?? entry.state.doc,
       record.documentJson,
     ))) {
-      entry = createCachedNote(record);
+      entry = createCachedNote(record, mentionPlugins);
       cacheRef.current.set(activeNoteId, entry);
     } else {
       entry.revision = record.revision;
@@ -571,7 +602,7 @@ export function NoteEditor({ store }: Props) {
           } else {
             entry.bounded = null;
             entry.searchState = null;
-            entry.state = createEditorState(replacement);
+            entry.state = createEditorState(replacement, mentionPlugins);
             viewRef.current?.updateState(entry.state);
             syncBoundedSurface(entry);
           }
