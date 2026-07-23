@@ -9,8 +9,12 @@ import {
   wrappingInputRule,
 } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
-import { defaultMarkdownSerializer } from "prosemirror-markdown";
-import { Schema, type Node as ProseMirrorNode } from "prosemirror-model";
+import { defaultMarkdownSerializer, MarkdownSerializer } from "prosemirror-markdown";
+import {
+  Schema,
+  type Node as ProseMirrorNode,
+  type NodeSpec,
+} from "prosemirror-model";
 import { schema as basicSchema } from "prosemirror-schema-basic";
 import { Plugin, PluginKey, type EditorState } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
@@ -25,7 +29,75 @@ export type SlashMenuState = {
 const HISTORY_GROUP_DELAY_MS = 500;
 const HISTORY_DEPTH = 200;
 
-const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block");
+const tagRefSpec: NodeSpec = {
+  inline: true,
+  group: "inline",
+  atom: true,
+  selectable: true,
+  attrs: {
+    id: {},
+    label: { default: "" },
+  },
+  toDOM: (node) => [
+    "span",
+    {
+      class: "reference-token reference-token-tag",
+      "data-ref-kind": "tag",
+      "data-ref-id": String(node.attrs.id),
+      "data-ref-label": String(node.attrs.label),
+    },
+    `#${node.attrs.label}`,
+  ],
+  parseDOM: [
+    {
+      tag: "span[data-ref-kind='tag']",
+      getAttrs: (dom) => {
+        const id = dom.getAttribute("data-ref-id");
+        return id
+          ? { id, label: dom.getAttribute("data-ref-label") ?? "" }
+          : false;
+      },
+    },
+  ],
+};
+
+const mentionRefSpec: NodeSpec = {
+  inline: true,
+  group: "inline",
+  atom: true,
+  selectable: true,
+  attrs: {
+    kind: {},
+    id: {},
+    label: { default: "" },
+  },
+  toDOM: (node) => [
+    "span",
+    {
+      class: `reference-token reference-token-${node.attrs.kind}`,
+      "data-ref-kind": String(node.attrs.kind),
+      "data-ref-id": String(node.attrs.id),
+      "data-ref-label": String(node.attrs.label),
+    },
+    `@${node.attrs.label}`,
+  ],
+  parseDOM: [
+    {
+      tag: "span[data-ref-kind='person'], span[data-ref-kind='note']",
+      getAttrs: (dom) => {
+        const id = dom.getAttribute("data-ref-id");
+        const kind = dom.getAttribute("data-ref-kind");
+        return id && (kind === "person" || kind === "note")
+          ? { kind, id, label: dom.getAttribute("data-ref-label") ?? "" }
+          : false;
+      },
+    },
+  ],
+};
+
+const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
+  .addToEnd("tag_ref", tagRefSpec)
+  .addToEnd("mention_ref", mentionRefSpec);
 
 export const productSchema = new Schema({
   nodes,
@@ -128,8 +200,21 @@ export function slashMenuState(state: EditorState): SlashMenuState {
   return slashMenuKey.getState(state) ?? { open: false, query: "" };
 }
 
+const productMarkdownSerializer = new MarkdownSerializer(
+  {
+    ...defaultMarkdownSerializer.nodes,
+    tag_ref(state, node) {
+      state.text(`#${node.attrs.label}`, false);
+    },
+    mention_ref(state, node) {
+      state.text(`@${node.attrs.label}`, false);
+    },
+  },
+  defaultMarkdownSerializer.marks,
+);
+
 export function serializeProductMarkdown(document: ProseMirrorNode): string {
-  return defaultMarkdownSerializer.serialize(document);
+  return productMarkdownSerializer.serialize(document);
 }
 
 export function countWords(document: ProseMirrorNode): number {
