@@ -61,6 +61,19 @@ type SimulationNode = GraphNode & { x?: number; y?: number; vx?: number; vy?: nu
 /** Nodes below this cluster size get no island anchor or hull — mostly orphans. */
 const ISLAND_MIN_SIZE = 3;
 
+/** Zoom bounds shared by the ForceGraph2D instance and the manual zoom buttons. */
+const MIN_ZOOM = 0.05;
+const MAX_ZOOM = 12;
+const ZOOM_STEP = 1.5;
+
+/**
+ * On mobile the node-type filter bar sits at the bottom of the canvas, so the
+ * zoom controls have to clear it: its 44px hit target plus the 1.5 units of
+ * padding on its wrapper (3.5rem), plus the wrapper's own 0.75rem bottom inset
+ * and a 0.5rem gap.
+ */
+const MOBILE_FILTER_BAR_CLEARANCE = "4.75rem";
+
 /**
  * Assigns each sufficiently large cluster an anchor point on a golden-angle
  * spiral (big clusters near the center) so the islands spread evenly instead
@@ -471,11 +484,12 @@ function GraphCanvas({
 	const zoomBy = useCallback((factor: number) => {
 		const graph = graphRef.current;
 		if (!graph) return;
-		graph.zoom(graph.zoom() * factor, 250);
+		const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, graph.zoom() * factor));
+		graph.zoom(next, 250);
 	}, []);
 
-	const zoomIn = useCallback(() => zoomBy(1.5), [zoomBy]);
-	const zoomOut = useCallback(() => zoomBy(1 / 1.5), [zoomBy]);
+	const zoomIn = useCallback(() => zoomBy(ZOOM_STEP), [zoomBy]);
+	const zoomOut = useCallback(() => zoomBy(1 / ZOOM_STEP), [zoomBy]);
 	const fitView = useCallback(() => {
 		graphRef.current?.zoomToFit(500, isMobile ? 32 : 80);
 	}, [isMobile]);
@@ -504,8 +518,8 @@ function GraphCanvas({
 					backgroundColor="transparent"
 					enableZoomInteraction
 					enablePanInteraction
-					minZoom={0.05}
-					maxZoom={12}
+					minZoom={MIN_ZOOM}
+					maxZoom={MAX_ZOOM}
 					nodeRelSize={1}
 					nodeVal={nodeValAccessor}
 					nodeColor={nodeColorAccessor}
@@ -548,7 +562,9 @@ function GraphZoomControls({
 		<div
 			className="absolute right-3 z-10 flex flex-col divide-y divide-border/60 overflow-hidden rounded-md border border-border bg-card/90 backdrop-blur"
 			style={{
-				bottom: isMobile ? "calc(env(safe-area-inset-bottom) + 4.75rem)" : "1rem",
+				bottom: isMobile
+					? `calc(env(safe-area-inset-bottom) + ${MOBILE_FILTER_BAR_CLEARANCE})`
+					: "1rem",
 			}}
 		>
 			<button type="button" aria-label="Zoom in" onClick={onZoomIn} className={buttonClass}>
