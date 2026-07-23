@@ -4,13 +4,19 @@ import { ChevronRightIcon, HistoryIcon, InfoIcon } from "../shared/icons";
 import { cn } from "../shared/lib/utils";
 import { projectVersionList } from "../history/version-model";
 import { VersionHistoryPanel } from "../history/version-history-panel";
+import {
+  BacklinksList,
+  ReferenceDetailLists,
+  useBacklinks,
+  useNoteReferenceDetails,
+} from "../references/reference-panel";
 import type { RendererStore } from "../store/types";
 
 type Props = {
   store: RendererStore;
 };
 
-type SectionKey = "history" | "details";
+type SectionKey = "history" | "details" | "backlinks" | "references";
 
 type SectionProps = {
   id: string;
@@ -73,9 +79,13 @@ export function MetadataPanel({ store }: Props) {
     state.activeNoteId === null ? null : (state.historyHeaders.get(state.activeNoteId) ?? null),
   );
   const versions = useMemo(() => projectVersionList(historyHeaders), [historyHeaders]);
+  const backlinks = useBacklinks(store, activeNoteId);
+  const referenceDetails = useNoteReferenceDetails(store, activeNoteId);
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     history: true,
     details: true,
+    backlinks: true,
+    references: true,
   });
 
   function toggleSection(section: SectionKey): void {
@@ -104,6 +114,30 @@ export function MetadataPanel({ store }: Props) {
               noteId={activeNoteId}
               versions={versions}
             />
+          </InspectorSection>
+        )}
+        {activeNoteId && (
+          <InspectorSection
+            id="metadata-backlinks"
+            title="Linked mentions"
+            icon={<InfoIcon size={14} className="shrink-0" />}
+            count={backlinks.length}
+            open={openSections.backlinks}
+            onToggle={() => toggleSection("backlinks")}
+          >
+            <BacklinksList store={store} entries={backlinks} />
+          </InspectorSection>
+        )}
+        {activeNoteId && (
+          <InspectorSection
+            id="metadata-references"
+            title="Tags & people"
+            icon={<InfoIcon size={14} className="shrink-0" />}
+            count={referenceDetails.length}
+            open={openSections.references}
+            onToggle={() => toggleSection("references")}
+          >
+            <ReferenceDetailLists store={store} details={referenceDetails} />
           </InspectorSection>
         )}
       </div>
