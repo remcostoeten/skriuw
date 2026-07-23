@@ -24,7 +24,7 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be four commits ahead of `origin/feat/daddy-2` after the N4 implementation and handoff commits.
+- Active branch: `feat/daddy-2`, expected to be five commits ahead of `origin/feat/daddy-2` after the N4 implementation, handoff, and next-session instruction commits.
 - Remote: `origin` is configured; the N3 and N4 implementation/handoff commits have not been pushed.
 - Last product implementation commit: `1e426ba feat: persist and virtualize sidebar expansion state (N4)`; N3 is `9b96d19`, N2 is `4e68559`, C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`.
 - Expected primary worktree state: only unrelated untracked `.claude/` content remains; it is preserved and excluded.
