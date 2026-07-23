@@ -115,7 +115,10 @@ pub fn rebuild_history_cache(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HistoryWorkResult {
     Idle,
-    Materialized { item_id: String, version_id: String },
+    Materialized {
+        item_id: String,
+        header: HistoryHeader,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -214,9 +217,15 @@ where
         };
         self.queue
             .complete_history_revision(&self.worker_id, &item.id, &materialization)?;
+        let header = HistoryHeader {
+            note_id: item.note_id,
+            version_id: materialization.version_id,
+            created_at: item.created_at,
+            summary: materialization.summary,
+        };
         Ok(HistoryWorkResult::Materialized {
             item_id: item.id,
-            version_id: materialization.version_id,
+            header,
         })
     }
 }
@@ -247,7 +256,11 @@ mod tests {
         let result = worker.process_next(100, 30_000).expect("process history");
         assert!(matches!(
             result,
-            HistoryWorkResult::Materialized { ref version_id, .. } if version_id == "version-1"
+            HistoryWorkResult::Materialized { ref header, .. }
+                if header.note_id == "note-1"
+                    && header.version_id == "version-1"
+                    && header.created_at == 1
+                    && header.summary == "Created note"
         ));
 
         let snapshot = storage.bootstrap().expect("bootstrap");
@@ -276,6 +289,28 @@ mod tests {
             .expect("pending revision");
 
         assert_eq!(retry.attempts, 2);
+    }
+
+    #[test]
+    fn cache_commit_failure_returns_no_publishable_header() {
+        let queue = FailingCompletionQueue {
+            item: Mutex::new(Some(PendingHistoryRevision {
+                id: "item-1".into(),
+                note_id: "note-1".into(),
+                revision: 1,
+                markdown: "history".into(),
+                created_at: 1,
+                attempts: 1,
+            })),
+        };
+        let worker =
+            HistoryWorker::new("worker-1", queue, StaticMaterializer).expect("create worker");
+
+        let error = worker
+            .process_next(100, 30_000)
+            .expect_err("cache commit failure");
+
+        assert!(matches!(error, super::HistoryWorkerError::Queue(_)));
     }
 
     #[test]
@@ -405,6 +440,39 @@ mod tests {
     struct CapturingQueue {
         item: Mutex<Option<PendingHistoryRevision>>,
         released: Arc<Mutex<Option<String>>>,
+    }
+
+    struct FailingCompletionQueue {
+        item: Mutex<Option<PendingHistoryRevision>>,
+    }
+
+    impl HistoryQueue for FailingCompletionQueue {
+        fn claim_history_revision(
+            &self,
+            _worker_id: &str,
+            _now_ms: i64,
+            _lease_ms: i64,
+        ) -> Result<Option<PendingHistoryRevision>, StorageError> {
+            Ok(self.item.lock().expect("queue item").take())
+        }
+
+        fn complete_history_revision(
+            &self,
+            _worker_id: &str,
+            _item_id: &str,
+            _materialization: &HistoryMaterialization,
+        ) -> Result<(), StorageError> {
+            Err(StorageError::Backend("cache unavailable".into()))
+        }
+
+        fn release_history_revision(
+            &self,
+            _worker_id: &str,
+            _item_id: &str,
+            _diagnostic: &skriuw_storage::Diagnostic,
+        ) -> Result<(), StorageError> {
+            unreachable!()
+        }
     }
 
     impl HistoryQueue for CapturingQueue {

@@ -207,3 +207,63 @@ test("selector subscribers only fire when their slice changes", () => {
   store.setActiveNote("note-root");
   assert.equal(activeNotifications, 1);
 });
+
+test("history publication is exactly once, stable, and note scoped", () => {
+  const source = snapshot();
+  source.historyHeaders = [
+    {
+      noteId: "note-child",
+      versionId: "version-b",
+      createdAt: 10,
+      summary: "Second",
+    },
+  ];
+  const store = createRendererStore(createInitialState(source));
+  let childHistoryNotifications = 0;
+  let rootHistoryNotifications = 0;
+  let shellNotifications = 0;
+  store.subscribe(
+    (state) => state.historyHeaders.get("note-child"),
+    () => {
+      childHistoryNotifications += 1;
+    },
+  );
+  store.subscribe(
+    (state) => state.historyHeaders.get("note-root"),
+    () => {
+      rootHistoryNotifications += 1;
+    },
+  );
+  store.subscribe(
+    (state) => state.nodeOrder,
+    () => {
+      shellNotifications += 1;
+    },
+  );
+
+  assert.equal(
+    store.publishHistoryHeader({
+      noteId: "note-child",
+      versionId: "version-a",
+      createdAt: 10,
+      summary: "First",
+    }),
+    true,
+  );
+  assert.equal(
+    store.publishHistoryHeader({
+      noteId: "note-child",
+      versionId: "version-a",
+      createdAt: 10,
+      summary: "First",
+    }),
+    false,
+  );
+  assert.deepEqual(
+    store.getState().historyHeaders.get("note-child")?.map((header) => header.versionId),
+    ["version-a", "version-b"],
+  );
+  assert.equal(childHistoryNotifications, 1);
+  assert.equal(rootHistoryNotifications, 0);
+  assert.equal(shellNotifications, 0);
+});

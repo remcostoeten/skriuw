@@ -12,11 +12,13 @@ use maintenance::{
     MaintenanceCoordinator, RecoveryInventoryReport, spawn_backup_rotation,
 };
 use serde::Serialize;
-use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
+use skriuw_domain::{
+    HistoryHeader, OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+};
 use skriuw_history::HistoryReader;
 use skriuw_history_git::GitHistoryMaterializer;
 use skriuw_runtime::{Completion, WorkspaceRuntime};
-use tauri::{Manager, RunEvent, State};
+use tauri::{Emitter, Manager, RunEvent, State};
 
 struct AppState {
     maintenance: Arc<MaintenanceCoordinator>,
@@ -26,6 +28,7 @@ struct AppState {
 }
 
 const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
+const HISTORY_HEADER_PUBLISHED_EVENT: &str = "history-header-published";
 
 fn now_millis() -> i64 {
     SystemTime::now()
@@ -277,6 +280,15 @@ pub fn run() {
                 path.clone(),
                 repository_path,
                 now_millis,
+                {
+                    let app_handle = app.handle().clone();
+                    Arc::new(move |header: HistoryHeader| {
+                        if let Err(error) = app_handle.emit(HISTORY_HEADER_PUBLISHED_EVENT, header)
+                        {
+                            eprintln!("history header publication failed: {error}");
+                        }
+                    })
+                },
             )?);
             let rotation = spawn_backup_rotation(Arc::clone(&maintenance), ROTATION_RETRY_DELAY)?;
             app.manage(AppState {
@@ -317,10 +329,13 @@ pub fn run() {
 #[cfg(test)]
 mod smoke_tests {
     use super::*;
-    use std::{thread, time::Duration};
     use skriuw_domain::{NodePlacement, WorkspaceOperation, WorkspaceOperationEnvelope};
     use skriuw_sqlite::SqliteWorkspace;
-    use skriuw_storage::WorkspaceStorage;
+    use skriuw_storage::{HistoryQueue, WorkspaceStorage};
+    use std::{
+        sync::{Mutex, mpsc},
+        time::Duration,
+    };
     use tempfile::tempdir;
 
     #[test]
@@ -332,35 +347,93 @@ mod smoke_tests {
         {
             let storage = SqliteWorkspace::open(&db_path).expect("open db");
             storage
-                .apply_operations(&[WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreateNote {
+                .apply_operations(&[WorkspaceOperationEnvelope::v1(
+                    WorkspaceOperation::CreateNote {
+                        id: "note-1".into(),
+                        title: "Smoke".into(),
+                        placement: NodePlacement::last(None),
+                        document_json: serde_json::json!({"type": "doc", "content": []}),
+                        markdown: "# Smoke".into(),
+                        at: 1,
+                    },
+                )])
+                .expect("create note");
+        }
+
+        let (published, received) = mpsc::sync_channel(1);
+        let drain = maintenance::spawn_history_drain(
+            &db_path,
+            &repo_path,
+            now_millis,
+            Arc::new(move |header| {
+                let _ = published.send(header);
+            }),
+        )
+        .expect("spawn drain");
+        let reader = GitHistoryMaterializer::open(&repo_path).expect("open reader");
+        let published = received
+            .recv_timeout(Duration::from_secs(2))
+            .expect("published header");
+        drain.shutdown();
+
+        let headers = reader.list_headers().expect("list headers");
+        assert_eq!(headers.len(), 1);
+        assert_eq!(published, headers[0]);
+        let snapshot = SqliteWorkspace::open(&db_path)
+            .expect("open cache")
+            .bootstrap()
+            .expect("read cache");
+        assert_eq!(snapshot.history_headers, [published]);
+        let version = reader
+            .read_version("note-1", &headers[0].version_id)
+            .expect("read version");
+        assert_eq!(version.markdown, "# Smoke");
+    }
+
+    #[test]
+    fn git_failure_preserves_retry_without_publishing() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("workspace.db");
+        let repo_path = history_repository_path(&db_path);
+        let storage = SqliteWorkspace::open(&db_path).expect("open db");
+        storage
+            .apply_operations(&[WorkspaceOperationEnvelope::v1(
+                WorkspaceOperation::CreateNote {
                     id: "note-1".into(),
                     title: "Smoke".into(),
                     placement: NodePlacement::last(None),
                     document_json: serde_json::json!({"type": "doc", "content": []}),
                     markdown: "# Smoke".into(),
                     at: 1,
-                })])
-                .expect("create note");
+                },
+            )])
+            .expect("create note");
+        GitHistoryMaterializer::open(&repo_path).expect("initialize history");
+        let index_path = repo_path.join(".git").join("index");
+        if index_path.exists() {
+            fs::remove_file(&index_path).expect("remove index");
         }
-
-        let drain =
-            maintenance::spawn_history_drain(&db_path, &repo_path, now_millis).expect("spawn drain");
-        let reader = GitHistoryMaterializer::open(&repo_path).expect("open reader");
-
-        let mut headers = Vec::new();
-        for _ in 0..100 {
-            headers = reader.list_headers().expect("list headers");
-            if !headers.is_empty() {
-                break;
-            }
-            thread::sleep(Duration::from_millis(50));
-        }
+        fs::create_dir(&index_path).expect("block index creation");
+        let publications = Arc::new(Mutex::new(Vec::<HistoryHeader>::new()));
+        let captured = Arc::clone(&publications);
+        let drain = maintenance::spawn_history_drain(
+            &db_path,
+            &repo_path,
+            now_millis,
+            Arc::new(move |header| {
+                captured.lock().expect("publications").push(header);
+            }),
+        )
+        .expect("spawn drain");
+        std::thread::sleep(Duration::from_millis(100));
         drain.shutdown();
 
-        assert_eq!(headers.len(), 1);
-        let version = reader
-            .read_version("note-1", &headers[0].version_id)
-            .expect("read version");
-        assert_eq!(version.markdown, "# Smoke");
+        assert!(publications.lock().expect("publications").is_empty());
+        let retry = SqliteWorkspace::open(&db_path)
+            .expect("reopen db")
+            .claim_history_revision("retry-check", now_millis(), 30_000)
+            .expect("claim retry")
+            .expect("pending retry");
+        assert_eq!(retry.attempts, 2);
     }
 }

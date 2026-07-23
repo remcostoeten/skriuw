@@ -74,6 +74,7 @@ export type RendererStore = {
   toggleExpanded: (id: string) => boolean;
   applyOperations: (operations: readonly WorkspaceOperation[]) => boolean;
   applyAck: (ack: OperationAck) => boolean;
+  publishHistoryHeader: (header: HistoryHeader) => boolean;
   replaceFromSnapshot: (snapshot: WorkspaceSnapshot) => boolean;
   destroy: () => void;
 };

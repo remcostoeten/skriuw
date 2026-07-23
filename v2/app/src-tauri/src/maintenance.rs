@@ -11,7 +11,7 @@ use std::{
 };
 
 use serde::Serialize;
-use skriuw_domain::{WorkspaceArchive, WorkspaceSnapshot};
+use skriuw_domain::{HistoryHeader, WorkspaceArchive, WorkspaceSnapshot};
 use skriuw_history::{HistoryWorkResult, HistoryWorker};
 use skriuw_history_git::GitHistoryMaterializer;
 use skriuw_lifecycle::{DatabaseSwapOutcome, DatabaseSwapStage, replace_live_database_gated};
@@ -29,6 +29,8 @@ const HISTORY_DRAIN_LEASE_MS: i64 = 30_000;
 const ROLLBACK_PREFIX: &str = ".rollback-";
 const CANDIDATE_PREFIX: &str = ".restore-candidate-";
 const SAFETY_BACKUP_PREFIX: &str = ".pre-import-";
+
+type HistoryPublisher = Arc<dyn Fn(HistoryHeader) + Send + Sync>;
 
 pub struct HistoryDrainHandle {
     stop: Arc<AtomicBool>,
@@ -50,6 +52,7 @@ pub fn spawn_history_drain(
     database_path: &Path,
     repository_path: &Path,
     now_millis: fn() -> i64,
+    publish: HistoryPublisher,
 ) -> Result<HistoryDrainHandle, String> {
     let storage = Arc::new(
         SqliteWorkspace::open(database_path)
@@ -66,7 +69,7 @@ pub fn spawn_history_drain(
         .spawn(move || {
             while !stop_flag.load(Ordering::Relaxed) {
                 match worker.process_next(now_millis(), HISTORY_DRAIN_LEASE_MS) {
-                    Ok(HistoryWorkResult::Materialized { .. }) => {}
+                    Ok(HistoryWorkResult::Materialized { header, .. }) => publish(header),
                     Ok(HistoryWorkResult::Idle) => thread::sleep(HISTORY_DRAIN_IDLE_DELAY),
                     Err(error) => {
                         eprintln!("history drain failed: {error}");
@@ -204,6 +207,7 @@ pub struct DatabaseSwapReport {
 pub struct MaintenanceCoordinator {
     database_path: PathBuf,
     history_repository_path: PathBuf,
+    history_publisher: HistoryPublisher,
     recovery_directory: PathBuf,
     now_millis: fn() -> i64,
     active: Mutex<WorkspaceHandle>,
@@ -234,10 +238,16 @@ impl MaintenanceCoordinator {
         database_path: PathBuf,
         history_repository_path: PathBuf,
         now_millis: fn() -> i64,
+        history_publisher: HistoryPublisher,
     ) -> Result<Self, String> {
         let storage = SqliteWorkspace::open(&database_path)
             .map_err(|error| format!("open {}: {error}", database_path.display()))?;
-        let history_drain = spawn_history_drain(&database_path, &history_repository_path, now_millis)?;
+        let history_drain = spawn_history_drain(
+            &database_path,
+            &history_repository_path,
+            now_millis,
+            Arc::clone(&history_publisher),
+        )?;
         let recovery_directory = database_path
             .parent()
             .unwrap_or(Path::new("."))
@@ -245,6 +255,7 @@ impl MaintenanceCoordinator {
         Ok(Self {
             database_path,
             history_repository_path,
+            history_publisher,
             recovery_directory,
             now_millis,
             active: Mutex::new(WorkspaceHandle {
@@ -605,6 +616,7 @@ impl MaintenanceCoordinator {
             &self.database_path,
             &self.history_repository_path,
             self.now_millis,
+            Arc::clone(&self.history_publisher),
         )
         .map_err(|error| {
             eprintln!("history drain restart failed: {error}");
@@ -679,7 +691,7 @@ fn internal(message: &str) -> Diagnostic {
 mod tests {
     use std::{
         fs,
-        sync::atomic::Ordering,
+        sync::{Arc, atomic::Ordering},
         time::{Duration, SystemTime, UNIX_EPOCH},
     };
 
@@ -766,6 +778,7 @@ mod tests {
             database_path,
             directory.path().join("history"),
             test_now,
+            Arc::new(|_| {}),
         )
         .expect("start coordinator");
         Fixture {

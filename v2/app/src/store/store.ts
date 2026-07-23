@@ -29,6 +29,16 @@ function strictEqual<T>(left: T, right: T): boolean {
   return Object.is(left, right);
 }
 
+function compareHistoryHeaders(left: HistoryHeader, right: HistoryHeader): number {
+  if (left.createdAt !== right.createdAt) {
+    return right.createdAt - left.createdAt;
+  }
+  if (left.versionId === right.versionId) {
+    return 0;
+  }
+  return left.versionId < right.versionId ? -1 : 1;
+}
+
 function derive(
   base: Omit<
     RendererState,
@@ -88,7 +98,7 @@ export function createInitialState(snapshot: WorkspaceSnapshot): RendererState {
     historyHeaders.set(header.noteId, existing);
   }
   for (const headers of historyHeaders.values()) {
-    headers.sort((left, right) => right.createdAt - left.createdAt);
+    headers.sort(compareHistoryHeaders);
   }
   const rememberedNoteId =
     snapshot.settings.rememberLastNote === false ? null : snapshot.activeNoteId;
@@ -377,6 +387,24 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     });
   }
 
+  function publishHistoryHeader(header: HistoryHeader): boolean {
+    return update((current) => {
+      if (!current.documents.has(header.noteId)) {
+        return current;
+      }
+      const existing = current.historyHeaders.get(header.noteId) ?? [];
+      if (existing.some((candidate) => candidate.versionId === header.versionId)) {
+        return current;
+      }
+      const headers = existing
+        .concat(header)
+        .sort(compareHistoryHeaders);
+      const historyHeaders = new Map(current.historyHeaders);
+      historyHeaders.set(header.noteId, headers);
+      return { ...current, historyHeaders };
+    });
+  }
+
   function replaceFromSnapshot(snapshot: WorkspaceSnapshot): boolean {
     return update((current) => {
       const fresh = createInitialState(snapshot);
@@ -417,6 +445,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     toggleExpanded,
     applyOperations,
     applyAck,
+    publishHistoryHeader,
     replaceFromSnapshot,
     destroy: () => {
       destroyed = true;
