@@ -33,6 +33,10 @@ export function applyWorkspaceOperations(
   return invoke<OperationAck>("apply_workspace_operations", { operations });
 }
 
+export function closeWorkspaceWindow(): Promise<void> {
+  return invoke<void>("close_workspace_window");
+}
+
 export function searchWorkspace(query: string, limit: number): Promise<SearchHit[]> {
   return invoke<SearchHit[]>("search_workspace", { query, limit });
 }

@@ -132,6 +132,11 @@ async fn apply_workspace_operations(
 }
 
 #[tauri::command]
+fn close_workspace_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.destroy().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 async fn search_workspace(
     query: String,
     limit: usize,
@@ -323,6 +328,7 @@ pub fn run() {
             load_sidebar_expansion,
             save_sidebar_expansion,
             apply_workspace_operations,
+            close_workspace_window,
             search_workspace,
             read_history_version,
             export_workspace_archive,

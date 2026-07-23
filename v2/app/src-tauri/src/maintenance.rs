@@ -804,6 +804,31 @@ mod tests {
     }
 
     #[test]
+    fn shutdown_drains_an_accepted_active_note_operation() {
+        let fixture = fixture();
+        fixture.apply(create_note("second-note"));
+        let completion = fixture
+            .coordinator
+            .runtime()
+            .expect("runtime")
+            .apply_operations(vec![WorkspaceOperationEnvelope::v1(
+                WorkspaceOperation::SetActiveNote {
+                    note_id: Some("second-note".into()),
+                },
+            )])
+            .expect("submit active note");
+
+        fixture.coordinator.shutdown();
+
+        completion.wait().expect("accepted operation completes");
+        let snapshot = SqliteWorkspace::open(&fixture.database_path())
+            .expect("reopen database")
+            .bootstrap()
+            .expect("bootstrap persisted state");
+        assert_eq!(snapshot.active_note_id.as_deref(), Some("second-note"));
+    }
+
+    #[test]
     fn exports_archive_to_new_target_and_rejects_existing_target() {
         let fixture = fixture();
         let target = fixture.directory.path().join("export.json");
