@@ -4,7 +4,7 @@ Last reviewed: 2026-07-24
 
 ## Start here
 
-Linux v1 is merged into `feat/instant-local-first-foundation` through pull request #2. The backend foundation, UI architecture measurements, product shell, bounded product editor, desktop Data/Recovery surface, scheduled backups, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented. The tags/people/note-reference renderer branches were reviewed on 2026-07-24; the store-integrated ProseMirror implementation is retained on `feat/daddy-2` and has production-browser performance evidence, but it has not yet gained the required canonical Rust/Tauri contract.
+Linux v1 is merged into `feat/instant-local-first-foundation` through pull request #2. The backend foundation, UI architecture measurements, product shell, bounded product editor, desktop Data/Recovery surface, scheduled backups, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented. The tags/people/note-reference renderer implementation on `feat/daddy-2` now has its canonical Rust/Tauri contract, transactional SQLite projection, archive support, bootstrap hydration, and production-browser performance evidence.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -570,14 +570,18 @@ product decision.
   `docs/benchmarks/2026-07-24-reference-production-raw.json`; the scope and
   result are summarized in
   `docs/benchmarks/2026-07-24-reference-production.md`.
-- Known correctness gap: the two supplied branches do not contain the domain
-  IDs and operations, generated archive contract, SQLite migration/projections,
-  serialized durable writes, or bootstrap/bridge support required by
-  `docs/implementation-prompts/tags-people-note-mentions.md`. Their current
-  reference data is renderer-local, so create/rename/delete and saved tokens
-  are not durable across restart, import/export, or restore. Do not release
-  this as the relationship system until those backend slices and their failure
-  regressions are implemented.
+- Migration `0003_relationships.sql` adds canonical `workspace_tags` and
+  `workspace_people` entities plus the rebuildable `document_references`
+  projection. The projection is replaced in the same SQLite transaction as a
+  document save, rejects dangling or cross-kind targets, and is hydrated with
+  the normal startup snapshot. Purging a source removes its projections; a
+  deleted target keeps its token ID and old label so it becomes unresolved
+  rather than silently retargeting.
+- `WorkspaceArchive`, generated schemas, desktop bootstrap, and renderer
+  reconciliation include tags, people, and incoming references. Entity create,
+  rename, and delete operations use the existing serialized operation path;
+  the editor's create-token action now persists through that bridge after its
+  synchronous local paint.
 
-Immediate next task: implement the canonical backend reference contract first,
-then bind this retained renderer bridge to it without adding navigation IPC.
+Immediate next task: add focused desktop end-to-end coverage for a dedicated
+tag/person management surface when that product surface is introduced.

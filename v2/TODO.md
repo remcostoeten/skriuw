@@ -189,9 +189,15 @@ Measured suggestion P95/maxima were 0.3/1.5 ms, 0.3/2.8 ms, and 0.4/2.5 ms
 for the 1,000-note/50-block, 5,000-note/500-block, and 5,000-note/2,000-block
 contexts. See `docs/benchmarks/2026-07-24-reference-production.md`.
 
-Immediate next task: add the canonical Rust and Tauri reference contract
-(entities, operations, archive schema, SQLite projections, and bootstrap)
-before presenting tags, people, and mentions as a durable product feature.
+Canonical relationship contract: migration 0003 adds workspace-local tags and
+people plus the rebuildable document-reference projection. Archive and bootstrap
+now carry canonical entities and hydrated reverse references; create, rename,
+delete, and document-save operations serialize through the existing runtime.
+Deleted entities retain token labels in document JSON while their projection
+rows are removed, so they resolve as unavailable rather than being retargeted.
+
+Immediate next task: add focused desktop end-to-end coverage for entity
+management after its product surface is introduced.
 
 React requirements if selected:
 
