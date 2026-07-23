@@ -247,8 +247,7 @@ export const NoteIconPicker = memo(function NoteIconPicker({ icon, onIconChange 
 			</PopoverTrigger>
 			<PopoverContent className="w-[232px] p-2" align="start" side="bottom">
 				<input
-					role="combobox"
-					aria-expanded={open}
+					type="search"
 					aria-label="Search emoji"
 					autoFocus
 					value={query}
