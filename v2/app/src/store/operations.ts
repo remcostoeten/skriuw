@@ -74,6 +74,13 @@ export function reduceOperation(
   operation: WorkspaceOperation,
 ): ReadonlyMap<string, WorkspaceNode> {
   switch (operation.type) {
+    case "create_tag":
+    case "rename_tag":
+    case "delete_tag":
+    case "create_person":
+    case "rename_person":
+    case "delete_person":
+      return nodes;
     case "create_folder":
     case "create_note": {
       const next = new Map(nodes);

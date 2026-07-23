@@ -3,6 +3,22 @@ import { envelope } from "../contracts/workspace";
 import type { NodePlacement, WorkspaceOperation } from "../contracts/workspace";
 import { buildRestoreOperation } from "../history/version-model";
 import type { RendererStore } from "../store/types";
+import type { ReferenceOperation } from "../references/types";
+
+export function commitReferenceOperations(
+  store: RendererStore,
+  operations: readonly ReferenceOperation[],
+): void {
+  if (!store.applyReferenceOperations(operations)) {
+    return;
+  }
+  void applyWorkspaceOperations(operations.map((operation) => envelope(operation)))
+    .catch(async (error) => {
+      store.replaceFromSnapshot(await bootstrapWorkspace());
+      throw error;
+    })
+    .catch(reportRejection("reference update"));
+}
 
 /**
  * Applies operations optimistically, submits them to the backend, and

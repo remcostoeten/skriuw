@@ -12,6 +12,7 @@ pub const MAX_ENTITY_ID_BYTES: usize = 128;
 pub const MAX_TITLE_BYTES: usize = 512;
 pub const MAX_SETTING_KEY_BYTES: usize = 128;
 pub const MAX_SETTING_TEXT_BYTES: usize = 512;
+pub const MAX_REFERENCE_NAME_BYTES: usize = 512;
 
 pub const SETTINGS_FIELDS: [&str; 10] = [
     "settingsVersion",
@@ -203,6 +204,12 @@ pub struct WorkspaceSnapshot {
     pub documents: Vec<WorkspaceDocument>,
     pub history_headers: Vec<HistoryHeader>,
     pub settings: WorkspaceSettings,
+    #[serde(default)]
+    pub tags: Vec<WorkspaceTag>,
+    #[serde(default)]
+    pub people: Vec<WorkspacePerson>,
+    #[serde(default)]
+    pub references: Vec<NoteReferences>,
 }
 
 impl WorkspaceSnapshot {
@@ -242,6 +249,10 @@ pub struct WorkspaceArchive {
     pub nodes: Vec<WorkspaceNode>,
     pub documents: Vec<WorkspaceDocument>,
     pub settings: WorkspaceSettings,
+    #[serde(default)]
+    pub tags: Vec<WorkspaceTag>,
+    #[serde(default)]
+    pub people: Vec<WorkspacePerson>,
 }
 
 impl WorkspaceArchive {
@@ -255,6 +266,8 @@ impl WorkspaceArchive {
             nodes: snapshot.nodes,
             documents: snapshot.documents,
             settings: snapshot.settings,
+            tags: snapshot.tags,
+            people: snapshot.people,
         }
     }
 
@@ -373,8 +386,49 @@ impl WorkspaceArchive {
         }
 
         self.settings.validate().map_err(archive_operation_error)?;
+        validate_relationships(&self.tags, &self.people, &self.documents, &nodes)?;
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceTag {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspacePerson {
+    pub id: String,
+    pub name: String,
+    pub initials: Option<String>,
+    pub color: Option<String>,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentReference {
+    pub kind: ReferenceKind,
+    pub target_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ReferenceKind {
+    Tag,
+    Person,
+    Note,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteReferences {
+    pub note_id: String,
+    pub targets: Vec<DocumentReference>,
 }
 
 fn archive_error<T>(message: impl Into<String>) -> Result<T, ArchiveValidationError> {
@@ -383,6 +437,113 @@ fn archive_error<T>(message: impl Into<String>) -> Result<T, ArchiveValidationEr
 
 fn archive_operation_error(error: OperationValidationError) -> ArchiveValidationError {
     ArchiveValidationError::Invalid(error.to_string())
+}
+
+fn validate_reference_name(value: &str) -> Result<(), OperationValidationError> {
+    if value.trim().is_empty() {
+        return Err(OperationValidationError::Empty {
+            field: "reference name",
+        });
+    }
+    if value.len() > MAX_REFERENCE_NAME_BYTES {
+        return Err(OperationValidationError::TooLong {
+            field: "reference name",
+            maximum: MAX_REFERENCE_NAME_BYTES,
+        });
+    }
+    Ok(())
+}
+
+fn validate_tag(tag: &WorkspaceTag) -> Result<(), OperationValidationError> {
+    validate_id("tag id", &tag.id)?;
+    validate_reference_name(&tag.name)
+}
+
+fn validate_person(person: &WorkspacePerson) -> Result<(), OperationValidationError> {
+    validate_id("person id", &person.id)?;
+    validate_reference_name(&person.name)
+}
+
+pub fn document_references(value: &Value) -> Vec<DocumentReference> {
+    fn visit(value: &Value, targets: &mut Vec<DocumentReference>) {
+        let Some(object) = value.as_object() else {
+            return;
+        };
+        let kind = match object.get("type").and_then(Value::as_str) {
+            Some("tag_ref") => Some(ReferenceKind::Tag),
+            Some("mention_ref") => match object
+                .get("attrs")
+                .and_then(Value::as_object)
+                .and_then(|attrs| attrs.get("kind"))
+                .and_then(Value::as_str)
+            {
+                Some("person") => Some(ReferenceKind::Person),
+                Some("note") => Some(ReferenceKind::Note),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(kind) = kind
+            && let Some(id) = object
+                .get("attrs")
+                .and_then(Value::as_object)
+                .and_then(|attrs| attrs.get("id"))
+                .and_then(Value::as_str)
+        {
+            targets.push(DocumentReference {
+                kind,
+                target_id: id.into(),
+            });
+        }
+        if let Some(content) = object.get("content").and_then(Value::as_array) {
+            for child in content {
+                visit(child, targets);
+            }
+        }
+    }
+    let mut targets = Vec::new();
+    visit(value, &mut targets);
+    targets
+}
+
+fn validate_relationships(
+    tags: &[WorkspaceTag],
+    people: &[WorkspacePerson],
+    documents: &[WorkspaceDocument],
+    nodes: &BTreeMap<&str, &WorkspaceNode>,
+) -> Result<(), ArchiveValidationError> {
+    let mut tag_ids = BTreeSet::new();
+    for tag in tags {
+        validate_tag(tag).map_err(archive_operation_error)?;
+        if !tag_ids.insert(tag.id.as_str()) {
+            return archive_error(format!("duplicate tag {}", tag.id));
+        }
+    }
+    let mut person_ids = BTreeSet::new();
+    for person in people {
+        validate_person(person).map_err(archive_operation_error)?;
+        if !person_ids.insert(person.id.as_str()) {
+            return archive_error(format!("duplicate person {}", person.id));
+        }
+    }
+    for document in documents {
+        for reference in document_references(&document.document_json) {
+            let valid = match reference.kind {
+                ReferenceKind::Tag => tag_ids.contains(reference.target_id.as_str()),
+                ReferenceKind::Person => person_ids.contains(reference.target_id.as_str()),
+                ReferenceKind::Note => nodes
+                    .get(reference.target_id.as_str())
+                    .is_some_and(|node| node.kind == NodeKind::Note),
+            };
+            if !valid {
+                return archive_error(format!(
+                    "document {} has dangling reference {}",
+                    document.note_id, reference.target_id
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -476,6 +637,26 @@ impl WorkspaceOperationEnvelope {
     rename_all_fields = "camelCase"
 )]
 pub enum WorkspaceOperation {
+    CreateTag {
+        tag: WorkspaceTag,
+    },
+    RenameTag {
+        id: String,
+        name: String,
+    },
+    DeleteTag {
+        id: String,
+    },
+    CreatePerson {
+        person: WorkspacePerson,
+    },
+    RenamePerson {
+        id: String,
+        name: String,
+    },
+    DeletePerson {
+        id: String,
+    },
     CreateFolder {
         id: String,
         title: String,
@@ -532,6 +713,13 @@ pub enum WorkspaceOperation {
 impl WorkspaceOperation {
     pub fn validate(&self) -> Result<(), OperationValidationError> {
         match self {
+            Self::CreateTag { tag } => validate_tag(tag),
+            Self::RenameTag { id, name } | Self::RenamePerson { id, name } => {
+                validate_id("id", id)?;
+                validate_reference_name(name)
+            }
+            Self::DeleteTag { id } | Self::DeletePerson { id } => validate_id("id", id),
+            Self::CreatePerson { person } => validate_person(person),
             Self::CreateFolder {
                 id,
                 title,
@@ -761,7 +949,7 @@ mod tests {
         ArchiveValidationError, NodeKind, NodePlacement, OperationValidationError, SETTINGS_FIELDS,
         WORKSPACE_ARCHIVE_VERSION, WORKSPACE_PROTOCOL_VERSION, WORKSPACE_SETTINGS_VERSION,
         WorkspaceArchive, WorkspaceDocument, WorkspaceNode, WorkspaceOperation,
-        WorkspaceOperationEnvelope, WorkspaceSettings,
+        WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceTag,
     };
 
     #[test]
@@ -891,6 +1079,8 @@ mod tests {
                 word_count: 1,
             }],
             settings: WorkspaceSettings::default(),
+            tags: Vec::new(),
+            people: Vec::new(),
         };
 
         archive.validate().expect("valid archive");
@@ -929,6 +1119,8 @@ mod tests {
             ],
             documents: Vec::new(),
             settings: WorkspaceSettings::default(),
+            tags: Vec::new(),
+            people: Vec::new(),
         };
 
         assert!(matches!(
@@ -1074,6 +1266,8 @@ mod tests {
             nodes: Vec::new(),
             documents: Vec::new(),
             settings: WorkspaceSettings::default(),
+            tags: Vec::new(),
+            people: Vec::new(),
         };
         archive.settings.settings_version = 2;
 
@@ -1124,8 +1318,51 @@ mod tests {
                 word_count: 1,
             }],
             settings: WorkspaceSettings::default(),
+            tags: Vec::new(),
+            people: Vec::new(),
         };
 
+        assert!(matches!(
+            archive.validate(),
+            Err(ArchiveValidationError::Invalid(_))
+        ));
+    }
+
+    #[test]
+    fn archive_validates_structured_reference_targets() {
+        let mut archive = WorkspaceArchive {
+            archive_version: WORKSPACE_ARCHIVE_VERSION,
+            protocol_version: WORKSPACE_PROTOCOL_VERSION,
+            exported_at: 1,
+            active_note_id: None,
+            nodes: vec![WorkspaceNode {
+                id: "note-1".into(),
+                kind: NodeKind::Note,
+                parent_id: None,
+                rank: 1,
+                title: "Note".into(),
+                icon: None,
+                created_at: 1,
+                updated_at: 1,
+                deleted_at: None,
+            }],
+            documents: vec![WorkspaceDocument {
+                note_id: "note-1".into(),
+                document_json: json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"tag_ref","attrs":{"id":"tag-1","label":"Tag"}}]}]}),
+                markdown: "#Tag".into(),
+                revision: 1,
+                word_count: 1,
+            }],
+            settings: WorkspaceSettings::default(),
+            tags: vec![WorkspaceTag {
+                id: "tag-1".into(),
+                name: "Tag".into(),
+                color: None,
+            }],
+            people: Vec::new(),
+        };
+        archive.validate().expect("valid reference");
+        archive.tags.clear();
         assert!(matches!(
             archive.validate(),
             Err(ArchiveValidationError::Invalid(_))

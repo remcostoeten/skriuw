@@ -31,6 +31,13 @@
         "$ref": "#/$defs/WorkspaceNode"
       }
     },
+    "people": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/WorkspacePerson"
+      }
+    },
     "protocolVersion": {
       "type": "integer",
       "format": "uint16",
@@ -39,6 +46,13 @@
     },
     "settings": {
       "$ref": "#/$defs/WorkspaceSettings"
+    },
+    "tags": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/WorkspaceTag"
+      }
     }
   },
   "required": [
@@ -137,6 +151,39 @@
         "updatedAt"
       ]
     },
+    "WorkspacePerson": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "initials": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
     "WorkspaceSettings": {
       "type": "object",
       "properties": {
@@ -185,6 +232,27 @@
         }
       },
       "additionalProperties": true
+    },
+    "WorkspaceTag": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
     }
   }
 }

@@ -49,6 +49,9 @@ fn snapshot_from_archive(archive: &WorkspaceArchive) -> WorkspaceSnapshot {
         documents: archive.documents.clone(),
         history_headers: Vec::new(),
         settings: archive.settings.clone(),
+        tags: archive.tags.clone(),
+        people: archive.people.clone(),
+        references: Vec::new(),
     }
 }
 

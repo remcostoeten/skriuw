@@ -11,7 +11,7 @@ import {
 import { EditorView } from "prosemirror-view";
 import { createMentionPlugin, type MentionContext } from "../references/mention-plugin";
 import { createReferenceNodeViews } from "../references/reference-nodeview";
-import { commitOperations } from "../actions/workspace";
+import { commitOperations, commitReferenceOperations } from "../actions/workspace";
 import { cssStringLiteral } from "../settings/apply-settings";
 import { projectSettings } from "../settings/settings-model";
 import { useRendererSelector } from "../store/use-renderer-selector";
@@ -160,7 +160,7 @@ export function NoteEditor({ store }: Props) {
     const mentionContext: MentionContext = {
       getState: () => store.getState(),
       applyReferenceOperations: (operations) => {
-        store.applyReferenceOperations(operations);
+        commitReferenceOperations(store, operations);
       },
     };
     mentionPluginsRef.current = [createMentionPlugin(mentionContext)];

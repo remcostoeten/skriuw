@@ -543,7 +543,16 @@ export function createRendererStore(initialState: RendererState): RendererStore 
 
   function replaceFromSnapshot(snapshot: WorkspaceSnapshot): boolean {
     return update((current) => {
-      const fresh = createInitialState(snapshot);
+      const fresh = createInitialState(snapshot, undefined, {
+        tags: snapshot.tags ?? [...current.tags.values()],
+        people: snapshot.people ?? [...current.people.values()],
+        references:
+          snapshot.references ??
+          [...current.outgoingReferences.entries()].map(([noteId, targets]) => ({
+            noteId,
+            targets,
+          })),
+      });
       const expandedIds = new Set(
         [...current.expandedIds].filter((id) => fresh.nodes.get(id)?.kind === "folder"),
       );
@@ -553,10 +562,10 @@ export function createRendererStore(initialState: RendererState): RendererStore 
         activeNoteId: current.activeNoteId,
         focusedNodeId: current.focusedNodeId,
         editingNodeId: null,
-        tags: current.tags,
-        people: current.people,
-        outgoingReferences: current.outgoingReferences,
-        incomingReferences: current.incomingReferences,
+        tags: fresh.tags,
+        people: fresh.people,
+        outgoingReferences: fresh.outgoingReferences,
+        incomingReferences: fresh.incomingReferences,
       });
     });
   }

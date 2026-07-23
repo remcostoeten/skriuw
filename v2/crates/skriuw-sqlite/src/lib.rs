@@ -12,7 +12,8 @@ use skriuw_domain::{
     EntityRevision, HistoryHeader, NodeKind, NodePlacement, NodePosition, NodeRankChange,
     OperationAck, OperationValidationError, SearchHit, WORKSPACE_PROTOCOL_VERSION,
     WorkspaceArchive, WorkspaceDocument, WorkspaceNode, WorkspaceOperation,
-    WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceSnapshot,
+    WorkspaceOperationEnvelope, WorkspacePerson, WorkspaceSettings, WorkspaceSnapshot,
+    WorkspaceTag,
 };
 use skriuw_storage::{
     Diagnostic, HistoryCache, HistoryMaterialization, HistoryQueue, ImportSummary, IntegrityReport,
@@ -37,6 +38,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 2,
         name: "settings_document",
         sql: include_str!("../../../migrations/0002_settings_document.sql"),
+    },
+    Migration {
+        version: 3,
+        name: "relationships",
+        sql: include_str!("../../../migrations/0003_relationships.sql"),
     },
 ];
 const NODE_RANK_GAP: i64 = 1024;
@@ -487,7 +493,79 @@ fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot, StorageEr
         documents: read_documents(connection)?,
         history_headers: read_history_headers(connection)?,
         settings: read_settings(connection)?,
+        tags: read_tags(connection)?,
+        people: read_people(connection)?,
+        references: read_references(connection)?,
     })
+}
+
+fn read_tags(connection: &Connection) -> Result<Vec<WorkspaceTag>, StorageError> {
+    let mut statement = connection
+        .prepare("SELECT id, name, color FROM workspace_tags ORDER BY name, id")
+        .map_err(backend)?;
+    statement
+        .query_map([], |row| {
+            Ok(WorkspaceTag {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+            })
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
+fn read_people(connection: &Connection) -> Result<Vec<WorkspacePerson>, StorageError> {
+    let mut statement = connection
+        .prepare("SELECT id, name, initials, color, note FROM workspace_people ORDER BY name, id")
+        .map_err(backend)?;
+    statement
+        .query_map([], |row| {
+            Ok(WorkspacePerson {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                initials: row.get(2)?,
+                color: row.get(3)?,
+                note: row.get(4)?,
+            })
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
+fn read_references(
+    connection: &Connection,
+) -> Result<Vec<skriuw_domain::NoteReferences>, StorageError> {
+    let mut statement = connection.prepare("SELECT source_note_id, kind, target_id FROM document_references ORDER BY source_note_id, kind, target_id").map_err(backend)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(backend)?;
+    let mut grouped = BTreeMap::<String, Vec<skriuw_domain::DocumentReference>>::new();
+    for row in rows {
+        let (note_id, kind, target_id) = row.map_err(backend)?;
+        let kind = match kind.as_str() {
+            "tag" => skriuw_domain::ReferenceKind::Tag,
+            "person" => skriuw_domain::ReferenceKind::Person,
+            "note" => skriuw_domain::ReferenceKind::Note,
+            _ => return Err(StorageError::Backend("invalid reference kind".into())),
+        };
+        grouped
+            .entry(note_id)
+            .or_default()
+            .push(skriuw_domain::DocumentReference { kind, target_id });
+    }
+    Ok(grouped
+        .into_iter()
+        .map(|(note_id, targets)| skriuw_domain::NoteReferences { note_id, targets })
+        .collect())
 }
 
 fn read_sidebar_expansion(connection: &Connection) -> Result<Option<Vec<String>>, StorageError> {
@@ -557,6 +635,63 @@ fn validate_operations(operations: &[WorkspaceOperationEnvelope]) -> Result<(), 
     Ok(())
 }
 
+fn replace_references(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    document: &serde_json::Value,
+) -> Result<(), StorageError> {
+    transaction
+        .execute(
+            "DELETE FROM document_references WHERE source_note_id = ?1",
+            [note_id],
+        )
+        .map_err(backend)?;
+    for reference in skriuw_domain::document_references(document) {
+        let exists = match reference.kind {
+            skriuw_domain::ReferenceKind::Tag => transaction
+                .query_row(
+                    "SELECT 1 FROM workspace_tags WHERE id = ?1",
+                    [&reference.target_id],
+                    |_| Ok(()),
+                )
+                .optional()
+                .map_err(backend)?
+                .is_some(),
+            skriuw_domain::ReferenceKind::Person => transaction
+                .query_row(
+                    "SELECT 1 FROM workspace_people WHERE id = ?1",
+                    [&reference.target_id],
+                    |_| Ok(()),
+                )
+                .optional()
+                .map_err(backend)?
+                .is_some(),
+            skriuw_domain::ReferenceKind::Note => transaction
+                .query_row(
+                    "SELECT 1 FROM workspace_nodes WHERE id = ?1 AND kind = 'note'",
+                    [&reference.target_id],
+                    |_| Ok(()),
+                )
+                .optional()
+                .map_err(backend)?
+                .is_some(),
+        };
+        if !exists {
+            return Err(StorageError::InvalidOperation(format!(
+                "dangling reference {}",
+                reference.target_id
+            )));
+        }
+        let kind = match reference.kind {
+            skriuw_domain::ReferenceKind::Tag => "tag",
+            skriuw_domain::ReferenceKind::Person => "person",
+            skriuw_domain::ReferenceKind::Note => "note",
+        };
+        transaction.execute("INSERT INTO document_references (source_note_id, kind, target_id) VALUES (?1, ?2, ?3)", params![note_id, kind, reference.target_id]).map_err(backend)?;
+    }
+    Ok(())
+}
+
 fn apply_operations_in_transaction(
     transaction: &Transaction<'_>,
     operations: &[WorkspaceOperationEnvelope],
@@ -603,6 +738,9 @@ impl WorkspaceMaintenance for SqliteWorkspace {
                  DELETE FROM history_cache;\
                  DELETE FROM documents_fts;\
                  DELETE FROM documents;\
+                 DELETE FROM document_references;\
+                 DELETE FROM workspace_tags;\
+                 DELETE FROM workspace_people;\
                  DELETE FROM workspace_nodes;\
                  DELETE FROM app_state;",
             )
@@ -673,6 +811,21 @@ impl WorkspaceMaintenance for SqliteWorkspace {
                     .map(|node| node.updated_at)
                     .unwrap_or(archive.exported_at),
             )?;
+        }
+
+        for tag in &archive.tags {
+            transaction
+                .execute(
+                    "INSERT INTO workspace_tags (id, name, color) VALUES (?1, ?2, ?3)",
+                    params![tag.id, tag.name, tag.color],
+                )
+                .map_err(backend)?;
+        }
+        for person in &archive.people {
+            transaction.execute("INSERT INTO workspace_people (id, name, initials, color, note) VALUES (?1, ?2, ?3, ?4, ?5)", params![person.id, person.name, person.initials, person.color, person.note]).map_err(backend)?;
+        }
+        for document in &archive.documents {
+            replace_references(&transaction, &document.note_id, &document.document_json)?;
         }
 
         transaction
@@ -923,6 +1076,67 @@ fn apply_operation(
     rank_changes: &mut BTreeMap<String, NodeRankChange>,
 ) -> Result<(), StorageError> {
     match operation {
+        WorkspaceOperation::CreateTag { tag } => {
+            transaction
+                .execute(
+                    "INSERT INTO workspace_tags (id, name, color) VALUES (?1, ?2, ?3)",
+                    params![tag.id, tag.name, tag.color],
+                )
+                .map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
+        }
+        WorkspaceOperation::RenameTag { id, name } => {
+            require_changed(
+                transaction
+                    .execute(
+                        "UPDATE workspace_tags SET name = ?2 WHERE id = ?1",
+                        params![id, name],
+                    )
+                    .map_err(backend)?,
+                id,
+            )?;
+        }
+        WorkspaceOperation::DeleteTag { id } => {
+            require_changed(
+                transaction
+                    .execute("DELETE FROM workspace_tags WHERE id = ?1", [id])
+                    .map_err(backend)?,
+                id,
+            )?;
+            transaction
+                .execute(
+                    "DELETE FROM document_references WHERE kind = 'tag' AND target_id = ?1",
+                    [id],
+                )
+                .map_err(backend)?;
+        }
+        WorkspaceOperation::CreatePerson { person } => {
+            transaction.execute("INSERT INTO workspace_people (id, name, initials, color, note) VALUES (?1, ?2, ?3, ?4, ?5)", params![person.id, person.name, person.initials, person.color, person.note]).map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
+        }
+        WorkspaceOperation::RenamePerson { id, name } => {
+            require_changed(
+                transaction
+                    .execute(
+                        "UPDATE workspace_people SET name = ?2 WHERE id = ?1",
+                        params![id, name],
+                    )
+                    .map_err(backend)?,
+                id,
+            )?;
+        }
+        WorkspaceOperation::DeletePerson { id } => {
+            require_changed(
+                transaction
+                    .execute("DELETE FROM workspace_people WHERE id = ?1", [id])
+                    .map_err(backend)?,
+                id,
+            )?;
+            transaction
+                .execute(
+                    "DELETE FROM document_references WHERE kind = 'person' AND target_id = ?1",
+                    [id],
+                )
+                .map_err(backend)?;
+        }
         WorkspaceOperation::CreateFolder {
             id,
             title,
@@ -973,6 +1187,7 @@ fn apply_operation(
                 )
                 .map_err(backend)?;
             replace_fts(transaction, id, title, markdown)?;
+            replace_references(transaction, id, document_json)?;
             enqueue_history(transaction, id, 1, markdown, *at)?;
             revisions.push(EntityRevision {
                 id: id.clone(),
@@ -1053,6 +1268,7 @@ fn apply_operation(
                 .map_err(backend)?;
             let title = node_title(transaction, note_id)?;
             replace_fts(transaction, note_id, &title, markdown)?;
+            replace_references(transaction, note_id, document_json)?;
             enqueue_history(transaction, note_id, next_revision, markdown, *at)?;
             revisions.push(EntityRevision {
                 id: note_id.clone(),
@@ -1320,6 +1536,8 @@ fn read_archive(
         nodes: read_nodes(connection)?,
         documents: read_documents(connection)?,
         settings: read_settings(connection)?,
+        tags: read_tags(connection)?,
+        people: read_people(connection)?,
     })
 }
 

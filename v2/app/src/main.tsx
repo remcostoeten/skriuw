@@ -43,7 +43,11 @@ async function start(): Promise<void> {
         return [];
       }),
     ]);
-    store = createRendererStore(createInitialState(snapshot, expandedFolderIds ?? []));
+    store = createRendererStore(createInitialState(snapshot, expandedFolderIds ?? [], {
+      tags: snapshot.tags,
+      people: snapshot.people,
+      references: snapshot.references,
+    }));
     const appWindow = getCurrentWindow();
     const unbindWindowClosePersistence = await bindWindowClosePersistence(
       store,
