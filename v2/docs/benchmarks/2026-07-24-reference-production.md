@@ -2,8 +2,7 @@
 
 Date: 2026-07-24
 
-Revision: `2d10a65a6ff2016650bb67c1f53b768c420a68fc` plus the uncommitted
-integration measurement slice.
+Revision: `c82ad88c0afd0bde397d4987695cac88e6e0df71`.
 
 Command:
 
@@ -19,9 +18,9 @@ queries over 80 samples: empty, prefix, exact tail match, and no match.
 
 | Fixture | Suggestion P95 | Suggestion max | Suggestion bridge calls |
 | --- | ---: | ---: | ---: |
-| 1,000 notes / 50 blocks | 0.2 ms | 1.8 ms | 0 |
-| 5,000 notes / 500 blocks | 0.4 ms | 2.1 ms | 0 |
-| 5,000 notes / 2,000 blocks | 0.7 ms | 2.4 ms | 0 |
+| 1,000 notes / 50 blocks | 0.3 ms | 1.5 ms | 0 |
+| 5,000 notes / 500 blocks | 0.3 ms | 2.8 ms | 0 |
+| 5,000 notes / 2,000 blocks | 0.4 ms | 2.5 ms | 0 |
 
 Every result remains below the 8 ms P95 and 16.67 ms maximum budgets. The
 same run retained the existing 300 cached-switch proof: no dropped frames,

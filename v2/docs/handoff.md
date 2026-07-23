@@ -1,10 +1,10 @@
 # Session handoff
 
-Last reviewed: 2026-07-23
+Last reviewed: 2026-07-24
 
 ## Start here
 
-Linux v1 is merged into `feat/instant-local-first-foundation` through pull request #2. The backend foundation, UI architecture measurements, product shell, bounded product editor, desktop Data/Recovery surface, scheduled backups, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented. The next approved product exploration is the performant tags, people, and note-mentions system specified in `docs/implementation-prompts/tags-people-note-mentions.md`.
+Linux v1 is merged into `feat/instant-local-first-foundation` through pull request #2. The backend foundation, UI architecture measurements, product shell, bounded product editor, desktop Data/Recovery surface, scheduled backups, settings, trash, history, command registry, editor find/replace, sidebar search, and responsive-panel slices are implemented. The tags/people/note-reference renderer branches were reviewed on 2026-07-24; the store-integrated ProseMirror implementation is retained on `feat/daddy-2` and has production-browser performance evidence, but it has not yet gained the required canonical Rust/Tauri contract.
 
 ```bash
 cd /home/remcostoeten/dev/skriuw-standalone
@@ -552,3 +552,32 @@ The settings surface and persistence path are complete. Renderer consumers still
 
 Immediate next task: none inside strict v1. Post-v1 work requires an explicit
 product decision.
+
+## Tags, people, and note-reference integration evidence
+
+- The retained renderer implementation uses stable token IDs, resolves labels
+  from hydrated maps, keeps suggestion filtering local, and updates rendered
+  labels without rewriting unrelated documents. It provides unavailable note
+  targets and unresolved deleted tag/person labels in the editor surface.
+- `node app/performance/run.mjs --output
+  docs/benchmarks/2026-07-24-reference-production-raw.json` now hydrates a
+  5,000-note reference workload with 1,000 tags and 1,000 people in the real
+  production renderer. Suggestion P95/maxima were 0.3/1.5 ms, 0.3/2.8 ms, and
+  0.4/2.5 ms across the three existing product contexts, with zero bridge
+  calls. The 300 cached-switch proof retained zero dropped frames, resources,
+  editor remounts, and typing React commits.
+- Raw samples are committed at
+  `docs/benchmarks/2026-07-24-reference-production-raw.json`; the scope and
+  result are summarized in
+  `docs/benchmarks/2026-07-24-reference-production.md`.
+- Known correctness gap: the two supplied branches do not contain the domain
+  IDs and operations, generated archive contract, SQLite migration/projections,
+  serialized durable writes, or bootstrap/bridge support required by
+  `docs/implementation-prompts/tags-people-note-mentions.md`. Their current
+  reference data is renderer-local, so create/rename/delete and saved tokens
+  are not durable across restart, import/export, or restore. Do not release
+  this as the relationship system until those backend slices and their failure
+  regressions are implemented.
+
+Immediate next task: implement the canonical backend reference contract first,
+then bind this retained renderer bridge to it without adding navigation IPC.

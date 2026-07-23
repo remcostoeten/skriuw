@@ -1,6 +1,6 @@
 # Detailed delivery checklist
 
-Last reviewed: 2026-07-23
+Last reviewed: 2026-07-24
 
 ## Current state
 
@@ -174,6 +174,24 @@ optimized Tauri builds passed; the latter produced a 15 MiB Linux binary. See
 
 Immediate next task: none inside strict v1. Do not begin post-v1 scope without
 an explicit product decision.
+
+## Post-v1 relationship integration evidence
+
+- [x] Compare the two tags/people/note-reference renderer branches and retain
+  the store-integrated ProseMirror implementation on `feat/daddy-2`.
+- [x] Add the named production reference workload with 5,000 notes, 1,000
+  tags, and 1,000 people; verify local suggestion filtering against the 8 ms
+  P95 and 16.67 ms maximum budgets.
+- [x] Record raw browser evidence and preserve the existing cached-navigation,
+  zero-bridge, no-remount, and zero-typing-React-commit assertions.
+
+Measured suggestion P95/maxima were 0.3/1.5 ms, 0.3/2.8 ms, and 0.4/2.5 ms
+for the 1,000-note/50-block, 5,000-note/500-block, and 5,000-note/2,000-block
+contexts. See `docs/benchmarks/2026-07-24-reference-production.md`.
+
+Immediate next task: add the canonical Rust and Tauri reference contract
+(entities, operations, archive schema, SQLite projections, and bootstrap)
+before presenting tags, people, and mentions as a durable product feature.
 
 React requirements if selected:
 
