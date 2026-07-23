@@ -31,11 +31,8 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Deterministic portable 1,000-note and 5,000-note fixture generators with tree and FTS expectations.
 - Repository rules, scripts, CI, ADRs, data model, and performance contract.
 
-## Remaining backend work
+## Remaining v1 work
 
-- Native application coordinator and desktop UI for archive import/export, backup, restore, live swap, and rollback presentation.
-- Fixed six-hour desktop backup-timer ownership.
-- Non-polling live history-header publication after successful materialization.
 - Durable sidebar expansion operation and native-only persistence.
 - Fixed-runner confirmation of recorded workloads and final product interactions.
 
@@ -43,7 +40,7 @@ Keep domain records, operations, editor documents, and renderer state portable e
 
 ADR-0020 accepted React, Vite, direct ProseMirror, the dependency-free external renderer store, and Tauri 2 after the editor, tree, selector, and bridge gates completed. The product shell, persistent whole-document editor, measured 192-block large-note fallback, slash menu, tree, trash, metadata/history, command registry, palette, settings, keyboard navigation, editor find/replace, sidebar title search, and responsive panel behavior are implemented.
 
-The desktop Data/Recovery surface and fixed six-hour backup rotation are complete. Remaining v1 work is live history publication in N3, deep-tree indentation and tree-row bounding in N4, then the integrated end-to-end/fixed-hardware proof in C3. React Scan remains optional diagnostic tooling, never production evidence.
+The desktop Data/Recovery surface, fixed six-hour backup rotation, and non-polling live history publication are complete. Remaining v1 work is deep-tree indentation, durable expansion, and tree-row bounding in N4, then the integrated end-to-end/fixed-hardware proof in C3. React Scan remains optional diagnostic tooling, never production evidence.
 
 The final sequence, worktree ownership, and measurable acceptance criteria are maintained in `docs/implementation-backlog.md`.
 

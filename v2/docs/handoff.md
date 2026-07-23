@@ -1,6 +1,6 @@
 # Session handoff
 
-Last reviewed: 2026-07-22
+Last reviewed: 2026-07-23
 
 ## Start here
 
@@ -24,11 +24,11 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be 34 commits ahead of `origin/feat/daddy-2` after the dev-menu launch fix.
-- Remote: `origin` is configured; the active branch has not been pushed to its upstream state.
-- Last product implementation commit: `4e68559 feat: add desktop Data and Recovery surface with scheduled rotation (N2)`; C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`. The dev-menu launch fix follows it as a tooling slice.
-- Expected primary worktree state: only unrelated untracked `.claude/`, `b`, and `scripts/cli.sh` content remains after the dev-menu tooling commit; all are preserved and excluded.
-- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 15 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 99 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 83.14% lines, 84.67% branches, and 68.04% functions.
+- Active branch: `feat/daddy-2`, expected to be two commits ahead of `origin/feat/daddy-2` after the N3 implementation and handoff commits.
+- Remote: `origin` is configured; the N3 implementation and handoff commits have not been pushed.
+- Last product implementation commit: `9b96d19 feat: publish live history headers after materialization (N3)`; N2 is `4e68559`, C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`.
+- Expected primary worktree state: only unrelated untracked `.claude/` content remains; it is preserved and excluded.
+- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 113 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 101 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 83.51% lines, 84.55% branches, and 68.88% functions.
 - Dev-menu launch: `dev-menu run tauri` clears stale listeners on port 5183 and delegates to `pnpm tauri dev`, which reaches `scripts/tauri.sh`; bypassing that wrapper with `pnpm tauri:dev` reproduced a Wayland protocol error and process exit. The wrapper also removes only the nonfatal missing `appmenu-gtk-module` GTK line that dev-menu otherwise misclassifies. The corrected path remained running with Vite listening, the desktop process alive, and no captured error block.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
@@ -437,7 +437,7 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The product sidebar still mounts all 5,000 tree rows (25,309 elements with the bounded editor), so the isolated tree spike's bounded row pool still needs product integration before C3.
 - Note activation is renderer-only to satisfy zero navigation IPC. `rememberLastNote` now needs persistence at shutdown or another non-navigation lifecycle boundary; per-selection persistence must not return.
 - React Scan remains uninstalled. C1 records production presentation evidence on the named development machine; C3 still owns fixed-reference-hardware sign-off.
-- History headers still refresh only through snapshot replacement; live-session version publication remains deferred.
+- History headers publish live after successful materialization and cache commit through one note-scoped event; no polling or snapshot replacement is involved.
 - Portable archive, backup, restore, scheduled rotation, live swap, and rollback are exposed through the desktop Data settings surface.
 - Sidebar expansion is renderer-only and extreme-depth visual indentation is unclamped.
 - Pointer drag-and-drop is post-v1. Cross-folder movement already ships through the sidebar context menu. Journal, people, tags, and the other excluded product surfaces remain out of scope.
@@ -448,7 +448,7 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The reconciled scope marks whole-document find/replace, native whole-document select/copy/IME/accessibility, sidebar title search, responsive panels, keyboard sibling reorder, and context-menu cross-folder movement complete. Pointer drag-and-drop and Markdown-vault formats are post-v1.
 - Product decisions are fixed: the bounded fallback is required for v1 with a measured threshold; history freshness uses post-materialization publication rather than polling; Tauri owns a fixed six-hour backup timer; semantic tree depth remains unlimited while visual indentation clamps; Linux is the only currently evidenced platform.
 - `docs/implementation-backlog.md` splits the remaining work into conflict-free Codex C1–C3 and Claude N1–N4 slices. Shared continuity files, generated contracts, manifests, and lockfiles remain integration-owned.
-- Current verification after N2: `./scripts/check.sh` passes all 10 stages with 112 backend tests (6 ignored), 15 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 99 renderer tests.
+- Current verification after N3: `./scripts/check.sh` passes all 10 stages with 113 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 101 renderer tests.
 
 ## Completed C1 product-renderer performance runner
 
@@ -486,4 +486,12 @@ The settings surface and persistence path are complete. Renderer consumers still
 - Shutdown is the correct conceptual boundary for `rememberLastNote`, but the renderer-local selection is not currently available at the native exit boundary. Preserve this as an explicit lifecycle gap; do not restore per-selection navigation IPC.
 - `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass with 112 backend tests (6 ignored), 15 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 99 renderer tests.
 
-Immediate next task: execute N3, then N4. C3 begins after both native slices are integrated.
+## Integrated N3 live history-header publication
+
+- `9b96d19` changes `HistoryWorkResult::Materialized` to return the exact header only after Git materialization and `complete_history_revision` have committed the SQLite cache update.
+- The lifecycle-owned history drain publishes that header through one Tauri app event. The same publisher is retained across import, restore, rollback, and runtime reopen.
+- Renderer startup installs its single listener before bootstrap and queues any racing headers. The external store deduplicates by version ID, orders equal timestamps deterministically, replaces only the affected note's header array, and leaves unrelated history and shell selectors untouched.
+- Git failure preserves retry state and publishes nothing. Cache-completion failure returns no publishable result. Listener teardown, successful commit-to-event identity, exactly-once ordering, and selector isolation have focused regressions.
+- `./scripts/check.sh` and `git diff --check` pass with 113 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 101 renderer tests.
+
+Immediate next task: execute N4. C3 begins after N4 is integrated.

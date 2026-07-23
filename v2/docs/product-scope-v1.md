@@ -262,7 +262,7 @@ Every box must hold before v1 is declared. Items marked ✅ are complete per
 - ✅ Workspace full-text search from the palette with inherited-trash exclusion
 - ✅ Dedicated Trash route with restore, purge, empty state, bounded rendering
 - ✅ Version history list, preview, restore
-- ☐ Post-materialization history-header publication implemented without polling
+- ✅ Post-materialization history-header publication implemented without polling
 - ✅ Command palette + typed registry covering all global actions
 - ✅ Shortcuts with rebinding, conflict rejection, settings persistence
 - ✅ Settings dialog with every offered setting applied by a renderer consumer
