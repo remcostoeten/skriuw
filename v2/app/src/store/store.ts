@@ -5,6 +5,22 @@ import type {
   WorkspaceOperation,
   WorkspaceSnapshot,
 } from "../contracts/workspace";
+import { extractReferences } from "../references/extract";
+import {
+  buildReferenceProjection,
+  removeSourceNotes,
+  removeTarget,
+  updateNoteReferences,
+  type ReferenceProjection,
+} from "../references/projection";
+import {
+  emptyReferenceBootstrap,
+  referenceKey,
+  type PersonRecord,
+  type ReferenceBootstrap,
+  type ReferenceOperation,
+  type TagRecord,
+} from "../references/types";
 import { reduceOperation } from "./operations";
 import { ancestorIds, buildNodeIndex, flattenVisible, orderAvailableNodes } from "./tree";
 import type {
@@ -79,9 +95,17 @@ function derive(
   };
 }
 
+function referenceState(current: RendererState): ReferenceProjection {
+  return {
+    outgoingReferences: current.outgoingReferences,
+    incomingReferences: current.incomingReferences,
+  };
+}
+
 export function createInitialState(
   snapshot: WorkspaceSnapshot,
   expandedFolderIds?: readonly string[],
+  references: ReferenceBootstrap = emptyReferenceBootstrap(),
 ): RendererState {
   const sourceNodes = new Map<string, WorkspaceNode>();
   for (const node of snapshot.nodes) {
@@ -108,6 +132,14 @@ export function createInitialState(
   }
   const rememberedNoteId =
     snapshot.settings.rememberLastNote === false ? null : snapshot.activeNoteId;
+  const tags = new Map<string, TagRecord>();
+  for (const tag of references.tags) {
+    tags.set(tag.id, tag);
+  }
+  const people = new Map<string, PersonRecord>();
+  for (const person of references.people) {
+    people.set(person.id, person);
+  }
   const derived = derive({
     sourceNodes,
     expandedIds,
@@ -117,6 +149,9 @@ export function createInitialState(
     documents,
     historyHeaders,
     settings: snapshot.settings,
+    tags,
+    people,
+    ...buildReferenceProjection(references.references),
   });
   if (derived.activeNoteId === null) {
     const firstNote = derived.nodeOrder.find(
@@ -169,7 +204,12 @@ function reduceState(
     if (sourceNode) {
       sourceNodes.set(operation.noteId, { ...sourceNode, updatedAt: operation.at });
     }
-    return derive({ ...current, sourceNodes, documents });
+    const projection = updateNoteReferences(
+      referenceState(current),
+      operation.noteId,
+      extractReferences(operation.documentJson),
+    );
+    return derive({ ...current, sourceNodes, documents, ...projection });
   }
 
   const sourceNodes = reduceOperation(current.sourceNodes, operation);
@@ -180,6 +220,7 @@ function reduceState(
   let expandedIds: ReadonlySet<string> = current.expandedIds;
   let focusedNodeId = current.focusedNodeId;
   let activeNoteId = current.activeNoteId;
+  let projection: ReferenceProjection | null = null;
   if (operation.type === "create_note") {
     const withCreated = new Map(documents);
     withCreated.set(operation.id, {
@@ -192,6 +233,11 @@ function reduceState(
     documents = withCreated;
     activeNoteId = operation.id;
     focusedNodeId = operation.id;
+    projection = updateNoteReferences(
+      referenceState(current),
+      operation.id,
+      extractReferences(operation.documentJson),
+    );
   }
   if (operation.type === "create_folder") {
     const withCreated = new Set(expandedIds);
@@ -200,12 +246,14 @@ function reduceState(
     focusedNodeId = operation.id;
   }
   if (operation.type === "purge_subtree") {
+    const purgedNoteIds = [...documents.keys()].filter((noteId) => !sourceNodes.has(noteId));
     documents = new Map(
       [...documents].filter(([noteId]) => sourceNodes.has(noteId)),
     );
     expandedIds = new Set(
       [...expandedIds].filter((id) => sourceNodes.get(id)?.kind === "folder"),
     );
+    projection = removeSourceNotes(referenceState(current), purgedNoteIds);
   }
   return derive({
     ...current,
@@ -214,7 +262,76 @@ function reduceState(
     expandedIds,
     focusedNodeId,
     activeNoteId,
+    ...projection,
   });
+}
+
+function reduceReferenceOperation(
+  current: RendererState,
+  operation: ReferenceOperation,
+): RendererState {
+  if (operation.type === "create_tag") {
+    if (current.tags.has(operation.tag.id)) {
+      return current;
+    }
+    const tags = new Map(current.tags);
+    tags.set(operation.tag.id, operation.tag);
+    return { ...current, tags };
+  }
+  if (operation.type === "rename_tag") {
+    const existing = current.tags.get(operation.id);
+    if (!existing || existing.name === operation.name) {
+      return current;
+    }
+    const tags = new Map(current.tags);
+    tags.set(operation.id, { ...existing, name: operation.name });
+    return { ...current, tags };
+  }
+  if (operation.type === "delete_tag") {
+    if (!current.tags.has(operation.id)) {
+      return current;
+    }
+    const tags = new Map(current.tags);
+    tags.delete(operation.id);
+    return {
+      ...current,
+      tags,
+      incomingReferences: removeTarget(
+        current.incomingReferences,
+        referenceKey("tag", operation.id),
+      ),
+    };
+  }
+  if (operation.type === "create_person") {
+    if (current.people.has(operation.person.id)) {
+      return current;
+    }
+    const people = new Map(current.people);
+    people.set(operation.person.id, operation.person);
+    return { ...current, people };
+  }
+  if (operation.type === "rename_person") {
+    const existing = current.people.get(operation.id);
+    if (!existing || existing.name === operation.name) {
+      return current;
+    }
+    const people = new Map(current.people);
+    people.set(operation.id, { ...existing, name: operation.name });
+    return { ...current, people };
+  }
+  if (!current.people.has(operation.id)) {
+    return current;
+  }
+  const people = new Map(current.people);
+  people.delete(operation.id);
+  return {
+    ...current,
+    people,
+    incomingReferences: removeTarget(
+      current.incomingReferences,
+      referenceKey("person", operation.id),
+    ),
+  };
 }
 
 export function createRendererStore(initialState: RendererState): RendererStore {
@@ -363,6 +480,16 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     });
   }
 
+  function applyReferenceOperations(operations: readonly ReferenceOperation[]): boolean {
+    return update((current) => {
+      let next = current;
+      for (const operation of operations) {
+        next = reduceReferenceOperation(next, operation);
+      }
+      return next;
+    });
+  }
+
   function applyAck(ack: OperationAck): boolean {
     return update((current) => {
       let rankChanged = false;
@@ -426,6 +553,10 @@ export function createRendererStore(initialState: RendererState): RendererStore 
         activeNoteId: current.activeNoteId,
         focusedNodeId: current.focusedNodeId,
         editingNodeId: null,
+        tags: current.tags,
+        people: current.people,
+        outgoingReferences: current.outgoingReferences,
+        incomingReferences: current.incomingReferences,
       });
     });
   }
@@ -453,6 +584,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     setEditingNode,
     toggleExpanded,
     applyOperations,
+    applyReferenceOperations,
     applyAck,
     publishHistoryHeader,
     replaceFromSnapshot,

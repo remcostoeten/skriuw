@@ -6,6 +6,11 @@ import type {
   WorkspaceSettings,
   WorkspaceSnapshot,
 } from "../contracts/workspace";
+import type {
+  IncomingReferences,
+  OutgoingReferences,
+} from "../references/projection";
+import type { PersonRecord, ReferenceOperation, TagRecord } from "../references/types";
 
 export type NodeRecord = {
   id: string;
@@ -46,6 +51,10 @@ export type RendererState = {
   metadata: ReadonlyMap<string, NoteMetadata>;
   historyHeaders: ReadonlyMap<string, readonly HistoryHeader[]>;
   settings: WorkspaceSettings;
+  tags: ReadonlyMap<string, TagRecord>;
+  people: ReadonlyMap<string, PersonRecord>;
+  outgoingReferences: OutgoingReferences;
+  incomingReferences: IncomingReferences;
 };
 
 export type Equality<T> = (left: T, right: T) => boolean;
@@ -74,6 +83,7 @@ export type RendererStore = {
   setEditingNode: (id: string | null) => boolean;
   toggleExpanded: (id: string) => boolean;
   applyOperations: (operations: readonly WorkspaceOperation[]) => boolean;
+  applyReferenceOperations: (operations: readonly ReferenceOperation[]) => boolean;
   applyAck: (ack: OperationAck) => boolean;
   publishHistoryHeader: (header: HistoryHeader) => boolean;
   replaceFromSnapshot: (snapshot: WorkspaceSnapshot) => boolean;
