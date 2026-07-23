@@ -154,9 +154,11 @@ N3 integration: `9b96d19` publishes one note-scoped history header only after Gi
 
 N4 integration: `1e426ba` persists sorted valid folder expansion IDs through the serialized native runtime, excludes them from portable archives, and coalesces renderer writes without delaying local paint. The product tree now mounts a viewport-bounded pool, restores focused rows through imperative scroll and exact active-descendant semantics, precomputes descendant counts, and caps only visual indentation. The committed production run mounted 36 rows for 1,000 and 5,000 nodes with zero dropped switch frames and zero typing React commits. Fixed-runner timing variance remains for C3. See `docs/benchmarks/2026-07-23-product-tree-n4.md`.
 
-Immediate next task: execute C3 after resolving the explicit `rememberLastNote` lifecycle gap in a parallel-safe standalone slice.
+Completed lifecycle continuity slice: `9554d43` keeps note selection renderer-local and submits exactly one `set_active_note` operation when the main Tauri window receives a genuine close request. The listener intercepts overlapping requests, waits up to two seconds for the durable acknowledgement, reports bounded failure without stranding the window, and force-destroys the window to avoid close-event recursion. `rememberLastNote=false` skips the write. Listener-registration failure now degrades without failing application bootstrap.
 
-Known continuity gap: renderer navigation no longer persists `set_active_note`, because doing so violated the zero-navigation-IPC contract. Preserve `rememberLastNote` through a shutdown or other non-navigation lifecycle boundary; do not restore per-selection IPC.
+The native coordinator regression proves an accepted active-note operation is drained through shutdown and survives SQLite reopen. The two-second renderer bound includes IPC delivery: failure before runtime acceptance may lose only this continuity hint, while accepted work is drained before SQLite closes. Crash, SIGTERM, and session termination may bypass the renderer close boundary. The production configuration owns one `main` window; a future multi-window product must define which renderer owns the remembered note.
+
+Immediate next task: execute C3.
 
 React requirements if selected:
 
@@ -201,7 +203,7 @@ Search and responsive-panel implementation: editor search is a ProseMirror plugi
 - [x] N2: desktop Data/Recovery UI and fixed six-hour scheduled rotation.
 - [x] N3: non-polling live history-header publication after successful materialization.
 - [x] N4: native-only durable expansion state and clamped deep-tree indentation.
-- [ ] C3: integrated keyboard end-to-end suite and fixed-hardware/platform performance sign-off.
+- [ ] C3: integrated keyboard end-to-end suite and fixed-hardware/platform performance sign-off. (Immediate next task after `9554d43` closed the lifecycle continuity gap.)
 
 The authoritative dependencies, file ownership, acceptance criteria, integration order, and v1 terminal condition are in `docs/implementation-backlog.md`. `docs/product-scope-v1.md` owns the v1/post-v1/excluded classification.
 

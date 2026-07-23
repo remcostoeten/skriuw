@@ -24,11 +24,11 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be five commits ahead of `origin/feat/daddy-2` after the N4 implementation, handoff, and next-session instruction commits.
+- Active branch: `feat/daddy-2`, expected to be seven commits ahead of `origin/feat/daddy-2` after the lifecycle implementation and this handoff commit.
 - Remote: `origin` is configured; the N3 and N4 implementation/handoff commits have not been pushed.
-- Last product implementation commit: `1e426ba feat: persist and virtualize sidebar expansion state (N4)`; N3 is `9b96d19`, N2 is `4e68559`, C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`.
-- Expected primary worktree state: only unrelated untracked `.claude/` content remains; it is preserved and excluded.
-- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 114 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 109 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 83.92% lines, 84.81% branches, and 69.53% functions.
+- Last product implementation commit: `9554d43 fix: persist active note at desktop close`; N4 is `1e426ba`, N3 is `9b96d19`, N2 is `4e68559`, C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`.
+- Expected primary worktree state: only this integration-owned handoff update plus unrelated untracked `.claude/` content remains; `.claude/` is preserved and excluded.
+- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 114 backend tests (6 ignored), 17 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 119 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 84.37% lines, 85.68% branches, and 70.24% functions.
 - Dev-menu launch: `dev-menu run tauri` clears stale listeners on port 5183 and delegates to `pnpm tauri dev`, which reaches `scripts/tauri.sh`; bypassing that wrapper with `pnpm tauri:dev` reproduced a Wayland protocol error and process exit. The wrapper also removes only the nonfatal missing `appmenu-gtk-module` GTK line that dev-menu otherwise misclassifies. The corrected path remained running with Vite listening, the desktop process alive, and no captured error block.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
@@ -502,4 +502,14 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The exact-revision production run mounted 36 rows and 348/490 total elements at 1,000/5,000 nodes, recorded zero dropped switch frames and zero typing React commits, and passed every deterministic correctness assertion. Exploratory selection and one 2,000-block maximum retain timing variance for C3. See `docs/benchmarks/2026-07-23-product-tree-n4.md`.
 - `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass with 114 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 109 renderer tests.
 
-Immediate next task: resolve the explicit `rememberLastNote` lifecycle gap in a parallel-safe slice while Codex prepares and runs C3.
+## Completed rememberLastNote lifecycle continuity
+
+- `9554d43` keeps every selection renderer-local and submits one `set_active_note` envelope only after the main Tauri window emits a genuine close request. No navigation path gained IPC or an asynchronous boundary.
+- The renderer prevents the original close, coalesces overlapping requests behind one persistence attempt, waits at most two seconds, reports failure locally, and then calls a narrow registered Tauri command that uses `WebviewWindow::destroy`. The forced destroy does not emit a second close-request event.
+- `rememberLastNote=false` closes without persistence. The latest renderer state, including `null`, is sampled at the close boundary. Failed close completion resets the guard so a later request can retry.
+- Close-listener registration failure reports through the lifecycle error hook and returns a no-op cleanup, so a nonessential continuity listener cannot replace an otherwise valid workspace with the boot-failure surface. Cleanup is idempotent and removes the listener.
+- Ten deterministic lifecycle regressions cover local-only selection, disabled continuity, overlap, rejection, timeout with later completion, listener failure, close retry, null state, cleanup, and restart continuity. A desktop coordinator regression submits active-note persistence, begins shutdown before waiting, then proves the accepted operation completes and survives SQLite reopen.
+- `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass with 114 backend tests (6 ignored), 17 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 119 renderer tests.
+- The two-second bound includes IPC delivery and runtime acceptance. Failure before acceptance may lose only the continuity hint; once accepted, FIFO shutdown drains it before SQLite closes. Crash, SIGTERM, and session termination may bypass renderer close handling. The production app defines one `main` window; multi-window remembered-note ownership remains a future product decision. Linux last-window close is the verified v1 quit path; platform application-menu quit behavior still requires platform-native verification before any non-Linux claim.
+
+Immediate next task: execute C3.
