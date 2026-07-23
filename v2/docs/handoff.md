@@ -24,11 +24,11 @@ Read, in order:
 
 ## Repository state
 
-- Active branch: `feat/daddy-2`, expected to be two commits ahead of `origin/feat/daddy-2` after the N3 implementation and handoff commits.
-- Remote: `origin` is configured; the N3 implementation and handoff commits have not been pushed.
-- Last product implementation commit: `9b96d19 feat: publish live history headers after materialization (N3)`; N2 is `4e68559`, C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`.
+- Active branch: `feat/daddy-2`, expected to be four commits ahead of `origin/feat/daddy-2` after the N4 implementation and handoff commits.
+- Remote: `origin` is configured; the N3 and N4 implementation/handoff commits have not been pushed.
+- Last product implementation commit: `1e426ba feat: persist and virtualize sidebar expansion state (N4)`; N3 is `9b96d19`, N2 is `4e68559`, C2 is `b2563e8`, N1 is `5935264`, and C1 is `57dfb4d`.
 - Expected primary worktree state: only unrelated untracked `.claude/` content remains; it is preserved and excluded.
-- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 113 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 101 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 83.51% lines, 84.55% branches, and 68.88% functions.
+- Current verification result: generated contracts, the build-entrypoint contract, formatting, Clippy, 114 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 109 renderer tests, renderer type safety, and `git diff --check` pass. Executed renderer coverage is 83.92% lines, 84.81% branches, and 69.53% functions.
 - Dev-menu launch: `dev-menu run tauri` clears stale listeners on port 5183 and delegates to `pnpm tauri dev`, which reaches `scripts/tauri.sh`; bypassing that wrapper with `pnpm tauri:dev` reproduced a Wayland protocol error and process exit. The wrapper also removes only the nonfatal missing `appmenu-gtk-module` GTK line that dev-menu otherwise misclassifies. The corrected path remained running with Vite listening, the desktop process alive, and no captured error block.
 - UI spike verification: ordinary and profiling Vite builds pass. Fresh Chrome contexts exercised every renderer-store fixture without console/page errors: 28–36 rows remained mounted, 100 trusted keydowns caused exactly 100 expected active-note transitions, traces contained exactly 100 key dispatches, and teardown returned zero listeners. Exact row/consumer allowlists, root commit counts, lifecycle guards, and browser cleanup pass.
 - CLI smoke: healthy empty integrity returned `ok: 0 commit(s), 0 note(s)` without changing repository file hashes; empty rebuild returned `cached 0 history header(s)`; corrupt history exited 1 with `integrity.backend: Git history integrity check found 4 issue(s)` and no path leakage.
@@ -434,12 +434,12 @@ The settings surface and persistence path are complete. Renderer consumers still
 ## Known gaps and immediate next task
 
 - C2 is integrated. Notes through 192 top-level blocks retain the whole-document editor; larger notes use a 192-block canonical window with complete off-window semantics.
-- The product sidebar still mounts all 5,000 tree rows (25,309 elements with the bounded editor), so the isolated tree spike's bounded row pool still needs product integration before C3.
+- The product sidebar uses a viewport-bounded virtual row pool; the committed runner mounts 36 rows for both 1,000 and 5,000 nodes.
 - Note activation is renderer-only to satisfy zero navigation IPC. `rememberLastNote` now needs persistence at shutdown or another non-navigation lifecycle boundary; per-selection persistence must not return.
 - React Scan remains uninstalled. C1 records production presentation evidence on the named development machine; C3 still owns fixed-reference-hardware sign-off.
 - History headers publish live after successful materialization and cache commit through one note-scoped event; no polling or snapshot replacement is involved.
 - Portable archive, backup, restore, scheduled rotation, live swap, and rollback are exposed through the desktop Data settings surface.
-- Sidebar expansion is renderer-only and extreme-depth visual indentation is unclamped.
+- Sidebar expansion is durable native-only state excluded from archives; visual indentation clamps while semantic and ARIA depth remain exact.
 - Pointer drag-and-drop is post-v1. Cross-folder movement already ships through the sidebar context menu. Journal, people, tags, and the other excluded product surfaces remain out of scope.
 
 ## Product-scope reconciliation and final backlog
@@ -448,7 +448,7 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The reconciled scope marks whole-document find/replace, native whole-document select/copy/IME/accessibility, sidebar title search, responsive panels, keyboard sibling reorder, and context-menu cross-folder movement complete. Pointer drag-and-drop and Markdown-vault formats are post-v1.
 - Product decisions are fixed: the bounded fallback is required for v1 with a measured threshold; history freshness uses post-materialization publication rather than polling; Tauri owns a fixed six-hour backup timer; semantic tree depth remains unlimited while visual indentation clamps; Linux is the only currently evidenced platform.
 - `docs/implementation-backlog.md` splits the remaining work into conflict-free Codex C1–C3 and Claude N1–N4 slices. Shared continuity files, generated contracts, manifests, and lockfiles remain integration-owned.
-- Current verification after N3: `./scripts/check.sh` passes all 10 stages with 113 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 101 renderer tests.
+- Current verification after N4: `./scripts/check.sh` passes all 10 stages with 114 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 109 renderer tests.
 
 ## Completed C1 product-renderer performance runner
 
@@ -456,7 +456,7 @@ The settings surface and persistence path are complete. Renderer consumers still
 - Correctness failures are deterministic command failures; machine timing is evidence and does not gate shared CI. The runner asserts exact trusted-input counts, zero navigation bridge calls, zero navigation resource loads, one persistent editor host/view, zero typing React commits, and clean console/page state.
 - On the named i7-10700F Linux development machine, wide-1000/50 measured 3.8 ms selection-dispatch P95, 2.0 ms editor-install P95 / 2.4 ms maximum, 7.1 ms keystroke-to-next-paint P95 / maximum, and zero dropped gaps. It meets every current budget.
 - Wide-5000/500 is the first measured failing fixture: 15.0 ms selection-dispatch P95, 9.0 ms editor-install P95, and two dropped gaps. Wide-5000/2,000 reaches 56.2 ms dispatch P95, 44.3 ms editor-install P95, 102 dropped gaps, five long tasks, and 95 Long Animation Frames.
-- The product sidebar mounts 1,000/5,000 tree items rather than the spike's bounded row pool. This produces 5,164 elements at 50 blocks and 25,614 at 500 blocks and remains an explicit N4/C3 correctness gap.
+- At the C1 baseline the product sidebar mounted 1,000/5,000 tree items rather than the spike's bounded row pool, producing 5,164 elements at 50 blocks and 25,614 at 500 blocks. N4 subsequently resolved this gap.
 - The method, limitations, crossover, command, and summary are in `docs/benchmarks/2026-07-22-product-renderer.md`; complete raw samples are in `docs/benchmarks/raw/2026-07-22-product-renderer-c1.json`.
 
 ## Integrated N1 native maintenance and lifecycle coordinator
@@ -474,7 +474,7 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The canonical model preserves structured ProseMirror nodes, reconciles changed ranges, groups undo bursts within 500 milliseconds, caps history at 200 compact entries, and supports undo/redo across recycled windows.
 - Find/replace targets the full canonical document and reveals off-window matches. Whole-note select/copy emits canonical plain text and HTML; IME composition defers window movement; focus, selection, scroll, external replacement, and note-switch state restore without remounting.
 - The full-note accessibility surface materializes canonical text only when focused, avoiding large accessibility-tree writes during navigation. The production runner now asserts the 192-block DOM cap and the reader path.
-- On the named Linux development machine, the 2,000-block fixture measured 3.7 ms editor-install P95 / 4.5 ms maximum and 6.9 ms keystroke-to-paint P95 / 7.0 ms maximum, with zero typing React commits, navigation bridge calls, resource loads, or editor remounts. Integrated selection still records frame gaps while 5,000 sidebar rows remain mounted; N4 and C3 own that final shell proof.
+- On the named Linux development machine, the 2,000-block fixture measured 3.7 ms editor-install P95 / 4.5 ms maximum and 6.9 ms keystroke-to-paint P95 / 7.0 ms maximum, with zero typing React commits, navigation bridge calls, resource loads, or editor remounts. N4 subsequently bounded the 5,000-row sidebar; C3 owns final fixed-runner proof.
 - Browser verification loaded meaningful product content with one ProseMirror view, no Vite overlay, no recorded console errors, and no page-level horizontal overflow. `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass with 86 renderer tests.
 
 ## Integrated N2 desktop Data and Recovery surface
@@ -494,4 +494,12 @@ The settings surface and persistence path are complete. Renderer consumers still
 - Git failure preserves retry state and publishes nothing. Cache-completion failure returns no publishable result. Listener teardown, successful commit-to-event identity, exactly-once ordering, and selector isolation have focused regressions.
 - `./scripts/check.sh` and `git diff --check` pass with 113 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 101 renderer tests.
 
-Immediate next task: execute N4. C3 begins after N4 is integrated.
+## Integrated N4 durable expansion and virtualized product tree
+
+- `1e426ba` adds narrow load/save expansion use cases to storage and the serialized runtime. SQLite stores sorted valid folder IDs under a native-only `app_state` key, drops missing, purged, and non-folder IDs, preserves moved folders, and excludes the state from portable archives and generated contracts.
+- Renderer startup loads expansion alongside canonical bootstrap and falls back to collapsed on rebuildable expansion failure. Toggle, search reveal, expand-all, and collapse-all paint synchronously; a 160 ms latest-value coalescer persists in the background, flushes pending state on teardown, and never rolls renderer state back after failure.
+- The product sidebar mounts a viewport-bounded row pool with actual-height observation, overscan, imperative focus reveal, `aria-activedescendant`, exact level/set/position metadata, precomputed descendant counts, and visual-only indentation caps. The shell grid row is explicitly bounded so the virtual spacer cannot enlarge the application.
+- The exact-revision production run mounted 36 rows and 348/490 total elements at 1,000/5,000 nodes, recorded zero dropped switch frames and zero typing React commits, and passed every deterministic correctness assertion. Exploratory selection and one 2,000-block maximum retain timing variance for C3. See `docs/benchmarks/2026-07-23-product-tree-n4.md`.
+- `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass with 114 backend tests (6 ignored), 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 109 renderer tests.
+
+Immediate next task: resolve the explicit `rememberLastNote` lifecycle gap in a parallel-safe slice while Codex prepares and runs C3.

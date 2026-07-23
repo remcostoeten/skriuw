@@ -1,6 +1,6 @@
 # Final v1 implementation backlog
 
-Last reviewed: 2026-07-22
+Last reviewed: 2026-07-23
 
 ## Baseline and scope
 
@@ -101,7 +101,7 @@ Acceptance:
 - Switching notes, closing metadata, or exiting during publication leaks no listener and causes no broad shell render.
 - History header publication performs no work on the editing or navigation path.
 
-### N4 — Durable expansion and deep-tree presentation
+### N4 — Durable expansion and deep-tree presentation (complete in `1e426ba`)
 
 Owner: Claude. Dependencies: N2.
 

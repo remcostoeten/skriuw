@@ -5,10 +5,10 @@ Last reviewed: 2026-07-23
 ## Current state
 
 - [x] Repository created at `/home/remcostoeten/dev/skriuw-standalone`.
-- [x] Current work is isolated on `feat/daddy-2`, expected to be two commits ahead of `origin/feat/daddy-2` after the N3 implementation and handoff commits.
+- [x] Current work is isolated on `feat/daddy-2`, expected to be four commits ahead of `origin/feat/daddy-2` after the N4 implementation and handoff commits.
 - [x] Scoped product and dev-menu changes are committed; unrelated untracked `.claude/` content remains preserved and excluded.
 - [x] Rust 1.95 backend workspace and the product renderer pass `./scripts/check.sh`.
-- [x] 113 backend tests, 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 101 renderer tests pass; 6 backend tests remain ignored manual workloads.
+- [x] 114 backend tests, 16 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 109 renderer tests pass; 6 backend tests remain ignored manual workloads.
 - [x] The React/Vite product renderer, persistent ProseMirror editor, Tauri desktop shell, and notes/trash hash routes are implemented.
 - [x] The dev-menu Tauri entrypoint clears stale port 5183 listeners, launches through the Linux WebKit compatibility wrapper, and suppresses only the unavailable appmenu module's nonfatal GTK warning.
 - [x] `origin/feat/daddy-2` is configured as the upstream branch.
@@ -89,7 +89,7 @@ Implemented save contract: the runtime groups at most 64 already-queued consecut
 - [x] Add compatibility and unknown-field tests.
 - [x] Decide which UI state is durable, session-only, or renderer-only.
 
-Implemented settings contract: one typed version-1 document with explicit defaults replaces untyped per-key values. Unknown fields survive load, save, export, and import; unsupported future versions fail explicitly. Existing canonical node/document/history fields cover the reduced right sidebar, so people, tags, properties, secrets, and renderer-only state remain excluded. Native sidebar expansion persistence is a later UI-linked operation.
+Implemented settings contract: one typed version-1 document with explicit defaults replaces untyped per-key values. Unknown fields survive load, save, export, and import; unsupported future versions fail explicitly. Existing canonical node/document/history fields cover the reduced right sidebar, so people, tags, properties, secrets, and renderer-only state remain excluded. Sidebar expansion now persists through a separate native-only operation excluded from portable archives.
 
 Implemented diagnostic contract: stable context/category enums project typed subsystem errors into redacted, normalized messages capped at 1,024 UTF-8 bytes. History retry persistence accepts only a bounded diagnostic record; backup, restore, import, and integrity CLI failures map at their operation boundary. No telemetry or diagnostic upload exists.
 
@@ -146,13 +146,15 @@ Product renderer baseline: `node app/performance/run.mjs --output <path>` builds
 
 N1 integration: `5935264` adds the native maintenance/lifecycle coordinator from Claude's isolated `0e7d9a2` implementation. It owns runtime/history shutdown and reopen, archive export/import with safety backup, verified backup rotation, manifest inventory, create-new restore, live swap, rollback reporting, cancellation, overlap exclusion, and bounded diagnostics. Twelve desktop tests pass. Claude's stale shared handoff commit `40bdf67` was not integrated.
 
-C2 integration: `b2563e8` keeps the whole-document editor through 192 blocks and activates a 192-block canonical window above that measured threshold. Structured range reconciliation, 200-entry grouped undo/redo, full-canonical find/replace, whole-note select/copy, deferred IME movement, focus/selection/scroll restoration, on-demand accessible traversal, external reconciliation, zero-navigation IPC, and one persistent ProseMirror view are implemented. The 2,000-block production fixture records 3.7 ms editor-install P95 / 4.5 ms maximum and 6.9 ms keystroke-to-paint P95 / 7.0 ms maximum with 192 editor blocks and zero typing React commits. Integrated 5,000-row shell frame gaps remain for N4/C3.
+C2 integration: `b2563e8` keeps the whole-document editor through 192 blocks and activates a 192-block canonical window above that measured threshold. Structured range reconciliation, 200-entry grouped undo/redo, full-canonical find/replace, whole-note select/copy, deferred IME movement, focus/selection/scroll restoration, on-demand accessible traversal, external reconciliation, zero-navigation IPC, and one persistent ProseMirror view are implemented. The 2,000-block production fixture records 3.7 ms editor-install P95 / 4.5 ms maximum and 6.9 ms keystroke-to-paint P95 / 7.0 ms maximum with 192 editor blocks and zero typing React commits.
 
 N2 integration: `4e68559` exposes archive export/import, backup creation, retained-backup and rollback inventory, restore-and-swap confirmation, cancellation, and complete maintenance states through the existing Data settings section. Tauri owns the fixed six-hour rotation and shuts its interruptible worker down before the maintenance coordinator. Fifteen desktop tests and 99 renderer tests pass.
 
 N3 integration: `9b96d19` publishes one note-scoped history header only after Git materialization and the atomic SQLite history-cache commit succeed. The desktop drain emits a Tauri event without polling, startup subscribes before bootstrap to close the event race, and the renderer store deduplicates by version ID with deterministic ordering and note-scoped selector updates. Git and cache failures publish nothing while preserving retry behavior. One hundred thirteen backend tests, 16 desktop tests, and 101 renderer tests pass.
 
-Immediate next task: execute N4. C3 begins after N4 is integrated.
+N4 integration: `1e426ba` persists sorted valid folder expansion IDs through the serialized native runtime, excludes them from portable archives, and coalesces renderer writes without delaying local paint. The product tree now mounts a viewport-bounded pool, restores focused rows through imperative scroll and exact active-descendant semantics, precomputes descendant counts, and caps only visual indentation. The committed production run mounted 36 rows for 1,000 and 5,000 nodes with zero dropped switch frames and zero typing React commits. Fixed-runner timing variance remains for C3. See `docs/benchmarks/2026-07-23-product-tree-n4.md`.
+
+Immediate next task: execute C3 after resolving the explicit `rememberLastNote` lifecycle gap in a parallel-safe standalone slice.
 
 Known continuity gap: renderer navigation no longer persists `set_active_note`, because doing so violated the zero-navigation-IPC contract. Preserve `rememberLastNote` through a shutdown or other non-navigation lifecycle boundary; do not restore per-selection IPC.
 
@@ -198,7 +200,7 @@ Search and responsive-panel implementation: editor search is a ProseMirror plugi
 - [x] C2: measured-threshold bounded product editor with complete off-window semantics.
 - [x] N2: desktop Data/Recovery UI and fixed six-hour scheduled rotation.
 - [x] N3: non-polling live history-header publication after successful materialization.
-- [ ] N4: native-only durable expansion state and clamped deep-tree indentation.
+- [x] N4: native-only durable expansion state and clamped deep-tree indentation.
 - [ ] C3: integrated keyboard end-to-end suite and fixed-hardware/platform performance sign-off.
 
 The authoritative dependencies, file ownership, acceptance criteria, integration order, and v1 terminal condition are in `docs/implementation-backlog.md`. `docs/product-scope-v1.md` owns the v1/post-v1/excluded classification.

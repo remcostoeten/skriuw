@@ -55,7 +55,7 @@ storage/domain implications, performance risk against
 - Rationale: shipped with direct ProseMirror by measurement (ADR-0020); the whole-document path covers at most 192 top-level blocks and a 192-block canonical window handles larger notes.
 - Dependencies: persistent editor host, canonical ProseMirror JSON in `documents`, undo policy (500 ms grouping, 200-entry cap by ADR-0020 fiat).
 - Storage/domain: canonical structured document plus Markdown projection; already implemented.
-- Performance risk: medium. The bounded editor meets editor-install and keystroke budgets at 2,000 blocks; integrated 5,000-row shell presentation remains for N4/C3.
+- Performance risk: medium. The bounded editor and virtualized product tree keep the 2,000-block/5,000-node DOM bounded; fixed-runner timing remains for C3.
 - Acceptance: headings, lists, quotes, code, rules, links, emphasis, inline code render structurally; Markdown input rules work; keystroke-to-paint P95 < 8 ms; zero editor remounts across 100 note switches; undo groups per policy.
 
 ### Slash-command menu
@@ -166,7 +166,7 @@ Sidebar title search is also complete in `aa443ef`: it searches the hydrated tre
 - Value: the frame everything renders in.
 - Rationale: intended v1; shell, icon rail, `#/trash`, focus regions, and theme application ship.
 - Dependencies: none open.
-- Storage/domain: durable UI state limited to ADR-0013's ownership table (active note; sidebar expansion pending as a native-only operation).
+- Storage/domain: durable UI state follows ADR-0013's ownership table; sidebar expansion persists through a native-only operation excluded from archives.
 - Performance risk: governed by the hard invariants — no post-startup loading UI, no lazy chunks.
 - Acceptance: `docs/performance-contract.md` hard invariants plus the deferred fixed-runner proof: 100 cached note switches, zero dropped frames, on reference hardware.
 
@@ -266,12 +266,12 @@ Every box must hold before v1 is declared. Items marked ✅ are complete per
 - ✅ Command palette + typed registry covering all global actions
 - ✅ Shortcuts with rebinding, conflict rejection, settings persistence
 - ✅ Settings dialog with every offered setting applied by a renderer consumer
-- ☐ Durable sidebar-expansion persistence (native-only `app_state` operation, per ADR-0013)
+- ✅ Durable sidebar-expansion persistence (native-only `app_state` operation, per ADR-0013)
 - ✅ Archive export/import with validation-before-mutation and safety backup (backend + CLI)
 - ✅ Export/import and backup/restore reachable from the desktop UI, not only the CLI
 - ✅ Scheduled backup rotation actually firing in the running desktop app (timer owner)
 - ✅ Desktop recovery UI: restore, live swap, rollback presentation
-- ☐ Extreme-depth tree indentation policy implemented
+- ✅ Extreme-depth tree indentation policy implemented
 - ☐ Fixed reference hardware selected; performance contract verified on it (100 cached switches, zero dropped frames; all hard invariants)
 - ☐ Keyboard-driven end-to-end tests over sidebar, editor, metadata, history, palette, settings (roadmap product gate)
 

@@ -33,14 +33,13 @@ Keep domain records, operations, editor documents, and renderer state portable e
 
 ## Remaining v1 work
 
-- Durable sidebar expansion operation and native-only persistence.
 - Fixed-runner confirmation of recorded workloads and final product interactions.
 
 ## UI architecture and MVP state
 
 ADR-0020 accepted React, Vite, direct ProseMirror, the dependency-free external renderer store, and Tauri 2 after the editor, tree, selector, and bridge gates completed. The product shell, persistent whole-document editor, measured 192-block large-note fallback, slash menu, tree, trash, metadata/history, command registry, palette, settings, keyboard navigation, editor find/replace, sidebar title search, and responsive panel behavior are implemented.
 
-The desktop Data/Recovery surface, fixed six-hour backup rotation, and non-polling live history publication are complete. Remaining v1 work is deep-tree indentation, durable expansion, and tree-row bounding in N4, then the integrated end-to-end/fixed-hardware proof in C3. React Scan remains optional diagnostic tooling, never production evidence.
+The desktop Data/Recovery surface, fixed six-hour backup rotation, non-polling live history publication, durable expansion, deep-tree indentation policy, and product tree virtualization are complete. Remaining v1 work is the integrated end-to-end/fixed-hardware proof in C3 plus the explicit `rememberLastNote` lifecycle gap. React Scan remains optional diagnostic tooling, never production evidence.
 
 The final sequence, worktree ownership, and measurable acceptance criteria are maintained in `docs/implementation-backlog.md`.
 
