@@ -100,7 +100,7 @@ Implemented live-swap contract: preflight verifies a create-new candidate before
 ## P1: scale fixtures and backend budgets
 
 - [x] Generate deterministic 1,000-note and 5,000-note workspaces.
-- [ ] Generate 50, 500, and 2,000-block documents after editor schema selection.
+- [x] Generate 50, 500, and 2,000-block documents after editor schema selection.
 - [x] Add import, bootstrap, and history workload measurements on the fixture generators.
 - [x] Record backend raw samples and environment metadata.
 - [x] Keep shared CI correctness-only until a fixed performance runner exists.
@@ -158,7 +158,22 @@ Completed lifecycle continuity slice: `9554d43` keeps note selection renderer-lo
 
 The native coordinator regression proves an accepted active-note operation is drained through shutdown and survives SQLite reopen. The two-second renderer bound includes IPC delivery: failure before runtime acceptance may lose only this continuity hint, while accepted work is drained before SQLite closes. Crash, SIGTERM, and session termination may bypass the renderer close boundary. The production configuration owns one `main` window; a future multi-window product must define which renderer owns the remembered note.
 
-Immediate next task: execute C3.
+C3 integration: `9a1b4da` adds a production workflow gate around the real
+renderer, store, editor, shell, and command paths with a deterministic native
+bridge. Two clean-profile runs passed 13 grouped keyboard scenarios and 37
+assertions covering the complete v1 workflow, failure/empty/disabled/active
+states, reduced motion, focus restoration, and clean browser diagnostics.
+
+The named Linux reference run passed all three performance contexts. Three
+hundred cached switches dropped zero frames, traced navigation tasks stayed
+below 8 ms, cached editor installation stayed below 8 ms P95 and 16.67 ms
+maximum, typing stayed below both limits, navigation issued no bridge calls or
+resource loads, and the editor never remounted. The production web and
+optimized Tauri builds passed; the latter produced a 15 MiB Linux binary. See
+`docs/benchmarks/2026-07-23-product-c3.md`.
+
+Immediate next task: none inside strict v1. Do not begin post-v1 scope without
+an explicit product decision.
 
 React requirements if selected:
 
@@ -167,7 +182,7 @@ React requirements if selected:
 - [x] Add render-count assertions.
 - [x] Prove editor keystrokes do not render the application shell.
 - [x] Prove note selection renders selected-note consumers only.
-- [ ] Prove 100 cached note switches drop zero frames on fixed reference hardware. (C1 records zero at 50 blocks on the named development machine; C3 owns fixed-runner sign-off.)
+- [x] Prove 100 cached note switches drop zero frames on fixed reference hardware. (C3 records zero across all three production contexts.)
 
 ## MVP UI
 
@@ -203,7 +218,7 @@ Search and responsive-panel implementation: editor search is a ProseMirror plugi
 - [x] N2: desktop Data/Recovery UI and fixed six-hour scheduled rotation.
 - [x] N3: non-polling live history-header publication after successful materialization.
 - [x] N4: native-only durable expansion state and clamped deep-tree indentation.
-- [ ] C3: integrated keyboard end-to-end suite and fixed-hardware/platform performance sign-off. (Immediate next task after `9554d43` closed the lifecycle continuity gap.)
+- [x] C3: integrated keyboard end-to-end suite and fixed-hardware/platform performance sign-off. (Linux only; Windows and macOS remain unclaimed.)
 
 The authoritative dependencies, file ownership, acceptance criteria, integration order, and v1 terminal condition are in `docs/implementation-backlog.md`. `docs/product-scope-v1.md` owns the v1/post-v1/excluded classification.
 
@@ -220,13 +235,13 @@ Current caveat: the WASM target is not installed and no WASM build has been clai
 
 ## Required proof before every completed slice
 
-- [ ] `git diff --check` passes.
-- [ ] `./scripts/check.sh` passes.
-- [ ] New invariants have regression tests.
-- [ ] Generated schemas are committed when contracts change.
-- [ ] ADR and roadmap are updated when architecture changes.
-- [ ] `docs/handoff.md` and this file reflect new state.
-- [ ] Changes are committed on the feature branch in logical order.
+- [x] `git diff --check` passes.
+- [x] `./scripts/check.sh` passes.
+- [x] New invariants have regression tests.
+- [x] Generated schemas are committed when contracts change.
+- [x] ADR and roadmap are updated when architecture changes.
+- [x] `docs/handoff.md` and this file reflect new state.
+- [x] Changes are committed on the feature branch in logical order.
 
 ## Build and verification experience
 
@@ -236,4 +251,10 @@ Current caveat: the WASM target is not installed and no WASM build has been clai
 - [x] Print terminal hyperlinks for local binaries and bundles and upload CI artifacts and logs.
 - [x] Keep Tauri's internal frontend build command recursion-free.
 
-Verified result: the public `pnpm build` and `pnpm tauri build` paths were last exercised end to end at 69 renderer tests and produced a 14 MiB release binary with linked renderer and log artifacts. The latest `./scripts/check.sh` passes generated contracts, the build-entrypoint contract, formatting, Clippy, 112 backend tests (6 ignored), 12 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, 80 renderer tests, and renderer type safety. Current executed-source renderer coverage is 81.38% lines, 85.62% branches, and 65.49% functions.
+Verified result: `./scripts/build.sh web` and `./scripts/build.sh desktop`
+passed at C3 and produced the renderer bundle plus a 15 MiB optimized Linux
+binary. Each path passed generated contracts, the build-entrypoint contract,
+formatting, Clippy, 114 backend tests (6 ignored), 17 desktop tests, 9
+UI-architecture tests, 7 renderer-store tests, 119 renderer tests, and
+renderer type safety. Current executed-source renderer coverage is 84.37%
+lines, 85.68% branches, and 70.24% functions.

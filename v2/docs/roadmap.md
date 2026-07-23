@@ -31,15 +31,21 @@ Keep domain records, operations, editor documents, and renderer state portable e
 - Deterministic portable 1,000-note and 5,000-note fixture generators with tree and FTS expectations.
 - Repository rules, scripts, CI, ADRs, data model, and performance contract.
 
-## Remaining v1 work
+## V1 completion
 
-- Fixed-runner confirmation of recorded workloads and final product interactions.
+The v1 implementation and Linux release gate are complete. C3 records the
+integrated keyboard workflow, fixed-reference performance proof, production
+web build, and optimized Tauri build. Windows and macOS are not release claims.
 
 ## UI architecture and MVP state
 
 ADR-0020 accepted React, Vite, direct ProseMirror, the dependency-free external renderer store, and Tauri 2 after the editor, tree, selector, and bridge gates completed. The product shell, persistent whole-document editor, measured 192-block large-note fallback, slash menu, tree, trash, metadata/history, command registry, palette, settings, keyboard navigation, editor find/replace, sidebar title search, and responsive panel behavior are implemented.
 
-The desktop Data/Recovery surface, fixed six-hour backup rotation, non-polling live history publication, durable expansion, deep-tree indentation policy, and product tree virtualization are complete. Remaining v1 work is the integrated end-to-end/fixed-hardware proof in C3 plus the explicit `rememberLastNote` lifecycle gap. React Scan remains optional diagnostic tooling, never production evidence.
+The desktop Data/Recovery surface, fixed six-hour backup rotation, non-polling
+live history publication, durable expansion, deep-tree indentation policy,
+product tree virtualization, close-boundary active-note continuity, and C3
+release proof are complete. React Scan remains optional diagnostic tooling,
+never production evidence.
 
 The final sequence, worktree ownership, and measurable acceptance criteria are maintained in `docs/implementation-backlog.md`.
 

@@ -130,6 +130,15 @@ Acceptance:
 - Render and bridge assertions prove every hard invariant in `docs/performance-contract.md`.
 - Linux is the only default release claim. Windows and macOS enter the release matrix only after their identical suite passes and their evidence is committed.
 
+Completed on the named Linux reference workstation in `9a1b4da`. The
+production workflow passed 13 grouped scenarios and 37 assertions with empty
+console/page error lists. All three production performance contexts passed:
+300 cached switches dropped zero frames, editor installation stayed below
+8 ms P95 and 16.67 ms maximum, typing stayed below both budgets, traced
+navigation tasks stayed below 8 ms, and navigation issued zero bridge calls or
+resource loads. The web and optimized Tauri entrypoints passed. Evidence is in
+`docs/benchmarks/2026-07-23-product-c3.md`.
+
 ## Integration order and terminal condition
 
 Cherry-pick in this order: C1 and N1 in either order, then C2 and N2 in either order, then N3, N4, and C3. Resolve no implementation conflict by silently dropping either side; rerun the focused tests for every touched boundary after integration.

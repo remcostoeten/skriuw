@@ -55,7 +55,9 @@ storage/domain implications, performance risk against
 - Rationale: shipped with direct ProseMirror by measurement (ADR-0020); the whole-document path covers at most 192 top-level blocks and a 192-block canonical window handles larger notes.
 - Dependencies: persistent editor host, canonical ProseMirror JSON in `documents`, undo policy (500 ms grouping, 200-entry cap by ADR-0020 fiat).
 - Storage/domain: canonical structured document plus Markdown projection; already implemented.
-- Performance risk: medium. The bounded editor and virtualized product tree keep the 2,000-block/5,000-node DOM bounded; fixed-runner timing remains for C3.
+- Performance risk: closed for the Linux v1 claim. The bounded editor and
+  virtualized product tree keep the 2,000-block/5,000-node DOM bounded; C3
+  records passing fixed-reference timing and zero dropped switch frames.
 - Acceptance: headings, lists, quotes, code, rules, links, emphasis, inline code render structurally; Markdown input rules work; keystroke-to-paint P95 < 8 ms; zero editor remounts across 100 note switches; undo groups per policy.
 
 ### Slash-command menu
@@ -306,6 +308,10 @@ not deletions of user-visible features:
 5. **Deep nesting remains valid, while visual indentation is clamped.** The data model keeps arbitrary depth and the sidebar preserves level semantics without horizontal scrolling.
 6. **Markdown-vault import/export remains post-v1.** The v1 desktop surface exposes the portable archive; third-party and file-tree formats arrive through fixture-backed adapters.
 7. **Linux is the currently evidenced platform.** Windows and macOS may only be included in a v1 release claim after the same bridge, correctness, and presentation suite passes there.
-8. **Reference hardware selection is a release-operation dependency.** Engineering supplies a reproducible product runner and records environment metadata; release sign-off supplies and names the fixed machine.
+8. **The Linux reference machine is named.** C3 uses workstation
+   `remcostoeten`, an Intel Core i7-10700F with 16 logical CPUs and 25 GB RAM.
+   Its committed production evidence closes the Linux v1 timing gate; other
+   machines and platforms must run the identical suite before extending the
+   claim.
 
 The executable ordering, worktree ownership, dependencies, and acceptance criteria are in `docs/implementation-backlog.md`.

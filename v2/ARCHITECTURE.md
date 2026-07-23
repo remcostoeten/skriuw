@@ -113,6 +113,15 @@ See [docs/data-model.md](docs/data-model.md).
 
 Architecture performance is tested as a contract, not assumed from framework choice. See [docs/performance-contract.md](docs/performance-contract.md).
 
+The C3 production gate drives the real renderer, external store, shell, and
+editor through deterministic native bridge fixtures, then independently
+profiles the 1,000/5,000-note and 50/500/2,000-block contexts. The named Linux
+reference run proves 300 cached switches with zero dropped frames, no
+navigation bridge or resource work, no editor remount, zero typing React
+commits, and all timing budgets. Raw workflow and performance samples are
+committed with the release evidence; native durability remains enforced by the
+Rust and Tauri suites rather than simulated browser state.
+
 ## Decisions
 
 - [ADR-0001: standalone local-first product](docs/adr/0001-standalone-local-first.md)

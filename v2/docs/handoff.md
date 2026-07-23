@@ -346,7 +346,10 @@ cargo build -p skriuw-cli --locked
 "$cli" integrity "$recovery_dir/restored.db"
 ```
 
-The product renderer now has a production profiling runner with fixed fixtures, raw timing samples, trusted keyboard input, Chrome event traces, long-task/LoAF evidence, React commits, editor mounts, DOM counts, and bridge-call assertions. C3 still requires fixed-reference-hardware and claimed-platform sign-off; React Scan remains uninstalled.
+The product renderer has a production profiling runner with fixed fixtures, raw
+timing samples, trusted keyboard input, Chrome event traces, long-task/LoAF
+evidence, React commits, editor mounts, DOM counts, and bridge-call assertions.
+C3 completed fixed-reference Linux sign-off; React Scan remains uninstalled.
 
 ## Working rules
 
@@ -436,7 +439,8 @@ The settings surface and persistence path are complete. Renderer consumers still
 - C2 is integrated. Notes through 192 top-level blocks retain the whole-document editor; larger notes use a 192-block canonical window with complete off-window semantics.
 - The product sidebar uses a viewport-bounded virtual row pool; the committed runner mounts 36 rows for both 1,000 and 5,000 nodes.
 - Note activation is renderer-only to satisfy zero navigation IPC. `rememberLastNote` now needs persistence at shutdown or another non-navigation lifecycle boundary; per-selection persistence must not return.
-- React Scan remains uninstalled. C1 records production presentation evidence on the named development machine; C3 still owns fixed-reference-hardware sign-off.
+- React Scan remains uninstalled. C3 records the production presentation and
+  fixed-reference Linux evidence.
 - History headers publish live after successful materialization and cache commit through one note-scoped event; no polling or snapshot replacement is involved.
 - Portable archive, backup, restore, scheduled rotation, live swap, and rollback are exposed through the desktop Data settings surface.
 - Sidebar expansion is durable native-only state excluded from archives; visual indentation clamps while semantic and ARIA depth remain exact.
@@ -474,7 +478,11 @@ The settings surface and persistence path are complete. Renderer consumers still
 - The canonical model preserves structured ProseMirror nodes, reconciles changed ranges, groups undo bursts within 500 milliseconds, caps history at 200 compact entries, and supports undo/redo across recycled windows.
 - Find/replace targets the full canonical document and reveals off-window matches. Whole-note select/copy emits canonical plain text and HTML; IME composition defers window movement; focus, selection, scroll, external replacement, and note-switch state restore without remounting.
 - The full-note accessibility surface materializes canonical text only when focused, avoiding large accessibility-tree writes during navigation. The production runner now asserts the 192-block DOM cap and the reader path.
-- On the named Linux development machine, the 2,000-block fixture measured 3.7 ms editor-install P95 / 4.5 ms maximum and 6.9 ms keystroke-to-paint P95 / 7.0 ms maximum, with zero typing React commits, navigation bridge calls, resource loads, or editor remounts. N4 subsequently bounded the 5,000-row sidebar; C3 owns final fixed-runner proof.
+- On the named Linux development machine, the C2 2,000-block fixture measured
+  3.7 ms editor-install P95 / 4.5 ms maximum and 6.9 ms
+  keystroke-to-paint P95 / 7.0 ms maximum, with zero typing React commits,
+  navigation bridge calls, resource loads, or editor remounts. N4 subsequently
+  bounded the 5,000-row sidebar, and C3 completed the final fixed-runner proof.
 - Browser verification loaded meaningful product content with one ProseMirror view, no Vite overlay, no recorded console errors, and no page-level horizontal overflow. `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass with 86 renderer tests.
 
 ## Integrated N2 desktop Data and Recovery surface
@@ -512,4 +520,35 @@ The settings surface and persistence path are complete. Renderer consumers still
 - `./scripts/generate.sh`, `./scripts/check.sh`, and `git diff --check` pass with 114 backend tests (6 ignored), 17 desktop tests, 9 UI-architecture tests, 7 renderer-store tests, and 119 renderer tests.
 - The two-second bound includes IPC delivery and runtime acceptance. Failure before acceptance may lose only the continuity hint; once accepted, FIFO shutdown drains it before SQLite closes. Crash, SIGTERM, and session termination may bypass renderer close handling. The production app defines one `main` window; multi-window remembered-note ownership remains a future product decision. Linux last-window close is the verified v1 quit path; platform application-menu quit behavior still requires platform-native verification before any non-Linux claim.
 
-Immediate next task: execute C3.
+## Completed C3 Linux release gate
+
+- `9a1b4da` adds `node app/e2e/run.mjs --output <path>`, a production renderer
+  gate using the real application, editor, external store, and command paths
+  with a deterministic native bridge. It passed twice from clean profiles; the
+  committed-revision evidence contains 13 grouped scenarios, 37 passing
+  assertions, and empty console/page error lists.
+- Workflow coverage includes create, rename, sibling reorder, nesting,
+  cross-folder context movement, writing, slash commands, find/replace,
+  sidebar search, trash/restore/purge, metadata/history restore, palette,
+  shortcut rebinding, settings, archive round trip, backup, and recovery.
+  Empty, active, disabled, injected-error, reduced-motion, and
+  focus-restoration states are asserted.
+- The named Linux reference workstation is `remcostoeten`, Intel Core
+  i7-10700F, 16 logical CPUs, 25 GB RAM. All three product contexts passed.
+  Across 300 switches there were zero dropped frames, navigation IPC calls,
+  resource loads, long tasks, Long Animation Frames, or editor remounts.
+  Traced navigation task maxima were 3.658/6.256/7.435 ms. Editor-install P95
+  and maxima were 1.8/4.6, 4.3/16.2, and 3.3/6.5 ms; typing-to-paint P95 and
+  maxima were 7.0/7.1, 7.0/7.0, and 7.0/7.0 ms.
+- The production performance page passed a 1,280 × 720 browser review with
+  meaningful dense-shell content and no console error, page error, or Vite
+  overlay. `./scripts/build.sh web` passed in 13 seconds.
+  `./scripts/build.sh desktop` passed in 35 seconds and linked the 15 MiB
+  optimized Linux binary.
+- Complete evidence and limitations are in
+  `docs/benchmarks/2026-07-23-product-c3.md`. Linux is the only v1 platform
+  claim. Windows/macOS, native WebKit workflow automation, crash/SIGTERM, and
+  non-Linux application-menu quit behavior remain outside the claim.
+
+Immediate next task: none inside strict v1. Post-v1 work requires an explicit
+product decision.
