@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "dev.skriuw.app",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "bash ../scripts/run-in.sh app dev",
     "devUrl": "http://localhost:5183",
-    "beforeBuildCommand": "pnpm build:frontend",
+    "beforeBuildCommand": "bash ../scripts/run-in.sh app build:frontend",
     "frontendDist": "../dist"
   },
   "app": {
@@ -38,7 +38,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMyMzUwNTFERUVBOTk4NjYKUldSbW1LbnVIUVUxTXZneitiVHFJdzZVQmpTdjI1eUt6aEhrU0V6ejBOemY4ZUFlRGxqdVRrbXQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCRjU3Nzk0MUYwNEMwNkQKUldSdHdBUWZsSGYxeTdrUm11T1daZmMvVlEyV0k4K2xUVGJhTXJGdkFySllZTituRGR4RXlpSTUK",
       "endpoints": [
         "https://github.com/remcostoeten/skriuw-standalone/releases/latest/download/latest.json"
       ]

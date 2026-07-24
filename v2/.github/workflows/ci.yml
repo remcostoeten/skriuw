@@ -28,27 +28,21 @@ jobs:
             . -> target
             app/src-tauri -> app/src-tauri/target
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: 11.1.3
+          bun-version: latest
 
       - name: Install Node.js
         uses: actions/setup-node@v5
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: |
-            pnpm-lock.yaml
-            app/pnpm-lock.yaml
-            spikes/ui-architecture/pnpm-lock.yaml
-            spikes/renderer-store/pnpm-lock.yaml
 
       - name: Install frontend deps
         run: |
-          pnpm --dir app install --frozen-lockfile
-          pnpm --dir spikes/ui-architecture install --frozen-lockfile
-          pnpm --dir spikes/renderer-store install --frozen-lockfile
+          bun install --cwd app --frozen-lockfile
+          bun install --cwd spikes/ui-architecture --frozen-lockfile
+          bun install --cwd spikes/renderer-store --frozen-lockfile
 
       - name: Verify and build
         # Updater artifacts are only signed in the release workflow; CI builds skip them

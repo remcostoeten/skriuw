@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 app_dir="$repo_dir/app"
+source "$repo_dir/scripts/lib/pm.sh"
 mode="${1:-workspace}"
 
 if [[ $# -gt 0 ]]; then
@@ -120,7 +121,7 @@ print_header() {
   printf '\n%s%sSKRIUW BUILD%s\n' "$bold" "$cyan" "$reset"
   printf '%sMode%s      %s\n' "$muted" "$reset" "$mode"
   printf '%sRevision%s  %s @ %s\n' "$muted" "$reset" "$branch" "$commit"
-  printf '%sToolchain%s  Rust %s · Node %s · pnpm %s\n\n' "$muted" "$reset" "$(rustc --version | awk '{print $2}')" "$(node --version)" "$(pnpm --version)"
+  printf '%sToolchain%s  Rust %s · Node %s · %s %s\n\n' "$muted" "$reset" "$(rustc --version | awk '{print $2}')" "$(node --version)" "$pm" "$(pm_version)"
 }
 
 print_failure_log() {
@@ -254,11 +255,10 @@ require_command bash
 require_command cargo
 require_command git
 require_command node
-require_command pnpm
 require_command rustc
-[[ -d "$app_dir/node_modules" ]] || fail "Frontend dependencies are missing. Run pnpm --dir app install --frozen-lockfile."
-[[ -d "$repo_dir/spikes/ui-architecture/node_modules" ]] || fail "UI architecture dependencies are missing. Run pnpm --dir spikes/ui-architecture install --frozen-lockfile."
-[[ -d "$repo_dir/spikes/renderer-store/node_modules" ]] || fail "Renderer-store dependencies are missing. Run pnpm --dir spikes/renderer-store install --frozen-lockfile."
+[[ -d "$app_dir/node_modules" ]] || fail "Frontend dependencies are missing. Run ./scripts/bootstrap.sh or install manually in app/."
+[[ -d "$repo_dir/spikes/ui-architecture/node_modules" ]] || fail "UI architecture dependencies are missing. Run ./scripts/bootstrap.sh or install manually in spikes/ui-architecture/."
+[[ -d "$repo_dir/spikes/renderer-store/node_modules" ]] || fail "Renderer-store dependencies are missing. Run ./scripts/bootstrap.sh or install manually in spikes/renderer-store/."
 
 print_header
 
@@ -270,28 +270,35 @@ run_step "Backend test suite" "backend-tests" cargo test --workspace --locked --
 print_metric "$(rust_test_summary "$last_log")"
 run_step "Desktop bridge test suite" "desktop-tests" cargo test --manifest-path app/src-tauri/Cargo.toml --locked --no-fail-fast
 print_metric "$(rust_test_summary "$last_log")"
-run_step "UI architecture regression suite" "ui-architecture-tests" pnpm --dir spikes/ui-architecture test
+pm_cmd "$repo_dir/spikes/ui-architecture" test
+run_step "UI architecture regression suite" "ui-architecture-tests" "${PM_CMD[@]}"
 print_metric "$(node_test_summary "$last_log")"
-run_step "Renderer-store regression suite" "renderer-store-tests" pnpm --dir spikes/renderer-store test
+pm_cmd "$repo_dir/spikes/renderer-store" test
+run_step "Renderer-store regression suite" "renderer-store-tests" "${PM_CMD[@]}"
 print_metric "$(node_test_summary "$last_log")"
-run_step "Renderer test suite and coverage" "renderer-tests" pnpm --dir app test
+pm_cmd "$app_dir" test
+run_step "Renderer test suite and coverage" "renderer-tests" "${PM_CMD[@]}"
 print_metric "$(renderer_summary "$last_log")"
-run_step "Renderer type safety" "renderer-typecheck" pnpm --dir app typecheck
+pm_cmd "$app_dir" typecheck
+run_step "Renderer type safety" "renderer-typecheck" "${PM_CMD[@]}"
 
 case "$mode" in
   check) ;;
   web)
-    run_step "Renderer production bundle" "renderer-build" pnpm --dir app build:frontend
+    pm_cmd "$app_dir" build:frontend
+    run_step "Renderer production bundle" "renderer-build" "${PM_CMD[@]}"
     ;;
   desktop)
-    run_step "Tauri desktop application" "desktop-build" pnpm --dir app tauri:build:raw "$@"
+    pm_cmd "$app_dir" tauri:build:raw --config '{"bundle":{"createUpdaterArtifacts":false}}' "$@"
+    run_step "Tauri desktop application" "desktop-build" "${PM_CMD[@]}"
     ;;
   workspace)
     run_step "Rust workspace binaries" "workspace-build" cargo build --workspace --locked
     ;;
   ci)
     run_step "Rust release binaries" "workspace-build" cargo build --workspace --release --locked
-    run_step "Tauri release application" "desktop-build" pnpm --dir app tauri:build:raw "$@"
+    pm_cmd "$app_dir" tauri:build:raw "$@"
+    run_step "Tauri release application" "desktop-build" "${PM_CMD[@]}"
     ;;
 esac
 

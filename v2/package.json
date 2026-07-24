@@ -4,12 +4,12 @@
   "scripts": {
     "menu": "dev-menu",
     "dev": "dev-menu",
-    "dev:raw": "pnpm -C app dev",
+    "dev:raw": "scripts/run-in.sh app dev",
     "build": "scripts/build.sh web",
     "tauri": "scripts/tauri.sh",
     "tauri:build": "scripts/build.sh desktop",
-    "test": "pnpm -C app test",
-    "typecheck": "pnpm -C app typecheck",
+    "test": "scripts/run-in.sh app test",
+    "typecheck": "scripts/run-in.sh app typecheck",
     "check": "scripts/check.sh",
     "bootstrap": "scripts/bootstrap.sh"
   },
