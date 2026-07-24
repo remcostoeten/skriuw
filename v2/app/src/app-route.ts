@@ -1,9 +1,18 @@
 import { useSyncExternalStore } from "react";
 
-export type AppRoute = "notes" | "trash";
+export type AppRoute = "notes" | "trash" | "tags" | "people";
 
 export function resolveAppRoute(hash: string): AppRoute {
-  return hash === "#/trash" ? "trash" : "notes";
+  if (hash === "#/trash") {
+    return "trash";
+  }
+  if (hash === "#/tags") {
+    return "tags";
+  }
+  if (hash === "#/people") {
+    return "people";
+  }
+  return "notes";
 }
 
 function readRoute(): AppRoute {
@@ -20,5 +29,14 @@ export function useAppRoute(): AppRoute {
 }
 
 export function appRouteHash(route: AppRoute): string {
-  return route === "trash" ? "#/trash" : "#/notes";
+  if (route === "trash") {
+    return "#/trash";
+  }
+  if (route === "tags") {
+    return "#/tags";
+  }
+  if (route === "people") {
+    return "#/people";
+  }
+  return "#/notes";
 }

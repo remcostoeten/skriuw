@@ -6,6 +6,7 @@ import { EditorHost } from "./shell/editor-host";
 import { MetadataPanel } from "./shell/metadata-panel";
 import { SettingsDialog } from "./shell/settings-dialog";
 import { TrashView } from "./shell/trash-view";
+import { EntityView } from "./shell/entity-view";
 import { WindowControls } from "./shell/window-controls";
 import { panelGridTemplate } from "./shell/panel-layout";
 import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
@@ -14,12 +15,14 @@ import { createCommandRegistry, registryShortcutActions } from "./commands/regis
 import type { CommandUiState } from "./commands/registry";
 import { createWorkspaceCommands } from "./commands/workspace-commands";
 import {
+  CircleIcon,
   FolderOpenIcon,
   PanelLeftToggleIcon,
   PanelRightToggleIcon,
   SettingsIcon,
   SkriuwLogo,
   Trash2Icon,
+  WaypointsIcon,
 } from "./shared/icons";
 import { Tooltip } from "./shared/ui/tooltip";
 import type { RendererStore } from "./store/types";
@@ -107,6 +110,26 @@ export function App({ store }: Props) {
                 />
               </a>
             </Tooltip>
+            <Tooltip label="Tags" side="right">
+              <a
+                href="#/tags"
+                className={`${iconButtonClass} ${route === "tags" ? activeNavClass : inactiveNavClass}`}
+                aria-label="Tags"
+                aria-current={route === "tags" ? "page" : undefined}
+              >
+                <WaypointsIcon size={18} strokeWidth={1.6} />
+              </a>
+            </Tooltip>
+            <Tooltip label="People" side="right">
+              <a
+                href="#/people"
+                className={`${iconButtonClass} ${route === "people" ? activeNavClass : inactiveNavClass}`}
+                aria-label="People"
+                aria-current={route === "people" ? "page" : undefined}
+              >
+                <CircleIcon size={18} strokeWidth={1.6} />
+              </a>
+            </Tooltip>
           </div>
         </div>
         <div className="flex w-full flex-col items-center gap-3 pb-4">
@@ -173,6 +196,8 @@ export function App({ store }: Props) {
         </div>
       </div>
       {route === "trash" && <TrashView store={store} />}
+      {route === "tags" && <EntityView store={store} kind="tag" />}
+      {route === "people" && <EntityView store={store} kind="person" />}
       <CommandPaletteHost
         store={store}
         registry={registry}
