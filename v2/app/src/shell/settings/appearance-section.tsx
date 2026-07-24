@@ -1,50 +1,45 @@
-import { updateSetting } from "../../actions/settings";
-import { projectSettings } from "../../settings/settings-model";
-import type { EditableSettings } from "../../settings/settings-model";
 import { ThemePicker } from "../../settings/theme-picker";
-import { useRendererSelector } from "../../store/use-renderer-selector";
-import { selectSettings } from "./selectors";
-import { SettingToggle } from "./settings-shared";
+import { CompactSidebarDemo, TreeGuidesDemo } from "./appearance-demos";
+import {
+  SettingToggle,
+  SettingsHeading,
+  settingsGroup,
+  settingsGroupHint,
+  settingsGroupTitle,
+  settingsSection,
+  useEditableSettings,
+} from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
 
 export function AppearanceSection({ store }: SectionProps) {
-  const document = useRendererSelector(store, selectSettings);
-  const settings = projectSettings(document);
-
-  function change<K extends keyof EditableSettings>(
-    field: K,
-    value: EditableSettings[K],
-  ): void {
-    updateSetting(store, field, value);
-  }
+  const { settings, change } = useEditableSettings(store);
 
   return (
-    <section aria-label="Appearance">
-      <div className="settings-section-heading">
-        <h1>Appearance</h1>
-        <p>Choose how the workspace looks and behaves.</p>
-      </div>
-      <div className="settings-group settings-theme-group">
-        <div className="settings-group-title">Theme</div>
-        <p className="settings-group-hint">Applied across the workspace.</p>
+    <section aria-label="Appearance" className={settingsSection}>
+      <SettingsHeading title="Appearance" detail="Choose how the workspace looks and behaves." />
+      <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Theme</div>
+        <p className={settingsGroupHint}>Applied across the workspace.</p>
         <ThemePicker
           value={settings.theme}
           onSelect={(themeId) => change("theme", themeId)}
         />
       </div>
-      <div className="settings-group">
-        <div className="settings-group-title">Workspace</div>
+      <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Workspace</div>
         <SettingToggle
           label="Compact sidebar"
           detail="Use tighter spacing in the notes tree."
           checked={settings.compactSidebar}
           onChange={(checked) => change("compactSidebar", checked)}
+          visualization={<CompactSidebarDemo enabled={settings.compactSidebar} />}
         />
         <SettingToggle
           label="Show tree guides"
           detail="Draw indent guides for nested notes and folders."
           checked={settings.showTreeGuides}
           onChange={(checked) => change("showTreeGuides", checked)}
+          visualization={<TreeGuidesDemo enabled={settings.showTreeGuides} />}
         />
         <SettingToggle
           label="Reduce motion"

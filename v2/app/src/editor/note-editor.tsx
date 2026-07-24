@@ -12,6 +12,16 @@ import {
 import { EditorView } from "prosemirror-view";
 import { createImageNodeViews } from "./image-nodeview";
 import { collectImageFiles, insertImages } from "./image-input";
+import { readImageAlt, renameImageNode } from "./image-actions";
+import { registerPendingWork } from "../lifecycle/pending-work";
+import { ImageInfoDialog, ImageLightbox, ImageRenameDialog } from "./image-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "../shared/ui/context-menu";
+import { InfoIcon, PencilIcon, ZoomInIcon } from "../shared/icons";
 import { createMentionPlugin, type MentionContext } from "../references/mention-plugin";
 import { createReferenceNodeViews } from "../references/reference-nodeview";
 import { activateReference } from "../references/reference-navigation";
@@ -26,6 +36,7 @@ import { cssStringLiteral } from "../settings/apply-settings";
 import { projectSettings } from "../settings/settings-model";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
+import type { WorkspaceImage } from "../contracts/workspace";
 import {
   BOUNDED_BLOCK_LIMIT,
   createBoundedDocument,
@@ -83,6 +94,12 @@ type SlashMenu = {
 };
 
 const closedSlashMenu: SlashMenu = { open: false, query: "", index: 0, x: 0, y: 0 };
+
+type ImageDialogState =
+  | { kind: "rename"; imageId: string; alt: string }
+  | { kind: "bigger"; image: WorkspaceImage; alt: string }
+  | { kind: "info"; image: WorkspaceImage; alt: string }
+  | null;
 
 function emptyDocument(): ProseMirrorNode {
   return productSchema.nodeFromJSON({ type: "doc", content: [{ type: "paragraph" }] });
@@ -190,6 +207,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const [slashMenu, setSlashMenu] = useState<SlashMenu>(closedSlashMenu);
   const slashMenuRef = useRef(slashMenu);
   slashMenuRef.current = slashMenu;
+  const imageMenuTriggerRef = useRef<HTMLSpanElement>(null);
+  const [imageMenuImageId, setImageMenuImageId] = useState<string | null>(null);
+  const [imageDialog, setImageDialog] = useState<ImageDialogState>(null);
   const activeNoteId = useRendererSelector(store, selectNoteId);
   const settingsDocument = useRendererSelector(store, (state) => state.settings);
   const editorSettings = projectSettings(settingsDocument);
@@ -326,12 +346,12 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     }
   }
 
-  function saveNow(noteId: string): void {
+  function saveNow(noteId: string): Promise<void> {
     const cached = cacheRef.current.get(noteId);
     const record = store.getState().documents.get(noteId);
-    if (!cached || !record) return;
+    if (!cached || !record) return Promise.resolve();
     const document = cached.bounded?.fullDocument() ?? cached.state.doc;
-    void commitOperations(store, [
+    return commitOperations(store, [
       {
         type: "save_document",
         noteId,
@@ -353,18 +373,18 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       });
   }
 
-  function flushPendingSave(): void {
-    if (saveTimerRef.current === null) return;
+  function flushPendingSave(): Promise<void> {
+    if (saveTimerRef.current === null) return Promise.resolve();
     window.clearTimeout(saveTimerRef.current);
     saveTimerRef.current = null;
-    if (activeIdRef.current) saveNow(activeIdRef.current);
+    return activeIdRef.current ? saveNow(activeIdRef.current) : Promise.resolve();
   }
 
   function schedulePendingSave(): void {
     if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
     saveTimerRef.current = window.setTimeout(() => {
       saveTimerRef.current = null;
-      if (activeIdRef.current) saveNow(activeIdRef.current);
+      if (activeIdRef.current) void saveNow(activeIdRef.current);
     }, SAVE_DEBOUNCE_MS);
   }
 
@@ -457,7 +477,12 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const host = hostRef.current;
     if (!host) return;
     const referenceViews = createReferenceNodeViews(store);
-    const imageViews = createImageNodeViews(store);
+    const imageViews = createImageNodeViews(store, (imageId, clientX, clientY) => {
+      setImageMenuImageId(imageId);
+      imageMenuTriggerRef.current?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientX, clientY }),
+      );
+    });
     const view = new EditorView(host, {
       state: createEditorState(emptyDocument(), mentionPlugins),
       editable: () => activeIdRef.current !== null,
@@ -587,8 +612,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     view.dom.addEventListener("compositionstart", handleCompositionStart);
     view.dom.addEventListener("compositionend", handleCompositionEnd);
     view.dom.addEventListener("copy", handleCopy);
+    const unregisterPendingSave = registerPendingWork(() => flushPendingSave());
     return () => {
-      flushPendingSave();
+      unregisterPendingSave();
+      void flushPendingSave();
       scrollHost?.removeEventListener("scroll", handleScroll);
       view.dom.removeEventListener("compositionstart", handleCompositionStart);
       view.dom.removeEventListener("compositionend", handleCompositionEnd);
@@ -687,6 +714,26 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
 
   const slashItems = slashMenu.open ? filterSlashCommands(slashMenu.query) : [];
 
+  function openImageRename(imageId: string): void {
+    const view = viewRef.current;
+    if (!view) return;
+    setImageDialog({ kind: "rename", imageId, alt: readImageAlt(view.state.doc, imageId) });
+  }
+
+  function openImageBigger(imageId: string): void {
+    const view = viewRef.current;
+    const image = store.getState().images.get(imageId);
+    if (!view || !image) return;
+    setImageDialog({ kind: "bigger", image, alt: readImageAlt(view.state.doc, imageId) });
+  }
+
+  function openImageInfo(imageId: string): void {
+    const view = viewRef.current;
+    const image = store.getState().images.get(imageId);
+    if (!view || !image) return;
+    setImageDialog({ kind: "info", image, alt: readImageAlt(view.state.doc, imageId) });
+  }
+
   return (
     <div className="editor-host">
       {search.searchOpen && (
@@ -763,6 +810,58 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
             </button>
           ))}
         </div>
+      )}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <span ref={imageMenuTriggerRef} aria-hidden="true" className="fixed left-0 top-0 h-0 w-0" />
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-44">
+          <ContextMenuItem
+            className="gap-2"
+            onSelect={() => imageMenuImageId && openImageRename(imageMenuImageId)}
+          >
+            <PencilIcon size={14} />
+            Rename
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="gap-2"
+            onSelect={() => imageMenuImageId && openImageBigger(imageMenuImageId)}
+          >
+            <ZoomInIcon size={14} />
+            View bigger
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="gap-2"
+            onSelect={() => imageMenuImageId && openImageInfo(imageMenuImageId)}
+          >
+            <InfoIcon size={14} />
+            View info
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+      {imageDialog?.kind === "rename" && (
+        <ImageRenameDialog
+          initialAlt={imageDialog.alt}
+          onSubmit={(alt) => {
+            const view = viewRef.current;
+            if (view) renameImageNode(view, imageDialog.imageId, alt);
+          }}
+          onClose={() => setImageDialog(null)}
+        />
+      )}
+      {imageDialog?.kind === "bigger" && (
+        <ImageLightbox
+          image={imageDialog.image}
+          alt={imageDialog.alt}
+          onClose={() => setImageDialog(null)}
+        />
+      )}
+      {imageDialog?.kind === "info" && (
+        <ImageInfoDialog
+          image={imageDialog.image}
+          alt={imageDialog.alt}
+          onClose={() => setImageDialog(null)}
+        />
       )}
     </div>
   );

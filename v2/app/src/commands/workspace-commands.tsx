@@ -1,4 +1,4 @@
-import { quitApp, toggleFullscreen } from "../actions/window";
+import { quitApp, toggleMaximize } from "../actions/window";
 import {
   closeActiveTab,
   closeSplit,
@@ -332,13 +332,13 @@ export function createWorkspaceCommands(
       run: () => controls.navigate("trash"),
     },
     {
-      id: "toggle-fullscreen",
-      label: "Toggle fullscreen",
+      id: "toggle-maximize",
+      label: "Toggle maximize",
       group: "View",
       keywords: ["window", "maximize", "full screen"],
       icon: <MaximizeIcon size={15} />,
-      shortcut: "toggleFullscreen",
-      run: toggleFullscreen,
+      shortcut: "toggleMaximize",
+      run: toggleMaximize,
     },
     {
       id: "quit-app",

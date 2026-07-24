@@ -213,7 +213,8 @@ export function App({ store }: Props) {
               <button
                 type="button"
                 onClick={() => setMetadataOpen((current) => !current)}
-                className={`${toolbarIconButtonClass} ml-auto${metadataOpen ? "" : " mr-[116px]"}`}
+                className={`${toolbarIconButtonClass} ml-auto`}
+                style={metadataOpen ? undefined : { marginRight: "var(--window-controls-width)" }}
                 aria-label="Toggle metadata"
                 aria-expanded={metadataOpen}
               >

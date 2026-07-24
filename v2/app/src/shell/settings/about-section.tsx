@@ -1,11 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { openExternalUrl } from "../../bridge/commands";
+import { cn } from "../../shared/lib/utils";
 import {
   ABOUT_LINKS,
   checkForUpdate,
   describeUpdateOutcome,
   readAppVersion,
 } from "../../settings/about-model";
+import {
+  SettingsHeading,
+  settingsButton,
+  settingsGroup,
+  settingsGroupTitle,
+  settingsRow,
+  settingsRowDescription,
+  settingsRowDetail,
+  settingsRowLabel,
+  settingsSection,
+} from "./settings-shared";
 
 export function AboutSection() {
   const [version, setVersion] = useState<string | null>(null);
@@ -42,23 +54,23 @@ export function AboutSection() {
   }
 
   return (
-    <section aria-label="About">
-      <div className="settings-section-heading">
-        <h1>About</h1>
-        <p>Version details, updates, and where to go for help.</p>
-      </div>
-      <div className="settings-group">
-        <div className="settings-group-title">Version</div>
-        <div className="settings-row">
-          <span className="settings-row-label">
+    <section aria-label="About" className={settingsSection}>
+      <SettingsHeading
+        title="About"
+        detail="Version details, updates, and where to go for help."
+      />
+      <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Version</div>
+        <div className={settingsRow}>
+          <span className={settingsRowLabel}>
             Skriuw
-            <span className="settings-row-detail">
+            <span className={settingsRowDetail}>
               {version === null ? "Reading…" : `Version ${version}`}
             </span>
           </span>
           <button
             type="button"
-            className="settings-button"
+            className={settingsButton}
             disabled={checking}
             onClick={runUpdateCheck}
           >
@@ -66,23 +78,23 @@ export function AboutSection() {
           </button>
         </div>
         {updateStatus && (
-          <p className="settings-row-detail settings-about-update" role="status">
+          <p className={cn(settingsRowDetail, "mt-2")} role="status">
             {updateStatus}
           </p>
         )}
       </div>
-      <div className="settings-group">
-        <div className="settings-group-title">Links</div>
-        <ul className="settings-about-links">
+      <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Links</div>
+        <ul className="m-0 list-none p-0">
           {ABOUT_LINKS.map((link) => (
-            <li key={link.id} className="settings-row">
-              <span className="settings-row-label">
+            <li key={link.id} className={settingsRow}>
+              <span className={settingsRowLabel}>
                 {link.label}
-                <span className="settings-row-description">{link.description}</span>
+                <span className={settingsRowDescription}>{link.description}</span>
               </span>
               <button
                 type="button"
-                className="settings-button"
+                className={settingsButton}
                 onClick={() => {
                   openExternalUrl(link.url).catch((error) => {
                     console.error("open external url rejected", error);

@@ -6,10 +6,10 @@
 @import "./css/sidebar.css";
 @import "./css/references.css";
 @import "./css/search.css";
+@import "./css/page-chrome.css";
 @import "./css/trash.css";
 @import "./css/shortcut-recorder.css";
 @import "./css/tooltip.css";
-@import "./css/settings.css";
 @import "./css/entity.css";
 
 @plugin "tailwindcss-animate";

@@ -26,7 +26,7 @@ function ControlButton({ label, onClick, className, children }: ControlButtonPro
       aria-label={label}
       onClick={onClick}
       className={cn(
-        "inline-flex h-7 w-9 items-center justify-center text-sidebar-foreground/55 transition-colors hover:text-sidebar-foreground",
+        "inline-flex h-7 w-8 items-center justify-center text-sidebar-foreground/55 transition-colors hover:text-sidebar-foreground",
         className,
       )}
     >
@@ -65,7 +65,7 @@ export function WindowControls() {
   return (
     <div
       data-tauri-drag-region
-      className="fixed right-0 top-0 z-50 flex h-9 items-center gap-0.5 rounded-bl-lg border-b border-l border-sidebar-border/70 bg-sidebar pl-3 pr-1"
+      className="fixed right-0 top-0 z-50 flex h-9 items-center gap-0.5 rounded-bl-lg border-b border-l border-sidebar-border/70 bg-sidebar pl-2 pr-1"
     >
       <ControlButton label="Minimize" onClick={runWindowAction(() => appWindow.minimize())}>
         <MinimizeIcon size={14} strokeWidth={1.75} />

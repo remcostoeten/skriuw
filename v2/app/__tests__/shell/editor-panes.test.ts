@@ -91,7 +91,12 @@ test("a note trashed while open in the secondary pane degrades visibly instead o
     ...current,
     panes: [
       current.panes[0]!,
-      { paneId: SECONDARY_PANE_ID, openNoteIds: ["note-trashed"], activeNoteId: "note-trashed" },
+      {
+        paneId: SECONDARY_PANE_ID,
+        openNoteIds: ["note-trashed"],
+        pinnedNoteIds: [],
+        activeNoteId: "note-trashed",
+      },
     ],
   }));
   assert.doesNotThrow(() => {

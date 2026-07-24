@@ -48,6 +48,29 @@ const TRIGGER_PATTERN = /(?:^|[\s([{])([#$@])([\p{L}\p{N}_-]{0,64})$/u;
 const WIKI_TRIGGER_PATTERN = /\[\[([^\]\n]{0,96})$/;
 const CONTEXT_WINDOW = 96;
 
+function activeMentionState(
+  previous: MentionState,
+  trigger: MentionTrigger,
+  query: string,
+  from: number,
+  to: number,
+): MentionState {
+  if (previous.dismissedFrom !== null) {
+    return previous.dismissedFrom === from
+      ? { ...inactiveState, dismissedFrom: from }
+      : { active: true, trigger, query, from, to, index: 0, dismissedFrom: null };
+  }
+  return {
+    active: true,
+    trigger,
+    query,
+    from,
+    to,
+    index: previous.active && previous.query === query ? previous.index : 0,
+    dismissedFrom: null,
+  };
+}
+
 function detectMention(state: EditorState, previous: MentionState): MentionState {
   const { $from, empty } = state.selection;
   if (!empty || !$from.parent.isTextblock || $from.parent.type.spec.code) {
@@ -58,23 +81,8 @@ function detectMention(state: EditorState, previous: MentionState): MentionState
 
   const wikiMatch = before.match(WIKI_TRIGGER_PATTERN);
   if (wikiMatch) {
-    const trigger: MentionTrigger = "[[";
     const query = wikiMatch[1] ?? "";
-    const from = $from.pos - query.length - 2;
-    if (previous.dismissedFrom !== null) {
-      return previous.dismissedFrom === from
-        ? { ...inactiveState, dismissedFrom: from }
-        : { active: true, trigger, query, from, to: $from.pos, index: 0, dismissedFrom: null };
-    }
-    return {
-      active: true,
-      trigger,
-      query,
-      from,
-      to: $from.pos,
-      index: previous.active && previous.query === query ? previous.index : 0,
-      dismissedFrom: null,
-    };
+    return activeMentionState(previous, "[[", query, $from.pos - query.length - 2, $from.pos);
   }
 
   const match = before.match(TRIGGER_PATTERN);
@@ -83,21 +91,7 @@ function detectMention(state: EditorState, previous: MentionState): MentionState
   }
   const trigger = match[1] as MentionTrigger;
   const query = match[2] ?? "";
-  const from = $from.pos - query.length - 1;
-  if (previous.dismissedFrom !== null) {
-    return previous.dismissedFrom === from
-      ? { ...inactiveState, dismissedFrom: from }
-      : { active: true, trigger, query, from, to: $from.pos, index: 0, dismissedFrom: null };
-  }
-  return {
-    active: true,
-    trigger,
-    query,
-    from,
-    to: $from.pos,
-    index: previous.active && previous.query === query ? previous.index : 0,
-    dismissedFrom: null,
-  };
+  return activeMentionState(previous, trigger, query, $from.pos - query.length - 1, $from.pos);
 }
 
 export function mentionMenuItems(

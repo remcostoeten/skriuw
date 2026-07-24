@@ -1,6 +1,7 @@
 import type { EditorView } from "prosemirror-view";
 import { commitOperations } from "../actions/workspace";
 import { storeNoteImage } from "../bridge/commands";
+import { registerPendingWork } from "../lifecycle/pending-work";
 import { noop } from "../shared/lib/noop";
 import type { RendererStore } from "../store/types";
 import { productSchema } from "./schema";
@@ -9,6 +10,10 @@ type ImageDimensions = {
   width: number;
   height: number;
 };
+
+const inFlightPersists = new Set<Promise<void>>();
+
+registerPendingWork(() => Promise.all([...inFlightPersists]).then(() => undefined));
 
 export function collectImageFiles(transfer: DataTransfer | null): File[] {
   if (!transfer) {
@@ -50,7 +55,9 @@ export function insertImages(
   }
   view.dispatch(transaction);
   for (const { id, file } of inserted) {
-    void persistImage(store, noteId, id, file);
+    const task = persistImage(store, noteId, id, file);
+    inFlightPersists.add(task);
+    void task.finally(() => inFlightPersists.delete(task));
   }
   return true;
 }

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { FormEventHandler, KeyboardEventHandler, ReactNode } from "react";
 import { CloseIcon } from "../icons";
 import { cn } from "../lib/utils";
@@ -83,7 +84,7 @@ function DialogShell({
     };
   }, []);
 
-  return (
+  return createPortal(
     <dialog
       ref={ref}
       className={cn(
@@ -119,7 +120,10 @@ function DialogShell({
           {title}
         </h2>
       )}
-      <div className="dialog-body min-h-0 flex-1 overflow-y-auto">{children}</div>
-    </dialog>
+      {/* flex-auto, not flex-1: WebKitGTK collapses basis-0 items inside an
+          auto-height column, rendering every dialog body at zero height. */}
+      <div className="dialog-body min-h-0 flex-auto overflow-y-auto">{children}</div>
+    </dialog>,
+    document.body,
   );
 }

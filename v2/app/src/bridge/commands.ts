@@ -203,6 +203,25 @@ export function readNoteImageBlob(
   return invoke<ArrayBuffer>("read_note_image_blob", { contentHash, mimeType });
 }
 
+export type MediaBlobPayload = {
+  contentHash: string;
+  mimeType: string;
+  byteSize: number;
+  modifiedAtMs: number;
+};
+
+export function listMediaBlobs(): Promise<MediaBlobPayload[]> {
+  return invoke<MediaBlobPayload[]>("list_media_blobs");
+}
+
+export function deleteMediaBlob(contentHash: string, mimeType: string): Promise<void> {
+  return invoke<void>("delete_media_blob", { contentHash, mimeType });
+}
+
+export function sweepUnusedMediaBlobs(): Promise<number> {
+  return invoke<number>("sweep_unused_media_blobs");
+}
+
 export function importMarkdownImage(
   sourceDir: string,
   relativePath: string,

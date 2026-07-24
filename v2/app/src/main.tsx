@@ -16,6 +16,7 @@ import type { HistoryHeader } from "./contracts/workspace";
 import { listenForHistoryHeaders } from "./history/live-history";
 import { bindWindowClosePersistence } from "./lifecycle/window-close";
 import { bindSettingsToRoot } from "./settings/apply-settings";
+import { opensNotesInTabs } from "./settings/settings-model";
 import { bindPaneLayoutPersistence } from "./store/pane-layout-persistence";
 import { parsePaneLayout, syncPanes } from "./store/panes";
 import { bindSidebarExpansionPersistence } from "./store/sidebar-expansion-persistence";
@@ -63,7 +64,12 @@ async function start(): Promise<void> {
     if (restoredPanes) {
       store.update((current) => ({
         ...current,
-        panes: syncPanes(restoredPanes, current.activeNoteId, current.sourceNodes),
+        panes: syncPanes(
+          restoredPanes,
+          current.activeNoteId,
+          current.sourceNodes,
+          opensNotesInTabs(current.settings),
+        ),
       }));
     }
     const appWindow = getCurrentWindow();

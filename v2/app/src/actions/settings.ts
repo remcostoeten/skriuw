@@ -1,5 +1,6 @@
 import type { WorkspaceSettings } from "../contracts/workspace";
 import {
+  DEFAULT_WORKSPACE_SETTINGS,
   changeSetting,
   changeShortcutOverride,
   resetShortcutOverride,
@@ -41,6 +42,10 @@ export function setShortcutOverride(
     store,
     changeShortcutOverride(store.getState().settings, actionId, combo),
   );
+}
+
+export function resetAllSettings(store: RendererStore): void {
+  updateSettings(store, { ...DEFAULT_WORKSPACE_SETTINGS });
 }
 
 export function clearShortcutOverride(

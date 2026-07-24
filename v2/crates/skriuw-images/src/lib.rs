@@ -35,6 +35,14 @@ pub struct StoredImage {
     pub byte_size: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlobEntry {
+    pub content_hash: String,
+    pub mime_type: &'static str,
+    pub byte_size: u64,
+    pub modified_at_ms: u64,
+}
+
 pub struct ImageStore {
     root: PathBuf,
 }
@@ -97,6 +105,58 @@ impl ImageStore {
         Ok(self
             .root
             .join(blob_file_name(content_hash, extension_for(mime_type))))
+    }
+
+    /// Lists every valid blob file in the store, newest first.
+    pub fn list(&self) -> Result<Vec<BlobEntry>, ImageStoreError> {
+        let mut entries = Vec::new();
+        for entry in fs::read_dir(&self.root)? {
+            let entry = entry?;
+            if !entry.file_type()?.is_file() {
+                continue;
+            }
+            let name = entry.file_name();
+            let Some((hash, extension)) = name
+                .to_str()
+                .and_then(|name| name.split_once('.'))
+                .filter(|(hash, _)| validate_content_hash(hash).is_ok())
+            else {
+                continue;
+            };
+            let Some(mime_type) = mime_for_extension(extension) else {
+                continue;
+            };
+            let metadata = entry.metadata()?;
+            let modified_at_ms = metadata
+                .modified()
+                .ok()
+                .and_then(|modified| modified.duration_since(SystemTime::UNIX_EPOCH).ok())
+                .map_or(0, |elapsed| elapsed.as_millis() as u64);
+            entries.push(BlobEntry {
+                content_hash: hash.to_string(),
+                mime_type,
+                byte_size: metadata.len(),
+                modified_at_ms,
+            });
+        }
+        entries.sort_by(|left, right| {
+            right
+                .modified_at_ms
+                .cmp(&left.modified_at_ms)
+                .then_with(|| left.content_hash.cmp(&right.content_hash))
+        });
+        Ok(entries)
+    }
+
+    /// Removes one blob file. Deleting an already-absent blob is an error so
+    /// callers surface stale UI state instead of silently succeeding.
+    pub fn delete(&self, content_hash: &str, mime_type: &str) -> Result<(), ImageStoreError> {
+        let path = self.blob_path(content_hash, mime_type)?;
+        if !path.exists() {
+            return Err(ImageStoreError::MissingBlob);
+        }
+        fs::remove_file(path)?;
+        Ok(())
     }
 
     /// Deletes blob files whose hash is not in `live`. Files younger than
@@ -166,6 +226,18 @@ pub fn extension_for(mime_type: &str) -> &'static str {
         "image/gif" => "gif",
         "image/webp" => "webp",
         _ => "img",
+    }
+}
+
+/// Inverse of [`extension_for`] for blob files found on disk.
+#[must_use]
+pub fn mime_for_extension(extension: &str) -> Option<&'static str> {
+    match extension {
+        "png" => Some("image/png"),
+        "jpg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        _ => None,
     }
 }
 
@@ -265,6 +337,29 @@ mod tests {
                 .exists(&stored.content_hash, stored.mime_type)
                 .expect("exists")
         );
+    }
+
+    #[test]
+    fn lists_and_deletes_blobs() {
+        let dir = tempdir().expect("tempdir");
+        let store = ImageStore::open(dir.path().join("blobs")).expect("open store");
+        let stored = store.put(PNG).expect("store png");
+        fs::write(store.root().join("not-a-blob.txt"), b"junk").expect("write junk");
+
+        let listed = store.list().expect("list blobs");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].content_hash, stored.content_hash);
+        assert_eq!(listed[0].mime_type, "image/png");
+        assert_eq!(listed[0].byte_size, PNG.len() as u64);
+
+        store
+            .delete(&stored.content_hash, stored.mime_type)
+            .expect("delete blob");
+        assert!(store.list().expect("list after delete").is_empty());
+        assert!(matches!(
+            store.delete(&stored.content_hash, stored.mime_type),
+            Err(ImageStoreError::MissingBlob)
+        ));
     }
 
     #[test]

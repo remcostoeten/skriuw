@@ -22,6 +22,7 @@ import {
   type ReferenceOperation,
   type TagRecord,
 } from "../references/types";
+import { opensNotesInTabs } from "../settings/settings-model";
 import { reduceOperation } from "./operations";
 import { PRIMARY_PANE_ID, defaultPanes, syncPanes } from "./panes";
 import {
@@ -100,7 +101,12 @@ function derive(
     base.selectionAnchorId !== null && index.nodes.has(base.selectionAnchorId)
       ? base.selectionAnchorId
       : null;
-  const panes = syncPanes(base.panes, activeNoteId, base.sourceNodes);
+  const panes = syncPanes(
+    base.panes,
+    activeNoteId,
+    base.sourceNodes,
+    opensNotesInTabs(base.settings),
+  );
   return {
     ...base,
     ...index,
@@ -217,7 +223,12 @@ function reduceState(
       ...current,
       activeNoteId: operation.noteId,
       focusedNodeId: operation.noteId ?? current.focusedNodeId,
-      panes: syncPanes(current.panes, operation.noteId, current.sourceNodes),
+      panes: syncPanes(
+        current.panes,
+        operation.noteId,
+        current.sourceNodes,
+        opensNotesInTabs(current.settings),
+      ),
     };
   }
   if (operation.type === "update_settings") {

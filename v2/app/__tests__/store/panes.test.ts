@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { WorkspaceNode } from "../../src/contracts/workspace";
 import {
+  PANE_LAYOUT_VERSION,
   PRIMARY_PANE_ID,
   SECONDARY_PANE_ID,
+  closeAllTabs,
+  closeOtherTabs,
   closeSplit,
   closeTab,
+  closeTabsToSide,
   cycleTabId,
   defaultPanes,
   openBeside,
@@ -13,6 +17,7 @@ import {
   parsePaneLayout,
   serializePaneLayout,
   syncPanes,
+  togglePinTab,
 } from "../../src/store/panes";
 import type { PaneState } from "../../src/store/panes";
 
@@ -35,18 +40,26 @@ function nodeMap(...nodes: WorkspaceNode[]): Map<string, WorkspaceNode> {
   return new Map(nodes.map((entry) => [entry.id, entry]));
 }
 
-function primary(openNoteIds: string[], activeNoteId: string | null): PaneState {
-  return { paneId: PRIMARY_PANE_ID, openNoteIds, activeNoteId };
+function primary(
+  openNoteIds: string[],
+  activeNoteId: string | null,
+  pinnedNoteIds: string[] = [],
+): PaneState {
+  return { paneId: PRIMARY_PANE_ID, openNoteIds, pinnedNoteIds, activeNoteId };
 }
 
 test("defaultPanes with no active note opens a single empty primary pane", () => {
   const panes = defaultPanes(null);
-  assert.deepEqual(panes, [{ paneId: PRIMARY_PANE_ID, openNoteIds: [], activeNoteId: null }]);
+  assert.deepEqual(panes, [
+    { paneId: PRIMARY_PANE_ID, openNoteIds: [], pinnedNoteIds: [], activeNoteId: null },
+  ]);
 });
 
 test("defaultPanes with an active note opens it as the sole tab", () => {
   const panes = defaultPanes("a");
-  assert.deepEqual(panes, [{ paneId: PRIMARY_PANE_ID, openNoteIds: ["a"], activeNoteId: "a" }]);
+  assert.deepEqual(panes, [
+    { paneId: PRIMARY_PANE_ID, openNoteIds: ["a"], pinnedNoteIds: [], activeNoteId: "a" },
+  ]);
 });
 
 test("sync replaces the primary active tab in place for ordinary navigation", () => {
@@ -55,6 +68,22 @@ test("sync replaces the primary active tab in place for ordinary navigation", ()
   const synced = syncPanes(panes, "c", nodes);
   assert.deepEqual(synced[0]?.openNoteIds, ["c", "b"]);
   assert.equal(synced[0]?.activeNoteId, "c");
+});
+
+test("sync appends a new tab for ordinary navigation when openInTabs is set", () => {
+  const nodes = nodeMap(node("a"), node("b"), node("c"));
+  const panes = [primary(["a", "b"], "a")];
+  const synced = syncPanes(panes, "c", nodes, true);
+  assert.deepEqual(synced[0]?.openNoteIds, ["a", "b", "c"]);
+  assert.equal(synced[0]?.activeNoteId, "c");
+});
+
+test("sync with openInTabs activates an already-open note without duplicating tabs", () => {
+  const nodes = nodeMap(node("a"), node("b"));
+  const panes = [primary(["a", "b"], "a")];
+  const synced = syncPanes(panes, "b", nodes, true);
+  assert.deepEqual(synced[0]?.openNoteIds, ["a", "b"]);
+  assert.equal(synced[0]?.activeNoteId, "b");
 });
 
 test("sync appends when the previous active tab is not in the strip", () => {
@@ -82,7 +111,7 @@ test("sync drops purged notes from every pane and nulls a purged secondary note"
   const nodes = nodeMap(node("a"));
   const panes: PaneState[] = [
     primary(["a", "gone"], "a"),
-    { paneId: SECONDARY_PANE_ID, openNoteIds: ["gone"], activeNoteId: "gone" },
+    { paneId: SECONDARY_PANE_ID, openNoteIds: ["gone"], pinnedNoteIds: [], activeNoteId: "gone" },
   ];
   const synced = syncPanes(panes, "a", nodes);
   assert.deepEqual(synced[0]?.openNoteIds, ["a"]);
@@ -145,8 +174,49 @@ test("parse rejects malformed, versionless, and foreign payloads", () => {
   assert.equal(parsePaneLayout("{}"), null);
   assert.equal(parsePaneLayout(JSON.stringify({ version: 99, panes: [] })), null);
   assert.equal(
-    parsePaneLayout(JSON.stringify({ version: 1, panes: [{ paneId: 7 }] })),
+    parsePaneLayout(JSON.stringify({ version: PANE_LAYOUT_VERSION, panes: [{ paneId: 7 }] })),
     null,
   );
   assert.equal(parsePaneLayout(serializePaneLayout(defaultPanes(null)))?.length, 1);
+});
+
+test("togglePinTab pins and unpins an open tab, and ignores unknown tabs", () => {
+  const panes = [primary(["a", "b"], "a")];
+  const pinned = togglePinTab(panes, "b");
+  assert.deepEqual(pinned[0]?.pinnedNoteIds, ["b"]);
+  const unpinned = togglePinTab(pinned, "b");
+  assert.deepEqual(unpinned[0]?.pinnedNoteIds, []);
+  assert.equal(togglePinTab(panes, "missing"), panes);
+});
+
+test("closeOtherTabs keeps the target and pinned tabs, promoting the target when active is removed", () => {
+  const panes = [primary(["a", "b", "c"], "a", ["c"])];
+  const result = closeOtherTabs(panes, "b");
+  assert.deepEqual(result.panes[0]?.openNoteIds, ["b", "c"]);
+  assert.equal(result.nextActiveNoteId, "b");
+});
+
+test("closeOtherTabs is a no-op when nothing would be removed", () => {
+  const panes = [primary(["a"], "a")];
+  const result = closeOtherTabs(panes, "a");
+  assert.equal(result.panes, panes);
+  assert.equal(result.nextActiveNoteId, undefined);
+});
+
+test("closeTabsToSide removes unpinned tabs on the given side but keeps the anchor and pinned tabs", () => {
+  const panes = [primary(["a", "b", "c", "d"], "d", ["a"])];
+  const right = closeTabsToSide(panes, "b", "right");
+  assert.deepEqual(right.panes[0]?.openNoteIds, ["a", "b"]);
+  assert.equal(right.nextActiveNoteId, "b");
+
+  const left = closeTabsToSide(panes, "c", "left");
+  assert.deepEqual(left.panes[0]?.openNoteIds, ["a", "c", "d"]);
+  assert.equal(left.nextActiveNoteId, undefined);
+});
+
+test("closeAllTabs keeps only pinned tabs and promotes a survivor when the active tab closes", () => {
+  const panes = [primary(["a", "b", "c"], "b", ["c"])];
+  const result = closeAllTabs(panes);
+  assert.deepEqual(result.panes[0]?.openNoteIds, ["c"]);
+  assert.equal(result.nextActiveNoteId, "c");
 });

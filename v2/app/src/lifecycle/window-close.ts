@@ -1,6 +1,7 @@
 import type { WorkspaceOperationEnvelope } from "../contracts/workspace";
 import { envelope } from "../contracts/workspace";
 import type { RendererStore } from "../store/types";
+import { flushPendingWork } from "./pending-work";
 
 type CloseRequestedEvent = {
   preventDefault: () => void;
@@ -43,24 +44,26 @@ function timeoutAfter(timeoutMs: number): {
   };
 }
 
-async function persistActiveNote(
+async function persistBeforeClose(
   store: RendererStore,
   persist: PersistOperations,
   timeoutMs: number,
 ): Promise<void> {
   const state = store.getState();
-  if (!state.settings.rememberLastNote) {
-    return;
-  }
   const timeout = timeoutAfter(timeoutMs);
   try {
     await Promise.race([
-      persist([
-        envelope({
-          type: "set_active_note",
-          noteId: state.activeNoteId,
-        }),
-      ]),
+      flushPendingWork().then(() => {
+        if (!state.settings.rememberLastNote) {
+          return undefined;
+        }
+        return persist([
+          envelope({
+            type: "set_active_note",
+            noteId: state.activeNoteId,
+          }),
+        ]);
+      }),
       timeout.promise,
     ]);
   } finally {
@@ -90,7 +93,7 @@ export async function bindWindowClosePersistence(
       }
       closing = true;
       try {
-        await persistActiveNote(store, persist, timeoutMs);
+        await persistBeforeClose(store, persist, timeoutMs);
       } catch (error) {
         onError(error);
       }

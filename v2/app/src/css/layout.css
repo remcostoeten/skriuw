@@ -1,4 +1,5 @@
 .shell {
+  --window-controls-width: 112px;
   display: grid;
   grid-template-columns: 56px 260px 1fr 240px;
   grid-template-rows: minmax(0, 1fr);

@@ -21,7 +21,7 @@ export type ShortcutActionId =
   | "goToTags"
   | "goToPeople"
   | "goToTrash"
-  | "toggleFullscreen"
+  | "toggleMaximize"
   | "quitApp"
   | "zoomIn"
   | "zoomOut"
@@ -81,6 +81,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "New tag",
     group: "Workspace",
     worksWhileTyping: true,
+    scopes: "tags-route",
   },
   {
     id: "createPerson",
@@ -210,9 +211,9 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     worksWhileTyping: true,
   },
   {
-    id: "toggleFullscreen",
+    id: "toggleMaximize",
     keys: "mod+enter",
-    label: "Toggle fullscreen",
+    label: "Toggle maximize",
     group: "View",
     worksWhileTyping: true,
   },

@@ -2,13 +2,17 @@ import type { RendererStore } from "../store/types";
 import {
   PRIMARY_PANE_ID,
   SECONDARY_PANE_ID,
+  closeAllTabs as closeAllTabsInPanes,
+  closeOtherTabs as closeOtherTabsInPanes,
   closeSplit as closeSplitPanes,
   closeTab as closeTabInPanes,
+  closeTabsToSide as closeTabsToSideInPanes,
   cycleTabId,
   openBeside as openBesidePanes,
   openNoteInTab as openNoteInTabPanes,
   primaryPane,
   secondaryPane,
+  togglePinTab as togglePinTabInPanes,
 } from "../store/panes";
 import { activateNote } from "./workspace";
 
@@ -45,6 +49,41 @@ export function closeTab(store: RendererStore, noteId: string): void {
   if (result.nextActiveNoteId !== undefined) {
     activateNote(store, result.nextActiveNoteId);
   }
+}
+
+export function closeOtherTabs(store: RendererStore, noteId: string): void {
+  const result = closeOtherTabsInPanes(store.getState().panes, noteId);
+  store.update((current) => ({ ...current, panes: result.panes }));
+  if (result.nextActiveNoteId !== undefined) {
+    activateNote(store, result.nextActiveNoteId);
+  }
+}
+
+export function closeTabsToSide(
+  store: RendererStore,
+  noteId: string,
+  side: "left" | "right",
+): void {
+  const result = closeTabsToSideInPanes(store.getState().panes, noteId, side);
+  store.update((current) => ({ ...current, panes: result.panes }));
+  if (result.nextActiveNoteId !== undefined) {
+    activateNote(store, result.nextActiveNoteId);
+  }
+}
+
+export function closeAllTabs(store: RendererStore): void {
+  const result = closeAllTabsInPanes(store.getState().panes);
+  store.update((current) => ({ ...current, panes: result.panes }));
+  if (result.nextActiveNoteId !== undefined) {
+    activateNote(store, result.nextActiveNoteId);
+  }
+}
+
+export function togglePinTab(store: RendererStore, noteId: string): void {
+  store.update((current) => ({
+    ...current,
+    panes: togglePinTabInPanes(current.panes, noteId),
+  }));
 }
 
 export function cycleTab(store: RendererStore, direction: -1 | 1): void {

@@ -1,6 +1,7 @@
 import {
   DatabaseIcon,
   FileTextIcon,
+  ImageIcon,
   InfoIcon,
   KeyboardIcon,
   SettingsIcon,
@@ -30,6 +31,14 @@ export const SECTIONS = [
     description: "Keyboard bindings",
     searchText: `keys hotkeys remap commands ${SHORTCUT_DEFINITIONS.map((definition) => `${definition.label} ${definition.group}`).join(" ")}`,
     icon: KeyboardIcon,
+  },
+  {
+    id: "media",
+    label: "Media",
+    description: "Images stored in this workspace",
+    searchText:
+      "media library images pictures photos png jpeg gif webp blobs attachments unused delete remove usage notes gallery",
+    icon: ImageIcon,
   },
   {
     id: "data",

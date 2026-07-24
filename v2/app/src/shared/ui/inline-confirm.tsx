@@ -12,6 +12,11 @@ type Props = {
   cancelLabel?: string;
   size?: Size;
   className?: string;
+  /** Controlled arm state; omit to let the component manage it internally. */
+  armed?: boolean;
+  onArmedChange?: (armed: boolean) => void;
+  /** "stacked" puts a long message on its own line above the buttons. */
+  messagePlacement?: "inline" | "stacked";
 };
 
 const sizeStyles: Record<Size, { container: string; button: string; message: string; gap: string }> =
@@ -38,8 +43,13 @@ export function InlineConfirm({
   cancelLabel = "Cancel",
   size = "md",
   className,
+  armed: armedProp,
+  onArmedChange,
+  messagePlacement = "inline",
 }: Props) {
-  const [armed, setArmed] = useState(false);
+  const [internalArmed, setInternalArmed] = useState(false);
+  const armed = armedProp ?? internalArmed;
+  const setArmed = onArmedChange ?? setInternalArmed;
   const reduceMotion = useReducedMotion();
   const confirmRef = useRef<HTMLButtonElement>(null);
   const styles = sizeStyles[size];
@@ -60,7 +70,12 @@ export function InlineConfirm({
             key="confirm"
             role="group"
             aria-label={confirmLabel}
-            className={cn("flex items-center", styles.gap)}
+            className={cn(
+              "flex",
+              messagePlacement === "stacked"
+                ? "flex-col items-end gap-1.5"
+                : cn("items-center", styles.gap),
+            )}
             initial={{ opacity: 0, x: shift }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: shift }}
@@ -78,31 +93,41 @@ export function InlineConfirm({
             }}
           >
             {message ? (
-              <span className={cn("mr-[2px] font-[560] text-muted-foreground", styles.message)}>
+              <span
+                className={cn(
+                  "font-[560] text-muted-foreground",
+                  messagePlacement === "stacked"
+                    ? "max-w-[280px] text-right leading-[1.35]"
+                    : "mr-[2px]",
+                  styles.message,
+                )}
+              >
                 {message}
               </span>
             ) : null}
-            <button
-              type="button"
-              className={cn(
-                "inline-flex items-center rounded-[var(--radius-md)] border border-border bg-transparent font-[560] text-foreground/80 transition-colors hover:bg-muted hover:text-foreground",
-                styles.button,
-              )}
-              onClick={() => setArmed(false)}
-            >
-              {cancelLabel}
-            </button>
-            <button
-              ref={confirmRef}
-              type="button"
-              className={cn(
-                "inline-flex items-center rounded-[var(--radius-md)] border border-destructive/45 bg-destructive/[0.14] font-[560] text-destructive transition-colors hover:bg-destructive/25",
-                styles.button,
-              )}
-              onClick={onConfirm}
-            >
-              {confirmLabel}
-            </button>
+            <div className={cn("flex items-center", styles.gap)}>
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-[var(--radius-md)] border border-border bg-transparent font-[560] text-foreground/80 transition-colors hover:bg-muted hover:text-foreground",
+                  styles.button,
+                )}
+                onClick={() => setArmed(false)}
+              >
+                {cancelLabel}
+              </button>
+              <button
+                ref={confirmRef}
+                type="button"
+                className={cn(
+                  "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-[var(--radius-md)] border border-destructive/45 bg-destructive/[0.14] font-[560] text-destructive transition-colors hover:bg-destructive/25",
+                  styles.button,
+                )}
+                onClick={onConfirm}
+              >
+                {confirmLabel}
+              </button>
+            </div>
           </motion.div>
         ) : (
           <motion.div

@@ -4,12 +4,16 @@ import type { WorkspaceNode, WorkspaceSnapshot } from "../../src/contracts/works
 import {
   activateTab,
   closeActiveTab,
+  closeAllTabs,
+  closeOtherTabs,
   closeSplit,
   closeTab,
+  closeTabsToSide,
   cycleTab,
   focusPane,
   openBeside,
   openNoteInTab,
+  togglePinTab,
 } from "../../src/actions/panes";
 import { createInitialState, createRendererStore } from "../../src/store/store";
 import { PRIMARY_PANE_ID, SECONDARY_PANE_ID } from "../../src/store/panes";
@@ -176,4 +180,33 @@ test("focusPane is a no-op for an unknown pane id or the already-focused pane", 
   assert.equal(rendererStore.getState(), before);
   focusPane(rendererStore, PRIMARY_PANE_ID);
   assert.equal(rendererStore.getState(), before);
+});
+
+test("togglePinTab marks a tab pinned and excludes it from closeAllTabs", () => {
+  const rendererStore = store();
+  openNoteInTab(rendererStore, "b");
+  togglePinTab(rendererStore, "b");
+  assert.deepEqual(rendererStore.getState().panes[0]?.pinnedNoteIds, ["b"]);
+  closeAllTabs(rendererStore);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["b"]);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+});
+
+test("closeOtherTabs closes every tab except the target and activates it", () => {
+  const rendererStore = store();
+  openNoteInTab(rendererStore, "b");
+  openNoteInTab(rendererStore, "c");
+  closeOtherTabs(rendererStore, "b");
+  const primary = rendererStore.getState().panes[0]!;
+  assert.deepEqual(primary.openNoteIds, ["b"]);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+});
+
+test("closeTabsToSide closes tabs on the given side of the target", () => {
+  const rendererStore = store();
+  openNoteInTab(rendererStore, "b");
+  openNoteInTab(rendererStore, "c");
+  closeTabsToSide(rendererStore, "b", "right");
+  const primary = rendererStore.getState().panes[0]!;
+  assert.deepEqual(primary.openNoteIds, ["a", "b"]);
 });

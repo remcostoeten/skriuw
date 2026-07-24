@@ -10,6 +10,14 @@ import {
 import { SHORTCUT_DEFINITIONS } from "../../shortcuts/definitions";
 import { useRendererSelector } from "../../store/use-renderer-selector";
 import { sameOverrides, selectShortcutOverrides } from "./selectors";
+import {
+  SettingsHeading,
+  settingsGroup,
+  settingsGroupTitle,
+  settingsRow,
+  settingsRowLabel,
+  settingsSection,
+} from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
 
 export function ShortcutsSection({
@@ -20,18 +28,18 @@ export function ShortcutsSection({
   const groups = [...new Set(SHORTCUT_DEFINITIONS.map((definition) => definition.group))];
 
   return (
-    <section aria-label="Keyboard shortcuts">
-      <div className="settings-section-heading">
-        <h1>Shortcuts</h1>
-        <p>Click a shortcut, then press a new key combination. Escape cancels.</p>
-      </div>
+    <section aria-label="Keyboard shortcuts" className={settingsSection}>
+      <SettingsHeading
+        title="Shortcuts"
+        detail="Click a shortcut, then press a new key combination. Escape cancels."
+      />
       {groups.map((group) => (
-        <div key={group} className="settings-group">
-          <div className="settings-group-title">{group}</div>
+        <div key={group} className={settingsGroup}>
+          <div className={settingsGroupTitle}>{group}</div>
           {SHORTCUT_DEFINITIONS.filter((definition) => definition.group === group).map(
             (definition) => (
-              <div key={definition.id} className="settings-row">
-                <span className="settings-row-label">{definition.label}</span>
+              <div key={definition.id} className={settingsRow}>
+                <span className={settingsRowLabel}>{definition.label}</span>
                 <ShortcutRecorder
                   value={effectiveShortcutKeys(definition, overrides)}
                   isDefault={isDefaultBinding(definition, overrides)}

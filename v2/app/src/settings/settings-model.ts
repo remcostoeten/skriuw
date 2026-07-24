@@ -38,6 +38,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   showLineNumbers: true,
   editorPlaceholder: "Start writing...",
   editorDefaultRawMode: false,
+  openNotesInTabs: false,
 };
 
 export type SettingsViewModel = {
@@ -50,6 +51,7 @@ export type SettingsViewModel = {
   editorLineHeight: string;
   editorPlaceholder: string;
   editorDefaultRawMode: boolean;
+  openNotesInTabs: boolean;
 };
 
 export type EditableSettings = SettingsViewModel;
@@ -85,7 +87,12 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     ),
     editorPlaceholder: settings.editorPlaceholder,
     editorDefaultRawMode: settings.editorDefaultRawMode === true,
+    openNotesInTabs: settings.openNotesInTabs === true,
   };
+}
+
+export function opensNotesInTabs(settings: WorkspaceSettings): boolean {
+  return settings.openNotesInTabs === true;
 }
 
 export function changeSetting<K extends keyof EditableSettings>(

@@ -33,13 +33,19 @@ function paintImage(store: RendererStore, binding: ImageBinding): void {
     });
 }
 
-export function createImageNodeViews(store: RendererStore): ImageNodeViews {
+export type ImageContextMenuHandler = (imageId: string, clientX: number, clientY: number) => void;
+
+export function createImageNodeViews(
+  store: RendererStore,
+  onContextMenu?: ImageContextMenuHandler,
+): ImageNodeViews {
   const bindings = new Set<ImageBinding>();
 
   function createImage(node: ProseMirrorNode): NodeView {
     const dom = document.createElement("img");
     dom.className = "note-image";
-    dom.dataset.imageId = String(node.attrs.id);
+    const imageId = String(node.attrs.id);
+    dom.dataset.imageId = imageId;
     dom.alt = String(node.attrs.alt);
     if (node.attrs.width) {
       dom.width = Number(node.attrs.width);
@@ -47,7 +53,13 @@ export function createImageNodeViews(store: RendererStore): ImageNodeViews {
     if (node.attrs.height) {
       dom.height = Number(node.attrs.height);
     }
-    const binding: ImageBinding = { dom, imageId: String(node.attrs.id) };
+    if (onContextMenu) {
+      dom.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        onContextMenu(imageId, event.clientX, event.clientY);
+      });
+    }
+    const binding: ImageBinding = { dom, imageId };
     bindings.add(binding);
     paintImage(store, binding);
     return {

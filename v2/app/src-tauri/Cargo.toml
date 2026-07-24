@@ -27,6 +27,7 @@ skriuw-sqlite = { path = "../../crates/skriuw-sqlite" }
 skriuw-storage = { path = "../../crates/skriuw-storage" }
 tauri = { version = "2.11.5", features = [] }
 tauri-plugin-dialog = "2.4.2"
+tauri-plugin-prevent-default = "5.0.2"
 tauri-plugin-process = "2.3.1"
 tauri-plugin-updater = "2.10.1"
 

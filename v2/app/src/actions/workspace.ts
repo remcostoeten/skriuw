@@ -47,17 +47,28 @@ function reportRejection(action: string) {
   };
 }
 
+function initialNoteDocument(title: string) {
+  return {
+    type: "doc",
+    content: [
+      { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: title }] },
+      { type: "paragraph" },
+    ],
+  };
+}
+
 export function createNote(store: RendererStore, parentId: string | null): void {
   const id = crypto.randomUUID();
   const now = Date.now();
+  const title = "Untitled";
   const operations: WorkspaceOperation[] = [
     {
       type: "create_note",
       id,
-      title: "Untitled",
+      title,
       placement: { parentId, position: { type: "last" } },
-      documentJson: { type: "doc", content: [{ type: "paragraph" }] },
-      markdown: "",
+      documentJson: initialNoteDocument(title),
+      markdown: `# ${title}\n\n`,
       at: now,
     },
     { type: "set_active_note", noteId: id },
@@ -78,8 +89,8 @@ export function createLinkedNote(store: RendererStore, id: string, title: string
       id,
       title,
       placement: { parentId: null, position: { type: "last" } },
-      documentJson: { type: "doc", content: [{ type: "paragraph" }] },
-      markdown: "",
+      documentJson: initialNoteDocument(title),
+      markdown: `# ${title}\n\n`,
       at: Date.now(),
     },
     { type: "set_active_note", noteId: previousActive },

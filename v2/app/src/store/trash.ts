@@ -55,10 +55,9 @@ export function isNodeInSubtree(
   return false;
 }
 
-export function trashedSubtreeNodes(
+function childrenByParent(
   nodes: ReadonlyMap<string, WorkspaceNode>,
-  rootId: string,
-): WorkspaceNode[] {
+): Map<string, WorkspaceNode[]> {
   const children = new Map<string, WorkspaceNode[]>();
   for (const node of nodes.values()) {
     if (node.parentId === null) {
@@ -68,6 +67,14 @@ export function trashedSubtreeNodes(
     siblings.push(node);
     children.set(node.parentId, siblings);
   }
+  return children;
+}
+
+export function trashedSubtreeNodes(
+  nodes: ReadonlyMap<string, WorkspaceNode>,
+  rootId: string,
+): WorkspaceNode[] {
+  const children = childrenByParent(nodes);
   for (const siblings of children.values()) {
     siblings.sort(compareNodes);
   }
@@ -95,15 +102,7 @@ export function trashedSubtreeNodes(
 }
 
 export function trashedRoots(nodes: ReadonlyMap<string, WorkspaceNode>): TrashRoot[] {
-  const children = new Map<string, WorkspaceNode[]>();
-  for (const node of nodes.values()) {
-    if (node.parentId === null) {
-      continue;
-    }
-    const siblings = children.get(node.parentId) ?? [];
-    siblings.push(node);
-    children.set(node.parentId, siblings);
-  }
+  const children = childrenByParent(nodes);
   const roots = new Map<string, TrashRoot>();
   const visited = new Set<string>();
 

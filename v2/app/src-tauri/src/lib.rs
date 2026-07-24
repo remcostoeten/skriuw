@@ -36,8 +36,7 @@ struct AppState {
 
 const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
 const HISTORY_HEADER_PUBLISHED_EVENT: &str = "history-header-published";
-const IMAGE_SWEEP_STARTUP_DELAY: Duration = Duration::from_secs(60);
-const IMAGE_SWEEP_MINIMUM_BLOB_AGE: Duration = Duration::from_secs(3600);
+const MEDIA_SWEEP_MINIMUM_BLOB_AGE: Duration = Duration::from_secs(60);
 
 fn image_blob_path(database_path: &Path) -> PathBuf {
     database_path
@@ -451,29 +450,79 @@ async fn import_markdown_image(
     .map_err(|error| error.to_string())?
 }
 
-fn spawn_startup_image_sweep(
-    maintenance: Arc<MaintenanceCoordinator>,
-    image_store: Arc<ImageStore>,
-) {
-    std::thread::spawn(move || {
-        std::thread::sleep(IMAGE_SWEEP_STARTUP_DELAY);
-        let snapshot = (|| -> Result<WorkspaceSnapshot, String> {
-            let runtime = maintenance.runtime().map_err(|error| error.to_string())?;
-            let completion = runtime.bootstrap().map_err(|error| error.to_string())?;
-            completion.wait().map_err(|error| error.to_string())
-        })();
-        let Ok(snapshot) = snapshot else {
-            return;
-        };
-        let live = snapshot
-            .images
-            .iter()
-            .map(|image| image.content_hash.clone())
-            .collect::<BTreeSet<_>>();
-        if let Err(error) = image_store.sweep_unreferenced(&live, IMAGE_SWEEP_MINIMUM_BLOB_AGE) {
-            eprintln!("image blob sweep failed: {error}");
+fn referenced_blob_hashes(
+    maintenance: &MaintenanceCoordinator,
+) -> Result<BTreeSet<String>, String> {
+    let runtime = maintenance.runtime().map_err(|error| error.to_string())?;
+    let completion = runtime.bootstrap().map_err(|error| error.to_string())?;
+    let snapshot = completion.wait().map_err(|error| error.to_string())?;
+    Ok(snapshot
+        .images
+        .iter()
+        .map(|image| image.content_hash.clone())
+        .collect())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MediaBlobPayload {
+    content_hash: String,
+    mime_type: String,
+    byte_size: u64,
+    modified_at_ms: u64,
+}
+
+#[tauri::command]
+async fn list_media_blobs(state: State<'_, AppState>) -> Result<Vec<MediaBlobPayload>, String> {
+    let image_store = Arc::clone(&state.image_store);
+    tauri::async_runtime::spawn_blocking(move || {
+        let entries = image_store.list().map_err(|error| error.to_string())?;
+        Ok(entries
+            .into_iter()
+            .map(|entry| MediaBlobPayload {
+                content_hash: entry.content_hash,
+                mime_type: entry.mime_type.into(),
+                byte_size: entry.byte_size,
+                modified_at_ms: entry.modified_at_ms,
+            })
+            .collect())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn delete_media_blob(
+    content_hash: String,
+    mime_type: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let maintenance = Arc::clone(&state.maintenance);
+    let image_store = Arc::clone(&state.image_store);
+    tauri::async_runtime::spawn_blocking(move || {
+        if referenced_blob_hashes(&maintenance)?.contains(&content_hash) {
+            return Err("image is still used by a note".into());
         }
-    });
+        image_store
+            .delete(&content_hash, &mime_type)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn sweep_unused_media_blobs(state: State<'_, AppState>) -> Result<usize, String> {
+    let maintenance = Arc::clone(&state.maintenance);
+    let image_store = Arc::clone(&state.image_store);
+    tauri::async_runtime::spawn_blocking(move || {
+        let live = referenced_blob_hashes(&maintenance)?;
+        image_store
+            .sweep_unreferenced(&live, MEDIA_SWEEP_MINIMUM_BLOB_AGE)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[derive(Deserialize)]
@@ -680,7 +729,6 @@ pub fn run() {
             let image_store = Arc::new(
                 ImageStore::open(image_blob_path(&path)).map_err(|error| error.to_string())?,
             );
-            spawn_startup_image_sweep(Arc::clone(&maintenance), Arc::clone(&image_store));
             app.manage(AppState {
                 maintenance,
                 rotation,
@@ -717,7 +765,10 @@ pub fn run() {
             pick_directory,
             store_note_image,
             read_note_image_blob,
-            import_markdown_image
+            import_markdown_image,
+            list_media_blobs,
+            delete_media_blob,
+            sweep_unused_media_blobs
         ])
         .build(tauri::generate_context!())
         .expect("skriuw app must build")

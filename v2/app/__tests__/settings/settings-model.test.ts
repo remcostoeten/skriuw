@@ -32,6 +32,7 @@ test("default settings project every editable field", () => {
     editorLineHeight: "comfortable",
     editorPlaceholder: "Start writing...",
     editorDefaultRawMode: false,
+    openNotesInTabs: false,
   });
 });
 

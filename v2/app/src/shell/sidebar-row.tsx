@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { activateNote, renameNode } from "../actions/workspace";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import { FolderIcon, FolderOpenIcon } from "../shared/icons";
@@ -25,6 +25,28 @@ function rowIndentStyle(depth: number, metrics: TreeMetrics): CSSProperties {
     "--tree-base": `${metrics.basePadding}px`,
     "--tree-step": `${metrics.depthIndent}px`,
   } as CSSProperties;
+}
+
+type RowLabelProps = {
+  isFolder: boolean;
+  isExpanded: boolean;
+  isNarrow: boolean;
+  grow?: boolean;
+  children: ReactNode;
+};
+
+function RowLabel({ isFolder, isExpanded, isNarrow, grow = false, children }: RowLabelProps) {
+  const Icon = isExpanded ? FolderOpenIcon : FolderIcon;
+  return (
+    <span
+      className={`flex min-w-0 items-center${grow ? " flex-1" : ""} ${isNarrow ? "gap-1" : "gap-1.5"}`}
+    >
+      {isFolder && (
+        <Icon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
+      )}
+      <span className="flex h-[18px] min-w-0 flex-1 items-center">{children}</span>
+    </span>
+  );
 }
 
 type RowProps = {
@@ -99,19 +121,9 @@ export const SidebarRow = memo(function SidebarRow({
           className={`relative flex h-[34px] w-full items-center overflow-hidden border border-border bg-muted text-left text-xs font-medium text-foreground${isFolder ? " justify-between" : ""}`}
           style={rowIndentStyle(rowDepth, metrics)}
         >
-          <span
-            className={`flex min-w-0 flex-1 items-center ${metrics.isNarrow ? "gap-1" : "gap-1.5"}`}
-          >
-            {isFolder &&
-              (isExpanded ? (
-                <FolderOpenIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
-              ) : (
-                <FolderIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
-              ))}
-            <span className="flex h-[18px] min-w-0 flex-1 items-center">
-              <RenameInput store={store} id={id} initialTitle={node.title} />
-            </span>
-          </span>
+          <RowLabel isFolder={isFolder} isExpanded={isExpanded} isNarrow={metrics.isNarrow} grow>
+            <RenameInput store={store} id={id} initialTitle={node.title} />
+          </RowLabel>
         </div>
       ) : (
         <button
@@ -154,19 +166,9 @@ export const SidebarRow = memo(function SidebarRow({
             }
           }}
         >
-          <span
-            className={`flex min-w-0 items-center ${metrics.isNarrow ? "gap-1" : "gap-1.5"}`}
-          >
-            {isFolder &&
-              (isExpanded ? (
-                <FolderOpenIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
-              ) : (
-                <FolderIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
-              ))}
-            <span className="flex h-[18px] min-w-0 flex-1 items-center">
-              <span className="select-none truncate text-left">{node.title}</span>
-            </span>
-          </span>
+          <RowLabel isFolder={isFolder} isExpanded={isExpanded} isNarrow={metrics.isNarrow}>
+            <span className="select-none truncate text-left">{node.title}</span>
+          </RowLabel>
           {isFolder && !metrics.isVeryNarrow && (
             <span className="ml-1.5 w-4 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground/50">
               {node.descendantCount}

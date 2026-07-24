@@ -13,16 +13,21 @@ import {
   buildRenameReferenceOperation,
   projectBacklinks,
   projectNoteReferenceDetails,
+  projectOutgoingNotes,
   projectReferencingNotes,
+  projectUnlinkedMentions,
   referenceColorSwatches,
   referenceDetailsEqual,
+  unlinkedMentionsEqual,
   type BacklinkEntry,
   type ReferenceDetailEntry,
+  type UnlinkedMentionEntry,
 } from "./reference-panel-model";
 import type { ReferenceOperation } from "./types";
 
 const noEntries: BacklinkEntry[] = [];
 const noDetails: ReferenceDetailEntry[] = [];
+const noMentions: UnlinkedMentionEntry[] = [];
 
 export function useBacklinks(
   store: RendererStore,
@@ -30,6 +35,17 @@ export function useBacklinks(
 ): readonly BacklinkEntry[] {
   const selector = useCallback(
     (state: RendererState) => (noteId === null ? noEntries : projectBacklinks(state, noteId)),
+    [noteId],
+  );
+  return useRendererSelector(store, selector, backlinksEqual);
+}
+
+export function useOutgoingNotes(
+  store: RendererStore,
+  noteId: string | null,
+): readonly BacklinkEntry[] {
+  const selector = useCallback(
+    (state: RendererState) => (noteId === null ? noEntries : projectOutgoingNotes(state, noteId)),
     [noteId],
   );
   return useRendererSelector(store, selector, backlinksEqual);
@@ -45,6 +61,18 @@ export function useNoteReferenceDetails(
     [noteId],
   );
   return useRendererSelector(store, selector, referenceDetailsEqual);
+}
+
+export function useUnlinkedMentions(
+  store: RendererStore,
+  noteId: string | null,
+): readonly UnlinkedMentionEntry[] {
+  const selector = useCallback(
+    (state: RendererState) =>
+      noteId === null ? noMentions : projectUnlinkedMentions(state, noteId),
+    [noteId],
+  );
+  return useRendererSelector(store, selector, unlinkedMentionsEqual);
 }
 
 type NoteListProps = {
@@ -86,6 +114,43 @@ export function BacklinksList({ store, entries }: BacklinksListProps) {
       emptyLabel="No notes mention this note."
       onOpenNote={(id) => activateNote(store, id)}
     />
+  );
+}
+
+export function OutgoingNotesList({ store, entries }: BacklinksListProps) {
+  return (
+    <NoteList
+      entries={entries}
+      emptyLabel="This note doesn't link to any other notes."
+      onOpenNote={(id) => activateNote(store, id)}
+    />
+  );
+}
+
+type UnlinkedMentionsListProps = {
+  store: RendererStore;
+  entries: readonly UnlinkedMentionEntry[];
+};
+
+export function UnlinkedMentionsList({ store, entries }: UnlinkedMentionsListProps) {
+  if (entries.length === 0) {
+    return <p className="m-0 text-[13px] text-muted-foreground">No unlinked mentions found.</p>;
+  }
+  return (
+    <ul className="m-0 list-none space-y-1 p-0">
+      {entries.map((entry) => (
+        <li key={entry.noteId}>
+          <button
+            type="button"
+            className="flex w-full cursor-pointer items-baseline justify-between gap-3 truncate rounded px-2 py-1 text-left text-[13px] text-foreground/80 transition-colors hover:bg-muted/50"
+            onClick={() => activateNote(store, entry.noteId)}
+          >
+            <span className="truncate">{entry.title}</span>
+            <span className="shrink-0 tabular-nums text-muted-foreground/60">{entry.count}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
