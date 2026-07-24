@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Waypoints } from "lucide-react";
+import { Maximize, Minus, Plus, Waypoints } from "lucide-react";
 import { useAuth } from "@/core/auth/use-auth";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { recordGuestGraphExplore } from "@/core/workspace-backend";
@@ -60,6 +60,19 @@ type SimulationNode = GraphNode & { x?: number; y?: number; vx?: number; vy?: nu
 
 /** Nodes below this cluster size get no island anchor or hull — mostly orphans. */
 const ISLAND_MIN_SIZE = 3;
+
+/** Zoom bounds shared by the ForceGraph2D instance and the manual zoom buttons. */
+const MIN_ZOOM = 0.05;
+const MAX_ZOOM = 12;
+const ZOOM_STEP = 1.5;
+
+/**
+ * On mobile the node-type filter bar sits at the bottom of the canvas, so the
+ * zoom controls have to clear it: its 44px hit target plus the 1.5 units of
+ * padding on its wrapper (3.5rem), plus the wrapper's own 0.75rem bottom inset
+ * and a 0.5rem gap.
+ */
+const MOBILE_FILTER_BAR_CLEARANCE = "4.75rem";
 
 /**
  * Assigns each sufficiently large cluster an anchor point on a golden-angle
@@ -468,6 +481,19 @@ function GraphCanvas({
 		[getNodeColor, isMobile],
 	);
 
+	const zoomBy = useCallback((factor: number) => {
+		const graph = graphRef.current;
+		if (!graph) return;
+		const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, graph.zoom() * factor));
+		graph.zoom(next, 250);
+	}, []);
+
+	const zoomIn = useCallback(() => zoomBy(ZOOM_STEP), [zoomBy]);
+	const zoomOut = useCallback(() => zoomBy(1 / ZOOM_STEP), [zoomBy]);
+	const fitView = useCallback(() => {
+		graphRef.current?.zoomToFit(500, isMobile ? 32 : 80);
+	}, [isMobile]);
+
 	return (
 		<div
 			ref={containerRef}
@@ -477,6 +503,12 @@ function GraphCanvas({
 				overscrollBehavior: "none",
 			}}
 		>
+			<GraphZoomControls
+				onZoomIn={zoomIn}
+				onZoomOut={zoomOut}
+				onFit={fitView}
+				isMobile={isMobile}
+			/>
 			{size.width > 0 && (
 				<ForceGraph2D
 					ref={graphRef}
@@ -484,6 +516,10 @@ function GraphCanvas({
 					height={size.height}
 					graphData={graphData}
 					backgroundColor="transparent"
+					enableZoomInteraction
+					enablePanInteraction
+					minZoom={MIN_ZOOM}
+					maxZoom={MAX_ZOOM}
 					nodeRelSize={1}
 					nodeVal={nodeValAccessor}
 					nodeColor={nodeColorAccessor}
@@ -504,6 +540,47 @@ function GraphCanvas({
 					nodeCanvasObject={drawNode}
 				/>
 			)}
+		</div>
+	);
+}
+
+function GraphZoomControls({
+	onZoomIn,
+	onZoomOut,
+	onFit,
+	isMobile,
+}: {
+	onZoomIn: () => void;
+	onZoomOut: () => void;
+	onFit: () => void;
+	isMobile: boolean;
+}) {
+	const buttonClass = `flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground ${
+		isMobile ? "h-11 w-11" : "h-8 w-8"
+	}`;
+	return (
+		<div
+			className="absolute right-3 z-10 flex flex-col divide-y divide-border/60 overflow-hidden rounded-md border border-border bg-card/90 backdrop-blur"
+			style={{
+				bottom: isMobile
+					? `calc(env(safe-area-inset-bottom) + ${MOBILE_FILTER_BAR_CLEARANCE})`
+					: "1rem",
+			}}
+		>
+			<button type="button" aria-label="Zoom in" onClick={onZoomIn} className={buttonClass}>
+				<Plus className="h-4 w-4" strokeWidth={1.7} />
+			</button>
+			<button type="button" aria-label="Zoom out" onClick={onZoomOut} className={buttonClass}>
+				<Minus className="h-4 w-4" strokeWidth={1.7} />
+			</button>
+			<button
+				type="button"
+				aria-label="Fit graph to view"
+				onClick={onFit}
+				className={buttonClass}
+			>
+				<Maximize className="h-4 w-4" strokeWidth={1.7} />
+			</button>
 		</div>
 	);
 }
