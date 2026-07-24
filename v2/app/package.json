@@ -10,6 +10,7 @@
     "test": "tsx scripts/test-verdict.ts",
     "typecheck": "tsc --noEmit",
     "tauri": "../scripts/tauri.sh",
+    "tauri:cli": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "../scripts/build.sh desktop",
     "tauri:build:raw": "NO_STRIP=1 tauri build"

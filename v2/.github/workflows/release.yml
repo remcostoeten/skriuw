@@ -69,8 +69,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          NO_STRIP: 1
         with:
           projectPath: './app'
+          # the default `pnpm tauri` script routes through the bash verification
+          # wrapper, which breaks on Windows and re-runs the suite CI already ran
+          tauriScript: 'pnpm tauri:cli'
           tagName: ${{ github.ref_name }}
           releaseName: 'Skriuw ${{ github.ref_name }}'
           generateReleaseNotes: true
