@@ -1,15 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   cancelWorkspaceMaintenance,
   createWorkspaceBackup,
   exportWorkspaceArchive,
   importWorkspaceArchive,
   listWorkspaceRecovery,
+  pickDirectory,
+  relocateWorkspaceStorage,
   restoreWorkspaceBackup,
+  revealWorkspaceImages,
   revealWorkspaceStorage,
   workspaceStoragePath,
 } from "../../bridge/commands";
 import { FolderOpenIcon } from "../../shared/icons";
+import { resolveImageBlobUrl } from "../../shared/lib/image-blob-url";
+import {
+  describeImageUsage,
+  imageFormatLabel,
+  projectImageInventory,
+} from "../../settings/image-inventory-model";
+import type { ImageInventoryEntry } from "../../settings/image-inventory-model";
+import type { RendererState } from "../../store/types";
+import { useRendererSelector } from "../../store/use-renderer-selector";
 import { Dialog } from "../../shared/ui/dialog";
 import {
   IDLE_MAINTENANCE,
@@ -49,7 +61,16 @@ const RUNNING_LABELS: Record<MaintenanceKind, string> = {
   import: "Importing archive…",
   backup: "Backing up…",
   restore: "Restoring backup…",
+  relocate: "Moving workspace…",
 };
+
+function selectImages(state: RendererState) {
+  return state.images;
+}
+
+function selectNodes(state: RendererState) {
+  return state.nodes;
+}
 
 export function DataSection({ store }: SectionProps) {
   const [storagePath, setStoragePath] = useState<string | null>(null);
@@ -159,6 +180,12 @@ export function DataSection({ store }: SectionProps) {
         });
       return;
     }
+    if (confirmation.kind === "relocate") {
+      relocateWorkspaceStorage(confirmation.targetDir).catch((error) => {
+        finish((current) => failOperation(current, String(error)));
+      });
+      return;
+    }
     restoreWorkspaceBackup(confirmation.artifactFileName)
       .then((report) => {
         const outcome = describeSwapReport(report);
@@ -172,6 +199,25 @@ export function DataSection({ store }: SectionProps) {
       })
       .catch((error) => {
         finish((current) => failOperation(current, String(error)));
+      });
+  }
+
+  function chooseStorageLocation(): void {
+    pickDirectory("Choose a new storage folder")
+      .then((picked) => {
+        if (!picked) {
+          return;
+        }
+        const next = requestConfirmation(phase, {
+          kind: "relocate",
+          targetDir: picked,
+        });
+        if (next) {
+          setPhase(next);
+        }
+      })
+      .catch((error) => {
+        console.error("storage folder pick rejected", error);
       });
   }
 
@@ -211,6 +257,48 @@ export function DataSection({ store }: SectionProps) {
             Show in file manager
           </button>
         </div>
+        <div className="settings-row">
+          <span className="settings-row-label">
+            Move workspace
+            <span className="settings-row-description">
+              Copies the database, images, history, and backups to a new folder, then
+              restarts the app using it.
+            </span>
+          </span>
+          <button
+            type="button"
+            className="settings-button"
+            disabled={busy}
+            onClick={chooseStorageLocation}
+          >
+            Change location…
+          </button>
+        </div>
+      </div>
+      <div className="settings-group">
+        <div className="settings-group-title">Images</div>
+        <div className="settings-row">
+          <span className="settings-row-label">
+            Stored images
+            <span className="settings-row-description">
+              Images pasted into notes, stored once per unique file in the blobs folder
+              next to the database.
+            </span>
+          </span>
+          <button
+            type="button"
+            className="settings-button"
+            onClick={() => {
+              revealWorkspaceImages().catch((error) => {
+                console.error("reveal images rejected", error);
+              });
+            }}
+          >
+            <FolderOpenIcon size={15} />
+            Show in file manager
+          </button>
+        </div>
+        <ImageInventory store={store} />
       </div>
       <div className="settings-group">
         <div className="settings-group-title">Portable archive</div>
@@ -338,6 +426,55 @@ export function DataSection({ store }: SectionProps) {
       )}
     </section>
   );
+}
+
+function ImageInventory({ store }: SectionProps) {
+  const images = useRendererSelector(store, selectImages);
+  const nodes = useRendererSelector(store, selectNodes);
+  const entries = useMemo(() => projectImageInventory(images, nodes), [images, nodes]);
+  if (entries.length === 0) {
+    return (
+      <p className="settings-row-detail" role="status">
+        No images stored yet. Paste or drop an image into a note to see it here.
+      </p>
+    );
+  }
+  return (
+    <ul className="settings-backup-list" aria-label="Stored images">
+      {entries.map((entry) => (
+        <li key={entry.contentHash} className="settings-backup-item settings-image-item">
+          <ImageThumbnail entry={entry} />
+          <span className="settings-row-label">
+            {imageFormatLabel(entry.mimeType)} · {formatSizeBytes(entry.byteSize)}
+            <span className="settings-row-detail">{describeImageUsage(entry)}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ImageThumbnail({ entry }: { entry: ImageInventoryEntry }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    resolveImageBlobUrl(entry.contentHash, entry.mimeType)
+      .then((resolved) => {
+        if (!cancelled) {
+          setUrl(resolved);
+        }
+      })
+      .catch(() => {
+        noop();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [entry.contentHash, entry.mimeType]);
+  if (!url) {
+    return <span className="settings-image-thumb" aria-hidden="true" />;
+  }
+  return <img className="settings-image-thumb" src={url} alt="" />;
 }
 
 type BackupInventoryProps = {

@@ -367,6 +367,7 @@ impl WorkspaceMaintenance for SqliteWorkspace {
                  DELETE FROM documents_fts;\
                  DELETE FROM documents;\
                  DELETE FROM document_references;\
+                 DELETE FROM note_images;\
                  DELETE FROM workspace_tags;\
                  DELETE FROM workspace_people;\
                  DELETE FROM workspace_nodes;\

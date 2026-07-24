@@ -196,6 +196,12 @@ pub struct RecoveryInventoryReport {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct RelocationReport {
+    pub copied_files: usize,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DatabaseSwapReport {
     pub status: &'static str,
     pub snapshot: WorkspaceSnapshot,
@@ -575,6 +581,78 @@ impl MaintenanceCoordinator {
         }
     }
 
+    /// Copies the workspace database plus the `blobs`, `history`, and
+    /// `recovery` sidecar directories into `target_directory`, then runs
+    /// `finalize` (the caller persists the new location there). On success the
+    /// workspace is left stopped: the caller must restart the process so every
+    /// component reopens at the new location. On any failure the original
+    /// workspace is reopened and nothing is switched over.
+    pub fn relocate_to(
+        &self,
+        target_directory: &Path,
+        finalize: impl FnOnce() -> Result<(), String>,
+    ) -> Result<RelocationReport, Diagnostic> {
+        let _operation = self.begin("relocate")?;
+        let database_name = database_file_name(&self.database_path)?;
+        fs::create_dir_all(target_directory)
+            .map_err(|_| relocation_error("target directory could not be created"))?;
+        let source_directory = self.database_path.parent().unwrap_or(Path::new("."));
+        if let (Ok(source), Ok(target)) = (
+            fs::canonicalize(source_directory),
+            fs::canonicalize(target_directory),
+        ) && source == target
+        {
+            return Err(Diagnostic::new(
+                DiagnosticContext::Recovery,
+                DiagnosticCategory::InvalidInput,
+                "target directory is already the storage location",
+            ));
+        }
+        let target_database = target_directory.join(&database_name);
+        if fs::symlink_metadata(&target_database).is_ok() {
+            return Err(Diagnostic::new(
+                DiagnosticContext::Recovery,
+                DiagnosticCategory::AlreadyExists,
+                "target directory already contains a workspace database",
+            ));
+        }
+        self.check_cancelled()?;
+
+        self.stop_active_workspace()?;
+        let result = self.copy_workspace_into(target_directory, &target_database, finalize);
+        if result.is_err() {
+            self.reopen_workspace_after_failure();
+        }
+        result
+    }
+
+    fn copy_workspace_into(
+        &self,
+        target_directory: &Path,
+        target_database: &Path,
+        finalize: impl FnOnce() -> Result<(), String>,
+    ) -> Result<RelocationReport, Diagnostic> {
+        let storage = SqliteWorkspace::open(&self.database_path).map_err(recovery_error)?;
+        storage
+            .backup_to(target_database)
+            .map_err(|error| error.diagnostic(DiagnosticContext::Backup))?;
+        drop(storage);
+        let mut copied_files = 1;
+        let source_directory = self.database_path.parent().unwrap_or(Path::new("."));
+        for sidecar in ["blobs", "history", "recovery"] {
+            let source = source_directory.join(sidecar);
+            if source.is_dir() {
+                copied_files += copy_directory(&source, &target_directory.join(sidecar))?;
+            }
+        }
+        if let Err(cancelled) = self.check_cancelled() {
+            let _ = fs::remove_file(target_database);
+            return Err(cancelled);
+        }
+        finalize().map_err(|_| relocation_error("new storage location could not be recorded"))?;
+        Ok(RelocationReport { copied_files })
+    }
+
     fn begin(&self, label: &'static str) -> Result<OperationGuard<'_>, Diagnostic> {
         let mut operation = self
             .operation
@@ -653,6 +731,37 @@ impl MaintenanceCoordinator {
             eprintln!("workspace reopen after maintenance failure failed: {error}");
         }
     }
+}
+
+fn copy_directory(source: &Path, target: &Path) -> Result<usize, Diagnostic> {
+    fs::create_dir_all(target)
+        .map_err(|_| relocation_error("workspace files could not be copied"))?;
+    let mut copied = 0;
+    let entries = fs::read_dir(source)
+        .map_err(|_| relocation_error("workspace files could not be copied"))?;
+    for entry in entries {
+        let entry = entry.map_err(|_| relocation_error("workspace files could not be copied"))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|_| relocation_error("workspace files could not be copied"))?;
+        let destination = target.join(entry.file_name());
+        if file_type.is_dir() {
+            copied += copy_directory(&entry.path(), &destination)?;
+        } else if file_type.is_file() {
+            fs::copy(entry.path(), &destination)
+                .map_err(|_| relocation_error("workspace files could not be copied"))?;
+            copied += 1;
+        }
+    }
+    Ok(copied)
+}
+
+fn relocation_error(message: &str) -> Diagnostic {
+    Diagnostic::new(
+        DiagnosticContext::Recovery,
+        DiagnosticCategory::Backend,
+        message,
+    )
 }
 
 fn database_file_name(path: &Path) -> Result<String, Diagnostic> {
@@ -1114,6 +1223,81 @@ mod tests {
         assert_eq!(unknown.category, DiagnosticCategory::InvalidInput);
         fixture.assert_no_leaked_paths(&unknown.to_string());
         assert_eq!(fixture.note_ids(), ["original-note"]);
+    }
+
+    #[test]
+    fn relocate_copies_workspace_sidecars_and_records_new_location() {
+        let fixture = fixture();
+        fs::create_dir_all(fixture.directory.path().join("blobs")).expect("create blobs");
+        fs::write(fixture.directory.path().join("blobs/blob.png"), b"blob").expect("write blob");
+        fixture
+            .coordinator
+            .rotate_backups(true)
+            .expect("create backup");
+        let target = fixture.directory.path().join("moved");
+        let recorded = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = Arc::clone(&recorded);
+
+        let report = fixture
+            .coordinator
+            .relocate_to(&target, move || {
+                flag.store(true, Ordering::Relaxed);
+                Ok(())
+            })
+            .expect("relocate workspace");
+
+        assert!(recorded.load(Ordering::Relaxed));
+        assert!(report.copied_files >= 3);
+        let moved = SqliteWorkspace::verify_database_file(target.join("workspace.db"))
+            .expect("verify moved database");
+        assert_eq!(moved.nodes[0].id, "original-note");
+        assert_eq!(
+            fs::read(target.join("blobs/blob.png")).expect("read blob copy"),
+            b"blob"
+        );
+        assert!(target.join("recovery").is_dir());
+        assert!(fixture.database_path().exists(), "original must be kept");
+    }
+
+    #[test]
+    fn relocate_rejects_current_location_and_occupied_targets() {
+        let fixture = fixture();
+
+        let same = fixture
+            .coordinator
+            .relocate_to(fixture.directory.path(), || Ok(()))
+            .expect_err("current location must be rejected");
+        assert_eq!(same.category, DiagnosticCategory::InvalidInput);
+        fixture.assert_no_leaked_paths(&same.to_string());
+
+        let occupied = fixture.directory.path().join("occupied");
+        fs::create_dir_all(&occupied).expect("create occupied");
+        fs::write(occupied.join("workspace.db"), b"existing").expect("write existing");
+        let error = fixture
+            .coordinator
+            .relocate_to(&occupied, || Ok(()))
+            .expect_err("occupied target must be rejected");
+        assert_eq!(error.category, DiagnosticCategory::AlreadyExists);
+        fixture.assert_no_leaked_paths(&error.to_string());
+
+        assert_eq!(fixture.note_ids(), ["original-note"]);
+    }
+
+    #[test]
+    fn failed_relocation_finalize_reopens_original_workspace() {
+        let fixture = fixture();
+        let target = fixture.directory.path().join("moved");
+
+        let error = fixture
+            .coordinator
+            .relocate_to(&target, || Err("pointer write failed".into()))
+            .expect_err("finalize failure must fail relocation");
+
+        assert_eq!(error.category, DiagnosticCategory::Backend);
+        fixture.assert_no_leaked_paths(&error.to_string());
+        assert_eq!(fixture.note_ids(), ["original-note"]);
+        fixture.apply(create_note("post-relocate-note"));
+        assert_eq!(fixture.note_ids().len(), 2);
     }
 
     #[test]

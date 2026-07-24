@@ -95,6 +95,53 @@
         }
       ]
     },
+    "WorkspaceImage": {
+      "type": "object",
+      "properties": {
+        "byteSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "contentHash": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "height": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "width": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "noteId",
+        "contentHash",
+        "mimeType",
+        "byteSize",
+        "createdAt"
+      ]
+    },
     "WorkspaceOperation": {
       "oneOf": [
         {
@@ -520,6 +567,22 @@
           "required": [
             "type",
             "settings"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "image": {
+              "$ref": "#/$defs/WorkspaceImage"
+            },
+            "type": {
+              "type": "string",
+              "const": "attach_image"
+            }
+          },
+          "required": [
+            "type",
+            "image"
           ]
         }
       ]

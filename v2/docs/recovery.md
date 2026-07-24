@@ -48,3 +48,9 @@ On success, retain the rollback until the replacement has been exercised and acc
 - An unrecognized or malformed newest manifest stops rotation instead of guessing.
 - A changed pending artifact is retained and reported as an error.
 - Live swap rejects distinct-directory paths, existing rollback targets, non-regular files, active SQLite sidecars after shutdown, and invalid candidates.
+
+## Image blobs
+
+Note images live as content-addressed files in a `blobs/` directory next to the database. Scheduled backups and verified live swap cover the SQLite file only — **image blobs are currently excluded from backup and restore**. A restore therefore keeps whatever `blobs/` directory is on disk; because blob files are immutable and content-addressed, a restored database's `note_images` rows keep resolving as long as the directory itself was not deleted. Extending the verified-swap machinery to pair the blob directory with the database is tracked as follow-up work in [specs/note-images.md](specs/note-images.md).
+
+To move a workspace, prefer Settings → Data → Move workspace over a hand copy: it quiesces the runtime, copies the database via the consistent backup path together with the `blobs/`, `history/`, and `recovery/` directories, records the new location, and restarts the app. The previous folder is left untouched as a fallback and can be reactivated by clearing the `storage-location` pointer file in the app data directory. The `SKRIUW_DB` environment variable overrides the pointer and disables relocation.

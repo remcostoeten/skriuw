@@ -1,11 +1,14 @@
-import type { WorkspaceOperation } from "../contracts/workspace";
+import type { WorkspaceImage, WorkspaceOperation } from "../contracts/workspace";
 import { parseProductMarkdown, serializeProductMarkdown } from "../editor/schema";
+import { noop } from "../shared/lib/noop";
 import type { RendererState } from "../store/types";
 
 export type MarkdownExportEntry = {
   relativePath: string;
-  kind: "folder" | "note";
+  kind: "folder" | "note" | "image";
   markdown: string | null;
+  contentHash?: string;
+  mimeType?: string;
 };
 
 export type MarkdownTreeFile = {
@@ -21,11 +24,104 @@ export type MarkdownTree = {
 
 export type MarkdownImportPlan = {
   operations: WorkspaceOperation[];
+  notes: { id: string; relativePath: string }[];
   noteCount: number;
   folderCount: number;
 };
 
-type ExportSource = Pick<RendererState, "nodes" | "childrenByParent" | "documents">;
+type ExportSource = Pick<
+  RendererState,
+  "nodes" | "childrenByParent" | "documents" | "images"
+>;
+
+/** Must stay in sync with `extension_for` in `crates/skriuw-images/src/lib.rs`. */
+export function imageFileExtension(mimeType: string): string {
+  switch (mimeType) {
+    case "image/png":
+      return "png";
+    case "image/jpeg":
+      return "jpg";
+    case "image/gif":
+      return "gif";
+    case "image/webp":
+      return "webp";
+    default:
+      return "img";
+  }
+}
+
+export function collectImageRefIds(documentJson: unknown): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  function visit(value: unknown): void {
+    if (typeof value !== "object" || value === null) {
+      return;
+    }
+    const node = value as { type?: unknown; attrs?: { id?: unknown }; content?: unknown };
+    if (node.type === "image_ref" && typeof node.attrs?.id === "string" && !seen.has(node.attrs.id)) {
+      seen.add(node.attrs.id);
+      ids.push(node.attrs.id);
+    }
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) {
+        visit(child);
+      }
+    }
+  }
+  visit(documentJson);
+  return ids;
+}
+
+function exportImageFileName(image: WorkspaceImage): string {
+  return `${image.id}.${imageFileExtension(image.mimeType)}`;
+}
+
+/**
+ * Canonical markdown references images as `images/<id>`; exported files carry
+ * a real extension, so the exported markdown gets the extension appended.
+ */
+export function rewriteExportedImagePaths(
+  markdown: string,
+  images: ExportSource["images"],
+  imageIds: readonly string[],
+): string {
+  let rewritten = markdown;
+  for (const id of imageIds) {
+    const image = images.get(id);
+    if (image) {
+      rewritten = rewritten.replaceAll(`(images/${id})`, `(images/${exportImageFileName(image)})`);
+    }
+  }
+  return rewritten;
+}
+
+export function buildImageExportEntries(
+  images: ExportSource["images"],
+  imageIds: readonly string[],
+  prefix: string,
+  taken: Set<string>,
+): MarkdownExportEntry[] {
+  const entries: MarkdownExportEntry[] = [];
+  for (const id of imageIds) {
+    const image = images.get(id);
+    if (!image) {
+      continue;
+    }
+    const relativePath = `${prefix}images/${exportImageFileName(image)}`;
+    if (taken.has(relativePath)) {
+      continue;
+    }
+    taken.add(relativePath);
+    entries.push({
+      relativePath,
+      kind: "image",
+      markdown: null,
+      contentHash: image.contentHash,
+      mimeType: image.mimeType,
+    });
+  }
+  return entries;
+}
 
 const FORBIDDEN_FILE_CHARS = /[/\\:*?"<>|]/g;
 
@@ -59,6 +155,7 @@ export function buildNoteExportEntry(title: string, markdown: string): MarkdownE
 
 export function buildWorkspaceExportEntries(source: ExportSource): MarkdownExportEntry[] {
   const entries: MarkdownExportEntry[] = [];
+  const takenImagePaths = new Set<string>();
   function walk(parentId: string | null, prefix: string): void {
     const taken = new Set<string>();
     for (const id of source.childrenByParent.get(parentId) ?? []) {
@@ -73,11 +170,16 @@ export function buildWorkspaceExportEntries(source: ExportSource): MarkdownExpor
         walk(id, `${prefix}${name}/`);
       } else {
         const name = claimUniqueName(taken, base, ".md");
+        const record = source.documents.get(id);
+        const imageIds = collectImageRefIds(record?.documentJson);
         entries.push({
           relativePath: `${prefix}${name}`,
           kind: "note",
-          markdown: source.documents.get(id)?.markdown ?? "",
+          markdown: rewriteExportedImagePaths(record?.markdown ?? "", source.images, imageIds),
         });
+        entries.push(
+          ...buildImageExportEntries(source.images, imageIds, prefix, takenImagePaths),
+        );
       }
     }
   }
@@ -143,15 +245,18 @@ export function planMarkdownImport(
   const files = [...tree.files].sort((left, right) =>
     comparePaths(normalizeTreePath(left.relativePath), normalizeTreePath(right.relativePath)),
   );
+  const notes: MarkdownImportPlan["notes"] = [];
   for (const file of files) {
     const normalized = normalizeTreePath(file.relativePath);
     const cut = normalized.lastIndexOf("/");
     const parentId = cut === -1 ? null : (folderIdByPath.get(normalized.slice(0, cut)) ?? null);
     const fileName = cut === -1 ? normalized : normalized.slice(cut + 1);
     const document = parseProductMarkdown(file.content);
+    const id = makeId();
+    notes.push({ id, relativePath: normalized });
     operations.push({
       type: "create_note",
-      id: makeId(),
+      id,
       title: fileName.replace(/\.md$/i, ""),
       placement: { parentId, position: { type: "last" } },
       documentJson: document.toJSON(),
@@ -161,7 +266,97 @@ export function planMarkdownImport(
   }
   return {
     operations,
+    notes,
     noteCount: files.length,
     folderCount: directoryPaths.length,
   };
+}
+
+function hasUriScheme(src: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith("/") || src.startsWith("#");
+}
+
+/**
+ * Collects the distinct relative `src` values of plain markdown `image`
+ * nodes, which is what `![alt](path)` parses into before the import turns
+ * local files into stored `image_ref` blobs.
+ */
+export function collectLocalImageSources(documentJson: unknown): string[] {
+  const sources: string[] = [];
+  const seen = new Set<string>();
+  function visit(value: unknown): void {
+    if (typeof value !== "object" || value === null) {
+      return;
+    }
+    const node = value as { type?: unknown; attrs?: { src?: unknown }; content?: unknown };
+    if (
+      node.type === "image" &&
+      typeof node.attrs?.src === "string" &&
+      node.attrs.src.length > 0 &&
+      !hasUriScheme(node.attrs.src) &&
+      !seen.has(node.attrs.src)
+    ) {
+      seen.add(node.attrs.src);
+      sources.push(node.attrs.src);
+    }
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) {
+        visit(child);
+      }
+    }
+  }
+  visit(documentJson);
+  return sources;
+}
+
+export function resolveImportedImagePath(noteRelativePath: string, src: string): string {
+  let decoded = src;
+  try {
+    decoded = decodeURIComponent(src);
+  } catch {
+    noop();
+  }
+  const cleaned = normalizeTreePath(decoded.replace(/^\.\//, ""));
+  const cut = noteRelativePath.lastIndexOf("/");
+  const directory = cut === -1 ? "" : noteRelativePath.slice(0, cut + 1);
+  return `${directory}${cleaned}`;
+}
+
+export function replaceLocalImages(
+  documentJson: unknown,
+  imageIdBySource: ReadonlyMap<string, string>,
+): unknown {
+  function visit(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map(visit);
+    }
+    if (typeof value !== "object" || value === null) {
+      return value;
+    }
+    const node = value as {
+      type?: unknown;
+      attrs?: { src?: unknown; alt?: unknown };
+      content?: unknown;
+    };
+    if (node.type === "image" && typeof node.attrs?.src === "string") {
+      const id = imageIdBySource.get(node.attrs.src);
+      if (id) {
+        return {
+          type: "image_ref",
+          attrs: {
+            id,
+            alt: typeof node.attrs.alt === "string" ? node.attrs.alt : "",
+            width: null,
+            height: null,
+          },
+        };
+      }
+    }
+    const mapped: Record<string, unknown> = { ...node };
+    if (Array.isArray(node.content)) {
+      mapped.content = node.content.map(visit);
+    }
+    return mapped;
+  }
+  return visit(documentJson);
 }

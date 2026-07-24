@@ -273,3 +273,116 @@ test("import creates folders for empty directories and nested files", () => {
   const down = folders.find((operation) => operation.title === "Down");
   assert.equal(note.placement.parentId, down && "id" in down ? down.id : null);
 });
+
+import {
+  collectImageRefIds,
+  collectLocalImageSources,
+  imageFileExtension,
+  replaceLocalImages,
+  resolveImportedImagePath,
+  rewriteExportedImagePaths,
+} from "../../src/export/markdown-transfer-model";
+
+function imageRefDoc(id: string) {
+  return {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "image_ref", attrs: { id, alt: "shot", width: null, height: null } }],
+      },
+    ],
+  };
+}
+
+function workspaceImage(id: string, noteId: string) {
+  return {
+    id,
+    noteId,
+    contentHash: "c".repeat(64),
+    mimeType: "image/png",
+    byteSize: 64,
+    width: 10,
+    height: 10,
+    createdAt: 1,
+  };
+}
+
+test("workspace export emits image entries and extension-qualified paths", () => {
+  const state = createInitialState({
+    ...snapshot(
+      [node({ id: "shots", kind: "note", title: "Shots", rank: 100 })],
+      [
+        {
+          noteId: "shots",
+          documentJson: imageRefDoc("image-1"),
+          markdown: "![shot](images/image-1)",
+          revision: 1,
+          wordCount: 0,
+        },
+      ],
+    ),
+    images: [workspaceImage("image-1", "shots")],
+  });
+
+  const entries = buildWorkspaceExportEntries(state);
+  assert.deepEqual(
+    entries.map((entry) => [entry.relativePath, entry.kind]),
+    [
+      ["Shots.md", "note"],
+      ["images/image-1.png", "image"],
+    ],
+  );
+  assert.equal(entries[0]?.markdown, "![shot](images/image-1.png)");
+  assert.equal(entries[1]?.contentHash, "c".repeat(64));
+});
+
+test("image helpers map mime types, ids, and paths", () => {
+  assert.equal(imageFileExtension("image/jpeg"), "jpg");
+  assert.equal(imageFileExtension("image/x-exotic"), "img");
+  assert.deepEqual(collectImageRefIds(imageRefDoc("image-9")), ["image-9"]);
+  assert.equal(
+    rewriteExportedImagePaths(
+      "![a](images/image-1) ![a](images/image-1)",
+      new Map([["image-1", workspaceImage("image-1", "n")]]),
+      ["image-1"],
+    ),
+    "![a](images/image-1.png) ![a](images/image-1.png)",
+  );
+  assert.equal(resolveImportedImagePath("Deep/Note.md", "./images/pic%201.png"), "Deep/images/pic 1.png");
+  assert.equal(resolveImportedImagePath("Note.md", "images/pic.png"), "images/pic.png");
+});
+
+test("import converts local markdown images into image_ref nodes", () => {
+  const plan = planMarkdownImport(
+    {
+      directories: [],
+      files: [
+        {
+          relativePath: "Shots.md",
+          content: "![shot](images/pic.png) and ![remote](https://example.com/x.png)",
+        },
+      ],
+      skipped: 0,
+    },
+    1,
+    () => "note-1",
+  );
+  const [operation] = plan.operations;
+  assert.equal(operation?.type, "create_note");
+  if (operation?.type !== "create_note") {
+    return;
+  }
+  assert.deepEqual(plan.notes, [{ id: "note-1", relativePath: "Shots.md" }]);
+  assert.deepEqual(collectLocalImageSources(operation.documentJson), ["images/pic.png"]);
+
+  const replaced = replaceLocalImages(
+    operation.documentJson,
+    new Map([["images/pic.png", "image-1"]]),
+  );
+  const serialized = JSON.stringify(replaced);
+  assert.ok(serialized.includes('"image_ref"'));
+  assert.ok(serialized.includes('"image-1"'));
+  assert.ok(serialized.includes("https://example.com/x.png"));
+  assert.deepEqual(collectLocalImageSources(replaced), []);
+});

@@ -3,7 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use rusqlite::{Connection, OptionalExtension, Transaction};
 use skriuw_domain::{
     HistoryHeader, NodeKind, WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument,
-    WorkspaceNode, WorkspacePerson, WorkspaceSettings, WorkspaceSnapshot, WorkspaceTag,
+    WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspaceSettings, WorkspaceSnapshot,
+    WorkspaceTag,
 };
 use skriuw_storage::StorageError;
 
@@ -21,7 +22,33 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
         tags: read_tags(connection)?,
         people: read_people(connection)?,
         references: read_references(connection)?,
+        images: read_images(connection)?,
     })
+}
+
+pub(crate) fn read_images(connection: &Connection) -> Result<Vec<WorkspaceImage>, StorageError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, note_id, content_hash, mime_type, byte_size, width, height, created_at \
+             FROM note_images ORDER BY note_id, created_at, id",
+        )
+        .map_err(backend)?;
+    statement
+        .query_map([], |row| {
+            Ok(WorkspaceImage {
+                id: row.get(0)?,
+                note_id: row.get(1)?,
+                content_hash: row.get(2)?,
+                mime_type: row.get(3)?,
+                byte_size: row.get(4)?,
+                width: row.get(5)?,
+                height: row.get(6)?,
+                created_at: row.get(7)?,
+            })
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
 }
 
 pub(crate) fn read_tags(connection: &Connection) -> Result<Vec<WorkspaceTag>, StorageError> {

@@ -1,6 +1,6 @@
 # Image support in the editor
 
-Status: not started. Prompted once (`images.md`, now removed) but never implemented.
+Status: implemented (July 2026), with the deviations and deferrals recorded at the end of this document. Archive-format image support and blob-aware backup remain open.
 
 ## Goal
 
@@ -102,3 +102,22 @@ Prefer option 1. Write the ADR before implementing; this is exactly the kind of 
 - Archive export/import round-trips images bit-for-bit (hash before === hash after).
 - Backup and verified live-swap restore images together with workspace data — no restore leaves a workspace with `image_ref` nodes pointing at missing blobs.
 - No image operation touches the note navigation or keystroke-to-paint path; the performance contract's budgets remain unaffected for image-free notes.
+
+## Implementation notes (July 2026)
+
+What shipped, and where it deviates from the sections above:
+
+- **`image_ref` is an inline atom, not a block.** It matches the existing `tag_ref`/`mention_ref` token pattern (same NodeView/selection/keymap machinery), makes paste-at-cursor and Markdown import (`![alt](path)` parses inline) trivial, and CSS still renders images on their own visual line. Attrs are `{ id, alt, width, height }` as specced.
+- **Operation shape.** `WorkspaceOperation::AttachImage { image: WorkspaceImage }` carries the whole metadata record; the blob write stays out of the domain. Detached rows are pruned inside the `SaveDocument` transaction via `document_image_ids`, and `ON DELETE CASCADE` covers purge. Bootstrap snapshots now include `images`, which is how the renderer resolves `id → contentHash/mimeType` without a read-path DB query.
+- **Blob store.** `crates/skriuw-images` — flat `blobs/` directory beside the database, `<sha256>.<ext>`, atomic temp-file+rename writes, magic-byte sniffing (PNG/JPEG/GIF/WebP; SVG deliberately excluded), path-traversal-safe hash validation.
+- **Rendering.** The NodeView reads the blob over IPC once per content hash per session and caches an object URL; CSP gained `img-src 'self' blob:`. No asset-protocol scope was opened.
+- **Sweep.** Runs once per app start on a detached thread, 60 s after launch, off every interaction path. Blobs younger than one hour are never collected, closing the race with an in-flight `AttachImage`. Moving the sweep onto the six-hour rotation timer is a fair follow-up.
+- **Markdown round trip.** Canonical markdown serializes `image_ref` as `![alt](images/<id>)` (no extension — the serializer has no MIME access). Export rewrites paths to `images/<id>.<ext>`, emits per-directory `images/` entries, and the native side copies blobs from the store. Import converts relative-`src` markdown images into stored blobs + `image_ref` nodes; remote URLs are left as plain `image` nodes.
+- **Migration number.** Landed as `0005_note_images.sql` on this branch; the migration ledger requires contiguous versions, so whichever of pinned-nodes/note-images merges second renumbers.
+- **Settings surface.** Settings → Data lists every stored image (grouped by content hash, with format, size, and the notes that reference it), opens the blobs folder in the file manager, and can relocate the whole workspace — the maintenance coordinator quiesces the runtime, copies the database (consistent backup path) plus `blobs/`, `history/`, and `recovery/`, writes a `storage-location` pointer file in the app data directory, and restarts the app. The old folder is kept as a fallback; `SKRIUW_DB` disables relocation.
+
+### Deferred
+
+- **Archives.** Portable archives still exclude blobs; an archive containing `image_ref` nodes imports cleanly but renders missing-image placeholders. The directory/zip archive format bump needs its own ADR (option 1 above) before implementation.
+- **Backup.** Scheduled backup/verified swap cover the SQLite file only; the exclusion is documented in [../recovery.md](../recovery.md). Pairing `blobs/` with the database in the swap machinery is open.
+- **Resize-by-drag, SVG support, editor-side markdown link pasting of local files.**

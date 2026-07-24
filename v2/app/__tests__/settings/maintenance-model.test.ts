@@ -22,7 +22,9 @@ import type {
 } from "../../src/settings/maintenance-model";
 import type { RecoveryInventory, WorkspaceSnapshot } from "../../src/bridge/commands";
 
-function running(kind: "export" | "import" | "backup" | "restore"): MaintenancePhase {
+function running(
+  kind: "export" | "import" | "backup" | "restore" | "relocate",
+): MaintenancePhase {
   const state = beginOperation(IDLE_MAINTENANCE, kind);
   assert.ok(state);
   return state;
@@ -162,6 +164,12 @@ test("confirmation copy states the destructive scope", () => {
   });
   assert.match(restoreCopy.body, /skriuw-backup-3\.sqlite/);
   assert.match(restoreCopy.body, /rollback/);
+
+  const relocateCopy = confirmationCopy({ kind: "relocate", targetDir: "/mnt/vault" });
+  assert.match(relocateCopy.body, /\/mnt\/vault/);
+  assert.match(relocateCopy.body, /restarts/);
+  assert.match(relocateCopy.body, /kept untouched/);
+  assert.equal(relocateCopy.confirmLabel, "Move and restart");
 });
 
 test("recovery inventory projects newest-first backups and flags emptiness", () => {

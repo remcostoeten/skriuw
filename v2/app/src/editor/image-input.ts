@@ -1,0 +1,98 @@
+import type { EditorView } from "prosemirror-view";
+import { commitOperations } from "../actions/workspace";
+import { storeNoteImage } from "../bridge/commands";
+import { noop } from "../shared/lib/noop";
+import type { RendererStore } from "../store/types";
+import { productSchema } from "./schema";
+
+type ImageDimensions = {
+  width: number;
+  height: number;
+};
+
+export function collectImageFiles(transfer: DataTransfer | null): File[] {
+  if (!transfer) {
+    return [];
+  }
+  return [...transfer.files].filter((file) => file.type.startsWith("image/"));
+}
+
+/**
+ * Inserts one `image_ref` node per file synchronously, then registers each
+ * blob in the background. The keystroke path never waits on hashing or disk;
+ * the node view upgrades from its loading state once the attach operation
+ * lands in the store.
+ */
+export function insertImages(
+  store: RendererStore,
+  view: EditorView,
+  noteId: string,
+  files: readonly File[],
+  position: number | null,
+): boolean {
+  const imageRef = productSchema.nodes.image_ref;
+  if (!imageRef || files.length === 0) {
+    return false;
+  }
+  let transaction = view.state.tr;
+  let insertAt = position;
+  const inserted: { id: string; file: File }[] = [];
+  for (const file of files) {
+    const id = crypto.randomUUID();
+    const node = imageRef.create({ id, alt: file.name.replace(/\.[a-z0-9]+$/i, "") });
+    if (insertAt === null) {
+      transaction = transaction.replaceSelectionWith(node, false);
+    } else {
+      transaction = transaction.insert(insertAt, node);
+      insertAt += node.nodeSize;
+    }
+    inserted.push({ id, file });
+  }
+  view.dispatch(transaction);
+  for (const { id, file } of inserted) {
+    void persistImage(store, noteId, id, file);
+  }
+  return true;
+}
+
+async function persistImage(
+  store: RendererStore,
+  noteId: string,
+  id: string,
+  file: File,
+): Promise<void> {
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const dimensions = await readDimensions(file);
+    const stored = await storeNoteImage(bytes);
+    await commitOperations(store, [
+      {
+        type: "attach_image",
+        image: {
+          id,
+          noteId,
+          contentHash: stored.contentHash,
+          mimeType: stored.mimeType,
+          byteSize: stored.byteSize,
+          width: dimensions?.width ?? null,
+          height: dimensions?.height ?? null,
+          createdAt: Date.now(),
+        },
+      },
+    ]);
+  } catch (error) {
+    console.error("image attach rejected", error);
+  }
+}
+
+async function readDimensions(file: File): Promise<ImageDimensions | null> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const dimensions = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return dimensions;
+  } catch {
+    noop();
+    return null;
+  }
+}

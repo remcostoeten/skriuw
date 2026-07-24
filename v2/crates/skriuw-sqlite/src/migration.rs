@@ -32,6 +32,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "pinned_nodes",
         sql: include_str!("../../../migrations/0005_pinned_nodes.sql"),
     },
+    Migration {
+        version: 6,
+        name: "note_images",
+        sql: include_str!("../../../migrations/0006_note_images.sql"),
+    },
 ];
 
 pub(crate) struct Migration {

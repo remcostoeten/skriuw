@@ -124,3 +124,27 @@
 .slash-menu button.is-selected {
   background: hsl(var(--theme-bg-active));
 }
+
+.note-image {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  vertical-align: middle;
+}
+
+.note-image[data-image-state="loading"],
+.note-image[data-image-state="missing"] {
+  min-width: 120px;
+  min-height: 72px;
+  border: 1px dashed hsl(var(--border));
+  background: hsl(var(--theme-bg-active) / 0.4);
+}
+
+.note-image[data-image-state="missing"]::after {
+  content: attr(alt);
+}
+
+.ProseMirror-selectednode.note-image {
+  outline: 2px solid hsl(var(--ring));
+}
