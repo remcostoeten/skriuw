@@ -1,0 +1,90 @@
+{
+  "archiveVersion": 2,
+  "protocolVersion": 1,
+  "exportedAt": 1753300000000,
+  "activeNoteId": "note-pinned",
+  "nodes": [
+    {
+      "id": "folder-pinned",
+      "kind": "folder",
+      "parentId": null,
+      "rank": 1024,
+      "title": "Pinned folder",
+      "icon": null,
+      "createdAt": 1753200000000,
+      "updatedAt": 1753200002000,
+      "deletedAt": null,
+      "pinnedAt": 1753200002000
+    },
+    {
+      "id": "note-loose",
+      "kind": "note",
+      "parentId": null,
+      "rank": 2048,
+      "title": "Unpinned note",
+      "icon": null,
+      "createdAt": 1753200000500,
+      "updatedAt": 1753200000500,
+      "deletedAt": null,
+      "pinnedAt": null
+    },
+    {
+      "id": "note-pinned",
+      "kind": "note",
+      "parentId": "folder-pinned",
+      "rank": 1024,
+      "title": "Pinned note",
+      "icon": "📌",
+      "createdAt": 1753200001000,
+      "updatedAt": 1753200003000,
+      "deletedAt": null,
+      "pinnedAt": 1753200003000
+    }
+  ],
+  "documents": [
+    {
+      "noteId": "note-loose",
+      "documentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [{ "type": "text", "text": "An ordinary note." }]
+          }
+        ]
+      },
+      "markdown": "An ordinary note.",
+      "revision": 1,
+      "wordCount": 3
+    },
+    {
+      "noteId": "note-pinned",
+      "documentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [{ "type": "text", "text": "This note is pinned to the shelf." }]
+          }
+        ]
+      },
+      "markdown": "This note is pinned to the shelf.",
+      "revision": 2,
+      "wordCount": 7
+    }
+  ],
+  "settings": {
+    "settingsVersion": 1,
+    "theme": "midnight",
+    "compactSidebar": false,
+    "showPageIcons": true,
+    "reduceMotion": false,
+    "rememberLastNote": true,
+    "editorFont": "inter",
+    "editorLineHeight": "comfortable",
+    "showLineNumbers": true,
+    "editorPlaceholder": "Start writing..."
+  },
+  "tags": [],
+  "people": []
+}

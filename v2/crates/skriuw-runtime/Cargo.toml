@@ -1,0 +1,15 @@
+[package]
+name = "skriuw-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+skriuw-domain = { path = "../skriuw-domain" }
+skriuw-storage = { path = "../skriuw-storage" }
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+skriuw-sqlite = { path = "../skriuw-sqlite" }

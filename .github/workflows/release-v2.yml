@@ -1,0 +1,84 @@
+name: publish v2
+
+on:
+    push:
+        tags:
+            - "v2-v*"
+
+jobs:
+    publish-tauri:
+        permissions:
+            contents: write
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - platform: "macos-latest"
+                      args: "--target aarch64-apple-darwin"
+                    - platform: "macos-latest"
+                      args: "--target x86_64-apple-darwin"
+                    - platform: "ubuntu-22.04"
+                      args: ""
+                    - platform: "windows-latest"
+                      args: ""
+
+        runs-on: ${{ matrix.platform }}
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Install dependencies (Ubuntu only)
+              if: matrix.platform == 'ubuntu-22.04'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+            # tauri-action picks its package manager from the lockfile in projectPath;
+            # v2/app ships pnpm-lock.yaml, so the release builds with pnpm (CI uses bun)
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 11.1.3
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: 24
+                  cache: pnpm
+                  cache-dependency-path: v2/app/pnpm-lock.yaml
+
+            - name: Setup Rust toolchain
+              uses: dtolnay/rust-toolchain@master
+              with:
+                  toolchain: 1.95.0
+                  targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+            - name: Rust cache
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: |
+                      v2 -> target
+                      v2/app/src-tauri -> target
+
+            - name: Install frontend dependencies
+              working-directory: v2/app
+              run: pnpm install --frozen-lockfile
+
+            - name: Build and release
+              uses: tauri-apps/tauri-action@v0
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+                  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+                  NO_STRIP: 1
+              with:
+                  projectPath: "./v2/app"
+                  # the default `pnpm tauri` script routes through the bash verification
+                  # wrapper, which breaks on Windows and re-runs the suite CI already ran
+                  tauriScript: "pnpm tauri:cli"
+                  tagName: ${{ github.ref_name }}
+                  releaseName: "Skriuw ${{ github.ref_name }}"
+                  generateReleaseNotes: true
+                  includeUpdaterJson: true
+                  releaseDraft: true
+                  prerelease: false
+                  args: ${{ matrix.args }}
