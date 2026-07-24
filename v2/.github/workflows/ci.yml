@@ -9,10 +9,23 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+          - platform: 'ubuntu-22.04'
+            args: ''
+          - platform: 'windows-latest'
+            args: ''
+    runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install Tauri system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
@@ -20,15 +33,21 @@ jobs:
         with:
           toolchain: 1.95.0
           components: clippy,rustfmt
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            app/src-tauri -> app/src-tauri/target
       - uses: pnpm/action-setup@v4
         with:
           version: 11.1.3
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: |
+            pnpm-lock.yaml
             app/pnpm-lock.yaml
             spikes/ui-architecture/pnpm-lock.yaml
             spikes/renderer-store/pnpm-lock.yaml
@@ -38,11 +57,14 @@ jobs:
           pnpm --dir spikes/ui-architecture install --frozen-lockfile
           pnpm --dir spikes/renderer-store install --frozen-lockfile
       - name: Build and verify
-        run: ./scripts/build.sh ci
+        # Bash is required for scripts/build.sh to run correctly on Windows (git bash)
+        shell: bash
+        # Updater artifacts are only signed in the release workflow; CI builds skip them
+        run: ./scripts/build.sh ci ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
-          name: skriuw-linux
+          name: skriuw-${{ matrix.platform }}${{ matrix.platform == 'macos-latest' && matrix.args == '--target aarch64-apple-darwin' && '-arm64' || '' }}${{ matrix.platform == 'macos-latest' && matrix.args == '--target x86_64-apple-darwin' && '-x64' || '' }}
           if-no-files-found: error
           path: |
             target/release/skriuw-cli
@@ -53,8 +75,8 @@ jobs:
             app/dist
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
-          name: skriuw-linux-build-logs
+          name: skriuw-build-logs-${{ matrix.platform }}${{ matrix.platform == 'macos-latest' && matrix.args == '--target aarch64-apple-darwin' && '-arm64' || '' }}${{ matrix.platform == 'macos-latest' && matrix.args == '--target x86_64-apple-darwin' && '-x64' || '' }}
           if-no-files-found: warn
           path: .build/logs

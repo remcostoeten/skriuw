@@ -13,6 +13,42 @@ Local-first notes application with a Rust backend, React renderer, and Tauri des
 
 See [ARCHITECTURE.md](ARCHITECTURE.md), [TODO.md](TODO.md), [docs/handoff.md](docs/handoff.md), [docs/roadmap.md](docs/roadmap.md), and [docs/adr](docs/adr).
 
+## Installation
+
+### Debian / Ubuntu (APT)
+
+Direct package installation:
+```bash
+curl -sL https://github.com/remcostoeten/skriuw-standalone/releases/latest/download/skriuw-app_amd64.deb -o skriuw.deb
+sudo apt install ./skriuw.deb
+```
+
+APT Repository (automatic updates):
+```bash
+curl -fsSL https://remcostoeten.github.io/skriuw-standalone/KEY.gpg | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/skriuw.gpg
+echo "deb [signed-by=/etc/apt/trusted.gpg.d/skriuw.gpg] https://remcostoeten.github.io/skriuw-standalone stable main" | sudo tee /etc/apt/sources.list.d/skriuw.list
+sudo apt update && sudo apt install skriuw
+```
+
+### macOS (Homebrew)
+```bash
+brew install remcostoeten/tap/skriuw
+```
+
+### Windows (Winget & Scoop)
+```cmd
+winget install remcostoeten.skriuw
+```
+```cmd
+scoop bucket add skriuw https://github.com/remcostoeten/scoop-bucket
+scoop install skriuw
+```
+
+### Arch Linux (AUR)
+```bash
+yay -S skriuw-bin
+```
+
 ## Requirements
 
 - Rust 1.95.0. `rust-toolchain.toml` installs required components through rustup.
