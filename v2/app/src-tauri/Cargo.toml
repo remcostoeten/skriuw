@@ -20,6 +20,7 @@ serde_json = "1"
 skriuw-domain = { path = "../../crates/skriuw-domain" }
 skriuw-history = { path = "../../crates/skriuw-history" }
 skriuw-history-git = { path = "../../crates/skriuw-history-git" }
+skriuw-images = { path = "../../crates/skriuw-images" }
 skriuw-lifecycle = { path = "../../crates/skriuw-lifecycle" }
 skriuw-runtime = { path = "../../crates/skriuw-runtime" }
 skriuw-sqlite = { path = "../../crates/skriuw-sqlite" }
