@@ -585,3 +585,35 @@ product decision.
 
 Immediate next task: add focused desktop end-to-end coverage for a dedicated
 tag/person management surface when that product surface is introduced.
+
+## Completed in-context reference management slice
+
+- Users manage tags and people without leaving the note. Each metadata
+  reference detail row (`app/src/references/reference-panel.tsx`) exposes inline
+  rename, recolor, and delete affordances beside the existing
+  expand-to-see-referencing-notes toggle. Rename is an inline input committing
+  on Enter or blur and cancelling on Escape; delete and recolor commit through
+  the existing `commitReferenceOperations` bridge with no application-shell
+  re-render and no navigation IPC. A leading swatch renders the entity color and
+  opens a preset palette (with a clear-to-null option). All controls are buttons
+  or a text input, so the row stays keyboard accessible.
+- Recolor is a new persisted operation. `WorkspaceOperation::RecolorTag` and
+  `RecolorPerson` were added end to end: `skriuw-domain` (validated id plus an
+  optional color capped at `MAX_REFERENCE_COLOR_BYTES`), transactional
+  `skriuw-sqlite` `UPDATE ... SET color`, the TypeScript workspace contract, the
+  `ReferenceOperation` union, the optimistic renderer-store reducer, and the
+  regenerated `workspace-operation.schema.json`. Setting an unchanged color is a
+  no-op; a missing target leaves canonical state untouched.
+- The inline editor token nodeview (`reference-nodeview.ts`) now paints a
+  resolved tag/person color as a `--reference-token-color` accent, and
+  `styles.css` visually separates the three states: resolved (optional colored
+  chip), unresolved/deleted (strikethrough), and unavailable/trashed (dotted
+  underline). The `#`/@` completion menu (`mention-menu.ts`) shows a color
+  swatch for resolved suggestions and italicizes create-new items; create-on-type
+  behavior is unchanged.
+- New pure builders (`buildRenameReferenceOperation`,
+  `buildRecolorReferenceOperation`, `buildDeleteReferenceOperation` in
+  `reference-panel-model.ts`) keep the affordance logic testable. Renderer
+  regressions in `app/__tests__/references/reference-panel-model.test.ts` cover
+  each builder's kind-specific operation, its no-op guards, and a recolor round
+  trip through the store into the projected detail rows.
