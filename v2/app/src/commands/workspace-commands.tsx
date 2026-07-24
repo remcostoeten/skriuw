@@ -2,6 +2,14 @@ import { createFolder, createNote } from "../actions/workspace";
 import type { AppRoute } from "../app-route";
 import { openEditorSearch } from "../editor/search-controller";
 import {
+  exportNoteAsMarkdown,
+  exportWorkspaceAsMarkdown,
+  importMarkdownIntoWorkspace,
+} from "../export/markdown-transfer";
+import { requestEntityCreate } from "../references/entity-create-controller";
+import {
+  CircleIcon,
+  DownloadIcon,
   FolderOpenIcon,
   NewFolderIcon,
   NewNoteIcon,
@@ -10,6 +18,8 @@ import {
   SearchIcon,
   SettingsIcon,
   Trash2Icon,
+  UploadIcon,
+  WaypointsIcon,
 } from "../shared/icons";
 import type { RendererStore } from "../store/types";
 import { focusRegion } from "./focus-regions";
@@ -57,6 +67,65 @@ export function createWorkspaceCommands(
       shortcut: "createFolder",
       enabled: onNotesRoute,
       run: () => createFolder(store, null),
+    },
+    {
+      id: "new-tag",
+      label: "New tag",
+      group: "Actions",
+      keywords: ["create", "tag", "label"],
+      icon: <WaypointsIcon size={15} />,
+      shortcut: "createTag",
+      run: () => {
+        controls.navigate("tags");
+        requestEntityCreate("tag");
+      },
+    },
+    {
+      id: "new-person",
+      label: "New person",
+      group: "Actions",
+      keywords: ["create", "person", "people", "mention"],
+      icon: <CircleIcon size={15} />,
+      shortcut: "createPerson",
+      run: () => {
+        controls.navigate("people");
+        requestEntityCreate("person");
+      },
+    },
+    {
+      id: "export-note-markdown",
+      label: "Export note as Markdown…",
+      group: "Actions",
+      keywords: ["export", "markdown", "save", "file"],
+      icon: <DownloadIcon size={15} />,
+      enabled: (state) => state.activeNoteId !== null,
+      run: () => {
+        const noteId = store.getState().activeNoteId;
+        if (noteId) {
+          void exportNoteAsMarkdown(store, noteId);
+        }
+      },
+    },
+    {
+      id: "export-workspace-markdown",
+      label: "Export workspace as Markdown…",
+      group: "Actions",
+      keywords: ["export", "markdown", "backup", "all"],
+      icon: <DownloadIcon size={15} />,
+      enabled: (state) => state.nodes.size > 0,
+      run: () => {
+        void exportWorkspaceAsMarkdown(store);
+      },
+    },
+    {
+      id: "import-markdown",
+      label: "Import Markdown…",
+      group: "Actions",
+      keywords: ["import", "markdown", "migrate", "folder"],
+      icon: <UploadIcon size={15} />,
+      run: () => {
+        void importMarkdownIntoWorkspace(store);
+      },
     },
     {
       id: "open-settings",
@@ -137,6 +206,24 @@ export function createWorkspaceCommands(
       shortcut: "goToNotes",
       visible: (_state, ui) => ui.route !== "notes",
       run: () => controls.navigate("notes"),
+    },
+    {
+      id: "go-to-tags",
+      label: "Go to tags",
+      group: "Navigation",
+      icon: <WaypointsIcon size={15} />,
+      shortcut: "goToTags",
+      visible: (_state, ui) => ui.route !== "tags",
+      run: () => controls.navigate("tags"),
+    },
+    {
+      id: "go-to-people",
+      label: "Go to people",
+      group: "Navigation",
+      icon: <CircleIcon size={15} />,
+      shortcut: "goToPeople",
+      visible: (_state, ui) => ui.route !== "people",
+      run: () => controls.navigate("people"),
     },
     {
       id: "go-to-trash",

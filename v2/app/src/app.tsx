@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { Sidebar } from "./shell/sidebar";
 import { CommandPaletteHost } from "./shell/command-palette-host";
@@ -9,8 +9,10 @@ import { TrashView } from "./shell/trash-view";
 import { EntityView } from "./shell/entity-view";
 import { WindowControls } from "./shell/window-controls";
 import { panelGridTemplate } from "./shell/panel-layout";
+import { TransferReportHost } from "./export/transfer-report-host";
 import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
 import { appRouteHash, useAppRoute } from "./app-route";
+import { installBackNavigation } from "./references/reference-navigation";
 import { createCommandRegistry, registryShortcutActions } from "./commands/registry";
 import type { CommandUiState } from "./commands/registry";
 import { createWorkspaceCommands } from "./commands/workspace-commands";
@@ -49,6 +51,7 @@ export function App({ store }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [metadataOpen, setMetadataOpen] = useState(true);
   const route = useAppRoute();
+  useEffect(() => installBackNavigation(store), [store]);
   const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
   const uiRef = useRef(ui);
   uiRef.current = ui;
@@ -206,8 +209,10 @@ export function App({ store }: Props) {
         onOpenChange={setPaletteOpen}
       />
       <SettingsDialog store={store} open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <TransferReportHost />
       <WorkspaceShortcuts
         store={store}
+        route={route}
         suspended={settingsOpen}
         activeWhileSuspended="openSettings"
         actions={shortcutActions}

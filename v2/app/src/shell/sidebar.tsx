@@ -1,21 +1,19 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   activateNote,
   createFolder,
   createNote,
   moveNode,
-  renameNode,
+  moveNodes,
   trashSubtrees,
 } from "../actions/workspace";
+import { exportNoteAsMarkdown } from "../export/markdown-transfer";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import {
   CloseIcon,
+  DownloadIcon,
   FilePlusIcon,
-  FileTextIcon,
-  FolderIcon,
   FolderInputIcon,
-  FolderOpenIcon,
   FolderPlusIcon,
   FoldVerticalIcon,
   NewFolderIcon,
@@ -45,7 +43,25 @@ import {
   visualTreeIndent,
 } from "../store/tree";
 import type { RendererState, RendererStore } from "../store/types";
-import { nextFolderExpansion, searchSidebarNodes } from "./sidebar-search";
+import {
+  AUTO_SCROLL_EDGE_PX,
+  AUTO_SCROLL_MAX_STEP_PX,
+  DRAG_THRESHOLD_PX,
+  HOVER_EXPAND_DELAY_MS,
+  autoScrollStep,
+  dragRoots,
+  dropMoves,
+  dropZoneForOffset,
+  indicatorIndentDepth,
+  isValidDrop,
+  rowIndexAt,
+  sameDropTarget,
+} from "./sidebar-dnd";
+import type { DropTarget } from "./sidebar-dnd";
+import { noop } from "../shared/lib/noop";
+import { nextFolderExpansion } from "./sidebar-search";
+import { SidebarRow } from "./sidebar-row";
+import { SidebarSearchResults } from "./sidebar-search-results";
 
 type Props = {
   store: RendererStore;
@@ -53,7 +69,18 @@ type Props = {
 
 type ContextTarget = { kind: "root" } | { kind: "item"; id: string };
 
-type TreeMetrics = {
+type DragSession = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  sourceId: string;
+  active: boolean;
+  dragIds: string[];
+  target: DropTarget | null;
+  keyListener: ((event: KeyboardEvent) => void) | null;
+};
+
+export type TreeMetrics = {
   isNarrow: boolean;
   isVeryNarrow: boolean;
   basePadding: number;
@@ -63,15 +90,23 @@ type TreeMetrics = {
 
 const NARROW_WIDTH_PX = 220;
 const VERY_NARROW_WIDTH_PX = 176;
-const MAX_SEARCH_RESULTS_PER_TYPE = 10;
 const TREE_OVERSCAN_ROWS = 3;
 const MAX_RENDERED_TREE_ROWS = 80;
 
 const headerActionBaseClass =
   "inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground";
 
-const rowBaseClass =
-  "relative flex h-[34px] w-full items-center overflow-hidden border border-transparent text-left text-xs font-medium transition-colors active:scale-[0.985]";
+function selectVisibleIds(state: RendererState) {
+  return state.visibleIds;
+}
+
+function selectCompactSidebar(state: RendererState) {
+  return state.settings.compactSidebar === true;
+}
+
+function selectShowTreeGuides(state: RendererState) {
+  return state.settings["showTreeGuides"] === true;
+}
 
 function treeMetrics(sidebarWidth: number | null): TreeMetrics {
   const isNarrow = sidebarWidth !== null && sidebarWidth < NARROW_WIDTH_PX;
@@ -83,23 +118,6 @@ function treeMetrics(sidebarWidth: number | null): TreeMetrics {
     depthIndent: isVeryNarrow ? 8 : isNarrow ? 12 : 16,
     rightPadding: isNarrow ? 6 : 10,
   };
-}
-
-function rowIndentStyle(depth: number, metrics: TreeMetrics): CSSProperties {
-  const maximumIndent = metrics.isVeryNarrow ? 40 : metrics.isNarrow ? 56 : 80;
-  const indent = visualTreeIndent(
-    depth,
-    metrics.basePadding,
-    metrics.depthIndent,
-    maximumIndent,
-  );
-  return {
-    paddingLeft: `${indent}px`,
-    paddingRight: `${metrics.rightPadding}px`,
-    "--tree-indent": `${indent}px`,
-    "--tree-base": `${metrics.basePadding}px`,
-    "--tree-step": `${metrics.depthIndent}px`,
-  } as CSSProperties;
 }
 
 function setAllFoldersExpanded(store: RendererStore, expanded: boolean): void {
@@ -170,15 +188,9 @@ function moveWithinSiblings(store: RendererStore, id: string, direction: -1 | 1)
 }
 
 export function Sidebar({ store }: Props) {
-  const visibleIds = useRendererSelector(store, (state) => state.visibleIds);
-  const compactSidebar = useRendererSelector(
-    store,
-    (state) => state.settings.compactSidebar === true,
-  );
-  const showTreeGuides = useRendererSelector(
-    store,
-    (state) => state.settings["showTreeGuides"] === true,
-  );
+  const visibleIds = useRendererSelector(store, selectVisibleIds);
+  const compactSidebar = useRendererSelector(store, selectCompactSidebar);
+  const showTreeGuides = useRendererSelector(store, selectShowTreeGuides);
   // A single shared context menu serves every row. Rows carry `data-row-key`;
   // right-clicking the list resolves the row under the cursor and points the
   // one menu at it, instead of mounting a Radix ContextMenu per row.
@@ -186,8 +198,15 @@ export function Sidebar({ store }: Props) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [metrics, setMetrics] = useState(() => treeMetrics(null));
-  const [treeScrollTop, setTreeScrollTop] = useState(0);
+  const [treeScrollRow, setTreeScrollRow] = useState(0);
   const [treeViewportHeight, setTreeViewportHeight] = useState(0);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const dragRef = useRef<DragSession | null>(null);
+  const hoverExpandRef = useRef<number | null>(null);
+  const autoScrollRef = useRef<{ raf: number; pointerX: number; pointerY: number } | null>(
+    null,
+  );
+  const suppressClickRef = useRef(false);
   const asideRef = useRef<HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
@@ -238,7 +257,7 @@ export function Sidebar({ store }: Props) {
       }
       if (nextScrollTop !== element.scrollTop) {
         element.scrollTop = nextScrollTop;
-        setTreeScrollTop(nextScrollTop);
+        setTreeScrollRow(Math.floor(nextScrollTop / rowPitch));
       }
     };
     revealFocusedNode();
@@ -272,13 +291,13 @@ export function Sidebar({ store }: Props) {
     () =>
       virtualTreeWindow(
         visibleIds.length,
-        treeScrollTop,
+        treeScrollRow * rowPitch,
         Math.max(rowPitch, treeViewportHeight),
         rowPitch,
         TREE_OVERSCAN_ROWS,
         MAX_RENDERED_TREE_ROWS,
       ),
-    [rowPitch, treeScrollTop, treeViewportHeight, visibleIds.length],
+    [rowPitch, treeScrollRow, treeViewportHeight, visibleIds.length],
   );
   const renderedIds = visibleIds.slice(treeWindow.start, treeWindow.end);
   const treeTabStopId = visibleIds[0] ?? null;
@@ -409,6 +428,285 @@ export function Sidebar({ store }: Props) {
     closeSearch();
     focusTreeAfterSearch();
   }
+
+  function clearHoverExpand(): void {
+    if (hoverExpandRef.current !== null) {
+      window.clearTimeout(hoverExpandRef.current);
+      hoverExpandRef.current = null;
+    }
+  }
+
+  function stopAutoScroll(): void {
+    if (autoScrollRef.current !== null) {
+      cancelAnimationFrame(autoScrollRef.current.raf);
+      autoScrollRef.current = null;
+    }
+  }
+
+  function scheduleHoverExpand(target: DropTarget | null): void {
+    clearHoverExpand();
+    if (target?.kind !== "row" || target.zone !== "inside") {
+      return;
+    }
+    const state = store.getState();
+    const node = state.nodes.get(target.id);
+    if (node?.kind !== "folder" || state.expandedIds.has(target.id)) {
+      return;
+    }
+    hoverExpandRef.current = window.setTimeout(() => {
+      hoverExpandRef.current = null;
+      if (dragRef.current?.active === true && !store.getState().expandedIds.has(target.id)) {
+        store.toggleExpanded(target.id);
+      }
+    }, HOVER_EXPAND_DELAY_MS);
+  }
+
+  function setDropTargetIfChanged(next: DropTarget | null): void {
+    const session = dragRef.current;
+    if (!session || sameDropTarget(session.target, next)) {
+      return;
+    }
+    session.target = next;
+    setDropTarget(next);
+    scheduleHoverExpand(next);
+  }
+
+  function updateDropTarget(clientX: number, clientY: number): void {
+    const session = dragRef.current;
+    const element = treeRef.current;
+    if (session?.active !== true || !element) {
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    if (clientX < rect.left || clientX > rect.right) {
+      setDropTargetIfChanged(null);
+      return;
+    }
+    const state = store.getState();
+    const contentY = clientY - rect.top + element.scrollTop;
+    const index = rowIndexAt(contentY, rowPitch, state.visibleIds.length);
+    let next: DropTarget | null = null;
+    if (index === "root-gap") {
+      next = { kind: "root-gap" };
+    } else if (index !== null) {
+      const id = state.visibleIds[index];
+      const node = id === undefined ? undefined : state.nodes.get(id);
+      if (id !== undefined && node) {
+        const zone = dropZoneForOffset(
+          contentY - index * rowPitch,
+          rowPitch,
+          node.kind === "folder",
+        );
+        next = { kind: "row", id, zone };
+      }
+    }
+    if (next && !isValidDrop(state.nodes, session.dragIds, next)) {
+      next = null;
+    }
+    setDropTargetIfChanged(next);
+  }
+
+  function updateAutoScroll(clientX: number, clientY: number): void {
+    const element = treeRef.current;
+    if (!element) {
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    const step = autoScrollStep(
+      clientY,
+      rect.top,
+      rect.bottom,
+      AUTO_SCROLL_EDGE_PX,
+      AUTO_SCROLL_MAX_STEP_PX,
+    );
+    if (step === 0) {
+      stopAutoScroll();
+      return;
+    }
+    if (autoScrollRef.current !== null) {
+      autoScrollRef.current.pointerX = clientX;
+      autoScrollRef.current.pointerY = clientY;
+      return;
+    }
+    const tick = () => {
+      const current = autoScrollRef.current;
+      const tree = treeRef.current;
+      if (!current || !tree || dragRef.current?.active !== true) {
+        stopAutoScroll();
+        return;
+      }
+      const bounds = tree.getBoundingClientRect();
+      const frameStep = autoScrollStep(
+        current.pointerY,
+        bounds.top,
+        bounds.bottom,
+        AUTO_SCROLL_EDGE_PX,
+        AUTO_SCROLL_MAX_STEP_PX,
+      );
+      if (frameStep === 0) {
+        stopAutoScroll();
+        return;
+      }
+      tree.scrollTop += frameStep;
+      updateDropTarget(current.pointerX, current.pointerY);
+      current.raf = requestAnimationFrame(tick);
+    };
+    autoScrollRef.current = {
+      raf: requestAnimationFrame(tick),
+      pointerX: clientX,
+      pointerY: clientY,
+    };
+  }
+
+  function beginDrag(session: DragSession): void {
+    const state = store.getState();
+    const selected = state.selectedNodeIds.has(session.sourceId)
+      ? state.nodeOrder.filter((id) => state.selectedNodeIds.has(id))
+      : [session.sourceId];
+    session.dragIds = dragRoots(selected, state.nodes);
+    session.active = true;
+    session.keyListener = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        endDrag(false);
+      }
+    };
+    window.addEventListener("keydown", session.keyListener, true);
+    try {
+      treeRef.current?.setPointerCapture(session.pointerId);
+    } catch {
+      // WebKitGTK can refuse capture for a pointer that already left the
+      // window; the drag still works from container-level events.
+      noop();
+    }
+    treeRef.current?.classList.add("sidebar-tree-dragging");
+  }
+
+  function endDrag(commit: boolean): void {
+    const session = dragRef.current;
+    dragRef.current = null;
+    clearHoverExpand();
+    stopAutoScroll();
+    if (!session?.active) {
+      return;
+    }
+    if (session.keyListener) {
+      window.removeEventListener("keydown", session.keyListener, true);
+    }
+    const tree = treeRef.current;
+    tree?.classList.remove("sidebar-tree-dragging");
+    if (tree?.hasPointerCapture(session.pointerId) === true) {
+      tree.releasePointerCapture(session.pointerId);
+    }
+    suppressClickRef.current = true;
+    setDropTarget(null);
+    if (commit && session.target !== null) {
+      moveNodes(store, dropMoves(store.getState().nodes, session.dragIds, session.target));
+    }
+  }
+
+  function onTreePointerDown(event: React.PointerEvent): void {
+    if (dragRef.current !== null) {
+      endDrag(false);
+    }
+    if (event.button !== 0) {
+      return;
+    }
+    const rowEl = (event.target as HTMLElement).closest<HTMLElement>("[data-row-key]");
+    const id = rowEl?.getAttribute("data-row-key");
+    if (!id) {
+      return;
+    }
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      sourceId: id,
+      active: false,
+      dragIds: [],
+      target: null,
+      keyListener: null,
+    };
+  }
+
+  function onTreePointerMove(event: React.PointerEvent): void {
+    const session = dragRef.current;
+    if (!session || event.pointerId !== session.pointerId) {
+      return;
+    }
+    if (!session.active) {
+      const deltaX = event.clientX - session.startX;
+      const deltaY = event.clientY - session.startY;
+      if (deltaX * deltaX + deltaY * deltaY < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) {
+        return;
+      }
+      beginDrag(session);
+    }
+    updateDropTarget(event.clientX, event.clientY);
+    updateAutoScroll(event.clientX, event.clientY);
+  }
+
+  function onTreePointerUp(event: React.PointerEvent): void {
+    const session = dragRef.current;
+    if (!session || event.pointerId !== session.pointerId) {
+      return;
+    }
+    endDrag(true);
+  }
+
+  function onTreePointerCancel(event: React.PointerEvent): void {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      endDrag(false);
+    }
+  }
+
+  function onTreeClickCapture(event: React.MouseEvent): void {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+
+  function renderDropIndicator() {
+    if (dropTarget === null) {
+      return null;
+    }
+    const nodes = store.getState().nodes;
+    const targetIndex =
+      dropTarget.kind === "row" ? visibleIds.indexOf(dropTarget.id) : visibleIds.length;
+    if (targetIndex < 0) {
+      return null;
+    }
+    if (dropTarget.kind === "row" && dropTarget.zone === "inside") {
+      return (
+        <div
+          className="tree-drop-inside"
+          style={{ top: `${targetIndex * rowPitch}px`, height: `${rowPitch - 1}px` }}
+        />
+      );
+    }
+    const depth = indicatorIndentDepth(nodes, dropTarget);
+    const maximumIndent = metrics.isVeryNarrow ? 40 : metrics.isNarrow ? 56 : 80;
+    const indent = visualTreeIndent(
+      depth,
+      metrics.basePadding,
+      metrics.depthIndent,
+      maximumIndent,
+    );
+    const rowOffset =
+      dropTarget.kind === "row" && dropTarget.zone === "before" ? targetIndex : targetIndex + 1;
+    const lineRow = dropTarget.kind === "root-gap" ? visibleIds.length : rowOffset;
+    return (
+      <div
+        className="tree-drop-line"
+        style={{ top: `${lineRow * rowPitch - 1}px`, left: `${indent}px` }}
+      />
+    );
+  }
+
+  useEffect(() => () => endDrag(false), []);
 
   function onTreeKeyDown(event: React.KeyboardEvent): void {
     const state = store.getState();
@@ -621,7 +919,6 @@ export function Sidebar({ store }: Props) {
     if (!node) {
       return null;
     }
-    const selectedRoots = selectedRootsFor(id);
     const isBulkSelection = store.getState().selectedNodeIds.size > 1;
     return (
       <>
@@ -645,6 +942,15 @@ export function Sidebar({ store }: Props) {
               </>
             )}
             {renderMoveToSubmenu(id, node.parentId)}
+            {node.kind === "note" && (
+              <ContextMenuItem
+                onClick={() => void exportNoteAsMarkdown(store, id)}
+                className="gap-2"
+              >
+                <DownloadIcon className="w-4 h-4" />
+                Export as Markdown…
+              </ContextMenuItem>
+            )}
           </>
         )}
         <ContextMenuSeparator />
@@ -777,7 +1083,14 @@ export function Sidebar({ store }: Props) {
               }}
               onKeyDown={onTreeKeyDown}
               onContextMenu={onListContextMenu}
-              onScroll={(event) => setTreeScrollTop(event.currentTarget.scrollTop)}
+              onPointerDown={onTreePointerDown}
+              onPointerMove={onTreePointerMove}
+              onPointerUp={onTreePointerUp}
+              onPointerCancel={onTreePointerCancel}
+              onClickCapture={onTreeClickCapture}
+              onScroll={(event) =>
+                setTreeScrollRow(Math.floor(event.currentTarget.scrollTop / rowPitch))
+              }
             >
               <div
                 className="relative w-full"
@@ -793,6 +1106,7 @@ export function Sidebar({ store }: Props) {
                     tabIndex={id === treeTabStopId ? 0 : -1}
                   />
                 ))}
+                {renderDropIndicator()}
               </div>
             </div>
           </ContextMenuTrigger>
@@ -810,268 +1124,5 @@ export function Sidebar({ store }: Props) {
         </ContextMenu>
       )}
     </aside>
-  );
-}
-
-type SearchResultsProps = {
-  ref: React.Ref<HTMLDivElement>;
-  store: RendererStore;
-  query: string;
-  onKeyDown: (event: React.KeyboardEvent) => void;
-  onBlur: (event: React.FocusEvent) => void;
-  onFolderSelect: (id: string) => void;
-  onNoteSelect: (id: string) => void;
-};
-
-function SidebarSearchResults({
-  ref,
-  store,
-  query,
-  onKeyDown,
-  onBlur,
-  onFolderSelect,
-  onNoteSelect,
-}: SearchResultsProps) {
-  const nodes = useRendererSelector(store, (state) => state.nodes);
-  const nodeOrder = useRendererSelector(store, (state) => state.nodeOrder);
-  const activeNoteId = useRendererSelector(store, (state) => state.activeNoteId);
-  const results = useMemo(
-    () => searchSidebarNodes(nodes, nodeOrder, query, MAX_SEARCH_RESULTS_PER_TYPE),
-    [nodes, nodeOrder, query],
-  );
-  const hasResults = results.folderTotal > 0 || results.noteTotal > 0;
-  return (
-    <div
-      ref={ref}
-      className="min-h-0 flex-1 overflow-y-auto px-2 py-2"
-      onKeyDown={onKeyDown}
-      onBlur={onBlur}
-      role="region"
-      aria-label="Sidebar search results"
-    >
-      {hasResults ? (
-        <div className="flex flex-col gap-3">
-          {results.folders.length > 0 && (
-            <div className="flex flex-col gap-0.5">
-              <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Folders
-              </p>
-              {results.folders.map((folder) => (
-                <button
-                  key={folder.id}
-                  type="button"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => onFolderSelect(folder.id)}
-                  className="flex h-[34px] w-full items-center gap-1.5 border border-transparent px-2 text-left text-xs font-medium text-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground/88"
-                >
-                  <FolderIcon
-                    size={14}
-                    strokeWidth={1.5}
-                    className="shrink-0 text-muted-foreground/70"
-                  />
-                  <span className="truncate">{folder.title}</span>
-                </button>
-              ))}
-              {results.folderTotal > results.folders.length && (
-                <p className="px-2 pt-1 text-[10px] text-muted-foreground">
-                  +{results.folderTotal - results.folders.length} more folders
-                </p>
-              )}
-            </div>
-          )}
-          {results.notes.length > 0 && (
-            <div className="flex flex-col gap-0.5">
-              <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Notes
-              </p>
-              {results.notes.map((note) => (
-                <button
-                  key={note.id}
-                  type="button"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => onNoteSelect(note.id)}
-                  aria-current={note.id === activeNoteId ? "page" : undefined}
-                  className={`flex h-[34px] w-full items-center gap-1.5 border border-transparent px-2 text-left text-xs font-medium transition-colors ${
-                    note.id === activeNoteId
-                      ? "border-border bg-muted text-foreground"
-                      : "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88"
-                  }`}
-                >
-                  <FileTextIcon
-                    size={14}
-                    strokeWidth={1.5}
-                    className="shrink-0 text-muted-foreground/70"
-                  />
-                  <span className="truncate">{note.title}</span>
-                </button>
-              ))}
-              {results.noteTotal > results.notes.length && (
-                <p className="px-2 pt-1 text-[10px] text-muted-foreground">
-                  +{results.noteTotal - results.notes.length} more notes
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="px-2 py-6 text-center" role="status">
-          <p className="text-xs font-medium text-foreground/70">No matching titles</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Try a different note or folder name.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-type RowProps = {
-  store: RendererStore;
-  id: string;
-  metrics: TreeMetrics;
-  top: number;
-  tabIndex: 0 | -1;
-};
-
-const SidebarRow = memo(function SidebarRow({ store, id, metrics, top, tabIndex }: RowProps) {
-  const node = useRendererSelector(store, (state) => state.nodes.get(id));
-  const status = useRendererSelector(
-    store,
-    (state) =>
-      Number(state.activeNoteId === id) |
-      (Number(state.focusedNodeId === id) << 1) |
-      (Number(state.expandedIds.has(id)) << 2) |
-      (Number(state.editingNodeId === id) << 3) |
-      (Number(state.selectedNodeIds.has(id)) << 4),
-  );
-  if (!node) {
-    return null;
-  }
-  const isActive = (status & 1) !== 0;
-  const isFocused = (status & 2) !== 0;
-  const isExpanded = (status & 4) !== 0;
-  const isEditing = (status & 8) !== 0;
-  const isSelected = (status & 16) !== 0;
-  const isFolder = node.kind === "folder";
-  const rowTabIndex =
-    isFocused || (tabIndex === 0 && store.getState().focusedNodeId === null) ? 0 : -1;
-  const stateClass = isFocused
-    ? "bg-foreground/[0.22] text-foreground"
-    : isActive
-      ? "border-border bg-muted text-foreground"
-      : isSelected
-        ? "border-foreground/[0.24] bg-foreground/[0.1] text-foreground"
-      : isFolder
-        ? "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88"
-        : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85";
-  return (
-    <div
-      className="absolute inset-x-0"
-      style={{ top: `${top}px` }}
-    >
-      {isEditing ? (
-        <div
-          className={`relative flex h-[34px] w-full items-center overflow-hidden border border-border bg-muted text-left text-xs font-medium text-foreground${isFolder ? " justify-between" : ""}`}
-          style={rowIndentStyle(node.depth, metrics)}
-        >
-          <span
-            className={`flex min-w-0 flex-1 items-center ${metrics.isNarrow ? "gap-1" : "gap-1.5"}`}
-          >
-            {isFolder &&
-              (isExpanded ? (
-                <FolderOpenIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
-              ) : (
-                <FolderIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
-              ))}
-            <span className="flex h-[18px] min-w-0 flex-1 items-center">
-              <RenameInput store={store} id={id} initialTitle={node.title} />
-            </span>
-          </span>
-        </div>
-      ) : (
-        <button
-          type="button"
-          id={`treeitem-${id}`}
-          className={`${rowBaseClass} ${isFolder ? "justify-between " : ""}${stateClass}`}
-          style={rowIndentStyle(node.depth, metrics)}
-          role="treeitem"
-          aria-level={node.depth}
-          aria-setsize={node.setSize}
-          aria-posinset={node.posInSet}
-          aria-selected={isSelected}
-          {...(isFolder ? { "aria-expanded": isExpanded } : {})}
-          tabIndex={rowTabIndex}
-          data-row-key={id}
-          onFocus={() => store.setFocusedNode(id)}
-          onClick={(event) => {
-            const selectionMode = event.shiftKey
-              ? "range"
-              : event.ctrlKey || event.metaKey
-                ? "toggle"
-                : "replace";
-            store.selectTreeNode(id, selectionMode);
-            store.setFocusedNode(id);
-            if (selectionMode !== "replace") {
-              return;
-            }
-            if (isFolder) {
-              store.toggleExpanded(id);
-            } else {
-              activateNote(store, id);
-            }
-          }}
-        >
-          <span
-            className={`flex min-w-0 items-center ${metrics.isNarrow ? "gap-1" : "gap-1.5"}`}
-          >
-            {isFolder &&
-              (isExpanded ? (
-                <FolderOpenIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
-              ) : (
-                <FolderIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
-              ))}
-            <span className="flex h-[18px] min-w-0 flex-1 items-center">
-              <span className="select-none truncate text-left">{node.title}</span>
-            </span>
-          </span>
-          {isFolder && !metrics.isVeryNarrow && (
-            <span className="ml-1.5 w-4 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground/50">
-              {node.descendantCount}
-            </span>
-          )}
-        </button>
-      )}
-    </div>
-  );
-});
-
-type RenameProps = {
-  store: RendererStore;
-  id: string;
-  initialTitle: string;
-};
-
-function RenameInput({ store, id, initialTitle }: RenameProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.setSelectionRange(0, 0);
-  }, []);
-  return (
-    <input
-      ref={inputRef}
-      className="m-0 h-[18px] w-full border-none bg-transparent p-0 text-xs font-medium text-foreground caret-foreground outline-none selection:bg-primary/30"
-      defaultValue={initialTitle}
-      onBlur={(event) => renameNode(store, id, event.currentTarget.value)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          renameNode(store, id, event.currentTarget.value);
-        }
-        if (event.key === "Escape") {
-          store.setEditingNode(null);
-        }
-        event.stopPropagation();
-      }}
-    />
   );
 }

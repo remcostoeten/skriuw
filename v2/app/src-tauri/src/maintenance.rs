@@ -114,8 +114,7 @@ pub fn spawn_backup_rotation(
     let handle = thread::Builder::new()
         .name("skriuw-backup-rotation".into())
         .spawn(move || {
-            let cadence =
-                Duration::from_millis(BackupRetentionPolicy::default().cadence_ms as u64);
+            let cadence = Duration::from_millis(BackupRetentionPolicy::default().cadence_ms as u64);
             loop {
                 let now = (coordinator.now_millis)();
                 let delay = match coordinator.rotate_backups(false) {
@@ -312,7 +311,9 @@ impl MaintenanceCoordinator {
         }
         let storage = SqliteWorkspace::open(&self.database_path).map_err(recovery_error)?;
         let exported_at = (self.now_millis)();
-        let archive = storage.export_archive(exported_at).map_err(recovery_error)?;
+        let archive = storage
+            .export_archive(exported_at)
+            .map_err(recovery_error)?;
         drop(storage);
         self.check_cancelled()?;
         let mut bytes = serde_json::to_vec_pretty(&archive)
@@ -470,11 +471,14 @@ impl MaintenanceCoordinator {
                 size_bytes: metadata.len(),
             });
         }
-        rollbacks.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+        rollbacks.sort_by_key(|rollback| std::cmp::Reverse(rollback.created_at));
         Ok(rollbacks)
     }
 
-    pub fn restore_backup(&self, artifact_file_name: &str) -> Result<DatabaseSwapReport, Diagnostic> {
+    pub fn restore_backup(
+        &self,
+        artifact_file_name: &str,
+    ) -> Result<DatabaseSwapReport, Diagnostic> {
         self.restore_backup_gated(artifact_file_name, |_| Ok(()))
     }
 
@@ -513,8 +517,11 @@ impl MaintenanceCoordinator {
             .with_file_name(format!("{database_name}{CANDIDATE_PREFIX}{now}"));
         let rollback_file_name = format!("{database_name}{ROLLBACK_PREFIX}{now}");
         let rollback = self.database_path.with_file_name(&rollback_file_name);
-        SqliteWorkspace::restore_backup_to(self.recovery_directory.join(artifact_file_name), &candidate)
-            .map_err(recovery_error)?;
+        SqliteWorkspace::restore_backup_to(
+            self.recovery_directory.join(artifact_file_name),
+            &candidate,
+        )
+        .map_err(recovery_error)?;
         if let Err(cancelled) = self.check_cancelled() {
             let _ = fs::remove_file(&candidate);
             return Err(cancelled);
@@ -657,7 +664,10 @@ fn database_file_name(path: &Path) -> Result<String, Diagnostic> {
 
 fn write_new_file(target: &Path, bytes: &[u8]) -> Result<(), Diagnostic> {
     let result = (|| {
-        let mut file = OpenOptions::new().write(true).create_new(true).open(target)?;
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(target)?;
         file.write_all(bytes)?;
         file.sync_all()
     })();
@@ -821,7 +831,7 @@ mod tests {
         fixture.coordinator.shutdown();
 
         completion.wait().expect("accepted operation completes");
-        let snapshot = SqliteWorkspace::open(&fixture.database_path())
+        let snapshot = SqliteWorkspace::open(fixture.database_path())
             .expect("reopen database")
             .bootstrap()
             .expect("bootstrap persisted state");
@@ -1136,10 +1146,7 @@ mod tests {
         (directory, std::sync::Arc::new(coordinator))
     }
 
-    fn wait_for_artifacts(
-        coordinator: &MaintenanceCoordinator,
-        expected: usize,
-    ) -> Vec<String> {
+    fn wait_for_artifacts(coordinator: &MaintenanceCoordinator, expected: usize) -> Vec<String> {
         for _ in 0..200 {
             let inventory = coordinator.recovery_inventory().expect("inventory");
             let artifacts: Vec<String> = inventory
@@ -1195,7 +1202,11 @@ mod tests {
         .expect("spawn rotation");
         std::thread::sleep(Duration::from_millis(100));
         assert!(
-            coordinator.recovery_inventory().expect("inventory").manifest.is_none(),
+            coordinator
+                .recovery_inventory()
+                .expect("inventory")
+                .manifest
+                .is_none(),
             "rotation must not run while another operation holds the guard"
         );
 

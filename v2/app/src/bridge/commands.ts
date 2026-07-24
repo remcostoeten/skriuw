@@ -56,6 +56,10 @@ export function revealWorkspaceStorage(): Promise<void> {
   return invoke<void>("reveal_workspace_storage");
 }
 
+export function openExternalUrl(url: string): Promise<void> {
+  return invoke<void>("open_external_url", { url });
+}
+
 export type ArchiveExportReport = {
   nodes: number;
   documents: number;
@@ -135,4 +139,31 @@ export function restoreWorkspaceBackup(
 
 export function cancelWorkspaceMaintenance(): Promise<boolean> {
   return invoke<boolean>("cancel_workspace_maintenance");
+}
+
+export type MarkdownExportEntryPayload = {
+  relativePath: string;
+  kind: "folder" | "note";
+  markdown: string | null;
+};
+
+export type MarkdownTreePayload = {
+  directories: string[];
+  files: { relativePath: string; content: string }[];
+  skipped: number;
+};
+
+export function pickDirectory(title: string): Promise<string | null> {
+  return invoke<string | null>("pick_directory", { title });
+}
+
+export function exportMarkdownTree(
+  entries: MarkdownExportEntryPayload[],
+  targetDir: string,
+): Promise<void> {
+  return invoke<void>("export_markdown_tree", { entries, targetDir });
+}
+
+export function readMarkdownTree(sourceDir: string): Promise<MarkdownTreePayload> {
+  return invoke<MarkdownTreePayload>("read_markdown_tree", { sourceDir });
 }

@@ -9,7 +9,12 @@ import {
   wrappingInputRule,
 } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
-import { defaultMarkdownSerializer, MarkdownSerializer } from "prosemirror-markdown";
+import {
+  defaultMarkdownParser,
+  defaultMarkdownSerializer,
+  MarkdownParser,
+  MarkdownSerializer,
+} from "prosemirror-markdown";
 import {
   Schema,
   type Node as ProseMirrorNode,
@@ -79,7 +84,7 @@ const mentionRefSpec: NodeSpec = {
       "data-ref-id": String(node.attrs.id),
       "data-ref-label": String(node.attrs.label),
     },
-    `@${node.attrs.label}`,
+    `${node.attrs.kind === "person" ? "$" : "@"}${node.attrs.label}`,
   ],
   parseDOM: [
     {
@@ -207,7 +212,7 @@ const productMarkdownSerializer = new MarkdownSerializer(
       state.text(`#${node.attrs.label}`, false);
     },
     mention_ref(state, node) {
-      state.text(`@${node.attrs.label}`, false);
+      state.text(`${node.attrs.kind === "person" ? "$" : "@"}${node.attrs.label}`, false);
     },
   },
   defaultMarkdownSerializer.marks,
@@ -215,6 +220,36 @@ const productMarkdownSerializer = new MarkdownSerializer(
 
 export function serializeProductMarkdown(document: ProseMirrorNode): string {
   return productMarkdownSerializer.serialize(document);
+}
+
+const productMarkdownParser = new MarkdownParser(
+  productSchema,
+  defaultMarkdownParser.tokenizer,
+  defaultMarkdownParser.tokens,
+);
+
+function plainParagraphDocument(markdown: string): ProseMirrorNode {
+  const paragraphs = markdown
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => productSchema.node("paragraph", null, [productSchema.text(line)]));
+  return productSchema.node(
+    "doc",
+    null,
+    paragraphs.length > 0 ? paragraphs : [productSchema.node("paragraph")],
+  );
+}
+
+export function parseProductMarkdown(markdown: string): ProseMirrorNode {
+  if (markdown.trim().length === 0) {
+    return plainParagraphDocument("");
+  }
+  try {
+    return productMarkdownParser.parse(markdown);
+  } catch {
+    return plainParagraphDocument(markdown);
+  }
 }
 
 export function countWords(document: ProseMirrorNode): number {

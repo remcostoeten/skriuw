@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Skriuw",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "identifier": "dev.skriuw.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -21,11 +21,12 @@
     ],
     "security": {
       "capabilities": ["default"],
-      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost https://github.com https://objects.githubusercontent.com"
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -34,5 +35,13 @@
       "icons/icon.ico",
       "icons/icon.png"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMyMzUwNTFERUVBOTk4NjYKUldSbW1LbnVIUVUxTXZneitiVHFJdzZVQmpTdjI1eUt6aEhrU0V6ejBOemY4ZUFlRGxqdVRrbXQK",
+      "endpoints": [
+        "https://github.com/remcostoeten/skriuw/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

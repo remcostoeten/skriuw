@@ -11,7 +11,7 @@ use maintenance::{
     ArchiveImportReport, BackupRotationHandle, BackupRotationReport, DatabaseSwapReport,
     MaintenanceCoordinator, RecoveryInventoryReport, spawn_backup_rotation,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use skriuw_domain::{
     HistoryHeader, OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
@@ -19,6 +19,7 @@ use skriuw_history::HistoryReader;
 use skriuw_history_git::GitHistoryMaterializer;
 use skriuw_runtime::{Completion, WorkspaceRuntime};
 use tauri::{Emitter, Manager, RunEvent, State};
+use tauri_plugin_dialog::DialogExt;
 
 struct AppState {
     maintenance: Arc<MaintenanceCoordinator>,
@@ -75,16 +76,16 @@ fn workspace_runtime(state: &State<'_, AppState>) -> Result<WorkspaceRuntime, St
 }
 
 async fn wait_for<T: Send + 'static>(completion: Completion<T>) -> Result<T, String> {
-    tauri::async_runtime::spawn_blocking(move || completion.wait().map_err(|error| error.to_string()))
-        .await
-        .map_err(|error| error.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        completion.wait().map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 async fn run_maintenance<T: Send + 'static>(
     coordinator: Arc<MaintenanceCoordinator>,
-    work: impl FnOnce(&MaintenanceCoordinator) -> Result<T, skriuw_storage::Diagnostic>
-    + Send
-    + 'static,
+    work: impl FnOnce(&MaintenanceCoordinator) -> Result<T, skriuw_storage::Diagnostic> + Send + 'static,
 ) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(move || {
         work(&coordinator).map_err(|error| error.to_string())
@@ -270,6 +271,26 @@ fn workspace_storage_path(state: State<'_, AppState>) -> String {
 }
 
 #[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    let allowed = url.starts_with("https://") || url.starts_with("mailto:");
+    if !allowed {
+        return Err(format!("refused to open {url}"));
+    }
+    let opener = if cfg!(target_os = "macos") {
+        "open"
+    } else if cfg!(target_os = "windows") {
+        "explorer"
+    } else {
+        "xdg-open"
+    };
+    std::process::Command::new(opener)
+        .arg(&url)
+        .spawn()
+        .map_err(|error| format!("open {url}: {error}"))?;
+    Ok(())
+}
+
+#[tauri::command]
 fn reveal_workspace_storage(state: State<'_, AppState>) -> Result<(), String> {
     let target = state
         .storage_path
@@ -290,9 +311,155 @@ fn reveal_workspace_storage(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MarkdownExportEntry {
+    relative_path: String,
+    kind: String,
+    markdown: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MarkdownFilePayload {
+    relative_path: String,
+    content: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MarkdownTreePayload {
+    directories: Vec<String>,
+    files: Vec<MarkdownFilePayload>,
+    skipped: usize,
+}
+
+fn resolve_relative_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
+    if relative.is_empty() {
+        return Err("empty export path".to_string());
+    }
+    let mut resolved = root.to_path_buf();
+    for component in relative.split('/') {
+        if component.is_empty() || component == "." || component == ".." || component.contains('\\')
+        {
+            return Err(format!("invalid export path: {relative}"));
+        }
+        resolved.push(component);
+    }
+    Ok(resolved)
+}
+
+fn write_markdown_entries(target: &Path, entries: &[MarkdownExportEntry]) -> Result<(), String> {
+    fs::create_dir_all(target).map_err(|error| format!("create {}: {error}", target.display()))?;
+    for entry in entries {
+        let path = resolve_relative_path(target, &entry.relative_path)?;
+        match entry.kind.as_str() {
+            "folder" => {
+                fs::create_dir_all(&path)
+                    .map_err(|error| format!("create {}: {error}", path.display()))?;
+            }
+            "note" => {
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent)
+                        .map_err(|error| format!("create {}: {error}", parent.display()))?;
+                }
+                fs::write(&path, entry.markdown.as_deref().unwrap_or(""))
+                    .map_err(|error| format!("write {}: {error}", path.display()))?;
+            }
+            other => return Err(format!("unknown export entry kind: {other}")),
+        }
+    }
+    Ok(())
+}
+
+fn walk_markdown_dir(
+    dir: &Path,
+    prefix: &str,
+    payload: &mut MarkdownTreePayload,
+) -> Result<(), String> {
+    let mut entries: Vec<fs::DirEntry> = fs::read_dir(dir)
+        .map_err(|error| format!("read {}: {error}", dir.display()))?
+        .collect::<Result<_, _>>()
+        .map_err(|error| format!("read {}: {error}", dir.display()))?;
+    entries.sort_by_key(|entry| entry.file_name());
+    for entry in entries {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let relative = if prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{prefix}/{name}")
+        };
+        let file_type = entry
+            .file_type()
+            .map_err(|error| format!("stat {}: {error}", entry.path().display()))?;
+        if file_type.is_dir() {
+            payload.directories.push(relative.clone());
+            walk_markdown_dir(&entry.path(), &relative, payload)?;
+        } else if name.to_lowercase().ends_with(".md") {
+            match fs::read_to_string(entry.path()) {
+                Ok(content) => payload.files.push(MarkdownFilePayload {
+                    relative_path: relative,
+                    content,
+                }),
+                Err(_) => payload.skipped += 1,
+            }
+        }
+    }
+    Ok(())
+}
+
+fn collect_markdown_tree(root: &Path) -> Result<MarkdownTreePayload, String> {
+    let mut payload = MarkdownTreePayload {
+        directories: Vec::new(),
+        files: Vec::new(),
+        skipped: 0,
+    };
+    walk_markdown_dir(root, "", &mut payload)?;
+    Ok(payload)
+}
+
+#[tauri::command]
+async fn export_markdown_tree(
+    entries: Vec<MarkdownExportEntry>,
+    target_dir: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        write_markdown_entries(Path::new(&target_dir), &entries)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn read_markdown_tree(source_dir: String) -> Result<MarkdownTreePayload, String> {
+    tauri::async_runtime::spawn_blocking(move || collect_markdown_tree(Path::new(&source_dir)))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn pick_directory(app: tauri::AppHandle, title: String) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .set_title(&title)
+            .blocking_pick_folder()
+            .map(|path| {
+                path.into_path()
+                    .map(|resolved| resolved.display().to_string())
+                    .map_err(|error| error.to_string())
+            })
+            .transpose()
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let path = database_path(app.handle())?;
             let repository_path = history_repository_path(&path);
@@ -339,7 +506,11 @@ pub fn run() {
             cancel_workspace_maintenance,
             workspace_maintenance_status,
             workspace_storage_path,
-            reveal_workspace_storage
+            reveal_workspace_storage,
+            open_external_url,
+            export_markdown_tree,
+            read_markdown_tree,
+            pick_directory
         ])
         .build(tauri::generate_context!())
         .expect("skriuw app must build")
@@ -351,6 +522,66 @@ pub fn run() {
                 state.maintenance.shutdown();
             }
         });
+}
+
+#[cfg(test)]
+mod markdown_tree_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn entry(relative_path: &str, kind: &str, markdown: Option<&str>) -> MarkdownExportEntry {
+        MarkdownExportEntry {
+            relative_path: relative_path.to_string(),
+            kind: kind.to_string(),
+            markdown: markdown.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn writes_and_reads_back_a_markdown_tree() {
+        let dir = tempdir().expect("tempdir");
+        let entries = [
+            entry("Projects", "folder", None),
+            entry("Projects/Skriuw", "folder", None),
+            entry("Projects/Skriuw/Roadmap.md", "note", Some("# Roadmap")),
+            entry("Inbox.md", "note", Some("hello")),
+        ];
+        write_markdown_entries(dir.path(), &entries).expect("write tree");
+
+        let tree = collect_markdown_tree(dir.path()).expect("collect tree");
+        assert_eq!(tree.directories, ["Projects", "Projects/Skriuw"]);
+        assert_eq!(tree.skipped, 0);
+        let paths: Vec<&str> = tree
+            .files
+            .iter()
+            .map(|file| file.relative_path.as_str())
+            .collect();
+        assert_eq!(paths, ["Inbox.md", "Projects/Skriuw/Roadmap.md"]);
+        assert_eq!(tree.files[1].content, "# Roadmap");
+    }
+
+    #[test]
+    fn rejects_escaping_and_absolute_paths() {
+        let dir = tempdir().expect("tempdir");
+        for relative_path in ["../escape.md", "/absolute.md", "a/../b.md", "", "a//b.md"] {
+            let result =
+                write_markdown_entries(dir.path(), &[entry(relative_path, "note", Some(""))]);
+            assert!(result.is_err(), "accepted {relative_path:?}");
+        }
+    }
+
+    #[test]
+    fn counts_unreadable_markdown_files_as_skipped() {
+        let dir = tempdir().expect("tempdir");
+        fs::write(dir.path().join("valid.md"), "ok").expect("write valid");
+        fs::write(dir.path().join("broken.md"), [0xff, 0xfe, 0xfd]).expect("write broken");
+        fs::write(dir.path().join("ignored.txt"), "not markdown").expect("write ignored");
+
+        let tree = collect_markdown_tree(dir.path()).expect("collect tree");
+        assert_eq!(tree.files.len(), 1);
+        assert_eq!(tree.files[0].relative_path, "valid.md");
+        assert_eq!(tree.skipped, 1);
+    }
 }
 
 #[cfg(test)]

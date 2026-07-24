@@ -292,6 +292,28 @@ export function CircleIcon(props: IconProps) {
   );
 }
 
+export function MoreHorizontalIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+      <circle cx="5" cy="12" r="1" />
+    </LucideIcon>
+  );
+}
+
+export function PaletteIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
+      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+      <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+      <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+    </LucideIcon>
+  );
+}
+
 export function FolderInputIcon(props: IconProps) {
   return (
     <LucideIcon {...props}>
@@ -452,6 +474,26 @@ export function ReplaceAllIcon(props: IconProps) {
       <path d="M20 12a2 2 0 0 1 2 2" />
       <path d="M14 20a2 2 0 0 0 2 2" />
       <path d="M20 22a2 2 0 0 0 2-2" />
+    </LucideIcon>
+  );
+}
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" x2="12" y1="15" y2="3" />
+    </LucideIcon>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" x2="12" y1="3" y2="15" />
     </LucideIcon>
   );
 }
