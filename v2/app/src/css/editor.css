@@ -1,0 +1,165 @@
+.prosemirror-host .ProseMirror {
+  outline: none;
+  min-height: 60vh;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.raw-markdown-editor {
+  width: 100%;
+  min-height: 60vh;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.bounded-editor-spacer {
+  width: 1px;
+  pointer-events: none;
+}
+
+.bounded-editor-accessible-document {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: pre-wrap;
+  border: 0;
+}
+
+.bounded-editor-accessible-document:focus {
+  position: relative;
+  width: 100%;
+  height: 8rem;
+  padding: 8px;
+  margin: 12px 0;
+  overflow: auto;
+  clip: auto;
+  border: 1px solid hsl(var(--ring));
+}
+
+.prosemirror-host[data-editor-line-height="cozy"] .ProseMirror {
+  line-height: 1.45;
+}
+
+.prosemirror-host[data-editor-line-height="relaxed"] .ProseMirror {
+  line-height: 1.95;
+}
+
+.prosemirror-host[data-editor-font="serif"] .ProseMirror {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.prosemirror-host[data-editor-font="mono"] .ProseMirror {
+  font-family: var(--font-mono);
+}
+
+.prosemirror-host .ProseMirror .is-editor-empty::before {
+  content: var(--editor-placeholder, "Start writing...");
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+.prosemirror-host .ProseMirror a {
+  color: hsl(var(--editor-link));
+}
+
+.prosemirror-host .ProseMirror a:hover {
+  color: hsl(var(--editor-link-hover));
+}
+
+.prosemirror-host .ProseMirror pre {
+  padding: 12px;
+  border-radius: calc(var(--radius) + 2px);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  overflow-x: auto;
+  font-family: var(--font-mono);
+}
+
+.prosemirror-host .ProseMirror blockquote {
+  margin: 0;
+  padding-left: 14px;
+  border-left: 3px solid hsl(var(--border));
+  color: hsl(var(--theme-text-secondary));
+}
+
+.prosemirror-host .ProseMirror code {
+  padding: 1px 4px;
+  border-radius: calc(var(--radius) - 2px);
+  background: hsl(var(--muted) / 0.6);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.prosemirror-host .ProseMirror hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.slash-menu {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 4px;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 2px);
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 8px 24px hsl(var(--scrim) / 0.25);
+}
+
+.slash-menu button {
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.slash-menu button:hover,
+.slash-menu button.is-selected {
+  background: hsl(var(--theme-bg-active));
+}
+
+.note-image {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  vertical-align: middle;
+}
+
+.note-image[data-image-state="loading"],
+.note-image[data-image-state="missing"] {
+  min-width: 120px;
+  min-height: 72px;
+  border: 1px dashed hsl(var(--border));
+  background: hsl(var(--theme-bg-active) / 0.4);
+}
+
+.note-image[data-image-state="missing"]::after {
+  content: attr(alt);
+}
+
+.ProseMirror-selectednode.note-image {
+  outline: 2px solid hsl(var(--ring));
+}

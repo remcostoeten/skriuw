@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OperationAck",
+  "type": "object",
+  "properties": {
+    "applied": {
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
+    },
+    "rankChanges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NodeRankChange"
+      }
+    },
+    "revisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EntityRevision"
+      }
+    }
+  },
+  "required": [
+    "applied",
+    "revisions",
+    "rankChanges"
+  ],
+  "$defs": {
+    "EntityRevision": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ]
+    },
+    "NodeRankChange": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rank": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "rank"
+      ]
+    }
+  }
+}
