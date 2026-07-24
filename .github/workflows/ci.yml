@@ -5,7 +5,11 @@ on:
         branches:
             - daddy
             - master
+        paths-ignore:
+            - "v2/**"
     pull_request:
+        paths-ignore:
+            - "v2/**"
 
 permissions:
     contents: read

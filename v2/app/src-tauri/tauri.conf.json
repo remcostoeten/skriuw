@@ -40,7 +40,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCRjU3Nzk0MUYwNEMwNkQKUldSdHdBUWZsSGYxeTdrUm11T1daZmMvVlEyV0k4K2xUVGJhTXJGdkFySllZTituRGR4RXlpSTUK",
       "endpoints": [
-        "https://github.com/remcostoeten/skriuw-standalone/releases/latest/download/latest.json"
+        "https://github.com/remcostoeten/skriuw/releases/latest/download/latest.json"
       ]
     }
   }

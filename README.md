@@ -36,6 +36,24 @@ The surface stays quiet until you need more: links between ideas, rich and Markd
 > [!NOTE]
 > AI is optional. Bring your own provider key or use the app's fallback keys. User keys are encrypted at rest.
 
+## Skriuw v2 — a ground-up rebuild in [`v2/`](v2/)
+
+This repository now carries two lines of Skriuw:
+
+- **v1** — everything under `apps/` and `packages/`: the web app, mobile, extension, and desktop shell you're reading about on this page, with cloud sync, sharing, and the broadest feature set. It remains available and maintained.
+- **v2** — a from-scratch rebuild under [`v2/`](v2/), and the primary focus of development going forward.
+
+v2 exists for one reason: performance that v1's architecture cannot reach. It is built around a single promise — **every interaction gives same-frame feedback**. No spinners, no sync dialogs, no "loading your notes."
+
+- A Rust backend (domain, storage, runtime, and Git-history crates) under a Tauri 2 shell, with SQLite on disk as canonical storage.
+- The renderer navigates a fully hydrated in-memory workspace: **switching notes performs zero IPC, zero database reads, zero parsing**.
+- The performance contract — cached note swap and keystroke-to-paint both **under 8 ms at P95, with zero dropped frames** across hundreds of rapid switches — is enforced by a production benchmark suite in CI, not aspiration.
+- Every save is versioned into a native Git history that runs entirely off the editing path.
+
+The trade-off, for now: v2 is local-first desktop only — no cloud, no mobile, a narrower feature set. It grows toward parity release by release. See [`v2/FEATURES.md`](v2/FEATURES.md) for what it does today and [`v2/docs/adr/0022-v2-monorepo-import.md`](v2/docs/adr/0022-v2-monorepo-import.md) for how the two lines coexist here.
+
+**Versioning:** v1 keeps its `v0.x` and `desktop-v*` tags; v2 releases are tagged `v2-v*` and appear on the same [releases page](https://github.com/remcostoeten/skriuw/releases). `v2/` is a self-contained toolchain — bootstrap and build from that directory, not the repo root.
+
 ## Keep the whole thread
 
 | Area           | What it gives you                                                                                   |
