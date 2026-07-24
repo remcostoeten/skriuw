@@ -1,0 +1,21 @@
+/target/
+.build/
+node_modules/
+dist/
+/.data/
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+.claude/worktrees/
+/app/e2e/results/
+
+# Vendored third-party skills; reinstallable from skills-lock.json
+/.agents/skills/building-tauri-with-github-actions/
+/.agents/skills/distributing-tauri-for-windows/
+/.agents/skills/signing-tauri-apps/
+/.agents/skills/tauri-v2/
+/.claude/skills/building-tauri-with-github-actions
+/.claude/skills/distributing-tauri-for-windows
+/.claude/skills/signing-tauri-apps
+/.claude/skills/tauri-v2

@@ -1,0 +1,421 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkspaceSnapshot",
+  "type": "object",
+  "properties": {
+    "activeNoteId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "documents": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/WorkspaceDocument"
+      }
+    },
+    "historyHeaders": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/HistoryHeader"
+      }
+    },
+    "images": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/WorkspaceImage"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/WorkspaceNode"
+      }
+    },
+    "people": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/WorkspacePerson"
+      }
+    },
+    "protocolVersion": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    },
+    "references": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/NoteReferences"
+      }
+    },
+    "settings": {
+      "$ref": "#/$defs/WorkspaceSettings"
+    },
+    "tags": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/WorkspaceTag"
+      }
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "nodes",
+    "documents",
+    "historyHeaders",
+    "settings"
+  ],
+  "$defs": {
+    "DocumentReference": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ReferenceKind"
+        },
+        "targetId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "targetId"
+      ]
+    },
+    "HistoryHeader": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "versionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "noteId",
+        "versionId",
+        "createdAt",
+        "summary"
+      ]
+    },
+    "NodeKind": {
+      "type": "string",
+      "enum": [
+        "note",
+        "folder"
+      ]
+    },
+    "NoteReferences": {
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DocumentReference"
+          }
+        }
+      },
+      "required": [
+        "noteId",
+        "targets"
+      ]
+    },
+    "ReferenceKind": {
+      "type": "string",
+      "enum": [
+        "tag",
+        "person",
+        "note"
+      ]
+    },
+    "WorkspaceDocument": {
+      "type": "object",
+      "properties": {
+        "documentJson": true,
+        "markdown": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "wordCount": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "noteId",
+        "documentJson",
+        "markdown",
+        "revision",
+        "wordCount"
+      ]
+    },
+    "WorkspaceImage": {
+      "type": "object",
+      "properties": {
+        "byteSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "contentHash": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "height": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "width": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "noteId",
+        "contentHash",
+        "mimeType",
+        "byteSize",
+        "createdAt"
+      ]
+    },
+    "WorkspaceNode": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "deletedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/NodeKind"
+        },
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pinnedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64",
+          "default": null
+        },
+        "rank": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "rank",
+        "title",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WorkspacePerson": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        },
+        "createdIn": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "id": {
+          "type": "string"
+        },
+        "initials": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "WorkspaceSettings": {
+      "type": "object",
+      "properties": {
+        "compactSidebar": {
+          "type": "boolean",
+          "default": false
+        },
+        "editorFont": {
+          "type": "string",
+          "default": "inter"
+        },
+        "editorLineHeight": {
+          "type": "string",
+          "default": "comfortable"
+        },
+        "editorPlaceholder": {
+          "type": "string",
+          "default": "Start writing..."
+        },
+        "reduceMotion": {
+          "type": "boolean",
+          "default": false
+        },
+        "rememberLastNote": {
+          "type": "boolean",
+          "default": true
+        },
+        "settingsVersion": {
+          "type": "integer",
+          "format": "uint16",
+          "default": 1,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "showLineNumbers": {
+          "type": "boolean",
+          "default": true
+        },
+        "showPageIcons": {
+          "type": "boolean",
+          "default": true
+        },
+        "theme": {
+          "type": "string",
+          "default": "midnight"
+        }
+      },
+      "additionalProperties": true
+    },
+    "WorkspaceTag": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        },
+        "createdIn": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    }
+  }
+}

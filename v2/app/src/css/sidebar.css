@@ -1,0 +1,44 @@
+.sidebar-compact [role="treeitem"] > button,
+.sidebar-compact [role="treeitem"] > div {
+  height: 28px;
+}
+
+.sidebar-tree-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.sidebar-tree-dragging [role="treeitem"] {
+  cursor: grabbing;
+}
+
+.tree-drop-line {
+  position: absolute;
+  right: 6px;
+  height: 2px;
+  border-radius: 1px;
+  background: hsl(var(--foreground) / 0.65);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.tree-drop-inside {
+  position: absolute;
+  inset-inline: 0;
+  border: 1px solid hsl(var(--foreground) / 0.45);
+  background: hsl(var(--foreground) / 0.08);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.sidebar-guides [role="treeitem"] > button,
+.sidebar-guides [role="treeitem"] > div {
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0 calc(var(--tree-step, 16px) - 1px),
+    hsl(var(--sidebar-border)) calc(var(--tree-step, 16px) - 1px) var(--tree-step, 16px)
+  );
+  background-position: calc(var(--tree-base, 12px) + 8px) 0;
+  background-size: calc(var(--tree-indent, 0px) - 8px) 100%;
+  background-repeat: no-repeat;
+}
