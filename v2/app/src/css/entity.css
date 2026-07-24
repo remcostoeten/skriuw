@@ -77,6 +77,15 @@
   cursor: default;
 }
 
+.entity-button:focus-visible,
+.entity-row-summary:focus-visible,
+.entity-icon-button:focus-visible,
+.entity-swatch-option:focus-visible,
+.entity-backlinks button:focus-visible {
+  background-color: hsl(var(--foreground) / 0.1);
+  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.48);
+  color: hsl(var(--foreground));
+}
 .entity-button-primary {
   border-color: hsl(var(--foreground) / 0.2);
   background: hsl(var(--foreground) / 0.12);
@@ -302,8 +311,9 @@
 
 .entity-field input:focus,
 .entity-field textarea:focus {
-  outline: 2px solid hsl(var(--foreground) / 0.3);
-  outline-offset: 1px;
+  border-color: hsl(var(--foreground) / 0.5);
+  background: hsl(var(--muted) / 0.38);
+  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.2);
 }
 
 .entity-swatches {
@@ -326,8 +336,8 @@
 }
 
 .entity-swatch-option[aria-pressed="true"] {
-  outline: 2px solid hsl(var(--foreground) / 0.55);
-  outline-offset: 2px;
+  border-color: hsl(var(--foreground) / 0.6);
+  box-shadow: inset 0 0 0 2px hsl(var(--background) / 0.9);
 }
 
 .entity-confirm-actions {

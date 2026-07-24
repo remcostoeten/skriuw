@@ -583,8 +583,8 @@ product decision.
   the editor's create-token action now persists through that bridge after its
   synchronous local paint.
 
-Immediate next task: add focused desktop end-to-end coverage for a dedicated
-tag/person management surface when that product surface is introduced.
+Immediate next task: add focused desktop end-to-end coverage for the dedicated
+tag/person management surface.
 
 ## Completed in-context reference management slice
 
@@ -617,3 +617,15 @@ tag/person management surface when that product surface is introduced.
   regressions in `app/__tests__/references/reference-panel-model.test.ts` cover
   each builder's kind-specific operation, its no-op guards, and a recolor round
   trip through the store into the projected detail rows.
+
+## Completed entity focus-state refinement
+
+- Keyboard focus in the dedicated tags and people manager now changes the
+  focused control itself: buttons and rows receive an internal contrast fill
+  and inset border, text fields receive a stronger border and inset edge, and
+  selected palette swatches use their own border and inset ring. The former
+  external outlines are removed while every control retains a visible
+  `:focus-visible` state.
+
+Immediate next task: add focused desktop end-to-end coverage for entity
+management.

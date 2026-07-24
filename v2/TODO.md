@@ -197,7 +197,7 @@ Deleted entities retain token labels in document JSON while their projection
 rows are removed, so they resolve as unavailable rather than being retargeted.
 
 Immediate next task: add focused desktop end-to-end coverage for entity
-management after its product surface is introduced.
+management.
 
 React requirements if selected:
 
