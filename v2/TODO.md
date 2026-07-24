@@ -199,6 +199,11 @@ rows are removed, so they resolve as unavailable rather than being retargeted.
 Immediate next task: add focused desktop end-to-end coverage for entity
 management.
 
+Tree keyboard contract: Tab enters the active visible file or folder directly;
+Arrow keys move the roving tree-item tab stop, and search result selection
+returns focus to that item. The virtualized tree still exposes only one item to
+the Tab sequence.
+
 React requirements if selected:
 
 - [ ] Add React Scan only if production Profiler and render-count evidence exposes a diagnostic gap.

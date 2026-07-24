@@ -629,3 +629,14 @@ tag/person management surface.
 
 Immediate next task: add focused desktop end-to-end coverage for entity
 management.
+
+## Completed file-tree tab navigation refinement
+
+- The workspace tree now uses a roving tree-item Tab stop instead of requiring
+  users to discover an active-descendant container. Tab lands directly on the
+  active visible file or folder; arrows update the focused item and its DOM
+  focus, while search selection returns to the same item. Virtualization still
+  limits the tree to one Tab stop.
+
+Immediate next task: add focused desktop end-to-end coverage for entity
+management.

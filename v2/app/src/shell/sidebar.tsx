@@ -222,11 +222,10 @@ export function Sidebar({ store }: Props) {
       const state = store.getState();
       const focusedId = state.focusedNodeId;
       const index = focusedId ? state.visibleIds.indexOf(focusedId) : -1;
+      element?.removeAttribute("aria-activedescendant");
       if (!element || index < 0 || focusedId === null) {
-        element?.removeAttribute("aria-activedescendant");
         return;
       }
-      element.setAttribute("aria-activedescendant", `treeitem-${focusedId}`);
       const rowPitch = (effectiveCompact ? 28 : 34) + 1;
       const top = index * rowPitch;
       const bottom = top + rowPitch;
@@ -281,6 +280,7 @@ export function Sidebar({ store }: Props) {
     [rowPitch, treeScrollTop, treeViewportHeight, visibleIds.length],
   );
   const renderedIds = visibleIds.slice(treeWindow.start, treeWindow.end);
+  const treeTabStopId = visibleIds[0] ?? null;
   const trimmedQuery = searchQuery.trim();
 
   function closeSearch(restoreTrigger = false): void {
@@ -372,8 +372,19 @@ export function Sidebar({ store }: Props) {
     }));
   }
 
+  function focusTreeItem(id: string | null): void {
+    if (!id) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      treeRef.current
+        ?.querySelector<HTMLButtonElement>(`[data-row-key="${CSS.escape(id)}"]`)
+        ?.focus();
+    });
+  }
+
   function focusTreeAfterSearch(): void {
-    requestAnimationFrame(() => treeRef.current?.focus());
+    focusTreeItem(store.getState().focusedNodeId);
   }
 
   function onSearchNoteSelect(id: string): void {
@@ -413,6 +424,7 @@ export function Sidebar({ store }: Props) {
         const next = state.visibleIds[focusIndex + 1] ?? state.visibleIds[0];
         if (next) {
           store.setFocusedNode(next);
+          focusTreeItem(next);
         }
         event.preventDefault();
         return;
@@ -424,6 +436,7 @@ export function Sidebar({ store }: Props) {
             : state.visibleIds[state.visibleIds.length - 1];
         if (next) {
           store.setFocusedNode(next);
+          focusTreeItem(next);
         }
         event.preventDefault();
         return;
@@ -436,6 +449,7 @@ export function Sidebar({ store }: Props) {
             const firstChild = state.childrenByParent.get(focused.id)?.[0];
             if (firstChild) {
               store.setFocusedNode(firstChild);
+              focusTreeItem(firstChild);
             }
           }
           event.preventDefault();
@@ -447,6 +461,7 @@ export function Sidebar({ store }: Props) {
           store.toggleExpanded(focused.id);
         } else if (focused?.parentId) {
           store.setFocusedNode(focused.parentId);
+          focusTreeItem(focused.parentId);
         }
         event.preventDefault();
         return;
@@ -721,7 +736,12 @@ export function Sidebar({ store }: Props) {
               className="relative min-h-0 flex-1 overflow-y-auto px-1.5"
               role="tree"
               aria-label="Workspace"
-              tabIndex={0}
+              tabIndex={-1}
+              onFocus={(event) => {
+                if (event.target === event.currentTarget) {
+                  focusTreeItem(store.getState().focusedNodeId ?? treeTabStopId);
+                }
+              }}
               onKeyDown={onTreeKeyDown}
               onContextMenu={onListContextMenu}
               onScroll={(event) => setTreeScrollTop(event.currentTarget.scrollTop)}
@@ -737,6 +757,7 @@ export function Sidebar({ store }: Props) {
                     id={id}
                     metrics={metrics}
                     top={(treeWindow.start + position) * rowPitch}
+                    tabIndex={id === treeTabStopId ? 0 : -1}
                   />
                 ))}
               </div>
@@ -876,9 +897,10 @@ type RowProps = {
   id: string;
   metrics: TreeMetrics;
   top: number;
+  tabIndex: 0 | -1;
 };
 
-const SidebarRow = memo(function SidebarRow({ store, id, metrics, top }: RowProps) {
+const SidebarRow = memo(function SidebarRow({ store, id, metrics, top, tabIndex }: RowProps) {
   const node = useRendererSelector(store, (state) => state.nodes.get(id));
   const status = useRendererSelector(
     store,
@@ -896,6 +918,8 @@ const SidebarRow = memo(function SidebarRow({ store, id, metrics, top }: RowProp
   const isExpanded = (status & 4) !== 0;
   const isEditing = (status & 8) !== 0;
   const isFolder = node.kind === "folder";
+  const rowTabIndex =
+    isFocused || (tabIndex === 0 && store.getState().focusedNodeId === null) ? 0 : -1;
   const stateClass = isFocused
     ? "bg-foreground/[0.22] text-foreground"
     : isActive
@@ -905,15 +929,8 @@ const SidebarRow = memo(function SidebarRow({ store, id, metrics, top }: RowProp
         : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85";
   return (
     <div
-      id={`treeitem-${id}`}
       className="absolute inset-x-0"
       style={{ top: `${top}px` }}
-      role="treeitem"
-      aria-level={node.depth}
-      aria-setsize={node.setSize}
-      aria-posinset={node.posInSet}
-      aria-selected={isActive}
-      {...(isFolder ? { "aria-expanded": isExpanded } : {})}
     >
       {isEditing ? (
         <div
@@ -937,10 +954,18 @@ const SidebarRow = memo(function SidebarRow({ store, id, metrics, top }: RowProp
       ) : (
         <button
           type="button"
+          id={`treeitem-${id}`}
           className={`${rowBaseClass} ${isFolder ? "justify-between " : ""}${stateClass}`}
           style={rowIndentStyle(node.depth, metrics)}
-          tabIndex={-1}
+          role="treeitem"
+          aria-level={node.depth}
+          aria-setsize={node.setSize}
+          aria-posinset={node.posInSet}
+          aria-selected={isActive}
+          {...(isFolder ? { "aria-expanded": isExpanded } : {})}
+          tabIndex={rowTabIndex}
           data-row-key={id}
+          onFocus={() => store.setFocusedNode(id)}
           onClick={() => {
             store.setFocusedNode(id);
             if (isFolder) {
