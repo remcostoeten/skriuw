@@ -1,0 +1,69 @@
+.boot-failure {
+  padding: 24px;
+  color: hsl(var(--mood-rough));
+}
+
+.command-palette kbd {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  background: hsl(var(--muted));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+}
+
+dialog.dialog {
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  margin: auto;
+  width: min(680px, calc(100vw - 24px));
+  max-height: 72vh;
+  padding: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 4px);
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 16px 48px hsl(var(--scrim) / 0.4);
+}
+
+dialog.dialog::backdrop {
+  background: hsl(var(--scrim) / 0.55);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dialog-close {
+  display: flex;
+  padding: 4px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.dialog-close:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

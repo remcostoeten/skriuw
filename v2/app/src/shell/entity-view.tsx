@@ -19,6 +19,7 @@ import {
 import { backlinksEqual, projectReferencingNotes } from "../references/reference-panel-model";
 import { CircleIcon, PencilIcon, Trash2Icon, WaypointsIcon } from "../shared/icons";
 import { Dialog } from "../shared/ui/dialog";
+import { Tooltip } from "../shared/ui/tooltip";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererStore } from "../store/types";
 import type { ReferenceOperation } from "../references/types";
@@ -277,30 +278,41 @@ function EntityList({
               </span>
             </button>
             <div className="entity-row-actions">
-              <button
-                type="button"
-                className="entity-icon-button"
-                aria-label={`Rename ${row.name}`}
-                onClick={() => onRename(row)}
-              >
-                <PencilIcon size={14} />
-              </button>
-              <button
-                type="button"
-                className="entity-icon-button"
-                aria-label={`Recolor ${row.name}`}
-                onClick={() => onRecolor(row)}
-              >
-                <CircleIcon size={14} />
-              </button>
-              <button
-                type="button"
-                className="entity-icon-button entity-icon-button-danger"
-                aria-label={`Delete ${row.name}`}
-                onClick={() => onDelete(row)}
-              >
-                <Trash2Icon size={14} />
-              </button>
+              <Tooltip label="Rename" side="top">
+                <button
+                  type="button"
+                  className="entity-icon-button"
+                  aria-label={`Rename ${row.name}`}
+                  onClick={() => onRename(row)}
+                >
+                  <PencilIcon size={14} />
+                </button>
+              </Tooltip>
+              <Tooltip label="Recolor" side="top">
+                <button
+                  type="button"
+                  className="entity-icon-button entity-recolor-button"
+                  aria-label={`Recolor ${row.name}`}
+                  onClick={() => onRecolor(row)}
+                >
+                  <span
+                    className="entity-recolor-dot"
+                    style={{ background: row.color ?? "transparent" }}
+                    data-empty={row.color === null ? "" : undefined}
+                    aria-hidden="true"
+                  />
+                </button>
+              </Tooltip>
+              <Tooltip label="Delete" side="top">
+                <button
+                  type="button"
+                  className="entity-icon-button entity-icon-button-danger"
+                  aria-label={`Delete ${row.name}`}
+                  onClick={() => onDelete(row)}
+                >
+                  <Trash2Icon size={14} />
+                </button>
+              </Tooltip>
             </div>
           </div>
           {expandedId === row.id && (
