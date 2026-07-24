@@ -387,7 +387,10 @@ async fn import_markdown_image(
     .map_err(|error| error.to_string())?
 }
 
-fn spawn_startup_image_sweep(maintenance: Arc<MaintenanceCoordinator>, image_store: Arc<ImageStore>) {
+fn spawn_startup_image_sweep(
+    maintenance: Arc<MaintenanceCoordinator>,
+    image_store: Arc<ImageStore>,
+) {
     std::thread::spawn(move || {
         std::thread::sleep(IMAGE_SWEEP_STARTUP_DELAY);
         let snapshot = (|| -> Result<WorkspaceSnapshot, String> {

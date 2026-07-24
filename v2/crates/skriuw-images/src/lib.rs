@@ -260,9 +260,11 @@ mod tests {
                 .expect("sweep dead"),
             1
         );
-        assert!(!store
-            .exists(&stored.content_hash, stored.mime_type)
-            .expect("exists"));
+        assert!(
+            !store
+                .exists(&stored.content_hash, stored.mime_type)
+                .expect("exists")
+        );
     }
 
     #[test]
@@ -270,7 +272,10 @@ mod tests {
         assert_eq!(sniff_mime(PNG), Some("image/png"));
         assert_eq!(sniff_mime(&[0xff, 0xd8, 0xff, 0xe0]), Some("image/jpeg"));
         assert_eq!(sniff_mime(b"GIF89a......"), Some("image/gif"));
-        assert_eq!(sniff_mime(b"RIFF\x00\x00\x00\x00WEBPVP8 "), Some("image/webp"));
+        assert_eq!(
+            sniff_mime(b"RIFF\x00\x00\x00\x00WEBPVP8 "),
+            Some("image/webp")
+        );
         assert_eq!(sniff_mime(b"<svg></svg>"), None);
     }
 }
