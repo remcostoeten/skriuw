@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "../scripts/build.sh web",
     "build:frontend": "tsc --noEmit && vite build",
-    "test": "tsx --test --experimental-test-coverage \"__tests__/**/*.test.ts\"",
+    "test": "tsx scripts/test-verdict.ts",
     "typecheck": "tsc --noEmit",
     "tauri": "../scripts/tauri.sh",
     "tauri:dev": "tauri dev",

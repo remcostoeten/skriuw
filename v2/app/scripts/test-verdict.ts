@@ -1,9 +1,7 @@
 import { spawn } from "node:child_process";
-import { readdirSync, statSync, existsSync } from "node:fs";
-import { resolve, dirname, relative, sep, basename } from "node:path";
+import { readdirSync, existsSync } from "node:fs";
+import { resolve, dirname, relative, basename } from "node:path";
 import { fileURLToPath } from "node:url";
-
-// --- plumbing ----------------------------------------------------------------
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -26,8 +24,6 @@ const ENTRY_POINTS = new Set([
   "main.tsx",
   "vite-env.d.ts",
 ]);
-
-// --- types ------------------------------------------------------------------
 
 interface TestCounts {
   total: number;
@@ -57,28 +53,30 @@ interface DirCoverage {
   entries: FileEntry[];
 }
 
-// --- test runner ------------------------------------------------------------
-
 function runTests(): Promise<{ counts: TestCounts; coverage: CoveragePct }> {
   return new Promise((resolvePromise) => {
     const tsxBin = resolve(ROOT, "node_modules", ".bin", "tsx");
     const child = spawn(
       tsxBin,
       ["--test", "--experimental-test-coverage", "__tests__/**/*.test.ts"],
-      { cwd: ROOT, stdio: ["inherit", "inherit", "pipe"], shell: false },
+      { cwd: ROOT, stdio: ["inherit", "pipe", "pipe"], shell: false },
     );
 
-    const stderrChunks: Buffer[] = [];
+    const outChunks: Buffer[] = [];
+
+    child.stdout.on("data", (chunk: Buffer) => {
+      process.stdout.write(chunk);
+      outChunks.push(chunk);
+    });
 
     child.stderr.on("data", (chunk: Buffer) => {
       process.stderr.write(chunk);
-      stderrChunks.push(chunk);
     });
 
-    child.on("exit", (code) => {
+    child.on("close", (code) => {
       exitCode = code ?? 1;
-      const stderrAll = Buffer.concat(stderrChunks).toString("utf-8");
-      resolvePromise(parseOutput(stderrAll));
+      const allOut = Buffer.concat(outChunks).toString("utf-8");
+      resolvePromise(parseOutput(allOut));
     });
   });
 }
@@ -87,36 +85,37 @@ function parseOutput(text: string): { counts: TestCounts; coverage: CoveragePct 
   const counts: TestCounts = { total: 0, pass: 0, fail: 0, skip: 0 };
   const coverage: CoveragePct = { lines: null, branches: null, funcs: null };
 
-  for (const line of text.split("\n")) {
-    // Strip leading non-word characters (ℹ U+2139, spaces, etc.)
-    const clean = line.replace(/^[^\w]+/, "").trim();
-    if (!clean) continue;
+  for (const raw of text.split("\n")) {
+    // strip leading non-alpha (ℹ, whitespace) to get clean keyword lines
+    const line = raw.replace(/^[^a-zA-Z]+/, "").trim();
+    if (!line) continue;
 
     let m: RegExpMatchArray | null;
 
-    m = clean.match(/^tests\s+(\d+)/i);
-    if (m) counts.total = Number(m[1]);
-    m = clean.match(/^pass\s+(\d+)/i);
-    if (m) counts.pass = Number(m[1]);
-    m = clean.match(/^fail\s+(\d+)/i);
-    if (m) counts.fail = Number(m[1]);
-    m = clean.match(/^skipped\s+(\d+)/i);
-    if (m) counts.skip = Number(m[1]);
-
-    m = clean.match(
-      /^all files\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/,
-    );
+    m = line.match(/^(tests|pass|fail|skipped)\s+(\d+)/i);
     if (m) {
-      coverage.lines = Number(m[1]);
-      coverage.branches = Number(m[2]);
-      coverage.funcs = Number(m[3]);
+      const key = m[1].toLowerCase();
+      const val = Number(m[2]);
+      if (key === "tests") counts.total = val;
+      else if (key === "pass") counts.pass = val;
+      else if (key === "fail") counts.fail = val;
+      else if (key === "skipped") counts.skip = val;
+      continue;
+    }
+
+    m = line.match(/^all files\s*\|/i);
+    if (m) {
+      const parts = line.split("|");
+      if (parts.length >= 4) {
+        coverage.lines = Number(parts[1].trim());
+        coverage.branches = Number(parts[2].trim());
+        coverage.funcs = Number(parts[3].trim());
+      }
     }
   }
 
   return { counts, coverage };
 }
-
-// --- file analysis ----------------------------------------------------------
 
 function walkDir(dir: string, base: string): string[] {
   const results: string[] = [];
@@ -170,8 +169,6 @@ function analyzeFiles(): DirCoverage[] {
   return dirs;
 }
 
-// --- verdict printer --------------------------------------------------------
-
 function pctColor(v: number): string {
   if (v >= 80) return `${GREEN}${v}%${RESET}`;
   if (v >= 50) return `${YELLOW}${v}%${RESET}`;
@@ -202,10 +199,8 @@ function printVerdict(
     if (d.tested === 0) zeroDirs.push(d);
   }
 
-  // --- header ---
   console.log(`\n${BOLD}━━━ Test Verdict ━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n`);
 
-  // --- results ---
   const status = counts.fail === 0 ? PASS : FAIL;
   const parts = [`  ${BOLD}Results${RESET}    ${status}  ${counts.pass} passed`];
   if (counts.fail > 0) parts.push(`${FAIL} ${counts.fail} failed`);
@@ -218,7 +213,6 @@ function printVerdict(
     : `${FAIL} exit ${exitCode}`;
   console.log(`  ${BOLD}Exit${RESET}      ${exitLabel}`);
 
-  // --- coverage ---
   if (coverage.lines !== null) {
     console.log(
       `\n  ${BOLD}Coverage${RESET}   lines ${pctColor(coverage.lines)}` +
@@ -227,13 +221,11 @@ function printVerdict(
     );
   }
 
-  // --- file coverage bar ---
   const srcPct = totalSrc > 0 ? Math.round((totalTested / totalSrc) * 100) : 0;
   console.log(
     `\n  ${BOLD}File coverage${RESET}  ${bar(totalTested, totalSrc)}  ${totalTested}/${totalSrc}  ${pctColor(srcPct)}`,
   );
 
-  // --- per-directory breakdown ---
   console.log(`\n  ${BOLD}By module${RESET}\n`);
   for (const d of dirs) {
     const pct = Math.round((d.tested / d.total) * 100);
@@ -246,7 +238,6 @@ function printVerdict(
     );
   }
 
-  // --- untested modules (zero coverage) ---
   if (zeroDirs.length > 0) {
     console.log(`\n  ${WARN} ${BOLD}Entire modules untested${RESET}\n`);
     for (const d of zeroDirs) {
@@ -256,7 +247,6 @@ function printVerdict(
     }
   }
 
-  // --- top individual untested files ---
   const untestedNonZero = allUntested.filter((e) => {
     const d = dirs.find((d2) =>
       d2.entries.some((e2) => e2.rel === e.rel && !e2.tested)
@@ -271,7 +261,6 @@ function printVerdict(
     );
   }
 
-  // --- summary line ---
   let verdict: string;
   if (counts.fail > 0) {
     verdict = `${FAIL} ${BOLD}Failing tests — fix before commit${RESET}`;
@@ -297,8 +286,6 @@ function printVerdict(
   console.log(`\n  ${verdict}\n`);
   console.log(`${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n`);
 }
-
-// --- main -------------------------------------------------------------------
 
 async function main(): Promise<void> {
   const { counts, coverage } = await runTests();
