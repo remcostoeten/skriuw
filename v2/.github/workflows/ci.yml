@@ -39,10 +39,11 @@ jobs:
           node-version: '24'
 
       - name: Install frontend deps
+        # bun ignores --cwd on the install subcommand, so cd into each dir
         run: |
-          bun install --cwd app --frozen-lockfile
-          bun install --cwd spikes/ui-architecture --frozen-lockfile
-          bun install --cwd spikes/renderer-store --frozen-lockfile
+          (cd app && bun install --frozen-lockfile)
+          (cd spikes/ui-architecture && bun install --frozen-lockfile)
+          (cd spikes/renderer-store && bun install --frozen-lockfile)
 
       - name: Verify and build
         # Updater artifacts are only signed in the release workflow; CI builds skip them
