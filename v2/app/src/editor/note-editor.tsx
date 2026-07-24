@@ -79,7 +79,7 @@ function createEditorState(
 ): EditorState {
   return EditorState.create({
     doc: document,
-    plugins: [...createProductPlugins(), ...extraPlugins],
+    plugins: [...extraPlugins, ...createProductPlugins()],
   });
 }
 
