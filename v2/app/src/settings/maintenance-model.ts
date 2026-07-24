@@ -6,11 +6,12 @@ import type {
   RecoveryInventory,
 } from "../bridge/commands";
 
-export type MaintenanceKind = "export" | "import" | "backup" | "restore";
+export type MaintenanceKind = "export" | "import" | "backup" | "restore" | "relocate";
 
 export type MaintenanceConfirmation =
   | { kind: "import"; archivePath: string }
-  | { kind: "restore"; artifactFileName: string; createdAt: number };
+  | { kind: "restore"; artifactFileName: string; createdAt: number }
+  | { kind: "relocate"; targetDir: string };
 
 export type MaintenancePhase =
   | { phase: "idle" }
@@ -146,6 +147,13 @@ export function confirmationCopy(confirmation: MaintenanceConfirmation): {
       title: "Replace workspace from archive",
       body: "Importing replaces every note, folder, and setting in this workspace with the archive contents. A safety backup of the current database is created first.",
       confirmLabel: "Replace workspace",
+    };
+  }
+  if (confirmation.kind === "relocate") {
+    return {
+      title: "Move workspace storage",
+      body: `The database, images, history, and backups are copied to ${confirmation.targetDir}, then the app restarts using the new location. The current folder is kept untouched as a fallback.`,
+      confirmLabel: "Move and restart",
     };
   }
   return {

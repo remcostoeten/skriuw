@@ -1,6 +1,6 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { NodeView } from "prosemirror-view";
-import { readNoteImageBlob } from "../bridge/commands";
+import { resolveImageBlobUrl } from "../shared/lib/image-blob-url";
 import type { RendererStore } from "../store/types";
 
 export type ImageNodeViews = {
@@ -13,23 +13,6 @@ type ImageBinding = {
   imageId: string;
 };
 
-const objectUrlByHash = new Map<string, Promise<string>>();
-
-function resolveBlobUrl(contentHash: string, mimeType: string): Promise<string> {
-  const cached = objectUrlByHash.get(contentHash);
-  if (cached) {
-    return cached;
-  }
-  const pending = readNoteImageBlob(contentHash, mimeType).then((buffer) =>
-    URL.createObjectURL(new Blob([buffer], { type: mimeType })),
-  );
-  objectUrlByHash.set(contentHash, pending);
-  pending.catch(() => {
-    objectUrlByHash.delete(contentHash);
-  });
-  return pending;
-}
-
 function paintImage(store: RendererStore, binding: ImageBinding): void {
   if (binding.dom.dataset.imageState === "ready") {
     return;
@@ -40,7 +23,7 @@ function paintImage(store: RendererStore, binding: ImageBinding): void {
     return;
   }
   binding.dom.dataset.imageState = "loading";
-  resolveBlobUrl(image.contentHash, image.mimeType)
+  resolveImageBlobUrl(image.contentHash, image.mimeType)
     .then((url) => {
       binding.dom.src = url;
       binding.dom.dataset.imageState = "ready";

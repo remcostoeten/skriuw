@@ -71,6 +71,20 @@ struct HistoryVersionPayload {
     markdown: String,
 }
 
+fn storage_pointer_file(data_dir: &Path) -> PathBuf {
+    data_dir.join("storage-location")
+}
+
+fn read_storage_pointer(data_dir: &Path) -> Option<PathBuf> {
+    let raw = fs::read_to_string(storage_pointer_file(data_dir)).ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(trimmed))
+    }
+}
+
 fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     if let Some(path) = env::var_os("SKRIUW_DB") {
         return Ok(PathBuf::from(path));
@@ -80,6 +94,10 @@ fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .app_data_dir()
         .map_err(|error| error.to_string())?;
     fs::create_dir_all(&data_dir).map_err(|error| error.to_string())?;
+    if let Some(directory) = read_storage_pointer(&data_dir) {
+        fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+        return Ok(directory.join("skriuw.db"));
+    }
     Ok(data_dir.join("skriuw.db"))
 }
 
@@ -305,13 +323,7 @@ fn open_external_url(url: String) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-fn reveal_workspace_storage(state: State<'_, AppState>) -> Result<(), String> {
-    let target = state
-        .storage_path
-        .parent()
-        .unwrap_or(&state.storage_path)
-        .to_path_buf();
+fn open_in_file_manager(target: &Path) -> Result<(), String> {
     let opener = if cfg!(target_os = "macos") {
         "open"
     } else if cfg!(target_os = "windows") {
@@ -320,10 +332,46 @@ fn reveal_workspace_storage(state: State<'_, AppState>) -> Result<(), String> {
         "xdg-open"
     };
     std::process::Command::new(opener)
-        .arg(&target)
+        .arg(target)
         .spawn()
         .map_err(|error| format!("open {}: {error}", target.display()))?;
     Ok(())
+}
+
+#[tauri::command]
+fn reveal_workspace_storage(state: State<'_, AppState>) -> Result<(), String> {
+    open_in_file_manager(state.storage_path.parent().unwrap_or(&state.storage_path))
+}
+
+#[tauri::command]
+fn reveal_workspace_images(state: State<'_, AppState>) -> Result<(), String> {
+    fs::create_dir_all(state.image_store.root()).map_err(|error| error.to_string())?;
+    open_in_file_manager(state.image_store.root())
+}
+
+#[tauri::command]
+async fn relocate_workspace_storage(
+    target_dir: String,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if env::var_os("SKRIUW_DB").is_some() {
+        return Err("storage location is fixed by SKRIUW_DB".into());
+    }
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+    let pointer = storage_pointer_file(&data_dir);
+    let coordinator = Arc::clone(&state.maintenance);
+    let target = target_dir.clone();
+    run_maintenance(coordinator, move |maintenance| {
+        maintenance.relocate_to(Path::new(&target), || {
+            fs::write(&pointer, format!("{target}\n")).map_err(|error| error.to_string())
+        })
+    })
+    .await?;
+    app.restart()
 }
 
 #[derive(Serialize)]
@@ -643,6 +691,8 @@ pub fn run() {
             workspace_maintenance_status,
             workspace_storage_path,
             reveal_workspace_storage,
+            reveal_workspace_images,
+            relocate_workspace_storage,
             open_external_url,
             export_markdown_tree,
             read_markdown_tree,
@@ -755,6 +805,25 @@ mod markdown_tree_tests {
         assert_eq!(tree.files.len(), 1);
         assert_eq!(tree.files[0].relative_path, "valid.md");
         assert_eq!(tree.skipped, 1);
+    }
+}
+
+#[cfg(test)]
+mod storage_pointer_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn resolves_pointer_only_when_present_and_non_empty() {
+        let dir = tempdir().expect("tempdir");
+        assert_eq!(read_storage_pointer(dir.path()), None);
+        fs::write(storage_pointer_file(dir.path()), "  \n").expect("write blank pointer");
+        assert_eq!(read_storage_pointer(dir.path()), None);
+        fs::write(storage_pointer_file(dir.path()), "/moved/workspace\n").expect("write pointer");
+        assert_eq!(
+            read_storage_pointer(dir.path()),
+            Some(PathBuf::from("/moved/workspace"))
+        );
     }
 }
 

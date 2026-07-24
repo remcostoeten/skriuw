@@ -52,6 +52,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Rebindable shortcuts** — the shortcut system is fully remappable from settings.
 - **Zoom and fullscreen** — standard desktop chrome controls, plus quick-quit.
 - **Settings with a Data & Recovery surface** — export, import, backup-now, and restore are all in the UI; the CLI is optional, not required.
+- **Storage you can see and move** — settings show every stored image with size and the notes that use it, open the database or blobs folder in the file manager, and can relocate the whole workspace (database, images, history, backups) to a new folder with a verified copy and automatic restart.
 - **Auto-updates** — built-in updater on top of a tag-driven, cross-platform release pipeline.
 - **Installs everywhere** — APT repo, Homebrew, Winget, Scoop, and the AUR.
 

@@ -114,6 +114,7 @@ What shipped, and where it deviates from the sections above:
 - **Sweep.** Runs once per app start on a detached thread, 60 s after launch, off every interaction path. Blobs younger than one hour are never collected, closing the race with an in-flight `AttachImage`. Moving the sweep onto the six-hour rotation timer is a fair follow-up.
 - **Markdown round trip.** Canonical markdown serializes `image_ref` as `![alt](images/<id>)` (no extension — the serializer has no MIME access). Export rewrites paths to `images/<id>.<ext>`, emits per-directory `images/` entries, and the native side copies blobs from the store. Import converts relative-`src` markdown images into stored blobs + `image_ref` nodes; remote URLs are left as plain `image` nodes.
 - **Migration number.** Landed as `0005_note_images.sql` on this branch; the migration ledger requires contiguous versions, so whichever of pinned-nodes/note-images merges second renumbers.
+- **Settings surface.** Settings → Data lists every stored image (grouped by content hash, with format, size, and the notes that reference it), opens the blobs folder in the file manager, and can relocate the whole workspace — the maintenance coordinator quiesces the runtime, copies the database (consistent backup path) plus `blobs/`, `history/`, and `recovery/`, writes a `storage-location` pointer file in the app data directory, and restarts the app. The old folder is kept as a fallback; `SKRIUW_DB` disables relocation.
 
 ### Deferred
 

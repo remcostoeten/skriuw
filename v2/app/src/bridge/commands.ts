@@ -56,6 +56,14 @@ export function revealWorkspaceStorage(): Promise<void> {
   return invoke<void>("reveal_workspace_storage");
 }
 
+export function revealWorkspaceImages(): Promise<void> {
+  return invoke<void>("reveal_workspace_images");
+}
+
+export function relocateWorkspaceStorage(targetDir: string): Promise<void> {
+  return invoke<void>("relocate_workspace_storage", { targetDir });
+}
+
 export function openExternalUrl(url: string): Promise<void> {
   return invoke<void>("open_external_url", { url });
 }
