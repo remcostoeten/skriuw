@@ -11,7 +11,7 @@ Local-first notes application with a Rust backend, React renderer, and Tauri des
 - Native desktop ships first. Browser-local storage remains possible later.
 - Git history runs asynchronously and never blocks editing or navigation.
 
-See [FEATURES.md](FEATURES.md) for what the app does, [ARCHITECTURE.md](ARCHITECTURE.md) for how it is built, and [docs/adr](docs/adr) for why.
+See [FEATURES.md](FEATURES.md) for what the app does, [ARCHITECTURE.md](ARCHITECTURE.md) for how it is built, [docs/adr](docs/adr) for why, and [TODO.md](TODO.md) for what's next.
 
 ## Installation
 
