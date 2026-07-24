@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "menu": "dev-menu",
-    "dev": "pnpm -C app dev",
+    "dev": "dev-menu",
+    "dev:raw": "pnpm -C app dev",
     "build": "scripts/build.sh web",
     "tauri": "scripts/tauri.sh",
     "tauri:build": "scripts/build.sh desktop",
@@ -13,6 +14,6 @@
     "bootstrap": "scripts/bootstrap.sh"
   },
   "devDependencies": {
-    "@remcostoeten/dev-menu": "^0.2.0"
+    "@remcostoeten/dev-menu": "^0.2.2"
   }
 }

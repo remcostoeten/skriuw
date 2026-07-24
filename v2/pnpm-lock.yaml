@@ -9,13 +9,13 @@ importers:
   .:
     devDependencies:
       '@remcostoeten/dev-menu':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.2.2
+        version: 0.2.2
 
 packages:
 
-  '@remcostoeten/dev-menu@0.2.0':
-    resolution: {integrity: sha512-2zD5+EdhXl8NZ0MngX4QNSEe2N4snC/0zjgx7xGIgTxB8/u19MDQrPOVtSbub5RV0UkOj4Z0aAV1OoDDGQTvbQ==}
+  '@remcostoeten/dev-menu@0.2.2':
+    resolution: {integrity: sha512-Qbk8GoYKsePYChAjUvU0FFg9EEldLbJv/HruO3P/PYiHmHfikU199rmfjz72MfVBVo5W7W0W8Iw+1FuqTtkqCQ==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -25,7 +25,7 @@ packages:
 
 snapshots:
 
-  '@remcostoeten/dev-menu@0.2.0':
+  '@remcostoeten/dev-menu@0.2.2':
     dependencies:
       jiti: 2.7.0
 
