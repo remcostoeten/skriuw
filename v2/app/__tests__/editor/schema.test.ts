@@ -6,6 +6,7 @@ import {
   createProductPlugins,
   isDocEmpty,
   parseProductMarkdown,
+  parseProductMarkdownWithImages,
   productSchema,
   serializeProductMarkdown,
   slashMenuState,
@@ -47,6 +48,37 @@ test("serializeProductMarkdown and parseProductMarkdown roundtrip plain text", (
 
   const emptyParsed = parseProductMarkdown("");
   assert.equal(isDocEmpty(emptyParsed), true);
+});
+
+test("parseProductMarkdownWithImages relinks known image ids back to image_ref", () => {
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, [
+      productSchema.node("image_ref", { id: "img-1", alt: "A photo" }),
+    ]),
+  ]);
+  const markdown = serializeProductMarkdown(doc);
+  assert.ok(markdown.includes("images/img-1"));
+
+  const relinked = parseProductMarkdownWithImages(markdown, new Set(["img-1"]));
+  let sawImageRef = false;
+  relinked.descendants((node) => {
+    if (node.type.name === "image_ref") {
+      sawImageRef = true;
+      assert.equal(node.attrs.id, "img-1");
+    }
+    return true;
+  });
+  assert.ok(sawImageRef);
+
+  const unrelinked = parseProductMarkdownWithImages(markdown, new Set());
+  let sawPlainImage = false;
+  unrelinked.descendants((node) => {
+    if (node.type.name === "image") {
+      sawPlainImage = true;
+    }
+    return true;
+  });
+  assert.ok(sawPlainImage);
 });
 
 test("createProductPlugins builds standard plugin set", () => {

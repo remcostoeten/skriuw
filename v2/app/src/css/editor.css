@@ -6,6 +6,21 @@
   word-wrap: break-word;
 }
 
+.raw-markdown-editor {
+  width: 100%;
+  min-height: 60vh;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
 .bounded-editor-spacer {
   width: 1px;
   pointer-events: none;

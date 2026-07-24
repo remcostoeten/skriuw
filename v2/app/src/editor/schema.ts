@@ -352,6 +352,53 @@ export function parseProductMarkdown(markdown: string): ProseMirrorNode {
   }
 }
 
+const IMAGE_PATH_PREFIX = "images/";
+
+/**
+ * `image` nodes are what the CommonMark image syntax parses to; only
+ * `image_ref` nodes are bound to a workspace image blob. Relinks any parsed
+ * `image` node whose `images/<id>` path matches a known blob back to
+ * `image_ref`, so raw-Markdown round-tripping doesn't orphan note images.
+ */
+function relinkImageNode(node: unknown, knownImageIds: ReadonlySet<string>): unknown {
+  if (node === null || typeof node !== "object") {
+    return node;
+  }
+  const record = node as Record<string, unknown>;
+  if (record.type === "image") {
+    const attrs = record.attrs as Record<string, unknown> | undefined;
+    const src = typeof attrs?.src === "string" ? attrs.src : "";
+    if (src.startsWith(IMAGE_PATH_PREFIX)) {
+      const id = src.slice(IMAGE_PATH_PREFIX.length);
+      if (knownImageIds.has(id)) {
+        return {
+          type: "image_ref",
+          attrs: { id, alt: typeof attrs?.alt === "string" ? attrs.alt : "" },
+        };
+      }
+    }
+  }
+  if (Array.isArray(record.content)) {
+    return {
+      ...record,
+      content: record.content.map((child) => relinkImageNode(child, knownImageIds)),
+    };
+  }
+  return record;
+}
+
+export function parseProductMarkdownWithImages(
+  markdown: string,
+  knownImageIds: ReadonlySet<string>,
+): ProseMirrorNode {
+  const parsed = parseProductMarkdown(markdown);
+  try {
+    return productSchema.nodeFromJSON(relinkImageNode(parsed.toJSON(), knownImageIds));
+  } catch {
+    return parsed;
+  }
+}
+
 export function countWords(document: ProseMirrorNode): number {
   let words = 0;
   document.descendants((node) => {

@@ -31,6 +31,7 @@ test("default settings project every editable field", () => {
     editorFont: "inter",
     editorLineHeight: "comfortable",
     editorPlaceholder: "Start writing...",
+    editorDefaultRawMode: false,
   });
 });
 

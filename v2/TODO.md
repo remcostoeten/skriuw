@@ -6,7 +6,7 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 
 - [x] Image support — paste/drop an image into a note. Spec: [docs/specs/note-images.md](docs/specs/note-images.md). Shipped except archive-format support (needs its ADR) and blob-aware backup; both tracked in the spec.
 - [x] Wiki-style `[[note]]` links as an alternative to `@` mentions. Spec: [docs/specs/wiki-links.md](docs/specs/wiki-links.md). Shipped: `[[` trigger detection, note-scoped completion menu, `]]` closing match, `[[note title]]` Markdown export/import round-tripping.
-- [ ] Raw Markdown editing mode alongside the rich editor.
+- [x] Raw Markdown editing mode alongside the rich editor. Toggle any note between rendered (ProseMirror) and raw (plain-text CommonMark source) with `mod+m`, the command palette, or "Default to raw Markdown" in editor settings. Full CommonMark round-trips via `prosemirror-markdown`; `[[wiki links]]` and note images (`image_ref`) are relinked back to their structured nodes on re-entering rendered mode. Known limitation, matching existing Markdown-import behavior: `#tag` and `$person` mentions degrade to plain text when a note is edited in raw mode and switched back, since ambiguous inline tokens are not re-resolved (see `references and mentions degrade to plain text on import` in `markdown-transfer-model.test.ts`).
 
 ## Organization
 

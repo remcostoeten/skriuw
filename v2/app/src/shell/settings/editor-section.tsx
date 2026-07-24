@@ -8,6 +8,7 @@ import {
 import type { EditableSettings, SettingsViewModel } from "../../settings/settings-model";
 import { useRendererSelector } from "../../store/use-renderer-selector";
 import { selectSettings } from "./selectors";
+import { SettingToggle } from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
 
 export function EditorSection({ store }: SectionProps) {
@@ -63,6 +64,12 @@ export function EditorSection({ store }: SectionProps) {
       <div className="settings-group">
         <div className="settings-group-title">Writing</div>
         <PlaceholderField store={store} settings={settings} />
+        <SettingToggle
+          label="Default to raw Markdown"
+          detail="New notes open in the raw Markdown editor. Toggle any note with mod+m."
+          checked={settings.editorDefaultRawMode}
+          onChange={(checked) => change("editorDefaultRawMode", checked)}
+        />
       </div>
     </section>
   );

@@ -5,6 +5,7 @@ import {
   cycleTab,
   openBeside,
 } from "../actions/panes";
+import { toggleEditorMode } from "../actions/editor-mode";
 import { createFolder, createNote, setNodePinned } from "../actions/workspace";
 import type { AppRoute } from "../app-route";
 import { openEditorSearch } from "../editor/search-controller";
@@ -18,6 +19,7 @@ import {
   CircleIcon,
   CloseIcon,
   DownloadIcon,
+  FileTextIcon,
   FolderOpenIcon,
   MaximizeIcon,
   NewFolderIcon,
@@ -122,6 +124,22 @@ export function createWorkspaceCommands(
         }
         const pinned = (state.sourceNodes.get(noteId)?.pinnedAt ?? null) !== null;
         setNodePinned(store, noteId, !pinned);
+      },
+    },
+    {
+      id: "toggle-editor-mode",
+      label: "Toggle raw Markdown mode",
+      group: "Actions",
+      keywords: ["raw", "markdown", "source", "editor"],
+      icon: <FileTextIcon size={15} />,
+      shortcut: "toggleEditorMode",
+      enabled: (state) => state.activeNoteId !== null,
+      run: () => {
+        const noteId = store.getState().activeNoteId;
+        if (!noteId) {
+          return;
+        }
+        toggleEditorMode(store, noteId);
       },
     },
     {

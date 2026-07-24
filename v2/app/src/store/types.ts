@@ -50,6 +50,7 @@ export type RendererState = {
   expandedIds: ReadonlySet<string>;
   panes: readonly PaneState[];
   focusedPaneId: string;
+  editorModeByNoteId: ReadonlyMap<string, "rendered" | "raw">;
   activeNoteId: string | null;
   focusedNodeId: string | null;
   selectedNodeIds: ReadonlySet<string>;

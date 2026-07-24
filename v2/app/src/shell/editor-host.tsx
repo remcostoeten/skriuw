@@ -1,4 +1,6 @@
+import { editorModeForNote } from "../actions/editor-mode";
 import { NoteEditor } from "../editor/note-editor";
+import { RawMarkdownEditor } from "../editor/raw-markdown-editor";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import { WaypointsIcon } from "../shared/icons";
 import type { RendererState, RendererStore } from "../store/types";
@@ -19,10 +21,18 @@ export function EditorHost({
   emptyMessage = "Select a note from the sidebar or create a new one to start writing.",
 }: Props) {
   const hasActiveNote = useRendererSelector(store, (state) => selectNoteId(state) !== null);
+  const isRawMode = useRendererSelector(store, (state) => {
+    const noteId = selectNoteId(state);
+    return noteId !== null && editorModeForNote(state, noteId) === "raw";
+  });
   return (
     <div className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor px-12 py-8">
       <div className={hasActiveNote ? "mx-auto w-full max-w-[72ch]" : "hidden"}>
-        <NoteEditor store={store} selectNoteId={selectNoteId} />
+        {isRawMode ? (
+          <RawMarkdownEditor store={store} selectNoteId={selectNoteId} />
+        ) : (
+          <NoteEditor store={store} selectNoteId={selectNoteId} />
+        )}
       </div>
       {!hasActiveNote && (
         <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">

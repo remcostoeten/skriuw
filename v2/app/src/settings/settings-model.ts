@@ -37,6 +37,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   editorLineHeight: "comfortable",
   showLineNumbers: true,
   editorPlaceholder: "Start writing...",
+  editorDefaultRawMode: false,
 };
 
 export type SettingsViewModel = {
@@ -48,6 +49,7 @@ export type SettingsViewModel = {
   editorFont: string;
   editorLineHeight: string;
   editorPlaceholder: string;
+  editorDefaultRawMode: boolean;
 };
 
 export type EditableSettings = SettingsViewModel;
@@ -82,6 +84,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
       DEFAULT_WORKSPACE_SETTINGS.editorLineHeight,
     ),
     editorPlaceholder: settings.editorPlaceholder,
+    editorDefaultRawMode: settings.editorDefaultRawMode === true,
   };
 }
 

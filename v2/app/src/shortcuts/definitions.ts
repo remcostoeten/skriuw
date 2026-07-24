@@ -5,6 +5,7 @@ export type ShortcutActionId =
   | "createTag"
   | "createPerson"
   | "togglePinNote"
+  | "toggleEditorMode"
   | "closeTab"
   | "nextTab"
   | "previousTab"
@@ -92,6 +93,13 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "togglePinNote",
     keys: "mod+p",
     label: "Pin or unpin current note",
+    group: "Workspace",
+    worksWhileTyping: true,
+  },
+  {
+    id: "toggleEditorMode",
+    keys: "mod+m",
+    label: "Toggle raw Markdown mode",
     group: "Workspace",
     worksWhileTyping: true,
   },
