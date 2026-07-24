@@ -62,10 +62,12 @@ jobs:
             app/src-tauri -> app/src-tauri/target
 
       - name: Install frontend dependencies
+        # Spikes have no own workspace file; without --ignore-workspace pnpm
+        # resolves them against the root workspace and installs nothing there
         run: |
           pnpm --dir app install --frozen-lockfile
-          pnpm --dir spikes/ui-architecture install --frozen-lockfile
-          pnpm --dir spikes/renderer-store install --frozen-lockfile
+          pnpm --dir spikes/ui-architecture install --frozen-lockfile --ignore-workspace
+          pnpm --dir spikes/renderer-store install --frozen-lockfile --ignore-workspace
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0

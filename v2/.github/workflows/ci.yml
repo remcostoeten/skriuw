@@ -52,10 +52,12 @@ jobs:
             spikes/ui-architecture/pnpm-lock.yaml
             spikes/renderer-store/pnpm-lock.yaml
       - name: Install renderer dependencies
+        # Spikes have no own workspace file; without --ignore-workspace pnpm
+        # resolves them against the root workspace and installs nothing there
         run: |
           pnpm --dir app install --frozen-lockfile
-          pnpm --dir spikes/ui-architecture install --frozen-lockfile
-          pnpm --dir spikes/renderer-store install --frozen-lockfile
+          pnpm --dir spikes/ui-architecture install --frozen-lockfile --ignore-workspace
+          pnpm --dir spikes/renderer-store install --frozen-lockfile --ignore-workspace
       - name: Build and verify
         # Bash is required for scripts/build.sh to run correctly on Windows (git bash)
         shell: bash
