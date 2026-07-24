@@ -1415,3 +1415,97 @@ fn rejects_corrupt_backup_without_creating_target() {
 
     assert!(!restore_path.exists());
 }
+
+fn attach_image(id: &str, note_id: &str, hash_fill: char) -> WorkspaceOperationEnvelope {
+    op(WorkspaceOperation::AttachImage {
+        image: skriuw_domain::WorkspaceImage {
+            id: id.into(),
+            note_id: note_id.into(),
+            content_hash: hash_fill.to_string().repeat(64),
+            mime_type: "image/png".into(),
+            byte_size: 128,
+            width: Some(16),
+            height: Some(16),
+            created_at: 2,
+        },
+    })
+}
+
+#[test]
+fn attaches_images_and_shares_blobs_between_notes() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open");
+    storage
+        .apply_operations(&[
+            create_note("note-1"),
+            create_note("note-2"),
+            attach_image("image-1", "note-1", 'a'),
+            attach_image("image-2", "note-2", 'a'),
+        ])
+        .expect("attach images");
+
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.images.len(), 2);
+    let distinct_hashes = snapshot
+        .images
+        .iter()
+        .map(|image| image.content_hash.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(distinct_hashes.len(), 1);
+
+    let duplicate = storage.apply_operations(&[attach_image("image-1", "note-1", 'a')]);
+    assert!(matches!(duplicate, Err(StorageError::AlreadyExists(_))));
+    let dangling = storage.apply_operations(&[attach_image("image-3", "missing-note", 'b')]);
+    assert!(matches!(dangling, Err(StorageError::NotFound(_))));
+}
+
+#[test]
+fn save_document_prunes_detached_image_rows() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open");
+    storage
+        .apply_operations(&[
+            create_note("note-1"),
+            attach_image("image-1", "note-1", 'a'),
+            attach_image("image-2", "note-1", 'b'),
+        ])
+        .expect("attach images");
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-1".into(),
+            document_json: json!({"type": "doc", "content": [
+                {"type": "paragraph", "content": [
+                    {"type": "image_ref", "attrs": {"id": "image-1", "alt": ""}}
+                ]}
+            ]}),
+            markdown: "![](images/image-1)".into(),
+            word_count: 0,
+            expected_revision: 1,
+            at: 3,
+        })])
+        .expect("save with one image");
+
+    let images = storage.bootstrap().expect("bootstrap").images;
+    assert_eq!(images.len(), 1);
+    assert_eq!(images[0].id, "image-1");
+}
+
+#[test]
+fn purge_cascades_image_rows_with_their_note() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open");
+    storage
+        .apply_operations(&[
+            create_note("note-1"),
+            attach_image("image-1", "note-1", 'a'),
+            op(WorkspaceOperation::TrashSubtree {
+                root_id: "note-1".into(),
+                at: 4,
+            }),
+            op(WorkspaceOperation::PurgeSubtree {
+                root_id: "note-1".into(),
+                trashed_before: 4,
+            }),
+        ])
+        .expect("purge note");
+
+    assert!(storage.bootstrap().expect("bootstrap").images.is_empty());
+}

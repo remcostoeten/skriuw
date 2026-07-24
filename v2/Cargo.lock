@@ -555,6 +555,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "skriuw-images"
+version = "0.1.0"
+dependencies = [
+ "sha2",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "skriuw-lifecycle"
 version = "0.1.0"
 dependencies = [

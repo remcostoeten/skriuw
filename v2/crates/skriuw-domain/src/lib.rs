@@ -14,6 +14,8 @@ pub const MAX_SETTING_KEY_BYTES: usize = 128;
 pub const MAX_SETTING_TEXT_BYTES: usize = 512;
 pub const MAX_REFERENCE_NAME_BYTES: usize = 512;
 pub const MAX_REFERENCE_COLOR_BYTES: usize = 64;
+pub const MAX_IMAGE_MIME_BYTES: usize = 128;
+pub const IMAGE_CONTENT_HASH_BYTES: usize = 64;
 
 pub const SETTINGS_FIELDS: [&str; 10] = [
     "settingsVersion",
@@ -54,6 +56,8 @@ pub enum OperationValidationError {
     UnsupportedSettingsVersion(u16),
     #[error("extension setting {key} collides with a schema field")]
     SettingFieldCollision { key: String },
+    #[error("{field} must be positive")]
+    NotPositive { field: &'static str },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -196,6 +200,39 @@ fn default_editor_placeholder() -> String {
     "Start writing...".into()
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceImage {
+    pub id: String,
+    pub note_id: String,
+    pub content_hash: String,
+    pub mime_type: String,
+    pub byte_size: i64,
+    pub width: Option<i64>,
+    pub height: Option<i64>,
+    pub created_at: i64,
+}
+
+impl WorkspaceImage {
+    pub fn validate(&self) -> Result<(), OperationValidationError> {
+        validate_id("image id", &self.id)?;
+        validate_id("note id", &self.note_id)?;
+        validate_content_hash(&self.content_hash)?;
+        validate_mime_type(&self.mime_type)?;
+        if self.byte_size <= 0 {
+            return Err(OperationValidationError::NotPositive {
+                field: "image byte size",
+            });
+        }
+        for (field, value) in [("image width", self.width), ("image height", self.height)] {
+            if value.is_some_and(|value| value <= 0) {
+                return Err(OperationValidationError::NotPositive { field });
+            }
+        }
+        validate_timestamp(self.created_at)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSnapshot {
@@ -211,6 +248,8 @@ pub struct WorkspaceSnapshot {
     pub people: Vec<WorkspacePerson>,
     #[serde(default)]
     pub references: Vec<NoteReferences>,
+    #[serde(default)]
+    pub images: Vec<WorkspaceImage>,
 }
 
 impl WorkspaceSnapshot {
@@ -747,6 +786,9 @@ pub enum WorkspaceOperation {
     UpdateSettings {
         settings: WorkspaceSettings,
     },
+    AttachImage {
+        image: WorkspaceImage,
+    },
 }
 
 impl WorkspaceOperation {
@@ -840,8 +882,77 @@ impl WorkspaceOperation {
             }
             Self::SetActiveNote { note_id } => validate_optional_id("note id", note_id),
             Self::UpdateSettings { settings } => settings.validate(),
+            Self::AttachImage { image } => image.validate(),
         }
     }
+}
+
+fn validate_content_hash(value: &str) -> Result<(), OperationValidationError> {
+    if value.is_empty() {
+        return Err(OperationValidationError::Empty {
+            field: "content hash",
+        });
+    }
+    if value.len() != IMAGE_CONTENT_HASH_BYTES
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    {
+        return Err(OperationValidationError::InvalidIdentifier {
+            field: "content hash",
+        });
+    }
+    Ok(())
+}
+
+fn validate_mime_type(value: &str) -> Result<(), OperationValidationError> {
+    if value.is_empty() {
+        return Err(OperationValidationError::Empty { field: "mime type" });
+    }
+    if value.len() > MAX_IMAGE_MIME_BYTES {
+        return Err(OperationValidationError::TooLong {
+            field: "mime type",
+            maximum: MAX_IMAGE_MIME_BYTES,
+        });
+    }
+    let subtype = value.strip_prefix("image/").unwrap_or("");
+    if subtype.is_empty()
+        || !subtype
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'+' | b'.'))
+    {
+        return Err(OperationValidationError::InvalidIdentifier { field: "mime type" });
+    }
+    Ok(())
+}
+
+/// Collects the ids of every `image_ref` node inside a document, in
+/// first-appearance order and without duplicates.
+pub fn document_image_ids(value: &Value) -> Vec<String> {
+    fn visit(value: &Value, seen: &mut BTreeSet<String>, ids: &mut Vec<String>) {
+        let Some(object) = value.as_object() else {
+            return;
+        };
+        if object.get("type").and_then(Value::as_str) == Some("image_ref")
+            && let Some(id) = object
+                .get("attrs")
+                .and_then(Value::as_object)
+                .and_then(|attrs| attrs.get("id"))
+                .and_then(Value::as_str)
+            && seen.insert(id.into())
+        {
+            ids.push(id.into());
+        }
+        if let Some(content) = object.get("content").and_then(Value::as_array) {
+            for child in content {
+                visit(child, seen, ids);
+            }
+        }
+    }
+    let mut seen = BTreeSet::new();
+    let mut ids = Vec::new();
+    visit(value, &mut seen, &mut ids);
+    ids
 }
 
 fn validate_id(field: &'static str, value: &str) -> Result<(), OperationValidationError> {
@@ -1413,5 +1524,81 @@ mod tests {
             archive.validate(),
             Err(ArchiveValidationError::Invalid(_))
         ));
+    }
+
+    #[test]
+    fn attach_image_wire_format_and_validation() {
+        fn image() -> super::WorkspaceImage {
+            super::WorkspaceImage {
+                id: "image-1".into(),
+                note_id: "note-1".into(),
+                content_hash: "a".repeat(64),
+                mime_type: "image/png".into(),
+                byte_size: 512,
+                width: Some(32),
+                height: Some(32),
+                created_at: 7,
+            }
+        }
+
+        let envelope =
+            WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage { image: image() });
+        envelope.validate().expect("valid attach image");
+        let value = serde_json::to_value(&envelope).expect("serialize attach image");
+        assert_eq!(value["operation"]["type"], "attach_image");
+        assert_eq!(value["operation"]["image"]["noteId"], "note-1");
+        assert_eq!(value["operation"]["image"]["contentHash"], "a".repeat(64));
+
+        let mut short_hash = image();
+        short_hash.content_hash = "abc".into();
+        assert_eq!(
+            short_hash.validate(),
+            Err(OperationValidationError::InvalidIdentifier {
+                field: "content hash"
+            })
+        );
+        let mut bad_mime = image();
+        bad_mime.mime_type = "text/plain".into();
+        assert_eq!(
+            bad_mime.validate(),
+            Err(OperationValidationError::InvalidIdentifier { field: "mime type" })
+        );
+        let mut empty_size = image();
+        empty_size.byte_size = 0;
+        assert_eq!(
+            empty_size.validate(),
+            Err(OperationValidationError::NotPositive {
+                field: "image byte size"
+            })
+        );
+        let mut flat = image();
+        flat.height = Some(0);
+        assert_eq!(
+            flat.validate(),
+            Err(OperationValidationError::NotPositive {
+                field: "image height"
+            })
+        );
+    }
+
+    #[test]
+    fn collects_image_ids_from_documents() {
+        let document = json!({
+            "type": "doc",
+            "content": [
+                {"type": "paragraph", "content": [
+                    {"type": "image_ref", "attrs": {"id": "image-1", "alt": ""}},
+                    {"type": "text", "text": "hello"},
+                    {"type": "image_ref", "attrs": {"id": "image-2", "alt": ""}}
+                ]},
+                {"type": "blockquote", "content": [
+                    {"type": "paragraph", "content": [
+                        {"type": "image_ref", "attrs": {"id": "image-1", "alt": ""}}
+                    ]}
+                ]}
+            ]
+        });
+        assert_eq!(super::document_image_ids(&document), ["image-1", "image-2"]);
+        assert!(super::document_image_ids(&json!({"type": "doc"})).is_empty());
     }
 }

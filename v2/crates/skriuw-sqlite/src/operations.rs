@@ -334,6 +334,7 @@ fn apply_operation(
             let title = node_title(transaction, note_id)?;
             replace_fts(transaction, note_id, &title, markdown)?;
             replace_references(transaction, note_id, document_json)?;
+            prune_detached_images(transaction, note_id, document_json)?;
             enqueue_history(transaction, note_id, next_revision, markdown, *at)?;
             revisions.push(EntityRevision {
                 id: note_id.clone(),
@@ -442,6 +443,52 @@ fn apply_operation(
                      ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
                     [serde_json::to_string(settings).map_err(json_backend)?],
                 )
+                .map_err(backend)?;
+        }
+        WorkspaceOperation::AttachImage { image } => {
+            require_note(transaction, &image.note_id)?;
+            transaction
+                .execute(
+                    "INSERT INTO note_images \
+                     (id, note_id, content_hash, mime_type, byte_size, width, height, created_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    params![
+                        image.id,
+                        image.note_id,
+                        image.content_hash,
+                        image.mime_type,
+                        image.byte_size,
+                        image.width,
+                        image.height,
+                        image.created_at
+                    ],
+                )
+                .map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
+        }
+    }
+    Ok(())
+}
+
+fn prune_detached_images(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    document: &serde_json::Value,
+) -> Result<(), StorageError> {
+    let live = skriuw_domain::document_image_ids(document);
+    let stored = {
+        let mut statement = transaction
+            .prepare_cached("SELECT id FROM note_images WHERE note_id = ?1")
+            .map_err(backend)?;
+        statement
+            .query_map([note_id], |row| row.get::<_, String>(0))
+            .map_err(backend)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(backend)?
+    };
+    for id in stored {
+        if !live.contains(&id) {
+            transaction
+                .execute("DELETE FROM note_images WHERE id = ?1", [&id])
                 .map_err(backend)?;
         }
     }
