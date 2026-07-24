@@ -5,7 +5,7 @@ import {
   effectiveShortcutKeys,
   findShortcutConflict,
   isDefaultBinding,
-  normalizeCombo,
+  sameCombo,
 } from "../../shortcuts/bindings";
 import { SHORTCUT_DEFINITIONS } from "../../shortcuts/definitions";
 import { useRendererSelector } from "../../store/use-renderer-selector";
@@ -44,10 +44,7 @@ export function ShortcutsSection({
                     if (conflict) {
                       return `Already used by “${conflict.label}”`;
                     }
-                    if (
-                      normalizeCombo(combo) ===
-                      normalizeCombo(effectiveShortcutKeys(definition, overrides))
-                    ) {
+                    if (sameCombo(combo, effectiveShortcutKeys(definition, overrides))) {
                       return null;
                     }
                     setShortcutOverride(store, definition.id, combo);

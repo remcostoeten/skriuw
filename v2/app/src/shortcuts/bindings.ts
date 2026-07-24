@@ -1,27 +1,31 @@
+import { parseShortcut } from "@remcostoeten/use-shortcut/parser";
 import type { WorkspaceSettings } from "../contracts/workspace";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId, ShortcutDefinition } from "./definitions";
 
 export type ShortcutOverrides = Partial<Record<ShortcutActionId, string>>;
 
-const MODIFIER_ORDER = ["mod", "ctrl", "alt", "shift", "meta"] as const;
-
 /**
- * Canonical form of a combo string so `Shift+Mod+K`, `mod+shift+k`, and
- * `MOD + SHIFT + K` all compare equal: lowercase, trimmed, modifiers in a
- * fixed order, key last.
+ * Whether two combo strings resolve to the same runtime binding. Compares
+ * parsed modifiers and key instead of raw text, matching exactly how the
+ * shortcut engine matches events — so `mod+k`, `Ctrl + K`, and a recorded
+ * `ctrl+k` all compare equal on platforms where `mod` means ctrl.
  */
-export function normalizeCombo(combo: string): string {
-  const parts = combo
-    .toLowerCase()
-    .split("+")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
-  const modifiers = MODIFIER_ORDER.filter((modifier) => parts.includes(modifier));
-  const keys = parts.filter(
-    (part) => !(MODIFIER_ORDER as readonly string[]).includes(part),
+export function sameCombo(left: string, right: string): boolean {
+  const leftTrimmed = left.trim();
+  const rightTrimmed = right.trim();
+  if (leftTrimmed.length === 0 || rightTrimmed.length === 0) {
+    return leftTrimmed === rightTrimmed;
+  }
+  const a = parseShortcut(leftTrimmed);
+  const b = parseShortcut(rightTrimmed);
+  return (
+    a.modifiers.meta === b.modifiers.meta &&
+    a.modifiers.ctrl === b.modifiers.ctrl &&
+    a.modifiers.alt === b.modifiers.alt &&
+    a.modifiers.shift === b.modifiers.shift &&
+    (a.matchKey ?? a.key) === (b.matchKey ?? b.key)
   );
-  return [...modifiers, ...keys].join("+");
 }
 
 function defaultKeys(definition: ShortcutDefinition): string {
@@ -85,12 +89,11 @@ export function findShortcutConflict(
   actionId: ShortcutActionId,
   combo: string,
 ): ShortcutConflict | null {
-  const normalized = normalizeCombo(combo);
   for (const definition of SHORTCUT_DEFINITIONS) {
     if (definition.id === actionId) {
       continue;
     }
-    if (normalizeCombo(effectiveShortcutKeys(definition, overrides)) === normalized) {
+    if (sameCombo(effectiveShortcutKeys(definition, overrides), combo)) {
       return { actionId: definition.id, label: definition.label };
     }
   }
@@ -102,8 +105,5 @@ export function isDefaultBinding(
   overrides: ShortcutOverrides,
 ): boolean {
   const override = overrides[definition.id];
-  return (
-    override === undefined ||
-    normalizeCombo(override) === normalizeCombo(defaultKeys(definition))
-  );
+  return override === undefined || sameCombo(override, defaultKeys(definition));
 }

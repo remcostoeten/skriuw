@@ -14,6 +14,11 @@ export type ShortcutActionId =
   | "goToTags"
   | "goToPeople"
   | "goToTrash"
+  | "toggleFullscreen"
+  | "quitApp"
+  | "zoomIn"
+  | "zoomOut"
+  | "zoomReset"
   | "findInNote"
   | "searchMatchCase"
   | "searchWholeWord"
@@ -146,6 +151,41 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+shift+4",
     label: "Go to trash",
     group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "toggleFullscreen",
+    keys: "mod+enter",
+    label: "Toggle fullscreen",
+    group: "View",
+    worksWhileTyping: true,
+  },
+  {
+    id: "quitApp",
+    keys: "mod+shift+q",
+    label: "Quit",
+    group: "General",
+    worksWhileTyping: true,
+  },
+  {
+    id: "zoomIn",
+    keys: "mod+equal",
+    label: "Zoom in",
+    group: "View",
+    worksWhileTyping: true,
+  },
+  {
+    id: "zoomOut",
+    keys: "mod+minus",
+    label: "Zoom out",
+    group: "View",
+    worksWhileTyping: true,
+  },
+  {
+    id: "zoomReset",
+    keys: "mod+0",
+    label: "Reset zoom",
+    group: "View",
     worksWhileTyping: true,
   },
   {

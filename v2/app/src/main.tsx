@@ -17,9 +17,12 @@ import { bindSettingsToRoot } from "./settings/apply-settings";
 import { bindSidebarExpansionPersistence } from "./store/sidebar-expansion-persistence";
 import { createInitialState, createRendererStore } from "./store/store";
 import type { RendererStore } from "./store/types";
+import { initZoom } from "./zoom/zoom-controller";
 import "./styles.css";
 
 async function start(): Promise<void> {
+  const unbindZoom = initZoom();
+  window.addEventListener("pagehide", unbindZoom, { once: true });
   const container = document.getElementById("root");
   if (!container) {
     throw new Error("missing root container");

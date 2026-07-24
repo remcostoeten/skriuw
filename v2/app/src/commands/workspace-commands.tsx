@@ -1,3 +1,4 @@
+import { quitApp, toggleFullscreen } from "../actions/window";
 import { createFolder, createNote } from "../actions/workspace";
 import type { AppRoute } from "../app-route";
 import { openEditorSearch } from "../editor/search-controller";
@@ -9,19 +10,25 @@ import {
 import { requestEntityCreate } from "../references/entity-create-controller";
 import {
   CircleIcon,
+  CloseIcon,
   DownloadIcon,
   FolderOpenIcon,
+  MaximizeIcon,
   NewFolderIcon,
   NewNoteIcon,
   PanelLeftToggleIcon,
   PanelRightToggleIcon,
+  RotateCcwIcon,
   SearchIcon,
   SettingsIcon,
   Trash2Icon,
   UploadIcon,
   WaypointsIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
 } from "../shared/icons";
 import type { RendererStore } from "../store/types";
+import { resetZoom, zoomIn, zoomOut } from "../zoom/zoom-controller";
 import { focusRegion } from "./focus-regions";
 import type { AppCommand, CommandPredicate } from "./registry";
 
@@ -233,6 +240,51 @@ export function createWorkspaceCommands(
       shortcut: "goToTrash",
       visible: (_state, ui) => ui.route !== "trash",
       run: () => controls.navigate("trash"),
+    },
+    {
+      id: "toggle-fullscreen",
+      label: "Toggle fullscreen",
+      group: "View",
+      keywords: ["window", "maximize", "full screen"],
+      icon: <MaximizeIcon size={15} />,
+      shortcut: "toggleFullscreen",
+      run: toggleFullscreen,
+    },
+    {
+      id: "quit-app",
+      label: "Quit",
+      group: "General",
+      keywords: ["exit", "close app"],
+      icon: <CloseIcon size={15} />,
+      shortcut: "quitApp",
+      run: quitApp,
+    },
+    {
+      id: "zoom-in",
+      label: "Zoom in",
+      group: "View",
+      keywords: ["bigger", "increase", "scale"],
+      icon: <ZoomInIcon size={15} />,
+      shortcut: "zoomIn",
+      run: zoomIn,
+    },
+    {
+      id: "zoom-out",
+      label: "Zoom out",
+      group: "View",
+      keywords: ["smaller", "decrease", "scale"],
+      icon: <ZoomOutIcon size={15} />,
+      shortcut: "zoomOut",
+      run: zoomOut,
+    },
+    {
+      id: "zoom-reset",
+      label: "Reset zoom",
+      group: "View",
+      keywords: ["100%", "default", "scale"],
+      icon: <RotateCcwIcon size={15} />,
+      shortcut: "zoomReset",
+      run: resetZoom,
     },
   ];
 }

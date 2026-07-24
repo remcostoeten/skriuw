@@ -33,6 +33,8 @@ import {
   WaypointsIcon,
 } from "../shared/icons";
 import { formatRelativeTime } from "../shared/lib/relative-time";
+import { effectiveShortcutKeys, shortcutDefinition } from "../shortcuts/bindings";
+import { sameOverrides, selectShortcutOverrides } from "./settings/selectors";
 import { Dialog } from "../shared/ui/dialog";
 import { InlineEdit } from "../shared/ui/inline-edit";
 import {
@@ -151,8 +153,11 @@ export function EntityView({ store, kind }: Props) {
     window.location.hash = appRouteHash("notes");
   }
 
+  const shortcutOverrides = useRendererSelector(store, selectShortcutOverrides, sameOverrides);
+  const createCombo = effectiveShortcutKeys(shortcutDefinition("createNote"), shortcutOverrides);
+
   useShortcutBinding(
-    "mod+n",
+    createCombo,
     () => setPending({ mode: "create" }),
     { description: `New ${entityNoun(kind)}`, preventDefault: true, scopes: "entity-create" },
     { activeScopes: ["entity-create"] },
@@ -180,7 +185,7 @@ export function EntityView({ store, kind }: Props) {
         >
           New {entityNoun(kind)}
           <kbd className="entity-kbd" aria-hidden="true">
-            {formatShortcut("mod+n")}
+            {formatShortcut(createCombo)}
           </kbd>
         </button>
       </header>

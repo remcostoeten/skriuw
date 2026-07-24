@@ -5,7 +5,7 @@ import {
   effectiveShortcutKeys,
   findShortcutConflict,
   isDefaultBinding,
-  normalizeCombo,
+  sameCombo,
   shortcutOverridesFromSettings,
 } from "../../src/shortcuts/bindings";
 import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
@@ -26,10 +26,16 @@ function settingsWith(overrides: unknown): WorkspaceSettings {
   };
 }
 
-test("normalizeCombo canonicalizes case, spacing, and modifier order", () => {
-  assert.equal(normalizeCombo("Shift + MOD + K"), "mod+shift+k");
-  assert.equal(normalizeCombo("mod+shift+k"), "mod+shift+k");
-  assert.equal(normalizeCombo("K"), "k");
+test("sameCombo ignores case, spacing, and modifier order", () => {
+  assert.equal(sameCombo("Shift + MOD + K", "mod+shift+k"), true);
+  assert.equal(sameCombo("K", "k"), true);
+  assert.equal(sameCombo("mod+k", "mod+j"), false);
+  assert.equal(sameCombo("mod+k", "mod+shift+k"), false);
+});
+
+test("sameCombo resolves mod to the platform modifier like the runtime matcher", () => {
+  assert.equal(sameCombo("mod+k", "ctrl+k"), true);
+  assert.equal(sameCombo("mod+k", "meta+k"), false);
 });
 
 test("overrides from settings keep known actions and drop junk", () => {
@@ -61,6 +67,10 @@ test("conflicts are detected against effective bindings, not just defaults", () 
     "createFolder",
   );
   assert.equal(findShortcutConflict({}, "createNote", "MOD + Shift + N")?.actionId, "createFolder");
+  assert.equal(
+    findShortcutConflict({}, "createNote", "ctrl+shift+n")?.actionId,
+    "createFolder",
+  );
   assert.equal(findShortcutConflict({}, "createNote", "mod+alt+n"), null);
   assert.equal(
     findShortcutConflict({ createFolder: "mod+alt+f" }, "createNote", "mod+shift+n"),
@@ -77,5 +87,6 @@ test("default binding detection treats an equal override as default", () => {
   assert.ok(createNote);
   assert.equal(isDefaultBinding(createNote, {}), true);
   assert.equal(isDefaultBinding(createNote, { createNote: "MOD+N" }), true);
+  assert.equal(isDefaultBinding(createNote, { createNote: "ctrl+n" }), true);
   assert.equal(isDefaultBinding(createNote, { createNote: "mod+alt+n" }), false);
 });
