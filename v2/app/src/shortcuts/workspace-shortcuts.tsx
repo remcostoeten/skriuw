@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useShortcut } from "@remcostoeten/use-shortcut/react";
+import type { AppRoute } from "../app-route";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererStore } from "../store/types";
 import {
@@ -15,6 +16,7 @@ type ShortcutActions = Record<ShortcutActionId, () => void>;
 type Props = {
   store: RendererStore;
   actions: ShortcutActions;
+  route: AppRoute;
   /**
    * Suspends every workspace shortcut, e.g. while a modal owns the keyboard.
    * Keeps modal-local keys (Escape, recorder capture) from racing global
@@ -26,6 +28,15 @@ type Props = {
 
 function neverExcept(): boolean {
   return false;
+}
+
+/**
+ * Scopes active for a route. `note-create` gates the global `mod+n` so it never
+ * fires on the tag/people manager routes, which bind that key to their own
+ * "new entity" action instead.
+ */
+function activeScopesForRoute(route: AppRoute): string[] {
+  return route === "tags" || route === "people" ? [] : ["note-create"];
 }
 
 /**
@@ -50,10 +61,11 @@ export function shortcutDefinitionsForState(
 export function WorkspaceShortcuts({
   store,
   actions,
+  route,
   suspended = false,
   activeWhileSuspended,
 }: Props) {
-  const $ = useShortcut();
+  const $ = useShortcut({ activeScopes: activeScopesForRoute(route) });
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
   const overrides = useRendererSelector(
@@ -72,6 +84,7 @@ export function WorkspaceShortcuts({
         description: definition.label,
         preventDefault: true,
         except: definition.worksWhileTyping ? neverExcept : undefined,
+        scopes: definition.scopes,
       });
       if (!definition.secondaryKeys) {
         return [primary];
@@ -87,7 +100,7 @@ export function WorkspaceShortcuts({
         result.unbind();
       }
     };
-  }, [$, activeWhileSuspended, overrides, suspended]);
+  }, [$, activeWhileSuspended, overrides, route, suspended]);
 
   return null;
 }

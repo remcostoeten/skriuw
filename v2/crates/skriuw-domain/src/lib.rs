@@ -398,6 +398,12 @@ pub struct WorkspaceTag {
     pub id: String,
     pub name: String,
     pub color: Option<String>,
+    #[serde(default)]
+    pub created_at: i64,
+    #[serde(default)]
+    pub updated_at: i64,
+    #[serde(default)]
+    pub created_in: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -408,6 +414,12 @@ pub struct WorkspacePerson {
     pub initials: Option<String>,
     pub color: Option<String>,
     pub note: Option<String>,
+    #[serde(default)]
+    pub created_at: i64,
+    #[serde(default)]
+    pub updated_at: i64,
+    #[serde(default)]
+    pub created_in: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1389,6 +1401,9 @@ mod tests {
                 id: "tag-1".into(),
                 name: "Tag".into(),
                 color: None,
+                created_at: 0,
+                updated_at: 0,
+                created_in: None,
             }],
             people: Vec::new(),
         };

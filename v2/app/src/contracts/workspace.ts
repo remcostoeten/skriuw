@@ -49,8 +49,24 @@ export type WorkspaceSnapshot = {
   documents: WorkspaceDocument[];
   historyHeaders: HistoryHeader[];
   settings: WorkspaceSettings;
-  tags: { id: string; name: string; color: string | null }[];
-  people: { id: string; name: string; initials: string | null; color: string | null; note: string | null }[];
+  tags: {
+    id: string;
+    name: string;
+    color: string | null;
+    createdAt: number;
+    updatedAt: number;
+    createdIn: string | null;
+  }[];
+  people: {
+    id: string;
+    name: string;
+    initials: string | null;
+    color: string | null;
+    note: string | null;
+    createdAt: number;
+    updatedAt: number;
+    createdIn: string | null;
+  }[];
   references: { noteId: string; targets: { kind: "tag" | "person" | "note"; targetId: string }[] }[];
 };
 
@@ -66,11 +82,33 @@ export type NodePlacement = {
 };
 
 export type WorkspaceOperation =
-  | { type: "create_tag"; tag: { id: string; name: string; color: string | null } }
+  | {
+      type: "create_tag";
+      tag: {
+        id: string;
+        name: string;
+        color: string | null;
+        createdAt: number;
+        updatedAt: number;
+        createdIn: string | null;
+      };
+    }
   | { type: "rename_tag"; id: string; name: string }
   | { type: "recolor_tag"; id: string; color: string | null }
   | { type: "delete_tag"; id: string }
-  | { type: "create_person"; person: { id: string; name: string; initials: string | null; color: string | null; note: string | null } }
+  | {
+      type: "create_person";
+      person: {
+        id: string;
+        name: string;
+        initials: string | null;
+        color: string | null;
+        note: string | null;
+        createdAt: number;
+        updatedAt: number;
+        createdIn: string | null;
+      };
+    }
   | { type: "rename_person"; id: string; name: string }
   | { type: "recolor_person"; id: string; color: string | null }
   | { type: "delete_person"; id: string }

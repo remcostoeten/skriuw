@@ -227,6 +227,18 @@
             "null"
           ]
         },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        },
+        "createdIn": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "id": {
           "type": "string"
         },
@@ -244,6 +256,11 @@
             "string",
             "null"
           ]
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
         }
       },
       "required": [
@@ -309,11 +326,28 @@
             "null"
           ]
         },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        },
+        "createdIn": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "id": {
           "type": "string"
         },
         "name": {
           "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
         }
       },
       "required": [

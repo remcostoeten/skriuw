@@ -42,11 +42,20 @@ export function fixtureNode(
 }
 
 export function tag(id: string, name: string): TagRecord {
-  return { id, name, color: null };
+  return { id, name, color: null, createdAt: 0, updatedAt: 0, createdIn: null };
 }
 
 export function person(id: string, name: string): PersonRecord {
-  return { id, name, initials: null, color: null, note: null };
+  return {
+    id,
+    name,
+    initials: null,
+    color: null,
+    note: null,
+    createdAt: 0,
+    updatedAt: 0,
+    createdIn: null,
+  };
 }
 
 function referenceJson(reference: StructuredReference): unknown {

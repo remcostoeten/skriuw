@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef } from "react";
-import type { KeyboardEventHandler, ReactNode } from "react";
+import type { FormEventHandler, KeyboardEventHandler, ReactNode } from "react";
 import { CloseIcon } from "../icons";
+import { cn } from "../lib/utils";
 
 type Props = {
   open: boolean;
@@ -8,6 +9,8 @@ type Props = {
   title: string;
   children: ReactNode;
   onKeyDown?: KeyboardEventHandler<HTMLDialogElement>;
+  /** Lets callers veto the native Escape-driven close, e.g. while a child is mid-capture. */
+  onCancel?: FormEventHandler<HTMLDialogElement>;
   showHeader?: boolean;
   /** Extra class on the dialog element, e.g. for per-dialog sizing. */
   className?: string;
@@ -26,6 +29,7 @@ export function Dialog({
   children,
   className,
   onKeyDown,
+  onCancel,
   showHeader = true,
 }: Props) {
   if (!open) {
@@ -37,6 +41,7 @@ export function Dialog({
       className={className}
       onClose={() => onOpenChange(false)}
       onKeyDown={onKeyDown}
+      onCancel={onCancel}
       showHeader={showHeader}
     >
       {children}
@@ -50,6 +55,7 @@ type ShellProps = {
   className?: string;
   onClose: () => void;
   onKeyDown?: KeyboardEventHandler<HTMLDialogElement>;
+  onCancel?: FormEventHandler<HTMLDialogElement>;
   showHeader: boolean;
 };
 
@@ -59,6 +65,7 @@ function DialogShell({
   className,
   onClose,
   onKeyDown,
+  onCancel,
   showHeader,
 }: ShellProps) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -79,9 +86,13 @@ function DialogShell({
   return (
     <dialog
       ref={ref}
-      className={`dialog${className ? ` ${className}` : ""}`}
+      className={cn(
+        "dialog inset-0 m-auto flex h-fit max-h-[72vh] w-[min(680px,calc(100vw-24px))] flex-col rounded-[calc(var(--radius)+4px)] border border-border bg-popover p-0 text-popover-foreground shadow-[0_16px_48px_hsl(var(--scrim)/0.4)] backdrop:bg-scrim/55",
+        className,
+      )}
       aria-labelledby={titleId}
       onClose={onClose}
+      onCancel={onCancel}
       onKeyDown={onKeyDown}
       onPointerDown={(event) => {
         if (event.target === ref.current) {
@@ -90,13 +101,13 @@ function DialogShell({
       }}
     >
       {showHeader ? (
-        <header className="dialog-header">
-          <h2 id={titleId} className="dialog-title">
+        <header className="dialog-header flex items-center justify-between border-b border-border px-3.5 py-3">
+          <h2 id={titleId} className="dialog-title m-0 text-sm font-semibold">
             {title}
           </h2>
           <button
             type="button"
-            className="dialog-close"
+            className="dialog-close flex cursor-pointer rounded-[var(--radius)] border-none bg-transparent p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="Close dialog"
             onClick={() => ref.current?.close()}
           >
@@ -108,7 +119,7 @@ function DialogShell({
           {title}
         </h2>
       )}
-      <div className="dialog-body">{children}</div>
+      <div className="dialog-body min-h-0 flex-1 overflow-y-auto">{children}</div>
     </dialog>
   );
 }

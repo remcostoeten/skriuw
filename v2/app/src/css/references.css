@@ -82,6 +82,17 @@
   white-space: nowrap;
 }
 
+.reference-token[data-ref-availability="resolved"] {
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+
+.reference-token[data-ref-availability="resolved"]:hover {
+  filter: brightness(1.12);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .reference-token-tag {
   color: hsl(var(--primary));
 }
@@ -107,4 +118,54 @@
 
 .ProseMirror-selectednode.reference-token {
   outline: 2px solid hsl(var(--ring));
+}
+
+.reference-hovercard {
+  position: fixed;
+  z-index: 60;
+  display: none;
+  min-width: 140px;
+  max-width: 260px;
+  padding: 8px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 8px 24px hsl(var(--foreground) / 0.12);
+  pointer-events: none;
+}
+
+.reference-hovercard[data-open="true"] {
+  display: block;
+}
+
+.reference-hovercard-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.reference-hovercard-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.reference-hovercard-meta {
+  margin-top: 3px;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.reference-hovercard-detail {
+  margin-top: 4px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

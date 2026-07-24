@@ -9,6 +9,8 @@ type Props = {
   onRecord: (combo: string) => string | null;
   onReset?: () => void;
   isDefault?: boolean;
+  /** Reports capture start/stop so a hosting dialog can suppress Escape-driven close mid-capture. */
+  onRecordingChange?: (recording: boolean) => void;
   "aria-label"?: string;
 };
 
@@ -19,30 +21,51 @@ const RECORD_TIMEOUT_MS = 5000;
  * shortcut engine's recorder, so what it stores is exactly what the matcher
  * will parse. Escape or the timeout cancels without changing the binding.
  */
-export function ShortcutRecorder({ value, onRecord, onReset, isDefault, ...aria }: Props) {
+export function ShortcutRecorder({
+  value,
+  onRecord,
+  onReset,
+  isDefault,
+  onRecordingChange,
+  ...aria
+}: Props) {
   const $ = useShortcut();
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const recordingRef = useRef(false);
+  const onRecordingChangeRef = useRef(onRecordingChange);
+  onRecordingChangeRef.current = onRecordingChange;
 
   useEffect(() => {
     return () => {
       mountedRef.current = false;
+      if (recordingRef.current) {
+        onRecordingChangeRef.current?.(false);
+      }
     };
   }, []);
+
+  function stopRecording(): void {
+    recordingRef.current = false;
+    setRecording(false);
+    onRecordingChangeRef.current?.(false);
+  }
 
   function startRecording(): void {
     if (recording) {
       return;
     }
+    recordingRef.current = true;
     setRecording(true);
+    onRecordingChangeRef.current?.(true);
     setError(null);
     $.record({ timeoutMs: RECORD_TIMEOUT_MS })
       .then((combo) => {
         if (!mountedRef.current) {
           return;
         }
-        setRecording(false);
+        stopRecording();
         if (!combo || combo === "escape") {
           return;
         }
@@ -50,7 +73,7 @@ export function ShortcutRecorder({ value, onRecord, onReset, isDefault, ...aria 
       })
       .catch(() => {
         if (mountedRef.current) {
-          setRecording(false);
+          stopRecording();
         }
       });
   }

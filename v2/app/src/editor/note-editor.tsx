@@ -4,6 +4,7 @@ import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
 import {
   AllSelection,
   EditorState,
+  NodeSelection,
   TextSelection,
   type Plugin,
   type Transaction,
@@ -11,7 +12,14 @@ import {
 import { EditorView } from "prosemirror-view";
 import { createMentionPlugin, type MentionContext } from "../references/mention-plugin";
 import { createReferenceNodeViews } from "../references/reference-nodeview";
-import { commitOperations, commitReferenceOperations } from "../actions/workspace";
+import { activateReference } from "../references/reference-navigation";
+import { resolveReference } from "../references/reference-resolver";
+import type { ReferenceKind } from "../references/types";
+import {
+  commitOperations,
+  commitReferenceOperations,
+  createLinkedNote,
+} from "../actions/workspace";
 import { cssStringLiteral } from "../settings/apply-settings";
 import { projectSettings } from "../settings/settings-model";
 import { useRendererSelector } from "../store/use-renderer-selector";
@@ -71,6 +79,25 @@ const closedSlashMenu: SlashMenu = { open: false, query: "", index: 0, x: 0, y: 
 
 function emptyDocument(): ProseMirrorNode {
   return productSchema.nodeFromJSON({ type: "doc", content: [{ type: "paragraph" }] });
+}
+
+function selectedReference(view: EditorView): { kind: ReferenceKind; targetId: string } | null {
+  const { selection } = view.state;
+  if (!(selection instanceof NodeSelection)) {
+    return null;
+  }
+  const { node } = selection;
+  const id = typeof node.attrs.id === "string" ? node.attrs.id : null;
+  if (!id) {
+    return null;
+  }
+  if (node.type.name === "tag_ref") {
+    return { kind: "tag", targetId: id };
+  }
+  if (node.type.name === "mention_ref") {
+    return { kind: node.attrs.kind === "note" ? "note" : "person", targetId: id };
+  }
+  return null;
 }
 
 function createEditorState(
@@ -161,6 +188,9 @@ export function NoteEditor({ store }: Props) {
       getState: () => store.getState(),
       applyReferenceOperations: (operations) => {
         commitReferenceOperations(store, operations);
+      },
+      createNote: (id, title) => {
+        createLinkedNote(store, id, title);
       },
     };
     mentionPluginsRef.current = [createMentionPlugin(mentionContext)];
@@ -452,6 +482,21 @@ export function NoteEditor({ store }: Props) {
               bounded.windowStart() + (atEnd ? WINDOW_SHIFT : -WINDOW_SHIFT),
             );
             return true;
+          }
+        }
+        if (!mod && event.key === "Enter") {
+          const reference = selectedReference(currentView);
+          if (reference) {
+            const resolved = resolveReference(
+              store.getState(),
+              reference.kind,
+              reference.targetId,
+              "",
+            );
+            if (resolved.availability === "resolved") {
+              activateReference(store, reference.kind, reference.targetId);
+              return true;
+            }
           }
         }
         const menu = slashMenuRef.current;

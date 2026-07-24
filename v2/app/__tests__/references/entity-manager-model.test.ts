@@ -59,23 +59,36 @@ test("deriveInitials handles single and multi-word names", () => {
   assert.equal(deriveInitials("   "), "");
 });
 
-test("buildCreateTag trims and rejects empty names", () => {
-  assert.deepEqual(buildCreateTag("t1", "  focus ", "#3b82f6"), {
-    type: "create_tag",
-    tag: { id: "t1", name: "focus", color: "#3b82f6" },
-  });
+test("buildCreateTag trims, rejects empty names, and stamps provenance", () => {
+  const operation = buildCreateTag("t1", "  focus ", "#3b82f6");
+  assert.equal(operation?.type, "create_tag");
+  assert.equal(operation?.type === "create_tag" && operation.tag.name, "focus");
+  assert.equal(operation?.type === "create_tag" && operation.tag.color, "#3b82f6");
+  assert.equal(operation?.type === "create_tag" && operation.tag.createdIn, "tags");
+  assert.ok(operation?.type === "create_tag" && operation.tag.createdAt > 0);
+  assert.equal(
+    operation?.type === "create_tag" && operation.tag.createdAt === operation.tag.updatedAt,
+    true,
+  );
   assert.equal(buildCreateTag("t1", "   ", null), null);
 });
 
-test("buildCreatePerson derives initials when omitted and nulls empty note", () => {
-  assert.deepEqual(buildCreatePerson("p1", "Ada Lovelace", "", null, "  "), {
-    type: "create_person",
-    person: { id: "p1", name: "Ada Lovelace", initials: "AL", color: null, note: null },
-  });
-  assert.deepEqual(buildCreatePerson("p1", "Ada", " AL ", "#ef4444", "friend"), {
-    type: "create_person",
-    person: { id: "p1", name: "Ada", initials: "AL", color: "#ef4444", note: "friend" },
-  });
+test("buildCreatePerson derives initials, nulls empty note, and stamps provenance", () => {
+  const derived = buildCreatePerson("p1", "Ada Lovelace", "", null, "  ");
+  assert.equal(derived?.type, "create_person");
+  if (derived?.type === "create_person") {
+    assert.equal(derived.person.initials, "AL");
+    assert.equal(derived.person.note, null);
+    assert.equal(derived.person.createdIn, "people");
+    assert.ok(derived.person.createdAt > 0);
+  }
+  const explicit = buildCreatePerson("p1", "Ada", " AL ", "#ef4444", "friend");
+  if (explicit?.type === "create_person") {
+    assert.equal(explicit.person.initials, "AL");
+    assert.equal(explicit.person.color, "#ef4444");
+    assert.equal(explicit.person.note, "friend");
+    assert.equal(explicit.person.createdIn, "people");
+  }
 });
 
 test("buildRename, buildRecolor, and buildDelete select the matching operation", () => {

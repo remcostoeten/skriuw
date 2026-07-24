@@ -106,6 +106,37 @@ test("parseCommandQuery treats unknown or lone bangs as plain text", () => {
   assert.partialDeepStrictEqual(parseCommandQuery("  hello "), { bang: null, query: "hello" });
 });
 
+test("parseCommandQuery resolves multi-letter bang spellings to their canonical key", () => {
+  assert.partialDeepStrictEqual(parseCommandQuery("!act deploy"), { bang: "a", query: "deploy" });
+  assert.partialDeepStrictEqual(parseCommandQuery("!action"), { bang: "a", query: "" });
+  assert.partialDeepStrictEqual(parseCommandQuery("!people ann"), { bang: "p", query: "ann" });
+  assert.partialDeepStrictEqual(parseCommandQuery("!per"), { bang: "p", query: "" });
+  assert.partialDeepStrictEqual(parseCommandQuery("!tags"), { bang: "t", query: "" });
+  assert.partialDeepStrictEqual(parseCommandQuery("!go"), { bang: "g", query: "" });
+  assert.partialDeepStrictEqual(parseCommandQuery("!nav"), { bang: "g", query: "" });
+});
+
+test("bangs scope to their own category groups", () => {
+  const items: CommandPaletteItem[] = [
+    { id: "tag", label: "urgent", group: "Tags", searchOnly: true, action: noop },
+    { id: "person", label: "Ann", group: "People", searchOnly: true, action: noop },
+    { id: "nav", label: "Go to trash", group: "Navigation", action: noop },
+  ];
+
+  assert.deepEqual(
+    getCommandPaletteGroups(items, "!t").map((group) => group.group),
+    ["Tags"],
+  );
+  assert.deepEqual(
+    getCommandPaletteGroups(items, "!p").map((group) => group.group),
+    ["People"],
+  );
+  assert.deepEqual(
+    getCommandPaletteGroups(items, "!g").map((group) => group.group),
+    ["Navigation"],
+  );
+});
+
 test("uses prototype group order before custom groups", () => {
   const items: CommandPaletteItem[] = [
     { id: "recent", label: "Recent file", group: "Recent", action: noop },

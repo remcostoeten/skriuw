@@ -24,11 +24,18 @@ const GROUP_LABELS: Record<string, string> = {
   notes: "Notes",
 };
 
+const CREATE_LABELS: Record<"tag" | "person" | "note", string> = {
+  tag: "Create tag",
+  person: "Create person",
+  note: "Create note",
+};
+
 function optionLabel(item: MentionMenuItem): string {
   if (item.type === "create") {
-    return item.kind === "tag" ? `Create tag "${item.name}"` : `Create person "${item.name}"`;
+    return `${CREATE_LABELS[item.kind]} "${item.name}"`;
   }
-  const prefix = item.suggestion.kind === "tag" ? "#" : item.suggestion.kind === "person" ? "@" : "";
+  const prefix =
+    item.suggestion.kind === "tag" ? "#" : item.suggestion.kind === "person" ? "$" : "@";
   return `${prefix}${item.suggestion.label}`;
 }
 

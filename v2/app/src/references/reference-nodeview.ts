@@ -2,6 +2,12 @@ import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { NodeView } from "prosemirror-view";
 import type { RendererState, RendererStore } from "../store/types";
 import {
+  cancelHovercard,
+  destroyHovercard,
+  scheduleHovercard,
+} from "./reference-hovercard";
+import { activateReference } from "./reference-navigation";
+import {
   referenceAriaLabel,
   referenceText,
   resolveReference,
@@ -63,9 +69,37 @@ export function createReferenceNodeViews(store: RendererStore): ReferenceNodeVie
     };
     paintToken(store, binding);
     bindings.add(binding);
+    const handleMouseDown = (event: MouseEvent) => {
+      if (event.button !== 0 || dom.dataset.refAvailability !== "resolved") {
+        return;
+      }
+      event.preventDefault();
+    };
+    const handleClick = (event: MouseEvent) => {
+      if (event.button !== 0 || dom.dataset.refAvailability !== "resolved") {
+        return;
+      }
+      event.preventDefault();
+      activateReference(store, binding.kind, binding.targetId);
+    };
+    const handleMouseEnter = () => {
+      if (dom.dataset.refAvailability !== "resolved") {
+        return;
+      }
+      scheduleHovercard(store, dom, binding.kind, binding.targetId);
+    };
+    dom.addEventListener("mousedown", handleMouseDown);
+    dom.addEventListener("click", handleClick);
+    dom.addEventListener("mouseenter", handleMouseEnter);
+    dom.addEventListener("mouseleave", cancelHovercard);
     return {
       dom,
       destroy: () => {
+        dom.removeEventListener("mousedown", handleMouseDown);
+        dom.removeEventListener("click", handleClick);
+        dom.removeEventListener("mouseenter", handleMouseEnter);
+        dom.removeEventListener("mouseleave", cancelHovercard);
+        cancelHovercard();
         bindings.delete(binding);
       },
     };
@@ -92,6 +126,7 @@ export function createReferenceNodeViews(store: RendererStore): ReferenceNodeVie
     },
     destroy: () => {
       unsubscribe();
+      destroyHovercard();
       bindings.clear();
     },
   };

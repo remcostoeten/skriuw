@@ -39,7 +39,8 @@ export function referenceText(
   kind: ReferenceKind,
   resolved: ResolvedReference,
 ): string {
-  return `${kind === "tag" ? "#" : "@"}${resolved.label}`;
+  const prefix = kind === "tag" ? "#" : kind === "person" ? "$" : "@";
+  return `${prefix}${resolved.label}`;
 }
 
 export function referenceAriaLabel(

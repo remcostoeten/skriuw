@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ComponentProps } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { getCommandFrecency, recordCommandUse } from "../lib/command-frecency";
 import { SearchIcon } from "../icons";
@@ -27,6 +27,17 @@ type Props = {
  * "Recent" surfacing come from the palette model. Mounts fresh on every open
  * so query and selection always start clean.
  */
+function Kbd({ children, ...rest }: ComponentProps<"kbd">) {
+  return (
+    <kbd
+      className="flex-none rounded border border-border bg-muted px-[5px] py-px font-mono text-[10px] text-muted-foreground"
+      {...rest}
+    >
+      {children}
+    </kbd>
+  );
+}
+
 export function CommandPalette({ open, onOpenChange, items, onQueryChange, ...aria }: Props) {
   if (!open) {
     return null;
@@ -133,7 +144,7 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
             aria-autocomplete="list"
             aria-activedescendant={activeItem ? `${listboxId}-item-${boundedIndex}` : undefined}
           />
-          <kbd>Esc</kbd>
+          <Kbd>Esc</Kbd>
         </div>
 
         <div ref={listRef} id={listboxId} role="listbox" className="min-h-0 overflow-y-auto p-1.5">
@@ -182,8 +193,8 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
                         </span>
                       )}
                       <span className="ml-auto flex flex-none items-center gap-1.5">
-                        {item.shortcut && <kbd>{formatShortcut(item.shortcut)}</kbd>}
-                        {isActive && <kbd aria-hidden="true">↵</kbd>}
+                        {item.shortcut && <Kbd>{formatShortcut(item.shortcut)}</Kbd>}
+                        {isActive && <Kbd aria-hidden="true">↵</Kbd>}
                       </span>
                     </button>
                   );
@@ -197,14 +208,14 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
           <span>↑↓ navigate</span>
           <span>↵ select</span>
           <span className="flex items-center gap-2.5">
-            {Object.entries(COMMAND_BANGS).map(([key, bang]) => (
-              <span key={key}>
-                <kbd>!{key}</kbd> {bang.label.toLowerCase()}
+            {COMMAND_BANGS.map((bang) => (
+              <span key={bang.key}>
+                <Kbd>!{bang.key}</Kbd> {bang.label.toLowerCase()}
               </span>
             ))}
           </span>
           <span className="ml-auto flex items-center gap-1">
-            <kbd>{formatShortcut("mod+k")}</kbd> command palette
+            <Kbd>{formatShortcut("mod+k")}</Kbd> command palette
           </span>
         </div>
       </div>

@@ -78,7 +78,7 @@ async function start(): Promise<void> {
   } catch (error) {
     unlistenHistory?.();
     root.render(
-      <div className="boot-failure" role="alert">
+      <div className="p-6 text-[hsl(var(--mood-rough))]" role="alert">
         Workspace failed to open: {String(error)}
       </div>,
     );

@@ -2,6 +2,9 @@ export type TagRecord = {
   id: string;
   name: string;
   color: string | null;
+  createdAt: number;
+  updatedAt: number;
+  createdIn: string | null;
 };
 
 export type PersonRecord = {
@@ -10,6 +13,9 @@ export type PersonRecord = {
   initials: string | null;
   color: string | null;
   note: string | null;
+  createdAt: number;
+  updatedAt: number;
+  createdIn: string | null;
 };
 
 export type ReferenceKind = "tag" | "person" | "note";

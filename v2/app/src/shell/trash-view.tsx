@@ -8,7 +8,9 @@ import {
   RotateCcwIcon,
   Trash2Icon,
 } from "../shared/icons";
+import { Button } from "../shared/ui/button";
 import { Dialog } from "../shared/ui/dialog";
+import { InlineConfirm } from "../shared/ui/inline-confirm";
 import {
   isNodeInSubtree,
   trashWindowRange,
@@ -23,10 +25,6 @@ import type { RendererStore } from "../store/types";
 type Props = {
   store: RendererStore;
 };
-
-type DeleteTarget =
-  | { type: "one"; id: string; title: string; kind: WorkspaceNode["kind"] }
-  | { type: "all"; ids: readonly string[] };
 
 const deletedAtFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -52,7 +50,7 @@ export function TrashView({ store }: Props) {
   const roots = useMemo(() => trashedRoots(sourceNodes), [sourceNodes]);
   const [requestedRootId, setRequestedRootId] = useState<string | null>(null);
   const [requestedPreviewId, setRequestedPreviewId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [emptyIds, setEmptyIds] = useState<readonly string[] | null>(null);
   const selectedRoot =
     roots.find((root) => root.id === requestedRootId) ?? roots[0] ?? null;
   const subtree = useMemo(
@@ -73,16 +71,12 @@ export function TrashView({ store }: Props) {
     setRequestedPreviewId(id);
   }
 
-  function confirmDelete(): void {
-    if (!deleteTarget) {
+  function confirmEmpty(): void {
+    if (!emptyIds) {
       return;
     }
-    if (deleteTarget.type === "all") {
-      emptyTrash(store, deleteTarget.ids);
-    } else {
-      purgeSubtree(store, deleteTarget.id);
-    }
-    setDeleteTarget(null);
+    emptyTrash(store, emptyIds);
+    setEmptyIds(null);
   }
 
   return (
@@ -95,16 +89,13 @@ export function TrashView({ store }: Props) {
           </div>
           <p>Preview deleted items, restore them, or remove them permanently.</p>
         </div>
-        <button
-          type="button"
-          className="trash-button trash-button-danger"
+        <Button
+          variant="danger"
           disabled={roots.length === 0}
-          onClick={() =>
-            setDeleteTarget({ type: "all", ids: roots.map((root) => root.id) })
-          }
+          onClick={() => setEmptyIds(roots.map((root) => root.id))}
         >
           Empty trash
-        </button>
+        </Button>
       </header>
 
       {roots.length === 0 ? (
@@ -114,9 +105,9 @@ export function TrashView({ store }: Props) {
           </span>
           <h2>Trash is empty</h2>
           <p>Notes and folders you delete will stay here until you remove them permanently.</p>
-          <a href="#/notes" className="trash-button">
-            Back to notes
-          </a>
+          <Button asChild className="mt-[18px]">
+            <a href="#/notes">Back to notes</a>
+          </Button>
         </div>
       ) : (
         <div className="trash-workspace">
@@ -154,28 +145,22 @@ export function TrashView({ store }: Props) {
                 <span>{rootSummary(selectedRoot)}</span>
               </div>
               <div className="trash-details-actions">
-                <button
-                  type="button"
-                  className="trash-button trash-button-primary"
+                <Button
+                  variant="primary"
                   onClick={() => restoreSubtree(store, selectedRoot.id)}
                 >
                   <RotateCcwIcon size={14} />
                   Restore {selectedRoot.kind}
-                </button>
-                <button
-                  type="button"
-                  className="trash-button trash-button-danger"
-                  onClick={() =>
-                    setDeleteTarget({
-                      type: "one",
-                      id: selectedRoot.id,
-                      title: selectedRoot.title,
-                      kind: selectedRoot.kind,
-                    })
-                  }
-                >
-                  Delete permanently
-                </button>
+                </Button>
+                <InlineConfirm
+                  confirmLabel="Delete permanently"
+                  onConfirm={() => purgeSubtree(store, selectedRoot.id)}
+                  renderIdle={(arm) => (
+                    <Button variant="danger" onClick={arm}>
+                      Delete permanently
+                    </Button>
+                  )}
+                />
               </div>
             </aside>
           )}
@@ -183,32 +168,28 @@ export function TrashView({ store }: Props) {
       )}
 
       <Dialog
-        open={deleteTarget !== null}
+        open={emptyIds !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setDeleteTarget(null);
+            setEmptyIds(null);
           }
         }}
-        title={deleteTarget?.type === "all" ? "Empty trash?" : "Delete permanently?"}
-        className="trash-confirm-dialog"
+        title="Empty trash?"
+        className="w-[min(420px,calc(100vw-32px))]"
       >
-        <p>
-          {deleteTarget?.type === "all"
-            ? `This permanently deletes ${deleteTarget.ids.length} ${deleteTarget.ids.length === 1 ? "item" : "items"}.`
-            : `“${deleteTarget?.title}” and everything inside it will be permanently deleted.`}
+        <p className="mb-2 text-xs leading-normal text-[hsl(var(--theme-text-secondary))]">
+          {`This permanently deletes ${emptyIds?.length ?? 0} ${emptyIds?.length === 1 ? "item" : "items"}.`}
         </p>
-        <p>This action cannot be undone.</p>
-        <div className="trash-confirm-actions">
-          <button type="button" className="trash-button" onClick={() => setDeleteTarget(null)}>
+        <p className="mb-2 text-xs leading-normal text-[hsl(var(--theme-text-secondary))]">
+          This action cannot be undone.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="default" onClick={() => setEmptyIds(null)}>
             Cancel
-          </button>
-          <button
-            type="button"
-            className="trash-button trash-button-danger is-filled"
-            onClick={confirmDelete}
-          >
-            {deleteTarget?.type === "all" ? "Empty trash" : "Delete permanently"}
-          </button>
+          </Button>
+          <Button variant="dangerFilled" onClick={confirmEmpty}>
+            Empty trash
+          </Button>
         </div>
       </Dialog>
     </main>

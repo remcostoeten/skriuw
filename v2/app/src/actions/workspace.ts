@@ -70,6 +70,23 @@ export function createNote(store: RendererStore, parentId: string | null): void 
   store.setEditingNode(id);
 }
 
+export function createLinkedNote(store: RendererStore, id: string, title: string): void {
+  const previousActive = store.getState().activeNoteId;
+  const operations: WorkspaceOperation[] = [
+    {
+      type: "create_note",
+      id,
+      title,
+      placement: { parentId: null, position: { type: "last" } },
+      documentJson: { type: "doc", content: [{ type: "paragraph" }] },
+      markdown: "",
+      at: Date.now(),
+    },
+    { type: "set_active_note", noteId: previousActive },
+  ];
+  void commitOperations(store, operations).catch(reportRejection("create linked note"));
+}
+
 export function createFolder(store: RendererStore, parentId: string | null): void {
   const id = crypto.randomUUID();
   const operations: WorkspaceOperation[] = [
@@ -142,9 +159,21 @@ export function moveNode(
   id: string,
   placement: NodePlacement,
 ): void {
-  void commitOperations(store, [
-    { type: "move_node", id, placement, at: Date.now() },
-  ]).catch(reportRejection("move"));
+  moveNodes(store, [{ id, placement }]);
+}
+
+export function moveNodes(
+  store: RendererStore,
+  moves: readonly { id: string; placement: NodePlacement }[],
+): void {
+  if (moves.length === 0) {
+    return;
+  }
+  const at = Date.now();
+  void commitOperations(
+    store,
+    moves.map(({ id, placement }) => ({ type: "move_node" as const, id, placement, at })),
+  ).catch(reportRejection("move"));
 }
 
 export function restoreNoteVersion(

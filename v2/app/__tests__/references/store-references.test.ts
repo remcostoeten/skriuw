@@ -107,11 +107,33 @@ test("deleting a tag or person removes completion and index projections", () => 
 test("creating tags and people is idempotent per identifier", () => {
   const store = createFixtureStore();
   store.applyReferenceOperations([
-    { type: "create_tag", tag: { id: "tag-new", name: "fresh", color: null } },
-    { type: "create_tag", tag: { id: "tag-new", name: "duplicate", color: null } },
+    {
+      type: "create_tag",
+      tag: { id: "tag-new", name: "fresh", color: null, createdAt: 0, updatedAt: 0, createdIn: null },
+    },
+    {
+      type: "create_tag",
+      tag: {
+        id: "tag-new",
+        name: "duplicate",
+        color: null,
+        createdAt: 0,
+        updatedAt: 0,
+        createdIn: null,
+      },
+    },
     {
       type: "create_person",
-      person: { id: "person-new", name: "Noor", initials: null, color: null, note: null },
+      person: {
+        id: "person-new",
+        name: "Noor",
+        initials: null,
+        color: null,
+        note: null,
+        createdAt: 0,
+        updatedAt: 0,
+        createdIn: null,
+      },
     },
   ]);
   const state = store.getState();

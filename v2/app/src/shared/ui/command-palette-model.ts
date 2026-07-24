@@ -28,17 +28,84 @@ export type CommandPaletteGroup = {
 const DEFAULT_GROUP = "Actions";
 const RECENT_GROUP = "Recent";
 const MAX_RECENT_ITEMS = 5;
-const GROUP_ORDER = [RECENT_GROUP, DEFAULT_GROUP, "Notes", "Content", "Navigation", "Editor"];
+const GROUP_ORDER = [
+  RECENT_GROUP,
+  DEFAULT_GROUP,
+  "Notes",
+  "Content",
+  "Tags",
+  "People",
+  "Navigation",
+  "Editor",
+];
+
+export type CommandBang = {
+  /** Canonical single-letter key, e.g. `"n"`; the value returned as `bang`. */
+  key: string;
+  label: string;
+  /** Groups this bang keeps visible. */
+  groups: string[];
+  /**
+   * Accepted spellings. A typed token matches when it equals an alias or is a
+   * unique prefix of one, so `!p`, `!per`, and `!people` all scope to People.
+   */
+  aliases: string[];
+};
 
 /**
  * Bang prefixes scope the palette to a slice of groups. `!n foo` searches only
- * notes for "foo"; a bare `!a` lists every action. The map values are the
- * groups each bang keeps visible.
+ * notes for "foo"; a bare `!a` lists every action. Typing more of the word
+ * keeps working (`!act`, `!action`) as long as it stays unambiguous.
  */
-export const COMMAND_BANGS: Record<string, { label: string; groups: string[] }> = {
-  a: { label: "Actions", groups: [DEFAULT_GROUP, "Navigation", "Editor"] },
-  n: { label: "Notes", groups: ["Notes", "Content", RECENT_GROUP] },
-};
+export const COMMAND_BANGS: readonly CommandBang[] = [
+  {
+    key: "a",
+    label: "Actions",
+    groups: [DEFAULT_GROUP, "Navigation", "Editor"],
+    aliases: ["a", "act", "action", "actions"],
+  },
+  {
+    key: "n",
+    label: "Notes",
+    groups: ["Notes", "Content", RECENT_GROUP],
+    aliases: ["n", "note", "notes"],
+  },
+  {
+    key: "t",
+    label: "Tags",
+    groups: ["Tags"],
+    aliases: ["t", "tag", "tags"],
+  },
+  {
+    key: "p",
+    label: "People",
+    groups: ["People"],
+    aliases: ["p", "person", "people", "persons", "ppl"],
+  },
+  {
+    key: "g",
+    label: "Go to",
+    groups: ["Navigation"],
+    aliases: ["g", "go", "goto", "nav", "navigation"],
+  },
+];
+
+/**
+ * Resolves a typed bang token to a single bang. Prefers an exact alias hit,
+ * then falls back to a unique alias prefix. Ambiguous tokens (`!x` matching two
+ * bangs) resolve to null so the palette treats them as plain text.
+ */
+function resolveBang(token: string): CommandBang | null {
+  const lower = token.toLowerCase();
+  const exact = COMMAND_BANGS.find((bang) => bang.aliases.includes(lower));
+  if (exact) {
+    return exact;
+  }
+  const prefixed = COMMAND_BANGS.filter((bang) =>
+    bang.aliases.some((alias) => alias.startsWith(lower)),
+  );
+  return prefixed.length === 1 ? (prefixed[0] ?? null) : null;
+}
 
 export type ParsedCommandQuery = {
   bang: string | null;
@@ -47,18 +114,17 @@ export type ParsedCommandQuery = {
 };
 
 /**
- * Splits a leading `!x` bang off the raw input. Returns the matched bang key
- * (or null), the set of groups it unlocks, and the remaining search text. A
+ * Splits a leading `!token` bang off the raw input. Returns the matched bang
+ * key (or null), the set of groups it unlocks, and the remaining search text. A
  * lone `!` or an unknown bang is treated as plain text so typing stays fluid.
  */
 export function parseCommandQuery(raw: string): ParsedCommandQuery {
-  const match = raw.match(/^!([a-z])(?:\s+(.*))?$/i);
+  const match = raw.match(/^!([a-z]+)(?:\s+(.*))?$/i);
   if (match) {
-    const key = (match[1] ?? "").toLowerCase();
-    const bang = COMMAND_BANGS[key];
+    const bang = resolveBang(match[1] ?? "");
     if (bang) {
       return {
-        bang: key,
+        bang: bang.key,
         allowedGroups: new Set(bang.groups),
         query: (match[2] ?? "").trim(),
       };

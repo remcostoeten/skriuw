@@ -10,7 +10,7 @@ import {
 } from "./suggestion-index";
 import type { ReferenceOperation } from "./types";
 
-export type MentionTrigger = "#" | "@";
+export type MentionTrigger = "#" | "$" | "@";
 
 export type MentionState = {
   active: boolean;
@@ -24,11 +24,12 @@ export type MentionState = {
 
 export type MentionMenuItem =
   | { type: "suggestion"; group: "tags" | "people" | "notes"; suggestion: Suggestion }
-  | { type: "create"; kind: "tag" | "person"; name: string };
+  | { type: "create"; kind: "tag" | "person" | "note"; name: string };
 
 export type MentionContext = {
   getState: () => RendererState;
   applyReferenceOperations: (operations: readonly ReferenceOperation[]) => void;
+  createNote: (id: string, title: string) => void;
 };
 
 const inactiveState: MentionState = {
@@ -43,7 +44,7 @@ const inactiveState: MentionState = {
 
 export const mentionPluginKey = new PluginKey<MentionState>("skriuw-mentions");
 
-const TRIGGER_PATTERN = /(?:^|[\s([{])([#@])([\p{L}\p{N}_-]{0,64})$/u;
+const TRIGGER_PATTERN = /(?:^|[\s([{])([#$@])([\p{L}\p{N}_-]{0,64})$/u;
 const CONTEXT_WINDOW = 96;
 
 function detectMention(state: EditorState, previous: MentionState): MentionState {
@@ -95,17 +96,26 @@ export function mentionMenuItems(
     return items;
   }
   const grouped = queryMentionSuggestions(rendererState, query);
-  for (const suggestion of grouped.people) {
-    items.push({ type: "suggestion", group: "people", suggestion });
+  if (trigger === "$") {
+    for (const suggestion of grouped.people) {
+      items.push({ type: "suggestion", group: "people", suggestion });
+    }
+    const exactPerson = grouped.people.some(
+      (suggestion) => suggestion.label.toLowerCase() === normalized,
+    );
+    if (query.length > 0 && !exactPerson) {
+      items.push({ type: "create", kind: "person", name: query });
+    }
+    return items;
   }
   for (const suggestion of grouped.notes) {
     items.push({ type: "suggestion", group: "notes", suggestion });
   }
-  const exactPerson = grouped.people.some(
+  const exactNote = grouped.notes.some(
     (suggestion) => suggestion.label.toLowerCase() === normalized,
   );
-  if (query.length > 0 && !exactPerson) {
-    items.push({ type: "create", kind: "person", name: query });
+  if (query.length > 0 && !exactNote) {
+    items.push({ type: "create", kind: "note", name: query });
   }
   return items;
 }
@@ -124,16 +134,34 @@ export function normalizedMentionIndex(index: number, count: number): number {
 function referenceNode(item: MentionMenuItem, context: MentionContext) {
   if (item.type === "create") {
     const id = crypto.randomUUID();
+    const now = Date.now();
+    const createdIn = context.getState().activeNoteId;
     if (item.kind === "tag") {
       context.applyReferenceOperations([
-        { type: "create_tag", tag: { id, name: item.name, color: null } },
+        {
+          type: "create_tag",
+          tag: { id, name: item.name, color: null, createdAt: now, updatedAt: now, createdIn },
+        },
       ]);
       return productSchema.nodes.tag_ref?.create({ id, label: item.name }) ?? null;
+    }
+    if (item.kind === "note") {
+      context.createNote(id, item.name);
+      return productSchema.nodes.mention_ref?.create({ kind: "note", id, label: item.name }) ?? null;
     }
     context.applyReferenceOperations([
       {
         type: "create_person",
-        person: { id, name: item.name, initials: null, color: null, note: null },
+        person: {
+          id,
+          name: item.name,
+          initials: null,
+          color: null,
+          note: null,
+          createdAt: now,
+          updatedAt: now,
+          createdIn,
+        },
       },
     ]);
     return productSchema.nodes.mention_ref?.create({ kind: "person", id, label: item.name }) ?? null;

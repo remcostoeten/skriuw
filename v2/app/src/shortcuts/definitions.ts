@@ -2,6 +2,8 @@ export type ShortcutActionId =
   | "toggleCommandPalette"
   | "createNote"
   | "createFolder"
+  | "createTag"
+  | "createPerson"
   | "openSettings"
   | "toggleSidebar"
   | "toggleMetadata"
@@ -9,6 +11,8 @@ export type ShortcutActionId =
   | "focusEditor"
   | "focusMetadata"
   | "goToNotes"
+  | "goToTags"
+  | "goToPeople"
   | "goToTrash"
   | "findInNote"
   | "searchMatchCase"
@@ -20,6 +24,12 @@ export type ShortcutDefinition = {
   keys: string | string[];
   label: string;
   group: string;
+  /**
+   * Named scopes the binding requires to fire. Bindings with scopes run only
+   * when the workspace has at least one matching scope active, letting a key
+   * like `mod+n` mean different things per route.
+   */
+  scopes?: string | string[];
   /**
    * Modifier combos that should keep working while the caret is in the
    * ProseMirror editor or an input. Plain-key shortcuts must leave this off so
@@ -44,11 +54,26 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "New note",
     group: "Workspace",
     worksWhileTyping: true,
+    scopes: "note-create",
   },
   {
     id: "createFolder",
     keys: "mod+shift+n",
     label: "New folder",
+    group: "Workspace",
+    worksWhileTyping: true,
+  },
+  {
+    id: "createTag",
+    keys: "mod+shift+t",
+    label: "New tag",
+    group: "Workspace",
+    worksWhileTyping: true,
+  },
+  {
+    id: "createPerson",
+    keys: "mod+shift+p",
+    label: "New person",
     group: "Workspace",
     worksWhileTyping: true,
   },
@@ -103,8 +128,22 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     worksWhileTyping: true,
   },
   {
-    id: "goToTrash",
+    id: "goToTags",
     keys: "mod+shift+2",
+    label: "Go to tags",
+    group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "goToPeople",
+    keys: "mod+shift+3",
+    label: "Go to people",
+    group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "goToTrash",
+    keys: "mod+shift+4",
     label: "Go to trash",
     group: "Navigation",
     worksWhileTyping: true,

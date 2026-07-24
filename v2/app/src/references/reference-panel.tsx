@@ -2,6 +2,8 @@ import { useCallback, useState } from "react";
 import { activateNote, commitReferenceOperations } from "../actions/workspace";
 import { CheckIcon, CloseIcon, PencilIcon, Trash2Icon } from "../shared/icons";
 import { cn } from "../shared/lib/utils";
+import { InlineConfirm } from "../shared/ui/inline-confirm";
+import { InlineEdit } from "../shared/ui/inline-edit";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererState, RendererStore } from "../store/types";
 import {
@@ -102,7 +104,7 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
     [entry.id, entry.kind, open],
   );
   const notes = useRendererSelector(store, selector, backlinksEqual);
-  const sigil = entry.kind === "tag" ? "#" : "@";
+  const sigil = entry.kind === "tag" ? "#" : "$";
   const noun = entry.kind === "tag" ? "Tag" : "Person";
 
   function commit(operation: ReferenceOperation | null): void {
@@ -141,22 +143,13 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
           />
         </button>
         {renaming ? (
-          <input
-            type="text"
-            aria-label={`Rename ${noun.toLowerCase()} ${entry.name}`}
+          <InlineEdit
             defaultValue={entry.name}
-            autoFocus
-            className="min-w-0 flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-[13px] outline-none focus:border-ring"
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                submitRename(event.currentTarget.value);
-              } else if (event.key === "Escape") {
-                event.preventDefault();
-                setRenaming(false);
-              }
-            }}
-            onBlur={(event) => submitRename(event.currentTarget.value)}
+            ariaLabel={`Rename ${noun.toLowerCase()} ${entry.name}`}
+            onSubmit={submitRename}
+            onCancel={() => setRenaming(false)}
+            className="gap-0 px-0 py-0"
+            inputClassName="ml-0 py-0.5"
           />
         ) : (
           <button
@@ -172,24 +165,32 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
           </button>
         )}
         {!renaming && (
-          <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-            <button
-              type="button"
-              aria-label={`Rename ${noun.toLowerCase()} ${entry.name}`}
-              className="flex size-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-              onClick={() => setRenaming(true)}
-            >
-              <PencilIcon size={12} />
-            </button>
-            <button
-              type="button"
-              aria-label={`Delete ${noun.toLowerCase()} ${entry.name}`}
-              className="flex size-5 items-center justify-center rounded text-muted-foreground hover:text-destructive"
-              onClick={() => commit(buildDeleteReferenceOperation(entry))}
-            >
-              <Trash2Icon size={12} />
-            </button>
-          </span>
+          <InlineConfirm
+            size="sm"
+            confirmLabel="Delete"
+            onConfirm={() => commit(buildDeleteReferenceOperation(entry))}
+            className="shrink-0"
+            renderIdle={(arm) => (
+              <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                <button
+                  type="button"
+                  aria-label={`Rename ${noun.toLowerCase()} ${entry.name}`}
+                  className="flex size-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                  onClick={() => setRenaming(true)}
+                >
+                  <PencilIcon size={12} />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete ${noun.toLowerCase()} ${entry.name}`}
+                  className="flex size-5 items-center justify-center rounded text-muted-foreground hover:text-destructive"
+                  onClick={arm}
+                >
+                  <Trash2Icon size={12} />
+                </button>
+              </span>
+            )}
+          />
         )}
       </div>
       {picking && (

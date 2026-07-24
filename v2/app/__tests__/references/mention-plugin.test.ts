@@ -30,10 +30,14 @@ function fixtureStore(): RendererStore {
 }
 
 function createHarness(store: RendererStore = fixtureStore()) {
+  const createdNotes: { id: string; title: string }[] = [];
   const context: MentionContext = {
     getState: () => store.getState(),
     applyReferenceOperations: (operations) => {
       store.applyReferenceOperations(operations);
+    },
+    createNote: (id, title) => {
+      createdNotes.push({ id, title });
     },
   };
   let editorState = EditorState.create({
@@ -54,7 +58,7 @@ function createHarness(store: RendererStore = fixtureStore()) {
       view.dispatch(view.state.tr.insertText(character));
     }
   };
-  return { view, context, store, type, state: () => editorState };
+  return { view, context, store, type, createdNotes, state: () => editorState };
 }
 
 function keyEvent(key: string): KeyboardEvent {
@@ -153,15 +157,15 @@ test("deleting back past a dismissed trigger re-arms completion", () => {
 
 test("selection, delete, undo, and redo round-trip committed tokens", () => {
   const { view, context, type, state } = createHarness();
-  type("start @Ada");
+  type("start $Ada");
   view.dispatch(closeHistory(view.state.tr));
-  const items = mentionMenuItems(context.getState(), "@", "Ada");
+  const items = mentionMenuItems(context.getState(), "$", "Ada");
   acceptMentionItem(view, items[0]!, context);
   assert.equal(extractReferences(state().doc.toJSON()).length, 1);
 
   assert.equal(undo(view.state, view.dispatch), true);
   assert.equal(extractReferences(state().doc.toJSON()).length, 0);
-  assert.equal(state().doc.textContent, "start @Ada");
+  assert.equal(state().doc.textContent, "start $Ada");
   assert.equal(redo(view.state, view.dispatch), true);
   assert.equal(extractReferences(state().doc.toJSON()).length, 1);
 
@@ -190,14 +194,46 @@ test("creating a missing tag applies a reference operation and inserts the new t
   assert.equal(store.getState().tags.get(reference!.targetId)?.name, "brandnew");
 });
 
+test("the person trigger completes people and offers to create a new one", () => {
+  const { view, context, type, state } = createHarness();
+  type("met $bo");
+  assert.equal(mentionState(state()).trigger, "$");
+  const items = mentionMenuItems(context.getState(), "$", "bo");
+  assert.equal(items[0]?.type, "suggestion");
+  assert.ok(items.every((item) => item.type !== "suggestion" || item.group === "people"));
+  const create = items.at(-1);
+  assert.equal(create?.type, "create");
+  assert.equal(create?.type === "create" && create.kind, "person");
+  acceptMentionItem(view, items[0]!, context);
+  assert.deepEqual(extractReferences(state().doc.toJSON()), [
+    { kind: "person", targetId: "person-bob" },
+  ]);
+});
+
+test("the note trigger creates and links a fresh note when nothing matches", () => {
+  const { view, context, type, state, createdNotes } = createHarness();
+  type("see @FreshIdea");
+  const items = mentionMenuItems(context.getState(), "@", "FreshIdea");
+  assert.ok(items.every((item) => item.type !== "suggestion" || item.group === "notes"));
+  const create = items.at(-1);
+  assert.equal(create?.type, "create");
+  assert.equal(create?.type === "create" && create.kind, "note");
+  acceptMentionItem(view, create!, context);
+  assert.equal(createdNotes.length, 1);
+  assert.equal(createdNotes[0]?.title, "FreshIdea");
+  const [reference] = extractReferences(state().doc.toJSON());
+  assert.equal(reference?.kind, "note");
+  assert.equal(reference?.targetId, createdNotes[0]?.id);
+});
+
 test("mention menu items exclude exact duplicates from the create option", () => {
   const store = fixtureStore();
   const tagItems = mentionMenuItems(store.getState(), "#", "alpha");
   assert.equal(tagItems.some((item) => item.type === "create"), false);
-  const personItems = mentionMenuItems(store.getState(), "@", "Ada");
+  const personItems = mentionMenuItems(store.getState(), "$", "Ada");
   assert.equal(personItems.some((item) => item.type === "create"), false);
   assert.equal(
-    mentionMenuItems(store.getState(), "@", "Adaline").some((item) => item.type === "create"),
+    mentionMenuItems(store.getState(), "$", "Adaline").some((item) => item.type === "create"),
     true,
   );
 });
@@ -214,7 +250,7 @@ test("markdown serialization and word count treat tokens as labeled text", () =>
       mentionRef.create({ kind: "person", id: "person-ada", label: "Ada" }),
     ]),
   ]);
-  assert.equal(serializeProductMarkdown(document), "ship #alpha with @Ada");
+  assert.equal(serializeProductMarkdown(document), "ship #alpha with $Ada");
   assert.equal(countWords(document), 2);
   const roundTripped = productSchema.nodeFromJSON(document.toJSON());
   assert.equal(roundTripped.eq(document), true);

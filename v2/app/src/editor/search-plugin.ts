@@ -1,6 +1,7 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
+import { noop } from "../shared/lib/noop";
 
 export type SearchOptions = {
   caseSensitive: boolean;
@@ -179,7 +180,9 @@ function scrollMatchIntoView(view: EditorSearchTarget, match: SearchMatch): void
     const node = dom.node;
     const element = node instanceof Element ? node : node.parentElement;
     element?.scrollIntoView({ block: "center" });
-  } catch {}
+  } catch {
+    noop();
+  }
 }
 
 export function setSearch(view: EditorSearchTarget, term: string, options: SearchOptions): void {

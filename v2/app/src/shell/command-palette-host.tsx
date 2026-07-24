@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { activateNote } from "../actions/workspace";
+import { appRouteHash } from "../app-route";
 import { searchWorkspace } from "../bridge/commands";
 import type { CommandRegistry, CommandUiState } from "../commands/registry";
 import type { SearchHit } from "../contracts/workspace";
-import { FileTextIcon, SearchIcon } from "../shared/icons";
+import {
+  projectEntities,
+  type EntityKind,
+  type EntityRow,
+} from "../references/entity-manager-model";
+import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "../shared/icons";
 import { fuzzyMatchScore } from "../shared/lib/fuzzy-match";
 import { CommandPalette } from "../shared/ui/command-palette";
 import type { CommandPaletteItem } from "../shared/ui/command-palette-model";
 import { effectiveShortcutKeys, shortcutOverridesFromSettings } from "../shortcuts/bindings";
-import type { ShortcutOverrides } from "../shortcuts/bindings";
 import { SHORTCUT_DEFINITIONS } from "../shortcuts/definitions";
 import type { ShortcutActionId, ShortcutDefinition } from "../shortcuts/definitions";
-import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererState, RendererStore } from "../store/types";
 
 const SEARCH_DEBOUNCE_MS = 120;
@@ -20,14 +24,6 @@ const SEARCH_LIMIT = 8;
 const DEFINITION_BY_ID: ReadonlyMap<ShortcutActionId, ShortcutDefinition> = new Map(
   SHORTCUT_DEFINITIONS.map((definition) => [definition.id, definition]),
 );
-
-function sameOverrides(left: ShortcutOverrides, right: ShortcutOverrides): boolean {
-  const leftKeys = Object.keys(left) as (keyof ShortcutOverrides)[];
-  return (
-    leftKeys.length === Object.keys(right).length &&
-    leftKeys.every((key) => left[key] === right[key])
-  );
-}
 
 type NoteEntry = {
   id: string;
@@ -43,15 +39,6 @@ function selectNoteEntries(state: RendererState): NoteEntry[] {
     }
   }
   return notes;
-}
-
-function sameNoteEntries(left: NoteEntry[], right: NoteEntry[]): boolean {
-  return (
-    left.length === right.length &&
-    left.every(
-      (entry, index) => entry.id === right[index]?.id && entry.title === right[index]?.title,
-    )
-  );
 }
 
 function snippetText(snippet: string): string {
@@ -82,6 +69,27 @@ function contentItems(
     }));
 }
 
+/**
+ * Tags and people as browsable palette rows, surfaced under the `!t` / `!p`
+ * bangs or a text search. Kept `searchOnly` so the idle palette stays lean;
+ * selecting one jumps to its management route.
+ */
+function entityItems(rows: readonly EntityRow[], kind: EntityKind): CommandPaletteItem[] {
+  const group = kind === "tag" ? "Tags" : "People";
+  const route = kind === "tag" ? "tags" : "people";
+  return rows.map((row) => ({
+    id: `${kind}:${row.id}`,
+    label: row.name,
+    hint: `${row.noteCount} ${row.noteCount === 1 ? "note" : "notes"}`,
+    group,
+    searchOnly: true,
+    icon: kind === "tag" ? <WaypointsIcon size={15} /> : <CircleIcon size={15} />,
+    action: () => {
+      window.location.hash = appRouteHash(route);
+    },
+  }));
+}
+
 type Props = {
   store: RendererStore;
   registry: CommandRegistry;
@@ -91,12 +99,6 @@ type Props = {
 };
 
 export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: Props) {
-  const notes = useRendererSelector(store, selectNoteEntries, sameNoteEntries);
-  const overrides = useRendererSelector(
-    store,
-    (state) => shortcutOverridesFromSettings(state.settings),
-    sameOverrides,
-  );
   const [searchQuery, setSearchQuery] = useState("");
   const [hits, setHits] = useState<readonly SearchHit[]>([]);
   const requestRef = useRef(0);
@@ -133,15 +135,18 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
     return () => window.clearTimeout(timer);
   }, [searchQuery]);
 
-  const items = useMemo<CommandPaletteItem[]>(
-    () => [
-      ...(open
-        ? registry.paletteItems(store.getState(), ui, (actionId) => {
-            const definition = DEFINITION_BY_ID.get(actionId);
-            return definition ? effectiveShortcutKeys(definition, overrides) : "";
-          })
-        : []),
-      ...notes.map(
+  const items = useMemo<CommandPaletteItem[]>(() => {
+    if (!open) {
+      return [];
+    }
+    const state = store.getState();
+    const overrides = shortcutOverridesFromSettings(state.settings);
+    return [
+      ...registry.paletteItems(state, ui, (actionId) => {
+        const definition = DEFINITION_BY_ID.get(actionId);
+        return definition ? effectiveShortcutKeys(definition, overrides) : "";
+      }),
+      ...selectNoteEntries(state).map(
         (note): CommandPaletteItem => ({
           id: `note:${note.id}`,
           label: note.title,
@@ -151,10 +156,11 @@ export function CommandPaletteHost({ store, registry, ui, open, onOpenChange }: 
           action: () => activateNote(store, note.id),
         }),
       ),
+      ...entityItems(projectEntities(state, "tag"), "tag"),
+      ...entityItems(projectEntities(state, "person"), "person"),
       ...contentItems(store, hits, searchQuery.trim()),
-    ],
-    [open, registry, ui, overrides, notes, hits, searchQuery, store],
-  );
+    ];
+  }, [open, registry, ui, hits, searchQuery, store]);
 
   return (
     <CommandPalette

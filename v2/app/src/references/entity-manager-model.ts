@@ -12,6 +12,9 @@ export type EntityRow = {
   initials: string | null;
   note: string | null;
   noteCount: number;
+  createdAt: number;
+  updatedAt: number;
+  createdInTitle: string | null;
 };
 
 export const ENTITY_COLORS: readonly string[] = [
@@ -33,6 +36,13 @@ export function entityNounPlural(kind: EntityKind): string {
   return kind === "tag" ? "tags" : "people";
 }
 
+function resolveCreatedInTitle(state: RendererState, createdIn: string | null): string | null {
+  if (createdIn === null) {
+    return null;
+  }
+  return state.metadata.get(createdIn)?.title ?? null;
+}
+
 function tagToRow(state: RendererState, tag: TagRecord): EntityRow {
   return {
     kind: "tag",
@@ -42,6 +52,9 @@ function tagToRow(state: RendererState, tag: TagRecord): EntityRow {
     initials: null,
     note: null,
     noteCount: projectReferencingNotes(state, "tag", tag.id).length,
+    createdAt: tag.createdAt,
+    updatedAt: tag.updatedAt,
+    createdInTitle: resolveCreatedInTitle(state, tag.createdIn),
   };
 }
 
@@ -54,6 +67,9 @@ function personToRow(state: RendererState, person: PersonRecord): EntityRow {
     initials: person.initials,
     note: person.note,
     noteCount: projectReferencingNotes(state, "person", person.id).length,
+    createdAt: person.createdAt,
+    updatedAt: person.updatedAt,
+    createdInTitle: resolveCreatedInTitle(state, person.createdIn),
   };
 }
 
@@ -82,7 +98,10 @@ export function entityRowsEqual(
       row.color === other.color &&
       row.initials === other.initials &&
       row.note === other.note &&
-      row.noteCount === other.noteCount
+      row.noteCount === other.noteCount &&
+      row.createdAt === other.createdAt &&
+      row.updatedAt === other.updatedAt &&
+      row.createdInTitle === other.createdInTitle
     );
   });
 }
@@ -119,7 +138,11 @@ export function buildCreateTag(
   if (trimmed.length === 0) {
     return null;
   }
-  return { type: "create_tag", tag: { id, name: trimmed, color } };
+  const now = Date.now();
+  return {
+    type: "create_tag",
+    tag: { id, name: trimmed, color, createdAt: now, updatedAt: now, createdIn: "tags" },
+  };
 }
 
 export function buildCreatePerson(
@@ -134,6 +157,7 @@ export function buildCreatePerson(
     return null;
   }
   const resolvedInitials = normalizeOptional(initials) ?? deriveInitials(trimmed);
+  const now = Date.now();
   return {
     type: "create_person",
     person: {
@@ -142,6 +166,9 @@ export function buildCreatePerson(
       initials: resolvedInitials.length > 0 ? resolvedInitials : null,
       color,
       note: normalizeOptional(note),
+      createdAt: now,
+      updatedAt: now,
+      createdIn: "people",
     },
   };
 }
