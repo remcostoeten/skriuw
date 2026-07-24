@@ -1,0 +1,73 @@
+name: CI v2
+
+on:
+    push:
+        branches:
+            - daddy
+            - master
+        paths:
+            - "v2/**"
+            - ".github/workflows/ci-v2.yml"
+    pull_request:
+        paths:
+            - "v2/**"
+            - ".github/workflows/ci-v2.yml"
+
+permissions:
+    contents: read
+
+jobs:
+    verify-and-build:
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        defaults:
+            run:
+                working-directory: v2
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Install Tauri system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: clippy, rustfmt
+
+            - name: Cache Cargo
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: |
+                      v2 -> target
+                      v2/app/src-tauri -> target
+
+            - name: Install bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Install frontend deps
+              # bun ignores --cwd on the install subcommand, so cd into each dir
+              run: |
+                  (cd app && bun install --frozen-lockfile)
+                  (cd spikes/ui-architecture && bun install --frozen-lockfile)
+                  (cd spikes/renderer-store && bun install --frozen-lockfile)
+
+            - name: Verify and build
+              # Updater artifacts are only signed in the release workflow; CI builds skip them
+              run: ./scripts/build.sh ci --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+            - name: Upload build logs
+              if: failure()
+              uses: actions/upload-artifact@v5
+              with:
+                  name: skriuw-v2-build-logs
+                  if-no-files-found: warn
+                  path: v2/.build/logs

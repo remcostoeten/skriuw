@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - '@remcostoeten/dev-menu@0.2.2'

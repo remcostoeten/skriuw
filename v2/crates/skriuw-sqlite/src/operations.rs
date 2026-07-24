@@ -1,0 +1,974 @@
+use std::collections::BTreeMap;
+
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use skriuw_domain::{
+    EntityRevision, NodePlacement, NodePosition, NodeRankChange, OperationAck, WorkspaceOperation,
+    WorkspaceOperationEnvelope,
+};
+use skriuw_storage::StorageError;
+use uuid::Uuid;
+
+use crate::error::{backend, json_backend, validation};
+use crate::queries::read_stored_active_note;
+
+pub(crate) const NODE_RANK_GAP: i64 = 1024;
+
+pub(crate) fn validate_operations(
+    operations: &[WorkspaceOperationEnvelope],
+) -> Result<(), StorageError> {
+    for envelope in operations {
+        envelope.validate().map_err(validation)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn replace_references(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    document: &serde_json::Value,
+) -> Result<(), StorageError> {
+    transaction
+        .execute(
+            "DELETE FROM document_references WHERE source_note_id = ?1",
+            [note_id],
+        )
+        .map_err(backend)?;
+    for reference in skriuw_domain::document_references(document) {
+        let exists = match reference.kind {
+            skriuw_domain::ReferenceKind::Tag => transaction
+                .query_row(
+                    "SELECT 1 FROM workspace_tags WHERE id = ?1",
+                    [&reference.target_id],
+                    |_| Ok(()),
+                )
+                .optional()
+                .map_err(backend)?
+                .is_some(),
+            skriuw_domain::ReferenceKind::Person => transaction
+                .query_row(
+                    "SELECT 1 FROM workspace_people WHERE id = ?1",
+                    [&reference.target_id],
+                    |_| Ok(()),
+                )
+                .optional()
+                .map_err(backend)?
+                .is_some(),
+            skriuw_domain::ReferenceKind::Note => transaction
+                .query_row(
+                    "SELECT 1 FROM workspace_nodes WHERE id = ?1 AND kind = 'note'",
+                    [&reference.target_id],
+                    |_| Ok(()),
+                )
+                .optional()
+                .map_err(backend)?
+                .is_some(),
+        };
+        if !exists {
+            return Err(StorageError::InvalidOperation(format!(
+                "dangling reference {}",
+                reference.target_id
+            )));
+        }
+        let kind = match reference.kind {
+            skriuw_domain::ReferenceKind::Tag => "tag",
+            skriuw_domain::ReferenceKind::Person => "person",
+            skriuw_domain::ReferenceKind::Note => "note",
+        };
+        transaction.execute("INSERT INTO document_references (source_note_id, kind, target_id) VALUES (?1, ?2, ?3)", params![note_id, kind, reference.target_id]).map_err(backend)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn apply_operations_in_transaction(
+    transaction: &Transaction<'_>,
+    operations: &[WorkspaceOperationEnvelope],
+) -> Result<OperationAck, StorageError> {
+    let mut revisions = Vec::new();
+    let mut rank_changes = BTreeMap::new();
+    for envelope in operations {
+        apply_operation(
+            transaction,
+            &envelope.operation,
+            &mut revisions,
+            &mut rank_changes,
+        )?;
+    }
+    Ok(OperationAck {
+        applied: operations.len(),
+        revisions,
+        rank_changes: rank_changes.into_values().collect(),
+    })
+}
+
+fn apply_operation(
+    transaction: &Transaction<'_>,
+    operation: &WorkspaceOperation,
+    revisions: &mut Vec<EntityRevision>,
+    rank_changes: &mut BTreeMap<String, NodeRankChange>,
+) -> Result<(), StorageError> {
+    match operation {
+        WorkspaceOperation::CreateTag { tag } => {
+            transaction
+                .execute(
+                    "INSERT INTO workspace_tags (id, name, color, created_at, updated_at, created_in) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        tag.id,
+                        tag.name,
+                        tag.color,
+                        tag.created_at,
+                        tag.updated_at,
+                        tag.created_in
+                    ],
+                )
+                .map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
+        }
+        WorkspaceOperation::RenameTag { id, name } => {
+            require_changed(
+                transaction
+                    .execute(
+                        "UPDATE workspace_tags \
+                         SET name = ?2, updated_at = unixepoch('subsec') * 1000 WHERE id = ?1",
+                        params![id, name],
+                    )
+                    .map_err(backend)?,
+                id,
+            )?;
+        }
+        WorkspaceOperation::RecolorTag { id, color } => {
+            require_changed(
+                transaction
+                    .execute(
+                        "UPDATE workspace_tags \
+                         SET color = ?2, updated_at = unixepoch('subsec') * 1000 WHERE id = ?1",
+                        params![id, color],
+                    )
+                    .map_err(backend)?,
+                id,
+            )?;
+        }
+        WorkspaceOperation::DeleteTag { id } => {
+            require_changed(
+                transaction
+                    .execute("DELETE FROM workspace_tags WHERE id = ?1", [id])
+                    .map_err(backend)?,
+                id,
+            )?;
+            transaction
+                .execute(
+                    "DELETE FROM document_references WHERE kind = 'tag' AND target_id = ?1",
+                    [id],
+                )
+                .map_err(backend)?;
+        }
+        WorkspaceOperation::CreatePerson { person } => {
+            transaction.execute("INSERT INTO workspace_people (id, name, initials, color, note, created_at, updated_at, created_in) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)", params![person.id, person.name, person.initials, person.color, person.note, person.created_at, person.updated_at, person.created_in]).map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
+        }
+        WorkspaceOperation::RenamePerson { id, name } => {
+            require_changed(
+                transaction
+                    .execute(
+                        "UPDATE workspace_people \
+                         SET name = ?2, updated_at = unixepoch('subsec') * 1000 WHERE id = ?1",
+                        params![id, name],
+                    )
+                    .map_err(backend)?,
+                id,
+            )?;
+        }
+        WorkspaceOperation::RecolorPerson { id, color } => {
+            require_changed(
+                transaction
+                    .execute(
+                        "UPDATE workspace_people \
+                         SET color = ?2, updated_at = unixepoch('subsec') * 1000 WHERE id = ?1",
+                        params![id, color],
+                    )
+                    .map_err(backend)?,
+                id,
+            )?;
+        }
+        WorkspaceOperation::DeletePerson { id } => {
+            require_changed(
+                transaction
+                    .execute("DELETE FROM workspace_people WHERE id = ?1", [id])
+                    .map_err(backend)?,
+                id,
+            )?;
+            transaction
+                .execute(
+                    "DELETE FROM document_references WHERE kind = 'person' AND target_id = ?1",
+                    [id],
+                )
+                .map_err(backend)?;
+        }
+        WorkspaceOperation::CreateFolder {
+            id,
+            title,
+            placement,
+            at,
+        } => {
+            require_parent_folder(transaction, placement.parent_id.as_deref())?;
+            let rank = allocate_rank(transaction, id, placement, rank_changes)?;
+            transaction
+                .execute(
+                    "INSERT INTO workspace_nodes \
+                     (id, kind, parent_id, rank, title, created_at, updated_at) \
+                     VALUES (?1, 'folder', ?2, ?3, ?4, ?5, ?5)",
+                    params![id, placement.parent_id, rank, title, at],
+                )
+                .map_err(backend)?;
+            record_rank_change(rank_changes, id, &placement.parent_id, rank);
+        }
+        WorkspaceOperation::CreateNote {
+            id,
+            title,
+            placement,
+            document_json,
+            markdown,
+            at,
+        } => {
+            require_parent_folder(transaction, placement.parent_id.as_deref())?;
+            let rank = allocate_rank(transaction, id, placement, rank_changes)?;
+            transaction
+                .execute(
+                    "INSERT INTO workspace_nodes \
+                     (id, kind, parent_id, rank, title, created_at, updated_at) \
+                     VALUES (?1, 'note', ?2, ?3, ?4, ?5, ?5)",
+                    params![id, placement.parent_id, rank, title, at],
+                )
+                .map_err(backend)?;
+            transaction
+                .execute(
+                    "INSERT INTO documents \
+                     (note_id, document_json, markdown, revision, word_count) \
+                     VALUES (?1, ?2, ?3, 1, ?4)",
+                    params![
+                        id,
+                        document_json.to_string(),
+                        markdown,
+                        count_words(markdown)
+                    ],
+                )
+                .map_err(backend)?;
+            replace_fts(transaction, id, title, markdown)?;
+            replace_references(transaction, id, document_json)?;
+            enqueue_history(transaction, id, 1, markdown, *at)?;
+            revisions.push(EntityRevision {
+                id: id.clone(),
+                revision: 1,
+            });
+            record_rank_change(rank_changes, id, &placement.parent_id, rank);
+        }
+        WorkspaceOperation::RenameNode { id, title, at } => {
+            require_available_node(transaction, id)?;
+            let changed = transaction
+                .execute(
+                    "UPDATE workspace_nodes SET title = ?2, updated_at = ?3 WHERE id = ?1",
+                    params![id, title, at],
+                )
+                .map_err(backend)?;
+            require_changed(changed, id)?;
+            transaction
+                .execute(
+                    "UPDATE documents_fts SET title = ?2 WHERE note_id = ?1",
+                    params![id, title],
+                )
+                .map_err(backend)?;
+        }
+        WorkspaceOperation::SetNodePinned { id, pinned, at } => {
+            require_available_node(transaction, id)?;
+            let pinned_at = pinned.then_some(*at);
+            let changed = transaction
+                .execute(
+                    "UPDATE workspace_nodes SET pinned_at = ?2, updated_at = ?3 WHERE id = ?1",
+                    params![id, pinned_at, at],
+                )
+                .map_err(backend)?;
+            require_changed(changed, id)?;
+        }
+        WorkspaceOperation::MoveNode { id, placement, at } => {
+            require_available_node(transaction, id)?;
+            require_parent_folder(transaction, placement.parent_id.as_deref())?;
+            require_acyclic_parent(transaction, id, placement.parent_id.as_deref())?;
+            let rank = allocate_rank(transaction, id, placement, rank_changes)?;
+            let changed = transaction
+                .execute(
+                    "UPDATE workspace_nodes \
+                     SET parent_id = ?2, rank = ?3, updated_at = ?4 \
+                     WHERE id = ?1",
+                    params![id, placement.parent_id, rank, at],
+                )
+                .map_err(backend)?;
+            require_changed(changed, id)?;
+            record_rank_change(rank_changes, id, &placement.parent_id, rank);
+        }
+        WorkspaceOperation::SaveDocument {
+            note_id,
+            document_json,
+            markdown,
+            word_count,
+            expected_revision,
+            at,
+        } => {
+            require_note(transaction, note_id)?;
+            let next_revision = expected_revision.saturating_add(1);
+            let changed = transaction
+                .execute(
+                    "UPDATE documents \
+                     SET document_json = ?2, markdown = ?3, revision = ?4, word_count = ?5 \
+                     WHERE note_id = ?1 AND revision = ?6",
+                    params![
+                        note_id,
+                        document_json.to_string(),
+                        markdown,
+                        next_revision,
+                        word_count,
+                        expected_revision
+                    ],
+                )
+                .map_err(backend)?;
+            if changed == 0 {
+                let current = current_revision(transaction, note_id)?;
+                return Err(StorageError::RevisionConflict {
+                    id: note_id.clone(),
+                    expected: *expected_revision,
+                    current,
+                });
+            }
+            transaction
+                .execute(
+                    "UPDATE workspace_nodes SET updated_at = ?2 WHERE id = ?1",
+                    params![note_id, at],
+                )
+                .map_err(backend)?;
+            let title = node_title(transaction, note_id)?;
+            replace_fts(transaction, note_id, &title, markdown)?;
+            replace_references(transaction, note_id, document_json)?;
+            prune_detached_images(transaction, note_id, document_json)?;
+            enqueue_history(transaction, note_id, next_revision, markdown, *at)?;
+            revisions.push(EntityRevision {
+                id: note_id.clone(),
+                revision: next_revision,
+            });
+        }
+        WorkspaceOperation::TrashSubtree { root_id, at } => {
+            require_available_node(transaction, root_id)?;
+            clear_active_note_in_subtree(transaction, root_id)?;
+            let changed = transaction
+                .execute(
+                    "UPDATE workspace_nodes SET deleted_at = ?2, updated_at = ?2 WHERE id = ?1",
+                    params![root_id, at],
+                )
+                .map_err(backend)?;
+            require_changed(changed, root_id)?;
+        }
+        WorkspaceOperation::RestoreSubtree {
+            root_id,
+            placement,
+            at,
+        } => {
+            require_directly_trashed(transaction, root_id)?;
+            require_parent_folder(transaction, placement.parent_id.as_deref())?;
+            require_acyclic_parent(transaction, root_id, placement.parent_id.as_deref())?;
+            let rank = allocate_rank(transaction, root_id, placement, rank_changes)?;
+            let changed = transaction
+                .execute(
+                    "UPDATE workspace_nodes \
+                     SET deleted_at = NULL, parent_id = ?2, rank = ?3, updated_at = ?4 \
+                     WHERE id = ?1",
+                    params![root_id, placement.parent_id, rank, at],
+                )
+                .map_err(backend)?;
+            require_changed(changed, root_id)?;
+            record_rank_change(rank_changes, root_id, &placement.parent_id, rank);
+        }
+        WorkspaceOperation::PurgeSubtree {
+            root_id,
+            trashed_before,
+        } => {
+            require_directly_trashed(transaction, root_id)?;
+            let newest_trash = transaction
+                .query_row(
+                    "WITH RECURSIVE subtree(id) AS (\
+                         SELECT id FROM workspace_nodes WHERE id = ?1 \
+                         UNION ALL \
+                         SELECT child.id FROM workspace_nodes child \
+                         JOIN subtree parent ON child.parent_id = parent.id\
+                     ) \
+                     SELECT MAX(deleted_at) FROM workspace_nodes \
+                     WHERE id IN (SELECT id FROM subtree)",
+                    [root_id],
+                    |row| row.get::<_, Option<i64>>(0),
+                )
+                .map_err(backend)?
+                .ok_or_else(|| StorageError::NotFound(root_id.clone()))?;
+            if newest_trash > *trashed_before {
+                return Err(StorageError::InvalidOperation(format!(
+                    "subtree {root_id} contains trash newer than retention cutoff {trashed_before}"
+                )));
+            }
+            clear_active_note_in_subtree(transaction, root_id)?;
+            transaction
+                .execute(
+                    "WITH RECURSIVE subtree(id) AS (\
+                         SELECT id FROM workspace_nodes WHERE id = ?1 \
+                         UNION ALL \
+                         SELECT child.id FROM workspace_nodes child \
+                         JOIN subtree parent ON child.parent_id = parent.id\
+                     ) \
+                     DELETE FROM documents_fts WHERE note_id IN (SELECT id FROM subtree)",
+                    [root_id],
+                )
+                .map_err(backend)?;
+            let changed = transaction
+                .execute(
+                    "WITH RECURSIVE subtree(id) AS (\
+                         SELECT id FROM workspace_nodes WHERE id = ?1 \
+                         UNION ALL \
+                         SELECT child.id FROM workspace_nodes child \
+                         JOIN subtree parent ON child.parent_id = parent.id\
+                     ) \
+                     DELETE FROM workspace_nodes WHERE id IN (SELECT id FROM subtree)",
+                    [root_id],
+                )
+                .map_err(backend)?;
+            require_changed(changed, root_id)?;
+        }
+        WorkspaceOperation::SetActiveNote { note_id } => {
+            if let Some(id) = note_id {
+                require_note(transaction, id)?;
+            }
+            transaction
+                .execute(
+                    "INSERT INTO app_state(key, value_json) VALUES ('active_note_id', ?1) \
+                     ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
+                    [serde_json::to_string(note_id).map_err(json_backend)?],
+                )
+                .map_err(backend)?;
+        }
+        WorkspaceOperation::UpdateSettings { settings } => {
+            transaction
+                .execute(
+                    "INSERT INTO app_state(key, value_json) VALUES ('settings', ?1) \
+                     ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
+                    [serde_json::to_string(settings).map_err(json_backend)?],
+                )
+                .map_err(backend)?;
+        }
+        WorkspaceOperation::AttachImage { image } => {
+            require_note(transaction, &image.note_id)?;
+            transaction
+                .execute(
+                    "INSERT INTO note_images \
+                     (id, note_id, content_hash, mime_type, byte_size, width, height, created_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    params![
+                        image.id,
+                        image.note_id,
+                        image.content_hash,
+                        image.mime_type,
+                        image.byte_size,
+                        image.width,
+                        image.height,
+                        image.created_at
+                    ],
+                )
+                .map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
+        }
+    }
+    Ok(())
+}
+
+fn prune_detached_images(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    document: &serde_json::Value,
+) -> Result<(), StorageError> {
+    let live = skriuw_domain::document_image_ids(document);
+    let stored = {
+        let mut statement = transaction
+            .prepare_cached("SELECT id FROM note_images WHERE note_id = ?1")
+            .map_err(backend)?;
+        statement
+            .query_map([note_id], |row| row.get::<_, String>(0))
+            .map_err(backend)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(backend)?
+    };
+    for id in stored {
+        if !live.contains(&id) {
+            transaction
+                .execute("DELETE FROM note_images WHERE id = ?1", [&id])
+                .map_err(backend)?;
+        }
+    }
+    Ok(())
+}
+
+struct RankedSibling {
+    id: String,
+    rank: i64,
+}
+
+fn allocate_rank(
+    transaction: &Transaction<'_>,
+    node_id: &str,
+    placement: &NodePlacement,
+    rank_changes: &mut BTreeMap<String, NodeRankChange>,
+) -> Result<i64, StorageError> {
+    let (left, right) = placement_neighbors(transaction, node_id, placement)?;
+    if let Some(rank) = rank_between(left, right) {
+        return Ok(rank);
+    }
+
+    let siblings = load_active_siblings(transaction, node_id, &placement.parent_id)?;
+    let insertion_index = match &placement.position {
+        NodePosition::First => 0,
+        NodePosition::Last => siblings.len(),
+        NodePosition::Before { anchor_id } => siblings
+            .iter()
+            .position(|sibling| sibling.id == *anchor_id)
+            .ok_or_else(|| StorageError::NotFound(anchor_id.clone()))?,
+        NodePosition::After { anchor_id } => {
+            siblings
+                .iter()
+                .position(|sibling| sibling.id == *anchor_id)
+                .ok_or_else(|| StorageError::NotFound(anchor_id.clone()))?
+                + 1
+        }
+    };
+
+    let mut target_rank = None;
+    for final_index in 0..=siblings.len() {
+        let rank = i64::try_from(final_index + 1)
+            .ok()
+            .and_then(|position| position.checked_mul(NODE_RANK_GAP))
+            .ok_or_else(|| StorageError::InvalidOperation("sibling rank range exhausted".into()))?;
+        if final_index == insertion_index {
+            target_rank = Some(rank);
+            continue;
+        }
+        let sibling_index = if final_index < insertion_index {
+            final_index
+        } else {
+            final_index - 1
+        };
+        let sibling = &siblings[sibling_index];
+        if sibling.rank == rank {
+            continue;
+        }
+        transaction
+            .execute(
+                "UPDATE workspace_nodes SET rank = ?2 WHERE id = ?1",
+                params![sibling.id, rank],
+            )
+            .map_err(backend)?;
+        record_rank_change(rank_changes, &sibling.id, &placement.parent_id, rank);
+    }
+    target_rank
+        .ok_or_else(|| StorageError::InvalidOperation("node placement could not be ranked".into()))
+}
+
+fn placement_neighbors(
+    transaction: &Transaction<'_>,
+    node_id: &str,
+    placement: &NodePlacement,
+) -> Result<(Option<i64>, Option<i64>), StorageError> {
+    match &placement.position {
+        NodePosition::First => {
+            let right = transaction
+                .query_row(
+                    "SELECT rank FROM workspace_nodes \
+                     WHERE parent_id IS ?1 AND deleted_at IS NULL AND id <> ?2 \
+                     ORDER BY rank, id LIMIT 1",
+                    params![placement.parent_id, node_id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(backend)?;
+            Ok((None, right))
+        }
+        NodePosition::Last => {
+            let left = transaction
+                .query_row(
+                    "SELECT rank FROM workspace_nodes \
+                     WHERE parent_id IS ?1 AND deleted_at IS NULL AND id <> ?2 \
+                     ORDER BY rank DESC, id DESC LIMIT 1",
+                    params![placement.parent_id, node_id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(backend)?;
+            Ok((left, None))
+        }
+        NodePosition::Before { anchor_id } => {
+            let anchor = require_placement_anchor(transaction, placement, anchor_id)?;
+            let left = transaction
+                .query_row(
+                    "SELECT rank FROM workspace_nodes \
+                     WHERE parent_id IS ?1 AND deleted_at IS NULL AND id <> ?2 \
+                     AND (rank < ?3 OR (rank = ?3 AND id < ?4)) \
+                     ORDER BY rank DESC, id DESC LIMIT 1",
+                    params![placement.parent_id, node_id, anchor.rank, anchor.id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(backend)?;
+            Ok((left, Some(anchor.rank)))
+        }
+        NodePosition::After { anchor_id } => {
+            let anchor = require_placement_anchor(transaction, placement, anchor_id)?;
+            let right = transaction
+                .query_row(
+                    "SELECT rank FROM workspace_nodes \
+                     WHERE parent_id IS ?1 AND deleted_at IS NULL AND id <> ?2 \
+                     AND (rank > ?3 OR (rank = ?3 AND id > ?4)) \
+                     ORDER BY rank, id LIMIT 1",
+                    params![placement.parent_id, node_id, anchor.rank, anchor.id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(backend)?;
+            Ok((Some(anchor.rank), right))
+        }
+    }
+}
+
+fn require_placement_anchor(
+    transaction: &Transaction<'_>,
+    placement: &NodePlacement,
+    anchor_id: &str,
+) -> Result<RankedSibling, StorageError> {
+    require_available_node(transaction, anchor_id)?;
+    let (parent_id, rank) = transaction
+        .query_row(
+            "SELECT parent_id, rank FROM workspace_nodes WHERE id = ?1",
+            [anchor_id],
+            |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .map_err(backend)?;
+    if parent_id != placement.parent_id {
+        return Err(StorageError::InvalidOperation(format!(
+            "anchor {anchor_id} is not a child of the requested parent"
+        )));
+    }
+    Ok(RankedSibling {
+        id: anchor_id.into(),
+        rank,
+    })
+}
+
+fn load_active_siblings(
+    transaction: &Transaction<'_>,
+    node_id: &str,
+    parent_id: &Option<String>,
+) -> Result<Vec<RankedSibling>, StorageError> {
+    let mut statement = transaction
+        .prepare_cached(
+            "SELECT id, rank FROM workspace_nodes \
+             WHERE parent_id IS ?1 AND deleted_at IS NULL AND id <> ?2 \
+             ORDER BY rank, id",
+        )
+        .map_err(backend)?;
+    statement
+        .query_map(params![parent_id, node_id], |row| {
+            Ok(RankedSibling {
+                id: row.get(0)?,
+                rank: row.get(1)?,
+            })
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
+fn rank_between(left: Option<i64>, right: Option<i64>) -> Option<i64> {
+    match (left, right) {
+        (None, None) => Some(NODE_RANK_GAP),
+        (None, Some(right)) => right.checked_sub(NODE_RANK_GAP),
+        (Some(left), None) => left.checked_add(NODE_RANK_GAP),
+        (Some(left), Some(right)) => {
+            let distance = i128::from(right) - i128::from(left);
+            (distance > 1).then(|| {
+                i64::try_from(i128::from(left) + distance / 2)
+                    .expect("midpoint of two i64 ranks must fit i64")
+            })
+        }
+    }
+}
+
+fn record_rank_change(
+    rank_changes: &mut BTreeMap<String, NodeRankChange>,
+    id: &str,
+    parent_id: &Option<String>,
+    rank: i64,
+) {
+    rank_changes.insert(
+        id.into(),
+        NodeRankChange {
+            id: id.into(),
+            parent_id: parent_id.clone(),
+            rank,
+        },
+    );
+}
+
+fn require_parent_folder(
+    transaction: &Transaction<'_>,
+    parent_id: Option<&str>,
+) -> Result<(), StorageError> {
+    let Some(parent_id) = parent_id else {
+        return Ok(());
+    };
+    let kind = transaction
+        .query_row(
+            "SELECT kind FROM workspace_nodes WHERE id = ?1",
+            [parent_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(backend)?;
+    match kind.as_deref() {
+        Some("folder") if node_is_available(transaction, parent_id)? => Ok(()),
+        Some("folder") => Err(StorageError::InvalidOperation(format!(
+            "parent {parent_id} is unavailable"
+        ))),
+        Some(_) => Err(StorageError::InvalidOperation(format!(
+            "parent {parent_id} is not a folder"
+        ))),
+        None => Err(StorageError::NotFound(parent_id.into())),
+    }
+}
+
+fn require_acyclic_parent(
+    transaction: &Transaction<'_>,
+    id: &str,
+    parent_id: Option<&str>,
+) -> Result<(), StorageError> {
+    let Some(parent_id) = parent_id else {
+        return Ok(());
+    };
+    let creates_cycle = transaction
+        .query_row(
+            "WITH RECURSIVE descendants(id) AS (\
+                 SELECT id FROM workspace_nodes WHERE parent_id = ?1 \
+                 UNION ALL \
+                 SELECT child.id FROM workspace_nodes child \
+                 JOIN descendants parent ON child.parent_id = parent.id\
+             ) \
+             SELECT EXISTS(SELECT 1 FROM descendants WHERE id = ?2)",
+            params![id, parent_id],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(backend)?;
+    if creates_cycle {
+        return Err(StorageError::InvalidOperation(format!(
+            "moving {id} below {parent_id} would create a cycle"
+        )));
+    }
+    Ok(())
+}
+
+fn require_note(transaction: &Transaction<'_>, id: &str) -> Result<(), StorageError> {
+    match require_available_node(transaction, id)?.as_str() {
+        "note" => Ok(()),
+        _ => Err(StorageError::InvalidOperation(format!(
+            "active entity {id} is not a note"
+        ))),
+    }
+}
+
+fn require_available_node(transaction: &Transaction<'_>, id: &str) -> Result<String, StorageError> {
+    let kind = transaction
+        .query_row(
+            "SELECT kind FROM workspace_nodes WHERE id = ?1",
+            [id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(backend)?;
+    let kind = kind.ok_or_else(|| StorageError::NotFound(id.into()))?;
+    if !node_is_available(transaction, id)? {
+        return Err(StorageError::InvalidOperation(format!(
+            "node {id} is unavailable"
+        )));
+    }
+    Ok(kind)
+}
+
+pub(crate) fn node_is_available(connection: &Connection, id: &str) -> Result<bool, StorageError> {
+    connection
+        .query_row(
+            "WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
+                 SELECT id, parent_id, deleted_at FROM workspace_nodes WHERE id = ?1 \
+                 UNION ALL \
+                 SELECT parent.id, parent.parent_id, parent.deleted_at \
+                 FROM workspace_nodes parent \
+                 JOIN ancestors ON parent.id = ancestors.parent_id\
+             ) \
+             SELECT COUNT(*) > 0 AND COALESCE(MAX(deleted_at IS NOT NULL), 0) = 0 \
+             FROM ancestors",
+            [id],
+            |row| row.get(0),
+        )
+        .map_err(backend)
+}
+
+pub(crate) fn node_kind(connection: &Connection, id: &str) -> Result<Option<String>, StorageError> {
+    connection
+        .query_row(
+            "SELECT kind FROM workspace_nodes WHERE id = ?1",
+            [id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(backend)
+}
+
+fn require_directly_trashed(transaction: &Transaction<'_>, id: &str) -> Result<i64, StorageError> {
+    transaction
+        .query_row(
+            "SELECT deleted_at FROM workspace_nodes WHERE id = ?1",
+            [id],
+            |row| row.get::<_, Option<i64>>(0),
+        )
+        .optional()
+        .map_err(backend)?
+        .ok_or_else(|| StorageError::NotFound(id.into()))?
+        .ok_or_else(|| StorageError::InvalidOperation(format!("node {id} is not trashed")))
+}
+
+fn subtree_contains(
+    connection: &Connection,
+    root_id: &str,
+    node_id: &str,
+) -> Result<bool, StorageError> {
+    connection
+        .query_row(
+            "WITH RECURSIVE subtree(id) AS (\
+                 SELECT id FROM workspace_nodes WHERE id = ?1 \
+                 UNION ALL \
+                 SELECT child.id FROM workspace_nodes child \
+                 JOIN subtree parent ON child.parent_id = parent.id\
+             ) \
+             SELECT EXISTS(SELECT 1 FROM subtree WHERE id = ?2)",
+            params![root_id, node_id],
+            |row| row.get(0),
+        )
+        .map_err(backend)
+}
+
+fn clear_active_note_in_subtree(
+    transaction: &Transaction<'_>,
+    root_id: &str,
+) -> Result<(), StorageError> {
+    let Some(active_note_id) = read_stored_active_note(transaction)? else {
+        return Ok(());
+    };
+    if subtree_contains(transaction, root_id, &active_note_id)? {
+        transaction
+            .execute("DELETE FROM app_state WHERE key = 'active_note_id'", [])
+            .map_err(backend)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn require_changed(changed: usize, id: &str) -> Result<(), StorageError> {
+    if changed == 0 {
+        Err(StorageError::NotFound(id.into()))
+    } else {
+        Ok(())
+    }
+}
+
+pub(crate) fn require_worker(worker_id: &str) -> Result<(), StorageError> {
+    if worker_id.trim().is_empty() || worker_id.len() > 128 {
+        Err(StorageError::InvalidOperation(
+            "history worker id must contain 1 to 128 bytes".into(),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn current_revision(transaction: &Transaction<'_>, id: &str) -> Result<i64, StorageError> {
+    transaction
+        .query_row(
+            "SELECT revision FROM documents WHERE note_id = ?1",
+            [id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(backend)?
+        .ok_or_else(|| StorageError::NotFound(id.into()))
+}
+
+fn node_title(transaction: &Transaction<'_>, id: &str) -> Result<String, StorageError> {
+    transaction
+        .query_row(
+            "SELECT title FROM workspace_nodes WHERE id = ?1",
+            [id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(backend)?
+        .ok_or_else(|| StorageError::NotFound(id.into()))
+}
+
+pub(crate) fn replace_fts(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    title: &str,
+    markdown: &str,
+) -> Result<(), StorageError> {
+    transaction
+        .execute("DELETE FROM documents_fts WHERE note_id = ?1", [note_id])
+        .map_err(backend)?;
+    transaction
+        .execute(
+            "INSERT INTO documents_fts(note_id, title, markdown) VALUES (?1, ?2, ?3)",
+            params![note_id, title, markdown],
+        )
+        .map_err(backend)?;
+    Ok(())
+}
+
+pub(crate) fn enqueue_history(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    revision: i64,
+    markdown: &str,
+    created_at: i64,
+) -> Result<(), StorageError> {
+    transaction
+        .execute(
+            "INSERT INTO history_outbox(id, note_id, revision, markdown, created_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                Uuid::new_v4().to_string(),
+                note_id,
+                revision,
+                markdown,
+                created_at
+            ],
+        )
+        .map_err(backend)?;
+    Ok(())
+}
+
+fn count_words(markdown: &str) -> i64 {
+    markdown
+        .split_whitespace()
+        .filter(|token| token.chars().any(char::is_alphanumeric))
+        .count() as i64
+}
+
+pub(crate) fn fts_query(input: &str) -> String {
+    input
+        .split_whitespace()
+        .filter(|token| !token.is_empty())
+        .map(|token| format!("\"{}\"*", token.replace('"', "\"\"")))
+        .collect::<Vec<_>>()
+        .join(" AND ")
+}
