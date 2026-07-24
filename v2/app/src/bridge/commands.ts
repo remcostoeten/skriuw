@@ -143,8 +143,10 @@ export function cancelWorkspaceMaintenance(): Promise<boolean> {
 
 export type MarkdownExportEntryPayload = {
   relativePath: string;
-  kind: "folder" | "note";
+  kind: "folder" | "note" | "image";
   markdown: string | null;
+  contentHash?: string;
+  mimeType?: string;
 };
 
 export type MarkdownTreePayload = {
@@ -166,4 +168,28 @@ export function exportMarkdownTree(
 
 export function readMarkdownTree(sourceDir: string): Promise<MarkdownTreePayload> {
   return invoke<MarkdownTreePayload>("read_markdown_tree", { sourceDir });
+}
+
+export type StoredImagePayload = {
+  contentHash: string;
+  mimeType: string;
+  byteSize: number;
+};
+
+export function storeNoteImage(bytes: Uint8Array): Promise<StoredImagePayload> {
+  return invoke<StoredImagePayload>("store_note_image", bytes);
+}
+
+export function readNoteImageBlob(
+  contentHash: string,
+  mimeType: string,
+): Promise<ArrayBuffer> {
+  return invoke<ArrayBuffer>("read_note_image_blob", { contentHash, mimeType });
+}
+
+export function importMarkdownImage(
+  sourceDir: string,
+  relativePath: string,
+): Promise<StoredImagePayload> {
+  return invoke<StoredImagePayload>("import_markdown_image", { sourceDir, relativePath });
 }

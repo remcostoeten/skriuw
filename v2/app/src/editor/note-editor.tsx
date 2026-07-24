@@ -10,6 +10,8 @@ import {
   type Transaction,
 } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
+import { createImageNodeViews } from "./image-nodeview";
+import { collectImageFiles, insertImages } from "./image-input";
 import { createMentionPlugin, type MentionContext } from "../references/mention-plugin";
 import { createReferenceNodeViews } from "../references/reference-nodeview";
 import { activateReference } from "../references/reference-navigation";
@@ -446,11 +448,28 @@ export function NoteEditor({ store }: Props) {
     const host = hostRef.current;
     if (!host) return;
     const referenceViews = createReferenceNodeViews(store);
+    const imageViews = createImageNodeViews(store);
     const view = new EditorView(host, {
       state: createEditorState(emptyDocument(), mentionPlugins),
       editable: () => activeIdRef.current !== null,
-      nodeViews: referenceViews.nodeViews,
+      nodeViews: { ...referenceViews.nodeViews, ...imageViews.nodeViews },
       dispatchTransaction,
+      handlePaste(currentView, event) {
+        const noteId = activeIdRef.current;
+        const files = collectImageFiles(event.clipboardData);
+        if (!noteId || files.length === 0) return false;
+        event.preventDefault();
+        return insertImages(store, currentView, noteId, files, null);
+      },
+      handleDrop(currentView, event, _slice, moved) {
+        if (moved) return false;
+        const noteId = activeIdRef.current;
+        const files = collectImageFiles(event.dataTransfer);
+        if (!noteId || files.length === 0) return false;
+        event.preventDefault();
+        const drop = currentView.posAtCoords({ left: event.clientX, top: event.clientY });
+        return insertImages(store, currentView, noteId, files, drop?.pos ?? null);
+      },
       handleKeyDown(currentView, event) {
         const entry = activeEntry();
         const bounded = entry?.bounded;
@@ -568,6 +587,7 @@ export function NoteEditor({ store }: Props) {
       viewRef.current = null;
       view.destroy();
       referenceViews.destroy();
+      imageViews.destroy();
     };
   }, []);
 

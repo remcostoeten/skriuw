@@ -42,6 +42,17 @@ export type WorkspaceSettings = {
   editorPlaceholder: string;
 } & Record<string, unknown>;
 
+export type WorkspaceImage = {
+  id: string;
+  noteId: string;
+  contentHash: string;
+  mimeType: string;
+  byteSize: number;
+  width: number | null;
+  height: number | null;
+  createdAt: number;
+};
+
 export type WorkspaceSnapshot = {
   protocolVersion: number;
   activeNoteId: string | null;
@@ -68,6 +79,7 @@ export type WorkspaceSnapshot = {
     createdIn: string | null;
   }[];
   references: { noteId: string; targets: { kind: "tag" | "person" | "note"; targetId: string }[] }[];
+  images?: WorkspaceImage[];
 };
 
 export type NodePosition =
@@ -148,7 +160,8 @@ export type WorkspaceOperation =
     }
   | { type: "purge_subtree"; rootId: string; trashedBefore: number }
   | { type: "set_active_note"; noteId: string | null }
-  | { type: "update_settings"; settings: WorkspaceSettings };
+  | { type: "update_settings"; settings: WorkspaceSettings }
+  | { type: "attach_image"; image: WorkspaceImage };
 
 export type WorkspaceOperationEnvelope = {
   protocolVersion: number;

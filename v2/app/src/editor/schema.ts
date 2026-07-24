@@ -100,9 +100,50 @@ const mentionRefSpec: NodeSpec = {
   ],
 };
 
+const imageRefSpec: NodeSpec = {
+  inline: true,
+  group: "inline",
+  atom: true,
+  selectable: true,
+  draggable: true,
+  attrs: {
+    id: {},
+    alt: { default: "" },
+    width: { default: null },
+    height: { default: null },
+  },
+  toDOM: (node) => [
+    "img",
+    {
+      class: "note-image",
+      "data-image-id": String(node.attrs.id),
+      alt: String(node.attrs.alt),
+      ...(node.attrs.width ? { width: String(node.attrs.width) } : {}),
+      ...(node.attrs.height ? { height: String(node.attrs.height) } : {}),
+    },
+  ],
+  parseDOM: [
+    {
+      tag: "img[data-image-id]",
+      getAttrs: (dom) => {
+        const id = dom.getAttribute("data-image-id");
+        return id
+          ? {
+              id,
+              alt: dom.getAttribute("alt") ?? "",
+              width: Number(dom.getAttribute("width")) || null,
+              height: Number(dom.getAttribute("height")) || null,
+            }
+          : false;
+      },
+    },
+  ],
+};
+
 const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
   .addToEnd("tag_ref", tagRefSpec)
-  .addToEnd("mention_ref", mentionRefSpec);
+  .addToEnd("mention_ref", mentionRefSpec)
+  .addToEnd("image_ref", imageRefSpec);
 
 export const productSchema = new Schema({
   nodes,
@@ -213,6 +254,11 @@ const productMarkdownSerializer = new MarkdownSerializer(
     },
     mention_ref(state, node) {
       state.text(`${node.attrs.kind === "person" ? "$" : "@"}${node.attrs.label}`, false);
+    },
+    image_ref(state, node) {
+      state.write(
+        `![${state.esc(String(node.attrs.alt))}](images/${node.attrs.id})`,
+      );
     },
   },
   defaultMarkdownSerializer.marks,

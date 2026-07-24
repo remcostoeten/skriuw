@@ -1,6 +1,7 @@
 import type {
   HistoryHeader,
   OperationAck,
+  WorkspaceImage,
   WorkspaceNode,
   WorkspaceOperation,
   WorkspaceSettings,
@@ -57,6 +58,7 @@ export type RendererState = {
   settings: WorkspaceSettings;
   tags: ReadonlyMap<string, TagRecord>;
   people: ReadonlyMap<string, PersonRecord>;
+  images: ReadonlyMap<string, WorkspaceImage>;
   outgoingReferences: OutgoingReferences;
   incomingReferences: IncomingReferences;
 };

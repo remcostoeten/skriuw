@@ -1,6 +1,7 @@
 import type {
   HistoryHeader,
   OperationAck,
+  WorkspaceImage,
   WorkspaceNode,
   WorkspaceOperation,
   WorkspaceSnapshot,
@@ -156,6 +157,10 @@ export function createInitialState(
   for (const person of references.people) {
     people.set(person.id, person);
   }
+  const images = new Map<string, WorkspaceImage>();
+  for (const image of snapshot.images ?? []) {
+    images.set(image.id, image);
+  }
   const derived = derive({
     sourceNodes,
     expandedIds,
@@ -169,6 +174,7 @@ export function createInitialState(
     settings: snapshot.settings,
     tags,
     people,
+    images,
     ...buildReferenceProjection(references.references),
   });
   if (derived.activeNoteId === null) {
@@ -204,6 +210,14 @@ function reduceState(
   }
   if (operation.type === "update_settings") {
     return { ...current, settings: operation.settings };
+  }
+  if (operation.type === "attach_image") {
+    if (current.images.has(operation.image.id)) {
+      return current;
+    }
+    const images = new Map(current.images);
+    images.set(operation.image.id, operation.image);
+    return { ...current, images };
   }
   if (operation.type === "save_document") {
     const existing = current.documents.get(operation.noteId);
@@ -263,6 +277,7 @@ function reduceState(
     expandedIds = withCreated;
     focusedNodeId = operation.id;
   }
+  let images: ReadonlyMap<string, WorkspaceImage> = current.images;
   if (operation.type === "purge_subtree") {
     const purgedNoteIds = [...documents.keys()].filter((noteId) => !sourceNodes.has(noteId));
     documents = new Map(
@@ -270,6 +285,9 @@ function reduceState(
     );
     expandedIds = new Set(
       [...expandedIds].filter((id) => sourceNodes.get(id)?.kind === "folder"),
+    );
+    images = new Map(
+      [...images].filter(([, image]) => sourceNodes.has(image.noteId)),
     );
     projection = removeSourceNotes(referenceState(current), purgedNoteIds);
   }
@@ -280,6 +298,7 @@ function reduceState(
     expandedIds,
     focusedNodeId,
     activeNoteId,
+    images,
     ...projection,
   });
 }

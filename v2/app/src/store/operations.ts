@@ -171,6 +171,7 @@ export function reduceOperation(
     case "save_document":
     case "set_active_note":
     case "update_settings":
+    case "attach_image":
       return nodes;
   }
 }
