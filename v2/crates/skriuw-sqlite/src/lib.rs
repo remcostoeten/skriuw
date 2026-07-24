@@ -5,7 +5,9 @@ use std::{
     time::Duration,
 };
 
-use rusqlite::{Connection, OpenFlags, OptionalExtension, backup::Backup, params};
+use rusqlite::{
+    Connection, OpenFlags, OptionalExtension, TransactionBehavior, backup::Backup, params,
+};
 use skriuw_domain::{
     HistoryHeader, NodeKind, OperationAck, SearchHit, WorkspaceArchive, WorkspaceOperationEnvelope,
     WorkspaceSnapshot,
@@ -196,7 +198,9 @@ impl SqliteWorkspace {
             if applied.contains_key(&migration.version) {
                 continue;
             }
-            let transaction = connection.transaction().map_err(backend)?;
+            let transaction = connection
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(backend)?;
             transaction.execute_batch(migration.sql).map_err(backend)?;
             transaction
                 .execute(
@@ -233,7 +237,9 @@ impl WorkspaceStorage for SqliteWorkspace {
 
     fn save_sidebar_expansion(&self, folder_ids: &[String]) -> Result<(), StorageError> {
         let mut connection = self.lock()?;
-        let transaction = connection.transaction().map_err(backend)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
         write_sidebar_expansion(&transaction, folder_ids)?;
         transaction.commit().map_err(backend)
     }
@@ -245,7 +251,9 @@ impl WorkspaceStorage for SqliteWorkspace {
 
     fn save_pane_layout(&self, layout_json: &str) -> Result<(), StorageError> {
         let mut connection = self.lock()?;
-        let transaction = connection.transaction().map_err(backend)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
         write_pane_layout(&transaction, layout_json)?;
         transaction.commit().map_err(backend)
     }
@@ -256,7 +264,9 @@ impl WorkspaceStorage for SqliteWorkspace {
     ) -> Result<OperationAck, StorageError> {
         validate_operations(operations)?;
         let mut connection = self.lock()?;
-        let transaction = connection.transaction().map_err(backend)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
         let acknowledgement = apply_operations_in_transaction(&transaction, operations)?;
         transaction.commit().map_err(backend)?;
         Ok(acknowledgement)
@@ -267,7 +277,9 @@ impl WorkspaceStorage for SqliteWorkspace {
         batches: &[Vec<WorkspaceOperationEnvelope>],
     ) -> Result<Vec<Result<OperationAck, StorageError>>, StorageError> {
         let mut connection = self.lock()?;
-        let transaction = connection.transaction().map_err(backend)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
         let mut results = Vec::with_capacity(batches.len());
         for operations in batches {
             if let Err(error) = validate_operations(operations) {
@@ -359,7 +371,9 @@ impl WorkspaceMaintenance for SqliteWorkspace {
             .validate()
             .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
         let mut connection = self.lock()?;
-        let transaction = connection.transaction().map_err(backend)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
         transaction
             .execute_batch(
                 "DELETE FROM history_outbox;\
@@ -552,7 +566,9 @@ impl HistoryQueue for SqliteWorkspace {
         }
         let lease_expired_before = now_ms.saturating_sub(lease_ms);
         let mut connection = self.lock()?;
-        let transaction = connection.transaction().map_err(backend)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
         let item = transaction
             .query_row(
                 "SELECT id, note_id, revision, markdown, created_at, attempts \
@@ -614,7 +630,9 @@ impl HistoryQueue for SqliteWorkspace {
             ));
         }
         let mut connection = self.lock()?;
-        let transaction = connection.transaction().map_err(backend)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
         let item = transaction
             .query_row(
                 "SELECT note_id, created_at FROM history_outbox \
@@ -673,7 +691,9 @@ impl HistoryQueue for SqliteWorkspace {
 impl HistoryCache for SqliteWorkspace {
     fn replace_history_headers(&self, headers: &[HistoryHeader]) -> Result<usize, StorageError> {
         let mut connection = self.lock()?;
-        let transaction = connection.transaction().map_err(backend)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
         transaction
             .execute("DELETE FROM history_cache", [])
             .map_err(backend)?;

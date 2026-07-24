@@ -39,6 +39,16 @@ function primary(openNoteIds: string[], activeNoteId: string | null): PaneState 
   return { paneId: PRIMARY_PANE_ID, openNoteIds, activeNoteId };
 }
 
+test("defaultPanes with no active note opens a single empty primary pane", () => {
+  const panes = defaultPanes(null);
+  assert.deepEqual(panes, [{ paneId: PRIMARY_PANE_ID, openNoteIds: [], activeNoteId: null }]);
+});
+
+test("defaultPanes with an active note opens it as the sole tab", () => {
+  const panes = defaultPanes("a");
+  assert.deepEqual(panes, [{ paneId: PRIMARY_PANE_ID, openNoteIds: ["a"], activeNoteId: "a" }]);
+});
+
 test("sync replaces the primary active tab in place for ordinary navigation", () => {
   const nodes = nodeMap(node("a"), node("b"), node("c"));
   const panes = [primary(["a", "b"], "a")];

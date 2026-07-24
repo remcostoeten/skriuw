@@ -49,7 +49,7 @@ Persisted the same way expansion is: synchronous local update, coalesced backgro
 
 ## Acceptance criteria
 
-- With tabs enabled and 10 tabs open, only the active tab has a live editor instance — verified via the same render-count/editor-host-mount instrumentation C1/C2 already use.
+- With tabs enabled and 10 tabs open, only the active tab has a live editor instance — verified via the same render-count/editor-host-mount instrumentation C1/C2 already use. Covered at the unit level by `app/__tests__/shell/editor-panes.test.ts`, which renders `EditorPanes` with `react-dom/server` and asserts exactly one mounted editor host with N tabs and no split, and exactly two with a split open.
 - Split view shows two independently-scrollable, independently-focusable panes; typing in one does not affect the other's scroll position or selection.
 - Cached-switch and keystroke-to-paint budgets from `docs/performance-contract.md` hold for the active pane(s) with an arbitrary number of background tabs open — background tab count must not regress steady-state performance.
 - Open tabs/panes and their order survive desktop restart.

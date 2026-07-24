@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use sha2::{Digest, Sha256};
 use skriuw_storage::StorageError;
 
@@ -97,7 +97,9 @@ pub(crate) fn upgrade_legacy_ledger(connection: &mut Connection) -> Result<(), S
         ));
     }
 
-    let transaction = connection.transaction().map_err(backend)?;
+    let transaction = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(backend)?;
     transaction
         .execute_batch(
             "ALTER TABLE history_cache RENAME COLUMN commit_id TO version_id;\
