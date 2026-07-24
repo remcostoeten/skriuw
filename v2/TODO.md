@@ -11,7 +11,7 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 
 ## Organization
 
-- [ ] Favorites / pinned notes.
+- [ ] Pinned notes/folders. Spec: [docs/specs/pinned-notes.md](docs/specs/pinned-notes.md).
 - [ ] Outline view (headings-as-tree navigation within a note).
 - [ ] Quick-access sequences (recently visited, jump list).
 
