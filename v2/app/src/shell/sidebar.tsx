@@ -372,14 +372,19 @@ export function Sidebar({ store }: Props) {
     }));
   }
 
-  function focusTreeItem(id: string | null): void {
+  function focusTreeItem(id: string | null, attempts = 0): void {
     if (!id) {
       return;
     }
     requestAnimationFrame(() => {
-      treeRef.current
-        ?.querySelector<HTMLButtonElement>(`[data-row-key="${CSS.escape(id)}"]`)
-        ?.focus();
+      const item = treeRef.current?.querySelector<HTMLButtonElement>(
+        `[data-row-key="${CSS.escape(id)}"]`,
+      );
+      if (item) {
+        item.focus();
+      } else if (attempts === 0) {
+        focusTreeItem(id, 1);
+      }
     });
   }
 

@@ -87,11 +87,15 @@ export function createWorkspaceCommands(
     },
     {
       id: "focus-sidebar",
-      label: "Focus sidebar",
+      label: "Focus current note in sidebar",
       group: "Navigation",
       shortcut: "focusSidebar",
       enabled: (state, ui) => onNotesRoute(state, ui) && ui.sidebarOpen,
       run: () => {
+        const activeNoteId = store.getState().activeNoteId;
+        if (activeNoteId) {
+          store.setFocusedNode(activeNoteId);
+        }
         focusRegion("sidebar");
       },
     },

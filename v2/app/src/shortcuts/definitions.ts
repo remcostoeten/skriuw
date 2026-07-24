@@ -75,8 +75,8 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   },
   {
     id: "focusSidebar",
-    keys: "mod+1",
-    label: "Focus sidebar",
+    keys: "mod+e",
+    label: "Focus current note in sidebar",
     group: "Navigation",
     worksWhileTyping: true,
   },

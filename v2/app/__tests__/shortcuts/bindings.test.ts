@@ -47,6 +47,14 @@ test("effective keys prefer the override and fall back to the definition", () =>
   assert.equal(effectiveShortcutKeys(createNote, {}), "mod+n");
 });
 
+test("focus sidebar defaults to returning to the current note", () => {
+  const focusSidebar = SHORTCUT_DEFINITIONS.find(
+    (definition) => definition.id === "focusSidebar",
+  );
+  assert.ok(focusSidebar);
+  assert.equal(effectiveShortcutKeys(focusSidebar, {}), "mod+e");
+});
+
 test("conflicts are detected against effective bindings, not just defaults", () => {
   assert.equal(
     findShortcutConflict({}, "createNote", "mod+shift+n")?.actionId,

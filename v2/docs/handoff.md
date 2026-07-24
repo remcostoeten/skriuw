@@ -630,6 +630,17 @@ tag/person management surface.
 Immediate next task: add focused desktop end-to-end coverage for entity
 management.
 
+## Completed editor/tree focus-navigation refinement
+
+- `/` remains the plain-key editor-focus alias outside typing contexts.
+  `Mod+E` now restores the active note as the sidebar's focused tree item and
+  moves DOM focus there, so Arrow keys and Shift+Tab continue from the current
+  note. These are existing command-registry and settings-backed shortcut
+  actions; no component-specific global listener was added.
+
+Immediate next task: add focused desktop end-to-end coverage for entity
+management.
+
 ## Completed file-tree tab navigation refinement
 
 - The workspace tree now uses a roving tree-item Tab stop instead of requiring

@@ -204,6 +204,11 @@ Arrow keys move the roving tree-item tab stop, and search result selection
 returns focus to that item. The virtualized tree still exposes only one item to
 the Tab sequence.
 
+Focus-navigation contract: `/` focuses the editor outside text entry, and
+`Mod+E` restores the active note as the tree focus target before moving focus
+to it. Both bindings are command-registry actions, appear in Settings, and
+remain rebindable.
+
 React requirements if selected:
 
 - [ ] Add React Scan only if production Profiler and render-count evidence exposes a diagnostic gap.
