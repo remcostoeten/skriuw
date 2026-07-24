@@ -4,10 +4,9 @@ These rules apply to the complete repository.
 
 ## Session continuity
 
-- Read `TODO.md`, `docs/handoff.md`, `ARCHITECTURE.md`, and relevant ADRs before changing code.
-- Verify branch, worktree, recent commits, and test state instead of trusting stale handoff numbers.
-- Update `TODO.md` and `docs/handoff.md` after every completed implementation slice.
-- Keep the immediate next task and known correctness gaps explicit.
+- Read `FEATURES.md`, `ARCHITECTURE.md`, and relevant ADRs before changing code.
+- Verify branch, worktree, recent commits, and test state instead of trusting stale numbers.
+- Keep `FEATURES.md` current when user-facing behavior changes.
 - Commit verified slices separately in dependency order.
 
 ## Product contract

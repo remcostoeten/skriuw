@@ -11,7 +11,7 @@ Local-first notes application with a Rust backend, React renderer, and Tauri des
 - Native desktop ships first. Browser-local storage remains possible later.
 - Git history runs asynchronously and never blocks editing or navigation.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md), [TODO.md](TODO.md), [docs/handoff.md](docs/handoff.md), [docs/roadmap.md](docs/roadmap.md), and [docs/adr](docs/adr).
+See [FEATURES.md](FEATURES.md) for what the app does, [ARCHITECTURE.md](ARCHITECTURE.md) for how it is built, and [docs/adr](docs/adr) for why.
 
 ## Installation
 
@@ -103,4 +103,4 @@ scripts                 Stable contributor/CI entrypoints
 
 ## Status
 
-Foundation only. UI framework, desktop shell integration, editor engine, synchronization service, and delivery plan remain intentionally uncommitted.
+v1 complete: the full desktop application — editor, workspace tree, search, tags/people/mentions, Git history, backups, recovery, and the release pipeline — has shipped and passes its end-to-end and performance gates. See [FEATURES.md](FEATURES.md).
