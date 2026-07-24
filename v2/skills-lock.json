@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "building-tauri-with-github-actions": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "skillPath": "tauri/tauri-pipeline-github/SKILL.md",
+      "computedHash": "59dffd7f71def0382b3f530f245e1abc83141aacf59e1607ea0718e55bd8a8e1"
+    },
+    "distributing-tauri-for-windows": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "skillPath": "tauri/tauri-windows-distribution/SKILL.md",
+      "computedHash": "45673645d000496e86f0bbd7cf0735feba0a9bc13b918d35e78693c47fed2c66"
+    },
+    "signing-tauri-apps": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "skillPath": "tauri/tauri-code-signing/SKILL.md",
+      "computedHash": "40aec9aa3a50267ec28620791633e7dc845e1e83bd8298db53b0811009af7903"
+    },
+    "tauri-v2": {
+      "source": "nodnarbnitram/claude-code-extensions",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/tauri-v2/SKILL.md",
+      "computedHash": "377c61c46cf48c35b942042bc8abb9a039049a47f37d7f12b4f491d012777490"
+    }
+  }
+}

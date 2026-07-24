@@ -1,0 +1,75 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --icon-stroke-width: 1.5;
+}
+
+:root[data-theme="paper"],
+:root[data-theme="rose-pine-dawn"],
+:root[data-theme="catppuccin-latte"] {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  overscroll-behavior: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: hsl(var(--editor-selection));
+}
+
+*:focus,
+*:focus-visible {
+  outline: none;
+}
+
+:where(button, a, summary, [role="button"], [role="menuitem"], [role="treeitem"], [role="option"], [role="tab"]):focus-visible {
+  background-image: linear-gradient(
+    hsl(var(--foreground) / 0.18),
+    hsl(var(--foreground) / 0.18)
+  );
+  color: hsl(var(--foreground));
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--theme-bg-hover));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--theme-btn-outline));
+}
+
+:root[data-reduce-motion] *,
+:root[data-reduce-motion] *::before,
+:root[data-reduce-motion] *::after,
+:root[data-reduce-motion] *::backdrop {
+  transition-duration: 1ms !important;
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+}

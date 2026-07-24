@@ -1,0 +1,23 @@
+[package]
+name = "skriuw-desktop-bridge-spike"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[workspace]
+
+[lib]
+name = "skriuw_desktop_bridge_spike"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+skriuw-domain = { path = "../../../crates/skriuw-domain" }
+skriuw-runtime = { path = "../../../crates/skriuw-runtime" }
+skriuw-storage = { path = "../../../crates/skriuw-storage" }
+tauri = { version = "2.11.5", features = [] }

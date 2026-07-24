@@ -1,0 +1,123 @@
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  max-width: 280px;
+  padding: 5px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px hsl(var(--scrim) / 0.2);
+  pointer-events: none;
+  user-select: none;
+  will-change: opacity, transform;
+  --tooltip-slide-x: 0px;
+  --tooltip-slide-y: 0px;
+}
+
+.tooltip[data-side="top"] {
+  transform-origin: bottom center;
+  --tooltip-slide-y: 4px;
+}
+
+.tooltip[data-side="bottom"] {
+  transform-origin: top center;
+  --tooltip-slide-y: -4px;
+}
+
+.tooltip[data-side="left"] {
+  transform-origin: center right;
+  --tooltip-slide-x: 4px;
+}
+
+.tooltip[data-side="right"] {
+  transform-origin: center left;
+  --tooltip-slide-x: -4px;
+}
+
+.tooltip[data-state="delayed-open"] {
+  animation: tooltip-in 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tooltip[data-state="closing"] {
+  animation: tooltip-out 100ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translate(var(--tooltip-slide-x), var(--tooltip-slide-y)) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes tooltip-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    --tooltip-slide-x: 0px;
+    --tooltip-slide-y: 0px;
+  }
+
+  .tooltip[data-state="delayed-open"],
+  .tooltip[data-state="closing"] {
+    animation-duration: 1ms;
+  }
+
+  .tooltip[data-state="delayed-open"] {
+    animation-name: tooltip-fade-in;
+  }
+
+  .tooltip[data-state="closing"] {
+    animation-name: tooltip-fade-out;
+  }
+}
+
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes tooltip-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.tooltip-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tooltip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tooltip-shortcut {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: calc(var(--radius) - 2px);
+  background: hsl(var(--muted) / 0.6);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: hsl(var(--muted-foreground));
+}
+
