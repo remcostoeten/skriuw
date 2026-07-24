@@ -1,0 +1,18 @@
+{
+  "name": "skriuw",
+  "private": true,
+  "scripts": {
+    "menu": "dev-menu",
+    "dev": "pnpm -C app dev",
+    "build": "scripts/build.sh web",
+    "tauri": "scripts/tauri.sh",
+    "tauri:build": "scripts/build.sh desktop",
+    "test": "pnpm -C app test",
+    "typecheck": "pnpm -C app typecheck",
+    "check": "scripts/check.sh",
+    "bootstrap": "scripts/bootstrap.sh"
+  },
+  "devDependencies": {
+    "@remcostoeten/dev-menu": "^0.2.0"
+  }
+}

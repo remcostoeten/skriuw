@@ -1,0 +1,32 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '@remcostoeten/dev-menu':
+        specifier: ^0.2.0
+        version: 0.2.0
+
+packages:
+
+  '@remcostoeten/dev-menu@0.2.0':
+    resolution: {integrity: sha512-2zD5+EdhXl8NZ0MngX4QNSEe2N4snC/0zjgx7xGIgTxB8/u19MDQrPOVtSbub5RV0UkOj4Z0aAV1OoDDGQTvbQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  jiti@2.7.0:
+    resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
+    hasBin: true
+
+snapshots:
+
+  '@remcostoeten/dev-menu@0.2.0':
+    dependencies:
+      jiti: 2.7.0
+
+  jiti@2.7.0: {}
