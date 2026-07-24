@@ -255,3 +255,30 @@ test("markdown serialization and word count treat tokens as labeled text", () =>
   const roundTripped = productSchema.nodeFromJSON(document.toJSON());
   assert.equal(roundTripped.eq(document), true);
 });
+
+test("typing [[ trigger opens note-scoped completion including multi-word queries with spaces", () => {
+  const { type, state, context } = createHarness();
+  type("see [[Project Roadmap");
+  const current = mentionState(state());
+  assert.equal(current.active, true);
+  assert.equal(current.trigger, "[[");
+  assert.equal(current.query, "Project Roadmap");
+
+  const items = mentionMenuItems(context.getState(), "[[", "Project Roadmap");
+  assert.ok(items.every((item) => item.type !== "suggestion" || item.group === "notes"));
+});
+
+test("typing closing bracket ] on a matching [[ suggestion accepts the item and creates the note reference token", () => {
+  const { view, context, type, state, createdNotes } = createHarness();
+  type("see [[New Linked Note");
+  assert.equal(mentionState(state()).active, true);
+  assert.equal(handleMentionKey(view, keyEvent("]"), context), true);
+  assert.equal(mentionState(state()).active, false);
+  assert.equal(createdNotes.length, 1);
+  assert.equal(createdNotes[0]?.title, "New Linked Note");
+
+  const [reference] = extractReferences(state().doc.toJSON());
+  assert.equal(reference?.kind, "note");
+  assert.equal(reference?.targetId, createdNotes[0]?.id);
+});
+

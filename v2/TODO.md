@@ -5,7 +5,7 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 ## Editor
 
 - [ ] Image support — paste/drop an image into a note. Prompted once but never implemented. Spec: [docs/specs/note-images.md](docs/specs/note-images.md).
-- [ ] Wiki-style `[[note]]` links as an alternative to `@` mentions. Spec: [docs/specs/wiki-links.md](docs/specs/wiki-links.md).
+- [x] Wiki-style `[[note]]` links as an alternative to `@` mentions. Spec: [docs/specs/wiki-links.md](docs/specs/wiki-links.md). Shipped: `[[` trigger detection, note-scoped completion menu, `]]` closing match, `[[note title]]` Markdown export/import round-tripping.
 - [ ] Raw Markdown editing mode alongside the rich editor.
 
 ## Organization

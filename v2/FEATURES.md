@@ -24,7 +24,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Slash commands** — type `/` for a keyboard-first block menu.
 - **Find and replace** — search within a note (`mod+f`), including content outside the visible window.
 - **Handles huge notes** — notes with thousands of blocks render through a bounded 192-block editor window; select-all, copy, search, undo, and accessibility traversal still cover the whole document.
-- **Tags, people, and mentions** — type `#` to tag, `@` to mention a person or another note. Relationships are stored by ID, so renames propagate everywhere and nothing silently breaks.
+- **Tags, people, mentions, and wiki-links** — type `#` to tag, `@` or `[[` for wiki-style note links, `$` for people. Relationships are stored by ID, so renames propagate everywhere and nothing silently breaks.
 - **Backlinks and entity pages** — every note, tag, and person shows what points to it, precomputed and instant.
 
 ## Organizing

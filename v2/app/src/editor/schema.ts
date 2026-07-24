@@ -212,7 +212,11 @@ const productMarkdownSerializer = new MarkdownSerializer(
       state.text(`#${node.attrs.label}`, false);
     },
     mention_ref(state, node) {
-      state.text(`${node.attrs.kind === "person" ? "$" : "@"}${node.attrs.label}`, false);
+      if (node.attrs.kind === "person") {
+        state.text(`$${node.attrs.label}`, false);
+      } else {
+        state.text(`[[${node.attrs.label}]]`, false);
+      }
     },
   },
   defaultMarkdownSerializer.marks,
@@ -222,10 +226,60 @@ export function serializeProductMarkdown(document: ProseMirrorNode): string {
   return productMarkdownSerializer.serialize(document);
 }
 
+function inlineWikiLinkRule(state: any, silent: boolean): boolean {
+  const max = state.posMax;
+  const start = state.pos;
+
+  if (
+    state.src.charCodeAt(start) !== 0x5B /* [ */ ||
+    state.src.charCodeAt(start + 1) !== 0x5B /* [ */
+  ) {
+    return false;
+  }
+
+  const contentStart = start + 2;
+  const matchEnd = state.src.indexOf("]]", contentStart);
+  if (matchEnd === -1 || matchEnd >= max) {
+    return false;
+  }
+
+  const nextChar = state.src.charCodeAt(matchEnd + 2);
+  if (nextChar === 0x28 /* ( */ || nextChar === 0x5B /* [ */) {
+    return false;
+  }
+
+  const label = state.src.slice(contentStart, matchEnd);
+  if (!label || label.includes("\n")) {
+    return false;
+  }
+
+  if (!silent) {
+    const token = state.push("wiki_link", "", 0);
+    token.content = label;
+  }
+
+  state.pos = matchEnd + 2;
+  return true;
+}
+
+if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any) => r.name === "wiki_link")) {
+  defaultMarkdownParser.tokenizer.inline.ruler.before("link", "wiki_link", inlineWikiLinkRule);
+}
+
 const productMarkdownParser = new MarkdownParser(
   productSchema,
   defaultMarkdownParser.tokenizer,
-  defaultMarkdownParser.tokens,
+  {
+    ...defaultMarkdownParser.tokens,
+    wiki_link: {
+      node: "mention_ref",
+      getAttrs: (tok: any) => ({
+        kind: "note",
+        id: tok.content,
+        label: tok.content,
+      }),
+    },
+  },
 );
 
 function plainParagraphDocument(markdown: string): ProseMirrorNode {

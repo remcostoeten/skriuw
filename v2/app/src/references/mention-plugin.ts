@@ -10,7 +10,7 @@ import {
 } from "./suggestion-index";
 import type { ReferenceOperation } from "./types";
 
-export type MentionTrigger = "#" | "$" | "@";
+export type MentionTrigger = "#" | "$" | "@" | "[[";
 
 export type MentionState = {
   active: boolean;
@@ -45,6 +45,7 @@ const inactiveState: MentionState = {
 export const mentionPluginKey = new PluginKey<MentionState>("skriuw-mentions");
 
 const TRIGGER_PATTERN = /(?:^|[\s([{])([#$@])([\p{L}\p{N}_-]{0,64})$/u;
+const WIKI_TRIGGER_PATTERN = /\[\[([^\]\n]{0,96})$/;
 const CONTEXT_WINDOW = 96;
 
 function detectMention(state: EditorState, previous: MentionState): MentionState {
@@ -54,6 +55,28 @@ function detectMention(state: EditorState, previous: MentionState): MentionState
   }
   const windowStart = Math.max(0, $from.parentOffset - CONTEXT_WINDOW);
   const before = $from.parent.textBetween(windowStart, $from.parentOffset, "\0", "\0");
+
+  const wikiMatch = before.match(WIKI_TRIGGER_PATTERN);
+  if (wikiMatch) {
+    const trigger: MentionTrigger = "[[";
+    const query = wikiMatch[1] ?? "";
+    const from = $from.pos - query.length - 2;
+    if (previous.dismissedFrom !== null) {
+      return previous.dismissedFrom === from
+        ? { ...inactiveState, dismissedFrom: from }
+        : { active: true, trigger, query, from, to: $from.pos, index: 0, dismissedFrom: null };
+    }
+    return {
+      active: true,
+      trigger,
+      query,
+      from,
+      to: $from.pos,
+      index: previous.active && previous.query === query ? previous.index : 0,
+      dismissedFrom: null,
+    };
+  }
+
   const match = before.match(TRIGGER_PATTERN);
   if (!match) {
     return inactiveState;
@@ -230,6 +253,15 @@ export function handleMentionKey(
     if (!item) {
       dismissMention(view);
       return event.key === "Tab";
+    }
+    return acceptMentionItem(view, item, context);
+  }
+  if (event.key === "]" && current.trigger === "[[") {
+    const items = mentionMenuItems(context.getState(), current.trigger, current.query);
+    const item = items[normalizedMentionIndex(current.index, items.length)];
+    if (!item) {
+      dismissMention(view);
+      return false;
     }
     return acceptMentionItem(view, item, context);
   }
