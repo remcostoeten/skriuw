@@ -1,5 +1,6 @@
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
+import type { RendererState } from "../store/types";
 import type {
   MentionContext,
   MentionMenuItem,
@@ -27,8 +28,21 @@ function optionLabel(item: MentionMenuItem): string {
   if (item.type === "create") {
     return item.kind === "tag" ? `Create tag "${item.name}"` : `Create person "${item.name}"`;
   }
-  const prefix = item.suggestion.kind === "tag" ? "#" : "@";
+  const prefix = item.suggestion.kind === "tag" ? "#" : item.suggestion.kind === "person" ? "@" : "";
   return `${prefix}${item.suggestion.label}`;
+}
+
+function suggestionColor(state: RendererState, item: MentionMenuItem): string | null {
+  if (item.type !== "suggestion") {
+    return null;
+  }
+  if (item.suggestion.kind === "tag") {
+    return state.tags.get(item.suggestion.id)?.color ?? null;
+  }
+  if (item.suggestion.kind === "person") {
+    return state.people.get(item.suggestion.id)?.color ?? null;
+  }
+  return null;
 }
 
 export function createMentionMenu(view: EditorView, context: MentionContext): MenuView {
@@ -91,7 +105,18 @@ export function createMentionMenu(view: EditorView, context: MentionContext): Me
         option.setAttribute("aria-selected", index === selected ? "true" : "false");
         option.classList.toggle("is-selected", index === selected);
         option.classList.toggle("is-create", item.type === "create");
-        option.textContent = optionLabel(item);
+        const color = suggestionColor(rendererState, item);
+        if (color) {
+          const swatch = view.dom.ownerDocument.createElement("span");
+          swatch.className = "mention-menu-swatch";
+          swatch.setAttribute("aria-hidden", "true");
+          swatch.style.backgroundColor = color;
+          const label = view.dom.ownerDocument.createElement("span");
+          label.textContent = optionLabel(item);
+          option.append(swatch, label);
+        } else {
+          option.textContent = optionLabel(item);
+        }
         option.addEventListener("mousedown", (event) => {
           event.preventDefault();
           acceptMentionItem(view, item, context);

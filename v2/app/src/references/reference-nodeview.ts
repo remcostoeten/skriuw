@@ -1,6 +1,6 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { NodeView } from "prosemirror-view";
-import type { RendererStore } from "../store/types";
+import type { RendererState, RendererStore } from "../store/types";
 import {
   referenceAriaLabel,
   referenceText,
@@ -20,16 +20,30 @@ type TokenBinding = {
   fallbackLabel: string;
 };
 
+function referenceColor(state: RendererState, kind: ReferenceKind, targetId: string): string | null {
+  if (kind === "tag") {
+    return state.tags.get(targetId)?.color ?? null;
+  }
+  if (kind === "person") {
+    return state.people.get(targetId)?.color ?? null;
+  }
+  return null;
+}
+
 function paintToken(store: RendererStore, binding: TokenBinding): void {
-  const resolved = resolveReference(
-    store.getState(),
-    binding.kind,
-    binding.targetId,
-    binding.fallbackLabel,
-  );
+  const state = store.getState();
+  const resolved = resolveReference(state, binding.kind, binding.targetId, binding.fallbackLabel);
   binding.dom.textContent = referenceText(binding.kind, resolved);
   binding.dom.setAttribute("aria-label", referenceAriaLabel(binding.kind, resolved));
   binding.dom.dataset.refAvailability = resolved.availability;
+  const color = resolved.availability === "resolved" ? referenceColor(state, binding.kind, binding.targetId) : null;
+  if (color) {
+    binding.dom.style.setProperty("--reference-token-color", color);
+    binding.dom.dataset.refColored = "true";
+  } else {
+    binding.dom.style.removeProperty("--reference-token-color");
+    delete binding.dom.dataset.refColored;
+  }
 }
 
 export function createReferenceNodeViews(store: RendererStore): ReferenceNodeViews {

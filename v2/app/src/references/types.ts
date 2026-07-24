@@ -33,9 +33,11 @@ export type ReferenceBootstrap = {
 export type ReferenceOperation =
   | { type: "create_tag"; tag: TagRecord }
   | { type: "rename_tag"; id: string; name: string }
+  | { type: "recolor_tag"; id: string; color: string | null }
   | { type: "delete_tag"; id: string }
   | { type: "create_person"; person: PersonRecord }
   | { type: "rename_person"; id: string; name: string }
+  | { type: "recolor_person"; id: string; color: string | null }
   | { type: "delete_person"; id: string };
 
 export function emptyReferenceBootstrap(): ReferenceBootstrap {

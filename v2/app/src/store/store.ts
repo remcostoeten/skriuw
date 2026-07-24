@@ -287,6 +287,15 @@ function reduceReferenceOperation(
     tags.set(operation.id, { ...existing, name: operation.name });
     return { ...current, tags };
   }
+  if (operation.type === "recolor_tag") {
+    const existing = current.tags.get(operation.id);
+    if (!existing || existing.color === operation.color) {
+      return current;
+    }
+    const tags = new Map(current.tags);
+    tags.set(operation.id, { ...existing, color: operation.color });
+    return { ...current, tags };
+  }
   if (operation.type === "delete_tag") {
     if (!current.tags.has(operation.id)) {
       return current;
@@ -317,6 +326,15 @@ function reduceReferenceOperation(
     }
     const people = new Map(current.people);
     people.set(operation.id, { ...existing, name: operation.name });
+    return { ...current, people };
+  }
+  if (operation.type === "recolor_person") {
+    const existing = current.people.get(operation.id);
+    if (!existing || existing.color === operation.color) {
+      return current;
+    }
+    const people = new Map(current.people);
+    people.set(operation.id, { ...existing, color: operation.color });
     return { ...current, people };
   }
   if (!current.people.has(operation.id)) {

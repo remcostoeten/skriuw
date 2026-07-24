@@ -13,6 +13,7 @@ pub const MAX_TITLE_BYTES: usize = 512;
 pub const MAX_SETTING_KEY_BYTES: usize = 128;
 pub const MAX_SETTING_TEXT_BYTES: usize = 512;
 pub const MAX_REFERENCE_NAME_BYTES: usize = 512;
+pub const MAX_REFERENCE_COLOR_BYTES: usize = 64;
 
 pub const SETTINGS_FIELDS: [&str; 10] = [
     "settingsVersion",
@@ -454,6 +455,24 @@ fn validate_reference_name(value: &str) -> Result<(), OperationValidationError> 
     Ok(())
 }
 
+fn validate_reference_color(value: &Option<String>) -> Result<(), OperationValidationError> {
+    let Some(color) = value else {
+        return Ok(());
+    };
+    if color.trim().is_empty() {
+        return Err(OperationValidationError::Empty {
+            field: "reference color",
+        });
+    }
+    if color.len() > MAX_REFERENCE_COLOR_BYTES {
+        return Err(OperationValidationError::TooLong {
+            field: "reference color",
+            maximum: MAX_REFERENCE_COLOR_BYTES,
+        });
+    }
+    Ok(())
+}
+
 fn validate_tag(tag: &WorkspaceTag) -> Result<(), OperationValidationError> {
     validate_id("tag id", &tag.id)?;
     validate_reference_name(&tag.name)
@@ -644,6 +663,10 @@ pub enum WorkspaceOperation {
         id: String,
         name: String,
     },
+    RecolorTag {
+        id: String,
+        color: Option<String>,
+    },
     DeleteTag {
         id: String,
     },
@@ -653,6 +676,10 @@ pub enum WorkspaceOperation {
     RenamePerson {
         id: String,
         name: String,
+    },
+    RecolorPerson {
+        id: String,
+        color: Option<String>,
     },
     DeletePerson {
         id: String,
@@ -717,6 +744,10 @@ impl WorkspaceOperation {
             Self::RenameTag { id, name } | Self::RenamePerson { id, name } => {
                 validate_id("id", id)?;
                 validate_reference_name(name)
+            }
+            Self::RecolorTag { id, color } | Self::RecolorPerson { id, color } => {
+                validate_id("id", id)?;
+                validate_reference_color(color)
             }
             Self::DeleteTag { id } | Self::DeletePerson { id } => validate_id("id", id),
             Self::CreatePerson { person } => validate_person(person),

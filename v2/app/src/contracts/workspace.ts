@@ -68,9 +68,11 @@ export type NodePlacement = {
 export type WorkspaceOperation =
   | { type: "create_tag"; tag: { id: string; name: string; color: string | null } }
   | { type: "rename_tag"; id: string; name: string }
+  | { type: "recolor_tag"; id: string; color: string | null }
   | { type: "delete_tag"; id: string }
   | { type: "create_person"; person: { id: string; name: string; initials: string | null; color: string | null; note: string | null } }
   | { type: "rename_person"; id: string; name: string }
+  | { type: "recolor_person"; id: string; color: string | null }
   | { type: "delete_person"; id: string }
   | {
       type: "create_folder";

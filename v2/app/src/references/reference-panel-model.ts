@@ -1,5 +1,47 @@
 import type { RendererState } from "../store/types";
-import { referenceKey, type ReferenceKind } from "./types";
+import { referenceKey, type ReferenceKind, type ReferenceOperation } from "./types";
+
+export const referenceColorSwatches: readonly string[] = [
+  "#ef4444",
+  "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#06b6d4",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+];
+
+export function buildRenameReferenceOperation(
+  entry: ReferenceDetailEntry,
+  name: string,
+): ReferenceOperation | null {
+  const trimmed = name.trim();
+  if (trimmed.length === 0 || trimmed === entry.name) {
+    return null;
+  }
+  return entry.kind === "tag"
+    ? { type: "rename_tag", id: entry.id, name: trimmed }
+    : { type: "rename_person", id: entry.id, name: trimmed };
+}
+
+export function buildRecolorReferenceOperation(
+  entry: ReferenceDetailEntry,
+  color: string | null,
+): ReferenceOperation | null {
+  if (color === entry.color) {
+    return null;
+  }
+  return entry.kind === "tag"
+    ? { type: "recolor_tag", id: entry.id, color }
+    : { type: "recolor_person", id: entry.id, color };
+}
+
+export function buildDeleteReferenceOperation(entry: ReferenceDetailEntry): ReferenceOperation {
+  return entry.kind === "tag"
+    ? { type: "delete_tag", id: entry.id }
+    : { type: "delete_person", id: entry.id };
+}
 
 export type BacklinkEntry = {
   noteId: string;

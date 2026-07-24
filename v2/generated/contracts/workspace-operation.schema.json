@@ -136,6 +136,28 @@
         {
           "type": "object",
           "properties": {
+            "color": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "recolor_tag"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
             "id": {
               "type": "string"
             },
@@ -183,6 +205,28 @@
             "type",
             "id",
             "name"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "color": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "recolor_person"
+            }
+          },
+          "required": [
+            "type",
+            "id"
           ]
         },
         {

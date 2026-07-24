@@ -76,9 +76,11 @@ export function reduceOperation(
   switch (operation.type) {
     case "create_tag":
     case "rename_tag":
+    case "recolor_tag":
     case "delete_tag":
     case "create_person":
     case "rename_person":
+    case "recolor_person":
     case "delete_person":
       return nodes;
     case "create_folder":

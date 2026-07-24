@@ -1095,6 +1095,17 @@ fn apply_operation(
                 id,
             )?;
         }
+        WorkspaceOperation::RecolorTag { id, color } => {
+            require_changed(
+                transaction
+                    .execute(
+                        "UPDATE workspace_tags SET color = ?2 WHERE id = ?1",
+                        params![id, color],
+                    )
+                    .map_err(backend)?,
+                id,
+            )?;
+        }
         WorkspaceOperation::DeleteTag { id } => {
             require_changed(
                 transaction
@@ -1118,6 +1129,17 @@ fn apply_operation(
                     .execute(
                         "UPDATE workspace_people SET name = ?2 WHERE id = ?1",
                         params![id, name],
+                    )
+                    .map_err(backend)?,
+                id,
+            )?;
+        }
+        WorkspaceOperation::RecolorPerson { id, color } => {
+            require_changed(
+                transaction
+                    .execute(
+                        "UPDATE workspace_people SET color = ?2 WHERE id = ?1",
+                        params![id, color],
                     )
                     .map_err(backend)?,
                 id,
