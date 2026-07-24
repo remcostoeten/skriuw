@@ -4,7 +4,7 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 
 ## Editor
 
-- [ ] Image support — paste/drop an image into a note. Prompted once but never implemented. Spec: [docs/specs/note-images.md](docs/specs/note-images.md).
+- [x] Image support — paste/drop an image into a note. Spec: [docs/specs/note-images.md](docs/specs/note-images.md). Shipped except archive-format support (needs its ADR) and blob-aware backup; both tracked in the spec.
 - [ ] Wiki-style `[[note]]` links as an alternative to `@` mentions. Spec: [docs/specs/wiki-links.md](docs/specs/wiki-links.md).
 - [ ] Raw Markdown editing mode alongside the rich editor.
 
