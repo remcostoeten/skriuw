@@ -630,6 +630,21 @@ tag/person management surface.
 Immediate next task: add focused desktop end-to-end coverage for entity
 management.
 
+## Completed file-tree multi-selection slice
+
+- Tree selection is renderer-local and distinct from the active note and
+  keyboard focus. Ctrl/Cmd-click toggles an item, Shift-click and Shift+Arrow
+  select a visible-order range from the anchor, and a plain click replaces the
+  selection. Right-click preserves an existing selection; Delete in that menu
+  or from the tree applies one optimistic batch of trash-subtree operations to
+  the selected roots. Selected descendants are removed from that batch whenever
+  their selected ancestor already covers them.
+- Store and tree regressions cover replace/toggle/range selection, stable
+  active-note separation, visible-range ordering, and selected-root filtering.
+
+Immediate next task: add focused desktop end-to-end coverage for entity
+management.
+
 ## Completed editor/tree focus-navigation refinement
 
 - `/` remains the plain-key editor-focus alias outside typing contexts.

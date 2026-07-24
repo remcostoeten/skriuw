@@ -6,7 +6,7 @@ import {
   createNote,
   moveNode,
   renameNode,
-  trashSubtree,
+  trashSubtrees,
 } from "../actions/workspace";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import {
@@ -40,6 +40,7 @@ import { Tooltip } from "../shared/ui/tooltip";
 import {
   ancestorIds,
   flattenVisible,
+  selectedTreeRoots,
   virtualTreeWindow,
   visualTreeIndent,
 } from "../store/tree";
@@ -428,6 +429,9 @@ export function Sidebar({ store }: Props) {
       case "ArrowDown": {
         const next = state.visibleIds[focusIndex + 1] ?? state.visibleIds[0];
         if (next) {
+          if (event.shiftKey) {
+            store.selectTreeNode(next, "range");
+          }
           store.setFocusedNode(next);
           focusTreeItem(next);
         }
@@ -440,6 +444,9 @@ export function Sidebar({ store }: Props) {
             ? state.visibleIds[focusIndex - 1]
             : state.visibleIds[state.visibleIds.length - 1];
         if (next) {
+          if (event.shiftKey) {
+            store.selectTreeNode(next, "range");
+          }
           store.setFocusedNode(next);
           focusTreeItem(next);
         }
@@ -489,7 +496,7 @@ export function Sidebar({ store }: Props) {
       }
       case "Delete": {
         if (focusedId) {
-          trashSubtree(store, focusedId);
+          trashSelectedNodes(focusedId);
           event.preventDefault();
         }
         return;
@@ -521,8 +528,20 @@ export function Sidebar({ store }: Props) {
     ) {
       event.preventDefault();
       closeContextMenu(event.currentTarget as HTMLElement);
-      trashSubtree(store, id);
+      trashSelectedNodes(id);
     }
+  }
+
+  function selectedRootsFor(id: string): string[] {
+    const state = store.getState();
+    if (!state.selectedNodeIds.has(id)) {
+      return [id];
+    }
+    return selectedTreeRoots(state.selectedNodeIds, state.nodes);
+  }
+
+  function trashSelectedNodes(id: string): void {
+    trashSubtrees(store, selectedRootsFor(id));
   }
 
   function onListContextMenu(event: React.MouseEvent): void {
@@ -531,6 +550,9 @@ export function Sidebar({ store }: Props) {
     if (id === null) {
       setContextTarget({ kind: "root" });
       return;
+    }
+    if (!store.getState().selectedNodeIds.has(id)) {
+      store.selectTreeNode(id, "replace");
     }
     store.setFocusedNode(id);
     setContextTarget({ kind: "item", id });
@@ -599,33 +621,39 @@ export function Sidebar({ store }: Props) {
     if (!node) {
       return null;
     }
+    const selectedRoots = selectedRootsFor(id);
+    const isBulkSelection = store.getState().selectedNodeIds.size > 1;
     return (
       <>
-        <ContextMenuItem onClick={() => store.setEditingNode(id)} className="gap-2">
-          <PencilIcon className="w-4 h-4" />
-          Rename
-          <ContextMenuShortcut>R</ContextMenuShortcut>
-        </ContextMenuItem>
-        {node.kind === "folder" && (
+        {!isBulkSelection && (
           <>
-            <ContextMenuItem onClick={() => createNote(store, id)} className="gap-2">
-              <FilePlusIcon className="w-4 h-4" />
-              New note inside
+            <ContextMenuItem onClick={() => store.setEditingNode(id)} className="gap-2">
+              <PencilIcon className="w-4 h-4" />
+              Rename
+              <ContextMenuShortcut>R</ContextMenuShortcut>
             </ContextMenuItem>
-            <ContextMenuItem onClick={() => createFolder(store, id)} className="gap-2">
-              <FolderPlusIcon className="w-4 h-4" />
-              New folder inside
-            </ContextMenuItem>
+            {node.kind === "folder" && (
+              <>
+                <ContextMenuItem onClick={() => createNote(store, id)} className="gap-2">
+                  <FilePlusIcon className="w-4 h-4" />
+                  New note inside
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => createFolder(store, id)} className="gap-2">
+                  <FolderPlusIcon className="w-4 h-4" />
+                  New folder inside
+                </ContextMenuItem>
+              </>
+            )}
+            {renderMoveToSubmenu(id, node.parentId)}
           </>
         )}
-        {renderMoveToSubmenu(id, node.parentId)}
         <ContextMenuSeparator />
         <ContextMenuItem
-          onClick={() => trashSubtree(store, id)}
+          onClick={() => trashSelectedNodes(id)}
           className="gap-2 text-[#ff808a] focus:bg-[#ff808a4d]"
         >
           <Trash2Icon className="w-4 h-4" />
-          Delete
+          {isBulkSelection ? "Delete selected" : "Delete"}
           <ContextMenuShortcut>⌫</ContextMenuShortcut>
         </ContextMenuItem>
       </>
@@ -913,7 +941,8 @@ const SidebarRow = memo(function SidebarRow({ store, id, metrics, top, tabIndex 
       Number(state.activeNoteId === id) |
       (Number(state.focusedNodeId === id) << 1) |
       (Number(state.expandedIds.has(id)) << 2) |
-      (Number(state.editingNodeId === id) << 3),
+      (Number(state.editingNodeId === id) << 3) |
+      (Number(state.selectedNodeIds.has(id)) << 4),
   );
   if (!node) {
     return null;
@@ -922,6 +951,7 @@ const SidebarRow = memo(function SidebarRow({ store, id, metrics, top, tabIndex 
   const isFocused = (status & 2) !== 0;
   const isExpanded = (status & 4) !== 0;
   const isEditing = (status & 8) !== 0;
+  const isSelected = (status & 16) !== 0;
   const isFolder = node.kind === "folder";
   const rowTabIndex =
     isFocused || (tabIndex === 0 && store.getState().focusedNodeId === null) ? 0 : -1;
@@ -929,6 +959,8 @@ const SidebarRow = memo(function SidebarRow({ store, id, metrics, top, tabIndex 
     ? "bg-foreground/[0.22] text-foreground"
     : isActive
       ? "border-border bg-muted text-foreground"
+      : isSelected
+        ? "border-foreground/[0.24] bg-foreground/[0.1] text-foreground"
       : isFolder
         ? "text-foreground/70 hover:border-border hover:bg-muted hover:text-foreground/88"
         : "text-foreground/60 hover:border-border hover:bg-muted hover:text-foreground/85";
@@ -966,13 +998,22 @@ const SidebarRow = memo(function SidebarRow({ store, id, metrics, top, tabIndex 
           aria-level={node.depth}
           aria-setsize={node.setSize}
           aria-posinset={node.posInSet}
-          aria-selected={isActive}
+          aria-selected={isSelected}
           {...(isFolder ? { "aria-expanded": isExpanded } : {})}
           tabIndex={rowTabIndex}
           data-row-key={id}
           onFocus={() => store.setFocusedNode(id)}
-          onClick={() => {
+          onClick={(event) => {
+            const selectionMode = event.shiftKey
+              ? "range"
+              : event.ctrlKey || event.metaKey
+                ? "toggle"
+                : "replace";
+            store.selectTreeNode(id, selectionMode);
             store.setFocusedNode(id);
+            if (selectionMode !== "replace") {
+              return;
+            }
             if (isFolder) {
               store.toggleExpanded(id);
             } else {

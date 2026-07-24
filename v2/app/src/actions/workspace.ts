@@ -98,9 +98,15 @@ export function renameNode(store: RendererStore, id: string, title: string): voi
 }
 
 export function trashSubtree(store: RendererStore, rootId: string): void {
-  void commitOperations(store, [
-    { type: "trash_subtree", rootId, at: Date.now() },
-  ]).catch(reportRejection("trash"));
+  trashSubtrees(store, [rootId]);
+}
+
+export function trashSubtrees(store: RendererStore, rootIds: readonly string[]): void {
+  const at = Date.now();
+  void commitOperations(
+    store,
+    rootIds.map((rootId) => ({ type: "trash_subtree", rootId, at })),
+  ).catch(reportRejection("trash"));
 }
 
 export function restoreSubtree(store: RendererStore, rootId: string): void {

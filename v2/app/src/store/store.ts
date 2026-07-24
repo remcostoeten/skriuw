@@ -22,7 +22,13 @@ import {
   type TagRecord,
 } from "../references/types";
 import { reduceOperation } from "./operations";
-import { ancestorIds, buildNodeIndex, flattenVisible, orderAvailableNodes } from "./tree";
+import {
+  ancestorIds,
+  buildNodeIndex,
+  flattenVisible,
+  orderAvailableNodes,
+  visibleTreeRange,
+} from "./tree";
 import type {
   DocumentRecord,
   Equality,
@@ -31,6 +37,7 @@ import type {
   RendererState,
   RendererStore,
   Selector,
+  TreeSelectionMode,
 } from "./types";
 
 type Subscriber<T = unknown> = {
@@ -84,12 +91,21 @@ function derive(
     base.editingNodeId !== null && index.nodes.has(base.editingNodeId)
       ? base.editingNodeId
       : null;
+  const selectedNodeIds = new Set(
+    [...base.selectedNodeIds].filter((id) => index.nodes.has(id)),
+  );
+  const selectionAnchorId =
+    base.selectionAnchorId !== null && index.nodes.has(base.selectionAnchorId)
+      ? base.selectionAnchorId
+      : null;
   return {
     ...base,
     ...index,
     visibleIds: flattenVisible(index.nodes, index.childrenByParent, base.expandedIds),
     activeNoteId,
     focusedNodeId,
+    selectedNodeIds,
+    selectionAnchorId,
     editingNodeId,
     metadata,
   };
@@ -145,6 +161,8 @@ export function createInitialState(
     expandedIds,
     activeNoteId: rememberedNoteId,
     focusedNodeId: rememberedNoteId,
+    selectedNodeIds: new Set(),
+    selectionAnchorId: null,
     editingNodeId: null,
     documents,
     historyHeaders,
@@ -284,7 +302,7 @@ function reduceReferenceOperation(
       return current;
     }
     const tags = new Map(current.tags);
-    tags.set(operation.id, { ...existing, name: operation.name });
+    tags.set(operation.id, { ...existing, name: operation.name, updatedAt: Date.now() });
     return { ...current, tags };
   }
   if (operation.type === "recolor_tag") {
@@ -293,7 +311,7 @@ function reduceReferenceOperation(
       return current;
     }
     const tags = new Map(current.tags);
-    tags.set(operation.id, { ...existing, color: operation.color });
+    tags.set(operation.id, { ...existing, color: operation.color, updatedAt: Date.now() });
     return { ...current, tags };
   }
   if (operation.type === "delete_tag") {
@@ -325,7 +343,7 @@ function reduceReferenceOperation(
       return current;
     }
     const people = new Map(current.people);
-    people.set(operation.id, { ...existing, name: operation.name });
+    people.set(operation.id, { ...existing, name: operation.name, updatedAt: Date.now() });
     return { ...current, people };
   }
   if (operation.type === "recolor_person") {
@@ -334,7 +352,7 @@ function reduceReferenceOperation(
       return current;
     }
     const people = new Map(current.people);
-    people.set(operation.id, { ...existing, color: operation.color });
+    people.set(operation.id, { ...existing, color: operation.color, updatedAt: Date.now() });
     return { ...current, people };
   }
   if (!current.people.has(operation.id)) {
@@ -449,6 +467,36 @@ export function createRendererStore(initialState: RendererState): RendererStore 
         return current;
       }
       return { ...current, focusedNodeId: id };
+    });
+  }
+
+  function selectTreeNode(id: string, mode: TreeSelectionMode): boolean {
+    return update((current) => {
+      if (!current.nodes.has(id)) {
+        return current;
+      }
+      if (mode === "replace") {
+        return {
+          ...current,
+          selectedNodeIds: new Set([id]),
+          selectionAnchorId: id,
+        };
+      }
+      if (mode === "toggle") {
+        const selectedNodeIds = new Set(current.selectedNodeIds);
+        if (selectedNodeIds.has(id)) {
+          selectedNodeIds.delete(id);
+        } else {
+          selectedNodeIds.add(id);
+        }
+        return { ...current, selectedNodeIds, selectionAnchorId: id };
+      }
+      const anchorId = current.selectionAnchorId ?? current.focusedNodeId ?? id;
+      return {
+        ...current,
+        selectedNodeIds: visibleTreeRange(current.visibleIds, anchorId, id),
+        selectionAnchorId: anchorId,
+      };
     });
   }
 
@@ -579,6 +627,8 @@ export function createRendererStore(initialState: RendererState): RendererStore 
         expandedIds,
         activeNoteId: current.activeNoteId,
         focusedNodeId: current.focusedNodeId,
+        selectedNodeIds: current.selectedNodeIds,
+        selectionAnchorId: current.selectionAnchorId,
         editingNodeId: null,
         tags: fresh.tags,
         people: fresh.people,
@@ -608,6 +658,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     update,
     setActiveNote,
     setFocusedNode,
+    selectTreeNode,
     setEditingNode,
     toggleExpanded,
     applyOperations,

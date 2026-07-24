@@ -159,6 +159,30 @@ export function ancestorIds(nodes: ReadonlyMap<string, NodeRecord>, id: string):
   return ancestors;
 }
 
+export function visibleTreeRange(
+  visibleIds: readonly string[],
+  anchorId: string,
+  targetId: string,
+): Set<string> {
+  const anchorIndex = visibleIds.indexOf(anchorId);
+  const targetIndex = visibleIds.indexOf(targetId);
+  if (anchorIndex < 0 || targetIndex < 0) {
+    return new Set([targetId]);
+  }
+  const start = Math.min(anchorIndex, targetIndex);
+  const end = Math.max(anchorIndex, targetIndex);
+  return new Set(visibleIds.slice(start, end + 1));
+}
+
+export function selectedTreeRoots(
+  selectedIds: ReadonlySet<string>,
+  nodes: ReadonlyMap<string, NodeRecord>,
+): string[] {
+  return [...selectedIds].filter(
+    (id) => !ancestorIds(nodes, id).some((ancestorId) => selectedIds.has(ancestorId)),
+  );
+}
+
 export type VirtualTreeWindow = {
   start: number;
   end: number;

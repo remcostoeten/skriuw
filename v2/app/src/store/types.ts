@@ -37,6 +37,8 @@ export type NoteMetadata = {
   updatedAt: number;
 };
 
+export type TreeSelectionMode = "replace" | "toggle" | "range";
+
 export type RendererState = {
   sourceNodes: ReadonlyMap<string, WorkspaceNode>;
   nodes: ReadonlyMap<string, NodeRecord>;
@@ -46,6 +48,8 @@ export type RendererState = {
   expandedIds: ReadonlySet<string>;
   activeNoteId: string | null;
   focusedNodeId: string | null;
+  selectedNodeIds: ReadonlySet<string>;
+  selectionAnchorId: string | null;
   editingNodeId: string | null;
   documents: ReadonlyMap<string, DocumentRecord>;
   metadata: ReadonlyMap<string, NoteMetadata>;
@@ -80,6 +84,7 @@ export type RendererStore = {
   update: (updater: (state: RendererState) => RendererState) => boolean;
   setActiveNote: (id: string | null) => boolean;
   setFocusedNode: (id: string | null) => boolean;
+  selectTreeNode: (id: string, mode: TreeSelectionMode) => boolean;
   setEditingNode: (id: string | null) => boolean;
   toggleExpanded: (id: string) => boolean;
   applyOperations: (operations: readonly WorkspaceOperation[]) => boolean;

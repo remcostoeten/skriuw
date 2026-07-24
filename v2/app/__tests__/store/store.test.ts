@@ -103,6 +103,18 @@ test("setActiveNote rejects unknown notes and moves focus", () => {
   assert.equal(store.getState().focusedNodeId, "note-root");
 });
 
+test("tree selection supports replace, toggle, and visible ranges without changing the active note", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.selectTreeNode("folder", "replace");
+  store.selectTreeNode("note-root", "range");
+  assert.deepEqual([...store.getState().selectedNodeIds], ["folder", "note-child", "note-root"]);
+  assert.equal(store.getState().selectionAnchorId, "folder");
+  assert.equal(store.getState().activeNoteId, "note-child");
+  store.selectTreeNode("note-child", "toggle");
+  assert.deepEqual([...store.getState().selectedNodeIds], ["folder", "note-root"]);
+  assert.equal(store.getState().selectionAnchorId, "note-child");
+});
+
 test("collapsing a folder hides descendants and refocuses the folder", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   store.setActiveNote("note-child");

@@ -3,7 +3,9 @@ import test from "node:test";
 import type { WorkspaceNode } from "../../src/contracts/workspace";
 import {
   buildNodeIndex,
+  selectedTreeRoots,
   virtualTreeWindow,
+  visibleTreeRange,
   visualTreeIndent,
 } from "../../src/store/tree";
 
@@ -57,4 +59,20 @@ test("depth 33 keeps exact semantics while visual indentation stays readable", (
   assert.equal(visualTreeIndent(6, 12, 16, 80), 80);
   assert.equal(visualTreeIndent(33, 12, 16, 80), 80);
   assert.equal(visualTreeIndent(33, 8, 8, 40), 40);
+});
+
+test("tree selection ranges follow visible order and exclude selected descendants from roots", () => {
+  assert.deepEqual(
+    [...visibleTreeRange(["folder", "child", "sibling"], "folder", "sibling")],
+    ["folder", "child", "sibling"],
+  );
+  const index = buildNodeIndex([
+    { id: "folder", parentId: null, kind: "folder", title: "Folder" },
+    { id: "child", parentId: "folder", kind: "note", title: "Child" },
+    { id: "sibling", parentId: null, kind: "note", title: "Sibling" },
+  ]);
+  assert.deepEqual(
+    selectedTreeRoots(new Set(["folder", "child", "sibling"]), index.nodes),
+    ["folder", "sibling"],
+  );
 });

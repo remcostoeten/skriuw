@@ -209,6 +209,12 @@ Focus-navigation contract: `/` focuses the editor outside text entry, and
 to it. Both bindings are command-registry actions, appear in Settings, and
 remain rebindable.
 
+Tree multi-selection contract: Ctrl/Cmd-click toggles membership, Shift-click
+and Shift+Arrow select the visible range from an anchor, and plain click
+replaces the selection. Context-menu and keyboard Delete trash the selected
+root subtrees in one optimistic batch; selected descendants are excluded when
+their ancestor is selected.
+
 React requirements if selected:
 
 - [ ] Add React Scan only if production Profiler and render-count evidence exposes a diagnostic gap.
