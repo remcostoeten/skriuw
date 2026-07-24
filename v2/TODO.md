@@ -196,8 +196,12 @@ delete, and document-save operations serialize through the existing runtime.
 Deleted entities retain token labels in document JSON while their projection
 rows are removed, so they resolve as unavailable rather than being retargeted.
 
-Immediate next task: add focused desktop end-to-end coverage for entity
-management.
+Entity-management desktop coverage: the production workflow gate
+(`app/e2e/run.mjs`) drives the tags and people routes end-to-end with the
+keyboard — create through the New-entity dialog, context-menu rename and
+delete, ArrowUp/ArrowDown/Home/End row focus, and the people empty state in
+both directions. Entity merge stays out of the gate because it is deferred by
+design.
 
 Tree keyboard contract: Tab enters the active visible file or folder directly;
 Arrow keys move the roving tree-item tab stop, and search result selection

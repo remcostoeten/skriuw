@@ -558,7 +558,7 @@ async function runWorkflow() {
     assert(
       checks,
       "keyboard-sidebar-search",
-      current.activeNoteId === "note-gamma" && current.activeElement === "Workspace",
+      current.activeNoteId === "note-gamma" && current.activeElement === "Gamma note",
       JSON.stringify(current),
     );
     steps.push("sidebar-search");
@@ -573,7 +573,7 @@ async function runWorkflow() {
       current.deleted.includes("note-beta"),
       JSON.stringify(current.deleted),
     );
-    await dispatchKey(cdp, sessionId, "2", "Digit2", 50, "", 10);
+    await dispatchKey(cdp, sessionId, "4", "Digit4", 52, "", 10);
     await waitFor(
       cdp,
       sessionId,
@@ -609,7 +609,7 @@ async function runWorkflow() {
       current.deleted.includes("note-beta"),
       JSON.stringify(current.deleted),
     );
-    await dispatchKey(cdp, sessionId, "2", "Digit2", 50, "", 10);
+    await dispatchKey(cdp, sessionId, "4", "Digit4", 52, "", 10);
     await waitFor(
       cdp,
       sessionId,
@@ -617,9 +617,14 @@ async function runWorkflow() {
       "trash route for purge",
     );
     await settle();
-    await control('focusSelector(".trash-details-actions .trash-button-danger")');
+    await control('focusNamed("Delete permanently")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
-    await settle();
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('[role=\"group\"][aria-label=\"Delete permanently\"] button') !== null",
+      "armed purge confirmation",
+    );
     await control('focusLastNamed("Delete permanently")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
@@ -855,6 +860,209 @@ async function runWorkflow() {
       current.activeElement === "Settings",
       current.activeElement,
     );
+    await dispatchKey(cdp, sessionId, "2", "Digit2", 50, "", 10);
+    await waitFor(
+      cdp,
+      sessionId,
+      "window.location.hash === '#/tags'",
+      "tags route",
+    );
+    await settle();
+    current = await state();
+    assert(
+      checks,
+      "entity-tags-route",
+      current.route === "#/tags" &&
+        Object.values(current.tags).sort().join(",") === "Ideas,Research",
+      JSON.stringify(current),
+    );
+    await control('focusContaining("New tag")');
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('dialog[open] h2')?.textContent === 'New tag'",
+      "new tag dialog",
+    );
+    await settle();
+    await control('focusSelector("dialog[open] input[type=\\"text\\"]")');
+    await typeText(cdp, sessionId, "Urgent");
+    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13, "\r");
+    await settle();
+    current = await state();
+    assert(
+      checks,
+      "keyboard-create-tag",
+      Object.values(current.tags).includes("Urgent") && current.dialog === null,
+      JSON.stringify(current.tags),
+    );
+    await control('focusSelector("[data-entity-id=\\"tag-ideas\\"]")');
+    await dispatchKey(cdp, sessionId, "ArrowDown", "ArrowDown", 40);
+    assert(
+      checks,
+      "entity-row-arrow-focus",
+      (await evaluate(
+        cdp,
+        sessionId,
+        "document.activeElement?.getAttribute('data-entity-id')",
+      )) === "tag-research",
+      "ArrowDown did not move entity row focus",
+    );
+    await dispatchKey(cdp, sessionId, "End", "End", 35);
+    assert(
+      checks,
+      "entity-row-end-focus",
+      await evaluate(
+        cdp,
+        sessionId,
+        "document.activeElement?.textContent.includes('Urgent') === true",
+      ),
+      "End did not focus the last entity row",
+    );
+    await dispatchKey(cdp, sessionId, "Home", "Home", 36);
+    assert(
+      checks,
+      "entity-row-home-focus",
+      (await evaluate(
+        cdp,
+        sessionId,
+        "document.activeElement?.getAttribute('data-entity-id')",
+      )) === "tag-ideas",
+      "Home did not focus the first entity row",
+    );
+    async function openEntityMenu(rowName, itemLabel) {
+      await control(`focusNamed(${JSON.stringify(`Actions for ${rowName}`)})`);
+      await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+      await waitFor(
+        cdp,
+        sessionId,
+        `[...document.querySelectorAll('[role="menuitem"]')].some((item) => item.textContent.includes(${JSON.stringify(itemLabel)}))`,
+        `${itemLabel} entity context item`,
+      );
+      await settle();
+      const isTarget = `document.activeElement?.getAttribute('role') === 'menuitem' && document.activeElement.textContent.includes(${JSON.stringify(itemLabel)})`;
+      for (let hop = 0; hop < 8; hop += 1) {
+        if (await evaluate(cdp, sessionId, isTarget)) {
+          break;
+        }
+        await dispatchKey(cdp, sessionId, "ArrowDown", "ArrowDown", 40);
+        await settle();
+      }
+      assert(
+        checks,
+        `entity-menu-focus-${itemLabel.toLowerCase()}-${rowName.toLowerCase().replace(/\s+/g, "-")}`,
+        await evaluate(cdp, sessionId, isTarget),
+        `menu focus never reached ${itemLabel}`,
+      );
+      await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+    }
+    await openEntityMenu("Urgent", "Rename");
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('input[aria-label=\"Rename tag Urgent\"]') !== null",
+      "tag rename field",
+    );
+    await control('focusSelector("input[aria-label=\\"Rename tag Urgent\\"]")');
+    await typeText(cdp, sessionId, "Priority");
+    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13, "\r");
+    await settle();
+    current = await state();
+    assert(
+      checks,
+      "keyboard-rename-tag",
+      Object.values(current.tags).includes("Priority") &&
+        !Object.values(current.tags).includes("Urgent"),
+      JSON.stringify(current.tags),
+    );
+    await openEntityMenu("Priority", "Delete");
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('dialog[open] h2')?.textContent === 'Delete tag?'",
+      "delete tag dialog",
+    );
+    await control('focusNamed("Delete tag")');
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+    await settle();
+    current = await state();
+    assert(
+      checks,
+      "keyboard-delete-tag",
+      Object.values(current.tags).sort().join(",") === "Ideas,Research",
+      JSON.stringify(current.tags),
+    );
+    steps.push("entity-tags");
+
+    await dispatchKey(cdp, sessionId, "3", "Digit3", 51, "", 10);
+    await waitFor(
+      cdp,
+      sessionId,
+      "window.location.hash === '#/people'",
+      "people route",
+    );
+    await settle();
+    current = await state();
+    assert(
+      checks,
+      "entity-people-empty-state",
+      Object.keys(current.people).length === 0 &&
+        (await evaluate(
+          cdp,
+          sessionId,
+          "document.body.textContent.includes('No people yet')",
+        )),
+      JSON.stringify(current.people),
+    );
+    await control('focusContaining("New person")');
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('dialog[open] h2')?.textContent === 'New person'",
+      "new person dialog",
+    );
+    await settle();
+    await control('focusSelector("dialog[open] input[type=\\"text\\"]")');
+    await typeText(cdp, sessionId, "Ada Lovelace");
+    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13, "\r");
+    await settle();
+    current = await state();
+    assert(
+      checks,
+      "keyboard-create-person",
+      Object.values(current.people).includes("Ada Lovelace") &&
+        !(await evaluate(
+          cdp,
+          sessionId,
+          "document.body.textContent.includes('No people yet')",
+        )),
+      JSON.stringify(current.people),
+    );
+    await openEntityMenu("Ada Lovelace", "Delete");
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('dialog[open] h2')?.textContent === 'Delete person?'",
+      "delete person dialog",
+    );
+    await control('focusNamed("Delete person")');
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+    await settle();
+    current = await state();
+    assert(
+      checks,
+      "keyboard-delete-person-restores-empty-state",
+      Object.keys(current.people).length === 0 &&
+        (await evaluate(
+          cdp,
+          sessionId,
+          "document.body.textContent.includes('No people yet')",
+        )),
+      JSON.stringify(current.people),
+    );
+    steps.push("entity-people");
+
     assert(
       checks,
       "browser-console-is-clean",
@@ -870,7 +1078,7 @@ async function runWorkflow() {
     assert(
       checks,
       "complete-workflow-step-set",
-      steps.length === 13,
+      steps.length === 15,
       JSON.stringify(steps),
     );
     cdp.close();

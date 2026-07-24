@@ -77,6 +77,35 @@ export function createWorkflowSnapshot(): WorkspaceSnapshot {
     ],
     settings,
     activeNoteId: "note-alpha",
+    tags: [
+      {
+        id: "tag-research",
+        name: "Research",
+        color: "#3b82f6",
+        createdAt: now - 5_000,
+        updatedAt: now - 5_000,
+        createdIn: "note-alpha",
+      },
+      {
+        id: "tag-ideas",
+        name: "Ideas",
+        color: null,
+        createdAt: now - 4_000,
+        updatedAt: now - 4_000,
+        createdIn: null,
+      },
+    ],
+    people: [],
+    references: [
+      { noteId: "note-alpha", targets: [{ kind: "tag", targetId: "tag-research" }] },
+      {
+        noteId: "note-gamma",
+        targets: [
+          { kind: "tag", targetId: "tag-research" },
+          { kind: "tag", targetId: "tag-ideas" },
+        ],
+      },
+    ],
     historyHeaders: [
       {
         noteId: "note-alpha",

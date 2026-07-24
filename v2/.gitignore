@@ -8,3 +8,4 @@ dist/
 *.db-wal
 .DS_Store
 .claude/worktrees/
+/app/e2e/results/

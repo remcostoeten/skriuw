@@ -20,7 +20,13 @@ configureBridge(snapshot);
 if (window.location.hash === "") {
   window.location.hash = "#/notes";
 }
-const store = createRendererStore(createInitialState(snapshot, ["folder-a", "folder-b"]));
+const store = createRendererStore(
+  createInitialState(snapshot, ["folder-a", "folder-b"], {
+    tags: snapshot.tags,
+    people: snapshot.people,
+    references: snapshot.references,
+  }),
+);
 bindSettingsToRoot(store, document.documentElement);
 const container = document.getElementById("root");
 if (!container) {

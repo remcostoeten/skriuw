@@ -8,6 +8,8 @@ type WorkflowState = {
   parents: Record<string, string | null>;
   nodeOrder: string[];
   deleted: string[];
+  tags: Record<string, string>;
+  people: Record<string, string>;
   settings: Record<string, unknown>;
   bridgeCommands: string[];
   route: string;
@@ -152,6 +154,12 @@ export function createWorkflowController(store: RendererStore) {
         .filter((node) => node.deletedAt !== null)
         .map((node) => node.id)
         .sort(),
+      tags: Object.fromEntries(
+        [...current.tags.values()].map((tag) => [tag.id, tag.name]),
+      ),
+      people: Object.fromEntries(
+        [...current.people.values()].map((person) => [person.id, person.name]),
+      ),
       settings: structuredClone(current.settings),
       bridgeCommands: readBridgeCalls().map((call) => call.command),
       route: window.location.hash,
