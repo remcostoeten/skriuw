@@ -194,6 +194,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Find in note",
     group: "Editor search",
     worksWhileTyping: true,
+    scopes: "note-focus",
   },
   {
     id: "searchMatchCase",

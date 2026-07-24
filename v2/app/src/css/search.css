@@ -66,6 +66,10 @@
   transition: border-color 150ms, box-shadow 150ms;
 }
 
+.search-widget-field:focus-within {
+  border-color: hsl(var(--ring));
+}
+
 .search-widget-field.has-error {
   border-color: hsl(var(--destructive));
   box-shadow: inset 0 0 0 1px hsl(var(--destructive));

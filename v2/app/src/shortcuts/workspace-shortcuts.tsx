@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useShortcutMap } from "@remcostoeten/use-shortcut/react";
 import type { ShortcutMap } from "@remcostoeten/use-shortcut/react";
 import type { AppRoute } from "../app-route";
@@ -34,6 +34,31 @@ type Props = {
  */
 function activeScopesForRoute(route: AppRoute): string[] {
   return route === "tags" || route === "people" ? [] : ["note-create"];
+}
+
+/**
+ * Tracks whether keyboard focus sits inside the editor pane, which holds both
+ * the ProseMirror surface and the search widget. Gates the `note-focus` scope
+ * so keys like `mod+f` only fire while the user is in the note.
+ */
+function useNoteFocusScope(): boolean {
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    const syncFocus = () => {
+      setFocused(
+        document.activeElement instanceof HTMLElement &&
+          document.activeElement.closest(".editor-pane") !== null,
+      );
+    };
+    syncFocus();
+    document.addEventListener("focusin", syncFocus);
+    document.addEventListener("focusout", syncFocus);
+    return () => {
+      document.removeEventListener("focusin", syncFocus);
+      document.removeEventListener("focusout", syncFocus);
+    };
+  }, []);
+  return focused;
 }
 
 /**
@@ -108,8 +133,11 @@ export function WorkspaceShortcuts({
     return map;
   }, [overrides]);
 
+  const noteFocused = useNoteFocusScope();
   const results = useShortcutMap(shortcutMap, {
-    activeScopes: activeScopesForRoute(route),
+    activeScopes: noteFocused
+      ? [...activeScopesForRoute(route), "note-focus"]
+      : activeScopesForRoute(route),
     ignoreInputs: false,
   });
 
