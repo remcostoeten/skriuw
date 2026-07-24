@@ -33,9 +33,17 @@ type RowProps = {
   metrics: TreeMetrics;
   top: number;
   tabIndex: 0 | -1;
+  moving?: boolean;
 };
 
-export const SidebarRow = memo(function SidebarRow({ store, id, metrics, top, tabIndex }: RowProps) {
+export const SidebarRow = memo(function SidebarRow({
+  store,
+  id,
+  metrics,
+  top,
+  tabIndex,
+  moving = false,
+}: RowProps) {
   const selectNode = useMemo(() => (state: RendererState) => state.nodes.get(id), [id]);
   const selectStatus = useMemo(
     () => (state: RendererState) =>
@@ -96,7 +104,7 @@ export const SidebarRow = memo(function SidebarRow({ store, id, metrics, top, ta
         <button
           type="button"
           id={`treeitem-${id}`}
-          className={`${rowBaseClass} ${isFolder ? "justify-between " : ""}${stateClass}`}
+          className={`${rowBaseClass} ${isFolder ? "justify-between " : ""}${stateClass}${moving ? " opacity-45" : ""}`}
           style={rowIndentStyle(node.depth, metrics)}
           role="treeitem"
           aria-level={node.depth}

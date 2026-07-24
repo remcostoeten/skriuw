@@ -500,6 +500,19 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     });
   }
 
+  function selectAllTreeNodes(): boolean {
+    return update((current) => {
+      if (current.visibleIds.length === 0) {
+        return current;
+      }
+      return {
+        ...current,
+        selectedNodeIds: new Set(current.visibleIds),
+        selectionAnchorId: current.visibleIds[0] ?? null,
+      };
+    });
+  }
+
   function setEditingNode(id: string | null): boolean {
     return update((current) => {
       if (id === current.editingNodeId) {
@@ -659,6 +672,7 @@ export function createRendererStore(initialState: RendererState): RendererStore 
     setActiveNote,
     setFocusedNode,
     selectTreeNode,
+    selectAllTreeNodes,
     setEditingNode,
     toggleExpanded,
     applyOperations,

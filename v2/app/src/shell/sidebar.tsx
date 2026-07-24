@@ -42,7 +42,7 @@ import {
   virtualTreeWindow,
   visualTreeIndent,
 } from "../store/tree";
-import type { RendererState, RendererStore } from "../store/types";
+import type { NodeRecord, RendererState, RendererStore } from "../store/types";
 import {
   AUTO_SCROLL_EDGE_PX,
   AUTO_SCROLL_MAX_STEP_PX,
@@ -169,6 +169,15 @@ function moveTargetFolders(state: RendererState, movedId: string): { id: string;
   return targets.sort((left, right) => left.title.localeCompare(right.title));
 }
 
+function moveDropTarget(
+  nodes: ReadonlyMap<string, NodeRecord>,
+  focusedId: string | null,
+): DropTarget {
+  const focused = focusedId ? nodes.get(focusedId) : undefined;
+  const folderId = focused ? (focused.kind === "folder" ? focused.id : focused.parentId) : null;
+  return folderId === null ? { kind: "root-gap" } : { kind: "row", id: folderId, zone: "inside" };
+}
+
 function moveWithinSiblings(store: RendererStore, id: string, direction: -1 | 1): void {
   const state = store.getState();
   const node = state.nodes.get(id);
@@ -201,6 +210,7 @@ export function Sidebar({ store }: Props) {
   const [treeScrollRow, setTreeScrollRow] = useState(0);
   const [treeViewportHeight, setTreeViewportHeight] = useState(0);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [moveIds, setMoveIds] = useState<readonly string[] | null>(null);
   const dragRef = useRef<DragSession | null>(null);
   const hoverExpandRef = useRef<number | null>(null);
   const autoScrollRef = useRef<{ raf: number; pointerX: number; pointerY: number } | null>(
@@ -302,6 +312,28 @@ export function Sidebar({ store }: Props) {
   const renderedIds = visibleIds.slice(treeWindow.start, treeWindow.end);
   const treeTabStopId = visibleIds[0] ?? null;
   const trimmedQuery = searchQuery.trim();
+  const moveActive = moveIds !== null;
+  const movingSet = useMemo(() => (moveIds ? new Set(moveIds) : null), [moveIds]);
+  const selectMoveFocusId = useMemo(
+    () => (state: RendererState) => (moveActive ? state.focusedNodeId : null),
+    [moveActive],
+  );
+  const moveFocusId = useRendererSelector(store, selectMoveFocusId);
+  const moveTarget = moveActive
+    ? moveDropTarget(store.getState().nodes, moveFocusId)
+    : null;
+  const moveTargetLabel =
+    moveTarget === null
+      ? null
+      : moveTarget.kind === "root-gap"
+        ? "Top level"
+        : (store.getState().nodes.get(moveTarget.id)?.title ?? "folder");
+
+  useEffect(() => {
+    if (moveIds && moveIds.some((id) => !store.getState().nodes.has(id))) {
+      setMoveIds(null);
+    }
+  }, [moveIds, store, visibleIds]);
 
   function closeSearch(restoreTrigger = false): void {
     setIsSearchOpen(false);
@@ -716,6 +748,54 @@ export function Sidebar({ store }: Props) {
     }
     const focusIndex = focusedId ? state.visibleIds.indexOf(focusedId) : -1;
     const focused = focusedId ? state.nodes.get(focusedId) : undefined;
+    // Move mode: arrows steer a destination cursor, Enter/Space/M drops the
+    // cargo into the focused folder (or a note's parent), Esc cancels. Every
+    // other key is swallowed while relocating.
+    if (moveIds !== null) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMoveIds(null);
+        return;
+      }
+      if (
+        event.key === "Enter" ||
+        event.key === " " ||
+        event.key === "m" ||
+        event.key === "M"
+      ) {
+        event.preventDefault();
+        const cargo = moveIds.filter((id) => state.nodes.has(id));
+        const moves = dropMoves(state.nodes, cargo, moveDropTarget(state.nodes, focusedId));
+        if (moves.length > 0) {
+          moveNodes(store, moves);
+          setMoveIds(null);
+        }
+        return;
+      }
+      const isPlainArrow =
+        (event.key === "ArrowUp" ||
+          event.key === "ArrowDown" ||
+          event.key === "ArrowLeft" ||
+          event.key === "ArrowRight") &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.shiftKey;
+      if (!isPlainArrow) {
+        return;
+      }
+    }
+    if ((event.ctrlKey || event.metaKey) && (event.key === "a" || event.key === "A")) {
+      event.preventDefault();
+      store.selectAllTreeNodes();
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && (event.key === "f" || event.key === "F")) {
+      event.preventDefault();
+      setIsSearchOpen(true);
+      searchInputRef.current?.focus();
+      return;
+    }
     if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
       if (focusedId) {
         moveWithinSiblings(store, focusedId, event.key === "ArrowUp" ? -1 : 1);
@@ -785,9 +865,31 @@ export function Sidebar({ store }: Props) {
         event.preventDefault();
         return;
       }
-      case "F2": {
+      case "F2":
+      case "r":
+      case "R": {
+        if (event.metaKey || event.ctrlKey || event.altKey) {
+          return;
+        }
         if (focusedId) {
           store.setEditingNode(focusedId);
+          event.preventDefault();
+        }
+        return;
+      }
+      case "m":
+      case "M": {
+        if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+          return;
+        }
+        if (focusedId) {
+          const cargo = state.selectedNodeIds.has(focusedId)
+            ? dragRoots(
+                state.nodeOrder.filter((id) => state.selectedNodeIds.has(id)),
+                state.nodes,
+              )
+            : [focusedId];
+          setMoveIds(cargo);
           event.preventDefault();
         }
         return;
@@ -1069,6 +1171,18 @@ export function Sidebar({ store }: Props) {
         />
       ) : (
         <ContextMenu onOpenChange={(open) => !open && setContextTarget(null)}>
+          {moveIds !== null && (
+            <div className="mx-1.5 mb-1 flex items-center gap-2 border border-foreground/20 bg-foreground/[0.08] px-2.5 py-1.5 text-[11px] font-medium text-foreground">
+              <FolderInputIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground" />
+              <span className="min-w-0 truncate">
+                Moving {moveIds.length} item{moveIds.length > 1 ? "s" : ""} →{" "}
+                <span className="text-foreground">{moveTargetLabel}</span>
+              </span>
+              <span className="ml-auto shrink-0 text-muted-foreground">
+                ↵ drop · esc cancel
+              </span>
+            </div>
+          )}
           <ContextMenuTrigger asChild>
             <div
               ref={treeRef}
@@ -1104,6 +1218,7 @@ export function Sidebar({ store }: Props) {
                     metrics={metrics}
                     top={(treeWindow.start + position) * rowPitch}
                     tabIndex={id === treeTabStopId ? 0 : -1}
+                    moving={movingSet?.has(id) === true}
                   />
                 ))}
                 {renderDropIndicator()}

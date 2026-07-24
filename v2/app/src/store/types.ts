@@ -85,6 +85,7 @@ export type RendererStore = {
   setActiveNote: (id: string | null) => boolean;
   setFocusedNode: (id: string | null) => boolean;
   selectTreeNode: (id: string, mode: TreeSelectionMode) => boolean;
+  selectAllTreeNodes: () => boolean;
   setEditingNode: (id: string | null) => boolean;
   toggleExpanded: (id: string) => boolean;
   applyOperations: (operations: readonly WorkspaceOperation[]) => boolean;
