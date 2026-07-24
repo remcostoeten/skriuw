@@ -288,3 +288,15 @@ test("history publication is exactly once, stable, and note scoped", () => {
   assert.equal(rootHistoryNotifications, 0);
   assert.equal(shellNotifications, 0);
 });
+
+test("select-all selects exactly the visible tree ids", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.toggleExpanded("folder");
+  assert.deepEqual([...store.getState().visibleIds], ["folder", "note-root"]);
+  store.selectAllTreeNodes();
+  assert.deepEqual([...store.getState().selectedNodeIds].sort(), ["folder", "note-root"]);
+  assert.equal(store.getState().selectionAnchorId, "folder");
+  store.toggleExpanded("folder");
+  assert.equal(store.getState().selectedNodeIds.has("note-child"), false);
+  assert.equal(store.getState().selectedNodeIds.has("trashed"), false);
+});

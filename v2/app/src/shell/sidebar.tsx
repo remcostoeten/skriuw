@@ -42,7 +42,7 @@ import {
   virtualTreeWindow,
   visualTreeIndent,
 } from "../store/tree";
-import type { NodeRecord, RendererState, RendererStore } from "../store/types";
+import type { RendererState, RendererStore } from "../store/types";
 import {
   AUTO_SCROLL_EDGE_PX,
   AUTO_SCROLL_MAX_STEP_PX,
@@ -54,6 +54,8 @@ import {
   dropZoneForOffset,
   indicatorIndentDepth,
   isValidDrop,
+  moveCargoVanished,
+  moveDropTarget,
   rowIndexAt,
   sameDropTarget,
 } from "./sidebar-dnd";
@@ -167,15 +169,6 @@ function moveTargetFolders(state: RendererState, movedId: string): { id: string;
     targets.push({ id: node.id, title: node.title });
   }
   return targets.sort((left, right) => left.title.localeCompare(right.title));
-}
-
-function moveDropTarget(
-  nodes: ReadonlyMap<string, NodeRecord>,
-  focusedId: string | null,
-): DropTarget {
-  const focused = focusedId ? nodes.get(focusedId) : undefined;
-  const folderId = focused ? (focused.kind === "folder" ? focused.id : focused.parentId) : null;
-  return folderId === null ? { kind: "root-gap" } : { kind: "row", id: folderId, zone: "inside" };
 }
 
 function moveWithinSiblings(store: RendererStore, id: string, direction: -1 | 1): void {
@@ -330,7 +323,7 @@ export function Sidebar({ store }: Props) {
         : (store.getState().nodes.get(moveTarget.id)?.title ?? "folder");
 
   useEffect(() => {
-    if (moveIds && moveIds.some((id) => !store.getState().nodes.has(id))) {
+    if (moveIds && moveCargoVanished(store.getState().nodes, moveIds)) {
       setMoveIds(null);
     }
   }, [moveIds, store, visibleIds]);

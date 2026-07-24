@@ -206,7 +206,12 @@ design.
 Tree keyboard contract: Tab enters the active visible file or folder directly;
 Arrow keys move the roving tree-item tab stop, and search result selection
 returns focus to that item. The virtualized tree still exposes only one item to
-the Tab sequence.
+the Tab sequence. `r` and F2 rename the focused item in place, and Ctrl/Cmd+F
+opens and focuses sidebar search from the tree. `m` enters move mode: arrows
+steer a destination cursor shown in the banner, Enter/Space/`m` drops the cargo
+into the focused folder (or a note's parent, or the top level), and Esc — or
+any cargo node leaving the tree — cancels; an invalid drop such as a folder
+into its own subtree produces no moves and keeps move mode active.
 
 Focus-navigation contract: `/` focuses the editor outside text entry, and
 `Mod+E` restores the active note as the tree focus target before moving focus
@@ -215,7 +220,8 @@ remain rebindable.
 
 Tree multi-selection contract: Ctrl/Cmd-click toggles membership, Shift-click
 and Shift+Arrow select the visible range from an anchor, and plain click
-replaces the selection. Context-menu and keyboard Delete trash the selected
+replaces the selection. Ctrl/Cmd+A selects exactly the visible tree ids —
+collapsed descendants and trashed nodes stay outside the selection. Context-menu and keyboard Delete trash the selected
 root subtrees in one optimistic batch; selected descendants are excluded when
 their ancestor is selected.
 

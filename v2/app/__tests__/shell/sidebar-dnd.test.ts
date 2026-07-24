@@ -9,6 +9,8 @@ import {
   indicatorIndentDepth,
   isValidDrop,
   isWithinSubtree,
+  moveCargoVanished,
+  moveDropTarget,
   rowIndexAt,
   sameDropTarget,
 } from "../../src/shell/sidebar-dnd";
@@ -144,4 +146,50 @@ test("auto-scroll steps ramp toward the edges and idle in the middle", () => {
   assert.equal(nearTop < 0 && nearTop > -14, true);
   const nearBottom = autoScrollStep(770, 100, 800, 36, 14);
   assert.equal(nearBottom > 0 && nearBottom < 14, true);
+});
+
+test("move-mode target resolves folders directly and notes to their parent", () => {
+  assert.deepEqual(moveDropTarget(nodes, "folder-b"), {
+    kind: "row",
+    id: "folder-b",
+    zone: "inside",
+  });
+  assert.deepEqual(moveDropTarget(nodes, "note-b1"), {
+    kind: "row",
+    id: "folder-b",
+    zone: "inside",
+  });
+  assert.deepEqual(moveDropTarget(nodes, "note-root"), { kind: "root-gap" });
+  assert.deepEqual(moveDropTarget(nodes, null), { kind: "root-gap" });
+  assert.deepEqual(moveDropTarget(nodes, "missing"), { kind: "root-gap" });
+});
+
+test("move-mode drop lands cargo inside the focused folder", () => {
+  assert.deepEqual(dropMoves(nodes, ["note-root"], moveDropTarget(nodes, "folder-b")), [
+    {
+      id: "note-root",
+      placement: { parentId: "folder-b", position: { type: "last" } },
+    },
+  ]);
+});
+
+test("move-mode drop on a note lands cargo in that note's parent", () => {
+  assert.deepEqual(dropMoves(nodes, ["note-root"], moveDropTarget(nodes, "note-a1")), [
+    {
+      id: "note-root",
+      placement: { parentId: "folder-a", position: { type: "last" } },
+    },
+  ]);
+});
+
+test("move-mode refuses to drop a folder into its own subtree", () => {
+  assert.deepEqual(dropMoves(nodes, ["folder-a"], moveDropTarget(nodes, "folder-b")), []);
+  assert.deepEqual(dropMoves(nodes, ["folder-a"], moveDropTarget(nodes, "note-b1")), []);
+  assert.deepEqual(dropMoves(nodes, ["folder-a"], moveDropTarget(nodes, "folder-a")), []);
+});
+
+test("move-mode cargo vanish detection fires once any cargo node leaves the tree", () => {
+  assert.equal(moveCargoVanished(nodes, ["note-a1", "note-root"]), false);
+  assert.equal(moveCargoVanished(nodes, ["note-a1", "ghost"]), true);
+  assert.equal(moveCargoVanished(nodes, []), false);
 });

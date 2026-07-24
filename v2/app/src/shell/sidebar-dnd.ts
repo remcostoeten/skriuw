@@ -131,6 +131,32 @@ export function dropMoves(
   return ordered.map((id) => ({ id, placement }));
 }
 
+/**
+ * Resolves the move-mode destination for the focused row: a folder receives
+ * the cargo directly, a note redirects to its parent folder, and no focus or
+ * a top-level note targets the root gap.
+ */
+export function moveDropTarget(
+  nodes: ReadonlyMap<string, NodeRecord>,
+  focusedId: string | null,
+): DropTarget {
+  const focused = focusedId ? nodes.get(focusedId) : undefined;
+  const folderId = focused ? (focused.kind === "folder" ? focused.id : focused.parentId) : null;
+  return folderId === null ? { kind: "root-gap" } : { kind: "row", id: folderId, zone: "inside" };
+}
+
+/**
+ * Move mode must cancel once any cargo node leaves the tree (trashed or
+ * purged from another surface), because the pending banner would otherwise
+ * advertise a drop that can no longer include it.
+ */
+export function moveCargoVanished(
+  nodes: ReadonlyMap<string, NodeRecord>,
+  cargoIds: readonly string[],
+): boolean {
+  return cargoIds.some((id) => !nodes.has(id));
+}
+
 export function indicatorIndentDepth(
   nodes: ReadonlyMap<string, NodeRecord>,
   target: DropTarget,
