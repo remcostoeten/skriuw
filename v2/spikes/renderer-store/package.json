@@ -1,0 +1,26 @@
+{
+  "name": "skriuw-renderer-store-spike",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "build:profiling": "tsc --noEmit && vite build --mode profiling --outDir dist-profiling",
+    "dev": "vite",
+    "test": "tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "tsx": "4.20.6",
+    "typescript": "7.0.2",
+    "vite": "8.1.5"
+  }
+}

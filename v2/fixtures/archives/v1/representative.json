@@ -1,0 +1,207 @@
+{
+  "archiveVersion": 1,
+  "protocolVersion": 1,
+  "exportedAt": 1750000100000,
+  "activeNoteId": "note-welcome",
+  "nodes": [
+    {
+      "id": "folder-projects",
+      "kind": "folder",
+      "parentId": null,
+      "rank": 1024,
+      "title": "Projects",
+      "icon": "📁",
+      "createdAt": 1750000000000,
+      "updatedAt": 1750000000000,
+      "deletedAt": null
+    },
+    {
+      "id": "note-welcome",
+      "kind": "note",
+      "parentId": null,
+      "rank": 2048,
+      "title": "Wolkom",
+      "icon": null,
+      "createdAt": 1750000001000,
+      "updatedAt": 1750000005000,
+      "deletedAt": null
+    },
+    {
+      "id": "folder-archive",
+      "kind": "folder",
+      "parentId": null,
+      "rank": 3072,
+      "title": "Old archive",
+      "icon": null,
+      "createdAt": 1750000002000,
+      "updatedAt": 1750000006000,
+      "deletedAt": 1750000006000
+    },
+    {
+      "id": "note-old-draft",
+      "kind": "note",
+      "parentId": "folder-archive",
+      "rank": 1024,
+      "title": "Old draft",
+      "icon": null,
+      "createdAt": 1750000003000,
+      "updatedAt": 1750000003000,
+      "deletedAt": null
+    },
+    {
+      "id": "note-deep",
+      "kind": "note",
+      "parentId": "folder-notes-nested",
+      "rank": 1024,
+      "title": "Deep note",
+      "icon": null,
+      "createdAt": 1750000006000,
+      "updatedAt": 1750000006000,
+      "deletedAt": null
+    },
+    {
+      "id": "folder-notes-nested",
+      "kind": "folder",
+      "parentId": "folder-projects",
+      "rank": 1024,
+      "title": "Nested notes",
+      "icon": null,
+      "createdAt": 1750000004000,
+      "updatedAt": 1750000004000,
+      "deletedAt": null
+    },
+    {
+      "id": "note-unicode",
+      "kind": "note",
+      "parentId": "folder-projects",
+      "rank": 2048,
+      "title": "Grüße 中文 ✍️",
+      "icon": "🌍",
+      "createdAt": 1750000005000,
+      "updatedAt": 1750000007000,
+      "deletedAt": null
+    }
+  ],
+  "documents": [
+    {
+      "noteId": "note-deep",
+      "documentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Nested fixture content."
+              }
+            ]
+          }
+        ]
+      },
+      "markdown": "Nested fixture content.",
+      "revision": 1,
+      "wordCount": 3
+    },
+    {
+      "noteId": "note-old-draft",
+      "documentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "fixturehidden trashed content."
+              }
+            ]
+          }
+        ]
+      },
+      "markdown": "fixturehidden trashed content.",
+      "revision": 1,
+      "wordCount": 3
+    },
+    {
+      "noteId": "note-unicode",
+      "documentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 1
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Grüße 中文"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "émojis 🎉, עברית, καλημέρα, doorsneetekst."
+              }
+            ]
+          }
+        ]
+      },
+      "markdown": "# Grüße 中文\n\némojis 🎉, עברית, καλημέρα, doorsneetekst.",
+      "revision": 3,
+      "wordCount": 6
+    },
+    {
+      "noteId": "note-welcome",
+      "documentJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 1
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Wolkom"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "fixturegolden start note."
+              }
+            ]
+          }
+        ]
+      },
+      "markdown": "# Wolkom\n\nfixturegolden start note.",
+      "revision": 2,
+      "wordCount": 4
+    }
+  ],
+  "settings": {
+    "settingsVersion": 1,
+    "theme": "paper",
+    "compactSidebar": true,
+    "showPageIcons": true,
+    "reduceMotion": false,
+    "rememberLastNote": true,
+    "editorFont": "inter",
+    "editorLineHeight": "relaxed",
+    "showLineNumbers": false,
+    "editorPlaceholder": "Skriuw dyn ferhaal…",
+    "labsPreview": {
+      "enabled": true,
+      "cohort": 3
+    }
+  }
+}

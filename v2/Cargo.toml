@@ -1,0 +1,38 @@
+[workspace]
+members = [
+    "crates/skriuw-domain",
+    "crates/skriuw-storage",
+    "crates/skriuw-sqlite",
+    "crates/skriuw-images",
+    "crates/skriuw-fixtures",
+    "crates/skriuw-runtime",
+    "crates/skriuw-history",
+    "crates/skriuw-history-git",
+    "crates/skriuw-lifecycle",
+    "crates/skriuw-cli",
+    "xtask",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.95"
+
+[workspace.dependencies]
+git2 = { version = "0.21", default-features = false, features = ["vendored-libgit2"] }
+rusqlite = { version = "0.40", features = ["backup", "bundled"] }
+schemars = { version = "1", features = ["derive", "uuid1"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"
+thiserror = "2"
+uuid = { version = "1", features = ["serde", "v4"] }
+
+[profile.release]
+codegen-units = 16
+lto = "thin"
+panic = "abort"
+strip = true
