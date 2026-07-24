@@ -5,7 +5,7 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 ## Editor
 
 - [ ] Image support — paste/drop an image into a note. Prompted once but never implemented.
-- [ ] Wiki-style `[[note]]` links as an alternative to `@` mentions.
+- [ ] Wiki-style `[[note]]` links as an alternative to `@` mentions. Does not collide with Markdown link syntax (`[text](url)` / `[text][ref]` both require a following `(` or `[`), but the parser must check for that trailing token before treating a leading `[[` as a wiki-link, since `[[note]](url)` is a real link whose text is bracket-wrapped.
 - [ ] Raw Markdown editing mode alongside the rich editor.
 - [ ] Note icons/emoji.
 
