@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use serde_json::json;
-use skriuw_domain::{WorkspaceArchive, WorkspaceDocument};
+use skriuw_domain::{WORKSPACE_ARCHIVE_VERSION, WorkspaceArchive, WorkspaceDocument};
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::{StorageError, WorkspaceMaintenance, WorkspaceStorage};
 
@@ -89,10 +89,12 @@ fn golden_fixtures_import_bootstrap_and_round_trip() {
             entry.file
         );
 
+        let mut expected = archive.clone();
+        expected.archive_version = WORKSPACE_ARCHIVE_VERSION;
         let exported = storage
             .export_archive(archive.exported_at)
             .expect("export imported workspace");
-        assert_eq!(exported, archive, "{} export drifted", entry.file);
+        assert_eq!(exported, expected, "{} export drifted", entry.file);
 
         let second = SqliteWorkspace::open_in_memory().expect("open second database");
         second
@@ -102,7 +104,11 @@ fn golden_fixtures_import_bootstrap_and_round_trip() {
         let re_exported = second
             .export_archive(archive.exported_at)
             .expect("export second workspace");
-        assert_eq!(re_exported, archive, "{} second export drifted", entry.file);
+        assert_eq!(
+            re_exported, expected,
+            "{} second export drifted",
+            entry.file
+        );
     }
 }
 
@@ -157,7 +163,7 @@ fn invalid_archives_fail_before_mutation_and_preserve_workspace() {
         .expect("import representative fixture");
 
     let mut future = archive.clone();
-    future.archive_version = 2;
+    future.archive_version = 3;
     assert!(matches!(
         storage.replace_from_archive(&future),
         Err(StorageError::InvalidOperation(_))
@@ -179,6 +185,8 @@ fn invalid_archives_fail_before_mutation_and_preserve_workspace() {
     let preserved = storage
         .export_archive(archive.exported_at)
         .expect("export preserved workspace");
-    assert_eq!(preserved, archive);
+    let mut expected = archive.clone();
+    expected.archive_version = WORKSPACE_ARCHIVE_VERSION;
+    assert_eq!(preserved, expected);
     assert_healthy(&storage, "preserved workspace");
 }

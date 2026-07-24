@@ -101,6 +101,21 @@ impl WorkspaceRuntime {
         Ok(Completion { receiver })
     }
 
+    pub fn load_pane_layout(&self) -> Result<Completion<Option<String>>, RuntimeError> {
+        let (sender, receiver) = mpsc::channel();
+        self.shared.submit(Request::LoadPaneLayout { sender })?;
+        Ok(Completion { receiver })
+    }
+
+    pub fn save_pane_layout(&self, layout_json: String) -> Result<Completion<()>, RuntimeError> {
+        let (sender, receiver) = mpsc::channel();
+        self.shared.submit(Request::SavePaneLayout {
+            layout_json,
+            sender,
+        })?;
+        Ok(Completion { receiver })
+    }
+
     pub fn apply_operations(
         &self,
         operations: Vec<WorkspaceOperationEnvelope>,
@@ -203,6 +218,13 @@ enum Request {
         folder_ids: Vec<String>,
         sender: Sender<Result<(), StorageError>>,
     },
+    LoadPaneLayout {
+        sender: Sender<Result<Option<String>, StorageError>>,
+    },
+    SavePaneLayout {
+        layout_json: String,
+        sender: Sender<Result<(), StorageError>>,
+    },
     Apply {
         operations: Vec<WorkspaceOperationEnvelope>,
         sender: Sender<Result<OperationAck, StorageError>>,
@@ -233,6 +255,15 @@ fn run(storage: impl WorkspaceStorage, receiver: Receiver<Request>) {
             }
             Request::SaveSidebarExpansion { folder_ids, sender } => {
                 let _ = sender.send(storage.save_sidebar_expansion(&folder_ids));
+            }
+            Request::LoadPaneLayout { sender } => {
+                let _ = sender.send(storage.load_pane_layout());
+            }
+            Request::SavePaneLayout {
+                layout_json,
+                sender,
+            } => {
+                let _ = sender.send(storage.save_pane_layout(&layout_json));
             }
             Request::Apply { operations, sender } if is_save_only(&operations) => {
                 let mut batches = vec![operations];

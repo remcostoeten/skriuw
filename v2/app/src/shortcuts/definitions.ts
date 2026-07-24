@@ -4,6 +4,12 @@ export type ShortcutActionId =
   | "createFolder"
   | "createTag"
   | "createPerson"
+  | "togglePinNote"
+  | "closeTab"
+  | "nextTab"
+  | "previousTab"
+  | "openBeside"
+  | "closeSplit"
   | "openSettings"
   | "toggleSidebar"
   | "toggleMetadata"
@@ -80,6 +86,48 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+shift+p",
     label: "New person",
     group: "Workspace",
+    worksWhileTyping: true,
+  },
+  {
+    id: "togglePinNote",
+    keys: "mod+p",
+    label: "Pin or unpin current note",
+    group: "Workspace",
+    worksWhileTyping: true,
+  },
+  {
+    id: "closeTab",
+    keys: "mod+w",
+    label: "Close tab",
+    group: "Tabs",
+    worksWhileTyping: true,
+  },
+  {
+    id: "nextTab",
+    keys: "ctrl+tab",
+    label: "Next tab",
+    group: "Tabs",
+    worksWhileTyping: true,
+  },
+  {
+    id: "previousTab",
+    keys: "ctrl+shift+tab",
+    label: "Previous tab",
+    group: "Tabs",
+    worksWhileTyping: true,
+  },
+  {
+    id: "openBeside",
+    keys: "mod+backslash",
+    label: "Open current note beside",
+    group: "Tabs",
+    worksWhileTyping: true,
+  },
+  {
+    id: "closeSplit",
+    keys: "mod+shift+backslash",
+    label: "Close split view",
+    group: "Tabs",
     worksWhileTyping: true,
   },
   {

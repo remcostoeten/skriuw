@@ -5,8 +5,10 @@ import {
   createNote,
   moveNode,
   moveNodes,
+  setNodePinned,
   trashSubtrees,
 } from "../actions/workspace";
+import { openBeside, openNoteInTab } from "../actions/panes";
 import { exportNoteAsMarkdown } from "../export/markdown-transfer";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import {
@@ -18,7 +20,10 @@ import {
   FoldVerticalIcon,
   NewFolderIcon,
   NewNoteIcon,
+  PanelRightToggleIcon,
   PencilIcon,
+  PinIcon,
+  PinOffIcon,
   SearchIcon,
   Trash2Icon,
   UnfoldVerticalIcon,
@@ -38,6 +43,7 @@ import { Tooltip } from "../shared/ui/tooltip";
 import {
   ancestorIds,
   flattenVisible,
+  pinnedNodeIds,
   selectedTreeRoots,
   virtualTreeWindow,
   visualTreeIndent,
@@ -100,6 +106,14 @@ const headerActionBaseClass =
 
 function selectVisibleIds(state: RendererState) {
   return state.visibleIds;
+}
+
+function selectPinnedIds(state: RendererState) {
+  return pinnedNodeIds([...state.sourceNodes.values()]);
+}
+
+function sameIdList(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
 function selectCompactSidebar(state: RendererState) {
@@ -191,6 +205,7 @@ function moveWithinSiblings(store: RendererStore, id: string, direction: -1 | 1)
 
 export function Sidebar({ store }: Props) {
   const visibleIds = useRendererSelector(store, selectVisibleIds);
+  const pinnedIds = useRendererSelector(store, selectPinnedIds, sameIdList);
   const compactSidebar = useRendererSelector(store, selectCompactSidebar);
   const showTreeGuides = useRendererSelector(store, selectShowTreeGuides);
   // A single shared context menu serves every row. Rows carry `data-row-key`;
@@ -435,6 +450,22 @@ export function Sidebar({ store }: Props) {
 
   function focusTreeAfterSearch(): void {
     focusTreeItem(store.getState().focusedNodeId);
+  }
+
+  function onPinnedSelect(id: string): void {
+    const node = store.getState().nodes.get(id);
+    if (!node) {
+      return;
+    }
+    revealSearchResult(id);
+    if (node.kind === "folder") {
+      if (!store.getState().expandedIds.has(id)) {
+        store.toggleExpanded(id);
+      }
+    } else {
+      activateNote(store, id);
+    }
+    focusTreeItem(id);
   }
 
   function onSearchNoteSelect(id: string): void {
@@ -1015,6 +1046,7 @@ export function Sidebar({ store }: Props) {
       return null;
     }
     const isBulkSelection = store.getState().selectedNodeIds.size > 1;
+    const isPinned = (store.getState().sourceNodes.get(id)?.pinnedAt ?? null) !== null;
     return (
       <>
         {!isBulkSelection && (
@@ -1023,6 +1055,13 @@ export function Sidebar({ store }: Props) {
               <PencilIcon className="w-4 h-4" />
               Rename
               <ContextMenuShortcut>R</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => setNodePinned(store, id, !isPinned)}
+              className="gap-2"
+            >
+              {isPinned ? <PinOffIcon className="w-4 h-4" /> : <PinIcon className="w-4 h-4" />}
+              {isPinned ? "Unpin" : "Pin"}
             </ContextMenuItem>
             {node.kind === "folder" && (
               <>
@@ -1038,13 +1077,23 @@ export function Sidebar({ store }: Props) {
             )}
             {renderMoveToSubmenu(id, node.parentId)}
             {node.kind === "note" && (
-              <ContextMenuItem
-                onClick={() => void exportNoteAsMarkdown(store, id)}
-                className="gap-2"
-              >
-                <DownloadIcon className="w-4 h-4" />
-                Export as Markdown…
-              </ContextMenuItem>
+              <>
+                <ContextMenuItem onClick={() => openNoteInTab(store, id)} className="gap-2">
+                  <FilePlusIcon className="w-4 h-4" />
+                  Open in new tab
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => openBeside(store, id)} className="gap-2">
+                  <PanelRightToggleIcon className="w-4 h-4" />
+                  Open beside
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onClick={() => void exportNoteAsMarkdown(store, id)}
+                  className="gap-2"
+                >
+                  <DownloadIcon className="w-4 h-4" />
+                  Export as Markdown…
+                </ContextMenuItem>
+              </>
             )}
           </>
         )}
@@ -1178,43 +1227,75 @@ export function Sidebar({ store }: Props) {
           )}
           <ContextMenuTrigger asChild>
             <div
-              ref={treeRef}
-              className="relative min-h-0 flex-1 overflow-y-auto px-1.5"
-              role="tree"
-              aria-label="Workspace"
-              tabIndex={-1}
-              onFocus={(event) => {
-                if (event.target === event.currentTarget) {
-                  focusTreeItem(store.getState().focusedNodeId ?? treeTabStopId);
-                }
-              }}
-              onKeyDown={onTreeKeyDown}
+              className="flex min-h-0 flex-1 flex-col"
               onContextMenu={onListContextMenu}
-              onPointerDown={onTreePointerDown}
-              onPointerMove={onTreePointerMove}
-              onPointerUp={onTreePointerUp}
-              onPointerCancel={onTreePointerCancel}
-              onClickCapture={onTreeClickCapture}
-              onScroll={(event) =>
-                setTreeScrollRow(Math.floor(event.currentTarget.scrollTop / rowPitch))
-              }
             >
+              {pinnedIds.length > 0 && (
+                <section
+                  className="shrink-0 border-b border-sidebar-border px-1.5 pb-1"
+                  aria-label="Pinned"
+                >
+                  <div className="flex items-center gap-1.5 px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    <PinIcon size={11} strokeWidth={1.6} />
+                    Pinned
+                  </div>
+                  <div
+                    className="relative w-full"
+                    style={{ height: `${pinnedIds.length * rowPitch}px` }}
+                  >
+                    {pinnedIds.map((id, index) => (
+                      <SidebarRow
+                        key={id}
+                        store={store}
+                        id={id}
+                        metrics={metrics}
+                        top={index * rowPitch}
+                        tabIndex={0}
+                        shelf
+                        onShelfSelect={onPinnedSelect}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
               <div
-                className="relative w-full"
-                style={{ height: `${treeWindow.totalHeight}px` }}
+                ref={treeRef}
+                className="relative min-h-0 flex-1 overflow-y-auto px-1.5"
+                role="tree"
+                aria-label="Workspace"
+                tabIndex={-1}
+                onFocus={(event) => {
+                  if (event.target === event.currentTarget) {
+                    focusTreeItem(store.getState().focusedNodeId ?? treeTabStopId);
+                  }
+                }}
+                onKeyDown={onTreeKeyDown}
+                onPointerDown={onTreePointerDown}
+                onPointerMove={onTreePointerMove}
+                onPointerUp={onTreePointerUp}
+                onPointerCancel={onTreePointerCancel}
+                onClickCapture={onTreeClickCapture}
+                onScroll={(event) =>
+                  setTreeScrollRow(Math.floor(event.currentTarget.scrollTop / rowPitch))
+                }
               >
-                {renderedIds.map((id, position) => (
-                  <SidebarRow
-                    key={id}
-                    store={store}
-                    id={id}
-                    metrics={metrics}
-                    top={(treeWindow.start + position) * rowPitch}
-                    tabIndex={id === treeTabStopId ? 0 : -1}
-                    moving={movingSet?.has(id) === true}
-                  />
-                ))}
-                {renderDropIndicator()}
+                <div
+                  className="relative w-full"
+                  style={{ height: `${treeWindow.totalHeight}px` }}
+                >
+                  {renderedIds.map((id, position) => (
+                    <SidebarRow
+                      key={id}
+                      store={store}
+                      id={id}
+                      metrics={metrics}
+                      top={(treeWindow.start + position) * rowPitch}
+                      tabIndex={id === treeTabStopId ? 0 : -1}
+                      moving={movingSet?.has(id) === true}
+                    />
+                  ))}
+                  {renderDropIndicator()}
+                </div>
               </div>
             </div>
           </ContextMenuTrigger>

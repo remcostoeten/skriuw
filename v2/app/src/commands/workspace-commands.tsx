@@ -1,5 +1,11 @@
 import { quitApp, toggleFullscreen } from "../actions/window";
-import { createFolder, createNote } from "../actions/workspace";
+import {
+  closeActiveTab,
+  closeSplit,
+  cycleTab,
+  openBeside,
+} from "../actions/panes";
+import { createFolder, createNote, setNodePinned } from "../actions/workspace";
 import type { AppRoute } from "../app-route";
 import { openEditorSearch } from "../editor/search-controller";
 import {
@@ -18,6 +24,7 @@ import {
   NewNoteIcon,
   PanelLeftToggleIcon,
   PanelRightToggleIcon,
+  PinIcon,
   RotateCcwIcon,
   SearchIcon,
   SettingsIcon,
@@ -98,6 +105,71 @@ export function createWorkspaceCommands(
         controls.navigate("people");
         requestEntityCreate("person");
       },
+    },
+    {
+      id: "toggle-pin-note",
+      label: "Pin or unpin current note",
+      group: "Actions",
+      keywords: ["pin", "unpin", "favorite", "shelf"],
+      icon: <PinIcon size={15} />,
+      shortcut: "togglePinNote",
+      enabled: (state) => state.activeNoteId !== null,
+      run: () => {
+        const state = store.getState();
+        const noteId = state.activeNoteId;
+        if (!noteId) {
+          return;
+        }
+        const pinned = (state.sourceNodes.get(noteId)?.pinnedAt ?? null) !== null;
+        setNodePinned(store, noteId, !pinned);
+      },
+    },
+    {
+      id: "close-tab",
+      label: "Close tab",
+      group: "Tabs",
+      keywords: ["tab", "close"],
+      shortcut: "closeTab",
+      enabled: onNotesRoute,
+      run: () => closeActiveTab(store),
+    },
+    {
+      id: "next-tab",
+      label: "Next tab",
+      group: "Tabs",
+      keywords: ["tab", "cycle"],
+      shortcut: "nextTab",
+      enabled: (state, ui) =>
+        onNotesRoute(state, ui) && (state.panes[0]?.openNoteIds.length ?? 0) > 1,
+      run: () => cycleTab(store, 1),
+    },
+    {
+      id: "previous-tab",
+      label: "Previous tab",
+      group: "Tabs",
+      keywords: ["tab", "cycle"],
+      shortcut: "previousTab",
+      enabled: (state, ui) =>
+        onNotesRoute(state, ui) && (state.panes[0]?.openNoteIds.length ?? 0) > 1,
+      run: () => cycleTab(store, -1),
+    },
+    {
+      id: "open-beside",
+      label: "Open current note beside",
+      group: "Tabs",
+      keywords: ["split", "side by side", "pane"],
+      shortcut: "openBeside",
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
+      run: () => openBeside(store),
+    },
+    {
+      id: "close-split",
+      label: "Close split view",
+      group: "Tabs",
+      keywords: ["split", "pane"],
+      shortcut: "closeSplit",
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.panes.length > 1,
+      run: () => closeSplit(store),
     },
     {
       id: "export-note-markdown",

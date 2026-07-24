@@ -72,6 +72,23 @@ export function orderAvailableNodes(nodes: readonly WorkspaceNode[]): WorkspaceN
   return ordered;
 }
 
+/**
+ * Pinned, available nodes ordered most-recently-pinned-first. Trashed nodes
+ * never appear pinned even while their `pinnedAt` column still holds a value.
+ */
+export function pinnedNodeIds(nodes: readonly WorkspaceNode[]): string[] {
+  const unavailable = unavailableNodeIds(nodes);
+  return nodes
+    .filter((node) => node.pinnedAt != null && !unavailable.has(node.id))
+    .sort((left, right) => {
+      if (left.pinnedAt !== right.pinnedAt) {
+        return (right.pinnedAt ?? 0) - (left.pinnedAt ?? 0);
+      }
+      return left.id < right.id ? -1 : 1;
+    })
+    .map((node) => node.id);
+}
+
 export function buildNodeIndex(
   ordered: readonly Pick<WorkspaceNode, "id" | "parentId" | "kind" | "title">[],
 ): Pick<RendererState, "nodes" | "childrenByParent" | "nodeOrder"> {

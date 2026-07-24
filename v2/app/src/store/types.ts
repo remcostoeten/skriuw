@@ -11,6 +11,7 @@ import type {
   OutgoingReferences,
 } from "../references/projection";
 import type { PersonRecord, ReferenceOperation, TagRecord } from "../references/types";
+import type { PaneState } from "./panes";
 
 export type NodeRecord = {
   id: string;
@@ -46,6 +47,8 @@ export type RendererState = {
   nodeOrder: readonly string[];
   visibleIds: readonly string[];
   expandedIds: ReadonlySet<string>;
+  panes: readonly PaneState[];
+  focusedPaneId: string;
   activeNoteId: string | null;
   focusedNodeId: string | null;
   selectedNodeIds: ReadonlySet<string>;

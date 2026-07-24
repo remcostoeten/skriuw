@@ -36,7 +36,8 @@ use crate::operations::{
     require_changed, require_worker, validate_operations,
 };
 use crate::queries::{
-    read_archive, read_sidebar_expansion, read_snapshot, write_sidebar_expansion,
+    read_archive, read_pane_layout, read_sidebar_expansion, read_snapshot, write_pane_layout,
+    write_sidebar_expansion,
 };
 
 pub use recovery::{
@@ -237,6 +238,18 @@ impl WorkspaceStorage for SqliteWorkspace {
         transaction.commit().map_err(backend)
     }
 
+    fn load_pane_layout(&self) -> Result<Option<String>, StorageError> {
+        let connection = self.lock()?;
+        read_pane_layout(&connection)
+    }
+
+    fn save_pane_layout(&self, layout_json: &str) -> Result<(), StorageError> {
+        let mut connection = self.lock()?;
+        let transaction = connection.transaction().map_err(backend)?;
+        write_pane_layout(&transaction, layout_json)?;
+        transaction.commit().map_err(backend)
+    }
+
     fn apply_operations(
         &self,
         operations: &[WorkspaceOperationEnvelope],
@@ -365,8 +378,9 @@ impl WorkspaceMaintenance for SqliteWorkspace {
             transaction
                 .execute(
                     "INSERT INTO workspace_nodes \
-                     (id, kind, parent_id, rank, title, icon, created_at, updated_at, deleted_at) \
-                     VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8)",
+                     (id, kind, parent_id, rank, title, icon, created_at, updated_at, deleted_at, \
+                     pinned_at) \
+                     VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                     params![
                         node.id,
                         match node.kind {
@@ -378,7 +392,8 @@ impl WorkspaceMaintenance for SqliteWorkspace {
                         node.icon,
                         node.created_at,
                         node.updated_at,
-                        node.deleted_at
+                        node.deleted_at,
+                        node.pinned_at
                     ],
                 )
                 .map_err(backend)?;
@@ -511,7 +526,7 @@ impl WorkspaceMaintenance for SqliteWorkspace {
             issues.extend(violations);
             issues
         };
-        if let Err(error) = WorkspaceArchive::v1(self.bootstrap()?, 0).validate() {
+        if let Err(error) = WorkspaceArchive::current(self.bootstrap()?, 0).validate() {
             issues.push(error.to_string());
         }
         Ok(IntegrityReport {

@@ -23,7 +23,7 @@ import {
 import { cssStringLiteral } from "../settings/apply-settings";
 import { projectSettings } from "../settings/settings-model";
 import { useRendererSelector } from "../store/use-renderer-selector";
-import type { DocumentRecord, RendererStore } from "../store/types";
+import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
 import {
   BOUNDED_BLOCK_LIMIT,
   createBoundedDocument,
@@ -56,6 +56,11 @@ const WINDOW_SHIFT = Math.floor(BOUNDED_BLOCK_LIMIT / 2);
 
 type Props = {
   store: RendererStore;
+  /**
+   * Binds this editor instance to a pane-specific note. Defaults to the
+   * store's active note, which is the primary pane's active tab (ADR-0021).
+   */
+  selectNoteId?: (state: RendererState) => string | null;
 };
 
 type CachedNote = {
@@ -153,6 +158,10 @@ function readSelection(state: EditorState, windowStart: number) {
   };
 }
 
+function selectStoreActiveNote(state: RendererState): string | null {
+  return state.activeNoteId;
+}
+
 function fullDocumentText(document: ProseMirrorNode): string {
   return document.textBetween(0, document.content.size, "\n\n");
 }
@@ -163,7 +172,7 @@ function fullDocumentHtml(document: ProseMirrorNode): string {
   return container.innerHTML;
 }
 
-export function NoteEditor({ store }: Props) {
+export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const beforeSpacerRef = useRef<HTMLDivElement>(null);
   const afterSpacerRef = useRef<HTMLDivElement>(null);
@@ -179,7 +188,7 @@ export function NoteEditor({ store }: Props) {
   const [slashMenu, setSlashMenu] = useState<SlashMenu>(closedSlashMenu);
   const slashMenuRef = useRef(slashMenu);
   slashMenuRef.current = slashMenu;
-  const activeNoteId = useRendererSelector(store, (state) => state.activeNoteId);
+  const activeNoteId = useRendererSelector(store, selectNoteId);
   const settingsDocument = useRendererSelector(store, (state) => state.settings);
   const editorSettings = projectSettings(settingsDocument);
   const mentionPluginsRef = useRef<Plugin[] | null>(null);

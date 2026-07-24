@@ -37,6 +37,7 @@ function node(
     createdAt: now + rank,
     updatedAt: now + rank,
     deletedAt: null,
+    pinnedAt: null,
   };
 }
 

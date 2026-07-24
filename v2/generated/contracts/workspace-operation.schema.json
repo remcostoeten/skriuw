@@ -366,6 +366,31 @@
               "type": "integer",
               "format": "int64"
             },
+            "id": {
+              "type": "string"
+            },
+            "pinned": {
+              "type": "boolean"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_node_pinned"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "pinned",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
             "documentJson": true,
             "expectedRevision": {
               "type": "integer",

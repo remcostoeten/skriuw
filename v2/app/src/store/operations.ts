@@ -96,6 +96,7 @@ export function reduceOperation(
         createdAt: operation.at,
         updatedAt: operation.at,
         deletedAt: null,
+        pinnedAt: null,
       });
       return next;
     }
@@ -120,6 +121,19 @@ export function reduceOperation(
         rank: provisionalRank(nodes, operation.placement, operation.id),
         updatedAt: operation.at,
       });
+      return next;
+    }
+    case "set_node_pinned": {
+      const existing = nodes.get(operation.id);
+      if (!existing || existing.deletedAt !== null) {
+        return nodes;
+      }
+      const pinnedAt = operation.pinned ? operation.at : null;
+      if (existing.pinnedAt === pinnedAt) {
+        return nodes;
+      }
+      const next = new Map(nodes);
+      next.set(operation.id, { ...existing, pinnedAt, updatedAt: operation.at });
       return next;
     }
     case "trash_subtree": {

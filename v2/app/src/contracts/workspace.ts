@@ -12,6 +12,7 @@ export type WorkspaceNode = {
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
+  pinnedAt: number | null;
 };
 
 export type WorkspaceDocument = {
@@ -130,6 +131,7 @@ export type WorkspaceOperation =
     }
   | { type: "rename_node"; id: string; title: string; at: number }
   | { type: "move_node"; id: string; placement: NodePlacement; at: number }
+  | { type: "set_node_pinned"; id: string; pinned: boolean; at: number }
   | {
       type: "save_document";
       noteId: string;

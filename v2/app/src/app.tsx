@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { Sidebar } from "./shell/sidebar";
 import { CommandPaletteHost } from "./shell/command-palette-host";
-import { EditorHost } from "./shell/editor-host";
+import { EditorPanes } from "./shell/editor-panes";
 import { MetadataPanel } from "./shell/metadata-panel";
 import { SettingsDialog } from "./shell/settings-dialog";
 import { TrashView } from "./shell/trash-view";
@@ -17,6 +17,8 @@ import { createCommandRegistry, registryShortcutActions } from "./commands/regis
 import type { CommandUiState } from "./commands/registry";
 import { createWorkspaceCommands } from "./commands/workspace-commands";
 import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CircleIcon,
   FolderOpenIcon,
   PanelLeftToggleIcon,
@@ -27,6 +29,7 @@ import {
   WaypointsIcon,
 } from "./shared/icons";
 import { Tooltip } from "./shared/ui/tooltip";
+import { useNoteNavigation } from "./shell/use-note-navigation";
 import type { RendererStore } from "./store/types";
 
 const iconButtonClass =
@@ -39,7 +42,7 @@ const activeNavClass =
   "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none";
 
 const toolbarIconButtonClass =
-  "flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground";
+  "flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40";
 
 type Props = {
   store: RendererStore;
@@ -75,6 +78,7 @@ export function App({ store }: Props) {
     [registry, store],
   );
   const gridTemplateColumns = panelGridTemplate(route, sidebarOpen, metadataOpen);
+  const noteNav = useNoteNavigation(store);
   return (
     <div className="shell" style={{ gridTemplateColumns }}>
       <WindowControls />
@@ -178,6 +182,33 @@ export function App({ store }: Props) {
                 <PanelLeftToggleIcon size={16} strokeWidth={1.5} />
               </button>
             </Tooltip>
+            <Tooltip label="Previous note" side="bottom">
+              <button
+                type="button"
+                onClick={noteNav.navigatePrev}
+                disabled={!noteNav.canNavigatePrev}
+                className={toolbarIconButtonClass}
+                aria-label="Previous note"
+              >
+                <ChevronLeftIcon size={16} strokeWidth={1.5} />
+              </button>
+            </Tooltip>
+            <Tooltip label="Next note" side="bottom">
+              <button
+                type="button"
+                onClick={noteNav.navigateNext}
+                disabled={!noteNav.canNavigateNext}
+                className={toolbarIconButtonClass}
+                aria-label="Next note"
+              >
+                <ChevronRightIcon size={16} strokeWidth={1.5} />
+              </button>
+            </Tooltip>
+            {noteNav.title && (
+              <span className="ml-1 min-w-0 flex-1 truncate text-sm text-sidebar-foreground/70">
+                {noteNav.title}
+              </span>
+            )}
             <Tooltip label="Toggle metadata" side="bottom">
               <button
                 type="button"
@@ -190,8 +221,8 @@ export function App({ store }: Props) {
               </button>
             </Tooltip>
           </div>
-          <div className="editor-pane min-h-0 flex-1">
-            <EditorHost store={store} />
+          <div className="min-h-0 flex-1">
+            <EditorPanes store={store} />
           </div>
         </main>
         <div className="panel-col" aria-hidden={!metadataOpen}>

@@ -197,6 +197,14 @@
             "null"
           ]
         },
+        "pinnedAt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64",
+          "default": null
+        },
         "rank": {
           "type": "integer",
           "format": "int64"

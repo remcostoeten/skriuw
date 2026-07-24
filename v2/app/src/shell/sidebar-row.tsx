@@ -34,6 +34,13 @@ type RowProps = {
   top: number;
   tabIndex: 0 | -1;
   moving?: boolean;
+  /**
+   * Renders the row inside the pinned shelf: flat indentation regardless of
+   * tree depth, and a select callback that reveals the node in the main tree
+   * instead of toggling it in place.
+   */
+  shelf?: boolean;
+  onShelfSelect?: (id: string) => void;
 };
 
 export const SidebarRow = memo(function SidebarRow({
@@ -43,6 +50,8 @@ export const SidebarRow = memo(function SidebarRow({
   top,
   tabIndex,
   moving = false,
+  shelf = false,
+  onShelfSelect,
 }: RowProps) {
   const selectNode = useMemo(() => (state: RendererState) => state.nodes.get(id), [id]);
   const selectStatus = useMemo(
@@ -65,8 +74,12 @@ export const SidebarRow = memo(function SidebarRow({
   const isEditing = (status & 8) !== 0;
   const isSelected = (status & 16) !== 0;
   const isFolder = node.kind === "folder";
-  const rowTabIndex =
-    isFocused || (tabIndex === 0 && store.getState().focusedNodeId === null) ? 0 : -1;
+  const rowTabIndex = shelf
+    ? tabIndex
+    : isFocused || (tabIndex === 0 && store.getState().focusedNodeId === null)
+      ? 0
+      : -1;
+  const rowDepth = shelf ? 1 : node.depth;
   const stateClass = isFocused
     ? "bg-foreground/[0.22] text-foreground"
     : isActive
@@ -81,10 +94,10 @@ export const SidebarRow = memo(function SidebarRow({
       className="absolute inset-x-0"
       style={{ top: `${top}px` }}
     >
-      {isEditing ? (
+      {isEditing && !shelf ? (
         <div
           className={`relative flex h-[34px] w-full items-center overflow-hidden border border-border bg-muted text-left text-xs font-medium text-foreground${isFolder ? " justify-between" : ""}`}
-          style={rowIndentStyle(node.depth, metrics)}
+          style={rowIndentStyle(rowDepth, metrics)}
         >
           <span
             className={`flex min-w-0 flex-1 items-center ${metrics.isNarrow ? "gap-1" : "gap-1.5"}`}
@@ -103,19 +116,27 @@ export const SidebarRow = memo(function SidebarRow({
       ) : (
         <button
           type="button"
-          id={`treeitem-${id}`}
+          id={shelf ? `pinned-${id}` : `treeitem-${id}`}
           className={`${rowBaseClass} ${isFolder ? "justify-between " : ""}${stateClass}${moving ? " opacity-45" : ""}`}
-          style={rowIndentStyle(node.depth, metrics)}
-          role="treeitem"
-          aria-level={node.depth}
-          aria-setsize={node.setSize}
-          aria-posinset={node.posInSet}
-          aria-selected={isSelected}
-          {...(isFolder ? { "aria-expanded": isExpanded } : {})}
+          style={rowIndentStyle(rowDepth, metrics)}
+          {...(shelf
+            ? {}
+            : {
+                role: "treeitem",
+                "aria-level": node.depth,
+                "aria-setsize": node.setSize,
+                "aria-posinset": node.posInSet,
+                "aria-selected": isSelected,
+                ...(isFolder ? { "aria-expanded": isExpanded } : {}),
+              })}
           tabIndex={rowTabIndex}
           data-row-key={id}
-          onFocus={() => store.setFocusedNode(id)}
+          onFocus={shelf ? undefined : () => store.setFocusedNode(id)}
           onClick={(event) => {
+            if (shelf) {
+              onShelfSelect?.(id);
+              return;
+            }
             const selectionMode = event.shiftKey
               ? "range"
               : event.ctrlKey || event.metaKey

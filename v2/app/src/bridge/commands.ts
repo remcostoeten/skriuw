@@ -27,6 +27,14 @@ export function saveSidebarExpansion(folderIds: readonly string[]): Promise<void
   return invoke<void>("save_sidebar_expansion", { folderIds });
 }
 
+export function loadPaneLayout(): Promise<string | null> {
+  return invoke<string | null>("load_pane_layout");
+}
+
+export function savePaneLayout(layoutJson: string): Promise<void> {
+  return invoke<void>("save_pane_layout", { layoutJson });
+}
+
 export function applyWorkspaceOperations(
   operations: WorkspaceOperationEnvelope[],
 ): Promise<OperationAck> {

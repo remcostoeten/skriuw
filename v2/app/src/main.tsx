@@ -7,13 +7,17 @@ import {
   applyWorkspaceOperations,
   bootstrapWorkspace,
   closeWorkspaceWindow,
+  loadPaneLayout,
   loadSidebarExpansion,
+  savePaneLayout,
   saveSidebarExpansion,
 } from "./bridge/commands";
 import type { HistoryHeader } from "./contracts/workspace";
 import { listenForHistoryHeaders } from "./history/live-history";
 import { bindWindowClosePersistence } from "./lifecycle/window-close";
 import { bindSettingsToRoot } from "./settings/apply-settings";
+import { bindPaneLayoutPersistence } from "./store/pane-layout-persistence";
+import { parsePaneLayout, syncPanes } from "./store/panes";
 import { bindSidebarExpansionPersistence } from "./store/sidebar-expansion-persistence";
 import { createInitialState, createRendererStore } from "./store/store";
 import type { RendererStore } from "./store/types";
@@ -39,11 +43,15 @@ async function start(): Promise<void> {
       }
       pendingHeaders.push(header);
     });
-    const [snapshot, expandedFolderIds] = await Promise.all([
+    const [snapshot, expandedFolderIds, paneLayoutJson] = await Promise.all([
       bootstrapWorkspace(),
       loadSidebarExpansion().catch((error) => {
         console.error("sidebar expansion load failed", error);
         return [];
+      }),
+      loadPaneLayout().catch((error) => {
+        console.error("pane layout load failed", error);
+        return null;
       }),
     ]);
     store = createRendererStore(createInitialState(snapshot, expandedFolderIds ?? [], {
@@ -51,6 +59,13 @@ async function start(): Promise<void> {
       people: snapshot.people,
       references: snapshot.references,
     }));
+    const restoredPanes = parsePaneLayout(paneLayoutJson);
+    if (restoredPanes) {
+      store.update((current) => ({
+        ...current,
+        panes: syncPanes(restoredPanes, current.activeNoteId, current.sourceNodes),
+      }));
+    }
     const appWindow = getCurrentWindow();
     const unbindWindowClosePersistence = await bindWindowClosePersistence(
       store,
@@ -66,12 +81,18 @@ async function start(): Promise<void> {
       saveSidebarExpansion,
       { onError: (error) => console.error("sidebar expansion persistence failed", error) },
     );
+    const unbindPaneLayoutPersistence = bindPaneLayoutPersistence(
+      store,
+      savePaneLayout,
+      { onError: (error) => console.error("pane layout persistence failed", error) },
+    );
     for (const header of pendingHeaders) {
       store.publishHistoryHeader(header);
     }
     window.addEventListener("pagehide", unlistenHistory, { once: true });
     window.addEventListener("pagehide", unbindWindowClosePersistence, { once: true });
     window.addEventListener("pagehide", unbindExpansionPersistence, { once: true });
+    window.addEventListener("pagehide", unbindPaneLayoutPersistence, { once: true });
     bindSettingsToRoot(store, document.documentElement);
     root.render(
       <StrictMode>

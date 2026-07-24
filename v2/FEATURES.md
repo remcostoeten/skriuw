@@ -30,6 +30,8 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 ## Organizing
 
 - **Nested workspace tree** — arbitrary depth, clamped indentation so deep trees stay readable, virtualized to stay smooth at 5,000+ nodes.
+- **Pinned notes and folders** — pin any node to a fixed shelf at the top of the sidebar (context menu, palette, or `mod+p`). Pins are workspace content: they travel with archives, survive trash round trips, and order most-recently-pinned-first.
+- **Tabs and split view** — open notes in tabs (`ctrl+tab` to cycle, `mod+w` to close) or a second pane side by side (`mod+\`). Only visible panes hold live editors, so background tabs cost nothing; open tabs survive restarts. See [ADR-0021](docs/adr/0021-tabs-and-split-view.md).
 - **Full keyboard control** — create, rename, reorder siblings, move across folders, multi-select, expand/collapse-all, and a dedicated move mode, all without touching the mouse.
 - **Drag and drop** — pointer-based move and reorder in the sidebar.
 - **Sidebar search** — filters the tree and reveals matches in place.

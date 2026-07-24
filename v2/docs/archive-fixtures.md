@@ -7,14 +7,17 @@ Golden `WorkspaceArchive` JSON proves that every supported archive version keeps
 ```text
 fixtures/archives/
 ├── manifest.json
-└── v1/
-    ├── minimal.json
-    └── representative.json
+├── v1/
+│   ├── minimal.json
+│   └── representative.json
+└── v2/
+    └── pinned.json
 ```
 
 - `manifest.json` declares `supportedArchiveVersions` and catalogues every golden file with its version.
 - `v1/minimal.json` is the empty workspace: no nodes, no documents, no active note, default settings.
-- `v1/representative.json` covers root and nested nodes, notes and folders, deterministic ranks and timestamps, Unicode Markdown and structured document JSON, non-default settings, an unknown `labsPreview` settings extension, an available active note, and a directly trashed folder whose child stays valid through inherited unavailability.
+- `v1/representative.json` covers root and nested nodes, notes and folders, deterministic ranks and timestamps, Unicode Markdown and structured document JSON, non-default settings, an unknown `labsPreview` settings extension, an available active note, and a directly trashed folder whose child stays valid through inherited unavailability. It has no `pinnedAt` field on any node, proving pre-pinning archives import with every node unpinned.
+- `v2/pinned.json` covers `pinnedAt`: a pinned folder, a pinned note, and an unpinned note round trip exactly.
 
 Fixture bytes are immutable compatibility inputs. Never regenerate them from current code to make a failing test pass; a mismatch means the production format drifted.
 
@@ -25,7 +28,9 @@ Fixture bytes are immutable compatibility inputs. Never regenerate them from cur
 
 Fixtures are stored in the canonical export order (nodes by `(parent_id, rank, id)` with root nodes first, documents by `note_id`), so round-trip comparisons use direct typed equality with no normalization.
 
-## Adding archive version 2
+Exports always emit the current archive version (`WORKSPACE_ARCHIVE_VERSION`, currently 2). Importing an older supported fixture and re-exporting therefore produces the fixture's content at the current version; the SQLite round-trip tests compare against the fixture with only `archiveVersion` upgraded. Version 2 added the optional node field `pinnedAt`; version 1 archives without it deserialize with `pinnedAt = null`.
+
+## Adding a new archive version
 
 1. Ship the versioned compatibility/migration code that makes production actually accept the new version.
 2. Create `fixtures/archives/v2/` with at least one small, single-purpose golden file exported by that code.

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { WorkspaceNode, WorkspaceSnapshot } from "../../src/contracts/workspace";
 import { createInitialState, createRendererStore } from "../../src/store/store";
+import { pinnedNodeIds } from "../../src/store/tree";
 
 function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {
   return {
@@ -12,6 +13,7 @@ function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind
     createdAt: 1,
     updatedAt: 1,
     deletedAt: null,
+    pinnedAt: null,
     ...partial,
   };
 }
@@ -67,6 +69,53 @@ test("initial state orders siblings by rank and excludes trashed subtrees", () =
   assert.equal(state.nodes.has("trashed-child"), false);
   assert.equal(state.activeNoteId, "note-child");
   assert.equal(state.metadata.get("note-child")?.wordCount, 7);
+});
+
+test("set_node_pinned pins and unpins available nodes and survives trash without edits", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.applyOperations([{ type: "set_node_pinned", id: "note-root", pinned: true, at: 50 }]);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.pinnedAt, 50);
+
+  store.applyOperations([{ type: "set_node_pinned", id: "trashed", pinned: true, at: 51 }]);
+  assert.equal(store.getState().sourceNodes.get("trashed")?.pinnedAt, null);
+
+  store.applyOperations([{ type: "trash_subtree", rootId: "note-root", at: 60 }]);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.pinnedAt, 50);
+
+  store.applyOperations([
+    {
+      type: "restore_subtree",
+      rootId: "note-root",
+      placement: { parentId: null, position: { type: "last" } },
+      at: 70,
+    },
+    { type: "set_node_pinned", id: "note-root", pinned: false, at: 80 },
+  ]);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.pinnedAt, null);
+});
+
+test("pinnedNodeIds orders most-recently-pinned-first and hides trashed nodes", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.applyOperations([
+    { type: "set_node_pinned", id: "note-root", pinned: true, at: 10 },
+    { type: "set_node_pinned", id: "folder", pinned: true, at: 20 },
+    { type: "set_node_pinned", id: "note-child", pinned: true, at: 30 },
+  ]);
+  const nodesOf = () => [...store.getState().sourceNodes.values()];
+  assert.deepEqual(pinnedNodeIds(nodesOf()), ["note-child", "folder", "note-root"]);
+
+  store.applyOperations([{ type: "trash_subtree", rootId: "folder", at: 40 }]);
+  assert.deepEqual(pinnedNodeIds(nodesOf()), ["note-root"]);
+
+  store.applyOperations([
+    {
+      type: "restore_subtree",
+      rootId: "folder",
+      placement: { parentId: null, position: { type: "last" } },
+      at: 50,
+    },
+  ]);
+  assert.deepEqual(pinnedNodeIds(nodesOf()), ["note-child", "folder", "note-root"]);
 });
 
 test("initial state restores only durable folder expansion ids", () => {

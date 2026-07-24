@@ -125,6 +125,88 @@ fn creates_bootstraps_and_searches() {
 }
 
 #[test]
+fn pins_and_unpins_nodes_across_trash_and_purge() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-1"), create_note("note-2")])
+        .expect("create notes");
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SetNodePinned {
+            id: "note-1".into(),
+            pinned: true,
+            at: 10,
+        })])
+        .expect("pin note");
+    let pinned = |storage: &SqliteWorkspace, id: &str| {
+        storage
+            .bootstrap()
+            .expect("bootstrap")
+            .nodes
+            .into_iter()
+            .find(|node| node.id == id)
+            .and_then(|node| node.pinned_at)
+    };
+    assert_eq!(pinned(&storage, "note-1"), Some(10));
+    assert_eq!(pinned(&storage, "note-2"), None);
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::TrashSubtree {
+            root_id: "note-1".into(),
+            at: 20,
+        })])
+        .expect("trash pinned note");
+    assert_eq!(pinned(&storage, "note-1"), Some(10));
+
+    assert!(matches!(
+        storage.apply_operations(&[op(WorkspaceOperation::SetNodePinned {
+            id: "note-1".into(),
+            pinned: true,
+            at: 21,
+        })]),
+        Err(StorageError::InvalidOperation(_))
+    ));
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::RestoreSubtree {
+            root_id: "note-1".into(),
+            placement: NodePlacement::last(None),
+            at: 30,
+        })])
+        .expect("restore pinned note");
+    assert_eq!(pinned(&storage, "note-1"), Some(10));
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SetNodePinned {
+            id: "note-1".into(),
+            pinned: false,
+            at: 40,
+        })])
+        .expect("unpin note");
+    assert_eq!(pinned(&storage, "note-1"), None);
+
+    storage
+        .apply_operations(&[
+            op(WorkspaceOperation::SetNodePinned {
+                id: "note-2".into(),
+                pinned: true,
+                at: 50,
+            }),
+            op(WorkspaceOperation::TrashSubtree {
+                root_id: "note-2".into(),
+                at: 60,
+            }),
+            op(WorkspaceOperation::PurgeSubtree {
+                root_id: "note-2".into(),
+                trashed_before: 60,
+            }),
+        ])
+        .expect("purge pinned note");
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert!(snapshot.nodes.iter().all(|node| node.id != "note-2"));
+}
+
+#[test]
 fn allocates_semantic_placements_and_reports_rank_changes() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     let first_ack = storage

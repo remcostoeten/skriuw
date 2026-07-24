@@ -6,7 +6,8 @@ use serde_json::Value;
 use thiserror::Error;
 
 pub const WORKSPACE_PROTOCOL_VERSION: u16 = 1;
-pub const WORKSPACE_ARCHIVE_VERSION: u16 = 1;
+pub const WORKSPACE_ARCHIVE_VERSION: u16 = 2;
+pub const SUPPORTED_ARCHIVE_VERSIONS: [u16; 2] = [1, 2];
 pub const WORKSPACE_SETTINGS_VERSION: u16 = 1;
 pub const MAX_ENTITY_ID_BYTES: usize = 128;
 pub const MAX_TITLE_BYTES: usize = 512;
@@ -85,6 +86,8 @@ pub struct WorkspaceNode {
     pub created_at: i64,
     pub updated_at: i64,
     pub deleted_at: Option<i64>,
+    #[serde(default)]
+    pub pinned_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -258,7 +261,7 @@ pub struct WorkspaceArchive {
 
 impl WorkspaceArchive {
     #[must_use]
-    pub fn v1(snapshot: WorkspaceSnapshot, exported_at: i64) -> Self {
+    pub fn current(snapshot: WorkspaceSnapshot, exported_at: i64) -> Self {
         Self {
             archive_version: WORKSPACE_ARCHIVE_VERSION,
             protocol_version: snapshot.protocol_version,
@@ -273,7 +276,7 @@ impl WorkspaceArchive {
     }
 
     pub fn validate(&self) -> Result<(), ArchiveValidationError> {
-        if self.archive_version != WORKSPACE_ARCHIVE_VERSION {
+        if !SUPPORTED_ARCHIVE_VERSIONS.contains(&self.archive_version) {
             return Err(ArchiveValidationError::UnsupportedArchiveVersion(
                 self.archive_version,
             ));
@@ -301,6 +304,12 @@ impl WorkspaceArchive {
                 .is_some_and(|deleted_at| deleted_at < node.created_at)
             {
                 return archive_error(format!("node {} is deleted before creation", node.id));
+            }
+            if let Some(pinned_at) = node.pinned_at {
+                validate_timestamp(pinned_at).map_err(archive_operation_error)?;
+                if pinned_at < node.created_at {
+                    return archive_error(format!("node {} is pinned before creation", node.id));
+                }
             }
             if nodes.insert(node.id.as_str(), node).is_some() {
                 return archive_error(format!("duplicate node {}", node.id));
@@ -720,6 +729,11 @@ pub enum WorkspaceOperation {
         placement: NodePlacement,
         at: i64,
     },
+    SetNodePinned {
+        id: String,
+        pinned: bool,
+        at: i64,
+    },
     SaveDocument {
         note_id: String,
         document_json: Value,
@@ -792,6 +806,10 @@ impl WorkspaceOperation {
             Self::RenameNode { id, title, at } => {
                 validate_id("id", id)?;
                 validate_title(title)?;
+                validate_timestamp(*at)
+            }
+            Self::SetNodePinned { id, at, .. } => {
+                validate_id("id", id)?;
                 validate_timestamp(*at)
             }
             Self::MoveNode {
@@ -1101,6 +1119,7 @@ mod tests {
                     created_at: 1,
                     updated_at: 1,
                     deleted_at: None,
+                    pinned_at: None,
                 },
                 WorkspaceNode {
                     id: "note-1".into(),
@@ -1112,6 +1131,7 @@ mod tests {
                     created_at: 2,
                     updated_at: 2,
                     deleted_at: None,
+                    pinned_at: None,
                 },
             ],
             documents: vec![WorkspaceDocument {
@@ -1147,6 +1167,7 @@ mod tests {
                     created_at: 1,
                     updated_at: 1,
                     deleted_at: None,
+                    pinned_at: None,
                 },
                 WorkspaceNode {
                     id: "folder-2".into(),
@@ -1158,6 +1179,7 @@ mod tests {
                     created_at: 1,
                     updated_at: 1,
                     deleted_at: None,
+                    pinned_at: None,
                 },
             ],
             documents: Vec::new(),
@@ -1340,6 +1362,7 @@ mod tests {
                     created_at: 1,
                     updated_at: 5,
                     deleted_at: Some(5),
+                    pinned_at: None,
                 },
                 WorkspaceNode {
                     id: "note-1".into(),
@@ -1351,6 +1374,7 @@ mod tests {
                     created_at: 2,
                     updated_at: 2,
                     deleted_at: None,
+                    pinned_at: None,
                 },
             ],
             documents: vec![WorkspaceDocument {
@@ -1388,6 +1412,7 @@ mod tests {
                 created_at: 1,
                 updated_at: 1,
                 deleted_at: None,
+                pinned_at: None,
             }],
             documents: vec![WorkspaceDocument {
                 note_id: "note-1".into(),

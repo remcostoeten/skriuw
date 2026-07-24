@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use skriuw_domain::{
-    ArchiveValidationError, NodeKind, WORKSPACE_ARCHIVE_VERSION, WorkspaceArchive,
+    ArchiveValidationError, NodeKind, SUPPORTED_ARCHIVE_VERSIONS, WorkspaceArchive,
     WorkspaceSnapshot,
 };
 
@@ -64,7 +64,7 @@ fn catalogue_matches_production_supported_versions() {
         .iter()
         .copied()
         .collect::<BTreeSet<_>>();
-    assert_eq!(supported, BTreeSet::from([WORKSPACE_ARCHIVE_VERSION]));
+    assert_eq!(supported, BTreeSet::from(SUPPORTED_ARCHIVE_VERSIONS));
     assert_eq!(
         manifest.supported_archive_versions.len(),
         supported.len(),
@@ -227,14 +227,48 @@ fn representative_fixture_preserves_compatibility_sensitive_fields() {
 }
 
 #[test]
+fn pinned_fixture_preserves_pinned_at() {
+    let archive = load_fixture_archive("v2/pinned.json");
+
+    let pinned_folder = archive
+        .nodes
+        .iter()
+        .find(|node| node.id == "folder-pinned")
+        .expect("pinned folder");
+    assert_eq!(pinned_folder.pinned_at, Some(1_753_200_002_000));
+
+    let pinned_note = archive
+        .nodes
+        .iter()
+        .find(|node| node.id == "note-pinned")
+        .expect("pinned note");
+    assert_eq!(pinned_note.pinned_at, Some(1_753_200_003_000));
+
+    let loose_note = archive
+        .nodes
+        .iter()
+        .find(|node| node.id == "note-loose")
+        .expect("loose note");
+    assert_eq!(loose_note.pinned_at, None);
+}
+
+#[test]
+fn pre_pinning_archives_import_with_all_nodes_unpinned() {
+    let archive = load_fixture_archive("v1/representative.json");
+    assert!(!archive.nodes.is_empty());
+    assert!(archive.nodes.iter().all(|node| node.pinned_at.is_none()));
+    archive.validate().expect("v1 archive stays valid");
+}
+
+#[test]
 fn future_archive_versions_fail_explicitly() {
     let mut value = load_fixture_value("v1/representative.json");
-    value["archiveVersion"] = json!(2);
+    value["archiveVersion"] = json!(3);
     let future =
         serde_json::from_value::<WorkspaceArchive>(value).expect("parse future-version archive");
     assert_eq!(
         future.validate(),
-        Err(ArchiveValidationError::UnsupportedArchiveVersion(2))
+        Err(ArchiveValidationError::UnsupportedArchiveVersion(3))
     );
 
     let mut value = load_fixture_value("v1/representative.json");

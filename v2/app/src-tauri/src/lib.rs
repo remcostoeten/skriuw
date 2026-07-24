@@ -122,6 +122,22 @@ async fn save_sidebar_expansion(
 }
 
 #[tauri::command]
+async fn load_pane_layout(state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let completion = workspace_runtime(&state)?
+        .load_pane_layout()
+        .map_err(|error| error.to_string())?;
+    wait_for(completion).await
+}
+
+#[tauri::command]
+async fn save_pane_layout(layout_json: String, state: State<'_, AppState>) -> Result<(), String> {
+    let completion = workspace_runtime(&state)?
+        .save_pane_layout(layout_json)
+        .map_err(|error| error.to_string())?;
+    wait_for(completion).await
+}
+
+#[tauri::command]
 async fn apply_workspace_operations(
     operations: Vec<WorkspaceOperationEnvelope>,
     state: State<'_, AppState>,
@@ -494,6 +510,8 @@ pub fn run() {
             bootstrap_workspace,
             load_sidebar_expansion,
             save_sidebar_expansion,
+            load_pane_layout,
+            save_pane_layout,
             apply_workspace_operations,
             close_workspace_window,
             search_workspace,

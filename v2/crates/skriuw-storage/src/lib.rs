@@ -195,6 +195,14 @@ pub trait WorkspaceStorage: Send + Sync {
         Ok(())
     }
 
+    fn load_pane_layout(&self) -> Result<Option<String>, StorageError> {
+        Ok(None)
+    }
+
+    fn save_pane_layout(&self, _layout_json: &str) -> Result<(), StorageError> {
+        Ok(())
+    }
+
     fn apply_operations(
         &self,
         operations: &[WorkspaceOperationEnvelope],
@@ -294,6 +302,14 @@ where
 
     fn save_sidebar_expansion(&self, folder_ids: &[String]) -> Result<(), StorageError> {
         self.as_ref().save_sidebar_expansion(folder_ids)
+    }
+
+    fn load_pane_layout(&self) -> Result<Option<String>, StorageError> {
+        self.as_ref().load_pane_layout()
+    }
+
+    fn save_pane_layout(&self, layout_json: &str) -> Result<(), StorageError> {
+        self.as_ref().save_pane_layout(layout_json)
     }
 
     fn apply_operations(

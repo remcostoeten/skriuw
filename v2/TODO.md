@@ -10,13 +10,13 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 
 ## Organization
 
-- [ ] Pinned notes/folders. Spec: [docs/specs/pinned-notes.md](docs/specs/pinned-notes.md).
+- [x] Pinned notes/folders. Spec: [docs/specs/pinned-notes.md](docs/specs/pinned-notes.md). Shipped: `SetNodePinned` operation, archive v2 (`pinnedAt`), sidebar shelf, palette action, `mod+p`.
 - [ ] Outline view (headings-as-tree navigation within a note).
 - [ ] Quick-access sequences (recently visited, jump list).
 
 ## Workspace
 
-- [ ] Tabs and split view. Low priority; largest architectural departure in this list. Spec: [docs/specs/tabs-and-split-view.md](docs/specs/tabs-and-split-view.md).
+- [x] Tabs and split view. Spec: [docs/specs/tabs-and-split-view.md](docs/specs/tabs-and-split-view.md). Shipped per [ADR-0021](docs/adr/0021-tabs-and-split-view.md): tab strip + open-beside split, live editors bounded at visible panes, native pane-layout persistence. Deferred: per-pane tab strip, C2 single-live-editor instrumentation assertion.
 - [ ] Note properties (custom metadata fields per note). Spec: [docs/specs/note-properties.md](docs/specs/note-properties.md).
 - [ ] Third-party importers (Notion, Obsidian, etc.) beyond the existing Markdown import.
 

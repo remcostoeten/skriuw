@@ -154,6 +154,12 @@ export function emptyTrash(store: RendererStore, rootIds: readonly string[]): vo
   ).catch(reportRejection("empty trash"));
 }
 
+export function setNodePinned(store: RendererStore, id: string, pinned: boolean): void {
+  void commitOperations(store, [
+    { type: "set_node_pinned", id, pinned, at: Date.now() },
+  ]).catch(reportRejection(pinned ? "pin" : "unpin"));
+}
+
 export function moveNode(
   store: RendererStore,
   id: string,

@@ -167,10 +167,39 @@ pub(crate) fn write_sidebar_expansion(
     Ok(())
 }
 
+pub(crate) fn read_pane_layout(connection: &Connection) -> Result<Option<String>, StorageError> {
+    connection
+        .query_row(
+            "SELECT value_json FROM app_state WHERE key = 'workspace_ui_panes'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(backend)
+}
+
+pub(crate) fn write_pane_layout(
+    transaction: &Transaction<'_>,
+    layout_json: &str,
+) -> Result<(), StorageError> {
+    serde_json::from_str::<serde_json::Value>(layout_json).map_err(|error| {
+        StorageError::InvalidOperation(format!("pane layout is not valid JSON: {error}"))
+    })?;
+    transaction
+        .execute(
+            "INSERT INTO app_state(key, value_json) VALUES ('workspace_ui_panes', ?1) \
+             ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json",
+            [layout_json],
+        )
+        .map_err(backend)?;
+    Ok(())
+}
+
 pub(crate) fn read_nodes(connection: &Connection) -> Result<Vec<WorkspaceNode>, StorageError> {
     let mut statement = connection
         .prepare_cached(
-            "SELECT id, kind, parent_id, rank, title, icon, created_at, updated_at, deleted_at \
+            "SELECT id, kind, parent_id, rank, title, icon, created_at, updated_at, deleted_at, \
+             pinned_at \
              FROM workspace_nodes ORDER BY parent_id, rank, id",
         )
         .map_err(backend)?;
@@ -197,6 +226,7 @@ pub(crate) fn read_nodes(connection: &Connection) -> Result<Vec<WorkspaceNode>, 
                 created_at: row.get(6)?,
                 updated_at: row.get(7)?,
                 deleted_at: row.get(8)?,
+                pinned_at: row.get(9)?,
             })
         })
         .map_err(backend)?;

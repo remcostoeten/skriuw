@@ -22,6 +22,7 @@ import {
   type TagRecord,
 } from "../references/types";
 import { reduceOperation } from "./operations";
+import { PRIMARY_PANE_ID, defaultPanes, syncPanes } from "./panes";
 import {
   ancestorIds,
   buildNodeIndex,
@@ -98,9 +99,11 @@ function derive(
     base.selectionAnchorId !== null && index.nodes.has(base.selectionAnchorId)
       ? base.selectionAnchorId
       : null;
+  const panes = syncPanes(base.panes, activeNoteId, base.sourceNodes);
   return {
     ...base,
     ...index,
+    panes,
     visibleIds: flattenVisible(index.nodes, index.childrenByParent, base.expandedIds),
     activeNoteId,
     focusedNodeId,
@@ -159,6 +162,8 @@ export function createInitialState(
   const derived = derive({
     sourceNodes,
     expandedIds,
+    panes: defaultPanes(rememberedNoteId),
+    focusedPaneId: PRIMARY_PANE_ID,
     activeNoteId: rememberedNoteId,
     focusedNodeId: rememberedNoteId,
     selectedNodeIds: new Set(),
@@ -176,7 +181,12 @@ export function createInitialState(
       (id) => derived.nodes.get(id)?.kind === "note",
     );
     if (firstNote) {
-      return { ...derived, activeNoteId: firstNote, focusedNodeId: firstNote };
+      return {
+        ...derived,
+        activeNoteId: firstNote,
+        focusedNodeId: firstNote,
+        panes: syncPanes(derived.panes, firstNote, derived.sourceNodes),
+      };
     }
   }
   return derived;
@@ -200,6 +210,7 @@ function reduceState(
       ...current,
       activeNoteId: operation.noteId,
       focusedNodeId: operation.noteId ?? current.focusedNodeId,
+      panes: syncPanes(current.panes, operation.noteId, current.sourceNodes),
     };
   }
   if (operation.type === "update_settings") {
@@ -638,6 +649,8 @@ export function createRendererStore(initialState: RendererState): RendererStore 
       return derive({
         ...fresh,
         expandedIds,
+        panes: current.panes,
+        focusedPaneId: current.focusedPaneId,
         activeNoteId: current.activeNoteId,
         focusedNodeId: current.focusedNodeId,
         selectedNodeIds: current.selectedNodeIds,

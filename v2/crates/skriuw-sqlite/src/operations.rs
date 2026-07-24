@@ -276,6 +276,17 @@ fn apply_operation(
                 )
                 .map_err(backend)?;
         }
+        WorkspaceOperation::SetNodePinned { id, pinned, at } => {
+            require_available_node(transaction, id)?;
+            let pinned_at = pinned.then_some(*at);
+            let changed = transaction
+                .execute(
+                    "UPDATE workspace_nodes SET pinned_at = ?2, updated_at = ?3 WHERE id = ?1",
+                    params![id, pinned_at, at],
+                )
+                .map_err(backend)?;
+            require_changed(changed, id)?;
+        }
         WorkspaceOperation::MoveNode { id, placement, at } => {
             require_available_node(transaction, id)?;
             require_parent_folder(transaction, placement.parent_id.as_deref())?;
