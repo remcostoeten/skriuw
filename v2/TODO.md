@@ -4,10 +4,9 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 
 ## Editor
 
-- [ ] Image support — paste/drop an image into a note. Prompted once but never implemented.
-- [ ] Wiki-style `[[note]]` links as an alternative to `@` mentions. Does not collide with Markdown link syntax (`[text](url)` / `[text][ref]` both require a following `(` or `[`), but the parser must check for that trailing token before treating a leading `[[` as a wiki-link, since `[[note]](url)` is a real link whose text is bracket-wrapped.
+- [ ] Image support — paste/drop an image into a note. Prompted once but never implemented. Spec: [docs/specs/note-images.md](docs/specs/note-images.md).
+- [ ] Wiki-style `[[note]]` links as an alternative to `@` mentions. Spec: [docs/specs/wiki-links.md](docs/specs/wiki-links.md).
 - [ ] Raw Markdown editing mode alongside the rich editor.
-- [ ] Note icons/emoji.
 
 ## Organization
 
@@ -17,21 +16,18 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 
 ## Workspace
 
-- [ ] Tabs and split view.
-- [ ] Note properties (custom metadata fields per note).
+- [ ] Tabs and split view. Low priority; largest architectural departure in this list. Spec: [docs/specs/tabs-and-split-view.md](docs/specs/tabs-and-split-view.md).
+- [ ] Note properties (custom metadata fields per note). Spec: [docs/specs/note-properties.md](docs/specs/note-properties.md).
 - [ ] Third-party importers (Notion, Obsidian, etc.) beyond the existing Markdown import.
 
 ## Platform
 
-- [ ] Web runtime: compile portable crates for `wasm32-unknown-unknown`.
-- [ ] Worker-owned SQLite-WASM adapter over durable browser storage.
-- [ ] Run shared operation/archive/tree/recovery fixtures against native and web adapters to prove parity.
-- [ ] Mobile.
-- [ ] Browser extension.
+- [ ] Web runtime: `wasm32-unknown-unknown` build, worker-owned SQLite-WASM/OPFS adapter, fixture parity against the native adapter. Low priority. Spec: [docs/specs/web-runtime.md](docs/specs/web-runtime.md).
+- [ ] Mobile — unscheduled, no spec.
+- [ ] Browser extension — unscheduled, no spec.
 
 ## Sync and collaboration
 
-- [ ] Local revision or remote history materializer selection.
 - [ ] Durable sync outbox — only if sync enters scope.
 - [ ] Multi-device sync, sharing, collaboration, authentication — all require a scope decision first; none are assumed.
 
