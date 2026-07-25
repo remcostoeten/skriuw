@@ -145,6 +145,65 @@
   margin: 1.1em 0;
 }
 
+.prosemirror-host .ProseMirror .tableWrapper {
+  margin: 0.8em 0;
+  overflow-x: auto;
+}
+
+.prosemirror-host .ProseMirror table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  overflow: hidden;
+  font-size: 0.95em;
+}
+
+.prosemirror-host .ProseMirror th,
+.prosemirror-host .ProseMirror td {
+  position: relative;
+  min-width: 3em;
+  padding: 6px 10px;
+  border: 1px solid hsl(var(--border));
+  vertical-align: top;
+  text-align: left;
+}
+
+.prosemirror-host .ProseMirror th {
+  background: hsl(var(--theme-bg-active));
+  font-weight: 650;
+}
+
+.prosemirror-host .ProseMirror th > p,
+.prosemirror-host .ProseMirror td > p {
+  margin: 0;
+}
+
+/* prosemirror-tables marks cell selections with this class and expects the
+   highlight to sit above the cell content without swallowing pointer events. */
+.prosemirror-host .ProseMirror .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: hsl(var(--primary) / 0.18);
+  pointer-events: none;
+}
+
+.prosemirror-host .ProseMirror .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  z-index: 3;
+  width: 4px;
+  background: hsl(var(--primary));
+  pointer-events: none;
+}
+
+.prosemirror-host .ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
 .raw-markdown-editor {
   width: 100%;
   min-height: 60vh;
