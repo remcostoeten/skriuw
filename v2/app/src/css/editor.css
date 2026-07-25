@@ -284,14 +284,17 @@
   border-radius: calc(var(--radius) + 2px);
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  overflow-x: auto;
   font-family: var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .prosemirror-host .ProseMirror pre code {
   padding: 0;
   background: none;
   font-size: inherit;
+  white-space: inherit;
+  overflow-wrap: inherit;
 }
 
 .prosemirror-host .ProseMirror pre.code-block {
@@ -629,6 +632,11 @@
 
 .bubble-menu button:hover {
   background: hsl(var(--theme-bg-active));
+}
+
+.bubble-menu button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -1px;
 }
 
 .bubble-menu button.is-active {
