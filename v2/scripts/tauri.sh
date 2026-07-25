@@ -11,5 +11,7 @@ if [[ "${1:-}" == "build" ]]; then
   exec "$repo_dir/scripts/build.sh" desktop "$@"
 fi
 
+# tauri resolves beforeDevCommand's relative paths from the cwd, so run from app/
+cd "$repo_dir/app"
 exec "$repo_dir/app/node_modules/.bin/tauri" "$@" \
   2> >(sed -u '/Failed to load module "appmenu-gtk-module"/d' >&2)

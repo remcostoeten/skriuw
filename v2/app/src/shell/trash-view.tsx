@@ -80,14 +80,28 @@ export function TrashView({ store }: Props) {
   }
 
   return (
-    <main className="trash-view" aria-labelledby="trash-title">
-      <header className="trash-header">
+    <main
+      className="col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
+      aria-labelledby="trash-title"
+    >
+      <header className="flex min-h-[76px] items-center justify-between gap-6 border-b border-theme-divider py-3.5 pl-[22px] pr-[calc(var(--window-controls-width,112px)+8px)]">
         <div>
-          <div className="trash-heading-row">
-            <h1 id="trash-title">Trash</h1>
-            {roots.length > 0 && <span className="trash-count">{roots.length}</span>}
+          <div className="flex items-center gap-2">
+            <h1
+              id="trash-title"
+              className="text-base font-[650] tracking-[-0.015em] text-foreground"
+            >
+              Trash
+            </h1>
+            {roots.length > 0 && (
+              <span className="min-w-[19px] rounded-lg border border-border px-1.5 py-0.5 text-center font-mono text-[10px] leading-[1.3] text-theme-secondary">
+                {roots.length}
+              </span>
+            )}
           </div>
-          <p>Preview deleted items, restore them, or remove them permanently.</p>
+          <p className="mt-1 text-xs leading-[1.45] text-theme-secondary">
+            Preview deleted items, restore them, or remove them permanently.
+          </p>
         </div>
         <Button
           variant="danger"
