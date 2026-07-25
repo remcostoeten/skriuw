@@ -49,6 +49,7 @@ import {
 import {
   countWords,
   createProductPlugins,
+  linkPastedText,
   productSchema,
   serializeProductMarkdown,
   slashMenuState,
@@ -624,9 +625,15 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       handlePaste(currentView, event) {
         const noteId = activeIdRef.current;
         const files = collectImageFiles(event.clipboardData);
-        if (!noteId || files.length === 0) return false;
-        event.preventDefault();
-        return insertImages(store, currentView, noteId, files, null);
+        if (noteId && files.length > 0) {
+          event.preventDefault();
+          return insertImages(store, currentView, noteId, files, null);
+        }
+        if (linkPastedText(currentView, event.clipboardData?.getData("text/plain") ?? "")) {
+          event.preventDefault();
+          return true;
+        }
+        return false;
       },
       handleDrop(currentView, event, _slice, moved) {
         if (moved) return false;
@@ -892,7 +899,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   return (
     <div className="editor-host">
       {search.searchOpen && (
-        <div className="editor-search-anchor">
+        <div className="@container/editor-search sticky top-3 z-40 -mx-9 flex h-0 items-start justify-end">
           <SearchWidget
             ref={search.findInputRef}
             query={search.searchQuery}

@@ -4,6 +4,7 @@ import type { MarkType } from "prosemirror-model";
 import { EditorState, TextSelection, type Transaction } from "prosemirror-state";
 import {
   createProductPlugins,
+  linkPastedText,
   parseProductMarkdown,
   productSchema,
   serializeProductMarkdown,
@@ -199,4 +200,115 @@ test("strikethrough survives the markdown roundtrip", () => {
   const parsed = parseProductMarkdown(markdown);
   assert.equal(parsed.textContent, "gone");
   assert.ok(parsed.rangeHasMark(1, 5, strikethrough));
+});
+
+test("typing whitespace after a bare URL links it and keeps the whitespace", () => {
+  const state = typeText(stateWithText("see https://example.com"), " ");
+  assert.equal(state.doc.textContent, "see https://example.com ");
+  const link = requiredMark("link");
+  assert.ok(state.doc.rangeHasMark(5, 24, link));
+  assert.equal(state.doc.rangeHasMark(1, 4, link), false);
+});
+
+test("autolinking a www URL normalizes the href to https", () => {
+  const state = typeText(stateWithText("go www.example.com"), " ");
+  let href = "";
+  state.doc.descendants((node) => {
+    for (const mark of node.marks) {
+      if (mark.type.name === "link") href = String(mark.attrs.href);
+    }
+    return true;
+  });
+  assert.equal(href, "https://www.example.com");
+  assert.equal(state.doc.textContent, "go www.example.com ");
+});
+
+test("autolinking does not fire inside a code block", () => {
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("code_block", null, [productSchema.text("https://example.com")]),
+  ]);
+  let state = EditorState.create({ doc, plugins: createProductPlugins() });
+  state = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, state.doc.content.size - 1)),
+  );
+  const typed = typeText(state, " ");
+  assert.equal(typed.doc.textContent, "https://example.com ");
+  assert.equal(
+    typed.doc.rangeHasMark(1, typed.doc.content.size - 1, requiredMark("link")),
+    false,
+  );
+});
+
+test("an already linked URL is not re-marked when more whitespace is typed", () => {
+  const first = typeText(stateWithText("see https://example.com"), " ");
+  const second = typeText(first, " ");
+  assert.equal(second.doc.textContent, "see https://example.com  ");
+});
+
+test("bare URLs in markdown parse as links and round-trip as autolinks", () => {
+  const doc = parseProductMarkdown("see https://example.com ok");
+  let href = "";
+  doc.descendants((node) => {
+    for (const mark of node.marks) {
+      if (mark.type.name === "link") href = String(mark.attrs.href);
+    }
+    return true;
+  });
+  assert.equal(href, "https://example.com");
+  const once = serializeProductMarkdown(doc);
+  assert.equal(once, "see <https://example.com> ok");
+  assert.equal(serializeProductMarkdown(parseProductMarkdown(once)), once);
+});
+
+test("prose that merely looks like a domain is left unlinked", () => {
+  for (const text of ["a file config.json here", "mail bob@example.com"]) {
+    const doc = parseProductMarkdown(text);
+    let linked = false;
+    doc.descendants((node) => {
+      for (const mark of node.marks) {
+        if (mark.type.name === "link") linked = true;
+      }
+      return true;
+    });
+    assert.equal(linked, false, `${text} stays plain`);
+  }
+});
+
+function viewOverSelection(text: string, from: number, to: number) {
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, [productSchema.text(text)]),
+  ]);
+  let current = EditorState.create({ doc, plugins: createProductPlugins() });
+  current = current.apply(current.tr.setSelection(TextSelection.create(current.doc, from, to)));
+  return {
+    view: {
+      get state() {
+        return current;
+      },
+      dispatch(transaction: Transaction) {
+        current = current.apply(transaction);
+      },
+    },
+    read: () => current,
+  };
+}
+
+test("pasting a URL over a selection links the selection instead of replacing it", () => {
+  const { view, read } = viewOverSelection("read the docs", 6, 13);
+  assert.equal(linkPastedText(view as never, "https://example.com"), true);
+  const state = read();
+  assert.equal(state.doc.textContent, "read the docs");
+  assert.ok(state.doc.rangeHasMark(6, 13, requiredMark("link")));
+  assert.equal(state.doc.rangeHasMark(1, 5, requiredMark("link")), false);
+});
+
+test("pasting non-URL text over a selection falls through to default handling", () => {
+  const { view, read } = viewOverSelection("read the docs", 6, 13);
+  assert.equal(linkPastedText(view as never, "some plain words"), false);
+  assert.equal(read().doc.textContent, "read the docs");
+});
+
+test("pasting a URL with no selection falls through to default handling", () => {
+  const { view } = viewOverSelection("read the docs", 6, 6);
+  assert.equal(linkPastedText(view as never, "https://example.com"), false);
 });
