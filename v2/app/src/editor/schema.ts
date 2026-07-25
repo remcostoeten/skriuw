@@ -36,6 +36,7 @@ import {
   tableEditing,
   tableNodes,
 } from "prosemirror-tables";
+import { createCodeHighlightPlugin } from "./code-highlight";
 import { createSearchPlugin } from "./search-plugin";
 
 export type SlashMenuState = {
@@ -509,6 +510,7 @@ export function createProductPlugins(): Plugin[] {
     createSlashMenuPlugin(),
     createPlaceholderPlugin(),
     createSearchPlugin(),
+    createCodeHighlightPlugin(),
     createCheckboxTogglePlugin(),
     inputRules({
       rules: [
