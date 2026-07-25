@@ -63,23 +63,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             ensure_parent(&path)?;
             let storage = SqliteWorkspace::open(&path)?;
             let id = Uuid::new_v4().to_string();
-            storage.apply_operations(&[WorkspaceOperationEnvelope::v1(
-                WorkspaceOperation::CreateNote {
-                    id: id.clone(),
-                    title: "Welcome".into(),
-                    placement: NodePlacement::last(None),
-                    document_json: json!({
-                        "type": "doc",
-                        "content": [{
-                            "type": "heading",
-                            "attrs": {"level": 1},
-                            "content": [{"type": "text", "text": "Welcome"}]
-                        }]
-                    }),
-                    markdown: "# Welcome\n\nStandalone backend is ready.".into(),
-                    at: now_ms()?,
-                },
-            )])?;
+            storage.apply_operations(&[feature_showcase_operation(id.clone(), now_ms()?)])?;
             println!("seeded note {id}");
         }
         "search" => {
@@ -300,6 +284,244 @@ fn now_ms() -> Result<i64, Box<dyn Error>> {
     Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as i64)
 }
 
+fn feature_showcase_operation(id: String, at: i64) -> WorkspaceOperationEnvelope {
+    WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreateNote {
+        id: id.clone(),
+        title: "Feature showcase".into(),
+        placement: NodePlacement::last(None),
+        document_json: json!({
+            "type": "doc",
+            "content": [
+                {
+                    "type": "heading",
+                    "attrs": {"level": 1},
+                    "content": [{"type": "text", "text": "Feature showcase"}]
+                },
+                {
+                    "type": "paragraph",
+                    "content": [
+                        {"type": "text", "marks": [{"type": "strong"}], "text": "Bold"},
+                        {"type": "text", "text": ", "},
+                        {"type": "text", "marks": [{"type": "em"}], "text": "italic"},
+                        {"type": "text", "text": ", "},
+                        {"type": "text", "marks": [{"type": "strikethrough"}], "text": "strikethrough"},
+                        {"type": "text", "text": ", and "},
+                        {"type": "text", "marks": [{"type": "code"}], "text": "inline code"},
+                        {"type": "text", "text": "."}
+                    ]
+                },
+                {
+                    "type": "paragraph",
+                    "content": [
+                        {"type": "text", "text": "Open the "},
+                        {
+                            "type": "text",
+                            "marks": [{
+                                "type": "link",
+                                "attrs": {"href": "https://example.com/docs", "title": null}
+                            }],
+                            "text": "documentation link"
+                        },
+                        {"type": "text", "text": " or follow the stable self reference "},
+                        {
+                            "type": "mention_ref",
+                            "attrs": {
+                                "kind": "note",
+                                "id": id,
+                                "label": "Feature showcase"
+                            }
+                        },
+                        {"type": "text", "text": "."}
+                    ]
+                },
+                {
+                    "type": "blockquote",
+                    "content": [{
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": "Local-first, portable, and fast."}]
+                    }]
+                },
+                {
+                    "type": "bullet_list",
+                    "content": [
+                        {
+                            "type": "list_item",
+                            "content": [{
+                                "type": "paragraph",
+                                "content": [{"type": "text", "text": "Bullet list"}]
+                            }]
+                        },
+                        {
+                            "type": "list_item",
+                            "content": [{
+                                "type": "paragraph",
+                                "content": [{"type": "text", "text": "Drag this block to reorder it"}]
+                            }]
+                        }
+                    ]
+                },
+                {
+                    "type": "ordered_list",
+                    "attrs": {"order": 1},
+                    "content": [
+                        {
+                            "type": "list_item",
+                            "content": [{
+                                "type": "paragraph",
+                                "content": [{"type": "text", "text": "Open the command palette"}]
+                            }]
+                        },
+                        {
+                            "type": "list_item",
+                            "content": [{
+                                "type": "paragraph",
+                                "content": [{"type": "text", "text": "Toggle raw Markdown mode"}]
+                            }]
+                        }
+                    ]
+                },
+                {
+                    "type": "check_list",
+                    "content": [
+                        {
+                            "type": "check_item",
+                            "attrs": {"checked": true},
+                            "content": [{
+                                "type": "paragraph",
+                                "content": [{"type": "text", "text": "Seed the showcase"}]
+                            }]
+                        },
+                        {
+                            "type": "check_item",
+                            "attrs": {"checked": false},
+                            "content": [{
+                                "type": "paragraph",
+                                "content": [{"type": "text", "text": "Try editing and restoring history"}]
+                            }]
+                        }
+                    ]
+                },
+                {
+                    "type": "code_block",
+                    "attrs": {"params": "rust"},
+                    "content": [{"type": "text", "text": "fn main() {\n    println!(\"Skriuw\");\n}"}]
+                },
+                {
+                    "type": "table",
+                    "content": [
+                        {
+                            "type": "table_row",
+                            "content": [
+                                {
+                                    "type": "table_header",
+                                    "content": [{
+                                        "type": "paragraph",
+                                        "content": [{"type": "text", "text": "Feature"}]
+                                    }]
+                                },
+                                {
+                                    "type": "table_header",
+                                    "content": [{
+                                        "type": "paragraph",
+                                        "content": [{"type": "text", "text": "State"}]
+                                    }]
+                                }
+                            ]
+                        },
+                        {
+                            "type": "table_row",
+                            "content": [
+                                {
+                                    "type": "table_cell",
+                                    "content": [{
+                                        "type": "paragraph",
+                                        "content": [{"type": "text", "text": "Markdown transfer"}]
+                                    }]
+                                },
+                                {
+                                    "type": "table_cell",
+                                    "content": [{
+                                        "type": "paragraph",
+                                        "content": [{"type": "text", "text": "Lossless"}]
+                                    }]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "paragraph",
+                    "content": [{
+                        "type": "image",
+                        "attrs": {
+                            "src": "https://example.com/blocked-demo.png",
+                            "alt": "Remote image blocked by default",
+                            "title": null
+                        }
+                    }]
+                },
+                {
+                    "type": "heading",
+                    "attrs": {"level": 2},
+                    "content": [{"type": "text", "text": "Lossless raw-source example"}]
+                },
+                {
+                    "type": "code_block",
+                    "attrs": {"params": "markdown"},
+                    "content": [{
+                        "type": "text",
+                        "text": "---\ntitle: Preserved exactly\n---\n\nFootnote source[^1].\n\n[^1]: Never silently transformed."
+                    }]
+                }
+            ]
+        }),
+        markdown: FEATURE_SHOWCASE_MARKDOWN.into(),
+        at,
+    })
+}
+
+const FEATURE_SHOWCASE_MARKDOWN: &str = r#"# Feature showcase
+
+**Bold**, *italic*, ~~strikethrough~~, and `inline code`.
+
+Open the [documentation link](https://example.com/docs) or follow the stable self reference [[Feature showcase]].
+
+> Local-first, portable, and fast.
+
+* Bullet list
+* Drag this block to reorder it
+
+1. Open the command palette
+2. Toggle raw Markdown mode
+
+- [x] Seed the showcase
+- [ ] Try editing and restoring history
+
+```rust
+fn main() {
+    println!("Skriuw");
+}
+```
+
+| Feature | State |
+| --- | --- |
+| Markdown transfer | Lossless |
+
+![Remote image blocked by default](https://example.com/blocked-demo.png)
+
+## Lossless raw-source example
+
+```markdown
+---
+title: Preserved exactly
+---
+
+Footnote source[^1].
+
+[^1]: Never silently transformed.
+```
+"#;
+
 fn write_new(path: &Path, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
     ensure_parent(path)?;
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
@@ -336,4 +558,37 @@ fn print_help() {
            export <database> <archive.json>\n\
            import <database> <archive.json>"
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn feature_showcase_seed_covers_the_editor_and_transfer_safety_states() {
+        let operation = feature_showcase_operation("showcase-id".into(), 42);
+        let WorkspaceOperation::CreateNote {
+            id,
+            title,
+            document_json,
+            markdown,
+            at,
+            ..
+        } = operation.operation
+        else {
+            panic!("expected a note seed");
+        };
+
+        let serialized = serde_json::to_string(&document_json).expect("serialize document");
+        assert_eq!(id, "showcase-id");
+        assert_eq!(title, "Feature showcase");
+        assert_eq!(at, 42);
+        for node_type in ["mention_ref", "check_list", "code_block", "table", "image"] {
+            assert!(serialized.contains(&format!("\"type\":\"{node_type}\"")));
+        }
+        assert!(serialized.contains("\"id\":\"showcase-id\""));
+        assert!(markdown.contains("[[Feature showcase]]"));
+        assert!(markdown.contains("https://example.com/blocked-demo.png"));
+        assert!(markdown.contains("[^1]: Never silently transformed."));
+    }
 }
