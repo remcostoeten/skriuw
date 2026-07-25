@@ -6,11 +6,11 @@ This isolated browser harness compares direct ProseMirror and direct Lexical sta
 
 ```bash
 cd spikes/ui-architecture
-pnpm install --frozen-lockfile
-pnpm build
-pnpm test
-pnpm test:browser
-pnpm exec vite preview --host 127.0.0.1 --port 4173
+bun install --frozen-lockfile
+bun run build
+bun run test
+bun run test:browser
+bunx vite preview --host 127.0.0.1 --port 4173
 ```
 
 Open `http://127.0.0.1:4173`, choose a candidate, rendering strategy, and block count, then run the benchmark. Raw sample JSON remains available in the disclosure below the editor.
@@ -38,6 +38,6 @@ End-to-layout duration is compared provisionally with the 8 ms P95 and 16.67 ms 
 
 The first corpus uses equivalent headings, paragraphs, and quotes rather than a final editor schema. Measurements use a headless Chromium process and one development machine. Memory numbers require a fresh browser context and are unavailable where `measureUserAgentSpecificMemory` is unsupported. Paint presentation, structured Markdown fidelity, and product plugins remain separate gates. No result here selects an editor or establishes a universal budget.
 
-The ProseMirror bounded-correctness model in `src/editors/bounded-correctness.ts` exercises the smallest runtime contract: one canonical block array, a movable rendered window, scroll/selection restoration, and edit reconciliation. The DOM-backed ProseMirror candidate now uses that projection. `pnpm test:browser` runs a production build in a fresh Chrome profile and proves one persistent editor, a 192-of-500 block bound, live window movement, exact DOM selection and focus restoration, scroll-anchor adjustment, canonical reconciliation of editor and external edits, note-switch restoration, and rejection of window movement during IME composition.
+The ProseMirror bounded-correctness model in `src/editors/bounded-correctness.ts` exercises the smallest runtime contract: one canonical block array, a movable rendered window, scroll/selection restoration, and edit reconciliation. The DOM-backed ProseMirror candidate now uses that projection. `bun run test:browser` runs a production build in a fresh Chrome profile and proves one persistent editor, a 192-of-500 block bound, live window movement, exact DOM selection and focus restoration, scroll-anchor adjustment, canonical reconciliation of editor and external edits, note-switch restoration, and rejection of window movement during IME composition.
 
 The result remains a bounded projection rather than complete document virtualization. ProseMirror and Lexical both leave cross-window clipboard and browser find, composition spanning a required window move, cross-window undo history, and screen-reader traversal outside the rendered window unsupported. Lexical does not yet use the live correctness controller. Neither candidate includes the final structured Markdown schema or representative product plugins. These are explicit selection gates, not implied capabilities.
