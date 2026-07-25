@@ -26,6 +26,7 @@ import { useRendererSelector } from "../../store/use-renderer-selector";
 import {
   SettingsHeading,
   settingsButton,
+  settingsButtonDanger,
   settingsGroup,
   settingsRow,
   settingsRowDescription,
@@ -342,7 +343,7 @@ function MediaCard({ entry, busy, onOpenNote, onDelete }: MediaCardProps) {
               renderIdle={(arm) => (
                 <button
                   type="button"
-                  className={cn(settingsButton, "text-destructive hover:text-destructive")}
+                  className={cn(settingsButton, settingsButtonDanger)}
                   disabled={busy}
                   onClick={arm}
                 >

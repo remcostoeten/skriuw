@@ -10,8 +10,10 @@ const buttonVariants = cva(
       variant: {
         default: "border-border bg-muted/55 text-foreground/[0.86]",
         primary: "border-foreground/20 bg-foreground/[0.12] text-foreground/[0.86]",
-        danger: "border-border bg-muted/55 text-destructive",
-        dangerFilled: "border-destructive/45 bg-destructive/[0.14] text-destructive",
+        danger:
+          "border-border bg-muted/55 text-foreground/[0.86] hover:border-destructive/40 hover:bg-destructive/[0.12] hover:text-destructive",
+        dangerFilled:
+          "border-destructive/45 bg-destructive/[0.14] text-destructive hover:bg-destructive/25 hover:text-destructive",
       },
     },
     defaultVariants: {
