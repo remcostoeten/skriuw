@@ -52,7 +52,7 @@ yay -S skriuw-bin
 ## Requirements
 
 - Rust 1.95.0. `rust-toolchain.toml` installs required components through rustup.
-- Node.js 24 and pnpm 11.
+- Bun 1.3 and Node.js 24. Bun installs dependencies and runs package scripts; Node runs the renderer test suite.
 - Bash.
 
 ## Bootstrap
@@ -78,7 +78,7 @@ cargo run -p skriuw-cli -- backup .data/skriuw.db workspace.backup.db
 cargo run -p skriuw-cli -- restore workspace.backup.db restored.db
 ```
 
-Every build entry point runs generated-contract checks, Rust formatting and linting, all default backend, desktop, renderer, renderer-store, and UI-architecture tests, executed-source renderer coverage, and TypeScript validation before producing artifacts. `pnpm build`, `pnpm tauri build`, and `pnpm tauri:build` route through the same orchestrator. Successful local builds print terminal links to their artifacts; CI uploads the release binaries, renderer bundle, and complete logs.
+Every build entry point runs generated-contract checks, Rust formatting and linting, all default backend, desktop, renderer, renderer-store, and UI-architecture tests, executed-source renderer coverage, and TypeScript validation before producing artifacts. `bun run build`, `bun run tauri:build`, and `bun run check` route through the same orchestrator. Successful local builds print terminal links to their artifacts; CI uploads the release binaries, renderer bundle, and complete logs.
 
 `import <database> <archive.json>` validates the portable archive and creates a timestamped safety backup before transactional replacement. Backup, restore, and export refuse to overwrite existing targets.
 
@@ -87,18 +87,23 @@ Every build entry point runs generated-contract checks, Rust formatting and lint
 ## Layout
 
 ```text
-crates/skriuw-domain   Data and operation protocol; no I/O
-crates/skriuw-storage  Storage port
-crates/skriuw-sqlite   Native SQLite adapter
-crates/skriuw-runtime  Serialized backend worker and request queue
-crates/skriuw-history  Portable leased history worker
+crates/skriuw-domain       Data and operation protocol; no I/O
+crates/skriuw-storage      Storage port
+crates/skriuw-sqlite       Native SQLite adapter
+crates/skriuw-runtime      Serialized backend worker and request queue
+crates/skriuw-history      Portable leased history worker
 crates/skriuw-history-git  Native Git history adapter
-crates/skriuw-cli      Database development utility
-xtask                   Repository automation and contract generation
-migrations              Ordered SQL migrations
-generated/contracts     Generated JSON Schema
-docs/adr                Architecture decision records
-scripts                 Stable contributor/CI entrypoints
+crates/skriuw-images       Note image decoding and storage
+crates/skriuw-lifecycle    Startup, shutdown, and backup rotation
+crates/skriuw-fixtures     Deterministic scale fixtures
+crates/skriuw-cli          Database development utility
+app                        React renderer and Tauri desktop shell
+spikes                     Retained measurement harnesses run by the build
+xtask                      Repository automation and contract generation
+migrations                 Ordered SQL migrations
+generated/contracts        Generated JSON Schema
+docs/adr                   Architecture decision records
+scripts                    Stable contributor/CI entrypoints
 ```
 
 ## Status

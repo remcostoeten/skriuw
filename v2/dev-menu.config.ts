@@ -5,8 +5,8 @@ export default defineConfig({
 		{
 			tag: 'tauri',
 			color: '33',
-			cmd: 'pnpm',
-			args: ['tauri', 'dev'],
+			cmd: 'bun',
+			args: ['run', 'tauri', 'dev'],
 			cwd: 'app',
 			url: 'http://localhost:5183',
 			port: 5183,
@@ -18,8 +18,8 @@ export default defineConfig({
 		{ label: 'check', cmd: './scripts/check.sh', key: 'c' },
 		{ label: 'generate contracts', cmd: './scripts/generate.sh', key: 'g' },
 		{ label: 'init dev db', cmd: './scripts/dev-db.sh' },
-		{ label: 'renderer tests', cmd: 'pnpm', args: ['-C', 'app', 'test'] },
-		{ label: 'typecheck', cmd: 'pnpm', args: ['-C', 'app', 'typecheck'] },
+		{ label: 'renderer tests', cmd: 'bun', args: ['--cwd=app', 'run', 'test'] },
+		{ label: 'typecheck', cmd: 'bun', args: ['--cwd=app', 'run', 'typecheck'] },
 	],
 	errorPatterns: {
 		header: [/^error\[E\d+\]/, /^\s*thread '[^']*' panicked at/],

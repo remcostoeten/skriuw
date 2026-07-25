@@ -7,10 +7,10 @@ This disposable React harness measures fine-grained external-store selectors aga
 ```bash
 cd spikes/renderer-store
 ./scripts/export-fixtures.sh
-pnpm install --frozen-lockfile
-pnpm test
-pnpm build
-pnpm build:profiling
+bun install --frozen-lockfile
+bun run test
+bun run build
+bun run build:profiling
 ```
 
 The ordinary production bundle excludes the profiling renderer. The separate profiling build aliases `react-dom/client` to `react-dom/profiling` and writes to `dist-profiling`.
@@ -18,7 +18,7 @@ The ordinary production bundle excludes the profiling renderer. The separate pro
 ## Inspect
 
 ```bash
-pnpm exec vite preview --host 127.0.0.1 --port 4175
+bunx vite preview --host 127.0.0.1 --port 4175
 ```
 
 Open `http://127.0.0.1:4175/?fixture=nested-5000`. Available fixtures are `nested-1000`, `nested-5000`, `wide-5000`, and `mixed-5000`.
@@ -44,7 +44,7 @@ done
 ## Automate profiling production
 
 ```bash
-pnpm exec vite preview --outDir dist-profiling --host 127.0.0.1 --port 4176
+bunx vite preview --outDir dist-profiling --host 127.0.0.1 --port 4176
 node scripts/bench.mjs http://127.0.0.1:4176 profiling nested-1000 nested-5000 wide-5000 mixed-5000
 ```
 
