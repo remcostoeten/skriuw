@@ -6,6 +6,7 @@ import {
   requiresLosslessMarkdownSource,
   serializeProductMarkdown,
 } from "../../src/editor/schema";
+import { planMarkdownImport } from "../../src/export/markdown-transfer-model";
 import { buildRestoreDocument } from "../../src/history/version-model";
 
 const frontmatter = "---\ntitle: Exact\naliases:\n  - one\n---\n\n# Body\n";
@@ -32,4 +33,24 @@ test("history restore keeps unsupported Markdown byte-for-byte", () => {
 
   assert.equal(restored.markdown, frontmatter);
   assert.equal(hasLosslessMarkdownDocument(restored.documentJson), true);
+});
+
+test("Markdown import reports notes preserved in raw mode", () => {
+  const plan = planMarkdownImport(
+    {
+      directories: [],
+      files: [{ relativePath: "Exact.md", content: footnotes }],
+      skipped: 0,
+    },
+    1,
+    () => "note-1",
+  );
+
+  assert.equal(plan.preservedSources, 1);
+  assert.equal(
+    plan.contentOperations[0]?.type === "save_document"
+      ? plan.contentOperations[0].markdown
+      : null,
+    footnotes,
+  );
 });
