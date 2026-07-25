@@ -143,3 +143,7 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0017: verified live database swap](docs/adr/0017-verified-live-database-swap.md)
 - [ADR-0018: read-only Git history integrity and cache rebuild](docs/adr/0018-read-only-git-history-integrity.md)
 - [ADR-0019: archive compatibility fixtures](docs/adr/0019-archive-compatibility-fixtures.md)
+- [ADR-0020: UI architecture selection](docs/adr/0020-ui-architecture.md)
+- [ADR-0021: tabs and split view](docs/adr/0021-tabs-and-split-view.md)
+- [ADR-0022: import into the Skriuw monorepo as the v2 line](docs/adr/0022-v2-monorepo-import.md)
+- [ADR-0023: lossless and reference-safe Markdown transfer](docs/adr/0023-lossless-markdown-transfer.md)

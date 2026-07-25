@@ -24,7 +24,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Slash commands** — type `/` for a keyboard-first block menu.
 - **Find and replace** — search within a note (`mod+f`), including content outside the visible window.
 - **Handles huge notes** — notes with thousands of blocks render through a bounded 192-block editor window; select-all, copy, search, undo, and accessibility traversal still cover the whole document.
-- **Images** — paste or drop an image and it appears inline, no dialog. Blobs are content-addressed files on disk (pasting the same image twice stores it once), never inflate the document itself, and round-trip through Markdown export/import with an `images/` directory.
+- **Images** — paste or drop an image and it appears inline, no dialog. Blobs are content-addressed files on disk (pasting the same image twice stores it once), never inflate the document itself, and round-trip through Markdown export/import with an `images/` directory. Remote Markdown images stay as portable source but are blocked from loading.
 - **Tags, people, mentions, and wiki-links** — type `#` to tag, `@` or `[[` for wiki-style note links, `$` for people. Relationships are stored by ID, so renames propagate everywhere and nothing silently breaks.
 - **Backlinks and entity pages** — every note, tag, and person shows what points to it, precomputed and instant.
 
@@ -46,7 +46,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Verified backups** — scheduled every six hours with cadence/retention rotation, each backup verified before it counts.
 - **Recovery without fear** — restoring runs as a verified live database swap: the replacement is validated and bootstrapped before it goes live, and a rollback sibling is retained in case anything fails.
 - **Portable workspace archives** — versioned JSON export/import of your entire workspace, with golden-fixture compatibility tests guaranteeing old archives keep importing.
-- **Markdown export/import** — take single notes or whole workspaces out as plain Markdown, or bring Markdown in. No lock-in.
+- **Markdown export/import** — take single notes or whole workspaces out as plain Markdown, or bring Markdown in. Wiki-link labels resolve to unique stable note IDs during import, exports refresh labels after renames, and ambiguous links remain source text. Frontmatter and footnotes remain exact raw source until the structured editor supports them.
 
 ## Desktop experience
 
@@ -61,5 +61,5 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 ## Built to be trusted
 
 - 200+ tests across backend, desktop, renderer, store, and UI-architecture layers, plus a keyboard-driven end-to-end suite covering the complete workflow with zero tolerated console errors.
-- Twenty architecture decision records in [docs/adr](docs/adr) document why the system is shaped the way it is.
+- Twenty-three architecture decision records in [docs/adr](docs/adr) document why the system is shaped the way it is.
 - Benchmark evidence for every performance claim lives in [docs/benchmarks](docs/benchmarks).
