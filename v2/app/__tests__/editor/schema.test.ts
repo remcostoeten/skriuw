@@ -81,6 +81,20 @@ test("parseProductMarkdownWithImages relinks known image ids back to image_ref",
   assert.ok(sawPlainImage);
 });
 
+test("plain Markdown images render as blocked placeholders without a src attribute", () => {
+  const document = parseProductMarkdown("![Remote](https://example.com/image.png)");
+  const image = document.firstChild?.firstChild;
+  assert.equal(image?.type.name, "image");
+  const rendered = productSchema.nodes.image?.spec.toDOM?.(image!);
+  assert.ok(Array.isArray(rendered));
+  assert.equal(rendered[0], "span");
+  assert.equal("src" in (rendered[1] as Record<string, unknown>), false);
+  assert.equal(
+    serializeProductMarkdown(document),
+    "![Remote](https://example.com/image.png)",
+  );
+});
+
 test("createProductPlugins builds standard plugin set", () => {
   const plugins = createProductPlugins();
   assert.ok(plugins.length >= 6);

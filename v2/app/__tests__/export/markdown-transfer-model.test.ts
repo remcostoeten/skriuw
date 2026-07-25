@@ -7,7 +7,9 @@ import type {
 import {
   buildNoteExportEntry,
   buildWorkspaceExportEntries,
+  collectRemoteImageSources,
   planMarkdownImport,
+  referenceSafeMarkdown,
   sanitizeFileName,
 } from "../../src/export/markdown-transfer-model";
 import type { MarkdownTree } from "../../src/export/markdown-transfer-model";
@@ -135,6 +137,31 @@ test("buildNoteExportEntry names the file after the sanitized title", () => {
   assert.deepEqual(entry, { relativePath: "ab test.md", kind: "note", markdown: "body" });
 });
 
+test("Markdown export refreshes wiki-link labels from stable target ids", () => {
+  const nodes = new Map([
+    ["target-id", node({ id: "target-id", kind: "note", title: "Renamed target" })],
+  ]);
+  const documentJson = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "mention_ref",
+            attrs: { kind: "note", id: "target-id", label: "Old title" },
+          },
+        ],
+      },
+    ],
+  };
+
+  assert.equal(
+    referenceSafeMarkdown(documentJson, "[[Old title]]", nodes),
+    "[[Renamed target]]",
+  );
+});
+
 test("workspace export mirrors the tree and dedupes colliding names", () => {
   const entries = buildWorkspaceExportEntries(fixtureState());
   assert.deepEqual(
@@ -189,6 +216,7 @@ test("round trip preserves hierarchy, titles, and markdown", () => {
 
   const store = createRendererStore(createInitialState(snapshot([], [])));
   assert.equal(store.applyOperations(plan.operations), true);
+  assert.equal(store.applyOperations(plan.contentOperations), true);
   const state = store.getState();
 
   assert.deepEqual(childTitles(state, null), ["Projects", "Same", "same (2)"]);
@@ -215,9 +243,9 @@ test("references and mentions degrade to plain text on import", () => {
     1,
     () => "ref-note",
   );
-  const [operation] = plan.operations;
-  assert.equal(operation?.type, "create_note");
-  if (operation?.type !== "create_note") {
+  const [operation] = plan.contentOperations;
+  assert.equal(operation?.type, "save_document");
+  if (operation?.type !== "save_document") {
     return;
   }
   const serialized = JSON.stringify(operation.documentJson);
@@ -237,9 +265,9 @@ test("unparseable markdown imports as plain paragraphs instead of failing", () =
     1,
     () => "broken-note",
   );
-  const [operation] = plan.operations;
-  assert.equal(operation?.type, "create_note");
-  if (operation?.type !== "create_note") {
+  const [operation] = plan.contentOperations;
+  assert.equal(operation?.type, "save_document");
+  if (operation?.type !== "save_document") {
     return;
   }
   assert.deepEqual(operation.documentJson, {
@@ -368,9 +396,9 @@ test("import converts local markdown images into image_ref nodes", () => {
     1,
     () => "note-1",
   );
-  const [operation] = plan.operations;
-  assert.equal(operation?.type, "create_note");
-  if (operation?.type !== "create_note") {
+  const [operation] = plan.contentOperations;
+  assert.equal(operation?.type, "save_document");
+  if (operation?.type !== "save_document") {
     return;
   }
   assert.deepEqual(plan.notes, [{ id: "note-1", relativePath: "Shots.md" }]);
@@ -384,5 +412,61 @@ test("import converts local markdown images into image_ref nodes", () => {
   assert.ok(serialized.includes('"image_ref"'));
   assert.ok(serialized.includes('"image-1"'));
   assert.ok(serialized.includes("https://example.com/x.png"));
+  assert.deepEqual(
+    collectRemoteImageSources(operation.documentJson),
+    ["https://example.com/x.png"],
+  );
+  assert.equal(plan.remoteImages, 1);
   assert.deepEqual(collectLocalImageSources(replaced), []);
+});
+
+test("import resolves unique wiki-link labels to stable imported and existing note ids", () => {
+  let nextId = 0;
+  const plan = planMarkdownImport(
+    {
+      directories: [],
+      files: [
+        { relativePath: "Alpha.md", content: "See [[Beta]] and [[Existing]]." },
+        { relativePath: "Beta.md", content: "Back to [[Alpha]]." },
+      ],
+      skipped: 0,
+    },
+    1,
+    () => `imported-${nextId++}`,
+    [{ id: "existing-id", title: "Existing" }],
+  );
+
+  const serialized = JSON.stringify(plan.contentOperations);
+  assert.ok(serialized.includes('"id":"imported-1"'));
+  assert.ok(serialized.includes('"id":"imported-0"'));
+  assert.ok(serialized.includes('"id":"existing-id"'));
+  assert.equal(plan.unresolvedReferences, 0);
+});
+
+test("import keeps ambiguous and unresolved wiki-links as source text", () => {
+  let nextId = 0;
+  const plan = planMarkdownImport(
+    {
+      directories: [],
+      files: [
+        { relativePath: "Same.md", content: "one" },
+        { relativePath: "folder/Same.md", content: "two" },
+        { relativePath: "Refs.md", content: "See [[Same]] and [[Missing]]." },
+      ],
+      skipped: 0,
+    },
+    1,
+    () => `imported-${nextId++}`,
+  );
+
+  const refs = plan.contentOperations.find(
+    (operation) =>
+      operation.type === "save_document" &&
+      operation.markdown.includes("[[Missing]]"),
+  );
+  assert.equal(refs?.type, "save_document");
+  assert.ok(JSON.stringify(refs).includes("[[Same]]"));
+  assert.ok(JSON.stringify(refs).includes("[[Missing]]"));
+  assert.ok(!JSON.stringify(refs).includes('"mention_ref"'));
+  assert.equal(plan.unresolvedReferences, 2);
 });

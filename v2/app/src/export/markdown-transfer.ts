@@ -16,6 +16,7 @@ import {
   collectImageRefIds,
   collectLocalImageSources,
   planMarkdownImport,
+  referenceSafeMarkdown,
   replaceLocalImages,
   resolveImportedImagePath,
   rewriteExportedImagePaths,
@@ -50,9 +51,14 @@ export async function exportNoteAsMarkdown(
     }
     const record = state.documents.get(noteId);
     const imageIds = collectImageRefIds(record?.documentJson);
+    const markdown = referenceSafeMarkdown(
+      record?.documentJson,
+      record?.markdown ?? "",
+      state.nodes,
+    );
     const entry = buildNoteExportEntry(
       node.title,
-      rewriteExportedImagePaths(record?.markdown ?? "", state.images, imageIds),
+      rewriteExportedImagePaths(markdown, state.images, imageIds),
     );
     const imageEntries = buildImageExportEntries(state.images, imageIds, "", new Set());
     await exportMarkdownTree([entry, ...imageEntries], targetDir);
@@ -104,16 +110,16 @@ async function importPlannedImages(
   at: number,
 ): Promise<ImportedImages> {
   const noteOperations = new Map(
-    plan.operations
-      .filter((operation) => operation.type === "create_note")
-      .map((operation) => [operation.id, operation]),
+    plan.contentOperations
+      .filter((operation) => operation.type === "save_document")
+      .map((operation) => [operation.noteId, operation]),
   );
   const attachOperations: WorkspaceOperation[] = [];
   let imported = 0;
   let skipped = 0;
   for (const note of plan.notes) {
     const operation = noteOperations.get(note.id);
-    if (operation?.type !== "create_note") {
+    if (operation?.type !== "save_document") {
       continue;
     }
     const sources = collectLocalImageSources(operation.documentJson);
@@ -166,11 +172,34 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
     }
     const tree = await readMarkdownTree(sourceDir);
     const at = Date.now();
-    const plan = planMarkdownImport(tree, at, () => crypto.randomUUID());
+    const state = store.getState();
+    const existingNotes = [...state.nodes.values()]
+      .filter((node) => node.kind === "note")
+      .map((node) => ({ id: node.id, title: node.title }));
+    const plan = planMarkdownImport(
+      tree,
+      at,
+      () => crypto.randomUUID(),
+      existingNotes,
+    );
     const images = await importPlannedImages(plan, sourceDir, at);
-    const operations = [...plan.operations, ...images.attachOperations];
-    if (operations.length > 0) {
-      await commitOperations(store, operations);
+    if (plan.operations.length > 0) {
+      await commitOperations(store, plan.operations);
+    }
+    const contentOperations = [
+      ...images.attachOperations,
+      ...plan.contentOperations.map((operation) => {
+        if (operation.type !== "save_document") {
+          return operation;
+        }
+        const revision = store.getState().documents.get(operation.noteId)?.revision;
+        return revision === undefined
+          ? operation
+          : { ...operation, expectedRevision: revision };
+      }),
+    ];
+    if (contentOperations.length > 0) {
+      await commitOperations(store, contentOperations);
     }
     publishTransferReport({
       title: "Import complete",
@@ -179,6 +208,12 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
         ...(images.imported > 0 ? [`Imported ${count(images.imported, "image")}`] : []),
         ...(images.skipped > 0
           ? [`Skipped ${count(images.skipped, "unreadable image")}`]
+          : []),
+        ...(plan.remoteImages > 0
+          ? [`Blocked ${count(plan.remoteImages, "remote image")} from loading`]
+          : []),
+        ...(plan.unresolvedReferences > 0
+          ? [`Kept ${count(plan.unresolvedReferences, "ambiguous or unresolved wiki-link")} as source text`]
           : []),
         ...(tree.skipped > 0 ? [`Skipped ${count(tree.skipped, "unreadable file")}`] : []),
       ],
