@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { openExternalUrl } from "../bridge/external-links";
-import { ExternalLinkIcon, PencilIcon, UnlinkIcon } from "../shared/icons";
+import { CheckIcon, ExternalLinkIcon, LinkIcon, PencilIcon, UnlinkIcon } from "../shared/icons";
+import { rangeMenuAnchor, type MenuAnchor } from "./menu-anchor";
 import { productSchema } from "./schema";
 
 export type LinkMenuState = {
@@ -13,6 +14,7 @@ export type LinkMenuState = {
   to: number;
   x: number;
   y: number;
+  below: boolean;
 };
 
 export const closedLinkMenu: LinkMenuState = {
@@ -23,6 +25,7 @@ export const closedLinkMenu: LinkMenuState = {
   to: 0,
   x: 0,
   y: 0,
+  below: false,
 };
 
 const LINK_MENU_WIDTH = 300;
@@ -76,8 +79,12 @@ export function linkInRange(state: EditorState, from: number, to: number): strin
   return href;
 }
 
-export function clampLinkMenuX(x: number): number {
-  return Math.max(12, Math.min(x, window.innerWidth - LINK_MENU_WIDTH - 12));
+/**
+ * The viewport anchor for the link menu over the range, sharing the bubble
+ * menu's anchor so the two swap in place rather than jumping.
+ */
+export function linkMenuAnchor(view: EditorView, from: number, to: number): MenuAnchor {
+  return rangeMenuAnchor(view, from, to, LINK_MENU_WIDTH);
 }
 
 function normalizeHref(raw: string): string {
@@ -131,27 +138,48 @@ export function LinkMenu({ state, getView, onClose, onEdit }: Props) {
   }
 
   return (
-    <div className="link-menu" style={{ left: state.x, top: state.y }}>
+    <div
+      className="link-menu"
+      data-below={state.below ? "true" : undefined}
+      style={{ left: state.x, top: state.y }}
+    >
       {state.editing ? (
-        <input
-          ref={inputRef}
-          className="link-menu-input"
-          type="text"
-          placeholder="Paste or type a link"
-          aria-label="Link URL"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
+        <>
+          <span className="link-menu-input-icon" aria-hidden="true">
+            <LinkIcon size={13} />
+          </span>
+          <input
+            ref={inputRef}
+            className="link-menu-input"
+            type="text"
+            placeholder="Paste or type a link"
+            aria-label="Link URL"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyDraft();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                closeAndFocus();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="link-menu-apply"
+            title={draft.trim() ? "Apply link" : "Remove link"}
+            aria-label={draft.trim() ? "Apply link" : "Remove link"}
+            onMouseDown={(event) => {
               event.preventDefault();
               applyDraft();
-            }
-            if (event.key === "Escape") {
-              event.preventDefault();
-              closeAndFocus();
-            }
-          }}
-        />
+            }}
+          >
+            <CheckIcon size={13} />
+          </button>
+        </>
       ) : (
         <>
           <button

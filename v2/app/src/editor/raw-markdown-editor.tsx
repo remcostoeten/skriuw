@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { commitOperations } from "../actions/workspace";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
+import { noteImageIds } from "./image-actions";
 import { countWords, parseProductMarkdownWithImages } from "./schema";
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -33,12 +34,10 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     if (!current) {
       return;
     }
-    const knownImageIds = new Set(
-      [...store.getState().images.values()]
-        .filter((image) => image.noteId === noteId)
-        .map((image) => image.id),
+    const document = parseProductMarkdownWithImages(
+      markdown,
+      noteImageIds(store.getState(), noteId),
     );
-    const document = parseProductMarkdownWithImages(markdown, knownImageIds);
     void commitOperations(store, [
       {
         type: "save_document",
