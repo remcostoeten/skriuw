@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useShortcut } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { RotateCcwIcon } from "../icons";
+import { cn } from "../lib/utils";
 
 type Props = {
   value: string;
@@ -79,19 +80,22 @@ export function ShortcutRecorder({
   }
 
   return (
-    <span className="shortcut-recorder">
+    <span className="flex items-center gap-1.5">
       <button
         type="button"
-        className={`shortcut-recorder-button${recording ? " is-recording" : ""}`}
+        className={cn(
+          "min-w-[84px] cursor-pointer rounded-lg border border-border bg-muted px-2 py-1 text-center text-xs text-foreground",
+          recording && "border-primary text-primary",
+        )}
         aria-label={aria["aria-label"] ?? "Change shortcut"}
         onClick={startRecording}
       >
-        {recording ? "Press keys…" : <kbd>{formatShortcut(value)}</kbd>}
+        {recording ? "Press keys…" : <kbd className="font-mono text-[11px]">{formatShortcut(value)}</kbd>}
       </button>
       {onReset && !isDefault && (
         <button
           type="button"
-          className="shortcut-recorder-reset"
+          className="flex cursor-pointer rounded-lg p-1 text-muted-foreground hover:text-foreground"
           aria-label="Reset to default"
           title="Reset to default"
           onClick={() => {
@@ -102,7 +106,7 @@ export function ShortcutRecorder({
           <RotateCcwIcon size={13} />
         </button>
       )}
-      <span className="shortcut-recorder-error" role="status" aria-live="polite">
+      <span className="text-[11px] text-destructive" role="status" aria-live="polite">
         {error}
       </span>
     </span>

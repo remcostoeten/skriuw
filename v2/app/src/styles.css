@@ -1,14 +1,12 @@
 @import "tailwindcss";
+@import "prosemirror-gapcursor/style/gapcursor.css";
 @import "./themes.css";
 @import "./css/base.css";
-@import "./css/layout.css";
 @import "./css/editor.css";
 @import "./css/sidebar.css";
 @import "./css/references.css";
 @import "./css/search.css";
-@import "./css/page-chrome.css";
 @import "./css/trash.css";
-@import "./css/shortcut-recorder.css";
 @import "./css/tooltip.css";
 @import "./css/entity.css";
 
