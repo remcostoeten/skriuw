@@ -226,6 +226,7 @@ async fn read_history_version(
 struct ArchiveExportPayload {
     nodes: usize,
     documents: usize,
+    images: usize,
     exported_at: i64,
     file_name: String,
 }
@@ -251,6 +252,7 @@ async fn export_workspace_archive(
     Ok(ArchiveExportPayload {
         nodes: report.nodes,
         documents: report.documents,
+        images: report.images,
         exported_at: report.exported_at,
         file_name,
     })

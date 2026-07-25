@@ -118,6 +118,9 @@ What shipped, and where it deviates from the sections above:
 
 ### Deferred
 
-- **Archives.** Portable archives still exclude blobs; an archive containing `image_ref` nodes imports cleanly but renders missing-image placeholders. The directory/zip archive format bump needs its own ADR (option 1 above) before implementation.
-- **Backup.** Scheduled backup/verified swap cover the SQLite file only; the exclusion is documented in [../recovery.md](../recovery.md). Pairing `blobs/` with the database in the swap machinery is open.
 - **Resize-by-drag, SVG support, editor-side markdown link pasting of local files.**
+
+### Recovery and portability
+
+- **Archives.** Desktop workspace archives include image metadata and Base64-encoded blob bytes. Older JSON-only archives remain importable; any image metadata in an archive must include matching blob data.
+- **Backup.** Each scheduled SQLite backup has a matching `.blobs` sidecar containing the images referenced by its database snapshot. Restore validates and copies that sidecar before the restored database goes live. Legacy backups that reference images but have no sidecar fail safely.
