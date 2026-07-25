@@ -68,16 +68,18 @@ function compareHistoryHeaders(left: HistoryHeader, right: HistoryHeader): numbe
 function derive(
   base: Omit<
     RendererState,
-    "nodes" | "childrenByParent" | "nodeOrder" | "visibleIds" | "metadata"
+    "nodes" | "childrenByParent" | "nodeOrder" | "noteIds" | "visibleIds" | "metadata"
   >,
 ): RendererState {
   const ordered = orderAvailableNodes([...base.sourceNodes.values()]);
   const index = buildNodeIndex(ordered);
   const metadata = new Map<string, NoteMetadata>();
+  const noteIds: string[] = [];
   for (const node of ordered) {
     if (node.kind !== "note") {
       continue;
     }
+    noteIds.push(node.id);
     metadata.set(node.id, {
       title: node.title,
       wordCount: base.documents.get(node.id)?.wordCount ?? 0,
@@ -111,6 +113,7 @@ function derive(
     ...base,
     ...index,
     panes,
+    noteIds,
     visibleIds: flattenVisible(index.nodes, index.childrenByParent, base.expandedIds),
     activeNoteId,
     focusedNodeId,
@@ -264,7 +267,21 @@ function reduceState(
       operation.noteId,
       extractReferences(operation.documentJson),
     );
-    return derive({ ...current, sourceNodes, documents, ...projection });
+    // Saves cannot change tree structure (ordering is rank/parentId/deletedAt),
+    // so skip derive: rebuilding the index would hand every unchanged record a
+    // new identity and re-render the shell on the typing path.
+    const noteMetadata = current.metadata.get(operation.noteId);
+    let metadata: ReadonlyMap<string, NoteMetadata> = current.metadata;
+    if (noteMetadata) {
+      const patched = new Map(current.metadata);
+      patched.set(operation.noteId, {
+        ...noteMetadata,
+        wordCount: operation.wordCount,
+        updatedAt: operation.at,
+      });
+      metadata = patched;
+    }
+    return { ...current, sourceNodes, documents, metadata, ...projection };
   }
 
   const sourceNodes = reduceOperation(current.sourceNodes, operation);
@@ -640,7 +657,11 @@ export function createRendererStore(initialState: RendererState): RendererStore 
       if (!rankChanged && !revisionChanged) {
         return current;
       }
-      return derive({ ...current, sourceNodes, documents });
+      if (rankChanged) {
+        return derive({ ...current, sourceNodes, documents });
+      }
+      // Revision-only acks touch nothing structural; keep every other identity.
+      return { ...current, documents };
     });
   }
 

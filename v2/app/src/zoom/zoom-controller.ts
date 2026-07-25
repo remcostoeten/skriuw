@@ -1,4 +1,5 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { hasTauriRuntime } from "../bridge/external-links";
 import {
   ZOOM_DEFAULT_PERCENT,
   ZOOM_KEY_STEP_PERCENT,
@@ -21,7 +22,7 @@ function applyCssZoom(factor: number): void {
 
 function applyZoomNow(): void {
   const factor = zoomPercent / 100;
-  if (nativeZoomUnavailable) {
+  if (nativeZoomUnavailable || !hasTauriRuntime()) {
     applyCssZoom(factor);
     return;
   }

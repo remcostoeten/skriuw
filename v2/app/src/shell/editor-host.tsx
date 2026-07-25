@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { editorModeForNote } from "../actions/editor-mode";
 import { NoteEditor } from "../editor/note-editor";
 import { RawMarkdownEditor } from "../editor/raw-markdown-editor";
@@ -20,11 +21,19 @@ export function EditorHost({
   selectNoteId = selectStoreActiveNote,
   emptyMessage = "Select a note from the sidebar or create a new one to start writing.",
 }: Props) {
-  const hasActiveNote = useRendererSelector(store, (state) => selectNoteId(state) !== null);
-  const isRawMode = useRendererSelector(store, (state) => {
-    const noteId = selectNoteId(state);
-    return noteId !== null && editorModeForNote(state, noteId) === "raw";
-  });
+  const selectHasNote = useMemo(
+    () => (state: RendererState) => selectNoteId(state) !== null,
+    [selectNoteId],
+  );
+  const selectRawMode = useMemo(
+    () => (state: RendererState) => {
+      const noteId = selectNoteId(state);
+      return noteId !== null && editorModeForNote(state, noteId) === "raw";
+    },
+    [selectNoteId],
+  );
+  const hasActiveNote = useRendererSelector(store, selectHasNote);
+  const isRawMode = useRendererSelector(store, selectRawMode);
   return (
     <div className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor px-12 py-8">
       <div className={hasActiveNote ? "mx-auto w-full max-w-[72ch]" : "hidden"}>
