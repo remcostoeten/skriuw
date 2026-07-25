@@ -36,6 +36,7 @@ export type MarkdownImportPlan = {
   folderCount: number;
   unresolvedReferences: number;
   remoteImages: number;
+  preservedSources: number;
 };
 
 export type MarkdownReferenceTarget = {
@@ -337,8 +338,12 @@ export function planMarkdownImport(
   const notes: MarkdownImportPlan["notes"] = [];
   let unresolvedReferences = 0;
   let remoteImages = 0;
+  let preservedSources = 0;
   for (const planned of plannedFiles) {
     const document = parseProductMarkdown(planned.file.content);
+    if (hasLosslessMarkdownDocument(document.toJSON())) {
+      preservedSources += 1;
+    }
     const resolved = resolveImportedNoteReferences(document.toJSON(), idsByTitle);
     unresolvedReferences += resolved.unresolved;
     remoteImages += collectRemoteImageSources(resolved.documentJson).length;
@@ -372,6 +377,7 @@ export function planMarkdownImport(
     folderCount: directoryPaths.length,
     unresolvedReferences,
     remoteImages,
+    preservedSources,
   };
 }
 
