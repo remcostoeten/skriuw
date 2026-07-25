@@ -1,5 +1,11 @@
 import type { WorkspaceImage, WorkspaceOperation } from "../contracts/workspace";
-import { parseProductMarkdown, serializeProductMarkdown } from "../editor/schema";
+import {
+  countWords,
+  hasLosslessMarkdownDocument,
+  parseProductMarkdown,
+  productSchema,
+  serializeProductMarkdown,
+} from "../editor/schema";
 import { noop } from "../shared/lib/noop";
 import type { RendererState } from "../store/types";
 
@@ -24,9 +30,17 @@ export type MarkdownTree = {
 
 export type MarkdownImportPlan = {
   operations: WorkspaceOperation[];
+  contentOperations: WorkspaceOperation[];
   notes: { id: string; relativePath: string }[];
   noteCount: number;
   folderCount: number;
+  unresolvedReferences: number;
+  remoteImages: number;
+};
+
+export type MarkdownReferenceTarget = {
+  id: string;
+  title: string;
 };
 
 type ExportSource = Pick<
@@ -153,6 +167,53 @@ export function buildNoteExportEntry(title: string, markdown: string): MarkdownE
   };
 }
 
+export function referenceSafeMarkdown(
+  documentJson: unknown,
+  storedMarkdown: string,
+  nodes: ExportSource["nodes"],
+): string {
+  if (hasLosslessMarkdownDocument(documentJson)) {
+    return storedMarkdown;
+  }
+  function visit(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map(visit);
+    }
+    if (typeof value !== "object" || value === null) {
+      return value;
+    }
+    const node = value as {
+      type?: unknown;
+      attrs?: { kind?: unknown; id?: unknown };
+      content?: unknown[];
+    };
+    if (
+      node.type === "mention_ref" &&
+      node.attrs?.kind === "note" &&
+      typeof node.attrs.id === "string"
+    ) {
+      const target = nodes.get(node.attrs.id);
+      return target
+        ? { ...node, attrs: { ...node.attrs, label: target.title } }
+        : node;
+    }
+    return {
+      ...node,
+      ...(Array.isArray(node.content) ? { content: node.content.map(visit) } : {}),
+    };
+  }
+  try {
+    const rendered = serializeProductMarkdown(
+      productSchema.nodeFromJSON(visit(documentJson)),
+    );
+    return rendered.length === 0 && storedMarkdown.length > 0
+      ? storedMarkdown
+      : rendered;
+  } catch {
+    return storedMarkdown;
+  }
+}
+
 export function buildWorkspaceExportEntries(source: ExportSource): MarkdownExportEntry[] {
   const entries: MarkdownExportEntry[] = [];
   const takenImagePaths = new Set<string>();
@@ -172,10 +233,15 @@ export function buildWorkspaceExportEntries(source: ExportSource): MarkdownExpor
         const name = claimUniqueName(taken, base, ".md");
         const record = source.documents.get(id);
         const imageIds = collectImageRefIds(record?.documentJson);
+        const markdown = referenceSafeMarkdown(
+          record?.documentJson,
+          record?.markdown ?? "",
+          source.nodes,
+        );
         entries.push({
           relativePath: `${prefix}${name}`,
           kind: "note",
-          markdown: rewriteExportedImagePaths(record?.markdown ?? "", source.images, imageIds),
+          markdown: rewriteExportedImagePaths(markdown, source.images, imageIds),
         });
         entries.push(
           ...buildImageExportEntries(source.images, imageIds, prefix, takenImagePaths),
@@ -225,8 +291,10 @@ export function planMarkdownImport(
   tree: MarkdownTree,
   at: number,
   makeId: () => string,
+  existingNotes: readonly MarkdownReferenceTarget[] = [],
 ): MarkdownImportPlan {
   const operations: WorkspaceOperation[] = [];
+  const contentOperations: WorkspaceOperation[] = [];
   const folderIdByPath = new Map<string, string>();
   const directoryPaths = collectDirectoryPaths(tree);
   for (const path of directoryPaths) {
@@ -245,31 +313,114 @@ export function planMarkdownImport(
   const files = [...tree.files].sort((left, right) =>
     comparePaths(normalizeTreePath(left.relativePath), normalizeTreePath(right.relativePath)),
   );
-  const notes: MarkdownImportPlan["notes"] = [];
-  for (const file of files) {
+  const plannedFiles = files.map((file) => {
     const normalized = normalizeTreePath(file.relativePath);
     const cut = normalized.lastIndexOf("/");
-    const parentId = cut === -1 ? null : (folderIdByPath.get(normalized.slice(0, cut)) ?? null);
     const fileName = cut === -1 ? normalized : normalized.slice(cut + 1);
-    const document = parseProductMarkdown(file.content);
-    const id = makeId();
-    notes.push({ id, relativePath: normalized });
+    return {
+      file,
+      normalized,
+      parentId: cut === -1 ? null : (folderIdByPath.get(normalized.slice(0, cut)) ?? null),
+      title: fileName.replace(/\.md$/i, ""),
+      id: makeId(),
+    };
+  });
+  const idsByTitle = new Map<string, string[]>();
+  for (const target of [
+    ...existingNotes,
+    ...plannedFiles.map(({ id, title }) => ({ id, title })),
+  ]) {
+    const ids = idsByTitle.get(target.title) ?? [];
+    ids.push(target.id);
+    idsByTitle.set(target.title, ids);
+  }
+  const notes: MarkdownImportPlan["notes"] = [];
+  let unresolvedReferences = 0;
+  let remoteImages = 0;
+  for (const planned of plannedFiles) {
+    const document = parseProductMarkdown(planned.file.content);
+    const resolved = resolveImportedNoteReferences(document.toJSON(), idsByTitle);
+    unresolvedReferences += resolved.unresolved;
+    remoteImages += collectRemoteImageSources(resolved.documentJson).length;
+    const empty = parseProductMarkdown("");
+    const id = planned.id;
+    notes.push({ id, relativePath: planned.normalized });
     operations.push({
       type: "create_note",
       id,
-      title: fileName.replace(/\.md$/i, ""),
-      placement: { parentId, position: { type: "last" } },
-      documentJson: document.toJSON(),
-      markdown: serializeProductMarkdown(document),
+      title: planned.title,
+      placement: { parentId: planned.parentId, position: { type: "last" } },
+      documentJson: empty.toJSON(),
+      markdown: "",
+      at,
+    });
+    contentOperations.push({
+      type: "save_document",
+      noteId: id,
+      documentJson: resolved.documentJson,
+      markdown: planned.file.content,
+      wordCount: countDocumentWords(resolved.documentJson),
+      expectedRevision: 1,
       at,
     });
   }
   return {
     operations,
+    contentOperations,
     notes,
     noteCount: files.length,
     folderCount: directoryPaths.length,
+    unresolvedReferences,
+    remoteImages,
   };
+}
+
+function countDocumentWords(documentJson: unknown): number {
+  try {
+    return countWords(productSchema.nodeFromJSON(documentJson));
+  } catch {
+    return 0;
+  }
+}
+
+function resolveImportedNoteReferences(
+  documentJson: unknown,
+  idsByTitle: ReadonlyMap<string, readonly string[]>,
+): { documentJson: unknown; unresolved: number } {
+  let unresolved = 0;
+  function visit(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map(visit);
+    }
+    if (typeof value !== "object" || value === null) {
+      return value;
+    }
+    const node = value as {
+      type?: unknown;
+      attrs?: { kind?: unknown; label?: unknown };
+      content?: unknown[];
+    };
+    if (
+      node.type === "mention_ref" &&
+      node.attrs?.kind === "note" &&
+      typeof node.attrs.label === "string"
+    ) {
+      const ids = idsByTitle.get(node.attrs.label) ?? [];
+      if (ids.length === 1) {
+        return {
+          ...node,
+          attrs: { ...node.attrs, id: ids[0] },
+        };
+      }
+      unresolved += 1;
+      return { type: "text", text: `[[${node.attrs.label}]]` };
+    }
+    return {
+      ...node,
+      ...(Array.isArray(node.content) ? { content: node.content.map(visit) } : {}),
+    };
+  }
+  return { documentJson: visit(documentJson), unresolved };
 }
 
 function hasUriScheme(src: string): boolean {
@@ -294,6 +445,33 @@ export function collectLocalImageSources(documentJson: unknown): string[] {
       typeof node.attrs?.src === "string" &&
       node.attrs.src.length > 0 &&
       !hasUriScheme(node.attrs.src) &&
+      !seen.has(node.attrs.src)
+    ) {
+      seen.add(node.attrs.src);
+      sources.push(node.attrs.src);
+    }
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) {
+        visit(child);
+      }
+    }
+  }
+  visit(documentJson);
+  return sources;
+}
+
+export function collectRemoteImageSources(documentJson: unknown): string[] {
+  const sources: string[] = [];
+  const seen = new Set<string>();
+  function visit(value: unknown): void {
+    if (typeof value !== "object" || value === null) {
+      return;
+    }
+    const node = value as { type?: unknown; attrs?: { src?: unknown }; content?: unknown };
+    if (
+      node.type === "image" &&
+      typeof node.attrs?.src === "string" &&
+      hasUriScheme(node.attrs.src) &&
       !seen.has(node.attrs.src)
     ) {
       seen.add(node.attrs.src);
