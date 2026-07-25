@@ -1,14 +1,17 @@
-import { baseKeymap } from "prosemirror-commands";
+import { baseKeymap, chainCommands, toggleMark } from "prosemirror-commands";
 import { history, redo, undo } from "prosemirror-history";
 import {
   ellipsis,
   emDash,
+  InputRule,
   inputRules,
   smartQuotes,
   textblockTypeInputRule,
   wrappingInputRule,
 } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
+import { dropCursor } from "prosemirror-dropcursor";
+import { gapCursor } from "prosemirror-gapcursor";
 import {
   defaultMarkdownParser,
   defaultMarkdownSerializer,
@@ -17,13 +20,24 @@ import {
 } from "prosemirror-markdown";
 import {
   Schema,
+  type MarkSpec,
+  type MarkType,
   type Node as ProseMirrorNode,
   type NodeSpec,
 } from "prosemirror-model";
 import { schema as basicSchema } from "prosemirror-schema-basic";
-import { Plugin, PluginKey, type EditorState } from "prosemirror-state";
-import { Decoration, DecorationSet } from "prosemirror-view";
+import { Plugin, PluginKey, TextSelection, type EditorState } from "prosemirror-state";
+import { findWrapping } from "prosemirror-transform";
+import { moveSelectedBlock } from "./block-commands";
+import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
 import { addListNodes, liftListItem, sinkListItem, splitListItem } from "prosemirror-schema-list";
+import {
+  columnResizing,
+  goToNextCell,
+  tableEditing,
+  tableNodes,
+} from "prosemirror-tables";
+import { createCodeHighlightPlugin } from "./code-highlight";
 import { createSearchPlugin } from "./search-plugin";
 
 export type SlashMenuState = {
@@ -140,14 +154,111 @@ const imageRefSpec: NodeSpec = {
   ],
 };
 
+const checkListSpec: NodeSpec = {
+  content: "check_item+",
+  group: "block",
+  toDOM: () => ["ul", { class: "check-list", "data-check-list": "true" }, 0],
+  parseDOM: [{ tag: "ul[data-check-list]", priority: 60 }],
+};
+
+const checkItemSpec: NodeSpec = {
+  content: "paragraph block*",
+  defining: true,
+  attrs: {
+    checked: { default: false },
+  },
+  toDOM: (node) => [
+    "li",
+    {
+      class: "check-item",
+      "data-checked": node.attrs.checked ? "true" : "false",
+    },
+    [
+      "span",
+      {
+        class: "check-item-box",
+        contenteditable: "false",
+        role: "checkbox",
+        "aria-checked": node.attrs.checked ? "true" : "false",
+      },
+    ],
+    ["div", { class: "check-item-content" }, 0],
+  ],
+  parseDOM: [
+    {
+      tag: "li[data-checked]",
+      priority: 60,
+      getAttrs: (dom) => ({ checked: dom.getAttribute("data-checked") === "true" }),
+    },
+  ],
+};
+
+const LANGUAGE_CLASS = /(?:^|\s)language-(\S+)/;
+
+function codeBlockLanguage(dom: HTMLElement): string {
+  const declared = dom.getAttribute("data-language");
+  if (declared) return declared;
+  const code = dom.querySelector("code");
+  const source = code ?? dom;
+  const fromData = source.getAttribute("data-language");
+  if (fromData) return fromData;
+  return source.getAttribute("class")?.match(LANGUAGE_CLASS)?.[1] ?? "";
+}
+
+const codeBlockSpec: NodeSpec = {
+  content: "text*",
+  marks: "",
+  group: "block",
+  code: true,
+  defining: true,
+  attrs: {
+    params: { default: "" },
+  },
+  toDOM: (node) => [
+    "pre",
+    { "data-language": String(node.attrs.params) || null },
+    ["code", 0],
+  ],
+  parseDOM: [
+    {
+      tag: "pre",
+      preserveWhitespace: "full",
+      getAttrs: (dom) => ({ params: codeBlockLanguage(dom) }),
+    },
+  ],
+};
+
+const strikethroughSpec: MarkSpec = {
+  parseDOM: [
+    { tag: "s" },
+    { tag: "del" },
+    { tag: "strike" },
+    { style: "text-decoration=line-through" },
+  ],
+  toDOM: () => ["s", 0],
+};
+
+const tableSpecs = tableNodes({
+  tableGroup: "block",
+  cellContent: "block+",
+  cellAttributes: {},
+});
+
 const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
+  .update("code_block", codeBlockSpec)
+  .addToEnd("check_list", checkListSpec)
+  .addToEnd("check_item", checkItemSpec)
   .addToEnd("tag_ref", tagRefSpec)
   .addToEnd("mention_ref", mentionRefSpec)
-  .addToEnd("image_ref", imageRefSpec);
+  .addToEnd("image_ref", imageRefSpec)
+  .addToEnd("table", tableSpecs.table)
+  .addToEnd("table_row", tableSpecs.table_row)
+  .addToEnd("table_cell", tableSpecs.table_cell)
+  .addToEnd("table_header", tableSpecs.table_header);
 
 export const productSchema = new Schema({
   nodes,
-  marks: basicSchema.spec.marks,
+  marks: basicSchema.spec.marks.addToEnd("strikethrough", strikethroughSpec),
 });
 
 export const slashMenuKey = new PluginKey<SlashMenuState>("skriuw-slash-menu");
@@ -161,8 +272,9 @@ function createSlashMenuPlugin(): Plugin<SlashMenuState> {
         if (!transaction.docChanged && !transaction.selectionSet) return previous;
         const { $from } = transaction.selection;
         if (!$from.parent.isTextblock) return { open: false, query: "" };
+        if ($from.parent.type.spec.code) return { open: false, query: "" };
         const before = $from.parent.textBetween(0, $from.parentOffset, "\0", "\0");
-        const match = before.match(/^\/([a-z-]*)$/i);
+        const match = before.match(/(?:^|[\s\0])\/([a-z0-9-]*)$/i);
         return match
           ? { open: true, query: match[1] ?? "" }
           : { open: false, query: "" };
@@ -196,6 +308,178 @@ function createPlaceholderPlugin(): Plugin {
   });
 }
 
+/**
+ * Converts inline markdown delimiters into a mark as the closing delimiter is
+ * typed (e.g. `**bold**`). `match[1]` must capture the marked content and the
+ * match must end with the closing delimiter; anything before the opening
+ * delimiter is left untouched.
+ */
+function markInputRule(
+  pattern: RegExp,
+  markType: MarkType,
+  delimiterLength: number,
+): InputRule {
+  return new InputRule(pattern, (state, match, start, end) => {
+    const content = match[1] ?? "";
+    if (!content) return null;
+    if (state.doc.resolve(start).parent.type.spec.code) return null;
+    const prefix = match[0].length - content.length - delimiterLength * 2;
+    const openStart = start + prefix;
+    const contentStart = openStart + delimiterLength;
+    const contentEnd = contentStart + content.length;
+    const codeMark = productSchema.marks.code;
+    if (
+      codeMark &&
+      markType !== codeMark &&
+      state.doc.rangeHasMark(contentStart, Math.min(contentEnd, end), codeMark)
+    ) {
+      return null;
+    }
+    const tr = state.tr;
+    if (contentEnd < end) tr.delete(contentEnd, end);
+    tr.delete(openStart, contentStart);
+    tr.addMark(openStart, openStart + content.length, markType.create());
+    tr.removeStoredMark(markType);
+    return tr;
+  });
+}
+
+function horizontalRuleInputRule(): InputRule {
+  return new InputRule(/^(?:---|—-|___|\*\*\*)$/, (state, _match, start, end) => {
+    const horizontalRule = productSchema.nodes.horizontal_rule;
+    const paragraph = productSchema.nodes.paragraph;
+    if (!horizontalRule || !paragraph) return null;
+    const tr = state.tr.replaceRangeWith(start, end, horizontalRule.create());
+    const afterRule = tr.mapping.map(end);
+    if (!tr.doc.resolve(afterRule).nodeAfter) {
+      tr.insert(afterRule, paragraph.create());
+    }
+    tr.setSelection(TextSelection.near(tr.doc.resolve(afterRule), 1));
+    return tr.scrollIntoView();
+  });
+}
+
+function checkListInputRule(): InputRule {
+  return new InputRule(/^\s*\[([ xX])?\]\s$/, (state, match, start, end) => {
+    const checkList = productSchema.nodes.check_list;
+    if (!checkList) return null;
+    if (state.doc.resolve(start).parent.type.spec.code) return null;
+    const tr = state.tr.delete(start, end);
+    const range = tr.doc.resolve(start).blockRange();
+    if (!range) return null;
+    const wrapping = findWrapping(range, checkList);
+    if (!wrapping) return null;
+    tr.wrap(range, wrapping);
+    if ((match[1] ?? "").toLowerCase() === "x") {
+      tr.setNodeMarkup(range.start + 1, undefined, { checked: true });
+    }
+    return tr;
+  });
+}
+
+function linkInputRule(): InputRule {
+  return new InputRule(/\[([^\[\]]+)\]\(([^()\s]+)\)$/, (state, match, start, end) => {
+    const link = productSchema.marks.link;
+    const text = match[1] ?? "";
+    const href = match[2] ?? "";
+    if (!link || !text || !href) return null;
+    if (state.doc.resolve(start).parent.type.spec.code) return null;
+    const codeMark = productSchema.marks.code;
+    if (codeMark && state.doc.rangeHasMark(start, end, codeMark)) return null;
+    const tr = state.tr.delete(start, end).insertText(text, start);
+    tr.addMark(start, start + text.length, link.create({ href }));
+    tr.removeStoredMark(link);
+    return tr;
+  });
+}
+
+const AUTOLINK_PATTERN =
+  /(?:^|[\s(])((?:https?:\/\/|www\.)[^\s<>]*[^\s<>.,;:!?)])(\s)$/;
+
+/**
+ * Links a bare URL once the word is closed by whitespace. Input rules run
+ * before the trigger character reaches the document, so the whitespace has to
+ * be re-inserted here or typing it would be swallowed.
+ */
+function autolinkInputRule(): InputRule {
+  return new InputRule(AUTOLINK_PATTERN, (state, match, start, end) => {
+    const link = productSchema.marks.link;
+    const url = match[1] ?? "";
+    const trailing = match[2] ?? "";
+    if (!link || !url) return null;
+    const from = start + match[0].indexOf(url);
+    const to = from + url.length;
+    if (state.doc.rangeHasMark(from, to, link)) return null;
+    const tr = state.tr.addMark(from, to, link.create({ href: normalizeAutolink(url) }));
+    tr.removeStoredMark(link);
+    tr.insertText(trailing, end);
+    return tr;
+  });
+}
+
+export function normalizeAutolink(url: string): string {
+  return url.startsWith("www.") ? `https://${url}` : url;
+}
+
+const PASTED_URL_PATTERN = /^(?:https?:\/\/|www\.)[^\s<>]+$/;
+
+/**
+ * Links the selected text when the pasted clipboard content is a bare URL,
+ * rather than replacing the selection with the URL. Returns false when the
+ * paste should fall through to the default handling.
+ */
+export function linkPastedText(view: EditorView, text: string): boolean {
+  const link = productSchema.marks.link;
+  const { selection } = view.state;
+  const trimmed = text.trim();
+  if (!link || selection.empty || !(selection instanceof TextSelection)) return false;
+  if (!PASTED_URL_PATTERN.test(trimmed)) return false;
+  if (selection.$from.parent.type.spec.code) return false;
+  view.dispatch(
+    view.state.tr
+      .addMark(
+        selection.from,
+        selection.to,
+        link.create({ href: normalizeAutolink(trimmed) }),
+      )
+      .removeStoredMark(link),
+  );
+  return true;
+}
+
+function createCheckboxTogglePlugin(): Plugin {
+  return new Plugin({
+    props: {
+      handleDOMEvents: {
+        mousedown(view, event) {
+          const target = event.target;
+          if (
+            !(target instanceof HTMLElement) ||
+            !target.classList.contains("check-item-box") ||
+            !view.editable
+          ) {
+            return false;
+          }
+          event.preventDefault();
+          const $pos = view.state.doc.resolve(view.posAtDOM(target, 0));
+          for (let depth = $pos.depth; depth > 0; depth -= 1) {
+            const node = $pos.node(depth);
+            if (node.type.name === "check_item") {
+              view.dispatch(
+                view.state.tr.setNodeMarkup($pos.before(depth), undefined, {
+                  checked: !node.attrs.checked,
+                }),
+              );
+              return true;
+            }
+          }
+          return false;
+        },
+      },
+    },
+  });
+}
+
 export function createProductPlugins(): Plugin[] {
   const blockquote = productSchema.nodes.blockquote;
   const codeBlock = productSchema.nodes.code_block;
@@ -203,19 +487,38 @@ export function createProductPlugins(): Plugin[] {
   const bulletList = productSchema.nodes.bullet_list;
   const orderedList = productSchema.nodes.ordered_list;
   const listItem = productSchema.nodes.list_item;
-  if (!blockquote || !codeBlock || !heading || !bulletList || !orderedList || !listItem) {
+  const checkItem = productSchema.nodes.check_item;
+  if (
+    !blockquote ||
+    !codeBlock ||
+    !heading ||
+    !bulletList ||
+    !orderedList ||
+    !listItem ||
+    !checkItem
+  ) {
     throw new Error("product schema is missing a required block node");
+  }
+  const strong = productSchema.marks.strong;
+  const em = productSchema.marks.em;
+  const code = productSchema.marks.code;
+  const strikethrough = productSchema.marks.strikethrough;
+  if (!strong || !em || !code || !strikethrough) {
+    throw new Error("product schema is missing a required mark");
   }
   return [
     history({ newGroupDelay: HISTORY_GROUP_DELAY_MS, depth: HISTORY_DEPTH }),
     createSlashMenuPlugin(),
     createPlaceholderPlugin(),
     createSearchPlugin(),
+    createCodeHighlightPlugin(),
+    createCheckboxTogglePlugin(),
     inputRules({
       rules: [
         ...smartQuotes,
         ellipsis,
         emDash,
+        checkListInputRule(),
         textblockTypeInputRule(/^(#{1,6})\s$/, heading, (match) => ({
           level: match[1]?.length ?? 1,
         })),
@@ -228,17 +531,47 @@ export function createProductPlugins(): Plugin[] {
         ),
         wrappingInputRule(/^\s*>\s$/, blockquote),
         textblockTypeInputRule(/^```$/, codeBlock),
+        horizontalRuleInputRule(),
+        linkInputRule(),
+        autolinkInputRule(),
+        markInputRule(/\*\*([^*\s](?:[^*]*[^*\s])?)\*\*$/, strong, 2),
+        markInputRule(/(?:^|[^_])__([^_\s](?:[^_]*[^_\s])?)__$/, strong, 2),
+        markInputRule(/~~([^~\s](?:[^~]*[^~\s])?)~~$/, strikethrough, 2),
+        markInputRule(/(?:^|[^*])\*([^*\s](?:[^*]*[^*\s])?)\*$/, em, 1),
+        markInputRule(/(?:^|[^\w])_([^_\s](?:[^_]*[^_\s])?)_$/, em, 1),
+        markInputRule(/`([^`\s](?:[^`]*[^`\s])?)`$/, code, 1),
       ],
     }),
     keymap({
       "Mod-z": undo,
       "Shift-Mod-z": redo,
       "Mod-y": redo,
-      Enter: splitListItem(listItem),
-      Tab: sinkListItem(listItem),
-      "Shift-Tab": liftListItem(listItem),
+      "Mod-b": toggleMark(strong),
+      "Mod-i": toggleMark(em),
+      "Mod-e": toggleMark(code),
+      "Mod-Shift-x": toggleMark(strikethrough),
+      "Alt-ArrowUp": moveSelectedBlock(-1),
+      "Alt-ArrowDown": moveSelectedBlock(1),
+      Enter: chainCommands(
+        splitListItem(checkItem, { checked: false }),
+        splitListItem(listItem),
+      ),
+      Tab: chainCommands(
+        sinkListItem(checkItem),
+        sinkListItem(listItem),
+        goToNextCell(1),
+      ),
+      "Shift-Tab": chainCommands(
+        liftListItem(checkItem),
+        liftListItem(listItem),
+        goToNextCell(-1),
+      ),
     }),
     keymap(baseKeymap),
+    columnResizing(),
+    tableEditing(),
+    dropCursor({ color: "hsl(var(--primary))", width: 2 }),
+    gapCursor(),
   ];
 }
 
@@ -246,9 +579,72 @@ export function slashMenuState(state: EditorState): SlashMenuState {
   return slashMenuKey.getState(state) ?? { open: false, query: "" };
 }
 
+/**
+ * Renders one table cell as a single line of inline Markdown. A cell holding a
+ * single paragraph keeps its inline marks; anything richer (lists, nested
+ * tables, several blocks) has no GFM pipe-table equivalent and is flattened to
+ * plain text rather than emitting a broken table.
+ */
+function serializeTableCell(cell: ProseMirrorNode): string {
+  const only = cell.childCount === 1 ? cell.firstChild : null;
+  const rendered = only && only.type.name === "paragraph"
+    ? productMarkdownSerializer.serialize(productSchema.node("doc", null, [only]))
+    : cell.textBetween(0, cell.content.size, " ", " ");
+  return rendered.replace(/\s*\n\s*/g, " ").replace(/\|/g, "\\|").trim();
+}
+
+function serializeTableRow(row: ProseMirrorNode): string[] {
+  const cells: string[] = [];
+  row.forEach((cell) => {
+    cells.push(serializeTableCell(cell));
+    const span = Number(cell.attrs.colspan) || 1;
+    for (let extra = 1; extra < span; extra += 1) cells.push("");
+  });
+  return cells;
+}
+
+function pipeRow(cells: readonly string[], width: number): string {
+  const padded = Array.from({ length: width }, (_, index) => cells[index] ?? "");
+  return `| ${padded.join(" | ")} |`;
+}
+
 const productMarkdownSerializer = new MarkdownSerializer(
   {
     ...defaultMarkdownSerializer.nodes,
+    table(state, node) {
+      const rows: string[][] = [];
+      node.forEach((row) => rows.push(serializeTableRow(row)));
+      const width = rows.reduce((widest, row) => Math.max(widest, row.length), 0);
+      if (width === 0) {
+        state.closeBlock(node);
+        return;
+      }
+      state.write(pipeRow(rows[0] ?? [], width));
+      state.ensureNewLine();
+      state.write(pipeRow(Array.from({ length: width }, () => "---"), width));
+      state.ensureNewLine();
+      for (const row of rows.slice(1)) {
+        state.write(pipeRow(row, width));
+        state.ensureNewLine();
+      }
+      state.closeBlock(node);
+    },
+    code_block(state, node) {
+      const backticks = node.textContent.match(/`{3,}/gm);
+      const fence = backticks ? `${backticks.sort().slice(-1)[0]}\`` : "```";
+      state.write(`${fence}${String(node.attrs.params ?? "")}\n`);
+      state.text(node.textContent, false);
+      state.ensureNewLine();
+      state.write(fence);
+      state.closeBlock(node);
+    },
+    check_list(state, node) {
+      state.renderList(node, "  ", () => "- ");
+    },
+    check_item(state, node) {
+      state.write(node.attrs.checked ? "[x] " : "[ ] ");
+      state.renderContent(node);
+    },
     tag_ref(state, node) {
       state.text(`#${node.attrs.label}`, false);
     },
@@ -265,7 +661,15 @@ const productMarkdownSerializer = new MarkdownSerializer(
       );
     },
   },
-  defaultMarkdownSerializer.marks,
+  {
+    ...defaultMarkdownSerializer.marks,
+    strikethrough: {
+      open: "~~",
+      close: "~~",
+      mixable: true,
+      expelEnclosingWhitespace: true,
+    },
+  },
 );
 
 export function serializeProductMarkdown(document: ProseMirrorNode): string {
@@ -312,11 +716,65 @@ if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any
   defaultMarkdownParser.tokenizer.inline.ruler.before("link", "wiki_link", inlineWikiLinkRule);
 }
 
+/**
+ * The parser is built on markdown-it's commonmark preset, which disables both
+ * of these core rules outright — setting the `linkify` option alone silently
+ * does nothing without enabling the rule as well.
+ *
+ * Fuzzy linkification stays off deliberately: it turns any bare `word.word`
+ * into a link, which fires on ordinary prose (filenames, abbreviations) far
+ * more often than on real URLs. Only scheme-prefixed and `www.` URLs link.
+ */
+/**
+ * markdown-it emits a bare `inline` token inside `th`/`td`, but `table_cell`
+ * holds `block+`, so the text would have nowhere to land and the cell would be
+ * dropped by `createAndFill`. Wrapping the inline run in paragraph tokens keeps
+ * the cell content valid without a bespoke token handler.
+ */
+function wrapTableCellContent(state: any): boolean {
+  const tokens = state.tokens;
+  const wrapped: any[] = [];
+  let inCell = false;
+  for (const token of tokens) {
+    if (token.type === "th_open" || token.type === "td_open") inCell = true;
+    if (inCell && token.type === "inline") {
+      wrapped.push(new state.Token("paragraph_open", "p", 1));
+      wrapped.push(token);
+      wrapped.push(new state.Token("paragraph_close", "p", -1));
+      inCell = false;
+      continue;
+    }
+    if (token.type === "th_close" || token.type === "td_close") inCell = false;
+    wrapped.push(token);
+  }
+  state.tokens = wrapped;
+  return true;
+}
+
+if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) => r.name === "table_cell_paragraphs")) {
+  defaultMarkdownParser.tokenizer.core.ruler.push("table_cell_paragraphs", wrapTableCellContent);
+}
+
+defaultMarkdownParser.tokenizer.enable(["strikethrough", "linkify", "table"], true);
+defaultMarkdownParser.tokenizer.set({ linkify: true });
+defaultMarkdownParser.tokenizer.linkify.set({
+  fuzzyLink: false,
+  fuzzyEmail: false,
+  fuzzyIP: false,
+});
+
 const productMarkdownParser = new MarkdownParser(
   productSchema,
   defaultMarkdownParser.tokenizer,
   {
     ...defaultMarkdownParser.tokens,
+    s: { mark: "strikethrough" },
+    table: { block: "table" },
+    thead: { ignore: true },
+    tbody: { ignore: true },
+    tr: { block: "table_row" },
+    th: { block: "table_header" },
+    td: { block: "table_cell" },
     wiki_link: {
       node: "mention_ref",
       getAttrs: (tok: any) => ({
@@ -341,12 +799,88 @@ function plainParagraphDocument(markdown: string): ProseMirrorNode {
   );
 }
 
+const CHECKBOX_PREFIX = /^\[([ xX])\] /;
+
+type JsonNode = {
+  type?: unknown;
+  attrs?: Record<string, unknown>;
+  content?: unknown[];
+  text?: unknown;
+  [key: string]: unknown;
+};
+
+function checkboxPrefix(item: JsonNode): RegExpMatchArray | null {
+  if (item.type !== "list_item") return null;
+  const paragraph = item.content?.[0] as JsonNode | undefined;
+  if (paragraph?.type !== "paragraph") return null;
+  const text = paragraph.content?.[0] as JsonNode | undefined;
+  if (text?.type !== "text" || typeof text.text !== "string") return null;
+  return text.text.match(CHECKBOX_PREFIX);
+}
+
+function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
+  const paragraph = item.content?.[0] as JsonNode;
+  const text = paragraph.content?.[0] as JsonNode;
+  const stripped = (text.text as string).slice(prefix[0].length);
+  const inline = stripped.length > 0
+    ? [{ ...text, text: stripped }, ...(paragraph.content?.slice(1) ?? [])]
+    : paragraph.content?.slice(1) ?? [];
+  return {
+    type: "check_item",
+    attrs: { checked: prefix[1]?.toLowerCase() === "x" },
+    content: [
+      { ...paragraph, content: inline },
+      ...(item.content?.slice(1) ?? []),
+    ],
+  };
+}
+
+/**
+ * CommonMark has no task-list syntax, so `- [ ] thing` parses as a plain
+ * bullet item whose text starts with the checkbox marker. Rewrites runs of
+ * such items into `check_list`/`check_item` nodes, splitting mixed bullet
+ * lists into adjacent lists so plain items stay bullets.
+ */
+function upgradeCheckLists(node: unknown): unknown[] {
+  if (node === null || typeof node !== "object") return [node];
+  const record = node as JsonNode;
+  const content = Array.isArray(record.content)
+    ? record.content.flatMap((child) => upgradeCheckLists(child))
+    : record.content;
+  if (record.type !== "bullet_list" || !Array.isArray(content)) {
+    return [content === record.content ? record : { ...record, content }];
+  }
+  const runs: JsonNode[] = [];
+  for (const child of content as JsonNode[]) {
+    const prefix = checkboxPrefix(child);
+    const type = prefix ? "check_list" : "bullet_list";
+    const item = prefix ? toCheckItem(child, prefix) : child;
+    const last = runs[runs.length - 1];
+    if (last && last.type === type) {
+      (last.content as JsonNode[]).push(item);
+    } else {
+      runs.push(
+        type === "check_list"
+          ? { type, content: [item] }
+          : { ...record, content: [item] },
+      );
+    }
+  }
+  return runs;
+}
+
 export function parseProductMarkdown(markdown: string): ProseMirrorNode {
   if (markdown.trim().length === 0) {
     return plainParagraphDocument("");
   }
   try {
-    return productMarkdownParser.parse(markdown);
+    const parsed = productMarkdownParser.parse(markdown);
+    try {
+      const [upgraded] = upgradeCheckLists(parsed.toJSON());
+      return productSchema.nodeFromJSON(upgraded);
+    } catch {
+      return parsed;
+    }
   } catch {
     return plainParagraphDocument(markdown);
   }

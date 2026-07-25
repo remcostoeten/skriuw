@@ -318,26 +318,6 @@ fn workspace_storage_path(state: State<'_, AppState>) -> String {
     state.storage_path.display().to_string()
 }
 
-#[tauri::command]
-fn open_external_url(url: String) -> Result<(), String> {
-    let allowed = url.starts_with("https://") || url.starts_with("mailto:");
-    if !allowed {
-        return Err(format!("refused to open {url}"));
-    }
-    let opener = if cfg!(target_os = "macos") {
-        "open"
-    } else if cfg!(target_os = "windows") {
-        "explorer"
-    } else {
-        "xdg-open"
-    };
-    std::process::Command::new(opener)
-        .arg(&url)
-        .spawn()
-        .map_err(|error| format!("open {url}: {error}"))?;
-    Ok(())
-}
-
 fn open_in_file_manager(target: &Path) -> Result<(), String> {
     let opener = if cfg!(target_os = "macos") {
         "open"
@@ -703,6 +683,7 @@ async fn pick_directory(app: tauri::AppHandle, title: String) -> Result<Option<S
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let path = database_path(app.handle())?;
@@ -759,7 +740,6 @@ pub fn run() {
             reveal_workspace_storage,
             reveal_workspace_images,
             relocate_workspace_storage,
-            open_external_url,
             export_markdown_tree,
             read_markdown_tree,
             pick_directory,

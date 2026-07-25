@@ -1,10 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { hasTauriRuntime } from "../bridge/external-links";
 import { cn } from "../shared/lib/utils";
 import { noop } from "../shared/lib/noop";
 import { CloseIcon, MaximizeIcon, MinimizeIcon, RestoreIcon } from "../shared/icons";
-
-const appWindow = getCurrentWindow();
 
 type ControlButtonProps = {
   label: string;
@@ -42,9 +41,15 @@ function ControlButton({ label, onClick, className, children }: ControlButtonPro
  * so the window can still be moved from here.
  */
 export function WindowControls() {
+  if (!hasTauriRuntime()) return null;
+  return <TauriWindowControls />;
+}
+
+function TauriWindowControls() {
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
+    const appWindow = getCurrentWindow();
     let active = true;
     const refresh = () => {
       appWindow
@@ -67,12 +72,12 @@ export function WindowControls() {
       data-tauri-drag-region
       className="fixed right-0 top-0 z-50 flex h-9 items-center gap-0.5 rounded-bl-lg border-b border-l border-sidebar-border/70 bg-sidebar pl-2 pr-1"
     >
-      <ControlButton label="Minimize" onClick={runWindowAction(() => appWindow.minimize())}>
+      <ControlButton label="Minimize" onClick={runWindowAction(() => getCurrentWindow().minimize())}>
         <MinimizeIcon size={14} strokeWidth={1.75} />
       </ControlButton>
       <ControlButton
         label={isMaximized ? "Restore" : "Maximize"}
-        onClick={runWindowAction(() => appWindow.toggleMaximize())}
+        onClick={runWindowAction(() => getCurrentWindow().toggleMaximize())}
       >
         {isMaximized ? (
           <RestoreIcon size={12} strokeWidth={1.75} />
@@ -82,7 +87,7 @@ export function WindowControls() {
       </ControlButton>
       <ControlButton
         label="Close"
-        onClick={runWindowAction(() => appWindow.close())}
+        onClick={runWindowAction(() => getCurrentWindow().close())}
         className="hover:bg-red-500/85 hover:text-white"
       >
         <CloseIcon size={14} strokeWidth={1.75} />

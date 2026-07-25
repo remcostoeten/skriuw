@@ -15,7 +15,7 @@ import {
   useOutgoingNotes,
   useUnlinkedMentions,
 } from "../references/reference-panel";
-import type { RendererStore } from "../store/types";
+import type { RendererState, RendererStore } from "../store/types";
 
 type Props = {
   store: RendererStore;
@@ -103,25 +103,45 @@ function formatDateTime(timestamp: number): string {
   return `${datePart}, ${timePart}`;
 }
 
+function selectActiveNoteId(state: RendererState): string | null {
+  return state.activeNoteId;
+}
+
+function selectActiveNoteMetadata(state: RendererState) {
+  return state.activeNoteId === null
+    ? null
+    : (state.metadata.get(state.activeNoteId) ?? null);
+}
+
+function selectActiveNoteHistory(state: RendererState) {
+  return state.activeNoteId === null
+    ? null
+    : (state.historyHeaders.get(state.activeNoteId) ?? null);
+}
+
+function selectActiveNoteCreatedAt(state: RendererState): number | null {
+  return state.activeNoteId === null
+    ? null
+    : (state.sourceNodes.get(state.activeNoteId)?.createdAt ?? null);
+}
+
+function selectActiveNoteMarkdown(state: RendererState): string | null {
+  return state.activeNoteId === null
+    ? null
+    : (state.documents.get(state.activeNoteId)?.markdown ?? null);
+}
+
 export function MetadataPanel({ store }: Props) {
-  const activeNoteId = useRendererSelector(store, (state) => state.activeNoteId);
-  const metadata = useRendererSelector(store, (state) =>
-    state.activeNoteId === null ? null : (state.metadata.get(state.activeNoteId) ?? null),
-  );
-  const historyHeaders = useRendererSelector(store, (state) =>
-    state.activeNoteId === null ? null : (state.historyHeaders.get(state.activeNoteId) ?? null),
-  );
+  const activeNoteId = useRendererSelector(store, selectActiveNoteId);
+  const metadata = useRendererSelector(store, selectActiveNoteMetadata);
+  const historyHeaders = useRendererSelector(store, selectActiveNoteHistory);
   const versions = useMemo(() => projectVersionList(historyHeaders), [historyHeaders]);
   const backlinks = useBacklinks(store, activeNoteId);
   const outgoingNotes = useOutgoingNotes(store, activeNoteId);
   const referenceDetails = useNoteReferenceDetails(store, activeNoteId);
   const unlinkedMentions = useUnlinkedMentions(store, activeNoteId);
-  const createdAt = useRendererSelector(store, (state) =>
-    state.activeNoteId === null ? null : (state.sourceNodes.get(state.activeNoteId)?.createdAt ?? null),
-  );
-  const markdown = useRendererSelector(store, (state) =>
-    state.activeNoteId === null ? null : (state.documents.get(state.activeNoteId)?.markdown ?? null),
-  );
+  const createdAt = useRendererSelector(store, selectActiveNoteCreatedAt);
+  const markdown = useRendererSelector(store, selectActiveNoteMarkdown);
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     outline: true,
     history: true,

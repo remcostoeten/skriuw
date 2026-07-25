@@ -23,6 +23,27 @@ export function collectImageFiles(transfer: DataTransfer | null): File[] {
 }
 
 /**
+ * Opens the platform file chooser and yields the chosen image files. The input
+ * is detached again once the choice resolves, so repeated picks never stack up
+ * hidden nodes in the document.
+ */
+export function pickImageFiles(onPicked: (files: readonly File[]) => void): void {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.multiple = true;
+  input.hidden = true;
+  document.body.append(input);
+  input.addEventListener("change", () => {
+    const files = [...(input.files ?? [])].filter((file) => file.type.startsWith("image/"));
+    input.remove();
+    onPicked(files);
+  });
+  input.addEventListener("cancel", () => input.remove());
+  input.click();
+}
+
+/**
  * Inserts one `image_ref` node per file synchronously, then registers each
  * blob in the background. The keystroke path never waits on hashing or disk;
  * the node view upgrades from its loading state once the attach operation

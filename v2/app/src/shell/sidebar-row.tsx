@@ -82,7 +82,8 @@ export const SidebarRow = memo(function SidebarRow({
       (Number(state.focusedNodeId === id) << 1) |
       (Number(state.expandedIds.has(id)) << 2) |
       (Number(state.editingNodeId === id) << 3) |
-      (Number(state.selectedNodeIds.has(id)) << 4),
+      (Number(state.selectedNodeIds.has(id)) << 4) |
+      (Number(state.focusedNodeId === null) << 5),
     [id],
   );
   const node = useRendererSelector(store, selectNode);
@@ -95,10 +96,11 @@ export const SidebarRow = memo(function SidebarRow({
   const isExpanded = (status & 4) !== 0;
   const isEditing = (status & 8) !== 0;
   const isSelected = (status & 16) !== 0;
+  const focusUnset = (status & 32) !== 0;
   const isFolder = node.kind === "folder";
   const rowTabIndex = shelf
     ? tabIndex
-    : isFocused || (tabIndex === 0 && store.getState().focusedNodeId === null)
+    : isFocused || (tabIndex === 0 && focusUnset)
       ? 0
       : -1;
   const rowDepth = shelf ? 1 : node.depth;

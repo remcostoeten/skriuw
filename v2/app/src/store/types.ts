@@ -46,6 +46,8 @@ export type RendererState = {
   nodes: ReadonlyMap<string, NodeRecord>;
   childrenByParent: ReadonlyMap<string | null, readonly string[]>;
   nodeOrder: readonly string[];
+  /** Note ids in tree order; precomputed so navigation never scans `nodes`. */
+  noteIds: readonly string[];
   visibleIds: readonly string[];
   expandedIds: ReadonlySet<string>;
   panes: readonly PaneState[];

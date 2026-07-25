@@ -6,14 +6,17 @@ import {
   EditorState,
   NodeSelection,
   TextSelection,
+  type Command,
   type Plugin,
   type Transaction,
 } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
+import { createCodeBlockNodeView } from "./code-block-nodeview";
 import { createImageNodeViews } from "./image-nodeview";
-import { collectImageFiles, insertImages } from "./image-input";
+import { collectImageFiles, insertImages, pickImageFiles } from "./image-input";
 import { readImageAlt, renameImageNode } from "./image-actions";
 import { registerPendingWork } from "../lifecycle/pending-work";
+import { openExternalUrl } from "../bridge/external-links";
 import { ImageInfoDialog, ImageLightbox, ImageRenameDialog } from "./image-menu";
 import {
   ContextMenu,
@@ -21,7 +24,15 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "../shared/ui/context-menu";
-import { InfoIcon, PencilIcon, ZoomInIcon } from "../shared/icons";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CopyIcon,
+  InfoIcon,
+  PencilIcon,
+  Trash2Icon,
+  ZoomInIcon,
+} from "../shared/icons";
 import { createMentionPlugin, type MentionContext } from "../references/mention-plugin";
 import { createReferenceNodeViews } from "../references/reference-nodeview";
 import { activateReference } from "../references/reference-navigation";
@@ -36,7 +47,7 @@ import { cssStringLiteral } from "../settings/apply-settings";
 import { projectSettings } from "../settings/settings-model";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
-import type { WorkspaceImage } from "../contracts/workspace";
+import type { WorkspaceImage, WorkspaceOperation } from "../contracts/workspace";
 import {
   BOUNDED_BLOCK_LIMIT,
   createBoundedDocument,
@@ -48,6 +59,7 @@ import {
 import {
   countWords,
   createProductPlugins,
+  linkPastedText,
   productSchema,
   serializeProductMarkdown,
   slashMenuState,
@@ -59,7 +71,26 @@ import {
   setSearch,
   type EditorSearchTarget,
 } from "./search-plugin";
-import { applySlashCommand, filterSlashCommands } from "./slash-commands";
+import { applySlashCommand, filterSlashCommands, type SlashAction } from "./slash-commands";
+import {
+  deleteBlock,
+  duplicateBlock,
+  insertBlockAfter,
+  moveBlock,
+} from "./block-commands";
+import {
+  createDragHandle,
+  type BlockMenuTarget,
+  type DragHandleController,
+} from "./drag-handle";
+import { BubbleMenu, closedBubbleMenu, computeBubbleMenu } from "./bubble-menu";
+import {
+  clampLinkMenuX,
+  closedLinkMenu,
+  LinkMenu,
+  linkAtCursor,
+  linkInRange,
+} from "./link-menu";
 import { SearchWidget } from "./search-widget";
 import { useEditorSearch } from "./use-editor-search";
 
@@ -83,6 +114,7 @@ type CachedNote = {
   searchState: EditorState | null;
   scrollTop: number;
   wholeSelected: boolean;
+  derivedTitle: string;
 };
 
 type SlashMenu = {
@@ -91,9 +123,20 @@ type SlashMenu = {
   index: number;
   x: number;
   y: number;
+  openUp: boolean;
 };
 
-const closedSlashMenu: SlashMenu = { open: false, query: "", index: 0, x: 0, y: 0 };
+const closedSlashMenu: SlashMenu = {
+  open: false,
+  query: "",
+  index: 0,
+  x: 0,
+  y: 0,
+  openUp: false,
+};
+
+const SLASH_MENU_WIDTH = 264;
+const SLASH_MENU_MAX_HEIGHT = 324;
 
 type ImageDialogState =
   | { kind: "rename"; imageId: string; alt: string }
@@ -146,6 +189,14 @@ function documentFromJson(json: unknown): ProseMirrorNode {
   }
 }
 
+const TITLE_MAX_LENGTH = 120;
+const STARTER_TITLE = "Untitled";
+
+function deriveTitle(document: ProseMirrorNode): string {
+  const text = document.firstChild?.textContent.trim() ?? "";
+  return text.length > 0 ? text.slice(0, TITLE_MAX_LENGTH) : STARTER_TITLE;
+}
+
 function createCachedNote(
   record: DocumentRecord,
   extraPlugins: readonly Plugin[],
@@ -159,7 +210,35 @@ function createCachedNote(
     searchState: bounded ? createSearchState(document) : null,
     scrollTop: 0,
     wholeSelected: false,
+    derivedTitle: deriveTitle(document),
   };
+}
+
+function isStarterDocument(document: ProseMirrorNode): boolean {
+  const first = document.firstChild;
+  return (
+    first !== null &&
+    first.type.name === "heading" &&
+    document.childCount <= 2 &&
+    document.textContent === STARTER_TITLE
+  );
+}
+
+/**
+ * A freshly created note opens with its "Untitled" heading selected so typing
+ * immediately replaces the placeholder title. Applied outside
+ * dispatchTransaction on purpose: the programmatic selection must not open the
+ * bubble menu.
+ */
+function selectStarterTitle(view: EditorView, entry: CachedNote): void {
+  const document = view.state.doc;
+  const first = document.firstChild;
+  if (!first || !isStarterDocument(document)) return;
+  const next = view.state.apply(
+    view.state.tr.setSelection(TextSelection.create(document, 1, 1 + first.content.size)),
+  );
+  view.updateState(next);
+  entry.state = next;
 }
 
 function documentsEqual(left: ProseMirrorNode, json: unknown): boolean {
@@ -207,9 +286,20 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const [slashMenu, setSlashMenu] = useState<SlashMenu>(closedSlashMenu);
   const slashMenuRef = useRef(slashMenu);
   slashMenuRef.current = slashMenu;
+  const slashDismissedRef = useRef(false);
+  const [bubbleMenu, setBubbleMenu] = useState(closedBubbleMenu);
+  const bubbleMenuRef = useRef(bubbleMenu);
+  bubbleMenuRef.current = bubbleMenu;
+  const bubbleMenuHostRef = useRef<HTMLDivElement>(null);
+  const [linkMenu, setLinkMenu] = useState(closedLinkMenu);
+  const linkMenuRef = useRef(linkMenu);
+  linkMenuRef.current = linkMenu;
   const imageMenuTriggerRef = useRef<HTMLSpanElement>(null);
   const [imageMenuImageId, setImageMenuImageId] = useState<string | null>(null);
   const [imageDialog, setImageDialog] = useState<ImageDialogState>(null);
+  const dragHandleRef = useRef<DragHandleController | null>(null);
+  const blockMenuTriggerRef = useRef<HTMLSpanElement>(null);
+  const [blockMenuPos, setBlockMenuPos] = useState<number | null>(null);
   const activeNoteId = useRendererSelector(store, selectNoteId);
   const settingsDocument = useRendererSelector(store, (state) => state.settings);
   const editorSettings = projectSettings(settingsDocument);
@@ -351,7 +441,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const record = store.getState().documents.get(noteId);
     if (!cached || !record) return Promise.resolve();
     const document = cached.bounded?.fullDocument() ?? cached.state.doc;
-    return commitOperations(store, [
+    const at = Date.now();
+    const operations: WorkspaceOperation[] = [
       {
         type: "save_document",
         noteId,
@@ -359,9 +450,15 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         markdown: serializeProductMarkdown(document),
         wordCount: countWords(document),
         expectedRevision: record.revision,
-        at: Date.now(),
+        at,
       },
-    ])
+    ];
+    const title = deriveTitle(document);
+    if (title !== cached.derivedTitle) {
+      cached.derivedTitle = title;
+      operations.push({ type: "rename_node", id: noteId, title, at });
+    }
+    return commitOperations(store, operations)
       .then(() => {
         const entry = cacheRef.current.get(noteId);
         const saved = store.getState().documents.get(noteId);
@@ -417,19 +514,74 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (transaction.docChanged && searchRef.current.searchOpen) {
       searchRef.current.syncMatchInfo();
     }
+    if (transaction.docChanged) dragHandleRef.current?.hide();
+    setBubbleMenu(computeBubbleMenu(view));
+    if (!linkMenuRef.current.editing) {
+      const cursorLink = linkAtCursor(next);
+      if (cursorLink) {
+        const linkCoords = view.coordsAtPos(cursorLink.from);
+        setLinkMenu({
+          open: true,
+          editing: false,
+          href: cursorLink.href,
+          from: cursorLink.from,
+          to: cursorLink.to,
+          x: clampLinkMenuX(linkCoords.left),
+          y: linkCoords.bottom + 6,
+        });
+      } else if (linkMenuRef.current.open) {
+        setLinkMenu(closedLinkMenu);
+      }
+    }
     const menu = slashMenuState(next);
     if (!menu.open) {
+      slashDismissedRef.current = false;
       if (slashMenuRef.current.open) setSlashMenu(closedSlashMenu);
       return;
     }
+    if (slashDismissedRef.current) return;
     const coords = view.coordsAtPos(next.selection.from);
+    const openUp = coords.bottom + 4 + SLASH_MENU_MAX_HEIGHT > window.innerHeight;
     setSlashMenu((previous) => ({
       open: true,
       query: menu.query,
       index: previous.query === menu.query ? previous.index : 0,
-      x: coords.left,
-      y: coords.bottom + 4,
+      x: Math.max(12, Math.min(coords.left, window.innerWidth - SLASH_MENU_WIDTH - 12)),
+      y: openUp ? coords.top - 4 : coords.bottom + 4,
+      openUp,
     }));
+  }
+
+  function runSlashAction(view: EditorView, action: SlashAction | null): void {
+    if (action === "insert-image") {
+      pickImageFiles((files) => {
+        const noteId = activeIdRef.current;
+        if (!noteId || files.length === 0) return;
+        insertImages(store, view, noteId, files, null);
+        view.focus();
+      });
+    }
+  }
+
+  function openLinkEditor(): void {
+    const view = viewRef.current;
+    if (!view) return;
+    const { selection } = view.state;
+    const cursorLink = selection.empty ? linkAtCursor(view.state) : null;
+    const from = cursorLink ? cursorLink.from : selection.from;
+    const to = cursorLink ? cursorLink.to : selection.to;
+    if (from === to) return;
+    const coords = view.coordsAtPos(from);
+    setBubbleMenu(closedBubbleMenu);
+    setLinkMenu({
+      open: true,
+      editing: true,
+      href: cursorLink ? cursorLink.href : linkInRange(view.state, from, to),
+      from,
+      to,
+      x: clampLinkMenuX(coords.left),
+      y: coords.bottom + 6,
+    });
   }
 
   function getSearchTarget(): EditorSearchTarget | null {
@@ -486,14 +638,34 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = new EditorView(host, {
       state: createEditorState(emptyDocument(), mentionPlugins),
       editable: () => activeIdRef.current !== null,
-      nodeViews: { ...referenceViews.nodeViews, ...imageViews.nodeViews },
+      nodeViews: {
+        ...referenceViews.nodeViews,
+        ...imageViews.nodeViews,
+        code_block: createCodeBlockNodeView,
+      },
       dispatchTransaction,
+      handleClick(currentView, pos, event) {
+        if (!event.metaKey && !event.ctrlKey) return false;
+        const href = linkInRange(currentView.state, pos, pos + 1);
+        if (!href) return false;
+        event.preventDefault();
+        openExternalUrl(href).catch((error) => {
+          console.error("open external url rejected", error);
+        });
+        return true;
+      },
       handlePaste(currentView, event) {
         const noteId = activeIdRef.current;
         const files = collectImageFiles(event.clipboardData);
-        if (!noteId || files.length === 0) return false;
-        event.preventDefault();
-        return insertImages(store, currentView, noteId, files, null);
+        if (noteId && files.length > 0) {
+          event.preventDefault();
+          return insertImages(store, currentView, noteId, files, null);
+        }
+        if (linkPastedText(currentView, event.clipboardData?.getData("text/plain") ?? "")) {
+          event.preventDefault();
+          return true;
+        }
+        return false;
       },
       handleDrop(currentView, event, _slice, moved) {
         if (moved) return false;
@@ -524,7 +696,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           }
           return changed;
         }
-        if (entry && bounded && !mod && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+        if (
+          entry &&
+          bounded &&
+          !mod &&
+          !event.altKey &&
+          (event.key === "ArrowDown" || event.key === "ArrowUp")
+        ) {
           const selection = readSelection(currentView.state, bounded.windowStart());
           const atEnd =
             event.key === "ArrowDown" && selection.blockIndex >= bounded.windowEnd() - 1;
@@ -534,6 +712,24 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
               entry,
               bounded.windowStart() + (atEnd ? WINDOW_SHIFT : -WINDOW_SHIFT),
             );
+            return true;
+          }
+        }
+        if (mod && event.shiftKey && event.key.toLowerCase() === "k") {
+          openLinkEditor();
+          return true;
+        }
+        if (
+          !mod &&
+          !event.shiftKey &&
+          event.key === "Tab" &&
+          bubbleMenuRef.current.open &&
+          !slashMenuRef.current.open
+        ) {
+          const first = bubbleMenuHostRef.current?.querySelector("button");
+          if (first instanceof HTMLButtonElement) {
+            event.preventDefault();
+            first.focus();
             return true;
           }
         }
@@ -554,6 +750,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         }
         const menu = slashMenuRef.current;
         if (!menu.open) return false;
+        if (event.key === "Escape") {
+          slashDismissedRef.current = true;
+          setSlashMenu(closedSlashMenu);
+          return true;
+        }
         const commands = filterSlashCommands(menu.query);
         if (commands.length === 0) return false;
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -564,13 +765,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           }));
           return true;
         }
-        if (event.key === "Enter") {
+        if (event.key === "Enter" || event.key === "Tab") {
           const command = commands[menu.index % commands.length];
-          if (command) applySlashCommand(currentView, command);
-          setSlashMenu(closedSlashMenu);
-          return true;
-        }
-        if (event.key === "Escape") {
+          if (command) runSlashAction(currentView, applySlashCommand(currentView, command));
           setSlashMenu(closedSlashMenu);
           return true;
         }
@@ -580,9 +777,30 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     viewRef.current = view;
     const scrollHost = host.closest<HTMLElement>(".editor-scroll");
     scrollHostRef.current = scrollHost;
+    const dragHandle = createDragHandle(view, {
+      scrollHost,
+      onInsert: (position) => {
+        insertBlockAfter(position)(view.state, view.dispatch);
+        view.dispatch(view.state.tr.insertText("/"));
+        view.focus();
+      },
+      onMenu: (target: BlockMenuTarget) => {
+        setBlockMenuPos(target.pos);
+        blockMenuTriggerRef.current?.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, clientX: target.x, clientY: target.y }),
+        );
+      },
+    });
+    dragHandleRef.current = dragHandle;
     const handleScroll = () => {
+      setBubbleMenu((previous) => (previous.open ? closedBubbleMenu : previous));
+      setLinkMenu((previous) =>
+        previous.open && !previous.editing ? closedLinkMenu : previous,
+      );
+      dragHandle.hide();
       const entry = activeEntry();
       if (!entry?.bounded || !scrollHost) return;
+      if (dragHandle.isDragging()) return;
       entry.scrollTop = scrollHost.scrollTop;
       const target = Math.floor(scrollHost.scrollTop / VIRTUAL_BLOCK_HEIGHT) - WINDOW_SHIFT;
       if (Math.abs(target - entry.bounded.windowStart()) >= WINDOW_SHIFT) {
@@ -599,6 +817,18 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       const entry = activeEntry();
       if (entry && pending !== null) moveBoundedWindow(entry, pending);
     };
+    const handleBlur = (event: FocusEvent) => {
+      const focused = event.relatedTarget;
+      const intoBubbleMenu =
+        focused instanceof HTMLElement && focused.closest(".bubble-menu") !== null;
+      if (!intoBubbleMenu) {
+        setBubbleMenu((previous) => (previous.open ? closedBubbleMenu : previous));
+      }
+      const next = event.relatedTarget;
+      if (!(next instanceof HTMLElement) || !next.closest(".link-menu")) {
+        setLinkMenu((previous) => (previous.open ? closedLinkMenu : previous));
+      }
+    };
     const handleCopy = (event: ClipboardEvent) => {
       const entry = activeEntry();
       const bounded = entry?.bounded;
@@ -611,6 +841,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     scrollHost?.addEventListener("scroll", handleScroll, { passive: true });
     view.dom.addEventListener("compositionstart", handleCompositionStart);
     view.dom.addEventListener("compositionend", handleCompositionEnd);
+    view.dom.addEventListener("blur", handleBlur);
     view.dom.addEventListener("copy", handleCopy);
     const unregisterPendingSave = registerPendingWork(() => flushPendingSave());
     return () => {
@@ -619,7 +850,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       scrollHost?.removeEventListener("scroll", handleScroll);
       view.dom.removeEventListener("compositionstart", handleCompositionStart);
       view.dom.removeEventListener("compositionend", handleCompositionEnd);
+      view.dom.removeEventListener("blur", handleBlur);
       view.dom.removeEventListener("copy", handleCopy);
+      dragHandleRef.current = null;
+      dragHandle.destroy();
       viewRef.current = null;
       view.destroy();
       referenceViews.destroy();
@@ -641,6 +875,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (previous && scrollHostRef.current) previous.scrollTop = scrollHostRef.current.scrollTop;
     activeIdRef.current = activeNoteId;
     setSlashMenu(closedSlashMenu);
+    setBubbleMenu(closedBubbleMenu);
+    setLinkMenu(closedLinkMenu);
+    dragHandleRef.current?.hide();
     if (activeNoteId === null) {
       view.updateState(createEditorState(emptyDocument(), mentionPlugins));
       syncBoundedSurface({
@@ -650,6 +887,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         searchState: null,
         scrollTop: 0,
         wholeSelected: false,
+        derivedTitle: STARTER_TITLE,
       });
       return;
     }
@@ -673,6 +911,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     } else {
       view.updateState(entry.state);
       syncBoundedSurface(entry);
+      selectStarterTitle(view, entry);
     }
     if (scrollHostRef.current) scrollHostRef.current.scrollTop = entry.scrollTop;
     view.focus();
@@ -714,6 +953,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
 
   const slashItems = slashMenu.open ? filterSlashCommands(slashMenu.query) : [];
 
+  function runBlockCommand(build: (position: number) => Command): void {
+    const view = viewRef.current;
+    if (!view || blockMenuPos === null) return;
+    build(blockMenuPos)(view.state, view.dispatch);
+    view.focus();
+  }
+
   function openImageRename(imageId: string): void {
     const view = viewRef.current;
     if (!view) return;
@@ -737,7 +983,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   return (
     <div className="editor-host">
       {search.searchOpen && (
-        <div className="editor-search-anchor">
+        <div className="@container/editor-search sticky top-3 z-40 -mx-9 flex h-0 items-start justify-end">
           <SearchWidget
             ref={search.findInputRef}
             query={search.searchQuery}
@@ -790,27 +1036,90 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         }}
       />
       {activeNoteId === null && <div className="editor-empty">Select a note</div>}
+      <BubbleMenu
+        state={bubbleMenu}
+        getView={() => viewRef.current}
+        onLink={openLinkEditor}
+        onDismiss={() => setBubbleMenu(closedBubbleMenu)}
+        containerRef={bubbleMenuHostRef}
+      />
+      <LinkMenu
+        state={linkMenu}
+        getView={() => viewRef.current}
+        onClose={() => setLinkMenu(closedLinkMenu)}
+        onEdit={() => setLinkMenu((previous) => ({ ...previous, editing: true }))}
+      />
       {slashMenu.open && slashItems.length > 0 && (
-        <div className="slash-menu" role="listbox" style={{ left: slashMenu.x, top: slashMenu.y }}>
-          {slashItems.map((command, index) => (
-            <button
-              key={command.id}
-              type="button"
-              role="option"
-              aria-selected={index === slashMenu.index % slashItems.length}
-              className={index === slashMenu.index % slashItems.length ? "is-selected" : ""}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                const view = viewRef.current;
-                if (view) applySlashCommand(view, command);
-                setSlashMenu(closedSlashMenu);
-              }}
-            >
-              {command.label}
-            </button>
-          ))}
+        <div
+          className={slashMenu.openUp ? "slash-menu is-above" : "slash-menu"}
+          role="listbox"
+          aria-label="Insert block"
+          style={{ left: slashMenu.x, top: slashMenu.y }}
+        >
+          {slashItems.map((command, index) => {
+            const selected = index === slashMenu.index % slashItems.length;
+            const groupStart = index === 0 || slashItems[index - 1]?.group !== command.group;
+            return (
+              <div key={command.id}>
+                {groupStart && <div className="slash-menu-group">{command.group}</div>}
+                <button
+                  ref={selected ? (node) => node?.scrollIntoView({ block: "nearest" }) : undefined}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className={selected ? "is-selected" : ""}
+                  onMouseMove={() => {
+                    if (!selected) setSlashMenu((previous) => ({ ...previous, index }));
+                  }}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    const view = viewRef.current;
+                    if (view) runSlashAction(view, applySlashCommand(view, command));
+                    setSlashMenu(closedSlashMenu);
+                  }}
+                >
+                  <span className="slash-menu-icon" aria-hidden="true">
+                    {command.icon}
+                  </span>
+                  <span className="slash-menu-text">
+                    <span className="slash-menu-label">{command.label}</span>
+                    <span className="slash-menu-subtext">{command.subtext}</span>
+                  </span>
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <span ref={blockMenuTriggerRef} aria-hidden="true" className="fixed left-0 top-0 h-0 w-0" />
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem className="gap-2" onSelect={() => runBlockCommand(duplicateBlock)}>
+            <CopyIcon size={14} />
+            Duplicate
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="gap-2"
+            onSelect={() => runBlockCommand((position) => moveBlock(position, -1))}
+          >
+            <ArrowUpIcon size={14} />
+            Move up
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="gap-2"
+            onSelect={() => runBlockCommand((position) => moveBlock(position, 1))}
+          >
+            <ArrowDownIcon size={14} />
+            Move down
+          </ContextMenuItem>
+          <ContextMenuItem className="gap-2" onSelect={() => runBlockCommand(deleteBlock)}>
+            <Trash2Icon size={14} />
+            Delete
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <span ref={imageMenuTriggerRef} aria-hidden="true" className="fixed left-0 top-0 h-0 w-0" />

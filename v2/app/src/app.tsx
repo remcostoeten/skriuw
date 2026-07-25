@@ -80,7 +80,10 @@ export function App({ store }: Props) {
   const gridTemplateColumns = panelGridTemplate(route, sidebarOpen, metadataOpen);
   const noteNav = useNoteNavigation(store);
   return (
-    <div className="shell" style={{ gridTemplateColumns }}>
+    <div
+      className="grid h-full grid-rows-[minmax(0,1fr)] [--window-controls-width:112px]"
+      style={{ gridTemplateColumns }}
+    >
       <WindowControls />
       <nav
         aria-label="Primary"
@@ -165,8 +168,8 @@ export function App({ store }: Props) {
           </Tooltip>
         </div>
       </nav>
-      <div className="notes-view" hidden={route !== "notes"}>
-        <div className="panel-col" aria-hidden={!sidebarOpen}>
+      <div className="contents" hidden={route !== "notes"}>
+        <div className="min-h-0 min-w-0 overflow-hidden" aria-hidden={!sidebarOpen}>
           {sidebarOpen ? <Sidebar store={store} /> : null}
         </div>
         <main className="flex min-w-0 flex-col">
@@ -226,7 +229,7 @@ export function App({ store }: Props) {
             <EditorPanes store={store} />
           </div>
         </main>
-        <div className="panel-col" aria-hidden={!metadataOpen}>
+        <div className="min-h-0 min-w-0 overflow-hidden" aria-hidden={!metadataOpen}>
           {metadataOpen ? <MetadataPanel store={store} /> : null}
         </div>
       </div>

@@ -12,6 +12,7 @@ import {
   ReplaceIcon,
   WholeWordIcon,
 } from "../shared/icons";
+import { cn } from "../shared/lib/utils";
 import type { SearchOptions } from "./search-plugin";
 
 type Props = {
@@ -34,6 +35,13 @@ type Props = {
   onReplaceAll: () => void;
 };
 
+const fieldClass =
+  "flex min-w-0 flex-1 items-center rounded-md border border-border bg-background pl-2 transition-[border-color,box-shadow] duration-150 focus-within:border-ring";
+const inputClass =
+  "min-w-0 flex-1 bg-transparent py-1 text-[13px] text-foreground outline-none placeholder:text-muted-foreground";
+const countClass =
+  "min-w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground @max-[360px]/editor-search:hidden";
+
 function IconButton({
   label,
   onClick,
@@ -54,7 +62,11 @@ function IconButton({
       aria-pressed={active}
       onClick={onClick}
       disabled={disabled}
-      className={active ? "search-widget-button is-active" : "search-widget-button"}
+      className={cn(
+        "flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-foreground/8 hover:text-foreground disabled:pointer-events-none disabled:opacity-40",
+        active &&
+          "bg-foreground/14 text-foreground shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.28)]",
+      )}
     >
       {children}
     </button>
@@ -112,20 +124,29 @@ export function SearchWidget({
   }
 
   return (
-    <search aria-label="Find and replace" className="search-widget">
+    <search
+      aria-label="Find and replace"
+      className="flex w-[min(420px,100%)] items-stretch gap-1 rounded-lg border border-border bg-popover p-1.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)]"
+    >
       <button
         type="button"
         aria-label={showReplace ? "Hide replace" : "Show replace"}
         aria-expanded={showReplace}
         onClick={onToggleReplace}
-        className="search-widget-expand"
+        className="flex w-5 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-foreground/8 hover:text-foreground"
       >
         {showReplace ? <ChevronDownIcon size={16} /> : <ChevronRightIcon size={16} />}
       </button>
 
-      <div className="search-widget-rows">
-        <div className="search-widget-row">
-          <div className={regexError ? "search-widget-field has-error" : "search-widget-field"}>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-center gap-1">
+          <div
+            className={cn(
+              fieldClass,
+              regexError &&
+                "border-destructive shadow-[inset_0_0_0_1px_hsl(var(--destructive))]",
+            )}
+          >
             <input
               ref={ref}
               value={query}
@@ -136,8 +157,9 @@ export function SearchWidget({
               aria-invalid={regexError}
               aria-describedby={statusId}
               spellCheck={false}
+              className={inputClass}
             />
-            <div className="search-widget-toggles">
+            <div className="flex items-center gap-0.5 pl-1 pr-0.5">
               <IconButton
                 label="Match Case (Alt+C)"
                 active={options.caseSensitive}
@@ -167,16 +189,12 @@ export function SearchWidget({
             role="status"
             aria-live="polite"
             aria-atomic="true"
-            className={
-              noMatches && query.length > 0
-                ? "search-widget-count has-error"
-                : "search-widget-count"
-            }
+            className={cn(countClass, noMatches && query.length > 0 && "text-destructive")}
           >
             {countLabel}
           </span>
 
-          <div className="search-widget-actions">
+          <div className="flex shrink-0 items-center gap-0.5">
             <IconButton
               label="Previous Match (Shift+Enter)"
               onClick={onPrevious}
@@ -194,8 +212,8 @@ export function SearchWidget({
         </div>
 
         {showReplace ? (
-          <div className="search-widget-row">
-            <div className="search-widget-field">
+          <div className="flex items-center gap-1">
+            <div className={fieldClass}>
               <input
                 value={replaceValue}
                 onChange={(event) => onReplaceChange(event.target.value)}
@@ -203,19 +221,20 @@ export function SearchWidget({
                 placeholder="Replace"
                 aria-label="Replace"
                 spellCheck={false}
+                className={inputClass}
               />
             </div>
 
-            <span className="search-widget-count" aria-hidden />
+            <span className={countClass} aria-hidden />
 
-            <div className="search-widget-actions">
+            <div className="flex shrink-0 items-center gap-0.5">
               <IconButton label="Replace (Enter)" onClick={onReplaceCurrent} disabled={total === 0}>
                 <ReplaceIcon size={16} />
               </IconButton>
               <IconButton label="Replace All" onClick={onReplaceAll} disabled={total === 0}>
                 <ReplaceAllIcon size={16} />
               </IconButton>
-              <span className="search-widget-spacer" aria-hidden />
+              <span className="h-6 w-6" aria-hidden />
             </div>
           </div>
         ) : null}
