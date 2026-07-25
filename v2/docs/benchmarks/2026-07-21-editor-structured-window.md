@@ -54,10 +54,10 @@ The selected editor candidate now has representative structure and cross-window 
 
 ```bash
 cd spikes/ui-architecture
-pnpm test
-pnpm typecheck
-pnpm build
-pnpm test:browser
+bun run test
+bun run typecheck
+bun run build
+bun run test:browser
 ```
 
 Repository-wide verification passes with `./scripts/check.sh`.

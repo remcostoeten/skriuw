@@ -3,7 +3,6 @@ set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 app_dir="$repo_dir/app"
-source "$repo_dir/scripts/lib/pm.sh"
 mode="${1:-workspace}"
 
 if [[ $# -gt 0 ]]; then
@@ -121,7 +120,7 @@ print_header() {
   printf '\n%s%sSKRIUW BUILD%s\n' "$bold" "$cyan" "$reset"
   printf '%sMode%s      %s\n' "$muted" "$reset" "$mode"
   printf '%sRevision%s  %s @ %s\n' "$muted" "$reset" "$branch" "$commit"
-  printf '%sToolchain%s  Rust %s · Node %s · %s %s\n\n' "$muted" "$reset" "$(rustc --version | awk '{print $2}')" "$(node --version)" "$pm" "$(pm_version)"
+  printf '%sToolchain%s  Rust %s · Node %s · bun %s\n\n' "$muted" "$reset" "$(rustc --version | awk '{print $2}')" "$(node --version)" "$(bun --version)"
 }
 
 print_failure_log() {
@@ -252,6 +251,7 @@ print_desktop_artifacts() {
 }
 
 require_command bash
+require_command bun
 require_command cargo
 require_command git
 require_command node
@@ -270,35 +270,28 @@ run_step "Backend test suite" "backend-tests" cargo test --workspace --locked --
 print_metric "$(rust_test_summary "$last_log")"
 run_step "Desktop bridge test suite" "desktop-tests" cargo test --manifest-path app/src-tauri/Cargo.toml --locked --no-fail-fast
 print_metric "$(rust_test_summary "$last_log")"
-pm_cmd "$repo_dir/spikes/ui-architecture" test
-run_step "UI architecture regression suite" "ui-architecture-tests" "${PM_CMD[@]}"
+run_step "UI architecture regression suite" "ui-architecture-tests" bun --cwd="$repo_dir/spikes/ui-architecture" run test
 print_metric "$(node_test_summary "$last_log")"
-pm_cmd "$repo_dir/spikes/renderer-store" test
-run_step "Renderer-store regression suite" "renderer-store-tests" "${PM_CMD[@]}"
+run_step "Renderer-store regression suite" "renderer-store-tests" bun --cwd="$repo_dir/spikes/renderer-store" run test
 print_metric "$(node_test_summary "$last_log")"
-pm_cmd "$app_dir" test
-run_step "Renderer test suite and coverage" "renderer-tests" "${PM_CMD[@]}"
+run_step "Renderer test suite and coverage" "renderer-tests" bun --cwd="$app_dir" run test
 print_metric "$(renderer_summary "$last_log")"
-pm_cmd "$app_dir" typecheck
-run_step "Renderer type safety" "renderer-typecheck" "${PM_CMD[@]}"
+run_step "Renderer type safety" "renderer-typecheck" bun --cwd="$app_dir" run typecheck
 
 case "$mode" in
   check) ;;
   web)
-    pm_cmd "$app_dir" build:frontend
-    run_step "Renderer production bundle" "renderer-build" "${PM_CMD[@]}"
+    run_step "Renderer production bundle" "renderer-build" bun --cwd="$app_dir" run build:frontend
     ;;
   desktop)
-    pm_cmd "$app_dir" tauri:build:raw --config '{"bundle":{"createUpdaterArtifacts":false}}' "$@"
-    run_step "Tauri desktop application" "desktop-build" "${PM_CMD[@]}"
+    run_step "Tauri desktop application" "desktop-build" bun --cwd="$app_dir" run tauri:build:raw --config '{"bundle":{"createUpdaterArtifacts":false}}' "$@"
     ;;
   workspace)
     run_step "Rust workspace binaries" "workspace-build" cargo build --workspace --locked
     ;;
   ci)
     run_step "Rust release binaries" "workspace-build" cargo build --workspace --release --locked
-    pm_cmd "$app_dir" tauri:build:raw "$@"
-    run_step "Tauri release application" "desktop-build" "${PM_CMD[@]}"
+    run_step "Tauri release application" "desktop-build" bun --cwd="$app_dir" run tauri:build:raw "$@"
     ;;
 esac
 

@@ -14,9 +14,13 @@ complete, with evidence recorded under `docs/benchmarks/`:
 - `2026-07-21-editor-candidates-initial.md`, `2026-07-21-editor-retained.md`,
   `2026-07-21-editor-bounded.md`, `2026-07-21-editor-native-presentation.md`,
   `2026-07-21-editor-product-contract.md`, `2026-07-21-editor-structured-window.md`
-- `2026-07-21-tree-virtualization.md`
 - `2026-07-21-renderer-store-selectors.md`
-- `2026-07-21-desktop-bridge.md`
+
+The tree-virtualization and desktop-bridge measurements also informed this decision.
+Both conclusions were carried into the product (bounded row pool, zero-IPC
+navigation) and are covered by product tests and the later reference-production
+measurement, so their disposable harnesses and benchmark records were retired after
+the decision landed.
 
 The product decision that unblocks a simpler default: notes are expected to stay
 short. Multi-thousand-block documents are an edge case, not the primary workload.

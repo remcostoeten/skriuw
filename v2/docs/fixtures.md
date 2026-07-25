@@ -1,6 +1,6 @@
 # Scale fixtures
 
-Deterministic backend workspace fixtures live in the portable `skriuw-fixtures` crate. They exist for FTS, import, bootstrap, tree-virtualization, and future performance workloads. See [ADR-0016](adr/0016-deterministic-scale-fixtures.md) for the decision record.
+Deterministic backend workspace fixtures live in the portable `skriuw-fixtures` crate. They exist for FTS, import, bootstrap, sidebar tree, and future performance workloads. See [ADR-0016](adr/0016-deterministic-scale-fixtures.md) for the decision record.
 
 ## Shape catalogue
 
@@ -60,10 +60,10 @@ One release-mode run on the development machine materialized the 5,018 `mixed-50
 The `export_tree_projection` example writes one JSON file per canonical fixture for browser tree workloads. Each file contains the fixture metadata, the pinned operations digest, the active note ID, and every node as `{id, parentId, kind, title}` in creation order, which equals sibling order because every fixture placement is semantic `last`. The example generates each projection twice and asserts byte equality before writing; nothing generated is committed.
 
 ```bash
-cargo run --release --locked -p skriuw-fixtures --example export_tree_projection -- spikes/tree-virtualization/public/fixtures
+cargo run --release --locked -p skriuw-fixtures --example export_tree_projection -- spikes/renderer-store/public/fixtures
 ```
 
-`spikes/tree-virtualization/scripts/export-fixtures.sh` wraps the same command for the tree-virtualization harness, which asserts node, folder, and document counts, maximum depth, and parent relationships against the embedded metadata after hydration.
+`spikes/renderer-store/scripts/export-fixtures.sh` wraps the same command for the renderer-store harness, which asserts node, folder, and document counts, maximum depth, and parent relationships against the embedded metadata after hydration.
 
 ## Backend workload measurements
 
