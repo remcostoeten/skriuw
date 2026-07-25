@@ -3457,6 +3457,7 @@ checksum = "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649"
 name = "skriuw-app"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "serde",
  "serde_json",
  "skriuw-domain",
