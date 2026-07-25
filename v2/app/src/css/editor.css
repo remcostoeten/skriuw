@@ -185,7 +185,7 @@
   position: absolute;
   inset: 0;
   z-index: 2;
-  background: hsl(var(--primary) / 0.18);
+  background: hsl(var(--editor-selection) / var(--selection-opacity));
   pointer-events: none;
 }
 
@@ -707,20 +707,45 @@ body.is-dragging-block {
   font: inherit;
   font-size: 12px;
   font-weight: 600;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .bubble-menu button:hover {
-  background: hsl(var(--theme-bg-active));
+  background: hsl(var(--accent) / 0.7);
+  color: hsl(var(--accent-foreground));
 }
 
-.bubble-menu button:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: -1px;
+/* :focus, not :focus-visible — the buttons cancel mousedown so they can only
+   ever be focused from the keyboard, and WebKitGTK does not treat the
+   programmatic focus() behind arrow/Tab navigation as focus-visible. */
+.bubble-menu button:focus {
+  outline: 2px solid hsl(var(--popover-foreground));
+  outline-offset: -2px;
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }
 
 .bubble-menu button.is-active {
-  background: hsl(var(--theme-bg-active));
+  background: hsl(var(--editor-link) / 0.18);
   color: hsl(var(--editor-link));
+}
+
+.bubble-menu button.is-active:hover {
+  background: hsl(var(--editor-link) / 0.28);
+  color: hsl(var(--editor-link));
+}
+
+.bubble-menu button.is-active:focus-visible {
+  background: hsl(var(--editor-link) / 0.28);
+  color: hsl(var(--editor-link));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble-menu button {
+    transition: none;
+  }
 }
 
 .bubble-menu-sep {
@@ -739,6 +764,7 @@ body.is-dragging-block {
   width: max-content;
   max-width: 300px;
   padding: 3px;
+  transform: translate(-50%, calc(-100% - 8px));
   border: 1px solid hsl(var(--border));
   border-radius: calc(var(--radius) + 2px);
   background: hsl(var(--popover));
@@ -764,7 +790,7 @@ body.is-dragging-block {
 }
 
 .link-menu button:hover {
-  background: hsl(var(--theme-bg-active));
+  background: hsl(var(--foreground) / 0.16);
 }
 
 .link-menu button.link-menu-href {
@@ -789,17 +815,42 @@ body.is-dragging-block {
   background: hsl(var(--border));
 }
 
-.link-menu-input {
-  width: 260px;
+.bubble-menu[data-below="true"],
+.link-menu[data-below="true"] {
+  transform: translate(-50%, 8px);
+}
+
+.link-menu-input-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
   height: 26px;
-  padding: 0 8px;
+  color: hsl(var(--muted-foreground));
+}
+
+.link-menu-input {
+  width: 216px;
+  height: 26px;
+  padding: 0 4px;
   border: none;
   outline: none;
-  border-radius: var(--radius);
   background: transparent;
   color: inherit;
   font: inherit;
   font-size: 12.5px;
+}
+
+.link-menu-input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.link-menu button.link-menu-apply {
+  color: hsl(var(--editor-link));
+}
+
+.link-menu:focus-within {
+  border-color: hsl(var(--ring) / 0.6);
 }
 
 /* Search decorations applied by the ProseMirror search plugin. */
