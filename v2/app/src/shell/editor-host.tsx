@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { editorModeForNote } from "../actions/editor-mode";
 import { NoteEditor } from "../editor/note-editor";
 import { RawMarkdownEditor } from "../editor/raw-markdown-editor";
+import { hasLosslessMarkdownDocument } from "../editor/schema";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import { WaypointsIcon } from "../shared/icons";
 import type { RendererState, RendererStore } from "../store/types";
@@ -28,7 +29,13 @@ export function EditorHost({
   const selectRawMode = useMemo(
     () => (state: RendererState) => {
       const noteId = selectNoteId(state);
-      return noteId !== null && editorModeForNote(state, noteId) === "raw";
+      if (noteId === null) {
+        return false;
+      }
+      return (
+        editorModeForNote(state, noteId) === "raw" ||
+        hasLosslessMarkdownDocument(state.documents.get(noteId)?.documentJson)
+      );
     },
     [selectNoteId],
   );
