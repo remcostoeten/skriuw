@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import type { RendererStore } from "../store/types";
+import type { RendererState, RendererStore } from "../store/types";
 import { useRendererSelector } from "../store/use-renderer-selector";
 
 export type NoteNavigation = {
@@ -10,30 +9,49 @@ export type NoteNavigation = {
   navigateNext: () => void;
 };
 
-export function useNoteNavigation(store: RendererStore): NoteNavigation {
-  const activeNoteId = useRendererSelector(store, (state) => state.activeNoteId);
-  const nodeOrder = useRendererSelector(store, (state) => state.nodeOrder);
-  const nodes = useRendererSelector(store, (state) => state.nodes);
-  const title = activeNoteId === null ? "" : (nodes.get(activeNoteId)?.title ?? "");
+type NavigationSnapshot = readonly [
+  title: string,
+  previousNoteId: string | null,
+  nextNoteId: string | null,
+];
 
-  const noteIds = useMemo(
-    () => nodeOrder.filter((id) => nodes.get(id)?.kind === "note"),
-    [nodeOrder, nodes],
+function selectNavigation(state: RendererState): NavigationSnapshot {
+  const activeNoteId = state.activeNoteId;
+  if (activeNoteId === null) {
+    return ["", null, null];
+  }
+  const title = state.metadata.get(activeNoteId)?.title ?? "";
+  const index = state.noteIds.indexOf(activeNoteId);
+  if (index < 0) {
+    return [title, null, null];
+  }
+  return [title, state.noteIds[index - 1] ?? null, state.noteIds[index + 1] ?? null];
+}
+
+function sameNavigation(left: NavigationSnapshot, right: NavigationSnapshot): boolean {
+  return left[0] === right[0] && left[1] === right[1] && left[2] === right[2];
+}
+
+export function useNoteNavigation(store: RendererStore): NoteNavigation {
+  const [title, previousNoteId, nextNoteId] = useRendererSelector(
+    store,
+    selectNavigation,
+    sameNavigation,
   );
 
-  const currentIndex = activeNoteId === null ? -1 : noteIds.indexOf(activeNoteId);
-  const canNavigatePrev = currentIndex > 0;
-  const canNavigateNext = currentIndex >= 0 && currentIndex < noteIds.length - 1;
-
   function navigatePrev(): void {
-    const id = noteIds[currentIndex - 1];
-    if (canNavigatePrev && id) store.setActiveNote(id);
+    if (previousNoteId) store.setActiveNote(previousNoteId);
   }
 
   function navigateNext(): void {
-    const id = noteIds[currentIndex + 1];
-    if (canNavigateNext && id) store.setActiveNote(id);
+    if (nextNoteId) store.setActiveNote(nextNoteId);
   }
 
-  return { title, canNavigatePrev, canNavigateNext, navigatePrev, navigateNext };
+  return {
+    title,
+    canNavigatePrev: previousNoteId !== null,
+    canNavigateNext: nextNoteId !== null,
+    navigatePrev,
+    navigateNext,
+  };
 }

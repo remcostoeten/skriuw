@@ -263,6 +263,67 @@ test("save_document updates content, word count, and metadata timestamp", () => 
   assert.equal(state.metadata.get("note-root")?.updatedAt, 99);
 });
 
+test("save_document keeps structural identities and never notifies tree subscribers", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const before = store.getState();
+  let treeNotifications = 0;
+  store.subscribe(
+    (state) => state.nodeOrder,
+    () => {
+      treeNotifications += 1;
+    },
+  );
+  store.subscribe(
+    (state) => state.nodes,
+    () => {
+      treeNotifications += 1;
+    },
+  );
+  store.applyOperations([
+    {
+      type: "save_document",
+      noteId: "note-root",
+      documentJson: { type: "doc", content: [] },
+      markdown: "updated",
+      wordCount: 12,
+      expectedRevision: 1,
+      at: 99,
+    },
+  ]);
+  const after = store.getState();
+  assert.equal(treeNotifications, 0);
+  assert.equal(after.nodes, before.nodes);
+  assert.equal(after.nodeOrder, before.nodeOrder);
+  assert.equal(after.noteIds, before.noteIds);
+  assert.equal(after.visibleIds, before.visibleIds);
+  assert.equal(after.metadata.get("note-child"), before.metadata.get("note-child"));
+  assert.equal(after.metadata.get("note-root")?.wordCount, 12);
+});
+
+test("revision-only acks update documents without touching structural state", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const before = store.getState();
+  let treeNotifications = 0;
+  store.subscribe(
+    (state) => state.nodeOrder,
+    () => {
+      treeNotifications += 1;
+    },
+  );
+  store.applyAck({
+    applied: 1,
+    revisions: [{ id: "note-root", revision: 2 }],
+    rankChanges: [],
+  });
+  const after = store.getState();
+  assert.equal(treeNotifications, 0);
+  assert.equal(after.documents.get("note-root")?.revision, 2);
+  assert.equal(after.sourceNodes, before.sourceNodes);
+  assert.equal(after.nodes, before.nodes);
+  assert.equal(after.nodeOrder, before.nodeOrder);
+  assert.equal(after.metadata, before.metadata);
+});
+
 test("selector subscribers only fire when their slice changes", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   let activeNotifications = 0;

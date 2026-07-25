@@ -5,9 +5,6 @@
 @import "./css/editor.css";
 @import "./css/sidebar.css";
 @import "./css/references.css";
-@import "./css/search.css";
-@import "./css/trash.css";
 @import "./css/tooltip.css";
-@import "./css/entity.css";
 
 @plugin "tailwindcss-animate";
