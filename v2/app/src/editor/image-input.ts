@@ -19,6 +19,16 @@ export function collectImageFiles(transfer: DataTransfer | null): File[] {
   if (!transfer) {
     return [];
   }
+  const itemFiles = [...transfer.items].flatMap((item) => {
+    if (item.kind !== "file" || !item.type.startsWith("image/")) {
+      return [];
+    }
+    const file = item.getAsFile();
+    return file ? [file] : [];
+  });
+  if (itemFiles.length > 0) {
+    return itemFiles;
+  }
   return [...transfer.files].filter((file) => file.type.startsWith("image/"));
 }
 
