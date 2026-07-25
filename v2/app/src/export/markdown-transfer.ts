@@ -215,6 +215,9 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
         ...(plan.unresolvedReferences > 0
           ? [`Kept ${count(plan.unresolvedReferences, "ambiguous or unresolved wiki-link")} as source text`]
           : []),
+        ...(plan.preservedSources > 0
+          ? [`Preserved ${count(plan.preservedSources, "note with unsupported Markdown")} in raw mode`]
+          : []),
         ...(tree.skipped > 0 ? [`Skipped ${count(tree.skipped, "unreadable file")}`] : []),
       ],
     });
