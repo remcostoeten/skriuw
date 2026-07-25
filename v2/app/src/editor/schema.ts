@@ -154,6 +154,60 @@ const imageRefSpec: NodeSpec = {
   ],
 };
 
+const blockedImageSpec: NodeSpec = {
+  inline: true,
+  group: "inline",
+  draggable: true,
+  attrs: {
+    src: { default: null },
+    alt: { default: null },
+    title: { default: null },
+  },
+  toDOM: (node) => [
+    "span",
+    {
+      class: "blocked-markdown-image",
+      "data-image-src": String(node.attrs.src ?? ""),
+      "data-image-alt": String(node.attrs.alt ?? ""),
+      role: "img",
+      "aria-label": `Remote image blocked: ${String(node.attrs.alt ?? node.attrs.src ?? "image")}`,
+    },
+    String(node.attrs.alt ?? "Remote image blocked"),
+  ],
+  parseDOM: [
+    {
+      tag: "img[src]",
+      getAttrs: (dom) => ({
+        src: dom.getAttribute("src"),
+        alt: dom.getAttribute("alt"),
+        title: dom.getAttribute("title"),
+      }),
+    },
+  ],
+};
+
+const rawMarkdownSpec: NodeSpec = {
+  content: "text*",
+  marks: "",
+  group: "block",
+  code: true,
+  defining: true,
+  toDOM: () => [
+    "pre",
+    {
+      class: "unsupported-markdown-source",
+      "data-unsupported-markdown": "true",
+    },
+    ["code", 0],
+  ],
+  parseDOM: [
+    {
+      tag: "pre[data-unsupported-markdown]",
+      preserveWhitespace: "full",
+    },
+  ],
+};
+
 const checkListSpec: NodeSpec = {
   content: "check_item+",
   group: "block",
@@ -245,7 +299,9 @@ const tableSpecs = tableNodes({
 });
 
 const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
+  .update("image", blockedImageSpec)
   .update("code_block", codeBlockSpec)
+  .addToEnd("raw_markdown", rawMarkdownSpec)
   .addToEnd("check_list", checkListSpec)
   .addToEnd("check_item", checkItemSpec)
   .addToEnd("tag_ref", tagRefSpec)
@@ -660,6 +716,10 @@ const productMarkdownSerializer = new MarkdownSerializer(
         `![${state.esc(String(node.attrs.alt))}](images/${node.attrs.id})`,
       );
     },
+    raw_markdown(state, node) {
+      state.write(node.textContent);
+      state.closeBlock(node);
+    },
   },
   {
     ...defaultMarkdownSerializer.marks,
@@ -673,6 +733,12 @@ const productMarkdownSerializer = new MarkdownSerializer(
 );
 
 export function serializeProductMarkdown(document: ProseMirrorNode): string {
+  if (
+    document.childCount === 1 &&
+    document.firstChild?.type.name === "raw_markdown"
+  ) {
+    return document.firstChild.textContent;
+  }
   return productMarkdownSerializer.serialize(document);
 }
 
@@ -873,6 +939,15 @@ export function parseProductMarkdown(markdown: string): ProseMirrorNode {
   if (markdown.trim().length === 0) {
     return plainParagraphDocument("");
   }
+  if (requiresLosslessMarkdownSource(markdown)) {
+    return productSchema.node("doc", null, [
+      productSchema.node(
+        "raw_markdown",
+        null,
+        markdown.length > 0 ? productSchema.text(markdown) : undefined,
+      ),
+    ]);
+  }
   try {
     const parsed = productMarkdownParser.parse(markdown);
     try {
@@ -884,6 +959,26 @@ export function parseProductMarkdown(markdown: string): ProseMirrorNode {
   } catch {
     return plainParagraphDocument(markdown);
   }
+}
+
+export function requiresLosslessMarkdownSource(markdown: string): boolean {
+  const frontmatter =
+    /^(?:\uFEFF)?---[ \t]*\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/;
+  const footnote = /(?:^|[^\\])\[\^[^\]\r\n]+\]/m;
+  return frontmatter.test(markdown) || footnote.test(markdown);
+}
+
+export function hasLosslessMarkdownDocument(documentJson: unknown): boolean {
+  if (typeof documentJson !== "object" || documentJson === null) {
+    return false;
+  }
+  const document = documentJson as { content?: unknown[] };
+  return document.content?.some(
+    (node) =>
+      typeof node === "object" &&
+      node !== null &&
+      (node as { type?: unknown }).type === "raw_markdown",
+  ) ?? false;
 }
 
 const IMAGE_PATH_PREFIX = "images/";
