@@ -11,6 +11,7 @@ import {
   filterSettingsSections,
   moveSettingsSection,
   rovingSettingsSection,
+  settingsSearchEscape,
 } from "../settings/settings-navigation";
 import type { RendererStore } from "../store/types";
 import { AboutSection } from "./settings/about-section";
@@ -183,10 +184,18 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
               aria-controls="settings-tablist"
               onChange={(event) => setQuery(event.currentTarget.value)}
               onKeyDown={(event) => {
-                if (event.key === "Escape" && query) {
+                if (event.key === "Escape") {
                   event.preventDefault();
                   event.stopPropagation();
-                  setQuery("");
+                  const action = settingsSearchEscape(
+                    query,
+                    recordingCountRef.current > 0,
+                  );
+                  if (action === "clear-query") {
+                    setQuery("");
+                  } else if (action === "close-dialog") {
+                    onOpenChange(false);
+                  }
                   return;
                 }
                 if (event.key === "ArrowDown" && rovingSection) {

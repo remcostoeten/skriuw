@@ -4,6 +4,7 @@ import {
   filterSettingsSections,
   moveSettingsSection,
   rovingSettingsSection,
+  settingsSearchEscape,
 } from "../../src/settings/settings-navigation";
 
 const sections = [
@@ -60,4 +61,11 @@ test("section navigation wraps and supports Home and End", () => {
   assert.equal(moveSettingsSection(ids, "editor", "Home"), "appearance");
   assert.equal(moveSettingsSection(ids, "editor", "End"), "data");
   assert.equal(moveSettingsSection([], "appearance", "ArrowDown"), undefined);
+});
+
+test("Escape in the settings search clears the query, then closes the dialog", () => {
+  assert.equal(settingsSearchEscape("editor", false), "clear-query");
+  assert.equal(settingsSearchEscape("", false), "close-dialog");
+  assert.equal(settingsSearchEscape("", true), "ignore");
+  assert.equal(settingsSearchEscape("editor", true), "clear-query");
 });

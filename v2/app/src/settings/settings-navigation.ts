@@ -7,6 +7,23 @@ export type SearchableSettingsSection<T extends string = string> = {
 
 export type SectionNavigationKey = "ArrowDown" | "ArrowUp" | "Home" | "End";
 
+export type SettingsSearchEscape = "clear-query" | "close-dialog" | "ignore";
+
+/**
+ * Resolves what Escape means while the settings search field holds focus. The
+ * field has to own the key because `input[type=search]` cancels itself on
+ * Escape natively, so the surrounding `<dialog>` never gets a close request.
+ */
+export function settingsSearchEscape(
+  query: string,
+  recordingShortcut: boolean,
+): SettingsSearchEscape {
+  if (query) {
+    return "clear-query";
+  }
+  return recordingShortcut ? "ignore" : "close-dialog";
+}
+
 function searchTokens(query: string): string[] {
   return query
     .trim()
