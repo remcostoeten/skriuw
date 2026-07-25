@@ -1,15 +1,15 @@
-import { defaultMarkdownParser } from "prosemirror-markdown";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { HistoryHeader, WorkspaceOperation } from "../contracts/workspace";
-import { countWords, productSchema, serializeProductMarkdown } from "../editor/schema";
+import {
+  countWords,
+  parseProductMarkdown,
+} from "../editor/schema";
 
 export type VersionListItem = {
   versionId: string;
   createdAt: number;
   summary: string;
 };
-
-const EMPTY_DOCUMENT_JSON = { type: "doc", content: [{ type: "paragraph" }] };
 
 export function projectVersionList(
   headers: readonly HistoryHeader[] | null | undefined,
@@ -27,11 +27,7 @@ export function projectVersionList(
 }
 
 export function parseHistoryMarkdown(markdown: string): ProseMirrorNode {
-  const parsed = defaultMarkdownParser.parse(markdown);
-  if (!parsed) {
-    return productSchema.nodeFromJSON(EMPTY_DOCUMENT_JSON);
-  }
-  return productSchema.nodeFromJSON(parsed.toJSON());
+  return parseProductMarkdown(markdown);
 }
 
 export type RestoreDocument = {
@@ -44,7 +40,7 @@ export function buildRestoreDocument(versionMarkdown: string): RestoreDocument {
   const node = parseHistoryMarkdown(versionMarkdown);
   return {
     documentJson: node.toJSON(),
-    markdown: serializeProductMarkdown(node),
+    markdown: versionMarkdown,
     wordCount: countWords(node),
   };
 }
