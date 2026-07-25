@@ -288,6 +288,151 @@
   font-family: var(--font-mono);
 }
 
+.prosemirror-host .ProseMirror pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+
+.prosemirror-host .ProseMirror pre.code-block {
+  position: relative;
+  padding-top: 32px;
+}
+
+.prosemirror-host .ProseMirror .code-block-toolbar {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 1;
+  user-select: none;
+}
+
+.prosemirror-host .ProseMirror[contenteditable="false"] .code-block-toolbar {
+  display: none;
+}
+
+.prosemirror-host .ProseMirror .code-block-language {
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 2px);
+  background: none;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+  transition: color 100ms ease, border-color 100ms ease, background 100ms ease;
+}
+
+.prosemirror-host .ProseMirror .code-block-language:hover,
+.prosemirror-host .ProseMirror .code-block-toolbar[data-open="true"] .code-block-language {
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted) / 0.6);
+  color: hsl(var(--foreground));
+}
+
+.prosemirror-host .ProseMirror .code-block-language-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 2;
+  max-height: 260px;
+  min-width: 140px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 2px);
+  background: hsl(var(--popover));
+  box-shadow: 0 8px 24px hsl(var(--editor-shadow) / 0.3);
+}
+
+.prosemirror-host .ProseMirror .code-block-toolbar[data-open="true"] .code-block-language-menu {
+  display: block;
+}
+
+.prosemirror-host .ProseMirror .code-block-language-menu li {
+  margin: 0;
+  padding: 0;
+}
+
+.prosemirror-host .ProseMirror .code-block-language-menu button {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: none;
+  color: hsl(var(--popover-foreground));
+  font-family: var(--font-sans);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.prosemirror-host .ProseMirror .code-block-language-menu button:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.prosemirror-host .ProseMirror pre .hljs-comment,
+.prosemirror-host .ProseMirror pre .hljs-quote {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.prosemirror-host .ProseMirror pre .hljs-keyword,
+.prosemirror-host .ProseMirror pre .hljs-selector-tag,
+.prosemirror-host .ProseMirror pre .hljs-literal {
+  color: hsl(var(--project-purple));
+}
+
+.prosemirror-host .ProseMirror pre .hljs-string,
+.prosemirror-host .ProseMirror pre .hljs-addition,
+.prosemirror-host .ProseMirror pre .hljs-regexp {
+  color: hsl(var(--project-green));
+}
+
+.prosemirror-host .ProseMirror pre .hljs-number,
+.prosemirror-host .ProseMirror pre .hljs-symbol,
+.prosemirror-host .ProseMirror pre .hljs-bullet {
+  color: hsl(var(--project-orange));
+}
+
+.prosemirror-host .ProseMirror pre .hljs-title,
+.prosemirror-host .ProseMirror pre .hljs-section,
+.prosemirror-host .ProseMirror pre .hljs-function .hljs-title {
+  color: hsl(var(--project-blue));
+}
+
+.prosemirror-host .ProseMirror pre .hljs-attr,
+.prosemirror-host .ProseMirror pre .hljs-attribute,
+.prosemirror-host .ProseMirror pre .hljs-variable,
+.prosemirror-host .ProseMirror pre .hljs-template-variable {
+  color: hsl(var(--project-teal));
+}
+
+.prosemirror-host .ProseMirror pre .hljs-built_in,
+.prosemirror-host .ProseMirror pre .hljs-type,
+.prosemirror-host .ProseMirror pre .hljs-class .hljs-title,
+.prosemirror-host .ProseMirror pre .hljs-meta {
+  color: hsl(var(--project-amber));
+}
+
+.prosemirror-host .ProseMirror pre .hljs-deletion {
+  color: hsl(var(--project-red));
+}
+
+.prosemirror-host .ProseMirror pre .hljs-emphasis {
+  font-style: italic;
+}
+
+.prosemirror-host .ProseMirror pre .hljs-strong {
+  font-weight: 600;
+}
+
 .prosemirror-host .ProseMirror blockquote {
   margin: 0;
   padding-left: 14px;
