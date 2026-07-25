@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SECONDARY_PANE_ID } from "../store/panes";
 import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererStore } from "../store/types";
+import type { RendererState, RendererStore } from "../store/types";
 
 type Props = {
   store: RendererStore;
@@ -423,9 +423,17 @@ function mountOutlineController(
   };
 }
 
+function selectActiveNoteId(state: RendererState): string | null {
+  return state.activeNoteId;
+}
+
+function selectFocusedPaneId(state: RendererState): string {
+  return state.focusedPaneId;
+}
+
 export function NoteOutline({ store, onCountChange }: Props) {
-  const activeNoteId = useRendererSelector(store, (state) => state.activeNoteId);
-  const focusedPaneId = useRendererSelector(store, (state) => state.focusedPaneId);
+  const activeNoteId = useRendererSelector(store, selectActiveNoteId);
+  const focusedPaneId = useRendererSelector(store, selectFocusedPaneId);
   const navRef = useRef<HTMLElement | null>(null);
   const [, setEmpty] = useState(true);
 

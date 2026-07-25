@@ -28,7 +28,7 @@ import {
 import { schema as basicSchema } from "prosemirror-schema-basic";
 import { Plugin, PluginKey, TextSelection, type EditorState } from "prosemirror-state";
 import { findWrapping } from "prosemirror-transform";
-import { Decoration, DecorationSet } from "prosemirror-view";
+import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
 import { addListNodes, liftListItem, sinkListItem, splitListItem } from "prosemirror-schema-list";
 import { createSearchPlugin } from "./search-plugin";
 
@@ -375,6 +375,60 @@ function linkInputRule(): InputRule {
   });
 }
 
+const AUTOLINK_PATTERN =
+  /(?:^|[\s(])((?:https?:\/\/|www\.)[^\s<>]*[^\s<>.,;:!?)])(\s)$/;
+
+/**
+ * Links a bare URL once the word is closed by whitespace. Input rules run
+ * before the trigger character reaches the document, so the whitespace has to
+ * be re-inserted here or typing it would be swallowed.
+ */
+function autolinkInputRule(): InputRule {
+  return new InputRule(AUTOLINK_PATTERN, (state, match, start, end) => {
+    const link = productSchema.marks.link;
+    const url = match[1] ?? "";
+    const trailing = match[2] ?? "";
+    if (!link || !url) return null;
+    const from = start + match[0].indexOf(url);
+    const to = from + url.length;
+    if (state.doc.rangeHasMark(from, to, link)) return null;
+    const tr = state.tr.addMark(from, to, link.create({ href: normalizeAutolink(url) }));
+    tr.removeStoredMark(link);
+    tr.insertText(trailing, end);
+    return tr;
+  });
+}
+
+export function normalizeAutolink(url: string): string {
+  return url.startsWith("www.") ? `https://${url}` : url;
+}
+
+const PASTED_URL_PATTERN = /^(?:https?:\/\/|www\.)[^\s<>]+$/;
+
+/**
+ * Links the selected text when the pasted clipboard content is a bare URL,
+ * rather than replacing the selection with the URL. Returns false when the
+ * paste should fall through to the default handling.
+ */
+export function linkPastedText(view: EditorView, text: string): boolean {
+  const link = productSchema.marks.link;
+  const { selection } = view.state;
+  const trimmed = text.trim();
+  if (!link || selection.empty || !(selection instanceof TextSelection)) return false;
+  if (!PASTED_URL_PATTERN.test(trimmed)) return false;
+  if (selection.$from.parent.type.spec.code) return false;
+  view.dispatch(
+    view.state.tr
+      .addMark(
+        selection.from,
+        selection.to,
+        link.create({ href: normalizeAutolink(trimmed) }),
+      )
+      .removeStoredMark(link),
+  );
+  return true;
+}
+
 function createCheckboxTogglePlugin(): Plugin {
   return new Plugin({
     props: {
@@ -460,6 +514,7 @@ export function createProductPlugins(): Plugin[] {
         textblockTypeInputRule(/^```$/, codeBlock),
         horizontalRuleInputRule(),
         linkInputRule(),
+        autolinkInputRule(),
         markInputRule(/\*\*([^*\s](?:[^*]*[^*\s])?)\*\*$/, strong, 2),
         markInputRule(/(?:^|[^_])__([^_\s](?:[^_]*[^_\s])?)__$/, strong, 2),
         markInputRule(/~~([^~\s](?:[^~]*[^~\s])?)~~$/, strikethrough, 2),
@@ -583,7 +638,22 @@ if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any
   defaultMarkdownParser.tokenizer.inline.ruler.before("link", "wiki_link", inlineWikiLinkRule);
 }
 
-defaultMarkdownParser.tokenizer.enable("strikethrough", true);
+/**
+ * The parser is built on markdown-it's commonmark preset, which disables both
+ * of these core rules outright — setting the `linkify` option alone silently
+ * does nothing without enabling the rule as well.
+ *
+ * Fuzzy linkification stays off deliberately: it turns any bare `word.word`
+ * into a link, which fires on ordinary prose (filenames, abbreviations) far
+ * more often than on real URLs. Only scheme-prefixed and `www.` URLs link.
+ */
+defaultMarkdownParser.tokenizer.enable(["strikethrough", "linkify"], true);
+defaultMarkdownParser.tokenizer.set({ linkify: true });
+defaultMarkdownParser.tokenizer.linkify.set({
+  fuzzyLink: false,
+  fuzzyEmail: false,
+  fuzzyIP: false,
+});
 
 const productMarkdownParser = new MarkdownParser(
   productSchema,
