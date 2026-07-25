@@ -2,6 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { commitOperations } from "../actions/workspace";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
+import {
+  reconcileRawMarkdown,
+  updateRawMarkdown,
+  type RawMarkdownState,
+} from "./raw-markdown-reconciliation";
 import { countWords, parseProductMarkdownWithImages } from "./schema";
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -22,11 +27,14 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     [selectNoteId],
   );
   const record = useRendererSelector(store, selectRecord);
-  const [text, setText] = useState(record?.markdown ?? "");
-  const noteIdRef = useRef(activeNoteId);
+  const [source, setSource] = useState<RawMarkdownState>({
+    noteId: activeNoteId,
+    text: record?.markdown ?? "",
+    dirty: false,
+  });
+  const sourceRef = useRef(source);
+  sourceRef.current = source;
   const saveTimerRef = useRef<number | null>(null);
-  const textRef = useRef(text);
-  textRef.current = text;
 
   function saveNow(noteId: string, markdown: string): void {
     const current = store.getState().documents.get(noteId);
@@ -60,22 +68,34 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     }
     window.clearTimeout(saveTimerRef.current);
     saveTimerRef.current = null;
-    saveNow(noteId, textRef.current);
+    saveNow(noteId, sourceRef.current.text);
   }
 
   useEffect(() => {
-    return () => flushPendingSave(noteIdRef.current);
+    return () => flushPendingSave(sourceRef.current.noteId);
   }, []);
 
   useEffect(() => {
-    flushPendingSave(noteIdRef.current);
-    noteIdRef.current = activeNoteId;
-    setText(record?.markdown ?? "");
-  }, [activeNoteId]);
+    const previous = sourceRef.current;
+    if (previous.noteId !== activeNoteId) {
+      flushPendingSave(previous.noteId);
+    }
+    const next = reconcileRawMarkdown(
+      previous,
+      activeNoteId,
+      record?.markdown ?? "",
+    );
+    if (next !== previous) {
+      sourceRef.current = next;
+      setSource(next);
+    }
+  }, [activeNoteId, record?.markdown, record?.revision]);
 
   function handleChange(value: string): void {
-    setText(value);
-    const noteId = noteIdRef.current;
+    const next = updateRawMarkdown(sourceRef.current, value);
+    sourceRef.current = next;
+    setSource(next);
+    const noteId = next.noteId;
     if (noteId === null) {
       return;
     }
@@ -84,7 +104,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     }
     saveTimerRef.current = window.setTimeout(() => {
       saveTimerRef.current = null;
-      saveNow(noteId, textRef.current);
+      saveNow(noteId, sourceRef.current.text);
     }, SAVE_DEBOUNCE_MS);
   }
 
@@ -92,7 +112,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     <textarea
       className="raw-markdown-editor"
       aria-label="Raw Markdown source"
-      value={text}
+      value={source.text}
       spellCheck={false}
       onChange={(event) => handleChange(event.currentTarget.value)}
     />
