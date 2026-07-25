@@ -15,6 +15,100 @@ export type TrashWindow = {
   end: number;
 };
 
+export type TrashRow = {
+  id: string;
+  kind: WorkspaceNode["kind"];
+  title: string;
+  deletedAt: number;
+  location: string | null;
+  summary: string;
+  snippet: string;
+};
+
+const SNIPPET_LENGTH = 180;
+const FENCE = /^\s*(```|~~~)/;
+const LEADING_MARKERS = /^\s*(#{1,6}\s+|>\s?|[-*+]\s+(\[[ xX]\]\s+)?|\d+[.)]\s+)/;
+const IMAGES = /!\[[^\]]*\]\([^)]*\)/g;
+const LINKS = /\[([^\]]*)\]\([^)]*\)/g;
+const WIKILINKS = /\[\[([^\]|]*)(?:\|([^\]]*))?\]\]/g;
+const EMPHASIS = /[*_`~]/g;
+
+/** Flattens note markdown into a single-line plain-text preview for trash rows. */
+export function trashSnippet(markdown: string): string {
+  const parts: string[] = [];
+  let inFence = false;
+  for (const line of markdown.split("\n")) {
+    if (FENCE.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) {
+      continue;
+    }
+    const text = line
+      .replace(LEADING_MARKERS, "")
+      .replace(IMAGES, "")
+      .replace(LINKS, "$1")
+      .replace(WIKILINKS, (_match, target: string, label?: string) => label ?? target)
+      .replace(EMPHASIS, "")
+      .trim();
+    if (text.length === 0) {
+      continue;
+    }
+    parts.push(text);
+    if (parts.join(" ").length >= SNIPPET_LENGTH) {
+      break;
+    }
+  }
+  const joined = parts.join(" ");
+  return joined.length > SNIPPET_LENGTH ? `${joined.slice(0, SNIPPET_LENGTH).trimEnd()}…` : joined;
+}
+
+function rootSummary(root: TrashRoot): string {
+  if (root.kind === "note") {
+    return "Note";
+  }
+  const notes = `${root.noteCount} ${root.noteCount === 1 ? "note" : "notes"}`;
+  const folders = `${root.folderCount} ${root.folderCount === 1 ? "folder" : "folders"}`;
+  return `${folders}, ${notes}`;
+}
+
+/**
+ * Projects trashed roots into flat display rows: originating folder, a counts
+ * summary, and a plain-text body snippet for notes.
+ */
+export function trashRows(
+  nodes: ReadonlyMap<string, WorkspaceNode>,
+  documents: ReadonlyMap<string, { markdown: string }>,
+): TrashRow[] {
+  return trashedRoots(nodes).map((root) => {
+    const parentId = nodes.get(root.id)?.parentId ?? null;
+    const summary = rootSummary(root);
+    return {
+      id: root.id,
+      kind: root.kind,
+      title: root.title,
+      deletedAt: root.deletedAt,
+      location: parentId === null ? null : (nodes.get(parentId)?.title ?? null),
+      summary,
+      snippet:
+        root.kind === "note" ? trashSnippet(documents.get(root.id)?.markdown ?? "") : summary,
+    };
+  });
+}
+
+export function filterTrashRows(rows: readonly TrashRow[], query: string): TrashRow[] {
+  const needle = query.trim().toLowerCase();
+  if (needle.length === 0) {
+    return [...rows];
+  }
+  return rows.filter((row) =>
+    [row.title, row.location ?? "", row.snippet].some((field) =>
+      field.toLowerCase().includes(needle),
+    ),
+  );
+}
+
 export function trashWindowRange(
   itemCount: number,
   scrollTop: number,
