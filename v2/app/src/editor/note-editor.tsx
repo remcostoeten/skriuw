@@ -14,7 +14,8 @@ import { EditorView } from "prosemirror-view";
 import { createCodeBlockNodeView } from "./code-block-nodeview";
 import { createImageNodeViews } from "./image-nodeview";
 import { collectImageFiles, insertImages, pickImageFiles } from "./image-input";
-import { readImageAlt, renameImageNode } from "./image-actions";
+import { noteImageIds, readImageAlt, renameImageNode } from "./image-actions";
+import { pasteMarkdown } from "./markdown-paste";
 import { registerPendingWork } from "../lifecycle/pending-work";
 import { openExternalUrl } from "../bridge/external-links";
 import { ImageInfoDialog, ImageLightbox, ImageRenameDialog } from "./image-menu";
@@ -85,11 +86,11 @@ import {
 } from "./drag-handle";
 import { BubbleMenu, closedBubbleMenu, computeBubbleMenu } from "./bubble-menu";
 import {
-  clampLinkMenuX,
   closedLinkMenu,
   LinkMenu,
   linkAtCursor,
   linkInRange,
+  linkMenuAnchor,
 } from "./link-menu";
 import { SearchWidget } from "./search-widget";
 import { useEditorSearch } from "./use-editor-search";
@@ -515,19 +516,18 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       searchRef.current.syncMatchInfo();
     }
     if (transaction.docChanged) dragHandleRef.current?.hide();
-    setBubbleMenu(computeBubbleMenu(view));
+    if (linkMenuRef.current.editing) setBubbleMenu(closedBubbleMenu);
+    else setBubbleMenu(computeBubbleMenu(view));
     if (!linkMenuRef.current.editing) {
       const cursorLink = linkAtCursor(next);
       if (cursorLink) {
-        const linkCoords = view.coordsAtPos(cursorLink.from);
         setLinkMenu({
           open: true,
           editing: false,
           href: cursorLink.href,
           from: cursorLink.from,
           to: cursorLink.to,
-          x: clampLinkMenuX(linkCoords.left),
-          y: linkCoords.bottom + 6,
+          ...linkMenuAnchor(view, cursorLink.from, cursorLink.to),
         });
       } else if (linkMenuRef.current.open) {
         setLinkMenu(closedLinkMenu);
@@ -571,7 +571,6 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const from = cursorLink ? cursorLink.from : selection.from;
     const to = cursorLink ? cursorLink.to : selection.to;
     if (from === to) return;
-    const coords = view.coordsAtPos(from);
     setBubbleMenu(closedBubbleMenu);
     setLinkMenu({
       open: true,
@@ -579,8 +578,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       href: cursorLink ? cursorLink.href : linkInRange(view.state, from, to),
       from,
       to,
-      x: clampLinkMenuX(coords.left),
-      y: coords.bottom + 6,
+      ...linkMenuAnchor(view, from, to),
     });
   }
 
@@ -661,7 +659,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           event.preventDefault();
           return insertImages(store, currentView, noteId, files, null);
         }
-        if (linkPastedText(currentView, event.clipboardData?.getData("text/plain") ?? "")) {
+        const text = event.clipboardData?.getData("text/plain") ?? "";
+        if (linkPastedText(currentView, text)) {
+          event.preventDefault();
+          return true;
+        }
+        const html = event.clipboardData?.getData("text/html") ?? "";
+        if (pasteMarkdown(currentView, html, text, noteImageIds(store.getState(), noteId))) {
           event.preventDefault();
           return true;
         }

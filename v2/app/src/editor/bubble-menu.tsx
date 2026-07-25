@@ -11,12 +11,16 @@ import {
   StrikethroughIcon,
   TextQuoteIcon,
 } from "../shared/icons";
+import { rangeMenuAnchor } from "./menu-anchor";
 import { productSchema } from "./schema";
+
+const BUBBLE_MENU_WIDTH = 300;
 
 export type BubbleMenuState = {
   open: boolean;
   x: number;
   y: number;
+  below: boolean;
   bold: boolean;
   italic: boolean;
   strikethrough: boolean;
@@ -30,6 +34,7 @@ export const closedBubbleMenu: BubbleMenuState = {
   open: false,
   x: 0,
   y: 0,
+  below: false,
   bold: false,
   italic: false,
   strikethrough: false,
@@ -78,14 +83,10 @@ export function computeBubbleMenu(view: EditorView): BubbleMenuState {
   if (selection.$from.parent.type.spec.code) {
     return closedBubbleMenu;
   }
-  const start = view.coordsAtPos(selection.from);
-  const end = view.coordsAtPos(selection.to);
-  const sameLine = start.top === end.top;
   const parent = selection.$from.parent;
   return {
     open: true,
-    x: Math.max(12, sameLine ? (start.left + end.left) / 2 : start.left),
-    y: start.top,
+    ...rangeMenuAnchor(view, selection.from, selection.to, BUBBLE_MENU_WIDTH),
     bold: markActive(state, requiredMark("strong")),
     italic: markActive(state, requiredMark("em")),
     strikethrough: markActive(state, requiredMark("strikethrough")),
@@ -208,6 +209,7 @@ export function BubbleMenu({ state, getView, onLink, onDismiss, containerRef }: 
       role="toolbar"
       aria-label="Text formatting"
       aria-orientation="horizontal"
+      data-below={state.below ? "true" : undefined}
       style={{ left: state.x, top: state.y }}
       onBlur={(event) => {
         const next = event.relatedTarget;
@@ -220,7 +222,10 @@ export function BubbleMenu({ state, getView, onLink, onDismiss, containerRef }: 
         onDismiss();
       }}
       onKeyDown={(event) => {
-        if (event.key === "ArrowRight") {
+        if (event.key === "Tab") {
+          event.preventDefault();
+          moveFocus(focusIndex + (event.shiftKey ? -1 : 1));
+        } else if (event.key === "ArrowRight") {
           event.preventDefault();
           moveFocus(focusIndex + 1);
         } else if (event.key === "ArrowLeft") {
