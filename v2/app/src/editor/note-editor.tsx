@@ -10,6 +10,7 @@ import {
   type Transaction,
 } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
+import { createCodeBlockNodeView } from "./code-block-nodeview";
 import { createImageNodeViews } from "./image-nodeview";
 import { collectImageFiles, insertImages, pickImageFiles } from "./image-input";
 import { readImageAlt, renameImageNode } from "./image-actions";
@@ -610,7 +611,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = new EditorView(host, {
       state: createEditorState(emptyDocument(), mentionPlugins),
       editable: () => activeIdRef.current !== null,
-      nodeViews: { ...referenceViews.nodeViews, ...imageViews.nodeViews },
+      nodeViews: {
+        ...referenceViews.nodeViews,
+        ...imageViews.nodeViews,
+        code_block: createCodeBlockNodeView,
+      },
       dispatchTransaction,
       handleClick(currentView, pos, event) {
         if (!event.metaKey && !event.ctrlKey) return false;
