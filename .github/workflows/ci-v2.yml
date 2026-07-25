@@ -15,13 +15,6 @@ on:
 
 permissions:
     contents: read
-    pull-requests: read
-
-# Superseded pull request runs are pointless once a newer commit exists. Pushes
-# to the release branches are never cancelled.
-concurrency:
-    group: ci-v2-${{ github.event.pull_request.number || github.ref }}
-    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
     verify-and-build:
@@ -67,37 +60,9 @@ jobs:
                   (cd spikes/ui-architecture && bun install --frozen-lockfile)
                   (cd spikes/renderer-store && bun install --frozen-lockfile)
 
-            # A release workspace build plus a full Tauri bundle is ~7 of the ~10
-            # minutes this job takes, and no pull request consumes the artifacts.
-            # Pull requests build the renderer only; the release path still runs
-            # on pushes, and on any pull request that touches Rust or Tauri.
-            - name: Select build mode
-              id: mode
-              env:
-                  GH_TOKEN: ${{ github.token }}
-                  PR: ${{ github.event.pull_request.number }}
-              run: |
-                  if [[ -z "$PR" ]]; then
-                    echo "mode=ci" >> "$GITHUB_OUTPUT"
-                    exit 0
-                  fi
-                  changed="$(gh api "repos/${{ github.repository }}/pulls/$PR/files" \
-                    --paginate --jq '.[].filename')"
-                  rust='^v2/(app/src-tauri/|crates/|xtask/|Cargo\.(toml|lock)$|rust-toolchain\.toml$)'
-                  if grep -qE "$rust"'|^\.github/workflows/ci-v2\.yml$' <<<"$changed"; then
-                    echo "mode=ci" >> "$GITHUB_OUTPUT"
-                  else
-                    echo "mode=web" >> "$GITHUB_OUTPUT"
-                  fi
-
             - name: Verify and build
               # Updater artifacts are only signed in the release workflow; CI builds skip them
-              run: |
-                  if [[ "${{ steps.mode.outputs.mode }}" == "ci" ]]; then
-                    ./scripts/build.sh ci --config '{"bundle":{"createUpdaterArtifacts":false}}'
-                  else
-                    ./scripts/build.sh web
-                  fi
+              run: ./scripts/build.sh ci --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
             - name: Upload build logs
               if: failure()
