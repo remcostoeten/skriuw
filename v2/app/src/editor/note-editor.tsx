@@ -268,6 +268,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   slashMenuRef.current = slashMenu;
   const slashDismissedRef = useRef(false);
   const [bubbleMenu, setBubbleMenu] = useState(closedBubbleMenu);
+  const bubbleMenuRef = useRef(bubbleMenu);
+  bubbleMenuRef.current = bubbleMenu;
+  const bubbleMenuHostRef = useRef<HTMLDivElement>(null);
   const [linkMenu, setLinkMenu] = useState(closedLinkMenu);
   const linkMenuRef = useRef(linkMenu);
   linkMenuRef.current = linkMenu;
@@ -686,6 +689,20 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           openLinkEditor();
           return true;
         }
+        if (
+          !mod &&
+          !event.shiftKey &&
+          event.key === "Tab" &&
+          bubbleMenuRef.current.open &&
+          !slashMenuRef.current.open
+        ) {
+          const first = bubbleMenuHostRef.current?.querySelector("button");
+          if (first instanceof HTMLButtonElement) {
+            event.preventDefault();
+            first.focus();
+            return true;
+          }
+        }
         if (!mod && event.key === "Enter") {
           const reference = selectedReference(currentView);
           if (reference) {
@@ -754,7 +771,12 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       if (entry && pending !== null) moveBoundedWindow(entry, pending);
     };
     const handleBlur = (event: FocusEvent) => {
-      setBubbleMenu((previous) => (previous.open ? closedBubbleMenu : previous));
+      const focused = event.relatedTarget;
+      const intoBubbleMenu =
+        focused instanceof HTMLElement && focused.closest(".bubble-menu") !== null;
+      if (!intoBubbleMenu) {
+        setBubbleMenu((previous) => (previous.open ? closedBubbleMenu : previous));
+      }
       const next = event.relatedTarget;
       if (!(next instanceof HTMLElement) || !next.closest(".link-menu")) {
         setLinkMenu((previous) => (previous.open ? closedLinkMenu : previous));
@@ -957,7 +979,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         }}
       />
       {activeNoteId === null && <div className="editor-empty">Select a note</div>}
-      <BubbleMenu state={bubbleMenu} getView={() => viewRef.current} onLink={openLinkEditor} />
+      <BubbleMenu
+        state={bubbleMenu}
+        getView={() => viewRef.current}
+        onLink={openLinkEditor}
+        onDismiss={() => setBubbleMenu(closedBubbleMenu)}
+        containerRef={bubbleMenuHostRef}
+      />
       <LinkMenu
         state={linkMenu}
         getView={() => viewRef.current}

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { lift, setBlockType, toggleMark, wrapIn } from "prosemirror-commands";
 import type { MarkType, NodeType } from "prosemirror-model";
 import { TextSelection, type Command, type EditorState } from "prosemirror-state";
@@ -119,9 +119,18 @@ type Props = {
   state: BubbleMenuState;
   getView: () => EditorView | null;
   onLink: () => void;
+  onDismiss: () => void;
+  containerRef: RefObject<HTMLDivElement | null>;
 };
 
-export function BubbleMenu({ state, getView, onLink }: Props) {
+export function BubbleMenu({ state, getView, onLink, onDismiss, containerRef }: Props) {
+  const [focusIndex, setFocusIndex] = useState(0);
+  const buttonsRef = useRef<(HTMLButtonElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!state.open) setFocusIndex(0);
+  }, [state.open]);
+
   if (!state.open) return null;
   const buttons: BubbleButton[] = [
     {
@@ -175,32 +184,79 @@ export function BubbleMenu({ state, getView, onLink }: Props) {
       command: toggleBlockquote(state.blockquote),
     },
   ];
+  function moveFocus(next: number): void {
+    const wrapped = (next + buttons.length) % buttons.length;
+    setFocusIndex(wrapped);
+    buttonsRef.current[wrapped]?.focus();
+  }
+
+  function activate(button: BubbleButton, returnFocus: boolean): void {
+    if (button.onPress) {
+      button.onPress();
+      return;
+    }
+    const view = getView();
+    if (!view) return;
+    button.command(view.state, view.dispatch);
+    if (returnFocus) view.focus();
+  }
+
   return (
     <div
+      ref={containerRef}
       className="bubble-menu"
       role="toolbar"
       aria-label="Text formatting"
+      aria-orientation="horizontal"
       style={{ left: state.x, top: state.y }}
+      onBlur={(event) => {
+        const next = event.relatedTarget;
+        if (
+          next instanceof HTMLElement &&
+          (next.closest(".bubble-menu") || next.closest(".prosemirror-host"))
+        ) {
+          return;
+        }
+        onDismiss();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          moveFocus(focusIndex + 1);
+        } else if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          moveFocus(focusIndex - 1);
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          moveFocus(0);
+        } else if (event.key === "End") {
+          event.preventDefault();
+          moveFocus(buttons.length - 1);
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          getView()?.focus();
+        }
+      }}
     >
       {buttons.map((button, index) => (
         <span key={button.id} className="bubble-menu-group">
           {(index === 5 || index === 8) && <span className="bubble-menu-sep" />}
           <button
+            ref={(element) => {
+              buttonsRef.current[index] = element;
+            }}
             type="button"
             title={button.label}
             aria-label={button.label}
             aria-pressed={button.active}
+            tabIndex={index === focusIndex ? 0 : -1}
             className={button.active ? "is-active" : ""}
+            onFocus={() => setFocusIndex(index)}
             onMouseDown={(event) => {
               event.preventDefault();
-              if (button.onPress) {
-                button.onPress();
-                return;
-              }
-              const view = getView();
-              if (!view) return;
-              button.command(view.state, view.dispatch);
-              view.focus();
+            }}
+            onClick={(event) => {
+              activate(button, event.detail !== 0);
             }}
           >
             {button.content}
