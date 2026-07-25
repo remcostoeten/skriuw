@@ -17,7 +17,11 @@ export function isOpenableExternalUrl(url: string): boolean {
   }
 }
 
-function hasTauriRuntime(): boolean {
+/**
+ * True when running inside the Tauri desktop shell, where the Tauri IPC
+ * bridge is available.
+ */
+export function hasTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
