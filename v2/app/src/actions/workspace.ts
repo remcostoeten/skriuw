@@ -73,12 +73,7 @@ export function createNote(store: RendererStore, parentId: string | null): void 
     },
     { type: "set_active_note", noteId: id },
   ];
-  void commitOperations(store, operations)
-    .then(() => {
-      store.setEditingNode(id);
-    })
-    .catch(reportRejection("create note"));
-  store.setEditingNode(id);
+  void commitOperations(store, operations).catch(reportRejection("create note"));
 }
 
 export function createLinkedNote(store: RendererStore, id: string, title: string): void {

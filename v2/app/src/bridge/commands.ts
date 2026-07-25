@@ -72,9 +72,7 @@ export function relocateWorkspaceStorage(targetDir: string): Promise<void> {
   return invoke<void>("relocate_workspace_storage", { targetDir });
 }
 
-export function openExternalUrl(url: string): Promise<void> {
-  return invoke<void>("open_external_url", { url });
-}
+export { openExternalUrl } from "./external-links";
 
 export type ArchiveExportReport = {
   nodes: number;

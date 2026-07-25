@@ -169,14 +169,28 @@ export function EntityView({ store, kind }: Props) {
   );
 
   return (
-    <main className="entity-view" aria-labelledby="entity-title">
-      <header className="entity-header">
+    <main
+      className="col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
+      aria-labelledby="entity-title"
+    >
+      <header className="entity-header flex min-h-[76px] items-start justify-between gap-6 border-b border-theme-divider py-3.5 pl-[22px] pr-[calc(var(--window-controls-width,112px)+8px)]">
         <div>
-          <div className="entity-heading-row">
-            <h1 id="entity-title">{titleFor(kind)}</h1>
-            {rows.length > 0 && <span className="entity-count">{rows.length}</span>}
+          <div className="flex items-center gap-2">
+            <h1
+              id="entity-title"
+              className="text-base font-[650] tracking-[-0.015em] text-foreground"
+            >
+              {titleFor(kind)}
+            </h1>
+            {rows.length > 0 && (
+              <span className="min-w-[19px] rounded-lg border border-border px-1.5 py-0.5 text-center font-mono text-[10px] leading-[1.3] text-theme-secondary">
+                {rows.length}
+              </span>
+            )}
           </div>
-          <p>{descriptionFor(kind)}</p>
+          <p className="mt-1 text-xs leading-[1.45] text-theme-secondary">
+            {descriptionFor(kind)}
+          </p>
         </div>
         <button
           type="button"
