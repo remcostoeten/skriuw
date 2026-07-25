@@ -588,7 +588,86 @@
 }
 
 .ProseMirror-selectednode.note-image {
+  outline: 2px solid hsl(var(--editor-selection) / 0.6);
+}
+
+.block-gutter {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease-out;
+  will-change: transform;
+}
+
+.block-gutter.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.block-gutter-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.block-gutter-button svg {
+  pointer-events: none;
+}
+
+.block-gutter-button:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.block-gutter-button:focus-visible {
   outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+.block-gutter-grip {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.block-gutter-grip:active {
+  cursor: grabbing;
+}
+
+.block-drop-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  height: 2px;
+  border-radius: 1px;
+  background: hsl(var(--primary));
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.block-drop-indicator.is-visible {
+  opacity: 1;
+}
+
+body.is-dragging-block {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .bubble-menu {

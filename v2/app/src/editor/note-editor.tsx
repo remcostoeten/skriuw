@@ -6,6 +6,7 @@ import {
   EditorState,
   NodeSelection,
   TextSelection,
+  type Command,
   type Plugin,
   type Transaction,
 } from "prosemirror-state";
@@ -23,7 +24,15 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "../shared/ui/context-menu";
-import { InfoIcon, PencilIcon, ZoomInIcon } from "../shared/icons";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CopyIcon,
+  InfoIcon,
+  PencilIcon,
+  Trash2Icon,
+  ZoomInIcon,
+} from "../shared/icons";
 import { createMentionPlugin, type MentionContext } from "../references/mention-plugin";
 import { createReferenceNodeViews } from "../references/reference-nodeview";
 import { activateReference } from "../references/reference-navigation";
@@ -63,6 +72,17 @@ import {
   type EditorSearchTarget,
 } from "./search-plugin";
 import { applySlashCommand, filterSlashCommands, type SlashAction } from "./slash-commands";
+import {
+  deleteBlock,
+  duplicateBlock,
+  insertBlockAfter,
+  moveBlock,
+} from "./block-commands";
+import {
+  createDragHandle,
+  type BlockMenuTarget,
+  type DragHandleController,
+} from "./drag-handle";
 import { BubbleMenu, closedBubbleMenu, computeBubbleMenu } from "./bubble-menu";
 import {
   clampLinkMenuX,
@@ -277,6 +297,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const imageMenuTriggerRef = useRef<HTMLSpanElement>(null);
   const [imageMenuImageId, setImageMenuImageId] = useState<string | null>(null);
   const [imageDialog, setImageDialog] = useState<ImageDialogState>(null);
+  const dragHandleRef = useRef<DragHandleController | null>(null);
+  const blockMenuTriggerRef = useRef<HTMLSpanElement>(null);
+  const [blockMenuPos, setBlockMenuPos] = useState<number | null>(null);
   const activeNoteId = useRendererSelector(store, selectNoteId);
   const settingsDocument = useRendererSelector(store, (state) => state.settings);
   const editorSettings = projectSettings(settingsDocument);
@@ -491,6 +514,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (transaction.docChanged && searchRef.current.searchOpen) {
       searchRef.current.syncMatchInfo();
     }
+    if (transaction.docChanged) dragHandleRef.current?.hide();
     setBubbleMenu(computeBubbleMenu(view));
     if (!linkMenuRef.current.editing) {
       const cursorLink = linkAtCursor(next);
@@ -672,7 +696,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           }
           return changed;
         }
-        if (entry && bounded && !mod && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+        if (
+          entry &&
+          bounded &&
+          !mod &&
+          !event.altKey &&
+          (event.key === "ArrowDown" || event.key === "ArrowUp")
+        ) {
           const selection = readSelection(currentView.state, bounded.windowStart());
           const atEnd =
             event.key === "ArrowDown" && selection.blockIndex >= bounded.windowEnd() - 1;
@@ -747,13 +777,30 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     viewRef.current = view;
     const scrollHost = host.closest<HTMLElement>(".editor-scroll");
     scrollHostRef.current = scrollHost;
+    const dragHandle = createDragHandle(view, {
+      scrollHost,
+      onInsert: (position) => {
+        insertBlockAfter(position)(view.state, view.dispatch);
+        view.dispatch(view.state.tr.insertText("/"));
+        view.focus();
+      },
+      onMenu: (target: BlockMenuTarget) => {
+        setBlockMenuPos(target.pos);
+        blockMenuTriggerRef.current?.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, clientX: target.x, clientY: target.y }),
+        );
+      },
+    });
+    dragHandleRef.current = dragHandle;
     const handleScroll = () => {
       setBubbleMenu((previous) => (previous.open ? closedBubbleMenu : previous));
       setLinkMenu((previous) =>
         previous.open && !previous.editing ? closedLinkMenu : previous,
       );
+      dragHandle.hide();
       const entry = activeEntry();
       if (!entry?.bounded || !scrollHost) return;
+      if (dragHandle.isDragging()) return;
       entry.scrollTop = scrollHost.scrollTop;
       const target = Math.floor(scrollHost.scrollTop / VIRTUAL_BLOCK_HEIGHT) - WINDOW_SHIFT;
       if (Math.abs(target - entry.bounded.windowStart()) >= WINDOW_SHIFT) {
@@ -805,6 +852,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       view.dom.removeEventListener("compositionend", handleCompositionEnd);
       view.dom.removeEventListener("blur", handleBlur);
       view.dom.removeEventListener("copy", handleCopy);
+      dragHandleRef.current = null;
+      dragHandle.destroy();
       viewRef.current = null;
       view.destroy();
       referenceViews.destroy();
@@ -828,6 +877,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     setSlashMenu(closedSlashMenu);
     setBubbleMenu(closedBubbleMenu);
     setLinkMenu(closedLinkMenu);
+    dragHandleRef.current?.hide();
     if (activeNoteId === null) {
       view.updateState(createEditorState(emptyDocument(), mentionPlugins));
       syncBoundedSurface({
@@ -902,6 +952,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   );
 
   const slashItems = slashMenu.open ? filterSlashCommands(slashMenu.query) : [];
+
+  function runBlockCommand(build: (position: number) => Command): void {
+    const view = viewRef.current;
+    if (!view || blockMenuPos === null) return;
+    build(blockMenuPos)(view.state, view.dispatch);
+    view.focus();
+  }
 
   function openImageRename(imageId: string): void {
     const view = viewRef.current;
@@ -1034,6 +1091,35 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           })}
         </div>
       )}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <span ref={blockMenuTriggerRef} aria-hidden="true" className="fixed left-0 top-0 h-0 w-0" />
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem className="gap-2" onSelect={() => runBlockCommand(duplicateBlock)}>
+            <CopyIcon size={14} />
+            Duplicate
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="gap-2"
+            onSelect={() => runBlockCommand((position) => moveBlock(position, -1))}
+          >
+            <ArrowUpIcon size={14} />
+            Move up
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="gap-2"
+            onSelect={() => runBlockCommand((position) => moveBlock(position, 1))}
+          >
+            <ArrowDownIcon size={14} />
+            Move down
+          </ContextMenuItem>
+          <ContextMenuItem className="gap-2" onSelect={() => runBlockCommand(deleteBlock)}>
+            <Trash2Icon size={14} />
+            Delete
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <span ref={imageMenuTriggerRef} aria-hidden="true" className="fixed left-0 top-0 h-0 w-0" />
