@@ -198,14 +198,14 @@ export function EditorPanes({ store }: Props) {
       )}
       <div className="flex min-h-0 min-w-0 flex-1">
         <div
-          className="editor-pane min-h-0 min-w-0 flex-1"
+          className="min-h-0 min-w-0 flex-1"
           onFocusCapture={() => focusPane(store, PRIMARY_PANE_ID)}
         >
           <EditorHost store={store} />
         </div>
         {hasSplit && (
           <div
-            className="editor-pane min-h-0 min-w-0 flex-1 border-l border-sidebar-border"
+            className="min-h-0 min-w-0 flex-1 border-l border-sidebar-border"
             onFocusCapture={() => focusPane(store, SECONDARY_PANE_ID)}
           >
             <EditorHost
