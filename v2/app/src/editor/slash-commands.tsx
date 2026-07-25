@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { setBlockType, wrapIn } from "prosemirror-commands";
 import { wrapInList } from "prosemirror-schema-list";
+import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { TextSelection, type Command } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import {
@@ -13,6 +14,7 @@ import {
   ListTodoIcon,
   MinusIcon,
   SquareCodeIcon,
+  TableIcon,
   TextQuoteIcon,
   TypeIcon,
 } from "../shared/icons";
@@ -132,6 +134,15 @@ export const slashCommands: SlashCommand[] = [
     action: "insert-image",
   },
   {
+    id: "table",
+    label: "Table",
+    subtext: "Three column table with a header row",
+    group: "Blocks",
+    aliases: ["grid", "spreadsheet", "rows", "columns"],
+    icon: <TableIcon size={16} />,
+    command: insertTable,
+  },
+  {
     id: "divider",
     label: "Divider",
     subtext: "Horizontal separator line",
@@ -160,6 +171,67 @@ function insertHorizontalRule(
     dispatch(transaction.scrollIntoView());
   }
   return true;
+}
+
+const TABLE_COLUMNS = 3;
+const TABLE_BODY_ROWS = 2;
+
+function tableRow(cellType: ReturnType<typeof requiredNode>) {
+  const cells = Array.from({ length: TABLE_COLUMNS }, () => cellType.createAndFill());
+  if (cells.some((cell) => cell === null)) return null;
+  return requiredNode("table_row").createAndFill(null, cells as NonNullable<
+    (typeof cells)[number]
+  >[]);
+}
+
+function insertTable(
+  state: Parameters<Command>[0],
+  dispatch?: Parameters<Command>[1],
+): boolean {
+  const header = tableRow(requiredNode("table_header"));
+  if (!header) return false;
+  const rows = [header];
+  for (let index = 0; index < TABLE_BODY_ROWS; index += 1) {
+    const row = tableRow(requiredNode("table_cell"));
+    if (!row) return false;
+    rows.push(row);
+  }
+  const table = requiredNode("table").createAndFill(null, rows);
+  if (!table) return false;
+  if (dispatch) {
+    const paragraph = requiredNode("paragraph");
+    const transaction = state.tr.replaceSelectionWith(table);
+    const tableStart = findNodePosition(transaction.doc, table);
+    if (tableStart !== null) {
+      const afterTable = tableStart + table.nodeSize;
+      if (!transaction.doc.resolve(afterTable).nodeAfter) {
+        transaction.insert(afterTable, paragraph.create());
+      }
+      transaction.setSelection(
+        TextSelection.near(transaction.doc.resolve(tableStart), 1),
+      );
+    }
+    dispatch(transaction.scrollIntoView());
+  }
+  return true;
+}
+
+/**
+ * `replaceSelectionWith` leaves the selection after the inserted table whenever
+ * a text position exists there, so the table's own position has to be recovered
+ * by identity: the transaction inserts the very node instance handed to it.
+ */
+function findNodePosition(doc: ProseMirrorNode, target: ProseMirrorNode): number | null {
+  let found: number | null = null;
+  doc.descendants((node, pos) => {
+    if (found !== null) return false;
+    if (node === target) {
+      found = pos;
+      return false;
+    }
+    return true;
+  });
+  return found;
 }
 
 function matchScore(command: SlashCommand, needle: string): number | null {

@@ -30,6 +30,12 @@ import { Plugin, PluginKey, TextSelection, type EditorState } from "prosemirror-
 import { findWrapping } from "prosemirror-transform";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
 import { addListNodes, liftListItem, sinkListItem, splitListItem } from "prosemirror-schema-list";
+import {
+  columnResizing,
+  goToNextCell,
+  tableEditing,
+  tableNodes,
+} from "prosemirror-tables";
 import { createSearchPlugin } from "./search-plugin";
 
 export type SlashMenuState = {
@@ -230,13 +236,23 @@ const strikethroughSpec: MarkSpec = {
   toDOM: () => ["s", 0],
 };
 
+const tableSpecs = tableNodes({
+  tableGroup: "block",
+  cellContent: "block+",
+  cellAttributes: {},
+});
+
 const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
   .update("code_block", codeBlockSpec)
   .addToEnd("check_list", checkListSpec)
   .addToEnd("check_item", checkItemSpec)
   .addToEnd("tag_ref", tagRefSpec)
   .addToEnd("mention_ref", mentionRefSpec)
-  .addToEnd("image_ref", imageRefSpec);
+  .addToEnd("image_ref", imageRefSpec)
+  .addToEnd("table", tableSpecs.table)
+  .addToEnd("table_row", tableSpecs.table_row)
+  .addToEnd("table_cell", tableSpecs.table_cell)
+  .addToEnd("table_header", tableSpecs.table_header);
 
 export const productSchema = new Schema({
   nodes,
@@ -535,10 +551,20 @@ export function createProductPlugins(): Plugin[] {
         splitListItem(checkItem, { checked: false }),
         splitListItem(listItem),
       ),
-      Tab: chainCommands(sinkListItem(checkItem), sinkListItem(listItem)),
-      "Shift-Tab": chainCommands(liftListItem(checkItem), liftListItem(listItem)),
+      Tab: chainCommands(
+        sinkListItem(checkItem),
+        sinkListItem(listItem),
+        goToNextCell(1),
+      ),
+      "Shift-Tab": chainCommands(
+        liftListItem(checkItem),
+        liftListItem(listItem),
+        goToNextCell(-1),
+      ),
     }),
     keymap(baseKeymap),
+    columnResizing(),
+    tableEditing(),
     dropCursor({ color: "hsl(var(--primary))", width: 2 }),
     gapCursor(),
   ];
@@ -548,9 +574,56 @@ export function slashMenuState(state: EditorState): SlashMenuState {
   return slashMenuKey.getState(state) ?? { open: false, query: "" };
 }
 
+/**
+ * Renders one table cell as a single line of inline Markdown. A cell holding a
+ * single paragraph keeps its inline marks; anything richer (lists, nested
+ * tables, several blocks) has no GFM pipe-table equivalent and is flattened to
+ * plain text rather than emitting a broken table.
+ */
+function serializeTableCell(cell: ProseMirrorNode): string {
+  const only = cell.childCount === 1 ? cell.firstChild : null;
+  const rendered = only && only.type.name === "paragraph"
+    ? productMarkdownSerializer.serialize(productSchema.node("doc", null, [only]))
+    : cell.textBetween(0, cell.content.size, " ", " ");
+  return rendered.replace(/\s*\n\s*/g, " ").replace(/\|/g, "\\|").trim();
+}
+
+function serializeTableRow(row: ProseMirrorNode): string[] {
+  const cells: string[] = [];
+  row.forEach((cell) => {
+    cells.push(serializeTableCell(cell));
+    const span = Number(cell.attrs.colspan) || 1;
+    for (let extra = 1; extra < span; extra += 1) cells.push("");
+  });
+  return cells;
+}
+
+function pipeRow(cells: readonly string[], width: number): string {
+  const padded = Array.from({ length: width }, (_, index) => cells[index] ?? "");
+  return `| ${padded.join(" | ")} |`;
+}
+
 const productMarkdownSerializer = new MarkdownSerializer(
   {
     ...defaultMarkdownSerializer.nodes,
+    table(state, node) {
+      const rows: string[][] = [];
+      node.forEach((row) => rows.push(serializeTableRow(row)));
+      const width = rows.reduce((widest, row) => Math.max(widest, row.length), 0);
+      if (width === 0) {
+        state.closeBlock(node);
+        return;
+      }
+      state.write(pipeRow(rows[0] ?? [], width));
+      state.ensureNewLine();
+      state.write(pipeRow(Array.from({ length: width }, () => "---"), width));
+      state.ensureNewLine();
+      for (const row of rows.slice(1)) {
+        state.write(pipeRow(row, width));
+        state.ensureNewLine();
+      }
+      state.closeBlock(node);
+    },
     code_block(state, node) {
       const backticks = node.textContent.match(/`{3,}/gm);
       const fence = backticks ? `${backticks.sort().slice(-1)[0]}\`` : "```";
@@ -647,7 +720,37 @@ if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any
  * into a link, which fires on ordinary prose (filenames, abbreviations) far
  * more often than on real URLs. Only scheme-prefixed and `www.` URLs link.
  */
-defaultMarkdownParser.tokenizer.enable(["strikethrough", "linkify"], true);
+/**
+ * markdown-it emits a bare `inline` token inside `th`/`td`, but `table_cell`
+ * holds `block+`, so the text would have nowhere to land and the cell would be
+ * dropped by `createAndFill`. Wrapping the inline run in paragraph tokens keeps
+ * the cell content valid without a bespoke token handler.
+ */
+function wrapTableCellContent(state: any): boolean {
+  const tokens = state.tokens;
+  const wrapped: any[] = [];
+  let inCell = false;
+  for (const token of tokens) {
+    if (token.type === "th_open" || token.type === "td_open") inCell = true;
+    if (inCell && token.type === "inline") {
+      wrapped.push(new state.Token("paragraph_open", "p", 1));
+      wrapped.push(token);
+      wrapped.push(new state.Token("paragraph_close", "p", -1));
+      inCell = false;
+      continue;
+    }
+    if (token.type === "th_close" || token.type === "td_close") inCell = false;
+    wrapped.push(token);
+  }
+  state.tokens = wrapped;
+  return true;
+}
+
+if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) => r.name === "table_cell_paragraphs")) {
+  defaultMarkdownParser.tokenizer.core.ruler.push("table_cell_paragraphs", wrapTableCellContent);
+}
+
+defaultMarkdownParser.tokenizer.enable(["strikethrough", "linkify", "table"], true);
 defaultMarkdownParser.tokenizer.set({ linkify: true });
 defaultMarkdownParser.tokenizer.linkify.set({
   fuzzyLink: false,
@@ -661,6 +764,12 @@ const productMarkdownParser = new MarkdownParser(
   {
     ...defaultMarkdownParser.tokens,
     s: { mark: "strikethrough" },
+    table: { block: "table" },
+    thead: { ignore: true },
+    tbody: { ignore: true },
+    tr: { block: "table_row" },
+    th: { block: "table_header" },
+    td: { block: "table_cell" },
     wiki_link: {
       node: "mention_ref",
       getAttrs: (tok: any) => ({
