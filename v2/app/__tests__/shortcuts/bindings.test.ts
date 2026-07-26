@@ -6,7 +6,9 @@ import {
   effectiveShortcutKeys,
   findShortcutConflict,
   isDefaultBinding,
+  isKeySequence,
   sameCombo,
+  sequenceHandlerOptions,
   shortcutBindsOnPlatform,
   shortcutExcept,
   shortcutGuarded,
@@ -17,6 +19,7 @@ import {
   SHORTCUT_DEFINITIONS,
   TAB_INDEX_ACTION_IDS,
 } from "../../src/shortcuts/definitions";
+import { RAIL_ITEMS } from "../../src/shortcuts/rail-items";
 
 const platformModifier = parseShortcut("mod+k").modifiers.meta ? "meta" : "ctrl";
 const otherModifier = platformModifier === "meta" ? "ctrl" : "meta";
@@ -459,6 +462,43 @@ test("mod+shift+w and ctrl+shift+pageup match their tab management bindings", ()
     ),
     true,
   );
+});
+
+test("isKeySequence and sequenceHandlerOptions only flag multi-step combos", () => {
+  assert.equal(isKeySequence("mod+shift+1"), false);
+  assert.equal(isKeySequence("g then t then 1"), true);
+  assert.deepEqual(sequenceHandlerOptions("mod+shift+1"), {});
+  assert.deepEqual(sequenceHandlerOptions("g then t then 1"), { sequenceTimeout: 1000 });
+});
+
+test("rail navigation binds mod+shift+<n> plus a g-t-<n> sequence in rail order", () => {
+  for (const [index, item] of RAIL_ITEMS.entries()) {
+    const position = index + 1;
+    const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === item.actionId);
+    assert.ok(definition, `${item.actionId} has no definition`);
+    assert.equal(effectiveShortcutKeys(definition, {}), `mod+shift+${position}`);
+    assert.equal(definition.secondaryKeys, `g then t then ${position}`);
+    assert.equal(definition.secondaryWorksWhileTyping, undefined);
+    assert.equal(definition.group, "Navigation");
+    assert.deepEqual(shortcutGuards(definition, true), ["modal"]);
+    assert.deepEqual(shortcutGuards(definition, false), ["typing", "modal"]);
+    assert.equal(
+      findShortcutConflict({}, item.actionId, effectiveShortcutKeys(definition, {})),
+      null,
+    );
+  }
+});
+
+test("the g-t-<n> sequence is guarded off typing but not off the sidebar tree", () => {
+  const goToPeople = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "goToPeople");
+  assert.ok(goToPeople);
+  const guards = shortcutGuards(goToPeople, false);
+  const editorTarget = { tagName: "DIV", isContentEditable: true, closest: () => null };
+  const renameInput = { tagName: "INPUT", closest: () => null };
+  const treeRow = { tagName: "BUTTON", closest: (selector: string) => ({ selector }) };
+  assert.equal(shortcutGuarded(guards, { target: editorTarget }), true);
+  assert.equal(shortcutGuarded(guards, { target: renameInput }), true);
+  assert.equal(shortcutGuarded(guards, { target: treeRow }), false);
 });
 
 test("the directional pane keys are three-modifier chords scoped to an open split", () => {

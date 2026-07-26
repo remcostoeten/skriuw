@@ -13,6 +13,23 @@ export type ShortcutOverrides = Partial<Record<ShortcutActionId, string>>;
 
 const MODAL_SELECTOR = 'dialog[open], [role="dialog"], [data-modal="true"]';
 
+/** Multi-step combos, e.g. "g then t then 1", give the user this long to land the next key. */
+const SEQUENCE_TIMEOUT_MS = 1000;
+
+/** Whether a combo string is a multi-step sequence rather than a single chord. */
+export function isKeySequence(keys: string): boolean {
+  return keys.includes(" then ");
+}
+
+/**
+ * Extra handler options a sequence binding needs beyond its combo. A plain
+ * chord gets nothing extra; a sequence gets the shared sequence timeout so
+ * a stalled `g`/`t` doesn't linger indefinitely.
+ */
+export function sequenceHandlerOptions(keys: string): { sequenceTimeout?: number } {
+  return isKeySequence(keys) ? { sequenceTimeout: SEQUENCE_TIMEOUT_MS } : {};
+}
+
 const TEXT_FIELD_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
 /**
