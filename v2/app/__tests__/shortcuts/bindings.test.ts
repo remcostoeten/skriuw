@@ -577,3 +577,28 @@ test("mod+alt+arrowright matches only with all three modifier states right", () 
     false,
   );
 });
+
+test("the shortcut cheat sheet binds mod+/ app-wide and stays silent behind a modal", () => {
+  const help = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "showShortcutHelp");
+  assert.ok(help);
+  assert.equal(effectiveShortcutKeys(help, {}), "mod+slash");
+  assert.equal(help.group, "General");
+  assert.equal(help.scopes, undefined);
+  assert.equal(help.worksWhileTyping, true);
+  assert.deepEqual(shortcutGuards(help, true), ["modal"]);
+  assert.equal(findShortcutConflict({}, "showShortcutHelp", "mod+slash"), null);
+  assert.equal(shortcutBindsOnPlatform(help, {}, "mac"), true);
+});
+
+test("mod+/ matches the cheat sheet while a bare slash keeps typing", () => {
+  const parsed = parseShortcut("mod+slash");
+  const modifier = parseShortcut("mod+k").modifiers.meta ? "metaKey" : "ctrlKey";
+  const base = { key: "/", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
+  assert.equal(
+    matchesShortcut({ ...base, [modifier]: true } as unknown as KeyboardEvent, parsed),
+    true,
+  );
+  assert.equal(matchesShortcut(base as unknown as KeyboardEvent, parsed), false);
+  assert.equal(sameCombo("mod+slash", "mod+/"), true);
+  assert.equal(sameCombo("mod+slash", "slash"), false);
+});
