@@ -6,7 +6,13 @@ import {
   openBeside,
 } from "../actions/panes";
 import { toggleEditorMode } from "../actions/editor-mode";
-import { createFolder, createNote, setNodePinned } from "../actions/workspace";
+import {
+  createFolder,
+  createNote,
+  navigateNote,
+  noteNavigationOrder,
+  setNodePinned,
+} from "../actions/workspace";
 import type { AppRoute } from "../app-route";
 import { openEditorSearch } from "../editor/search-controller";
 import {
@@ -17,6 +23,8 @@ import {
 } from "../export/markdown-transfer";
 import { requestEntityCreate } from "../references/entity-create-controller";
 import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CircleIcon,
   CloseIcon,
   DownloadIcon,
@@ -324,6 +332,32 @@ export function createWorkspaceCommands(
       shortcut: "findInNote",
       enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
       run: openEditorSearch,
+    },
+    {
+      id: "previous-note",
+      label: "Previous note",
+      group: "Navigation",
+      keywords: ["note", "back", "cycle"],
+      icon: <ChevronLeftIcon size={15} />,
+      shortcut: "previousNote",
+      enabled: (state, ui) =>
+        onNotesRoute(state, ui) &&
+        state.activeNoteId !== null &&
+        noteNavigationOrder(state).length > 1,
+      run: () => navigateNote(store, -1),
+    },
+    {
+      id: "next-note",
+      label: "Next note",
+      group: "Navigation",
+      keywords: ["note", "forward", "cycle"],
+      icon: <ChevronRightIcon size={15} />,
+      shortcut: "nextNote",
+      enabled: (state, ui) =>
+        onNotesRoute(state, ui) &&
+        state.activeNoteId !== null &&
+        noteNavigationOrder(state).length > 1,
+      run: () => navigateNote(store, 1),
     },
     {
       id: "go-to-notes",
