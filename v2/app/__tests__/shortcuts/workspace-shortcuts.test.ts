@@ -19,13 +19,26 @@ test("suspended shortcuts retain only the explicitly active binding", () => {
 });
 
 test("the tabs scope needs the notes route and the tabbed workspace switched on", () => {
-  assert.deepEqual(activeShortcutScopes("notes", false, true), ["note-create", "tabs"]);
-  assert.deepEqual(activeShortcutScopes("notes", false, false), ["note-create"]);
-  assert.deepEqual(activeShortcutScopes("notes", true, true), [
+  assert.deepEqual(activeShortcutScopes("notes", false, true, false), ["note-create", "tabs"]);
+  assert.deepEqual(activeShortcutScopes("notes", false, false, false), ["note-create"]);
+  assert.deepEqual(activeShortcutScopes("notes", true, true, false), [
     "note-create",
     "note-focus",
     "tabs",
   ]);
-  assert.deepEqual(activeShortcutScopes("tags", false, true), ["tags-route"]);
-  assert.deepEqual(activeShortcutScopes("trash", false, true), ["note-create"]);
+  assert.deepEqual(activeShortcutScopes("tags", false, true, true), ["tags-route"]);
+  assert.deepEqual(activeShortcutScopes("trash", false, true, true), ["note-create"]);
+});
+
+test("the split scope needs the notes route and a second pane", () => {
+  assert.deepEqual(activeShortcutScopes("notes", false, false, true), [
+    "note-create",
+    "split",
+  ]);
+  assert.deepEqual(activeShortcutScopes("notes", false, true, true), [
+    "note-create",
+    "tabs",
+    "split",
+  ]);
+  assert.deepEqual(activeShortcutScopes("people", false, true, true), []);
 });

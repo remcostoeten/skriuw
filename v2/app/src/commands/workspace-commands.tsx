@@ -4,6 +4,7 @@ import {
   closeActiveTab,
   closeSplit,
   cycleTab,
+  focusPaneTowards,
   moveActiveTab,
   openBeside,
   reopenClosedTab,
@@ -67,7 +68,7 @@ import {
 import { opensNotesInTabs } from "../settings/settings-model";
 import type { RendererState, RendererStore } from "../store/types";
 import { resetZoom, zoomIn, zoomOut } from "../zoom/zoom-controller";
-import { focusRegion } from "./focus-regions";
+import { focusEditorPane, focusRegion, focusedPaneIndex } from "./focus-regions";
 import type { AppCommand, CommandPredicate } from "./registry";
 
 export type CommandUiControls = {
@@ -87,6 +88,17 @@ function hasClosedTabs(state: RendererState): boolean {
     opensNotesInTabs(state.settings) &&
     (state.closedTabsByPaneId.get(tabStripPaneId(state))?.length ?? 0) > 0
   );
+}
+
+/**
+ * Moves pane focus one step, reading the current pane from the DOM so a move
+ * from the sidebar or metadata panel lands on the nearest pane that way.
+ */
+function focusPaneInDirection(store: RendererStore, direction: -1 | 1): void {
+  const index = focusPaneTowards(store, direction, focusedPaneIndex());
+  if (index !== null) {
+    focusEditorPane(index);
+  }
 }
 
 function hasMovableTabs(state: RendererState): boolean {
@@ -454,10 +466,38 @@ export function createWorkspaceCommands(
       label: "Focus editor",
       group: "Navigation",
       shortcut: "focusEditor",
+      hint: shortcutDefinition("focusEditor").description,
       enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
       run: () => {
+        const state = store.getState();
+        const paneIndex = state.panes.findIndex(
+          (pane) => pane.paneId === state.focusedPaneId,
+        );
+        if (state.panes.length > 1 && paneIndex >= 0 && focusEditorPane(paneIndex)) {
+          return;
+        }
         focusRegion("editor");
       },
+    },
+    {
+      id: "focus-pane-left",
+      label: "Focus pane to the left",
+      group: "Navigation",
+      keywords: ["split", "pane", "focus"],
+      shortcut: "focusPaneLeft",
+      hint: shortcutDefinition("focusPaneLeft").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.panes.length > 1,
+      run: () => focusPaneInDirection(store, -1),
+    },
+    {
+      id: "focus-pane-right",
+      label: "Focus pane to the right",
+      group: "Navigation",
+      keywords: ["split", "pane", "focus"],
+      shortcut: "focusPaneRight",
+      hint: shortcutDefinition("focusPaneRight").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.panes.length > 1,
+      run: () => focusPaneInDirection(store, 1),
     },
     {
       id: "focus-metadata",

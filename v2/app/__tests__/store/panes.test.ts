@@ -18,6 +18,7 @@ import {
   moveTabInPane,
   openBeside,
   openNoteInTab,
+  paneIndexInDirection,
   parsePaneLayout,
   recordClosedTab,
   reopenClosedTab,
@@ -373,4 +374,18 @@ test("moveTabInPane is a no-op for a single tab, no active tab, or an unknown pa
   assert.equal(moveTabInPane(inactive, PRIMARY_PANE_ID, 1), inactive);
   const panes = [primary(["a", "b"], "a")];
   assert.equal(moveTabInPane(panes, "nope", 1), panes);
+});
+
+test("paneIndexInDirection never wraps and needs a split to move at all", () => {
+  assert.equal(paneIndexInDirection(1, 0, 1), null);
+  assert.equal(paneIndexInDirection(1, null, -1), null);
+  assert.equal(paneIndexInDirection(2, 0, 1), 1);
+  assert.equal(paneIndexInDirection(2, 1, -1), 0);
+  assert.equal(paneIndexInDirection(2, 1, 1), null);
+  assert.equal(paneIndexInDirection(2, 0, -1), null);
+});
+
+test("paneIndexInDirection lands on the nearest pane when focus is outside the panes", () => {
+  assert.equal(paneIndexInDirection(2, null, -1), 0);
+  assert.equal(paneIndexInDirection(2, null, 1), 1);
 });

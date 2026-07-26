@@ -460,3 +460,54 @@ test("mod+shift+w and ctrl+shift+pageup match their tab management bindings", ()
     true,
   );
 });
+
+test("the directional pane keys are three-modifier chords scoped to an open split", () => {
+  for (const [id, keys] of [
+    ["focusPaneLeft", "mod+alt+arrowleft"],
+    ["focusPaneRight", "mod+alt+arrowright"],
+  ] as const) {
+    const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
+    assert.ok(definition, `${id} has no definition`);
+    assert.equal(effectiveShortcutKeys(definition, {}), keys);
+    assert.equal(definition.scopes, "split");
+    assert.deepEqual(shortcutGuards(definition, true), ["modal"]);
+    assert.equal(findShortcutConflict({}, id, keys), null);
+    const parsed = parseShortcut(keys);
+    assert.equal(parsed.modifiers.alt, true);
+    assert.equal(parsed.modifiers.meta || parsed.modifiers.ctrl, true);
+  }
+});
+
+test("focusEditor documents that it returns to the last-focused split pane", () => {
+  const focusEditor = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "focusEditor");
+  assert.ok(focusEditor);
+  assert.equal(effectiveShortcutKeys(focusEditor, {}), "mod+2");
+  assert.match(focusEditor.description ?? "", /split/);
+});
+
+test("mod+alt+arrowright matches only with all three modifier states right", () => {
+  const parsed = parseShortcut("mod+alt+arrowright");
+  const modifier = parseShortcut("mod+k").modifiers.meta ? "metaKey" : "ctrlKey";
+  const base = {
+    key: "ArrowRight",
+    metaKey: false,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+  };
+  assert.equal(
+    matchesShortcut(
+      { ...base, altKey: true, [modifier]: true } as unknown as KeyboardEvent,
+      parsed,
+    ),
+    true,
+  );
+  assert.equal(
+    matchesShortcut({ ...base, altKey: true } as unknown as KeyboardEvent, parsed),
+    false,
+  );
+  assert.equal(
+    matchesShortcut({ ...base, [modifier]: true } as unknown as KeyboardEvent, parsed),
+    false,
+  );
+});

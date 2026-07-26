@@ -14,6 +14,7 @@ import {
   moveTabInPane,
   openBeside as openBesidePanes,
   openNoteInTab as openNoteInTabPanes,
+  paneIndexInDirection,
   primaryPane,
   recordClosedTab,
   reopenClosedTab as reopenClosedTabInPanes,
@@ -229,6 +230,26 @@ export function closeSplit(store: RendererStore): void {
         }
       : current,
   );
+}
+
+/**
+ * Marks the pane one step in `direction` from `fromIndex` as focused and returns
+ * its on-screen index so the caller can move DOM focus into it. Null means the
+ * move was a no-op: no split, or no pane that way.
+ */
+export function focusPaneTowards(
+  store: RendererStore,
+  direction: -1 | 1,
+  fromIndex: number | null,
+): number | null {
+  const state = store.getState();
+  const index = paneIndexInDirection(state.panes.length, fromIndex, direction);
+  const paneId = index === null ? undefined : state.panes[index]?.paneId;
+  if (index === null || paneId === undefined) {
+    return null;
+  }
+  focusPane(store, paneId);
+  return index;
 }
 
 export function focusPane(store: RendererStore, paneId: string): void {
