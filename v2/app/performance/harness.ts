@@ -366,7 +366,7 @@ export async function createPerformanceController(
     };
     const renderedEditorBlocks = editor?.children.length ?? 0;
     const renderedTreeItems = document.querySelectorAll("[role='treeitem']").length;
-    const shellHeight = document.querySelector<HTMLElement>(".shell")?.getBoundingClientRect().height;
+    const shellHeight = document.querySelector<HTMLElement>("#root > div")?.getBoundingClientRect().height;
     const boundedReader = document.querySelector("#bounded-editor-full-document");
     const correctness = [
       {
