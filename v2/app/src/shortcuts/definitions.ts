@@ -17,6 +17,8 @@ export type ShortcutActionId =
   | "focusSidebar"
   | "focusEditor"
   | "focusMetadata"
+  | "previousNote"
+  | "nextNote"
   | "goToNotes"
   | "goToTags"
   | "goToPeople"
@@ -179,6 +181,20 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "focusMetadata",
     keys: "mod+3",
     label: "Focus metadata panel",
+    group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "previousNote",
+    keys: "ctrl+shift+bracketleft",
+    label: "Previous note",
+    group: "Navigation",
+    worksWhileTyping: true,
+  },
+  {
+    id: "nextNote",
+    keys: "ctrl+shift+bracketright",
+    label: "Next note",
     group: "Navigation",
     worksWhileTyping: true,
   },
