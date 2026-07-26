@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseShortcut } from "@remcostoeten/use-shortcut/parser";
+import { matchesShortcut, parseShortcut } from "@remcostoeten/use-shortcut/parser";
 import type { WorkspaceSettings } from "../../src/contracts/workspace";
 import {
   effectiveShortcutKeys,
   findShortcutConflict,
   isDefaultBinding,
   sameCombo,
+  shortcutExcept,
+  shortcutGuarded,
+  shortcutGuards,
   shortcutOverridesFromSettings,
 } from "../../src/shortcuts/bindings";
 import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
@@ -93,4 +96,60 @@ test("default binding detection treats an equal override as default", () => {
   assert.equal(isDefaultBinding(createNote, { createNote: "MOD+N" }), true);
   assert.equal(isDefaultBinding(createNote, { createNote: `${platformModifier}+n` }), true);
   assert.equal(isDefaultBinding(createNote, { createNote: "mod+alt+n" }), false);
+});
+
+test("guards default to blocking typing unless the definition opts out", () => {
+  const findInNote = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "findInNote");
+  const searchMatchCase = SHORTCUT_DEFINITIONS.find(
+    (entry) => entry.id === "searchMatchCase",
+  );
+  assert.ok(findInNote);
+  assert.ok(searchMatchCase);
+  assert.deepEqual(shortcutGuards(findInNote, true), []);
+  assert.deepEqual(shortcutGuards(findInNote, false), ["typing"]);
+  assert.equal(shortcutExcept(findInNote, true), undefined);
+  assert.equal(typeof shortcutExcept(findInNote, false), "function");
+});
+
+test("rename current note defers to text fields, the sidebar tree, and modals", () => {
+  const renameCurrentNote = SHORTCUT_DEFINITIONS.find(
+    (entry) => entry.id === "renameCurrentNote",
+  );
+  assert.ok(renameCurrentNote);
+  assert.equal(effectiveShortcutKeys(renameCurrentNote, {}), "f2");
+  assert.deepEqual(shortcutGuards(renameCurrentNote, true), [
+    "textField",
+    "sidebarTree",
+    "modal",
+  ]);
+  assert.equal(findShortcutConflict({}, "renameCurrentNote", "f2"), null);
+});
+
+test("guard predicates read the event target's field, tree, and modal context", () => {
+  const guards = ["textField", "sidebarTree"] as const;
+  const editorTarget = { tagName: "DIV", isContentEditable: true, closest: () => null };
+  const inputTarget = { tagName: "INPUT", closest: () => null };
+  const treeRow = { tagName: "BUTTON", closest: (selector: string) => ({ selector }) };
+
+  assert.equal(shortcutGuarded(guards, { target: editorTarget }), false);
+  assert.equal(shortcutGuarded(guards, { target: inputTarget }), true);
+  assert.equal(shortcutGuarded(guards, { target: treeRow }), true);
+  assert.equal(shortcutGuarded(guards, { target: null }), false);
+  assert.equal(shortcutGuarded(["typing"], { target: editorTarget }), true);
+});
+
+test("a plain F2 keypress matches the rename binding", () => {
+  const parsed = parseShortcut("f2");
+  const pressed = {
+    key: "F2",
+    metaKey: false,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+  } as KeyboardEvent;
+  assert.equal(matchesShortcut(pressed, parsed), true);
+  assert.equal(
+    matchesShortcut({ ...pressed, shiftKey: true } as KeyboardEvent, parsed),
+    false,
+  );
 });

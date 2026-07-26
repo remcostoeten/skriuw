@@ -5,6 +5,7 @@ import { useRendererSelector } from "../store/use-renderer-selector";
 import { FolderIcon, FolderOpenIcon } from "../shared/icons";
 import { visualTreeIndent } from "../store/tree";
 import type { RendererState, RendererStore } from "../store/types";
+import { restoreRenameReturnFocus } from "./rename-focus";
 import type { TreeMetrics } from "./sidebar";
 
 const rowBaseClass =
@@ -203,9 +204,11 @@ function RenameInput({ store, id, initialTitle }: RenameProps) {
       onKeyDown={(event) => {
         if (event.key === "Enter") {
           renameNode(store, id, event.currentTarget.value);
+          restoreRenameReturnFocus();
         }
         if (event.key === "Escape") {
           store.setEditingNode(null);
+          restoreRenameReturnFocus();
         }
         event.stopPropagation();
       }}

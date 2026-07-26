@@ -102,6 +102,10 @@ export function App({ store }: Props) {
           togglePalette: () => setPaletteOpen((current) => !current),
           openSettings: () => setSettingsOpen((current) => !current),
           toggleSidebar: () => toggleSidebar(false),
+          openSidebar: () => {
+            setTracksAnimated(false);
+            setSidebarOpen(true);
+          },
           toggleMetadata: () => toggleMetadata(false),
           navigate: (target) => {
             window.location.hash = appRouteHash(target);
