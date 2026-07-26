@@ -647,6 +647,7 @@ function autolinkInputRule(): InputRule {
     const tr = state.tr.addMark(from, to, link.create({ href: normalizeAutolink(url) }));
     tr.removeStoredMark(link);
     tr.insertText(trailing, end);
+    tr.removeMark(end, end + trailing.length, link);
     return tr;
   });
 }
