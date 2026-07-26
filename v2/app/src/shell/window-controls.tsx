@@ -73,16 +73,16 @@ function TauriWindowControls() {
       className="fixed right-0 top-0 z-50 flex h-9 items-center gap-0.5 rounded-bl-lg border-b border-l border-sidebar-border/70 bg-sidebar pl-2 pr-1"
     >
       <ControlButton label="Minimize" onClick={runWindowAction(() => getCurrentWindow().minimize())}>
-        <MinimizeIcon size={14} strokeWidth={1.75} />
+        <MinimizeIcon size={14} />
       </ControlButton>
       <ControlButton
         label={isMaximized ? "Restore" : "Maximize"}
         onClick={runWindowAction(() => getCurrentWindow().toggleMaximize())}
       >
         {isMaximized ? (
-          <RestoreIcon size={12} strokeWidth={1.75} />
+          <RestoreIcon size={12} />
         ) : (
-          <MaximizeIcon size={12} strokeWidth={1.75} />
+          <MaximizeIcon size={12} />
         )}
       </ControlButton>
       <ControlButton
@@ -90,7 +90,7 @@ function TauriWindowControls() {
         onClick={runWindowAction(() => getCurrentWindow().close())}
         className="hover:bg-red-500/85 hover:text-white"
       >
-        <CloseIcon size={14} strokeWidth={1.75} />
+        <CloseIcon size={14} />
       </ControlButton>
     </div>
   );
