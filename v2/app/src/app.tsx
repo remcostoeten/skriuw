@@ -50,6 +50,7 @@ import {
   Trash2Icon,
   WaypointsIcon,
 } from "./shared/icons";
+import { ToastHost } from "./shared/ui/toast";
 import { Tooltip } from "./shared/ui/tooltip";
 import { useNoteNavigation } from "./shell/use-note-navigation";
 import type { RendererStore } from "./store/types";
@@ -456,6 +457,7 @@ export function App({ store }: Props) {
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
       />
+      <ToastHost />
       <TransferReportHost />
       <ImportPreviewHost />
       <ImportProgressHost />
