@@ -1,3 +1,4 @@
+import { isMap, isScalar, isSeq, parseDocument } from "yaml";
 import type { MarkdownTree } from "../../export/markdown-transfer-model";
 import type {
   ImportBundle,
@@ -38,50 +39,6 @@ function byteLength(value: string): number {
   return new TextEncoder().encode(value).length;
 }
 
-function unquote(value: string): string {
-  const trimmed = value.trim();
-  if (
-    trimmed.length >= 2 &&
-    ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-      (trimmed.startsWith("'") && trimmed.endsWith("'")))
-  ) {
-    return trimmed.slice(1, -1);
-  }
-  return trimmed;
-}
-
-function parseScalar(raw: string): ImportedPropertyValue {
-  const trimmed = raw.trim();
-  if (trimmed !== unquote(trimmed)) {
-    return { type: "text", value: unquote(trimmed) };
-  }
-  if (trimmed === "true" || trimmed === "false") {
-    return { type: "checkbox", value: trimmed === "true" };
-  }
-  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-    return { type: "number", value: Number(trimmed) };
-  }
-  if (/^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?$/.test(trimmed)) {
-    return { type: "date", value: trimmed };
-  }
-  if (/^https?:\/\//i.test(trimmed)) {
-    return { type: "url", value: trimmed };
-  }
-  return { type: "text", value: trimmed };
-}
-
-function parseInlineList(raw: string): string[] | null {
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
-    return null;
-  }
-  const inner = trimmed.slice(1, -1).trim();
-  if (inner.length === 0) {
-    return [];
-  }
-  return inner.split(",").map(unquote).filter((item) => item.length > 0);
-}
-
 function splitTags(values: string[]): string[] {
   return values
     .flatMap((value) => value.split(/[,\s]+/))
@@ -99,56 +56,64 @@ function propertyValueByteLength(value: ImportedPropertyValue): number {
   return 0;
 }
 
+function scalarPropertyValue(value: unknown): ImportedPropertyValue | null {
+  if (typeof value === "boolean") {
+    return { type: "checkbox", value };
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return { type: "number", value };
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+  if (/^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?$/.test(value)) {
+    return { type: "date", value };
+  }
+  if (/^https?:\/\//i.test(value)) {
+    return { type: "url", value };
+  }
+  return { type: "text", value };
+}
+
 function parseFrontmatterBlock(block: string): ParsedFrontmatter {
-  const lines = block.split(/\r?\n/);
   const properties: ImportedNoteProperty[] = [];
   const tags: string[] = [];
   let complexKeys = 0;
-  let index = 0;
-  while (index < lines.length) {
-    const line = lines[index] ?? "";
-    index += 1;
-    if (line.trim().length === 0) {
-      continue;
-    }
-    const match = /^([^\s:][^:]*):\s*(.*)$/.exec(line);
-    if (!match) {
+  const document = parseDocument(block, {
+    schema: "core",
+    uniqueKeys: true,
+  });
+  if (document.errors.length > 0 || !isMap(document.contents)) {
+    return { properties, tags, complexKeys: 1 };
+  }
+  for (const pair of document.contents.items) {
+    if (!isScalar(pair.key) || typeof pair.key.value !== "string") {
       complexKeys += 1;
       continue;
     }
-    const name = match[1]?.trim() ?? "";
-    const inline = match[2] ?? "";
+    const name = pair.key.value.trim();
     let value: ImportedPropertyValue | null = null;
-    if (inline.trim().length > 0) {
-      const list = parseInlineList(inline);
-      value = list === null ? parseScalar(inline) : { type: "list", values: list };
-    } else {
-      const items: string[] = [];
-      let nested = false;
-      while (index < lines.length) {
-        const next = lines[index] ?? "";
-        const itemMatch = /^\s*-\s*(.*)$/.exec(next);
-        if (itemMatch) {
-          items.push(unquote(itemMatch[1] ?? ""));
-          index += 1;
-          continue;
-        }
-        if (/^\s+\S/.test(next)) {
-          nested = true;
-          index += 1;
-          continue;
-        }
-        break;
-      }
-      if (nested) {
-        complexKeys += 1;
-        continue;
-      }
-      if (items.length > 0) {
-        value = { type: "list", values: items.filter((item) => item.length > 0) };
-      }
+    if (isScalar(pair.value)) {
+      value = scalarPropertyValue(pair.value.value);
+    } else if (
+      isSeq(pair.value) &&
+      pair.value.items.every(
+        (item) =>
+          isScalar(item) &&
+          (typeof item.value === "string" ||
+            typeof item.value === "number" ||
+            typeof item.value === "boolean"),
+      )
+    ) {
+      value = {
+        type: "list",
+        values: pair.value.items.map((item) =>
+          String(isScalar(item) ? item.value : ""),
+        ),
+      };
     }
     if (value === null) {
+      complexKeys += 1;
       continue;
     }
     if (name === "tags" || name === "tag") {

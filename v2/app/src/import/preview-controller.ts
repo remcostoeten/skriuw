@@ -1,13 +1,25 @@
 import type { ImportPreviewCandidate } from "./preview";
+import type { ImportDuplicateMode } from "./plan";
 
 export type ImportPreviewRequest = {
   sourcePath: string;
-  candidates: readonly ImportPreviewCandidate[];
+  candidates: readonly {
+    sourceId: string;
+    sourceLabel: string;
+    variants: Record<ImportDuplicateMode, ImportPreviewCandidate>;
+  }[];
   detectedSourceId: string;
+  destinations: readonly { id: string | null; label: string }[];
+};
+
+export type ImportPreviewSelection = {
+  sourceId: string;
+  destinationFolderId: string | null;
+  duplicateMode: ImportDuplicateMode;
 };
 
 type PendingPreview = ImportPreviewRequest & {
-  resolve: (sourceId: string | null) => void;
+  resolve: (selection: ImportPreviewSelection | null) => void;
 };
 
 type Listener = (request: PendingPreview) => void;
@@ -25,7 +37,7 @@ export function registerImportPreviewListener(next: Listener): () => void {
 
 export function requestImportPreview(
   request: ImportPreviewRequest,
-): Promise<string | null> {
+): Promise<ImportPreviewSelection | null> {
   return new Promise((resolve) => {
     if (!listener) {
       resolve(null);

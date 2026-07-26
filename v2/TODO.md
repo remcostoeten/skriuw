@@ -18,7 +18,18 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 
 - [x] Tabs and split view. Spec: [docs/specs/tabs-and-split-view.md](docs/specs/tabs-and-split-view.md). Shipped per [ADR-0021](docs/adr/0021-tabs-and-split-view.md): tab strip + open-beside split, live editors bounded at visible panes, native pane-layout persistence. Covered by tests: `app/__tests__/store/panes.test.ts`, `app/__tests__/actions/panes.test.ts`, `app/__tests__/store/pane-layout-persistence.test.ts`, `app/__tests__/shell/editor-panes.test.ts` (asserts exactly one/two live editor hosts via `renderToStaticMarkup`). Deferred: per-pane tab strip.
 - [x] Note properties (custom metadata fields per note). Spec: [docs/specs/note-properties.md](docs/specs/note-properties.md). Shipped in 0.2.0: typed durable property contracts, optimistic renderer projections, metadata-panel editor with built-in templates.
-- [ ] Third-party importers. Core preview and atomic local import exists for Markdown, plain text, Simplenote (`notes.json`), Bear (TextBundle and `.bear2bk`), Obsidian, Notion Markdown/database CSV, and Apple Notes Markdown, but first-party release gates remain open. Required before completion: destination-folder selection; duplicate skip/update modes; durable import receipts and idempotency; progress and cancellation; standards-compliant Obsidian YAML; workspace tag backlinks for raw-preserved notes; real provider-export golden fixtures; a full Tauri end-to-end import; explicit Apple Notes bulk-export limitations; generated-contract, production-build, and end-to-end evidence; verified 10,000-note navigation responsiveness after commit. Later adapters remain separate backlog: Evernote ENEX, Google Keep, Joplin, and Standard Notes. See [the import guide](docs/provider-import.md), [spec](docs/specs/provider-import.md), and [ADR-0024](docs/adr/0024-previewed-atomic-provider-import.md).
+- [ ] Third-party importers. Core preview and atomic local import exists for Markdown, plain text, Simplenote (`notes.json`), Bear (TextBundle and `.bear2bk`), Obsidian, Notion Markdown/database CSV, and Apple Notes Markdown. See [the import guide](docs/provider-import.md), [spec](docs/specs/provider-import.md), and [ADR-0024](docs/adr/0024-previewed-atomic-provider-import.md).
+  - [x] Destination-folder selection.
+  - [x] Duplicate copy, skip, and in-place update modes backed by durable atomic receipts.
+  - [x] Progress plus cancellation before the non-cancellable atomic commit.
+  - [x] Standards-compliant Obsidian YAML parsing with lossless fallback.
+  - [x] Workspace tag backlinks and a typed `Tags` property for raw-preserved notes.
+  - [x] Sanitized export-shape golden fixtures for every current provider.
+  - [x] Apple Notes selected-note Markdown export and missing bulk-export documentation.
+  - [x] Generated-contract, full check, production-build, focused browser E2E, and 10,000-note post-import navigation evidence.
+  - [ ] Sanitized fixtures captured from real provider applications rather than synthetic export-shape fixtures.
+  - [ ] Full native Tauri WebDriver import E2E; current browser E2E uses the deterministic bridge and native intake/transaction behavior is covered separately by Rust tests.
+- [ ] Later provider adapters: Evernote ENEX, Google Keep, Joplin, and Standard Notes.
 
 ## Platform
 

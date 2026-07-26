@@ -6,7 +6,9 @@ import {
 } from "../../src/import/preview-controller";
 
 test("preview controller returns selected provider and unregisters cleanly", async () => {
-  let choose: ((sourceId: string | null) => void) | null = null;
+  let choose: Parameters<
+    Parameters<typeof registerImportPreviewListener>[0]
+  >[0]["resolve"] | null = null;
   const unregister = registerImportPreviewListener((request) => {
     assert.equal(request.detectedSourceId, "notion");
     choose = request.resolve;
@@ -15,10 +17,16 @@ test("preview controller returns selected provider and unregisters cleanly", asy
     sourcePath: "/tmp/export.zip",
     detectedSourceId: "notion",
     candidates: [],
+    destinations: [{ id: null, label: "Workspace root" }],
   });
   assert.ok(choose);
-  (choose as (sourceId: string | null) => void)("markdown");
-  assert.equal(await selected, "markdown");
+  const selection = {
+    sourceId: "markdown",
+    destinationFolderId: "folder-1",
+    duplicateMode: "update" as const,
+  };
+  choose(selection);
+  assert.deepEqual(await selected, selection);
 
   unregister();
   assert.equal(
@@ -26,6 +34,7 @@ test("preview controller returns selected provider and unregisters cleanly", asy
       sourcePath: "/tmp/export.zip",
       detectedSourceId: "notion",
       candidates: [],
+      destinations: [],
     }),
     null,
   );

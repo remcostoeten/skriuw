@@ -15,6 +15,7 @@ const output = resolve(
     : "app/e2e/results/latest.json",
 );
 const chromeBinary = process.env.CHROME_BINARY ?? "google-chrome-stable";
+const providerImportOnly = process.argv.includes("--provider-import-only");
 const sleep = (milliseconds) =>
   new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
 
@@ -321,6 +322,75 @@ async function runWorkflow() {
       ),
       "trash route control missing",
     );
+
+    if (providerImportOnly) {
+      await dispatchKey(cdp, sessionId, "k", "KeyK", 75, "", 2);
+      await waitFor(
+        cdp,
+        sessionId,
+        "document.querySelector('[role=\"dialog\"][aria-label=\"Command palette\"]') !== null",
+        "provider import command palette",
+      );
+      await typeText(cdp, sessionId, "Import provider export");
+      await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+      await waitFor(
+        cdp,
+        sessionId,
+        "document.querySelector('dialog[open] h2')?.textContent === 'Preview import'",
+        "provider import preview",
+      );
+      await evaluate(
+        cdp,
+        sessionId,
+        `(() => {
+          const destination = document.querySelector('#import-destination');
+          destination.value = 'folder-a';
+          destination.dispatchEvent(new Event('change', { bubbles: true }));
+        })()`,
+      );
+      await control('focusContaining("Import 1 note")');
+      await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+      await waitFor(
+        cdp,
+        sessionId,
+        "document.body.textContent.includes('Import complete (Obsidian)')",
+        "provider import completion",
+      );
+      await settle();
+      current = await state();
+      const importedNoteId = Object.keys(current.nodeTitles).find(
+        (id) => current.nodeTitles[id] === "Provider note",
+      );
+      assert(
+        checks,
+        "provider-import-destination-and-commit",
+        importedNoteId &&
+          current.parents[current.parents[importedNoteId]] === "folder-a",
+        JSON.stringify({ importedNoteId, parents: current.parents }),
+      );
+      assert(
+        checks,
+        "provider-import-bridge-command-flow",
+        current.bridgeCommands.includes("prepare_import_source") &&
+          current.bridgeCommands.includes("apply_workspace_operations"),
+        JSON.stringify(current.bridgeCommands),
+      );
+      assert(
+        checks,
+        "provider-import-console-clean",
+        consoleErrors.length === 0 && pageErrors.length === 0,
+        JSON.stringify({ consoleErrors, pageErrors }),
+      );
+      cdp.close();
+      return {
+        browser: browser.product,
+        steps: ["provider-import"],
+        checks,
+        consoleErrors,
+        pageErrors,
+        finalState: current,
+      };
+    }
 
     await control('focusNamed("New note")');
     await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
@@ -737,6 +807,59 @@ async function runWorkflow() {
     await settle();
     steps.push("palette");
 
+    await dispatchKey(cdp, sessionId, "k", "KeyK", 75, "", 2);
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('[role=\"dialog\"][aria-label=\"Command palette\"]') !== null",
+      "provider import command palette",
+    );
+    await typeText(cdp, sessionId, "Import provider export");
+    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('dialog[open] h2')?.textContent === 'Preview import'",
+      "provider import preview",
+    );
+    await evaluate(
+      cdp,
+      sessionId,
+      `(() => {
+        const destination = document.querySelector('#import-destination');
+        destination.value = 'folder-a';
+        destination.dispatchEvent(new Event('change', { bubbles: true }));
+      })()`,
+    );
+    await control('focusContaining("Import 1 note")');
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.body.textContent.includes('Import complete (Obsidian)')",
+      "provider import completion",
+    );
+    await settle();
+    current = await state();
+    const importedNoteId = Object.keys(current.nodeTitles).find(
+      (id) => current.nodeTitles[id] === "Provider note",
+    );
+    assert(
+      checks,
+      "provider-import-destination-and-commit",
+      importedNoteId &&
+        current.parents[current.parents[importedNoteId]] === "folder-a",
+      JSON.stringify({ importedNoteId, parents: current.parents }),
+    );
+    assert(
+      checks,
+      "provider-import-bridge-command-flow",
+      current.bridgeCommands.includes("prepare_import_source") &&
+        current.bridgeCommands.includes("apply_workspace_operations"),
+      JSON.stringify(current.bridgeCommands),
+    );
+    steps.push("provider-import");
+
     await control('focusNamed("Settings")');
     await dispatchKey(cdp, sessionId, ",", "Comma", 188, "", 2);
     await waitFor(
@@ -1078,7 +1201,7 @@ async function runWorkflow() {
     assert(
       checks,
       "complete-workflow-step-set",
-      steps.length === 15,
+      steps.length === 16,
       JSON.stringify(steps),
     );
     cdp.close();
@@ -1138,7 +1261,7 @@ try {
     schemaVersion: 1,
     verifiedAt: new Date().toISOString(),
     revision: git.stdout.trim(),
-    command: `node app/e2e/run.mjs --output ${output}`,
+    command: `node app/e2e/run.mjs${providerImportOnly ? " --provider-import-only" : ""} --output ${output}`,
     machine: {
       hostname: hostname(),
       platform: platform(),

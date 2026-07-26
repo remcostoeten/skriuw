@@ -42,6 +42,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "typed_note_properties",
         sql: include_str!("../../../migrations/0007_typed_note_properties.sql"),
     },
+    Migration {
+        version: 8,
+        name: "provider_import_receipts",
+        sql: include_str!("../../../migrations/0008_provider_import_receipts.sql"),
+    },
 ];
 
 pub(crate) struct Migration {

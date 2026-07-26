@@ -136,6 +136,15 @@ export type WorkspaceSnapshot = {
   images?: WorkspaceImage[];
   properties?: NoteProperty[];
   propertyTemplates?: NotePropertyTemplate[];
+  importReceipts?: ProviderImportReceipt[];
+};
+
+export type ProviderImportReceipt = {
+  provider: string;
+  sourceKey: string;
+  sourcePath: string;
+  noteId: string;
+  importedAt: number;
 };
 
 export type NodePosition =
@@ -229,7 +238,8 @@ export type WorkspaceOperation =
     }
   | { type: "set_note_property_template"; template: NotePropertyTemplate }
   | { type: "delete_note_property_template"; templateId: string }
-  | { type: "reorder_note_property_templates"; orderedTemplateIds: string[] };
+  | { type: "reorder_note_property_templates"; orderedTemplateIds: string[] }
+  | { type: "record_provider_import"; receipt: ProviderImportReceipt };
 
 export type WorkspaceOperationEnvelope = {
   protocolVersion: number;
