@@ -379,6 +379,15 @@ test("image helpers map mime types, ids, and paths", () => {
   );
   assert.equal(resolveImportedImagePath("Deep/Note.md", "./images/pic%201.png"), "Deep/images/pic 1.png");
   assert.equal(resolveImportedImagePath("Note.md", "images/pic.png"), "images/pic.png");
+  assert.equal(
+    resolveImportedImagePath("Sub/Note.md", "../attachments/pic.png"),
+    "attachments/pic.png",
+  );
+  assert.equal(
+    resolveImportedImagePath("A/B/Note.md", "../../assets/pic.png"),
+    "assets/pic.png",
+  );
+  assert.equal(resolveImportedImagePath("Note.md", "../escape.png"), "../escape.png");
 });
 
 test("import converts local markdown images into image_ref nodes", () => {
