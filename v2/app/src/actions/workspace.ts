@@ -3,6 +3,7 @@ import { envelope } from "../contracts/workspace";
 import type { NodePlacement, WorkspaceOperation } from "../contracts/workspace";
 import { buildRestoreOperation } from "../history/version-model";
 import { opensNotesInTabs } from "../settings/settings-model";
+import { ancestorIds, flattenVisible } from "../store/tree";
 import type { RendererState, RendererStore } from "../store/types";
 import type { ReferenceOperation } from "../references/types";
 
@@ -244,3 +245,54 @@ export function navigateNote(store: RendererStore, direction: -1 | 1): void {
     activateNote(store, nextId);
   }
 }
+
+/**
+ * The note a whole-note action targets: the focused pane's note in a split,
+ * falling back to the workspace's active note. Null when no note is open.
+ */
+export function focusedPaneNoteId(state: RendererState): string | null {
+  const pane = state.panes.find((entry) => entry.paneId === state.focusedPaneId);
+  const noteId = pane?.activeNoteId ?? state.activeNoteId;
+  return noteId !== null && state.nodes.get(noteId)?.kind === "note" ? noteId : null;
+}
+
+/**
+ * Expands the ancestors of `id` and focuses its row, so a node reached from
+ * outside the sidebar becomes visible in the tree.
+ */
+export function revealNodeInTree(store: RendererStore, id: string): boolean {
+  const state = store.getState();
+  if (!state.nodes.has(id)) {
+    return false;
+  }
+  const expandedIds = new Set(state.expandedIds);
+  for (const ancestorId of ancestorIds(state.nodes, id)) {
+    expandedIds.add(ancestorId);
+  }
+  store.update((current) => ({
+    ...current,
+    expandedIds,
+    focusedNodeId: id,
+    visibleIds: flattenVisible(current.nodes, current.childrenByParent, expandedIds),
+  }));
+  return true;
+}
+
+/**
+ * Starts the inline rename of the open note — the same editing state the
+ * sidebar's own F2 uses, pointed at the open note instead of the focused row.
+ */
+export function renameCurrentNote(store: RendererStore): boolean {
+  const state = store.getState();
+  const noteId = focusedPaneNoteId(state);
+  if (noteId === null) {
+    return false;
+  }
+  if (state.editingNodeId === noteId) {
+    return true;
+  }
+  revealNodeInTree(store, noteId);
+  store.setEditingNode(noteId);
+  return true;
+}
+

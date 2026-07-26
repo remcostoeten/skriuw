@@ -7,6 +7,7 @@ import type { RendererStore } from "../store/types";
 import {
   effectiveShortcutKeys,
   sameShortcutOverrides,
+  shortcutExcept,
   shortcutOverridesFromSettings,
 } from "./bindings";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
@@ -120,7 +121,7 @@ export function WorkspaceShortcuts({
         options: {
           description: definition.label,
           preventDefault: true,
-          except: definition.worksWhileTyping ? undefined : "typing",
+          except: shortcutExcept(definition, definition.worksWhileTyping === true),
           scopes: definition.scopes,
         },
       };
@@ -131,7 +132,11 @@ export function WorkspaceShortcuts({
           options: {
             description: definition.label,
             preventDefault: true,
-            except: "typing",
+            except: shortcutExcept(
+              definition,
+              definition.secondaryWorksWhileTyping === true,
+            ),
+            scopes: definition.scopes,
           },
         };
       }

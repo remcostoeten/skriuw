@@ -6,6 +6,7 @@ export type ShortcutActionId =
   | "createPerson"
   | "togglePinNote"
   | "toggleEditorMode"
+  | "renameCurrentNote"
   | "closeTab"
   | "nextTab"
   | "previousTab"
@@ -33,11 +34,24 @@ export type ShortcutActionId =
   | "searchWholeWord"
   | "searchRegex";
 
+/**
+ * Focus contexts that veto a binding:
+ * - `typing` — any text field or contenteditable, including the note editor.
+ * - `textField` — native text fields only, so editor-scoped keys still fire
+ *   while the caret is in the note.
+ * - `sidebarTree` — the tree owns its plain keys (F2/r, Delete, m, alt+arrows)
+ *   for the focused row and keeps precedence over same-key global bindings.
+ * - `modal` — a dialog or the command palette owns the keyboard.
+ */
+export type ShortcutGuard = "typing" | "textField" | "sidebarTree" | "modal";
+
 export type ShortcutDefinition = {
   id: ShortcutActionId;
   keys: string | string[];
   label: string;
   group: string;
+  /** Extra focus contexts where the binding must stay silent. */
+  guards?: readonly ShortcutGuard[];
   /**
    * Named scopes the binding requires to fire. Bindings with scopes run only
    * when the workspace has at least one matching scope active, letting a key
@@ -51,6 +65,11 @@ export type ShortcutDefinition = {
    */
   worksWhileTyping?: boolean;
   secondaryKeys?: string;
+  /**
+   * Whether `secondaryKeys` also survives typing. Off by default: alternates
+   * are usually plain keys that must never steal a typed character.
+   */
+  secondaryWorksWhileTyping?: boolean;
   boundInEditor?: boolean;
 };
 
@@ -98,6 +117,14 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Pin or unpin current note",
     group: "Workspace",
     worksWhileTyping: true,
+  },
+  {
+    id: "renameCurrentNote",
+    keys: "f2",
+    label: "Rename current note",
+    group: "Workspace",
+    worksWhileTyping: true,
+    guards: ["textField", "sidebarTree", "modal"],
   },
   {
     id: "toggleEditorMode",
