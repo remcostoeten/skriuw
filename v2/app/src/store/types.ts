@@ -15,7 +15,7 @@ import type {
   OutgoingReferences,
 } from "../references/projection";
 import type { PersonRecord, ReferenceOperation, TagRecord } from "../references/types";
-import type { PaneState } from "./panes";
+import type { ClosedTab, PaneState } from "./panes";
 
 export type NodeRecord = {
   id: string;
@@ -55,6 +55,8 @@ export type RendererState = {
   expandedIds: ReadonlySet<string>;
   panes: readonly PaneState[];
   focusedPaneId: string;
+  /** Per-pane reopen stack for closed tabs. Session-only, never persisted. */
+  closedTabsByPaneId: ReadonlyMap<string, readonly ClosedTab[]>;
   editorModeByNoteId: ReadonlyMap<string, "rendered" | "raw">;
   activeNoteId: string | null;
   focusedNodeId: string | null;

@@ -398,3 +398,65 @@ test("alt+4 matches the fourth tab binding and a bare 4 keeps typing", () => {
     false,
   );
 });
+
+test("tab management binds reopen and the two move keys, scoped to the tabbed workspace", () => {
+  for (const [id, keys] of [
+    ["reopenClosedTab", "mod+shift+w"],
+    ["moveTabLeft", "ctrl+shift+pageup"],
+    ["moveTabRight", "ctrl+shift+pagedown"],
+  ] as const) {
+    const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
+    assert.ok(definition, `${id} has no definition`);
+    assert.equal(effectiveShortcutKeys(definition, {}), keys);
+    assert.equal(definition.group, "Tabs");
+    assert.equal(definition.scopes, "tabs");
+    assert.deepEqual(shortcutGuards(definition, true), ["modal"]);
+    assert.equal(findShortcutConflict({}, id, keys), null);
+  }
+});
+
+test("reopen closed tab stays off ctrl+shift+t because New tag owns it", () => {
+  const createTag = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "createTag");
+  assert.ok(createTag);
+  assert.equal(effectiveShortcutKeys(createTag, {}), "mod+shift+t");
+  assert.equal(
+    findShortcutConflict({}, "reopenClosedTab", "mod+shift+t")?.actionId,
+    "createTag",
+  );
+  const closeTab = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "closeTab");
+  assert.ok(closeTab);
+  assert.equal(sameCombo(effectiveShortcutKeys(closeTab, {}), "mod+shift+w"), false);
+});
+
+test("mod+shift+w and ctrl+shift+pageup match their tab management bindings", () => {
+  const modifier = parseShortcut("mod+k").modifiers.meta ? "metaKey" : "ctrlKey";
+  const base = { key: "w", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
+  assert.equal(
+    matchesShortcut(
+      { ...base, shiftKey: true, [modifier]: true } as unknown as KeyboardEvent,
+      parseShortcut("mod+shift+w"),
+    ),
+    true,
+  );
+  assert.equal(
+    matchesShortcut(
+      { ...base, [modifier]: true } as unknown as KeyboardEvent,
+      parseShortcut("mod+shift+w"),
+    ),
+    false,
+  );
+  assert.equal(
+    matchesShortcut(
+      { ...base, key: "PageUp", ctrlKey: true, shiftKey: true } as unknown as KeyboardEvent,
+      parseShortcut("ctrl+shift+pageup"),
+    ),
+    true,
+  );
+  assert.equal(
+    matchesShortcut(
+      { ...base, key: "PageDown", ctrlKey: true, shiftKey: true } as unknown as KeyboardEvent,
+      parseShortcut("ctrl+shift+pagedown"),
+    ),
+    true,
+  );
+});
