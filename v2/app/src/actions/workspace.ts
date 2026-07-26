@@ -4,9 +4,15 @@ import type { NodePlacement, WorkspaceOperation } from "../contracts/workspace";
 import { buildRestoreOperation } from "../history/version-model";
 import { flushPendingWork } from "../lifecycle/pending-work";
 import { opensNotesInTabs } from "../settings/settings-model";
+import {
+  SECONDARY_PANE_ID,
+  openBeside as openBesidePanes,
+  secondaryPane,
+} from "../store/panes";
 import { ancestorIds, flattenVisible } from "../store/tree";
 import type { RendererState, RendererStore } from "../store/types";
 import type { ReferenceOperation } from "../references/types";
+import { planNoteDuplicate } from "./duplicate-note";
 
 export function commitReferenceOperations(
   store: RendererStore,
@@ -345,4 +351,61 @@ export async function trashCurrentNote(
 export function restoreTrashedNote(store: RendererStore, noteId: string): void {
   restoreSubtree(store, noteId);
   activateNote(store, noteId);
+}
+
+export type DuplicatedNote = { noteId: string; title: string };
+
+/**
+ * Opens `noteId` in whichever pane has focus. Creating a note always makes it
+ * the workspace's active note, which is the primary pane — so when the split
+ * pane has focus the primary pane is handed `restoreActiveNoteId` back and the
+ * new note goes to the split instead.
+ */
+function openInFocusedPane(
+  store: RendererStore,
+  noteId: string,
+  restoreActiveNoteId: string | null,
+): void {
+  const state = store.getState();
+  if (state.focusedPaneId !== SECONDARY_PANE_ID || secondaryPane(state.panes) === null) {
+    activateNote(store, noteId);
+    return;
+  }
+  activateNote(store, restoreActiveNoteId);
+  store.update((current) => ({
+    ...current,
+    panes: openBesidePanes(current.panes, noteId),
+    focusedNodeId: noteId,
+  }));
+}
+
+/**
+ * Duplicates the open note into the slot right after it, after flushing pending
+ * edits so the copy matches what was on screen. Content, properties, and
+ * reference chips come across; note, block, and property identities are fresh,
+ * the copy is never pinned, and its created-at is now. The copy opens in the
+ * pane the original was open in.
+ */
+export async function duplicateCurrentNote(
+  store: RendererStore,
+): Promise<DuplicatedNote | null> {
+  const noteId = focusedPaneNoteId(store.getState());
+  if (noteId === null) {
+    return null;
+  }
+  await flushPendingWork();
+  const state = store.getState();
+  const previousActiveNoteId = state.activeNoteId;
+  const plan = planNoteDuplicate(state, noteId, Date.now(), () => crypto.randomUUID());
+  if (plan === null) {
+    return null;
+  }
+  try {
+    await commitOperations(store, [...plan.operations]);
+  } catch (error) {
+    reportRejection("duplicate note")(error);
+    return null;
+  }
+  openInFocusedPane(store, plan.noteId, previousActiveNoteId);
+  return { noteId: plan.noteId, title: plan.title };
 }

@@ -8,6 +8,7 @@ export type ShortcutActionId =
   | "toggleEditorMode"
   | "renameCurrentNote"
   | "trashCurrentNote"
+  | "duplicateCurrentNote"
   | "closeTab"
   | "nextTab"
   | "previousTab"
@@ -143,6 +144,16 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Workspace",
     worksWhileTyping: true,
     guards: ["textField", "sidebarTree", "modal"],
+  },
+  {
+    id: "duplicateCurrentNote",
+    keys: "mod+shift+d",
+    label: "Duplicate current note",
+    description:
+      "Duplicate current note and rename the copy. Overrides the browser's bookmark-all-tabs default on web.",
+    group: "Workspace",
+    worksWhileTyping: true,
+    guards: ["textField", "modal"],
   },
   {
     id: "toggleEditorMode",

@@ -9,6 +9,7 @@ import { toggleEditorMode } from "../actions/editor-mode";
 import {
   createFolder,
   createNote,
+  duplicateCurrentNote,
   focusedPaneNoteId,
   navigateNote,
   noteNavigationOrder,
@@ -34,6 +35,7 @@ import {
   ChevronRightIcon,
   CircleIcon,
   CloseIcon,
+  CopyIcon,
   DownloadIcon,
   FileTextIcon,
   FolderOpenIcon,
@@ -157,6 +159,26 @@ export function createWorkspaceCommands(
         controls.openSidebar();
         captureRenameReturnFocus();
         renameCurrentNote(store);
+      },
+    },
+    {
+      id: "duplicate-current-note",
+      label: "Duplicate current note",
+      group: "Actions",
+      keywords: ["duplicate", "copy", "clone"],
+      icon: <CopyIcon size={15} />,
+      shortcut: "duplicateCurrentNote",
+      hint: shortcutDefinition("duplicateCurrentNote").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && focusedPaneNoteId(state) !== null,
+      run: () => {
+        captureRenameReturnFocus();
+        void duplicateCurrentNote(store).then((duplicated) => {
+          if (duplicated === null) {
+            return;
+          }
+          controls.openSidebar();
+          renameCurrentNote(store);
+        });
       },
     },
     {
