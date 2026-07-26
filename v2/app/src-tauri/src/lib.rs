@@ -872,7 +872,7 @@ mod markdown_tree_tests {
         let dir = tempdir().expect("tempdir");
         fs::write(dir.path().join("valid.md"), "ok").expect("write valid");
         fs::write(dir.path().join("broken.md"), [0xff, 0xfe, 0xfd]).expect("write broken");
-        fs::write(dir.path().join("ignored.txt"), "not markdown").expect("write ignored");
+        fs::write(dir.path().join("ignored.bin"), "not importable").expect("write ignored");
 
         let tree = collect_markdown_tree(dir.path()).expect("collect tree");
         assert_eq!(tree.files.len(), 1);
