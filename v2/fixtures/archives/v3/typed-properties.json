@@ -1,0 +1,127 @@
+{
+  "archiveVersion": 3,
+  "protocolVersion": 1,
+  "exportedAt": 1754000000000,
+  "activeNoteId": "note-project",
+  "nodes": [
+    {
+      "id": "note-project",
+      "kind": "note",
+      "parentId": null,
+      "rank": 1024,
+      "title": "Project",
+      "icon": null,
+      "createdAt": 1754000000000,
+      "updatedAt": 1754000001000,
+      "deletedAt": null,
+      "pinnedAt": null
+    }
+  ],
+  "documents": [
+    {
+      "noteId": "note-project",
+      "documentJson": {
+        "type": "doc",
+        "content": []
+      },
+      "markdown": "# Project",
+      "revision": 1,
+      "wordCount": 1
+    }
+  ],
+  "settings": {},
+  "tags": [],
+  "people": [
+    {
+      "id": "person-alice",
+      "name": "Alice",
+      "initials": "A",
+      "color": "blue",
+      "note": null,
+      "createdAt": 1754000000000,
+      "updatedAt": 1754000000000,
+      "createdIn": null
+    }
+  ],
+  "properties": [
+    {
+      "noteId": "note-project",
+      "id": "property-owner",
+      "name": "Owner",
+      "value": {
+        "valueVersion": 1,
+        "type": "person",
+        "value": [
+          "person-alice"
+        ]
+      },
+      "options": [],
+      "position": 0
+    },
+    {
+      "noteId": "note-project",
+      "id": "property-status",
+      "name": "Status",
+      "value": {
+        "valueVersion": 1,
+        "type": "select",
+        "value": "active"
+      },
+      "options": [
+        {
+          "id": "active",
+          "label": "Active",
+          "color": "amber"
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "color": "green"
+        }
+      ],
+      "position": 1
+    }
+  ],
+  "propertyTemplates": [
+    {
+      "id": "template-project",
+      "name": "Project",
+      "position": 0,
+      "properties": [
+        {
+          "id": "template-status",
+          "name": "Status",
+          "value": {
+            "valueVersion": 1,
+            "type": "select",
+            "value": null
+          },
+          "options": [
+            {
+              "id": "backlog",
+              "label": "Backlog",
+              "color": "gray"
+            },
+            {
+              "id": "active",
+              "label": "Active",
+              "color": "amber"
+            }
+          ],
+          "position": 0
+        },
+        {
+          "id": "template-due",
+          "name": "Due",
+          "value": {
+            "valueVersion": 1,
+            "type": "date",
+            "value": ""
+          },
+          "options": [],
+          "position": 1
+        }
+      ]
+    }
+  ]
+}

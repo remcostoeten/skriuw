@@ -382,6 +382,8 @@ impl WorkspaceMaintenance for SqliteWorkspace {
                  DELETE FROM documents;\
                  DELETE FROM document_references;\
                  DELETE FROM note_images;\
+                 DELETE FROM note_properties;\
+                 DELETE FROM note_property_templates;\
                  DELETE FROM workspace_tags;\
                  DELETE FROM workspace_people;\
                  DELETE FROM workspace_nodes;\
@@ -476,6 +478,49 @@ impl WorkspaceMaintenance for SqliteWorkspace {
         }
         for person in &archive.people {
             transaction.execute("INSERT INTO workspace_people (id, name, initials, color, note, created_at, updated_at, created_in) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)", params![person.id, person.name, person.initials, person.color, person.note, person.created_at, person.updated_at, person.created_in]).map_err(backend)?;
+        }
+        for property in &archive.properties {
+            transaction
+                .execute(
+                    "INSERT INTO note_properties \
+                     (note_id, id, name, value_json, options_json, position) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        property.note_id,
+                        property.field.id,
+                        property.field.name,
+                        serde_json::to_string(&property.field.value).map_err(json_backend)?,
+                        serde_json::to_string(&property.field.options).map_err(json_backend)?,
+                        property.field.position
+                    ],
+                )
+                .map_err(backend)?;
+        }
+        for template in &archive.property_templates {
+            transaction
+                .execute(
+                    "INSERT INTO note_property_templates (id, name, position) \
+                     VALUES (?1, ?2, ?3)",
+                    params![template.id, template.name, template.position],
+                )
+                .map_err(backend)?;
+            for field in &template.properties {
+                transaction
+                    .execute(
+                        "INSERT INTO note_property_template_fields \
+                         (template_id, id, name, value_json, options_json, position) \
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                        params![
+                            template.id,
+                            field.id,
+                            field.name,
+                            serde_json::to_string(&field.value).map_err(json_backend)?,
+                            serde_json::to_string(&field.options).map_err(json_backend)?,
+                            field.position
+                        ],
+                    )
+                    .map_err(backend)?;
+            }
         }
         for document in &archive.documents {
             replace_references(&transaction, &document.note_id, &document.document_json)?;

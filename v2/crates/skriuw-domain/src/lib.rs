@@ -6,9 +6,10 @@ use serde_json::Value;
 use thiserror::Error;
 
 pub const WORKSPACE_PROTOCOL_VERSION: u16 = 1;
-pub const WORKSPACE_ARCHIVE_VERSION: u16 = 2;
-pub const SUPPORTED_ARCHIVE_VERSIONS: [u16; 2] = [1, 2];
+pub const WORKSPACE_ARCHIVE_VERSION: u16 = 3;
+pub const SUPPORTED_ARCHIVE_VERSIONS: [u16; 3] = [1, 2, 3];
 pub const WORKSPACE_SETTINGS_VERSION: u16 = 1;
+pub const NOTE_PROPERTY_VALUE_VERSION: u16 = 1;
 pub const MAX_ENTITY_ID_BYTES: usize = 128;
 pub const MAX_TITLE_BYTES: usize = 512;
 pub const MAX_SETTING_KEY_BYTES: usize = 128;
@@ -17,6 +18,11 @@ pub const MAX_REFERENCE_NAME_BYTES: usize = 512;
 pub const MAX_REFERENCE_COLOR_BYTES: usize = 64;
 pub const MAX_IMAGE_MIME_BYTES: usize = 128;
 pub const IMAGE_CONTENT_HASH_BYTES: usize = 64;
+pub const MAX_NOTE_PROPERTIES: usize = 64;
+pub const MAX_PROPERTY_OPTIONS: usize = 64;
+pub const MAX_PROPERTY_NAME_BYTES: usize = 80;
+pub const MAX_PROPERTY_VALUE_BYTES: usize = 2_000;
+pub const MAX_TEMPLATE_NAME_BYTES: usize = 60;
 
 pub const SETTINGS_FIELDS: [&str; 10] = [
     "settingsVersion",
@@ -55,10 +61,22 @@ pub enum OperationValidationError {
     SelfAnchor,
     #[error("unsupported workspace settings version {0}")]
     UnsupportedSettingsVersion(u16),
+    #[error("unsupported note property value version {0}")]
+    UnsupportedPropertyValueVersion(u16),
     #[error("extension setting {key} collides with a schema field")]
     SettingFieldCollision { key: String },
     #[error("{field} must be positive")]
     NotPositive { field: &'static str },
+    #[error("{field} exceeds {maximum} entries")]
+    TooMany { field: &'static str, maximum: usize },
+    #[error("{field} contains a duplicate {id}")]
+    Duplicate { field: &'static str, id: String },
+    #[error("{field} contains an unknown reference {id}")]
+    UnknownReference { field: &'static str, id: String },
+    #[error("property positions must be contiguous from zero")]
+    InvalidPropertyPositions,
+    #[error("{field} position cannot be negative")]
+    NegativePosition { field: &'static str },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -236,6 +254,181 @@ impl WorkspaceImage {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum NotePropertyColor {
+    Gray,
+    Stone,
+    Amber,
+    Green,
+    Blue,
+    Teal,
+    Rose,
+    Red,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NotePropertyOption {
+    pub id: String,
+    pub label: String,
+    pub color: NotePropertyColor,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", content = "value", rename_all = "kebab-case")]
+pub enum NotePropertyValue {
+    Text(String),
+    Number(Option<f64>),
+    Date(String),
+    Select(Option<String>),
+    MultiSelect(Vec<String>),
+    Person(Vec<String>),
+    Url(String),
+    Checkbox(bool),
+    Rating(Option<u8>),
+    Location(String),
+    Email(String),
+    Phone(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionedNotePropertyValue {
+    pub value_version: u16,
+    #[serde(flatten)]
+    pub value: NotePropertyValue,
+}
+
+impl VersionedNotePropertyValue {
+    #[must_use]
+    pub fn v1(value: NotePropertyValue) -> Self {
+        Self {
+            value_version: NOTE_PROPERTY_VALUE_VERSION,
+            value,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NotePropertyField {
+    pub id: String,
+    pub name: String,
+    pub value: VersionedNotePropertyValue,
+    #[serde(default)]
+    pub options: Vec<NotePropertyOption>,
+    pub position: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteProperty {
+    pub note_id: String,
+    #[serde(flatten)]
+    pub field: NotePropertyField,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NotePropertyTemplate {
+    pub id: String,
+    pub name: String,
+    pub position: i64,
+    pub properties: Vec<NotePropertyField>,
+}
+
+impl NotePropertyField {
+    pub fn validate(&self) -> Result<(), OperationValidationError> {
+        validate_id("property id", &self.id)?;
+        validate_bounded_text("property name", &self.name, MAX_PROPERTY_NAME_BYTES)?;
+        if self.position < 0 {
+            return Err(OperationValidationError::NegativePosition { field: "property" });
+        }
+        if self.value.value_version != NOTE_PROPERTY_VALUE_VERSION {
+            return Err(OperationValidationError::UnsupportedPropertyValueVersion(
+                self.value.value_version,
+            ));
+        }
+        validate_property_options(&self.options)?;
+        match &self.value.value {
+            NotePropertyValue::Text(value)
+            | NotePropertyValue::Date(value)
+            | NotePropertyValue::Url(value)
+            | NotePropertyValue::Location(value)
+            | NotePropertyValue::Email(value)
+            | NotePropertyValue::Phone(value) => {
+                validate_optional_bounded_text("property value", value, MAX_PROPERTY_VALUE_BYTES)?;
+                if !self.options.is_empty() {
+                    return Err(OperationValidationError::InvalidIdentifier {
+                        field: "property options",
+                    });
+                }
+            }
+            NotePropertyValue::Number(value) => {
+                if value.is_some_and(|value| !value.is_finite()) {
+                    return Err(OperationValidationError::InvalidIdentifier {
+                        field: "property number",
+                    });
+                }
+                if !self.options.is_empty() {
+                    return Err(OperationValidationError::InvalidIdentifier {
+                        field: "property options",
+                    });
+                }
+            }
+            NotePropertyValue::Select(value) => {
+                if let Some(id) = value {
+                    require_option_reference("property select", id, &self.options)?;
+                }
+            }
+            NotePropertyValue::MultiSelect(values) => {
+                validate_value_ids("property multi-select", values, &self.options)?;
+            }
+            NotePropertyValue::Person(values) => {
+                validate_ordered_ids("property people", values, MAX_PROPERTY_OPTIONS)?;
+                if !self.options.is_empty() {
+                    return Err(OperationValidationError::InvalidIdentifier {
+                        field: "property options",
+                    });
+                }
+            }
+            NotePropertyValue::Checkbox(_) | NotePropertyValue::Rating(_) => {
+                if let NotePropertyValue::Rating(Some(value)) = &self.value.value
+                    && *value > 5
+                {
+                    return Err(OperationValidationError::InvalidIdentifier {
+                        field: "property rating",
+                    });
+                }
+                if !self.options.is_empty() {
+                    return Err(OperationValidationError::InvalidIdentifier {
+                        field: "property options",
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl NotePropertyTemplate {
+    pub fn validate(&self) -> Result<(), OperationValidationError> {
+        validate_id("property template id", &self.id)?;
+        validate_bounded_text(
+            "property template name",
+            &self.name,
+            MAX_TEMPLATE_NAME_BYTES,
+        )?;
+        if self.position < 0 {
+            return Err(OperationValidationError::NegativePosition {
+                field: "property template",
+            });
+        }
+        validate_note_property_fields(&self.properties)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSnapshot {
@@ -253,6 +446,10 @@ pub struct WorkspaceSnapshot {
     pub references: Vec<NoteReferences>,
     #[serde(default)]
     pub images: Vec<WorkspaceImage>,
+    #[serde(default)]
+    pub properties: Vec<NoteProperty>,
+    #[serde(default)]
+    pub property_templates: Vec<NotePropertyTemplate>,
 }
 
 impl WorkspaceSnapshot {
@@ -296,6 +493,10 @@ pub struct WorkspaceArchive {
     pub tags: Vec<WorkspaceTag>,
     #[serde(default)]
     pub people: Vec<WorkspacePerson>,
+    #[serde(default)]
+    pub properties: Vec<NoteProperty>,
+    #[serde(default)]
+    pub property_templates: Vec<NotePropertyTemplate>,
 }
 
 impl WorkspaceArchive {
@@ -311,6 +512,8 @@ impl WorkspaceArchive {
             settings: snapshot.settings,
             tags: snapshot.tags,
             people: snapshot.people,
+            properties: snapshot.properties,
+            property_templates: snapshot.property_templates,
         }
     }
 
@@ -436,6 +639,12 @@ impl WorkspaceArchive {
 
         self.settings.validate().map_err(archive_operation_error)?;
         validate_relationships(&self.tags, &self.people, &self.documents, &nodes)?;
+        validate_archive_properties(
+            &self.properties,
+            &self.property_templates,
+            &self.people,
+            &nodes,
+        )?;
         Ok(())
     }
 }
@@ -490,6 +699,224 @@ pub enum ReferenceKind {
 pub struct NoteReferences {
     pub note_id: String,
     pub targets: Vec<DocumentReference>,
+}
+
+fn validate_bounded_text(
+    field: &'static str,
+    value: &str,
+    maximum: usize,
+) -> Result<(), OperationValidationError> {
+    if value.trim().is_empty() {
+        return Err(OperationValidationError::Empty { field });
+    }
+    if value.len() > maximum {
+        return Err(OperationValidationError::TooLong { field, maximum });
+    }
+    Ok(())
+}
+
+fn validate_optional_bounded_text(
+    field: &'static str,
+    value: &str,
+    maximum: usize,
+) -> Result<(), OperationValidationError> {
+    if value.len() > maximum {
+        return Err(OperationValidationError::TooLong { field, maximum });
+    }
+    Ok(())
+}
+
+fn validate_ordered_ids(
+    field: &'static str,
+    ids: &[String],
+    maximum: usize,
+) -> Result<(), OperationValidationError> {
+    if ids.len() > maximum {
+        return Err(OperationValidationError::TooMany { field, maximum });
+    }
+    let mut unique = BTreeSet::new();
+    for id in ids {
+        validate_id(field, id)?;
+        if !unique.insert(id) {
+            return Err(OperationValidationError::Duplicate {
+                field,
+                id: id.clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn validate_property_options(
+    options: &[NotePropertyOption],
+) -> Result<(), OperationValidationError> {
+    if options.len() > MAX_PROPERTY_OPTIONS {
+        return Err(OperationValidationError::TooMany {
+            field: "property options",
+            maximum: MAX_PROPERTY_OPTIONS,
+        });
+    }
+    let mut ids = BTreeSet::new();
+    for option in options {
+        validate_id("property option id", &option.id)?;
+        validate_bounded_text(
+            "property option label",
+            &option.label,
+            MAX_PROPERTY_NAME_BYTES,
+        )?;
+        if !ids.insert(option.id.as_str()) {
+            return Err(OperationValidationError::Duplicate {
+                field: "property options",
+                id: option.id.clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn require_option_reference(
+    field: &'static str,
+    id: &str,
+    options: &[NotePropertyOption],
+) -> Result<(), OperationValidationError> {
+    validate_id(field, id)?;
+    if options.iter().any(|option| option.id == id) {
+        Ok(())
+    } else {
+        Err(OperationValidationError::UnknownReference {
+            field,
+            id: id.into(),
+        })
+    }
+}
+
+fn validate_value_ids(
+    field: &'static str,
+    values: &[String],
+    options: &[NotePropertyOption],
+) -> Result<(), OperationValidationError> {
+    validate_ordered_ids(field, values, MAX_PROPERTY_OPTIONS)?;
+    for id in values {
+        require_option_reference(field, id, options)?;
+    }
+    Ok(())
+}
+
+pub fn validate_note_property_fields(
+    fields: &[NotePropertyField],
+) -> Result<(), OperationValidationError> {
+    if fields.len() > MAX_NOTE_PROPERTIES {
+        return Err(OperationValidationError::TooMany {
+            field: "note properties",
+            maximum: MAX_NOTE_PROPERTIES,
+        });
+    }
+    let mut ids = BTreeSet::new();
+    let mut positions = BTreeSet::new();
+    for field in fields {
+        field.validate()?;
+        if !ids.insert(field.id.as_str()) {
+            return Err(OperationValidationError::Duplicate {
+                field: "note properties",
+                id: field.id.clone(),
+            });
+        }
+        positions.insert(field.position);
+    }
+    if positions != (0..i64::try_from(fields.len()).unwrap_or(i64::MAX)).collect::<BTreeSet<_>>() {
+        return Err(OperationValidationError::InvalidPropertyPositions);
+    }
+    Ok(())
+}
+
+pub fn validate_workspace_properties(
+    properties: &[NoteProperty],
+    templates: &[NotePropertyTemplate],
+    people: &[WorkspacePerson],
+    nodes: &[WorkspaceNode],
+) -> Result<(), ArchiveValidationError> {
+    let nodes = nodes
+        .iter()
+        .map(|node| (node.id.as_str(), node))
+        .collect::<BTreeMap<_, _>>();
+    validate_archive_properties(properties, templates, people, &nodes)
+}
+
+fn validate_archive_properties(
+    properties: &[NoteProperty],
+    templates: &[NotePropertyTemplate],
+    people: &[WorkspacePerson],
+    nodes: &BTreeMap<&str, &WorkspaceNode>,
+) -> Result<(), ArchiveValidationError> {
+    let person_ids = people
+        .iter()
+        .map(|person| person.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut grouped = BTreeMap::<&str, Vec<NotePropertyField>>::new();
+    for property in properties {
+        let node = nodes.get(property.note_id.as_str()).ok_or_else(|| {
+            ArchiveValidationError::Invalid(format!(
+                "property references missing note {}",
+                property.note_id
+            ))
+        })?;
+        if node.kind != NodeKind::Note {
+            return archive_error(format!(
+                "property {} belongs to a folder",
+                property.field.id
+            ));
+        }
+        validate_person_property_references(&property.field, &person_ids)
+            .map_err(archive_operation_error)?;
+        grouped
+            .entry(property.note_id.as_str())
+            .or_default()
+            .push(property.field.clone());
+    }
+    for fields in grouped.values() {
+        validate_note_property_fields(fields).map_err(archive_operation_error)?;
+    }
+    let mut template_ids = BTreeSet::new();
+    let mut template_positions = BTreeSet::new();
+    for template in templates {
+        template.validate().map_err(archive_operation_error)?;
+        if !template_ids.insert(template.id.as_str()) {
+            return archive_error(format!("duplicate property template {}", template.id));
+        }
+        if !template_positions.insert(template.position) {
+            return archive_error(format!(
+                "duplicate property template position {}",
+                template.position
+            ));
+        }
+        for field in &template.properties {
+            validate_person_property_references(field, &person_ids)
+                .map_err(archive_operation_error)?;
+        }
+    }
+    if template_positions
+        != (0..i64::try_from(templates.len()).unwrap_or(i64::MAX)).collect::<BTreeSet<_>>()
+    {
+        return archive_error("property template positions must be contiguous from zero");
+    }
+    Ok(())
+}
+
+fn validate_person_property_references(
+    field: &NotePropertyField,
+    person_ids: &BTreeSet<&str>,
+) -> Result<(), OperationValidationError> {
+    if let NotePropertyValue::Person(ids) = &field.value.value {
+        for id in ids {
+            if !person_ids.contains(id.as_str()) {
+                return Err(OperationValidationError::UnknownReference {
+                    field: "property people",
+                    id: id.clone(),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 fn archive_error<T>(message: impl Into<String>) -> Result<T, ArchiveValidationError> {
@@ -803,6 +1230,29 @@ pub enum WorkspaceOperation {
     AttachImage {
         image: WorkspaceImage,
     },
+    SetNoteProperty {
+        property: NoteProperty,
+        at: i64,
+    },
+    RemoveNoteProperty {
+        note_id: String,
+        property_id: String,
+        at: i64,
+    },
+    ReorderNoteProperties {
+        note_id: String,
+        ordered_property_ids: Vec<String>,
+        at: i64,
+    },
+    SetNotePropertyTemplate {
+        template: NotePropertyTemplate,
+    },
+    DeleteNotePropertyTemplate {
+        template_id: String,
+    },
+    ReorderNotePropertyTemplates {
+        ordered_template_ids: Vec<String>,
+    },
 }
 
 impl WorkspaceOperation {
@@ -901,6 +1351,44 @@ impl WorkspaceOperation {
             Self::SetActiveNote { note_id } => validate_optional_id("note id", note_id),
             Self::UpdateSettings { settings } => settings.validate(),
             Self::AttachImage { image } => image.validate(),
+            Self::SetNoteProperty { property, at } => {
+                validate_id("note id", &property.note_id)?;
+                property.field.validate()?;
+                validate_timestamp(*at)
+            }
+            Self::RemoveNoteProperty {
+                note_id,
+                property_id,
+                at,
+            } => {
+                validate_id("note id", note_id)?;
+                validate_id("property id", property_id)?;
+                validate_timestamp(*at)
+            }
+            Self::ReorderNoteProperties {
+                note_id,
+                ordered_property_ids,
+                at,
+            } => {
+                validate_id("note id", note_id)?;
+                validate_ordered_ids(
+                    "property reorder",
+                    ordered_property_ids,
+                    MAX_NOTE_PROPERTIES,
+                )?;
+                validate_timestamp(*at)
+            }
+            Self::SetNotePropertyTemplate { template } => template.validate(),
+            Self::DeleteNotePropertyTemplate { template_id } => {
+                validate_id("property template id", template_id)
+            }
+            Self::ReorderNotePropertyTemplates {
+                ordered_template_ids,
+            } => validate_ordered_ids(
+                "property template reorder",
+                ordered_template_ids,
+                MAX_NOTE_PROPERTIES,
+            ),
         }
     }
 }
@@ -1118,7 +1606,9 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArchiveValidationError, NodeKind, NodePlacement, OperationValidationError, SETTINGS_FIELDS,
+        ArchiveValidationError, NodeKind, NodePlacement, NoteProperty, NotePropertyColor,
+        NotePropertyField, NotePropertyOption, NotePropertyTemplate, NotePropertyValue,
+        OperationValidationError, SETTINGS_FIELDS, VersionedNotePropertyValue,
         WORKSPACE_ARCHIVE_VERSION, WORKSPACE_PROTOCOL_VERSION, WORKSPACE_SETTINGS_VERSION,
         WorkspaceArchive, WorkspaceDocument, WorkspaceNode, WorkspaceOperation,
         WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceTag,
@@ -1213,6 +1703,52 @@ mod tests {
     }
 
     #[test]
+    fn typed_property_wire_format_and_validation_are_stable() {
+        let property = NoteProperty {
+            note_id: "note-1".into(),
+            field: NotePropertyField {
+                id: "status".into(),
+                name: "Status".into(),
+                value: VersionedNotePropertyValue::v1(NotePropertyValue::Select(Some(
+                    "active".into(),
+                ))),
+                options: vec![NotePropertyOption {
+                    id: "active".into(),
+                    label: "Active".into(),
+                    color: NotePropertyColor::Amber,
+                }],
+                position: 0,
+            },
+        };
+        let envelope =
+            WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetNoteProperty { property, at: 9 });
+        envelope.validate().expect("valid property");
+        let value = serde_json::to_value(envelope).expect("serialize property");
+        assert_eq!(value["operation"]["property"]["id"], "status");
+        assert_eq!(value["operation"]["property"]["value"]["valueVersion"], 1);
+        assert_eq!(value["operation"]["property"]["value"]["type"], "select");
+
+        let invalid = NotePropertyTemplate {
+            id: "project".into(),
+            name: "Project".into(),
+            position: 0,
+            properties: vec![NotePropertyField {
+                id: "rating".into(),
+                name: "Rating".into(),
+                value: VersionedNotePropertyValue::v1(NotePropertyValue::Rating(Some(6))),
+                options: Vec::new(),
+                position: 0,
+            }],
+        };
+        assert!(matches!(
+            invalid.validate(),
+            Err(OperationValidationError::InvalidIdentifier {
+                field: "property rating"
+            })
+        ));
+    }
+
+    #[test]
     fn validates_portable_archive_graph() {
         let archive = WorkspaceArchive {
             archive_version: WORKSPACE_ARCHIVE_VERSION,
@@ -1255,6 +1791,8 @@ mod tests {
             settings: WorkspaceSettings::default(),
             tags: Vec::new(),
             people: Vec::new(),
+            properties: Vec::new(),
+            property_templates: Vec::new(),
         };
 
         archive.validate().expect("valid archive");
@@ -1297,6 +1835,8 @@ mod tests {
             settings: WorkspaceSettings::default(),
             tags: Vec::new(),
             people: Vec::new(),
+            properties: Vec::new(),
+            property_templates: Vec::new(),
         };
 
         assert!(matches!(
@@ -1444,6 +1984,8 @@ mod tests {
             settings: WorkspaceSettings::default(),
             tags: Vec::new(),
             people: Vec::new(),
+            properties: Vec::new(),
+            property_templates: Vec::new(),
         };
         archive.settings.settings_version = 2;
 
@@ -1498,6 +2040,8 @@ mod tests {
             settings: WorkspaceSettings::default(),
             tags: Vec::new(),
             people: Vec::new(),
+            properties: Vec::new(),
+            property_templates: Vec::new(),
         };
 
         assert!(matches!(
@@ -1542,6 +2086,8 @@ mod tests {
                 created_in: None,
             }],
             people: Vec::new(),
+            properties: Vec::new(),
+            property_templates: Vec::new(),
         };
         archive.validate().expect("valid reference");
         archive.tags.clear();
