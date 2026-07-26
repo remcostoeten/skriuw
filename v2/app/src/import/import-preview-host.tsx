@@ -29,7 +29,7 @@ export function ImportPreviewHost() {
         requestRef.current?.resolve(null);
         requestRef.current = next;
         setSelectedSourceId(next.detectedSourceId);
-        setDestinationFolderId(null);
+        setDestinationFolderId(next.initialDestinationFolderId ?? null);
         setDuplicateMode("skip");
         setRecordSource(true);
         setRequest(next);

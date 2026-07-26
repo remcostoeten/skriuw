@@ -10,6 +10,12 @@ export type ImportPreviewRequest = {
   }[];
   detectedSourceId: string;
   destinations: readonly { id: string | null; label: string }[];
+  /**
+   * Destination the dialog opens with, e.g. the sidebar's focused folder at
+   * trigger time. Null (or omitted) opens on the workspace root, matching the
+   * dialog's long-standing default.
+   */
+  initialDestinationFolderId?: string | null;
 };
 
 export type ImportPreviewSelection = {

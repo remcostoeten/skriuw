@@ -12,9 +12,11 @@ import {
 } from "../actions/panes";
 import { toggleEditorMode } from "../actions/editor-mode";
 import {
+  activateNote,
   createFolder,
   createNote,
   duplicateCurrentNote,
+  focusedFolderId,
   focusedPaneNoteId,
   navigateNote,
   noteNavigationOrder,
@@ -31,6 +33,7 @@ import {
 import {
   exportNoteAsMarkdown,
   exportWorkspaceAsMarkdown,
+  importMarkdownFileIntoWorkspace,
   importMarkdownIntoWorkspace,
   importProviderExportIntoWorkspace,
 } from "../export/markdown-transfer";
@@ -105,6 +108,28 @@ function hasMovableTabs(state: RendererState): boolean {
   const paneId = tabStripPaneId(state);
   const pane = state.panes.find((entry) => entry.paneId === paneId);
   return opensNotesInTabs(state.settings) && (pane?.openNoteIds.length ?? 0) > 1;
+}
+
+/**
+ * Runs the single-file import, targeting the sidebar's focused folder when
+ * there is one. A single imported note switches to the notes view and opens,
+ * matching the folder/archive import flows' hands-off default of just
+ * reporting the result when more than one note lands.
+ */
+async function runImportMarkdownFile(
+  store: RendererStore,
+  controls: CommandUiControls,
+): Promise<void> {
+  const initialDestinationFolderId = focusedFolderId(store.getState());
+  const createdNoteIds = await importMarkdownFileIntoWorkspace(
+    store,
+    initialDestinationFolderId,
+  );
+  const [noteId] = createdNoteIds ?? [];
+  if (noteId !== undefined && createdNoteIds?.length === 1) {
+    controls.navigate("notes");
+    activateNote(store, noteId);
+  }
 }
 
 /**
@@ -379,6 +404,18 @@ export function createWorkspaceCommands(
       enabled: (state) => state.nodes.size > 0,
       run: () => {
         void exportWorkspaceAsMarkdown(store);
+      },
+    },
+    {
+      id: "import-markdown-file",
+      label: "Import markdown file…",
+      group: "Actions",
+      keywords: ["import", "markdown", "file", "single", "note"],
+      icon: <UploadIcon size={15} />,
+      shortcut: "importMarkdownFile",
+      hint: shortcutDefinition("importMarkdownFile").description,
+      run: () => {
+        void runImportMarkdownFile(store, controls);
       },
     },
     {
