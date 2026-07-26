@@ -15,6 +15,7 @@ export type ImportTagTarget = {
 export type ImportBundlePlan = MarkdownImportPlan & {
   createdTags: number;
   tagSkippedNotes: number;
+  tagPropertyNotes: number;
 };
 
 function normalizeTreePath(path: string): string {
@@ -67,10 +68,16 @@ function buildPropertyOperations(
   noteId: string,
   at: number,
   makeId: () => string,
+  startPosition = 0,
 ): WorkspaceOperation[] {
   return properties.map((imported, position) => ({
     type: "set_note_property",
-    property: toNoteProperty(imported, noteId, position, makeId),
+    property: toNoteProperty(
+      imported,
+      noteId,
+      startPosition + position,
+      makeId,
+    ),
     at,
   }));
 }
@@ -202,10 +209,10 @@ export function planImportBundle(
       );
     }
   }
-  plan.operations.push(...propertyOperations);
   const tags = resolveImportedTags(bundle, existingTags, at, makeId);
   plan.operations.push(...tags.operations);
   let tagSkippedNotes = 0;
+  let tagPropertyNotes = 0;
   for (const operation of plan.contentOperations) {
     if (operation.type !== "save_document") {
       continue;
@@ -222,7 +229,21 @@ export function planImportBundle(
       continue;
     }
     if (hasLosslessMarkdownDocument(operation.documentJson)) {
-      tagSkippedNotes += 1;
+      const values = [...new Set(note.tags.map((tag) => tag.trim()).filter(Boolean))];
+      if (values.length > 0) {
+        propertyOperations.push(
+          ...buildPropertyOperations(
+            [{ name: "Tags", value: { type: "list", values } }],
+            operation.noteId,
+            at,
+            makeId,
+            note.properties?.length ?? 0,
+          ),
+        );
+        tagPropertyNotes += 1;
+      } else {
+        tagSkippedNotes += 1;
+      }
       continue;
     }
     const appended = appendTagChips(
@@ -236,5 +257,11 @@ export function planImportBundle(
       operation.markdown = appended.markdown;
     }
   }
-  return { ...plan, createdTags: tags.operations.length, tagSkippedNotes };
+  plan.operations.push(...propertyOperations);
+  return {
+    ...plan,
+    createdTags: tags.operations.length,
+    tagSkippedNotes,
+    tagPropertyNotes,
+  };
 }

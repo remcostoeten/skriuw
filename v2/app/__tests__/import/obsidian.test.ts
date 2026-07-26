@@ -130,6 +130,38 @@ test("image embeds resolve against vault assets by basename", () => {
   assert.deepEqual(bundle.directories, ["Notes"]);
 });
 
+test("relative image paths win and ambiguous basenames stay as source text", () => {
+  const bundle = obsidianSource.parse(
+    tree({
+      directories: ["Notes", "Notes/assets", "Other"],
+      assets: ["Notes/assets/pic.png", "Other/pic.png"],
+      files: [
+        {
+          relativePath: "Notes/Exact.md",
+          content: "![[assets/pic.png]]",
+        },
+        {
+          relativePath: "Notes/Ambiguous.md",
+          content: "![[pic.png]]",
+        },
+      ],
+    }),
+  );
+  assert.equal(
+    bundle.notes.find((note) => note.title === "Exact")?.markdown,
+    "![pic.png](assets/pic.png)",
+  );
+  assert.equal(
+    bundle.notes.find((note) => note.title === "Ambiguous")?.markdown,
+    "![[pic.png]]",
+  );
+  assert.ok(
+    bundle.warnings.some((warning) =>
+      warning.message.includes("multiple vault files"),
+    ),
+  );
+});
+
 test("unresolved image embeds stay as text and note embeds become links", () => {
   const bundle = obsidianSource.parse(
     tree({
