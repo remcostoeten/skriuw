@@ -45,7 +45,8 @@ Preview shows:
 - Unsupported attachments remain named in diagnostics.
 - Exact imported and existing note titles resolve wiki-links only when unique.
 - Provider timestamps are used when valid and otherwise fall back to import time.
-- Tag matching is trimmed and case-insensitive.
+- Tag matching is trimmed and case-insensitive. Raw-preserved notes store tags
+  in a typed `Tags` property without modifying source Markdown.
 - Typed properties use the closest lossless Skriuw value. Unsupported structured
   values remain source text or receive a diagnostic.
 - Filename, Unicode, case, and stripped-provider-ID collisions receive stable
