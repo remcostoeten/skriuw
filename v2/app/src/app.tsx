@@ -29,6 +29,12 @@ import { TransferReportHost } from "./export/transfer-report-host";
 import { ImportPreviewHost } from "./import/import-preview-host";
 import { ImportProgressHost } from "./import/import-progress-host";
 import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
+import {
+  RAIL_ITEMS,
+  formatRailSequenceHint,
+  railModShiftKeys,
+  type RailItem,
+} from "./shortcuts/rail-items";
 import { appRouteHash, noteHistoryHash, useAppRoute } from "./app-route";
 import { installBackNavigation } from "./references/reference-navigation";
 import {
@@ -66,6 +72,45 @@ const activeNavClass =
 
 const toolbarIconButtonClass =
   "flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40";
+
+const RAIL_ICONS: Record<RailItem["actionId"], typeof FolderOpenIcon> = {
+  goToNotes: FolderOpenIcon,
+  goToTags: WaypointsIcon,
+  goToPeople: CircleIcon,
+  goToTrash: Trash2Icon,
+};
+
+type RailNavIconProps = {
+  item: RailItem;
+  position: number;
+  active: boolean;
+};
+
+/**
+ * One icon in the primary navigation rail. `position` is the item's 1-based
+ * index in `RAIL_ITEMS`, which both `mod+shift+<n>` and the `g then t then
+ * <n>` sequence key off of, so the tooltip always shows the combo that
+ * actually fires for this icon.
+ */
+function RailNavIcon({ item, position, active }: RailNavIconProps) {
+  const Icon = RAIL_ICONS[item.actionId];
+  return (
+    <Tooltip
+      label={item.label}
+      side="right"
+      shortcut={`${formatShortcut(railModShiftKeys(position))} · ${formatRailSequenceHint(position)}`}
+    >
+      <a
+        href={`#/${item.route}`}
+        className={`${iconButtonClass} ${active ? activeNavClass : inactiveNavClass}`}
+        aria-label={item.label}
+        aria-current={active ? "page" : undefined}
+      >
+        <Icon size={18} />
+      </a>
+    </Tooltip>
+  );
+}
 
 type Props = {
   store: RendererStore;
@@ -230,56 +275,25 @@ export function App({ store }: Props) {
             </Tooltip>
           </div>
           <div className="mt-4 flex w-full flex-col items-center gap-4">
-            <Tooltip label="Notes" side="right">
-              <a
-                href="#/notes"
-                className={`${iconButtonClass} ${route === "notes" ? activeNavClass : inactiveNavClass}`}
-                aria-label="Notes"
-                aria-current={route === "notes" ? "page" : undefined}
-              >
-                <FolderOpenIcon
-                  size={18}
-                  className={
-                    route === "notes"
-                      ? "text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/52"
-                  }
-                />
-              </a>
-            </Tooltip>
-            <Tooltip label="Tags" side="right">
-              <a
-                href="#/tags"
-                className={`${iconButtonClass} ${route === "tags" ? activeNavClass : inactiveNavClass}`}
-                aria-label="Tags"
-                aria-current={route === "tags" ? "page" : undefined}
-              >
-                <WaypointsIcon size={18} />
-              </a>
-            </Tooltip>
-            <Tooltip label="People" side="right">
-              <a
-                href="#/people"
-                className={`${iconButtonClass} ${route === "people" ? activeNavClass : inactiveNavClass}`}
-                aria-label="People"
-                aria-current={route === "people" ? "page" : undefined}
-              >
-                <CircleIcon size={18} />
-              </a>
-            </Tooltip>
+            {RAIL_ITEMS.filter((item) => item.section === "primary").map((item) => (
+              <RailNavIcon
+                key={item.actionId}
+                item={item}
+                position={RAIL_ITEMS.indexOf(item) + 1}
+                active={route === item.route}
+              />
+            ))}
           </div>
         </div>
         <div className="flex w-full flex-col items-center gap-3 pb-4">
-          <Tooltip label="Trash" side="right">
-            <a
-              href="#/trash"
-              className={`${iconButtonClass} ${route === "trash" ? activeNavClass : inactiveNavClass}`}
-              aria-label="Trash"
-              aria-current={route === "trash" ? "page" : undefined}
-            >
-              <Trash2Icon size={18} />
-            </a>
-          </Tooltip>
+          {RAIL_ITEMS.filter((item) => item.section === "utility").map((item) => (
+            <RailNavIcon
+              key={item.actionId}
+              item={item}
+              position={RAIL_ITEMS.indexOf(item) + 1}
+              active={route === item.route}
+            />
+          ))}
           <div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
           <Tooltip
             label="Settings"
