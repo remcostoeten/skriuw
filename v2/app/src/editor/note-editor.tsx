@@ -16,6 +16,7 @@ import { createImageNodeViews } from "./image-nodeview";
 import { collectImageFiles, insertImages, pickImageFiles } from "./image-input";
 import { noteImageIds, readImageAlt, renameImageNode } from "./image-actions";
 import { pasteMarkdown } from "./markdown-paste";
+import { deriveTitle, STARTER_TITLE } from "./note-title";
 import { registerPendingWork } from "../lifecycle/pending-work";
 import { openExternalUrl } from "../bridge/external-links";
 import { ImageInfoDialog, ImageLightbox, ImageRenameDialog } from "./image-menu";
@@ -204,14 +205,6 @@ function documentFromJson(json: unknown): ProseMirrorNode {
   } catch {
     return emptyDocument();
   }
-}
-
-const TITLE_MAX_LENGTH = 120;
-const STARTER_TITLE = "Untitled";
-
-function deriveTitle(document: ProseMirrorNode): string {
-  const text = document.firstChild?.textContent.trim() ?? "";
-  return text.length > 0 ? text.slice(0, TITLE_MAX_LENGTH) : STARTER_TITLE;
 }
 
 function createCachedNote(
