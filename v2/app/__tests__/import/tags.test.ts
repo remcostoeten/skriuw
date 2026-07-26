@@ -94,7 +94,7 @@ test("existing workspace tags are reused case-insensitively", () => {
   assert.equal(chips[0]?.attrs?.id, "tag-existing");
 });
 
-test("raw-preserved notes skip tag chips and are counted", () => {
+test("raw-preserved notes keep exact source, property, and workspace backlinks", () => {
   const plan = planImportBundle(
     bundle([
       {
@@ -107,13 +107,28 @@ test("raw-preserved notes skip tag chips and are counted", () => {
     123,
     sequentialIds(),
   );
-  assert.equal(plan.tagSkippedNotes, 1);
+  assert.equal(plan.tagSkippedNotes, 0);
+  assert.equal(plan.tagPropertyNotes, 1);
+  assert.equal(plan.createdTags, 1);
   const document = plan.contentOperations.find(
     (operation) => operation.type === "save_document",
   );
   assert.ok(document?.type === "save_document");
+  assert.equal(document.markdown, "---\nkey: value\n---\nbody");
   const shape = document.documentJson as DocumentShape;
-  assert.ok(shape.content.every((node) => node.type !== "paragraph" || !node.content?.some((child) => child.type === "tag_ref")));
+  const references = shape.content.flatMap((node) =>
+    node.content?.filter((child) => child.type === "tag_ref") ?? [],
+  );
+  assert.equal(references.length, 1);
+  const tag = plan.operations.find((operation) => operation.type === "create_tag");
+  assert.ok(tag?.type === "create_tag");
+  assert.equal(references[0]?.attrs?.id, tag.tag.id);
+  const property = plan.operations.find(
+    (operation) => operation.type === "set_note_property",
+  );
+  assert.ok(property?.type === "set_note_property");
+  assert.equal(property.property.name, "Tags");
+  assert.equal(property.property.value.type, "multi-select");
 });
 
 test("notes without tags add no tag operations", () => {
@@ -124,4 +139,123 @@ test("notes without tags add no tag operations", () => {
   );
   assert.equal(plan.createdTags, 0);
   assert.equal(plan.tagSkippedNotes, 0);
+});
+
+test("invalid and oversized tags are skipped and counted", () => {
+  const plan = planImportBundle(
+    bundle([
+      {
+        relativePath: "A.md",
+        title: "A",
+        markdown: "body",
+        tags: ["", "x".repeat(81), "valid"],
+      },
+    ]),
+    123,
+    sequentialIds(),
+  );
+  assert.equal(plan.createdTags, 1);
+  assert.equal(plan.skippedTags, 2);
+});
+
+test("durable receipts drive skip and update re-import modes", () => {
+  const source = bundle([
+    {
+      relativePath: "Folder/A.md",
+      title: "Updated A",
+      markdown: "updated",
+      properties: [{ name: "Status", value: { type: "text", value: "done" } }],
+    },
+  ]);
+  const receipt = {
+    provider: "markdown",
+    sourceKey: "source-key",
+    sourcePath: "Folder/A.md",
+    noteId: "existing-note",
+    importedAt: 100,
+  };
+  const skipped = planImportBundle(source, 200, sequentialIds(), [], [], {
+    duplicateMode: "skip",
+    sourceKey: "source-key",
+    receipts: [receipt],
+  });
+  assert.equal(skipped.noteCount, 0);
+  assert.equal(skipped.skippedDuplicates, 1);
+  assert.equal(skipped.contentOperations.length, 0);
+
+  const updated = planImportBundle(source, 200, sequentialIds(), [], [], {
+    duplicateMode: "update",
+    sourceKey: "source-key",
+    receipts: [receipt],
+    existingDocuments: new Map([
+      [
+        "existing-note",
+        { id: "existing-note", title: "A", revision: 7 },
+      ],
+    ]),
+    existingPropertiesByNoteId: new Map([
+      [
+        "existing-note",
+        [
+          {
+            id: "old-status",
+            noteId: "existing-note",
+            name: "Status",
+            position: 0,
+            value: { valueVersion: 1, type: "text", value: "old" },
+            options: [],
+          },
+        ],
+      ],
+    ]),
+  });
+  assert.equal(updated.createdNotes, 0);
+  assert.equal(updated.updatedNotes, 1);
+  assert.ok(
+    updated.operations.some(
+      (operation) =>
+        operation.type === "rename_node" &&
+        operation.id === "existing-note" &&
+        operation.title === "Updated A",
+    ),
+  );
+  assert.ok(
+    updated.operations.some(
+      (operation) =>
+        operation.type === "remove_note_property" &&
+        operation.propertyId === "old-status",
+    ),
+  );
+  const save = updated.contentOperations[0];
+  assert.ok(save?.type === "save_document");
+  assert.equal(save.noteId, "existing-note");
+  assert.equal(save.expectedRevision, 7);
+  assert.ok(
+    updated.operations.some(
+      (operation) =>
+        operation.type === "record_provider_import" &&
+        operation.receipt.noteId === "existing-note",
+    ),
+  );
+});
+
+test("destination folder owns imported root nodes", () => {
+  const plan = planImportBundle(
+    bundle([
+      { relativePath: "Nested/A.md", title: "A", markdown: "body" },
+      { relativePath: "Root.md", title: "Root", markdown: "body" },
+    ]),
+    123,
+    sequentialIds(),
+    [],
+    [],
+    { destinationParentId: "destination" },
+  );
+  const roots = plan.operations.filter(
+    (operation) =>
+      (operation.type === "create_folder" ||
+        operation.type === "create_note") &&
+      operation.placement.parentId === "destination",
+  );
+  assert.equal(roots.length, 2);
 });

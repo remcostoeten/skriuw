@@ -4,8 +4,9 @@ use rusqlite::Connection;
 use serde_json::json;
 use skriuw_domain::{
     HistoryHeader, NodePlacement, NoteProperty, NotePropertyColor, NotePropertyField,
-    NotePropertyOption, NotePropertyTemplate, NotePropertyValue, VersionedNotePropertyValue,
-    WorkspaceOperation, WorkspaceOperationEnvelope, WorkspacePerson, WorkspaceSettings,
+    NotePropertyOption, NotePropertyTemplate, NotePropertyValue, ProviderImportReceipt,
+    VersionedNotePropertyValue, WorkspaceOperation, WorkspaceOperationEnvelope, WorkspacePerson,
+    WorkspaceSettings,
 };
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryQueue,
@@ -1836,6 +1837,66 @@ fn property_remove_compacts_and_purge_cascades() {
             .bootstrap()
             .expect("bootstrap purged")
             .properties
+            .is_empty()
+    );
+}
+
+#[test]
+fn provider_import_receipts_commit_replace_and_cascade_atomically() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open");
+    let receipt = |note_id: &str, imported_at: i64| {
+        op(WorkspaceOperation::RecordProviderImport {
+            receipt: ProviderImportReceipt {
+                provider: "obsidian".into(),
+                source_key: "source-key".into(),
+                source_path: "Folder/Note.md".into(),
+                note_id: note_id.into(),
+                imported_at,
+            },
+        })
+    };
+    storage
+        .apply_operations(&[create_note("note-1"), receipt("note-1", 2)])
+        .expect("record receipt");
+    let snapshot = storage.bootstrap().expect("bootstrap receipt");
+    assert_eq!(snapshot.import_receipts.len(), 1);
+    assert_eq!(snapshot.import_receipts[0].note_id, "note-1");
+
+    let failed = storage.apply_operations(&[
+        receipt("missing-note", 3),
+        op(WorkspaceOperation::CreateTag {
+            tag: skriuw_domain::WorkspaceTag {
+                id: "tag-rollback".into(),
+                name: "rollback".into(),
+                color: None,
+                created_at: 3,
+                updated_at: 3,
+                created_in: None,
+            },
+        }),
+    ]);
+    assert!(failed.is_err());
+    let snapshot = storage.bootstrap().expect("bootstrap rollback");
+    assert_eq!(snapshot.import_receipts[0].note_id, "note-1");
+    assert!(snapshot.tags.is_empty());
+
+    storage
+        .apply_operations(&[
+            op(WorkspaceOperation::TrashSubtree {
+                root_id: "note-1".into(),
+                at: 4,
+            }),
+            op(WorkspaceOperation::PurgeSubtree {
+                root_id: "note-1".into(),
+                trashed_before: 4,
+            }),
+        ])
+        .expect("purge imported note");
+    assert!(
+        storage
+            .bootstrap()
+            .expect("bootstrap purge")
+            .import_receipts
             .is_empty()
     );
 }

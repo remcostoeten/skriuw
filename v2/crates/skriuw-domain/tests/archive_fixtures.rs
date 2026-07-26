@@ -55,6 +55,7 @@ fn snapshot_from_archive(archive: &WorkspaceArchive) -> WorkspaceSnapshot {
         images: Vec::new(),
         properties: archive.properties.clone(),
         property_templates: archive.property_templates.clone(),
+        import_receipts: Vec::new(),
     }
 }
 

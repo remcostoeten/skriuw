@@ -161,6 +161,24 @@ fn apply_operation(
                 )
                 .map_err(backend)?;
         }
+        WorkspaceOperation::RecordProviderImport { receipt } => {
+            transaction
+                .execute(
+                    "INSERT INTO provider_import_receipts \
+                     (provider, source_key, source_path, note_id, imported_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5) \
+                     ON CONFLICT(provider, source_key, source_path) DO UPDATE SET \
+                     note_id = excluded.note_id, imported_at = excluded.imported_at",
+                    params![
+                        receipt.provider,
+                        receipt.source_key,
+                        receipt.source_path,
+                        receipt.note_id,
+                        receipt.imported_at
+                    ],
+                )
+                .map_err(backend)?;
+        }
         WorkspaceOperation::CreatePerson { person } => {
             transaction.execute("INSERT INTO workspace_people (id, name, initials, color, note, created_at, updated_at, created_in) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)", params![person.id, person.name, person.initials, person.color, person.note, person.created_at, person.updated_at, person.created_in]).map_err(|error| StorageError::AlreadyExists(error.to_string()))?;
         }

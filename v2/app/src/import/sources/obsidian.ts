@@ -1,3 +1,4 @@
+import { isMap, isScalar, isSeq, parseDocument } from "yaml";
 import type { MarkdownTree } from "../../export/markdown-transfer-model";
 import type {
   ImportBundle,
@@ -27,7 +28,7 @@ type ParsedFrontmatter = {
 
 type AssetIndex = {
   byPath: Map<string, string>;
-  byBaseName: Map<string, string>;
+  byBaseName: Map<string, string[]>;
 };
 
 function isMarkdownFile(relativePath: string): boolean {
@@ -36,50 +37,6 @@ function isMarkdownFile(relativePath: string): boolean {
 
 function byteLength(value: string): number {
   return new TextEncoder().encode(value).length;
-}
-
-function unquote(value: string): string {
-  const trimmed = value.trim();
-  if (
-    trimmed.length >= 2 &&
-    ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-      (trimmed.startsWith("'") && trimmed.endsWith("'")))
-  ) {
-    return trimmed.slice(1, -1);
-  }
-  return trimmed;
-}
-
-function parseScalar(raw: string): ImportedPropertyValue {
-  const trimmed = raw.trim();
-  if (trimmed !== unquote(trimmed)) {
-    return { type: "text", value: unquote(trimmed) };
-  }
-  if (trimmed === "true" || trimmed === "false") {
-    return { type: "checkbox", value: trimmed === "true" };
-  }
-  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-    return { type: "number", value: Number(trimmed) };
-  }
-  if (/^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?$/.test(trimmed)) {
-    return { type: "date", value: trimmed };
-  }
-  if (/^https?:\/\//i.test(trimmed)) {
-    return { type: "url", value: trimmed };
-  }
-  return { type: "text", value: trimmed };
-}
-
-function parseInlineList(raw: string): string[] | null {
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
-    return null;
-  }
-  const inner = trimmed.slice(1, -1).trim();
-  if (inner.length === 0) {
-    return [];
-  }
-  return inner.split(",").map(unquote).filter((item) => item.length > 0);
 }
 
 function splitTags(values: string[]): string[] {
@@ -99,56 +56,64 @@ function propertyValueByteLength(value: ImportedPropertyValue): number {
   return 0;
 }
 
+function scalarPropertyValue(value: unknown): ImportedPropertyValue | null {
+  if (typeof value === "boolean") {
+    return { type: "checkbox", value };
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return { type: "number", value };
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+  if (/^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?$/.test(value)) {
+    return { type: "date", value };
+  }
+  if (/^https?:\/\//i.test(value)) {
+    return { type: "url", value };
+  }
+  return { type: "text", value };
+}
+
 function parseFrontmatterBlock(block: string): ParsedFrontmatter {
-  const lines = block.split(/\r?\n/);
   const properties: ImportedNoteProperty[] = [];
   const tags: string[] = [];
   let complexKeys = 0;
-  let index = 0;
-  while (index < lines.length) {
-    const line = lines[index] ?? "";
-    index += 1;
-    if (line.trim().length === 0) {
-      continue;
-    }
-    const match = /^([^\s:][^:]*):\s*(.*)$/.exec(line);
-    if (!match) {
+  const document = parseDocument(block, {
+    schema: "core",
+    uniqueKeys: true,
+  });
+  if (document.errors.length > 0 || !isMap(document.contents)) {
+    return { properties, tags, complexKeys: 1 };
+  }
+  for (const pair of document.contents.items) {
+    if (!isScalar(pair.key) || typeof pair.key.value !== "string") {
       complexKeys += 1;
       continue;
     }
-    const name = match[1]?.trim() ?? "";
-    const inline = match[2] ?? "";
+    const name = pair.key.value.trim();
     let value: ImportedPropertyValue | null = null;
-    if (inline.trim().length > 0) {
-      const list = parseInlineList(inline);
-      value = list === null ? parseScalar(inline) : { type: "list", values: list };
-    } else {
-      const items: string[] = [];
-      let nested = false;
-      while (index < lines.length) {
-        const next = lines[index] ?? "";
-        const itemMatch = /^\s*-\s*(.*)$/.exec(next);
-        if (itemMatch) {
-          items.push(unquote(itemMatch[1] ?? ""));
-          index += 1;
-          continue;
-        }
-        if (/^\s+\S/.test(next)) {
-          nested = true;
-          index += 1;
-          continue;
-        }
-        break;
-      }
-      if (nested) {
-        complexKeys += 1;
-        continue;
-      }
-      if (items.length > 0) {
-        value = { type: "list", values: items.filter((item) => item.length > 0) };
-      }
+    if (isScalar(pair.value)) {
+      value = scalarPropertyValue(pair.value.value);
+    } else if (
+      isSeq(pair.value) &&
+      pair.value.items.every(
+        (item) =>
+          isScalar(item) &&
+          (typeof item.value === "string" ||
+            typeof item.value === "number" ||
+            typeof item.value === "boolean"),
+      )
+    ) {
+      value = {
+        type: "list",
+        values: pair.value.items.map((item) =>
+          String(isScalar(item) ? item.value : ""),
+        ),
+      };
     }
     if (value === null) {
+      complexKeys += 1;
       continue;
     }
     if (name === "tags" || name === "tag") {
@@ -173,7 +138,7 @@ function parseFrontmatterBlock(block: string): ParsedFrontmatter {
 
 function buildAssetIndex(tree: MarkdownTree): AssetIndex {
   const byPath = new Map<string, string>();
-  const byBaseName = new Map<string, string>();
+  const byBaseName = new Map<string, string[]>();
   for (const asset of tree.assets ?? []) {
     const lowered = asset.toLowerCase();
     if (!byPath.has(lowered)) {
@@ -181,26 +146,59 @@ function buildAssetIndex(tree: MarkdownTree): AssetIndex {
     }
     const cut = lowered.lastIndexOf("/");
     const baseName = cut === -1 ? lowered : lowered.slice(cut + 1);
-    if (!byBaseName.has(baseName)) {
-      byBaseName.set(baseName, asset);
-    }
+    byBaseName.set(baseName, [...(byBaseName.get(baseName) ?? []), asset]);
   }
   return { byPath, byBaseName };
 }
 
-function findAsset(index: AssetIndex, target: string): string | null {
+type AssetResolution =
+  | { kind: "found"; path: string }
+  | { kind: "missing" }
+  | { kind: "ambiguous" };
+
+function normalizeRelativePath(base: string, target: string): string {
+  const segments = base.length > 0 ? base.split("/") : [];
+  for (const segment of target.replaceAll("\\", "/").split("/")) {
+    if (segment.length === 0 || segment === ".") {
+      continue;
+    }
+    if (segment === "..") {
+      segments.pop();
+    } else {
+      segments.push(segment);
+    }
+  }
+  return segments.join("/");
+}
+
+function findAsset(
+  index: AssetIndex,
+  target: string,
+  notePath: string,
+): AssetResolution {
   const lowered = target.toLowerCase().replace(/^\.\//, "");
-  const byPath = index.byPath.get(lowered);
+  const noteCut = notePath.lastIndexOf("/");
+  const noteDirectory =
+    noteCut === -1 ? "" : notePath.slice(0, noteCut).toLowerCase();
+  const relativePath = normalizeRelativePath(noteDirectory, lowered);
+  const byPath =
+    index.byPath.get(lowered) ?? index.byPath.get(relativePath);
   if (byPath !== undefined) {
-    return byPath;
+    return { kind: "found", path: byPath };
   }
   const cut = lowered.lastIndexOf("/");
-  return index.byBaseName.get(cut === -1 ? lowered : lowered.slice(cut + 1)) ?? null;
+  const matches =
+    index.byBaseName.get(cut === -1 ? lowered : lowered.slice(cut + 1)) ?? [];
+  if (matches.length === 1) {
+    return { kind: "found", path: matches[0] ?? "" };
+  }
+  return matches.length > 1 ? { kind: "ambiguous" } : { kind: "missing" };
 }
 
 type EmbedConversion = {
   markdown: string;
   unresolvedImages: number;
+  ambiguousImages: number;
   noteEmbeds: number;
 };
 
@@ -210,6 +208,7 @@ function convertEmbeds(
   assets: AssetIndex,
 ): EmbedConversion {
   let unresolvedImages = 0;
+  let ambiguousImages = 0;
   let noteEmbeds = 0;
   const converted = markdown.replace(EMBED_PATTERN, (whole, inner: string) => {
     const [rawTarget = "", ...labelParts] = inner.split("|");
@@ -218,17 +217,21 @@ function convertEmbeds(
       noteEmbeds += 1;
       return `[[${target}]]`;
     }
-    const asset = findAsset(assets, target);
-    if (asset === null) {
+    const asset = findAsset(assets, target, notePath);
+    if (asset.kind === "ambiguous") {
+      ambiguousImages += 1;
+      return whole;
+    }
+    if (asset.kind === "missing") {
       unresolvedImages += 1;
       return whole;
     }
     const label = labelParts.join("|").trim();
     const baseName = target.slice(target.lastIndexOf("/") + 1);
     const alt = label.length > 0 && !EMBED_SIZE_PATTERN.test(label) ? label : baseName;
-    return `![${alt}](${relativeLinkBetween(notePath, asset)})`;
+    return `![${alt}](${relativeLinkBetween(notePath, asset.path)})`;
   });
-  return { markdown: converted, unresolvedImages, noteEmbeds };
+  return { markdown: converted, unresolvedImages, ambiguousImages, noteEmbeds };
 }
 
 function count(total: number, noun: string): string {
@@ -241,6 +244,7 @@ function parse(tree: MarkdownTree): ImportBundle {
   const warnings: ImportWarning[] = [];
   let complexKeys = 0;
   let unresolvedImages = 0;
+  let ambiguousImages = 0;
   let noteEmbeds = 0;
   for (const file of tree.files) {
     if (!isMarkdownFile(file.relativePath)) {
@@ -248,14 +252,24 @@ function parse(tree: MarkdownTree): ImportBundle {
     }
     let markdown = file.content;
     let frontmatter: ParsedFrontmatter | null = null;
+    const originalMarkdown = markdown;
     const block = FRONTMATTER_PATTERN.exec(markdown);
     if (block) {
       markdown = markdown.slice(block[0].length);
       frontmatter = parseFrontmatterBlock(block[1] ?? "");
       complexKeys += frontmatter.complexKeys;
     }
-    const conversion = convertEmbeds(markdown, file.relativePath, assets);
+    const preserveFrontmatter = (frontmatter?.complexKeys ?? 0) > 0;
+    const conversion = preserveFrontmatter
+      ? {
+          markdown: originalMarkdown,
+          unresolvedImages: 0,
+          ambiguousImages: 0,
+          noteEmbeds: 0,
+        }
+      : convertEmbeds(markdown, file.relativePath, assets);
     unresolvedImages += conversion.unresolvedImages;
+    ambiguousImages += conversion.ambiguousImages;
     noteEmbeds += conversion.noteEmbeds;
     notes.push({
       relativePath: file.relativePath,
@@ -279,6 +293,11 @@ function parse(tree: MarkdownTree): ImportBundle {
   if (unresolvedImages > 0) {
     warnings.push({
       message: `${count(unresolvedImages, "image embed")} matched no file in the vault and stayed as text`,
+    });
+  }
+  if (ambiguousImages > 0) {
+    warnings.push({
+      message: `${count(ambiguousImages, "image embed")} matched multiple vault files and stayed as text`,
     });
   }
   if (noteEmbeds > 0) {

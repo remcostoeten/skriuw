@@ -3,9 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use rusqlite::{Connection, OptionalExtension, Transaction};
 use skriuw_domain::{
     HistoryHeader, NodeKind, NoteProperty, NotePropertyField, NotePropertyOption,
-    NotePropertyTemplate, VersionedNotePropertyValue, WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive,
-    WorkspaceDocument, WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspaceSettings,
-    WorkspaceSnapshot, WorkspaceTag,
+    NotePropertyTemplate, ProviderImportReceipt, VersionedNotePropertyValue,
+    WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument, WorkspaceImage, WorkspaceNode,
+    WorkspacePerson, WorkspaceSettings, WorkspaceSnapshot, WorkspaceTag,
 };
 use skriuw_storage::StorageError;
 
@@ -26,6 +26,7 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
         images: read_images(connection)?,
         properties: read_properties(connection)?,
         property_templates: read_property_templates(connection)?,
+        import_receipts: read_import_receipts(connection)?,
     };
     skriuw_domain::validate_workspace_properties(
         &snapshot.properties,
@@ -35,6 +36,30 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
     )
     .map_err(|error| StorageError::Backend(error.to_string()))?;
     Ok(snapshot)
+}
+
+pub(crate) fn read_import_receipts(
+    connection: &Connection,
+) -> Result<Vec<ProviderImportReceipt>, StorageError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT provider, source_key, source_path, note_id, imported_at \
+             FROM provider_import_receipts ORDER BY provider, source_key, source_path",
+        )
+        .map_err(backend)?;
+    statement
+        .query_map([], |row| {
+            Ok(ProviderImportReceipt {
+                provider: row.get(0)?,
+                source_key: row.get(1)?,
+                source_path: row.get(2)?,
+                note_id: row.get(3)?,
+                imported_at: row.get(4)?,
+            })
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
 }
 
 pub(crate) fn read_properties(connection: &Connection) -> Result<Vec<NoteProperty>, StorageError> {

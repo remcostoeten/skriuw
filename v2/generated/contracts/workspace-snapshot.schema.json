@@ -28,6 +28,13 @@
         "$ref": "#/$defs/WorkspaceImage"
       }
     },
+    "importReceipts": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ProviderImportReceipt"
+      }
+    },
     "nodes": {
       "type": "array",
       "items": {
@@ -274,6 +281,34 @@
       "required": [
         "noteId",
         "targets"
+      ]
+    },
+    "ProviderImportReceipt": {
+      "type": "object",
+      "properties": {
+        "importedAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "sourceKey": {
+          "type": "string"
+        },
+        "sourcePath": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "sourceKey",
+        "sourcePath",
+        "noteId",
+        "importedAt"
       ]
     },
     "ReferenceKind": {
