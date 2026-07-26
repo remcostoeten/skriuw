@@ -168,6 +168,7 @@ export type MarkdownExportEntryPayload = {
 export type MarkdownTreePayload = {
   directories: string[];
   files: { relativePath: string; content: string }[];
+  assets: string[];
   skipped: number;
 };
 

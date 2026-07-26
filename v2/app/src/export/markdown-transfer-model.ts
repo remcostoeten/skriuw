@@ -25,6 +25,7 @@ export type MarkdownTreeFile = {
 export type MarkdownTree = {
   directories: string[];
   files: MarkdownTreeFile[];
+  assets?: string[];
   skipped: number;
 };
 
@@ -503,7 +504,31 @@ export function resolveImportedImagePath(noteRelativePath: string, src: string):
   const cleaned = normalizeTreePath(decoded.replace(/^\.\//, ""));
   const cut = noteRelativePath.lastIndexOf("/");
   const directory = cut === -1 ? "" : noteRelativePath.slice(0, cut + 1);
-  return `${directory}${cleaned}`;
+  return collapsePathSegments(`${directory}${cleaned}`);
+}
+
+/**
+ * Resolves `.` and `..` segments so adapter-produced relative links (for
+ * example `Sub/../attachments/pic.png`) survive the Rust bridge, which
+ * rejects any path still containing `..`. Paths that would escape the
+ * import root are returned unchanged and fail later as unreadable.
+ */
+function collapsePathSegments(path: string): string {
+  const resolved: string[] = [];
+  for (const segment of path.split("/")) {
+    if (segment === ".") {
+      continue;
+    }
+    if (segment === "..") {
+      if (resolved.length === 0) {
+        return path;
+      }
+      resolved.pop();
+      continue;
+    }
+    resolved.push(segment);
+  }
+  return resolved.join("/");
 }
 
 export function replaceLocalImages(
