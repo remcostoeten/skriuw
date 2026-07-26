@@ -181,6 +181,10 @@ export function pickImportFile(title: string): Promise<string | null> {
   return invoke<string | null>("pick_import_file", { title });
 }
 
+export function pickImportFiles(title: string): Promise<string[]> {
+  return invoke<string[]>("pick_import_files", { title });
+}
+
 export function exportMarkdownTree(
   entries: MarkdownExportEntryPayload[],
   targetDir: string,
@@ -203,6 +207,14 @@ export function prepareImportSource(
 ): Promise<PreparedImportSourcePayload> {
   return invoke<PreparedImportSourcePayload>("prepare_import_source", {
     sourcePath,
+  });
+}
+
+export function prepareImportSources(
+  sourcePaths: string[],
+): Promise<PreparedImportSourcePayload> {
+  return invoke<PreparedImportSourcePayload>("prepare_import_sources", {
+    sourcePaths,
   });
 }
 

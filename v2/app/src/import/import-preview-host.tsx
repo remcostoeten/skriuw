@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../shared/ui/button";
 import { Dialog } from "../shared/ui/dialog";
+import { Select } from "../shared/ui/select";
 import {
   registerImportPreviewListener,
   type ImportPreviewRequest,
@@ -20,6 +21,7 @@ export function ImportPreviewHost() {
   );
   const [duplicateMode, setDuplicateMode] =
     useState<ImportDuplicateMode>("skip");
+  const [recordSource, setRecordSource] = useState(true);
   const requestRef = useRef<ActiveRequest | null>(null);
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export function ImportPreviewHost() {
         setSelectedSourceId(next.detectedSourceId);
         setDestinationFolderId(null);
         setDuplicateMode("skip");
+        setRecordSource(true);
         setRequest(next);
       });
     return () => {
@@ -69,54 +72,66 @@ export function ImportPreviewHost() {
     >
       <div className="grid gap-4 px-4 py-3.5 text-[12px]">
         <div className="grid grid-cols-[116px_1fr] items-center gap-3">
-          <label htmlFor="import-provider" className="text-muted-foreground">
-            Format
-          </label>
-          <select
-            id="import-provider"
-            className="h-8 rounded-[var(--radius)] border border-border bg-background px-2 text-foreground outline-none focus:border-ring"
+          <span className="text-muted-foreground">Format</span>
+          <Select
+            label="Format"
+            align="start"
+            className="w-full"
+            triggerClassName="h-8 w-full justify-between bg-background hover:bg-muted/40"
             value={selected.sourceId}
-            onChange={(event) => setSelectedSourceId(event.target.value)}
-          >
-            {request.candidates.map((candidate) => (
-              <option key={candidate.sourceId} value={candidate.sourceId}>
-                {candidate.sourceLabel}
-                {candidate.sourceId === request.detectedSourceId ? " — detected" : ""}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="import-destination" className="text-muted-foreground">
-            Destination
-          </label>
-          <select
-            id="import-destination"
-            className="h-8 rounded-[var(--radius)] border border-border bg-background px-2 text-foreground outline-none focus:border-ring"
+            onChange={setSelectedSourceId}
+            options={request.candidates.map((candidate) => ({
+              value: candidate.sourceId,
+              label:
+                candidate.sourceId === request.detectedSourceId
+                  ? `${candidate.sourceLabel} - detected`
+                  : candidate.sourceLabel,
+            }))}
+          />
+          <span className="text-muted-foreground">Destination</span>
+          <Select
+            label="Destination"
+            align="start"
+            className="w-full"
+            triggerClassName="h-8 w-full justify-between bg-background hover:bg-muted/40"
             value={destinationFolderId ?? ""}
-            onChange={(event) =>
-              setDestinationFolderId(event.target.value || null)
-            }
-          >
-            {request.destinations.map((destination) => (
-              <option key={destination.id ?? "root"} value={destination.id ?? ""}>
-                {destination.label}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="import-duplicates" className="text-muted-foreground">
-            Re-import
-          </label>
-          <select
-            id="import-duplicates"
-            className="h-8 rounded-[var(--radius)] border border-border bg-background px-2 text-foreground outline-none focus:border-ring"
+            onChange={(next) => setDestinationFolderId(next || null)}
+            options={request.destinations.map((destination) => ({
+              value: destination.id ?? "",
+              label: destination.label,
+            }))}
+          />
+          <span className="text-muted-foreground">Re-import</span>
+          <Select
+            label="Re-import"
+            align="start"
+            className="w-full"
+            triggerClassName="h-8 w-full justify-between bg-background hover:bg-muted/40"
             value={duplicateMode}
-            onChange={(event) =>
-              setDuplicateMode(event.target.value as ImportDuplicateMode)
-            }
-          >
-            <option value="skip">Skip previous imports</option>
-            <option value="update">Update previous imports</option>
-            <option value="copy">Create copies</option>
-          </select>
+            onChange={setDuplicateMode}
+            options={[
+              { value: "skip", label: "Skip previous imports" },
+              { value: "update", label: "Update previous imports" },
+              { value: "copy", label: "Create copies" },
+            ]}
+          />
+          <span className="text-muted-foreground">Provenance</span>
+          <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+            <input
+              type="checkbox"
+              name="import-record-source"
+              checked={recordSource}
+              onChange={(event) => setRecordSource(event.target.checked)}
+              className="size-3.5 cursor-pointer accent-[var(--primary)]"
+            />
+            <span>
+              Record the import source as a property on
+              {" "}
+              {selected.sourcePropertyNoteCount === 1
+                ? "1 new note"
+                : `${selected.sourcePropertyNoteCount} new notes`}
+            </span>
+          </label>
           <span className="text-muted-foreground">Source</span>
           <span className="truncate font-mono text-[11px]" title={request.sourcePath}>
             {request.sourcePath}
@@ -171,6 +186,7 @@ export function ImportPreviewHost() {
                 sourceId: selected.sourceId,
                 destinationFolderId,
                 duplicateMode,
+                recordSource,
               })
             }
           >
