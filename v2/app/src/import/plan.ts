@@ -1,7 +1,12 @@
-import type { NoteProperty, WorkspaceOperation } from "../contracts/workspace";
+import type {
+  NoteProperty,
+  ProviderImportReceipt,
+  WorkspaceOperation,
+} from "../contracts/workspace";
 import { hasLosslessMarkdownDocument } from "../editor/schema";
 import type {
   MarkdownImportPlan,
+  MarkdownImportReuseTarget,
   MarkdownReferenceTarget,
 } from "../export/markdown-transfer-model";
 import { planMarkdownImport } from "../export/markdown-transfer-model";
@@ -17,6 +22,18 @@ export type ImportBundlePlan = MarkdownImportPlan & {
   tagSkippedNotes: number;
   tagPropertyNotes: number;
   skippedTags: number;
+  skippedDuplicates: number;
+};
+
+export type ImportDuplicateMode = "copy" | "skip" | "update";
+
+export type ImportPlanOptions = {
+  destinationParentId?: string | null;
+  duplicateMode?: ImportDuplicateMode;
+  sourceKey?: string;
+  receipts?: readonly ProviderImportReceipt[];
+  existingDocuments?: ReadonlyMap<string, MarkdownImportReuseTarget>;
+  existingPropertiesByNoteId?: ReadonlyMap<string, readonly NoteProperty[]>;
 };
 
 function normalizeTreePath(path: string): string {
@@ -105,7 +122,6 @@ function resolveImportedTags(
   existingTags: readonly ImportTagTarget[],
   at: number,
   makeId: () => string,
-  excludedPaths: ReadonlySet<string>,
 ): TagResolution {
   const existingByLowerName = new Map(
     existingTags.map((tag) => [tag.name.trim().toLowerCase(), tag.id]),
@@ -114,9 +130,6 @@ function resolveImportedTags(
   const operations: WorkspaceOperation[] = [];
   let skippedTags = 0;
   for (const note of bundle.notes) {
-    if (excludedPaths.has(normalizeTreePath(note.relativePath))) {
-      continue;
-    }
     for (const raw of note.tags ?? []) {
       const name = validImportedTag(raw);
       if (!name) {
@@ -182,6 +195,35 @@ function appendTagChips(
   };
 }
 
+function appendRawTagReferences(
+  documentJson: unknown,
+  tags: readonly string[],
+  idByName: ReadonlyMap<string, string>,
+): unknown | null {
+  const document = documentJson as { type?: unknown; content?: unknown[] };
+  if (document.type !== "doc" || !Array.isArray(document.content)) {
+    return null;
+  }
+  const chips: unknown[] = [];
+  for (const raw of tags) {
+    const name = raw.trim();
+    const id = idByName.get(name.toLowerCase());
+    if (id === undefined) {
+      continue;
+    }
+    if (chips.length > 0) {
+      chips.push({ type: "text", text: " " });
+    }
+    chips.push({ type: "tag_ref", attrs: { id, label: name } });
+  }
+  return chips.length === 0
+    ? null
+    : {
+        ...document,
+        content: [...document.content, { type: "paragraph", content: chips }],
+      };
+}
+
 /**
  * Runs the safety-aware markdown planner over an adapter bundle, then restores
  * the adapter's explicit note titles, which the planner derives from filenames,
@@ -195,11 +237,46 @@ export function planImportBundle(
   makeId: () => string,
   existingNotes: readonly MarkdownReferenceTarget[] = [],
   existingTags: readonly ImportTagTarget[] = [],
+  options: ImportPlanOptions = {},
 ): ImportBundlePlan {
+  const duplicateMode = options.duplicateMode ?? "copy";
+  const receiptByPath = new Map(
+    (options.receipts ?? [])
+      .filter(
+        (receipt) =>
+          receipt.provider === bundle.sourceId &&
+          receipt.sourceKey === options.sourceKey,
+      )
+      .map((receipt) => [normalizeTreePath(receipt.sourcePath), receipt]),
+  );
+  const skippedPaths = new Set<string>();
+  const reuseNotesByPath = new Map<string, MarkdownImportReuseTarget>();
+  for (const note of bundle.notes) {
+    const path = normalizeTreePath(note.relativePath);
+    const receipt = receiptByPath.get(path);
+    if (!receipt) {
+      continue;
+    }
+    if (duplicateMode === "skip") {
+      skippedPaths.add(path);
+    } else if (duplicateMode === "update") {
+      const existing = options.existingDocuments?.get(receipt.noteId);
+      if (existing) {
+        reuseNotesByPath.set(path, existing);
+      }
+    }
+  }
+  const includedNotes = bundle.notes.filter(
+    (note) => !skippedPaths.has(normalizeTreePath(note.relativePath)),
+  );
+  const plannedBundle = {
+    ...bundle,
+    notes: includedNotes,
+  };
   const plan = planMarkdownImport(
     {
-      directories: bundle.directories,
-      files: bundle.notes.map((note) => ({
+      directories: plannedBundle.directories,
+      files: plannedBundle.notes.map((note) => ({
         relativePath: note.relativePath,
         content: note.markdown,
       })),
@@ -208,14 +285,21 @@ export function planImportBundle(
     at,
     makeId,
     existingNotes,
+    {
+      destinationParentId: options.destinationParentId,
+      reuseNotesByPath,
+    },
   );
   const noteByPath = new Map(
-    bundle.notes.map((note) => [normalizeTreePath(note.relativePath), note]),
+    plannedBundle.notes.map((note) => [
+      normalizeTreePath(note.relativePath),
+      note,
+    ]),
   );
   const idToPath = new Map(plan.notes.map((note) => [note.id, note.relativePath]));
   const propertyOperations: WorkspaceOperation[] = [];
   for (const operation of plan.operations) {
-    if (operation.type !== "create_note") {
+    if (operation.type !== "create_note" && operation.type !== "rename_node") {
       continue;
     }
     const path = idToPath.get(operation.id);
@@ -226,29 +310,35 @@ export function planImportBundle(
     operation.title = note.title;
     operation.at = importedTime(note.createdAt, at);
     if (note.properties && note.properties.length > 0) {
+      if (operation.type === "rename_node") {
+        const importedNames = new Set(
+          note.properties.map((property) => property.name.trim().toLowerCase()),
+        );
+        propertyOperations.push(
+          ...(options.existingPropertiesByNoteId?.get(operation.id) ?? [])
+            .filter((property) =>
+              importedNames.has(property.name.trim().toLowerCase()),
+            )
+            .map(
+              (property): WorkspaceOperation => ({
+                type: "remove_note_property",
+                noteId: operation.id,
+                propertyId: property.id,
+                at,
+              }),
+            ),
+        );
+      }
       propertyOperations.push(
         ...buildPropertyOperations(note.properties, operation.id, at, makeId),
       );
     }
   }
-  const rawPaths = new Set(
-    plan.contentOperations.flatMap((operation) => {
-      if (
-        operation.type !== "save_document" ||
-        !hasLosslessMarkdownDocument(operation.documentJson)
-      ) {
-        return [];
-      }
-      const path = idToPath.get(operation.noteId);
-      return path ? [path] : [];
-    }),
-  );
   const tags = resolveImportedTags(
-    bundle,
+    plannedBundle,
     existingTags,
     at,
     makeId,
-    rawPaths,
   );
   plan.operations.push(...tags.operations);
   let tagSkippedNotes = 0;
@@ -281,6 +371,14 @@ export function planImportBundle(
       );
       const values = unique.slice(0, MAX_IMPORTED_TAGS_PER_PROPERTY);
       if (values.length > 0) {
+        const references = appendRawTagReferences(
+          operation.documentJson,
+          values,
+          tags.idByName,
+        );
+        if (references) {
+          operation.documentJson = references;
+        }
         propertyOperations.push(
           ...buildPropertyOperations(
             [{ name: "Tags", value: { type: "list", values } }],
@@ -308,11 +406,28 @@ export function planImportBundle(
     }
   }
   plan.operations.push(...propertyOperations);
+  if (options.sourceKey) {
+    plan.operations.push(
+      ...plan.notes.map(
+        (note): WorkspaceOperation => ({
+          type: "record_provider_import",
+          receipt: {
+            provider: bundle.sourceId,
+            sourceKey: options.sourceKey ?? "",
+            sourcePath: note.relativePath,
+            noteId: note.id,
+            importedAt: at,
+          },
+        }),
+      ),
+    );
+  }
   return {
     ...plan,
     createdTags: tags.operations.length,
     tagSkippedNotes,
     tagPropertyNotes,
     skippedTags,
+    skippedDuplicates: skippedPaths.size,
   };
 }

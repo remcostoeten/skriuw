@@ -3,6 +3,7 @@ import type {
   NoteProperty,
   NotePropertyTemplate,
   OperationAck,
+  ProviderImportReceipt,
   WorkspaceImage,
   WorkspaceNode,
   WorkspaceOperation,
@@ -69,6 +70,7 @@ export type RendererState = {
   images: ReadonlyMap<string, WorkspaceImage>;
   propertiesByNoteId: ReadonlyMap<string, readonly NoteProperty[]>;
   propertyTemplates: readonly NotePropertyTemplate[];
+  importReceipts: readonly ProviderImportReceipt[];
   outgoingReferences: OutgoingReferences;
   incomingReferences: IncomingReferences;
 };

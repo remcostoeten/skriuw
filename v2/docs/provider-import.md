@@ -10,11 +10,13 @@ Open the command palette and choose:
   JSON, or Notion CSV files.
 
 Skriuw scans the source before changing the workspace. Check the detected format,
-counts, and warnings in the preview. Change the format when a generic Markdown
-folder came from Apple Notes. Cancel closes the preview without importing.
+destination, re-import mode, counts, and warnings in the preview. Change the
+format when a generic Markdown folder came from Apple Notes. Cancel during
+intake, preview, or image transfer leaves workspace records unchanged.
 
 Confirmed note, folder, tag, property, image-record, and document changes commit
-together. Re-importing creates another copy.
+together with durable import receipts. Re-import can skip previous matches,
+update their content and imported properties, or create copies.
 
 ## Provider export routes
 
@@ -44,17 +46,19 @@ import. Trashed notes remain skipped and counted.
 
 ### Apple Notes
 
-In Apple Notes, export notes as Markdown. Choose their folder, then select
-**Apple Notes Markdown** in the preview format menu. Skriuw does not read Apple's
-private Notes database.
+In Apple Notes, select a note and choose **File > Export as > Markdown**. Apple
+documents this as a selected-note operation and does not document bulk Markdown
+export. Repeat it for each note, collect the files in one folder, then choose
+that folder and select **Apple Notes Markdown** in Skriuw. Skriuw does not read
+Apple's private Notes database. See [Apple's Notes export guide](https://support.apple.com/guide/notes/import-export-and-print-notes-not201900c07/mac/26).
 
 ## Safety and fidelity
 
 - Remote images stay blocked.
 - Ambiguous links and image basenames stay as source text.
 - Unsupported Markdown uses lossless raw mode.
-- Tags on raw-preserved notes become a typed `Tags` property without modifying
-  source Markdown.
+- Tags on raw-preserved notes become a typed `Tags` property and workspace
+  backlinks without modifying source Markdown.
 - Unsupported attachments and unreadable files appear in preview and completion
   reports.
 - Archives reject absolute paths, parent traversal, symlinks, duplicate

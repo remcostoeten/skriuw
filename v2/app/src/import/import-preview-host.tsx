@@ -4,15 +4,22 @@ import { Dialog } from "../shared/ui/dialog";
 import {
   registerImportPreviewListener,
   type ImportPreviewRequest,
+  type ImportPreviewSelection,
 } from "./preview-controller";
+import type { ImportDuplicateMode } from "./plan";
 
 type ActiveRequest = ImportPreviewRequest & {
-  resolve: (sourceId: string | null) => void;
+  resolve: (selection: ImportPreviewSelection | null) => void;
 };
 
 export function ImportPreviewHost() {
   const [request, setRequest] = useState<ActiveRequest | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState("");
+  const [destinationFolderId, setDestinationFolderId] = useState<string | null>(
+    null,
+  );
+  const [duplicateMode, setDuplicateMode] =
+    useState<ImportDuplicateMode>("skip");
   const requestRef = useRef<ActiveRequest | null>(null);
 
   useEffect(() => {
@@ -20,6 +27,8 @@ export function ImportPreviewHost() {
         requestRef.current?.resolve(null);
         requestRef.current = next;
         setSelectedSourceId(next.detectedSourceId);
+        setDestinationFolderId(null);
+        setDuplicateMode("skip");
         setRequest(next);
       });
     return () => {
@@ -32,18 +41,19 @@ export function ImportPreviewHost() {
   if (!request) {
     return null;
   }
-  const selected =
+  const selectedSource =
     request.candidates.find((candidate) => candidate.sourceId === selectedSourceId) ??
     request.candidates[0];
-  if (!selected) {
+  if (!selectedSource) {
     return null;
   }
+  const selected = selectedSource.variants[duplicateMode];
 
-  function finish(sourceId: string | null): void {
+  function finish(selection: ImportPreviewSelection | null): void {
     const current = requestRef.current;
     requestRef.current = null;
     setRequest(null);
-    current?.resolve(sourceId);
+    current?.resolve(selection);
   }
 
   return (
@@ -74,6 +84,38 @@ export function ImportPreviewHost() {
                 {candidate.sourceId === request.detectedSourceId ? " — detected" : ""}
               </option>
             ))}
+          </select>
+          <label htmlFor="import-destination" className="text-muted-foreground">
+            Destination
+          </label>
+          <select
+            id="import-destination"
+            className="h-8 rounded-[var(--radius)] border border-border bg-background px-2 text-foreground outline-none focus:border-ring"
+            value={destinationFolderId ?? ""}
+            onChange={(event) =>
+              setDestinationFolderId(event.target.value || null)
+            }
+          >
+            {request.destinations.map((destination) => (
+              <option key={destination.id ?? "root"} value={destination.id ?? ""}>
+                {destination.label}
+              </option>
+            ))}
+          </select>
+          <label htmlFor="import-duplicates" className="text-muted-foreground">
+            Re-import
+          </label>
+          <select
+            id="import-duplicates"
+            className="h-8 rounded-[var(--radius)] border border-border bg-background px-2 text-foreground outline-none focus:border-ring"
+            value={duplicateMode}
+            onChange={(event) =>
+              setDuplicateMode(event.target.value as ImportDuplicateMode)
+            }
+          >
+            <option value="skip">Skip previous imports</option>
+            <option value="update">Update previous imports</option>
+            <option value="copy">Create copies</option>
           </select>
           <span className="text-muted-foreground">Source</span>
           <span className="truncate font-mono text-[11px]" title={request.sourcePath}>
@@ -116,13 +158,22 @@ export function ImportPreviewHost() {
         </section>
 
         <p className="m-0 text-[11px] text-muted-foreground">
-          Imported items join workspace root. Re-import creates another copy.
-          Workspace changes commit together.
+          Destination and re-import choices are included in this preview.
+          Workspace changes and durable receipts commit together.
         </p>
 
         <div className="flex justify-end gap-2 border-t border-border pt-3">
           <Button onClick={() => finish(null)}>Cancel</Button>
-          <Button variant="primary" onClick={() => finish(selected.sourceId)}>
+          <Button
+            variant="primary"
+            onClick={() =>
+              finish({
+                sourceId: selected.sourceId,
+                destinationFolderId,
+                duplicateMode,
+              })
+            }
+          >
             Import {selected.noteCount} {selected.noteCount === 1 ? "note" : "notes"}
           </Button>
         </div>
