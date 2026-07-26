@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useShortcutMap } from "@remcostoeten/use-shortcut/react";
 import type { ShortcutMap } from "@remcostoeten/use-shortcut/react";
 import type { AppRoute } from "../app-route";
+import { opensNotesInTabs } from "../settings/settings-model";
 import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererStore } from "../store/types";
+import type { RendererState, RendererStore } from "../store/types";
 import {
   effectiveShortcutKeys,
   sameShortcutOverrides,
@@ -14,6 +15,10 @@ import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId } from "./definitions";
 
 type ShortcutActions = Record<ShortcutActionId, () => void>;
+
+function selectTabsEnabled(state: RendererState): boolean {
+  return opensNotesInTabs(state.settings);
+}
 
 type Props = {
   store: RendererStore;
@@ -39,6 +44,26 @@ function activeScopesForRoute(route: AppRoute): string[] {
   const scopes = route === "notes" || route === "trash" ? ["note-create"] : [];
   if (route === "tags") {
     scopes.push("tags-route");
+  }
+  return scopes;
+}
+
+/**
+ * Every scope active right now. `tabs` gates the tab-strip management keys on
+ * the tabbed workspace being on, so with it off those keypresses never match and
+ * fall through to whatever else claims them.
+ */
+export function activeShortcutScopes(
+  route: AppRoute,
+  noteFocused: boolean,
+  tabsEnabled: boolean,
+): string[] {
+  const scopes = activeScopesForRoute(route);
+  if (noteFocused) {
+    scopes.push("note-focus");
+  }
+  if (route === "notes" && tabsEnabled) {
+    scopes.push("tabs");
   }
   return scopes;
 }
@@ -145,10 +170,9 @@ export function WorkspaceShortcuts({
   }, [overrides]);
 
   const noteFocused = useNoteFocusScope();
+  const tabsEnabled = useRendererSelector(store, selectTabsEnabled);
   const results = useShortcutMap(shortcutMap, {
-    activeScopes: noteFocused
-      ? [...activeScopesForRoute(route), "note-focus"]
-      : activeScopesForRoute(route),
+    activeScopes: activeShortcutScopes(route, noteFocused, tabsEnabled),
     ignoreInputs: false,
   });
 
