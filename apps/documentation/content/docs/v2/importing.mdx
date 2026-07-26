@@ -1,0 +1,136 @@
+---
+title: "Importing"
+description: "How Skriuw v2 moves a vault or workspace in from another tool - what you can select, which formats are detected, and what the preview shows you before anything is written."
+---
+
+Import in v2 is preview-plan-apply. You choose a source, v2 reads it, detects
+which tool it came from, and builds a full plan. Nothing is written to your
+workspace until you confirm the plan you are looking at.
+
+## The two entry points
+
+Both live in the command palette (<kbd>mod</kbd>+<kbd>k</kbd>) and in
+**Settings → Data**.
+
+| Command | Opens | Use it for |
+| --- | --- | --- |
+| **Import notes from folder…** | A folder picker | A whole vault or export directory, including its attachments |
+| **Import provider export or files…** | A file picker, multi-select | An archive, or any number of loose note files |
+
+### Selecting several files at once
+
+The file picker accepts a multi-file selection. This matters most for Apple
+Notes, whose exporters produce one `.md` file per note rather than a single
+archive - select all of them in one pass instead of importing note by note.
+
+The rules for a multi-file selection:
+
+- Every selected entry must be a file. Folders and archives are single-source
+  only, so select one of those on its own.
+- Every file must be `.md`, `.markdown`, `.txt`, `.json`, or `.csv`. A selection
+  containing anything else - an image, a PDF - is rejected as a whole, naming the
+  offending file, rather than partially imported.
+- Files with the same name from different folders both survive. The second one is
+  staged as `Note (2).md`, so nothing is silently overwritten.
+
+The selection is staged into a single temporary directory, detected as one source,
+and planned as one import - so the preview, the duplicate handling, and the commit
+all behave exactly as they do for a folder. The temporary copy is removed when the
+import finishes, including when it fails or you cancel.
+
+Single selections are unchanged: one folder, one `.zip`, one `.bear2bk`, or one
+note file all take the path they always did.
+
+## Formats that are detected
+
+Detection is scored across every adapter rather than chosen by file extension, so
+you don't tell v2 what tool the notes came from - though you can override it in
+the preview.
+
+| Source | Typical selection |
+| --- | --- |
+| Obsidian | Vault folder |
+| Notion | Export `.zip` |
+| Bear | `.bear2bk` backup |
+| Simplenote | Export `.zip` or `.json` |
+| Apple Notes | Loose `.md` files (multi-select) |
+| Markdown | Folder or files |
+| Plain text | Folder or files |
+
+## The preview
+
+Before anything is written, the preview shows the plan and lets you change four
+things:
+
+- **Format** - the detected source, overridable if the guess is wrong. Switching
+  it re-reads the plan against a different adapter.
+- **Destination** - the folder the import lands in. Top-level entries are
+  re-parented under it.
+- **Provenance** - whether to record where the notes came from. See below.
+- **Re-import** - how notes that came from this same source before are handled:
+  **skip previous imports**, **update previous imports**, or **create copies**.
+  Previous imports are recognized by a key derived from what you selected, so a
+  repeated import of the same files is recognized as a repeat.
+
+All three re-import variants are planned up front, so switching between them
+updates the counts immediately.
+
+## Recording where a note came from
+
+The preview has a **"Record the import source as a property"** checkbox, on by
+default, which stamps two properties on each newly created note:
+
+| Property | Type | Value |
+| --- | --- | --- |
+| `Source` | Text | The adapter label, e.g. `Apple Notes Markdown` |
+| `Imported` | Date | The day the import ran |
+
+They are ordinary note properties - visible in the properties panel, editable,
+deletable, and carried through export like any other. Three rules keep them from
+getting in the way:
+
+- **New notes only.** Notes matched as previous imports and updated in place are
+  never re-stamped, so re-importing doesn't churn the property.
+- **Your properties win.** If the file already carries a property named `Source`
+  or `Imported` - an Obsidian frontmatter key, a Notion column - that one is left
+  alone and the matching stamp is skipped.
+- **Untick and they're gone.** The stamps are planned separately from the rest of
+  the import, so clearing the checkbox drops them without changing anything else
+  in the plan.
+
+The right sidebar's **Details** section is unrelated to this: Words, Characters,
+Read time, File size, Created, and Updated are all derived from the note itself,
+and no import writes to them. Note that "Created" reflects the original file's
+timestamp only for Bear and Simplenote, which are the two adapters that supply
+one; every other source falls back to the time the import ran.
+
+<Callout title="Provenance was always tracked, just invisibly">
+	Independently of this checkbox, every import records a durable receipt per note
+	- provider, source key, source path - which is what the skip/update/copy
+	re-import handling matches against. The property is what makes that visible in
+	the note itself.
+</Callout>
+
+## What the report tells you
+
+The apply step is atomic - every operation commits together - and finishes with a
+report that names what it could not do faithfully, not just what worked. Expect
+lines covering notes created, updated, and skipped; folders and tags created;
+notes stamped with their import source;
+images imported; remote images blocked from loading; ambiguous or unresolved
+wiki-links kept as source text; notes preserved in raw mode because they used
+unsupported Markdown; unreadable files skipped; and unsupported attachments
+skipped by name.
+
+If a note's Markdown can't be represented losslessly, v2 preserves it raw rather
+than dropping the parts it doesn't understand, and says so in the report.
+
+## Where this lives in the repo
+
+| Piece | Path |
+| --- | --- |
+| Source adapters and detection | `v2/app/src/import/sources` |
+| Plan construction | `v2/app/src/import/plan.ts` |
+| Preview UI | `v2/app/src/import/import-preview-host.tsx` |
+| Picker, staging, commit, report | `v2/app/src/export/markdown-transfer.ts` |
+| Native pickers and source staging | `v2/app/src-tauri/src/lib.rs` |

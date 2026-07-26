@@ -1,0 +1,5 @@
+Name,Status,Priority,Estimate,Done,Due,URL
+Write import samples,In progress,High,2,false,2026-07-28,https://example.com/samples
+Verify Bear round-trip,Todo,Medium,1.5,false,2026-08-02,
+Close release gates,Todo,High,3,false,2026-08-10,https://example.com/gates
+Publish import guide,Done,Low,0.5,true,2026-07-20,

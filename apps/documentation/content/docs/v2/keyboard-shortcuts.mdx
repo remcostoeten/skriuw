@@ -1,0 +1,143 @@
+---
+title: "Keyboard shortcuts"
+description: "Every keyboard shortcut in Skriuw v2 - what it does, where it fires, and how to rebind it - plus the planned additions from the shortcuts milestone."
+---
+
+Skriuw v2 is keyboard-first. Every global shortcut is registered in a single
+definitions table (`v2/app/src/shortcuts/definitions.ts`), which makes all of
+them rebindable from settings, conflict-checked when you record a new combo,
+and consistently displayed with platform-aware labels.
+
+`mod` means <kbd>Cmd</kbd> on macOS and <kbd>Ctrl</kbd> everywhere else.
+
+## How shortcuts are scoped
+
+Shortcuts don't all fire everywhere. Three mechanisms control when a binding is
+live:
+
+- **Scopes** - a binding can require a named scope (like `note-focus` or
+  `tags-route`) that the workspace activates per route or app mode. The same
+  key can mean different things in different places.
+- **Typing guard** - bindings marked as working while typing use modifier
+  chords that can't collide with text input. Plain-key shortcuts (like the
+  sidebar's <kbd>r</kbd> to rename) only exist inside their own focused
+  surface and never steal typed characters.
+- **Focused surface** - the sidebar tree, the editor, and the find panel each
+  own some keys locally. Local handlers win over global bindings.
+
+## Global shortcuts
+
+### General
+
+| Shortcut | Action |
+| --- | --- |
+| `mod+k` | Open command palette |
+| `mod+,` | Open settings |
+| `mod+shift+q` | Quit |
+
+### Workspace
+
+| Shortcut | Action | Notes |
+| --- | --- | --- |
+| `mod+n` | New note | |
+| `mod+shift+n` | New folder | |
+| `mod+shift+t` | New tag | Tags route only |
+| `mod+shift+p` | New person | |
+| `mod+p` | Pin or unpin current note | |
+| `mod+m` | Toggle raw Markdown mode | Switches the open note between block editing and markdown source |
+
+### Tabs and splits
+
+| Shortcut | Action |
+| --- | --- |
+| `mod+w` | Close tab |
+| `ctrl+tab` | Next tab |
+| `ctrl+shift+tab` | Previous tab |
+| `mod+backslash` | Open current note beside (split view) |
+| `mod+shift+backslash` | Close split view |
+
+### Navigation
+
+| Shortcut | Action |
+| --- | --- |
+| `mod+b` | Toggle sidebar |
+| `ctrl+shift+b` | Toggle metadata panel |
+| `mod+e` | Focus current note in sidebar |
+| `mod+2` (or `/` outside the editor) | Focus editor |
+| `mod+3` | Focus metadata panel |
+| `mod+shift+1` | Go to notes |
+| `mod+shift+2` | Go to tags |
+| `mod+shift+3` | Go to people |
+| `mod+shift+4` | Go to trash |
+
+### View
+
+| Shortcut | Action |
+| --- | --- |
+| `mod+enter` | Toggle maximize |
+| `mod+equal` | Zoom in |
+| `mod+minus` | Zoom out |
+| `mod+0` | Reset zoom |
+
+### Find in note
+
+| Shortcut | Action | Notes |
+| --- | --- | --- |
+| `mod+f` | Find in note | Requires an open, focused note |
+| `alt+c` | Toggle match case | While the find panel is open |
+| `alt+w` | Toggle whole word | While the find panel is open |
+| `alt+r` | Toggle regular expression | While the find panel is open |
+
+## Sidebar tree keys
+
+These plain keys only exist while the sidebar tree has focus - they never fire
+while you're typing in a note or input.
+
+| Key | Action |
+| --- | --- |
+| `↑` / `↓` | Move focus between rows (wraps; `shift` extends the selection) |
+| `→` | Expand folder, or step into its first child |
+| `←` | Collapse folder, or step to the parent |
+| `enter` | Open note / toggle folder |
+| `F2` or `r` | Rename the focused row inline |
+| `m` | Pick up the focused/selected rows, then arrows + `enter` to move them |
+| `alt+↑` / `alt+↓` | Reorder the focused row among its siblings |
+| `delete` | Move the focused/selected rows to trash |
+| `mod+a` | Select all rows |
+| `mod+f` | Open the sidebar filter |
+
+With a row's context menu open: `r` renames, `d` / `delete` / `backspace`
+trashes.
+
+## Rebinding
+
+Open settings (`mod+,`) and use the shortcut recorder to change any global
+binding. The recorder captures the combo you press, warns when it collides
+with another action's effective binding, and stores the override per
+workspace. Combos compare by their parsed form, so `mod+k`, `Ctrl + K`, and a
+recorded `ctrl+k` are treated as the same binding on platforms where `mod`
+means ctrl.
+
+## Planned: the shortcuts milestone
+
+The [Keyboard shortcuts (v2) milestone](https://github.com/remcostoeten/skriuw/milestone/1)
+tracks the next wave. Each issue specifies exactly when the shortcut fires per
+focus context (editor, sidebar, panels, modals); nothing below is implemented
+yet - this table updates as issues close.
+
+| Shortcut | Action | Fires when | Issue |
+| --- | --- | --- | --- |
+| `mod+g` | Jump to line | Markdown mode, editor focused | [#275](https://github.com/remcostoeten/skriuw/issues/275) |
+| `mod+h` | Find and replace | Note open, editor or find panel focused | [#276](https://github.com/remcostoeten/skriuw/issues/276) |
+| `ctrl+↑` / `ctrl+↓` | Go to start / end of document | Caret in the editor | [#277](https://github.com/remcostoeten/skriuw/issues/277) |
+| `ctrl+shift+[` / `]` | Previous / next note | Anywhere in the notes workspace | [#278](https://github.com/remcostoeten/skriuw/issues/278) |
+| `ctrl+shift+o` | Import a markdown file as a new note | Anywhere | [#279](https://github.com/remcostoeten/skriuw/issues/279) |
+| `ctrl+1`-`9`, `ctrl+0` | Open tab by index, last tab | Tabs open; final combos pending conflict resolution | [#280](https://github.com/remcostoeten/skriuw/issues/280) |
+| `g` `t` `1`-`9` | Go to rail destination (notes, tags, people, trash, …) | Focus on non-editable chrome | [#281](https://github.com/remcostoeten/skriuw/issues/281) |
+| `mod+/` | Shortcut cheat-sheet overlay | Anywhere | [#283](https://github.com/remcostoeten/skriuw/issues/283) |
+| `mod+backspace` | Move current note to trash (with undo) | Editor or metadata panel focused | [#284](https://github.com/remcostoeten/skriuw/issues/284) |
+| `F2` | Rename current note | Editor focused (sidebar keeps its own `F2`) | [#285](https://github.com/remcostoeten/skriuw/issues/285) |
+| `mod+shift+d` | Duplicate current note | Note open | [#286](https://github.com/remcostoeten/skriuw/issues/286) |
+| `mod+shift+w` | Reopen closed tab | Tabs on | [#287](https://github.com/remcostoeten/skriuw/issues/287) |
+| `ctrl+shift+pageup` / `pagedown` | Move tab left / right | Tabs on | [#287](https://github.com/remcostoeten/skriuw/issues/287) |
+| `mod+alt+←` / `→` | Focus split pane in that direction | Split view active | [#288](https://github.com/remcostoeten/skriuw/issues/288) |

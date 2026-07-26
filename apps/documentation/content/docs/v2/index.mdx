@@ -1,0 +1,137 @@
+---
+title: "Skriuw v2"
+description: "A local-first notes application built on Rust, SQLite, and Tauri 2, designed so that every interaction gives same-frame feedback - no spinners, no sync dialogs, no waiting."
+---
+
+**Skriuw v2** is a ground-up rewrite of the desktop client, built around a single
+promise: every interaction gives same-frame feedback. No spinners, no sync dialogs,
+no "loading your notes".
+
+Your entire workspace lives on your machine - plain SQLite on disk, portable
+archives you can carry anywhere, and a Git history that quietly versions everything
+you write without ever making you wait for it.
+
+<Callout title="Documenting v2 as it runs">
+	This section describes what v2 actually does today. Where a subsystem is designed
+	but not yet shipped, the page says so explicitly rather than describing the plan in
+	the present tense. For the current shipping app, switch to [Skriuw](/) with the
+	version picker above the sidebar.
+</Callout>
+
+## What is different from v1
+
+v1 is a Next.js application with a Tauri desktop wrapper, where the desktop client
+and the web client share a rendering path. v2 inverts that: the desktop application
+is the primary artifact, the domain and storage layers are Rust, and the renderer is
+a thin React surface over a fully hydrated in-memory workspace.
+
+| | v1 | v2 |
+| --- | --- | --- |
+| Canonical storage | Postgres (cloud) or markdown files | SQLite on disk |
+| Domain logic | TypeScript | Rust, with no I/O in the domain layer |
+| Editor | BlockNote | ProseMirror, direct, bounded-window |
+| History | Snapshot rows in the database | Native Git materializer, off the editing path |
+| Navigation cost | Route load, fetch, parse | Zero IPC, zero database reads, zero parsing |
+| Contracts | Hand-written types | JSON Schema generated from Rust, drift-checked in CI |
+
+The practical consequence is the third row from the bottom. Because the renderer
+navigates a workspace that is already in memory, switching notes performs no work
+that can fail, stall, or need a loading state.
+
+## The performance contract
+
+v2 treats latency as a contract with numbers attached, not as an aspiration:
+
+- **Cached note swap under 8 ms at P95**
+- **Keystroke-to-paint under 8 ms at P95**
+- **Zero dropped frames** across hundreds of rapid note switches
+
+These are enforced by a production benchmark suite that runs against real
+workspaces, not by a code-review guideline. The mechanisms that make them
+achievable - the serialized runtime queue, bounded save batching, the 192-block
+editor window, and the virtualized row pool - are described in
+[Architecture](/v2/architecture/overview).
+
+## The shape of the system
+
+```text
+Application shell
+├── normalized workspace store
+├── persistent editor host
+├── command registry
+└── WorkspacePort
+    ├── desktop adapter
+    │   └── native SQLite and background Git
+    ├── browser adapter
+    │   └── worker-owned SQLite WASM and OPFS
+    └── memory adapter
+        └── tests and fixtures
+```
+
+Startup calls `bootstrap()` exactly once and receives nodes, document JSON,
+settings, the active note, and cached history headers in a single snapshot. The
+renderer normalizes that data and prepares editor states before it dismisses the
+startup UI. From that point on, every user action updates renderer state
+synchronously first, then submits durable work to the backend. Acknowledgements
+carry revisions; navigation never waits for them.
+
+<Callout type="warn" title="Adapter status">
+	The desktop adapter and the memory adapter are what run today. The browser
+	adapter - worker-owned SQLite WASM over OPFS - is specified in
+	`v2/docs/specs/web-runtime.md` but is not a shipped runtime. Treat the web
+	column of any comparison as design, not availability.
+</Callout>
+
+## What v2 does
+
+**Writing.** A rich text editor with headings, lists, checklists, collapsible
+lists, quotes, code, and tables, driven by Markdown-style input rules so `# `,
+`- `, and `**bold**` work as you type. Slash commands open a keyboard-first block
+menu. Typed note properties cover text, number, date, select, multi-select,
+person, URL, checkbox, rating, location, email, and phone. Notes with thousands of
+blocks render through a bounded 192-block window while select-all, copy, search,
+undo, and accessibility traversal still cover the whole document.
+
+**Organizing.** An arbitrarily deep workspace tree, virtualized to stay smooth past
+5,000 nodes, with clamped visual indentation so deep trees stay readable. Tabs and
+split view, where only visible panes hold live editors. Pinned notes that travel
+with archives and survive trash round trips. Trash with subtree semantics -
+nothing is destroyed without a confirmation that shows its scope.
+
+**Relationships.** Type `#` to tag, `@` or `[[` for wiki-style note links, `$` for
+people. Every relationship is stored by ID, so renames propagate everywhere and
+nothing silently breaks. Backlinks are precomputed for notes, tags, and people.
+
+**History and safety.** Every save is materialized into Git in the background.
+Backups run on a six-hour schedule with cadence and retention rotation, and each
+one is verified before it counts. Restoring a backup runs as a verified live
+database swap: the replacement is validated and bootstrapped before it goes live,
+and a rollback sibling is retained in case anything fails.
+
+**Migration.** A preview-plan-apply import pipeline for Obsidian, Notion, Bear,
+Simplenote, Apple Notes, and plain markdown, where the plan is shown before
+anything is written and the apply step is atomic. Sources can be a folder, an
+archive, or a multi-file selection of loose notes.
+
+## Where things live in the repo
+
+| Area | Path |
+| --- | --- |
+| Application shell, editor, renderer | `v2/app/src` |
+| Rust crates (domain, storage, runtime, history, images) | `v2/crates` |
+| Generated contracts between the two | `v2/contracts` |
+| Specifications | `v2/docs/specs` |
+| Architecture decision records | `v2/docs/adr` |
+
+The domain crate has no I/O. Storage, runtime, and history sit above it, and the
+JSON Schema in `contracts/` is generated from the Rust types rather than
+maintained alongside them - CI fails on drift.
+
+## Start here
+
+- **[Keyboard shortcuts](/v2/keyboard-shortcuts)** - the full binding table, and how
+  rebinding works.
+- **Architecture** - the runtime queue, the storage model, and how the performance
+  contract is enforced.
+- **[Importing](/v2/importing)** - moving a vault or workspace in from another
+  tool, including multi-file selections for Apple Notes.
