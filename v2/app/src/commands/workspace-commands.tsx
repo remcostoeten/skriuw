@@ -51,6 +51,7 @@ import {
   DownloadIcon,
   FileTextIcon,
   FolderOpenIcon,
+  KeyboardIcon,
   MaximizeIcon,
   NewFolderIcon,
   NewNoteIcon,
@@ -77,6 +78,7 @@ import type { AppCommand, CommandPredicate } from "./registry";
 export type CommandUiControls = {
   togglePalette: () => void;
   openSettings: () => void;
+  showShortcutHelp: () => void;
   toggleSidebar: () => void;
   /** Reveals the sidebar without toggling it, for actions that live in the tree. */
   openSidebar: () => void;
@@ -465,6 +467,15 @@ export function createWorkspaceCommands(
       icon: <SettingsIcon size={15} />,
       shortcut: "openSettings",
       run: controls.openSettings,
+    },
+    {
+      id: "show-shortcut-help",
+      label: "Show keyboard shortcuts",
+      group: "General",
+      keywords: ["cheat sheet", "keybindings", "help"],
+      icon: <KeyboardIcon size={15} />,
+      shortcut: "showShortcutHelp",
+      run: controls.showShortcutHelp,
     },
     {
       id: "toggle-sidebar",

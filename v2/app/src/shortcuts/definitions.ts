@@ -23,6 +23,7 @@ export type ShortcutActionId =
   | TabIndexActionId
   | "openLastTab"
   | "toggleCommandPalette"
+  | "showShortcutHelp"
   | "createNote"
   | "createFolder"
   | "createTag"
@@ -184,6 +185,16 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Open command palette",
     group: "General",
     worksWhileTyping: true,
+  },
+  {
+    id: "showShortcutHelp",
+    keys: "mod+slash",
+    label: "Show keyboard shortcuts",
+    description:
+      "Open the cheat sheet listing every shortcut, grouped by area, with the combos currently bound. A deliberate chord, so it also fires from inside a note; the overlay itself owns Escape and a second press closes it.",
+    group: "General",
+    worksWhileTyping: true,
+    guards: ["modal"],
   },
   {
     id: "createNote",

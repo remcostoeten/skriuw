@@ -5,6 +5,7 @@ import { CommandPaletteHost } from "./shell/command-palette-host";
 import { EditorPanes } from "./shell/editor-panes";
 import { MetadataPanel } from "./shell/metadata-panel";
 import { SettingsDialog } from "./shell/settings-dialog";
+import { ShortcutHelpOverlay } from "./shell/shortcut-help-overlay";
 import { TrashView } from "./shell/trash-view";
 import { EntityView } from "./shell/entity-view";
 import { HistoryView } from "./history/history-view";
@@ -119,6 +120,7 @@ type Props = {
 export function App({ store }: Props) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [metadataOpen, setMetadataOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
@@ -147,6 +149,7 @@ export function App({ store }: Props) {
         createWorkspaceCommands(store, {
           togglePalette: () => setPaletteOpen((current) => !current),
           openSettings: () => setSettingsOpen((current) => !current),
+          showShortcutHelp: () => setShortcutHelpOpen((current) => !current),
           toggleSidebar: () => toggleSidebar(false),
           openSidebar: () => {
             setTracksAnimated(false);
@@ -471,6 +474,11 @@ export function App({ store }: Props) {
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
       />
+      <ShortcutHelpOverlay
+        store={store}
+        open={shortcutHelpOpen}
+        onOpenChange={setShortcutHelpOpen}
+      />
       <ToastHost />
       <TransferReportHost />
       <ImportPreviewHost />
@@ -478,8 +486,8 @@ export function App({ store }: Props) {
       <WorkspaceShortcuts
         store={store}
         route={route}
-        suspended={settingsOpen}
-        activeWhileSuspended="openSettings"
+        suspended={settingsOpen || shortcutHelpOpen}
+        activeWhileSuspended={settingsOpen ? "openSettings" : undefined}
         actions={shortcutActions}
       />
     </div>
