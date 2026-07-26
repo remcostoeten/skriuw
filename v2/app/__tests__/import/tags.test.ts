@@ -158,6 +158,37 @@ test("invalid and oversized tags are skipped and counted", () => {
   assert.equal(plan.skippedTags, 2);
 });
 
+test("skip mode drops directories whose notes were all skipped", () => {
+  const source: ImportBundle = {
+    sourceId: "markdown",
+    sourceLabel: "Markdown",
+    directories: ["Folder", "Empty"],
+    notes: [{ relativePath: "Folder/A.md", title: "A", markdown: "body" }],
+    warnings: [],
+  };
+  const plan = planImportBundle(source, 200, sequentialIds(), [], [], {
+    duplicateMode: "skip",
+    sourceKey: "source-key",
+    receipts: [
+      {
+        provider: "markdown",
+        sourceKey: "source-key",
+        sourcePath: "Folder/A.md",
+        noteId: "existing-note",
+        importedAt: 100,
+      },
+    ],
+  });
+  const folders = plan.operations.filter(
+    (operation) => operation.type === "create_folder",
+  );
+  assert.equal(plan.skippedDuplicates, 1);
+  assert.deepEqual(
+    folders.map((operation) => operation.type === "create_folder" && operation.title),
+    ["Empty"],
+  );
+});
+
 test("durable receipts drive skip and update re-import modes", () => {
   const source = bundle([
     {
