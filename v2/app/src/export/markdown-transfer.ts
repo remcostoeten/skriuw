@@ -266,6 +266,9 @@ async function importNotesFromPath(
               `Stored tags as a property on ${count(plan.tagPropertyNotes, "raw-preserved note")}`,
             ]
           : []),
+        ...(plan.skippedTags > 0
+          ? [`Skipped ${count(plan.skippedTags, "invalid or oversized tag")}`]
+          : []),
         ...(tree.skipped > 0 ? [`Skipped ${count(tree.skipped, "unreadable file")}`] : []),
         ...(tree.unsupported ?? []).map(
           (path) => `Skipped unsupported attachment ${path}`,
