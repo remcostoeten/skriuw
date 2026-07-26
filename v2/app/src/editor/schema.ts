@@ -232,12 +232,16 @@ const checkItemSpec: NodeSpec = {
   defining: true,
   attrs: {
     checked: { default: false },
+    taskId: { default: null },
+    blockId: { default: null },
   },
   toDOM: (node) => [
     "li",
     {
       class: "check-item",
       "data-checked": node.attrs.checked ? "true" : "false",
+      ...(node.attrs.taskId ? { "data-task-id": String(node.attrs.taskId) } : {}),
+      ...(node.attrs.blockId ? { "data-block-id": String(node.attrs.blockId) } : {}),
     },
     [
       "span",
@@ -254,7 +258,55 @@ const checkItemSpec: NodeSpec = {
     {
       tag: "li[data-checked]",
       priority: 60,
-      getAttrs: (dom) => ({ checked: dom.getAttribute("data-checked") === "true" }),
+      getAttrs: (dom) => ({
+        checked: dom.getAttribute("data-checked") === "true",
+        taskId: dom.getAttribute("data-task-id"),
+        blockId: dom.getAttribute("data-block-id"),
+      }),
+    },
+  ],
+};
+
+const toggleListSpec: NodeSpec = {
+  content: "toggle_item+",
+  group: "block",
+  toDOM: () => ["ul", { class: "toggle-list", "data-toggle-list": "true" }, 0],
+  parseDOM: [{ tag: "ul[data-toggle-list]", priority: 60 }],
+};
+
+const toggleItemSpec: NodeSpec = {
+  content: "paragraph block*",
+  defining: true,
+  attrs: {
+    open: { default: true },
+  },
+  toDOM: (node) => {
+    const open = node.attrs.open !== false;
+    return [
+      "li",
+      {
+        class: "toggle-item",
+        "data-toggle-open": open ? "true" : "false",
+      },
+      [
+        "button",
+        {
+          class: "toggle-item-disclosure",
+          type: "button",
+          contenteditable: "false",
+          "aria-expanded": open ? "true" : "false",
+          "aria-label": `${open ? "Collapse" : "Expand"} collapsible item`,
+          "aria-keyshortcuts": "Alt+Enter",
+        },
+      ],
+      ["div", { class: "toggle-item-content" }, 0],
+    ];
+  },
+  parseDOM: [
+    {
+      tag: "li[data-toggle-open]",
+      priority: 60,
+      getAttrs: (dom) => ({ open: dom.getAttribute("data-toggle-open") === "true" }),
     },
   ],
 };
@@ -351,6 +403,8 @@ const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
   .update("code_block", codeBlockSpec)
   .addToEnd("check_list", checkListSpec)
   .addToEnd("check_item", checkItemSpec)
+  .addToEnd("toggle_list", toggleListSpec)
+  .addToEnd("toggle_item", toggleItemSpec)
   .addToEnd("tag_ref", tagRefSpec)
   .addToEnd("mention_ref", mentionRefSpec)
   .addToEnd("image_ref", imageRefSpec)
@@ -483,6 +537,24 @@ function checkListInputRule(): InputRule {
   });
 }
 
+function toggleListInputRule(): InputRule {
+  return new InputRule(/^\s*\[([>vV])\]\s$/, (state, match, start, end) => {
+    const toggleList = productSchema.nodes.toggle_list;
+    if (!toggleList) return null;
+    if (state.doc.resolve(start).parent.type.spec.code) return null;
+    const tr = state.tr.delete(start, end);
+    const range = tr.doc.resolve(start).blockRange();
+    if (!range) return null;
+    const wrapping = findWrapping(range, toggleList);
+    if (!wrapping) return null;
+    tr.wrap(range, wrapping);
+    tr.setNodeMarkup(range.start + 1, undefined, {
+      open: (match[1] ?? "").toLowerCase() === "v",
+    });
+    return tr;
+  });
+}
+
 function linkInputRule(): InputRule {
   return new InputRule(/\[([^\[\]]+)\]\(([^()\s]+)\)$/, (state, match, start, end) => {
     const link = productSchema.marks.link;
@@ -586,6 +658,98 @@ function createCheckboxTogglePlugin(): Plugin {
   });
 }
 
+function toggleItemAtDom(view: EditorView, target: HTMLElement): boolean {
+  const $pos = view.state.doc.resolve(view.posAtDOM(target, 0));
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    const node = $pos.node(depth);
+    if (node.type.name !== "toggle_item") continue;
+    view.dispatch(toggleItemTransaction(view.state, $pos.before(depth), node));
+    return true;
+  }
+  return false;
+}
+
+function toggleItemTransaction(
+  state: EditorState,
+  position: number,
+  node: ProseMirrorNode,
+): EditorState["tr"] {
+  const closing = node.attrs.open !== false;
+  const transaction = state.tr.setNodeMarkup(position, undefined, {
+    open: !closing,
+  });
+  const summary = node.firstChild;
+  if (
+    closing &&
+    summary &&
+    state.selection.from > position &&
+    state.selection.to > position + summary.nodeSize &&
+    state.selection.to < position + node.nodeSize
+  ) {
+    transaction.setSelection(
+      TextSelection.near(transaction.doc.resolve(position + summary.nodeSize), -1),
+    );
+  }
+  return transaction;
+}
+
+function isToggleDisclosure(target: EventTarget | null): target is HTMLElement {
+  return (
+    target !== null &&
+    typeof target === "object" &&
+    "classList" in target &&
+    (target as HTMLElement).classList.contains("toggle-item-disclosure")
+  );
+}
+
+export function toggleItemAtSelection(
+  state: EditorState,
+  dispatch?: (transaction: EditorState["tr"]) => void,
+): boolean {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth);
+    if (node.type.name !== "toggle_item") continue;
+    if (dispatch) {
+      dispatch(toggleItemTransaction(state, $from.before(depth), node));
+    }
+    return true;
+  }
+  return false;
+}
+
+function createToggleListPlugin(): Plugin {
+  return new Plugin({
+    props: {
+      handleDOMEvents: {
+        click(view, event) {
+          const target = event.target;
+          if (
+            !isToggleDisclosure(target) ||
+            !view.editable
+          ) {
+            return false;
+          }
+          event.preventDefault();
+          return toggleItemAtDom(view, target);
+        },
+      },
+      handleKeyDown(view, event) {
+        const target = event.target;
+        if (
+          !isToggleDisclosure(target) ||
+          !view.editable ||
+          (event.key !== "Enter" && event.key !== " ")
+        ) {
+          return false;
+        }
+        event.preventDefault();
+        return toggleItemAtDom(view, target);
+      },
+    },
+  });
+}
+
 export function createProductPlugins(): Plugin[] {
   const blockquote = productSchema.nodes.blockquote;
   const codeBlock = productSchema.nodes.code_block;
@@ -594,6 +758,7 @@ export function createProductPlugins(): Plugin[] {
   const orderedList = productSchema.nodes.ordered_list;
   const listItem = productSchema.nodes.list_item;
   const checkItem = productSchema.nodes.check_item;
+  const toggleItem = productSchema.nodes.toggle_item;
   if (
     !blockquote ||
     !codeBlock ||
@@ -601,7 +766,8 @@ export function createProductPlugins(): Plugin[] {
     !bulletList ||
     !orderedList ||
     !listItem ||
-    !checkItem
+    !checkItem ||
+    !toggleItem
   ) {
     throw new Error("product schema is missing a required block node");
   }
@@ -620,12 +786,14 @@ export function createProductPlugins(): Plugin[] {
     createSearchPlugin(),
     createCodeHighlightPlugin(),
     createCheckboxTogglePlugin(),
+    createToggleListPlugin(),
     inputRules({
       rules: [
         ...smartQuotes,
         ellipsis,
         emDash,
         checkListInputRule(),
+        toggleListInputRule(),
         textblockTypeInputRule(/^(#{1,6})\s$/, heading, (match) => ({
           level: match[1]?.length ?? 1,
         })),
@@ -660,17 +828,21 @@ export function createProductPlugins(): Plugin[] {
       "Mod-u": toggleMark(underline),
       "Alt-ArrowUp": moveSelectedBlock(-1),
       "Alt-ArrowDown": moveSelectedBlock(1),
+      "Alt-Enter": toggleItemAtSelection,
       Enter: chainCommands(
         splitListItem(checkItem, { checked: false }),
+        splitListItem(toggleItem, { open: true }),
         splitListItem(listItem),
       ),
       Tab: chainCommands(
         sinkListItem(checkItem),
+        sinkListItem(toggleItem),
         sinkListItem(listItem),
         goToNextCell(1),
       ),
       "Shift-Tab": chainCommands(
         liftListItem(checkItem),
+        liftListItem(toggleItem),
         liftListItem(listItem),
         goToNextCell(-1),
       ),
@@ -766,6 +938,19 @@ const productMarkdownSerializer = new MarkdownSerializer(
     },
     check_item(state, node) {
       state.write(node.attrs.checked ? "[x] " : "[ ] ");
+      state.renderContent(node);
+      if (isTaskId(node.attrs.taskId)) {
+        const blockId = isTaskId(node.attrs.blockId) && node.attrs.blockId !== node.attrs.taskId
+          ? `:${node.attrs.blockId}`
+          : "";
+        state.write(` <!--skriuw-task:${node.attrs.taskId}${blockId}-->`);
+      }
+    },
+    toggle_list(state, node) {
+      state.renderList(node, "  ", () => "- ");
+    },
+    toggle_item(state, node) {
+      state.write(node.attrs.open === false ? "[>] " : "[v] ");
       state.renderContent(node);
     },
     tag_ref(state, node) {
@@ -1009,6 +1194,12 @@ function plainParagraphDocument(markdown: string): ProseMirrorNode {
 }
 
 const CHECKBOX_PREFIX = /^\[([ xX])\] /;
+const TOGGLE_PREFIX = /^\[([>vV])\] /;
+const TASK_MARKER = /(?:\s*)<!--skriuw-task:([A-Za-z0-9_-]{1,128})(?::([A-Za-z0-9_-]{1,128}))?-->$/;
+
+function isTaskId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+}
 
 type JsonNode = {
   type?: unknown;
@@ -1027,7 +1218,58 @@ function checkboxPrefix(item: JsonNode): RegExpMatchArray | null {
   return text.text.match(CHECKBOX_PREFIX);
 }
 
+function togglePrefix(item: JsonNode): RegExpMatchArray | null {
+  if (item.type !== "list_item") return null;
+  const paragraph = item.content?.[0] as JsonNode | undefined;
+  if (paragraph?.type !== "paragraph") return null;
+  const text = paragraph.content?.[0] as JsonNode | undefined;
+  if (text?.type !== "text" || typeof text.text !== "string") return null;
+  return text.text.match(TOGGLE_PREFIX);
+}
+
 function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
+  const paragraph = item.content?.[0] as JsonNode;
+  const text = paragraph.content?.[0] as JsonNode;
+  const stripped = (text.text as string).slice(prefix[0].length);
+  const marker = stripped.match(TASK_MARKER);
+  const visibleText = marker ? stripped.slice(0, marker.index).trimEnd() : stripped;
+  const inline = visibleText.length > 0
+    ? [{ ...text, text: visibleText }, ...(paragraph.content?.slice(1) ?? [])]
+    : paragraph.content?.slice(1) ?? [];
+  let taskId = marker?.[1] ?? null;
+  let blockId = marker?.[2] ?? null;
+  const blocks = (item.content?.slice(1) ?? []).filter((value) => {
+    const block = value as JsonNode;
+    if (taskId || block.type !== "paragraph" || block.content?.length !== 1) {
+      return true;
+    }
+    const markerText = block.content[0] as JsonNode | undefined;
+    if (markerText?.type !== "text" || typeof markerText.text !== "string") {
+      return true;
+    }
+    const blockMarker = markerText.text.match(TASK_MARKER);
+    if (!blockMarker) {
+      return true;
+    }
+    taskId = blockMarker[1] ?? null;
+    blockId = blockMarker[2] ?? null;
+    return false;
+  });
+  return {
+    type: "check_item",
+    attrs: {
+      checked: prefix[1]?.toLowerCase() === "x",
+      taskId,
+      blockId: blockId !== taskId ? blockId : null,
+    },
+    content: [
+      { ...paragraph, content: inline },
+      ...blocks,
+    ],
+  };
+}
+
+function toToggleItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
   const paragraph = item.content?.[0] as JsonNode;
   const text = paragraph.content?.[0] as JsonNode;
   const stripped = (text.text as string).slice(prefix[0].length);
@@ -1035,8 +1277,8 @@ function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
     ? [{ ...text, text: stripped }, ...(paragraph.content?.slice(1) ?? [])]
     : paragraph.content?.slice(1) ?? [];
   return {
-    type: "check_item",
-    attrs: { checked: prefix[1]?.toLowerCase() === "x" },
+    type: "toggle_item",
+    attrs: { open: prefix[1]?.toLowerCase() === "v" },
     content: [
       { ...paragraph, content: inline },
       ...(item.content?.slice(1) ?? []),
@@ -1050,20 +1292,25 @@ function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
  * such items into `check_list`/`check_item` nodes, splitting mixed bullet
  * lists into adjacent lists so plain items stay bullets.
  */
-function upgradeCheckLists(node: unknown): unknown[] {
+function upgradeSpecialLists(node: unknown): unknown[] {
   if (node === null || typeof node !== "object") return [node];
   const record = node as JsonNode;
   const content = Array.isArray(record.content)
-    ? record.content.flatMap((child) => upgradeCheckLists(child))
+    ? record.content.flatMap((child) => upgradeSpecialLists(child))
     : record.content;
   if (record.type !== "bullet_list" || !Array.isArray(content)) {
     return [content === record.content ? record : { ...record, content }];
   }
   const runs: JsonNode[] = [];
   for (const child of content as JsonNode[]) {
-    const prefix = checkboxPrefix(child);
-    const type = prefix ? "check_list" : "bullet_list";
-    const item = prefix ? toCheckItem(child, prefix) : child;
+    const check = checkboxPrefix(child);
+    const toggle = togglePrefix(child);
+    const type = check ? "check_list" : toggle ? "toggle_list" : "bullet_list";
+    const item = check
+      ? toCheckItem(child, check)
+      : toggle
+        ? toToggleItem(child, toggle)
+        : child;
     const last = runs[runs.length - 1];
     if (last && last.type === type) {
       (last.content as JsonNode[]).push(item);
@@ -1071,6 +1318,8 @@ function upgradeCheckLists(node: unknown): unknown[] {
       runs.push(
         type === "check_list"
           ? { type, content: [item] }
+          : type === "toggle_list"
+            ? { type, content: [item] }
           : { ...record, content: [item] },
       );
     }
@@ -1085,7 +1334,7 @@ export function parseProductMarkdown(markdown: string): ProseMirrorNode {
   try {
     const parsed = productMarkdownParser.parse(markdown);
     try {
-      const [upgraded] = upgradeCheckLists(parsed.toJSON());
+      const [upgraded] = upgradeSpecialLists(parsed.toJSON());
       return productSchema.nodeFromJSON(upgraded);
     } catch {
       return parsed;

@@ -34,6 +34,8 @@ The editor supports:
 
 Code blocks expose language selection and copy. Tables expose keyboard-accessible row, column, header, and delete operations. Block actions stay available from the existing drag handle and context menu.
 
+Collapsible lists use canonical `toggle_list` and `toggle_item` nodes. The first paragraph is the always-visible summary and subsequent blocks are the disclosed content. Expanded items serialize as `- [v] summary`; collapsed items serialize as `- [>] summary`. Nested content uses ordinary Markdown list indentation, so raw mode remains readable and the open state round-trips without HTML execution. Each rendered item exposes a labelled disclosure button and the `Alt+Enter` keyboard action.
+
 Interactive drawings, Mermaid diagrams, and file-tree visualizations require separate measured block specifications. Their stored representation, Markdown degradation, bounded-window cost, history behavior, archive behavior, accessibility fallback, and dependency cost must be accepted before implementation.
 
 ## Raw Markdown
