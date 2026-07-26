@@ -2,7 +2,6 @@
   color-scheme: dark;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  --icon-stroke-width: 1.5;
   --selection-opacity: 0.2;
 }
 

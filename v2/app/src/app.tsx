@@ -111,7 +111,6 @@ export function App({ store }: Props) {
               >
                 <FolderOpenIcon
                   size={18}
-                  strokeWidth={1.6}
                   className={
                     route === "notes"
                       ? "text-sidebar-accent-foreground"
@@ -127,7 +126,7 @@ export function App({ store }: Props) {
                 aria-label="Tags"
                 aria-current={route === "tags" ? "page" : undefined}
               >
-                <WaypointsIcon size={18} strokeWidth={1.6} />
+                <WaypointsIcon size={18} />
               </a>
             </Tooltip>
             <Tooltip label="People" side="right">
@@ -137,7 +136,7 @@ export function App({ store }: Props) {
                 aria-label="People"
                 aria-current={route === "people" ? "page" : undefined}
               >
-                <CircleIcon size={18} strokeWidth={1.6} />
+                <CircleIcon size={18} />
               </a>
             </Tooltip>
           </div>
@@ -150,7 +149,7 @@ export function App({ store }: Props) {
               aria-label="Trash"
               aria-current={route === "trash" ? "page" : undefined}
             >
-              <Trash2Icon size={18} strokeWidth={1.6} />
+              <Trash2Icon size={18} />
             </a>
           </Tooltip>
           <div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
@@ -163,7 +162,7 @@ export function App({ store }: Props) {
               aria-expanded={settingsOpen}
               onClick={() => setSettingsOpen(true)}
             >
-              <SettingsIcon size={18} strokeWidth={1.6} />
+              <SettingsIcon size={18} />
             </button>
           </Tooltip>
         </div>
@@ -182,7 +181,7 @@ export function App({ store }: Props) {
                 aria-label="Toggle sidebar"
                 aria-expanded={sidebarOpen}
               >
-                <PanelLeftToggleIcon size={16} strokeWidth={1.5} />
+                <PanelLeftToggleIcon size={16} />
               </button>
             </Tooltip>
             <Tooltip label="Previous note" side="bottom">
@@ -193,7 +192,7 @@ export function App({ store }: Props) {
                 className={toolbarIconButtonClass}
                 aria-label="Previous note"
               >
-                <ChevronLeftIcon size={16} strokeWidth={1.5} />
+                <ChevronLeftIcon size={16} />
               </button>
             </Tooltip>
             <Tooltip label="Next note" side="bottom">
@@ -204,7 +203,7 @@ export function App({ store }: Props) {
                 className={toolbarIconButtonClass}
                 aria-label="Next note"
               >
-                <ChevronRightIcon size={16} strokeWidth={1.5} />
+                <ChevronRightIcon size={16} />
               </button>
             </Tooltip>
             {noteNav.title && (
@@ -221,7 +220,7 @@ export function App({ store }: Props) {
                 aria-label="Toggle metadata"
                 aria-expanded={metadataOpen}
               >
-                <PanelRightToggleIcon size={16} strokeWidth={1.5} />
+                <PanelRightToggleIcon size={16} />
               </button>
             </Tooltip>
           </div>
