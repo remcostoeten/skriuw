@@ -7,6 +7,7 @@ import {
   closeTab,
   closeTabsToSide,
   focusPane,
+  reorderTab,
   togglePinTab,
 } from "../actions/panes";
 import { CloseIcon, PinIcon, PinOffIcon } from "../shared/icons";
@@ -77,6 +78,10 @@ function sameTabModels(left: TabModel[], right: TabModel[]): boolean {
 
 type ContextTarget = { kind: "tab"; id: string } | { kind: "strip" };
 
+type DragState = { id: string; before: string | null };
+
+const TAB_DRAG_MIME = "application/x-skriuw-tab";
+
 export function EditorPanes({ store }: Props) {
   const panes = useRendererSelector(store, selectPanes);
   const tabs = useRendererSelector(store, tabModels, sameTabModels);
@@ -86,11 +91,35 @@ export function EditorPanes({ store }: Props) {
   // resolves the tab under the cursor via `data-tab-id` instead of mounting a
   // Radix ContextMenu per tab.
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
 
   function onStripContextMenu(event: React.MouseEvent) {
     const tabEl = (event.target as HTMLElement).closest<HTMLElement>("[data-tab-id]");
     const id = tabEl?.getAttribute("data-tab-id") ?? null;
     setContextTarget(id === null ? { kind: "strip" } : { kind: "tab", id });
+  }
+
+  function onTabDragOver(event: React.DragEvent, tab: TabModel, index: number) {
+    if (drag === null || tab.isPinned) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const rect = event.currentTarget.getBoundingClientRect();
+    const after = event.clientX >= rect.left + rect.width / 2;
+    const before = after ? (tabs[index + 1]?.id ?? null) : tab.id;
+    if (before !== drag.before) {
+      setDrag({ ...drag, before });
+    }
+  }
+
+  function onTabDrop(event: React.DragEvent) {
+    if (drag === null) {
+      return;
+    }
+    event.preventDefault();
+    reorderTab(store, drag.id, drag.before);
+    setDrag(null);
   }
 
   const contextTab =
@@ -111,11 +140,22 @@ export function EditorPanes({ store }: Props) {
               aria-label="Open notes"
               onContextMenu={onStripContextMenu}
             >
-              {tabs.map((tab) => (
+              {tabs.map((tab, index) => (
                 <div
                   key={tab.id}
                   data-tab-id={tab.id}
+                  draggable={!tab.isPinned}
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData(TAB_DRAG_MIME, tab.id);
+                    event.dataTransfer.effectAllowed = "move";
+                    setDrag({ id: tab.id, before: tab.id });
+                  }}
+                  onDragEnd={() => setDrag(null)}
+                  onDragOver={(event) => onTabDragOver(event, tab, index)}
+                  onDrop={onTabDrop}
                   className={`group flex min-w-0 max-w-[180px] items-center border-r border-sidebar-border ${
+                    drag !== null && drag.before === tab.id ? "shadow-[inset_2px_0_0_0_var(--color-primary)]" : ""
+                  } ${drag?.id === tab.id ? "opacity-50" : ""} ${
                     tab.isActive
                       ? "bg-theme-editor text-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -149,10 +189,28 @@ export function EditorPanes({ store }: Props) {
                   </button>
                 </div>
               ))}
+              <div
+                className={`min-w-8 flex-1 ${
+                  drag !== null && drag.before === null
+                    ? "shadow-[inset_2px_0_0_0_var(--color-primary)]"
+                    : ""
+                }`}
+                onDragOver={(event) => {
+                  if (drag === null) {
+                    return;
+                  }
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  if (drag.before !== null) {
+                    setDrag({ ...drag, before: null });
+                  }
+                }}
+                onDrop={onTabDrop}
+              />
               {hasSplit && (
                 <button
                   type="button"
-                  className="ml-auto shrink-0 self-center px-3 text-xs text-muted-foreground hover:text-foreground"
+                  className="shrink-0 self-center px-3 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => closeSplit(store)}
                 >
                   Close split
