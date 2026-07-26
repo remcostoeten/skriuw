@@ -5,6 +5,7 @@ import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { TextSelection, type Command } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import {
+  ChevronRightIcon,
   Heading1Icon,
   Heading2Icon,
   Heading3Icon,
@@ -104,6 +105,15 @@ export const slashCommands: SlashCommand[] = [
     aliases: ["todo", "task", "checkbox", "checklist"],
     icon: <ListTodoIcon size={16} />,
     command: wrapInList(requiredNode("check_list")),
+  },
+  {
+    id: "toggle-list",
+    label: "Toggle list",
+    subtext: "Collapsible list with a disclosure",
+    group: "Lists",
+    aliases: ["collapse", "expand", "disclosure"],
+    icon: <ChevronRightIcon size={16} />,
+    command: wrapInList(requiredNode("toggle_list")),
   },
   {
     id: "quote",
