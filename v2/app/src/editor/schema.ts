@@ -48,6 +48,72 @@ export type SlashMenuState = {
 const HISTORY_GROUP_DELAY_MS = 500;
 const HISTORY_DEPTH = 200;
 
+export const textAlignments = ["left", "center", "right"] as const;
+
+export type TextAlignment = (typeof textAlignments)[number];
+
+export const highlightColors = {
+  yellow: "#fef08a",
+  green: "#bbf7d0",
+  blue: "#bfdbfe",
+  pink: "#fbcfe8",
+  orange: "#fed7aa",
+  purple: "#ddd6fe",
+} as const;
+
+export type HighlightColor = keyof typeof highlightColors;
+
+function isTextAlignment(value: unknown): value is TextAlignment {
+  return typeof value === "string" && textAlignments.includes(value as TextAlignment);
+}
+
+function isHighlightColor(value: unknown): value is HighlightColor {
+  return typeof value === "string" && value in highlightColors;
+}
+
+function textAlignmentFromDom(dom: HTMLElement): TextAlignment {
+  const value = dom.getAttribute("data-text-align") ?? dom.style.textAlign;
+  return isTextAlignment(value) ? value : "left";
+}
+
+function textAlignmentAttributes(node: ProseMirrorNode): Record<string, string> {
+  const textAlign = isTextAlignment(node.attrs.textAlign) ? node.attrs.textAlign : "left";
+  return textAlign === "left"
+    ? { "data-text-align": textAlign }
+    : { "data-text-align": textAlign, style: `text-align: ${textAlign}` };
+}
+
+const paragraphSpec: NodeSpec = {
+  ...basicSchema.spec.nodes.get("paragraph"),
+  attrs: {
+    textAlign: { default: "left" },
+  },
+  toDOM: (node) => ["p", textAlignmentAttributes(node), 0],
+  parseDOM: [
+    {
+      tag: "p",
+      getAttrs: (dom) => ({ textAlign: textAlignmentFromDom(dom) }),
+    },
+  ],
+};
+
+const headingSpec: NodeSpec = {
+  ...basicSchema.spec.nodes.get("heading"),
+  attrs: {
+    level: { default: 1 },
+    textAlign: { default: "left" },
+  },
+  toDOM: (node) => [
+    `h${node.attrs.level}`,
+    textAlignmentAttributes(node),
+    0,
+  ],
+  parseDOM: [1, 2, 3, 4, 5, 6].map((level) => ({
+    tag: `h${level}`,
+    getAttrs: (dom: HTMLElement) => ({ level, textAlign: textAlignmentFromDom(dom) }),
+  })),
+};
+
 const tagRefSpec: NodeSpec = {
   inline: true,
   group: "inline",
@@ -238,6 +304,41 @@ const strikethroughSpec: MarkSpec = {
   toDOM: () => ["s", 0],
 };
 
+const underlineSpec: MarkSpec = {
+  parseDOM: [
+    { tag: "u" },
+    { tag: "ins" },
+    { style: "text-decoration=underline" },
+  ],
+  toDOM: () => ["u", 0],
+};
+
+const highlightSpec: MarkSpec = {
+  attrs: {
+    color: { default: "yellow" },
+  },
+  parseDOM: [
+    {
+      tag: "mark",
+      getAttrs: (dom) => {
+        const color = dom.getAttribute("data-skriuw-highlight");
+        return { color: isHighlightColor(color) ? color : "yellow" };
+      },
+    },
+  ],
+  toDOM: (mark) => {
+    const color = isHighlightColor(mark.attrs.color) ? mark.attrs.color : "yellow";
+    return [
+      "mark",
+      {
+        "data-skriuw-highlight": color,
+        style: `background-color: ${highlightColors[color]}`,
+      },
+      0,
+    ];
+  },
+};
+
 const tableSpecs = tableNodes({
   tableGroup: "block",
   cellContent: "block+",
@@ -245,6 +346,8 @@ const tableSpecs = tableNodes({
 });
 
 const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
+  .update("paragraph", paragraphSpec)
+  .update("heading", headingSpec)
   .update("code_block", codeBlockSpec)
   .addToEnd("check_list", checkListSpec)
   .addToEnd("check_item", checkItemSpec)
@@ -258,7 +361,10 @@ const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
 
 export const productSchema = new Schema({
   nodes,
-  marks: basicSchema.spec.marks.addToEnd("strikethrough", strikethroughSpec),
+  marks: basicSchema.spec.marks
+    .addToEnd("strikethrough", strikethroughSpec)
+    .addToEnd("underline", underlineSpec)
+    .addToEnd("highlight", highlightSpec),
 });
 
 export const slashMenuKey = new PluginKey<SlashMenuState>("skriuw-slash-menu");
@@ -503,7 +609,8 @@ export function createProductPlugins(): Plugin[] {
   const em = productSchema.marks.em;
   const code = productSchema.marks.code;
   const strikethrough = productSchema.marks.strikethrough;
-  if (!strong || !em || !code || !strikethrough) {
+  const underline = productSchema.marks.underline;
+  if (!strong || !em || !code || !strikethrough || !underline) {
     throw new Error("product schema is missing a required mark");
   }
   return [
@@ -550,6 +657,7 @@ export function createProductPlugins(): Plugin[] {
       "Mod-i": toggleMark(em),
       "Mod-e": toggleMark(code),
       "Mod-Shift-x": toggleMark(strikethrough),
+      "Mod-u": toggleMark(underline),
       "Alt-ArrowUp": moveSelectedBlock(-1),
       "Alt-ArrowDown": moveSelectedBlock(1),
       Enter: chainCommands(
@@ -608,9 +716,24 @@ function pipeRow(cells: readonly string[], width: number): string {
   return `| ${padded.join(" | ")} |`;
 }
 
+function textAlignmentMarker(node: ProseMirrorNode): string {
+  const textAlign = isTextAlignment(node.attrs.textAlign) ? node.attrs.textAlign : "left";
+  return textAlign === "left" ? "" : `<!--skriuw-align:${textAlign}-->`;
+}
+
 const productMarkdownSerializer = new MarkdownSerializer(
   {
     ...defaultMarkdownSerializer.nodes,
+    paragraph(state, node) {
+      state.write(textAlignmentMarker(node));
+      state.renderInline(node);
+      state.closeBlock(node);
+    },
+    heading(state, node) {
+      state.write(`${state.repeat("#", node.attrs.level)} ${textAlignmentMarker(node)}`);
+      state.renderInline(node, false);
+      state.closeBlock(node);
+    },
     table(state, node) {
       const rows: string[][] = [];
       node.forEach((row) => rows.push(serializeTableRow(row)));
@@ -669,6 +792,17 @@ const productMarkdownSerializer = new MarkdownSerializer(
       mixable: true,
       expelEnclosingWhitespace: true,
     },
+    underline: {
+      open: "<u>",
+      close: "</u>",
+    },
+    highlight: {
+      open: (_state, mark) => {
+        const color = isHighlightColor(mark.attrs.color) ? mark.attrs.color : "yellow";
+        return `<mark data-skriuw-highlight="${color}">`;
+      },
+      close: "</mark>",
+    },
   },
 );
 
@@ -716,6 +850,40 @@ if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any
   defaultMarkdownParser.tokenizer.inline.ruler.before("link", "wiki_link", inlineWikiLinkRule);
 }
 
+function richFormattingTagRule(state: any, silent: boolean): boolean {
+  const source = state.src.slice(state.pos, state.posMax);
+  const underline = source.match(/^<(\/?)u>/i);
+  if (underline) {
+    if (!silent) {
+      state.push(
+        underline[1] ? "skriuw_underline_close" : "skriuw_underline_open",
+        "u",
+        underline[1] ? -1 : 1,
+      );
+    }
+    state.pos += underline[0].length;
+    return true;
+  }
+  const highlight = source.match(/^<(\/?)mark(?:\s+data-skriuw-highlight=["']([a-z]+)["'])?>/i);
+  if (!highlight) return false;
+  const color = highlight[2]?.toLowerCase();
+  if (!highlight[1] && !isHighlightColor(color)) return false;
+  if (!silent) {
+    const token = state.push(
+      highlight[1] ? "skriuw_highlight_close" : "skriuw_highlight_open",
+      "mark",
+      highlight[1] ? -1 : 1,
+    );
+    if (!highlight[1]) token.meta = { color };
+  }
+  state.pos += highlight[0].length;
+  return true;
+}
+
+if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any) => r.name === "skriuw_rich_formatting")) {
+  defaultMarkdownParser.tokenizer.inline.ruler.before("text", "skriuw_rich_formatting", richFormattingTagRule);
+}
+
 /**
  * The parser is built on markdown-it's commonmark preset, which disables both
  * of these core rules outright — setting the `linkify` option alone silently
@@ -755,6 +923,31 @@ if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) 
   defaultMarkdownParser.tokenizer.core.ruler.push("table_cell_paragraphs", wrapTableCellContent);
 }
 
+function applyTextAlignmentMarkers(state: any): boolean {
+  const tokens = state.tokens;
+  for (let index = 0; index < tokens.length - 1; index += 1) {
+    const opening = tokens[index];
+    const inline = tokens[index + 1];
+    if (
+      (opening.type !== "paragraph_open" && opening.type !== "heading_open") ||
+      inline.type !== "inline"
+    ) {
+      continue;
+    }
+    const first = inline.children?.[0];
+    if (first?.type !== "text") continue;
+    const match = first.content.match(/^<!--skriuw-align:(center|right)-->/);
+    if (!match) continue;
+    first.content = first.content.slice(match[0].length);
+    opening.meta = { ...(opening.meta ?? {}), textAlign: match[1] };
+  }
+  return true;
+}
+
+if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) => r.name === "skriuw_text_alignment")) {
+  defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_text_alignment", applyTextAlignmentMarkers);
+}
+
 defaultMarkdownParser.tokenizer.enable(["strikethrough", "linkify", "table"], true);
 defaultMarkdownParser.tokenizer.set({ linkify: true });
 defaultMarkdownParser.tokenizer.linkify.set({
@@ -769,6 +962,22 @@ const productMarkdownParser = new MarkdownParser(
   {
     ...defaultMarkdownParser.tokens,
     s: { mark: "strikethrough" },
+    paragraph: {
+      block: "paragraph",
+      getAttrs: (tok: any) => ({ textAlign: tok.meta?.textAlign ?? "left" }),
+    },
+    heading: {
+      block: "heading",
+      getAttrs: (tok: any) => ({
+        level: +tok.tag.slice(1),
+        textAlign: tok.meta?.textAlign ?? "left",
+      }),
+    },
+    skriuw_underline: { mark: "underline" },
+    skriuw_highlight: {
+      mark: "highlight",
+      getAttrs: (tok: any) => ({ color: tok.meta?.color ?? "yellow" }),
+    },
     table: { block: "table" },
     thead: { ignore: true },
     tbody: { ignore: true },

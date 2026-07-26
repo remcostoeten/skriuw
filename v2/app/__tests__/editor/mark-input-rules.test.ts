@@ -50,6 +50,34 @@ function typeText(state: EditorState, text: string): EditorState {
   return current;
 }
 
+function pressModU(state: EditorState): EditorState {
+  let current = state;
+  const view = {
+    get state() {
+      return current;
+    },
+    dispatch(transaction: Transaction) {
+      current = current.apply(transaction);
+    },
+  };
+  const event = {
+    key: "u",
+    ctrlKey: true,
+    metaKey: false,
+    altKey: false,
+    shiftKey: false,
+    preventDefault: () => undefined,
+  } as KeyboardEvent;
+  const handled = current.plugins.some((plugin) => {
+    const handleKeyDown = (plugin.props as {
+      handleKeyDown?: (view: unknown, event: KeyboardEvent) => boolean;
+    }).handleKeyDown;
+    return handleKeyDown?.call(plugin, view, event) ?? false;
+  });
+  assert.equal(handled, true);
+  return current;
+}
+
 function markedRange(state: EditorState, markName: string): boolean {
   const paragraph = state.doc.firstChild;
   assert.ok(paragraph);
@@ -80,6 +108,13 @@ test("typing the closing ~~ applies the strikethrough mark", () => {
   const state = typeText(stateWithText("~~gone~"), "~");
   assert.equal(state.doc.textContent, "gone");
   assert.ok(markedRange(state, "strikethrough"));
+});
+
+test("Mod-u toggles underline on the selected text", () => {
+  const initial = stateWithText("underlined");
+  const selected = initial.apply(initial.tr.setSelection(TextSelection.create(initial.doc, 1, 11)));
+  const underlined = pressModU(selected);
+  assert.ok(markedRange(underlined, "underline"));
 });
 
 test("a lone underscore inside a word never italicizes", () => {
