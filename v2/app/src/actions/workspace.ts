@@ -2,7 +2,8 @@ import { applyWorkspaceOperations, bootstrapWorkspace } from "../bridge/commands
 import { envelope } from "../contracts/workspace";
 import type { NodePlacement, WorkspaceOperation } from "../contracts/workspace";
 import { buildRestoreOperation } from "../history/version-model";
-import type { RendererStore } from "../store/types";
+import { opensNotesInTabs } from "../settings/settings-model";
+import type { RendererState, RendererStore } from "../store/types";
 import type { ReferenceOperation } from "../references/types";
 
 export function commitReferenceOperations(
@@ -209,4 +210,37 @@ export function restoreNoteVersion(
 
 export function activateNote(store: RendererStore, id: string | null): void {
   store.setActiveNote(id);
+}
+
+/**
+ * The sequence `previousNote`/`nextNote` walk: the focused pane's tab strip
+ * when notes open in tabs (and more than one tab is open), the sidebar's
+ * note order otherwise.
+ */
+export function noteNavigationOrder(state: RendererState): readonly string[] {
+  if (opensNotesInTabs(state.settings)) {
+    const pane =
+      state.panes.find((entry) => entry.paneId === state.focusedPaneId) ??
+      state.panes[0];
+    if (pane && pane.openNoteIds.length > 1) {
+      return pane.openNoteIds;
+    }
+  }
+  return state.noteIds;
+}
+
+export function navigateNote(store: RendererStore, direction: -1 | 1): void {
+  const state = store.getState();
+  if (state.activeNoteId === null) {
+    return;
+  }
+  const order = noteNavigationOrder(state);
+  const index = order.indexOf(state.activeNoteId);
+  if (index < 0 || order.length < 2) {
+    return;
+  }
+  const nextId = order[(index + direction + order.length) % order.length];
+  if (nextId !== undefined) {
+    activateNote(store, nextId);
+  }
 }
