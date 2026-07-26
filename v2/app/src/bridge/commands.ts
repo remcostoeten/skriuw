@@ -77,6 +77,7 @@ export { openExternalUrl } from "./external-links";
 export type ArchiveExportReport = {
   nodes: number;
   documents: number;
+  images: number;
   exportedAt: number;
   fileName: string;
 };
@@ -84,6 +85,7 @@ export type ArchiveExportReport = {
 export type ArchiveImportReport = {
   nodes: number;
   documents: number;
+  images: number;
   safetyBackupFileName: string;
   snapshot: WorkspaceSnapshot;
 };

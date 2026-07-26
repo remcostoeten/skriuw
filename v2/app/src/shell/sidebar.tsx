@@ -1029,11 +1029,11 @@ export function Sidebar({ store }: Props) {
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => setAllFoldersExpanded(store, true)} className="gap-2">
-          <UnfoldVerticalIcon className="h-3.5 w-3.5" strokeWidth={1.6} />
+          <UnfoldVerticalIcon size={14} className="h-3.5 w-3.5" />
           Expand all folders
         </ContextMenuItem>
         <ContextMenuItem onClick={() => setAllFoldersExpanded(store, false)} className="gap-2">
-          <FoldVerticalIcon className="h-3.5 w-3.5" strokeWidth={1.6} />
+          <FoldVerticalIcon size={14} className="h-3.5 w-3.5" />
           Collapse all folders
         </ContextMenuItem>
       </>
@@ -1149,7 +1149,7 @@ export function Sidebar({ store }: Props) {
                 aria-label="Toggle all folders"
                 onClick={() => toggleAllFolders(store)}
               >
-                <UnfoldVerticalIcon size={16} strokeWidth={1.5} />
+                <UnfoldVerticalIcon size={16} />
               </button>
             </Tooltip>
             <Tooltip label="Search notes" side="bottom">
@@ -1160,7 +1160,7 @@ export function Sidebar({ store }: Props) {
                 aria-label="Search notes"
                 onClick={() => setIsSearchOpen(true)}
               >
-                <SearchIcon size={16} strokeWidth={1.5} />
+                <SearchIcon size={16} />
               </button>
             </Tooltip>
           </div>
@@ -1173,7 +1173,6 @@ export function Sidebar({ store }: Props) {
               <div className="flex h-8 w-full items-center gap-2 bg-transparent px-2.5">
                 <SearchIcon
                   size={14}
-                  strokeWidth={1.5}
                   className="shrink-0 text-muted-foreground"
                 />
                 <input
@@ -1194,7 +1193,7 @@ export function Sidebar({ store }: Props) {
                   className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground"
                   aria-label="Close search"
                 >
-                  <CloseIcon size={14} strokeWidth={1.5} />
+                  <CloseIcon size={14} />
                 </button>
               </div>
             </div>
@@ -1215,7 +1214,7 @@ export function Sidebar({ store }: Props) {
         <ContextMenu onOpenChange={(open) => !open && setContextTarget(null)}>
           {moveIds !== null && (
             <div className="mx-1.5 mb-1 flex items-center gap-2 border border-foreground/20 bg-foreground/[0.08] px-2.5 py-1.5 text-[11px] font-medium text-foreground">
-              <FolderInputIcon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground" />
+              <FolderInputIcon size={14} className="shrink-0 text-muted-foreground" />
               <span className="min-w-0 truncate">
                 Moving {moveIds.length} item{moveIds.length > 1 ? "s" : ""} →{" "}
                 <span className="text-foreground">{moveTargetLabel}</span>
@@ -1236,7 +1235,7 @@ export function Sidebar({ store }: Props) {
                   aria-label="Pinned"
                 >
                   <div className="flex items-center gap-1.5 px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                    <PinIcon size={11} strokeWidth={1.6} />
+                    <PinIcon size={11} />
                     Pinned
                   </div>
                   <div

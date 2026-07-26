@@ -40,8 +40,6 @@ The product sidebar ports the measured dependency-free fixed-row tree into one v
 
 The disposable `spikes/renderer-store` harness combines those projections with a normalized dependency-free external store and narrow React selectors. The application shell and persistent editor host hold no workspace subscription; mounted rows, editor selection, metadata fields, and settings observe only stable values they render. Editor typing remains editor-owned, equivalent updates stop before selector traversal, and collapse preserves hidden active-note identity while moving tree focus independently. Production and profiling artifacts are separate. Exact scenario allowlists and trusted native input make this a viable later ADR-0020 candidate, not a framework or store selection; fixed-runner evidence and representative editor semantics remain gates.
 
-The disposable `spikes/desktop-bridge` harness measures Tauri command IPC without selecting a product shell. Navigation remains renderer-local and crosses no command boundary. Background commands submit to `WorkspaceRuntime` immediately, then move only the blocking completion wait onto Tauri's blocking pool. Production Linux WebKit measurements keep Tauri viable and prove renderer frames continue while serialized acknowledgements wait, but Windows, macOS, fixed-runner, final operation-envelope, and startup-payload evidence remain outside this result.
-
 ## Runtime contract
 
 Startup calls `bootstrap()` once. Returned snapshot contains nodes, document JSON, settings, active note, and cached history headers. Renderer normalizes this data and prepares editor states before dismissing startup UI.

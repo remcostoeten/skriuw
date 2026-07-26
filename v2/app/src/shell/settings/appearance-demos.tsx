@@ -25,7 +25,7 @@ function DemoSidebarRow({ compact }: { compact: boolean }) {
         compact ? "h-6" : "h-8",
       )}
     >
-      <FileTextIcon size={12} className="shrink-0 text-muted-foreground/70" strokeWidth={1.6} />
+      <FileTextIcon size={12} className="shrink-0 text-muted-foreground/70" />
       <span className="truncate">Weekly review.md</span>
     </div>
   );
@@ -98,7 +98,7 @@ function DemoTreeRow({ label, depth, kind, showGuides }: DemoTreeRowProps) {
       style={{ paddingLeft: `${8 + depth * 12}px` }}
     >
       <DemoTreeGuides depth={depth} showGuides={showGuides} />
-      <Icon size={12} className="shrink-0 text-muted-foreground/70" strokeWidth={1.6} />
+      <Icon size={12} className="shrink-0 text-muted-foreground/70" />
       <span className="truncate">{label}</span>
     </div>
   );

@@ -115,10 +115,10 @@ export function VersionHistoryPanel({ store, noteId, versions }: Props) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="grid h-full min-h-0 grid-cols-[minmax(220px,280px)_minmax(0,1fr)]">
       <div
         ref={parentRef}
-        className="relative -mx-1 max-h-[220px] overflow-y-auto"
+        className="relative min-h-0 overflow-y-auto overscroll-contain border-r border-border px-3 py-2"
         role="listbox"
         aria-label="Version history"
       >
@@ -144,7 +144,7 @@ export function VersionHistoryPanel({ store, noteId, versions }: Props) {
                   left: 0,
                   right: 0,
                   height: virtualRow.size,
-                  transform: `translateY(${virtualRow.start}px)`,
+                  transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
                 }}
               >
                 <button
@@ -204,50 +204,57 @@ export function VersionHistoryPanel({ store, noteId, versions }: Props) {
         </div>
       </div>
 
-      {preview && (
-        <div className="overflow-hidden rounded-[var(--radius)] border border-border bg-muted/20">
-          {preview.status === "loading" && (
-            <p className="m-0 px-2.5 py-2 text-[11px] text-muted-foreground">Loading version…</p>
-          )}
-          {preview.status === "error" && (
-            <div className="flex items-center justify-between gap-2 px-2.5 py-2">
-              <p className="m-0 text-[11px] text-destructive">{preview.message}</p>
-              <PreviewCloseButton onClick={closePreview} />
-            </div>
-          )}
-          {preview.status === "ready" && (
-            <>
-              <div className="flex items-center justify-between gap-2 border-b border-border px-2.5 py-1.5">
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  {formatTimestamp(preview.content.createdAt)}
-                </span>
+      <div className="flex min-h-0 min-w-0 flex-col">
+        {!preview && (
+          <p className="m-auto max-w-[42ch] text-center text-[13px] text-muted-foreground">
+            Select a revision to preview its content and restore it.
+          </p>
+        )}
+        {preview && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            {preview.status === "loading" && (
+              <p className="m-0 px-4 py-3 text-[12px] text-muted-foreground">Loading version…</p>
+            )}
+            {preview.status === "error" && (
+              <div className="flex items-center justify-between gap-2 px-4 py-3">
+                <p className="m-0 text-[12px] text-destructive">{preview.message}</p>
                 <PreviewCloseButton onClick={closePreview} />
               </div>
-              <VersionMarkdownPreview markdown={preview.content.markdown} />
-              <div className="border-t border-border px-2.5 py-1.5">
-                <InlineConfirm
-                  size="sm"
-                  confirmLabel="Restore"
-                  message="Replace current content? The current version stays in history."
-                  messagePlacement="stacked"
-                  onConfirm={confirmRestore}
-                  renderIdle={(arm) => (
-                    <button
-                      type="button"
-                      className="inline-flex h-[22px] shrink-0 items-center gap-1 whitespace-nowrap rounded-[var(--radius-md)] border border-border bg-transparent px-[8px] text-[11px] font-[560] text-foreground/80 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-60"
-                      disabled={preview.restoring}
-                      onClick={arm}
-                    >
-                      <RotateCcwIcon size={12} />
-                      {preview.restoring ? "Restoring…" : "Restore this version"}
-                    </button>
-                  )}
-                />
-              </div>
-            </>
-          )}
-        </div>
-      )}
+            )}
+            {preview.status === "ready" && (
+              <>
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2">
+                  <span className="text-[12px] font-medium text-muted-foreground">
+                    {formatTimestamp(preview.content.createdAt)}
+                  </span>
+                  <PreviewCloseButton onClick={closePreview} />
+                </div>
+                <VersionMarkdownPreview markdown={preview.content.markdown} />
+                <div className="shrink-0 border-t border-border px-4 py-2">
+                  <InlineConfirm
+                    size="sm"
+                    confirmLabel="Restore"
+                    message="Replace current content? The current version stays in history."
+                    messagePlacement="stacked"
+                    onConfirm={confirmRestore}
+                    renderIdle={(arm) => (
+                      <button
+                        type="button"
+                        className="inline-flex h-[24px] shrink-0 items-center gap-1 whitespace-nowrap rounded-[var(--radius-md)] border border-border bg-transparent px-[8px] text-[12px] font-[560] text-foreground/80 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-60"
+                        disabled={preview.restoring}
+                        onClick={arm}
+                      >
+                        <RotateCcwIcon size={12} />
+                        {preview.restoring ? "Restoring…" : "Restore this version"}
+                      </button>
+                    )}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -287,10 +294,10 @@ function VersionMarkdownPreview({ markdown }: VersionMarkdownPreviewProps) {
   return markdown.trim().length > 0 ? (
     <div
       ref={ref}
-      className="prosemirror-host ProseMirror max-h-[220px] overflow-y-auto px-2.5 py-2 text-[12px]"
+      className="prosemirror-host ProseMirror min-h-0 flex-1 overflow-y-auto px-4 py-3 text-[13px]"
     />
   ) : (
-    <p className="m-0 px-2.5 py-2 text-[11px] text-muted-foreground">
+    <p className="m-0 flex-1 px-4 py-3 text-[12px] text-muted-foreground">
       This version has no content.
     </p>
   );

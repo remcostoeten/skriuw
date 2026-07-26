@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import { ChevronRightIcon, HistoryIcon, InfoIcon, ListIcon } from "../shared/icons";
 import { cn } from "../shared/lib/utils";
 import { projectVersionList } from "../history/version-model";
-import { VersionHistoryPanel } from "../history/version-history-panel";
+import { noteHistoryHash } from "../app-route";
+import { formatRelativeTime } from "../shared/lib/relative-time";
+import { NotePropertiesPanel } from "../properties/note-properties-panel";
 import { NoteOutline } from "./note-outline";
 import {
   BacklinksList,
@@ -23,7 +25,7 @@ type Props = {
 
 type SectionKey =
   | "outline"
-  | "history"
+  | "properties"
   | "details"
   | "backlinks"
   | "outgoing"
@@ -41,6 +43,12 @@ type SectionProps = {
   className?: string;
 };
 
+const sectionHeaderClass =
+  "sticky top-0 z-[1] flex min-h-11 w-full items-center justify-between gap-3 bg-background px-4 py-2 text-left";
+
+const sectionLabelClass =
+  "flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/68";
+
 function InspectorSection({
   id,
   title,
@@ -51,31 +59,41 @@ function InspectorSection({
   children,
   className,
 }: SectionProps) {
+  const label = (
+    <div className={sectionLabelClass}>
+      {icon}
+      <span className="truncate">{title}</span>
+      {count !== undefined && (
+        <span className="font-normal tabular-nums text-muted-foreground/44">({count})</span>
+      )}
+    </div>
+  );
+
   return (
     <section aria-labelledby={id} className={cn("border-b border-border", className)}>
-      <button
-        type="button"
-        id={id}
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/50"
-      >
-        <div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/68">
-          {icon}
-          <span className="truncate">{title}</span>
-          {count !== undefined && (
-            <span className="font-normal tabular-nums text-muted-foreground/44">({count})</span>
-          )}
+      {count === 0 ? (
+        <div id={id} className={cn(sectionHeaderClass, "select-none")}>
+          {label}
         </div>
-        <ChevronRightIcon
-          size={14}
-          className={cn(
-            "shrink-0 text-muted-foreground/50 transition-transform",
-            open && "rotate-90",
-          )}
-        />
-      </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
+      ) : (
+        <button
+          type="button"
+          id={id}
+          onClick={onToggle}
+          aria-expanded={open}
+          className={cn(sectionHeaderClass, "cursor-pointer transition-colors hover:bg-muted/50")}
+        >
+          {label}
+          <ChevronRightIcon
+            size={14}
+            className={cn(
+              "shrink-0 text-muted-foreground/50 transition-transform",
+              open && "rotate-90",
+            )}
+          />
+        </button>
+      )}
+      {(open || count === 0) && <div className="px-4 pb-4">{children}</div>}
     </section>
   );
 }
@@ -131,26 +149,35 @@ function selectActiveNoteMarkdown(state: RendererState): string | null {
     : (state.documents.get(state.activeNoteId)?.markdown ?? null);
 }
 
+function selectActiveNotePropertyCount(state: RendererState): number {
+  return state.activeNoteId === null
+    ? 0
+    : (state.propertiesByNoteId.get(state.activeNoteId)?.length ?? 0);
+}
+
 export function MetadataPanel({ store }: Props) {
   const activeNoteId = useRendererSelector(store, selectActiveNoteId);
   const metadata = useRendererSelector(store, selectActiveNoteMetadata);
   const historyHeaders = useRendererSelector(store, selectActiveNoteHistory);
   const versions = useMemo(() => projectVersionList(historyHeaders), [historyHeaders]);
+  const latestVersion = versions[0];
   const backlinks = useBacklinks(store, activeNoteId);
   const outgoingNotes = useOutgoingNotes(store, activeNoteId);
   const referenceDetails = useNoteReferenceDetails(store, activeNoteId);
   const unlinkedMentions = useUnlinkedMentions(store, activeNoteId);
   const createdAt = useRendererSelector(store, selectActiveNoteCreatedAt);
   const markdown = useRendererSelector(store, selectActiveNoteMarkdown);
+  const propertyCount = useRendererSelector(store, selectActiveNotePropertyCount);
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     outline: true,
-    history: true,
+    properties: true,
     details: true,
     backlinks: true,
     outgoing: true,
     references: true,
     mentions: true,
   });
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [outlineCount, setOutlineCount] = useState(0);
   const handleOutlineCountChange = useCallback((count: number) => setOutlineCount(count), []);
 
@@ -177,7 +204,7 @@ export function MetadataPanel({ store }: Props) {
 
   return (
     <aside className={asideClass} aria-label="Note metadata">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {activeNoteId && (
           <InspectorSection
             id="metadata-outline"
@@ -190,21 +217,16 @@ export function MetadataPanel({ store }: Props) {
             <NoteOutline key={activeNoteId} store={store} onCountChange={handleOutlineCountChange} />
           </InspectorSection>
         )}
-        {versions.length > 0 && activeNoteId && (
+        {activeNoteId && (
           <InspectorSection
-            id="metadata-history"
-            title="History"
-            icon={<HistoryIcon size={14} className="shrink-0" />}
-            count={versions.length}
-            open={openSections.history}
-            onToggle={() => toggleSection("history")}
+            id="metadata-properties"
+            title="Properties"
+            icon={<InfoIcon size={14} className="shrink-0" />}
+            count={propertyCount}
+            open={openSections.properties}
+            onToggle={() => toggleSection("properties")}
           >
-            <VersionHistoryPanel
-              key={activeNoteId}
-              store={store}
-              noteId={activeNoteId}
-              versions={versions}
-            />
+            <NotePropertiesPanel store={store} />
           </InspectorSection>
         )}
         {activeNoteId && backlinks.length > 0 && (
@@ -257,7 +279,7 @@ export function MetadataPanel({ store }: Props) {
         )}
       </div>
 
-      <div className="shrink-0 border-t border-border bg-background">
+      <div className="max-h-[55%] shrink-0 overflow-y-auto border-t border-border bg-background">
         <InspectorSection
           id="metadata-details"
           title="Details"
@@ -277,6 +299,29 @@ export function MetadataPanel({ store }: Props) {
               </div>
             ))}
           </dl>
+          {activeNoteId && (
+            <button
+              type="button"
+              onClick={() => {
+                window.location.hash = noteHistoryHash(activeNoteId);
+              }}
+              className="mt-3 flex w-full cursor-pointer items-center justify-between gap-2 rounded-[var(--radius)] border border-border bg-transparent px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <HistoryIcon size={14} className="shrink-0" />
+                <span className="truncate">
+                  {versions.length > 0
+                    ? `${versions.length} revision${versions.length === 1 ? "" : "s"}`
+                    : "No revisions yet"}
+                </span>
+              </span>
+              {latestVersion && (
+                <span className="shrink-0 text-muted-foreground/60">
+                  {formatRelativeTime(latestVersion.createdAt)}
+                </span>
+              )}
+            </button>
+          )}
         </InspectorSection>
       </div>
     </aside>

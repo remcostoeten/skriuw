@@ -46,7 +46,8 @@ export const settingsRowDetail =
 
 export const settingsButton =
   "inline-flex shrink-0 items-center gap-[7px] whitespace-nowrap rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs text-foreground cursor-pointer hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:bg-muted disabled:hover:text-foreground";
-export const settingsButtonDanger = "text-destructive hover:text-destructive";
+export const settingsButtonDanger =
+  "hover:border-destructive/40 hover:bg-destructive/[0.12] hover:text-destructive";
 
 const settingsFieldFocus =
   "focus-visible:border-foreground/45 focus-visible:shadow-[0_0_0_2px_hsl(var(--background)),0_0_0_3px_hsl(var(--foreground)/0.25)]";

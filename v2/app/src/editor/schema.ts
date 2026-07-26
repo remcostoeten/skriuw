@@ -48,6 +48,72 @@ export type SlashMenuState = {
 const HISTORY_GROUP_DELAY_MS = 500;
 const HISTORY_DEPTH = 200;
 
+export const textAlignments = ["left", "center", "right"] as const;
+
+export type TextAlignment = (typeof textAlignments)[number];
+
+export const highlightColors = {
+  yellow: "#fef08a",
+  green: "#bbf7d0",
+  blue: "#bfdbfe",
+  pink: "#fbcfe8",
+  orange: "#fed7aa",
+  purple: "#ddd6fe",
+} as const;
+
+export type HighlightColor = keyof typeof highlightColors;
+
+function isTextAlignment(value: unknown): value is TextAlignment {
+  return typeof value === "string" && textAlignments.includes(value as TextAlignment);
+}
+
+function isHighlightColor(value: unknown): value is HighlightColor {
+  return typeof value === "string" && value in highlightColors;
+}
+
+function textAlignmentFromDom(dom: HTMLElement): TextAlignment {
+  const value = dom.getAttribute("data-text-align") ?? dom.style.textAlign;
+  return isTextAlignment(value) ? value : "left";
+}
+
+function textAlignmentAttributes(node: ProseMirrorNode): Record<string, string> {
+  const textAlign = isTextAlignment(node.attrs.textAlign) ? node.attrs.textAlign : "left";
+  return textAlign === "left"
+    ? { "data-text-align": textAlign }
+    : { "data-text-align": textAlign, style: `text-align: ${textAlign}` };
+}
+
+const paragraphSpec: NodeSpec = {
+  ...basicSchema.spec.nodes.get("paragraph"),
+  attrs: {
+    textAlign: { default: "left" },
+  },
+  toDOM: (node) => ["p", textAlignmentAttributes(node), 0],
+  parseDOM: [
+    {
+      tag: "p",
+      getAttrs: (dom) => ({ textAlign: textAlignmentFromDom(dom) }),
+    },
+  ],
+};
+
+const headingSpec: NodeSpec = {
+  ...basicSchema.spec.nodes.get("heading"),
+  attrs: {
+    level: { default: 1 },
+    textAlign: { default: "left" },
+  },
+  toDOM: (node) => [
+    `h${node.attrs.level}`,
+    textAlignmentAttributes(node),
+    0,
+  ],
+  parseDOM: [1, 2, 3, 4, 5, 6].map((level) => ({
+    tag: `h${level}`,
+    getAttrs: (dom: HTMLElement) => ({ level, textAlign: textAlignmentFromDom(dom) }),
+  })),
+};
+
 const tagRefSpec: NodeSpec = {
   inline: true,
   group: "inline",
@@ -220,12 +286,16 @@ const checkItemSpec: NodeSpec = {
   defining: true,
   attrs: {
     checked: { default: false },
+    taskId: { default: null },
+    blockId: { default: null },
   },
   toDOM: (node) => [
     "li",
     {
       class: "check-item",
       "data-checked": node.attrs.checked ? "true" : "false",
+      ...(node.attrs.taskId ? { "data-task-id": String(node.attrs.taskId) } : {}),
+      ...(node.attrs.blockId ? { "data-block-id": String(node.attrs.blockId) } : {}),
     },
     [
       "span",
@@ -242,7 +312,55 @@ const checkItemSpec: NodeSpec = {
     {
       tag: "li[data-checked]",
       priority: 60,
-      getAttrs: (dom) => ({ checked: dom.getAttribute("data-checked") === "true" }),
+      getAttrs: (dom) => ({
+        checked: dom.getAttribute("data-checked") === "true",
+        taskId: dom.getAttribute("data-task-id"),
+        blockId: dom.getAttribute("data-block-id"),
+      }),
+    },
+  ],
+};
+
+const toggleListSpec: NodeSpec = {
+  content: "toggle_item+",
+  group: "block",
+  toDOM: () => ["ul", { class: "toggle-list", "data-toggle-list": "true" }, 0],
+  parseDOM: [{ tag: "ul[data-toggle-list]", priority: 60 }],
+};
+
+const toggleItemSpec: NodeSpec = {
+  content: "paragraph block*",
+  defining: true,
+  attrs: {
+    open: { default: true },
+  },
+  toDOM: (node) => {
+    const open = node.attrs.open !== false;
+    return [
+      "li",
+      {
+        class: "toggle-item",
+        "data-toggle-open": open ? "true" : "false",
+      },
+      [
+        "button",
+        {
+          class: "toggle-item-disclosure",
+          type: "button",
+          contenteditable: "false",
+          "aria-expanded": open ? "true" : "false",
+          "aria-label": `${open ? "Collapse" : "Expand"} collapsible item`,
+          "aria-keyshortcuts": "Alt+Enter",
+        },
+      ],
+      ["div", { class: "toggle-item-content" }, 0],
+    ];
+  },
+  parseDOM: [
+    {
+      tag: "li[data-toggle-open]",
+      priority: 60,
+      getAttrs: (dom) => ({ open: dom.getAttribute("data-toggle-open") === "true" }),
     },
   ],
 };
@@ -292,6 +410,41 @@ const strikethroughSpec: MarkSpec = {
   toDOM: () => ["s", 0],
 };
 
+const underlineSpec: MarkSpec = {
+  parseDOM: [
+    { tag: "u" },
+    { tag: "ins" },
+    { style: "text-decoration=underline" },
+  ],
+  toDOM: () => ["u", 0],
+};
+
+const highlightSpec: MarkSpec = {
+  attrs: {
+    color: { default: "yellow" },
+  },
+  parseDOM: [
+    {
+      tag: "mark",
+      getAttrs: (dom) => {
+        const color = dom.getAttribute("data-skriuw-highlight");
+        return { color: isHighlightColor(color) ? color : "yellow" };
+      },
+    },
+  ],
+  toDOM: (mark) => {
+    const color = isHighlightColor(mark.attrs.color) ? mark.attrs.color : "yellow";
+    return [
+      "mark",
+      {
+        "data-skriuw-highlight": color,
+        style: `background-color: ${highlightColors[color]}`,
+      },
+      0,
+    ];
+  },
+};
+
 const tableSpecs = tableNodes({
   tableGroup: "block",
   cellContent: "block+",
@@ -300,10 +453,14 @@ const tableSpecs = tableNodes({
 
 const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
   .update("image", blockedImageSpec)
+  .update("paragraph", paragraphSpec)
+  .update("heading", headingSpec)
   .update("code_block", codeBlockSpec)
   .addToEnd("raw_markdown", rawMarkdownSpec)
   .addToEnd("check_list", checkListSpec)
   .addToEnd("check_item", checkItemSpec)
+  .addToEnd("toggle_list", toggleListSpec)
+  .addToEnd("toggle_item", toggleItemSpec)
   .addToEnd("tag_ref", tagRefSpec)
   .addToEnd("mention_ref", mentionRefSpec)
   .addToEnd("image_ref", imageRefSpec)
@@ -314,7 +471,10 @@ const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
 
 export const productSchema = new Schema({
   nodes,
-  marks: basicSchema.spec.marks.addToEnd("strikethrough", strikethroughSpec),
+  marks: basicSchema.spec.marks
+    .addToEnd("strikethrough", strikethroughSpec)
+    .addToEnd("underline", underlineSpec)
+    .addToEnd("highlight", highlightSpec),
 });
 
 export const slashMenuKey = new PluginKey<SlashMenuState>("skriuw-slash-menu");
@@ -433,6 +593,24 @@ function checkListInputRule(): InputRule {
   });
 }
 
+function toggleListInputRule(): InputRule {
+  return new InputRule(/^\s*\[([>vV])\]\s$/, (state, match, start, end) => {
+    const toggleList = productSchema.nodes.toggle_list;
+    if (!toggleList) return null;
+    if (state.doc.resolve(start).parent.type.spec.code) return null;
+    const tr = state.tr.delete(start, end);
+    const range = tr.doc.resolve(start).blockRange();
+    if (!range) return null;
+    const wrapping = findWrapping(range, toggleList);
+    if (!wrapping) return null;
+    tr.wrap(range, wrapping);
+    tr.setNodeMarkup(range.start + 1, undefined, {
+      open: (match[1] ?? "").toLowerCase() === "v",
+    });
+    return tr;
+  });
+}
+
 function linkInputRule(): InputRule {
   return new InputRule(/\[([^\[\]]+)\]\(([^()\s]+)\)$/, (state, match, start, end) => {
     const link = productSchema.marks.link;
@@ -536,6 +714,98 @@ function createCheckboxTogglePlugin(): Plugin {
   });
 }
 
+function toggleItemAtDom(view: EditorView, target: HTMLElement): boolean {
+  const $pos = view.state.doc.resolve(view.posAtDOM(target, 0));
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    const node = $pos.node(depth);
+    if (node.type.name !== "toggle_item") continue;
+    view.dispatch(toggleItemTransaction(view.state, $pos.before(depth), node));
+    return true;
+  }
+  return false;
+}
+
+function toggleItemTransaction(
+  state: EditorState,
+  position: number,
+  node: ProseMirrorNode,
+): EditorState["tr"] {
+  const closing = node.attrs.open !== false;
+  const transaction = state.tr.setNodeMarkup(position, undefined, {
+    open: !closing,
+  });
+  const summary = node.firstChild;
+  if (
+    closing &&
+    summary &&
+    state.selection.from > position &&
+    state.selection.to > position + summary.nodeSize &&
+    state.selection.to < position + node.nodeSize
+  ) {
+    transaction.setSelection(
+      TextSelection.near(transaction.doc.resolve(position + summary.nodeSize), -1),
+    );
+  }
+  return transaction;
+}
+
+function isToggleDisclosure(target: EventTarget | null): target is HTMLElement {
+  return (
+    target !== null &&
+    typeof target === "object" &&
+    "classList" in target &&
+    (target as HTMLElement).classList.contains("toggle-item-disclosure")
+  );
+}
+
+export function toggleItemAtSelection(
+  state: EditorState,
+  dispatch?: (transaction: EditorState["tr"]) => void,
+): boolean {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth);
+    if (node.type.name !== "toggle_item") continue;
+    if (dispatch) {
+      dispatch(toggleItemTransaction(state, $from.before(depth), node));
+    }
+    return true;
+  }
+  return false;
+}
+
+function createToggleListPlugin(): Plugin {
+  return new Plugin({
+    props: {
+      handleDOMEvents: {
+        click(view, event) {
+          const target = event.target;
+          if (
+            !isToggleDisclosure(target) ||
+            !view.editable
+          ) {
+            return false;
+          }
+          event.preventDefault();
+          return toggleItemAtDom(view, target);
+        },
+      },
+      handleKeyDown(view, event) {
+        const target = event.target;
+        if (
+          !isToggleDisclosure(target) ||
+          !view.editable ||
+          (event.key !== "Enter" && event.key !== " ")
+        ) {
+          return false;
+        }
+        event.preventDefault();
+        return toggleItemAtDom(view, target);
+      },
+    },
+  });
+}
+
 export function createProductPlugins(): Plugin[] {
   const blockquote = productSchema.nodes.blockquote;
   const codeBlock = productSchema.nodes.code_block;
@@ -544,6 +814,7 @@ export function createProductPlugins(): Plugin[] {
   const orderedList = productSchema.nodes.ordered_list;
   const listItem = productSchema.nodes.list_item;
   const checkItem = productSchema.nodes.check_item;
+  const toggleItem = productSchema.nodes.toggle_item;
   if (
     !blockquote ||
     !codeBlock ||
@@ -551,7 +822,8 @@ export function createProductPlugins(): Plugin[] {
     !bulletList ||
     !orderedList ||
     !listItem ||
-    !checkItem
+    !checkItem ||
+    !toggleItem
   ) {
     throw new Error("product schema is missing a required block node");
   }
@@ -559,7 +831,8 @@ export function createProductPlugins(): Plugin[] {
   const em = productSchema.marks.em;
   const code = productSchema.marks.code;
   const strikethrough = productSchema.marks.strikethrough;
-  if (!strong || !em || !code || !strikethrough) {
+  const underline = productSchema.marks.underline;
+  if (!strong || !em || !code || !strikethrough || !underline) {
     throw new Error("product schema is missing a required mark");
   }
   return [
@@ -569,12 +842,14 @@ export function createProductPlugins(): Plugin[] {
     createSearchPlugin(),
     createCodeHighlightPlugin(),
     createCheckboxTogglePlugin(),
+    createToggleListPlugin(),
     inputRules({
       rules: [
         ...smartQuotes,
         ellipsis,
         emDash,
         checkListInputRule(),
+        toggleListInputRule(),
         textblockTypeInputRule(/^(#{1,6})\s$/, heading, (match) => ({
           level: match[1]?.length ?? 1,
         })),
@@ -606,19 +881,24 @@ export function createProductPlugins(): Plugin[] {
       "Mod-i": toggleMark(em),
       "Mod-e": toggleMark(code),
       "Mod-Shift-x": toggleMark(strikethrough),
+      "Mod-u": toggleMark(underline),
       "Alt-ArrowUp": moveSelectedBlock(-1),
       "Alt-ArrowDown": moveSelectedBlock(1),
+      "Alt-Enter": toggleItemAtSelection,
       Enter: chainCommands(
         splitListItem(checkItem, { checked: false }),
+        splitListItem(toggleItem, { open: true }),
         splitListItem(listItem),
       ),
       Tab: chainCommands(
         sinkListItem(checkItem),
+        sinkListItem(toggleItem),
         sinkListItem(listItem),
         goToNextCell(1),
       ),
       "Shift-Tab": chainCommands(
         liftListItem(checkItem),
+        liftListItem(toggleItem),
         liftListItem(listItem),
         goToNextCell(-1),
       ),
@@ -664,9 +944,24 @@ function pipeRow(cells: readonly string[], width: number): string {
   return `| ${padded.join(" | ")} |`;
 }
 
+function textAlignmentMarker(node: ProseMirrorNode): string {
+  const textAlign = isTextAlignment(node.attrs.textAlign) ? node.attrs.textAlign : "left";
+  return textAlign === "left" ? "" : `<!--skriuw-align:${textAlign}-->`;
+}
+
 const productMarkdownSerializer = new MarkdownSerializer(
   {
     ...defaultMarkdownSerializer.nodes,
+    paragraph(state, node) {
+      state.write(textAlignmentMarker(node));
+      state.renderInline(node);
+      state.closeBlock(node);
+    },
+    heading(state, node) {
+      state.write(`${state.repeat("#", node.attrs.level)} ${textAlignmentMarker(node)}`);
+      state.renderInline(node, false);
+      state.closeBlock(node);
+    },
     table(state, node) {
       const rows: string[][] = [];
       node.forEach((row) => rows.push(serializeTableRow(row)));
@@ -700,6 +995,19 @@ const productMarkdownSerializer = new MarkdownSerializer(
     check_item(state, node) {
       state.write(node.attrs.checked ? "[x] " : "[ ] ");
       state.renderContent(node);
+      if (isTaskId(node.attrs.taskId)) {
+        const blockId = isTaskId(node.attrs.blockId) && node.attrs.blockId !== node.attrs.taskId
+          ? `:${node.attrs.blockId}`
+          : "";
+        state.write(` <!--skriuw-task:${node.attrs.taskId}${blockId}-->`);
+      }
+    },
+    toggle_list(state, node) {
+      state.renderList(node, "  ", () => "- ");
+    },
+    toggle_item(state, node) {
+      state.write(node.attrs.open === false ? "[>] " : "[v] ");
+      state.renderContent(node);
     },
     tag_ref(state, node) {
       state.text(`#${node.attrs.label}`, false);
@@ -728,6 +1036,17 @@ const productMarkdownSerializer = new MarkdownSerializer(
       close: "~~",
       mixable: true,
       expelEnclosingWhitespace: true,
+    },
+    underline: {
+      open: "<u>",
+      close: "</u>",
+    },
+    highlight: {
+      open: (_state, mark) => {
+        const color = isHighlightColor(mark.attrs.color) ? mark.attrs.color : "yellow";
+        return `<mark data-skriuw-highlight="${color}">`;
+      },
+      close: "</mark>",
     },
   },
 );
@@ -782,6 +1101,40 @@ if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any
   defaultMarkdownParser.tokenizer.inline.ruler.before("link", "wiki_link", inlineWikiLinkRule);
 }
 
+function richFormattingTagRule(state: any, silent: boolean): boolean {
+  const source = state.src.slice(state.pos, state.posMax);
+  const underline = source.match(/^<(\/?)u>/i);
+  if (underline) {
+    if (!silent) {
+      state.push(
+        underline[1] ? "skriuw_underline_close" : "skriuw_underline_open",
+        "u",
+        underline[1] ? -1 : 1,
+      );
+    }
+    state.pos += underline[0].length;
+    return true;
+  }
+  const highlight = source.match(/^<(\/?)mark(?:\s+data-skriuw-highlight=["']([a-z]+)["'])?>/i);
+  if (!highlight) return false;
+  const color = highlight[2]?.toLowerCase();
+  if (!highlight[1] && !isHighlightColor(color)) return false;
+  if (!silent) {
+    const token = state.push(
+      highlight[1] ? "skriuw_highlight_close" : "skriuw_highlight_open",
+      "mark",
+      highlight[1] ? -1 : 1,
+    );
+    if (!highlight[1]) token.meta = { color };
+  }
+  state.pos += highlight[0].length;
+  return true;
+}
+
+if (!(defaultMarkdownParser.tokenizer.inline.ruler as any).__rules?.some((r: any) => r.name === "skriuw_rich_formatting")) {
+  defaultMarkdownParser.tokenizer.inline.ruler.before("text", "skriuw_rich_formatting", richFormattingTagRule);
+}
+
 /**
  * The parser is built on markdown-it's commonmark preset, which disables both
  * of these core rules outright — setting the `linkify` option alone silently
@@ -821,6 +1174,31 @@ if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) 
   defaultMarkdownParser.tokenizer.core.ruler.push("table_cell_paragraphs", wrapTableCellContent);
 }
 
+function applyTextAlignmentMarkers(state: any): boolean {
+  const tokens = state.tokens;
+  for (let index = 0; index < tokens.length - 1; index += 1) {
+    const opening = tokens[index];
+    const inline = tokens[index + 1];
+    if (
+      (opening.type !== "paragraph_open" && opening.type !== "heading_open") ||
+      inline.type !== "inline"
+    ) {
+      continue;
+    }
+    const first = inline.children?.[0];
+    if (first?.type !== "text") continue;
+    const match = first.content.match(/^<!--skriuw-align:(center|right)-->/);
+    if (!match) continue;
+    first.content = first.content.slice(match[0].length);
+    opening.meta = { ...(opening.meta ?? {}), textAlign: match[1] };
+  }
+  return true;
+}
+
+if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) => r.name === "skriuw_text_alignment")) {
+  defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_text_alignment", applyTextAlignmentMarkers);
+}
+
 defaultMarkdownParser.tokenizer.enable(["strikethrough", "linkify", "table"], true);
 defaultMarkdownParser.tokenizer.set({ linkify: true });
 defaultMarkdownParser.tokenizer.linkify.set({
@@ -835,6 +1213,22 @@ const productMarkdownParser = new MarkdownParser(
   {
     ...defaultMarkdownParser.tokens,
     s: { mark: "strikethrough" },
+    paragraph: {
+      block: "paragraph",
+      getAttrs: (tok: any) => ({ textAlign: tok.meta?.textAlign ?? "left" }),
+    },
+    heading: {
+      block: "heading",
+      getAttrs: (tok: any) => ({
+        level: +tok.tag.slice(1),
+        textAlign: tok.meta?.textAlign ?? "left",
+      }),
+    },
+    skriuw_underline: { mark: "underline" },
+    skriuw_highlight: {
+      mark: "highlight",
+      getAttrs: (tok: any) => ({ color: tok.meta?.color ?? "yellow" }),
+    },
     table: { block: "table" },
     thead: { ignore: true },
     tbody: { ignore: true },
@@ -866,6 +1260,12 @@ function plainParagraphDocument(markdown: string): ProseMirrorNode {
 }
 
 const CHECKBOX_PREFIX = /^\[([ xX])\] /;
+const TOGGLE_PREFIX = /^\[([>vV])\] /;
+const TASK_MARKER = /(?:\s*)<!--skriuw-task:([A-Za-z0-9_-]{1,128})(?::([A-Za-z0-9_-]{1,128}))?-->$/;
+
+function isTaskId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+}
 
 type JsonNode = {
   type?: unknown;
@@ -884,7 +1284,58 @@ function checkboxPrefix(item: JsonNode): RegExpMatchArray | null {
   return text.text.match(CHECKBOX_PREFIX);
 }
 
+function togglePrefix(item: JsonNode): RegExpMatchArray | null {
+  if (item.type !== "list_item") return null;
+  const paragraph = item.content?.[0] as JsonNode | undefined;
+  if (paragraph?.type !== "paragraph") return null;
+  const text = paragraph.content?.[0] as JsonNode | undefined;
+  if (text?.type !== "text" || typeof text.text !== "string") return null;
+  return text.text.match(TOGGLE_PREFIX);
+}
+
 function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
+  const paragraph = item.content?.[0] as JsonNode;
+  const text = paragraph.content?.[0] as JsonNode;
+  const stripped = (text.text as string).slice(prefix[0].length);
+  const marker = stripped.match(TASK_MARKER);
+  const visibleText = marker ? stripped.slice(0, marker.index).trimEnd() : stripped;
+  const inline = visibleText.length > 0
+    ? [{ ...text, text: visibleText }, ...(paragraph.content?.slice(1) ?? [])]
+    : paragraph.content?.slice(1) ?? [];
+  let taskId = marker?.[1] ?? null;
+  let blockId = marker?.[2] ?? null;
+  const blocks = (item.content?.slice(1) ?? []).filter((value) => {
+    const block = value as JsonNode;
+    if (taskId || block.type !== "paragraph" || block.content?.length !== 1) {
+      return true;
+    }
+    const markerText = block.content[0] as JsonNode | undefined;
+    if (markerText?.type !== "text" || typeof markerText.text !== "string") {
+      return true;
+    }
+    const blockMarker = markerText.text.match(TASK_MARKER);
+    if (!blockMarker) {
+      return true;
+    }
+    taskId = blockMarker[1] ?? null;
+    blockId = blockMarker[2] ?? null;
+    return false;
+  });
+  return {
+    type: "check_item",
+    attrs: {
+      checked: prefix[1]?.toLowerCase() === "x",
+      taskId,
+      blockId: blockId !== taskId ? blockId : null,
+    },
+    content: [
+      { ...paragraph, content: inline },
+      ...blocks,
+    ],
+  };
+}
+
+function toToggleItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
   const paragraph = item.content?.[0] as JsonNode;
   const text = paragraph.content?.[0] as JsonNode;
   const stripped = (text.text as string).slice(prefix[0].length);
@@ -892,8 +1343,8 @@ function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
     ? [{ ...text, text: stripped }, ...(paragraph.content?.slice(1) ?? [])]
     : paragraph.content?.slice(1) ?? [];
   return {
-    type: "check_item",
-    attrs: { checked: prefix[1]?.toLowerCase() === "x" },
+    type: "toggle_item",
+    attrs: { open: prefix[1]?.toLowerCase() === "v" },
     content: [
       { ...paragraph, content: inline },
       ...(item.content?.slice(1) ?? []),
@@ -907,20 +1358,25 @@ function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
  * such items into `check_list`/`check_item` nodes, splitting mixed bullet
  * lists into adjacent lists so plain items stay bullets.
  */
-function upgradeCheckLists(node: unknown): unknown[] {
+function upgradeSpecialLists(node: unknown): unknown[] {
   if (node === null || typeof node !== "object") return [node];
   const record = node as JsonNode;
   const content = Array.isArray(record.content)
-    ? record.content.flatMap((child) => upgradeCheckLists(child))
+    ? record.content.flatMap((child) => upgradeSpecialLists(child))
     : record.content;
   if (record.type !== "bullet_list" || !Array.isArray(content)) {
     return [content === record.content ? record : { ...record, content }];
   }
   const runs: JsonNode[] = [];
   for (const child of content as JsonNode[]) {
-    const prefix = checkboxPrefix(child);
-    const type = prefix ? "check_list" : "bullet_list";
-    const item = prefix ? toCheckItem(child, prefix) : child;
+    const check = checkboxPrefix(child);
+    const toggle = togglePrefix(child);
+    const type = check ? "check_list" : toggle ? "toggle_list" : "bullet_list";
+    const item = check
+      ? toCheckItem(child, check)
+      : toggle
+        ? toToggleItem(child, toggle)
+        : child;
     const last = runs[runs.length - 1];
     if (last && last.type === type) {
       (last.content as JsonNode[]).push(item);
@@ -928,6 +1384,8 @@ function upgradeCheckLists(node: unknown): unknown[] {
       runs.push(
         type === "check_list"
           ? { type, content: [item] }
+          : type === "toggle_list"
+            ? { type, content: [item] }
           : { ...record, content: [item] },
       );
     }
@@ -951,7 +1409,7 @@ export function parseProductMarkdown(markdown: string): ProseMirrorNode {
   try {
     const parsed = productMarkdownParser.parse(markdown);
     try {
-      const [upgraded] = upgradeCheckLists(parsed.toJSON());
+      const [upgraded] = upgradeSpecialLists(parsed.toJSON());
       return productSchema.nodeFromJSON(upgraded);
     } catch {
       return parsed;

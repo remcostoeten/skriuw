@@ -16,9 +16,9 @@ ProseMirror retained one `EditorView` and called `updateState`. Lexical retained
 
 ```bash
 cd spikes/ui-architecture
-pnpm install --frozen-lockfile
-pnpm build
-pnpm exec vite preview --host 127.0.0.1 --port 4173
+bun install --frozen-lockfile
+bun run build
+bunx vite preview --host 127.0.0.1 --port 4173
 ```
 
 ## Environment

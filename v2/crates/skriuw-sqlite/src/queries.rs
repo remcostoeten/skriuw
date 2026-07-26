@@ -2,9 +2,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::{Connection, OptionalExtension, Transaction};
 use skriuw_domain::{
-    HistoryHeader, NodeKind, WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceDocument,
-    WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspaceSettings, WorkspaceSnapshot,
-    WorkspaceTag,
+    HistoryHeader, NodeKind, NoteProperty, NotePropertyField, NotePropertyOption,
+    NotePropertyTemplate, VersionedNotePropertyValue, WORKSPACE_PROTOCOL_VERSION, WorkspaceArchive,
+    WorkspaceDocument, WorkspaceImage, WorkspaceNode, WorkspacePerson, WorkspaceSettings,
+    WorkspaceSnapshot, WorkspaceTag,
 };
 use skriuw_storage::StorageError;
 
@@ -12,7 +13,7 @@ use crate::error::{backend, json_backend, validation};
 use crate::operations::{node_is_available, node_kind};
 
 pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot, StorageError> {
-    Ok(WorkspaceSnapshot {
+    let snapshot = WorkspaceSnapshot {
         protocol_version: WORKSPACE_PROTOCOL_VERSION,
         active_note_id: read_active_note(connection)?,
         nodes: read_nodes(connection)?,
@@ -23,7 +24,134 @@ pub(crate) fn read_snapshot(connection: &Connection) -> Result<WorkspaceSnapshot
         people: read_people(connection)?,
         references: read_references(connection)?,
         images: read_images(connection)?,
-    })
+        properties: read_properties(connection)?,
+        property_templates: read_property_templates(connection)?,
+    };
+    skriuw_domain::validate_workspace_properties(
+        &snapshot.properties,
+        &snapshot.property_templates,
+        &snapshot.people,
+        &snapshot.nodes,
+    )
+    .map_err(|error| StorageError::Backend(error.to_string()))?;
+    Ok(snapshot)
+}
+
+pub(crate) fn read_properties(connection: &Connection) -> Result<Vec<NoteProperty>, StorageError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT note_id, id, name, value_json, options_json, position \
+             FROM note_properties ORDER BY note_id, position, id",
+        )
+        .map_err(backend)?;
+    statement
+        .query_map([], |row| {
+            let value =
+                serde_json::from_str::<VersionedNotePropertyValue>(&row.get::<_, String>(3)?)
+                    .map_err(|error| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            3,
+                            rusqlite::types::Type::Text,
+                            Box::new(error),
+                        )
+                    })?;
+            let options =
+                serde_json::from_str::<Vec<NotePropertyOption>>(&row.get::<_, String>(4)?)
+                    .map_err(|error| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            4,
+                            rusqlite::types::Type::Text,
+                            Box::new(error),
+                        )
+                    })?;
+            Ok(NoteProperty {
+                note_id: row.get(0)?,
+                field: NotePropertyField {
+                    id: row.get(1)?,
+                    name: row.get(2)?,
+                    value,
+                    options,
+                    position: row.get(5)?,
+                },
+            })
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
+pub(crate) fn read_property_templates(
+    connection: &Connection,
+) -> Result<Vec<NotePropertyTemplate>, StorageError> {
+    let mut templates = {
+        let mut statement = connection
+            .prepare("SELECT id, name, position FROM note_property_templates ORDER BY position, id")
+            .map_err(backend)?;
+        statement
+            .query_map([], |row| {
+                Ok(NotePropertyTemplate {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    position: row.get(2)?,
+                    properties: Vec::new(),
+                })
+            })
+            .map_err(backend)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(backend)?
+    };
+    let indexes = templates
+        .iter()
+        .enumerate()
+        .map(|(index, template)| (template.id.clone(), index))
+        .collect::<BTreeMap<_, _>>();
+    let mut statement = connection
+        .prepare(
+            "SELECT template_id, id, name, value_json, options_json, position \
+             FROM note_property_template_fields ORDER BY template_id, position, id",
+        )
+        .map_err(backend)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                NotePropertyField {
+                    id: row.get(1)?,
+                    name: row.get(2)?,
+                    value: serde_json::from_str::<VersionedNotePropertyValue>(
+                        &row.get::<_, String>(3)?,
+                    )
+                    .map_err(|error| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            3,
+                            rusqlite::types::Type::Text,
+                            Box::new(error),
+                        )
+                    })?,
+                    options: serde_json::from_str::<Vec<NotePropertyOption>>(
+                        &row.get::<_, String>(4)?,
+                    )
+                    .map_err(|error| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            4,
+                            rusqlite::types::Type::Text,
+                            Box::new(error),
+                        )
+                    })?,
+                    position: row.get(5)?,
+                },
+            ))
+        })
+        .map_err(backend)?;
+    for row in rows {
+        let (template_id, field) = row.map_err(backend)?;
+        let index = indexes
+            .get(&template_id)
+            .copied()
+            .ok_or_else(|| StorageError::Backend("orphaned property template field".into()))?;
+        templates[index].properties.push(field);
+    }
+    Ok(templates)
 }
 
 pub(crate) fn read_images(connection: &Connection) -> Result<Vec<WorkspaceImage>, StorageError> {
@@ -385,5 +513,7 @@ pub(crate) fn read_archive(
         settings: read_settings(connection)?,
         tags: read_tags(connection)?,
         people: read_people(connection)?,
+        properties: read_properties(connection)?,
+        property_templates: read_property_templates(connection)?,
     })
 }

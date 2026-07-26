@@ -18,6 +18,7 @@ test("slashCommands defines expected set of editor command blocks", () => {
   assert.ok(ids.includes("bullet-list"));
   assert.ok(ids.includes("ordered-list"));
   assert.ok(ids.includes("check-list"));
+  assert.ok(ids.includes("toggle-list"));
   assert.ok(ids.includes("quote"));
   assert.ok(ids.includes("code"));
 });
@@ -31,7 +32,7 @@ test("filterSlashCommands filters by label or id case-insensitively", () => {
   );
 
   const lists = filterSlashCommands("list");
-  assert.equal(lists.length, 3);
+  assert.equal(lists.length, 4);
 
   const empty = filterSlashCommands("nonexistent-command-query");
   assert.equal(empty.length, 0);
@@ -42,6 +43,7 @@ test("filterSlashCommands matches aliases and ranks prefix matches first", () =>
   assert.equal(filterSlashCommands("ul")[0]?.id, "bullet-list");
   assert.equal(filterSlashCommands("hr")[0]?.id, "divider");
   assert.equal(filterSlashCommands("todo")[0]?.id, "check-list");
+  assert.equal(filterSlashCommands("collapse")[0]?.id, "toggle-list");
   assert.equal(filterSlashCommands("code")[0]?.id, "code");
 });
 
