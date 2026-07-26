@@ -216,9 +216,19 @@ export function createWorkspaceCommands(
     },
     {
       id: "import-markdown",
-      label: "Import Markdown…",
+      label: "Import notes…",
       group: "Actions",
-      keywords: ["import", "markdown", "migrate", "folder"],
+      keywords: [
+        "import",
+        "markdown",
+        "migrate",
+        "folder",
+        "obsidian",
+        "notion",
+        "bear",
+        "simplenote",
+        "apple notes",
+      ],
       icon: <UploadIcon size={15} />,
       run: () => {
         void importMarkdownIntoWorkspace(store);
