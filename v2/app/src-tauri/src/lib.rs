@@ -976,15 +976,22 @@ async fn pick_directory(app: tauri::AppHandle, title: String) -> Result<Option<S
 }
 
 #[tauri::command]
-async fn pick_import_file(app: tauri::AppHandle, title: String) -> Result<Option<String>, String> {
+async fn pick_import_file(
+    app: tauri::AppHandle,
+    title: String,
+    extensions: Option<Vec<String>>,
+) -> Result<Option<String>, String> {
     #[cfg(debug_assertions)]
     if let Some(paths) = picker_override() {
         return Ok(paths.into_iter().next());
     }
     tauri::async_runtime::spawn_blocking(move || {
-        app.dialog()
-            .file()
-            .set_title(&title)
+        let mut dialog = app.dialog().file().set_title(&title);
+        if let Some(extensions) = extensions.as_ref().filter(|list| !list.is_empty()) {
+            let refs: Vec<&str> = extensions.iter().map(String::as_str).collect();
+            dialog = dialog.add_filter("Markdown", &refs);
+        }
+        dialog
             .blocking_pick_file()
             .map(|path| {
                 path.into_path()

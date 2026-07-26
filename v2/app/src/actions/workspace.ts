@@ -264,6 +264,20 @@ export function focusedPaneNoteId(state: RendererState): string | null {
 }
 
 /**
+ * The sidebar's focused folder, for actions that need a drop target when
+ * nothing more specific is selected (e.g. importing a file into "wherever
+ * the sidebar is pointed"). Null when the focused row isn't a folder, or
+ * nothing is focused, so callers fall back to the workspace root.
+ */
+export function focusedFolderId(state: RendererState): string | null {
+  const id = state.focusedNodeId;
+  if (id === null) {
+    return null;
+  }
+  return state.nodes.get(id)?.kind === "folder" ? id : null;
+}
+
+/**
  * Expands the ancestors of `id` and focuses its row, so a node reached from
  * outside the sidebar becomes visible in the tree.
  */

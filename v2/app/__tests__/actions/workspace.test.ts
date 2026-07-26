@@ -160,6 +160,23 @@ test("focusedPaneNoteId follows the focused pane in a split", async () => {
   assert.equal(focusedPaneNoteId(store.getState()), "b");
 });
 
+test("focusedFolderId reads the sidebar's focused row, only when it's a folder", async () => {
+  const { focusedFolderId } = await import("../../src/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [noteNode("a", 1), folderNode("f", 2)],
+  });
+
+  store.setFocusedNode("f");
+  assert.equal(focusedFolderId(store.getState()), "f");
+
+  store.setFocusedNode("a");
+  assert.equal(focusedFolderId(store.getState()), null);
+
+  store.setFocusedNode(null);
+  assert.equal(focusedFolderId(store.getState()), null);
+});
+
 test("renameCurrentNote starts the inline rename of the open note", async () => {
   const { renameCurrentNote } = await import("../../src/actions/workspace");
   const store = await storeWith({

@@ -32,6 +32,7 @@ export type ShortcutActionId =
   | "renameCurrentNote"
   | "trashCurrentNote"
   | "duplicateCurrentNote"
+  | "importMarkdownFile"
   | "closeTab"
   | "reopenClosedTab"
   | "moveTabLeft"
@@ -250,6 +251,16 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Workspace",
     worksWhileTyping: true,
     guards: ["textField", "modal"],
+  },
+  {
+    id: "importMarkdownFile",
+    keys: "ctrl+shift+o",
+    label: "Import markdown file",
+    description:
+      "Import a single .md, .markdown, or .txt file as a new note, through the same pipeline as Import notes from folder. Flushes pending edits first and ignores a second press while an import is already running.",
+    group: "Workspace",
+    worksWhileTyping: true,
+    guards: ["modal"],
   },
   {
     id: "toggleEditorMode",

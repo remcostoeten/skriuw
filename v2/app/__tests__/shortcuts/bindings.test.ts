@@ -501,6 +501,32 @@ test("the g-t-<n> sequence is guarded off typing but not off the sidebar tree", 
   assert.equal(shortcutGuarded(guards, { target: treeRow }), false);
 });
 
+test("import markdown file is a literal ctrl+shift+o that fires while typing and behind no modal", () => {
+  const importMarkdownFile = SHORTCUT_DEFINITIONS.find(
+    (entry) => entry.id === "importMarkdownFile",
+  );
+  assert.ok(importMarkdownFile);
+  assert.equal(effectiveShortcutKeys(importMarkdownFile, {}), "ctrl+shift+o");
+  assert.deepEqual(shortcutGuards(importMarkdownFile, true), ["modal"]);
+  assert.equal(findShortcutConflict({}, "importMarkdownFile", "ctrl+shift+o"), null);
+});
+
+test("ctrl+shift+o matches the import binding regardless of the platform mod key", () => {
+  const parsed = parseShortcut("ctrl+shift+o");
+  const base = { key: "o", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
+  assert.equal(
+    matchesShortcut(
+      { ...base, ctrlKey: true, shiftKey: true } as unknown as KeyboardEvent,
+      parsed,
+    ),
+    true,
+  );
+  assert.equal(
+    matchesShortcut({ ...base, ctrlKey: true } as unknown as KeyboardEvent, parsed),
+    false,
+  );
+});
+
 test("the directional pane keys are three-modifier chords scoped to an open split", () => {
   for (const [id, keys] of [
     ["focusPaneLeft", "mod+alt+arrowleft"],
