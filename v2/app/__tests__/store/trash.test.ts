@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { WorkspaceNode } from "../../src/contracts/workspace";
 import {
+  filterTrashRows,
   isNodeInSubtree,
+  sortTrashRows,
+  trashRows,
+  trashSnippet,
   trashWindowRange,
   trashedRoots,
   trashedSubtreeNodes,
@@ -65,6 +69,81 @@ test("trash subtree projection is parents-first and cycle-safe", () => {
   );
   assert.equal(isNodeInSubtree(nodes(), "nested-note", "folder"), true);
   assert.equal(isNodeInSubtree(nodes(), "active", "folder"), false);
+});
+
+test("trash snippets flatten markdown syntax into one line", () => {
+  assert.equal(
+    trashSnippet("# Kitchen renovation\n\n- Cabinets **4.2k**\n- [Quote](https://x.test) sent"),
+    "Kitchen renovation Cabinets 4.2k Quote sent",
+  );
+  assert.equal(trashSnippet("```ts\nconst hidden = 1;\n```\nAfter the fence"), "After the fence");
+  assert.equal(trashSnippet("See [[notes/plan|the plan]]"), "See the plan");
+  assert.equal(trashSnippet("\n\n  \n"), "");
+});
+
+test("trash rows carry origin folder and note snippets", () => {
+  const documents = new Map([
+    ["older-note", { markdown: "## Groceries\nMilk and eggs" }],
+    ["active", { markdown: "not trashed" }],
+  ]);
+  assert.deepEqual(trashRows(nodes(), documents), [
+    {
+      id: "folder",
+      kind: "folder",
+      title: "Project",
+      deletedAt: 20,
+      location: null,
+      summary: "2 folders, 2 notes",
+      snippet: "2 folders, 2 notes",
+    },
+    {
+      id: "older-note",
+      kind: "note",
+      title: "Older",
+      deletedAt: 10,
+      location: null,
+      summary: "Note",
+      snippet: "Groceries Milk and eggs",
+    },
+  ]);
+});
+
+test("trash search matches title, origin folder and snippet", () => {
+  const rows = trashRows(nodes(), new Map([["older-note", { markdown: "Milk and eggs" }]]));
+  assert.deepEqual(
+    filterTrashRows(rows, "  MILK ").map((row) => row.id),
+    ["older-note"],
+  );
+  assert.deepEqual(
+    filterTrashRows(rows, "project").map((row) => row.id),
+    ["folder"],
+  );
+  assert.equal(filterTrashRows(rows, "   ").length, rows.length);
+  assert.equal(filterTrashRows(rows, "nothing here").length, 0);
+});
+
+test("trash sorting orders rows by deletion time and title without mutating input", () => {
+  const rows = trashRows(nodes(), new Map());
+  assert.deepEqual(
+    sortTrashRows(rows, "newest").map((row) => row.id),
+    ["folder", "older-note"],
+  );
+  assert.deepEqual(
+    sortTrashRows(rows, "oldest").map((row) => row.id),
+    ["older-note", "folder"],
+  );
+  assert.deepEqual(
+    sortTrashRows(rows, "az").map((row) => row.title),
+    ["Older", "Project"],
+  );
+  assert.deepEqual(
+    sortTrashRows(rows, "za").map((row) => row.title),
+    ["Project", "Older"],
+  );
+  assert.deepEqual(
+    rows.map((row) => row.id),
+    ["folder", "older-note"],
+  );
 });
 
 test("trash list rendering stays bounded for a 5,000-item workspace", () => {

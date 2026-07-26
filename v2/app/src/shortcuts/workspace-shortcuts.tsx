@@ -30,11 +30,12 @@ type Props = {
 /**
  * Scopes active for a route. `note-create` gates the global `mod+n` so it never
  * fires on the tag/people manager routes, which bind that key to their own
- * "new entity" action instead. `tags-route` gates keys that only make sense
+ * "new entity" action instead, nor on the history route, which has no note
+ * surface to drop the new note into. `tags-route` gates keys that only make sense
  * inside the tag manager, like the "new tag" binding.
  */
 function activeScopesForRoute(route: AppRoute): string[] {
-  const scopes = route === "tags" || route === "people" ? [] : ["note-create"];
+  const scopes = route === "notes" || route === "trash" ? ["note-create"] : [];
   if (route === "tags") {
     scopes.push("tags-route");
   }

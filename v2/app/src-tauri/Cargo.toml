@@ -15,6 +15,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
+base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 skriuw-domain = { path = "../../crates/skriuw-domain" }
@@ -31,6 +32,11 @@ tauri-plugin-opener = "2.5.4"
 tauri-plugin-prevent-default = "5.0.2"
 tauri-plugin-process = "2.3.1"
 tauri-plugin-updater = "2.10.1"
+
+[target."cfg(target_os = \"linux\")".dependencies]
+# Same 0.18 line the gtk stack in the lockfile resolves to; used only for
+# set_prgname in main.rs (Wayland taskbar-icon fix).
+glib = "0.18"
 
 [dev-dependencies]
 tempfile = "3"

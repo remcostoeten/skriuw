@@ -1,5 +1,7 @@
 import type {
   HistoryHeader,
+  NoteProperty,
+  NotePropertyTemplate,
   OperationAck,
   WorkspaceImage,
   WorkspaceNode,
@@ -65,6 +67,8 @@ export type RendererState = {
   tags: ReadonlyMap<string, TagRecord>;
   people: ReadonlyMap<string, PersonRecord>;
   images: ReadonlyMap<string, WorkspaceImage>;
+  propertiesByNoteId: ReadonlyMap<string, readonly NoteProperty[]>;
+  propertyTemplates: readonly NotePropertyTemplate[];
   outgoingReferences: OutgoingReferences;
   incomingReferences: IncomingReferences;
 };

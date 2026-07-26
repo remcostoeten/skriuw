@@ -53,6 +53,8 @@ fn snapshot_from_archive(archive: &WorkspaceArchive) -> WorkspaceSnapshot {
         people: archive.people.clone(),
         references: Vec::new(),
         images: Vec::new(),
+        properties: archive.properties.clone(),
+        property_templates: archive.property_templates.clone(),
     }
 }
 
@@ -262,14 +264,34 @@ fn pre_pinning_archives_import_with_all_nodes_unpinned() {
 }
 
 #[test]
+fn typed_property_fixture_preserves_values_and_templates() {
+    let archive = load_fixture_archive("v3/typed-properties.json");
+
+    assert_eq!(archive.properties.len(), 2);
+    assert_eq!(archive.properties[0].note_id, "note-project");
+    assert_eq!(archive.properties[0].field.id, "property-owner");
+    assert_eq!(archive.property_templates.len(), 1);
+    assert_eq!(archive.property_templates[0].properties.len(), 2);
+}
+
+#[test]
+fn older_archives_default_to_empty_properties() {
+    for file in ["v1/minimal.json", "v2/pinned.json"] {
+        let archive = load_fixture_archive(file);
+        assert!(archive.properties.is_empty(), "{file}");
+        assert!(archive.property_templates.is_empty(), "{file}");
+    }
+}
+
+#[test]
 fn future_archive_versions_fail_explicitly() {
     let mut value = load_fixture_value("v1/representative.json");
-    value["archiveVersion"] = json!(3);
+    value["archiveVersion"] = json!(4);
     let future =
         serde_json::from_value::<WorkspaceArchive>(value).expect("parse future-version archive");
     assert_eq!(
         future.validate(),
-        Err(ArchiveValidationError::UnsupportedArchiveVersion(3))
+        Err(ArchiveValidationError::UnsupportedArchiveVersion(4))
     );
 
     let mut value = load_fixture_value("v1/representative.json");
