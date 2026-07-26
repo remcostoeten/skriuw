@@ -103,6 +103,10 @@ test("frontmatter tags land on the note; nested keys warn", () => {
   );
   assert.deepEqual(bundle.notes[0].tags, ["work", "home"]);
   assert.equal(bundle.notes[0].properties, undefined);
+  assert.equal(
+    bundle.notes[0].markdown,
+    "---\ntags: [#work, home]\nmeta:\n  nested: true\n---\ntext",
+  );
   assert.ok(bundle.warnings.some((warning) => warning.message.includes("too complex")));
 });
 

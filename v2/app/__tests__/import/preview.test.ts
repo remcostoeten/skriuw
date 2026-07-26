@@ -65,6 +65,7 @@ test("preview summarizes planned entities and path-aware warnings", () => {
   const preview = buildImportPreviewCandidate(bundle(), plan(), {
     directories: ["Folder"],
     files: [],
+    unsupported: ["Folder/manual.pdf"],
     skipped: 1,
   });
 
@@ -77,6 +78,7 @@ test("preview summarizes planned entities and path-aware warnings", () => {
     "2 ambiguous or unresolved wiki-links will stay as source text",
     "1 remote image will stay blocked",
     "1 unreadable file will be skipped",
+    "Folder/manual.pdf: unsupported attachment will be skipped",
     "Folder/Note.md: Unsupported field",
   ]);
 });

@@ -169,11 +169,16 @@ export type MarkdownTreePayload = {
   directories: string[];
   files: { relativePath: string; content: string }[];
   assets: string[];
+  unsupported: string[];
   skipped: number;
 };
 
 export function pickDirectory(title: string): Promise<string | null> {
   return invoke<string | null>("pick_directory", { title });
+}
+
+export function pickImportFile(title: string): Promise<string | null> {
+  return invoke<string | null>("pick_import_file", { title });
 }
 
 export function exportMarkdownTree(
@@ -185,6 +190,24 @@ export function exportMarkdownTree(
 
 export function readMarkdownTree(sourceDir: string): Promise<MarkdownTreePayload> {
   return invoke<MarkdownTreePayload>("read_markdown_tree", { sourceDir });
+}
+
+export type PreparedImportSourcePayload = {
+  rootPath: string;
+  temporary: boolean;
+  tree: MarkdownTreePayload;
+};
+
+export function prepareImportSource(
+  sourcePath: string,
+): Promise<PreparedImportSourcePayload> {
+  return invoke<PreparedImportSourcePayload>("prepare_import_source", {
+    sourcePath,
+  });
+}
+
+export function cleanupImportSource(rootPath: string): Promise<void> {
+  return invoke<void>("cleanup_import_source", { rootPath });
 }
 
 export type StoredImagePayload = {

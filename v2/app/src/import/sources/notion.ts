@@ -3,9 +3,11 @@ import type {
   ImportBundle,
   ImportSourceAdapter,
   ImportedNote,
+  ImportedPropertyValue,
   ImportWarning,
 } from "../model";
 import { relativeLinkBetween } from "../model";
+import { sanitizeFileName } from "../../export/markdown-transfer-model";
 
 const UUID_SUFFIX_PATTERN =
   /\s+(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
@@ -19,6 +21,10 @@ type MappedNote = {
 
 function isMarkdownFile(relativePath: string): boolean {
   return /\.(md|markdown)$/i.test(relativePath);
+}
+
+function isCsvFile(relativePath: string): boolean {
+  return /\.csv$/i.test(relativePath);
 }
 
 function splitPath(path: string): { directory: string; name: string } {
@@ -79,6 +85,147 @@ type PathMapping = {
   directoryMap: Map<string, string>;
   noteMap: Map<string, MappedNote>;
 };
+
+type CsvParseResult = {
+  rows: string[][];
+  valid: boolean;
+};
+
+function parseCsv(content: string): CsvParseResult {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index] ?? "";
+    if (quoted) {
+      if (character === '"' && content[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else if (character === '"') {
+        quoted = false;
+      } else {
+        cell += character;
+      }
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+    } else if (character === ",") {
+      row.push(cell);
+      cell = "";
+    } else if (character === "\n") {
+      row.push(cell.replace(/\r$/, ""));
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += character;
+    }
+  }
+  if (cell.length > 0 || row.length > 0) {
+    row.push(cell.replace(/\r$/, ""));
+    rows.push(row);
+  }
+  while (
+    rows.length > 0 &&
+    rows[rows.length - 1]?.every((value) => value.length === 0)
+  ) {
+    rows.pop();
+  }
+  return { rows, valid: !quoted };
+}
+
+function csvPropertyValue(value: string): ImportedPropertyValue {
+  const trimmed = value.trim();
+  if (/^(true|false)$/i.test(trimmed)) {
+    return { type: "checkbox", value: trimmed.toLowerCase() === "true" };
+  }
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    return { type: "number", value: Number(trimmed) };
+  }
+  if (/^\d{4}-\d{2}-\d{2}(?:[T ][^ ]+)?$/.test(trimmed)) {
+    return { type: "date", value: trimmed };
+  }
+  if (/^https?:\/\//i.test(trimmed)) {
+    return { type: "url", value: trimmed };
+  }
+  return { type: "text", value };
+}
+
+function csvTitleIndex(headers: readonly string[]): number {
+  const named = headers.findIndex((header) => /^(name|title)$/i.test(header.trim()));
+  return named === -1 ? 0 : named;
+}
+
+function appendDatabaseNotes(
+  tree: MarkdownTree,
+  mapping: PathMapping,
+  notes: ImportedNote[],
+  directories: string[],
+  warnings: ImportWarning[],
+): void {
+  const takenDirectories = new Set(directories.map((path) => path.toLowerCase()));
+  const takenNotes = new Set(notes.map((note) => note.relativePath.toLowerCase()));
+  const csvFiles = tree.files
+    .filter((file) => isCsvFile(file.relativePath))
+    .sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+  for (const file of csvFiles) {
+    const parsed = parseCsv(file.content);
+    const [headers = [], ...rows] = parsed.rows;
+    if (!parsed.valid || headers.length === 0) {
+      warnings.push({
+        path: file.relativePath,
+        message: "Database CSV is malformed and was skipped",
+        severity: "error",
+      });
+      continue;
+    }
+    const { directory: originalParent, name } = splitPath(file.relativePath);
+    const mappedParent = mapping.directoryMap.get(originalParent) ?? originalParent;
+    const base = stripUuidSuffix(name.replace(/\.csv$/i, "")) || "Database";
+    let folderName = base;
+    let counter = 2;
+    let folderPath = joinPath(mappedParent, folderName);
+    while (takenDirectories.has(folderPath.toLowerCase())) {
+      folderName = `${base} (${counter})`;
+      folderPath = joinPath(mappedParent, folderName);
+      counter += 1;
+    }
+    takenDirectories.add(folderPath.toLowerCase());
+    directories.push(folderPath);
+    const titleIndex = csvTitleIndex(headers);
+    for (const [rowIndex, row] of rows.entries()) {
+      if (row.every((value) => value.trim().length === 0)) {
+        continue;
+      }
+      const rawTitle = row[titleIndex]?.trim() || `Untitled ${rowIndex + 1}`;
+      const titleBase = sanitizeFileName(rawTitle);
+      let title = titleBase;
+      let titleCounter = 2;
+      let relativePath = `${folderPath}/${title}.md`;
+      while (takenNotes.has(relativePath.toLowerCase())) {
+        title = `${titleBase} (${titleCounter})`;
+        relativePath = `${folderPath}/${title}.md`;
+        titleCounter += 1;
+      }
+      takenNotes.add(relativePath.toLowerCase());
+      const properties = headers.flatMap((header, index) => {
+        const name = header.trim();
+        const value = row[index] ?? "";
+        return index === titleIndex || name.length === 0 || value.length === 0
+          ? []
+          : [{ name, value: csvPropertyValue(value) }];
+      });
+      notes.push({
+        relativePath,
+        title,
+        markdown: "",
+        ...(properties.length > 0 ? { properties } : {}),
+      });
+    }
+  }
+}
 
 function buildPathMapping(tree: MarkdownTree): PathMapping {
   const directoryMap = new Map<string, string>();
@@ -190,9 +337,10 @@ function parse(tree: MarkdownTree): ImportBundle {
   const directories = [...mapping.directoryMap.values()].filter((directory) =>
     notePaths.some((path) => path.startsWith(`${directory}/`)),
   );
+  appendDatabaseNotes(tree, mapping, notes, directories, warnings);
   if (databaseLinks > 0) {
     warnings.push({
-      message: `Kept ${databaseLinks} link${databaseLinks === 1 ? "" : "s"} to Notion database CSV files; databases are not imported`,
+      message: `Kept ${databaseLinks} source link${databaseLinks === 1 ? "" : "s"} to imported Notion database CSV files`,
     });
   }
   return {
@@ -209,8 +357,13 @@ export const notionSource: ImportSourceAdapter = {
   label: "Notion",
   detect(tree) {
     const markdownFiles = tree.files.filter((file) => isMarkdownFile(file.relativePath));
+    const notionCsvFiles = tree.files.filter(
+      (file) =>
+        isCsvFile(file.relativePath) &&
+        hasUuidSuffix(splitPath(file.relativePath).name.replace(/\.csv$/i, "")),
+    );
     if (markdownFiles.length === 0) {
-      return 0;
+      return notionCsvFiles.length > 0 ? 0.85 : 0;
     }
     const suffixed = markdownFiles.filter((file) => {
       const { name } = splitPath(file.relativePath);

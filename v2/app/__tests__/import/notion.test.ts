@@ -169,5 +169,75 @@ test("links to database csv files stay and produce a warning", () => {
     }),
   );
   assert.equal(bundle.notes[0].markdown, `[Tasks](Tasks%20${UUID}.csv)`);
-  assert.ok(bundle.warnings.some((warning) => warning.message.includes("databases are not imported")));
+  assert.ok(
+    bundle.warnings.some((warning) =>
+      warning.message.includes("source link"),
+    ),
+  );
+});
+
+test("database CSV rows become notes with typed properties", () => {
+  const bundle = notionSource.parse(
+    tree({
+      files: [
+        {
+          relativePath: "Tasks 0123456789abcdef0123456789abcdef.csv",
+          content: [
+            "Name,Done,Estimate,Due,Source,Status",
+            'Ship importer,true,3.5,2026-08-01,https://example.com,"In progress"',
+            "Ship importer,false,5,2026-08-02,https://example.org,Done",
+          ].join("\n"),
+        },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    bundle.notes.map((note) => note.relativePath),
+    ["Tasks/Ship importer.md", "Tasks/Ship importer (2).md"],
+  );
+  assert.deepEqual(bundle.notes[0].properties, [
+    { name: "Done", value: { type: "checkbox", value: true } },
+    { name: "Estimate", value: { type: "number", value: 3.5 } },
+    { name: "Due", value: { type: "date", value: "2026-08-01" } },
+    {
+      name: "Source",
+      value: { type: "url", value: "https://example.com" },
+    },
+    { name: "Status", value: { type: "text", value: "In progress" } },
+  ]);
+  assert.deepEqual(bundle.directories, ["Tasks"]);
+});
+
+test("standalone UUID-suffixed CSV detects as Notion", () => {
+  const input = tree({
+    files: [
+      {
+        relativePath: "Tasks 0123456789abcdef0123456789abcdef.csv",
+        content: "Name\nTask",
+      },
+    ],
+  });
+  assert.equal(notionSource.detect(input), 0.85);
+  assert.equal(detectImportSource(importSources, input)?.id, "notion");
+});
+
+test("malformed database CSV is named in diagnostics", () => {
+  const bundle = notionSource.parse(
+    tree({
+      files: [
+        {
+          relativePath: "Tasks 0123456789abcdef0123456789abcdef.csv",
+          content: 'Name,Status\n"unfinished',
+        },
+      ],
+    }),
+  );
+  assert.equal(bundle.notes.length, 0);
+  assert.deepEqual(bundle.warnings, [
+    {
+      path: "Tasks 0123456789abcdef0123456789abcdef.csv",
+      message: "Database CSV is malformed and was skipped",
+      severity: "error",
+    },
+  ]);
 });

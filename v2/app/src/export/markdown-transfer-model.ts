@@ -26,6 +26,7 @@ export type MarkdownTree = {
   directories: string[];
   files: MarkdownTreeFile[];
   assets?: string[];
+  unsupported?: string[];
   skipped: number;
 };
 
