@@ -531,6 +531,7 @@ struct MarkdownFilePayload {
 struct MarkdownTreePayload {
     directories: Vec<String>,
     files: Vec<MarkdownFilePayload>,
+    assets: Vec<String>,
     skipped: usize,
 }
 
@@ -603,6 +604,14 @@ fn has_importable_extension(name: &str) -> bool {
         .any(|extension| lowered.ends_with(&format!(".{extension}")))
 }
 
+/// Must stay in sync with `sniff_mime` in `crates/skriuw-images/src/lib.rs`.
+fn has_asset_extension(name: &str) -> bool {
+    let lowered = name.to_lowercase();
+    ["png", "jpg", "jpeg", "gif", "webp"]
+        .iter()
+        .any(|extension| lowered.ends_with(&format!(".{extension}")))
+}
+
 fn walk_markdown_dir(
     dir: &Path,
     prefix: &str,
@@ -637,6 +646,8 @@ fn walk_markdown_dir(
                 }),
                 Err(_) => payload.skipped += 1,
             }
+        } else if has_asset_extension(&name) {
+            payload.assets.push(relative);
         }
     }
     Ok(())
@@ -646,6 +657,7 @@ fn collect_markdown_tree(root: &Path) -> Result<MarkdownTreePayload, String> {
     let mut payload = MarkdownTreePayload {
         directories: Vec::new(),
         files: Vec::new(),
+        assets: Vec::new(),
         skipped: 0,
     };
     walk_markdown_dir(root, "", &mut payload)?;
