@@ -48,6 +48,11 @@ export function buildImportPreviewCandidate(
     ...(plan.tagSkippedNotes > 0
       ? [`Tags cannot attach to ${count(plan.tagSkippedNotes, "raw-preserved note")}`]
       : []),
+    ...(plan.tagPropertyNotes > 0
+      ? [
+          `Tags will use a Tags property on ${count(plan.tagPropertyNotes, "raw-preserved note")}`,
+        ]
+      : []),
     ...(tree.skipped > 0 ? [`${count(tree.skipped, "unreadable file")} will be skipped`] : []),
     ...(tree.unsupported ?? []).map(
       (path) => `${path}: unsupported attachment will be skipped`,

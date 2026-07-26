@@ -94,7 +94,7 @@ test("existing workspace tags are reused case-insensitively", () => {
   assert.equal(chips[0]?.attrs?.id, "tag-existing");
 });
 
-test("raw-preserved notes skip tag chips and are counted", () => {
+test("raw-preserved notes keep exact source and store tags as a property", () => {
   const plan = planImportBundle(
     bundle([
       {
@@ -107,13 +107,20 @@ test("raw-preserved notes skip tag chips and are counted", () => {
     123,
     sequentialIds(),
   );
-  assert.equal(plan.tagSkippedNotes, 1);
+  assert.equal(plan.tagSkippedNotes, 0);
+  assert.equal(plan.tagPropertyNotes, 1);
   const document = plan.contentOperations.find(
     (operation) => operation.type === "save_document",
   );
   assert.ok(document?.type === "save_document");
   const shape = document.documentJson as DocumentShape;
   assert.ok(shape.content.every((node) => node.type !== "paragraph" || !node.content?.some((child) => child.type === "tag_ref")));
+  const property = plan.operations.find(
+    (operation) => operation.type === "set_note_property",
+  );
+  assert.ok(property?.type === "set_note_property");
+  assert.equal(property.property.name, "Tags");
+  assert.equal(property.property.value.type, "multi-select");
 });
 
 test("notes without tags add no tag operations", () => {

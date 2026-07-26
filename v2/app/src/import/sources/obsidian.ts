@@ -27,7 +27,7 @@ type ParsedFrontmatter = {
 
 type AssetIndex = {
   byPath: Map<string, string>;
-  byBaseName: Map<string, string>;
+  byBaseName: Map<string, string[]>;
 };
 
 function isMarkdownFile(relativePath: string): boolean {
@@ -173,7 +173,7 @@ function parseFrontmatterBlock(block: string): ParsedFrontmatter {
 
 function buildAssetIndex(tree: MarkdownTree): AssetIndex {
   const byPath = new Map<string, string>();
-  const byBaseName = new Map<string, string>();
+  const byBaseName = new Map<string, string[]>();
   for (const asset of tree.assets ?? []) {
     const lowered = asset.toLowerCase();
     if (!byPath.has(lowered)) {
@@ -181,26 +181,59 @@ function buildAssetIndex(tree: MarkdownTree): AssetIndex {
     }
     const cut = lowered.lastIndexOf("/");
     const baseName = cut === -1 ? lowered : lowered.slice(cut + 1);
-    if (!byBaseName.has(baseName)) {
-      byBaseName.set(baseName, asset);
-    }
+    byBaseName.set(baseName, [...(byBaseName.get(baseName) ?? []), asset]);
   }
   return { byPath, byBaseName };
 }
 
-function findAsset(index: AssetIndex, target: string): string | null {
+type AssetResolution =
+  | { kind: "found"; path: string }
+  | { kind: "missing" }
+  | { kind: "ambiguous" };
+
+function normalizeRelativePath(base: string, target: string): string {
+  const segments = base.length > 0 ? base.split("/") : [];
+  for (const segment of target.replaceAll("\\", "/").split("/")) {
+    if (segment.length === 0 || segment === ".") {
+      continue;
+    }
+    if (segment === "..") {
+      segments.pop();
+    } else {
+      segments.push(segment);
+    }
+  }
+  return segments.join("/");
+}
+
+function findAsset(
+  index: AssetIndex,
+  target: string,
+  notePath: string,
+): AssetResolution {
   const lowered = target.toLowerCase().replace(/^\.\//, "");
-  const byPath = index.byPath.get(lowered);
+  const noteCut = notePath.lastIndexOf("/");
+  const noteDirectory =
+    noteCut === -1 ? "" : notePath.slice(0, noteCut).toLowerCase();
+  const relativePath = normalizeRelativePath(noteDirectory, lowered);
+  const byPath =
+    index.byPath.get(lowered) ?? index.byPath.get(relativePath);
   if (byPath !== undefined) {
-    return byPath;
+    return { kind: "found", path: byPath };
   }
   const cut = lowered.lastIndexOf("/");
-  return index.byBaseName.get(cut === -1 ? lowered : lowered.slice(cut + 1)) ?? null;
+  const matches =
+    index.byBaseName.get(cut === -1 ? lowered : lowered.slice(cut + 1)) ?? [];
+  if (matches.length === 1) {
+    return { kind: "found", path: matches[0] ?? "" };
+  }
+  return matches.length > 1 ? { kind: "ambiguous" } : { kind: "missing" };
 }
 
 type EmbedConversion = {
   markdown: string;
   unresolvedImages: number;
+  ambiguousImages: number;
   noteEmbeds: number;
 };
 
@@ -210,6 +243,7 @@ function convertEmbeds(
   assets: AssetIndex,
 ): EmbedConversion {
   let unresolvedImages = 0;
+  let ambiguousImages = 0;
   let noteEmbeds = 0;
   const converted = markdown.replace(EMBED_PATTERN, (whole, inner: string) => {
     const [rawTarget = "", ...labelParts] = inner.split("|");
@@ -218,17 +252,21 @@ function convertEmbeds(
       noteEmbeds += 1;
       return `[[${target}]]`;
     }
-    const asset = findAsset(assets, target);
-    if (asset === null) {
+    const asset = findAsset(assets, target, notePath);
+    if (asset.kind === "ambiguous") {
+      ambiguousImages += 1;
+      return whole;
+    }
+    if (asset.kind === "missing") {
       unresolvedImages += 1;
       return whole;
     }
     const label = labelParts.join("|").trim();
     const baseName = target.slice(target.lastIndexOf("/") + 1);
     const alt = label.length > 0 && !EMBED_SIZE_PATTERN.test(label) ? label : baseName;
-    return `![${alt}](${relativeLinkBetween(notePath, asset)})`;
+    return `![${alt}](${relativeLinkBetween(notePath, asset.path)})`;
   });
-  return { markdown: converted, unresolvedImages, noteEmbeds };
+  return { markdown: converted, unresolvedImages, ambiguousImages, noteEmbeds };
 }
 
 function count(total: number, noun: string): string {
@@ -241,6 +279,7 @@ function parse(tree: MarkdownTree): ImportBundle {
   const warnings: ImportWarning[] = [];
   let complexKeys = 0;
   let unresolvedImages = 0;
+  let ambiguousImages = 0;
   let noteEmbeds = 0;
   for (const file of tree.files) {
     if (!isMarkdownFile(file.relativePath)) {
@@ -260,10 +299,12 @@ function parse(tree: MarkdownTree): ImportBundle {
       ? {
           markdown: originalMarkdown,
           unresolvedImages: 0,
+          ambiguousImages: 0,
           noteEmbeds: 0,
         }
       : convertEmbeds(markdown, file.relativePath, assets);
     unresolvedImages += conversion.unresolvedImages;
+    ambiguousImages += conversion.ambiguousImages;
     noteEmbeds += conversion.noteEmbeds;
     notes.push({
       relativePath: file.relativePath,
@@ -287,6 +328,11 @@ function parse(tree: MarkdownTree): ImportBundle {
   if (unresolvedImages > 0) {
     warnings.push({
       message: `${count(unresolvedImages, "image embed")} matched no file in the vault and stayed as text`,
+    });
+  }
+  if (ambiguousImages > 0) {
+    warnings.push({
+      message: `${count(ambiguousImages, "image embed")} matched multiple vault files and stayed as text`,
     });
   }
   if (noteEmbeds > 0) {
