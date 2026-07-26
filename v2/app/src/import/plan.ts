@@ -316,6 +316,12 @@ export function planImportBundle(
   const plannedBundle = {
     ...bundle,
     notes: includedNotes,
+    directories: bundle.directories.filter((directory) => {
+      const prefix = `${normalizeTreePath(directory)}/`;
+      const holdsNote = (note: ImportedNote) =>
+        normalizeTreePath(note.relativePath).startsWith(prefix);
+      return includedNotes.some(holdsNote) || !bundle.notes.some(holdsNote);
+    }),
   };
   const plan = planMarkdownImport(
     {
@@ -343,6 +349,8 @@ export function planImportBundle(
   const idToPath = new Map(plan.notes.map((note) => [note.id, note.relativePath]));
   const propertyOperations: WorkspaceOperation[] = [];
   const sourcePropertyOperations: WorkspaceOperation[] = [];
+  const provenanceTargets: { noteId: string; note: ImportedNote }[] = [];
+  const nextPositionByNoteId = new Map<string, number>();
   let sourcePropertyNotes = 0;
   for (const operation of plan.operations) {
     if (operation.type !== "create_note" && operation.type !== "rename_node") {
@@ -380,19 +388,8 @@ export function planImportBundle(
       );
     }
     if (operation.type === "create_note") {
-      const sourceProperties = importSourceProperties(bundle.sourceLabel, at, note);
-      if (sourceProperties.length > 0) {
-        sourcePropertyOperations.push(
-          ...buildPropertyOperations(
-            sourceProperties,
-            operation.id,
-            at,
-            makeId,
-            (note.properties?.length ?? 0) + 1,
-          ),
-        );
-        sourcePropertyNotes += 1;
-      }
+      nextPositionByNoteId.set(operation.id, note.properties?.length ?? 0);
+      provenanceTargets.push({ noteId: operation.id, note });
     }
   }
   const tags = resolveImportedTags(
@@ -440,15 +437,20 @@ export function planImportBundle(
         if (references) {
           operation.documentJson = references;
         }
+        const tagsPosition =
+          nextPositionByNoteId.get(operation.noteId) ??
+          note.properties?.length ??
+          0;
         propertyOperations.push(
           ...buildPropertyOperations(
             [{ name: "Tags", value: { type: "list", values } }],
             operation.noteId,
             at,
             makeId,
-            note.properties?.length ?? 0,
+            tagsPosition,
           ),
         );
+        nextPositionByNoteId.set(operation.noteId, tagsPosition + 1);
         tagPropertyNotes += 1;
       } else {
         tagSkippedNotes += 1;
@@ -464,6 +466,21 @@ export function planImportBundle(
     if (appended) {
       operation.documentJson = appended.documentJson;
       operation.markdown = appended.markdown;
+    }
+  }
+  for (const { noteId, note } of provenanceTargets) {
+    const sourceProperties = importSourceProperties(bundle.sourceLabel, at, note);
+    if (sourceProperties.length > 0) {
+      sourcePropertyOperations.push(
+        ...buildPropertyOperations(
+          sourceProperties,
+          noteId,
+          at,
+          makeId,
+          nextPositionByNoteId.get(noteId) ?? 0,
+        ),
+      );
+      sourcePropertyNotes += 1;
     }
   }
   plan.operations.push(...propertyOperations);
