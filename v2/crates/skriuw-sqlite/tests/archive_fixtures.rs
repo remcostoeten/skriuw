@@ -88,6 +88,16 @@ fn golden_fixtures_import_bootstrap_and_round_trip() {
             "{} active note drifted",
             entry.file
         );
+        assert_eq!(
+            snapshot.properties, archive.properties,
+            "{} properties drifted",
+            entry.file
+        );
+        assert_eq!(
+            snapshot.property_templates, archive.property_templates,
+            "{} property templates drifted",
+            entry.file
+        );
 
         let mut expected = archive.clone();
         expected.archive_version = WORKSPACE_ARCHIVE_VERSION;
@@ -163,7 +173,7 @@ fn invalid_archives_fail_before_mutation_and_preserve_workspace() {
         .expect("import representative fixture");
 
     let mut future = archive.clone();
-    future.archive_version = 3;
+    future.archive_version = 4;
     assert!(matches!(
         storage.replace_from_archive(&future),
         Err(StorageError::InvalidOperation(_))

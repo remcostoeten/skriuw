@@ -59,10 +59,10 @@ This selects the editor candidate, not the complete UI architecture. The structu
 
 ```bash
 cd spikes/ui-architecture
-pnpm test
-pnpm typecheck
-pnpm build
-pnpm test:browser
+bun run test
+bun run typecheck
+bun run build
+bun run test:browser
 ```
 
 The repository-wide verification remains `./scripts/check.sh`.

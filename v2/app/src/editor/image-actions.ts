@@ -1,5 +1,16 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorView } from "prosemirror-view";
+import type { RendererState } from "../store/types";
+
+/** The ids of every workspace image bound to `noteId`. */
+export function noteImageIds(state: RendererState, noteId: string | null): Set<string> {
+  const ids = new Set<string>();
+  if (noteId === null) return ids;
+  for (const image of state.images.values()) {
+    if (image.noteId === noteId) ids.add(image.id);
+  }
+  return ids;
+}
 
 export function findImageRefPosition(doc: ProseMirrorNode, imageId: string): number | null {
   let found: number | null = null;

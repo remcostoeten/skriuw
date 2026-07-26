@@ -71,13 +71,13 @@ Commands:
 ```bash
 cd spikes/renderer-store
 ./scripts/export-fixtures.sh
-pnpm install --frozen-lockfile
-pnpm test
-pnpm build
-pnpm build:profiling
-pnpm exec vite preview --host 127.0.0.1 --port 4175
+bun install --frozen-lockfile
+bun run test
+bun run build
+bun run build:profiling
+bunx vite preview --host 127.0.0.1 --port 4175
 node scripts/bench.mjs http://127.0.0.1:4175 final-production-clean nested-1000 nested-5000 wide-5000 mixed-5000
-pnpm exec vite preview --outDir dist-profiling --host 127.0.0.1 --port 4176
+bunx vite preview --outDir dist-profiling --host 127.0.0.1 --port 4176
 node scripts/bench.mjs http://127.0.0.1:4176 final-profiling nested-1000 nested-5000 wide-5000 mixed-5000
 ```
 

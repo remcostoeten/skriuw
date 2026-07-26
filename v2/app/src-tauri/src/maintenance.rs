@@ -1,4 +1,5 @@
 use std::{
+    collections::{BTreeMap, BTreeSet},
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
@@ -10,10 +11,15 @@ use std::{
     time::Duration,
 };
 
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde::Serialize;
-use skriuw_domain::{HistoryHeader, WorkspaceArchive, WorkspaceSnapshot};
+use skriuw_domain::{
+    HistoryHeader, WorkspaceArchive, WorkspaceImage, WorkspaceOperation,
+    WorkspaceOperationEnvelope, WorkspaceSnapshot,
+};
 use skriuw_history::{HistoryWorkResult, HistoryWorker};
 use skriuw_history_git::GitHistoryMaterializer;
+use skriuw_images::ImageStore;
 use skriuw_lifecycle::{DatabaseSwapOutcome, DatabaseSwapStage, replace_live_database_gated};
 use skriuw_runtime::WorkspaceRuntime;
 use skriuw_sqlite::{
@@ -158,6 +164,7 @@ fn rotation_delay(
 pub struct ArchiveExportReport {
     pub nodes: usize,
     pub documents: usize,
+    pub images: usize,
     pub exported_at: i64,
 }
 
@@ -166,8 +173,28 @@ pub struct ArchiveExportReport {
 pub struct ArchiveImportReport {
     pub nodes: usize,
     pub documents: usize,
+    pub images: usize,
     pub safety_backup_file_name: String,
     pub snapshot: WorkspaceSnapshot,
+}
+
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ArchiveImageBlob {
+    content_hash: String,
+    mime_type: String,
+    bytes_base64: String,
+}
+
+#[derive(Debug, Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopArchive {
+    #[serde(flatten)]
+    workspace: WorkspaceArchive,
+    #[serde(default)]
+    images: Vec<WorkspaceImage>,
+    #[serde(default)]
+    image_blobs: Vec<ArchiveImageBlob>,
 }
 
 #[derive(Debug, Serialize)]
@@ -320,15 +347,48 @@ impl MaintenanceCoordinator {
         let archive = storage
             .export_archive(exported_at)
             .map_err(recovery_error)?;
+        let images = storage.bootstrap().map_err(recovery_error)?.images;
         drop(storage);
         self.check_cancelled()?;
-        let mut bytes = serde_json::to_vec_pretty(&archive)
+        let image_store = ImageStore::open(self.blob_directory()).map_err(image_store_error)?;
+        let mut blobs = BTreeMap::new();
+        for image in &images {
+            let key = (image.content_hash.clone(), image.mime_type.clone());
+            if blobs.contains_key(&key) {
+                continue;
+            }
+            let bytes = image_store
+                .read(&image.content_hash, &image.mime_type)
+                .map_err(image_store_error)?;
+            if bytes.len() as i64 != image.byte_size {
+                return Err(Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::InvalidInput,
+                    "workspace image blob does not match its stored metadata",
+                ));
+            }
+            blobs.insert(key, BASE64.encode(bytes));
+        }
+        let desktop_archive = DesktopArchive {
+            workspace: archive.clone(),
+            images,
+            image_blobs: blobs
+                .into_iter()
+                .map(|((content_hash, mime_type), bytes_base64)| ArchiveImageBlob {
+                    content_hash,
+                    mime_type,
+                    bytes_base64,
+                })
+                .collect(),
+        };
+        let mut bytes = serde_json::to_vec_pretty(&desktop_archive)
             .map_err(|_| internal("workspace archive could not be serialized"))?;
         bytes.push(b'\n');
         write_new_file(target, &bytes)?;
         Ok(ArchiveExportReport {
             nodes: archive.nodes.len(),
             documents: archive.documents.len(),
+            images: desktop_archive.images.len(),
             exported_at,
         })
     }
@@ -350,24 +410,26 @@ impl MaintenanceCoordinator {
                 "workspace archive could not be read",
             )
         })?;
-        let archive = serde_json::from_slice::<WorkspaceArchive>(&raw).map_err(|_| {
+        let desktop_archive = serde_json::from_slice::<DesktopArchive>(&raw).map_err(|_| {
             Diagnostic::new(
                 DiagnosticContext::Recovery,
                 DiagnosticCategory::InvalidInput,
                 "workspace archive is not valid JSON",
             )
         })?;
-        archive.validate().map_err(|_| {
+        desktop_archive.workspace.validate().map_err(|_| {
             Diagnostic::new(
                 DiagnosticContext::Recovery,
                 DiagnosticCategory::InvalidInput,
                 "workspace archive is invalid",
             )
         })?;
+        self.validate_desktop_archive(&desktop_archive)?;
+        self.restore_archive_image_blobs(&desktop_archive)?;
         self.check_cancelled()?;
 
         self.stop_active_workspace()?;
-        let result = self.import_into_stopped_workspace(&archive, after_safety_backup);
+        let result = self.import_into_stopped_workspace(&desktop_archive, after_safety_backup);
         if result.is_err() {
             self.reopen_workspace_after_failure();
         }
@@ -376,7 +438,7 @@ impl MaintenanceCoordinator {
 
     fn import_into_stopped_workspace(
         &self,
-        archive: &WorkspaceArchive,
+        desktop_archive: &DesktopArchive,
         after_safety_backup: impl FnOnce(&Self),
     ) -> Result<ArchiveImportReport, Diagnostic> {
         let storage = SqliteWorkspace::open(&self.database_path).map_err(recovery_error)?;
@@ -396,13 +458,20 @@ impl MaintenanceCoordinator {
             return Err(cancelled);
         }
         let summary = storage
-            .replace_from_archive(archive)
+            .replace_from_archive(&desktop_archive.workspace)
+            .map_err(recovery_error)?;
+        let image_operations = desktop_archive.images.iter().cloned().map(|image| {
+            WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage { image })
+        });
+        storage
+            .apply_operations(&image_operations.collect::<Vec<_>>())
             .map_err(recovery_error)?;
         let snapshot = storage.bootstrap().map_err(recovery_error)?;
         self.publish_workspace(WorkspaceRuntime::spawn(storage))?;
         Ok(ArchiveImportReport {
             nodes: summary.nodes,
             documents: summary.documents,
+            images: desktop_archive.images.len(),
             safety_backup_file_name,
             snapshot,
         })
@@ -428,12 +497,18 @@ impl MaintenanceCoordinator {
             },
             BackupRotationOutcome::Created {
                 artifact, pruned, ..
-            } => BackupRotationReport {
-                status: "created",
-                artifact_file_name: Some(artifact.filename),
-                pruned: pruned.len(),
-                next_due_at: None,
-            },
+            } => {
+                self.copy_backup_images(&artifact.filename)?;
+                for filename in &pruned {
+                    let _ = fs::remove_dir_all(backup_blob_directory(&self.recovery_directory, filename));
+                }
+                BackupRotationReport {
+                    status: "created",
+                    artifact_file_name: Some(artifact.filename),
+                    pruned: pruned.len(),
+                    next_due_at: None,
+                }
+            }
         })
     }
 
@@ -528,6 +603,13 @@ impl MaintenanceCoordinator {
             &candidate,
         )
         .map_err(recovery_error)?;
+        let candidate_images = SqliteWorkspace::verify_database_file(&candidate)
+            .map_err(recovery_error)?
+            .images;
+        if let Err(error) = self.restore_backup_images(artifact_file_name, &candidate_images) {
+            let _ = fs::remove_file(&candidate);
+            return Err(error);
+        }
         if let Err(cancelled) = self.check_cancelled() {
             let _ = fs::remove_file(&candidate);
             return Err(cancelled);
@@ -681,6 +763,196 @@ impl MaintenanceCoordinator {
         Ok(())
     }
 
+    fn blob_directory(&self) -> PathBuf {
+        self.database_path
+            .parent()
+            .unwrap_or(Path::new("."))
+            .join("blobs")
+    }
+
+    fn validate_desktop_archive(&self, archive: &DesktopArchive) -> Result<(), Diagnostic> {
+        let note_ids = archive
+            .workspace
+            .nodes
+            .iter()
+            .filter(|node| node.kind == skriuw_domain::NodeKind::Note)
+            .map(|node| node.id.as_str())
+            .collect::<BTreeSet<_>>();
+        let mut blob_keys = BTreeSet::new();
+        for blob in &archive.image_blobs {
+            let key = (blob.content_hash.as_str(), blob.mime_type.as_str());
+            if !blob_keys.insert(key) || BASE64.decode(&blob.bytes_base64).is_err() {
+                return Err(Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::InvalidInput,
+                    "workspace archive has invalid image data",
+                ));
+            }
+        }
+        for image in &archive.images {
+            image.validate().map_err(|_| {
+                Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::InvalidInput,
+                    "workspace archive has invalid image metadata",
+                )
+            })?;
+            if !note_ids.contains(image.note_id.as_str())
+                || !blob_keys.contains(&(image.content_hash.as_str(), image.mime_type.as_str()))
+            {
+                return Err(Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::InvalidInput,
+                    "workspace archive is missing image data",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn restore_archive_image_blobs(&self, archive: &DesktopArchive) -> Result<(), Diagnostic> {
+        if archive.images.is_empty() {
+            return Ok(());
+        }
+        let expected_sizes = archive
+            .images
+            .iter()
+            .map(|image| {
+                (
+                    (image.content_hash.as_str(), image.mime_type.as_str()),
+                    image.byte_size,
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        let image_store = ImageStore::open(self.blob_directory()).map_err(image_store_error)?;
+        for blob in &archive.image_blobs {
+            let bytes = BASE64.decode(&blob.bytes_base64).map_err(|_| {
+                Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::InvalidInput,
+                    "workspace archive has invalid image data",
+                )
+            })?;
+            let stored = image_store.put(&bytes).map_err(image_store_error)?;
+            if stored.content_hash != blob.content_hash
+                || stored.mime_type != blob.mime_type
+                || expected_sizes
+                    .get(&(blob.content_hash.as_str(), blob.mime_type.as_str()))
+                    .is_some_and(|size| *size != stored.byte_size as i64)
+            {
+                return Err(Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::InvalidInput,
+                    "workspace archive image data does not match its metadata",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn copy_backup_images(&self, artifact_file_name: &str) -> Result<(), Diagnostic> {
+        let backup_database = self.recovery_directory.join(artifact_file_name);
+        let images = SqliteWorkspace::verify_database_file(&backup_database)
+            .map_err(recovery_error)?
+            .images;
+        let target = backup_blob_directory(&self.recovery_directory, artifact_file_name);
+        if fs::symlink_metadata(&target).is_ok() {
+            return Err(Diagnostic::new(
+                DiagnosticContext::Backup,
+                DiagnosticCategory::AlreadyExists,
+                "backup image data already exists",
+            ));
+        }
+        let temporary = target.with_file_name(format!(
+            ".{}.partial",
+            target.file_name().and_then(|name| name.to_str()).unwrap_or("backup-images")
+        ));
+        let result = (|| {
+            let source = ImageStore::open(self.blob_directory()).map_err(image_store_error)?;
+            let destination = ImageStore::open(&temporary).map_err(image_store_error)?;
+            let mut copied = BTreeSet::new();
+            for image in images {
+                let key = (image.content_hash.clone(), image.mime_type.clone());
+                if !copied.insert(key) {
+                    continue;
+                }
+                let bytes = source
+                    .read(&image.content_hash, &image.mime_type)
+                    .map_err(image_store_error)?;
+                let stored = destination.put(&bytes).map_err(image_store_error)?;
+                if stored.content_hash != image.content_hash
+                    || stored.mime_type != image.mime_type
+                    || stored.byte_size as i64 != image.byte_size
+                {
+                    return Err(Diagnostic::new(
+                        DiagnosticContext::Backup,
+                        DiagnosticCategory::InvalidInput,
+                        "workspace image blob does not match its stored metadata",
+                    ));
+                }
+            }
+            fs::rename(&temporary, &target).map_err(|_| {
+                Diagnostic::new(
+                    DiagnosticContext::Backup,
+                    DiagnosticCategory::Backend,
+                    "backup image data could not be published",
+                )
+            })
+        })();
+        if result.is_err() {
+            let _ = fs::remove_dir_all(&temporary);
+        }
+        result
+    }
+
+    fn restore_backup_images(
+        &self,
+        artifact_file_name: &str,
+        images: &[WorkspaceImage],
+    ) -> Result<(), Diagnostic> {
+        if images.is_empty() {
+            return Ok(());
+        }
+        let source_directory = backup_blob_directory(&self.recovery_directory, artifact_file_name);
+        if !source_directory.is_dir() {
+            return Err(Diagnostic::new(
+                DiagnosticContext::Recovery,
+                DiagnosticCategory::NotFound,
+                "backup image data is unavailable",
+            ));
+        }
+        let source = ImageStore::open(source_directory).map_err(image_store_error)?;
+        let destination = ImageStore::open(self.blob_directory()).map_err(image_store_error)?;
+        let mut copied = BTreeSet::new();
+        for image in images {
+            let key = (image.content_hash.clone(), image.mime_type.clone());
+            if !copied.insert(key) {
+                continue;
+            }
+            let bytes = source
+                .read(&image.content_hash, &image.mime_type)
+                .map_err(|_| {
+                    Diagnostic::new(
+                        DiagnosticContext::Recovery,
+                        DiagnosticCategory::NotFound,
+                        "backup image data is incomplete",
+                    )
+                })?;
+            let stored = destination.put(&bytes).map_err(image_store_error)?;
+            if stored.content_hash != image.content_hash
+                || stored.mime_type != image.mime_type
+                || stored.byte_size as i64 != image.byte_size
+            {
+                return Err(Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::InvalidInput,
+                    "backup image data does not match its stored metadata",
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn stop_active_workspace(&self) -> Result<WorkspaceRuntime, Diagnostic> {
         let mut handle = self
             .active
@@ -771,6 +1043,10 @@ fn database_file_name(path: &Path) -> Result<String, Diagnostic> {
         .ok_or_else(|| internal("database path has no file name"))
 }
 
+fn backup_blob_directory(recovery_directory: &Path, artifact_file_name: &str) -> PathBuf {
+    recovery_directory.join(format!("{artifact_file_name}.blobs"))
+}
+
 fn write_new_file(target: &Path, bytes: &[u8]) -> Result<(), Diagnostic> {
     let result = (|| {
         let mut file = OpenOptions::new()
@@ -798,6 +1074,14 @@ fn recovery_error(error: skriuw_storage::StorageError) -> Diagnostic {
     error.diagnostic(DiagnosticContext::Recovery)
 }
 
+fn image_store_error(_error: skriuw_images::ImageStoreError) -> Diagnostic {
+    Diagnostic::new(
+        DiagnosticContext::Recovery,
+        DiagnosticCategory::Backend,
+        "workspace image data could not be accessed",
+    )
+}
+
 fn internal(message: &str) -> Diagnostic {
     Diagnostic::new(
         DiagnosticContext::Recovery,
@@ -816,8 +1100,10 @@ mod tests {
 
     use serde_json::json;
     use skriuw_domain::{
-        NodePlacement, WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope,
+        NodePlacement, WorkspaceArchive, WorkspaceImage, WorkspaceOperation,
+        WorkspaceOperationEnvelope,
     };
+    use skriuw_images::ImageStore;
     use skriuw_lifecycle::DatabaseSwapStage;
     use skriuw_sqlite::SqliteWorkspace;
     use skriuw_storage::{DiagnosticCategory, WorkspaceMaintenance, WorkspaceStorage};
@@ -842,6 +1128,8 @@ mod tests {
             at: test_now(),
         })
     }
+
+    const PNG: &[u8] = b"\x89PNG\r\n\x1a\nimage";
 
     struct Fixture {
         directory: TempDir,
@@ -873,6 +1161,27 @@ mod tests {
                 .expect("submit operation")
                 .wait()
                 .expect("apply operation");
+        }
+
+        fn attach_image(&self, note_id: &str) -> WorkspaceImage {
+            let stored = ImageStore::open(self.directory.path().join("blobs"))
+                .expect("open image store")
+                .put(PNG)
+                .expect("store image");
+            let image = WorkspaceImage {
+                id: "image-1".into(),
+                note_id: note_id.into(),
+                content_hash: stored.content_hash,
+                mime_type: stored.mime_type.into(),
+                byte_size: stored.byte_size as i64,
+                width: None,
+                height: None,
+                created_at: test_now(),
+            };
+            self.apply(WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage {
+                image: image.clone(),
+            }));
+            image
         }
 
         fn assert_no_leaked_paths(&self, message: &str) {
@@ -971,6 +1280,45 @@ mod tests {
             .expect_err("existing target must be rejected");
         assert_eq!(error.category, DiagnosticCategory::AlreadyExists);
         fixture.assert_no_leaked_paths(&error.to_string());
+    }
+
+    #[test]
+    fn archive_round_trips_image_metadata_and_blob_data() {
+        let source = fixture();
+        let image = source.attach_image("original-note");
+        let archive_path = source.directory.path().join("export.json");
+        source
+            .coordinator
+            .export_archive(&archive_path)
+            .expect("export archive");
+        let desktop = serde_json::from_slice::<super::DesktopArchive>(
+            &fs::read(&archive_path).expect("read archive"),
+        )
+        .expect("parse desktop archive");
+        assert_eq!(desktop.images, [image.clone()]);
+        assert_eq!(desktop.image_blobs.len(), 1);
+
+        let destination = fixture();
+        destination
+            .coordinator
+            .import_archive(&archive_path)
+            .expect("import archive");
+        let snapshot = destination
+            .coordinator
+            .runtime()
+            .expect("runtime")
+            .bootstrap()
+            .expect("bootstrap")
+            .wait()
+            .expect("snapshot");
+        assert_eq!(snapshot.images, [image.clone()]);
+        assert_eq!(
+            ImageStore::open(destination.directory.path().join("blobs"))
+                .expect("open destination image store")
+                .read(&image.content_hash, &image.mime_type)
+                .expect("restored image"),
+            PNG
+        );
     }
 
     #[test]
@@ -1136,6 +1484,35 @@ mod tests {
         assert_eq!(fixture.note_ids(), ["original-note"]);
         fixture.apply(create_note("post-swap-note"));
         assert_eq!(fixture.note_ids().len(), 2);
+    }
+
+    #[test]
+    fn backup_restore_recovers_image_blobs() {
+        let fixture = fixture();
+        let image = fixture.attach_image("original-note");
+        let backup = fixture
+            .coordinator
+            .rotate_backups(true)
+            .expect("create backup");
+        let artifact = backup.artifact_file_name.expect("backup artifact");
+        assert!(super::backup_blob_directory(&fixture.directory.path().join("recovery"), &artifact).is_dir());
+        let image_store = ImageStore::open(fixture.directory.path().join("blobs"))
+            .expect("open image store");
+        image_store
+            .delete(&image.content_hash, &image.mime_type)
+            .expect("remove live image");
+
+        fixture
+            .coordinator
+            .restore_backup(&artifact)
+            .expect("restore backup");
+        assert_eq!(
+            ImageStore::open(fixture.directory.path().join("blobs"))
+                .expect("reopen image store")
+                .read(&image.content_hash, &image.mime_type)
+                .expect("restored image"),
+            PNG
+        );
     }
 
     #[test]

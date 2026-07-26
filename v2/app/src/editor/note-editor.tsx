@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
 import {
@@ -14,7 +14,8 @@ import { EditorView } from "prosemirror-view";
 import { createCodeBlockNodeView } from "./code-block-nodeview";
 import { createImageNodeViews } from "./image-nodeview";
 import { collectImageFiles, insertImages, pickImageFiles } from "./image-input";
-import { readImageAlt, renameImageNode } from "./image-actions";
+import { noteImageIds, readImageAlt, renameImageNode } from "./image-actions";
+import { pasteMarkdown } from "./markdown-paste";
 import { registerPendingWork } from "../lifecycle/pending-work";
 import { openExternalUrl } from "../bridge/external-links";
 import { ImageInfoDialog, ImageLightbox, ImageRenameDialog } from "./image-menu";
@@ -22,6 +23,10 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "../shared/ui/context-menu";
 import {
@@ -77,19 +82,31 @@ import {
   duplicateBlock,
   insertBlockAfter,
   moveBlock,
+  topLevelBlockAt,
 } from "./block-commands";
+import {
+  firstTableCellTextPosition,
+  isTableCommandAvailable,
+  tableCommands,
+  type TableCommand,
+} from "./table-commands";
 import {
   createDragHandle,
   type BlockMenuTarget,
   type DragHandleController,
 } from "./drag-handle";
-import { BubbleMenu, closedBubbleMenu, computeBubbleMenu } from "./bubble-menu";
 import {
-  clampLinkMenuX,
+  BubbleMenu,
+  bubbleMenuStateEqual,
+  closedBubbleMenu,
+  computeBubbleMenu,
+} from "./bubble-menu";
+import {
   closedLinkMenu,
   LinkMenu,
   linkAtCursor,
   linkInRange,
+  linkMenuAnchor,
 } from "./link-menu";
 import { SearchWidget } from "./search-widget";
 import { useEditorSearch } from "./use-editor-search";
@@ -515,19 +532,22 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       searchRef.current.syncMatchInfo();
     }
     if (transaction.docChanged) dragHandleRef.current?.hide();
-    setBubbleMenu(computeBubbleMenu(view));
+    const nextBubbleMenu = linkMenuRef.current.editing
+      ? closedBubbleMenu
+      : computeBubbleMenu(view);
+    if (!bubbleMenuStateEqual(bubbleMenuRef.current, nextBubbleMenu)) {
+      setBubbleMenu(nextBubbleMenu);
+    }
     if (!linkMenuRef.current.editing) {
       const cursorLink = linkAtCursor(next);
       if (cursorLink) {
-        const linkCoords = view.coordsAtPos(cursorLink.from);
         setLinkMenu({
           open: true,
           editing: false,
           href: cursorLink.href,
           from: cursorLink.from,
           to: cursorLink.to,
-          x: clampLinkMenuX(linkCoords.left),
-          y: linkCoords.bottom + 6,
+          ...linkMenuAnchor(view, cursorLink.from, cursorLink.to),
         });
       } else if (linkMenuRef.current.open) {
         setLinkMenu(closedLinkMenu);
@@ -571,7 +591,6 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const from = cursorLink ? cursorLink.from : selection.from;
     const to = cursorLink ? cursorLink.to : selection.to;
     if (from === to) return;
-    const coords = view.coordsAtPos(from);
     setBubbleMenu(closedBubbleMenu);
     setLinkMenu({
       open: true,
@@ -579,8 +598,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       href: cursorLink ? cursorLink.href : linkInRange(view.state, from, to),
       from,
       to,
-      x: clampLinkMenuX(coords.left),
-      y: coords.bottom + 6,
+      ...linkMenuAnchor(view, from, to),
     });
   }
 
@@ -628,6 +646,20 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
+    function openTableMenu(
+      currentView: EditorView,
+      position: number,
+      clientX: number,
+      clientY: number,
+    ): boolean {
+      const block = topLevelBlockAt(currentView.state.doc, position);
+      if (!block || block.node.type.name !== "table") return false;
+      setBlockMenuPos(block.pos);
+      blockMenuTriggerRef.current?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientX, clientY }),
+      );
+      return true;
+    }
     const referenceViews = createReferenceNodeViews(store);
     const imageViews = createImageNodeViews(store, (imageId, clientX, clientY) => {
       setImageMenuImageId(imageId);
@@ -661,7 +693,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           event.preventDefault();
           return insertImages(store, currentView, noteId, files, null);
         }
-        if (linkPastedText(currentView, event.clipboardData?.getData("text/plain") ?? "")) {
+        const text = event.clipboardData?.getData("text/plain") ?? "";
+        if (linkPastedText(currentView, text)) {
+          event.preventDefault();
+          return true;
+        }
+        const html = event.clipboardData?.getData("text/html") ?? "";
+        if (pasteMarkdown(currentView, html, text, noteImageIds(store.getState(), noteId))) {
           event.preventDefault();
           return true;
         }
@@ -680,6 +718,15 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         const entry = activeEntry();
         const bounded = entry?.bounded;
         const mod = event.metaKey || event.ctrlKey;
+        if (
+          isTableCommandAvailable(currentView.state) &&
+          (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))
+        ) {
+          event.preventDefault();
+          const position = currentView.state.selection.from;
+          const coords = currentView.coordsAtPos(position);
+          return openTableMenu(currentView, position, coords.left, coords.bottom);
+        }
         if (entry && bounded && mod && event.key.toLowerCase() === "a") {
           entry.wholeSelected = true;
           currentView.dispatch(
@@ -838,11 +885,23 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       event.clipboardData.setData("text/plain", fullDocumentText(document));
       event.clipboardData.setData("text/html", fullDocumentHtml(document));
     };
+    const handleContextMenu = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.closest("table")) return;
+      const found = view.posAtCoords({ left: event.clientX, top: event.clientY });
+      if (!found) return;
+      event.preventDefault();
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(found.pos))),
+      );
+      openTableMenu(view, found.pos, event.clientX, event.clientY);
+    };
     scrollHost?.addEventListener("scroll", handleScroll, { passive: true });
     view.dom.addEventListener("compositionstart", handleCompositionStart);
     view.dom.addEventListener("compositionend", handleCompositionEnd);
     view.dom.addEventListener("blur", handleBlur);
     view.dom.addEventListener("copy", handleCopy);
+    view.dom.addEventListener("contextmenu", handleContextMenu);
     const unregisterPendingSave = registerPendingWork(() => flushPendingSave());
     return () => {
       unregisterPendingSave();
@@ -852,6 +911,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       view.dom.removeEventListener("compositionend", handleCompositionEnd);
       view.dom.removeEventListener("blur", handleBlur);
       view.dom.removeEventListener("copy", handleCopy);
+      view.dom.removeEventListener("contextmenu", handleContextMenu);
       dragHandleRef.current = null;
       dragHandle.destroy();
       viewRef.current = null;
@@ -960,6 +1020,20 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     view.focus();
   }
 
+  function runTableCommand(entry: TableCommand): void {
+    const view = viewRef.current;
+    if (!view || blockMenuPos === null) return;
+    if (!isTableCommandAvailable(view.state)) {
+      const cellPosition = firstTableCellTextPosition(view.state, blockMenuPos);
+      if (cellPosition === null) return;
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, cellPosition)),
+      );
+    }
+    entry.command(view.state, view.dispatch);
+    view.focus();
+  }
+
   function openImageRename(imageId: string): void {
     const view = viewRef.current;
     if (!view) return;
@@ -979,6 +1053,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (!view || !image) return;
     setImageDialog({ kind: "info", image, alt: readImageAlt(view.state.doc, imageId) });
   }
+
+  const blockMenuIsTable =
+    blockMenuPos !== null &&
+    viewRef.current?.state.doc.nodeAt(blockMenuPos)?.type.name === "table";
 
   return (
     <div className="editor-host">
@@ -1095,7 +1173,33 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         <ContextMenuTrigger asChild>
           <span ref={blockMenuTriggerRef} aria-hidden="true" className="fixed left-0 top-0 h-0 w-0" />
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-48">
+        <ContextMenuContent
+          className="w-48"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            viewRef.current?.focus();
+          }}
+        >
+          {blockMenuIsTable ? (
+            <>
+              <ContextMenuSub>
+                <ContextMenuSubTrigger>Table</ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-48">
+                  {tableCommands.map((entry, index) => (
+                    <Fragment key={entry.id}>
+                      {(index === 3 || index === 6 || index === 7) ? (
+                        <ContextMenuSeparator />
+                      ) : null}
+                      <ContextMenuItem onSelect={() => runTableCommand(entry)}>
+                        {entry.label}
+                      </ContextMenuItem>
+                    </Fragment>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+              <ContextMenuSeparator />
+            </>
+          ) : null}
           <ContextMenuItem className="gap-2" onSelect={() => runBlockCommand(duplicateBlock)}>
             <CopyIcon size={14} />
             Duplicate

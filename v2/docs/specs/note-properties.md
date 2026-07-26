@@ -1,94 +1,109 @@
-# Note properties (custom metadata fields)
+# Typed note properties and templates
 
-Status: not started.
+Status: active.
 
 ## Goal
 
-Let a user attach arbitrary key/value metadata to a note — a due date, a status, a rating, a URL, whatever they define — shown in the existing metadata panel (`app/src/shell/metadata-panel.tsx`) alongside built-in fields, without the schema needing to know property names in advance.
+Give notes ordered, typed metadata matching the useful v1 property surface while preserving local-first startup, narrow renderer subscriptions, portable archives, and explicit compatibility.
 
-## Non-goals
+Properties are workspace content. Templates are reusable workspace-owned property sets. Neither is embedded in editor JSON or stored as an unvalidated settings extension.
 
-- No per-workspace property "schema"/type system (e.g. defining a `status` property with an enum of allowed values shared across notes) in v1 of this feature. Start with untyped key/string-value pairs per note; a shared-schema layer is a legitimate follow-up once real usage patterns are known, not a prerequisite.
-- No properties-as-database-view (e.g. a table view grouping/filtering notes by property, Notion-style). That's a much larger feature; this spec is storage + display only.
-- No computed/formula properties.
+## Value contract
 
-## Data model
+Every value carries `valueVersion: 1`, a type discriminator, and a payload valid for that type:
 
-New table, migration (next free number):
+- `text`, `date`, `url`, `location`, `email`, and `phone`: string;
+- `number`: finite number or null;
+- `select`: option ID or null;
+- `multi_select`: ordered option IDs;
+- `person`: ordered person IDs;
+- `checkbox`: boolean;
+- `rating`: integer from zero through five or null.
 
-```sql
-CREATE TABLE IF NOT EXISTS note_properties (
-    note_id TEXT NOT NULL REFERENCES workspace_nodes(id) ON DELETE CASCADE,
-    key TEXT NOT NULL,
-    value TEXT NOT NULL,
-    position INTEGER NOT NULL,
-    PRIMARY KEY (note_id, key)
-) STRICT;
+Changing a property's type resets it to that type's empty value. Values with unsupported versions, mismatched payloads, dangling option IDs, dangling person IDs, duplicate IDs, or invalid ratings are rejected rather than coerced silently.
 
-CREATE INDEX IF NOT EXISTS note_properties_note ON note_properties(note_id, position);
-```
+Select and multi-select properties own ordered options. An option has a stable ID, label, and one of the restrained `gray`, `stone`, `amber`, `green`, `blue`, `teal`, `rose`, or `red` colors.
 
-Modeled after `document_references` (migration `0003_relationships.sql`) — a plain relational table keyed by `note_id`, not a JSON blob column on `workspace_nodes`. This keeps properties queryable (future: "find notes where `status` = `done`") and keeps `workspace_nodes` itself unchanged, matching how tags/people/mentions were kept out of the node row too. `value` is always `TEXT`; typed values (numbers, dates, booleans) are a rendering-layer interpretation of the string, not a storage-layer concern, consistent with the "no non-goal type system" decision above. `position` preserves user-chosen display order since properties are user-authored and order carries meaning (unlike, say, tags).
+## Records
 
-Do not reuse `WorkspaceSettings`'s `Record<string, unknown>` extension-data pattern for this — that pattern exists for one versioned document (settings), not for per-note repeating data.
+A note property contains:
 
-## Domain and operations
+- note ID;
+- stable property ID;
+- name;
+- versioned typed value;
+- ordered options where applicable;
+- position.
 
-`crates/skriuw-domain`: add operations mirroring the tag/person CRUD shape already in `WorkspaceOperation` (`SetNoteProperty`, `RemoveNoteProperty`, `ReorderNoteProperties`):
+A template contains:
 
-```rust
-SetNoteProperty {
-    note_id: String,
-    key: String,
-    value: String,
-    position: i64,
-    at: i64,
-},
-RemoveNoteProperty {
-    note_id: String,
-    key: String,
-    at: i64,
-},
-ReorderNoteProperties {
-    note_id: String,
-    ordered_keys: Vec<String>,
-    at: i64,
-},
-```
+- stable template ID;
+- name;
+- position;
+- ordered fields using the same value and option contracts without a note ID.
 
-Validation: `note_id` must reference an existing, non-trashed note (folders don't get properties — decide explicitly if that's wanted; this spec assumes notes only, matching "note properties" as named in the backlog). `key` non-empty, reasonable max length (match whatever bound tag/person names use).
+Instantiating a template creates fresh property and option IDs so later edits do not mutate the template or another note.
+
+## Domain operations
+
+The workspace protocol provides narrow use cases:
+
+- set, remove, and reorder note properties;
+- set, delete, and reorder property templates.
+
+Setting a property is an upsert by note and property ID. Reordering accepts the complete ordered ID set for one owner and fails atomically when IDs are missing, duplicated, or foreign. Properties may belong only to existing notes. Soft trash preserves them; permanent purge cascades them.
+
+All renderer actions apply synchronously to the normalized store before durable submission. Acknowledgement, SQLite, archive work, and history never enter the interaction path.
 
 ## Storage
 
-SQL branch in `crates/skriuw-sqlite` following the tag/person pattern exactly — `SetNoteProperty` is an upsert (`INSERT ... ON CONFLICT (note_id, key) DO UPDATE`), `RemoveNoteProperty` a delete, `ReorderNoteProperties` a batch position update in one transaction. Include `note_properties` rows in whatever query hydrates a full `WorkspaceSnapshot` on bootstrap (see `docs/data-model.md`'s transaction rules table — add a row for this).
+SQLite stores property and template ownership/order in relational columns and the versioned value and options as validated JSON. Durable writes remain serialized and each operation is atomic.
 
-## Contracts and renderer
+Bootstrap hydrates properties and templates with the workspace snapshot. The renderer indexes properties by note ID and templates by template ID. The metadata surface subscribes only to the active note's ordered property projection; editor typing, sidebar rows, and unrelated metadata sections do not subscribe.
 
-`app/src/contracts/workspace.ts`: add
+## Archive compatibility
 
-```ts
-export type NoteProperty = {
-  noteId: string;
-  key: string;
-  value: string;
-  position: number;
-};
-```
+Workspace archive version 3 includes properties and templates. Versions 1 and 2 remain accepted and import with empty property and template collections. Export always writes version 3.
 
-to `WorkspaceSnapshot`, regenerated via `./scripts/generate.sh`.
+Golden fixtures cover:
 
-`app/src/store/types.ts`/`store.ts`: index properties by `noteId` the same way other per-note derived data is indexed, so the metadata panel subscribes only to the active note's properties (per `AGENTS.md`'s "split subscriptions by dependency" rule) — not the whole `note_properties` table.
+- legacy archives without properties;
+- all twelve value types;
+- property options and ordering;
+- reusable templates;
+- invalid versions, payloads, references, and duplicate IDs;
+- two complete SQLite import/export round trips.
 
-`app/src/shell/metadata-panel.tsx`: render a properties section — list of key/value rows, an "add property" affordance, inline rename/edit/delete, drag-or-button reorder. Keep it visually consistent with however tags/people are already shown in this panel; don't introduce a new visual pattern for what is conceptually similar data.
+## UI
 
-## Archive and portability
+The metadata panel provides:
 
-Properties are workspace content — include `note_properties` in portable archive export/import (ADR-0007/0019 fixture discipline applies, same as pinned notes and images). Missing `note_properties` on import of an older archive defaults to zero properties, not an error.
+- an empty state and add-property action;
+- type selection;
+- inline name and value editing;
+- add, rename, recolor, reorder, and remove option actions;
+- keyboard-accessible property reorder and deletion;
+- built-in and custom template application;
+- complete active, disabled, error, and confirmation states.
 
-## Acceptance criteria
+The dense metadata information architecture remains intact. Property editing does not add cards, large radii, broad context state, or action animation.
 
-- Adding, renaming, editing, reordering, and removing a property round-trips through operation → SQLite → renderer store → metadata panel correctly and is visible immediately (synchronous local update, per the runtime contract in `ARCHITECTURE.md` — no waiting on acknowledgement to see it locally).
-- Properties persist across restart and archive export/import.
-- Trashing/purging a note removes its properties (`ON DELETE CASCADE` covers purge; verify trash alone — a soft delete — correctly keeps properties until purge, consistent with how document content survives trash).
-- The metadata panel subscribes only to the active note's properties; editing properties on the active note does not re-render the sidebar or unrelated panel sections.
-- Archive fixtures include a workspace with note properties and one without, proving both import cleanly.
+## Non-goals
+
+- database/table views over properties;
+- formulas and computed properties;
+- network-backed person lookup;
+- sharing or collaborative property state;
+- storing secrets in properties;
+- using a property mutation to create a workspace task implicitly.
+
+## Acceptance
+
+- All value kinds round-trip through domain operation, SQLite, bootstrap, store, archive, and UI.
+- Template instantiation produces independent IDs and values.
+- Older archives import with empty property state.
+- Invalid typed values and references fail explicitly without partial writes.
+- Trashing preserves properties and purging removes them.
+- The metadata panel observes only the active note's property projection.
+- Adding and editing a property paints synchronously and performs no navigation-time read.
+- `./scripts/generate.sh` and `./scripts/check.sh` pass.

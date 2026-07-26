@@ -71,7 +71,6 @@ export function SidebarSearchResults({
                 >
                   <FolderIcon
                     size={14}
-                    strokeWidth={1.5}
                     className="shrink-0 text-muted-foreground/70"
                   />
                   <span className="truncate">{folder.title}</span>
@@ -104,7 +103,6 @@ export function SidebarSearchResults({
                 >
                   <FileTextIcon
                     size={14}
-                    strokeWidth={1.5}
                     className="shrink-0 text-muted-foreground/70"
                   />
                   <span className="truncate">{note.title}</span>

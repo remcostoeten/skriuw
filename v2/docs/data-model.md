@@ -17,6 +17,14 @@ One row per note.
 
 Structured JSON avoids parsing Markdown during navigation. Markdown supports export, search, and Git history.
 
+### `note_properties`
+
+Ordered typed metadata fields owned by notes. Identity, name, and position remain relational; the versioned kind-specific value and bounded select options are stored as validated JSON. Person values reference canonical workspace people by ID at the domain and operation boundaries. Soft trash preserves properties and permanent purge cascades them with the note.
+
+### `note_property_templates` and `note_property_template_fields`
+
+Ordered reusable workspace templates. Template fields use the same versioned value and option contract as note properties, but do not own note IDs. Templates are canonical workspace content and remain independent from renderer settings.
+
 ## Derived tables
 
 ### `documents_fts`
@@ -45,6 +53,9 @@ Small JSON values: the last active note and one versioned `WorkspaceSettings` do
 
 - Create note: node, document, FTS row, history outbox row.
 - Save note: revision check, document update, node timestamp, FTS replacement, history outbox row.
+- Set or remove property: validate the typed value and references, preserve contiguous order, write the field, and update the note timestamp.
+- Reorder properties or templates: require the exact stored ID set and update every position in one transaction.
+- Set template: replace its complete validated ordered field set atomically.
 - Consecutive queued saves: at most 64 request groups share one outer transaction; each group uses a savepoint so its conflict or failure does not roll back successful neighbors, and completions resolve only after the outer commit.
 - Claim history: short lease update only; materialization runs after the transaction releases.
 - Complete history: cached header insert and matching leased outbox deletion.
@@ -58,7 +69,7 @@ Any partial failure rolls back the complete logical operation. In a grouped save
 
 ## Portable archive
 
-The versioned archive contains `workspace_nodes`, `documents`, settings, and active-note state. Import validates the complete domain graph before opening a transaction, replaces canonical state atomically, rebuilds FTS, and enqueues one history baseline per document. It never transports migration rows, FTS internals, cache rows, or queue leases.
+The versioned archive contains `workspace_nodes`, `documents`, settings, active-note state, typed note properties, and property templates. Import validates the complete domain graph before opening a transaction, replaces canonical state atomically, rebuilds FTS, and enqueues one history baseline per document. Archive versions 1 and 2 default missing property collections to empty; version 3 is the first format that exports them. It never transports migration rows, FTS internals, cache rows, or queue leases.
 
 Deletion timestamps are direct trash markers. Active-tree projections derive effective unavailability from the complete ancestor chain. Search, active-note state, history reads, history claims, and commands use the same inherited rule. Reversible trash keeps rebuildable projections intact; permanent purge removes them.
 

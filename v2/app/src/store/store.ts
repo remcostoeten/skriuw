@@ -1,5 +1,6 @@
 import type {
   HistoryHeader,
+  NoteProperty,
   OperationAck,
   WorkspaceImage,
   WorkspaceNode,
@@ -22,6 +23,17 @@ import {
   type ReferenceOperation,
   type TagRecord,
 } from "../references/types";
+import {
+  removeNoteProperty,
+  reorderNoteProperties,
+  upsertNoteProperty,
+} from "../properties/operations";
+import {
+  deletePropertyTemplate,
+  reorderPropertyTemplates,
+  upsertPropertyTemplate,
+} from "../properties/templates";
+import { isPropertyValidationError } from "../properties/value";
 import { opensNotesInTabs } from "../settings/settings-model";
 import { reduceOperation } from "./operations";
 import { PRIMARY_PANE_ID, defaultPanes, syncPanes } from "./panes";
@@ -173,6 +185,18 @@ export function createInitialState(
   for (const image of snapshot.images ?? []) {
     images.set(image.id, image);
   }
+  const propertiesByNoteId = new Map<string, NoteProperty[]>();
+  for (const property of snapshot.properties ?? []) {
+    const properties = propertiesByNoteId.get(property.noteId) ?? [];
+    properties.push(property);
+    propertiesByNoteId.set(property.noteId, properties);
+  }
+  for (const properties of propertiesByNoteId.values()) {
+    properties.sort((left, right) => left.position - right.position);
+  }
+  const propertyTemplates = [...(snapshot.propertyTemplates ?? [])].sort(
+    (left, right) => left.position - right.position,
+  );
   const derived = derive({
     sourceNodes,
     expandedIds,
@@ -190,6 +214,8 @@ export function createInitialState(
     tags,
     people,
     images,
+    propertiesByNoteId,
+    propertyTemplates,
     ...buildReferenceProjection(references.references),
   });
   if (derived.activeNoteId === null) {
@@ -283,6 +309,95 @@ function reduceState(
     }
     return { ...current, sourceNodes, documents, metadata, ...projection };
   }
+  if (operation.type === "set_note_property") {
+    if (current.sourceNodes.get(operation.property.noteId)?.kind !== "note") {
+      return current;
+    }
+    try {
+      const currentProperties = current.propertiesByNoteId.get(operation.property.noteId) ?? [];
+      const nextProperties = upsertNoteProperty(currentProperties, operation.property, {
+        personIds: new Set(current.people.keys()),
+      });
+      const propertiesByNoteId = new Map(current.propertiesByNoteId);
+      propertiesByNoteId.set(operation.property.noteId, nextProperties);
+      return { ...current, propertiesByNoteId };
+    } catch (error) {
+      if (isPropertyValidationError(error)) return current;
+      throw error;
+    }
+  }
+  if (operation.type === "remove_note_property") {
+    const currentProperties = current.propertiesByNoteId.get(operation.noteId);
+    if (!currentProperties) return current;
+    try {
+      const nextProperties = removeNoteProperty(currentProperties, operation.propertyId);
+      const propertiesByNoteId = new Map(current.propertiesByNoteId);
+      if (nextProperties.length === 0) propertiesByNoteId.delete(operation.noteId);
+      else propertiesByNoteId.set(operation.noteId, nextProperties);
+      return { ...current, propertiesByNoteId };
+    } catch (error) {
+      if (isPropertyValidationError(error)) return current;
+      throw error;
+    }
+  }
+  if (operation.type === "reorder_note_properties") {
+    const currentProperties = current.propertiesByNoteId.get(operation.noteId);
+    if (!currentProperties) return current;
+    try {
+      const nextProperties = reorderNoteProperties(
+        currentProperties,
+        operation.orderedPropertyIds,
+      );
+      const propertiesByNoteId = new Map(current.propertiesByNoteId);
+      propertiesByNoteId.set(operation.noteId, nextProperties);
+      return { ...current, propertiesByNoteId };
+    } catch (error) {
+      if (isPropertyValidationError(error)) return current;
+      throw error;
+    }
+  }
+  if (operation.type === "set_note_property_template") {
+    try {
+      return {
+        ...current,
+        propertyTemplates: upsertPropertyTemplate(
+          current.propertyTemplates,
+          operation.template,
+        ),
+      };
+    } catch (error) {
+      if (isPropertyValidationError(error)) return current;
+      throw error;
+    }
+  }
+  if (operation.type === "delete_note_property_template") {
+    try {
+      return {
+        ...current,
+        propertyTemplates: deletePropertyTemplate(
+          current.propertyTemplates,
+          operation.templateId,
+        ),
+      };
+    } catch (error) {
+      if (isPropertyValidationError(error)) return current;
+      throw error;
+    }
+  }
+  if (operation.type === "reorder_note_property_templates") {
+    try {
+      return {
+        ...current,
+        propertyTemplates: reorderPropertyTemplates(
+          current.propertyTemplates,
+          operation.orderedTemplateIds,
+        ),
+      };
+    } catch (error) {
+      if (isPropertyValidationError(error)) return current;
+      throw error;
+    }
+  }
 
   const sourceNodes = reduceOperation(current.sourceNodes, operation);
   if (sourceNodes === current.sourceNodes) {
@@ -329,7 +444,21 @@ function reduceState(
     images = new Map(
       [...images].filter(([, image]) => sourceNodes.has(image.noteId)),
     );
+    const propertiesByNoteId = new Map(
+      [...current.propertiesByNoteId].filter(([noteId]) => sourceNodes.has(noteId)),
+    );
     projection = removeSourceNotes(referenceState(current), purgedNoteIds);
+    return derive({
+      ...current,
+      sourceNodes,
+      documents,
+      expandedIds,
+      focusedNodeId,
+      activeNoteId,
+      images,
+      propertiesByNoteId,
+      ...projection,
+    });
   }
   return derive({
     ...current,
