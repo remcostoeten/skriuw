@@ -3458,6 +3458,7 @@ name = "skriuw-app"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
+ "glib",
  "serde",
  "serde_json",
  "skriuw-domain",
