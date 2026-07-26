@@ -119,7 +119,7 @@ export function WorkspaceShortcuts({
         keys: effectiveShortcutKeys(definition, overrides),
         handler,
         options: {
-          description: definition.label,
+          description: definition.description ?? definition.label,
           preventDefault: true,
           except: shortcutExcept(definition, definition.worksWhileTyping === true),
           scopes: definition.scopes,
@@ -130,7 +130,7 @@ export function WorkspaceShortcuts({
           keys: definition.secondaryKeys,
           handler,
           options: {
-            description: definition.label,
+            description: definition.description ?? definition.label,
             preventDefault: true,
             except: shortcutExcept(
               definition,

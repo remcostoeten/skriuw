@@ -2,6 +2,7 @@ import { applyWorkspaceOperations, bootstrapWorkspace } from "../bridge/commands
 import { envelope } from "../contracts/workspace";
 import type { NodePlacement, WorkspaceOperation } from "../contracts/workspace";
 import { buildRestoreOperation } from "../history/version-model";
+import { flushPendingWork } from "../lifecycle/pending-work";
 import { opensNotesInTabs } from "../settings/settings-model";
 import { ancestorIds, flattenVisible } from "../store/tree";
 import type { RendererState, RendererStore } from "../store/types";
@@ -296,3 +297,52 @@ export function renameCurrentNote(store: RendererStore): boolean {
   return true;
 }
 
+
+/**
+ * The note that takes over when `noteId` leaves the workspace: its successor in
+ * the navigation order, or its predecessor when it was last. Null when nothing
+ * remains, which leaves the workspace on its empty state.
+ */
+export function nextNoteAfterRemoval(
+  state: RendererState,
+  noteId: string,
+): string | null {
+  const order = noteNavigationOrder(state);
+  const index = order.indexOf(noteId);
+  if (index < 0) {
+    return null;
+  }
+  return order[index + 1] ?? order[index - 1] ?? null;
+}
+
+export type TrashedNote = { noteId: string; title: string };
+
+/**
+ * Soft-deletes the open note down the sidebar's trash path, after flushing
+ * pending edits so the trashed revision matches what was on screen. Returns what
+ * was trashed so callers can offer an undo.
+ */
+export async function trashCurrentNote(
+  store: RendererStore,
+): Promise<TrashedNote | null> {
+  const noteId = focusedPaneNoteId(store.getState());
+  if (noteId === null) {
+    return null;
+  }
+  await flushPendingWork();
+  const state = store.getState();
+  if (state.nodes.get(noteId)?.kind !== "note") {
+    return null;
+  }
+  const title = state.nodes.get(noteId)?.title ?? "Untitled";
+  const nextNoteId = nextNoteAfterRemoval(state, noteId);
+  trashSubtree(store, noteId);
+  activateNote(store, nextNoteId);
+  return { noteId, title };
+}
+
+/** Undoes `trashCurrentNote`: restores the subtree and reopens the note. */
+export function restoreTrashedNote(store: RendererStore, noteId: string): void {
+  restoreSubtree(store, noteId);
+  activateNote(store, noteId);
+}

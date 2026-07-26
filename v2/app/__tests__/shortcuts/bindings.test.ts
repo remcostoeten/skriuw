@@ -153,3 +153,33 @@ test("a plain F2 keypress matches the rename binding", () => {
     false,
   );
 });
+
+test("trash current note binds both delete keys and keeps them alive while typing", () => {
+  const trashCurrentNote = SHORTCUT_DEFINITIONS.find(
+    (entry) => entry.id === "trashCurrentNote",
+  );
+  assert.ok(trashCurrentNote);
+  assert.equal(effectiveShortcutKeys(trashCurrentNote, {}), "mod+backspace");
+  assert.equal(trashCurrentNote.secondaryKeys, "mod+delete");
+  assert.equal(trashCurrentNote.secondaryWorksWhileTyping, true);
+  assert.deepEqual(shortcutGuards(trashCurrentNote, true), [
+    "textField",
+    "sidebarTree",
+    "modal",
+  ]);
+  assert.equal(findShortcutConflict({}, "trashCurrentNote", "mod+backspace"), null);
+  assert.ok((trashCurrentNote.description ?? "").includes("macOS"));
+});
+
+test("mod+backspace and mod+delete both match the trash binding", () => {
+  const base = { key: "Backspace", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
+  const modifier = parseShortcut("mod+k").modifiers.meta ? "metaKey" : "ctrlKey";
+  const withMod = (key: string) =>
+    ({ ...base, key, [modifier]: true }) as unknown as KeyboardEvent;
+  assert.equal(matchesShortcut(withMod("Backspace"), parseShortcut("mod+backspace")), true);
+  assert.equal(matchesShortcut(withMod("Delete"), parseShortcut("mod+delete")), true);
+  assert.equal(
+    matchesShortcut(base as unknown as KeyboardEvent, parseShortcut("mod+backspace")),
+    false,
+  );
+});
