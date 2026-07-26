@@ -109,6 +109,19 @@ export function filterTrashRows(rows: readonly TrashRow[], query: string): Trash
   );
 }
 
+export type TrashSortKey = "newest" | "oldest" | "az" | "za";
+
+const trashComparators: Record<TrashSortKey, (left: TrashRow, right: TrashRow) => number> = {
+  newest: (left, right) => right.deletedAt - left.deletedAt || left.title.localeCompare(right.title),
+  oldest: (left, right) => left.deletedAt - right.deletedAt || left.title.localeCompare(right.title),
+  az: (left, right) => left.title.localeCompare(right.title) || left.deletedAt - right.deletedAt,
+  za: (left, right) => right.title.localeCompare(left.title) || left.deletedAt - right.deletedAt,
+};
+
+export function sortTrashRows(rows: readonly TrashRow[], key: TrashSortKey): TrashRow[] {
+  return [...rows].sort(trashComparators[key]);
+}
+
 export function trashWindowRange(
   itemCount: number,
   scrollTop: number,

@@ -40,7 +40,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Drag and drop** — pointer-based move and reorder in the sidebar.
 - **Sidebar search** — filters the tree and reveals matches in place.
 - **Durable layout** — folder expansion, panel state, and the active note survive restarts.
-- **Trash with subtree semantics** — trash, restore, or permanently purge whole branches; nothing is destroyed without a confirmation that shows its scope.
+- **Trash with subtree semantics** — trash, restore, or permanently purge whole branches; nothing is destroyed without a confirmation that shows its scope. The trash view searches and sorts deleted items (recently deleted, deleted first, title) and arms per-row deletion inline instead of behind a dialog.
 
 ## History and safety
 
