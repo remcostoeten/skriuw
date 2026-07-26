@@ -106,8 +106,8 @@ test("simplenote parse maps content, titles, timestamps, and skips trashed", () 
   assert.equal(bundle.notes[0].relativePath, "Shopping.md");
   assert.equal(bundle.notes[1].relativePath, "Shopping (2).md");
   assert.equal(bundle.notes[0].createdAt, Date.parse("2024-01-02T03:04:05.000Z"));
+  assert.deepEqual(bundle.notes[0].tags, ["errands"]);
   assert.ok(bundle.warnings.some((warning) => warning.message.includes("1 trashed")));
-  assert.ok(bundle.warnings.some((warning) => warning.message.includes("tags are not imported")));
 });
 
 test("markdown adapter ignores textbundle internals and json files", () => {

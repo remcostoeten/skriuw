@@ -239,7 +239,6 @@ function parse(tree: MarkdownTree): ImportBundle {
   const assets = buildAssetIndex(tree);
   const notes: ImportedNote[] = [];
   const warnings: ImportWarning[] = [];
-  let taggedNotes = 0;
   let complexKeys = 0;
   let unresolvedImages = 0;
   let noteEmbeds = 0;
@@ -254,9 +253,6 @@ function parse(tree: MarkdownTree): ImportBundle {
       markdown = markdown.slice(block[0].length);
       frontmatter = parseFrontmatterBlock(block[1] ?? "");
       complexKeys += frontmatter.complexKeys;
-      if (frontmatter.tags.length > 0) {
-        taggedNotes += 1;
-      }
     }
     const conversion = convertEmbeds(markdown, file.relativePath, assets);
     unresolvedImages += conversion.unresolvedImages;
@@ -275,11 +271,6 @@ function parse(tree: MarkdownTree): ImportBundle {
   const directories = tree.directories.filter((directory) =>
     notePaths.some((path) => path.startsWith(`${directory}/`)),
   );
-  if (taggedNotes > 0) {
-    warnings.push({
-      message: `${count(taggedNotes, "note")} carried frontmatter tags; tags are not imported yet`,
-    });
-  }
   if (complexKeys > 0) {
     warnings.push({
       message: `Skipped ${count(complexKeys, "frontmatter field")} too complex to import as properties`,

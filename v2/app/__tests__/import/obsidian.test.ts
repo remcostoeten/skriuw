@@ -90,7 +90,7 @@ test("frontmatter is stripped and mapped to typed properties", () => {
   ]);
 });
 
-test("frontmatter tags land on the note with a warning; nested keys warn", () => {
+test("frontmatter tags land on the note; nested keys warn", () => {
   const bundle = obsidianSource.parse(
     tree({
       files: [
@@ -103,7 +103,6 @@ test("frontmatter tags land on the note with a warning; nested keys warn", () =>
   );
   assert.deepEqual(bundle.notes[0].tags, ["work", "home"]);
   assert.equal(bundle.notes[0].properties, undefined);
-  assert.ok(bundle.warnings.some((warning) => warning.message.includes("tags are not imported")));
   assert.ok(bundle.warnings.some((warning) => warning.message.includes("too complex")));
 });
 

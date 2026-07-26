@@ -1,10 +1,21 @@
 import type { NoteProperty, WorkspaceOperation } from "../contracts/workspace";
+import { hasLosslessMarkdownDocument } from "../editor/schema";
 import type {
   MarkdownImportPlan,
   MarkdownReferenceTarget,
 } from "../export/markdown-transfer-model";
 import { planMarkdownImport } from "../export/markdown-transfer-model";
 import type { ImportBundle, ImportedNoteProperty } from "./model";
+
+export type ImportTagTarget = {
+  id: string;
+  name: string;
+};
+
+export type ImportBundlePlan = MarkdownImportPlan & {
+  createdTags: number;
+  tagSkippedNotes: number;
+};
 
 function normalizeTreePath(path: string): string {
   return path.replaceAll("\\", "/").replace(/^\/+/, "").replace(/\/+$/, "");
@@ -58,17 +69,98 @@ function buildPropertyOperations(
   }));
 }
 
+type TagResolution = {
+  idByName: Map<string, string>;
+  operations: WorkspaceOperation[];
+};
+
+function resolveImportedTags(
+  bundle: ImportBundle,
+  existingTags: readonly ImportTagTarget[],
+  at: number,
+  makeId: () => string,
+): TagResolution {
+  const existingByLowerName = new Map(
+    existingTags.map((tag) => [tag.name.trim().toLowerCase(), tag.id]),
+  );
+  const idByName = new Map<string, string>();
+  const operations: WorkspaceOperation[] = [];
+  for (const note of bundle.notes) {
+    for (const raw of note.tags ?? []) {
+      const name = raw.trim();
+      if (name.length === 0 || idByName.has(name.toLowerCase())) {
+        continue;
+      }
+      const existingId = existingByLowerName.get(name.toLowerCase());
+      if (existingId !== undefined) {
+        idByName.set(name.toLowerCase(), existingId);
+        continue;
+      }
+      const id = makeId();
+      idByName.set(name.toLowerCase(), id);
+      operations.push({
+        type: "create_tag",
+        tag: { id, name, color: null, createdAt: at, updatedAt: at, createdIn: null },
+      });
+    }
+  }
+  return { idByName, operations };
+}
+
+/**
+ * The paragraph of chips is the association mechanism: the store derives
+ * note→tag references from `tag_ref` nodes in the saved document.
+ */
+function appendTagChips(
+  documentJson: unknown,
+  markdown: string,
+  tags: readonly string[],
+  idByName: ReadonlyMap<string, string>,
+): { documentJson: unknown; markdown: string } | null {
+  const document = documentJson as { type?: unknown; content?: unknown[] };
+  if (document.type !== "doc" || !Array.isArray(document.content)) {
+    return null;
+  }
+  const chips: unknown[] = [];
+  const labels: string[] = [];
+  for (const raw of tags) {
+    const name = raw.trim();
+    const id = idByName.get(name.toLowerCase());
+    if (id === undefined) {
+      continue;
+    }
+    if (chips.length > 0) {
+      chips.push({ type: "text", text: " " });
+    }
+    chips.push({ type: "tag_ref", attrs: { id, label: name } });
+    labels.push(`#${name}`);
+  }
+  if (chips.length === 0) {
+    return null;
+  }
+  return {
+    documentJson: {
+      ...document,
+      content: [...document.content, { type: "paragraph", content: chips }],
+    },
+    markdown: `${markdown.replace(/\n+$/, "")}\n\n${labels.join(" ")}`,
+  };
+}
+
 /**
  * Runs the safety-aware markdown planner over an adapter bundle, then restores
  * the adapter's explicit note titles, which the planner derives from filenames,
- * and appends `set_note_property` operations for adapter-supplied properties.
+ * appends `set_note_property` operations for adapter-supplied properties, and
+ * turns adapter-supplied tags into `create_tag` operations plus a trailing
+ * paragraph of tag chips on each tagged note.
  */
 export function planImportBundle(
   bundle: ImportBundle,
   at: number,
   makeId: () => string,
   existingNotes: readonly MarkdownReferenceTarget[] = [],
-): MarkdownImportPlan {
+  existingTags: readonly ImportTagTarget[] = [],
+): ImportBundlePlan {
   const plan = planMarkdownImport(
     {
       directories: bundle.directories,
@@ -104,5 +196,32 @@ export function planImportBundle(
     }
   }
   plan.operations.push(...propertyOperations);
-  return plan;
+  const tags = resolveImportedTags(bundle, existingTags, at, makeId);
+  plan.operations.push(...tags.operations);
+  let tagSkippedNotes = 0;
+  for (const operation of plan.contentOperations) {
+    if (operation.type !== "save_document") {
+      continue;
+    }
+    const path = idToPath.get(operation.noteId);
+    const note = path === undefined ? undefined : noteByPath.get(path);
+    if (!note?.tags || note.tags.length === 0) {
+      continue;
+    }
+    if (hasLosslessMarkdownDocument(operation.documentJson)) {
+      tagSkippedNotes += 1;
+      continue;
+    }
+    const appended = appendTagChips(
+      operation.documentJson,
+      operation.markdown,
+      note.tags,
+      tags.idByName,
+    );
+    if (appended) {
+      operation.documentJson = appended.documentJson;
+      operation.markdown = appended.markdown;
+    }
+  }
+  return { ...plan, createdTags: tags.operations.length, tagSkippedNotes };
 }
