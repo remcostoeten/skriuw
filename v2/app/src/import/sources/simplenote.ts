@@ -81,12 +81,6 @@ function parse(tree: MarkdownTree): ImportBundle {
   if (trashed > 0) {
     warnings.push({ message: `Skipped ${trashed} trashed Simplenote note${trashed === 1 ? "" : "s"}` });
   }
-  const tagged = notes.filter((note) => (note.tags?.length ?? 0) > 0).length;
-  if (tagged > 0) {
-    warnings.push({
-      message: `${tagged} note${tagged === 1 ? "" : "s"} carried Simplenote tags; tags are not imported yet`,
-    });
-  }
   return {
     sourceId: simplenoteSource.id,
     sourceLabel: simplenoteSource.label,

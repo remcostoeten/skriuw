@@ -187,11 +187,16 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
     const existingNotes = [...state.nodes.values()]
       .filter((node) => node.kind === "note")
       .map((node) => ({ id: node.id, title: node.title }));
+    const existingTags = [...state.tags.values()].map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+    }));
     const plan = planImportBundle(
       bundle,
       at,
       () => crypto.randomUUID(),
       existingNotes,
+      existingTags,
     );
     const images = await importPlannedImages(plan, sourceDir, at);
     if (plan.operations.length > 0) {
@@ -228,6 +233,12 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
           : []),
         ...(plan.preservedSources > 0
           ? [`Preserved ${count(plan.preservedSources, "note with unsupported Markdown")} in raw mode`]
+          : []),
+        ...(plan.createdTags > 0 ? [`Created ${count(plan.createdTags, "tag")}`] : []),
+        ...(plan.tagSkippedNotes > 0
+          ? [
+              `Skipped tags on ${count(plan.tagSkippedNotes, "raw-preserved note")}`,
+            ]
           : []),
         ...(tree.skipped > 0 ? [`Skipped ${count(tree.skipped, "unreadable file")}`] : []),
         ...bundle.warnings.map((warning) => warning.message),
