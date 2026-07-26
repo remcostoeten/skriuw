@@ -183,3 +183,34 @@ test("mod+backspace and mod+delete both match the trash binding", () => {
     false,
   );
 });
+
+test("duplicate current note fires from the editor and from the sidebar tree", () => {
+  const duplicateCurrentNote = SHORTCUT_DEFINITIONS.find(
+    (entry) => entry.id === "duplicateCurrentNote",
+  );
+  assert.ok(duplicateCurrentNote);
+  assert.equal(effectiveShortcutKeys(duplicateCurrentNote, {}), "mod+shift+d");
+  assert.deepEqual(shortcutGuards(duplicateCurrentNote, true), ["textField", "modal"]);
+  assert.equal(findShortcutConflict({}, "duplicateCurrentNote", "mod+shift+d"), null);
+
+  const guards = shortcutGuards(duplicateCurrentNote, true);
+  const treeRow = { tagName: "BUTTON", closest: (selector: string) => ({ selector }) };
+  const editorTarget = { tagName: "DIV", isContentEditable: true, closest: () => null };
+  const renameInput = { tagName: "INPUT", closest: () => null };
+  assert.equal(shortcutGuarded(guards, { target: treeRow }), false);
+  assert.equal(shortcutGuarded(guards, { target: editorTarget }), false);
+  assert.equal(shortcutGuarded(guards, { target: renameInput }), true);
+});
+
+test("mod+shift+d matches the duplicate binding and plain d does not", () => {
+  const parsed = parseShortcut("mod+shift+d");
+  const modifier = parseShortcut("mod+k").modifiers.meta ? "metaKey" : "ctrlKey";
+  const base = { key: "d", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
+  const pressed = { ...base, shiftKey: true, [modifier]: true } as unknown as KeyboardEvent;
+  assert.equal(matchesShortcut(pressed, parsed), true);
+  assert.equal(matchesShortcut(base as unknown as KeyboardEvent, parsed), false);
+  assert.equal(
+    matchesShortcut({ ...base, [modifier]: true } as unknown as KeyboardEvent, parsed),
+    false,
+  );
+});

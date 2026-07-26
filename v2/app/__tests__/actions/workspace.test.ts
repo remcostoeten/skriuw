@@ -244,3 +244,101 @@ test("restoreTrashedNote brings the note back and reopens it", async () => {
   assert.equal(state.sourceNodes.get("a")?.deletedAt, null);
   assert.equal(state.activeNoteId, "a");
 });
+
+test("duplicateCurrentNote copies the open note after it and opens the copy", async () => {
+  const { duplicateCurrentNote } = await import("../../src/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [folderNode("f", 1), noteNode("a", 1, "f"), noteNode("b", 2, "f")],
+    documents: [
+      {
+        noteId: "a",
+        documentJson: {
+          type: "doc",
+          content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "a" }] }],
+        },
+        markdown: "# a\n",
+        revision: 1,
+        wordCount: 1,
+      },
+    ],
+  });
+
+  const duplicated = await duplicateCurrentNote(store);
+  assert.ok(duplicated);
+  assert.equal(duplicated.title, "a (copy)");
+
+  const state = store.getState();
+  assert.equal(state.activeNoteId, duplicated.noteId);
+  assert.equal(state.nodes.get(duplicated.noteId)?.parentId, "f");
+  assert.equal(state.nodes.get(duplicated.noteId)?.title, "a (copy)");
+  assert.notEqual(duplicated.noteId, "a");
+  assert.equal(state.sourceNodes.get(duplicated.noteId)?.pinnedAt, null);
+  assert.equal(state.nodes.has("a"), true);
+  const order = state.nodeOrder.filter((id) => id === "a" || id === duplicated.noteId || id === "b");
+  assert.deepEqual(order, ["a", duplicated.noteId, "b"]);
+});
+
+test("duplicateCurrentNote leaves the original pinned state and dates alone", async () => {
+  const { duplicateCurrentNote } = await import("../../src/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [{ ...noteNode("a", 1), pinnedAt: 42, createdAt: 42 }],
+    documents: [
+      {
+        noteId: "a",
+        documentJson: {
+          type: "doc",
+          content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "a" }] }],
+        },
+        markdown: "# a\n",
+        revision: 1,
+        wordCount: 1,
+      },
+    ],
+  });
+
+  const duplicated = await duplicateCurrentNote(store);
+  assert.ok(duplicated);
+  const copy = store.getState().sourceNodes.get(duplicated.noteId);
+  assert.equal(copy?.pinnedAt, null);
+  assert.ok((copy?.createdAt ?? 0) > 42);
+  assert.equal(store.getState().sourceNodes.get("a")?.pinnedAt, 42);
+});
+
+test("duplicateCurrentNote is a silent no-op without an open note", async () => {
+  const { duplicateCurrentNote } = await import("../../src/actions/workspace");
+  const store = await storeWith({ activeNoteId: null, nodes: [folderNode("f", 1)] });
+  assert.equal(await duplicateCurrentNote(store), null);
+  assert.equal(store.getState().nodes.size, 1);
+});
+
+test("duplicateCurrentNote opens the copy in the focused split pane", async () => {
+  const { duplicateCurrentNote } = await import("../../src/actions/workspace");
+  const { focusPane, openBeside } = await import("../../src/actions/panes");
+  const { SECONDARY_PANE_ID, secondaryPane } = await import("../../src/store/panes");
+  const document = (noteId: string, text: string) => ({
+    noteId,
+    documentJson: {
+      type: "doc",
+      content: [{ type: "heading", attrs: { level: 1 }, content: [{ type: "text", text }] }],
+    },
+    markdown: `# ${text}\n`,
+    revision: 1,
+    wordCount: 1,
+  });
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [noteNode("a", 1), noteNode("b", 2)],
+    documents: [document("a", "a"), document("b", "b")],
+  });
+  openBeside(store, "b");
+  focusPane(store, SECONDARY_PANE_ID);
+
+  const duplicated = await duplicateCurrentNote(store);
+  assert.ok(duplicated);
+  assert.equal(duplicated.title, "b (copy)");
+  const state = store.getState();
+  assert.equal(secondaryPane(state.panes)?.activeNoteId, duplicated.noteId);
+  assert.equal(state.activeNoteId, "a");
+});
