@@ -29,7 +29,7 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
   - [x] Generated-contract, full check, production-build, focused browser E2E, and 10,000-note post-import navigation evidence.
   - [ ] Sanitized fixtures captured from real provider applications rather than synthetic export-shape fixtures.
   - [ ] Obsidian alias and heading wikilinks (`[[target|label]]`, `[[target#heading]]`). The importer matches the whole link label against note titles (`resolveImportedNoteReferences` in `app/src/export/markdown-transfer-model.ts`), so both forms count as unresolved and stay literal `[[…]]` text. Fix: split the target on `|`/`#` for title matching, keep the alias as display label, drop or suffix the heading anchor. Low priority; reproduce with `fixtures/import-samples/obsidian-vault` (the two unresolved wiki-link warnings in `Home.md`).
-  - [ ] Full native Tauri WebDriver import E2E; current browser E2E uses the deterministic bridge and native intake/transaction behavior is covered separately by Rust tests.
+  - [x] Full native Tauri WebDriver import E2E (`app/e2e/run-native.mjs`): the real debug binary under `tauri-driver` + WebKitWebDriver imports `fixtures/import-samples/notion-export.zip` end to end — real ZIP intake, preview, SQLite commit verified in the database file, and an idempotent skip-mode re-import. Manually invoked, not in CI; see [app/e2e/README.md](app/e2e/README.md). It caught two real plan bugs the mocked bridge never could: non-dense provenance property positions and skip-mode re-imports re-creating already-imported folders.
 - [ ] Later provider adapters: Evernote ENEX, Google Keep, Joplin, and Standard Notes.
 
 ## Platform
