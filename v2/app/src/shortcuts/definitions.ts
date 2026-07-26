@@ -31,6 +31,7 @@ export type ShortcutActionId =
   | "zoomIn"
   | "zoomOut"
   | "zoomReset"
+  | "jumpToLine"
   | "goToDocumentStart"
   | "goToDocumentEnd"
   | "findInNote"
@@ -328,6 +329,17 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Reset zoom",
     group: "View",
     worksWhileTyping: true,
+  },
+  {
+    id: "jumpToLine",
+    keys: "mod+g",
+    label: "Jump to line",
+    description:
+      "Toggle the jump-to-line field. Raw Markdown mode only — block mode has no line numbers to jump to. Overrides Firefox's find-again default on web.",
+    group: "Editor",
+    worksWhileTyping: true,
+    scopes: "markdown",
+    boundInEditor: true,
   },
   {
     id: "goToDocumentStart",

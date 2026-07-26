@@ -308,3 +308,41 @@ test("mod+h matches find and replace while a plain h keeps typing", () => {
     true,
   );
 });
+
+test("jump to line is scoped to Markdown mode and bound inside the editor", () => {
+  const jumpToLine = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "jumpToLine");
+  assert.ok(jumpToLine);
+  assert.equal(effectiveShortcutKeys(jumpToLine, {}), "mod+g");
+  assert.equal(jumpToLine.scopes, "markdown");
+  assert.equal(jumpToLine.boundInEditor, true);
+  assert.deepEqual(shortcutGuards(jumpToLine, true), []);
+  assert.equal(findShortcutConflict({}, "jumpToLine", "mod+g"), null);
+});
+
+test("mod+g matches jump to line and a plain g keeps typing", () => {
+  const parsed = parseShortcut("mod+g");
+  const modifier = parseShortcut("mod+k").modifiers.meta ? "metaKey" : "ctrlKey";
+  const base = { key: "g", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
+  assert.equal(
+    matchesShortcut({ ...base, [modifier]: true } as unknown as KeyboardEvent, parsed),
+    true,
+  );
+  assert.equal(matchesShortcut(base as unknown as KeyboardEvent, parsed), false);
+  assert.equal(
+    matchesShortcut(
+      { ...base, [modifier]: true, shiftKey: true } as unknown as KeyboardEvent,
+      parsed,
+    ),
+    false,
+  );
+});
+
+test("every default binding is free of overlaps", () => {
+  for (const definition of SHORTCUT_DEFINITIONS) {
+    assert.equal(
+      findShortcutConflict({}, definition.id, effectiveShortcutKeys(definition, {})),
+      null,
+      `${definition.id} overlaps another default`,
+    );
+  }
+});
