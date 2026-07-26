@@ -49,6 +49,9 @@ export function buildImportPreviewCandidate(
       ? [`Tags cannot attach to ${count(plan.tagSkippedNotes, "raw-preserved note")}`]
       : []),
     ...(tree.skipped > 0 ? [`${count(tree.skipped, "unreadable file")} will be skipped`] : []),
+    ...(tree.unsupported ?? []).map(
+      (path) => `${path}: unsupported attachment will be skipped`,
+    ),
     ...bundle.warnings.map((warning) =>
       warning.path ? `${warning.path}: ${warning.message}` : warning.message,
     ),

@@ -1,4 +1,5 @@
 import type { ImportSourceAdapter } from "../model";
+import { appleNotesSource } from "./apple-notes";
 import { bearSource } from "./bear";
 import { markdownSource } from "./markdown";
 import { notionSource } from "./notion";
@@ -11,6 +12,7 @@ export const importSources: readonly ImportSourceAdapter[] = [
   bearSource,
   notionSource,
   obsidianSource,
+  appleNotesSource,
   plainTextSource,
   markdownSource,
 ];

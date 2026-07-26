@@ -248,13 +248,21 @@ function parse(tree: MarkdownTree): ImportBundle {
     }
     let markdown = file.content;
     let frontmatter: ParsedFrontmatter | null = null;
+    const originalMarkdown = markdown;
     const block = FRONTMATTER_PATTERN.exec(markdown);
     if (block) {
       markdown = markdown.slice(block[0].length);
       frontmatter = parseFrontmatterBlock(block[1] ?? "");
       complexKeys += frontmatter.complexKeys;
     }
-    const conversion = convertEmbeds(markdown, file.relativePath, assets);
+    const preserveFrontmatter = (frontmatter?.complexKeys ?? 0) > 0;
+    const conversion = preserveFrontmatter
+      ? {
+          markdown: originalMarkdown,
+          unresolvedImages: 0,
+          noteEmbeds: 0,
+        }
+      : convertEmbeds(markdown, file.relativePath, assets);
     unresolvedImages += conversion.unresolvedImages;
     noteEmbeds += conversion.noteEmbeds;
     notes.push({

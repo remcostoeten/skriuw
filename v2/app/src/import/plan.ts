@@ -21,6 +21,12 @@ function normalizeTreePath(path: string): string {
   return path.replaceAll("\\", "/").replace(/^\/+/, "").replace(/\/+$/, "");
 }
 
+function importedTime(value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) && value >= 0
+    ? Math.trunc(value)
+    : fallback;
+}
+
 function toNoteProperty(
   imported: ImportedNoteProperty,
   noteId: string,
@@ -189,6 +195,7 @@ export function planImportBundle(
       continue;
     }
     operation.title = note.title;
+    operation.at = importedTime(note.createdAt, at);
     if (note.properties && note.properties.length > 0) {
       propertyOperations.push(
         ...buildPropertyOperations(note.properties, operation.id, at, makeId),
@@ -205,6 +212,12 @@ export function planImportBundle(
     }
     const path = idToPath.get(operation.noteId);
     const note = path === undefined ? undefined : noteByPath.get(path);
+    if (note) {
+      operation.at = importedTime(
+        note.modifiedAt,
+        importedTime(note.createdAt, at),
+      );
+    }
     if (!note?.tags || note.tags.length === 0) {
       continue;
     }
