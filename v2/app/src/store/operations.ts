@@ -82,6 +82,12 @@ export function reduceOperation(
     case "rename_person":
     case "recolor_person":
     case "delete_person":
+    case "set_note_property":
+    case "remove_note_property":
+    case "reorder_note_properties":
+    case "set_note_property_template":
+    case "delete_note_property_template":
+    case "reorder_note_property_templates":
       return nodes;
     case "create_folder":
     case "create_note": {
