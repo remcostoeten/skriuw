@@ -1120,7 +1120,7 @@ export function Sidebar({ store }: Props) {
           className={`relative flex h-11 items-center justify-between overflow-hidden ${metrics.isNarrow ? "px-1.5" : "px-3"}`}
         >
           <div
-            className={`flex w-full min-w-0 items-center ${metrics.isNarrow ? "gap-0.5" : "gap-2 md:gap-2.5"}`}
+            className="flex w-full min-w-0 items-center justify-between"
           >
             <Tooltip label="New note" side="bottom">
               <button

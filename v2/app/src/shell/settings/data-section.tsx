@@ -10,9 +10,14 @@ import {
   relocateWorkspaceStorage,
   restoreWorkspaceBackup,
   revealWorkspaceStorage,
+  pickImportFile,
   workspaceStoragePath,
 } from "../../bridge/commands";
-import { FolderOpenIcon } from "../../shared/icons";
+import {
+  importMarkdownIntoWorkspace,
+  importProviderExportIntoWorkspace,
+} from "../../export/markdown-transfer";
+import { FolderOpenIcon, UploadIcon } from "../../shared/icons";
 import { Button } from "../../shared/ui/button";
 import { InlineConfirm } from "../../shared/ui/inline-confirm";
 import {
@@ -50,10 +55,10 @@ import {
   settingsInputRow,
   settingsRow,
   settingsRowDescription,
+  settingsButtonDanger,
   settingsRowDetail,
   settingsRowLabel,
   settingsSection,
-  settingsTextInput,
 } from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
 
@@ -61,6 +66,9 @@ const maintenanceTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
 });
+
+const dangerZoneClass =
+  "rounded-lg border border-destructive/25 px-3 pb-1 pt-2.5";
 
 const RUNNING_LABELS: Record<MaintenanceKind, string> = {
   export: "Exporting archive…",
@@ -200,6 +208,18 @@ export function DataSection({ store }: SectionProps) {
       });
   }
 
+  function chooseArchiveFile(): void {
+    pickImportFile("Choose a workspace archive")
+      .then((picked) => {
+        if (picked && mountedRef.current) {
+          setImportPath(picked);
+        }
+      })
+      .catch((error) => {
+        console.error("archive pick rejected", error);
+      });
+  }
+
   function chooseStorageLocation(): void {
     pickDirectory("Choose a new storage folder")
       .then((picked) => {
@@ -233,7 +253,7 @@ export function DataSection({ store }: SectionProps) {
     <section aria-label="Data" className={settingsSection}>
       <SettingsHeading
         title="Data"
-        detail="Storage, portable archives, backups, and recovery for this workspace."
+        detail="Imports, storage, portable archives, backups, and recovery for this workspace."
       />
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Storage</div>
@@ -288,6 +308,49 @@ export function DataSection({ store }: SectionProps) {
         </div>
       </div>
       <div className={settingsGroup}>
+        <div className={settingsGroupTitle}>Import from other apps</div>
+        <div className={settingsRow}>
+          <span className={settingsRowLabel}>
+            Import notes from a folder
+            <span className={settingsRowDescription}>
+              Markdown, text, Obsidian vaults, extracted Notion exports, or
+              TextBundles. Shows a preview before anything changes.
+            </span>
+          </span>
+          <button
+            type="button"
+            className={settingsButton}
+            disabled={busy}
+            onClick={() => {
+              void importMarkdownIntoWorkspace(store);
+            }}
+          >
+            <UploadIcon size={15} />
+            Choose folder…
+          </button>
+        </div>
+        <div className={settingsRow}>
+          <span className={settingsRowLabel}>
+            Import a provider export
+            <span className={settingsRowDescription}>
+              ZIP, Bear .bear2bk, Simplenote JSON, Notion CSV, Markdown, or text
+              files. Shows a preview before anything changes.
+            </span>
+          </span>
+          <button
+            type="button"
+            className={settingsButton}
+            disabled={busy}
+            onClick={() => {
+              void importProviderExportIntoWorkspace(store);
+            }}
+          >
+            <UploadIcon size={15} />
+            Choose file…
+          </button>
+        </div>
+      </div>
+      <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Portable archive</div>
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
@@ -304,55 +367,6 @@ export function DataSection({ store }: SectionProps) {
           >
             Export archive
           </button>
-        </div>
-        <div className={cn(settingsRow, settingsInputRow)}>
-          <label className={settingsRowLabel} htmlFor="settings-import-path">
-            Import archive
-            <span className={settingsRowDescription}>
-              Replaces this workspace with a previously exported archive file.
-            </span>
-          </label>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-            <input
-              id="settings-import-path"
-              className={cn(settingsTextInput, "min-w-0 max-w-[320px] flex-1")}
-              type="text"
-              placeholder="/path/to/skriuw-archive.json"
-              value={importPath}
-              disabled={busy}
-              onChange={(event) => setImportPath(event.currentTarget.value)}
-            />
-            <InlineConfirm
-              confirmLabel={confirmation?.kind === "import" && copy ? copy.confirmLabel : "Replace workspace"}
-              message={confirmation?.kind === "import" && copy ? copy.body : null}
-              messagePlacement="stacked"
-              armed={confirmation?.kind === "import"}
-              onArmedChange={(next) => {
-                if (!next) {
-                  setPhase((current) => dismissConfirmation(current));
-                }
-              }}
-              onConfirm={runConfirmed}
-              renderIdle={() => (
-                <button
-                  type="button"
-                  className={settingsButton}
-                  disabled={busy || importPath.trim() === ""}
-                  onClick={() => {
-                    const next = requestConfirmation(phase, {
-                      kind: "import",
-                      archivePath: importPath.trim(),
-                    });
-                    if (next) {
-                      setPhase(next);
-                    }
-                  }}
-                >
-                  Import…
-                </button>
-              )}
-            />
-          </div>
         </div>
       </div>
       <div className={settingsGroup}>
@@ -397,8 +411,60 @@ export function DataSection({ store }: SectionProps) {
           onConfirmRestore={runConfirmed}
         />
       </div>
-      <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Reset</div>
+      <div className={cn(settingsGroup, dangerZoneClass)}>
+        <div className={cn(settingsGroupTitle, "text-destructive/80")}>Danger zone</div>
+        <div className={cn(settingsRow, settingsInputRow)}>
+          <span className={settingsRowLabel}>
+            Replace workspace from archive
+            <span className={settingsRowDescription}>
+              Replaces every note in this workspace with the contents of a previously
+              exported archive file.
+            </span>
+            {importPath !== "" && (
+              <span className={settingsRowDetail}>{importPath}</span>
+            )}
+          </span>
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <button
+              type="button"
+              className={settingsButton}
+              disabled={busy}
+              onClick={chooseArchiveFile}
+            >
+              Choose archive…
+            </button>
+            <InlineConfirm
+              confirmLabel={confirmation?.kind === "import" && copy ? copy.confirmLabel : "Replace workspace"}
+              message={confirmation?.kind === "import" && copy ? copy.body : null}
+              messagePlacement="stacked"
+              armed={confirmation?.kind === "import"}
+              onArmedChange={(next) => {
+                if (!next) {
+                  setPhase((current) => dismissConfirmation(current));
+                }
+              }}
+              onConfirm={runConfirmed}
+              renderIdle={() => (
+                <button
+                  type="button"
+                  className={cn(settingsButton, settingsButtonDanger)}
+                  disabled={busy || importPath.trim() === ""}
+                  onClick={() => {
+                    const next = requestConfirmation(phase, {
+                      kind: "import",
+                      archivePath: importPath.trim(),
+                    });
+                    if (next) {
+                      setPhase(next);
+                    }
+                  }}
+                >
+                  Replace…
+                </button>
+              )}
+            />
+          </div>
+        </div>
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
             Reset all settings
@@ -486,10 +552,9 @@ function BackupInventory({
         {inventory.backups.map((entry) => (
           <li key={entry.fileName} className={backupItemClass}>
             <span className={settingsRowLabel}>
-              {entry.fileName}
+              {maintenanceTimeFormatter.format(new Date(entry.createdAt))}
               <span className={settingsRowDetail}>
-                {maintenanceTimeFormatter.format(new Date(entry.createdAt))} ·{" "}
-                {formatSizeBytes(entry.sizeBytes)}
+                {entry.fileName} · {formatSizeBytes(entry.sizeBytes)}
                 {entry.verified ? "" : " · unverified"}
               </span>
             </span>
@@ -526,10 +591,9 @@ function BackupInventory({
             {inventory.rollbacks.map((entry) => (
               <li key={entry.fileName} className={backupItemClass}>
                 <span className={settingsRowLabel}>
-                  {entry.fileName}
+                  {maintenanceTimeFormatter.format(new Date(entry.createdAt))}
                   <span className={settingsRowDetail}>
-                    {maintenanceTimeFormatter.format(new Date(entry.createdAt))} ·{" "}
-                    {formatSizeBytes(entry.sizeBytes)}
+                    {entry.fileName} · {formatSizeBytes(entry.sizeBytes)}
                   </span>
                 </span>
               </li>
