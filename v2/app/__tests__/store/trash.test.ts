@@ -4,6 +4,7 @@ import type { WorkspaceNode } from "../../src/contracts/workspace";
 import {
   filterTrashRows,
   isNodeInSubtree,
+  sortTrashRows,
   trashRows,
   trashSnippet,
   trashWindowRange,
@@ -119,6 +120,30 @@ test("trash search matches title, origin folder and snippet", () => {
   );
   assert.equal(filterTrashRows(rows, "   ").length, rows.length);
   assert.equal(filterTrashRows(rows, "nothing here").length, 0);
+});
+
+test("trash sorting orders rows by deletion time and title without mutating input", () => {
+  const rows = trashRows(nodes(), new Map());
+  assert.deepEqual(
+    sortTrashRows(rows, "newest").map((row) => row.id),
+    ["folder", "older-note"],
+  );
+  assert.deepEqual(
+    sortTrashRows(rows, "oldest").map((row) => row.id),
+    ["older-note", "folder"],
+  );
+  assert.deepEqual(
+    sortTrashRows(rows, "az").map((row) => row.title),
+    ["Older", "Project"],
+  );
+  assert.deepEqual(
+    sortTrashRows(rows, "za").map((row) => row.title),
+    ["Project", "Older"],
+  );
+  assert.deepEqual(
+    rows.map((row) => row.id),
+    ["folder", "older-note"],
+  );
 });
 
 test("trash list rendering stays bounded for a 5,000-item workspace", () => {
