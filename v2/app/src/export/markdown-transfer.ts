@@ -2,8 +2,10 @@ import { commitOperations } from "../actions/workspace";
 import {
   exportMarkdownTree,
   importMarkdownImage,
+  cleanupImportSource,
   pickDirectory,
-  readMarkdownTree,
+  pickImportFile,
+  prepareImportSource,
 } from "../bridge/commands";
 import { productSchema, serializeProductMarkdown } from "../editor/schema";
 import { noop } from "../shared/lib/noop";
@@ -168,18 +170,18 @@ async function importPlannedImages(
   return { attachOperations, imported, skipped };
 }
 
-export async function importMarkdownIntoWorkspace(store: RendererStore): Promise<void> {
+async function importNotesFromPath(
+  store: RendererStore,
+  sourcePath: string,
+): Promise<void> {
+  const prepared = await prepareImportSource(sourcePath);
   try {
-    const sourceDir = await pickDirectory("Import notes");
-    if (!sourceDir) {
-      return;
-    }
-    const tree = await readMarkdownTree(sourceDir);
+    const tree = prepared.tree;
     const detectedSource = detectImportSource(importSources, tree);
     if (!detectedSource) {
       publishTransferReport({
         title: "Nothing to import",
-        lines: [`No importable notes found in ${sourceDir}`],
+        lines: [`No importable notes found in ${sourcePath}`],
       });
       return;
     }
@@ -213,7 +215,7 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
         };
       });
     const selectedSourceId = await requestImportPreview({
-      sourcePath: sourceDir,
+      sourcePath,
       candidates: candidates.map((candidate) => candidate.preview),
       detectedSourceId: detectedSource.id,
     });
@@ -227,7 +229,7 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
       return;
     }
     const { bundle, plan } = selected;
-    const images = await importPlannedImages(plan, sourceDir, at);
+    const images = await importPlannedImages(plan, prepared.rootPath, at);
     const operations = [
       ...plan.operations,
       ...images.attachOperations,
@@ -239,7 +241,7 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
     publishTransferReport({
       title: `Import complete (${bundle.sourceLabel})`,
       lines: [
-        `Imported ${count(plan.noteCount, "note")} and ${count(plan.folderCount, "folder")} from ${sourceDir}`,
+        `Imported ${count(plan.noteCount, "note")} and ${count(plan.folderCount, "folder")} from ${sourcePath}`,
         ...(images.imported > 0 ? [`Imported ${count(images.imported, "image")}`] : []),
         ...(images.skipped > 0
           ? [`Skipped ${count(images.skipped, "unreadable image")}`]
@@ -260,9 +262,38 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
             ]
           : []),
         ...(tree.skipped > 0 ? [`Skipped ${count(tree.skipped, "unreadable file")}`] : []),
+        ...(tree.unsupported ?? []).map(
+          (path) => `Skipped unsupported attachment ${path}`,
+        ),
         ...bundle.warnings.map((warning) => warning.message),
       ],
     });
+  } finally {
+    if (prepared.temporary) {
+      await cleanupImportSource(prepared.rootPath).catch(noop);
+    }
+  }
+}
+
+export async function importMarkdownIntoWorkspace(store: RendererStore): Promise<void> {
+  try {
+    const sourceDir = await pickDirectory("Import notes from folder");
+    if (sourceDir) {
+      await importNotesFromPath(store, sourceDir);
+    }
+  } catch (error) {
+    reportFailure("Import failed", error);
+  }
+}
+
+export async function importProviderExportIntoWorkspace(
+  store: RendererStore,
+): Promise<void> {
+  try {
+    const sourceFile = await pickImportFile("Import notes from file or archive");
+    if (sourceFile) {
+      await importNotesFromPath(store, sourceFile);
+    }
   } catch (error) {
     reportFailure("Import failed", error);
   }

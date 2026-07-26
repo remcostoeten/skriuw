@@ -13,6 +13,7 @@ import {
   exportNoteAsMarkdown,
   exportWorkspaceAsMarkdown,
   importMarkdownIntoWorkspace,
+  importProviderExportIntoWorkspace,
 } from "../export/markdown-transfer";
 import { requestEntityCreate } from "../references/entity-create-controller";
 import {
@@ -216,7 +217,7 @@ export function createWorkspaceCommands(
     },
     {
       id: "import-markdown",
-      label: "Import notes…",
+      label: "Import notes from folder…",
       group: "Actions",
       keywords: [
         "import",
@@ -232,6 +233,25 @@ export function createWorkspaceCommands(
       icon: <UploadIcon size={15} />,
       run: () => {
         void importMarkdownIntoWorkspace(store);
+      },
+    },
+    {
+      id: "import-provider-export",
+      label: "Import provider export…",
+      group: "Actions",
+      keywords: [
+        "import",
+        "archive",
+        "zip",
+        "bear2bk",
+        "notion",
+        "simplenote",
+        "csv",
+        "json",
+      ],
+      icon: <UploadIcon size={15} />,
+      run: () => {
+        void importProviderExportIntoWorkspace(store);
       },
     },
     {
