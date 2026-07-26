@@ -1,0 +1,39 @@
+name: guard latest release
+
+# v2's updater reads releases/latest/download/latest.json; a published v1
+# desktop release would claim the latest slot and break every v2 install,
+# so any non-v2 publish re-promotes the newest v2 release to latest
+on:
+    release:
+        types: [published]
+
+jobs:
+    repromote-v2:
+        if: ${{ !startsWith(github.event.release.tag_name, 'v2-v') }}
+        permissions:
+            contents: write
+        runs-on: ubuntu-latest
+        steps:
+            - name: Re-promote newest v2 release to latest
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const { data: releases } = await github.rest.repos.listReleases({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          per_page: 50,
+                      });
+                      const newestV2 = releases.find(
+                          (release) => release.tag_name.startsWith("v2-v") && !release.draft && !release.prerelease,
+                      );
+                      if (!newestV2) {
+                          core.info("no published v2 release to promote");
+                          return;
+                      }
+                      await github.rest.repos.updateRelease({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          release_id: newestV2.id,
+                          make_latest: "true",
+                      });
+                      core.info(`re-promoted ${newestV2.tag_name} to latest`);
