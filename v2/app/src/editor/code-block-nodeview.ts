@@ -20,6 +20,27 @@ export function setCodeBlockLanguage(pos: number, language: string): Command {
   };
 }
 
+export function codeBlockClipboardText(node: ProseMirrorNode): string {
+  return node.type.name === "code_block" ? node.textContent : "";
+}
+
+type ClipboardWriter = {
+  writeText: (text: string) => Promise<void>;
+};
+
+export async function writeCodeBlockClipboard(
+  text: string,
+  clipboard: ClipboardWriter | undefined = globalThis.navigator?.clipboard,
+): Promise<boolean> {
+  if (!clipboard) return false;
+  try {
+    await clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function createCodeBlockNodeView(
   initialNode: ProseMirrorNode,
   view: EditorView,
@@ -37,10 +58,16 @@ export function createCodeBlockNodeView(
   const trigger = document.createElement("button");
   trigger.type = "button";
   trigger.className = "code-block-language";
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "code-block-copy";
+  copy.textContent = "Copy";
+  copy.setAttribute("aria-label", "Copy code");
   const menu = document.createElement("ul");
   menu.className = "code-block-language-menu";
-  toolbar.append(trigger, menu);
+  toolbar.append(trigger, copy, menu);
   dom.append(toolbar, contentDOM);
+  let copyReset: number | null = null;
 
   function paint(): void {
     const params = String(node.attrs.params ?? "");
@@ -90,6 +117,17 @@ export function createCodeBlockNodeView(
     setOpen(!open);
   });
 
+  copy.addEventListener("click", () => {
+    void writeCodeBlockClipboard(codeBlockClipboardText(node)).then((copied) => {
+      copy.textContent = copied ? "Copied" : "Copy unavailable";
+      if (copyReset !== null) window.clearTimeout(copyReset);
+      copyReset = window.setTimeout(() => {
+        copyReset = null;
+        copy.textContent = "Copy";
+      }, 1_500);
+    });
+  });
+
   // Keeping the editor selection alive means the picker never has to restore
   // it, so choosing a language leaves the caret exactly where it was.
   toolbar.addEventListener("mousedown", (event) => {
@@ -112,6 +150,7 @@ export function createCodeBlockNodeView(
       mutation.target !== contentDOM && !contentDOM.contains(mutation.target),
     destroy() {
       document.removeEventListener("mousedown", closeOnOutside, true);
+      if (copyReset !== null) window.clearTimeout(copyReset);
     },
   };
 }

@@ -307,6 +307,8 @@
   top: 6px;
   right: 8px;
   z-index: 1;
+  display: flex;
+  gap: 2px;
   user-select: none;
 }
 
@@ -329,6 +331,25 @@
 
 .prosemirror-host .ProseMirror .code-block-language:hover,
 .prosemirror-host .ProseMirror .code-block-toolbar[data-open="true"] .code-block-language {
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted) / 0.6);
+  color: hsl(var(--foreground));
+}
+
+.prosemirror-host .ProseMirror .code-block-copy {
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 2px);
+  background: none;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.prosemirror-host .ProseMirror .code-block-copy:hover,
+.prosemirror-host .ProseMirror .code-block-copy:focus-visible {
   border-color: hsl(var(--border));
   background: hsl(var(--muted) / 0.6);
   color: hsl(var(--foreground));
@@ -676,13 +697,16 @@ body.is-dragging-block {
   display: flex;
   align-items: center;
   gap: 1px;
+  max-width: calc(100vw - 24px);
   padding: 3px;
+  overflow-x: auto;
   transform: translate(-50%, calc(-100% - 8px));
   border: 1px solid hsl(var(--border));
   border-radius: calc(var(--radius) + 2px);
   background: hsl(var(--popover));
   color: hsl(var(--popover-foreground));
   box-shadow: 0 8px 24px hsl(var(--scrim) / 0.25);
+  scrollbar-width: thin;
   white-space: nowrap;
 }
 
