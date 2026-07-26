@@ -596,6 +596,13 @@ fn write_markdown_entries(
     Ok(())
 }
 
+fn has_importable_extension(name: &str) -> bool {
+    let lowered = name.to_lowercase();
+    ["md", "markdown", "txt", "json"]
+        .iter()
+        .any(|extension| lowered.ends_with(&format!(".{extension}")))
+}
+
 fn walk_markdown_dir(
     dir: &Path,
     prefix: &str,
@@ -617,9 +624,12 @@ fn walk_markdown_dir(
             .file_type()
             .map_err(|error| format!("stat {}: {error}", entry.path().display()))?;
         if file_type.is_dir() {
+            if name.starts_with('.') {
+                continue;
+            }
             payload.directories.push(relative.clone());
             walk_markdown_dir(&entry.path(), &relative, payload)?;
-        } else if name.to_lowercase().ends_with(".md") {
+        } else if has_importable_extension(&name) {
             match fs::read_to_string(entry.path()) {
                 Ok(content) => payload.files.push(MarkdownFilePayload {
                     relative_path: relative,
