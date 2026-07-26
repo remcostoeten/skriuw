@@ -85,6 +85,31 @@ export const CODE_LANGUAGES: readonly CodeLanguageOption[] = [
 
 const NO_TOKENS: readonly CodeToken[] = [];
 
+const SHELL_LANGUAGES = new Set(["bash", "shell", "zsh", "console", "sh"]);
+
+const SHELL_COMMAND_PATTERN = /(^[ \t]*(?:\$[ \t]+)?|[;&|][ \t]*)([A-Za-z_.~/][\w.+~/-]*)/gm;
+
+/**
+ * highlight.js's bash grammar only colours built-ins, keywords, strings and
+ * variables, so a plain invocation like `bun run dev` produces no tokens at
+ * all. This pass colours the command word that opens each line or pipeline
+ * segment, skipping ranges lowlight already claimed (comments, strings) and
+ * variable assignments.
+ */
+function shellCommandTokens(code: string, claimed: readonly CodeToken[]): CodeToken[] {
+  const tokens: CodeToken[] = [];
+  for (const match of code.matchAll(SHELL_COMMAND_PATTERN)) {
+    const [, prefix = "", word = ""] = match;
+    if (!word) continue;
+    const from = match.index + prefix.length;
+    const to = from + word.length;
+    if (code[to] === "=") continue;
+    if (claimed.some((token) => token.from < to && token.to > from)) continue;
+    tokens.push({ from, to, className: "hljs-title" });
+  }
+  return tokens;
+}
+
 /**
  * Code blocks past this size are left unhighlighted: a single lowlight pass
  * over a very long block runs on every edit to that block and would stall
@@ -166,6 +191,9 @@ export function highlightCode(params: string, code: string): readonly CodeToken[
   }
   const tokens: CodeToken[] = [];
   collectTokens(tree.children ?? [], 0, null, tokens);
+  if (SHELL_LANGUAGES.has(language)) {
+    tokens.push(...shellCommandTokens(code, tokens));
+  }
   return tokens;
 }
 

@@ -2,6 +2,19 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { Logo } from "@/components/logo";
 import { site } from "@/lib/site";
 
+export const docsVersions = [
+	{
+		description: "The current shipping app",
+		title: "Skriuw",
+		url: "/",
+	},
+	{
+		description: "The Rust-first rewrite",
+		title: "Skriuw v2",
+		url: "/v2",
+	},
+];
+
 export const baseOptions: BaseLayoutProps = {
 	githubUrl: "https://github.com/remcostoeten/skriuw",
 	links: [
