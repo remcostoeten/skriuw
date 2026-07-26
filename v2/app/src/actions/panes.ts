@@ -11,6 +11,7 @@ import {
   openBeside as openBesidePanes,
   openNoteInTab as openNoteInTabPanes,
   primaryPane,
+  reorderTab as reorderTabInPanes,
   secondaryPane,
   togglePinTab as togglePinTabInPanes,
 } from "../store/panes";
@@ -83,6 +84,17 @@ export function togglePinTab(store: RendererStore, noteId: string): void {
   store.update((current) => ({
     ...current,
     panes: togglePinTabInPanes(current.panes, noteId),
+  }));
+}
+
+export function reorderTab(
+  store: RendererStore,
+  noteId: string,
+  beforeNoteId: string | null,
+): void {
+  store.update((current) => ({
+    ...current,
+    panes: reorderTabInPanes(current.panes, noteId, beforeNoteId),
   }));
 }
 
