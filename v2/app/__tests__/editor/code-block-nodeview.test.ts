@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EditorState, type Transaction } from "prosemirror-state";
-import { setCodeBlockLanguage } from "../../src/editor/code-block-nodeview";
+import {
+  codeBlockClipboardText,
+  setCodeBlockLanguage,
+  writeCodeBlockClipboard,
+} from "../../src/editor/code-block-nodeview";
 import { CODE_LANGUAGES, resolveHighlightLanguage } from "../../src/editor/code-highlight";
 import { productSchema, serializeProductMarkdown } from "../../src/editor/schema";
 
@@ -53,6 +57,40 @@ test("a language change round-trips into the markdown fence", () => {
   const state = stateWithCodeBlock("", "SELECT 1;");
   const next = applyLanguage(state, 0, "sql");
   assert.equal(serializeProductMarkdown(next.doc).trimEnd(), "```sql\nSELECT 1;\n```");
+});
+
+test("codeBlockClipboardText returns only code block content", () => {
+  const code = productSchema.node("code_block", { params: "ts" }, [
+    productSchema.text("const answer = 42;"),
+  ]);
+  const paragraph = productSchema.node("paragraph", null, [
+    productSchema.text("not code"),
+  ]);
+
+  assert.equal(codeBlockClipboardText(code), "const answer = 42;");
+  assert.equal(codeBlockClipboardText(paragraph), "");
+});
+
+test("writeCodeBlockClipboard reports missing, successful, and rejected writers", async () => {
+  assert.equal(await writeCodeBlockClipboard("code", undefined), false);
+  let written = "";
+  assert.equal(
+    await writeCodeBlockClipboard("code", {
+      writeText: async (text) => {
+        written = text;
+      },
+    }),
+    true,
+  );
+  assert.equal(written, "code");
+  assert.equal(
+    await writeCodeBlockClipboard("code", {
+      writeText: async () => {
+        throw new Error("denied");
+      },
+    }),
+    false,
+  );
 });
 
 test("every offered language except plain text resolves to a grammar", () => {

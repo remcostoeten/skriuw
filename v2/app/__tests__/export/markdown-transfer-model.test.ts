@@ -242,9 +242,9 @@ test("unparseable markdown imports as plain paragraphs instead of failing", () =
   if (operation?.type !== "create_note") {
     return;
   }
-  assert.deepEqual(operation.documentJson, {
+  assert.deepEqual(JSON.parse(JSON.stringify(operation.documentJson)), {
     type: "doc",
-    content: [{ type: "paragraph" }],
+    content: [{ type: "paragraph", attrs: { textAlign: "left" } }],
   });
 });
 

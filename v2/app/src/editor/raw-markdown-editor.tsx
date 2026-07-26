@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { commitOperations } from "../actions/workspace";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
@@ -35,13 +35,14 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   );
   const record = useRendererSelector(store, selectRecord);
   const [text, setText] = useState(record?.markdown ?? "");
+  const deferredText = useDeferredValue(text);
   const noteIdRef = useRef(activeNoteId);
   const saveTimerRef = useRef<number | null>(null);
   const textRef = useRef(text);
   const lineNumberContentRef = useRef<HTMLPreElement>(null);
   const [cursorStatus, setCursorStatus] = useState(() => rawMarkdownCursorStatus(text, 0, 0));
-  const wordCount = useMemo(() => countRawMarkdownWords(text), [text]);
-  const lineCount = useMemo(() => rawMarkdownLineCount(text), [text]);
+  const wordCount = useMemo(() => countRawMarkdownWords(deferredText), [deferredText]);
+  const lineCount = useMemo(() => rawMarkdownLineCount(deferredText), [deferredText]);
   const lineNumbers = useMemo(() => rawMarkdownLineNumbers(lineCount), [lineCount]);
   textRef.current = text;
 
@@ -133,8 +134,9 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
           </div>
         ) : null}
         <textarea
-          className={`raw-markdown-editor block min-h-[60vh] ${showLineNumbers ? "pl-14" : ""}`}
+          className={`raw-markdown-editor block min-h-[60vh] whitespace-pre ${showLineNumbers ? "pl-14" : ""}`}
           aria-label="Raw Markdown source"
+          wrap="off"
           value={text}
           spellCheck={false}
           onChange={(event) => handleChange(event.currentTarget.value)}
