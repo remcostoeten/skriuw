@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { updateSetting } from "../../actions/settings";
+import { CheckIcon } from "../../shared/icons";
 import { projectSettings } from "../../settings/settings-model";
 import type { EditableSettings, SettingsViewModel } from "../../settings/settings-model";
 import { cn } from "../../shared/lib/utils";
@@ -51,10 +52,6 @@ export const settingsButtonDanger =
 
 const settingsFieldFocus =
   "focus-visible:border-foreground/45 focus-visible:shadow-[0_0_0_2px_hsl(var(--background)),0_0_0_3px_hsl(var(--foreground)/0.25)]";
-export const settingsSelect = cn(
-  "min-h-[30px] min-w-[148px] rounded-lg border border-border bg-muted py-1 pr-7 pl-[9px] text-xs text-foreground",
-  settingsFieldFocus,
-);
 export const settingsTextInput = cn(
   "min-h-[30px] w-[min(250px,48%)] rounded-lg border border-border bg-muted px-2.5 py-[5px] text-xs text-foreground max-[620px]:w-full",
   settingsFieldFocus,
@@ -100,5 +97,96 @@ export function SettingToggle({ label, detail, checked, onChange, visualization 
         onChange={(event) => onChange(event.currentTarget.checked)}
       />
     </label>
+  );
+}
+
+const CARD_PICKER_ARROW_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+
+export type CardPickerOption<TValue extends string> = {
+  value: TValue;
+  label: string;
+  preview: ReactNode;
+};
+
+type CardPickerProps<TValue extends string> = {
+  label: string;
+  detail: string;
+  value: TValue;
+  options: readonly CardPickerOption<TValue>[];
+  onChange: (value: TValue) => void;
+};
+
+export function SettingCardPicker<TValue extends string>({
+  label,
+  detail,
+  value,
+  options,
+  onChange,
+}: CardPickerProps<TValue>) {
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
+    if (!CARD_PICKER_ARROW_KEYS.includes(event.key)) {
+      return;
+    }
+    event.preventDefault();
+    const index = Math.max(
+      0,
+      options.findIndex((option) => option.value === value),
+    );
+    const delta = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+    const next = options[(index + delta + options.length) % options.length];
+    if (!next) {
+      return;
+    }
+    onChange(next.value);
+    event.currentTarget
+      .querySelector<HTMLElement>(`[data-option-value="${next.value}"]`)
+      ?.focus();
+  }
+
+  return (
+    <div className="border-b border-[hsl(var(--border)/0.58)] py-[11px] text-[13px] last:border-b-0">
+      <span className={settingsRowLabel}>
+        {label}
+        <span className={settingsRowDescription}>{detail}</span>
+      </span>
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="mt-3 grid grid-cols-3 gap-2 max-[480px]:grid-cols-1"
+        onKeyDown={handleKeyDown}
+      >
+        {options.map((option) => {
+          const active = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              data-option-value={option.value}
+              tabIndex={active ? 0 : -1}
+              className={cn(
+                "cursor-pointer rounded-lg border p-1.5 text-left",
+                "transition-[border-color,background-color,transform] duration-150 ease-out motion-reduce:transition-none",
+                "active:scale-[0.98] motion-reduce:active:scale-100",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                active
+                  ? "border-foreground/60 bg-accent/40"
+                  : "border-border/60 bg-card/30 hover:border-border",
+              )}
+              onClick={() => onChange(option.value)}
+            >
+              <span className="flex h-14 items-center justify-center overflow-hidden rounded-md bg-muted/50">
+                {option.preview}
+              </span>
+              <span className="mt-1.5 flex min-h-4 items-center justify-between px-1">
+                <span className="text-[11px] font-medium">{option.label}</span>
+                {active && <CheckIcon size={12} />}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
