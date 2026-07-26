@@ -26,6 +26,7 @@ export type MarkdownTree = {
   directories: string[];
   files: MarkdownTreeFile[];
   assets?: string[];
+  unsupported?: string[];
   skipped: number;
 };
 
@@ -38,11 +39,23 @@ export type MarkdownImportPlan = {
   unresolvedReferences: number;
   remoteImages: number;
   preservedSources: number;
+  createdNotes: number;
+  updatedNotes: number;
+  duplicateTitles: number;
 };
 
 export type MarkdownReferenceTarget = {
   id: string;
   title: string;
+};
+
+export type MarkdownImportReuseTarget = MarkdownReferenceTarget & {
+  revision: number;
+};
+
+export type MarkdownImportOptions = {
+  destinationParentId?: string | null;
+  reuseNotesByPath?: ReadonlyMap<string, MarkdownImportReuseTarget>;
 };
 
 type ExportSource = Pick<
@@ -294,6 +307,7 @@ export function planMarkdownImport(
   at: number,
   makeId: () => string,
   existingNotes: readonly MarkdownReferenceTarget[] = [],
+  options: MarkdownImportOptions = {},
 ): MarkdownImportPlan {
   const operations: WorkspaceOperation[] = [];
   const contentOperations: WorkspaceOperation[] = [];
@@ -303,7 +317,12 @@ export function planMarkdownImport(
     const id = makeId();
     folderIdByPath.set(path, id);
     const cut = path.lastIndexOf("/");
-    const parentId = cut === -1 ? null : (folderIdByPath.get(path.slice(0, cut)) ?? null);
+    const parentId =
+      cut === -1
+        ? (options.destinationParentId ?? null)
+        : (folderIdByPath.get(path.slice(0, cut)) ??
+          options.destinationParentId ??
+          null);
     operations.push({
       type: "create_folder",
       id,
@@ -322,9 +341,15 @@ export function planMarkdownImport(
     return {
       file,
       normalized,
-      parentId: cut === -1 ? null : (folderIdByPath.get(normalized.slice(0, cut)) ?? null),
+      parentId:
+        cut === -1
+          ? (options.destinationParentId ?? null)
+          : (folderIdByPath.get(normalized.slice(0, cut)) ??
+            options.destinationParentId ??
+            null),
       title: fileName.replace(/\.md$/i, ""),
-      id: makeId(),
+      id: options.reuseNotesByPath?.get(normalized)?.id ?? makeId(),
+      reuse: options.reuseNotesByPath?.get(normalized),
     };
   });
   const idsByTitle = new Map<string, string[]>();
@@ -333,7 +358,9 @@ export function planMarkdownImport(
     ...plannedFiles.map(({ id, title }) => ({ id, title })),
   ]) {
     const ids = idsByTitle.get(target.title) ?? [];
-    ids.push(target.id);
+    if (!ids.includes(target.id)) {
+      ids.push(target.id);
+    }
     idsByTitle.set(target.title, ids);
   }
   const notes: MarkdownImportPlan["notes"] = [];
@@ -351,22 +378,26 @@ export function planMarkdownImport(
     const empty = parseProductMarkdown("");
     const id = planned.id;
     notes.push({ id, relativePath: planned.normalized });
-    operations.push({
-      type: "create_note",
-      id,
-      title: planned.title,
-      placement: { parentId: planned.parentId, position: { type: "last" } },
-      documentJson: empty.toJSON(),
-      markdown: "",
-      at,
-    });
+    if (planned.reuse) {
+      operations.push({ type: "rename_node", id, title: planned.title, at });
+    } else {
+      operations.push({
+        type: "create_note",
+        id,
+        title: planned.title,
+        placement: { parentId: planned.parentId, position: { type: "last" } },
+        documentJson: empty.toJSON(),
+        markdown: "",
+        at,
+      });
+    }
     contentOperations.push({
       type: "save_document",
       noteId: id,
       documentJson: resolved.documentJson,
       markdown: planned.file.content,
       wordCount: countDocumentWords(resolved.documentJson),
-      expectedRevision: 1,
+      expectedRevision: planned.reuse?.revision ?? 1,
       at,
     });
   }
@@ -379,6 +410,10 @@ export function planMarkdownImport(
     unresolvedReferences,
     remoteImages,
     preservedSources,
+    createdNotes: plannedFiles.filter((planned) => !planned.reuse).length,
+    updatedNotes: plannedFiles.filter((planned) => planned.reuse).length,
+    duplicateTitles: [...idsByTitle.values()].filter((ids) => ids.length > 1)
+      .length,
   };
 }
 

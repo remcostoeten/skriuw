@@ -18,6 +18,7 @@ import {
 import {
   emptyReferenceBootstrap,
   referenceKey,
+  type NoteReferences,
   type PersonRecord,
   type ReferenceBootstrap,
   type ReferenceOperation,
@@ -216,6 +217,7 @@ export function createInitialState(
     images,
     propertiesByNoteId,
     propertyTemplates,
+    importReceipts: snapshot.importReceipts ?? [],
     ...buildReferenceProjection(references.references),
   });
   if (derived.activeNoteId === null) {
@@ -238,6 +240,18 @@ function reduceState(
   current: RendererState,
   operation: WorkspaceOperation,
 ): RendererState {
+  if (operation.type === "record_provider_import") {
+    const importReceipts = current.importReceipts.filter(
+      (receipt) =>
+        receipt.provider !== operation.receipt.provider ||
+        receipt.sourceKey !== operation.receipt.sourceKey ||
+        receipt.sourcePath !== operation.receipt.sourcePath,
+    );
+    return {
+      ...current,
+      importReceipts: [...importReceipts, operation.receipt],
+    };
+  }
   if (operation.type === "set_active_note") {
     if (
       operation.noteId !== null &&
@@ -469,6 +483,159 @@ function reduceState(
     activeNoteId,
     images,
     ...projection,
+  });
+}
+
+function reduceImportBatch(
+  current: RendererState,
+  operations: readonly WorkspaceOperation[],
+): RendererState | null {
+  if (
+    operations.length < 256 ||
+    !operations.some((operation) => operation.type === "record_provider_import") ||
+    operations.some(
+      (operation) =>
+        ![
+          "create_tag",
+          "create_folder",
+          "create_note",
+          "rename_node",
+          "save_document",
+          "attach_image",
+          "set_note_property",
+          "remove_note_property",
+          "record_provider_import",
+        ].includes(operation.type) ||
+        ((operation.type === "create_folder" ||
+          operation.type === "create_note") &&
+          operation.placement.position.type !== "last"),
+    )
+  ) {
+    return null;
+  }
+  const sourceNodes = new Map(current.sourceNodes);
+  const documents = new Map(current.documents);
+  const tags = new Map(current.tags);
+  const images = new Map(current.images);
+  const propertiesByNoteId = new Map(current.propertiesByNoteId);
+  const importReceipts = new Map(
+    current.importReceipts.map((receipt) => [
+      `${receipt.provider}\0${receipt.sourceKey}\0${receipt.sourcePath}`,
+      receipt,
+    ]),
+  );
+  const references = new Map<string, NoteReferences>(
+    [...current.outgoingReferences].map(([noteId, targets]) => [
+      noteId,
+      { noteId, targets },
+    ]),
+  );
+  const lastRankByParent = new Map<string | null, number>();
+  for (const node of sourceNodes.values()) {
+    if (node.deletedAt === null) {
+      lastRankByParent.set(
+        node.parentId,
+        Math.max(lastRankByParent.get(node.parentId) ?? 0, node.rank),
+      );
+    }
+  }
+  let focusedNodeId = current.focusedNodeId;
+  let activeNoteId = current.activeNoteId;
+  const expandedIds = new Set(current.expandedIds);
+  for (const operation of operations) {
+    if (operation.type === "create_tag") {
+      tags.set(operation.tag.id, operation.tag);
+    } else if (
+      operation.type === "create_folder" ||
+      operation.type === "create_note"
+    ) {
+      const parentId = operation.placement.parentId;
+      const rank = (lastRankByParent.get(parentId) ?? 0) + 1024;
+      lastRankByParent.set(parentId, rank);
+      sourceNodes.set(operation.id, {
+        id: operation.id,
+        kind: operation.type === "create_folder" ? "folder" : "note",
+        parentId,
+        rank,
+        title: operation.title,
+        icon: null,
+        createdAt: operation.at,
+        updatedAt: operation.at,
+        deletedAt: null,
+        pinnedAt: null,
+      });
+      focusedNodeId = operation.id;
+      if (operation.type === "create_folder") {
+        expandedIds.add(operation.id);
+      } else {
+        activeNoteId = operation.id;
+        documents.set(operation.id, {
+          noteId: operation.id,
+          documentJson: operation.documentJson,
+          markdown: operation.markdown,
+          revision: 0,
+          wordCount: 0,
+        });
+      }
+    } else if (operation.type === "rename_node") {
+      const node = sourceNodes.get(operation.id);
+      if (node) {
+        sourceNodes.set(operation.id, {
+          ...node,
+          title: operation.title,
+          updatedAt: operation.at,
+        });
+      }
+    } else if (operation.type === "save_document") {
+      const document = documents.get(operation.noteId);
+      if (document) {
+        documents.set(operation.noteId, {
+          ...document,
+          documentJson: operation.documentJson,
+          markdown: operation.markdown,
+          wordCount: operation.wordCount,
+        });
+        references.set(operation.noteId, {
+          noteId: operation.noteId,
+          targets: extractReferences(operation.documentJson),
+        });
+      }
+    } else if (operation.type === "attach_image") {
+      images.set(operation.image.id, operation.image);
+    } else if (operation.type === "remove_note_property") {
+      const properties = propertiesByNoteId.get(operation.noteId) ?? [];
+      propertiesByNoteId.set(
+        operation.noteId,
+        properties.filter((property) => property.id !== operation.propertyId),
+      );
+    } else if (operation.type === "set_note_property") {
+      const properties =
+        propertiesByNoteId.get(operation.property.noteId) ?? [];
+      propertiesByNoteId.set(
+        operation.property.noteId,
+        upsertNoteProperty(properties, operation.property, {
+          personIds: new Set(current.people.keys()),
+        }),
+      );
+    } else if (operation.type === "record_provider_import") {
+      importReceipts.set(
+        `${operation.receipt.provider}\0${operation.receipt.sourceKey}\0${operation.receipt.sourcePath}`,
+        operation.receipt,
+      );
+    }
+  }
+  return derive({
+    ...current,
+    sourceNodes,
+    documents,
+    tags,
+    images,
+    propertiesByNoteId,
+    importReceipts: [...importReceipts.values()],
+    expandedIds,
+    focusedNodeId,
+    activeNoteId,
+    ...buildReferenceProjection([...references.values()]),
   });
 }
 
@@ -739,6 +906,10 @@ export function createRendererStore(initialState: RendererState): RendererStore 
 
   function applyOperations(operations: readonly WorkspaceOperation[]): boolean {
     return update((current) => {
+      const imported = reduceImportBatch(current, operations);
+      if (imported) {
+        return imported;
+      }
       let next = current;
       for (const operation of operations) {
         next = reduceState(next, operation);

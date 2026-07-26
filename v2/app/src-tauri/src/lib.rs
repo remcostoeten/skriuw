@@ -3,6 +3,7 @@ mod maintenance;
 use std::{
     collections::BTreeSet,
     env, fs,
+    io::{self, Read},
     path::{Path, PathBuf},
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -532,7 +533,165 @@ struct MarkdownTreePayload {
     directories: Vec<String>,
     files: Vec<MarkdownFilePayload>,
     assets: Vec<String>,
+    unsupported: Vec<String>,
     skipped: usize,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PreparedImportSource {
+    root_path: String,
+    temporary: bool,
+    tree: MarkdownTreePayload,
+}
+
+const IMPORT_MAX_ENTRIES: usize = 20_000;
+const IMPORT_MAX_FILE_BYTES: u64 = 128 * 1024 * 1024;
+const IMPORT_MAX_TOTAL_BYTES: u64 = 1024 * 1024 * 1024;
+const IMPORT_MAX_DEPTH: usize = 64;
+
+fn create_import_temp_dir() -> Result<PathBuf, String> {
+    let base = env::temp_dir();
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_nanos();
+    for suffix in 0..16 {
+        let path = base.join(format!(
+            "skriuw-import-{}-{timestamp}-{suffix}",
+            std::process::id()
+        ));
+        match fs::create_dir(&path) {
+            Ok(()) => return Ok(path),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(format!("create {}: {error}", path.display())),
+        }
+    }
+    Err("could not allocate import temporary directory".to_string())
+}
+
+fn remove_import_temp_dir(path: &Path) -> Result<(), String> {
+    let valid_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.starts_with("skriuw-import-"));
+    if path.parent() != Some(env::temp_dir().as_path()) || !valid_name {
+        return Err("refused to remove non-import temporary directory".to_string());
+    }
+    if path.exists() {
+        fs::remove_dir_all(path).map_err(|error| format!("remove {}: {error}", path.display()))?;
+    }
+    Ok(())
+}
+
+fn extract_import_archive(source: &Path, target: &Path) -> Result<(), String> {
+    let file = fs::File::open(source)
+        .map_err(|error| format!("open import archive {}: {error}", source.display()))?;
+    let mut archive =
+        zip::ZipArchive::new(file).map_err(|error| format!("read import archive: {error}"))?;
+    if archive.len() > IMPORT_MAX_ENTRIES {
+        return Err(format!(
+            "import archive has {} entries; limit is {IMPORT_MAX_ENTRIES}",
+            archive.len()
+        ));
+    }
+    let mut total_bytes = 0_u64;
+    let mut normalized_paths = BTreeSet::new();
+    for index in 0..archive.len() {
+        let mut entry = archive
+            .by_index(index)
+            .map_err(|error| format!("read import archive entry {index}: {error}"))?;
+        let relative = entry
+            .enclosed_name()
+            .ok_or_else(|| format!("unsafe import archive path: {}", entry.name()))?;
+        if relative.components().count() > IMPORT_MAX_DEPTH {
+            return Err(format!("import archive path is too deep: {}", entry.name()));
+        }
+        if entry.is_symlink() {
+            return Err(format!("import archive contains symlink: {}", entry.name()));
+        }
+        let normalized = relative.to_string_lossy().replace('\\', "/").to_lowercase();
+        if !normalized_paths.insert(normalized) {
+            return Err(format!("duplicate import archive path: {}", entry.name()));
+        }
+        if entry.is_dir() {
+            fs::create_dir_all(target.join(relative))
+                .map_err(|error| format!("create import directory: {error}"))?;
+            continue;
+        }
+        if !entry.is_file() {
+            return Err(format!("unsupported import archive entry: {}", entry.name()));
+        }
+        if entry.size() > IMPORT_MAX_FILE_BYTES {
+            return Err(format!("import archive file is too large: {}", entry.name()));
+        }
+        total_bytes = total_bytes
+            .checked_add(entry.size())
+            .ok_or_else(|| "import archive expanded size overflow".to_string())?;
+        if total_bytes > IMPORT_MAX_TOTAL_BYTES {
+            return Err(format!(
+                "import archive expands beyond {} bytes",
+                IMPORT_MAX_TOTAL_BYTES
+            ));
+        }
+        let output = target.join(relative);
+        if let Some(parent) = output.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|error| format!("create import directory: {error}"))?;
+        }
+        let mut destination = fs::File::create(&output)
+            .map_err(|error| format!("create import file {}: {error}", output.display()))?;
+        let copied = io::copy(
+            &mut entry.by_ref().take(IMPORT_MAX_FILE_BYTES + 1),
+            &mut destination,
+        )
+        .map_err(|error| format!("extract import file {}: {error}", output.display()))?;
+        if copied > IMPORT_MAX_FILE_BYTES {
+            return Err(format!("import archive file is too large: {}", entry.name()));
+        }
+    }
+    Ok(())
+}
+
+fn prepare_import_source_path(source: &Path) -> Result<PreparedImportSource, String> {
+    if source.is_dir() {
+        return Ok(PreparedImportSource {
+            root_path: source.display().to_string(),
+            temporary: false,
+            tree: collect_markdown_tree(source)?,
+        });
+    }
+    if !source.is_file() {
+        return Err(format!("import source does not exist: {}", source.display()));
+    }
+    let temporary = create_import_temp_dir()?;
+    let result = (|| {
+        let lowered = source
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        if lowered.ends_with(".zip") || lowered.ends_with(".bear2bk") {
+            extract_import_archive(source, &temporary)?;
+        } else if has_importable_extension(&lowered) {
+            let file_name = source
+                .file_name()
+                .ok_or_else(|| "import file has no name".to_string())?;
+            fs::copy(source, temporary.join(file_name))
+                .map_err(|error| format!("copy import file {}: {error}", source.display()))?;
+        } else {
+            return Err("unsupported import source; choose a folder, ZIP, Bear backup, Markdown, text, JSON, or CSV file".to_string());
+        }
+        Ok(PreparedImportSource {
+            root_path: temporary.display().to_string(),
+            temporary: true,
+            tree: collect_markdown_tree(&temporary)?,
+        })
+    })();
+    if result.is_err() {
+        let _ = remove_import_temp_dir(&temporary);
+    }
+    result
 }
 
 fn resolve_relative_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
@@ -599,7 +758,7 @@ fn write_markdown_entries(
 
 fn has_importable_extension(name: &str) -> bool {
     let lowered = name.to_lowercase();
-    ["md", "markdown", "txt", "json"]
+    ["md", "markdown", "txt", "json", "csv"]
         .iter()
         .any(|extension| lowered.ends_with(&format!(".{extension}")))
 }
@@ -638,6 +797,8 @@ fn walk_markdown_dir(
             }
             payload.directories.push(relative.clone());
             walk_markdown_dir(&entry.path(), &relative, payload)?;
+        } else if name.starts_with('.') {
+            continue;
         } else if has_importable_extension(&name) {
             match fs::read_to_string(entry.path()) {
                 Ok(content) => payload.files.push(MarkdownFilePayload {
@@ -648,6 +809,8 @@ fn walk_markdown_dir(
             }
         } else if has_asset_extension(&name) {
             payload.assets.push(relative);
+        } else {
+            payload.unsupported.push(relative);
         }
     }
     Ok(())
@@ -658,6 +821,7 @@ fn collect_markdown_tree(root: &Path) -> Result<MarkdownTreePayload, String> {
         directories: Vec::new(),
         files: Vec::new(),
         assets: Vec::new(),
+        unsupported: Vec::new(),
         skipped: 0,
     };
     walk_markdown_dir(root, "", &mut payload)?;
@@ -686,12 +850,46 @@ async fn read_markdown_tree(source_dir: String) -> Result<MarkdownTreePayload, S
 }
 
 #[tauri::command]
+async fn prepare_import_source(source_path: String) -> Result<PreparedImportSource, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        prepare_import_source_path(Path::new(&source_path))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn cleanup_import_source(root_path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || remove_import_temp_dir(Path::new(&root_path)))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 async fn pick_directory(app: tauri::AppHandle, title: String) -> Result<Option<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         app.dialog()
             .file()
             .set_title(&title)
             .blocking_pick_folder()
+            .map(|path| {
+                path.into_path()
+                    .map(|resolved| resolved.display().to_string())
+                    .map_err(|error| error.to_string())
+            })
+            .transpose()
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn pick_import_file(app: tauri::AppHandle, title: String) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .set_title(&title)
+            .blocking_pick_file()
             .map(|path| {
                 path.into_path()
                     .map(|resolved| resolved.display().to_string())
@@ -766,7 +964,10 @@ pub fn run() {
             relocate_workspace_storage,
             export_markdown_tree,
             read_markdown_tree,
+            prepare_import_source,
+            cleanup_import_source,
             pick_directory,
+            pick_import_file,
             store_note_image,
             read_note_image_blob,
             import_markdown_image,
@@ -789,7 +990,9 @@ pub fn run() {
 #[cfg(test)]
 mod markdown_tree_tests {
     use super::*;
+    use std::io::Write;
     use tempfile::tempdir;
+    use zip::write::SimpleFileOptions;
 
     fn entry(relative_path: &str, kind: &str, markdown: Option<&str>) -> MarkdownExportEntry {
         MarkdownExportEntry {
@@ -805,6 +1008,18 @@ mod markdown_tree_tests {
         let dir = tempdir().expect("blob tempdir");
         let store = ImageStore::open(dir.path().join("blobs")).expect("open blob store");
         (dir, store)
+    }
+
+    fn write_zip(path: &Path, entries: &[(&str, &[u8])]) {
+        let file = fs::File::create(path).expect("create zip");
+        let mut writer = zip::ZipWriter::new(file);
+        for (name, content) in entries {
+            writer
+                .start_file(*name, SimpleFileOptions::default())
+                .expect("start zip file");
+            writer.write_all(content).expect("write zip file");
+        }
+        writer.finish().expect("finish zip");
     }
 
     #[test]
@@ -868,16 +1083,68 @@ mod markdown_tree_tests {
     }
 
     #[test]
-    fn counts_unreadable_markdown_files_as_skipped() {
+    fn reads_supported_text_files_and_counts_invalid_utf8_as_skipped() {
         let dir = tempdir().expect("tempdir");
         fs::write(dir.path().join("valid.md"), "ok").expect("write valid");
         fs::write(dir.path().join("broken.md"), [0xff, 0xfe, 0xfd]).expect("write broken");
-        fs::write(dir.path().join("ignored.bin"), "not importable").expect("write ignored");
+        fs::write(dir.path().join("notes.txt"), "plain text").expect("write text");
+        fs::write(dir.path().join("database.csv"), "Name\nTask").expect("write csv");
+        fs::write(dir.path().join("attachment.pdf"), b"%PDF").expect("write pdf");
+        fs::write(dir.path().join(".DS_Store"), "hidden").expect("write hidden");
 
         let tree = collect_markdown_tree(dir.path()).expect("collect tree");
-        assert_eq!(tree.files.len(), 1);
-        assert_eq!(tree.files[0].relative_path, "valid.md");
+        let paths: Vec<&str> = tree
+            .files
+            .iter()
+            .map(|file| file.relative_path.as_str())
+            .collect();
+        assert_eq!(paths, ["database.csv", "notes.txt", "valid.md"]);
+        assert_eq!(tree.unsupported, ["attachment.pdf"]);
         assert_eq!(tree.skipped, 1);
+    }
+
+    #[test]
+    fn prepares_and_cleans_archive_import_sources() {
+        let dir = tempdir().expect("tempdir");
+        let archive = dir.path().join("export.zip");
+        write_zip(
+            &archive,
+            &[
+                ("Vault/Note.md", b"# Note"),
+                ("Vault/Database.csv", b"Name\nTask"),
+                ("Vault/image.png", b"\x89PNG\r\n\x1a\n"),
+            ],
+        );
+
+        let prepared = prepare_import_source_path(&archive).expect("prepare archive");
+        assert!(prepared.temporary);
+        assert_eq!(prepared.tree.files.len(), 2);
+        assert_eq!(prepared.tree.assets, ["Vault/image.png"]);
+        let root = PathBuf::from(&prepared.root_path);
+        assert!(root.exists());
+        remove_import_temp_dir(&root).expect("clean import");
+        assert!(!root.exists());
+    }
+
+    #[test]
+    fn rejects_archive_parent_traversal() {
+        let dir = tempdir().expect("tempdir");
+        let archive = dir.path().join("unsafe.zip");
+        write_zip(&archive, &[("../escape.md", b"escape")]);
+
+        let error = prepare_import_source_path(&archive)
+            .err()
+            .expect("unsafe archive accepted");
+        assert!(error.contains("unsafe import archive path"));
+        assert!(!dir.path().join("escape.md").exists());
+    }
+
+    #[test]
+    fn refuses_cleanup_outside_owned_import_temp_directories() {
+        let dir = tempdir().expect("tempdir");
+        let error = remove_import_temp_dir(dir.path()).expect_err("removed arbitrary directory");
+        assert!(error.contains("refused"));
+        assert!(dir.path().exists());
     }
 }
 

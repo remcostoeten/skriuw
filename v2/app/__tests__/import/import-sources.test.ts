@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarkdownTree } from "../../src/export/markdown-transfer-model";
-import { detectImportSource } from "../../src/import/model";
+import { detectImportSource, importSourceKey } from "../../src/import/model";
 import { planImportBundle } from "../../src/import/plan";
 import { importSources } from "../../src/import/sources";
 import { bearSource } from "../../src/import/sources/bear";
+import { appleNotesSource } from "../../src/import/sources/apple-notes";
 import { markdownSource } from "../../src/import/sources/markdown";
 import { plainTextSource } from "../../src/import/sources/plain-text";
 import { simplenoteSource } from "../../src/import/sources/simplenote";
@@ -27,6 +28,13 @@ test("markdown directory detects as markdown source", () => {
     tree({ files: [{ relativePath: "Note.md", content: "# Note" }] }),
   );
   assert.equal(source?.id, "markdown");
+});
+
+test("Apple Notes Markdown is available as a manual source without outranking Markdown", () => {
+  const input = tree({ files: [{ relativePath: "Note.md", content: "# Note" }] });
+  assert.equal(appleNotesSource.detect(input), 0.09);
+  assert.equal(appleNotesSource.parse(input).notes[0].title, "Note");
+  assert.equal(detectImportSource(importSources, input)?.id, "markdown");
 });
 
 test("simplenote export outranks the markdown fallback", () => {
@@ -65,6 +73,69 @@ test("textbundle files detect as bear and hoist notes out of bundles", () => {
   assert.deepEqual(bundle.directories, []);
 });
 
+test("Bear TextBundle metadata supplies timestamps, tags, and protected-note diagnostics", () => {
+  const input = tree({
+    directories: [
+      "One.textbundle",
+      "Secret.textbundle",
+      "Trash.textbundle",
+    ],
+    files: [
+      {
+        relativePath: "One.textbundle/text.md",
+        content: "# One\nBody #project/alpha and #multi word#",
+      },
+      {
+        relativePath: "One.textbundle/info.json",
+        content: JSON.stringify({
+          "net.shinyfrog.bear": {
+            creationDate: "2026-01-02T03:04:05Z",
+            modificationDate: "2026-02-03T04:05:06Z",
+          },
+        }),
+      },
+      {
+        relativePath: "Secret.textbundle/text.md",
+        content: "ciphertext",
+      },
+      {
+        relativePath: "Secret.textbundle/info.json",
+        content: JSON.stringify({
+          "net.shinyfrog.bear": { encrypted: 1 },
+        }),
+      },
+      {
+        relativePath: "Trash.textbundle/text.md",
+        content: "old",
+      },
+      {
+        relativePath: "Trash.textbundle/info.json",
+        content: JSON.stringify({
+          "net.shinyfrog.bear": { trashed: true },
+        }),
+      },
+    ],
+  });
+  const bundle = bearSource.parse(input);
+  assert.equal(bundle.notes.length, 1);
+  assert.deepEqual(bundle.notes[0].tags, ["multi word", "project/alpha"]);
+  assert.equal(
+    bundle.notes[0].createdAt,
+    Date.parse("2026-01-02T03:04:05Z"),
+  );
+  assert.equal(
+    bundle.notes[0].modifiedAt,
+    Date.parse("2026-02-03T04:05:06Z"),
+  );
+  assert.ok(bundle.warnings.some((warning) => warning.message.includes("trashed")));
+  assert.ok(
+    bundle.warnings.some(
+      (warning) =>
+        warning.severity === "error" && warning.message.includes("encrypted"),
+    ),
+  );
+});
+
 test("plain text only directory detects as plain text", () => {
   const input = tree({
     files: [{ relativePath: "todo.txt", content: "milk\neggs" }],
@@ -77,6 +148,15 @@ test("plain text only directory detects as plain text", () => {
 
 test("empty tree detects nothing", () => {
   assert.equal(detectImportSource(importSources, tree({})), null);
+});
+
+test("durable source key follows selected location, not changing export content", async () => {
+  const first = await importSourceKey("/exports/vault/");
+  const same = await importSourceKey("/exports/vault");
+  const moved = await importSourceKey("/exports/moved-vault");
+  assert.equal(first, same);
+  assert.notEqual(first, moved);
+  assert.match(first, /^[a-f0-9]{64}$/);
 });
 
 test("simplenote parse maps content, titles, timestamps, and skips trashed", () => {
@@ -162,4 +242,36 @@ test("planImportBundle builds folders from note paths and keeps adapter titles",
     (operation) => operation.type === "create_note" && operation.title === "Custom Title",
   );
   assert.ok(custom);
+});
+
+test("planImportBundle applies valid provider timestamps", () => {
+  const createdAt = Date.parse("2024-01-02T03:04:05.000Z");
+  const modifiedAt = Date.parse("2024-02-02T03:04:05.000Z");
+  const plan = planImportBundle(
+    {
+      sourceId: "simplenote",
+      sourceLabel: "Simplenote",
+      directories: [],
+      notes: [
+        {
+          relativePath: "Note.md",
+          title: "Note",
+          markdown: "Body",
+          createdAt,
+          modifiedAt,
+        },
+      ],
+      warnings: [],
+    },
+    999,
+    sequentialIds(),
+  );
+  const create = plan.operations.find(
+    (operation) => operation.type === "create_note",
+  );
+  const save = plan.contentOperations.find(
+    (operation) => operation.type === "save_document",
+  );
+  assert.equal(create?.at, createdAt);
+  assert.equal(save?.at, modifiedAt);
 });

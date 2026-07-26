@@ -1,0 +1,17 @@
+{
+  "activeNotes": [
+    {
+      "id": "fixture-active",
+      "content": "# Simplenote example\n\nExported body.",
+      "creationDate": "2026-07-20T10:00:00.000Z",
+      "lastModified": "2026-07-21T11:30:00.000Z",
+      "tags": ["export"]
+    }
+  ],
+  "trashedNotes": [
+    {
+      "id": "fixture-trashed",
+      "content": "Deleted note"
+    }
+  ]
+}

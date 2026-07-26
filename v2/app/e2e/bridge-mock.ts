@@ -8,6 +8,9 @@ type InvokeArguments = {
   archivePath?: string;
   artifactFileName?: string;
   force?: boolean;
+  sourcePath?: string;
+  rootPath?: string;
+  title?: string;
 };
 
 const calls: { command: string; arguments: InvokeArguments }[] = [];
@@ -51,6 +54,31 @@ export function invoke<T>(command: string, arguments_: InvokeArguments = {}): Pr
       revisions: [],
       rankChanges: [],
     } as T);
+  }
+  if (command === "pick_import_file") {
+    return Promise.resolve("/tmp/skriuw-provider-export" as T);
+  }
+  if (command === "prepare_import_source") {
+    return Promise.resolve({
+      rootPath: "/tmp/skriuw-provider-export",
+      temporary: false,
+      tree: {
+        directories: ["Imported"],
+        files: [
+          {
+            relativePath: "Imported/Provider note.md",
+            content:
+              "---\nstatus: shipped\ntags: [migration]\n---\n# Provider note\n\nImported end to end.",
+          },
+        ],
+        assets: [],
+        unsupported: [],
+        skipped: 0,
+      },
+    } as T);
+  }
+  if (command === "cleanup_import_source") {
+    return Promise.resolve(undefined as T);
   }
   if (command === "bootstrap_workspace") {
     return Promise.resolve(currentSnapshot() as T);

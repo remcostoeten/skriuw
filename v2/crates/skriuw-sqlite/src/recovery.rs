@@ -492,7 +492,7 @@ mod tests {
         assert!(artifact.verified);
         assert!(artifact.size_bytes > 0);
         assert_eq!(artifact.sha256.len(), 64);
-        assert_eq!(artifact.schema_version, 7);
+        assert_eq!(artifact.schema_version, 8);
         assert_eq!(artifact.migration_fingerprint.len(), 64);
         assert!(pruned.is_empty());
         assert_eq!(manifest_filename, "recovery-manifest-100.json");
