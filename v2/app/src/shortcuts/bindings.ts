@@ -1,9 +1,91 @@
 import { parseShortcut } from "@remcostoeten/use-shortcut/parser";
+import { SIDEBAR_TREE_SELECTOR } from "../commands/focus-regions";
 import type { WorkspaceSettings } from "../contracts/workspace";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
-import type { ShortcutActionId, ShortcutDefinition } from "./definitions";
+import type {
+  ShortcutActionId,
+  ShortcutDefinition,
+  ShortcutGuard,
+} from "./definitions";
 
 export type ShortcutOverrides = Partial<Record<ShortcutActionId, string>>;
+
+const MODAL_SELECTOR = 'dialog[open], [role="dialog"], [data-modal="true"]';
+
+const TEXT_FIELD_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
+
+/**
+ * The parts of an event target the guards read. Duck-typed instead of
+ * `instanceof HTMLElement` so the predicates stay pure and unit-testable
+ * outside a browser.
+ */
+export type ShortcutGuardTarget = {
+  tagName?: unknown;
+  isContentEditable?: unknown;
+  closest?: (selector: string) => unknown;
+};
+
+export type ShortcutGuardEvent = { target?: ShortcutGuardTarget | null };
+
+function inTextField(target: ShortcutGuardTarget): boolean {
+  return typeof target.tagName === "string" && TEXT_FIELD_TAGS.has(target.tagName);
+}
+
+function inSelector(target: ShortcutGuardTarget, selector: string): boolean {
+  return typeof target.closest === "function" && target.closest(selector) != null;
+}
+
+const GUARD_PREDICATES: Record<ShortcutGuard, (target: ShortcutGuardTarget) => boolean> = {
+  typing: (target) => inTextField(target) || target.isContentEditable === true,
+  textField: inTextField,
+  sidebarTree: (target) => inSelector(target, SIDEBAR_TREE_SELECTOR),
+  modal: () =>
+    typeof document !== "undefined" &&
+    typeof document.querySelector === "function" &&
+    document.querySelector(MODAL_SELECTOR) != null,
+};
+
+/**
+ * Whether any of `guards` vetoes the keypress. Guards are additive: a binding
+ * fires only when every one of them declines.
+ */
+export function shortcutGuarded(
+  guards: readonly ShortcutGuard[],
+  event: ShortcutGuardEvent,
+): boolean {
+  const target = event.target;
+  if (target === null || target === undefined || typeof target !== "object") {
+    return guards.includes("modal") && GUARD_PREDICATES.modal({});
+  }
+  return guards.some((guard) => GUARD_PREDICATES[guard](target));
+}
+
+/**
+ * Guards a binding declares, in the order they are evaluated. `worksWhileTyping`
+ * is the legacy switch for the `typing` guard, so definitions can keep using it.
+ */
+export function shortcutGuards(
+  definition: ShortcutDefinition,
+  worksWhileTyping: boolean,
+): readonly ShortcutGuard[] {
+  const declared = definition.guards ?? [];
+  return worksWhileTyping ? declared : ["typing", ...declared];
+}
+
+/**
+ * The `except` value to hand the shortcut engine. Returns undefined when the
+ * binding is unguarded so the engine can skip predicate work entirely.
+ */
+export function shortcutExcept(
+  definition: ShortcutDefinition,
+  worksWhileTyping: boolean,
+): ((event: KeyboardEvent) => boolean) | undefined {
+  const guards = shortcutGuards(definition, worksWhileTyping);
+  if (guards.length === 0) {
+    return undefined;
+  }
+  return (event) => shortcutGuarded(guards, event as ShortcutGuardEvent);
+}
 
 /**
  * Whether two combo strings resolve to the same runtime binding. Compares

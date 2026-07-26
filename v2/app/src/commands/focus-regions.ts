@@ -1,7 +1,9 @@
 export type FocusRegion = "sidebar" | "editor" | "metadata";
 
+export const SIDEBAR_TREE_SELECTOR = '[role="tree"][aria-label="Workspace"]';
+
 const REGION_SELECTORS: Record<FocusRegion, string> = {
-  sidebar: '[role="tree"][aria-label="Workspace"]',
+  sidebar: SIDEBAR_TREE_SELECTOR,
   editor: ".prosemirror-host .ProseMirror",
   metadata: 'aside[aria-label="Note metadata"]',
 };

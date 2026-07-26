@@ -9,8 +9,10 @@ import { toggleEditorMode } from "../actions/editor-mode";
 import {
   createFolder,
   createNote,
+  focusedPaneNoteId,
   navigateNote,
   noteNavigationOrder,
+  renameCurrentNote,
   setNodePinned,
 } from "../actions/workspace";
 import type { AppRoute } from "../app-route";
@@ -22,6 +24,7 @@ import {
   importProviderExportIntoWorkspace,
 } from "../export/markdown-transfer";
 import { requestEntityCreate } from "../references/entity-create-controller";
+import { captureRenameReturnFocus } from "../shell/rename-focus";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -35,6 +38,7 @@ import {
   NewNoteIcon,
   PanelLeftToggleIcon,
   PanelRightToggleIcon,
+  PencilIcon,
   PinIcon,
   RotateCcwIcon,
   SearchIcon,
@@ -54,6 +58,8 @@ export type CommandUiControls = {
   togglePalette: () => void;
   openSettings: () => void;
   toggleSidebar: () => void;
+  /** Reveals the sidebar without toggling it, for actions that live in the tree. */
+  openSidebar: () => void;
   toggleMetadata: () => void;
   navigate: (route: AppRoute) => void;
 };
@@ -133,6 +139,20 @@ export function createWorkspaceCommands(
         }
         const pinned = (state.sourceNodes.get(noteId)?.pinnedAt ?? null) !== null;
         setNodePinned(store, noteId, !pinned);
+      },
+    },
+    {
+      id: "rename-current-note",
+      label: "Rename current note",
+      group: "Actions",
+      keywords: ["rename", "title", "name"],
+      icon: <PencilIcon size={15} />,
+      shortcut: "renameCurrentNote",
+      enabled: (state, ui) => onNotesRoute(state, ui) && focusedPaneNoteId(state) !== null,
+      run: () => {
+        controls.openSidebar();
+        captureRenameReturnFocus();
+        renameCurrentNote(store);
       },
     },
     {
