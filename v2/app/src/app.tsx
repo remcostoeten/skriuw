@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { Sidebar } from "./shell/sidebar";
 import { CommandPaletteHost } from "./shell/command-palette-host";
@@ -9,12 +9,30 @@ import { TrashView } from "./shell/trash-view";
 import { EntityView } from "./shell/entity-view";
 import { HistoryView } from "./history/history-view";
 import { WindowControls } from "./shell/window-controls";
-import { panelGridTemplate } from "./shell/panel-layout";
+import {
+  panelGridTemplate,
+  panelTracksWith,
+  type PanelTracks,
+} from "./shell/panel-layout";
+import { PanelResizeHandle } from "./shell/panel-resize-handle";
+import {
+  SIDEBAR_RESIZE_BOUNDS,
+  readSidebarWidth,
+  writeSidebarWidth,
+} from "./shell/sidebar-resize";
+import {
+  METADATA_RESIZE_BOUNDS,
+  readMetadataWidth,
+  writeMetadataWidth,
+} from "./shell/metadata-resize";
 import { TransferReportHost } from "./export/transfer-report-host";
 import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
 import { appRouteHash, noteHistoryHash, useAppRoute } from "./app-route";
 import { installBackNavigation } from "./references/reference-navigation";
-import { createCommandRegistry, registryShortcutActions } from "./commands/registry";
+import {
+  createCommandRegistry,
+  registryShortcutActions,
+} from "./commands/registry";
 import type { CommandUiState } from "./commands/registry";
 import { createWorkspaceCommands } from "./commands/workspace-commands";
 import {
@@ -55,35 +73,136 @@ export function App({ store }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [metadataOpen, setMetadataOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
+  const [sidebarResizing, setSidebarResizing] = useState(false);
+  const [metadataWidth, setMetadataWidth] = useState(readMetadataWidth);
+  const [metadataResizing, setMetadataResizing] = useState(false);
+  const [tracksAnimated, setTracksAnimated] = useState(true);
+  const panelResizing = sidebarResizing || metadataResizing;
+  const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
   useEffect(() => installBackNavigation(store), [store]);
   const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
   const uiRef = useRef(ui);
   uiRef.current = ui;
+  const toggleSidebar = useCallback((animated: boolean) => {
+    setTracksAnimated(animated);
+    setSidebarOpen((current) => !current);
+  }, []);
+  const toggleMetadata = useCallback((animated: boolean) => {
+    setTracksAnimated(animated);
+    setMetadataOpen((current) => !current);
+  }, []);
   const registry = useMemo(
     () =>
       createCommandRegistry(
         createWorkspaceCommands(store, {
           togglePalette: () => setPaletteOpen((current) => !current),
           openSettings: () => setSettingsOpen((current) => !current),
-          toggleSidebar: () => setSidebarOpen((current) => !current),
-          toggleMetadata: () => setMetadataOpen((current) => !current),
+          toggleSidebar: () => toggleSidebar(false),
+          toggleMetadata: () => toggleMetadata(false),
           navigate: (target) => {
             window.location.hash = appRouteHash(target);
           },
         }),
       ),
-    [store],
+    [store, toggleMetadata, toggleSidebar],
   );
   const shortcutActions = useMemo(
-    () => registryShortcutActions(registry, () => store.getState(), () => uiRef.current),
+    () =>
+      registryShortcutActions(
+        registry,
+        () => store.getState(),
+        () => uiRef.current,
+      ),
     [registry, store],
   );
-  const gridTemplateColumns = panelGridTemplate(route, sidebarOpen, metadataOpen);
+  const tracks: PanelTracks = {
+    sidebarOpen,
+    metadataOpen,
+    sidebarWidth,
+    metadataWidth,
+  };
+  const gridTemplateColumns = panelGridTemplate(
+    route,
+    sidebarOpen,
+    metadataOpen,
+    sidebarWidth,
+    metadataWidth,
+  );
   const noteNav = useNoteNavigation(store);
+  const tracksRef = useRef<HTMLDivElement>(null);
+  const sidebarPaneRef = useRef<HTMLDivElement>(null);
+  const metadataPaneRef = useRef<HTMLDivElement>(null);
+  const settledRef = useRef(tracks);
+  settledRef.current = tracks;
+
+  /**
+   * Drags repaint through direct writes to the grid container and the dragged
+   * pane. Both properties are non-inherited, so the browser only restyles those
+   * two elements — and React does no work at all until the pointer is released.
+   */
+  const previewPanel = useCallback(
+    (panel: "sidebar" | "metadata", width: number, collapsed: boolean) => {
+      const next = panelTracksWith(settledRef.current, panel, width, collapsed);
+      const container = tracksRef.current;
+      if (container) {
+        container.style.gridTemplateColumns = panelGridTemplate(
+          "notes",
+          next.sidebarOpen,
+          next.metadataOpen,
+          next.sidebarWidth,
+          next.metadataWidth,
+        );
+      }
+      const pane =
+        panel === "sidebar" ? sidebarPaneRef.current : metadataPaneRef.current;
+      if (pane) {
+        pane.style.width = `${width}px`;
+      }
+    },
+    [],
+  );
+  const previewSidebar = useCallback(
+    (width: number, collapsed: boolean) =>
+      previewPanel("sidebar", width, collapsed),
+    [previewPanel],
+  );
+  const previewMetadata = useCallback(
+    (width: number, collapsed: boolean) =>
+      previewPanel("metadata", width, collapsed),
+    [previewPanel],
+  );
+  const resizeSidebar = useCallback((width: number) => {
+    setSidebarWidth(width);
+    writeSidebarWidth(width);
+  }, []);
+  const collapseSidebar = useCallback(() => {
+    setTracksAnimated(true);
+    setSidebarOpen(false);
+  }, []);
+  const expandSidebar = useCallback(() => {
+    setTracksAnimated(true);
+    setSidebarOpen(true);
+  }, []);
+  const resizeMetadata = useCallback((width: number) => {
+    setMetadataWidth(width);
+    writeMetadataWidth(width);
+  }, []);
+  const collapseMetadata = useCallback(() => {
+    setTracksAnimated(true);
+    setMetadataOpen(false);
+  }, []);
+  const expandMetadata = useCallback(() => {
+    setTracksAnimated(true);
+    setMetadataOpen(true);
+  }, []);
   return (
     <div
-      className="grid h-full grid-rows-[minmax(0,1fr)] [--window-controls-width:112px]"
+      ref={tracksRef}
+      className={`relative grid h-full grid-rows-[minmax(0,1fr)] [--window-controls-width:112px]${
+        settling ? " panel-tracks-settling" : ""
+      }`}
       style={{ gridTemplateColumns }}
     >
       <WindowControls />
@@ -155,7 +274,11 @@ export function App({ store }: Props) {
             </a>
           </Tooltip>
           <div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
-          <Tooltip label="Settings" side="right" shortcut={formatShortcut("mod+,")}>
+          <Tooltip
+            label="Settings"
+            side="right"
+            shortcut={formatShortcut("mod+,")}
+          >
             <button
               type="button"
               className={`${iconButtonClass} ${settingsOpen ? activeNavClass : inactiveNavClass}`}
@@ -169,16 +292,60 @@ export function App({ store }: Props) {
           </Tooltip>
         </div>
       </nav>
+      {route === "notes" ? (
+        <>
+          <PanelResizeHandle
+            side="left"
+            label="Resize sidebar"
+            bounds={SIDEBAR_RESIZE_BOUNDS}
+            width={sidebarWidth}
+            collapsed={!sidebarOpen}
+            offsetBase={56}
+            settling={settling}
+            onPreview={previewSidebar}
+            onResize={resizeSidebar}
+            onCollapse={collapseSidebar}
+            onExpand={expandSidebar}
+            onDragChange={setSidebarResizing}
+          />
+          <PanelResizeHandle
+            side="right"
+            label="Resize metadata panel"
+            bounds={METADATA_RESIZE_BOUNDS}
+            width={metadataWidth}
+            collapsed={!metadataOpen}
+            offsetBase={0}
+            settling={settling}
+            onPreview={previewMetadata}
+            onResize={resizeMetadata}
+            onCollapse={collapseMetadata}
+            onExpand={expandMetadata}
+            onDragChange={setMetadataResizing}
+          />
+        </>
+      ) : null}
       <div className="contents" hidden={route !== "notes"}>
-        <div className="min-h-0 min-w-0 overflow-hidden" aria-hidden={!sidebarOpen}>
-          {sidebarOpen ? <Sidebar store={store} /> : null}
+        <div
+          className={`min-h-0 min-w-0 overflow-hidden${
+            sidebarOpen ? "" : " sidebar-pane-collapsed"
+          }${settling ? " sidebar-pane-settling" : ""}`}
+          aria-hidden={!sidebarOpen}
+          inert={!sidebarOpen}
+        >
+          <div
+            ref={sidebarPaneRef}
+            className="h-full"
+            style={{ width: sidebarWidth }}
+          >
+            <Sidebar store={store} />
+          </div>
         </div>
         <main className="flex min-w-0 flex-col">
           <div className="flex h-11 items-center gap-1 border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
             <Tooltip label="Toggle sidebar" side="bottom">
               <button
                 type="button"
-                onClick={() => setSidebarOpen((current) => !current)}
+                onClick={() => toggleSidebar(true)}
                 className={toolbarIconButtonClass}
                 aria-label="Toggle sidebar"
                 aria-expanded={sidebarOpen}
@@ -231,9 +398,13 @@ export function App({ store }: Props) {
             <Tooltip label="Toggle metadata" side="bottom">
               <button
                 type="button"
-                onClick={() => setMetadataOpen((current) => !current)}
+                onClick={() => toggleMetadata(true)}
                 className={toolbarIconButtonClass}
-                style={metadataOpen ? undefined : { marginRight: "var(--window-controls-width)" }}
+                style={
+                  metadataOpen
+                    ? undefined
+                    : { marginRight: "var(--window-controls-width)" }
+                }
                 aria-label="Toggle metadata"
                 aria-expanded={metadataOpen}
               >
@@ -245,8 +416,22 @@ export function App({ store }: Props) {
             <EditorPanes store={store} />
           </div>
         </main>
-        <div className="min-h-0 min-w-0 overflow-hidden" aria-hidden={!metadataOpen}>
-          {metadataOpen ? <MetadataPanel store={store} /> : null}
+        <div
+          className={`min-h-0 min-w-0 overflow-hidden${
+            metadataOpen ? "" : " sidebar-pane-collapsed"
+          }${settling ? " sidebar-pane-settling" : ""}`}
+          aria-hidden={!metadataOpen}
+          inert={!metadataOpen}
+        >
+          {metadataOpen ? (
+            <div
+              ref={metadataPaneRef}
+              className="h-full"
+              style={{ width: metadataWidth }}
+            >
+              <MetadataPanel store={store} />
+            </div>
+          ) : null}
         </div>
       </div>
       {route === "history" && <HistoryView store={store} />}
@@ -260,7 +445,11 @@ export function App({ store }: Props) {
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
       />
-      <SettingsDialog store={store} open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog
+        store={store}
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+      />
       <TransferReportHost />
       <WorkspaceShortcuts
         store={store}

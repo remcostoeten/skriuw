@@ -3,6 +3,72 @@
   height: 28px;
 }
 
+.sidebar-resize-handle {
+  --sidebar-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  position: absolute;
+  inset-block: 0;
+  width: 9px;
+  margin-left: -4px;
+  cursor: col-resize;
+  z-index: 30;
+  background: transparent;
+  outline: none;
+  touch-action: none;
+}
+
+.sidebar-resize-handle-right {
+  margin-left: 0;
+  margin-right: -4px;
+}
+
+.sidebar-resize-handle-settling {
+  transition:
+    left 260ms var(--sidebar-ease),
+    right 260ms var(--sidebar-ease);
+}
+
+.sidebar-resize-handle::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 4px;
+  width: 1px;
+  background: hsl(var(--sidebar-border));
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.sidebar-resize-handle:hover::after,
+.sidebar-resize-handle:focus-visible::after,
+.sidebar-resize-handle-active::after {
+  opacity: 1;
+}
+
+.panel-tracks-settling {
+  --sidebar-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  transition: grid-template-columns 260ms var(--sidebar-ease);
+}
+
+.sidebar-pane-settling {
+  transition: opacity 200ms ease;
+}
+
+.sidebar-pane-collapsed {
+  opacity: 0;
+}
+
+body.sidebar-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-tracks-settling,
+  .sidebar-resize-handle-settling {
+    transition: none;
+  }
+}
+
 .sidebar-tree-dragging {
   cursor: grabbing;
   user-select: none;
@@ -36,7 +102,8 @@
   background-image: repeating-linear-gradient(
     to right,
     transparent 0 calc(var(--tree-step, 16px) - 1px),
-    hsl(var(--sidebar-border)) calc(var(--tree-step, 16px) - 1px) var(--tree-step, 16px)
+    hsl(var(--sidebar-border)) calc(var(--tree-step, 16px) - 1px)
+      var(--tree-step, 16px)
   );
   background-position: calc(var(--tree-base, 12px) + 8px) 0;
   background-size: calc(var(--tree-indent, 0px) - 8px) 100%;
