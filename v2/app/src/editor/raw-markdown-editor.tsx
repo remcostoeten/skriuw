@@ -3,6 +3,12 @@ import { commitOperations } from "../actions/workspace";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
 import { noteImageIds } from "./image-actions";
+import {
+  countRawMarkdownWords,
+  rawMarkdownCursorStatus,
+  rawMarkdownLineCount,
+  rawMarkdownLineNumbers,
+} from "./raw-markdown-editor-model";
 import { countWords, parseProductMarkdownWithImages } from "./schema";
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -12,8 +18,13 @@ type Props = {
   selectNoteId: (state: RendererState) => string | null;
 };
 
+function selectShowLineNumbers(state: RendererState): boolean {
+  return state.settings.showLineNumbers === true;
+}
+
 export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const activeNoteId = useRendererSelector(store, selectNoteId);
+  const showLineNumbers = useRendererSelector(store, selectShowLineNumbers);
   const selectRecord = useMemo(
     () =>
       (state: RendererState): DocumentRecord | undefined => {
@@ -27,6 +38,11 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const noteIdRef = useRef(activeNoteId);
   const saveTimerRef = useRef<number | null>(null);
   const textRef = useRef(text);
+  const lineNumberContentRef = useRef<HTMLPreElement>(null);
+  const [cursorStatus, setCursorStatus] = useState(() => rawMarkdownCursorStatus(text, 0, 0));
+  const wordCount = useMemo(() => countRawMarkdownWords(text), [text]);
+  const lineCount = useMemo(() => rawMarkdownLineCount(text), [text]);
+  const lineNumbers = useMemo(() => rawMarkdownLineNumbers(lineCount), [lineCount]);
   textRef.current = text;
 
   function saveNow(noteId: string, markdown: string): void {
@@ -69,7 +85,9 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   useEffect(() => {
     flushPendingSave(noteIdRef.current);
     noteIdRef.current = activeNoteId;
-    setText(record?.markdown ?? "");
+    const markdown = record?.markdown ?? "";
+    setText(markdown);
+    setCursorStatus(rawMarkdownCursorStatus(markdown, 0, 0));
   }, [activeNoteId]);
 
   function handleChange(value: string): void {
@@ -87,13 +105,50 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     }, SAVE_DEBOUNCE_MS);
   }
 
+  function handleSelection(target: HTMLTextAreaElement): void {
+    setCursorStatus(rawMarkdownCursorStatus(target.value, target.selectionStart, target.selectionEnd));
+  }
+
+  function handleScroll(target: HTMLTextAreaElement): void {
+    if (lineNumberContentRef.current) {
+      lineNumberContentRef.current.style.transform = `translateY(${-target.scrollTop}px)`;
+    }
+  }
+
+  const selectionSummary = cursorStatus.selectedCharacters > 0
+    ? `${cursorStatus.selectedWords} words · ${cursorStatus.selectedCharacters} chars selected`
+    : `Ln ${cursorStatus.line}, Col ${cursorStatus.column}`;
+
   return (
-    <textarea
-      className="raw-markdown-editor"
-      aria-label="Raw Markdown source"
-      value={text}
-      spellCheck={false}
-      onChange={(event) => handleChange(event.currentTarget.value)}
-    />
+    <div>
+      <div className="relative min-h-[60vh]">
+        {showLineNumbers ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 w-12 overflow-hidden border-r border-border/60 text-right font-mono text-[0.9rem] leading-[1.7] text-muted-foreground/70 select-none"
+          >
+            <pre ref={lineNumberContentRef} className="m-0 pr-3 font-mono text-[0.9rem] leading-[1.7] will-change-transform">
+              {lineNumbers}
+            </pre>
+          </div>
+        ) : null}
+        <textarea
+          className={`raw-markdown-editor block min-h-[60vh] ${showLineNumbers ? "pl-14" : ""}`}
+          aria-label="Raw Markdown source"
+          value={text}
+          spellCheck={false}
+          onChange={(event) => handleChange(event.currentTarget.value)}
+          onSelect={(event) => handleSelection(event.currentTarget)}
+          onScroll={(event) => handleScroll(event.currentTarget)}
+        />
+      </div>
+      <div
+        className="mt-2 flex min-h-6 items-center justify-between border-t border-border/60 pt-2 font-mono text-[11px] tracking-tight text-muted-foreground"
+        aria-label={`${wordCount} words, ${selectionSummary}`}
+      >
+        <span>{wordCount} words</span>
+        <span>{selectionSummary}</span>
+      </div>
+    </div>
   );
 }
