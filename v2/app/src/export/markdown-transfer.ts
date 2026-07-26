@@ -4,11 +4,13 @@ import {
   importMarkdownImage,
   cleanupImportSource,
   pickDirectory,
+  pickImportFile,
   pickImportFiles,
   prepareImportSources,
   type StoredImagePayload,
 } from "../bridge/commands";
 import { productSchema, serializeProductMarkdown } from "../editor/schema";
+import { flushPendingWork } from "../lifecycle/pending-work";
 import { noop } from "../shared/lib/noop";
 import type { RendererStore } from "../store/types";
 import type { WorkspaceOperation } from "../contracts/workspace";
@@ -252,9 +254,17 @@ async function importPlannedImages(
   return { attachOperations, imported, skipped };
 }
 
+type ImportNotesOptions = {
+  /** Destination the preview dialog opens with; null/omitted opens on the root. */
+  initialDestinationFolderId?: string | null;
+  /** Runs after a successful commit with the notes the import created. */
+  onImported?: (result: { createdNoteIds: readonly string[] }) => void;
+};
+
 async function importNotesFromPath(
   store: RendererStore,
   sourcePaths: string[],
+  options: ImportNotesOptions = {},
 ): Promise<void> {
   const sourcePath =
     sourcePaths.length === 1 && sourcePaths[0]
@@ -425,6 +435,7 @@ async function importNotesFromPath(
             : [];
         }),
       ],
+      initialDestinationFolderId: options.initialDestinationFolderId ?? null,
     });
     if (!selection) {
       return;
@@ -486,6 +497,11 @@ async function importNotesFromPath(
       await commitOperations(store, operations);
     }
     commitProgress.finish();
+    options.onImported?.({
+      createdNoteIds: plan.operations.flatMap((operation) =>
+        operation.type === "create_note" ? [operation.id] : [],
+      ),
+    });
     publishTransferReport({
       title: `Import complete (${bundle.sourceLabel})`,
       lines: [
@@ -550,6 +566,55 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
     } else {
       reportFailure("Import failed", error);
     }
+  }
+}
+
+const MARKDOWN_FILE_EXTENSIONS = ["md", "markdown", "txt"];
+
+let markdownFileImportInFlight = false;
+
+/**
+ * Imports a single Markdown/plain-text file as a new note through the same
+ * pipeline as "Import notes from folder…" (`importNotesFromPath`), for the
+ * `ctrl+shift+o` shortcut. Flushes pending edits before the picker opens, and
+ * a second call while one import is still running is a no-op instead of
+ * stacking a second picker. Returns the notes the import created so the
+ * caller can switch to them, or null when nothing changed.
+ */
+export async function importMarkdownFileIntoWorkspace(
+  store: RendererStore,
+  initialDestinationFolderId: string | null,
+): Promise<readonly string[] | null> {
+  if (markdownFileImportInFlight) {
+    return null;
+  }
+  markdownFileImportInFlight = true;
+  try {
+    await flushPendingWork();
+    const filePath = await pickImportFile(
+      "Import markdown file",
+      MARKDOWN_FILE_EXTENSIONS,
+    );
+    if (!filePath) {
+      return null;
+    }
+    let createdNoteIds: readonly string[] = [];
+    await importNotesFromPath(store, [filePath], {
+      initialDestinationFolderId,
+      onImported: (result) => {
+        createdNoteIds = result.createdNoteIds;
+      },
+    });
+    return createdNoteIds;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      publishTransferReport({ title: "Import cancelled", lines: ["Nothing changed."] });
+    } else {
+      reportFailure("Import failed", error);
+    }
+    return null;
+  } finally {
+    markdownFileImportInFlight = false;
   }
 }
 
