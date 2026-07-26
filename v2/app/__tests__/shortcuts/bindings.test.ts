@@ -271,3 +271,40 @@ test("ctrl+arrowup and ctrl+arrowdown match only with ctrl held", () => {
     false,
   );
 });
+
+test("find and replace shares the find scope and adds a macOS-safe alternate", () => {
+  const findAndReplace = SHORTCUT_DEFINITIONS.find(
+    (entry) => entry.id === "findAndReplaceInNote",
+  );
+  const findInNote = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "findInNote");
+  assert.ok(findAndReplace);
+  assert.ok(findInNote);
+  assert.equal(effectiveShortcutKeys(findAndReplace, {}), "mod+h");
+  assert.equal(findAndReplace.secondaryKeys, "mod+alt+f");
+  assert.equal(findAndReplace.secondaryWorksWhileTyping, true);
+  assert.equal(findAndReplace.scopes, findInNote.scopes);
+  assert.deepEqual(shortcutGuards(findAndReplace, true), []);
+  assert.equal(findShortcutConflict({}, "findAndReplaceInNote", "mod+h"), null);
+  assert.equal(
+    findShortcutConflict({}, "findAndReplaceInNote", "mod+f")?.actionId,
+    "findInNote",
+  );
+});
+
+test("mod+h matches find and replace while a plain h keeps typing", () => {
+  const parsed = parseShortcut("mod+h");
+  const modifier = parseShortcut("mod+k").modifiers.meta ? "metaKey" : "ctrlKey";
+  const base = { key: "h", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
+  assert.equal(
+    matchesShortcut({ ...base, [modifier]: true } as unknown as KeyboardEvent, parsed),
+    true,
+  );
+  assert.equal(matchesShortcut(base as unknown as KeyboardEvent, parsed), false);
+  assert.equal(
+    matchesShortcut(
+      { ...base, key: "f", [modifier]: true, altKey: true } as unknown as KeyboardEvent,
+      parseShortcut("mod+alt+f"),
+    ),
+    true,
+  );
+});

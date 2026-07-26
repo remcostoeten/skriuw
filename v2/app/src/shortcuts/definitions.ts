@@ -34,6 +34,7 @@ export type ShortcutActionId =
   | "goToDocumentStart"
   | "goToDocumentEnd"
   | "findInNote"
+  | "findAndReplaceInNote"
   | "searchMatchCase"
   | "searchWholeWord"
   | "searchRegex";
@@ -354,6 +355,18 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "findInNote",
     keys: "mod+f",
     label: "Find in note",
+    group: "Editor search",
+    worksWhileTyping: true,
+    scopes: "note-focus",
+  },
+  {
+    id: "findAndReplaceInNote",
+    keys: "mod+h",
+    secondaryKeys: "mod+alt+f",
+    secondaryWorksWhileTyping: true,
+    label: "Find and replace in note",
+    description:
+      "Open the find panel with the replace row expanded. Overrides the browser's history shortcut on web; mod+alt+f is VS Code's macOS default, where cmd+h hides the app.",
     group: "Editor search",
     worksWhileTyping: true,
     scopes: "note-focus",
