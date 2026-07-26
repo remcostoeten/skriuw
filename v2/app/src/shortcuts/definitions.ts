@@ -1,4 +1,25 @@
+/**
+ * Direct tab access, in strip order. Generated so the digit keys and the
+ * palette commands stay derived from one list instead of ten hand-written
+ * copies.
+ */
+export const TAB_INDEX_ACTION_IDS = [
+  "openTab1",
+  "openTab2",
+  "openTab3",
+  "openTab4",
+  "openTab5",
+  "openTab6",
+  "openTab7",
+  "openTab8",
+  "openTab9",
+] as const;
+
+export type TabIndexActionId = (typeof TAB_INDEX_ACTION_IDS)[number];
+
 export type ShortcutActionId =
+  | TabIndexActionId
+  | "openLastTab"
   | "toggleCommandPalette"
   | "createNote"
   | "createFolder"
@@ -92,6 +113,37 @@ export type ShortcutDefinition = {
   secondaryWorksWhileTyping?: boolean;
   boundInEditor?: boolean;
 };
+
+const TAB_INDEX_DESCRIPTION =
+  "Activate a tab by its position in the focused pane's strip. Alt keeps the digits clear of the mod+digit focus and zoom bindings, and browsers own ctrl+digits for their own tabs — so the combo is reliable on desktop and best-effort on web.";
+
+/**
+ * `alt+1`…`alt+9` plus `alt+0` for the last tab, VS Code style. Nothing fires
+ * unless the `tabs` scope is active, so with the tabbed workspace off the
+ * keypress falls through untouched.
+ */
+const TAB_INDEX_DEFINITIONS: readonly ShortcutDefinition[] = [
+  ...TAB_INDEX_ACTION_IDS.map((id, index) => ({
+    id,
+    keys: `alt+${index + 1}`,
+    label: `Go to tab ${index + 1}`,
+    description: TAB_INDEX_DESCRIPTION,
+    group: "Tabs",
+    worksWhileTyping: true,
+    guards: ["modal"] as const,
+    scopes: "tabs",
+  })),
+  {
+    id: "openLastTab",
+    keys: "alt+0",
+    label: "Go to last tab",
+    description: TAB_INDEX_DESCRIPTION,
+    group: "Tabs",
+    worksWhileTyping: true,
+    guards: ["modal"] as const,
+    scopes: "tabs",
+  },
+];
 
 export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   {
@@ -196,6 +248,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Tabs",
     worksWhileTyping: true,
   },
+  ...TAB_INDEX_DEFINITIONS,
   {
     id: "openBeside",
     keys: "mod+backslash",

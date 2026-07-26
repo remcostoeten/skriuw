@@ -13,7 +13,10 @@ import {
   shortcutGuards,
   shortcutOverridesFromSettings,
 } from "../../src/shortcuts/bindings";
-import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
+import {
+  SHORTCUT_DEFINITIONS,
+  TAB_INDEX_ACTION_IDS,
+} from "../../src/shortcuts/definitions";
 
 const platformModifier = parseShortcut("mod+k").modifiers.meta ? "meta" : "ctrl";
 const otherModifier = platformModifier === "meta" ? "ctrl" : "meta";
@@ -345,4 +348,53 @@ test("every default binding is free of overlaps", () => {
       `${definition.id} overlaps another default`,
     );
   }
+});
+
+test("tab access is generated for every digit and scoped to the tabbed workspace", () => {
+  const ids = [...TAB_INDEX_ACTION_IDS, "openLastTab"] as const;
+  assert.equal(TAB_INDEX_ACTION_IDS.length, 9);
+  for (const [index, id] of ids.entries()) {
+    const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
+    assert.ok(definition, `${id} has no definition`);
+    assert.equal(
+      effectiveShortcutKeys(definition, {}),
+      id === "openLastTab" ? "alt+0" : `alt+${index + 1}`,
+    );
+    assert.equal(definition.group, "Tabs");
+    assert.equal(definition.scopes, "tabs");
+    assert.deepEqual(shortcutGuards(definition, true), ["modal"]);
+    assert.equal(findShortcutConflict({}, id, effectiveShortcutKeys(definition, {})), null);
+  }
+});
+
+test("tab access uses alt digits so it never collides with the mod digit bindings", () => {
+  for (const [id, keys] of [
+    ["focusEditor", "mod+2"],
+    ["focusMetadata", "mod+3"],
+    ["zoomReset", "mod+0"],
+  ] as const) {
+    const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
+    assert.ok(definition);
+    assert.equal(effectiveShortcutKeys(definition, {}), keys);
+    assert.equal(findShortcutConflict({}, id, keys), null);
+  }
+  assert.equal(sameCombo("alt+2", "mod+2"), false);
+  assert.equal(sameCombo("alt+0", "mod+0"), false);
+});
+
+test("alt+4 matches the fourth tab binding and a bare 4 keeps typing", () => {
+  const parsed = parseShortcut("alt+4");
+  const base = { key: "4", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
+  assert.equal(
+    matchesShortcut({ ...base, altKey: true } as unknown as KeyboardEvent, parsed),
+    true,
+  );
+  assert.equal(matchesShortcut(base as unknown as KeyboardEvent, parsed), false);
+  assert.equal(
+    matchesShortcut(
+      { ...base, altKey: true, shiftKey: true } as unknown as KeyboardEvent,
+      parsed,
+    ),
+    false,
+  );
 });

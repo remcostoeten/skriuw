@@ -251,6 +251,50 @@ export function cycleTabId(
   return primary.openNoteIds[(index + direction + count) % count] ?? null;
 }
 
+function paneById(panes: readonly PaneState[], paneId: string): PaneState | null {
+  return panes.find((pane) => pane.paneId === paneId) ?? panes[0] ?? null;
+}
+
+/**
+ * The tab a 1-based index selects in `paneId`'s strip. Index 0 means the last
+ * tab, following the browser convention for the `0` key. Null when the slot is
+ * out of range, which callers treat as a silent no-op.
+ */
+export function tabIdAtIndex(
+  panes: readonly PaneState[],
+  paneId: string,
+  index: number,
+): string | null {
+  const pane = paneById(panes, paneId);
+  if (pane === null || index < 0) {
+    return null;
+  }
+  if (index === 0) {
+    return pane.openNoteIds[pane.openNoteIds.length - 1] ?? null;
+  }
+  return pane.openNoteIds[index - 1] ?? null;
+}
+
+/**
+ * Makes `noteId` the active tab of `paneId`. Only the split pane needs this:
+ * the primary pane's active tab mirrors the workspace's active note, so it is
+ * activated through the store instead. Returns the input reference when the
+ * note is not open in that pane.
+ */
+export function activateTabInPane(
+  panes: readonly PaneState[],
+  paneId: string,
+  noteId: string,
+): readonly PaneState[] {
+  const pane = panes.find((entry) => entry.paneId === paneId);
+  if (!pane || pane.activeNoteId === noteId || !pane.openNoteIds.includes(noteId)) {
+    return panes;
+  }
+  return panes.map((entry) =>
+    entry.paneId === paneId ? { ...entry, activeNoteId: noteId } : entry,
+  );
+}
+
 export function openBeside(
   panes: readonly PaneState[],
   noteId: string,

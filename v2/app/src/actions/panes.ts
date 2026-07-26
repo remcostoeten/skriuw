@@ -1,7 +1,9 @@
+import { opensNotesInTabs } from "../settings/settings-model";
 import type { RendererStore } from "../store/types";
 import {
   PRIMARY_PANE_ID,
   SECONDARY_PANE_ID,
+  activateTabInPane,
   closeAllTabs as closeAllTabsInPanes,
   closeOtherTabs as closeOtherTabsInPanes,
   closeSplit as closeSplitPanes,
@@ -13,6 +15,7 @@ import {
   primaryPane,
   reorderTab as reorderTabInPanes,
   secondaryPane,
+  tabIdAtIndex,
   togglePinTab as togglePinTabInPanes,
 } from "../store/panes";
 import { activateNote } from "./workspace";
@@ -96,6 +99,30 @@ export function reorderTab(
     ...current,
     panes: reorderTabInPanes(current.panes, noteId, beforeNoteId),
   }));
+}
+
+/**
+ * Activates the tab at a 1-based position in the focused pane's strip, or the
+ * last tab for index 0. Silently does nothing when the tabbed workspace is off
+ * or the slot is out of range.
+ */
+export function activateTabAtIndex(store: RendererStore, index: number): void {
+  const state = store.getState();
+  if (!opensNotesInTabs(state.settings)) {
+    return;
+  }
+  const noteId = tabIdAtIndex(state.panes, state.focusedPaneId, index);
+  if (noteId === null) {
+    return;
+  }
+  if (state.focusedPaneId === SECONDARY_PANE_ID && secondaryPane(state.panes) !== null) {
+    store.update((current) => ({
+      ...current,
+      panes: activateTabInPane(current.panes, SECONDARY_PANE_ID, noteId),
+    }));
+    return;
+  }
+  activateNote(store, noteId);
 }
 
 export function cycleTab(store: RendererStore, direction: -1 | 1): void {

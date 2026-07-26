@@ -1,5 +1,6 @@
 import { quitApp, toggleMaximize } from "../actions/window";
 import {
+  activateTabAtIndex,
   closeActiveTab,
   closeSplit,
   cycleTab,
@@ -33,6 +34,7 @@ import { requestEntityCreate } from "../references/entity-create-controller";
 import { captureRenameReturnFocus } from "../shell/rename-focus";
 import { showToast } from "../shared/ui/toast";
 import { shortcutDefinition } from "../shortcuts/bindings";
+import { TAB_INDEX_ACTION_IDS } from "../shortcuts/definitions";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -75,6 +77,30 @@ export type CommandUiControls = {
 };
 
 const onNotesRoute: CommandPredicate = (_state, ui) => ui.route === "notes";
+
+/**
+ * Direct tab access, one command per digit key. Hidden from the palette — ten
+ * "Go to tab N" rows would drown the list, and the cheat sheet renders the
+ * bindings from `SHORTCUT_DEFINITIONS` instead.
+ */
+function tabIndexCommands(store: RendererStore): AppCommand[] {
+  const indexed = TAB_INDEX_ACTION_IDS.map((shortcut, index) => ({
+    shortcut,
+    position: index + 1,
+  }));
+  return [...indexed, { shortcut: "openLastTab" as const, position: 0 }].map(
+    ({ shortcut, position }) => ({
+      id: `go-to-tab-${position}`,
+      label: shortcutDefinition(shortcut).label,
+      group: "Tabs",
+      keywords: ["tab", "index", "position"],
+      shortcut,
+      visible: () => false,
+      enabled: onNotesRoute,
+      run: () => activateTabAtIndex(store, position),
+    }),
+  );
+}
 
 export function createWorkspaceCommands(
   store: RendererStore,
@@ -254,6 +280,7 @@ export function createWorkspaceCommands(
         onNotesRoute(state, ui) && (state.panes[0]?.openNoteIds.length ?? 0) > 1,
       run: () => cycleTab(store, -1),
     },
+    ...tabIndexCommands(store),
     {
       id: "open-beside",
       label: "Open current note beside",
