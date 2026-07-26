@@ -76,6 +76,9 @@ function referenceBootstrap(noteIds: readonly string[]): ReferenceBootstrap {
     id: `performance-tag-${index}`,
     name: `Performance tag ${index.toString().padStart(4, "0")}`,
     color: null,
+    createdAt: FIXTURE_TIME + index,
+    updatedAt: FIXTURE_TIME + index,
+    createdIn: null,
   }));
   const people: PersonRecord[] = Array.from({ length: 1000 }, (_, index) => ({
     id: `performance-person-${index}`,
@@ -83,6 +86,9 @@ function referenceBootstrap(noteIds: readonly string[]): ReferenceBootstrap {
     initials: null,
     color: null,
     note: null,
+    createdAt: FIXTURE_TIME + index,
+    updatedAt: FIXTURE_TIME + index,
+    createdIn: null,
   }));
   const references: NoteReferences[] = noteIds.map((noteId, index) => {
     const targets: StructuredReference[] = [
@@ -120,6 +126,7 @@ export function createPerformanceSnapshot(
     createdAt: FIXTURE_TIME + index,
     updatedAt: FIXTURE_TIME + index,
     deletedAt: null,
+    pinnedAt: null,
   }));
   let measuredIndex = 0;
   const documents: WorkspaceDocument[] = projection.nodes.flatMap((node) => {
@@ -139,6 +146,7 @@ export function createPerformanceSnapshot(
       wordCount: isMeasured ? blockCount * 10 : 0,
     }];
   });
+  const referenceData = referenceBootstrap(noteIds);
   return {
     snapshot: {
       protocolVersion: 1,
@@ -147,8 +155,14 @@ export function createPerformanceSnapshot(
       documents,
       historyHeaders: [],
       settings,
+      tags: [...referenceData.tags],
+      people: [...referenceData.people],
+      references: referenceData.references.map((entry) => ({
+        noteId: entry.noteId,
+        targets: [...entry.targets],
+      })),
     },
-    references: referenceBootstrap(noteIds),
+    references: referenceData,
     identity: {
       name: projection.metadata.name,
       operationsDigest: projection.operationsDigest,
