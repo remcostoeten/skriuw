@@ -25,6 +25,8 @@ import { publishTransferReport } from "./transfer-report";
 import { detectImportSource } from "../import/model";
 import { planImportBundle } from "../import/plan";
 import { importSources } from "../import/sources";
+import { buildImportPreviewCandidate } from "../import/preview";
+import { requestImportPreview } from "../import/preview-controller";
 
 function count(amount: number, noun: string): string {
   return `${amount} ${noun}${amount === 1 ? "" : "s"}`;
@@ -173,15 +175,14 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
       return;
     }
     const tree = await readMarkdownTree(sourceDir);
-    const source = detectImportSource(importSources, tree);
-    if (!source) {
+    const detectedSource = detectImportSource(importSources, tree);
+    if (!detectedSource) {
       publishTransferReport({
         title: "Nothing to import",
         lines: [`No importable notes found in ${sourceDir}`],
       });
       return;
     }
-    const bundle = source.parse(tree);
     const at = Date.now();
     const state = store.getState();
     const existingNotes = [...state.nodes.values()]
@@ -191,31 +192,49 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
       id: tag.id,
       name: tag.name,
     }));
-    const plan = planImportBundle(
-      bundle,
-      at,
-      () => crypto.randomUUID(),
-      existingNotes,
-      existingTags,
-    );
-    const images = await importPlannedImages(plan, sourceDir, at);
-    if (plan.operations.length > 0) {
-      await commitOperations(store, plan.operations);
+    const candidates = importSources
+      .map((source) => ({ source, score: source.detect(tree) }))
+      .filter(({ score }) => score > 0)
+      .sort((left, right) => right.score - left.score)
+      .map(({ source }) => {
+        const bundle = source.parse(tree);
+        const plan = planImportBundle(
+          bundle,
+          at,
+          () => crypto.randomUUID(),
+          existingNotes,
+          existingTags,
+        );
+        return {
+          source,
+          bundle,
+          plan,
+          preview: buildImportPreviewCandidate(bundle, plan, tree),
+        };
+      });
+    const selectedSourceId = await requestImportPreview({
+      sourcePath: sourceDir,
+      candidates: candidates.map((candidate) => candidate.preview),
+      detectedSourceId: detectedSource.id,
+    });
+    if (!selectedSourceId) {
+      return;
     }
-    const contentOperations = [
+    const selected = candidates.find(
+      (candidate) => candidate.source.id === selectedSourceId,
+    );
+    if (!selected) {
+      return;
+    }
+    const { bundle, plan } = selected;
+    const images = await importPlannedImages(plan, sourceDir, at);
+    const operations = [
+      ...plan.operations,
       ...images.attachOperations,
-      ...plan.contentOperations.map((operation) => {
-        if (operation.type !== "save_document") {
-          return operation;
-        }
-        const revision = store.getState().documents.get(operation.noteId)?.revision;
-        return revision === undefined
-          ? operation
-          : { ...operation, expectedRevision: revision };
-      }),
+      ...plan.contentOperations,
     ];
-    if (contentOperations.length > 0) {
-      await commitOperations(store, contentOperations);
+    if (operations.length > 0) {
+      await commitOperations(store, operations);
     }
     publishTransferReport({
       title: `Import complete (${bundle.sourceLabel})`,

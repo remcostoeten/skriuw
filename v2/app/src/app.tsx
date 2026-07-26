@@ -26,6 +26,7 @@ import {
   writeMetadataWidth,
 } from "./shell/metadata-resize";
 import { TransferReportHost } from "./export/transfer-report-host";
+import { ImportPreviewHost } from "./import/import-preview-host";
 import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
 import { appRouteHash, noteHistoryHash, useAppRoute } from "./app-route";
 import { installBackNavigation } from "./references/reference-navigation";
@@ -451,6 +452,7 @@ export function App({ store }: Props) {
         onOpenChange={setSettingsOpen}
       />
       <TransferReportHost />
+      <ImportPreviewHost />
       <WorkspaceShortcuts
         store={store}
         route={route}
