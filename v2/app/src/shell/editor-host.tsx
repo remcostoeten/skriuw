@@ -3,7 +3,7 @@ import { editorModeForNote } from "../actions/editor-mode";
 import { NoteEditor } from "../editor/note-editor";
 import { RawMarkdownEditor } from "../editor/raw-markdown-editor";
 import { useRendererSelector } from "../store/use-renderer-selector";
-import { WaypointsIcon } from "../shared/icons";
+import { WaypointsIcon, iconStrokeWidth } from "../shared/icons";
 import type { RendererState, RendererStore } from "../store/types";
 
 type Props = {
@@ -45,7 +45,7 @@ export function EditorHost({
       </div>
       {!hasActiveNote && (
         <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-          <WaypointsIcon size={40} strokeWidth={1.4} className="text-muted-foreground" />
+          <WaypointsIcon size={40} strokeWidth={iconStrokeWidth(40, 1.25)} className="text-muted-foreground" />
           <div className="max-w-md space-y-2">
             <p className="text-sm font-medium text-foreground">No note selected</p>
             <p className="text-sm text-muted-foreground">{emptyMessage}</p>

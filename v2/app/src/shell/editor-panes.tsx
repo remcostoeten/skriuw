@@ -122,7 +122,7 @@ export function EditorPanes({ store }: Props) {
                   }`}
                 >
                   {tab.isPinned && (
-                    <PinIcon size={11} strokeWidth={1.75} className="ml-2 shrink-0 fill-current" />
+                    <PinIcon size={11} className="ml-2 shrink-0 fill-current" />
                   )}
                   <button
                     type="button"
@@ -145,7 +145,7 @@ export function EditorPanes({ store }: Props) {
                     className="mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.15] hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
                     onClick={() => closeTab(store, tab.id)}
                   >
-                    <CloseIcon size={12} strokeWidth={1.5} />
+                    <CloseIcon size={12} />
                   </button>
                 </div>
               ))}
@@ -165,9 +165,9 @@ export function EditorPanes({ store }: Props) {
               <>
                 <ContextMenuItem onClick={() => togglePinTab(store, contextTab.id)}>
                   {contextTab.isPinned ? (
-                    <PinOffIcon className="h-3.5 w-3.5" />
+                    <PinOffIcon size={14} className="h-3.5 w-3.5" />
                   ) : (
-                    <PinIcon className="h-3.5 w-3.5" />
+                    <PinIcon size={14} className="h-3.5 w-3.5" />
                   )}
                   {contextTab.isPinned ? "Unpin" : "Pin"}
                 </ContextMenuItem>

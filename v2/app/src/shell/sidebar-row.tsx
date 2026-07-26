@@ -42,7 +42,7 @@ function RowLabel({ isFolder, isExpanded, isNarrow, grow = false, children }: Ro
       className={`flex min-w-0 items-center${grow ? " flex-1" : ""} ${isNarrow ? "gap-1" : "gap-1.5"}`}
     >
       {isFolder && (
-        <Icon size={14} strokeWidth={1.5} className="shrink-0 text-muted-foreground/70" />
+        <Icon size={14} className="shrink-0 text-muted-foreground/70" />
       )}
       <span className="flex h-[18px] min-w-0 flex-1 items-center">{children}</span>
     </span>

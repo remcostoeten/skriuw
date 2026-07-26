@@ -4,7 +4,19 @@ type IconProps = SVGProps<SVGSVGElement> & {
   size?: number;
 };
 
-function LucideIcon({ size = 16, strokeWidth = 1.5, children, ...props }: IconProps & { children: ReactNode }) {
+const ICON_STROKE_PX = 1;
+const ICON_VIEWBOX = 24;
+
+/**
+ * Stroke width is expressed in viewBox units, so a fixed number renders heavier
+ * on large icons and fainter on small ones. Scaling by the render size keeps
+ * every icon at `ICON_STROKE_PX` on screen.
+ */
+export function iconStrokeWidth(size: number, weightPx = ICON_STROKE_PX): number {
+  return (ICON_VIEWBOX / size) * weightPx;
+}
+
+function LucideIcon({ size = 16, strokeWidth, children, ...props }: IconProps & { children: ReactNode }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -13,7 +25,7 @@ function LucideIcon({ size = 16, strokeWidth = 1.5, children, ...props }: IconPr
       height={size}
       fill="none"
       stroke="currentColor"
-      strokeWidth={strokeWidth}
+      strokeWidth={strokeWidth ?? iconStrokeWidth(size)}
       strokeLinecap="round"
       strokeLinejoin="round"
       {...props}
@@ -103,6 +115,15 @@ export function RotateCcwIcon(props: IconProps) {
     <LucideIcon {...props}>
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
       <path d="M3 3v5h5" />
+    </LucideIcon>
+  );
+}
+
+export function Undo2Icon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
     </LucideIcon>
   );
 }
