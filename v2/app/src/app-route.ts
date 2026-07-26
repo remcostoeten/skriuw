@@ -1,10 +1,13 @@
 import { useSyncExternalStore } from "react";
 
-export type AppRoute = "notes" | "trash" | "tags" | "people";
+export type AppRoute = "notes" | "trash" | "tags" | "people" | "history";
 
 export function resolveAppRoute(hash: string): AppRoute {
   if (hash === "#/trash") {
     return "trash";
+  }
+  if (hash.startsWith("#/history/")) {
+    return "history";
   }
   if (hash === "#/tags" || hash.startsWith("#/tags/")) {
     return "tags";
@@ -16,7 +19,7 @@ export function resolveAppRoute(hash: string): AppRoute {
 }
 
 export function resolveRouteFocus(hash: string): string | null {
-  const match = /^#\/(?:tags|people)\/(.+)$/.exec(hash);
+  const match = /^#\/(?:tags|people|history)\/(.+)$/.exec(hash);
   if (!match) {
     return null;
   }
@@ -55,6 +58,10 @@ export function appRouteHash(route: AppRoute): string {
     return "#/people";
   }
   return "#/notes";
+}
+
+export function noteHistoryHash(noteId: string): string {
+  return `#/history/${encodeURIComponent(noteId)}`;
 }
 
 export function entityFocusHash(kind: "tag" | "person", id: string): string {

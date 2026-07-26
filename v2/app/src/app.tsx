@@ -7,11 +7,12 @@ import { MetadataPanel } from "./shell/metadata-panel";
 import { SettingsDialog } from "./shell/settings-dialog";
 import { TrashView } from "./shell/trash-view";
 import { EntityView } from "./shell/entity-view";
+import { HistoryView } from "./history/history-view";
 import { WindowControls } from "./shell/window-controls";
 import { panelGridTemplate } from "./shell/panel-layout";
 import { TransferReportHost } from "./export/transfer-report-host";
 import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
-import { appRouteHash, useAppRoute } from "./app-route";
+import { appRouteHash, noteHistoryHash, useAppRoute } from "./app-route";
 import { installBackNavigation } from "./references/reference-navigation";
 import { createCommandRegistry, registryShortcutActions } from "./commands/registry";
 import type { CommandUiState } from "./commands/registry";
@@ -20,6 +21,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CircleIcon,
+  HistoryIcon,
   FolderOpenIcon,
   PanelLeftToggleIcon,
   PanelRightToggleIcon,
@@ -211,11 +213,26 @@ export function App({ store }: Props) {
                 {noteNav.title}
               </span>
             )}
+            <Tooltip label="Version history" side="bottom">
+              <button
+                type="button"
+                onClick={() => {
+                  if (noteNav.noteId) {
+                    window.location.hash = noteHistoryHash(noteNav.noteId);
+                  }
+                }}
+                disabled={!noteNav.noteId}
+                className={`${toolbarIconButtonClass} ml-auto`}
+                aria-label="Version history"
+              >
+                <HistoryIcon size={16} />
+              </button>
+            </Tooltip>
             <Tooltip label="Toggle metadata" side="bottom">
               <button
                 type="button"
                 onClick={() => setMetadataOpen((current) => !current)}
-                className={`${toolbarIconButtonClass} ml-auto`}
+                className={toolbarIconButtonClass}
                 style={metadataOpen ? undefined : { marginRight: "var(--window-controls-width)" }}
                 aria-label="Toggle metadata"
                 aria-expanded={metadataOpen}
@@ -232,6 +249,7 @@ export function App({ store }: Props) {
           {metadataOpen ? <MetadataPanel store={store} /> : null}
         </div>
       </div>
+      {route === "history" && <HistoryView store={store} />}
       {route === "trash" && <TrashView store={store} />}
       {route === "tags" && <EntityView store={store} kind="tag" />}
       {route === "people" && <EntityView store={store} kind="person" />}

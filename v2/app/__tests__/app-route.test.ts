@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { entityFocusHash, resolveAppRoute, resolveRouteFocus } from "../src/app-route";
+import {
+  entityFocusHash,
+  noteHistoryHash,
+  resolveAppRoute,
+  resolveRouteFocus,
+} from "../src/app-route";
 
 test("trash has a dedicated hash route and unknown routes return to notes", () => {
   assert.equal(resolveAppRoute("#/trash"), "trash");
@@ -25,4 +30,12 @@ test("entityFocusHash round-trips ids that need encoding", () => {
   const hash = entityFocusHash("person", "a/b c");
   assert.equal(resolveAppRoute(hash), "people");
   assert.equal(resolveRouteFocus(hash), "a/b c");
+});
+
+test("history routes carry the note id as the route focus", () => {
+  const hash = noteHistoryHash("note-1/a");
+  assert.equal(hash, "#/history/note-1%2Fa");
+  assert.equal(resolveAppRoute(hash), "history");
+  assert.equal(resolveRouteFocus(hash), "note-1/a");
+  assert.equal(resolveAppRoute("#/history"), "notes");
 });
