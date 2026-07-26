@@ -3,6 +3,7 @@ import test from "node:test";
 import type { WorkspaceNode, WorkspaceSnapshot } from "../../src/contracts/workspace";
 import {
   activateTab,
+  activateTabAtIndex,
   closeActiveTab,
   closeAllTabs,
   closeOtherTabs,
@@ -209,4 +210,54 @@ test("closeTabsToSide closes tabs on the given side of the target", () => {
   closeTabsToSide(rendererStore, "b", "right");
   const primary = rendererStore.getState().panes[0]!;
   assert.deepEqual(primary.openNoteIds, ["a", "b"]);
+});
+
+function tabbedStore() {
+  const base = snapshot();
+  return createRendererStore(
+    createInitialState({
+      ...base,
+      settings: { ...base.settings, openNotesInTabs: true },
+    }),
+  );
+}
+
+test("tab access by index activates that slot and index 0 activates the last tab", () => {
+  const rendererStore = tabbedStore();
+  openNoteInTab(rendererStore, "b");
+  openNoteInTab(rendererStore, "c");
+  activateTabAtIndex(rendererStore, 1);
+  assert.equal(rendererStore.getState().activeNoteId, "a");
+  activateTabAtIndex(rendererStore, 2);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+  activateTabAtIndex(rendererStore, 0);
+  assert.equal(rendererStore.getState().activeNoteId, "c");
+});
+
+test("tab access by index is a silent no-op out of range and with tabs off", () => {
+  const tabbed = tabbedStore();
+  openNoteInTab(tabbed, "b");
+  const before = tabbed.getState();
+  activateTabAtIndex(tabbed, 7);
+  assert.equal(tabbed.getState(), before);
+
+  const untabbed = store();
+  openNoteInTab(untabbed, "b");
+  const untabbedBefore = untabbed.getState();
+  activateTabAtIndex(untabbed, 1);
+  assert.equal(untabbed.getState(), untabbedBefore);
+});
+
+test("tab access by index reads the focused pane's strip", () => {
+  const rendererStore = tabbedStore();
+  openNoteInTab(rendererStore, "b");
+  openBeside(rendererStore, "c");
+  focusPane(rendererStore, SECONDARY_PANE_ID);
+  activateTabAtIndex(rendererStore, 2);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+  assert.equal(rendererStore.getState().panes[1]?.activeNoteId, "c");
+
+  focusPane(rendererStore, PRIMARY_PANE_ID);
+  activateTabAtIndex(rendererStore, 1);
+  assert.equal(rendererStore.getState().activeNoteId, "a");
 });

@@ -5,6 +5,7 @@ import {
   PANE_LAYOUT_VERSION,
   PRIMARY_PANE_ID,
   SECONDARY_PANE_ID,
+  activateTabInPane,
   closeAllTabs,
   closeOtherTabs,
   closeSplit,
@@ -18,6 +19,7 @@ import {
   reorderTab,
   serializePaneLayout,
   syncPanes,
+  tabIdAtIndex,
   togglePinTab,
 } from "../../src/store/panes";
 import type { PaneState } from "../../src/store/panes";
@@ -241,4 +243,37 @@ test("closeAllTabs keeps only pinned tabs and promotes a survivor when the activ
   const result = closeAllTabs(panes);
   assert.deepEqual(result.panes[0]?.openNoteIds, ["c"]);
   assert.equal(result.nextActiveNoteId, "c");
+});
+
+test("tabIdAtIndex resolves 1-based slots and treats 0 as the last tab", () => {
+  const panes = [primary(["a", "b", "c"], "a")];
+  assert.equal(tabIdAtIndex(panes, PRIMARY_PANE_ID, 1), "a");
+  assert.equal(tabIdAtIndex(panes, PRIMARY_PANE_ID, 3), "c");
+  assert.equal(tabIdAtIndex(panes, PRIMARY_PANE_ID, 0), "c");
+  assert.equal(tabIdAtIndex(panes, PRIMARY_PANE_ID, 4), null);
+  assert.equal(tabIdAtIndex(panes, PRIMARY_PANE_ID, -1), null);
+  assert.equal(tabIdAtIndex([primary([], null)], PRIMARY_PANE_ID, 0), null);
+});
+
+test("tabIdAtIndex reads the requested pane and falls back to the primary one", () => {
+  const panes = [
+    primary(["a", "b"], "a"),
+    { paneId: SECONDARY_PANE_ID, openNoteIds: ["c"], pinnedNoteIds: [], activeNoteId: "c" },
+  ];
+  assert.equal(tabIdAtIndex(panes, SECONDARY_PANE_ID, 1), "c");
+  assert.equal(tabIdAtIndex(panes, SECONDARY_PANE_ID, 2), null);
+  assert.equal(tabIdAtIndex(panes, "unknown-pane", 2), "b");
+});
+
+test("activateTabInPane switches the split pane's tab and ignores unknown notes", () => {
+  const panes = [
+    primary(["a"], "a"),
+    { paneId: SECONDARY_PANE_ID, openNoteIds: ["b", "c"], pinnedNoteIds: [], activeNoteId: "b" },
+  ];
+  const next = activateTabInPane(panes, SECONDARY_PANE_ID, "c");
+  assert.equal(next[1]?.activeNoteId, "c");
+  assert.equal(next[0], panes[0]);
+  assert.equal(activateTabInPane(panes, SECONDARY_PANE_ID, "b"), panes);
+  assert.equal(activateTabInPane(panes, SECONDARY_PANE_ID, "a"), panes);
+  assert.equal(activateTabInPane(panes, "unknown-pane", "b"), panes);
 });
