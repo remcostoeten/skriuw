@@ -1,15 +1,27 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { KeyboardEvent } from "react";
 import { commitOperations } from "../actions/workspace";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
 import { textEdgeOffset, type DocumentEdge } from "./document-edges";
-import { useDocumentEdgeShortcuts } from "./use-document-edge-shortcuts";
+import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import { noteImageIds } from "./image-actions";
 import {
   countRawMarkdownWords,
+  parseJumpToLineInput,
   rawMarkdownCursorStatus,
   rawMarkdownLineCount,
   rawMarkdownLineNumbers,
+  rawMarkdownLineOffset,
+  rawMarkdownLineScrollTop,
 } from "./raw-markdown-editor-model";
 import {
   reconcileRawMarkdown,
@@ -19,6 +31,7 @@ import {
 import { countWords, parseProductMarkdownWithImages } from "./schema";
 
 const SAVE_DEBOUNCE_MS = 500;
+const MARKDOWN_SCOPES = ["markdown"];
 
 type Props = {
   store: RendererStore;
@@ -52,7 +65,14 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const saveTimerRef = useRef<number | null>(null);
   const lineNumberContentRef = useRef<HTMLPreElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [shortcutHost, setShortcutHost] = useState<HTMLTextAreaElement | null>(null);
+  const jumpInputRef = useRef<HTMLInputElement>(null);
+  const [textareaHost, setTextareaHost] = useState<HTMLTextAreaElement | null>(null);
+  const [surfaceHost, setSurfaceHost] = useState<HTMLDivElement | null>(null);
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const [jumpValue, setJumpValue] = useState("");
+  const jumpOpenRef = useRef(jumpOpen);
+  jumpOpenRef.current = jumpOpen;
+  const jumpFieldId = useId();
   const [cursorStatus, setCursorStatus] = useState(() => rawMarkdownCursorStatus(source.text, 0, 0));
   const wordCount = useMemo(() => countRawMarkdownWords(deferredText), [deferredText]);
   const lineCount = useMemo(() => rawMarkdownLineCount(deferredText), [deferredText]);
@@ -154,14 +174,105 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     handleScroll(textarea);
     setCursorStatus(rawMarkdownCursorStatus(textarea.value, offset, offset));
   }, []);
-  useDocumentEdgeShortcuts(store, shortcutHost, jumpToDocumentEdge);
+
+  const closeJumpToLine = useCallback(() => {
+    setJumpOpen(false);
+    textareaRef.current?.focus();
+  }, []);
+
+  const toggleJumpToLine = useCallback(() => {
+    if (jumpOpenRef.current) {
+      closeJumpToLine();
+      return;
+    }
+    setJumpOpen(true);
+    requestAnimationFrame(() => {
+      jumpInputRef.current?.focus();
+      jumpInputRef.current?.select();
+    });
+  }, [closeJumpToLine]);
+
+  const commitJumpToLine = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (textarea === null) {
+      return;
+    }
+    const total = rawMarkdownLineCount(textarea.value);
+    const line = parseJumpToLineInput(jumpValue, total);
+    if (line === null) {
+      return;
+    }
+    const offset = rawMarkdownLineOffset(textarea.value, line);
+    setJumpOpen(false);
+    textarea.focus();
+    textarea.setSelectionRange(offset, offset);
+    textarea.scrollTop = rawMarkdownLineScrollTop(
+      line,
+      total,
+      textarea.scrollHeight,
+      textarea.clientHeight,
+    );
+    handleScroll(textarea);
+    setCursorStatus(rawMarkdownCursorStatus(textarea.value, offset, offset));
+  }, [jumpValue]);
+
+  const edgeShortcuts = useMemo(
+    () => ({
+      goToDocumentStart: () => jumpToDocumentEdge("start"),
+      goToDocumentEnd: () => jumpToDocumentEdge("end"),
+    }),
+    [jumpToDocumentEdge],
+  );
+  const surfaceShortcuts = useMemo(
+    () => ({ jumpToLine: toggleJumpToLine }),
+    [toggleJumpToLine],
+  );
+  useEditorBoundShortcuts(store, textareaHost, edgeShortcuts);
+  useEditorBoundShortcuts(store, surfaceHost, surfaceShortcuts, MARKDOWN_SCOPES);
+
+  function handleJumpKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitJumpToLine();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      closeJumpToLine();
+    }
+  }
 
   const selectionSummary = cursorStatus.selectedCharacters > 0
     ? `${cursorStatus.selectedWords} words · ${cursorStatus.selectedCharacters} chars selected`
     : `Ln ${cursorStatus.line}, Col ${cursorStatus.column}`;
 
   return (
-    <div>
+    <div ref={setSurfaceHost}>
+      {jumpOpen ? (
+        <div className="sticky top-3 z-40 flex h-0 items-start justify-end">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-popover p-1.5 pl-2.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)]">
+            <label htmlFor={jumpFieldId} className="text-muted-foreground">
+              Line
+            </label>
+            <div className="flex items-center rounded-md border border-border bg-background px-2 transition-[border-color,box-shadow] duration-150 focus-within:border-ring">
+              <input
+                id={jumpFieldId}
+                ref={jumpInputRef}
+                value={jumpValue}
+                onChange={(event) => setJumpValue(event.target.value)}
+                onKeyDown={handleJumpKeyDown}
+                onBlur={() => setJumpOpen(false)}
+                inputMode="numeric"
+                placeholder={String(cursorStatus.line)}
+                aria-label={`Jump to line, 1 to ${lineCount}`}
+                spellCheck={false}
+                className="w-16 bg-transparent py-1 text-[13px] tabular-nums text-foreground outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <span className="pr-1 text-xs tabular-nums text-muted-foreground">
+              of {lineCount}
+            </span>
+          </div>
+        </div>
+      ) : null}
       <div className="relative min-h-[60vh]">
         {showLineNumbers ? (
           <div
@@ -176,7 +287,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
         <textarea
           ref={(node) => {
             textareaRef.current = node;
-            setShortcutHost(node);
+            setTextareaHost(node);
           }}
           className={`raw-markdown-editor block min-h-[60vh] whitespace-pre ${showLineNumbers ? "pl-14" : ""}`}
           aria-label="Raw Markdown source"

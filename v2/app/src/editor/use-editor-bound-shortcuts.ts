@@ -12,22 +12,24 @@ import {
 import type { ShortcutActionId, ShortcutPlatform } from "../shortcuts/definitions";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererStore } from "../store/types";
-import type { DocumentEdge } from "./document-edges";
 
-const EDGE_ACTIONS: readonly { id: ShortcutActionId; edge: DocumentEdge }[] = [
-  { id: "goToDocumentStart", edge: "start" },
-  { id: "goToDocumentEnd", edge: "end" },
-];
+export type EditorBoundHandlers = Partial<Record<ShortcutActionId, () => void>>;
 
 /**
- * Binds the document start/end jumps to one editor surface. The listener sits on
- * `host` rather than the window, so arrow keys in the sidebar, the find panel,
- * the metadata panel, or the other split pane never reach it.
+ * Binds editor-only shortcut definitions to one editor surface. The listener
+ * sits on `host` instead of the window, so the same keys pressed in the sidebar
+ * tree, the find panel, the metadata panel, or the other split pane never reach
+ * this editor. Keys still come from `SHORTCUT_DEFINITIONS`, so they stay
+ * rebindable and conflict-checked.
+ *
+ * `handlers` and `activeScopes` have to be stable across renders, or every
+ * render re-registers the bindings.
  */
-export function useDocumentEdgeShortcuts(
+export function useEditorBoundShortcuts(
   store: RendererStore,
   host: HTMLElement | null,
-  jumpToEdge: (edge: DocumentEdge) => void,
+  handlers: EditorBoundHandlers,
+  activeScopes?: string[],
 ): void {
   const overrides = useRendererSelector(
     store,
@@ -38,26 +40,29 @@ export function useDocumentEdgeShortcuts(
 
   const shortcutMap = useMemo(() => {
     const map: ShortcutMap = {};
-    for (const { id, edge } of EDGE_ACTIONS) {
+    for (const id of Object.keys(handlers) as ShortcutActionId[]) {
+      const handler = handlers[id];
       const definition = shortcutDefinition(id);
-      if (!shortcutBindsOnPlatform(definition, overrides, platform)) {
+      if (!handler || !shortcutBindsOnPlatform(definition, overrides, platform)) {
         continue;
       }
       map[id] = {
         keys: effectiveShortcutKeys(definition, overrides),
-        handler: () => jumpToEdge(edge),
+        handler,
         options: {
           description: definition.description ?? definition.label,
           preventDefault: true,
+          scopes: definition.scopes,
         },
       };
     }
     return map;
-  }, [jumpToEdge, overrides, platform]);
+  }, [handlers, overrides, platform]);
 
   useShortcutMap(shortcutMap, {
     target: host,
     ignoreInputs: false,
     disabled: host === null,
+    activeScopes,
   });
 }
