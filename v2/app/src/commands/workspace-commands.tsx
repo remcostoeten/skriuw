@@ -237,7 +237,7 @@ export function createWorkspaceCommands(
     },
     {
       id: "import-provider-export",
-      label: "Import provider export…",
+      label: "Import provider export or files…",
       group: "Actions",
       keywords: [
         "import",

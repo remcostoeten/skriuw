@@ -15,6 +15,8 @@ type Props<TValue extends string> = {
   label: string;
   prefix?: string;
   className?: string;
+  /** Extra class on the trigger button, e.g. to render as a full-width form field. */
+  triggerClassName?: string;
   align?: "start" | "end";
 };
 
@@ -30,6 +32,7 @@ export function Select<TValue extends string>({
   label,
   prefix,
   className,
+  triggerClassName,
   align = "end",
 }: Props<TValue>) {
   const listId = useId();
@@ -132,6 +135,7 @@ export function Select<TValue extends string>({
           "hover:bg-muted hover:text-foreground",
           "focus-visible:border-ring focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)]",
           "data-[open=true]:border-ring data-[open=true]:bg-muted data-[open=true]:text-foreground",
+          triggerClassName,
         )}
         data-open={open}
       >
