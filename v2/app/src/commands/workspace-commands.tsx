@@ -13,7 +13,9 @@ import {
   navigateNote,
   noteNavigationOrder,
   renameCurrentNote,
+  restoreTrashedNote,
   setNodePinned,
+  trashCurrentNote,
 } from "../actions/workspace";
 import type { AppRoute } from "../app-route";
 import { openEditorSearch } from "../editor/search-controller";
@@ -25,6 +27,8 @@ import {
 } from "../export/markdown-transfer";
 import { requestEntityCreate } from "../references/entity-create-controller";
 import { captureRenameReturnFocus } from "../shell/rename-focus";
+import { showToast } from "../shared/ui/toast";
+import { shortcutDefinition } from "../shortcuts/bindings";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -153,6 +157,30 @@ export function createWorkspaceCommands(
         controls.openSidebar();
         captureRenameReturnFocus();
         renameCurrentNote(store);
+      },
+    },
+    {
+      id: "trash-current-note",
+      label: "Move current note to trash",
+      group: "Actions",
+      keywords: ["trash", "delete", "remove"],
+      icon: <Trash2Icon size={15} />,
+      shortcut: "trashCurrentNote",
+      hint: shortcutDefinition("trashCurrentNote").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && focusedPaneNoteId(state) !== null,
+      run: () => {
+        void trashCurrentNote(store).then((trashed) => {
+          if (trashed === null) {
+            return;
+          }
+          showToast({
+            message: `Moved “${trashed.title}” to trash`,
+            action: {
+              label: "Undo",
+              run: () => restoreTrashedNote(store, trashed.noteId),
+            },
+          });
+        });
       },
     },
     {

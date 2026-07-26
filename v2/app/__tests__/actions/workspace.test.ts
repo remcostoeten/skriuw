@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as workspaceActions from "../../src/actions/workspace";
+import { setupTauriInvokeStub } from "../shared/tauri-stub";
+
+setupTauriInvokeStub();
 
 test("workspace action exports exist and are functions", () => {
   assert.equal(typeof workspaceActions.commitReferenceOperations, "function");
@@ -182,4 +185,62 @@ test("renameCurrentNote keeps an in-progress rename and no-ops without a note", 
   const empty = await storeWith({ activeNoteId: null, nodes: [] });
   assert.equal(renameCurrentNote(empty), false);
   assert.equal(empty.getState().editingNodeId, null);
+});
+
+test("nextNoteAfterRemoval prefers the successor and falls back to the predecessor", async () => {
+  const { nextNoteAfterRemoval } = await import("../../src/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [noteNode("a", 1), noteNode("b", 2), noteNode("c", 3)],
+  });
+  const state = store.getState();
+  assert.equal(nextNoteAfterRemoval(state, "a"), "b");
+  assert.equal(nextNoteAfterRemoval(state, "c"), "b");
+  assert.equal(nextNoteAfterRemoval(state, "missing"), null);
+});
+
+test("trashCurrentNote soft-deletes the open note and opens the next one", async () => {
+  const { trashCurrentNote } = await import("../../src/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [noteNode("a", 1), noteNode("b", 2)],
+  });
+
+  assert.deepEqual(await trashCurrentNote(store), { noteId: "a", title: "a" });
+  const state = store.getState();
+  assert.equal(state.nodes.has("a"), false);
+  assert.equal(state.sourceNodes.get("a")?.deletedAt !== null, true);
+  assert.equal(state.activeNoteId, "b");
+});
+
+test("trashCurrentNote leaves the empty state when it was the last note", async () => {
+  const { trashCurrentNote } = await import("../../src/actions/workspace");
+  const store = await storeWith({ activeNoteId: "a", nodes: [noteNode("a", 1)] });
+
+  assert.equal((await trashCurrentNote(store))?.noteId, "a");
+  assert.equal(store.getState().activeNoteId, null);
+});
+
+test("trashCurrentNote is a silent no-op without an open note", async () => {
+  const { trashCurrentNote } = await import("../../src/actions/workspace");
+  const store = await storeWith({ activeNoteId: null, nodes: [folderNode("f", 1)] });
+  assert.equal(await trashCurrentNote(store), null);
+  assert.equal(store.getState().nodes.has("f"), true);
+});
+
+test("restoreTrashedNote brings the note back and reopens it", async () => {
+  const { restoreTrashedNote, trashCurrentNote } = await import(
+    "../../src/actions/workspace"
+  );
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [noteNode("a", 1), noteNode("b", 2)],
+  });
+  await trashCurrentNote(store);
+
+  restoreTrashedNote(store, "a");
+  const state = store.getState();
+  assert.equal(state.nodes.has("a"), true);
+  assert.equal(state.sourceNodes.get("a")?.deletedAt, null);
+  assert.equal(state.activeNoteId, "a");
 });

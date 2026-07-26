@@ -7,6 +7,7 @@ export type ShortcutActionId =
   | "togglePinNote"
   | "toggleEditorMode"
   | "renameCurrentNote"
+  | "trashCurrentNote"
   | "closeTab"
   | "nextTab"
   | "previousTab"
@@ -50,6 +51,11 @@ export type ShortcutDefinition = {
   keys: string | string[];
   label: string;
   group: string;
+  /**
+   * Longer note for discovery UI, e.g. when the binding deliberately overrides
+   * a native key. Falls back to `label`.
+   */
+  description?: string;
   /** Extra focus contexts where the binding must stay silent. */
   guards?: readonly ShortcutGuard[];
   /**
@@ -122,6 +128,18 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "renameCurrentNote",
     keys: "f2",
     label: "Rename current note",
+    group: "Workspace",
+    worksWhileTyping: true,
+    guards: ["textField", "sidebarTree", "modal"],
+  },
+  {
+    id: "trashCurrentNote",
+    keys: "mod+backspace",
+    secondaryKeys: "mod+delete",
+    secondaryWorksWhileTyping: true,
+    label: "Move current note to trash",
+    description:
+      "Move current note to trash. Overrides the macOS text-field delete-to-line-start default while the caret is in a note.",
     group: "Workspace",
     worksWhileTyping: true,
     guards: ["textField", "sidebarTree", "modal"],
