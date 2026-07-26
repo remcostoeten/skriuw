@@ -88,6 +88,7 @@ export function reduceOperation(
     case "set_note_property_template":
     case "delete_note_property_template":
     case "reorder_note_property_templates":
+    case "record_provider_import":
       return nodes;
     case "create_folder":
     case "create_note": {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarkdownTree } from "../../src/export/markdown-transfer-model";
-import { detectImportSource } from "../../src/import/model";
+import { detectImportSource, importSourceKey } from "../../src/import/model";
 import { planImportBundle } from "../../src/import/plan";
 import { importSources } from "../../src/import/sources";
 import { bearSource } from "../../src/import/sources/bear";
@@ -148,6 +148,15 @@ test("plain text only directory detects as plain text", () => {
 
 test("empty tree detects nothing", () => {
   assert.equal(detectImportSource(importSources, tree({})), null);
+});
+
+test("durable source key follows selected location, not changing export content", async () => {
+  const first = await importSourceKey("/exports/vault/");
+  const same = await importSourceKey("/exports/vault");
+  const moved = await importSourceKey("/exports/moved-vault");
+  assert.equal(first, same);
+  assert.notEqual(first, moved);
+  assert.match(first, /^[a-f0-9]{64}$/);
 });
 
 test("simplenote parse maps content, titles, timestamps, and skips trashed", () => {

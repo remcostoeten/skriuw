@@ -52,7 +52,10 @@ are accepted through bounded native extraction.
 - Workspace records never expose a half-created import.
 - Adapters stay deterministic and testable without Tauri or storage.
 - Archive extraction needs traversal, symlink, entry-count, and byte limits.
-- Re-import creates another copy until a durable provider-identity contract is
-  designed; preview states this behavior.
+- Durable provider receipts identify a note by provider, selected-source location
+  fingerprint, and provider-relative path. Preview offers skip, update, and copy
+  behavior; receipt writes share the import transaction.
+- Intake, planning, and image transfer are cancellable. The serialized atomic
+  storage request is not cancellable after submission.
 - Content-addressed blobs can outlive a failed import and require later garbage
   collection, but cannot corrupt canonical workspace state.

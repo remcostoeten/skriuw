@@ -56,10 +56,14 @@ function plan(): ImportBundlePlan {
     unresolvedReferences: 2,
     remoteImages: 1,
     preservedSources: 0,
+    createdNotes: 1,
+    updatedNotes: 0,
+    duplicateTitles: 0,
     createdTags: 3,
     tagSkippedNotes: 0,
     tagPropertyNotes: 0,
     skippedTags: 0,
+    skippedDuplicates: 0,
   };
 }
 
@@ -83,4 +87,17 @@ test("preview summarizes planned entities and path-aware warnings", () => {
     "Folder/manual.pdf: unsupported attachment will be skipped",
     "Folder/Note.md: Unsupported field",
   ]);
+});
+
+test("preview uses successful image preflight count", () => {
+  const preview = buildImportPreviewCandidate(
+    bundle(),
+    plan(),
+    { directories: [], files: [], skipped: 0 },
+    0,
+  );
+  assert.equal(preview.localImageCount, 0);
+  assert.ok(
+    preview.warningLines.includes("1 unreadable image will be skipped"),
+  );
 });

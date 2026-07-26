@@ -38,6 +38,21 @@ Preview shows:
 - provider diagnostics with affected source paths;
 - destination behavior and re-import behavior.
 
+Destination may be workspace root or any existing folder. Re-import uses a
+durable receipt keyed by provider, selected-source location fingerprint, and provider-relative
+note path. Users choose to skip previously imported notes, update their content
+and imported properties in place, or create another copy. New and updated
+receipts commit in the same transaction as note changes.
+
+Reading, planning, and local-image transfer publish progress. Cancellation
+before the atomic workspace request leaves workspace records unchanged. The
+final commit is non-cancellable once submitted.
+
+Local images are content-addressed and preflighted before preview. Preview counts
+only images successfully stored in the blob store, so its image count equals the
+completion count. Cancellation can leave unreferenced blobs for later garbage
+collection but creates no workspace record.
+
 ## Fidelity rules
 
 - Original note text must be imported or retained as lossless raw Markdown.
@@ -85,6 +100,9 @@ remain skipped and counted.
 
 Apple Notes uses its official Markdown export route. Exported Markdown and local
 assets use the generic transfer engine. Private database parsing is unsupported.
+Apple documents Markdown export for the selected note, not a bulk Markdown
+export. Users must export notes individually or use another local export tool;
+Skriuw cannot make the official route bulk-capable.
 
 ## Safety limits
 

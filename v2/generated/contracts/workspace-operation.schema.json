@@ -220,6 +220,34 @@
         "properties"
       ]
     },
+    "ProviderImportReceipt": {
+      "type": "object",
+      "properties": {
+        "importedAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "sourceKey": {
+          "type": "string"
+        },
+        "sourcePath": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "sourceKey",
+        "sourcePath",
+        "noteId",
+        "importedAt"
+      ]
+    },
     "VersionedNotePropertyValue": {
       "type": "object",
       "properties": {
@@ -1060,6 +1088,22 @@
           "required": [
             "type",
             "orderedTemplateIds"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "receipt": {
+              "$ref": "#/$defs/ProviderImportReceipt"
+            },
+            "type": {
+              "type": "string",
+              "const": "record_provider_import"
+            }
+          },
+          "required": [
+            "type",
+            "receipt"
           ]
         }
       ]

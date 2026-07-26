@@ -22,6 +22,7 @@ export function buildImportPreviewCandidate(
   bundle: ImportBundle,
   plan: ImportBundlePlan,
   tree: MarkdownTree,
+  readableLocalImageCount?: number,
 ): ImportPreviewCandidate {
   let localImageCount = 0;
   for (const operation of plan.contentOperations) {
@@ -34,6 +35,9 @@ export function buildImportPreviewCandidate(
     0,
   );
   const warningLines = [
+    ...(plan.duplicateTitles > 0
+      ? [`${count(plan.duplicateTitles, "duplicate title")} needs review`]
+      : []),
     ...(plan.unresolvedReferences > 0
       ? [
           `${count(plan.unresolvedReferences, "ambiguous or unresolved wiki-link")} will stay as source text`,
@@ -44,6 +48,18 @@ export function buildImportPreviewCandidate(
       : []),
     ...(plan.preservedSources > 0
       ? [`${count(plan.preservedSources, "note")} will use lossless raw mode`]
+      : []),
+    ...(plan.updatedNotes > 0
+      ? [`${count(plan.updatedNotes, "previously imported note")} will be updated`]
+      : []),
+    ...(plan.skippedDuplicates > 0
+      ? [`${count(plan.skippedDuplicates, "previously imported note")} will be skipped`]
+      : []),
+    ...(readableLocalImageCount !== undefined &&
+    localImageCount > readableLocalImageCount
+      ? [
+          `${count(localImageCount - readableLocalImageCount, "unreadable image")} will be skipped`,
+        ]
       : []),
     ...(plan.tagSkippedNotes > 0
       ? [`Tags cannot attach to ${count(plan.tagSkippedNotes, "raw-preserved note")}`]
@@ -69,7 +85,7 @@ export function buildImportPreviewCandidate(
     sourceLabel: bundle.sourceLabel,
     noteCount: plan.noteCount,
     folderCount: plan.folderCount,
-    localImageCount,
+    localImageCount: readableLocalImageCount ?? localImageCount,
     createdTagCount: plan.createdTags,
     propertyCount,
     warningLines,
