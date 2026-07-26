@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
 import {
@@ -115,7 +115,7 @@ import {
   type DocumentEdge,
 } from "./document-edges";
 import { SearchWidget } from "./search-widget";
-import { useDocumentEdgeShortcuts } from "./use-document-edge-shortcuts";
+import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import { useEditorSearch } from "./use-editor-search";
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -655,7 +655,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     );
     view.focus();
   }, []);
-  useDocumentEdgeShortcuts(store, shortcutHost, jumpToDocumentEdge);
+  const editorShortcuts = useMemo(
+    () => ({
+      goToDocumentStart: () => jumpToDocumentEdge("start"),
+      goToDocumentEnd: () => jumpToDocumentEdge("end"),
+    }),
+    [jumpToDocumentEdge],
+  );
+  useEditorBoundShortcuts(store, shortcutHost, editorShortcuts);
 
   const getEditorSearchTarget = useCallback(() => getSearchTarget(), []);
   const search = useEditorSearch(store, getEditorSearchTarget);
