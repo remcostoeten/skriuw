@@ -53,6 +53,28 @@ export function noteTitleFromContent(content: string, fallback: string): string 
   return firstLine.length > 0 ? firstLine.slice(0, 120) : fallback;
 }
 
+/**
+ * Builds a note-relative link to a file located anywhere in the import tree;
+ * segments are URI-encoded so spaces survive markdown link parsing.
+ */
+export function relativeLinkBetween(notePath: string, targetPath: string): string {
+  const cut = notePath.lastIndexOf("/");
+  const noteDirectories = cut === -1 ? [] : notePath.slice(0, cut).split("/");
+  const targetSegments = targetPath.split("/");
+  const targetDirectoryCount = targetSegments.length - 1;
+  let common = 0;
+  while (
+    common < noteDirectories.length &&
+    common < targetDirectoryCount &&
+    noteDirectories[common] === targetSegments[common]
+  ) {
+    common += 1;
+  }
+  const climbs = Array(noteDirectories.length - common).fill("..");
+  const descent = targetSegments.slice(common).map(encodeURIComponent);
+  return [...climbs, ...descent].join("/");
+}
+
 export function detectImportSource(
   adapters: readonly ImportSourceAdapter[],
   tree: MarkdownTree,
