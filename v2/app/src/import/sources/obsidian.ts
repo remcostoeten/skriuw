@@ -7,7 +7,7 @@ import type {
   ImportedPropertyValue,
   ImportWarning,
 } from "../model";
-import { noteTitleFromPath } from "../model";
+import { noteTitleFromPath, relativeLinkBetween } from "../model";
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 const EMBED_PATTERN = /!\[\[([^\][\n]+)\]\]/g;
@@ -198,28 +198,6 @@ function findAsset(index: AssetIndex, target: string): string | null {
   return index.byBaseName.get(cut === -1 ? lowered : lowered.slice(cut + 1)) ?? null;
 }
 
-/**
- * Builds a note-relative link to an asset located anywhere in the vault;
- * segments are URI-encoded so spaces survive markdown link parsing.
- */
-function relativeLinkToAsset(notePath: string, assetPath: string): string {
-  const cut = notePath.lastIndexOf("/");
-  const noteDirectories = cut === -1 ? [] : notePath.slice(0, cut).split("/");
-  const assetSegments = assetPath.split("/");
-  const assetDirectoryCount = assetSegments.length - 1;
-  let common = 0;
-  while (
-    common < noteDirectories.length &&
-    common < assetDirectoryCount &&
-    noteDirectories[common] === assetSegments[common]
-  ) {
-    common += 1;
-  }
-  const climbs = Array(noteDirectories.length - common).fill("..");
-  const descent = assetSegments.slice(common).map(encodeURIComponent);
-  return [...climbs, ...descent].join("/");
-}
-
 type EmbedConversion = {
   markdown: string;
   unresolvedImages: number;
@@ -248,7 +226,7 @@ function convertEmbeds(
     const label = labelParts.join("|").trim();
     const baseName = target.slice(target.lastIndexOf("/") + 1);
     const alt = label.length > 0 && !EMBED_SIZE_PATTERN.test(label) ? label : baseName;
-    return `![${alt}](${relativeLinkToAsset(notePath, asset)})`;
+    return `![${alt}](${relativeLinkBetween(notePath, asset)})`;
   });
   return { markdown: converted, unresolvedImages, noteEmbeds };
 }
