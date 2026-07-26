@@ -145,3 +145,4 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0021: tabs and split view](docs/adr/0021-tabs-and-split-view.md)
 - [ADR-0022: import into the Skriuw monorepo as the v2 line](docs/adr/0022-v2-monorepo-import.md)
 - [ADR-0023: lossless and reference-safe Markdown transfer](docs/adr/0023-lossless-markdown-transfer.md)
+- [ADR-0024: previewed and atomic provider import](docs/adr/0024-previewed-atomic-provider-import.md)
