@@ -77,16 +77,29 @@ export function useEditorSearch(store: RendererStore, getView: () => EditorSearc
     });
   }, []);
 
-  const openSearch = useCallback(() => {
-    setSearchOpen(true);
-    focusSearchInput();
-    if (searchQuery) {
+  /**
+   * The one open path for both find and find-and-replace. Re-arming the search
+   * only happens on a closed panel, so opening replace over an open find panel
+   * keeps the query and the current match instead of jumping back to the first.
+   */
+  const openSearch = useCallback(
+    (withReplace: boolean) => {
+      const wasOpen = searchOpenRef.current;
+      setSearchOpen(true);
+      if (withReplace) {
+        setShowReplace(true);
+      }
+      focusSearchInput();
+      if (wasOpen || !searchQuery) {
+        return;
+      }
       const view = getView();
       if (view) {
         setSearch(view, searchQuery, searchOptions);
       }
-    }
-  }, [focusSearchInput, searchQuery, searchOptions, getView]);
+    },
+    [focusSearchInput, searchQuery, searchOptions, getView],
+  );
 
   const closeSearch = useCallback(() => {
     setSearchOpen(false);
@@ -107,7 +120,11 @@ export function useEditorSearch(store: RendererStore, getView: () => EditorSearc
   }, [getView]);
 
   const showSearch = useCallback(() => {
-    openSearch();
+    openSearch(false);
+  }, [openSearch]);
+
+  const showSearchAndReplace = useCallback(() => {
+    openSearch(true);
   }, [openSearch]);
 
   const toggleSearchOption = useCallback(
@@ -151,8 +168,9 @@ export function useEditorSearch(store: RendererStore, getView: () => EditorSearc
     () =>
       registerEditorSearchController({
         open: showSearch,
+        openReplace: showSearchAndReplace,
       }),
-    [showSearch],
+    [showSearch, showSearchAndReplace],
   );
 
   const overrides = useRendererSelector(
