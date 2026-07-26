@@ -25,6 +25,8 @@ export type ImportedNote = {
 
 export type ImportWarning = {
   message: string;
+  path?: string;
+  severity?: "warning" | "error";
 };
 
 export type ImportBundle = {
