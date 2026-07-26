@@ -12,13 +12,18 @@ import type { PersonRecord } from "../references/types";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  CheckIcon,
   ChevronDownIcon,
   CloseIcon,
+  LayoutDashboardIcon,
+  PlusIcon,
   Trash2Icon,
 } from "../shared/icons";
 import { cn } from "../shared/lib/utils";
+import { InlineConfirm } from "../shared/ui/inline-confirm";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererState, RendererStore } from "../store/types";
+import { DateValueEditor } from "./date-value-editor";
 import {
   changeNotePropertyType,
   createPropertyOption,
@@ -39,27 +44,40 @@ import {
   replaceStringValue,
   updatePropertyOperations,
 } from "./property-editor-model";
+import { PropertyPopover } from "./property-popover";
 import { BUILT_IN_PROPERTY_TEMPLATES } from "./templates";
+import { TYPE_ICON } from "./type-icons";
 import { NOTE_PROPERTY_COLORS, NOTE_PROPERTY_TYPES } from "./types";
 
 type Props = {
   store: RendererStore;
+  selectNoteId?: (state: RendererState) => string | null;
 };
 
 type Commit = (operations: WorkspaceOperation[]) => void;
+type IdFactory = ReturnType<typeof createBrowserPropertyIdFactory>;
 
 const EMPTY_PROPERTIES: readonly NoteProperty[] = [];
 const EMPTY_TEMPLATES: readonly NotePropertyTemplate[] = [];
 const inputClass =
-  "min-h-7 w-full min-w-0 rounded-[var(--radius)] border border-transparent bg-transparent px-1.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/55 hover:border-border focus:border-ring/45 focus:bg-background disabled:cursor-not-allowed disabled:opacity-45";
+  "min-h-7 w-full min-w-0 rounded-md bg-transparent px-1 py-0.5 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/55 focus-visible:bg-accent/70 focus-visible:ring-1 focus-visible:ring-ring/45 disabled:cursor-not-allowed disabled:opacity-45";
+const nameInputClass =
+  "w-full min-w-0 rounded-md bg-transparent px-1 py-0.5 text-[13px] text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:bg-accent/70 focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/45";
+const ghostButtonClass =
+  "flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50";
+const menuItemClass =
+  "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50";
+const menuHeadingClass =
+  "px-2 pb-1 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/55";
+const typeIconButtonClass =
+  "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:bg-accent focus-visible:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring/50";
 const compactButtonClass =
-  "inline-flex min-h-7 items-center justify-center gap-1 rounded-[var(--radius)] border border-border bg-transparent px-2 text-[11px] font-medium text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/55 disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex min-h-7 cursor-pointer items-center justify-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/55 disabled:pointer-events-none disabled:opacity-40";
 const iconButtonClass =
-  "inline-flex size-7 shrink-0 items-center justify-center rounded-[var(--radius)] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/55 disabled:pointer-events-none disabled:opacity-30";
+  "inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/55 disabled:pointer-events-none disabled:opacity-30";
 
-function selectActiveProperties(state: RendererState): readonly NoteProperty[] {
-  if (state.activeNoteId === null) return EMPTY_PROPERTIES;
-  return state.propertiesByNoteId.get(state.activeNoteId) ?? EMPTY_PROPERTIES;
+function selectActiveNoteId(state: RendererState): string | null {
+  return state.activeNoteId;
 }
 
 function selectTemplates(state: RendererState): readonly NotePropertyTemplate[] {
@@ -70,27 +88,23 @@ function selectPeople(state: RendererState): ReadonlyMap<string, PersonRecord> {
   return state.people;
 }
 
-function selectActiveNoteId(state: RendererState): string | null {
-  return state.activeNoteId;
-}
-
-export function NotePropertiesPanel({ store }: Props) {
-  const noteId = useRendererSelector(store, selectActiveNoteId);
-  const properties = useRendererSelector(store, selectActiveProperties);
+export function NotePropertiesPanel({ store, selectNoteId = selectActiveNoteId }: Props) {
+  const noteId = useRendererSelector(store, selectNoteId);
+  const selectProperties = useMemo(
+    () =>
+      (state: RendererState): readonly NoteProperty[] => {
+        const id = selectNoteId(state);
+        if (id === null) return EMPTY_PROPERTIES;
+        return state.propertiesByNoteId.get(id) ?? EMPTY_PROPERTIES;
+      },
+    [selectNoteId],
+  );
+  const properties = useRendererSelector(store, selectProperties);
   const customTemplates = useRendererSelector(store, selectTemplates);
   const people = useRendererSelector(store, selectPeople);
   const [pending, setPending] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
-  const [addName, setAddName] = useState("");
-  const [addType, setAddType] = useState<NotePropertyValue["type"]>("text");
-  const [templateId, setTemplateId] = useState("");
-  const [armedTemplateId, setArmedTemplateId] = useState<string | null>(null);
   const idFactory = useMemo(createBrowserPropertyIdFactory, []);
-  const templates = useMemo(
-    () => [...BUILT_IN_PROPERTY_TEMPLATES, ...customTemplates],
-    [customTemplates],
-  );
 
   function commit(operations: WorkspaceOperation[]): void {
     if (operations.length === 0) return;
@@ -101,75 +115,42 @@ export function NotePropertiesPanel({ store }: Props) {
       .finally(() => setPending((count) => Math.max(0, count - 1)));
   }
 
-  if (noteId === null) {
-    return (
-      <div className="py-2 text-[12px] text-muted-foreground">
-        Select a note to edit its properties.
-      </div>
-    );
+  if (noteId === null) return null;
+
+  function addProperty(type: NotePropertyValue["type"], name: string): void {
+    commit(addPropertyOperations(noteId!, properties, type, name, Date.now(), idFactory));
   }
 
-  function addProperty(): void {
-    commit(addPropertyOperations(noteId!, properties, addType, addName, Date.now(), idFactory));
-    setAddName("");
-    setAddOpen(false);
-  }
-
-  function prepareTemplate(): void {
-    if (!templateId) return;
-    if (properties.length === 0) {
-      applyTemplate(templateId);
-      return;
-    }
-    setArmedTemplateId(templateId);
-  }
-
-  function applyTemplate(id: string): void {
-    const template = templates.find((entry) => entry.id === id);
-    if (!template) {
-      setError("The selected template is no longer available.");
-      return;
-    }
+  function applyTemplate(template: NotePropertyTemplate): void {
     commit(applyTemplateOperations(noteId!, properties, template, Date.now(), idFactory));
-    setArmedTemplateId(null);
-    setTemplateId("");
   }
 
   return (
-    <div aria-busy={pending > 0} className="space-y-2">
+    <div aria-busy={pending > 0}>
       {error && (
         <div
           role="alert"
-          className="flex items-start justify-between gap-2 border-l-2 border-destructive bg-destructive/[0.07] px-2 py-1.5 text-[11px] leading-4 text-destructive"
+          className="mb-1 flex items-start justify-between gap-2 rounded-md border-l-2 border-destructive bg-destructive/[0.07] px-2 py-1.5 text-[11px] leading-4 text-destructive"
         >
           <span>{error}</span>
           <button
             type="button"
             aria-label="Dismiss property error"
             onClick={() => setError(null)}
-            className="shrink-0 rounded-[var(--radius)] p-0.5 hover:bg-destructive/10 focus-visible:ring-1 focus-visible:ring-destructive/50"
+            className="shrink-0 cursor-pointer rounded-md p-0.5 hover:bg-destructive/10 focus-visible:ring-1 focus-visible:ring-destructive/50"
           >
             <CloseIcon size={12} />
           </button>
         </div>
       )}
 
-      {properties.length === 0 ? (
-        <div className="border-y border-dashed border-border py-3 text-center">
-          <p className="text-[12px] font-medium text-foreground/75">No properties</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Add a typed field or apply a template.
-          </p>
-        </div>
-      ) : (
-        <div className="divide-y divide-border/70">
-          {properties.map((property, index) => (
+      {properties.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          {properties.map((property) => (
             <PropertyRow
               key={property.id}
               property={property}
               people={people}
-              first={index === 0}
-              last={index === properties.length - 1}
               onCommit={commit}
               onReorder={(offset) =>
                 commit(reorderPropertyOperations(properties, property.id, offset, Date.now()))
@@ -180,149 +161,224 @@ export function NotePropertiesPanel({ store }: Props) {
         </div>
       )}
 
-      <div className="border-t border-border pt-2">
-        {addOpen ? (
-          <form
-            aria-label="Add property"
-            className="grid grid-cols-[minmax(0,1fr)_7rem] gap-1.5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              addProperty();
-            }}
-          >
-            <input
-              autoFocus
-              aria-label="New property name"
-              name="new-property-name"
-              value={addName}
-              placeholder={PROPERTY_TYPE_LABELS[addType]}
-              onChange={(event) => setAddName(event.target.value)}
-              className={cn(inputClass, "border-border")}
-            />
-            <select
-              aria-label="New property type"
-              name="new-property-type"
-              value={addType}
-              onChange={(event) => setAddType(event.target.value as NotePropertyValue["type"])}
-              className={cn(inputClass, "border-border")}
-            >
-              {NOTE_PROPERTY_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {PROPERTY_TYPE_LABELS[type]}
-                </option>
-              ))}
-            </select>
-            <div className="col-span-2 flex justify-end gap-1.5">
-              <button type="button" className={compactButtonClass} onClick={() => setAddOpen(false)}>
-                Cancel
-              </button>
-              <button type="submit" className={compactButtonClass}>
-                Add property
-              </button>
-            </div>
-          </form>
-        ) : (
-          <button type="button" className={compactButtonClass} onClick={() => setAddOpen(true)}>
-            + Add property
-          </button>
+      <div className="mt-0.5 flex items-center gap-1 opacity-55 transition-opacity duration-150 focus-within:opacity-100 group-hover/shelf:opacity-100">
+        <AddPropertyButton onAdd={addProperty} />
+        <TemplatePicker
+          builtInTemplates={BUILT_IN_PROPERTY_TEMPLATES}
+          customTemplates={customTemplates}
+          replaceCount={properties.length}
+          onApply={applyTemplate}
+        />
+        {pending > 0 && (
+          <span role="status" className="ml-auto text-[10px] text-muted-foreground">
+            Saving…
+          </span>
         )}
       </div>
+    </div>
+  );
+}
 
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-border pt-2">
-        <select
-          aria-label="Property template"
-          name="property-template"
-          value={templateId}
-          onChange={(event) => {
-            setTemplateId(event.target.value);
-            setArmedTemplateId(null);
-          }}
-          className={cn(inputClass, "border-border")}
-        >
-          <option value="">Choose template…</option>
-          <optgroup label="Built in">
-            {BUILT_IN_PROPERTY_TEMPLATES.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.name}
-              </option>
-            ))}
-          </optgroup>
-          {customTemplates.length > 0 && (
-            <optgroup label="Workspace">
-              {customTemplates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
+function PropertyTypePicker({
+  property,
+  onChange,
+}: {
+  property: NoteProperty;
+  onChange: (next: NoteProperty) => void;
+}) {
+  const Icon = TYPE_ICON[property.value.type];
+  return (
+    <PropertyPopover
+      trigger={({ toggle, open }) => (
         <button
           type="button"
-          disabled={!templateId}
-          className={compactButtonClass}
-          onClick={prepareTemplate}
+          onClick={toggle}
+          aria-label={`Change ${property.name} type`}
+          aria-expanded={open}
+          title={`Type: ${PROPERTY_TYPE_LABELS[property.value.type]}`}
+          className={typeIconButtonClass}
         >
-          Apply
+          <Icon size={14} />
         </button>
-        {armedTemplateId && (
-          <div
-            role="group"
-            aria-label="Confirm template application"
-            className="col-span-2 flex items-center justify-between gap-2 bg-muted/45 px-2 py-1.5"
-          >
-            <span className="text-[11px] text-muted-foreground">
-              Replace {properties.length} existing {properties.length === 1 ? "property" : "properties"}?
-            </span>
-            <span className="flex gap-1">
-              <button
-                type="button"
-                className={compactButtonClass}
-                onClick={() => setArmedTemplateId(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={cn(compactButtonClass, "border-destructive/40 text-destructive")}
-                onClick={() => applyTemplate(armedTemplateId)}
-              >
-                Replace
-              </button>
-            </span>
-          </div>
-        )}
-      </div>
-      {pending > 0 && (
-        <p role="status" className="text-[10px] text-muted-foreground">
-          Saving {pending === 1 ? "change" : `${pending} changes`}…
-        </p>
       )}
-    </div>
+    >
+      {({ close }) => (
+        <div className="w-44 p-1">
+          <p className={menuHeadingClass}>Type</p>
+          <div className="max-h-64 overflow-y-auto">
+            {NOTE_PROPERTY_TYPES.map((type) => {
+              const TypeIconComponent = TYPE_ICON[type];
+              const selected = type === property.value.type;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    onChange(changeNotePropertyType(property, type));
+                    close();
+                  }}
+                  className={cn(menuItemClass, selected && "bg-accent text-foreground")}
+                >
+                  <TypeIconComponent size={14} className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{PROPERTY_TYPE_LABELS[type]}</span>
+                  {selected && <CheckIcon size={14} className="shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </PropertyPopover>
+  );
+}
+
+function AddPropertyButton({
+  onAdd,
+}: {
+  onAdd: (type: NotePropertyValue["type"], name: string) => void;
+}) {
+  const [name, setName] = useState("");
+
+  return (
+    <PropertyPopover
+      trigger={({ toggle, open }) => (
+        <button type="button" onClick={toggle} aria-expanded={open} className={ghostButtonClass}>
+          <PlusIcon size={14} className="shrink-0" />
+          Add property
+        </button>
+      )}
+    >
+      {({ close }) => (
+        <div className="w-56 p-1">
+          <input
+            autoFocus
+            aria-label="New property name"
+            name="new-property-name"
+            value={name}
+            placeholder="Property name…"
+            onChange={(event) => setName(event.target.value)}
+            className="mb-1 w-full rounded-md bg-accent/70 px-2 py-1.5 text-xs outline-none placeholder:text-muted-foreground/55 focus-visible:ring-1 focus-visible:ring-ring/45"
+          />
+          <p className={menuHeadingClass}>Type</p>
+          <div className="max-h-64 overflow-y-auto">
+            {NOTE_PROPERTY_TYPES.map((type) => {
+              const TypeIconComponent = TYPE_ICON[type];
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    onAdd(type, name);
+                    setName("");
+                    close();
+                  }}
+                  className={menuItemClass}
+                >
+                  <TypeIconComponent size={14} className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{PROPERTY_TYPE_LABELS[type]}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </PropertyPopover>
+  );
+}
+
+function TemplatePicker({
+  builtInTemplates,
+  customTemplates,
+  replaceCount,
+  onApply,
+}: {
+  builtInTemplates: readonly NotePropertyTemplate[];
+  customTemplates: readonly NotePropertyTemplate[];
+  replaceCount: number;
+  onApply: (template: NotePropertyTemplate) => void;
+}) {
+  const [armedTemplate, setArmedTemplate] = useState<NotePropertyTemplate | null>(null);
+
+  function pick(template: NotePropertyTemplate, close: () => void): void {
+    if (replaceCount === 0) {
+      onApply(template);
+      close();
+      return;
+    }
+    setArmedTemplate(template);
+  }
+
+  function renderTemplateItem(template: NotePropertyTemplate, close: () => void) {
+    return (
+      <button
+        key={template.id}
+        type="button"
+        onClick={() => pick(template, close)}
+        className={cn(
+          menuItemClass,
+          armedTemplate?.id === template.id && "bg-accent text-foreground",
+        )}
+      >
+        <span className="min-w-0 flex-1 truncate">{template.name}</span>
+      </button>
+    );
+  }
+
+  return (
+    <PropertyPopover
+      trigger={({ toggle, open }) => (
+        <button type="button" onClick={toggle} aria-expanded={open} className={ghostButtonClass}>
+          <LayoutDashboardIcon size={14} className="shrink-0" />
+          Templates
+        </button>
+      )}
+    >
+      {({ close }) => (
+        <div className="w-52 p-1">
+          <p className={menuHeadingClass}>Replace properties with</p>
+          <div className="max-h-64 overflow-y-auto">
+            {builtInTemplates.map((template) => renderTemplateItem(template, close))}
+            {customTemplates.length > 0 && (
+              <>
+                <div className="my-1 h-px bg-border/60" />
+                <p className={menuHeadingClass}>Workspace</p>
+                {customTemplates.map((template) => renderTemplateItem(template, close))}
+              </>
+            )}
+          </div>
+          {armedTemplate && (
+            <InlineConfirm
+              size="sm"
+              className="border-t border-border/60 px-1 pt-1"
+              message={`Replace ${replaceCount} ${replaceCount === 1 ? "property" : "properties"}?`}
+              confirmLabel="Replace"
+              armed
+              onArmedChange={(armed) => {
+                if (!armed) setArmedTemplate(null);
+              }}
+              onConfirm={() => {
+                onApply(armedTemplate);
+                setArmedTemplate(null);
+                close();
+              }}
+              renderIdle={() => null}
+            />
+          )}
+        </div>
+      )}
+    </PropertyPopover>
   );
 }
 
 type RowProps = {
   property: NoteProperty;
   people: ReadonlyMap<string, PersonRecord>;
-  first: boolean;
-  last: boolean;
   onCommit: Commit;
   onReorder: (offset: -1 | 1) => void;
-  idFactory: ReturnType<typeof createBrowserPropertyIdFactory>;
+  idFactory: IdFactory;
 };
 
-function PropertyRow({
-  property,
-  people,
-  first,
-  last,
-  onCommit,
-  onReorder,
-  idFactory,
-}: RowProps) {
-  const [armed, setArmed] = useState(false);
-
+function PropertyRow({ property, people, onCommit, onReorder, idFactory }: RowProps) {
   function update(next: NoteProperty): void {
     onCommit(updatePropertyOperations(next, Date.now()));
   }
@@ -334,92 +390,33 @@ function PropertyRow({
   }
 
   return (
-    <div
-      className="group py-2"
-      data-property-id={property.id}
-      onKeyDown={handleKeyboardReorder}
-    >
-      <div className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-center gap-1">
-        <select
-          aria-label={`${property.name} type`}
-          name={`property-${property.id}-type`}
-          value={property.value.type}
-          onChange={(event) =>
-            update(
-              changeNotePropertyType(
-                property,
-                event.target.value as NotePropertyValue["type"],
-              ),
-            )
-          }
-          className={cn(inputClass, "w-[5.5rem] text-[11px] text-muted-foreground")}
-          title={`Type: ${PROPERTY_TYPE_LABELS[property.value.type]}`}
-        >
-          {NOTE_PROPERTY_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {PROPERTY_TYPE_LABELS[type]}
-            </option>
-          ))}
-        </select>
-        <PropertyName property={property} onUpdate={update} />
-        <button
-          type="button"
-          aria-label={`Delete ${property.name}`}
-          aria-expanded={armed}
-          className={iconButtonClass}
-          onClick={() => setArmed(true)}
-        >
-          <Trash2Icon size={12} />
-        </button>
-      </div>
-      <div className="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-1">
-        <ValueEditor property={property} people={people} onUpdate={update} />
-        <div className="flex">
-          <button
-            type="button"
-            aria-label={`Move ${property.name} up`}
-            disabled={first}
-            title="Move up (Alt+ArrowUp)"
-            className={iconButtonClass}
-            onClick={() => onReorder(-1)}
-          >
-            <ArrowUpIcon size={12} />
-          </button>
-          <button
-            type="button"
-            aria-label={`Move ${property.name} down`}
-            disabled={last}
-            title="Move down (Alt+ArrowDown)"
-            className={iconButtonClass}
-            onClick={() => onReorder(1)}
-          >
-            <ArrowDownIcon size={12} />
-          </button>
+    <div className="group/row" data-property-id={property.id} onKeyDown={handleKeyboardReorder}>
+      <div className="flex items-start gap-2">
+        <div className="flex h-7 w-36 shrink-0 items-center gap-1">
+          <PropertyTypePicker property={property} onChange={update} />
+          <PropertyName property={property} onUpdate={update} />
         </div>
-      </div>
-      {armed && (
-        <div
-          role="group"
-          aria-label={`Confirm deletion of ${property.name}`}
-          className="mt-1 flex items-center justify-end gap-1.5 bg-destructive/[0.06] px-1.5 py-1"
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setArmed(false);
-          }}
-        >
-          <span className="mr-auto text-[11px] text-muted-foreground">Delete this property?</span>
-          <button type="button" className={compactButtonClass} onClick={() => setArmed(false)}>
-            Cancel
-          </button>
-          <button
-            autoFocus
-            type="button"
-            className={cn(compactButtonClass, "border-destructive/40 text-destructive")}
-            onClick={() => onCommit(deletePropertyOperations(property, Date.now()))}
-          >
-            Delete
-          </button>
+        <div className="flex min-h-7 min-w-0 flex-1 items-center py-0.5">
+          <ValueEditor property={property} people={people} onUpdate={update} />
         </div>
-      )}
+        <InlineConfirm
+          size="sm"
+          confirmLabel="Delete"
+          message="Delete this property?"
+          onConfirm={() => onCommit(deletePropertyOperations(property, Date.now()))}
+          renderIdle={(arm) => (
+            <button
+              type="button"
+              onClick={arm}
+              aria-label={`Delete ${property.name}`}
+              title={`Delete ${property.name} (Alt+↑/↓ reorders)`}
+              className="mt-0.5 cursor-pointer rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring/50 group-hover/row:opacity-100"
+            >
+              <Trash2Icon size={13} />
+            </button>
+          )}
+        />
+      </div>
       {(property.value.type === "select" || property.value.type === "multi-select") && (
         <OptionEditor property={property} onUpdate={update} idFactory={idFactory} />
       )}
@@ -471,7 +468,7 @@ function PropertyName({
           event.currentTarget.blur();
         }
       }}
-      className={cn(inputClass, invalid && "border-destructive")}
+      className={cn(nameInputClass, invalid && "text-destructive focus-visible:ring-destructive/50")}
     />
   );
 }
@@ -490,9 +487,12 @@ function ValueEditor({
   if (value.type === "number") {
     return <NumberEditor property={property} value={value} onUpdate={onUpdate} />;
   }
+  if (value.type === "date") {
+    return <DateValueEditor property={property} value={value} onUpdate={onUpdate} />;
+  }
   if (value.type === "checkbox") {
     return (
-      <label className="flex min-h-7 items-center gap-2 px-1.5 text-[12px] text-muted-foreground">
+      <label className="flex min-h-7 cursor-pointer items-center gap-2 px-1 text-[13px] text-muted-foreground">
         <input
           type="checkbox"
           name={`property-${property.id}-value`}
@@ -514,7 +514,7 @@ function ValueEditor({
             type="button"
             aria-label={`${rating} of 5`}
             aria-pressed={(value.value ?? 0) >= rating}
-            className="size-6 rounded-[var(--radius)] text-[15px] text-muted-foreground outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring/55 aria-pressed:text-amber-500"
+            className="size-6 cursor-pointer rounded-md text-[15px] text-muted-foreground/60 outline-none transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/55 aria-pressed:text-amber-500"
             onClick={() =>
               onUpdate({
                 ...property,
@@ -540,7 +540,7 @@ function ValueEditor({
             value: { ...value, value: event.target.value || null },
           })
         }
-        className={inputClass}
+        className={cn(inputClass, "cursor-pointer", value.value === null && "text-muted-foreground/55")}
       >
         <option value="">Empty</option>
         {property.options.map((option) => (
@@ -578,15 +578,13 @@ function ValueEditor({
   }
 
   const inputType =
-    value.type === "date"
-      ? "date"
-      : value.type === "email"
-        ? "email"
-        : value.type === "phone"
-          ? "tel"
-          : value.type === "url"
-            ? "url"
-            : "text";
+    value.type === "email"
+      ? "email"
+      : value.type === "phone"
+        ? "tel"
+        : value.type === "url"
+          ? "url"
+          : "text";
   return (
     <StringValueEditor
       property={property}
@@ -606,7 +604,7 @@ function StringValueEditor({
   property: NoteProperty;
   value: Extract<
     NotePropertyValue,
-    { type: "text" | "date" | "url" | "location" | "email" | "phone" }
+    { type: "text" | "url" | "location" | "email" | "phone" }
   >;
   inputType: string;
   onUpdate: (property: NoteProperty) => void;
@@ -685,7 +683,7 @@ function NumberEditor({
       onKeyDown={(event) => {
         if (event.key === "Enter") event.currentTarget.blur();
       }}
-      className={cn(inputClass, invalid && "border-destructive")}
+      className={cn(inputClass, invalid && "text-destructive focus-visible:ring-destructive/50")}
     />
   );
 }
@@ -706,17 +704,26 @@ function MultiValueEditor({
   emptyLabel?: string;
 }) {
   const selectedSet = new Set(selected);
+  const selectedLabels = choices
+    .filter((choice) => selectedSet.has(choice.id))
+    .map((choice) => choice.label);
   return (
-    <details className="relative min-w-0">
-      <summary className={cn(inputClass, "flex cursor-pointer list-none items-center justify-between")}>
+    <details className="relative w-full min-w-0">
+      <summary
+        className={cn(
+          inputClass,
+          "flex cursor-pointer list-none items-center justify-between gap-1",
+          selected.length === 0 && "text-muted-foreground/55",
+        )}
+      >
         <span className="truncate">
-          {selected.length === 0 ? "Empty" : `${selected.length} selected`}
+          {selected.length === 0 ? "Empty" : selectedLabels.join(", ")}
         </span>
-        <ChevronDownIcon size={12} />
+        <ChevronDownIcon size={12} className="shrink-0 text-muted-foreground" />
       </summary>
       <fieldset
         aria-label={`${label} choices`}
-        className="mt-1 max-h-40 space-y-0.5 overflow-y-auto border border-border bg-background p-1"
+        className="absolute top-[calc(100%+4px)] left-0 z-50 max-h-40 w-full min-w-44 space-y-0.5 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-xl"
       >
         {choices.length === 0 ? (
           <p className="px-1.5 py-1 text-[11px] text-muted-foreground">{emptyLabel}</p>
@@ -724,7 +731,7 @@ function MultiValueEditor({
           choices.map((choice) => (
             <label
               key={choice.id}
-              className="flex min-h-7 cursor-pointer items-center gap-2 rounded-[var(--radius)] px-1.5 text-[12px] hover:bg-muted"
+              className="flex min-h-7 cursor-pointer items-center gap-2 rounded-md px-1.5 text-[12px] hover:bg-accent/70"
             >
               <input
                 type="checkbox"
@@ -753,7 +760,7 @@ function OptionEditor({
 }: {
   property: NoteProperty;
   onUpdate: (property: NoteProperty) => void;
-  idFactory: ReturnType<typeof createBrowserPropertyIdFactory>;
+  idFactory: IdFactory;
 }) {
   const [label, setLabel] = useState("");
 
@@ -766,11 +773,11 @@ function OptionEditor({
   }
 
   return (
-    <details className="mt-1 pl-7">
-      <summary className="cursor-pointer select-none text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground">
+    <details className="mb-1 pl-6">
+      <summary className="cursor-pointer select-none text-[10px] font-medium uppercase tracking-wide text-muted-foreground/55 transition-colors hover:text-foreground">
         Options ({property.options.length})
       </summary>
-      <div className="mt-1 space-y-1 border-l border-border pl-2">
+      <div className="mt-1 space-y-1 border-l border-border/60 pl-2">
         {property.options.map((option, index) => (
           <OptionRow
             key={option.id}
@@ -835,66 +842,62 @@ function OptionRow({
   useEffect(() => setLabel(option.label), [option.label]);
 
   return (
-    <div className="space-y-1 border-b border-border/50 pb-1 last:border-b-0">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1">
-        <input
-          aria-label={`${option.label} option name`}
-          name={`property-option-${option.id}-name`}
-          value={label}
-          onChange={(event) => setLabel(event.target.value)}
-          onBlur={() => {
-            const next = label.trim();
-            if (next) onChange({ ...option, label: next });
-            else setLabel(option.label);
-          }}
-          className={inputClass}
-        />
+    <div className="group/option flex items-center gap-1">
+      <input
+        aria-label={`${option.label} option name`}
+        name={`property-option-${option.id}-name`}
+        value={label}
+        onChange={(event) => setLabel(event.target.value)}
+        onBlur={() => {
+          const next = label.trim();
+          if (next) onChange({ ...option, label: next });
+          else setLabel(option.label);
+        }}
+        className={inputClass}
+      />
+      <select
+        aria-label={`${option.label} color`}
+        name={`property-option-${option.id}-color`}
+        value={option.color}
+        onChange={(event) =>
+          onChange({ ...option, color: event.target.value as NotePropertyColor })
+        }
+        className={cn(inputClass, "w-20 shrink-0 cursor-pointer text-[12px] text-muted-foreground")}
+      >
+        {NOTE_PROPERTY_COLORS.map((color) => (
+          <option key={color} value={color}>
+            {PROPERTY_COLOR_LABELS[color]}
+          </option>
+        ))}
+      </select>
+      <span className="flex opacity-0 transition-opacity focus-within:opacity-100 group-hover/option:opacity-100">
+        <button
+          type="button"
+          disabled={first}
+          aria-label={`Move ${option.label} option up`}
+          onClick={() => onMove(-1)}
+          className={cn(iconButtonClass, "size-6")}
+        >
+          <ArrowUpIcon size={11} />
+        </button>
+        <button
+          type="button"
+          disabled={last}
+          aria-label={`Move ${option.label} option down`}
+          onClick={() => onMove(1)}
+          className={cn(iconButtonClass, "size-6")}
+        >
+          <ArrowDownIcon size={11} />
+        </button>
         <button
           type="button"
           aria-label={`Delete ${option.label} option`}
           onClick={onDelete}
-          className={cn(iconButtonClass, "size-7")}
+          className={cn(iconButtonClass, "size-6")}
         >
           <Trash2Icon size={11} />
         </button>
-      </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1">
-        <select
-          aria-label={`${option.label} color`}
-          name={`property-option-${option.id}-color`}
-          value={option.color}
-          onChange={(event) =>
-            onChange({ ...option, color: event.target.value as NotePropertyColor })
-          }
-          className={inputClass}
-        >
-          {NOTE_PROPERTY_COLORS.map((color) => (
-            <option key={color} value={color}>
-              {PROPERTY_COLOR_LABELS[color]}
-            </option>
-          ))}
-        </select>
-        <span className="flex">
-          <button
-            type="button"
-            disabled={first}
-            aria-label={`Move ${option.label} option up`}
-            onClick={() => onMove(-1)}
-            className={cn(iconButtonClass, "size-6")}
-          >
-            <ArrowUpIcon size={11} />
-          </button>
-          <button
-            type="button"
-            disabled={last}
-            aria-label={`Move ${option.label} option down`}
-            onClick={() => onMove(1)}
-            className={cn(iconButtonClass, "size-6")}
-          >
-            <ArrowDownIcon size={11} />
-          </button>
-        </span>
-      </div>
+      </span>
     </div>
   );
 }

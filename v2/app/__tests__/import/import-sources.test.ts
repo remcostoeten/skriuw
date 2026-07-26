@@ -275,3 +275,64 @@ test("planImportBundle applies valid provider timestamps", () => {
   assert.equal(create?.at, createdAt);
   assert.equal(save?.at, modifiedAt);
 });
+
+test("planImportBundle keeps provenance properties out of the main operations", () => {
+  const at = Date.parse("2024-03-04T05:06:07.000Z");
+  const plan = planImportBundle(
+    {
+      sourceId: "apple-notes",
+      sourceLabel: "Apple Notes Markdown",
+      directories: [],
+      notes: [{ relativePath: "Note.md", title: "Note", markdown: "Body" }],
+      warnings: [],
+    },
+    at,
+    sequentialIds(),
+  );
+  assert.equal(plan.sourcePropertyNotes, 1);
+  assert.equal(
+    plan.operations.filter((operation) => operation.type === "set_note_property")
+      .length,
+    0,
+  );
+  const properties = plan.sourcePropertyOperations.flatMap((operation) =>
+    operation.type === "set_note_property" ? [operation.property] : [],
+  );
+  assert.deepEqual(
+    properties.map((property) => property.name),
+    ["Source", "Imported"],
+  );
+  assert.deepEqual(properties[0]?.value, {
+    valueVersion: 1,
+    type: "text",
+    value: "Apple Notes Markdown",
+  });
+  const noteId = plan.notes[0]?.id;
+  assert.ok(noteId);
+  assert.ok(properties.every((property) => property.noteId === noteId));
+});
+
+test("planImportBundle never overwrites an imported property with provenance", () => {
+  const plan = planImportBundle(
+    {
+      sourceId: "obsidian",
+      sourceLabel: "Obsidian",
+      directories: [],
+      notes: [
+        {
+          relativePath: "Note.md",
+          title: "Note",
+          markdown: "Body",
+          properties: [{ name: "source", value: { type: "text", value: "mine" } }],
+        },
+      ],
+      warnings: [],
+    },
+    123,
+    sequentialIds(),
+  );
+  const names = plan.sourcePropertyOperations.flatMap((operation) =>
+    operation.type === "set_note_property" ? [operation.property.name] : [],
+  );
+  assert.deepEqual(names, ["Imported"]);
+});
