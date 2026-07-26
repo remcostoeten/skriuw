@@ -1,3 +1,5 @@
+import { RAIL_ITEMS, railModShiftKeys, railSequenceKeys } from "./rail-items";
+
 /**
  * Direct tab access, in strip order. Generated so the digit keys and the
  * palette commands stay derived from one list instead of ten hand-written
@@ -149,6 +151,30 @@ const TAB_INDEX_DEFINITIONS: readonly ShortcutDefinition[] = [
     scopes: "tabs",
   },
 ];
+
+/**
+ * `mod+shift+<n>` plus the `g then t then <n>` alternate, one per rail item,
+ * numbered in the rail's visual order. The sequence stays off by default
+ * while typing (`secondaryWorksWhileTyping` unset), and both forms stay
+ * silent behind a modal so command palette and settings keep ownership of
+ * the keyboard.
+ */
+const RAIL_NAVIGATION_DEFINITIONS: readonly ShortcutDefinition[] = RAIL_ITEMS.map(
+  (item, index) => {
+    const position = index + 1;
+    const destination = item.label.toLowerCase();
+    return {
+      id: item.actionId,
+      keys: railModShiftKeys(position),
+      secondaryKeys: railSequenceKeys(position),
+      label: `Go to ${destination}`,
+      description: `Go to ${destination}. Also fires as g then t then ${position}, following the rail's top-to-bottom order; the sequence stays silent while typing so it never steals "gt${position}" from a note.`,
+      group: "Navigation",
+      worksWhileTyping: true,
+      guards: ["modal"],
+    };
+  },
+);
 
 export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
   {
@@ -382,34 +408,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Navigation",
     worksWhileTyping: true,
   },
-  {
-    id: "goToNotes",
-    keys: "mod+shift+1",
-    label: "Go to notes",
-    group: "Navigation",
-    worksWhileTyping: true,
-  },
-  {
-    id: "goToTags",
-    keys: "mod+shift+2",
-    label: "Go to tags",
-    group: "Navigation",
-    worksWhileTyping: true,
-  },
-  {
-    id: "goToPeople",
-    keys: "mod+shift+3",
-    label: "Go to people",
-    group: "Navigation",
-    worksWhileTyping: true,
-  },
-  {
-    id: "goToTrash",
-    keys: "mod+shift+4",
-    label: "Go to trash",
-    group: "Navigation",
-    worksWhileTyping: true,
-  },
+  ...RAIL_NAVIGATION_DEFINITIONS,
   {
     id: "toggleMaximize",
     keys: "mod+enter",

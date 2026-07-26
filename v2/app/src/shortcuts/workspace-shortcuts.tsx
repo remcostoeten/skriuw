@@ -8,6 +8,7 @@ import type { RendererState, RendererStore } from "../store/types";
 import {
   effectiveShortcutKeys,
   sameShortcutOverrides,
+  sequenceHandlerOptions,
   shortcutExcept,
   shortcutOverridesFromSettings,
 } from "./bindings";
@@ -174,6 +175,7 @@ export function WorkspaceShortcuts({
               definition.secondaryWorksWhileTyping === true,
             ),
             scopes: definition.scopes,
+            ...sequenceHandlerOptions(definition.secondaryKeys),
           },
         };
       }
