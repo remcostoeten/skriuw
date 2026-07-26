@@ -50,6 +50,15 @@ export function pickImageFiles(onPicked: (files: readonly File[]) => void): void
     onPicked(files);
   });
   input.addEventListener("cancel", () => input.remove());
+  // Older WebKitGTK builds never dispatch `cancel` on dismissal; once focus
+  // returns from the picker, detach after `change` had its chance to fire.
+  window.addEventListener(
+    "focus",
+    () => {
+      window.setTimeout(() => input.remove(), 1000);
+    },
+    { once: true },
+  );
   input.click();
 }
 
