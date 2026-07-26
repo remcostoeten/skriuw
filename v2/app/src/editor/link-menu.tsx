@@ -87,10 +87,16 @@ export function linkMenuAnchor(view: EditorView, from: number, to: number): Menu
   return rangeMenuAnchor(view, from, to, LINK_MENU_WIDTH);
 }
 
+const SAFE_LINK_SCHEMES = new Set(["http:", "https:", "mailto:"]);
+
 function normalizeHref(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return "";
-  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed) || trimmed.startsWith("#")) return trimmed;
+  if (trimmed.startsWith("#")) return trimmed;
+  const scheme = /^([a-z][a-z0-9+.-]*:)/i.exec(trimmed)?.[1];
+  if (scheme) {
+    return SAFE_LINK_SCHEMES.has(scheme.toLowerCase()) ? trimmed : "";
+  }
   return `https://${trimmed}`;
 }
 
