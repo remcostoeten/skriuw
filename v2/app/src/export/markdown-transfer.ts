@@ -15,13 +15,15 @@ import {
   buildWorkspaceExportEntries,
   collectImageRefIds,
   collectLocalImageSources,
-  planMarkdownImport,
   replaceLocalImages,
   resolveImportedImagePath,
   rewriteExportedImagePaths,
   type MarkdownImportPlan,
 } from "./markdown-transfer-model";
 import { publishTransferReport } from "./transfer-report";
+import { detectImportSource } from "../import/model";
+import { planImportBundle } from "../import/plan";
+import { importSources } from "../import/sources";
 
 function count(amount: number, noun: string): string {
   return `${amount} ${noun}${amount === 1 ? "" : "s"}`;
@@ -160,20 +162,29 @@ async function importPlannedImages(
 
 export async function importMarkdownIntoWorkspace(store: RendererStore): Promise<void> {
   try {
-    const sourceDir = await pickDirectory("Import Markdown");
+    const sourceDir = await pickDirectory("Import notes");
     if (!sourceDir) {
       return;
     }
     const tree = await readMarkdownTree(sourceDir);
+    const source = detectImportSource(importSources, tree);
+    if (!source) {
+      publishTransferReport({
+        title: "Nothing to import",
+        lines: [`No importable notes found in ${sourceDir}`],
+      });
+      return;
+    }
+    const bundle = source.parse(tree);
     const at = Date.now();
-    const plan = planMarkdownImport(tree, at, () => crypto.randomUUID());
+    const plan = planImportBundle(bundle, at, () => crypto.randomUUID());
     const images = await importPlannedImages(plan, sourceDir, at);
     const operations = [...plan.operations, ...images.attachOperations];
     if (operations.length > 0) {
       await commitOperations(store, operations);
     }
     publishTransferReport({
-      title: "Import complete",
+      title: `Import complete (${bundle.sourceLabel})`,
       lines: [
         `Imported ${count(plan.noteCount, "note")} and ${count(plan.folderCount, "folder")} from ${sourceDir}`,
         ...(images.imported > 0 ? [`Imported ${count(images.imported, "image")}`] : []),
@@ -181,6 +192,7 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
           ? [`Skipped ${count(images.skipped, "unreadable image")}`]
           : []),
         ...(tree.skipped > 0 ? [`Skipped ${count(tree.skipped, "unreadable file")}`] : []),
+        ...bundle.warnings.map((warning) => warning.message),
       ],
     });
   } catch (error) {
