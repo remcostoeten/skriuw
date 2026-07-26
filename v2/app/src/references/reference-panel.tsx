@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 import { activateNote, commitReferenceOperations } from "../actions/workspace";
-import { CheckIcon, CloseIcon, PencilIcon, Trash2Icon } from "../shared/icons";
+import { PencilIcon, Trash2Icon } from "../shared/icons";
 import { cn } from "../shared/lib/utils";
+import { ColorSwatchRow } from "./color-swatch-row";
 import { InlineConfirm } from "../shared/ui/inline-confirm";
 import { InlineEdit } from "../shared/ui/inline-edit";
 import { useRendererSelector } from "../store/use-renderer-selector";
@@ -16,7 +17,6 @@ import {
   projectOutgoingNotes,
   projectReferencingNotes,
   projectUnlinkedMentions,
-  referenceColorSwatches,
   referenceDetailsEqual,
   unlinkedMentionsEqual,
   type BacklinkEntry,
@@ -259,33 +259,12 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
         )}
       </div>
       {picking && (
-        <div
-          role="group"
-          aria-label={`Color for ${entry.name}`}
-          className="flex flex-wrap items-center gap-1.5 px-2 pt-1.5"
-        >
-          {referenceColorSwatches.map((color) => (
-            <button
-              key={color}
-              type="button"
-              aria-label={`Set color ${color}`}
-              aria-pressed={entry.color === color}
-              className="flex size-4 items-center justify-center rounded-full border border-black/10"
-              style={{ backgroundColor: color }}
-              onClick={() => recolor(color)}
-            >
-              {entry.color === color && <CheckIcon size={10} className="text-white" />}
-            </button>
-          ))}
-          <button
-            type="button"
-            aria-label="Clear color"
-            className="flex size-4 items-center justify-center rounded-full border border-dashed border-muted-foreground/50 text-muted-foreground hover:text-foreground"
-            onClick={() => recolor(null)}
-          >
-            <CloseIcon size={10} />
-          </button>
-        </div>
+        <ColorSwatchRow
+          className="mx-2 mt-1.5"
+          label={`Color for ${entry.name}`}
+          value={entry.color}
+          onChange={recolor}
+        />
       )}
       {open && !renaming && (
         <div className="pl-3 pt-1">

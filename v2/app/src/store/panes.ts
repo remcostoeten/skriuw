@@ -204,6 +204,37 @@ export function togglePinTab(panes: readonly PaneState[], noteId: string): reado
   return [{ ...primary, pinnedNoteIds }, ...panes.slice(1)];
 }
 
+/**
+ * Moves an unpinned tab in front of `beforeNoteId` (or to the end when null).
+ * Pinned tabs are anchored: they never move, and a dragged tab can only land in
+ * a slot that keeps every pinned tab at its original index. Returns the input
+ * reference when the move is rejected or is a no-op.
+ */
+export function reorderTab(
+  panes: readonly PaneState[],
+  noteId: string,
+  beforeNoteId: string | null,
+): readonly PaneState[] {
+  const primary = primaryPane(panes);
+  const from = primary.openNoteIds.indexOf(noteId);
+  if (from < 0 || noteId === beforeNoteId || primary.pinnedNoteIds.includes(noteId)) {
+    return panes;
+  }
+  const rest = primary.openNoteIds.filter((id) => id !== noteId);
+  const insertAt = beforeNoteId === null ? rest.length : rest.indexOf(beforeNoteId);
+  if (insertAt < 0) {
+    return panes;
+  }
+  const openNoteIds = [...rest.slice(0, insertAt), noteId, ...rest.slice(insertAt)];
+  const pinnedHeld = primary.pinnedNoteIds.every(
+    (id) => openNoteIds.indexOf(id) === primary.openNoteIds.indexOf(id),
+  );
+  if (!pinnedHeld || openNoteIds[from] === noteId) {
+    return panes;
+  }
+  return [{ ...primary, openNoteIds }, ...panes.slice(1)];
+}
+
 export function cycleTabId(
   panes: readonly PaneState[],
   direction: -1 | 1,

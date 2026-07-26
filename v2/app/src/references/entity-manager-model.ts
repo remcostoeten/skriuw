@@ -17,16 +17,26 @@ export type EntityRow = {
   createdInTitle: string | null;
 };
 
-export const ENTITY_COLORS: readonly string[] = [
-  "#ef4444",
-  "#f97316",
-  "#eab308",
-  "#22c55e",
-  "#14b8a6",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
+export type EntityColorOption = {
+  name: string;
+  value: string;
+};
+
+/** Mid-tone, lightly desaturated hues that stay legible on both light and dark themes. */
+export const ENTITY_COLOR_OPTIONS: readonly EntityColorOption[] = [
+  { name: "Red", value: "#d2555a" },
+  { name: "Orange", value: "#d3803f" },
+  { name: "Amber", value: "#c9a13c" },
+  { name: "Green", value: "#4d9d6e" },
+  { name: "Teal", value: "#3f9d99" },
+  { name: "Blue", value: "#5589cf" },
+  { name: "Violet", value: "#8a79ce" },
+  { name: "Pink", value: "#c66c98" },
 ];
+
+export const ENTITY_COLORS: readonly string[] = ENTITY_COLOR_OPTIONS.map(
+  (option) => option.value,
+);
 
 export function entityNoun(kind: EntityKind): string {
   return kind === "tag" ? "tag" : "person";

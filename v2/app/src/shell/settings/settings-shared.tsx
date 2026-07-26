@@ -51,7 +51,7 @@ export const settingsButtonDanger =
   "hover:border-destructive/40 hover:bg-destructive/[0.12] hover:text-destructive";
 
 const settingsFieldFocus =
-  "focus-visible:border-foreground/45 focus-visible:shadow-[0_0_0_2px_hsl(var(--background)),0_0_0_3px_hsl(var(--foreground)/0.25)]";
+  "outline-none focus-visible:border-foreground/70 focus-visible:bg-accent/25";
 export const settingsTextInput = cn(
   "min-h-[30px] w-[min(250px,48%)] rounded-lg border border-border bg-muted px-2.5 py-[5px] text-xs text-foreground max-[620px]:w-full",
   settingsFieldFocus,
@@ -62,7 +62,7 @@ const settingsToggleInput = cn(
   "checked:border-foreground/45 checked:bg-foreground/[0.22]",
   "after:m-0.5 after:block after:h-[11px] after:w-[11px] after:rounded-full after:bg-muted-foreground after:transition-transform after:duration-[120ms] after:content-[''] motion-reduce:after:duration-[1ms]",
   "checked:after:translate-x-[13px] checked:after:bg-foreground",
-  settingsFieldFocus,
+  "outline-none focus-visible:border-foreground/70",
 );
 
 type ToggleProps = {
