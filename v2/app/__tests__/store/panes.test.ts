@@ -15,6 +15,7 @@ import {
   openBeside,
   openNoteInTab,
   parsePaneLayout,
+  reorderTab,
   serializePaneLayout,
   syncPanes,
   togglePinTab,
@@ -187,6 +188,27 @@ test("togglePinTab pins and unpins an open tab, and ignores unknown tabs", () =>
   const unpinned = togglePinTab(pinned, "b");
   assert.deepEqual(unpinned[0]?.pinnedNoteIds, []);
   assert.equal(togglePinTab(panes, "missing"), panes);
+});
+
+test("reorderTab moves an unpinned tab before another tab or to the end", () => {
+  const panes = [primary(["a", "b", "c"], "a")];
+  assert.deepEqual(reorderTab(panes, "c", "b")[0]?.openNoteIds, ["a", "c", "b"]);
+  assert.deepEqual(reorderTab(panes, "a", null)[0]?.openNoteIds, ["b", "c", "a"]);
+});
+
+test("reorderTab refuses to move pinned tabs or to displace them", () => {
+  const panes = [primary(["a", "b", "c"], "a", ["a"])];
+  assert.equal(reorderTab(panes, "a", "c"), panes);
+  assert.equal(reorderTab(panes, "c", "a"), panes);
+  assert.deepEqual(reorderTab(panes, "c", "b")[0]?.openNoteIds, ["a", "c", "b"]);
+});
+
+test("reorderTab is a no-op for unknown tabs and unchanged positions", () => {
+  const panes = [primary(["a", "b"], "a")];
+  assert.equal(reorderTab(panes, "missing", "a"), panes);
+  assert.equal(reorderTab(panes, "a", "missing"), panes);
+  assert.equal(reorderTab(panes, "a", "a"), panes);
+  assert.equal(reorderTab(panes, "a", "b"), panes);
 });
 
 test("closeOtherTabs keeps the target and pinned tabs, promoting the target when active is removed", () => {

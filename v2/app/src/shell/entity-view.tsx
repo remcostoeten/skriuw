@@ -5,7 +5,6 @@ import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { activateNote, commitOperations, commitReferenceOperations } from "../actions/workspace";
 import { appRouteHash, useRouteFocus } from "../app-route";
 import {
-  ENTITY_COLORS,
   buildCreatePerson,
   buildCreateTag,
   buildDelete,
@@ -22,8 +21,8 @@ import {
 import { backlinksEqual, projectReferencingNotes } from "../references/reference-panel-model";
 import { buildMergeSaveDocuments } from "../references/entity-merge";
 import { registerEntityCreate } from "../references/entity-create-controller";
+import { ColorSwatchRow } from "../references/color-swatch-row";
 import {
-  CheckIcon,
   CircleIcon,
   MoreHorizontalIcon,
   PaletteIcon,
@@ -35,8 +34,10 @@ import {
 import { formatRelativeTime } from "../shared/lib/relative-time";
 import { effectiveShortcutKeys, shortcutDefinition } from "../shortcuts/bindings";
 import { sameOverrides, selectShortcutOverrides } from "./settings/selectors";
+import { Button } from "../shared/ui/button";
 import { Dialog } from "../shared/ui/dialog";
 import { InlineEdit } from "../shared/ui/inline-edit";
+import { Select, type SelectOption } from "../shared/ui/select";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -50,9 +51,6 @@ import { cn } from "../shared/lib/utils";
 import type { RendererStore } from "../store/types";
 import type { ReferenceOperation } from "../references/types";
 
-const entityButtonClass =
-  "inline-flex min-h-[30px] cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-border bg-muted/55 px-3 text-[11px] font-[560] text-foreground/86 enabled:hover:bg-muted enabled:hover:text-foreground disabled:cursor-default disabled:opacity-[0.38] focus-visible:bg-foreground/10 focus-visible:text-foreground focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.48)]";
-const entityButtonPrimaryClass = cn(entityButtonClass, "border-foreground/20 bg-foreground/12");
 const entitySwatchClass =
   "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[9px] font-bold tracking-[0.02em] text-background transition-[background-color,border-color] duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-empty:border data-empty:border-dashed data-empty:border-border data-empty:bg-transparent";
 const entityNoteCountClass = "shrink-0 font-mono text-[10px] text-theme-dim";
@@ -60,6 +58,7 @@ const entityFocusRingClass =
   "focus-visible:bg-foreground/10 focus-visible:text-foreground focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.48)]";
 const inlinePressClass =
   "transition-transform duration-[140ms] ease-out enabled:active:scale-[0.97]";
+const columnClass = "mx-auto w-[min(100%,720px)] px-[clamp(20px,4vw,40px)]";
 
 type Props = {
   store: RendererStore;
@@ -72,11 +71,11 @@ type Pending =
 
 type SortMode = "name" | "recent" | "used";
 
-const SORT_LABELS: Record<SortMode, string> = {
-  name: "Name",
-  recent: "Recently created",
-  used: "Most used",
-};
+const SORT_OPTIONS: readonly SelectOption<SortMode>[] = [
+  { value: "name", label: "Name" },
+  { value: "recent", label: "Recently created" },
+  { value: "used", label: "Most used" },
+];
 
 function sortRows(rows: readonly EntityRow[], sort: SortMode): EntityRow[] {
   const sorted = [...rows];
@@ -203,8 +202,8 @@ export function EntityView({ store, kind }: Props) {
       className="col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
       aria-labelledby="entity-title"
     >
-      <header className="flex min-h-[76px] items-start justify-between gap-6 border-b border-theme-divider py-3.5 pl-[22px] pr-[calc(var(--window-controls-width,112px)+8px)]">
-        <div>
+      <header className={cn(columnClass, "border-b border-theme-divider pb-4 pt-[26px]")}>
+        <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-2">
             <h1
               id="entity-title"
@@ -218,24 +217,50 @@ export function EntityView({ store, kind }: Props) {
               </span>
             )}
           </div>
-          <p className="mt-1 text-xs leading-[1.45] text-theme-secondary">
-            {descriptionFor(kind)}
-          </p>
-        </div>
-        <button
-          type="button"
-          className={cn(entityButtonPrimaryClass, "mt-[26px] shrink-0 pr-1.5")}
-          aria-expanded={creating}
-          onClick={() => (creating ? setCreating(false) : openCreateForm())}
-        >
-          New {entityNoun(kind)}
-          <kbd
-            className="inline-flex items-center gap-px rounded-md border border-border bg-background/60 px-[5px] py-0.5 font-mono text-[10px] leading-none tracking-[0.02em] text-foreground/70"
-            aria-hidden="true"
+          <Button
+            className={cn(inlinePressClass, "shrink-0 pr-1.5")}
+            aria-expanded={creating}
+            onClick={() => (creating ? setCreating(false) : openCreateForm())}
           >
-            {formatShortcut(createCombo)}
-          </kbd>
-        </button>
+            New {entityNoun(kind)}
+            <kbd
+              className="inline-flex items-center gap-px rounded-md border border-border bg-background/60 px-[5px] py-0.5 font-mono text-[10px] leading-none tracking-[0.02em] text-foreground/70"
+              aria-hidden="true"
+            >
+              {formatShortcut(createCombo)}
+            </kbd>
+          </Button>
+        </div>
+        <p className="mt-1 max-w-xl text-xs leading-[1.45] text-theme-secondary">
+          {descriptionFor(kind)}
+        </p>
+        {rows.length > 0 && (
+          <div className="mt-3.5 flex items-center gap-2">
+            <div
+              className={cn(
+                "flex h-[30px] flex-1 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-theme-dim",
+                "focus-within:border-ring focus-within:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)]",
+              )}
+            >
+              <SearchIcon size={14} aria-hidden="true" />
+              <input
+                type="search"
+                className="flex-1 bg-transparent text-xs text-foreground outline-none"
+                placeholder={`Filter ${entityNounPlural(kind)}`}
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                aria-label={`Filter ${entityNounPlural(kind)}`}
+              />
+            </div>
+            <Select
+              label={`Sort ${entityNounPlural(kind)}`}
+              prefix="Sort"
+              value={sort}
+              options={SORT_OPTIONS}
+              onChange={setSort}
+            />
+          </div>
+        )}
       </header>
 
       {rows.length === 0 && !creating ? (
@@ -250,62 +275,30 @@ export function EntityView({ store, kind }: Props) {
             Create {entityNounPlural(kind)} here or by typing {kind === "tag" ? "#" : "$"} while
             writing a note.
           </p>
-          <button
-            type="button"
-            className={cn(entityButtonPrimaryClass, "mt-[18px]")}
-            onClick={openCreateForm}
-          >
+          <Button variant="primary" className="mt-[18px]" onClick={openCreateForm}>
             New {entityNoun(kind)}
-          </button>
+          </Button>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-col">
-          {rows.length > 0 && (
-            <div className="flex shrink-0 items-center gap-2.5 px-3 pb-0.5 pt-3">
-              <div className="flex h-[34px] flex-1 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-theme-dim focus-within:border-ring focus-within:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)]">
-                <SearchIcon size={14} aria-hidden="true" />
-                <input
-                  type="search"
-                  className="flex-1 bg-transparent text-[13px] text-foreground outline-none"
-                  placeholder={`Filter ${entityNounPlural(kind)}`}
-                  value={filter}
-                  onChange={(event) => setFilter(event.target.value)}
-                  aria-label={`Filter ${entityNounPlural(kind)}`}
+        <div className="min-h-0 overflow-y-auto">
+          <div className={columnClass}>
+            <AnimatePresence initial={false}>
+              {creating && (
+                <InlineEntityForm
+                  key="create"
+                  kind={kind}
+                  submitLabel={`Create ${entityNoun(kind)}`}
+                  onCancel={() => setCreating(false)}
+                  onSubmit={submitCreate}
                 />
-              </div>
-              <label className="flex items-center gap-1.5">
-                <span className="text-xs text-theme-dim">Sort</span>
-                <select
-                  className="h-[34px] cursor-pointer rounded-lg border border-border bg-background px-2 text-[13px] text-foreground focus-visible:border-ring focus-visible:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)]"
-                  value={sort}
-                  onChange={(event) => setSort(event.target.value as SortMode)}
-                >
-                  {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
-                    <option key={mode} value={mode}>
-                      {SORT_LABELS[mode]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          )}
-          <AnimatePresence initial={false}>
-            {creating && (
-              <InlineEntityForm
-                key="create"
-                kind={kind}
-                submitLabel={`Create ${entityNoun(kind)}`}
-                onCancel={() => setCreating(false)}
-                onSubmit={submitCreate}
-              />
-            )}
-          </AnimatePresence>
-          {rows.length === 0 ? null : viewRows.length === 0 ? (
-            <p className="px-1 py-6 text-center text-[13px] text-theme-dim">
-              No {entityNounPlural(kind)} match “{filter}”.
-            </p>
-          ) : (
-            <EntityList
+              )}
+            </AnimatePresence>
+            {rows.length === 0 ? null : viewRows.length === 0 ? (
+              <p className="px-1 py-6 text-center text-[13px] text-theme-dim">
+                No {entityNounPlural(kind)} match “{filter}”.
+              </p>
+            ) : (
+              <EntityList
               store={store}
               rows={viewRows}
               kind={kind}
@@ -332,8 +325,9 @@ export function EntityView({ store, kind }: Props) {
               onDelete={(row) => setPending({ mode: "delete", row })}
               onMerge={(row) => setPending({ mode: "merge", row })}
               onOpenNote={openNote}
-            />
-          )}
+              />
+            )}
+          </div>
         </div>
       )}
 
@@ -354,22 +348,16 @@ export function EntityView({ store, kind }: Props) {
               stays in those notes but resolves as unresolved.
             </p>
             <div className="mt-1 flex justify-end gap-2">
-              <button type="button" className={entityButtonClass} onClick={() => setPending(null)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  entityButtonClass,
-                  "border-destructive/45 bg-destructive/14 text-destructive",
-                )}
+              <Button onClick={() => setPending(null)}>Cancel</Button>
+              <Button
+                variant="dangerFilled"
                 onClick={() => {
                   commit([buildDelete(kind, pending.row.id)]);
                   setPending(null);
                 }}
               >
                 Delete {entityNoun(kind)}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -420,9 +408,7 @@ export function EntityView({ store, kind }: Props) {
                 ))}
             </ul>
             <div className="mt-1 flex justify-end gap-2">
-              <button type="button" className={entityButtonClass} onClick={() => setPending(null)}>
-                Cancel
-              </button>
+              <Button onClick={() => setPending(null)}>Cancel</Button>
             </div>
           </div>
         )}
@@ -484,15 +470,11 @@ function EntityList({
   }
 
   return (
-    <ul
-      ref={ref}
-      className="min-h-0 flex-1 overflow-y-auto px-3 py-2.5"
-      aria-label={titleFor(kind)}
-    >
+    <ul ref={ref} className="py-1" aria-label={titleFor(kind)}>
       {rows.map((row, index) => (
         <li
           key={row.id}
-          className="mb-1 rounded-lg border border-transparent hover:border-border hover:bg-muted/40 focus-within:border-border focus-within:bg-muted/40"
+          className="border-b border-theme-divider transition-colors hover:bg-foreground/[0.035] focus-within:bg-foreground/[0.035]"
         >
           {editingId === row.id ? (
             <div className="flex items-center gap-2 py-1.5 pl-1.5 pr-2">
@@ -786,14 +768,14 @@ function InlineEntityForm({ kind, submitLabel, onCancel, onSubmit }: InlineEntit
 
   return (
     <motion.div
-      className="shrink-0 overflow-hidden px-3"
+      className="shrink-0 overflow-hidden"
       variants={reduceMotion ? undefined : inlineFormShell}
       initial={reduceMotion ? { opacity: 0 } : "hidden"}
       animate={reduceMotion ? { opacity: 1 } : "shown"}
       exit={reduceMotion ? { opacity: 0 } : "exit"}
     >
       <form
-        className="mb-1 mt-2.5 grid gap-2.5 rounded-lg border border-foreground/16 bg-muted/45 p-2.5"
+        className="mb-2 mt-3 grid gap-2.5 rounded-lg border border-foreground/16 bg-muted/45 p-2.5"
         aria-label={`New ${entityNoun(kind)}`}
         onSubmit={(event) => {
           event.preventDefault();
@@ -860,20 +842,17 @@ function InlineEntityForm({ kind, submitLabel, onCancel, onSubmit }: InlineEntit
           className="flex justify-end gap-2"
           variants={reduceMotion ? undefined : inlineFormRow}
         >
-          <button
-            type="button"
-            className={cn(entityButtonClass, inlinePressClass)}
-            onClick={onCancel}
-          >
+          <Button className={inlinePressClass} onClick={onCancel}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className={cn(entityButtonPrimaryClass, inlinePressClass)}
+            variant="primary"
+            className={inlinePressClass}
             disabled={!canSubmit}
           >
             {submitLabel}
-          </button>
+          </Button>
         </motion.div>
       </form>
     </motion.div>
@@ -918,7 +897,6 @@ const recolorDot: Variants = {
 function InlineRecolor({ row, kind, onSelect, onCancel }: InlineRecolorProps) {
   const reduceMotion = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
-  const options = useMemo<Array<string | null>>(() => [null, ...ENTITY_COLORS], []);
 
   useEffect(() => {
     ref.current?.querySelector<HTMLButtonElement>("button")?.focus();
@@ -932,46 +910,23 @@ function InlineRecolor({ row, kind, onSelect, onCancel }: InlineRecolorProps) {
       animate={reduceMotion ? { opacity: 1 } : "shown"}
       exit={reduceMotion ? { opacity: 0 } : "exit"}
     >
-      <div
+      <ColorSwatchRow
         ref={ref}
-        className="flex flex-wrap gap-2 pb-2.5 pl-11 pr-2 pt-1"
-        role="group"
-        aria-label={`Recolor ${entityNoun(kind)} ${row.name}`}
+        className="mb-2 ml-11 mr-2 mt-0.5"
+        label={`Recolor ${entityNoun(kind)} ${row.name}`}
+        value={row.color}
+        dotVariants={recolorDot}
+        onChange={onSelect}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
             onCancel();
           }
         }}
-      >
-        {options.map((option) => {
-          const selected = row.color === option;
-          return (
-            <motion.button
-              key={option ?? "none"}
-              type="button"
-              className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-transparent text-background transition-[border-color,box-shadow] duration-[160ms] hover:border-foreground/35 focus-visible:border-ring focus-visible:shadow-[0_0_0_3px_hsl(var(--ring)/0.24)] aria-pressed:border-foreground/70 aria-pressed:shadow-[inset_0_0_0_2px_hsl(var(--background)/0.9),0_0_0_1px_hsl(var(--foreground)/0.12)] data-empty:border data-empty:border-dashed data-empty:border-border data-empty:aria-pressed:border-solid data-empty:aria-pressed:text-foreground/70"
-              variants={reduceMotion ? undefined : recolorDot}
-              whileTap={reduceMotion ? undefined : { scale: 0.86 }}
-              style={option ? { background: option } : undefined}
-              data-empty={option === null ? "" : undefined}
-              aria-label={option ?? "No color"}
-              aria-pressed={selected}
-              onClick={() => onSelect(option)}
-            >
-              {selected ? <CheckIcon size={13} /> : null}
-            </motion.button>
-          );
-        })}
-      </div>
+      />
     </motion.div>
   );
 }
-
-const swatchOptionClass = cn(
-  "h-[26px] w-[26px] cursor-pointer rounded-full border-2 border-transparent aria-pressed:border-foreground/60 aria-pressed:shadow-[inset_0_0_0_2px_hsl(var(--background)/0.9)] data-empty:border data-empty:border-dashed data-empty:border-border",
-  entityFocusRingClass,
-);
 
 type ColorSwatchesProps = {
   value: string | null;
@@ -979,27 +934,5 @@ type ColorSwatchesProps = {
 };
 
 function ColorSwatches({ value, onChange }: ColorSwatchesProps) {
-  return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Color">
-      <button
-        type="button"
-        className={swatchOptionClass}
-        data-empty=""
-        aria-label="No color"
-        aria-pressed={value === null}
-        onClick={() => onChange(null)}
-      />
-      {ENTITY_COLORS.map((option) => (
-        <button
-          key={option}
-          type="button"
-          className={swatchOptionClass}
-          style={{ background: option }}
-          aria-label={option}
-          aria-pressed={value === option}
-          onClick={() => onChange(option)}
-        />
-      ))}
-    </div>
-  );
+  return <ColorSwatchRow label="Color" value={value} onChange={onChange} />;
 }
