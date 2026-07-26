@@ -15,7 +15,6 @@ import {
   buildWorkspaceExportEntries,
   collectImageRefIds,
   collectLocalImageSources,
-  planMarkdownImport,
   referenceSafeMarkdown,
   replaceLocalImages,
   resolveImportedImagePath,
@@ -23,6 +22,9 @@ import {
   type MarkdownImportPlan,
 } from "./markdown-transfer-model";
 import { publishTransferReport } from "./transfer-report";
+import { detectImportSource } from "../import/model";
+import { planImportBundle } from "../import/plan";
+import { importSources } from "../import/sources";
 
 function count(amount: number, noun: string): string {
   return `${amount} ${noun}${amount === 1 ? "" : "s"}`;
@@ -166,18 +168,27 @@ async function importPlannedImages(
 
 export async function importMarkdownIntoWorkspace(store: RendererStore): Promise<void> {
   try {
-    const sourceDir = await pickDirectory("Import Markdown");
+    const sourceDir = await pickDirectory("Import notes");
     if (!sourceDir) {
       return;
     }
     const tree = await readMarkdownTree(sourceDir);
+    const source = detectImportSource(importSources, tree);
+    if (!source) {
+      publishTransferReport({
+        title: "Nothing to import",
+        lines: [`No importable notes found in ${sourceDir}`],
+      });
+      return;
+    }
+    const bundle = source.parse(tree);
     const at = Date.now();
     const state = store.getState();
     const existingNotes = [...state.nodes.values()]
       .filter((node) => node.kind === "note")
       .map((node) => ({ id: node.id, title: node.title }));
-    const plan = planMarkdownImport(
-      tree,
+    const plan = planImportBundle(
+      bundle,
       at,
       () => crypto.randomUUID(),
       existingNotes,
@@ -202,7 +213,7 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
       await commitOperations(store, contentOperations);
     }
     publishTransferReport({
-      title: "Import complete",
+      title: `Import complete (${bundle.sourceLabel})`,
       lines: [
         `Imported ${count(plan.noteCount, "note")} and ${count(plan.folderCount, "folder")} from ${sourceDir}`,
         ...(images.imported > 0 ? [`Imported ${count(images.imported, "image")}`] : []),
@@ -219,6 +230,7 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
           ? [`Preserved ${count(plan.preservedSources, "note with unsupported Markdown")} in raw mode`]
           : []),
         ...(tree.skipped > 0 ? [`Skipped ${count(tree.skipped, "unreadable file")}`] : []),
+        ...bundle.warnings.map((warning) => warning.message),
       ],
     });
   } catch (error) {
