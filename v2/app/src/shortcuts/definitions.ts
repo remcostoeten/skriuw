@@ -44,6 +44,8 @@ export type ShortcutActionId =
   | "focusSidebar"
   | "focusEditor"
   | "focusMetadata"
+  | "focusPaneLeft"
+  | "focusPaneRight"
   | "previousNote"
   | "nextNote"
   | "goToNotes"
@@ -332,8 +334,32 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     keys: "mod+2",
     secondaryKeys: "slash",
     label: "Focus editor",
+    description:
+      "Focus the editor content. With a split open this returns to the pane that had focus last, so it composes with the directional pane keys.",
     group: "Navigation",
     worksWhileTyping: true,
+  },
+  {
+    id: "focusPaneLeft",
+    keys: "mod+alt+arrowleft",
+    label: "Focus pane to the left",
+    description:
+      "Move keyboard focus to the split pane on the left. Three modifiers keep it clear of every native word and line motion; some Linux desktops and macOS apps claim mod+alt+arrows, so rebind if the OS wins.",
+    group: "Navigation",
+    worksWhileTyping: true,
+    guards: ["modal"],
+    scopes: "split",
+  },
+  {
+    id: "focusPaneRight",
+    keys: "mod+alt+arrowright",
+    label: "Focus pane to the right",
+    description:
+      "Move keyboard focus to the split pane on the right. Three modifiers keep it clear of every native word and line motion; some Linux desktops and macOS apps claim mod+alt+arrows, so rebind if the OS wins.",
+    group: "Navigation",
+    worksWhileTyping: true,
+    guards: ["modal"],
+    scopes: "split",
   },
   {
     id: "focusMetadata",

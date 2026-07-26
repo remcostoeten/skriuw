@@ -428,6 +428,27 @@ export function openBeside(
   ];
 }
 
+/**
+ * The pane a directional focus move lands on. `fromIndex` null means focus is
+ * outside every pane — the sidebar, metadata panel, or rail — and the nearest
+ * pane in that direction takes it. Directional means directional: there is no
+ * wrap, and a single pane never matches.
+ */
+export function paneIndexInDirection(
+  paneCount: number,
+  fromIndex: number | null,
+  direction: -1 | 1,
+): number | null {
+  if (paneCount < 2) {
+    return null;
+  }
+  if (fromIndex === null) {
+    return direction === -1 ? 0 : paneCount - 1;
+  }
+  const next = fromIndex + direction;
+  return next >= 0 && next < paneCount ? next : null;
+}
+
 export function closeSplit(panes: readonly PaneState[]): readonly PaneState[] {
   return panes.length > 1 ? [primaryPane(panes)] : panes;
 }

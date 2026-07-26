@@ -12,6 +12,7 @@ import {
   closeTabsToSide,
   cycleTab,
   focusPane,
+  focusPaneTowards,
   moveActiveTab,
   openBeside,
   openNoteInTab,
@@ -341,4 +342,35 @@ test("moving a tab is a no-op with the tabbed workspace off", () => {
   const before = rendererStore.getState();
   moveActiveTab(rendererStore, 1);
   assert.equal(rendererStore.getState(), before);
+});
+
+test("focusPaneTowards marks the pane in that direction as focused", () => {
+  const rendererStore = tabbedStore();
+  openBeside(rendererStore, "b");
+  assert.equal(focusPaneTowards(rendererStore, 1, 0), 1);
+  assert.equal(rendererStore.getState().focusedPaneId, SECONDARY_PANE_ID);
+  assert.equal(focusPaneTowards(rendererStore, -1, 1), 0);
+  assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);
+});
+
+test("focusPaneTowards refuses to wrap and refuses to move without a split", () => {
+  const rendererStore = tabbedStore();
+  openBeside(rendererStore, "b");
+  assert.equal(focusPaneTowards(rendererStore, -1, 0), null);
+  assert.equal(focusPaneTowards(rendererStore, 1, 1), null);
+  assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);
+
+  closeSplit(rendererStore);
+  const before = rendererStore.getState();
+  assert.equal(focusPaneTowards(rendererStore, 1, null), null);
+  assert.equal(rendererStore.getState(), before);
+});
+
+test("focusPaneTowards from outside the panes picks the nearest pane that way", () => {
+  const rendererStore = tabbedStore();
+  openBeside(rendererStore, "b");
+  assert.equal(focusPaneTowards(rendererStore, 1, null), 1);
+  assert.equal(rendererStore.getState().focusedPaneId, SECONDARY_PANE_ID);
+  assert.equal(focusPaneTowards(rendererStore, -1, null), 0);
+  assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);
 });
