@@ -938,8 +938,27 @@ async fn cleanup_import_source(root_path: String) -> Result<(), String> {
         .map_err(|error| error.to_string())?
 }
 
+// Native GTK pickers cannot be driven by WebDriver automation, so debug
+// builds honor SKRIUW_E2E_PICK_PATHS (newline-separated absolute paths)
+// instead of opening a dialog. Release builds compile the override out.
+#[cfg(debug_assertions)]
+fn picker_override() -> Option<Vec<String>> {
+    let raw = env::var("SKRIUW_E2E_PICK_PATHS").ok()?;
+    let paths = raw
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect::<Vec<String>>();
+    if paths.is_empty() { None } else { Some(paths) }
+}
+
 #[tauri::command]
 async fn pick_directory(app: tauri::AppHandle, title: String) -> Result<Option<String>, String> {
+    #[cfg(debug_assertions)]
+    if let Some(paths) = picker_override() {
+        return Ok(paths.into_iter().next());
+    }
     tauri::async_runtime::spawn_blocking(move || {
         app.dialog()
             .file()
@@ -958,6 +977,10 @@ async fn pick_directory(app: tauri::AppHandle, title: String) -> Result<Option<S
 
 #[tauri::command]
 async fn pick_import_file(app: tauri::AppHandle, title: String) -> Result<Option<String>, String> {
+    #[cfg(debug_assertions)]
+    if let Some(paths) = picker_override() {
+        return Ok(paths.into_iter().next());
+    }
     tauri::async_runtime::spawn_blocking(move || {
         app.dialog()
             .file()
@@ -976,6 +999,10 @@ async fn pick_import_file(app: tauri::AppHandle, title: String) -> Result<Option
 
 #[tauri::command]
 async fn pick_import_files(app: tauri::AppHandle, title: String) -> Result<Vec<String>, String> {
+    #[cfg(debug_assertions)]
+    if let Some(paths) = picker_override() {
+        return Ok(paths);
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let picked = app
             .dialog()

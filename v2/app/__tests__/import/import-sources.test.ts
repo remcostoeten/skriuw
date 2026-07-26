@@ -312,6 +312,54 @@ test("planImportBundle keeps provenance properties out of the main operations", 
   assert.ok(properties.every((property) => property.noteId === noteId));
 });
 
+test("planImportBundle keeps property positions dense so the store accepts them", () => {
+  const plan = planImportBundle(
+    {
+      sourceId: "notion",
+      sourceLabel: "Notion",
+      directories: [],
+      notes: [
+        {
+          relativePath: "Note.md",
+          title: "Note",
+          markdown: "Body",
+          properties: [
+            { name: "Status", value: { type: "text", value: "Open" } },
+            { name: "Owner", value: { type: "text", value: "Remco" } },
+          ],
+        },
+        {
+          relativePath: "Tagged.md",
+          title: "Tagged",
+          markdown: "Body",
+          tags: ["home"],
+        },
+      ],
+      warnings: [],
+    },
+    123,
+    sequentialIds(),
+  );
+  const positionsByNote = new Map<string, number[]>();
+  for (const operation of [
+    ...plan.operations,
+    ...plan.sourcePropertyOperations,
+  ]) {
+    if (operation.type !== "set_note_property") {
+      continue;
+    }
+    const positions = positionsByNote.get(operation.property.noteId) ?? [];
+    positions.push(operation.property.position);
+    positionsByNote.set(operation.property.noteId, positions);
+  }
+  for (const positions of positionsByNote.values()) {
+    assert.deepEqual(
+      [...positions].sort((left, right) => left - right),
+      positions.map((_, index) => index),
+    );
+  }
+});
+
 test("planImportBundle never overwrites an imported property with provenance", () => {
   const plan = planImportBundle(
     {
