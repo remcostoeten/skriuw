@@ -6,6 +6,7 @@ import type {
   ShortcutActionId,
   ShortcutDefinition,
   ShortcutGuard,
+  ShortcutPlatform,
 } from "./definitions";
 
 export type ShortcutOverrides = Partial<Record<ShortcutActionId, string>>;
@@ -155,6 +156,22 @@ export function effectiveShortcutKeys(
   overrides: ShortcutOverrides,
 ): string {
   return overrides[definition.id] ?? defaultKeys(definition);
+}
+
+/**
+ * Whether a binding should be registered on `platform`. A default combo can
+ * declare the platforms it belongs on, so a combo the OS already owns stays
+ * unbound there; a user override always wins, on every platform.
+ */
+export function shortcutBindsOnPlatform(
+  definition: ShortcutDefinition,
+  overrides: ShortcutOverrides,
+  platform: ShortcutPlatform,
+): boolean {
+  if (overrides[definition.id] !== undefined) {
+    return true;
+  }
+  return definition.platforms === undefined || definition.platforms.includes(platform);
 }
 
 export type ShortcutConflict = {

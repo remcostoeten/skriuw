@@ -7,6 +7,7 @@ import {
   findShortcutConflict,
   isDefaultBinding,
   sameCombo,
+  shortcutBindsOnPlatform,
   shortcutExcept,
   shortcutGuarded,
   shortcutGuards,
@@ -211,6 +212,62 @@ test("mod+shift+d matches the duplicate binding and plain d does not", () => {
   assert.equal(matchesShortcut(base as unknown as KeyboardEvent, parsed), false);
   assert.equal(
     matchesShortcut({ ...base, [modifier]: true } as unknown as KeyboardEvent, parsed),
+    false,
+  );
+});
+
+test("document edge jumps are editor-bound, rebindable, and conflict-free", () => {
+  for (const [id, keys] of [
+    ["goToDocumentStart", "ctrl+arrowup"],
+    ["goToDocumentEnd", "ctrl+arrowdown"],
+  ] as const) {
+    const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
+    assert.ok(definition);
+    assert.equal(effectiveShortcutKeys(definition, {}), keys);
+    assert.equal(definition.boundInEditor, true);
+    assert.deepEqual(shortcutGuards(definition, true), []);
+    assert.equal(findShortcutConflict({}, id, keys), null);
+    assert.ok((definition.description ?? "").includes("VS Code"));
+  }
+});
+
+test("the ctrl+arrow document edge defaults stay off macOS but a rebind binds everywhere", () => {
+  const definition = SHORTCUT_DEFINITIONS.find(
+    (entry) => entry.id === "goToDocumentStart",
+  );
+  assert.ok(definition);
+  assert.equal(shortcutBindsOnPlatform(definition, {}, "linux"), true);
+  assert.equal(shortcutBindsOnPlatform(definition, {}, "windows"), true);
+  assert.equal(shortcutBindsOnPlatform(definition, {}, "mac"), false);
+  assert.equal(
+    shortcutBindsOnPlatform(definition, { goToDocumentStart: "mod+alt+arrowup" }, "mac"),
+    true,
+  );
+});
+
+test("a binding without a platform list registers on every platform", () => {
+  const createNote = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "createNote");
+  assert.ok(createNote);
+  for (const platform of ["mac", "windows", "linux"] as const) {
+    assert.equal(shortcutBindsOnPlatform(createNote, {}, platform), true);
+  }
+});
+
+test("ctrl+arrowup and ctrl+arrowdown match only with ctrl held", () => {
+  const base = { key: "ArrowUp", metaKey: false, ctrlKey: false, altKey: false, shiftKey: false };
+  const pressed = (key: string) =>
+    ({ ...base, key, ctrlKey: true }) as unknown as KeyboardEvent;
+  assert.equal(matchesShortcut(pressed("ArrowUp"), parseShortcut("ctrl+arrowup")), true);
+  assert.equal(matchesShortcut(pressed("ArrowDown"), parseShortcut("ctrl+arrowdown")), true);
+  assert.equal(
+    matchesShortcut(base as unknown as KeyboardEvent, parseShortcut("ctrl+arrowup")),
+    false,
+  );
+  assert.equal(
+    matchesShortcut(
+      { ...base, ctrlKey: true, altKey: true } as unknown as KeyboardEvent,
+      parseShortcut("ctrl+arrowup"),
+    ),
     false,
   );
 });
