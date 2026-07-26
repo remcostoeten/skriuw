@@ -1,4 +1,4 @@
-import { NodeSelection } from "prosemirror-state";
+import { NodeSelection, type Selection } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { moveBlockToIndex, topLevelBlockAt } from "./block-commands";
 
@@ -45,21 +45,22 @@ function buttonElement(label: string, icon: string): HTMLButtonElement {
   button.className = "block-gutter-button";
   button.title = label;
   button.tabIndex = -1;
-  button.setAttribute("aria-label", label);
+  button.setAttribute("aria-hidden", "true");
   button.innerHTML = icon;
   return button;
 }
 
 /**
  * The grip is a plain element rather than a `<button>`: form controls swallow
- * the pointerdown that begins the gesture.
+ * the pointerdown that begins the gesture. The whole gutter is hidden from the
+ * accessibility tree because it is pointer-only; every action it offers exists
+ * on a reachable path (slash menu, block context menu, Alt-Arrow).
  */
 function gripElement(label: string): HTMLDivElement {
   const grip = document.createElement("div");
   grip.className = "block-gutter-button block-gutter-grip";
   grip.title = label;
-  grip.setAttribute("role", "button");
-  grip.setAttribute("aria-label", label);
+  grip.setAttribute("aria-hidden", "true");
   grip.innerHTML = GRIP_ICON;
   return grip;
 }
@@ -106,6 +107,7 @@ export function createDragHandle(
 
   let drag: ActiveDrag | null = null;
   let dragActive = false;
+  let preDragSelection: ReturnType<Selection["getBookmark"]> | null = null;
   let dropIndex: number | null = null;
   let dragX = 0;
   let dragY = 0;
@@ -267,6 +269,7 @@ export function createDragHandle(
     dragActive = true;
     const block = topLevelBlockAt(view.state.doc, drag.pos);
     if (block) {
+      preDragSelection = view.state.selection.getBookmark();
       view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, block.pos)));
     }
     hide();
@@ -281,6 +284,7 @@ export function createDragHandle(
     drag = null;
     dragActive = false;
     dropIndex = null;
+    preDragSelection = null;
     stopAutoScroll();
     if (dragFrame !== 0) {
       window.cancelAnimationFrame(dragFrame);
@@ -288,6 +292,16 @@ export function createDragHandle(
     }
     indicator.classList.remove("is-visible");
     document.body.classList.remove("is-dragging-block");
+  }
+
+  function cancelDrag(): void {
+    const bookmark = preDragSelection;
+    const restore = dragActive;
+    preDragSelection = null;
+    endDrag();
+    if (restore && bookmark) {
+      view.dispatch(view.state.tr.setSelection(bookmark.resolve(view.state.doc)));
+    }
   }
 
   function openBlockMenu(position: number): void {
@@ -346,13 +360,13 @@ export function createDragHandle(
   }
 
   function handleGripPointerCancel(): void {
-    endDrag();
+    cancelDrag();
   }
 
   function handleKeyDown(event: KeyboardEvent): void {
     if (event.key !== "Escape" || !drag) return;
     event.preventDefault();
-    endDrag();
+    cancelDrag();
   }
 
   function handleInsertClick(event: MouseEvent): void {
