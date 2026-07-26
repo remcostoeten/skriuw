@@ -16,6 +16,7 @@ export type ImportBundlePlan = MarkdownImportPlan & {
   createdTags: number;
   tagSkippedNotes: number;
   tagPropertyNotes: number;
+  skippedTags: number;
 };
 
 function normalizeTreePath(path: string): string {
@@ -85,23 +86,44 @@ function buildPropertyOperations(
 type TagResolution = {
   idByName: Map<string, string>;
   operations: WorkspaceOperation[];
+  skippedTags: number;
 };
+
+const MAX_IMPORTED_TAG_BYTES = 80;
+const MAX_IMPORTED_TAGS_PER_PROPERTY = 64;
+
+function validImportedTag(raw: string): string | null {
+  const name = raw.trim();
+  return name.length > 0 &&
+    new TextEncoder().encode(name).length <= MAX_IMPORTED_TAG_BYTES
+    ? name
+    : null;
+}
 
 function resolveImportedTags(
   bundle: ImportBundle,
   existingTags: readonly ImportTagTarget[],
   at: number,
   makeId: () => string,
+  excludedPaths: ReadonlySet<string>,
 ): TagResolution {
   const existingByLowerName = new Map(
     existingTags.map((tag) => [tag.name.trim().toLowerCase(), tag.id]),
   );
   const idByName = new Map<string, string>();
   const operations: WorkspaceOperation[] = [];
+  let skippedTags = 0;
   for (const note of bundle.notes) {
+    if (excludedPaths.has(normalizeTreePath(note.relativePath))) {
+      continue;
+    }
     for (const raw of note.tags ?? []) {
-      const name = raw.trim();
-      if (name.length === 0 || idByName.has(name.toLowerCase())) {
+      const name = validImportedTag(raw);
+      if (!name) {
+        skippedTags += 1;
+        continue;
+      }
+      if (idByName.has(name.toLowerCase())) {
         continue;
       }
       const existingId = existingByLowerName.get(name.toLowerCase());
@@ -117,7 +139,7 @@ function resolveImportedTags(
       });
     }
   }
-  return { idByName, operations };
+  return { idByName, operations, skippedTags };
 }
 
 /**
@@ -209,10 +231,29 @@ export function planImportBundle(
       );
     }
   }
-  const tags = resolveImportedTags(bundle, existingTags, at, makeId);
+  const rawPaths = new Set(
+    plan.contentOperations.flatMap((operation) => {
+      if (
+        operation.type !== "save_document" ||
+        !hasLosslessMarkdownDocument(operation.documentJson)
+      ) {
+        return [];
+      }
+      const path = idToPath.get(operation.noteId);
+      return path ? [path] : [];
+    }),
+  );
+  const tags = resolveImportedTags(
+    bundle,
+    existingTags,
+    at,
+    makeId,
+    rawPaths,
+  );
   plan.operations.push(...tags.operations);
   let tagSkippedNotes = 0;
   let tagPropertyNotes = 0;
+  let skippedTags = tags.skippedTags;
   for (const operation of plan.contentOperations) {
     if (operation.type !== "save_document") {
       continue;
@@ -229,7 +270,16 @@ export function planImportBundle(
       continue;
     }
     if (hasLosslessMarkdownDocument(operation.documentJson)) {
-      const values = [...new Set(note.tags.map((tag) => tag.trim()).filter(Boolean))];
+      const valid = note.tags.map(validImportedTag);
+      const unique = [
+        ...new Set(valid.filter((tag) => tag !== null)),
+      ];
+      skippedTags += valid.filter((tag) => tag === null).length;
+      skippedTags += Math.max(
+        0,
+        unique.length - MAX_IMPORTED_TAGS_PER_PROPERTY,
+      );
+      const values = unique.slice(0, MAX_IMPORTED_TAGS_PER_PROPERTY);
       if (values.length > 0) {
         propertyOperations.push(
           ...buildPropertyOperations(
@@ -263,5 +313,6 @@ export function planImportBundle(
     createdTags: tags.operations.length,
     tagSkippedNotes,
     tagPropertyNotes,
+    skippedTags,
   };
 }

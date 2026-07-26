@@ -109,6 +109,7 @@ test("raw-preserved notes keep exact source and store tags as a property", () =>
   );
   assert.equal(plan.tagSkippedNotes, 0);
   assert.equal(plan.tagPropertyNotes, 1);
+  assert.equal(plan.createdTags, 0);
   const document = plan.contentOperations.find(
     (operation) => operation.type === "save_document",
   );
@@ -131,4 +132,21 @@ test("notes without tags add no tag operations", () => {
   );
   assert.equal(plan.createdTags, 0);
   assert.equal(plan.tagSkippedNotes, 0);
+});
+
+test("invalid and oversized tags are skipped and counted", () => {
+  const plan = planImportBundle(
+    bundle([
+      {
+        relativePath: "A.md",
+        title: "A",
+        markdown: "body",
+        tags: ["", "x".repeat(81), "valid"],
+      },
+    ]),
+    123,
+    sequentialIds(),
+  );
+  assert.equal(plan.createdTags, 1);
+  assert.equal(plan.skippedTags, 2);
 });

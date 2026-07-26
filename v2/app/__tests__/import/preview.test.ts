@@ -59,6 +59,7 @@ function plan(): ImportBundlePlan {
     createdTags: 3,
     tagSkippedNotes: 0,
     tagPropertyNotes: 0,
+    skippedTags: 0,
   };
 }
 

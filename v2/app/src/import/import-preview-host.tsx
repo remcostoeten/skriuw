@@ -15,16 +15,19 @@ export function ImportPreviewHost() {
   const [selectedSourceId, setSelectedSourceId] = useState("");
   const requestRef = useRef<ActiveRequest | null>(null);
 
-  useEffect(
-    () =>
-      registerImportPreviewListener((next) => {
+  useEffect(() => {
+    const unregister = registerImportPreviewListener((next) => {
         requestRef.current?.resolve(null);
         requestRef.current = next;
         setSelectedSourceId(next.detectedSourceId);
         setRequest(next);
-      }),
-    [],
-  );
+      });
+    return () => {
+      unregister();
+      requestRef.current?.resolve(null);
+      requestRef.current = null;
+    };
+  }, []);
 
   if (!request) {
     return null;
