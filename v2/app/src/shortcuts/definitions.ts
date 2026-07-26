@@ -31,6 +31,8 @@ export type ShortcutActionId =
   | "zoomIn"
   | "zoomOut"
   | "zoomReset"
+  | "goToDocumentStart"
+  | "goToDocumentEnd"
   | "findInNote"
   | "searchMatchCase"
   | "searchWholeWord"
@@ -47,6 +49,9 @@ export type ShortcutActionId =
  */
 export type ShortcutGuard = "typing" | "textField" | "sidebarTree" | "modal";
 
+/** Runtime platforms, matching `detectPlatform()` from the shortcut package. */
+export type ShortcutPlatform = "mac" | "windows" | "linux";
+
 export type ShortcutDefinition = {
   id: ShortcutActionId;
   keys: string | string[];
@@ -59,6 +64,12 @@ export type ShortcutDefinition = {
   description?: string;
   /** Extra focus contexts where the binding must stay silent. */
   guards?: readonly ShortcutGuard[];
+  /**
+   * Platforms where the default combo is registered. Omitted means every
+   * platform. Lets a default stay off a platform that already owns the combo,
+   * while a user override still binds everywhere.
+   */
+  platforms?: readonly ShortcutPlatform[];
   /**
    * Named scopes the binding requires to fire. Bindings with scopes run only
    * when the workspace has at least one matching scope active, letting a key
@@ -316,6 +327,28 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Reset zoom",
     group: "View",
     worksWhileTyping: true,
+  },
+  {
+    id: "goToDocumentStart",
+    keys: "ctrl+arrowup",
+    label: "Jump to start of note",
+    description:
+      "Move the caret and scroll to the very start of the note. VS Code scrolls the viewport with this combo instead; on macOS cmd+arrowup does this natively, so the default stays unregistered there.",
+    group: "Editor",
+    worksWhileTyping: true,
+    platforms: ["windows", "linux"],
+    boundInEditor: true,
+  },
+  {
+    id: "goToDocumentEnd",
+    keys: "ctrl+arrowdown",
+    label: "Jump to end of note",
+    description:
+      "Move the caret and scroll to the very end of the note. VS Code scrolls the viewport with this combo instead; on macOS cmd+arrowdown does this natively, so the default stays unregistered there.",
+    group: "Editor",
+    worksWhileTyping: true,
+    platforms: ["windows", "linux"],
+    boundInEditor: true,
   },
   {
     id: "findInNote",
