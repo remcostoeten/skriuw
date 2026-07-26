@@ -17,7 +17,7 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 ## Workspace
 
 - [x] Tabs and split view. Spec: [docs/specs/tabs-and-split-view.md](docs/specs/tabs-and-split-view.md). Shipped per [ADR-0021](docs/adr/0021-tabs-and-split-view.md): tab strip + open-beside split, live editors bounded at visible panes, native pane-layout persistence. Covered by tests: `app/__tests__/store/panes.test.ts`, `app/__tests__/actions/panes.test.ts`, `app/__tests__/store/pane-layout-persistence.test.ts`, `app/__tests__/shell/editor-panes.test.ts` (asserts exactly one/two live editor hosts via `renderToStaticMarkup`). Deferred: per-pane tab strip.
-- [ ] Note properties (custom metadata fields per note). Spec: [docs/specs/note-properties.md](docs/specs/note-properties.md).
+- [x] Note properties (custom metadata fields per note). Spec: [docs/specs/note-properties.md](docs/specs/note-properties.md). Shipped in 0.2.0: typed durable property contracts, optimistic renderer projections, metadata-panel editor with built-in templates.
 - [ ] Third-party importers (Notion, Obsidian, etc.) beyond the existing Markdown import.
 
 ## Platform
