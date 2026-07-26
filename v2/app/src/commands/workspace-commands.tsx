@@ -4,7 +4,10 @@ import {
   closeActiveTab,
   closeSplit,
   cycleTab,
+  moveActiveTab,
   openBeside,
+  reopenClosedTab,
+  tabStripPaneId,
 } from "../actions/panes";
 import { toggleEditorMode } from "../actions/editor-mode";
 import {
@@ -61,7 +64,8 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from "../shared/icons";
-import type { RendererStore } from "../store/types";
+import { opensNotesInTabs } from "../settings/settings-model";
+import type { RendererState, RendererStore } from "../store/types";
 import { resetZoom, zoomIn, zoomOut } from "../zoom/zoom-controller";
 import { focusRegion } from "./focus-regions";
 import type { AppCommand, CommandPredicate } from "./registry";
@@ -77,6 +81,19 @@ export type CommandUiControls = {
 };
 
 const onNotesRoute: CommandPredicate = (_state, ui) => ui.route === "notes";
+
+function hasClosedTabs(state: RendererState): boolean {
+  return (
+    opensNotesInTabs(state.settings) &&
+    (state.closedTabsByPaneId.get(tabStripPaneId(state))?.length ?? 0) > 0
+  );
+}
+
+function hasMovableTabs(state: RendererState): boolean {
+  const paneId = tabStripPaneId(state);
+  const pane = state.panes.find((entry) => entry.paneId === paneId);
+  return opensNotesInTabs(state.settings) && (pane?.openNoteIds.length ?? 0) > 1;
+}
 
 /**
  * Direct tab access, one command per digit key. Hidden from the palette — ten
@@ -279,6 +296,34 @@ export function createWorkspaceCommands(
       enabled: (state, ui) =>
         onNotesRoute(state, ui) && (state.panes[0]?.openNoteIds.length ?? 0) > 1,
       run: () => cycleTab(store, -1),
+    },
+    {
+      id: "reopen-closed-tab",
+      label: "Reopen closed tab",
+      group: "Tabs",
+      keywords: ["tab", "reopen", "restore", "undo"],
+      shortcut: "reopenClosedTab",
+      hint: shortcutDefinition("reopenClosedTab").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && hasClosedTabs(state),
+      run: () => reopenClosedTab(store),
+    },
+    {
+      id: "move-tab-left",
+      label: "Move tab left",
+      group: "Tabs",
+      keywords: ["tab", "move", "reorder"],
+      shortcut: "moveTabLeft",
+      enabled: (state, ui) => onNotesRoute(state, ui) && hasMovableTabs(state),
+      run: () => moveActiveTab(store, -1),
+    },
+    {
+      id: "move-tab-right",
+      label: "Move tab right",
+      group: "Tabs",
+      keywords: ["tab", "move", "reorder"],
+      shortcut: "moveTabRight",
+      enabled: (state, ui) => onNotesRoute(state, ui) && hasMovableTabs(state),
+      run: () => moveActiveTab(store, 1),
     },
     ...tabIndexCommands(store),
     {

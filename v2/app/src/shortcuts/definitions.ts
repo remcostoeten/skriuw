@@ -31,6 +31,9 @@ export type ShortcutActionId =
   | "trashCurrentNote"
   | "duplicateCurrentNote"
   | "closeTab"
+  | "reopenClosedTab"
+  | "moveTabLeft"
+  | "moveTabRight"
   | "nextTab"
   | "previousTab"
   | "openBeside"
@@ -233,6 +236,39 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Close tab",
     group: "Tabs",
     worksWhileTyping: true,
+  },
+  {
+    id: "reopenClosedTab",
+    keys: "mod+shift+w",
+    label: "Reopen closed tab",
+    description:
+      "Reopen the last tab closed in this pane at its old position, walking back through the ten most recent. Browser muscle memory says ctrl+shift+t, but that belongs to New tag — this is the undo of Close tab instead.",
+    group: "Tabs",
+    worksWhileTyping: true,
+    guards: ["modal"],
+    scopes: "tabs",
+  },
+  {
+    id: "moveTabLeft",
+    keys: "ctrl+shift+pageup",
+    label: "Move tab left",
+    description:
+      "Move the active tab one slot left, wrapping at the ends. Browsers own this combo for their own tab strip, so it is reliable on desktop and best-effort on web.",
+    group: "Tabs",
+    worksWhileTyping: true,
+    guards: ["modal"],
+    scopes: "tabs",
+  },
+  {
+    id: "moveTabRight",
+    keys: "ctrl+shift+pagedown",
+    label: "Move tab right",
+    description:
+      "Move the active tab one slot right, wrapping at the ends. Browsers own this combo for their own tab strip, so it is reliable on desktop and best-effort on web.",
+    group: "Tabs",
+    worksWhileTyping: true,
+    guards: ["modal"],
+    scopes: "tabs",
   },
   {
     id: "nextTab",

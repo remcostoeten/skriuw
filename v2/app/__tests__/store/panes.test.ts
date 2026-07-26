@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { WorkspaceNode } from "../../src/contracts/workspace";
 import {
+  CLOSED_TAB_LIMIT,
   PANE_LAYOUT_VERSION,
   PRIMARY_PANE_ID,
   SECONDARY_PANE_ID,
@@ -13,16 +14,21 @@ import {
   closeTabsToSide,
   cycleTabId,
   defaultPanes,
+  discardClosedTabs,
+  moveTabInPane,
   openBeside,
   openNoteInTab,
   parsePaneLayout,
+  recordClosedTab,
+  reopenClosedTab,
   reorderTab,
   serializePaneLayout,
   syncPanes,
   tabIdAtIndex,
   togglePinTab,
+  withClosedTabs,
 } from "../../src/store/panes";
-import type { PaneState } from "../../src/store/panes";
+import type { ClosedTabStacks, PaneState } from "../../src/store/panes";
 
 function node(id: string, kind: "note" | "folder" = "note"): WorkspaceNode {
   return {
@@ -276,4 +282,95 @@ test("activateTabInPane switches the split pane's tab and ignores unknown notes"
   assert.equal(activateTabInPane(panes, SECONDARY_PANE_ID, "b"), panes);
   assert.equal(activateTabInPane(panes, SECONDARY_PANE_ID, "a"), panes);
   assert.equal(activateTabInPane(panes, "unknown-pane", "b"), panes);
+});
+
+test("recordClosedTab keeps the newest entries, dedupes by note, and caps the stack", () => {
+  let stacks: ClosedTabStacks = new Map();
+  for (let index = 0; index < CLOSED_TAB_LIMIT + 3; index += 1) {
+    stacks = recordClosedTab(stacks, PRIMARY_PANE_ID, { noteId: `n${index}`, index });
+  }
+  const stack = stacks.get(PRIMARY_PANE_ID) ?? [];
+  assert.equal(stack.length, CLOSED_TAB_LIMIT);
+  assert.equal(stack[0]?.noteId, "n3");
+  assert.equal(stack[stack.length - 1]?.noteId, `n${CLOSED_TAB_LIMIT + 2}`);
+
+  const deduped = recordClosedTab(stacks, PRIMARY_PANE_ID, { noteId: "n5", index: 1 });
+  const dedupedStack = deduped.get(PRIMARY_PANE_ID) ?? [];
+  assert.equal(dedupedStack.filter((entry) => entry.noteId === "n5").length, 1);
+  assert.equal(dedupedStack[dedupedStack.length - 1]?.noteId, "n5");
+});
+
+test("withClosedTabs drops the pane key once its stack empties", () => {
+  const stacks = recordClosedTab(new Map(), PRIMARY_PANE_ID, { noteId: "a", index: 0 });
+  assert.equal(withClosedTabs(stacks, PRIMARY_PANE_ID, []).has(PRIMARY_PANE_ID), false);
+  assert.equal(discardClosedTabs(stacks, PRIMARY_PANE_ID).size, 0);
+  assert.equal(discardClosedTabs(stacks, SECONDARY_PANE_ID), stacks);
+});
+
+test("reopenClosedTab restores the newest entry at its old position", () => {
+  const panes = [primary(["a", "c"], "c")];
+  const result = reopenClosedTab(
+    panes,
+    [
+      { noteId: "d", index: 0 },
+      { noteId: "b", index: 1 },
+    ],
+    PRIMARY_PANE_ID,
+    () => true,
+  );
+  assert.deepEqual(result.panes[0]?.openNoteIds, ["a", "b", "c"]);
+  assert.equal(result.panes[0]?.activeNoteId, "b");
+  assert.equal(result.reopenedNoteId, "b");
+  assert.deepEqual(result.closedTabs, [{ noteId: "d", index: 0 }]);
+});
+
+test("reopenClosedTab skips notes that went away and empties the stack when none survive", () => {
+  const panes = [primary(["a"], "a")];
+  const stack = [
+    { noteId: "keep", index: 0 },
+    { noteId: "gone", index: 1 },
+  ];
+  const skipped = reopenClosedTab(panes, stack, PRIMARY_PANE_ID, (id) => id !== "gone");
+  assert.equal(skipped.reopenedNoteId, "keep");
+  assert.deepEqual(skipped.closedTabs, []);
+
+  const none = reopenClosedTab(panes, stack, PRIMARY_PANE_ID, () => false);
+  assert.equal(none.reopenedNoteId, null);
+  assert.deepEqual(none.closedTabs, []);
+  assert.equal(none.panes, panes);
+});
+
+test("reopenClosedTab is a no-op for an empty stack, an unknown pane, or an open note", () => {
+  const panes = [primary(["a"], "a")];
+  const empty = reopenClosedTab(panes, [], PRIMARY_PANE_ID, () => true);
+  assert.equal(empty.panes, panes);
+  assert.equal(empty.reopenedNoteId, null);
+
+  const unknown = reopenClosedTab(panes, [{ noteId: "b", index: 0 }], "nope", () => true);
+  assert.equal(unknown.reopenedNoteId, null);
+  assert.equal(unknown.closedTabs.length, 1);
+
+  const alreadyOpen = reopenClosedTab(panes, [{ noteId: "a", index: 0 }], PRIMARY_PANE_ID, () => true);
+  assert.equal(alreadyOpen.reopenedNoteId, null);
+  assert.deepEqual(alreadyOpen.closedTabs, []);
+});
+
+test("moveTabInPane shifts the active tab one slot and wraps at the ends", () => {
+  const panes = [primary(["a", "b", "c"], "b")];
+  assert.deepEqual(moveTabInPane(panes, PRIMARY_PANE_ID, -1)[0]?.openNoteIds, ["b", "a", "c"]);
+  assert.deepEqual(moveTabInPane(panes, PRIMARY_PANE_ID, 1)[0]?.openNoteIds, ["a", "c", "b"]);
+
+  const first = [primary(["a", "b", "c"], "a")];
+  assert.deepEqual(moveTabInPane(first, PRIMARY_PANE_ID, -1)[0]?.openNoteIds, ["b", "c", "a"]);
+  const last = [primary(["a", "b", "c"], "c")];
+  assert.deepEqual(moveTabInPane(last, PRIMARY_PANE_ID, 1)[0]?.openNoteIds, ["c", "a", "b"]);
+});
+
+test("moveTabInPane is a no-op for a single tab, no active tab, or an unknown pane", () => {
+  const single = [primary(["a"], "a")];
+  assert.equal(moveTabInPane(single, PRIMARY_PANE_ID, 1), single);
+  const inactive = [primary(["a", "b"], null)];
+  assert.equal(moveTabInPane(inactive, PRIMARY_PANE_ID, 1), inactive);
+  const panes = [primary(["a", "b"], "a")];
+  assert.equal(moveTabInPane(panes, "nope", 1), panes);
 });
