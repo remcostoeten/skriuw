@@ -2,6 +2,10 @@
 
 Status: not started.
 
+The untyped storage shape below is an earlier baseline. The accepted parity target in
+[`editor-parity.md`](editor-parity.md) requires the implementation revision to use
+versioned typed values and templates matching v1 before this feature starts.
+
 ## Goal
 
 Let a user attach arbitrary key/value metadata to a note — a due date, a status, a rating, a URL, whatever they define — shown in the existing metadata panel (`app/src/shell/metadata-panel.tsx`) alongside built-in fields, without the schema needing to know property names in advance.
