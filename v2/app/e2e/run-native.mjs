@@ -108,7 +108,10 @@ function makeSession(sessionId) {
 function launchDriver(workspaceDirectory) {
   const child = spawn(
     "tauri-driver",
-    ["--native-driver", "/usr/bin/WebKitWebDriver"],
+    [
+      "--native-driver",
+      process.env.WEBKIT_WEBDRIVER ?? "/usr/bin/WebKitWebDriver",
+    ],
     {
       stdio: ["ignore", "ignore", "pipe"],
       env: {

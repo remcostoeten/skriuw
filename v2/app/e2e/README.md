@@ -23,6 +23,7 @@ SQLite file directly to prove the commit is durable.
 
 ```bash
 node app/e2e/run-native.mjs [--skip-build] [--output <path>]
+# or, from app/: bun run e2e:native
 ```
 
 Without `--skip-build` the script first runs `tauri build --debug --no-bundle`
@@ -32,9 +33,10 @@ Without `--skip-build` the script first runs `tauri build --debug --no-bundle`
 ### Prerequisites
 
 - `tauri-driver` (`cargo install tauri-driver`)
-- `WebKitWebDriver` at `/usr/bin/WebKitWebDriver`. On Arch this ships in
-  `webkitgtk-6.0`; on Debian/Ubuntu in `webkit2gtk-driver`. It must come from
-  the same WebKitGTK release as the `webkit2gtk-4.1` the app links against.
+- `WebKitWebDriver` at `/usr/bin/WebKitWebDriver` (override the path with the
+  `WEBKIT_WEBDRIVER` env var). On Arch this ships in `webkitgtk-6.0`; on
+  Debian/Ubuntu in `webkit2gtk-driver`. It must come from the same WebKitGTK
+  release as the `webkit2gtk-4.1` the app links against.
 - `sqlite3` CLI for the post-run database assertion.
 - A display (X11 or Wayland). The app window opens headed; use `xvfb-run`
   when no display is available.
