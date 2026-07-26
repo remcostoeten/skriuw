@@ -4,6 +4,7 @@ import { ChevronRightIcon, HistoryIcon, InfoIcon, ListIcon } from "../shared/ico
 import { cn } from "../shared/lib/utils";
 import { projectVersionList } from "../history/version-model";
 import { VersionHistoryPanel } from "../history/version-history-panel";
+import { NotePropertiesPanel } from "../properties/note-properties-panel";
 import { NoteOutline } from "./note-outline";
 import {
   BacklinksList,
@@ -24,6 +25,7 @@ type Props = {
 type SectionKey =
   | "outline"
   | "history"
+  | "properties"
   | "details"
   | "backlinks"
   | "outgoing"
@@ -131,6 +133,12 @@ function selectActiveNoteMarkdown(state: RendererState): string | null {
     : (state.documents.get(state.activeNoteId)?.markdown ?? null);
 }
 
+function selectActiveNotePropertyCount(state: RendererState): number {
+  return state.activeNoteId === null
+    ? 0
+    : (state.propertiesByNoteId.get(state.activeNoteId)?.length ?? 0);
+}
+
 export function MetadataPanel({ store }: Props) {
   const activeNoteId = useRendererSelector(store, selectActiveNoteId);
   const metadata = useRendererSelector(store, selectActiveNoteMetadata);
@@ -142,9 +150,11 @@ export function MetadataPanel({ store }: Props) {
   const unlinkedMentions = useUnlinkedMentions(store, activeNoteId);
   const createdAt = useRendererSelector(store, selectActiveNoteCreatedAt);
   const markdown = useRendererSelector(store, selectActiveNoteMarkdown);
+  const propertyCount = useRendererSelector(store, selectActiveNotePropertyCount);
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     outline: true,
     history: true,
+    properties: true,
     details: true,
     backlinks: true,
     outgoing: true,
@@ -188,6 +198,18 @@ export function MetadataPanel({ store }: Props) {
             onToggle={() => toggleSection("outline")}
           >
             <NoteOutline key={activeNoteId} store={store} onCountChange={handleOutlineCountChange} />
+          </InspectorSection>
+        )}
+        {activeNoteId && (
+          <InspectorSection
+            id="metadata-properties"
+            title="Properties"
+            icon={<InfoIcon size={14} className="shrink-0" />}
+            count={propertyCount}
+            open={openSections.properties}
+            onToggle={() => toggleSection("properties")}
+          >
+            <NotePropertiesPanel store={store} />
           </InspectorSection>
         )}
         {versions.length > 0 && activeNoteId && (
