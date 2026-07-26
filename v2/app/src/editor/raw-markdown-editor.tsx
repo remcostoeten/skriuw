@@ -1,7 +1,9 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { commitOperations } from "../actions/workspace";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
+import { textEdgeOffset, type DocumentEdge } from "./document-edges";
+import { useDocumentEdgeShortcuts } from "./use-document-edge-shortcuts";
 import { noteImageIds } from "./image-actions";
 import {
   countRawMarkdownWords,
@@ -49,6 +51,8 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const deferredText = useDeferredValue(source.text);
   const saveTimerRef = useRef<number | null>(null);
   const lineNumberContentRef = useRef<HTMLPreElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [shortcutHost, setShortcutHost] = useState<HTMLTextAreaElement | null>(null);
   const [cursorStatus, setCursorStatus] = useState(() => rawMarkdownCursorStatus(source.text, 0, 0));
   const wordCount = useMemo(() => countRawMarkdownWords(deferredText), [deferredText]);
   const lineCount = useMemo(() => rawMarkdownLineCount(deferredText), [deferredText]);
@@ -138,6 +142,20 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     }
   }
 
+  const jumpToDocumentEdge = useCallback((edge: DocumentEdge) => {
+    const textarea = textareaRef.current;
+    if (textarea === null) {
+      return;
+    }
+    const offset = textEdgeOffset(textarea.value, edge);
+    textarea.focus();
+    textarea.setSelectionRange(offset, offset);
+    textarea.scrollTop = edge === "start" ? 0 : textarea.scrollHeight;
+    handleScroll(textarea);
+    setCursorStatus(rawMarkdownCursorStatus(textarea.value, offset, offset));
+  }, []);
+  useDocumentEdgeShortcuts(store, shortcutHost, jumpToDocumentEdge);
+
   const selectionSummary = cursorStatus.selectedCharacters > 0
     ? `${cursorStatus.selectedWords} words · ${cursorStatus.selectedCharacters} chars selected`
     : `Ln ${cursorStatus.line}, Col ${cursorStatus.column}`;
@@ -156,6 +174,10 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
           </div>
         ) : null}
         <textarea
+          ref={(node) => {
+            textareaRef.current = node;
+            setShortcutHost(node);
+          }}
           className={`raw-markdown-editor block min-h-[60vh] whitespace-pre ${showLineNumbers ? "pl-14" : ""}`}
           aria-label="Raw Markdown source"
           wrap="off"
