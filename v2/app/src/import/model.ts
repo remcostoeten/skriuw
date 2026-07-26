@@ -25,6 +25,8 @@ export type ImportedNote = {
 
 export type ImportWarning = {
   message: string;
+  path?: string;
+  severity?: "warning" | "error";
 };
 
 export type ImportBundle = {
@@ -89,4 +91,15 @@ export function detectImportSource(
     }
   }
   return best;
+}
+
+export async function importSourceKey(sourcePath: string): Promise<string> {
+  const canonical = sourcePath.replaceAll("\\", "/").replace(/\/+$/, "");
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(canonical),
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }

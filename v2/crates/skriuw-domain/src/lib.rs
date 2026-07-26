@@ -450,6 +450,18 @@ pub struct WorkspaceSnapshot {
     pub properties: Vec<NoteProperty>,
     #[serde(default)]
     pub property_templates: Vec<NotePropertyTemplate>,
+    #[serde(default)]
+    pub import_receipts: Vec<ProviderImportReceipt>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderImportReceipt {
+    pub provider: String,
+    pub source_key: String,
+    pub source_path: String,
+    pub note_id: String,
+    pub imported_at: i64,
 }
 
 impl WorkspaceSnapshot {
@@ -1253,6 +1265,9 @@ pub enum WorkspaceOperation {
     ReorderNotePropertyTemplates {
         ordered_template_ids: Vec<String>,
     },
+    RecordProviderImport {
+        receipt: ProviderImportReceipt,
+    },
 }
 
 impl WorkspaceOperation {
@@ -1389,6 +1404,13 @@ impl WorkspaceOperation {
                 ordered_template_ids,
                 MAX_NOTE_PROPERTIES,
             ),
+            Self::RecordProviderImport { receipt } => {
+                validate_bounded_text("import provider", &receipt.provider, 80)?;
+                validate_bounded_text("import source key", &receipt.source_key, 128)?;
+                validate_bounded_text("import source path", &receipt.source_path, 1_024)?;
+                validate_id("import note id", &receipt.note_id)?;
+                validate_timestamp(receipt.imported_at)
+            }
         }
     }
 }

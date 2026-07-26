@@ -1,7 +1,12 @@
-import type { NoteProperty, WorkspaceOperation } from "../contracts/workspace";
+import type {
+  NoteProperty,
+  ProviderImportReceipt,
+  WorkspaceOperation,
+} from "../contracts/workspace";
 import { hasLosslessMarkdownDocument } from "../editor/schema";
 import type {
   MarkdownImportPlan,
+  MarkdownImportReuseTarget,
   MarkdownReferenceTarget,
 } from "../export/markdown-transfer-model";
 import { planMarkdownImport } from "../export/markdown-transfer-model";
@@ -15,10 +20,30 @@ export type ImportTagTarget = {
 export type ImportBundlePlan = MarkdownImportPlan & {
   createdTags: number;
   tagSkippedNotes: number;
+  tagPropertyNotes: number;
+  skippedTags: number;
+  skippedDuplicates: number;
+};
+
+export type ImportDuplicateMode = "copy" | "skip" | "update";
+
+export type ImportPlanOptions = {
+  destinationParentId?: string | null;
+  duplicateMode?: ImportDuplicateMode;
+  sourceKey?: string;
+  receipts?: readonly ProviderImportReceipt[];
+  existingDocuments?: ReadonlyMap<string, MarkdownImportReuseTarget>;
+  existingPropertiesByNoteId?: ReadonlyMap<string, readonly NoteProperty[]>;
 };
 
 function normalizeTreePath(path: string): string {
   return path.replaceAll("\\", "/").replace(/^\/+/, "").replace(/\/+$/, "");
+}
+
+function importedTime(value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) && value >= 0
+    ? Math.trunc(value)
+    : fallback;
 }
 
 function toNoteProperty(
@@ -61,10 +86,16 @@ function buildPropertyOperations(
   noteId: string,
   at: number,
   makeId: () => string,
+  startPosition = 0,
 ): WorkspaceOperation[] {
   return properties.map((imported, position) => ({
     type: "set_note_property",
-    property: toNoteProperty(imported, noteId, position, makeId),
+    property: toNoteProperty(
+      imported,
+      noteId,
+      startPosition + position,
+      makeId,
+    ),
     at,
   }));
 }
@@ -72,7 +103,19 @@ function buildPropertyOperations(
 type TagResolution = {
   idByName: Map<string, string>;
   operations: WorkspaceOperation[];
+  skippedTags: number;
 };
+
+const MAX_IMPORTED_TAG_BYTES = 80;
+const MAX_IMPORTED_TAGS_PER_PROPERTY = 64;
+
+function validImportedTag(raw: string): string | null {
+  const name = raw.trim();
+  return name.length > 0 &&
+    new TextEncoder().encode(name).length <= MAX_IMPORTED_TAG_BYTES
+    ? name
+    : null;
+}
 
 function resolveImportedTags(
   bundle: ImportBundle,
@@ -85,10 +128,15 @@ function resolveImportedTags(
   );
   const idByName = new Map<string, string>();
   const operations: WorkspaceOperation[] = [];
+  let skippedTags = 0;
   for (const note of bundle.notes) {
     for (const raw of note.tags ?? []) {
-      const name = raw.trim();
-      if (name.length === 0 || idByName.has(name.toLowerCase())) {
+      const name = validImportedTag(raw);
+      if (!name) {
+        skippedTags += 1;
+        continue;
+      }
+      if (idByName.has(name.toLowerCase())) {
         continue;
       }
       const existingId = existingByLowerName.get(name.toLowerCase());
@@ -104,7 +152,7 @@ function resolveImportedTags(
       });
     }
   }
-  return { idByName, operations };
+  return { idByName, operations, skippedTags };
 }
 
 /**
@@ -147,6 +195,35 @@ function appendTagChips(
   };
 }
 
+function appendRawTagReferences(
+  documentJson: unknown,
+  tags: readonly string[],
+  idByName: ReadonlyMap<string, string>,
+): unknown | null {
+  const document = documentJson as { type?: unknown; content?: unknown[] };
+  if (document.type !== "doc" || !Array.isArray(document.content)) {
+    return null;
+  }
+  const chips: unknown[] = [];
+  for (const raw of tags) {
+    const name = raw.trim();
+    const id = idByName.get(name.toLowerCase());
+    if (id === undefined) {
+      continue;
+    }
+    if (chips.length > 0) {
+      chips.push({ type: "text", text: " " });
+    }
+    chips.push({ type: "tag_ref", attrs: { id, label: name } });
+  }
+  return chips.length === 0
+    ? null
+    : {
+        ...document,
+        content: [...document.content, { type: "paragraph", content: chips }],
+      };
+}
+
 /**
  * Runs the safety-aware markdown planner over an adapter bundle, then restores
  * the adapter's explicit note titles, which the planner derives from filenames,
@@ -160,11 +237,46 @@ export function planImportBundle(
   makeId: () => string,
   existingNotes: readonly MarkdownReferenceTarget[] = [],
   existingTags: readonly ImportTagTarget[] = [],
+  options: ImportPlanOptions = {},
 ): ImportBundlePlan {
+  const duplicateMode = options.duplicateMode ?? "copy";
+  const receiptByPath = new Map(
+    (options.receipts ?? [])
+      .filter(
+        (receipt) =>
+          receipt.provider === bundle.sourceId &&
+          receipt.sourceKey === options.sourceKey,
+      )
+      .map((receipt) => [normalizeTreePath(receipt.sourcePath), receipt]),
+  );
+  const skippedPaths = new Set<string>();
+  const reuseNotesByPath = new Map<string, MarkdownImportReuseTarget>();
+  for (const note of bundle.notes) {
+    const path = normalizeTreePath(note.relativePath);
+    const receipt = receiptByPath.get(path);
+    if (!receipt) {
+      continue;
+    }
+    if (duplicateMode === "skip") {
+      skippedPaths.add(path);
+    } else if (duplicateMode === "update") {
+      const existing = options.existingDocuments?.get(receipt.noteId);
+      if (existing) {
+        reuseNotesByPath.set(path, existing);
+      }
+    }
+  }
+  const includedNotes = bundle.notes.filter(
+    (note) => !skippedPaths.has(normalizeTreePath(note.relativePath)),
+  );
+  const plannedBundle = {
+    ...bundle,
+    notes: includedNotes,
+  };
   const plan = planMarkdownImport(
     {
-      directories: bundle.directories,
-      files: bundle.notes.map((note) => ({
+      directories: plannedBundle.directories,
+      files: plannedBundle.notes.map((note) => ({
         relativePath: note.relativePath,
         content: note.markdown,
       })),
@@ -173,14 +285,21 @@ export function planImportBundle(
     at,
     makeId,
     existingNotes,
+    {
+      destinationParentId: options.destinationParentId,
+      reuseNotesByPath,
+    },
   );
   const noteByPath = new Map(
-    bundle.notes.map((note) => [normalizeTreePath(note.relativePath), note]),
+    plannedBundle.notes.map((note) => [
+      normalizeTreePath(note.relativePath),
+      note,
+    ]),
   );
   const idToPath = new Map(plan.notes.map((note) => [note.id, note.relativePath]));
   const propertyOperations: WorkspaceOperation[] = [];
   for (const operation of plan.operations) {
-    if (operation.type !== "create_note") {
+    if (operation.type !== "create_note" && operation.type !== "rename_node") {
       continue;
     }
     const path = idToPath.get(operation.id);
@@ -189,27 +308,90 @@ export function planImportBundle(
       continue;
     }
     operation.title = note.title;
+    operation.at = importedTime(note.createdAt, at);
     if (note.properties && note.properties.length > 0) {
+      if (operation.type === "rename_node") {
+        const importedNames = new Set(
+          note.properties.map((property) => property.name.trim().toLowerCase()),
+        );
+        propertyOperations.push(
+          ...(options.existingPropertiesByNoteId?.get(operation.id) ?? [])
+            .filter((property) =>
+              importedNames.has(property.name.trim().toLowerCase()),
+            )
+            .map(
+              (property): WorkspaceOperation => ({
+                type: "remove_note_property",
+                noteId: operation.id,
+                propertyId: property.id,
+                at,
+              }),
+            ),
+        );
+      }
       propertyOperations.push(
         ...buildPropertyOperations(note.properties, operation.id, at, makeId),
       );
     }
   }
-  plan.operations.push(...propertyOperations);
-  const tags = resolveImportedTags(bundle, existingTags, at, makeId);
+  const tags = resolveImportedTags(
+    plannedBundle,
+    existingTags,
+    at,
+    makeId,
+  );
   plan.operations.push(...tags.operations);
   let tagSkippedNotes = 0;
+  let tagPropertyNotes = 0;
+  let skippedTags = tags.skippedTags;
   for (const operation of plan.contentOperations) {
     if (operation.type !== "save_document") {
       continue;
     }
     const path = idToPath.get(operation.noteId);
     const note = path === undefined ? undefined : noteByPath.get(path);
+    if (note) {
+      operation.at = importedTime(
+        note.modifiedAt,
+        importedTime(note.createdAt, at),
+      );
+    }
     if (!note?.tags || note.tags.length === 0) {
       continue;
     }
     if (hasLosslessMarkdownDocument(operation.documentJson)) {
-      tagSkippedNotes += 1;
+      const valid = note.tags.map(validImportedTag);
+      const unique = [
+        ...new Set(valid.filter((tag) => tag !== null)),
+      ];
+      skippedTags += valid.filter((tag) => tag === null).length;
+      skippedTags += Math.max(
+        0,
+        unique.length - MAX_IMPORTED_TAGS_PER_PROPERTY,
+      );
+      const values = unique.slice(0, MAX_IMPORTED_TAGS_PER_PROPERTY);
+      if (values.length > 0) {
+        const references = appendRawTagReferences(
+          operation.documentJson,
+          values,
+          tags.idByName,
+        );
+        if (references) {
+          operation.documentJson = references;
+        }
+        propertyOperations.push(
+          ...buildPropertyOperations(
+            [{ name: "Tags", value: { type: "list", values } }],
+            operation.noteId,
+            at,
+            makeId,
+            note.properties?.length ?? 0,
+          ),
+        );
+        tagPropertyNotes += 1;
+      } else {
+        tagSkippedNotes += 1;
+      }
       continue;
     }
     const appended = appendTagChips(
@@ -223,5 +405,29 @@ export function planImportBundle(
       operation.markdown = appended.markdown;
     }
   }
-  return { ...plan, createdTags: tags.operations.length, tagSkippedNotes };
+  plan.operations.push(...propertyOperations);
+  if (options.sourceKey) {
+    plan.operations.push(
+      ...plan.notes.map(
+        (note): WorkspaceOperation => ({
+          type: "record_provider_import",
+          receipt: {
+            provider: bundle.sourceId,
+            sourceKey: options.sourceKey ?? "",
+            sourcePath: note.relativePath,
+            noteId: note.id,
+            importedAt: at,
+          },
+        }),
+      ),
+    );
+  }
+  return {
+    ...plan,
+    createdTags: tags.operations.length,
+    tagSkippedNotes,
+    tagPropertyNotes,
+    skippedTags,
+    skippedDuplicates: skippedPaths.size,
+  };
 }
