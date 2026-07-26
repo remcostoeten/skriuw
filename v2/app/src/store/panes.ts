@@ -295,6 +295,129 @@ export function activateTabInPane(
   );
 }
 
+export type ClosedTab = { noteId: string; index: number };
+
+export type ClosedTabStacks = ReadonlyMap<string, readonly ClosedTab[]>;
+
+/** How many closed tabs a pane remembers; older entries fall off the bottom. */
+export const CLOSED_TAB_LIMIT = 10;
+
+/** Pushes a closed tab onto `paneId`'s stack, trimming it to the limit. */
+export function recordClosedTab(
+  stacks: ClosedTabStacks,
+  paneId: string,
+  closed: ClosedTab,
+): ClosedTabStacks {
+  const existing = stacks.get(paneId) ?? [];
+  const next = [...existing.filter((entry) => entry.noteId !== closed.noteId), closed];
+  return withClosedTabs(stacks, paneId, next.slice(-CLOSED_TAB_LIMIT));
+}
+
+/** Replaces `paneId`'s stack, dropping the key entirely when it empties. */
+export function withClosedTabs(
+  stacks: ClosedTabStacks,
+  paneId: string,
+  closedTabs: readonly ClosedTab[],
+): ClosedTabStacks {
+  const next = new Map(stacks);
+  if (closedTabs.length === 0) {
+    next.delete(paneId);
+  } else {
+    next.set(paneId, closedTabs);
+  }
+  return next;
+}
+
+/** Forgets a pane's stack, e.g. when the split that owned it closes. */
+export function discardClosedTabs(
+  stacks: ClosedTabStacks,
+  paneId: string,
+): ClosedTabStacks {
+  if (!stacks.has(paneId)) {
+    return stacks;
+  }
+  const next = new Map(stacks);
+  next.delete(paneId);
+  return next;
+}
+
+export type ReopenClosedTabResult = {
+  panes: readonly PaneState[];
+  closedTabs: readonly ClosedTab[];
+  reopenedNoteId: string | null;
+};
+
+/**
+ * Reopens the most recently closed tab of `paneId` at the slot it was closed
+ * from and makes it that pane's active tab. Entries whose note is gone — trashed
+ * or purged since the tab closed — are dropped and the next entry is tried.
+ * Returns the input references when nothing was consumed.
+ */
+export function reopenClosedTab(
+  panes: readonly PaneState[],
+  closedTabs: readonly ClosedTab[],
+  paneId: string,
+  isOpenable: (noteId: string) => boolean,
+): ReopenClosedTabResult {
+  const pane = panes.find((entry) => entry.paneId === paneId);
+  const unchanged = { panes, closedTabs, reopenedNoteId: null };
+  if (!pane) {
+    return unchanged;
+  }
+  for (let cursor = closedTabs.length - 1; cursor >= 0; cursor -= 1) {
+    const closed = closedTabs[cursor];
+    if (closed === undefined) {
+      continue;
+    }
+    if (!isOpenable(closed.noteId) || pane.openNoteIds.includes(closed.noteId)) {
+      continue;
+    }
+    const remaining = closedTabs.slice(0, cursor);
+    const slot = Math.min(Math.max(closed.index, 0), pane.openNoteIds.length);
+    const openNoteIds = [
+      ...pane.openNoteIds.slice(0, slot),
+      closed.noteId,
+      ...pane.openNoteIds.slice(slot),
+    ];
+    return {
+      panes: panes.map((entry) =>
+        entry.paneId === paneId
+          ? { ...entry, openNoteIds, activeNoteId: closed.noteId }
+          : entry,
+      ),
+      closedTabs: remaining,
+      reopenedNoteId: closed.noteId,
+    };
+  }
+  return closedTabs.length === 0
+    ? unchanged
+    : { panes, closedTabs: [], reopenedNoteId: null };
+}
+
+/**
+ * Moves `paneId`'s active tab one slot in `direction`, wrapping at the ends.
+ * Returns the input reference when the strip holds fewer than two tabs.
+ */
+export function moveTabInPane(
+  panes: readonly PaneState[],
+  paneId: string,
+  direction: -1 | 1,
+): readonly PaneState[] {
+  const pane = panes.find((entry) => entry.paneId === paneId);
+  if (!pane || pane.openNoteIds.length < 2 || pane.activeNoteId === null) {
+    return panes;
+  }
+  const from = pane.openNoteIds.indexOf(pane.activeNoteId);
+  if (from < 0) {
+    return panes;
+  }
+  const count = pane.openNoteIds.length;
+  const to = (from + direction + count) % count;
+  const rest = pane.openNoteIds.filter((id) => id !== pane.activeNoteId);
+  const openNoteIds = [...rest.slice(0, to), pane.activeNoteId, ...rest.slice(to)];
+  return panes.map((entry) => (entry.paneId === paneId ? { ...entry, openNoteIds } : entry));
+}
+
 export function openBeside(
   panes: readonly PaneState[],
   noteId: string,

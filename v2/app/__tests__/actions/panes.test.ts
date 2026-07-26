@@ -12,8 +12,10 @@ import {
   closeTabsToSide,
   cycleTab,
   focusPane,
+  moveActiveTab,
   openBeside,
   openNoteInTab,
+  reopenClosedTab,
   togglePinTab,
 } from "../../src/actions/panes";
 import { createInitialState, createRendererStore } from "../../src/store/store";
@@ -260,4 +262,83 @@ test("tab access by index reads the focused pane's strip", () => {
   focusPane(rendererStore, PRIMARY_PANE_ID);
   activateTabAtIndex(rendererStore, 1);
   assert.equal(rendererStore.getState().activeNoteId, "a");
+});
+
+test("closing a tab records it and mod+shift+w reopens it at its old position", () => {
+  const rendererStore = tabbedStore();
+  openNoteInTab(rendererStore, "b");
+  openNoteInTab(rendererStore, "c");
+  closeTab(rendererStore, "b");
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "c"]);
+  assert.deepEqual(
+    rendererStore.getState().closedTabsByPaneId.get(PRIMARY_PANE_ID),
+    [{ noteId: "b", index: 1 }],
+  );
+
+  reopenClosedTab(rendererStore);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "b", "c"]);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+  assert.equal(rendererStore.getState().closedTabsByPaneId.size, 0);
+});
+
+test("reopening skips a note trashed since it was closed", () => {
+  const rendererStore = tabbedStore();
+  openNoteInTab(rendererStore, "b");
+  openNoteInTab(rendererStore, "c");
+  closeTab(rendererStore, "b");
+  closeTab(rendererStore, "c");
+  rendererStore.applyOperations([{ type: "trash_subtree", rootId: "c", at: 2 }]);
+  reopenClosedTab(rendererStore);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "b"]);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+});
+
+test("reopening is a silent no-op with an empty stack and with tabs off", () => {
+  const tabbed = tabbedStore();
+  const before = tabbed.getState();
+  reopenClosedTab(tabbed);
+  assert.equal(tabbed.getState(), before);
+
+  const untabbed = store();
+  openNoteInTab(untabbed, "b");
+  closeTab(untabbed, "b");
+  const untabbedBefore = untabbed.getState();
+  reopenClosedTab(untabbed);
+  assert.equal(untabbed.getState(), untabbedBefore);
+});
+
+test("closing the split forgets that pane's reopen stack", () => {
+  const rendererStore = tabbedStore();
+  openBeside(rendererStore, "b");
+  rendererStore.update((current) => ({
+    ...current,
+    closedTabsByPaneId: new Map([[SECONDARY_PANE_ID, [{ noteId: "c", index: 0 }]]]),
+  }));
+  closeSplit(rendererStore);
+  assert.equal(rendererStore.getState().closedTabsByPaneId.has(SECONDARY_PANE_ID), false);
+});
+
+test("moving the active tab wraps at the ends and needs more than one tab", () => {
+  const rendererStore = tabbedStore();
+  openNoteInTab(rendererStore, "b");
+  openNoteInTab(rendererStore, "c");
+  moveActiveTab(rendererStore, -1);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "c", "b"]);
+  moveActiveTab(rendererStore, 1);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "b", "c"]);
+  moveActiveTab(rendererStore, 1);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["c", "a", "b"]);
+
+  const single = tabbedStore();
+  const before = single.getState();
+  moveActiveTab(single, 1);
+  assert.equal(single.getState(), before);
+});
+
+test("moving a tab is a no-op with the tabbed workspace off", () => {
+  const rendererStore = store();
+  openNoteInTab(rendererStore, "b");
+  const before = rendererStore.getState();
+  moveActiveTab(rendererStore, 1);
+  assert.equal(rendererStore.getState(), before);
 });
