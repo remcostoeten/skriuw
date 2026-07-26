@@ -1,10 +1,24 @@
 import type { MarkdownTree } from "../export/markdown-transfer-model";
 
+export type ImportedPropertyValue =
+  | { type: "text"; value: string }
+  | { type: "number"; value: number }
+  | { type: "date"; value: string }
+  | { type: "url"; value: string }
+  | { type: "checkbox"; value: boolean }
+  | { type: "list"; values: string[] };
+
+export type ImportedNoteProperty = {
+  name: string;
+  value: ImportedPropertyValue;
+};
+
 export type ImportedNote = {
   relativePath: string;
   title: string;
   markdown: string;
   tags?: string[];
+  properties?: ImportedNoteProperty[];
   createdAt?: number;
   modifiedAt?: number;
 };
