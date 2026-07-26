@@ -16,6 +16,7 @@ export type ImportPreviewSelection = {
   sourceId: string;
   destinationFolderId: string | null;
   duplicateMode: ImportDuplicateMode;
+  recordSource: boolean;
 };
 
 type PendingPreview = ImportPreviewRequest & {

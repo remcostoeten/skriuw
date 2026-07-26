@@ -354,7 +354,6 @@
 
 .prosemirror-host .ProseMirror pre.code-block {
   position: relative;
-  padding-top: 32px;
 }
 
 .prosemirror-host .ProseMirror .code-block-toolbar {
@@ -364,7 +363,20 @@
   z-index: 1;
   display: flex;
   gap: 2px;
+  padding: 1px;
+  border-radius: calc(var(--radius) - 1px);
+  background: hsl(var(--card) / 0.92);
   user-select: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.prosemirror-host .ProseMirror pre.code-block:hover .code-block-toolbar,
+.prosemirror-host .ProseMirror .code-block-toolbar:focus-within,
+.prosemirror-host .ProseMirror .code-block-toolbar[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .prosemirror-host .ProseMirror[contenteditable="false"] .code-block-toolbar {

@@ -14,3 +14,7 @@ commit and exercise the same parser paths as local exports.
 
 Binary archive wrapping is tested separately by native ZIP and `.bear2bk`
 intake tests.
+
+For richer, ready-to-import samples per provider - including the packaged
+`notion-export.zip` and `Bear Backup.bear2bk` archives for manual testing -
+see [`../import-samples/`](../import-samples/README.md).

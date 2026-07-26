@@ -11,6 +11,7 @@ export type ImportPreviewCandidate = {
   localImageCount: number;
   createdTagCount: number;
   propertyCount: number;
+  sourcePropertyNoteCount: number;
   warningLines: string[];
 };
 
@@ -88,6 +89,7 @@ export function buildImportPreviewCandidate(
     localImageCount: readableLocalImageCount ?? localImageCount,
     createdTagCount: plan.createdTags,
     propertyCount,
+    sourcePropertyNoteCount: plan.sourcePropertyNotes,
     warningLines,
   };
 }

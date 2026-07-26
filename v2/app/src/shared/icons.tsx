@@ -4,7 +4,7 @@ type IconProps = SVGProps<SVGSVGElement> & {
   size?: number;
 };
 
-const ICON_STROKE_PX = 1;
+const ICON_STROKE_PX = 0.8;
 const ICON_VIEWBOX = 24;
 
 /**
@@ -771,6 +771,100 @@ export function ExternalLinkIcon(props: IconProps) {
       <path d="M15 3h6v6" />
       <path d="M10 14 21 3" />
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    </LucideIcon>
+  );
+}
+
+export function PlusIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M5 12h14" />
+      <path d="M12 5v14" />
+    </LucideIcon>
+  );
+}
+
+export function HashIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <line x1="4" x2="20" y1="9" y2="9" />
+      <line x1="4" x2="20" y1="15" y2="15" />
+      <line x1="10" x2="8" y1="3" y2="21" />
+      <line x1="16" x2="14" y1="3" y2="21" />
+    </LucideIcon>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M8 2v4" />
+      <path d="M16 2v4" />
+      <rect width="18" height="18" x="3" y="4" rx="2" />
+      <path d="M3 10h18" />
+    </LucideIcon>
+  );
+}
+
+export function UserIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </LucideIcon>
+  );
+}
+
+export function SquareCheckIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="m9 12 2 2 4-4" />
+    </LucideIcon>
+  );
+}
+
+export function StarIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
+    </LucideIcon>
+  );
+}
+
+export function MapPinIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+      <circle cx="12" cy="10" r="3" />
+    </LucideIcon>
+  );
+}
+
+export function MailIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <rect width="20" height="16" x="2" y="4" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </LucideIcon>
+  );
+}
+
+export function PhoneIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </LucideIcon>
+  );
+}
+
+export function LayoutDashboardIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <rect width="7" height="9" x="3" y="3" rx="1" />
+      <rect width="7" height="5" x="14" y="3" rx="1" />
+      <rect width="7" height="9" x="14" y="12" rx="1" />
+      <rect width="7" height="5" x="3" y="16" rx="1" />
     </LucideIcon>
   );
 }

@@ -24,8 +24,9 @@ update their content and imported properties, or create copies.
 
 Choose the vault folder. Skriuw ignores `.obsidian`, preserves the folder tree,
 maps supported frontmatter, resolves unambiguous image embeds, and imports
-wikilinks when their target title is unique. Complex frontmatter remains exact
-raw Markdown.
+wikilinks when their target title is unique. Alias (`[[target|label]]`) and
+heading (`[[target#heading]]`) wikilinks stay as source text. Complex
+frontmatter remains exact raw Markdown.
 
 ### Notion
 
