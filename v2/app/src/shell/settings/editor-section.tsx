@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { updateSetting } from "../../actions/settings";
 import {
   EDITOR_FONT_OPTIONS,
@@ -7,6 +8,7 @@ import {
 import type { SettingsViewModel } from "../../settings/settings-model";
 import { cn } from "../../shared/lib/utils";
 import {
+  SettingCardPicker,
   SettingToggle,
   SettingsHeading,
   settingsGroup,
@@ -16,11 +18,55 @@ import {
   settingsRowDescription,
   settingsRowLabel,
   settingsSection,
-  settingsSelect,
   settingsTextInput,
   useEditableSettings,
 } from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
+
+const FONT_PREVIEW_STYLES: Record<string, CSSProperties> = {
+  inter: {},
+  serif: { fontFamily: 'Georgia, "Times New Roman", serif' },
+  mono: { fontFamily: "var(--font-mono)" },
+};
+
+const LINE_HEIGHT_PREVIEW_GAPS: Record<string, number> = {
+  cozy: 3,
+  comfortable: 5,
+  relaxed: 8,
+};
+
+const FONT_PICKER_OPTIONS = EDITOR_FONT_OPTIONS.map((option) => ({
+  ...option,
+  preview: (
+    <span
+      className="text-xl leading-none text-foreground/80"
+      style={FONT_PREVIEW_STYLES[option.value]}
+      aria-hidden="true"
+    >
+      Ag
+    </span>
+  ),
+}));
+
+const LINE_HEIGHT_PICKER_OPTIONS = EDITOR_LINE_HEIGHT_OPTIONS.map((option) => ({
+  ...option,
+  preview: <LineSpacingPreview gap={LINE_HEIGHT_PREVIEW_GAPS[option.value] ?? 5} />,
+}));
+
+function LineSpacingPreview({ gap }: { gap: number }) {
+  return (
+    <span
+      className="flex w-full flex-col justify-center px-5"
+      style={{ gap }}
+      aria-hidden="true"
+    >
+      <span className="h-[3px] w-full rounded-full bg-foreground/25" />
+      <span className="h-[3px] w-4/5 rounded-full bg-foreground/25" />
+      <span className="h-[3px] w-[90%] rounded-full bg-foreground/25" />
+      <span className="h-[3px] w-3/5 rounded-full bg-foreground/25" />
+    </span>
+  );
+}
 
 export function EditorSection({ store }: SectionProps) {
   const { settings, change } = useEditableSettings(store);
@@ -33,36 +79,20 @@ export function EditorSection({ store }: SectionProps) {
       />
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Typography</div>
-        <label className={settingsRow} htmlFor="settings-editor-font">
-          <span className={settingsRowLabel}>Editor font</span>
-          <select
-            id="settings-editor-font"
-            className={settingsSelect}
-            value={settings.editorFont}
-            onChange={(event) => change("editorFont", event.currentTarget.value)}
-          >
-            {EDITOR_FONT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={settingsRow} htmlFor="settings-line-height">
-          <span className={settingsRowLabel}>Line spacing</span>
-          <select
-            id="settings-line-height"
-            className={settingsSelect}
-            value={settings.editorLineHeight}
-            onChange={(event) => change("editorLineHeight", event.currentTarget.value)}
-          >
-            {EDITOR_LINE_HEIGHT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SettingCardPicker
+          label="Editor font"
+          detail="Used for note content in the rendered editor."
+          value={settings.editorFont}
+          options={FONT_PICKER_OPTIONS}
+          onChange={(value) => change("editorFont", value)}
+        />
+        <SettingCardPicker
+          label="Line spacing"
+          detail="How much room each line of text gets."
+          value={settings.editorLineHeight}
+          options={LINE_HEIGHT_PICKER_OPTIONS}
+          onChange={(value) => change("editorLineHeight", value)}
+        />
       </div>
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Writing</div>
