@@ -41,6 +41,20 @@
         "$ref": "#/$defs/WorkspacePerson"
       }
     },
+    "properties": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/NoteProperty"
+      }
+    },
+    "propertyTemplates": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/NotePropertyTemplate"
+      }
+    },
     "protocolVersion": {
       "type": "integer",
       "format": "uint16",
@@ -119,6 +133,131 @@
         "folder"
       ]
     },
+    "NoteProperty": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/NotePropertyOption"
+          }
+        },
+        "position": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "$ref": "#/$defs/VersionedNotePropertyValue"
+        }
+      },
+      "required": [
+        "noteId",
+        "id",
+        "name",
+        "value",
+        "position"
+      ]
+    },
+    "NotePropertyColor": {
+      "type": "string",
+      "enum": [
+        "gray",
+        "stone",
+        "amber",
+        "green",
+        "blue",
+        "teal",
+        "rose",
+        "red"
+      ]
+    },
+    "NotePropertyField": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/NotePropertyOption"
+          }
+        },
+        "position": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "$ref": "#/$defs/VersionedNotePropertyValue"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "value",
+        "position"
+      ]
+    },
+    "NotePropertyOption": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/NotePropertyColor"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "color"
+      ]
+    },
+    "NotePropertyTemplate": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NotePropertyField"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "position",
+        "properties"
+      ]
+    },
     "NoteReferences": {
       "type": "object",
       "properties": {
@@ -143,6 +282,233 @@
         "tag",
         "person",
         "note"
+      ]
+    },
+    "VersionedNotePropertyValue": {
+      "type": "object",
+      "properties": {
+        "valueVersion": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        }
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "text"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "number"
+            },
+            "value": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "date"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "select"
+            },
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "multi-select"
+            },
+            "value": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "person"
+            },
+            "value": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "url"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "checkbox"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "rating"
+            },
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "location"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "email"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "phone"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        }
+      ],
+      "required": [
+        "valueVersion"
       ]
     },
     "WorkspaceDocument": {

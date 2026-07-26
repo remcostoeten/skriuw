@@ -54,6 +54,59 @@ export type WorkspaceImage = {
   createdAt: number;
 };
 
+export type NotePropertyColor =
+  | "gray"
+  | "stone"
+  | "amber"
+  | "green"
+  | "blue"
+  | "teal"
+  | "rose"
+  | "red";
+
+export type NotePropertyOption = {
+  id: string;
+  label: string;
+  color: NotePropertyColor;
+};
+
+type VersionedPropertyValue = { valueVersion: 1 };
+
+export type NotePropertyValue = VersionedPropertyValue &
+  (
+    | { type: "text"; value: string }
+    | { type: "number"; value: number | null }
+    | { type: "date"; value: string }
+    | { type: "select"; value: string | null }
+    | { type: "multi-select"; value: string[] }
+    | { type: "person"; value: string[] }
+    | { type: "url"; value: string }
+    | { type: "checkbox"; value: boolean }
+    | { type: "rating"; value: number | null }
+    | { type: "location"; value: string }
+    | { type: "email"; value: string }
+    | { type: "phone"; value: string }
+  );
+
+export type NotePropertyField = {
+  id: string;
+  name: string;
+  value: NotePropertyValue;
+  options: NotePropertyOption[];
+  position: number;
+};
+
+export type NoteProperty = NotePropertyField & {
+  noteId: string;
+};
+
+export type NotePropertyTemplate = {
+  id: string;
+  name: string;
+  position: number;
+  properties: NotePropertyField[];
+};
+
 export type WorkspaceSnapshot = {
   protocolVersion: number;
   activeNoteId: string | null;
@@ -81,6 +134,8 @@ export type WorkspaceSnapshot = {
   }[];
   references: { noteId: string; targets: { kind: "tag" | "person" | "note"; targetId: string }[] }[];
   images?: WorkspaceImage[];
+  properties?: NoteProperty[];
+  propertyTemplates?: NotePropertyTemplate[];
 };
 
 export type NodePosition =
@@ -163,7 +218,18 @@ export type WorkspaceOperation =
   | { type: "purge_subtree"; rootId: string; trashedBefore: number }
   | { type: "set_active_note"; noteId: string | null }
   | { type: "update_settings"; settings: WorkspaceSettings }
-  | { type: "attach_image"; image: WorkspaceImage };
+  | { type: "attach_image"; image: WorkspaceImage }
+  | { type: "set_note_property"; property: NoteProperty; at: number }
+  | { type: "remove_note_property"; noteId: string; propertyId: string; at: number }
+  | {
+      type: "reorder_note_properties";
+      noteId: string;
+      orderedPropertyIds: string[];
+      at: number;
+    }
+  | { type: "set_note_property_template"; template: NotePropertyTemplate }
+  | { type: "delete_note_property_template"; templateId: string }
+  | { type: "reorder_note_property_templates"; orderedTemplateIds: string[] };
 
 export type WorkspaceOperationEnvelope = {
   protocolVersion: number;

@@ -1,5 +1,5 @@
 {
-  "supportedArchiveVersions": [1, 2],
+  "supportedArchiveVersions": [1, 2, 3],
   "fixtures": [
     {
       "archiveVersion": 1,
@@ -12,6 +12,10 @@
     {
       "archiveVersion": 2,
       "file": "v2/pinned.json"
+    },
+    {
+      "archiveVersion": 3,
+      "file": "v3/typed-properties.json"
     }
   ]
 }
