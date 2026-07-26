@@ -19,7 +19,10 @@ import {
   trashCurrentNote,
 } from "../actions/workspace";
 import type { AppRoute } from "../app-route";
-import { openEditorSearch } from "../editor/search-controller";
+import {
+  openEditorSearch,
+  openEditorSearchAndReplace,
+} from "../editor/search-controller";
 import {
   exportNoteAsMarkdown,
   exportWorkspaceAsMarkdown,
@@ -46,6 +49,7 @@ import {
   PanelRightToggleIcon,
   PencilIcon,
   PinIcon,
+  ReplaceIcon,
   RotateCcwIcon,
   SearchIcon,
   SettingsIcon,
@@ -402,6 +406,16 @@ export function createWorkspaceCommands(
       shortcut: "findInNote",
       enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
       run: openEditorSearch,
+    },
+    {
+      id: "find-and-replace-in-note",
+      label: "Find and replace in note",
+      group: "Editor",
+      keywords: ["search", "replace", "substitute", "find"],
+      icon: <ReplaceIcon size={15} />,
+      shortcut: "findAndReplaceInNote",
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
+      run: openEditorSearchAndReplace,
     },
     {
       id: "previous-note",
