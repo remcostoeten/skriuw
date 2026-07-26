@@ -4,8 +4,8 @@ import {
   importMarkdownImage,
   cleanupImportSource,
   pickDirectory,
-  pickImportFile,
-  prepareImportSource,
+  pickImportFiles,
+  prepareImportSources,
   type StoredImagePayload,
 } from "../bridge/commands";
 import { productSchema, serializeProductMarkdown } from "../editor/schema";
@@ -254,8 +254,12 @@ async function importPlannedImages(
 
 async function importNotesFromPath(
   store: RendererStore,
-  sourcePath: string,
+  sourcePaths: string[],
 ): Promise<void> {
+  const sourcePath =
+    sourcePaths.length === 1 && sourcePaths[0]
+      ? sourcePaths[0]
+      : count(sourcePaths.length, "selected file");
   const intake = beginImportProgress({
     phase: "reading",
     completed: 0,
@@ -263,9 +267,9 @@ async function importNotesFromPath(
     cancellable: true,
   });
   let finishCommitProgress = noop;
-  let prepared: Awaited<ReturnType<typeof prepareImportSource>> | null = null;
+  let prepared: Awaited<ReturnType<typeof prepareImportSources>> | null = null;
   try {
-    prepared = await prepareImportSource(sourcePath);
+    prepared = await prepareImportSources(sourcePaths);
     throwIfImportCancelled(intake.signal);
     const tree = prepared.tree;
     const detectedSource = detectImportSource(importSources, tree);
@@ -278,7 +282,7 @@ async function importNotesFromPath(
     }
     const at = Date.now();
     const state = store.getState();
-    const sourceKey = await importSourceKey(sourcePath);
+    const sourceKey = await importSourceKey(sourcePaths.join("\n"));
     const existingNotes = [...state.nodes.values()]
       .filter((node) => node.kind === "note")
       .map((node) => ({ id: node.id, title: node.title }));
@@ -468,6 +472,7 @@ async function importNotesFromPath(
     throwIfImportCancelled(commitProgress.signal);
     const operations = [
       ...plan.operations,
+      ...(selection.recordSource ? plan.sourcePropertyOperations : []),
       ...images.attachOperations,
       ...plan.contentOperations,
     ];
@@ -499,6 +504,11 @@ async function importNotesFromPath(
           ? [`Preserved ${count(plan.preservedSources, "note with unsupported Markdown")} in raw mode`]
           : []),
         ...(plan.createdTags > 0 ? [`Created ${count(plan.createdTags, "tag")}`] : []),
+        ...(selection.recordSource && plan.sourcePropertyNotes > 0
+          ? [
+              `Recorded the import source on ${count(plan.sourcePropertyNotes, "new note")}`,
+            ]
+          : []),
         ...(plan.tagSkippedNotes > 0
           ? [
               `Skipped tags on ${count(plan.tagSkippedNotes, "raw-preserved note")}`,
@@ -532,7 +542,7 @@ export async function importMarkdownIntoWorkspace(store: RendererStore): Promise
   try {
     const sourceDir = await pickDirectory("Import notes from folder");
     if (sourceDir) {
-      await importNotesFromPath(store, sourceDir);
+      await importNotesFromPath(store, [sourceDir]);
     }
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
@@ -547,9 +557,9 @@ export async function importProviderExportIntoWorkspace(
   store: RendererStore,
 ): Promise<void> {
   try {
-    const sourceFile = await pickImportFile("Import notes from file or archive");
-    if (sourceFile) {
-      await importNotesFromPath(store, sourceFile);
+    const sourceFiles = await pickImportFiles("Import notes from files or archive");
+    if (sourceFiles.length > 0) {
+      await importNotesFromPath(store, sourceFiles);
     }
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {

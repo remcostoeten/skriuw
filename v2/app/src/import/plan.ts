@@ -10,7 +10,11 @@ import type {
   MarkdownReferenceTarget,
 } from "../export/markdown-transfer-model";
 import { planMarkdownImport } from "../export/markdown-transfer-model";
-import type { ImportBundle, ImportedNoteProperty } from "./model";
+import type {
+  ImportBundle,
+  ImportedNote,
+  ImportedNoteProperty,
+} from "./model";
 
 export type ImportTagTarget = {
   id: string;
@@ -23,6 +27,8 @@ export type ImportBundlePlan = MarkdownImportPlan & {
   tagPropertyNotes: number;
   skippedTags: number;
   skippedDuplicates: number;
+  sourcePropertyNotes: number;
+  sourcePropertyOperations: WorkspaceOperation[];
 };
 
 export type ImportDuplicateMode = "copy" | "skip" | "update";
@@ -98,6 +104,40 @@ function buildPropertyOperations(
     ),
     at,
   }));
+}
+
+const SOURCE_PROPERTY_NAME = "Source";
+const IMPORTED_PROPERTY_NAME = "Imported";
+
+function localIsoDate(at: number): string {
+  const date = new Date(at);
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * Provenance properties stamped on newly created notes, skipped whenever the
+ * imported file already carries a property of the same name.
+ */
+function importSourceProperties(
+  sourceLabel: string,
+  at: number,
+  note: ImportedNote,
+): ImportedNoteProperty[] {
+  const taken = new Set(
+    (note.properties ?? []).map((property) => property.name.trim().toLowerCase()),
+  );
+  return [
+    {
+      name: SOURCE_PROPERTY_NAME,
+      value: { type: "text" as const, value: sourceLabel },
+    },
+    {
+      name: IMPORTED_PROPERTY_NAME,
+      value: { type: "date" as const, value: localIsoDate(at) },
+    },
+  ].filter((property) => !taken.has(property.name.toLowerCase()));
 }
 
 type TagResolution = {
@@ -230,6 +270,10 @@ function appendRawTagReferences(
  * appends `set_note_property` operations for adapter-supplied properties, and
  * turns adapter-supplied tags into `create_tag` operations plus a trailing
  * paragraph of tag chips on each tagged note.
+ *
+ * Provenance properties are returned separately as `sourcePropertyOperations`
+ * so the preview can offer them as a choice without replanning; they are not
+ * part of `operations`.
  */
 export function planImportBundle(
   bundle: ImportBundle,
@@ -298,6 +342,8 @@ export function planImportBundle(
   );
   const idToPath = new Map(plan.notes.map((note) => [note.id, note.relativePath]));
   const propertyOperations: WorkspaceOperation[] = [];
+  const sourcePropertyOperations: WorkspaceOperation[] = [];
+  let sourcePropertyNotes = 0;
   for (const operation of plan.operations) {
     if (operation.type !== "create_note" && operation.type !== "rename_node") {
       continue;
@@ -332,6 +378,21 @@ export function planImportBundle(
       propertyOperations.push(
         ...buildPropertyOperations(note.properties, operation.id, at, makeId),
       );
+    }
+    if (operation.type === "create_note") {
+      const sourceProperties = importSourceProperties(bundle.sourceLabel, at, note);
+      if (sourceProperties.length > 0) {
+        sourcePropertyOperations.push(
+          ...buildPropertyOperations(
+            sourceProperties,
+            operation.id,
+            at,
+            makeId,
+            (note.properties?.length ?? 0) + 1,
+          ),
+        );
+        sourcePropertyNotes += 1;
+      }
     }
   }
   const tags = resolveImportedTags(
@@ -429,5 +490,7 @@ export function planImportBundle(
     tagPropertyNotes,
     skippedTags,
     skippedDuplicates: skippedPaths.size,
+    sourcePropertyNotes,
+    sourcePropertyOperations,
   };
 }

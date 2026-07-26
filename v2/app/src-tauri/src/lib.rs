@@ -694,6 +694,64 @@ fn prepare_import_source_path(source: &Path) -> Result<PreparedImportSource, Str
     result
 }
 
+fn unique_import_file_name(taken: &mut BTreeSet<String>, name: &str) -> String {
+    let (stem, extension) = match name.rsplit_once('.') {
+        Some((stem, extension)) if !stem.is_empty() => (stem, format!(".{extension}")),
+        _ => (name, String::new()),
+    };
+    let mut candidate = name.to_string();
+    let mut suffix = 2;
+    while !taken.insert(candidate.to_lowercase()) {
+        candidate = format!("{stem} ({suffix}){extension}");
+        suffix += 1;
+    }
+    candidate
+}
+
+fn prepare_import_source_paths(sources: &[PathBuf]) -> Result<PreparedImportSource, String> {
+    match sources {
+        [] => Err("no import source selected".to_string()),
+        [single] => prepare_import_source_path(single),
+        many => {
+            let temporary = create_import_temp_dir()?;
+            let result = (|| {
+                let mut taken = BTreeSet::new();
+                for source in many {
+                    if !source.is_file() {
+                        return Err(format!(
+                            "select files only when importing several sources: {}",
+                            source.display()
+                        ));
+                    }
+                    let file_name = source
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .ok_or_else(|| "import file has no name".to_string())?;
+                    if !has_importable_extension(&file_name.to_lowercase()) {
+                        return Err(format!(
+                            "unsupported import file; choose Markdown, text, JSON, or CSV files: {}",
+                            source.display()
+                        ));
+                    }
+                    let target = temporary.join(unique_import_file_name(&mut taken, file_name));
+                    fs::copy(source, &target).map_err(|error| {
+                        format!("copy import file {}: {error}", source.display())
+                    })?;
+                }
+                Ok(PreparedImportSource {
+                    root_path: temporary.display().to_string(),
+                    temporary: true,
+                    tree: collect_markdown_tree(&temporary)?,
+                })
+            })();
+            if result.is_err() {
+                let _ = remove_import_temp_dir(&temporary);
+            }
+            result
+        }
+    }
+}
+
 fn resolve_relative_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
     if relative.is_empty() {
         return Err("empty export path".to_string());
@@ -859,6 +917,21 @@ async fn prepare_import_source(source_path: String) -> Result<PreparedImportSour
 }
 
 #[tauri::command]
+async fn prepare_import_sources(
+    source_paths: Vec<String>,
+) -> Result<PreparedImportSource, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths = source_paths
+            .iter()
+            .map(PathBuf::from)
+            .collect::<Vec<PathBuf>>();
+        prepare_import_source_paths(&paths)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 async fn cleanup_import_source(root_path: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || remove_import_temp_dir(Path::new(&root_path)))
         .await
@@ -896,6 +969,28 @@ async fn pick_import_file(app: tauri::AppHandle, title: String) -> Result<Option
                     .map_err(|error| error.to_string())
             })
             .transpose()
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn pick_import_files(app: tauri::AppHandle, title: String) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let picked = app
+            .dialog()
+            .file()
+            .set_title(&title)
+            .blocking_pick_files()
+            .unwrap_or_default();
+        picked
+            .into_iter()
+            .map(|path| {
+                path.into_path()
+                    .map(|resolved| resolved.display().to_string())
+                    .map_err(|error| error.to_string())
+            })
+            .collect::<Result<Vec<String>, String>>()
     })
     .await
     .map_err(|error| error.to_string())?
@@ -965,9 +1060,11 @@ pub fn run() {
             export_markdown_tree,
             read_markdown_tree,
             prepare_import_source,
+            prepare_import_sources,
             cleanup_import_source,
             pick_directory,
             pick_import_file,
+            pick_import_files,
             store_note_image,
             read_note_image_blob,
             import_markdown_image,
@@ -1044,6 +1141,40 @@ mod markdown_tree_tests {
             .collect();
         assert_eq!(paths, ["Inbox.md", "Projects/Skriuw/Roadmap.md"]);
         assert_eq!(tree.files[1].content, "# Roadmap");
+    }
+
+    #[test]
+    fn prepares_several_markdown_files_into_one_source() {
+        let dir = tempdir().expect("tempdir");
+        let nested = dir.path().join("nested");
+        fs::create_dir(&nested).expect("create nested");
+        fs::write(dir.path().join("Note.md"), "# One").expect("write first");
+        fs::write(nested.join("Note.md"), "# Two").expect("write second");
+        let sources = [dir.path().join("Note.md"), nested.join("Note.md")];
+
+        let prepared = prepare_import_source_paths(&sources).expect("prepare sources");
+        assert!(prepared.temporary);
+        let paths: Vec<&str> = prepared
+            .tree
+            .files
+            .iter()
+            .map(|file| file.relative_path.as_str())
+            .collect();
+        assert_eq!(paths, ["Note (2).md", "Note.md"]);
+        remove_import_temp_dir(Path::new(&prepared.root_path)).expect("cleanup");
+    }
+
+    #[test]
+    fn rejects_unsupported_files_in_a_multi_file_selection() {
+        let dir = tempdir().expect("tempdir");
+        fs::write(dir.path().join("Note.md"), "# One").expect("write note");
+        fs::write(dir.path().join("photo.png"), [0x89]).expect("write asset");
+        let sources = [dir.path().join("Note.md"), dir.path().join("photo.png")];
+
+        let error = prepare_import_source_paths(&sources)
+            .err()
+            .expect("reject asset");
+        assert!(error.contains("unsupported import file"), "{error}");
     }
 
     #[test]

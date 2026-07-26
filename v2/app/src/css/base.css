@@ -51,6 +51,7 @@ body {
 
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -64,6 +65,15 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--theme-btn-outline));
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 :root[data-reduce-motion] *,
