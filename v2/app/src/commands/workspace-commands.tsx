@@ -434,6 +434,7 @@ export function createWorkspaceCommands(
         "bear",
         "simplenote",
         "apple notes",
+        "joplin",
       ],
       icon: <UploadIcon size={15} />,
       run: () => {
@@ -453,6 +454,10 @@ export function createWorkspaceCommands(
         "simplenote",
         "csv",
         "json",
+        "evernote",
+        "enex",
+        "keep",
+        "standard notes",
       ],
       icon: <UploadIcon size={15} />,
       run: () => {
