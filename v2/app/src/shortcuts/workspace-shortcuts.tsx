@@ -2,17 +2,28 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useShortcutMap } from "@remcostoeten/use-shortcut/react";
 import type { ShortcutMap } from "@remcostoeten/use-shortcut/react";
 import type { AppRoute } from "../app-route";
+import { opensNotesInTabs } from "../settings/settings-model";
 import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererStore } from "../store/types";
+import type { RendererState, RendererStore } from "../store/types";
 import {
   effectiveShortcutKeys,
   sameShortcutOverrides,
+  sequenceHandlerOptions,
+  shortcutExcept,
   shortcutOverridesFromSettings,
 } from "./bindings";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId } from "./definitions";
 
 type ShortcutActions = Record<ShortcutActionId, () => void>;
+
+function selectTabsEnabled(state: RendererState): boolean {
+  return opensNotesInTabs(state.settings);
+}
+
+function selectSplitActive(state: RendererState): boolean {
+  return state.panes.length > 1;
+}
 
 type Props = {
   store: RendererStore;
@@ -38,6 +49,34 @@ function activeScopesForRoute(route: AppRoute): string[] {
   const scopes = route === "notes" || route === "trash" ? ["note-create"] : [];
   if (route === "tags") {
     scopes.push("tags-route");
+  }
+  return scopes;
+}
+
+/**
+ * Every scope active right now. `tabs` gates the tab-strip management keys on the
+ * tabbed workspace being on and `split` gates the directional pane keys on a
+ * split existing, so with either off those keypresses never match and fall
+ * through to whatever else claims them.
+ */
+export function activeShortcutScopes(
+  route: AppRoute,
+  noteFocused: boolean,
+  tabsEnabled: boolean,
+  splitActive: boolean,
+): string[] {
+  const scopes = activeScopesForRoute(route);
+  if (noteFocused) {
+    scopes.push("note-focus");
+  }
+  if (route !== "notes") {
+    return scopes;
+  }
+  if (tabsEnabled) {
+    scopes.push("tabs");
+  }
+  if (splitActive) {
+    scopes.push("split");
   }
   return scopes;
 }
@@ -118,9 +157,9 @@ export function WorkspaceShortcuts({
         keys: effectiveShortcutKeys(definition, overrides),
         handler,
         options: {
-          description: definition.label,
+          description: definition.description ?? definition.label,
           preventDefault: true,
-          except: definition.worksWhileTyping ? undefined : "typing",
+          except: shortcutExcept(definition, definition.worksWhileTyping === true),
           scopes: definition.scopes,
         },
       };
@@ -129,9 +168,14 @@ export function WorkspaceShortcuts({
           keys: definition.secondaryKeys,
           handler,
           options: {
-            description: definition.label,
+            description: definition.description ?? definition.label,
             preventDefault: true,
-            except: "typing",
+            except: shortcutExcept(
+              definition,
+              definition.secondaryWorksWhileTyping === true,
+            ),
+            scopes: definition.scopes,
+            ...sequenceHandlerOptions(definition.secondaryKeys),
           },
         };
       }
@@ -140,10 +184,10 @@ export function WorkspaceShortcuts({
   }, [overrides]);
 
   const noteFocused = useNoteFocusScope();
+  const tabsEnabled = useRendererSelector(store, selectTabsEnabled);
+  const splitActive = useRendererSelector(store, selectSplitActive);
   const results = useShortcutMap(shortcutMap, {
-    activeScopes: noteFocused
-      ? [...activeScopesForRoute(route), "note-focus"]
-      : activeScopesForRoute(route),
+    activeScopes: activeShortcutScopes(route, noteFocused, tabsEnabled, splitActive),
     ignoreInputs: false,
   });
 

@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { DOMSerializer, type Node as ProseMirrorNode } from "prosemirror-model";
 import {
@@ -16,6 +16,7 @@ import { createImageNodeViews } from "./image-nodeview";
 import { collectImageFiles, insertImages, pickImageFiles } from "./image-input";
 import { noteImageIds, readImageAlt, renameImageNode } from "./image-actions";
 import { pasteMarkdown } from "./markdown-paste";
+import { deriveTitle, STARTER_TITLE } from "./note-title";
 import { registerPendingWork } from "../lifecycle/pending-work";
 import { openExternalUrl } from "../bridge/external-links";
 import { ImageInfoDialog, ImageLightbox, ImageRenameDialog } from "./image-menu";
@@ -108,7 +109,13 @@ import {
   linkInRange,
   linkMenuAnchor,
 } from "./link-menu";
+import {
+  documentEdgeSelection,
+  documentEdgeWindowStart,
+  type DocumentEdge,
+} from "./document-edges";
 import { SearchWidget } from "./search-widget";
+import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import { useEditorSearch } from "./use-editor-search";
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -206,14 +213,6 @@ function documentFromJson(json: unknown): ProseMirrorNode {
   }
 }
 
-const TITLE_MAX_LENGTH = 120;
-const STARTER_TITLE = "Untitled";
-
-function deriveTitle(document: ProseMirrorNode): string {
-  const text = document.firstChild?.textContent.trim() ?? "";
-  return text.length > 0 ? text.slice(0, TITLE_MAX_LENGTH) : STARTER_TITLE;
-}
-
 function createCachedNote(
   record: DocumentRecord,
   extraPlugins: readonly Plugin[],
@@ -289,6 +288,7 @@ function fullDocumentHtml(document: ProseMirrorNode): string {
 
 export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const [shortcutHost, setShortcutHost] = useState<HTMLDivElement | null>(null);
   const beforeSpacerRef = useRef<HTMLDivElement>(null);
   const afterSpacerRef = useRef<HTMLDivElement>(null);
   const accessibleDocumentRef = useRef<HTMLTextAreaElement>(null);
@@ -637,6 +637,32 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       },
     };
   }
+
+  const jumpToDocumentEdge = useCallback((edge: DocumentEdge) => {
+    const view = viewRef.current;
+    if (!view || activeIdRef.current === null) return;
+    const entry = activeEntry();
+    const bounded = entry?.bounded;
+    if (entry && bounded) {
+      moveBoundedWindow(
+        entry,
+        documentEdgeWindowStart(bounded.blockCount(), BOUNDED_BLOCK_LIMIT, edge),
+      );
+      bounded.rememberSelection(null);
+    }
+    view.dispatch(
+      view.state.tr.setSelection(documentEdgeSelection(view.state.doc, edge)).scrollIntoView(),
+    );
+    view.focus();
+  }, []);
+  const editorShortcuts = useMemo(
+    () => ({
+      goToDocumentStart: () => jumpToDocumentEdge("start"),
+      goToDocumentEnd: () => jumpToDocumentEdge("end"),
+    }),
+    [jumpToDocumentEdge],
+  );
+  useEditorBoundShortcuts(store, shortcutHost, editorShortcuts);
 
   const getEditorSearchTarget = useCallback(() => getSearchTarget(), []);
   const search = useEditorSearch(store, getEditorSearchTarget);
@@ -1085,7 +1111,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       )}
       <div ref={beforeSpacerRef} className="bounded-editor-spacer" aria-hidden="true" />
       <div
-        ref={hostRef}
+        ref={(node) => {
+          hostRef.current = node;
+          setShortcutHost(node);
+        }}
         className="prosemirror-host"
         data-editor-font={editorSettings.editorFont}
         data-editor-line-height={editorSettings.editorLineHeight}

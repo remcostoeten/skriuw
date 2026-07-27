@@ -2,8 +2,17 @@ import { applyWorkspaceOperations, bootstrapWorkspace } from "../bridge/commands
 import { envelope } from "../contracts/workspace";
 import type { NodePlacement, WorkspaceOperation } from "../contracts/workspace";
 import { buildRestoreOperation } from "../history/version-model";
-import type { RendererStore } from "../store/types";
+import { flushPendingWork } from "../lifecycle/pending-work";
+import { opensNotesInTabs } from "../settings/settings-model";
+import {
+  SECONDARY_PANE_ID,
+  openBeside as openBesidePanes,
+  secondaryPane,
+} from "../store/panes";
+import { ancestorIds, flattenVisible } from "../store/tree";
+import type { RendererState, RendererStore } from "../store/types";
 import type { ReferenceOperation } from "../references/types";
+import { planNoteDuplicate } from "./duplicate-note";
 
 export function commitReferenceOperations(
   store: RendererStore,
@@ -209,4 +218,208 @@ export function restoreNoteVersion(
 
 export function activateNote(store: RendererStore, id: string | null): void {
   store.setActiveNote(id);
+}
+
+/**
+ * The sequence `previousNote`/`nextNote` walk: the focused pane's tab strip
+ * when notes open in tabs (and more than one tab is open), the sidebar's
+ * note order otherwise.
+ */
+export function noteNavigationOrder(state: RendererState): readonly string[] {
+  if (opensNotesInTabs(state.settings)) {
+    const pane =
+      state.panes.find((entry) => entry.paneId === state.focusedPaneId) ??
+      state.panes[0];
+    if (pane && pane.openNoteIds.length > 1) {
+      return pane.openNoteIds;
+    }
+  }
+  return state.noteIds;
+}
+
+export function navigateNote(store: RendererStore, direction: -1 | 1): void {
+  const state = store.getState();
+  if (state.activeNoteId === null) {
+    return;
+  }
+  const order = noteNavigationOrder(state);
+  const index = order.indexOf(state.activeNoteId);
+  if (index < 0 || order.length < 2) {
+    return;
+  }
+  const nextId = order[(index + direction + order.length) % order.length];
+  if (nextId !== undefined) {
+    activateNote(store, nextId);
+  }
+}
+
+/**
+ * The note a whole-note action targets: the focused pane's note in a split,
+ * falling back to the workspace's active note. Null when no note is open.
+ */
+export function focusedPaneNoteId(state: RendererState): string | null {
+  const pane = state.panes.find((entry) => entry.paneId === state.focusedPaneId);
+  const noteId = pane?.activeNoteId ?? state.activeNoteId;
+  return noteId !== null && state.nodes.get(noteId)?.kind === "note" ? noteId : null;
+}
+
+/**
+ * The sidebar's focused folder, for actions that need a drop target when
+ * nothing more specific is selected (e.g. importing a file into "wherever
+ * the sidebar is pointed"). Null when the focused row isn't a folder, or
+ * nothing is focused, so callers fall back to the workspace root.
+ */
+export function focusedFolderId(state: RendererState): string | null {
+  const id = state.focusedNodeId;
+  if (id === null) {
+    return null;
+  }
+  return state.nodes.get(id)?.kind === "folder" ? id : null;
+}
+
+/**
+ * Expands the ancestors of `id` and focuses its row, so a node reached from
+ * outside the sidebar becomes visible in the tree.
+ */
+export function revealNodeInTree(store: RendererStore, id: string): boolean {
+  const state = store.getState();
+  if (!state.nodes.has(id)) {
+    return false;
+  }
+  const expandedIds = new Set(state.expandedIds);
+  for (const ancestorId of ancestorIds(state.nodes, id)) {
+    expandedIds.add(ancestorId);
+  }
+  store.update((current) => ({
+    ...current,
+    expandedIds,
+    focusedNodeId: id,
+    visibleIds: flattenVisible(current.nodes, current.childrenByParent, expandedIds),
+  }));
+  return true;
+}
+
+/**
+ * Starts the inline rename of the open note — the same editing state the
+ * sidebar's own F2 uses, pointed at the open note instead of the focused row.
+ */
+export function renameCurrentNote(store: RendererStore): boolean {
+  const state = store.getState();
+  const noteId = focusedPaneNoteId(state);
+  if (noteId === null) {
+    return false;
+  }
+  if (state.editingNodeId === noteId) {
+    return true;
+  }
+  revealNodeInTree(store, noteId);
+  store.setEditingNode(noteId);
+  return true;
+}
+
+
+/**
+ * The note that takes over when `noteId` leaves the workspace: its successor in
+ * the navigation order, or its predecessor when it was last. Null when nothing
+ * remains, which leaves the workspace on its empty state.
+ */
+export function nextNoteAfterRemoval(
+  state: RendererState,
+  noteId: string,
+): string | null {
+  const order = noteNavigationOrder(state);
+  const index = order.indexOf(noteId);
+  if (index < 0) {
+    return null;
+  }
+  return order[index + 1] ?? order[index - 1] ?? null;
+}
+
+export type TrashedNote = { noteId: string; title: string };
+
+/**
+ * Soft-deletes the open note down the sidebar's trash path, after flushing
+ * pending edits so the trashed revision matches what was on screen. Returns what
+ * was trashed so callers can offer an undo.
+ */
+export async function trashCurrentNote(
+  store: RendererStore,
+): Promise<TrashedNote | null> {
+  const noteId = focusedPaneNoteId(store.getState());
+  if (noteId === null) {
+    return null;
+  }
+  await flushPendingWork();
+  const state = store.getState();
+  if (state.nodes.get(noteId)?.kind !== "note") {
+    return null;
+  }
+  const title = state.nodes.get(noteId)?.title ?? "Untitled";
+  const nextNoteId = nextNoteAfterRemoval(state, noteId);
+  trashSubtree(store, noteId);
+  activateNote(store, nextNoteId);
+  return { noteId, title };
+}
+
+/** Undoes `trashCurrentNote`: restores the subtree and reopens the note. */
+export function restoreTrashedNote(store: RendererStore, noteId: string): void {
+  restoreSubtree(store, noteId);
+  activateNote(store, noteId);
+}
+
+export type DuplicatedNote = { noteId: string; title: string };
+
+/**
+ * Opens `noteId` in whichever pane has focus. Creating a note always makes it
+ * the workspace's active note, which is the primary pane — so when the split
+ * pane has focus the primary pane is handed `restoreActiveNoteId` back and the
+ * new note goes to the split instead.
+ */
+function openInFocusedPane(
+  store: RendererStore,
+  noteId: string,
+  restoreActiveNoteId: string | null,
+): void {
+  const state = store.getState();
+  if (state.focusedPaneId !== SECONDARY_PANE_ID || secondaryPane(state.panes) === null) {
+    activateNote(store, noteId);
+    return;
+  }
+  activateNote(store, restoreActiveNoteId);
+  store.update((current) => ({
+    ...current,
+    panes: openBesidePanes(current.panes, noteId),
+    focusedNodeId: noteId,
+  }));
+}
+
+/**
+ * Duplicates the open note into the slot right after it, after flushing pending
+ * edits so the copy matches what was on screen. Content, properties, and
+ * reference chips come across; note, block, and property identities are fresh,
+ * the copy is never pinned, and its created-at is now. The copy opens in the
+ * pane the original was open in.
+ */
+export async function duplicateCurrentNote(
+  store: RendererStore,
+): Promise<DuplicatedNote | null> {
+  const noteId = focusedPaneNoteId(store.getState());
+  if (noteId === null) {
+    return null;
+  }
+  await flushPendingWork();
+  const state = store.getState();
+  const previousActiveNoteId = state.activeNoteId;
+  const plan = planNoteDuplicate(state, noteId, Date.now(), () => crypto.randomUUID());
+  if (plan === null) {
+    return null;
+  }
+  try {
+    await commitOperations(store, [...plan.operations]);
+  } catch (error) {
+    reportRejection("duplicate note")(error);
+    return null;
+  }
+  openInFocusedPane(store, plan.noteId, previousActiveNoteId);
+  return { noteId: plan.noteId, title: plan.title };
 }
