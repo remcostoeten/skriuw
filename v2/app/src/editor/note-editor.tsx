@@ -289,6 +289,14 @@ function fullDocumentHtml(document: ProseMirrorNode): string {
 export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [shortcutHost, setShortcutHost] = useState<HTMLDivElement | null>(null);
+  // An inline ref callback gets a fresh identity every render, so React 19
+  // detaches (null) and reattaches it on each commit; the setState inside
+  // then alternates null/node and loops the commit phase forever. The ref
+  // must stay identity-stable.
+  const attachShortcutHost = useCallback((node: HTMLDivElement | null) => {
+    hostRef.current = node;
+    setShortcutHost(node);
+  }, []);
   const beforeSpacerRef = useRef<HTMLDivElement>(null);
   const afterSpacerRef = useRef<HTMLDivElement>(null);
   const accessibleDocumentRef = useRef<HTMLTextAreaElement>(null);
@@ -1111,10 +1119,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       )}
       <div ref={beforeSpacerRef} className="bounded-editor-spacer" aria-hidden="true" />
       <div
-        ref={(node) => {
-          hostRef.current = node;
-          setShortcutHost(node);
-        }}
+        ref={attachShortcutHost}
         className="prosemirror-host"
         data-editor-font={editorSettings.editorFont}
         data-editor-line-height={editorSettings.editorLineHeight}
