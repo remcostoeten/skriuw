@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE en-export SYSTEM "http://xml.evernote.com/pub/evernote-export4.dtd">
+<en-export export-date="20260101T120000Z" application="Evernote" version="10.0">
+  <note>
+    <title>Meeting notes</title>
+    <content><![CDATA[<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><h1>Weekly sync</h1><div>Discussed the <b>importer</b> rollout with the team.</div><div><br/></div><ul><li>Ship <i>Evernote</i> support</li><li>Review <a href="https://example.com/spec">the spec</a></li></ul><div><en-todo checked="true"/>Draft announcement</div><div><en-todo checked="false"/>Send follow-up</div><hr/><div>Attachment below:</div><div><en-media type="image/png" hash="abc123"/></div></en-note>]]></content>
+    <created>20260105T093000Z</created>
+    <updated>20260106T101500Z</updated>
+    <tag>work</tag>
+    <tag>meetings</tag>
+  </note>
+  <note>
+    <title>Snippet collection</title>
+    <content><![CDATA[<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note><div>Handy shell one-liner:</div><div style="--en-codeblock:true;"><div>grep -rn TODO src/</div><div>git log --oneline</div></div><div>Use <code>rsync</code> for backups &amp; mirrors.</div></en-note>]]></content>
+    <created>20260110T080000Z</created>
+    <updated>20260110T080000Z</updated>
+  </note>
+</en-export>

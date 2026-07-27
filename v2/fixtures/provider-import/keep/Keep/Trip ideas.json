@@ -1,0 +1,13 @@
+{
+  "color": "BLUE",
+  "isTrashed": false,
+  "isPinned": false,
+  "isArchived": true,
+  "title": "Trip ideas",
+  "textContent": "Kayak the fjords.\nVisit the old town.",
+  "annotations": [
+    { "source": "WEBLINK", "url": "https://example.com/fjords", "title": "Fjord guide" }
+  ],
+  "userEditedTimestampUsec": 1767312000000000,
+  "createdTimestampUsec": 1767225600000000
+}

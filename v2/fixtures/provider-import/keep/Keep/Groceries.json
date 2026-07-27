@@ -1,0 +1,15 @@
+{
+  "color": "DEFAULT",
+  "isTrashed": false,
+  "isPinned": true,
+  "isArchived": false,
+  "title": "Groceries",
+  "listContent": [
+    { "text": "Milk", "isChecked": true },
+    { "text": "Bread", "isChecked": false }
+  ],
+  "labels": [{ "name": "errands" }],
+  "attachments": [{ "filePath": "groceries-photo.png", "mimetype": "image/png" }],
+  "userEditedTimestampUsec": 1767225600000000,
+  "createdTimestampUsec": 1767139200000000
+}
