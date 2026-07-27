@@ -45,6 +45,7 @@ import { TAB_INDEX_ACTION_IDS } from "../shortcuts/definitions";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  CalendarDaysIcon,
   CircleIcon,
   CloseIcon,
   CopyIcon,
@@ -616,6 +617,16 @@ export function createWorkspaceCommands(
       shortcut: "goToNotes",
       visible: (_state, ui) => ui.route !== "notes",
       run: () => controls.navigate("notes"),
+    },
+    {
+      id: "go-to-journal",
+      label: "Go to journal",
+      group: "Navigation",
+      keywords: ["journal", "diary", "calendar", "day"],
+      icon: <CalendarDaysIcon size={15} />,
+      shortcut: "goToJournal",
+      visible: (_state, ui) => ui.route !== "journal",
+      run: () => controls.navigate("journal"),
     },
     {
       id: "go-to-tags",

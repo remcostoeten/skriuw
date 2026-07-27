@@ -1,7 +1,12 @@
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import type { AppRoute } from "../app-route";
 
-export type RailItemActionId = "goToNotes" | "goToTags" | "goToPeople" | "goToTrash";
+export type RailItemActionId =
+  | "goToNotes"
+  | "goToJournal"
+  | "goToTags"
+  | "goToPeople"
+  | "goToTrash";
 
 export type RailItem = {
   actionId: RailItemActionId;
@@ -19,6 +24,7 @@ export type RailItem = {
  */
 export const RAIL_ITEMS: readonly RailItem[] = [
   { actionId: "goToNotes", route: "notes", label: "Notes", section: "primary" },
+  { actionId: "goToJournal", route: "journal", label: "Journal", section: "primary" },
   { actionId: "goToTags", route: "tags", label: "Tags", section: "primary" },
   { actionId: "goToPeople", route: "people", label: "People", section: "primary" },
   { actionId: "goToTrash", route: "trash", label: "Trash", section: "utility" },

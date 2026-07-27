@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { activateNote } from "../actions/workspace";
-import { appRouteHash } from "../app-route";
+import { appRouteHash, journalDayHash } from "../app-route";
+import { JOURNAL_ROOT_ID } from "../journal/constants";
+import { journalEntryDateKey } from "../journal/model";
 import { searchWorkspace } from "../bridge/commands";
 import type { CommandRegistry, CommandUiState } from "../commands/registry";
 import type { SearchHit } from "../contracts/workspace";
@@ -34,7 +36,7 @@ function selectNoteEntries(state: RendererState): NoteEntry[] {
   const notes: NoteEntry[] = [];
   for (const id of state.nodeOrder) {
     const node = state.nodes.get(id);
-    if (node?.kind === "note") {
+    if (node?.kind === "note" && node.parentId !== JOURNAL_ROOT_ID) {
       notes.push({ id, title: node.title });
     }
   }
@@ -65,7 +67,15 @@ function contentItems(
       searchOnly: true,
       alwaysShow: true,
       icon: <SearchIcon size={15} />,
-      action: () => activateNote(store, hit.noteId),
+      action: () => {
+        // Journal entries open on their day in the journal, not as a note.
+        const dateKey = journalEntryDateKey(store.getState(), hit.noteId);
+        if (dateKey !== null) {
+          window.location.hash = journalDayHash(dateKey);
+          return;
+        }
+        activateNote(store, hit.noteId);
+      },
     }));
 }
 

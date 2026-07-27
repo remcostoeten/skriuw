@@ -42,6 +42,14 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Durable layout** — folder expansion, panel state, and the active note survive restarts.
 - **Trash with subtree semantics** — trash, restore, or permanently purge whole branches; nothing is destroyed without a confirmation that shows its scope. The trash view searches and sorts deleted items (recently deleted, deleted first, title) and arms per-row deletion inline instead of behind a dialog.
 
+## Journal
+
+- **Daily journal** — a dedicated `#/journal` route with one entry per calendar day, written in the exact same ProseMirror editor as notes: tags, people mentions, wiki-links, slash commands, raw Markdown mode, and version history all work, and entities created in the journal are the same entities the notes workspace uses.
+- **Mood per day** — a five-level mood selector (Great, Good, Neutral, Low, Rough) stored as a typed note property, so it travels with archives, exports, and backups.
+- **Calendar everywhere** — a Monday-first month calendar with entry-dot indicators lives both in the journal's own sidebar and as a collapsible section at the bottom of the workspace sidebar; picking a day jumps straight to that entry.
+- **Sidebar views** — calendar with a this-month entry list, lightweight stats (entries, words, streak, mood distribution), full-text entry search, and an all-entries timeline.
+- **Same durable pipeline, hidden from the tree** — entries are workspace notes under a hidden journal folder keyed by a date property: saves, search indexing, Git history, trash, and archives all apply, while the workspace tree, note navigation, and the palette's notes list never show them. Palette full-text hits on journal content open the entry on its day in the journal.
+
 ## History and safety
 
 - **Automatic Git history** — every save is materialized into Git in the background; editing and navigation never wait on it.

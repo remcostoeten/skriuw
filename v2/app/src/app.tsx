@@ -9,6 +9,7 @@ import { ShortcutHelpOverlay } from "./shell/shortcut-help-overlay";
 import { TrashView } from "./shell/trash-view";
 import { EntityView } from "./shell/entity-view";
 import { HistoryView } from "./history/history-view";
+import { JournalView } from "./journal/journal-view";
 import { WindowControls } from "./shell/window-controls";
 import {
   panelGridTemplate,
@@ -45,6 +46,7 @@ import {
 import type { CommandUiState } from "./commands/registry";
 import { createWorkspaceCommands } from "./commands/workspace-commands";
 import {
+  CalendarDaysIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CircleIcon,
@@ -76,6 +78,7 @@ const toolbarIconButtonClass =
 
 const RAIL_ICONS: Record<RailItem["actionId"], typeof FolderOpenIcon> = {
   goToNotes: FolderOpenIcon,
+  goToJournal: CalendarDaysIcon,
   goToTags: WaypointsIcon,
   goToPeople: CircleIcon,
   goToTrash: Trash2Icon,
@@ -459,6 +462,7 @@ export function App({ store }: Props) {
         </div>
       </div>
       {route === "history" && <HistoryView store={store} />}
+      {route === "journal" && <JournalView store={store} />}
       {route === "trash" && <TrashView store={store} />}
       {route === "tags" && <EntityView store={store} kind="tag" />}
       {route === "people" && <EntityView store={store} kind="person" />}

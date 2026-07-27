@@ -76,8 +76,8 @@ test("sequence alternates keep one display step per key", () => {
   const row = rowFor("goToTags");
   const sequence = row.combos.find((combo) => combo.sequence);
   assert.ok(sequence);
-  assert.equal(sequence.keys, "g then t then 2");
-  assert.deepEqual(sequence.steps, ["G", "T", "2"]);
+  assert.equal(sequence.keys, "g then t then 3");
+  assert.deepEqual(sequence.steps, ["G", "T", "3"]);
   const chord = row.combos.find((combo) => !combo.sequence);
   assert.ok(chord);
   assert.equal(chord.steps.length, 1);

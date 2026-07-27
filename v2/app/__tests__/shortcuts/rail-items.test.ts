@@ -7,14 +7,14 @@ import {
   railSequenceKeys,
 } from "../../src/shortcuts/rail-items";
 
-test("rail items are ordered Notes, Tags, People, Trash", () => {
+test("rail items are ordered Notes, Journal, Tags, People, Trash", () => {
   assert.deepEqual(
     RAIL_ITEMS.map((item) => item.actionId),
-    ["goToNotes", "goToTags", "goToPeople", "goToTrash"],
+    ["goToNotes", "goToJournal", "goToTags", "goToPeople", "goToTrash"],
   );
   assert.deepEqual(
     RAIL_ITEMS.map((item) => item.route),
-    ["notes", "tags", "people", "trash"],
+    ["notes", "journal", "tags", "people", "trash"],
   );
 });
 

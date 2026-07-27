@@ -868,3 +868,40 @@ export function LayoutDashboardIcon(props: IconProps) {
     </LucideIcon>
   );
 }
+
+export function CalendarDaysIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M8 2v4" />
+      <path d="M16 2v4" />
+      <rect width="18" height="18" x="3" y="4" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M8 14h.01" />
+      <path d="M12 14h.01" />
+      <path d="M16 14h.01" />
+      <path d="M8 18h.01" />
+      <path d="M12 18h.01" />
+      <path d="M16 18h.01" />
+    </LucideIcon>
+  );
+}
+
+export function BarChartIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+      <path d="M18 17V9" />
+      <path d="M13 17V5" />
+      <path d="M8 17v-3" />
+    </LucideIcon>
+  );
+}
+
+export function ClockIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </LucideIcon>
+  );
+}

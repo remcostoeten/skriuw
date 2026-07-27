@@ -67,6 +67,7 @@ import {
 } from "./sidebar-dnd";
 import type { DropTarget } from "./sidebar-dnd";
 import { noop } from "../shared/lib/noop";
+import { SidebarCalendar } from "../journal/sidebar-calendar";
 import { nextFolderExpansion } from "./sidebar-search";
 import { SidebarRow } from "./sidebar-row";
 import { SidebarSearchResults } from "./sidebar-search-results";
@@ -1296,6 +1297,7 @@ export function Sidebar({ store }: Props) {
                   {renderDropIndicator()}
                 </div>
               </div>
+              <SidebarCalendar store={store} />
             </div>
           </ContextMenuTrigger>
           {contextTarget?.kind === "root" && (
