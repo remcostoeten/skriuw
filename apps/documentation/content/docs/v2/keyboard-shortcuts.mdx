@@ -1,6 +1,6 @@
 ---
 title: "Keyboard shortcuts"
-description: "Every keyboard shortcut in Skriuw v2 - what it does, where it fires, and how to rebind it - plus the planned additions from the shortcuts milestone."
+description: "Every keyboard shortcut in Skriuw v2 - what it does, where it fires, and how to rebind it."
 ---
 
 Skriuw v2 is keyboard-first. Every global shortcut is registered in a single
@@ -8,32 +8,42 @@ definitions table (`v2/app/src/shortcuts/definitions.ts`), which makes all of
 them rebindable from settings, conflict-checked when you record a new combo,
 and consistently displayed with platform-aware labels.
 
-`mod` means <kbd>Cmd</kbd> on macOS and <kbd>Ctrl</kbd> everywhere else.
+`mod` means <kbd>Cmd</kbd> on macOS and <kbd>Ctrl</kbd> everywhere else. Every
+binding below is rebindable from Settings → Shortcuts, and <kbd>mod</kbd>+`/`
+opens a live cheat sheet in-app that reflects your rebinds - it's the source
+of truth if this page and your settings ever disagree.
 
 ## How shortcuts are scoped
 
-Shortcuts don't all fire everywhere. Three mechanisms control when a binding is
+Shortcuts don't all fire everywhere. A few mechanisms control when a binding is
 live:
 
-- **Scopes** - a binding can require a named scope (like `note-focus` or
-  `tags-route`) that the workspace activates per route or app mode. The same
-  key can mean different things in different places.
+- **Scopes** - a binding can require a named scope (like `note-focus`,
+  `tags-route`, `tabs`, or `split`) that the workspace activates per route or
+  app mode. The same key can mean different things in different places, and a
+  scoped binding is a silent no-op when its scope isn't active (for example,
+  the tab-by-index keys do nothing while the tabbed workspace is off).
 - **Typing guard** - bindings marked as working while typing use modifier
   chords that can't collide with text input. Plain-key shortcuts (like the
   sidebar's <kbd>r</kbd> to rename) only exist inside their own focused
   surface and never steal typed characters.
 - **Focused surface** - the sidebar tree, the editor, and the find panel each
   own some keys locally. Local handlers win over global bindings.
+- **Platform** - a few defaults are deliberately unregistered on macOS where
+  the OS or the app itself already owns the combo; the table below calls
+  those out. Since every binding is rebindable, you can still assign the combo
+  yourself.
 
 ## Global shortcuts
 
 ### General
 
-| Shortcut | Action |
-| --- | --- |
-| `mod+k` | Open command palette |
-| `mod+,` | Open settings |
-| `mod+shift+q` | Quit |
+| Shortcut | Action | Notes |
+| --- | --- | --- |
+| `mod+k` | Open command palette | |
+| `mod+,` | Open settings | |
+| `mod+/` | Show keyboard shortcuts | Opens a live cheat sheet reflecting your rebinds, with `g t <n>` sequences shown step by step and bindings that don't apply on your OS hidden. Fires even from inside a note; a second press or `Escape` closes it. |
+| `mod+shift+q` | Quit | |
 
 ### Workspace
 
@@ -44,31 +54,41 @@ live:
 | `mod+shift+t` | New tag | Tags route only |
 | `mod+shift+p` | New person | |
 | `mod+p` | Pin or unpin current note | |
+| `F2` | Rename current note | Renames the open note via the sidebar's inline rename. The sidebar's own `F2` still renames whichever row is focused there. |
+| `mod+backspace` (or `mod+delete`) | Move current note to trash | Trashes the open note, with an undo toast. Overrides the macOS text-field "delete to line start" default while the caret is in a note; no-op when the sidebar tree has focus, since the tree owns `Delete` for its own rows. |
+| `mod+shift+d` | Duplicate current note | Copies the open note with a " (copy)" suffix and a fresh identity - links inside it are not rewritten, and the copy starts unpinned. Overrides the browser's bookmark-all-tabs default on web. |
+| `ctrl+shift+o` | Import a markdown file | Opens an OS file picker filtered to `.md`, `.markdown`, and `.txt`, then runs the normal import preview flow. Imports into the focused sidebar folder, or the root if none is focused. Desktop (Tauri) only - the v2 web app has no file-system bridge for it. |
 | `mod+m` | Toggle raw Markdown mode | Switches the open note between block editing and markdown source |
 
 ### Tabs and splits
 
-| Shortcut | Action |
-| --- | --- |
-| `mod+w` | Close tab |
-| `ctrl+tab` | Next tab |
-| `ctrl+shift+tab` | Previous tab |
-| `mod+backslash` | Open current note beside (split view) |
-| `mod+shift+backslash` | Close split view |
+| Shortcut | Action | Notes |
+| --- | --- | --- |
+| `mod+w` | Close tab | |
+| `mod+shift+w` | Reopen closed tab | Reopens the last tab closed in this pane, walking back through the ten most recent (trashed notes are skipped). Deliberately not `ctrl+shift+t` - that combo is already New tag, so this is the undo of Close tab instead. Tabs scope only. |
+| `ctrl+shift+pageup` / `pagedown` | Move tab left / right | Wraps at the ends. Browsers own this combo for their own tab strip, so it's reliable on desktop and best-effort on web. Tabs scope only. |
+| `ctrl+tab` | Next tab | |
+| `ctrl+shift+tab` | Previous tab | |
+| `alt+1` … `alt+9` | Go to tab by position | Alt, not `mod`/`ctrl` - `ctrl`+digit is already taken by focus and zoom, and this matches VS Code. Tabs scope only, silent no-op with tabs off. |
+| `alt+0` | Go to last tab | Same scoping as above. |
+| `mod+backslash` | Open current note beside (split view) | |
+| `mod+shift+backslash` | Close split view | |
 
 ### Navigation
 
-| Shortcut | Action |
-| --- | --- |
-| `mod+b` | Toggle sidebar |
-| `ctrl+shift+b` | Toggle metadata panel |
-| `mod+e` | Focus current note in sidebar |
-| `mod+2` (or `/` outside the editor) | Focus editor |
-| `mod+3` | Focus metadata panel |
-| `mod+shift+1` | Go to notes |
-| `mod+shift+2` | Go to tags |
-| `mod+shift+3` | Go to people |
-| `mod+shift+4` | Go to trash |
+| Shortcut | Action | Notes |
+| --- | --- | --- |
+| `mod+b` | Toggle sidebar | |
+| `ctrl+shift+b` | Toggle metadata panel | |
+| `mod+e` | Focus current note in sidebar | |
+| `mod+2` (or `/` outside the editor) | Focus editor | With a split open, returns to whichever pane had focus last. |
+| `mod+3` | Focus metadata panel | |
+| `mod+alt+←` / `→` | Focus split pane left / right | No wrap; no-op with a single pane. Some Linux desktop environments and macOS apps also claim `mod+alt+`arrow, so rebind if the OS wins. Split scope only. |
+| `ctrl+shift+[` / `]` | Previous / next note | |
+| `mod+shift+1` (or `g` `t` `1`) | Go to notes | The `g t <n>` sequence has a one-second timeout, is blocked while typing or behind a modal, and its digit order follows the sidebar rail's top-to-bottom order. |
+| `mod+shift+2` (or `g` `t` `2`) | Go to tags | |
+| `mod+shift+3` (or `g` `t` `3`) | Go to people | |
+| `mod+shift+4` (or `g` `t` `4`) | Go to trash | |
 
 ### View
 
@@ -79,11 +99,20 @@ live:
 | `mod+minus` | Zoom out |
 | `mod+0` | Reset zoom |
 
-### Find in note
+### Editor
+
+| Shortcut | Action | Notes |
+| --- | --- | --- |
+| `mod+g` | Jump to line | Raw Markdown mode only - block mode has no line numbers to jump to. Overrides Firefox's find-again default on web. |
+| `ctrl+↑` | Jump to start of note | Not registered on macOS, where `cmd+↑` already does this natively (`ctrl+Home` still works there too). Moves the caret and scrolls, unlike VS Code's viewport-only scroll on the same combo. |
+| `ctrl+↓` | Jump to end of note | Same macOS exclusion and VS Code contrast as above. |
+
+### Editor search
 
 | Shortcut | Action | Notes |
 | --- | --- | --- |
 | `mod+f` | Find in note | Requires an open, focused note |
+| `mod+h` (or `mod+alt+f`) | Find and replace in note | Opens the find panel with the replace row expanded; if the panel is already open it expands in place, keeping your query and match position, and never toggle-closes. Overrides the browser's history shortcut on web. `mod+alt+f` is VS Code's macOS default, since `cmd+h` hides the app there. Block mode only today - markdown mode has no find panel, same as `mod+f`. |
 | `alt+c` | Toggle match case | While the find panel is open |
 | `alt+w` | Toggle whole word | While the find panel is open |
 | `alt+r` | Toggle regular expression | While the find panel is open |
@@ -109,6 +138,10 @@ while you're typing in a note or input.
 With a row's context menu open: `r` renames, `d` / `delete` / `backspace`
 trashes.
 
+Note that the global `F2` and `mod+backspace` / `mod+delete` shortcuts above
+act on whichever note is open in the editor, not the sidebar's focused row -
+the two stay independent, and the tree keeps precedence for its own rows.
+
 ## Rebinding
 
 Open settings (`mod+,`) and use the shortcut recorder to change any global
@@ -117,27 +150,3 @@ with another action's effective binding, and stores the override per
 workspace. Combos compare by their parsed form, so `mod+k`, `Ctrl + K`, and a
 recorded `ctrl+k` are treated as the same binding on platforms where `mod`
 means ctrl.
-
-## Planned: the shortcuts milestone
-
-The [Keyboard shortcuts (v2) milestone](https://github.com/remcostoeten/skriuw/milestone/1)
-tracks the next wave. Each issue specifies exactly when the shortcut fires per
-focus context (editor, sidebar, panels, modals); nothing below is implemented
-yet - this table updates as issues close.
-
-| Shortcut | Action | Fires when | Issue |
-| --- | --- | --- | --- |
-| `mod+g` | Jump to line | Markdown mode, editor focused | [#275](https://github.com/remcostoeten/skriuw/issues/275) |
-| `mod+h` | Find and replace | Note open, editor or find panel focused | [#276](https://github.com/remcostoeten/skriuw/issues/276) |
-| `ctrl+↑` / `ctrl+↓` | Go to start / end of document | Caret in the editor | [#277](https://github.com/remcostoeten/skriuw/issues/277) |
-| `ctrl+shift+[` / `]` | Previous / next note | Anywhere in the notes workspace | [#278](https://github.com/remcostoeten/skriuw/issues/278) |
-| `ctrl+shift+o` | Import a markdown file as a new note | Anywhere | [#279](https://github.com/remcostoeten/skriuw/issues/279) |
-| `ctrl+1`-`9`, `ctrl+0` | Open tab by index, last tab | Tabs open; final combos pending conflict resolution | [#280](https://github.com/remcostoeten/skriuw/issues/280) |
-| `g` `t` `1`-`9` | Go to rail destination (notes, tags, people, trash, …) | Focus on non-editable chrome | [#281](https://github.com/remcostoeten/skriuw/issues/281) |
-| `mod+/` | Shortcut cheat-sheet overlay | Anywhere | [#283](https://github.com/remcostoeten/skriuw/issues/283) |
-| `mod+backspace` | Move current note to trash (with undo) | Editor or metadata panel focused | [#284](https://github.com/remcostoeten/skriuw/issues/284) |
-| `F2` | Rename current note | Editor focused (sidebar keeps its own `F2`) | [#285](https://github.com/remcostoeten/skriuw/issues/285) |
-| `mod+shift+d` | Duplicate current note | Note open | [#286](https://github.com/remcostoeten/skriuw/issues/286) |
-| `mod+shift+w` | Reopen closed tab | Tabs on | [#287](https://github.com/remcostoeten/skriuw/issues/287) |
-| `ctrl+shift+pageup` / `pagedown` | Move tab left / right | Tabs on | [#287](https://github.com/remcostoeten/skriuw/issues/287) |
-| `mod+alt+←` / `→` | Focus split pane in that direction | Split view active | [#288](https://github.com/remcostoeten/skriuw/issues/288) |

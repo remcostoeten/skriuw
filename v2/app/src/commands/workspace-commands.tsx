@@ -1,33 +1,65 @@
 import { quitApp, toggleMaximize } from "../actions/window";
 import {
+  activateTabAtIndex,
   closeActiveTab,
   closeSplit,
   cycleTab,
+  focusPaneTowards,
+  moveActiveTab,
   openBeside,
+  reopenClosedTab,
+  tabStripPaneId,
 } from "../actions/panes";
 import { toggleEditorMode } from "../actions/editor-mode";
-import { createFolder, createNote, setNodePinned } from "../actions/workspace";
+import {
+  activateNote,
+  createFolder,
+  createNote,
+  duplicateCurrentNote,
+  focusedFolderId,
+  focusedPaneNoteId,
+  navigateNote,
+  noteNavigationOrder,
+  renameCurrentNote,
+  restoreTrashedNote,
+  setNodePinned,
+  trashCurrentNote,
+} from "../actions/workspace";
 import type { AppRoute } from "../app-route";
-import { openEditorSearch } from "../editor/search-controller";
+import {
+  openEditorSearch,
+  openEditorSearchAndReplace,
+} from "../editor/search-controller";
 import {
   exportNoteAsMarkdown,
   exportWorkspaceAsMarkdown,
+  importMarkdownFileIntoWorkspace,
   importMarkdownIntoWorkspace,
   importProviderExportIntoWorkspace,
 } from "../export/markdown-transfer";
 import { requestEntityCreate } from "../references/entity-create-controller";
+import { captureRenameReturnFocus } from "../shell/rename-focus";
+import { showToast } from "../shared/ui/toast";
+import { shortcutDefinition } from "../shortcuts/bindings";
+import { TAB_INDEX_ACTION_IDS } from "../shortcuts/definitions";
 import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CircleIcon,
   CloseIcon,
+  CopyIcon,
   DownloadIcon,
   FileTextIcon,
   FolderOpenIcon,
+  KeyboardIcon,
   MaximizeIcon,
   NewFolderIcon,
   NewNoteIcon,
   PanelLeftToggleIcon,
   PanelRightToggleIcon,
+  PencilIcon,
   PinIcon,
+  ReplaceIcon,
   RotateCcwIcon,
   SearchIcon,
   SettingsIcon,
@@ -37,20 +69,94 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from "../shared/icons";
-import type { RendererStore } from "../store/types";
+import { opensNotesInTabs } from "../settings/settings-model";
+import type { RendererState, RendererStore } from "../store/types";
 import { resetZoom, zoomIn, zoomOut } from "../zoom/zoom-controller";
-import { focusRegion } from "./focus-regions";
+import { focusEditorPane, focusRegion, focusedPaneIndex } from "./focus-regions";
 import type { AppCommand, CommandPredicate } from "./registry";
 
 export type CommandUiControls = {
   togglePalette: () => void;
   openSettings: () => void;
+  showShortcutHelp: () => void;
   toggleSidebar: () => void;
+  /** Reveals the sidebar without toggling it, for actions that live in the tree. */
+  openSidebar: () => void;
   toggleMetadata: () => void;
   navigate: (route: AppRoute) => void;
 };
 
 const onNotesRoute: CommandPredicate = (_state, ui) => ui.route === "notes";
+
+function hasClosedTabs(state: RendererState): boolean {
+  return (
+    opensNotesInTabs(state.settings) &&
+    (state.closedTabsByPaneId.get(tabStripPaneId(state))?.length ?? 0) > 0
+  );
+}
+
+/**
+ * Moves pane focus one step, reading the current pane from the DOM so a move
+ * from the sidebar or metadata panel lands on the nearest pane that way.
+ */
+function focusPaneInDirection(store: RendererStore, direction: -1 | 1): void {
+  const index = focusPaneTowards(store, direction, focusedPaneIndex());
+  if (index !== null) {
+    focusEditorPane(index);
+  }
+}
+
+function hasMovableTabs(state: RendererState): boolean {
+  const paneId = tabStripPaneId(state);
+  const pane = state.panes.find((entry) => entry.paneId === paneId);
+  return opensNotesInTabs(state.settings) && (pane?.openNoteIds.length ?? 0) > 1;
+}
+
+/**
+ * Runs the single-file import, targeting the sidebar's focused folder when
+ * there is one. A single imported note switches to the notes view and opens,
+ * matching the folder/archive import flows' hands-off default of just
+ * reporting the result when more than one note lands.
+ */
+async function runImportMarkdownFile(
+  store: RendererStore,
+  controls: CommandUiControls,
+): Promise<void> {
+  const initialDestinationFolderId = focusedFolderId(store.getState());
+  const createdNoteIds = await importMarkdownFileIntoWorkspace(
+    store,
+    initialDestinationFolderId,
+  );
+  const [noteId] = createdNoteIds ?? [];
+  if (noteId !== undefined && createdNoteIds?.length === 1) {
+    controls.navigate("notes");
+    activateNote(store, noteId);
+  }
+}
+
+/**
+ * Direct tab access, one command per digit key. Hidden from the palette — ten
+ * "Go to tab N" rows would drown the list, and the cheat sheet renders the
+ * bindings from `SHORTCUT_DEFINITIONS` instead.
+ */
+function tabIndexCommands(store: RendererStore): AppCommand[] {
+  const indexed = TAB_INDEX_ACTION_IDS.map((shortcut, index) => ({
+    shortcut,
+    position: index + 1,
+  }));
+  return [...indexed, { shortcut: "openLastTab" as const, position: 0 }].map(
+    ({ shortcut, position }) => ({
+      id: `go-to-tab-${position}`,
+      label: shortcutDefinition(shortcut).label,
+      group: "Tabs",
+      keywords: ["tab", "index", "position"],
+      shortcut,
+      visible: () => false,
+      enabled: onNotesRoute,
+      run: () => activateTabAtIndex(store, position),
+    }),
+  );
+}
 
 export function createWorkspaceCommands(
   store: RendererStore,
@@ -128,6 +234,64 @@ export function createWorkspaceCommands(
       },
     },
     {
+      id: "rename-current-note",
+      label: "Rename current note",
+      group: "Actions",
+      keywords: ["rename", "title", "name"],
+      icon: <PencilIcon size={15} />,
+      shortcut: "renameCurrentNote",
+      enabled: (state, ui) => onNotesRoute(state, ui) && focusedPaneNoteId(state) !== null,
+      run: () => {
+        controls.openSidebar();
+        captureRenameReturnFocus();
+        renameCurrentNote(store);
+      },
+    },
+    {
+      id: "duplicate-current-note",
+      label: "Duplicate current note",
+      group: "Actions",
+      keywords: ["duplicate", "copy", "clone"],
+      icon: <CopyIcon size={15} />,
+      shortcut: "duplicateCurrentNote",
+      hint: shortcutDefinition("duplicateCurrentNote").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && focusedPaneNoteId(state) !== null,
+      run: () => {
+        captureRenameReturnFocus();
+        void duplicateCurrentNote(store).then((duplicated) => {
+          if (duplicated === null) {
+            return;
+          }
+          controls.openSidebar();
+          renameCurrentNote(store);
+        });
+      },
+    },
+    {
+      id: "trash-current-note",
+      label: "Move current note to trash",
+      group: "Actions",
+      keywords: ["trash", "delete", "remove"],
+      icon: <Trash2Icon size={15} />,
+      shortcut: "trashCurrentNote",
+      hint: shortcutDefinition("trashCurrentNote").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && focusedPaneNoteId(state) !== null,
+      run: () => {
+        void trashCurrentNote(store).then((trashed) => {
+          if (trashed === null) {
+            return;
+          }
+          showToast({
+            message: `Moved “${trashed.title}” to trash`,
+            action: {
+              label: "Undo",
+              run: () => restoreTrashedNote(store, trashed.noteId),
+            },
+          });
+        });
+      },
+    },
+    {
       id: "toggle-editor-mode",
       label: "Toggle raw Markdown mode",
       group: "Actions",
@@ -173,6 +337,35 @@ export function createWorkspaceCommands(
       run: () => cycleTab(store, -1),
     },
     {
+      id: "reopen-closed-tab",
+      label: "Reopen closed tab",
+      group: "Tabs",
+      keywords: ["tab", "reopen", "restore", "undo"],
+      shortcut: "reopenClosedTab",
+      hint: shortcutDefinition("reopenClosedTab").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && hasClosedTabs(state),
+      run: () => reopenClosedTab(store),
+    },
+    {
+      id: "move-tab-left",
+      label: "Move tab left",
+      group: "Tabs",
+      keywords: ["tab", "move", "reorder"],
+      shortcut: "moveTabLeft",
+      enabled: (state, ui) => onNotesRoute(state, ui) && hasMovableTabs(state),
+      run: () => moveActiveTab(store, -1),
+    },
+    {
+      id: "move-tab-right",
+      label: "Move tab right",
+      group: "Tabs",
+      keywords: ["tab", "move", "reorder"],
+      shortcut: "moveTabRight",
+      enabled: (state, ui) => onNotesRoute(state, ui) && hasMovableTabs(state),
+      run: () => moveActiveTab(store, 1),
+    },
+    ...tabIndexCommands(store),
+    {
       id: "open-beside",
       label: "Open current note beside",
       group: "Tabs",
@@ -213,6 +406,18 @@ export function createWorkspaceCommands(
       enabled: (state) => state.nodes.size > 0,
       run: () => {
         void exportWorkspaceAsMarkdown(store);
+      },
+    },
+    {
+      id: "import-markdown-file",
+      label: "Import markdown file…",
+      group: "Actions",
+      keywords: ["import", "markdown", "file", "single", "note"],
+      icon: <UploadIcon size={15} />,
+      shortcut: "importMarkdownFile",
+      hint: shortcutDefinition("importMarkdownFile").description,
+      run: () => {
+        void runImportMarkdownFile(store, controls);
       },
     },
     {
@@ -264,6 +469,15 @@ export function createWorkspaceCommands(
       run: controls.openSettings,
     },
     {
+      id: "show-shortcut-help",
+      label: "Show keyboard shortcuts",
+      group: "General",
+      keywords: ["cheat sheet", "keybindings", "help"],
+      icon: <KeyboardIcon size={15} />,
+      shortcut: "showShortcutHelp",
+      run: controls.showShortcutHelp,
+    },
+    {
       id: "toggle-sidebar",
       label: "Toggle sidebar",
       group: "Navigation",
@@ -300,10 +514,38 @@ export function createWorkspaceCommands(
       label: "Focus editor",
       group: "Navigation",
       shortcut: "focusEditor",
+      hint: shortcutDefinition("focusEditor").description,
       enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
       run: () => {
+        const state = store.getState();
+        const paneIndex = state.panes.findIndex(
+          (pane) => pane.paneId === state.focusedPaneId,
+        );
+        if (state.panes.length > 1 && paneIndex >= 0 && focusEditorPane(paneIndex)) {
+          return;
+        }
         focusRegion("editor");
       },
+    },
+    {
+      id: "focus-pane-left",
+      label: "Focus pane to the left",
+      group: "Navigation",
+      keywords: ["split", "pane", "focus"],
+      shortcut: "focusPaneLeft",
+      hint: shortcutDefinition("focusPaneLeft").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.panes.length > 1,
+      run: () => focusPaneInDirection(store, -1),
+    },
+    {
+      id: "focus-pane-right",
+      label: "Focus pane to the right",
+      group: "Navigation",
+      keywords: ["split", "pane", "focus"],
+      shortcut: "focusPaneRight",
+      hint: shortcutDefinition("focusPaneRight").description,
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.panes.length > 1,
+      run: () => focusPaneInDirection(store, 1),
     },
     {
       id: "focus-metadata",
@@ -324,6 +566,42 @@ export function createWorkspaceCommands(
       shortcut: "findInNote",
       enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
       run: openEditorSearch,
+    },
+    {
+      id: "find-and-replace-in-note",
+      label: "Find and replace in note",
+      group: "Editor",
+      keywords: ["search", "replace", "substitute", "find"],
+      icon: <ReplaceIcon size={15} />,
+      shortcut: "findAndReplaceInNote",
+      enabled: (state, ui) => onNotesRoute(state, ui) && state.activeNoteId !== null,
+      run: openEditorSearchAndReplace,
+    },
+    {
+      id: "previous-note",
+      label: "Previous note",
+      group: "Navigation",
+      keywords: ["note", "back", "cycle"],
+      icon: <ChevronLeftIcon size={15} />,
+      shortcut: "previousNote",
+      enabled: (state, ui) =>
+        onNotesRoute(state, ui) &&
+        state.activeNoteId !== null &&
+        noteNavigationOrder(state).length > 1,
+      run: () => navigateNote(store, -1),
+    },
+    {
+      id: "next-note",
+      label: "Next note",
+      group: "Navigation",
+      keywords: ["note", "forward", "cycle"],
+      icon: <ChevronRightIcon size={15} />,
+      shortcut: "nextNote",
+      enabled: (state, ui) =>
+        onNotesRoute(state, ui) &&
+        state.activeNoteId !== null &&
+        noteNavigationOrder(state).length > 1,
+      run: () => navigateNote(store, 1),
     },
     {
       id: "go-to-notes",

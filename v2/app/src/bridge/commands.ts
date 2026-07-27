@@ -177,8 +177,11 @@ export function pickDirectory(title: string): Promise<string | null> {
   return invoke<string | null>("pick_directory", { title });
 }
 
-export function pickImportFile(title: string): Promise<string | null> {
-  return invoke<string | null>("pick_import_file", { title });
+export function pickImportFile(
+  title: string,
+  extensions?: readonly string[],
+): Promise<string | null> {
+  return invoke<string | null>("pick_import_file", { title, extensions });
 }
 
 export function pickImportFiles(title: string): Promise<string[]> {

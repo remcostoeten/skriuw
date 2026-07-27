@@ -3,6 +3,7 @@ import test from "node:test";
 import type { WorkspaceNode, WorkspaceSnapshot } from "../../src/contracts/workspace";
 import {
   activateTab,
+  activateTabAtIndex,
   closeActiveTab,
   closeAllTabs,
   closeOtherTabs,
@@ -11,8 +12,11 @@ import {
   closeTabsToSide,
   cycleTab,
   focusPane,
+  focusPaneTowards,
+  moveActiveTab,
   openBeside,
   openNoteInTab,
+  reopenClosedTab,
   togglePinTab,
 } from "../../src/actions/panes";
 import { createInitialState, createRendererStore } from "../../src/store/store";
@@ -209,4 +213,164 @@ test("closeTabsToSide closes tabs on the given side of the target", () => {
   closeTabsToSide(rendererStore, "b", "right");
   const primary = rendererStore.getState().panes[0]!;
   assert.deepEqual(primary.openNoteIds, ["a", "b"]);
+});
+
+function tabbedStore() {
+  const base = snapshot();
+  return createRendererStore(
+    createInitialState({
+      ...base,
+      settings: { ...base.settings, openNotesInTabs: true },
+    }),
+  );
+}
+
+test("tab access by index activates that slot and index 0 activates the last tab", () => {
+  const rendererStore = tabbedStore();
+  openNoteInTab(rendererStore, "b");
+  openNoteInTab(rendererStore, "c");
+  activateTabAtIndex(rendererStore, 1);
+  assert.equal(rendererStore.getState().activeNoteId, "a");
+  activateTabAtIndex(rendererStore, 2);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+  activateTabAtIndex(rendererStore, 0);
+  assert.equal(rendererStore.getState().activeNoteId, "c");
+});
+
+test("tab access by index is a silent no-op out of range and with tabs off", () => {
+  const tabbed = tabbedStore();
+  openNoteInTab(tabbed, "b");
+  const before = tabbed.getState();
+  activateTabAtIndex(tabbed, 7);
+  assert.equal(tabbed.getState(), before);
+
+  const untabbed = store();
+  openNoteInTab(untabbed, "b");
+  const untabbedBefore = untabbed.getState();
+  activateTabAtIndex(untabbed, 1);
+  assert.equal(untabbed.getState(), untabbedBefore);
+});
+
+test("tab access by index reads the focused pane's strip", () => {
+  const rendererStore = tabbedStore();
+  openNoteInTab(rendererStore, "b");
+  openBeside(rendererStore, "c");
+  focusPane(rendererStore, SECONDARY_PANE_ID);
+  activateTabAtIndex(rendererStore, 2);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+  assert.equal(rendererStore.getState().panes[1]?.activeNoteId, "c");
+
+  focusPane(rendererStore, PRIMARY_PANE_ID);
+  activateTabAtIndex(rendererStore, 1);
+  assert.equal(rendererStore.getState().activeNoteId, "a");
+});
+
+test("closing a tab records it and mod+shift+w reopens it at its old position", () => {
+  const rendererStore = tabbedStore();
+  openNoteInTab(rendererStore, "b");
+  openNoteInTab(rendererStore, "c");
+  closeTab(rendererStore, "b");
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "c"]);
+  assert.deepEqual(
+    rendererStore.getState().closedTabsByPaneId.get(PRIMARY_PANE_ID),
+    [{ noteId: "b", index: 1 }],
+  );
+
+  reopenClosedTab(rendererStore);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "b", "c"]);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+  assert.equal(rendererStore.getState().closedTabsByPaneId.size, 0);
+});
+
+test("reopening skips a note trashed since it was closed", () => {
+  const rendererStore = tabbedStore();
+  openNoteInTab(rendererStore, "b");
+  openNoteInTab(rendererStore, "c");
+  closeTab(rendererStore, "b");
+  closeTab(rendererStore, "c");
+  rendererStore.applyOperations([{ type: "trash_subtree", rootId: "c", at: 2 }]);
+  reopenClosedTab(rendererStore);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "b"]);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+});
+
+test("reopening is a silent no-op with an empty stack and with tabs off", () => {
+  const tabbed = tabbedStore();
+  const before = tabbed.getState();
+  reopenClosedTab(tabbed);
+  assert.equal(tabbed.getState(), before);
+
+  const untabbed = store();
+  openNoteInTab(untabbed, "b");
+  closeTab(untabbed, "b");
+  const untabbedBefore = untabbed.getState();
+  reopenClosedTab(untabbed);
+  assert.equal(untabbed.getState(), untabbedBefore);
+});
+
+test("closing the split forgets that pane's reopen stack", () => {
+  const rendererStore = tabbedStore();
+  openBeside(rendererStore, "b");
+  rendererStore.update((current) => ({
+    ...current,
+    closedTabsByPaneId: new Map([[SECONDARY_PANE_ID, [{ noteId: "c", index: 0 }]]]),
+  }));
+  closeSplit(rendererStore);
+  assert.equal(rendererStore.getState().closedTabsByPaneId.has(SECONDARY_PANE_ID), false);
+});
+
+test("moving the active tab wraps at the ends and needs more than one tab", () => {
+  const rendererStore = tabbedStore();
+  openNoteInTab(rendererStore, "b");
+  openNoteInTab(rendererStore, "c");
+  moveActiveTab(rendererStore, -1);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "c", "b"]);
+  moveActiveTab(rendererStore, 1);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "b", "c"]);
+  moveActiveTab(rendererStore, 1);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["c", "a", "b"]);
+
+  const single = tabbedStore();
+  const before = single.getState();
+  moveActiveTab(single, 1);
+  assert.equal(single.getState(), before);
+});
+
+test("moving a tab is a no-op with the tabbed workspace off", () => {
+  const rendererStore = store();
+  openNoteInTab(rendererStore, "b");
+  const before = rendererStore.getState();
+  moveActiveTab(rendererStore, 1);
+  assert.equal(rendererStore.getState(), before);
+});
+
+test("focusPaneTowards marks the pane in that direction as focused", () => {
+  const rendererStore = tabbedStore();
+  openBeside(rendererStore, "b");
+  assert.equal(focusPaneTowards(rendererStore, 1, 0), 1);
+  assert.equal(rendererStore.getState().focusedPaneId, SECONDARY_PANE_ID);
+  assert.equal(focusPaneTowards(rendererStore, -1, 1), 0);
+  assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);
+});
+
+test("focusPaneTowards refuses to wrap and refuses to move without a split", () => {
+  const rendererStore = tabbedStore();
+  openBeside(rendererStore, "b");
+  assert.equal(focusPaneTowards(rendererStore, -1, 0), null);
+  assert.equal(focusPaneTowards(rendererStore, 1, 1), null);
+  assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);
+
+  closeSplit(rendererStore);
+  const before = rendererStore.getState();
+  assert.equal(focusPaneTowards(rendererStore, 1, null), null);
+  assert.equal(rendererStore.getState(), before);
+});
+
+test("focusPaneTowards from outside the panes picks the nearest pane that way", () => {
+  const rendererStore = tabbedStore();
+  openBeside(rendererStore, "b");
+  assert.equal(focusPaneTowards(rendererStore, 1, null), 1);
+  assert.equal(rendererStore.getState().focusedPaneId, SECONDARY_PANE_ID);
+  assert.equal(focusPaneTowards(rendererStore, -1, null), 0);
+  assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);
 });
