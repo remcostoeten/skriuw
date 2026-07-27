@@ -680,7 +680,7 @@ fn prepare_import_source_path(source: &Path) -> Result<PreparedImportSource, Str
             fs::copy(source, temporary.join(file_name))
                 .map_err(|error| format!("copy import file {}: {error}", source.display()))?;
         } else {
-            return Err("unsupported import source; choose a folder, ZIP, Bear backup, Markdown, text, JSON, or CSV file".to_string());
+            return Err("unsupported import source; choose a folder, ZIP, Bear backup, Markdown, text, JSON, CSV, or Evernote ENEX file".to_string());
         }
         Ok(PreparedImportSource {
             root_path: temporary.display().to_string(),
@@ -729,7 +729,7 @@ fn prepare_import_source_paths(sources: &[PathBuf]) -> Result<PreparedImportSour
                         .ok_or_else(|| "import file has no name".to_string())?;
                     if !has_importable_extension(&file_name.to_lowercase()) {
                         return Err(format!(
-                            "unsupported import file; choose Markdown, text, JSON, or CSV files: {}",
+                            "unsupported import file; choose Markdown, text, JSON, CSV, or ENEX files: {}",
                             source.display()
                         ));
                     }
@@ -816,7 +816,7 @@ fn write_markdown_entries(
 
 fn has_importable_extension(name: &str) -> bool {
     let lowered = name.to_lowercase();
-    ["md", "markdown", "txt", "json", "csv"]
+    ["md", "markdown", "txt", "json", "csv", "enex"]
         .iter()
         .any(|extension| lowered.ends_with(&format!(".{extension}")))
 }

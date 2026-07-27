@@ -9,6 +9,10 @@ import { notionSource } from "../../src/import/sources/notion";
 import { obsidianSource } from "../../src/import/sources/obsidian";
 import { simplenoteSource } from "../../src/import/sources/simplenote";
 import { appleNotesSource } from "../../src/import/sources/apple-notes";
+import { evernoteSource } from "../../src/import/sources/evernote";
+import { joplinSource } from "../../src/import/sources/joplin";
+import { keepSource } from "../../src/import/sources/keep";
+import { standardNotesSource } from "../../src/import/sources/standard-notes";
 
 const fixtures = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -28,7 +32,7 @@ async function fixtureTree(name: string): Promise<MarkdownTree> {
       if (entry.isDirectory()) {
         directories.push(relativePath);
         await visit(path);
-      } else if (/\.(md|markdown|txt|json|csv)$/i.test(entry.name)) {
+      } else if (/\.(md|markdown|txt|json|csv|enex)$/i.test(entry.name)) {
         files.push({ relativePath, content: await readFile(path, "utf8") });
       } else if (/\.(png|jpe?g|gif|webp)$/i.test(entry.name)) {
         assets.push(relativePath);
@@ -67,4 +71,31 @@ test("provider fixture corpus matches documented export shapes", async () => {
   const apple = appleNotesSource.parse(await fixtureTree("apple-notes"));
   assert.equal(apple.notes.length, 1);
   assert.equal(apple.notes[0]?.title, "Apple Notes example");
+
+  const evernote = evernoteSource.parse(await fixtureTree("evernote"));
+  assert.equal(evernote.notes.length, 2);
+  assert.deepEqual(evernote.notes[0]?.tags, ["work", "meetings"]);
+  assert.ok(evernote.notes[0]?.markdown.includes("# Weekly sync"));
+  assert.ok(evernote.notes[0]?.markdown.includes("[x] Draft announcement"));
+  assert.ok(evernote.notes[1]?.markdown.includes("```\ngrep -rn TODO src/"));
+  assert.ok(evernote.warnings.some((warning) => warning.message.includes("attachment")));
+
+  const joplin = joplinSource.parse(await fixtureTree("joplin"));
+  assert.equal(joplin.notes.length, 1);
+  assert.equal(joplin.notes[0]?.relativePath, "Personal/Reading list.md");
+  assert.deepEqual(joplin.notes[0]?.tags, ["books"]);
+  assert.ok(
+    joplin.notes[0]?.markdown.includes(
+      "![cover](../resources/9f8e7d6c5b4a39281706f5e4d3c2b1a0.png)",
+    ),
+  );
+
+  const keep = keepSource.parse(await fixtureTree("keep"));
+  assert.equal(keep.notes.length, 2);
+  assert.ok(keep.notes.some((note) => note.markdown.includes("- [x] Milk")));
+  assert.ok(keep.warnings.some((warning) => warning.message.includes("trashed")));
+
+  const standardNotes = standardNotesSource.parse(await fixtureTree("standard-notes"));
+  assert.equal(standardNotes.notes.length, 1);
+  assert.deepEqual(standardNotes.notes[0]?.tags, ["journal"]);
 });

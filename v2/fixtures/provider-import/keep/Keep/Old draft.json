@@ -1,0 +1,10 @@
+{
+  "color": "DEFAULT",
+  "isTrashed": true,
+  "isPinned": false,
+  "isArchived": false,
+  "title": "Old draft",
+  "textContent": "Discarded text.",
+  "userEditedTimestampUsec": 1767398400000000,
+  "createdTimestampUsec": 1767398400000000
+}

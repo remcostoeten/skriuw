@@ -333,8 +333,9 @@ export function DataSection({ store }: SectionProps) {
           <span className={settingsRowLabel}>
             Import a provider export
             <span className={settingsRowDescription}>
-              ZIP, Bear .bear2bk, Simplenote JSON, Notion CSV, Markdown, or text
-              files. Shows a preview before anything changes.
+              ZIP, Evernote ENEX, Joplin, Google Keep, Standard Notes, Bear
+              .bear2bk, Simplenote JSON, Notion CSV, Markdown, or text files.
+              Shows a preview before anything changes.
             </span>
           </span>
           <button
