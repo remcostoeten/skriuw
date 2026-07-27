@@ -297,6 +297,7 @@ async function importNotesFromPath(
     const existingNotes = [...state.nodes.values()]
       .filter((node) => node.kind === "note")
       .map((node) => ({ id: node.id, title: node.title }));
+    const presentNoteIds = new Set(existingNotes.map((note) => note.id));
     const existingTags = [...state.tags.values()].map((tag) => ({
       id: tag.id,
       name: tag.name,
@@ -358,6 +359,7 @@ async function importNotesFromPath(
               duplicateMode,
               sourceKey,
               receipts: state.importReceipts,
+              presentNoteIds,
               existingDocuments,
               existingPropertiesByNoteId: state.propertiesByNoteId,
             },
