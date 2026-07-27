@@ -400,6 +400,93 @@ test("applyImportGrouping without options matches plain destination reparenting"
   }
 });
 
+test("applyImportGrouping creates nothing when every note was a duplicate", () => {
+  const operations = planImportBundle(
+    {
+      sourceId: "simplenote",
+      sourceLabel: "Simplenote",
+      directories: [],
+      notes: [{ relativePath: "A.md", title: "A", markdown: "Body" }],
+      warnings: [],
+    },
+    999,
+    sequentialIds(),
+    [{ id: "existing", title: "A" }],
+    [],
+    {
+      duplicateMode: "skip",
+      sourceKey: "source-key",
+      receipts: [
+        {
+          provider: "simplenote",
+          sourceKey: "source-key",
+          sourcePath: "A.md",
+          noteId: "existing",
+          importedAt: 100,
+        },
+      ],
+      presentNoteIds: new Set(["existing"]),
+    },
+  ).operations;
+  assert.deepEqual(
+    operations.filter(
+      (operation) =>
+        operation.type === "create_note" || operation.type === "create_folder",
+    ),
+    [],
+  );
+  assert.deepEqual(
+    applyImportGrouping(
+      operations,
+      {
+        destinationFolderId: null,
+        sourceFolderLabel: "Simplenote",
+        groupByYear: true,
+      },
+      999,
+      sequentialIds(),
+    ),
+    [],
+  );
+});
+
+test("applyImportGrouping reuses same-named folders from an earlier import", () => {
+  const y2023 = Date.parse("2023-06-01T00:00:00.000Z");
+  const operations = planImportBundle(
+    {
+      sourceId: "simplenote",
+      sourceLabel: "Simplenote",
+      directories: [],
+      notes: [
+        { relativePath: "Later.md", title: "Later", markdown: "Body", createdAt: y2023 },
+      ],
+      warnings: [],
+    },
+    999,
+    sequentialIds(),
+  ).operations;
+  const grouping = applyImportGrouping(
+    operations,
+    {
+      destinationFolderId: "dest",
+      sourceFolderLabel: "Simplenote",
+      groupByYear: true,
+      existingNodes: [
+        { id: "source-folder", parentId: "dest", kind: "folder", title: "simplenote " },
+        { id: "year-folder", parentId: "source-folder", kind: "folder", title: "2023" },
+        { id: "decoy", parentId: null, kind: "folder", title: "2023" },
+        { id: "note-decoy", parentId: "source-folder", kind: "note", title: "2023" },
+      ],
+    },
+    999,
+    sequentialIds(),
+  );
+  assert.deepEqual(grouping, []);
+  const note = operations.find((operation) => operation.type === "create_note");
+  assert.ok(note && note.type === "create_note");
+  assert.equal(note.placement.parentId, "year-folder");
+});
+
 test("planImportBundle keeps provenance properties out of the main operations", () => {
   const at = Date.parse("2024-03-04T05:06:07.000Z");
   const plan = planImportBundle(

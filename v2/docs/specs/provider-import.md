@@ -14,6 +14,10 @@ Supported first-party routes:
 - Bear TextBundles and `.bear2bk` backups
 - Simplenote `notes.json` exports
 - Apple Notes Markdown exports
+- Evernote `.enex` exports
+- Joplin RAW exports
+- Google Keep Takeout exports
+- Standard Notes decrypted backups
 
 ## Flow
 
@@ -38,7 +42,15 @@ Preview shows:
 - provider diagnostics with affected source paths;
 - destination behavior and re-import behavior.
 
-Destination may be workspace root or any existing folder. Re-import uses a
+Destination may be workspace root or any existing folder. Imported roots may
+additionally be nested in a folder named after the detected provider, and
+imported notes may be fanned out into folders named after their creation year.
+Grouping reparents planned operations, so relative links and image references
+stay intact. Grouping folders reuse an existing same-named folder instead of
+creating a second one, and no grouping folder is created when every note was a
+duplicate. Notes without a provider creation time fall back to the import year.
+
+Re-import uses a
 durable receipt keyed by provider, selected-source location fingerprint, and provider-relative
 note path. Users choose to skip previously imported notes, update their content
 and imported properties in place, or create another copy. New and updated
@@ -93,8 +105,35 @@ Encrypted records produce explicit diagnostics.
 
 ### Simplenote
 
-Active notes, tags, creation time, and modification time import. Trashed entries
-remain skipped and counted.
+Active notes, tags, creation time, modification time, and pin state import.
+Pinned entries become pinned workspace notes on creation; re-imported notes that
+already exist keep their current workspace pin state. Trashed entries remain
+skipped and counted.
+
+### Evernote
+
+`.enex` exports are parsed as ENML without a DOM. Each export file becomes one
+folder when several are imported together. Todos, code blocks, tables, and inline
+marks map to Markdown. Encrypted and embedded media records become placeholders
+with diagnostics.
+
+### Joplin
+
+RAW exports only; the JEX container is a TAR and is not accepted. Items are
+discriminated by their trailing metadata block. Folder chains map to nested
+workspace folders and `:/id` resource links resolve against exported resources.
+
+### Google Keep
+
+Takeout per-note JSON imports title, text, and checklists. Labels map to tags,
+and pin, archive, and color map to typed properties. Attachments resolve against
+sibling asset files. Trashed notes remain skipped and counted.
+
+### Standard Notes
+
+Decrypted backups import notes with tag items attached through references.
+Encrypted payloads are detected and reported as errors rather than imported as
+text.
 
 ### Apple Notes
 

@@ -18,8 +18,10 @@ v1 is complete and shipped (see [FEATURES.md](FEATURES.md)). This list tracks ca
 
 - [x] Tabs and split view. Spec: [docs/specs/tabs-and-split-view.md](docs/specs/tabs-and-split-view.md). Shipped per [ADR-0021](docs/adr/0021-tabs-and-split-view.md): tab strip + open-beside split, live editors bounded at visible panes, native pane-layout persistence. Covered by tests: `app/__tests__/store/panes.test.ts`, `app/__tests__/actions/panes.test.ts`, `app/__tests__/store/pane-layout-persistence.test.ts`, `app/__tests__/shell/editor-panes.test.ts` (asserts exactly one/two live editor hosts via `renderToStaticMarkup`). Deferred: per-pane tab strip.
 - [x] Note properties (custom metadata fields per note). Spec: [docs/specs/note-properties.md](docs/specs/note-properties.md). Shipped in 0.2.0: typed durable property contracts, optimistic renderer projections, metadata-panel editor with built-in templates.
-- [ ] Third-party importers. Core preview and atomic local import exists for Markdown, plain text, Simplenote (`notes.json`), Bear (TextBundle and `.bear2bk`), Obsidian, Notion Markdown/database CSV, and Apple Notes Markdown. See [the import guide](docs/provider-import.md), [spec](docs/specs/provider-import.md), and [ADR-0024](docs/adr/0024-previewed-atomic-provider-import.md).
+- [ ] Third-party importers. Core preview and atomic local import exists for Markdown, plain text, Simplenote (`notes.json`), Bear (TextBundle and `.bear2bk`), Obsidian, Notion Markdown/database CSV, Apple Notes Markdown, Evernote (`.enex`), Joplin RAW, Google Keep Takeout, and Standard Notes decrypted backups. See [the import guide](docs/provider-import.md), [spec](docs/specs/provider-import.md), and [ADR-0024](docs/adr/0024-previewed-atomic-provider-import.md).
   - [x] Destination-folder selection.
+  - [x] Organize options: nest imports in a provider-named folder and split notes into per-year folders, reusing existing folders on re-import.
+  - [x] Simplenote pin state imports as pinned workspace notes.
   - [x] Duplicate copy, skip, and in-place update modes backed by durable atomic receipts.
   - [x] Progress plus cancellation before the non-cancellable atomic commit.
   - [x] Standards-compliant Obsidian YAML parsing with lossless fallback.

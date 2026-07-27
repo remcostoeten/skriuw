@@ -5,18 +5,27 @@ Skriuw imports local exports. Note content stays on the device.
 Open the command palette and choose:
 
 - **Import notes from folder…** for Markdown, text, Obsidian vaults, extracted
-  Notion exports, or TextBundles.
-- **Import provider export…** for ZIP, `.bear2bk`, Markdown, text, Simplenote
-  JSON, or Notion CSV files.
+  Notion exports, TextBundles, Joplin RAW exports, or Google Keep Takeout
+  folders.
+- **Import provider export…** for ZIP, `.bear2bk`, `.enex`, Markdown, text,
+  Simplenote JSON, Standard Notes backups, or Notion CSV files.
 
 Skriuw scans the source before changing the workspace. Check the detected format,
 destination, re-import mode, counts, and warnings in the preview. Change the
 format when a generic Markdown folder came from Apple Notes. Cancel during
 intake, preview, or image transfer leaves workspace records unchanged.
 
+Under **Organize** the preview can place everything in a folder named after the
+detected app and split imported notes into folders by the year they were created.
+Both reuse a folder of that name when one already exists, so importing the same
+export twice does not stack up folders. Notes the export gives no creation date
+land in the current year.
+
 Confirmed note, folder, tag, property, image-record, and document changes commit
 together with durable import receipts. Re-import can skip previous matches,
-update their content and imported properties, or create copies.
+update their content and imported properties, or create copies. Receipts whose
+note was deleted are ignored, so a trashed note re-imports instead of silently
+being skipped.
 
 ## Provider export routes
 
@@ -42,8 +51,32 @@ and encrypted notes remain skipped and appear in the report.
 
 ### Simplenote
 
-Import `notes.json` or its containing folder. Active notes, tags, and timestamps
-import. Trashed notes remain skipped and counted.
+Import `notes.json` or its containing folder. Active notes, tags, timestamps, and
+pinned notes import. Trashed notes remain skipped and counted.
+
+### Evernote
+
+In Evernote, export a notebook as `.enex` and import the file directly, or place
+several `.enex` files in one folder to get a folder per notebook. Checkboxes,
+code blocks, tables, and formatting import. Encrypted and embedded attachments
+become placeholders listed in the report.
+
+### Joplin
+
+Export as **RAW** (a folder), not JEX, and choose that folder. Notebooks become
+nested folders, and resource links resolve to the exported `resources` files.
+
+### Google Keep
+
+In Google Takeout, export Keep and import the extracted `Keep` folder. Checklists
+become checkboxes, labels become tags, and pin, archive, and color become
+properties. Trashed notes remain skipped and counted.
+
+### Standard Notes
+
+Import a **decrypted** backup file. Tags attach through the backup's references.
+An encrypted backup is reported as an error instead of importing as unreadable
+text.
 
 ### Apple Notes
 
