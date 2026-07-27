@@ -270,6 +270,36 @@ test("durable receipts drive skip and update re-import modes", () => {
   );
 });
 
+test("receipts for deleted notes stop skipping the source", () => {
+  const source = bundle([
+    { relativePath: "Folder/A.md", title: "A", markdown: "body" },
+  ]);
+  const receipt = {
+    provider: "markdown",
+    sourceKey: "source-key",
+    sourcePath: "Folder/A.md",
+    noteId: "deleted-note",
+    importedAt: 100,
+  };
+  const stale = planImportBundle(source, 200, sequentialIds(), [], [], {
+    duplicateMode: "skip",
+    sourceKey: "source-key",
+    receipts: [receipt],
+    presentNoteIds: new Set<string>(),
+  });
+  assert.equal(stale.skippedDuplicates, 0);
+  assert.equal(stale.createdNotes, 1);
+
+  const live = planImportBundle(source, 200, sequentialIds(), [], [], {
+    duplicateMode: "skip",
+    sourceKey: "source-key",
+    receipts: [receipt],
+    presentNoteIds: new Set(["deleted-note"]),
+  });
+  assert.equal(live.skippedDuplicates, 1);
+  assert.equal(live.createdNotes, 0);
+});
+
 test("destination folder owns imported root nodes", () => {
   const plan = planImportBundle(
     bundle([

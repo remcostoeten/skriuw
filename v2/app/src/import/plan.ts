@@ -39,6 +39,12 @@ export type ImportPlanOptions = {
   duplicateMode?: ImportDuplicateMode;
   sourceKey?: string;
   receipts?: readonly ProviderImportReceipt[];
+  /**
+   * Ids of notes still present in the workspace. Receipts pointing outside this
+   * set are stale — their note was trashed or purged — and are ignored so the
+   * source re-imports instead of skipping. Omit to trust every receipt.
+   */
+  presentNoteIds?: ReadonlySet<string>;
   existingDocuments?: ReadonlyMap<string, MarkdownImportReuseTarget>;
   existingPropertiesByNoteId?: ReadonlyMap<string, readonly NoteProperty[]>;
 };
@@ -290,7 +296,8 @@ export function planImportBundle(
       .filter(
         (receipt) =>
           receipt.provider === bundle.sourceId &&
-          receipt.sourceKey === options.sourceKey,
+          receipt.sourceKey === options.sourceKey &&
+          (options.presentNoteIds?.has(receipt.noteId) ?? true),
       )
       .map((receipt) => [normalizeTreePath(receipt.sourcePath), receipt]),
   );
