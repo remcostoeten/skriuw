@@ -22,6 +22,8 @@ export function ImportPreviewHost() {
   const [duplicateMode, setDuplicateMode] =
     useState<ImportDuplicateMode>("skip");
   const [recordSource, setRecordSource] = useState(true);
+  const [groupIntoSourceFolder, setGroupIntoSourceFolder] = useState(false);
+  const [groupByYear, setGroupByYear] = useState(false);
   const requestRef = useRef<ActiveRequest | null>(null);
 
   useEffect(() => {
@@ -32,6 +34,8 @@ export function ImportPreviewHost() {
         setDestinationFolderId(next.initialDestinationFolderId ?? null);
         setDuplicateMode("skip");
         setRecordSource(true);
+        setGroupIntoSourceFolder(false);
+        setGroupByYear(false);
         setRequest(next);
       });
     return () => {
@@ -115,6 +119,29 @@ export function ImportPreviewHost() {
               { value: "copy", label: "Create copies" },
             ]}
           />
+          <span className="text-muted-foreground">Organize</span>
+          <div className="grid gap-1.5">
+            <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+              <input
+                type="checkbox"
+                name="import-group-source-folder"
+                checked={groupIntoSourceFolder}
+                onChange={(event) => setGroupIntoSourceFolder(event.target.checked)}
+                className="size-3.5 cursor-pointer accent-[var(--primary)]"
+              />
+              <span>Place everything in a "{selectedSource.sourceLabel}" folder</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+              <input
+                type="checkbox"
+                name="import-group-by-year"
+                checked={groupByYear}
+                onChange={(event) => setGroupByYear(event.target.checked)}
+                className="size-3.5 cursor-pointer accent-[var(--primary)]"
+              />
+              <span>Group notes into folders by year created</span>
+            </label>
+          </div>
           <span className="text-muted-foreground">Provenance</span>
           <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
             <input
@@ -187,6 +214,8 @@ export function ImportPreviewHost() {
                 destinationFolderId,
                 duplicateMode,
                 recordSource,
+                groupIntoSourceFolder,
+                groupByYear,
               })
             }
           >

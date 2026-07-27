@@ -29,6 +29,7 @@ export type ImportBundlePlan = MarkdownImportPlan & {
   skippedDuplicates: number;
   sourcePropertyNotes: number;
   sourcePropertyOperations: WorkspaceOperation[];
+  pinnedNotes: number;
 };
 
 export type ImportDuplicateMode = "copy" | "skip" | "update";
@@ -348,6 +349,7 @@ export function planImportBundle(
   );
   const idToPath = new Map(plan.notes.map((note) => [note.id, note.relativePath]));
   const propertyOperations: WorkspaceOperation[] = [];
+  const pinnedOperations: WorkspaceOperation[] = [];
   const sourcePropertyOperations: WorkspaceOperation[] = [];
   const provenanceTargets: { noteId: string; note: ImportedNote }[] = [];
   const nextPositionByNoteId = new Map<string, number>();
@@ -390,6 +392,14 @@ export function planImportBundle(
     if (operation.type === "create_note") {
       nextPositionByNoteId.set(operation.id, note.properties?.length ?? 0);
       provenanceTargets.push({ noteId: operation.id, note });
+      if (note.pinned === true) {
+        pinnedOperations.push({
+          type: "set_node_pinned",
+          id: operation.id,
+          pinned: true,
+          at: operation.at,
+        });
+      }
     }
   }
   const tags = resolveImportedTags(
@@ -483,7 +493,7 @@ export function planImportBundle(
       sourcePropertyNotes += 1;
     }
   }
-  plan.operations.push(...propertyOperations);
+  plan.operations.push(...propertyOperations, ...pinnedOperations);
   if (options.sourceKey) {
     plan.operations.push(
       ...plan.notes.map(
@@ -509,5 +519,82 @@ export function planImportBundle(
     skippedDuplicates: skippedPaths.size,
     sourcePropertyNotes,
     sourcePropertyOperations,
+    pinnedNotes: pinnedOperations.length,
   };
+}
+
+export type ImportGroupingOptions = {
+  destinationFolderId: string | null;
+  sourceFolderLabel: string | null;
+  groupByYear: boolean;
+};
+
+/**
+ * Reparents the plan's root-level nodes after the preview selection: into the
+ * chosen destination folder, optionally nested inside a folder named after the
+ * import source, with notes optionally fanned out into per-year folders keyed
+ * by their imported creation time. Returns the folder operations the caller
+ * must prepend so every new parent exists before a child references it.
+ */
+export function applyImportGrouping(
+  operations: readonly WorkspaceOperation[],
+  options: ImportGroupingOptions,
+  at: number,
+  makeId: () => string,
+): WorkspaceOperation[] {
+  const rootOperations = operations.filter(
+    (
+      operation,
+    ): operation is Extract<
+      WorkspaceOperation,
+      { type: "create_folder" | "create_note" }
+    > =>
+      (operation.type === "create_folder" || operation.type === "create_note") &&
+      operation.placement.parentId === null,
+  );
+  const folderOperations: WorkspaceOperation[] = [];
+  let groupParentId = options.destinationFolderId;
+  if (options.sourceFolderLabel !== null) {
+    groupParentId = makeId();
+    folderOperations.push({
+      type: "create_folder",
+      id: groupParentId,
+      title: options.sourceFolderLabel,
+      placement: {
+        parentId: options.destinationFolderId,
+        position: { type: "last" },
+      },
+      at,
+    });
+  }
+  const yearFolderIds = new Map<number, string>();
+  if (options.groupByYear) {
+    const years = [
+      ...new Set(
+        rootOperations.flatMap((operation) =>
+          operation.type === "create_note"
+            ? [new Date(operation.at).getFullYear()]
+            : [],
+        ),
+      ),
+    ].sort((left, right) => left - right);
+    for (const year of years) {
+      const id = makeId();
+      yearFolderIds.set(year, id);
+      folderOperations.push({
+        type: "create_folder",
+        id,
+        title: `${year}`,
+        placement: { parentId: groupParentId, position: { type: "last" } },
+        at,
+      });
+    }
+  }
+  for (const operation of rootOperations) {
+    operation.placement.parentId =
+      operation.type === "create_note" && options.groupByYear
+        ? (yearFolderIds.get(new Date(operation.at).getFullYear()) ?? groupParentId)
+        : groupParentId;
+  }
+  return folderOperations;
 }
