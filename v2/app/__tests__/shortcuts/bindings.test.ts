@@ -527,6 +527,47 @@ test("ctrl+shift+o matches the import binding regardless of the platform mod key
   );
 });
 
+test("the previous/next note keys fire mid-edit but stay silent behind a modal", () => {
+  for (const [id, keys] of [
+    ["previousNote", "ctrl+shift+bracketleft"],
+    ["nextNote", "ctrl+shift+bracketright"],
+  ] as const) {
+    const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
+    assert.ok(definition, `${id} has no definition`);
+    assert.equal(effectiveShortcutKeys(definition, {}), keys);
+    assert.equal(definition.worksWhileTyping, true);
+    assert.equal(definition.scopes, undefined);
+    assert.deepEqual(shortcutGuards(definition, true), ["modal"]);
+    assert.equal(findShortcutConflict({}, id, keys), null);
+  }
+});
+
+test("previous/next note survive editor focus but defer to an open command palette", () => {
+  const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === "nextNote");
+  assert.ok(definition);
+  const guards = shortcutGuards(definition, true);
+  const editorTarget = { tagName: "DIV", isContentEditable: true, closest: () => null };
+  const sidebarRow = { tagName: "BUTTON", closest: () => ({}) };
+
+  assert.equal(shortcutGuarded(guards, { target: editorTarget }), false);
+  assert.equal(shortcutGuarded(guards, { target: sidebarRow }), false);
+
+  const original = Object.getOwnPropertyDescriptor(globalThis, "document");
+  Object.defineProperty(globalThis, "document", {
+    value: { querySelector: () => ({}) },
+    configurable: true,
+  });
+  try {
+    assert.equal(shortcutGuarded(guards, { target: editorTarget }), true);
+  } finally {
+    if (original) {
+      Object.defineProperty(globalThis, "document", original);
+    } else {
+      Reflect.deleteProperty(globalThis, "document");
+    }
+  }
+});
+
 test("the directional pane keys are three-modifier chords scoped to an open split", () => {
   for (const [id, keys] of [
     ["focusPaneLeft", "mod+alt+arrowleft"],
