@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
-import type { FormEventHandler, KeyboardEventHandler, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { CloseIcon } from "../icons";
 import { cn } from "../lib/utils";
 
@@ -9,9 +9,9 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   title: string;
   children: ReactNode;
-  onKeyDown?: KeyboardEventHandler<HTMLDialogElement>;
-  /** Lets callers veto the native Escape-driven close, e.g. while a child is mid-capture. */
-  onCancel?: FormEventHandler<HTMLDialogElement>;
+  onKeyDown?: (event: KeyboardEvent) => void;
+  /** Lets callers veto the Escape-driven close (call `preventDefault`), e.g. while a child is mid-capture. */
+  onCancel?: (event: Event) => void;
   showHeader?: boolean;
   /** Extra class on the dialog element, e.g. for per-dialog sizing. */
   className?: string;
@@ -55,8 +55,8 @@ type ShellProps = {
   children: ReactNode;
   className?: string;
   onClose: () => void;
-  onKeyDown?: KeyboardEventHandler<HTMLDialogElement>;
-  onCancel?: FormEventHandler<HTMLDialogElement>;
+  onKeyDown?: (event: KeyboardEvent) => void;
+  onCancel?: (event: Event) => void;
   showHeader: boolean;
 };
 
@@ -73,11 +73,55 @@ function DialogShell({
   const previousFocusRef = useRef<HTMLElement | null>(
     document.activeElement instanceof HTMLElement ? document.activeElement : null,
   );
+  const handlersRef = useRef({ onClose, onKeyDown, onCancel });
   const titleId = useId();
 
   useEffect(() => {
-    ref.current?.showModal();
+    handlersRef.current = { onClose, onKeyDown, onCancel };
+  });
+
+  // A focused search input swallows the native Escape-driven cancel to clear
+  // itself (observed on WebKitGTK even when empty), so Escape must be handled
+  // at keydown before input defaults. With that constraint the rest of the
+  // dialog wiring attaches natively too, keeping one deterministic path.
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      handlersRef.current.onKeyDown?.(event);
+      if (event.key !== "Escape" || event.defaultPrevented) {
+        return;
+      }
+      event.preventDefault();
+      const cancelEvent = new Event("cancel", { cancelable: true });
+      handlersRef.current.onCancel?.(cancelEvent);
+      if (!cancelEvent.defaultPrevented) {
+        dialog.close();
+      }
+    };
+    const handleCancel = (event: Event) => {
+      handlersRef.current.onCancel?.(event);
+    };
+    const handleClose = () => {
+      handlersRef.current.onClose();
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target === dialog) {
+        dialog.close();
+      }
+    };
+    dialog.addEventListener("keydown", handleKeyDown);
+    dialog.addEventListener("cancel", handleCancel);
+    dialog.addEventListener("close", handleClose);
+    dialog.addEventListener("pointerdown", handlePointerDown);
+    dialog.showModal();
     return () => {
+      dialog.removeEventListener("keydown", handleKeyDown);
+      dialog.removeEventListener("cancel", handleCancel);
+      dialog.removeEventListener("close", handleClose);
+      dialog.removeEventListener("pointerdown", handlePointerDown);
       if (previousFocusRef.current?.isConnected) {
         previousFocusRef.current.focus();
       }
@@ -92,14 +136,6 @@ function DialogShell({
         className,
       )}
       aria-labelledby={titleId}
-      onClose={onClose}
-      onCancel={onCancel}
-      onKeyDown={onKeyDown}
-      onPointerDown={(event) => {
-        if (event.target === ref.current) {
-          ref.current?.close();
-        }
-      }}
     >
       {showHeader ? (
         <header className="dialog-header flex items-center justify-between border-b border-border px-3.5 py-3">

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
-  FormEvent,
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { activateNote } from "../actions/workspace";
@@ -66,13 +65,13 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
     });
   }
 
-  function handleDialogCancel(event: FormEvent<HTMLDialogElement>): void {
+  function handleDialogCancel(event: Event): void {
     if (recordingCountRef.current > 0) {
       event.preventDefault();
     }
   }
 
-  function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLDialogElement>): void {
+  function handleDialogKeyDown(event: KeyboardEvent): void {
     if (event.key === "/" && !isTypingTarget(event.target)) {
       event.preventDefault();
       searchRef.current?.focus();
@@ -315,7 +314,7 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
   );
 }
 
-function isTypingTarget(target: EventTarget): boolean {
+function isTypingTarget(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
