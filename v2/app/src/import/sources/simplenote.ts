@@ -9,6 +9,7 @@ type SimplenoteEntry = {
   creationDate?: string;
   lastModified?: string;
   tags?: string[];
+  pinned?: boolean;
 };
 
 type SimplenoteExport = {
@@ -75,6 +76,7 @@ function parse(tree: MarkdownTree): ImportBundle {
       tags: entry.tags,
       createdAt: toMillis(entry.creationDate),
       modifiedAt: toMillis(entry.lastModified),
+      pinned: entry.pinned === true ? true : undefined,
     });
   }
   const trashed = data.trashedNotes?.length ?? 0;

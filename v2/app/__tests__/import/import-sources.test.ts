@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { MarkdownTree } from "../../src/export/markdown-transfer-model";
 import { detectImportSource, importSourceKey } from "../../src/import/model";
-import { planImportBundle } from "../../src/import/plan";
+import { applyImportGrouping, planImportBundle } from "../../src/import/plan";
 import { importSources } from "../../src/import/sources";
 import { bearSource } from "../../src/import/sources/bear";
 import { appleNotesSource } from "../../src/import/sources/apple-notes";
@@ -172,6 +172,7 @@ test("simplenote parse maps content, titles, timestamps, and skips trashed", () 
                 creationDate: "2024-01-02T03:04:05.000Z",
                 lastModified: "2024-02-02T03:04:05.000Z",
                 tags: ["errands"],
+                pinned: true,
               },
               { content: "Shopping\nagain" },
             ],
@@ -187,6 +188,8 @@ test("simplenote parse maps content, titles, timestamps, and skips trashed", () 
   assert.equal(bundle.notes[1].relativePath, "Shopping (2).md");
   assert.equal(bundle.notes[0].createdAt, Date.parse("2024-01-02T03:04:05.000Z"));
   assert.deepEqual(bundle.notes[0].tags, ["errands"]);
+  assert.equal(bundle.notes[0].pinned, true);
+  assert.equal(bundle.notes[1].pinned, undefined);
   assert.ok(bundle.warnings.some((warning) => warning.message.includes("1 trashed")));
 });
 
@@ -274,6 +277,127 @@ test("planImportBundle applies valid provider timestamps", () => {
   );
   assert.equal(create?.at, createdAt);
   assert.equal(save?.at, modifiedAt);
+});
+
+test("planImportBundle pins created notes the adapter marked as pinned", () => {
+  const createdAt = Date.parse("2024-01-02T03:04:05.000Z");
+  const plan = planImportBundle(
+    {
+      sourceId: "simplenote",
+      sourceLabel: "Simplenote",
+      directories: [],
+      notes: [
+        { relativePath: "Pinned.md", title: "Pinned", markdown: "Body", createdAt, pinned: true },
+        { relativePath: "Plain.md", title: "Plain", markdown: "Body" },
+      ],
+      warnings: [],
+    },
+    999,
+    sequentialIds(),
+  );
+  const create = plan.operations.find(
+    (operation) => operation.type === "create_note" && operation.title === "Pinned",
+  );
+  assert.ok(create);
+  const pins = plan.operations.filter(
+    (operation) => operation.type === "set_node_pinned",
+  );
+  assert.equal(pins.length, 1);
+  assert.deepEqual(pins[0], {
+    type: "set_node_pinned",
+    id: create.id,
+    pinned: true,
+    at: createdAt,
+  });
+  assert.equal(plan.pinnedNotes, 1);
+  assert.ok(
+    plan.operations.indexOf(pins[0]) > plan.operations.indexOf(create),
+  );
+});
+
+test("applyImportGrouping nests roots in a source folder with per-year note folders", () => {
+  const y2023 = Date.parse("2023-06-01T00:00:00.000Z");
+  const y2024 = Date.parse("2024-06-01T00:00:00.000Z");
+  const operations = planImportBundle(
+    {
+      sourceId: "simplenote",
+      sourceLabel: "Simplenote",
+      directories: [],
+      notes: [
+        { relativePath: "Later.md", title: "Later", markdown: "Body", createdAt: y2024 },
+        { relativePath: "Earlier.md", title: "Earlier", markdown: "Body", createdAt: y2023 },
+      ],
+      warnings: [],
+    },
+    999,
+    sequentialIds(),
+  ).operations;
+  const grouping = applyImportGrouping(
+    operations,
+    { destinationFolderId: "dest", sourceFolderLabel: "Simplenote", groupByYear: true },
+    999,
+    sequentialIds(),
+  );
+  assert.deepEqual(
+    grouping.map((operation) =>
+      operation.type === "create_folder"
+        ? { title: operation.title, parentId: operation.placement.parentId }
+        : operation.type,
+    ),
+    [
+      { title: "Simplenote", parentId: "dest" },
+      { title: "2023", parentId: "id-1" },
+      { title: "2024", parentId: "id-1" },
+    ],
+  );
+  const parentByTitle = new Map(
+    operations.flatMap((operation) =>
+      operation.type === "create_note"
+        ? [[operation.title, operation.placement.parentId]]
+        : [],
+    ),
+  );
+  assert.equal(parentByTitle.get("Earlier"), "id-2");
+  assert.equal(parentByTitle.get("Later"), "id-3");
+});
+
+test("applyImportGrouping without options matches plain destination reparenting", () => {
+  const operations = planImportBundle(
+    {
+      sourceId: "markdown",
+      sourceLabel: "Markdown",
+      directories: [],
+      notes: [
+        { relativePath: "Docs/Guide.md", title: "Guide", markdown: "Body" },
+        { relativePath: "Root.md", title: "Root", markdown: "Body" },
+      ],
+      warnings: [],
+    },
+    999,
+    sequentialIds(),
+  ).operations;
+  const nestedBefore = operations.find(
+    (operation) => operation.type === "create_note" && operation.title === "Guide",
+  );
+  assert.ok(nestedBefore && nestedBefore.type === "create_note");
+  const nestedParent = nestedBefore.placement.parentId;
+  const grouping = applyImportGrouping(
+    operations,
+    { destinationFolderId: "dest", sourceFolderLabel: null, groupByYear: false },
+    999,
+    sequentialIds(),
+  );
+  assert.deepEqual(grouping, []);
+  for (const operation of operations) {
+    if (operation.type !== "create_folder" && operation.type !== "create_note") {
+      continue;
+    }
+    const expected =
+      operation.type === "create_note" && operation.title === "Guide"
+        ? nestedParent
+        : "dest";
+    assert.equal(operation.placement.parentId, expected);
+  }
 });
 
 test("planImportBundle keeps provenance properties out of the main operations", () => {

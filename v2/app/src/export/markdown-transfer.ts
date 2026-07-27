@@ -30,6 +30,7 @@ import { publishTransferReport } from "./transfer-report";
 import { detectImportSource, importSourceKey } from "../import/model";
 import type { ImportBundle } from "../import/model";
 import {
+  applyImportGrouping,
   planImportBundle,
   type ImportBundlePlan,
   type ImportDuplicateMode,
@@ -448,17 +449,19 @@ async function importNotesFromPath(
     }
     const { bundle } = selected;
     const { plan } = selected.variants[selection.duplicateMode];
-    if (selection.destinationFolderId !== null) {
-      for (const operation of plan.operations) {
-        if (
-          (operation.type === "create_folder" ||
-            operation.type === "create_note") &&
-          operation.placement.parentId === null
-        ) {
-          operation.placement.parentId = selection.destinationFolderId;
-        }
-      }
-    }
+    const groupingOperations = applyImportGrouping(
+      plan.operations,
+      {
+        destinationFolderId: selection.destinationFolderId,
+        sourceFolderLabel: selection.groupIntoSourceFolder
+          ? bundle.sourceLabel
+          : null,
+        groupByYear: selection.groupByYear,
+      },
+      at,
+      () => crypto.randomUUID(),
+    );
+    plan.operations.unshift(...groupingOperations);
     const commitProgress = beginImportProgress({
       phase: "images",
       completed: 0,
@@ -505,7 +508,7 @@ async function importNotesFromPath(
     publishTransferReport({
       title: `Import complete (${bundle.sourceLabel})`,
       lines: [
-        `Imported ${count(plan.createdNotes, "new note")}, updated ${plan.updatedNotes}, skipped ${plan.skippedDuplicates}, and created ${count(plan.folderCount, "folder")} from ${sourcePath}`,
+        `Imported ${count(plan.createdNotes, "new note")}, updated ${plan.updatedNotes}, skipped ${plan.skippedDuplicates}, and created ${count(plan.folderCount + groupingOperations.length, "folder")} from ${sourcePath}`,
         ...(images.imported > 0 ? [`Imported ${count(images.imported, "image")}`] : []),
         ...(images.skipped > 0
           ? [`Skipped ${count(images.skipped, "unreadable image")}`]
@@ -520,6 +523,7 @@ async function importNotesFromPath(
           ? [`Preserved ${count(plan.preservedSources, "note with unsupported Markdown")} in raw mode`]
           : []),
         ...(plan.createdTags > 0 ? [`Created ${count(plan.createdTags, "tag")}`] : []),
+        ...(plan.pinnedNotes > 0 ? [`Pinned ${count(plan.pinnedNotes, "note")}`] : []),
         ...(selection.recordSource && plan.sourcePropertyNotes > 0
           ? [
               `Recorded the import source on ${count(plan.sourcePropertyNotes, "new note")}`,

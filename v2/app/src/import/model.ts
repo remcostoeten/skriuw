@@ -21,6 +21,7 @@ export type ImportedNote = {
   properties?: ImportedNoteProperty[];
   createdAt?: number;
   modifiedAt?: number;
+  pinned?: boolean;
 };
 
 export type ImportWarning = {

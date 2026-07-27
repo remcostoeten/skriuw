@@ -23,6 +23,8 @@ export type ImportPreviewSelection = {
   destinationFolderId: string | null;
   duplicateMode: ImportDuplicateMode;
   recordSource: boolean;
+  groupIntoSourceFolder: boolean;
+  groupByYear: boolean;
 };
 
 type PendingPreview = ImportPreviewRequest & {
