@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { ComponentProps, KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { ComponentProps } from "react";
 import { detectPlatform } from "@remcostoeten/use-shortcut/constants";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { matchesShortcut, parseShortcut } from "@remcostoeten/use-shortcut/parser";
@@ -119,9 +119,10 @@ function ShortcutHelpDialog({ store, onOpenChange }: DialogProps) {
     [overrides, platform, query],
   );
 
-  function handleKeyDown(event: ReactKeyboardEvent<HTMLDialogElement>): void {
-    if (matchesShortcut(event.nativeEvent, parseShortcut(toggleKeys))) {
+  function handleKeyDown(event: KeyboardEvent): void {
+    if (matchesShortcut(event, parseShortcut(toggleKeys))) {
       event.preventDefault();
+      event.stopPropagation();
       onOpenChange(false);
     }
   }
