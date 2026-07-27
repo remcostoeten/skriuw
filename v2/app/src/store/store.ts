@@ -35,6 +35,7 @@ import {
   upsertPropertyTemplate,
 } from "../properties/templates";
 import { isPropertyValidationError } from "../properties/value";
+import { JOURNAL_ROOT_ID } from "../journal/constants";
 import { opensNotesInTabs } from "../settings/settings-model";
 import { reduceOperation } from "./operations";
 import { PRIMARY_PANE_ID, defaultPanes, syncPanes } from "./panes";
@@ -92,7 +93,11 @@ function derive(
     if (node.kind !== "note") {
       continue;
     }
-    noteIds.push(node.id);
+    // Journal entries keep metadata (titles, saves, editor state) but stay
+    // out of the note navigation order, mirroring their hidden tree rows.
+    if (node.parentId !== JOURNAL_ROOT_ID) {
+      noteIds.push(node.id);
+    }
     metadata.set(node.id, {
       title: node.title,
       wordCount: base.documents.get(node.id)?.wordCount ?? 0,
@@ -222,9 +227,7 @@ export function createInitialState(
     ...buildReferenceProjection(references.references),
   });
   if (derived.activeNoteId === null) {
-    const firstNote = derived.nodeOrder.find(
-      (id) => derived.nodes.get(id)?.kind === "note",
-    );
+    const firstNote = derived.noteIds[0];
     if (firstNote) {
       return {
         ...derived,
@@ -433,8 +436,12 @@ function reduceState(
       wordCount: 0,
     });
     documents = withCreated;
-    activeNoteId = operation.id;
-    focusedNodeId = operation.id;
+    // Journal entries open in the journal view, never in the notes panes,
+    // so creating one must not steal the workspace's active note.
+    if (operation.placement.parentId !== JOURNAL_ROOT_ID) {
+      activeNoteId = operation.id;
+      focusedNodeId = operation.id;
+    }
     projection = updateNoteReferences(
       referenceState(current),
       operation.id,

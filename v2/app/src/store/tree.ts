@@ -1,4 +1,5 @@
 import type { WorkspaceNode } from "../contracts/workspace";
+import { JOURNAL_ROOT_ID } from "../journal/constants";
 import type { NodeRecord, RendererState } from "./types";
 
 /**
@@ -149,6 +150,10 @@ export function flattenVisible(
     const id = stack.pop();
     if (!id) {
       break;
+    }
+    // The journal's hidden folder and its entries never surface in the tree.
+    if (id === JOURNAL_ROOT_ID) {
+      continue;
     }
     visible.push(id);
     const node = nodes.get(id);
