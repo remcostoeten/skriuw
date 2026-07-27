@@ -422,6 +422,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Previous note",
     group: "Navigation",
     worksWhileTyping: true,
+    guards: ["modal"],
   },
   {
     id: "nextNote",
@@ -429,6 +430,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Next note",
     group: "Navigation",
     worksWhileTyping: true,
+    guards: ["modal"],
   },
   ...RAIL_NAVIGATION_DEFINITIONS,
   {
