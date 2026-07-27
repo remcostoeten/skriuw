@@ -1254,6 +1254,7 @@ mod markdown_tree_tests {
         fs::write(dir.path().join("broken.md"), [0xff, 0xfe, 0xfd]).expect("write broken");
         fs::write(dir.path().join("notes.txt"), "plain text").expect("write text");
         fs::write(dir.path().join("database.csv"), "Name\nTask").expect("write csv");
+        fs::write(dir.path().join("export.enex"), "<en-export/>").expect("write enex");
         fs::write(dir.path().join("attachment.pdf"), b"%PDF").expect("write pdf");
         fs::write(dir.path().join(".DS_Store"), "hidden").expect("write hidden");
 
@@ -1263,7 +1264,7 @@ mod markdown_tree_tests {
             .iter()
             .map(|file| file.relative_path.as_str())
             .collect();
-        assert_eq!(paths, ["database.csv", "notes.txt", "valid.md"]);
+        assert_eq!(paths, ["database.csv", "export.enex", "notes.txt", "valid.md"]);
         assert_eq!(tree.unsupported, ["attachment.pdf"]);
         assert_eq!(tree.skipped, 1);
     }
