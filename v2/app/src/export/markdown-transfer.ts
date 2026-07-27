@@ -459,6 +459,12 @@ async function importNotesFromPath(
           ? bundle.sourceLabel
           : null,
         groupByYear: selection.groupByYear,
+        existingNodes: [...store.getState().nodes.values()].map((node) => ({
+          id: node.id,
+          parentId: node.parentId,
+          kind: node.kind,
+          title: node.title,
+        })),
       },
       at,
       () => crypto.randomUUID(),
