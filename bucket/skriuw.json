@@ -1,34 +1,29 @@
 {
-  "##": "Scoop manifest served straight from this repo: `scoop bucket add skriuw https://github.com/remcostoeten/skriuw` then `scoop install skriuw`. version/url/hash are rewritten by the manifests job in publish-linux-repos.yml on each published desktop release — do not bump them by hand. Scoop extracts the NSIS installer with 7-Zip instead of running it.",
-  "version": "0.25.0",
-  "description": "A quiet writing workspace for notes, journaling, sharing, and planning",
-  "homepage": "https://github.com/remcostoeten/skriuw",
-  "license": "MIT",
-  "architecture": {
-    "64bit": {
-      "url": "https://github.com/remcostoeten/skriuw/releases/download/desktop-v0.25.0/Skriuw_0.25.0_x64-setup.exe",
-      "hash": "fcdccf28bc4600bc23e3c3242f4c6656f605d4d4b6c3c9b9765c0ccf0c97b7a2"
-    }
-  },
-  "post_install": [
-    "Remove-Item \"$dir\\$PLUGINSDIR\" -Recurse -Force -ErrorAction SilentlyContinue",
-    "Remove-Item \"$dir\\uninst.exe\", \"$dir\\uninstall.exe\" -Force -ErrorAction SilentlyContinue"
-  ],
-  "shortcuts": [
-    [
-      "Skriuw.exe",
-      "Skriuw"
-    ]
-  ],
-  "checkver": {
-    "github": "https://github.com/remcostoeten/skriuw",
-    "regex": "desktop-v([\\d.]+)"
-  },
-  "autoupdate": {
-    "architecture": {
-      "64bit": {
-        "url": "https://github.com/remcostoeten/skriuw/releases/download/desktop-v$version/Skriuw_$version_x64-setup.exe"
-      }
-    }
-  }
+	"##": "Scoop manifest served straight from this repo: `scoop bucket add skriuw https://github.com/remcostoeten/skriuw` then `scoop install skriuw`. version/url/hash are rewritten by the manifests job in publish-linux-repos.yml on each published v2 release \u2014 do not bump them by hand. Scoop extracts the NSIS installer with 7-Zip instead of running it.",
+	"version": "0.5.0",
+	"description": "A quiet writing workspace for notes, journaling, sharing, and planning",
+	"homepage": "https://github.com/remcostoeten/skriuw",
+	"license": "MIT",
+	"architecture": {
+		"64bit": {
+			"url": "https://github.com/remcostoeten/skriuw/releases/download/v2-v0.5.0/Skriuw_0.5.0_x64-setup.exe",
+			"hash": "23f359e81ea060b6272e94cbc9768c26c66e590607d736054ab8802677a9a40d"
+		}
+	},
+	"post_install": [
+		"Remove-Item \"$dir\\$PLUGINSDIR\" -Recurse -Force -ErrorAction SilentlyContinue",
+		"Remove-Item \"$dir\\uninst.exe\", \"$dir\\uninstall.exe\" -Force -ErrorAction SilentlyContinue"
+	],
+	"shortcuts": [["Skriuw.exe", "Skriuw"]],
+	"checkver": {
+		"github": "https://github.com/remcostoeten/skriuw",
+		"regex": "v2-v([\\d.]+)"
+	},
+	"autoupdate": {
+		"architecture": {
+			"64bit": {
+				"url": "https://github.com/remcostoeten/skriuw/releases/download/v2-v$version/Skriuw_$version_x64-setup.exe"
+			}
+		}
+	}
 }

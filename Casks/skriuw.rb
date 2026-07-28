@@ -2,21 +2,23 @@
 #   brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
 #   brew install --cask skriuw
 #
-# `version` and `sha256` are rewritten by the manifests job in
-# .github/workflows/publish-linux-repos.yml whenever a desktop release is
+# `version` and the two `sha256` values are rewritten by the manifests job in
+# .github/workflows/publish-linux-repos.yml whenever a v2 release is
 # published — do not bump them by hand.
 cask "skriuw" do
-  version "0.25.0"
-  sha256 "fba47d2a87c65fb23462cba44be77b390d8dcbad30215e29d2f38d4d625bef74"
+  arch arm: "aarch64", intel: "x64"
 
-  url "https://github.com/remcostoeten/skriuw/releases/download/desktop-v#{version}/Skriuw_#{version}_universal.dmg"
+  version "0.5.0"
+  sha256 arm: "79fcec8a9ce0125abd193f5672edfd42cc7463b1f46a5f95b948536f8fc29b9f", intel: "85ddad397a20dcbe02604fca0fd587d038999e69bbdf27c833ca78c9e09a7b02"
+
+  url "https://github.com/remcostoeten/skriuw/releases/download/v2-v#{version}/Skriuw_#{version}_#{arch}.dmg"
   name "Skriuw"
   desc "Quiet writing workspace for notes, journaling, sharing, and planning"
   homepage "https://github.com/remcostoeten/skriuw"
 
   livecheck do
     url :url
-    regex(/^desktop[._-]v?(\d+(?:\.\d+)+)$/i)
+    regex(/^v2[._-]v?(\d+(?:\.\d+)+)$/i)
   end
 
   app "Skriuw.app"

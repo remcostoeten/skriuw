@@ -9,8 +9,8 @@ name: Publish Channels
 #   - winget (Windows)          -> PR to microsoft/winget-pkgs
 #   - Snap Store                -> snapcraft.io (repacked from the .deb)
 #
-# Source of truth is a *published* GitHub release for a `desktop-v*` tag (the
-# release-desktop.yml workflow drafts it; publishing it triggers this). You can
+# Source of truth is a *published* GitHub release for a `v2-v*` tag (built by
+# release-v2.yml) or a legacy `desktop-v*` tag (release-desktop.yml). You can
 # also run it manually against an existing tag via workflow_dispatch.
 on:
     release:
@@ -18,7 +18,7 @@ on:
     workflow_dispatch:
         inputs:
             tag:
-                description: "Desktop tag to publish (e.g. desktop-v0.11.0)"
+                description: "Release tag to publish (e.g. v2-v0.5.0 or desktop-v0.11.0)"
                 required: true
                 type: string
 
@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
     resolve:
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'desktop-v')
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'desktop-v') || startsWith(github.event.release.tag_name, 'v2-v')
         runs-on: ubuntu-latest
         outputs:
             tag: ${{ steps.pick.outputs.tag }}
@@ -43,11 +43,12 @@ jobs:
                     TAG="${{ github.event.release.tag_name }}"
                   fi
                   case "$TAG" in
-                    desktop-v*) ;;
-                    *) echo "::error::tag '$TAG' is not a desktop-v* tag; skipping"; exit 1 ;;
+                    v2-v*) VERSION="${TAG#v2-v}" ;;
+                    desktop-v*) VERSION="${TAG#desktop-v}" ;;
+                    *) echo "::error::tag '$TAG' is not a v2-v* or desktop-v* tag; skipping"; exit 1 ;;
                   esac
                   echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-                  echo "version=${TAG#desktop-v}" >> "$GITHUB_OUTPUT"
+                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
     apt:
         needs: resolve
@@ -180,8 +181,10 @@ jobs:
               run: |
                   set -euo pipefail
                   VERSION="${{ needs.resolve.outputs.version }}"
+                  TAG="${{ needs.resolve.outputs.tag }}"
                   sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/aur/skriuw-bin/PKGBUILD
                   sed -i "s/^pkgrel=.*/pkgrel=1/" packaging/aur/skriuw-bin/PKGBUILD
+                  sed -i "s/^_tag=.*/_tag=${TAG}/" packaging/aur/skriuw-bin/PKGBUILD
 
             - name: Generate .SRCINFO (Arch container)
               run: |
@@ -260,15 +263,17 @@ jobs:
                     echo "::warning::Casks/skriuw.rb not on daddy yet; skipping cask update"
                     exit 0
                   fi
-                  DMG="$(ls dist/*.dmg 2>/dev/null | head -n1 || true)"
-                  if [ -z "$DMG" ]; then
-                    echo "::warning::no .dmg on this release; skipping cask update"
+                  VERSION="${{ needs.resolve.outputs.version }}"
+                  ARM_DMG="dist/Skriuw_${VERSION}_aarch64.dmg"
+                  X64_DMG="dist/Skriuw_${VERSION}_x64.dmg"
+                  if [ ! -f "$ARM_DMG" ] || [ ! -f "$X64_DMG" ]; then
+                    echo "::warning::missing aarch64/x64 .dmg on this release; skipping cask update"
                     exit 0
                   fi
-                  VERSION="${{ needs.resolve.outputs.version }}"
-                  SHA="$(sha256sum "$DMG" | awk '{print $1}')"
+                  ARM_SHA="$(sha256sum "$ARM_DMG" | awk '{print $1}')"
+                  X64_SHA="$(sha256sum "$X64_DMG" | awk '{print $1}')"
                   sed -i -E "s/^  version \".*\"/  version \"${VERSION}\"/" Casks/skriuw.rb
-                  sed -i -E "s/^  sha256 \".*\"/  sha256 \"${SHA}\"/" Casks/skriuw.rb
+                  sed -i -E "s/^  sha256 arm: \".*\", intel: \".*\"/  sha256 arm: \"${ARM_SHA}\", intel: \"${X64_SHA}\"/" Casks/skriuw.rb
 
             - name: Update Scoop bucket
               run: |
