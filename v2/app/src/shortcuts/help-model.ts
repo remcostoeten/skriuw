@@ -54,6 +54,7 @@ const SCOPE_WHEN: Record<string, string> = {
   "note-focus": "Editor focused",
   "note-create": "Notes or trash view",
   "tags-route": "Tags view",
+  journal: "Journal view",
 };
 
 /**

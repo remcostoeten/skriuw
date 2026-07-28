@@ -30,6 +30,12 @@ test("the tabs scope needs the notes route and the tabbed workspace switched on"
   assert.deepEqual(activeShortcutScopes("trash", false, true, true), ["note-create"]);
 });
 
+test("the journal scope follows the journal route and nothing else", () => {
+  assert.deepEqual(activeShortcutScopes("journal", false, true, true), ["journal"]);
+  assert.deepEqual(activeShortcutScopes("notes", false, false, false), ["note-create"]);
+  assert.deepEqual(activeShortcutScopes("people", false, false, false), []);
+});
+
 test("the split scope needs the notes route and a second pane", () => {
   assert.deepEqual(activeShortcutScopes("notes", false, false, true), [
     "note-create",

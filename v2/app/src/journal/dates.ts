@@ -40,6 +40,12 @@ export function parseDateKey(key: DateKey): Date {
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
+export function shiftDay(key: DateKey, offset: number): DateKey {
+  const date = parseDateKey(key);
+  date.setDate(date.getDate() + offset);
+  return dateKeyOf(date);
+}
+
 export type MonthKey = { year: number; month: number };
 
 export function monthOfKey(key: DateKey): MonthKey {
@@ -89,6 +95,48 @@ export function monthGrid(month: MonthKey): CalendarDay[] {
 }
 
 export const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] as const;
+
+/** Monday-first weekday index, matching the calendar grid's column order. */
+function weekdayIndex(key: DateKey): number {
+  return (parseDateKey(key).getDay() + 6) % 7;
+}
+
+function shiftMonthKeepingDay(key: DateKey, offset: number): DateKey {
+  const date = parseDateKey(key);
+  const target = new Date(date.getFullYear(), date.getMonth() + offset, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(date.getDate(), lastDay));
+  return dateKeyOf(target);
+}
+
+/**
+ * Where a keypress moves the roving focus inside the month grid, following the
+ * ARIA grid pattern: arrows step a day or a week, Home/End jump to the ends of
+ * the focused week, PageUp/PageDown step a month. Null means the key is not a
+ * grid movement and belongs to whatever else claims it.
+ */
+export function calendarKeyMove(key: DateKey, pressed: string): DateKey | null {
+  switch (pressed) {
+    case "ArrowLeft":
+      return shiftDay(key, -1);
+    case "ArrowRight":
+      return shiftDay(key, 1);
+    case "ArrowUp":
+      return shiftDay(key, -7);
+    case "ArrowDown":
+      return shiftDay(key, 7);
+    case "Home":
+      return shiftDay(key, -weekdayIndex(key));
+    case "End":
+      return shiftDay(key, 6 - weekdayIndex(key));
+    case "PageUp":
+      return shiftMonthKeepingDay(key, -1);
+    case "PageDown":
+      return shiftMonthKeepingDay(key, 1);
+    default:
+      return null;
+  }
+}
 
 const MONTH_TITLE = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" });
 const LONG_DATE = new Intl.DateTimeFormat("en", {

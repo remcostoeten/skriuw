@@ -9,6 +9,14 @@ export type PanelTracks = {
   metadataWidth: number;
 };
 
+/**
+ * Routes that share the resizable sidebar shell: the pane keeps its width,
+ * collapse state and resize handle across them, only its content swaps.
+ */
+export function routeHasSidebar(route: AppRoute): boolean {
+  return route === "notes" || route === "journal";
+}
+
 export function panelGridTemplate(
   route: AppRoute,
   sidebarOpen: boolean,
@@ -16,10 +24,13 @@ export function panelGridTemplate(
   sidebarWidth: number = SIDEBAR_DEFAULT_WIDTH,
   metadataWidth: number = METADATA_DEFAULT_WIDTH,
 ): string {
-  if (route !== "notes") {
+  if (!routeHasSidebar(route)) {
     return "56px 1fr";
   }
   const sidebar = sidebarOpen ? `${sidebarWidth}px` : "0px";
+  if (route !== "notes") {
+    return `56px ${sidebar} minmax(300px, 1fr)`;
+  }
   const metadata = metadataOpen ? `${metadataWidth}px` : "0px";
   return `56px ${sidebar} minmax(300px, 1fr) ${metadata}`;
 }

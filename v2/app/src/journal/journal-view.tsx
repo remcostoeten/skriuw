@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { journalDayHash, useRouteFocus } from "../app-route";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
+import { useRouteFocus } from "../app-route";
 import { editorModeForNote } from "../actions/editor-mode";
 import { NoteEditor } from "../editor/note-editor";
 import { RawMarkdownEditor } from "../editor/raw-markdown-editor";
@@ -8,10 +9,13 @@ import {
   BarChartIcon,
   CalendarDaysIcon,
   ClockIcon,
+  PanelLeftToggleIcon,
   PlusIcon,
   SearchIcon,
   Trash2Icon,
 } from "../shared/icons";
+import { Tooltip } from "../shared/ui/tooltip";
+import { toolbarIconButtonClass } from "../shell/toolbar-styles";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererState, RendererStore } from "../store/types";
 import { deleteJournalEntry, ensureJournalEntry, setJournalMood } from "./actions";
@@ -28,6 +32,7 @@ import {
   type MonthKey,
 } from "./dates";
 import { JournalCalendar } from "./journal-calendar";
+import { onJournalSearchFocus, openJournalDay, openJournalToday } from "./navigation";
 import {
   MOOD_LEVELS,
   MOOD_OPTIONS,
@@ -52,8 +57,31 @@ const SIDEBAR_TABS: readonly { id: SidebarTab; label: string; icon: typeof Searc
   { id: "all", label: "All entries", icon: ClockIcon },
 ];
 
-function openJournalDay(key: DateKey): void {
-  window.location.hash = journalDayHash(key);
+const TAB_KEY_STEPS: Record<string, number | "first" | "last" | undefined> = {
+  ArrowLeft: -1,
+  ArrowRight: 1,
+  Home: "first",
+  End: "last",
+};
+
+function tabButtonId(tab: SidebarTab): string {
+  return `journal-tab-${tab}`;
+}
+
+function tabPanelId(tab: SidebarTab): string {
+  return `journal-panel-${tab}`;
+}
+
+function registerTab(
+  refs: Map<SidebarTab, HTMLButtonElement>,
+  tab: SidebarTab,
+  node: HTMLButtonElement | null,
+): void {
+  if (node === null) {
+    refs.delete(tab);
+    return;
+  }
+  refs.set(tab, node);
 }
 
 function entryListTitle(entry: JournalEntry): string {
@@ -74,15 +102,29 @@ function EntryRow({
     <button
       type="button"
       onClick={() => openJournalDay(entry.dateKey)}
-      className={`flex w-full items-center gap-1.5 rounded-md border border-transparent px-2 text-left transition-colors ${
+      aria-current={selected ? "true" : undefined}
+      aria-label={`${formatLongDate(entry.dateKey)}, ${entryListTitle(entry)}${
+        mood ? `, ${mood.label}` : ""
+      }`}
+      className={`flex w-full items-center gap-1.5 rounded-md border border-transparent px-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         dense ? "py-1.5" : "py-2"
       } ${selected ? "border-border bg-muted text-foreground" : "hover:border-border hover:bg-muted"}`}
     >
-      <span className="w-[86px] shrink-0 text-[10px] font-medium text-muted-foreground">
+      <span
+        aria-hidden="true"
+        className="w-[86px] shrink-0 text-[10px] font-medium text-muted-foreground"
+      >
         {formatListDate(entry.dateKey)}
       </span>
-      {mood && <span className={`text-[10px] ${mood.colorClass}`}>{mood.icon}</span>}
-      <span className="min-w-0 flex-1 truncate text-[11px] text-foreground/70">
+      {mood && (
+        <span aria-hidden="true" className={`text-[10px] ${mood.colorClass}`}>
+          {mood.icon}
+        </span>
+      )}
+      <span
+        aria-hidden="true"
+        className="min-w-0 flex-1 truncate text-[11px] text-foreground/70"
+      >
         {entryListTitle(entry)}
       </span>
     </button>
@@ -156,20 +198,39 @@ function JournalStats({ entries }: { entries: readonly JournalEntry[] }) {
   );
 }
 
-function JournalSidebar({
-  store,
-  selectedKey,
-}: {
-  store: RendererStore;
-  selectedKey: DateKey;
-}) {
+function useSelectedJournalKey(): DateKey {
+  const focus = useRouteFocus();
+  return focus !== null && isDateKey(focus) ? focus : todayKey();
+}
+
+export function JournalSidebar({ store }: Props) {
+  const selectedKey = useSelectedJournalKey();
   const entries = useRendererSelector(store, selectJournalEntries, sameJournalEntries);
   const [month, setMonth] = useState<MonthKey>(() => monthOfKey(selectedKey));
   const [tab, setTab] = useState<SidebarTab>("calendar");
   const [query, setQuery] = useState("");
+  const [pendingSearchFocus, setPendingSearchFocus] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const tabRefs = useRef(new Map<SidebarTab, HTMLButtonElement>());
   useEffect(() => {
     setMonth(monthOfKey(selectedKey));
   }, [selectedKey]);
+  useEffect(
+    () =>
+      onJournalSearchFocus(() => {
+        setTab("search");
+        setPendingSearchFocus(true);
+      }),
+    [],
+  );
+  useEffect(() => {
+    if (!pendingSearchFocus || tab !== "search") {
+      return;
+    }
+    setPendingSearchFocus(false);
+    searchInputRef.current?.focus();
+    searchInputRef.current?.select();
+  }, [pendingSearchFocus, tab]);
   const entryDates = useMemo(
     () => new Set(entries.map((entry) => entry.dateKey)),
     [entries],
@@ -195,35 +256,76 @@ function JournalSidebar({
 
   function goToToday(): void {
     setMonth(monthOfKey(todayKey()));
-    openJournalDay(todayKey());
+    openJournalToday();
+  }
+
+  function selectTab(next: SidebarTab): void {
+    setTab(next);
+    tabRefs.current.get(next)?.focus();
+  }
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    const step = TAB_KEY_STEPS[event.key];
+    if (step === undefined) {
+      return;
+    }
+    event.preventDefault();
+    const current = SIDEBAR_TABS.findIndex((entry) => entry.id === tab);
+    const next =
+      step === "first"
+        ? 0
+        : step === "last"
+          ? SIDEBAR_TABS.length - 1
+          : (current + step + SIDEBAR_TABS.length) % SIDEBAR_TABS.length;
+    selectTab(SIDEBAR_TABS[next]!.id);
+  }
+
+  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
+    if (event.key !== "Escape") {
+      return;
+    }
+    event.preventDefault();
+    if (query.length > 0) {
+      setQuery("");
+      return;
+    }
+    event.currentTarget.blur();
   }
 
   return (
-    <aside className="flex w-[272px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <aside
+      aria-label="Journal entries"
+      className="flex h-full min-w-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
+    >
       <div className="flex h-11 shrink-0 items-center justify-between border-b border-sidebar-border px-3">
         <h2 className="text-sm font-semibold text-foreground">Journal</h2>
         <button
           type="button"
           onClick={goToToday}
-          className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
+          className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-sidebar-foreground/58 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <CalendarDaysIcon size={12} />
+          <CalendarDaysIcon size={12} aria-hidden="true" />
           Today
         </button>
       </div>
       <div
         role="tablist"
         aria-label="Journal sidebar views"
+        onKeyDown={handleTabKeyDown}
         className="flex h-10 shrink-0 items-center gap-1 border-b border-sidebar-border px-2"
       >
         {SIDEBAR_TABS.map((entry) => (
           <button
             type="button"
             key={entry.id}
+            ref={(node) => registerTab(tabRefs.current, entry.id, node)}
             onClick={() => setTab(entry.id)}
             role="tab"
+            id={tabButtonId(entry.id)}
+            aria-controls={tabPanelId(entry.id)}
             aria-selected={tab === entry.id}
             aria-label={entry.label}
+            tabIndex={tab === entry.id ? 0 : -1}
             className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               tab === entry.id
                 ? "border border-border bg-muted text-foreground/80"
@@ -234,7 +336,13 @@ function JournalSidebar({
           </button>
         ))}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        role="tabpanel"
+        id={tabPanelId(tab)}
+        aria-labelledby={tabButtonId(tab)}
+        tabIndex={0}
+        className="min-h-0 flex-1 overflow-y-auto focus-visible:outline-none"
+      >
         {tab === "calendar" && (
           <div className="p-2">
             <JournalCalendar
@@ -273,14 +381,23 @@ function JournalSidebar({
               />
               <input
                 type="text"
+                ref={searchInputRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 placeholder="Search entries..."
                 aria-label="Search journal entries"
+                aria-describedby="journal-search-hint"
                 className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-2.5 text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/40 focus:bg-muted"
               />
             </div>
-            <p className="mb-1.5 text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40">
+            <p id="journal-search-hint" className="sr-only">
+              Escape clears the search, then leaves the field.
+            </p>
+            <p
+              role="status"
+              className="mb-1.5 text-[9px] font-medium uppercase tracking-[0.15em] text-muted-foreground/40"
+            >
               {searchResults.length} {searchResults.length === 1 ? "result" : "results"}
             </p>
             <div className="space-y-0.5">
@@ -314,15 +431,22 @@ function JournalSidebar({
         <button
           type="button"
           onClick={goToToday}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-muted"
+          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-2 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <PlusIcon size={12} />
+          <PlusIcon size={12} aria-hidden="true" />
           New entry
         </button>
       </div>
     </aside>
   );
 }
+
+const MOOD_KEY_STEPS: Record<string, number | undefined> = {
+  ArrowLeft: -1,
+  ArrowUp: -1,
+  ArrowRight: 1,
+  ArrowDown: 1,
+};
 
 function MoodSelector({
   mood,
@@ -331,12 +455,35 @@ function MoodSelector({
   mood: MoodLevel | null;
   onSelect: (mood: MoodLevel) => void;
 }) {
+  const buttons = useRef(new Map<MoodLevel, HTMLButtonElement>());
+  const tabStop = mood ?? MOOD_LEVELS[0]!;
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    const step = MOOD_KEY_STEPS[event.key];
+    if (step === undefined) {
+      return;
+    }
+    event.preventDefault();
+    const current = MOOD_LEVELS.indexOf(tabStop);
+    const next = MOOD_LEVELS[(current + step + MOOD_LEVELS.length) % MOOD_LEVELS.length]!;
+    onSelect(next);
+    buttons.current.get(next)?.focus();
+  }
+
   return (
     <div className="mt-6 grid gap-2 sm:grid-cols-[4.5rem_1fr] sm:items-center">
-      <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/42">
+      <span
+        id="journal-mood-label"
+        className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/42"
+      >
         Mood
       </span>
-      <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Mood">
+      <div
+        className="flex flex-wrap items-center gap-1.5"
+        role="radiogroup"
+        aria-labelledby="journal-mood-label"
+        onKeyDown={handleKeyDown}
+      >
         {MOOD_LEVELS.map((level) => {
           const option = MOOD_OPTIONS[level];
           const active = mood === level;
@@ -346,18 +493,29 @@ function MoodSelector({
               type="button"
               role="radio"
               aria-checked={active}
+              tabIndex={level === tabStop ? 0 : -1}
+              ref={(node) => {
+                if (node === null) {
+                  buttons.current.delete(level);
+                  return;
+                }
+                buttons.current.set(level, node);
+              }}
               onClick={() => onSelect(level)}
-              className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] transition-colors ${
+              className={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 active
                   ? "border-border bg-muted font-medium text-foreground"
                   : "border-transparent text-muted-foreground/54 hover:border-border hover:bg-muted/70 hover:text-muted-foreground"
               }`}
               aria-label={option.label}
             >
-              <span className={`text-[13px] ${active ? option.colorClass : ""}`}>
+              <span
+                aria-hidden="true"
+                className={`text-[13px] ${active ? option.colorClass : ""}`}
+              >
                 {option.icon}
               </span>
-              <span>{option.label}</span>
+              <span aria-hidden="true">{option.label}</span>
             </button>
           );
         })}
@@ -412,7 +570,33 @@ function JournalEntryPane({
   const mood = useRendererSelector(store, selectMood);
   const wordCount = useRendererSelector(store, selectWordCount);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => setConfirmingDelete(false), [selectedKey]);
+  const returningFocus = useRef(false);
+  useEffect(() => {
+    if (confirmingDelete) {
+      confirmButtonRef.current?.focus();
+      return;
+    }
+    if (returningFocus.current) {
+      returningFocus.current = false;
+      deleteTriggerRef.current?.focus();
+    }
+  }, [confirmingDelete]);
+
+  function cancelDelete(): void {
+    returningFocus.current = true;
+    setConfirmingDelete(false);
+  }
+
+  function handleConfirmKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (event.key !== "Escape") {
+      return;
+    }
+    event.preventDefault();
+    cancelDelete();
+  }
 
   function toggleMood(level: MoodLevel): void {
     if (noteId === null) {
@@ -424,18 +608,22 @@ function JournalEntryPane({
   const hasSubstance = wordCount > 0 || mood !== null;
 
   return (
-    <div className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor px-12 py-8">
-      <div className="mx-auto flex min-h-full w-full max-w-[72ch] flex-col">
-        <header className="border-b border-border/55 pb-5">
-          <h1 className="text-[34px] font-semibold leading-none tracking-tight text-foreground">
-            {formatDayHeading(selectedKey)}
-          </h1>
-          <p className="mt-2 text-[14px] text-muted-foreground/62">
-            {formatLongDate(selectedKey)}
-          </p>
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-theme-editor">
+      <div className="shrink-0 px-12 pt-8">
+        <header className="mx-auto w-full max-w-[72ch] border-b border-border/55 pb-5">
+          <div aria-live="polite">
+            <h1 className="text-[34px] font-semibold leading-none tracking-tight text-foreground">
+              {formatDayHeading(selectedKey)}
+            </h1>
+            <p className="mt-2 text-[14px] text-muted-foreground/62">
+              {formatLongDate(selectedKey)}
+            </p>
+          </div>
           <MoodSelector mood={mood} onSelect={toggleMood} />
         </header>
-        <div className="min-h-[320px] flex-1 py-6">
+      </div>
+      <div className="editor-scroll min-h-0 flex-1 overflow-y-auto px-12">
+        <div className="mx-auto min-h-[320px] w-full max-w-[72ch] py-6">
           {noteId !== null &&
             (isRawMode ? (
               <RawMarkdownEditor store={store} selectNoteId={selectNoteId} />
@@ -443,8 +631,10 @@ function JournalEntryPane({
               <NoteEditor store={store} selectNoteId={selectNoteId} />
             ))}
         </div>
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border/55 py-4">
-          <div className="flex items-center gap-3">
+      </div>
+      <div className="shrink-0 px-12 pb-8">
+        <div className="mx-auto flex w-full max-w-[72ch] flex-wrap items-center justify-between gap-3 border-t border-border/55 pt-4">
+          <div role="status" className="flex items-center gap-3">
             <span className="text-[11px] text-muted-foreground/40">
               {wordCount} {wordCount === 1 ? "word" : "words"}
             </span>
@@ -455,22 +645,29 @@ function JournalEntryPane({
           {noteId !== null && hasSubstance && (
             <div>
               {confirmingDelete ? (
-                <div className="flex items-center gap-2">
+                <div
+                  role="group"
+                  aria-label="Confirm deleting this entry"
+                  onKeyDown={handleConfirmKeyDown}
+                  className="flex items-center gap-2"
+                >
                   <span className="text-[11px] text-destructive/70">Delete this entry?</span>
                   <button
                     type="button"
+                    ref={confirmButtonRef}
                     onClick={() => {
                       deleteJournalEntry(store, noteId);
                       setConfirmingDelete(false);
                     }}
-                    className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/20"
+                    aria-label={`Delete the entry for ${formatLongDate(selectedKey)}`}
+                    className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     Delete
                   </button>
                   <button
                     type="button"
-                    onClick={() => setConfirmingDelete(false)}
-                    className="rounded-md border border-transparent px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-muted"
+                    onClick={cancelDelete}
+                    className="rounded-md border border-transparent px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     Cancel
                   </button>
@@ -478,10 +675,12 @@ function JournalEntryPane({
               ) : (
                 <button
                   type="button"
+                  ref={deleteTriggerRef}
                   onClick={() => setConfirmingDelete(true)}
-                  className="flex items-center gap-1 rounded-md border border-transparent px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:border-border hover:bg-muted hover:text-destructive"
+                  aria-label="Delete this entry"
+                  className="flex items-center gap-1 rounded-md border border-transparent px-2 py-1 text-[11px] text-muted-foreground/40 transition-colors hover:border-border hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <Trash2Icon size={12} />
+                  <Trash2Icon size={12} aria-hidden="true" />
                   Delete
                 </button>
               )}
@@ -493,28 +692,40 @@ function JournalEntryPane({
   );
 }
 
-export function JournalView({ store }: Props) {
-  const focus = useRouteFocus();
-  const selectedKey = focus !== null && isDateKey(focus) ? focus : todayKey();
+type JournalViewProps = Props & {
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
+};
+
+export function JournalView({ store, sidebarOpen, onToggleSidebar }: JournalViewProps) {
+  const selectedKey = useSelectedJournalKey();
   return (
-    <div className="col-[2/-1] flex min-h-0 min-w-0" aria-label="Journal">
-      <JournalSidebar store={store} selectedKey={selectedKey} />
-      <main className="flex min-w-0 flex-1 flex-col">
-        <div
-          data-tauri-drag-region
-          className="flex h-11 shrink-0 items-center border-b border-sidebar-border bg-sidebar px-3 pr-[calc(var(--window-controls-width,112px)+8px)] text-sidebar-foreground"
-        >
-          <div className="pointer-events-none flex flex-1 items-center justify-center gap-3 text-sm">
-            <span className="text-sidebar-foreground/58">Journal</span>
-            <span className="max-w-[28rem] truncate font-medium text-sidebar-foreground/80">
-              {formatLongDate(selectedKey)}
-            </span>
-          </div>
+    <main className="col-[3/-1] flex min-h-0 min-w-0 flex-col" aria-label="Journal">
+      <div
+        data-tauri-drag-region
+        className="flex h-11 shrink-0 items-center border-b border-sidebar-border bg-sidebar px-3 pr-[calc(var(--window-controls-width,112px)+8px)] text-sidebar-foreground"
+      >
+        <Tooltip label="Toggle sidebar" side="bottom">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className={toolbarIconButtonClass}
+            aria-label="Toggle sidebar"
+            aria-expanded={sidebarOpen}
+          >
+            <PanelLeftToggleIcon size={16} />
+          </button>
+        </Tooltip>
+        <div className="pointer-events-none flex flex-1 items-center justify-center gap-3 text-sm">
+          <span className="text-sidebar-foreground/58">Journal</span>
+          <span className="max-w-[28rem] truncate font-medium text-sidebar-foreground/80">
+            {formatLongDate(selectedKey)}
+          </span>
         </div>
-        <div className="min-h-0 flex-1">
-          <JournalEntryPane store={store} selectedKey={selectedKey} />
-        </div>
-      </main>
-    </div>
+      </div>
+      <div className="min-h-0 flex-1">
+        <JournalEntryPane store={store} selectedKey={selectedKey} />
+      </div>
+    </main>
   );
 }

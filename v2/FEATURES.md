@@ -20,14 +20,15 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 
 ## Writing
 
-- **Rich text editor** — headings, bullet, numbered, checklist, and collapsible lists, quotes, code, tables, alignment, underline, and restrained highlight colors with Markdown-style input rules, so `# `, `- `, and `**bold**` just work as you type. Code blocks expose language and copy controls; table actions add or remove rows and columns, toggle headers, or remove the table.
+- **Rich text editor** — six heading levels, bullet, numbered, checklist, and collapsible lists (including toggles with a real heading as their summary, so they still feed the note outline), quotes, code, tables, alignment, underline, and restrained highlight colors with Markdown-style input rules, so `# `, `- `, and `**bold**` just work as you type. Code blocks expose language and copy controls; table actions add or remove rows and columns, toggle headers, or remove the table.
 - **Markdown paste** — paste raw Markdown and it lands rendered: headings, lists, checklists, tables, fenced code, quotes, and inline marks. Rich HTML from a web page still pastes as HTML, and raw Markdown mode keeps the source untouched.
 - **Raw Markdown tools** — optional line numbers, synchronized scrolling, word count, line and column position, and selected word and character counts without broad renderer subscriptions.
-- **Slash commands** — type `/` for a keyboard-first block menu.
+- **Slash commands** — type `/` for a keyboard-first block menu, and `:` for an emoji picker searchable by shortcode or keyword.
 - **Typed note properties** — add, rename, reorder, and edit text, number, date, select, multi-select, person, URL, checkbox, rating, location, email, and phone fields from the metadata panel, or apply a built-in template.
 - **Find and replace** — search within a note (`mod+f`), including content outside the visible window.
 - **Handles huge notes** — notes with thousands of blocks render through a bounded 192-block editor window; select-all, copy, search, undo, and accessibility traversal still cover the whole document.
 - **Images** — paste or drop an image and it appears inline, no dialog. Blobs are content-addressed files on disk (pasting the same image twice stores it once), never inflate the document itself, and round-trip through Markdown export/import with an `images/` directory, workspace archives, and scheduled recovery backups. Remote Markdown images stay as portable source but are blocked from loading.
+- **Video, audio, and file embeds** — `/video`, `/audio`, and `/file` drop a block that takes a URL. Embeds round-trip through Markdown as an ordinary link, so other editors still render something useful.
 - **Tags, people, mentions, and wiki-links** — type `#` to tag, `@` or `[[` for wiki-style note links, `$` for people. Relationships are stored by ID, so renames propagate everywhere and nothing silently breaks.
 - **Backlinks and entity pages** — every note, tag, and person shows what points to it, precomputed and instant.
 
@@ -47,6 +48,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Daily journal** — a dedicated `#/journal` route with one entry per calendar day, written in the exact same ProseMirror editor as notes: tags, people mentions, wiki-links, slash commands, raw Markdown mode, and version history all work, and entities created in the journal are the same entities the notes workspace uses.
 - **Mood per day** — a five-level mood selector (Great, Good, Neutral, Low, Rough) stored as a typed note property, so it travels with archives, exports, and backups.
 - **Calendar everywhere** — a Monday-first month calendar with entry-dot indicators lives both in the journal's own sidebar and as a collapsible section at the bottom of the workspace sidebar; picking a day jumps straight to that entry.
+- **Keyboard-first journaling** — `/` opens the sidebar search with the caret in the field, `t` jumps to today, `[` and `]` walk to the previous and next day, and Escape backs out of the search field and the delete confirmation. The month calendar keeps a single tab stop: arrows move a day or a week, Home and End span the week, PageUp/PageDown step a month, and Enter opens the focused day. Tabs, the mood radio group, and every entry row are reachable and announced.
 - **Sidebar views** — calendar with a this-month entry list, lightweight stats (entries, words, streak, mood distribution), full-text entry search, and an all-entries timeline.
 - **Same durable pipeline, hidden from the tree** — entries are workspace notes under a hidden journal folder keyed by a date property: saves, search indexing, Git history, trash, and archives all apply, while the workspace tree, note navigation, and the palette's notes list never show them. Palette full-text hits on journal content open the entry on its day in the journal.
 

@@ -9,13 +9,15 @@ import { ShortcutHelpOverlay } from "./shell/shortcut-help-overlay";
 import { TrashView } from "./shell/trash-view";
 import { EntityView } from "./shell/entity-view";
 import { HistoryView } from "./history/history-view";
-import { JournalView } from "./journal/journal-view";
+import { JournalSidebar, JournalView } from "./journal/journal-view";
 import { WindowControls } from "./shell/window-controls";
 import {
   panelGridTemplate,
   panelTracksWith,
+  routeHasSidebar,
   type PanelTracks,
 } from "./shell/panel-layout";
+import { toolbarIconButtonClass } from "./shell/toolbar-styles";
 import { PanelResizeHandle } from "./shell/panel-resize-handle";
 import {
   SIDEBAR_RESIZE_BOUNDS,
@@ -72,9 +74,6 @@ const inactiveNavClass =
 
 const activeNavClass =
   "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none";
-
-const toolbarIconButtonClass =
-  "flex h-8 w-8 items-center justify-center border border-transparent text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40";
 
 const RAIL_ICONS: Record<RailItem["actionId"], typeof FolderOpenIcon> = {
   goToNotes: FolderOpenIcon,
@@ -206,7 +205,7 @@ export function App({ store }: Props) {
       const container = tracksRef.current;
       if (container) {
         container.style.gridTemplateColumns = panelGridTemplate(
-          "notes",
+          route,
           next.sidebarOpen,
           next.metadataOpen,
           next.sidebarWidth,
@@ -219,7 +218,7 @@ export function App({ store }: Props) {
         pane.style.width = `${width}px`;
       }
     },
-    [],
+    [route],
   );
   const previewSidebar = useCallback(
     (width: number, collapsed: boolean) =>
@@ -319,55 +318,61 @@ export function App({ store }: Props) {
           </Tooltip>
         </div>
       </nav>
-      {route === "notes" ? (
-        <>
-          <PanelResizeHandle
-            side="left"
-            label="Resize sidebar"
-            bounds={SIDEBAR_RESIZE_BOUNDS}
-            width={sidebarWidth}
-            collapsed={!sidebarOpen}
-            offsetBase={56}
-            settling={settling}
-            onPreview={previewSidebar}
-            onResize={resizeSidebar}
-            onCollapse={collapseSidebar}
-            onExpand={expandSidebar}
-            onDragChange={setSidebarResizing}
-          />
-          <PanelResizeHandle
-            side="right"
-            label="Resize metadata panel"
-            bounds={METADATA_RESIZE_BOUNDS}
-            width={metadataWidth}
-            collapsed={!metadataOpen}
-            offsetBase={0}
-            settling={settling}
-            onPreview={previewMetadata}
-            onResize={resizeMetadata}
-            onCollapse={collapseMetadata}
-            onExpand={expandMetadata}
-            onDragChange={setMetadataResizing}
-          />
-        </>
+      {routeHasSidebar(route) ? (
+        <PanelResizeHandle
+          side="left"
+          label="Resize sidebar"
+          bounds={SIDEBAR_RESIZE_BOUNDS}
+          width={sidebarWidth}
+          collapsed={!sidebarOpen}
+          offsetBase={56}
+          settling={settling}
+          onPreview={previewSidebar}
+          onResize={resizeSidebar}
+          onCollapse={collapseSidebar}
+          onExpand={expandSidebar}
+          onDragChange={setSidebarResizing}
+        />
       ) : null}
-      <div className="contents" hidden={route !== "notes"}>
+      {route === "notes" ? (
+        <PanelResizeHandle
+          side="right"
+          label="Resize metadata panel"
+          bounds={METADATA_RESIZE_BOUNDS}
+          width={metadataWidth}
+          collapsed={!metadataOpen}
+          offsetBase={0}
+          settling={settling}
+          onPreview={previewMetadata}
+          onResize={resizeMetadata}
+          onCollapse={collapseMetadata}
+          onExpand={expandMetadata}
+          onDragChange={setMetadataResizing}
+        />
+      ) : null}
+      <div
+        className={`col-[2] min-h-0 min-w-0 overflow-hidden${
+          sidebarOpen ? "" : " sidebar-pane-collapsed"
+        }${settling ? " sidebar-pane-settling" : ""}`}
+        aria-hidden={!sidebarOpen}
+        inert={!sidebarOpen}
+        hidden={!routeHasSidebar(route)}
+      >
         <div
-          className={`min-h-0 min-w-0 overflow-hidden${
-            sidebarOpen ? "" : " sidebar-pane-collapsed"
-          }${settling ? " sidebar-pane-settling" : ""}`}
-          aria-hidden={!sidebarOpen}
-          inert={!sidebarOpen}
+          ref={sidebarPaneRef}
+          className="h-full"
+          style={{ width: sidebarWidth }}
         >
-          <div
-            ref={sidebarPaneRef}
-            className="h-full"
-            style={{ width: sidebarWidth }}
-          >
+          <div className="h-full" hidden={route !== "notes"}>
             <Sidebar store={store} />
           </div>
+          <div className="h-full" hidden={route !== "journal"}>
+            <JournalSidebar store={store} />
+          </div>
         </div>
-        <main className="flex min-w-0 flex-col">
+      </div>
+      <div className="contents" hidden={route !== "notes"}>
+        <main className="col-[3] flex min-w-0 flex-col">
           <div className="flex h-11 items-center gap-1 border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
             <Tooltip label="Toggle sidebar" side="bottom">
               <button
@@ -444,7 +449,7 @@ export function App({ store }: Props) {
           </div>
         </main>
         <div
-          className={`min-h-0 min-w-0 overflow-hidden${
+          className={`col-[4] min-h-0 min-w-0 overflow-hidden${
             metadataOpen ? "" : " sidebar-pane-collapsed"
           }${settling ? " sidebar-pane-settling" : ""}`}
           aria-hidden={!metadataOpen}
@@ -462,7 +467,13 @@ export function App({ store }: Props) {
         </div>
       </div>
       {route === "history" && <HistoryView store={store} />}
-      {route === "journal" && <JournalView store={store} />}
+      {route === "journal" && (
+        <JournalView
+          store={store}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => toggleSidebar(true)}
+        />
+      )}
       {route === "trash" && <TrashView store={store} />}
       {route === "tags" && <EntityView store={store} kind="tag" />}
       {route === "people" && <EntityView store={store} kind="person" />}

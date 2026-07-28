@@ -57,6 +57,10 @@ export type ShortcutActionId =
   | "goToTags"
   | "goToPeople"
   | "goToTrash"
+  | "journalFocusSearch"
+  | "journalToday"
+  | "journalPreviousDay"
+  | "journalNextDay"
   | "toggleMaximize"
   | "quitApp"
   | "zoomIn"
@@ -434,6 +438,40 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     guards: ["modal"],
   },
   ...RAIL_NAVIGATION_DEFINITIONS,
+  {
+    id: "journalFocusSearch",
+    keys: "slash",
+    label: "Search journal entries",
+    description:
+      "Open the journal sidebar on its search tab and put the caret in the field. A plain key, so it only fires while the caret is outside the entry — typing a slash into today's entry is untouched.",
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
+  {
+    id: "journalToday",
+    keys: "t",
+    label: "Go to today's entry",
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
+  {
+    id: "journalPreviousDay",
+    keys: "bracketleft",
+    label: "Previous day",
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
+  {
+    id: "journalNextDay",
+    keys: "bracketright",
+    label: "Next day",
+    group: "Journal",
+    guards: ["modal"],
+    scopes: "journal",
+  },
   {
     id: "toggleMaximize",
     keys: "mod+enter",

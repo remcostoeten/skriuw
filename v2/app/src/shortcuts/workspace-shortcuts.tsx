@@ -43,12 +43,17 @@ type Props = {
  * fires on the tag/people manager routes, which bind that key to their own
  * "new entity" action instead, nor on the history route, which has no note
  * surface to drop the new note into. `tags-route` gates keys that only make sense
- * inside the tag manager, like the "new tag" binding.
+ * inside the tag manager, like the "new tag" binding. `journal` gates the plain
+ * day-navigation keys on the journal route, so they never steal a character
+ * anywhere else.
  */
 function activeScopesForRoute(route: AppRoute): string[] {
   const scopes = route === "notes" || route === "trash" ? ["note-create"] : [];
   if (route === "tags") {
     scopes.push("tags-route");
+  }
+  if (route === "journal") {
+    scopes.push("journal");
   }
   return scopes;
 }

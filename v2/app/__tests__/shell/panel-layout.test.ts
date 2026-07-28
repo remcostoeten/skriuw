@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   panelGridTemplate,
   panelTracksWith,
+  routeHasSidebar,
 } from "../../src/shell/panel-layout";
 
 test("notes panels use bounded responsive tracks and collapse independently", () => {
@@ -19,6 +20,20 @@ test("notes panels use bounded responsive tracks and collapse independently", ()
     "56px 260px minmax(300px, 1fr) 0px",
   );
   assert.equal(panelGridTemplate("trash", true, true), "56px 1fr");
+});
+
+test("journal shares the sidebar track and drops the metadata track", () => {
+  assert.equal(
+    panelGridTemplate("journal", true, true, 320),
+    "56px 320px minmax(300px, 1fr)",
+  );
+  assert.equal(
+    panelGridTemplate("journal", false, true, 320),
+    "56px 0px minmax(300px, 1fr)",
+  );
+  assert.ok(routeHasSidebar("notes"));
+  assert.ok(routeHasSidebar("journal"));
+  assert.ok(!routeHasSidebar("trash"));
 });
 
 test("notes panel tracks follow the resized widths", () => {
