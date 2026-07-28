@@ -1,13 +1,13 @@
 {
   "##": "Scoop manifest served straight from this repo: `scoop bucket add skriuw https://github.com/remcostoeten/skriuw` then `scoop install skriuw`. version/url/hash are rewritten by the manifests job in publish-linux-repos.yml on each published v2 release — do not bump them by hand. Scoop extracts the NSIS installer with 7-Zip instead of running it.",
-  "version": "0.5.0",
+  "version": "0.26.0",
   "description": "A quiet writing workspace for notes, journaling, sharing, and planning",
   "homepage": "https://github.com/remcostoeten/skriuw",
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/remcostoeten/skriuw/releases/download/v2-v0.5.0/Skriuw_0.5.0_x64-setup.exe",
-      "hash": "23f359e81ea060b6272e94cbc9768c26c66e590607d736054ab8802677a9a40d"
+      "url": "https://github.com/remcostoeten/skriuw/releases/download/v2-v0.26.0/Skriuw_0.26.0_x64-setup.exe",
+      "hash": "4ec0d627724afac1720f1e79f58f22a6a0d7060e1ad31ee6282df796019d8ff1"
     }
   },
   "post_install": [
