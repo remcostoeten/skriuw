@@ -40,8 +40,11 @@ import {
 import { createCodeHighlightPlugin } from "./code-highlight";
 import { createSearchPlugin } from "./search-plugin";
 
+export type SlashTrigger = "/" | ":";
+
 export type SlashMenuState = {
   open: boolean;
+  trigger: SlashTrigger;
   query: string;
 };
 
@@ -252,6 +255,93 @@ const blockedImageSpec: NodeSpec = {
   ],
 };
 
+export const mediaKinds = ["video", "audio", "file"] as const;
+
+export type MediaKind = (typeof mediaKinds)[number];
+
+export function isMediaKind(value: unknown): value is MediaKind {
+  return typeof value === "string" && mediaKinds.includes(value as MediaKind);
+}
+
+/**
+ * Derives the label shown for a media embed from its URL, so a freshly pasted
+ * link reads as a file name rather than the whole address.
+ */
+export function mediaTitleFromSource(src: string): string {
+  const withoutQuery = src.split(/[?#]/)[0] ?? "";
+  const lastSegment = withoutQuery.split("/").filter(Boolean).at(-1) ?? "";
+  try {
+    return decodeURIComponent(lastSegment) || src;
+  } catch {
+    return lastSegment || src;
+  }
+}
+
+const mediaSpec: NodeSpec = {
+  group: "block",
+  atom: true,
+  draggable: true,
+  selectable: true,
+  attrs: {
+    kind: { default: "video" },
+    src: { default: "" },
+    title: { default: "" },
+  },
+  toDOM: (node) => {
+    const kind = isMediaKind(node.attrs.kind) ? node.attrs.kind : "video";
+    const src = String(node.attrs.src ?? "");
+    const title = String(node.attrs.title ?? "");
+    if (kind === "file") {
+      return [
+        "a",
+        {
+          class: "note-media note-media-file",
+          "data-media-file": "true",
+          "data-media-title": title,
+          href: src || "#",
+        },
+        title || src || "Untitled file",
+      ];
+    }
+    return [
+      kind,
+      {
+        class: "note-media",
+        controls: "true",
+        "data-media-title": title,
+        ...(src ? { src } : {}),
+      },
+    ];
+  },
+  parseDOM: [
+    {
+      tag: "a[data-media-file]",
+      priority: 60,
+      getAttrs: (dom) => ({
+        kind: "file",
+        src: dom.getAttribute("href") ?? "",
+        title: dom.getAttribute("data-media-title") ?? dom.textContent ?? "",
+      }),
+    },
+    {
+      tag: "video",
+      getAttrs: (dom) => ({
+        kind: "video",
+        src: dom.getAttribute("src") ?? "",
+        title: dom.getAttribute("data-media-title") ?? "",
+      }),
+    },
+    {
+      tag: "audio",
+      getAttrs: (dom) => ({
+        kind: "audio",
+        src: dom.getAttribute("src") ?? "",
+        title: dom.getAttribute("data-media-title") ?? "",
+      }),
+    },
+  ],
+};
+
 const rawMarkdownSpec: NodeSpec = {
   content: "text*",
   marks: "",
@@ -329,7 +419,7 @@ const toggleListSpec: NodeSpec = {
 };
 
 const toggleItemSpec: NodeSpec = {
-  content: "paragraph block*",
+  content: "(paragraph | heading) block*",
   defining: true,
   attrs: {
     open: { default: true },
@@ -464,6 +554,7 @@ const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
   .addToEnd("tag_ref", tagRefSpec)
   .addToEnd("mention_ref", mentionRefSpec)
   .addToEnd("image_ref", imageRefSpec)
+  .addToEnd("media", mediaSpec)
   .addToEnd("table", tableSpecs.table)
   .addToEnd("table_row", tableSpecs.table_row)
   .addToEnd("table_cell", tableSpecs.table_cell)
@@ -479,21 +570,27 @@ export const productSchema = new Schema({
 
 export const slashMenuKey = new PluginKey<SlashMenuState>("skriuw-slash-menu");
 
+const closedSlashMenuState: SlashMenuState = { open: false, trigger: "/", query: "" };
+
+const SLASH_TRIGGER_PATTERN = /(?:^|[\s\0])([/:])([a-z0-9_+-]*)$/i;
+
 function createSlashMenuPlugin(): Plugin<SlashMenuState> {
   return new Plugin<SlashMenuState>({
     key: slashMenuKey,
     state: {
-      init: (): SlashMenuState => ({ open: false, query: "" }),
+      init: (): SlashMenuState => closedSlashMenuState,
       apply(transaction, previous) {
         if (!transaction.docChanged && !transaction.selectionSet) return previous;
         const { $from } = transaction.selection;
-        if (!$from.parent.isTextblock) return { open: false, query: "" };
-        if ($from.parent.type.spec.code) return { open: false, query: "" };
+        if (!$from.parent.isTextblock) return closedSlashMenuState;
+        if ($from.parent.type.spec.code) return closedSlashMenuState;
         const before = $from.parent.textBetween(0, $from.parentOffset, "\0", "\0");
-        const match = before.match(/(?:^|[\s\0])\/([a-z0-9-]*)$/i);
-        return match
-          ? { open: true, query: match[1] ?? "" }
-          : { open: false, query: "" };
+        const match = before.match(SLASH_TRIGGER_PATTERN);
+        if (!match) return closedSlashMenuState;
+        const trigger: SlashTrigger = match[1] === ":" ? ":" : "/";
+        const query = match[2] ?? "";
+        if (trigger === ":" && query.length === 0) return closedSlashMenuState;
+        return { open: true, trigger, query };
       },
     },
   });
@@ -913,7 +1010,7 @@ export function createProductPlugins(): Plugin[] {
 }
 
 export function slashMenuState(state: EditorState): SlashMenuState {
-  return slashMenuKey.getState(state) ?? { open: false, query: "" };
+  return slashMenuKey.getState(state) ?? closedSlashMenuState;
 }
 
 /**
@@ -1008,7 +1105,26 @@ const productMarkdownSerializer = new MarkdownSerializer(
     },
     toggle_item(state, node) {
       state.write(node.attrs.open === false ? "[>] " : "[v] ");
-      state.renderContent(node);
+      const summary = node.firstChild;
+      if (!summary || summary.type.name !== "heading") {
+        state.renderContent(node);
+        return;
+      }
+      state.renderInline(summary, false);
+      state.write(` ${toggleHeadingMarker(Number(summary.attrs.level))}`);
+      state.closeBlock(summary);
+      node.forEach((child, _offset, index) => {
+        if (index > 0) state.render(child, node, index);
+      });
+    },
+    media(state, node) {
+      const kind = isMediaKind(node.attrs.kind) ? node.attrs.kind : "video";
+      const src = String(node.attrs.src ?? "");
+      const title = String(node.attrs.title ?? "") || mediaTitleFromSource(src);
+      state.write(
+        src ? `[${state.esc(title)}](${src})${mediaMarker(kind)}` : mediaMarker(kind),
+      );
+      state.closeBlock(node);
     },
     tag_ref(state, node) {
       state.text(`#${node.attrs.label}`, false);
@@ -1260,6 +1376,17 @@ function plainParagraphDocument(markdown: string): ProseMirrorNode {
   );
 }
 
+function toggleHeadingMarker(level: number): string {
+  return `<!--skriuw-toggle-heading:${level}-->`;
+}
+
+function mediaMarker(kind: MediaKind): string {
+  return `<!--skriuw-media:${kind}-->`;
+}
+
+const TOGGLE_HEADING_MARKER = /\s*<!--skriuw-toggle-heading:([1-6])-->$/;
+const MEDIA_MARKER = /^\s*<!--skriuw-media:(video|audio|file)-->$/;
+
 const CHECKBOX_PREFIX = /^\[([ xX])\] /;
 const TOGGLE_PREFIX = /^\[([>vV])\] /;
 const TASK_MARKER = /(?:\s*)<!--skriuw-task:([A-Za-z0-9_-]{1,128})(?::([A-Za-z0-9_-]{1,128}))?-->$/;
@@ -1336,6 +1463,25 @@ function toCheckItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
   };
 }
 
+/**
+ * A toggle whose summary is a heading has no Markdown spelling of its own — a
+ * `#` prefix mid-line is literal text — so the level travels as a trailing
+ * marker comment on the summary line and is lifted back off here.
+ */
+function liftToggleHeading(inline: unknown[]): { level: number; inline: unknown[] } | null {
+  const last = inline.at(-1) as JsonNode | undefined;
+  if (last?.type !== "text" || typeof last.text !== "string") return null;
+  const marker = last.text.match(TOGGLE_HEADING_MARKER);
+  if (!marker) return null;
+  const remaining = last.text.slice(0, marker.index);
+  return {
+    level: Number(marker[1]),
+    inline: remaining.length > 0
+      ? [...inline.slice(0, -1), { ...last, text: remaining }]
+      : inline.slice(0, -1),
+  };
+}
+
 function toToggleItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
   const paragraph = item.content?.[0] as JsonNode;
   const text = paragraph.content?.[0] as JsonNode;
@@ -1343,13 +1489,60 @@ function toToggleItem(item: JsonNode, prefix: RegExpMatchArray): JsonNode {
   const inline = stripped.length > 0
     ? [{ ...text, text: stripped }, ...(paragraph.content?.slice(1) ?? [])]
     : paragraph.content?.slice(1) ?? [];
+  const heading = liftToggleHeading(inline);
+  const summary = heading
+    ? {
+        type: "heading",
+        attrs: { level: heading.level, textAlign: paragraph.attrs?.textAlign ?? "left" },
+        content: heading.inline,
+      }
+    : { ...paragraph, content: inline };
   return {
     type: "toggle_item",
     attrs: { open: prefix[1]?.toLowerCase() === "v" },
-    content: [
-      { ...paragraph, content: inline },
-      ...(item.content?.slice(1) ?? []),
-    ],
+    content: [summary, ...(item.content?.slice(1) ?? [])],
+  };
+}
+
+function linkHref(node: JsonNode): string | null {
+  const marks = Array.isArray(node.marks) ? (node.marks as JsonNode[]) : [];
+  const link = marks.find((mark) => mark.type === "link");
+  const href = (link?.attrs as Record<string, unknown> | undefined)?.href;
+  return typeof href === "string" ? href : null;
+}
+
+function toMediaNode(paragraph: JsonNode): JsonNode | null {
+  const content = Array.isArray(paragraph.content) ? (paragraph.content as JsonNode[]) : [];
+  const marker = content.at(-1);
+  if (marker?.type !== "text" || typeof marker.text !== "string") return null;
+  const match = marker.text.match(MEDIA_MARKER);
+  if (!match) return null;
+  const kind = match[1] as MediaKind;
+  if (content.length === 1) {
+    return { type: "media", attrs: { kind, src: "", title: "" } };
+  }
+  const label = content.length === 2 ? content[0] : undefined;
+  const href = label ? linkHref(label) : null;
+  if (!href || label?.type !== "text" || typeof label.text !== "string") return null;
+  return { type: "media", attrs: { kind, src: href, title: label.text } };
+}
+
+/**
+ * Media embeds serialize as an ordinary Markdown link plus a marker comment, so
+ * other editors still render something useful. Rewrites those paragraphs back
+ * into `media` nodes.
+ */
+function upgradeMediaParagraphs(node: unknown): unknown {
+  if (node === null || typeof node !== "object") return node;
+  const record = node as JsonNode;
+  if (record.type === "paragraph") {
+    const media = toMediaNode(record);
+    if (media) return media;
+  }
+  if (!Array.isArray(record.content)) return record;
+  return {
+    ...record,
+    content: record.content.map((child) => upgradeMediaParagraphs(child)),
   };
 }
 
@@ -1411,7 +1604,7 @@ export function parseProductMarkdown(markdown: string): ProseMirrorNode {
     const parsed = productMarkdownParser.parse(markdown);
     try {
       const [upgraded] = upgradeSpecialLists(parsed.toJSON());
-      return productSchema.nodeFromJSON(upgraded);
+      return productSchema.nodeFromJSON(upgradeMediaParagraphs(upgraded));
     } catch {
       return parsed;
     }

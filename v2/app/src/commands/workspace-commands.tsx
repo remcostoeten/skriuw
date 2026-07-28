@@ -37,7 +37,13 @@ import {
   importMarkdownIntoWorkspace,
   importProviderExportIntoWorkspace,
 } from "../export/markdown-transfer";
+import {
+  openJournalDayOffset,
+  openJournalToday,
+  requestJournalSearchFocus,
+} from "../journal/navigation";
 import { requestEntityCreate } from "../references/entity-create-controller";
+import { routeHasSidebar } from "../shell/panel-layout";
 import { captureRenameReturnFocus } from "../shell/rename-focus";
 import { showToast } from "../shared/ui/toast";
 import { shortcutDefinition } from "../shortcuts/bindings";
@@ -88,6 +94,10 @@ export type CommandUiControls = {
 };
 
 const onNotesRoute: CommandPredicate = (_state, ui) => ui.route === "notes";
+
+const onSidebarRoute: CommandPredicate = (_state, ui) => routeHasSidebar(ui.route);
+
+const onJournalRoute: CommandPredicate = (_state, ui) => ui.route === "journal";
 
 function hasClosedTabs(state: RendererState): boolean {
   return (
@@ -489,7 +499,7 @@ export function createWorkspaceCommands(
       group: "Navigation",
       icon: <PanelLeftToggleIcon size={15} />,
       shortcut: "toggleSidebar",
-      enabled: onNotesRoute,
+      enabled: onSidebarRoute,
       run: controls.toggleSidebar,
     },
     {
@@ -654,6 +664,50 @@ export function createWorkspaceCommands(
       shortcut: "goToTrash",
       visible: (_state, ui) => ui.route !== "trash",
       run: () => controls.navigate("trash"),
+    },
+    {
+      id: "journal-focus-search",
+      label: "Search journal entries",
+      group: "Journal",
+      keywords: ["journal", "search", "find", "entry"],
+      icon: <SearchIcon size={15} />,
+      shortcut: "journalFocusSearch",
+      hint: shortcutDefinition("journalFocusSearch").description,
+      enabled: onJournalRoute,
+      run: () => {
+        controls.openSidebar();
+        requestJournalSearchFocus();
+      },
+    },
+    {
+      id: "journal-today",
+      label: "Go to today's entry",
+      group: "Journal",
+      keywords: ["journal", "today", "now"],
+      icon: <CalendarDaysIcon size={15} />,
+      shortcut: "journalToday",
+      enabled: onJournalRoute,
+      run: openJournalToday,
+    },
+    {
+      id: "journal-previous-day",
+      label: "Previous day",
+      group: "Journal",
+      keywords: ["journal", "yesterday", "back", "day"],
+      icon: <ChevronLeftIcon size={15} />,
+      shortcut: "journalPreviousDay",
+      enabled: onJournalRoute,
+      run: () => openJournalDayOffset(-1),
+    },
+    {
+      id: "journal-next-day",
+      label: "Next day",
+      group: "Journal",
+      keywords: ["journal", "tomorrow", "forward", "day"],
+      icon: <ChevronRightIcon size={15} />,
+      shortcut: "journalNextDay",
+      enabled: onJournalRoute,
+      run: () => openJournalDayOffset(1),
     },
     {
       id: "toggle-maximize",

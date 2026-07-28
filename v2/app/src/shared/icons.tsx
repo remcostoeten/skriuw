@@ -701,6 +701,81 @@ export function Heading3Icon(props: IconProps) {
   );
 }
 
+export function Heading4Icon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M4 12h8" />
+      <path d="M4 18V6" />
+      <path d="M12 18V6" />
+      <path d="M17 10v4h4" />
+      <path d="M21 10v8" />
+    </LucideIcon>
+  );
+}
+
+export function Heading5Icon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M4 12h8" />
+      <path d="M4 18V6" />
+      <path d="M12 18V6" />
+      <path d="M17 13v-3h4" />
+      <path d="M17 17.7c.4.2.8.3 1.3.3 1.5 0 2.7-1.1 2.7-2.5S19.8 13 18.3 13H17" />
+    </LucideIcon>
+  );
+}
+
+export function Heading6Icon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M4 12h8" />
+      <path d="M4 18V6" />
+      <path d="M12 18V6" />
+      <circle cx="19" cy="16" r="2" />
+      <path d="M20 10c-2 2-3 3.5-3 6" />
+    </LucideIcon>
+  );
+}
+
+export function SmileIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+      <line x1="9" x2="9.01" y1="9" y2="9" />
+      <line x1="15" x2="15.01" y1="9" y2="9" />
+    </LucideIcon>
+  );
+}
+
+export function VideoIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" />
+      <rect x="2" y="6" width="14" height="12" rx="2" />
+    </LucideIcon>
+  );
+}
+
+export function MusicIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
+    </LucideIcon>
+  );
+}
+
+export function PaperclipIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M13.234 20.252 21 12.3" />
+      <path d="m16 6-8.414 8.586a2 2 0 0 0 0 2.828 2 2 0 0 0 2.828 0l8.414-8.586a4 4 0 0 0 0-5.656 4 4 0 0 0-5.656 0l-8.415 8.585a6 6 0 1 0 8.486 8.486" />
+    </LucideIcon>
+  );
+}
+
 export function ListOrderedIcon(props: IconProps) {
   return (
     <LucideIcon {...props}>

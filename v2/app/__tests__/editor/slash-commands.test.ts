@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EditorState, TextSelection } from "prosemirror-state";
+import { EditorState, NodeSelection, TextSelection } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import {
   applySlashCommand,
+  filterEmojiCommands,
   filterSlashCommands,
+  filterSlashItems,
   slashCommands,
 } from "../../src/editor/slash-commands";
 import { productSchema } from "../../src/editor/schema";
@@ -12,23 +14,40 @@ import { productSchema } from "../../src/editor/schema";
 test("slashCommands defines expected set of editor command blocks", () => {
   const ids = slashCommands.map((item) => item.id);
   assert.ok(ids.includes("text"));
-  assert.ok(ids.includes("heading-1"));
-  assert.ok(ids.includes("heading-2"));
-  assert.ok(ids.includes("heading-3"));
+  for (const level of [1, 2, 3, 4, 5, 6]) {
+    assert.ok(ids.includes(`heading-${level}`));
+  }
+  for (const level of [1, 2, 3]) {
+    assert.ok(ids.includes(`toggle-heading-${level}`));
+  }
   assert.ok(ids.includes("bullet-list"));
   assert.ok(ids.includes("ordered-list"));
   assert.ok(ids.includes("check-list"));
   assert.ok(ids.includes("toggle-list"));
   assert.ok(ids.includes("quote"));
   assert.ok(ids.includes("code"));
+  assert.ok(ids.includes("emoji"));
+  assert.ok(ids.includes("image"));
+  assert.ok(ids.includes("video"));
+  assert.ok(ids.includes("audio"));
+  assert.ok(ids.includes("file"));
 });
 
 test("filterSlashCommands filters by label or id case-insensitively", () => {
   const headings = filterSlashCommands("heading");
-  assert.equal(headings.length, 3);
   assert.deepEqual(
     headings.map((h) => h.id),
-    ["heading-1", "heading-2", "heading-3"],
+    [
+      "heading-1",
+      "heading-2",
+      "heading-3",
+      "heading-4",
+      "heading-5",
+      "heading-6",
+      "toggle-heading-1",
+      "toggle-heading-2",
+      "toggle-heading-3",
+    ],
   );
 
   const lists = filterSlashCommands("list");
@@ -36,6 +55,30 @@ test("filterSlashCommands filters by label or id case-insensitively", () => {
 
   const empty = filterSlashCommands("nonexistent-command-query");
   assert.equal(empty.length, 0);
+});
+
+test("heading aliases resolve every level", () => {
+  for (const level of [1, 2, 3, 4, 5, 6]) {
+    assert.equal(filterSlashCommands(`h${level}`)[0]?.id, `heading-${level}`);
+  }
+  assert.equal(filterSlashCommands("th2")[0]?.id, "toggle-heading-2");
+});
+
+test("the emoji trigger searches emoji instead of block commands", () => {
+  const byShortcode = filterEmojiCommands("rocket");
+  assert.equal(byShortcode[0]?.icon, "🚀");
+  assert.equal(byShortcode[0]?.subtext, ":rocket:");
+
+  const byKeyword = filterEmojiCommands("celebrate");
+  assert.ok(byKeyword.some((item) => item.icon === "🎉"));
+
+  assert.equal(filterSlashItems(":", "rocket")[0]?.icon, "🚀");
+  assert.equal(filterSlashItems("/", "quote")[0]?.id, "quote");
+  assert.equal(filterEmojiCommands("nonexistent-emoji-query").length, 0);
+});
+
+test("the emoji menu caps how many results it offers", () => {
+  assert.ok(filterEmojiCommands("").length <= 60);
 });
 
 test("filterSlashCommands matches aliases and ranks prefix matches first", () => {
@@ -209,4 +252,149 @@ test("applySlashCommand converts slash trigger text into target node type", () =
   assert.equal(state.doc.firstChild?.type.name, "heading");
   assert.equal(state.doc.firstChild?.attrs.level, 1);
   assert.equal(focused, true);
+});
+
+test("the emoji command inserts its character over the trigger text", () => {
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, productSchema.text("ship it :rocket")),
+  ]);
+  let state = EditorState.create({ doc, schema: productSchema });
+  state = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, state.doc.content.size - 1)),
+  );
+
+  const mockView = {
+    get state() {
+      return state;
+    },
+    dispatch: (tr: any) => {
+      state = state.apply(tr);
+    },
+    focus: () => undefined,
+  } as unknown as EditorView;
+
+  const rocket = filterEmojiCommands("rocket")[0];
+  assert.ok(rocket);
+  assert.equal(applySlashCommand(mockView, rocket, ":"), null);
+  assert.equal(state.doc.firstChild?.textContent, "ship it 🚀");
+});
+
+test("the emoji block command defers opening the picker to the host", () => {
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, productSchema.text("/emoji")),
+  ]);
+  let state = EditorState.create({ doc, schema: productSchema });
+  state = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, state.doc.content.size - 1)),
+  );
+
+  const mockView = {
+    get state() {
+      return state;
+    },
+    dispatch: (tr: any) => {
+      state = state.apply(tr);
+    },
+    focus: () => undefined,
+  } as unknown as EditorView;
+
+  const emoji = slashCommands.find((c) => c.id === "emoji");
+  assert.ok(emoji);
+  assert.equal(applySlashCommand(mockView, emoji), "open-emoji");
+  assert.equal(state.doc.firstChild?.textContent, "");
+});
+
+test("a toggle heading command wraps the block and keeps a real heading summary", () => {
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, productSchema.text("Roadmap /th2")),
+  ]);
+  let state = EditorState.create({ doc, schema: productSchema });
+  state = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, state.doc.content.size - 1)),
+  );
+
+  const mockView = {
+    get state() {
+      return state;
+    },
+    dispatch: (tr: any) => {
+      state = state.apply(tr);
+    },
+    focus: () => undefined,
+  } as unknown as EditorView;
+
+  const command = slashCommands.find((c) => c.id === "toggle-heading-2");
+  assert.ok(command);
+  applySlashCommand(mockView, command);
+
+  const list = state.doc.firstChild;
+  assert.equal(list?.type.name, "toggle_list");
+  const item = list?.firstChild;
+  assert.equal(item?.type.name, "toggle_item");
+  assert.equal(item?.firstChild?.type.name, "heading");
+  assert.equal(item?.firstChild?.attrs.level, 2);
+  assert.equal(item?.firstChild?.textContent.trim(), "Roadmap");
+});
+
+test("a toggle heading command retypes the summary of an existing toggle item", () => {
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("toggle_list", null, [
+      productSchema.node("toggle_item", null, [
+        productSchema.node("paragraph", null, productSchema.text("Summary /th3")),
+      ]),
+    ]),
+  ]);
+  let state = EditorState.create({ doc, schema: productSchema });
+  state = state.apply(
+    state.tr.setSelection(TextSelection.create(state.doc, state.doc.content.size - 3)),
+  );
+
+  const mockView = {
+    get state() {
+      return state;
+    },
+    dispatch: (tr: any) => {
+      state = state.apply(tr);
+    },
+    focus: () => undefined,
+  } as unknown as EditorView;
+
+  const command = slashCommands.find((c) => c.id === "toggle-heading-3");
+  assert.ok(command);
+  applySlashCommand(mockView, command);
+
+  assert.equal(state.doc.childCount, 1);
+  const summary = state.doc.firstChild?.firstChild?.firstChild;
+  assert.equal(summary?.type.name, "heading");
+  assert.equal(summary?.attrs.level, 3);
+});
+
+test("media commands insert an empty embed and select it", () => {
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, productSchema.text("/video")),
+  ]);
+  let state = EditorState.create({ doc, schema: productSchema });
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 7)));
+
+  const mockView = {
+    get state() {
+      return state;
+    },
+    dispatch: (tr: any) => {
+      state = state.apply(tr);
+    },
+    focus: () => undefined,
+  } as unknown as EditorView;
+
+  const video = slashCommands.find((c) => c.id === "video");
+  assert.ok(video);
+  applySlashCommand(mockView, video);
+
+  const media = state.doc.firstChild;
+  assert.equal(media?.type.name, "media");
+  assert.equal(media?.attrs.kind, "video");
+  assert.equal(media?.attrs.src, "");
+  assert.ok(state.selection instanceof NodeSelection);
+  assert.equal((state.selection as NodeSelection).node.type.name, "media");
+  assert.equal(state.doc.lastChild?.type.name, "paragraph");
 });

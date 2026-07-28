@@ -679,6 +679,98 @@
   outline: 2px solid hsl(var(--editor-selection) / 0.6);
 }
 
+.note-media-block {
+  margin: 0.5em 0;
+}
+
+.note-media-block.is-selected {
+  outline: 2px solid hsl(var(--editor-selection) / 0.6);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.note-media-block video.note-media {
+  display: block;
+  max-width: 100%;
+  border-radius: var(--radius);
+  background: hsl(var(--scrim) / 0.9);
+}
+
+.note-media-block audio.note-media {
+  display: block;
+  width: 100%;
+}
+
+.note-media-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.note-media-file:hover {
+  background: hsl(var(--theme-bg-active));
+}
+
+.note-media-empty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--theme-bg-active) / 0.4);
+}
+
+.note-media-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.note-media-input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.note-media-submit {
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 1px);
+  background: hsl(var(--card));
+  color: hsl(var(--theme-text-secondary));
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.note-media-submit:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--theme-bg-active));
+}
+
+.slash-menu-icon.is-emoji {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.prosemirror-host .ProseMirror .toggle-item-content > h1,
+.prosemirror-host .ProseMirror .toggle-item-content > h2,
+.prosemirror-host .ProseMirror .toggle-item-content > h3 {
+  margin: 0 0 0.15em;
+}
+
 .block-gutter {
   position: fixed;
   top: 0;
@@ -810,10 +902,10 @@ body.is-dragging-block {
 
 /* :focus, not :focus-visible — the buttons cancel mousedown so they can only
    ever be focused from the keyboard, and WebKitGTK does not treat the
-   programmatic focus() behind arrow/Tab navigation as focus-visible. */
+   programmatic focus() behind arrow/Tab navigation as focus-visible. The fill
+   alone marks the keyboard position; no outline. */
 .bubble-menu button:focus {
-  outline: 2px solid hsl(var(--popover-foreground));
-  outline-offset: -2px;
+  outline: none;
   background: hsl(var(--accent));
   color: hsl(var(--accent-foreground));
 }

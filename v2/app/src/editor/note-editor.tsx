@@ -69,6 +69,7 @@ import {
   productSchema,
   serializeProductMarkdown,
   slashMenuState,
+  type SlashTrigger,
 } from "./schema";
 import {
   createSearchPlugin,
@@ -77,7 +78,13 @@ import {
   setSearch,
   type EditorSearchTarget,
 } from "./search-plugin";
-import { applySlashCommand, filterSlashCommands, type SlashAction } from "./slash-commands";
+import {
+  applySlashCommand,
+  filterSlashItems,
+  type SlashAction,
+  type SlashCommand,
+} from "./slash-commands";
+import { createMediaNodeView } from "./media-nodeview";
 import {
   deleteBlock,
   duplicateBlock,
@@ -143,6 +150,7 @@ type CachedNote = {
 
 type SlashMenu = {
   open: boolean;
+  trigger: SlashTrigger;
   query: string;
   index: number;
   x: number;
@@ -152,6 +160,7 @@ type SlashMenu = {
 
 const closedSlashMenu: SlashMenu = {
   open: false,
+  trigger: "/",
   query: "",
   index: 0,
   x: 0,
@@ -316,6 +325,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const bubbleMenuRef = useRef(bubbleMenu);
   bubbleMenuRef.current = bubbleMenu;
   const bubbleMenuHostRef = useRef<HTMLDivElement>(null);
+  const bubbleDismissedRef = useRef<{ from: number; to: number } | null>(null);
   const [linkMenu, setLinkMenu] = useState(closedLinkMenu);
   const linkMenuRef = useRef(linkMenu);
   linkMenuRef.current = linkMenu;
@@ -540,9 +550,17 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       searchRef.current.syncMatchInfo();
     }
     if (transaction.docChanged) dragHandleRef.current?.hide();
-    const nextBubbleMenu = linkMenuRef.current.editing
-      ? closedBubbleMenu
-      : computeBubbleMenu(view);
+    const dismissed = bubbleDismissedRef.current;
+    if (
+      dismissed &&
+      (dismissed.from !== next.selection.from || dismissed.to !== next.selection.to)
+    ) {
+      bubbleDismissedRef.current = null;
+    }
+    const nextBubbleMenu =
+      linkMenuRef.current.editing || bubbleDismissedRef.current !== null
+        ? closedBubbleMenu
+        : computeBubbleMenu(view);
     if (!bubbleMenuStateEqual(bubbleMenuRef.current, nextBubbleMenu)) {
       setBubbleMenu(nextBubbleMenu);
     }
@@ -572,8 +590,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const openUp = coords.bottom + 4 + SLASH_MENU_MAX_HEIGHT > window.innerHeight;
     setSlashMenu((previous) => ({
       open: true,
+      trigger: menu.trigger,
       query: menu.query,
-      index: previous.query === menu.query ? previous.index : 0,
+      index:
+        previous.query === menu.query && previous.trigger === menu.trigger ? previous.index : 0,
       x: Math.max(12, Math.min(coords.left, window.innerWidth - SLASH_MENU_WIDTH - 12)),
       y: openUp ? coords.top - 4 : coords.bottom + 4,
       openUp,
@@ -588,7 +608,35 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         insertImages(store, view, noteId, files, null);
         view.focus();
       });
+      return;
     }
+    if (action === "open-emoji") {
+      view.dispatch(view.state.tr.insertText(":"));
+      view.focus();
+    }
+  }
+
+  /**
+   * The emoji command re-opens the menu under its own trigger, so closing on the
+   * way out would immediately hide the picker it just asked for.
+   */
+  function runSlashCommand(view: EditorView, command: SlashCommand): void {
+    const menu = slashMenuRef.current;
+    const action = applySlashCommand(view, command, menu.trigger);
+    runSlashAction(view, action);
+    if (action !== "open-emoji") setSlashMenu(closedSlashMenu);
+  }
+
+  /**
+   * Escape closes the bubble menu and keeps it closed for the selection it was
+   * opened on, so the menu does not pop straight back in on the next
+   * transaction the way a plain close would.
+   */
+  function cancelBubbleMenu(view: EditorView): void {
+    const { from, to } = view.state.selection;
+    bubbleDismissedRef.current = { from, to };
+    setBubbleMenu(closedBubbleMenu);
+    view.focus();
   }
 
   function openLinkEditor(): void {
@@ -708,6 +756,12 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         ...referenceViews.nodeViews,
         ...imageViews.nodeViews,
         code_block: createCodeBlockNodeView,
+        media: (node, currentView, getPos) =>
+          createMediaNodeView(node, currentView, getPos, (src) => {
+            openExternalUrl(src).catch((error) => {
+              console.error("open external url rejected", error);
+            });
+          }),
       },
       dispatchTransaction,
       handleClick(currentView, pos, event) {
@@ -829,6 +883,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
             }
           }
         }
+        if (event.key === "Escape" && bubbleMenuRef.current.open) {
+          event.preventDefault();
+          cancelBubbleMenu(currentView);
+          return true;
+        }
         const menu = slashMenuRef.current;
         if (!menu.open) return false;
         if (event.key === "Escape") {
@@ -836,7 +895,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           setSlashMenu(closedSlashMenu);
           return true;
         }
-        const commands = filterSlashCommands(menu.query);
+        const commands = filterSlashItems(menu.trigger, menu.query);
         if (commands.length === 0) return false;
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
           const direction = event.key === "ArrowDown" ? 1 : -1;
@@ -848,8 +907,8 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         }
         if (event.key === "Enter" || event.key === "Tab") {
           const command = commands[menu.index % commands.length];
-          if (command) runSlashAction(currentView, applySlashCommand(currentView, command));
-          setSlashMenu(closedSlashMenu);
+          if (command) runSlashCommand(currentView, command);
+          else setSlashMenu(closedSlashMenu);
           return true;
         }
         return false;
@@ -1045,7 +1104,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     [store],
   );
 
-  const slashItems = slashMenu.open ? filterSlashCommands(slashMenu.query) : [];
+  const slashItems = slashMenu.open ? filterSlashItems(slashMenu.trigger, slashMenu.query) : [];
 
   function runBlockCommand(build: (position: number) => Command): void {
     const view = viewRef.current;
@@ -1153,6 +1212,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         getView={() => viewRef.current}
         onLink={openLinkEditor}
         onDismiss={() => setBubbleMenu(closedBubbleMenu)}
+        onCancel={() => {
+          const view = viewRef.current;
+          if (view) cancelBubbleMenu(view);
+        }}
         containerRef={bubbleMenuHostRef}
       />
       <LinkMenu
@@ -1165,7 +1228,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         <div
           className={slashMenu.openUp ? "slash-menu is-above" : "slash-menu"}
           role="listbox"
-          aria-label="Insert block"
+          aria-label={slashMenu.trigger === ":" ? "Insert emoji" : "Insert block"}
           style={{ left: slashMenu.x, top: slashMenu.y }}
         >
           {slashItems.map((command, index) => {
@@ -1186,11 +1249,16 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
                   onMouseDown={(event) => {
                     event.preventDefault();
                     const view = viewRef.current;
-                    if (view) runSlashAction(view, applySlashCommand(view, command));
-                    setSlashMenu(closedSlashMenu);
+                    if (view) runSlashCommand(view, command);
+                    else setSlashMenu(closedSlashMenu);
                   }}
                 >
-                  <span className="slash-menu-icon" aria-hidden="true">
+                  <span
+                    className={
+                      slashMenu.trigger === ":" ? "slash-menu-icon is-emoji" : "slash-menu-icon"
+                    }
+                    aria-hidden="true"
+                  >
                     {command.icon}
                   </span>
                   <span className="slash-menu-text">

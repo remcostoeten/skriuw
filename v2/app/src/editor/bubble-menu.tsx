@@ -258,10 +258,18 @@ type Props = {
   getView: () => EditorView | null;
   onLink: () => void;
   onDismiss: () => void;
+  onCancel: () => void;
   containerRef: RefObject<HTMLDivElement | null>;
 };
 
-export function BubbleMenu({ state, getView, onLink, onDismiss, containerRef }: Props) {
+export function BubbleMenu({
+  state,
+  getView,
+  onLink,
+  onDismiss,
+  onCancel,
+  containerRef,
+}: Props) {
   const [focusIndex, setFocusIndex] = useState(0);
   const buttonsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -407,7 +415,7 @@ export function BubbleMenu({ state, getView, onLink, onDismiss, containerRef }: 
           moveFocus(buttons.length - 1);
         } else if (event.key === "Escape") {
           event.preventDefault();
-          getView()?.focus();
+          onCancel();
         }
       }}
     >
