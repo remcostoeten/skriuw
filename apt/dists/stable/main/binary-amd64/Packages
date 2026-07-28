@@ -148,3 +148,18 @@ Priority: optional
 Description: Skriuw is a simple, cross-platform, Markdown note-taking app.
  (none)
 
+Package: skriuw
+Version: 0.5.0
+Architecture: amd64
+Maintainer: skriuw
+Installed-Size: 24562
+Depends: libwebkit2gtk-4.1-0, libgtk-3-0
+Filename: pool/main/Skriuw_0.5.0_amd64.deb
+Size: 9188544
+MD5sum: c847889ba7254be5be7535b9ee226983
+SHA1: 99f008c5228ca1bc2e14b50813f344ec8e86b48c
+SHA256: 9b0c8bce7e52d2d085426f78afd91c5f2ebc39f09da4422c7b8f51a9e98959f4
+Priority: optional
+Description: (none)
+ (none)
+
