@@ -23,6 +23,7 @@ import {
   recordClosedTab,
   reopenClosedTab,
   reorderTab,
+  restorePanes,
   serializePaneLayout,
   syncPanes,
   tabIdAtIndex,
@@ -127,6 +128,37 @@ test("sync drops purged notes from every pane and nulls a purged secondary note"
   assert.deepEqual(synced[0]?.openNoteIds, ["a"]);
   assert.deepEqual(synced[1]?.openNoteIds, []);
   assert.equal(synced[1]?.activeNoteId, null);
+});
+
+test("restore drops unavailable tabs and an empty secondary pane", () => {
+  const trashed = { ...node("trashed"), deletedAt: 10 };
+  const trashedFolder = { ...node("folder", "folder"), deletedAt: 10 };
+  const inheritedTrash = { ...node("nested"), parentId: "folder" };
+  const nodes = nodeMap(node("a"), trashed, trashedFolder, inheritedTrash);
+  const panes: PaneState[] = [
+    primary(["trashed", "nested", "a"], "trashed", ["trashed"]),
+    {
+      paneId: SECONDARY_PANE_ID,
+      openNoteIds: ["nested"],
+      pinnedNoteIds: [],
+      activeNoteId: "nested",
+    },
+  ];
+
+  const restored = restorePanes(panes, "a", nodes, true);
+
+  assert.deepEqual(restored, [primary(["a"], "a")]);
+});
+
+test("restore produces an empty primary pane when no available notes remain", () => {
+  const trashed = { ...node("trashed"), deletedAt: 10 };
+  const restored = restorePanes(
+    [primary(["trashed"], "trashed", ["trashed"])],
+    null,
+    nodeMap(trashed),
+  );
+
+  assert.deepEqual(restored, [primary([], null)]);
 });
 
 test("open in new tab appends once and keeps existing tabs", () => {

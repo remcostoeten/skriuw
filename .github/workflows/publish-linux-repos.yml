@@ -6,19 +6,20 @@ name: Publish Channels
 #   - AUR -bin package (Arch)   -> aur.archlinux.org
 #   - Homebrew cask (macOS)     -> Casks/skriuw.rb in this repo (tap by URL)
 #   - Scoop bucket (Windows)    -> bucket/skriuw.json in this repo
-#   - winget (Windows)          -> PR to microsoft/winget-pkgs
-#   - Snap Store                -> snapcraft.io (repacked from the .deb)
+#   - winget (Windows)          -> optional PR to microsoft/winget-pkgs
+#   - Snap Store                -> optional upload to snapcraft.io (repacked from the .deb)
 #
-# Source of truth is a *published* GitHub release for a `v2-v*` tag (built by
-# release-v2.yml) or a legacy `desktop-v*` tag (release-desktop.yml). You can
-# also run it manually against an existing tag via workflow_dispatch.
+# Source of truth is a *published* GitHub release for a `v2-v*` tag, built by
+# release-v2.yml. v1 `desktop-v*` releases remain historical release assets and
+# must never replace the v2 package-manager channels. You can also run this
+# manually against an existing v2 tag via workflow_dispatch.
 on:
     release:
         types: [published]
     workflow_dispatch:
         inputs:
             tag:
-                description: "Release tag to publish (e.g. v2-v0.5.0 or desktop-v0.11.0)"
+                description: "v2 release tag to publish (e.g. v2-v0.27.0)"
                 required: true
                 type: string
 
@@ -28,7 +29,7 @@ concurrency:
 
 jobs:
     resolve:
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'desktop-v') || startsWith(github.event.release.tag_name, 'v2-v')
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v2-v')
         runs-on: ubuntu-latest
         outputs:
             tag: ${{ steps.pick.outputs.tag }}
@@ -44,8 +45,7 @@ jobs:
                   fi
                   case "$TAG" in
                     v2-v*) VERSION="${TAG#v2-v}" ;;
-                    desktop-v*) VERSION="${TAG#desktop-v}" ;;
-                    *) echo "::error::tag '$TAG' is not a v2-v* or desktop-v* tag; skipping"; exit 1 ;;
+                    *) echo "::error::tag '$TAG' is not a v2-v* tag; skipping"; exit 1 ;;
                   esac
                   echo "tag=$TAG" >> "$GITHUB_OUTPUT"
                   echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -138,16 +138,15 @@ jobs:
                   sudo dnf install skriuw</pre>
                   <h2>Arch (AUR)</h2>
                   <pre>yay -S skriuw-bin   # or: paru -S skriuw-bin</pre>
-                  <h2>Snap</h2>
-                  <pre>sudo snap install skriuw</pre>
                   <h2>macOS (Homebrew)</h2>
                   <pre>brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
                   brew install --cask skriuw</pre>
-                  <h2>Windows (winget)</h2>
-                  <pre>winget install RemcoStoeten.Skriuw</pre>
                   <h2>Windows (Scoop)</h2>
                   <pre>scoop bucket add skriuw https://github.com/remcostoeten/skriuw
                   scoop install skriuw</pre>
+                  <h2>Direct downloads</h2>
+                  <p>Download macOS, Windows, Debian/Ubuntu, RPM, or AppImage assets from <a href="https://github.com/remcostoeten/skriuw/releases/latest">GitHub Releases</a>.</p>
+                  <p>Winget and Snap are published only after their respective store submissions succeed. They are intentionally not listed as current install channels here.</p>
                   <h2>Self-host (Docker)</h2>
                   <pre>docker pull ghcr.io/remcostoeten/skriuw</pre>
                   <p>Runs the web app as a server, not the desktop app — see the <a href="https://github.com/remcostoeten/skriuw#self-host-with-docker">Docker quickstart</a> (needs Postgres + two secrets).</p>
@@ -321,6 +320,16 @@ jobs:
         env:
             WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
         steps:
+            - name: Verify Winget token can write to the fork
+              if: ${{ env.WINGET_TOKEN != '' }}
+              shell: pwsh
+              run: |
+                  $headers = @{ Authorization = "Bearer $env:WINGET_TOKEN"; Accept = "application/vnd.github+json" }
+                  $fork = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/${{ github.repository_owner }}/winget-pkgs"
+                  if (-not $fork.permissions.push) {
+                    throw "WINGET_TOKEN cannot write to ${{ github.repository_owner }}/winget-pkgs. Replace it with a PAT from an account that can write to that fork, or use a writable fork and configure winget-releaser's fork-user accordingly."
+                  }
+
             - name: Publish to winget
               if: ${{ env.WINGET_TOKEN != '' }}
               uses: vedantmgoyal9/winget-releaser@v2

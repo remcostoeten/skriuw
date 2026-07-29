@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/web/public/icons/128x128.png" width="88" alt="Skriuw logo" />
+  <img src="v2/app/src-tauri/icons/128x128.png" width="88" alt="Skriuw logo" />
 </p>
 
 <p align="center">
@@ -9,52 +9,55 @@
 
 <p align="center">
   <a href="https://github.com/remcostoeten/skriuw/releases"><img src="https://img.shields.io/github/downloads/remcostoeten/skriuw/total?label=downloads&logo=github" alt="GitHub release downloads" /></a>
-  <img src="https://img.shields.io/badge/platforms-web%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20iOS%20%7C%20Android-4c6ef5" alt="Supported platforms: web, macOS, Windows, Linux, iOS, and Android" />
-  <img src="https://img.shields.io/badge/package%20managers-Homebrew%20%7C%20winget%20%7C%20Scoop%20%7C%20AUR%20%7C%20Snap%20%7C%20apt%20%7C%20dnf-f59e0b" alt="Available through Homebrew, winget, Scoop, AUR, Snap, apt, and dnf" />
+  <img src="https://img.shields.io/badge/current%20release-v2-4c6ef5" alt="v2 is the current release" />
+  <img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-4c6ef5" alt="Skriuw v2 supports macOS, Windows, and Linux" />
+  <img src="https://img.shields.io/badge/package%20managers-Homebrew%20%7C%20Scoop%20%7C%20AUR%20%7C%20apt%20%7C%20dnf-f59e0b" alt="Current v2 packages are available through Homebrew, Scoop, AUR, apt, and dnf" />
   <img src="https://img.shields.io/badge/release%20assets-DMG%20%7C%20EXE%20%7C%20DEB%20%7C%20RPM%20%7C%20AppImage-737373" alt="Direct downloads are available as DMG, EXE, DEB, RPM, and AppImage files" />
   <img src="https://img.shields.io/badge/self--host-Docker-2496ED?logo=docker&logoColor=white" alt="Self-host with Docker" />
 </p>
 
 <p align="center">
-  <b>Open source note-taking, journaling, and knowledge base for web, mobile, and desktop.</b>
+  <b>A local-first desktop app for notes, journaling, and knowledge work.</b>
 </p>
 
 <p align="center">
-  Markdown notes, wiki-style links, backlinks, tags, daily journaling, and optional bring-your-own-key AI. A calm, fast, keyboard-driven Notion and Obsidian alternative built with Next.js, PostgreSQL, and Tauri.
+  Fast, private, and fully local: Skriuw v2 keeps your workspace in SQLite on your own machine, with portable archives and Git-backed history.
 </p>
 
 <p align="center">
-  <img src="apps/web/public/readme/app-main.png" alt="Skriuw notes workspace showing the Markdown editor, sidebar, and note links" />
+  <img src="v2/app/src-tauri/icons/128x128@2x.png" alt="Skriuw v2 logo" />
 </p>
 
-## A place to think in public or in private
+## Skriuw v2 — current desktop release
 
-Skriuw brings notes, a daily journal, and lightweight planning into one calm workspace. It is for people who want to stay with their thoughts, not hunt through menus or rearrange a dashboard.
+**v2 is the current, fully released desktop line.** It is a local-first rebuild focused on immediate interaction: every navigation and edit action is designed to give same-frame feedback, with no sync dialogs or loading states.
 
-The surface stays quiet until you need more: links between ideas, rich and Markdown editing, a command palette, or optional AI. Use Skriuw in the browser, on your phone, as a local-first desktop app, or on infrastructure you control.
+- macOS, Windows, and Linux installers are published on the [latest release](https://github.com/remcostoeten/skriuw/releases/latest).
+- v2 is available from the apt and dnf repositories, Homebrew tap, Scoop bucket, and AUR. See [v2 installation instructions](v2/README.md#installation).
+- Winget and the Snap Store do **not** yet carry the current v2 release. Use the release assets or another listed channel until they do.
 
-> [!NOTE]
-> AI is optional. Bring your own provider key or use the app's fallback keys. User keys are encrypted at rest.
+v2 is desktop-only and local-first: it has no cloud sync or mobile client. Read [v2's feature list](v2/FEATURES.md) and [architecture](v2/ARCHITECTURE.md) for its current scope.
 
-## Skriuw v2 — a ground-up rebuild in [`v2/`](v2/)
+## Choose the right line
 
-This repository now carries two lines of Skriuw:
+This repository carries two independent Skriuw lines. Their data models, product scope, and release tags differ; install the line that matches your needs.
 
-- **v1** — everything under `apps/` and `packages/`: the web app, mobile, extension, and desktop shell you're reading about on this page, with cloud sync, sharing, and the broadest feature set. It remains available and maintained.
-- **v2** — a from-scratch rebuild under [`v2/`](v2/), and the primary focus of development going forward.
+| Line                             | Use it when                                                                               | Install / run it                                                                               |
+| -------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **v2 (current desktop release)** | You want the fast, private, local-first desktop application.                              | [v2 install guide](v2/README.md#installation) · releases tagged `v2-v*`                        |
+| **v1 (legacy, broader product)** | You need the web app, mobile app, cloud sync, sharing, or the established v1 feature set. | [v1 guide below](#v1-legacy-web-mobile-and-self-hosted) · desktop releases tagged `desktop-v*` |
 
-v2 exists for one reason: performance that v1's architecture cannot reach. It is built around a single promise — **every interaction gives same-frame feedback**. No spinners, no sync dialogs, no "loading your notes."
+**Versioning:** v2 releases use `v2-v*` tags and are promoted to GitHub’s **Latest** release. v1’s historical desktop releases use `desktop-v*`; its web/mobile code remains under `apps/` and `packages/`.
 
-- A Rust backend (domain, storage, runtime, and Git-history crates) under a Tauri 2 shell, with SQLite on disk as canonical storage.
-- The renderer navigates a fully hydrated in-memory workspace: **switching notes performs zero IPC, zero database reads, zero parsing**.
-- The performance contract — cached note swap and keystroke-to-paint both **under 8 ms at P95, with zero dropped frames** across hundreds of rapid switches — is enforced by a production benchmark suite in CI, not aspiration.
-- Every save is versioned into a native Git history that runs entirely off the editing path.
+## v1 — legacy web, mobile, and self-hosted
 
-The trade-off, for now: v2 is local-first desktop only — no cloud, no mobile, a narrower feature set. It grows toward parity release by release. See [`v2/FEATURES.md`](v2/FEATURES.md) for what it does today and [`v2/docs/adr/0022-v2-monorepo-import.md`](v2/docs/adr/0022-v2-monorepo-import.md) for how the two lines coexist here.
+v1 remains available for users who need its broader cloud-enabled product. It is not the current desktop release; do not use unversioned package-manager commands to seek a v1 installer, because those channels track v2.
 
-**Versioning:** v1 keeps its `v0.x` and `desktop-v*` tags; v2 releases are tagged `v2-v*` and appear on the same [releases page](https://github.com/remcostoeten/skriuw/releases). `v2/` is a self-contained toolchain — bootstrap and build from that directory, not the repo root.
+For the hosted v1 app, visit [skriuw.com](https://skriuw.com). To self-host it, follow the Docker instructions below. To use a historical v1 desktop build, select the appropriate `desktop-v*` release from [all releases](https://github.com/remcostoeten/skriuw/releases) and download its matching asset.
 
-## Keep the whole thread
+### A place to think in public or in private
+
+### Keep the whole thread
 
 | Area           | What it gives you                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------------- |
@@ -66,7 +69,7 @@ The trade-off, for now: v2 is local-first desktop only — no cloud, no mobile, 
 | Planning       | A public roadmap board for features, issues, and upcoming work.                                     |
 | Control        | Export, import, account deletion, themes, typography, and editor preferences.                       |
 
-## See the workspace
+### See the workspace
 
 <table>
   <tr>
@@ -84,21 +87,21 @@ The trade-off, for now: v2 is local-first desktop only — no cloud, no mobile, 
   </tr>
 </table>
 
-## Stay with the thought
+### Stay with the thought
 
 - Move through the app from the keyboard, with a command palette and quick search close at hand
 - Switch between rich text and Markdown without leaving the same workspace
 - Keep the interface out of the way, so the writing surface has room to breathe
 - Read and work from a local cache, with AI private by default
 
-## Your words, your terms
+### Your words, your terms
 
 - Your notes and journal entries live in your own database-backed account
 - Shared notes are frozen snapshots, not live views of the source document
 - AI provider keys are encrypted at rest when stored in the app
 - You can export your workspace and delete your account from inside the app
 
-## Bring your library with you
+### Bring your library with you
 
 Skriuw uses a portable ZIP backup format for your workspace:
 
@@ -133,13 +136,13 @@ skriuw-export-YYYY-MM-DD/
     └── {noteId}/{versionId}.json
 ```
 
-## Built to last
+### Built to last
 
 Next.js, Expo/React Native, PostgreSQL with Prisma, Better Auth, Tauri for the
 desktop build, and a block-based editor with real-time collaboration. Managed
 with Bun 1.3.14 in a monorepo.
 
-## Choose where Skriuw lives
+### Choose where v1 lives
 
 Whether you want the convenience of the web app, a private server, or a folder of plain Markdown files on your own machine, there is a version of Skriuw for that.
 
@@ -153,7 +156,13 @@ Whether you want the convenience of the web app, a private server, or a folder o
 
 ### Self-host with Docker
 
-Runs the web app plus a Postgres container. No repo clone needed, just two files:
+Docker is the **v1** self-hosted web application, not the v2 local-first desktop app. The published multi-architecture image is available for `linux/amd64` and `linux/arm64`:
+
+```bash
+docker pull ghcr.io/remcostoeten/skriuw:latest
+```
+
+It needs PostgreSQL plus the required application secrets, so use Compose for a working setup. No repo clone is needed, just two files:
 
 ```bash
 # 1. Grab the compose file and env template
@@ -182,23 +191,11 @@ docker compose -f docker-compose.build.yml up --build -d
 
 > Realtime collaboration is a Cloudflare Worker (`party/`) and is **not** part of the Docker stack. It stays disabled unless you deploy that worker and set `NEXT_PUBLIC_PARTYKIT_HOST`. Everything else works without it.
 
-### Desktop
+### Historical v1 desktop builds
 
-Native app (Tauri) with fully local, offline storage. Your notes are plain Markdown files plus a SQLite index, with no server or account. Download from [Releases](https://github.com/remcostoeten/skriuw/releases), or:
+Historical v1 installers are preserved on [`desktop-v*` releases](https://github.com/remcostoeten/skriuw/releases?q=desktop-v&expanded=true). Download the matching macOS, Windows, `.deb`, `.rpm`, or AppImage asset from the release you need. The active apt/dnf, Homebrew, Scoop, and AUR channels install **v2**, not v1.
 
-```bash
-# macOS (Homebrew): tap by URL, then install the cask
-brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw && brew install --cask skriuw
-
-winget install RemcoStoeten.Skriuw   # Windows
-scoop bucket add skriuw https://github.com/remcostoeten/skriuw
-scoop install skriuw                 # Windows, via Scoop
-yay -S skriuw-bin                    # Arch (AUR)
-sudo snap install skriuw             # Linux, via Snap
-sudo dpkg -i skriuw_*.deb            # Debian/Ubuntu (from Releases)
-```
-
-## Work on Skriuw
+### Work on v1
 
 Copy `.env.example` to `.env.local`, set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `NEXT_PUBLIC_BETTER_AUTH_URL`, then install and start the app:
 

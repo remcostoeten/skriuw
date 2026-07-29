@@ -1,10 +1,13 @@
 import type { MediaBlobPayload } from "../bridge/commands";
 import type { WorkspaceImage } from "../contracts/workspace";
+import { JOURNAL_ROOT_ID } from "../journal/constants";
 
 export type MediaUsage = {
   noteId: string;
   title: string;
   count: number;
+  surface: "note" | "journal";
+  placement: "inline" | "cover";
 };
 
 export type MediaLibraryEntry = {
@@ -12,8 +15,21 @@ export type MediaLibraryEntry = {
   mimeType: string;
   byteSize: number;
   modifiedAt: number;
+  createdAt: number | null;
+  width: number | null;
+  height: number | null;
   usages: MediaUsage[];
   missingBlob: boolean;
+};
+
+type MediaNode = {
+  title: string;
+  parentId: string | null;
+  coverImageId?: string | null;
+};
+
+type MediaDocument = {
+  documentJson: unknown;
 };
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -35,42 +51,83 @@ export function imageFormatLabel(mimeType: string): string {
 export function projectMediaLibrary(
   blobs: readonly MediaBlobPayload[],
   images: ReadonlyMap<string, WorkspaceImage>,
-  noteTitles: ReadonlyMap<string, { title: string }>,
+  nodes: ReadonlyMap<string, MediaNode>,
+  documents: ReadonlyMap<string, MediaDocument> = new Map(),
 ): MediaLibraryEntry[] {
-  const usageByHash = new Map<string, Map<string, number>>();
-  const referenceMeta = new Map<string, { mimeType: string; byteSize: number; createdAt: number }>();
+  const usageByHash = new Map<string, Map<string, MediaUsage>>();
+  const referenceMeta = new Map<
+    string,
+    {
+      mimeType: string;
+      byteSize: number;
+      createdAt: number;
+      width: number | null;
+      height: number | null;
+    }
+  >();
   for (const image of images.values()) {
-    const perNote = usageByHash.get(image.contentHash) ?? new Map<string, number>();
-    perNote.set(image.noteId, (perNote.get(image.noteId) ?? 0) + 1);
-    usageByHash.set(image.contentHash, perNote);
+    const node = nodes.get(image.noteId);
+    const surface = node?.parentId === JOURNAL_ROOT_ID ? "journal" : "note";
+    const perHash = usageByHash.get(image.contentHash) ?? new Map<string, MediaUsage>();
+    const inlineCount = countImageReferences(
+      documents.get(image.noteId)?.documentJson,
+      image.id,
+    );
+    if (inlineCount > 0) {
+      addUsage(perHash, {
+        noteId: image.noteId,
+        title: node?.title ?? "Untitled note",
+        count: inlineCount,
+        surface,
+        placement: "inline",
+      });
+    }
+    if (node?.coverImageId === image.id) {
+      addUsage(perHash, {
+        noteId: image.noteId,
+        title: node.title,
+        count: 1,
+        surface,
+        placement: "cover",
+      });
+    }
+    usageByHash.set(image.contentHash, perHash);
     const meta = referenceMeta.get(image.contentHash);
     referenceMeta.set(image.contentHash, {
       mimeType: image.mimeType,
       byteSize: image.byteSize,
       createdAt: Math.max(meta?.createdAt ?? 0, image.createdAt),
+      width: image.width ?? meta?.width ?? null,
+      height: image.height ?? meta?.height ?? null,
     });
   }
 
   function usagesFor(contentHash: string): MediaUsage[] {
-    const perNote = usageByHash.get(contentHash);
-    if (!perNote) {
+    const perHash = usageByHash.get(contentHash);
+    if (!perHash) {
       return [];
     }
-    return Array.from(perNote, ([noteId, count]) => ({
-      noteId,
-      title: noteTitles.get(noteId)?.title ?? "Untitled note",
-      count,
-    })).sort((left, right) => left.title.localeCompare(right.title));
+    return [...perHash.values()].sort(
+      (left, right) =>
+        left.title.localeCompare(right.title) ||
+        left.placement.localeCompare(right.placement),
+    );
   }
 
-  const entries: MediaLibraryEntry[] = blobs.map((blob) => ({
-    contentHash: blob.contentHash,
-    mimeType: blob.mimeType,
-    byteSize: blob.byteSize,
-    modifiedAt: Math.max(blob.modifiedAtMs, referenceMeta.get(blob.contentHash)?.createdAt ?? 0),
-    usages: usagesFor(blob.contentHash),
-    missingBlob: false,
-  }));
+  const entries: MediaLibraryEntry[] = blobs.map((blob) => {
+    const meta = referenceMeta.get(blob.contentHash);
+    return {
+      contentHash: blob.contentHash,
+      mimeType: blob.mimeType,
+      byteSize: blob.byteSize,
+      modifiedAt: Math.max(blob.modifiedAtMs, meta?.createdAt ?? 0),
+      createdAt: meta?.createdAt ?? null,
+      width: meta?.width ?? null,
+      height: meta?.height ?? null,
+      usages: usagesFor(blob.contentHash),
+      missingBlob: false,
+    };
+  });
 
   const onDisk = new Set(blobs.map((blob) => blob.contentHash));
   for (const [contentHash, meta] of referenceMeta) {
@@ -82,6 +139,9 @@ export function projectMediaLibrary(
       mimeType: meta.mimeType,
       byteSize: meta.byteSize,
       modifiedAt: meta.createdAt,
+      createdAt: meta.createdAt,
+      width: meta.width,
+      height: meta.height,
       usages: usagesFor(contentHash),
       missingBlob: true,
     });
@@ -91,6 +151,28 @@ export function projectMediaLibrary(
     (left, right) =>
       right.modifiedAt - left.modifiedAt || left.contentHash.localeCompare(right.contentHash),
   );
+}
+
+function addUsage(usages: Map<string, MediaUsage>, usage: MediaUsage): void {
+  const key = `${usage.noteId}\0${usage.surface}\0${usage.placement}`;
+  const current = usages.get(key);
+  usages.set(key, current ? { ...current, count: current.count + usage.count } : usage);
+}
+
+function countImageReferences(value: unknown, imageId: string): number {
+  if (!value || typeof value !== "object") return 0;
+  const record = value as { type?: unknown; attrs?: unknown; content?: unknown };
+  let count =
+    record.type === "image_ref" &&
+    record.attrs !== null &&
+    typeof record.attrs === "object" &&
+    (record.attrs as { id?: unknown }).id === imageId
+      ? 1
+      : 0;
+  if (Array.isArray(record.content)) {
+    for (const child of record.content) count += countImageReferences(child, imageId);
+  }
+  return count;
 }
 
 export function isUnusedMedia(entry: MediaLibraryEntry): boolean {
@@ -108,7 +190,7 @@ export function describeMediaUsage(entry: MediaLibraryEntry): string {
   const references = entry.usages.reduce((total, usage) => total + usage.count, 0);
   const shown = entry.usages
     .slice(0, 3)
-    .map((usage) => usage.title)
+    .map((usage) => `${usage.title} (${usage.placement})`)
     .join(", ");
   const more = entry.usages.length > 3 ? ` and ${entry.usages.length - 3} more` : "";
   const times = references === 1 ? "once" : `${references} times`;

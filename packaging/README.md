@@ -1,7 +1,9 @@
 # Distribution channels
 
-Skriuw ships through six install channels, all fed from a published
-`desktop-v*` GitHub release:
+The current desktop release is **v2**, published from `v2-v*` GitHub tags.
+Legacy v1 desktop releases use `desktop-v*` tags and are available only as
+historical release assets. Package-manager publication accepts v2 tags only, so
+a v1 release cannot replace the current v2 channels.
 
 | Channel              | Audience        | Source                                      |
 | -------------------- | --------------- | ------------------------------------------- |
@@ -10,24 +12,26 @@ Skriuw ships through six install channels, all fed from a published
 | **AUR `skriuw-bin`** | Arch / Manjaro  | `aur.archlinux.org`                         |
 | **Homebrew cask**    | macOS           | `Casks/skriuw.rb` in this repo (tap by URL) |
 | **Scoop bucket**     | Windows         | `bucket/skriuw.json` in this repo           |
-| **winget**           | Windows         | PR to `microsoft/winget-pkgs`               |
-| **Snap Store**       | any Linux       | snapcraft.io (repacked `.deb`)              |
 | **AppImage**         | any Linux       | release asset (portable, no repo)           |
+
+Winget and Snap are prepared by the workflow, but are **not current v2 install
+channels**: Winget's public manifest is older and the Snap Store upload needs
+store credentials. Do not advertise either until its current v2 package is
+confirmed published.
 
 The release builds (`.deb` / `.rpm` / `.AppImage` / universal `.dmg` / NSIS
 `-setup.exe`) are produced by
-[`release-desktop.yml`](../.github/workflows/release-desktop.yml). Publishing the
-drafted release then triggers
+[`release-v2.yml`](../.github/workflows/release-v2.yml). Publishing the drafted
+release then triggers
 [`publish-linux-repos.yml`](../.github/workflows/publish-linux-repos.yml)
-("Publish Channels"), which fans out to every channel above.
+("Publish Channels"), which updates the available channels above and attempts
+the optional store submissions.
 
 ## Release flow
 
-1. Tag a desktop release: `git tag desktop-v0.12.0 && git push origin desktop-v0.12.0`.
-2. `release-desktop.yml` creates a **draft** GitHub release with generated
-   notes (`scripts/generate-release-notes.sh` diffs against the previous
-   desktop tag and groups commits by conventional-commit type), then builds
-   Linux, macOS, and Windows in parallel and attaches the artifacts.
+1. Tag a v2 desktop release: `git tag v2-v0.27.0 && git push origin v2-v0.27.0`.
+2. `release-v2.yml` creates a **draft** GitHub release, then builds Linux,
+   macOS, and Windows in parallel and attaches the artifacts.
 3. Review and **publish** the release in the GitHub UI.
 4. Publishing fires `publish-linux-repos.yml`:
     - downloads the `.deb` + `.rpm`, regenerates the signed apt and dnf repos,
@@ -35,11 +39,12 @@ drafted release then triggers
     - bumps the PKGBUILD `pkgver` and pushes `skriuw-bin` to the AUR;
     - rewrites `Casks/skriuw.rb` (from the `.dmg`) and `bucket/skriuw.json`
       (from the `-setup.exe`) in one commit on `daddy`;
-    - opens a winget version PR against `microsoft/winget-pkgs`;
-    - repacks the `.deb` as a snap and uploads it to the Snap Store.
+    - submits a winget version PR only when `WINGET_TOKEN` is configured;
+    - repacks the `.deb` as a snap and uploads it only when
+      `SNAPCRAFT_STORE_CREDENTIALS` is configured.
 
 You can also run it manually: **Actions → Publish Channels → Run workflow**,
-passing the tag (e.g. `desktop-v0.12.0`).
+passing the tag (e.g. `v2-v0.27.0`).
 
 ## One-time setup
 
@@ -106,11 +111,16 @@ cert later only requires signing in `release-desktop.yml`.
 
 - Create a **classic** PAT with the `public_repo` scope and fork
   [`microsoft/winget-pkgs`](https://github.com/microsoft/winget-pkgs) under
-  the same account.
+  the account that owns (or can write to) `remcostoeten/winget-pkgs`.
 - `gh secret set WINGET_TOKEN --repo remcostoeten/skriuw`
 - The **first version must be submitted by hand** (winget requires the
   `RemcoStoeten.Skriuw` identifier to exist before automation can update it):
-  `wingetcreate new https://github.com/remcostoeten/skriuw/releases/download/desktop-vX.Y.Z/Skriuw_X.Y.Z_x64-setup.exe`
+  `wingetcreate new https://github.com/remcostoeten/skriuw/releases/download/v2-vX.Y.Z/Skriuw_X.Y.Z_x64-setup.exe`
+
+The current `WINGET_TOKEN` must be replaced with a token that can write to
+that fork. The workflow now checks this permission before attempting a
+submission, so a misconfigured token reports the actionable cause instead of a
+failed `CreateRef` operation.
 
 ### 6. Snap Store — `SNAPCRAFT_STORE_CREDENTIALS`
 
@@ -154,17 +164,24 @@ brew install --cask skriuw
 ### Windows
 
 ```powershell
-winget install RemcoStoeten.Skriuw
-# or via Scoop:
+# Scoop is the current v2 package-manager channel.
 scoop bucket add skriuw https://github.com/remcostoeten/skriuw
 scoop install skriuw
 ```
 
-### Snap (any Linux)
+Winget and Snap are not listed here because they do not currently publish the
+latest v2 version. Install from [GitHub Releases](https://github.com/remcostoeten/skriuw/releases/latest) if none of the channels above fits your platform.
+
+## Docker (v1 self-hosting)
+
+The published web image is separate from the v2 desktop distribution. It is
+available for `linux/amd64` and `linux/arm64`:
 
 ```bash
-sudo snap install skriuw
+docker pull ghcr.io/remcostoeten/skriuw:latest
 ```
+
+Run it with PostgreSQL and the required secrets using the [Docker quickstart](../README.md#self-host-with-docker). v2 is a local-first desktop application and is not distributed as a server container.
 
 ## Local testing of the apt repo
 

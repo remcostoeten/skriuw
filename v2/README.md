@@ -1,6 +1,6 @@
-# Skriuw Standalone
+# Skriuw v2
 
-Local-first notes application with a Rust backend, React renderer, and Tauri desktop shell.
+Skriuw v2 is the current, fully released Skriuw desktop application: a local-first notes app with a Rust backend, React renderer, and Tauri shell. It is distinct from [v1](../README.md#v1-legacy-web-mobile-and-self-hosted), which provides the legacy web, mobile, cloud, and self-hosted product.
 
 ## Current decisions
 
@@ -15,32 +15,37 @@ See [FEATURES.md](FEATURES.md) for what the app does, [ARCHITECTURE.md](ARCHITEC
 
 ## Installation
 
+The [latest GitHub release](https://github.com/remcostoeten/skriuw/releases/latest) is always the current v2 release and provides installers for macOS, Windows, and Linux. v2 release tags use the `v2-v*` format.
+
 ### Debian / Ubuntu (APT)
 
-Direct package installation:
+Use the repository for automatic updates:
 ```bash
-curl -sL https://github.com/remcostoeten/skriuw-standalone/releases/latest/download/skriuw-app_amd64.deb -o skriuw.deb
-sudo apt install ./skriuw.deb
+curl -fsSL https://remcostoeten.github.io/skriuw/apt/key.gpg \
+  | sudo gpg --dearmor -o /usr/share/keyrings/skriuw.gpg
+echo "deb [signed-by=/usr/share/keyrings/skriuw.gpg] https://remcostoeten.github.io/skriuw/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/skriuw.list
+sudo apt update && sudo apt install skriuw
 ```
 
-APT Repository (automatic updates):
+To install a single `.deb`, download it from the [latest release](https://github.com/remcostoeten/skriuw/releases/latest) and run `sudo apt install ./Skriuw_*_amd64.deb`.
+
+### Fedora / RHEL / openSUSE (dnf)
+
 ```bash
-curl -fsSL https://remcostoeten.github.io/skriuw-standalone/KEY.gpg | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/skriuw.gpg
-echo "deb [signed-by=/etc/apt/trusted.gpg.d/skriuw.gpg] https://remcostoeten.github.io/skriuw-standalone stable main" | sudo tee /etc/apt/sources.list.d/skriuw.list
-sudo apt update && sudo apt install skriuw
+sudo dnf config-manager addrepo --from-repofile=https://remcostoeten.github.io/skriuw/rpm/skriuw.repo
+sudo dnf install skriuw
 ```
 
 ### macOS (Homebrew)
 ```bash
-brew install remcostoeten/tap/skriuw
+brew tap remcostoeten/skriuw https://github.com/remcostoeten/skriuw
+brew install --cask skriuw
 ```
 
-### Windows (Winget & Scoop)
-```cmd
-winget install remcostoeten.skriuw
-```
-```cmd
-scoop bucket add skriuw https://github.com/remcostoeten/scoop-bucket
+### Windows (Scoop)
+```powershell
+scoop bucket add skriuw https://github.com/remcostoeten/skriuw
 scoop install skriuw
 ```
 
@@ -48,6 +53,14 @@ scoop install skriuw
 ```bash
 yay -S skriuw-bin
 ```
+
+### Direct downloads
+
+The latest release includes `.dmg` (macOS), NSIS `.exe` and `.msi` (Windows), `.deb`, `.rpm`, and AppImage (Linux) assets. Download the right one from [GitHub Releases](https://github.com/remcostoeten/skriuw/releases/latest).
+
+### Package-manager status
+
+The current v2 release is published through apt, dnf, Homebrew, Scoop, and AUR. Winget and the Snap Store are wired into the release automation but do not yet have a current v2 publication; use a release asset or one of the listed channels instead. These package channels install v2, not v1.
 
 ## Requirements
 
@@ -108,4 +121,4 @@ scripts                    Stable contributor/CI entrypoints
 
 ## Status
 
-v1 complete: the full desktop application — editor, workspace tree, search, tags/people/mentions, Git history, backups, recovery, and the release pipeline — has shipped and passes its end-to-end and performance gates. See [FEATURES.md](FEATURES.md).
+v2 is the current desktop release. See [FEATURES.md](FEATURES.md) for its shipped scope and [the repository README](../README.md) for the v1/v2 product split.

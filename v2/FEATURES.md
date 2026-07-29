@@ -28,6 +28,8 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Find and replace** — search within a note (`mod+f`), including content outside the visible window.
 - **Handles huge notes** — notes with thousands of blocks render through a bounded 192-block editor window; select-all, copy, search, undo, and accessibility traversal still cover the whole document.
 - **Images** — paste or drop an image and it appears inline, no dialog. Blobs are content-addressed files on disk (pasting the same image twice stores it once), never inflate the document itself, and round-trip through Markdown export/import with an `images/` directory, workspace archives, and scheduled recovery backups. Remote Markdown images stay as portable source but are blocked from loading.
+- **Note cover images** — choose any existing workspace asset or upload a new image above any note, then keep it aligned to the writing column or let it span the full editor pane without gutters. Drag or use arrow keys to pan, scroll or use `+`/`-` to zoom, or pick one of nine focal-point presets; transforms, covers, and layout reuse the local content-addressed image store and travel with workspace archives and recovery backups.
+- **Workspace media gallery** — one filterable Settings gallery inventories every blob used inline, as a cover, or in the journal. Each asset shows format, dimensions, size, hash, attachment date, exact usage type, count, links back to every reference, and a full-screen preview. The cover picker searches, filters, sorts, and marks current, used, and reused assets.
 - **Video, audio, and file embeds** — `/video`, `/audio`, and `/file` drop a block that takes a URL. Embeds round-trip through Markdown as an ordinary link, so other editors still render something useful.
 - **Tags, people, mentions, and wiki-links** — type `#` to tag, `@` or `[[` for wiki-style note links, `$` for people. Relationships are stored by ID, so renames propagate everywhere and nothing silently breaks.
 - **Backlinks and entity pages** — every note, tag, and person shows what points to it, precomputed and instant.
@@ -70,7 +72,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Settings with a Data & Recovery surface** — export, import, backup-now, and restore are all in the UI; the CLI is optional, not required.
 - **Storage you can see and move** — settings show every stored image with size and the notes that use it, open the database or blobs folder in the file manager, and can relocate the whole workspace (database, images, history, backups) to a new folder with a verified copy and automatic restart.
 - **Auto-updates** — built-in updater on top of a tag-driven, cross-platform release pipeline.
-- **Installs everywhere** — APT repo, Homebrew, Winget, Scoop, and the AUR.
+- **Current install channels** — APT and dnf repositories, Homebrew, Scoop, and the AUR; macOS, Windows, and Linux release assets are available directly. Winget and Snap publication remain pending.
 
 ## Built to be trusted
 

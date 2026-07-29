@@ -1588,6 +1588,87 @@ fn save_document_prunes_detached_image_rows() {
 }
 
 #[test]
+fn note_cover_round_trips_and_survives_document_image_pruning() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open");
+    storage
+        .apply_operations(&[
+            create_note("note-1"),
+            attach_image("cover-1", "note-1", 'a'),
+            op(WorkspaceOperation::SetNoteCover {
+                note_id: "note-1".into(),
+                image_id: Some("cover-1".into()),
+                at: 3,
+            }),
+            op(WorkspaceOperation::SetNoteCoverFullWidth {
+                note_id: "note-1".into(),
+                full_width: true,
+                at: 3,
+            }),
+            op(WorkspaceOperation::SetNoteCoverTransform {
+                note_id: "note-1".into(),
+                position_x: 25.0,
+                position_y: 70.0,
+                zoom: 1.5,
+                at: 3,
+            }),
+        ])
+        .expect("set cover");
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SaveDocument {
+            note_id: "note-1".into(),
+            document_json: json!({"type": "doc", "content": []}),
+            markdown: String::new(),
+            word_count: 0,
+            expected_revision: 1,
+            at: 4,
+        })])
+        .expect("save without inline images");
+
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.nodes[0].cover_image_id.as_deref(), Some("cover-1"));
+    assert!(snapshot.nodes[0].cover_full_width);
+    assert_eq!(snapshot.nodes[0].cover_position_x, 25.0);
+    assert_eq!(snapshot.nodes[0].cover_position_y, 70.0);
+    assert_eq!(snapshot.nodes[0].cover_zoom, 1.5);
+    assert_eq!(snapshot.images[0].id, "cover-1");
+
+    storage
+        .apply_operations(&[op(WorkspaceOperation::SetNoteCover {
+            note_id: "note-1".into(),
+            image_id: None,
+            at: 5,
+        })])
+        .expect("remove cover");
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.nodes[0].cover_image_id, None);
+    assert!(!snapshot.nodes[0].cover_full_width);
+    assert_eq!(snapshot.nodes[0].cover_position_x, 50.0);
+    assert_eq!(snapshot.nodes[0].cover_position_y, 50.0);
+    assert_eq!(snapshot.nodes[0].cover_zoom, 1.0);
+    assert!(snapshot.images.is_empty());
+}
+
+#[test]
+fn note_cover_rejects_foreign_or_missing_images() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open");
+    storage
+        .apply_operations(&[
+            create_note("note-1"),
+            create_note("note-2"),
+            attach_image("image-1", "note-1", 'a'),
+        ])
+        .expect("seed");
+
+    let foreign = storage.apply_operations(&[op(WorkspaceOperation::SetNoteCover {
+        note_id: "note-2".into(),
+        image_id: Some("image-1".into()),
+        at: 3,
+    })]);
+    assert!(matches!(foreign, Err(StorageError::InvalidOperation(_))));
+}
+
+#[test]
 fn purge_cascades_image_rows_with_their_note() {
     let storage = SqliteWorkspace::open_in_memory().expect("open");
     storage

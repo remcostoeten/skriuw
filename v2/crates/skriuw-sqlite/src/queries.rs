@@ -378,7 +378,8 @@ pub(crate) fn write_pane_layout(
 pub(crate) fn read_nodes(connection: &Connection) -> Result<Vec<WorkspaceNode>, StorageError> {
     let mut statement = connection
         .prepare_cached(
-            "SELECT id, kind, parent_id, rank, title, icon, created_at, updated_at, deleted_at, \
+            "SELECT id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
+             cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
              pinned_at \
              FROM workspace_nodes ORDER BY parent_id, rank, id",
         )
@@ -403,10 +404,15 @@ pub(crate) fn read_nodes(connection: &Connection) -> Result<Vec<WorkspaceNode>, 
                 rank: row.get(3)?,
                 title: row.get(4)?,
                 icon: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
-                deleted_at: row.get(8)?,
-                pinned_at: row.get(9)?,
+                cover_image_id: row.get(6)?,
+                cover_full_width: row.get(7)?,
+                cover_position_x: row.get(8)?,
+                cover_position_y: row.get(9)?,
+                cover_zoom: row.get(10)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
+                deleted_at: row.get(13)?,
+                pinned_at: row.get(14)?,
             })
         })
         .map_err(backend)?;

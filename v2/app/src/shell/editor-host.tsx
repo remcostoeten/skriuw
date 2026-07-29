@@ -7,6 +7,7 @@ import { NotePropertiesShelf } from "../properties/note-properties-shelf";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import { WaypointsIcon, iconStrokeWidth } from "../shared/icons";
 import type { RendererState, RendererStore } from "../store/types";
+import { NoteCover } from "./note-cover";
 
 type Props = {
   store: RendererStore;
@@ -37,19 +38,32 @@ export function EditorHost({
     [selectNoteId],
   );
   const noteId = useRendererSelector(store, selectNoteId);
+  const selectHasCover = useMemo(
+    () => (state: RendererState) => {
+      const selected = selectNoteId(state);
+      return selected !== null && state.sourceNodes.get(selected)?.coverImageId != null;
+    },
+    [selectNoteId],
+  );
+  const hasCover = useRendererSelector(store, selectHasCover);
   const isRawMode = useRendererSelector(store, selectRawMode);
   const hasActiveNote = noteId !== null;
   return (
-    <div className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor px-12 py-8">
-      <div className={hasActiveNote ? "mx-auto w-full max-w-[72ch]" : "hidden"}>
-        {noteId !== null && (
-          <NotePropertiesShelf key={noteId} store={store} selectNoteId={selectNoteId} />
-        )}
-        {isRawMode ? (
-          <RawMarkdownEditor store={store} selectNoteId={selectNoteId} />
-        ) : (
-          <NoteEditor store={store} selectNoteId={selectNoteId} />
-        )}
+    <div className="editor-scroll h-full min-w-0 overflow-y-auto bg-theme-editor">
+      <div className={hasActiveNote ? "relative w-full" : "hidden"}>
+        {noteId !== null && <NoteCover store={store} selectNoteId={selectNoteId} />}
+        <div
+          className={`mx-auto w-[calc(100%_-_6rem)] max-w-[72ch]${hasCover ? "" : " pt-8"}`}
+        >
+          {noteId !== null && (
+            <NotePropertiesShelf key={noteId} store={store} selectNoteId={selectNoteId} />
+          )}
+          {isRawMode ? (
+            <RawMarkdownEditor store={store} selectNoteId={selectNoteId} />
+          ) : (
+            <NoteEditor store={store} selectNoteId={selectNoteId} />
+          )}
+        </div>
       </div>
       {!hasActiveNote && (
         <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">

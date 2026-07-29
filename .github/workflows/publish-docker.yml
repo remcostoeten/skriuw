@@ -5,7 +5,7 @@ name: Publish Docker image
 # building the whole repo. See README "Self-host with Docker".
 #
 # Triggers:
-#   - push a tag like `v0.17.0`  -> publishes :0.17.0, :0.17, :latest
+#   - push a v2 tag like `v2-v0.27.0` -> publishes :0.27.0, :0.27, :latest
 #   - manual `workflow_dispatch` -> publishes :latest (for testing the pipeline)
 
 on:
@@ -50,6 +50,8 @@ jobs:
                   tags: |
                       type=semver,pattern={{version}}
                       type=semver,pattern={{major}}.{{minor}}
+                      type=match,pattern=v2-v(.*),group=1
+                      type=match,pattern=v2-v([0-9]+\.[0-9]+)\.[0-9]+,group=1
                       type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version != '' }}
                       type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version != '' }}
                       type=raw,value=latest,enable={{is_default_branch}}

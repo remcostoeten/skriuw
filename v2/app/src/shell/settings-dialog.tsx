@@ -3,6 +3,8 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { activateNote } from "../actions/workspace";
+import { journalEntryDateKey } from "../journal/model";
+import { openJournalDay } from "../journal/navigation";
 import { CloseIcon, SearchIcon } from "../shared/icons";
 import { cn } from "../shared/lib/utils";
 import { Dialog } from "../shared/ui/dialog";
@@ -300,8 +302,13 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
           {section === "media" && (
             <MediaSection
               store={store}
-              onOpenNote={(noteId) => {
-                activateNote(store, noteId);
+              onOpenReference={(usage) => {
+                if (usage.surface === "journal") {
+                  const dateKey = journalEntryDateKey(store.getState(), usage.noteId);
+                  if (dateKey !== null) openJournalDay(dateKey);
+                } else {
+                  activateNote(store, usage.noteId);
+                }
                 onOpenChange(false);
               }}
             />

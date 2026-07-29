@@ -94,6 +94,48 @@ test("set_node_pinned pins and unpins available nodes and survives trash without
   assert.equal(store.getState().sourceNodes.get("note-root")?.pinnedAt, null);
 });
 
+test("set_note_cover updates only owning note", () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  store.applyOperations([
+    { type: "set_note_cover", noteId: "note-root", imageId: "cover-1", at: 50 },
+  ]);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.coverImageId, "cover-1");
+  assert.equal(store.getState().sourceNodes.get("note-child")?.coverImageId, undefined);
+
+  store.applyOperations([
+    {
+      type: "set_note_cover_full_width",
+      noteId: "note-root",
+      fullWidth: true,
+      at: 55,
+    },
+  ]);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.coverFullWidth, true);
+
+  store.applyOperations([
+    {
+      type: "set_note_cover_transform",
+      noteId: "note-root",
+      positionX: 20,
+      positionY: 75,
+      zoom: 1.6,
+      at: 57,
+    },
+  ]);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.coverPositionX, 20);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.coverPositionY, 75);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.coverZoom, 1.6);
+
+  store.applyOperations([
+    { type: "set_note_cover", noteId: "note-root", imageId: null, at: 60 },
+  ]);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.coverImageId, null);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.coverFullWidth, false);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.coverPositionX, 50);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.coverPositionY, 50);
+  assert.equal(store.getState().sourceNodes.get("note-root")?.coverZoom, 1);
+});
+
 test("pinnedNodeIds orders most-recently-pinned-first and hides trashed nodes", () => {
   const store = createRendererStore(createInitialState(snapshot()));
   store.applyOperations([

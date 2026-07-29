@@ -395,9 +395,10 @@ impl WorkspaceMaintenance for SqliteWorkspace {
             transaction
                 .execute(
                     "INSERT INTO workspace_nodes \
-                     (id, kind, parent_id, rank, title, icon, created_at, updated_at, deleted_at, \
+                     (id, kind, parent_id, rank, title, icon, cover_image_id, cover_full_width, \
+                      cover_position_x, cover_position_y, cover_zoom, created_at, updated_at, deleted_at, \
                      pinned_at) \
-                     VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                     VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                     params![
                         node.id,
                         match node.kind {
@@ -407,6 +408,11 @@ impl WorkspaceMaintenance for SqliteWorkspace {
                         node.rank,
                         node.title,
                         node.icon,
+                        node.cover_image_id,
+                        node.cover_full_width,
+                        node.cover_position_x,
+                        node.cover_position_y,
+                        node.cover_zoom,
                         node.created_at,
                         node.updated_at,
                         node.deleted_at,

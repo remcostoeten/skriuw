@@ -12,6 +12,7 @@ import { resolveImageBlobUrl } from "../../shared/lib/image-blob-url";
 import { cn } from "../../shared/lib/utils";
 import { Button } from "../../shared/ui/button";
 import { InlineConfirm } from "../../shared/ui/inline-confirm";
+import { MediaLightbox } from "../../shared/ui/media-lightbox";
 import {
   countUnusedMedia,
   describeMediaUsage,
@@ -20,6 +21,7 @@ import {
   projectMediaLibrary,
 } from "../../settings/media-library-model";
 import type { MediaLibraryEntry } from "../../settings/media-library-model";
+import type { MediaUsage } from "../../settings/media-library-model";
 import { formatSizeBytes } from "../../settings/maintenance-model";
 import type { RendererState } from "../../store/types";
 import { useRendererSelector } from "../../store/use-renderer-selector";
@@ -44,7 +46,7 @@ type MediaStatus =
   | { kind: "error"; message: string };
 
 type MediaSectionProps = SectionProps & {
-  onOpenNote: (noteId: string) => void;
+  onOpenReference: (usage: MediaUsage) => void;
 };
 
 function selectImages(state: RendererState) {
@@ -52,16 +54,33 @@ function selectImages(state: RendererState) {
 }
 
 function selectNodes(state: RendererState) {
-  return state.nodes;
+  return state.sourceNodes;
 }
 
-export function MediaSection({ store, onOpenNote }: MediaSectionProps) {
+function selectDocuments(state: RendererState) {
+  return state.documents;
+}
+
+type MediaFilter = "all" | "inline" | "cover" | "journal" | "unused";
+
+const MEDIA_FILTERS: readonly { id: MediaFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "inline", label: "Inline" },
+  { id: "cover", label: "Covers" },
+  { id: "journal", label: "Journal" },
+  { id: "unused", label: "Unused" },
+];
+
+export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
   const images = useRendererSelector(store, selectImages);
   const nodes = useRendererSelector(store, selectNodes);
+  const documents = useRendererSelector(store, selectDocuments);
   const [blobs, setBlobs] = useState<MediaBlobPayload[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const [status, setStatus] = useState<MediaStatus>({ kind: "idle" });
   const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState<MediaFilter>("all");
+  const [previewEntry, setPreviewEntry] = useState<MediaLibraryEntry | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mountedRef = useRef(true);
 
@@ -89,8 +108,20 @@ export function MediaSection({ store, onOpenNote }: MediaSectionProps) {
   }, []);
 
   const entries = useMemo(
-    () => projectMediaLibrary(blobs ?? [], images, nodes),
-    [blobs, images, nodes],
+    () => projectMediaLibrary(blobs ?? [], images, nodes, documents),
+    [blobs, documents, images, nodes],
+  );
+  const visibleEntries = useMemo(
+    () =>
+      entries.filter((entry) => {
+        if (filter === "all") return true;
+        if (filter === "unused") return isUnusedMedia(entry);
+        if (filter === "journal") {
+          return entry.usages.some((usage) => usage.surface === "journal");
+        }
+        return entry.usages.some((usage) => usage.placement === filter);
+      }),
+    [entries, filter],
   );
   const unusedCount = countUnusedMedia(entries);
 
@@ -235,15 +266,46 @@ export function MediaSection({ store, onOpenNote }: MediaSectionProps) {
           {status.message}
         </p>
       )}
+      <div className="mb-3 flex items-center gap-1 border-b border-border pb-2" aria-label="Filter media">
+        {MEDIA_FILTERS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={filter === option.id}
+            className={cn(
+              "rounded px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
+              filter === option.id && "bg-muted text-foreground",
+            )}
+            onClick={() => setFilter(option.id)}
+          >
+            {option.label}
+          </button>
+        ))}
+        <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+          {visibleEntries.length} of {entries.length}
+        </span>
+      </div>
       <MediaGrid
-        entries={entries}
+        entries={visibleEntries}
         loading={blobs === null && !listFailed}
         failed={listFailed}
         busy={busy}
+        emptyMessage={
+          entries.length === 0
+            ? "No images stored yet. Paste or drop an image into a note, or use “Add images…”."
+            : "No media matches this filter."
+        }
         onRetry={refresh}
-        onOpenNote={onOpenNote}
+        onOpenReference={onOpenReference}
+        onPreview={setPreviewEntry}
         onDelete={deleteEntry}
       />
+      {previewEntry !== null && (
+        <MediaPreviewDialog
+          entry={previewEntry}
+          onClose={() => setPreviewEntry(null)}
+        />
+      )}
     </section>
   );
 }
@@ -253,12 +315,24 @@ type MediaGridProps = {
   loading: boolean;
   failed: boolean;
   busy: boolean;
+  emptyMessage: string;
   onRetry: () => void;
-  onOpenNote: (noteId: string) => void;
+  onOpenReference: (usage: MediaUsage) => void;
+  onPreview: (entry: MediaLibraryEntry) => void;
   onDelete: (entry: MediaLibraryEntry) => void;
 };
 
-function MediaGrid({ entries, loading, failed, busy, onRetry, onOpenNote, onDelete }: MediaGridProps) {
+function MediaGrid({
+  entries,
+  loading,
+  failed,
+  busy,
+  emptyMessage,
+  onRetry,
+  onOpenReference,
+  onPreview,
+  onDelete,
+}: MediaGridProps) {
   if (failed) {
     return (
       <div className={cn(settingsRow, "text-destructive")} role="alert">
@@ -279,7 +353,7 @@ function MediaGrid({ entries, loading, failed, busy, onRetry, onOpenNote, onDele
   if (entries.length === 0) {
     return (
       <p className={settingsRowDetail} role="status">
-        No images stored yet. Paste or drop an image into a note, or use “Add images…”.
+        {emptyMessage}
       </p>
     );
   }
@@ -293,7 +367,8 @@ function MediaGrid({ entries, loading, failed, busy, onRetry, onOpenNote, onDele
           key={entry.contentHash}
           entry={entry}
           busy={busy}
-          onOpenNote={onOpenNote}
+          onOpenReference={onOpenReference}
+          onPreview={onPreview}
           onDelete={onDelete}
         />
       ))}
@@ -304,32 +379,56 @@ function MediaGrid({ entries, loading, failed, busy, onRetry, onOpenNote, onDele
 type MediaCardProps = {
   entry: MediaLibraryEntry;
   busy: boolean;
-  onOpenNote: (noteId: string) => void;
+  onOpenReference: (usage: MediaUsage) => void;
+  onPreview: (entry: MediaLibraryEntry) => void;
   onDelete: (entry: MediaLibraryEntry) => void;
 };
 
-function MediaCard({ entry, busy, onOpenNote, onDelete }: MediaCardProps) {
+function MediaCard({ entry, busy, onOpenReference, onPreview, onDelete }: MediaCardProps) {
   const unused = isUnusedMedia(entry);
+  const dimensions =
+    entry.width !== null && entry.height !== null
+      ? `${entry.width}×${entry.height}`
+      : "Dimensions unavailable";
   return (
     <li className="flex flex-col overflow-hidden rounded-lg border border-border">
-      <MediaPreview entry={entry} />
+      <MediaPreview entry={entry} onOpen={() => onPreview(entry)} />
       <div className="flex flex-1 flex-col gap-1.5 px-2.5 py-2">
         <span className="font-mono text-[11px] text-muted-foreground">
-          {imageFormatLabel(entry.mimeType)} · {formatSizeBytes(entry.byteSize)}
+          {imageFormatLabel(entry.mimeType)} · {formatSizeBytes(entry.byteSize)} · {dimensions}
           {entry.missingBlob ? " · file missing" : ""}
+        </span>
+        <span
+          className="truncate font-mono text-[10px] text-muted-foreground/70"
+          title={entry.contentHash}
+        >
+          {entry.contentHash.slice(0, 12)} ·{" "}
+          {entry.createdAt === null
+            ? "Not attached"
+            : new Date(entry.createdAt).toLocaleDateString()}
         </span>
         <span className={settingsRowDescription}>{describeMediaUsage(entry)}</span>
         {entry.usages.length > 0 && (
           <span className="flex flex-wrap gap-1">
             {entry.usages.map((usage) => (
               <button
-                key={usage.noteId}
+                key={`${usage.noteId}-${usage.surface}-${usage.placement}`}
                 type="button"
-                className="cursor-pointer rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] text-foreground hover:bg-accent hover:text-accent-foreground"
+                className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] text-foreground hover:bg-accent hover:text-accent-foreground"
                 title={`Open “${usage.title}”`}
-                onClick={() => onOpenNote(usage.noteId)}
+                onClick={() => onOpenReference(usage)}
               >
                 {usage.title}
+                <span className="text-[9px] uppercase tracking-wide text-muted-foreground">
+                  {usage.surface === "journal"
+                    ? `Journal ${usage.placement}`
+                    : usage.placement}
+                </span>
+                {usage.count > 1 && (
+                  <span className="text-[9px] tabular-nums text-muted-foreground">
+                    ×{usage.count}
+                  </span>
+                )}
               </button>
             ))}
           </span>
@@ -361,7 +460,13 @@ function MediaCard({ entry, busy, onOpenNote, onDelete }: MediaCardProps) {
 
 const previewClass = "block h-28 w-full border-b border-border bg-muted object-cover";
 
-function MediaPreview({ entry }: { entry: MediaLibraryEntry }) {
+function MediaPreview({
+  entry,
+  onOpen,
+}: {
+  entry: MediaLibraryEntry;
+  onOpen: () => void;
+}) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (entry.missingBlob) {
@@ -386,5 +491,46 @@ function MediaPreview({ entry }: { entry: MediaLibraryEntry }) {
   if (!url) {
     return <span className={previewClass} aria-hidden="true" />;
   }
-  return <img className={previewClass} src={url} alt="" loading="lazy" />;
+  return (
+    <button
+      type="button"
+      className="block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      aria-label="Preview image"
+      onClick={onOpen}
+    >
+      <img className={previewClass} src={url} alt="" loading="lazy" />
+    </button>
+  );
+}
+
+function MediaPreviewDialog({
+  entry,
+  onClose,
+}: {
+  entry: MediaLibraryEntry;
+  onClose: () => void;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    void resolveImageBlobUrl(entry.contentHash, entry.mimeType).then((resolved) => {
+      if (active) setUrl(resolved);
+    });
+    return () => {
+      active = false;
+    };
+  }, [entry.contentHash, entry.mimeType]);
+  if (url === null) return null;
+  return (
+    <MediaLightbox
+      open
+      src={url}
+      mimeType={entry.mimeType}
+      byteSize={entry.byteSize}
+      contentHash={entry.contentHash}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    />
+  );
 }

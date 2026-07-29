@@ -623,6 +623,32 @@
     "WorkspaceNode": {
       "type": "object",
       "properties": {
+        "coverFullWidth": {
+          "type": "boolean",
+          "default": false
+        },
+        "coverImageId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "coverPositionX": {
+          "type": "number",
+          "format": "double",
+          "default": 50.0
+        },
+        "coverPositionY": {
+          "type": "number",
+          "format": "double",
+          "default": 50.0
+        },
+        "coverZoom": {
+          "type": "number",
+          "format": "double",
+          "default": 1.0
+        },
         "createdAt": {
           "type": "integer",
           "format": "int64"

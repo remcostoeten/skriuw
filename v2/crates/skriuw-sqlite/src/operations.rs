@@ -316,6 +316,125 @@ fn apply_operation(
                 )
                 .map_err(backend)?;
         }
+        WorkspaceOperation::SetNoteCover {
+            note_id,
+            image_id,
+            at,
+        } => {
+            require_note(transaction, note_id)?;
+            let previous_image_id = transaction
+                .query_row(
+                    "SELECT cover_image_id FROM workspace_nodes WHERE id = ?1",
+                    [note_id],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .map_err(backend)?;
+            if let Some(image_id) = image_id {
+                let owned = transaction
+                    .query_row(
+                        "SELECT 1 FROM note_images WHERE id = ?1 AND note_id = ?2",
+                        params![image_id, note_id],
+                        |_| Ok(()),
+                    )
+                    .optional()
+                    .map_err(backend)?;
+                if owned.is_none() {
+                    return Err(StorageError::InvalidOperation(
+                        "cover image must belong to the note".into(),
+                    ));
+                }
+            }
+            transaction
+                .execute(
+                    "UPDATE workspace_nodes \
+                     SET cover_image_id = ?2, \
+                         cover_full_width = CASE WHEN ?2 IS NULL THEN 0 ELSE cover_full_width END, \
+                         cover_position_x = CASE WHEN cover_image_id IS NOT ?2 THEN 50 ELSE cover_position_x END, \
+                         cover_position_y = CASE WHEN cover_image_id IS NOT ?2 THEN 50 ELSE cover_position_y END, \
+                         cover_zoom = CASE WHEN cover_image_id IS NOT ?2 THEN 1 ELSE cover_zoom END, \
+                         updated_at = ?3 \
+                     WHERE id = ?1",
+                    params![note_id, image_id, at],
+                )
+                .map_err(backend)?;
+            if previous_image_id.as_ref() != image_id.as_ref()
+                && let Some(previous_image_id) = previous_image_id
+            {
+                let document_json = transaction
+                    .query_row(
+                        "SELECT document_json FROM documents WHERE note_id = ?1",
+                        [note_id],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .map_err(backend)?;
+                let document = serde_json::from_str(&document_json).map_err(json_backend)?;
+                if !skriuw_domain::document_image_ids(&document).contains(&previous_image_id) {
+                    transaction
+                        .execute(
+                            "DELETE FROM note_images WHERE id = ?1",
+                            [&previous_image_id],
+                        )
+                        .map_err(backend)?;
+                }
+            }
+        }
+        WorkspaceOperation::SetNoteCoverFullWidth {
+            note_id,
+            full_width,
+            at,
+        } => {
+            require_note(transaction, note_id)?;
+            if *full_width {
+                let has_cover = transaction
+                    .query_row(
+                        "SELECT cover_image_id IS NOT NULL FROM workspace_nodes WHERE id = ?1",
+                        [note_id],
+                        |row| row.get::<_, bool>(0),
+                    )
+                    .map_err(backend)?;
+                if !has_cover {
+                    return Err(StorageError::InvalidOperation(
+                        "full-width cover requires a cover image".into(),
+                    ));
+                }
+            }
+            transaction
+                .execute(
+                    "UPDATE workspace_nodes SET cover_full_width = ?2, updated_at = ?3 WHERE id = ?1",
+                    params![note_id, full_width, at],
+                )
+                .map_err(backend)?;
+        }
+        WorkspaceOperation::SetNoteCoverTransform {
+            note_id,
+            position_x,
+            position_y,
+            zoom,
+            at,
+        } => {
+            require_note(transaction, note_id)?;
+            let has_cover = transaction
+                .query_row(
+                    "SELECT cover_image_id IS NOT NULL FROM workspace_nodes WHERE id = ?1",
+                    [note_id],
+                    |row| row.get::<_, bool>(0),
+                )
+                .map_err(backend)?;
+            if !has_cover {
+                return Err(StorageError::InvalidOperation(
+                    "cover transform requires a cover image".into(),
+                ));
+            }
+            transaction
+                .execute(
+                    "UPDATE workspace_nodes \
+                     SET cover_position_x = ?2, cover_position_y = ?3, cover_zoom = ?4, \
+                         updated_at = ?5 \
+                     WHERE id = ?1",
+                    params![note_id, position_x, position_y, zoom, at],
+                )
+                .map_err(backend)?;
+        }
         WorkspaceOperation::SetNodePinned { id, pinned, at } => {
             require_available_node(transaction, id)?;
             let pinned_at = pinned.then_some(*at);
@@ -805,6 +924,13 @@ fn prune_detached_images(
     document: &serde_json::Value,
 ) -> Result<(), StorageError> {
     let live = skriuw_domain::document_image_ids(document);
+    let cover_image_id = transaction
+        .query_row(
+            "SELECT cover_image_id FROM workspace_nodes WHERE id = ?1",
+            [note_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .map_err(backend)?;
     let stored = {
         let mut statement = transaction
             .prepare_cached("SELECT id FROM note_images WHERE note_id = ?1")
@@ -816,7 +942,7 @@ fn prune_detached_images(
             .map_err(backend)?
     };
     for id in stored {
-        if !live.contains(&id) {
+        if !live.contains(&id) && cover_image_id.as_deref() != Some(id.as_str()) {
             transaction
                 .execute("DELETE FROM note_images WHERE id = ?1", [&id])
                 .map_err(backend)?;

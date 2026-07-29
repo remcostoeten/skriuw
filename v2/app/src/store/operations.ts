@@ -100,6 +100,11 @@ export function reduceOperation(
         rank: provisionalRank(nodes, operation.placement),
         title: operation.title,
         icon: null,
+        coverImageId: null,
+        coverFullWidth: false,
+        coverPositionX: 50,
+        coverPositionY: 50,
+        coverZoom: 1,
         createdAt: operation.at,
         updatedAt: operation.at,
         deletedAt: null,
@@ -114,6 +119,51 @@ export function reduceOperation(
       }
       const next = new Map(nodes);
       next.set(operation.id, { ...existing, title: operation.title, updatedAt: operation.at });
+      return next;
+    }
+    case "set_note_cover": {
+      const existing = nodes.get(operation.noteId);
+      if (!existing || existing.kind !== "note") {
+        return nodes;
+      }
+      const next = new Map(nodes);
+      next.set(operation.noteId, {
+        ...existing,
+        coverImageId: operation.imageId,
+        coverFullWidth: operation.imageId === null ? false : existing.coverFullWidth,
+        coverPositionX: operation.imageId === existing.coverImageId ? existing.coverPositionX : 50,
+        coverPositionY: operation.imageId === existing.coverImageId ? existing.coverPositionY : 50,
+        coverZoom: operation.imageId === existing.coverImageId ? existing.coverZoom : 1,
+        updatedAt: operation.at,
+      });
+      return next;
+    }
+    case "set_note_cover_full_width": {
+      const existing = nodes.get(operation.noteId);
+      if (!existing || existing.kind !== "note") {
+        return nodes;
+      }
+      const next = new Map(nodes);
+      next.set(operation.noteId, {
+        ...existing,
+        coverFullWidth: operation.fullWidth,
+        updatedAt: operation.at,
+      });
+      return next;
+    }
+    case "set_note_cover_transform": {
+      const existing = nodes.get(operation.noteId);
+      if (!existing || existing.kind !== "note" || existing.coverImageId == null) {
+        return nodes;
+      }
+      const next = new Map(nodes);
+      next.set(operation.noteId, {
+        ...existing,
+        coverPositionX: operation.positionX,
+        coverPositionY: operation.positionY,
+        coverZoom: operation.zoom,
+        updatedAt: operation.at,
+      });
       return next;
     }
     case "move_node": {

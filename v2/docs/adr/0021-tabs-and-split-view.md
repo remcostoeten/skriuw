@@ -29,11 +29,11 @@ The secondary pane's active note lives only in pane state and has its own live e
 
 ### State ownership: native UI state, N4 precedent
 
-Which notes are open, their order, and pane focus are native UI state like sidebar expansion — not workspace content. Persistence follows the sidebar-expansion mechanism exactly: synchronous local store update, coalesced background acknowledgement through a sibling binder, stored in `app_state` under `workspace_ui_panes`, restored on desktop restart, pruned against existing notes on load, and **excluded from portable archives** (archive export reads nodes, documents, settings, and the active note only; it never exports this key).
+Which notes are open, their order, and pane focus are native UI state like sidebar expansion — not workspace content. Persistence follows the sidebar-expansion mechanism exactly: synchronous local store update, coalesced background acknowledgement through a sibling binder, stored in `app_state` under `workspace_ui_panes`, restored on desktop restart, pruned against existing and available notes on load, and **excluded from portable archives** (archive export reads nodes, documents, settings, and the active note only; it never exports this key).
 
 ### Unavailable notes degrade visibly, reusing the trash projection
 
-A tab whose note is purged is dropped from the strip during state derivation (the note row no longer exists). A tab whose note is trashed stays in the strip, labeled from the last known title with a trashed affordance; its pane resolves to the empty-editor state through the same `unavailableNodeIds`-derived projection that already governs sidebar visibility. No new trash-visibility logic is introduced.
+A tab whose note is purged is dropped from the strip during state derivation (the note row no longer exists). A tab whose note is trashed during the current session stays in the strip, labeled from the last known title with a trashed affordance; its pane resolves to the empty-editor state through the same `unavailableNodeIds`-derived projection that already governs sidebar visibility. On the next launch, restored pane state drops tabs that are already unavailable, including descendants of trashed folders, so an empty workspace cannot reopen a strip full of stale tabs.
 
 ## Consequences
 

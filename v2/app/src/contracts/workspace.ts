@@ -9,6 +9,11 @@ export type WorkspaceNode = {
   rank: number;
   title: string;
   icon: string | null;
+  coverImageId?: string | null;
+  coverFullWidth?: boolean;
+  coverPositionX?: number;
+  coverPositionY?: number;
+  coverZoom?: number;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
@@ -206,6 +211,16 @@ export type WorkspaceOperation =
       at: number;
     }
   | { type: "rename_node"; id: string; title: string; at: number }
+  | { type: "set_note_cover"; noteId: string; imageId: string | null; at: number }
+  | { type: "set_note_cover_full_width"; noteId: string; fullWidth: boolean; at: number }
+  | {
+      type: "set_note_cover_transform";
+      noteId: string;
+      positionX: number;
+      positionY: number;
+      zoom: number;
+      at: number;
+    }
   | { type: "move_node"; id: string; placement: NodePlacement; at: number }
   | { type: "set_node_pinned"; id: string; pinned: boolean; at: number }
   | {

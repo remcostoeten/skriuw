@@ -77,6 +77,8 @@ pub enum OperationValidationError {
     InvalidPropertyPositions,
     #[error("{field} position cannot be negative")]
     NegativePosition { field: &'static str },
+    #[error("cover transform is outside its supported range")]
+    InvalidCoverTransform,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -105,6 +107,16 @@ pub struct WorkspaceNode {
     pub rank: i64,
     pub title: String,
     pub icon: Option<String>,
+    #[serde(default)]
+    pub cover_image_id: Option<String>,
+    #[serde(default)]
+    pub cover_full_width: bool,
+    #[serde(default = "default_cover_position")]
+    pub cover_position_x: f64,
+    #[serde(default = "default_cover_position")]
+    pub cover_position_y: f64,
+    #[serde(default = "default_cover_zoom")]
+    pub cover_zoom: f64,
     pub created_at: i64,
     pub updated_at: i64,
     pub deleted_at: Option<i64>,
@@ -203,6 +215,14 @@ fn default_settings_version() -> u16 {
 
 fn default_enabled() -> bool {
     true
+}
+
+fn default_cover_position() -> f64 {
+    50.0
+}
+
+fn default_cover_zoom() -> f64 {
+    1.0
 }
 
 fn default_theme() -> String {
@@ -548,6 +568,20 @@ impl WorkspaceArchive {
         for node in &self.nodes {
             validate_id("node id", &node.id).map_err(archive_operation_error)?;
             validate_title(&node.title).map_err(archive_operation_error)?;
+            if let Some(cover_image_id) = &node.cover_image_id {
+                if node.kind != NodeKind::Note {
+                    return archive_error(format!("folder {} has a cover image", node.id));
+                }
+                validate_id("cover image id", cover_image_id).map_err(archive_operation_error)?;
+            } else if node.cover_full_width {
+                return archive_error(format!("node {} has cover width without a cover", node.id));
+            }
+            validate_cover_transform(
+                node.cover_position_x,
+                node.cover_position_y,
+                node.cover_zoom,
+            )
+            .map_err(archive_operation_error)?;
             validate_timestamp(node.created_at).map_err(archive_operation_error)?;
             validate_timestamp(node.updated_at).map_err(archive_operation_error)?;
             if node.created_at > node.updated_at {
@@ -1202,6 +1236,23 @@ pub enum WorkspaceOperation {
         title: String,
         at: i64,
     },
+    SetNoteCover {
+        note_id: String,
+        image_id: Option<String>,
+        at: i64,
+    },
+    SetNoteCoverFullWidth {
+        note_id: String,
+        full_width: bool,
+        at: i64,
+    },
+    SetNoteCoverTransform {
+        note_id: String,
+        position_x: f64,
+        position_y: f64,
+        zoom: f64,
+        at: i64,
+    },
     MoveNode {
         id: String,
         placement: NodePlacement,
@@ -1313,6 +1364,32 @@ impl WorkspaceOperation {
             Self::RenameNode { id, title, at } => {
                 validate_id("id", id)?;
                 validate_title(title)?;
+                validate_timestamp(*at)
+            }
+            Self::SetNoteCover {
+                note_id,
+                image_id,
+                at,
+            } => {
+                validate_id("note id", note_id)?;
+                if let Some(image_id) = image_id {
+                    validate_id("image id", image_id)?;
+                }
+                validate_timestamp(*at)
+            }
+            Self::SetNoteCoverFullWidth { note_id, at, .. } => {
+                validate_id("note id", note_id)?;
+                validate_timestamp(*at)
+            }
+            Self::SetNoteCoverTransform {
+                note_id,
+                position_x,
+                position_y,
+                zoom,
+                at,
+            } => {
+                validate_id("note id", note_id)?;
+                validate_cover_transform(*position_x, *position_y, *zoom)?;
                 validate_timestamp(*at)
             }
             Self::SetNodePinned { id, at, .. } => {
@@ -1429,6 +1506,23 @@ fn validate_content_hash(value: &str) -> Result<(), OperationValidationError> {
         return Err(OperationValidationError::InvalidIdentifier {
             field: "content hash",
         });
+    }
+    Ok(())
+}
+
+fn validate_cover_transform(
+    position_x: f64,
+    position_y: f64,
+    zoom: f64,
+) -> Result<(), OperationValidationError> {
+    if !position_x.is_finite()
+        || !position_y.is_finite()
+        || !zoom.is_finite()
+        || !(0.0..=100.0).contains(&position_x)
+        || !(0.0..=100.0).contains(&position_y)
+        || !(1.0..=3.0).contains(&zoom)
+    {
+        return Err(OperationValidationError::InvalidCoverTransform);
     }
     Ok(())
 }
@@ -1785,6 +1879,11 @@ mod tests {
                     rank: 1024,
                     title: "Folder".into(),
                     icon: None,
+                    cover_image_id: None,
+                    cover_full_width: false,
+                    cover_position_x: 50.0,
+                    cover_position_y: 50.0,
+                    cover_zoom: 1.0,
                     created_at: 1,
                     updated_at: 1,
                     deleted_at: None,
@@ -1797,6 +1896,11 @@ mod tests {
                     rank: 1024,
                     title: "Note".into(),
                     icon: None,
+                    cover_image_id: None,
+                    cover_full_width: false,
+                    cover_position_x: 50.0,
+                    cover_position_y: 50.0,
+                    cover_zoom: 1.0,
                     created_at: 2,
                     updated_at: 2,
                     deleted_at: None,
@@ -1835,6 +1939,11 @@ mod tests {
                     rank: 1024,
                     title: "One".into(),
                     icon: None,
+                    cover_image_id: None,
+                    cover_full_width: false,
+                    cover_position_x: 50.0,
+                    cover_position_y: 50.0,
+                    cover_zoom: 1.0,
                     created_at: 1,
                     updated_at: 1,
                     deleted_at: None,
@@ -1847,6 +1956,11 @@ mod tests {
                     rank: 1024,
                     title: "Two".into(),
                     icon: None,
+                    cover_image_id: None,
+                    cover_full_width: false,
+                    cover_position_x: 50.0,
+                    cover_position_y: 50.0,
+                    cover_zoom: 1.0,
                     created_at: 1,
                     updated_at: 1,
                     deleted_at: None,
@@ -2034,6 +2148,11 @@ mod tests {
                     rank: 1024,
                     title: "Folder".into(),
                     icon: None,
+                    cover_image_id: None,
+                    cover_full_width: false,
+                    cover_position_x: 50.0,
+                    cover_position_y: 50.0,
+                    cover_zoom: 1.0,
                     created_at: 1,
                     updated_at: 5,
                     deleted_at: Some(5),
@@ -2046,6 +2165,11 @@ mod tests {
                     rank: 1024,
                     title: "Note".into(),
                     icon: None,
+                    cover_image_id: None,
+                    cover_full_width: false,
+                    cover_position_x: 50.0,
+                    cover_position_y: 50.0,
+                    cover_zoom: 1.0,
                     created_at: 2,
                     updated_at: 2,
                     deleted_at: None,
@@ -2086,6 +2210,11 @@ mod tests {
                 rank: 1,
                 title: "Note".into(),
                 icon: None,
+                cover_image_id: None,
+                cover_full_width: false,
+                cover_position_x: 50.0,
+                cover_position_y: 50.0,
+                cover_zoom: 1.0,
                 created_at: 1,
                 updated_at: 1,
                 deleted_at: None,

@@ -768,6 +768,94 @@
               "type": "integer",
               "format": "int64"
             },
+            "imageId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_note_cover"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "fullWidth": {
+              "type": "boolean"
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_note_cover_full_width"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "fullWidth",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "positionX": {
+              "type": "number",
+              "format": "double"
+            },
+            "positionY": {
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_note_cover_transform"
+            },
+            "zoom": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "positionX",
+            "positionY",
+            "zoom",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
             "id": {
               "type": "string"
             },

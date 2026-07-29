@@ -18,7 +18,7 @@ import { bindWindowClosePersistence } from "./lifecycle/window-close";
 import { bindSettingsToRoot } from "./settings/apply-settings";
 import { opensNotesInTabs } from "./settings/settings-model";
 import { bindPaneLayoutPersistence } from "./store/pane-layout-persistence";
-import { parsePaneLayout, syncPanes } from "./store/panes";
+import { parsePaneLayout, restorePanes } from "./store/panes";
 import { bindSidebarExpansionPersistence } from "./store/sidebar-expansion-persistence";
 import { createInitialState, createRendererStore } from "./store/store";
 import type { RendererStore } from "./store/types";
@@ -64,7 +64,7 @@ async function start(): Promise<void> {
     if (restoredPanes) {
       store.update((current) => ({
         ...current,
-        panes: syncPanes(
+        panes: restorePanes(
           restoredPanes,
           current.activeNoteId,
           current.sourceNodes,

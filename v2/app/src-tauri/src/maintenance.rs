@@ -779,6 +779,11 @@ impl MaintenanceCoordinator {
             .map(|node| node.id.as_str())
             .collect::<BTreeSet<_>>();
         let mut blob_keys = BTreeSet::new();
+        let image_owners = archive
+            .images
+            .iter()
+            .map(|image| (image.id.as_str(), image.note_id.as_str()))
+            .collect::<BTreeSet<_>>();
         for blob in &archive.image_blobs {
             let key = (blob.content_hash.as_str(), blob.mime_type.as_str());
             if !blob_keys.insert(key) || BASE64.decode(&blob.bytes_base64).is_err() {
@@ -804,6 +809,17 @@ impl MaintenanceCoordinator {
                     DiagnosticContext::Recovery,
                     DiagnosticCategory::InvalidInput,
                     "workspace archive is missing image data",
+                ));
+            }
+        }
+        for node in &archive.workspace.nodes {
+            if let Some(cover_image_id) = node.cover_image_id.as_deref()
+                && !image_owners.contains(&(cover_image_id, node.id.as_str()))
+            {
+                return Err(Diagnostic::new(
+                    DiagnosticContext::Recovery,
+                    DiagnosticCategory::InvalidInput,
+                    "workspace archive is missing cover image data",
                 ));
             }
         }
@@ -1286,6 +1302,13 @@ mod tests {
     fn archive_round_trips_image_metadata_and_blob_data() {
         let source = fixture();
         let image = source.attach_image("original-note");
+        source.apply(WorkspaceOperationEnvelope::v1(
+            WorkspaceOperation::SetNoteCover {
+                note_id: "original-note".into(),
+                image_id: Some(image.id.clone()),
+                at: test_now(),
+            },
+        ));
         let archive_path = source.directory.path().join("export.json");
         source
             .coordinator
@@ -1312,6 +1335,10 @@ mod tests {
             .wait()
             .expect("snapshot");
         assert_eq!(snapshot.images, [image.clone()]);
+        assert_eq!(
+            snapshot.nodes[0].cover_image_id.as_deref(),
+            Some(image.id.as_str())
+        );
         assert_eq!(
             ImageStore::open(destination.directory.path().join("blobs"))
                 .expect("open destination image store")

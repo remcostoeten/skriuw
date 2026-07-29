@@ -1,4 +1,5 @@
 import type { WorkspaceNode } from "../contracts/workspace";
+import { unavailableNodeIds } from "./tree";
 
 export type PaneState = {
   paneId: string;
@@ -79,6 +80,35 @@ export function syncPanes(
     return defaultPanes(activeNoteId);
   }
   return changed ? next : panes;
+}
+
+export function restorePanes(
+  panes: readonly PaneState[],
+  activeNoteId: string | null,
+  sourceNodes: ReadonlyMap<string, WorkspaceNode>,
+  openInTabs = false,
+): readonly PaneState[] {
+  const unavailable = unavailableNodeIds([...sourceNodes.values()]);
+  const isAvailableNote = (id: string) =>
+    sourceNodes.get(id)?.kind === "note" && !unavailable.has(id);
+  const restored = panes.flatMap((pane, index) => {
+    const openNoteIds = pane.openNoteIds.filter(isAvailableNote);
+    if (index > 0 && openNoteIds.length === 0) {
+      return [];
+    }
+    const activeNoteId =
+      pane.activeNoteId !== null &&
+      openNoteIds.includes(pane.activeNoteId)
+        ? pane.activeNoteId
+        : (openNoteIds[0] ?? null);
+    return [{
+      ...pane,
+      openNoteIds,
+      pinnedNoteIds: pane.pinnedNoteIds.filter((id) => openNoteIds.includes(id)),
+      activeNoteId,
+    }];
+  });
+  return syncPanes(restored, activeNoteId, sourceNodes, openInTabs);
 }
 
 export function primaryPane(panes: readonly PaneState[]): PaneState {
