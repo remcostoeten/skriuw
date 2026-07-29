@@ -406,7 +406,11 @@ export function NoteCover({ store, selectNoteId }: Props) {
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>): void {
-    if (!editing || event.button !== 0) return;
+    if (event.button !== 0) return;
+    if (!editing) {
+      draftRef.current = { positionX, positionY, zoom };
+      setEditing(true);
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {
       ...draftRef.current,
