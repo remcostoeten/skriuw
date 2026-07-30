@@ -43,7 +43,7 @@ export function activateTab(store: RendererStore, noteId: string): void {
 
 export function closeActiveTab(store: RendererStore): void {
   const state = store.getState();
-  if (state.focusedPaneId === SECONDARY_PANE_ID && secondaryPane(state.panes)) {
+  if (secondaryPane(state.panes)) {
     closeSplit(store);
     return;
   }

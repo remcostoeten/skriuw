@@ -122,6 +122,16 @@ test("closeActiveTab closes the split when focus is on the secondary pane", () =
   assert.equal(rendererStore.getState().focusedPaneId, PRIMARY_PANE_ID);
 });
 
+test("closeActiveTab closes the split before a primary tab from either pane", () => {
+  const rendererStore = store();
+  openNoteInTab(rendererStore, "b");
+  openBeside(rendererStore, "c");
+  closeActiveTab(rendererStore);
+  assert.equal(rendererStore.getState().panes.length, 1);
+  assert.deepEqual(rendererStore.getState().panes[0]?.openNoteIds, ["a", "b"]);
+  assert.equal(rendererStore.getState().activeNoteId, "b");
+});
+
 test("closeActiveTab closes the primary active tab when focus is on the primary pane", () => {
   const rendererStore = store();
   openNoteInTab(rendererStore, "b");
