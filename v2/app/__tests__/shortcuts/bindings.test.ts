@@ -7,6 +7,7 @@ import {
   findShortcutConflict,
   isDefaultBinding,
   isKeySequence,
+  modifiedDigitPosition,
   sameCombo,
   sequenceHandlerOptions,
   shortcutBindsOnPlatform,
@@ -469,6 +470,24 @@ test("isKeySequence and sequenceHandlerOptions only flag multi-step combos", () 
   assert.equal(isKeySequence("g then t then 1"), true);
   assert.deepEqual(sequenceHandlerOptions("mod+shift+1"), {});
   assert.deepEqual(sequenceHandlerOptions("g then t then 1"), { sequenceTimeout: 1000 });
+});
+
+test("shifted number-row symbols resolve rail positions from physical digit codes", () => {
+  const modifiers = parseShortcut("mod+shift+1").modifiers;
+  const event = {
+    altKey: modifiers.alt,
+    code: "Digit1",
+    ctrlKey: modifiers.ctrl,
+    key: "!",
+    metaKey: modifiers.meta,
+    shiftKey: modifiers.shift,
+  };
+  assert.equal(modifiedDigitPosition(event, 5), 1);
+  assert.equal(modifiedDigitPosition({ ...event, code: "Digit5", key: "%" }, 5), 5);
+  assert.equal(modifiedDigitPosition({ ...event, code: "Digit6", key: "^" }, 5), null);
+  assert.equal(modifiedDigitPosition({ ...event, key: "1" }, 5), null);
+  assert.equal(modifiedDigitPosition({ ...event, code: "Numpad1" }, 5), null);
+  assert.equal(modifiedDigitPosition({ ...event, shiftKey: false }, 5), null);
 });
 
 test("rail navigation binds mod+shift+<n> plus a g-t-<n> sequence in rail order", () => {

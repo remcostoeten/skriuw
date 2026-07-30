@@ -7,6 +7,8 @@ import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererState, RendererStore } from "../store/types";
 import {
   effectiveShortcutKeys,
+  modifiedDigitPosition,
+  sameCombo,
   sameShortcutOverrides,
   sequenceHandlerOptions,
   shortcutExcept,
@@ -14,6 +16,7 @@ import {
 } from "./bindings";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId } from "./definitions";
+import { RAIL_ITEMS, railModShiftKeys } from "./rail-items";
 
 type ShortcutActions = Record<ShortcutActionId, () => void>;
 
@@ -195,6 +198,36 @@ export function WorkspaceShortcuts({
     activeScopes: activeShortcutScopes(route, noteFocused, tabsEnabled, splitActive),
     ignoreInputs: false,
   });
+
+  useEffect(() => {
+    if (suspended) {
+      return;
+    }
+    const handleModifiedDigit = (event: KeyboardEvent) => {
+      const position = modifiedDigitPosition(event, RAIL_ITEMS.length);
+      if (position === null) {
+        return;
+      }
+      const item = RAIL_ITEMS[position - 1];
+      if (!item) {
+        return;
+      }
+      const definition = SHORTCUT_DEFINITIONS.find(
+        (candidate) => candidate.id === item.actionId,
+      );
+      if (
+        !definition ||
+        !sameCombo(effectiveShortcutKeys(definition, overrides), railModShiftKeys(position)) ||
+        shortcutExcept(definition, true)?.(event)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      actionsRef.current[item.actionId]();
+    };
+    window.addEventListener("keydown", handleModifiedDigit);
+    return () => window.removeEventListener("keydown", handleModifiedDigit);
+  }, [overrides, suspended]);
 
   useEffect(() => {
     const active = new Set<string>(

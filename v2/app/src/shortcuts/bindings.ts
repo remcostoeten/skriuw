@@ -30,6 +30,32 @@ export function sequenceHandlerOptions(keys: string): { sequenceTimeout?: number
   return isKeySequence(keys) ? { sequenceTimeout: SEQUENCE_TIMEOUT_MS } : {};
 }
 
+type ModifiedDigitEvent = Pick<
+  KeyboardEvent,
+  "altKey" | "code" | "ctrlKey" | "key" | "metaKey" | "shiftKey"
+>;
+
+export function modifiedDigitPosition(
+  event: ModifiedDigitEvent,
+  maximumPosition: number,
+): number | null {
+  const digitMatch = /^Digit([1-9])$/.exec(event.code);
+  if (!digitMatch) {
+    return null;
+  }
+  const position = Number(digitMatch[1]);
+  if (position > maximumPosition || event.key === String(position)) {
+    return null;
+  }
+  const modifiers = parseShortcut("mod+shift+1").modifiers;
+  return event.metaKey === modifiers.meta &&
+    event.ctrlKey === modifiers.ctrl &&
+    event.altKey === modifiers.alt &&
+    event.shiftKey === modifiers.shift
+    ? position
+    : null;
+}
+
 const TEXT_FIELD_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
 /**
