@@ -7,13 +7,13 @@ import {
   findShortcutConflict,
   isDefaultBinding,
   isKeySequence,
-  modifiedDigitPosition,
   sameCombo,
   sequenceHandlerOptions,
   shortcutBindsOnPlatform,
   shortcutExcept,
   shortcutGuarded,
   shortcutGuards,
+  shortcutMatchesPhysicalKey,
   shortcutOverridesFromSettings,
 } from "../../src/shortcuts/bindings";
 import {
@@ -472,7 +472,7 @@ test("isKeySequence and sequenceHandlerOptions only flag multi-step combos", () 
   assert.deepEqual(sequenceHandlerOptions("g then t then 1"), { sequenceTimeout: 1000 });
 });
 
-test("shifted number-row symbols resolve rail positions from physical digit codes", () => {
+test("physical digit and punctuation codes recover layout-shifted shortcuts", () => {
   const modifiers = parseShortcut("mod+shift+1").modifiers;
   const event = {
     altKey: modifiers.alt,
@@ -482,12 +482,68 @@ test("shifted number-row symbols resolve rail positions from physical digit code
     metaKey: modifiers.meta,
     shiftKey: modifiers.shift,
   };
-  assert.equal(modifiedDigitPosition(event, 5), 1);
-  assert.equal(modifiedDigitPosition({ ...event, code: "Digit5", key: "%" }, 5), 5);
-  assert.equal(modifiedDigitPosition({ ...event, code: "Digit6", key: "^" }, 5), null);
-  assert.equal(modifiedDigitPosition({ ...event, key: "1" }, 5), null);
-  assert.equal(modifiedDigitPosition({ ...event, code: "Numpad1" }, 5), null);
-  assert.equal(modifiedDigitPosition({ ...event, shiftKey: false }, 5), null);
+  assert.equal(shortcutMatchesPhysicalKey(event, "mod+shift+1"), true);
+  const modDigit = parseShortcut("mod+2").modifiers;
+  assert.equal(
+    shortcutMatchesPhysicalKey(
+      {
+        ...event,
+        code: "Digit2",
+        ctrlKey: modDigit.ctrl,
+        key: "é",
+        metaKey: modDigit.meta,
+        shiftKey: false,
+      },
+      "mod+2",
+    ),
+    true,
+  );
+  assert.equal(
+    shortcutMatchesPhysicalKey(
+      {
+        ...event,
+        altKey: true,
+        code: "Digit4",
+        ctrlKey: false,
+        key: "ç",
+        metaKey: false,
+        shiftKey: false,
+      },
+      "alt+4",
+    ),
+    true,
+  );
+  assert.equal(
+    shortcutMatchesPhysicalKey(
+      { ...event, code: "Backslash", key: "|" },
+      "mod+shift+backslash",
+    ),
+    true,
+  );
+  assert.equal(
+    shortcutMatchesPhysicalKey(
+      { ...event, code: "BracketLeft", ctrlKey: true, key: "{" },
+      "ctrl+shift+bracketleft",
+    ),
+    true,
+  );
+  assert.equal(
+    shortcutMatchesPhysicalKey(
+      { ...event, code: "BracketRight", ctrlKey: true, key: "}" },
+      "ctrl+shift+bracketright",
+    ),
+    true,
+  );
+  assert.equal(shortcutMatchesPhysicalKey({ ...event, key: "1" }, "mod+shift+1"), false);
+  assert.equal(
+    shortcutMatchesPhysicalKey({ ...event, code: "Numpad1" }, "mod+shift+1"),
+    false,
+  );
+  assert.equal(
+    shortcutMatchesPhysicalKey({ ...event, shiftKey: false }, "mod+shift+1"),
+    false,
+  );
+  assert.equal(shortcutMatchesPhysicalKey(event, "g then t then 1"), false);
 });
 
 test("rail navigation binds mod+shift+<n> plus a g-t-<n> sequence in rail order", () => {

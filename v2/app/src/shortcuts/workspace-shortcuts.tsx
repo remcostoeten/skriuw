@@ -7,16 +7,14 @@ import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererState, RendererStore } from "../store/types";
 import {
   effectiveShortcutKeys,
-  modifiedDigitPosition,
-  sameCombo,
   sameShortcutOverrides,
   sequenceHandlerOptions,
   shortcutExcept,
+  shortcutMatchesPhysicalKey,
   shortcutOverridesFromSettings,
 } from "./bindings";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId } from "./definitions";
-import { RAIL_ITEMS, railModShiftKeys } from "./rail-items";
 
 type ShortcutActions = Record<ShortcutActionId, () => void>;
 
@@ -194,40 +192,48 @@ export function WorkspaceShortcuts({
   const noteFocused = useNoteFocusScope();
   const tabsEnabled = useRendererSelector(store, selectTabsEnabled);
   const splitActive = useRendererSelector(store, selectSplitActive);
+  const activeScopes = useMemo(
+    () => activeShortcutScopes(route, noteFocused, tabsEnabled, splitActive),
+    [route, noteFocused, tabsEnabled, splitActive],
+  );
   const results = useShortcutMap(shortcutMap, {
-    activeScopes: activeShortcutScopes(route, noteFocused, tabsEnabled, splitActive),
+    activeScopes,
     ignoreInputs: false,
   });
 
   useEffect(() => {
-    if (suspended) {
-      return;
-    }
-    const handleModifiedDigit = (event: KeyboardEvent) => {
-      const position = modifiedDigitPosition(event, RAIL_ITEMS.length);
-      if (position === null) {
+    const activeDefinitions = shortcutDefinitionsForState(
+      suspended,
+      activeWhileSuspended,
+    );
+    const activeScopeSet = new Set(activeScopes);
+    const handlePhysicalShortcut = (event: KeyboardEvent) => {
+      for (const definition of activeDefinitions) {
+        const requiredScopes =
+          definition.scopes === undefined
+            ? []
+            : Array.isArray(definition.scopes)
+              ? definition.scopes
+              : [definition.scopes];
+        if (
+          (requiredScopes.length > 0 &&
+            !requiredScopes.some((scope) => activeScopeSet.has(scope))) ||
+          !shortcutMatchesPhysicalKey(
+            event,
+            effectiveShortcutKeys(definition, overrides),
+          ) ||
+          shortcutExcept(definition, definition.worksWhileTyping === true)?.(event)
+        ) {
+          continue;
+        }
+        event.preventDefault();
+        actionsRef.current[definition.id]();
         return;
       }
-      const item = RAIL_ITEMS[position - 1];
-      if (!item) {
-        return;
-      }
-      const definition = SHORTCUT_DEFINITIONS.find(
-        (candidate) => candidate.id === item.actionId,
-      );
-      if (
-        !definition ||
-        !sameCombo(effectiveShortcutKeys(definition, overrides), railModShiftKeys(position)) ||
-        shortcutExcept(definition, true)?.(event)
-      ) {
-        return;
-      }
-      event.preventDefault();
-      actionsRef.current[item.actionId]();
     };
-    window.addEventListener("keydown", handleModifiedDigit);
-    return () => window.removeEventListener("keydown", handleModifiedDigit);
-  }, [overrides, suspended]);
+    window.addEventListener("keydown", handlePhysicalShortcut);
+    return () => window.removeEventListener("keydown", handlePhysicalShortcut);
+  }, [activeScopes, activeWhileSuspended, overrides, suspended]);
 
   useEffect(() => {
     const active = new Set<string>(

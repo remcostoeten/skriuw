@@ -1,4 +1,4 @@
-import { parseShortcut } from "@remcostoeten/use-shortcut/parser";
+import { matchesShortcut, parseShortcut } from "@remcostoeten/use-shortcut/parser";
 import { SIDEBAR_TREE_SELECTOR } from "../commands/focus-regions";
 import type { WorkspaceSettings } from "../contracts/workspace";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
@@ -30,30 +30,66 @@ export function sequenceHandlerOptions(keys: string): { sequenceTimeout?: number
   return isKeySequence(keys) ? { sequenceTimeout: SEQUENCE_TIMEOUT_MS } : {};
 }
 
-type ModifiedDigitEvent = Pick<
+type PhysicalShortcutEvent = Pick<
   KeyboardEvent,
   "altKey" | "code" | "ctrlKey" | "key" | "metaKey" | "shiftKey"
 >;
 
-export function modifiedDigitPosition(
-  event: ModifiedDigitEvent,
-  maximumPosition: number,
-): number | null {
-  const digitMatch = /^Digit([1-9])$/.exec(event.code);
-  if (!digitMatch) {
-    return null;
+const PHYSICAL_CODE_BY_KEY: ReadonlyMap<string, string> = new Map([
+  ["0", "Digit0"],
+  ["1", "Digit1"],
+  ["2", "Digit2"],
+  ["3", "Digit3"],
+  ["4", "Digit4"],
+  ["5", "Digit5"],
+  ["6", "Digit6"],
+  ["7", "Digit7"],
+  ["8", "Digit8"],
+  ["9", "Digit9"],
+  ["`", "Backquote"],
+  ["~", "Backquote"],
+  ["-", "Minus"],
+  ["_", "Minus"],
+  ["=", "Equal"],
+  ["+", "Equal"],
+  ["[", "BracketLeft"],
+  ["{", "BracketLeft"],
+  ["]", "BracketRight"],
+  ["}", "BracketRight"],
+  ["\\", "Backslash"],
+  ["|", "Backslash"],
+  [";", "Semicolon"],
+  [":", "Semicolon"],
+  ["'", "Quote"],
+  ['"', "Quote"],
+  [",", "Comma"],
+  ["<", "Comma"],
+  [".", "Period"],
+  [">", "Period"],
+  ["/", "Slash"],
+  ["?", "Slash"],
+]);
+
+export function shortcutMatchesPhysicalKey(
+  event: PhysicalShortcutEvent,
+  keys: string,
+): boolean {
+  if (isKeySequence(keys)) {
+    return false;
   }
-  const position = Number(digitMatch[1]);
-  if (position > maximumPosition || event.key === String(position)) {
-    return null;
+  const parsed = parseShortcut(keys);
+  if (matchesShortcut(event as KeyboardEvent, parsed)) {
+    return false;
   }
-  const modifiers = parseShortcut("mod+shift+1").modifiers;
-  return event.metaKey === modifiers.meta &&
-    event.ctrlKey === modifiers.ctrl &&
-    event.altKey === modifiers.alt &&
-    event.shiftKey === modifiers.shift
-    ? position
-    : null;
+  const expectedCode = PHYSICAL_CODE_BY_KEY.get(parsed.key);
+  return (
+    expectedCode !== undefined &&
+    event.code === expectedCode &&
+    event.metaKey === parsed.modifiers.meta &&
+    event.ctrlKey === parsed.modifiers.ctrl &&
+    event.altKey === parsed.modifiers.alt &&
+    event.shiftKey === parsed.modifiers.shift
+  );
 }
 
 const TEXT_FIELD_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
