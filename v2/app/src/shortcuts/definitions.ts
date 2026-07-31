@@ -25,6 +25,7 @@ export type ShortcutActionId =
   | "toggleCommandPalette"
   | "showShortcutHelp"
   | "createNote"
+  | "createNoteFromTemplate"
   | "createFolder"
   | "createTag"
   | "createPerson"
@@ -215,6 +216,16 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Workspace",
     worksWhileTyping: true,
     scopes: "notes-route",
+  },
+  {
+    id: "createNoteFromTemplate",
+    keys: "mod+alt+n",
+    label: "New note from template",
+    description:
+      "Open the template picker and create a note from the chosen scaffold. Complements mod+n, which creates a blank note.",
+    group: "Workspace",
+    worksWhileTyping: true,
+    scopes: "note-create",
   },
   {
     id: "createFolder",

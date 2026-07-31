@@ -98,7 +98,11 @@ test("conflicts are detected against effective bindings, not just defaults", () 
     findShortcutConflict({}, "createNote", `${platformModifier}+shift+n`)?.actionId,
     "createFolder",
   );
-  assert.equal(findShortcutConflict({}, "createNote", "mod+alt+n"), null);
+  assert.equal(
+    findShortcutConflict({}, "createNote", "mod+alt+n")?.actionId,
+    "createNoteFromTemplate",
+  );
+  assert.equal(findShortcutConflict({}, "createNote", "mod+alt+u"), null);
   assert.equal(
     findShortcutConflict({ createFolder: "mod+alt+f" }, "createNote", "mod+shift+n"),
     null,

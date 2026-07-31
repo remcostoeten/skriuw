@@ -45,6 +45,7 @@ import {
   requestJournalSearchFocus,
 } from "../journal/navigation";
 import { requestEntityCreate } from "../references/entity-create-controller";
+import { requestTemplatePicker } from "../templates/template-picker-controller";
 import { routeHasSidebar } from "../shell/panel-layout";
 import { captureRenameReturnFocus } from "../shell/rename-focus";
 import { showToast } from "../shared/ui/toast";
@@ -214,6 +215,16 @@ export function createWorkspaceCommands(
       shortcut: "createNote",
       enabled: onNotesRoute,
       run: () => createNote(store, null),
+    },
+    {
+      id: "new-note-from-template",
+      label: "New note from template…",
+      group: "Actions",
+      keywords: ["create", "template", "daily", "meeting", "scaffold"],
+      icon: <NewNoteIcon size={15} />,
+      shortcut: "createNoteFromTemplate",
+      enabled: onNotesRoute,
+      run: () => requestTemplatePicker(null),
     },
     {
       id: "new-folder",

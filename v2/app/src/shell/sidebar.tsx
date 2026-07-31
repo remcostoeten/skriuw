@@ -13,11 +13,13 @@ import {
 import { openBeside, openNoteInTab } from "../actions/panes";
 import { exportNoteAsMarkdown } from "../export/markdown-transfer";
 import { showToast } from "../shared/ui/toast";
+import { requestTemplatePicker } from "../templates/template-picker-controller";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import {
   CloseIcon,
   DownloadIcon,
   FilePlusIcon,
+  FileTextIcon,
   FolderInputIcon,
   FolderPlusIcon,
   FoldVerticalIcon,
@@ -1033,6 +1035,10 @@ export function Sidebar({ store }: Props) {
           <FilePlusIcon className="w-4 h-4" />
           New note
         </ContextMenuItem>
+        <ContextMenuItem onClick={() => requestTemplatePicker(null)} className="gap-2">
+          <FileTextIcon className="w-4 h-4" />
+          New note from template…
+        </ContextMenuItem>
         <ContextMenuItem onClick={() => createFolder(store, null)} className="gap-2">
           <FolderPlusIcon className="w-4 h-4" />
           New folder
@@ -1078,6 +1084,10 @@ export function Sidebar({ store }: Props) {
                 <ContextMenuItem onClick={() => createNote(store, id)} className="gap-2">
                   <FilePlusIcon className="w-4 h-4" />
                   New note inside
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => requestTemplatePicker(id)} className="gap-2">
+                  <FileTextIcon className="w-4 h-4" />
+                  New note from template…
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => createFolder(store, id)} className="gap-2">
                   <FolderPlusIcon className="w-4 h-4" />
