@@ -14,7 +14,9 @@ export type PersistenceBinding = {
  * Subscribes to a store slice and persists snapshots of it in the background:
  * synchronous local updates, one coalesced write after a short delay, and a
  * final flush on unbind. Writes never overlap; a snapshot taken while one is
- * in flight drains as soon as it settles.
+ * in flight drains as soon as it settles. `flush` and `dispose` reject while
+ * the latest accepted snapshot is not durable, so callers must await or catch
+ * them; `onError` is an additional background-reporting hook.
  */
 export function bindDebouncedPersistence<Slice, Snapshot>(
   store: RendererStore,

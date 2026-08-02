@@ -121,6 +121,9 @@ export function createPerformanceSnapshot(
     .filter((node) => node.kind === "note")
     .map((node) => node.id);
   const workingSetNoteIds = noteIds.slice(0, WORKING_SET_NOTE_COUNT);
+  if (workingSetNoteIds.length !== WORKING_SET_NOTE_COUNT) {
+    throw new Error("performance fixture requires one hundred notes for the working set");
+  }
   const nodes: WorkspaceNode[] = projection.nodes.map((node, index) => ({
     ...node,
     rank: (index + 1) * 1024,

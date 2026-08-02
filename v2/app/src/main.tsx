@@ -110,7 +110,9 @@ async function start(): Promise<void> {
       void Promise.all([
         expansionPersistence.dispose(),
         paneLayoutPersistence.dispose(),
-      ]);
+      ]).catch((error) => {
+        console.error("ui persistence dispose failed", error);
+      });
     }
     for (const header of pendingHeaders) {
       store.publishHistoryHeader(header);

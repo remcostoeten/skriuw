@@ -11,10 +11,11 @@ function emptyDocument(): ProseMirrorNode {
   return productSchema.nodeFromJSON({ type: "doc", content: [{ type: "paragraph" }] });
 }
 
-function parseDocument(json: unknown): ProseMirrorNode {
+function parseDocument(noteId: string, json: unknown): ProseMirrorNode {
   try {
     return productSchema.nodeFromJSON(json);
-  } catch {
+  } catch (error) {
+    console.error(`prepared editor document parse failed for ${noteId}`, error);
     return emptyDocument();
   }
 }
@@ -33,7 +34,7 @@ export class PreparedEditorDocuments {
     for (const record of this.documents.values()) {
       this.entries.set(record.noteId, {
         json: record.documentJson,
-        document: parseDocument(record.documentJson),
+        document: parseDocument(record.noteId, record.documentJson),
       });
     }
     this.unsubscribe = store.subscribe(
@@ -47,7 +48,7 @@ export class PreparedEditorDocuments {
     if (prepared && prepared.json === record.documentJson) {
       return prepared.document;
     }
-    const document = parseDocument(record.documentJson);
+    const document = parseDocument(record.noteId, record.documentJson);
     this.entries.set(record.noteId, { json: record.documentJson, document });
     return document;
   }
@@ -76,7 +77,7 @@ export class PreparedEditorDocuments {
       if (!prepared || prepared.json !== record.documentJson) {
         this.entries.set(noteId, {
           json: record.documentJson,
-          document: parseDocument(record.documentJson),
+          document: parseDocument(record.noteId, record.documentJson),
         });
       }
     }

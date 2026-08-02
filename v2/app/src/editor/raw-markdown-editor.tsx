@@ -71,6 +71,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const deferredText = useDeferredValue(source.text);
   const saveTimerRef = useRef<number | null>(null);
   const savingNoteIdsRef = useRef(new Set<string>());
+  const draftsByNoteIdRef = useRef(new Map<string, string>());
   const [failedSaveNoteIds, setFailedSaveNoteIds] = useState<ReadonlySet<string>>(new Set());
   const saveSequencerRef = useRef<SaveSequencer | null>(null);
   if (saveSequencerRef.current === null) {
@@ -126,7 +127,14 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   }
 
   function saveNow(noteId: string, markdown: string): Promise<void> {
-    return saveSequencerRef.current!.enqueue(noteId, () => persistMarkdown(noteId, markdown));
+    draftsByNoteIdRef.current.set(noteId, markdown);
+    return saveSequencerRef.current!
+      .enqueue(noteId, () => persistMarkdown(noteId, markdown))
+      .then(() => {
+        if (draftsByNoteIdRef.current.get(noteId) === markdown) {
+          draftsByNoteIdRef.current.delete(noteId);
+        }
+      });
   }
 
   function reportBackgroundSaveFailure(error: unknown): void {
@@ -137,7 +145,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     if (saveTimerRef.current !== null && noteId !== null) {
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
-      await saveNow(noteId, sourceRef.current.text);
+      await saveNow(noteId, sourceRef.current.text).catch(() => undefined);
     }
     await saveSequencerRef.current!.flush();
   }
@@ -149,6 +157,23 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
       void flushPendingSave(sourceRef.current.noteId).catch(reportBackgroundSaveFailure);
     };
   }, []);
+
+  useEffect(
+    () =>
+      store.subscribe(
+        (state) => state.nodes,
+        () => {
+          const available = store.getState().nodes;
+          const sequencer = saveSequencerRef.current!;
+          for (const noteId of draftsByNoteIdRef.current.keys()) {
+            if (available.has(noteId)) continue;
+            draftsByNoteIdRef.current.delete(noteId);
+            sequencer.discard(noteId);
+          }
+        },
+      ),
+    [store],
+  );
 
   useEffect(() => {
     const previous = sourceRef.current;
@@ -280,17 +305,25 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
 
   return (
     <div ref={setSurfaceHost}>
-      {activeNoteId !== null && failedSaveNoteIds.has(activeNoteId) && (
+      {failedSaveNoteIds.size > 0 && (
         <div
           className="sticky top-3 z-40 mx-auto mb-3 flex max-w-xl items-center justify-between gap-4 rounded-[var(--radius)] border border-[hsl(var(--mood-rough)/0.45)] bg-popover px-3 py-2 text-[13px] shadow-sm"
           role="alert"
         >
-          <span>Changes couldn’t be saved. Your Markdown draft is still here.</span>
+          <span>
+            {failedSaveNoteIds.size === 1
+              ? "Changes couldn’t be saved. Your Markdown draft is still here."
+              : `Markdown changes in ${failedSaveNoteIds.size} notes couldn’t be saved. Your drafts are still here.`}
+          </span>
           <button
             type="button"
             className="shrink-0 rounded-[var(--radius)] border border-border bg-muted/55 px-2 py-1 text-[12px] font-[560] hover:bg-muted"
             onClick={() => {
-              void saveNow(activeNoteId, sourceRef.current.text).catch(reportBackgroundSaveFailure);
+              const retries = [...failedSaveNoteIds].flatMap((noteId) => {
+                const draft = draftsByNoteIdRef.current.get(noteId);
+                return draft === undefined ? [] : [saveNow(noteId, draft)];
+              });
+              void Promise.all(retries).catch(reportBackgroundSaveFailure);
             }}
           >
             Retry save

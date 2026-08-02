@@ -9,6 +9,9 @@ note-scoped recovery state, not a successful completion:
 - saves are serialized per note and remain concurrent across notes;
 - failure does not strand later saves in that note's sequence;
 - the editor keeps dirty content and presents an explicit retry action;
+- failures remain visible and retryable when the user navigates to another
+  note, while tracking is discarded when trash or purge makes a note
+  unavailable;
 - retry reads the latest complete editor document when it starts;
 - a successful matching or newer save clears the note's failure state;
 - timer-triggered saves consume their rejection after recording recovery state,

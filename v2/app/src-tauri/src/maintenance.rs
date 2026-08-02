@@ -38,6 +38,7 @@ const CANDIDATE_PREFIX: &str = ".restore-candidate-";
 const SAFETY_BACKUP_PREFIX: &str = ".pre-import-";
 
 type HistoryPublisher = Arc<dyn Fn(HistoryHeader) + Send + Sync>;
+pub(crate) type HistoryFailureObserver = Arc<dyn Fn() + Send + Sync>;
 
 pub struct HistoryDrainHandle {
     stop: Arc<AtomicBool>,
@@ -60,6 +61,22 @@ pub fn spawn_history_drain(
     repository_path: &Path,
     now_millis: fn() -> i64,
     publish: HistoryPublisher,
+) -> Result<HistoryDrainHandle, String> {
+    spawn_history_drain_observed(
+        database_path,
+        repository_path,
+        now_millis,
+        publish,
+        Arc::new(|| {}),
+    )
+}
+
+pub(crate) fn spawn_history_drain_observed(
+    database_path: &Path,
+    repository_path: &Path,
+    now_millis: fn() -> i64,
+    publish: HistoryPublisher,
+    observe_failure: HistoryFailureObserver,
 ) -> Result<HistoryDrainHandle, String> {
     let storage = Arc::new(
         SqliteWorkspace::open(database_path)
@@ -88,6 +105,7 @@ pub fn spawn_history_drain(
                         }
                         Err(error) => {
                             eprintln!("history drain failed: {error}");
+                            observe_failure();
                             idle = true;
                             break;
                         }

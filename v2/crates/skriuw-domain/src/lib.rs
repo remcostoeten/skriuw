@@ -31,6 +31,7 @@ pub const MAX_DOCUMENT_MARKDOWN_BYTES: usize = 128 * 1024 * 1024;
 pub const MAX_DOCUMENT_NODES: usize = 1_000_000;
 pub const MAX_DOCUMENT_DEPTH: usize = 128;
 pub const MAX_OPERATION_GROUP: usize = 100_000;
+pub const MAX_OPERATION_GROUP_BYTES: usize = 512 * 1024 * 1024;
 
 pub const SETTINGS_FIELDS: [&str; 10] = [
     "settingsVersion",
@@ -1196,12 +1197,13 @@ impl WorkspaceOperationEnvelope {
 pub fn validate_operation_group(
     operations: &[WorkspaceOperationEnvelope],
 ) -> Result<(), OperationValidationError> {
-    validate_operation_group_with_limit(operations, MAX_OPERATION_GROUP)
+    validate_operation_group_with_limits(operations, MAX_OPERATION_GROUP, MAX_OPERATION_GROUP_BYTES)
 }
 
-fn validate_operation_group_with_limit(
+fn validate_operation_group_with_limits(
     operations: &[WorkspaceOperationEnvelope],
     maximum: usize,
+    maximum_bytes: usize,
 ) -> Result<(), OperationValidationError> {
     if operations.len() > maximum {
         return Err(OperationValidationError::TooMany {
@@ -1209,6 +1211,13 @@ fn validate_operation_group_with_limit(
             maximum,
         });
     }
+    let mut counter = BoundedWriter::new(maximum_bytes);
+    serde_json::to_writer(&mut counter, operations).map_err(|_| {
+        OperationValidationError::TooLong {
+            field: "workspace operations",
+            maximum: maximum_bytes,
+        }
+    })?;
     for operation in operations {
         operation.validate()?;
     }
@@ -1843,13 +1852,13 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArchiveValidationError, DocumentLimits, NodeKind, NodePlacement, NoteProperty,
-        NotePropertyColor, NotePropertyField, NotePropertyOption, NotePropertyTemplate,
-        NotePropertyValue, OperationValidationError, SETTINGS_FIELDS, VersionedNotePropertyValue,
-        WORKSPACE_ARCHIVE_VERSION, WORKSPACE_PROTOCOL_VERSION, WORKSPACE_SETTINGS_VERSION,
-        WorkspaceArchive, WorkspaceDocument, WorkspaceNode, WorkspaceOperation,
-        WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceTag, validate_document_with_limits,
-        validate_operation_group_with_limit,
+        ArchiveValidationError, DocumentLimits, MAX_OPERATION_GROUP_BYTES, NodeKind, NodePlacement,
+        NoteProperty, NotePropertyColor, NotePropertyField, NotePropertyOption,
+        NotePropertyTemplate, NotePropertyValue, OperationValidationError, SETTINGS_FIELDS,
+        VersionedNotePropertyValue, WORKSPACE_ARCHIVE_VERSION, WORKSPACE_PROTOCOL_VERSION,
+        WORKSPACE_SETTINGS_VERSION, WorkspaceArchive, WorkspaceDocument, WorkspaceNode,
+        WorkspaceOperation, WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceTag,
+        validate_document_with_limits, validate_operation_group_with_limits,
     };
 
     #[test]
@@ -1981,10 +1990,23 @@ mod tests {
         let operation =
             WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetActiveNote { note_id: None });
         assert!(matches!(
-            validate_operation_group_with_limit(&[operation.clone(), operation], 1),
+            validate_operation_group_with_limits(
+                &[operation.clone(), operation],
+                1,
+                MAX_OPERATION_GROUP_BYTES,
+            ),
             Err(OperationValidationError::TooMany {
                 field: "workspace operations",
                 maximum: 1,
+            })
+        ));
+        let operation =
+            WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetActiveNote { note_id: None });
+        assert!(matches!(
+            validate_operation_group_with_limits(&[operation], 1, 8),
+            Err(OperationValidationError::TooLong {
+                field: "workspace operations",
+                maximum: 8,
             })
         ));
     }

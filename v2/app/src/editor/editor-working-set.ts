@@ -1,6 +1,5 @@
 export const EDITOR_WORKING_SET_LIMIT = 32;
 
-/** A least-recently-used cache that never evicts caller-protected entries. */
 export class EditorWorkingSet<Value> {
   private readonly entries = new Map<string, Value>();
 

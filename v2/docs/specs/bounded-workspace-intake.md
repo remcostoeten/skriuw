@@ -7,6 +7,7 @@ Workspace operations and archives are local inputs, but they still cross a trust
 The domain contract enforces these deliberately generous ceilings:
 
 - 100,000 operations in one atomic group.
+- 512 MiB serialized bytes across one atomic operation group.
 - 128 MiB canonical document JSON.
 - 128 MiB canonical Markdown.
 - 1,000,000 JSON values in one document.

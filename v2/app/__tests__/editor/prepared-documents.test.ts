@@ -78,3 +78,34 @@ test("an optimistic save adopts the staged editor node without reparsing", () =>
   assert.equal(prepared.documentFor(record), document);
   prepared.destroy();
 });
+
+test("malformed stored documents are diagnosed and use the empty fallback", () => {
+  const malformed: WorkspaceSnapshot = {
+    ...snapshot,
+    documents: [{
+      ...snapshot.documents[0]!,
+      documentJson: { type: "unknown-node" },
+    }],
+  };
+  const errors: unknown[][] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    errors.push(args);
+  };
+  try {
+    const store = createRendererStore(createInitialState(malformed));
+    const prepared = new PreparedEditorDocuments(store);
+    const record = store.getState().documents.get("note-1");
+    assert.ok(record);
+
+    const fallback = prepared.documentFor(record);
+    assert.equal(fallback.childCount, 1);
+    assert.equal(fallback.firstChild?.type.name, "paragraph");
+    assert.equal(fallback.textContent, "");
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]?.[0], "prepared editor document parse failed for note-1");
+    prepared.destroy();
+  } finally {
+    console.error = originalError;
+  }
+});

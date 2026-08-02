@@ -48,12 +48,16 @@ async function persistBeforeClose(
   store: RendererStore,
   persist: PersistOperations,
   timeoutMs: number,
+  isCurrentAttempt: () => boolean,
 ): Promise<void> {
-  const state = store.getState();
   const timeout = timeoutAfter(timeoutMs);
   try {
     await Promise.race([
       flushPendingWork().then(() => {
+        if (!isCurrentAttempt()) {
+          return undefined;
+        }
+        const state = store.getState();
         if (!state.settings.rememberLastNote) {
           return undefined;
         }
@@ -79,6 +83,7 @@ export async function bindWindowClosePersistence(
 ): Promise<() => void> {
   let closing = false;
   let disposed = false;
+  let attempt = 0;
   const timeoutMs = options.timeoutMs ?? DEFAULT_CLOSE_PERSISTENCE_TIMEOUT_MS;
   const onError = options.onError ?? (() => {});
   let unlisten: () => void;
@@ -92,9 +97,16 @@ export async function bindWindowClosePersistence(
         return;
       }
       closing = true;
+      const currentAttempt = ++attempt;
       try {
-        await persistBeforeClose(store, persist, timeoutMs);
+        await persistBeforeClose(
+          store,
+          persist,
+          timeoutMs,
+          () => !disposed && attempt === currentAttempt,
+        );
       } catch (error) {
+        attempt += 1;
         onError(error);
         closing = false;
         return;
@@ -115,6 +127,7 @@ export async function bindWindowClosePersistence(
       return;
     }
     disposed = true;
+    attempt += 1;
     unlisten();
   };
 }

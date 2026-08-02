@@ -7,7 +7,7 @@
 use std::{
     collections::BTreeSet,
     fs::{self, OpenOptions},
-    io::{self, Write},
+    io::{self, Read, Write},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
     time::{Duration, SystemTime},
@@ -102,8 +102,11 @@ impl ImageStore {
             file.write_all(bytes)?;
             file.sync_all()?;
             drop(file);
-            match fs::rename(&temporary, target) {
-                Ok(()) => sync_directory(target),
+            match fs::hard_link(&temporary, target) {
+                Ok(()) => {
+                    fs::remove_file(&temporary)?;
+                    sync_directory(target)
+                }
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
                     verify_content(target, content_hash)
                 }
@@ -233,8 +236,17 @@ impl ImageStore {
 }
 
 fn verify_content(path: &Path, expected_hash: &str) -> io::Result<()> {
-    let bytes = fs::read(path)?;
-    let actual_hash = format!("{:x}", Sha256::digest(bytes));
+    let mut file = fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    let actual_hash = format!("{:x}", hasher.finalize());
     if actual_hash == expected_hash {
         Ok(())
     } else {

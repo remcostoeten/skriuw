@@ -397,8 +397,11 @@ function budgetStatus(record) {
       record.workingSet.maximumObservedSize <= record.workingSet.configuredLimit &&
       record.workingSet.finalObservedSize <= record.workingSet.configuredLimit &&
       record.workingSet.evictions > 0 &&
+      record.workingSet.coldRevisitWasEvicted === true &&
       record.workingSet.bridgeCalls.length === 0,
-    coldEditorRevisit: record.workingSet.coldRevisitDispatchMs < 8,
+    coldEditorRevisit:
+      record.workingSet.coldRevisitWasEvicted === true &&
+      record.workingSet.coldRevisitDispatchMs < 8,
     selectionDispatch: record.selection.summary.dispatch.p95Ms < 8,
     keystrokeToPaint: below(record.typing.summary.nextPaint, 8, 16.67),
     hundredSwitchesDroppedNoFrames: record.keyboardSwitches.droppedFrames === 0,

@@ -1423,16 +1423,22 @@ mod smoke_tests {
         fs::create_dir(&index_path).expect("block index creation");
         let publications = Arc::new(Mutex::new(Vec::<HistoryHeader>::new()));
         let captured = Arc::clone(&publications);
-        let drain = maintenance::spawn_history_drain(
+        let (failed, failure_received) = mpsc::sync_channel(1);
+        let drain = maintenance::spawn_history_drain_observed(
             &db_path,
             &repo_path,
             now_millis,
             Arc::new(move |header| {
                 captured.lock().expect("publications").push(header);
             }),
+            Arc::new(move || {
+                let _ = failed.send(());
+            }),
         )
         .expect("spawn drain");
-        std::thread::sleep(Duration::from_millis(100));
+        failure_received
+            .recv_timeout(Duration::from_secs(2))
+            .expect("history failure observed after retry release");
         drain.shutdown();
 
         assert!(publications.lock().expect("publications").is_empty());

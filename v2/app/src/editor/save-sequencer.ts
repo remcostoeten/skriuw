@@ -19,10 +19,10 @@ type FailureListener = (failures: readonly SaveFailure[]) => void;
 
 type TrackedFailure = SaveFailure & { sequence: number };
 
-/** Keeps saves for each note in durable acknowledgement order. */
 export class SaveSequencer {
   private readonly tails = new Map<string, Promise<void>>();
   private readonly failures = new Map<string, TrackedFailure>();
+  private readonly discardedThrough = new Map<string, number>();
   private nextSequence = 1;
 
   constructor(private readonly onFailuresChanged: FailureListener = () => {}) {}
@@ -35,6 +35,13 @@ export class SaveSequencer {
     this.onFailuresChanged(this.currentFailures());
   }
 
+  discard(noteId: string): void {
+    this.discardedThrough.set(noteId, this.nextSequence - 1);
+    if (this.failures.delete(noteId)) {
+      this.publishFailures();
+    }
+  }
+
   enqueue(noteId: string, task: SaveTask): Promise<void> {
     const sequence = this.nextSequence++;
     const previous = this.tails.get(noteId) ?? Promise.resolve();
@@ -43,6 +50,9 @@ export class SaveSequencer {
       .then(task)
       .then(
         () => {
+          if (sequence <= (this.discardedThrough.get(noteId) ?? 0)) {
+            return;
+          }
           const failure = this.failures.get(noteId);
           if (failure && failure.sequence <= sequence) {
             this.failures.delete(noteId);
@@ -50,6 +60,9 @@ export class SaveSequencer {
           }
         },
         (error: unknown) => {
+          if (sequence <= (this.discardedThrough.get(noteId) ?? 0)) {
+            return;
+          }
           const failure = this.failures.get(noteId);
           if (!failure || failure.sequence <= sequence) {
             this.failures.set(noteId, { noteId, error, sequence });

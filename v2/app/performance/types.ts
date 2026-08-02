@@ -53,6 +53,7 @@ export type WorkingSetResult = {
   maximumObservedSize: number;
   finalObservedSize: number;
   evictions: number;
+  coldRevisitWasEvicted: boolean;
   coldRevisitDispatchMs: number;
   bridgeCalls: string[];
 };

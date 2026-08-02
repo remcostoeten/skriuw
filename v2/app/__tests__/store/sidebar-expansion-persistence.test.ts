@@ -89,6 +89,29 @@ test("failed expansion persistence never rolls renderer state back", async () =>
   assert.equal(failures, 2);
 });
 
+test("flush rejects until failed expansion state is durable", async () => {
+  const store = createRendererStore(createInitialState(snapshot, []));
+  const durable: string[][] = [];
+  let rejectWrites = true;
+  const binding = bindSidebarExpansionPersistence(
+    store,
+    async (folderIds) => {
+      if (rejectWrites) throw new Error("unavailable");
+      durable.push([...folderIds]);
+    },
+    { delayMs: 1 },
+  );
+
+  store.toggleExpanded("folder-a");
+  await settle();
+  store.toggleExpanded("folder-b");
+  await assert.rejects(binding.flush(), /unavailable/);
+  rejectWrites = false;
+  await binding.flush();
+  assert.deepEqual(durable, [["folder-a", "folder-b"]]);
+  await binding.dispose();
+});
+
 test("teardown flushes the latest expansion before the coalescing delay", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
   const writes: string[][] = [];
@@ -105,4 +128,29 @@ test("teardown flushes the latest expansion before the coalescing delay", async 
   await binding.dispose();
 
   assert.deepEqual(writes, [["folder-a", "folder-b"]]);
+});
+
+test("flush remains pending until the durable expansion write settles", async () => {
+  const store = createRendererStore(createInitialState(snapshot, []));
+  let release = () => {};
+  const durable = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const binding = bindSidebarExpansionPersistence(
+    store,
+    async () => durable,
+    { delayMs: 1_000 },
+  );
+  store.toggleExpanded("folder-a");
+
+  let flushed = false;
+  const flush = binding.flush().then(() => {
+    flushed = true;
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(flushed, false);
+  release();
+  await flush;
+  assert.equal(flushed, true);
+  await binding.dispose();
 });

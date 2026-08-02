@@ -135,11 +135,11 @@ function instrumentEditor(onInstallation: (duration: number) => void): () => voi
   };
 }
 
-function instrumentWorkingSet(onPrune: (size: number, evictions: number) => void): () => void {
+function instrumentWorkingSet(onPrune: (size: number, evictedIds: readonly string[]) => void): () => void {
   const original = EditorWorkingSet.prototype.prune;
   EditorWorkingSet.prototype.prune = function prune(protectedKeys) {
     const evicted = original.call(this, protectedKeys);
-    onPrune(this.size, evicted.length);
+    onPrune(this.size, evicted);
     return evicted;
   };
   return () => {
@@ -164,16 +164,18 @@ export async function createPerformanceController(
   let maximumWorkingSetSize = 0;
   let finalWorkingSetSize = 0;
   let workingSetEvictions = 0;
+  const evictedWorkingSetIds = new Set<string>();
   const resourceBaseline = new Set(
     performance.getEntriesByType("resource").map((entry) => entry.name),
   );
   const restoreEditor = instrumentEditor((duration) => {
     phase?.editorInstallationMs.push(duration);
   });
-  const restoreWorkingSet = instrumentWorkingSet((size, evictions) => {
+  const restoreWorkingSet = instrumentWorkingSet((size, evictedIds) => {
     maximumWorkingSetSize = Math.max(maximumWorkingSetSize, size);
     finalWorkingSetSize = size;
-    workingSetEvictions += evictions;
+    workingSetEvictions += evictedIds.length;
+    for (const noteId of evictedIds) evictedWorkingSetIds.add(noteId);
   });
   const mutationObserver = new MutationObserver((records) => {
     for (const record of records) {
@@ -258,6 +260,7 @@ export async function createPerformanceController(
     maximumWorkingSetSize = 0;
     finalWorkingSetSize = 0;
     workingSetEvictions = 0;
+    evictedWorkingSetIds.clear();
     phase = startPhase("working-set");
     for (const id of fixture.workingSetNoteIds) {
       flushSync(() => store.setActiveNote(id));
@@ -278,6 +281,7 @@ export async function createPerformanceController(
       maximumObservedSize: maximumWorkingSetSize,
       finalObservedSize: finalWorkingSetSize,
       evictions: workingSetEvictions,
+      coldRevisitWasEvicted: evictedWorkingSetIds.has(revisitId),
       coldRevisitDispatchMs,
       bridgeCalls: result.bridgeCalls,
     };
@@ -451,6 +455,7 @@ export async function createPerformanceController(
           workingSet.maximumObservedSize <= workingSet.configuredLimit &&
           workingSet.finalObservedSize <= workingSet.configuredLimit &&
           workingSet.evictions > 0 &&
+          workingSet.coldRevisitWasEvicted &&
           workingSet.bridgeCalls.length === 0,
         detail: JSON.stringify(workingSet),
       },

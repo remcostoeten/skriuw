@@ -551,7 +551,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
       if (activeIdRef.current) {
-        await saveNow(activeIdRef.current);
+        await saveNow(activeIdRef.current).catch(() => undefined);
       }
     }
     await saveSequencerRef.current!.flush();
@@ -1122,6 +1122,32 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   useEffect(
     () =>
       store.subscribe(
+        (state) => state.nodes,
+        () => {
+          const available = store.getState().nodes;
+          const sequencer = saveSequencerRef.current!;
+          const tracked = new Set([
+            ...dirtyNoteIdsRef.current,
+            ...sequencer.currentFailures().map(({ noteId }) => noteId),
+          ]);
+          for (const noteId of tracked) {
+            if (available.has(noteId)) continue;
+            dirtyNoteIdsRef.current.delete(noteId);
+            sequencer.discard(noteId);
+            if (activeIdRef.current === noteId && saveTimerRef.current !== null) {
+              window.clearTimeout(saveTimerRef.current);
+              saveTimerRef.current = null;
+            }
+          }
+          pruneEditorWorkingSet();
+        },
+      ),
+    [store],
+  );
+
+  useEffect(
+    () =>
+      store.subscribe(
         (state) => state.documents,
         () => {
           const id = activeIdRef.current;
@@ -1203,17 +1229,22 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
 
   return (
     <div className="editor-host">
-      {activeNoteId !== null && failedSaveNoteIds.has(activeNoteId) && (
+      {failedSaveNoteIds.size > 0 && (
         <div
           className="sticky top-3 z-40 mx-auto mb-3 flex max-w-xl items-center justify-between gap-4 rounded-[var(--radius)] border border-[hsl(var(--mood-rough)/0.45)] bg-popover px-3 py-2 text-[13px] shadow-sm"
           role="alert"
         >
-          <span>Changes couldn’t be saved. Your draft is still here.</span>
+          <span>
+            {failedSaveNoteIds.size === 1
+              ? "Changes couldn’t be saved. Your draft is still here."
+              : `Changes in ${failedSaveNoteIds.size} notes couldn’t be saved. Your drafts are still here.`}
+          </span>
           <button
             type="button"
             className="shrink-0 rounded-[var(--radius)] border border-border bg-muted/55 px-2 py-1 text-[12px] font-[560] hover:bg-muted"
             onClick={() => {
-              void saveNow(activeNoteId).catch(reportBackgroundSaveFailure);
+              void Promise.all([...failedSaveNoteIds].map((noteId) => saveNow(noteId)))
+                .catch(reportBackgroundSaveFailure);
             }}
           >
             Retry save

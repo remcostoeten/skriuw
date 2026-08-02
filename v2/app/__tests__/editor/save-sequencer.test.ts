@@ -116,3 +116,22 @@ test("different notes may save concurrently", async () => {
   gate.resolve();
   await first;
 });
+
+test("discarded notes cannot regain failure state from an accepted save", async () => {
+  const gate = deferred();
+  const observed: string[][] = [];
+  const sequencer = new SaveSequencer((failures) => {
+    observed.push(failures.map(({ noteId }) => noteId));
+  });
+  const save = sequencer.enqueue("deleted-note", async () => {
+    await gate.promise;
+    throw new Error("late failure");
+  });
+
+  sequencer.discard("deleted-note");
+  gate.resolve();
+  await save;
+  await sequencer.flush();
+  assert.deepEqual(sequencer.currentFailures(), []);
+  assert.deepEqual(observed, []);
+});
