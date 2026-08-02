@@ -6,15 +6,15 @@ Skriuw is a desktop knowledge base built around one promise: every interaction g
 
 ## Tech stack
 
-| Layer | Technology |
-| --- | --- |
-| Backend | Rust — domain, storage, runtime, and history crates with no I/O in the domain layer |
-| Storage | SQLite as canonical storage, ordered SQL migrations, full-text search |
-| History | Native Git materializer running fully off the editing path |
-| Desktop shell | Tauri 2 |
-| Renderer | React 19 + TypeScript, Vite, Tailwind CSS 4 |
-| Editor | ProseMirror with a custom bounded-window architecture |
-| Contracts | JSON Schema generated from Rust domain types, drift-checked in CI |
+| Layer         | Technology                                                                          |
+| ------------- | ----------------------------------------------------------------------------------- |
+| Backend       | Rust — domain, storage, runtime, and history crates with no I/O in the domain layer |
+| Storage       | SQLite as canonical storage, ordered SQL migrations, full-text search               |
+| History       | Native Git materializer running fully off the editing path                          |
+| Desktop shell | Tauri 2                                                                             |
+| Renderer      | React 19 + TypeScript, Vite, Tailwind CSS 4                                         |
+| Editor        | ProseMirror with a custom bounded-window architecture                               |
+| Contracts     | JSON Schema generated from Rust domain types, drift-checked in CI                   |
 
 The renderer navigates a fully hydrated in-memory workspace: switching notes performs zero IPC, zero database reads, zero parsing. The performance contract — cached note swap and keystroke-to-paint both under 8 ms at P95, zero dropped frames across hundreds of rapid switches — is enforced by a production benchmark suite, not aspiration.
 
@@ -77,5 +77,5 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 ## Built to be trusted
 
 - 200+ tests across backend, desktop, renderer, store, and UI-architecture layers, plus a keyboard-driven end-to-end suite covering the complete workflow with zero tolerated console errors.
-- Twenty-three architecture decision records in [docs/adr](docs/adr) document why the system is shaped the way it is.
+- Twenty-four architecture decision records in [docs/adr](docs/adr) document why the system is shaped the way it is.
 - Benchmark evidence for every performance claim lives in [docs/benchmarks](docs/benchmarks).

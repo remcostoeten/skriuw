@@ -11,7 +11,7 @@ Skriuw v2 is the current, fully released Skriuw desktop application: a local-fir
 - Native desktop ships first. Browser-local storage remains possible later.
 - Git history runs asynchronously and never blocks editing or navigation.
 
-See [FEATURES.md](FEATURES.md) for what the app does, [ARCHITECTURE.md](ARCHITECTURE.md) for how it is built, [docs/adr](docs/adr) for why, and [TODO.md](TODO.md) for what's next.
+See [FEATURES.md](FEATURES.md) for what the app does, [ARCHITECTURE.md](ARCHITECTURE.md) for how it is built, and [docs/adr](docs/adr) for why.
 
 ## Installation
 

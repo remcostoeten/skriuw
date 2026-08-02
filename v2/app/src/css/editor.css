@@ -335,6 +335,7 @@
 }
 
 .prosemirror-host .ProseMirror pre {
+  margin: 0.2em 0;
   padding: 12px;
   border-radius: calc(var(--radius) + 2px);
   background: hsl(var(--card));

@@ -50,7 +50,9 @@ export function ShortcutsSection({
                   onRecord={(combo) => {
                     const conflict = findShortcutConflict(overrides, definition.id, combo);
                     if (conflict) {
-                      return `Already used by “${conflict.label}”`;
+                      return conflict.slot === "secondary"
+                        ? `Already an alternate for “${conflict.label}”`
+                        : `Already used by “${conflict.label}”`;
                     }
                     if (sameCombo(combo, effectiveShortcutKeys(definition, overrides))) {
                       return null;

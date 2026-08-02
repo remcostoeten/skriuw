@@ -5,11 +5,14 @@ import {
   createNote,
   moveNode,
   moveNodes,
+  restoreSubtree,
+  setAllFoldersExpanded,
   setNodePinned,
   trashSubtrees,
 } from "../actions/workspace";
 import { openBeside, openNoteInTab } from "../actions/panes";
 import { exportNoteAsMarkdown } from "../export/markdown-transfer";
+import { showToast } from "../shared/ui/toast";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import {
   CloseIcon,
@@ -135,20 +138,6 @@ function treeMetrics(sidebarWidth: number | null): TreeMetrics {
     depthIndent: isVeryNarrow ? 8 : isNarrow ? 12 : 16,
     rightPadding: isNarrow ? 6 : 10,
   };
-}
-
-function setAllFoldersExpanded(store: RendererStore, expanded: boolean): void {
-  store.update((state) => {
-    const folderIds = [...state.nodes.values()]
-      .filter((node) => node.kind === "folder")
-      .map((node) => node.id);
-    const expandedIds = new Set(expanded ? folderIds : []);
-    return {
-      ...state,
-      expandedIds,
-      visibleIds: flattenVisible(state.nodes, state.childrenByParent, expandedIds),
-    };
-  });
 }
 
 function toggleAllFolders(store: RendererStore): void {
@@ -966,7 +955,27 @@ export function Sidebar({ store }: Props) {
   }
 
   function trashSelectedNodes(id: string): void {
-    trashSubtrees(store, selectedRootsFor(id));
+    const roots = selectedRootsFor(id);
+    const first = roots[0];
+    if (first === undefined) {
+      return;
+    }
+    const title = store.getState().nodes.get(first)?.title ?? "Untitled";
+    trashSubtrees(store, roots);
+    showToast({
+      message:
+        roots.length === 1
+          ? `Moved “${title}” to trash`
+          : `Moved ${roots.length} items to trash`,
+      action: {
+        label: "Undo",
+        run: () => {
+          for (const rootId of roots) {
+            restoreSubtree(store, rootId);
+          }
+        },
+      },
+    });
   }
 
   function onListContextMenu(event: React.MouseEvent): void {

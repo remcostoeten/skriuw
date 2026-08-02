@@ -7,6 +7,7 @@ import {
   changeShortcutOverride,
   projectSettings,
   resetShortcutOverride,
+  showsToasts,
 } from "../../src/settings/settings-model";
 
 function extendedSettings(): WorkspaceSettings {
@@ -33,7 +34,15 @@ test("default settings project every editable field", () => {
     editorPlaceholder: "Start writing...",
     editorDefaultRawMode: false,
     openNotesInTabs: false,
+    showToasts: true,
   });
+});
+
+test("toasts stay enabled unless the setting is explicitly false", () => {
+  assert.equal(showsToasts(DEFAULT_WORKSPACE_SETTINGS), true);
+  assert.equal(showsToasts({ ...DEFAULT_WORKSPACE_SETTINGS, showToasts: false }), false);
+  const { showToasts: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(showsToasts(withoutField as WorkspaceSettings), true);
 });
 
 test("unsupported identifiers project to defaults without changing the document", () => {

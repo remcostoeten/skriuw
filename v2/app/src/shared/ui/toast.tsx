@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { useShortcut } from "@remcostoeten/use-shortcut/react";
 import {
   addToast,
   removeToast,
@@ -49,10 +50,6 @@ type ItemProps = {
 
 function ToastItem({ toast, onDismiss }: ItemProps) {
   const reduceMotion = useReducedMotion();
-  useEffect(() => {
-    const timer = window.setTimeout(() => onDismiss(toast.id), toastDuration(toast));
-    return () => window.clearTimeout(timer);
-  }, [onDismiss, toast]);
   return (
     <motion.div
       layout
@@ -87,8 +84,14 @@ function ToastItem({ toast, onDismiss }: ItemProps) {
   );
 }
 
-export function ToastHost() {
+type HostProps = {
+  visible?: boolean;
+};
+
+export function ToastHost({ visible = true }: HostProps) {
   const [toasts, setToasts] = useState<readonly Toast[]>([]);
+  const timersRef = useRef(new Map<number, number>());
+  const $ = useShortcut({ ignoreInputs: false });
   useEffect(
     () =>
       registerToastListener((toast) =>
@@ -96,6 +99,58 @@ export function ToastHost() {
       ),
     [],
   );
+  // Expiry lives in the host, not the items, so toasts still time out while the
+  // host is hidden and the keyboard-undo window closes on schedule.
+  useEffect(() => {
+    const timers = timersRef.current;
+    const present = new Set(toasts.map((toast) => toast.id));
+    for (const toast of toasts) {
+      if (timers.has(toast.id)) {
+        continue;
+      }
+      const timer = window.setTimeout(() => {
+        timers.delete(toast.id);
+        setToasts((current) => removeToast(current, toast.id));
+      }, toastDuration(toast));
+      timers.set(toast.id, timer);
+    }
+    for (const [id, timer] of timers) {
+      if (!present.has(id)) {
+        window.clearTimeout(timer);
+        timers.delete(id);
+      }
+    }
+  }, [toasts]);
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      for (const timer of timers.values()) {
+        window.clearTimeout(timer);
+      }
+      timers.clear();
+    };
+  }, []);
+  const actionable = [...toasts].reverse().find((toast) => toast.action) ?? null;
+  useEffect(() => {
+    if (actionable === null) {
+      return;
+    }
+    const binding = $.bind("mod+z").on(
+      () => {
+        actionable.action?.run();
+        setToasts((current) => removeToast(current, actionable.id));
+      },
+      {
+        description: `${actionable.action?.label}: ${actionable.message}`,
+        preventDefault: true,
+        except: "typing",
+      },
+    );
+    return () => binding.unbind();
+  }, [$, actionable]);
+  if (!visible) {
+    return null;
+  }
   return (
     <div
       className="pointer-events-none fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2"

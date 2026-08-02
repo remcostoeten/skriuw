@@ -177,6 +177,23 @@ test("focusedFolderId reads the sidebar's focused row, only when it's a folder",
   assert.equal(focusedFolderId(store.getState()), null);
 });
 
+test("focusedTreeNoteId reads the sidebar's focused row, only when it's a note", async () => {
+  const { focusedTreeNoteId } = await import("../../src/actions/workspace");
+  const store = await storeWith({
+    activeNoteId: "a",
+    nodes: [noteNode("a", 1), folderNode("f", 2)],
+  });
+
+  store.setFocusedNode("a");
+  assert.equal(focusedTreeNoteId(store.getState()), "a");
+
+  store.setFocusedNode("f");
+  assert.equal(focusedTreeNoteId(store.getState()), null);
+
+  store.setFocusedNode(null);
+  assert.equal(focusedTreeNoteId(store.getState()), null);
+});
+
 test("renameCurrentNote starts the inline rename of the open note", async () => {
   const { renameCurrentNote } = await import("../../src/actions/workspace");
   const store = await storeWith({

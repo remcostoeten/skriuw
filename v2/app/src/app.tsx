@@ -64,6 +64,8 @@ import {
 import { ToastHost } from "./shared/ui/toast";
 import { Tooltip } from "./shared/ui/tooltip";
 import { useNoteNavigation } from "./shell/use-note-navigation";
+import { selectShowToasts } from "./shell/settings/selectors";
+import { useRendererSelector } from "./store/use-renderer-selector";
 import type { RendererStore } from "./store/types";
 
 const iconButtonClass =
@@ -133,6 +135,7 @@ export function App({ store }: Props) {
   const panelResizing = sidebarResizing || metadataResizing;
   const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
+  const showToasts = useRendererSelector(store, selectShowToasts);
   useEffect(() => installBackNavigation(store), [store]);
   const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
   const uiRef = useRef(ui);
@@ -494,7 +497,7 @@ export function App({ store }: Props) {
         open={shortcutHelpOpen}
         onOpenChange={setShortcutHelpOpen}
       />
-      <ToastHost />
+      <ToastHost visible={showToasts} />
       <TransferReportHost />
       <ImportPreviewHost />
       <ImportProgressHost />

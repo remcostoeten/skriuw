@@ -5,8 +5,7 @@
 		"features",
 		"desktop-local-first",
 		"mobile-expo-architecture",
-		"settings-page-data",
-		"ai-followups-handoff"
+		"settings-page-data"
 	],
 	"title": "Development"
 }

@@ -10,6 +10,10 @@ import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererStore } from "../store/types";
 import { registerEditorSearchController } from "./search-controller";
 import {
+  EDITOR_SEARCH_SHORTCUT_IDS,
+  type EditorSearchShortcutId,
+} from "./editor-bound-shortcut-ids";
+import {
   buildRegex,
   clearSearch,
   defaultSearchOptions,
@@ -22,6 +26,12 @@ import {
   type SearchOptions,
   type EditorSearchTarget,
 } from "./search-plugin";
+
+const SEARCH_OPTION_BY_SHORTCUT: Record<EditorSearchShortcutId, keyof SearchOptions> = {
+  searchMatchCase: "caseSensitive",
+  searchWholeWord: "wholeWord",
+  searchRegex: "regex",
+};
 
 export function useEditorSearch(store: RendererStore, getView: () => EditorSearchTarget | null) {
   const $ = useShortcut({ ignoreInputs: false });
@@ -119,9 +129,17 @@ export function useEditorSearch(store: RendererStore, getView: () => EditorSearc
     }
   }, [getView]);
 
-  const showSearch = useCallback(() => {
+  /**
+   * `mod+f` toggles: a press on an open panel closes it and hands focus back
+   * to the note, instead of just re-selecting the query.
+   */
+  const toggleSearch = useCallback(() => {
+    if (searchOpenRef.current) {
+      closeSearch();
+      return;
+    }
     openSearch(false);
-  }, [openSearch]);
+  }, [closeSearch, openSearch]);
 
   const showSearchAndReplace = useCallback(() => {
     openSearch(true);
@@ -167,10 +185,10 @@ export function useEditorSearch(store: RendererStore, getView: () => EditorSearc
   useEffect(
     () =>
       registerEditorSearchController({
-        open: showSearch,
+        open: toggleSearch,
         openReplace: showSearchAndReplace,
       }),
-    [showSearch, showSearchAndReplace],
+    [toggleSearch, showSearchAndReplace],
   );
 
   const overrides = useRendererSelector(
@@ -184,18 +202,16 @@ export function useEditorSearch(store: RendererStore, getView: () => EditorSearc
       return;
     }
     const bindings = [
-      $.bind(effectiveShortcutKeys(shortcutDefinition("searchMatchCase"), overrides)).on(
-        () => toggleSearchOption("caseSensitive"),
-        { description: "Toggle match case", preventDefault: true },
-      ),
-      $.bind(effectiveShortcutKeys(shortcutDefinition("searchWholeWord"), overrides)).on(
-        () => toggleSearchOption("wholeWord"),
-        { description: "Toggle whole word", preventDefault: true },
-      ),
-      $.bind(effectiveShortcutKeys(shortcutDefinition("searchRegex"), overrides)).on(
-        () => toggleSearchOption("regex"),
-        { description: "Toggle regular expression", preventDefault: true },
-      ),
+      ...EDITOR_SEARCH_SHORTCUT_IDS.map((id) => {
+        const definition = shortcutDefinition(id);
+        return $.bind(effectiveShortcutKeys(definition, overrides)).on(
+          () => toggleSearchOption(SEARCH_OPTION_BY_SHORTCUT[id]),
+          {
+            description: definition.description ?? definition.label,
+            preventDefault: true,
+          },
+        );
+      }),
       $.bind("escape").on(closeSearch, {
         description: "Close find and replace",
         preventDefault: true,

@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # Tracks bundle sizes, LoC, and file counts after each Tauri build.
-# Appends a row to docs/docs_for_docs.skriuw.app/app-size-table.mdx.
+# Appends a row to the canonical documentation build table.
 # If total size change >= 0.1 MB from the previous build, also generates
-# a diff report in docs/docs_for_docs.skriuw.app/build-diffs/.
+# a diff report in apps/documentation/content/docs/builds/diffs/.
 #
 # Usage:  bash scripts/track-build.sh
 #
@@ -15,9 +15,9 @@ set -euo pipefail
 
 THRESHOLD_MB=0.1
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "$(dirname "$0")/..")"
-DOCS_DIR="$ROOT/docs/docs_for_docs.skriuw.app"
+DOCS_DIR="$ROOT/apps/documentation/content/docs/builds"
 TABLE_FILE="$DOCS_DIR/app-size-table.mdx"
-DIFF_DIR="$DOCS_DIR/build-diffs"
+DIFF_DIR="$DOCS_DIR/diffs"
 BUNDLE_DIR="$ROOT/apps/desktop/src-tauri/target/release/bundle"
 TAURI_CONF="$ROOT/apps/desktop/src-tauri/tauri.conf.json"
 
@@ -140,7 +140,7 @@ if [ "$should_write" = true ] || [ ! -f "$TABLE_FILE" ]; then
       fi
     } > "$DIFF_FILE"
 
-    DIFF_LINK="[diff](./build-diffs/${TODAY}.md)"
+    DIFF_LINK="[diff](./diffs/${TODAY}.md)"
   else
     DIFF_LINK="—"
   fi

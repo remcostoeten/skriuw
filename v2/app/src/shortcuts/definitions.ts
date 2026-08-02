@@ -46,6 +46,7 @@ export type ShortcutActionId =
   | "toggleSidebar"
   | "toggleMetadata"
   | "focusSidebar"
+  | "collapseAllFolders"
   | "focusEditor"
   | "focusMetadata"
   | "focusPaneLeft"
@@ -113,6 +114,12 @@ export type ShortcutDefinition = {
    * like `mod+n` mean different things per route.
    */
   scopes?: string | string[];
+  /**
+   * Scopes that must *all* be active, where `scopes` needs only one. For a
+   * binding whose command is gated on two independent conditions at once, like
+   * find-in-note wanting both the notes route and a focused editor.
+   */
+  allScopes?: readonly string[];
   /**
    * Modifier combos that should keep working while the caret is in the
    * ProseMirror editor or an input. Plain-key shortcuts must leave this off so
@@ -207,7 +214,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "New note",
     group: "Workspace",
     worksWhileTyping: true,
-    scopes: "note-create",
+    scopes: "notes-route",
   },
   {
     id: "createFolder",
@@ -215,6 +222,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "New folder",
     group: "Workspace",
     worksWhileTyping: true,
+    scopes: "notes-route",
   },
   {
     id: "createTag",
@@ -235,6 +243,8 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "togglePinNote",
     keys: "mod+p",
     label: "Pin or unpin current note",
+    description:
+      "Pin or unpin the current note. While the sidebar tree has focus it targets the focused row instead of the note the editor shows.",
     group: "Workspace",
     worksWhileTyping: true,
   },
@@ -245,18 +255,18 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Workspace",
     worksWhileTyping: true,
     guards: ["textField", "sidebarTree", "modal"],
+    scopes: "notes-route",
   },
   {
     id: "trashCurrentNote",
     keys: "mod+backspace",
     secondaryKeys: "mod+delete",
-    secondaryWorksWhileTyping: true,
     label: "Move current note to trash",
     description:
-      "Move current note to trash. Overrides the macOS text-field delete-to-line-start default while the caret is in a note.",
+      "Move current note to trash. Stays silent while the caret is in a note or text field, so mod+backspace keeps its delete-word meaning there.",
     group: "Workspace",
-    worksWhileTyping: true,
-    guards: ["textField", "sidebarTree", "modal"],
+    guards: ["sidebarTree", "modal"],
+    scopes: "notes-route",
   },
   {
     id: "duplicateCurrentNote",
@@ -267,6 +277,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Workspace",
     worksWhileTyping: true,
     guards: ["textField", "modal"],
+    scopes: "notes-route",
   },
   {
     id: "importMarkdownFile",
@@ -291,6 +302,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Close tab",
     group: "Tabs",
     worksWhileTyping: true,
+    scopes: "notes-route",
   },
   {
     id: "reopenClosedTab",
@@ -331,6 +343,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Next tab",
     group: "Tabs",
     worksWhileTyping: true,
+    scopes: "notes-route",
   },
   {
     id: "previousTab",
@@ -338,6 +351,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Previous tab",
     group: "Tabs",
     worksWhileTyping: true,
+    scopes: "notes-route",
   },
   ...TAB_INDEX_DEFINITIONS,
   {
@@ -346,6 +360,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Open current note beside",
     group: "Tabs",
     worksWhileTyping: true,
+    scopes: "notes-route",
   },
   {
     id: "closeSplit",
@@ -353,6 +368,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Close split view",
     group: "Tabs",
     worksWhileTyping: true,
+    scopes: "notes-route",
   },
   {
     id: "openSettings",
@@ -367,6 +383,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Toggle sidebar",
     group: "Navigation",
     worksWhileTyping: true,
+    scopes: "sidebar-route",
   },
   {
     id: "toggleMetadata",
@@ -374,6 +391,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Toggle metadata panel",
     group: "Navigation",
     worksWhileTyping: true,
+    scopes: "notes-route",
   },
   {
     id: "focusSidebar",
@@ -381,6 +399,18 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Focus current note in sidebar",
     group: "Navigation",
     worksWhileTyping: true,
+    scopes: "notes-route",
+  },
+  {
+    id: "collapseAllFolders",
+    keys: "mod+shift+e",
+    label: "Collapse all folders",
+    description:
+      "Collapse every folder in the sidebar tree, the shifted sibling of mod+e's reveal-in-sidebar.",
+    group: "Navigation",
+    worksWhileTyping: true,
+    guards: ["modal"],
+    scopes: "notes-route",
   },
   {
     id: "focusEditor",
@@ -388,9 +418,10 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     secondaryKeys: "slash",
     label: "Focus editor",
     description:
-      "Focus the editor content. With a split open this returns to the pane that had focus last, so it composes with the directional pane keys.",
+      "Focus the editor content. With a split open this returns to the pane that had focus last, so it composes with the directional pane keys. Notes-only, matching the command behind it — which also keeps the plain-key alternate off the journal, where / opens the entry search instead.",
     group: "Navigation",
     worksWhileTyping: true,
+    scopes: "notes-route",
   },
   {
     id: "focusPaneLeft",
@@ -420,6 +451,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Focus metadata panel",
     group: "Navigation",
     worksWhileTyping: true,
+    scopes: "notes-route",
   },
   {
     id: "previousNote",
@@ -428,6 +460,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Navigation",
     worksWhileTyping: true,
     guards: ["modal"],
+    scopes: "notes-route",
   },
   {
     id: "nextNote",
@@ -436,6 +469,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     group: "Navigation",
     worksWhileTyping: true,
     guards: ["modal"],
+    scopes: "notes-route",
   },
   ...RAIL_NAVIGATION_DEFINITIONS,
   {
@@ -544,9 +578,11 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     id: "findInNote",
     keys: "mod+f",
     label: "Find in note",
+    description:
+      "Toggle the find panel — a second press closes it and returns focus to the note.",
     group: "Editor search",
     worksWhileTyping: true,
-    scopes: "note-focus",
+    allScopes: ["notes-route", "note-focus"],
   },
   {
     id: "findAndReplaceInNote",
@@ -558,7 +594,7 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
       "Open the find panel with the replace row expanded. Overrides the browser's history shortcut on web; mod+alt+f is VS Code's macOS default, where cmd+h hides the app.",
     group: "Editor search",
     worksWhileTyping: true,
-    scopes: "note-focus",
+    allScopes: ["notes-route", "note-focus"],
   },
   {
     id: "searchMatchCase",

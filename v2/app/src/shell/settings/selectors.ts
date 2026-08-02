@@ -1,3 +1,4 @@
+import { showsToasts } from "../../settings/settings-model";
 import { shortcutOverridesFromSettings } from "../../shortcuts/bindings";
 import type { ShortcutOverrides } from "../../shortcuts/bindings";
 import type { RendererState } from "../../store/types";
@@ -16,4 +17,8 @@ export function sameOverrides(left: ShortcutOverrides, right: ShortcutOverrides)
 
 export function selectSettings(state: RendererState) {
   return state.settings;
+}
+
+export function selectShowToasts(state: RendererState): boolean {
+  return showsToasts(state.settings);
 }

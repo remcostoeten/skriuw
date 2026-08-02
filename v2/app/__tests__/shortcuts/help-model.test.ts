@@ -106,12 +106,16 @@ test("the when column is derived from scopes, guards, and editor binding", () =>
   assert.equal(shortcutWhenLabel(definition("jumpToLine")), "In the editor · Markdown mode");
   assert.equal(shortcutWhenLabel(definition("focusPaneRight")), "Split view");
   assert.equal(shortcutWhenLabel(definition("openTab3")), "Tabs open");
-  assert.equal(shortcutWhenLabel(definition("findInNote")), "Editor focused");
+  assert.equal(
+    shortcutWhenLabel(definition("findInNote")),
+    "Notes view · Editor focused",
+  );
   assert.equal(shortcutWhenLabel(definition("createTag")), "Tags view");
   assert.equal(
     shortcutWhenLabel(definition("trashCurrentNote")),
-    "Outside text fields · Outside the sidebar tree",
+    "Notes view · Not while typing · Outside the sidebar tree",
   );
+  assert.equal(shortcutWhenLabel(definition("toggleSidebar")), "Notes or journal view");
   assert.equal(shortcutWhenLabel(definition("toggleCommandPalette")), undefined);
   assert.equal(shortcutWhenLabel(definition("showShortcutHelp")), undefined);
 });

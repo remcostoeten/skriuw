@@ -18,10 +18,12 @@ import {
   duplicateCurrentNote,
   focusedFolderId,
   focusedPaneNoteId,
+  focusedTreeNoteId,
   navigateNote,
   noteNavigationOrder,
   renameCurrentNote,
   restoreTrashedNote,
+  setAllFoldersExpanded,
   setNodePinned,
   trashCurrentNote,
 } from "../actions/workspace";
@@ -57,6 +59,7 @@ import {
   CopyIcon,
   DownloadIcon,
   FileTextIcon,
+  FoldVerticalIcon,
   FolderOpenIcon,
   KeyboardIcon,
   MaximizeIcon,
@@ -79,7 +82,12 @@ import {
 import { opensNotesInTabs } from "../settings/settings-model";
 import type { RendererState, RendererStore } from "../store/types";
 import { resetZoom, zoomIn, zoomOut } from "../zoom/zoom-controller";
-import { focusEditorPane, focusRegion, focusedPaneIndex } from "./focus-regions";
+import {
+  focusEditorPane,
+  focusRegion,
+  focusedPaneIndex,
+  sidebarTreeHasFocus,
+} from "./focus-regions";
 import type { AppCommand, CommandPredicate } from "./registry";
 
 export type CommandUiControls = {
@@ -115,6 +123,21 @@ function focusPaneInDirection(store: RendererStore, direction: -1 | 1): void {
   if (index !== null) {
     focusEditorPane(index);
   }
+}
+
+/**
+ * The note a whole-note action targets, reading focus from the DOM: the
+ * sidebar's focused row while the tree owns the keyboard, so acting from the
+ * sidebar hits the row under the cursor rather than the note the editor shows.
+ */
+function targetNoteId(state: RendererState): string | null {
+  if (sidebarTreeHasFocus()) {
+    const treeNoteId = focusedTreeNoteId(state);
+    if (treeNoteId !== null) {
+      return treeNoteId;
+    }
+  }
+  return focusedPaneNoteId(state);
 }
 
 function hasMovableTabs(state: RendererState): boolean {
@@ -233,10 +256,10 @@ export function createWorkspaceCommands(
       keywords: ["pin", "unpin", "favorite", "shelf"],
       icon: <PinIcon size={15} />,
       shortcut: "togglePinNote",
-      enabled: (state) => state.activeNoteId !== null,
+      enabled: (state) => targetNoteId(state) !== null,
       run: () => {
         const state = store.getState();
-        const noteId = state.activeNoteId;
+        const noteId = targetNoteId(state);
         if (!noteId) {
           return;
         }
@@ -524,6 +547,16 @@ export function createWorkspaceCommands(
         }
         focusRegion("sidebar");
       },
+    },
+    {
+      id: "collapse-all-folders",
+      label: "Collapse all folders",
+      group: "Navigation",
+      keywords: ["fold", "collapse", "tree", "sidebar", "folders"],
+      icon: <FoldVerticalIcon size={15} />,
+      shortcut: "collapseAllFolders",
+      enabled: (state, ui) => onNotesRoute(state, ui) && ui.sidebarOpen,
+      run: () => setAllFoldersExpanded(store, false),
     },
     {
       id: "focus-editor",

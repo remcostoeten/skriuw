@@ -6,6 +6,9 @@ import { createWorkspaceCommands } from "../../src/commands/workspace-commands";
 import type { CommandUiControls } from "../../src/commands/workspace-commands";
 import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
 import type { RendererState, RendererStore } from "../../src/store/types";
+import { setupTauriInvokeStub } from "../shared/tauri-stub";
+
+setupTauriInvokeStub();
 
 const fakeStore = { getState: () => ({}) as RendererState } as RendererStore;
 
@@ -88,4 +91,128 @@ test("route commands hide their current route and navigate to the other", () => 
   registry.run("go-to-trash", state, fakeUi());
   registry.run("go-to-notes", state, fakeUi({ route: "trash" }));
   assert.deepEqual(targets, ["trash", "notes"]);
+});
+
+const NOTE_SETTINGS = {
+  settingsVersion: 1,
+  theme: "system",
+  compactSidebar: false,
+  showPageIcons: true,
+  reduceMotion: false,
+  rememberLastNote: true,
+  editorFont: "sans",
+  editorLineHeight: "1.6",
+  showLineNumbers: false,
+  editorPlaceholder: "",
+};
+
+function node(id: string, rank: number, kind: "note" | "folder" = "note") {
+  return {
+    id,
+    kind,
+    parentId: null,
+    rank,
+    title: id,
+    icon: null,
+    createdAt: 1,
+    updatedAt: 1,
+    deletedAt: null,
+    pinnedAt: null,
+  };
+}
+
+async function pinFixture(snapshot: Record<string, unknown>) {
+  const { createInitialState, createRendererStore } = await import("../../src/store/store");
+  return createRendererStore(
+    createInitialState({
+      protocolVersion: 1,
+      documents: [],
+      historyHeaders: [],
+      settings: NOTE_SETTINGS,
+      ...snapshot,
+    } as never),
+  );
+}
+
+type DocumentGlobal = { document?: unknown };
+
+function withSidebarFocus<T>(inSidebar: boolean, body: () => T): T {
+  const globals = globalThis as DocumentGlobal;
+  const previous = globals.document;
+  globals.document = {
+    activeElement: { closest: (selector: string) => (inSidebar ? { selector } : null) },
+    querySelector: () => null,
+  };
+  try {
+    return body();
+  } finally {
+    globals.document = previous;
+  }
+}
+
+function pinnedAt(store: RendererStore, id: string): number | null {
+  return store.getState().sourceNodes.get(id)?.pinnedAt ?? null;
+}
+
+test("pin targets the sidebar's focused row while the tree has focus", async () => {
+  const store = await pinFixture({
+    activeNoteId: "open",
+    nodes: [node("open", 1), node("row", 2)],
+  });
+  store.setFocusedNode("row");
+  const registry = createCommandRegistry(createWorkspaceCommands(store, controls));
+
+  withSidebarFocus(true, () => registry.run("toggle-pin-note", store.getState(), fakeUi()));
+  assert.notEqual(pinnedAt(store, "row"), null);
+  assert.equal(pinnedAt(store, "open"), null);
+});
+
+test("pin falls back to the open note when focus is outside the sidebar", async () => {
+  const store = await pinFixture({
+    activeNoteId: "open",
+    nodes: [node("open", 1), node("row", 2)],
+  });
+  store.setFocusedNode("row");
+  const registry = createCommandRegistry(createWorkspaceCommands(store, controls));
+
+  withSidebarFocus(false, () => registry.run("toggle-pin-note", store.getState(), fakeUi()));
+  assert.notEqual(pinnedAt(store, "open"), null);
+  assert.equal(pinnedAt(store, "row"), null);
+});
+
+test("pin ignores a focused folder row and keeps the open note as target", async () => {
+  const store = await pinFixture({
+    activeNoteId: "open",
+    nodes: [node("open", 1), node("folder", 2, "folder")],
+  });
+  store.setFocusedNode("folder");
+  const registry = createCommandRegistry(createWorkspaceCommands(store, controls));
+
+  withSidebarFocus(true, () => registry.run("toggle-pin-note", store.getState(), fakeUi()));
+  assert.notEqual(pinnedAt(store, "open"), null);
+  assert.equal(pinnedAt(store, "folder"), null);
+});
+
+test("pin stays enabled from the sidebar with no note open", async () => {
+  const store = await pinFixture({ activeNoteId: null, nodes: [node("row", 1)] });
+  store.update((current) => ({
+    ...current,
+    activeNoteId: null,
+    panes: current.panes.map((pane) => ({ ...pane, activeNoteId: null })),
+  }));
+  store.setFocusedNode("row");
+  const registry = createCommandRegistry(createWorkspaceCommands(store, controls));
+
+  assert.equal(
+    withSidebarFocus(true, () =>
+      registry.isEnabled("toggle-pin-note", store.getState(), fakeUi()),
+    ),
+    true,
+  );
+  assert.equal(
+    withSidebarFocus(false, () =>
+      registry.isEnabled("toggle-pin-note", store.getState(), fakeUi()),
+    ),
+    false,
+  );
 });

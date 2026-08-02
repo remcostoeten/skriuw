@@ -28,6 +28,18 @@ export function focusRegion(region: FocusRegion): boolean {
 }
 
 /**
+ * Whether the keyboard currently sits inside the sidebar tree, so whole-note
+ * actions can target the focused row instead of the open note.
+ */
+export function sidebarTreeHasFocus(): boolean {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  const active = document.activeElement;
+  return typeof active?.closest === "function" && active.closest(SIDEBAR_TREE_SELECTOR) !== null;
+}
+
+/**
  * Which pane the keyboard is inside, by on-screen order, or null when focus
  * sits outside every pane — the sidebar, the metadata panel, or the icon rail.
  */

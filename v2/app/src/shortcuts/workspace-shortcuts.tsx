@@ -5,6 +5,7 @@ import type { AppRoute } from "../app-route";
 import { opensNotesInTabs } from "../settings/settings-model";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererState, RendererStore } from "../store/types";
+import { routeHasSidebar } from "../shell/panel-layout";
 import {
   effectiveShortcutKeys,
   sameShortcutOverrides,
@@ -12,6 +13,7 @@ import {
   shortcutExcept,
   shortcutMatchesPhysicalKey,
   shortcutOverridesFromSettings,
+  shortcutScopesActive,
 } from "./bindings";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type { ShortcutActionId } from "./definitions";
@@ -40,16 +42,21 @@ type Props = {
 };
 
 /**
- * Scopes active for a route. `note-create` gates the global `mod+n` so it never
- * fires on the tag/people manager routes, which bind that key to their own
- * "new entity" action instead, nor on the history route, which has no note
- * surface to drop the new note into. `tags-route` gates keys that only make sense
- * inside the tag manager, like the "new tag" binding. `journal` gates the plain
- * day-navigation keys on the journal route, so they never steal a character
- * anywhere else.
+ * Scopes active for a route. Each mirrors the route gate on the command behind
+ * the binding, so a key never fires into a command that would refuse it:
+ * `notes-route` and `sidebar-route` match `onNotesRoute` and `onSidebarRoute`
+ * in the command table, `tags-route` gates keys that only make sense inside the
+ * tag manager, and `journal` gates the plain day-navigation keys so they never
+ * steal a character anywhere else.
  */
 function activeScopesForRoute(route: AppRoute): string[] {
-  const scopes = route === "notes" || route === "trash" ? ["note-create"] : [];
+  const scopes: string[] = [];
+  if (route === "notes") {
+    scopes.push("notes-route");
+  }
+  if (routeHasSidebar(route)) {
+    scopes.push("sidebar-route");
+  }
   if (route === "tags") {
     scopes.push("tags-route");
   }
@@ -209,15 +216,8 @@ export function WorkspaceShortcuts({
     const activeScopeSet = new Set(activeScopes);
     const handlePhysicalShortcut = (event: KeyboardEvent) => {
       for (const definition of activeDefinitions) {
-        const requiredScopes =
-          definition.scopes === undefined
-            ? []
-            : Array.isArray(definition.scopes)
-              ? definition.scopes
-              : [definition.scopes];
         if (
-          (requiredScopes.length > 0 &&
-            !requiredScopes.some((scope) => activeScopeSet.has(scope))) ||
+          !shortcutScopesActive(definition, activeScopeSet) ||
           !shortcutMatchesPhysicalKey(
             event,
             effectiveShortcutKeys(definition, overrides),
@@ -236,10 +236,11 @@ export function WorkspaceShortcuts({
   }, [activeScopes, activeWhileSuspended, overrides, suspended]);
 
   useEffect(() => {
+    const activeScopeSet = new Set(activeScopes);
     const active = new Set<string>(
-      shortcutDefinitionsForState(suspended, activeWhileSuspended).map(
-        (definition) => definition.id,
-      ),
+      shortcutDefinitionsForState(suspended, activeWhileSuspended)
+        .filter((definition) => shortcutScopesActive(definition, activeScopeSet))
+        .map((definition) => definition.id),
     );
     for (const [id, result] of Object.entries(results)) {
       if (active.has(id.replace(/:secondary$/, ""))) {
@@ -248,7 +249,7 @@ export function WorkspaceShortcuts({
         result.disable();
       }
     }
-  }, [results, shortcutMap, suspended, activeWhileSuspended]);
+  }, [results, shortcutMap, suspended, activeWhileSuspended, activeScopes]);
 
   return null;
 }

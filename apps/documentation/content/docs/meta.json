@@ -1,4 +1,4 @@
 {
-	"pages": ["index", "features", "reference", "infra", "development", "builds", "app-size-table"],
+	"pages": ["index", "features", "reference", "infra", "development", "builds"],
 	"title": "Skriuw Documentation"
 }

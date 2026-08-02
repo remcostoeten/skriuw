@@ -13,6 +13,11 @@ import { useRendererSelector } from "../store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
 import { textEdgeOffset, type DocumentEdge } from "./document-edges";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
+import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
+import type {
+  RawMarkdownEdgeShortcutId,
+  RawMarkdownSurfaceShortcutId,
+} from "./editor-bound-shortcut-ids";
 import { noteImageIds } from "./image-actions";
 import {
   countRawMarkdownWords,
@@ -216,14 +221,14 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     setCursorStatus(rawMarkdownCursorStatus(textarea.value, offset, offset));
   }, [jumpValue]);
 
-  const edgeShortcuts = useMemo(
+  const edgeShortcuts = useMemo<EditorBoundHandlersFor<RawMarkdownEdgeShortcutId>>(
     () => ({
       goToDocumentStart: () => jumpToDocumentEdge("start"),
       goToDocumentEnd: () => jumpToDocumentEdge("end"),
     }),
     [jumpToDocumentEdge],
   );
-  const surfaceShortcuts = useMemo(
+  const surfaceShortcuts = useMemo<EditorBoundHandlersFor<RawMarkdownSurfaceShortcutId>>(
     () => ({ jumpToLine: toggleJumpToLine }),
     [toggleJumpToLine],
   );

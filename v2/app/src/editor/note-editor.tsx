@@ -123,6 +123,8 @@ import {
 } from "./document-edges";
 import { SearchWidget } from "./search-widget";
 import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
+import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
+import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
 import { useEditorSearch } from "./use-editor-search";
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -711,7 +713,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     );
     view.focus();
   }, []);
-  const editorShortcuts = useMemo(
+  const editorShortcuts = useMemo<EditorBoundHandlersFor<NoteEditorShortcutId>>(
     () => ({
       goToDocumentStart: () => jumpToDocumentEdge("start"),
       goToDocumentEnd: () => jumpToDocumentEdge("end"),

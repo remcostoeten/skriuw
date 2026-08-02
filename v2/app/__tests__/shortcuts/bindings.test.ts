@@ -20,7 +20,19 @@ import {
   SHORTCUT_DEFINITIONS,
   TAB_INDEX_ACTION_IDS,
 } from "../../src/shortcuts/definitions";
+import type { ShortcutGuard } from "../../src/shortcuts/definitions";
 import { RAIL_ITEMS } from "../../src/shortcuts/rail-items";
+import { activeShortcutScopes } from "../../src/shortcuts/workspace-shortcuts";
+import type { AppRoute } from "../../src/app-route";
+
+const APP_ROUTES: readonly AppRoute[] = [
+  "notes",
+  "trash",
+  "tags",
+  "people",
+  "history",
+  "journal",
+];
 
 const platformModifier = parseShortcut("mod+k").modifiers.meta ? "meta" : "ctrl";
 const otherModifier = platformModifier === "meta" ? "ctrl" : "meta";
@@ -162,21 +174,22 @@ test("a plain F2 keypress matches the rename binding", () => {
   );
 });
 
-test("trash current note binds both delete keys and keeps them alive while typing", () => {
+test("trash current note binds both delete keys and stays silent while typing", () => {
   const trashCurrentNote = SHORTCUT_DEFINITIONS.find(
     (entry) => entry.id === "trashCurrentNote",
   );
   assert.ok(trashCurrentNote);
   assert.equal(effectiveShortcutKeys(trashCurrentNote, {}), "mod+backspace");
   assert.equal(trashCurrentNote.secondaryKeys, "mod+delete");
-  assert.equal(trashCurrentNote.secondaryWorksWhileTyping, true);
-  assert.deepEqual(shortcutGuards(trashCurrentNote, true), [
-    "textField",
+  assert.equal(trashCurrentNote.worksWhileTyping, undefined);
+  assert.equal(trashCurrentNote.secondaryWorksWhileTyping, undefined);
+  assert.deepEqual(shortcutGuards(trashCurrentNote, false), [
+    "typing",
     "sidebarTree",
     "modal",
   ]);
   assert.equal(findShortcutConflict({}, "trashCurrentNote", "mod+backspace"), null);
-  assert.ok((trashCurrentNote.description ?? "").includes("macOS"));
+  assert.ok((trashCurrentNote.description ?? "").includes("delete-word"));
 });
 
 test("mod+backspace and mod+delete both match the trash binding", () => {
@@ -344,13 +357,115 @@ test("mod+g matches jump to line and a plain g keeps typing", () => {
   );
 });
 
+/**
+ * No two primaries share a combo, regardless of scope. Alternates are allowed
+ * to overlap a scope-separated primary, so the cross-slot case belongs to the
+ * scope-aware test below rather than here.
+ */
 test("every default binding is free of overlaps", () => {
   for (const definition of SHORTCUT_DEFINITIONS) {
-    assert.equal(
-      findShortcutConflict({}, definition.id, effectiveShortcutKeys(definition, {})),
-      null,
-      `${definition.id} overlaps another default`,
+    const keys = effectiveShortcutKeys(definition, {});
+    for (const other of SHORTCUT_DEFINITIONS) {
+      if (other.id === definition.id) {
+        continue;
+      }
+      assert.equal(
+        sameCombo(effectiveShortcutKeys(other, {}), keys),
+        false,
+        `${definition.id} overlaps ${other.id} on "${keys}"`,
+      );
+    }
+  }
+});
+
+/**
+ * Two bindings may share a combo only when they can never fire on the same
+ * keypress. Covers alternates as well as primaries, and pairs them across every
+ * scope set the workspace can actually be in, so a shared plain key is only
+ * legal when a scope or a guard keeps the two apart.
+ */
+test("no two bindings that can be active together share a combo", () => {
+  type Slot = {
+    id: string;
+    slot: string;
+    keys: string;
+    scopes: readonly string[];
+    guards: readonly ShortcutGuard[];
+  };
+
+  const slots: Slot[] = [];
+  for (const definition of SHORTCUT_DEFINITIONS) {
+    const scopes =
+      definition.scopes === undefined
+        ? []
+        : Array.isArray(definition.scopes)
+          ? definition.scopes
+          : [definition.scopes];
+    slots.push({
+      id: definition.id,
+      slot: "primary",
+      keys: effectiveShortcutKeys(definition, {}),
+      scopes,
+      guards: shortcutGuards(definition, definition.worksWhileTyping === true),
+    });
+    if (definition.secondaryKeys) {
+      slots.push({
+        id: definition.id,
+        slot: "alternate",
+        keys: definition.secondaryKeys,
+        scopes,
+        guards: shortcutGuards(definition, definition.secondaryWorksWhileTyping === true),
+      });
+    }
+  }
+
+  const targets = {
+    "a plain element": { tagName: "DIV", isContentEditable: false, closest: () => null },
+    "a text field": { tagName: "INPUT", isContentEditable: false, closest: () => null },
+    "the note body": { tagName: "DIV", isContentEditable: true, closest: () => null },
+    "the sidebar tree": {
+      tagName: "DIV",
+      isContentEditable: false,
+      closest: (selector: string) => (selector.includes("tree") ? {} : null),
+    },
+  };
+
+  const scopeSets: string[][] = [];
+  for (const route of APP_ROUTES) {
+    for (const noteFocused of [false, true]) {
+      for (const tabsEnabled of [false, true]) {
+        for (const splitActive of [false, true]) {
+          scopeSets.push(
+            activeShortcutScopes(route, noteFocused, tabsEnabled, splitActive),
+          );
+        }
+      }
+    }
+  }
+
+  for (const scopeSet of scopeSets) {
+    const live = slots.filter(
+      (slot) => slot.scopes.length === 0 || slot.scopes.some((s) => scopeSet.includes(s)),
     );
+    for (let i = 0; i < live.length; i += 1) {
+      for (let j = i + 1; j < live.length; j += 1) {
+        const a = live[i]!;
+        const b = live[j]!;
+        if (a.id === b.id || !sameCombo(a.keys, b.keys)) {
+          continue;
+        }
+        for (const [where, target] of Object.entries(targets)) {
+          const bothFire =
+            !shortcutGuarded(a.guards, { target }) &&
+            !shortcutGuarded(b.guards, { target });
+          assert.equal(
+            bothFire,
+            false,
+            `${a.id} (${a.slot}) and ${b.id} (${b.slot}) both fire on "${a.keys}" in ${where} with scopes [${scopeSet.join(", ")}]`,
+          );
+        }
+      }
+    }
   }
 });
 
@@ -611,7 +726,7 @@ test("the previous/next note keys fire mid-edit but stay silent behind a modal",
     assert.ok(definition, `${id} has no definition`);
     assert.equal(effectiveShortcutKeys(definition, {}), keys);
     assert.equal(definition.worksWhileTyping, true);
-    assert.equal(definition.scopes, undefined);
+    assert.equal(definition.scopes, "notes-route");
     assert.deepEqual(shortcutGuards(definition, true), ["modal"]);
     assert.equal(findShortcutConflict({}, id, keys), null);
   }

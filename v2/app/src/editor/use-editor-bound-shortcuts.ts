@@ -16,6 +16,13 @@ import type { RendererStore } from "../store/types";
 export type EditorBoundHandlers = Partial<Record<ShortcutActionId, () => void>>;
 
 /**
+ * A handler map that must cover every id in `Id`. Surfaces type their map with
+ * this against their list from `editor-bound-shortcut-ids`, so adding an id to
+ * the list without writing its handler fails to compile.
+ */
+export type EditorBoundHandlersFor<Id extends ShortcutActionId> = Record<Id, () => void>;
+
+/**
  * Binds editor-only shortcut definitions to one editor surface. The listener
  * sits on `host` instead of the window, so the same keys pressed in the sidebar
  * tree, the find panel, the metadata panel, or the other split pane never reach

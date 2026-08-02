@@ -14,6 +14,7 @@ export function registerEditorSearchController(next: EditorSearchController): ()
   };
 }
 
+/** Toggles the find panel: opens it when closed, closes it when open. */
 export function openEditorSearch(): void {
   controller?.open();
 }

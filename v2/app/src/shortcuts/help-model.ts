@@ -48,11 +48,12 @@ export type ShortcutHelpQuery = {
  * instead of prose copied into the overlay.
  */
 const SCOPE_WHEN: Record<string, string> = {
+  "notes-route": "Notes view",
+  "sidebar-route": "Notes or journal view",
   markdown: "Markdown mode",
   tabs: "Tabs open",
   split: "Split view",
   "note-focus": "Editor focused",
-  "note-create": "Notes or trash view",
   "tags-route": "Tags view",
   journal: "Journal view",
 };
@@ -83,7 +84,7 @@ export function shortcutWhenLabel(definition: ShortcutDefinition): string | unde
   if (definition.boundInEditor) {
     parts.push("In the editor");
   }
-  for (const scope of scopeList(definition.scopes)) {
+  for (const scope of [...scopeList(definition.scopes), ...(definition.allScopes ?? [])]) {
     const label = SCOPE_WHEN[scope];
     if (label && !parts.includes(label)) {
       parts.push(label);

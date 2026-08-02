@@ -53,6 +53,12 @@ export function AppearanceSection({ store }: SectionProps) {
           checked={settings.rememberLastNote}
           onChange={(checked) => change("rememberLastNote", checked)}
         />
+        <SettingToggle
+          label="Show toast notifications"
+          detail="Show brief notices like “Moved to trash”. The undo shortcut keeps working while hidden."
+          checked={settings.showToasts}
+          onChange={(checked) => change("showToasts", checked)}
+        />
       </div>
     </section>
   );

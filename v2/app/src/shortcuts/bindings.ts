@@ -222,6 +222,29 @@ export function sameShortcutOverrides(
   );
 }
 
+/** A definition's any-of scopes, normalised to a list. */
+export function shortcutScopeList(definition: ShortcutDefinition): readonly string[] {
+  if (definition.scopes === undefined) {
+    return [];
+  }
+  return typeof definition.scopes === "string" ? [definition.scopes] : definition.scopes;
+}
+
+/**
+ * Whether `active` satisfies a definition's scope gates: at least one of
+ * `scopes` and every one of `allScopes`.
+ */
+export function shortcutScopesActive(
+  definition: ShortcutDefinition,
+  active: ReadonlySet<string>,
+): boolean {
+  const anyOf = shortcutScopeList(definition);
+  if (anyOf.length > 0 && !anyOf.some((scope) => active.has(scope))) {
+    return false;
+  }
+  return (definition.allScopes ?? []).every((scope) => active.has(scope));
+}
+
 export function shortcutDefinition(id: ShortcutActionId): ShortcutDefinition {
   const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
   if (!definition) {
@@ -256,11 +279,33 @@ export function shortcutBindsOnPlatform(
 export type ShortcutConflict = {
   actionId: ShortcutActionId;
   label: string;
+  /** Which of the action's combos the new binding collides with. */
+  slot: "primary" | "secondary";
 };
 
 /**
+ * Every combo an action answers to on `platform`: its effective primary plus
+ * its alternate. Sequences are included, so rebinding onto the first chord of a
+ * sequence is not mistaken for a free combo.
+ */
+export function shortcutCombos(
+  definition: ShortcutDefinition,
+  overrides: ShortcutOverrides,
+): readonly { keys: string; slot: "primary" | "secondary" }[] {
+  const combos: { keys: string; slot: "primary" | "secondary" }[] = [
+    { keys: effectiveShortcutKeys(definition, overrides), slot: "primary" },
+  ];
+  if (definition.secondaryKeys) {
+    combos.push({ keys: definition.secondaryKeys, slot: "secondary" });
+  }
+  return combos;
+}
+
+/**
  * The action whose effective binding already uses `combo`, excluding the
- * action being rebound. Null means the combo is free to assign.
+ * action being rebound. Null means the combo is free to assign. Alternates
+ * count: an action that also answers to `mod+delete` owns that combo just as
+ * firmly as its primary, so handing it to a second action would double-fire.
  */
 export function findShortcutConflict(
   overrides: ShortcutOverrides,
@@ -271,8 +316,10 @@ export function findShortcutConflict(
     if (definition.id === actionId) {
       continue;
     }
-    if (sameCombo(effectiveShortcutKeys(definition, overrides), combo)) {
-      return { actionId: definition.id, label: definition.label };
+    for (const candidate of shortcutCombos(definition, overrides)) {
+      if (sameCombo(candidate.keys, combo)) {
+        return { actionId: definition.id, label: definition.label, slot: candidate.slot };
+      }
     }
   }
   return null;

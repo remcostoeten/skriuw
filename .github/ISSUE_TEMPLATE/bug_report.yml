@@ -1,0 +1,58 @@
+name: Bug report
+description: Report reproducible behavior that is not working as expected.
+title: "[Bug]: "
+labels:
+    - bug
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thanks for helping improve Skriuw. Do not include secrets or private workspace content. Report security issues through the Security tab instead.
+    - type: dropdown
+      id: product
+      attributes:
+          label: Product line
+          options:
+              - v2 desktop
+              - v1 web
+              - v1 mobile
+              - v1 self-hosted
+              - Documentation or repository tooling
+      validations:
+          required: true
+    - type: input
+      id: version
+      attributes:
+          label: Version or commit
+          placeholder: v2-v0.x.y or commit SHA
+      validations:
+          required: true
+    - type: textarea
+      id: description
+      attributes:
+          label: What happened?
+          description: Describe the observed behavior and what you expected instead.
+      validations:
+          required: true
+    - type: textarea
+      id: steps
+      attributes:
+          label: Reproduction steps
+          placeholder: |
+              1. Open …
+              2. Select …
+              3. Observe …
+      validations:
+          required: true
+    - type: textarea
+      id: environment
+      attributes:
+          label: Environment
+          description: Include operating system, installation method, browser, or self-hosting details where relevant.
+      validations:
+          required: true
+    - type: textarea
+      id: evidence
+      attributes:
+          label: Logs or screenshots
+          description: Add sanitized logs, screenshots, or recordings if they help explain the problem.

@@ -39,6 +39,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   editorPlaceholder: "Start writing...",
   editorDefaultRawMode: false,
   openNotesInTabs: false,
+  showToasts: true,
 };
 
 export type SettingsViewModel = {
@@ -52,6 +53,7 @@ export type SettingsViewModel = {
   editorPlaceholder: string;
   editorDefaultRawMode: boolean;
   openNotesInTabs: boolean;
+  showToasts: boolean;
 };
 
 export type EditableSettings = SettingsViewModel;
@@ -88,11 +90,16 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     editorPlaceholder: settings.editorPlaceholder,
     editorDefaultRawMode: settings.editorDefaultRawMode === true,
     openNotesInTabs: settings.openNotesInTabs === true,
+    showToasts: showsToasts(settings),
   };
 }
 
 export function opensNotesInTabs(settings: WorkspaceSettings): boolean {
   return settings.openNotesInTabs === true;
+}
+
+export function showsToasts(settings: WorkspaceSettings): boolean {
+  return settings.showToasts !== false;
 }
 
 export function changeSetting<K extends keyof EditableSettings>(

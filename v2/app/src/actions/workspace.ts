@@ -264,6 +264,19 @@ export function focusedPaneNoteId(state: RendererState): string | null {
 }
 
 /**
+ * The sidebar's focused note, for actions that should follow the tree's cursor
+ * while the sidebar owns the keyboard. Null when the focused row is a folder,
+ * or nothing is focused, so callers fall back to the open note.
+ */
+export function focusedTreeNoteId(state: RendererState): string | null {
+  const id = state.focusedNodeId;
+  if (id === null) {
+    return null;
+  }
+  return state.nodes.get(id)?.kind === "note" ? id : null;
+}
+
+/**
  * The sidebar's focused folder, for actions that need a drop target when
  * nothing more specific is selected (e.g. importing a file into "wherever
  * the sidebar is pointed"). Null when the focused row isn't a folder, or
@@ -297,6 +310,21 @@ export function revealNodeInTree(store: RendererStore, id: string): boolean {
     visibleIds: flattenVisible(current.nodes, current.childrenByParent, expandedIds),
   }));
   return true;
+}
+
+/** Expands or collapses every folder in the tree at once. */
+export function setAllFoldersExpanded(store: RendererStore, expanded: boolean): void {
+  store.update((state) => {
+    const folderIds = [...state.nodes.values()]
+      .filter((node) => node.kind === "folder")
+      .map((node) => node.id);
+    const expandedIds = new Set(expanded ? folderIds : []);
+    return {
+      ...state,
+      expandedIds,
+      visibleIds: flattenVisible(state.nodes, state.childrenByParent, expandedIds),
+    };
+  });
 }
 
 /**
