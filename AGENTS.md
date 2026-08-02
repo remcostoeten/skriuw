@@ -9,7 +9,6 @@ Skriuw contains two independent product lines:
 - `v2/` is the current local-first desktop application. Its stack is Rust, React, ProseMirror, SQLite, and Tauri.
 - `apps/` and `packages/` contain the legacy v1 web, mobile, desktop, collaboration, and self-hosted products.
 - `apps/documentation/content/docs/` is the canonical source for the published documentation site.
-- `docs/README.md` maps durable architecture, specifications, decisions, and technical records.
 
 The default branch is `daddy`. `master` is not the primary integration branch.
 

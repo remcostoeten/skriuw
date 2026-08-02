@@ -71,7 +71,7 @@ SQLite ─┴─ background Git history
 
 SQLite owns canonical workspace state. The renderer applies user actions synchronously and submits durable operations to a serialized runtime queue. Git history, indexing, and persistence never sit on the navigation path.
 
-Read the [v2 architecture](v2/ARCHITECTURE.md), [architecture decision records](v2/docs/adr), [performance contract](v2/docs/performance-contract.md), and [documentation map](docs/README.md).
+Read the [v2 architecture](v2/ARCHITECTURE.md), [architecture decision records](v2/docs/adr), and [performance contract](v2/docs/performance-contract.md).
 
 ## Build from source
 
@@ -107,11 +107,8 @@ apps/mobile/           v1 Expo mobile application
 apps/desktop/          v1 Tauri desktop shell
 apps/documentation/    canonical documentation website source
 packages/              shared v1 packages
-docs/                  repository documentation and technical records
 .github/workflows/     CI and release automation
 ```
-
-See [docs/README.md](docs/README.md) before adding or moving documentation.
 
 ## Contributing
 

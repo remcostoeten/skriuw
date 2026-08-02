@@ -1,6 +1,6 @@
 // Plain-markdown note editor form. The MVP deliberately ships raw-markdown
 // editing rather than a rich block editor (BlockNote is DOM/ProseMirror-only
-// and can't run in RN — see docs/mobile-expo-architecture.md §7). The server
+// and can't run in RN — see apps/documentation/content/docs/development/mobile-expo-architecture.md §7). The server
 // re-derives richContent from the markdown on save, so the native read
 // renderer still gets a rich document on the next fetch.
 import { Platform, ScrollView, TextInput } from "react-native";
