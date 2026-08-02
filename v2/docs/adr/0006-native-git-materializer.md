@@ -15,6 +15,10 @@ Commit messages contain the history outbox ID, note ID, and revision. A retry wh
 
 The adapter exposes backend-neutral header listing and individual-version reads. Header listing rebuilds the SQLite cache atomically. Historical Markdown is read from the selected commit only when requested.
 
+Desktop orchestration processes at most 64 items before yielding and checks
+shutdown between every item. Each item still completes its Git commit and
+matching SQLite cache acknowledgement independently.
+
 ## Consequences
 
 - End users do not need a Git executable or system libgit2 installation.

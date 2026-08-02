@@ -34,6 +34,7 @@ export type TreeProjection = {
 
 const FIXTURE_TIME = 1_753_000_000_000;
 const MEASURED_NOTE_COUNT = 8;
+const WORKING_SET_NOTE_COUNT = 100;
 
 const settings: WorkspaceSettings = {
   settingsVersion: 1,
@@ -119,6 +120,7 @@ export function createPerformanceSnapshot(
   const noteIds = projection.nodes
     .filter((node) => node.kind === "note")
     .map((node) => node.id);
+  const workingSetNoteIds = noteIds.slice(0, WORKING_SET_NOTE_COUNT);
   const nodes: WorkspaceNode[] = projection.nodes.map((node, index) => ({
     ...node,
     rank: (index + 1) * 1024,
@@ -171,6 +173,7 @@ export function createPerformanceSnapshot(
       folderCount: projection.metadata.folderCount,
       blockCount,
       measuredNoteIds,
+      workingSetNoteIds,
     },
   };
 }

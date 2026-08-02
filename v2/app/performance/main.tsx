@@ -9,6 +9,7 @@ import { createPerformanceSnapshot } from "./fixture";
 import type { TreeProjection } from "./fixture";
 import { createPerformanceController } from "./harness";
 import type { PerformanceWindow } from "./types";
+import { preparedEditorDocuments } from "../src/editor/prepared-documents";
 import "../src/styles.css";
 
 async function start(): Promise<void> {
@@ -35,6 +36,9 @@ async function start(): Promise<void> {
     profilerCallback?.(...arguments_);
   };
   const root = createRoot(container);
+  const memory = performance as Performance & { memory?: { usedJSHeapSize: number } };
+  const heapBytesBefore = memory.memory?.usedJSHeapSize ?? null;
+  const renderStarted = performance.now();
   flushSync(() => {
     root.render(
       <StrictMode>
@@ -44,7 +48,13 @@ async function start(): Promise<void> {
       </StrictMode>,
     );
   });
-  const controller = await createPerformanceController(store, identity);
+  const startupPreparation = {
+    renderMs: performance.now() - renderStarted,
+    heapBytesBefore,
+    heapBytesAfter: memory.memory?.usedJSHeapSize ?? null,
+    ...preparedEditorDocuments(store).metrics(),
+  };
+  const controller = await createPerformanceController(store, identity, startupPreparation);
   profilerCallback = controller.onRender;
   (window as unknown as PerformanceWindow).__SKRIUW_PRODUCT_PERFORMANCE__ = controller;
 }

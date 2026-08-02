@@ -261,6 +261,11 @@ async function runContext(context) {
       sessionId,
       "window.__SKRIUW_PRODUCT_PERFORMANCE__.runSelection()",
     );
+    const workingSet = await evaluate(
+      cdp,
+      sessionId,
+      "window.__SKRIUW_PRODUCT_PERFORMANCE__.runWorkingSet()",
+    );
     const traceEvents = [];
     let traceFinished = false;
     let finishTrace;
@@ -330,7 +335,7 @@ async function runContext(context) {
     const result = await evaluate(
       cdp,
       sessionId,
-      `window.__SKRIUW_PRODUCT_PERFORMANCE__.finish(${JSON.stringify(selection)}, ${JSON.stringify(keyboardSwitches)}, ${JSON.stringify(typing)}, ${JSON.stringify(referenceSuggestions)})`,
+      `window.__SKRIUW_PRODUCT_PERFORMANCE__.finish(${JSON.stringify(selection)}, ${JSON.stringify(workingSet)}, ${JSON.stringify(keyboardSwitches)}, ${JSON.stringify(typing)}, ${JSON.stringify(referenceSuggestions)})`,
     );
     result.correctness.push(
       {
@@ -388,6 +393,12 @@ function budgetStatus(record) {
   const below = (summary, p95, maximum) => summary.p95Ms < p95 && summary.maxMs < maximum;
   return {
     cachedEditorSwap: below(record.selection.summary.editorInstallation, 8, 16.67),
+    boundedEditorWorkingSet:
+      record.workingSet.maximumObservedSize <= record.workingSet.configuredLimit &&
+      record.workingSet.finalObservedSize <= record.workingSet.configuredLimit &&
+      record.workingSet.evictions > 0 &&
+      record.workingSet.bridgeCalls.length === 0,
+    coldEditorRevisit: record.workingSet.coldRevisitDispatchMs < 8,
     selectionDispatch: record.selection.summary.dispatch.p95Ms < 8,
     keystrokeToPaint: below(record.typing.summary.nextPaint, 8, 16.67),
     hundredSwitchesDroppedNoFrames: record.keyboardSwitches.droppedFrames === 0,

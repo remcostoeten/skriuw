@@ -1,5 +1,6 @@
 import { flushSync } from "react-dom";
 import { EditorView } from "prosemirror-view";
+import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "../src/editor/editor-working-set";
 import type { ProfilerOnRenderCallback } from "react";
 import type { RendererStore } from "../src/store/types";
 import { estimateFrameDuration, nextFrame, summarize } from "./metrics";
@@ -11,13 +12,15 @@ import type {
   PerformanceController,
   PhaseResult,
   ProductRendererResult,
+  StartupPreparationResult,
+  WorkingSetResult,
 } from "./types";
 
 const SELECTION_COUNT = 100;
 const TYPING_COUNT = 30;
 
 type Phase = {
-  name: "selection" | "keyboard" | "typing";
+  name: "selection" | "working-set" | "keyboard" | "typing";
   startedAt: number;
   dispatchMs: number[];
   editorInstallationMs: number[];
@@ -132,9 +135,22 @@ function instrumentEditor(onInstallation: (duration: number) => void): () => voi
   };
 }
 
+function instrumentWorkingSet(onPrune: (size: number, evictions: number) => void): () => void {
+  const original = EditorWorkingSet.prototype.prune;
+  EditorWorkingSet.prototype.prune = function prune(protectedKeys) {
+    const evicted = original.call(this, protectedKeys);
+    onPrune(this.size, evicted.length);
+    return evicted;
+  };
+  return () => {
+    EditorWorkingSet.prototype.prune = original;
+  };
+}
+
 export async function createPerformanceController(
   store: RendererStore,
   fixture: FixtureIdentity,
+  startupPreparation: StartupPreparationResult,
 ): Promise<PerformanceController> {
   const estimatedFrameMs = await estimateFrameDuration();
   let phase: Phase | null = null;
@@ -145,11 +161,19 @@ export async function createPerformanceController(
   let editorHosts = 0;
   let prosemirrorViews = 0;
   let initialEditor: Element | null = null;
+  let maximumWorkingSetSize = 0;
+  let finalWorkingSetSize = 0;
+  let workingSetEvictions = 0;
   const resourceBaseline = new Set(
     performance.getEntriesByType("resource").map((entry) => entry.name),
   );
   const restoreEditor = instrumentEditor((duration) => {
     phase?.editorInstallationMs.push(duration);
+  });
+  const restoreWorkingSet = instrumentWorkingSet((size, evictions) => {
+    maximumWorkingSetSize = Math.max(maximumWorkingSetSize, size);
+    finalWorkingSetSize = size;
+    workingSetEvictions += evictions;
   });
   const mutationObserver = new MutationObserver((records) => {
     for (const record of records) {
@@ -222,6 +246,41 @@ export async function createPerformanceController(
     const completed = phase;
     phase = null;
     return stopPhase(completed, estimatedFrameMs);
+  }
+
+  async function runWorkingSet(): Promise<WorkingSetResult> {
+    if (phase) {
+      throw new Error("performance phase already active");
+    }
+    if (fixture.workingSetNoteIds.length !== 100) {
+      throw new Error("working-set measurement requires one hundred distinct notes");
+    }
+    maximumWorkingSetSize = 0;
+    finalWorkingSetSize = 0;
+    workingSetEvictions = 0;
+    phase = startPhase("working-set");
+    for (const id of fixture.workingSetNoteIds) {
+      flushSync(() => store.setActiveNote(id));
+      await nextFrame();
+    }
+    const revisitId = fixture.workingSetNoteIds[0];
+    if (!revisitId) throw new Error("missing working-set revisit note");
+    const started = performance.now();
+    flushSync(() => store.setActiveNote(revisitId));
+    const coldRevisitDispatchMs = performance.now() - started;
+    await nextFrame();
+    const completed = phase;
+    phase = null;
+    const result = await stopPhase(completed, estimatedFrameMs);
+    return {
+      distinctVisits: fixture.workingSetNoteIds.length,
+      configuredLimit: EDITOR_WORKING_SET_LIMIT,
+      maximumObservedSize: maximumWorkingSetSize,
+      finalObservedSize: finalWorkingSetSize,
+      evictions: workingSetEvictions,
+      coldRevisitDispatchMs,
+      bridgeCalls: result.bridgeCalls,
+    };
   }
 
   async function prepareKeyboard(): Promise<{ anchors: string[] }> {
@@ -342,6 +401,7 @@ export async function createPerformanceController(
 
   function finish(
     selection: PhaseResult,
+    workingSet: WorkingSetResult,
     keyboardSwitches: PhaseResult & { expected: number; handled: number; selections: number },
     typing: PhaseResult & { expected: number; handled: number },
     referenceSuggestions: {
@@ -383,6 +443,16 @@ export async function createPerformanceController(
         name: "editor-host-and-view-stay-mounted",
         pass: mounts.editorHosts === 1 && mounts.prosemirrorViews === 1 && mounts.editorRemounts === 0,
         detail: JSON.stringify(mounts),
+      },
+      {
+        name: "editor-working-set-is-bounded",
+        pass:
+          workingSet.distinctVisits >= 100 &&
+          workingSet.maximumObservedSize <= workingSet.configuredLimit &&
+          workingSet.finalObservedSize <= workingSet.configuredLimit &&
+          workingSet.evictions > 0 &&
+          workingSet.bridgeCalls.length === 0,
+        detail: JSON.stringify(workingSet),
       },
       {
         name: "keyboard-switch-count-is-exact",
@@ -437,6 +507,7 @@ export async function createPerformanceController(
       fixture,
       estimatedFrameMs,
       selection,
+      workingSet,
       keyboardSwitches,
       typing,
       referenceSuggestions,
@@ -447,6 +518,7 @@ export async function createPerformanceController(
         editorBlocks: document.querySelectorAll(".ProseMirror > *").length,
       },
       resourcesLoadedDuringNavigation: loadedResources,
+      startupPreparation,
       correctness,
     };
   }
@@ -455,6 +527,7 @@ export async function createPerformanceController(
     store,
     onRender,
     runSelection,
+    runWorkingSet,
     alignFrame: async () => {
       await nextFrame();
     },
@@ -469,6 +542,7 @@ export async function createPerformanceController(
     finish,
     destroy: () => {
       restoreEditor();
+      restoreWorkingSet();
       mutationObserver.disconnect();
       window.removeEventListener("keydown", onKeyDown, { capture: true });
       store.destroy();

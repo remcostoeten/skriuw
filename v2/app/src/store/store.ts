@@ -69,6 +69,17 @@ function strictEqual<T>(left: T, right: T): boolean {
   return Object.is(left, right);
 }
 
+function hasLosslessMarkdown(documentJson: unknown): boolean {
+  if (typeof documentJson !== "object" || documentJson === null) return false;
+  const content = (documentJson as { content?: unknown }).content;
+  return Array.isArray(content) && content.some(
+    (node) =>
+      typeof node === "object" &&
+      node !== null &&
+      (node as { type?: unknown }).type === "raw_markdown",
+  );
+}
+
 function compareHistoryHeaders(left: HistoryHeader, right: HistoryHeader): number {
   if (left.createdAt !== right.createdAt) {
     return right.createdAt - left.createdAt;
@@ -160,7 +171,10 @@ export function createInitialState(
   }
   const documents = new Map<string, DocumentRecord>();
   for (const document of snapshot.documents) {
-    documents.set(document.noteId, document);
+    documents.set(document.noteId, {
+      ...document,
+      hasLosslessMarkdown: hasLosslessMarkdown(document.documentJson),
+    });
   }
   const requestedExpansion =
     expandedFolderIds ??
@@ -300,6 +314,7 @@ function reduceState(
       documentJson: operation.documentJson,
       markdown: operation.markdown,
       wordCount: operation.wordCount,
+      hasLosslessMarkdown: hasLosslessMarkdown(operation.documentJson),
     });
     const sourceNode = current.sourceNodes.get(operation.noteId);
     const sourceNodes = new Map(current.sourceNodes);
@@ -434,6 +449,7 @@ function reduceState(
       markdown: operation.markdown,
       revision: 0,
       wordCount: 0,
+      hasLosslessMarkdown: hasLosslessMarkdown(operation.documentJson),
     });
     documents = withCreated;
     // Journal entries open in the journal view, never in the notes panes,
@@ -588,6 +604,7 @@ function reduceImportBatch(
           markdown: operation.markdown,
           revision: 0,
           wordCount: 0,
+          hasLosslessMarkdown: hasLosslessMarkdown(operation.documentJson),
         });
       }
     } else if (operation.type === "rename_node") {
@@ -607,6 +624,7 @@ function reduceImportBatch(
           documentJson: operation.documentJson,
           markdown: operation.markdown,
           wordCount: operation.wordCount,
+          hasLosslessMarkdown: hasLosslessMarkdown(operation.documentJson),
         });
         references.set(operation.noteId, {
           noteId: operation.noteId,

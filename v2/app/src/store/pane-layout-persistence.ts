@@ -1,4 +1,8 @@
-import { bindDebouncedPersistence, type PersistenceOptions } from "./debounced-persistence";
+import {
+  bindDebouncedPersistence,
+  type PersistenceBinding,
+  type PersistenceOptions,
+} from "./debounced-persistence";
 import { serializePaneLayout } from "./panes";
 import type { RendererStore } from "./types";
 
@@ -13,7 +17,7 @@ export function bindPaneLayoutPersistence(
   store: RendererStore,
   persist: Persist,
   options: PersistenceOptions = {},
-): () => void {
+): PersistenceBinding {
   return bindDebouncedPersistence(
     store,
     (state) => state.panes,

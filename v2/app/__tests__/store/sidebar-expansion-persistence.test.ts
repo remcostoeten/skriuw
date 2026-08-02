@@ -52,7 +52,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
 test("expansion persistence coalesces synchronous paints into the latest write", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
   const writes: string[][] = [];
-  const unbind = bindSidebarExpansionPersistence(
+  const binding = bindSidebarExpansionPersistence(
     store,
     async (folderIds) => {
       writes.push([...folderIds]);
@@ -67,13 +67,13 @@ test("expansion persistence coalesces synchronous paints into the latest write",
   assert.deepEqual(writes, []);
   await settle();
   assert.deepEqual(writes, [["folder-b"]]);
-  unbind();
+  await binding.dispose();
 });
 
 test("failed expansion persistence never rolls renderer state back", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
   let failures = 0;
-  const unbind = bindSidebarExpansionPersistence(
+  const binding = bindSidebarExpansionPersistence(
     store,
     async () => {
       throw new Error("unavailable");
@@ -85,13 +85,14 @@ test("failed expansion persistence never rolls renderer state back", async () =>
   await settle();
   assert.equal(failures, 1);
   assert.deepEqual([...store.getState().expandedIds], ["folder-a"]);
-  unbind();
+  await assert.rejects(binding.dispose(), /unavailable/);
+  assert.equal(failures, 2);
 });
 
 test("teardown flushes the latest expansion before the coalescing delay", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
   const writes: string[][] = [];
-  const unbind = bindSidebarExpansionPersistence(
+  const binding = bindSidebarExpansionPersistence(
     store,
     async (folderIds) => {
       writes.push([...folderIds]);
@@ -101,8 +102,7 @@ test("teardown flushes the latest expansion before the coalescing delay", async 
 
   store.toggleExpanded("folder-a");
   store.toggleExpanded("folder-b");
-  unbind();
-  await settle();
+  await binding.dispose();
 
   assert.deepEqual(writes, [["folder-a", "folder-b"]]);
 });

@@ -967,19 +967,20 @@ fn persists_bounded_history_diagnostic_records() {
     );
 
     storage
-        .release_history_revision("worker-1", &item.id, &diagnostic)
+        .release_history_revision("worker-1", &item.id, 1_010, &diagnostic)
         .expect("release history");
 
-    let persisted = storage
+    let (persisted, next_attempt_at) = storage
         .lock()
         .expect("database lock")
         .query_row(
-            "SELECT last_error FROM history_outbox WHERE id = ?1",
+            "SELECT last_error, next_attempt_at FROM history_outbox WHERE id = ?1",
             [&item.id],
-            |row| row.get::<_, String>(0),
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
         )
         .expect("persisted diagnostic");
     assert_eq!(persisted, diagnostic.to_string());
+    assert_eq!(next_attempt_at, 1_010);
     assert!(persisted.starts_with("history.backend: "));
     assert!(persisted.len() <= "history.backend: ".len() + MAX_DIAGNOSTIC_MESSAGE_BYTES);
     assert!(!persisted.contains(char::is_control));

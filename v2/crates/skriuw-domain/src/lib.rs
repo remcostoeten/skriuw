@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    io,
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -23,6 +26,11 @@ pub const MAX_PROPERTY_OPTIONS: usize = 64;
 pub const MAX_PROPERTY_NAME_BYTES: usize = 80;
 pub const MAX_PROPERTY_VALUE_BYTES: usize = 2_000;
 pub const MAX_TEMPLATE_NAME_BYTES: usize = 60;
+pub const MAX_DOCUMENT_JSON_BYTES: usize = 128 * 1024 * 1024;
+pub const MAX_DOCUMENT_MARKDOWN_BYTES: usize = 128 * 1024 * 1024;
+pub const MAX_DOCUMENT_NODES: usize = 1_000_000;
+pub const MAX_DOCUMENT_DEPTH: usize = 128;
+pub const MAX_OPERATION_GROUP: usize = 100_000;
 
 pub const SETTINGS_FIELDS: [&str; 10] = [
     "settingsVersion",
@@ -51,6 +59,8 @@ pub enum OperationValidationError {
     NegativeTimestamp,
     #[error("document must be a JSON object")]
     InvalidDocument,
+    #[error("document exceeds maximum depth {maximum}")]
+    DocumentTooDeep { maximum: usize },
     #[error("word count cannot be negative")]
     NegativeWordCount,
     #[error("expected revision must be between 1 and {maximum}")]
@@ -638,7 +648,8 @@ impl WorkspaceArchive {
             if node.kind != NodeKind::Note {
                 return archive_error(format!("document {} belongs to a folder", document.note_id));
             }
-            validate_document(&document.document_json).map_err(archive_operation_error)?;
+            validate_document(&document.document_json, &document.markdown)
+                .map_err(archive_operation_error)?;
             if document.revision < 1 {
                 return archive_error(format!(
                     "document {} has invalid revision",
@@ -1182,6 +1193,28 @@ impl WorkspaceOperationEnvelope {
     }
 }
 
+pub fn validate_operation_group(
+    operations: &[WorkspaceOperationEnvelope],
+) -> Result<(), OperationValidationError> {
+    validate_operation_group_with_limit(operations, MAX_OPERATION_GROUP)
+}
+
+fn validate_operation_group_with_limit(
+    operations: &[WorkspaceOperationEnvelope],
+    maximum: usize,
+) -> Result<(), OperationValidationError> {
+    if operations.len() > maximum {
+        return Err(OperationValidationError::TooMany {
+            field: "workspace operations",
+            maximum,
+        });
+    }
+    for operation in operations {
+        operation.validate()?;
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(
     tag = "type",
@@ -1352,12 +1385,12 @@ impl WorkspaceOperation {
                 title,
                 placement,
                 document_json,
+                markdown,
                 at,
-                ..
             } => {
                 validate_id("id", id)?;
                 validate_title(title)?;
-                validate_document(document_json)?;
+                validate_document(document_json, markdown)?;
                 validate_timestamp(*at)?;
                 validate_placement(id, placement)
             }
@@ -1412,13 +1445,13 @@ impl WorkspaceOperation {
             Self::SaveDocument {
                 note_id,
                 document_json,
+                markdown,
                 word_count,
                 expected_revision,
                 at,
-                ..
             } => {
                 validate_id("note id", note_id)?;
-                validate_document(document_json)?;
+                validate_document(document_json, markdown)?;
                 if *word_count < 0 {
                     return Err(OperationValidationError::NegativeWordCount);
                 }
@@ -1652,11 +1685,99 @@ fn validate_timestamp(at: i64) -> Result<(), OperationValidationError> {
     }
 }
 
-fn validate_document(document: &Value) -> Result<(), OperationValidationError> {
-    if document.is_object() {
+#[derive(Clone, Copy)]
+struct DocumentLimits {
+    json_bytes: usize,
+    markdown_bytes: usize,
+    nodes: usize,
+    depth: usize,
+}
+
+const DOCUMENT_LIMITS: DocumentLimits = DocumentLimits {
+    json_bytes: MAX_DOCUMENT_JSON_BYTES,
+    markdown_bytes: MAX_DOCUMENT_MARKDOWN_BYTES,
+    nodes: MAX_DOCUMENT_NODES,
+    depth: MAX_DOCUMENT_DEPTH,
+};
+
+fn validate_document(document: &Value, markdown: &str) -> Result<(), OperationValidationError> {
+    validate_document_with_limits(document, markdown, DOCUMENT_LIMITS)
+}
+
+fn validate_document_with_limits(
+    document: &Value,
+    markdown: &str,
+    limits: DocumentLimits,
+) -> Result<(), OperationValidationError> {
+    if !document.is_object() {
+        return Err(OperationValidationError::InvalidDocument);
+    }
+    if markdown.len() > limits.markdown_bytes {
+        return Err(OperationValidationError::TooLong {
+            field: "document Markdown",
+            maximum: limits.markdown_bytes,
+        });
+    }
+    let mut seen = 0usize;
+    let mut stack = vec![(document, 1usize)];
+    while let Some((value, depth)) = stack.pop() {
+        if depth > limits.depth {
+            return Err(OperationValidationError::DocumentTooDeep {
+                maximum: limits.depth,
+            });
+        }
+        seen = seen.saturating_add(1);
+        if seen > limits.nodes {
+            return Err(OperationValidationError::TooMany {
+                field: "document JSON nodes",
+                maximum: limits.nodes,
+            });
+        }
+        match value {
+            Value::Array(values) => {
+                stack.extend(values.iter().map(|value| (value, depth + 1)));
+            }
+            Value::Object(values) => {
+                stack.extend(values.values().map(|value| (value, depth + 1)));
+            }
+            _ => {}
+        }
+    }
+    let mut counter = BoundedWriter::new(limits.json_bytes);
+    serde_json::to_writer(&mut counter, document).map_err(|_| OperationValidationError::TooLong {
+        field: "document JSON",
+        maximum: limits.json_bytes,
+    })
+}
+
+struct BoundedWriter {
+    written: usize,
+    maximum: usize,
+}
+
+impl BoundedWriter {
+    fn new(maximum: usize) -> Self {
+        Self {
+            written: 0,
+            maximum,
+        }
+    }
+}
+
+impl io::Write for BoundedWriter {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        if self.written.saturating_add(buffer.len()) > self.maximum {
+            return Err(io::Error::new(
+                io::ErrorKind::FileTooLarge,
+                "document JSON exceeds its byte limit",
+            ));
+        }
+        self.written += buffer.len();
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
         Ok(())
-    } else {
-        Err(OperationValidationError::InvalidDocument)
     }
 }
 
@@ -1722,12 +1843,13 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArchiveValidationError, NodeKind, NodePlacement, NoteProperty, NotePropertyColor,
-        NotePropertyField, NotePropertyOption, NotePropertyTemplate, NotePropertyValue,
-        OperationValidationError, SETTINGS_FIELDS, VersionedNotePropertyValue,
+        ArchiveValidationError, DocumentLimits, NodeKind, NodePlacement, NoteProperty,
+        NotePropertyColor, NotePropertyField, NotePropertyOption, NotePropertyTemplate,
+        NotePropertyValue, OperationValidationError, SETTINGS_FIELDS, VersionedNotePropertyValue,
         WORKSPACE_ARCHIVE_VERSION, WORKSPACE_PROTOCOL_VERSION, WORKSPACE_SETTINGS_VERSION,
         WorkspaceArchive, WorkspaceDocument, WorkspaceNode, WorkspaceOperation,
-        WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceTag,
+        WorkspaceOperationEnvelope, WorkspaceSettings, WorkspaceTag, validate_document_with_limits,
+        validate_operation_group_with_limit,
     };
 
     #[test]
@@ -1816,6 +1938,55 @@ mod tests {
             self_anchor.validate(),
             Err(OperationValidationError::SelfAnchor)
         );
+    }
+
+    #[test]
+    fn bounds_document_shape_bytes_and_operation_groups() {
+        let limits = DocumentLimits {
+            json_bytes: 48,
+            markdown_bytes: 4,
+            nodes: 4,
+            depth: 3,
+        };
+        assert!(matches!(
+            validate_document_with_limits(&json!({"type": "doc"}), "12345", limits),
+            Err(OperationValidationError::TooLong {
+                field: "document Markdown",
+                ..
+            })
+        ));
+        assert!(matches!(
+            validate_document_with_limits(
+                &json!({"type": "doc", "text": "a string that exceeds the JSON limit"}),
+                "",
+                limits,
+            ),
+            Err(OperationValidationError::TooLong {
+                field: "document JSON",
+                ..
+            })
+        ));
+        assert!(matches!(
+            validate_document_with_limits(&json!({"a": [1, 2, 3, 4]}), "", limits),
+            Err(OperationValidationError::TooMany {
+                field: "document JSON nodes",
+                ..
+            })
+        ));
+        assert!(matches!(
+            validate_document_with_limits(&json!({"a": {"b": {"c": 1}}}), "", limits),
+            Err(OperationValidationError::DocumentTooDeep { maximum: 3 })
+        ));
+
+        let operation =
+            WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetActiveNote { note_id: None });
+        assert!(matches!(
+            validate_operation_group_with_limit(&[operation.clone(), operation], 1),
+            Err(OperationValidationError::TooMany {
+                field: "workspace operations",
+                maximum: 1,
+            })
+        ));
     }
 
     #[test]

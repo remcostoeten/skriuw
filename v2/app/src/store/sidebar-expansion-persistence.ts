@@ -1,4 +1,8 @@
-import { bindDebouncedPersistence, type PersistenceOptions } from "./debounced-persistence";
+import {
+  bindDebouncedPersistence,
+  type PersistenceBinding,
+  type PersistenceOptions,
+} from "./debounced-persistence";
 import type { RendererStore } from "./types";
 
 type Persist = (folderIds: readonly string[]) => Promise<void>;
@@ -12,7 +16,7 @@ export function bindSidebarExpansionPersistence(
   store: RendererStore,
   persist: Persist,
   options: PersistenceOptions = {},
-): () => void {
+): PersistenceBinding {
   return bindDebouncedPersistence(
     store,
     (state) => state.expandedIds,

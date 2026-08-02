@@ -96,6 +96,8 @@ export async function bindWindowClosePersistence(
         await persistBeforeClose(store, persist, timeoutMs);
       } catch (error) {
         onError(error);
+        closing = false;
+        return;
       }
       try {
         await windowPort.completeClose();

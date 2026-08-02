@@ -1436,9 +1436,15 @@ mod smoke_tests {
         drain.shutdown();
 
         assert!(publications.lock().expect("publications").is_empty());
-        let retry = SqliteWorkspace::open(&db_path)
-            .expect("reopen db")
-            .claim_history_revision("retry-check", now_millis(), 30_000)
+        let reopened = SqliteWorkspace::open(&db_path).expect("reopen db");
+        assert!(
+            reopened
+                .claim_history_revision("retry-check", now_millis(), 30_000)
+                .expect("claim deferred retry")
+                .is_none()
+        );
+        let retry = reopened
+            .claim_history_revision("retry-check", i64::MAX, 30_000)
             .expect("claim retry")
             .expect("pending retry");
         assert_eq!(retry.attempts, 2);

@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { editorModeForNote } from "../actions/editor-mode";
 import { NoteEditor } from "../editor/note-editor";
 import { RawMarkdownEditor } from "../editor/raw-markdown-editor";
-import { hasLosslessMarkdownDocument } from "../editor/schema";
 import { NotePropertiesShelf } from "../properties/note-properties-shelf";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import { WaypointsIcon, iconStrokeWidth } from "../shared/icons";
@@ -32,7 +31,7 @@ export function EditorHost({
       }
       return (
         editorModeForNote(state, noteId) === "raw" ||
-        hasLosslessMarkdownDocument(state.documents.get(noteId)?.documentJson)
+        state.documents.get(noteId)?.hasLosslessMarkdown === true
       );
     },
     [selectNoteId],

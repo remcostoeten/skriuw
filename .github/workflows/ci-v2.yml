@@ -17,6 +17,28 @@ permissions:
     contents: read
 
 jobs:
+    portable-wasm:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        defaults:
+            run:
+                working-directory: v2
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Install Rust toolchain
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  targets: wasm32-unknown-unknown
+
+            - name: Cache Cargo
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: v2 -> target
+
+            - name: Verify portable Rust crates
+              run: ./scripts/check-wasm.sh
+
     verify-and-build:
         runs-on: ubuntu-latest
         timeout-minutes: 45

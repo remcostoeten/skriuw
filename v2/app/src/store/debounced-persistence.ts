@@ -5,6 +5,11 @@ export type PersistenceOptions = {
   onError?: (error: unknown) => void;
 };
 
+export type PersistenceBinding = {
+  flush: () => Promise<void>;
+  dispose: () => Promise<void>;
+};
+
 /**
  * Subscribes to a store slice and persists snapshots of it in the background:
  * synchronous local updates, one coalesced write after a short delay, and a
@@ -17,30 +22,39 @@ export function bindDebouncedPersistence<Slice, Snapshot>(
   snapshot: (state: RendererState) => Snapshot,
   persist: (value: Snapshot) => Promise<void>,
   options: PersistenceOptions = {},
-): () => void {
+): PersistenceBinding {
   const delayMs = options.delayMs ?? 160;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let pending: Snapshot | null = null;
-  let inFlight = false;
-  let stopped = false;
+  let inFlight: Promise<void> | null = null;
+  let failed: { value: Snapshot; error: unknown } | null = null;
+  let disposed = false;
 
   const drain = async (): Promise<void> => {
-    if (inFlight || pending === null || stopped) {
+    if (inFlight !== null) {
+      await inFlight;
+      return;
+    }
+    if (pending === null) {
       return;
     }
     const value = pending;
     pending = null;
-    inFlight = true;
-    try {
-      await persist(value);
-    } catch (error) {
-      options.onError?.(error);
-    } finally {
-      inFlight = false;
-      if (pending !== null && !stopped) {
-        void drain();
-      }
-    }
+    inFlight = persist(value)
+      .then(() => {
+        failed = null;
+      })
+      .catch((error) => {
+        failed = { value, error };
+        options.onError?.(error);
+      })
+      .finally(() => {
+        inFlight = null;
+        if (pending !== null && !disposed) {
+          void drain();
+        }
+      });
+    await inFlight;
   };
 
   const unsubscribe = store.subscribe(select, () => {
@@ -54,17 +68,28 @@ export function bindDebouncedPersistence<Slice, Snapshot>(
     }, delayMs);
   });
 
-  return () => {
-    unsubscribe();
+  async function flush(): Promise<void> {
     if (timer !== null) {
       clearTimeout(timer);
     }
     timer = null;
-    const finalValue = pending;
-    pending = null;
-    stopped = true;
-    if (finalValue !== null) {
-      void persist(finalValue).catch((error) => options.onError?.(error));
+    if (pending === null && inFlight === null && failed !== null) {
+      pending = failed.value;
     }
-  };
+    while (pending !== null || inFlight !== null) {
+      await drain();
+    }
+    if (failed !== null) {
+      throw failed.error;
+    }
+  }
+
+  async function dispose(): Promise<void> {
+    if (disposed) return;
+    disposed = true;
+    unsubscribe();
+    await flush();
+  }
+
+  return { flush, dispose };
 }

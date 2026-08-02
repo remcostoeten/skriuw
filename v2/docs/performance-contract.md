@@ -15,6 +15,7 @@ Reference hardware will be fixed before implementation benchmarks begin.
 | Command palette open | P95 below 8 ms |
 | Tree create, move, reorder | P95 below 8 ms |
 | Keystroke to paint | P95 below 8 ms; max below 16.67 ms |
+| Diagram node drag frame | Max below 16.67 ms |
 | Main-thread task during navigation | None above 8 ms |
 | Dropped frames during 100 cached note switches | Zero on reference hardware |
 
@@ -30,6 +31,9 @@ Reference hardware will be fixed before implementation benchmarks begin.
 - No application-shell render from editor keystrokes.
 - No broad store subscription where a selector can express the dependency.
 - No production React Scan or profiling instrumentation.
+- Each visible editor retains at most 32 clean note states. Active, dirty, or in-flight note states may temporarily exceed that ceiling and must never be evicted.
+- Diagram pointer movement stays renderer-local, routes only incident connectors, and produces one document transaction when the gesture ends.
+- Cached note navigation does not parse diagram source or run automatic layout.
 
 ## Fixtures
 
@@ -38,6 +42,8 @@ Reference hardware will be fixed before implementation benchmarks begin.
 - 100 rapid note switches by keyboard.
 - 10,000 command-palette entries.
 - Continuous typing while search and history projections update.
+- At least 100 distinct note visits followed by a cold revisit, with working-set size and reconstruction timing recorded.
+- Mixed prose with 10-, 50-, and 150-node editable flowcharts.
 
 ## Enforcement
 
@@ -52,6 +58,7 @@ Architecture changes failing budgets do not merge without an explicit ADR and a 
 | Interaction | Allowed React work |
 | --- | --- |
 | Editor keystroke | Editor-owned view only |
+| Diagram drag | Diagram NodeView only; one editor transaction at gesture end |
 | Note selection | Selected-note consumers only; editor host stays mounted |
 | Tree selection | Previous row, next row, and direct selection consumers |
 | Metadata edit | Changed field consumers only |

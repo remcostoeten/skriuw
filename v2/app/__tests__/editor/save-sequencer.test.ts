@@ -47,6 +47,58 @@ test("a failed save does not strand the next save or flush", async () => {
   assert.deepEqual(events, ["failed", "recovered"]);
 });
 
+test("failure remains visible and flush rejects while a save is undurable", async () => {
+  const observed: string[][] = [];
+  const sequencer = new SaveSequencer((failures) => {
+    observed.push(failures.map(({ noteId }) => noteId));
+  });
+
+  await assert.rejects(
+    sequencer.enqueue("note-1", async () => {
+      throw new Error("disk full");
+    }),
+    /disk full/,
+  );
+
+  assert.deepEqual(sequencer.currentFailures().map(({ noteId }) => noteId), ["note-1"]);
+  await assert.rejects(sequencer.flush(), /1 note.*not durable/);
+  assert.deepEqual(observed, [["note-1"]]);
+});
+
+test("a retry runs after failure and clears recovery state only after durability", async () => {
+  const sequencer = new SaveSequencer();
+  let latestDocument = "failed draft";
+  let durableDocument = "";
+
+  await assert.rejects(
+    sequencer.enqueue("note-1", async () => {
+      throw new Error("unavailable");
+    }),
+  );
+  latestDocument = "newest complete document";
+  await sequencer.enqueue("note-1", async () => {
+    durableDocument = latestDocument;
+  });
+
+  await sequencer.flush();
+  assert.equal(durableDocument, "newest complete document");
+  assert.deepEqual(sequencer.currentFailures(), []);
+});
+
+test("failure and recovery are independent between notes", async () => {
+  const sequencer = new SaveSequencer();
+  const failed = sequencer.enqueue("note-1", async () => {
+    throw new Error("note one failed");
+  });
+  const saved = sequencer.enqueue("note-2", async () => {});
+
+  await assert.rejects(failed);
+  await saved;
+  assert.deepEqual(sequencer.currentFailures().map(({ noteId }) => noteId), ["note-1"]);
+  await sequencer.enqueue("note-1", async () => {});
+  await sequencer.flush();
+});
+
 test("different notes may save concurrently", async () => {
   const sequencer = new SaveSequencer();
   const gate = deferred();
