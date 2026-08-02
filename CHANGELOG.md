@@ -3,6 +3,67 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
+From 0.26.0 onward, releases come from the v2 desktop application (`v2/`,
+tagged `v2-v*`), which continues the version line the v1 desktop ended at
+0.25.0. Entries up to 0.25.0 cover the v1 products.
+
+## [0.28.0] — 2026-08-02
+
+### Added
+
+- **Undo for deletes:** deleting a note or folder from the sidebar shows an
+  undo toast; press mod+Z or click Undo to restore it immediately. A new
+  "Show toasts" setting controls confirmation toasts.
+
+### Changed
+
+- **Shortcut registry:** editor-bound shortcuts moved to a single registry
+  with explicit route scopes, so custom bindings apply consistently in both
+  rich and raw markdown modes and never fire on the wrong screen. Editor
+  search shortcuts and focus handling improved; the cheat sheet reflects the
+  new scopes.
+
+## [0.27.1] — 2026-07-30
+
+### Fixed
+
+- **Shortcut key matching:** physical-key matching for navigation shortcuts
+  now works across shifted punctuation and non-US number-row layouts.
+- **Tabs:** mod+W closes an existing split before closing the active tab.
+
+## [0.27.0] — 2026-07-29
+
+### Added
+
+- **Note cover images:** upload or reuse workspace media, drag to position,
+  zoom, keyboard controls, nine focal presets, and full-width layout.
+- **Workspace media gallery:** inline, cover, and journal references with
+  metadata, filters, cleanup, and full-screen preview.
+- **Cover media picker:** searchable and sortable, with current, used, and
+  reused indicators.
+
+### Changed
+
+- Cover state persists through SQLite, archives, recovery backups, and
+  content-addressed media storage.
+
+## [0.26.0] — 2026-07-28
+
+First release on the continued version line; identical in content to v2's
+0.5.0. The renumbering keeps version-comparing package managers (apt, dnf,
+winget) from resolving the legacy 0.25.0 build as newest. From this release
+on, apt, dnf, AUR, Homebrew, Scoop, and winget all track v2.
+
+### Added (since the last v1 desktop release)
+
+- **Daily journal:** date-keyed entries, mood selector, sidebar month
+  calendars, keyboard-first navigation.
+- **Editor:** full formatting suite, headings 1–6, toggle headings, emoji
+  picker (`:`), media embeds, drag handles, note outline.
+- **Import:** Notion, Obsidian, Evernote (.enex), Joplin, Google Keep,
+  Standard Notes, and more — 11 sources total.
+- **Keyboard shortcuts** throughout, with a cheat sheet on mod+/.
+
 ## [0.25.0] — 2026-07-20
 
 ### Changed
@@ -102,11 +163,11 @@ create GBM buffer: Invalid argument`), so the window never received a valid
   session: linuxdeploy's GTK hook hard-codes `GDK_BACKEND=x11` into the AppImage
   launcher, so it always runs through XWayland.
 
-                        `main.rs` now picks per backend rather than globally. On NVIDIA it overrides
-                        the AppImage's forced X11 back to Wayland, and disables the dmabuf renderer
-                        only when genuinely landing on X11 — the sole path that renders there. GPU
-                        compositing is kept everywhere it works, so the 0.22.0 typing-performance win
-                        is retained. `SKRIUW_GDK_BACKEND` forces a specific backend.
+                            `main.rs` now picks per backend rather than globally. On NVIDIA it overrides
+                            the AppImage's forced X11 back to Wayland, and disables the dmabuf renderer
+                            only when genuinely landing on X11 — the sole path that renders there. GPU
+                            compositing is kept everywhere it works, so the 0.22.0 typing-performance win
+                            is retained. `SKRIUW_GDK_BACKEND` forces a specific backend.
 
 ### Release
 
