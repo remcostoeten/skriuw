@@ -105,7 +105,7 @@ the way apt signs `Release`). Nothing to configure.
 The cask lives at `Casks/skriuw.rb` in this repo and is updated with the
 built-in `GITHUB_TOKEN`. Nothing to configure. The `.dmg` is unsigned, so the
 cask strips the quarantine attribute on install; adding an Apple Developer
-cert later only requires signing in `release-desktop.yml`.
+cert later only requires signing in `release-v2.yml`.
 
 ### 5. winget — `WINGET_TOKEN`
 
