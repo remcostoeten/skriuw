@@ -5,6 +5,9 @@ use skriuw_storage::{
 };
 use thiserror::Error;
 
+const INITIAL_RETRY_DELAY_MS: i64 = 1_000;
+const MAX_RETRY_DELAY_MS: i64 = 6 * 60 * 60 * 1_000;
+
 #[derive(Debug, Error)]
 #[error("{message}")]
 pub struct MaterializationError {
@@ -205,6 +208,7 @@ where
                 return match self.queue.release_history_revision(
                     &self.worker_id,
                     &item.id,
+                    now_ms.saturating_add(retry_delay_ms(item.attempts)),
                     &diagnostic,
                 ) {
                     Ok(()) => Err(HistoryWorkerError::Materialization(error)),
@@ -228,6 +232,13 @@ where
             header,
         })
     }
+}
+
+fn retry_delay_ms(attempts: i64) -> i64 {
+    let exponent = u32::try_from(attempts.saturating_sub(1).clamp(0, 30)).unwrap_or(30);
+    INITIAL_RETRY_DELAY_MS
+        .saturating_mul(1_i64 << exponent)
+        .min(MAX_RETRY_DELAY_MS)
 }
 
 #[cfg(test)]
@@ -283,8 +294,14 @@ mod tests {
         worker
             .process_next(100, 30_000)
             .expect_err("materialization failure");
+        assert!(
+            storage
+                .claim_history_revision("worker-2", 1_099, 30_000)
+                .expect("claim before retry")
+                .is_none()
+        );
         let retry = storage
-            .claim_history_revision("worker-2", 101, 30_000)
+            .claim_history_revision("worker-2", 1_100, 30_000)
             .expect("retry claim")
             .expect("pending revision");
 
@@ -469,6 +486,7 @@ mod tests {
             &self,
             _worker_id: &str,
             _item_id: &str,
+            _retry_at_ms: i64,
             _diagnostic: &skriuw_storage::Diagnostic,
         ) -> Result<(), StorageError> {
             unreachable!()
@@ -498,6 +516,7 @@ mod tests {
             &self,
             _worker_id: &str,
             _item_id: &str,
+            _retry_at_ms: i64,
             diagnostic: &skriuw_storage::Diagnostic,
         ) -> Result<(), StorageError> {
             *self.released.lock().expect("released diagnostic") = Some(diagnostic.to_string());

@@ -624,7 +624,8 @@ impl HistoryQueue for SqliteWorkspace {
             .query_row(
                 "SELECT id, note_id, revision, markdown, created_at, attempts \
                  FROM history_outbox \
-                 WHERE (claimed_at IS NULL OR claimed_at <= ?1) \
+                 WHERE next_attempt_at <= ?2 \
+                 AND (claimed_at IS NULL OR claimed_at <= ?1) \
                  AND NOT EXISTS (\
                      WITH RECURSIVE ancestors(id, parent_id, deleted_at) AS (\
                          SELECT id, parent_id, deleted_at FROM workspace_nodes \
@@ -637,7 +638,7 @@ impl HistoryQueue for SqliteWorkspace {
                      SELECT 1 FROM ancestors WHERE deleted_at IS NOT NULL\
                  ) \
                  ORDER BY created_at, id LIMIT 1",
-                [lease_expired_before],
+                params![lease_expired_before, now_ms],
                 |row| {
                     Ok(PendingHistoryRevision {
                         id: row.get(0)?,
@@ -722,17 +723,23 @@ impl HistoryQueue for SqliteWorkspace {
         &self,
         worker_id: &str,
         item_id: &str,
+        retry_at_ms: i64,
         diagnostic: &Diagnostic,
     ) -> Result<(), StorageError> {
         require_worker(worker_id)?;
+        if retry_at_ms < 0 {
+            return Err(StorageError::InvalidOperation(
+                "history retry time must be non-negative".into(),
+            ));
+        }
         let connection = self.lock()?;
         let diagnostic = diagnostic.to_string();
         let changed = connection
             .execute(
                 "UPDATE history_outbox \
-                 SET claimed_by = NULL, claimed_at = NULL, last_error = ?3 \
+                 SET claimed_by = NULL, claimed_at = NULL, last_error = ?3, next_attempt_at = ?4 \
                  WHERE id = ?1 AND claimed_by = ?2",
-                params![item_id, worker_id, diagnostic],
+                params![item_id, worker_id, diagnostic, retry_at_ms],
             )
             .map_err(backend)?;
         require_changed(changed, item_id)

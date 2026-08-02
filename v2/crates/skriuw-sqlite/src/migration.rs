@@ -52,6 +52,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "note_covers",
         sql: include_str!("../../../migrations/0009_note_covers.sql"),
     },
+    Migration {
+        version: 10,
+        name: "history_retry_backoff",
+        sql: include_str!("../../../migrations/0010_history_retry_backoff.sql"),
+    },
 ];
 
 pub(crate) struct Migration {

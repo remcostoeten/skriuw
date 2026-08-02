@@ -85,7 +85,7 @@ builds from the checkout instead of pulling from GHCR.
 
 ## Realtime collaboration is not included
 
-Collaboration is a Cloudflare Worker (`party/`), not part of the Docker stack.
+Collaboration is a Cloudflare Worker (`apps/collab/`), not part of the Docker stack.
 It stays disabled unless you deploy that worker yourself and set
 `NEXT_PUBLIC_PARTYKIT_HOST`. `.env.example` ships it blank on purpose, a
 non-empty value pointed at a worker that isn't running makes every socket 401.

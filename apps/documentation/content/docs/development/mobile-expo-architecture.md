@@ -62,7 +62,7 @@ Bun workspaces (`bun@1.3.14`), workspaces `apps/*` + `packages/*`. The root `pac
 | `apps/extension`                  | Chrome MV3 web clipper → `POST /api/sync/capture` with bearer token.                                             | ~1.2k LOC                      |
 | `packages/web-spa`                | Vite build harness for desktop: shims Next.js/server modules away so `apps/web/src` runs as a plain SPA.         | ~944 LOC, mostly shims         |
 | `prisma/`                         | Postgres schema, 27 models.                                                                                      | 570 LOC                        |
-| `party/` + `wrangler.jsonc`       | Cloudflare Worker (Durable Objects) running `y-partyserver` for Yjs collab. One DO per note.                     | small                          |
+| `apps/collab/`                    | Cloudflare Worker (Durable Objects) running `y-partyserver` for Yjs collab. One DO per note.                     | small                          |
 
 There is **no `apps/mobile`** and no extracted shared package for domain logic yet - `apps/web/src/domain/` _is_ the shared logic, consumed by the desktop via the `web-spa` alias trick.
 
@@ -524,4 +524,4 @@ Journal (V1.1) · trash UI (V1.1) · version history (V1.1) · AI actions (V1.1 
 
 ---
 
-_Sources: repo exploration 2026-07-09 - `core/workspace-backend/_`, `prisma/schema.prisma`, `app/api/**`, `domain/**`, `features/\*_`, `apps/desktop/src-tauri/src/_`, `party/notes.ts`, `packages/web-spa/_`._
+_Sources: repo exploration 2026-07-09 - `core/workspace-backend/_`, `prisma/schema.prisma`, `app/api/**`, `domain/**`, `features/\*_`, `apps/desktop/src-tauri/src/_`, `apps/collab/notes.ts`, `packages/web-spa/_`._

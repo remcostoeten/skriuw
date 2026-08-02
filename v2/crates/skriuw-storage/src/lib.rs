@@ -280,6 +280,7 @@ pub trait HistoryQueue: Send + Sync {
         &self,
         worker_id: &str,
         item_id: &str,
+        retry_at_ms: i64,
         diagnostic: &Diagnostic,
     ) -> Result<(), StorageError>;
 }
@@ -379,10 +380,11 @@ where
         &self,
         worker_id: &str,
         item_id: &str,
+        retry_at_ms: i64,
         diagnostic: &Diagnostic,
     ) -> Result<(), StorageError> {
         self.as_ref()
-            .release_history_revision(worker_id, item_id, diagnostic)
+            .release_history_revision(worker_id, item_id, retry_at_ms, diagnostic)
     }
 }
 

@@ -9,7 +9,7 @@ collaboration stays disabled and the rest of the app works normally.
 
 ## Components
 
-- The Worker in `party/notes.ts`, configured by `wrangler.jsonc`. It runs Yjs
+- The Worker in `apps/collab/notes.ts`, configured by `apps/collab/wrangler.jsonc`. It runs Yjs
   over a WebSocket and verifies each connection in `onBeforeConnect`.
 - The Next app, which signs a room token per note and sends it to the browser.
 
@@ -48,7 +48,7 @@ The deploy prints the Worker host, in the form
 host on the app:
 
 ```bash
-bunx wrangler secret put COLLAB_AUTH_SECRET   # same value used to sign tokens
+bunx wrangler secret put COLLAB_AUTH_SECRET -c apps/collab/wrangler.jsonc   # same value used to sign tokens
 ```
 
 ```bash

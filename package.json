@@ -53,8 +53,8 @@
 		"lint": "oxlint apps/web/src apps/web/skeleton-qa.config.ts apps/web/next.config.ts apps/web/playwright.config.ts apps/web/postcss.config.js apps/documentation/app apps/documentation/components apps/documentation/lib apps/documentation/source.config.ts apps/documentation/next.config.mjs apps/extension/src apps/extension/manifest.config.ts apps/extension/vite.config.ts packages/web-spa/src packages/web-spa/vite.config.ts scripts dev-menu.config.ts prisma.config.ts oxlint.custom.js",
 		"lint:docs": "bun run --cwd apps/documentation lint",
 		"format": "oxfmt",
-		"party:dev": "wrangler dev",
-		"party:deploy": "wrangler deploy"
+		"party:dev": "wrangler dev -c apps/collab/wrangler.jsonc",
+		"party:deploy": "wrangler deploy -c apps/collab/wrangler.jsonc"
 	},
 	"dependencies": {
 		"@ai-sdk/google": "^3",
