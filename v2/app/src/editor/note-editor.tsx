@@ -12,6 +12,7 @@ import {
 } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { createCodeBlockNodeView } from "./code-block-nodeview";
+import { createDiagramNodeView } from "./diagram-nodeview";
 import { createImageNodeViews } from "./image-nodeview";
 import { collectImageFiles, insertImages, pickImageFiles } from "./image-input";
 import { noteImageIds, readImageAlt, renameImageNode } from "./image-actions";
@@ -768,6 +769,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         ...referenceViews.nodeViews,
         ...imageViews.nodeViews,
         code_block: createCodeBlockNodeView,
+        diagram: createDiagramNodeView,
         media: (node, currentView, getPos) =>
           createMediaNodeView(node, currentView, getPos, (src) => {
             openExternalUrl(src).catch((error) => {

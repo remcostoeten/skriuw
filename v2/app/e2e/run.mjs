@@ -544,6 +544,72 @@ async function runWorkflow() {
     );
     steps.push("write-and-slash");
 
+    await control("focusEditor()");
+    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+    await typeText(cdp, sessionId, "/diagram");
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('.slash-menu[role=\"listbox\"]') !== null",
+      "diagram slash command",
+    );
+    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+    await waitFor(
+      cdp,
+      sessionId,
+      "document.querySelector('.diagram-block') !== null",
+      "embedded diagram",
+    );
+    assert(
+      checks,
+      "diagram-default-renders",
+      await evaluate(cdp, sessionId, "document.querySelectorAll('.diagram-node').length === 3"),
+      "default diagram nodes missing",
+    );
+    await control('focusSelector(".diagram-block")');
+    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+    const beforeDiagramNudge = await evaluate(
+      cdp,
+      sessionId,
+      "document.activeElement?.style.transform ?? ''",
+    );
+    await dispatchKey(cdp, sessionId, "ArrowRight", "ArrowRight", 39, "", 8);
+    await settle();
+    assert(
+      checks,
+      "diagram-keyboard-nudge",
+      (await evaluate(
+        cdp,
+        sessionId,
+        `document.querySelector('.diagram-node[data-selected="true"]')?.style.transform !== ${JSON.stringify(beforeDiagramNudge)}`,
+      )) === true,
+      "Shift+ArrowRight did not move the selected diagram node",
+    );
+    await control('focusNamed("Add a connected step")');
+    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+    await settle();
+    assert(
+      checks,
+      "diagram-add-connected-step",
+      await evaluate(cdp, sessionId, "document.querySelectorAll('.diagram-node').length === 4"),
+      "keyboard add did not create a fourth node",
+    );
+    await control('focusNamed("Edit Mermaid source")');
+    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+    await settle();
+    assert(
+      checks,
+      "diagram-source-is-readable",
+      await evaluate(
+        cdp,
+        sessionId,
+        "document.querySelector('.diagram-source')?.value.startsWith('flowchart LR') === true",
+      ),
+      "Mermaid source editor did not open",
+    );
+    await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
+    steps.push("diagram-keyboard-and-source");
+
     await dispatchKey(cdp, sessionId, "f", "KeyF", 70, "", 2);
     await waitFor(
       cdp,

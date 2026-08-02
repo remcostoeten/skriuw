@@ -26,7 +26,9 @@ import {
   TextQuoteIcon,
   TypeIcon,
   VideoIcon,
+  WaypointsIcon,
 } from "../shared/icons";
+import { createDefaultDiagram } from "./diagram-model";
 import { emojiEntries } from "./emoji";
 import { productSchema, type MediaKind, type SlashTrigger } from "./schema";
 
@@ -203,6 +205,15 @@ export const slashCommands: SlashCommand[] = [
     command: setBlockType(requiredNode("code_block")),
   },
   {
+    id: "diagram",
+    label: "Diagram",
+    subtext: "Create a keyboard-friendly flowchart",
+    group: "Blocks",
+    aliases: ["mermaid", "flowchart", "graph", "nodes", "workflow"],
+    icon: <WaypointsIcon size={16} />,
+    command: insertDiagram,
+  },
+  {
     id: "table",
     label: "Table",
     subtext: "Three column table with a header row",
@@ -330,6 +341,28 @@ function insertHorizontalRule(
     transaction.setSelection(
       TextSelection.near(transaction.doc.resolve(afterRule), 1),
     );
+    dispatch(transaction.scrollIntoView());
+  }
+  return true;
+}
+
+function insertDiagram(
+  state: Parameters<Command>[0],
+  dispatch?: Parameters<Command>[1],
+): boolean {
+  const diagram = requiredNode("diagram");
+  const paragraph = requiredNode("paragraph");
+  if (dispatch) {
+    const node = diagram.create({ model: createDefaultDiagram() });
+    const transaction = state.tr.replaceSelectionWith(node);
+    const insertedAt = findNodePosition(transaction.doc, node);
+    if (insertedAt !== null) {
+      const afterDiagram = insertedAt + node.nodeSize;
+      if (!transaction.doc.resolve(afterDiagram).nodeAfter) {
+        transaction.insert(afterDiagram, paragraph.create());
+      }
+      transaction.setSelection(NodeSelection.create(transaction.doc, insertedAt));
+    }
     dispatch(transaction.scrollIntoView());
   }
   return true;

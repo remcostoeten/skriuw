@@ -26,6 +26,7 @@ test("slashCommands defines expected set of editor command blocks", () => {
   assert.ok(ids.includes("toggle-list"));
   assert.ok(ids.includes("quote"));
   assert.ok(ids.includes("code"));
+  assert.ok(ids.includes("diagram"));
   assert.ok(ids.includes("emoji"));
   assert.ok(ids.includes("image"));
   assert.ok(ids.includes("video"));
@@ -224,6 +225,29 @@ test("the divider command reuses the following block instead of adding one", () 
   assert.equal(state.doc.child(0).type.name, "horizontal_rule");
   assert.equal(state.doc.child(1).textContent, "after");
   assert.equal(state.selection.$from.parent.textContent, "after");
+});
+
+test("the diagram command inserts a selectable diagram and trailing paragraph", () => {
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, productSchema.text("/diagram")),
+  ]);
+  let state = EditorState.create({ doc, schema: productSchema });
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 9)));
+  const mockView = {
+    get state() {
+      return state;
+    },
+    dispatch: (tr: any) => {
+      state = state.apply(tr);
+    },
+    focus: () => undefined,
+  } as unknown as EditorView;
+  const diagram = slashCommands.find((command) => command.id === "diagram");
+  assert.ok(diagram);
+  applySlashCommand(mockView, diagram);
+  assert.equal(state.doc.child(0).type.name, "diagram");
+  assert.equal(state.doc.child(1).type.name, "paragraph");
+  assert.ok(state.selection instanceof NodeSelection);
 });
 
 test("applySlashCommand converts slash trigger text into target node type", () => {

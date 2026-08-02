@@ -31,6 +31,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Note cover images** — choose any existing workspace asset or upload a new image above any note, then keep it aligned to the writing column or let it span the full editor pane without gutters. Drag or use arrow keys to pan, scroll or use `+`/`-` to zoom, or pick one of nine focal-point presets; transforms, covers, and layout reuse the local content-addressed image store and travel with workspace archives and recovery backups.
 - **Workspace media gallery** — one filterable Settings gallery inventories every blob used inline, as a cover, or in the journal. Each asset shows format, dimensions, size, hash, attachment date, exact usage type, count, links back to every reference, and a full-screen preview. The cover picker searches, filters, sorts, and marks current, used, and reused assets.
 - **Video, audio, and file embeds** — `/video`, `/audio`, and `/file` drop a block that takes a URL. Embeds round-trip through Markdown as an ordinary link, so other editors still render something useful.
+- **Embedded diagrams** — `/diagram` inserts a borderless, keyboard-accessible flowchart whose nodes can be renamed, connected, styled, arranged, and repositioned by pointer or keyboard. Mermaid-compatible `flowchart` fences round-trip through raw Markdown, while positions and canvas appearance stay durable in the local structured document. Unsupported Mermaid syntax remains editable source instead of being discarded.
 - **Tags, people, mentions, and wiki-links** — type `#` to tag, `@` or `[[` for wiki-style note links, `$` for people. Relationships are stored by ID, so renames propagate everywhere and nothing silently breaks.
 - **Backlinks and entity pages** — every note, tag, and person shows what points to it, precomputed and instant.
 
@@ -77,5 +78,5 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 ## Built to be trusted
 
 - 200+ tests across backend, desktop, renderer, store, and UI-architecture layers, plus a keyboard-driven end-to-end suite covering the complete workflow with zero tolerated console errors.
-- Twenty-four architecture decision records in [docs/adr](docs/adr) document why the system is shaped the way it is.
+- Twenty-five architecture decision records in [docs/adr](docs/adr) document why the system is shaped the way it is.
 - Benchmark evidence for every performance claim lives in [docs/benchmarks](docs/benchmarks).
