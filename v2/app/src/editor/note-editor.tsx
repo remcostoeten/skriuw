@@ -126,6 +126,7 @@ import { useEditorBoundShortcuts } from "./use-editor-bound-shortcuts";
 import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
 import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
 import { useEditorSearch } from "./use-editor-search";
+import { SaveSequencer } from "./save-sequencer";
 
 const SAVE_DEBOUNCE_MS = 500;
 const VIRTUAL_BLOCK_HEIGHT = 32;
@@ -315,6 +316,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const cacheRef = useRef(new Map<string, CachedNote>());
   const activeIdRef = useRef<string | null>(null);
   const saveTimerRef = useRef<number | null>(null);
+  const saveSequencerRef = useRef(new SaveSequencer());
   const composingRef = useRef(false);
   const pendingWindowRef = useRef<number | null>(null);
   const scrollHostRef = useRef<HTMLElement | null>(null);
@@ -473,7 +475,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     }
   }
 
-  function saveNow(noteId: string): Promise<void> {
+  function persistCurrentDocument(noteId: string): Promise<void> {
     const cached = cacheRef.current.get(noteId);
     const record = store.getState().documents.get(noteId);
     if (!cached || !record) return Promise.resolve();
@@ -507,11 +509,19 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       });
   }
 
-  function flushPendingSave(): Promise<void> {
-    if (saveTimerRef.current === null) return Promise.resolve();
-    window.clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = null;
-    return activeIdRef.current ? saveNow(activeIdRef.current) : Promise.resolve();
+  function saveNow(noteId: string): Promise<void> {
+    return saveSequencerRef.current.enqueue(noteId, () => persistCurrentDocument(noteId));
+  }
+
+  async function flushPendingSave(): Promise<void> {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      if (activeIdRef.current) {
+        await saveNow(activeIdRef.current);
+      }
+    }
+    await saveSequencerRef.current.flush();
   }
 
   function schedulePendingSave(): void {
