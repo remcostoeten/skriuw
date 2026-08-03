@@ -102,6 +102,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     const document = parseProductMarkdownWithImages(
       markdown,
       noteImageIds(store.getState(), noteId),
+      current.documentJson,
     );
     savingNoteIdsRef.current.add(noteId);
     return commitOperations(store, [

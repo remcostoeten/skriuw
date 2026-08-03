@@ -26,7 +26,7 @@ import {
   type NodeSpec,
 } from "prosemirror-model";
 import { schema as basicSchema } from "prosemirror-schema-basic";
-import { Plugin, PluginKey, TextSelection, type EditorState } from "prosemirror-state";
+import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState } from "prosemirror-state";
 import { findWrapping } from "prosemirror-transform";
 import { moveSelectedBlock } from "./block-commands";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
@@ -39,6 +39,12 @@ import {
 } from "prosemirror-tables";
 import { createCodeHighlightPlugin } from "./code-highlight";
 import { createSearchPlugin } from "./search-plugin";
+import {
+  createDefaultDiagram,
+  parseMermaidFlowchart,
+  readDiagramModel,
+  serializeMermaidFlowchart,
+} from "./diagram-model";
 
 export type SlashTrigger = "/" | ":";
 
@@ -457,6 +463,48 @@ const toggleItemSpec: NodeSpec = {
 
 const LANGUAGE_CLASS = /(?:^|\s)language-(\S+)/;
 
+const diagramSpec: NodeSpec = {
+  group: "block",
+  atom: true,
+  isolating: true,
+  draggable: true,
+  selectable: true,
+  attrs: {
+    model: { default: createDefaultDiagram() },
+  },
+  toDOM: (node) => [
+    "pre",
+    {
+      "data-skriuw-diagram": "true",
+      "data-diagram-version": "1",
+    },
+    ["code", { class: "language-mermaid" }, serializeMermaidFlowchart(node.attrs.model)],
+  ],
+  parseDOM: [
+    {
+      tag: "pre[data-skriuw-diagram]",
+      priority: 80,
+      preserveWhitespace: "full",
+      getAttrs: (dom) => {
+        const parsed = parseMermaidFlowchart(dom.textContent ?? "");
+        return parsed.ok ? { model: parsed.model } : false;
+      },
+    },
+    {
+      tag: "pre",
+      priority: 70,
+      preserveWhitespace: "full",
+      getAttrs: (dom) => {
+        const code = dom.querySelector("code");
+        const language = code?.className.match(LANGUAGE_CLASS)?.[1]?.toLowerCase();
+        if (language !== "mermaid" && language !== "diagram") return false;
+        const parsed = parseMermaidFlowchart(code?.textContent ?? "");
+        return parsed.ok ? { model: parsed.model } : false;
+      },
+    },
+  ],
+};
+
 function codeBlockLanguage(dom: HTMLElement): string {
   const declared = dom.getAttribute("data-language");
   if (declared) return declared;
@@ -547,6 +595,7 @@ const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
   .update("heading", headingSpec)
   .update("code_block", codeBlockSpec)
   .addToEnd("raw_markdown", rawMarkdownSpec)
+  .addToEnd("diagram", diagramSpec)
   .addToEnd("check_list", checkListSpec)
   .addToEnd("check_item", checkItemSpec)
   .addToEnd("toggle_list", toggleListSpec)
@@ -668,6 +717,27 @@ function horizontalRuleInputRule(): InputRule {
       tr.insert(afterRule, paragraph.create());
     }
     tr.setSelection(TextSelection.near(tr.doc.resolve(afterRule), 1));
+    return tr.scrollIntoView();
+  });
+}
+
+function diagramInputRule(): InputRule {
+  return new InputRule(/^```(?:mermaid|diagram)\s$/i, (state, _match, start, end) => {
+    const diagram = productSchema.nodes.diagram;
+    if (!diagram || state.doc.resolve(start).parent.type.spec.code) return null;
+    const inserted = diagram.create({ model: createDefaultDiagram() });
+    const tr = state.tr.replaceRangeWith(
+      start,
+      end,
+      inserted,
+    );
+    let position: number | null = null;
+    tr.doc.descendants((candidate, pos) => {
+      if (candidate !== inserted) return position === null;
+      position = pos;
+      return false;
+    });
+    if (position !== null) tr.setSelection(NodeSelection.create(tr.doc, position));
     return tr.scrollIntoView();
   });
 }
@@ -913,6 +983,7 @@ export function createProductPlugins(): Plugin[] {
   const listItem = productSchema.nodes.list_item;
   const checkItem = productSchema.nodes.check_item;
   const toggleItem = productSchema.nodes.toggle_item;
+  const diagram = productSchema.nodes.diagram;
   if (
     !blockquote ||
     !codeBlock ||
@@ -921,7 +992,8 @@ export function createProductPlugins(): Plugin[] {
     !orderedList ||
     !listItem ||
     !checkItem ||
-    !toggleItem
+    !toggleItem ||
+    !diagram
   ) {
     throw new Error("product schema is missing a required block node");
   }
@@ -959,6 +1031,7 @@ export function createProductPlugins(): Plugin[] {
           (match, node) => node.childCount + Number(node.attrs.order) === Number(match[1]),
         ),
         wrappingInputRule(/^\s*>\s$/, blockquote),
+        diagramInputRule(),
         textblockTypeInputRule(/^```$/, codeBlock),
         horizontalRuleInputRule(),
         linkInputRule(),
@@ -1141,6 +1214,13 @@ const productMarkdownSerializer = new MarkdownSerializer(
         `![${state.esc(String(node.attrs.alt))}](images/${node.attrs.id})`,
       );
     },
+    diagram(state, node) {
+      state.write("```mermaid\n");
+      state.text(serializeMermaidFlowchart(node.attrs.model), false);
+      state.ensureNewLine();
+      state.write("```");
+      state.closeBlock(node);
+    },
     raw_markdown(state, node) {
       state.write(node.textContent);
       state.closeBlock(node);
@@ -1316,6 +1396,23 @@ if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) 
   defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_text_alignment", applyTextAlignmentMarkers);
 }
 
+function convertDiagramFences(state: any): boolean {
+  for (const token of state.tokens) {
+    if (token.type !== "fence") continue;
+    const language = String(token.info ?? "").trim().toLowerCase();
+    if (language !== "mermaid" && language !== "diagram") continue;
+    const parsed = parseMermaidFlowchart(String(token.content ?? ""));
+    if (!parsed.ok) continue;
+    token.type = "skriuw_diagram";
+    token.meta = { ...(token.meta ?? {}), diagramModel: parsed.model };
+  }
+  return true;
+}
+
+if (!(defaultMarkdownParser.tokenizer.core.ruler as any).__rules?.some((r: any) => r.name === "skriuw_diagram_fences")) {
+  defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_diagram_fences", convertDiagramFences);
+}
+
 defaultMarkdownParser.tokenizer.enable(["strikethrough", "linkify", "table"], true);
 defaultMarkdownParser.tokenizer.set({ linkify: true });
 defaultMarkdownParser.tokenizer.linkify.set({
@@ -1345,6 +1442,10 @@ const productMarkdownParser = new MarkdownParser(
     skriuw_highlight: {
       mark: "highlight",
       getAttrs: (tok: any) => ({ color: tok.meta?.color ?? "yellow" }),
+    },
+    skriuw_diagram: {
+      node: "diagram",
+      getAttrs: (tok: any) => ({ model: tok.meta?.diagramModel ?? createDefaultDiagram() }),
     },
     table: { block: "table" },
     thead: { ignore: true },
@@ -1671,10 +1772,44 @@ function relinkImageNode(node: unknown, knownImageIds: ReadonlySet<string>): unk
 export function parseProductMarkdownWithImages(
   markdown: string,
   knownImageIds: ReadonlySet<string>,
+  previousDocumentJson?: unknown,
 ): ProseMirrorNode {
   const parsed = parseProductMarkdown(markdown);
   try {
-    return productSchema.nodeFromJSON(relinkImageNode(parsed.toJSON(), knownImageIds));
+    const previous = previousDocumentJson === undefined
+      ? null
+      : productSchema.nodeFromJSON(previousDocumentJson);
+    const previousDiagrams: ProseMirrorNode[] = [];
+    previous?.descendants((node) => {
+      if (node.type.name === "diagram") previousDiagrams.push(node);
+      return true;
+    });
+    let diagramIndex = 0;
+    const relinked = relinkImageNode(parsed.toJSON(), knownImageIds);
+    function preserveDiagramLayouts(value: unknown): unknown {
+      if (value === null || typeof value !== "object") return value;
+      const record = value as Record<string, unknown>;
+      if (record.type === "diagram") {
+        const previousDiagram = previousDiagrams[diagramIndex];
+        diagramIndex += 1;
+        if (!previousDiagram) return record;
+        const attrs = typeof record.attrs === "object" && record.attrs !== null
+          ? record.attrs as Record<string, unknown>
+          : {};
+        const source = serializeMermaidFlowchart(attrs.model);
+        const reconciled = parseMermaidFlowchart(
+          source,
+          readDiagramModel(previousDiagram.attrs.model),
+        );
+        return reconciled.ok
+          ? { ...record, attrs: { ...attrs, model: reconciled.model } }
+          : record;
+      }
+      return Array.isArray(record.content)
+        ? { ...record, content: record.content.map(preserveDiagramLayouts) }
+        : record;
+    }
+    return productSchema.nodeFromJSON(preserveDiagramLayouts(relinked));
   } catch {
     return parsed;
   }
@@ -1683,6 +1818,12 @@ export function parseProductMarkdownWithImages(
 export function countWords(document: ProseMirrorNode): number {
   let words = 0;
   document.descendants((node) => {
+    if (node.type.name === "diagram") {
+      for (const item of readDiagramModel(node.attrs.model).nodes) {
+        words += item.label.split(/\s+/).filter((word) => word.length > 0).length;
+      }
+      return false;
+    }
     if (node.isText && node.text) {
       words += node.text.split(/\s+/).filter((word) => word.length > 0).length;
     }

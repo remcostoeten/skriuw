@@ -50,6 +50,53 @@ test("serializeProductMarkdown and parseProductMarkdown roundtrip plain text", (
   assert.equal(isDocEmpty(emptyParsed), true);
 });
 
+test("Mermaid flowchart fences become durable diagram blocks", () => {
+  const markdown = `Before
+
+\`\`\`mermaid
+flowchart LR
+  first["First"] --> second{"Second?"}
+\`\`\`
+
+After`;
+  const document = parseProductMarkdown(markdown);
+  const diagram = document.child(1);
+  assert.equal(diagram.type.name, "diagram");
+  assert.equal(diagram.attrs.model.nodes[0]?.label, "First");
+  assert.match(serializeProductMarkdown(document), /```mermaid\nflowchart LR/);
+  assert.deepEqual(
+    parseProductMarkdown(serializeProductMarkdown(document)).toJSON(),
+    document.toJSON(),
+  );
+  assert.equal(countWords(document), 4);
+});
+
+test("unsupported Mermaid remains editable source instead of losing content", () => {
+  const document = parseProductMarkdown(`\`\`\`mermaid
+sequenceDiagram
+  A->>B: Hello
+\`\`\``);
+  assert.equal(document.firstChild?.type.name, "code_block");
+  assert.equal(document.firstChild?.attrs.params, "mermaid");
+  assert.match(document.firstChild?.textContent ?? "", /sequenceDiagram/);
+});
+
+test("raw Mermaid edits retain positions for stable node ids", () => {
+  const before = parseProductMarkdown(`\`\`\`mermaid
+flowchart LR
+  first["First"] --> second["Second"]
+\`\`\``);
+  const previousJson = before.toJSON() as any;
+  previousJson.content[0].attrs.model.nodes[1].position = { x: 713, y: 191 };
+  const after = parseProductMarkdownWithImages(`\`\`\`mermaid
+flowchart TD
+  first["First"] --> second["Renamed"]
+\`\`\``, new Set(), previousJson);
+  const second = after.firstChild?.attrs.model.nodes.find(({ id }: { id: string }) => id === "second");
+  assert.deepEqual(second?.position, { x: 713, y: 191 });
+  assert.equal(second?.label, "Renamed");
+});
+
 test("rich formatting survives JSON, DOM specs, and Markdown roundtrips", () => {
   const underline = productSchema.marks.underline;
   const highlight = productSchema.marks.highlight;
