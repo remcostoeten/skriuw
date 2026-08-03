@@ -1,8 +1,9 @@
 # Web runtime
 
-Status: adapter implementation not started. The portable domain/storage compile
-boundary is continuously gated; SQLite-WASM, OPFS, worker transport, browser
-history, and recovery semantics remain deferred.
+Status: browser runtime foundation in progress. The portable domain/storage
+compile boundary, browser worker protocol, and renderer runtime seam are now
+gated; OPFS-backed SQLite execution, browser history, and recovery semantics
+remain deferred.
 
 Scope note: this spec covers the browser runtime only (wasm crates, SQLite-WASM adapter, fixture parity). Mobile and a browser extension are explicitly out of scope for this spec and remain unscheduled separate efforts.
 
@@ -37,6 +38,13 @@ Concretely:
   native-focused, while portability drift still blocks integration.
 
 ### 2. Worker-owned SQLite-WASM adapter over durable browser storage
+
+The initial `skriuw-sqlite-wasm` crate now defines the typed worker request and
+response boundary and can dispatch against any `WorkspaceStorage` implementation
+for parity tests. The TypeScript bridge also routes browser calls through a
+dedicated module worker. The next implementation step is connecting that
+boundary to a real SQLite-WASM connection and OPFS VFS; the current browser
+worker intentionally returns an explicit unavailable error until then.
 
 New crate, e.g. `skriuw-sqlite-wasm`, implementing the `skriuw-storage` port using `sqlite-wasm-rs` (or the equivalent official SQLite WASM build) against OPFS (Origin Private File System) — OPFS is the only browser storage with the durability and random-access-write characteristics SQLite needs; IndexedDB-backed SQLite shims exist but are slower and less transactionally sound, and should not be the default choice without a specific measured reason.
 

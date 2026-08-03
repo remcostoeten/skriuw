@@ -1,0 +1,14 @@
+[package]
+name = "skriuw-sqlite-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Browser worker boundary for the OPFS-backed SQLite-WASM adapter"
+
+[dependencies]
+skriuw-domain = { path = "../skriuw-domain" }
+skriuw-storage = { path = "../skriuw-storage" }
+serde.workspace = true
+
+[dev-dependencies]

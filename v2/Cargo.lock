@@ -602,6 +602,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "skriuw-sqlite-wasm"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "skriuw-domain",
+ "skriuw-storage",
+]
+
+[[package]]
 name = "skriuw-storage"
 version = "0.1.0"
 dependencies = [
