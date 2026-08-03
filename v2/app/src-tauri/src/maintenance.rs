@@ -40,6 +40,23 @@ const SAFETY_BACKUP_PREFIX: &str = ".pre-import-";
 type HistoryPublisher = Arc<dyn Fn(HistoryHeader) + Send + Sync>;
 pub(crate) type HistoryFailureObserver = Arc<dyn Fn() + Send + Sync>;
 
+pub(crate) fn process_history_batch<F>(stop: &AtomicBool, mut process: F) -> bool
+where
+    F: FnMut() -> bool,
+{
+    let mut idle = false;
+    for _ in 0..HISTORY_DRAIN_BATCH_ITEMS {
+        if stop.load(Ordering::Relaxed) {
+            break;
+        }
+        if !process() {
+            idle = true;
+            break;
+        }
+    }
+    idle
+}
+
 pub struct HistoryDrainHandle {
     stop: Arc<AtomicBool>,
     worker: Mutex<Option<JoinHandle<()>>>,
@@ -92,25 +109,22 @@ pub(crate) fn spawn_history_drain_observed(
         .name("skriuw-history-drain".into())
         .spawn(move || {
             while !stop_flag.load(Ordering::Relaxed) {
-                let mut idle = false;
-                for _ in 0..HISTORY_DRAIN_BATCH_ITEMS {
-                    if stop_flag.load(Ordering::Relaxed) {
-                        break;
-                    }
+                let idle = process_history_batch(&stop_flag, || {
                     match worker.process_next(now_millis(), HISTORY_DRAIN_LEASE_MS) {
-                        Ok(HistoryWorkResult::Materialized { header, .. }) => publish(header),
+                        Ok(HistoryWorkResult::Materialized { header, .. }) => {
+                            publish(header);
+                            true
+                        }
                         Ok(HistoryWorkResult::Idle) => {
-                            idle = true;
-                            break;
+                            false
                         }
                         Err(error) => {
                             eprintln!("history drain failed: {error}");
                             observe_failure();
-                            idle = true;
-                            break;
+                            false
                         }
                     }
-                }
+                });
                 if idle {
                     thread::sleep(HISTORY_DRAIN_IDLE_DELAY);
                 } else {
