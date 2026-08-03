@@ -1340,7 +1340,7 @@ mod smoke_tests {
     use skriuw_sqlite::SqliteWorkspace;
     use skriuw_storage::{HistoryQueue, WorkspaceStorage};
     use std::{
-        sync::{Mutex, mpsc},
+        sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}, mpsc},
         time::Duration,
     };
     use tempfile::tempdir;
@@ -1454,5 +1454,32 @@ mod smoke_tests {
             .expect("claim retry")
             .expect("pending retry");
         assert_eq!(retry.attempts, 2);
+    }
+
+    #[test]
+    fn history_drain_batch_stops_at_the_boundary() {
+        let stop = AtomicBool::new(false);
+        let mut processed = 0;
+        let idle = maintenance::process_history_batch(&stop, || {
+            processed += 1;
+            true
+        });
+
+        assert!(!idle);
+        assert_eq!(processed, 64);
+    }
+
+    #[test]
+    fn history_drain_batch_honors_shutdown_between_items() {
+        let stop = AtomicBool::new(false);
+        let mut processed = 0;
+        let idle = maintenance::process_history_batch(&stop, || {
+            processed += 1;
+            stop.store(true, Ordering::Relaxed);
+            true
+        });
+
+        assert!(!idle);
+        assert_eq!(processed, 1);
     }
 }
