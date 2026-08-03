@@ -1,3 +1,10 @@
+import {
+  DIAGRAM_LANE_GAP,
+  DIAGRAM_NODE_HEIGHT,
+  DIAGRAM_NODE_WIDTH,
+  DIAGRAM_RANK_GAP,
+} from "./diagram-geometry";
+
 export const DIAGRAM_MODEL_VERSION = 1;
 export const MAX_DIAGRAM_NODES = 150;
 export const MAX_DIAGRAM_EDGES = 300;
@@ -44,10 +51,6 @@ const NODE_ID = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const MAX_LABEL_LENGTH = 240;
 const POSITION_LIMIT = 100_000;
-const NODE_WIDTH = 148;
-const NODE_HEIGHT = 52;
-const RANK_GAP = 92;
-const LANE_GAP = 36;
 
 function finiteCoordinate(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= POSITION_LIMIT
@@ -134,7 +137,10 @@ export function readDiagramModel(value: unknown): DiagramModel {
       id,
       label: label(node.label, id),
       shape: shape(node.shape),
-      position: { x: x ?? 0, y: y ?? nodes.length * (NODE_HEIGHT + LANE_GAP) },
+      position: {
+        x: x ?? 0,
+        y: y ?? nodes.length * (DIAGRAM_NODE_HEIGHT + DIAGRAM_LANE_GAP),
+      },
       fill: color(node.fill),
       stroke: color(node.stroke),
     });
@@ -242,8 +248,14 @@ function arrange(model: DiagramModel, previous?: DiagramModel): DiagramModel {
       return {
         ...node,
         position: horizontal
-          ? { x: 12 + nodeRank * (NODE_WIDTH + RANK_GAP), y: 20 + lane * (NODE_HEIGHT + LANE_GAP) }
-          : { x: 20 + lane * (NODE_WIDTH + LANE_GAP), y: 12 + nodeRank * (NODE_HEIGHT + RANK_GAP) },
+          ? {
+              x: 12 + nodeRank * (DIAGRAM_NODE_WIDTH + DIAGRAM_RANK_GAP),
+              y: 20 + lane * (DIAGRAM_NODE_HEIGHT + DIAGRAM_LANE_GAP),
+            }
+          : {
+              x: 20 + lane * (DIAGRAM_NODE_WIDTH + DIAGRAM_LANE_GAP),
+              y: 12 + nodeRank * (DIAGRAM_NODE_HEIGHT + DIAGRAM_RANK_GAP),
+            },
       };
     }),
   };

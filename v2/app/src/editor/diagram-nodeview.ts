@@ -2,6 +2,11 @@ import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { NodeSelection } from "prosemirror-state";
 import type { EditorView, NodeView } from "prosemirror-view";
 import {
+  DIAGRAM_NODE_HEIGHT,
+  DIAGRAM_NODE_WIDTH,
+  DIAGRAM_RANK_GAP,
+} from "./diagram-geometry";
+import {
   diagramShapes,
   nextDiagramNodeId,
   parseMermaidFlowchart,
@@ -15,9 +20,6 @@ import {
   type DiagramShape,
 } from "./diagram-model";
 
-const NODE_WIDTH = 148;
-const NODE_HEIGHT = 52;
-const NODE_GAP = 92;
 const NUDGE_DISTANCE = 8;
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 let markerSequence = 0;
@@ -26,16 +28,22 @@ export type DiagramBounds = { width: number; height: number };
 
 export function diagramBounds(model: DiagramModel): DiagramBounds {
   return {
-    width: Math.max(320, ...model.nodes.map(({ position }) => position.x + NODE_WIDTH + 24)),
-    height: Math.max(148, ...model.nodes.map(({ position }) => position.y + NODE_HEIGHT + 28)),
+    width: Math.max(
+      320,
+      ...model.nodes.map(({ position }) => position.x + DIAGRAM_NODE_WIDTH + 24),
+    ),
+    height: Math.max(
+      148,
+      ...model.nodes.map(({ position }) => position.y + DIAGRAM_NODE_HEIGHT + 28),
+    ),
   };
 }
 
 export function connectorPath(from: DiagramPoint, to: DiagramPoint): string {
-  const startX = from.x + NODE_WIDTH;
-  const startY = from.y + NODE_HEIGHT / 2;
+  const startX = from.x + DIAGRAM_NODE_WIDTH;
+  const startY = from.y + DIAGRAM_NODE_HEIGHT / 2;
   const endX = to.x;
-  const endY = to.y + NODE_HEIGHT / 2;
+  const endY = to.y + DIAGRAM_NODE_HEIGHT / 2;
   const bend = Math.max(42, Math.abs(endX - startX) * 0.45);
   const first = startX <= endX ? startX + bend : startX - bend;
   const second = startX <= endX ? endX - bend : endX + bend;
@@ -91,8 +99,8 @@ function closestNode(
 
 function edgeLabelPosition(from: DiagramPoint, to: DiagramPoint): DiagramPoint {
   return {
-    x: (from.x + NODE_WIDTH + to.x) / 2,
-    y: (from.y + to.y) / 2 + NODE_HEIGHT / 2 - 6,
+    x: (from.x + DIAGRAM_NODE_WIDTH + to.x) / 2,
+    y: (from.y + to.y) / 2 + DIAGRAM_NODE_HEIGHT / 2 - 6,
   };
 }
 
@@ -510,7 +518,10 @@ export function createDiagramNodeView(
       label: "New step",
       shape: "rectangle",
       position: current
-        ? { x: current.position.x + NODE_WIDTH + NODE_GAP, y: current.position.y }
+        ? {
+            x: current.position.x + DIAGRAM_NODE_WIDTH + DIAGRAM_RANK_GAP,
+            y: current.position.y,
+          }
         : { x: 12, y: 24 },
       fill: null,
       stroke: null,
@@ -638,7 +649,10 @@ export function createDiagramNodeView(
       selectedAsBlock = false;
       dom.dataset.selected = "false";
     },
-    stopEvent: (event) => event.target instanceof Node && dom.contains(event.target),
+    stopEvent: (event) =>
+      event.target instanceof HTMLElement &&
+      dom.contains(event.target) &&
+      event.target.closest("button, input, select, textarea, .diagram-node") !== null,
     ignoreMutation: () => true,
     destroy() {
       if (dragFrame !== 0) window.cancelAnimationFrame(dragFrame);
