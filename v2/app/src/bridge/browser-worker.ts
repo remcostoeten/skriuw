@@ -26,6 +26,21 @@ const worker = globalThis as typeof globalThis & {
 worker.onmessage = (event) => {
   const request = event.data;
   if (!request || request.type !== "invoke") return;
+  if (request.command === "browser_storage_capabilities") {
+    const navigatorValue = (globalThis as typeof globalThis & {
+      navigator?: { storage?: { getDirectory?: unknown } };
+    }).navigator;
+    worker.postMessage({
+      type: "response",
+      id: request.id,
+      ok: true,
+      value: {
+        opfs: typeof navigatorValue?.storage?.getDirectory === "function",
+        crossOriginIsolated: globalThis.crossOriginIsolated === true,
+      },
+    });
+    return;
+  }
   worker.postMessage({
     type: "response",
     id: request.id,
@@ -33,4 +48,3 @@ worker.onmessage = (event) => {
     error: `Browser storage adapter is not available yet (${request.command})`,
   });
 };
-
