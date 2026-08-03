@@ -2,6 +2,7 @@
 members = [
     "crates/skriuw-domain",
     "crates/skriuw-storage",
+    "crates/skriuw-sqlite-wasm",
     "crates/skriuw-sqlite",
     "crates/skriuw-images",
     "crates/skriuw-fixtures",
