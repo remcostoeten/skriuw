@@ -35,7 +35,7 @@ pub enum WorkerRequest {
 /// Responses returned by [`WorkerStorage::dispatch`].
 #[derive(Debug)]
 pub enum WorkerResponse {
-    Bootstrap(Result<WorkspaceSnapshot, StorageError>),
+    Bootstrap(Box<Result<WorkspaceSnapshot, StorageError>>),
     SidebarExpansion(Result<Option<Vec<String>>, StorageError>),
     Unit(Result<(), StorageError>),
     PaneLayout(Result<Option<String>, StorageError>),
@@ -71,7 +71,9 @@ impl WorkerStorage {
     /// returned response and resolve the matching promise on the renderer.
     pub fn dispatch(&self, request: WorkerRequest) -> WorkerResponse {
         match request {
-            WorkerRequest::Bootstrap => WorkerResponse::Bootstrap(self.backend.bootstrap()),
+            WorkerRequest::Bootstrap => {
+                WorkerResponse::Bootstrap(Box::new(self.backend.bootstrap()))
+            }
             WorkerRequest::LoadSidebarExpansion => {
                 WorkerResponse::SidebarExpansion(self.backend.load_sidebar_expansion())
             }
@@ -157,8 +159,8 @@ mod tests {
         let response = workspace.worker().dispatch(WorkerRequest::Bootstrap);
         assert!(matches!(
             response,
-            WorkerResponse::Bootstrap(Err(StorageError::Backend(message)))
-                if message == "probe bootstrap"
+            WorkerResponse::Bootstrap(result)
+                if matches!(*result, Err(StorageError::Backend(ref message)) if message == "probe bootstrap")
         ));
     }
 
