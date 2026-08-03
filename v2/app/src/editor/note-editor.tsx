@@ -127,6 +127,8 @@ import type { EditorBoundHandlersFor } from "./use-editor-bound-shortcuts";
 import type { NoteEditorShortcutId } from "./editor-bound-shortcut-ids";
 import { useEditorSearch } from "./use-editor-search";
 import { SaveSequencer } from "./save-sequencer";
+import { EDITOR_WORKING_SET_LIMIT, EditorWorkingSet } from "./editor-working-set";
+import { preparedEditorDocuments } from "./prepared-documents";
 
 const SAVE_DEBOUNCE_MS = 500;
 const VIRTUAL_BLOCK_HEIGHT = 32;
@@ -205,11 +207,11 @@ function selectedReference(view: EditorView): { kind: ReferenceKind; targetId: s
 
 function createEditorState(
   document: ProseMirrorNode,
-  extraPlugins: readonly Plugin[] = [],
+  plugins: readonly Plugin[],
 ): EditorState {
   return EditorState.create({
     doc: document,
-    plugins: [...extraPlugins, ...createProductPlugins()],
+    plugins,
   });
 }
 
@@ -227,15 +229,15 @@ function documentFromJson(json: unknown): ProseMirrorNode {
 
 function createCachedNote(
   record: DocumentRecord,
+  document: ProseMirrorNode,
   extraPlugins: readonly Plugin[],
 ): CachedNote {
-  const document = documentFromJson(record.documentJson);
   const bounded = shouldUseBoundedEditor(document) ? createBoundedDocument(document) : null;
   return {
     state: createEditorState(bounded?.windowDocument() ?? document, extraPlugins),
     revision: record.revision,
     bounded,
-    searchState: bounded ? createSearchState(document) : null,
+    searchState: null,
     scrollTop: 0,
     wholeSelected: false,
     derivedTitle: deriveTitle(document),
@@ -313,10 +315,17 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const afterSpacerRef = useRef<HTMLDivElement>(null);
   const accessibleDocumentRef = useRef<HTMLTextAreaElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const cacheRef = useRef(new Map<string, CachedNote>());
+  const cacheRef = useRef(new EditorWorkingSet<CachedNote>(EDITOR_WORKING_SET_LIMIT));
+  const dirtyNoteIdsRef = useRef(new Set<string>());
   const activeIdRef = useRef<string | null>(null);
   const saveTimerRef = useRef<number | null>(null);
-  const saveSequencerRef = useRef(new SaveSequencer());
+  const [failedSaveNoteIds, setFailedSaveNoteIds] = useState<ReadonlySet<string>>(new Set());
+  const saveSequencerRef = useRef<SaveSequencer | null>(null);
+  if (saveSequencerRef.current === null) {
+    saveSequencerRef.current = new SaveSequencer((failures) => {
+      setFailedSaveNoteIds(new Set(failures.map(({ noteId }) => noteId)));
+    });
+  }
   const composingRef = useRef(false);
   const pendingWindowRef = useRef<number | null>(null);
   const scrollHostRef = useRef<HTMLElement | null>(null);
@@ -356,10 +365,26 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     mentionPluginsRef.current = [createMentionPlugin(mentionContext)];
   }
   const mentionPlugins = mentionPluginsRef.current;
+  const editorPluginsRef = useRef<Plugin[] | null>(null);
+  if (editorPluginsRef.current === null) {
+    editorPluginsRef.current = [...mentionPlugins, ...createProductPlugins()];
+  }
+  const editorPlugins = editorPluginsRef.current;
+  const preparedDocumentsRef = useRef<ReturnType<typeof preparedEditorDocuments> | null>(null);
+  if (preparedDocumentsRef.current === null) {
+    preparedDocumentsRef.current = preparedEditorDocuments(store);
+  }
+  const preparedDocuments = preparedDocumentsRef.current;
 
   function activeEntry(): CachedNote | null {
     const noteId = activeIdRef.current;
     return noteId ? (cacheRef.current.get(noteId) ?? null) : null;
+  }
+
+  function pruneEditorWorkingSet(): void {
+    const protectedIds = new Set(dirtyNoteIdsRef.current);
+    if (activeIdRef.current) protectedIds.add(activeIdRef.current);
+    cacheRef.current.prune(protectedIds);
   }
 
   function syncBoundedSurface(entry: CachedNote): void {
@@ -428,7 +453,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = viewRef.current;
     if (!bounded || !view) return;
     if (rebuild) {
-      entry.state = createEditorState(bounded.windowDocument(), mentionPlugins);
+      entry.state = createEditorState(bounded.windowDocument(), editorPlugins);
       const remembered = bounded.selection();
       if (
         remembered &&
@@ -481,11 +506,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (!cached || !record) return Promise.resolve();
     const document = cached.bounded?.fullDocument() ?? cached.state.doc;
     const at = Date.now();
+    const documentJson = document.toJSON();
+    preparedDocuments.stage(noteId, documentJson, document);
     const operations: WorkspaceOperation[] = [
       {
         type: "save_document",
         noteId,
-        documentJson: document.toJSON(),
+        documentJson,
         markdown: serializeProductMarkdown(document),
         wordCount: countWords(document),
         expectedRevision: record.revision,
@@ -497,20 +524,26 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       cached.derivedTitle = title;
       operations.push({ type: "rename_node", id: noteId, title, at });
     }
-    return commitOperations(store, operations)
-      .then(() => {
+    return commitOperations(store, operations).then(() => {
         const entry = cacheRef.current.get(noteId);
         const saved = store.getState().documents.get(noteId);
-        if (entry && saved) entry.revision = saved.revision;
-      })
-      .catch((error) => {
-        console.error("save rejected", error);
-        cacheRef.current.delete(noteId);
+        if (entry && saved) {
+          entry.revision = saved.revision;
+          const current = entry.bounded?.fullDocument() ?? entry.state.doc;
+          if (current.eq(document)) {
+            dirtyNoteIdsRef.current.delete(noteId);
+          }
+        }
+        pruneEditorWorkingSet();
       });
   }
 
   function saveNow(noteId: string): Promise<void> {
-    return saveSequencerRef.current.enqueue(noteId, () => persistCurrentDocument(noteId));
+    return saveSequencerRef.current!.enqueue(noteId, () => persistCurrentDocument(noteId));
+  }
+
+  function reportBackgroundSaveFailure(error: unknown): void {
+    console.error("save rejected", error);
   }
 
   async function flushPendingSave(): Promise<void> {
@@ -518,17 +551,20 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
       if (activeIdRef.current) {
-        await saveNow(activeIdRef.current);
+        await saveNow(activeIdRef.current).catch(() => undefined);
       }
     }
-    await saveSequencerRef.current.flush();
+    await saveSequencerRef.current!.flush();
   }
 
   function schedulePendingSave(): void {
+    if (activeIdRef.current) dirtyNoteIdsRef.current.add(activeIdRef.current);
     if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
     saveTimerRef.current = window.setTimeout(() => {
       saveTimerRef.current = null;
-      if (activeIdRef.current) void saveNow(activeIdRef.current);
+      if (activeIdRef.current) {
+        void saveNow(activeIdRef.current).catch(reportBackgroundSaveFailure);
+      }
     }, SAVE_DEBOUNCE_MS);
   }
 
@@ -762,7 +798,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       );
     });
     const view = new EditorView(host, {
-      state: createEditorState(emptyDocument(), mentionPlugins),
+      state: createEditorState(emptyDocument(), editorPlugins),
       editable: () => activeIdRef.current !== null,
       nodeViews: {
         ...referenceViews.nodeViews,
@@ -1010,7 +1046,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const unregisterPendingSave = registerPendingWork(() => flushPendingSave());
     return () => {
       unregisterPendingSave();
-      void flushPendingSave();
+      void flushPendingSave().catch(reportBackgroundSaveFailure);
       scrollHost?.removeEventListener("scroll", handleScroll);
       view.dom.removeEventListener("compositionstart", handleCompositionStart);
       view.dom.removeEventListener("compositionend", handleCompositionEnd);
@@ -1030,7 +1066,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     const view = viewRef.current;
     if (!view) return;
     searchRef.current.resetSearch();
-    flushPendingSave();
+    void flushPendingSave().catch(reportBackgroundSaveFailure);
     const previous = activeEntry();
     if (previous?.bounded && view.hasFocus()) {
       previous.bounded.rememberSelection(
@@ -1044,7 +1080,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     setLinkMenu(closedLinkMenu);
     dragHandleRef.current?.hide();
     if (activeNoteId === null) {
-      view.updateState(createEditorState(emptyDocument(), mentionPlugins));
+      view.updateState(createEditorState(emptyDocument(), editorPlugins));
       syncBoundedSurface({
         state: view.state,
         revision: 0,
@@ -1058,7 +1094,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     }
     const record = store.getState().documents.get(activeNoteId);
     if (!record) {
-      view.updateState(createEditorState(emptyDocument(), mentionPlugins));
+      view.updateState(createEditorState(emptyDocument(), editorPlugins));
       return;
     }
     let entry = cacheRef.current.get(activeNoteId);
@@ -1066,8 +1102,9 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       entry.bounded?.fullDocument() ?? entry.state.doc,
       record.documentJson,
     ))) {
-      entry = createCachedNote(record, mentionPlugins);
+      entry = createCachedNote(record, preparedDocuments.documentFor(record), editorPlugins);
       cacheRef.current.set(activeNoteId, entry);
+      pruneEditorWorkingSet();
     } else {
       entry.revision = record.revision;
     }
@@ -1085,12 +1122,39 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   useEffect(
     () =>
       store.subscribe(
+        (state) => state.nodes,
+        () => {
+          const available = store.getState().nodes;
+          const sequencer = saveSequencerRef.current!;
+          const tracked = new Set([
+            ...dirtyNoteIdsRef.current,
+            ...sequencer.currentFailures().map(({ noteId }) => noteId),
+          ]);
+          for (const noteId of tracked) {
+            if (available.has(noteId)) continue;
+            dirtyNoteIdsRef.current.delete(noteId);
+            sequencer.discard(noteId);
+            if (activeIdRef.current === noteId && saveTimerRef.current !== null) {
+              window.clearTimeout(saveTimerRef.current);
+              saveTimerRef.current = null;
+            }
+          }
+          pruneEditorWorkingSet();
+        },
+      ),
+    [store],
+  );
+
+  useEffect(
+    () =>
+      store.subscribe(
         (state) => state.documents,
         () => {
           const id = activeIdRef.current;
           const record = id ? store.getState().documents.get(id) : undefined;
           const entry = id ? cacheRef.current.get(id) : undefined;
           if (!record || !entry) return;
+          if (id && dirtyNoteIdsRef.current.has(id)) return;
           const current = entry.bounded?.fullDocument() ?? entry.state.doc;
           if (documentsEqual(current, record.documentJson)) {
             entry.revision = record.revision;
@@ -1107,7 +1171,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           } else {
             entry.bounded = null;
             entry.searchState = null;
-            entry.state = createEditorState(replacement, mentionPlugins);
+            entry.state = createEditorState(replacement, editorPlugins);
             viewRef.current?.updateState(entry.state);
             syncBoundedSurface(entry);
           }
@@ -1165,6 +1229,28 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
 
   return (
     <div className="editor-host">
+      {failedSaveNoteIds.size > 0 && (
+        <div
+          className="sticky top-3 z-40 mx-auto mb-3 flex max-w-xl items-center justify-between gap-4 rounded-[var(--radius)] border border-[hsl(var(--mood-rough)/0.45)] bg-popover px-3 py-2 text-[13px] shadow-sm"
+          role="alert"
+        >
+          <span>
+            {failedSaveNoteIds.size === 1
+              ? "Changes couldn’t be saved. Your draft is still here."
+              : `Changes in ${failedSaveNoteIds.size} notes couldn’t be saved. Your drafts are still here.`}
+          </span>
+          <button
+            type="button"
+            className="shrink-0 rounded-[var(--radius)] border border-border bg-muted/55 px-2 py-1 text-[12px] font-[560] hover:bg-muted"
+            onClick={() => {
+              void Promise.all([...failedSaveNoteIds].map((noteId) => saveNow(noteId)))
+                .catch(reportBackgroundSaveFailure);
+            }}
+          >
+            Retry save
+          </button>
+        </div>
+      )}
       {search.searchOpen && (
         <div className="@container/editor-search sticky top-3 z-40 -mx-9 flex h-0 items-start justify-end">
           <SearchWidget

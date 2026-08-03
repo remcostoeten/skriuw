@@ -309,6 +309,38 @@ mod tests {
     }
 
     #[test]
+    fn deferred_poison_revision_does_not_starve_later_history() {
+        let storage = seeded_storage();
+        storage
+            .apply_operations(&[WorkspaceOperationEnvelope::v1(
+                WorkspaceOperation::CreateNote {
+                    id: "note-2".into(),
+                    title: "Healthy".into(),
+                    placement: NodePlacement::last(None),
+                    document_json: json!({"type": "doc", "content": []}),
+                    markdown: "# Healthy".into(),
+                    at: 2,
+                },
+            )])
+            .expect("create healthy note");
+        let worker = HistoryWorker::new("worker-1", Arc::clone(&storage), SelectiveMaterializer)
+            .expect("create worker");
+
+        worker
+            .process_next(100, 30_000)
+            .expect_err("poison revision fails");
+        let result = worker
+            .process_next(101, 30_000)
+            .expect("later revision progresses");
+
+        assert!(matches!(
+            result,
+            HistoryWorkResult::Materialized { ref header, .. }
+                if header.note_id == "note-2"
+        ));
+    }
+
+    #[test]
     fn cache_commit_failure_returns_no_publishable_header() {
         let queue = FailingCompletionQueue {
             item: Mutex::new(Some(PendingHistoryRevision {
@@ -437,6 +469,23 @@ mod tests {
             _item: &PendingHistoryRevision,
         ) -> Result<HistoryMaterialization, MaterializationError> {
             Err(MaterializationError::new("history backend unavailable"))
+        }
+    }
+
+    struct SelectiveMaterializer;
+
+    impl HistoryMaterializer for SelectiveMaterializer {
+        fn materialize(
+            &self,
+            item: &PendingHistoryRevision,
+        ) -> Result<HistoryMaterialization, MaterializationError> {
+            if item.note_id == "note-1" {
+                return Err(MaterializationError::new("poison revision"));
+            }
+            Ok(HistoryMaterialization {
+                version_id: format!("version-{}", item.note_id),
+                summary: "Created note".into(),
+            })
         }
     }
 

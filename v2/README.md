@@ -82,6 +82,7 @@ The current v2 release is published through apt, dnf, Homebrew, Scoop, and AUR. 
 ./scripts/build.sh desktop
 ./scripts/build.sh ci
 ./scripts/check.sh
+./scripts/check-wasm.sh
 ./scripts/generate.sh
 ./scripts/dev-db.sh
 cargo run -p skriuw-cli -- snapshot .data/skriuw.db
@@ -90,6 +91,12 @@ cargo run -p skriuw-cli -- export .data/skriuw.db workspace.json
 cargo run -p skriuw-cli -- backup .data/skriuw.db workspace.backup.db
 cargo run -p skriuw-cli -- restore workspace.backup.db restored.db
 ```
+
+`check-wasm.sh` is the intentional portability gate for the backend-neutral
+`skriuw-domain` and `skriuw-storage` crates. The browser SQLite/OPFS adapter is
+still deferred; native SQLite, Git, lifecycle, CLI, and Tauri crates are not
+expected to compile for WASM. CI runs this narrow gate in a separate job so the
+future boundary cannot drift without slowing every ordinary local check.
 
 Every build entry point runs generated-contract checks, Rust formatting and linting, all default backend, desktop, renderer, renderer-store, and UI-architecture tests, executed-source renderer coverage, and TypeScript validation before producing artifacts. `bun run build`, `bun run tauri:build`, and `bun run check` route through the same orchestrator. Successful local builds print terminal links to their artifacts; CI uploads the release binaries, renderer bundle, and complete logs.
 

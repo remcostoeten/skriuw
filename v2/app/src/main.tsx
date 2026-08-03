@@ -15,6 +15,7 @@ import {
 import type { HistoryHeader } from "./contracts/workspace";
 import { listenForHistoryHeaders } from "./history/live-history";
 import { bindWindowClosePersistence } from "./lifecycle/window-close";
+import { registerPendingWork } from "./lifecycle/pending-work";
 import { bindSettingsToRoot } from "./settings/apply-settings";
 import { opensNotesInTabs } from "./settings/settings-model";
 import { bindPaneLayoutPersistence } from "./store/pane-layout-persistence";
@@ -23,6 +24,7 @@ import { bindSidebarExpansionPersistence } from "./store/sidebar-expansion-persi
 import { createInitialState, createRendererStore } from "./store/store";
 import type { RendererStore } from "./store/types";
 import { initZoom } from "./zoom/zoom-controller";
+import { showToast } from "./shared/ui/toast";
 import "./styles.css";
 
 async function start(): Promise<void> {
@@ -80,25 +82,44 @@ async function start(): Promise<void> {
         onCloseRequested: (handler) => appWindow.onCloseRequested(handler),
         completeClose: closeWorkspaceWindow,
       },
-      { onError: (error) => console.error("active note close persistence failed", error) },
+      {
+        onError: (error) => {
+          console.error("window close persistence failed", error);
+          showToast({
+            message: "Skriuw stayed open because some changes are not saved yet.",
+            durationMs: 8_000,
+          });
+        },
+      },
     );
-    const unbindExpansionPersistence = bindSidebarExpansionPersistence(
+    const expansionPersistence = bindSidebarExpansionPersistence(
       store,
       saveSidebarExpansion,
       { onError: (error) => console.error("sidebar expansion persistence failed", error) },
     );
-    const unbindPaneLayoutPersistence = bindPaneLayoutPersistence(
+    const paneLayoutPersistence = bindPaneLayoutPersistence(
       store,
       savePaneLayout,
       { onError: (error) => console.error("pane layout persistence failed", error) },
     );
+    const unregisterExpansionFlush = registerPendingWork(expansionPersistence.flush);
+    const unregisterPaneLayoutFlush = registerPendingWork(paneLayoutPersistence.flush);
+    function disposeUiPersistence(): void {
+      unregisterExpansionFlush();
+      unregisterPaneLayoutFlush();
+      void Promise.all([
+        expansionPersistence.dispose(),
+        paneLayoutPersistence.dispose(),
+      ]).catch((error) => {
+        console.error("ui persistence dispose failed", error);
+      });
+    }
     for (const header of pendingHeaders) {
       store.publishHistoryHeader(header);
     }
     window.addEventListener("pagehide", unlistenHistory, { once: true });
     window.addEventListener("pagehide", unbindWindowClosePersistence, { once: true });
-    window.addEventListener("pagehide", unbindExpansionPersistence, { once: true });
-    window.addEventListener("pagehide", unbindPaneLayoutPersistence, { once: true });
+    window.addEventListener("pagehide", disposeUiPersistence, { once: true });
     bindSettingsToRoot(store, document.documentElement);
     root.render(
       <StrictMode>

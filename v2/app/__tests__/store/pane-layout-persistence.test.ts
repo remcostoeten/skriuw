@@ -54,7 +54,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
 test("pane layout persistence coalesces synchronous updates into the latest write", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
   const writes: string[] = [];
-  const unbind = bindPaneLayoutPersistence(
+  const binding = bindPaneLayoutPersistence(
     store,
     async (layoutJson) => {
       writes.push(layoutJson);
@@ -67,13 +67,13 @@ test("pane layout persistence coalesces synchronous updates into the latest writ
   await settle();
   assert.equal(writes.length, 1);
   assert.deepEqual(parsePaneLayout(writes[0]!)?.[0]?.openNoteIds, ["note-a", "note-b"]);
-  unbind();
+  await binding.dispose();
 });
 
 test("failed pane layout persistence never rolls renderer state back", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
   let failures = 0;
-  const unbind = bindPaneLayoutPersistence(
+  const binding = bindPaneLayoutPersistence(
     store,
     async () => {
       throw new Error("unavailable");
@@ -85,13 +85,32 @@ test("failed pane layout persistence never rolls renderer state back", async () 
   await settle();
   assert.equal(failures, 1);
   assert.deepEqual(store.getState().panes[0]?.openNoteIds, ["note-a", "note-b"]);
-  unbind();
+  await assert.rejects(binding.dispose(), /unavailable/);
+  assert.equal(failures, 2);
+});
+
+test("flush rejects until a failed pane layout is durable", async () => {
+  const store = createRendererStore(createInitialState(snapshot, []));
+  let rejectWrites = true;
+  const binding = bindPaneLayoutPersistence(
+    store,
+    async () => {
+      if (rejectWrites) throw new Error("unavailable");
+    },
+    { delayMs: 1 },
+  );
+
+  openNoteInTab(store, "note-b");
+  await settle();
+  await assert.rejects(binding.flush(), /unavailable/);
+  rejectWrites = false;
+  await binding.flush();
 });
 
 test("teardown flushes the latest pane layout before the coalescing delay", async () => {
   const store = createRendererStore(createInitialState(snapshot, []));
   const writes: string[] = [];
-  const unbind = bindPaneLayoutPersistence(
+  const binding = bindPaneLayoutPersistence(
     store,
     async (layoutJson) => {
       writes.push(layoutJson);
@@ -100,11 +119,35 @@ test("teardown flushes the latest pane layout before the coalescing delay", asyn
   );
 
   openNoteInTab(store, "note-b");
-  unbind();
-  await settle();
+  await binding.dispose();
 
   assert.equal(writes.length, 1);
   assert.deepEqual(parsePaneLayout(writes[0]!)?.[0]?.openNoteIds, ["note-a", "note-b"]);
+});
+
+test("flush remains pending until the durable pane write settles", async () => {
+  const store = createRendererStore(createInitialState(snapshot, []));
+  let release = () => {};
+  const durable = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const binding = bindPaneLayoutPersistence(
+    store,
+    async () => durable,
+    { delayMs: 1_000 },
+  );
+  openNoteInTab(store, "note-b");
+
+  let flushed = false;
+  const flush = binding.flush().then(() => {
+    flushed = true;
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(flushed, false);
+  release();
+  await flush;
+  assert.equal(flushed, true);
+  await binding.dispose();
 });
 
 test("pane layout survives a serialize/parse restore round trip", async () => {
