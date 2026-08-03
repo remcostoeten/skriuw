@@ -207,7 +207,7 @@ async function dispatchKey(
   };
   await cdp.send(
     "Input.dispatchKeyEvent",
-    { ...common, type: text ? "keyDown" : "rawKeyDown" },
+    { ...common, type: "keyDown" },
     sessionId,
   );
   await cdp.send("Input.dispatchKeyEvent", { ...common, type: "keyUp" }, sessionId);
@@ -403,9 +403,15 @@ async function runWorkflow() {
       createdNoteId !== null && !["note-alpha", "note-beta", "note-gamma", "note-root"].includes(createdNoteId),
       createdNoteId,
     );
+    await control("focusEditor()");
     await replaceText(cdp, sessionId, "Created note");
     await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
-    await settle();
+    await waitFor(
+      cdp,
+      sessionId,
+      `window.__SKRIUW_WORKFLOW_E2E__.state().nodeTitles[${JSON.stringify(createdNoteId)}] === 'Created note'`,
+      "created note title persistence",
+    );
     current = await state();
     assert(
       checks,
@@ -586,7 +592,7 @@ async function runWorkflow() {
       "Shift+ArrowRight did not move the selected diagram node",
     );
     await control('focusNamed("Add a connected step")');
-    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
     assert(
       checks,
@@ -595,7 +601,7 @@ async function runWorkflow() {
       "keyboard add did not create a fourth node",
     );
     await control('focusNamed("Edit Mermaid source")');
-    await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+    await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
     await settle();
     assert(
       checks,
