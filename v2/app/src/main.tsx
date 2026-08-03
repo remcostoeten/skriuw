@@ -12,6 +12,7 @@ import {
   savePaneLayout,
   saveSidebarExpansion,
 } from "./bridge/commands";
+import { isBrowserRuntime } from "./bridge/runtime";
 import type { HistoryHeader } from "./contracts/workspace";
 import { listenForHistoryHeaders } from "./history/live-history";
 import { bindWindowClosePersistence } from "./lifecycle/window-close";
@@ -39,13 +40,15 @@ async function start(): Promise<void> {
   try {
     let store: RendererStore | null = null;
     const pendingHeaders: HistoryHeader[] = [];
-    unlistenHistory = await listenForHistoryHeaders((header) => {
-      if (store) {
-        store.publishHistoryHeader(header);
-        return;
-      }
-      pendingHeaders.push(header);
-    });
+    if (!isBrowserRuntime()) {
+      unlistenHistory = await listenForHistoryHeaders((header) => {
+        if (store) {
+          store.publishHistoryHeader(header);
+          return;
+        }
+        pendingHeaders.push(header);
+      });
+    }
     const [snapshot, expandedFolderIds, paneLayoutJson] = await Promise.all([
       bootstrapWorkspace(),
       loadSidebarExpansion().catch((error) => {
@@ -74,24 +77,25 @@ async function start(): Promise<void> {
         ),
       }));
     }
-    const appWindow = getCurrentWindow();
-    const unbindWindowClosePersistence = await bindWindowClosePersistence(
-      store,
-      applyWorkspaceOperations,
-      {
-        onCloseRequested: (handler) => appWindow.onCloseRequested(handler),
-        completeClose: closeWorkspaceWindow,
-      },
-      {
-        onError: (error) => {
-          console.error("window close persistence failed", error);
-          showToast({
-            message: "Skriuw stayed open because some changes are not saved yet.",
-            durationMs: 8_000,
-          });
-        },
-      },
-    );
+    const unbindWindowClosePersistence = isBrowserRuntime()
+      ? () => {}
+      : await bindWindowClosePersistence(
+          store,
+          applyWorkspaceOperations,
+          {
+            onCloseRequested: (handler) => getCurrentWindow().onCloseRequested(handler),
+            completeClose: closeWorkspaceWindow,
+          },
+          {
+            onError: (error) => {
+              console.error("window close persistence failed", error);
+              showToast({
+                message: "Skriuw stayed open because some changes are not saved yet.",
+                durationMs: 8_000,
+              });
+            },
+          },
+        );
     const expansionPersistence = bindSidebarExpansionPersistence(
       store,
       saveSidebarExpansion,
@@ -117,7 +121,7 @@ async function start(): Promise<void> {
     for (const header of pendingHeaders) {
       store.publishHistoryHeader(header);
     }
-    window.addEventListener("pagehide", unlistenHistory, { once: true });
+    window.addEventListener("pagehide", unlistenHistory ?? (() => {}), { once: true });
     window.addEventListener("pagehide", unbindWindowClosePersistence, { once: true });
     window.addEventListener("pagehide", disposeUiPersistence, { once: true });
     bindSettingsToRoot(store, document.documentElement);
