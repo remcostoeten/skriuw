@@ -15,6 +15,15 @@ export type HistoryVersionContent = {
   markdown: string;
 };
 
+export type BrowserStorageCapabilities = {
+  opfs: boolean;
+  crossOriginIsolated: boolean;
+};
+
+export function browserStorageCapabilities(): Promise<BrowserStorageCapabilities> {
+  return invoke<BrowserStorageCapabilities>("browser_storage_capabilities");
+}
+
 export function bootstrapWorkspace(): Promise<WorkspaceSnapshot> {
   return invoke<WorkspaceSnapshot>("bootstrap_workspace");
 }
