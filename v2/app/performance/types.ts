@@ -44,6 +44,18 @@ export type FixtureIdentity = {
   folderCount: number;
   blockCount: number;
   measuredNoteIds: string[];
+  workingSetNoteIds: string[];
+};
+
+export type WorkingSetResult = {
+  distinctVisits: number;
+  configuredLimit: number;
+  maximumObservedSize: number;
+  finalObservedSize: number;
+  evictions: number;
+  coldRevisitWasEvicted: boolean;
+  coldRevisitDispatchMs: number;
+  bridgeCalls: string[];
 };
 
 export type CorrectnessCheck = {
@@ -56,6 +68,7 @@ export type ProductRendererResult = {
   fixture: FixtureIdentity;
   estimatedFrameMs: number;
   selection: PhaseResult;
+  workingSet: WorkingSetResult;
   keyboardSwitches: PhaseResult & {
     expected: number;
     handled: number;
@@ -85,13 +98,23 @@ export type ProductRendererResult = {
     editorBlocks: number;
   };
   resourcesLoadedDuringNavigation: string[];
+  startupPreparation: StartupPreparationResult;
   correctness: CorrectnessCheck[];
+};
+
+export type StartupPreparationResult = {
+  renderMs: number;
+  heapBytesBefore: number | null;
+  heapBytesAfter: number | null;
+  documentCount: number;
+  topLevelBlockCount: number;
 };
 
 export type PerformanceController = {
   store: RendererStore;
   onRender: ProfilerOnRenderCallback;
   runSelection: () => Promise<PhaseResult>;
+  runWorkingSet: () => Promise<WorkingSetResult>;
   alignFrame: () => Promise<void>;
   prepareKeyboard: () => Promise<{ anchors: string[] }>;
   positionKeyboard: (id: string) => string;
@@ -111,6 +134,7 @@ export type PerformanceController = {
   };
   finish: (
     selection: PhaseResult,
+    workingSet: WorkingSetResult,
     keyboardSwitches: PhaseResult & { expected: number; handled: number; selections: number },
     typing: PhaseResult & { expected: number; handled: number },
     referenceSuggestions: {

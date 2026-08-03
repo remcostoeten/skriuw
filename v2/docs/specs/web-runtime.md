@@ -1,6 +1,8 @@
 # Web runtime
 
-Status: not started. Low priority, but should be fully specified since it's a foundational platform decision the architecture already anticipates rather than a speculative add-on.
+Status: adapter implementation not started. The portable domain/storage compile
+boundary is continuously gated; SQLite-WASM, OPFS, worker transport, browser
+history, and recovery semantics remain deferred.
 
 Scope note: this spec covers the browser runtime only (wasm crates, SQLite-WASM adapter, fixture parity). Mobile and a browser extension are explicitly out of scope for this spec and remain unscheduled separate efforts.
 
@@ -28,9 +30,11 @@ A browser-based build of the same renderer, backed by the same domain/operation 
 Target: `skriuw-domain`, `skriuw-storage` (the port/trait definitions), and any pure-logic crate that doesn't already assume native OS access. `skriuw-sqlite`, `skriuw-history-git`, `skriuw-lifecycle`, and `skriuw-cli` are native-only by design and are not part of this target — the browser adapter gets its own crate (`skriuw-sqlite-wasm` or similar), implementing the same `skriuw-storage` port, not a recompiled `skriuw-sqlite`.
 
 Concretely:
-- Add `wasm32-unknown-unknown` to `rust-toolchain.toml`'s target list or a CI-only install step.
-- `cargo build -p skriuw-domain -p skriuw-storage --target wasm32-unknown-unknown` must succeed with zero feature-flag native-only code paths compiled in. If either crate currently has an untested assumption (e.g. a `chrono`/`std::time` call that doesn't work under wasm, a dependency pulling in native TLS), this step is where it surfaces — expect this to be more "remove accidental native coupling" work than "add wasm code."
-- Add this build to `scripts/check.sh` or a dedicated CI job once it passes, so drift is caught immediately rather than rediscovered when the adapter is written.
+- `wasm32-unknown-unknown` is installed by `rust-toolchain.toml`.
+- `./scripts/check-wasm.sh` builds `skriuw-domain` and `skriuw-storage` for that
+  target with the locked dependency graph.
+- CI runs the script in a dedicated job. The ordinary local product gate stays
+  native-focused, while portability drift still blocks integration.
 
 ### 2. Worker-owned SQLite-WASM adapter over durable browser storage
 

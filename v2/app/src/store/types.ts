@@ -34,6 +34,7 @@ export type DocumentRecord = {
   markdown: string;
   revision: number;
   wordCount: number;
+  hasLosslessMarkdown: boolean;
 };
 
 export type NoteMetadata = {

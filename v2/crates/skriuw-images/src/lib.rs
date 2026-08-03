@@ -6,8 +6,10 @@
 
 use std::{
     collections::BTreeSet,
-    fs, io,
+    fs::{self, OpenOptions},
+    io::{self, Read, Write},
     path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
     time::{Duration, SystemTime},
 };
 
@@ -15,6 +17,7 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 pub const CONTENT_HASH_HEX_LENGTH: usize = 64;
+static TEMPORARY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Error)]
 pub enum ImageStoreError {
@@ -67,21 +70,53 @@ impl ImageStore {
         let target = self
             .root
             .join(blob_file_name(&content_hash, extension_for(mime_type)));
-        if !target.exists() {
-            let temporary = self
-                .root
-                .join(format!(".{content_hash}.{}", std::process::id()));
-            fs::write(&temporary, bytes)?;
-            if let Err(error) = fs::rename(&temporary, &target) {
-                let _ = fs::remove_file(&temporary);
-                return Err(error.into());
-            }
+        if target.exists() {
+            verify_content(&target, &content_hash)?;
+        } else {
+            self.publish(&target, &content_hash, bytes)?;
         }
         Ok(StoredImage {
             content_hash,
             mime_type,
             byte_size: bytes.len() as u64,
         })
+    }
+
+    fn publish(
+        &self,
+        target: &Path,
+        content_hash: &str,
+        bytes: &[u8],
+    ) -> Result<(), ImageStoreError> {
+        let sequence = TEMPORARY_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let temporary = self.root.join(format!(
+            ".{content_hash}.{}.{}",
+            std::process::id(),
+            sequence
+        ));
+        let result = (|| {
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temporary)?;
+            file.write_all(bytes)?;
+            file.sync_all()?;
+            drop(file);
+            match fs::hard_link(&temporary, target) {
+                Ok(()) => {
+                    fs::remove_file(&temporary)?;
+                    sync_directory(target)
+                }
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+                    verify_content(target, content_hash)
+                }
+                Err(error) => Err(error),
+            }
+        })();
+        if result.is_err() || temporary.exists() {
+            let _ = fs::remove_file(&temporary);
+        }
+        result.map_err(ImageStoreError::from)
     }
 
     pub fn read(&self, content_hash: &str, mime_type: &str) -> Result<Vec<u8>, ImageStoreError> {
@@ -200,6 +235,42 @@ impl ImageStore {
     }
 }
 
+fn verify_content(path: &Path, expected_hash: &str) -> io::Result<()> {
+    let mut file = fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    let actual_hash = format!("{:x}", hasher.finalize());
+    if actual_hash == expected_hash {
+        Ok(())
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "existing image blob does not match its content hash",
+        ))
+    }
+}
+
+#[cfg(unix)]
+fn sync_directory(path: &Path) -> io::Result<()> {
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    fs::File::open(parent)?.sync_all()
+}
+
+#[cfg(not(unix))]
+fn sync_directory(_path: &Path) -> io::Result<()> {
+    Ok(())
+}
+
 fn blob_file_name(content_hash: &str, extension: &str) -> String {
     format!("{content_hash}.{extension}")
 }
@@ -261,7 +332,13 @@ pub fn sniff_mime(bytes: &[u8]) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeSet, fs, time::Duration};
+    use std::{
+        collections::BTreeSet,
+        fs,
+        sync::{Arc, Barrier},
+        thread,
+        time::Duration,
+    };
 
     use tempfile::tempdir;
 
@@ -287,6 +364,36 @@ mod tests {
             PNG
         );
         assert_eq!(fs::read_dir(store.root()).expect("list").count(), 1);
+    }
+
+    #[test]
+    fn concurrent_identical_puts_publish_one_complete_blob() {
+        let dir = tempdir().expect("tempdir");
+        let store = Arc::new(ImageStore::open(dir.path().join("blobs")).expect("open store"));
+        let barrier = Arc::new(Barrier::new(16));
+        let workers = (0..16)
+            .map(|_| {
+                let store = Arc::clone(&store);
+                let barrier = Arc::clone(&barrier);
+                thread::spawn(move || {
+                    barrier.wait();
+                    store.put(PNG).expect("concurrent put")
+                })
+            })
+            .collect::<Vec<_>>();
+        let stored = workers
+            .into_iter()
+            .map(|worker| worker.join().expect("join put"))
+            .collect::<Vec<_>>();
+
+        assert!(stored.windows(2).all(|pair| pair[0] == pair[1]));
+        assert_eq!(fs::read_dir(store.root()).expect("list").count(), 1);
+        assert_eq!(
+            store
+                .read(&stored[0].content_hash, stored[0].mime_type)
+                .expect("read blob"),
+            PNG
+        );
     }
 
     #[test]

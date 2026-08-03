@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { KeyboardEvent } from "react";
 import { commitOperations } from "../actions/workspace";
+import { registerPendingWork } from "../lifecycle/pending-work";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
 import { textEdgeOffset, type DocumentEdge } from "./document-edges";
@@ -34,6 +35,7 @@ import {
   type RawMarkdownState,
 } from "./raw-markdown-reconciliation";
 import { countWords, parseProductMarkdownWithImages } from "./schema";
+import { SaveSequencer } from "./save-sequencer";
 
 const SAVE_DEBOUNCE_MS = 500;
 const MARKDOWN_SCOPES = ["markdown"];
@@ -68,6 +70,15 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   sourceRef.current = source;
   const deferredText = useDeferredValue(source.text);
   const saveTimerRef = useRef<number | null>(null);
+  const savingNoteIdsRef = useRef(new Set<string>());
+  const draftsByNoteIdRef = useRef(new Map<string, string>());
+  const [failedSaveNoteIds, setFailedSaveNoteIds] = useState<ReadonlySet<string>>(new Set());
+  const saveSequencerRef = useRef<SaveSequencer | null>(null);
+  if (saveSequencerRef.current === null) {
+    saveSequencerRef.current = new SaveSequencer((failures) => {
+      setFailedSaveNoteIds(new Set(failures.map(({ noteId }) => noteId)));
+    });
+  }
   const lineNumberContentRef = useRef<HTMLPreElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const jumpInputRef = useRef<HTMLInputElement>(null);
@@ -83,17 +94,18 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
   const lineCount = useMemo(() => rawMarkdownLineCount(deferredText), [deferredText]);
   const lineNumbers = useMemo(() => rawMarkdownLineNumbers(lineCount), [lineCount]);
 
-  function saveNow(noteId: string, markdown: string): void {
+  function persistMarkdown(noteId: string, markdown: string): Promise<void> {
     const current = store.getState().documents.get(noteId);
     if (!current) {
-      return;
+      return Promise.resolve();
     }
     const document = parseProductMarkdownWithImages(
       markdown,
       noteImageIds(store.getState(), noteId),
       current.documentJson,
     );
-    void commitOperations(store, [
+    savingNoteIdsRef.current.add(noteId);
+    return commitOperations(store, [
       {
         type: "save_document",
         noteId,
@@ -103,35 +115,77 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
         expectedRevision: current.revision,
         at: Date.now(),
       },
-    ]).catch((error) => {
-      console.error("save rejected", error);
+    ]).then(() => {
+      const latest = sourceRef.current;
+      if (latest.noteId === noteId && latest.text === markdown && latest.dirty) {
+        const clean = { ...latest, dirty: false };
+        sourceRef.current = clean;
+        setSource(clean);
+      }
+    }).finally(() => {
+      savingNoteIdsRef.current.delete(noteId);
     });
   }
 
-  function flushPendingSave(noteId: string | null): void {
-    if (saveTimerRef.current === null || noteId === null) {
-      return;
+  function saveNow(noteId: string, markdown: string): Promise<void> {
+    draftsByNoteIdRef.current.set(noteId, markdown);
+    return saveSequencerRef.current!
+      .enqueue(noteId, () => persistMarkdown(noteId, markdown))
+      .then(() => {
+        if (draftsByNoteIdRef.current.get(noteId) === markdown) {
+          draftsByNoteIdRef.current.delete(noteId);
+        }
+      });
+  }
+
+  function reportBackgroundSaveFailure(error: unknown): void {
+    console.error("save rejected", error);
+  }
+
+  async function flushPendingSave(noteId: string | null): Promise<void> {
+    if (saveTimerRef.current !== null && noteId !== null) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      await saveNow(noteId, sourceRef.current.text).catch(() => undefined);
     }
-    window.clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = null;
-    saveNow(noteId, sourceRef.current.text);
+    await saveSequencerRef.current!.flush();
   }
 
   useEffect(() => {
-    return () => flushPendingSave(sourceRef.current.noteId);
+    const unregister = registerPendingWork(() => flushPendingSave(sourceRef.current.noteId));
+    return () => {
+      unregister();
+      void flushPendingSave(sourceRef.current.noteId).catch(reportBackgroundSaveFailure);
+    };
   }, []);
+
+  useEffect(
+    () =>
+      store.subscribe(
+        (state) => state.nodes,
+        () => {
+          const available = store.getState().nodes;
+          const sequencer = saveSequencerRef.current!;
+          for (const noteId of draftsByNoteIdRef.current.keys()) {
+            if (available.has(noteId)) continue;
+            draftsByNoteIdRef.current.delete(noteId);
+            sequencer.discard(noteId);
+          }
+        },
+      ),
+    [store],
+  );
 
   useEffect(() => {
     const previous = sourceRef.current;
     const noteChanged = previous.noteId !== activeNoteId;
     if (noteChanged) {
-      flushPendingSave(previous.noteId);
+      void flushPendingSave(previous.noteId).catch(reportBackgroundSaveFailure);
     }
-    const next = reconcileRawMarkdown(
-      previous,
-      activeNoteId,
-      record?.markdown ?? "",
-    );
+    const next =
+      !noteChanged && previous.dirty && previous.noteId !== null && savingNoteIdsRef.current.has(previous.noteId)
+        ? previous
+        : reconcileRawMarkdown(previous, activeNoteId, record?.markdown ?? "");
     if (next !== previous) {
       sourceRef.current = next;
       setSource(next);
@@ -154,7 +208,7 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
     }
     saveTimerRef.current = window.setTimeout(() => {
       saveTimerRef.current = null;
-      saveNow(noteId, sourceRef.current.text);
+      void saveNow(noteId, sourceRef.current.text).catch(reportBackgroundSaveFailure);
     }, SAVE_DEBOUNCE_MS);
   }
 
@@ -252,6 +306,31 @@ export function RawMarkdownEditor({ store, selectNoteId }: Props) {
 
   return (
     <div ref={setSurfaceHost}>
+      {failedSaveNoteIds.size > 0 && (
+        <div
+          className="sticky top-3 z-40 mx-auto mb-3 flex max-w-xl items-center justify-between gap-4 rounded-[var(--radius)] border border-[hsl(var(--mood-rough)/0.45)] bg-popover px-3 py-2 text-[13px] shadow-sm"
+          role="alert"
+        >
+          <span>
+            {failedSaveNoteIds.size === 1
+              ? "Changes couldn’t be saved. Your Markdown draft is still here."
+              : `Markdown changes in ${failedSaveNoteIds.size} notes couldn’t be saved. Your drafts are still here.`}
+          </span>
+          <button
+            type="button"
+            className="shrink-0 rounded-[var(--radius)] border border-border bg-muted/55 px-2 py-1 text-[12px] font-[560] hover:bg-muted"
+            onClick={() => {
+              const retries = [...failedSaveNoteIds].flatMap((noteId) => {
+                const draft = draftsByNoteIdRef.current.get(noteId);
+                return draft === undefined ? [] : [saveNow(noteId, draft)];
+              });
+              void Promise.all(retries).catch(reportBackgroundSaveFailure);
+            }}
+          >
+            Retry save
+          </button>
+        </div>
+      )}
       {jumpOpen ? (
         <div className="sticky top-3 z-40 flex h-0 items-start justify-end">
           <div className="flex items-center gap-2 rounded-lg border border-border bg-popover p-1.5 pl-2.5 text-[13px] text-foreground shadow-[0_12px_28px_-12px_hsl(var(--scrim)/0.32)]">

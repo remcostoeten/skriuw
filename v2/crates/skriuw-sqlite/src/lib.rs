@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs,
     path::Path,
     sync::{Mutex, MutexGuard},
@@ -34,7 +35,7 @@ use crate::migration::{
     verify_migration,
 };
 use crate::operations::{
-    apply_operations_in_transaction, enqueue_history, fts_query, replace_fts, replace_references,
+    apply_operations_in_transaction, enqueue_history, fts_query, insert_fts, replace_references,
     require_changed, require_worker, validate_operations,
 };
 use crate::queries::{
@@ -370,6 +371,12 @@ impl WorkspaceMaintenance for SqliteWorkspace {
         archive
             .validate()
             .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
+        let note_projection = archive
+            .nodes
+            .iter()
+            .filter(|node| node.kind == NodeKind::Note)
+            .map(|node| (node.id.as_str(), (node.title.as_str(), node.updated_at)))
+            .collect::<HashMap<_, _>>();
         let mut connection = self.lock()?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -445,24 +452,17 @@ impl WorkspaceMaintenance for SqliteWorkspace {
                     ],
                 )
                 .map_err(backend)?;
-            let title = archive
-                .nodes
-                .iter()
-                .find(|node| node.id == document.note_id)
-                .map(|node| node.title.as_str())
+            let (title, updated_at) = note_projection
+                .get(document.note_id.as_str())
+                .copied()
                 .ok_or_else(|| StorageError::NotFound(document.note_id.clone()))?;
-            replace_fts(&transaction, &document.note_id, title, &document.markdown)?;
+            insert_fts(&transaction, &document.note_id, title, &document.markdown)?;
             enqueue_history(
                 &transaction,
                 &document.note_id,
                 document.revision,
                 &document.markdown,
-                archive
-                    .nodes
-                    .iter()
-                    .find(|node| node.id == document.note_id)
-                    .map(|node| node.updated_at)
-                    .unwrap_or(archive.exported_at),
+                updated_at,
             )?;
         }
 

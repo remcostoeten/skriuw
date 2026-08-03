@@ -4,7 +4,6 @@ import { useRouteFocus } from "../app-route";
 import { editorModeForNote } from "../actions/editor-mode";
 import { NoteEditor } from "../editor/note-editor";
 import { RawMarkdownEditor } from "../editor/raw-markdown-editor";
-import { hasLosslessMarkdownDocument } from "../editor/schema";
 import {
   BarChartIcon,
   CalendarDaysIcon,
@@ -546,7 +545,7 @@ function JournalEntryPane({
       }
       return (
         editorModeForNote(state, noteId) === "raw" ||
-        hasLosslessMarkdownDocument(state.documents.get(noteId)?.documentJson)
+        state.documents.get(noteId)?.hasLosslessMarkdown === true
       );
     },
     [selectNoteId],

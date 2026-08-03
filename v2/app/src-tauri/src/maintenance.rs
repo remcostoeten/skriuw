@@ -32,11 +32,13 @@ use skriuw_storage::{
 const HISTORY_DRAIN_WORKER_ID: &str = "desktop-history-drain";
 const HISTORY_DRAIN_IDLE_DELAY: Duration = Duration::from_millis(250);
 const HISTORY_DRAIN_LEASE_MS: i64 = 30_000;
+const HISTORY_DRAIN_BATCH_ITEMS: usize = 64;
 const ROLLBACK_PREFIX: &str = ".rollback-";
 const CANDIDATE_PREFIX: &str = ".restore-candidate-";
 const SAFETY_BACKUP_PREFIX: &str = ".pre-import-";
 
 type HistoryPublisher = Arc<dyn Fn(HistoryHeader) + Send + Sync>;
+pub(crate) type HistoryFailureObserver = Arc<dyn Fn() + Send + Sync>;
 
 pub struct HistoryDrainHandle {
     stop: Arc<AtomicBool>,
@@ -60,6 +62,22 @@ pub fn spawn_history_drain(
     now_millis: fn() -> i64,
     publish: HistoryPublisher,
 ) -> Result<HistoryDrainHandle, String> {
+    spawn_history_drain_observed(
+        database_path,
+        repository_path,
+        now_millis,
+        publish,
+        Arc::new(|| {}),
+    )
+}
+
+pub(crate) fn spawn_history_drain_observed(
+    database_path: &Path,
+    repository_path: &Path,
+    now_millis: fn() -> i64,
+    publish: HistoryPublisher,
+    observe_failure: HistoryFailureObserver,
+) -> Result<HistoryDrainHandle, String> {
     let storage = Arc::new(
         SqliteWorkspace::open(database_path)
             .map_err(|error| format!("open {}: {error}", database_path.display()))?,
@@ -74,13 +92,29 @@ pub fn spawn_history_drain(
         .name("skriuw-history-drain".into())
         .spawn(move || {
             while !stop_flag.load(Ordering::Relaxed) {
-                match worker.process_next(now_millis(), HISTORY_DRAIN_LEASE_MS) {
-                    Ok(HistoryWorkResult::Materialized { header, .. }) => publish(header),
-                    Ok(HistoryWorkResult::Idle) => thread::sleep(HISTORY_DRAIN_IDLE_DELAY),
-                    Err(error) => {
-                        eprintln!("history drain failed: {error}");
-                        thread::sleep(HISTORY_DRAIN_IDLE_DELAY);
+                let mut idle = false;
+                for _ in 0..HISTORY_DRAIN_BATCH_ITEMS {
+                    if stop_flag.load(Ordering::Relaxed) {
+                        break;
                     }
+                    match worker.process_next(now_millis(), HISTORY_DRAIN_LEASE_MS) {
+                        Ok(HistoryWorkResult::Materialized { header, .. }) => publish(header),
+                        Ok(HistoryWorkResult::Idle) => {
+                            idle = true;
+                            break;
+                        }
+                        Err(error) => {
+                            eprintln!("history drain failed: {error}");
+                            observe_failure();
+                            idle = true;
+                            break;
+                        }
+                    }
+                }
+                if idle {
+                    thread::sleep(HISTORY_DRAIN_IDLE_DELAY);
+                } else {
+                    thread::yield_now();
                 }
             }
         })

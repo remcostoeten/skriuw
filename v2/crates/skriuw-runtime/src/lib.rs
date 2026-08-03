@@ -7,7 +7,10 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
+use skriuw_domain::{
+    OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    validate_operation_group,
+};
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, StorageError, WorkspaceStorage,
 };
@@ -120,6 +123,8 @@ impl WorkspaceRuntime {
         &self,
         operations: Vec<WorkspaceOperationEnvelope>,
     ) -> Result<Completion<OperationAck>, RuntimeError> {
+        validate_operation_group(&operations)
+            .map_err(|error| StorageError::InvalidOperation(error.to_string()))?;
         let (sender, receiver) = mpsc::channel();
         self.shared.submit(Request::Apply { operations, sender })?;
         Ok(Completion { receiver })

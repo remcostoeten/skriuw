@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { WorkspaceNode, WorkspaceSnapshot } from "../../src/contracts/workspace";
+import { registerPendingWork } from "../../src/lifecycle/pending-work";
 import { bindWindowClosePersistence } from "../../src/lifecycle/window-close";
 import { createInitialState, createRendererStore } from "../../src/store/store";
 
@@ -168,6 +169,7 @@ test("overlapping close requests stay intercepted behind one persistence", async
   );
 
   const firstRequest = window.request();
+  await Promise.resolve();
   const secondEvent = await window.request();
   assert.equal(secondEvent.prevented, true);
   assert.equal(persistenceCalls, 1);
@@ -178,7 +180,7 @@ test("overlapping close requests stay intercepted behind one persistence", async
   assert.equal(window.closeCalls(), 1);
 });
 
-test("persistence rejection is reported and does not strand the window", async () => {
+test("persistence rejection is reported and keeps the window open for retry", async () => {
   const store = createRendererStore(createInitialState(snapshot()));
   const window = fakeWindow();
   const failures: unknown[] = [];
@@ -194,7 +196,7 @@ test("persistence rejection is reported and does not strand the window", async (
   await window.request();
   assert.equal(failures.length, 1);
   assert.match(String(failures[0]), /durable rejection/);
-  assert.equal(window.closeCalls(), 1);
+  assert.equal(window.closeCalls(), 0);
 });
 
 test("bounded wait reports a timeout while the accepted persistence may finish", async () => {
@@ -217,13 +219,70 @@ test("bounded wait reports a timeout while the accepted persistence may finish",
   );
 
   await window.request();
-  assert.equal(window.closeCalls(), 1);
+  assert.equal(window.closeCalls(), 0);
   assert.match(String(failures[0]), /timed out/);
   assert.equal(completed, false);
   assert.ok(finishPersistence);
   finishPersistence();
   await Promise.resolve();
   assert.equal(completed, true);
+});
+
+test("a timed-out attempt cannot submit stale active-note state after its flush completes", async () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const window = fakeWindow();
+  const failures: unknown[] = [];
+  const operations: unknown[] = [];
+  let finishPendingWork: (() => void) | null = null;
+  const unregister = registerPendingWork(
+    () =>
+      new Promise<void>((resolve) => {
+        finishPendingWork = resolve;
+      }),
+  );
+  await bindWindowClosePersistence(
+    store,
+    async (submitted) => {
+      operations.push(submitted);
+    },
+    window.port,
+    { timeoutMs: 1, onError: (error) => failures.push(error) },
+  );
+
+  await window.request();
+  assert.match(String(failures[0]), /timed out/);
+  store.setActiveNote("note-2");
+  assert.ok(finishPendingWork);
+  finishPendingWork();
+  await Promise.resolve();
+  assert.deepEqual(operations, []);
+
+  unregister();
+  await window.request();
+  assert.deepEqual(operations, [[{
+    protocolVersion: 1,
+    operation: { type: "set_active_note", noteId: "note-2" },
+  }]]);
+});
+
+test("a later close retries pending work after persistence failure", async () => {
+  const store = createRendererStore(createInitialState(snapshot()));
+  const window = fakeWindow();
+  let attempts = 0;
+  await bindWindowClosePersistence(
+    store,
+    async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("temporary failure");
+    },
+    window.port,
+  );
+
+  await window.request();
+  assert.equal(window.closeCalls(), 0);
+  await window.request();
+  assert.equal(attempts, 2);
+  assert.equal(window.closeCalls(), 1);
 });
 
 test("listener registration failure degrades without failing initialization", async () => {

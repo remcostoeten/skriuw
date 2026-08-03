@@ -16,10 +16,7 @@ pub(crate) const NODE_RANK_GAP: i64 = 1024;
 pub(crate) fn validate_operations(
     operations: &[WorkspaceOperationEnvelope],
 ) -> Result<(), StorageError> {
-    for envelope in operations {
-        envelope.validate().map_err(validation)?;
-    }
-    Ok(())
+    skriuw_domain::validate_operation_group(operations).map_err(validation)
 }
 
 pub(crate) fn replace_references(
@@ -1370,6 +1367,15 @@ pub(crate) fn replace_fts(
     transaction
         .execute("DELETE FROM documents_fts WHERE note_id = ?1", [note_id])
         .map_err(backend)?;
+    insert_fts(transaction, note_id, title, markdown)
+}
+
+pub(crate) fn insert_fts(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+    title: &str,
+    markdown: &str,
+) -> Result<(), StorageError> {
     transaction
         .execute(
             "INSERT INTO documents_fts(note_id, title, markdown) VALUES (?1, ?2, ?3)",
