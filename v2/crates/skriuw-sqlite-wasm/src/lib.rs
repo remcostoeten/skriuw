@@ -1,26 +1,28 @@
-//! Browser storage boundary for Skriuw.
+//! Browser-local SQLite boundary for Skriuw.
 //!
-//! SQLite-WASM must live in a dedicated worker because SQLite's WASM bindings
-//! are not thread-safe and OPFS synchronous access handles are worker-only.
-//! This crate deliberately keeps the worker protocol independent from the
-//! browser transport: a web worker can call [`WorkerStorage::dispatch`] for
-//! each `postMessage` request, while tests can exercise the exact same request
-//! and response mapping with an in-process backend.
-//!
-//! The OPFS VFS and SQL implementation are the next layer. Until that is
-//! wired, [`BrowserWorkspace::from_backend`] provides the complete boundary
-//! against any `WorkspaceStorage` implementation (including the memory
-//! adapter used by fixtures). No renderer code should depend on the concrete
-//! backend behind this boundary.
+//! The renderer sends versioned requests to one dedicated worker. On WASM the
+//! worker installs the durable OPFS sync-access-handle pool VFS, opens one
+//! `SqliteWorkspace`, and reuses the native adapter's domain validation, SQL,
+//! migrations, transactions, FTS, and portable archive implementation.
+//! Database and OPFS handles never cross this crate's worker boundary.
+
+mod protocol;
+mod runtime;
+
+#[cfg(target_arch = "wasm32")]
+mod wasm;
 
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
 use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
 use skriuw_storage::{StorageError, WorkspaceStorage};
 
-/// The stable operation set sent over the browser worker transport.
-#[derive(Debug, Serialize, Deserialize)]
+pub use protocol::*;
+pub use runtime::{BrowserWorkerRuntime, WorkerLifecycle, decode_request};
+
+/// Compatibility request set used by native parity tests. Production browser
+/// traffic uses [`BrowserWorkerRequest`] and [`BrowserWorkerRuntime`].
+#[derive(Debug)]
 pub enum WorkerRequest {
     Bootstrap,
     LoadSidebarExpansion,
@@ -32,7 +34,6 @@ pub enum WorkerRequest {
     Search { query: String, limit: usize },
 }
 
-/// Responses returned by [`WorkerStorage::dispatch`].
 #[derive(Debug)]
 pub enum WorkerResponse {
     Bootstrap(Box<Result<WorkspaceSnapshot, StorageError>>),
@@ -44,12 +45,6 @@ pub enum WorkerResponse {
     Search(Result<Vec<SearchHit>, StorageError>),
 }
 
-/// Worker-owned storage facade.
-///
-/// `Arc` is used here so the facade can be moved into the worker loop while
-/// preserving the `Send + Sync` contract expected by the runtime. The actual
-/// SQLite connection should be constructed inside the worker and supplied as
-/// the backend once the OPFS VFS is available.
 pub struct WorkerStorage {
     backend: Arc<dyn WorkspaceStorage>,
 }
@@ -62,13 +57,6 @@ impl WorkerStorage {
         }
     }
 
-    #[must_use]
-    pub fn from_shared(backend: Arc<dyn WorkspaceStorage>) -> Self {
-        Self { backend }
-    }
-
-    /// Dispatch one complete request. The browser transport can serialize the
-    /// returned response and resolve the matching promise on the renderer.
     pub fn dispatch(&self, request: WorkerRequest) -> WorkerResponse {
         match request {
             WorkerRequest::Bootstrap => {
@@ -99,9 +87,6 @@ impl WorkerStorage {
     }
 }
 
-/// Browser-facing workspace handle. This name is intentionally the seam that
-/// the renderer bridge will consume; `from_backend` keeps the first milestone
-/// testable before OPFS and the WASM SQLite VFS are connected.
 pub struct BrowserWorkspace {
     worker: WorkerStorage,
 }
@@ -117,65 +102,5 @@ impl BrowserWorkspace {
     #[must_use]
     pub fn worker(&self) -> &WorkerStorage {
         &self.worker
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{BrowserWorkspace, WorkerRequest, WorkerResponse};
-    use skriuw_domain::{OperationAck, WorkspaceSnapshot};
-    use skriuw_storage::{StorageError, WorkspaceStorage};
-
-    struct ProbeStorage;
-
-    impl WorkspaceStorage for ProbeStorage {
-        fn bootstrap(&self) -> Result<WorkspaceSnapshot, StorageError> {
-            Err(StorageError::Backend("probe bootstrap".into()))
-        }
-
-        fn apply_operations(
-            &self,
-            operations: &[skriuw_domain::WorkspaceOperationEnvelope],
-        ) -> Result<OperationAck, StorageError> {
-            Ok(OperationAck {
-                applied: operations.len(),
-                revisions: Vec::new(),
-                rank_changes: Vec::new(),
-            })
-        }
-
-        fn search(
-            &self,
-            _query: &str,
-            _limit: usize,
-        ) -> Result<Vec<skriuw_domain::SearchHit>, StorageError> {
-            Ok(Vec::new())
-        }
-    }
-
-    #[test]
-    fn dispatch_preserves_backend_errors() {
-        let workspace = BrowserWorkspace::from_backend(ProbeStorage);
-        let response = workspace.worker().dispatch(WorkerRequest::Bootstrap);
-        assert!(matches!(
-            response,
-            WorkerResponse::Bootstrap(result)
-                if matches!(*result, Err(StorageError::Backend(ref message)) if message == "probe bootstrap")
-        ));
-    }
-
-    #[test]
-    fn dispatches_operation_batches_through_worker_boundary() {
-        let workspace = BrowserWorkspace::from_backend(ProbeStorage);
-        let response = workspace
-            .worker()
-            .dispatch(WorkerRequest::ApplyOperationBatches(vec![
-                Vec::new(),
-                Vec::new(),
-            ]));
-        assert!(matches!(
-            response,
-            WorkerResponse::OperationBatches(Ok(results)) if results.len() == 2
-        ));
     }
 }

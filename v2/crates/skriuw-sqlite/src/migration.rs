@@ -57,6 +57,16 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "history_retry_backoff",
         sql: include_str!("../../../migrations/0010_history_retry_backoff.sql"),
     },
+    Migration {
+        version: 11,
+        name: "sync_outbox",
+        sql: include_str!("../../../migrations/0011_sync_outbox.sql"),
+    },
+    Migration {
+        version: 12,
+        name: "sync_inbound",
+        sql: include_str!("../../../migrations/0012_sync_inbound.sql"),
+    },
 ];
 
 pub(crate) struct Migration {

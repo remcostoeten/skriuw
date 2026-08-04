@@ -8,6 +8,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
+mod sync;
+
+pub use sync::{
+    ClientSyncOperation, MAX_INLINE_SYNC_OPERATION_BYTES, MAX_SAFE_SYNC_SEQUENCE,
+    MAX_SYNC_BATCH_BYTES, MAX_SYNC_BATCH_OPERATIONS, MAX_SYNC_PULL_OPERATIONS,
+    ReplicatedWorkspaceOperation, SyncAcceptedOperation, SyncPullResponse, SyncPushRequest,
+    SyncPushResponse, SyncReplicationClass, SyncValidationError,
+    WORKSPACE_OPERATION_SYNC_POLICY_V1, WORKSPACE_SYNC_PROTOCOL_VERSION,
+    WorkspaceOperationSyncPolicy, validate_sync_identifier, validate_sync_sequence,
+};
+
 pub const WORKSPACE_PROTOCOL_VERSION: u16 = 1;
 pub const WORKSPACE_ARCHIVE_VERSION: u16 = 3;
 pub const SUPPORTED_ARCHIVE_VERSIONS: [u16; 3] = [1, 2, 3];

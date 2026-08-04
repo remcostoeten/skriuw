@@ -1,8 +1,8 @@
 use std::{fmt, sync::Arc};
 
 use skriuw_domain::{
-    HistoryHeader, OperationAck, SearchHit, WorkspaceArchive, WorkspaceOperationEnvelope,
-    WorkspaceSnapshot,
+    HistoryHeader, OperationAck, ReplicatedWorkspaceOperation, SearchHit, SyncAcceptedOperation,
+    SyncPushRequest, WorkspaceArchive, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use thiserror::Error;
 
@@ -12,6 +12,7 @@ pub const MAX_DIAGNOSTIC_MESSAGE_BYTES: usize = 1024;
 pub enum DiagnosticContext {
     Runtime,
     Storage,
+    Sync,
     History,
     Backup,
     Recovery,
@@ -24,6 +25,7 @@ impl DiagnosticContext {
         match self {
             Self::Runtime => "runtime",
             Self::Storage => "storage",
+            Self::Sync => "sync",
             Self::History => "history",
             Self::Backup => "backup",
             Self::Recovery => "recovery",
@@ -289,6 +291,96 @@ pub trait HistoryCache: Send + Sync {
     fn replace_history_headers(&self, headers: &[HistoryHeader]) -> Result<usize, StorageError>;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewSyncConnection {
+    pub workspace_id: String,
+    pub device_id: String,
+    pub connected_at: i64,
+    pub observed_server_sequence: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncConnection {
+    pub workspace_id: String,
+    pub device_id: String,
+    pub connected_at: i64,
+    pub observed_server_sequence: u64,
+    pub next_client_sequence: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PendingSyncBatch {
+    pub workspace_id: String,
+    pub request: SyncPushRequest,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockedSyncOperation {
+    pub id: String,
+    pub operation_type: String,
+    pub reason_code: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncConflict {
+    pub id: String,
+    pub operation_id: String,
+    pub operation_type: String,
+    pub server_sequence: u64,
+    pub reason_code: String,
+    pub message: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum RemoteSyncApplyOutcome {
+    Applied(OperationAck),
+    LocalEcho,
+    Conflict(SyncConflict),
+    Duplicate,
+}
+
+pub trait WorkspaceSyncQueue: Send + Sync {
+    fn sync_connection(&self) -> Result<Option<SyncConnection>, StorageError>;
+
+    fn connect_sync(&self, connection: &NewSyncConnection) -> Result<SyncConnection, StorageError>;
+
+    fn disconnect_sync(&self, disconnected_at: i64) -> Result<(), StorageError>;
+
+    fn claim_sync_operations(
+        &self,
+        worker_id: &str,
+        now_ms: i64,
+        lease_ms: i64,
+        limit: usize,
+    ) -> Result<Option<PendingSyncBatch>, StorageError>;
+
+    fn acknowledge_sync_operations(
+        &self,
+        worker_id: &str,
+        accepted: &[SyncAcceptedOperation],
+    ) -> Result<(), StorageError>;
+
+    fn release_sync_operations(
+        &self,
+        worker_id: &str,
+        operation_ids: &[String],
+        retry_at_ms: i64,
+        diagnostic: &Diagnostic,
+    ) -> Result<(), StorageError>;
+
+    fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError>;
+
+    fn apply_remote_operations(
+        &self,
+        operations: &[ReplicatedWorkspaceOperation],
+        received_at: i64,
+    ) -> Result<Vec<RemoteSyncApplyOutcome>, StorageError>;
+
+    fn sync_conflicts(&self) -> Result<Vec<SyncConflict>, StorageError>;
+}
+
 impl<T> WorkspaceStorage for Arc<T>
 where
     T: WorkspaceStorage + ?Sized,
@@ -385,6 +477,71 @@ where
     ) -> Result<(), StorageError> {
         self.as_ref()
             .release_history_revision(worker_id, item_id, retry_at_ms, diagnostic)
+    }
+}
+
+impl<T> WorkspaceSyncQueue for Arc<T>
+where
+    T: WorkspaceSyncQueue + ?Sized,
+{
+    fn sync_connection(&self) -> Result<Option<SyncConnection>, StorageError> {
+        self.as_ref().sync_connection()
+    }
+
+    fn connect_sync(&self, connection: &NewSyncConnection) -> Result<SyncConnection, StorageError> {
+        self.as_ref().connect_sync(connection)
+    }
+
+    fn disconnect_sync(&self, disconnected_at: i64) -> Result<(), StorageError> {
+        self.as_ref().disconnect_sync(disconnected_at)
+    }
+
+    fn claim_sync_operations(
+        &self,
+        worker_id: &str,
+        now_ms: i64,
+        lease_ms: i64,
+        limit: usize,
+    ) -> Result<Option<PendingSyncBatch>, StorageError> {
+        self.as_ref()
+            .claim_sync_operations(worker_id, now_ms, lease_ms, limit)
+    }
+
+    fn acknowledge_sync_operations(
+        &self,
+        worker_id: &str,
+        accepted: &[SyncAcceptedOperation],
+    ) -> Result<(), StorageError> {
+        self.as_ref()
+            .acknowledge_sync_operations(worker_id, accepted)
+    }
+
+    fn release_sync_operations(
+        &self,
+        worker_id: &str,
+        operation_ids: &[String],
+        retry_at_ms: i64,
+        diagnostic: &Diagnostic,
+    ) -> Result<(), StorageError> {
+        self.as_ref()
+            .release_sync_operations(worker_id, operation_ids, retry_at_ms, diagnostic)
+    }
+
+    fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError> {
+        self.as_ref().blocked_sync_operations()
+    }
+
+    fn apply_remote_operations(
+        &self,
+        operations: &[ReplicatedWorkspaceOperation],
+        received_at: i64,
+    ) -> Result<Vec<RemoteSyncApplyOutcome>, StorageError> {
+        self.as_ref()
+            .apply_remote_operations(operations, received_at)
+    }
+
+    fn sync_conflicts(&self) -> Result<Vec<SyncConflict>, StorageError> {
+        self.as_ref().sync_conflicts()
     }
 }
 

@@ -24,6 +24,7 @@ mod migration;
 mod operations;
 mod queries;
 mod recovery;
+mod sync;
 
 #[cfg(test)]
 mod tests;
@@ -42,6 +43,7 @@ use crate::queries::{
     read_archive, read_pane_layout, read_sidebar_expansion, read_snapshot, write_pane_layout,
     write_sidebar_expansion,
 };
+use crate::sync::enqueue_sync_operations;
 
 pub use recovery::{
     BackupRetentionPolicy, BackupRotationOutcome, RECOVERY_MANIFEST_VERSION, RecoveryArtifact,
@@ -269,6 +271,7 @@ impl WorkspaceStorage for SqliteWorkspace {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(backend)?;
         let acknowledgement = apply_operations_in_transaction(&transaction, operations)?;
+        enqueue_sync_operations(&transaction, operations)?;
         transaction.commit().map_err(backend)?;
         Ok(acknowledgement)
     }
@@ -292,6 +295,13 @@ impl WorkspaceStorage for SqliteWorkspace {
                 .map_err(backend)?;
             match apply_operations_in_transaction(&transaction, operations) {
                 Ok(acknowledgement) => {
+                    if let Err(error) = enqueue_sync_operations(&transaction, operations) {
+                        transaction
+                            .execute_batch("ROLLBACK TO operation_batch; RELEASE operation_batch")
+                            .map_err(backend)?;
+                        results.push(Err(error));
+                        continue;
+                    }
                     transaction
                         .execute_batch("RELEASE operation_batch")
                         .map_err(backend)?;
@@ -381,9 +391,27 @@ impl WorkspaceMaintenance for SqliteWorkspace {
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(backend)?;
+        let sync_connected = transaction
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sync_connection \
+                 WHERE singleton = 1 AND disconnected_at IS NULL)",
+                [],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(backend)?;
+        if sync_connected {
+            return Err(StorageError::InvalidOperation(
+                "disconnect sync before replacing the workspace archive".into(),
+            ));
+        }
         transaction
             .execute_batch(
                 "DELETE FROM history_outbox;\
+                 DELETE FROM sync_outbox;\
+                 DELETE FROM sync_blocked_operations;\
+                 DELETE FROM sync_received_operations;\
+                 DELETE FROM sync_conflicts;\
+                 DELETE FROM sync_connection;\
                  DELETE FROM history_cache;\
                  DELETE FROM documents_fts;\
                  DELETE FROM documents;\

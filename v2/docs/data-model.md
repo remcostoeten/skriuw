@@ -45,6 +45,18 @@ Ordered migration version, immutable name, SHA-256 checksum, and application tim
 
 Durable leased queue containing committed document revisions not yet materialized by the selected history backend. Successful processing records history metadata and removes the queue row. Failed or abandoned leases remain retryable. `last_error` stores only the bounded deterministic display of a categorized local history diagnostic, is cleared on the next claim, and is excluded from snapshots and portable archives.
 
+### `sync_connection`, `sync_outbox`, and `sync_blocked_operations`
+
+Optional connected-mode operational state. The singleton connection owns the
+stable device identity, observed server sequence, and next client sequence.
+Replicated local operations enter `sync_outbox` in the same transaction as
+canonical content and history projections. Lease/retry state makes upload
+crash-safe and preserves operation IDs across acknowledgement loss. Oversized
+or protocol-unsupported local operations remain durable and visible in
+`sync_blocked_operations` without failing the local edit or consuming a client
+sequence. All three tables are excluded from portable archives. See the
+[local sync outbox contract](specs/local-sync-outbox.md).
+
 ### `app_state`
 
 Small JSON values: the last active note and one versioned `WorkspaceSettings` document under the `settings` key. Missing fields deserialize to defaults, unknown fields are preserved as extension data, and unsupported future versions are rejected explicitly. Secrets never belong here.
@@ -57,6 +69,9 @@ Small JSON values: the last active note and one versioned `WorkspaceSettings` do
 - Reorder properties or templates: require the exact stored ID set and update every position in one transaction.
 - Set template: replace its complete validated ordered field set atomically.
 - Consecutive queued saves: at most 64 request groups share one outer transaction; each group uses a savepoint so its conflict or failure does not roll back successful neighbors, and completions resolve only after the outer commit.
+- Connected local operation: canonical mutation, projections, history enqueue,
+  sync enqueue or blocked record, and client-sequence advance share one
+  transaction/savepoint.
 - Claim history: short lease update only; materialization runs after the transaction releases.
 - Complete history: cached header insert and matching leased outbox deletion.
 - Failed history: release lease and persist bounded diagnostic text for retry.

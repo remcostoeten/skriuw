@@ -1,9 +1,10 @@
 # Web runtime
 
-Status: browser runtime foundation in progress. The portable domain/storage
-compile boundary, browser worker protocol, and renderer runtime seam are now
-gated; OPFS-backed SQLite execution, browser history, and recovery semantics
-remain deferred.
+Status: browser-local runtime implemented. The application bridge, generated
+WASM asset, worker-owned SQLite/OPFS open path, shared migrations, native parity
+tests, archive recovery behavior, and Chromium close/reload durability gate are
+implemented. Cross-browser evidence and representative performance measurements
+remain follow-up release evidence.
 
 Scope note: this spec covers the browser runtime only (wasm crates, SQLite-WASM adapter, fixture parity). Mobile and a browser extension are explicitly out of scope for this spec and remain unscheduled separate efforts.
 
@@ -39,19 +40,78 @@ Concretely:
 
 ### 2. Worker-owned SQLite-WASM adapter over durable browser storage
 
-The initial `skriuw-sqlite-wasm` crate now defines the typed worker request and
-response boundary and can dispatch against any `WorkspaceStorage` implementation
-for parity tests. The TypeScript bridge also routes browser calls through a
-dedicated module worker. The next implementation step is connecting that
-boundary to a real SQLite-WASM connection and OPFS VFS; the current browser
-worker intentionally returns an explicit unavailable error until then.
+The `skriuw-sqlite-wasm` crate defines the typed request/response boundary and
+worker lifecycle. Its WASM entry point installs the `sqlite-wasm-vfs` 0.2
+sync-access-handle pool in `.skriuw-v2`, sets it as the default VFS, and opens
+one `skriuw-sqlite::SqliteWorkspace`. This reuses native operation, migration,
+checksum, FTS, transaction/savepoint, settings, integrity, and portable archive
+behavior. The database and OPFS handles remain worker-local.
 
-New crate, e.g. `skriuw-sqlite-wasm`, implementing the `skriuw-storage` port using `sqlite-wasm-rs` (or the equivalent official SQLite WASM build) against OPFS (Origin Private File System) — OPFS is the only browser storage with the durability and random-access-write characteristics SQLite needs; IndexedDB-backed SQLite shims exist but are slower and less transactionally sound, and should not be the default choice without a specific measured reason.
+Two gates keep that boundary honest. `check-wasm.sh` builds
+the adapter crate for `wasm32-unknown-unknown`, so native-only code cannot enter
+it unnoticed. `crates/skriuw-sqlite-wasm/tests/worker_protocol_parity.rs` drives
+shared fixture operation batches, search, and renderer layout state through the
+request/response protocol against a real backend and asserts the results equal a
+direct trait call. `runtime_contract.rs` additionally proves migration on fresh
+open, edit/close/reopen durability, archive round-trip, and invalid archive
+rejection before mutation through the production protocol.
+
+ADR-0027 selects `sqlite-wasm-rs` 0.5.5 and `sqlite-wasm-vfs` 0.2.0's
+`opfs-sahpool`. The VFS provides full durability, runs only in a dedicated
+worker, and requires one active connection for its origin directory. Unlike the
+ordinary OPFS VFS it does not require COOP/COEP. IndexedDB and memory remain
+explicitly excluded as durability fallbacks.
 
 - SQLite WASM must run inside a Web Worker, not the main thread — the same "off the renderer/UI thread" rule that governs the native runtime worker (`skriuw-runtime`) applies identically here, and is more urgent in the browser since the main thread also owns rendering.
 - The worker communicates with the renderer via `postMessage`, mirroring the shape of `skriuw-runtime`'s FIFO request queue and waitable completion handles — the goal is that `app/src/bridge/**`'s Tauri-specific implementation and a new browser-worker-specific implementation both satisfy the same renderer-facing bridge contract, so `app/src/store/**` and everything above it does not know which adapter is active.
 - Migrations: the same SQL files under `migrations/` must apply unmodified inside the worker (`docs/data-model.md`'s "migration execution remains adapter-owned so a future SQLite-WASM implementation can apply the same SQL files inside its worker" is an explicit design commitment already made — honor it; do not fork the migration files).
 - Git history: native builds materialize history via `skriuw-history-git`. The browser adapter has no filesystem Git available. Per the existing TODO item this spec absorbs ("select local revision or remote history materializer"), the browser adapter needs its own `skriuw-history` implementation — likely a local revision-cache-only mode (no external Git materialization) as the default, with a remote materializer as a later, separate decision requiring its own ADR (it implies a server, which ADR-0001 explicitly scopes as "optional replication, never primary reads").
+
+### Worker protocol and lifecycle
+
+Protocol version 1 has explicit `initialize`, ready, request, `close`, terminal
+failure, and closed states. Positive safe request IDs correlate one response.
+The boundary rejects unknown versions/kinds, malformed JSON, invalid database
+names, oversized payloads, invalid layouts, excessive operation batches, and
+invalid archives. Operation requests are capped at the native runtime's
+64-operation batch size and total messages at 16 MiB.
+
+The owned TypeScript client applies a 15-second initialization deadline and a
+30-second request deadline. Crash, message decoding failure, explicit
+termination, and close reject every outstanding promise deterministically.
+Timeout messages warn that an accepted write may already be durable; a caller
+must reconcile by bootstrapping after reopen rather than blindly replaying an
+operation.
+
+Stable recovery errors cover unsupported browser, OPFS denial, quota,
+migration, database-too-new, corruption/open, crash, invalid request/protocol,
+conflict, shutdown, and timeout. The SAH-pool does not require cross-origin
+isolation, so that error is reserved for a future VFS choice rather than emitted
+by this adapter. No durable-storage failure falls back to memory or IndexedDB.
+
+### Recovery and history
+
+Validated portable archive export/import is the browser recovery baseline.
+Import validates before mutation, replaces canonical state in one transaction,
+and rebuilds projections through the shared adapter. OPFS internals, FTS rows,
+history/sync operational queues, and native Git data do not enter the archive.
+Browser history is therefore current-state/archive recovery only in this slice;
+native Git history is not claimed.
+
+### Application and build integration
+
+`scripts/build-browser-wasm.sh` builds the crate for
+`wasm32-unknown-unknown` and uses the exactly matching `wasm-bindgen` CLI to
+create ignored build artifacts. Vite's explicit worker-URL import emits a
+dedicated worker chunk and the `.wasm` asset; the application runtime maps its
+existing renderer-facing commands to the versioned browser protocol.
+
+`app/e2e/browser-storage.mjs` runs the real application bridge in headless
+Chromium with an isolated profile. It creates a canonical folder through the
+worker, closes the worker, reloads the page, opens the same OPFS database, and
+requires exactly one durable copy. `check-wasm.sh` owns this test and CI runs it.
+Firefox/Safari durability and failure-mode coverage plus representative startup
+and interaction measurements remain required before browser release.
 
 ### 3. Fixture parity: prove native and web adapters behave identically
 

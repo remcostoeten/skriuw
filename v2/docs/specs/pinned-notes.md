@@ -29,7 +29,7 @@ Use a nullable timestamp (`pinned_at`), not a boolean, matching the existing `de
 
 `crates/skriuw-domain/src/lib.rs`: add `pinned_at: Option<i64>` to the `WorkspaceNode` struct, alongside `deleted_at`. Update every exhaustive match/constructor that builds a `WorkspaceNode` (the compiler will find them).
 
-`app/src/contracts/workspace.ts`: add `pinnedAt: number | null` to `WorkspaceNode`, regenerate via `./scripts/generate.sh`, do not hand-edit the generated JSON Schema under `generated/contracts/`.
+`app/src/contracts/workspace.ts`: add `pinnedAt: number | null` to `WorkspaceNode`, regenerate via `./scripts/generate.sh`, do not hand-edit the generated JSON Schema under `contracts/generated/`.
 
 ## Domain operation
 

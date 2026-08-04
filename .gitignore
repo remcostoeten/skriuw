@@ -57,6 +57,10 @@ react-doctor-reports/
 # Output now lives at apps/web/generated; keep unanchored so it's ignored there.
 generated/
 
+# v2 transport contracts are generated but intentionally committed.
+!v2/contracts/generated/
+!v2/contracts/generated/*.schema.json
+
 TODO.*
 .env*.local
 .pnpm-store/
@@ -68,4 +72,5 @@ dev-menu.config.ts
 apps/desktop/skriuw_*_amd64-working-directory/
 
 next-beats/
+paralelprompts/
 apps/documentation/native/

@@ -84,6 +84,7 @@ The current v2 release is published through apt, dnf, Homebrew, Scoop, and AUR. 
 ./scripts/check.sh
 ./scripts/check-wasm.sh
 ./scripts/generate.sh
+bun --cwd cloud run check
 ./scripts/dev-db.sh
 cargo run -p skriuw-cli -- snapshot .data/skriuw.db
 cargo run -p skriuw-cli -- integrity .data/skriuw.db
@@ -92,11 +93,11 @@ cargo run -p skriuw-cli -- backup .data/skriuw.db workspace.backup.db
 cargo run -p skriuw-cli -- restore workspace.backup.db restored.db
 ```
 
-`check-wasm.sh` is the intentional portability gate for the backend-neutral
-`skriuw-domain` and `skriuw-storage` crates. The browser SQLite/OPFS adapter is
-still deferred; native SQLite, Git, lifecycle, CLI, and Tauri crates are not
-expected to compile for WASM. CI runs this narrow gate in a separate job so the
-future boundary cannot drift without slowing every ordinary local check.
+`check-wasm.sh` is the portability and browser-durability gate. It compiles the
+backend-neutral domain/storage crates and the browser adapter, generates the
+version-matched WASM module, then proves in headless Chromium that a write made
+through the application bridge survives worker close and page reload in OPFS.
+Native Git, lifecycle, CLI, and Tauri crates remain outside the browser runtime.
 
 Every build entry point runs generated-contract checks, Rust formatting and linting, all default backend, desktop, renderer, renderer-store, and UI-architecture tests, executed-source renderer coverage, and TypeScript validation before producing artifacts. `bun run build`, `bun run tauri:build`, and `bun run check` route through the same orchestrator. Successful local builds print terminal links to their artifacts; CI uploads the release binaries, renderer bundle, and complete logs.
 
@@ -117,11 +118,12 @@ crates/skriuw-images       Note image decoding and storage
 crates/skriuw-lifecycle    Startup, shutdown, and backup rotation
 crates/skriuw-fixtures     Deterministic scale fixtures
 crates/skriuw-cli          Database development utility
+cloud                      v2-only internal cloud sync service
 app                        React renderer and Tauri desktop shell
 spikes                     Retained measurement harnesses run by the build
 xtask                      Repository automation and contract generation
 migrations                 Ordered SQL migrations
-generated/contracts        Generated JSON Schema
+contracts/generated        Generated JSON Schema
 docs/adr                   Architecture decision records
 scripts                    Stable contributor/CI entrypoints
 ```

@@ -5,12 +5,14 @@ use serde_json::json;
 use skriuw_domain::{
     HistoryHeader, NodePlacement, NoteProperty, NotePropertyColor, NotePropertyField,
     NotePropertyOption, NotePropertyTemplate, NotePropertyValue, ProviderImportReceipt,
-    VersionedNotePropertyValue, WorkspaceOperation, WorkspaceOperationEnvelope, WorkspacePerson,
+    ReplicatedWorkspaceOperation, SyncAcceptedOperation, VersionedNotePropertyValue,
+    WorkspaceImage, WorkspaceOperation, WorkspaceOperationEnvelope, WorkspacePerson,
     WorkspaceSettings,
 };
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryQueue,
-    MAX_DIAGNOSTIC_MESSAGE_BYTES, StorageError, WorkspaceMaintenance, WorkspaceStorage,
+    MAX_DIAGNOSTIC_MESSAGE_BYTES, NewSyncConnection, RemoteSyncApplyOutcome, StorageError,
+    WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
 };
 use tempfile::tempdir;
 
@@ -62,6 +64,52 @@ fn custom_settings() -> WorkspaceSettings {
         extensions,
         ..WorkspaceSettings::default()
     }
+}
+
+fn connect(storage: &SqliteWorkspace) {
+    connect_at_cursor(storage, 7);
+}
+
+fn connect_at_cursor(storage: &SqliteWorkspace, observed_server_sequence: u64) {
+    storage
+        .connect_sync(&NewSyncConnection {
+            workspace_id: "workspace-1".into(),
+            device_id: "device-1".into(),
+            connected_at: 10,
+            observed_server_sequence,
+        })
+        .expect("connect sync");
+}
+
+fn remote(
+    operation_id: &str,
+    device_id: &str,
+    client_sequence: u64,
+    server_sequence: u64,
+    operation: WorkspaceOperation,
+) -> ReplicatedWorkspaceOperation {
+    ReplicatedWorkspaceOperation {
+        operation_id: operation_id.into(),
+        device_id: device_id.into(),
+        client_sequence,
+        base_server_sequence: 0,
+        server_sequence,
+        operation: op(operation),
+    }
+}
+
+fn accepted(batch: &skriuw_storage::PendingSyncBatch) -> Vec<SyncAcceptedOperation> {
+    batch
+        .request
+        .operations
+        .iter()
+        .enumerate()
+        .map(|(index, operation)| SyncAcceptedOperation {
+            operation_id: operation.operation_id.clone(),
+            client_sequence: operation.client_sequence,
+            server_sequence: index as u64 + 8,
+        })
+        .collect()
 }
 
 fn text_property(note_id: &str, id: &str, position: i64) -> NoteProperty {
@@ -138,6 +186,742 @@ fn creates_bootstraps_and_searches() {
     let hits = storage.search("SQLite", 10).expect("search");
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].note_id, "note-1");
+}
+
+#[test]
+fn local_only_operations_never_create_sync_work() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-local")])
+        .expect("local create");
+
+    assert_eq!(storage.sync_connection().expect("connection"), None);
+    assert_eq!(
+        storage
+            .claim_sync_operations("sync-worker", 100, 50, 64)
+            .expect("claim"),
+        None
+    );
+    assert!(
+        storage
+            .blocked_sync_operations()
+            .expect("blocked")
+            .is_empty()
+    );
+}
+
+#[test]
+fn connected_transaction_enqueues_only_replicated_operations_in_order() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect(&storage);
+    storage
+        .apply_operations(&[
+            op(WorkspaceOperation::CreateFolder {
+                id: "folder-1".into(),
+                title: "Folder".into(),
+                placement: NodePlacement::last(None),
+                at: 11,
+            }),
+            op(WorkspaceOperation::UpdateSettings {
+                settings: custom_settings(),
+            }),
+            op(WorkspaceOperation::RenameNode {
+                id: "folder-1".into(),
+                title: "Renamed".into(),
+                at: 12,
+            }),
+        ])
+        .expect("connected operation group");
+
+    let connection = storage
+        .sync_connection()
+        .expect("connection")
+        .expect("active connection");
+    assert_eq!(connection.next_client_sequence, 3);
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending batch");
+    assert_eq!(batch.workspace_id, "workspace-1");
+    assert_eq!(batch.request.device_id, "device-1");
+    assert_eq!(
+        batch
+            .request
+            .operations
+            .iter()
+            .map(|operation| operation.client_sequence)
+            .collect::<Vec<_>>(),
+        vec![1, 2]
+    );
+    assert!(
+        batch
+            .request
+            .operations
+            .iter()
+            .all(|operation| operation.base_server_sequence == 7)
+    );
+    assert_eq!(
+        batch.request.operations[0]
+            .operation
+            .operation
+            .sync_policy()
+            .operation_type,
+        "create_folder"
+    );
+    assert_eq!(
+        batch.request.operations[1]
+            .operation
+            .operation
+            .sync_policy()
+            .operation_type,
+        "rename_node"
+    );
+}
+
+#[test]
+fn sync_outbox_survives_restart_and_acknowledgement_loss() {
+    let directory = tempdir().expect("tempdir");
+    let path = directory.path().join("sync-restart.db");
+    let first_operation_id = {
+        let storage = SqliteWorkspace::open(&path).expect("open database");
+        connect(&storage);
+        storage
+            .apply_operations(&[op(WorkspaceOperation::CreateFolder {
+                id: "folder-restart".into(),
+                title: "Restart".into(),
+                placement: NodePlacement::last(None),
+                at: 11,
+            })])
+            .expect("commit local operation");
+        storage
+            .claim_sync_operations("worker-before-crash", 100, 50, 64)
+            .expect("claim before crash")
+            .expect("pending before crash")
+            .request
+            .operations[0]
+            .operation_id
+            .clone()
+    };
+
+    let storage = SqliteWorkspace::open(&path).expect("reopen database");
+    assert_eq!(
+        storage
+            .claim_sync_operations("worker-after-crash", 120, 50, 64)
+            .expect("unexpired claim"),
+        None
+    );
+    let retry = storage
+        .claim_sync_operations("worker-after-crash", 151, 50, 64)
+        .expect("retry claim")
+        .expect("expired lease is retryable");
+    assert_eq!(retry.request.operations[0].operation_id, first_operation_id);
+    let acknowledgement = accepted(&retry);
+    storage
+        .acknowledge_sync_operations("worker-after-crash", &acknowledgement)
+        .expect("acknowledge retry");
+    assert_eq!(
+        storage
+            .claim_sync_operations("worker-after-ack", 1_000, 50, 64)
+            .expect("empty after ack"),
+        None
+    );
+}
+
+#[test]
+fn retry_and_partial_acknowledgement_failures_are_atomic() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect(&storage);
+    storage
+        .apply_operations(&[
+            op(WorkspaceOperation::CreateFolder {
+                id: "folder-a".into(),
+                title: "A".into(),
+                placement: NodePlacement::last(None),
+                at: 11,
+            }),
+            op(WorkspaceOperation::CreateFolder {
+                id: "folder-b".into(),
+                title: "B".into(),
+                placement: NodePlacement::last(None),
+                at: 12,
+            }),
+        ])
+        .expect("create folders");
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("batch");
+    let ids = batch
+        .request
+        .operations
+        .iter()
+        .map(|operation| operation.operation_id.clone())
+        .collect::<Vec<_>>();
+    let diagnostic = Diagnostic::new(
+        DiagnosticContext::Sync,
+        DiagnosticCategory::Unavailable,
+        "cloud unavailable",
+    );
+    storage
+        .release_sync_operations("sync-worker", &ids, 200, &diagnostic)
+        .expect("release for retry");
+    assert_eq!(
+        storage
+            .claim_sync_operations("retry-worker", 199, 50, 64)
+            .expect("before retry"),
+        None
+    );
+    let retry = storage
+        .claim_sync_operations("retry-worker", 200, 50, 64)
+        .expect("retry")
+        .expect("retry batch");
+    assert_eq!(
+        retry
+            .request
+            .operations
+            .iter()
+            .map(|operation| operation.operation_id.clone())
+            .collect::<Vec<_>>(),
+        ids
+    );
+
+    let mut acknowledgement = accepted(&retry);
+    assert!(matches!(
+        storage.acknowledge_sync_operations("retry-worker", &acknowledgement[..1]),
+        Err(StorageError::InvalidOperation(_))
+    ));
+    acknowledgement[1].operation_id = "wrong-operation".into();
+    assert!(matches!(
+        storage.acknowledge_sync_operations("retry-worker", &acknowledgement),
+        Err(StorageError::InvalidOperation(_))
+    ));
+    let reclaimed = storage
+        .claim_sync_operations("reclaim-worker", 251, 50, 64)
+        .expect("reclaim")
+        .expect("atomic ack rollback preserved both rows");
+    assert_eq!(reclaimed.request.operations.len(), 2);
+}
+
+#[test]
+fn failed_operation_batch_rolls_back_its_sync_rows() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect(&storage);
+    let results = storage
+        .apply_operation_batches(&[
+            vec![op(WorkspaceOperation::CreateFolder {
+                id: "folder-valid".into(),
+                title: "Valid".into(),
+                placement: NodePlacement::last(None),
+                at: 11,
+            })],
+            vec![op(WorkspaceOperation::RenameNode {
+                id: "missing".into(),
+                title: "Missing".into(),
+                at: 12,
+            })],
+        ])
+        .expect("batch transaction");
+    assert!(results[0].is_ok());
+    assert!(results[1].is_err());
+
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("one queued operation");
+    assert_eq!(batch.request.operations.len(), 1);
+    assert_eq!(batch.request.operations[0].client_sequence, 1);
+    assert_eq!(
+        storage
+            .sync_connection()
+            .expect("connection")
+            .expect("active")
+            .next_client_sequence,
+        2
+    );
+}
+
+#[test]
+fn connected_workspace_rejects_archive_replacement_without_mutation() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-before-connect")])
+        .expect("seed workspace");
+    let archive = storage.export_archive(20).expect("export archive");
+    connect(&storage);
+    storage
+        .apply_operations(&[op(WorkspaceOperation::RenameNode {
+            id: "note-before-connect".into(),
+            title: "Pending rename".into(),
+            at: 21,
+        })])
+        .expect("create pending sync work");
+
+    assert!(matches!(
+        storage.replace_from_archive(&archive),
+        Err(StorageError::InvalidOperation(_))
+    ));
+    assert_eq!(
+        storage.bootstrap().expect("bootstrap").nodes[0].id,
+        "note-before-connect"
+    );
+    assert!(storage.sync_connection().expect("connection").is_some());
+
+    storage.disconnect_sync(30).expect("disconnect");
+    storage
+        .replace_from_archive(&archive)
+        .expect("disconnected replacement resets sync state");
+    assert_eq!(storage.sync_connection().expect("connection"), None);
+    assert_eq!(
+        storage
+            .claim_sync_operations("sync-worker", 100, 50, 64)
+            .expect("claim after replacement"),
+        None
+    );
+}
+
+#[test]
+fn disconnect_preserves_pending_work_and_unsupported_media_is_visible() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect(&storage);
+    storage
+        .apply_operations(&[create_note("note-media")])
+        .expect("create note");
+    storage
+        .apply_operations(&[op(WorkspaceOperation::AttachImage {
+            image: WorkspaceImage {
+                id: "image-1".into(),
+                note_id: "note-media".into(),
+                content_hash: "a".repeat(64),
+                mime_type: "image/png".into(),
+                byte_size: 1,
+                width: Some(1),
+                height: Some(1),
+                created_at: 12,
+            },
+        })])
+        .expect("local image metadata remains valid");
+    let blocked = storage
+        .blocked_sync_operations()
+        .expect("blocked operations");
+    assert_eq!(blocked.len(), 1);
+    assert_eq!(blocked[0].operation_type, "attach_image");
+    assert_eq!(blocked[0].reason_code, "unsupported_operation");
+
+    storage.disconnect_sync(20).expect("disconnect");
+    assert_eq!(storage.sync_connection().expect("connection"), None);
+    assert_eq!(
+        storage
+            .claim_sync_operations("sync-worker", 100, 50, 64)
+            .expect("claim while disconnected"),
+        None
+    );
+    storage
+        .connect_sync(&NewSyncConnection {
+            workspace_id: "workspace-1".into(),
+            device_id: "device-1".into(),
+            connected_at: 30,
+            observed_server_sequence: 7,
+        })
+        .expect("reconnect");
+    let pending = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim after reconnect")
+        .expect("pending work survived disconnect");
+    assert_eq!(pending.request.operations.len(), 1);
+    assert_eq!(
+        pending.request.operations[0]
+            .operation
+            .operation
+            .sync_policy()
+            .operation_type,
+        "create_note"
+    );
+}
+
+#[test]
+fn oversized_replicated_edit_commits_locally_without_a_sequence_gap() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect(&storage);
+    storage
+        .apply_operations(&[create_note("note-large")])
+        .expect("create note");
+    let large_markdown = "x".repeat(skriuw_domain::MAX_INLINE_SYNC_OPERATION_BYTES);
+    storage
+        .apply_operations(&[save_document("note-large", 1, &large_markdown, 12)])
+        .expect("oversized edit remains locally durable");
+    storage
+        .apply_operations(&[op(WorkspaceOperation::RenameNode {
+            id: "note-large".into(),
+            title: "Still local".into(),
+            at: 13,
+        })])
+        .expect("later replicated operation");
+
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.documents[0].revision, 2);
+    assert_eq!(snapshot.documents[0].markdown.len(), large_markdown.len());
+    let blocked = storage
+        .blocked_sync_operations()
+        .expect("blocked operations");
+    assert_eq!(blocked.len(), 1);
+    assert_eq!(blocked[0].operation_type, "save_document");
+    assert_eq!(blocked[0].reason_code, "operation_too_large");
+
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("uploadable operations");
+    assert_eq!(
+        batch
+            .request
+            .operations
+            .iter()
+            .map(|operation| operation.client_sequence)
+            .collect::<Vec<_>>(),
+        vec![1, 2]
+    );
+    assert_eq!(
+        batch
+            .request
+            .operations
+            .iter()
+            .map(|operation| operation.operation.operation.sync_policy().operation_type)
+            .collect::<Vec<_>>(),
+        vec!["create_note", "rename_node"]
+    );
+}
+
+#[test]
+fn applies_remote_operations_in_server_order_without_reenqueueing() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect_at_cursor(&storage, 0);
+    let operations = vec![
+        remote(
+            "remote-1",
+            "device-remote",
+            1,
+            1,
+            WorkspaceOperation::CreateFolder {
+                id: "folder-remote".into(),
+                title: "Remote".into(),
+                placement: NodePlacement::last(None),
+                at: 11,
+            },
+        ),
+        remote(
+            "remote-2",
+            "device-remote",
+            2,
+            2,
+            WorkspaceOperation::RenameNode {
+                id: "folder-remote".into(),
+                title: "Remote renamed".into(),
+                at: 12,
+            },
+        ),
+    ];
+
+    let outcomes = storage
+        .apply_remote_operations(&operations, 20)
+        .expect("apply remote operations");
+    assert!(
+        outcomes
+            .iter()
+            .all(|outcome| matches!(outcome, RemoteSyncApplyOutcome::Applied(_)))
+    );
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.nodes[0].title, "Remote renamed");
+    assert_eq!(
+        storage
+            .sync_connection()
+            .expect("connection")
+            .expect("active")
+            .observed_server_sequence,
+        2
+    );
+    assert_eq!(
+        storage
+            .claim_sync_operations("sync-worker", 100, 50, 64)
+            .expect("claim"),
+        None
+    );
+}
+
+#[test]
+fn duplicate_remote_delivery_is_idempotent_across_restart() {
+    let directory = tempdir().expect("tempdir");
+    let path = directory.path().join("remote-idempotency.db");
+    let operation = remote(
+        "remote-restart",
+        "device-remote",
+        1,
+        1,
+        WorkspaceOperation::CreateFolder {
+            id: "folder-restart-remote".into(),
+            title: "Remote".into(),
+            placement: NodePlacement::last(None),
+            at: 11,
+        },
+    );
+    {
+        let storage = SqliteWorkspace::open(&path).expect("open database");
+        connect_at_cursor(&storage, 0);
+        assert!(matches!(
+            storage
+                .apply_remote_operations(std::slice::from_ref(&operation), 20)
+                .expect("first apply")[0],
+            RemoteSyncApplyOutcome::Applied(_)
+        ));
+    }
+
+    let storage = SqliteWorkspace::open(&path).expect("reopen database");
+    assert_eq!(
+        storage
+            .apply_remote_operations(std::slice::from_ref(&operation), 30)
+            .expect("duplicate apply"),
+        vec![RemoteSyncApplyOutcome::Duplicate]
+    );
+    assert_eq!(storage.bootstrap().expect("bootstrap").nodes.len(), 1);
+
+    let mut conflicting_duplicate = operation;
+    if let WorkspaceOperation::CreateFolder { title, .. } =
+        &mut conflicting_duplicate.operation.operation
+    {
+        *title = "Conflicting".into();
+    }
+    assert!(matches!(
+        storage.apply_remote_operations(&[conflicting_duplicate], 31),
+        Err(StorageError::InvalidOperation(_))
+    ));
+    assert!(storage.sync_conflicts().expect("conflicts").is_empty());
+}
+
+#[test]
+fn remote_sequence_gap_rolls_back_the_complete_pull_batch() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect_at_cursor(&storage, 0);
+    let first = remote(
+        "remote-gap-1",
+        "device-remote",
+        1,
+        1,
+        WorkspaceOperation::CreateFolder {
+            id: "folder-gap-1".into(),
+            title: "One".into(),
+            placement: NodePlacement::last(None),
+            at: 11,
+        },
+    );
+    let third = remote(
+        "remote-gap-3",
+        "device-remote",
+        3,
+        3,
+        WorkspaceOperation::CreateFolder {
+            id: "folder-gap-3".into(),
+            title: "Three".into(),
+            placement: NodePlacement::last(None),
+            at: 13,
+        },
+    );
+
+    assert!(matches!(
+        storage.apply_remote_operations(&[first.clone(), third], 20),
+        Err(StorageError::InvalidOperation(_))
+    ));
+    assert!(storage.bootstrap().expect("bootstrap").nodes.is_empty());
+    assert_eq!(
+        storage
+            .sync_connection()
+            .expect("connection")
+            .expect("active")
+            .observed_server_sequence,
+        0
+    );
+    storage
+        .apply_remote_operations(&[first], 21)
+        .expect("retry contiguous operation");
+}
+
+#[test]
+fn semantic_remote_conflict_is_durable_and_does_not_block_later_operations() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-conflict")])
+        .expect("local note");
+    connect_at_cursor(&storage, 0);
+    let conflicting_save = remote(
+        "remote-conflict",
+        "device-remote",
+        1,
+        1,
+        WorkspaceOperation::SaveDocument {
+            note_id: "note-conflict".into(),
+            document_json: json!({"type": "doc", "content": []}),
+            markdown: "remote conflicting body".into(),
+            word_count: 3,
+            expected_revision: 9,
+            at: 20,
+        },
+    );
+    let later_create = remote(
+        "remote-after-conflict",
+        "device-remote",
+        2,
+        2,
+        WorkspaceOperation::CreateFolder {
+            id: "folder-after-conflict".into(),
+            title: "After".into(),
+            placement: NodePlacement::last(None),
+            at: 21,
+        },
+    );
+
+    let outcomes = storage
+        .apply_remote_operations(&[conflicting_save.clone(), later_create], 30)
+        .expect("record conflict and continue");
+    let RemoteSyncApplyOutcome::Conflict(conflict) = &outcomes[0] else {
+        panic!("expected conflict outcome");
+    };
+    assert_eq!(conflict.operation_id, "remote-conflict");
+    assert_eq!(conflict.reason_code, "revision_conflict");
+    assert!(matches!(outcomes[1], RemoteSyncApplyOutcome::Applied(_)));
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.documents[0].revision, 1);
+    assert!(
+        snapshot
+            .nodes
+            .iter()
+            .any(|node| node.id == "folder-after-conflict")
+    );
+    assert_eq!(
+        storage
+            .sync_connection()
+            .expect("connection")
+            .expect("active")
+            .observed_server_sequence,
+        2
+    );
+    assert_eq!(
+        storage.sync_conflicts().expect("conflicts"),
+        vec![conflict.clone()]
+    );
+    assert_eq!(
+        storage
+            .apply_remote_operations(&[conflicting_save], 31)
+            .expect("duplicate conflict"),
+        vec![RemoteSyncApplyOutcome::Duplicate]
+    );
+    assert_eq!(storage.sync_conflicts().expect("conflicts").len(), 1);
+}
+
+#[test]
+fn local_echo_is_idempotent_whether_pull_or_acknowledgement_wins() {
+    let pull_first = SqliteWorkspace::open_in_memory().expect("open pull-first database");
+    connect_at_cursor(&pull_first, 0);
+    pull_first
+        .apply_operations(&[op(WorkspaceOperation::CreateFolder {
+            id: "folder-pull-first".into(),
+            title: "Pull first".into(),
+            placement: NodePlacement::last(None),
+            at: 11,
+        })])
+        .expect("local operation");
+    let claimed = pull_first
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("batch");
+    let client = &claimed.request.operations[0];
+    let echo = ReplicatedWorkspaceOperation {
+        operation_id: client.operation_id.clone(),
+        device_id: claimed.request.device_id.clone(),
+        client_sequence: client.client_sequence,
+        base_server_sequence: client.base_server_sequence,
+        server_sequence: 1,
+        operation: client.operation.clone(),
+    };
+    assert_eq!(
+        pull_first
+            .apply_remote_operations(std::slice::from_ref(&echo), 110)
+            .expect("pull echo"),
+        vec![RemoteSyncApplyOutcome::LocalEcho]
+    );
+    pull_first
+        .acknowledge_sync_operations(
+            "sync-worker",
+            &[SyncAcceptedOperation {
+                operation_id: echo.operation_id.clone(),
+                client_sequence: echo.client_sequence,
+                server_sequence: echo.server_sequence,
+            }],
+        )
+        .expect("late acknowledgement is idempotent");
+    assert_eq!(pull_first.bootstrap().expect("bootstrap").nodes.len(), 1);
+
+    let ack_first = SqliteWorkspace::open_in_memory().expect("open ack-first database");
+    connect_at_cursor(&ack_first, 0);
+    ack_first
+        .apply_operations(&[op(WorkspaceOperation::CreateFolder {
+            id: "folder-ack-first".into(),
+            title: "Ack first".into(),
+            placement: NodePlacement::last(None),
+            at: 11,
+        })])
+        .expect("local operation");
+    let claimed = ack_first
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("batch");
+    let client = &claimed.request.operations[0];
+    let echo = ReplicatedWorkspaceOperation {
+        operation_id: client.operation_id.clone(),
+        device_id: claimed.request.device_id.clone(),
+        client_sequence: client.client_sequence,
+        base_server_sequence: client.base_server_sequence,
+        server_sequence: 1,
+        operation: client.operation.clone(),
+    };
+    ack_first
+        .acknowledge_sync_operations(
+            "sync-worker",
+            &[SyncAcceptedOperation {
+                operation_id: echo.operation_id.clone(),
+                client_sequence: echo.client_sequence,
+                server_sequence: echo.server_sequence,
+            }],
+        )
+        .expect("acknowledge");
+    assert_eq!(
+        ack_first
+            .apply_remote_operations(&[echo], 110)
+            .expect("later pull"),
+        vec![RemoteSyncApplyOutcome::Duplicate]
+    );
+    assert_eq!(ack_first.bootstrap().expect("bootstrap").nodes.len(), 1);
+}
+
+#[test]
+fn disconnected_workspace_rejects_remote_application() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect_at_cursor(&storage, 0);
+    storage.disconnect_sync(20).expect("disconnect");
+    let operation = remote(
+        "remote-disconnected",
+        "device-remote",
+        1,
+        1,
+        WorkspaceOperation::CreateFolder {
+            id: "folder-disconnected".into(),
+            title: "Disconnected".into(),
+            placement: NodePlacement::last(None),
+            at: 21,
+        },
+    );
+    assert!(matches!(
+        storage.apply_remote_operations(&[operation], 30),
+        Err(StorageError::InvalidOperation(_))
+    ));
+    assert!(storage.bootstrap().expect("bootstrap").nodes.is_empty());
 }
 
 #[test]

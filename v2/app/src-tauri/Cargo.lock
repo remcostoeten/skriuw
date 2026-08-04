@@ -3476,6 +3476,7 @@ dependencies = [
  "skriuw-runtime",
  "skriuw-sqlite",
  "skriuw-storage",
+ "skriuw-sync",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -3563,6 +3564,16 @@ name = "skriuw-storage"
 version = "0.1.0"
 dependencies = [
  "skriuw-domain",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "skriuw-sync"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "skriuw-domain",
+ "skriuw-storage",
  "thiserror 2.0.19",
 ]
 

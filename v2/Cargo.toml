@@ -4,6 +4,7 @@ members = [
     "crates/skriuw-storage",
     "crates/skriuw-sqlite-wasm",
     "crates/skriuw-sqlite",
+    "crates/skriuw-sync",
     "crates/skriuw-images",
     "crates/skriuw-fixtures",
     "crates/skriuw-runtime",

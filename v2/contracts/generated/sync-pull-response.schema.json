@@ -1,0 +1,1401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SyncPullResponse",
+  "type": "object",
+  "properties": {
+    "latestServerSequence": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ReplicatedWorkspaceOperation"
+      }
+    },
+    "syncProtocolVersion": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    }
+  },
+  "required": [
+    "syncProtocolVersion",
+    "operations",
+    "latestServerSequence"
+  ],
+  "$defs": {
+    "NodePlacement": {
+      "type": "object",
+      "properties": {
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "position": {
+          "$ref": "#/$defs/NodePosition"
+        }
+      },
+      "required": [
+        "position"
+      ]
+    },
+    "NodePosition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "first"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "last"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "anchorId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "before"
+            }
+          },
+          "required": [
+            "type",
+            "anchorId"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "anchorId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "after"
+            }
+          },
+          "required": [
+            "type",
+            "anchorId"
+          ]
+        }
+      ]
+    },
+    "NoteProperty": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/NotePropertyOption"
+          }
+        },
+        "position": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "$ref": "#/$defs/VersionedNotePropertyValue"
+        }
+      },
+      "required": [
+        "noteId",
+        "id",
+        "name",
+        "value",
+        "position"
+      ]
+    },
+    "NotePropertyColor": {
+      "type": "string",
+      "enum": [
+        "gray",
+        "stone",
+        "amber",
+        "green",
+        "blue",
+        "teal",
+        "rose",
+        "red"
+      ]
+    },
+    "NotePropertyField": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/NotePropertyOption"
+          }
+        },
+        "position": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "$ref": "#/$defs/VersionedNotePropertyValue"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "value",
+        "position"
+      ]
+    },
+    "NotePropertyOption": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/NotePropertyColor"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "color"
+      ]
+    },
+    "NotePropertyTemplate": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NotePropertyField"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "position",
+        "properties"
+      ]
+    },
+    "ProviderImportReceipt": {
+      "type": "object",
+      "properties": {
+        "importedAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "sourceKey": {
+          "type": "string"
+        },
+        "sourcePath": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "sourceKey",
+        "sourcePath",
+        "noteId",
+        "importedAt"
+      ]
+    },
+    "ReplicatedWorkspaceOperation": {
+      "type": "object",
+      "properties": {
+        "baseServerSequence": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "clientSequence": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "deviceId": {
+          "type": "string"
+        },
+        "operation": {
+          "$ref": "#/$defs/WorkspaceOperationEnvelope"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "serverSequence": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "operationId",
+        "deviceId",
+        "clientSequence",
+        "baseServerSequence",
+        "serverSequence",
+        "operation"
+      ]
+    },
+    "VersionedNotePropertyValue": {
+      "type": "object",
+      "properties": {
+        "valueVersion": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        }
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "text"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "number"
+            },
+            "value": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "date"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "select"
+            },
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "multi-select"
+            },
+            "value": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "person"
+            },
+            "value": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "url"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "checkbox"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "rating"
+            },
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "location"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "email"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "phone"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        }
+      ],
+      "required": [
+        "valueVersion"
+      ]
+    },
+    "WorkspaceImage": {
+      "type": "object",
+      "properties": {
+        "byteSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "contentHash": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "height": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "width": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        }
+      },
+      "required": [
+        "id",
+        "noteId",
+        "contentHash",
+        "mimeType",
+        "byteSize",
+        "createdAt"
+      ]
+    },
+    "WorkspaceOperation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "tag": {
+              "$ref": "#/$defs/WorkspaceTag"
+            },
+            "type": {
+              "type": "string",
+              "const": "create_tag"
+            }
+          },
+          "required": [
+            "type",
+            "tag"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "rename_tag"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "name"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "color": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "recolor_tag"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "delete_tag"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "person": {
+              "$ref": "#/$defs/WorkspacePerson"
+            },
+            "type": {
+              "type": "string",
+              "const": "create_person"
+            }
+          },
+          "required": [
+            "type",
+            "person"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "rename_person"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "name"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "color": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "recolor_person"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "delete_person"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "placement": {
+              "$ref": "#/$defs/NodePlacement"
+            },
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "create_folder"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "title",
+            "placement",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "documentJson": true,
+            "id": {
+              "type": "string"
+            },
+            "markdown": {
+              "type": "string"
+            },
+            "placement": {
+              "$ref": "#/$defs/NodePlacement"
+            },
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "create_note"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "title",
+            "placement",
+            "documentJson",
+            "markdown",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "rename_node"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "title",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "imageId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_note_cover"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "fullWidth": {
+              "type": "boolean"
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_note_cover_full_width"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "fullWidth",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "positionX": {
+              "type": "number",
+              "format": "double"
+            },
+            "positionY": {
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_note_cover_transform"
+            },
+            "zoom": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "positionX",
+            "positionY",
+            "zoom",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "placement": {
+              "$ref": "#/$defs/NodePlacement"
+            },
+            "type": {
+              "type": "string",
+              "const": "move_node"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "placement",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "id": {
+              "type": "string"
+            },
+            "pinned": {
+              "type": "boolean"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_node_pinned"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "pinned",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "documentJson": true,
+            "expectedRevision": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "markdown": {
+              "type": "string"
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "save_document"
+            },
+            "wordCount": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "documentJson",
+            "markdown",
+            "wordCount",
+            "expectedRevision",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "rootId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "trash_subtree"
+            }
+          },
+          "required": [
+            "type",
+            "rootId",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "placement": {
+              "$ref": "#/$defs/NodePlacement"
+            },
+            "rootId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "restore_subtree"
+            }
+          },
+          "required": [
+            "type",
+            "rootId",
+            "placement",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "rootId": {
+              "type": "string"
+            },
+            "trashedBefore": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "type": {
+              "type": "string",
+              "const": "purge_subtree"
+            }
+          },
+          "required": [
+            "type",
+            "rootId",
+            "trashedBefore"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "noteId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "set_active_note"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "settings": {
+              "$ref": "#/$defs/WorkspaceSettings"
+            },
+            "type": {
+              "type": "string",
+              "const": "update_settings"
+            }
+          },
+          "required": [
+            "type",
+            "settings"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "image": {
+              "$ref": "#/$defs/WorkspaceImage"
+            },
+            "type": {
+              "type": "string",
+              "const": "attach_image"
+            }
+          },
+          "required": [
+            "type",
+            "image"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "property": {
+              "$ref": "#/$defs/NoteProperty"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_note_property"
+            }
+          },
+          "required": [
+            "type",
+            "property",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "propertyId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "remove_note_property"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "propertyId",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "at": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "noteId": {
+              "type": "string"
+            },
+            "orderedPropertyIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "reorder_note_properties"
+            }
+          },
+          "required": [
+            "type",
+            "noteId",
+            "orderedPropertyIds",
+            "at"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "template": {
+              "$ref": "#/$defs/NotePropertyTemplate"
+            },
+            "type": {
+              "type": "string",
+              "const": "set_note_property_template"
+            }
+          },
+          "required": [
+            "type",
+            "template"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "templateId": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "delete_note_property_template"
+            }
+          },
+          "required": [
+            "type",
+            "templateId"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "orderedTemplateIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "reorder_note_property_templates"
+            }
+          },
+          "required": [
+            "type",
+            "orderedTemplateIds"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "receipt": {
+              "$ref": "#/$defs/ProviderImportReceipt"
+            },
+            "type": {
+              "type": "string",
+              "const": "record_provider_import"
+            }
+          },
+          "required": [
+            "type",
+            "receipt"
+          ]
+        }
+      ]
+    },
+    "WorkspaceOperationEnvelope": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/$defs/WorkspaceOperation"
+        },
+        "protocolVersion": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "operation"
+      ]
+    },
+    "WorkspacePerson": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        },
+        "createdIn": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "id": {
+          "type": "string"
+        },
+        "initials": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "WorkspaceSettings": {
+      "type": "object",
+      "properties": {
+        "compactSidebar": {
+          "type": "boolean",
+          "default": false
+        },
+        "editorFont": {
+          "type": "string",
+          "default": "inter"
+        },
+        "editorLineHeight": {
+          "type": "string",
+          "default": "comfortable"
+        },
+        "editorPlaceholder": {
+          "type": "string",
+          "default": "Start writing..."
+        },
+        "reduceMotion": {
+          "type": "boolean",
+          "default": false
+        },
+        "rememberLastNote": {
+          "type": "boolean",
+          "default": true
+        },
+        "settingsVersion": {
+          "type": "integer",
+          "format": "uint16",
+          "default": 1,
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "showLineNumbers": {
+          "type": "boolean",
+          "default": true
+        },
+        "showPageIcons": {
+          "type": "boolean",
+          "default": true
+        },
+        "theme": {
+          "type": "string",
+          "default": "midnight"
+        }
+      },
+      "additionalProperties": true
+    },
+    "WorkspaceTag": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        },
+        "createdIn": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "format": "int64",
+          "default": 0
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    }
+  }
+}

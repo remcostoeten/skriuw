@@ -6,9 +6,23 @@ license.workspace = true
 rust-version.workspace = true
 description = "Browser worker boundary for the OPFS-backed SQLite-WASM adapter"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 skriuw-domain = { path = "../skriuw-domain" }
 skriuw-storage = { path = "../skriuw-storage" }
 serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+skriuw-sqlite = { path = "../skriuw-sqlite" }
+sqlite-wasm-rs = "0.5.5"
+sqlite-wasm-vfs = "0.2.0"
+uuid = { workspace = true, features = ["js"] }
+wasm-bindgen = "0.2.126"
+wasm-bindgen-futures = "0.4.76"
 
 [dev-dependencies]
+skriuw-fixtures = { path = "../skriuw-fixtures" }
+skriuw-sqlite = { path = "../skriuw-sqlite" }

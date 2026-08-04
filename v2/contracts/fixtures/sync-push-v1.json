@@ -1,0 +1,26 @@
+{
+  "syncProtocolVersion": 1,
+  "deviceId": "device-1",
+  "operations": [
+    {
+      "operationId": "operation-1",
+      "clientSequence": 1,
+      "baseServerSequence": 0,
+      "operation": {
+        "protocolVersion": 1,
+        "operation": {
+          "type": "create_folder",
+          "id": "folder-1",
+          "title": "Folder",
+          "placement": {
+            "parentId": null,
+            "position": {
+              "type": "last"
+            }
+          },
+          "at": 1
+        }
+      }
+    }
+  ]
+}

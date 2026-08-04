@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 app_dir="$repo_dir/app"
+cloud_dir="$repo_dir/cloud"
 mode="${1:-workspace}"
 
 if [[ $# -gt 0 ]]; then
@@ -67,9 +68,9 @@ log_dir="$repo_dir/.build/logs/$build_id"
 mkdir -p "$log_dir"
 
 case "$mode" in
-  check) total_steps=10 ;;
-  ci) total_steps=12 ;;
-  *) total_steps=11 ;;
+  check) total_steps=12 ;;
+  ci) total_steps=14 ;;
+  *) total_steps=13 ;;
 esac
 
 step_index=0
@@ -257,6 +258,7 @@ require_command git
 require_command node
 require_command rustc
 [[ -d "$app_dir/node_modules" ]] || fail "Frontend dependencies are missing. Run ./scripts/bootstrap.sh or install manually in app/."
+[[ -d "$cloud_dir/node_modules" ]] || fail "Cloud dependencies are missing. Run ./scripts/bootstrap.sh or install manually in cloud/."
 [[ -d "$repo_dir/spikes/ui-architecture/node_modules" ]] || fail "UI architecture dependencies are missing. Run ./scripts/bootstrap.sh or install manually in spikes/ui-architecture/."
 [[ -d "$repo_dir/spikes/renderer-store/node_modules" ]] || fail "Renderer-store dependencies are missing. Run ./scripts/bootstrap.sh or install manually in spikes/renderer-store/."
 
@@ -264,6 +266,7 @@ print_header
 
 run_step "Generated contracts" "generated-contracts" cargo run --quiet -p xtask -- generate --check
 run_step "Build entrypoint contract" "build-entrypoints" "$repo_dir/scripts/test-build.sh"
+run_step "Browser SQLite WASM module" "browser-wasm" "$repo_dir/scripts/build-browser-wasm.sh"
 run_step "Rust formatting" "rust-format" cargo fmt --all --check
 run_step "Rust lint" "rust-clippy" cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 run_step "Backend test suite" "backend-tests" cargo test --workspace --locked --no-fail-fast
@@ -277,6 +280,7 @@ print_metric "$(node_test_summary "$last_log")"
 run_step "Renderer test suite and coverage" "renderer-tests" bun --cwd="$app_dir" run test
 print_metric "$(renderer_summary "$last_log")"
 run_step "Renderer type safety" "renderer-typecheck" bun --cwd="$app_dir" run typecheck
+run_step "Cloud sync contract and runtime suite" "cloud-sync-tests" bun --cwd="$cloud_dir" run check
 
 case "$mode" in
   check) ;;

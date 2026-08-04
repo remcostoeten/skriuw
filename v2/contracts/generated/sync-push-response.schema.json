@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SyncPushResponse",
+  "type": "object",
+  "properties": {
+    "accepted": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SyncAcceptedOperation"
+      }
+    },
+    "latestServerSequence": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "syncProtocolVersion": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    }
+  },
+  "required": [
+    "syncProtocolVersion",
+    "accepted",
+    "latestServerSequence"
+  ],
+  "$defs": {
+    "SyncAcceptedOperation": {
+      "type": "object",
+      "properties": {
+        "clientSequence": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "serverSequence": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "operationId",
+        "clientSequence",
+        "serverSequence"
+      ]
+    }
+  }
+}

@@ -1,4 +1,5 @@
 mod maintenance;
+mod sync;
 
 use std::{
     collections::BTreeSet,
@@ -33,6 +34,7 @@ struct AppState {
     storage_path: PathBuf,
     history_reader: Arc<GitHistoryMaterializer>,
     image_store: Arc<ImageStore>,
+    sync: sync::SyncRuntime,
 }
 
 const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
@@ -178,7 +180,36 @@ async fn apply_workspace_operations(
     let completion = workspace_runtime(&state)?
         .apply_operations(operations)
         .map_err(|error| error.to_string())?;
-    wait_for(completion).await
+    let acknowledgement = wait_for(completion).await?;
+    state.sync.notify_local_commit();
+    Ok(acknowledgement)
+}
+
+#[tauri::command]
+fn workspace_sync_status(state: State<'_, AppState>) -> skriuw_sync::SyncStatus {
+    state.sync.status()
+}
+
+#[tauri::command]
+fn connect_workspace_sync(state: State<'_, AppState>) -> Result<(), String> {
+    state.sync.connect()
+}
+
+#[tauri::command]
+fn disconnect_workspace_sync(state: State<'_, AppState>) -> Result<(), String> {
+    state.sync.disconnect()
+}
+
+#[tauri::command]
+fn retry_workspace_sync(state: State<'_, AppState>) -> skriuw_sync::SyncStatus {
+    state.sync.request_refresh();
+    state.sync.status()
+}
+
+#[tauri::command]
+fn refresh_workspace_sync(state: State<'_, AppState>) -> skriuw_sync::SyncStatus {
+    state.sync.request_refresh();
+    state.sync.status()
 }
 
 #[tauri::command]
@@ -1067,6 +1098,7 @@ pub fn run() {
                 storage_path: path,
                 history_reader,
                 image_store,
+                sync: sync::SyncRuntime::disabled(),
             });
             Ok(())
         })
@@ -1104,14 +1136,27 @@ pub fn run() {
             import_markdown_image,
             list_media_blobs,
             delete_media_blob,
-            sweep_unused_media_blobs
+            sweep_unused_media_blobs,
+            workspace_sync_status,
+            connect_workspace_sync,
+            disconnect_workspace_sync,
+            retry_workspace_sync,
+            refresh_workspace_sync
         ])
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Focused(true) = event
+                && let Some(state) = window.app_handle().try_state::<AppState>()
+            {
+                state.sync.notify_focus();
+            }
+        })
         .build(tauri::generate_context!())
         .expect("skriuw app must build")
         .run(|app, event| {
             if let RunEvent::Exit = event
                 && let Some(state) = app.try_state::<AppState>()
             {
+                state.sync.shutdown();
                 state.rotation.shutdown();
                 state.maintenance.shutdown();
             }

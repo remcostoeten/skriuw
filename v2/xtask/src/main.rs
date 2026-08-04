@@ -8,7 +8,9 @@ use std::{
 
 use schemars::{JsonSchema, schema_for};
 use skriuw_domain::{
-    OperationAck, SearchHit, WorkspaceArchive, WorkspaceOperationEnvelope, WorkspaceSnapshot,
+    OperationAck, SearchHit, SyncPullResponse, SyncPushRequest, SyncPushResponse,
+    WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceOperationEnvelope,
+    WorkspaceOperationSyncPolicy, WorkspaceSnapshot,
 };
 
 fn main() -> ExitCode {
@@ -31,14 +33,34 @@ fn run() -> Result<(), Box<dyn Error>> {
         .parent()
         .ok_or("xtask must live below repository root")?
         .to_path_buf();
-    let output = root.join("generated/contracts");
+    let output = root.join("contracts/generated");
 
     write_schema::<WorkspaceOperationEnvelope>(&output, "workspace-operation.schema.json", check)?;
     write_schema::<WorkspaceSnapshot>(&output, "workspace-snapshot.schema.json", check)?;
     write_schema::<WorkspaceArchive>(&output, "workspace-archive.schema.json", check)?;
     write_schema::<OperationAck>(&output, "operation-ack.schema.json", check)?;
     write_schema::<SearchHit>(&output, "search-hit.schema.json", check)?;
+    write_schema::<SyncPushRequest>(&output, "sync-push-request.schema.json", check)?;
+    write_schema::<SyncPushResponse>(&output, "sync-push-response.schema.json", check)?;
+    write_schema::<SyncPullResponse>(&output, "sync-pull-response.schema.json", check)?;
+    write_json(
+        &output,
+        "workspace-operation-sync-policy-v1.json",
+        WORKSPACE_OPERATION_SYNC_POLICY_V1,
+        check,
+    )?;
     Ok(())
+}
+
+fn write_json(
+    directory: &Path,
+    filename: &str,
+    value: &[WorkspaceOperationSyncPolicy],
+    check: bool,
+) -> Result<(), Box<dyn Error>> {
+    let mut expected = serde_json::to_string_pretty(value)?;
+    expected.push('\n');
+    write_generated(directory, filename, expected, check)
 }
 
 fn write_schema<T: JsonSchema>(
@@ -48,6 +70,15 @@ fn write_schema<T: JsonSchema>(
 ) -> Result<(), Box<dyn Error>> {
     let mut expected = serde_json::to_string_pretty(&schema_for!(T))?;
     expected.push('\n');
+    write_generated(directory, filename, expected, check)
+}
+
+fn write_generated(
+    directory: &Path,
+    filename: &str,
+    expected: String,
+    check: bool,
+) -> Result<(), Box<dyn Error>> {
     let path = directory.join(filename);
 
     if check {
