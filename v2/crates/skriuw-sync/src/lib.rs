@@ -22,14 +22,15 @@ pub use checkpoint::{
     run_checkpoint_publication,
 };
 pub use content::{
-    SyncAssetStore, externalize_asset_content, externalize_oversized_operations,
-    resolve_asset_content, resolve_chunked_operations,
+    AssetExternalization, SyncAssetStore, externalize_asset_content,
+    externalize_oversized_operations, resolve_asset_content, resolve_chunked_operations,
 };
 pub use coordinator::{SyncCoordinator, SyncCoordinatorConfig, SyncStatusObserver};
 pub use cycle::{
-    BLOCKED_REASON_AUTHORIZATION_DENIED, BLOCKED_REASON_PROTOCOL_MISMATCH,
-    BLOCKED_REASON_PUSH_CONFLICT, BLOCKED_REASON_REJECTED_ACKNOWLEDGEMENT,
-    BLOCKED_REASON_REJECTED_BATCH, BLOCKED_REASON_REJECTED_CHECKPOINT,
-    BLOCKED_REASON_STORAGE_FAILURE, SyncCycleConfig, SyncCycleOutcome, SyncStatus, run_sync_cycle,
+    BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING, BLOCKED_REASON_AUTHORIZATION_DENIED,
+    BLOCKED_REASON_PROTOCOL_MISMATCH, BLOCKED_REASON_PUSH_CONFLICT,
+    BLOCKED_REASON_REJECTED_ACKNOWLEDGEMENT, BLOCKED_REASON_REJECTED_BATCH,
+    BLOCKED_REASON_REJECTED_CHECKPOINT, BLOCKED_REASON_STORAGE_FAILURE, SyncCycleConfig,
+    SyncCycleOutcome, SyncStatus, run_sync_cycle,
 };
 pub use transport::{SyncCancellation, SyncClock, SyncTransport, SystemClock, TransportError};

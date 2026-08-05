@@ -57,18 +57,31 @@ pub fn externalize_oversized_operations(
     Ok(externalized)
 }
 
+/// Outcome of preparing a push batch's asset content. Operations listed in
+/// `missing` have no local bytes for their declared asset, cannot be pushed,
+/// and must be blocked out of the queue by the caller so the remaining
+/// operations keep flowing.
+pub struct AssetExternalization {
+    pub attached: usize,
+    pub missing: Vec<String>,
+}
+
 /// Attach the asset manifest every queued operation declares, uploading the
 /// asset chunks first so the server never receives an operation whose asset
 /// content is missing. The outbox stores operations without their asset
-/// bytes; this runs at push time against the local asset store.
+/// bytes; this runs at push time against the local asset store. An asset that
+/// is absent locally is reported in the outcome instead of failing the batch;
+/// bytes that are present but do not hash to the declared digest remain a
+/// validation failure.
 pub fn externalize_asset_content(
     transport: &dyn SyncTransport,
     assets: &dyn SyncAssetStore,
     workspace_id: &str,
     request: &mut SyncPushRequest,
     cancellation: &SyncCancellation,
-) -> Result<usize, TransportError> {
+) -> Result<AssetExternalization, TransportError> {
     let mut attached = 0;
+    let mut missing = Vec::new();
     for operation in &mut request.operations {
         let SyncOperationPayload::Inline {
             operation: envelope,
@@ -86,15 +99,13 @@ pub fn externalize_asset_content(
         if cancellation.is_cancelled() {
             return Err(TransportError::Cancelled);
         }
-        let bytes = assets
+        let Some(bytes) = assets
             .read_asset(required.content_hash, required.mime_type)
             .map_err(TransportError::Transient)?
-            .ok_or_else(|| {
-                TransportError::Validation(format!(
-                    "asset content for operation {} is not available locally",
-                    operation.operation_id
-                ))
-            })?;
+        else {
+            missing.push(operation.operation_id.clone());
+            continue;
+        };
         let manifest =
             ContentManifest::build(ContentManifestKind::Asset, required.mime_type, &bytes)
                 .map_err(|error| TransportError::Validation(error.to_string()))?;
@@ -110,7 +121,7 @@ pub fn externalize_asset_content(
         payload_assets.push(manifest);
         attached += 1;
     }
-    Ok(attached)
+    Ok(AssetExternalization { attached, missing })
 }
 
 /// Download, verify, and locally store the asset content behind every pulled

@@ -23,6 +23,12 @@ pub const BLOCKED_REASON_REJECTED_ACKNOWLEDGEMENT: &str = "rejected_acknowledgem
 pub const BLOCKED_REASON_STORAGE_FAILURE: &str = "storage_failure";
 pub const BLOCKED_REASON_REJECTED_CHECKPOINT: &str = "rejected_checkpoint";
 
+/// Durable per-operation blocked reason recorded in storage when an
+/// operation's declared asset bytes are absent locally at push time. The
+/// cycle keeps pushing everything else; the blocked record stays visible
+/// through `WorkspaceSyncQueue::blocked_sync_operations`.
+pub const BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING: &str = "asset_content_missing";
+
 /// Narrow status projection consumed by the runtime and UI. The UI may render
 /// this and request connect, disconnect, retry, or refresh; retry and cursor
 /// logic stay inside the coordinator.
@@ -153,7 +159,7 @@ pub fn run_sync_cycle(
             .map(|operation| operation.operation_id.clone())
             .collect::<Vec<_>>();
         let mut request = batch.request.clone();
-        let result = if cancellation.is_cancelled() {
+        let prepared = if cancellation.is_cancelled() {
             Err(TransportError::Cancelled)
         } else {
             externalize_oversized_operations(
@@ -171,7 +177,23 @@ pub fn run_sync_cycle(
                     cancellation,
                 )
             })
-            .and_then(|_| transport.push(&batch.workspace_id, &request, cancellation))
+        };
+        let result = match prepared {
+            Ok(preparation) if !preparation.missing.is_empty() => {
+                match queue.block_claimed_sync_operations(
+                    &config.worker_id,
+                    &preparation.missing,
+                    BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING,
+                ) {
+                    Ok(()) => {
+                        pushed_batches += 1;
+                        continue;
+                    }
+                    Err(error) => return storage_failure(clock, config, &error),
+                }
+            }
+            Ok(_) => transport.push(&batch.workspace_id, &request, cancellation),
+            Err(error) => Err(error),
         };
         match result {
             Ok(response) if response.sync_protocol_version != WORKSPACE_SYNC_PROTOCOL_VERSION => {

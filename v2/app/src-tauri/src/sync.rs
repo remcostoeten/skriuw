@@ -399,7 +399,8 @@ impl SyncTransport for HttpSyncTransport {
         cancellation: &SyncCancellation,
     ) -> Result<(), TransportError> {
         let url = self.checkpoint_url(workspace_id);
-        let _: serde_json::Value = self.send(self.client.post(url).json(checkpoint), cancellation)?;
+        let _: serde_json::Value =
+            self.send(self.client.post(url).json(checkpoint), cancellation)?;
         Ok(())
     }
 
@@ -410,10 +411,7 @@ impl SyncTransport for HttpSyncTransport {
         server_sequence: u64,
         cancellation: &SyncCancellation,
     ) -> Result<(), TransportError> {
-        let url = format!(
-            "{}/v1/workspaces/{workspace_id}/acknowledge",
-            self.base_url
-        );
+        let url = format!("{}/v1/workspaces/{workspace_id}/acknowledge", self.base_url);
         let _: serde_json::Value = self.send(
             self.client.post(url).json(&serde_json::json!({
                 "deviceId": device_id,

@@ -201,8 +201,9 @@ The [desktop background coordinator](desktop-sync-coordinator.md)
 now uses a bounded production HTTP transport after an explicit Account-settings
 connection and resumes from the OS credential vault asynchronously on later
 launches, while local startup remains network-free. The first connection
-transactionally seeds supported existing inline workspace state into the same
-durable outbox before later edits. The browser-local runtime now
+transactionally seeds supported existing inline workspace state — including
+`AttachImage` operations for pre-existing images, ordered after their notes —
+into the same durable outbox before later edits. The browser-local runtime now
 bundles worker-owned SQLite WASM over OPFS and has native parity plus a real
 Chromium restart-durability gate. Account bootstrap into a connected workspace,
 cross-browser/performance evidence, browser sync bootstrap, the multi-device

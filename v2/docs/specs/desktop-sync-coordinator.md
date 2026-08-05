@@ -44,6 +44,12 @@ only on it:
 | `AuthorizationDenied`, `Validation`, `Conflict`, `UnsupportedProtocol` | release lease with a long durable retry time (default 10 min); these do not self-heal and stay visible | `blocked` with a stable reason code |
 | `Cancelled` | release lease for immediate retry | `pending` |
 
+A locally missing asset blob is not a `TransportError`: before the push, the
+cycle moves the affected operations into `sync_blocked_operations` with reason
+`asset_content_missing`, the queue renumbers contiguously, and the cycle keeps
+pushing everything else (see
+[content-addressed chunk transport v1](sync-content-chunks-v1.md)).
+
 Retry times are durable (`sync_outbox.next_attempt_at`), so restarts respect
 rate limits. Push retries reuse the same operation ID and client sequence;
 server idempotency makes acknowledgement loss safe, and a lost acknowledgement

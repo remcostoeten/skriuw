@@ -88,6 +88,23 @@ operation in the page is applied, so a missing or corrupt asset fails the pull
 without applying partial content. The stored bytes still pass the image
 store's magic-byte sniffing, so the image-only asset pipeline is unchanged.
 
+The first connection seeds an `AttachImage` operation for every pre-existing
+image into the same durable outbox, ordered after the note operations it
+depends on, so images attached before a workspace ever connects replicate like
+images attached afterwards. Seeding never touches the blob store: bytes are
+read at push time like any other queued image operation.
+
+An `AttachImage` whose blob is absent locally at push time cannot travel, and
+because the server requires contiguous per-device client sequences it also
+cannot be skipped in place. The cycle therefore moves it into the visible
+`sync_blocked_operations` record with reason `asset_content_missing` through
+`WorkspaceSyncQueue::block_claimed_sync_operations`, which renumbers the
+remaining pending queue contiguously in the same transaction. One missing blob
+never wedges the rest of the initial upload or later edits; the failure stays
+visible instead of being silently dropped. Bytes that are present but do not
+hash to the declared digest remain a push validation failure, not a blocked
+record, because that indicates local corruption rather than a missing file.
+
 ## Canonical sources
 
 - Rust owns the contract: `skriuw-domain::chunk` and `skriuw-domain::sync`.

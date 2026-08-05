@@ -61,6 +61,15 @@ deletes the durable rows only after every operation ID and client sequence
 matches the server response. Retry release retains them, records a bounded
 diagnostic, and sets a durable next-attempt time.
 
+`block_claimed_sync_operations` moves individual leased operations that can
+never push — today an `attach_image` whose asset bytes are absent locally
+(`asset_content_missing`) — into the blocked record. Because the server
+requires contiguous per-device client sequences, the same transaction renumbers
+the remaining pending rows contiguously from the queue head, advances
+`next_client_sequence` to match, and releases the rest of the lease. Renumbering
+is safe because blocked rows were never accepted by the server; the queue head
+still equals the server's next expected client sequence.
+
 Disconnect pauses claims but never deletes pending work. Reconnect resumes the
 same sequence. Local-only workspaces create no connection, outbox, blocked, or
 network work.
@@ -72,8 +81,9 @@ Migration `0011_sync_outbox.sql` owns:
 - `sync_connection`: optional active connection, device identity, observed
   cursor, and next client sequence;
 - `sync_outbox`: immutable versioned envelopes plus lease/retry metadata;
-- `sync_blocked_operations`: recovery-visible oversized or capability-blocked
-  local operations.
+- `sync_blocked_operations`: recovery-visible oversized, capability-blocked,
+  or missing-asset local operations. Migration `0014_blocked_asset_content.sql`
+  adds the `asset_content_missing` reason.
 
 These are operational tables, not portable workspace content. SQLite remains
 canonical for local content and the outbox is never a second document model.

@@ -539,6 +539,87 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
             .map_err(backend)
     }
 
+    fn block_claimed_sync_operations(
+        &self,
+        worker_id: &str,
+        operation_ids: &[String],
+        reason_code: &str,
+    ) -> Result<(), StorageError> {
+        require_worker(worker_id)?;
+        if operation_ids.is_empty() {
+            return Err(StorageError::InvalidOperation(
+                "sync block requires at least one operation".into(),
+            ));
+        }
+        if !matches!(
+            reason_code,
+            "operation_too_large" | "unsupported_operation" | "asset_content_missing"
+        ) {
+            return Err(StorageError::InvalidOperation(format!(
+                "unknown sync block reason {reason_code}"
+            )));
+        }
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
+        let claimed = claimed_operation_keys(&transaction, worker_id)?;
+        let mut blocked_ids = std::collections::BTreeSet::new();
+        for operation_id in operation_ids {
+            validate_sync_identifier("sync operation id", operation_id).map_err(sync_validation)?;
+            if !claimed.iter().any(|(id, _)| id == operation_id) {
+                return Err(StorageError::InvalidOperation(format!(
+                    "operation {operation_id} is not part of the claimed batch"
+                )));
+            }
+            if !blocked_ids.insert(operation_id.as_str()) {
+                return Err(StorageError::InvalidOperation(format!(
+                    "operation {operation_id} is listed twice"
+                )));
+            }
+        }
+        let created_at = transaction
+            .query_row(
+                "SELECT CAST(unixepoch('subsec') * 1000 AS INTEGER)",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(backend)?;
+        let resequence_start = transaction
+            .query_row("SELECT MIN(client_sequence) FROM sync_outbox", [], |row| {
+                row.get::<_, Option<i64>>(0)
+            })
+            .map_err(backend)?
+            .ok_or_else(|| StorageError::Backend("claimed batch has no pending rows".into()))?;
+        for operation_id in operation_ids {
+            let outbox = outbox_operation(&transaction, operation_id)?
+                .ok_or_else(|| StorageError::NotFound(operation_id.clone()))?;
+            let operation_type = outbox.operation.operation.sync_policy().operation_type;
+            insert_blocked_operation(
+                &transaction,
+                &outbox.operation,
+                operation_type,
+                reason_code,
+                created_at,
+            )?;
+            transaction
+                .execute(
+                    "DELETE FROM sync_outbox WHERE operation_id = ?1",
+                    [operation_id],
+                )
+                .map_err(backend)?;
+        }
+        transaction
+            .execute(
+                "UPDATE sync_outbox SET claimed_by = NULL, claimed_at = NULL \
+                 WHERE claimed_by = ?1",
+                [worker_id],
+            )
+            .map_err(backend)?;
+        resequence_outbox(&transaction, resequence_start)?;
+        transaction.commit().map_err(backend)
+    }
+
     fn has_pending_sync_operations(&self) -> Result<bool, StorageError> {
         let connection = self.lock()?;
         connection
@@ -1182,6 +1263,13 @@ fn initial_sync_operations(
         pending = next;
     }
 
+    operations.extend(
+        snapshot
+            .images
+            .into_iter()
+            .map(|image| WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage { image })),
+    );
+
     operations.extend(snapshot.properties.into_iter().map(|property| {
         WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetNoteProperty {
             at: snapshot
@@ -1310,6 +1398,51 @@ fn read_outbox_rows(
         .map_err(backend)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(backend)
+}
+
+/// Renumber the pending queue to be contiguous from `start` after rows were
+/// blocked out of it. Blocked rows were never accepted by the server, and
+/// `start` is the pre-removal queue head, so the head still matches the
+/// server's next expected client sequence. Ascending updates only ever move a
+/// sequence down, which keeps the unique constraint satisfied mid-statement.
+fn resequence_outbox(transaction: &Transaction<'_>, start: i64) -> Result<(), StorageError> {
+    let mut statement = transaction
+        .prepare("SELECT operation_id, client_sequence FROM sync_outbox ORDER BY client_sequence")
+        .map_err(backend)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)?;
+    drop(statement);
+    let mut next = start;
+    for (operation_id, client_sequence) in rows {
+        if client_sequence < next {
+            return Err(StorageError::Backend(
+                "sync outbox sequences are below the queue head".into(),
+            ));
+        }
+        if client_sequence != next {
+            transaction
+                .execute(
+                    "UPDATE sync_outbox SET client_sequence = ?2 WHERE operation_id = ?1",
+                    params![operation_id, next],
+                )
+                .map_err(backend)?;
+        }
+        next = next.checked_add(1).ok_or_else(|| {
+            StorageError::InvalidOperation("sync client sequence exhausted".into())
+        })?;
+    }
+    transaction
+        .execute(
+            "UPDATE sync_connection SET next_client_sequence = ?1 WHERE singleton = 1",
+            [next],
+        )
+        .map_err(backend)?;
+    Ok(())
 }
 
 fn claimed_operation_keys(

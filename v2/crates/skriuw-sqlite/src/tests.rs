@@ -243,6 +243,174 @@ fn first_connection_queues_the_existing_workspace_for_initial_upload() {
 }
 
 #[test]
+fn first_connection_seeds_pre_existing_images_after_their_notes() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[
+            create_note("note-illustrated"),
+            create_note("note-plain"),
+            attach_image("image-1", "note-illustrated", 'a'),
+        ])
+        .expect("create local notes with an image");
+
+    connect_at_cursor(&storage, 0);
+
+    let batch = storage
+        .claim_sync_operations("initial-upload", 100, 50, 64)
+        .expect("claim initial upload")
+        .expect("existing workspace was queued");
+    let operation_types = batch
+        .request
+        .operations
+        .iter()
+        .map(|operation| {
+            envelope_of(operation)
+                .operation
+                .sync_policy()
+                .operation_type
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        operation_types,
+        vec!["create_note", "create_note", "attach_image"],
+        "image attachments must be queued after the notes they depend on"
+    );
+    let attach = envelope_of(&batch.request.operations[2]);
+    match &attach.operation {
+        WorkspaceOperation::AttachImage { image } => {
+            assert_eq!(image.id, "image-1");
+            assert_eq!(image.note_id, "note-illustrated");
+        }
+        other => panic!("expected attach_image, found {other:?}"),
+    }
+    assert!(
+        batch.request.operations[2].payload.assets().is_empty(),
+        "queued image operations stay asset-less until push time"
+    );
+}
+
+#[test]
+fn blocking_claimed_operations_keeps_the_queue_contiguous() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect(&storage);
+    storage
+        .apply_operations(&[
+            op(WorkspaceOperation::CreateFolder {
+                id: "folder-1".into(),
+                title: "First".into(),
+                placement: NodePlacement::last(None),
+                at: 11,
+            }),
+            op(WorkspaceOperation::CreateFolder {
+                id: "folder-2".into(),
+                title: "Second".into(),
+                placement: NodePlacement::last(None),
+                at: 12,
+            }),
+            op(WorkspaceOperation::RenameNode {
+                id: "folder-1".into(),
+                title: "Renamed".into(),
+                at: 13,
+            }),
+        ])
+        .expect("queue three operations");
+    let batch = storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending batch");
+    assert_eq!(batch.request.operations.len(), 3);
+    let middle_id = batch.request.operations[1].operation_id.clone();
+
+    storage
+        .block_claimed_sync_operations("sync-worker", &[middle_id], "asset_content_missing")
+        .expect("block the middle operation");
+
+    let blocked = storage.blocked_sync_operations().expect("blocked");
+    assert_eq!(blocked.len(), 1);
+    assert_eq!(blocked[0].reason_code, "asset_content_missing");
+    assert_eq!(blocked[0].operation_type, "create_folder");
+    let connection = storage
+        .sync_connection()
+        .expect("connection")
+        .expect("active connection");
+    assert_eq!(connection.next_client_sequence, 3);
+    let batch = storage
+        .claim_sync_operations("sync-worker", 200, 50, 64)
+        .expect("reclaim")
+        .expect("remaining operations stay claimable");
+    assert_eq!(
+        batch
+            .request
+            .operations
+            .iter()
+            .map(|operation| operation.client_sequence)
+            .collect::<Vec<_>>(),
+        vec![1, 2],
+        "remaining operations must be renumbered contiguously"
+    );
+    assert_eq!(
+        batch
+            .request
+            .operations
+            .iter()
+            .map(|operation| {
+                envelope_of(operation)
+                    .operation
+                    .sync_policy()
+                    .operation_type
+            })
+            .collect::<Vec<_>>(),
+        vec!["create_folder", "rename_node"]
+    );
+    storage
+        .acknowledge_sync_operations(
+            "sync-worker",
+            &[
+                SyncAcceptedOperation {
+                    operation_id: batch.request.operations[0].operation_id.clone(),
+                    client_sequence: 1,
+                    server_sequence: 8,
+                },
+                SyncAcceptedOperation {
+                    operation_id: batch.request.operations[1].operation_id.clone(),
+                    client_sequence: 2,
+                    server_sequence: 9,
+                },
+            ],
+        )
+        .expect("renumbered batch acknowledges cleanly");
+}
+
+#[test]
+fn blocking_rejects_operations_outside_the_claimed_batch() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect(&storage);
+    storage
+        .apply_operations(&[op(WorkspaceOperation::CreateFolder {
+            id: "folder-1".into(),
+            title: "First".into(),
+            placement: NodePlacement::last(None),
+            at: 11,
+        })])
+        .expect("queue one operation");
+
+    storage
+        .block_claimed_sync_operations(
+            "sync-worker",
+            &["unclaimed-operation".into()],
+            "asset_content_missing",
+        )
+        .expect_err("blocking requires a claimed operation");
+    storage
+        .claim_sync_operations("sync-worker", 100, 50, 64)
+        .expect("claim")
+        .expect("pending batch");
+    storage
+        .block_claimed_sync_operations("sync-worker", &["still-unclaimed".into()], "made_up_reason")
+        .expect_err("unknown reasons are rejected");
+}
+
+#[test]
 fn connected_transaction_enqueues_only_replicated_operations_in_order() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     connect(&storage);

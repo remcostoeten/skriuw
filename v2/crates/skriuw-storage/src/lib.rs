@@ -416,6 +416,18 @@ pub trait WorkspaceSyncQueue: Send + Sync {
 
     fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError>;
 
+    /// Moves operations out of the currently leased batch into the visible
+    /// blocked record so one unpushable operation cannot wedge the queue.
+    /// Every listed operation must be leased by `worker_id`; the remaining
+    /// leased operations are released and the pending queue is renumbered to
+    /// stay contiguous, all in one transaction.
+    fn block_claimed_sync_operations(
+        &self,
+        worker_id: &str,
+        operation_ids: &[String],
+        reason_code: &str,
+    ) -> Result<(), StorageError>;
+
     /// Reports whether any locally committed operation is still queued for
     /// upload, so checkpoint hydration and publication can refuse to run over
     /// unpushed local work without claiming a lease.
@@ -600,6 +612,16 @@ where
 
     fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError> {
         self.as_ref().blocked_sync_operations()
+    }
+
+    fn block_claimed_sync_operations(
+        &self,
+        worker_id: &str,
+        operation_ids: &[String],
+        reason_code: &str,
+    ) -> Result<(), StorageError> {
+        self.as_ref()
+            .block_claimed_sync_operations(worker_id, operation_ids, reason_code)
     }
 
     fn has_pending_sync_operations(&self) -> Result<bool, StorageError> {

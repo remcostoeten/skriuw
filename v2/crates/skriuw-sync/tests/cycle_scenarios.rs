@@ -616,6 +616,86 @@ fn attached_images_converge_with_verified_asset_bytes_on_a_second_device() {
 }
 
 #[test]
+fn images_attached_before_connecting_replicate_to_a_second_device() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+
+    let bytes = image_bytes(64 * 1024);
+    let content_hash = writer.assets.put(&bytes);
+    writer.apply(vec![create_note("note-1", "Illustrated early", 1)]);
+    writer.apply(vec![attach_image("image-1", "note-1", &bytes, 2)]);
+
+    writer.connect("device-a");
+    let outcome = writer.cycle();
+    assert_eq!(outcome.status, SyncStatus::UpToDate);
+    assert_eq!(server.log_len(), 2);
+    assert_eq!(writer.storage.blocked_sync_operations().unwrap().len(), 0);
+
+    let mut reader = Device::open(&server, "device-b", &clock);
+    reader.connect("device-b");
+    assert_eq!(reader.cycle().status, SyncStatus::UpToDate);
+
+    let snapshot = reader.storage.bootstrap().expect("bootstrap");
+    let image = snapshot
+        .images
+        .iter()
+        .find(|image| image.id == "image-1")
+        .expect("pre-connect image reached the second device");
+    assert_eq!(image.note_id, "note-1");
+    assert_eq!(image.content_hash, content_hash);
+    assert_eq!(
+        reader.assets.get(&content_hash),
+        Some(bytes),
+        "asset bytes must be stored and digest-verified on the second device"
+    );
+    assert_eq!(reader.cursor(), 2);
+}
+
+#[test]
+fn a_missing_image_blob_blocks_only_the_attach_operation() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+
+    let bytes = image_bytes(4_096);
+    writer.apply(vec![create_note("note-1", "Missing blob", 1)]);
+    writer.apply(vec![attach_image("image-1", "note-1", &bytes, 2)]);
+    writer.apply(vec![create_note("note-2", "Still syncs", 3)]);
+
+    writer.connect("device-a");
+    let outcome = writer.cycle();
+
+    assert_eq!(outcome.status, SyncStatus::UpToDate);
+    assert_eq!(
+        server.log_len(),
+        2,
+        "both notes must replicate around the blocked image"
+    );
+    let blocked = writer.storage.blocked_sync_operations().unwrap();
+    assert_eq!(blocked.len(), 1);
+    assert_eq!(blocked[0].reason_code, "asset_content_missing");
+    assert_eq!(blocked[0].operation_type, "attach_image");
+
+    writer.apply(vec![create_note("note-3", "Later work flows", 4)]);
+    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(server.log_len(), 3);
+
+    let mut reader = Device::open(&server, "device-b", &clock);
+    reader.connect("device-b");
+    assert_eq!(reader.cycle().status, SyncStatus::UpToDate);
+    let snapshot = reader.storage.bootstrap().expect("bootstrap");
+    assert_eq!(
+        reader.note_titles(),
+        ["Later work flows", "Missing blob", "Still syncs"]
+    );
+    assert!(
+        snapshot.images.is_empty(),
+        "an image with no local bytes must not replicate as metadata"
+    );
+}
+
+#[test]
 fn missing_or_corrupt_asset_chunks_fail_the_pull_without_applying_the_image() {
     let clock = FakeClock::at(1_000);
     let server = FakeServer::new(WORKSPACE);
