@@ -80,11 +80,103 @@ export type SyncAccessResult =
 
 const MAX_AUTHORIZATION_HEADER_BYTES = 4_096;
 
-export function productionSyncAccessConfiguration(): SyncAccessConfiguration {
+class BetterAuthCredentialVerifier implements CredentialVerifier {
+  constructor(private readonly env: AuthEnv) {}
+
+  async verifyBearerToken(token: string): Promise<CredentialVerification> {
+    const auth = await createAuth(this.env);
+    const result = await auth.api.getSession({
+      headers: new Headers({ Authorization: `Bearer ${token}` }),
+    });
+    if (!result) return { ok: false, code: "credential_invalid" };
+    return {
+      ok: true,
+      identity: {
+        subject: result.user.id,
+        sessionId: result.session.id,
+        expiresAtEpochSeconds: Math.floor(result.session.expiresAt.getTime() / 1_000),
+      },
+    };
+  }
+}
+
+class D1WorkspaceMembershipSource implements WorkspaceMembershipSource {
+  constructor(private readonly database: D1Database) {}
+
+  async lookupMembership(
+    trustedSubject: string,
+    workspaceId: string,
+  ): Promise<WorkspaceMembershipLookup> {
+    const membership = await this.database
+      .prepare(
+        `SELECT role FROM sync_membership
+         WHERE workspace_id = ?1 AND user_id = ?2`,
+      )
+      .bind(workspaceId, trustedSubject)
+      .first<{ role: string }>();
+    if (!membership || !isWorkspaceRole(membership.role)) return { state: "denied" };
+    const devices = await this.database
+      .prepare(
+        `SELECT device_id FROM sync_device
+         WHERE workspace_id = ?1 AND user_id = ?2
+         ORDER BY device_id`,
+      )
+      .bind(workspaceId, trustedSubject)
+      .all<{ device_id: string }>();
+    return {
+      state: "active",
+      membership: {
+        role: membership.role,
+        deviceIds: devices.results.map((row) => row.device_id),
+      },
+    };
+  }
+}
+
+export function productionSyncAccessConfiguration(env: AuthEnv): SyncAccessConfiguration {
+  if (!env.BETTER_AUTH_SECRET || env.BETTER_AUTH_SECRET.length < 32) {
+    return {
+      state: "unavailable",
+      code: "sync_authentication_not_configured",
+    };
+  }
   return {
-    state: "unavailable",
-    code: "sync_authentication_not_configured",
+    state: "ready",
+    credentialVerifier: new BetterAuthCredentialVerifier(env),
+    membershipSource: new D1WorkspaceMembershipSource(env.AUTH_DB),
   };
+}
+
+export async function authenticateSyncRequest(
+  request: Request,
+  configuration: SyncAccessConfiguration,
+  nowEpochSeconds: number,
+): Promise<
+  | { ok: true; identity: TrustedIdentity }
+  | { ok: false; code: SyncAccessFailureCode }
+> {
+  if (configuration.state === "unavailable") {
+    return { ok: false, code: configuration.code };
+  }
+  const credential = readBearerCredential(request.headers);
+  if (!credential.ok) return credential;
+  let verification: CredentialVerification;
+  try {
+    verification = await configuration.credentialVerifier.verifyBearerToken(
+      credential.token,
+      nowEpochSeconds,
+    );
+  } catch {
+    return { ok: false, code: "sync_authentication_unavailable" };
+  }
+  if (!verification.ok) return verification;
+  if (!isTrustedIdentity(verification.identity)) {
+    return { ok: false, code: "credential_invalid" };
+  }
+  if (verification.identity.expiresAtEpochSeconds <= nowEpochSeconds) {
+    return { ok: false, code: "credential_expired" };
+  }
+  return { ok: true, identity: verification.identity };
 }
 
 export async function authorizeWorkspaceRequest(
@@ -97,30 +189,12 @@ export async function authorizeWorkspaceRequest(
   if (configuration.state === "unavailable") {
     return { ok: false, code: configuration.code };
   }
-
-  const credential = readBearerCredential(request.headers);
-  if (!credential.ok) {
-    return credential;
-  }
-
-  let verification: CredentialVerification;
-  try {
-    verification = await configuration.credentialVerifier.verifyBearerToken(
-      credential.token,
-      nowEpochSeconds,
-    );
-  } catch {
-    return { ok: false, code: "sync_authentication_unavailable" };
-  }
-  if (!verification.ok) {
-    return verification;
-  }
-  if (!isTrustedIdentity(verification.identity)) {
-    return { ok: false, code: "credential_invalid" };
-  }
-  if (verification.identity.expiresAtEpochSeconds <= nowEpochSeconds) {
-    return { ok: false, code: "credential_expired" };
-  }
+  const authentication = await authenticateSyncRequest(
+    request,
+    configuration,
+    nowEpochSeconds,
+  );
+  if (!authentication.ok) return authentication;
   if (!isBoundDeviceId(workspaceId)) {
     return { ok: false, code: "invalid_workspace_identifier" };
   }
@@ -128,7 +202,7 @@ export async function authorizeWorkspaceRequest(
   let lookup: WorkspaceMembershipLookup;
   try {
     lookup = await configuration.membershipSource.lookupMembership(
-      verification.identity.subject,
+      authentication.identity.subject,
       workspaceId,
     );
   } catch {
@@ -150,7 +224,7 @@ export async function authorizeWorkspaceRequest(
   return {
     ok: true,
     access: {
-      identity: verification.identity,
+      identity: authentication.identity,
       membership: lookup.membership,
     },
   };
@@ -206,3 +280,4 @@ function roleAllows(role: WorkspaceRole, action: WorkspaceAction): boolean {
 function isWorkspaceRole(value: string): value is WorkspaceRole {
   return value === "owner" || value === "editor" || value === "viewer";
 }
+import { createAuth, type AuthEnv } from "./auth";

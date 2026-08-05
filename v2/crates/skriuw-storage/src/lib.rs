@@ -329,6 +329,7 @@ pub struct SyncConflict {
     pub operation_type: String,
     pub server_sequence: u64,
     pub reason_code: String,
+    pub subreason: Option<String>,
     pub message: String,
     pub created_at: i64,
 }
@@ -339,6 +340,49 @@ pub enum RemoteSyncApplyOutcome {
     LocalEcho,
     Conflict(SyncConflict),
     Duplicate,
+    NoOp,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncTombstone {
+    pub entity_kind: String,
+    pub entity_id: String,
+    pub scope_id: String,
+    pub root_id: Option<String>,
+    pub operation_id: Option<String>,
+    pub server_sequence: Option<u64>,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentConflictSummary {
+    pub conflict_id: String,
+    pub note_id: String,
+    pub remote_title: Option<String>,
+    pub local_title: Option<String>,
+    pub reason_code: String,
+    pub subreason: Option<String>,
+    pub server_sequence: u64,
+    pub created_at: i64,
+    pub local_version_available: bool,
+    pub resolved_choice: Option<String>,
+    pub resolved_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentConflictVersion {
+    pub title: Option<String>,
+    pub document_json: String,
+    pub markdown: String,
+    pub revision: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentConflictVersions {
+    pub conflict_id: String,
+    pub note_id: String,
+    pub remote: DocumentConflictVersion,
+    pub local: Option<DocumentConflictVersion>,
 }
 
 pub trait WorkspaceSyncQueue: Send + Sync {
@@ -379,6 +423,28 @@ pub trait WorkspaceSyncQueue: Send + Sync {
     ) -> Result<Vec<RemoteSyncApplyOutcome>, StorageError>;
 
     fn sync_conflicts(&self) -> Result<Vec<SyncConflict>, StorageError>;
+
+    fn sync_tombstones(&self) -> Result<Vec<SyncTombstone>, StorageError>;
+
+    fn document_conflicts(&self) -> Result<Vec<DocumentConflictSummary>, StorageError>;
+
+    fn document_conflict_versions(
+        &self,
+        conflict_id: &str,
+    ) -> Result<DocumentConflictVersions, StorageError>;
+
+    fn resolve_document_conflict(
+        &self,
+        request: &skriuw_domain::ResolveDocumentConflict,
+    ) -> Result<Option<OperationAck>, StorageError>;
+
+    /// Initialize a freshly connected device from a verified checkpoint so it
+    /// only replays the ordered tail after `checkpoint_server_sequence`.
+    fn hydrate_from_checkpoint(
+        &self,
+        archive: &WorkspaceArchive,
+        checkpoint_server_sequence: u64,
+    ) -> Result<ImportSummary, StorageError>;
 }
 
 impl<T> WorkspaceStorage for Arc<T>
@@ -542,6 +608,37 @@ where
 
     fn sync_conflicts(&self) -> Result<Vec<SyncConflict>, StorageError> {
         self.as_ref().sync_conflicts()
+    }
+
+    fn sync_tombstones(&self) -> Result<Vec<SyncTombstone>, StorageError> {
+        self.as_ref().sync_tombstones()
+    }
+
+    fn document_conflicts(&self) -> Result<Vec<DocumentConflictSummary>, StorageError> {
+        self.as_ref().document_conflicts()
+    }
+
+    fn document_conflict_versions(
+        &self,
+        conflict_id: &str,
+    ) -> Result<DocumentConflictVersions, StorageError> {
+        self.as_ref().document_conflict_versions(conflict_id)
+    }
+
+    fn resolve_document_conflict(
+        &self,
+        request: &skriuw_domain::ResolveDocumentConflict,
+    ) -> Result<Option<OperationAck>, StorageError> {
+        self.as_ref().resolve_document_conflict(request)
+    }
+
+    fn hydrate_from_checkpoint(
+        &self,
+        archive: &WorkspaceArchive,
+        checkpoint_server_sequence: u64,
+    ) -> Result<ImportSummary, StorageError> {
+        self.as_ref()
+            .hydrate_from_checkpoint(archive, checkpoint_server_sequence)
     }
 }
 

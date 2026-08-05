@@ -157,6 +157,7 @@ fn apply_operation(
                     [id],
                 )
                 .map_err(backend)?;
+            insert_terminal_tombstone(transaction, "tag", id, "", None)?;
         }
         WorkspaceOperation::RecordProviderImport { receipt } => {
             transaction
@@ -238,6 +239,7 @@ fn apply_operation(
                     [id],
                 )
                 .map_err(backend)?;
+            insert_terminal_tombstone(transaction, "person", id, "", None)?;
         }
         WorkspaceOperation::CreateFolder {
             id,
@@ -565,6 +567,27 @@ fn apply_operation(
                 )));
             }
             clear_active_note_in_subtree(transaction, root_id)?;
+            let subtree_ids = {
+                let mut statement = transaction
+                    .prepare(
+                        "WITH RECURSIVE subtree(id) AS (\
+                             SELECT id FROM workspace_nodes WHERE id = ?1 \
+                             UNION ALL \
+                             SELECT child.id FROM workspace_nodes child \
+                             JOIN subtree parent ON child.parent_id = parent.id\
+                         ) \
+                         SELECT id FROM subtree ORDER BY id",
+                    )
+                    .map_err(backend)?;
+                statement
+                    .query_map([root_id], |row| row.get::<_, String>(0))
+                    .map_err(backend)?
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(backend)?
+            };
+            for id in &subtree_ids {
+                insert_terminal_tombstone(transaction, "node", id, "", Some(root_id))?;
+            }
             transaction
                 .execute(
                     "WITH RECURSIVE subtree(id) AS (\
@@ -705,6 +728,7 @@ fn apply_operation(
                     params![note_id, position],
                 )
                 .map_err(backend)?;
+            insert_terminal_tombstone(transaction, "note_property", property_id, note_id, None)?;
             touch_note(transaction, note_id, *at)?;
         }
         WorkspaceOperation::ReorderNoteProperties {
@@ -794,6 +818,7 @@ fn apply_operation(
                     [position],
                 )
                 .map_err(backend)?;
+            insert_terminal_tombstone(transaction, "property_template", template_id, "", None)?;
         }
         WorkspaceOperation::ReorderNotePropertyTemplates {
             ordered_template_ids,
@@ -815,6 +840,27 @@ fn apply_operation(
             }
         }
     }
+    Ok(())
+}
+
+/// Records terminal identity intent for a deleted entity so a delayed remote
+/// operation cannot resurrect it. First deletion provenance wins; replays are
+/// idempotent.
+pub(crate) fn insert_terminal_tombstone(
+    transaction: &Transaction<'_>,
+    entity_kind: &str,
+    entity_id: &str,
+    scope_id: &str,
+    root_id: Option<&str>,
+) -> Result<(), StorageError> {
+    transaction
+        .execute(
+            "INSERT OR IGNORE INTO sync_tombstones(\
+                entity_kind, entity_id, scope_id, root_id, created_at\
+             ) VALUES (?1, ?2, ?3, ?4, CAST(unixepoch('subsec') * 1000 AS INTEGER))",
+            params![entity_kind, entity_id, scope_id, root_id],
+        )
+        .map_err(backend)?;
     Ok(())
 }
 
@@ -1408,7 +1454,7 @@ pub(crate) fn enqueue_history(
     Ok(())
 }
 
-fn count_words(markdown: &str) -> i64 {
+pub(crate) fn count_words(markdown: &str) -> i64 {
     markdown
         .split_whitespace()
         .filter(|token| token.chars().any(char::is_alphanumeric))

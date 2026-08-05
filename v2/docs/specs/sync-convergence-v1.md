@@ -1,7 +1,26 @@
 # Sync convergence and conflict recovery v1
 
-Status: normative product contract; convergence persistence and resolution are
-not yet implemented unless a rule is explicitly labelled **implemented**.
+Status: normative product contract. The first convergence implementation now
+ships in `skriuw-domain::reconcile` and the SQLite inbound adapter:
+
+- **implemented** — pre-apply reconciliation decisions (apply / no-op /
+  conflict / protocol-invalid) for every replicated operation family;
+  terminal identity tombstones for tag, person, node purge, note property,
+  and template deletion; tombstone-blocked resurrection prevention; complete
+  both-version preservation for divergent `SaveDocument`/`CreateNote`
+  (`sync_document_conflicts`); precise conflict subreasons beside the four
+  broad reason codes; the `KeepLocal`/`KeepRemote`/`Merged` document
+  resolution use case with immutable audit; fail-closed portable export while
+  unresolved conflicts exist; batching-independent deterministic replay.
+- **not yet implemented** — retained-base field transforms (divergent
+  same-record property/template edits conflict), a deterministic reorder
+  merge (same-membership reorders use server order), held dependency-block
+  retry (missing dependencies become durable retryable conflicts), soft
+  tombstone rows for sync bookkeeping (trash state remains `deleted_at`),
+  tombstone/conflict compaction (nothing is compacted until device/checkpoint
+  evidence machinery exists), the replicated `ResolveDocumentConflict`
+  operation (resolutions replicate as ordinary `SaveDocument`), conflict
+  renderer UI, and the extended archive version carrying conflict artifacts.
 
 This specification defines deterministic convergence for sync protocol v1. It
 is intentionally stricter than the current inbound-apply foundation: ordered

@@ -31,8 +31,10 @@ local operations.
 
 The initial protocol bounds inline operations below the cloud SQLite row limit.
 Large document bodies and media will use content-addressed R2 chunks referenced
-by later protocol operations. Public sync endpoints remain disabled until
-production authentication and workspace authorization exist.
+by later protocol operations. Public sync endpoints use Better Auth bearer
+sessions and server-owned D1 workspace membership/device records. Provisioning
+derives the private workspace from the trusted account subject; clients cannot
+claim a workspace, role, or membership in a request body.
 
 The cloud service and all contracts are new v2 code. No v1 cloud, auth,
 collaboration, schema, or API implementation is reused.

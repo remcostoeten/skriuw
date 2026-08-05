@@ -3,8 +3,13 @@
 Status: browser-local runtime implemented. The application bridge, generated
 WASM asset, worker-owned SQLite/OPFS open path, shared migrations, native parity
 tests, archive recovery behavior, and Chromium close/reload durability gate are
-implemented. Cross-browser evidence and representative performance measurements
-remain follow-up release evidence.
+implemented. Firefox 152 durability evidence
+(`bun --cwd=app run e2e:browser-storage:firefox`, WebDriver BiDi against system
+Firefox) and representative 1,000/5,000-note storage-runtime measurements
+(`bun --cwd=app run e2e:browser-scale`, recorded in
+`docs/benchmarks/2026-08-05-browser-runtime-scale.md`) are captured. Safari
+evidence and production-build renderer-interaction measurements on the
+reference runner remain release requirements.
 
 Scope note: this spec covers the browser runtime only (wasm crates, SQLite-WASM adapter, fixture parity). Mobile and a browser extension are explicitly out of scope for this spec and remain unscheduled separate efforts.
 

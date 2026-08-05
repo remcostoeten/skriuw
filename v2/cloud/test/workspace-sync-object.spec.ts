@@ -2,14 +2,52 @@ import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
 import goldenPush from "../../contracts/fixtures/sync-push-v1.json";
+import goldenPushV2 from "../../contracts/fixtures/sync-push-v2.json";
+import goldenPushV2Content from "../../contracts/fixtures/sync-push-v2-content.json";
 import workspaceOperationSchema from "../../contracts/generated/workspace-operation.schema.json";
+import { WorkspaceContentStore } from "../src/content-store";
 import {
   WORKSPACE_OPERATION_SYNC_POLICY_V1,
+  WORKSPACE_SYNC_PROTOCOL_VERSION,
   parseSyncPullResponse,
   parseSyncPushRequest,
+  type ClientSyncOperation,
+  type JsonValue,
   type SyncPushResult,
   type SyncPushResponse,
 } from "../src/contracts";
+
+function inlineOperation(operation: ClientSyncOperation): {
+  [key: string]: JsonValue;
+} {
+  if (operation.payload.form !== "inline") {
+    throw new Error("expected an inline sync payload");
+  }
+  return operation.payload.operation.operation;
+}
+
+function replaceInlineOperation(
+  operation: ClientSyncOperation,
+  workspaceOperation: { [key: string]: JsonValue },
+): void {
+  if (operation.payload.form !== "inline") {
+    throw new Error("expected an inline sync payload");
+  }
+  operation.payload.operation.operation = workspaceOperation;
+}
+
+const chunkedContentBytes = new TextEncoder().encode(
+  JSON.stringify(goldenPushV2Content),
+);
+
+async function storeChunkedContent(workspaceId: string): Promise<void> {
+  const store = new WorkspaceContentStore(env.SYNC_CONTENT);
+  const digest = goldenPushV2.operations[1]!.payload.manifest!.chunks[0]!.digest;
+  const stored = await store.putChunk(workspaceId, digest, chunkedContentBytes);
+  if (!stored.ok) {
+    throw new Error(`chunk fixture rejected: ${stored.code}`);
+  }
+}
 
 function requirePushSuccess(result: SyncPushResult): SyncPushResponse {
   if (!result.ok) {
@@ -47,12 +85,91 @@ describe("WorkspaceSyncObject", () => {
     expect(pulled.latestServerSequence).toBe(1);
     expect(pulled.operations).toHaveLength(1);
     expect(pulled.operations[0]?.operationId).toBe("operation-1");
-    expect(pulled.operations[0]?.operation.operation.type).toBe("create_folder");
+    expect(inlineOperation(pulled.operations[0]!).type).toBe("create_folder");
 
     const exhausted = parseSyncPullResponse(
       JSON.parse(await workspace.pullOperations(1, 16)),
     );
     expect(exhausted.operations).toEqual([]);
+  });
+
+  it("accepts protocol v1 and v2 batches against the same ordered log", async () => {
+    const workspace = env.WORKSPACES.getByName("workspace-dual-protocol");
+    await storeChunkedContent("workspace-dual-protocol");
+
+    const legacy = parseSyncPushRequest(goldenPush);
+    expect(legacy.syncProtocolVersion).toBe(WORKSPACE_SYNC_PROTOCOL_VERSION);
+    expect(legacy.operations[0]?.payload.form).toBe("inline");
+    const legacyResult = requirePushSuccess(await workspace.pushOperations(goldenPush));
+    expect(legacyResult.syncProtocolVersion).toBe(WORKSPACE_SYNC_PROTOCOL_VERSION);
+    expect(legacyResult.accepted).toHaveLength(1);
+
+    const current = structuredClone(goldenPushV2);
+    current.deviceId = "device-2";
+    current.operations[0]!.operationId = "operation-v2-1";
+    current.operations[1]!.operationId = "operation-v2-2";
+    const currentResult = requirePushSuccess(await workspace.pushOperations(current));
+    expect(currentResult.accepted).toHaveLength(2);
+    expect(currentResult.latestServerSequence).toBe(3);
+
+    const pulled = parseSyncPullResponse(
+      JSON.parse(await workspace.pullOperations(0, 16)),
+    );
+    expect(pulled.syncProtocolVersion).toBe(WORKSPACE_SYNC_PROTOCOL_VERSION);
+    expect(pulled.operations.map((operation) => operation.payload.form)).toEqual([
+      "inline",
+      "inline",
+      "chunked",
+    ]);
+    const chunked = pulled.operations[2]!.payload;
+    if (chunked.form !== "chunked") {
+      throw new Error("expected a chunked payload");
+    }
+    expect(chunked.manifest.kind).toBe("operation_envelope");
+    expect(chunked.manifest.chunks).toHaveLength(1);
+  });
+
+  it("rejects chunked payloads sent under protocol v1", async () => {
+    const workspace = env.WORKSPACES.getByName("workspace-chunked-v1");
+    const downgraded = structuredClone(goldenPushV2);
+    downgraded.syncProtocolVersion = 1;
+
+    expect(await workspace.pushOperations(downgraded)).toMatchObject({
+      ok: false,
+      error: { code: "sync_rejected" },
+    });
+  });
+
+  it("rejects manifests with forged chunk boundaries or unsupported algorithms", async () => {
+    const workspace = env.WORKSPACES.getByName("workspace-chunk-validation");
+
+    const shortInteriorChunk = structuredClone(goldenPushV2);
+    const manifest = (
+      shortInteriorChunk.operations[1]!.payload as {
+        manifest: {
+          algorithm: string;
+          totalByteLength: number;
+          chunks: { digest: string; byteLength: number }[];
+        };
+      }
+    ).manifest;
+    manifest.chunks = [
+      { digest: manifest.chunks[0]!.digest, byteLength: 8 },
+      { digest: manifest.chunks[0]!.digest, byteLength: manifest.totalByteLength - 8 },
+    ];
+    expect(await workspace.pushOperations(shortInteriorChunk)).toMatchObject({
+      ok: false,
+      error: { code: "sync_rejected" },
+    });
+
+    const unknownAlgorithm = structuredClone(goldenPushV2);
+    (
+      unknownAlgorithm.operations[1]!.payload as { manifest: { algorithm: string } }
+    ).manifest.algorithm = "md5";
+    expect(await workspace.pushOperations(unknownAlgorithm)).toMatchObject({
+      ok: false,
+      error: { code: "sync_rejected" },
+    });
   });
 
   it("accepts an identical retry without appending a duplicate", async () => {
@@ -74,12 +191,12 @@ describe("WorkspaceSyncObject", () => {
     const rename = structuredClone(batch.operations[0]!);
     rename.operationId = "operation-2";
     rename.clientSequence = 2;
-    rename.operation.operation = {
+    replaceInlineOperation(rename, {
       type: "rename_node",
       id: "folder-1",
       title: "Renamed",
       at: 2,
-    };
+    });
     batch.operations.push(rename);
 
     const result = requirePushSuccess(await workspace.pushOperations(batch));
@@ -90,10 +207,10 @@ describe("WorkspaceSyncObject", () => {
   it("rejects device-local operations with a stable error code", async () => {
     const workspace = env.WORKSPACES.getByName("workspace-device-local");
     const request = parseSyncPushRequest(goldenPush);
-    request.operations[0]!.operation.operation = {
+    replaceInlineOperation(request.operations[0]!, {
       type: "set_active_note",
       noteId: "note-1",
-    };
+    });
 
     expect(await workspace.pushOperations(request)).toEqual({
       ok: false,
@@ -108,7 +225,7 @@ describe("WorkspaceSyncObject", () => {
   it("rejects protocol-v1 unsupported operations with a stable error code", async () => {
     const workspace = env.WORKSPACES.getByName("workspace-unsupported");
     const request = parseSyncPushRequest(goldenPush);
-    request.operations[0]!.operation.operation = { type: "attach_image" };
+    replaceInlineOperation(request.operations[0]!, { type: "attach_image" });
 
     expect(await workspace.pushOperations(request)).toEqual({
       ok: false,
@@ -131,7 +248,7 @@ describe("WorkspaceSyncObject", () => {
     });
 
     const unknown = parseSyncPushRequest(goldenPush);
-    unknown.operations[0]!.operation.operation = { type: "future_operation" };
+    replaceInlineOperation(unknown.operations[0]!, { type: "future_operation" });
     expect(await workspace.pushOperations(unknown)).toEqual({
       ok: false,
       error: {
@@ -223,7 +340,7 @@ describe("public Worker boundary", () => {
   it("reports health without exposing an unauthenticated sync route", async () => {
     const health = await exports.default.fetch("https://example.test/health");
     expect(health.status).toBe(200);
-    expect(await health.json()).toEqual({ status: "ok", publicSync: false });
+    expect(await health.json()).toEqual({ status: "ok", publicSync: true });
 
     const sync = await exports.default.fetch(
       "https://example.test/v1/workspaces/workspace-1/push",

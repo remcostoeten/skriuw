@@ -54,6 +54,45 @@ export function closeWorkspaceWindow(): Promise<void> {
   return invoke<void>("close_workspace_window");
 }
 
+export function loadAuthToken(): Promise<string | null> {
+  return invoke<string | null>("load_auth_token");
+}
+
+export function storeAuthToken(token: string): Promise<void> {
+  return invoke<void>("store_auth_token", { token });
+}
+
+export function clearAuthToken(): Promise<void> {
+  return invoke<void>("clear_auth_token");
+}
+
+export type WorkspaceSyncStatus =
+  | { state: "localOnly" }
+  | { state: "connecting" }
+  | { state: "upToDate" }
+  | { state: "pending" }
+  | { state: "offline" }
+  | { state: "authenticationRequired" }
+  | { state: "conflict"; openConflicts: number }
+  | { state: "retrying"; nextAttemptAt: number }
+  | { state: "blocked"; reason: string };
+
+export function workspaceSyncStatus(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("workspace_sync_status");
+}
+
+export function connectWorkspaceSync(token: string): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("connect_workspace_sync", { token });
+}
+
+export function pauseWorkspaceSync(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("disconnect_workspace_sync");
+}
+
+export function retryWorkspaceSync(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("retry_workspace_sync");
+}
+
 export function searchWorkspace(query: string, limit: number): Promise<SearchHit[]> {
   return invoke<SearchHit[]>("search_workspace", { query, limit });
 }

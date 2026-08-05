@@ -8,13 +8,32 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
+mod checkpoint;
+mod chunk;
+mod reconcile;
 mod sync;
 
+pub use checkpoint::{
+    CHECKPOINT_CONTENT_MIME_TYPE, CheckpointValidationError, WORKSPACE_CHECKPOINT_VERSION,
+    WorkspaceCheckpoint,
+};
+pub use chunk::{
+    CANONICAL_CHUNK_BYTES, CONTENT_DIGEST_HEX_BYTES, CONTENT_MANIFEST_VERSION, ContentChunkRef,
+    ContentEncoding, ContentHashAlgorithm, ContentManifest, ContentManifestKind,
+    ContentValidationError, MAX_CONTENT_BYTES, MAX_CONTENT_MIME_BYTES, MAX_MANIFEST_CHUNKS,
+    content_digest, validate_content_digest,
+};
+pub use reconcile::{
+    DocumentConflictResolutionChoice, RemoteOperationDecision, RemoteTargetState,
+    ResolveDocumentConflict, SyncConflictReason, classify_apply_failure,
+    reconcile_remote_operation,
+};
 pub use sync::{
     ClientSyncOperation, MAX_INLINE_SYNC_OPERATION_BYTES, MAX_SAFE_SYNC_SEQUENCE,
     MAX_SYNC_BATCH_BYTES, MAX_SYNC_BATCH_OPERATIONS, MAX_SYNC_PULL_OPERATIONS,
-    ReplicatedWorkspaceOperation, SyncAcceptedOperation, SyncPullResponse, SyncPushRequest,
-    SyncPushResponse, SyncReplicationClass, SyncValidationError,
+    MIN_CHUNKED_CONTENT_PROTOCOL_VERSION, ReplicatedWorkspaceOperation,
+    SUPPORTED_SYNC_PROTOCOL_VERSIONS, SyncAcceptedOperation, SyncOperationPayload,
+    SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncReplicationClass, SyncValidationError,
     WORKSPACE_OPERATION_SYNC_POLICY_V1, WORKSPACE_SYNC_PROTOCOL_VERSION,
     WorkspaceOperationSyncPolicy, validate_sync_identifier, validate_sync_sequence,
 };

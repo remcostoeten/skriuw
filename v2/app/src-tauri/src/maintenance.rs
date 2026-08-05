@@ -115,9 +115,7 @@ pub(crate) fn spawn_history_drain_observed(
                             publish(header);
                             true
                         }
-                        Ok(HistoryWorkResult::Idle) => {
-                            false
-                        }
+                        Ok(HistoryWorkResult::Idle) => false,
                         Err(error) => {
                             eprintln!("history drain failed: {error}");
                             observe_failure();
@@ -422,11 +420,13 @@ impl MaintenanceCoordinator {
             images,
             image_blobs: blobs
                 .into_iter()
-                .map(|((content_hash, mime_type), bytes_base64)| ArchiveImageBlob {
-                    content_hash,
-                    mime_type,
-                    bytes_base64,
-                })
+                .map(
+                    |((content_hash, mime_type), bytes_base64)| ArchiveImageBlob {
+                        content_hash,
+                        mime_type,
+                        bytes_base64,
+                    },
+                )
                 .collect(),
         };
         let mut bytes = serde_json::to_vec_pretty(&desktop_archive)
@@ -508,9 +508,10 @@ impl MaintenanceCoordinator {
         let summary = storage
             .replace_from_archive(&desktop_archive.workspace)
             .map_err(recovery_error)?;
-        let image_operations = desktop_archive.images.iter().cloned().map(|image| {
-            WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage { image })
-        });
+        let image_operations =
+            desktop_archive.images.iter().cloned().map(|image| {
+                WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage { image })
+            });
         storage
             .apply_operations(&image_operations.collect::<Vec<_>>())
             .map_err(recovery_error)?;
@@ -548,7 +549,10 @@ impl MaintenanceCoordinator {
             } => {
                 self.copy_backup_images(&artifact.filename)?;
                 for filename in &pruned {
-                    let _ = fs::remove_dir_all(backup_blob_directory(&self.recovery_directory, filename));
+                    let _ = fs::remove_dir_all(backup_blob_directory(
+                        &self.recovery_directory,
+                        filename,
+                    ));
                 }
                 BackupRotationReport {
                     status: "created",
@@ -929,7 +933,10 @@ impl MaintenanceCoordinator {
         }
         let temporary = target.with_file_name(format!(
             ".{}.partial",
-            target.file_name().and_then(|name| name.to_str()).unwrap_or("backup-images")
+            target
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("backup-images")
         ));
         let result = (|| {
             let source = ImageStore::open(self.blob_directory()).map_err(image_store_error)?;
@@ -1242,9 +1249,11 @@ mod tests {
                 height: None,
                 created_at: test_now(),
             };
-            self.apply(WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage {
-                image: image.clone(),
-            }));
+            self.apply(WorkspaceOperationEnvelope::v1(
+                WorkspaceOperation::AttachImage {
+                    image: image.clone(),
+                },
+            ));
             image
         }
 
@@ -1570,9 +1579,12 @@ mod tests {
             .rotate_backups(true)
             .expect("create backup");
         let artifact = backup.artifact_file_name.expect("backup artifact");
-        assert!(super::backup_blob_directory(&fixture.directory.path().join("recovery"), &artifact).is_dir());
-        let image_store = ImageStore::open(fixture.directory.path().join("blobs"))
-            .expect("open image store");
+        assert!(
+            super::backup_blob_directory(&fixture.directory.path().join("recovery"), &artifact)
+                .is_dir()
+        );
+        let image_store =
+            ImageStore::open(fixture.directory.path().join("blobs")).expect("open image store");
         image_store
             .delete(&image.content_hash, &image.mime_type)
             .expect("remove live image");

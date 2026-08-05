@@ -3,7 +3,7 @@ mod support;
 
 use std::sync::Arc;
 
-use skriuw_domain::{ClientSyncOperation, SyncPushRequest};
+use skriuw_domain::{ClientSyncOperation, SyncOperationPayload, SyncPushRequest};
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::{NewSyncConnection, WorkspaceStorage, WorkspaceSyncQueue};
 use skriuw_sync::{
@@ -12,6 +12,7 @@ use skriuw_sync::{
 };
 use support::{
     FakeClock, FakeServer, FakeTransport, PullFault, PushFault, create_note, rename_node,
+    save_large_document,
 };
 
 const WORKSPACE: &str = "workspace-1";
@@ -308,13 +309,17 @@ fn semantic_conflicts_stay_durable_while_later_operations_proceed() {
                 operation_id: "op-conflict".into(),
                 client_sequence: 1,
                 base_server_sequence: 0,
-                operation: rename_node("missing-note", "Never created", 1),
+                payload: SyncOperationPayload::Inline {
+                    operation: rename_node("missing-note", "Never created", 1),
+                },
             },
             ClientSyncOperation {
                 operation_id: "op-valid".into(),
                 client_sequence: 2,
                 base_server_sequence: 0,
-                operation: create_note("note-c", "Survives conflict", 2),
+                payload: SyncOperationPayload::Inline {
+                    operation: create_note("note-c", "Survives conflict", 2),
+                },
             },
         ],
     );
@@ -497,5 +502,95 @@ fn two_databases_exchange_operations_after_offline_edits_and_restart() {
             .sync_conflicts()
             .expect("conflicts")
             .is_empty()
+    );
+}
+
+#[test]
+fn oversized_operations_travel_as_chunks_and_converge_on_a_second_device() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+    writer.connect("device-a");
+
+    let large_bytes = skriuw_domain::MAX_INLINE_SYNC_OPERATION_BYTES + 4_096;
+    writer.apply(vec![create_note("note-large", "Large", 1)]);
+    writer.apply(vec![save_large_document("note-large", 1, large_bytes, 2)]);
+    writer.apply(vec![rename_node("note-large", "Large renamed", 3)]);
+
+    for _ in 0..4 {
+        let outcome = writer.cycle();
+        writer.advance_past(&outcome);
+    }
+
+    assert_eq!(writer.storage.blocked_sync_operations().unwrap().len(), 0);
+    assert_eq!(server.operation_ids().len(), 3);
+    assert!(
+        server.stored_chunks() >= 2,
+        "a 1.5 MiB document must occupy more than one canonical chunk"
+    );
+
+    let mut reader = Device::open(&server, "device-b", &clock);
+    reader.connect("device-b");
+    for _ in 0..4 {
+        let outcome = reader.cycle();
+        reader.advance_past(&outcome);
+    }
+
+    let snapshot = reader.storage.bootstrap().expect("bootstrap");
+    let document = snapshot
+        .documents
+        .iter()
+        .find(|document| document.note_id == "note-large")
+        .expect("chunked document reached the second device");
+    assert_eq!(document.markdown.len(), large_bytes);
+    assert_eq!(
+        snapshot
+            .nodes
+            .iter()
+            .find(|node| node.id == "note-large")
+            .map(|node| node.title.as_str()),
+        Some("Large renamed")
+    );
+    assert_eq!(reader.cursor(), 3);
+}
+
+#[test]
+fn a_missing_chunk_fails_the_pull_instead_of_applying_partial_content() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+    writer.connect("device-a");
+    writer.apply(vec![create_note("note-large", "Large", 1)]);
+    writer.apply(vec![save_large_document(
+        "note-large",
+        1,
+        skriuw_domain::MAX_INLINE_SYNC_OPERATION_BYTES + 4_096,
+        2,
+    )]);
+    for _ in 0..3 {
+        let outcome = writer.cycle();
+        writer.advance_past(&outcome);
+    }
+    server.discard_chunks();
+
+    let mut reader = Device::open(&server, "device-b", &clock);
+    reader.connect("device-b");
+    let outcome = reader.cycle();
+
+    assert!(
+        matches!(
+            outcome.status,
+            SyncStatus::Retrying { .. } | SyncStatus::Blocked { .. }
+        ),
+        "unresolvable content must not advance the cursor: {:?}",
+        outcome.status
+    );
+    let snapshot = reader.storage.bootstrap().expect("bootstrap");
+    assert!(
+        snapshot
+            .documents
+            .iter()
+            .all(|document| document.markdown.is_empty()),
+        "no partial content may be applied"
     );
 }

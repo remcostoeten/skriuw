@@ -2,6 +2,7 @@ import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 import goldenPush from "../../contracts/fixtures/sync-push-v1.json";
+import { WorkspaceContentStore } from "../src/content-store";
 import {
   type CredentialVerification,
   type CredentialVerifier,
@@ -115,6 +116,7 @@ function createContext(
         resolvedWorkspaces.push(workspaceId);
         return env.WORKSPACES.getByName(workspaceId);
       },
+      contentStore: new WorkspaceContentStore(env.SYNC_CONTENT),
       log(event) {
         logs.push(event);
       },

@@ -38,18 +38,104 @@
           "format": "uint64",
           "minimum": 0
         },
-        "operation": {
-          "$ref": "#/$defs/WorkspaceOperationEnvelope"
-        },
         "operationId": {
           "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/SyncOperationPayload"
         }
       },
       "required": [
         "operationId",
         "clientSequence",
         "baseServerSequence",
-        "operation"
+        "payload"
+      ]
+    },
+    "ContentChunkRef": {
+      "type": "object",
+      "properties": {
+        "byteLength": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "digest": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "digest",
+        "byteLength"
+      ]
+    },
+    "ContentEncoding": {
+      "type": "string",
+      "enum": [
+        "identity"
+      ]
+    },
+    "ContentHashAlgorithm": {
+      "type": "string",
+      "enum": [
+        "sha256"
+      ]
+    },
+    "ContentManifest": {
+      "type": "object",
+      "properties": {
+        "algorithm": {
+          "$ref": "#/$defs/ContentHashAlgorithm"
+        },
+        "chunks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContentChunkRef"
+          }
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "encoding": {
+          "$ref": "#/$defs/ContentEncoding"
+        },
+        "kind": {
+          "$ref": "#/$defs/ContentManifestKind"
+        },
+        "manifestVersion": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "totalByteLength": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "manifestVersion",
+        "kind",
+        "algorithm",
+        "encoding",
+        "contentDigest",
+        "mimeType",
+        "totalByteLength",
+        "chunks"
+      ]
+    },
+    "ContentManifestKind": {
+      "type": "string",
+      "enum": [
+        "operation_envelope",
+        "asset",
+        "checkpoint"
       ]
     },
     "NodePlacement": {
@@ -280,6 +366,42 @@
         "sourcePath",
         "noteId",
         "importedAt"
+      ]
+    },
+    "SyncOperationPayload": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "form": {
+              "type": "string",
+              "const": "inline"
+            },
+            "operation": {
+              "$ref": "#/$defs/WorkspaceOperationEnvelope"
+            }
+          },
+          "required": [
+            "form",
+            "operation"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "form": {
+              "type": "string",
+              "const": "chunked"
+            },
+            "manifest": {
+              "$ref": "#/$defs/ContentManifest"
+            }
+          },
+          "required": [
+            "form",
+            "manifest"
+          ]
+        }
       ]
     },
     "VersionedNotePropertyValue": {

@@ -8,6 +8,7 @@ use skriuw_storage::{
 
 use crate::{
     backoff::SyncBackoff,
+    content::{externalize_oversized_operations, resolve_chunked_operations},
     transport::{SyncCancellation, SyncClock, SyncTransport, TransportError},
 };
 
@@ -127,10 +128,17 @@ pub fn run_sync_cycle(
             .iter()
             .map(|operation| operation.operation_id.clone())
             .collect::<Vec<_>>();
+        let mut request = batch.request.clone();
         let result = if cancellation.is_cancelled() {
             Err(TransportError::Cancelled)
         } else {
-            transport.push(&batch.workspace_id, &batch.request, cancellation)
+            externalize_oversized_operations(
+                transport,
+                &batch.workspace_id,
+                &mut request,
+                cancellation,
+            )
+            .and_then(|_| transport.push(&batch.workspace_id, &request, cancellation))
         };
         match result {
             Ok(response) if response.sync_protocol_version != WORKSPACE_SYNC_PROTOCOL_VERSION => {
@@ -194,10 +202,18 @@ pub fn run_sync_cycle(
             config.pull_batch_limit,
             cancellation,
         );
-        let response = match response {
+        let mut response = match response {
             Ok(response) => response,
             Err(error) => return pull_failure(clock, backoff, config, &error),
         };
+        if let Err(error) = resolve_chunked_operations(
+            transport,
+            &connection.workspace_id,
+            &mut response,
+            cancellation,
+        ) {
+            return pull_failure(clock, backoff, config, &error);
+        }
         let malformed = response.validate().is_err()
             || response.operations.len() > config.pull_batch_limit
             || (response.operations.is_empty() && response.latest_server_sequence > cursor);

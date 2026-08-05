@@ -73,9 +73,9 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
 - Pull is cursor based and ordered by server sequence.
 - Deletes require tombstones until every retained device/checkpoint no longer
   needs them.
-- Existing full-document operations larger than the bounded inline ceiling are
-  rejected until content-addressed chunk transport exists; they are never
-  truncated.
+- Full-document operations larger than the bounded inline ceiling travel as
+  content-addressed chunks under sync protocol 2; they are never truncated, and
+  an operation is never published while any chunk it references is missing.
 
 ## Delivery tracker
 
@@ -109,27 +109,35 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
   [provider-independent authentication and authorization boundary](cloud-sync-authentication.md),
   including roles, device binding, generated operation-field validation, safe
   errors, sanitized logs, and authorization before Durable Object resolution.
-- [ ] Add production authentication and workspace authorization before exposing
-  public sync routes. This still requires an identity-provider and
-  server-owned membership-store decision plus production configuration.
-- [ ] Add per-device acknowledgement cursors and bounded log compaction.
-- [ ] Add R2 content-addressed chunks for large documents and media.
-- [ ] Add checkpoints that can hydrate a new device without replaying an
+- [x] Connect deployed Better Auth bearer sessions to server-owned D1
+  workspace membership and bounded device provisioning before resolving a
+  workspace Durable Object.
+- [x] Add per-device acknowledgement cursors and bounded
+  [log compaction](sync-content-operations.md).
+- [x] Add R2 content-addressed chunks for large documents through the
+  [versioned chunk contract, protocol-v2 admission, and authorized transfer](sync-content-chunks-v1.md).
+  Media assets still have no referencing operation.
+- [x] Add checkpoints that can hydrate a new device without replaying an
   unbounded log.
-- [ ] Add structured observability, abuse limits, and recovery procedures.
+- [x] Externalize oversized operations from the client transport end to end,
+  with [chunk upload on push and verified reassembly on pull](sync-content-chunks-v1.md).
+- [ ] Add structured observability, abuse limits, and recovery procedures. The
+  [operational contract](sync-content-operations.md) is written; quotas and
+  metrics are not yet enforced or measured in production.
 
 ### Desktop connected mode
 
-- [ ] Add optional account/session UI without changing local startup.
-- [ ] Connect an existing local workspace through an explicit upload flow.
+- [x] Add optional, lazy-loaded account/session UI without changing local startup.
+- [x] Add explicit desktop account provisioning, a production HTTP transport,
+  and transactional initial upload of supported existing workspace state.
 - [x] Push the durable outbox immediately after local commit through the
   [background sync coordinator](desktop-sync-coordinator.md).
 - [x] Pull on startup, reconnect, focus, manual refresh, and bounded polling
   with coalesced triggers and a single loop per workspace.
 - [x] Apply remote operations through the same domain/storage validation path.
 - [x] Preserve pending local changes across logout and process restart.
-- [ ] Surface sync failures and conflicts without blocking local editing. The
-  narrow status projection and Tauri commands exist; the renderer UI does not.
+- [x] Surface the narrow sync status and retry/pause states in Account settings
+  without blocking local editing.
 
 ### Browser runtime
 
@@ -145,8 +153,14 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
 ### Convergence and product safety
 
 - [x] Define the [merge behavior per operation family](sync-convergence-v1.md).
-- [ ] Preserve both document versions when automatic reconciliation is unsafe.
-- [ ] Implement tombstone retention and delete-versus-edit tests.
+- [x] Preserve both complete document versions when automatic reconciliation is
+  unsafe, and resolve them through the
+  [pure reconciliation decision](../../crates/skriuw-domain/src/reconcile.rs)
+  and its keep-local/keep-remote/merged use case.
+- [x] Retain terminal identity tombstones that block resurrection, with
+  [delete-versus-edit coverage](../../crates/skriuw-sqlite/src/tests.rs).
+- [ ] Compact tombstones and resolved conflicts once per-device
+  acknowledgement and checkpoint evidence exists.
 - [ ] Decide whether cloud content is end-to-end encrypted before public beta.
 - [ ] Test two offline devices, clock skew, duplicate delivery, reordered
   delivery, expired sessions, and interrupted large uploads.
@@ -166,27 +180,38 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
 
 ## Current implementation status
 
-Milestone 1 is implemented: Rust owns the bounded v1 sync contracts and
+Milestone 1 and the authenticated desktop transport slice are implemented: Rust owns the bounded v1 sync contracts and
 exhaustive [operation policy](workspace-operation-sync-policy-v1.md), committed
 JSON Schemas, generated Worker policy, and a golden request fixture cover
 language drift, and the v2-only cloud package has a tested SQLite Durable Object
 ordered log. The Worker has a tested provider-independent
-[security boundary](cloud-sync-authentication.md), but its production access
-configuration is intentionally unavailable. It exposes health without private
-state and returns a stable unavailable response for recognized sync routes
-without resolving a Durable Object.
+[security boundary](cloud-sync-authentication.md) plus deployed Better Auth
+email/password identity backed by D1. Better Auth bearer verification and a
+server-owned D1 membership/device registry now guard provisioning, push, and
+pull. Authorization runs before Durable Object resolution and is rechecked on
+every request.
 
 This is not yet an end-user sync feature. Native SQLite owns the optional
 [connection and transactional outbox](local-sync-outbox.md), inbound cursor,
-received-operation idempotency, local-echo acknowledgement, and durable semantic
-conflict records. The [desktop background coordinator](desktop-sync-coordinator.md)
-connects that queue to a transport with tested cancellation, retry, session,
-offline, restart, and two-database exchange behavior, but only a deterministic
-fake transport exists: the desktop shell constructs sync disabled, and its
-commands report a stable unavailable error until production authentication and
-the explicit workspace connect/upload flow land. The browser-local runtime now
+received-operation idempotency, local-echo acknowledgement, durable semantic
+conflict records, terminal identity tombstones, and preserved both-version
+document conflicts with an explicit
+[resolution use case](sync-convergence-v1.md).
+The [desktop background coordinator](desktop-sync-coordinator.md)
+now uses a bounded production HTTP transport after an explicit Account-settings
+connection and resumes from the OS credential vault asynchronously on later
+launches, while local startup remains network-free. The first connection
+transactionally seeds supported existing inline workspace state into the same
+durable outbox before later edits. The browser-local runtime now
 bundles worker-owned SQLite WASM over OPFS and has native parity plus a real
-Chromium restart-durability gate. Production identity and membership
-configuration, account and connect UX, cross-browser/performance evidence,
-convergence implementation, chunks, and checkpoints remain open. Local-only
-desktop behavior is unchanged.
+Chromium restart-durability gate. Account bootstrap into a connected workspace,
+cross-browser/performance evidence, browser sync bootstrap, the multi-device
+convergence scenario matrix, base-proof field transforms, client-side tombstone
+and conflict compaction, media assets, and cloud purge remain open.
+The cloud now stores [content-addressed chunks, versioned checkpoints, and
+per-device retention](sync-content-operations.md), and a fresh device can
+hydrate from a verified checkpoint and replay only the ordered tail. The desktop
+transport now externalizes oversized operations into chunks on push and verifies
+and reassembles them on pull; automatic checkpoint publication and first-connect
+hydration are not wired into the coordinator yet.
+Local-only desktop behavior is unchanged.

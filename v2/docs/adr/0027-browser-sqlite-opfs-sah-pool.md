@@ -72,8 +72,12 @@ The preferred follow-up is a shared typed storage failure category emitted by
 - The build pins the matching `wasm-bindgen` CLI, emits the ignored WASM module
   before application checks/builds, and routes the existing browser bridge to
   the dedicated storage worker. A real Chromium gate proves OPFS durability
-  across worker close and page reload. Firefox/Safari and performance evidence
-  remain release requirements.
+  across worker close and page reload; a WebDriver BiDi harness proves the same
+  durability on system Firefox, and 1,000/5,000-note storage-runtime
+  measurements are recorded in
+  `docs/benchmarks/2026-08-05-browser-runtime-scale.md`. Safari evidence and
+  production-build renderer-interaction measurements remain release
+  requirements.
 
 ## Primary references
 

@@ -113,6 +113,30 @@ pub trait SyncTransport: Send + Sync {
         limit: usize,
         cancellation: &SyncCancellation,
     ) -> Result<SyncPullResponse, TransportError>;
+
+    /// Reports whether a chunk is already stored, so an interrupted upload
+    /// resumes by sending only what is missing.
+    fn has_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<bool, TransportError>;
+
+    fn put_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        bytes: &[u8],
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError>;
+
+    fn get_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Vec<u8>, TransportError>;
 }
 
 /// Millisecond clock seam so cycle behavior, lease expiry, and backoff are

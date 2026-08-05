@@ -4,10 +4,16 @@ import {
   authorizeWorkspaceRequest,
   membershipAllowsDevice,
 } from "./access";
+import { requireIdentifier } from "./contracts";
+import { type WorkspaceContentStore, isContentDigest } from "./content-store";
 import {
+  type AcknowledgementResult,
+  CANONICAL_CHUNK_BYTES,
   MAX_SYNC_BATCH_BYTES,
   MAX_SYNC_PULL_OPERATIONS,
+  SUPPORTED_SYNC_PROTOCOL_VERSIONS,
   SyncContractError,
+  type CompactionResult,
   type SyncErrorCode,
   type SyncPullResponse,
   type SyncPushResult,
@@ -16,29 +22,56 @@ import {
   requireSafeSequence,
 } from "./contracts";
 
+const MAX_DEVICE_IDLE_SECONDS = 60 * 60 * 24 * 30;
+
 type WorkspaceSyncRpc = {
   pushOperations(input: unknown): Promise<SyncPushResult>;
   pullOperations(afterServerSequence: number, requestedLimit?: number): Promise<string>;
+  publishCheckpoint(
+    input: unknown,
+  ): Promise<
+    { ok: true; serverSequence: number } | { ok: false; code: string; message: string }
+  >;
+  latestCheckpoint(): Promise<string | null>;
+  acknowledgeOperations(
+    deviceId: string,
+    serverSequence: number,
+    nowEpochSeconds: number,
+  ): Promise<AcknowledgementResult>;
+  compact(
+    nowEpochSeconds: number,
+    maxDeviceIdleSeconds: number,
+  ): Promise<CompactionResult>;
 };
+
+export type SyncRouteName =
+  | "push"
+  | "pull"
+  | "chunk"
+  | "checkpoint"
+  | "acknowledge";
 
 export type SyncSecurityLogEvent = {
   event: "sync_request_rejected" | "sync_request_failed";
   code: string;
   status: number;
-  route: "push" | "pull";
+  route: SyncRouteName;
   method: string;
 };
 
 export type PublicSyncDependencies = {
   accessConfiguration: SyncAccessConfiguration;
   resolveWorkspace(workspaceId: string): WorkspaceSyncRpc;
+  contentStore: WorkspaceContentStore;
   log(event: SyncSecurityLogEvent): void;
   nowEpochSeconds(): number;
 };
 
 type SyncRoute = {
+  name: SyncRouteName;
   action: "push" | "pull";
   workspaceId: string;
+  digest?: string;
 };
 
 type PublicErrorCode =
@@ -48,6 +81,11 @@ type PublicErrorCode =
   | "request_too_large"
   | "method_not_allowed"
   | "sync_service_unavailable"
+  | "chunk_digest_mismatch"
+  | "chunk_too_large"
+  | "chunk_empty"
+  | "chunk_not_found"
+  | "checkpoint_not_found"
   | "internal_error";
 
 class PublicApiError extends Error {
@@ -63,7 +101,7 @@ export async function handlePublicSyncRequest(
   request: Request,
   dependencies: PublicSyncDependencies,
 ): Promise<Response> {
-  const route = matchSyncRoute(new URL(request.url).pathname);
+  const route = matchSyncRoute(new URL(request.url).pathname, request.method);
   if (route === null) {
     return jsonError(404, "not_found");
   }
@@ -79,16 +117,62 @@ export async function handlePublicSyncRequest(
     if (!access.ok) {
       throw accessError(access.code);
     }
-    requireMethod(request.method, route.action);
+    requireMethod(request.method, route);
 
-    if (route.action === "push") {
+    if (route.name === "chunk") {
+      return await handleChunkRequest(request, route, dependencies);
+    }
+
+    if (route.name === "checkpoint") {
+      if (request.method === "GET") {
+        const stored = await dependencies
+          .resolveWorkspace(route.workspaceId)
+          .latestCheckpoint();
+        if (stored === null) {
+          throw new PublicApiError(404, "checkpoint_not_found");
+        }
+        return jsonResponse(JSON.parse(stored));
+      }
+      const body = await readBoundedJson(request);
+      const workspace = dependencies.resolveWorkspace(route.workspaceId);
+      const published = await workspace.publishCheckpoint(body);
+      if (!published.ok) {
+        throw publishError(published.code);
+      }
+      const compaction = await workspace.compact(
+        dependencies.nowEpochSeconds(),
+        MAX_DEVICE_IDLE_SECONDS,
+      );
+      return jsonResponse({ serverSequence: published.serverSequence, compaction });
+    }
+
+    if (route.name === "acknowledge") {
+      const body = await readBoundedJson(request);
+      const { deviceId, serverSequence } = parseAcknowledgement(body);
+      if (!membershipAllowsDevice(access.access.membership, deviceId)) {
+        throw new PublicApiError(403, "device_not_authorized");
+      }
+      const acknowledged = await dependencies
+        .resolveWorkspace(route.workspaceId)
+        .acknowledgeOperations(deviceId, serverSequence, dependencies.nowEpochSeconds());
+      if (!acknowledged.ok) {
+        throw new PublicApiError(400, "sync_rejected");
+      }
+      return jsonResponse({
+        deviceId,
+        acknowledgedServerSequence: acknowledged.acknowledgedServerSequence,
+      });
+    }
+
+    if (route.name === "push") {
       const input = await readBoundedJson(request);
       const pushRequest = parseSyncPushRequest(input);
       if (!membershipAllowsDevice(access.access.membership, pushRequest.deviceId)) {
         throw new PublicApiError(403, "device_not_authorized");
       }
-      const workspace = dependencies.resolveWorkspace(route.workspaceId);
-      const result = await workspace.pushOperations(pushRequest);
+      const result = await dependencies
+        .resolveWorkspace(route.workspaceId)
+        .pushOperations(pushRequest);
       if (!result.ok) {
         throw contractError(result.error.code);
       }
@@ -96,8 +180,9 @@ export async function handlePublicSyncRequest(
     }
 
     const { cursor, limit } = parsePullQuery(new URL(request.url));
-    const workspace = dependencies.resolveWorkspace(route.workspaceId);
-    const rawResponse = await workspace.pullOperations(cursor, limit);
+    const rawResponse = await dependencies
+      .resolveWorkspace(route.workspaceId)
+      .pullOperations(cursor, limit);
     const parsedResponse: unknown = JSON.parse(rawResponse);
     const response: SyncPullResponse = parseSyncPullResponse(parsedResponse);
     return jsonResponse(response);
@@ -110,7 +195,7 @@ export async function handlePublicSyncRequest(
           : "sync_request_rejected",
       code: publicError.code,
       status: publicError.status,
-      route: route.action,
+      route: route.name,
       method: request.method,
     });
     return jsonError(publicError.status, publicError.code, authHeaders(publicError.code));
@@ -126,26 +211,168 @@ export function logSyncSecurityEvent(event: SyncSecurityLogEvent): void {
   }
 }
 
-function matchSyncRoute(pathname: string): SyncRoute | null {
+function matchSyncRoute(pathname: string, method: string): SyncRoute | null {
   const parts = pathname.split("/");
-  if (
-    parts.length !== 5 ||
-    parts[0] !== "" ||
-    parts[1] !== "v1" ||
-    parts[2] !== "workspaces" ||
-    parts[3] === "" ||
-    (parts[4] !== "push" && parts[4] !== "pull")
-  ) {
+  if (parts[0] !== "" || parts[1] !== "v1" || parts[2] !== "workspaces") {
     return null;
   }
-  return { workspaceId: parts[3]!, action: parts[4] };
+  const workspaceId = parts[3];
+  if (workspaceId === undefined || workspaceId === "") {
+    return null;
+  }
+
+  if (parts.length === 6 && parts[4] === "chunks") {
+    const digest = parts[5];
+    if (digest === undefined || !isContentDigest(digest)) {
+      return null;
+    }
+    return {
+      name: "chunk",
+      action: method === "PUT" ? "push" : "pull",
+      workspaceId,
+      digest,
+    };
+  }
+  if (parts.length !== 5) {
+    return null;
+  }
+  switch (parts[4]) {
+    case "push":
+      return { name: "push", action: "push", workspaceId };
+    case "pull":
+      return { name: "pull", action: "pull", workspaceId };
+    case "checkpoint":
+      return {
+        name: "checkpoint",
+        action: method === "POST" ? "push" : "pull",
+        workspaceId,
+      };
+    case "acknowledge":
+      return { name: "acknowledge", action: "pull", workspaceId };
+    default:
+      return null;
+  }
 }
 
-function requireMethod(method: string, action: SyncRoute["action"]): void {
-  const expected = action === "push" ? "POST" : "GET";
-  if (method !== expected) {
+function requireMethod(method: string, route: SyncRoute): void {
+  const allowed: Record<SyncRouteName, readonly string[]> = {
+    push: ["POST"],
+    pull: ["GET"],
+    chunk: ["PUT", "GET", "HEAD"],
+    checkpoint: ["GET", "POST"],
+    acknowledge: ["POST"],
+  };
+  if (!allowed[route.name].includes(method)) {
     throw new PublicApiError(405, "method_not_allowed");
   }
+}
+
+async function handleChunkRequest(
+  request: Request,
+  route: SyncRoute,
+  dependencies: PublicSyncDependencies,
+): Promise<Response> {
+  const digest = route.digest!;
+  if (request.method === "HEAD") {
+    const stored = await dependencies.contentStore.hasChunk(route.workspaceId, digest);
+    return new Response(null, {
+      status: stored ? 204 : 404,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+  if (request.method === "GET") {
+    const chunk = await dependencies.contentStore.getChunk(route.workspaceId, digest);
+    if (!chunk.ok) {
+      throw new PublicApiError(chunk.code === "chunk_not_found" ? 404 : 500, chunk.code);
+    }
+    return new Response(chunk.bytes, {
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  const bytes = await readBoundedBytes(request, CANONICAL_CHUNK_BYTES);
+  const stored = await dependencies.contentStore.putChunk(
+    route.workspaceId,
+    digest,
+    bytes,
+  );
+  if (!stored.ok) {
+    throw new PublicApiError(stored.code === "chunk_too_large" ? 413 : 400, stored.code);
+  }
+  return jsonResponse({ digest, created: stored.created });
+}
+
+async function readBoundedBytes(
+  request: Request,
+  maximumBytes: number,
+): Promise<Uint8Array> {
+  const declaredLength = request.headers.get("Content-Length");
+  if (declaredLength !== null) {
+    if (!/^\d+$/.test(declaredLength)) {
+      throw new PublicApiError(400, "invalid_request");
+    }
+    if (Number(declaredLength) > maximumBytes) {
+      throw new PublicApiError(413, "request_too_large");
+    }
+  }
+  if (request.body === null) {
+    throw new PublicApiError(400, "invalid_request");
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let byteLength = 0;
+  while (true) {
+    const chunk = await reader.read();
+    if (chunk.done) {
+      break;
+    }
+    byteLength += chunk.value.byteLength;
+    if (byteLength > maximumBytes) {
+      await reader.cancel();
+      throw new PublicApiError(413, "request_too_large");
+    }
+    chunks.push(chunk.value);
+  }
+
+  const body = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
+}
+
+function parseAcknowledgement(input: unknown): {
+  deviceId: string;
+  serverSequence: number;
+} {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new PublicApiError(400, "invalid_request");
+  }
+  const record = input as Record<string, unknown>;
+  if (Object.keys(record).some((key) => key !== "deviceId" && key !== "serverSequence")) {
+    throw new PublicApiError(400, "invalid_request");
+  }
+  try {
+    return {
+      deviceId: requireIdentifier(record.deviceId, "deviceId"),
+      serverSequence: requireSafeSequence(record.serverSequence, "serverSequence", true),
+    };
+  } catch (error) {
+    throw normalizeContractError(error);
+  }
+}
+
+function publishError(code: string): PublicApiError {
+  if (code === "content_unavailable") {
+    return new PublicApiError(409, "content_unavailable");
+  }
+  return new PublicApiError(400, "sync_rejected");
 }
 
 async function readBoundedJson(request: Request): Promise<unknown> {
@@ -209,7 +436,8 @@ function parsePullQuery(url: URL): { cursor: number; limit: number } {
   if (url.searchParams.getAll("syncProtocolVersion").length !== 1) {
     throw new PublicApiError(400, "invalid_request");
   }
-  if (url.searchParams.get("syncProtocolVersion") !== "1") {
+  const requestedVersion = url.searchParams.get("syncProtocolVersion") ?? "";
+  if (!SUPPORTED_SYNC_PROTOCOL_VERSIONS.includes(Number(requestedVersion))) {
     throw new PublicApiError(400, "sync_rejected");
   }
   const cursor = parseSequenceParameter(

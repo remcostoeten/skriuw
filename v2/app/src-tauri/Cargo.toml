@@ -16,6 +16,7 @@ tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 base64 = "0.22"
+reqwest = { version = "0.13.4", default-features = false, features = ["blocking", "json", "rustls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 skriuw-domain = { path = "../../crates/skriuw-domain" }
@@ -34,11 +35,19 @@ tauri-plugin-prevent-default = "5.0.2"
 tauri-plugin-process = "2.3.1"
 tauri-plugin-updater = "2.10.1"
 zip = { version = "8.6.0", default-features = false, features = ["deflate", "deflate64"] }
+uuid = { version = "1", features = ["v4"] }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 # Same 0.18 line the gtk stack in the lockfile resolves to; used only for
 # set_prgname in main.rs (Wayland taskbar-icon fix).
 glib = "0.18"
+keyring = { version = "3.6.3", features = ["linux-native-sync-persistent", "crypto-rust"] }
+
+[target."cfg(target_os = \"macos\")".dependencies]
+keyring = { version = "3.6.3", features = ["apple-native"] }
+
+[target."cfg(target_os = \"windows\")".dependencies]
+keyring = { version = "3.6.3", features = ["windows-native"] }
 
 [dev-dependencies]
 tempfile = "3"

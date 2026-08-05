@@ -4,12 +4,19 @@ This package contains the new v2-only cloud sync data plane. It does not import
 or reuse any implementation from `apps/` or `packages/`.
 
 One SQLite-backed Durable Object owns the ordered operation log for one
-workspace. The Worker now has a tested provider-independent authentication,
-membership, role, device, validation, and safe-error boundary, but public sync
-routes remain deliberately unavailable because v2 has not selected or
-configured a production identity provider or server-owned membership store. Do
-not treat the current Worker as a user-facing deployment and do not configure a
-test adapter as production authentication.
+workspace. Better Auth provides email/password identity on `/api/auth/*`, with
+accounts and sessions stored in D1. `POST /v1/sync/provision` derives one private
+workspace from the authenticated account and registers a bounded device ID;
+D1-owned membership is checked again on every push and pull. Signing in does
+not enable sync by itself—the desktop user must explicitly connect it.
+
+For local development, copy `.dev.vars.example` to `.dev.vars`, replace the
+secret, and apply the D1 migrations before starting Wrangler. Production uses
+the D1 database `skriuw-v2-auth`, Worker
+`https://skriuw-v2-cloud.remcostoeten.workers.dev`, and web app origin
+`https://skriuw.com` (the `/app` path is not part of an origin). The desktop
+origins are also allowlisted for Tauri. Never put `BETTER_AUTH_SECRET` in
+`wrangler.jsonc`; install or rotate it with `wrangler secret put`.
 
 The canonical wire types and bounds live in `skriuw-domain`; committed JSON
 Schemas, the generated
@@ -20,12 +27,21 @@ and the golden fixture bridge the Rust and Workers implementations.
 
 ```bash
 bun install --frozen-lockfile
+bunx wrangler d1 migrations apply skriuw-v2-auth --local
 bun run check
 bun run deploy:dry
+```
+
+Production deployment:
+
+```bash
+bunx wrangler d1 migrations apply skriuw-v2-auth --remote
+bunx wrangler secret put BETTER_AUTH_SECRET
+bunx wrangler deploy
 ```
 
 See [the cloud sync master tracker](../docs/specs/cloud-sync-master.md) for the
 architecture, completed work, and remaining delivery sequence. The
 [authentication and authorization contract](../docs/specs/cloud-sync-authentication.md)
-documents route shapes, roles, stable errors, revocation behavior, local setup,
-and the exact provider and membership decisions still required.
+documents route shapes, roles, stable errors, revocation behavior, and local
+setup.

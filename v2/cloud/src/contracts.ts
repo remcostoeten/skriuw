@@ -3,7 +3,18 @@ import { type Schema, Validator } from "@cfworker/json-schema";
 import operationSyncPolicy from "../../contracts/generated/workspace-operation-sync-policy-v1.json";
 import workspaceOperationSchema from "../../contracts/generated/workspace-operation.schema.json";
 
-export const WORKSPACE_SYNC_PROTOCOL_VERSION = 1;
+export const WORKSPACE_SYNC_PROTOCOL_VERSION = 2;
+export const SUPPORTED_SYNC_PROTOCOL_VERSIONS: readonly number[] = [1, 2];
+export const MIN_CHUNKED_CONTENT_PROTOCOL_VERSION = 2;
+export const CONTENT_MANIFEST_VERSION = 1;
+export const CONTENT_DIGEST_HEX_BYTES = 64;
+export const CANONICAL_CHUNK_BYTES = 1024 * 1024;
+export const MAX_MANIFEST_CHUNKS = 256;
+export const MAX_CONTENT_BYTES = CANONICAL_CHUNK_BYTES * MAX_MANIFEST_CHUNKS;
+export const WORKSPACE_CHECKPOINT_VERSION = 1;
+export const CHECKPOINT_CONTENT_MIME_TYPE = "application/json";
+export const SUPPORTED_ARCHIVE_VERSIONS: readonly number[] = [1, 2, 3];
+export const MAX_RETAINED_CHECKPOINTS = 2;
 export const MAX_SYNC_BATCH_OPERATIONS = 64;
 export const MAX_SYNC_PULL_OPERATIONS = 256;
 export const MAX_INLINE_SYNC_OPERATION_BYTES = 1_500_000;
@@ -18,11 +29,31 @@ export type WorkspaceOperationEnvelopeJson = {
   operation: { [key: string]: JsonValue };
 };
 
+export type ContentChunkRef = {
+  digest: string;
+  byteLength: number;
+};
+
+export type ContentManifest = {
+  manifestVersion: number;
+  kind: "operation_envelope" | "asset" | "checkpoint";
+  algorithm: "sha256";
+  encoding: "identity";
+  contentDigest: string;
+  mimeType: string;
+  totalByteLength: number;
+  chunks: ContentChunkRef[];
+};
+
+export type SyncOperationPayload =
+  | { form: "inline"; operation: WorkspaceOperationEnvelopeJson }
+  | { form: "chunked"; manifest: ContentManifest };
+
 export type ClientSyncOperation = {
   operationId: string;
   clientSequence: number;
   baseServerSequence: number;
-  operation: WorkspaceOperationEnvelopeJson;
+  payload: SyncOperationPayload;
 };
 
 export type SyncPushRequest = {
@@ -50,7 +81,29 @@ export type SyncPushResult =
 export type SyncErrorCode =
   | "sync_rejected"
   | "device_local_operation"
-  | "unsupported_operation";
+  | "unsupported_operation"
+  | "content_unavailable";
+
+export type WorkspaceCheckpointRecord = {
+  checkpointVersion: number;
+  syncProtocolVersion: number;
+  archiveVersion: number;
+  workspaceId: string;
+  serverSequence: number;
+  createdAt: number;
+  content: ContentManifest;
+};
+
+export type AcknowledgementResult =
+  | { ok: true; acknowledgedServerSequence: number }
+  | { ok: false; code: "sequence_ahead_of_workspace" };
+
+export type CompactionResult = {
+  expiredDevices: number;
+  removedOperations: number;
+  removedCheckpoints: number;
+  removedChunks: number;
+};
 
 export type ReplicatedWorkspaceOperation = ClientSyncOperation & {
   deviceId: string;
@@ -115,7 +168,7 @@ export function parseSyncPushRequest(input: unknown): SyncPushRequest {
     request.syncProtocolVersion,
     "syncProtocolVersion",
   );
-  if (syncProtocolVersion !== WORKSPACE_SYNC_PROTOCOL_VERSION) {
+  if (!SUPPORTED_SYNC_PROTOCOL_VERSIONS.includes(syncProtocolVersion)) {
     throw new SyncContractError(`unsupported sync protocol ${syncProtocolVersion}`);
   }
   const deviceId = requireIdentifier(request.deviceId, "deviceId");
@@ -126,7 +179,9 @@ export function parseSyncPushRequest(input: unknown): SyncPushRequest {
     throw new SyncContractError("sync operation batch is too large");
   }
 
-  const operations = request.operations.map(parseClientSyncOperation);
+  const operations = request.operations.map((operation) =>
+    parseClientSyncOperation(operation, syncProtocolVersion),
+  );
   const operationIds = new Set<string>();
   const clientSequences = new Set<number>();
   let previousSequence: number | undefined;
@@ -148,7 +203,11 @@ export function parseSyncPushRequest(input: unknown): SyncPushRequest {
     previousSequence = operation.clientSequence;
   }
 
-  const parsed = { syncProtocolVersion, deviceId, operations };
+  const parsed = {
+    syncProtocolVersion: WORKSPACE_SYNC_PROTOCOL_VERSION,
+    deviceId,
+    operations,
+  };
   if (jsonByteLength(parsed) > MAX_SYNC_BATCH_BYTES) {
     throw new SyncContractError("sync operation batch exceeds its byte limit");
   }
@@ -161,7 +220,7 @@ export function parseSyncPullResponse(input: unknown): SyncPullResponse {
     response.syncProtocolVersion,
     "syncProtocolVersion",
   );
-  if (syncProtocolVersion !== WORKSPACE_SYNC_PROTOCOL_VERSION) {
+  if (!SUPPORTED_SYNC_PROTOCOL_VERSIONS.includes(syncProtocolVersion)) {
     throw new SyncContractError(`unsupported sync protocol ${syncProtocolVersion}`);
   }
   const latestServerSequence = requireSafeSequence(
@@ -178,12 +237,22 @@ export function parseSyncPullResponse(input: unknown): SyncPullResponse {
   let previousServerSequence = 0;
   const operations = response.operations.map((inputOperation) => {
     const record = requireRecord(inputOperation, "replicated operation");
-    const operation = parseClientSyncOperation({
-      operationId: record.operationId,
-      clientSequence: record.clientSequence,
-      baseServerSequence: record.baseServerSequence,
-      operation: record.operation,
-    });
+    const operation = parseClientSyncOperation(
+      syncProtocolVersion >= MIN_CHUNKED_CONTENT_PROTOCOL_VERSION
+        ? {
+            operationId: record.operationId,
+            clientSequence: record.clientSequence,
+            baseServerSequence: record.baseServerSequence,
+            payload: record.payload,
+          }
+        : {
+            operationId: record.operationId,
+            clientSequence: record.clientSequence,
+            baseServerSequence: record.baseServerSequence,
+            operation: record.operation,
+          },
+      syncProtocolVersion,
+    );
     const deviceId = requireIdentifier(record.deviceId, "deviceId");
     const serverSequence = requireSafeSequence(
       record.serverSequence,
@@ -200,9 +269,60 @@ export function parseSyncPullResponse(input: unknown): SyncPullResponse {
     return { ...operation, deviceId, serverSequence };
   });
   return {
-    syncProtocolVersion,
+    syncProtocolVersion: WORKSPACE_SYNC_PROTOCOL_VERSION,
     operations,
     latestServerSequence,
+  };
+}
+
+export function parseWorkspaceCheckpoint(input: unknown): WorkspaceCheckpointRecord {
+  const checkpoint = requireRecord(input, "workspace checkpoint");
+  requireExactKeys(
+    checkpoint,
+    [
+      "checkpointVersion",
+      "syncProtocolVersion",
+      "archiveVersion",
+      "workspaceId",
+      "serverSequence",
+      "createdAt",
+      "content",
+    ],
+    "workspace checkpoint",
+  );
+  const checkpointVersion = requireNumber(checkpoint.checkpointVersion, "checkpointVersion");
+  if (checkpointVersion !== WORKSPACE_CHECKPOINT_VERSION) {
+    throw new SyncContractError(`unsupported checkpoint version ${checkpointVersion}`);
+  }
+  const syncProtocolVersion = requireNumber(
+    checkpoint.syncProtocolVersion,
+    "syncProtocolVersion",
+  );
+  if (!SUPPORTED_SYNC_PROTOCOL_VERSIONS.includes(syncProtocolVersion)) {
+    throw new SyncContractError(`unsupported sync protocol ${syncProtocolVersion}`);
+  }
+  const archiveVersion = requireNumber(checkpoint.archiveVersion, "archiveVersion");
+  if (!SUPPORTED_ARCHIVE_VERSIONS.includes(archiveVersion)) {
+    throw new SyncContractError(`unsupported archive version ${archiveVersion}`);
+  }
+  const workspaceId = requireIdentifier(checkpoint.workspaceId, "workspaceId");
+  const serverSequence = requireSafeSequence(checkpoint.serverSequence, "serverSequence", true);
+  const createdAt = requireSafeSequence(checkpoint.createdAt, "createdAt", true);
+  const content = parseContentManifest(checkpoint.content);
+  if (content.kind !== "checkpoint") {
+    throw new SyncContractError("checkpoint content must be a checkpoint manifest");
+  }
+  if (content.mimeType !== CHECKPOINT_CONTENT_MIME_TYPE) {
+    throw new SyncContractError("checkpoint content must be application/json");
+  }
+  return {
+    checkpointVersion,
+    syncProtocolVersion,
+    archiveVersion,
+    workspaceId,
+    serverSequence,
+    createdAt,
+    content,
   };
 }
 
@@ -223,11 +343,20 @@ export function requireSafeSequence(value: unknown, field: string, allowZero: bo
   return sequence;
 }
 
-function parseClientSyncOperation(input: unknown): ClientSyncOperation {
+function parseClientSyncOperation(
+  input: unknown,
+  protocolVersion: number,
+): ClientSyncOperation {
   const operation = requireRecord(input, "sync operation");
+  const chunkedCapable = protocolVersion >= MIN_CHUNKED_CONTENT_PROTOCOL_VERSION;
   requireExactKeys(
     operation,
-    ["operationId", "clientSequence", "baseServerSequence", "operation"],
+    [
+      "operationId",
+      "clientSequence",
+      "baseServerSequence",
+      chunkedCapable ? "payload" : "operation",
+    ],
     "sync operation",
   );
   const operationId = requireIdentifier(operation.operationId, "operationId");
@@ -241,18 +370,156 @@ function parseClientSyncOperation(input: unknown): ClientSyncOperation {
     "baseServerSequence",
     true,
   );
-  const workspaceEnvelope = parseWorkspaceOperationEnvelope(operation.operation);
+  const payload: SyncOperationPayload = chunkedCapable
+    ? parseSyncOperationPayload(operation.payload)
+    : {
+        form: "inline",
+        operation: parseWorkspaceOperationEnvelope(operation.operation),
+      };
 
   const parsed: ClientSyncOperation = {
     operationId,
     clientSequence,
     baseServerSequence,
-    operation: workspaceEnvelope,
+    payload,
   };
-  if (jsonByteLength(parsed) > MAX_INLINE_SYNC_OPERATION_BYTES) {
+  if (
+    payload.form === "inline" &&
+    jsonByteLength(parsed) > MAX_INLINE_SYNC_OPERATION_BYTES
+  ) {
     throw new SyncContractError("sync operation requires chunked content transport");
   }
   return parsed;
+}
+
+export function parseSyncOperationPayload(input: unknown): SyncOperationPayload {
+  const payload = requireRecord(input, "sync operation payload");
+  if (payload.form === "inline") {
+    requireExactKeys(payload, ["form", "operation"], "sync operation payload");
+    return {
+      form: "inline",
+      operation: parseWorkspaceOperationEnvelope(payload.operation),
+    };
+  }
+  if (payload.form === "chunked") {
+    requireExactKeys(payload, ["form", "manifest"], "sync operation payload");
+    const manifest = parseContentManifest(payload.manifest);
+    if (manifest.kind !== "operation_envelope") {
+      throw new SyncContractError(
+        "chunked sync operations must carry an operation-envelope manifest",
+      );
+    }
+    return { form: "chunked", manifest };
+  }
+  throw new SyncContractError("sync operation payload form is not supported");
+}
+
+export function parseContentManifest(input: unknown): ContentManifest {
+  const manifest = requireRecord(input, "content manifest");
+  requireExactKeys(
+    manifest,
+    [
+      "manifestVersion",
+      "kind",
+      "algorithm",
+      "encoding",
+      "contentDigest",
+      "mimeType",
+      "totalByteLength",
+      "chunks",
+    ],
+    "content manifest",
+  );
+  const manifestVersion = requireNumber(manifest.manifestVersion, "manifestVersion");
+  if (manifestVersion !== CONTENT_MANIFEST_VERSION) {
+    throw new SyncContractError(`unsupported content manifest version ${manifestVersion}`);
+  }
+  if (
+    manifest.kind !== "operation_envelope" &&
+    manifest.kind !== "asset" &&
+    manifest.kind !== "checkpoint"
+  ) {
+    throw new SyncContractError("content manifest kind is not supported");
+  }
+  if (manifest.algorithm !== "sha256") {
+    throw new SyncContractError("content hash algorithm is not supported");
+  }
+  if (manifest.encoding !== "identity") {
+    throw new SyncContractError("content encoding is not supported");
+  }
+  const contentDigest = requireContentDigest(manifest.contentDigest, "contentDigest");
+  const mimeType = requireContentMimeType(manifest.mimeType);
+  const totalByteLength = requireSafeSequence(
+    manifest.totalByteLength,
+    "totalByteLength",
+    false,
+  );
+  if (totalByteLength > MAX_CONTENT_BYTES) {
+    throw new SyncContractError("content exceeds its configured byte ceiling");
+  }
+  if (!Array.isArray(manifest.chunks) || manifest.chunks.length === 0) {
+    throw new SyncContractError("content manifest must list at least one chunk");
+  }
+  if (manifest.chunks.length > MAX_MANIFEST_CHUNKS) {
+    throw new SyncContractError("content manifest lists too many chunks");
+  }
+
+  const lastIndex = manifest.chunks.length - 1;
+  let total = 0;
+  const chunks = manifest.chunks.map((input, index): ContentChunkRef => {
+    const chunk = requireRecord(input, "content chunk");
+    requireExactKeys(chunk, ["digest", "byteLength"], "content chunk");
+    const digest = requireContentDigest(chunk.digest, "chunk digest");
+    const byteLength = requireSafeSequence(chunk.byteLength, "chunk byteLength", false);
+    if (byteLength > CANONICAL_CHUNK_BYTES) {
+      throw new SyncContractError("content chunk exceeds the canonical chunk size");
+    }
+    if (index < lastIndex && byteLength !== CANONICAL_CHUNK_BYTES) {
+      throw new SyncContractError(
+        "only the final content chunk may be shorter than the canonical chunk size",
+      );
+    }
+    total += byteLength;
+    return { digest, byteLength };
+  });
+  if (total !== totalByteLength) {
+    throw new SyncContractError(
+      "declared content length does not match the sum of chunk lengths",
+    );
+  }
+
+  return {
+    manifestVersion,
+    kind: manifest.kind,
+    algorithm: "sha256",
+    encoding: "identity",
+    contentDigest,
+    mimeType,
+    totalByteLength,
+    chunks,
+  };
+}
+
+function requireContentDigest(value: unknown, field: string): string {
+  if (
+    typeof value !== "string" ||
+    value.length !== CONTENT_DIGEST_HEX_BYTES ||
+    !/^[0-9a-f]+$/.test(value)
+  ) {
+    throw new SyncContractError(`${field} is not a lowercase sha-256 digest`);
+  }
+  return value;
+}
+
+function requireContentMimeType(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    value.length > 128 ||
+    !/^(application|image|text|audio|video)\/[A-Za-z0-9\-+.]+$/.test(value)
+  ) {
+    throw new SyncContractError("content mime type is not supported");
+  }
+  return value;
 }
 
 export function parseWorkspaceOperationEnvelope(

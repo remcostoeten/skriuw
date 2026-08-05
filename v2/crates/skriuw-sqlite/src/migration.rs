@@ -67,6 +67,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "sync_inbound",
         sql: include_str!("../../../migrations/0012_sync_inbound.sql"),
     },
+    Migration {
+        version: 13,
+        name: "sync_convergence",
+        sql: include_str!("../../../migrations/0013_sync_convergence.sql"),
+    },
 ];
 
 pub(crate) struct Migration {

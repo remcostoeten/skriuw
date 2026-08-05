@@ -3,11 +3,12 @@ use std::{path::PathBuf, time::Instant};
 use rusqlite::Connection;
 use serde_json::json;
 use skriuw_domain::{
-    HistoryHeader, NodePlacement, NoteProperty, NotePropertyColor, NotePropertyField,
-    NotePropertyOption, NotePropertyTemplate, NotePropertyValue, ProviderImportReceipt,
-    ReplicatedWorkspaceOperation, SyncAcceptedOperation, VersionedNotePropertyValue,
-    WorkspaceImage, WorkspaceOperation, WorkspaceOperationEnvelope, WorkspacePerson,
-    WorkspaceSettings,
+    ClientSyncOperation, HistoryHeader, NodePlacement, NoteProperty, NotePropertyColor,
+    NotePropertyField, NotePropertyOption, NotePropertyTemplate, NotePropertyValue,
+    ProviderImportReceipt, ReplicatedWorkspaceOperation, SyncAcceptedOperation,
+    SyncOperationPayload, VersionedNotePropertyValue, WorkspaceCheckpoint, WorkspaceImage,
+    WorkspaceOperation, WorkspaceOperationEnvelope, WorkspacePerson, WorkspaceSettings,
+    WorkspaceTag,
 };
 use skriuw_storage::{
     Diagnostic, DiagnosticCategory, DiagnosticContext, HistoryCache, HistoryQueue,
@@ -94,8 +95,17 @@ fn remote(
         client_sequence,
         base_server_sequence: 0,
         server_sequence,
-        operation: op(operation),
+        payload: SyncOperationPayload::Inline {
+            operation: op(operation),
+        },
     }
+}
+
+fn envelope_of(operation: &ClientSyncOperation) -> &WorkspaceOperationEnvelope {
+    operation
+        .payload
+        .inline_operation()
+        .expect("locally queued operations are inline")
 }
 
 fn accepted(batch: &skriuw_storage::PendingSyncBatch) -> Vec<SyncAcceptedOperation> {
@@ -211,6 +221,30 @@ fn local_only_operations_never_create_sync_work() {
 }
 
 #[test]
+fn first_connection_queues_the_existing_workspace_for_initial_upload() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-before-sync")])
+        .expect("create local note");
+
+    connect_at_cursor(&storage, 0);
+
+    let batch = storage
+        .claim_sync_operations("initial-upload", 100, 50, 64)
+        .expect("claim initial upload")
+        .expect("existing note was queued");
+    assert_eq!(batch.request.operations.len(), 1);
+    assert_eq!(
+        envelope_of(&batch.request.operations[0])
+            .operation
+            .sync_policy()
+            .operation_type,
+        "create_note"
+    );
+    assert_eq!(batch.request.operations[0].client_sequence, 1);
+}
+
+#[test]
 fn connected_transaction_enqueues_only_replicated_operations_in_order() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     connect(&storage);
@@ -261,16 +295,14 @@ fn connected_transaction_enqueues_only_replicated_operations_in_order() {
             .all(|operation| operation.base_server_sequence == 7)
     );
     assert_eq!(
-        batch.request.operations[0]
-            .operation
+        envelope_of(&batch.request.operations[0])
             .operation
             .sync_policy()
             .operation_type,
         "create_folder"
     );
     assert_eq!(
-        batch.request.operations[1]
-            .operation
+        envelope_of(&batch.request.operations[1])
             .operation
             .sync_policy()
             .operation_type,
@@ -529,8 +561,7 @@ fn disconnect_preserves_pending_work_and_unsupported_media_is_visible() {
         .expect("pending work survived disconnect");
     assert_eq!(pending.request.operations.len(), 1);
     assert_eq!(
-        pending.request.operations[0]
-            .operation
+        envelope_of(&pending.request.operations[0])
             .operation
             .sync_policy()
             .operation_type,
@@ -539,7 +570,7 @@ fn disconnect_preserves_pending_work_and_unsupported_media_is_visible() {
 }
 
 #[test]
-fn oversized_replicated_edit_commits_locally_without_a_sequence_gap() {
+fn oversized_replicated_edit_queues_for_chunked_transport_without_a_sequence_gap() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     connect(&storage);
     storage
@@ -560,34 +591,50 @@ fn oversized_replicated_edit_commits_locally_without_a_sequence_gap() {
     let snapshot = storage.bootstrap().expect("bootstrap");
     assert_eq!(snapshot.documents[0].revision, 2);
     assert_eq!(snapshot.documents[0].markdown.len(), large_markdown.len());
-    let blocked = storage
-        .blocked_sync_operations()
-        .expect("blocked operations");
-    assert_eq!(blocked.len(), 1);
-    assert_eq!(blocked[0].operation_type, "save_document");
-    assert_eq!(blocked[0].reason_code, "operation_too_large");
-
-    let batch = storage
-        .claim_sync_operations("sync-worker", 100, 50, 64)
-        .expect("claim")
-        .expect("uploadable operations");
     assert_eq!(
-        batch
-            .request
-            .operations
-            .iter()
-            .map(|operation| operation.client_sequence)
-            .collect::<Vec<_>>(),
-        vec![1, 2]
+        storage
+            .blocked_sync_operations()
+            .expect("blocked operations")
+            .len(),
+        0
     );
+
+    let mut claimed = Vec::new();
+    for server_sequence in 1..=3u64 {
+        let batch = storage
+            .claim_sync_operations("sync-worker", 100, 50, 64)
+            .expect("claim")
+            .expect("uploadable operations");
+        assert_eq!(batch.request.operations.len(), 1);
+        let operation = &batch.request.operations[0];
+        claimed.push((
+            operation.client_sequence,
+            envelope_of(operation)
+                .operation
+                .sync_policy()
+                .operation_type,
+            operation.exceeds_inline_ceiling(),
+        ));
+        storage
+            .acknowledge_sync_operations(
+                "sync-worker",
+                &[SyncAcceptedOperation {
+                    operation_id: operation.operation_id.clone(),
+                    client_sequence: operation.client_sequence,
+                    server_sequence,
+                }],
+            )
+            .expect("acknowledge");
+    }
+
     assert_eq!(
-        batch
-            .request
-            .operations
-            .iter()
-            .map(|operation| operation.operation.operation.sync_policy().operation_type)
-            .collect::<Vec<_>>(),
-        vec!["create_note", "rename_node"]
+        claimed,
+        vec![
+            (1, "create_note", false),
+            (2, "save_document", true),
+            (3, "rename_node", false),
+        ],
+        "the oversized edit is claimed alone so the transport can externalize it"
     );
 }
 
@@ -684,8 +731,13 @@ fn duplicate_remote_delivery_is_idempotent_across_restart() {
     assert_eq!(storage.bootstrap().expect("bootstrap").nodes.len(), 1);
 
     let mut conflicting_duplicate = operation;
-    if let WorkspaceOperation::CreateFolder { title, .. } =
-        &mut conflicting_duplicate.operation.operation
+    if let SyncOperationPayload::Inline {
+        operation:
+            WorkspaceOperationEnvelope {
+                operation: WorkspaceOperation::CreateFolder { title, .. },
+                ..
+            },
+    } = &mut conflicting_duplicate.payload
     {
         *title = "Conflicting".into();
     }
@@ -838,7 +890,7 @@ fn local_echo_is_idempotent_whether_pull_or_acknowledgement_wins() {
         client_sequence: client.client_sequence,
         base_server_sequence: client.base_server_sequence,
         server_sequence: 1,
-        operation: client.operation.clone(),
+        payload: client.payload.clone(),
     };
     assert_eq!(
         pull_first
@@ -879,7 +931,7 @@ fn local_echo_is_idempotent_whether_pull_or_acknowledgement_wins() {
         client_sequence: client.client_sequence,
         base_server_sequence: client.base_server_sequence,
         server_sequence: 1,
-        operation: client.operation.clone(),
+        payload: client.payload.clone(),
     };
     ack_first
         .acknowledge_sync_operations(
@@ -2765,4 +2817,811 @@ fn provider_import_receipts_commit_replace_and_cascade_atomically() {
             .import_receipts
             .is_empty()
     );
+}
+
+fn remote_save(
+    operation_id: &str,
+    server_sequence: u64,
+    note_id: &str,
+    expected_revision: i64,
+    markdown: &str,
+) -> ReplicatedWorkspaceOperation {
+    remote(
+        operation_id,
+        "device-remote",
+        server_sequence,
+        server_sequence,
+        WorkspaceOperation::SaveDocument {
+            note_id: note_id.into(),
+            document_json: json!({"type": "doc", "content": [markdown]}),
+            markdown: markdown.into(),
+            word_count: markdown.split_whitespace().count() as i64,
+            expected_revision,
+            at: 20,
+        },
+    )
+}
+
+#[test]
+fn identical_remote_save_is_a_semantic_no_op() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-same")])
+        .expect("local note");
+    connect_at_cursor(&storage, 0);
+    let identical = remote(
+        "remote-identical",
+        "device-remote",
+        1,
+        1,
+        WorkspaceOperation::SaveDocument {
+            note_id: "note-same".into(),
+            document_json: json!({"type": "doc", "content": []}),
+            markdown: "# Fast notes\n\nSQLite search".into(),
+            word_count: 4,
+            expected_revision: 1,
+            at: 20,
+        },
+    );
+
+    assert_eq!(
+        storage
+            .apply_remote_operations(std::slice::from_ref(&identical), 30)
+            .expect("apply identical save"),
+        vec![RemoteSyncApplyOutcome::NoOp]
+    );
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.documents[0].revision, 1);
+    assert!(storage.sync_conflicts().expect("conflicts").is_empty());
+    assert_eq!(
+        storage
+            .sync_connection()
+            .expect("connection")
+            .expect("active")
+            .observed_server_sequence,
+        1
+    );
+    assert_eq!(
+        storage
+            .apply_remote_operations(&[identical], 31)
+            .expect("replayed no-op"),
+        vec![RemoteSyncApplyOutcome::Duplicate]
+    );
+}
+
+#[test]
+fn divergent_document_save_preserves_both_complete_versions() {
+    let directory = tempdir().expect("tempdir");
+    let path = directory.path().join("document-conflict.db");
+    {
+        let storage = SqliteWorkspace::open(&path).expect("open database");
+        storage
+            .apply_operations(&[create_note("note-fork")])
+            .expect("local note");
+        storage
+            .apply_operations(&[save_document("note-fork", 1, "local offline body", 12)])
+            .expect("local save");
+        connect_at_cursor(&storage, 0);
+
+        let outcomes = storage
+            .apply_remote_operations(
+                &[remote_save(
+                    "remote-fork",
+                    1,
+                    "note-fork",
+                    1,
+                    "remote offline body",
+                )],
+                30,
+            )
+            .expect("apply divergent save");
+        let RemoteSyncApplyOutcome::Conflict(conflict) = &outcomes[0] else {
+            panic!("expected conflict outcome");
+        };
+        assert_eq!(conflict.reason_code, "revision_conflict");
+        assert_eq!(
+            conflict.subreason.as_deref(),
+            Some("concurrent_document_version")
+        );
+    }
+
+    let storage = SqliteWorkspace::open(&path).expect("reopen database");
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.documents[0].revision, 2);
+    assert_eq!(snapshot.documents[0].markdown, "local offline body");
+
+    let summaries = storage.document_conflicts().expect("summaries");
+    assert_eq!(summaries.len(), 1);
+    assert_eq!(summaries[0].note_id, "note-fork");
+    assert!(summaries[0].local_version_available);
+    assert_eq!(summaries[0].resolved_choice, None);
+
+    let versions = storage
+        .document_conflict_versions(&summaries[0].conflict_id)
+        .expect("versions");
+    assert_eq!(versions.remote.markdown, "remote offline body");
+    let local = versions.local.expect("local version");
+    assert_eq!(local.markdown, "local offline body");
+    assert_eq!(local.revision, Some(2));
+}
+
+#[test]
+fn keep_remote_resolution_updates_canonical_and_keeps_the_alternative() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-resolve")])
+        .expect("local note");
+    storage
+        .apply_operations(&[save_document("note-resolve", 1, "local body", 12)])
+        .expect("local save");
+    connect_at_cursor(&storage, 0);
+    storage
+        .apply_remote_operations(
+            &[remote_save(
+                "remote-resolve",
+                1,
+                "note-resolve",
+                1,
+                "remote body",
+            )],
+            30,
+        )
+        .expect("divergent save");
+    let conflict_id = storage.document_conflicts().expect("summaries")[0]
+        .conflict_id
+        .clone();
+
+    let acknowledgement = storage
+        .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
+            conflict_id: conflict_id.clone(),
+            choice: skriuw_domain::DocumentConflictResolutionChoice::KeepRemote,
+            at: 100,
+        })
+        .expect("resolve");
+    assert!(acknowledgement.is_some());
+
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.documents[0].markdown, "remote body");
+    assert_eq!(snapshot.documents[0].revision, 3);
+    assert!(storage.sync_conflicts().expect("unresolved").is_empty());
+
+    let summary = &storage.document_conflicts().expect("summaries")[0];
+    assert_eq!(summary.resolved_choice.as_deref(), Some("remote"));
+    let versions = storage
+        .document_conflict_versions(&conflict_id)
+        .expect("versions");
+    assert_eq!(
+        versions.local.expect("preserved local").markdown,
+        "local body"
+    );
+
+    let batch = storage
+        .claim_sync_operations("sync-worker", 200, 50, 64)
+        .expect("claim")
+        .expect("resolution replicates");
+    assert!(batch.request.operations.iter().any(|operation| {
+        envelope_of(operation)
+            .operation
+            .sync_policy()
+            .operation_type
+            == "save_document"
+    }));
+
+    assert_eq!(
+        storage
+            .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
+                conflict_id: conflict_id.clone(),
+                choice: skriuw_domain::DocumentConflictResolutionChoice::KeepRemote,
+                at: 120,
+            })
+            .expect("duplicate identical resolution"),
+        None
+    );
+    assert!(matches!(
+        storage.resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
+            conflict_id,
+            choice: skriuw_domain::DocumentConflictResolutionChoice::KeepLocal,
+            at: 130,
+        }),
+        Err(StorageError::InvalidOperation(_))
+    ));
+}
+
+#[test]
+fn keep_local_resolution_leaves_canonical_untouched() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-keep-local")])
+        .expect("local note");
+    storage
+        .apply_operations(&[save_document("note-keep-local", 1, "local body", 12)])
+        .expect("local save");
+    connect_at_cursor(&storage, 0);
+    storage
+        .apply_remote_operations(
+            &[remote_save(
+                "remote-keep-local",
+                1,
+                "note-keep-local",
+                1,
+                "remote body",
+            )],
+            30,
+        )
+        .expect("divergent save");
+    let conflict_id = storage.document_conflicts().expect("summaries")[0]
+        .conflict_id
+        .clone();
+
+    assert_eq!(
+        storage
+            .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
+                conflict_id: conflict_id.clone(),
+                choice: skriuw_domain::DocumentConflictResolutionChoice::KeepLocal,
+                at: 100,
+            })
+            .expect("resolve"),
+        None
+    );
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.documents[0].markdown, "local body");
+    assert_eq!(snapshot.documents[0].revision, 2);
+    assert!(storage.sync_conflicts().expect("unresolved").is_empty());
+    let versions = storage
+        .document_conflict_versions(&conflict_id)
+        .expect("versions");
+    assert_eq!(versions.remote.markdown, "remote body");
+}
+
+#[test]
+fn purge_creates_terminal_tombstones_and_blocks_resurrection() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[
+            op(WorkspaceOperation::CreateFolder {
+                id: "folder-purged".into(),
+                title: "Folder".into(),
+                placement: NodePlacement::last(None),
+                at: 1,
+            }),
+            create_placed_note(
+                "note-purged",
+                NodePlacement::last(Some("folder-purged".into())),
+                2,
+            ),
+        ])
+        .expect("seed subtree");
+    storage
+        .apply_operations(&[
+            op(WorkspaceOperation::TrashSubtree {
+                root_id: "folder-purged".into(),
+                at: 5,
+            }),
+            op(WorkspaceOperation::PurgeSubtree {
+                root_id: "folder-purged".into(),
+                trashed_before: 10,
+            }),
+        ])
+        .expect("trash and purge");
+
+    let tombstones = storage.sync_tombstones().expect("tombstones");
+    let node_ids = tombstones
+        .iter()
+        .filter(|tombstone| tombstone.entity_kind == "node")
+        .map(|tombstone| tombstone.entity_id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(node_ids, vec!["folder-purged", "note-purged"]);
+    assert!(
+        tombstones
+            .iter()
+            .filter(|tombstone| tombstone.entity_kind == "node")
+            .all(|tombstone| tombstone.root_id.as_deref() == Some("folder-purged"))
+    );
+
+    connect_at_cursor(&storage, 0);
+    let delayed_edit = remote_save("remote-delayed-edit", 1, "note-purged", 1, "delayed body");
+    let stale_recreate = remote(
+        "remote-stale-recreate",
+        "device-remote",
+        2,
+        2,
+        WorkspaceOperation::CreateNote {
+            id: "note-purged".into(),
+            title: "Resurrected".into(),
+            placement: NodePlacement::last(None),
+            document_json: json!({"type": "doc", "content": []}),
+            markdown: "resurrected".into(),
+            at: 30,
+        },
+    );
+    let outcomes = storage
+        .apply_remote_operations(&[delayed_edit, stale_recreate], 40)
+        .expect("apply delayed operations");
+    for outcome in &outcomes {
+        let RemoteSyncApplyOutcome::Conflict(conflict) = outcome else {
+            panic!("expected tombstone-blocked conflict");
+        };
+        assert_eq!(conflict.subreason.as_deref(), Some("tombstone_blocked"));
+    }
+    assert!(storage.bootstrap().expect("bootstrap").nodes.is_empty());
+
+    let summaries = storage.document_conflicts().expect("summaries");
+    assert_eq!(summaries.len(), 2);
+    assert!(
+        summaries
+            .iter()
+            .all(|summary| !summary.local_version_available)
+    );
+    let versions = storage
+        .document_conflict_versions(&summaries[0].conflict_id)
+        .expect("versions");
+    assert_eq!(versions.remote.markdown, "delayed body");
+    assert_eq!(versions.local, None);
+}
+
+#[test]
+fn edit_of_trashed_note_becomes_a_preserved_conflict() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-trashed")])
+        .expect("local note");
+    storage
+        .apply_operations(&[op(WorkspaceOperation::TrashSubtree {
+            root_id: "note-trashed".into(),
+            at: 5,
+        })])
+        .expect("trash note");
+    connect_at_cursor(&storage, 0);
+
+    let outcomes = storage
+        .apply_remote_operations(
+            &[remote_save(
+                "remote-trash-edit",
+                1,
+                "note-trashed",
+                1,
+                "edited while trashed",
+            )],
+            30,
+        )
+        .expect("apply edit");
+    let RemoteSyncApplyOutcome::Conflict(conflict) = &outcomes[0] else {
+        panic!("expected conflict outcome");
+    };
+    assert_eq!(conflict.subreason.as_deref(), Some("tombstone_blocked"));
+
+    let summaries = storage.document_conflicts().expect("summaries");
+    assert!(summaries[0].local_version_available);
+    let versions = storage
+        .document_conflict_versions(&summaries[0].conflict_id)
+        .expect("versions");
+    assert_eq!(versions.remote.markdown, "edited while trashed");
+    assert_eq!(
+        versions.local.expect("trashed local version").markdown,
+        "# Fast notes\n\nSQLite search"
+    );
+}
+
+#[test]
+fn duplicate_remote_delete_with_matching_tombstone_is_a_no_op() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[op(WorkspaceOperation::CreateTag {
+            tag: skriuw_domain::WorkspaceTag {
+                id: "tag-deleted".into(),
+                name: "Deleted".into(),
+                color: None,
+                created_at: 1,
+                updated_at: 1,
+                created_in: None,
+            },
+        })])
+        .expect("create tag");
+    storage
+        .apply_operations(&[op(WorkspaceOperation::DeleteTag {
+            id: "tag-deleted".into(),
+        })])
+        .expect("delete tag");
+    connect_at_cursor(&storage, 0);
+
+    assert_eq!(
+        storage
+            .apply_remote_operations(
+                &[remote(
+                    "remote-dup-delete",
+                    "device-remote",
+                    1,
+                    1,
+                    WorkspaceOperation::DeleteTag {
+                        id: "tag-deleted".into(),
+                    },
+                )],
+                30,
+            )
+            .expect("duplicate delete"),
+        vec![RemoteSyncApplyOutcome::NoOp]
+    );
+    assert!(storage.sync_conflicts().expect("conflicts").is_empty());
+}
+
+#[test]
+fn concurrent_create_identity_collision_preserves_divergent_records() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[op(WorkspaceOperation::CreateTag {
+            tag: skriuw_domain::WorkspaceTag {
+                id: "tag-collision".into(),
+                name: "Local".into(),
+                color: Some("#112233".into()),
+                created_at: 1,
+                updated_at: 1,
+                created_in: None,
+            },
+        })])
+        .expect("create tag");
+    connect_at_cursor(&storage, 0);
+
+    let equivalent = remote(
+        "remote-equivalent-create",
+        "device-remote",
+        1,
+        1,
+        WorkspaceOperation::CreateTag {
+            tag: skriuw_domain::WorkspaceTag {
+                id: "tag-collision".into(),
+                name: "Local".into(),
+                color: Some("#112233".into()),
+                created_at: 9,
+                updated_at: 9,
+                created_in: None,
+            },
+        },
+    );
+    let divergent = remote(
+        "remote-divergent-create",
+        "device-remote",
+        2,
+        2,
+        WorkspaceOperation::CreateTag {
+            tag: skriuw_domain::WorkspaceTag {
+                id: "tag-collision".into(),
+                name: "Remote".into(),
+                color: None,
+                created_at: 9,
+                updated_at: 9,
+                created_in: None,
+            },
+        },
+    );
+    let outcomes = storage
+        .apply_remote_operations(&[equivalent, divergent], 30)
+        .expect("apply creates");
+    assert_eq!(outcomes[0], RemoteSyncApplyOutcome::NoOp);
+    let RemoteSyncApplyOutcome::Conflict(conflict) = &outcomes[1] else {
+        panic!("expected identity conflict");
+    };
+    assert_eq!(conflict.reason_code, "identity_conflict");
+    let snapshot = storage.bootstrap().expect("bootstrap");
+    assert_eq!(snapshot.tags[0].name, "Local");
+}
+
+#[test]
+fn property_reference_to_deleted_person_is_tombstone_blocked() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[
+            create_note("note-person"),
+            op(WorkspaceOperation::CreatePerson {
+                person: WorkspacePerson {
+                    id: "person-gone".into(),
+                    name: "Gone".into(),
+                    initials: None,
+                    color: None,
+                    note: None,
+                    created_at: 1,
+                    updated_at: 1,
+                    created_in: None,
+                },
+            }),
+        ])
+        .expect("seed");
+    storage
+        .apply_operations(&[op(WorkspaceOperation::DeletePerson {
+            id: "person-gone".into(),
+        })])
+        .expect("delete person");
+    connect_at_cursor(&storage, 0);
+
+    let outcomes = storage
+        .apply_remote_operations(
+            &[remote(
+                "remote-person-property",
+                "device-remote",
+                1,
+                1,
+                WorkspaceOperation::SetNoteProperty {
+                    property: NoteProperty {
+                        note_id: "note-person".into(),
+                        field: NotePropertyField {
+                            id: "property-person".into(),
+                            name: "Owner".into(),
+                            value: VersionedNotePropertyValue::v1(NotePropertyValue::Person(vec![
+                                "person-gone".into(),
+                            ])),
+                            options: Vec::new(),
+                            position: 0,
+                        },
+                    },
+                    at: 20,
+                },
+            )],
+            30,
+        )
+        .expect("apply property");
+    let RemoteSyncApplyOutcome::Conflict(conflict) = &outcomes[0] else {
+        panic!("expected conflict outcome");
+    };
+    assert_eq!(conflict.subreason.as_deref(), Some("tombstone_blocked"));
+    assert!(
+        storage
+            .bootstrap()
+            .expect("bootstrap")
+            .properties
+            .is_empty()
+    );
+}
+
+#[test]
+fn replay_is_deterministic_across_batch_partitions() {
+    let log = vec![
+        remote(
+            "replay-1",
+            "device-remote",
+            1,
+            1,
+            WorkspaceOperation::CreateFolder {
+                id: "folder-replay".into(),
+                title: "Replay".into(),
+                placement: NodePlacement::last(None),
+                at: 11,
+            },
+        ),
+        remote(
+            "replay-2",
+            "device-remote",
+            2,
+            2,
+            WorkspaceOperation::CreateNote {
+                id: "note-replay".into(),
+                title: "Replayed".into(),
+                placement: NodePlacement::last(Some("folder-replay".into())),
+                document_json: json!({"type": "doc", "content": []}),
+                markdown: "replayed body".into(),
+                at: 12,
+            },
+        ),
+        remote_save("replay-3", 3, "note-replay", 9, "conflicting body"),
+        remote(
+            "replay-4",
+            "device-remote",
+            4,
+            4,
+            WorkspaceOperation::RenameNode {
+                id: "folder-replay".into(),
+                title: "Replay renamed".into(),
+                at: 14,
+            },
+        ),
+        remote(
+            "replay-5",
+            "device-remote",
+            5,
+            5,
+            WorkspaceOperation::TrashSubtree {
+                root_id: "note-replay".into(),
+                at: 15,
+            },
+        ),
+    ];
+
+    let batched = SqliteWorkspace::open_in_memory().expect("open batched database");
+    connect_at_cursor(&batched, 0);
+    batched
+        .apply_remote_operations(&log, 30)
+        .expect("apply as one batch");
+
+    let stepped = SqliteWorkspace::open_in_memory().expect("open stepped database");
+    connect_at_cursor(&stepped, 0);
+    for operation in &log {
+        stepped
+            .apply_remote_operations(std::slice::from_ref(operation), 30)
+            .expect("apply one operation");
+    }
+
+    let batched_snapshot = batched.bootstrap().expect("batched bootstrap");
+    let stepped_snapshot = stepped.bootstrap().expect("stepped bootstrap");
+    assert_eq!(batched_snapshot, stepped_snapshot);
+
+    let conflict_keys = |storage: &SqliteWorkspace| {
+        storage
+            .sync_conflicts()
+            .expect("conflicts")
+            .into_iter()
+            .map(|conflict| {
+                (
+                    conflict.operation_id,
+                    conflict.reason_code,
+                    conflict.subreason,
+                    conflict.server_sequence,
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(conflict_keys(&batched), conflict_keys(&stepped));
+
+    let cursor = |storage: &SqliteWorkspace| {
+        storage
+            .sync_connection()
+            .expect("connection")
+            .expect("active")
+            .observed_server_sequence
+    };
+    assert_eq!(cursor(&batched), 5);
+    assert_eq!(cursor(&stepped), 5);
+}
+
+#[test]
+fn portable_export_fails_closed_while_a_conflict_is_unresolved() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    storage
+        .apply_operations(&[create_note("note-export")])
+        .expect("local note");
+    storage
+        .apply_operations(&[save_document("note-export", 1, "local body", 12)])
+        .expect("local save");
+    connect_at_cursor(&storage, 0);
+    storage
+        .apply_remote_operations(
+            &[remote_save(
+                "remote-export",
+                1,
+                "note-export",
+                1,
+                "remote body",
+            )],
+            30,
+        )
+        .expect("divergent save");
+
+    let error = storage
+        .export_archive(100)
+        .expect_err("export must fail closed");
+    assert!(matches!(&error, StorageError::InvalidOperation(message)
+        if message.contains("unresolved sync conflict")));
+
+    let conflict_id = storage.document_conflicts().expect("summaries")[0]
+        .conflict_id
+        .clone();
+    storage
+        .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
+            conflict_id,
+            choice: skriuw_domain::DocumentConflictResolutionChoice::Merged {
+                document_json: json!({"type": "doc", "content": ["merged"]}),
+                markdown: "merged body".into(),
+            },
+            at: 100,
+        })
+        .expect("resolve by merge");
+    assert_eq!(
+        storage.bootstrap().expect("bootstrap").documents[0].markdown,
+        "merged body"
+    );
+    storage
+        .export_archive(200)
+        .expect("export after resolution");
+}
+
+#[test]
+fn hydrates_a_fresh_device_from_a_checkpoint_and_replays_only_the_tail() {
+    let source = SqliteWorkspace::open_in_memory().expect("open database");
+    source
+        .apply_operations(&[
+            op(WorkspaceOperation::CreateNote {
+                id: "note-1".into(),
+                title: "Checkpointed".into(),
+                placement: NodePlacement::last(None),
+                document_json: json!({"type": "doc"}),
+                markdown: "body".into(),
+                at: 1,
+            }),
+            op(WorkspaceOperation::CreateTag {
+                tag: WorkspaceTag {
+                    id: "tag-1".into(),
+                    name: "archived".into(),
+                    color: None,
+                    created_at: 1,
+                    updated_at: 1,
+                    created_in: None,
+                },
+            }),
+        ])
+        .expect("seed source workspace");
+    let archive = source.export_archive(20).expect("export archive");
+    let (checkpoint, bytes) =
+        WorkspaceCheckpoint::build("workspace-1", 12, 30, &archive).expect("build checkpoint");
+    let verified = checkpoint
+        .verify_content(&bytes)
+        .expect("verify checkpoint");
+
+    let fresh = SqliteWorkspace::open_in_memory().expect("open database");
+    connect_at_cursor(&fresh, 0);
+    let summary = fresh
+        .hydrate_from_checkpoint(&verified, checkpoint.server_sequence)
+        .expect("hydrate from checkpoint");
+    assert_eq!(summary.nodes, 1);
+    assert_eq!(summary.documents, 1);
+
+    let connection = fresh
+        .sync_connection()
+        .expect("connection")
+        .expect("active connection");
+    assert_eq!(connection.observed_server_sequence, 12);
+
+    fresh
+        .apply_remote_operations(
+            &[remote(
+                "op-tail",
+                "device-2",
+                1,
+                13,
+                WorkspaceOperation::RenameNode {
+                    id: "note-1".into(),
+                    title: "Renamed after checkpoint".into(),
+                    at: 40,
+                },
+            )],
+            41,
+        )
+        .expect("apply ordered tail");
+
+    let snapshot = fresh.bootstrap().expect("bootstrap");
+    assert_eq!(
+        snapshot
+            .nodes
+            .iter()
+            .find(|node| node.id == "note-1")
+            .map(|node| node.title.as_str()),
+        Some("Renamed after checkpoint")
+    );
+    assert_eq!(snapshot.tags.len(), 1);
+}
+
+#[test]
+fn refuses_checkpoint_hydration_that_would_discard_local_work() {
+    let storage = SqliteWorkspace::open_in_memory().expect("open database");
+    connect_at_cursor(&storage, 0);
+    storage
+        .apply_operations(&[op(WorkspaceOperation::CreateFolder {
+            id: "folder-local".into(),
+            title: "Pending".into(),
+            placement: NodePlacement::last(None),
+            at: 1,
+        })])
+        .expect("queue local work");
+    let archive = SqliteWorkspace::open_in_memory()
+        .expect("open database")
+        .export_archive(5)
+        .expect("export archive");
+
+    let error = storage
+        .hydrate_from_checkpoint(&archive, 3)
+        .expect_err("pending outbox must block hydration");
+    assert!(matches!(error, StorageError::InvalidOperation(_)));
+
+    let advanced = SqliteWorkspace::open_in_memory().expect("open database");
+    connect_at_cursor(&advanced, 7);
+    let error = advanced
+        .hydrate_from_checkpoint(&archive, 3)
+        .expect_err("an advanced cursor must block hydration");
+    assert!(matches!(error, StorageError::InvalidOperation(_)));
 }

@@ -72,6 +72,35 @@ impl ConcurrencyProbeTransport {
 }
 
 impl SyncTransport for ConcurrencyProbeTransport {
+    fn has_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<bool, TransportError> {
+        self.inner.has_chunk(workspace_id, digest, cancellation)
+    }
+
+    fn put_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        bytes: &[u8],
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        self.inner
+            .put_chunk(workspace_id, digest, bytes, cancellation)
+    }
+
+    fn get_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Vec<u8>, TransportError> {
+        self.inner.get_chunk(workspace_id, digest, cancellation)
+    }
+
     fn push(
         &self,
         workspace_id: &str,
@@ -105,6 +134,34 @@ struct BlockingTransport {
 }
 
 impl SyncTransport for BlockingTransport {
+    fn has_chunk(
+        &self,
+        _workspace_id: &str,
+        _digest: &str,
+        _cancellation: &SyncCancellation,
+    ) -> Result<bool, TransportError> {
+        Ok(true)
+    }
+
+    fn put_chunk(
+        &self,
+        _workspace_id: &str,
+        _digest: &str,
+        _bytes: &[u8],
+        _cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        Ok(())
+    }
+
+    fn get_chunk(
+        &self,
+        _workspace_id: &str,
+        _digest: &str,
+        _cancellation: &SyncCancellation,
+    ) -> Result<Vec<u8>, TransportError> {
+        Err(TransportError::Transient("no content".into()))
+    }
+
     fn push(
         &self,
         _workspace_id: &str,

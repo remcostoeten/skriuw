@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type {
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
@@ -23,6 +23,11 @@ import { MediaSection } from "./settings/media-section";
 import { SECTIONS } from "./settings/sections";
 import type { SectionId } from "./settings/sections";
 import { ShortcutsSection } from "./settings/shortcuts-section";
+
+const AccountSection = lazy(async () => {
+  const module = await import("./settings/account-section");
+  return { default: module.AccountSection };
+});
 
 type Props = {
   store: RendererStore;
@@ -295,6 +300,11 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
             <CloseIcon size={16} />
           </button>
           {section === "appearance" && <AppearanceSection store={store} />}
+          {section === "account" && (
+            <Suspense fallback={<p className="text-sm text-muted-foreground">Loading account…</p>}>
+              <AccountSection />
+            </Suspense>
+          )}
           {section === "editor" && <EditorSection store={store} />}
           {section === "shortcuts" && (
             <ShortcutsSection store={store} recordingCountRef={recordingCountRef} />

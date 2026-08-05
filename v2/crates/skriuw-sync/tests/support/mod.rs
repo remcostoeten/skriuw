@@ -42,6 +42,7 @@ impl SyncClock for FakeClock {
 /// with different content, and cursor-ordered pull.
 pub struct FakeServer {
     workspace_id: String,
+    chunks: Mutex<std::collections::HashMap<String, Vec<u8>>>,
     state: Mutex<Vec<ReplicatedWorkspaceOperation>>,
 }
 
@@ -50,6 +51,7 @@ impl FakeServer {
     pub fn new(workspace_id: &str) -> Arc<Self> {
         Arc::new(Self {
             workspace_id: workspace_id.into(),
+            chunks: Mutex::new(std::collections::HashMap::new()),
             state: Mutex::new(Vec::new()),
         })
     }
@@ -69,6 +71,61 @@ impl FakeServer {
             .collect()
     }
 
+    pub fn has_chunk(&self, workspace_id: &str, digest: &str) -> Result<bool, TransportError> {
+        if workspace_id != self.workspace_id {
+            return Err(TransportError::AuthorizationDenied);
+        }
+        Ok(self
+            .chunks
+            .lock()
+            .expect("chunk store")
+            .contains_key(digest))
+    }
+
+    pub fn put_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        bytes: &[u8],
+    ) -> Result<(), TransportError> {
+        if workspace_id != self.workspace_id {
+            return Err(TransportError::AuthorizationDenied);
+        }
+        if skriuw_domain::content_digest(bytes) != digest {
+            return Err(TransportError::Validation(
+                "chunk bytes do not match the requested digest".into(),
+            ));
+        }
+        self.chunks
+            .lock()
+            .expect("chunk store")
+            .insert(digest.to_string(), bytes.to_vec());
+        Ok(())
+    }
+
+    pub fn get_chunk(&self, workspace_id: &str, digest: &str) -> Result<Vec<u8>, TransportError> {
+        if workspace_id != self.workspace_id {
+            return Err(TransportError::AuthorizationDenied);
+        }
+        self.chunks
+            .lock()
+            .expect("chunk store")
+            .get(digest)
+            .cloned()
+            .ok_or_else(|| TransportError::Validation(format!("chunk {digest} is not stored")))
+    }
+
+    #[must_use]
+    pub fn stored_chunks(&self) -> usize {
+        self.chunks.lock().expect("chunk store").len()
+    }
+
+    /// Simulates content that a bucket no longer holds, so a client must fail
+    /// rather than apply an operation it cannot reconstruct.
+    pub fn discard_chunks(&self) {
+        self.chunks.lock().expect("chunk store").clear();
+    }
+
     pub fn push(
         &self,
         device_id: &str,
@@ -77,6 +134,20 @@ impl FakeServer {
     ) -> Result<SyncPushResponse, TransportError> {
         if workspace_id != self.workspace_id {
             return Err(TransportError::AuthorizationDenied);
+        }
+        for operation in &request.operations {
+            if let Some(manifest) = operation.payload.manifest() {
+                let chunks = self.chunks.lock().expect("chunk store");
+                if manifest
+                    .chunks
+                    .iter()
+                    .any(|chunk| !chunks.contains_key(&chunk.digest))
+                {
+                    return Err(TransportError::Validation(
+                        "chunked content is not stored".into(),
+                    ));
+                }
+            }
         }
         if request.device_id != device_id {
             return Err(TransportError::Validation(
@@ -89,13 +160,13 @@ impl FakeServer {
         let mut log = self.state.lock().expect("server state");
         let mut accepted = Vec::with_capacity(request.operations.len());
         for operation in &request.operations {
-            let payload = serde_json::to_string(&operation.operation).expect("serialize operation");
+            let payload = serde_json::to_string(&operation.payload).expect("serialize operation");
             let existing = log
                 .iter()
                 .find(|entry| entry.operation_id == operation.operation_id);
             if let Some(entry) = existing {
                 let entry_payload =
-                    serde_json::to_string(&entry.operation).expect("serialize operation");
+                    serde_json::to_string(&entry.payload).expect("serialize operation");
                 if entry.device_id != request.device_id
                     || entry.client_sequence != operation.client_sequence
                     || entry_payload != payload
@@ -128,7 +199,7 @@ impl FakeServer {
                 client_sequence: operation.client_sequence,
                 base_server_sequence: operation.base_server_sequence,
                 server_sequence,
-                operation: operation.operation.clone(),
+                payload: operation.payload.clone(),
             });
             accepted.push(SyncAcceptedOperation {
                 operation_id: operation.operation_id.clone(),
@@ -241,7 +312,47 @@ impl FakeTransport {
     }
 }
 
+impl FakeTransport {
+    fn ensure_live(&self, cancellation: &SyncCancellation) -> Result<(), TransportError> {
+        if cancellation.is_cancelled() {
+            return Err(TransportError::Cancelled);
+        }
+        Ok(())
+    }
+}
+
 impl SyncTransport for FakeTransport {
+    fn has_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<bool, TransportError> {
+        self.ensure_live(cancellation)?;
+        self.server.has_chunk(workspace_id, digest)
+    }
+
+    fn put_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        bytes: &[u8],
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        self.ensure_live(cancellation)?;
+        self.server.put_chunk(workspace_id, digest, bytes)
+    }
+
+    fn get_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Vec<u8>, TransportError> {
+        self.ensure_live(cancellation)?;
+        self.server.get_chunk(workspace_id, digest)
+    }
+
     fn push(
         &self,
         workspace_id: &str,
@@ -333,6 +444,24 @@ pub fn rename_node(id: &str, title: &str, at: i64) -> WorkspaceOperationEnvelope
     envelope(WorkspaceOperation::RenameNode {
         id: id.into(),
         title: title.into(),
+        at,
+    })
+}
+
+#[must_use]
+pub fn save_large_document(
+    id: &str,
+    expected_revision: i64,
+    markdown_bytes: usize,
+    at: i64,
+) -> WorkspaceOperationEnvelope {
+    let markdown = "x".repeat(markdown_bytes);
+    envelope(WorkspaceOperation::SaveDocument {
+        note_id: id.into(),
+        document_json: json!({"type": "doc", "content": []}),
+        markdown: markdown.clone(),
+        word_count: 1,
+        expected_revision,
         at,
     })
 }

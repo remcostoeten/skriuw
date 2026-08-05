@@ -5,11 +5,13 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    BoundedWriter, OperationValidationError, WorkspaceOperation, WorkspaceOperationEnvelope,
-    validate_id,
+    BoundedWriter, ContentManifest, ContentManifestKind, ContentValidationError, MAX_CONTENT_BYTES,
+    OperationValidationError, WorkspaceOperation, WorkspaceOperationEnvelope, validate_id,
 };
 
-pub const WORKSPACE_SYNC_PROTOCOL_VERSION: u16 = 1;
+pub const WORKSPACE_SYNC_PROTOCOL_VERSION: u16 = 2;
+pub const SUPPORTED_SYNC_PROTOCOL_VERSIONS: [u16; 2] = [1, 2];
+pub const MIN_CHUNKED_CONTENT_PROTOCOL_VERSION: u16 = 2;
 pub const MAX_SYNC_BATCH_OPERATIONS: usize = 64;
 pub const MAX_SYNC_PULL_OPERATIONS: usize = 256;
 pub const MAX_INLINE_SYNC_OPERATION_BYTES: usize = 1_500_000;
@@ -129,8 +131,68 @@ pub enum SyncValidationError {
     DeviceLocalOperation { operation_type: &'static str },
     #[error("workspace operation {operation_type} requires a later sync protocol capability")]
     UnsupportedOperation { operation_type: &'static str },
+    #[error("chunked content requires sync protocol version {minimum} or later")]
+    ChunkedContentRequiresProtocol { minimum: u16 },
+    #[error("chunked sync operations must carry an operation-envelope manifest")]
+    UnexpectedManifestKind,
+    #[error(transparent)]
+    Content(#[from] ContentValidationError),
     #[error(transparent)]
     Operation(#[from] OperationValidationError),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(
+    tag = "form",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum SyncOperationPayload {
+    Inline {
+        operation: WorkspaceOperationEnvelope,
+    },
+    Chunked {
+        manifest: ContentManifest,
+    },
+}
+
+impl SyncOperationPayload {
+    #[must_use]
+    pub fn inline_operation(&self) -> Option<&WorkspaceOperationEnvelope> {
+        match self {
+            Self::Inline { operation } => Some(operation),
+            Self::Chunked { .. } => None,
+        }
+    }
+
+    #[must_use]
+    pub fn manifest(&self) -> Option<&ContentManifest> {
+        match self {
+            Self::Chunked { manifest } => Some(manifest),
+            Self::Inline { .. } => None,
+        }
+    }
+
+    pub fn validate(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
+        match self {
+            Self::Inline { operation } => {
+                operation.validate()?;
+                validate_replication_policy(&operation.operation)
+            }
+            Self::Chunked { manifest } => {
+                if protocol_version < MIN_CHUNKED_CONTENT_PROTOCOL_VERSION {
+                    return Err(SyncValidationError::ChunkedContentRequiresProtocol {
+                        minimum: MIN_CHUNKED_CONTENT_PROTOCOL_VERSION,
+                    });
+                }
+                if manifest.kind != ContentManifestKind::OperationEnvelope {
+                    return Err(SyncValidationError::UnexpectedManifestKind);
+                }
+                manifest.validate()?;
+                Ok(())
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -139,16 +201,12 @@ pub struct ClientSyncOperation {
     pub operation_id: String,
     pub client_sequence: u64,
     pub base_server_sequence: u64,
-    pub operation: WorkspaceOperationEnvelope,
+    pub payload: SyncOperationPayload,
 }
 
 impl ClientSyncOperation {
-    pub fn validate(&self) -> Result<(), SyncValidationError> {
-        validate_sync_identifier("sync operation id", &self.operation_id)?;
-        validate_sync_sequence("client sequence", self.client_sequence, false)?;
-        validate_sync_sequence("base server sequence", self.base_server_sequence, true)?;
-        self.operation.validate()?;
-        validate_replication_policy(&self.operation.operation)?;
+    pub fn validate(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
+        self.validate_fields(protocol_version)?;
         ensure_serialized_size(
             self,
             MAX_INLINE_SYNC_OPERATION_BYTES,
@@ -156,6 +214,39 @@ impl ClientSyncOperation {
                 maximum: MAX_INLINE_SYNC_OPERATION_BYTES,
             },
         )
+    }
+
+    /// Validate an operation that is still queued locally and may be
+    /// externalized into chunked content before it reaches the wire, so the
+    /// inline ceiling does not apply yet. The content ceiling still does.
+    pub fn validate_queued(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
+        self.validate_fields(protocol_version)?;
+        ensure_serialized_size(
+            self,
+            MAX_CONTENT_BYTES as usize,
+            SyncValidationError::OperationTooLarge {
+                maximum: MAX_CONTENT_BYTES as usize,
+            },
+        )
+    }
+
+    #[must_use]
+    pub fn exceeds_inline_ceiling(&self) -> bool {
+        ensure_serialized_size(
+            self,
+            MAX_INLINE_SYNC_OPERATION_BYTES,
+            SyncValidationError::OperationTooLarge {
+                maximum: MAX_INLINE_SYNC_OPERATION_BYTES,
+            },
+        )
+        .is_err()
+    }
+
+    fn validate_fields(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
+        validate_sync_identifier("sync operation id", &self.operation_id)?;
+        validate_sync_sequence("client sequence", self.client_sequence, false)?;
+        validate_sync_sequence("base server sequence", self.base_server_sequence, true)?;
+        self.payload.validate(protocol_version)
     }
 }
 
@@ -178,7 +269,17 @@ impl SyncPushRequest {
     }
 
     pub fn validate(&self) -> Result<(), SyncValidationError> {
-        if self.sync_protocol_version != WORKSPACE_SYNC_PROTOCOL_VERSION {
+        self.validate_batch(false)
+    }
+
+    /// Validate a batch that is still queued locally, where operations above
+    /// the inline ceiling have not been externalized into chunked content yet.
+    pub fn validate_queued(&self) -> Result<(), SyncValidationError> {
+        self.validate_batch(true)
+    }
+
+    fn validate_batch(&self, queued: bool) -> Result<(), SyncValidationError> {
+        if !SUPPORTED_SYNC_PROTOCOL_VERSIONS.contains(&self.sync_protocol_version) {
             return Err(SyncValidationError::UnsupportedProtocol(
                 self.sync_protocol_version,
             ));
@@ -197,7 +298,11 @@ impl SyncPushRequest {
         let mut client_sequences = BTreeSet::new();
         let mut previous_sequence = None;
         for operation in &self.operations {
-            operation.validate()?;
+            if queued {
+                operation.validate_queued(self.sync_protocol_version)?;
+            } else {
+                operation.validate(self.sync_protocol_version)?;
+            }
             if !operation_ids.insert(operation.operation_id.as_str()) {
                 return Err(SyncValidationError::DuplicateOperationId(
                     operation.operation_id.clone(),
@@ -214,6 +319,9 @@ impl SyncPushRequest {
             previous_sequence = Some(operation.client_sequence);
         }
 
+        if queued {
+            return Ok(());
+        }
         ensure_serialized_size(
             self,
             MAX_SYNC_BATCH_BYTES,
@@ -248,19 +356,17 @@ pub struct ReplicatedWorkspaceOperation {
     pub client_sequence: u64,
     pub base_server_sequence: u64,
     pub server_sequence: u64,
-    pub operation: WorkspaceOperationEnvelope,
+    pub payload: SyncOperationPayload,
 }
 
 impl ReplicatedWorkspaceOperation {
-    pub fn validate(&self) -> Result<(), SyncValidationError> {
+    pub fn validate(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
         validate_sync_identifier("sync operation id", &self.operation_id)?;
         validate_sync_identifier("sync device id", &self.device_id)?;
         validate_sync_sequence("client sequence", self.client_sequence, false)?;
         validate_sync_sequence("base server sequence", self.base_server_sequence, true)?;
         validate_sync_sequence("server sequence", self.server_sequence, false)?;
-        self.operation.validate()?;
-        validate_replication_policy(&self.operation.operation)?;
-        Ok(())
+        self.payload.validate(protocol_version)
     }
 }
 
@@ -289,7 +395,7 @@ pub struct SyncPullResponse {
 
 impl SyncPullResponse {
     pub fn validate(&self) -> Result<(), SyncValidationError> {
-        if self.sync_protocol_version != WORKSPACE_SYNC_PROTOCOL_VERSION {
+        if !SUPPORTED_SYNC_PROTOCOL_VERSIONS.contains(&self.sync_protocol_version) {
             return Err(SyncValidationError::UnsupportedProtocol(
                 self.sync_protocol_version,
             ));
@@ -306,7 +412,7 @@ impl SyncPullResponse {
         }
         let mut previous_sequence = None;
         for operation in &self.operations {
-            operation.validate()?;
+            operation.validate(self.sync_protocol_version)?;
             if previous_sequence.is_some_and(|previous| operation.server_sequence <= previous) {
                 return Err(SyncValidationError::InvalidSequence {
                     field: "server sequence",
@@ -339,23 +445,43 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ClientSyncOperation, ReplicatedWorkspaceOperation, SyncPullResponse, SyncPushRequest,
-        SyncReplicationClass, SyncValidationError, WORKSPACE_OPERATION_SYNC_POLICY_V1,
-        WORKSPACE_SYNC_PROTOCOL_VERSION,
+        ClientSyncOperation, MIN_CHUNKED_CONTENT_PROTOCOL_VERSION, ReplicatedWorkspaceOperation,
+        SyncOperationPayload, SyncPullResponse, SyncPushRequest, SyncReplicationClass,
+        SyncValidationError, WORKSPACE_OPERATION_SYNC_POLICY_V1, WORKSPACE_SYNC_PROTOCOL_VERSION,
     };
-    use crate::{NodePlacement, WorkspaceImage, WorkspaceOperation, WorkspaceOperationEnvelope};
+    use crate::{
+        ContentManifest, ContentManifestKind, NodePlacement, WorkspaceImage, WorkspaceOperation,
+        WorkspaceOperationEnvelope,
+    };
+
+    fn inline(envelope: WorkspaceOperationEnvelope) -> SyncOperationPayload {
+        SyncOperationPayload::Inline {
+            operation: envelope,
+        }
+    }
+
+    fn envelope_manifest(bytes: &[u8]) -> ContentManifest {
+        ContentManifest::build(
+            ContentManifestKind::OperationEnvelope,
+            "application/json",
+            bytes,
+        )
+        .expect("valid manifest")
+    }
 
     fn operation(id: &str, sequence: u64) -> ClientSyncOperation {
         ClientSyncOperation {
             operation_id: id.into(),
             client_sequence: sequence,
             base_server_sequence: 0,
-            operation: WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreateFolder {
-                id: format!("folder-{sequence}"),
-                title: "Folder".into(),
-                placement: NodePlacement::last(None),
-                at: 1,
-            }),
+            payload: inline(WorkspaceOperationEnvelope::v1(
+                WorkspaceOperation::CreateFolder {
+                    id: format!("folder-{sequence}"),
+                    title: "Folder".into(),
+                    placement: NodePlacement::last(None),
+                    at: 1,
+                },
+            )),
         }
     }
 
@@ -387,7 +513,7 @@ mod tests {
     #[test]
     fn validates_golden_push_fixture() {
         let request: SyncPushRequest = serde_json::from_str(include_str!(
-            "../../../contracts/fixtures/sync-push-v1.json"
+            "../../../contracts/fixtures/sync-push-v2.json"
         ))
         .expect("deserialize golden sync request");
         request.validate().expect("validate golden sync request");
@@ -396,6 +522,13 @@ mod tests {
             WORKSPACE_SYNC_PROTOCOL_VERSION
         );
         assert_eq!(request.operations[0].operation_id, "operation-1");
+        assert!(request.operations[0].payload.inline_operation().is_some());
+        let manifest = request.operations[1]
+            .payload
+            .manifest()
+            .expect("chunked payload manifest");
+        assert_eq!(manifest.kind, ContentManifestKind::OperationEnvelope);
+        assert_eq!(manifest.chunks.len(), 1);
     }
 
     #[test]
@@ -440,12 +573,12 @@ mod tests {
             operation_id: "op-local".into(),
             client_sequence: 1,
             base_server_sequence: 0,
-            operation: WorkspaceOperationEnvelope::v1(WorkspaceOperation::SetActiveNote {
-                note_id: None,
-            }),
+            payload: inline(WorkspaceOperationEnvelope::v1(
+                WorkspaceOperation::SetActiveNote { note_id: None },
+            )),
         };
         assert_eq!(
-            device_local.validate(),
+            device_local.validate(WORKSPACE_SYNC_PROTOCOL_VERSION),
             Err(SyncValidationError::DeviceLocalOperation {
                 operation_type: "set_active_note"
             })
@@ -455,24 +588,76 @@ mod tests {
             operation_id: "op-image".into(),
             client_sequence: 1,
             base_server_sequence: 0,
-            operation: WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage {
-                image: WorkspaceImage {
-                    id: "image-1".into(),
-                    note_id: "note-1".into(),
-                    content_hash: "a".repeat(64),
-                    mime_type: "image/png".into(),
-                    byte_size: 1,
-                    width: Some(1),
-                    height: Some(1),
-                    created_at: 1,
+            payload: inline(WorkspaceOperationEnvelope::v1(
+                WorkspaceOperation::AttachImage {
+                    image: WorkspaceImage {
+                        id: "image-1".into(),
+                        note_id: "note-1".into(),
+                        content_hash: "a".repeat(64),
+                        mime_type: "image/png".into(),
+                        byte_size: 1,
+                        width: Some(1),
+                        height: Some(1),
+                        created_at: 1,
+                    },
                 },
-            }),
+            )),
         };
         assert_eq!(
-            unsupported.validate(),
+            unsupported.validate(WORKSPACE_SYNC_PROTOCOL_VERSION),
             Err(SyncValidationError::UnsupportedOperation {
                 operation_type: "attach_image"
             })
+        );
+    }
+
+    #[test]
+    fn chunked_payloads_require_protocol_two_and_an_envelope_manifest() {
+        let chunked = ClientSyncOperation {
+            operation_id: "op-chunked".into(),
+            client_sequence: 1,
+            base_server_sequence: 0,
+            payload: SyncOperationPayload::Chunked {
+                manifest: envelope_manifest(b"{\"protocolVersion\":1}"),
+            },
+        };
+        chunked
+            .validate(WORKSPACE_SYNC_PROTOCOL_VERSION)
+            .expect("chunked payload is valid under protocol 2");
+        assert_eq!(
+            chunked.validate(1),
+            Err(SyncValidationError::ChunkedContentRequiresProtocol {
+                minimum: MIN_CHUNKED_CONTENT_PROTOCOL_VERSION
+            })
+        );
+
+        let asset = ClientSyncOperation {
+            operation_id: "op-asset".into(),
+            client_sequence: 1,
+            base_server_sequence: 0,
+            payload: SyncOperationPayload::Chunked {
+                manifest: ContentManifest::build(ContentManifestKind::Asset, "image/png", b"bytes")
+                    .expect("valid asset manifest"),
+            },
+        };
+        assert_eq!(
+            asset.validate(WORKSPACE_SYNC_PROTOCOL_VERSION),
+            Err(SyncValidationError::UnexpectedManifestKind)
+        );
+    }
+
+    #[test]
+    fn rejects_protocol_versions_outside_the_supported_window() {
+        let mut request = SyncPushRequest::v1("device-1", vec![operation("op-1", 1)]);
+        request.sync_protocol_version = 1;
+        request
+            .validate()
+            .expect("inline-only batches remain valid under protocol 1");
+
+        request.sync_protocol_version = 3;
+        assert_eq!(
+            request.validate(),
+            Err(SyncValidationError::UnsupportedProtocol(3))
         );
     }
 
@@ -486,14 +671,16 @@ mod tests {
                 client_sequence: 1,
                 base_server_sequence: 0,
                 server_sequence: 1,
-                operation: WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreateNote {
-                    id: "note-1".into(),
-                    title: "Note".into(),
-                    placement: NodePlacement::last(None),
-                    document_json: json!({"type": "doc"}),
-                    markdown: String::new(),
-                    at: 1,
-                }),
+                payload: inline(WorkspaceOperationEnvelope::v1(
+                    WorkspaceOperation::CreateNote {
+                        id: "note-1".into(),
+                        title: "Note".into(),
+                        placement: NodePlacement::last(None),
+                        document_json: json!({"type": "doc"}),
+                        markdown: String::new(),
+                        at: 1,
+                    },
+                )),
             }],
             latest_server_sequence: 1,
         };

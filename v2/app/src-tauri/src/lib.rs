@@ -1,3 +1,4 @@
+mod auth;
 mod maintenance;
 mod sync;
 
@@ -34,7 +35,7 @@ struct AppState {
     storage_path: PathBuf,
     history_reader: Arc<GitHistoryMaterializer>,
     image_store: Arc<ImageStore>,
-    sync: sync::SyncRuntime,
+    sync: Arc<sync::SyncRuntime>,
 }
 
 const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
@@ -191,13 +192,19 @@ fn workspace_sync_status(state: State<'_, AppState>) -> skriuw_sync::SyncStatus 
 }
 
 #[tauri::command]
-fn connect_workspace_sync(state: State<'_, AppState>) -> Result<(), String> {
-    state.sync.connect()
+async fn connect_workspace_sync(
+    token: String,
+    state: State<'_, AppState>,
+) -> Result<skriuw_sync::SyncStatus, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.connect(token))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
-fn disconnect_workspace_sync(state: State<'_, AppState>) -> Result<(), String> {
-    state.sync.disconnect()
+fn disconnect_workspace_sync(state: State<'_, AppState>) -> skriuw_sync::SyncStatus {
+    state.sync.pause_for_logout()
 }
 
 #[tauri::command]
@@ -295,6 +302,7 @@ async fn import_workspace_archive(
     archive_path: String,
     state: State<'_, AppState>,
 ) -> Result<ArchiveImportReport, String> {
+    state.sync.shutdown();
     let coordinator = Arc::clone(&state.maintenance);
     run_maintenance(coordinator, move |maintenance| {
         maintenance.import_archive(Path::new(&archive_path))
@@ -330,6 +338,7 @@ async fn restore_workspace_backup(
     artifact_file_name: String,
     state: State<'_, AppState>,
 ) -> Result<DatabaseSwapReport, String> {
+    state.sync.shutdown();
     let coordinator = Arc::clone(&state.maintenance);
     run_maintenance(coordinator, move |maintenance| {
         maintenance.restore_backup(&artifact_file_name)
@@ -392,6 +401,7 @@ async fn relocate_workspace_storage(
         .app_data_dir()
         .map_err(|error| error.to_string())?;
     let pointer = storage_pointer_file(&data_dir);
+    state.sync.shutdown();
     let coordinator = Arc::clone(&state.maintenance);
     let target = target_dir.clone();
     run_maintenance(coordinator, move |maintenance| {
@@ -651,10 +661,16 @@ fn extract_import_archive(source: &Path, target: &Path) -> Result<(), String> {
             continue;
         }
         if !entry.is_file() {
-            return Err(format!("unsupported import archive entry: {}", entry.name()));
+            return Err(format!(
+                "unsupported import archive entry: {}",
+                entry.name()
+            ));
         }
         if entry.size() > IMPORT_MAX_FILE_BYTES {
-            return Err(format!("import archive file is too large: {}", entry.name()));
+            return Err(format!(
+                "import archive file is too large: {}",
+                entry.name()
+            ));
         }
         total_bytes = total_bytes
             .checked_add(entry.size())
@@ -678,7 +694,10 @@ fn extract_import_archive(source: &Path, target: &Path) -> Result<(), String> {
         )
         .map_err(|error| format!("extract import file {}: {error}", output.display()))?;
         if copied > IMPORT_MAX_FILE_BYTES {
-            return Err(format!("import archive file is too large: {}", entry.name()));
+            return Err(format!(
+                "import archive file is too large: {}",
+                entry.name()
+            ));
         }
     }
     Ok(())
@@ -693,7 +712,10 @@ fn prepare_import_source_path(source: &Path) -> Result<PreparedImportSource, Str
         });
     }
     if !source.is_file() {
-        return Err(format!("import source does not exist: {}", source.display()));
+        return Err(format!(
+            "import source does not exist: {}",
+            source.display()
+        ));
     }
     let temporary = create_import_temp_dir()?;
     let result = (|| {
@@ -948,9 +970,7 @@ async fn prepare_import_source(source_path: String) -> Result<PreparedImportSour
 }
 
 #[tauri::command]
-async fn prepare_import_sources(
-    source_paths: Vec<String>,
-) -> Result<PreparedImportSource, String> {
+async fn prepare_import_sources(source_paths: Vec<String>) -> Result<PreparedImportSource, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let paths = source_paths
             .iter()
@@ -1092,17 +1112,32 @@ pub fn run() {
             let image_store = Arc::new(
                 ImageStore::open(image_blob_path(&path)).map_err(|error| error.to_string())?,
             );
+            let sync = Arc::new(sync::SyncRuntime::new(path.clone()));
             app.manage(AppState {
                 maintenance,
                 rotation,
-                storage_path: path,
+                storage_path: path.clone(),
                 history_reader,
                 image_store,
-                sync: sync::SyncRuntime::disabled(),
+                sync: Arc::clone(&sync),
             });
+            let _ = std::thread::Builder::new()
+                .name("skriuw-sync-resume".into())
+                .spawn(move || match auth::load_auth_token_blocking() {
+                    Ok(Some(token)) => {
+                        if let Err(error) = sync.connect(token) {
+                            eprintln!("background sync resume failed: {error}");
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(error) => eprintln!("cloud session credential load failed: {error}"),
+                });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            auth::load_auth_token,
+            auth::store_auth_token,
+            auth::clear_auth_token,
             bootstrap_workspace,
             load_sidebar_expansion,
             save_sidebar_expansion,
@@ -1309,7 +1344,10 @@ mod markdown_tree_tests {
             .iter()
             .map(|file| file.relative_path.as_str())
             .collect();
-        assert_eq!(paths, ["database.csv", "export.enex", "notes.txt", "valid.md"]);
+        assert_eq!(
+            paths,
+            ["database.csv", "export.enex", "notes.txt", "valid.md"]
+        );
         assert_eq!(tree.unsupported, ["attachment.pdf"]);
         assert_eq!(tree.skipped, 1);
     }
@@ -1385,7 +1423,11 @@ mod smoke_tests {
     use skriuw_sqlite::SqliteWorkspace;
     use skriuw_storage::{HistoryQueue, WorkspaceStorage};
     use std::{
-        sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}, mpsc},
+        sync::{
+            Arc, Mutex,
+            atomic::{AtomicBool, Ordering},
+            mpsc,
+        },
         time::Duration,
     };
     use tempfile::tempdir;

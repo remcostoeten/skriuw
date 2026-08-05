@@ -4,6 +4,24 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-03",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "AUTH_TRUSTED_ORIGINS": "https://skriuw.com,http://tauri.localhost,tauri://localhost",
+    "BETTER_AUTH_URL": "https://skriuw-v2-cloud.remcostoeten.workers.dev"
+  },
+  "d1_databases": [
+    {
+      "binding": "AUTH_DB",
+      "database_name": "skriuw-v2-auth",
+      "database_id": "f2a5081d-986a-4ecb-bbe1-35202c3ac26d",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "SYNC_CONTENT",
+      "bucket_name": "skriuw-v2-sync-content"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {

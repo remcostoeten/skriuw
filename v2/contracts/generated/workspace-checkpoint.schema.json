@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkspaceCheckpoint",
+  "type": "object",
+  "properties": {
+    "archiveVersion": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    },
+    "checkpointVersion": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    },
+    "content": {
+      "$ref": "#/$defs/ContentManifest"
+    },
+    "createdAt": {
+      "type": "integer",
+      "format": "int64"
+    },
+    "serverSequence": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "syncProtocolVersion": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    },
+    "workspaceId": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "checkpointVersion",
+    "syncProtocolVersion",
+    "archiveVersion",
+    "workspaceId",
+    "serverSequence",
+    "createdAt",
+    "content"
+  ],
+  "$defs": {
+    "ContentChunkRef": {
+      "type": "object",
+      "properties": {
+        "byteLength": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "digest": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "digest",
+        "byteLength"
+      ]
+    },
+    "ContentEncoding": {
+      "type": "string",
+      "enum": [
+        "identity"
+      ]
+    },
+    "ContentHashAlgorithm": {
+      "type": "string",
+      "enum": [
+        "sha256"
+      ]
+    },
+    "ContentManifest": {
+      "type": "object",
+      "properties": {
+        "algorithm": {
+          "$ref": "#/$defs/ContentHashAlgorithm"
+        },
+        "chunks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContentChunkRef"
+          }
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "encoding": {
+          "$ref": "#/$defs/ContentEncoding"
+        },
+        "kind": {
+          "$ref": "#/$defs/ContentManifestKind"
+        },
+        "manifestVersion": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "totalByteLength": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "manifestVersion",
+        "kind",
+        "algorithm",
+        "encoding",
+        "contentDigest",
+        "mimeType",
+        "totalByteLength",
+        "chunks"
+      ]
+    },
+    "ContentManifestKind": {
+      "type": "string",
+      "enum": [
+        "operation_envelope",
+        "asset",
+        "checkpoint"
+      ]
+    }
+  }
+}

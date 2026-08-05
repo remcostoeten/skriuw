@@ -1,33 +1,51 @@
 # Cloud sync authentication and authorization boundary
 
-Status: provider-independent boundary implemented; production access disabled.
+Status: production account identity and private-workspace authorization implemented.
 
 This specification defines the v2 Worker trust boundary for sync protocol v1.
-It does not select an account provider or create a membership database. The
-current product configuration contains neither decision, so the deployed Worker
-must continue to return `sync_authentication_not_configured` without resolving a
+Better Auth supplies v2 account identity through email/password sessions stored
+in D1. The Worker validates each bearer through Better Auth, then consults the
+server-owned D1 workspace membership and device registry before resolving a
 workspace Durable Object.
 
 ## Provider and membership decision
 
-No production identity issuer, credential format, or server-owned membership
-store has been selected for v2. v1 authentication is not an option and is not a
+The production identity provider is Better Auth with its email/password and
+bearer plugins. Accounts, credential hashes, sessions, and verification records
+live in the `skriuw-v2-auth` D1 database. The production Worker is
+`https://skriuw-v2-cloud.remcostoeten.workers.dev`; `https://skriuw.com` is the
+trusted web origin for the app mounted at `/app`. v1 authentication is not a
 dependency. Test credentials and the deterministic in-memory membership adapter
-exist only inside the Workers test suite and are never production behavior.
+remain test-only behavior.
 
-The production blocker has two parts:
+`POST /v1/sync/provision` accepts only a bounded `deviceId`. It derives a stable,
+opaque private workspace ID from the trusted Better Auth subject and atomically
+creates the owner membership and device registration. Request bodies cannot
+choose a workspace, user, or role. The first release provisions one owner-only
+workspace per account; sharing and membership management are later work.
 
-1. select and configure an identity provider adapter that validates signed or
-   opaque bearer credentials, including issuer/audience, expiry, not-before,
-   and provider revocation behavior;
-2. select and configure a server-owned workspace, membership, role, and device
-   registry with removal and workspace-deletion semantics.
+`BETTER_AUTH_SECRET` is a Wrangler secret and must never be committed.
+`BETTER_AUTH_URL` and `AUTH_TRUSTED_ORIGINS` are non-secret Worker variables.
+Local values live in ignored `.dev.vars`; the committed example documents their
+shape. Caller-provided membership claims remain untrusted and cannot satisfy the
+membership decision.
 
-There are intentionally no accepted secret names or `.dev.vars` values yet.
-Adding a generic shared secret, a test token, or caller-provided membership
-claims would not satisfy this decision. A provider selection must add its exact
-binding and secret names, generated Wrangler types, rotation procedure, and
-production-shaped integration tests in the same change.
+## Account routes and deployment
+
+Better Auth owns `/api/auth/*`. OAuth and password reset are not advertised
+because v2 has no provider credentials or outbound email delivery. The Account
+settings section lazy-loads the auth UI so account checks do not enter the local
+workspace startup path. Native bearer tokens are stored in the operating-system
+credential vault.
+
+Production provisioning and rotation use Wrangler:
+
+```bash
+cd v2/cloud
+bunx wrangler d1 migrations apply skriuw-v2-auth --remote
+bunx wrangler secret put BETTER_AUTH_SECRET
+bunx wrangler deploy
+```
 
 ## Trusted flow
 
@@ -67,14 +85,14 @@ whether the workspace exists or why access is absent.
 
 The guarded route shapes are:
 
+- `POST /v1/sync/provision`
 - `POST /v1/workspaces/{workspaceId}/push`
 - `GET /v1/workspaces/{workspaceId}/pull?syncProtocolVersion=1&afterServerSequence={cursor}&limit={limit}`
 
-The production entry point supplies an unavailable access configuration, so
-both routes remain disabled and return HTTP 503. Tests inject the deterministic
-credential and membership adapters through the same handler and prove the
-complete ordering, validation, authorization, and Durable Object integration.
-`GET /health` reports only `{ "status": "ok", "publicSync": false }`.
+The production entry point supplies Better Auth verification plus the D1
+membership adapter. Tests inject deterministic adapters through the same
+boundary and prove ordering, validation, authorization, and Durable Object
+integration. `GET /health` reports only `{ "status": "ok", "publicSync": true }`.
 
 ## Stable public errors
 
@@ -115,7 +133,7 @@ must fail closed immediately.
 
 ## Local verification
 
-No credentials are needed because production routes are disabled. Run:
+Account and sync routes fail closed when the Better Auth secret is absent. Run:
 
 ```bash
 cd v2/cloud

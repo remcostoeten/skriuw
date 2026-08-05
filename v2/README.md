@@ -105,6 +105,41 @@ Every build entry point runs generated-contract checks, Rust formatting and lint
 
 `generate.sh` creates JSON Schema contracts from Rust domain types. Generated files are committed and checked for drift.
 
+## Optional cloud sync
+
+The Account settings section loads the auth UI on demand, so authentication and
+sync are not part of local workspace startup. Desktop users can sign in and
+explicitly choose **Enable sync**. Skriuw then provisions one private cloud
+workspace for the account, registers this installation as a device, and starts
+the existing durable push/pull coordinator. Later launches resume it from the
+OS credential vault on a background thread, without delaying local startup.
+Signing out or choosing **Pause
+sync** stops network work and drops the in-memory credential without deleting
+the local database or its pending outbox.
+
+On first connection, Skriuw transactionally queues the existing inline notes,
+folders, tags, people, properties, templates, pins, and trash state before it
+starts sending later edits. Media, covers, oversized-document chunks,
+checkpoints, sharing, and account deletion are still pre-beta work. The hosted
+browser build remains fully local in OPFS; account-backed workspace sync is
+currently desktop-only.
+
+For development, start the Worker in `cloud/` after applying its D1 migrations
+and creating `.dev.vars` from `.dev.vars.example`. Debug desktop builds use
+`http://localhost:8787`; release desktop builds use the production Worker.
+
+The production web app is served from `https://skriuw.com/app` and connects by
+default to `https://skriuw-v2-cloud.remcostoeten.workers.dev`. The Vite build
+uses relative asset paths, so the output can be mounted below `/app`. Build it
+with:
+
+```bash
+./scripts/build.sh web
+```
+
+Set `VITE_SKRIUW_CLOUD_URL` only to override the default Worker at build time.
+Desktop bearer sessions are stored in the operating-system credential vault.
+
 ## Layout
 
 ```text

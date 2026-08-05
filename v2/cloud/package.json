@@ -19,6 +19,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@cfworker/json-schema": "4.1.1"
+    "@cfworker/json-schema": "4.1.1",
+    "better-auth": "1.6.26"
   }
 }
