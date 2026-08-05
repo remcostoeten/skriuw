@@ -45,6 +45,7 @@ import type {
   MaintenancePhase,
   RecoveryViewModel,
 } from "../../settings/maintenance-model";
+import { isBrowserRuntime } from "../../bridge/runtime";
 import { noop } from "../../shared/lib/noop";
 import { cn } from "../../shared/lib/utils";
 import {
@@ -79,6 +80,7 @@ const RUNNING_LABELS: Record<MaintenanceKind, string> = {
 };
 
 export function DataSection({ store }: SectionProps) {
+  const browser = isBrowserRuntime();
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [phase, setPhase] = useState<MaintenancePhase>(IDLE_MAINTENANCE);
   const [importPath, setImportPath] = useState("");
@@ -104,16 +106,18 @@ export function DataSection({ store }: SectionProps) {
 
   useEffect(() => {
     mountedRef.current = true;
-    workspaceStoragePath()
-      .then((path) => {
-        if (mountedRef.current) {
-          setStoragePath(path);
-        }
-      })
-      .catch((error) => {
-        console.error("storage path lookup rejected", error);
-      });
-    refreshInventory();
+    if (!browser) {
+      workspaceStoragePath()
+        .then((path) => {
+          if (mountedRef.current) {
+            setStoragePath(path);
+          }
+        })
+        .catch((error) => {
+          console.error("storage path lookup rejected", error);
+        });
+      refreshInventory();
+    }
     return () => {
       mountedRef.current = false;
     };
@@ -257,6 +261,19 @@ export function DataSection({ store }: SectionProps) {
       />
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Storage</div>
+        {browser && (
+          <div className={settingsRow}>
+            <span className={settingsRowLabel}>
+              Workspace database
+              <span className={settingsRowDescription}>
+                Stored durably in this browser&rsquo;s private site storage (OPFS) on
+                this device. Clearing site data for this origin deletes it, so keep a
+                recent exported archive outside the browser.
+              </span>
+            </span>
+          </div>
+        )}
+        {!browser && (
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
             Workspace database
@@ -275,6 +292,8 @@ export function DataSection({ store }: SectionProps) {
             Show in file manager
           </button>
         </div>
+        )}
+        {!browser && (
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
             Move workspace
@@ -306,7 +325,9 @@ export function DataSection({ store }: SectionProps) {
             )}
           />
         </div>
+        )}
       </div>
+      {!browser && (
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Import from other apps</div>
         <div className={settingsRow}>
@@ -351,13 +372,16 @@ export function DataSection({ store }: SectionProps) {
           </button>
         </div>
       </div>
+      )}
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Portable archive</div>
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
             Export workspace
             <span className={settingsRowDescription}>
-              Writes a portable JSON archive into the exports folder next to the database.
+              {browser
+                ? "Downloads a portable JSON archive of this workspace."
+                : "Writes a portable JSON archive into the exports folder next to the database."}
             </span>
           </span>
           <button
@@ -372,6 +396,14 @@ export function DataSection({ store }: SectionProps) {
       </div>
       <div className={settingsGroup}>
         <div className={settingsGroupTitle}>Backups</div>
+        {browser && (
+          <p className={settingsRowDetail} role="note">
+            Verified scheduled backups run in the desktop app. In the browser, an
+            exported archive is the backup: download one regularly and keep it
+            outside this browser.
+          </p>
+        )}
+        {!browser && (
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
             Scheduled backups
@@ -388,6 +420,8 @@ export function DataSection({ store }: SectionProps) {
             Back up now
           </button>
         </div>
+        )}
+        {!browser && (
         <BackupInventory
           inventory={inventory}
           failed={inventoryFailed}
@@ -411,6 +445,7 @@ export function DataSection({ store }: SectionProps) {
           onCancelRestore={() => setPhase((current) => dismissConfirmation(current))}
           onConfirmRestore={runConfirmed}
         />
+        )}
       </div>
       <div className={cn(settingsGroup, dangerZoneClass)}>
         <div className={cn(settingsGroupTitle, "text-destructive/80")}>Danger zone</div>
@@ -420,6 +455,9 @@ export function DataSection({ store }: SectionProps) {
             <span className={settingsRowDescription}>
               Replaces every note in this workspace with the contents of a previously
               exported archive file.
+              {browser
+                ? " A safety copy of the current workspace is downloaded first."
+                : ""}
             </span>
             {importPath !== "" && (
               <span className={settingsRowDetail}>{importPath}</span>

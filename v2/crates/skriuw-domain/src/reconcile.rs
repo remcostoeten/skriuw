@@ -154,12 +154,14 @@ pub fn reconcile_remote_operation(
         | WorkspaceOperation::DeleteNotePropertyTemplate { .. } => reconcile_delete(state),
         WorkspaceOperation::ReorderNoteProperties { .. }
         | WorkspaceOperation::ReorderNotePropertyTemplates { .. } => reconcile_reorder(state),
+        WorkspaceOperation::AttachImage { .. } => reconcile_create(state),
         WorkspaceOperation::SetActiveNote { .. }
         | WorkspaceOperation::UpdateSettings { .. }
-        | WorkspaceOperation::RecordProviderImport { .. }
-        | WorkspaceOperation::AttachImage { .. } => RemoteOperationDecision::ProtocolInvalid {
-            operation_type: operation.sync_policy().operation_type,
-        },
+        | WorkspaceOperation::RecordProviderImport { .. } => {
+            RemoteOperationDecision::ProtocolInvalid {
+                operation_type: operation.sync_policy().operation_type,
+            }
+        }
     }
 }
 
@@ -344,8 +346,8 @@ pub fn classify_apply_failure(operation: &WorkspaceOperation) -> SyncConflictRea
         | WorkspaceOperation::DeleteNotePropertyTemplate { .. }
         | WorkspaceOperation::SetActiveNote { .. }
         | WorkspaceOperation::UpdateSettings { .. }
-        | WorkspaceOperation::AttachImage { .. }
         | WorkspaceOperation::RecordProviderImport { .. } => SyncConflictReason::DomainConflict,
+        WorkspaceOperation::AttachImage { .. } => SyncConflictReason::MissingDependency,
     }
 }
 
@@ -394,7 +396,8 @@ pub struct ResolveDocumentConflict {
 #[cfg(test)]
 mod tests {
     use super::{
-        RemoteOperationDecision, RemoteTargetState, SyncConflictReason, reconcile_remote_operation,
+        RemoteOperationDecision, RemoteTargetState, SyncConflictReason, classify_apply_failure,
+        reconcile_remote_operation,
     };
     use crate::{NodePlacement, WorkspaceOperation, WorkspaceSettings};
     use serde_json::json;
@@ -515,6 +518,53 @@ mod tests {
             RemoteOperationDecision::ProtocolInvalid {
                 operation_type: "update_settings"
             }
+        );
+    }
+
+    #[test]
+    fn attach_image_reconciles_as_an_identity_creating_operation() {
+        let operation = WorkspaceOperation::AttachImage {
+            image: crate::WorkspaceImage {
+                id: "image-1".into(),
+                note_id: "note-1".into(),
+                content_hash: "a".repeat(64),
+                mime_type: "image/png".into(),
+                byte_size: 8,
+                width: Some(1),
+                height: Some(1),
+                created_at: 1,
+            },
+        };
+        assert_eq!(
+            reconcile_remote_operation(&operation, &RemoteTargetState::default()),
+            RemoteOperationDecision::Apply
+        );
+        assert_eq!(
+            reconcile_remote_operation(
+                &operation,
+                &RemoteTargetState {
+                    target_exists: true,
+                    state_equivalent: true,
+                    ..RemoteTargetState::default()
+                }
+            ),
+            RemoteOperationDecision::AlreadyApplied
+        );
+        assert_eq!(
+            reconcile_remote_operation(
+                &operation,
+                &RemoteTargetState {
+                    dependency_tombstoned: true,
+                    ..RemoteTargetState::default()
+                }
+            ),
+            RemoteOperationDecision::Conflict {
+                reason: SyncConflictReason::TombstoneBlocked
+            }
+        );
+        assert_eq!(
+            classify_apply_failure(&operation),
+            SyncConflictReason::MissingDependency
         );
     }
 

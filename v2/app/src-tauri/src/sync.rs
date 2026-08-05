@@ -7,14 +7,52 @@ use std::{
 
 use reqwest::{StatusCode, blocking::Client};
 use serde::Deserialize;
-use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse};
+use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint};
+use skriuw_images::ImageStore;
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::{NewSyncConnection, WorkspaceSyncQueue};
 use skriuw_sync::{
-    SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncStatus, SyncTransport,
-    SystemClock, TransportError,
+    SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncStatus,
+    SyncTransport, SystemClock, TransportError,
 };
 use uuid::Uuid;
+
+/// Bridges the sync coordinator to the workspace image blob store. Reads and
+/// writes stay off interaction paths because the coordinator only calls this
+/// from its background worker thread.
+struct ImageAssetStore {
+    blob_directory: PathBuf,
+}
+
+impl SyncAssetStore for ImageAssetStore {
+    fn read_asset(&self, content_hash: &str, mime_type: &str) -> Result<Option<Vec<u8>>, String> {
+        let store = ImageStore::open(&self.blob_directory).map_err(|error| error.to_string())?;
+        if !store
+            .exists(content_hash, mime_type)
+            .map_err(|error| error.to_string())?
+        {
+            return Ok(None);
+        }
+        store
+            .read(content_hash, mime_type)
+            .map(Some)
+            .map_err(|error| error.to_string())
+    }
+
+    fn store_asset(
+        &self,
+        content_hash: &str,
+        _mime_type: &str,
+        bytes: &[u8],
+    ) -> Result<(), String> {
+        let store = ImageStore::open(&self.blob_directory).map_err(|error| error.to_string())?;
+        let stored = store.put(bytes).map_err(|error| error.to_string())?;
+        if stored.content_hash != content_hash {
+            return Err("stored asset bytes do not match their declared content hash".into());
+        }
+        Ok(())
+    }
+}
 
 const PRODUCTION_CLOUD_URL: &str = "https://skriuw-v2-cloud.remcostoeten.workers.dev";
 const MAX_RESPONSE_BYTES: u64 = 4 * 1024 * 1024;
@@ -101,9 +139,14 @@ impl SyncRuntime {
             })
             .map_err(|error| format!("could not persist the sync connection: {error}"))?;
 
+        let workspace = Arc::clone(&queue);
         let coordinator = SyncCoordinator::spawn(
             queue,
+            workspace,
             transport,
+            Arc::new(ImageAssetStore {
+                blob_directory: crate::image_blob_path(&self.database_path),
+            }),
             Arc::new(SystemClock),
             SyncCoordinatorConfig::default(),
         );
@@ -249,6 +292,10 @@ impl HttpSyncTransport {
             self.base_url
         )
     }
+
+    fn checkpoint_url(&self, workspace_id: &str) -> String {
+        format!("{}/v1/workspaces/{workspace_id}/checkpoint", self.base_url)
+    }
 }
 
 impl SyncTransport for HttpSyncTransport {
@@ -326,6 +373,55 @@ impl SyncTransport for HttpSyncTransport {
         let url = self.chunk_url(workspace_id, digest);
         self.send_bytes(self.client.get(url), cancellation)?
             .ok_or_else(|| TransportError::Validation(format!("chunk {digest} is not stored")))
+    }
+
+    fn latest_checkpoint(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceCheckpoint>, TransportError> {
+        let url = self.checkpoint_url(workspace_id);
+        let body = self.send_bytes(self.client.get(url), cancellation)?;
+        let Some(body) = body else {
+            return Ok(None);
+        };
+        serde_json::from_slice::<WorkspaceCheckpoint>(&body)
+            .map(Some)
+            .map_err(|error| {
+                TransportError::Validation(format!("checkpoint record was unreadable: {error}"))
+            })
+    }
+
+    fn publish_checkpoint(
+        &self,
+        workspace_id: &str,
+        checkpoint: &WorkspaceCheckpoint,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        let url = self.checkpoint_url(workspace_id);
+        let _: serde_json::Value = self.send(self.client.post(url).json(checkpoint), cancellation)?;
+        Ok(())
+    }
+
+    fn acknowledge(
+        &self,
+        workspace_id: &str,
+        device_id: &str,
+        server_sequence: u64,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        let url = format!(
+            "{}/v1/workspaces/{workspace_id}/acknowledge",
+            self.base_url
+        );
+        let _: serde_json::Value = self.send(
+            self.client.post(url).json(&serde_json::json!({
+                "deviceId": device_id,
+                "serverSequence": server_sequence,
+            })),
+            cancellation,
+        )?;
+        Ok(())
     }
 }
 

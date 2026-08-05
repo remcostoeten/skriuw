@@ -385,6 +385,12 @@
         {
           "type": "object",
           "properties": {
+            "assets": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ContentManifest"
+              }
+            },
             "form": {
               "type": "string",
               "const": "inline"

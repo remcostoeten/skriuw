@@ -49,6 +49,59 @@ async function storeChunkedContent(workspaceId: string): Promise<void> {
   }
 }
 
+const attachImageAssetBytes = new TextEncoder().encode("attach-image-asset-bytes");
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function attachImageRequest(options: { includeAssets: boolean }) {
+  const digest = await sha256Hex(attachImageAssetBytes);
+  const manifest = {
+    manifestVersion: 1,
+    kind: "asset",
+    algorithm: "sha256",
+    encoding: "identity",
+    contentDigest: digest,
+    mimeType: "image/png",
+    totalByteLength: attachImageAssetBytes.length,
+    chunks: [{ digest, byteLength: attachImageAssetBytes.length }],
+  };
+  const operation = {
+    protocolVersion: 1,
+    operation: {
+      type: "attach_image",
+      image: {
+        id: "image-1",
+        noteId: "note-1",
+        contentHash: digest,
+        mimeType: "image/png",
+        byteSize: attachImageAssetBytes.length,
+        width: 16,
+        height: 16,
+        createdAt: 1,
+      },
+    },
+  };
+  return {
+    syncProtocolVersion: WORKSPACE_SYNC_PROTOCOL_VERSION,
+    deviceId: "device-images",
+    operations: [
+      {
+        operationId: "operation-image-1",
+        clientSequence: 1,
+        baseServerSequence: 0,
+        payload: options.includeAssets
+          ? { form: "inline", operation, assets: [manifest] }
+          : { form: "inline", operation },
+      },
+    ],
+  };
+}
+
 function requirePushSuccess(result: SyncPushResult): SyncPushResponse {
   if (!result.ok) {
     throw new Error(result.error.message);
@@ -222,19 +275,71 @@ describe("WorkspaceSyncObject", () => {
     });
   });
 
-  it("rejects protocol-v1 unsupported operations with a stable error code", async () => {
-    const workspace = env.WORKSPACES.getByName("workspace-unsupported");
-    const request = parseSyncPushRequest(goldenPush);
-    replaceInlineOperation(request.operations[0]!, { type: "attach_image" });
+  it("rejects attach_image without its asset content manifest", async () => {
+    const workspace = env.WORKSPACES.getByName("workspace-image-missing-manifest");
+    const request = await attachImageRequest({ includeAssets: false });
 
     expect(await workspace.pushOperations(request)).toEqual({
       ok: false,
       error: {
-        code: "unsupported_operation",
-        message:
-          "workspace operation attach_image requires a later sync protocol capability",
+        code: "sync_rejected",
+        message: "workspace operation attach_image requires its asset content manifest",
       },
     });
+  });
+
+  it("rejects attach_image whose asset manifest disagrees with the operation", async () => {
+    const workspace = env.WORKSPACES.getByName("workspace-image-mismatch");
+    const request = await attachImageRequest({ includeAssets: true });
+    request.operations[0]!.payload.operation.operation.image.contentHash = "b".repeat(64);
+
+    expect(await workspace.pushOperations(request)).toEqual({
+      ok: false,
+      error: {
+        code: "sync_rejected",
+        message: "asset manifest does not match the content attach_image declares",
+      },
+    });
+  });
+
+  it("rejects attach_image while its asset chunks are not stored", async () => {
+    const workspace = env.WORKSPACES.getByName("workspace-image-unstored");
+    const request = await attachImageRequest({ includeAssets: true });
+
+    const result = await workspace.pushOperations(request);
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "content_unavailable" },
+    });
+  });
+
+  it("replicates attach_image with stored asset content and echoes its manifest", async () => {
+    const workspaceId = "workspace-image-replicated";
+    const workspace = env.WORKSPACES.getByName(workspaceId);
+    const digest = await sha256Hex(attachImageAssetBytes);
+    const store = new WorkspaceContentStore(env.SYNC_CONTENT);
+    const stored = await store.putChunk(workspaceId, digest, attachImageAssetBytes);
+    if (!stored.ok) {
+      throw new Error(`asset chunk rejected: ${stored.code}`);
+    }
+
+    const request = await attachImageRequest({ includeAssets: true });
+    const pushed = requirePushSuccess(await workspace.pushOperations(request));
+    expect(pushed.accepted).toEqual([
+      { operationId: "operation-image-1", clientSequence: 1, serverSequence: 1 },
+    ]);
+
+    const pulled = parseSyncPullResponse(
+      JSON.parse(await workspace.pullOperations(0, 16)),
+    );
+    expect(pulled.operations).toHaveLength(1);
+    const payload = pulled.operations[0]!.payload;
+    if (payload.form !== "inline") {
+      throw new Error("expected an inline payload");
+    }
+    expect(payload.assets).toHaveLength(1);
+    expect(payload.assets?.[0]?.contentDigest).toBe(digest);
+    expect(payload.assets?.[0]?.kind).toBe("asset");
   });
 
   it("rejects malformed envelopes and unknown operation types", async () => {

@@ -9,10 +9,64 @@ use std::{
 use serde_json::json;
 use skriuw_domain::{
     NodePlacement, ReplicatedWorkspaceOperation, SyncAcceptedOperation, SyncPullResponse,
-    SyncPushRequest, SyncPushResponse, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceOperation,
-    WorkspaceOperationEnvelope,
+    SyncPushRequest, SyncPushResponse, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceCheckpoint,
+    WorkspaceImage, WorkspaceOperation, WorkspaceOperationEnvelope, content_digest,
 };
-use skriuw_sync::{SyncCancellation, SyncClock, SyncTransport, TransportError};
+use skriuw_sync::{SyncAssetStore, SyncCancellation, SyncClock, SyncTransport, TransportError};
+
+/// In-memory stand-in for the workspace image blob store, keyed by content
+/// hash so digest verification mirrors the production store.
+#[derive(Default)]
+pub struct FakeAssetStore {
+    assets: Mutex<std::collections::HashMap<String, Vec<u8>>>,
+}
+
+impl FakeAssetStore {
+    #[must_use]
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self::default())
+    }
+
+    pub fn put(&self, bytes: &[u8]) -> String {
+        let hash = content_digest(bytes);
+        self.assets
+            .lock()
+            .expect("asset store")
+            .insert(hash.clone(), bytes.to_vec());
+        hash
+    }
+
+    #[must_use]
+    pub fn get(&self, content_hash: &str) -> Option<Vec<u8>> {
+        self.assets
+            .lock()
+            .expect("asset store")
+            .get(content_hash)
+            .cloned()
+    }
+}
+
+impl SyncAssetStore for FakeAssetStore {
+    fn read_asset(&self, content_hash: &str, _mime_type: &str) -> Result<Option<Vec<u8>>, String> {
+        Ok(self.get(content_hash))
+    }
+
+    fn store_asset(
+        &self,
+        content_hash: &str,
+        _mime_type: &str,
+        bytes: &[u8],
+    ) -> Result<(), String> {
+        if content_digest(bytes) != content_hash {
+            return Err("asset bytes do not match their declared content hash".into());
+        }
+        self.assets
+            .lock()
+            .expect("asset store")
+            .insert(content_hash.to_string(), bytes.to_vec());
+        Ok(())
+    }
+}
 
 pub struct FakeClock {
     now_ms: AtomicI64,
@@ -44,6 +98,8 @@ pub struct FakeServer {
     workspace_id: String,
     chunks: Mutex<std::collections::HashMap<String, Vec<u8>>>,
     state: Mutex<Vec<ReplicatedWorkspaceOperation>>,
+    checkpoints: Mutex<Vec<WorkspaceCheckpoint>>,
+    device_cursors: Mutex<std::collections::HashMap<String, u64>>,
 }
 
 impl FakeServer {
@@ -53,6 +109,8 @@ impl FakeServer {
             workspace_id: workspace_id.into(),
             chunks: Mutex::new(std::collections::HashMap::new()),
             state: Mutex::new(Vec::new()),
+            checkpoints: Mutex::new(Vec::new()),
+            device_cursors: Mutex::new(std::collections::HashMap::new()),
         })
     }
 
@@ -126,6 +184,118 @@ impl FakeServer {
         self.chunks.lock().expect("chunk store").clear();
     }
 
+    /// Simulates stored chunk bytes that no longer hash to their digest, so a
+    /// client must fail digest verification rather than accept them.
+    pub fn corrupt_chunks(&self) {
+        for bytes in self.chunks.lock().expect("chunk store").values_mut() {
+            if let Some(first) = bytes.first_mut() {
+                *first ^= 0xff;
+            }
+        }
+    }
+
+    pub fn latest_checkpoint(
+        &self,
+        workspace_id: &str,
+    ) -> Result<Option<WorkspaceCheckpoint>, TransportError> {
+        if workspace_id != self.workspace_id {
+            return Err(TransportError::AuthorizationDenied);
+        }
+        Ok(self
+            .checkpoints
+            .lock()
+            .expect("checkpoint store")
+            .iter()
+            .max_by_key(|checkpoint| checkpoint.server_sequence)
+            .cloned())
+    }
+
+    pub fn publish_checkpoint(
+        &self,
+        workspace_id: &str,
+        checkpoint: &WorkspaceCheckpoint,
+    ) -> Result<(), TransportError> {
+        if workspace_id != self.workspace_id {
+            return Err(TransportError::AuthorizationDenied);
+        }
+        checkpoint
+            .validate()
+            .map_err(|error| TransportError::Validation(error.to_string()))?;
+        if checkpoint.server_sequence > self.log_len() as u64 {
+            return Err(TransportError::Validation(
+                "checkpoint sequence is ahead of the workspace".into(),
+            ));
+        }
+        {
+            let chunks = self.chunks.lock().expect("chunk store");
+            if checkpoint
+                .content
+                .chunks
+                .iter()
+                .any(|chunk| !chunks.contains_key(&chunk.digest))
+            {
+                return Err(TransportError::Validation(
+                    "checkpoint content is not stored".into(),
+                ));
+            }
+        }
+        let mut checkpoints = self.checkpoints.lock().expect("checkpoint store");
+        checkpoints.retain(|stored| stored.server_sequence != checkpoint.server_sequence);
+        checkpoints.push(checkpoint.clone());
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn latest_checkpoint_sequence(&self) -> Option<u64> {
+        self.checkpoints
+            .lock()
+            .expect("checkpoint store")
+            .iter()
+            .map(|checkpoint| checkpoint.server_sequence)
+            .max()
+    }
+
+    /// Simulates a checkpoint whose content the bucket no longer holds while
+    /// the record itself stays discoverable.
+    pub fn discard_checkpoint_chunks(&self) {
+        let checkpoints = self.checkpoints.lock().expect("checkpoint store");
+        let mut chunks = self.chunks.lock().expect("chunk store");
+        for checkpoint in checkpoints.iter() {
+            for chunk in &checkpoint.content.chunks {
+                chunks.remove(&chunk.digest);
+            }
+        }
+    }
+
+    pub fn acknowledge(
+        &self,
+        workspace_id: &str,
+        device_id: &str,
+        server_sequence: u64,
+    ) -> Result<(), TransportError> {
+        if workspace_id != self.workspace_id {
+            return Err(TransportError::AuthorizationDenied);
+        }
+        if server_sequence > self.log_len() as u64 {
+            return Err(TransportError::Validation(
+                "acknowledged sequence is ahead of the workspace".into(),
+            ));
+        }
+        let mut cursors = self.device_cursors.lock().expect("device cursors");
+        let cursor = cursors.entry(device_id.into()).or_insert(0);
+        *cursor = (*cursor).max(server_sequence);
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn acknowledged_sequence(&self, device_id: &str) -> Option<u64> {
+        self.device_cursors
+            .lock()
+            .expect("device cursors")
+            .get(device_id)
+            .copied()
+    }
+
     pub fn push(
         &self,
         device_id: &str,
@@ -136,7 +306,12 @@ impl FakeServer {
             return Err(TransportError::AuthorizationDenied);
         }
         for operation in &request.operations {
-            if let Some(manifest) = operation.payload.manifest() {
+            let referenced = operation
+                .payload
+                .manifest()
+                .into_iter()
+                .chain(operation.payload.assets());
+            for manifest in referenced {
                 let chunks = self.chunks.lock().expect("chunk store");
                 if manifest
                     .chunks
@@ -265,8 +440,13 @@ pub struct FakeTransport {
     device_id: String,
     push_faults: Mutex<VecDeque<PushFault>>,
     pull_faults: Mutex<VecDeque<PullFault>>,
+    checkpoint_fetch_faults: Mutex<VecDeque<TransportError>>,
+    checkpoint_publish_faults: Mutex<VecDeque<TransportError>>,
     push_calls: AtomicUsize,
     pull_calls: AtomicUsize,
+    checkpoint_fetch_calls: AtomicUsize,
+    checkpoint_publish_calls: AtomicUsize,
+    acknowledge_calls: AtomicUsize,
 }
 
 impl FakeTransport {
@@ -277,8 +457,13 @@ impl FakeTransport {
             device_id: device_id.into(),
             push_faults: Mutex::new(VecDeque::new()),
             pull_faults: Mutex::new(VecDeque::new()),
+            checkpoint_fetch_faults: Mutex::new(VecDeque::new()),
+            checkpoint_publish_faults: Mutex::new(VecDeque::new()),
             push_calls: AtomicUsize::new(0),
             pull_calls: AtomicUsize::new(0),
+            checkpoint_fetch_calls: AtomicUsize::new(0),
+            checkpoint_publish_calls: AtomicUsize::new(0),
+            acknowledge_calls: AtomicUsize::new(0),
         })
     }
 
@@ -296,6 +481,20 @@ impl FakeTransport {
             .push_back(fault);
     }
 
+    pub fn script_checkpoint_fetch_fault(&self, fault: TransportError) {
+        self.checkpoint_fetch_faults
+            .lock()
+            .expect("checkpoint fetch faults")
+            .push_back(fault);
+    }
+
+    pub fn script_checkpoint_publish_fault(&self, fault: TransportError) {
+        self.checkpoint_publish_faults
+            .lock()
+            .expect("checkpoint publish faults")
+            .push_back(fault);
+    }
+
     #[must_use]
     pub fn push_calls(&self) -> usize {
         self.push_calls.load(Ordering::SeqCst)
@@ -307,8 +506,27 @@ impl FakeTransport {
     }
 
     #[must_use]
+    pub fn checkpoint_fetch_calls(&self) -> usize {
+        self.checkpoint_fetch_calls.load(Ordering::SeqCst)
+    }
+
+    #[must_use]
+    pub fn checkpoint_publish_calls(&self) -> usize {
+        self.checkpoint_publish_calls.load(Ordering::SeqCst)
+    }
+
+    #[must_use]
+    pub fn acknowledge_calls(&self) -> usize {
+        self.acknowledge_calls.load(Ordering::SeqCst)
+    }
+
+    #[must_use]
     pub fn total_calls(&self) -> usize {
-        self.push_calls() + self.pull_calls()
+        self.push_calls()
+            + self.pull_calls()
+            + self.checkpoint_fetch_calls()
+            + self.checkpoint_publish_calls()
+            + self.acknowledge_calls()
     }
 }
 
@@ -351,6 +569,61 @@ impl SyncTransport for FakeTransport {
     ) -> Result<Vec<u8>, TransportError> {
         self.ensure_live(cancellation)?;
         self.server.get_chunk(workspace_id, digest)
+    }
+
+    fn latest_checkpoint(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceCheckpoint>, TransportError> {
+        self.checkpoint_fetch_calls.fetch_add(1, Ordering::SeqCst);
+        self.ensure_live(cancellation)?;
+        let fault = self
+            .checkpoint_fetch_faults
+            .lock()
+            .expect("checkpoint fetch faults")
+            .pop_front();
+        if let Some(fault) = fault {
+            return Err(fault);
+        }
+        self.server.latest_checkpoint(workspace_id)
+    }
+
+    fn publish_checkpoint(
+        &self,
+        workspace_id: &str,
+        checkpoint: &WorkspaceCheckpoint,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        self.checkpoint_publish_calls.fetch_add(1, Ordering::SeqCst);
+        self.ensure_live(cancellation)?;
+        let fault = self
+            .checkpoint_publish_faults
+            .lock()
+            .expect("checkpoint publish faults")
+            .pop_front();
+        if let Some(fault) = fault {
+            return Err(fault);
+        }
+        self.server.publish_checkpoint(workspace_id, checkpoint)
+    }
+
+    fn acknowledge(
+        &self,
+        workspace_id: &str,
+        device_id: &str,
+        server_sequence: u64,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        self.acknowledge_calls.fetch_add(1, Ordering::SeqCst);
+        self.ensure_live(cancellation)?;
+        if device_id != self.device_id {
+            return Err(TransportError::Validation(
+                "device identity mismatch".into(),
+            ));
+        }
+        self.server
+            .acknowledge(workspace_id, device_id, server_sequence)
     }
 
     fn push(
@@ -445,6 +718,27 @@ pub fn rename_node(id: &str, title: &str, at: i64) -> WorkspaceOperationEnvelope
         id: id.into(),
         title: title.into(),
         at,
+    })
+}
+
+#[must_use]
+pub fn attach_image(
+    image_id: &str,
+    note_id: &str,
+    bytes: &[u8],
+    at: i64,
+) -> WorkspaceOperationEnvelope {
+    envelope(WorkspaceOperation::AttachImage {
+        image: WorkspaceImage {
+            id: image_id.into(),
+            note_id: note_id.into(),
+            content_hash: content_digest(bytes),
+            mime_type: "image/png".into(),
+            byte_size: bytes.len() as i64,
+            width: Some(16),
+            height: Some(16),
+            created_at: at,
+        },
     })
 }
 

@@ -95,9 +95,7 @@ fn remote(
         client_sequence,
         base_server_sequence: 0,
         server_sequence,
-        payload: SyncOperationPayload::Inline {
-            operation: op(operation),
-        },
+        payload: SyncOperationPayload::inline(op(operation)),
     }
 }
 
@@ -512,7 +510,7 @@ fn connected_workspace_rejects_archive_replacement_without_mutation() {
 }
 
 #[test]
-fn disconnect_preserves_pending_work_and_unsupported_media_is_visible() {
+fn disconnect_preserves_pending_work_and_media_enqueues_for_replication() {
     let storage = SqliteWorkspace::open_in_memory().expect("open database");
     connect(&storage);
     storage
@@ -532,12 +530,14 @@ fn disconnect_preserves_pending_work_and_unsupported_media_is_visible() {
             },
         })])
         .expect("local image metadata remains valid");
-    let blocked = storage
-        .blocked_sync_operations()
-        .expect("blocked operations");
-    assert_eq!(blocked.len(), 1);
-    assert_eq!(blocked[0].operation_type, "attach_image");
-    assert_eq!(blocked[0].reason_code, "unsupported_operation");
+    assert_eq!(
+        storage
+            .blocked_sync_operations()
+            .expect("blocked operations")
+            .len(),
+        0,
+        "attach_image replicates through the asset transport instead of blocking"
+    );
 
     storage.disconnect_sync(20).expect("disconnect");
     assert_eq!(storage.sync_connection().expect("connection"), None);
@@ -559,13 +559,20 @@ fn disconnect_preserves_pending_work_and_unsupported_media_is_visible() {
         .claim_sync_operations("sync-worker", 100, 50, 64)
         .expect("claim after reconnect")
         .expect("pending work survived disconnect");
-    assert_eq!(pending.request.operations.len(), 1);
+    assert_eq!(pending.request.operations.len(), 2);
     assert_eq!(
         envelope_of(&pending.request.operations[0])
             .operation
             .sync_policy()
             .operation_type,
         "create_note"
+    );
+    assert_eq!(
+        envelope_of(&pending.request.operations[1])
+            .operation
+            .sync_policy()
+            .operation_type,
+        "attach_image"
     );
 }
 
@@ -737,6 +744,7 @@ fn duplicate_remote_delivery_is_idempotent_across_restart() {
                 operation: WorkspaceOperation::CreateFolder { title, .. },
                 ..
             },
+        ..
     } = &mut conflicting_duplicate.payload
     {
         *title = "Conflicting".into();

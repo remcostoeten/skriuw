@@ -3,7 +3,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse};
+use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint};
 use thiserror::Error;
 
 /// Cancellation signal shared between the coordinator and in-flight transport
@@ -137,6 +137,34 @@ pub trait SyncTransport: Send + Sync {
         digest: &str,
         cancellation: &SyncCancellation,
     ) -> Result<Vec<u8>, TransportError>;
+
+    /// Returns the latest published checkpoint record, or `None` when the
+    /// workspace has never published one.
+    fn latest_checkpoint(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceCheckpoint>, TransportError>;
+
+    /// Publishes a checkpoint whose content chunks are already stored. The
+    /// server refuses a checkpoint referencing missing content, so an
+    /// incomplete checkpoint is never discoverable.
+    fn publish_checkpoint(
+        &self,
+        workspace_id: &str,
+        checkpoint: &WorkspaceCheckpoint,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError>;
+
+    /// Advances this device's server-side cursor so retention knows which
+    /// operations every active device has already received.
+    fn acknowledge(
+        &self,
+        workspace_id: &str,
+        device_id: &str,
+        server_sequence: u64,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError>;
 }
 
 /// Millisecond clock seam so cycle behavior, lease expiry, and backoff are

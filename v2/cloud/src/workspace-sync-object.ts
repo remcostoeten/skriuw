@@ -4,6 +4,8 @@ import { WorkspaceContentStore } from "./content-store";
 import {
   type AcknowledgementResult,
   type CompactionResult,
+  type ContentManifest,
+  type SyncOperationPayload,
   MAX_RETAINED_CHECKPOINTS,
   MAX_SYNC_PULL_OPERATIONS,
   SyncContractError,
@@ -208,14 +210,10 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
   private async missingPushContent(request: SyncPushRequest): Promise<string[]> {
     const missing = new Set<string>();
     for (const operation of request.operations) {
-      if (operation.payload.form !== "chunked") {
-        continue;
-      }
-      for (const digest of await this.content.missingChunks(
-        this.workspaceKey,
-        operation.payload.manifest,
-      )) {
-        missing.add(digest);
+      for (const manifest of referencedManifests(operation.payload)) {
+        for (const digest of await this.content.missingChunks(this.workspaceKey, manifest)) {
+          missing.add(digest);
+        }
       }
     }
     return [...missing].sort();
@@ -512,16 +510,17 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
         request.deviceId,
         operation.clientSequence,
       );
-      if (operation.payload.form === "chunked") {
-        for (const digest of new Set(
-          operation.payload.manifest.chunks.map((chunk) => chunk.digest),
-        )) {
-          this.ctx.storage.sql.exec(
-            "INSERT OR IGNORE INTO sync_chunk_refs(digest, ref_kind, ref_id) VALUES (?, 'operation', ?)",
-            digest,
-            operation.operationId,
-          );
-        }
+      const referencedDigests = new Set(
+        referencedManifests(operation.payload).flatMap((manifest) =>
+          manifest.chunks.map((chunk) => chunk.digest),
+        ),
+      );
+      for (const digest of referencedDigests) {
+        this.ctx.storage.sql.exec(
+          "INSERT OR IGNORE INTO sync_chunk_refs(digest, ref_kind, ref_id) VALUES (?, 'operation', ?)",
+          digest,
+          operation.operationId,
+        );
       }
       accepted.push({
         operationId: operation.operationId,
@@ -543,6 +542,13 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
       )
       .one().sequence;
   }
+}
+
+function referencedManifests(payload: SyncOperationPayload): ContentManifest[] {
+  if (payload.form === "chunked") {
+    return [payload.manifest];
+  }
+  return payload.assets ?? [];
 }
 
 function toReplicatedOperation(row: StoredOperationRow): ReplicatedWorkspaceOperation {

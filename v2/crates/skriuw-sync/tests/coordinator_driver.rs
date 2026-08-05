@@ -11,7 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse};
+use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint};
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::{
     NewSyncConnection, WorkspaceMaintenance, WorkspaceStorage, WorkspaceSyncQueue,
@@ -101,6 +101,35 @@ impl SyncTransport for ConcurrencyProbeTransport {
         self.inner.get_chunk(workspace_id, digest, cancellation)
     }
 
+    fn latest_checkpoint(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceCheckpoint>, TransportError> {
+        self.inner.latest_checkpoint(workspace_id, cancellation)
+    }
+
+    fn publish_checkpoint(
+        &self,
+        workspace_id: &str,
+        checkpoint: &WorkspaceCheckpoint,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        self.inner
+            .publish_checkpoint(workspace_id, checkpoint, cancellation)
+    }
+
+    fn acknowledge(
+        &self,
+        workspace_id: &str,
+        device_id: &str,
+        server_sequence: u64,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        self.inner
+            .acknowledge(workspace_id, device_id, server_sequence, cancellation)
+    }
+
     fn push(
         &self,
         workspace_id: &str,
@@ -162,6 +191,33 @@ impl SyncTransport for BlockingTransport {
         Err(TransportError::Transient("no content".into()))
     }
 
+    fn latest_checkpoint(
+        &self,
+        _workspace_id: &str,
+        _cancellation: &SyncCancellation,
+    ) -> Result<Option<WorkspaceCheckpoint>, TransportError> {
+        Ok(None)
+    }
+
+    fn publish_checkpoint(
+        &self,
+        _workspace_id: &str,
+        _checkpoint: &WorkspaceCheckpoint,
+        _cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        Ok(())
+    }
+
+    fn acknowledge(
+        &self,
+        _workspace_id: &str,
+        _device_id: &str,
+        _server_sequence: u64,
+        _cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        Ok(())
+    }
+
     fn push(
         &self,
         _workspace_id: &str,
@@ -193,9 +249,12 @@ fn spawn_coordinator(
     queue: Arc<SqliteWorkspace>,
     transport: Arc<dyn SyncTransport>,
 ) -> SyncCoordinator {
+    let workspace = Arc::clone(&queue);
     SyncCoordinator::spawn(
         queue,
+        workspace,
         transport,
+        support::FakeAssetStore::new(),
         Arc::new(skriuw_sync::SystemClock),
         SyncCoordinatorConfig::default(),
     )

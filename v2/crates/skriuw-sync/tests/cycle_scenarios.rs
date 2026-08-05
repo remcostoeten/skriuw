@@ -11,8 +11,8 @@ use skriuw_sync::{
     SyncStatus, SyncTransport, run_sync_cycle,
 };
 use support::{
-    FakeClock, FakeServer, FakeTransport, PullFault, PushFault, create_note, rename_node,
-    save_large_document,
+    FakeAssetStore, FakeClock, FakeServer, FakeTransport, PullFault, PushFault, attach_image,
+    create_note, rename_node, save_large_document,
 };
 
 const WORKSPACE: &str = "workspace-1";
@@ -20,6 +20,7 @@ const WORKSPACE: &str = "workspace-1";
 struct Device {
     storage: SqliteWorkspace,
     transport: Arc<FakeTransport>,
+    assets: Arc<FakeAssetStore>,
     clock: Arc<FakeClock>,
     backoff: SyncBackoff,
     cancellation: SyncCancellation,
@@ -45,6 +46,7 @@ impl Device {
         Self {
             storage,
             transport: FakeTransport::new(server, device_id),
+            assets: FakeAssetStore::new(),
             clock: Arc::clone(clock),
             backoff: SyncBackoff::new(SyncBackoffConfig {
                 base_delay_ms: 1_000,
@@ -77,6 +79,7 @@ impl Device {
         run_sync_cycle(
             &self.storage,
             self.transport.as_ref(),
+            self.assets.as_ref(),
             self.clock.as_ref(),
             &self.cancellation,
             &mut self.backoff,
@@ -309,17 +312,21 @@ fn semantic_conflicts_stay_durable_while_later_operations_proceed() {
                 operation_id: "op-conflict".into(),
                 client_sequence: 1,
                 base_server_sequence: 0,
-                payload: SyncOperationPayload::Inline {
-                    operation: rename_node("missing-note", "Never created", 1),
-                },
+                payload: SyncOperationPayload::inline(rename_node(
+                    "missing-note",
+                    "Never created",
+                    1,
+                )),
             },
             ClientSyncOperation {
                 operation_id: "op-valid".into(),
                 client_sequence: 2,
                 base_server_sequence: 0,
-                payload: SyncOperationPayload::Inline {
-                    operation: create_note("note-c", "Survives conflict", 2),
-                },
+                payload: SyncOperationPayload::inline(create_note(
+                    "note-c",
+                    "Survives conflict",
+                    2,
+                )),
             },
         ],
     );
@@ -552,6 +559,116 @@ fn oversized_operations_travel_as_chunks_and_converge_on_a_second_device() {
         Some("Large renamed")
     );
     assert_eq!(reader.cursor(), 3);
+}
+
+fn image_bytes(length: usize) -> Vec<u8> {
+    (0..length).map(|index| (index % 251) as u8).collect()
+}
+
+#[test]
+fn attached_images_converge_with_verified_asset_bytes_on_a_second_device() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+    writer.connect("device-a");
+
+    let bytes = image_bytes(skriuw_domain::CANONICAL_CHUNK_BYTES + 4_096);
+    let content_hash = writer.assets.put(&bytes);
+    writer.apply(vec![create_note("note-1", "Illustrated", 1)]);
+    writer.apply(vec![attach_image("image-1", "note-1", &bytes, 2)]);
+
+    let outcome = writer.cycle();
+    assert_eq!(outcome.status, SyncStatus::UpToDate);
+    assert_eq!(server.log_len(), 2);
+    assert_eq!(
+        server.stored_chunks(),
+        2,
+        "the asset must travel as canonical chunks"
+    );
+    assert_eq!(writer.storage.blocked_sync_operations().unwrap().len(), 0);
+
+    let mut reader = Device::open(&server, "device-b", &clock);
+    reader.connect("device-b");
+    assert_eq!(reader.cycle().status, SyncStatus::UpToDate);
+
+    let snapshot = reader.storage.bootstrap().expect("bootstrap");
+    let image = snapshot
+        .images
+        .iter()
+        .find(|image| image.id == "image-1")
+        .expect("attached image reached the second device");
+    assert_eq!(image.note_id, "note-1");
+    assert_eq!(image.content_hash, content_hash);
+    assert_eq!(image.byte_size, bytes.len() as i64);
+    assert_eq!(
+        reader.assets.get(&content_hash),
+        Some(bytes),
+        "asset bytes must be stored and digest-verified on the second device"
+    );
+    assert!(
+        reader
+            .storage
+            .sync_conflicts()
+            .expect("conflicts")
+            .is_empty()
+    );
+    assert_eq!(reader.cursor(), 2);
+}
+
+#[test]
+fn missing_or_corrupt_asset_chunks_fail_the_pull_without_applying_the_image() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+    writer.connect("device-a");
+    let bytes = image_bytes(64 * 1024);
+    let content_hash = writer.assets.put(&bytes);
+    writer.apply(vec![create_note("note-1", "Illustrated", 1)]);
+    writer.apply(vec![attach_image("image-1", "note-1", &bytes, 2)]);
+    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+
+    server.corrupt_chunks();
+    let mut reader = Device::open(&server, "device-b", &clock);
+    reader.connect("device-b");
+    let corrupt = reader.cycle();
+    assert!(
+        matches!(
+            corrupt.status,
+            SyncStatus::Retrying { .. } | SyncStatus::Blocked { .. }
+        ),
+        "corrupt asset content must not advance the cursor: {:?}",
+        corrupt.status
+    );
+    assert_eq!(reader.cursor(), 0);
+    assert!(
+        reader
+            .storage
+            .bootstrap()
+            .expect("bootstrap")
+            .images
+            .is_empty()
+    );
+    assert_eq!(reader.assets.get(&content_hash), None);
+
+    server.discard_chunks();
+    reader.advance_past(&corrupt);
+    let missing = reader.cycle();
+    assert!(
+        matches!(
+            missing.status,
+            SyncStatus::Retrying { .. } | SyncStatus::Blocked { .. }
+        ),
+        "missing asset content must not advance the cursor: {:?}",
+        missing.status
+    );
+    assert_eq!(reader.cursor(), 0);
+    let snapshot = reader.storage.bootstrap().expect("bootstrap");
+    assert!(
+        snapshot.images.is_empty(),
+        "no partial image may be applied"
+    );
+    assert!(snapshot.nodes.is_empty(), "no partial page may be applied");
+    assert_eq!(reader.assets.get(&content_hash), None);
 }
 
 #[test]

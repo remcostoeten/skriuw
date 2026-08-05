@@ -50,8 +50,37 @@ try {
   if (reopened !== 1) {
     throw new Error(`expected one durable folder after reopen, found ${reopened}`);
   }
+
+  const roundTrip = await evaluate(
+    cdp,
+    sessionId,
+    "window.browserStorageE2e.archiveRoundTrip().then(value => ({ ok: true, value }), error => ({ ok: false, error }))",
+  );
+  if (!roundTrip.ok) {
+    throw new Error(`archive round trip failed: ${JSON.stringify(roundTrip.error)}`);
+  }
+  if (roundTrip.value.markerCopies !== 1 || roundTrip.value.extraCopies !== 0) {
+    throw new Error(
+      `archive import did not restore the exported state: ${JSON.stringify(roundTrip.value)}`,
+    );
+  }
+
+  const rejection = await evaluate(
+    cdp,
+    sessionId,
+    "window.browserStorageE2e.invalidArchiveRejected().then(value => ({ ok: true, value }), error => ({ ok: false, error }))",
+  );
+  if (!rejection.ok) {
+    throw new Error(`invalid archive check failed: ${JSON.stringify(rejection.error)}`);
+  }
+  if (rejection.value.code !== "invalid_request") {
+    throw new Error(
+      `invalid archive was not rejected with invalid_request: ${JSON.stringify(rejection.value)}`,
+    );
+  }
+
   process.stdout.write(
-    `browser OPFS durability passed: ${result.value.initialNodes} initial nodes, one persisted write\n`,
+    `browser OPFS durability passed: ${result.value.initialNodes} initial nodes, one persisted write, archive round trip restored\n`,
   );
 } finally {
   socket?.close();

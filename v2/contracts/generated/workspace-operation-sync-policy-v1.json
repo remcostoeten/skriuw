@@ -89,7 +89,7 @@
   },
   {
     "operationType": "attach_image",
-    "replicationClass": "unsupported_sync_protocol_v1"
+    "replicationClass": "replicated_workspace_content"
   },
   {
     "operationType": "set_note_property",

@@ -8,7 +8,10 @@ use skriuw_storage::{
 
 use crate::{
     backoff::SyncBackoff,
-    content::{externalize_oversized_operations, resolve_chunked_operations},
+    content::{
+        SyncAssetStore, externalize_asset_content, externalize_oversized_operations,
+        resolve_asset_content, resolve_chunked_operations,
+    },
     transport::{SyncCancellation, SyncClock, SyncTransport, TransportError},
 };
 
@@ -18,6 +21,7 @@ pub const BLOCKED_REASON_PUSH_CONFLICT: &str = "push_conflict";
 pub const BLOCKED_REASON_PROTOCOL_MISMATCH: &str = "protocol_mismatch";
 pub const BLOCKED_REASON_REJECTED_ACKNOWLEDGEMENT: &str = "rejected_acknowledgement";
 pub const BLOCKED_REASON_STORAGE_FAILURE: &str = "storage_failure";
+pub const BLOCKED_REASON_REJECTED_CHECKPOINT: &str = "rejected_checkpoint";
 
 /// Narrow status projection consumed by the runtime and UI. The UI may render
 /// this and request connect, disconnect, retry, or refresh; retry and cursor
@@ -72,14 +76,14 @@ pub struct SyncCycleOutcome {
 }
 
 impl SyncCycleOutcome {
-    fn settled(status: SyncStatus) -> Self {
+    pub(crate) fn settled(status: SyncStatus) -> Self {
         Self {
             status,
             retry_at_ms: None,
         }
     }
 
-    fn retry(status: SyncStatus, retry_at_ms: i64) -> Self {
+    pub(crate) fn retry(status: SyncStatus, retry_at_ms: i64) -> Self {
         Self {
             status,
             retry_at_ms: Some(retry_at_ms),
@@ -94,15 +98,35 @@ impl SyncCycleOutcome {
 pub fn run_sync_cycle(
     queue: &dyn WorkspaceSyncQueue,
     transport: &dyn SyncTransport,
+    assets: &dyn SyncAssetStore,
     clock: &dyn SyncClock,
     cancellation: &SyncCancellation,
     backoff: &mut SyncBackoff,
     config: &SyncCycleConfig,
 ) -> SyncCycleOutcome {
-    match queue.sync_connection() {
-        Ok(Some(_)) => {}
+    let connection = match queue.sync_connection() {
+        Ok(Some(connection)) => connection,
         Ok(None) => return SyncCycleOutcome::settled(SyncStatus::LocalOnly),
         Err(error) => return storage_failure(clock, config, &error),
+    };
+    if connection.observed_server_sequence == 0 {
+        match queue.has_pending_sync_operations() {
+            Ok(true) => {}
+            Ok(false) => {
+                if let Err(outcome) = crate::checkpoint::hydrate_from_latest_checkpoint(
+                    queue,
+                    transport,
+                    clock,
+                    cancellation,
+                    backoff,
+                    config,
+                    &connection,
+                ) {
+                    return outcome;
+                }
+            }
+            Err(error) => return storage_failure(clock, config, &error),
+        }
     }
 
     let mut pushed_batches = 0;
@@ -138,6 +162,15 @@ pub fn run_sync_cycle(
                 &mut request,
                 cancellation,
             )
+            .and_then(|_| {
+                externalize_asset_content(
+                    transport,
+                    assets,
+                    &batch.workspace_id,
+                    &mut request,
+                    cancellation,
+                )
+            })
             .and_then(|_| transport.push(&batch.workspace_id, &request, cancellation))
         };
         match result {
@@ -211,7 +244,16 @@ pub fn run_sync_cycle(
             &connection.workspace_id,
             &mut response,
             cancellation,
-        ) {
+        )
+        .and_then(|_| {
+            resolve_asset_content(
+                transport,
+                assets,
+                &connection.workspace_id,
+                &response,
+                cancellation,
+            )
+        }) {
             return pull_failure(clock, backoff, config, &error);
         }
         let malformed = response.validate().is_err()
@@ -270,6 +312,21 @@ pub fn run_sync_cycle(
 
     if more_pending {
         return SyncCycleOutcome::retry(SyncStatus::Pending, clock.now_ms());
+    }
+    let connection = match queue.sync_connection() {
+        Ok(Some(connection)) => connection,
+        Ok(None) => return SyncCycleOutcome::settled(SyncStatus::LocalOnly),
+        Err(error) => return storage_failure(clock, config, &error),
+    };
+    if connection.observed_server_sequence > 0
+        && let Err(error) = transport.acknowledge(
+            &connection.workspace_id,
+            &connection.device_id,
+            connection.observed_server_sequence,
+            cancellation,
+        )
+    {
+        return acknowledge_failure(clock, backoff, config, &error);
     }
     match queue.sync_conflicts() {
         Ok(conflicts) if conflicts.is_empty() => SyncCycleOutcome::settled(SyncStatus::UpToDate),
@@ -403,6 +460,44 @@ fn pull_failure(
     }
 }
 
+fn acknowledge_failure(
+    clock: &dyn SyncClock,
+    backoff: &mut SyncBackoff,
+    config: &SyncCycleConfig,
+    error: &TransportError,
+) -> SyncCycleOutcome {
+    let now = clock.now_ms();
+    match error {
+        TransportError::Cancelled => SyncCycleOutcome::retry(SyncStatus::Pending, now),
+        TransportError::AuthenticationRequired => {
+            SyncCycleOutcome::settled(SyncStatus::AuthenticationRequired)
+        }
+        TransportError::AuthorizationDenied
+        | TransportError::Validation(_)
+        | TransportError::Conflict(_)
+        | TransportError::UnsupportedProtocol(_) => {
+            let retry_at = now.saturating_add(config.blocked_retry_delay_ms);
+            SyncCycleOutcome::retry(
+                SyncStatus::Blocked {
+                    reason: BLOCKED_REASON_REJECTED_ACKNOWLEDGEMENT.into(),
+                },
+                retry_at,
+            )
+        }
+        TransportError::RateLimited { .. }
+        | TransportError::Transient(_)
+        | TransportError::Server { .. } => {
+            let retry_at = now.saturating_add(backoff.next_delay_ms(error.retry_hint_ms()));
+            SyncCycleOutcome::retry(
+                SyncStatus::Retrying {
+                    next_attempt_at: retry_at,
+                },
+                retry_at,
+            )
+        }
+    }
+}
+
 fn release_claim(
     queue: &dyn WorkspaceSyncQueue,
     config: &SyncCycleConfig,
@@ -423,7 +518,7 @@ fn release_claim(
     );
 }
 
-fn storage_failure(
+pub(crate) fn storage_failure(
     clock: &dyn SyncClock,
     config: &SyncCycleConfig,
     _error: &StorageError,

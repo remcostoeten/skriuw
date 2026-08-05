@@ -3,6 +3,7 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { activateNote } from "../actions/workspace";
+import { isBrowserRuntime } from "../bridge/runtime";
 import { journalEntryDateKey } from "../journal/model";
 import { openJournalDay } from "../journal/navigation";
 import { CloseIcon, SearchIcon } from "../shared/icons";
@@ -29,6 +30,10 @@ const AccountSection = lazy(async () => {
   return { default: module.AccountSection };
 });
 
+const AVAILABLE_SECTIONS = isBrowserRuntime()
+  ? SECTIONS.filter((entry) => entry.id !== "media")
+  : SECTIONS;
+
 type Props = {
   store: RendererStore;
   open: boolean;
@@ -43,7 +48,7 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const recordingCountRef = useRef(0);
   const filteredSections = useMemo(
-    () => filterSettingsSections(SECTIONS, query),
+    () => filterSettingsSections(AVAILABLE_SECTIONS, query),
     [query],
   );
   const filteredIds = filteredSections.map((entry) => entry.id);

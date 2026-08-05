@@ -4,10 +4,15 @@ use std::{
     time::Duration,
 };
 
-use skriuw_storage::WorkspaceSyncQueue;
+use skriuw_storage::{WorkspaceMaintenance, WorkspaceSyncQueue};
 
 use crate::{
     backoff::{SyncBackoff, SyncBackoffConfig},
+    checkpoint::{
+        CheckpointPublication, CheckpointPublicationConfig, CheckpointPublicationState,
+        run_checkpoint_publication,
+    },
+    content::SyncAssetStore,
     cycle::{SyncCycleConfig, SyncStatus, run_sync_cycle},
     transport::{SyncCancellation, SyncClock, SyncTransport},
 };
@@ -18,6 +23,7 @@ pub type SyncStatusObserver = Arc<dyn Fn(&SyncStatus) + Send + Sync>;
 pub struct SyncCoordinatorConfig {
     pub cycle: SyncCycleConfig,
     pub backoff: SyncBackoffConfig,
+    pub checkpoint: CheckpointPublicationConfig,
     pub poll_interval_ms: i64,
     pub status_observer: Option<SyncStatusObserver>,
 }
@@ -27,6 +33,7 @@ impl Default for SyncCoordinatorConfig {
         Self {
             cycle: SyncCycleConfig::default(),
             backoff: SyncBackoffConfig::default(),
+            checkpoint: CheckpointPublicationConfig::default(),
             poll_interval_ms: 60_000,
             status_observer: None,
         }
@@ -60,7 +67,9 @@ impl SyncCoordinator {
     #[must_use]
     pub fn spawn(
         queue: Arc<dyn WorkspaceSyncQueue>,
+        workspace: Arc<dyn WorkspaceMaintenance>,
         transport: Arc<dyn SyncTransport>,
+        assets: Arc<dyn SyncAssetStore>,
         clock: Arc<dyn SyncClock>,
         config: SyncCoordinatorConfig,
     ) -> Self {
@@ -78,7 +87,17 @@ impl SyncCoordinator {
         let worker_shared = Arc::clone(&shared);
         let worker = thread::Builder::new()
             .name("skriuw-sync".into())
-            .spawn(move || run(worker_shared, queue, transport, clock, config))
+            .spawn(move || {
+                run(
+                    worker_shared,
+                    queue,
+                    workspace,
+                    transport,
+                    assets,
+                    clock,
+                    config,
+                )
+            })
             .expect("sync coordinator thread must start");
         Self {
             shared,
@@ -175,11 +194,14 @@ impl Drop for SyncCoordinator {
 fn run(
     shared: Arc<CoordinatorShared>,
     queue: Arc<dyn WorkspaceSyncQueue>,
+    workspace: Arc<dyn WorkspaceMaintenance>,
     transport: Arc<dyn SyncTransport>,
+    assets: Arc<dyn SyncAssetStore>,
     clock: Arc<dyn SyncClock>,
     config: SyncCoordinatorConfig,
 ) {
     let mut backoff = SyncBackoff::new(config.backoff);
+    let mut checkpoint_state = CheckpointPublicationState::new();
     let mut deadline_ms: Option<i64> = None;
     loop {
         let (online, session_valid) = {
@@ -231,14 +253,32 @@ fn run(
         }
 
         shared.cancellation.clear_interrupt();
-        let outcome = run_sync_cycle(
+        let mut outcome = run_sync_cycle(
             queue.as_ref(),
             transport.as_ref(),
+            assets.as_ref(),
             clock.as_ref(),
             &shared.cancellation,
             &mut backoff,
             &config.cycle,
         );
+        if outcome.status == SyncStatus::UpToDate
+            && let Some(failure) = run_checkpoint_publication(
+                &CheckpointPublication {
+                    queue: queue.as_ref(),
+                    workspace: workspace.as_ref(),
+                    transport: transport.as_ref(),
+                    clock: clock.as_ref(),
+                    cancellation: &shared.cancellation,
+                    cycle_config: &config.cycle,
+                    config: &config.checkpoint,
+                },
+                &mut backoff,
+                &mut checkpoint_state,
+            )
+        {
+            outcome = failure;
+        }
         publish(&shared, &config, outcome.status.clone());
         deadline_ms = match outcome.status {
             SyncStatus::LocalOnly => None,

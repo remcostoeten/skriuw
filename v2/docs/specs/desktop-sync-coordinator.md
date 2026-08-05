@@ -68,6 +68,44 @@ existing domain/storage validation path; semantic conflicts become durable
 - Work per cycle is bounded (push batches and pull pages); remaining work
   reschedules immediately as `pending`.
 
+## Checkpoints and retention
+
+The coordinator drives the [content-addressed checkpoint
+transport](sync-content-chunks-v1.md) in two places, both off the interaction
+path and both deterministic under the fake clock:
+
+- **Hydration on first connect.** A cycle whose durable cursor is zero and
+  whose outbox is empty downloads the latest published checkpoint, verifies it
+  byte-for-byte through `WorkspaceCheckpoint::verify_content`, hydrates through
+  `WorkspaceSyncQueue::hydrate_from_checkpoint`, and then pulls only the
+  ordered tail. Any other state — a nonzero cursor or pending local
+  operations — skips checkpoints entirely and replays the log, and the durable
+  port re-checks the same invariant so a racing local commit can never be
+  discarded. A workspace without a checkpoint replays from zero. A checkpoint
+  that fails verification, names another workspace, or has lost content
+  becomes `blocked { rejected_checkpoint }` rather than silently falling back,
+  so recovery stays visible.
+- **Publication after convergence.** After a cycle settles `upToDate`, the
+  coordinator publishes a checkpoint when the ordered log has advanced at
+  least `CheckpointPublicationConfig::publish_interval_operations` (default
+  64, one full push batch) past the latest checkpoint the server holds, or
+  immediately when the workspace has none. The decision compares durable
+  server sequences only — no wall-clock cadence and no randomness — and the
+  server's latest checkpoint record is the single source of truth, fetched
+  once per process and after every restart. The exported archive is verified
+  to still match the converged cursor (empty outbox re-check after the export
+  transaction) before its chunks are uploaded and the record is published, so
+  a checkpoint never smuggles unpushed local operations. Publication failures
+  surface through the same `TransportError` classification (`retrying`,
+  `authenticationRequired`, `blocked { rejected_checkpoint }`) without
+  disturbing later push/pull cycles.
+
+A converged cycle also acknowledges the device cursor
+(`POST …/acknowledge`), which is what lets server-side compaction retire log
+entries below the oldest retained checkpoint; a failed acknowledgement is
+classified like a pull failure instead of being dropped, because an
+unacknowledged device stops pinning the log only through idle expiry.
+
 ## Status projection
 
 The runtime exposes one narrow projection: `localOnly`, `connecting`,
@@ -100,5 +138,8 @@ edit, restart, reconnect, and exchange of supported non-conflicting
 operations. Driver tests prove single-loop coalescing, prompt shutdown
 cancellation, logout preservation, zero transport calls in local-only mode
 while interaction paths run, and local commits completing while the transport
-is blocked indefinitely. Convergence beyond non-conflicting operations is
+is blocked indefinitely. Checkpoint tests prove first-connect hydration with a
+tail-only pull, hydration refusal over pending local work, the operation-count
+publication trigger, and publish or fetch failures surfacing without breaking
+later cycles. Convergence beyond non-conflicting operations is
 governed by [sync convergence v1](sync-convergence-v1.md) and remains open.

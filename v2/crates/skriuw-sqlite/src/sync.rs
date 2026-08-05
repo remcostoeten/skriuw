@@ -83,9 +83,7 @@ pub(crate) fn enqueue_sync_operations(
                     operation_id: Uuid::new_v4().to_string(),
                     client_sequence: next_client_sequence,
                     base_server_sequence,
-                    payload: SyncOperationPayload::Inline {
-                        operation: envelope.clone(),
-                    },
+                    payload: SyncOperationPayload::inline(envelope.clone()),
                 };
                 match operation.validate_queued(WORKSPACE_SYNC_PROTOCOL_VERSION) {
                     Ok(()) => {
@@ -287,9 +285,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                 operation_id: row.operation_id.clone(),
                 client_sequence: row.client_sequence,
                 base_server_sequence: row.base_server_sequence,
-                payload: SyncOperationPayload::Inline {
-                    operation: row.operation.clone(),
-                },
+                payload: SyncOperationPayload::inline(row.operation.clone()),
             };
             // An operation above the inline ceiling becomes a small manifest
             // once the transport externalizes it, so it travels alone rather
@@ -305,15 +301,16 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
             }
             let mut prospective = selected.clone();
             prospective.push(candidate.clone());
-            if let Err(error) =
-                skriuw_domain::SyncPushRequest::v1(active.device_id.clone(), prospective).validate()
-            {
-                if matches!(error, SyncValidationError::BatchTooLarge { .. })
-                    && !selected.is_empty()
-                {
+            let prospective =
+                skriuw_domain::SyncPushRequest::v1(active.device_id.clone(), prospective);
+            prospective.validate_queued().map_err(sync_validation)?;
+            if prospective.exceeds_batch_ceiling() {
+                if !selected.is_empty() {
                     break;
                 }
-                return Err(sync_validation(error));
+                return Err(sync_validation(SyncValidationError::BatchTooLarge {
+                    maximum: skriuw_domain::MAX_SYNC_BATCH_BYTES,
+                }));
             }
             previous_sequence = Some(row.client_sequence);
             selected.push(candidate);
@@ -407,9 +404,7 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                     client_sequence: item.client_sequence,
                     base_server_sequence: outbox.base_server_sequence,
                     server_sequence: item.server_sequence,
-                    payload: SyncOperationPayload::Inline {
-                        operation: outbox.operation,
-                    },
+                    payload: SyncOperationPayload::inline(outbox.operation),
                 };
                 let operation_json = serde_json::to_string(replicated_envelope(&replicated)?)
                     .map_err(json_backend)?;
@@ -541,6 +536,15 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
             })
             .map_err(backend)?
             .collect::<Result<Vec<_>, _>>()
+            .map_err(backend)
+    }
+
+    fn has_pending_sync_operations(&self) -> Result<bool, StorageError> {
+        let connection = self.lock()?;
+        connection
+            .query_row("SELECT EXISTS(SELECT 1 FROM sync_outbox)", [], |row| {
+                row.get::<_, bool>(0)
+            })
             .map_err(backend)
     }
 
@@ -2107,9 +2111,42 @@ fn remote_target_state(
                 .map_err(backend)?;
             state.state_equivalent = current == *ordered_template_ids;
         }
+        WorkspaceOperation::AttachImage { image } => {
+            state.dependency_tombstoned = tombstoned(transaction, "node", &image.note_id, "")?;
+            let existing = transaction
+                .query_row(
+                    "SELECT note_id, content_hash, mime_type, byte_size, width, height, created_at \
+                     FROM note_images WHERE id = ?1",
+                    [&image.id],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                            row.get::<_, i64>(3)?,
+                            row.get::<_, Option<i64>>(4)?,
+                            row.get::<_, Option<i64>>(5)?,
+                            row.get::<_, i64>(6)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(backend)?;
+            if let Some((note_id, content_hash, mime_type, byte_size, width, height, created_at)) =
+                existing
+            {
+                state.target_exists = true;
+                state.state_equivalent = note_id == image.note_id
+                    && content_hash == image.content_hash
+                    && mime_type == image.mime_type
+                    && byte_size == image.byte_size
+                    && width == image.width
+                    && height == image.height
+                    && created_at == image.created_at;
+            }
+        }
         WorkspaceOperation::SetActiveNote { .. }
         | WorkspaceOperation::UpdateSettings { .. }
-        | WorkspaceOperation::AttachImage { .. }
         | WorkspaceOperation::RecordProviderImport { .. } => {}
     }
     Ok(state)

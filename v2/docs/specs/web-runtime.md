@@ -2,8 +2,9 @@
 
 Status: browser-local runtime implemented. The application bridge, generated
 WASM asset, worker-owned SQLite/OPFS open path, shared migrations, native parity
-tests, archive recovery behavior, and Chromium close/reload durability gate are
-implemented. Firefox 152 durability evidence
+tests, archive recovery behavior (including the in-app export download and
+validated replace-from-file flow in the Data settings), and the Chromium
+close/reload plus archive round-trip durability gate are implemented. Firefox 152 durability evidence
 (`bun --cwd=app run e2e:browser-storage:firefox`, WebDriver BiDi against system
 Firefox) and representative 1,000/5,000-note storage-runtime measurements
 (`bun --cwd=app run e2e:browser-scale`, recorded in
@@ -102,6 +103,18 @@ and rebuilds projections through the shared adapter. OPFS internals, FTS rows,
 history/sync operational queues, and native Git data do not enter the archive.
 Browser history is therefore current-state/archive recovery only in this slice;
 native Git history is not claimed.
+
+The Data settings section exposes this boundary in the browser. Export requests
+the archive from the worker and hands it to the user as a JSON download; replace
+picks a local file through the browser file chooser, pre-validates its shape,
+downloads a safety copy of the current workspace, and only then submits the
+worker-validated replacement. Native-only maintenance — storage path and
+relocation, scheduled verified backups and restore, filesystem markdown and
+provider imports, and the media library — is hidden in the browser instead of
+failing, and the section states that clearing site data deletes the OPFS
+workspace. Desktop-exported archives import into the browser (unknown image
+fields are ignored); image blobs do not cross because the browser runtime has
+no blob store yet.
 
 ### Application and build integration
 

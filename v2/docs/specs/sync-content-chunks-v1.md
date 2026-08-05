@@ -61,6 +61,7 @@ payload instead of a bare envelope:
 
 ```json
 { "form": "inline", "operation": { "protocolVersion": 1, "operation": {} } }
+{ "form": "inline", "operation": {}, "assets": [{ "manifestVersion": 1, "kind": "asset" }] }
 { "form": "chunked", "manifest": { "manifestVersion": 1, "kind": "operation_envelope" } }
 ```
 
@@ -69,9 +70,23 @@ A chunked sync operation must carry a manifest whose `kind` is
 payload forms, unknown algorithms, unknown manifest versions, and unknown
 object fields are rejected with stable errors rather than ignored.
 
-`AttachImage` remains `unsupported_sync_protocol_v1` in the
-[operation policy](workspace-operation-sync-policy-v1.md). Asset manifests are
-defined here but no operation references them yet.
+An inline payload may carry up to `MAX_OPERATION_ASSET_MANIFESTS` asset-kind
+manifests describing out-of-band content the operation declares.
+`AttachImage` is the only operation that declares one: its manifest must match
+the operation's `content_hash`, `mime_type`, and `byte_size` exactly, an
+`AttachImage` without its manifest is rejected, and any other operation
+carrying assets is rejected. The Worker refuses to append an operation whose
+asset chunks are not stored (`content_unavailable`) and records every asset
+chunk in `sync_chunk_refs`, so retention never collects a chunk a retained
+operation still references.
+
+The local outbox stays inline and asset-less; the push path reads the image
+bytes from the workspace blob store through the `SyncAssetStore` seam, uploads
+the missing chunks, and attaches the manifest. The pull path downloads and
+digest-verifies the asset content and writes it into the blob store before any
+operation in the page is applied, so a missing or corrupt asset fails the pull
+without applying partial content. The stored bytes still pass the image
+store's magic-byte sniffing, so the image-only asset pipeline is unchanged.
 
 ## Canonical sources
 
@@ -130,11 +145,10 @@ cursor, and an empty outbox, so it can never discard pending local work. After
 hydrating, the device sets its cursor to the checkpoint sequence and pulls only
 the ordered tail.
 
+Checkpoint publication and first-connect hydration are driven by the desktop
+coordinator; the policy and its failure classification live in the
+[desktop sync coordinator](desktop-sync-coordinator.md) specification.
+
 ## Open work
 
-- Checkpoint publication and hydration are not driven by the coordinator yet:
-  the storage and Worker sides exist, but no client automatically publishes a
-  checkpoint or hydrates from one on first connect.
-- Asset manifests are defined but no operation references them; `AttachImage`
-  stays unsupported.
 - Representative large-workspace memory and latency measurements.

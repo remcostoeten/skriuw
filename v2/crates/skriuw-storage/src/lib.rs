@@ -416,6 +416,11 @@ pub trait WorkspaceSyncQueue: Send + Sync {
 
     fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError>;
 
+    /// Reports whether any locally committed operation is still queued for
+    /// upload, so checkpoint hydration and publication can refuse to run over
+    /// unpushed local work without claiming a lease.
+    fn has_pending_sync_operations(&self) -> Result<bool, StorageError>;
+
     fn apply_remote_operations(
         &self,
         operations: &[ReplicatedWorkspaceOperation],
@@ -595,6 +600,10 @@ where
 
     fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError> {
         self.as_ref().blocked_sync_operations()
+    }
+
+    fn has_pending_sync_operations(&self) -> Result<bool, StorageError> {
+        self.as_ref().has_pending_sync_operations()
     }
 
     fn apply_remote_operations(

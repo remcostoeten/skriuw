@@ -17,6 +17,7 @@ pub const MAX_SYNC_PULL_OPERATIONS: usize = 256;
 pub const MAX_INLINE_SYNC_OPERATION_BYTES: usize = 1_500_000;
 pub const MAX_SYNC_BATCH_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_SAFE_SYNC_SEQUENCE: u64 = 9_007_199_254_740_991;
+pub const MAX_OPERATION_ASSET_MANIFESTS: usize = 4;
 
 pub fn validate_sync_identifier(
     field: &'static str,
@@ -97,7 +98,7 @@ define_workspace_operation_sync_policy! {
     PurgeSubtree => ("purge_subtree", ReplicatedWorkspaceContent),
     SetActiveNote => ("set_active_note", DeviceLocal),
     UpdateSettings => ("update_settings", DeviceLocal),
-    AttachImage => ("attach_image", UnsupportedSyncProtocolV1),
+    AttachImage => ("attach_image", ReplicatedWorkspaceContent),
     SetNoteProperty => ("set_note_property", ReplicatedWorkspaceContent),
     RemoveNoteProperty => ("remove_note_property", ReplicatedWorkspaceContent),
     ReorderNoteProperties => ("reorder_note_properties", ReplicatedWorkspaceContent),
@@ -135,6 +136,16 @@ pub enum SyncValidationError {
     ChunkedContentRequiresProtocol { minimum: u16 },
     #[error("chunked sync operations must carry an operation-envelope manifest")]
     UnexpectedManifestKind,
+    #[error("operation assets must carry asset manifests")]
+    UnexpectedAssetManifestKind,
+    #[error("sync operation carries more than {maximum} asset manifests")]
+    TooManyAssets { maximum: usize },
+    #[error("workspace operation {operation_type} cannot carry asset content")]
+    UnexpectedAssets { operation_type: &'static str },
+    #[error("workspace operation {operation_type} requires its asset content manifest")]
+    MissingAssetContent { operation_type: &'static str },
+    #[error("asset manifest does not match the content {operation_type} declares")]
+    AssetManifestMismatch { operation_type: &'static str },
     #[error(transparent)]
     Content(#[from] ContentValidationError),
     #[error(transparent)]
@@ -150,18 +161,60 @@ pub enum SyncValidationError {
 pub enum SyncOperationPayload {
     Inline {
         operation: WorkspaceOperationEnvelope,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        assets: Vec<ContentManifest>,
     },
     Chunked {
         manifest: ContentManifest,
     },
 }
 
+/// The out-of-band asset bytes a workspace operation declares. The sync layer
+/// transports exactly this content next to the operation and verifies the
+/// received bytes against these fields before anything is applied.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RequiredAssetContent<'a> {
+    pub content_hash: &'a str,
+    pub mime_type: &'a str,
+    pub byte_length: u64,
+}
+
+impl WorkspaceOperation {
+    #[must_use]
+    pub fn required_asset_content(&self) -> Option<RequiredAssetContent<'_>> {
+        match self {
+            Self::AttachImage { image } => Some(RequiredAssetContent {
+                content_hash: &image.content_hash,
+                mime_type: &image.mime_type,
+                byte_length: image.byte_size.max(0) as u64,
+            }),
+            _ => None,
+        }
+    }
+}
+
 impl SyncOperationPayload {
+    #[must_use]
+    pub fn inline(operation: WorkspaceOperationEnvelope) -> Self {
+        Self::Inline {
+            operation,
+            assets: Vec::new(),
+        }
+    }
+
     #[must_use]
     pub fn inline_operation(&self) -> Option<&WorkspaceOperationEnvelope> {
         match self {
-            Self::Inline { operation } => Some(operation),
+            Self::Inline { operation, .. } => Some(operation),
             Self::Chunked { .. } => None,
+        }
+    }
+
+    #[must_use]
+    pub fn assets(&self) -> &[ContentManifest] {
+        match self {
+            Self::Inline { assets, .. } => assets,
+            Self::Chunked { .. } => &[],
         }
     }
 
@@ -174,10 +227,26 @@ impl SyncOperationPayload {
     }
 
     pub fn validate(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
+        self.validate_with_mode(protocol_version, false)
+    }
+
+    /// Validate a payload that is still queued locally: required asset
+    /// manifests are attached at push time, so their absence is not an error
+    /// yet, while every present manifest must already be consistent.
+    pub fn validate_queued(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
+        self.validate_with_mode(protocol_version, true)
+    }
+
+    fn validate_with_mode(
+        &self,
+        protocol_version: u16,
+        queued: bool,
+    ) -> Result<(), SyncValidationError> {
         match self {
-            Self::Inline { operation } => {
+            Self::Inline { operation, assets } => {
                 operation.validate()?;
-                validate_replication_policy(&operation.operation)
+                validate_replication_policy(&operation.operation)?;
+                validate_operation_assets(&operation.operation, assets, protocol_version, queued)
             }
             Self::Chunked { manifest } => {
                 if protocol_version < MIN_CHUNKED_CONTENT_PROTOCOL_VERSION {
@@ -195,6 +264,55 @@ impl SyncOperationPayload {
     }
 }
 
+fn validate_operation_assets(
+    operation: &WorkspaceOperation,
+    assets: &[ContentManifest],
+    protocol_version: u16,
+    queued: bool,
+) -> Result<(), SyncValidationError> {
+    if !assets.is_empty() {
+        if protocol_version < MIN_CHUNKED_CONTENT_PROTOCOL_VERSION {
+            return Err(SyncValidationError::ChunkedContentRequiresProtocol {
+                minimum: MIN_CHUNKED_CONTENT_PROTOCOL_VERSION,
+            });
+        }
+        if assets.len() > MAX_OPERATION_ASSET_MANIFESTS {
+            return Err(SyncValidationError::TooManyAssets {
+                maximum: MAX_OPERATION_ASSET_MANIFESTS,
+            });
+        }
+        for manifest in assets {
+            if manifest.kind != ContentManifestKind::Asset {
+                return Err(SyncValidationError::UnexpectedAssetManifestKind);
+            }
+            manifest.validate()?;
+        }
+    }
+    let operation_type = operation.sync_policy().operation_type;
+    let Some(required) = operation.required_asset_content() else {
+        if assets.is_empty() {
+            return Ok(());
+        }
+        return Err(SyncValidationError::UnexpectedAssets { operation_type });
+    };
+    if assets.is_empty() {
+        if queued {
+            return Ok(());
+        }
+        return Err(SyncValidationError::MissingAssetContent { operation_type });
+    }
+    let [manifest] = assets else {
+        return Err(SyncValidationError::AssetManifestMismatch { operation_type });
+    };
+    if manifest.content_digest != required.content_hash
+        || manifest.mime_type != required.mime_type
+        || manifest.total_byte_length != required.byte_length
+    {
+        return Err(SyncValidationError::AssetManifestMismatch { operation_type });
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientSyncOperation {
@@ -206,7 +324,7 @@ pub struct ClientSyncOperation {
 
 impl ClientSyncOperation {
     pub fn validate(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
-        self.validate_fields(protocol_version)?;
+        self.validate_fields(protocol_version, false)?;
         ensure_serialized_size(
             self,
             MAX_INLINE_SYNC_OPERATION_BYTES,
@@ -220,7 +338,7 @@ impl ClientSyncOperation {
     /// externalized into chunked content before it reaches the wire, so the
     /// inline ceiling does not apply yet. The content ceiling still does.
     pub fn validate_queued(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
-        self.validate_fields(protocol_version)?;
+        self.validate_fields(protocol_version, true)?;
         ensure_serialized_size(
             self,
             MAX_CONTENT_BYTES as usize,
@@ -242,11 +360,19 @@ impl ClientSyncOperation {
         .is_err()
     }
 
-    fn validate_fields(&self, protocol_version: u16) -> Result<(), SyncValidationError> {
+    fn validate_fields(
+        &self,
+        protocol_version: u16,
+        queued: bool,
+    ) -> Result<(), SyncValidationError> {
         validate_sync_identifier("sync operation id", &self.operation_id)?;
         validate_sync_sequence("client sequence", self.client_sequence, false)?;
         validate_sync_sequence("base server sequence", self.base_server_sequence, true)?;
-        self.payload.validate(protocol_version)
+        if queued {
+            self.payload.validate_queued(protocol_version)
+        } else {
+            self.payload.validate(protocol_version)
+        }
     }
 }
 
@@ -276,6 +402,18 @@ impl SyncPushRequest {
     /// the inline ceiling have not been externalized into chunked content yet.
     pub fn validate_queued(&self) -> Result<(), SyncValidationError> {
         self.validate_batch(true)
+    }
+
+    #[must_use]
+    pub fn exceeds_batch_ceiling(&self) -> bool {
+        ensure_serialized_size(
+            self,
+            MAX_SYNC_BATCH_BYTES,
+            SyncValidationError::BatchTooLarge {
+                maximum: MAX_SYNC_BATCH_BYTES,
+            },
+        )
+        .is_err()
     }
 
     fn validate_batch(&self, queued: bool) -> Result<(), SyncValidationError> {
@@ -455,9 +593,7 @@ mod tests {
     };
 
     fn inline(envelope: WorkspaceOperationEnvelope) -> SyncOperationPayload {
-        SyncOperationPayload::Inline {
-            operation: envelope,
-        }
+        SyncOperationPayload::inline(envelope)
     }
 
     fn envelope_manifest(bytes: &[u8]) -> ContentManifest {
@@ -583,30 +719,108 @@ mod tests {
                 operation_type: "set_active_note"
             })
         );
+    }
 
-        let unsupported = ClientSyncOperation {
+    fn attach_image_envelope(bytes: &[u8]) -> WorkspaceOperationEnvelope {
+        WorkspaceOperationEnvelope::v1(WorkspaceOperation::AttachImage {
+            image: WorkspaceImage {
+                id: "image-1".into(),
+                note_id: "note-1".into(),
+                content_hash: crate::content_digest(bytes),
+                mime_type: "image/png".into(),
+                byte_size: bytes.len() as i64,
+                width: Some(1),
+                height: Some(1),
+                created_at: 1,
+            },
+        })
+    }
+
+    #[test]
+    fn attach_image_requires_a_matching_asset_manifest() {
+        let bytes = b"png-bytes";
+        let manifest = ContentManifest::build(ContentManifestKind::Asset, "image/png", bytes)
+            .expect("valid asset manifest");
+        let mut operation = ClientSyncOperation {
             operation_id: "op-image".into(),
             client_sequence: 1,
             base_server_sequence: 0,
-            payload: inline(WorkspaceOperationEnvelope::v1(
-                WorkspaceOperation::AttachImage {
-                    image: WorkspaceImage {
-                        id: "image-1".into(),
-                        note_id: "note-1".into(),
-                        content_hash: "a".repeat(64),
-                        mime_type: "image/png".into(),
-                        byte_size: 1,
-                        width: Some(1),
-                        height: Some(1),
-                        created_at: 1,
-                    },
-                },
-            )),
+            payload: SyncOperationPayload::Inline {
+                operation: attach_image_envelope(bytes),
+                assets: vec![manifest.clone()],
+            },
+        };
+        operation
+            .validate(WORKSPACE_SYNC_PROTOCOL_VERSION)
+            .expect("attach_image with its asset manifest is replicated");
+
+        operation.payload = SyncOperationPayload::inline(attach_image_envelope(bytes));
+        assert_eq!(
+            operation.validate(WORKSPACE_SYNC_PROTOCOL_VERSION),
+            Err(SyncValidationError::MissingAssetContent {
+                operation_type: "attach_image"
+            })
+        );
+        operation
+            .validate_queued(WORKSPACE_SYNC_PROTOCOL_VERSION)
+            .expect("queued attach_image gains its asset manifest at push time");
+
+        let mut mismatched = manifest.clone();
+        mismatched.content_digest = crate::content_digest(b"different");
+        operation.payload = SyncOperationPayload::Inline {
+            operation: attach_image_envelope(bytes),
+            assets: vec![mismatched],
         };
         assert_eq!(
-            unsupported.validate(WORKSPACE_SYNC_PROTOCOL_VERSION),
-            Err(SyncValidationError::UnsupportedOperation {
+            operation.validate(WORKSPACE_SYNC_PROTOCOL_VERSION),
+            Err(SyncValidationError::AssetManifestMismatch {
                 operation_type: "attach_image"
+            })
+        );
+
+        operation.payload = SyncOperationPayload::Inline {
+            operation: attach_image_envelope(bytes),
+            assets: vec![manifest.clone()],
+        };
+        assert_eq!(
+            operation.validate(1),
+            Err(SyncValidationError::ChunkedContentRequiresProtocol {
+                minimum: MIN_CHUNKED_CONTENT_PROTOCOL_VERSION
+            })
+        );
+
+        operation.payload = SyncOperationPayload::Inline {
+            operation: attach_image_envelope(bytes),
+            assets: vec![envelope_manifest(b"{}")],
+        };
+        assert_eq!(
+            operation.validate(WORKSPACE_SYNC_PROTOCOL_VERSION),
+            Err(SyncValidationError::UnexpectedAssetManifestKind)
+        );
+    }
+
+    #[test]
+    fn operations_without_declared_assets_reject_asset_manifests() {
+        let manifest = ContentManifest::build(ContentManifestKind::Asset, "image/png", b"bytes")
+            .expect("valid asset manifest");
+        let operation = ClientSyncOperation {
+            operation_id: "op-folder".into(),
+            client_sequence: 1,
+            base_server_sequence: 0,
+            payload: SyncOperationPayload::Inline {
+                operation: WorkspaceOperationEnvelope::v1(WorkspaceOperation::CreateFolder {
+                    id: "folder-1".into(),
+                    title: "Folder".into(),
+                    placement: NodePlacement::last(None),
+                    at: 1,
+                }),
+                assets: vec![manifest],
+            },
+        };
+        assert_eq!(
+            operation.validate(WORKSPACE_SYNC_PROTOCOL_VERSION),
+            Err(SyncValidationError::UnexpectedAssets {
+                operation_type: "create_folder"
             })
         );
     }

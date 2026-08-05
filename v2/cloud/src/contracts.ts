@@ -20,6 +20,7 @@ export const MAX_SYNC_PULL_OPERATIONS = 256;
 export const MAX_INLINE_SYNC_OPERATION_BYTES = 1_500_000;
 export const MAX_SYNC_BATCH_BYTES = 8 * 1024 * 1024;
 export const MAX_SAFE_SYNC_SEQUENCE = Number.MAX_SAFE_INTEGER;
+export const MAX_OPERATION_ASSET_MANIFESTS = 4;
 
 export type JsonPrimitive = boolean | number | string | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -46,7 +47,7 @@ export type ContentManifest = {
 };
 
 export type SyncOperationPayload =
-  | { form: "inline"; operation: WorkspaceOperationEnvelopeJson }
+  | { form: "inline"; operation: WorkspaceOperationEnvelopeJson; assets?: ContentManifest[] }
   | { form: "chunked"; manifest: ContentManifest };
 
 export type ClientSyncOperation = {
@@ -372,10 +373,7 @@ function parseClientSyncOperation(
   );
   const payload: SyncOperationPayload = chunkedCapable
     ? parseSyncOperationPayload(operation.payload)
-    : {
-        form: "inline",
-        operation: parseWorkspaceOperationEnvelope(operation.operation),
-      };
+    : parseBareInlinePayload(operation.operation);
 
   const parsed: ClientSyncOperation = {
     operationId,
@@ -395,11 +393,13 @@ function parseClientSyncOperation(
 export function parseSyncOperationPayload(input: unknown): SyncOperationPayload {
   const payload = requireRecord(input, "sync operation payload");
   if (payload.form === "inline") {
-    requireExactKeys(payload, ["form", "operation"], "sync operation payload");
-    return {
-      form: "inline",
-      operation: parseWorkspaceOperationEnvelope(payload.operation),
-    };
+    requireExactKeys(payload, ["form", "operation", "assets"], "sync operation payload");
+    const operation = parseWorkspaceOperationEnvelope(payload.operation);
+    const assets = parseOperationAssets(payload.assets, operation);
+    if (assets === undefined) {
+      return { form: "inline", operation };
+    }
+    return { form: "inline", operation, assets };
   }
   if (payload.form === "chunked") {
     requireExactKeys(payload, ["form", "manifest"], "sync operation payload");
@@ -412,6 +412,61 @@ export function parseSyncOperationPayload(input: unknown): SyncOperationPayload 
     return { form: "chunked", manifest };
   }
   throw new SyncContractError("sync operation payload form is not supported");
+}
+
+function parseBareInlinePayload(input: unknown): SyncOperationPayload {
+  const operation = parseWorkspaceOperationEnvelope(input);
+  parseOperationAssets(undefined, operation);
+  return { form: "inline", operation };
+}
+
+function parseOperationAssets(
+  input: unknown,
+  operation: WorkspaceOperationEnvelopeJson,
+): ContentManifest[] | undefined {
+  const operationType = operation.operation.type;
+  const image =
+    operationType === "attach_image"
+      ? requireRecord(operation.operation.image, "attach_image image")
+      : undefined;
+  if (input === undefined) {
+    if (image !== undefined) {
+      throw new SyncContractError(
+        "workspace operation attach_image requires its asset content manifest",
+      );
+    }
+    return undefined;
+  }
+  if (image === undefined) {
+    throw new SyncContractError(
+      `workspace operation ${String(operationType)} cannot carry asset content`,
+    );
+  }
+  if (!Array.isArray(input) || input.length === 0) {
+    throw new SyncContractError("operation assets must be a non-empty array");
+  }
+  if (input.length > MAX_OPERATION_ASSET_MANIFESTS) {
+    throw new SyncContractError("operation carries too many asset manifests");
+  }
+  const assets = input.map((manifest) => {
+    const parsed = parseContentManifest(manifest);
+    if (parsed.kind !== "asset") {
+      throw new SyncContractError("operation assets must carry asset manifests");
+    }
+    return parsed;
+  });
+  const manifest = assets.length === 1 ? assets[0] : undefined;
+  if (
+    manifest === undefined ||
+    manifest.contentDigest !== image.contentHash ||
+    manifest.mimeType !== image.mimeType ||
+    manifest.totalByteLength !== image.byteSize
+  ) {
+    throw new SyncContractError(
+      "asset manifest does not match the content attach_image declares",
+    );
+  }
+  return assets;
 }
 
 export function parseContentManifest(input: unknown): ContentManifest {
