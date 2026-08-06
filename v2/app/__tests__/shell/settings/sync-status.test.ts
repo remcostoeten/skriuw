@@ -30,11 +30,11 @@ test("browser sync is no longer described as desktop-only", () => {
   assert.equal(syncDescription({ state: "upToDate" }, true), syncDescription({ state: "upToDate" }, false));
 });
 
-test("browser reload lands in a recoverable authenticationRequired description", () => {
+test("a rejected browser session lands in a recoverable authenticationRequired description", () => {
   const status: WorkspaceSyncStatus = { state: "authenticationRequired" };
   assert.equal(syncEnabled(status), false);
   const text = syncDescription(status, true);
-  assert.ok(text.includes("reload"));
+  assert.ok(text.includes("sign in"));
   assert.ok(text.includes("enable sync"));
 });
 

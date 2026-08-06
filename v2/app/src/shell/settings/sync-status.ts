@@ -23,7 +23,7 @@ export function syncDescription(status: WorkspaceSyncStatus, browser: boolean): 
       return "Offline. Changes remain local and will retry automatically.";
     case "authenticationRequired":
       return browser
-        ? "Paused. Browser sign-in does not survive a reload; sign in and enable sync to reconnect."
+        ? "Paused. Your cloud session ended; sign in and enable sync to reconnect."
         : "Paused. Enable sync again after signing in.";
     case "conflict":
       return `${status.openConflicts} sync conflict${status.openConflicts === 1 ? "" : "s"} need attention.`;
