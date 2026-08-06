@@ -40,6 +40,22 @@ bunx wrangler secret put BETTER_AUTH_SECRET
 bunx wrangler deploy
 ```
 
+The `preview` environment is a verification-only deployment at
+`https://skriuw-v2-cloud-preview.remcostoeten.workers.dev`. It owns its own D1
+database (`skriuw-v2-auth-preview`), R2 bucket
+(`skriuw-v2-sync-content-preview`), Durable Object storage, and
+`BETTER_AUTH_SECRET`, so end-to-end runs never touch production accounts or
+workspaces. It is also the only deployment that trusts the browser dev origin
+`http://localhost:5183`; production trusts `https://skriuw.com` and the Tauri
+origins alone, and that list must never be widened to make a test pass. Every
+command takes `--env preview`:
+
+```bash
+bunx wrangler d1 migrations apply skriuw-v2-auth-preview --remote --env preview
+bunx wrangler secret put BETTER_AUTH_SECRET --env preview
+bunx wrangler deploy --env preview
+```
+
 See [the cloud sync master tracker](../docs/specs/cloud-sync-master.md) for the
 architecture, completed work, and remaining delivery sequence. The
 [authentication and authorization contract](../docs/specs/cloud-sync-authentication.md)
