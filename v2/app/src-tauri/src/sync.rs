@@ -477,11 +477,14 @@ fn transport_error(
     classify_http_failure(status.as_u16(), retry_after_ms)
 }
 
-fn cloud_base_url() -> &'static str {
+/// Debug builds honor SKRIUW_CLOUD_URL so end-to-end verification can target
+/// the preview Worker instead of a local dev server; release builds always use
+/// the production Worker.
+fn cloud_base_url() -> String {
     if cfg!(debug_assertions) {
-        "http://localhost:8787"
+        std::env::var("SKRIUW_CLOUD_URL").unwrap_or_else(|_| "http://localhost:8787".to_string())
     } else {
-        PRODUCTION_CLOUD_URL
+        PRODUCTION_CLOUD_URL.to_string()
     }
 }
 
