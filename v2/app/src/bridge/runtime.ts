@@ -7,6 +7,7 @@ import type { WorkspaceArchive, WorkspaceSnapshot } from "../contracts/workspace
 import type { ArchiveExportReport, ArchiveImportReport } from "./commands";
 import { pickTextFile, readPickedFile, saveTextFile } from "./browser-files";
 import { browserSyncDriver, publishBrowserSyncEvent, type SyncWorkerPort } from "./browser-sync";
+import { noop } from "../shared/lib/noop";
 
 type BrowserWorkerValue = {
   kind: string;
@@ -39,6 +40,9 @@ function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
     browserStorage = null;
     throw error;
   });
+  void browserStorage
+    .then(() => browserSyncDriver(syncWorkerPort).resume())
+    .catch(noop);
   return browserStorage;
 }
 

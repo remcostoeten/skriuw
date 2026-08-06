@@ -4,6 +4,7 @@ import {
   createBrowserSyncDriver,
   publishBrowserSyncEvent,
   subscribeBrowserSyncProgress,
+  SyncSessionRejectedError,
   type BrowserSyncDriverDependencies,
   type BrowserSyncProgress,
 } from "../../src/bridge/browser-sync";
@@ -19,6 +20,7 @@ type Harness = {
   timers: ScheduledTimer[];
   requests: { kind: string; payload: unknown }[];
   provisionCalls: { token: string; deviceId: string }[];
+  discardedSessions: number[];
   respondWith(kind: string, value: unknown): void;
   runDueTimer(): Promise<void>;
 };
@@ -27,6 +29,7 @@ function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harn
   const timers: ScheduledTimer[] = [];
   const requests: { kind: string; payload: unknown }[] = [];
   const provisionCalls: { token: string; deviceId: string }[] = [];
+  const discardedSessions: number[] = [];
   const responses = new Map<string, unknown>();
   responses.set("sync_connection", null);
   responses.set("sync_connect", { state: "connecting" });
@@ -58,6 +61,10 @@ function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harn
     clearTimer: (handle) => {
       (handle as ScheduledTimer).cleared = true;
     },
+    persistedToken: () => undefined,
+    discardPersistedSession: () => {
+      discardedSessions.push(discardedSessions.length + 1);
+    },
     ...overrides,
   };
   return {
@@ -65,6 +72,7 @@ function createHarness(overrides?: Partial<BrowserSyncDriverDependencies>): Harn
     timers,
     requests,
     provisionCalls,
+    discardedSessions,
     respondWith: (kind, value) => {
       responses.set(kind, value);
     },
@@ -144,9 +152,100 @@ test("authenticationRequired stops the scheduler until the next connect", async 
   });
   await harness.runDueTimer();
   assert.equal(harness.timers.filter((timer) => !timer.cleared).length, 0);
+  assert.equal(harness.discardedSessions.length, 1);
 
   harness.driver.notifyLocalCommit();
   assert.equal(harness.timers.filter((timer) => !timer.cleared).length, 0);
+});
+
+test("resume reopens sync from a persisted session without interactive sign-in", async () => {
+  const harness = createHarness({ persistedToken: () => "persisted-token" });
+  harness.respondWith("sync_connection", {
+    workspaceId: "w_1",
+    deviceId: "device-a",
+    observedServerSequence: 4,
+  });
+  harness.respondWith("sync_connect", { state: "connecting" });
+
+  const status = await harness.driver.resume();
+
+  assert.deepEqual(status, { state: "connecting" });
+  assert.deepEqual(harness.provisionCalls, [
+    { token: "persisted-token", deviceId: "device-a" },
+  ]);
+  assert.equal(harness.timers.filter((timer) => !timer.cleared).length, 1);
+});
+
+test("resume without a persisted session reports the worker status untouched", async () => {
+  const harness = createHarness();
+  harness.respondWith("sync_status", { state: "authenticationRequired" });
+
+  const status = await harness.driver.resume();
+
+  assert.deepEqual(status, { state: "authenticationRequired" });
+  assert.equal(harness.provisionCalls.length, 0);
+  assert.equal(harness.timers.filter((timer) => !timer.cleared).length, 0);
+});
+
+test("resume with a never-linked workspace stays local-only", async () => {
+  const harness = createHarness({ persistedToken: () => "persisted-token" });
+  harness.respondWith("sync_status", { state: "localOnly" });
+
+  const status = await harness.driver.resume();
+
+  assert.deepEqual(status, { state: "localOnly" });
+  assert.equal(harness.provisionCalls.length, 0);
+});
+
+test("a rejected persisted session is discarded and degrades to authenticationRequired", async () => {
+  const harness = createHarness({
+    persistedToken: () => "expired-token",
+    provision: () =>
+      Promise.reject(new SyncSessionRejectedError("your Skriuw session expired; sign in again")),
+  });
+  harness.respondWith("sync_connection", {
+    workspaceId: "w_1",
+    deviceId: "device-a",
+    observedServerSequence: 4,
+  });
+  harness.respondWith("sync_status", { state: "authenticationRequired" });
+
+  const status = await harness.driver.resume();
+
+  assert.deepEqual(status, { state: "authenticationRequired" });
+  assert.equal(harness.discardedSessions.length, 1);
+  assert.equal(harness.timers.filter((timer) => !timer.cleared).length, 0);
+});
+
+test("a transient resume failure keeps the persisted session for a later retry", async () => {
+  const harness = createHarness({
+    persistedToken: () => "still-valid-token",
+    provision: () => Promise.reject(new Error("Skriuw cloud is temporarily unavailable")),
+  });
+  harness.respondWith("sync_connection", {
+    workspaceId: "w_1",
+    deviceId: "device-a",
+    observedServerSequence: 4,
+  });
+  harness.respondWith("sync_status", { state: "authenticationRequired" });
+
+  const status = await harness.driver.resume();
+
+  assert.deepEqual(status, { state: "authenticationRequired" });
+  assert.equal(harness.discardedSessions.length, 0);
+});
+
+test("an interactive connect rejected by the server clears the persisted session", async () => {
+  const harness = createHarness({
+    provision: () =>
+      Promise.reject(new SyncSessionRejectedError("your Skriuw session expired; sign in again")),
+  });
+
+  await assert.rejects(
+    () => harness.driver.connect("expired-token"),
+    /session expired/,
+  );
+  assert.equal(harness.discardedSessions.length, 1);
 });
 
 test("local commits coalesce into one scheduled cycle", async () => {

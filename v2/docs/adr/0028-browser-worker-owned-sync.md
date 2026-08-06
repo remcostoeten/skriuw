@@ -59,7 +59,18 @@ durable `WorkspaceSyncQueue` port.
   per-chunk (1 MiB) bounded transfers, a dedicated long client deadline, and
   visible progress; interruption leaves durable state untouched and the next
   cycle restarts hydration.
-- Browser credentials are memory-only, so a reloaded linked workspace reports
-  `authenticationRequired` until the user signs in again.
+- The browser session token persists in `localStorage` under a versioned key
+  (`app/src/auth/session-store.ts`) so a reload of a linked workspace resumes
+  sync without interactive sign-in. Cookies are not an option because the
+  cloud Worker is cross-origin and the auth client already runs the Bearer
+  token flow, so `localStorage` is the least-novel fit; the accepted tradeoff
+  is that an XSS compromise of the app origin could read the token, which the
+  strict CSP and absence of third-party scripts mitigate. Hard lifecycle
+  rules: the stored value is validated on load and cleared when malformed;
+  explicit sign-out and any server session rejection (provision 401 or a
+  cycle reporting `authenticationRequired`) clear it; the token is never
+  logged. The server stays the authority on expiry — the client performs no
+  expiry guessing, and a rejected persisted session degrades to
+  `authenticationRequired`.
 - The Worker API must allow `PUT` in CORS preflight for chunk uploads from
   browser origins.
