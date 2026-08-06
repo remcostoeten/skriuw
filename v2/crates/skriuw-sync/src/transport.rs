@@ -173,9 +173,11 @@ pub trait SyncClock: Send + Sync {
     fn now_ms(&self) -> i64;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SystemClock;
 
+#[cfg(not(target_arch = "wasm32"))]
 impl SyncClock for SystemClock {
     fn now_ms(&self) -> i64 {
         std::time::SystemTime::now()

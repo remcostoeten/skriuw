@@ -1,6 +1,7 @@
 use serde_json::Value;
 use skriuw_storage::{
     DiagnosticCategory, DiagnosticContext, StorageError, WorkspaceMaintenance, WorkspaceStorage,
+    WorkspaceSyncQueue,
 };
 
 use crate::protocol::{
@@ -8,8 +9,10 @@ use crate::protocol::{
     BrowserStorageErrorCode, BrowserWorkerCommand, BrowserWorkerRequest, BrowserWorkerResponse,
     BrowserWorkerValue, MAX_BATCHES_PER_REQUEST, MAX_DATABASE_NAME_BYTES, MAX_EXPANDED_FOLDER_IDS,
     MAX_LAYOUT_BYTES, MAX_OPERATIONS_PER_REQUEST, MAX_QUERY_BYTES, MAX_REQUEST_BYTES,
+    MAX_SYNC_BASE_URL_BYTES, MAX_SYNC_IDENTIFIER_BYTES, MAX_SYNC_TOKEN_BYTES,
     WORKER_PROTOCOL_VERSION,
 };
+use crate::sync::{BrowserSyncEnvironment, BrowserSyncRuntime};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkerLifecycle {
@@ -46,6 +49,11 @@ impl<B> BrowserWorkerRuntime<B> {
         self.lifecycle
     }
 
+    #[must_use]
+    pub fn backend(&self) -> Option<&B> {
+        self.backend.as_ref()
+    }
+
     pub fn initialize(&mut self, backend: B) -> Result<(), BrowserStorageError> {
         if self.lifecycle != WorkerLifecycle::Uninitialized {
             return Err(BrowserStorageError::new(
@@ -79,27 +87,8 @@ where
 {
     pub fn dispatch(&mut self, request: BrowserWorkerRequest) -> BrowserWorkerResponse {
         let request_id = request.request_id;
-        if request.protocol_version != WORKER_PROTOCOL_VERSION {
-            return BrowserWorkerResponse::failure(
-                request_id,
-                BrowserStorageError::new(
-                    BrowserStorageErrorCode::UnsupportedProtocol,
-                    format!(
-                        "Unsupported browser worker protocol version {}.",
-                        request.protocol_version
-                    ),
-                    "Reload Skriuw so the renderer and storage worker use the same version.",
-                    false,
-                ),
-            );
-        }
-        if request_id == 0 || request_id > 9_007_199_254_740_991 {
-            return BrowserWorkerResponse::failure(
-                request_id,
-                BrowserStorageError::invalid(
-                    "requestId must be a positive JavaScript-safe integer.",
-                ),
-            );
+        if let Err(response) = validate_header(&request) {
+            return response;
         }
 
         if matches!(request.command, BrowserWorkerCommand::Initialize { .. }) {
@@ -192,6 +181,13 @@ where
                     })
                 })
                 .map_err(map_storage_error),
+            BrowserWorkerCommand::SyncConnection
+            | BrowserWorkerCommand::SyncConnect { .. }
+            | BrowserWorkerCommand::SyncDisconnect
+            | BrowserWorkerCommand::SyncStatus
+            | BrowserWorkerCommand::SyncCycle => Err(BrowserStorageError::invalid(
+                "Sync commands require the sync-capable worker dispatcher.",
+            )),
             BrowserWorkerCommand::IntegrityCheck => backend
                 .integrity_check()
                 .map(|report| {
@@ -224,6 +220,111 @@ where
             ))
         }
     }
+}
+
+impl<B> BrowserWorkerRuntime<B>
+where
+    B: WorkspaceStorage + WorkspaceMaintenance + WorkspaceSyncQueue,
+{
+    /// Dispatches sync commands against the worker-owned sync runtime and
+    /// routes everything else through [`Self::dispatch`]. Sync stays a
+    /// separate entry point so backends without a durable sync queue keep the
+    /// plain storage protocol.
+    pub fn dispatch_with_sync(
+        &mut self,
+        request: BrowserWorkerRequest,
+        sync: &mut BrowserSyncRuntime,
+        environment: &BrowserSyncEnvironment<'_>,
+    ) -> BrowserWorkerResponse {
+        if !is_sync_command(&request.command) {
+            return self.dispatch(request);
+        }
+        let request_id = request.request_id;
+        if let Err(response) = validate_header(&request) {
+            return response;
+        }
+        if let Err(error) = self.ensure_ready() {
+            return BrowserWorkerResponse::failure(request_id, error);
+        }
+        if let Err(error) = validate_command(&request.command) {
+            return BrowserWorkerResponse::failure(request_id, error);
+        }
+        let backend = self.backend.as_ref().expect("ready runtime owns backend");
+        let outcome = match request.command {
+            BrowserWorkerCommand::SyncConnection => sync
+                .connection(backend)
+                .map(BrowserWorkerValue::SyncConnection),
+            BrowserWorkerCommand::SyncConnect {
+                token,
+                base_url,
+                workspace_id,
+                device_id,
+            } => sync
+                .connect(
+                    backend,
+                    environment,
+                    &token,
+                    &base_url,
+                    &workspace_id,
+                    &device_id,
+                )
+                .map(BrowserWorkerValue::SyncStatus),
+            BrowserWorkerCommand::SyncDisconnect => {
+                sync.disconnect(backend).map(BrowserWorkerValue::SyncStatus)
+            }
+            BrowserWorkerCommand::SyncStatus => {
+                sync.status(backend).map(BrowserWorkerValue::SyncStatus)
+            }
+            BrowserWorkerCommand::SyncCycle => sync
+                .cycle(backend, environment)
+                .map(BrowserWorkerValue::SyncCycle),
+            _ => unreachable!("only sync commands reach this dispatcher"),
+        };
+        match outcome {
+            Ok(value) => BrowserWorkerResponse::success(request_id, value),
+            Err(error) => {
+                if error.terminal {
+                    self.fail_terminal(error.clone());
+                }
+                BrowserWorkerResponse::failure(request_id, error)
+            }
+        }
+    }
+}
+
+fn is_sync_command(command: &BrowserWorkerCommand) -> bool {
+    matches!(
+        command,
+        BrowserWorkerCommand::SyncConnection
+            | BrowserWorkerCommand::SyncConnect { .. }
+            | BrowserWorkerCommand::SyncDisconnect
+            | BrowserWorkerCommand::SyncStatus
+            | BrowserWorkerCommand::SyncCycle
+    )
+}
+
+fn validate_header(request: &BrowserWorkerRequest) -> Result<(), BrowserWorkerResponse> {
+    if request.protocol_version != WORKER_PROTOCOL_VERSION {
+        return Err(BrowserWorkerResponse::failure(
+            request.request_id,
+            BrowserStorageError::new(
+                BrowserStorageErrorCode::UnsupportedProtocol,
+                format!(
+                    "Unsupported browser worker protocol version {}.",
+                    request.protocol_version
+                ),
+                "Reload Skriuw so the renderer and storage worker use the same version.",
+                false,
+            ),
+        ));
+    }
+    if request.request_id == 0 || request.request_id > 9_007_199_254_740_991 {
+        return Err(BrowserWorkerResponse::failure(
+            request.request_id,
+            BrowserStorageError::invalid("requestId must be a positive JavaScript-safe integer."),
+        ));
+    }
+    Ok(())
 }
 
 pub fn decode_request(json: &str) -> Result<BrowserWorkerRequest, BrowserWorkerResponse> {
@@ -308,8 +409,68 @@ fn validate_command(command: &BrowserWorkerCommand) -> Result<(), BrowserStorage
         BrowserWorkerCommand::ReplaceFromArchive { archive } => archive
             .validate()
             .map_err(|_| BrowserStorageError::invalid("Workspace archive validation failed.")),
+        BrowserWorkerCommand::SyncConnect {
+            token,
+            base_url,
+            workspace_id,
+            device_id,
+        } => {
+            if token.trim().is_empty() || token.len() > MAX_SYNC_TOKEN_BYTES {
+                return Err(BrowserStorageError::invalid(
+                    "A valid account session is required to enable sync.",
+                ));
+            }
+            validate_sync_identifier(workspace_id, "workspace")?;
+            validate_sync_identifier(device_id, "device")?;
+            validate_sync_base_url(base_url)
+        }
         _ => Ok(()),
     }
+}
+
+fn validate_sync_identifier(value: &str, role: &str) -> Result<(), BrowserStorageError> {
+    if value.is_empty()
+        || value.len() > MAX_SYNC_IDENTIFIER_BYTES
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Err(BrowserStorageError::invalid(format!(
+            "The sync {role} identifier must use 1 to {MAX_SYNC_IDENTIFIER_BYTES} ASCII letters, digits, '-' or '_'."
+        )));
+    }
+    Ok(())
+}
+
+/// The worker re-checks the renderer's trust rules for the cloud origin so a
+/// compromised renderer message cannot point the authenticated transport at
+/// an arbitrary host.
+fn validate_sync_base_url(base_url: &str) -> Result<(), BrowserStorageError> {
+    let trusted = base_url.len() <= MAX_SYNC_BASE_URL_BYTES
+        && !base_url.contains(['?', '#', '@'])
+        && (is_trusted_https_origin(base_url) || is_local_development_origin(base_url));
+    if trusted {
+        Ok(())
+    } else {
+        Err(BrowserStorageError::invalid(
+            "The configured cloud sync URL is not trusted.",
+        ))
+    }
+}
+
+fn is_trusted_https_origin(base_url: &str) -> bool {
+    let Some(host) = base_url.strip_prefix("https://") else {
+        return false;
+    };
+    let host = host.split(['/', ':']).next().unwrap_or_default();
+    !host.is_empty() && (host.ends_with(".skriuw.app") || host.ends_with(".workers.dev"))
+}
+
+fn is_local_development_origin(base_url: &str) -> bool {
+    let Some(rest) = base_url.strip_prefix("http://localhost") else {
+        return false;
+    };
+    rest.is_empty() || rest.starts_with(':') || rest.starts_with('/')
 }
 
 pub(crate) fn validate_database_name(name: &str) -> Result<(), BrowserStorageError> {

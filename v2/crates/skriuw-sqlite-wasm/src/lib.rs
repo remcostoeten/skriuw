@@ -6,8 +6,10 @@
 //! migrations, transactions, FTS, and portable archive implementation.
 //! Database and OPFS handles never cross this crate's worker boundary.
 
+mod assets;
 mod protocol;
 mod runtime;
+mod sync;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm;
@@ -17,8 +19,13 @@ use std::sync::Arc;
 use skriuw_domain::{OperationAck, SearchHit, WorkspaceOperationEnvelope, WorkspaceSnapshot};
 use skriuw_storage::{StorageError, WorkspaceStorage};
 
+pub use assets::BrowserAssetStore;
 pub use protocol::*;
 pub use runtime::{BrowserWorkerRuntime, WorkerLifecycle, decode_request};
+pub use sync::{
+    BrowserSyncEnvironment, BrowserSyncRuntime, ProgressReportingTransport, SyncProgressObserver,
+    SyncTransportFactory,
+};
 
 /// Compatibility request set used by native parity tests. Production browser
 /// traffic uses [`BrowserWorkerRequest`] and [`BrowserWorkerRuntime`].

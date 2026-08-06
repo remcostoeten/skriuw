@@ -6,6 +6,7 @@ import {
 import type { WorkspaceArchive, WorkspaceSnapshot } from "../contracts/workspace";
 import type { ArchiveExportReport, ArchiveImportReport } from "./commands";
 import { pickTextFile, readPickedFile, saveTextFile } from "./browser-files";
+import { browserSyncDriver, publishBrowserSyncEvent, type SyncWorkerPort } from "./browser-sync";
 
 type BrowserWorkerValue = {
   kind: string;
@@ -32,6 +33,7 @@ function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
     name: "skriuw-storage",
   });
   const client = new BrowserStorageWorkerClient(worker);
+  client.setEventListener(publishBrowserSyncEvent);
   browserStorage = client.initialize().then(() => client).catch((error) => {
     client.terminate();
     browserStorage = null;
@@ -39,6 +41,11 @@ function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
   });
   return browserStorage;
 }
+
+const syncWorkerPort: SyncWorkerPort = {
+  request: (kind, payload, expected, timeoutMs) =>
+    requestExpecting(kind, payload, expected, timeoutMs),
+};
 
 async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
   if (command === "browser_storage_capabilities") {
@@ -62,18 +69,36 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
   if (command === "import_workspace_archive") {
     return importBrowserArchive(args) as Promise<T>;
   }
+  if (command === "workspace_sync_status") {
+    return browserSyncDriver(syncWorkerPort).status() as Promise<T>;
+  }
+  if (command === "connect_workspace_sync") {
+    const { token } = args as { token: string };
+    return browserSyncDriver(syncWorkerPort).connect(token) as Promise<T>;
+  }
+  if (command === "disconnect_workspace_sync") {
+    return browserSyncDriver(syncWorkerPort).pause() as Promise<T>;
+  }
+  if (command === "retry_workspace_sync") {
+    return browserSyncDriver(syncWorkerPort).retry() as Promise<T>;
+  }
 
   const mapped = browserCommand(command, args);
-  return requestExpecting(mapped.kind, mapped.payload, mapped.expected) as Promise<T>;
+  const value = await requestExpecting(mapped.kind, mapped.payload, mapped.expected);
+  if (command === "apply_workspace_operations") {
+    browserSyncDriver(syncWorkerPort).notifyLocalCommit();
+  }
+  return value as T;
 }
 
 async function requestExpecting(
   kind: string,
   payload: unknown,
   expected: string,
+  timeoutMs?: number,
 ): Promise<unknown> {
   const client = await getBrowserStorage();
-  const response = await client.request<BrowserWorkerValue>(kind, payload);
+  const response = await client.request<BrowserWorkerValue>(kind, payload, timeoutMs);
   if (response.kind !== expected) {
     client.terminate();
     browserStorage = null;

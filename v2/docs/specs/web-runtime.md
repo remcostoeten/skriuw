@@ -113,8 +113,72 @@ relocation, scheduled verified backups and restore, filesystem markdown and
 provider imports, and the media library — is hidden in the browser instead of
 failing, and the section states that clearing site data deletes the OPFS
 workspace. Desktop-exported archives import into the browser (unknown image
-fields are ignored); image blobs do not cross because the browser runtime has
-no blob store yet.
+fields are ignored); archive imports still do not carry image blobs, but
+replicated image bytes now persist in the browser sync asset store described
+below.
+
+### Authenticated cloud sync in the browser
+
+The storage worker owns the entire sync lifecycle so the renderer keeps its
+single asynchronous request boundary and never blocks on network work. The
+shared `skriuw-sync` crate runs unchanged inside the worker: `run_sync_cycle`,
+checkpoint hydration and publication, chunked content transfer, and asset
+externalization/resolution execute against the same durable
+`WorkspaceSyncQueue` port the desktop coordinator uses. Only the desktop's
+thread and timer scheduling is replaced: `app/src/bridge/browser-sync.ts`
+schedules one bounded `sync_cycle` worker request at a time and derives the
+next wake from the reported outcome (`pending` immediately, `retrying`/
+`blocked` at the reported deadline, otherwise a 60-second poll), coalescing
+local commits, focus, and reconnect events exactly like the coordinator's wake
+flag. Identity, cursor, idempotency, local-echo, and blocked-operation rules
+are proven identical to native by
+`crates/skriuw-sqlite-wasm/tests/browser_sync_scenarios.rs`.
+
+Network access uses synchronous XHR, which dedicated workers permit; this is
+what lets the crate's synchronous `SyncTransport` boundary be reused instead
+of reimplementing protocol logic in TypeScript. Each transport call is one
+bounded request with its own deadline. URLs and HTTP status classification
+come from `skriuw_sync::http`, shared with the desktop transport. The worker
+re-validates the cloud origin against the renderer's trust rules before
+creating a transport, and a missing or expired credential surfaces as
+`authenticationRequired` — it is never fabricated or bypassed.
+
+Connect flow: the renderer obtains a session token through the existing auth
+path, the driver reads the durable connection for an existing device identity
+(generating one only for a never-linked workspace), provisions over
+`POST /v1/sync/provision`, and submits `sync_connect` to the worker, which
+enforces the same identity rules as desktop — a device identity is never
+replaced and a workspace linked to a different account refuses to connect.
+Browser credentials live in memory only, so after a reload a linked workspace
+reports `authenticationRequired` until the user signs in again.
+
+A fresh browser device with a zero cursor and an empty outbox hydrates from
+the latest published checkpoint before replaying the ordered tail, through the
+same gated `hydrate_from_checkpoint` port as desktop. Chunk transfers are
+individually bounded (1 MiB), and the worker posts out-of-band progress
+notifications (`requestId 0`) with expected totals from the checkpoint
+manifest so long hydrations stay visible; `subscribeBrowserSyncProgress`
+exposes them to the shell. Nothing is applied until the assembled content
+verifies, so an interrupted or failed hydration leaves the durable state
+untouched and the next scheduled cycle restarts it. Checkpoint content whose
+chunks are missing or corrupt blocks visibly as `rejected_checkpoint`, exactly
+like desktop.
+
+Replicated image assets travel the same content-addressed chunk path and
+persist in a dedicated OPFS-backed SQLite asset store
+(`<database>-assets`, outside the canonical workspace schema). Push-side
+missing-blob blocking matches desktop: an operation whose declared asset bytes
+are absent locally moves to the durable blocked-operations queue with reason
+`asset_content_missing` while everything else keeps flowing. Known shared
+limitation (desktop and browser alike): checkpoint hydration restores image
+metadata but does not fetch asset bytes for images that were already inside
+the checkpoint archive; only tail-replayed `AttachImage` operations resolve
+bytes.
+
+Because the storage worker serializes sync cycles with persistence requests,
+cycle work is bounded (at most four push batches and four pull pages per
+cycle) so renderer save acknowledgements are delayed at most by one bounded
+cycle; renderer state itself updates synchronously and never waits on either.
 
 ### Application and build integration
 
@@ -144,7 +208,7 @@ and interaction measurements remain required before browser release.
 
 - Mobile.
 - Browser extension.
-- Multi-device sync (a browser adapter is a second local storage location, not sync — ADR-0001's "future sync requires durable operations, revisions, tombstones, and conflict handling" is unstarted and separate).
+- Multi-device sync was originally out of scope for this spec; it now exists and is specified in "Authenticated cloud sync in the browser" above, built on ADR-0026 and the cloud sync specs.
 - Any UI/UX difference between desktop and web beyond what's forced by the adapter boundary (window chrome, install prompts, etc.) — the renderer and its performance contract are meant to be shared, not forked.
 
 ## Acceptance criteria

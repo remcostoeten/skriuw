@@ -34,7 +34,7 @@ export type BrowserStorageFailure = {
 type WorkerResponse = {
   protocolVersion: number;
   requestId: number;
-  status: "ok" | "error";
+  status: "ok" | "error" | "event";
   value: unknown;
 };
 
@@ -51,6 +51,7 @@ export class BrowserStorageWorkerClient {
   readonly #pending = new Map<number, PendingRequest>();
   #lifecycle: Lifecycle = "initializing";
   #nextRequestId = 1;
+  #eventListener: ((value: unknown) => void) | null = null;
 
   constructor(worker: Worker) {
     this.#worker = worker;
@@ -71,7 +72,7 @@ export class BrowserStorageWorkerClient {
     this.#lifecycle = "ready";
   }
 
-  request<T>(kind: string, payload?: unknown): Promise<T> {
+  request<T>(kind: string, payload?: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
     if (this.#lifecycle !== "ready") {
       return Promise.reject(
         failure(
@@ -82,7 +83,13 @@ export class BrowserStorageWorkerClient {
         ),
       );
     }
-    return this.#send(kind, payload, REQUEST_TIMEOUT_MS) as Promise<T>;
+    return this.#send(kind, payload, timeoutMs) as Promise<T>;
+  }
+
+  /** Receives out-of-band worker notifications (requestId 0), such as sync
+   * transfer progress posted while a long request is still in flight. */
+  setEventListener(listener: ((value: unknown) => void) | null): void {
+    this.#eventListener = listener;
   }
 
   async close(): Promise<void> {
@@ -168,6 +175,10 @@ export class BrowserStorageWorkerClient {
       !Number.isSafeInteger(response.requestId)
     ) {
       this.terminate();
+      return;
+    }
+    if (response.requestId === 0 && response.status === "event") {
+      this.#eventListener?.(response.value);
       return;
     }
     const pending = this.#pending.get(response.requestId);

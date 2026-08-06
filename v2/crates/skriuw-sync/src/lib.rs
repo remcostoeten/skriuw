@@ -12,8 +12,10 @@
 mod backoff;
 mod checkpoint;
 mod content;
+#[cfg(not(target_arch = "wasm32"))]
 mod coordinator;
 mod cycle;
+mod http;
 mod transport;
 
 pub use backoff::{SyncBackoff, SyncBackoffConfig};
@@ -25,6 +27,7 @@ pub use content::{
     AssetExternalization, SyncAssetStore, externalize_asset_content,
     externalize_oversized_operations, resolve_asset_content, resolve_chunked_operations,
 };
+#[cfg(not(target_arch = "wasm32"))]
 pub use coordinator::{SyncCoordinator, SyncCoordinatorConfig, SyncStatusObserver};
 pub use cycle::{
     BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING, BLOCKED_REASON_AUTHORIZATION_DENIED,
@@ -33,4 +36,7 @@ pub use cycle::{
     BLOCKED_REASON_REJECTED_CHECKPOINT, BLOCKED_REASON_STORAGE_FAILURE, SyncCycleConfig,
     SyncCycleOutcome, SyncStatus, run_sync_cycle,
 };
-pub use transport::{SyncCancellation, SyncClock, SyncTransport, SystemClock, TransportError};
+pub use http::{SyncHttpEndpoints, classify_http_failure};
+#[cfg(not(target_arch = "wasm32"))]
+pub use transport::SystemClock;
+pub use transport::{SyncCancellation, SyncClock, SyncTransport, TransportError};
