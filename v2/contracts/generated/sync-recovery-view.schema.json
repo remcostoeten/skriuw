@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SyncRecoveryView",
+  "description": "Versioned projection of the blocked-operation queue for the recovery UI.",
+  "type": "object",
+  "properties": {
+    "blocked": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/BlockedSyncOperationView"
+      }
+    },
+    "discarded": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DiscardedSyncOperationView"
+      }
+    },
+    "viewVersion": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    }
+  },
+  "required": [
+    "viewVersion",
+    "blocked",
+    "discarded"
+  ],
+  "$defs": {
+    "BlockedSyncOperationView": {
+      "description": "One replicable operation the sync queue set aside because it can not be\npushed. The record keeps its stable `blocked_id` until it is retried or\ndiscarded, so the UI can list and act on it across refreshes.",
+      "type": "object",
+      "properties": {
+        "assetContentHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assetMimeType": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "blockedId": {
+          "type": "string"
+        },
+        "firstBlockedAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "operationType": {
+          "type": "string"
+        },
+        "reasonCode": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetTitle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "blockedId",
+        "operationType",
+        "reasonCode",
+        "firstBlockedAt"
+      ]
+    },
+    "DiscardedSyncOperationView": {
+      "description": "The durable record of a blocked operation the user explicitly discarded.\nDiscarding never deletes the row, so the decision stays visible.",
+      "type": "object",
+      "properties": {
+        "blockedId": {
+          "type": "string"
+        },
+        "discardedAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "firstBlockedAt": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "operationType": {
+          "type": "string"
+        },
+        "reasonCode": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetTitle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "blockedId",
+        "operationType",
+        "reasonCode",
+        "firstBlockedAt",
+        "discardedAt"
+      ]
+    }
+  }
+}

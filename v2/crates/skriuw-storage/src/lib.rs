@@ -462,6 +462,40 @@ pub trait WorkspaceSyncQueue: Send + Sync {
         archive: &WorkspaceArchive,
         checkpoint_server_sequence: u64,
     ) -> Result<ImportSummary, StorageError>;
+
+    /// Re-enqueue every unresolved blocked operation whose declared asset
+    /// content `asset_available` now reports present, so a block clears on
+    /// its own once the missing bytes replicate. Returns how many operations
+    /// went back into the pending queue.
+    fn requeue_blocked_sync_operations_with_assets(
+        &self,
+        now_ms: i64,
+        asset_available: &dyn Fn(&str, &str) -> bool,
+    ) -> Result<usize, StorageError>;
+}
+
+/// User-facing recovery over the blocked sync queue: inspect what could not
+/// be pushed and resolve each record explicitly. Every resolution stays a
+/// durable, visible row; nothing is ever dropped silently.
+pub trait SyncRecovery: Send + Sync {
+    fn sync_recovery_view(&self) -> Result<skriuw_domain::SyncRecoveryView, StorageError>;
+
+    /// Move one blocked operation back into the pending queue so the next
+    /// cycle pushes it again. Fails with an actionable error when the
+    /// operation can never upload under the current sync protocol.
+    fn retry_blocked_sync_operation(
+        &self,
+        blocked_id: &str,
+        now_ms: i64,
+    ) -> Result<(), StorageError>;
+
+    /// Resolve one blocked operation as discarded. The record is kept and
+    /// remains listed so the decision stays auditable.
+    fn discard_blocked_sync_operation(
+        &self,
+        blocked_id: &str,
+        now_ms: i64,
+    ) -> Result<(), StorageError>;
 }
 
 impl<T> WorkspaceStorage for Arc<T>
@@ -670,6 +704,42 @@ where
     ) -> Result<ImportSummary, StorageError> {
         self.as_ref()
             .hydrate_from_checkpoint(archive, checkpoint_server_sequence)
+    }
+
+    fn requeue_blocked_sync_operations_with_assets(
+        &self,
+        now_ms: i64,
+        asset_available: &dyn Fn(&str, &str) -> bool,
+    ) -> Result<usize, StorageError> {
+        self.as_ref()
+            .requeue_blocked_sync_operations_with_assets(now_ms, asset_available)
+    }
+}
+
+impl<T> SyncRecovery for Arc<T>
+where
+    T: SyncRecovery + ?Sized,
+{
+    fn sync_recovery_view(&self) -> Result<skriuw_domain::SyncRecoveryView, StorageError> {
+        self.as_ref().sync_recovery_view()
+    }
+
+    fn retry_blocked_sync_operation(
+        &self,
+        blocked_id: &str,
+        now_ms: i64,
+    ) -> Result<(), StorageError> {
+        self.as_ref()
+            .retry_blocked_sync_operation(blocked_id, now_ms)
+    }
+
+    fn discard_blocked_sync_operation(
+        &self,
+        blocked_id: &str,
+        now_ms: i64,
+    ) -> Result<(), StorageError> {
+        self.as_ref()
+            .discard_blocked_sync_operation(blocked_id, now_ms)
     }
 }
 

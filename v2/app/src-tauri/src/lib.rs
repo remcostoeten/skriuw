@@ -220,6 +220,38 @@ fn refresh_workspace_sync(state: State<'_, AppState>) -> skriuw_sync::SyncStatus
 }
 
 #[tauri::command]
+async fn list_blocked_sync_operations(
+    state: State<'_, AppState>,
+) -> Result<skriuw_domain::SyncRecoveryView, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.recovery_view())
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn retry_blocked_sync_operation(
+    blocked_id: String,
+    state: State<'_, AppState>,
+) -> Result<skriuw_domain::SyncRecoveryView, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.retry_blocked_operation(&blocked_id))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn discard_blocked_sync_operation(
+    blocked_id: String,
+    state: State<'_, AppState>,
+) -> Result<skriuw_domain::SyncRecoveryView, String> {
+    let sync = Arc::clone(&state.sync);
+    tauri::async_runtime::spawn_blocking(move || sync.discard_blocked_operation(&blocked_id))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 fn close_workspace_window(window: tauri::WebviewWindow) -> Result<(), String> {
     window.destroy().map_err(|error| error.to_string())
 }
@@ -1176,7 +1208,10 @@ pub fn run() {
             connect_workspace_sync,
             disconnect_workspace_sync,
             retry_workspace_sync,
-            refresh_workspace_sync
+            refresh_workspace_sync,
+            list_blocked_sync_operations,
+            retry_blocked_sync_operation,
+            discard_blocked_sync_operation
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Focused(true) = event

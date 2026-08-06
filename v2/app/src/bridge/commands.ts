@@ -93,6 +93,45 @@ export function retryWorkspaceSync(): Promise<WorkspaceSyncStatus> {
   return invoke<WorkspaceSyncStatus>("retry_workspace_sync");
 }
 
+export type BlockedSyncOperation = {
+  blockedId: string;
+  operationType: string;
+  reasonCode: string;
+  targetId: string | null;
+  targetTitle: string | null;
+  assetContentHash: string | null;
+  assetMimeType: string | null;
+  firstBlockedAt: number;
+};
+
+export type DiscardedSyncOperation = {
+  blockedId: string;
+  operationType: string;
+  reasonCode: string;
+  targetId: string | null;
+  targetTitle: string | null;
+  firstBlockedAt: number;
+  discardedAt: number;
+};
+
+export type SyncRecoveryView = {
+  viewVersion: number;
+  blocked: BlockedSyncOperation[];
+  discarded: DiscardedSyncOperation[];
+};
+
+export function listBlockedSyncOperations(): Promise<SyncRecoveryView> {
+  return invoke<SyncRecoveryView>("list_blocked_sync_operations");
+}
+
+export function retryBlockedSyncOperation(blockedId: string): Promise<SyncRecoveryView> {
+  return invoke<SyncRecoveryView>("retry_blocked_sync_operation", { blockedId });
+}
+
+export function discardBlockedSyncOperation(blockedId: string): Promise<SyncRecoveryView> {
+  return invoke<SyncRecoveryView>("discard_blocked_sync_operation", { blockedId });
+}
+
 export function searchWorkspace(query: string, limit: number): Promise<SearchHit[]> {
   return invoke<SearchHit[]>("search_workspace", { query, limit });
 }

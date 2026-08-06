@@ -7,10 +7,12 @@ use std::{
 
 use reqwest::{StatusCode, blocking::Client};
 use serde::Deserialize;
-use skriuw_domain::{SyncPullResponse, SyncPushRequest, SyncPushResponse, WorkspaceCheckpoint};
+use skriuw_domain::{
+    SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView, WorkspaceCheckpoint,
+};
 use skriuw_images::ImageStore;
 use skriuw_sqlite::SqliteWorkspace;
-use skriuw_storage::{NewSyncConnection, WorkspaceSyncQueue};
+use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceSyncQueue};
 use skriuw_sync::{
     SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncStatus,
     SyncTransport, SystemClock, TransportError,
@@ -156,6 +158,42 @@ impl SyncRuntime {
             .lock()
             .map_err(|_| "sync runtime lock is unavailable".to_string())? = Some(coordinator);
         Ok(status)
+    }
+
+    fn open_workspace(&self) -> Result<SqliteWorkspace, String> {
+        SqliteWorkspace::open(&self.database_path)
+            .map_err(|error| format!("could not open the local sync queue: {error}"))
+    }
+
+    /// Lists the blocked sync queue for the settings surface. This opens its
+    /// own short-lived database connection on the caller's blocking thread,
+    /// never on editing or navigation paths.
+    pub fn recovery_view(&self) -> Result<SyncRecoveryView, String> {
+        self.open_workspace()?
+            .sync_recovery_view()
+            .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+    }
+
+    pub fn retry_blocked_operation(&self, blocked_id: &str) -> Result<SyncRecoveryView, String> {
+        let workspace = self.open_workspace()?;
+        workspace
+            .retry_blocked_sync_operation(blocked_id, now_millis())
+            .map_err(|error| format!("could not retry the blocked change: {error}"))?;
+        self.request_refresh();
+        workspace
+            .sync_recovery_view()
+            .map_err(|error| format!("could not read the blocked sync queue: {error}"))
+    }
+
+    pub fn discard_blocked_operation(&self, blocked_id: &str) -> Result<SyncRecoveryView, String> {
+        let workspace = self.open_workspace()?;
+        workspace
+            .discard_blocked_sync_operation(blocked_id, now_millis())
+            .map_err(|error| format!("could not discard the blocked change: {error}"))?;
+        self.request_refresh();
+        workspace
+            .sync_recovery_view()
+            .map_err(|error| format!("could not read the blocked sync queue: {error}"))
     }
 
     /// Pause network access without discarding the durable connection or outbox.

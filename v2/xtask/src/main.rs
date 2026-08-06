@@ -9,7 +9,7 @@ use std::{
 use schemars::{JsonSchema, schema_for};
 use skriuw_domain::{
     ContentManifest, OperationAck, SearchHit, SyncPullResponse, SyncPushRequest, SyncPushResponse,
-    WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint,
+    SyncRecoveryView, WORKSPACE_OPERATION_SYNC_POLICY_V1, WorkspaceArchive, WorkspaceCheckpoint,
     WorkspaceOperationEnvelope, WorkspaceOperationSyncPolicy, WorkspaceSnapshot,
 };
 
@@ -45,6 +45,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     write_schema::<SyncPullResponse>(&output, "sync-pull-response.schema.json", check)?;
     write_schema::<ContentManifest>(&output, "content-manifest.schema.json", check)?;
     write_schema::<WorkspaceCheckpoint>(&output, "workspace-checkpoint.schema.json", check)?;
+    write_schema::<SyncRecoveryView>(&output, "sync-recovery-view.schema.json", check)?;
     write_json(
         &output,
         "workspace-operation-sync-policy-v1.json",

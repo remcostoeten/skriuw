@@ -135,6 +135,17 @@ pub fn run_sync_cycle(
         }
     }
 
+    let asset_available = |content_hash: &str, mime_type: &str| {
+        assets
+            .read_asset(content_hash, mime_type)
+            .is_ok_and(|bytes| bytes.is_some())
+    };
+    if let Err(error) =
+        queue.requeue_blocked_sync_operations_with_assets(clock.now_ms(), &asset_available)
+    {
+        return storage_failure(clock, config, &error);
+    }
+
     let mut pushed_batches = 0;
     let mut more_pending = false;
     while pushed_batches < config.max_push_batches_per_cycle {

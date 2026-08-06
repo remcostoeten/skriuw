@@ -4,15 +4,24 @@ import { authAdapter } from "../../auth/adapter";
 import { authConfiguration } from "../../auth/config";
 import { currentSessionToken } from "../../auth/session-token";
 import {
+  type BlockedSyncOperation,
   connectWorkspaceSync,
+  discardBlockedSyncOperation,
+  listBlockedSyncOperations,
   pauseWorkspaceSync,
+  retryBlockedSyncOperation,
+  retryWorkspaceSync,
+  type SyncRecoveryView,
   type WorkspaceSyncStatus,
   workspaceSyncStatus,
 } from "../../bridge/commands";
 import { isBrowserRuntime } from "../../bridge/runtime";
+import { formatRelativeTime } from "../../shared/lib/relative-time";
+import { InlineConfirm } from "../../shared/ui/inline-confirm";
 import {
   SettingsHeading,
   settingsButton,
+  settingsButtonDanger,
   settingsGroup,
   settingsGroupTitle,
   settingsRow,
@@ -20,12 +29,21 @@ import {
   settingsRowLabel,
   settingsSection,
 } from "./settings-shared";
+import {
+  blockedCauseText,
+  blockedItemLabel,
+  blockedItemRetryable,
+  blockedStateText,
+} from "./sync-recovery";
 
 function AccountContent() {
   const { user, isPending, openDrawer, signOut } = useAuth();
   const [syncStatus, setSyncStatus] = useState<WorkspaceSyncStatus>({ state: "localOnly" });
   const [syncPending, setSyncPending] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [recovery, setRecovery] = useState<SyncRecoveryView | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoveryBusyId, setRecoveryBusyId] = useState<string | null>(null);
   const unavailableReason = authConfiguration.available ? null : authConfiguration.reason;
   const browser = isBrowserRuntime();
 
@@ -44,6 +62,57 @@ function AccountContent() {
       window.clearInterval(interval);
     };
   }, [browser, user]);
+
+  useEffect(() => {
+    if (!user || browser) return;
+    let mounted = true;
+    const load = () => {
+      listBlockedSyncOperations().then(
+        (view) => {
+          if (!mounted) return;
+          setRecovery(view);
+          setRecoveryError(null);
+        },
+        (error: unknown) => {
+          if (mounted) setRecoveryError(error instanceof Error ? error.message : String(error));
+        },
+      );
+    };
+    load();
+    const interval = window.setInterval(load, 10_000);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+    };
+  }, [browser, user]);
+
+  async function resolveBlocked(
+    action: (blockedId: string) => Promise<SyncRecoveryView>,
+    blockedId: string,
+  ) {
+    setRecoveryBusyId(blockedId);
+    setRecoveryError(null);
+    try {
+      setRecovery(await action(blockedId));
+      setSyncStatus(await workspaceSyncStatus());
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRecoveryBusyId(null);
+    }
+  }
+
+  async function retrySyncNow() {
+    setSyncPending(true);
+    setSyncError(null);
+    try {
+      setSyncStatus(await retryWorkspaceSync());
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSyncPending(false);
+    }
+  }
 
   async function enableSync() {
     setSyncPending(true);
@@ -119,9 +188,21 @@ function AccountContent() {
             </span>
             {!browser ? (
               syncEnabled(syncStatus) ? (
-                <button type="button" className={settingsButton} disabled={syncPending} onClick={() => void pauseSync()}>
-                  {syncPending ? "Pausing…" : "Pause sync"}
-                </button>
+                <span className="flex items-center gap-1.5">
+                  {syncStatus.state === "blocked" ? (
+                    <button
+                      type="button"
+                      className={settingsButton}
+                      disabled={syncPending}
+                      onClick={() => void retrySyncNow()}
+                    >
+                      {syncPending ? "Retrying…" : "Retry sync"}
+                    </button>
+                  ) : null}
+                  <button type="button" className={settingsButton} disabled={syncPending} onClick={() => void pauseSync()}>
+                    {syncPending ? "Pausing…" : "Pause sync"}
+                  </button>
+                </span>
               ) : (
                 <button type="button" className={settingsButton} disabled={syncPending} onClick={() => void enableSync()}>
                   {syncPending ? "Connecting…" : "Enable sync"}
@@ -131,7 +212,121 @@ function AccountContent() {
           </div>
         ) : null}
       </div>
+      {user && !browser ? (
+        <BlockedChanges
+          recovery={recovery}
+          error={recoveryError}
+          busyId={recoveryBusyId}
+          onRetry={(blockedId) => void resolveBlocked(retryBlockedSyncOperation, blockedId)}
+          onDiscard={(blockedId) => void resolveBlocked(discardBlockedSyncOperation, blockedId)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+type BlockedChangesProps = {
+  recovery: SyncRecoveryView | null;
+  error: string | null;
+  busyId: string | null;
+  onRetry: (blockedId: string) => void;
+  onDiscard: (blockedId: string) => void;
+};
+
+function BlockedChanges({ recovery, error, busyId, onRetry, onDiscard }: BlockedChangesProps) {
+  const blocked = recovery?.blocked ?? [];
+  const discarded = recovery?.discarded ?? [];
+  if (!error && blocked.length === 0 && discarded.length === 0) return null;
+  return (
+    <>
+      {error || blocked.length > 0 ? (
+        <div className={settingsGroup} role="region" aria-label="Blocked sync changes">
+          <div className={settingsGroupTitle}>Blocked changes</div>
+          {error ? (
+            <p role="alert" className="m-0 py-1.5 text-[11px] text-destructive">
+              {error}
+            </p>
+          ) : null}
+          <ul className="m-0 list-none p-0" aria-live="polite">
+            {blocked.map((item) => (
+              <BlockedChangeRow
+                key={item.blockedId}
+                item={item}
+                busyId={busyId}
+                onRetry={onRetry}
+                onDiscard={onDiscard}
+              />
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {discarded.length > 0 ? (
+        <div className={settingsGroup} role="region" aria-label="Discarded sync changes">
+          <div className={settingsGroupTitle}>Discarded changes</div>
+          <ul className="m-0 list-none p-0">
+            {discarded.map((item) => (
+              <li key={item.blockedId} className={settingsRow}>
+                <span className={settingsRowLabel}>
+                  {blockedItemLabel(item)}
+                  <span className={settingsRowDescription}>
+                    Discarded {formatRelativeTime(item.discardedAt)}; it never uploaded and
+                    other devices will not receive it.
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+type BlockedChangeRowProps = {
+  item: BlockedSyncOperation;
+  busyId: string | null;
+  onRetry: (blockedId: string) => void;
+  onDiscard: (blockedId: string) => void;
+};
+
+function BlockedChangeRow({ item, busyId, onRetry, onDiscard }: BlockedChangeRowProps) {
+  return (
+    <li className={settingsRow}>
+      <span className={settingsRowLabel}>
+        {blockedItemLabel(item)}
+        <span className={settingsRowDescription}>
+          {blockedCauseText(item.reasonCode)} Blocked {formatRelativeTime(item.firstBlockedAt)}.
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-1.5">
+        {blockedItemRetryable(item.reasonCode) ? (
+          <button
+            type="button"
+            className={settingsButton}
+            disabled={busyId !== null}
+            onClick={() => onRetry(item.blockedId)}
+          >
+            {busyId === item.blockedId ? "Retrying…" : "Retry"}
+          </button>
+        ) : null}
+        <InlineConfirm
+          size="sm"
+          confirmLabel="Discard change"
+          message="It will never reach your other devices."
+          onConfirm={() => onDiscard(item.blockedId)}
+          renderIdle={(arm) => (
+            <button
+              type="button"
+              className={`${settingsButton} ${settingsButtonDanger}`}
+              disabled={busyId !== null}
+              onClick={arm}
+            >
+              Discard…
+            </button>
+          )}
+        />
+      </span>
+    </li>
   );
 }
 
@@ -150,7 +345,7 @@ function syncDescription(status: WorkspaceSyncStatus, browser: boolean): string 
     case "authenticationRequired": return "Paused. Enable sync again after signing in.";
     case "conflict": return `${status.openConflicts} sync conflict${status.openConflicts === 1 ? "" : "s"} need attention.`;
     case "retrying": return "Cloud is temporarily unavailable; retrying automatically.";
-    case "blocked": return "Sync stopped because the server rejected a local change.";
+    case "blocked": return blockedStateText(status.reason);
   }
 }
 

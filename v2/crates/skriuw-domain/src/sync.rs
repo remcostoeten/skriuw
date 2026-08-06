@@ -191,6 +191,83 @@ impl WorkspaceOperation {
             _ => None,
         }
     }
+
+    #[must_use]
+    pub fn target_entity_id(&self) -> Option<&str> {
+        match self {
+            Self::CreateTag { tag } => Some(&tag.id),
+            Self::CreatePerson { person } => Some(&person.id),
+            Self::RenameTag { id, .. }
+            | Self::RecolorTag { id, .. }
+            | Self::DeleteTag { id }
+            | Self::RenamePerson { id, .. }
+            | Self::RecolorPerson { id, .. }
+            | Self::DeletePerson { id }
+            | Self::CreateFolder { id, .. }
+            | Self::CreateNote { id, .. }
+            | Self::RenameNode { id, .. }
+            | Self::MoveNode { id, .. }
+            | Self::SetNodePinned { id, .. } => Some(id),
+            Self::SetNoteCover { note_id, .. }
+            | Self::SetNoteCoverFullWidth { note_id, .. }
+            | Self::SetNoteCoverTransform { note_id, .. }
+            | Self::SaveDocument { note_id, .. }
+            | Self::RemoveNoteProperty { note_id, .. }
+            | Self::ReorderNoteProperties { note_id, .. } => Some(note_id),
+            Self::TrashSubtree { root_id, .. }
+            | Self::RestoreSubtree { root_id, .. }
+            | Self::PurgeSubtree { root_id, .. } => Some(root_id),
+            Self::SetActiveNote { note_id } => note_id.as_deref(),
+            Self::AttachImage { image } => Some(&image.note_id),
+            Self::SetNoteProperty { property, .. } => Some(&property.note_id),
+            Self::SetNotePropertyTemplate { template } => Some(&template.id),
+            Self::DeleteNotePropertyTemplate { template_id } => Some(template_id),
+            Self::UpdateSettings { .. }
+            | Self::ReorderNotePropertyTemplates { .. }
+            | Self::RecordProviderImport { .. } => None,
+        }
+    }
+}
+
+pub const SYNC_RECOVERY_VIEW_VERSION: u16 = 1;
+
+/// One replicable operation the sync queue set aside because it can not be
+/// pushed. The record keeps its stable `blocked_id` until it is retried or
+/// discarded, so the UI can list and act on it across refreshes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockedSyncOperationView {
+    pub blocked_id: String,
+    pub operation_type: String,
+    pub reason_code: String,
+    pub target_id: Option<String>,
+    pub target_title: Option<String>,
+    pub asset_content_hash: Option<String>,
+    pub asset_mime_type: Option<String>,
+    pub first_blocked_at: i64,
+}
+
+/// The durable record of a blocked operation the user explicitly discarded.
+/// Discarding never deletes the row, so the decision stays visible.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscardedSyncOperationView {
+    pub blocked_id: String,
+    pub operation_type: String,
+    pub reason_code: String,
+    pub target_id: Option<String>,
+    pub target_title: Option<String>,
+    pub first_blocked_at: i64,
+    pub discarded_at: i64,
+}
+
+/// Versioned projection of the blocked-operation queue for the recovery UI.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncRecoveryView {
+    pub view_version: u16,
+    pub blocked: Vec<BlockedSyncOperationView>,
+    pub discarded: Vec<DiscardedSyncOperationView>,
 }
 
 impl SyncOperationPayload {

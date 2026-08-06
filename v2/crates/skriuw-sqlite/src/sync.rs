@@ -1,17 +1,18 @@
 use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
 use skriuw_domain::{
-    ClientSyncOperation, DocumentConflictResolutionChoice, NodeKind, NodePlacement, NodePosition,
-    OperationAck, RemoteOperationDecision, RemoteTargetState, ReplicatedWorkspaceOperation,
-    ResolveDocumentConflict, SyncConflictReason, SyncOperationPayload, SyncReplicationClass,
-    SyncValidationError, WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceArchive, WorkspaceOperation,
-    WorkspaceOperationEnvelope, classify_apply_failure, reconcile_remote_operation,
-    validate_sync_identifier, validate_sync_sequence,
+    BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
+    DocumentConflictResolutionChoice, NodeKind, NodePlacement, NodePosition, OperationAck,
+    RemoteOperationDecision, RemoteTargetState, ReplicatedWorkspaceOperation,
+    ResolveDocumentConflict, SYNC_RECOVERY_VIEW_VERSION, SyncConflictReason, SyncOperationPayload,
+    SyncRecoveryView, SyncReplicationClass, SyncValidationError, WORKSPACE_SYNC_PROTOCOL_VERSION,
+    WorkspaceArchive, WorkspaceOperation, WorkspaceOperationEnvelope, classify_apply_failure,
+    reconcile_remote_operation, validate_sync_identifier, validate_sync_sequence,
 };
 use skriuw_storage::{
     BlockedSyncOperation, Diagnostic, DiagnosticContext, DocumentConflictSummary,
     DocumentConflictVersion, DocumentConflictVersions, ImportSummary, NewSyncConnection,
     PendingSyncBatch, RemoteSyncApplyOutcome, StorageError, SyncConflict, SyncConnection,
-    SyncTombstone, WorkspaceSyncQueue,
+    SyncRecovery, SyncTombstone, WorkspaceSyncQueue,
 };
 use uuid::Uuid;
 
@@ -160,6 +161,272 @@ fn insert_blocked_operation(
         )
         .map_err(backend)?;
     Ok(())
+}
+
+struct BlockedRow {
+    id: String,
+    operation_type: String,
+    reason_code: String,
+    envelope: WorkspaceOperationEnvelope,
+    created_at: i64,
+}
+
+fn read_blocked_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<BlockedRow> {
+    let operation_json = row.get::<_, String>(3)?;
+    let envelope = serde_json::from_str(&operation_json).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(
+            operation_json.len(),
+            rusqlite::types::Type::Text,
+            Box::new(error),
+        )
+    })?;
+    Ok(BlockedRow {
+        id: row.get(0)?,
+        operation_type: row.get(1)?,
+        reason_code: row.get(2)?,
+        envelope,
+        created_at: row.get(4)?,
+    })
+}
+
+fn unresolved_blocked_rows(
+    connection: &rusqlite::Connection,
+    reason_code: Option<&str>,
+) -> Result<Vec<BlockedRow>, StorageError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, operation_type, reason_code, operation_json, created_at \
+             FROM sync_blocked_operations \
+             WHERE resolved_at IS NULL AND (?1 IS NULL OR reason_code = ?1) \
+             ORDER BY created_at, id",
+        )
+        .map_err(backend)?;
+    statement
+        .query_map([reason_code], read_blocked_row)
+        .map_err(backend)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(backend)
+}
+
+fn unresolved_blocked_row(
+    connection: &rusqlite::Connection,
+    blocked_id: &str,
+) -> Result<Option<BlockedRow>, StorageError> {
+    connection
+        .query_row(
+            "SELECT id, operation_type, reason_code, operation_json, created_at \
+             FROM sync_blocked_operations WHERE id = ?1 AND resolved_at IS NULL",
+            [blocked_id],
+            read_blocked_row,
+        )
+        .optional()
+        .map_err(backend)
+}
+
+fn resolve_blocked_row(
+    transaction: &Transaction<'_>,
+    blocked_id: &str,
+    resolution: &str,
+    at: i64,
+) -> Result<(), StorageError> {
+    let changed = transaction
+        .execute(
+            "UPDATE sync_blocked_operations \
+             SET resolved_at = MAX(?2, created_at), resolution = ?3 \
+             WHERE id = ?1 AND resolved_at IS NULL",
+            params![blocked_id, at, resolution],
+        )
+        .map_err(backend)?;
+    if changed != 1 {
+        return Err(StorageError::NotFound(blocked_id.to_owned()));
+    }
+    Ok(())
+}
+
+/// Moves one blocked operation back into the pending outbox at the tail of
+/// the queue and resolves its blocked record as retried, in the caller's
+/// transaction, so a crash can never lose or duplicate the operation.
+fn requeue_blocked_row(
+    transaction: &Transaction<'_>,
+    row: &BlockedRow,
+    now_ms: i64,
+) -> Result<(), StorageError> {
+    let active = read_active_connection(transaction)?.ok_or_else(|| {
+        StorageError::InvalidOperation(
+            "retrying a blocked change requires an active sync connection".into(),
+        )
+    })?;
+    let operation = ClientSyncOperation {
+        operation_id: Uuid::new_v4().to_string(),
+        client_sequence: active.next_client_sequence,
+        base_server_sequence: active.observed_server_sequence,
+        payload: SyncOperationPayload::inline(row.envelope.clone()),
+    };
+    operation
+        .validate_queued(WORKSPACE_SYNC_PROTOCOL_VERSION)
+        .map_err(sync_validation)?;
+    transaction
+        .execute(
+            "INSERT INTO sync_outbox(\
+                operation_id, client_sequence, base_server_sequence, operation_json, created_at\
+             ) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                operation.operation_id,
+                sql_sequence(operation.client_sequence)?,
+                sql_sequence(operation.base_server_sequence)?,
+                serde_json::to_string(&row.envelope).map_err(json_backend)?,
+                now_ms.max(0)
+            ],
+        )
+        .map_err(backend)?;
+    let next_client_sequence = active
+        .next_client_sequence
+        .checked_add(1)
+        .ok_or_else(|| StorageError::InvalidOperation("sync client sequence exhausted".into()))?;
+    validate_sync_sequence("next client sequence", next_client_sequence, false)
+        .map_err(sync_validation)?;
+    transaction
+        .execute(
+            "UPDATE sync_connection SET next_client_sequence = ?1 WHERE singleton = 1",
+            [sql_sequence(next_client_sequence)?],
+        )
+        .map_err(backend)?;
+    resolve_blocked_row(transaction, &row.id, "retried", now_ms)
+}
+
+fn blocked_target(
+    connection: &rusqlite::Connection,
+    envelope: &WorkspaceOperationEnvelope,
+) -> Result<(Option<String>, Option<String>), StorageError> {
+    let target_id = envelope.operation.target_entity_id().map(str::to_owned);
+    let target_title = match target_id.as_deref() {
+        Some(id) => connection
+            .query_row(
+                "SELECT title FROM workspace_nodes WHERE id = ?1",
+                [id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(backend)?,
+        None => None,
+    };
+    Ok((target_id, target_title))
+}
+
+impl SyncRecovery for SqliteWorkspace {
+    fn sync_recovery_view(&self) -> Result<SyncRecoveryView, StorageError> {
+        let connection = self.lock()?;
+        let mut blocked = Vec::new();
+        for row in unresolved_blocked_rows(&connection, None)? {
+            let (target_id, target_title) = blocked_target(&connection, &row.envelope)?;
+            let (asset_content_hash, asset_mime_type) = row
+                .envelope
+                .operation
+                .required_asset_content()
+                .map(|required| {
+                    (
+                        required.content_hash.to_owned(),
+                        required.mime_type.to_owned(),
+                    )
+                })
+                .unzip();
+            blocked.push(BlockedSyncOperationView {
+                blocked_id: row.id,
+                operation_type: row.operation_type,
+                reason_code: row.reason_code,
+                target_id,
+                target_title,
+                asset_content_hash,
+                asset_mime_type,
+                first_blocked_at: row.created_at,
+            });
+        }
+
+        let mut statement = connection
+            .prepare(
+                "SELECT id, operation_type, reason_code, operation_json, created_at, resolved_at \
+                 FROM sync_blocked_operations WHERE resolution = 'discarded' \
+                 ORDER BY resolved_at DESC, created_at DESC, id LIMIT 20",
+            )
+            .map_err(backend)?;
+        let discarded_rows = statement
+            .query_map([], |row| {
+                let blocked = read_blocked_row(row)?;
+                Ok((blocked, row.get::<_, i64>(5)?))
+            })
+            .map_err(backend)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(backend)?;
+        let mut discarded = Vec::new();
+        for (row, discarded_at) in discarded_rows {
+            let (target_id, target_title) = blocked_target(&connection, &row.envelope)?;
+            discarded.push(DiscardedSyncOperationView {
+                blocked_id: row.id,
+                operation_type: row.operation_type,
+                reason_code: row.reason_code,
+                target_id,
+                target_title,
+                first_blocked_at: row.created_at,
+                discarded_at,
+            });
+        }
+
+        Ok(SyncRecoveryView {
+            view_version: SYNC_RECOVERY_VIEW_VERSION,
+            blocked,
+            discarded,
+        })
+    }
+
+    fn retry_blocked_sync_operation(
+        &self,
+        blocked_id: &str,
+        now_ms: i64,
+    ) -> Result<(), StorageError> {
+        validate_sync_identifier("blocked operation id", blocked_id).map_err(sync_validation)?;
+        if now_ms < 0 {
+            return Err(StorageError::InvalidOperation(
+                "sync retry requires a non-negative time".into(),
+            ));
+        }
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
+        let row = unresolved_blocked_row(&transaction, blocked_id)?
+            .ok_or_else(|| StorageError::NotFound(blocked_id.to_owned()))?;
+        if matches!(
+            row.reason_code.as_str(),
+            "operation_too_large" | "unsupported_operation"
+        ) {
+            return Err(StorageError::InvalidOperation(
+                "this change can never upload under the current sync protocol; \
+                 discard it to clear the record"
+                    .into(),
+            ));
+        }
+        requeue_blocked_row(&transaction, &row, now_ms)?;
+        transaction.commit().map_err(backend)
+    }
+
+    fn discard_blocked_sync_operation(
+        &self,
+        blocked_id: &str,
+        now_ms: i64,
+    ) -> Result<(), StorageError> {
+        validate_sync_identifier("blocked operation id", blocked_id).map_err(sync_validation)?;
+        if now_ms < 0 {
+            return Err(StorageError::InvalidOperation(
+                "sync discard requires a non-negative time".into(),
+            ));
+        }
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
+        resolve_blocked_row(&transaction, blocked_id, "discarded", now_ms)?;
+        transaction.commit().map_err(backend)
+    }
 }
 
 impl WorkspaceSyncQueue for SqliteWorkspace {
@@ -627,6 +894,43 @@ impl WorkspaceSyncQueue for SqliteWorkspace {
                 row.get::<_, bool>(0)
             })
             .map_err(backend)
+    }
+
+    fn requeue_blocked_sync_operations_with_assets(
+        &self,
+        now_ms: i64,
+        asset_available: &dyn Fn(&str, &str) -> bool,
+    ) -> Result<usize, StorageError> {
+        if now_ms < 0 {
+            return Err(StorageError::InvalidOperation(
+                "sync requeue requires a non-negative time".into(),
+            ));
+        }
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(backend)?;
+        if read_active_connection(&transaction)?.is_none() {
+            return Ok(0);
+        }
+        let rows = unresolved_blocked_rows(&transaction, Some("asset_content_missing"))?;
+        let mut requeued = 0;
+        for row in rows {
+            let available = row
+                .envelope
+                .operation
+                .required_asset_content()
+                .is_some_and(|required| asset_available(required.content_hash, required.mime_type));
+            if !available {
+                continue;
+            }
+            requeue_blocked_row(&transaction, &row, now_ms)?;
+            requeued += 1;
+        }
+        if requeued > 0 {
+            transaction.commit().map_err(backend)?;
+        }
+        Ok(requeued)
     }
 
     fn apply_remote_operations(

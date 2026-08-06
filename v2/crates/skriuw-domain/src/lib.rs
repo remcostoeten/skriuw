@@ -29,11 +29,12 @@ pub use reconcile::{
     reconcile_remote_operation,
 };
 pub use sync::{
-    ClientSyncOperation, MAX_INLINE_SYNC_OPERATION_BYTES, MAX_OPERATION_ASSET_MANIFESTS,
-    MAX_SAFE_SYNC_SEQUENCE, MAX_SYNC_BATCH_BYTES, MAX_SYNC_BATCH_OPERATIONS,
-    MAX_SYNC_PULL_OPERATIONS, MIN_CHUNKED_CONTENT_PROTOCOL_VERSION, ReplicatedWorkspaceOperation,
-    RequiredAssetContent, SUPPORTED_SYNC_PROTOCOL_VERSIONS, SyncAcceptedOperation,
-    SyncOperationPayload, SyncPullResponse, SyncPushRequest, SyncPushResponse,
+    BlockedSyncOperationView, ClientSyncOperation, DiscardedSyncOperationView,
+    MAX_INLINE_SYNC_OPERATION_BYTES, MAX_OPERATION_ASSET_MANIFESTS, MAX_SAFE_SYNC_SEQUENCE,
+    MAX_SYNC_BATCH_BYTES, MAX_SYNC_BATCH_OPERATIONS, MAX_SYNC_PULL_OPERATIONS,
+    MIN_CHUNKED_CONTENT_PROTOCOL_VERSION, ReplicatedWorkspaceOperation, RequiredAssetContent,
+    SUPPORTED_SYNC_PROTOCOL_VERSIONS, SYNC_RECOVERY_VIEW_VERSION, SyncAcceptedOperation,
+    SyncOperationPayload, SyncPullResponse, SyncPushRequest, SyncPushResponse, SyncRecoveryView,
     SyncReplicationClass, SyncValidationError, WORKSPACE_OPERATION_SYNC_POLICY_V1,
     WORKSPACE_SYNC_PROTOCOL_VERSION, WorkspaceOperationSyncPolicy, validate_sync_identifier,
     validate_sync_sequence,

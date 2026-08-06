@@ -77,6 +77,11 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "blocked_asset_content",
         sql: include_str!("../../../migrations/0014_blocked_asset_content.sql"),
     },
+    Migration {
+        version: 15,
+        name: "blocked_operation_recovery",
+        sql: include_str!("../../../migrations/0015_blocked_operation_recovery.sql"),
+    },
 ];
 
 pub(crate) struct Migration {

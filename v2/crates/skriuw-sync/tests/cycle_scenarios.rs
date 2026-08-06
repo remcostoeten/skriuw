@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use skriuw_domain::{ClientSyncOperation, SyncOperationPayload, SyncPushRequest};
 use skriuw_sqlite::SqliteWorkspace;
-use skriuw_storage::{NewSyncConnection, WorkspaceStorage, WorkspaceSyncQueue};
+use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceStorage, WorkspaceSyncQueue};
 use skriuw_sync::{
     SyncBackoff, SyncBackoffConfig, SyncCancellation, SyncClock, SyncCycleConfig, SyncCycleOutcome,
     SyncStatus, SyncTransport, run_sync_cycle,
@@ -692,6 +692,94 @@ fn a_missing_image_blob_blocks_only_the_attach_operation() {
     assert!(
         snapshot.images.is_empty(),
         "an image with no local bytes must not replicate as metadata"
+    );
+}
+
+#[test]
+fn a_missing_blob_block_clears_once_the_bytes_arrive_locally() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+
+    let bytes = image_bytes(4_096);
+    writer.apply(vec![create_note("note-1", "Missing blob", 1)]);
+    writer.apply(vec![attach_image("image-1", "note-1", &bytes, 2)]);
+
+    writer.connect("device-a");
+    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(writer.storage.blocked_sync_operations().unwrap().len(), 1);
+    assert_eq!(server.log_len(), 1);
+
+    let content_hash = writer.assets.put(&bytes);
+    clock.advance(10);
+    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+    assert!(
+        writer.storage.blocked_sync_operations().unwrap().is_empty(),
+        "the block must clear on its own once the blob exists locally"
+    );
+    assert_eq!(server.log_len(), 2);
+
+    let mut reader = Device::open(&server, "device-b", &clock);
+    reader.connect("device-b");
+    assert_eq!(reader.cycle().status, SyncStatus::UpToDate);
+    let snapshot = reader.storage.bootstrap().expect("bootstrap");
+    assert_eq!(
+        snapshot
+            .images
+            .iter()
+            .map(|image| image.content_hash.as_str())
+            .collect::<Vec<_>>(),
+        vec![content_hash.as_str()],
+        "the recovered image reaches the second device"
+    );
+}
+
+#[test]
+fn a_user_retry_without_the_blob_stays_blocked_with_a_fresh_record() {
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+    let mut writer = Device::open(&server, "device-a", &clock);
+
+    let bytes = image_bytes(4_096);
+    writer.apply(vec![create_note("note-1", "Missing blob", 1)]);
+    writer.apply(vec![attach_image("image-1", "note-1", &bytes, 2)]);
+
+    writer.connect("device-a");
+    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+    let first_view = writer.storage.sync_recovery_view().expect("recovery view");
+    assert_eq!(first_view.blocked.len(), 1);
+    let first = &first_view.blocked[0];
+    assert_eq!(first.reason_code, "asset_content_missing");
+    assert_eq!(first.target_id.as_deref(), Some("note-1"));
+
+    clock.advance(10);
+    writer
+        .storage
+        .retry_blocked_sync_operation(&first.blocked_id, clock.now_ms())
+        .expect("retry the blocked operation");
+    assert!(
+        writer
+            .storage
+            .sync_recovery_view()
+            .expect("recovery view")
+            .blocked
+            .is_empty()
+    );
+
+    assert_eq!(writer.cycle().status, SyncStatus::UpToDate);
+    let second_view = writer.storage.sync_recovery_view().expect("recovery view");
+    assert_eq!(
+        second_view.blocked.len(),
+        1,
+        "the retried operation blocks again while the blob stays missing"
+    );
+    let second = &second_view.blocked[0];
+    assert_eq!(second.reason_code, "asset_content_missing");
+    assert_ne!(second.blocked_id, first.blocked_id);
+    assert_eq!(
+        server.log_len(),
+        1,
+        "the attach operation must not reach the server without its bytes"
     );
 }
 
