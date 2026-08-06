@@ -36,6 +36,27 @@ jobs:
               with:
                   workspaces: v2 -> target
 
+            - name: Install wasm-bindgen-cli
+              run: |
+                  curl --location --silent --show-error --fail \
+                      https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.126/wasm-bindgen-0.2.126-x86_64-unknown-linux-musl.tar.gz \
+                      | tar --extract --gzip --strip-components=1 --directory="$HOME/.cargo/bin" \
+                            wasm-bindgen-0.2.126-x86_64-unknown-linux-musl/wasm-bindgen
+                  wasm-bindgen --version
+
+            - name: Install bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Install Node.js
+              uses: actions/setup-node@v5
+              with:
+                  node-version: "24"
+
+            - name: Install app deps
+              run: (cd app && bun install --frozen-lockfile)
+
             - name: Verify portable Rust crates
               run: ./scripts/check-wasm.sh
 
@@ -65,6 +86,14 @@ jobs:
                       v2 -> target
                       v2/app/src-tauri -> target
 
+            - name: Install wasm-bindgen-cli
+              run: |
+                  curl --location --silent --show-error --fail \
+                      https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.126/wasm-bindgen-0.2.126-x86_64-unknown-linux-musl.tar.gz \
+                      | tar --extract --gzip --strip-components=1 --directory="$HOME/.cargo/bin" \
+                            wasm-bindgen-0.2.126-x86_64-unknown-linux-musl/wasm-bindgen
+                  wasm-bindgen --version
+
             - name: Install bun
               uses: oven-sh/setup-bun@v2
               with:
@@ -79,6 +108,7 @@ jobs:
               # bun ignores --cwd on the install subcommand, so cd into each dir
               run: |
                   (cd app && bun install --frozen-lockfile)
+                  (cd cloud && bun install --frozen-lockfile)
                   (cd spikes/ui-architecture && bun install --frozen-lockfile)
                   (cd spikes/renderer-store && bun install --frozen-lockfile)
 
