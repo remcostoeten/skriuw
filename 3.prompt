@@ -1,0 +1,183 @@
+# Parallel assignment B — Implement the browser-local SQLite-WASM/OPFS runtime
+
+Work in `/home/remcostoeten/dev/skriuw` and follow the repository `AGENTS.md`.
+Read `6.md` completely and execute the browser-local runtime assignment under
+the narrower file-ownership rules below.
+
+This prompt is designed to run in parallel with `2.prompt` and the cloud-auth
+assignment in `1-prompt.md`. It does not implement browser account bootstrap or
+cloud synchronization.
+
+## Exclusive ownership
+
+You may edit only:
+
+- `v2/crates/skriuw-sqlite-wasm/**`;
+- `v2/crates/skriuw-sqlite-wasm/Cargo.toml`;
+- browser-specific tests already owned by that crate;
+- `v2/docs/specs/web-runtime.md`;
+- one new browser-runtime ADR under `v2/docs/adr/`, if required by current ADR
+  numbering and no other agent owns that filename.
+
+You may inspect all repository files. Do not edit:
+
+- `v2/cloud/**` or cloud configuration;
+- Rust sync wire contracts, generated contracts, fixtures, or sync policy;
+- native SQLite/storage/domain crates or migrations;
+- root/workspace Cargo manifests or `Cargo.lock` during the parallel phase;
+- scripts, CI, architecture, data model, cloud tracker/delivery docs, local
+  outbox docs, or convergence spec;
+- `apps/**`, `packages/**`, root prompts, or
+  `release-notes-v2-v0.29.0.txt`.
+
+If correct implementation requires a forbidden shared-file change, do not make
+it concurrently. Record the exact minimal patch needed for the integration
+owner. If the owned files have new edits from another active agent, stop and
+report the collision instead of overwriting them.
+
+Do not reset, revert, discard, stage, commit, or push any change.
+
+## Objective
+
+Replace the deliberate unavailable browser worker/runtime stub with the
+smallest production-shaped worker-owned SQLite-WASM database persisted in OPFS,
+as far as the existing crate boundaries permit without shared-file edits.
+
+The renderer must communicate through a typed worker protocol. All SQLite,
+migration, and OPFS work stays off the renderer thread. Browser behavior must
+reuse current domain contracts and shared SQL migrations rather than inventing
+a browser-only document model.
+
+Never silently fall back to ephemeral memory or IndexedDB when durable OPFS is
+unavailable. Report a stable recovery-oriented error instead.
+
+## Required investigation
+
+Before editing:
+
+1. Run `git status --short` and inspect all current changes in the owned paths.
+2. Read v2 README, features, architecture, performance contract, web-runtime
+   spec, applicable ADRs, native SQLite migrations, storage ports, archive and
+   recovery behavior, current WASM crate code, protocol fixtures, and tests.
+3. Determine what browser/OPFS work is already partially implemented and
+   preserve it.
+4. Inspect current build and bundler constraints read-only.
+5. Verify the selected SQLite-WASM/OPFS API against current official primary
+   documentation before relying on unstable details.
+
+## Concrete deliverables
+
+### 1. Worker lifecycle
+
+Implement explicit initialize/open, ready, request, close, and terminal-failure
+states. Ensure exactly one database owner per worker. Bound initialization and
+request waits so worker failure cannot leave promises unresolved forever.
+
+Provide stable typed failures for unsupported browser, OPFS denial, unavailable
+cross-origin requirements if applicable, quota exhaustion, migration failure,
+database-too-new, corruption/open failure, worker crash, invalid request, and
+shutdown.
+
+### 2. SQLite-WASM and OPFS ownership
+
+Create/open a durable workspace database through the selected OPFS VFS. Apply
+the same ordered SQL migration contents and checksum/version rules as native
+SQLite insofar as existing shared interfaces permit. Do not copy raw native
+database assumptions that the selected WASM API cannot guarantee; document the
+exact adapter boundary and any proven difference.
+
+Transactions and savepoints must remain atomic. No database handle, OPFS file
+handle, or framework-specific object crosses the worker boundary.
+
+### 3. Typed bridge behavior
+
+Use the existing versioned request/response protocol. Validate request IDs,
+versions, payloads, and operation/archive input at the boundary. Every accepted
+request gets exactly one success or stable error response. Unknown versions and
+request kinds fail explicitly.
+
+Keep product rules out of the bridge. Do not add Tauri imports or runtime
+branches to shared renderer/domain behavior.
+
+### 4. Public storage behavior
+
+Implement the relevant browser storage operations exposed by the current crate:
+bootstrap/snapshot, canonical operation application, search projections,
+settings/app state, and validated archive import/export. Use shared domain
+validation and migrations. If the current narrow crate scope exposes fewer
+operations, implement its complete declared contract rather than inventing a
+new public API concurrently.
+
+Document browser history behavior honestly. Do not claim native Git history is
+available. Portable archive export/import is the recovery baseline and must not
+include OPFS internals or operational queues.
+
+### 5. Durability, parity, and failure tests
+
+Within owned test files, prove as much as the available runner supports:
+
+- fresh create/open and migration;
+- edit, close, reopen, and refresh/restart durability;
+- offline operation after initialization;
+- transaction rollback and interrupted request behavior;
+- unsupported/denied OPFS and quota/corruption projections;
+- unknown protocol versions and malformed requests;
+- validated archive export/import and atomic replacement;
+- parity of existing operation/protocol/archive fixtures with native expected
+  behavior;
+- worker termination rejecting outstanding requests deterministically.
+
+Tests requiring a real browser must use the repository's existing browser test
+mechanism. Do not replace browser durability proof with a Node in-memory mock.
+
+### 6. Performance evidence
+
+Measure worker initialization separately from cached interaction behavior.
+Record representative startup and operation results available within the owned
+test infrastructure. Navigation after startup must not wait for worker, OPFS,
+parsing, lazy loading, or network work.
+
+## Optional subagents
+
+You are the integration owner for the owned browser paths. After fixing the
+SQLite/OPFS choice and worker protocol, you may spawn:
+
+- a read-only native/browser parity inventory agent;
+- a test-only agent editing disjoint browser test files;
+- a read-only lifecycle/recovery reviewer;
+- a read-only bundler/WASM configuration auditor.
+
+Use Codex Sol for implementation, Terra for bounded inventory/test enumeration,
+and an Opus/Fable-class reviewer only if available. Do not let subagents choose
+different SQLite libraries or edit overlapping worker/bridge files. Review all
+output and run focused verification yourself.
+
+## Non-goals
+
+- No cloud auth, browser account UI, hydration, push/pull, or conflict merging.
+- No v1 web code reuse.
+- No raw SQLite cloud replication.
+- No change to generated sync contracts.
+- No deployment, commit, push, or production resource creation.
+
+## Done condition
+
+Within the current browser crate boundary, a supported real browser can create
+or open a worker-owned OPFS SQLite workspace, perform the declared public
+operations offline, reopen without data loss, export/import a validated archive,
+and receive explicit stable recovery errors for unsupported or failed durable
+storage. Existing relevant fixture parity passes. Any required forbidden shared
+change is precisely documented for the integration owner.
+
+## Verification and handoff
+
+Run focused crate and browser tests, then `cd v2 && ./scripts/check-wasm.sh` and
+`git diff --check`. Do not run generators or formatters that rewrite forbidden
+shared files during parallel execution. If all parallel writers have finished,
+also run `cd v2 && ./scripts/check.sh`; otherwise leave that integration gate to
+the lead and state it plainly.
+
+Report the SQLite/OPFS choice and primary sources, worker lifecycle, durability
+and recovery behavior, tests and exact results, measurements, owned files
+changed, required shared integration patches not made, browser support limits,
+and confirmation that no out-of-scope file was modified.

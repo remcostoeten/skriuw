@@ -1,0 +1,181 @@
+# Parallel assignment A — Produce the v2 sync convergence contract
+
+Work in `/home/remcostoeten/dev/skriuw` and follow the repository `AGENTS.md`.
+Read `4.md` completely, but execute only its specification and scenario-design
+phase. Do not implement domain, SQLite, cloud, renderer, or migration changes in
+this assignment.
+
+This prompt is designed to run in parallel with `3.prompt` and the cloud-auth
+assignment in `1-prompt.md`.
+
+## Exclusive ownership
+
+You may create or edit only:
+
+- `v2/docs/specs/sync-convergence-v1.md`
+
+Everything else is read-only. In particular, do not edit:
+
+- `v2/cloud/**`;
+- `v2/crates/**`;
+- migrations, generated contracts, fixtures, Cargo files, scripts, CI, or root
+  prompt files;
+- `v2/docs/specs/cloud-sync-master.md`, the cloud delivery plan, ADR-0026,
+  architecture, data-model, performance, web-runtime, or local-outbox docs;
+- `apps/**`, `packages/**`, or `release-notes-v2-v0.29.0.txt`.
+
+If `sync-convergence-v1.md` already exists or another agent is editing it, stop
+without overwriting it and report the ownership collision. Preserve every dirty
+working-tree change. Do not stage, commit, push, reset, or revert anything.
+
+## Objective
+
+Create a canonical, implementation-ready convergence specification for every
+operation currently classified as replicated by sync protocol v1.
+
+The document must make deterministic product decisions where current behavior
+already provides sufficient evidence. Where a decision genuinely requires
+product authority, define the safe interim behavior as durable conflict
+preservation—never silent last-write-wins—and list the decision explicitly.
+
+Server ordering is not a merge algorithm. The specification must ensure that
+no valid user content is silently discarded because an operation has a later
+server sequence.
+
+## Required investigation
+
+Before writing:
+
+1. Run `git status --short` and inspect relevant diffs.
+2. Read v2 README, features, architecture, performance contract, data model,
+   recovery/archive documentation, ADR-0026, sync policy, local outbox/inbound
+   spec, cloud tracker, and delivery plan.
+3. Derive the definitive `WorkspaceOperation` inventory from current Rust.
+4. Derive replication classes from the exhaustive Rust sync policy.
+5. Inspect domain validation and public SQLite behavior tests for documents,
+   trees, placement, trash/restore/purge, properties/templates, attachments,
+   settings, history, archives, and inbound conflicts.
+6. Inspect current conflict reason codes and the exact inbound cursor behavior.
+
+Do not trust operation lists copied into older planning text.
+
+## Required document structure
+
+### 1. Scope and invariants
+
+State protocol version, canonical sources, ordering/cursor meaning,
+idempotency, local echoes, dependency handling, recovery visibility, and the
+rule that malformed input/backend failure differs from a semantic conflict.
+
+### 2. Exhaustive operation matrix
+
+Include every current `WorkspaceOperation`, even device-local and unsupported
+ones, so additions or policy drift are visible. For each operation record:
+
+- replication class;
+- affected identity and prerequisites;
+- concurrent same-target behavior;
+- concurrent different-target behavior;
+- delete/trash/restore/purge interaction;
+- whether it applies unchanged, transforms deterministically, or conflicts;
+- durable conflict/recovery artifact required;
+- tombstone implications;
+- representative public behavior tests needed.
+
+The policy must explicitly cover document saves, folder/note creation and
+identity reuse, rename, move/reorder, trash, restore, purge, typed properties,
+templates, image/media operations, settings, active-note state, and provider
+imports according to their actual current replication class.
+
+### 3. Conflict taxonomy
+
+Define stable meanings and safe outcomes for at least:
+
+- revision conflict;
+- missing dependency;
+- identity conflict;
+- domain/tree conflict;
+- concurrent document versions requiring preservation;
+- delayed operation blocked by tombstone;
+- unsupported capability/content reference;
+- malformed/protocol-invalid input, which must not be recorded as an ordinary
+  semantic conflict.
+
+Map existing implemented reason codes accurately and identify additional codes
+as proposals rather than pretending they exist.
+
+### 4. Document preservation and resolution contract
+
+Specify what complete data and provenance must survive an unsafe concurrent
+document edit, what the user can later choose, how resolution becomes a durable
+operation/use case, and how both versions remain recoverable through history,
+restart, export, and backup. Do not design detailed UI visuals.
+
+### 5. Tombstone and retention contract
+
+Specify resurrection prevention, delayed edits, trash versus purge, restore,
+device acknowledgement cursors, checkpoints, inactive devices, and the evidence
+required before tombstone removal. Wall-clock age alone must not authorize
+deletion.
+
+### 6. Executable scenario catalogue
+
+Provide concrete Given/When/Then cases suitable for domain/storage/property
+tests, including:
+
+- exact duplicate and conflicting duplicate;
+- two offline document writers;
+- edit versus trash/purge;
+- move versus move and parent deletion;
+- concurrent create with identity collision;
+- property/template edits on same and different fields;
+- restore destination loss;
+- delayed operation after tombstone/checkpoint boundaries;
+- restart during conflict preservation or resolution;
+- batching-independent replay;
+- archive/export with unresolved and resolved conflicts.
+
+For every case, name the expected canonical state, cursor outcome, durable
+conflict/tombstone state, and user-recoverable data.
+
+### 7. Implementation sequence and open decisions
+
+List the smallest domain, storage, archive, renderer-contract, and test seams
+future implementation needs. Separate evidence-backed requirements from open
+product decisions. Do not turn this section into an agent handoff or a broad
+rewrite plan.
+
+## Optional subagents
+
+You are the document owner. You may use read-only subagents for disjoint
+inventories:
+
+- document/history conflict cases;
+- tree/trash/restore/purge/tombstone cases;
+- properties/templates/identity cases;
+- adversarial review of determinism and silent-data-loss risks.
+
+Codex Sol is preferred for repository-grounded analysis. Terra can enumerate
+bounded cases. An Opus/Fable-class model may critique the draft if actually
+available. Subagents must not edit files. You must verify every claim against
+current code and integrate the final document yourself.
+
+## Done condition
+
+`v2/docs/specs/sync-convergence-v1.md` exhaustively accounts for the current
+operation enum and policy, gives an unambiguous safe outcome for each concurrent
+family, provides concrete test scenarios, distinguishes implemented behavior
+from proposed behavior, and contains no claim that ordered delivery alone
+provides convergence.
+
+## Verification and handoff
+
+Check Markdown links and operation names, search the enum again for omissions,
+and run `git diff --check`. Because this is a specification-only parallel task,
+do not run formatters or generators that can modify shared files. If the other
+parallel agents have finished writing, also run `cd v2 && ./scripts/check.sh`;
+otherwise identify that integration gate as pending rather than racing it.
+
+Report the file created, operation count, major merge decisions, proposed new
+conflict classes, open product decisions, checks run, and confirmation that no
+file outside the exclusive ownership path was changed.
