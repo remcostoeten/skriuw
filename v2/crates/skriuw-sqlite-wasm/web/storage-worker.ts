@@ -16,6 +16,74 @@ const worker = globalThis as typeof globalThis & {
   onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
   postMessage(value: unknown): void;
   close(): void;
+  skriuwSyncHttp(requestJson: string, body?: Uint8Array): SyncHttpResult;
+  skriuwSyncEvent(eventJson: string): void;
+};
+
+type SyncHttpRequest = {
+  method: string;
+  url: string;
+  token: string;
+  timeoutMs: number;
+  contentType?: string | null;
+};
+
+type SyncHttpResult = {
+  status?: number;
+  retryAfterMs?: number;
+  body?: Uint8Array;
+  transportFailure?: string;
+};
+
+// Dedicated workers may issue synchronous XHR, which lets the WASM sync
+// coordinator reuse the native crate's synchronous transport boundary. Each
+// call is one bounded request with its own deadline; the renderer never waits
+// on this because it only ever awaits worker responses asynchronously.
+worker.skriuwSyncHttp = (requestJson, body) => {
+  let request: SyncHttpRequest;
+  try {
+    request = JSON.parse(requestJson) as SyncHttpRequest;
+  } catch {
+    return { transportFailure: "sync bridge received an unreadable request" };
+  }
+  const xhr = new XMLHttpRequest();
+  try {
+    xhr.open(request.method, request.url, false);
+    xhr.responseType = "arraybuffer";
+    xhr.timeout = request.timeoutMs;
+    xhr.setRequestHeader("Authorization", `Bearer ${request.token}`);
+    if (request.contentType) xhr.setRequestHeader("Content-Type", request.contentType);
+    xhr.send(body ? (body.slice().buffer as ArrayBuffer) : null);
+  } catch {
+    return { transportFailure: "cloud sync request failed to reach the network" };
+  }
+  if (xhr.status === 0) {
+    return { transportFailure: "cloud sync request received no response" };
+  }
+  const retryAfterHeader = xhr.getResponseHeader("Retry-After");
+  const retryAfterSeconds = retryAfterHeader === null ? Number.NaN : Number(retryAfterHeader);
+  return {
+    status: xhr.status,
+    ...(Number.isFinite(retryAfterSeconds)
+      ? { retryAfterMs: retryAfterSeconds * 1_000 }
+      : {}),
+    body: new Uint8Array((xhr.response as ArrayBuffer | null) ?? new ArrayBuffer(0)),
+  };
+};
+
+worker.skriuwSyncEvent = (eventJson) => {
+  let value: unknown;
+  try {
+    value = JSON.parse(eventJson);
+  } catch {
+    return;
+  }
+  worker.postMessage({
+    protocolVersion: 1,
+    requestId: 0,
+    status: "event",
+    value,
+  });
 };
 
 let initialized = false;

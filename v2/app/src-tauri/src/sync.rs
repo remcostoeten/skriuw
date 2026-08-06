@@ -14,8 +14,8 @@ use skriuw_images::ImageStore;
 use skriuw_sqlite::SqliteWorkspace;
 use skriuw_storage::{NewSyncConnection, SyncRecovery, WorkspaceSyncQueue};
 use skriuw_sync::{
-    SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncStatus,
-    SyncTransport, SystemClock, TransportError,
+    SyncAssetStore, SyncCancellation, SyncCoordinator, SyncCoordinatorConfig, SyncHttpEndpoints,
+    SyncStatus, SyncTransport, SystemClock, TransportError, classify_http_failure,
 };
 use uuid::Uuid;
 
@@ -229,7 +229,7 @@ impl SyncRuntime {
 struct HttpSyncTransport {
     client: Client,
     token: String,
-    base_url: &'static str,
+    endpoints: SyncHttpEndpoints,
 }
 
 impl HttpSyncTransport {
@@ -242,14 +242,14 @@ impl HttpSyncTransport {
         Ok(Self {
             client,
             token,
-            base_url: cloud_base_url(),
+            endpoints: SyncHttpEndpoints::new(cloud_base_url()),
         })
     }
 
     fn provision(&self, device_id: &str) -> Result<ProvisionedWorkspace, String> {
         let response = self
             .client
-            .post(format!("{}/v1/sync/provision", self.base_url))
+            .post(self.endpoints.provision())
             .bearer_auth(&self.token)
             .json(&serde_json::json!({ "deviceId": device_id }))
             .send()
@@ -324,16 +324,6 @@ impl HttpSyncTransport {
         Ok(Some(body))
     }
 
-    fn chunk_url(&self, workspace_id: &str, digest: &str) -> String {
-        format!(
-            "{}/v1/workspaces/{workspace_id}/chunks/{digest}",
-            self.base_url
-        )
-    }
-
-    fn checkpoint_url(&self, workspace_id: &str) -> String {
-        format!("{}/v1/workspaces/{workspace_id}/checkpoint", self.base_url)
-    }
 }
 
 impl SyncTransport for HttpSyncTransport {
@@ -344,12 +334,7 @@ impl SyncTransport for HttpSyncTransport {
         cancellation: &SyncCancellation,
     ) -> Result<SyncPushResponse, TransportError> {
         self.send(
-            self.client
-                .post(format!(
-                    "{}/v1/workspaces/{workspace_id}/push",
-                    self.base_url
-                ))
-                .json(request),
+            self.client.post(self.endpoints.push(workspace_id)).json(request),
             cancellation,
         )
     }
@@ -362,11 +347,8 @@ impl SyncTransport for HttpSyncTransport {
         cancellation: &SyncCancellation,
     ) -> Result<SyncPullResponse, TransportError> {
         self.send(
-            self.client.get(format!(
-                "{}/v1/workspaces/{workspace_id}/pull?syncProtocolVersion={}&afterServerSequence={after_server_sequence}&limit={limit}",
-                self.base_url,
-                skriuw_domain::WORKSPACE_SYNC_PROTOCOL_VERSION
-            )),
+            self.client
+                .get(self.endpoints.pull(workspace_id, after_server_sequence, limit)),
             cancellation,
         )
     }
@@ -377,7 +359,7 @@ impl SyncTransport for HttpSyncTransport {
         digest: &str,
         cancellation: &SyncCancellation,
     ) -> Result<bool, TransportError> {
-        let url = self.chunk_url(workspace_id, digest);
+        let url = self.endpoints.chunk(workspace_id, digest);
         Ok(self
             .send_bytes(self.client.head(url), cancellation)?
             .is_some())
@@ -390,7 +372,7 @@ impl SyncTransport for HttpSyncTransport {
         bytes: &[u8],
         cancellation: &SyncCancellation,
     ) -> Result<(), TransportError> {
-        let url = self.chunk_url(workspace_id, digest);
+        let url = self.endpoints.chunk(workspace_id, digest);
         self.send_bytes(
             self.client
                 .put(url)
@@ -408,7 +390,7 @@ impl SyncTransport for HttpSyncTransport {
         digest: &str,
         cancellation: &SyncCancellation,
     ) -> Result<Vec<u8>, TransportError> {
-        let url = self.chunk_url(workspace_id, digest);
+        let url = self.endpoints.chunk(workspace_id, digest);
         self.send_bytes(self.client.get(url), cancellation)?
             .ok_or_else(|| TransportError::Validation(format!("chunk {digest} is not stored")))
     }
@@ -418,7 +400,7 @@ impl SyncTransport for HttpSyncTransport {
         workspace_id: &str,
         cancellation: &SyncCancellation,
     ) -> Result<Option<WorkspaceCheckpoint>, TransportError> {
-        let url = self.checkpoint_url(workspace_id);
+        let url = self.endpoints.checkpoint(workspace_id);
         let body = self.send_bytes(self.client.get(url), cancellation)?;
         let Some(body) = body else {
             return Ok(None);
@@ -436,7 +418,7 @@ impl SyncTransport for HttpSyncTransport {
         checkpoint: &WorkspaceCheckpoint,
         cancellation: &SyncCancellation,
     ) -> Result<(), TransportError> {
-        let url = self.checkpoint_url(workspace_id);
+        let url = self.endpoints.checkpoint(workspace_id);
         let _: serde_json::Value =
             self.send(self.client.post(url).json(checkpoint), cancellation)?;
         Ok(())
@@ -449,7 +431,7 @@ impl SyncTransport for HttpSyncTransport {
         server_sequence: u64,
         cancellation: &SyncCancellation,
     ) -> Result<(), TransportError> {
-        let url = format!("{}/v1/workspaces/{workspace_id}/acknowledge", self.base_url);
+        let url = self.endpoints.acknowledge(workspace_id);
         let _: serde_json::Value = self.send(
             self.client.post(url).json(&serde_json::json!({
                 "deviceId": device_id,
@@ -492,14 +474,7 @@ fn transport_error(
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<i64>().ok())
         .map(|seconds| seconds.saturating_mul(1_000));
-    match status {
-        StatusCode::UNAUTHORIZED => TransportError::AuthenticationRequired,
-        StatusCode::FORBIDDEN | StatusCode::NOT_FOUND => TransportError::AuthorizationDenied,
-        StatusCode::CONFLICT => TransportError::Conflict("server_sequence_conflict".into()),
-        StatusCode::TOO_MANY_REQUESTS => TransportError::RateLimited { retry_after_ms },
-        status if status.is_client_error() => TransportError::Validation("request_rejected".into()),
-        _ => TransportError::Server { retry_after_ms },
-    }
+    classify_http_failure(status.as_u16(), retry_after_ms)
 }
 
 fn cloud_base_url() -> &'static str {

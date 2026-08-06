@@ -785,12 +785,15 @@ dependencies = [
 name = "skriuw-sqlite-wasm"
 version = "0.1.0"
 dependencies = [
+ "js-sys",
+ "rusqlite",
  "serde",
  "serde_json",
  "skriuw-domain",
  "skriuw-fixtures",
  "skriuw-sqlite",
  "skriuw-storage",
+ "skriuw-sync",
  "sqlite-wasm-rs",
  "sqlite-wasm-vfs",
  "uuid",

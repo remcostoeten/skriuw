@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use skriuw_domain::{
     MAX_SYNC_BATCH_OPERATIONS, MAX_SYNC_PULL_OPERATIONS, WORKSPACE_SYNC_PROTOCOL_VERSION,
 };
@@ -32,7 +32,7 @@ pub const BLOCKED_OPERATION_REASON_ASSET_CONTENT_MISSING: &str = "asset_content_
 /// Narrow status projection consumed by the runtime and UI. The UI may render
 /// this and request connect, disconnect, retry, or refresh; retry and cursor
 /// logic stay inside the coordinator.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(
     tag = "state",
     rename_all = "camelCase",

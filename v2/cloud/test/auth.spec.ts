@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { authInternals, handleAuthRequest } from "../src/auth";
+import { authInternals, corsHeaders, handleAuthRequest } from "../src/auth";
 
 describe("v2 auth boundary", () => {
   it("normalizes the exact trusted-origin allowlist", () => {
@@ -20,6 +20,22 @@ describe("v2 auth boundary", () => {
 
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: "origin_not_allowed" });
+  });
+
+  it("preflights the chunk upload methods the browser sync transport uses", () => {
+    const headers = corsHeaders(
+      new Request("http://localhost:8787/v1/workspaces/w_1/chunks/abc", {
+        headers: { Origin: "https://skriuw.com" },
+      }),
+      env,
+    );
+
+    expect(headers).not.toBeNull();
+    const allowedMethods = headers?.get("Access-Control-Allow-Methods") ?? "";
+    for (const method of ["GET", "HEAD", "POST", "PUT"]) {
+      expect(allowedMethods).toContain(method);
+    }
+    expect(headers?.get("Access-Control-Allow-Headers")).toContain("Authorization");
   });
 
   it("fails closed without a production session secret", async () => {

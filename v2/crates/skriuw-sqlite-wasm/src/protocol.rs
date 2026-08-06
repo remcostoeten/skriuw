@@ -2,8 +2,12 @@ use serde::{Deserialize, Serialize};
 use skriuw_domain::{
     OperationAck, SearchHit, WorkspaceArchive, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
+use skriuw_sync::SyncStatus;
 
 pub const WORKER_PROTOCOL_VERSION: u16 = 1;
+pub const MAX_SYNC_TOKEN_BYTES: usize = 4_096;
+pub const MAX_SYNC_IDENTIFIER_BYTES: usize = 128;
+pub const MAX_SYNC_BASE_URL_BYTES: usize = 2_048;
 pub const MAX_REQUEST_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_OPERATIONS_PER_REQUEST: usize = 64;
 pub const MAX_BATCHES_PER_REQUEST: usize = 64;
@@ -58,6 +62,16 @@ pub enum BrowserWorkerCommand {
         archive: Box<WorkspaceArchive>,
     },
     IntegrityCheck,
+    SyncConnection,
+    SyncConnect {
+        token: String,
+        base_url: String,
+        workspace_id: String,
+        device_id: String,
+    },
+    SyncDisconnect,
+    SyncStatus,
+    SyncCycle,
     Close,
 }
 
@@ -90,8 +104,47 @@ pub enum BrowserWorkerValue {
     Archive(Box<WorkspaceArchive>),
     ImportSummary(BrowserImportSummary),
     Integrity(BrowserIntegrityReport),
+    SyncConnection(Option<BrowserSyncConnection>),
+    SyncStatus(SyncStatus),
+    SyncCycle(BrowserSyncCycleReport),
     Unit,
     Closed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrowserSyncConnection {
+    pub workspace_id: String,
+    pub device_id: String,
+    pub observed_server_sequence: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrowserSyncCycleReport {
+    pub status: SyncStatus,
+    pub retry_at_ms: Option<i64>,
+}
+
+/// One bounded content transfer observed by the browser sync transport,
+/// posted out-of-band so long checkpoint hydrations stay visible while the
+/// worker request is still in flight.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrowserSyncProgress {
+    pub phase: BrowserSyncProgressPhase,
+    pub transferred_chunks: u64,
+    pub transferred_bytes: u64,
+    pub expected_chunks: Option<u64>,
+    pub expected_bytes: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BrowserSyncProgressPhase {
+    Hydrating,
+    Downloading,
+    Uploading,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -1,6 +1,11 @@
 use std::cell::RefCell;
+use std::sync::Arc;
 
 use skriuw_sqlite::SqliteWorkspace;
+use skriuw_sync::{
+    SyncCancellation, SyncClock, SyncHttpEndpoints, SyncTransport, TransportError,
+    classify_http_failure,
+};
 use sqlite_wasm_vfs::sahpool::{
     OpfsSAHError, OpfsSAHPoolCfgBuilder, install as install_opfs_sahpool,
 };
@@ -8,16 +13,41 @@ use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use wasm_bindgen_futures::js_sys::Reflect;
 
 use crate::runtime::validate_database_name;
+use crate::sync::{BrowserSyncEnvironment, BrowserSyncRuntime, ProgressReportingTransport};
 use crate::{
-    BrowserStorageError, BrowserStorageErrorCode, BrowserWorkerCommand, BrowserWorkerResponse,
-    BrowserWorkerRuntime, BrowserWorkerValue, WORKER_PROTOCOL_VERSION, decode_request,
+    BrowserAssetStore, BrowserStorageError, BrowserStorageErrorCode, BrowserWorkerCommand,
+    BrowserWorkerResponse, BrowserWorkerRuntime, BrowserWorkerValue, WORKER_PROTOCOL_VERSION,
+    decode_request,
 };
 
 const OPFS_DIRECTORY: &str = ".skriuw-v2";
+const JSON_REQUEST_TIMEOUT_MS: u32 = 10_000;
+const CHUNK_REQUEST_TIMEOUT_MS: u32 = 30_000;
+const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
 
 thread_local! {
     static RUNTIME: RefCell<BrowserWorkerRuntime<SqliteWorkspace>> =
         RefCell::new(BrowserWorkerRuntime::new());
+    static SYNC: RefCell<BrowserSyncRuntime> = RefCell::new(BrowserSyncRuntime::new());
+    static ASSETS: RefCell<Option<Result<BrowserAssetStore, String>>> =
+        const { RefCell::new(None) };
+}
+
+#[wasm_bindgen]
+extern "C" {
+    /// Synchronous HTTP bridge owned by the storage worker script. Dedicated
+    /// workers may issue synchronous XHR, which lets the shared `skriuw-sync`
+    /// cycle logic run unchanged on its synchronous transport boundary.
+    #[wasm_bindgen(catch, js_name = skriuwSyncHttp)]
+    fn sync_http(
+        request_json: String,
+        body: Option<js_sys::Uint8Array>,
+    ) -> Result<JsValue, JsValue>;
+
+    /// Out-of-band progress notification posted to the renderer while a sync
+    /// request is still in flight.
+    #[wasm_bindgen(js_name = skriuwSyncEvent)]
+    fn sync_event(event_json: String);
 }
 
 /// Installs the dedicated-worker-only OPFS SAH-pool VFS and opens exactly one
@@ -84,7 +114,7 @@ pub async fn initialize(request_json: String) -> String {
         return encode_response(&BrowserWorkerResponse::failure(request_id, error));
     }
 
-    let workspace = match SqliteWorkspace::open(database_name) {
+    let workspace = match SqliteWorkspace::open(&database_name) {
         Ok(workspace) => workspace,
         Err(error) => {
             let error = map_open_error(error.to_string());
@@ -92,6 +122,9 @@ pub async fn initialize(request_json: String) -> String {
             return encode_response(&BrowserWorkerResponse::failure(request_id, error));
         }
     };
+    ASSETS.with(|assets| {
+        *assets.borrow_mut() = Some(BrowserAssetStore::open(&format!("{database_name}-assets")));
+    });
     let result = RUNTIME.with(|runtime| runtime.borrow_mut().initialize(workspace));
     let response = match result {
         Ok(()) => BrowserWorkerResponse::success(request_id, BrowserWorkerValue::Ready),
@@ -109,8 +142,355 @@ pub fn dispatch(request_json: String) -> String {
         Ok(request) => request,
         Err(response) => return encode_response(&response),
     };
-    let response = RUNTIME.with(|runtime| runtime.borrow_mut().dispatch(request));
+    let response = RUNTIME.with(|runtime| {
+        SYNC.with(|sync| {
+            ASSETS.with(|assets| {
+                let assets = assets.borrow();
+                let unavailable = UnavailableAssetStore {
+                    reason: match assets.as_ref() {
+                        None => "the browser asset store is not initialized".into(),
+                        Some(Err(reason)) => reason.clone(),
+                        Some(Ok(_)) => String::new(),
+                    },
+                };
+                let store: &dyn skriuw_sync::SyncAssetStore = match assets.as_ref() {
+                    Some(Ok(store)) => store,
+                    _ => &unavailable,
+                };
+                let clock = JsClock;
+                let factory =
+                    |token: &str,
+                     base_url: &str|
+                     -> Result<Box<dyn SyncTransport>, BrowserStorageError> {
+                        Ok(Box::new(ProgressReportingTransport::new(
+                            XhrSyncTransport::new(token, base_url),
+                            Arc::new(emit_sync_progress),
+                        )))
+                    };
+                let environment = BrowserSyncEnvironment {
+                    clock: &clock,
+                    assets: store,
+                    transport_factory: &factory,
+                };
+                runtime.borrow_mut().dispatch_with_sync(
+                    request,
+                    &mut sync.borrow_mut(),
+                    &environment,
+                )
+            })
+        })
+    });
     encode_response(&response)
+}
+
+fn emit_sync_progress(progress: &crate::BrowserSyncProgress) {
+    if let Ok(json) = serde_json::to_string(progress) {
+        sync_event(json);
+    }
+}
+
+struct UnavailableAssetStore {
+    reason: String,
+}
+
+impl skriuw_sync::SyncAssetStore for UnavailableAssetStore {
+    fn read_asset(&self, _content_hash: &str, _mime_type: &str) -> Result<Option<Vec<u8>>, String> {
+        Err(self.reason.clone())
+    }
+
+    fn store_asset(
+        &self,
+        _content_hash: &str,
+        _mime_type: &str,
+        _bytes: &[u8],
+    ) -> Result<(), String> {
+        Err(self.reason.clone())
+    }
+}
+
+struct JsClock;
+
+impl SyncClock for JsClock {
+    fn now_ms(&self) -> i64 {
+        js_sys::Date::now() as i64
+    }
+}
+
+struct HttpResponse {
+    status: u16,
+    retry_after_ms: Option<i64>,
+    body: Vec<u8>,
+}
+
+/// Authenticated HTTP transport over the worker's synchronous XHR bridge.
+/// URLs and status classification come from the shared `skriuw-sync` HTTP
+/// contract so browser and native failure handling cannot diverge.
+struct XhrSyncTransport {
+    token: String,
+    endpoints: SyncHttpEndpoints,
+}
+
+impl XhrSyncTransport {
+    fn new(token: &str, base_url: &str) -> Self {
+        Self {
+            token: token.into(),
+            endpoints: SyncHttpEndpoints::new(base_url),
+        }
+    }
+
+    fn request(
+        &self,
+        method: &str,
+        url: &str,
+        content_type: Option<&str>,
+        body: Option<&[u8]>,
+        timeout_ms: u32,
+        cancellation: &SyncCancellation,
+    ) -> Result<HttpResponse, TransportError> {
+        if cancellation.is_cancelled() {
+            return Err(TransportError::Cancelled);
+        }
+        let request_json = serde_json::json!({
+            "method": method,
+            "url": url,
+            "token": self.token,
+            "timeoutMs": timeout_ms,
+            "contentType": content_type,
+        })
+        .to_string();
+        let body = body.map(js_sys::Uint8Array::from);
+        let value = sync_http(request_json, body)
+            .map_err(|_| TransportError::Transient("the sync transport bridge failed".into()))?;
+        if cancellation.is_cancelled() {
+            return Err(TransportError::Cancelled);
+        }
+        if let Some(failure) = object_string(&value, "transportFailure") {
+            return Err(TransportError::Transient(failure));
+        }
+        let status = object_number(&value, "status")
+            .ok_or_else(|| TransportError::Transient("the sync bridge lost the status".into()))?
+            as u16;
+        let retry_after_ms = object_number(&value, "retryAfterMs").map(|value| value as i64);
+        let body = Reflect::get(&value, &JsValue::from_str("body"))
+            .ok()
+            .filter(|body| !body.is_undefined() && !body.is_null())
+            .map(|body| js_sys::Uint8Array::new(&body).to_vec())
+            .unwrap_or_default();
+        if body.len() > MAX_RESPONSE_BYTES {
+            return Err(TransportError::Validation(
+                "cloud response exceeded its size limit".into(),
+            ));
+        }
+        Ok(HttpResponse {
+            status,
+            retry_after_ms,
+            body,
+        })
+    }
+
+    fn request_json<T: serde::de::DeserializeOwned>(
+        &self,
+        method: &str,
+        url: &str,
+        payload: Option<&impl serde::Serialize>,
+        cancellation: &SyncCancellation,
+    ) -> Result<T, TransportError> {
+        let body = payload
+            .map(|payload| {
+                serde_json::to_vec(payload).map_err(|error| {
+                    TransportError::Validation(format!("sync request is not serializable: {error}"))
+                })
+            })
+            .transpose()?;
+        let response = self.request(
+            method,
+            url,
+            body.as_ref().map(|_| "application/json"),
+            body.as_deref(),
+            JSON_REQUEST_TIMEOUT_MS,
+            cancellation,
+        )?;
+        if !(200..300).contains(&response.status) {
+            return Err(classify_http_failure(
+                response.status,
+                response.retry_after_ms,
+            ));
+        }
+        serde_json::from_slice(&response.body).map_err(|error| {
+            TransportError::Transient(format!("cloud response was invalid: {error}"))
+        })
+    }
+}
+
+fn object_number(value: &JsValue, key: &str) -> Option<f64> {
+    Reflect::get(value, &JsValue::from_str(key))
+        .ok()
+        .and_then(|value| value.as_f64())
+}
+
+fn object_string(value: &JsValue, key: &str) -> Option<String> {
+    Reflect::get(value, &JsValue::from_str(key))
+        .ok()
+        .and_then(|value| value.as_string())
+}
+
+impl SyncTransport for XhrSyncTransport {
+    fn push(
+        &self,
+        workspace_id: &str,
+        request: &skriuw_domain::SyncPushRequest,
+        cancellation: &SyncCancellation,
+    ) -> Result<skriuw_domain::SyncPushResponse, TransportError> {
+        self.request_json(
+            "POST",
+            &self.endpoints.push(workspace_id),
+            Some(request),
+            cancellation,
+        )
+    }
+
+    fn pull(
+        &self,
+        workspace_id: &str,
+        after_server_sequence: u64,
+        limit: usize,
+        cancellation: &SyncCancellation,
+    ) -> Result<skriuw_domain::SyncPullResponse, TransportError> {
+        self.request_json(
+            "GET",
+            &self
+                .endpoints
+                .pull(workspace_id, after_server_sequence, limit),
+            None::<&()>,
+            cancellation,
+        )
+    }
+
+    fn has_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<bool, TransportError> {
+        let response = self.request(
+            "HEAD",
+            &self.endpoints.chunk(workspace_id, digest),
+            None,
+            None,
+            JSON_REQUEST_TIMEOUT_MS,
+            cancellation,
+        )?;
+        match response.status {
+            404 => Ok(false),
+            status if (200..300).contains(&status) => Ok(true),
+            status => Err(classify_http_failure(status, response.retry_after_ms)),
+        }
+    }
+
+    fn put_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        bytes: &[u8],
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        let response = self.request(
+            "PUT",
+            &self.endpoints.chunk(workspace_id, digest),
+            Some("application/octet-stream"),
+            Some(bytes),
+            CHUNK_REQUEST_TIMEOUT_MS,
+            cancellation,
+        )?;
+        match response.status {
+            404 => Err(TransportError::Transient(
+                "chunk upload was not stored".into(),
+            )),
+            status if (200..300).contains(&status) => Ok(()),
+            status => Err(classify_http_failure(status, response.retry_after_ms)),
+        }
+    }
+
+    fn get_chunk(
+        &self,
+        workspace_id: &str,
+        digest: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Vec<u8>, TransportError> {
+        let response = self.request(
+            "GET",
+            &self.endpoints.chunk(workspace_id, digest),
+            None,
+            None,
+            CHUNK_REQUEST_TIMEOUT_MS,
+            cancellation,
+        )?;
+        match response.status {
+            404 => Err(TransportError::Validation(format!(
+                "chunk {digest} is not stored"
+            ))),
+            status if (200..300).contains(&status) => Ok(response.body),
+            status => Err(classify_http_failure(status, response.retry_after_ms)),
+        }
+    }
+
+    fn latest_checkpoint(
+        &self,
+        workspace_id: &str,
+        cancellation: &SyncCancellation,
+    ) -> Result<Option<skriuw_domain::WorkspaceCheckpoint>, TransportError> {
+        let response = self.request(
+            "GET",
+            &self.endpoints.checkpoint(workspace_id),
+            None,
+            None,
+            JSON_REQUEST_TIMEOUT_MS,
+            cancellation,
+        )?;
+        match response.status {
+            404 => Ok(None),
+            status if (200..300).contains(&status) => serde_json::from_slice(&response.body)
+                .map(Some)
+                .map_err(|error| {
+                    TransportError::Validation(format!("checkpoint record was unreadable: {error}"))
+                }),
+            status => Err(classify_http_failure(status, response.retry_after_ms)),
+        }
+    }
+
+    fn publish_checkpoint(
+        &self,
+        workspace_id: &str,
+        checkpoint: &skriuw_domain::WorkspaceCheckpoint,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        let _: serde_json::Value = self.request_json(
+            "POST",
+            &self.endpoints.checkpoint(workspace_id),
+            Some(checkpoint),
+            cancellation,
+        )?;
+        Ok(())
+    }
+
+    fn acknowledge(
+        &self,
+        workspace_id: &str,
+        device_id: &str,
+        server_sequence: u64,
+        cancellation: &SyncCancellation,
+    ) -> Result<(), TransportError> {
+        let _: serde_json::Value = self.request_json(
+            "POST",
+            &self.endpoints.acknowledge(workspace_id),
+            Some(&serde_json::json!({
+                "deviceId": device_id,
+                "serverSequence": server_sequence,
+            })),
+            cancellation,
+        )?;
+        Ok(())
+    }
 }
 
 fn encode_response(response: &BrowserWorkerResponse) -> String {
