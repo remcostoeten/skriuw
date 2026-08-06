@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { AuthDrawer, AuthProvider, useAuth } from "@remcostoeten/auth-drawer";
 import { authAdapter } from "../../auth/adapter";
 import { authConfiguration } from "../../auth/config";
 import { currentSessionToken } from "../../auth/session-token";
+import {
+  type BrowserSyncProgress,
+  latestBrowserSyncProgress,
+  subscribeBrowserSyncProgress,
+} from "../../bridge/browser-sync";
 import {
   type BlockedSyncOperation,
   connectWorkspaceSync,
@@ -33,8 +38,25 @@ import {
   blockedCauseText,
   blockedItemLabel,
   blockedItemRetryable,
-  blockedStateText,
 } from "./sync-recovery";
+import {
+  syncDescription,
+  syncEnabled,
+  syncProgressText,
+  syncProgressVisible,
+} from "./sync-status";
+
+function subscribeProgress(onStoreChange: () => void): () => void {
+  return subscribeBrowserSyncProgress(() => onStoreChange());
+}
+
+function subscribeNever(): () => void {
+  return () => undefined;
+}
+
+function readNoProgress(): BrowserSyncProgress | null {
+  return null;
+}
 
 function AccountContent() {
   const { user, isPending, openDrawer, signOut } = useAuth();
@@ -46,14 +68,30 @@ function AccountContent() {
   const [recoveryBusyId, setRecoveryBusyId] = useState<string | null>(null);
   const unavailableReason = authConfiguration.available ? null : authConfiguration.reason;
   const browser = isBrowserRuntime();
+  const syncProgress = useSyncExternalStore(
+    browser ? subscribeProgress : subscribeNever,
+    browser ? latestBrowserSyncProgress : readNoProgress,
+  );
 
   useEffect(() => {
-    if (!user || browser) return;
+    if (!user) return;
     let mounted = true;
+    let inFlight = false;
     const refresh = () => {
-      void workspaceSyncStatus().then((status) => {
-        if (mounted) setSyncStatus(status);
-      });
+      if (inFlight) return;
+      inFlight = true;
+      void workspaceSyncStatus()
+        .then(
+          (status) => {
+            if (mounted) setSyncStatus(status);
+          },
+          (error: unknown) => {
+            if (mounted) setSyncError(error instanceof Error ? error.message : String(error));
+          },
+        )
+        .finally(() => {
+          inFlight = false;
+        });
     };
     refresh();
     const interval = window.setInterval(refresh, 2_000);
@@ -61,7 +99,7 @@ function AccountContent() {
       mounted = false;
       window.clearInterval(interval);
     };
-  }, [browser, user]);
+  }, [user]);
 
   useEffect(() => {
     if (!user || browser) return;
@@ -141,7 +179,7 @@ function AccountContent() {
   }
 
   async function signOutSafely() {
-    if (!browser) await pauseWorkspaceSync().catch(() => undefined);
+    await pauseWorkspaceSync().catch(() => undefined);
     await signOut();
     setSyncStatus({ state: "localOnly" });
   }
@@ -185,30 +223,35 @@ function AccountContent() {
               <span className={settingsRowDescription}>
                 {syncError ?? syncDescription(syncStatus, browser)}
               </span>
-            </span>
-            {!browser ? (
-              syncEnabled(syncStatus) ? (
-                <span className="flex items-center gap-1.5">
-                  {syncStatus.state === "blocked" ? (
-                    <button
-                      type="button"
-                      className={settingsButton}
-                      disabled={syncPending}
-                      onClick={() => void retrySyncNow()}
-                    >
-                      {syncPending ? "Retrying…" : "Retry sync"}
-                    </button>
-                  ) : null}
-                  <button type="button" className={settingsButton} disabled={syncPending} onClick={() => void pauseSync()}>
-                    {syncPending ? "Pausing…" : "Pause sync"}
-                  </button>
+              {browser ? (
+                <span aria-live="polite" className={settingsRowDescription}>
+                  {syncProgress && syncProgressVisible(syncStatus, syncPending)
+                    ? syncProgressText(syncProgress)
+                    : null}
                 </span>
-              ) : (
-                <button type="button" className={settingsButton} disabled={syncPending} onClick={() => void enableSync()}>
-                  {syncPending ? "Connecting…" : "Enable sync"}
+              ) : null}
+            </span>
+            {syncEnabled(syncStatus) ? (
+              <span className="flex items-center gap-1.5">
+                {syncStatus.state === "blocked" ? (
+                  <button
+                    type="button"
+                    className={settingsButton}
+                    disabled={syncPending}
+                    onClick={() => void retrySyncNow()}
+                  >
+                    {syncPending ? "Retrying…" : "Retry sync"}
+                  </button>
+                ) : null}
+                <button type="button" className={settingsButton} disabled={syncPending} onClick={() => void pauseSync()}>
+                  {syncPending ? "Pausing…" : "Pause sync"}
                 </button>
-              )
-            ) : null}
+              </span>
+            ) : (
+              <button type="button" className={settingsButton} disabled={syncPending} onClick={() => void enableSync()}>
+                {syncPending ? "Connecting…" : "Enable sync"}
+              </button>
+            )}
           </div>
         ) : null}
       </div>
@@ -328,25 +371,6 @@ function BlockedChangeRow({ item, busyId, onRetry, onDiscard }: BlockedChangeRow
       </span>
     </li>
   );
-}
-
-function syncEnabled(status: WorkspaceSyncStatus): boolean {
-  return status.state !== "localOnly" && status.state !== "authenticationRequired";
-}
-
-function syncDescription(status: WorkspaceSyncStatus, browser: boolean): string {
-  if (browser) return "Browser workspaces stay fully local for now; account sync is available in the desktop app.";
-  switch (status.state) {
-    case "localOnly": return "Off. Notes stay only on this device until you enable sync.";
-    case "connecting": return "Connecting this device securely…";
-    case "upToDate": return "Up to date with your private cloud workspace.";
-    case "pending": return "Local changes are waiting to upload.";
-    case "offline": return "Offline. Changes remain local and will retry automatically.";
-    case "authenticationRequired": return "Paused. Enable sync again after signing in.";
-    case "conflict": return `${status.openConflicts} sync conflict${status.openConflicts === 1 ? "" : "s"} need attention.`;
-    case "retrying": return "Cloud is temporarily unavailable; retrying automatically.";
-    case "blocked": return blockedStateText(status.reason);
-  }
 }
 
 export function AccountSection() {

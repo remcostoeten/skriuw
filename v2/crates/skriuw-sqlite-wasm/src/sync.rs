@@ -219,8 +219,9 @@ impl BrowserSyncRuntime {
 
     /// A workspace with a durable connection but no session credential needs
     /// a fresh sign-in before sync can resume; a never-linked workspace is
-    /// simply local-only. Browser sessions hold credentials in memory only,
-    /// so every reload passes through this state.
+    /// simply local-only. Every reload passes through this state until the
+    /// renderer reopens the session, from a persisted credential or an
+    /// interactive sign-in.
     fn resting_status(
         &self,
         queue: &dyn WorkspaceSyncQueue,

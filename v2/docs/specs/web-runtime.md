@@ -152,13 +152,26 @@ replaced and a workspace linked to a different account refuses to connect.
 Browser credentials live in memory only, so after a reload a linked workspace
 reports `authenticationRequired` until the user signs in again.
 
+The Account settings section exposes the same enable/pause/retry sync flow in
+the browser as on desktop, over the identical bridge commands
+(`workspace_sync_status`, `connect_workspace_sync`, `disconnect_workspace_sync`,
+`retry_workspace_sync`). After a reload the row explains that browser sign-in
+does not survive reloads and offers Enable sync again. One deliberate gap
+remains: the per-change blocked-operations recovery list
+(`list_blocked_sync_operations` and friends) is not mapped by the browser
+bridge, so that surface stays hidden in the browser and the blocked sync
+status copy says recovery of individual blocked changes needs the desktop app
+for now.
+
 A fresh browser device with a zero cursor and an empty outbox hydrates from
 the latest published checkpoint before replaying the ordered tail, through the
 same gated `hydrate_from_checkpoint` port as desktop. Chunk transfers are
 individually bounded (1 MiB), and the worker posts out-of-band progress
 notifications (`requestId 0`) with expected totals from the checkpoint
 manifest so long hydrations stay visible; `subscribeBrowserSyncProgress`
-exposes them to the shell. Nothing is applied until the assembled content
+exposes them to the shell, and the Account settings section renders them as an
+`aria-live` line under the sync status while the cycle can still be running,
+clearing once the status settles. Nothing is applied until the assembled content
 verifies, so an interrupted or failed hydration leaves the durable state
 untouched and the next scheduled cycle restarts it. Checkpoint content whose
 chunks are missing or corrupt blocks visibly as `rejected_checkpoint`, exactly

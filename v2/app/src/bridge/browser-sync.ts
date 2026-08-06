@@ -1,4 +1,8 @@
 import { authConfiguration } from "../auth/config";
+import {
+  clearBrowserSessionToken,
+  loadBrowserSessionToken,
+} from "../auth/session-store";
 import type { WorkspaceSyncStatus } from "./commands";
 
 /**
@@ -54,16 +58,22 @@ export type BrowserSyncDriverDependencies = {
   now(): number;
   setTimer(callback: () => void, delayMs: number): unknown;
   clearTimer(handle: unknown): void;
+  persistedToken(): string | undefined;
+  discardPersistedSession(): void;
 };
 
 export type BrowserSyncDriver = {
   status(): Promise<WorkspaceSyncStatus>;
   connect(token: string): Promise<WorkspaceSyncStatus>;
+  resume(): Promise<WorkspaceSyncStatus>;
   pause(): Promise<WorkspaceSyncStatus>;
   retry(): Promise<WorkspaceSyncStatus>;
   notifyLocalCommit(): void;
   wake(): void;
 };
+
+/** The cloud service rejected the session credential itself. */
+export class SyncSessionRejectedError extends Error {}
 
 export function createBrowserSyncDriver(
   dependencies: BrowserSyncDriverDependencies,
@@ -71,6 +81,7 @@ export function createBrowserSyncDriver(
   let active = false;
   let cycleInFlight = false;
   let wakeRequested = false;
+  let resumeAttempted = false;
   let timer: unknown = null;
 
   function clearScheduled(): void {
@@ -107,6 +118,10 @@ export function createBrowserSyncDriver(
         return;
       }
       case "authenticationRequired":
+        dependencies.discardPersistedSession();
+        active = false;
+        clearScheduled();
+        return;
       case "localOnly":
         active = false;
         clearScheduled();
@@ -145,14 +160,29 @@ export function createBrowserSyncDriver(
   }
 
   async function status(): Promise<WorkspaceSyncStatus> {
+    // A status query queued behind an executing sync cycle only resolves when
+    // that cycle finishes, so it must share the cycle deadline instead of the
+    // default worker timeout that would terminate the worker mid-hydration.
     return (await dependencies.port.request(
       "sync_status",
       undefined,
       "sync_status",
+      SYNC_CYCLE_TIMEOUT_MS,
     )) as WorkspaceSyncStatus;
   }
 
   async function connect(token: string): Promise<WorkspaceSyncStatus> {
+    try {
+      return await establishSession(token);
+    } catch (error) {
+      if (error instanceof SyncSessionRejectedError) {
+        dependencies.discardPersistedSession();
+      }
+      throw error;
+    }
+  }
+
+  async function establishSession(token: string): Promise<WorkspaceSyncStatus> {
     const existing = (await dependencies.port.request(
       "sync_connection",
       undefined,
@@ -181,6 +211,35 @@ export function createBrowserSyncDriver(
     return connected;
   }
 
+  /**
+   * One startup attempt to reopen sync from a persisted session. Only a
+   * workspace with a durable cloud connection resumes; linking a workspace
+   * remains an explicit user action. The server stays the authority: a
+   * rejected credential clears the persisted session and the workspace
+   * degrades to `authenticationRequired`, while transient failures keep the
+   * session for the next interactive retry.
+   */
+  async function resume(): Promise<WorkspaceSyncStatus> {
+    if (resumeAttempted || active) return status();
+    resumeAttempted = true;
+    const token = dependencies.persistedToken();
+    if (!token) return status();
+    try {
+      const existing = (await dependencies.port.request(
+        "sync_connection",
+        undefined,
+        "sync_connection",
+      )) as BrowserSyncConnection | null;
+      if (!existing) return status();
+      return await connect(token);
+    } catch (error) {
+      if (!(error instanceof SyncSessionRejectedError)) {
+        console.error("cloud sync resume failed", error);
+      }
+      return status();
+    }
+  }
+
   async function pause(): Promise<WorkspaceSyncStatus> {
     active = false;
     clearScheduled();
@@ -204,7 +263,7 @@ export function createBrowserSyncDriver(
     if (active) schedule(0);
   }
 
-  return { status, connect, pause, retry, notifyLocalCommit, wake };
+  return { status, connect, resume, pause, retry, notifyLocalCommit, wake };
 }
 
 const progressListeners = new Set<(progress: BrowserSyncProgress) => void>();
@@ -261,7 +320,7 @@ async function provisionBrowserDevice(
     body: JSON.stringify({ deviceId }),
   });
   if (response.status === 401) {
-    throw new Error("your Skriuw session expired; sign in again");
+    throw new SyncSessionRejectedError("your Skriuw session expired; sign in again");
   }
   if (response.status === 403) {
     throw new Error("this device is not allowed to use cloud sync");
@@ -306,6 +365,8 @@ export function browserSyncDriver(port: SyncWorkerPort): BrowserSyncDriver {
     now: () => Date.now(),
     setTimer: (callback, delayMs) => window.setTimeout(callback, delayMs),
     clearTimer: (handle) => window.clearTimeout(handle as number),
+    persistedToken: loadBrowserSessionToken,
+    discardPersistedSession: clearBrowserSessionToken,
   });
   const driver = sharedDriver;
   window.addEventListener("online", () => driver.wake());
