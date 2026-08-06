@@ -156,6 +156,7 @@ export async function handlePublicSyncRequest(
         .resolveWorkspace(route.workspaceId)
         .acknowledgeOperations(deviceId, serverSequence, dependencies.nowEpochSeconds());
       if (!acknowledged.ok) {
+        console.warn(JSON.stringify({ event: "sync_ack_rejected_detail", code: acknowledged.code, deviceId, serverSequence }));
         throw new PublicApiError(400, "sync_rejected");
       }
       return jsonResponse({
@@ -174,6 +175,7 @@ export async function handlePublicSyncRequest(
         .resolveWorkspace(route.workspaceId)
         .pushOperations(pushRequest);
       if (!result.ok) {
+        console.warn(JSON.stringify({ event: "sync_push_rejected_detail", code: result.error.code, message: result.error.message.slice(0, 200) }));
         throw contractError(result.error.code);
       }
       return jsonResponse(result.response);

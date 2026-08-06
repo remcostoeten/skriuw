@@ -452,6 +452,55 @@ describe("acknowledgement cursors and compaction", () => {
     expect(remaining.operations).toEqual([]);
   });
 
+  it("keeps the sequence high-water mark after compaction empties the log", async () => {
+    const workspaceId = "workspace-compaction-hwm";
+    const workspace = env.WORKSPACES.getByName(workspaceId);
+    const store = new WorkspaceContentStore(env.SYNC_CONTENT);
+    await store.putChunk(workspaceId, chunkedDigest, chunkedContentBytes);
+    await workspace.pushOperations({ ...goldenPushV2, deviceId: DEVICE_ID });
+    await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW);
+    const checkpoint = await buildCheckpoint(workspaceId, 2, store);
+    await workspace.publishCheckpoint(checkpoint);
+    const compacted = await workspace.compact(NOW, 60);
+    expect(compacted.removedOperations).toBe(2);
+
+    expect(
+      await workspace.acknowledgeOperations(DEVICE_ID, 2, NOW),
+    ).toMatchObject({ ok: true, acknowledgedServerSequence: 2 });
+
+    const followUp = await workspace.pushOperations({
+      syncProtocolVersion: 2,
+      deviceId: DEVICE_ID,
+      operations: [
+        {
+          operationId: "operation-after-compaction",
+          clientSequence: 3,
+          baseServerSequence: 2,
+          payload: {
+            form: "inline",
+            operation: {
+              protocolVersion: 1,
+              operation: {
+                type: "create_folder",
+                id: "folder-after-compaction",
+                title: "Folder",
+                placement: { parentId: null, position: { type: "last" } },
+                at: 3,
+              },
+            },
+          },
+        },
+      ],
+    });
+    expect(followUp).toMatchObject({
+      ok: true,
+      response: {
+        accepted: [{ operationId: "operation-after-compaction", serverSequence: 3 }],
+        latestServerSequence: 3,
+      },
+    });
+  });
+
   it("holds the log for a lagging device until it is expired as stale", async () => {
     const workspaceId = "workspace-stale-device";
     const workspace = env.WORKSPACES.getByName(workspaceId);

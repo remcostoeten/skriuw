@@ -535,12 +535,25 @@ export class WorkspaceSyncObject extends DurableObject<Env> {
     };
   }
 
+  /**
+   * The log's high-water mark must survive compaction: sync_operations uses
+   * AUTOINCREMENT, so sqlite_sequence retains the last assigned sequence even
+   * after retention deletes every row. Reading MAX(server_sequence) alone
+   * would regress the mark and permanently reject every device's
+   * acknowledgements and pushes.
+   */
   private latestServerSequence(): number {
-    return this.ctx.storage.sql
+    const logged = this.ctx.storage.sql
       .exec<{ sequence: number }>(
         "SELECT COALESCE(MAX(server_sequence), 0) AS sequence FROM sync_operations",
       )
       .one().sequence;
+    const assigned = this.ctx.storage.sql
+      .exec<{ sequence: number }>(
+        "SELECT COALESCE(MAX(seq), 0) AS sequence FROM sqlite_sequence WHERE name = 'sync_operations'",
+      )
+      .toArray()[0]?.sequence ?? 0;
+    return Math.max(logged, assigned);
   }
 }
 
