@@ -74,6 +74,27 @@ jobs:
                       v2 -> target
                       v2/app/src-tauri -> target
 
+            # the desktop frontend bundles the browser storage worker, whose
+            # generated WASM bindings must exist before `build:frontend` typechecks
+            - name: Build browser WASM bindings
+              working-directory: v2
+              shell: bash
+              run: |
+                  rustup target add wasm32-unknown-unknown
+                  case "${{ runner.os }}-$(uname -m)" in
+                      Linux-*) triple="x86_64-unknown-linux-musl" ;;
+                      macOS-arm64) triple="aarch64-apple-darwin" ;;
+                      macOS-*) triple="x86_64-apple-darwin" ;;
+                      *) triple="x86_64-pc-windows-msvc" ;;
+                  esac
+                  curl --location --silent --show-error --fail \
+                      "https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.126/wasm-bindgen-0.2.126-${triple}.tar.gz" \
+                      | tar --extract --gzip
+                  cp "wasm-bindgen-0.2.126-${triple}"/wasm-bindgen* "$HOME/.cargo/bin/"
+                  rm -r "wasm-bindgen-0.2.126-${triple}"
+                  wasm-bindgen --version
+                  bash scripts/build-browser-wasm.sh
+
             - name: Install frontend dependencies
               working-directory: v2/app
               run: bun install --frozen-lockfile
