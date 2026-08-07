@@ -12,6 +12,7 @@ import {
 import { ancestorIds, flattenVisible } from "../store/tree";
 import type { RendererState, RendererStore } from "../store/types";
 import type { ReferenceOperation } from "../references/types";
+import { planTemplateNote, type NoteTemplate } from "../templates/note-templates";
 import { planNoteDuplicate } from "./duplicate-note";
 
 export function commitReferenceOperations(
@@ -83,6 +84,19 @@ export function createNote(store: RendererStore, parentId: string | null): void 
     { type: "set_active_note", noteId: id },
   ];
   void commitOperations(store, operations).catch(reportRejection("create note"));
+}
+
+export function createNoteFromTemplate(
+  store: RendererStore,
+  template: NoteTemplate,
+  parentId: string | null,
+): void {
+  const plan = planTemplateNote(template, parentId, Date.now(), () =>
+    crypto.randomUUID(),
+  );
+  void commitOperations(store, [...plan.operations]).catch(
+    reportRejection("create note from template"),
+  );
 }
 
 export function createLinkedNote(store: RendererStore, id: string, title: string): void {

@@ -29,6 +29,7 @@ import {
   readMetadataWidth,
   writeMetadataWidth,
 } from "./shell/metadata-resize";
+import { TemplatePickerHost } from "./templates/template-picker";
 import { TransferReportHost } from "./export/transfer-report-host";
 import { ImportPreviewHost } from "./import/import-preview-host";
 import { ImportProgressHost } from "./import/import-progress-host";
@@ -498,6 +499,7 @@ export function App({ store }: Props) {
         onOpenChange={setShortcutHelpOpen}
       />
       <ToastHost visible={showToasts} />
+      <TemplatePickerHost store={store} />
       <TransferReportHost />
       <ImportPreviewHost />
       <ImportProgressHost />
