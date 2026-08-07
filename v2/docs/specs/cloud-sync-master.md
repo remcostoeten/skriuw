@@ -163,7 +163,15 @@ See [ADR-0026](../adr/0026-optional-cloud-operation-replication.md).
   acknowledgement and checkpoint evidence exists.
 - [ ] Decide whether cloud content is end-to-end encrypted before public beta.
 - [ ] Test two offline devices, clock skew, duplicate delivery, reordered
-  delivery, expired sessions, and interrupted large uploads.
+  delivery, expired sessions, and interrupted large uploads. Two offline
+  devices forking the same document — both-version preservation, per-device
+  resolution, and convergence without resolution ping-pong — plus duplicate
+  delivery and expired sessions are covered in
+  [`cycle_scenarios.rs`](../../crates/skriuw-sync/tests/cycle_scenarios.rs);
+  clock skew, reordered delivery, and interrupted large uploads remain open.
+  Conflict records are intentionally per-device: every device that observed
+  the fork resolves it locally, and replicated resolutions apply as ordinary
+  saves (identical content is a semantic no-op).
 - [ ] Provide connected-workspace export, account deletion, and cloud purge.
 
 ## Milestones

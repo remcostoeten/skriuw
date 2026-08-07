@@ -12,7 +12,7 @@ use skriuw_sync::{
 };
 use support::{
     FakeAssetStore, FakeClock, FakeServer, FakeTransport, PullFault, PushFault, attach_image,
-    create_note, rename_node, save_large_document,
+    create_note, rename_node, save_document, save_large_document,
 };
 
 const WORKSPACE: &str = "workspace-1";
@@ -509,6 +509,138 @@ fn two_databases_exchange_operations_after_offline_edits_and_restart() {
             .sync_conflicts()
             .expect("conflicts")
             .is_empty()
+    );
+}
+
+#[test]
+fn concurrent_document_edits_preserve_both_versions_and_resolve() {
+    let directory = tempfile::tempdir().expect("temp directory");
+    let clock = FakeClock::at(1_000);
+    let server = FakeServer::new(WORKSPACE);
+
+    let mut device_a = Device::with_storage(
+        SqliteWorkspace::open(directory.path().join("device-a.db")).expect("open device a"),
+        &server,
+        "device-a",
+        &clock,
+    );
+    device_a.connect("device-a");
+    device_a.apply(vec![create_note("note-shared", "Shared", 1)]);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+
+    let mut device_b = Device::with_storage(
+        SqliteWorkspace::open(directory.path().join("device-b.db")).expect("open device b"),
+        &server,
+        "device-b",
+        &clock,
+    );
+    device_b.connect("device-b");
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+
+    let base_revision = device_b.storage.bootstrap().expect("bootstrap b").documents[0].revision;
+
+    device_a.apply(vec![save_document(
+        "note-shared",
+        base_revision,
+        "Edited on device A",
+        2,
+    )]);
+    device_b.apply(vec![save_document(
+        "note-shared",
+        base_revision,
+        "Edited on device B",
+        2,
+    )]);
+
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    let outcome_b = device_b.cycle();
+    assert_eq!(outcome_b.status, SyncStatus::Conflict { open_conflicts: 1 });
+
+    let conflicts_b = device_b.storage.document_conflicts().expect("conflicts b");
+    assert_eq!(conflicts_b.len(), 1);
+    assert_eq!(conflicts_b[0].note_id, "note-shared");
+    let versions = device_b
+        .storage
+        .document_conflict_versions(&conflicts_b[0].conflict_id)
+        .expect("versions b");
+    assert_eq!(versions.remote.markdown, "Edited on device A");
+    assert_eq!(
+        versions.local.expect("local version").markdown,
+        "Edited on device B",
+    );
+
+    let acknowledgement = device_b
+        .storage
+        .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
+            conflict_id: conflicts_b[0].conflict_id.clone(),
+            choice: skriuw_domain::DocumentConflictResolutionChoice::KeepRemote,
+            at: 3,
+        })
+        .expect("resolve on b");
+    assert!(acknowledgement.is_some());
+
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+
+    let outcome_a = device_a.cycle();
+    assert_eq!(outcome_a.status, SyncStatus::Conflict { open_conflicts: 1 });
+    let conflicts_a = device_a.storage.document_conflicts().expect("conflicts a");
+    assert_eq!(conflicts_a.len(), 1);
+    let versions_a = device_a
+        .storage
+        .document_conflict_versions(&conflicts_a[0].conflict_id)
+        .expect("versions a");
+    assert_eq!(versions_a.remote.markdown, "Edited on device B");
+
+    device_a
+        .storage
+        .resolve_document_conflict(&skriuw_domain::ResolveDocumentConflict {
+            conflict_id: conflicts_a[0].conflict_id.clone(),
+            choice: skriuw_domain::DocumentConflictResolutionChoice::KeepLocal,
+            at: 4,
+        })
+        .expect("resolve on a");
+
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_b.cycle().status, SyncStatus::UpToDate);
+    assert_eq!(device_a.cycle().status, SyncStatus::UpToDate);
+
+    let markdown_a = device_a.storage.bootstrap().expect("bootstrap a").documents[0]
+        .markdown
+        .clone();
+    let markdown_b = device_b.storage.bootstrap().expect("bootstrap b").documents[0]
+        .markdown
+        .clone();
+    assert_eq!(markdown_a, "Edited on device A");
+    assert_eq!(markdown_a, markdown_b);
+    assert!(
+        device_a
+            .storage
+            .sync_conflicts()
+            .expect("open a")
+            .is_empty()
+    );
+    assert!(
+        device_b
+            .storage
+            .sync_conflicts()
+            .expect("open b")
+            .is_empty()
+    );
+    assert_eq!(
+        device_a
+            .storage
+            .document_conflicts()
+            .expect("records a")
+            .len(),
+        1
+    );
+    assert_eq!(
+        device_b
+            .storage
+            .document_conflicts()
+            .expect("records b")
+            .len(),
+        1
     );
 }
 

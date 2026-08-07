@@ -743,6 +743,23 @@ pub fn attach_image(
 }
 
 #[must_use]
+pub fn save_document(
+    id: &str,
+    expected_revision: i64,
+    markdown: &str,
+    at: i64,
+) -> WorkspaceOperationEnvelope {
+    envelope(WorkspaceOperation::SaveDocument {
+        note_id: id.into(),
+        document_json: json!({"type": "doc", "content": []}),
+        markdown: markdown.into(),
+        word_count: markdown.split_whitespace().count() as i64,
+        expected_revision,
+        at,
+    })
+}
+
+#[must_use]
 pub fn save_large_document(
     id: &str,
     expected_revision: i64,
