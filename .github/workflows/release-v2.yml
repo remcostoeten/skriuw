@@ -29,8 +29,47 @@ jobs:
                       });
                       return data.id;
 
+    # the generated WASM bindings are platform-independent; Apple clang and
+    # ubuntu-22.04's clang cannot compile the sqlite-wasm-rs C shim for
+    # wasm32, so build once where CI already proves it works and share it
+    build-browser-wasm:
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: v2
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Setup Rust toolchain
+              uses: dtolnay/rust-toolchain@master
+              with:
+                  toolchain: 1.95.0
+                  targets: wasm32-unknown-unknown
+
+            - name: Rust cache
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: v2 -> target
+
+            - name: Install wasm-bindgen-cli
+              run: |
+                  curl --location --silent --show-error --fail \
+                      https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.126/wasm-bindgen-0.2.126-x86_64-unknown-linux-musl.tar.gz \
+                      | tar --extract --gzip --strip-components=1 --directory="$HOME/.cargo/bin" \
+                            wasm-bindgen-0.2.126-x86_64-unknown-linux-musl/wasm-bindgen
+                  wasm-bindgen --version
+
+            - name: Build browser WASM bindings
+              run: ./scripts/build-browser-wasm.sh
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: browser-wasm
+                  path: v2/.build/browser-wasm
+                  if-no-files-found: error
+
     publish-tauri:
-        needs: create-release
+        needs: [create-release, build-browser-wasm]
         permissions:
             contents: write
         strategy:
@@ -76,24 +115,11 @@ jobs:
 
             # the desktop frontend bundles the browser storage worker, whose
             # generated WASM bindings must exist before `build:frontend` typechecks
-            - name: Build browser WASM bindings
-              working-directory: v2
-              shell: bash
-              run: |
-                  rustup target add wasm32-unknown-unknown
-                  case "${{ runner.os }}-$(uname -m)" in
-                      Linux-*) triple="x86_64-unknown-linux-musl" ;;
-                      macOS-arm64) triple="aarch64-apple-darwin" ;;
-                      macOS-*) triple="x86_64-apple-darwin" ;;
-                      *) triple="x86_64-pc-windows-msvc" ;;
-                  esac
-                  curl --location --silent --show-error --fail \
-                      "https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.126/wasm-bindgen-0.2.126-${triple}.tar.gz" \
-                      | tar --extract --gzip
-                  cp "wasm-bindgen-0.2.126-${triple}"/wasm-bindgen* "$HOME/.cargo/bin/"
-                  rm -r "wasm-bindgen-0.2.126-${triple}"
-                  wasm-bindgen --version
-                  bash scripts/build-browser-wasm.sh
+            - name: Download browser WASM bindings
+              uses: actions/download-artifact@v4
+              with:
+                  name: browser-wasm
+                  path: v2/.build/browser-wasm
 
             - name: Install frontend dependencies
               working-directory: v2/app
