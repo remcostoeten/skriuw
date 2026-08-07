@@ -5,6 +5,7 @@ import {
   InfoIcon,
   KeyboardIcon,
   SettingsIcon,
+  UserIcon,
 } from "../../shared/icons";
 import { SHORTCUT_DEFINITIONS } from "../../shortcuts/definitions";
 
@@ -16,6 +17,13 @@ export const SECTIONS = [
     searchText:
       "color midnight paper embers mocha rose pine catppuccin gruvbox tokyo night compact sidebar tree guides indent reduce motion remember last note workspace",
     icon: SettingsIcon,
+  },
+  {
+    id: "account",
+    label: "Account",
+    description: "Cloud sign-in and session",
+    searchText: "account cloud sign in sign up register email password session sync",
+    icon: UserIcon,
   },
   {
     id: "editor",

@@ -1,0 +1,14 @@
+{
+  "operation": {
+    "at": 2,
+    "documentJson": {
+      "type": "doc"
+    },
+    "expectedRevision": 1,
+    "markdown": "large document body",
+    "noteId": "note-1",
+    "type": "save_document",
+    "wordCount": 3
+  },
+  "protocolVersion": 1
+}

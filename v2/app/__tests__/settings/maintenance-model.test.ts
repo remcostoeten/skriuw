@@ -8,6 +8,8 @@ import {
   confirmOperation,
   confirmationCopy,
   describeBackupReport,
+  describeExportReport,
+  describeImportReport,
   describeSwapReport,
   dismissConfirmation,
   failOperation,
@@ -213,6 +215,31 @@ test("recovery inventory projects newest-first backups and flags emptiness", () 
   );
   assert.equal(projected.backups[0].verified, false);
   assert.equal(projected.rollbacks[0].fileName, "workspace.db.rollback-5");
+});
+
+test("archive report copy stays true for both desktop and browser runtimes", () => {
+  const exported = describeExportReport({
+    nodes: 4,
+    documents: 3,
+    images: 0,
+    exportedAt: 1,
+    fileName: "skriuw-workspace-2026.json",
+  });
+  assert.equal(
+    exported,
+    "Exported 4 item(s), 3 document(s), and 0 image(s) to skriuw-workspace-2026.json.",
+  );
+  const imported = describeImportReport({
+    nodes: 4,
+    documents: 3,
+    images: 0,
+    safetyBackupFileName: "skriuw-safety-backup-2026.json",
+    snapshot: {} as WorkspaceSnapshot,
+  });
+  assert.equal(
+    imported,
+    "Imported 4 item(s), 3 document(s), and 0 image(s). The previous workspace was kept as skriuw-safety-backup-2026.json.",
+  );
 });
 
 test("byte sizes format into readable units", () => {

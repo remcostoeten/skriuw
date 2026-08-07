@@ -1,0 +1,122 @@
+[
+  {
+    "operationType": "create_tag",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "rename_tag",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "recolor_tag",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "delete_tag",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "create_person",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "rename_person",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "recolor_person",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "delete_person",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "create_folder",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "create_note",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "rename_node",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "set_note_cover",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "set_note_cover_full_width",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "set_note_cover_transform",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "move_node",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "set_node_pinned",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "save_document",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "trash_subtree",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "restore_subtree",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "purge_subtree",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "set_active_note",
+    "replicationClass": "device_local"
+  },
+  {
+    "operationType": "update_settings",
+    "replicationClass": "device_local"
+  },
+  {
+    "operationType": "attach_image",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "set_note_property",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "remove_note_property",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "reorder_note_properties",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "set_note_property_template",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "delete_note_property_template",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "reorder_note_property_templates",
+    "replicationClass": "replicated_workspace_content"
+  },
+  {
+    "operationType": "record_provider_import",
+    "replicationClass": "device_local"
+  }
+]

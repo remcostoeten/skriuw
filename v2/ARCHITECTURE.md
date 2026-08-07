@@ -82,6 +82,10 @@ User action
 
 `skriuw-sqlite` owns schema migration, transactions, optimistic revision checks, FTS projections, and the durable history outbox.
 
+### Sync coordination
+
+`skriuw-sync` owns the optional background sync lifecycle: a narrow push/pull transport seam over the generated v1 sync contracts, classified failure handling with bounded jittered backoff, and one coalesced coordinator loop per workspace database that claims, pushes, acknowledges, pulls, and applies through the durable `WorkspaceSyncQueue` port. It holds no SQLite transaction across network work and never runs on interaction or recovery paths; see `docs/specs/desktop-sync-coordinator.md`.
+
 ### History
 
 History is a separate capability. `skriuw-history` coordinates leased queue items through backend-neutral materializer, reader, and cache ports. Desktop uses the native-only `skriuw-history-git` adapter to materialize Markdown into a hidden Git repository. Its separate read-only reader checks only `refs/heads/history`: reachable commits must form one linear chain with unique valid identities, complete metadata, and readable UTF-8 note blobs. Cache rebuild validates and enumerates all headers before one transactional SQLite replacement; version Markdown loads only when opened. Web may retain structured revisions locally or use remote history. SQLite remains authoritative. History failures cannot prevent saves. Persisted leases make retries crash-safe. Failed materialization receives durable exponential backoff capped at six hours, so one poison revision cannot starve later eligible history work. Materializers must be idempotent by outbox item ID. Integrity and rebuild run only when explicitly requested, never during startup or interaction paths.
@@ -91,6 +95,15 @@ The desktop history drain publishes one note-scoped header only after materializ
 ### Future web runtime
 
 Web uses the same operation protocol and renderer store. A dedicated worker owns SQLite WASM over OPFS. Network sync, if added, consumes a durable outbox and never services note navigation.
+
+Optional connected mode replicates versioned domain operations rather than
+SQLite files or pages. Local-only desktop remains the default. The first cloud
+adapter assigns an ordered workspace log inside one SQLite-backed Durable
+Object per workspace; large content is referenced through content-addressed
+chunks instead of being forced into cloud SQLite rows. Public sync access stays
+disabled until authentication and workspace authorization are implemented. See
+[the cloud sync master tracker](docs/specs/cloud-sync-master.md) and
+[ADR-0026](docs/adr/0026-optional-cloud-operation-replication.md).
 
 ### Recovery and portability
 
@@ -106,6 +119,9 @@ Native backup uses SQLite's Online Backup API against a live WAL database. It pu
 - `app_state`: durable workspace/UI state.
 - `history_cache`: rebuildable history headers.
 - `history_outbox`: durable pending history materialization.
+- `sync_connection`: optional connected-workspace/device identity and cursors.
+- `sync_outbox`: durable pending replicated local operations.
+- `sync_blocked_operations`: recovery-visible operations awaiting later sync capabilities.
 
 See [docs/data-model.md](docs/data-model.md).
 
@@ -149,3 +165,4 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0023: lossless and reference-safe Markdown transfer](docs/adr/0023-lossless-markdown-transfer.md)
 - [ADR-0024: previewed and atomic provider import](docs/adr/0024-previewed-atomic-provider-import.md)
 - [ADR-0025: embedded diagrams use a structured local model](docs/adr/0025-embedded-diagrams.md)
+- [ADR-0026: optional cloud operation replication](docs/adr/0026-optional-cloud-operation-replication.md)

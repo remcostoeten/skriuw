@@ -54,6 +54,84 @@ export function closeWorkspaceWindow(): Promise<void> {
   return invoke<void>("close_workspace_window");
 }
 
+export function loadAuthToken(): Promise<string | null> {
+  return invoke<string | null>("load_auth_token");
+}
+
+export function storeAuthToken(token: string): Promise<void> {
+  return invoke<void>("store_auth_token", { token });
+}
+
+export function clearAuthToken(): Promise<void> {
+  return invoke<void>("clear_auth_token");
+}
+
+export type WorkspaceSyncStatus =
+  | { state: "localOnly" }
+  | { state: "connecting" }
+  | { state: "upToDate" }
+  | { state: "pending" }
+  | { state: "offline" }
+  | { state: "authenticationRequired" }
+  | { state: "conflict"; openConflicts: number }
+  | { state: "retrying"; nextAttemptAt: number }
+  | { state: "blocked"; reason: string };
+
+export function workspaceSyncStatus(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("workspace_sync_status");
+}
+
+export function connectWorkspaceSync(token: string): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("connect_workspace_sync", { token });
+}
+
+export function pauseWorkspaceSync(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("disconnect_workspace_sync");
+}
+
+export function retryWorkspaceSync(): Promise<WorkspaceSyncStatus> {
+  return invoke<WorkspaceSyncStatus>("retry_workspace_sync");
+}
+
+export type BlockedSyncOperation = {
+  blockedId: string;
+  operationType: string;
+  reasonCode: string;
+  targetId: string | null;
+  targetTitle: string | null;
+  assetContentHash: string | null;
+  assetMimeType: string | null;
+  firstBlockedAt: number;
+};
+
+export type DiscardedSyncOperation = {
+  blockedId: string;
+  operationType: string;
+  reasonCode: string;
+  targetId: string | null;
+  targetTitle: string | null;
+  firstBlockedAt: number;
+  discardedAt: number;
+};
+
+export type SyncRecoveryView = {
+  viewVersion: number;
+  blocked: BlockedSyncOperation[];
+  discarded: DiscardedSyncOperation[];
+};
+
+export function listBlockedSyncOperations(): Promise<SyncRecoveryView> {
+  return invoke<SyncRecoveryView>("list_blocked_sync_operations");
+}
+
+export function retryBlockedSyncOperation(blockedId: string): Promise<SyncRecoveryView> {
+  return invoke<SyncRecoveryView>("retry_blocked_sync_operation", { blockedId });
+}
+
+export function discardBlockedSyncOperation(blockedId: string): Promise<SyncRecoveryView> {
+  return invoke<SyncRecoveryView>("discard_blocked_sync_operation", { blockedId });
+}
+
 export function searchWorkspace(query: string, limit: number): Promise<SearchHit[]> {
   return invoke<SearchHit[]>("search_workspace", { query, limit });
 }

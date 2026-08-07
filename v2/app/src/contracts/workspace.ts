@@ -152,6 +152,20 @@ export type ProviderImportReceipt = {
   importedAt: number;
 };
 
+export type WorkspaceArchive = {
+  archiveVersion: number;
+  protocolVersion: number;
+  exportedAt: number;
+  activeNoteId: string | null;
+  nodes: WorkspaceNode[];
+  documents: WorkspaceDocument[];
+  settings: WorkspaceSettings;
+  tags?: WorkspaceSnapshot["tags"];
+  people?: WorkspaceSnapshot["people"];
+  properties?: NoteProperty[];
+  propertyTemplates?: NotePropertyTemplate[];
+};
+
 export type NodePosition =
   | { type: "first" }
   | { type: "last" }

@@ -1,9 +1,16 @@
 # Web runtime
 
-Status: browser runtime foundation in progress. The portable domain/storage
-compile boundary, browser worker protocol, and renderer runtime seam are now
-gated; OPFS-backed SQLite execution, browser history, and recovery semantics
-remain deferred.
+Status: browser-local runtime implemented. The application bridge, generated
+WASM asset, worker-owned SQLite/OPFS open path, shared migrations, native parity
+tests, archive recovery behavior (including the in-app export download and
+validated replace-from-file flow in the Data settings), and the Chromium
+close/reload plus archive round-trip durability gate are implemented. Firefox 152 durability evidence
+(`bun --cwd=app run e2e:browser-storage:firefox`, WebDriver BiDi against system
+Firefox) and representative 1,000/5,000-note storage-runtime measurements
+(`bun --cwd=app run e2e:browser-scale`, recorded in
+`docs/benchmarks/2026-08-05-browser-runtime-scale.md`) are captured. Safari
+evidence and production-build renderer-interaction measurements on the
+reference runner remain release requirements.
 
 Scope note: this spec covers the browser runtime only (wasm crates, SQLite-WASM adapter, fixture parity). Mobile and a browser extension are explicitly out of scope for this spec and remain unscheduled separate efforts.
 
@@ -39,19 +46,167 @@ Concretely:
 
 ### 2. Worker-owned SQLite-WASM adapter over durable browser storage
 
-The initial `skriuw-sqlite-wasm` crate now defines the typed worker request and
-response boundary and can dispatch against any `WorkspaceStorage` implementation
-for parity tests. The TypeScript bridge also routes browser calls through a
-dedicated module worker. The next implementation step is connecting that
-boundary to a real SQLite-WASM connection and OPFS VFS; the current browser
-worker intentionally returns an explicit unavailable error until then.
+The `skriuw-sqlite-wasm` crate defines the typed request/response boundary and
+worker lifecycle. Its WASM entry point installs the `sqlite-wasm-vfs` 0.2
+sync-access-handle pool in `.skriuw-v2`, sets it as the default VFS, and opens
+one `skriuw-sqlite::SqliteWorkspace`. This reuses native operation, migration,
+checksum, FTS, transaction/savepoint, settings, integrity, and portable archive
+behavior. The database and OPFS handles remain worker-local.
 
-New crate, e.g. `skriuw-sqlite-wasm`, implementing the `skriuw-storage` port using `sqlite-wasm-rs` (or the equivalent official SQLite WASM build) against OPFS (Origin Private File System) — OPFS is the only browser storage with the durability and random-access-write characteristics SQLite needs; IndexedDB-backed SQLite shims exist but are slower and less transactionally sound, and should not be the default choice without a specific measured reason.
+Two gates keep that boundary honest. `check-wasm.sh` builds
+the adapter crate for `wasm32-unknown-unknown`, so native-only code cannot enter
+it unnoticed. `crates/skriuw-sqlite-wasm/tests/worker_protocol_parity.rs` drives
+shared fixture operation batches, search, and renderer layout state through the
+request/response protocol against a real backend and asserts the results equal a
+direct trait call. `runtime_contract.rs` additionally proves migration on fresh
+open, edit/close/reopen durability, archive round-trip, and invalid archive
+rejection before mutation through the production protocol.
+
+ADR-0027 selects `sqlite-wasm-rs` 0.5.5 and `sqlite-wasm-vfs` 0.2.0's
+`opfs-sahpool`. The VFS provides full durability, runs only in a dedicated
+worker, and requires one active connection for its origin directory. Unlike the
+ordinary OPFS VFS it does not require COOP/COEP. IndexedDB and memory remain
+explicitly excluded as durability fallbacks.
 
 - SQLite WASM must run inside a Web Worker, not the main thread — the same "off the renderer/UI thread" rule that governs the native runtime worker (`skriuw-runtime`) applies identically here, and is more urgent in the browser since the main thread also owns rendering.
 - The worker communicates with the renderer via `postMessage`, mirroring the shape of `skriuw-runtime`'s FIFO request queue and waitable completion handles — the goal is that `app/src/bridge/**`'s Tauri-specific implementation and a new browser-worker-specific implementation both satisfy the same renderer-facing bridge contract, so `app/src/store/**` and everything above it does not know which adapter is active.
 - Migrations: the same SQL files under `migrations/` must apply unmodified inside the worker (`docs/data-model.md`'s "migration execution remains adapter-owned so a future SQLite-WASM implementation can apply the same SQL files inside its worker" is an explicit design commitment already made — honor it; do not fork the migration files).
 - Git history: native builds materialize history via `skriuw-history-git`. The browser adapter has no filesystem Git available. Per the existing TODO item this spec absorbs ("select local revision or remote history materializer"), the browser adapter needs its own `skriuw-history` implementation — likely a local revision-cache-only mode (no external Git materialization) as the default, with a remote materializer as a later, separate decision requiring its own ADR (it implies a server, which ADR-0001 explicitly scopes as "optional replication, never primary reads").
+
+### Worker protocol and lifecycle
+
+Protocol version 1 has explicit `initialize`, ready, request, `close`, terminal
+failure, and closed states. Positive safe request IDs correlate one response.
+The boundary rejects unknown versions/kinds, malformed JSON, invalid database
+names, oversized payloads, invalid layouts, excessive operation batches, and
+invalid archives. Operation requests are capped at the native runtime's
+64-operation batch size and total messages at 16 MiB.
+
+The owned TypeScript client applies a 15-second initialization deadline and a
+30-second request deadline. Crash, message decoding failure, explicit
+termination, and close reject every outstanding promise deterministically.
+Timeout messages warn that an accepted write may already be durable; a caller
+must reconcile by bootstrapping after reopen rather than blindly replaying an
+operation.
+
+Stable recovery errors cover unsupported browser, OPFS denial, quota,
+migration, database-too-new, corruption/open, crash, invalid request/protocol,
+conflict, shutdown, and timeout. The SAH-pool does not require cross-origin
+isolation, so that error is reserved for a future VFS choice rather than emitted
+by this adapter. No durable-storage failure falls back to memory or IndexedDB.
+
+### Recovery and history
+
+Validated portable archive export/import is the browser recovery baseline.
+Import validates before mutation, replaces canonical state in one transaction,
+and rebuilds projections through the shared adapter. OPFS internals, FTS rows,
+history/sync operational queues, and native Git data do not enter the archive.
+Browser history is therefore current-state/archive recovery only in this slice;
+native Git history is not claimed.
+
+The Data settings section exposes this boundary in the browser. Export requests
+the archive from the worker and hands it to the user as a JSON download; replace
+picks a local file through the browser file chooser, pre-validates its shape,
+downloads a safety copy of the current workspace, and only then submits the
+worker-validated replacement. Native-only maintenance — storage path and
+relocation, scheduled verified backups and restore, filesystem markdown and
+provider imports, and the media library — is hidden in the browser instead of
+failing, and the section states that clearing site data deletes the OPFS
+workspace. Desktop-exported archives import into the browser (unknown image
+fields are ignored); archive imports still do not carry image blobs, but
+replicated image bytes now persist in the browser sync asset store described
+below.
+
+### Authenticated cloud sync in the browser
+
+The storage worker owns the entire sync lifecycle so the renderer keeps its
+single asynchronous request boundary and never blocks on network work. The
+shared `skriuw-sync` crate runs unchanged inside the worker: `run_sync_cycle`,
+checkpoint hydration and publication, chunked content transfer, and asset
+externalization/resolution execute against the same durable
+`WorkspaceSyncQueue` port the desktop coordinator uses. Only the desktop's
+thread and timer scheduling is replaced: `app/src/bridge/browser-sync.ts`
+schedules one bounded `sync_cycle` worker request at a time and derives the
+next wake from the reported outcome (`pending` immediately, `retrying`/
+`blocked` at the reported deadline, otherwise a 60-second poll), coalescing
+local commits, focus, and reconnect events exactly like the coordinator's wake
+flag. Identity, cursor, idempotency, local-echo, and blocked-operation rules
+are proven identical to native by
+`crates/skriuw-sqlite-wasm/tests/browser_sync_scenarios.rs`.
+
+Network access uses synchronous XHR, which dedicated workers permit; this is
+what lets the crate's synchronous `SyncTransport` boundary be reused instead
+of reimplementing protocol logic in TypeScript. Each transport call is one
+bounded request with its own deadline. URLs and HTTP status classification
+come from `skriuw_sync::http`, shared with the desktop transport. The worker
+re-validates the cloud origin against the renderer's trust rules before
+creating a transport, and a missing or expired credential surfaces as
+`authenticationRequired` — it is never fabricated or bypassed.
+
+Connect flow: the renderer obtains a session token through the existing auth
+path, the driver reads the durable connection for an existing device identity
+(generating one only for a never-linked workspace), provisions over
+`POST /v1/sync/provision`, and submits `sync_connect` to the worker, which
+enforces the same identity rules as desktop — a device identity is never
+replaced and a workspace linked to a different account refuses to connect.
+Browser credentials live in memory only, so after a reload a linked workspace
+reports `authenticationRequired` until the user signs in again.
+
+The Account settings section exposes the same enable/pause/retry sync flow in
+the browser as on desktop, over the identical bridge commands
+(`workspace_sync_status`, `connect_workspace_sync`, `disconnect_workspace_sync`,
+`retry_workspace_sync`). After a reload the row explains that browser sign-in
+does not survive reloads and offers Enable sync again. One deliberate gap
+remains: the per-change blocked-operations recovery list
+(`list_blocked_sync_operations` and friends) is not mapped by the browser
+bridge, so that surface stays hidden in the browser and the blocked sync
+status copy says recovery of individual blocked changes needs the desktop app
+for now.
+
+A fresh browser device with a zero cursor and an empty outbox hydrates from
+the latest published checkpoint before replaying the ordered tail, through the
+same gated `hydrate_from_checkpoint` port as desktop. Chunk transfers are
+individually bounded (1 MiB), and the worker posts out-of-band progress
+notifications (`requestId 0`) with expected totals from the checkpoint
+manifest so long hydrations stay visible; `subscribeBrowserSyncProgress`
+exposes them to the shell, and the Account settings section renders them as an
+`aria-live` line under the sync status while the cycle can still be running,
+clearing once the status settles. Nothing is applied until the assembled content
+verifies, so an interrupted or failed hydration leaves the durable state
+untouched and the next scheduled cycle restarts it. Checkpoint content whose
+chunks are missing or corrupt blocks visibly as `rejected_checkpoint`, exactly
+like desktop.
+
+Replicated image assets travel the same content-addressed chunk path and
+persist in a dedicated OPFS-backed SQLite asset store
+(`<database>-assets`, outside the canonical workspace schema). Push-side
+missing-blob blocking matches desktop: an operation whose declared asset bytes
+are absent locally moves to the durable blocked-operations queue with reason
+`asset_content_missing` while everything else keeps flowing. Known shared
+limitation (desktop and browser alike): checkpoint hydration restores image
+metadata but does not fetch asset bytes for images that were already inside
+the checkpoint archive; only tail-replayed `AttachImage` operations resolve
+bytes.
+
+Because the storage worker serializes sync cycles with persistence requests,
+cycle work is bounded (at most four push batches and four pull pages per
+cycle) so renderer save acknowledgements are delayed at most by one bounded
+cycle; renderer state itself updates synchronously and never waits on either.
+
+### Application and build integration
+
+`scripts/build-browser-wasm.sh` builds the crate for
+`wasm32-unknown-unknown` and uses the exactly matching `wasm-bindgen` CLI to
+create ignored build artifacts. Vite's explicit worker-URL import emits a
+dedicated worker chunk and the `.wasm` asset; the application runtime maps its
+existing renderer-facing commands to the versioned browser protocol.
+
+`app/e2e/browser-storage.mjs` runs the real application bridge in headless
+Chromium with an isolated profile. It creates a canonical folder through the
+worker, closes the worker, reloads the page, opens the same OPFS database, and
+requires exactly one durable copy. `check-wasm.sh` owns this test and CI runs it.
+Firefox/Safari durability and failure-mode coverage plus representative startup
+and interaction measurements remain required before browser release.
 
 ### 3. Fixture parity: prove native and web adapters behave identically
 
@@ -66,7 +221,7 @@ New crate, e.g. `skriuw-sqlite-wasm`, implementing the `skriuw-storage` port usi
 
 - Mobile.
 - Browser extension.
-- Multi-device sync (a browser adapter is a second local storage location, not sync — ADR-0001's "future sync requires durable operations, revisions, tombstones, and conflict handling" is unstarted and separate).
+- Multi-device sync was originally out of scope for this spec; it now exists and is specified in "Authenticated cloud sync in the browser" above, built on ADR-0026 and the cloud sync specs.
 - Any UI/UX difference between desktop and web beyond what's forced by the adapter boundary (window chrome, install prompts, etc.) — the renderer and its performance contract are meant to be shared, not forked.
 
 ## Acceptance criteria

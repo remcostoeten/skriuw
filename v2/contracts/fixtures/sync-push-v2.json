@@ -1,0 +1,52 @@
+{
+  "syncProtocolVersion": 2,
+  "deviceId": "device-1",
+  "operations": [
+    {
+      "operationId": "operation-1",
+      "clientSequence": 1,
+      "baseServerSequence": 0,
+      "payload": {
+        "form": "inline",
+        "operation": {
+          "protocolVersion": 1,
+          "operation": {
+            "type": "create_folder",
+            "id": "folder-1",
+            "title": "Folder",
+            "placement": {
+              "parentId": null,
+              "position": {
+                "type": "last"
+              }
+            },
+            "at": 1
+          }
+        }
+      }
+    },
+    {
+      "operationId": "operation-2",
+      "clientSequence": 2,
+      "baseServerSequence": 0,
+      "payload": {
+        "form": "chunked",
+        "manifest": {
+          "manifestVersion": 1,
+          "kind": "operation_envelope",
+          "algorithm": "sha256",
+          "encoding": "identity",
+          "contentDigest": "0c56a803d77f9bafc1fa5591cbae6ad7b4c8233aa2fb245fb175d8c81104693d",
+          "mimeType": "application/json",
+          "totalByteLength": 181,
+          "chunks": [
+            {
+              "digest": "0c56a803d77f9bafc1fa5591cbae6ad7b4c8233aa2fb245fb175d8c81104693d",
+              "byteLength": 181
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

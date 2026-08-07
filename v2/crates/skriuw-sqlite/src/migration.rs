@@ -57,6 +57,31 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
         name: "history_retry_backoff",
         sql: include_str!("../../../migrations/0010_history_retry_backoff.sql"),
     },
+    Migration {
+        version: 11,
+        name: "sync_outbox",
+        sql: include_str!("../../../migrations/0011_sync_outbox.sql"),
+    },
+    Migration {
+        version: 12,
+        name: "sync_inbound",
+        sql: include_str!("../../../migrations/0012_sync_inbound.sql"),
+    },
+    Migration {
+        version: 13,
+        name: "sync_convergence",
+        sql: include_str!("../../../migrations/0013_sync_convergence.sql"),
+    },
+    Migration {
+        version: 14,
+        name: "blocked_asset_content",
+        sql: include_str!("../../../migrations/0014_blocked_asset_content.sql"),
+    },
+    Migration {
+        version: 15,
+        name: "blocked_operation_recovery",
+        sql: include_str!("../../../migrations/0015_blocked_operation_recovery.sql"),
+    },
 ];
 
 pub(crate) struct Migration {

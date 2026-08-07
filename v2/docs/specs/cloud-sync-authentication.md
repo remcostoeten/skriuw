@@ -1,0 +1,149 @@
+# Cloud sync authentication and authorization boundary
+
+Status: production account identity and private-workspace authorization implemented.
+
+This specification defines the v2 Worker trust boundary for sync protocol v1.
+Better Auth supplies v2 account identity through email/password sessions stored
+in D1. The Worker validates each bearer through Better Auth, then consults the
+server-owned D1 workspace membership and device registry before resolving a
+workspace Durable Object.
+
+## Provider and membership decision
+
+The production identity provider is Better Auth with its email/password and
+bearer plugins. Accounts, credential hashes, sessions, and verification records
+live in the `skriuw-v2-auth` D1 database. The production Worker is
+`https://skriuw-v2-cloud.remcostoeten.workers.dev`; `https://skriuw.com` is the
+trusted web origin for the app mounted at `/app`. v1 authentication is not a
+dependency. Test credentials and the deterministic in-memory membership adapter
+remain test-only behavior.
+
+`POST /v1/sync/provision` accepts only a bounded `deviceId`. It derives a stable,
+opaque private workspace ID from the trusted Better Auth subject and atomically
+creates the owner membership and device registration. Request bodies cannot
+choose a workspace, user, or role. The first release provisions one owner-only
+workspace per account; sharing and membership management are later work.
+
+`BETTER_AUTH_SECRET` is a Wrangler secret and must never be committed.
+`BETTER_AUTH_URL` and `AUTH_TRUSTED_ORIGINS` are non-secret Worker variables.
+Local values live in ignored `.dev.vars`; the committed example documents their
+shape. Caller-provided membership claims remain untrusted and cannot satisfy the
+membership decision.
+
+## Account routes and deployment
+
+Better Auth owns `/api/auth/*`. OAuth and password reset are not advertised
+because v2 has no provider credentials or outbound email delivery. The Account
+settings section lazy-loads the auth UI so account checks do not enter the local
+workspace startup path. Native bearer tokens are stored in the operating-system
+credential vault.
+
+Production provisioning and rotation use Wrangler:
+
+```bash
+cd v2/cloud
+bunx wrangler d1 migrations apply skriuw-v2-auth --remote
+bunx wrangler secret put BETTER_AUTH_SECRET
+bunx wrangler deploy
+```
+
+## Trusted flow
+
+For a recognized push or pull route, the Worker performs these steps in order:
+
+1. require a configured credential verifier and membership source;
+2. parse one bounded `Authorization: Bearer <credential>` header;
+3. ask the verifier for a typed trusted subject, session ID, and expiry;
+4. reject invalid verifier output and sessions expired at the Worker clock;
+5. validate the workspace path identifier;
+6. look up the trusted subject and requested workspace in the server-owned
+   membership source;
+7. enforce the membership role and, for push, the registered device ID;
+8. validate method, query or bounded JSON body, protocol version, envelope,
+   generated operation schema, operation replication policy, identifiers,
+   sequences, and size limits;
+9. only then derive and invoke the workspace Durable Object.
+
+The request body cannot supply a user, role, membership, or workspace claim.
+Unexpected top-level fields are rejected. `deviceId` is a protocol sequencing
+identity, not a credential, and a push device must be present in the
+server-owned membership record.
+
+## Roles
+
+| Role | Pull | Push |
+| --- | --- | --- |
+| `owner` | allowed | allowed |
+| `editor` | allowed | allowed |
+| `viewer` | allowed | denied |
+
+Non-members, removed members, deleted workspaces, and guessed workspace IDs all
+return the same `workspace_access_denied` response. The response does not reveal
+whether the workspace exists or why access is absent.
+
+## Routes and current exposure
+
+The guarded route shapes are:
+
+- `POST /v1/sync/provision`
+- `POST /v1/workspaces/{workspaceId}/push`
+- `GET /v1/workspaces/{workspaceId}/pull?syncProtocolVersion=1&afterServerSequence={cursor}&limit={limit}`
+
+The production entry point supplies Better Auth verification plus the D1
+membership adapter. Tests inject deterministic adapters through the same
+boundary and prove ordering, validation, authorization, and Durable Object
+integration. `GET /health` reports only `{ "status": "ok", "publicSync": true }`.
+
+## Stable public errors
+
+Responses contain only `{ "error": "<code>" }` and `Cache-Control: no-store`.
+Credential failures also return a generic Bearer challenge.
+
+| HTTP | Codes |
+| --- | --- |
+| 400 | `invalid_request`, `invalid_workspace_identifier`, `sync_rejected`, `device_local_operation`, `unsupported_operation` |
+| 401 | `credential_missing`, `credential_malformed`, `credential_invalid`, `credential_expired`, `credential_revoked` |
+| 403 | `workspace_permission_denied`, `device_not_authorized` |
+| 404 | `workspace_access_denied`, `not_found` |
+| 405 | `method_not_allowed` |
+| 413 | `request_too_large` |
+| 500 | `internal_error` |
+| 503 | `sync_authentication_not_configured`, `sync_authorization_not_configured`, `sync_security_configuration_invalid`, `sync_authentication_unavailable`, `sync_authorization_unavailable`, `sync_service_unavailable` |
+
+Provider responses, exception text, credentials, workspace identifiers,
+operation content, and note content never enter public errors or structured
+security logs. Logs contain only event, stable code, status, route kind, and
+HTTP method.
+
+## Expiry, removal, deletion, and revocation
+
+The Worker adds no expiry tolerance: an identity with `expiresAt <= now` is
+expired. A future provider adapter may allow at most 30 seconds of clock
+tolerance while verifying provider `nbf` and equivalent claims; it may not
+extend the expiry returned to the Worker.
+
+Credential verification and membership lookup run on every request. There is
+no authorization cache, so credential revocation, membership removal, device
+removal, and workspace deletion take effect on the next request. A provider
+adapter must consult a revocation-capable source on every verification or prove
+that the credential itself has a sufficiently short, explicitly approved
+validity bound. Key rotation must preserve verification only for credentials
+that remain valid under provider policy; emergency key or session revocation
+must fail closed immediately.
+
+## Local verification
+
+Account and sync routes fail closed when the Better Auth secret is absent. Run:
+
+```bash
+cd v2/cloud
+bun install --frozen-lockfile
+bun run check
+bun run deploy:dry
+```
+
+The suite covers missing, malformed, invalid, expired, and revoked credentials;
+provider failures; all roles; membership and device removal; guessed and
+cross-workspace access; malformed and oversized requests; protocol and
+operation-policy rejection; ordered/idempotent log behavior; workspace
+isolation; and sanitized errors and logs.

@@ -100,11 +100,11 @@ export function backupNotDue(
 }
 
 export function describeExportReport(report: ArchiveExportReport): string {
-  return `Exported ${report.nodes} item(s), ${report.documents} document(s), and ${report.images} image(s) to ${report.fileName} in the exports folder.`;
+  return `Exported ${report.nodes} item(s), ${report.documents} document(s), and ${report.images} image(s) to ${report.fileName}.`;
 }
 
 export function describeImportReport(report: ArchiveImportReport): string {
-  return `Imported ${report.nodes} item(s), ${report.documents} document(s), and ${report.images} image(s). The previous database was kept as ${report.safetyBackupFileName}.`;
+  return `Imported ${report.nodes} item(s), ${report.documents} document(s), and ${report.images} image(s). The previous workspace was kept as ${report.safetyBackupFileName}.`;
 }
 
 export function describeBackupReport(

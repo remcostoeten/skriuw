@@ -4,7 +4,15 @@ import { SECTIONS } from "../../../src/shell/settings/sections";
 
 test("SECTIONS contains all expected settings section definitions", () => {
   const ids = SECTIONS.map((section) => section.id);
-  assert.deepEqual(ids, ["appearance", "editor", "shortcuts", "media", "data", "about"]);
+  assert.deepEqual(ids, [
+    "appearance",
+    "account",
+    "editor",
+    "shortcuts",
+    "media",
+    "data",
+    "about",
+  ]);
 });
 
 test("each section has label, description, searchText and icon", () => {

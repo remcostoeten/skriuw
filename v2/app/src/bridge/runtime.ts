@@ -1,70 +1,243 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+import {
+  BrowserStorageWorkerClient,
+  type BrowserStorageFailure,
+} from "../../../crates/skriuw-sqlite-wasm/web/worker-client.ts";
+import type { WorkspaceArchive, WorkspaceSnapshot } from "../contracts/workspace";
+import type { ArchiveExportReport, ArchiveImportReport } from "./commands";
+import { pickTextFile, readPickedFile, saveTextFile } from "./browser-files";
+import { browserSyncDriver, publishBrowserSyncEvent, type SyncWorkerPort } from "./browser-sync";
+import { noop } from "../shared/lib/noop";
 
-type BrowserBridgeRequest = {
-  type: "invoke";
-  id: number;
-  command: string;
-  args: unknown;
-};
-
-type BrowserBridgeResponse = {
-  type: "response";
-  id: number;
-  ok: boolean;
+type BrowserWorkerValue = {
+  kind: string;
   value?: unknown;
-  error?: string;
 };
 
-type PendingRequest = {
-  resolve: (value: unknown) => void;
-  reject: (reason: unknown) => void;
+type BrowserCommand = {
+  kind: string;
+  payload?: unknown;
+  expected: string;
 };
 
-let browserWorker: Worker | null = null;
-let nextRequestId = 1;
-const pending = new Map<number, PendingRequest>();
+let browserStorage: Promise<BrowserStorageWorkerClient> | null = null;
 
 /** True when the renderer is running in a browser rather than the Tauri shell. */
 export function isBrowserRuntime(): boolean {
   return typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
 }
 
-function getBrowserWorker(): Worker {
-  if (browserWorker) return browserWorker;
-
-  browserWorker = new Worker(new URL("./browser-worker.ts", import.meta.url), {
+function getBrowserStorage(): Promise<BrowserStorageWorkerClient> {
+  if (browserStorage) return browserStorage;
+  const worker = new Worker(new URL("./browser-worker.ts", import.meta.url), {
     type: "module",
     name: "skriuw-storage",
   });
-  browserWorker.addEventListener("message", (event: MessageEvent<BrowserBridgeResponse>) => {
-    if (event.data?.type !== "response") return;
-    const request = pending.get(event.data.id);
-    if (!request) return;
-    pending.delete(event.data.id);
-    if (event.data.ok) request.resolve(event.data.value);
-    else request.reject(new Error(event.data.error ?? "Browser bridge request failed"));
+  const client = new BrowserStorageWorkerClient(worker);
+  client.setEventListener(publishBrowserSyncEvent);
+  browserStorage = client.initialize().then(() => client).catch((error) => {
+    client.terminate();
+    browserStorage = null;
+    throw error;
   });
-  browserWorker.addEventListener("error", (event) => {
-    const error = event.error ?? new Error(event.message || "Browser bridge worker failed");
-    for (const request of pending.values()) request.reject(error);
-    pending.clear();
-    browserWorker = null;
-  });
-  return browserWorker;
+  void browserStorage
+    .then(() => browserSyncDriver(syncWorkerPort).resume())
+    .catch(noop);
+  return browserStorage;
 }
 
-function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
-  const id = nextRequestId++;
-  return new Promise<T>((resolve, reject) => {
-    pending.set(id, { resolve: (value) => resolve(value as T), reject });
-    const request: BrowserBridgeRequest = { type: "invoke", id, command, args };
-    try {
-      getBrowserWorker().postMessage(request);
-    } catch (error) {
-      pending.delete(id);
-      reject(error);
-    }
-  });
+const syncWorkerPort: SyncWorkerPort = {
+  request: (kind, payload, expected, timeoutMs) =>
+    requestExpecting(kind, payload, expected, timeoutMs),
+};
+
+async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
+  if (command === "browser_storage_capabilities") {
+    return {
+      opfs: typeof navigator.storage?.getDirectory === "function",
+      crossOriginIsolated: globalThis.crossOriginIsolated === true,
+    } as T;
+  }
+  if (command === "close_workspace_window") {
+    const client = await getBrowserStorage();
+    await client.close();
+    browserStorage = null;
+    return undefined as T;
+  }
+  if (command === "pick_import_file") {
+    return pickTextFile(pickAccept(args)) as Promise<T>;
+  }
+  if (command === "export_workspace_archive") {
+    return exportBrowserArchive() as Promise<T>;
+  }
+  if (command === "import_workspace_archive") {
+    return importBrowserArchive(args) as Promise<T>;
+  }
+  if (command === "workspace_sync_status") {
+    return browserSyncDriver(syncWorkerPort).status() as Promise<T>;
+  }
+  if (command === "connect_workspace_sync") {
+    const { token } = args as { token: string };
+    return browserSyncDriver(syncWorkerPort).connect(token) as Promise<T>;
+  }
+  if (command === "disconnect_workspace_sync") {
+    return browserSyncDriver(syncWorkerPort).pause() as Promise<T>;
+  }
+  if (command === "retry_workspace_sync") {
+    return browserSyncDriver(syncWorkerPort).retry() as Promise<T>;
+  }
+
+  const mapped = browserCommand(command, args);
+  const value = await requestExpecting(mapped.kind, mapped.payload, mapped.expected);
+  if (command === "apply_workspace_operations") {
+    browserSyncDriver(syncWorkerPort).notifyLocalCommit();
+  }
+  return value as T;
+}
+
+async function requestExpecting(
+  kind: string,
+  payload: unknown,
+  expected: string,
+  timeoutMs?: number,
+): Promise<unknown> {
+  const client = await getBrowserStorage();
+  const response = await client.request<BrowserWorkerValue>(kind, payload, timeoutMs);
+  if (response.kind !== expected) {
+    client.terminate();
+    browserStorage = null;
+    throw browserFailure(
+      "worker_crashed",
+      `Browser storage returned ${response.kind}; expected ${expected}.`,
+      true,
+    );
+  }
+  return response.value;
+}
+
+function pickAccept(args: unknown): string {
+  const request = args as { extensions?: readonly string[] } | null;
+  const extensions = request?.extensions ?? [];
+  if (extensions.length === 0) {
+    return ".json,application/json";
+  }
+  return extensions.map((extension) => `.${extension}`).join(",");
+}
+
+function archiveFileName(prefix: string, timestamp: number): string {
+  const stamp = new Date(timestamp).toISOString().replace(/[:.]/g, "-");
+  return `${prefix}-${stamp}.json`;
+}
+
+async function exportBrowserArchive(): Promise<ArchiveExportReport> {
+  const exportedAt = Date.now();
+  const archive = (await requestExpecting(
+    "export_archive",
+    { exportedAt },
+    "archive",
+  )) as WorkspaceArchive;
+  const fileName = archiveFileName("skriuw-workspace", exportedAt);
+  saveTextFile(fileName, JSON.stringify(archive));
+  return {
+    nodes: archive.nodes.length,
+    documents: archive.documents.length,
+    images: 0,
+    exportedAt,
+    fileName,
+  };
+}
+
+function parsePickedArchive(name: string, text: string): WorkspaceArchive {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw browserFailure("invalid_request", `${name} is not a workspace archive.`);
+  }
+  const archive = parsed as Partial<WorkspaceArchive> | null;
+  if (
+    archive === null ||
+    typeof archive !== "object" ||
+    typeof archive.archiveVersion !== "number" ||
+    !Array.isArray(archive.nodes)
+  ) {
+    throw browserFailure("invalid_request", `${name} is not a workspace archive.`);
+  }
+  return archive as WorkspaceArchive;
+}
+
+async function importBrowserArchive(args: unknown): Promise<ArchiveImportReport> {
+  const { archivePath } = args as { archivePath: string };
+  const picked = readPickedFile(archivePath);
+  if (!picked) {
+    throw browserFailure(
+      "invalid_request",
+      "Choose the archive file again before replacing the workspace.",
+    );
+  }
+  const archive = parsePickedArchive(picked.name, picked.text);
+  const safetyExportedAt = Date.now();
+  const current = (await requestExpecting(
+    "export_archive",
+    { exportedAt: safetyExportedAt },
+    "archive",
+  )) as WorkspaceArchive;
+  const safetyBackupFileName = archiveFileName("skriuw-safety-backup", safetyExportedAt);
+  saveTextFile(safetyBackupFileName, JSON.stringify(current));
+  const summary = (await requestExpecting(
+    "replace_from_archive",
+    { archive },
+    "import_summary",
+  )) as { nodes: number; documents: number };
+  const snapshot = (await requestExpecting(
+    "bootstrap",
+    undefined,
+    "bootstrap",
+  )) as WorkspaceSnapshot;
+  return {
+    nodes: summary.nodes,
+    documents: summary.documents,
+    images: 0,
+    safetyBackupFileName,
+    snapshot,
+  };
+}
+
+function browserCommand(command: string, args: unknown): BrowserCommand {
+  switch (command) {
+    case "bootstrap_workspace":
+      return { kind: "bootstrap", expected: "bootstrap" };
+    case "load_sidebar_expansion":
+      return { kind: "load_sidebar_expansion", expected: "sidebar_expansion" };
+    case "save_sidebar_expansion":
+      return { kind: "save_sidebar_expansion", payload: args, expected: "unit" };
+    case "load_pane_layout":
+      return { kind: "load_pane_layout", expected: "pane_layout" };
+    case "save_pane_layout":
+      return { kind: "save_pane_layout", payload: args, expected: "unit" };
+    case "apply_workspace_operations":
+      return { kind: "apply_operations", payload: args, expected: "operation" };
+    case "search_workspace":
+      return { kind: "search", payload: args, expected: "search" };
+    default:
+      throw browserFailure(
+        "invalid_request",
+        `The ${command} capability is not available in the browser runtime.`,
+      );
+  }
+}
+
+function browserFailure(
+  code: BrowserStorageFailure["code"],
+  message: string,
+  terminal = false,
+): BrowserStorageFailure {
+  return {
+    code,
+    message,
+    recovery: "Use the supported browser-local workspace actions or export a portable archive.",
+    terminal,
+  };
 }
 
 /**
@@ -79,4 +252,3 @@ export function invoke<T>(command: string, args?: unknown): Promise<T> {
   }
   return invokeBrowser<T>(command, args ?? null);
 }
-

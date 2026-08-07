@@ -1,0 +1,94 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "skriuw-v2-cloud",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "AUTH_TRUSTED_ORIGINS": "https://skriuw.com,http://tauri.localhost,tauri://localhost",
+    "BETTER_AUTH_URL": "https://skriuw-v2-cloud.remcostoeten.workers.dev"
+  },
+  "d1_databases": [
+    {
+      "binding": "AUTH_DB",
+      "database_name": "skriuw-v2-auth",
+      "database_id": "f2a5081d-986a-4ecb-bbe1-35202c3ac26d",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "SYNC_CONTENT",
+      "bucket_name": "skriuw-v2-sync-content"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "WORKSPACES",
+        "class_name": "WorkspaceSyncObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["WorkspaceSyncObject"]
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
+  },
+  // Verification-only deployment. It owns separate D1, R2, and Durable Object
+  // storage so end-to-end runs never touch production accounts or workspaces,
+  // and it is the only place the local browser dev origin is trusted.
+  "env": {
+    "preview": {
+      "vars": {
+        "AUTH_TRUSTED_ORIGINS": "http://localhost:5183,http://tauri.localhost,tauri://localhost",
+        "BETTER_AUTH_URL": "https://skriuw-v2-cloud-preview.remcostoeten.workers.dev"
+      },
+      "d1_databases": [
+        {
+          "binding": "AUTH_DB",
+          "database_name": "skriuw-v2-auth-preview",
+          "database_id": "64188bc8-964e-421d-b5fe-905148fbb15b",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "SYNC_CONTENT",
+          "bucket_name": "skriuw-v2-sync-content-preview"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "WORKSPACES",
+            "class_name": "WorkspaceSyncObject"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["WorkspaceSyncObject"]
+        }
+      ],
+      "observability": {
+        "enabled": true,
+        "logs": {
+          "head_sampling_rate": 1
+        }
+      }
+    }
+  }
+}

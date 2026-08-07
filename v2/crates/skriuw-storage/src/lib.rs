@@ -1,8 +1,8 @@
 use std::{fmt, sync::Arc};
 
 use skriuw_domain::{
-    HistoryHeader, OperationAck, SearchHit, WorkspaceArchive, WorkspaceOperationEnvelope,
-    WorkspaceSnapshot,
+    HistoryHeader, OperationAck, ReplicatedWorkspaceOperation, SearchHit, SyncAcceptedOperation,
+    SyncPushRequest, WorkspaceArchive, WorkspaceOperationEnvelope, WorkspaceSnapshot,
 };
 use thiserror::Error;
 
@@ -12,6 +12,7 @@ pub const MAX_DIAGNOSTIC_MESSAGE_BYTES: usize = 1024;
 pub enum DiagnosticContext {
     Runtime,
     Storage,
+    Sync,
     History,
     Backup,
     Recovery,
@@ -24,6 +25,7 @@ impl DiagnosticContext {
         match self {
             Self::Runtime => "runtime",
             Self::Storage => "storage",
+            Self::Sync => "sync",
             Self::History => "history",
             Self::Backup => "backup",
             Self::Recovery => "recovery",
@@ -289,6 +291,213 @@ pub trait HistoryCache: Send + Sync {
     fn replace_history_headers(&self, headers: &[HistoryHeader]) -> Result<usize, StorageError>;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewSyncConnection {
+    pub workspace_id: String,
+    pub device_id: String,
+    pub connected_at: i64,
+    pub observed_server_sequence: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncConnection {
+    pub workspace_id: String,
+    pub device_id: String,
+    pub connected_at: i64,
+    pub observed_server_sequence: u64,
+    pub next_client_sequence: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PendingSyncBatch {
+    pub workspace_id: String,
+    pub request: SyncPushRequest,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockedSyncOperation {
+    pub id: String,
+    pub operation_type: String,
+    pub reason_code: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncConflict {
+    pub id: String,
+    pub operation_id: String,
+    pub operation_type: String,
+    pub server_sequence: u64,
+    pub reason_code: String,
+    pub subreason: Option<String>,
+    pub message: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum RemoteSyncApplyOutcome {
+    Applied(OperationAck),
+    LocalEcho,
+    Conflict(SyncConflict),
+    Duplicate,
+    NoOp,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncTombstone {
+    pub entity_kind: String,
+    pub entity_id: String,
+    pub scope_id: String,
+    pub root_id: Option<String>,
+    pub operation_id: Option<String>,
+    pub server_sequence: Option<u64>,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentConflictSummary {
+    pub conflict_id: String,
+    pub note_id: String,
+    pub remote_title: Option<String>,
+    pub local_title: Option<String>,
+    pub reason_code: String,
+    pub subreason: Option<String>,
+    pub server_sequence: u64,
+    pub created_at: i64,
+    pub local_version_available: bool,
+    pub resolved_choice: Option<String>,
+    pub resolved_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentConflictVersion {
+    pub title: Option<String>,
+    pub document_json: String,
+    pub markdown: String,
+    pub revision: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentConflictVersions {
+    pub conflict_id: String,
+    pub note_id: String,
+    pub remote: DocumentConflictVersion,
+    pub local: Option<DocumentConflictVersion>,
+}
+
+pub trait WorkspaceSyncQueue: Send + Sync {
+    fn sync_connection(&self) -> Result<Option<SyncConnection>, StorageError>;
+
+    fn connect_sync(&self, connection: &NewSyncConnection) -> Result<SyncConnection, StorageError>;
+
+    fn disconnect_sync(&self, disconnected_at: i64) -> Result<(), StorageError>;
+
+    fn claim_sync_operations(
+        &self,
+        worker_id: &str,
+        now_ms: i64,
+        lease_ms: i64,
+        limit: usize,
+    ) -> Result<Option<PendingSyncBatch>, StorageError>;
+
+    fn acknowledge_sync_operations(
+        &self,
+        worker_id: &str,
+        accepted: &[SyncAcceptedOperation],
+    ) -> Result<(), StorageError>;
+
+    fn release_sync_operations(
+        &self,
+        worker_id: &str,
+        operation_ids: &[String],
+        retry_at_ms: i64,
+        diagnostic: &Diagnostic,
+    ) -> Result<(), StorageError>;
+
+    fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError>;
+
+    /// Moves operations out of the currently leased batch into the visible
+    /// blocked record so one unpushable operation cannot wedge the queue.
+    /// Every listed operation must be leased by `worker_id`; the remaining
+    /// leased operations are released and the pending queue is renumbered to
+    /// stay contiguous, all in one transaction.
+    fn block_claimed_sync_operations(
+        &self,
+        worker_id: &str,
+        operation_ids: &[String],
+        reason_code: &str,
+    ) -> Result<(), StorageError>;
+
+    /// Reports whether any locally committed operation is still queued for
+    /// upload, so checkpoint hydration and publication can refuse to run over
+    /// unpushed local work without claiming a lease.
+    fn has_pending_sync_operations(&self) -> Result<bool, StorageError>;
+
+    fn apply_remote_operations(
+        &self,
+        operations: &[ReplicatedWorkspaceOperation],
+        received_at: i64,
+    ) -> Result<Vec<RemoteSyncApplyOutcome>, StorageError>;
+
+    fn sync_conflicts(&self) -> Result<Vec<SyncConflict>, StorageError>;
+
+    fn sync_tombstones(&self) -> Result<Vec<SyncTombstone>, StorageError>;
+
+    fn document_conflicts(&self) -> Result<Vec<DocumentConflictSummary>, StorageError>;
+
+    fn document_conflict_versions(
+        &self,
+        conflict_id: &str,
+    ) -> Result<DocumentConflictVersions, StorageError>;
+
+    fn resolve_document_conflict(
+        &self,
+        request: &skriuw_domain::ResolveDocumentConflict,
+    ) -> Result<Option<OperationAck>, StorageError>;
+
+    /// Initialize a freshly connected device from a verified checkpoint so it
+    /// only replays the ordered tail after `checkpoint_server_sequence`.
+    fn hydrate_from_checkpoint(
+        &self,
+        archive: &WorkspaceArchive,
+        checkpoint_server_sequence: u64,
+    ) -> Result<ImportSummary, StorageError>;
+
+    /// Re-enqueue every unresolved blocked operation whose declared asset
+    /// content `asset_available` now reports present, so a block clears on
+    /// its own once the missing bytes replicate. Returns how many operations
+    /// went back into the pending queue.
+    fn requeue_blocked_sync_operations_with_assets(
+        &self,
+        now_ms: i64,
+        asset_available: &dyn Fn(&str, &str) -> bool,
+    ) -> Result<usize, StorageError>;
+}
+
+/// User-facing recovery over the blocked sync queue: inspect what could not
+/// be pushed and resolve each record explicitly. Every resolution stays a
+/// durable, visible row; nothing is ever dropped silently.
+pub trait SyncRecovery: Send + Sync {
+    fn sync_recovery_view(&self) -> Result<skriuw_domain::SyncRecoveryView, StorageError>;
+
+    /// Move one blocked operation back into the pending queue so the next
+    /// cycle pushes it again. Fails with an actionable error when the
+    /// operation can never upload under the current sync protocol.
+    fn retry_blocked_sync_operation(
+        &self,
+        blocked_id: &str,
+        now_ms: i64,
+    ) -> Result<(), StorageError>;
+
+    /// Resolve one blocked operation as discarded. The record is kept and
+    /// remains listed so the decision stays auditable.
+    fn discard_blocked_sync_operation(
+        &self,
+        blocked_id: &str,
+        now_ms: i64,
+    ) -> Result<(), StorageError>;
+}
+
 impl<T> WorkspaceStorage for Arc<T>
 where
     T: WorkspaceStorage + ?Sized,
@@ -385,6 +594,152 @@ where
     ) -> Result<(), StorageError> {
         self.as_ref()
             .release_history_revision(worker_id, item_id, retry_at_ms, diagnostic)
+    }
+}
+
+impl<T> WorkspaceSyncQueue for Arc<T>
+where
+    T: WorkspaceSyncQueue + ?Sized,
+{
+    fn sync_connection(&self) -> Result<Option<SyncConnection>, StorageError> {
+        self.as_ref().sync_connection()
+    }
+
+    fn connect_sync(&self, connection: &NewSyncConnection) -> Result<SyncConnection, StorageError> {
+        self.as_ref().connect_sync(connection)
+    }
+
+    fn disconnect_sync(&self, disconnected_at: i64) -> Result<(), StorageError> {
+        self.as_ref().disconnect_sync(disconnected_at)
+    }
+
+    fn claim_sync_operations(
+        &self,
+        worker_id: &str,
+        now_ms: i64,
+        lease_ms: i64,
+        limit: usize,
+    ) -> Result<Option<PendingSyncBatch>, StorageError> {
+        self.as_ref()
+            .claim_sync_operations(worker_id, now_ms, lease_ms, limit)
+    }
+
+    fn acknowledge_sync_operations(
+        &self,
+        worker_id: &str,
+        accepted: &[SyncAcceptedOperation],
+    ) -> Result<(), StorageError> {
+        self.as_ref()
+            .acknowledge_sync_operations(worker_id, accepted)
+    }
+
+    fn release_sync_operations(
+        &self,
+        worker_id: &str,
+        operation_ids: &[String],
+        retry_at_ms: i64,
+        diagnostic: &Diagnostic,
+    ) -> Result<(), StorageError> {
+        self.as_ref()
+            .release_sync_operations(worker_id, operation_ids, retry_at_ms, diagnostic)
+    }
+
+    fn blocked_sync_operations(&self) -> Result<Vec<BlockedSyncOperation>, StorageError> {
+        self.as_ref().blocked_sync_operations()
+    }
+
+    fn block_claimed_sync_operations(
+        &self,
+        worker_id: &str,
+        operation_ids: &[String],
+        reason_code: &str,
+    ) -> Result<(), StorageError> {
+        self.as_ref()
+            .block_claimed_sync_operations(worker_id, operation_ids, reason_code)
+    }
+
+    fn has_pending_sync_operations(&self) -> Result<bool, StorageError> {
+        self.as_ref().has_pending_sync_operations()
+    }
+
+    fn apply_remote_operations(
+        &self,
+        operations: &[ReplicatedWorkspaceOperation],
+        received_at: i64,
+    ) -> Result<Vec<RemoteSyncApplyOutcome>, StorageError> {
+        self.as_ref()
+            .apply_remote_operations(operations, received_at)
+    }
+
+    fn sync_conflicts(&self) -> Result<Vec<SyncConflict>, StorageError> {
+        self.as_ref().sync_conflicts()
+    }
+
+    fn sync_tombstones(&self) -> Result<Vec<SyncTombstone>, StorageError> {
+        self.as_ref().sync_tombstones()
+    }
+
+    fn document_conflicts(&self) -> Result<Vec<DocumentConflictSummary>, StorageError> {
+        self.as_ref().document_conflicts()
+    }
+
+    fn document_conflict_versions(
+        &self,
+        conflict_id: &str,
+    ) -> Result<DocumentConflictVersions, StorageError> {
+        self.as_ref().document_conflict_versions(conflict_id)
+    }
+
+    fn resolve_document_conflict(
+        &self,
+        request: &skriuw_domain::ResolveDocumentConflict,
+    ) -> Result<Option<OperationAck>, StorageError> {
+        self.as_ref().resolve_document_conflict(request)
+    }
+
+    fn hydrate_from_checkpoint(
+        &self,
+        archive: &WorkspaceArchive,
+        checkpoint_server_sequence: u64,
+    ) -> Result<ImportSummary, StorageError> {
+        self.as_ref()
+            .hydrate_from_checkpoint(archive, checkpoint_server_sequence)
+    }
+
+    fn requeue_blocked_sync_operations_with_assets(
+        &self,
+        now_ms: i64,
+        asset_available: &dyn Fn(&str, &str) -> bool,
+    ) -> Result<usize, StorageError> {
+        self.as_ref()
+            .requeue_blocked_sync_operations_with_assets(now_ms, asset_available)
+    }
+}
+
+impl<T> SyncRecovery for Arc<T>
+where
+    T: SyncRecovery + ?Sized,
+{
+    fn sync_recovery_view(&self) -> Result<skriuw_domain::SyncRecoveryView, StorageError> {
+        self.as_ref().sync_recovery_view()
+    }
+
+    fn retry_blocked_sync_operation(
+        &self,
+        blocked_id: &str,
+        now_ms: i64,
+    ) -> Result<(), StorageError> {
+        self.as_ref()
+            .retry_blocked_sync_operation(blocked_id, now_ms)
+    }
+
+    fn discard_blocked_sync_operation(
+        &self,
+        blocked_id: &str,
+        now_ms: i64,
+    ) -> Result<(), StorageError> {
+        self.as_ref()
+            .discard_blocked_sync_operation(blocked_id, now_ms)
     }
 }
 
