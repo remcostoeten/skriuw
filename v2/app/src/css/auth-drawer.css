@@ -1,0 +1,16 @@
+/* The auth-drawer package only ships its dark overlay tokens under `.dark`.
+   v2 themes via <html data-theme="...">, so the package falls back to its light
+   `:root` palette. Rebind the tokens to the active theme instead. */
+:root {
+	--surface-overlay: var(--popover);
+	--surface-overlay-alpha-high: 1;
+	--surface-overlay-alpha-mid: 0.92;
+	--surface-overlay-alpha-fade: 0.6;
+	--surface-overlay-raised: var(--card);
+	--surface-overlay-hover: var(--theme-bg-hover, var(--muted));
+	--text-on-overlay: var(--foreground);
+	--text-on-overlay-muted: var(--muted-foreground);
+	--text-on-overlay-subtle: var(--theme-text-dim, var(--muted-foreground));
+	--border-overlay: var(--border);
+	--error-on-overlay: var(--destructive);
+}

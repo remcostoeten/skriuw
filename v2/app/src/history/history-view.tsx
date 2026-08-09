@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { appRouteHash, useRouteFocus } from "../app-route";
+import { appRouteHash, useRouteFocus, useRouteHistoryVersion } from "../app-route";
 import { activateNote } from "../actions/workspace";
 import { ChevronLeftIcon, HistoryIcon } from "../shared/icons";
 import { formatRelativeTime } from "../shared/lib/relative-time";
@@ -22,6 +22,7 @@ function selectSourceNodes(state: RendererState) {
 
 export function HistoryView({ store }: Props) {
   const noteId = useRouteFocus();
+  const requestedVersionId = useRouteHistoryVersion();
   const historyHeaders = useRendererSelector(store, selectHistoryHeaders);
   const sourceNodes = useRendererSelector(store, selectSourceNodes);
   const headers = noteId === null ? null : (historyHeaders.get(noteId) ?? null);
@@ -76,7 +77,13 @@ export function HistoryView({ store }: Props) {
       </header>
 
       {noteId !== null && versions.length > 0 ? (
-        <VersionHistoryPanel key={noteId} store={store} noteId={noteId} versions={versions} />
+        <VersionHistoryPanel
+          key={noteId}
+          store={store}
+          noteId={noteId}
+          versions={versions}
+          requestedVersionId={requestedVersionId}
+        />
       ) : (
         <div className="grid place-items-center px-6">
           <p className="m-0 max-w-[46ch] text-center text-[13px] text-muted-foreground">

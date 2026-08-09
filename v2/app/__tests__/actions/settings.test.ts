@@ -7,4 +7,5 @@ test("settings action exports exist and are functions", () => {
   assert.equal(typeof settingsActions.updateSetting, "function");
   assert.equal(typeof settingsActions.setShortcutOverride, "function");
   assert.equal(typeof settingsActions.clearShortcutOverride, "function");
+  assert.equal(typeof settingsActions.clearAllShortcutOverrides, "function");
 });

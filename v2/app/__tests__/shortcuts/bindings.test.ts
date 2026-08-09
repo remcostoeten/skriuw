@@ -7,7 +7,9 @@ import {
   findShortcutConflict,
   isDefaultBinding,
   isKeySequence,
+  normalizeRegistryCombo,
   sameCombo,
+  scopeSeparatedConflicts,
   sequenceHandlerOptions,
   shortcutBindsOnPlatform,
   shortcutExcept,
@@ -836,4 +838,35 @@ test("mod+/ matches the cheat sheet while a bare slash keeps typing", () => {
   assert.equal(matchesShortcut(base as unknown as KeyboardEvent, parsed), false);
   assert.equal(sameCombo("mod+slash", "mod+/"), true);
   assert.equal(sameCombo("mod+slash", "slash"), false);
+});
+
+test("registry combo normalization matches the shortcut library's own keying", () => {
+  assert.equal(normalizeRegistryCombo("slash"), "/");
+  assert.equal(normalizeRegistryCombo("ctrl+shift+bracketright"), "ctrl+shift+]");
+  assert.equal(normalizeRegistryCombo("g then t then 1"), "g t 1");
+  assert.equal(normalizeRegistryCombo("mod+2"), normalizeRegistryCombo("mod+2"));
+  assert.match(normalizeRegistryCombo("mod+2"), /^(cmd|ctrl)\+2$/);
+});
+
+test("scope-separated bindings are not reported as conflicts", () => {
+  const isScopeSeparated = scopeSeparatedConflicts({});
+  const slash = normalizeRegistryCombo("slash");
+  assert.equal(isScopeSeparated(slash, slash), true);
+});
+
+test("a combo two same-scope actions claim is still reported as a conflict", () => {
+  const notesAction = SHORTCUT_DEFINITIONS.find(
+    (definition) => definition.id === "focusEditor",
+  );
+  assert.ok(notesAction);
+  const collidingId = SHORTCUT_DEFINITIONS.find(
+    (definition) =>
+      definition.id !== notesAction.id &&
+      !definition.boundInEditor &&
+      definition.scopes === notesAction.scopes,
+  )?.id;
+  assert.ok(collidingId);
+  const isScopeSeparated = scopeSeparatedConflicts({ [collidingId]: "slash" });
+  const slash = normalizeRegistryCombo("slash");
+  assert.equal(isScopeSeparated(slash, slash), false);
 });

@@ -25,6 +25,10 @@ export function configureBridge(nextSnapshot: WorkspaceSnapshot): void {
   backupCreated = false;
 }
 
+export function convertFileSrc(filePath: string, protocol = "asset"): string {
+  return `${protocol}://localhost/${encodeURIComponent(filePath)}`;
+}
+
 export function failNextBridgeCall(command: string, message: string): void {
   nextFailures.set(command, message);
 }

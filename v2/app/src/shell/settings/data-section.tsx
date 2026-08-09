@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { resetAllSettings } from "../../actions/settings";
 import {
   cancelWorkspaceMaintenance,
   createWorkspaceBackup,
@@ -18,7 +17,6 @@ import {
   importProviderExportIntoWorkspace,
 } from "../../export/markdown-transfer";
 import { FolderOpenIcon, UploadIcon } from "../../shared/icons";
-import { Button } from "../../shared/ui/button";
 import { InlineConfirm } from "../../shared/ui/inline-confirm";
 import {
   IDLE_MAINTENANCE,
@@ -254,9 +252,9 @@ export function DataSection({ store }: SectionProps) {
   const copy = confirmation ? confirmationCopy(confirmation) : null;
 
   return (
-    <section aria-label="Data" className={settingsSection}>
+    <section aria-label="Data and recovery" className={settingsSection}>
       <SettingsHeading
-        title="Data"
+        title="Data & recovery"
         detail="Imports, storage, portable archives, backups, and recovery for this workspace."
       />
       <div className={settingsGroup}>
@@ -303,6 +301,7 @@ export function DataSection({ store }: SectionProps) {
             </span>
           </span>
           <InlineConfirm
+            className="shrink-0"
             confirmLabel={confirmation?.kind === "relocate" && copy ? copy.confirmLabel : "Move and restart"}
             message={confirmation?.kind === "relocate" && copy ? copy.body : null}
             messagePlacement="stacked"
@@ -329,7 +328,7 @@ export function DataSection({ store }: SectionProps) {
       </div>
       {!browser && (
       <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Import from other apps</div>
+        <div className={settingsGroupTitle}>Import & export</div>
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
             Import notes from a folder
@@ -374,7 +373,6 @@ export function DataSection({ store }: SectionProps) {
       </div>
       )}
       <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Portable archive</div>
         <div className={settingsRow}>
           <span className={settingsRowLabel}>
             Export workspace
@@ -395,7 +393,7 @@ export function DataSection({ store }: SectionProps) {
         </div>
       </div>
       <div className={settingsGroup}>
-        <div className={settingsGroupTitle}>Backups</div>
+        <div className={settingsGroupTitle}>Backups & recovery</div>
         {browser && (
           <p className={settingsRowDetail} role="note">
             Verified scheduled backups run in the desktop app. In the browser, an
@@ -463,7 +461,7 @@ export function DataSection({ store }: SectionProps) {
               <span className={settingsRowDetail}>{importPath}</span>
             )}
           </span>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          <div className="flex shrink-0 items-center justify-end gap-2">
             <button
               type="button"
               className={settingsButton}
@@ -504,24 +502,6 @@ export function DataSection({ store }: SectionProps) {
             />
           </div>
         </div>
-        <div className={settingsRow}>
-          <span className={settingsRowLabel}>
-            Reset all settings
-            <span className={settingsRowDescription}>
-              Restores appearance, editor, and keyboard shortcut preferences to their
-              defaults. Notes and data are not affected.
-            </span>
-          </span>
-          <InlineConfirm
-            confirmLabel="Reset settings"
-            onConfirm={() => resetAllSettings(store)}
-            renderIdle={(arm) => (
-              <Button variant="danger" onClick={arm}>
-                Reset all settings
-              </Button>
-            )}
-          />
-        </div>
       </div>
       <MaintenanceStatus
         phase={phase}
@@ -535,6 +515,10 @@ export function DataSection({ store }: SectionProps) {
 const backupListClass = "mt-1 list-none rounded-lg border border-border p-0";
 const backupItemClass =
   "flex items-center justify-between gap-3 px-2.5 py-2 text-[13px] [&+&]:border-t [&+&]:border-border";
+const backupToggleClass =
+  "w-full border-t border-border px-2.5 py-1.5 text-center text-[12px] text-muted-foreground transition-colors hover:text-foreground";
+
+const BACKUP_PREVIEW_COUNT = 4;
 
 type BackupInventoryProps = {
   inventory: RecoveryViewModel | null;
@@ -561,6 +545,7 @@ function BackupInventory({
   onCancelRestore,
   onConfirmRestore,
 }: BackupInventoryProps) {
+  const [showAllBackups, setShowAllBackups] = useState(false);
   if (failed) {
     return (
       <div className={cn(settingsRow, "text-destructive")} role="alert">
@@ -585,10 +570,20 @@ function BackupInventory({
       </p>
     );
   }
+  const armedBeyondPreview =
+    restoringFileName !== null &&
+    inventory.backups
+      .slice(BACKUP_PREVIEW_COUNT)
+      .some((entry) => entry.fileName === restoringFileName);
+  const visibleBackups =
+    showAllBackups || armedBeyondPreview
+      ? inventory.backups
+      : inventory.backups.slice(0, BACKUP_PREVIEW_COUNT);
+  const hiddenCount = inventory.backups.length - BACKUP_PREVIEW_COUNT;
   return (
     <>
       <ul className={backupListClass} aria-label="Retained backups">
-        {inventory.backups.map((entry) => (
+        {visibleBackups.map((entry) => (
           <li key={entry.fileName} className={backupItemClass}>
             <span className={settingsRowLabel}>
               {maintenanceTimeFormatter.format(new Date(entry.createdAt))}
@@ -622,6 +617,20 @@ function BackupInventory({
             />
           </li>
         ))}
+        {hiddenCount > 0 && (
+          <li>
+            <button
+              type="button"
+              className={backupToggleClass}
+              aria-expanded={showAllBackups}
+              onClick={() => setShowAllBackups((current) => !current)}
+            >
+              {showAllBackups
+                ? "Show fewer"
+                : `Show ${hiddenCount} more ${hiddenCount === 1 ? "backup" : "backups"}`}
+            </button>
+          </li>
+        )}
       </ul>
       {inventory.rollbacks.length > 0 && (
         <>

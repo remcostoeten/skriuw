@@ -15,6 +15,7 @@ const fakeStore = { getState: () => ({}) as RendererState } as RendererStore;
 const controls: CommandUiControls = {
   togglePalette: noop,
   openSettings: noop,
+  openSignIn: noop,
   toggleSidebar: noop,
   toggleMetadata: noop,
   navigate: noop,
@@ -60,6 +61,23 @@ test("workspace-scoped commands disable off the notes route", () => {
   }
   assert.equal(registry.isEnabled("open-settings", state, trashUi), true);
   assert.equal(registry.isEnabled("toggle-command-palette", state, trashUi), true);
+});
+
+test("cloud sign-in command is available everywhere and opens the shell drawer", () => {
+  let opened = 0;
+  const registry = createCommandRegistry(
+    createWorkspaceCommands(fakeStore, {
+      ...controls,
+      openSignIn: () => {
+        opened += 1;
+      },
+    }),
+  );
+  const state = {} as RendererState;
+  assert.equal(registry.isVisible("cloud-sign-in", state, fakeUi()), true);
+  assert.equal(registry.isVisible("cloud-sign-in", state, fakeUi({ route: "trash" })), true);
+  registry.run("cloud-sign-in", state, fakeUi());
+  assert.equal(opened, 1);
 });
 
 test("focus commands require their region to be reachable", () => {

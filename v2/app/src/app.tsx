@@ -1,10 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
+import { AuthProvider } from "@remcostoeten/auth-drawer";
+import { authAdapter } from "./auth/adapter";
+import { AccountMenu } from "./shell/account-menu";
+import {
+  railActiveClass,
+  railIconButtonClass,
+  railInactiveClass,
+} from "./shell/rail-styles";
+import type { SectionId } from "./shell/settings/sections";
 import { Sidebar } from "./shell/sidebar";
 import { CommandPaletteHost } from "./shell/command-palette-host";
 import { EditorPanes } from "./shell/editor-panes";
 import { MetadataPanel } from "./shell/metadata-panel";
 import { SettingsDialog } from "./shell/settings-dialog";
+
+function loadSignInDrawer() {
+  return import("./auth/sign-in-drawer");
+}
+
+const CloudSignInDrawer = lazy(async () => {
+  const module = await loadSignInDrawer();
+  return { default: module.CloudSignInDrawer };
+});
 import { ShortcutHelpOverlay } from "./shell/shortcut-help-overlay";
 import { TrashView } from "./shell/trash-view";
 import { EntityView } from "./shell/entity-view";
@@ -34,6 +52,7 @@ import { TransferReportHost } from "./export/transfer-report-host";
 import { ImportPreviewHost } from "./import/import-preview-host";
 import { ImportProgressHost } from "./import/import-progress-host";
 import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
+import { useShortcutHints } from "./shortcuts/hints";
 import {
   RAIL_ITEMS,
   formatRailSequenceHint,
@@ -57,7 +76,6 @@ import {
   FolderOpenIcon,
   PanelLeftToggleIcon,
   PanelRightToggleIcon,
-  SettingsIcon,
   SkriuwLogo,
   Trash2Icon,
   WaypointsIcon,
@@ -68,15 +86,6 @@ import { useNoteNavigation } from "./shell/use-note-navigation";
 import { selectShowToasts } from "./shell/settings/selectors";
 import { useRendererSelector } from "./store/use-renderer-selector";
 import type { RendererStore } from "./store/types";
-
-const iconButtonClass =
-  "relative flex h-9 w-9 items-center justify-center rounded-lg border transition-colors duration-200";
-
-const inactiveNavClass =
-  "border-transparent text-sidebar-foreground/52 hover:border-sidebar-border hover:bg-sidebar-accent/70 hover:text-sidebar-foreground";
-
-const activeNavClass =
-  "border-transparent bg-sidebar-accent/75 text-sidebar-accent-foreground shadow-none";
 
 const RAIL_ICONS: Record<RailItem["actionId"], typeof FolderOpenIcon> = {
   goToNotes: FolderOpenIcon,
@@ -108,7 +117,7 @@ function RailNavIcon({ item, position, active }: RailNavIconProps) {
     >
       <a
         href={`#/${item.route}`}
-        className={`${iconButtonClass} ${active ? activeNavClass : inactiveNavClass}`}
+        className={`${railIconButtonClass} ${active ? railActiveClass : railInactiveClass}`}
         aria-label={item.label}
         aria-current={active ? "page" : undefined}
       >
@@ -122,9 +131,21 @@ type Props = {
   store: RendererStore;
 };
 
-export function App({ store }: Props) {
+const TOOLBAR_SHORTCUT_IDS = [
+  "openSettings",
+  "toggleSidebar",
+  "toggleMetadata",
+  "previousNote",
+  "nextNote",
+] as const;
+
+function WorkspaceShell({ store }: Props) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<SectionId>("appearance");
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [signInMounted, setSignInMounted] = useState(false);
+  const signInReturnsToSettingsRef = useRef(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [metadataOpen, setMetadataOpen] = useState(true);
@@ -137,6 +158,7 @@ export function App({ store }: Props) {
   const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
   const showToasts = useRendererSelector(store, selectShowToasts);
+  const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
   useEffect(() => installBackNavigation(store), [store]);
   const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
   const uiRef = useRef(ui);
@@ -149,12 +171,39 @@ export function App({ store }: Props) {
     setTracksAnimated(animated);
     setMetadataOpen((current) => !current);
   }, []);
+  // The sign-in drawer portals to <body>, which the modal settings <dialog>
+  // renders inert and covers via the top layer — so settings must close first.
+  const openSignIn = useCallback((returnToSettings: boolean) => {
+    signInReturnsToSettingsRef.current = returnToSettings;
+    setSettingsOpen(false);
+    setSignInMounted(true);
+    setSignInOpen(true);
+  }, []);
+  // Warm the sign-in chunk as soon as either trigger surface opens, so the
+  // drawer appears instantly on click instead of waiting on a lazy import.
+  useEffect(() => {
+    if (settingsOpen || paletteOpen) {
+      void loadSignInDrawer();
+    }
+  }, [paletteOpen, settingsOpen]);
+  const handleSignInOpenChange = useCallback((open: boolean) => {
+    setSignInOpen(open);
+    if (!open && signInReturnsToSettingsRef.current) {
+      signInReturnsToSettingsRef.current = false;
+      setSettingsOpen(true);
+    }
+  }, []);
+  const openSettingsAt = useCallback((section: SectionId) => {
+    setSettingsSection(section);
+    setSettingsOpen(true);
+  }, []);
   const registry = useMemo(
     () =>
       createCommandRegistry(
         createWorkspaceCommands(store, {
           togglePalette: () => setPaletteOpen((current) => !current),
           openSettings: () => setSettingsOpen((current) => !current),
+          openSignIn: () => openSignIn(false),
           showShortcutHelp: () => setShortcutHelpOpen((current) => !current),
           toggleSidebar: () => toggleSidebar(false),
           openSidebar: () => {
@@ -167,7 +216,7 @@ export function App({ store }: Props) {
           },
         }),
       ),
-    [store, toggleMetadata, toggleSidebar],
+    [openSignIn, store, toggleMetadata, toggleSidebar],
   );
   const shortcutActions = useMemo(
     () =>
@@ -176,6 +225,16 @@ export function App({ store }: Props) {
         () => store.getState(),
         () => uiRef.current,
       ),
+    [registry, store],
+  );
+  const runCommand = useCallback(
+    (commandId: string) => {
+      registry.run(commandId, store.getState(), uiRef.current);
+    },
+    [registry, store],
+  );
+  const commandEnabled = useCallback(
+    (commandId: string) => registry.isEnabled(commandId, store.getState(), uiRef.current),
     [registry, store],
   );
   const tracks: PanelTracks = {
@@ -304,22 +363,14 @@ export function App({ store }: Props) {
             />
           ))}
           <div className="h-px w-8 bg-sidebar-border" aria-hidden="true" />
-          <Tooltip
-            label="Settings"
-            side="right"
-            shortcut={formatShortcut("mod+,")}
-          >
-            <button
-              type="button"
-              className={`${iconButtonClass} ${settingsOpen ? activeNavClass : inactiveNavClass}`}
-              aria-label="Settings"
-              aria-haspopup="dialog"
-              aria-expanded={settingsOpen}
-              onClick={() => setSettingsOpen(true)}
-            >
-              <SettingsIcon size={18} />
-            </button>
-          </Tooltip>
+          <AccountMenu
+            store={store}
+            settingsOpen={settingsOpen}
+            onOpenSettings={openSettingsAt}
+            onShowShortcutHelp={() => setShortcutHelpOpen(true)}
+            onRunCommand={runCommand}
+            isCommandEnabled={commandEnabled}
+          />
         </div>
       </nav>
       {routeHasSidebar(route) ? (
@@ -378,7 +429,7 @@ export function App({ store }: Props) {
       <div className="contents" hidden={route !== "notes"}>
         <main className="col-[3] flex min-w-0 flex-col">
           <div className="flex h-11 items-center gap-1 border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground">
-            <Tooltip label="Toggle sidebar" side="bottom">
+            <Tooltip label="Toggle sidebar" side="bottom" shortcut={shortcutHints.toggleSidebar}>
               <button
                 type="button"
                 onClick={() => toggleSidebar(true)}
@@ -389,7 +440,7 @@ export function App({ store }: Props) {
                 <PanelLeftToggleIcon size={16} />
               </button>
             </Tooltip>
-            <Tooltip label="Previous note" side="bottom">
+            <Tooltip label="Previous note" side="bottom" shortcut={shortcutHints.previousNote}>
               <button
                 type="button"
                 onClick={noteNav.navigatePrev}
@@ -400,7 +451,7 @@ export function App({ store }: Props) {
                 <ChevronLeftIcon size={16} />
               </button>
             </Tooltip>
-            <Tooltip label="Next note" side="bottom">
+            <Tooltip label="Next note" side="bottom" shortcut={shortcutHints.nextNote}>
               <button
                 type="button"
                 onClick={noteNav.navigateNext}
@@ -431,7 +482,7 @@ export function App({ store }: Props) {
                 <HistoryIcon size={16} />
               </button>
             </Tooltip>
-            <Tooltip label="Toggle metadata" side="bottom">
+            <Tooltip label="Toggle metadata" side="bottom" shortcut={shortcutHints.toggleMetadata}>
               <button
                 type="button"
                 onClick={() => toggleMetadata(true)}
@@ -492,7 +543,15 @@ export function App({ store }: Props) {
         store={store}
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
+        onRequestSignIn={() => openSignIn(true)}
+        section={settingsSection}
+        onSectionChange={setSettingsSection}
       />
+      {signInMounted ? (
+        <Suspense fallback={null}>
+          <CloudSignInDrawer open={signInOpen} onOpenChange={handleSignInOpenChange} />
+        </Suspense>
+      ) : null}
       <ShortcutHelpOverlay
         store={store}
         open={shortcutHelpOpen}
@@ -511,5 +570,17 @@ export function App({ store }: Props) {
         actions={shortcutActions}
       />
     </div>
+  );
+}
+
+/**
+ * The cloud session is provided above the whole shell, not just the settings
+ * dialog, because the rail account menu reads it while settings is closed.
+ */
+export function App({ store }: Props) {
+  return (
+    <AuthProvider adapter={authAdapter}>
+      <WorkspaceShell store={store} />
+    </AuthProvider>
   );
 }

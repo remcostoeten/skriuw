@@ -74,6 +74,10 @@ export function imageFileExtension(mimeType: string): string {
       return "gif";
     case "image/webp":
       return "webp";
+    case "video/mp4":
+      return "mp4";
+    case "video/webm":
+      return "webm";
     default:
       return "img";
   }
@@ -86,10 +90,20 @@ export function collectImageRefIds(documentJson: unknown): string[] {
     if (typeof value !== "object" || value === null) {
       return;
     }
-    const node = value as { type?: unknown; attrs?: { id?: unknown }; content?: unknown };
-    if (node.type === "image_ref" && typeof node.attrs?.id === "string" && !seen.has(node.attrs.id)) {
-      seen.add(node.attrs.id);
-      ids.push(node.attrs.id);
+    const node = value as {
+      type?: unknown;
+      attrs?: { id?: unknown; refId?: unknown };
+      content?: unknown;
+    };
+    const id =
+      node.type === "image_ref"
+        ? node.attrs?.id
+        : node.type === "media"
+          ? node.attrs?.refId
+          : undefined;
+    if (typeof id === "string" && id.length > 0 && !seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
     }
     if (Array.isArray(node.content)) {
       for (const child of node.content) {

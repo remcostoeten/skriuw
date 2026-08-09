@@ -28,6 +28,7 @@ import {
   trashCurrentNote,
 } from "../actions/workspace";
 import type { AppRoute } from "../app-route";
+import { authConfiguration } from "../auth/config";
 import {
   openEditorSearch,
   openEditorSearchAndReplace,
@@ -76,6 +77,7 @@ import {
   SettingsIcon,
   Trash2Icon,
   UploadIcon,
+  UserIcon,
   WaypointsIcon,
   ZoomInIcon,
   ZoomOutIcon,
@@ -94,6 +96,8 @@ import type { AppCommand, CommandPredicate } from "./registry";
 export type CommandUiControls = {
   togglePalette: () => void;
   openSettings: () => void;
+  /** Opens the shell-level cloud sign-in drawer, closing settings if it is open. */
+  openSignIn: () => void;
   showShortcutHelp: () => void;
   toggleSidebar: () => void;
   /** Reveals the sidebar without toggling it, for actions that live in the tree. */
@@ -517,6 +521,15 @@ export function createWorkspaceCommands(
       icon: <SettingsIcon size={15} />,
       shortcut: "openSettings",
       run: controls.openSettings,
+    },
+    {
+      id: "cloud-sign-in",
+      label: "Sign in to Skriuw cloud",
+      group: "General",
+      keywords: ["account", "login", "log in", "cloud", "sync"],
+      icon: <UserIcon size={15} />,
+      visible: () => authConfiguration.available,
+      run: controls.openSignIn,
     },
     {
       id: "show-shortcut-help",

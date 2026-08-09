@@ -890,6 +890,56 @@ export function UserIcon(props: IconProps) {
   );
 }
 
+export function ArrowUpDownIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="m21 16-4 4-4-4" />
+      <path d="M17 20V4" />
+      <path d="m3 8 4-4 4 4" />
+      <path d="M7 4v16" />
+    </LucideIcon>
+  );
+}
+
+export function LogOutIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="m16 17 5-5-5-5" />
+      <path d="M21 12H9" />
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    </LucideIcon>
+  );
+}
+
+export function CloudIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9" />
+    </LucideIcon>
+  );
+}
+
+export function CloudOffIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="m2 2 20 20" />
+      <path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193" />
+      <path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07" />
+    </LucideIcon>
+  );
+}
+
+export function RefreshIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+      <path d="M16 16h5v5" />
+    </LucideIcon>
+  );
+}
+
 export function SquareCheckIcon(props: IconProps) {
   return (
     <LucideIcon {...props}>

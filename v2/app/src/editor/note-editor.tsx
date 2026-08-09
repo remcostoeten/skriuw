@@ -14,12 +14,22 @@ import { EditorView } from "prosemirror-view";
 import { createCodeBlockNodeView } from "./code-block-nodeview";
 import { createDiagramNodeView } from "./diagram-nodeview";
 import { createImageNodeViews } from "./image-nodeview";
-import { collectImageFiles, insertImages, pickImageFiles } from "./image-input";
+import {
+  collectImageFiles,
+  collectVideoFiles,
+  insertImages,
+  insertLibraryMedia,
+  insertVideos,
+  persistMediaFile,
+  pickImageFiles,
+  pickVideoFiles,
+} from "./image-input";
 import { noteImageIds, readImageAlt, renameImageNode } from "./image-actions";
 import { pasteMarkdown } from "./markdown-paste";
 import { deriveTitle, STARTER_TITLE } from "./note-title";
 import { registerPendingWork } from "../lifecycle/pending-work";
 import { openExternalUrl } from "../bridge/external-links";
+import type { MediaBlobPayload } from "../bridge/commands";
 import { ImageInfoDialog, ImageLightbox, ImageRenameDialog } from "./image-menu";
 import {
   ContextMenu,
@@ -82,9 +92,12 @@ import {
 import {
   applySlashCommand,
   filterSlashItems,
+  insertMedia,
   type SlashAction,
   type SlashCommand,
 } from "./slash-commands";
+import { MediaLibraryPicker } from "./media-library-picker";
+import type { LibraryMediaKind } from "./media-library-picker";
 import { createMediaNodeView } from "./media-nodeview";
 import {
   deleteBlock,
@@ -332,6 +345,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   const scrollHostRef = useRef<HTMLElement | null>(null);
   const boundedSurfaceKeyRef = useRef("");
   const [slashMenu, setSlashMenu] = useState<SlashMenu>(closedSlashMenu);
+  const [mediaLibraryKind, setMediaLibraryKind] = useState<LibraryMediaKind | null>(null);
   const slashMenuRef = useRef(slashMenu);
   slashMenuRef.current = slashMenu;
   const slashDismissedRef = useRef(false);
@@ -650,19 +664,51 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
   }
 
   function runSlashAction(view: EditorView, action: SlashAction | null): void {
-    if (action === "insert-image") {
-      pickImageFiles((files) => {
-        const noteId = activeIdRef.current;
-        if (!noteId || files.length === 0) return;
-        insertImages(store, view, noteId, files, null);
-        view.focus();
-      });
+    if (action === "pick-image") {
+      setMediaLibraryKind("image");
+      return;
+    }
+    if (action === "pick-video") {
+      setMediaLibraryKind("video");
       return;
     }
     if (action === "open-emoji") {
       view.dispatch(view.state.tr.insertText(":"));
       view.focus();
     }
+  }
+
+  function selectLibraryMedia(blob: MediaBlobPayload): void {
+    const view = viewRef.current;
+    const noteId = activeIdRef.current;
+    const kind = mediaLibraryKind;
+    setMediaLibraryKind(null);
+    if (!view || !noteId || !kind) return;
+    insertLibraryMedia(store, view, noteId, kind, blob);
+    view.focus();
+  }
+
+  function uploadLibraryMedia(): void {
+    const view = viewRef.current;
+    const noteId = activeIdRef.current;
+    const kind = mediaLibraryKind;
+    setMediaLibraryKind(null);
+    if (!view || !noteId || !kind) return;
+    const pickFiles = kind === "image" ? pickImageFiles : pickVideoFiles;
+    pickFiles((files) => {
+      if (files.length === 0) return;
+      if (kind === "image") insertImages(store, view, noteId, files, null);
+      else insertVideos(store, view, noteId, files, null);
+      view.focus();
+    });
+  }
+
+  function insertVideoUrl(): void {
+    const view = viewRef.current;
+    setMediaLibraryKind(null);
+    if (!view) return;
+    insertMedia("video")(view.state, view.dispatch);
+    view.focus();
   }
 
   /**
@@ -807,11 +853,23 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         code_block: createCodeBlockNodeView,
         diagram: createDiagramNodeView,
         media: (node, currentView, getPos) =>
-          createMediaNodeView(node, currentView, getPos, (src) => {
-            openExternalUrl(src).catch((error) => {
-              console.error("open external url rejected", error);
-            });
-          }),
+          createMediaNodeView(
+            store,
+            node,
+            currentView,
+            getPos,
+            (src) => {
+              openExternalUrl(src).catch((error) => {
+                console.error("open external url rejected", error);
+              });
+            },
+            (file, assignedId) => {
+              const noteId = activeIdRef.current;
+              if (noteId) {
+                persistMediaFile(store, noteId, assignedId, file);
+              }
+            },
+          ),
       },
       dispatchTransaction,
       handleClick(currentView, pos, event) {
@@ -831,6 +889,11 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           event.preventDefault();
           return insertImages(store, currentView, noteId, files, null);
         }
+        const videos = collectVideoFiles(event.clipboardData);
+        if (noteId && videos.length > 0) {
+          event.preventDefault();
+          return insertVideos(store, currentView, noteId, videos, null);
+        }
         const text = event.clipboardData?.getData("text/plain") ?? "";
         if (linkPastedText(currentView, text)) {
           event.preventDefault();
@@ -847,10 +910,13 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         if (moved) return false;
         const noteId = activeIdRef.current;
         const files = collectImageFiles(event.dataTransfer);
-        if (!noteId || files.length === 0) return false;
+        const videos = collectVideoFiles(event.dataTransfer);
+        if (!noteId || (files.length === 0 && videos.length === 0)) return false;
         event.preventDefault();
         const drop = currentView.posAtCoords({ left: event.clientX, top: event.clientY });
-        return insertImages(store, currentView, noteId, files, drop?.pos ?? null);
+        const insertedImages = insertImages(store, currentView, noteId, files, drop?.pos ?? null);
+        const insertedVideos = insertVideos(store, currentView, noteId, videos, drop?.pos ?? null);
+        return insertedImages || insertedVideos;
       },
       handleKeyDown(currentView, event) {
         const entry = activeEntry();
@@ -1476,6 +1542,18 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
           image={imageDialog.image}
           alt={imageDialog.alt}
           onClose={() => setImageDialog(null)}
+        />
+      )}
+      {mediaLibraryKind !== null && (
+        <MediaLibraryPicker
+          open
+          kind={mediaLibraryKind}
+          onOpenChange={(open) => {
+            if (!open) setMediaLibraryKind(null);
+          }}
+          onSelect={selectLibraryMedia}
+          onUpload={uploadLibraryMedia}
+          onUseUrl={mediaLibraryKind === "video" ? insertVideoUrl : undefined}
         />
       )}
     </div>

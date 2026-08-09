@@ -5,6 +5,13 @@ import {
 } from "../../../crates/skriuw-sqlite-wasm/web/worker-client.ts";
 import type { WorkspaceArchive, WorkspaceSnapshot } from "../contracts/workspace";
 import type { ArchiveExportReport, ArchiveImportReport } from "./commands";
+import {
+  deleteBrowserMediaBlob,
+  listBrowserMediaBlobs,
+  readBrowserMediaBlob,
+  storeBrowserMediaBlob,
+  sweepBrowserMediaBlobs,
+} from "./browser-media";
 import { pickTextFile, readPickedFile, saveTextFile } from "./browser-files";
 import { browserSyncDriver, publishBrowserSyncEvent, type SyncWorkerPort } from "./browser-sync";
 import { noop } from "../shared/lib/noop";
@@ -85,6 +92,24 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
   }
   if (command === "retry_workspace_sync") {
     return browserSyncDriver(syncWorkerPort).retry() as Promise<T>;
+  }
+  if (command === "store_note_image") {
+    return storeBrowserMediaBlob(args as Uint8Array) as Promise<T>;
+  }
+  if (command === "read_note_image_blob") {
+    const { contentHash, mimeType } = args as { contentHash: string; mimeType: string };
+    return readBrowserMediaBlob(contentHash, mimeType) as Promise<T>;
+  }
+  if (command === "list_media_blobs") {
+    return listBrowserMediaBlobs() as Promise<T>;
+  }
+  if (command === "delete_media_blob") {
+    const { contentHash, mimeType } = args as { contentHash: string; mimeType: string };
+    return deleteBrowserMediaBlob(contentHash, mimeType) as Promise<T>;
+  }
+  if (command === "sweep_unused_media_blobs") {
+    const { liveContentHashes } = args as { liveContentHashes?: readonly string[] };
+    return sweepBrowserMediaBlobs(liveContentHashes ?? []) as Promise<T>;
   }
 
   const mapped = browserCommand(command, args);

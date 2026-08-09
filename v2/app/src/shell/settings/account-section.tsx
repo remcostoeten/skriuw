@@ -1,26 +1,13 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { AuthDrawer, AuthProvider, useAuth } from "@remcostoeten/auth-drawer";
-import { authAdapter } from "../../auth/adapter";
+import { useEffect, useState } from "react";
+import { useAuth } from "@remcostoeten/auth-drawer";
 import { authConfiguration } from "../../auth/config";
-import { currentSessionToken } from "../../auth/session-token";
-import {
-  type BrowserSyncProgress,
-  latestBrowserSyncProgress,
-  subscribeBrowserSyncProgress,
-} from "../../bridge/browser-sync";
 import {
   type BlockedSyncOperation,
-  connectWorkspaceSync,
   discardBlockedSyncOperation,
   listBlockedSyncOperations,
-  pauseWorkspaceSync,
   retryBlockedSyncOperation,
-  retryWorkspaceSync,
   type SyncRecoveryView,
-  type WorkspaceSyncStatus,
-  workspaceSyncStatus,
 } from "../../bridge/commands";
-import { isBrowserRuntime } from "../../bridge/runtime";
 import { formatRelativeTime } from "../../shared/lib/relative-time";
 import { InlineConfirm } from "../../shared/ui/inline-confirm";
 import {
@@ -45,61 +32,21 @@ import {
   syncProgressText,
   syncProgressVisible,
 } from "./sync-status";
+import { useWorkspaceSync } from "./use-workspace-sync";
 
-function subscribeProgress(onStoreChange: () => void): () => void {
-  return subscribeBrowserSyncProgress(() => onStoreChange());
-}
+type AccountSectionProps = {
+  /** Closes settings and opens the shell-level sign-in drawer; the drawer cannot render inside this modal dialog. */
+  onRequestSignIn: () => void;
+};
 
-function subscribeNever(): () => void {
-  return () => undefined;
-}
-
-function readNoProgress(): BrowserSyncProgress | null {
-  return null;
-}
-
-function AccountContent() {
-  const { user, isPending, openDrawer, signOut } = useAuth();
-  const [syncStatus, setSyncStatus] = useState<WorkspaceSyncStatus>({ state: "localOnly" });
-  const [syncPending, setSyncPending] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
+export function AccountSection({ onRequestSignIn }: AccountSectionProps) {
+  const { user, isPending } = useAuth();
+  const sync = useWorkspaceSync();
   const [recovery, setRecovery] = useState<SyncRecoveryView | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [recoveryBusyId, setRecoveryBusyId] = useState<string | null>(null);
   const unavailableReason = authConfiguration.available ? null : authConfiguration.reason;
-  const browser = isBrowserRuntime();
-  const syncProgress = useSyncExternalStore(
-    browser ? subscribeProgress : subscribeNever,
-    browser ? latestBrowserSyncProgress : readNoProgress,
-  );
-
-  useEffect(() => {
-    if (!user) return;
-    let mounted = true;
-    let inFlight = false;
-    const refresh = () => {
-      if (inFlight) return;
-      inFlight = true;
-      void workspaceSyncStatus()
-        .then(
-          (status) => {
-            if (mounted) setSyncStatus(status);
-          },
-          (error: unknown) => {
-            if (mounted) setSyncError(error instanceof Error ? error.message : String(error));
-          },
-        )
-        .finally(() => {
-          inFlight = false;
-        });
-    };
-    refresh();
-    const interval = window.setInterval(refresh, 2_000);
-    return () => {
-      mounted = false;
-      window.clearInterval(interval);
-    };
-  }, [user]);
+  const browser = sync.browser;
 
   useEffect(() => {
     if (!user || browser) return;
@@ -132,56 +79,12 @@ function AccountContent() {
     setRecoveryError(null);
     try {
       setRecovery(await action(blockedId));
-      setSyncStatus(await workspaceSyncStatus());
+      await sync.refresh();
     } catch (error) {
       setRecoveryError(error instanceof Error ? error.message : String(error));
     } finally {
       setRecoveryBusyId(null);
     }
-  }
-
-  async function retrySyncNow() {
-    setSyncPending(true);
-    setSyncError(null);
-    try {
-      setSyncStatus(await retryWorkspaceSync());
-    } catch (error) {
-      setSyncError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setSyncPending(false);
-    }
-  }
-
-  async function enableSync() {
-    setSyncPending(true);
-    setSyncError(null);
-    try {
-      const token = await currentSessionToken();
-      if (!token) throw new Error("Your session is unavailable. Sign in again.");
-      setSyncStatus(await connectWorkspaceSync(token));
-    } catch (error) {
-      setSyncError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setSyncPending(false);
-    }
-  }
-
-  async function pauseSync() {
-    setSyncPending(true);
-    setSyncError(null);
-    try {
-      setSyncStatus(await pauseWorkspaceSync());
-    } catch (error) {
-      setSyncError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setSyncPending(false);
-    }
-  }
-
-  async function signOutSafely() {
-    await pauseWorkspaceSync().catch(() => undefined);
-    await signOut();
-    setSyncStatus({ state: "localOnly" });
   }
 
   return (
@@ -202,7 +105,7 @@ function AccountContent() {
             </span>
           </span>
           {user ? (
-            <button type="button" className={settingsButton} onClick={() => void signOutSafely()}>
+            <button type="button" className={settingsButton} onClick={sync.signOut}>
               Sign out
             </button>
           ) : (
@@ -210,7 +113,7 @@ function AccountContent() {
               type="button"
               className={settingsButton}
               disabled={isPending || unavailableReason !== null}
-              onClick={openDrawer}
+              onClick={onRequestSignIn}
             >
               {isPending ? "Checking…" : "Sign in"}
             </button>
@@ -221,35 +124,35 @@ function AccountContent() {
             <span className={settingsRowLabel}>
               Workspace sync
               <span className={settingsRowDescription}>
-                {syncError ?? syncDescription(syncStatus, browser)}
+                {sync.error ?? syncDescription(sync.status, browser)}
               </span>
               {browser ? (
                 <span aria-live="polite" className={settingsRowDescription}>
-                  {syncProgress && syncProgressVisible(syncStatus, syncPending)
-                    ? syncProgressText(syncProgress)
+                  {sync.progress && syncProgressVisible(sync.status, sync.pending)
+                    ? syncProgressText(sync.progress)
                     : null}
                 </span>
               ) : null}
             </span>
-            {syncEnabled(syncStatus) ? (
+            {syncEnabled(sync.status) ? (
               <span className="flex items-center gap-1.5">
-                {syncStatus.state === "blocked" ? (
+                {sync.status.state === "blocked" ? (
                   <button
                     type="button"
                     className={settingsButton}
-                    disabled={syncPending}
-                    onClick={() => void retrySyncNow()}
+                    disabled={sync.pending}
+                    onClick={sync.retry}
                   >
-                    {syncPending ? "Retrying…" : "Retry sync"}
+                    {sync.pending ? "Retrying…" : "Retry sync"}
                   </button>
                 ) : null}
-                <button type="button" className={settingsButton} disabled={syncPending} onClick={() => void pauseSync()}>
-                  {syncPending ? "Pausing…" : "Pause sync"}
+                <button type="button" className={settingsButton} disabled={sync.pending} onClick={sync.pause}>
+                  {sync.pending ? "Pausing…" : "Pause sync"}
                 </button>
               </span>
             ) : (
-              <button type="button" className={settingsButton} disabled={syncPending} onClick={() => void enableSync()}>
-                {syncPending ? "Connecting…" : "Enable sync"}
+              <button type="button" className={settingsButton} disabled={sync.pending} onClick={sync.resume}>
+                {sync.pending ? "Connecting…" : "Resume sync"}
               </button>
             )}
           </div>
@@ -370,28 +273,5 @@ function BlockedChangeRow({ item, busyId, onRetry, onDiscard }: BlockedChangeRow
         />
       </span>
     </li>
-  );
-}
-
-export function AccountSection() {
-  return (
-    <AuthProvider adapter={authAdapter}>
-      <AccountContent />
-      <AuthDrawer
-        adapter={authAdapter}
-        hideTrigger
-        config={{
-          ui: {
-            auth: {
-              providers: [],
-              allowRegister: true,
-              showForgotPassword: false,
-              showRememberMe: true,
-            },
-            presentation: { variant: "modal" },
-          },
-        }}
-      />
-    </AuthProvider>
   );
 }

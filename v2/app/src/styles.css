@@ -6,5 +6,7 @@
 @import "./css/sidebar.css";
 @import "./css/references.css";
 @import "./css/tooltip.css";
+@import "./css/shortcut-recorder.css";
+@import "./css/auth-drawer.css";
 
 @plugin "tailwindcss-animate";

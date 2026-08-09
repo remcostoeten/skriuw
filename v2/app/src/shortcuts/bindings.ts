@@ -302,10 +302,95 @@ export function shortcutCombos(
 }
 
 /**
+ * A combo rendered the way `@remcostoeten/use-shortcut` keys its registry:
+ * modifiers in ctrl/alt/shift/cmd order, lowercased key, sequence steps joined
+ * by a space. Lets a conflict payload from the library be matched back to the
+ * definitions that produced it.
+ */
+export function normalizeRegistryCombo(keys: string): string {
+  return keys
+    .split(" then ")
+    .map((step) => {
+      const parsed = parseShortcut(step);
+      const parts: string[] = [];
+      if (parsed.modifiers.ctrl) {
+        parts.push("ctrl");
+      }
+      if (parsed.modifiers.alt) {
+        parts.push("alt");
+      }
+      if (parsed.modifiers.shift) {
+        parts.push("shift");
+      }
+      if (parsed.modifiers.meta) {
+        parts.push("cmd");
+      }
+      const key =
+        parsed.key === " " || parsed.key === "Spacebar" ? "space" : parsed.key.toLowerCase();
+      return [...parts, key].join("+");
+    })
+    .join(" ");
+}
+
+function scopesDisjoint(left: ShortcutDefinition, right: ShortcutDefinition): boolean {
+  const leftScopes = shortcutScopeList(left);
+  const rightScopes = shortcutScopeList(right);
+  if (leftScopes.length === 0 || rightScopes.length === 0) {
+    return false;
+  }
+  return !leftScopes.some((scope) => rightScopes.includes(scope));
+}
+
+/**
+ * Predicate over a pair of registry combos: true when no action claiming the
+ * first can ever be live at the same time as one claiming the second, because
+ * their scope gates never overlap.
+ *
+ * The shortcut library compares combos without consulting scopes, so it reports
+ * deliberately scope-separated bindings — `/` focusing the editor on the notes
+ * route and searching entries on the journal — as conflicts on every
+ * registration pass. Use this to drop those without losing real collisions.
+ */
+export function scopeSeparatedConflicts(
+  overrides: ShortcutOverrides,
+): (combo: string, existingCombo: string) => boolean {
+  const claimants = new Map<string, ShortcutDefinition[]>();
+  for (const definition of SHORTCUT_DEFINITIONS) {
+    if (definition.boundInEditor) {
+      continue;
+    }
+    for (const combo of shortcutCombos(definition, overrides)) {
+      const normalized = normalizeRegistryCombo(combo.keys);
+      const existing = claimants.get(normalized);
+      if (existing) {
+        existing.push(definition);
+      } else {
+        claimants.set(normalized, [definition]);
+      }
+    }
+  }
+
+  return function isScopeSeparated(combo: string, existingCombo: string): boolean {
+    const left = claimants.get(combo);
+    const right = claimants.get(existingCombo);
+    if (!left || !right) {
+      return false;
+    }
+    return left.every((first) =>
+      right.every((second) => first.id === second.id || scopesDisjoint(first, second)),
+    );
+  };
+}
+
+/**
  * The action whose effective binding already uses `combo`, excluding the
  * action being rebound. Null means the combo is free to assign. Alternates
  * count: an action that also answers to `mod+delete` owns that combo just as
  * firmly as its primary, so handing it to a second action would double-fire.
+ *
+ * Ownership is global, deliberately: a combo the user rebinds should mean one
+ * thing everywhere, so a scope-disjoint holder still counts as taken even
+ * though the two could never fire against each other.
  */
 export function findShortcutConflict(
   overrides: ShortcutOverrides,

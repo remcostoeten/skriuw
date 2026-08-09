@@ -38,10 +38,20 @@ type Props = {
   store: RendererStore;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRequestSignIn: () => void;
+  /** Owned by the shell so surfaces outside the dialog can open a chosen section. */
+  section: SectionId;
+  onSectionChange: (section: SectionId) => void;
 };
 
-export function SettingsDialog({ store, open, onOpenChange }: Props) {
-  const [section, setSection] = useState<SectionId>("appearance");
+export function SettingsDialog({
+  store,
+  open,
+  onOpenChange,
+  onRequestSignIn,
+  section,
+  onSectionChange: setSection,
+}: Props) {
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -53,7 +63,10 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
   );
   const filteredIds = filteredSections.map((entry) => entry.id);
   const rovingSection = rovingSettingsSection(filteredIds, section);
-  const activeMeta = SECTIONS.find((entry) => entry.id === section) ?? SECTIONS[0];
+  // While filtering, show a matching panel immediately rather than leaving the
+  // previously selected (and now hidden) section on screen.
+  const activeSection = rovingSection ?? section;
+  const activeMeta = SECTIONS.find((entry) => entry.id === activeSection) ?? SECTIONS[0];
 
   useEffect(() => {
     if (!open) {
@@ -246,9 +259,9 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
                 className={cn(
                   "flex min-h-[38px] items-center gap-2 rounded-lg border-0 bg-transparent px-[9px] py-1.5 text-left text-[13px] text-muted-foreground cursor-pointer hover:bg-muted hover:text-foreground max-[620px]:min-h-[34px] max-[620px]:flex-none",
                   "focus-visible:bg-sidebar-accent focus-visible:text-sidebar-accent-foreground focus-visible:shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.2)]",
-                  section === entry.id && "bg-accent text-accent-foreground",
+                  activeSection === entry.id && "bg-accent text-accent-foreground",
                 )}
-                aria-selected={section === entry.id}
+                aria-selected={activeSection === entry.id}
                 aria-controls="settings-tabpanel"
                 onClick={() => setSection(entry.id)}
               >
@@ -304,17 +317,17 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
           >
             <CloseIcon size={16} />
           </button>
-          {section === "appearance" && <AppearanceSection store={store} />}
-          {section === "account" && (
+          {activeSection === "appearance" && <AppearanceSection store={store} />}
+          {activeSection === "account" && (
             <Suspense fallback={<p className="text-sm text-muted-foreground">Loading account…</p>}>
-              <AccountSection />
+              <AccountSection onRequestSignIn={onRequestSignIn} />
             </Suspense>
           )}
-          {section === "editor" && <EditorSection store={store} />}
-          {section === "shortcuts" && (
+          {activeSection === "editor" && <EditorSection store={store} />}
+          {activeSection === "shortcuts" && (
             <ShortcutsSection store={store} recordingCountRef={recordingCountRef} />
           )}
-          {section === "media" && (
+          {activeSection === "media" && (
             <MediaSection
               store={store}
               onOpenReference={(usage) => {
@@ -328,8 +341,8 @@ export function SettingsDialog({ store, open, onOpenChange }: Props) {
               }}
             />
           )}
-          {section === "data" && <DataSection store={store} />}
-          {section === "about" && <AboutSection />}
+          {activeSection === "data" && <DataSection store={store} />}
+          {activeSection === "about" && <AboutSection />}
         </div>
       </div>
     </Dialog>

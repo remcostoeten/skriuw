@@ -7,6 +7,7 @@ import {
   changeShortcutOverride,
   projectSettings,
   resetShortcutOverride,
+  resetShortcutOverrides,
   showsToasts,
 } from "../../src/settings/settings-model";
 
@@ -89,4 +90,28 @@ test("override reset removes only the selected action", () => {
   });
   assert.deepEqual(reset.futureSetting, settings.futureSetting);
   assert.equal(resetShortcutOverride(reset, "createNote"), reset);
+});
+
+test("reset-all removes every listed override but keeps extension data", () => {
+  const settings = {
+    ...extendedSettings(),
+    shortcutOverrides: {
+      createNote: "mod+alt+n",
+      createFolder: "mod+alt+f",
+      futureAction: "mod+shift+u",
+      futureShape: { enabled: true },
+    },
+  };
+  const reset = resetShortcutOverrides(settings, ["createNote", "createFolder"]);
+  assert.deepEqual(reset.shortcutOverrides, {
+    futureAction: "mod+shift+u",
+    futureShape: { enabled: true },
+  });
+  assert.deepEqual(reset.futureSetting, settings.futureSetting);
+});
+
+test("reset-all without matching overrides returns the same document", () => {
+  const settings = extendedSettings();
+  assert.equal(resetShortcutOverrides(settings, ["createFolder"]), settings);
+  assert.equal(resetShortcutOverrides(DEFAULT_WORKSPACE_SETTINGS, ["createNote"]), DEFAULT_WORKSPACE_SETTINGS);
 });

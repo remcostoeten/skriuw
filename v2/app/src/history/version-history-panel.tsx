@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { DOMSerializer } from "prosemirror-model";
 import { restoreNoteVersion } from "../actions/workspace";
@@ -17,6 +17,7 @@ type Props = {
   store: RendererStore;
   noteId: string;
   versions: readonly VersionListItem[];
+  requestedVersionId?: string | null;
 };
 
 type PreviewState =
@@ -34,10 +35,11 @@ function formatTimestamp(value: number): string {
   return timeFormatter.format(new Date(value));
 }
 
-export function VersionHistoryPanel({ store, noteId, versions }: Props) {
+export function VersionHistoryPanel({ store, noteId, versions, requestedVersionId }: Props) {
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
+  const appliedRequestRef = useRef<string | null>(null);
 
   const virtualizer = useVirtualizer({
     count: versions.length,
@@ -56,14 +58,18 @@ export function VersionHistoryPanel({ store, noteId, versions }: Props) {
       closePreview();
       return;
     }
+    loadVersion(item.versionId);
+  }
+
+  function loadVersion(versionId: string): void {
     const requestId = ++requestIdRef.current;
-    setPreview({ status: "loading", versionId: item.versionId });
-    readHistoryVersion(noteId, item.versionId)
+    setPreview({ status: "loading", versionId });
+    readHistoryVersion(noteId, versionId)
       .then((content) => {
         if (requestIdRef.current !== requestId) {
           return;
         }
-        setPreview({ status: "ready", versionId: item.versionId, content, restoring: false });
+        setPreview({ status: "ready", versionId, content, restoring: false });
       })
       .catch((error: unknown) => {
         if (requestIdRef.current !== requestId) {
@@ -71,7 +77,7 @@ export function VersionHistoryPanel({ store, noteId, versions }: Props) {
         }
         setPreview({
           status: "error",
-          versionId: item.versionId,
+          versionId,
           message: error instanceof Error ? error.message : "Could not load this version.",
         });
       });
@@ -113,6 +119,19 @@ export function VersionHistoryPanel({ store, noteId, versions }: Props) {
     );
     button?.focus();
   }
+
+  useEffect(() => {
+    if (!requestedVersionId || appliedRequestRef.current === requestedVersionId) {
+      return;
+    }
+    const index = versions.findIndex((item) => item.versionId === requestedVersionId);
+    if (index === -1) {
+      return;
+    }
+    appliedRequestRef.current = requestedVersionId;
+    loadVersion(requestedVersionId);
+    virtualizer.scrollToIndex(index, { align: "center" });
+  }, [requestedVersionId, versions]);
 
   return (
     <div className="grid h-full min-h-0 grid-cols-[minmax(220px,280px)_minmax(0,1fr)]">

@@ -12,7 +12,7 @@ export function syncEnabled(status: WorkspaceSyncStatus): boolean {
 export function syncDescription(status: WorkspaceSyncStatus, browser: boolean): string {
   switch (status.state) {
     case "localOnly":
-      return "Off. Notes stay only on this device until you enable sync.";
+      return "Paused. Notes stay only on this device until you resume sync.";
     case "connecting":
       return "Connecting this device securely…";
     case "upToDate":
@@ -23,14 +23,64 @@ export function syncDescription(status: WorkspaceSyncStatus, browser: boolean): 
       return "Offline. Changes remain local and will retry automatically.";
     case "authenticationRequired":
       return browser
-        ? "Paused. Your cloud session ended; sign in and enable sync to reconnect."
-        : "Paused. Enable sync again after signing in.";
+        ? "Paused. Your cloud session ended; sign in again to reconnect."
+        : "Paused. Sign in again to reconnect this device.";
     case "conflict":
       return `${status.openConflicts} sync conflict${status.openConflicts === 1 ? "" : "s"} need attention.`;
     case "retrying":
       return "Cloud is temporarily unavailable; retrying automatically.";
     case "blocked":
       return browser ? browserBlockedText(status.reason) : blockedStateText(status.reason);
+  }
+}
+
+export type SyncTone = "synced" | "syncing" | "offline" | "attention";
+
+/**
+ * Coarse state the compact surfaces render as a status dot and icon. The
+ * settings row keeps using `syncDescription` for the full explanation.
+ */
+export function syncTone(status: WorkspaceSyncStatus): SyncTone {
+  switch (status.state) {
+    case "upToDate":
+      return "synced";
+    case "connecting":
+    case "pending":
+      return "syncing";
+    case "localOnly":
+    case "offline":
+      return "offline";
+    case "authenticationRequired":
+    case "conflict":
+    case "retrying":
+    case "blocked":
+      return "attention";
+  }
+}
+
+/** Short status label for the account menu, where the settings prose is too long. */
+export function syncSummary(status: WorkspaceSyncStatus): string {
+  switch (status.state) {
+    case "localOnly":
+      return "Sync paused";
+    case "connecting":
+      return "Connecting…";
+    case "upToDate":
+      return "All changes synced";
+    case "pending":
+      return "Uploading changes…";
+    case "offline":
+      return "Offline, changes stay local";
+    case "authenticationRequired":
+      return "Sign in again to sync";
+    case "conflict":
+      return status.openConflicts === 1
+        ? "1 conflict needs attention"
+        : `${status.openConflicts} conflicts need attention`;
+    case "retrying":
+      return "Cloud unavailable, retrying…";
+    case "blocked":
+      return "Sync stopped, changes blocked";
   }
 }
 

@@ -1,8 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { Ref } from "react";
 import { useShortcut } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { RotateCcwIcon } from "../icons";
 import { cn } from "../lib/utils";
+
+export type ShortcutRecorderHandle = {
+  /** Focuses the recorder button and opens capture, as if it was clicked. */
+  startRecording: () => void;
+};
 
 type Props = {
   value: string;
@@ -12,15 +18,33 @@ type Props = {
   isDefault?: boolean;
   /** Reports capture start/stop so a hosting dialog can suppress Escape-driven close mid-capture. */
   onRecordingChange?: (recording: boolean) => void;
+  /** Receives an imperative handle so a search flow can open capture directly. */
+  handleRef?: Ref<ShortcutRecorderHandle>;
   "aria-label"?: string;
 };
 
 const RECORD_TIMEOUT_MS = 5000;
 
 /**
+ * How the recorder interprets a captured combo: Escape or a timeout cancels,
+ * plain Enter closes capture keeping the current binding, and anything else —
+ * including combos like ctrl+enter — becomes the new binding.
+ */
+export function recordedComboOutcome(combo: string): "cancel" | "keep" | "commit" {
+  if (!combo || combo === "escape") {
+    return "cancel";
+  }
+  if (combo === "enter") {
+    return "keep";
+  }
+  return "commit";
+}
+
+/**
  * Click-to-rebind shortcut control. Captures the next key combo through the
  * shortcut engine's recorder, so what it stores is exactly what the matcher
- * will parse. Escape or the timeout cancels without changing the binding.
+ * will parse. Capture listens on the button itself, so clicking outside ends
+ * it without swallowing keystrokes elsewhere.
  */
 export function ShortcutRecorder({
   value,
@@ -28,11 +52,14 @@ export function ShortcutRecorder({
   onReset,
   isDefault,
   onRecordingChange,
+  handleRef,
   ...aria
 }: Props) {
   const $ = useShortcut();
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const mountedRef = useRef(true);
   const recordingRef = useRef(false);
   const onRecordingChangeRef = useRef(onRecordingChange);
@@ -47,30 +74,51 @@ export function ShortcutRecorder({
     };
   }, []);
 
+  useEffect(() => {
+    if (!recording) {
+      return;
+    }
+    function handlePointerDown(event: PointerEvent): void {
+      const root = rootRef.current;
+      if (root && event.target instanceof Node && root.contains(event.target)) {
+        return;
+      }
+      // Resolves the pending capture through its own listener, so the engine
+      // detaches it instead of eating the next keystroke on this button.
+      buttonRef.current?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [recording]);
+
   function stopRecording(): void {
+    if (!recordingRef.current) {
+      return;
+    }
     recordingRef.current = false;
     setRecording(false);
     onRecordingChangeRef.current?.(false);
   }
 
   function startRecording(): void {
-    if (recording) {
+    const button = buttonRef.current;
+    if (recordingRef.current || !button) {
       return;
     }
+    button.focus();
     recordingRef.current = true;
     setRecording(true);
     onRecordingChangeRef.current?.(true);
     setError(null);
-    $.record({ timeoutMs: RECORD_TIMEOUT_MS })
+    $.record({ timeoutMs: RECORD_TIMEOUT_MS, target: button })
       .then((combo) => {
         if (!mountedRef.current) {
           return;
         }
         stopRecording();
-        if (!combo || combo === "escape") {
-          return;
+        if (recordedComboOutcome(combo) === "commit") {
+          setError(onRecord(combo));
         }
-        setError(onRecord(combo));
       })
       .catch(() => {
         if (mountedRef.current) {
@@ -79,18 +127,28 @@ export function ShortcutRecorder({
       });
   }
 
+  useImperativeHandle(handleRef, () => ({ startRecording }));
+
   return (
-    <span className="flex items-center gap-1.5">
+    <span ref={rootRef} className="flex items-center gap-1.5">
       <button
+        ref={buttonRef}
         type="button"
         className={cn(
           "min-w-[84px] cursor-pointer rounded-lg border border-border bg-muted px-2 py-1 text-center text-xs text-foreground",
-          recording && "border-primary text-primary",
+          recording && "shortcut-recorder-recording border-primary",
         )}
         aria-label={aria["aria-label"] ?? "Change shortcut"}
         onClick={startRecording}
       >
-        {recording ? "Press keys…" : <kbd className="font-mono text-[11px]">{formatShortcut(value)}</kbd>}
+        {recording ? (
+          <span className="flex items-center justify-center gap-1.5">
+            <span className="shortcut-recorder-dot" aria-hidden="true" />
+            <span className="shortcut-recorder-label">Press keys…</span>
+          </span>
+        ) : (
+          <kbd className="font-mono text-[11px]">{formatShortcut(value)}</kbd>
+        )}
       </button>
       {onReset && !isDefault && (
         <button

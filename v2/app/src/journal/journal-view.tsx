@@ -15,6 +15,7 @@ import {
 } from "../shared/icons";
 import { Tooltip } from "../shared/ui/tooltip";
 import { toolbarIconButtonClass } from "../shell/toolbar-styles";
+import { useShortcutHints } from "../shortcuts/hints";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import type { RendererState, RendererStore } from "../store/types";
 import { deleteJournalEntry, ensureJournalEntry, setJournalMood } from "./actions";
@@ -696,15 +697,18 @@ type JournalViewProps = Props & {
   onToggleSidebar: () => void;
 };
 
+const JOURNAL_SHORTCUT_IDS = ["toggleSidebar"] as const;
+
 export function JournalView({ store, sidebarOpen, onToggleSidebar }: JournalViewProps) {
   const selectedKey = useSelectedJournalKey();
+  const shortcutHints = useShortcutHints(store, JOURNAL_SHORTCUT_IDS);
   return (
     <main className="col-[3/-1] flex min-h-0 min-w-0 flex-col" aria-label="Journal">
       <div
         data-tauri-drag-region
         className="flex h-11 shrink-0 items-center border-b border-sidebar-border bg-sidebar px-3 pr-[calc(var(--window-controls-width,112px)+8px)] text-sidebar-foreground"
       >
-        <Tooltip label="Toggle sidebar" side="bottom">
+        <Tooltip label="Toggle sidebar" side="bottom" shortcut={shortcutHints.toggleSidebar}>
           <button
             type="button"
             onClick={onToggleSidebar}

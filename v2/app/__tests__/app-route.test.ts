@@ -5,6 +5,7 @@ import {
   journalDayHash,
   noteHistoryHash,
   resolveAppRoute,
+  resolveHistoryVersion,
   resolveRouteFocus,
 } from "../src/app-route";
 
@@ -39,6 +40,16 @@ test("history routes carry the note id as the route focus", () => {
   assert.equal(resolveAppRoute(hash), "history");
   assert.equal(resolveRouteFocus(hash), "note-1/a");
   assert.equal(resolveAppRoute("#/history"), "notes");
+  assert.equal(resolveHistoryVersion(hash), null);
+});
+
+test("history routes carry an optional preselected version id", () => {
+  const hash = noteHistoryHash("note-1", "version/7");
+  assert.equal(hash, "#/history/note-1/version%2F7");
+  assert.equal(resolveAppRoute(hash), "history");
+  assert.equal(resolveRouteFocus(hash), "note-1");
+  assert.equal(resolveHistoryVersion(hash), "version/7");
+  assert.equal(resolveHistoryVersion("#/tags/tag-1"), null);
 });
 
 test("journal routes resolve with an optional day focus", () => {

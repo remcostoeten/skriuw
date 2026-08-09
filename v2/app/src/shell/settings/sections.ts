@@ -12,18 +12,11 @@ import { SHORTCUT_DEFINITIONS } from "../../shortcuts/definitions";
 export const SECTIONS = [
   {
     id: "appearance",
-    label: "Appearance",
-    description: "Theme and density",
+    label: "General",
+    description: "Appearance and workspace preferences",
     searchText:
-      "color midnight paper embers mocha rose pine catppuccin gruvbox tokyo night compact sidebar tree guides indent reduce motion remember last note workspace",
+      "appearance general color midnight paper embers mocha rose pine catppuccin gruvbox tokyo night compact sidebar tree guides indent reduce motion accessibility remember last note startup notifications toasts workspace reset preferences",
     icon: SettingsIcon,
-  },
-  {
-    id: "account",
-    label: "Account",
-    description: "Cloud sign-in and session",
-    searchText: "account cloud sign in sign up register email password session sync",
-    icon: UserIcon,
   },
   {
     id: "editor",
@@ -41,6 +34,13 @@ export const SECTIONS = [
     icon: KeyboardIcon,
   },
   {
+    id: "account",
+    label: "Account & sync",
+    description: "Cloud sign-in and workspace sync",
+    searchText: "account cloud sign in sign up register email password session sync blocked changes recovery",
+    icon: UserIcon,
+  },
+  {
     id: "media",
     label: "Media",
     description: "Images stored in this workspace",
@@ -50,8 +50,8 @@ export const SECTIONS = [
   },
   {
     id: "data",
-    label: "Data",
-    description: "Storage, backups, and recovery",
+    label: "Data & recovery",
+    description: "Storage, imports, backups, and recovery",
     searchText:
       "database storage local file manager workspace path export import archive backup restore recovery rollback safety snapshot",
     icon: DatabaseIcon,

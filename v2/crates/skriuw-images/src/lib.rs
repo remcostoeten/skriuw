@@ -1,4 +1,4 @@
-//! Workspace-local, content-addressed image blob store.
+//! Workspace-local, content-addressed media blob store for images and videos.
 //!
 //! Blobs live as `<sha256-hex>.<ext>` files inside one flat directory that
 //! sits next to the SQLite database. The store never touches the database;
@@ -296,6 +296,8 @@ pub fn extension_for(mime_type: &str) -> &'static str {
         "image/jpeg" => "jpg",
         "image/gif" => "gif",
         "image/webp" => "webp",
+        "video/mp4" => "mp4",
+        "video/webm" => "webm",
         _ => "img",
     }
 }
@@ -308,11 +310,13 @@ pub fn mime_for_extension(extension: &str) -> Option<&'static str> {
         "jpg" => Some("image/jpeg"),
         "gif" => Some("image/gif"),
         "webp" => Some("image/webp"),
+        "mp4" => Some("video/mp4"),
+        "webm" => Some("video/webm"),
         _ => None,
     }
 }
 
-/// Identifies supported image formats by magic bytes.
+/// Identifies supported image and video formats by magic bytes.
 #[must_use]
 pub fn sniff_mime(bytes: &[u8]) -> Option<&'static str> {
     if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
@@ -327,7 +331,21 @@ pub fn sniff_mime(bytes: &[u8]) -> Option<&'static str> {
     if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" {
         return Some("image/webp");
     }
+    if bytes.len() >= 12 && &bytes[4..8] == b"ftyp" {
+        return Some("video/mp4");
+    }
+    if bytes.starts_with(&[0x1a, 0x45, 0xdf, 0xa3]) && contains_webm_doctype(bytes) {
+        return Some("video/webm");
+    }
     None
+}
+
+/// The EBML header shared by WebM and Matroska carries the container name as a
+/// DocType string near the start of the file; only `webm` is accepted.
+fn contains_webm_doctype(bytes: &[u8]) -> bool {
+    bytes[..bytes.len().min(64)]
+        .windows(4)
+        .any(|window| window == b"webm")
 }
 
 #[cfg(test)]
@@ -478,6 +496,32 @@ mod tests {
             sniff_mime(b"RIFF\x00\x00\x00\x00WEBPVP8 "),
             Some("image/webp")
         );
+        assert_eq!(
+            sniff_mime(b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00"),
+            Some("video/mp4")
+        );
+        assert_eq!(
+            sniff_mime(b"\x1a\x45\xdf\xa3\x01\x00\x00\x00\x00\x00\x00\x1f\x42\x86webm"),
+            Some("video/webm")
+        );
+        assert_eq!(
+            sniff_mime(b"\x1a\x45\xdf\xa3\x01\x00\x00\x00\x00\x00\x00\x23\x42\x86matroska"),
+            None
+        );
         assert_eq!(sniff_mime(b"<svg></svg>"), None);
+    }
+
+    #[test]
+    fn stores_and_lists_video_blobs() {
+        let dir = tempdir().expect("tempdir");
+        let store = ImageStore::open(dir.path().join("blobs")).expect("open store");
+        let stored = store
+            .put(b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00mp41")
+            .expect("store mp4");
+        assert_eq!(stored.mime_type, "video/mp4");
+
+        let listed = store.list().expect("list blobs");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].mime_type, "video/mp4");
     }
 }

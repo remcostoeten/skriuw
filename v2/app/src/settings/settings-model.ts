@@ -132,6 +132,26 @@ export function changeShortcutOverride(
   };
 }
 
+export function resetShortcutOverrides(
+  settings: WorkspaceSettings,
+  actionIds: readonly ShortcutActionId[],
+): WorkspaceSettings {
+  const overrides = rawShortcutOverrides(settings);
+  const remaining: Record<string, unknown> = {};
+  let removed = false;
+  for (const [key, value] of Object.entries(overrides)) {
+    if ((actionIds as readonly string[]).includes(key)) {
+      removed = true;
+      continue;
+    }
+    remaining[key] = value;
+  }
+  if (!removed) {
+    return settings;
+  }
+  return { ...settings, shortcutOverrides: remaining };
+}
+
 export function resetShortcutOverride(
   settings: WorkspaceSettings,
   actionId: ShortcutActionId,

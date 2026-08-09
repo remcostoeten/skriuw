@@ -472,6 +472,24 @@ fn store_note_image(
     })
 }
 
+/// Absolute path of one stored blob, for streaming playback through the
+/// asset protocol instead of copying the bytes over IPC.
+#[tauri::command]
+fn note_media_path(
+    content_hash: String,
+    mime_type: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let path = state
+        .image_store
+        .blob_path(&content_hash, &mime_type)
+        .map_err(|error| error.to_string())?;
+    if !path.exists() {
+        return Err("blob is missing".into());
+    }
+    Ok(path.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 fn read_note_image_blob(
     content_hash: String,
@@ -1144,6 +1162,15 @@ pub fn run() {
             let image_store = Arc::new(
                 ImageStore::open(image_blob_path(&path)).map_err(|error| error.to_string())?,
             );
+            // The blobs directory is only known at runtime (SKRIUW_DB override,
+            // storage pointer), so the asset-protocol scope is extended here
+            // instead of in the static config.
+            if let Err(error) = app
+                .asset_protocol_scope()
+                .allow_directory(image_store.root(), false)
+            {
+                eprintln!("asset scope extension failed: {error}");
+            }
             let sync = Arc::new(sync::SyncRuntime::new(path.clone()));
             app.manage(AppState {
                 maintenance,
@@ -1199,6 +1226,7 @@ pub fn run() {
             pick_import_file,
             pick_import_files,
             store_note_image,
+            note_media_path,
             read_note_image_blob,
             import_markdown_image,
             list_media_blobs,

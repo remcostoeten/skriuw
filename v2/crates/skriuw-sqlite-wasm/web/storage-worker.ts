@@ -88,17 +88,19 @@ worker.skriuwSyncEvent = (eventJson) => {
 
 let initialized = false;
 let terminal = false;
+let initializationFailure: string | null = null;
 let queue = initWasm()
   .then(() => undefined)
-  .catch(() => {
+  .catch((error: unknown) => {
     terminal = true;
+    initializationFailure = describeInitializationFailure(error);
   });
 
 worker.onmessage = (event) => {
   const request = event.data;
   queue = queue.then(async () => {
     if (terminal) {
-      postTerminal(request?.requestId ?? 0);
+      postTerminal(request?.requestId ?? 0, initializationFailure);
       return;
     }
     try {
@@ -117,16 +119,23 @@ worker.onmessage = (event) => {
   });
 };
 
-function postTerminal(requestId: number): void {
+function postTerminal(requestId: number, initializationDetail: string | null = null): void {
   worker.postMessage({
     protocolVersion: 1,
     requestId,
     status: "error",
     value: {
       code: "worker_crashed",
-      message: "The browser storage worker failed.",
+      message: initializationDetail
+        ? `The browser storage worker could not start: ${initializationDetail}`
+        : "The browser storage worker failed.",
       recovery: "Reload Skriuw; accepted writes may already be durable.",
       terminal: true,
     },
   });
+}
+
+function describeInitializationFailure(error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error);
+  return detail.replaceAll(/[\r\n\t]+/g, " ").slice(0, 240);
 }

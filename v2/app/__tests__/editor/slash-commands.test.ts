@@ -140,7 +140,7 @@ test("the image command clears its trigger and defers to the host action", () =>
   assert.ok(image);
   const action = applySlashCommand(mockView, image);
 
-  assert.equal(action, "insert-image");
+  assert.equal(action, "pick-image");
   assert.equal(state.doc.firstChild?.textContent, "before ");
   assert.equal(state.doc.childCount, 1);
 });
@@ -393,7 +393,7 @@ test("a toggle heading command retypes the summary of an existing toggle item", 
   assert.equal(summary?.attrs.level, 3);
 });
 
-test("media commands insert an empty embed and select it", () => {
+test("the video command clears its trigger and defers to the asset picker", () => {
   const doc = productSchema.node("doc", null, [
     productSchema.node("paragraph", null, productSchema.text("/video")),
   ]);
@@ -412,13 +412,9 @@ test("media commands insert an empty embed and select it", () => {
 
   const video = slashCommands.find((c) => c.id === "video");
   assert.ok(video);
-  applySlashCommand(mockView, video);
+  const action = applySlashCommand(mockView, video);
 
-  const media = state.doc.firstChild;
-  assert.equal(media?.type.name, "media");
-  assert.equal(media?.attrs.kind, "video");
-  assert.equal(media?.attrs.src, "");
-  assert.ok(state.selection instanceof NodeSelection);
-  assert.equal((state.selection as NodeSelection).node.type.name, "media");
-  assert.equal(state.doc.lastChild?.type.name, "paragraph");
+  assert.equal(action, "pick-video");
+  assert.equal(state.doc.firstChild?.type.name, "paragraph");
+  assert.equal(state.doc.firstChild?.textContent, "");
 });

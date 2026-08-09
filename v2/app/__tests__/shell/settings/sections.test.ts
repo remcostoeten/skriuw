@@ -6,9 +6,9 @@ test("SECTIONS contains all expected settings section definitions", () => {
   const ids = SECTIONS.map((section) => section.id);
   assert.deepEqual(ids, [
     "appearance",
-    "account",
     "editor",
     "shortcuts",
+    "account",
     "media",
     "data",
     "about",
@@ -22,4 +22,10 @@ test("each section has label, description, searchText and icon", () => {
     assert.ok(section.searchText.length > 0);
     assert.equal(typeof section.icon, "function");
   }
+});
+
+test("section labels communicate the preference and recovery groupings", () => {
+  assert.equal(SECTIONS.find((section) => section.id === "appearance")?.label, "General");
+  assert.equal(SECTIONS.find((section) => section.id === "account")?.label, "Account & sync");
+  assert.equal(SECTIONS.find((section) => section.id === "data")?.label, "Data & recovery");
 });

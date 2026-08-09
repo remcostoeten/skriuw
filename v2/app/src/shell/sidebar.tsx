@@ -45,6 +45,7 @@ import {
   ContextMenuTrigger,
 } from "../shared/ui/context-menu";
 import { Tooltip } from "../shared/ui/tooltip";
+import { useShortcutHints } from "../shortcuts/hints";
 import {
   ancestorIds,
   flattenVisible,
@@ -74,6 +75,7 @@ import type { DropTarget } from "./sidebar-dnd";
 import { noop } from "../shared/lib/noop";
 import { SidebarCalendar } from "../journal/sidebar-calendar";
 import { nextFolderExpansion } from "./sidebar-search";
+import { SidebarRecents } from "./sidebar-recents";
 import { SidebarRow } from "./sidebar-row";
 import { SidebarSearchResults } from "./sidebar-search-results";
 
@@ -195,11 +197,14 @@ function moveWithinSiblings(store: RendererStore, id: string, direction: -1 | 1)
   });
 }
 
+const HEADER_SHORTCUT_IDS = ["createNote", "createFolder"] as const;
+
 export function Sidebar({ store }: Props) {
   const visibleIds = useRendererSelector(store, selectVisibleIds);
   const pinnedIds = useRendererSelector(store, selectPinnedIds, sameIdList);
   const compactSidebar = useRendererSelector(store, selectCompactSidebar);
   const showTreeGuides = useRendererSelector(store, selectShowTreeGuides);
+  const shortcutHints = useShortcutHints(store, HEADER_SHORTCUT_IDS);
   // A single shared context menu serves every row. Rows carry `data-row-key`;
   // right-clicking the list resolves the row under the cursor and points the
   // one menu at it, instead of mounting a Radix ContextMenu per row.
@@ -1142,7 +1147,7 @@ export function Sidebar({ store }: Props) {
           <div
             className="flex w-full min-w-0 items-center justify-between"
           >
-            <Tooltip label="New note" side="bottom">
+            <Tooltip label="New note" side="bottom" shortcut={shortcutHints.createNote}>
               <button
                 type="button"
                 className={headerActionClass}
@@ -1152,7 +1157,7 @@ export function Sidebar({ store }: Props) {
                 <NewNoteIcon size={18} />
               </button>
             </Tooltip>
-            <Tooltip label="New folder" side="bottom">
+            <Tooltip label="New folder" side="bottom" shortcut={shortcutHints.createFolder}>
               <button
                 type="button"
                 className={headerActionClass}
@@ -1316,6 +1321,7 @@ export function Sidebar({ store }: Props) {
                   {renderDropIndicator()}
                 </div>
               </div>
+              <SidebarRecents store={store} onSelect={onPinnedSelect} />
               <SidebarCalendar store={store} />
             </div>
           </ContextMenuTrigger>

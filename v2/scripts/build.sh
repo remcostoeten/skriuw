@@ -76,6 +76,10 @@ esac
 step_index=0
 last_log=""
 last_duration=0
+live_progress_enabled=false
+if [[ -t 1 ]] && [[ "${TERM:-}" != "dumb" ]]; then
+  live_progress_enabled=true
+fi
 
 duration_text() {
   local seconds="$1"
@@ -84,6 +88,66 @@ duration_text() {
   else
     printf '%dm %02ds' "$((seconds / 60))" "$((seconds % 60))"
   fi
+}
+
+truncate_text() {
+  local value="$1"
+  local limit="$2"
+  if (( ${#value} > limit )); then
+    printf '%s…' "${value:0:limit-1}"
+  else
+    printf '%s' "$value"
+  fi
+}
+
+print_live_step_status() {
+  local label="$1"
+  local log="$2"
+  local step_started="$3"
+  local elapsed now activity_age activity="Running"
+  local passed_tests last_test spinner
+  local -a frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+
+  now="$(date +%s)"
+  elapsed=$((now - step_started))
+  spinner="${frames[elapsed % ${#frames[@]}]}"
+
+  if [[ -s "$log" ]]; then
+    activity_age=$((now - $(stat -c %Y "$log")))
+    if (( activity_age > 5 )); then
+      activity="No output for $(duration_text "$activity_age")"
+    else
+      activity="Output $(duration_text "$activity_age") ago"
+    fi
+  fi
+
+  passed_tests="$(LC_ALL=C grep -ac '^[✔✓]' "$log" 2>/dev/null || true)"
+  if (( passed_tests > 0 )); then
+    last_test="$(LC_ALL=C grep -aE '^[✔✓]' "$log" | tail -n 1 | sed -E 's/^[✔✓][[:space:]]*//; s/[[:space:]]*\([0-9.]+ms\)$//' | sed $'s/\033\\[[0-9;]*[[:alpha:]]//g')"
+    if grep -aq 'start of coverage report' "$log"; then
+      activity="Writing coverage report · ${activity}"
+    else
+      activity="${passed_tests} tests completed · ${activity}"
+    fi
+    activity="${activity} · $(truncate_text "$last_test" 72)"
+  fi
+
+  printf '\r\033[2K%s%s%s [%02d/%02d] %s · %s · %s' \
+    "$cyan" "$spinner" "$reset" "$step_index" "$total_steps" "$label" "$activity" "$(duration_text "$elapsed")"
+}
+
+clear_live_step_status() {
+  if $live_progress_enabled; then
+    printf '\r\033[2K'
+  fi
+}
+
+step_process_running() {
+  local pid="$1"
+  local state
+  kill -0 "$pid" 2>/dev/null || return 1
+  state="$(ps -o stat= -p "$pid" 2>/dev/null | tr -d '[:space:]')"
+  [[ "$state" != Z* ]]
 }
 
 absolute_path() {
@@ -140,6 +204,11 @@ print_failure_log() {
 }
 
 run_step() {
+  local stream=false
+  if [[ "$1" == "--stream" ]]; then
+    stream=true
+    shift
+  fi
   local label="$1"
   local log_name="$2"
   shift 2
@@ -155,8 +224,23 @@ run_step() {
     printf '::group::%s\n' "$label"
   fi
   set +e
-  "$@" >"$last_log" 2>&1
-  status=$?
+  if $stream; then
+    "$@" 2>&1 | tee "$last_log"
+    status=${PIPESTATUS[0]}
+  elif $live_progress_enabled; then
+    "$@" >"$last_log" 2>&1 &
+    local child_pid=$!
+    while step_process_running "$child_pid"; do
+      print_live_step_status "$label" "$last_log" "$step_started"
+      sleep 1
+    done
+    wait "$child_pid"
+    status=$?
+    clear_live_step_status
+  else
+    "$@" >"$last_log" 2>&1
+    status=$?
+  fi
   set -e
   last_duration=$(( $(date +%s) - step_started ))
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
@@ -285,17 +369,17 @@ run_step "Cloud sync contract and runtime suite" "cloud-sync-tests" bun --cwd="$
 case "$mode" in
   check) ;;
   web)
-    run_step "Renderer production bundle" "renderer-build" bun --cwd="$app_dir" run build:frontend
+    run_step --stream "Renderer production bundle" "renderer-build" bun --cwd="$app_dir" run build:frontend
     ;;
   desktop)
-    run_step "Tauri desktop application" "desktop-build" bun --cwd="$app_dir" run tauri:build:raw --config '{"bundle":{"createUpdaterArtifacts":false}}' "$@"
+    run_step --stream "Tauri desktop application" "desktop-build" bun --cwd="$app_dir" run tauri:build:raw --config '{"bundle":{"createUpdaterArtifacts":false}}' "$@"
     ;;
   workspace)
-    run_step "Rust workspace binaries" "workspace-build" cargo build --workspace --locked
+    run_step --stream "Rust workspace binaries" "workspace-build" cargo build --workspace --locked
     ;;
   ci)
-    run_step "Rust release binaries" "workspace-build" cargo build --workspace --release --locked
-    run_step "Tauri release application" "desktop-build" bun --cwd="$app_dir" run tauri:build:raw "$@"
+    run_step --stream "Rust release binaries" "workspace-build" cargo build --workspace --release --locked
+    run_step --stream "Tauri release application" "desktop-build" bun --cwd="$app_dir" run tauri:build:raw "$@"
     ;;
 esac
 

@@ -9,6 +9,8 @@ import {
 import type { MediaBlobPayload } from "../../bridge/commands";
 import { FolderOpenIcon, Trash2Icon, UploadIcon } from "../../shared/icons";
 import { resolveImageBlobUrl } from "../../shared/lib/image-blob-url";
+import { resolveMediaPlaybackUrl } from "../../shared/lib/media-playback-url";
+import { isBrowserRuntime } from "../../bridge/runtime";
 import { cn } from "../../shared/lib/utils";
 import { Button } from "../../shared/ui/button";
 import { InlineConfirm } from "../../shared/ui/inline-confirm";
@@ -18,6 +20,7 @@ import {
   describeMediaUsage,
   imageFormatLabel,
   isUnusedMedia,
+  isVideoMime,
   projectMediaLibrary,
 } from "../../settings/media-library-model";
 import type { MediaLibraryEntry } from "../../settings/media-library-model";
@@ -38,7 +41,9 @@ import {
 } from "./settings-shared";
 import type { SectionProps } from "./settings-shared";
 
-const ACCEPTED_TYPES = "image/png,image/jpeg,image/gif,image/webp";
+const ACCEPTED_TYPES =
+  "image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm";
+const PAGE_SIZE = 60;
 
 type MediaStatus =
   | { kind: "idle" }
@@ -80,8 +85,13 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
   const [status, setStatus] = useState<MediaStatus>({ kind: "idle" });
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<MediaFilter>("all");
-  const [previewEntry, setPreviewEntry] = useState<MediaLibraryEntry | null>(null);
+  const [visibleLimit, setVisibleLimit] = useState(PAGE_SIZE);
+  const [sweepArmed, setSweepArmed] = useState(false);
+  const [previewEntry, setPreviewEntry] = useState<MediaLibraryEntry | null>(
+    null,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const filterBeforeSweepRef = useRef<MediaFilter>("all");
   const mountedRef = useRef(true);
 
   function refresh(): void {
@@ -146,10 +156,16 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
     )
       .then(() => {
         const noun = files.length === 1 ? "image" : "images";
-        finish({ kind: "info", message: `Added ${files.length} ${noun} to the library.` });
+        finish({
+          kind: "info",
+          message: `Added ${files.length} ${noun} to the library.`,
+        });
       })
       .catch((error) => {
-        finish({ kind: "error", message: `Adding images failed: ${String(error)}` });
+        finish({
+          kind: "error",
+          message: `Adding images failed: ${String(error)}`,
+        });
       });
   }
 
@@ -164,9 +180,28 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
       });
   }
 
+  function changeFilter(next: MediaFilter): void {
+    setFilter(next);
+    setVisibleLimit(PAGE_SIZE);
+  }
+
+  function armSweep(): void {
+    filterBeforeSweepRef.current = filter;
+    setSweepArmed(true);
+    changeFilter("unused");
+  }
+
+  function disarmSweep(): void {
+    setSweepArmed(false);
+    changeFilter(filterBeforeSweepRef.current);
+  }
+
   function removeAllUnused(): void {
     setBusy(true);
-    sweepUnusedMediaBlobs()
+    const liveContentHashes = [
+      ...new Set([...images.values()].map((image) => image.contentHash)),
+    ];
+    sweepUnusedMediaBlobs(liveContentHashes)
       .then((removed) => {
         const noun = removed === 1 ? "image" : "images";
         finish({
@@ -193,9 +228,9 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
           <span className={settingsRowLabel}>
             Library
             <span className={settingsRowDescription}>
-              {entries.length === 1 ? "1 image" : `${entries.length} images`}
-              {unusedCount > 0 ? ` · ${unusedCount} unused` : ""}. Stored once per unique
-              file in the blobs folder next to the database.
+              {entries.length === 1 ? "1 file" : `${entries.length} files`}
+              {unusedCount > 0 ? ` · ${unusedCount} unused` : ""}. Stored once
+              per unique file in the blobs folder next to the database.
             </span>
           </span>
           <span className="flex shrink-0 items-center gap-2">
@@ -217,20 +252,22 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
               onClick={() => fileInputRef.current?.click()}
             >
               <UploadIcon size={15} />
-              Add images…
+              Add media…
             </button>
-            <button
-              type="button"
-              className={settingsButton}
-              onClick={() => {
-                revealWorkspaceImages().catch((error) => {
-                  console.error("reveal images rejected", error);
-                });
-              }}
-            >
-              <FolderOpenIcon size={15} />
-              Show in file manager
-            </button>
+            {!isBrowserRuntime() && (
+              <button
+                type="button"
+                className={settingsButton}
+                onClick={() => {
+                  revealWorkspaceImages().catch((error) => {
+                    console.error("reveal images rejected", error);
+                  });
+                }}
+              >
+                <FolderOpenIcon size={15} />
+                Show in file manager
+              </button>
+            )}
           </span>
         </div>
         {unusedCount > 0 && (
@@ -238,12 +275,24 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
             <span className={settingsRowLabel}>
               Remove all unused
               <span className={settingsRowDescription}>
-                Deletes every image that no note references. This cannot be undone.
+                Deletes every image that no note references. This cannot be
+                undone.
               </span>
             </span>
             <InlineConfirm
               confirmLabel={`Delete ${unusedCount} unused`}
-              onConfirm={removeAllUnused}
+              armed={sweepArmed}
+              onArmedChange={(armed) => {
+                if (armed) {
+                  armSweep();
+                } else {
+                  disarmSweep();
+                }
+              }}
+              onConfirm={() => {
+                disarmSweep();
+                removeAllUnused();
+              }}
               renderIdle={(arm) => (
                 <Button variant="danger" disabled={busy} onClick={arm}>
                   Remove all unused
@@ -266,7 +315,10 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
           {status.message}
         </p>
       )}
-      <div className="mb-3 flex items-center gap-1 border-b border-border pb-2" aria-label="Filter media">
+      <div
+        className="mb-3 flex items-center gap-1 border-b border-border pb-2"
+        aria-label="Filter media"
+      >
         {MEDIA_FILTERS.map((option) => (
           <button
             key={option.id}
@@ -276,7 +328,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
               "rounded px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
               filter === option.id && "bg-muted text-foreground",
             )}
-            onClick={() => setFilter(option.id)}
+            onClick={() => changeFilter(option.id)}
           >
             {option.label}
           </button>
@@ -286,7 +338,7 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
         </span>
       </div>
       <MediaGrid
-        entries={visibleEntries}
+        entries={visibleEntries.slice(0, visibleLimit)}
         loading={blobs === null && !listFailed}
         failed={listFailed}
         busy={busy}
@@ -300,10 +352,23 @@ export function MediaSection({ store, onOpenReference }: MediaSectionProps) {
         onPreview={setPreviewEntry}
         onDelete={deleteEntry}
       />
+      {visibleEntries.length > visibleLimit && (
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            className={settingsButton}
+            onClick={() => setVisibleLimit((limit) => limit + PAGE_SIZE)}
+          >
+            Show {Math.min(PAGE_SIZE, visibleEntries.length - visibleLimit)}{" "}
+            more of {visibleEntries.length - visibleLimit} remaining
+          </button>
+        </div>
+      )}
       {previewEntry !== null && (
         <MediaPreviewDialog
           entry={previewEntry}
           onClose={() => setPreviewEntry(null)}
+          onOpenReference={onOpenReference}
         />
       )}
     </section>
@@ -336,7 +401,9 @@ function MediaGrid({
   if (failed) {
     return (
       <div className={cn(settingsRow, "text-destructive")} role="alert">
-        <span className={settingsRowLabel}>The media library could not be listed.</span>
+        <span className={settingsRowLabel}>
+          The media library could not be listed.
+        </span>
         <button type="button" className={settingsButton} onClick={onRetry}>
           Retry
         </button>
@@ -384,7 +451,13 @@ type MediaCardProps = {
   onDelete: (entry: MediaLibraryEntry) => void;
 };
 
-function MediaCard({ entry, busy, onOpenReference, onPreview, onDelete }: MediaCardProps) {
+function MediaCard({
+  entry,
+  busy,
+  onOpenReference,
+  onPreview,
+  onDelete,
+}: MediaCardProps) {
   const unused = isUnusedMedia(entry);
   const dimensions =
     entry.width !== null && entry.height !== null
@@ -395,7 +468,8 @@ function MediaCard({ entry, busy, onOpenReference, onPreview, onDelete }: MediaC
       <MediaPreview entry={entry} onOpen={() => onPreview(entry)} />
       <div className="flex flex-1 flex-col gap-1.5 px-2.5 py-2">
         <span className="font-mono text-[11px] text-muted-foreground">
-          {imageFormatLabel(entry.mimeType)} · {formatSizeBytes(entry.byteSize)} · {dimensions}
+          {imageFormatLabel(entry.mimeType)} · {formatSizeBytes(entry.byteSize)}{" "}
+          · {dimensions}
           {entry.missingBlob ? " · file missing" : ""}
         </span>
         <span
@@ -407,7 +481,9 @@ function MediaCard({ entry, busy, onOpenReference, onPreview, onDelete }: MediaC
             ? "Not attached"
             : new Date(entry.createdAt).toLocaleDateString()}
         </span>
-        <span className={settingsRowDescription}>{describeMediaUsage(entry)}</span>
+        <span className={settingsRowDescription}>
+          {describeMediaUsage(entry)}
+        </span>
         {entry.usages.length > 0 && (
           <span className="flex flex-wrap gap-1">
             {entry.usages.map((usage) => (
@@ -458,7 +534,8 @@ function MediaCard({ entry, busy, onOpenReference, onPreview, onDelete }: MediaC
   );
 }
 
-const previewClass = "block h-28 w-full border-b border-border bg-muted object-cover";
+const previewClass =
+  "block h-28 w-full border-b border-border bg-muted object-cover";
 
 function MediaPreview({
   entry,
@@ -468,12 +545,41 @@ function MediaPreview({
   onOpen: () => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [nearViewport, setNearViewport] = useState(false);
+  const [useBlobFallback, setUseBlobFallback] = useState(false);
+  const placeholderRef = useRef<HTMLSpanElement>(null);
   useEffect(() => {
-    if (entry.missingBlob) {
+    setUseBlobFallback(false);
+  }, [entry.contentHash, entry.mimeType]);
+  useEffect(() => {
+    const target = placeholderRef.current;
+    if (!target || typeof IntersectionObserver === "undefined") {
+      setNearViewport(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (observed) => {
+        if (observed.some((observation) => observation.isIntersecting)) {
+          setNearViewport(true);
+        }
+      },
+      { rootMargin: "600px" },
+    );
+    observer.observe(target);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+  useEffect(() => {
+    if (entry.missingBlob || !nearViewport) {
       return;
     }
     let cancelled = false;
-    resolveImageBlobUrl(entry.contentHash, entry.mimeType)
+    const resolve =
+      isVideoMime(entry.mimeType) && !useBlobFallback
+        ? resolveMediaPlaybackUrl
+        : resolveImageBlobUrl;
+    resolve(entry.contentHash, entry.mimeType)
       .then((resolved) => {
         if (!cancelled) {
           setUrl(resolved);
@@ -487,18 +593,47 @@ function MediaPreview({
     return () => {
       cancelled = true;
     };
-  }, [entry.contentHash, entry.mimeType, entry.missingBlob]);
+  }, [
+    entry.contentHash,
+    entry.mimeType,
+    entry.missingBlob,
+    nearViewport,
+    useBlobFallback,
+  ]);
   if (!url) {
-    return <span className={previewClass} aria-hidden="true" />;
+    return (
+      <span ref={placeholderRef} className={previewClass} aria-hidden="true" />
+    );
   }
   return (
     <button
       type="button"
       className="block w-full cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-      aria-label="Preview image"
+      aria-label={
+        isVideoMime(entry.mimeType) ? "Preview video" : "Preview image"
+      }
       onClick={onOpen}
     >
-      <img className={previewClass} src={url} alt="" loading="lazy" />
+      {isVideoMime(entry.mimeType) ? (
+        <video
+          className={previewClass}
+          src={url}
+          // A metadata-only request exposes dimensions but does not guarantee a
+          // decoded frame. WebKitGTK consequently leaves gallery cards blank.
+          // This is intersection-gated, so only nearby cards fetch a frame.
+          preload="auto"
+          muted
+          playsInline
+          onLoadedData={(event) => {
+            // WebKitGTK does not paint a poster frame for a paused video until
+            // a frame is decoded; `loadeddata` guarantees that frame exists.
+            event.currentTarget.currentTime = 0.001;
+          }}
+          onError={() => setUseBlobFallback(true)}
+        />
+      ) : (
+        <img className={previewClass} src={url} alt="" loading="lazy" />
+      )}
     </button>
   );
 }
@@ -506,20 +641,29 @@ function MediaPreview({
 function MediaPreviewDialog({
   entry,
   onClose,
+  onOpenReference,
 }: {
   entry: MediaLibraryEntry;
   onClose: () => void;
+  onOpenReference: (usage: MediaUsage) => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [useBlobFallback, setUseBlobFallback] = useState(false);
   useEffect(() => {
     let active = true;
-    void resolveImageBlobUrl(entry.contentHash, entry.mimeType).then((resolved) => {
-      if (active) setUrl(resolved);
-    });
+    const resolve =
+      isVideoMime(entry.mimeType) && !useBlobFallback
+        ? resolveMediaPlaybackUrl
+        : resolveImageBlobUrl;
+    void resolve(entry.contentHash, entry.mimeType).then(
+      (resolved) => {
+        if (active) setUrl(resolved);
+      },
+    );
     return () => {
       active = false;
     };
-  }, [entry.contentHash, entry.mimeType]);
+  }, [entry.contentHash, entry.mimeType, useBlobFallback]);
   if (url === null) return null;
   return (
     <MediaLightbox
@@ -528,6 +672,22 @@ function MediaPreviewDialog({
       mimeType={entry.mimeType}
       byteSize={entry.byteSize}
       contentHash={entry.contentHash}
+      dimensions={
+        entry.width !== null && entry.height !== null
+          ? `${entry.width} × ${entry.height}`
+          : null
+      }
+      addedAt={entry.createdAt}
+      usages={entry.usages.map((usage) => ({
+        id: `${usage.noteId}-${usage.surface}-${usage.placement}`,
+        title: usage.title,
+        detail: `${usage.surface === "journal" ? "Journal " : ""}${usage.placement}${usage.count > 1 ? ` ×${usage.count}` : ""}`,
+        onOpen: () => {
+          onClose();
+          onOpenReference(usage);
+        },
+      }))}
+      onVideoError={() => setUseBlobFallback(true)}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}

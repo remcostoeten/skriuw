@@ -32,7 +32,7 @@ import { createDefaultDiagram } from "./diagram-model";
 import { emojiEntries } from "./emoji";
 import { productSchema, type MediaKind, type SlashTrigger } from "./schema";
 
-export type SlashAction = "insert-image" | "open-emoji";
+export type SlashAction = "pick-image" | "pick-video" | "open-emoji";
 
 export type SlashCommand = {
   id: string;
@@ -111,11 +111,12 @@ function mediaCommands(): SlashCommand[] {
     {
       id: "video",
       label: "Video",
-      subtext: "Embed a video from a URL",
+      subtext: "Choose a workspace video, upload, or embed a URL",
       group: "Media",
       aliases: ["movie", "mp4", "youtube", "embed", "clip"],
       icon: <VideoIcon size={16} />,
-      command: insertMedia("video"),
+      command: () => true,
+      action: "pick-video",
     },
     {
       id: "audio",
@@ -244,12 +245,12 @@ export const slashCommands: SlashCommand[] = [
   {
     id: "image",
     label: "Image",
-    subtext: "Upload an image from this device",
+    subtext: "Choose a workspace image or upload one",
     group: "Media",
     aliases: ["img", "picture", "photo", "upload"],
     icon: <ImageIcon size={16} />,
     command: () => true,
-    action: "insert-image",
+    action: "pick-image",
   },
   ...mediaCommands(),
 ];
@@ -303,7 +304,7 @@ function wrapInToggleHeading(level: number): Command {
   };
 }
 
-function insertMedia(kind: MediaKind): Command {
+export function insertMedia(kind: MediaKind): Command {
   return (state, dispatch) => {
     const media = requiredNode("media");
     const paragraph = requiredNode("paragraph");

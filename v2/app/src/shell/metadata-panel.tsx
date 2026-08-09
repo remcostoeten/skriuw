@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import { ChevronRightIcon, HistoryIcon, InfoIcon, ListIcon } from "../shared/icons";
 import { cn } from "../shared/lib/utils";
-import { projectVersionList } from "../history/version-model";
+import { projectVersionList, type VersionListItem } from "../history/version-model";
 import { noteHistoryHash } from "../app-route";
 import { formatRelativeTime } from "../shared/lib/relative-time";
 import { NoteOutline } from "./note-outline";
@@ -24,6 +24,7 @@ type Props = {
 
 type SectionKey =
   | "outline"
+  | "revisions"
   | "details"
   | "backlinks"
   | "outgoing"
@@ -98,6 +99,67 @@ function InspectorSection({
 
 const asideClass = "flex h-full min-h-0 w-full flex-col border-l border-border bg-background";
 
+const collapsedRevisionCount = 6;
+
+type RevisionListProps = {
+  versions: readonly VersionListItem[];
+  onOpen: (versionId?: string) => void;
+};
+
+function RevisionList({ versions, onOpen }: RevisionListProps) {
+  const [expanded, setExpanded] = useState(false);
+  const hiddenCount = versions.length - collapsedRevisionCount;
+  const visible = expanded ? versions : versions.slice(0, collapsedRevisionCount);
+
+  if (versions.length === 0) {
+    return <p className="m-0 text-[13px] text-muted-foreground/70">No revisions yet</p>;
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <ul
+        className={cn(
+          "m-0 list-none space-y-0.5 p-0",
+          expanded && "max-h-64 overflow-y-auto overscroll-contain",
+        )}
+      >
+        {visible.map((version) => (
+          <li key={version.versionId}>
+            <button
+              type="button"
+              onClick={() => onOpen(version.versionId)}
+              className="flex w-full cursor-pointer items-baseline justify-between gap-3 rounded-[var(--radius)] bg-transparent px-2 py-1.5 text-left text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <span className="truncate">{version.summary}</span>
+              <span className="shrink-0 tabular-nums text-muted-foreground/60">
+                {formatRelativeTime(version.createdAt)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          aria-expanded={expanded}
+          className="w-full cursor-pointer rounded-[var(--radius)] bg-transparent px-2 py-1 text-left text-[12px] text-muted-foreground/70 transition-colors hover:text-foreground"
+        >
+          {expanded ? "Show less" : `Show ${hiddenCount} more`}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => onOpen()}
+        className="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] border border-border bg-transparent px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <HistoryIcon size={14} className="shrink-0" />
+        <span className="truncate">Open history</span>
+      </button>
+    </div>
+  );
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) {
     return `${bytes} Bytes`;
@@ -152,7 +214,6 @@ export function MetadataPanel({ store }: Props) {
   const metadata = useRendererSelector(store, selectActiveNoteMetadata);
   const historyHeaders = useRendererSelector(store, selectActiveNoteHistory);
   const versions = useMemo(() => projectVersionList(historyHeaders), [historyHeaders]);
-  const latestVersion = versions[0];
   const backlinks = useBacklinks(store, activeNoteId);
   const outgoingNotes = useOutgoingNotes(store, activeNoteId);
   const referenceDetails = useNoteReferenceDetails(store, activeNoteId);
@@ -161,6 +222,7 @@ export function MetadataPanel({ store }: Props) {
   const markdown = useRendererSelector(store, selectActiveNoteMarkdown);
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     outline: true,
+    revisions: true,
     details: true,
     backlinks: true,
     outgoing: true,
@@ -205,6 +267,24 @@ export function MetadataPanel({ store }: Props) {
             onToggle={() => toggleSection("outline")}
           >
             <NoteOutline key={activeNoteId} store={store} onCountChange={handleOutlineCountChange} />
+          </InspectorSection>
+        )}
+        {activeNoteId && (
+          <InspectorSection
+            id="metadata-revisions"
+            title="Revisions"
+            icon={<HistoryIcon size={14} className="shrink-0" />}
+            count={versions.length}
+            open={openSections.revisions}
+            onToggle={() => toggleSection("revisions")}
+          >
+            <RevisionList
+              key={activeNoteId}
+              versions={versions}
+              onOpen={(versionId) => {
+                window.location.hash = noteHistoryHash(activeNoteId, versionId);
+              }}
+            />
           </InspectorSection>
         )}
         {activeNoteId && backlinks.length > 0 && (
@@ -277,29 +357,6 @@ export function MetadataPanel({ store }: Props) {
               </div>
             ))}
           </dl>
-          {activeNoteId && (
-            <button
-              type="button"
-              onClick={() => {
-                window.location.hash = noteHistoryHash(activeNoteId);
-              }}
-              className="mt-3 flex w-full cursor-pointer items-center justify-between gap-2 rounded-[var(--radius)] border border-border bg-transparent px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <HistoryIcon size={14} className="shrink-0" />
-                <span className="truncate">
-                  {versions.length > 0
-                    ? `${versions.length} revision${versions.length === 1 ? "" : "s"}`
-                    : "No revisions yet"}
-                </span>
-              </span>
-              {latestVersion && (
-                <span className="shrink-0 text-muted-foreground/60">
-                  {formatRelativeTime(latestVersion.createdAt)}
-                </span>
-              )}
-            </button>
-          )}
         </InspectorSection>
       </div>
     </aside>

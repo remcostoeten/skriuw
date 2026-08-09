@@ -209,5 +209,48 @@ test("classifies note covers and journal references", () => {
 test("labels known formats and falls back for unknown mime types", () => {
   assert.equal(imageFormatLabel("image/png"), "PNG");
   assert.equal(imageFormatLabel("image/webp"), "WebP");
+  assert.equal(imageFormatLabel("video/mp4"), "MP4");
+  assert.equal(imageFormatLabel("video/webm"), "WebM");
+  assert.equal(imageFormatLabel("video/quicktime"), "Video");
   assert.equal(imageFormatLabel("application/octet-stream"), "Image");
+});
+
+test("stored video references in media nodes count as inline usage", () => {
+  const video = image({
+    id: "video-1",
+    noteId: "note-1",
+    contentHash: "c".repeat(64),
+    mimeType: "video/mp4",
+  });
+  const videoDocuments = new Map([
+    [
+      "note-1",
+      {
+        documentJson: {
+          type: "doc",
+          content: [
+            { type: "media", attrs: { kind: "video", refId: "video-1", src: "", title: "clip" } },
+            { type: "media", attrs: { kind: "video", refId: "", src: "https://x.test/v.mp4" } },
+          ],
+        },
+      },
+    ],
+  ]);
+  const entries = projectMediaLibrary(
+    [blob({ contentHash: "c".repeat(64), mimeType: "video/mp4" })],
+    new Map([["video-1", video]]),
+    NOTES,
+    videoDocuments,
+  );
+  assert.equal(entries.length, 1);
+  assert.ok(!isUnusedMedia(entries[0]));
+  assert.deepEqual(entries[0].usages, [
+    {
+      noteId: "note-1",
+      title: "Roadmap",
+      count: 1,
+      surface: "note",
+      placement: "inline",
+    },
+  ]);
 });

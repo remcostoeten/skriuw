@@ -1611,7 +1611,10 @@ fn validate_mime_type(value: &str) -> Result<(), OperationValidationError> {
             maximum: MAX_IMAGE_MIME_BYTES,
         });
     }
-    let subtype = value.strip_prefix("image/").unwrap_or("");
+    let subtype = value
+        .strip_prefix("image/")
+        .or_else(|| value.strip_prefix("video/"))
+        .unwrap_or("");
     if subtype.is_empty()
         || !subtype
             .bytes()
@@ -1622,19 +1625,26 @@ fn validate_mime_type(value: &str) -> Result<(), OperationValidationError> {
     Ok(())
 }
 
-/// Collects the ids of every `image_ref` node inside a document, in
-/// first-appearance order and without duplicates.
+/// Collects the ids of every stored-media reference inside a document —
+/// `image_ref` nodes and `media` nodes bound to a workspace blob via
+/// `refId` — in first-appearance order and without duplicates.
 pub fn document_image_ids(value: &Value) -> Vec<String> {
     fn visit(value: &Value, seen: &mut BTreeSet<String>, ids: &mut Vec<String>) {
         let Some(object) = value.as_object() else {
             return;
         };
-        if object.get("type").and_then(Value::as_str) == Some("image_ref")
+        let reference = match object.get("type").and_then(Value::as_str) {
+            Some("image_ref") => Some("id"),
+            Some("media") => Some("refId"),
+            _ => None,
+        };
+        if let Some(attribute) = reference
             && let Some(id) = object
                 .get("attrs")
                 .and_then(Value::as_object)
-                .and_then(|attrs| attrs.get("id"))
+                .and_then(|attrs| attrs.get(attribute))
                 .and_then(Value::as_str)
+            && !id.is_empty()
             && seen.insert(id.into())
         {
             ids.push(id.into());
@@ -2547,5 +2557,42 @@ mod tests {
         });
         assert_eq!(super::document_image_ids(&document), ["image-1", "image-2"]);
         assert!(super::document_image_ids(&json!({"type": "doc"})).is_empty());
+    }
+
+    #[test]
+    fn collects_media_ref_ids_from_documents() {
+        let document = json!({
+            "type": "doc",
+            "content": [
+                {"type": "media", "attrs": {"kind": "video", "refId": "video-1", "src": "", "title": "clip"}},
+                {"type": "media", "attrs": {"kind": "video", "refId": "", "src": "https://example.com/v.mp4", "title": ""}},
+                {"type": "paragraph", "content": [
+                    {"type": "image_ref", "attrs": {"id": "image-1", "alt": ""}}
+                ]}
+            ]
+        });
+        assert_eq!(super::document_image_ids(&document), ["video-1", "image-1"]);
+    }
+
+    #[test]
+    fn accepts_video_mime_types_on_attach() {
+        fn attachment(mime_type: &str) -> super::WorkspaceImage {
+            super::WorkspaceImage {
+                id: "media-1".into(),
+                note_id: "note-1".into(),
+                content_hash: "a".repeat(64),
+                mime_type: mime_type.into(),
+                byte_size: 512,
+                width: None,
+                height: None,
+                created_at: 7,
+            }
+        }
+        assert_eq!(attachment("video/mp4").validate(), Ok(()));
+        assert_eq!(attachment("video/webm").validate(), Ok(()));
+        assert_eq!(
+            attachment("application/pdf").validate(),
+            Err(OperationValidationError::InvalidIdentifier { field: "mime type" })
+        );
     }
 }

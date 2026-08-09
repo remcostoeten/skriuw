@@ -17,7 +17,9 @@ Skriuw has two desktop modes and one web mode:
 
 - Local desktop requires no account or network and keeps the current behavior.
 - Connected desktop keeps SQLite as the interaction database and synchronizes
-  in the background after an explicit workspace connection.
+  in the background. Signing in is the explicit workspace connection: an account
+  grants no capability other than sync, so a signed-in, unsynchronized device is
+  not a state the product offers. Pausing is a separate, deliberate action.
 - Web requires an account, keeps its interaction database in worker-owned
   SQLite over OPFS, and uses the same v2 operation and sync contracts.
 

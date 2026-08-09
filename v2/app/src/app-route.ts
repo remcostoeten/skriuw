@@ -22,7 +22,15 @@ export function resolveAppRoute(hash: string): AppRoute {
 }
 
 export function resolveRouteFocus(hash: string): string | null {
-  const match = /^#\/(?:tags|people|history|journal)\/(.+)$/.exec(hash);
+  const match = /^#\/(?:tags|people|history|journal)\/([^/]+)(?:\/[^/]*)?$/.exec(hash);
+  if (!match) {
+    return null;
+  }
+  return decodeURIComponent(match[1]!);
+}
+
+export function resolveHistoryVersion(hash: string): string | null {
+  const match = /^#\/history\/[^/]+\/([^/]+)$/.exec(hash);
   if (!match) {
     return null;
   }
@@ -50,6 +58,14 @@ export function useRouteFocus(): string | null {
   return useSyncExternalStore(subscribe, readFocus, () => null);
 }
 
+function readHistoryVersion(): string | null {
+  return resolveHistoryVersion(window.location.hash);
+}
+
+export function useRouteHistoryVersion(): string | null {
+  return useSyncExternalStore(subscribe, readHistoryVersion, () => null);
+}
+
 export function appRouteHash(route: AppRoute): string {
   if (route === "trash") {
     return "#/trash";
@@ -70,8 +86,9 @@ export function journalDayHash(dateKey: string): string {
   return `#/journal/${encodeURIComponent(dateKey)}`;
 }
 
-export function noteHistoryHash(noteId: string): string {
-  return `#/history/${encodeURIComponent(noteId)}`;
+export function noteHistoryHash(noteId: string, versionId?: string): string {
+  const base = `#/history/${encodeURIComponent(noteId)}`;
+  return versionId === undefined ? base : `${base}/${encodeURIComponent(versionId)}`;
 }
 
 export function entityFocusHash(kind: "tag" | "person", id: string): string {

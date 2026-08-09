@@ -77,6 +77,21 @@ fn main() {
                 std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
             }
 
+            // linuxdeploy-plugin-gstreamer exports GST_PLUGIN_SCANNER_1_0 with
+            // a Debian-style "usr/lib/gstreamer1.0/gstreamer-1.0" path, but it
+            // bundles the scanner next to the plugins in "usr/lib/gstreamer-1.0".
+            // WebKit then warns "External plugin loader failed" and falls back
+            // to slower in-process plugin loading; point the variable at the
+            // binary that actually shipped.
+            if let Some(appdir) = std::env::var_os("APPDIR") {
+                let scanner = std::path::Path::new(&appdir)
+                    .join("usr/lib/gstreamer-1.0/gst-plugin-scanner");
+                if scanner.is_file() {
+                    std::env::set_var("GST_PLUGIN_SCANNER", &scanner);
+                    std::env::set_var("GST_PLUGIN_SCANNER_1_0", &scanner);
+                }
+            }
+
             // NVIDIA's explicit-sync EGL path crashes GTK with Wayland
             // protocol Error 71. Explicit env overrides always win.
             if in_wayland_session() && std::env::var_os("__NV_DISABLE_EXPLICIT_SYNC").is_none() {

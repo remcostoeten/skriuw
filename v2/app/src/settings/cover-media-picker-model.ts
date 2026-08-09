@@ -46,6 +46,7 @@ export function projectCoverMediaPicker(
   const sort = options.sort ?? "recent";
 
   return blobs
+    .filter((blob) => !blob.mimeType.startsWith("video/"))
     .map((blob) => {
       const references = [...(referencesByHash.get(blob.contentHash) ?? [])].sort(
         compareReferences,

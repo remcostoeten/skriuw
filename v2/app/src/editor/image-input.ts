@@ -1,5 +1,6 @@
 import type { EditorView } from "prosemirror-view";
 import { commitOperations } from "../actions/workspace";
+import type { MediaBlobPayload } from "../bridge/commands";
 import { storeNoteImage } from "../bridge/commands";
 import { registerPendingWork } from "../lifecycle/pending-work";
 import { noop } from "../shared/lib/noop";
@@ -15,12 +16,12 @@ const inFlightPersists = new Set<Promise<void>>();
 
 registerPendingWork(() => Promise.all([...inFlightPersists]).then(() => undefined));
 
-export function collectImageFiles(transfer: DataTransfer | null): File[] {
+function collectFiles(transfer: DataTransfer | null, mimePrefix: string): File[] {
   if (!transfer) {
     return [];
   }
   const itemFiles = [...transfer.items].flatMap((item) => {
-    if (item.kind !== "file" || !item.type.startsWith("image/")) {
+    if (item.kind !== "file" || !item.type.startsWith(mimePrefix)) {
       return [];
     }
     const file = item.getAsFile();
@@ -29,7 +30,15 @@ export function collectImageFiles(transfer: DataTransfer | null): File[] {
   if (itemFiles.length > 0) {
     return itemFiles;
   }
-  return [...transfer.files].filter((file) => file.type.startsWith("image/"));
+  return [...transfer.files].filter((file) => file.type.startsWith(mimePrefix));
+}
+
+export function collectImageFiles(transfer: DataTransfer | null): File[] {
+  return collectFiles(transfer, "image/");
+}
+
+export function collectVideoFiles(transfer: DataTransfer | null): File[] {
+  return collectFiles(transfer, "video/");
 }
 
 /**
@@ -38,14 +47,22 @@ export function collectImageFiles(transfer: DataTransfer | null): File[] {
  * hidden nodes in the document.
  */
 export function pickImageFiles(onPicked: (files: readonly File[]) => void): void {
+  pickMediaFiles("image/*", onPicked);
+}
+
+export function pickVideoFiles(onPicked: (files: readonly File[]) => void): void {
+  pickMediaFiles("video/mp4,video/webm", onPicked);
+}
+
+function pickMediaFiles(accept: string, onPicked: (files: readonly File[]) => void): void {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = "image/*";
+  input.accept = accept;
   input.multiple = true;
   input.hidden = true;
   document.body.append(input);
   input.addEventListener("change", () => {
-    const files = [...(input.files ?? [])].filter((file) => file.type.startsWith("image/"));
+    const files = [...(input.files ?? [])];
     input.remove();
     onPicked(files);
   });
@@ -95,11 +112,115 @@ export function insertImages(
   }
   view.dispatch(transaction);
   for (const { id, file } of inserted) {
-    const task = persistImage(store, noteId, id, file);
-    inFlightPersists.add(task);
-    void task.finally(() => inFlightPersists.delete(task));
+    persistMediaFile(store, noteId, id, file);
   }
   return true;
+}
+
+/**
+ * Inserts one stored-video `media` node per file synchronously, mirroring
+ * `insertImages`: the node renders a loading shell until its attach
+ * operation lands in the store.
+ */
+export function insertVideos(
+  store: RendererStore,
+  view: EditorView,
+  noteId: string,
+  files: readonly File[],
+  position: number | null,
+): boolean {
+  const media = productSchema.nodes.media;
+  if (!media || files.length === 0) {
+    return false;
+  }
+  let transaction = view.state.tr;
+  let insertAt = position;
+  const inserted: { id: string; file: File }[] = [];
+  for (const file of files) {
+    const id = crypto.randomUUID();
+    const node = media.create({ kind: "video", refId: id, title: file.name });
+    if (insertAt === null) {
+      transaction = transaction.replaceSelectionWith(node, false);
+    } else {
+      transaction = transaction.insert(insertAt, node);
+      insertAt += node.nodeSize;
+    }
+    inserted.push({ id, file });
+  }
+  view.dispatch(transaction);
+  for (const { id, file } of inserted) {
+    persistMediaFile(store, noteId, id, file);
+  }
+  return true;
+}
+
+/**
+ * Adds an existing workspace asset to this note without copying its blob.
+ * Attachment metadata remains note-scoped, while the content hash continues
+ * to point at the library's single content-addressed file.
+ */
+export function insertLibraryMedia(
+  store: RendererStore,
+  view: EditorView,
+  noteId: string,
+  kind: "image" | "video",
+  blob: MediaBlobPayload,
+): boolean {
+  if (!blob.mimeType.startsWith(`${kind}/`)) {
+    return false;
+  }
+  const state = store.getState();
+  const existing = [...state.images.values()].find(
+    (image) => image.noteId === noteId && image.contentHash === blob.contentHash,
+  );
+  const known = existing ?? [...state.images.values()].find(
+    (image) => image.contentHash === blob.contentHash,
+  );
+  const id = existing?.id ?? crypto.randomUUID();
+  const node =
+    kind === "image"
+      ? productSchema.nodes.image_ref?.create({ id, alt: "" })
+      : productSchema.nodes.media?.create({ kind: "video", refId: id, title: "Video" });
+  if (!node) {
+    return false;
+  }
+  view.dispatch(view.state.tr.replaceSelectionWith(node, false).scrollIntoView());
+  if (!existing) {
+    void commitOperations(store, [
+      {
+        type: "attach_image",
+        image: {
+          id,
+          noteId,
+          contentHash: blob.contentHash,
+          mimeType: blob.mimeType,
+          byteSize: blob.byteSize,
+          width: known?.width ?? null,
+          height: known?.height ?? null,
+          createdAt: Date.now(),
+        },
+      },
+    ]).catch((error) => {
+      console.error("media library attachment rejected", error);
+    });
+  }
+  return true;
+}
+
+/**
+ * Hashes and registers one media file in the background, keeping the
+ * keystroke path free from disk and IPC work. Shutdown waits on the
+ * in-flight set via `registerPendingWork`.
+ */
+export function persistMediaFile(
+  store: RendererStore,
+  noteId: string,
+  id: string,
+  file: File,
+): void {
+  const task = persistImage(store, noteId, id, file);
+  inFlightPersists.add(task);
+  void task.finally(() => inFlightPersists.delete(task));
 }
 
 async function persistImage(

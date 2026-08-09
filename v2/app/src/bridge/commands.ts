@@ -344,8 +344,19 @@ export function deleteMediaBlob(contentHash: string, mimeType: string): Promise<
   return invoke<void>("delete_media_blob", { contentHash, mimeType });
 }
 
-export function sweepUnusedMediaBlobs(): Promise<number> {
-  return invoke<number>("sweep_unused_media_blobs");
+/**
+ * `liveContentHashes` is only consulted by the browser runtime, which has no
+ * database-side view of attachments; the desktop backend derives the live
+ * set from its own images table and ignores the argument.
+ */
+export function sweepUnusedMediaBlobs(
+  liveContentHashes: readonly string[],
+): Promise<number> {
+  return invoke<number>("sweep_unused_media_blobs", { liveContentHashes });
+}
+
+export function noteMediaPath(contentHash: string, mimeType: string): Promise<string> {
+  return invoke<string>("note_media_path", { contentHash, mimeType });
 }
 
 export function importMarkdownImage(

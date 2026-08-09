@@ -292,11 +292,13 @@ const mediaSpec: NodeSpec = {
     kind: { default: "video" },
     src: { default: "" },
     title: { default: "" },
+    refId: { default: "" },
   },
   toDOM: (node) => {
     const kind = isMediaKind(node.attrs.kind) ? node.attrs.kind : "video";
     const src = String(node.attrs.src ?? "");
     const title = String(node.attrs.title ?? "");
+    const refId = String(node.attrs.refId ?? "");
     if (kind === "file") {
       return [
         "a",
@@ -315,6 +317,7 @@ const mediaSpec: NodeSpec = {
         class: "note-media",
         controls: "true",
         "data-media-title": title,
+        ...(refId ? { "data-media-ref": refId } : {}),
         ...(src ? { src } : {}),
       },
     ];
@@ -335,6 +338,7 @@ const mediaSpec: NodeSpec = {
         kind: "video",
         src: dom.getAttribute("src") ?? "",
         title: dom.getAttribute("data-media-title") ?? "",
+        refId: dom.getAttribute("data-media-ref") ?? "",
       }),
     },
     {
@@ -343,6 +347,7 @@ const mediaSpec: NodeSpec = {
         kind: "audio",
         src: dom.getAttribute("src") ?? "",
         title: dom.getAttribute("data-media-title") ?? "",
+        refId: dom.getAttribute("data-media-ref") ?? "",
       }),
     },
   ],
@@ -1192,7 +1197,8 @@ const productMarkdownSerializer = new MarkdownSerializer(
     },
     media(state, node) {
       const kind = isMediaKind(node.attrs.kind) ? node.attrs.kind : "video";
-      const src = String(node.attrs.src ?? "");
+      const refId = String(node.attrs.refId ?? "");
+      const src = refId ? `images/${refId}` : String(node.attrs.src ?? "");
       const title = String(node.attrs.title ?? "") || mediaTitleFromSource(src);
       state.write(
         src ? `[${state.esc(title)}](${src})${mediaMarker(kind)}` : mediaMarker(kind),
@@ -1620,12 +1626,17 @@ function toMediaNode(paragraph: JsonNode): JsonNode | null {
   if (!match) return null;
   const kind = match[1] as MediaKind;
   if (content.length === 1) {
-    return { type: "media", attrs: { kind, src: "", title: "" } };
+    return { type: "media", attrs: { kind, src: "", title: "", refId: "" } };
   }
   const label = content.length === 2 ? content[0] : undefined;
   const href = label ? linkHref(label) : null;
   if (!href || label?.type !== "text" || typeof label.text !== "string") return null;
-  return { type: "media", attrs: { kind, src: href, title: label.text } };
+  const target = href.startsWith("images/") ? href.slice("images/".length) : "";
+  const refId = /^[A-Za-z0-9_-]+$/.test(target) ? target : "";
+  return {
+    type: "media",
+    attrs: { kind, src: refId ? "" : href, title: label.text, refId },
+  };
 }
 
 /**

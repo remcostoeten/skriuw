@@ -22,3 +22,7 @@ export function selectSettings(state: RendererState) {
 export function selectShowToasts(state: RendererState): boolean {
   return showsToasts(state.settings);
 }
+
+export function selectTheme(state: RendererState): string {
+  return state.settings.theme;
+}

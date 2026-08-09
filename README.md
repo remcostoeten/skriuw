@@ -19,11 +19,12 @@
   <strong>Fully free and open source. Your workspace stays on your machine.</strong>
 </p>
 
-Skriuw _(Frisian, “to write”)_ is a keyboard-first knowledge workspace for macOS, Windows, and Linux. The current desktop app stores its canonical data in local SQLite, responds to edits immediately, maintains Git-backed history in the background, and exports portable workspace archives.
+Skriuw _(Frisian, “to write”)_ is a keyboard-first knowledge workspace for macOS, Windows, and Linux. The current desktop app stores its canonical data in local SQLite, responds to edits immediately, maintains Git-backed history in the background, and exports portable workspace archives. Cloud sync is optional and off by default. Skriuw also runs in the browser at [skriuw.com/app](https://skriuw.com/app).
 
 ## Why Skriuw
 
 - **Local first:** no account, server, or network connection is required.
+- **Optional sync:** off by default; enable it per device if you want your workspace on more than one machine.
 - **Fast by design:** navigation and editing update locally without waiting for disk or IPC.
 - **Built for writing:** rich text, raw Markdown, wiki links, backlinks, search, folders, tabs, and split views.
 - **Recoverable:** verified backups, portable imports and exports, trash recovery, and background version history.
@@ -48,12 +49,12 @@ Direct `.dmg`, `.exe`, `.msi`, `.deb`, `.rpm`, and AppImage downloads are also a
 
 This repository contains two independent generations of Skriuw:
 
-| Line   | Status            | Best for                                              | Source                                      |
-| ------ | ----------------- | ----------------------------------------------------- | ------------------------------------------- |
-| **v2** | Current           | Private, local-first desktop writing                  | [`v2/`](v2)                                 |
-| **v1** | Maintained legacy | Web, mobile, sharing, collaboration, and self-hosting | [`apps/`](apps) and [`packages/`](packages) |
+| Line   | Status        | Best for                                              | Source                                      |
+| ------ | ------------- | ----------------------------------------------------- | ------------------------------------------- |
+| **v2** | Current       | Private, local-first writing (desktop and browser)    | [`v2/`](v2)                                 |
+| **v1** | Frozen legacy | Web, mobile, sharing, collaboration, and self-hosting | [`apps/`](apps) and [`packages/`](packages) |
 
-Package-manager channels and the latest GitHub release install v2. The hosted v1 application remains available at [skriuw.com](https://skriuw.com), and v1 can be self-hosted with Docker.
+Package-manager channels and the latest GitHub release install v2. The v2 browser app runs at [skriuw.com/app](https://skriuw.com/app), and the bare domain redirects there. v1 is no longer hosted at skriuw.com but can still be self-hosted with Docker.
 
 ## Architecture
 
@@ -69,7 +70,7 @@ serialized Rust runtime
 SQLite ─┴─ background Git history
 ```
 
-SQLite owns canonical workspace state. The renderer applies user actions synchronously and submits durable operations to a serialized runtime queue. Git history, indexing, and persistence never sit on the navigation path.
+SQLite owns canonical workspace state. The renderer applies user actions synchronously and submits durable operations to a serialized runtime queue. Git history, indexing, persistence, and opt-in cloud sync never sit on the navigation path.
 
 Read the [v2 architecture](v2/ARCHITECTURE.md), [architecture decision records](v2/docs/adr), and [performance contract](v2/docs/performance-contract.md).
 

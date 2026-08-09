@@ -37,10 +37,16 @@ const FORMAT_LABELS: Record<string, string> = {
   "image/jpeg": "JPEG",
   "image/gif": "GIF",
   "image/webp": "WebP",
+  "video/mp4": "MP4",
+  "video/webm": "WebM",
 };
 
 export function imageFormatLabel(mimeType: string): string {
-  return FORMAT_LABELS[mimeType] ?? "Image";
+  return FORMAT_LABELS[mimeType] ?? (isVideoMime(mimeType) ? "Video" : "Image");
+}
+
+export function isVideoMime(mimeType: string): boolean {
+  return mimeType.startsWith("video/");
 }
 
 /**
@@ -162,11 +168,13 @@ function addUsage(usages: Map<string, MediaUsage>, usage: MediaUsage): void {
 function countImageReferences(value: unknown, imageId: string): number {
   if (!value || typeof value !== "object") return 0;
   const record = value as { type?: unknown; attrs?: unknown; content?: unknown };
+  const attrs =
+    record.attrs !== null && typeof record.attrs === "object"
+      ? (record.attrs as { id?: unknown; refId?: unknown })
+      : null;
   let count =
-    record.type === "image_ref" &&
-    record.attrs !== null &&
-    typeof record.attrs === "object" &&
-    (record.attrs as { id?: unknown }).id === imageId
+    (record.type === "image_ref" && attrs?.id === imageId) ||
+    (record.type === "media" && attrs?.refId === imageId)
       ? 1
       : 0;
   if (Array.isArray(record.content)) {

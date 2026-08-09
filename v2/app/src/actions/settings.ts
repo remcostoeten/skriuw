@@ -4,8 +4,10 @@ import {
   changeSetting,
   changeShortcutOverride,
   resetShortcutOverride,
+  resetShortcutOverrides,
 } from "../settings/settings-model";
 import type { EditableSettings } from "../settings/settings-model";
+import { SHORTCUT_DEFINITIONS } from "../shortcuts/definitions";
 import type { ShortcutActionId } from "../shortcuts/definitions";
 import type { RendererStore } from "../store/types";
 import { commitOperations } from "./workspace";
@@ -46,6 +48,18 @@ export function setShortcutOverride(
 
 export function resetAllSettings(store: RendererStore): void {
   updateSettings(store, { ...DEFAULT_WORKSPACE_SETTINGS });
+}
+
+export function clearAllShortcutOverrides(store: RendererStore): void {
+  const current = store.getState().settings;
+  const settings = resetShortcutOverrides(
+    current,
+    SHORTCUT_DEFINITIONS.map((definition) => definition.id),
+  );
+  if (settings === current) {
+    return;
+  }
+  updateSettings(store, settings);
 }
 
 export function clearShortcutOverride(

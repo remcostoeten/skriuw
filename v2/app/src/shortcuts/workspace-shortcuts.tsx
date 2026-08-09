@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShortcutMap } from "@remcostoeten/use-shortcut/react";
-import type { ShortcutMap } from "@remcostoeten/use-shortcut/react";
+import type {
+  ShortcutConflict as RegistryShortcutConflict,
+  ShortcutMap,
+} from "@remcostoeten/use-shortcut/react";
 import type { AppRoute } from "../app-route";
 import { opensNotesInTabs } from "../settings/settings-model";
 import { useRendererSelector } from "../store/use-renderer-selector";
@@ -12,6 +15,7 @@ import {
   sequenceHandlerOptions,
   shortcutExcept,
   shortcutMatchesPhysicalKey,
+  scopeSeparatedConflicts,
   shortcutOverridesFromSettings,
   shortcutScopesActive,
 } from "./bindings";
@@ -203,9 +207,23 @@ export function WorkspaceShortcuts({
     () => activeShortcutScopes(route, noteFocused, tabsEnabled, splitActive),
     [route, noteFocused, tabsEnabled, splitActive],
   );
+  const isScopeSeparated = useMemo(() => scopeSeparatedConflicts(overrides), [overrides]);
+  const handleConflict = useCallback(
+    (conflict: RegistryShortcutConflict) => {
+      if (isScopeSeparated(conflict.combo, conflict.existingCombo)) {
+        return;
+      }
+      console.warn(
+        `[useShortcut] Conflict detected (${conflict.reason}) between "${conflict.combo}" and "${conflict.existingCombo}"`,
+      );
+    },
+    [isScopeSeparated],
+  );
+
   const results = useShortcutMap(shortcutMap, {
     activeScopes,
     ignoreInputs: false,
+    onConflict: handleConflict,
   });
 
   useEffect(() => {

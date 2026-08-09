@@ -60,6 +60,11 @@ type ShellProps = {
   showHeader: boolean;
 };
 
+function isTopmostOpenDialog(dialog: HTMLDialogElement): boolean {
+  const open = document.querySelectorAll("dialog[open]");
+  return open[open.length - 1] === dialog;
+}
+
 function DialogShell({
   title,
   children,
@@ -84,22 +89,45 @@ function DialogShell({
   // itself (observed on WebKitGTK even when empty), so Escape must be handled
   // at keydown before input defaults. With that constraint the rest of the
   // dialog wiring attaches natively too, keeping one deterministic path.
+  //
+  // Escape only acts on the topmost open dialog, and a window-level fallback
+  // covers keydowns that never bubble through this element: WebKitGTK moves
+  // focus out of a modal once an autoplaying <video> starts, so Escape in a
+  // stacked lightbox otherwise lands on the dialog underneath and closes it.
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) {
       return;
     }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      handlersRef.current.onKeyDown?.(event);
-      if (event.key !== "Escape" || event.defaultPrevented) {
-        return;
-      }
+    const closeFromEscape = (event: KeyboardEvent) => {
       event.preventDefault();
       const cancelEvent = new Event("cancel", { cancelable: true });
       handlersRef.current.onCancel?.(cancelEvent);
       if (!cancelEvent.defaultPrevented) {
         dialog.close();
       }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      handlersRef.current.onKeyDown?.(event);
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        !isTopmostOpenDialog(dialog)
+      ) {
+        return;
+      }
+      closeFromEscape(event);
+    };
+    const handleWindowKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        (event.target instanceof Node && dialog.contains(event.target)) ||
+        !isTopmostOpenDialog(dialog)
+      ) {
+        return;
+      }
+      closeFromEscape(event);
     };
     const handleCancel = (event: Event) => {
       handlersRef.current.onCancel?.(event);
@@ -116,12 +144,14 @@ function DialogShell({
     dialog.addEventListener("cancel", handleCancel);
     dialog.addEventListener("close", handleClose);
     dialog.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleWindowKeyDown);
     dialog.showModal();
     return () => {
       dialog.removeEventListener("keydown", handleKeyDown);
       dialog.removeEventListener("cancel", handleCancel);
       dialog.removeEventListener("close", handleClose);
       dialog.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleWindowKeyDown);
       if (previousFocusRef.current?.isConnected) {
         previousFocusRef.current.focus();
       }
