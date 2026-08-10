@@ -220,11 +220,15 @@ async function runScenario(session) {
     "workspace shell",
     600,
   );
+  // A fresh workspace is planted with the starter preview before the first
+  // render, so an empty tree here would mean seeding silently failed. Exact
+  // node counts are asserted against SQLite, which does not depend on which
+  // rows the sidebar has rendered yet.
   const before = await treeState(session);
   assert(
     checks,
-    "starts-with-empty-temp-workspace",
-    before.count === 0,
+    "starts-with-seeded-preview",
+    before.count > 0 && before.titles.some((title) => title.includes("Welcome")),
     JSON.stringify(before),
   );
 
@@ -304,10 +308,12 @@ async function assertCommittedDatabase(checks, workspaceDirectory) {
     .trim()
     .split("|")
     .map(Number);
+  // Six imported notes in one folder, on top of the five seeded preview notes
+  // across their three folders.
   assert(
     checks,
-    "sqlite-file-holds-committed-import",
-    notes === 6 && folders === 1 && properties > 0 && receipts === 6,
+    "sqlite-file-holds-seeded-preview-and-committed-import",
+    notes === 11 && folders === 4 && properties > 0 && receipts === 6,
     JSON.stringify({ notes, folders, properties, receipts }),
   );
 }
