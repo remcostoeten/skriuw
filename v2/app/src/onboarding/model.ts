@@ -11,12 +11,12 @@ export function hasCompletedOnboarding(settings: WorkspaceSettings): boolean {
   );
 }
 
-/** Existing workspaces should never be interrupted by newly introduced onboarding. */
-export function shouldShowOnboarding(
-  settings: WorkspaceSettings,
-  workspaceNodeCount: number,
-): boolean {
-  return workspaceNodeCount === 0 && !hasCompletedOnboarding(settings);
+/**
+ * Keyed on the stamp alone rather than on an empty workspace, because a fresh
+ * visitor is seeded with preview notes before the first render.
+ */
+export function shouldShowOnboarding(settings: WorkspaceSettings): boolean {
+  return !hasCompletedOnboarding(settings);
 }
 
 export function completeOnboarding(

@@ -7,12 +7,19 @@ import {
   shouldShowOnboarding,
 } from "../../src/onboarding/model";
 
-test("an empty new workspace shows onboarding", () => {
-  assert.equal(shouldShowOnboarding(DEFAULT_WORKSPACE_SETTINGS, 0), true);
+test("an unstamped workspace shows onboarding", () => {
+  assert.equal(shouldShowOnboarding(DEFAULT_WORKSPACE_SETTINGS), true);
 });
 
-test("existing workspace content suppresses onboarding after an upgrade", () => {
-  assert.equal(shouldShowOnboarding(DEFAULT_WORKSPACE_SETTINGS, 1), false);
+test("seeded preview content does not suppress onboarding", () => {
+  assert.equal(shouldShowOnboarding({ ...DEFAULT_WORKSPACE_SETTINGS }), true);
+});
+
+test("a completed workspace never shows onboarding again", () => {
+  assert.equal(
+    shouldShowOnboarding(completeOnboarding(DEFAULT_WORKSPACE_SETTINGS)),
+    false,
+  );
 });
 
 test("completion is versioned and preserves unknown settings", () => {

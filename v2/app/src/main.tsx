@@ -3,6 +3,9 @@ import { createRoot } from "react-dom/client";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { App } from "./app";
+import { currentSessionToken } from "./auth/session-token";
+import { bindStarterReclaim } from "./starter/reclaim";
+import { seedStarterWorkspace } from "./starter/seed";
 import {
   applyWorkspaceOperations,
   bootstrapWorkspace,
@@ -27,6 +30,37 @@ import type { RendererStore } from "./store/types";
 import { initZoom } from "./zoom/zoom-controller";
 import { showToast } from "./shared/ui/toast";
 import "./styles.css";
+
+const REVEAL_FRAME_TIMEOUT_MS = 100;
+
+/**
+ * Reveals the main window once the first application frame has painted. The
+ * window ships hidden so the cold-start webview never shows an empty shell;
+ * a Rust-side failsafe reveals it anyway if the renderer never gets here.
+ */
+function revealWindow(): void {
+  if (isBrowserRuntime()) {
+    return;
+  }
+  let revealed = false;
+  function reveal(): void {
+    if (revealed) {
+      return;
+    }
+    revealed = true;
+    const appWindow = getCurrentWindow();
+    void appWindow
+      .show()
+      .then(() => appWindow.setFocus())
+      .catch((error) => console.error("window reveal failed", error));
+  }
+  // WebKitGTK does not reliably schedule animation frames for an unmapped
+  // window, so the paint-aligned path is raced against a timer. Losing the
+  // race costs a few milliseconds; relying on frames alone can stall until
+  // the Rust failsafe fires.
+  requestAnimationFrame(() => requestAnimationFrame(reveal));
+  setTimeout(reveal, REVEAL_FRAME_TIMEOUT_MS);
+}
 
 async function start(): Promise<void> {
   const unbindZoom = initZoom();
@@ -124,6 +158,13 @@ async function start(): Promise<void> {
     window.addEventListener("pagehide", unlistenHistory ?? (() => {}), { once: true });
     window.addEventListener("pagehide", unbindWindowClosePersistence, { once: true });
     window.addEventListener("pagehide", disposeUiPersistence, { once: true });
+    bindStarterReclaim(store);
+    await seedStarterWorkspace(
+      store,
+      async () => (await currentSessionToken()) !== undefined,
+    ).catch((error) => {
+      console.error("starter workspace seeding failed", error);
+    });
     bindSettingsToRoot(store, document.documentElement);
     root.render(
       <StrictMode>
@@ -138,6 +179,7 @@ async function start(): Promise<void> {
       </div>,
     );
   }
+  revealWindow();
 }
 
 void start();

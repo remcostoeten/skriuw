@@ -101,6 +101,9 @@ const asideClass = "flex h-full min-h-0 w-full flex-col border-l border-border b
 
 const collapsedRevisionCount = 6;
 
+const quietActionClass =
+  "cursor-pointer bg-transparent p-0 text-[12px] text-muted-foreground/70 transition-colors hover:text-foreground";
+
 type RevisionListProps = {
   versions: readonly VersionListItem[];
   onOpen: (versionId?: string) => void;
@@ -138,24 +141,23 @@ function RevisionList({ versions, onOpen }: RevisionListProps) {
           </li>
         ))}
       </ul>
-      {hiddenCount > 0 && (
-        <button
-          type="button"
-          onClick={() => setExpanded((current) => !current)}
-          aria-expanded={expanded}
-          className="w-full cursor-pointer rounded-[var(--radius)] bg-transparent px-2 py-1 text-left text-[12px] text-muted-foreground/70 transition-colors hover:text-foreground"
-        >
-          {expanded ? "Show less" : `Show ${hiddenCount} more`}
+      <div className="flex items-center justify-between gap-3 px-2 pt-0.5">
+        {hiddenCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((current) => !current)}
+            aria-expanded={expanded}
+            className={quietActionClass}
+          >
+            {expanded ? "Show less" : `Show ${hiddenCount} more`}
+          </button>
+        ) : (
+          <span />
+        )}
+        <button type="button" onClick={() => onOpen()} className={quietActionClass}>
+          Open history
         </button>
-      )}
-      <button
-        type="button"
-        onClick={() => onOpen()}
-        className="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] border border-border bg-transparent px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <HistoryIcon size={14} className="shrink-0" />
-        <span className="truncate">Open history</span>
-      </button>
+      </div>
     </div>
   );
 }

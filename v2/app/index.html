@@ -4,6 +4,32 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Skriuw</title>
+    <script nonce="__TAURI_SCRIPT_NONCE__">
+      // Runs before the bundle so the first paint already carries the user's
+      // palette. The persisted settings document is only readable after
+      // bootstrapWorkspace resolves, which is too late to avoid a flash.
+      // Mirrored by src/settings/boot-appearance.ts; keep the key in step.
+      (function () {
+        var root = document.documentElement;
+        var theme = "midnight";
+        var reduceMotion = false;
+        try {
+          var stored = window.localStorage.getItem("skriuw.boot-appearance");
+          var parsed = stored ? JSON.parse(stored) : null;
+          if (parsed && /^[a-z0-9-]{1,32}$/.test(parsed.theme)) {
+            theme = parsed.theme;
+          }
+          reduceMotion = Boolean(parsed && parsed.reduceMotion);
+        } catch (error) {
+          theme = "midnight";
+          reduceMotion = false;
+        }
+        root.dataset.theme = theme;
+        if (reduceMotion) {
+          root.dataset.reduceMotion = "true";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

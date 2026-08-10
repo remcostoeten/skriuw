@@ -39,6 +39,11 @@ struct AppState {
 }
 
 const ROTATION_RETRY_DELAY: Duration = Duration::from_secs(60);
+/// The main window ships hidden and is revealed by the renderer after its
+/// first paint. A renderer that never boots would otherwise leave an
+/// invisible process, so the window is revealed unconditionally after this
+/// delay. Worst case the user sees the empty shell the reveal exists to hide.
+const WINDOW_REVEAL_FAILSAFE: Duration = Duration::from_secs(2);
 const HISTORY_HEADER_PUBLISHED_EVENT: &str = "history-header-published";
 const MEDIA_SWEEP_MINIMUM_BLOB_AGE: Duration = Duration::from_secs(60);
 
@@ -1171,6 +1176,22 @@ pub fn run() {
             {
                 eprintln!("asset scope extension failed: {error}");
             }
+            let reveal_handle = app.handle().clone();
+            let _ = std::thread::Builder::new()
+                .name("skriuw-window-reveal-failsafe".into())
+                .spawn(move || {
+                    std::thread::sleep(WINDOW_REVEAL_FAILSAFE);
+                    let Some(window) = reveal_handle.get_webview_window("main") else {
+                        return;
+                    };
+                    if window.is_visible().unwrap_or(false) {
+                        return;
+                    }
+                    eprintln!("renderer did not reveal the main window; revealing it directly");
+                    if let Err(error) = window.show() {
+                        eprintln!("window reveal failsafe failed: {error}");
+                    }
+                });
             let sync = Arc::new(sync::SyncRuntime::new(path.clone()));
             app.manage(AppState {
                 maintenance,

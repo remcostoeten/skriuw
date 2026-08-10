@@ -1,4 +1,5 @@
 import { connectWorkspaceSync } from "../bridge/commands";
+import { reclaimBoundStarterPreview } from "../starter/reclaim";
 import { currentSessionToken } from "./session-token";
 
 /**
@@ -9,5 +10,8 @@ import { currentSessionToken } from "./session-token";
 export async function connectSyncForCurrentSession(): Promise<void> {
   const token = await currentSessionToken();
   if (!token) return;
+  // Untouched preview notes are discarded before the first push so they never
+  // land in an account that already holds a real workspace.
+  await reclaimBoundStarterPreview();
   await connectWorkspaceSync(token);
 }

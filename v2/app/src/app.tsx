@@ -3,6 +3,10 @@ import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { AuthProvider } from "@remcostoeten/auth-drawer";
 import { updateSettings } from "./actions/settings";
 import { authAdapter } from "./auth/adapter";
+import {
+  clearOnboardingOverride,
+  readOnboardingOverride,
+} from "./onboarding/debug-override";
 import { completeOnboarding, shouldShowOnboarding } from "./onboarding/model";
 import { Onboarding } from "./onboarding/onboarding";
 import { AccountMenu } from "./shell/account-menu";
@@ -135,7 +139,7 @@ type Props = {
 };
 
 function selectNeedsOnboarding(state: RendererState): boolean {
-  return shouldShowOnboarding(state.settings, state.sourceNodes.size);
+  return shouldShowOnboarding(state.settings);
 }
 
 const TOOLBAR_SHORTCUT_IDS = [
@@ -167,7 +171,9 @@ function WorkspaceShell({ store }: Props) {
   const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
   const showToasts = useRendererSelector(store, selectShowToasts);
-  const needsOnboarding = useRendererSelector(store, selectNeedsOnboarding);
+  const [onboardingOverride, setOnboardingOverride] = useState(readOnboardingOverride);
+  const needsOnboarding =
+    useRendererSelector(store, selectNeedsOnboarding) || onboardingOverride;
   const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
   useEffect(() => installBackNavigation(store), [store]);
   const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
@@ -204,6 +210,8 @@ function WorkspaceShell({ store }: Props) {
     }
   }, []);
   const finishOnboarding = useCallback(() => {
+    clearOnboardingOverride();
+    setOnboardingOverride(false);
     updateSettings(store, completeOnboarding(store.getState().settings));
   }, [store]);
   const openOnboardingSignIn = useCallback(() => {

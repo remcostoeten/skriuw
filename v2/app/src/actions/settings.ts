@@ -12,6 +12,13 @@ import type { ShortcutActionId } from "../shortcuts/definitions";
 import type { RendererStore } from "../store/types";
 import { commitOperations } from "./workspace";
 
+const LIFECYCLE_SETTING_KEYS = [
+  "onboardingVersion",
+  "starterSeedVersion",
+  "starterSeedNoteIds",
+  "starterSeedAt",
+] as const;
+
 function reportRejection(action: string) {
   return (error: unknown) => {
     console.error(`${action} rejected`, error);
@@ -46,8 +53,26 @@ export function setShortcutOverride(
   );
 }
 
+/**
+ * First-run bookkeeping is workspace lifecycle, not a preference, so resetting
+ * preferences must not replay onboarding or re-seed the preview notes.
+ */
 export function resetAllSettings(store: RendererStore): void {
-  updateSettings(store, { ...DEFAULT_WORKSPACE_SETTINGS });
+  const current = store.getState().settings;
+  updateSettings(store, {
+    ...DEFAULT_WORKSPACE_SETTINGS,
+    ...preservedLifecycle(current),
+  });
+}
+
+function preservedLifecycle(settings: WorkspaceSettings): Partial<WorkspaceSettings> {
+  const preserved: Record<string, unknown> = {};
+  for (const key of LIFECYCLE_SETTING_KEYS) {
+    if (settings[key] !== undefined) {
+      preserved[key] = settings[key];
+    }
+  }
+  return preserved;
 }
 
 export function clearAllShortcutOverrides(store: RendererStore): void {

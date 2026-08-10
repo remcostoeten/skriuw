@@ -1,5 +1,6 @@
 import type { WorkspaceSettings } from "../contracts/workspace";
 import type { RendererStore } from "../store/types";
+import { writeBootAppearance } from "./boot-appearance";
 import { projectSettings } from "./settings-model";
 
 export type RootSettingsAttributes = {
@@ -44,11 +45,16 @@ export function bindSettingsToRoot(
   store: RendererStore,
   root: RootElement,
 ): () => void {
-  applySettingsToRoot(root, store.getState().settings);
-  return store.subscribe(
-    (state) => state.settings,
-    () => applySettingsToRoot(root, store.getState().settings),
-  );
+  function apply(): void {
+    const settings = store.getState().settings;
+    applySettingsToRoot(root, settings);
+    const storage = globalThis.localStorage;
+    if (storage) {
+      writeBootAppearance(storage, rootSettingsAttributes(settings));
+    }
+  }
+  apply();
+  return store.subscribe((state) => state.settings, apply);
 }
 
 /**
