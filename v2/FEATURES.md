@@ -68,6 +68,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 
 ## Desktop experience
 
+- **Calm first-run choice** — a fresh, empty workspace opens with one keyboard-accessible choice: continue entirely locally with no account, or sign in and enable multi-device sync. Existing workspaces are never interrupted, and sync remains available later from Account & sync.
 - **Command palette** — every action reachable from one keyboard surface.
 - **Rebindable shortcuts** — the shortcut system is fully remappable from settings.
 - **Zoom and fullscreen** — standard desktop chrome controls, plus quick-quit.

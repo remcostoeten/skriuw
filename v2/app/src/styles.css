@@ -8,5 +8,6 @@
 @import "./css/tooltip.css";
 @import "./css/shortcut-recorder.css";
 @import "./css/auth-drawer.css";
+@import "./css/onboarding.css";
 
 @plugin "tailwindcss-animate";

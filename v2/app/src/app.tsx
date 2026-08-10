@@ -1,7 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { AuthProvider } from "@remcostoeten/auth-drawer";
+import { updateSettings } from "./actions/settings";
 import { authAdapter } from "./auth/adapter";
+import { completeOnboarding, shouldShowOnboarding } from "./onboarding/model";
+import { Onboarding } from "./onboarding/onboarding";
 import { AccountMenu } from "./shell/account-menu";
 import {
   railActiveClass,
@@ -85,7 +88,7 @@ import { Tooltip } from "./shared/ui/tooltip";
 import { useNoteNavigation } from "./shell/use-note-navigation";
 import { selectShowToasts } from "./shell/settings/selectors";
 import { useRendererSelector } from "./store/use-renderer-selector";
-import type { RendererStore } from "./store/types";
+import type { RendererState, RendererStore } from "./store/types";
 
 const RAIL_ICONS: Record<RailItem["actionId"], typeof FolderOpenIcon> = {
   goToNotes: FolderOpenIcon,
@@ -131,6 +134,10 @@ type Props = {
   store: RendererStore;
 };
 
+function selectNeedsOnboarding(state: RendererState): boolean {
+  return shouldShowOnboarding(state.settings, state.sourceNodes.size);
+}
+
 const TOOLBAR_SHORTCUT_IDS = [
   "openSettings",
   "toggleSidebar",
@@ -145,6 +152,8 @@ function WorkspaceShell({ store }: Props) {
   const [settingsSection, setSettingsSection] = useState<SectionId>("appearance");
   const [signInOpen, setSignInOpen] = useState(false);
   const [signInMounted, setSignInMounted] = useState(false);
+  const [openingOnboardingSignIn, setOpeningOnboardingSignIn] = useState(false);
+  const [onboardingSignInError, setOnboardingSignInError] = useState<string | null>(null);
   const signInReturnsToSettingsRef = useRef(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -158,6 +167,7 @@ function WorkspaceShell({ store }: Props) {
   const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
   const showToasts = useRendererSelector(store, selectShowToasts);
+  const needsOnboarding = useRendererSelector(store, selectNeedsOnboarding);
   const shortcutHints = useShortcutHints(store, TOOLBAR_SHORTCUT_IDS);
   useEffect(() => installBackNavigation(store), [store]);
   const ui: CommandUiState = { route, sidebarOpen, metadataOpen, settingsOpen };
@@ -192,6 +202,28 @@ function WorkspaceShell({ store }: Props) {
       signInReturnsToSettingsRef.current = false;
       setSettingsOpen(true);
     }
+  }, []);
+  const finishOnboarding = useCallback(() => {
+    updateSettings(store, completeOnboarding(store.getState().settings));
+  }, [store]);
+  const openOnboardingSignIn = useCallback(() => {
+    if (openingOnboardingSignIn) return;
+    setOpeningOnboardingSignIn(true);
+    setOnboardingSignInError(null);
+    void loadSignInDrawer()
+      .then(() => {
+        finishOnboarding();
+        setSignInMounted(true);
+        setSignInOpen(true);
+      })
+      .catch((error) => {
+        console.error("cloud sign-in UI failed to load", error);
+        setOnboardingSignInError("Sign in couldn't open. Check your connection and try again.");
+      })
+      .finally(() => setOpeningOnboardingSignIn(false));
+  }, [finishOnboarding, openingOnboardingSignIn]);
+  const warmSignInDrawer = useCallback(() => {
+    void loadSignInDrawer().catch(() => undefined);
   }, []);
   const openSettingsAt = useCallback((section: SectionId) => {
     setSettingsSection(section);
@@ -318,14 +350,17 @@ function WorkspaceShell({ store }: Props) {
     setMetadataOpen(true);
   }, []);
   return (
-    <div
-      ref={tracksRef}
-      className={`relative grid h-full grid-rows-[minmax(0,1fr)] [--window-controls-width:112px]${
-        settling ? " panel-tracks-settling" : ""
-      }`}
-      style={{ gridTemplateColumns }}
-    >
+    <>
       <WindowControls />
+      <div
+        ref={tracksRef}
+        className={`relative grid h-full grid-rows-[minmax(0,1fr)] [--window-controls-width:112px]${
+          settling ? " panel-tracks-settling" : ""
+        }`}
+        style={{ gridTemplateColumns }}
+        aria-hidden={needsOnboarding}
+        inert={needsOnboarding}
+      >
       <nav
         aria-label="Primary"
         className="flex w-14 flex-col items-center justify-between border-r border-sidebar-border bg-sidebar"
@@ -565,11 +600,21 @@ function WorkspaceShell({ store }: Props) {
       <WorkspaceShortcuts
         store={store}
         route={route}
-        suspended={settingsOpen || shortcutHelpOpen}
+        suspended={settingsOpen || shortcutHelpOpen || needsOnboarding}
         activeWhileSuspended={settingsOpen ? "openSettings" : undefined}
         actions={shortcutActions}
       />
-    </div>
+      </div>
+      {needsOnboarding ? (
+        <Onboarding
+          openingSignIn={openingOnboardingSignIn}
+          signInError={onboardingSignInError}
+          onContinueLocal={finishOnboarding}
+          onSignIn={openOnboardingSignIn}
+          onWarmSignIn={warmSignInDrawer}
+        />
+      ) : null}
+    </>
   );
 }
 
