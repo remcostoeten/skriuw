@@ -8,8 +8,8 @@
 cask "skriuw" do
   arch arm: "aarch64", intel: "x64"
 
-  version "0.29.0"
-  sha256 arm: "208e93c0ba994d9664e28d366bfee21d593fe01489d3d8b478ad5f4f4d787355", intel: "a2536d4791d526707158cee506ab7f3affe75624bf040b375315d1b101f29412"
+  version "0.30.0"
+  sha256 arm: "688fb8b7efe6ffba3a19e9488e1a87d7c5410096239cce6fd834e27ddbf6c9c4", intel: "4dab25cbb90b498fee4bb7b9cdb41dca52be4687bccca6b77adb3724fb5e63d9"
 
   url "https://github.com/remcostoeten/skriuw/releases/download/v2-v#{version}/Skriuw_#{version}_#{arch}.dmg"
   name "Skriuw"
