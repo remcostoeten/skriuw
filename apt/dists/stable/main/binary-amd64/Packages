@@ -239,6 +239,21 @@ Description: (none)
  (none)
 
 Package: skriuw
+Version: 0.31.0
+Architecture: amd64
+Maintainer: skriuw
+Installed-Size: 32134
+Depends: libwebkit2gtk-4.1-0, libgtk-3-0
+Filename: pool/main/Skriuw_0.31.0_amd64.deb
+Size: 12516380
+MD5sum: a409177a47ce5907379e36c06014021f
+SHA1: 0fcc23877c7e13ce4e967c4aea70960c4516b3ce
+SHA256: c1dae6518e5afba50bcc125ad761aeb3619f5b21d5b71bbfe7f25be8449b6702
+Priority: optional
+Description: (none)
+ (none)
+
+Package: skriuw
 Version: 0.5.0
 Architecture: amd64
 Maintainer: skriuw
