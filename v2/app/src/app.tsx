@@ -19,7 +19,7 @@ import type { SectionId } from "@/settings/sections/sections";
 import { Sidebar } from "@/sidebar/sidebar";
 import { CommandPaletteHost } from "@/shell/command-palette-host";
 import { EditorPanes } from "@/shell/editor-panes";
-import { MetadataPanel } from "@/shell/metadata-panel";
+import { MetadataPanel } from "@/note-chrome/metadata-panel";
 import { SettingsDialog } from "@/settings/settings-dialog";
 
 function loadSignInDrawer() {
@@ -31,8 +31,8 @@ const CloudSignInDrawer = lazy(async () => {
   return { default: module.CloudSignInDrawer };
 });
 import { ShortcutHelpOverlay } from "@/shell/shortcut-help-overlay";
-import { TrashView } from "@/shell/trash-view";
-import { EntityView } from "@/shell/entity-view";
+import { TrashView } from "@/trash/trash-view";
+import { EntityView } from "@/references/entity-view";
 import { HistoryView } from "@/history/history-view";
 import { JournalSidebar, JournalView } from "@/journal/journal-view";
 import { WindowControls } from "@/shell/window-controls";

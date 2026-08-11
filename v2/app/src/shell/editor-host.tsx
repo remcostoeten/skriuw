@@ -6,7 +6,7 @@ import { NotePropertiesShelf } from "@/properties/note-properties-shelf";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { WaypointsIcon, iconStrokeWidth } from "@/shared/icons";
 import type { RendererState, RendererStore } from "@/store/types";
-import { NoteCover } from "./note-cover";
+import { NoteCover } from "@/note-chrome/note-cover";
 
 type Props = {
   store: RendererStore;

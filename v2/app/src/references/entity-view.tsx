@@ -17,11 +17,11 @@ import {
   projectEntities,
   type EntityKind,
   type EntityRow,
-} from "@/references/entity-manager-model";
-import { backlinksEqual, projectReferencingNotes } from "@/references/reference-panel-model";
-import { buildMergeSaveDocuments } from "@/references/entity-merge";
-import { registerEntityCreate } from "@/references/entity-create-controller";
-import { ColorSwatchRow } from "@/references/color-swatch-row";
+} from "./entity-manager-model";
+import { backlinksEqual, projectReferencingNotes } from "./reference-panel-model";
+import { buildMergeSaveDocuments } from "./entity-merge";
+import { registerEntityCreate } from "./entity-create-controller";
+import { ColorSwatchRow } from "./color-swatch-row";
 import {
   CircleIcon,
   MoreHorizontalIcon,
@@ -49,7 +49,7 @@ import { Tooltip } from "@/shared/ui/tooltip";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { cn } from "@/shared/lib/utils";
 import type { RendererStore } from "@/store/types";
-import type { ReferenceOperation } from "@/references/types";
+import type { ReferenceOperation } from "./types";
 
 const entitySwatchClass =
   "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[9px] font-bold tracking-[0.02em] text-background transition-[background-color,border-color] duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-empty:border data-empty:border-dashed data-empty:border-border data-empty:bg-transparent";

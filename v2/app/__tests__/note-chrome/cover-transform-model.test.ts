@@ -5,7 +5,7 @@ import {
   COVER_FOCAL_PRESETS,
   coverTransformForKey,
   type CoverTransform,
-} from "../../src/shell/cover-transform-model";
+} from "../../src/note-chrome/cover-transform-model";
 
 const centered: CoverTransform = {
   positionX: 50,
