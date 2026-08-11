@@ -13,7 +13,7 @@ import {
   moveDropTarget,
   rowIndexAt,
   sameDropTarget,
-} from "../../src/shell/sidebar-dnd";
+} from "../../src/sidebar/sidebar-dnd";
 import { buildNodeIndex } from "../../src/store/tree";
 
 const { nodes } = buildNodeIndex([

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compactAge, recentNotes } from "../../src/shell/sidebar-recents";
+import { compactAge, recentNotes } from "../../src/sidebar/sidebar-recents";
 import type { NoteMetadata } from "../../src/store/types";
 
 function meta(title: string, updatedAt: number): NoteMetadata {

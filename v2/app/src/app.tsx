@@ -16,7 +16,7 @@ import {
   railInactiveClass,
 } from "@/shell/rail-styles";
 import type { SectionId } from "@/settings/sections/sections";
-import { Sidebar } from "@/shell/sidebar";
+import { Sidebar } from "@/sidebar/sidebar";
 import { CommandPaletteHost } from "@/shell/command-palette-host";
 import { EditorPanes } from "@/shell/editor-panes";
 import { MetadataPanel } from "@/shell/metadata-panel";
@@ -48,7 +48,7 @@ import {
   SIDEBAR_RESIZE_BOUNDS,
   readSidebarWidth,
   writeSidebarWidth,
-} from "@/shell/sidebar-resize";
+} from "@/sidebar/sidebar-resize";
 import {
   METADATA_RESIZE_BOUNDS,
   readMetadataWidth,

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { nextFolderExpansion, searchSidebarNodes } from "../../src/shell/sidebar-search";
+import { nextFolderExpansion, searchSidebarNodes } from "../../src/sidebar/sidebar-search";
 import type { NodeRecord } from "../../src/store/types";
 
 function record(id: string, kind: NodeRecord["kind"], title: string): NodeRecord {
