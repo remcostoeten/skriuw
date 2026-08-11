@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commitOperations } from "../actions/workspace";
-import { listMediaBlobs, storeNoteImage } from "../bridge/commands";
-import type { MediaBlobPayload } from "../bridge/commands";
+import { downloadRemoteMedia, listMediaBlobs, storeNoteImage } from "../bridge/commands";
+import type { MediaBlobPayload, StoredImagePayload } from "../bridge/commands";
+import { isBrowserRuntime } from "../bridge/runtime";
 import { pickImageFiles } from "../editor/image-input";
 import { registerPendingWork } from "../lifecycle/pending-work";
 import {
   CloseIcon,
+  DownloadIcon,
   ImageIcon,
   MaximizeIcon,
   RestoreIcon,
   SearchIcon,
 } from "../shared/icons";
+import { noop } from "../shared/lib/noop";
 import { cn } from "../shared/lib/utils";
 import {
   ContextMenu,
@@ -75,6 +78,33 @@ async function imageDimensions(file: File): Promise<ImageDimensions | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Reads the intrinsic size of an already-stored blob. Downloads arrive as raw
+ * bytes rather than a `File`, so the dimensions come from the blob URL the
+ * cover would render anyway.
+ */
+function storedImageDimensions(url: string | null): Promise<ImageDimensions | null> {
+  if (url === null) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    const probe = new Image();
+    probe.onload = () => resolve({ width: probe.naturalWidth, height: probe.naturalHeight });
+    probe.onerror = () => resolve(null);
+    probe.src = url;
+  });
+}
+
+function failureMessage(reason: unknown): string {
+  if (typeof reason === "string" && reason.length > 0) {
+    return reason;
+  }
+  if (reason instanceof Error && reason.message.length > 0) {
+    return reason.message;
+  }
+  return "Could not add that image.";
 }
 
 function useCoverUrl(contentHash: string | null, mimeType: string | null): string | null {
@@ -323,15 +353,19 @@ export function NoteCover({ store, selectNoteId }: Props) {
     });
   }
 
-  function selectMediaCover(blob: MediaBlobPayload): void {
-    if (noteId === null || busy) return;
-    setPickerOpen(false);
-    setBusy(true);
-    setError(null);
+  /**
+   * Reuses this note's existing attachment for the same content hash so
+   * picking a cover twice never registers a duplicate image record.
+   */
+  function coverOperations(
+    targetNoteId: string,
+    blob: { contentHash: string; mimeType: string; byteSize: number },
+    dimensions: ImageDimensions | null,
+  ) {
     const state = store.getState();
     const sameNote = [...state.images.values()].find(
       (candidate) =>
-        candidate.noteId === noteId && candidate.contentHash === blob.contentHash,
+        candidate.noteId === targetNoteId && candidate.contentHash === blob.contentHash,
     );
     const known = sameNote
       ?? [...state.images.values()].find(
@@ -339,25 +373,32 @@ export function NoteCover({ store, selectNoteId }: Props) {
       );
     const imageId = sameNote?.id ?? crypto.randomUUID();
     const at = Date.now();
-    const operations = sameNote
-      ? [{ type: "set_note_cover" as const, noteId, imageId, at }]
+    return sameNote
+      ? [{ type: "set_note_cover" as const, noteId: targetNoteId, imageId, at }]
       : [
           {
             type: "attach_image" as const,
             image: {
               id: imageId,
-              noteId,
+              noteId: targetNoteId,
               contentHash: blob.contentHash,
               mimeType: blob.mimeType,
               byteSize: blob.byteSize,
-              width: known?.width ?? null,
-              height: known?.height ?? null,
+              width: dimensions?.width ?? known?.width ?? null,
+              height: dimensions?.height ?? known?.height ?? null,
               createdAt: at,
             },
           },
-          { type: "set_note_cover" as const, noteId, imageId, at },
+          { type: "set_note_cover" as const, noteId: targetNoteId, imageId, at },
         ];
-    const write = commitOperations(store, operations)
+  }
+
+  function selectMediaCover(blob: MediaBlobPayload): void {
+    if (noteId === null || busy) return;
+    setPickerOpen(false);
+    setBusy(true);
+    setError(null);
+    const write = commitOperations(store, coverOperations(noteId, blob, null))
       .then(() => {
         draftRef.current = { positionX: 50, positionY: 50, zoom: 1 };
         setEditing(true);
@@ -371,6 +412,33 @@ export function NoteCover({ store, selectNoteId }: Props) {
         setBusy(false);
       });
     inFlightCoverWrites.add(write);
+  }
+
+  /**
+   * Downloads a pasted address into the blob store and adopts it as the cover.
+   * The returned promise rejects with the reason so the picker can show it
+   * without closing; the tracked copy only exists to hold shutdown open.
+   */
+  function addCoverFromUrl(url: string): Promise<void> {
+    if (noteId === null || busy) return Promise.resolve();
+    setBusy(true);
+    setError(null);
+    const download = (async () => {
+      const stored: StoredImagePayload = await downloadRemoteMedia(url);
+      const dimensions = await storedImageDimensions(
+        await resolveImageBlobUrl(stored.contentHash, stored.mimeType),
+      );
+      await commitOperations(store, coverOperations(noteId, stored, dimensions));
+      draftRef.current = { positionX: 50, positionY: 50, zoom: 1 };
+      setPickerOpen(false);
+      setEditing(true);
+    })();
+    const write = download.catch(noop).finally(() => {
+      inFlightCoverWrites.delete(write);
+      setBusy(false);
+    });
+    inFlightCoverWrites.add(write);
+    return download;
   }
 
   function removeCover(): void {
@@ -455,6 +523,7 @@ export function NoteCover({ store, selectNoteId }: Props) {
       onOpenChange={setPickerOpen}
       onSelect={selectMediaCover}
       onUpload={uploadCover}
+      onSubmitUrl={isBrowserRuntime() ? null : addCoverFromUrl}
     />
   );
 
@@ -612,7 +681,10 @@ export function NoteCover({ store, selectNoteId }: Props) {
               </div>
             </>
           ) : (
-            <div className="absolute bottom-2.5 right-2.5 flex items-center rounded-md border border-border/50 bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none">
+            <div
+              className="absolute bottom-2.5 right-2.5 flex items-center rounded-md border border-border/50 bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
               <button
                 type="button"
                 className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
@@ -700,6 +772,7 @@ type CoverMediaPickerProps = {
   onOpenChange: (open: boolean) => void;
   onSelect: (blob: MediaBlobPayload) => void;
   onUpload: () => void;
+  onSubmitUrl: ((url: string) => Promise<void>) | null;
 };
 
 function CoverMediaPicker({
@@ -711,8 +784,12 @@ function CoverMediaPicker({
   onOpenChange,
   onSelect,
   onUpload,
+  onSubmitUrl,
 }: CoverMediaPickerProps) {
   const [query, setQuery] = useState("");
+  const [remoteUrl, setRemoteUrl] = useState("");
+  const [remoteBusy, setRemoteBusy] = useState(false);
+  const [remoteError, setRemoteError] = useState<string | null>(null);
   const [filter, setFilter] = useState<CoverMediaPickerFilter>("all");
   const [sort, setSort] = useState<CoverMediaPickerSort>("recent");
   const items = useMemo(
@@ -725,6 +802,19 @@ function CoverMediaPicker({
       }),
     [blobs, currentCoverImageId, filter, images, query, sort],
   );
+
+  function submitRemoteUrl(event: React.FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    const trimmed = remoteUrl.trim();
+    if (!onSubmitUrl || trimmed.length === 0 || remoteBusy) return;
+    setRemoteBusy(true);
+    setRemoteError(null);
+    void onSubmitUrl(trimmed)
+      .then(() => setRemoteUrl(""))
+      .catch((reason) => setRemoteError(failureMessage(reason)))
+      .finally(() => setRemoteBusy(false));
+  }
+
   return (
     <Dialog
       open={open}
@@ -745,6 +835,42 @@ function CoverMediaPicker({
           Upload new
         </button>
       </div>
+      {onSubmitUrl && (
+        <form
+          className="flex flex-wrap items-center gap-2 border-b border-border px-3.5 py-2.5"
+          onSubmit={submitRemoteUrl}
+        >
+          <label className="min-w-48 flex-1">
+            <span className="sr-only">Image address</span>
+            <input
+              type="url"
+              inputMode="url"
+              value={remoteUrl}
+              placeholder="Paste an image address (https://…)"
+              className="h-8 w-full rounded-md border border-border bg-background px-2.5 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              onChange={(event) => {
+                setRemoteUrl(event.currentTarget.value);
+                setRemoteError(null);
+              }}
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            disabled={remoteBusy || remoteUrl.trim().length === 0}
+          >
+            <DownloadIcon size={13} />
+            {remoteBusy ? "Downloading…" : "Download"}
+          </button>
+          <p className="w-full text-[11px] text-muted-foreground">
+            {remoteError ? (
+              <span className="text-destructive">{remoteError}</span>
+            ) : (
+              "The image is downloaded once and stored in this workspace."
+            )}
+          </p>
+        </form>
+      )}
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3.5 py-2.5">
         <label className="relative min-w-48 flex-1">
           <SearchIcon

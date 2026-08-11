@@ -96,6 +96,9 @@ async function invokeBrowser<T>(command: string, args: unknown): Promise<T> {
   if (command === "store_note_image") {
     return storeBrowserMediaBlob(args as Uint8Array) as Promise<T>;
   }
+  if (command === "download_remote_media") {
+    throw new Error("Downloading an image from a web address needs the desktop app.");
+  }
   if (command === "read_note_image_blob") {
     const { contentHash, mimeType } = args as { contentHash: string; mimeType: string };
     return readBrowserMediaBlob(contentHash, mimeType) as Promise<T>;

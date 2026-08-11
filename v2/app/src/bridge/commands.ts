@@ -322,6 +322,15 @@ export function storeNoteImage(bytes: Uint8Array): Promise<StoredImagePayload> {
   return invoke<StoredImagePayload>("store_note_image", bytes);
 }
 
+/**
+ * Downloads a remote image and stores it as a workspace blob. Only the desktop
+ * shell can do this: the renderer's content policy forbids requests to
+ * arbitrary hosts, and notes never load remote media directly.
+ */
+export function downloadRemoteMedia(url: string): Promise<StoredImagePayload> {
+  return invoke<StoredImagePayload>("download_remote_media", { url });
+}
+
 export function readNoteImageBlob(
   contentHash: string,
   mimeType: string,

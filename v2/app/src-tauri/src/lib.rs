@@ -1,5 +1,6 @@
 mod auth;
 mod maintenance;
+mod remote_media;
 mod sync;
 
 use std::{
@@ -519,6 +520,30 @@ async fn import_markdown_image(
         let path = resolve_relative_path(Path::new(&source_dir), &relative_path)?;
         let bytes = fs::read(&path).map_err(|error| format!("read {relative_path}: {error}"))?;
         let stored = image_store.put(&bytes).map_err(|error| error.to_string())?;
+        Ok(StoredImagePayload {
+            content_hash: stored.content_hash,
+            mime_type: stored.mime_type.into(),
+            byte_size: stored.byte_size,
+        })
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+/// Downloads a pasted image address and stores it as a workspace blob. The
+/// bytes only become a blob once [`ImageStore::put`] recognises the format, so
+/// a server that lies about its content type cannot smuggle in another file.
+#[tauri::command]
+async fn download_remote_media(
+    url: String,
+    state: State<'_, AppState>,
+) -> Result<StoredImagePayload, String> {
+    let image_store = Arc::clone(&state.image_store);
+    tauri::async_runtime::spawn_blocking(move || {
+        let bytes = remote_media::download(&url)?;
+        let stored = image_store
+            .put(&bytes)
+            .map_err(|_| "That address is not a supported image.".to_string())?;
         Ok(StoredImagePayload {
             content_hash: stored.content_hash,
             mime_type: stored.mime_type.into(),
@@ -1250,6 +1275,7 @@ pub fn run() {
             note_media_path,
             read_note_image_blob,
             import_markdown_image,
+            download_remote_media,
             list_media_blobs,
             delete_media_blob,
             sweep_unused_media_blobs,
