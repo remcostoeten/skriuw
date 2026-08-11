@@ -7,7 +7,7 @@ import {
   SettingsIcon,
   UserIcon,
 } from "@/shared/icons";
-import { SHORTCUT_DEFINITIONS } from "@/shortcuts/definitions";
+import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
 
 export const SECTIONS = [
   {

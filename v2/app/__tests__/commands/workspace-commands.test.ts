@@ -4,7 +4,7 @@ import { noop } from "../../src/shared/lib/noop";
 import { createCommandRegistry, type CommandUiState } from "../../src/commands/registry";
 import { createWorkspaceCommands } from "../../src/commands/workspace-commands";
 import type { CommandUiControls } from "../../src/commands/workspace-commands";
-import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
+import { SHORTCUT_DEFINITIONS } from "../../src/commands/definitions";
 import type { RendererState, RendererStore } from "../../src/store/types";
 import { setupTauriInvokeStub } from "../shared/tauri-stub";
 

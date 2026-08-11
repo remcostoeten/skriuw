@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { EDITOR_BOUND_SHORTCUT_IDS } from "../../src/editor/editor-bound-shortcut-ids";
-import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
-import { shortcutHelpCombos } from "../../src/shortcuts/help-model";
-import type { ShortcutPlatform } from "../../src/shortcuts/definitions";
+import { SHORTCUT_DEFINITIONS } from "../../src/commands/definitions";
+import { shortcutHelpCombos } from "../../src/commands/help-model";
+import type { ShortcutPlatform } from "../../src/commands/definitions";
 
 const PLATFORMS: readonly ShortcutPlatform[] = ["mac", "windows", "linux"];
 

@@ -4,7 +4,7 @@ import { appRouteHash, journalDayHash } from "@/app-route";
 import { JOURNAL_ROOT_ID } from "@/journal/constants";
 import { journalEntryDateKey } from "@/journal/model";
 import { searchWorkspace } from "@/bridge/commands";
-import type { CommandRegistry, CommandUiState } from "@/commands/registry";
+import type { CommandRegistry, CommandUiState } from "./registry";
 import type { SearchHit } from "@/contracts/workspace";
 import {
   projectEntities,
@@ -13,11 +13,11 @@ import {
 } from "@/references/entity-manager-model";
 import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "@/shared/icons";
 import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
-import { CommandPalette } from "@/shared/ui/command-palette";
-import type { CommandPaletteItem } from "@/shared/ui/command-palette-model";
-import { effectiveShortcutKeys, shortcutOverridesFromSettings } from "@/shortcuts/bindings";
-import { SHORTCUT_DEFINITIONS } from "@/shortcuts/definitions";
-import type { ShortcutActionId, ShortcutDefinition } from "@/shortcuts/definitions";
+import { CommandPalette } from "./command-palette";
+import type { CommandPaletteItem } from "./command-palette-model";
+import { effectiveShortcutKeys, shortcutOverridesFromSettings } from "./bindings";
+import { SHORTCUT_DEFINITIONS } from "./definitions";
+import type { ShortcutActionId, ShortcutDefinition } from "./definitions";
 import type { RendererState, RendererStore } from "@/store/types";
 
 const SEARCH_DEBOUNCE_MS = 120;

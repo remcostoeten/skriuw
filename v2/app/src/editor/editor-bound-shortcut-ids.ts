@@ -1,4 +1,4 @@
-import type { ShortcutActionId } from "@/shortcuts/definitions";
+import type { ShortcutActionId } from "@/commands/definitions";
 
 /**
  * The editor-bound shortcut ids each editor surface handles. Definitions

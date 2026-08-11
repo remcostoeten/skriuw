@@ -1,6 +1,6 @@
 import { showsToasts, usesAnimatedIcons } from "@/settings/settings-model";
-import { shortcutOverridesFromSettings } from "@/shortcuts/bindings";
-import type { ShortcutOverrides } from "@/shortcuts/bindings";
+import { shortcutOverridesFromSettings } from "@/commands/bindings";
+import type { ShortcutOverrides } from "@/commands/bindings";
 import type { RendererState } from "@/store/types";
 
 export function selectShortcutOverrides(state: RendererState): ShortcutOverrides {

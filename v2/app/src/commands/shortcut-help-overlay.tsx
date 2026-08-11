@@ -11,14 +11,14 @@ import {
   sameShortcutOverrides,
   shortcutDefinition,
   shortcutOverridesFromSettings,
-} from "@/shortcuts/bindings";
-import type { ShortcutPlatform } from "@/shortcuts/definitions";
+} from "./bindings";
+import type { ShortcutPlatform } from "./definitions";
 import {
   shortcutHelpGroups,
   shortcutHelpRowCount,
   type ShortcutHelpCombo,
   type ShortcutHelpRow,
-} from "@/shortcuts/help-model";
+} from "./help-model";
 import {
   settingsGroup,
   settingsGroupTitle,

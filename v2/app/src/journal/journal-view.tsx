@@ -15,7 +15,7 @@ import {
 } from "@/shared/icons";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { toolbarIconButtonClass } from "@/shell/toolbar-styles";
-import { useShortcutHints } from "@/shortcuts/hints";
+import { useShortcutHints } from "@/commands/hints";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
 import { deleteJournalEntry, ensureJournalEntry, setJournalMood } from "./actions";

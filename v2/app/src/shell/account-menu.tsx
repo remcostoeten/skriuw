@@ -31,7 +31,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { useMediaQuery } from "@/shared/ui/use-media-query";
-import { useShortcutHints } from "@/shortcuts/hints";
+import { useShortcutHints } from "@/commands/hints";
 import type { RendererStore } from "@/store/types";
 import {
   accountDisplayName,

@@ -47,7 +47,7 @@ import {
   ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
 import { Tooltip } from "@/shared/ui/tooltip";
-import { useShortcutHints } from "@/shortcuts/hints";
+import { useShortcutHints } from "@/commands/hints";
 import {
   ancestorIds,
   flattenVisible,

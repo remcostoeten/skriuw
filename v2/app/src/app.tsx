@@ -17,7 +17,7 @@ import {
 } from "@/shell/rail-styles";
 import type { SectionId } from "@/settings/sections/sections";
 import { Sidebar } from "@/sidebar/sidebar";
-import { CommandPaletteHost } from "@/shell/command-palette-host";
+import { CommandPaletteHost } from "@/commands/command-palette-host";
 import { EditorPanes } from "@/shell/editor-panes";
 import { MetadataPanel } from "@/note-chrome/metadata-panel";
 import { SettingsDialog } from "@/settings/settings-dialog";
@@ -30,7 +30,7 @@ const CloudSignInDrawer = lazy(async () => {
   const module = await loadSignInDrawer();
   return { default: module.CloudSignInDrawer };
 });
-import { ShortcutHelpOverlay } from "@/shell/shortcut-help-overlay";
+import { ShortcutHelpOverlay } from "@/commands/shortcut-help-overlay";
 import { TrashView } from "@/trash/trash-view";
 import { EntityView } from "@/references/entity-view";
 import { HistoryView } from "@/history/history-view";
@@ -58,14 +58,14 @@ import { TemplatePickerHost } from "@/templates/template-picker";
 import { TransferReportHost } from "@/export/transfer-report-host";
 import { ImportPreviewHost } from "@/import/import-preview-host";
 import { ImportProgressHost } from "@/import/import-progress-host";
-import { WorkspaceShortcuts } from "@/shortcuts/workspace-shortcuts";
-import { useShortcutHints } from "@/shortcuts/hints";
+import { WorkspaceShortcuts } from "@/commands/workspace-shortcuts";
+import { useShortcutHints } from "@/commands/hints";
 import {
   RAIL_ITEMS,
   formatRailSequenceHint,
   railModShiftKeys,
   type RailItem,
-} from "@/shortcuts/rail-items";
+} from "@/commands/rail-items";
 import { appRouteHash, noteHistoryHash, useAppRoute } from "./app-route";
 import { installBackNavigation } from "@/references/reference-navigation";
 import {

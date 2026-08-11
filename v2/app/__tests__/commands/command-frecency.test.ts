@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { recordCommandUse, getCommandFrecency } from "../../../src/shared/lib/command-frecency";
+import { recordCommandUse, getCommandFrecency } from "../../src/commands/command-frecency";
 
 function setupMockLocalStorage() {
   const store = new Map<string, string>();

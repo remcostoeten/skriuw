@@ -15,12 +15,12 @@ import {
   findShortcutConflict,
   isDefaultBinding,
   sameCombo,
-} from "@/shortcuts/bindings";
+} from "@/commands/bindings";
 import {
   filterShortcutSettings,
   shortcutSearchSuggestions,
   shortcutSettingsCount,
-} from "@/shortcuts/settings-search";
+} from "@/commands/settings-search";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import { sameOverrides, selectShortcutOverrides } from "./selectors";
 import {

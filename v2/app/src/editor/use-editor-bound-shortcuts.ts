@@ -8,8 +8,8 @@ import {
   shortcutBindsOnPlatform,
   shortcutDefinition,
   shortcutOverridesFromSettings,
-} from "@/shortcuts/bindings";
-import type { ShortcutActionId, ShortcutPlatform } from "@/shortcuts/definitions";
+} from "@/commands/bindings";
+import type { ShortcutActionId, ShortcutPlatform } from "@/commands/definitions";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
 

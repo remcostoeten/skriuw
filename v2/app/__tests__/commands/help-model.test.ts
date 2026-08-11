@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
-import type { ShortcutDefinition } from "../../src/shortcuts/definitions";
+import { SHORTCUT_DEFINITIONS } from "../../src/commands/definitions";
+import type { ShortcutDefinition } from "../../src/commands/definitions";
 import {
   shortcutHelpCombos,
   shortcutHelpGroups,
@@ -9,7 +9,7 @@ import {
   shortcutHelpRow,
   shortcutHelpRowCount,
   shortcutWhenLabel,
-} from "../../src/shortcuts/help-model";
+} from "../../src/commands/help-model";
 
 function definition(id: string): ShortcutDefinition {
   const found = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);

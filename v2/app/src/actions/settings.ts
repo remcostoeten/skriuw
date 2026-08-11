@@ -7,8 +7,8 @@ import {
   resetShortcutOverrides,
 } from "@/settings/settings-model";
 import type { EditableSettings } from "@/settings/settings-model";
-import { SHORTCUT_DEFINITIONS } from "@/shortcuts/definitions";
-import type { ShortcutActionId } from "@/shortcuts/definitions";
+import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
+import type { ShortcutActionId } from "@/commands/definitions";
 import type { RendererStore } from "@/store/types";
 import { commitOperations } from "./workspace";
 

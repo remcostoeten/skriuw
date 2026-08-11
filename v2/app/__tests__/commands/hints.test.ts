@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import { shortcutHint } from "../../src/shortcuts/hints";
+import { shortcutHint } from "../../src/commands/hints";
 
 test("shortcutHint formats the default binding for the platform", () => {
   assert.equal(shortcutHint("createNote", {}, "linux"), "Ctrl+N");

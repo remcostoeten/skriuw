@@ -17,14 +17,14 @@ import {
   shortcutGuards,
   shortcutMatchesPhysicalKey,
   shortcutOverridesFromSettings,
-} from "../../src/shortcuts/bindings";
+} from "../../src/commands/bindings";
 import {
   SHORTCUT_DEFINITIONS,
   TAB_INDEX_ACTION_IDS,
-} from "../../src/shortcuts/definitions";
-import type { ShortcutGuard } from "../../src/shortcuts/definitions";
-import { RAIL_ITEMS } from "../../src/shortcuts/rail-items";
-import { activeShortcutScopes } from "../../src/shortcuts/workspace-shortcuts";
+} from "../../src/commands/definitions";
+import type { ShortcutGuard } from "../../src/commands/definitions";
+import { RAIL_ITEMS } from "../../src/commands/rail-items";
+import { activeShortcutScopes } from "../../src/commands/workspace-shortcuts";
 import type { AppRoute } from "../../src/app-route";
 
 const APP_ROUTES: readonly AppRoute[] = [

@@ -32,7 +32,7 @@ import {
   WaypointsIcon,
 } from "@/shared/icons";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
-import { effectiveShortcutKeys, shortcutDefinition } from "@/shortcuts/bindings";
+import { effectiveShortcutKeys, shortcutDefinition } from "@/commands/bindings";
 import { sameOverrides, selectShortcutOverrides } from "@/settings/sections/selectors";
 import { Button } from "@/shared/ui/button";
 import { Dialog } from "@/shared/ui/dialog";

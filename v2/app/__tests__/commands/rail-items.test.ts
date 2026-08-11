@@ -5,7 +5,7 @@ import {
   formatRailSequenceHint,
   railModShiftKeys,
   railSequenceKeys,
-} from "../../src/shortcuts/rail-items";
+} from "../../src/commands/rail-items";
 
 test("rail items are ordered Notes, Journal, Tags, People, Trash", () => {
   assert.deepEqual(

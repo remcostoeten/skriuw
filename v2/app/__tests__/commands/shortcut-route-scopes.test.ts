@@ -4,9 +4,9 @@ import { noop } from "../../src/shared/lib/noop";
 import { createCommandRegistry, type CommandUiState } from "../../src/commands/registry";
 import { createWorkspaceCommands } from "../../src/commands/workspace-commands";
 import type { CommandUiControls } from "../../src/commands/workspace-commands";
-import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
-import { shortcutScopesActive } from "../../src/shortcuts/bindings";
-import { activeShortcutScopes } from "../../src/shortcuts/workspace-shortcuts";
+import { SHORTCUT_DEFINITIONS } from "../../src/commands/definitions";
+import { shortcutScopesActive } from "../../src/commands/bindings";
+import { activeShortcutScopes } from "../../src/commands/workspace-shortcuts";
 import type { AppRoute } from "../../src/app-route";
 import type { RendererState, RendererStore } from "../../src/store/types";
 

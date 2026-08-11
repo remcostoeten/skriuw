@@ -3,8 +3,8 @@ import test from "node:test";
 import {
   activeShortcutScopes,
   shortcutDefinitionsForState,
-} from "../../src/shortcuts/workspace-shortcuts";
-import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
+} from "../../src/commands/workspace-shortcuts";
+import { SHORTCUT_DEFINITIONS } from "../../src/commands/definitions";
 
 test("suspended shortcuts retain only the explicitly active binding", () => {
   assert.deepEqual(shortcutDefinitionsForState(true), []);

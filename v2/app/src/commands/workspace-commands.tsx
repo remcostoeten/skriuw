@@ -50,8 +50,8 @@ import { requestTemplatePicker } from "@/templates/template-picker-controller";
 import { routeHasSidebar } from "@/shell/panel-layout";
 import { captureRenameReturnFocus } from "@/sidebar/rename-focus";
 import { showToast } from "@/shared/ui/toast";
-import { shortcutDefinition } from "@/shortcuts/bindings";
-import { TAB_INDEX_ACTION_IDS } from "@/shortcuts/definitions";
+import { shortcutDefinition } from "./bindings";
+import { TAB_INDEX_ACTION_IDS } from "./definitions";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
