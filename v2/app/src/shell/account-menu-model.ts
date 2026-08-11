@@ -1,4 +1,4 @@
-import { THEME_ENTRIES } from "../settings/themes";
+import { THEME_ENTRIES } from "@/settings/themes";
 
 export type ThemeOption = {
   id: string;

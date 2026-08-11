@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { cn } from "../shared/lib/utils";
+import { cn } from "@/shared/lib/utils";
 
 type Props = {
   trigger: (api: { toggle: () => void; open: boolean }) => ReactNode;

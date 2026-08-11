@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import { CalendarDaysIcon } from "./animated/calendar-days";
-import { FolderOpenIcon } from "./animated/folder-open";
-import { TagsIcon } from "./animated/tags";
+import { CalendarDaysIcon } from "@/shared/icons/animated/calendar-days";
+import { FolderOpenIcon } from "@/shared/icons/animated/folder-open";
+import { TagsIcon } from "@/shared/icons/animated/tags";
 
 type Handle = {
   startAnimation: () => void;

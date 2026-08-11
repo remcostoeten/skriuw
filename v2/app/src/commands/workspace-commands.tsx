@@ -1,4 +1,4 @@
-import { quitApp, toggleMaximize } from "../actions/window";
+import { quitApp, toggleMaximize } from "@/actions/window";
 import {
   activateTabAtIndex,
   closeActiveTab,
@@ -9,8 +9,8 @@ import {
   openBeside,
   reopenClosedTab,
   tabStripPaneId,
-} from "../actions/panes";
-import { toggleEditorMode } from "../actions/editor-mode";
+} from "@/actions/panes";
+import { toggleEditorMode } from "@/actions/editor-mode";
 import {
   activateNote,
   createFolder,
@@ -26,32 +26,32 @@ import {
   setAllFoldersExpanded,
   setNodePinned,
   trashCurrentNote,
-} from "../actions/workspace";
-import type { AppRoute } from "../app-route";
-import { authConfiguration } from "../auth/config";
+} from "@/actions/workspace";
+import type { AppRoute } from "@/app-route";
+import { authConfiguration } from "@/auth/config";
 import {
   openEditorSearch,
   openEditorSearchAndReplace,
-} from "../editor/search-controller";
+} from "@/editor/search-controller";
 import {
   exportNoteAsMarkdown,
   exportWorkspaceAsMarkdown,
   importMarkdownFileIntoWorkspace,
   importMarkdownIntoWorkspace,
   importProviderExportIntoWorkspace,
-} from "../export/markdown-transfer";
+} from "@/export/markdown-transfer";
 import {
   openJournalDayOffset,
   openJournalToday,
   requestJournalSearchFocus,
-} from "../journal/navigation";
-import { requestEntityCreate } from "../references/entity-create-controller";
-import { requestTemplatePicker } from "../templates/template-picker-controller";
-import { routeHasSidebar } from "../shell/panel-layout";
-import { captureRenameReturnFocus } from "../shell/rename-focus";
-import { showToast } from "../shared/ui/toast";
-import { shortcutDefinition } from "../shortcuts/bindings";
-import { TAB_INDEX_ACTION_IDS } from "../shortcuts/definitions";
+} from "@/journal/navigation";
+import { requestEntityCreate } from "@/references/entity-create-controller";
+import { requestTemplatePicker } from "@/templates/template-picker-controller";
+import { routeHasSidebar } from "@/shell/panel-layout";
+import { captureRenameReturnFocus } from "@/shell/rename-focus";
+import { showToast } from "@/shared/ui/toast";
+import { shortcutDefinition } from "@/shortcuts/bindings";
+import { TAB_INDEX_ACTION_IDS } from "@/shortcuts/definitions";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -89,10 +89,10 @@ import {
   WaypointsIcon,
   ZoomInIcon,
   ZoomOutIcon,
-} from "../shared/icons";
-import { opensNotesInTabs } from "../settings/settings-model";
-import type { RendererState, RendererStore } from "../store/types";
-import { resetZoom, zoomIn, zoomOut } from "../zoom/zoom-controller";
+} from "@/shared/icons";
+import { opensNotesInTabs } from "@/settings/settings-model";
+import type { RendererState, RendererStore } from "@/store/types";
+import { resetZoom, zoomIn, zoomOut } from "@/zoom/zoom-controller";
 import {
   focusEditorPane,
   focusRegion,

@@ -1,7 +1,7 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
-import { noop } from "../shared/lib/noop";
+import { noop } from "@/shared/lib/noop";
 
 export type SearchOptions = {
   caseSensitive: boolean;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Button } from "../shared/ui/button";
-import { Dialog } from "../shared/ui/dialog";
+import { Button } from "@/shared/ui/button";
+import { Dialog } from "@/shared/ui/dialog";
 import {
   registerImportProgressListener,
   type ImportProgress,

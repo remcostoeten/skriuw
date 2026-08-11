@@ -1,5 +1,5 @@
-import { opensNotesInTabs } from "../settings/settings-model";
-import type { RendererState, RendererStore } from "../store/types";
+import { opensNotesInTabs } from "@/settings/settings-model";
+import type { RendererState, RendererStore } from "@/store/types";
 import {
   PRIMARY_PANE_ID,
   SECONDARY_PANE_ID,
@@ -23,7 +23,7 @@ import {
   tabIdAtIndex,
   togglePinTab as togglePinTabInPanes,
   withClosedTabs,
-} from "../store/panes";
+} from "@/store/panes";
 import { activateNote } from "./workspace";
 
 export function openNoteInTab(store: RendererStore, noteId: string): void {

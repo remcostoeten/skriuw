@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dialog } from "../shared/ui/dialog";
+import { Dialog } from "@/shared/ui/dialog";
 import { registerTransferReportListener } from "./transfer-report";
 import type { TransferReport } from "./transfer-report";
 

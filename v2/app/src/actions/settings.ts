@@ -1,15 +1,15 @@
-import type { WorkspaceSettings } from "../contracts/workspace";
+import type { WorkspaceSettings } from "@/contracts/workspace";
 import {
   DEFAULT_WORKSPACE_SETTINGS,
   changeSetting,
   changeShortcutOverride,
   resetShortcutOverride,
   resetShortcutOverrides,
-} from "../settings/settings-model";
-import type { EditableSettings } from "../settings/settings-model";
-import { SHORTCUT_DEFINITIONS } from "../shortcuts/definitions";
-import type { ShortcutActionId } from "../shortcuts/definitions";
-import type { RendererStore } from "../store/types";
+} from "@/settings/settings-model";
+import type { EditableSettings } from "@/settings/settings-model";
+import { SHORTCUT_DEFINITIONS } from "@/shortcuts/definitions";
+import type { ShortcutActionId } from "@/shortcuts/definitions";
+import type { RendererStore } from "@/store/types";
 import { commitOperations } from "./workspace";
 
 const LIFECYCLE_SETTING_KEYS = [

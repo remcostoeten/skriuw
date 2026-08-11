@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fuzzyMatchScore } from "../lib/fuzzy-match";
+import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
 
 export type CommandPaletteItem = {
   id: string;

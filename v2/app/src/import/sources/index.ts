@@ -1,4 +1,4 @@
-import type { ImportSourceAdapter } from "../model";
+import type { ImportSourceAdapter } from "@/import/model";
 import { appleNotesSource } from "./apple-notes";
 import { bearSource } from "./bear";
 import { evernoteSource } from "./evernote";

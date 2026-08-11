@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { Tooltip } from "../shared/ui/tooltip";
-import { cn } from "../shared/lib/utils";
+import { Tooltip } from "@/shared/ui/tooltip";
+import { cn } from "@/shared/lib/utils";
 import { ENTITY_COLOR_OPTIONS, type EntityColorOption } from "./entity-manager-model";
 
 type Props = {

@@ -1,8 +1,8 @@
-import { authConfiguration } from "../auth/config";
+import { authConfiguration } from "@/auth/config";
 import {
   clearBrowserSessionToken,
   loadBrowserSessionToken,
-} from "../auth/session-store";
+} from "@/auth/session-store";
 import type { WorkspaceSyncStatus } from "./commands";
 
 /**

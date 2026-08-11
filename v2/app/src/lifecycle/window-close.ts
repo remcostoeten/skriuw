@@ -1,6 +1,6 @@
-import type { WorkspaceOperationEnvelope } from "../contracts/workspace";
-import { envelope } from "../contracts/workspace";
-import type { RendererStore } from "../store/types";
+import type { WorkspaceOperationEnvelope } from "@/contracts/workspace";
+import { envelope } from "@/contracts/workspace";
+import type { RendererStore } from "@/store/types";
 import { flushPendingWork } from "./pending-work";
 
 type CloseRequestedEvent = {

@@ -1,4 +1,4 @@
-import type { RendererState } from "../store/types";
+import type { RendererState } from "@/store/types";
 import type { ReferenceKind } from "./types";
 
 export type Suggestion = {

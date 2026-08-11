@@ -10,7 +10,7 @@ import {
   LinkIcon,
   StrikethroughIcon,
   TextQuoteIcon,
-} from "../shared/icons";
+} from "@/shared/icons";
 import { rangeMenuAnchor } from "./menu-anchor";
 import {
   highlightColors,

@@ -8,10 +8,10 @@ import {
   shortcutBindsOnPlatform,
   shortcutDefinition,
   shortcutOverridesFromSettings,
-} from "../shortcuts/bindings";
-import type { ShortcutActionId, ShortcutPlatform } from "../shortcuts/definitions";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererStore } from "../store/types";
+} from "@/shortcuts/bindings";
+import type { ShortcutActionId, ShortcutPlatform } from "@/shortcuts/definitions";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererStore } from "@/store/types";
 
 export type EditorBoundHandlers = Partial<Record<ShortcutActionId, () => void>>;
 

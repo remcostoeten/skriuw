@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { emptyTrash, purgeSubtree, restoreSubtree } from "../actions/workspace";
+import { emptyTrash, purgeSubtree, restoreSubtree } from "@/actions/workspace";
 import {
   FileTextIcon,
   FolderIcon,
@@ -7,22 +7,22 @@ import {
   SearchIcon,
   Trash2Icon,
   Undo2Icon,
-} from "../shared/icons";
-import { formatRelativeTime } from "../shared/lib/relative-time";
-import { Button } from "../shared/ui/button";
-import { Dialog } from "../shared/ui/dialog";
-import { InlineConfirm } from "../shared/ui/inline-confirm";
-import { Select, type SelectOption } from "../shared/ui/select";
+} from "@/shared/icons";
+import { formatRelativeTime } from "@/shared/lib/relative-time";
+import { Button } from "@/shared/ui/button";
+import { Dialog } from "@/shared/ui/dialog";
+import { InlineConfirm } from "@/shared/ui/inline-confirm";
+import { Select, type SelectOption } from "@/shared/ui/select";
 import {
   filterTrashRows,
   sortTrashRows,
   trashRows,
   trashWindowRange,
-} from "../store/trash";
-import type { TrashRow, TrashSortKey } from "../store/trash";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererState, RendererStore } from "../store/types";
-import { cn } from "../shared/lib/utils";
+} from "@/store/trash";
+import type { TrashRow, TrashSortKey } from "@/store/trash";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
+import { cn } from "@/shared/lib/utils";
 
 type Props = {
   store: RendererStore;

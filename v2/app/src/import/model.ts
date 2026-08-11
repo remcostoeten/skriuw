@@ -1,4 +1,4 @@
-import type { MarkdownTree } from "../export/markdown-transfer-model";
+import type { MarkdownTree } from "@/export/markdown-transfer-model";
 
 export type ImportedPropertyValue =
   | { type: "text"; value: string }

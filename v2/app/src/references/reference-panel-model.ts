@@ -1,4 +1,4 @@
-import type { RendererState } from "../store/types";
+import type { RendererState } from "@/store/types";
 import { referenceKey, type ReferenceKind, type ReferenceOperation } from "./types";
 
 export function buildRenameReferenceOperation(

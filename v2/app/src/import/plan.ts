@@ -2,14 +2,14 @@ import type {
   NoteProperty,
   ProviderImportReceipt,
   WorkspaceOperation,
-} from "../contracts/workspace";
-import { hasLosslessMarkdownDocument } from "../editor/schema";
+} from "@/contracts/workspace";
+import { hasLosslessMarkdownDocument } from "@/editor/schema";
 import type {
   MarkdownImportPlan,
   MarkdownImportReuseTarget,
   MarkdownReferenceTarget,
-} from "../export/markdown-transfer-model";
-import { planMarkdownImport } from "../export/markdown-transfer-model";
+} from "@/export/markdown-transfer-model";
+import { planMarkdownImport } from "@/export/markdown-transfer-model";
 import type {
   ImportBundle,
   ImportedNote,

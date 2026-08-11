@@ -1,7 +1,7 @@
 import { Plugin, PluginKey, type EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import { productSchema } from "../editor/schema";
-import type { RendererState } from "../store/types";
+import { productSchema } from "@/editor/schema";
+import type { RendererState } from "@/store/types";
 import { createMentionMenu } from "./mention-menu";
 import {
   queryMentionSuggestions,

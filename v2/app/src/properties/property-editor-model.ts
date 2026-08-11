@@ -4,7 +4,7 @@ import type {
   NotePropertyTemplate,
   NotePropertyValue,
   WorkspaceOperation,
-} from "../contracts/workspace";
+} from "@/contracts/workspace";
 import { createNoteProperty } from "./operations";
 import { instantiatePropertyTemplate } from "./templates";
 import type { PropertyIdFactory } from "./types";

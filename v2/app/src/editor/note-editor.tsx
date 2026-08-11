@@ -27,9 +27,9 @@ import {
 import { noteImageIds, readImageAlt, renameImageNode } from "./image-actions";
 import { pasteMarkdown } from "./markdown-paste";
 import { deriveTitle, STARTER_TITLE } from "./note-title";
-import { registerPendingWork } from "../lifecycle/pending-work";
-import { openExternalUrl } from "../bridge/external-links";
-import type { MediaBlobPayload } from "../bridge/commands";
+import { registerPendingWork } from "@/lifecycle/pending-work";
+import { openExternalUrl } from "@/bridge/external-links";
+import type { MediaBlobPayload } from "@/bridge/commands";
 import { ImageInfoDialog, ImageLightbox, ImageRenameDialog } from "./image-menu";
 import {
   ContextMenu,
@@ -40,7 +40,7 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
   ContextMenuTrigger,
-} from "../shared/ui/context-menu";
+} from "@/shared/ui/context-menu";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -49,22 +49,22 @@ import {
   PencilIcon,
   Trash2Icon,
   ZoomInIcon,
-} from "../shared/icons";
-import { createMentionPlugin, type MentionContext } from "../references/mention-plugin";
-import { createReferenceNodeViews } from "../references/reference-nodeview";
-import { activateReference } from "../references/reference-navigation";
-import { resolveReference } from "../references/reference-resolver";
-import type { ReferenceKind } from "../references/types";
+} from "@/shared/icons";
+import { createMentionPlugin, type MentionContext } from "@/references/mention-plugin";
+import { createReferenceNodeViews } from "@/references/reference-nodeview";
+import { activateReference } from "@/references/reference-navigation";
+import { resolveReference } from "@/references/reference-resolver";
+import type { ReferenceKind } from "@/references/types";
 import {
   commitOperations,
   commitReferenceOperations,
   createLinkedNote,
-} from "../actions/workspace";
-import { cssStringLiteral } from "../settings/apply-settings";
-import { projectSettings } from "../settings/settings-model";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { DocumentRecord, RendererState, RendererStore } from "../store/types";
-import type { WorkspaceImage, WorkspaceOperation } from "../contracts/workspace";
+} from "@/actions/workspace";
+import { cssStringLiteral } from "@/settings/apply-settings";
+import { projectSettings } from "@/settings/settings-model";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { DocumentRecord, RendererState, RendererStore } from "@/store/types";
+import type { WorkspaceImage, WorkspaceOperation } from "@/contracts/workspace";
 import {
   BOUNDED_BLOCK_LIMIT,
   createBoundedDocument,

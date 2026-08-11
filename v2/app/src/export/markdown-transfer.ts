@@ -1,4 +1,4 @@
-import { commitOperations } from "../actions/workspace";
+import { commitOperations } from "@/actions/workspace";
 import {
   exportMarkdownTree,
   importMarkdownImage,
@@ -8,12 +8,12 @@ import {
   pickImportFiles,
   prepareImportSources,
   type StoredImagePayload,
-} from "../bridge/commands";
-import { productSchema, serializeProductMarkdown } from "../editor/schema";
-import { flushPendingWork } from "../lifecycle/pending-work";
-import { noop } from "../shared/lib/noop";
-import type { RendererStore } from "../store/types";
-import type { WorkspaceOperation } from "../contracts/workspace";
+} from "@/bridge/commands";
+import { productSchema, serializeProductMarkdown } from "@/editor/schema";
+import { flushPendingWork } from "@/lifecycle/pending-work";
+import { noop } from "@/shared/lib/noop";
+import type { RendererStore } from "@/store/types";
+import type { WorkspaceOperation } from "@/contracts/workspace";
 import {
   buildImageExportEntries,
   buildNoteExportEntry,
@@ -27,21 +27,21 @@ import {
   type MarkdownImportPlan,
 } from "./markdown-transfer-model";
 import { publishTransferReport } from "./transfer-report";
-import { detectImportSource, importSourceKey } from "../import/model";
-import type { ImportBundle } from "../import/model";
+import { detectImportSource, importSourceKey } from "@/import/model";
+import type { ImportBundle } from "@/import/model";
 import {
   applyImportGrouping,
   planImportBundle,
   type ImportBundlePlan,
   type ImportDuplicateMode,
-} from "../import/plan";
-import { importSources } from "../import/sources";
-import { buildImportPreviewCandidate } from "../import/preview";
-import { requestImportPreview } from "../import/preview-controller";
+} from "@/import/plan";
+import { importSources } from "@/import/sources";
+import { buildImportPreviewCandidate } from "@/import/preview";
+import { requestImportPreview } from "@/import/preview-controller";
 import {
   beginImportProgress,
   throwIfImportCancelled,
-} from "../import/progress-controller";
+} from "@/import/progress-controller";
 
 function count(amount: number, noun: string): string {
   return `${amount} ${noun}${amount === 1 ? "" : "s"}`;

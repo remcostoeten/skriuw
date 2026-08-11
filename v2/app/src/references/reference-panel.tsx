@@ -1,12 +1,12 @@
 import { useCallback, useState } from "react";
-import { activateNote, commitReferenceOperations } from "../actions/workspace";
-import { PencilIcon, Trash2Icon } from "../shared/icons";
-import { cn } from "../shared/lib/utils";
+import { activateNote, commitReferenceOperations } from "@/actions/workspace";
+import { PencilIcon, Trash2Icon } from "@/shared/icons";
+import { cn } from "@/shared/lib/utils";
 import { ColorSwatchRow } from "./color-swatch-row";
-import { InlineConfirm } from "../shared/ui/inline-confirm";
-import { InlineEdit } from "../shared/ui/inline-edit";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererState, RendererStore } from "../store/types";
+import { InlineConfirm } from "@/shared/ui/inline-confirm";
+import { InlineEdit } from "@/shared/ui/inline-edit";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
 import {
   backlinksEqual,
   buildDeleteReferenceOperation,

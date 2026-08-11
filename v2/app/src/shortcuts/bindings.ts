@@ -1,6 +1,6 @@
 import { matchesShortcut, parseShortcut } from "@remcostoeten/use-shortcut/parser";
-import { SIDEBAR_TREE_SELECTOR } from "../commands/focus-regions";
-import type { WorkspaceSettings } from "../contracts/workspace";
+import { SIDEBAR_TREE_SELECTOR } from "@/commands/focus-regions";
+import type { WorkspaceSettings } from "@/contracts/workspace";
 import { SHORTCUT_DEFINITIONS } from "./definitions";
 import type {
   ShortcutActionId,

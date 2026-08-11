@@ -1,5 +1,5 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { hasTauriRuntime } from "../bridge/external-links";
+import { hasTauriRuntime } from "@/bridge/external-links";
 import {
   ZOOM_DEFAULT_PERCENT,
   ZOOM_KEY_STEP_PERCENT,

@@ -1,6 +1,6 @@
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
-import type { RendererState } from "../store/types";
+import type { RendererState } from "@/store/types";
 import type {
   MentionContext,
   MentionMenuItem,

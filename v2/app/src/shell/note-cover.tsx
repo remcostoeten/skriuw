@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { commitOperations } from "../actions/workspace";
-import { downloadRemoteMedia, listMediaBlobs, storeNoteImage } from "../bridge/commands";
-import type { MediaBlobPayload, StoredImagePayload } from "../bridge/commands";
-import { isBrowserRuntime } from "../bridge/runtime";
-import { pickImageFiles } from "../editor/image-input";
-import { registerPendingWork } from "../lifecycle/pending-work";
+import { commitOperations } from "@/actions/workspace";
+import { downloadRemoteMedia, listMediaBlobs, storeNoteImage } from "@/bridge/commands";
+import type { MediaBlobPayload, StoredImagePayload } from "@/bridge/commands";
+import { isBrowserRuntime } from "@/bridge/runtime";
+import { pickImageFiles } from "@/editor/image-input";
+import { registerPendingWork } from "@/lifecycle/pending-work";
 import {
   CloseIcon,
   DownloadIcon,
@@ -12,9 +12,9 @@ import {
   MaximizeIcon,
   RestoreIcon,
   SearchIcon,
-} from "../shared/icons";
-import { noop } from "../shared/lib/noop";
-import { cn } from "../shared/lib/utils";
+} from "@/shared/icons";
+import { noop } from "@/shared/lib/noop";
+import { cn } from "@/shared/lib/utils";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -24,16 +24,16 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
   ContextMenuTrigger,
-} from "../shared/ui/context-menu";
-import { Dialog } from "../shared/ui/dialog";
-import { resolveImageBlobUrl } from "../shared/lib/image-blob-url";
+} from "@/shared/ui/context-menu";
+import { Dialog } from "@/shared/ui/dialog";
+import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import {
   projectCoverMediaPicker,
   type CoverMediaPickerFilter,
   type CoverMediaPickerSort,
-} from "../settings/cover-media-picker-model";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererState, RendererStore } from "../store/types";
+} from "@/settings/cover-media-picker-model";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
 import {
   applyCoverFocalPreset,
   COVER_FOCAL_PRESETS,

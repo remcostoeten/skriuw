@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "../shared/ui/button";
-import { Dialog } from "../shared/ui/dialog";
-import { Select } from "../shared/ui/select";
+import { Button } from "@/shared/ui/button";
+import { Dialog } from "@/shared/ui/dialog";
+import { Select } from "@/shared/ui/select";
 import {
   registerImportPreviewListener,
   type ImportPreviewRequest,

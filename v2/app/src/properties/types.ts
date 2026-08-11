@@ -40,4 +40,4 @@ import type {
   NotePropertyOption as ContractNotePropertyOption,
   NotePropertyTemplate as ContractNotePropertyTemplate,
   NotePropertyValue as ContractNotePropertyValue,
-} from "../contracts/workspace";
+} from "@/contracts/workspace";

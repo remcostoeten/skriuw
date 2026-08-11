@@ -1,6 +1,6 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { EditorView } from "prosemirror-view";
-import type { RendererState } from "../store/types";
+import type { RendererState } from "@/store/types";
 
 /** The ids of every workspace image bound to `noteId`. */
 export function noteImageIds(state: RendererState, noteId: string | null): Set<string> {

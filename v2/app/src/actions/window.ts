@@ -1,5 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { noop } from "../shared/lib/noop";
+import { noop } from "@/shared/lib/noop";
 
 export function toggleMaximize(): void {
   const appWindow = getCurrentWindow();

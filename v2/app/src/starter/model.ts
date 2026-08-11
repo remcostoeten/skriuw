@@ -1,4 +1,4 @@
-import type { WorkspaceSettings } from "../contracts/workspace";
+import type { WorkspaceSettings } from "@/contracts/workspace";
 
 export const STARTER_SEED_VERSION = 1;
 

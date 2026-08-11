@@ -3,29 +3,29 @@ import type { ComponentProps } from "react";
 import { detectPlatform } from "@remcostoeten/use-shortcut/constants";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { matchesShortcut, parseShortcut } from "@remcostoeten/use-shortcut/parser";
-import { SearchIcon } from "../shared/icons";
-import { cn } from "../shared/lib/utils";
-import { Dialog } from "../shared/ui/dialog";
+import { SearchIcon } from "@/shared/icons";
+import { cn } from "@/shared/lib/utils";
+import { Dialog } from "@/shared/ui/dialog";
 import {
   effectiveShortcutKeys,
   sameShortcutOverrides,
   shortcutDefinition,
   shortcutOverridesFromSettings,
-} from "../shortcuts/bindings";
-import type { ShortcutPlatform } from "../shortcuts/definitions";
+} from "@/shortcuts/bindings";
+import type { ShortcutPlatform } from "@/shortcuts/definitions";
 import {
   shortcutHelpGroups,
   shortcutHelpRowCount,
   type ShortcutHelpCombo,
   type ShortcutHelpRow,
-} from "../shortcuts/help-model";
+} from "@/shortcuts/help-model";
 import {
   settingsGroup,
   settingsGroupTitle,
   settingsRow,
-} from "./settings/settings-shared";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererStore } from "../store/types";
+} from "@/shell/settings/settings-shared";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererStore } from "@/store/types";
 
 type Props = {
   store: RendererStore;

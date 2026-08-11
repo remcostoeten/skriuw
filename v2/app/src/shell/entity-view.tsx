@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } fr
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
 import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import { activateNote, commitOperations, commitReferenceOperations } from "../actions/workspace";
-import { appRouteHash, useRouteFocus } from "../app-route";
+import { activateNote, commitOperations, commitReferenceOperations } from "@/actions/workspace";
+import { appRouteHash, useRouteFocus } from "@/app-route";
 import {
   buildCreatePerson,
   buildCreateTag,
@@ -17,11 +17,11 @@ import {
   projectEntities,
   type EntityKind,
   type EntityRow,
-} from "../references/entity-manager-model";
-import { backlinksEqual, projectReferencingNotes } from "../references/reference-panel-model";
-import { buildMergeSaveDocuments } from "../references/entity-merge";
-import { registerEntityCreate } from "../references/entity-create-controller";
-import { ColorSwatchRow } from "../references/color-swatch-row";
+} from "@/references/entity-manager-model";
+import { backlinksEqual, projectReferencingNotes } from "@/references/reference-panel-model";
+import { buildMergeSaveDocuments } from "@/references/entity-merge";
+import { registerEntityCreate } from "@/references/entity-create-controller";
+import { ColorSwatchRow } from "@/references/color-swatch-row";
 import {
   CircleIcon,
   MoreHorizontalIcon,
@@ -30,26 +30,26 @@ import {
   SearchIcon,
   Trash2Icon,
   WaypointsIcon,
-} from "../shared/icons";
-import { formatRelativeTime } from "../shared/lib/relative-time";
-import { effectiveShortcutKeys, shortcutDefinition } from "../shortcuts/bindings";
-import { sameOverrides, selectShortcutOverrides } from "./settings/selectors";
-import { Button } from "../shared/ui/button";
-import { Dialog } from "../shared/ui/dialog";
-import { InlineEdit } from "../shared/ui/inline-edit";
-import { Select, type SelectOption } from "../shared/ui/select";
+} from "@/shared/icons";
+import { formatRelativeTime } from "@/shared/lib/relative-time";
+import { effectiveShortcutKeys, shortcutDefinition } from "@/shortcuts/bindings";
+import { sameOverrides, selectShortcutOverrides } from "@/shell/settings/selectors";
+import { Button } from "@/shared/ui/button";
+import { Dialog } from "@/shared/ui/dialog";
+import { InlineEdit } from "@/shared/ui/inline-edit";
+import { Select, type SelectOption } from "@/shared/ui/select";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "../shared/ui/context-menu";
-import { Tooltip } from "../shared/ui/tooltip";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import { cn } from "../shared/lib/utils";
-import type { RendererStore } from "../store/types";
-import type { ReferenceOperation } from "../references/types";
+} from "@/shared/ui/context-menu";
+import { Tooltip } from "@/shared/ui/tooltip";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import { cn } from "@/shared/lib/utils";
+import type { RendererStore } from "@/store/types";
+import type { ReferenceOperation } from "@/references/types";
 
 const entitySwatchClass =
   "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[9px] font-bold tracking-[0.02em] text-background transition-[background-color,border-color] duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-empty:border data-empty:border-dashed data-empty:border-border data-empty:bg-transparent";

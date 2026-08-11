@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { SECONDARY_PANE_ID } from "../store/panes";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererState, RendererStore } from "../store/types";
+import { SECONDARY_PANE_ID } from "@/store/panes";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
 
 type Props = {
   store: RendererStore;

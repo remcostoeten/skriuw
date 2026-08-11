@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { CheckIcon } from "../shared/icons";
-import { cn } from "../shared/lib/utils";
+import { CheckIcon } from "@/shared/icons";
+import { cn } from "@/shared/lib/utils";
 import { diffMarkdown, type DiffLine, type MarkdownDiff } from "./diff-model";
 
 type Props = {

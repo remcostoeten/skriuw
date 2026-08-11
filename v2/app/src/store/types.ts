@@ -9,12 +9,12 @@ import type {
   WorkspaceOperation,
   WorkspaceSettings,
   WorkspaceSnapshot,
-} from "../contracts/workspace";
+} from "@/contracts/workspace";
 import type {
   IncomingReferences,
   OutgoingReferences,
-} from "../references/projection";
-import type { PersonRecord, ReferenceOperation, TagRecord } from "../references/types";
+} from "@/references/projection";
+import type { PersonRecord, ReferenceOperation, TagRecord } from "@/references/types";
 import type { ClosedTab, PaneState } from "./panes";
 
 export type NodeRecord = {

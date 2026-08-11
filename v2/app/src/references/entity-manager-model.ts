@@ -1,4 +1,4 @@
-import type { RendererState } from "../store/types";
+import type { RendererState } from "@/store/types";
 import { projectReferencingNotes } from "./reference-panel-model";
 import type { PersonRecord, ReferenceOperation, TagRecord } from "./types";
 

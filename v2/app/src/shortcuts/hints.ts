@@ -1,8 +1,8 @@
 import { detectPlatform } from "@remcostoeten/use-shortcut/constants";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import { sameOverrides, selectShortcutOverrides } from "../shell/settings/selectors";
-import type { RendererStore } from "../store/types";
-import { useRendererSelector } from "../store/use-renderer-selector";
+import { sameOverrides, selectShortcutOverrides } from "@/shell/settings/selectors";
+import type { RendererStore } from "@/store/types";
+import { useRendererSelector } from "@/store/use-renderer-selector";
 import {
   effectiveShortcutKeys,
   shortcutBindsOnPlatform,

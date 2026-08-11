@@ -1,5 +1,5 @@
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import type { AppRoute } from "../app-route";
+import type { AppRoute } from "@/app-route";
 
 export type RailItemActionId =
   | "goToNotes"

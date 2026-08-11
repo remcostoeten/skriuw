@@ -1,7 +1,7 @@
-import { commitOperations } from "../actions/workspace";
-import type { WorkspaceOperation } from "../contracts/workspace";
-import { planMarkdownImport } from "../export/markdown-transfer-model";
-import type { RendererStore } from "../store/types";
+import { commitOperations } from "@/actions/workspace";
+import type { WorkspaceOperation } from "@/contracts/workspace";
+import { planMarkdownImport } from "@/export/markdown-transfer-model";
+import type { RendererStore } from "@/store/types";
 import {
   completeSeed,
   isUnseededFreshWorkspace,

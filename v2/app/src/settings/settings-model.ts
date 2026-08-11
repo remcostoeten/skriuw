@@ -1,5 +1,5 @@
-import type { WorkspaceSettings } from "../contracts/workspace";
-import type { ShortcutActionId } from "../shortcuts/definitions";
+import type { WorkspaceSettings } from "@/contracts/workspace";
+import type { ShortcutActionId } from "@/shortcuts/definitions";
 
 export const THEME_OPTIONS = [
   { value: "midnight", label: "Midnight" },

@@ -9,6 +9,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: [
+      { find: "@", replacement: resolve(import.meta.dirname, "../src") },
       { find: "@tauri-apps/api/core", replacement: resolve(import.meta.dirname, "bridge-mock.ts") },
       { find: "@tauri-apps/api/window", replacement: resolve(import.meta.dirname, "window-mock.ts") },
     ],

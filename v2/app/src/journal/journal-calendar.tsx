@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { ChevronLeftIcon, ChevronRightIcon } from "../shared/icons";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/shared/icons";
 import {
   WEEKDAY_LABELS,
   calendarKeyMove,

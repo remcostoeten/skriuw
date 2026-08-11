@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ChevronDownIcon, ChevronRightIcon, ClockIcon, FileTextIcon } from "../shared/icons";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { NoteMetadata, RendererState, RendererStore } from "../store/types";
+import { ChevronDownIcon, ChevronRightIcon, ClockIcon, FileTextIcon } from "@/shared/icons";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { NoteMetadata, RendererState, RendererStore } from "@/store/types";
 
 type Props = {
   store: RendererStore;

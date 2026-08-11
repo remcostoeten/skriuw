@@ -1,5 +1,5 @@
-import { collectLocalImageSources } from "../export/markdown-transfer-model";
-import type { MarkdownTree } from "../export/markdown-transfer-model";
+import { collectLocalImageSources } from "@/export/markdown-transfer-model";
+import type { MarkdownTree } from "@/export/markdown-transfer-model";
 import type { ImportBundle } from "./model";
 import type { ImportBundlePlan } from "./plan";
 

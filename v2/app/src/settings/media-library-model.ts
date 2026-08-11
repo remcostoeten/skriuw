@@ -1,6 +1,6 @@
-import type { MediaBlobPayload } from "../bridge/commands";
-import type { WorkspaceImage } from "../contracts/workspace";
-import { JOURNAL_ROOT_ID } from "../journal/constants";
+import type { MediaBlobPayload } from "@/bridge/commands";
+import type { WorkspaceImage } from "@/contracts/workspace";
+import { JOURNAL_ROOT_ID } from "@/journal/constants";
 
 export type MediaUsage = {
   noteId: string;

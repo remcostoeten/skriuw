@@ -11,13 +11,13 @@ import {
   revealWorkspaceStorage,
   pickImportFile,
   workspaceStoragePath,
-} from "../../bridge/commands";
+} from "@/bridge/commands";
 import {
   importMarkdownIntoWorkspace,
   importProviderExportIntoWorkspace,
-} from "../../export/markdown-transfer";
-import { FolderOpenIcon, UploadIcon } from "../../shared/icons";
-import { InlineConfirm } from "../../shared/ui/inline-confirm";
+} from "@/export/markdown-transfer";
+import { FolderOpenIcon, UploadIcon } from "@/shared/icons";
+import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import {
   IDLE_MAINTENANCE,
   backupNotDue,
@@ -36,16 +36,16 @@ import {
   projectRecoveryInventory,
   requestCancel,
   requestConfirmation,
-} from "../../settings/maintenance-model";
+} from "@/settings/maintenance-model";
 import type {
   BackupListEntry,
   MaintenanceKind,
   MaintenancePhase,
   RecoveryViewModel,
-} from "../../settings/maintenance-model";
-import { isBrowserRuntime } from "../../bridge/runtime";
-import { noop } from "../../shared/lib/noop";
-import { cn } from "../../shared/lib/utils";
+} from "@/settings/maintenance-model";
+import { isBrowserRuntime } from "@/bridge/runtime";
+import { noop } from "@/shared/lib/noop";
+import { cn } from "@/shared/lib/utils";
 import {
   SettingsHeading,
   settingsButton,

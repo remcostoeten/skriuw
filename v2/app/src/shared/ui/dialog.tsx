@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
-import { CloseIcon } from "../icons";
-import { cn } from "../lib/utils";
+import { CloseIcon } from "@/shared/icons";
+import { cn } from "@/shared/lib/utils";
 
 type Props = {
   open: boolean;

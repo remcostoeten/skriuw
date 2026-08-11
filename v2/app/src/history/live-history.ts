@@ -1,5 +1,5 @@
 import { listen, type Event, type UnlistenFn } from "@tauri-apps/api/event";
-import type { HistoryHeader } from "../contracts/workspace";
+import type { HistoryHeader } from "@/contracts/workspace";
 
 export const HISTORY_HEADER_PUBLISHED_EVENT = "history-header-published";
 

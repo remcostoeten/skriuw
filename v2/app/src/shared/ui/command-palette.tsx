@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ComponentProps } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import { getCommandFrecency, recordCommandUse } from "../lib/command-frecency";
-import { SearchIcon } from "../icons";
+import { getCommandFrecency, recordCommandUse } from "@/shared/lib/command-frecency";
+import { SearchIcon } from "@/shared/icons";
 import {
   COMMAND_BANGS,
   getCommandPaletteGroups,

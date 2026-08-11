@@ -1,24 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { activateNote } from "../actions/workspace";
-import { appRouteHash, journalDayHash } from "../app-route";
-import { JOURNAL_ROOT_ID } from "../journal/constants";
-import { journalEntryDateKey } from "../journal/model";
-import { searchWorkspace } from "../bridge/commands";
-import type { CommandRegistry, CommandUiState } from "../commands/registry";
-import type { SearchHit } from "../contracts/workspace";
+import { activateNote } from "@/actions/workspace";
+import { appRouteHash, journalDayHash } from "@/app-route";
+import { JOURNAL_ROOT_ID } from "@/journal/constants";
+import { journalEntryDateKey } from "@/journal/model";
+import { searchWorkspace } from "@/bridge/commands";
+import type { CommandRegistry, CommandUiState } from "@/commands/registry";
+import type { SearchHit } from "@/contracts/workspace";
 import {
   projectEntities,
   type EntityKind,
   type EntityRow,
-} from "../references/entity-manager-model";
-import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "../shared/icons";
-import { fuzzyMatchScore } from "../shared/lib/fuzzy-match";
-import { CommandPalette } from "../shared/ui/command-palette";
-import type { CommandPaletteItem } from "../shared/ui/command-palette-model";
-import { effectiveShortcutKeys, shortcutOverridesFromSettings } from "../shortcuts/bindings";
-import { SHORTCUT_DEFINITIONS } from "../shortcuts/definitions";
-import type { ShortcutActionId, ShortcutDefinition } from "../shortcuts/definitions";
-import type { RendererState, RendererStore } from "../store/types";
+} from "@/references/entity-manager-model";
+import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "@/shared/icons";
+import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
+import { CommandPalette } from "@/shared/ui/command-palette";
+import type { CommandPaletteItem } from "@/shared/ui/command-palette-model";
+import { effectiveShortcutKeys, shortcutOverridesFromSettings } from "@/shortcuts/bindings";
+import { SHORTCUT_DEFINITIONS } from "@/shortcuts/definitions";
+import type { ShortcutActionId, ShortcutDefinition } from "@/shortcuts/definitions";
+import type { RendererState, RendererStore } from "@/store/types";
 
 const SEARCH_DEBOUNCE_MS = 120;
 const SEARCH_LIMIT = 8;

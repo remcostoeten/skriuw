@@ -1,9 +1,9 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import type { WorkspaceImage } from "../contracts/workspace";
-import { imageFormatLabel } from "../settings/media-library-model";
-import { formatByteSize } from "../shared/lib/format-bytes";
-import { resolveImageBlobUrl } from "../shared/lib/image-blob-url";
-import { Dialog } from "../shared/ui/dialog";
+import type { WorkspaceImage } from "@/contracts/workspace";
+import { imageFormatLabel } from "@/settings/media-library-model";
+import { formatByteSize } from "@/shared/lib/format-bytes";
+import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
+import { Dialog } from "@/shared/ui/dialog";
 
 type RenameDialogProps = {
   initialAlt: string;

@@ -1,5 +1,5 @@
-import type { WorkspaceSettings } from "../contracts/workspace";
-import type { RendererStore } from "../store/types";
+import type { WorkspaceSettings } from "@/contracts/workspace";
+import type { RendererStore } from "@/store/types";
 import { writeBootAppearance } from "./boot-appearance";
 import { projectSettings } from "./settings-model";
 

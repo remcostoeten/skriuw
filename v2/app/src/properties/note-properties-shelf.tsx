@@ -1,8 +1,8 @@
 import { useEffect, useId, useMemo, useState } from "react";
-import { ChevronRightIcon } from "../shared/icons";
-import { cn } from "../shared/lib/utils";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererState, RendererStore } from "../store/types";
+import { ChevronRightIcon } from "@/shared/icons";
+import { cn } from "@/shared/lib/utils";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
 import { NotePropertiesPanel } from "./note-properties-panel";
 
 type Props = {

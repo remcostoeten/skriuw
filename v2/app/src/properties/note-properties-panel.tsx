@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
-import { commitOperations } from "../actions/workspace";
+import { commitOperations } from "@/actions/workspace";
 import type {
   NoteProperty,
   NotePropertyColor,
@@ -7,8 +7,8 @@ import type {
   NotePropertyTemplate,
   NotePropertyValue,
   WorkspaceOperation,
-} from "../contracts/workspace";
-import type { PersonRecord } from "../references/types";
+} from "@/contracts/workspace";
+import type { PersonRecord } from "@/references/types";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -18,11 +18,11 @@ import {
   LayoutDashboardIcon,
   PlusIcon,
   Trash2Icon,
-} from "../shared/icons";
-import { cn } from "../shared/lib/utils";
-import { InlineConfirm } from "../shared/ui/inline-confirm";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererState, RendererStore } from "../store/types";
+} from "@/shared/icons";
+import { cn } from "@/shared/lib/utils";
+import { InlineConfirm } from "@/shared/ui/inline-confirm";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
 import { DateValueEditor } from "./date-value-editor";
 import {
   changeNotePropertyType,

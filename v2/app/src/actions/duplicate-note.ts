@@ -2,9 +2,9 @@ import type {
   NoteProperty,
   NotePropertyValue,
   WorkspaceOperation,
-} from "../contracts/workspace";
-import { boundTitle } from "../editor/note-title";
-import type { RendererState } from "../store/types";
+} from "@/contracts/workspace";
+import { boundTitle } from "@/editor/note-title";
+import type { RendererState } from "@/store/types";
 
 export const DUPLICATE_TITLE_SUFFIX = " (copy)";
 

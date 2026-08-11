@@ -1,5 +1,5 @@
-import { appRouteHash, entityFocusHash } from "../app-route";
-import type { RendererStore } from "../store/types";
+import { appRouteHash, entityFocusHash } from "@/app-route";
+import type { RendererStore } from "@/store/types";
 import type { ReferenceKind } from "./types";
 
 type NavLocation = {

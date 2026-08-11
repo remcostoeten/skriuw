@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@remcostoeten/auth-drawer";
-import { authConfiguration } from "../../auth/config";
+import { authConfiguration } from "@/auth/config";
 import {
   type BlockedSyncOperation,
   discardBlockedSyncOperation,
   listBlockedSyncOperations,
   retryBlockedSyncOperation,
   type SyncRecoveryView,
-} from "../../bridge/commands";
-import { formatRelativeTime } from "../../shared/lib/relative-time";
-import { InlineConfirm } from "../../shared/ui/inline-confirm";
+} from "@/bridge/commands";
+import { formatRelativeTime } from "@/shared/lib/relative-time";
+import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import {
   SettingsHeading,
   settingsButton,

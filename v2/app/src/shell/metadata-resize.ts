@@ -1,4 +1,4 @@
-import { noop } from "../shared/lib/noop";
+import { noop } from "@/shared/lib/noop";
 import type { PanelResizeBounds } from "./panel-resize-handle";
 
 const STORAGE_KEY = "skriuw:metadata-width:v1";

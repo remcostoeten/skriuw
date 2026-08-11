@@ -1,4 +1,4 @@
-import { cn } from "../shared/lib/utils";
+import { cn } from "@/shared/lib/utils";
 
 const TRUNK_X = 15;
 

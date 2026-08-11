@@ -1,6 +1,6 @@
-import { commitOperations, trashSubtree } from "../actions/workspace";
-import type { NoteProperty, WorkspaceOperation } from "../contracts/workspace";
-import type { RendererStore } from "../store/types";
+import { commitOperations, trashSubtree } from "@/actions/workspace";
+import type { NoteProperty, WorkspaceOperation } from "@/contracts/workspace";
+import type { RendererStore } from "@/store/types";
 import type { DateKey } from "./dates";
 import {
   JOURNAL_DATE_PROPERTY_ID,

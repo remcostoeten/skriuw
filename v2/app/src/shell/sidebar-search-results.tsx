@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import { FileTextIcon, FolderIcon } from "../shared/icons";
-import type { RendererState, RendererStore } from "../store/types";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import { FileTextIcon, FolderIcon } from "@/shared/icons";
+import type { RendererState, RendererStore } from "@/store/types";
 import { searchSidebarNodes } from "./sidebar-search";
 
 const MAX_SEARCH_RESULTS_PER_TYPE = 10;

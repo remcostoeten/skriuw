@@ -1,7 +1,7 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { NodeView } from "prosemirror-view";
-import { resolveImageBlobUrl } from "../shared/lib/image-blob-url";
-import type { RendererStore } from "../store/types";
+import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
+import type { RendererStore } from "@/store/types";
 
 export type ImageNodeViews = {
   nodeViews: Record<string, (node: ProseMirrorNode) => NodeView>;

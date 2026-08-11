@@ -1,5 +1,5 @@
-import { connectWorkspaceSync } from "../bridge/commands";
-import { reclaimBoundStarterPreview } from "../starter/reclaim";
+import { connectWorkspaceSync } from "@/bridge/commands";
+import { reclaimBoundStarterPreview } from "@/starter/reclaim";
 import { currentSessionToken } from "./session-token";
 
 /**

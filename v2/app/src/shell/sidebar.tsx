@@ -10,12 +10,12 @@ import {
   setAllFoldersExpanded,
   setNodePinned,
   trashSubtrees,
-} from "../actions/workspace";
-import { openBeside, openNoteInTab } from "../actions/panes";
-import { exportNoteAsMarkdown } from "../export/markdown-transfer";
-import { showToast } from "../shared/ui/toast";
-import { requestTemplatePicker } from "../templates/template-picker-controller";
-import { useRendererSelector } from "../store/use-renderer-selector";
+} from "@/actions/workspace";
+import { openBeside, openNoteInTab } from "@/actions/panes";
+import { exportNoteAsMarkdown } from "@/export/markdown-transfer";
+import { showToast } from "@/shared/ui/toast";
+import { requestTemplatePicker } from "@/templates/template-picker-controller";
+import { useRendererSelector } from "@/store/use-renderer-selector";
 import {
   CloseIcon,
   CommandIcon,
@@ -34,7 +34,7 @@ import {
   SearchIcon,
   Trash2Icon,
   UnfoldVerticalIcon,
-} from "../shared/icons";
+} from "@/shared/icons";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -45,9 +45,9 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
   ContextMenuTrigger,
-} from "../shared/ui/context-menu";
-import { Tooltip } from "../shared/ui/tooltip";
-import { useShortcutHints } from "../shortcuts/hints";
+} from "@/shared/ui/context-menu";
+import { Tooltip } from "@/shared/ui/tooltip";
+import { useShortcutHints } from "@/shortcuts/hints";
 import {
   ancestorIds,
   flattenVisible,
@@ -55,8 +55,8 @@ import {
   selectedTreeRoots,
   virtualTreeWindow,
   visualTreeIndent,
-} from "../store/tree";
-import type { RendererState, RendererStore } from "../store/types";
+} from "@/store/tree";
+import type { RendererState, RendererStore } from "@/store/types";
 import {
   AUTO_SCROLL_EDGE_PX,
   AUTO_SCROLL_MAX_STEP_PX,
@@ -74,8 +74,8 @@ import {
   sameDropTarget,
 } from "./sidebar-dnd";
 import type { DropTarget } from "./sidebar-dnd";
-import { noop } from "../shared/lib/noop";
-import { SidebarCalendar } from "../journal/sidebar-calendar";
+import { noop } from "@/shared/lib/noop";
+import { SidebarCalendar } from "@/journal/sidebar-calendar";
 import { nextFolderExpansion } from "./sidebar-search";
 import { SidebarRecents } from "./sidebar-recents";
 import { SidebarRow } from "./sidebar-row";

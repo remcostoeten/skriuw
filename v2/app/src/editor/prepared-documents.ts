@@ -1,5 +1,5 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
-import type { DocumentRecord, RendererStore } from "../store/types";
+import type { DocumentRecord, RendererStore } from "@/store/types";
 import { productSchema } from "./schema";
 
 type PreparedEntry = {

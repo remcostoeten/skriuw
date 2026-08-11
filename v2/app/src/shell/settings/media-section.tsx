@@ -5,16 +5,16 @@ import {
   revealWorkspaceImages,
   storeNoteImage,
   sweepUnusedMediaBlobs,
-} from "../../bridge/commands";
-import type { MediaBlobPayload } from "../../bridge/commands";
-import { FolderOpenIcon, Trash2Icon, UploadIcon } from "../../shared/icons";
-import { resolveImageBlobUrl } from "../../shared/lib/image-blob-url";
-import { resolveMediaPlaybackUrl } from "../../shared/lib/media-playback-url";
-import { isBrowserRuntime } from "../../bridge/runtime";
-import { cn } from "../../shared/lib/utils";
-import { Button } from "../../shared/ui/button";
-import { InlineConfirm } from "../../shared/ui/inline-confirm";
-import { MediaLightbox } from "../../shared/ui/media-lightbox";
+} from "@/bridge/commands";
+import type { MediaBlobPayload } from "@/bridge/commands";
+import { FolderOpenIcon, Trash2Icon, UploadIcon } from "@/shared/icons";
+import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
+import { resolveMediaPlaybackUrl } from "@/shared/lib/media-playback-url";
+import { isBrowserRuntime } from "@/bridge/runtime";
+import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/ui/button";
+import { InlineConfirm } from "@/shared/ui/inline-confirm";
+import { MediaLightbox } from "@/shared/ui/media-lightbox";
 import {
   countUnusedMedia,
   describeMediaUsage,
@@ -22,12 +22,12 @@ import {
   isUnusedMedia,
   isVideoMime,
   projectMediaLibrary,
-} from "../../settings/media-library-model";
-import type { MediaLibraryEntry } from "../../settings/media-library-model";
-import type { MediaUsage } from "../../settings/media-library-model";
-import { formatSizeBytes } from "../../settings/maintenance-model";
-import type { RendererState } from "../../store/types";
-import { useRendererSelector } from "../../store/use-renderer-selector";
+} from "@/settings/media-library-model";
+import type { MediaLibraryEntry } from "@/settings/media-library-model";
+import type { MediaUsage } from "@/settings/media-library-model";
+import { formatSizeBytes } from "@/settings/maintenance-model";
+import type { RendererState } from "@/store/types";
+import { useRendererSelector } from "@/store/use-renderer-selector";
 import {
   SettingsHeading,
   settingsButton,

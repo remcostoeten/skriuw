@@ -5,9 +5,9 @@ import {
   sameShortcutOverrides,
   shortcutDefinition,
   shortcutOverridesFromSettings,
-} from "../shortcuts/bindings";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererStore } from "../store/types";
+} from "@/shortcuts/bindings";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererStore } from "@/store/types";
 import { registerEditorSearchController } from "./search-controller";
 import {
   EDITOR_SEARCH_SHORTCUT_IDS,

@@ -1,7 +1,7 @@
 import type { AuthAdapter } from "@remcostoeten/auth-drawer";
 import { createBetterAuthAdapter } from "@remcostoeten/auth-drawer/adapters/better-auth";
 import { createAuthClient } from "better-auth/react";
-import { noop } from "../shared/lib/noop";
+import { noop } from "@/shared/lib/noop";
 import { authConfiguration } from "./config";
 import { connectSyncForCurrentSession } from "./connect-sync";
 import {

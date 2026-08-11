@@ -12,7 +12,7 @@ import {
   TagsIcon,
   Trash2Icon,
   UsersIcon,
-} from "../icons";
+} from "@/shared/icons";
 
 export type StaticIconComponent = ComponentType<
   SVGProps<SVGSVGElement> & { size?: number }
@@ -82,49 +82,49 @@ export const APP_ICONS = {
   people: {
     static: UsersIcon,
     animated: animated(() =>
-      import("./animate-ui/icons/users").then((module) => ({ default: module.Users })),
+      import("@/shared/icons/animate-ui/icons/users").then((module) => ({ default: module.Users })),
     ),
   },
   trash: {
     static: Trash2Icon,
     animated: animated(() =>
-      import("./animate-ui/icons/trash-2").then((module) => ({ default: module.Trash2 })),
+      import("@/shared/icons/animate-ui/icons/trash-2").then((module) => ({ default: module.Trash2 })),
     ),
   },
   settings: {
     static: SettingsIcon,
     animated: animated(() =>
-      import("./animate-ui/icons/settings").then((module) => ({ default: module.Settings })),
+      import("@/shared/icons/animate-ui/icons/settings").then((module) => ({ default: module.Settings })),
     ),
   },
   "previous-note": {
     static: ChevronLeftIcon,
     animated: animated(() =>
-      import("./animate-ui/icons/chevron-left").then((module) => ({ default: module.ChevronLeft })),
+      import("@/shared/icons/animate-ui/icons/chevron-left").then((module) => ({ default: module.ChevronLeft })),
     ),
   },
   "next-note": {
     static: ChevronRightIcon,
     animated: animated(() =>
-      import("./animate-ui/icons/chevron-right").then((module) => ({ default: module.ChevronRight })),
+      import("@/shared/icons/animate-ui/icons/chevron-right").then((module) => ({ default: module.ChevronRight })),
     ),
   },
   "version-history": {
     static: RotateCcwIcon,
     animated: animated(() =>
-      import("./animate-ui/icons/rotate-ccw").then((module) => ({ default: module.RotateCcw })),
+      import("@/shared/icons/animate-ui/icons/rotate-ccw").then((module) => ({ default: module.RotateCcw })),
     ),
   },
   "toggle-sidebar": {
     static: PanelLeftToggleIcon,
     animated: animated(() =>
-      import("./animate-ui/icons/panel-left").then((module) => ({ default: module.PanelLeft })),
+      import("@/shared/icons/animate-ui/icons/panel-left").then((module) => ({ default: module.PanelLeft })),
     ),
   },
   "toggle-metadata": {
     static: PanelRightToggleIcon,
     animated: animated(() =>
-      import("./animate-ui/icons/panel-right").then((module) => ({ default: module.PanelRight })),
+      import("@/shared/icons/animate-ui/icons/panel-right").then((module) => ({ default: module.PanelRight })),
     ),
   },
 } as const satisfies Record<string, IconEntry>;

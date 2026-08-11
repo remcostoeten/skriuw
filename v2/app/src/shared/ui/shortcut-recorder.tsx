@@ -2,8 +2,8 @@ import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Ref } from "react";
 import { useShortcut } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import { RotateCcwIcon } from "../icons";
-import { cn } from "../lib/utils";
+import { RotateCcwIcon } from "@/shared/icons";
+import { cn } from "@/shared/lib/utils";
 
 export type ShortcutRecorderHandle = {
   /** Focuses the recorder button and opens capture, as if it was clicked. */

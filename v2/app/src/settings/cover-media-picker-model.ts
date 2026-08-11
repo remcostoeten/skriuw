@@ -1,5 +1,5 @@
-import type { MediaBlobPayload } from "../bridge/commands";
-import type { WorkspaceImage } from "../contracts/workspace";
+import type { MediaBlobPayload } from "@/bridge/commands";
+import type { WorkspaceImage } from "@/contracts/workspace";
 
 export type CoverMediaPickerFilter = "all" | "used" | "unused" | "duplicates";
 

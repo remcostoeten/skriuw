@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { useRouteFocus } from "../app-route";
-import { editorModeForNote } from "../actions/editor-mode";
-import { NoteEditor } from "../editor/note-editor";
-import { RawMarkdownEditor } from "../editor/raw-markdown-editor";
+import { useRouteFocus } from "@/app-route";
+import { editorModeForNote } from "@/actions/editor-mode";
+import { NoteEditor } from "@/editor/note-editor";
+import { RawMarkdownEditor } from "@/editor/raw-markdown-editor";
 import {
   BarChartIcon,
   CalendarDaysIcon,
@@ -12,12 +12,12 @@ import {
   PlusIcon,
   SearchIcon,
   Trash2Icon,
-} from "../shared/icons";
-import { Tooltip } from "../shared/ui/tooltip";
-import { toolbarIconButtonClass } from "../shell/toolbar-styles";
-import { useShortcutHints } from "../shortcuts/hints";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererState, RendererStore } from "../store/types";
+} from "@/shared/icons";
+import { Tooltip } from "@/shared/ui/tooltip";
+import { toolbarIconButtonClass } from "@/shell/toolbar-styles";
+import { useShortcutHints } from "@/shortcuts/hints";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
 import { deleteJournalEntry, ensureJournalEntry, setJournalMood } from "./actions";
 import {
   dateKeyOf,

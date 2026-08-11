@@ -1,5 +1,5 @@
-import { projectSettings } from "../settings/settings-model";
-import type { RendererState, RendererStore } from "../store/types";
+import { projectSettings } from "@/settings/settings-model";
+import type { RendererState, RendererStore } from "@/store/types";
 
 export type EditorMode = "rendered" | "raw";
 

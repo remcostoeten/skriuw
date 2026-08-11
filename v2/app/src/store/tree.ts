@@ -1,5 +1,5 @@
-import type { WorkspaceNode } from "../contracts/workspace";
-import { JOURNAL_ROOT_ID } from "../journal/constants";
+import type { WorkspaceNode } from "@/contracts/workspace";
+import { JOURNAL_ROOT_ID } from "@/journal/constants";
 import type { NodeRecord, RendererState } from "./types";
 
 /**

@@ -1,6 +1,6 @@
-import type { BrowserSyncProgress } from "../../bridge/browser-sync";
-import type { WorkspaceSyncStatus } from "../../bridge/commands";
-import { formatByteSize } from "../../shared/lib/format-bytes";
+import type { BrowserSyncProgress } from "@/bridge/browser-sync";
+import type { WorkspaceSyncStatus } from "@/bridge/commands";
+import { formatByteSize } from "@/shared/lib/format-bytes";
 import { blockedStateText } from "./sync-recovery";
 
 /** Whether sync is currently linked, so the row offers pause instead of enable. */

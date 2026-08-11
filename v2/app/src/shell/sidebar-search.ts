@@ -1,4 +1,4 @@
-import type { NodeRecord } from "../store/types";
+import type { NodeRecord } from "@/store/types";
 
 export type SidebarSearchResults = {
   folders: readonly NodeRecord[];

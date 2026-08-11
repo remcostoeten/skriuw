@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { updateSetting } from "../../actions/settings";
+import { updateSetting } from "@/actions/settings";
 import {
   EDITOR_FONT_OPTIONS,
   EDITOR_LINE_HEIGHT_OPTIONS,
-} from "../../settings/settings-model";
-import type { SettingsViewModel } from "../../settings/settings-model";
-import { cn } from "../../shared/lib/utils";
+} from "@/settings/settings-model";
+import type { SettingsViewModel } from "@/settings/settings-model";
+import { cn } from "@/shared/lib/utils";
 import {
   SettingCardPicker,
   SettingToggle,

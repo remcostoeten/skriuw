@@ -1,7 +1,7 @@
-import type { MarkdownTree } from "../../export/markdown-transfer-model";
-import { sanitizeFileName } from "../../export/markdown-transfer-model";
-import type { ImportBundle, ImportSourceAdapter, ImportedNote, ImportWarning } from "../model";
-import { noteTitleFromContent } from "../model";
+import type { MarkdownTree } from "@/export/markdown-transfer-model";
+import { sanitizeFileName } from "@/export/markdown-transfer-model";
+import type { ImportBundle, ImportSourceAdapter, ImportedNote, ImportWarning } from "@/import/model";
+import { noteTitleFromContent } from "@/import/model";
 
 type SimplenoteEntry = {
   id?: string;

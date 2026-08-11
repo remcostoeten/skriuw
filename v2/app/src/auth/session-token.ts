@@ -1,5 +1,5 @@
-import { clearAuthToken, loadAuthToken, storeAuthToken } from "../bridge/commands";
-import { isBrowserRuntime } from "../bridge/runtime";
+import { clearAuthToken, loadAuthToken, storeAuthToken } from "@/bridge/commands";
+import { isBrowserRuntime } from "@/bridge/runtime";
 import {
   clearBrowserSessionToken,
   loadBrowserSessionToken,

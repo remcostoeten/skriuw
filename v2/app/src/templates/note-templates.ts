@@ -1,12 +1,12 @@
-import type { WorkspaceOperation } from "../contracts/workspace";
-import { documentTitleText, type IdFactory } from "../actions/duplicate-note";
-import { boundTitle } from "../editor/note-title";
-import { parseProductMarkdown, serializeProductMarkdown } from "../editor/schema";
+import type { WorkspaceOperation } from "@/contracts/workspace";
+import { documentTitleText, type IdFactory } from "@/actions/duplicate-note";
+import { boundTitle } from "@/editor/note-title";
+import { parseProductMarkdown, serializeProductMarkdown } from "@/editor/schema";
 import {
   BUILT_IN_PROPERTY_TEMPLATES,
   instantiatePropertyTemplate,
-} from "../properties/templates";
-import type { NotePropertyTemplate, PropertyIdFactory } from "../properties/types";
+} from "@/properties/templates";
+import type { NotePropertyTemplate, PropertyIdFactory } from "@/properties/types";
 
 export type NoteTemplate = {
   id: string;

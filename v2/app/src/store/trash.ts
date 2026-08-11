@@ -1,4 +1,4 @@
-import type { WorkspaceNode } from "../contracts/workspace";
+import type { WorkspaceNode } from "@/contracts/workspace";
 
 export type TrashRoot = {
   id: string;

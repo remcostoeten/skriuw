@@ -6,8 +6,8 @@ import {
   KeyboardIcon,
   SettingsIcon,
   UserIcon,
-} from "../../shared/icons";
-import { SHORTCUT_DEFINITIONS } from "../../shortcuts/definitions";
+} from "@/shared/icons";
+import { SHORTCUT_DEFINITIONS } from "@/shortcuts/definitions";
 
 export const SECTIONS = [
   {

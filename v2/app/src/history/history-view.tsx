@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import { appRouteHash, useRouteFocus, useRouteHistoryVersion } from "../app-route";
-import { activateNote } from "../actions/workspace";
-import { ChevronLeftIcon, HistoryIcon } from "../shared/icons";
-import { formatRelativeTime } from "../shared/lib/relative-time";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererState, RendererStore } from "../store/types";
+import { appRouteHash, useRouteFocus, useRouteHistoryVersion } from "@/app-route";
+import { activateNote } from "@/actions/workspace";
+import { ChevronLeftIcon, HistoryIcon } from "@/shared/icons";
+import { formatRelativeTime } from "@/shared/lib/relative-time";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
 import { VersionHistoryPanel } from "./version-history-panel";
 import { projectVersionList } from "./version-model";
 

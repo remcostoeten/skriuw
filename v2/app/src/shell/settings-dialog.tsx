@@ -2,31 +2,31 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type {
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { activateNote } from "../actions/workspace";
-import { isBrowserRuntime } from "../bridge/runtime";
-import { journalEntryDateKey } from "../journal/model";
-import { openJournalDay } from "../journal/navigation";
-import { CloseIcon, SearchIcon } from "../shared/icons";
-import { cn } from "../shared/lib/utils";
-import { Dialog } from "../shared/ui/dialog";
+import { activateNote } from "@/actions/workspace";
+import { isBrowserRuntime } from "@/bridge/runtime";
+import { journalEntryDateKey } from "@/journal/model";
+import { openJournalDay } from "@/journal/navigation";
+import { CloseIcon, SearchIcon } from "@/shared/icons";
+import { cn } from "@/shared/lib/utils";
+import { Dialog } from "@/shared/ui/dialog";
 import {
   filterSettingsSections,
   moveSettingsSection,
   rovingSettingsSection,
   settingsSearchEscape,
-} from "../settings/settings-navigation";
-import type { RendererStore } from "../store/types";
-import { AboutSection } from "./settings/about-section";
-import { AppearanceSection } from "./settings/appearance-section";
-import { DataSection } from "./settings/data-section";
-import { EditorSection } from "./settings/editor-section";
-import { MediaSection } from "./settings/media-section";
-import { SECTIONS } from "./settings/sections";
-import type { SectionId } from "./settings/sections";
-import { ShortcutsSection } from "./settings/shortcuts-section";
+} from "@/settings/settings-navigation";
+import type { RendererStore } from "@/store/types";
+import { AboutSection } from "@/shell/settings/about-section";
+import { AppearanceSection } from "@/shell/settings/appearance-section";
+import { DataSection } from "@/shell/settings/data-section";
+import { EditorSection } from "@/shell/settings/editor-section";
+import { MediaSection } from "@/shell/settings/media-section";
+import { SECTIONS } from "@/shell/settings/sections";
+import type { SectionId } from "@/shell/settings/sections";
+import { ShortcutsSection } from "@/shell/settings/shortcuts-section";
 
 const AccountSection = lazy(async () => {
-  const module = await import("./settings/account-section");
+  const module = await import("@/shell/settings/account-section");
   return { default: module.AccountSection };
 });
 

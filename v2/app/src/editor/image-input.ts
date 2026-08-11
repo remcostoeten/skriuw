@@ -1,10 +1,10 @@
 import type { EditorView } from "prosemirror-view";
-import { commitOperations } from "../actions/workspace";
-import type { MediaBlobPayload } from "../bridge/commands";
-import { storeNoteImage } from "../bridge/commands";
-import { registerPendingWork } from "../lifecycle/pending-work";
-import { noop } from "../shared/lib/noop";
-import type { RendererStore } from "../store/types";
+import { commitOperations } from "@/actions/workspace";
+import type { MediaBlobPayload } from "@/bridge/commands";
+import { storeNoteImage } from "@/bridge/commands";
+import { registerPendingWork } from "@/lifecycle/pending-work";
+import { noop } from "@/shared/lib/noop";
+import type { RendererStore } from "@/store/types";
 import { productSchema } from "./schema";
 
 type ImageDimensions = {

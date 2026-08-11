@@ -5,23 +5,23 @@ import {
   clearAllShortcutOverrides,
   clearShortcutOverride,
   setShortcutOverride,
-} from "../../actions/settings";
-import { SearchIcon } from "../../shared/icons";
-import { cn } from "../../shared/lib/utils";
-import { ShortcutRecorder } from "../../shared/ui/shortcut-recorder";
-import type { ShortcutRecorderHandle } from "../../shared/ui/shortcut-recorder";
+} from "@/actions/settings";
+import { SearchIcon } from "@/shared/icons";
+import { cn } from "@/shared/lib/utils";
+import { ShortcutRecorder } from "@/shared/ui/shortcut-recorder";
+import type { ShortcutRecorderHandle } from "@/shared/ui/shortcut-recorder";
 import {
   effectiveShortcutKeys,
   findShortcutConflict,
   isDefaultBinding,
   sameCombo,
-} from "../../shortcuts/bindings";
+} from "@/shortcuts/bindings";
 import {
   filterShortcutSettings,
   shortcutSearchSuggestions,
   shortcutSettingsCount,
-} from "../../shortcuts/settings-search";
-import { useRendererSelector } from "../../store/use-renderer-selector";
+} from "@/shortcuts/settings-search";
+import { useRendererSelector } from "@/store/use-renderer-selector";
 import { sameOverrides, selectShortcutOverrides } from "./selectors";
 import {
   SettingsHeading,

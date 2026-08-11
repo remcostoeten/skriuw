@@ -1,4 +1,4 @@
-import { journalDayHash, resolveRouteFocus } from "../app-route";
+import { journalDayHash, resolveRouteFocus } from "@/app-route";
 import { isDateKey, shiftDay, todayKey, type DateKey } from "./dates";
 
 const FOCUS_SEARCH_EVENT = "skriuw:journal-focus-search";

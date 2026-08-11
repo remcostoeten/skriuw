@@ -1,18 +1,18 @@
-import { applyWorkspaceOperations, bootstrapWorkspace } from "../bridge/commands";
-import { envelope } from "../contracts/workspace";
-import type { NodePlacement, WorkspaceOperation } from "../contracts/workspace";
-import { buildRestoreOperation } from "../history/version-model";
-import { flushPendingWork } from "../lifecycle/pending-work";
-import { opensNotesInTabs } from "../settings/settings-model";
+import { applyWorkspaceOperations, bootstrapWorkspace } from "@/bridge/commands";
+import { envelope } from "@/contracts/workspace";
+import type { NodePlacement, WorkspaceOperation } from "@/contracts/workspace";
+import { buildRestoreOperation } from "@/history/version-model";
+import { flushPendingWork } from "@/lifecycle/pending-work";
+import { opensNotesInTabs } from "@/settings/settings-model";
 import {
   SECONDARY_PANE_ID,
   openBeside as openBesidePanes,
   secondaryPane,
-} from "../store/panes";
-import { ancestorIds, flattenVisible } from "../store/tree";
-import type { RendererState, RendererStore } from "../store/types";
-import type { ReferenceOperation } from "../references/types";
-import { planTemplateNote, type NoteTemplate } from "../templates/note-templates";
+} from "@/store/panes";
+import { ancestorIds, flattenVisible } from "@/store/tree";
+import type { RendererState, RendererStore } from "@/store/types";
+import type { ReferenceOperation } from "@/references/types";
+import { planTemplateNote, type NoteTemplate } from "@/templates/note-templates";
 import { planNoteDuplicate } from "./duplicate-note";
 
 export function commitReferenceOperations(

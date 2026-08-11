@@ -1,11 +1,11 @@
 import { useMemo } from "react";
-import { editorModeForNote } from "../actions/editor-mode";
-import { NoteEditor } from "../editor/note-editor";
-import { RawMarkdownEditor } from "../editor/raw-markdown-editor";
-import { NotePropertiesShelf } from "../properties/note-properties-shelf";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import { WaypointsIcon, iconStrokeWidth } from "../shared/icons";
-import type { RendererState, RendererStore } from "../store/types";
+import { editorModeForNote } from "@/actions/editor-mode";
+import { NoteEditor } from "@/editor/note-editor";
+import { RawMarkdownEditor } from "@/editor/raw-markdown-editor";
+import { NotePropertiesShelf } from "@/properties/note-properties-shelf";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import { WaypointsIcon, iconStrokeWidth } from "@/shared/icons";
+import type { RendererState, RendererStore } from "@/store/types";
 import { NoteCover } from "./note-cover";
 
 type Props = {

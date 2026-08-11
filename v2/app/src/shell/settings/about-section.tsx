@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { openExternalUrl } from "../../bridge/commands";
-import { cn } from "../../shared/lib/utils";
+import { openExternalUrl } from "@/bridge/commands";
+import { cn } from "@/shared/lib/utils";
 import {
   ABOUT_LINKS,
   checkForUpdate,
   describeUpdateOutcome,
   readAppVersion,
-} from "../../settings/about-model";
+} from "@/settings/about-model";
 import {
   SettingsHeading,
   settingsButton,

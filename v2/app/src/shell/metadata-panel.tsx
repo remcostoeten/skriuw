@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import { ChevronRightIcon } from "../shared/icons";
-import { cn } from "../shared/lib/utils";
-import { projectVersionList, type VersionListItem } from "../history/version-model";
-import { noteHistoryHash } from "../app-route";
-import { formatRelativeTime } from "../shared/lib/relative-time";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import { ChevronRightIcon } from "@/shared/icons";
+import { cn } from "@/shared/lib/utils";
+import { projectVersionList, type VersionListItem } from "@/history/version-model";
+import { noteHistoryHash } from "@/app-route";
+import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { NoteOutline } from "./note-outline";
 import {
   BacklinksList,
@@ -15,8 +15,8 @@ import {
   useNoteReferenceDetails,
   useOutgoingNotes,
   useUnlinkedMentions,
-} from "../references/reference-panel";
-import type { RendererState, RendererStore } from "../store/types";
+} from "@/references/reference-panel";
+import type { RendererState, RendererStore } from "@/store/types";
 
 type Props = {
   store: RendererStore;

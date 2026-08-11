@@ -1,4 +1,4 @@
-import type { MarkdownTree } from "../export/markdown-transfer-model";
+import type { MarkdownTree } from "@/export/markdown-transfer-model";
 
 const sources = import.meta.glob<string>("./notes/**/*.md", {
   query: "?raw",

@@ -1,19 +1,19 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@remcostoeten/auth-drawer";
-import { currentSessionToken } from "../../auth/session-token";
+import { currentSessionToken } from "@/auth/session-token";
 import {
   type BrowserSyncProgress,
   latestBrowserSyncProgress,
   subscribeBrowserSyncProgress,
-} from "../../bridge/browser-sync";
+} from "@/bridge/browser-sync";
 import {
   connectWorkspaceSync,
   pauseWorkspaceSync,
   retryWorkspaceSync,
   type WorkspaceSyncStatus,
   workspaceSyncStatus,
-} from "../../bridge/commands";
-import { isBrowserRuntime } from "../../bridge/runtime";
+} from "@/bridge/commands";
+import { isBrowserRuntime } from "@/bridge/runtime";
 
 /** Cadence for a surface the user is actively watching, such as the settings row. */
 export const SYNC_POLL_ACTIVE_MS = 2_000;

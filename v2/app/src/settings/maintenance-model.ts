@@ -4,7 +4,7 @@ import type {
   BackupRotationReport,
   DatabaseSwapReport,
   RecoveryInventory,
-} from "../bridge/commands";
+} from "@/bridge/commands";
 
 export type MaintenanceKind = "export" | "import" | "backup" | "restore" | "relocate";
 

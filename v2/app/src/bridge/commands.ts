@@ -4,7 +4,7 @@ import type {
   SearchHit,
   WorkspaceOperationEnvelope,
   WorkspaceSnapshot,
-} from "../contracts/workspace";
+} from "@/contracts/workspace";
 
 export type HistoryVersionContent = {
   noteId: string;

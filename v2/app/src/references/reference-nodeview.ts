@@ -1,6 +1,6 @@
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import type { NodeView } from "prosemirror-view";
-import type { RendererState, RendererStore } from "../store/types";
+import type { RendererState, RendererStore } from "@/store/types";
 import {
   cancelHovercard,
   destroyHovercard,

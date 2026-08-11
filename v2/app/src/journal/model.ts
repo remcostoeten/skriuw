@@ -1,5 +1,5 @@
-import type { NoteProperty, NotePropertyOption } from "../contracts/workspace";
-import type { RendererState } from "../store/types";
+import type { NoteProperty, NotePropertyOption } from "@/contracts/workspace";
+import type { RendererState } from "@/store/types";
 import { isDateKey, type DateKey } from "./dates";
 
 import {

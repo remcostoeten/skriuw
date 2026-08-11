@@ -1,11 +1,11 @@
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
-import { updateSetting } from "../../actions/settings";
-import { CheckIcon } from "../../shared/icons";
-import { projectSettings } from "../../settings/settings-model";
-import type { EditableSettings, SettingsViewModel } from "../../settings/settings-model";
-import { cn } from "../../shared/lib/utils";
-import { useRendererSelector } from "../../store/use-renderer-selector";
-import type { RendererStore } from "../../store/types";
+import { updateSetting } from "@/actions/settings";
+import { CheckIcon } from "@/shared/icons";
+import { projectSettings } from "@/settings/settings-model";
+import type { EditableSettings, SettingsViewModel } from "@/settings/settings-model";
+import { cn } from "@/shared/lib/utils";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererStore } from "@/store/types";
 import { selectSettings } from "./selectors";
 
 export type SectionProps = {

@@ -1,5 +1,5 @@
-import { formatRelativeTime } from "../shared/lib/relative-time";
-import type { RendererStore } from "../store/types";
+import { formatRelativeTime } from "@/shared/lib/relative-time";
+import type { RendererStore } from "@/store/types";
 import { projectReferencingNotes } from "./reference-panel-model";
 import type { ReferenceKind } from "./types";
 

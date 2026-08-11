@@ -1,13 +1,13 @@
-import type { WorkspaceImage, WorkspaceOperation } from "../contracts/workspace";
+import type { WorkspaceImage, WorkspaceOperation } from "@/contracts/workspace";
 import {
   countWords,
   hasLosslessMarkdownDocument,
   parseProductMarkdown,
   productSchema,
   serializeProductMarkdown,
-} from "../editor/schema";
-import { noop } from "../shared/lib/noop";
-import type { RendererState } from "../store/types";
+} from "@/editor/schema";
+import { noop } from "@/shared/lib/noop";
+import type { RendererState } from "@/store/types";
 
 export type MarkdownExportEntry = {
   relativePath: string;

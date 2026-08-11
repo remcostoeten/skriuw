@@ -3,9 +3,9 @@ import { createRoot } from "react-dom/client";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { App } from "./app";
-import { currentSessionToken } from "./auth/session-token";
-import { bindStarterReclaim } from "./starter/reclaim";
-import { seedStarterWorkspace } from "./starter/seed";
+import { currentSessionToken } from "@/auth/session-token";
+import { bindStarterReclaim } from "@/starter/reclaim";
+import { seedStarterWorkspace } from "@/starter/seed";
 import {
   applyWorkspaceOperations,
   bootstrapWorkspace,
@@ -14,21 +14,21 @@ import {
   loadSidebarExpansion,
   savePaneLayout,
   saveSidebarExpansion,
-} from "./bridge/commands";
-import { isBrowserRuntime } from "./bridge/runtime";
-import type { HistoryHeader } from "./contracts/workspace";
-import { listenForHistoryHeaders } from "./history/live-history";
-import { bindWindowClosePersistence } from "./lifecycle/window-close";
-import { registerPendingWork } from "./lifecycle/pending-work";
-import { bindSettingsToRoot } from "./settings/apply-settings";
-import { opensNotesInTabs } from "./settings/settings-model";
-import { bindPaneLayoutPersistence } from "./store/pane-layout-persistence";
-import { parsePaneLayout, restorePanes } from "./store/panes";
-import { bindSidebarExpansionPersistence } from "./store/sidebar-expansion-persistence";
-import { createInitialState, createRendererStore } from "./store/store";
-import type { RendererStore } from "./store/types";
-import { initZoom } from "./zoom/zoom-controller";
-import { showToast } from "./shared/ui/toast";
+} from "@/bridge/commands";
+import { isBrowserRuntime } from "@/bridge/runtime";
+import type { HistoryHeader } from "@/contracts/workspace";
+import { listenForHistoryHeaders } from "@/history/live-history";
+import { bindWindowClosePersistence } from "@/lifecycle/window-close";
+import { registerPendingWork } from "@/lifecycle/pending-work";
+import { bindSettingsToRoot } from "@/settings/apply-settings";
+import { opensNotesInTabs } from "@/settings/settings-model";
+import { bindPaneLayoutPersistence } from "@/store/pane-layout-persistence";
+import { parsePaneLayout, restorePanes } from "@/store/panes";
+import { bindSidebarExpansionPersistence } from "@/store/sidebar-expansion-persistence";
+import { createInitialState, createRendererStore } from "@/store/store";
+import type { RendererStore } from "@/store/types";
+import { initZoom } from "@/zoom/zoom-controller";
+import { showToast } from "@/shared/ui/toast";
 import "./styles.css";
 
 const REVEAL_FRAME_TIMEOUT_MS = 100;

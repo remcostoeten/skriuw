@@ -1,13 +1,13 @@
-import type { MarkdownTree, MarkdownTreeFile } from "../../export/markdown-transfer-model";
-import { sanitizeFileName } from "../../export/markdown-transfer-model";
+import type { MarkdownTree, MarkdownTreeFile } from "@/export/markdown-transfer-model";
+import { sanitizeFileName } from "@/export/markdown-transfer-model";
 import type {
   ImportBundle,
   ImportSourceAdapter,
   ImportedNote,
   ImportedNoteProperty,
   ImportWarning,
-} from "../model";
-import { noteTitleFromContent, relativeLinkBetween } from "../model";
+} from "@/import/model";
+import { noteTitleFromContent, relativeLinkBetween } from "@/import/model";
 
 type KeepListItem = {
   text?: string;

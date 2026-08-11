@@ -16,7 +16,7 @@ import { createLowlight } from "lowlight";
 import type { Node as ProseMirrorNode } from "prosemirror-model";
 import { Plugin, PluginKey } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
-import { noop } from "../shared/lib/noop";
+import { noop } from "@/shared/lib/noop";
 
 export type CodeToken = {
   from: number;
