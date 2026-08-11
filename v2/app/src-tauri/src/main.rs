@@ -84,8 +84,8 @@ fn main() {
             // to slower in-process plugin loading; point the variable at the
             // binary that actually shipped.
             if let Some(appdir) = std::env::var_os("APPDIR") {
-                let scanner = std::path::Path::new(&appdir)
-                    .join("usr/lib/gstreamer-1.0/gst-plugin-scanner");
+                let scanner =
+                    std::path::Path::new(&appdir).join("usr/lib/gstreamer-1.0/gst-plugin-scanner");
                 if scanner.is_file() {
                     std::env::set_var("GST_PLUGIN_SCANNER", &scanner);
                     std::env::set_var("GST_PLUGIN_SCANNER_1_0", &scanner);

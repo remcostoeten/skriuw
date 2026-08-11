@@ -323,7 +323,6 @@ impl HttpSyncTransport {
         }
         Ok(Some(body))
     }
-
 }
 
 impl SyncTransport for HttpSyncTransport {
@@ -334,7 +333,9 @@ impl SyncTransport for HttpSyncTransport {
         cancellation: &SyncCancellation,
     ) -> Result<SyncPushResponse, TransportError> {
         self.send(
-            self.client.post(self.endpoints.push(workspace_id)).json(request),
+            self.client
+                .post(self.endpoints.push(workspace_id))
+                .json(request),
             cancellation,
         )
     }
@@ -347,8 +348,10 @@ impl SyncTransport for HttpSyncTransport {
         cancellation: &SyncCancellation,
     ) -> Result<SyncPullResponse, TransportError> {
         self.send(
-            self.client
-                .get(self.endpoints.pull(workspace_id, after_server_sequence, limit)),
+            self.client.get(
+                self.endpoints
+                    .pull(workspace_id, after_server_sequence, limit),
+            ),
             cancellation,
         )
     }
