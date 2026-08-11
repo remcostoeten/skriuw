@@ -15,14 +15,14 @@ The pane model stays capped at **two panes**. ADR-0021's live-editor invariant (
 | Sizing | Fixed 50/50 (`flex-1` on both) | `app/src/shell/editor-panes.tsx:259,266` |
 | Tab strip | Renders the primary pane's tabs only | `app/src/shell/editor-panes.tsx:143` |
 | Tab actions | `closeTab`, `closeOtherTabs`, `closeTabsToSide`, `closeAllTabs`, `togglePinTab`, `reorderTab`, `cycleTabId` all hardcode `primaryPane(panes)` | `app/src/store/panes.ts:139,184,199,219,226,243,268` |
-| Pane focus | `focusedPaneId` tracked, set on `focusin` per pane | `app/src/actions/panes.ts:255`, `app/src/shell/editor-panes.tsx:260,267` |
+| Pane focus | `focusedPaneId` tracked, set on `focusin` per pane | `app/src/store/actions/panes.ts:255`, `app/src/shell/editor-panes.tsx:260,267` |
 | Persistence | `panes` serialized at `PANE_LAYOUT_VERSION = 2`, coalesced background write | `app/src/store/pane-layout-persistence.ts` |
-| Entry points | `mod+backslash` open beside, sidebar context menu, `mod+shift+backslash` close split | `app/src/shortcuts/definitions.ts:369,377` |
+| Entry points | `mod+backslash` open beside, sidebar context menu, `mod+shift+backslash` close split | `app/src/commands/definitions.ts:369,377` |
 
 Two existing behaviours are wrong once both panes own tabs, and this spec treats them as bug fixes rather than new features:
 
-- `closeActiveTab` closes the whole split when a secondary pane exists, instead of closing the focused pane's active tab (`app/src/actions/panes.ts:44`).
-- `cycleTab` always cycles the primary pane's strip regardless of `focusedPaneId` (`app/src/actions/panes.ts:200`).
+- `closeActiveTab` closes the whole split when a secondary pane exists, instead of closing the focused pane's active tab (`app/src/store/actions/panes.ts:44`).
+- `cycleTab` always cycles the primary pane's strip regardless of `focusedPaneId` (`app/src/store/actions/panes.ts:200`).
 
 ## Model
 
@@ -86,7 +86,7 @@ When a split already exists, every one of these targets the non-focused pane ins
 
 Promotion matters: the store's `activeNoteId` and everything bound to it (metadata panel, note history, save path, title) always follow pane 1, so collapsing a split must rewrite pane identity rather than delete the wrong list.
 
-`closedTabsByPaneId` for a discarded pane is dropped, as it is today (`app/src/actions/panes.ts:225`).
+`closedTabsByPaneId` for a discarded pane is dropped, as it is today (`app/src/store/actions/panes.ts:225`).
 
 ### Focus
 
@@ -121,7 +121,7 @@ Keyboard users must never need the divider's DOM focus: `Grow focused pane` / `S
 
 ### Per-pane tab strips
 
-Each pane renders its own strip with its own: tab order, pinned set, active tab, closed-tab stack, context menu, and drag reordering. Concretely, every function in `store/panes.ts` that currently calls `primaryPane(panes)` takes a `paneId` instead — `closeTab`, `closeOtherTabs`, `closeTabsToSide`, `closeAllTabs`, `togglePinTab`, `reorderTab`, `cycleTabId`, `openNoteInTab`. Their `CloseTabResult.nextActiveNoteId` contract (which drives `activateNote`) applies **only when `paneId === PRIMARY_PANE_ID`**; secondary-pane activation goes through `activateTabInPane`, as it already does for tab-index keys (`app/src/actions/panes.ts:190`).
+Each pane renders its own strip with its own: tab order, pinned set, active tab, closed-tab stack, context menu, and drag reordering. Concretely, every function in `store/panes.ts` that currently calls `primaryPane(panes)` takes a `paneId` instead — `closeTab`, `closeOtherTabs`, `closeTabsToSide`, `closeAllTabs`, `togglePinTab`, `reorderTab`, `cycleTabId`, `openNoteInTab`. Their `CloseTabResult.nextActiveNoteId` contract (which drives `activateNote`) applies **only when `paneId === PRIMARY_PANE_ID`**; secondary-pane activation goes through `activateTabInPane`, as it already does for tab-index keys (`app/src/store/actions/panes.ts:190`).
 
 Strip visibility rule stays as it is: a strip renders when it carries information — more than one tab in that pane, or a split is open.
 
@@ -157,7 +157,7 @@ Unchanged from ADR-0021 and applied per pane: a purged note's tab disappears dur
 
 ## Keyboard
 
-Every action below is a rebindable definition in `app/src/shortcuts/definitions.ts` with a matching entry in the `ShortcutActions` map and, where it is a discoverable verb, a command-palette entry. No hardcoded listeners.
+Every action below is a rebindable definition in `app/src/commands/definitions.ts` with a matching entry in the `ShortcutActions` map and, where it is a discoverable verb, a command-palette entry. No hardcoded listeners.
 
 ### Existing bindings, unchanged keys
 
@@ -192,7 +192,7 @@ Conflict notes to carry into the definitions' `description` fields, following th
 
 ### Scopes
 
-`split` is already computed in `activeShortcutScopes` from `state.panes.length > 1` (`app/src/shortcuts/workspace-shortcuts.tsx:95`) — every new binding above except `toggleSplitOrientation` uses it, so with one pane these keys fall through untouched.
+`split` is already computed in `activeShortcutScopes` from `state.panes.length > 1` (`app/src/commands/workspace-shortcuts.tsx:95`) — every new binding above except `toggleSplitOrientation` uses it, so with one pane these keys fall through untouched.
 
 ### Keyboard-only completeness
 
