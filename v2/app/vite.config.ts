@@ -4,12 +4,18 @@ import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
 
 const v2Directory = fileURLToPath(new URL("..", import.meta.url));
+const sourceDirectory = fileURLToPath(new URL("./src", import.meta.url));
 const deploymentBase = process.env.SKRIUW_WEB_BASE?.trim() || "./";
 
 export default defineConfig({
   base: deploymentBase,
   plugins: [react(), tailwindcss()],
   clearScreen: false,
+  resolve: {
+    alias: {
+      "@": sourceDirectory,
+    },
+  },
   server: {
     port: 5183,
     strictPort: true,

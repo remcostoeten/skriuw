@@ -32,6 +32,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   showTreeGuides: false,
   showPageIcons: true,
   reduceMotion: false,
+  animatedIcons: true,
   rememberLastNote: true,
   editorFont: "inter",
   editorLineHeight: "comfortable",
@@ -47,6 +48,7 @@ export type SettingsViewModel = {
   compactSidebar: boolean;
   showTreeGuides: boolean;
   reduceMotion: boolean;
+  animatedIcons: boolean;
   rememberLastNote: boolean;
   editorFont: string;
   editorLineHeight: string;
@@ -76,6 +78,7 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     compactSidebar: settings.compactSidebar,
     showTreeGuides: settings.showTreeGuides === true,
     reduceMotion: settings.reduceMotion,
+    animatedIcons: usesAnimatedIcons(settings),
     rememberLastNote: settings.rememberLastNote,
     editorFont: supportedValue(
       settings.editorFont,
@@ -100,6 +103,16 @@ export function opensNotesInTabs(settings: WorkspaceSettings): boolean {
 
 export function showsToasts(settings: WorkspaceSettings): boolean {
   return settings.showToasts !== false;
+}
+
+/**
+ * Workspaces written before this setting existed have no `animatedIcons` key,
+ * and animation is the default, so only an explicit `false` turns it off. The
+ * toggle is the sole control: neither `reduceMotion` nor the OS
+ * `prefers-reduced-motion` query overrides an explicit opt-in.
+ */
+export function usesAnimatedIcons(settings: WorkspaceSettings): boolean {
+  return settings.animatedIcons !== false;
 }
 
 export function changeSetting<K extends keyof EditableSettings>(

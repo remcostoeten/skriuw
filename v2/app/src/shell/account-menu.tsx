@@ -15,6 +15,7 @@ import {
   RefreshIcon,
   SettingsIcon,
 } from "../shared/icons";
+import { AppIcon } from "../shared/icons/app-icon";
 import { cn } from "../shared/lib/utils";
 import {
   DropdownMenu,
@@ -198,7 +199,7 @@ export function AccountMenu({
           aria-expanded={settingsOpen}
           onClick={() => onOpenSettings("appearance")}
         >
-          <SettingsIcon size={18} />
+          <AppIcon name="settings" size={18} />
         </button>
       </Tooltip>
     );

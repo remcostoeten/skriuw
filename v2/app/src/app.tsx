@@ -74,32 +74,23 @@ import {
 } from "./commands/registry";
 import type { CommandUiState } from "./commands/registry";
 import { createWorkspaceCommands } from "./commands/workspace-commands";
-import {
-  CalendarDaysIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CircleIcon,
-  HistoryIcon,
-  FolderOpenIcon,
-  PanelLeftToggleIcon,
-  PanelRightToggleIcon,
-  SkriuwLogo,
-  Trash2Icon,
-  WaypointsIcon,
-} from "./shared/icons";
+import { SkriuwLogo } from "./shared/icons";
+import { AppIcon } from "./shared/icons/app-icon";
+import { AnimatedIconsProvider } from "./shared/icons/animated-icons-context";
+import type { AppIconName } from "./shared/icons/registry";
 import { ToastHost } from "./shared/ui/toast";
 import { Tooltip } from "./shared/ui/tooltip";
 import { useNoteNavigation } from "./shell/use-note-navigation";
-import { selectShowToasts } from "./shell/settings/selectors";
+import { selectAnimatedIcons, selectShowToasts } from "./shell/settings/selectors";
 import { useRendererSelector } from "./store/use-renderer-selector";
 import type { RendererState, RendererStore } from "./store/types";
 
-const RAIL_ICONS: Record<RailItem["actionId"], typeof FolderOpenIcon> = {
-  goToNotes: FolderOpenIcon,
-  goToJournal: CalendarDaysIcon,
-  goToTags: WaypointsIcon,
-  goToPeople: CircleIcon,
-  goToTrash: Trash2Icon,
+const RAIL_ICONS: Record<RailItem["actionId"], AppIconName> = {
+  goToNotes: "notes",
+  goToJournal: "journal",
+  goToTags: "tags",
+  goToPeople: "people",
+  goToTrash: "trash",
 };
 
 type RailNavIconProps = {
@@ -115,7 +106,6 @@ type RailNavIconProps = {
  * actually fires for this icon.
  */
 function RailNavIcon({ item, position, active }: RailNavIconProps) {
-  const Icon = RAIL_ICONS[item.actionId];
   return (
     <Tooltip
       label={item.label}
@@ -128,7 +118,7 @@ function RailNavIcon({ item, position, active }: RailNavIconProps) {
         aria-label={item.label}
         aria-current={active ? "page" : undefined}
       >
-        <Icon size={18} />
+        <AppIcon name={RAIL_ICONS[item.actionId]} size={18} />
       </a>
     </Tooltip>
   );
@@ -171,6 +161,7 @@ function WorkspaceShell({ store }: Props) {
   const settling = !panelResizing && tracksAnimated;
   const route = useAppRoute();
   const showToasts = useRendererSelector(store, selectShowToasts);
+  const animatedIcons = useRendererSelector(store, selectAnimatedIcons);
   const [onboardingOverride, setOnboardingOverride] = useState(readOnboardingOverride);
   const needsOnboarding =
     useRendererSelector(store, selectNeedsOnboarding) || onboardingOverride;
@@ -358,7 +349,7 @@ function WorkspaceShell({ store }: Props) {
     setMetadataOpen(true);
   }, []);
   return (
-    <>
+    <AnimatedIconsProvider enabled={animatedIcons}>
       <WindowControls />
       <div
         ref={tracksRef}
@@ -462,7 +453,7 @@ function WorkspaceShell({ store }: Props) {
           style={{ width: sidebarWidth }}
         >
           <div className="h-full" hidden={route !== "notes"}>
-            <Sidebar store={store} />
+            <Sidebar store={store} onOpenCommandPalette={() => setPaletteOpen(true)} />
           </div>
           <div className="h-full" hidden={route !== "journal"}>
             <JournalSidebar store={store} />
@@ -480,7 +471,7 @@ function WorkspaceShell({ store }: Props) {
                 aria-label="Toggle sidebar"
                 aria-expanded={sidebarOpen}
               >
-                <PanelLeftToggleIcon size={16} />
+                <AppIcon name="toggle-sidebar" size={16} />
               </button>
             </Tooltip>
             <Tooltip label="Previous note" side="bottom" shortcut={shortcutHints.previousNote}>
@@ -491,7 +482,7 @@ function WorkspaceShell({ store }: Props) {
                 className={toolbarIconButtonClass}
                 aria-label="Previous note"
               >
-                <ChevronLeftIcon size={16} />
+                <AppIcon name="previous-note" size={16} />
               </button>
             </Tooltip>
             <Tooltip label="Next note" side="bottom" shortcut={shortcutHints.nextNote}>
@@ -502,7 +493,7 @@ function WorkspaceShell({ store }: Props) {
                 className={toolbarIconButtonClass}
                 aria-label="Next note"
               >
-                <ChevronRightIcon size={16} />
+                <AppIcon name="next-note" size={16} />
               </button>
             </Tooltip>
             {noteNav.title && (
@@ -522,7 +513,7 @@ function WorkspaceShell({ store }: Props) {
                 className={`${toolbarIconButtonClass} ml-auto`}
                 aria-label="Version history"
               >
-                <HistoryIcon size={16} />
+                <AppIcon name="version-history" size={16} />
               </button>
             </Tooltip>
             <Tooltip label="Toggle metadata" side="bottom" shortcut={shortcutHints.toggleMetadata}>
@@ -538,7 +529,7 @@ function WorkspaceShell({ store }: Props) {
                 aria-label="Toggle metadata"
                 aria-expanded={metadataOpen}
               >
-                <PanelRightToggleIcon size={16} />
+                <AppIcon name="toggle-metadata" size={16} />
               </button>
             </Tooltip>
           </div>
@@ -622,7 +613,7 @@ function WorkspaceShell({ store }: Props) {
           onWarmSignIn={warmSignInDrawer}
         />
       ) : null}
-    </>
+    </AnimatedIconsProvider>
   );
 }
 

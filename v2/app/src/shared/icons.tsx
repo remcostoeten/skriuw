@@ -128,6 +128,14 @@ export function Undo2Icon(props: IconProps) {
   );
 }
 
+export function CommandIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
+    </LucideIcon>
+  );
+}
+
 export function KeyboardIcon(props: IconProps) {
   return (
     <LucideIcon {...props}>
@@ -505,6 +513,66 @@ export function ArrowDownIcon(props: IconProps) {
     <LucideIcon {...props}>
       <path d="M12 5v14" />
       <path d="m19 12-7 7-7-7" />
+    </LucideIcon>
+  );
+}
+
+export function ArrowLeftIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="m12 19-7-7 7-7" />
+      <path d="M19 12H5" />
+    </LucideIcon>
+  );
+}
+
+export function ArrowRightIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </LucideIcon>
+  );
+}
+
+export function PanelLeftIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+      <path d="M5 8h2" />
+      <path d="M5 12h2" />
+    </LucideIcon>
+  );
+}
+
+export function PanelRightIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M15 3v18" />
+      <path d="M17 8h2" />
+      <path d="M17 12h2" />
+    </LucideIcon>
+  );
+}
+
+export function SplitViewIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M12 3v18" />
+    </LucideIcon>
+  );
+}
+
+export function SplitViewCloseIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M12 3v18" />
+      <path d="m15.5 9.5 3 3" />
+      <path d="m18.5 9.5-3 3" />
     </LucideIcon>
   );
 }
@@ -1027,6 +1095,27 @@ export function ClockIcon(props: IconProps) {
     <LucideIcon {...props}>
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
+    </LucideIcon>
+  );
+}
+
+export function TagsIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193" />
+      <path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z" />
+      <circle cx="10.5" cy="6.5" r=".5" fill="currentColor" />
+    </LucideIcon>
+  );
+}
+
+export function UsersIcon(props: IconProps) {
+  return (
+    <LucideIcon {...props}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <path d="M16 3.128a4 4 0 0 1 0 7.744" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <circle cx="9" cy="7" r="4" />
     </LucideIcon>
   );
 }

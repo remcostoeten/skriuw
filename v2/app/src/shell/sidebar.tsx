@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   activateNote,
   createFolder,
@@ -17,6 +18,7 @@ import { requestTemplatePicker } from "../templates/template-picker-controller";
 import { useRendererSelector } from "../store/use-renderer-selector";
 import {
   CloseIcon,
+  CommandIcon,
   DownloadIcon,
   FilePlusIcon,
   FileTextIcon,
@@ -81,6 +83,7 @@ import { SidebarSearchResults } from "./sidebar-search-results";
 
 type Props = {
   store: RendererStore;
+  onOpenCommandPalette: () => void;
 };
 
 type ContextTarget = { kind: "root" } | { kind: "item"; id: string };
@@ -197,14 +200,19 @@ function moveWithinSiblings(store: RendererStore, id: string, direction: -1 | 1)
   });
 }
 
-const HEADER_SHORTCUT_IDS = ["createNote", "createFolder"] as const;
+const HEADER_SHORTCUT_IDS = ["createNote", "createFolder", "toggleCommandPalette"] as const;
 
-export function Sidebar({ store }: Props) {
+const SWAP_TRANSITION = { duration: 0.18, ease: [0.22, 1, 0.36, 1] } as const;
+const REDUCED_SWAP_TRANSITION = { duration: 0.1, ease: "linear" } as const;
+
+export function Sidebar({ store, onOpenCommandPalette }: Props) {
   const visibleIds = useRendererSelector(store, selectVisibleIds);
   const pinnedIds = useRendererSelector(store, selectPinnedIds, sameIdList);
   const compactSidebar = useRendererSelector(store, selectCompactSidebar);
   const showTreeGuides = useRendererSelector(store, selectShowTreeGuides);
   const shortcutHints = useShortcutHints(store, HEADER_SHORTCUT_IDS);
+  const reduceMotion = useReducedMotion();
+  const searchSwapTransition = reduceMotion ? REDUCED_SWAP_TRANSITION : SWAP_TRANSITION;
   // A single shared context menu serves every row. Rows carry `data-row-key`;
   // right-clicking the list resolves the row under the cursor and points the
   // one menu at it, instead of mounting a Radix ContextMenu per row.
@@ -1125,7 +1133,7 @@ export function Sidebar({ store }: Props) {
         <ContextMenuSeparator />
         <ContextMenuItem
           onClick={() => trashSelectedNodes(id)}
-          className="gap-2 text-[#ff808a] focus:bg-[#ff808a4d]"
+          className="gap-2 text-destructive focus:text-destructive"
         >
           <Trash2Icon className="w-4 h-4" />
           {isBulkSelection ? "Delete selected" : "Delete"}
@@ -1144,8 +1152,14 @@ export function Sidebar({ store }: Props) {
         <div
           className={`relative flex h-11 items-center justify-between overflow-hidden ${metrics.isNarrow ? "px-1.5" : "px-3"}`}
         >
-          <div
-            className="flex w-full min-w-0 items-center justify-between"
+          <motion.div
+            animate={
+              isSearchOpen ? { y: -8, opacity: 0, scale: 0.985 } : { y: 0, opacity: 1, scale: 1 }
+            }
+            transition={searchSwapTransition}
+            inert={isSearchOpen}
+            aria-hidden={isSearchOpen}
+            className={`flex w-full min-w-0 items-center justify-between will-change-transform${isSearchOpen ? " pointer-events-none" : ""}`}
           >
             <Tooltip label="New note" side="bottom" shortcut={shortcutHints.createNote}>
               <button
@@ -1188,41 +1202,58 @@ export function Sidebar({ store }: Props) {
                 <SearchIcon size={16} />
               </button>
             </Tooltip>
-          </div>
-          {isSearchOpen && (
-            <div
-              ref={searchOverlayRef}
-              className="absolute inset-x-0 top-0 flex h-11 items-center bg-sidebar px-3"
-              onBlur={onSearchAreaBlur}
+            <Tooltip
+              label="Command menu"
+              side="bottom"
+              shortcut={shortcutHints.toggleCommandPalette}
             >
-              <div className="flex h-8 w-full items-center gap-2 bg-transparent px-2.5">
-                <SearchIcon
-                  size={14}
-                  className="shrink-0 text-muted-foreground"
-                />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                  onKeyDown={onSearchInputKeyDown}
-                  placeholder="Search"
-                  aria-label="Search notes"
-                  inputMode="search"
-                  enterKeyHint="search"
-                  className="h-full w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60 focus-visible:shadow-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => closeSearch(true)}
-                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground"
-                  aria-label="Close search"
-                >
-                  <CloseIcon size={14} />
-                </button>
-              </div>
-            </div>
-          )}
+              <button
+                type="button"
+                className={headerActionClass}
+                aria-label="Command menu"
+                onClick={onOpenCommandPalette}
+              >
+                <CommandIcon size={16} />
+              </button>
+            </Tooltip>
+          </motion.div>
+          <AnimatePresence>
+            {isSearchOpen && (
+              <motion.div
+                ref={searchOverlayRef}
+                initial={{ y: 8, opacity: 0, scale: 0.985 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: 8, opacity: 0, scale: 0.985 }}
+                transition={searchSwapTransition}
+                className="absolute inset-x-0 top-0 flex h-11 items-center px-3 will-change-transform"
+                onBlur={onSearchAreaBlur}
+              >
+                <div className="flex h-8 w-full items-center gap-2 bg-transparent px-2.5">
+                  <SearchIcon size={14} className="shrink-0 text-muted-foreground" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.currentTarget.value)}
+                    onKeyDown={onSearchInputKeyDown}
+                    placeholder="Search"
+                    aria-label="Search notes"
+                    inputMode="search"
+                    enterKeyHint="search"
+                    className="h-full w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground/60 focus-visible:shadow-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => closeSearch(true)}
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:shadow-none focus-visible:outline-none focus-visible:bg-foreground/[0.22] focus-visible:text-foreground"
+                    aria-label="Close search"
+                  >
+                    <CloseIcon size={14} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
       {trimmedQuery ? (

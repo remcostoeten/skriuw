@@ -9,6 +9,7 @@ import {
   resetShortcutOverride,
   resetShortcutOverrides,
   showsToasts,
+  usesAnimatedIcons,
 } from "../../src/settings/settings-model";
 
 function extendedSettings(): WorkspaceSettings {
@@ -29,6 +30,7 @@ test("default settings project every editable field", () => {
     compactSidebar: false,
     showTreeGuides: false,
     reduceMotion: false,
+    animatedIcons: true,
     rememberLastNote: true,
     editorFont: "inter",
     editorLineHeight: "comfortable",
@@ -37,6 +39,23 @@ test("default settings project every editable field", () => {
     openNotesInTabs: false,
     showToasts: true,
   });
+});
+
+test("animated icons stay enabled unless the setting is explicitly false", () => {
+  assert.equal(usesAnimatedIcons(DEFAULT_WORKSPACE_SETTINGS), true);
+  assert.equal(
+    usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, animatedIcons: false }),
+    false,
+  );
+  const { animatedIcons: _absent, ...withoutField } = DEFAULT_WORKSPACE_SETTINGS;
+  assert.equal(usesAnimatedIcons(withoutField as WorkspaceSettings), true);
+});
+
+test("reduce motion does not override an explicit animated-icons opt-in", () => {
+  assert.equal(
+    usesAnimatedIcons({ ...DEFAULT_WORKSPACE_SETTINGS, reduceMotion: true }),
+    true,
+  );
 });
 
 test("toasts stay enabled unless the setting is explicitly false", () => {

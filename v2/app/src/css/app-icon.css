@@ -1,0 +1,22 @@
+.app-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.app-icon > * {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/*
+ * animated-ui ships each icon with a hardcoded `stroke-width="2"` presentation
+ * attribute. A CSS declaration outranks it, which is the only seam available
+ * without forking the generated sources, and keeps animated icons on the same
+ * on-screen stroke weight as `iconStrokeWidth()` gives the static set.
+ */
+.app-icon svg {
+  stroke-width: var(--app-icon-stroke);
+}

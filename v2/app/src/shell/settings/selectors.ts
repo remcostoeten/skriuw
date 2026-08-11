@@ -1,4 +1,4 @@
-import { showsToasts } from "../../settings/settings-model";
+import { showsToasts, usesAnimatedIcons } from "../../settings/settings-model";
 import { shortcutOverridesFromSettings } from "../../shortcuts/bindings";
 import type { ShortcutOverrides } from "../../shortcuts/bindings";
 import type { RendererState } from "../../store/types";
@@ -21,6 +21,10 @@ export function selectSettings(state: RendererState) {
 
 export function selectShowToasts(state: RendererState): boolean {
   return showsToasts(state.settings);
+}
+
+export function selectAnimatedIcons(state: RendererState): boolean {
+  return usesAnimatedIcons(state.settings);
 }
 
 export function selectTheme(state: RendererState): string {

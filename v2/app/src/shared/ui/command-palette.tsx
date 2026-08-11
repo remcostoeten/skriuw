@@ -196,10 +196,10 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
                     data-index={index}
                     role="option"
                     aria-selected={isActive}
-                    className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md border-none bg-transparent px-2.5 py-2 text-left text-[13px] transition-colors ${
+                    className={`relative flex w-full cursor-pointer items-center gap-2.5 rounded-md border-none bg-transparent px-2.5 py-2 text-left text-[13px] transition-colors before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[2px] before:-translate-y-1/2 before:rounded-full before:bg-foreground/70 before:transition-opacity ${
                       isActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                        ? "bg-foreground/[0.14] text-foreground before:opacity-100"
+                        : "text-sidebar-foreground before:opacity-0 hover:bg-sidebar-accent/50"
                     }`}
                     onMouseMove={() => setActiveIndex(index)}
                     onClick={() => runItem(item)}
@@ -213,7 +213,11 @@ function PaletteDialog({ items, onQueryChange, onClose, ...aria }: DialogProps) 
                     </span>
                     <span className="max-w-[60%] flex-none truncate">{item.label}</span>
                     {(item.hint ?? item.description) && (
-                      <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+                      <span
+                        className={`min-w-0 truncate text-[11px] ${
+                          isActive ? "text-foreground/70" : "text-muted-foreground"
+                        }`}
+                      >
                         {item.hint ?? item.description}
                       </span>
                     )}
