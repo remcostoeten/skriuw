@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveAuthConfiguration } from "./config";
+import { resolveAuthConfiguration } from "../../src/auth/config";
 
 test("uses environment-appropriate defaults", () => {
   assert.deepEqual(resolveAuthConfiguration(undefined, true), {
