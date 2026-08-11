@@ -14,19 +14,19 @@ import {
   moveSettingsSection,
   rovingSettingsSection,
   settingsSearchEscape,
-} from "@/settings/settings-navigation";
+} from "./settings-navigation";
 import type { RendererStore } from "@/store/types";
-import { AboutSection } from "@/shell/settings/about-section";
-import { AppearanceSection } from "@/shell/settings/appearance-section";
-import { DataSection } from "@/shell/settings/data-section";
-import { EditorSection } from "@/shell/settings/editor-section";
-import { MediaSection } from "@/shell/settings/media-section";
-import { SECTIONS } from "@/shell/settings/sections";
-import type { SectionId } from "@/shell/settings/sections";
-import { ShortcutsSection } from "@/shell/settings/shortcuts-section";
+import { AboutSection } from "@/settings/sections/about-section";
+import { AppearanceSection } from "@/settings/sections/appearance-section";
+import { DataSection } from "@/settings/sections/data-section";
+import { EditorSection } from "@/settings/sections/editor-section";
+import { MediaSection } from "@/settings/sections/media-section";
+import { SECTIONS } from "@/settings/sections/sections";
+import type { SectionId } from "@/settings/sections/sections";
+import { ShortcutsSection } from "@/settings/sections/shortcuts-section";
 
 const AccountSection = lazy(async () => {
-  const module = await import("@/shell/settings/account-section");
+  const module = await import("@/settings/sections/account-section");
   return { default: module.AccountSection };
 });
 

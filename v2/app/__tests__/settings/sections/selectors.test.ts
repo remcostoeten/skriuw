@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { selectShortcutOverrides, sameOverrides, selectSettings } from "../../../src/shell/settings/selectors";
+import { selectShortcutOverrides, sameOverrides, selectSettings } from "../../../src/settings/sections/selectors";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../../../src/settings/settings-model";
 import type { RendererState } from "../../../src/store/types";
 

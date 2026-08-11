@@ -5,7 +5,7 @@ import {
   blockedItemLabel,
   blockedItemRetryable,
   blockedStateText,
-} from "../../../src/shell/settings/sync-recovery";
+} from "../../../src/settings/sections/sync-recovery";
 
 test("labels a blocked change with its action and note title", () => {
   assert.equal(

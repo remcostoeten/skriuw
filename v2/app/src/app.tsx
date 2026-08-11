@@ -15,12 +15,12 @@ import {
   railIconButtonClass,
   railInactiveClass,
 } from "@/shell/rail-styles";
-import type { SectionId } from "@/shell/settings/sections";
+import type { SectionId } from "@/settings/sections/sections";
 import { Sidebar } from "@/shell/sidebar";
 import { CommandPaletteHost } from "@/shell/command-palette-host";
 import { EditorPanes } from "@/shell/editor-panes";
 import { MetadataPanel } from "@/shell/metadata-panel";
-import { SettingsDialog } from "@/shell/settings-dialog";
+import { SettingsDialog } from "@/settings/settings-dialog";
 
 function loadSignInDrawer() {
   return import("@/auth/sign-in-drawer");
@@ -81,7 +81,7 @@ import type { AppIconName } from "@/shared/icons/registry";
 import { ToastHost } from "@/shared/ui/toast";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { useNoteNavigation } from "@/shell/use-note-navigation";
-import { selectAnimatedIcons, selectShowToasts } from "@/shell/settings/selectors";
+import { selectAnimatedIcons, selectShowToasts } from "@/settings/sections/selectors";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";
 

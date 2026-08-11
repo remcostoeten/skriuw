@@ -33,7 +33,7 @@ import {
 } from "@/shared/icons";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { effectiveShortcutKeys, shortcutDefinition } from "@/shortcuts/bindings";
-import { sameOverrides, selectShortcutOverrides } from "@/shell/settings/selectors";
+import { sameOverrides, selectShortcutOverrides } from "@/settings/sections/selectors";
 import { Button } from "@/shared/ui/button";
 import { Dialog } from "@/shared/ui/dialog";
 import { InlineEdit } from "@/shared/ui/inline-edit";

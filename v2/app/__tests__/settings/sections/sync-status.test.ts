@@ -8,7 +8,7 @@ import {
   syncProgressVisible,
   syncSummary,
   syncTone,
-} from "../../../src/shell/settings/sync-status";
+} from "../../../src/settings/sections/sync-status";
 
 const EVERY_STATE: WorkspaceSyncStatus[] = [
   { state: "localOnly" },

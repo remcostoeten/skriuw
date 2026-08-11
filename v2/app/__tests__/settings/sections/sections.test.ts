@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SECTIONS } from "../../../src/shell/settings/sections";
+import { SECTIONS } from "../../../src/settings/sections/sections";
 
 test("SECTIONS contains all expected settings section definitions", () => {
   const ids = SECTIONS.map((section) => section.id);
