@@ -42,38 +42,31 @@ export function HistoryView({ store }: Props) {
       className="col-[2/-1] grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-theme-editor"
       aria-labelledby="history-title"
     >
-      <header className="flex min-h-[76px] items-start justify-between gap-6 border-b border-theme-divider py-3.5 pl-[22px] pr-[calc(var(--window-controls-width,112px)+8px)]">
-        <div className="flex min-w-0 items-start gap-3">
-          <button
-            type="button"
-            onClick={backToNote}
-            className="mt-0.5 flex cursor-pointer items-center gap-1 rounded-[var(--radius)] border border-border bg-transparent px-2 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <ChevronLeftIcon size={14} />
-            Back to note
-          </button>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <HistoryIcon size={15} className="shrink-0 text-theme-secondary" />
-              <h1
-                id="history-title"
-                className="truncate text-base font-[650] tracking-[-0.015em] text-foreground"
-              >
-                {title ?? "Version history"}
-              </h1>
-              {versions.length > 0 && (
-                <span className="min-w-[19px] rounded-lg border border-border px-1.5 py-0.5 text-center font-mono text-[10px] leading-[1.3] text-theme-secondary">
-                  {versions.length}
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-xs leading-[1.45] text-theme-secondary">
-              {latest
-                ? `Latest revision ${formatRelativeTime(latest.createdAt)}.`
-                : "No revisions captured for this note yet."}
-            </p>
-          </div>
-        </div>
+      <header className="flex h-[52px] items-center gap-2.5 border-b border-theme-divider pl-3 pr-[calc(var(--window-controls-width,112px)+8px)]">
+        <button
+          type="button"
+          onClick={backToNote}
+          className="flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-[var(--radius)] border-none bg-transparent pl-1 pr-2 text-[12px] font-[560] text-theme-secondary transition-colors hover:bg-theme-hover hover:text-foreground"
+        >
+          <ChevronLeftIcon size={15} />
+          Back to note
+        </button>
+        <span aria-hidden className="h-4 w-px shrink-0 bg-theme-divider" />
+        <HistoryIcon size={14} className="shrink-0 text-theme-secondary" />
+        <h1
+          id="history-title"
+          className="min-w-0 truncate text-[13px] font-[650] tracking-[-0.01em] text-foreground"
+        >
+          {title ?? "Version history"}
+        </h1>
+        {versions.length > 0 && (
+          <span className="shrink-0 rounded-full bg-theme-hover px-1.5 py-px font-mono text-[10px] leading-[1.5] tabular-nums text-theme-secondary">
+            {versions.length}
+          </span>
+        )}
+        <p className="ml-auto hidden shrink-0 pl-4 text-[11px] text-theme-secondary sm:block">
+          {latest ? `Latest revision ${formatRelativeTime(latest.createdAt)}` : "No revisions yet"}
+        </p>
       </header>
 
       {noteId !== null && versions.length > 0 ? (
@@ -86,10 +79,16 @@ export function HistoryView({ store }: Props) {
         />
       ) : (
         <div className="grid place-items-center px-6">
-          <p className="m-0 max-w-[46ch] text-center text-[13px] text-muted-foreground">
-            Revisions appear here as you edit. Keep writing and Skriuw will snapshot the note as it
-            changes.
-          </p>
+          <div className="flex max-w-[42ch] flex-col items-center text-center">
+            <span className="mb-3 grid size-10 place-items-center rounded-full bg-theme-hover text-theme-secondary">
+              <HistoryIcon size={18} />
+            </span>
+            <p className="m-0 text-[13px] font-[600] text-foreground">No revisions yet</p>
+            <p className="mt-1 text-[12px] leading-[1.5] text-muted-foreground">
+              Keep writing and Skriuw snapshots this note as it changes. Revisions show up here the
+              moment one is captured.
+            </p>
+          </div>
         </div>
       )}
     </main>

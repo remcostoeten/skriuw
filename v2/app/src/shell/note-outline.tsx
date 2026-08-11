@@ -188,8 +188,8 @@ function mountOutlineController(
   nav.innerHTML = `
     <svg class="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
       <path class="fill-none stroke-border" stroke-width="${GEOMETRY.lineWidth}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
-      <path class="fill-none stroke-primary" stroke-width="${GEOMETRY.lineWidth}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" style="filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.35))"></path>
-      <circle r="2.2" class="fill-primary" style="filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.5))"></circle>
+      <path class="fill-none" stroke-width="${GEOMETRY.lineWidth}" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" style="stroke: hsl(var(--foreground) / 0.72)"></path>
+      <circle r="2.2" style="fill: hsl(var(--foreground) / 0.85)"></circle>
     </svg>
     <ol class="relative z-[1] m-0 grid list-none gap-0.5 p-0"></ol>
     <p class="relative z-[1] m-0 hidden px-2 py-1 text-[13px] text-muted-foreground" data-empty-state>No headings in this note yet.</p>
@@ -212,6 +212,7 @@ function mountOutlineController(
   let frame = 0;
   let dirty = true;
   let disposed = false;
+  let lastCurrent = -1;
 
   const itemObserver = new ResizeObserver(() => {
     dirty = true;
@@ -249,7 +250,7 @@ function mountOutlineController(
       link.href = `#${item.id}`;
       link.textContent = item.label;
       link.className =
-        "relative flex min-h-[30px] items-center truncate rounded-md pr-2 text-[13px] text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted/50 hover:text-foreground data-[active=true]:text-foreground data-[current=true]:font-medium data-[current=true]:text-primary";
+        "relative flex min-h-[30px] items-center truncate rounded-md pr-2 text-[13px] text-muted-foreground/70 no-underline transition-colors duration-150 hover:bg-muted/50 hover:text-foreground data-[active=true]:text-muted-foreground data-[current=true]:font-medium data-[current=true]:text-foreground";
       link.style.paddingLeft = `${22 + item.depth * GEOMETRY.indent}px`;
       link.addEventListener("click", (event) => {
         event.preventDefault();
@@ -325,9 +326,33 @@ function mountOutlineController(
 
     links.forEach((link, index) => {
       const active = index === state.index;
-      link.dataset.active = String(active || index < state.index);
+      link.dataset.active = String(index < state.index);
       link.dataset.current = String(active);
     });
+
+    if (state.index !== lastCurrent) {
+      lastCurrent = state.index;
+      revealCurrent(links[state.index]);
+    }
+  }
+
+  function revealCurrent(link: HTMLElement | undefined): void {
+    const viewport = nav.closest<HTMLElement>("[data-outline-scroll]");
+    if (!link || !viewport || viewport.scrollHeight <= viewport.clientHeight) {
+      return;
+    }
+
+    const linkRect = link.getBoundingClientRect();
+    const viewportRect = viewport.getBoundingClientRect();
+    const margin = GEOMETRY.rowHeight;
+
+    if (linkRect.top < viewportRect.top + margin) {
+      viewport.scrollTop -= viewportRect.top + margin - linkRect.top;
+      return;
+    }
+    if (linkRect.bottom > viewportRect.bottom - margin) {
+      viewport.scrollTop += linkRect.bottom - (viewportRect.bottom - margin);
+    }
   }
 
   function draw(): void {

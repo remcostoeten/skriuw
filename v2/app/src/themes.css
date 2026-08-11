@@ -83,6 +83,7 @@
 	--color-status-blocked: hsl(var(--status-blocked));
 	--color-status-completed: hsl(var(--status-completed));
 	--color-favorite: hsl(var(--favorite));
+	--color-reference-tag: hsl(var(--reference-tag));
 
 	--color-project-gray: hsl(var(--project-gray));
 	--color-project-red: hsl(var(--project-red));
@@ -177,6 +178,7 @@
 		--editor-link-hover: 205 100% 82%;
 		--editor-note-link: 154 72% 66%;
 		--editor-note-link-hover: 154 82% 76%;
+		--reference-tag: 268 70% 74%;
 		--editor-selection: var(--foreground);
 		--editor-shadow: 0 0% 0%;
 		--avatar-ink: 0 0% 7%;
@@ -258,6 +260,7 @@
 		--editor-link-hover: 213 82% 36%;
 		--editor-note-link: 154 58% 34%;
 		--editor-note-link-hover: 154 68% 28%;
+		--reference-tag: 268 46% 44%;
 		--editor-selection: var(--foreground);
 		--editor-shadow: 30 10% 14%;
 		--avatar-ink: 30 10% 14%;
@@ -340,6 +343,7 @@
 		--editor-link-hover: 205 92% 80%;
 		--editor-note-link: 154 64% 60%;
 		--editor-note-link-hover: 154 74% 70%;
+		--reference-tag: 275 52% 74%;
 		--editor-selection: var(--foreground);
 		--editor-shadow: 0 0% 0%;
 		--avatar-ink: 20 15% 8%;
@@ -422,6 +426,7 @@
 		--editor-link-hover: 199 76% 69%;
 		--editor-note-link: 115 54% 76%;
 		--editor-note-link-hover: 170 57% 73%;
+		--reference-tag: 267 84% 81%;
 		--editor-selection: var(--foreground);
 		--editor-shadow: 0 0% 0%;
 		--avatar-ink: 240 23% 9%;
@@ -504,6 +509,7 @@
 		--editor-link-hover: 189 30% 62%;
 		--editor-note-link: 128 26% 60%;
 		--editor-note-link-hover: 189 30% 62%;
+		--reference-tag: 267 57% 78%;
 		--editor-selection: var(--foreground);
 		--editor-shadow: 0 0% 0%;
 		--avatar-ink: 249 22% 10%;
@@ -586,6 +592,7 @@
 		--editor-link-hover: 197 50% 40%;
 		--editor-note-link: 155 20% 55%;
 		--editor-note-link-hover: 155 20% 50%;
+		--reference-tag: 268 34% 50%;
 		--editor-selection: var(--foreground);
 		--editor-shadow: 0 0% 0%;
 		--avatar-ink: 40 25% 93%;
@@ -668,6 +675,7 @@
 		--editor-link-hover: 220 80% 45%;
 		--editor-note-link: 109 58% 40%;
 		--editor-note-link-hover: 109 50% 35%;
+		--reference-tag: 266 78% 55%;
 		--editor-selection: var(--foreground);
 		--editor-shadow: 0 0% 0%;
 		--avatar-ink: 220 21% 88%;
@@ -750,6 +758,7 @@
 		--editor-link-hover: 175 42% 55%;
 		--editor-note-link: 87 40% 50%;
 		--editor-note-link-hover: 61 44% 56%;
+		--reference-tag: 344 46% 68%;
 		--editor-selection: var(--foreground);
 		--editor-shadow: 0 0% 0%;
 		--avatar-ink: 0 0% 14%;
@@ -832,6 +841,7 @@
 		--editor-link-hover: 189 60% 71%;
 		--editor-note-link: 156 45% 62%;
 		--editor-note-link-hover: 189 60% 66%;
+		--reference-tag: 261 62% 76%;
 		--editor-selection: var(--foreground);
 		--editor-shadow: 0 0% 0%;
 		--avatar-ink: 235 24% 14%;

@@ -94,7 +94,7 @@
 }
 
 .reference-token-tag {
-  color: hsl(var(--primary));
+  color: hsl(var(--reference-tag));
 }
 
 .reference-token[data-ref-colored="true"] {

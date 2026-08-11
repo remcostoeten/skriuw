@@ -223,7 +223,7 @@ function ReferenceDetailRow({ store, entry }: DetailRowProps) {
             className="flex min-w-0 flex-1 cursor-pointer items-baseline justify-between gap-3 py-1 text-left text-[13px]"
             onClick={() => setOpen((value) => !value)}
           >
-            <span className={cn("truncate", entry.kind === "tag" && "text-primary")}>
+            <span className={cn("truncate", entry.kind === "tag" && "text-reference-tag")}>
               {`${sigil}${entry.name}`}
             </span>
             <span className="shrink-0 tabular-nums text-muted-foreground/60">{entry.noteCount}</span>

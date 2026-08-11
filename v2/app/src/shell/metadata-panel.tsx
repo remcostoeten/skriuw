@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRendererSelector } from "../store/use-renderer-selector";
-import { ChevronRightIcon, HistoryIcon, InfoIcon, ListIcon } from "../shared/icons";
+import { ChevronRightIcon } from "../shared/icons";
 import { cn } from "../shared/lib/utils";
 import { projectVersionList, type VersionListItem } from "../history/version-model";
 import { noteHistoryHash } from "../app-route";
@@ -34,7 +34,6 @@ type SectionKey =
 type SectionProps = {
   id: string;
   title: string;
-  icon: ReactNode;
   count?: number;
   open: boolean;
   onToggle: () => void;
@@ -51,7 +50,6 @@ const sectionLabelClass =
 function InspectorSection({
   id,
   title,
-  icon,
   count,
   open,
   onToggle,
@@ -60,7 +58,6 @@ function InspectorSection({
 }: SectionProps) {
   const label = (
     <div className={sectionLabelClass}>
-      {icon}
       <span className="truncate">{title}</span>
       {count !== undefined && (
         <span className="font-normal tabular-nums text-muted-foreground/44">({count})</span>
@@ -263,19 +260,26 @@ export function MetadataPanel({ store }: Props) {
           <InspectorSection
             id="metadata-outline"
             title="Outline"
-            icon={<ListIcon size={14} className="shrink-0" />}
             count={outlineCount}
             open={openSections.outline}
             onToggle={() => toggleSection("outline")}
           >
-            <NoteOutline key={activeNoteId} store={store} onCountChange={handleOutlineCountChange} />
+            <div
+              data-outline-scroll
+              className="max-h-[38vh] overflow-y-auto overscroll-contain"
+            >
+              <NoteOutline
+                key={activeNoteId}
+                store={store}
+                onCountChange={handleOutlineCountChange}
+              />
+            </div>
           </InspectorSection>
         )}
         {activeNoteId && (
           <InspectorSection
             id="metadata-revisions"
             title="Revisions"
-            icon={<HistoryIcon size={14} className="shrink-0" />}
             count={versions.length}
             open={openSections.revisions}
             onToggle={() => toggleSection("revisions")}
@@ -293,7 +297,6 @@ export function MetadataPanel({ store }: Props) {
           <InspectorSection
             id="metadata-backlinks"
             title="Linked mentions"
-            icon={<InfoIcon size={14} className="shrink-0" />}
             count={backlinks.length}
             open={openSections.backlinks}
             onToggle={() => toggleSection("backlinks")}
@@ -305,7 +308,6 @@ export function MetadataPanel({ store }: Props) {
           <InspectorSection
             id="metadata-outgoing"
             title="Links to"
-            icon={<InfoIcon size={14} className="shrink-0" />}
             count={outgoingNotes.length}
             open={openSections.outgoing}
             onToggle={() => toggleSection("outgoing")}
@@ -317,7 +319,6 @@ export function MetadataPanel({ store }: Props) {
           <InspectorSection
             id="metadata-references"
             title="Tags & people"
-            icon={<InfoIcon size={14} className="shrink-0" />}
             count={referenceDetails.length}
             open={openSections.references}
             onToggle={() => toggleSection("references")}
@@ -329,7 +330,6 @@ export function MetadataPanel({ store }: Props) {
           <InspectorSection
             id="metadata-mentions"
             title="Unlinked mentions"
-            icon={<InfoIcon size={14} className="shrink-0" />}
             count={unlinkedMentions.length}
             open={openSections.mentions}
             onToggle={() => toggleSection("mentions")}
@@ -343,7 +343,6 @@ export function MetadataPanel({ store }: Props) {
         <InspectorSection
           id="metadata-details"
           title="Details"
-          icon={<InfoIcon size={14} className="shrink-0" />}
           count={detailRows.length}
           open={openSections.details}
           onToggle={() => toggleSection("details")}

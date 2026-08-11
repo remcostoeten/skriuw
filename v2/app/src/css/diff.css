@@ -1,0 +1,121 @@
+:root {
+  --diff-added: hsl(var(--success));
+  --diff-added-surface: color-mix(in oklab, hsl(var(--success)) 9%, transparent);
+  --diff-added-emphasis: color-mix(in oklab, hsl(var(--success)) 22%, transparent);
+  --diff-removed: hsl(var(--destructive));
+  --diff-removed-surface: color-mix(in oklab, hsl(var(--destructive)) 9%, transparent);
+  --diff-removed-emphasis: color-mix(in oklab, hsl(var(--destructive)) 22%, transparent);
+  --diff-gutter: 2.25rem;
+}
+
+.diff-view {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  tab-size: 2;
+}
+
+.diff-hunk + .diff-hunk {
+  margin-top: 2px;
+}
+
+.diff-skip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px calc(var(--diff-gutter) * 2 + 1.25rem) 10px 12px;
+  color: hsl(var(--muted-foreground) / 0.65);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+}
+
+.diff-skip::before,
+.diff-skip::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    hsl(var(--border)) 20%,
+    hsl(var(--border)) 80%,
+    transparent
+  );
+}
+
+.diff-row {
+  display: grid;
+  grid-template-columns: var(--diff-gutter) var(--diff-gutter) 1.125rem minmax(0, 1fr);
+  align-items: baseline;
+  padding-right: 16px;
+  transition: background-color 120ms ease;
+}
+
+.diff-row-number {
+  padding-right: 8px;
+  color: hsl(var(--muted-foreground) / 0.38);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  user-select: none;
+}
+
+.diff-row-sign {
+  color: hsl(var(--muted-foreground) / 0.4);
+  text-align: center;
+  user-select: none;
+}
+
+.diff-row-text {
+  min-height: 1.7em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: hsl(var(--foreground) / 0.86);
+}
+
+.diff-row-context .diff-row-text {
+  color: hsl(var(--foreground) / 0.52);
+}
+
+.diff-row-added {
+  background: var(--diff-added-surface);
+  box-shadow: inset 2px 0 0 var(--diff-added);
+}
+
+.diff-row-added .diff-row-sign {
+  color: var(--diff-added);
+}
+
+.diff-row-removed {
+  background: var(--diff-removed-surface);
+  box-shadow: inset 2px 0 0 var(--diff-removed);
+}
+
+.diff-row-removed .diff-row-sign {
+  color: var(--diff-removed);
+}
+
+.diff-word {
+  background: transparent;
+  border-radius: 3px;
+  padding: 1px 1px;
+  margin: 0 -1px;
+  color: hsl(var(--foreground));
+}
+
+.diff-row-added .diff-word {
+  background: var(--diff-added-emphasis);
+}
+
+.diff-row-removed .diff-word {
+  background: var(--diff-removed-emphasis);
+}
+
+.diff-stat-added {
+  color: var(--diff-added);
+}
+
+.diff-stat-removed {
+  color: var(--diff-removed);
+}

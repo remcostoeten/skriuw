@@ -4,6 +4,7 @@ import type { HistoryHeader } from "../../src/contracts/workspace";
 import {
   buildRestoreDocument,
   buildRestoreOperation,
+  groupVersionRows,
   parseHistoryMarkdown,
   projectVersionList,
 } from "../../src/history/version-model";
@@ -45,6 +46,60 @@ test("projectVersionList does not mutate the input array", () => {
   projectVersionList(headers);
 
   assert.deepEqual(headers, original);
+});
+
+function atLocalTime(dayOffset: number, hour: number): number {
+  const date = new Date(2026, 7, 10, hour, 0, 0, 0);
+  date.setDate(date.getDate() - dayOffset);
+  return date.getTime();
+}
+
+const NOW = atLocalTime(0, 23);
+
+test("groupVersionRows inserts one day header per calendar day", () => {
+  const versions = projectVersionList([
+    header({ versionId: "a", createdAt: atLocalTime(0, 22) }),
+    header({ versionId: "b", createdAt: atLocalTime(0, 9) }),
+    header({ versionId: "c", createdAt: atLocalTime(1, 18) }),
+  ]);
+
+  const rows = groupVersionRows(versions, NOW);
+
+  assert.deepEqual(
+    rows.map((row) => (row.kind === "group" ? `#${row.label}` : row.key)),
+    ["#Today", "a", "b", "#Yesterday", "c"],
+  );
+});
+
+test("groupVersionRows counts the versions in each day group", () => {
+  const versions = projectVersionList([
+    header({ versionId: "a", createdAt: atLocalTime(0, 22) }),
+    header({ versionId: "b", createdAt: atLocalTime(0, 9) }),
+    header({ versionId: "c", createdAt: atLocalTime(1, 18) }),
+  ]);
+
+  const counts = groupVersionRows(versions, NOW)
+    .filter((row) => row.kind === "group")
+    .map((row) => (row.kind === "group" ? row.count : 0));
+
+  assert.deepEqual(counts, [2, 1]);
+});
+
+test("groupVersionRows keeps the newest-first index for each version row", () => {
+  const versions = projectVersionList([
+    header({ versionId: "a", createdAt: atLocalTime(0, 22) }),
+    header({ versionId: "c", createdAt: atLocalTime(2, 18) }),
+  ]);
+
+  const indexes = groupVersionRows(versions, NOW)
+    .filter((row) => row.kind === "version")
+    .map((row) => (row.kind === "version" ? row.index : -1));
+
+  assert.deepEqual(indexes, [0, 1]);
+});
+
+test("groupVersionRows returns no rows for an empty version list", () => {
+  assert.deepEqual(groupVersionRows([], NOW), []);
 });
 
 test("parseHistoryMarkdown reconstructs headings, lists, and marks", () => {
