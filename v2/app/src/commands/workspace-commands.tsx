@@ -1,4 +1,4 @@
-import { quitApp, toggleMaximize } from "@/actions/window";
+import { quitApp, toggleMaximize } from "@/store/actions/window";
 import {
   activateTabAtIndex,
   closeActiveTab,
@@ -9,8 +9,8 @@ import {
   openBeside,
   reopenClosedTab,
   tabStripPaneId,
-} from "@/actions/panes";
-import { toggleEditorMode } from "@/actions/editor-mode";
+} from "@/store/actions/panes";
+import { toggleEditorMode } from "@/store/actions/editor-mode";
 import {
   activateNote,
   createFolder,
@@ -26,7 +26,7 @@ import {
   setAllFoldersExpanded,
   setNodePinned,
   trashCurrentNote,
-} from "@/actions/workspace";
+} from "@/store/actions/workspace";
 import type { AppRoute } from "@/app-route";
 import { authConfiguration } from "@/auth/config";
 import {
@@ -89,7 +89,7 @@ import {
   WaypointsIcon,
   ZoomInIcon,
   ZoomOutIcon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { opensNotesInTabs } from "@/settings/settings-model";
 import type { RendererState, RendererStore } from "@/store/types";
 import { resetZoom, zoomIn, zoomOut } from "@/zoom/zoom-controller";

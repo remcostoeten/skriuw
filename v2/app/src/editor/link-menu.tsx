@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import { openExternalUrl } from "@/bridge/external-links";
-import { CheckIcon, ExternalLinkIcon, LinkIcon, PencilIcon, UnlinkIcon } from "@/shared/icons";
+import { CheckIcon, ExternalLinkIcon, LinkIcon, PencilIcon, UnlinkIcon } from "@/shared/icons/static";
 import { rangeMenuAnchor, type MenuAnchor } from "./menu-anchor";
 import { productSchema } from "./schema";
 

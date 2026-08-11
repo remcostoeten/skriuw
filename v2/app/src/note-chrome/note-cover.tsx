@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { commitOperations } from "@/actions/workspace";
+import { commitOperations } from "@/store/actions/workspace";
 import { downloadRemoteMedia, listMediaBlobs, storeNoteImage } from "@/bridge/commands";
 import type { MediaBlobPayload, StoredImagePayload } from "@/bridge/commands";
 import { isBrowserRuntime } from "@/bridge/runtime";
@@ -12,7 +12,7 @@ import {
   MaximizeIcon,
   RestoreIcon,
   SearchIcon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { noop } from "@/shared/lib/noop";
 import { cn } from "@/shared/lib/utils";
 import {

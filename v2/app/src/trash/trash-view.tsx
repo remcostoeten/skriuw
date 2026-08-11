@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { emptyTrash, purgeSubtree, restoreSubtree } from "@/actions/workspace";
+import { emptyTrash, purgeSubtree, restoreSubtree } from "@/store/actions/workspace";
 import {
   FileTextIcon,
   FolderIcon,
@@ -7,7 +7,7 @@ import {
   SearchIcon,
   Trash2Icon,
   Undo2Icon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { Button } from "@/shared/ui/button";
 import { Dialog } from "@/shared/ui/dialog";

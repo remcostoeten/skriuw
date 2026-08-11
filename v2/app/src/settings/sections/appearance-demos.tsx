@@ -1,5 +1,5 @@
 import { cn } from "@/shared/lib/utils";
-import { FileTextIcon, FolderIcon } from "@/shared/icons";
+import { FileTextIcon, FolderIcon } from "@/shared/icons/static";
 
 function DemoFrame({ status, children }: { status: string; children: React.ReactNode }) {
   return (

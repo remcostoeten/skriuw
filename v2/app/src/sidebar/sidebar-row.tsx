@@ -1,8 +1,8 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { activateNote, renameNode } from "@/actions/workspace";
+import { activateNote, renameNode } from "@/store/actions/workspace";
 import { useRendererSelector } from "@/store/use-renderer-selector";
-import { FolderIcon, FolderOpenIcon } from "@/shared/icons";
+import { FolderIcon, FolderOpenIcon } from "@/shared/icons/static";
 import { visualTreeIndent } from "@/store/tree";
 import type { RendererState, RendererStore } from "@/store/types";
 import { restoreRenameReturnFocus } from "./rename-focus";

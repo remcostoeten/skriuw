@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceNode, WorkspaceSnapshot } from "../../src/contracts/workspace";
+import type { WorkspaceNode, WorkspaceSnapshot } from "../../../src/contracts/workspace";
 import {
   activateTab,
   activateTabAtIndex,
@@ -18,9 +18,9 @@ import {
   openNoteInTab,
   reopenClosedTab,
   togglePinTab,
-} from "../../src/actions/panes";
-import { createInitialState, createRendererStore } from "../../src/store/store";
-import { PRIMARY_PANE_ID, SECONDARY_PANE_ID } from "../../src/store/panes";
+} from "../../../src/store/actions/panes";
+import { createInitialState, createRendererStore } from "../../../src/store/store";
+import { PRIMARY_PANE_ID, SECONDARY_PANE_ID } from "../../../src/store/panes";
 
 function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {
   return {

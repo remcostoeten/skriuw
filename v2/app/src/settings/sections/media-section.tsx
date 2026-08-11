@@ -7,7 +7,7 @@ import {
   sweepUnusedMediaBlobs,
 } from "@/bridge/commands";
 import type { MediaBlobPayload } from "@/bridge/commands";
-import { FolderOpenIcon, Trash2Icon, UploadIcon } from "@/shared/icons";
+import { FolderOpenIcon, Trash2Icon, UploadIcon } from "@/shared/icons/static";
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import { resolveMediaPlaybackUrl } from "@/shared/lib/media-playback-url";
 import { isBrowserRuntime } from "@/bridge/runtime";

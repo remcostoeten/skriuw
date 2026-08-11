@@ -9,8 +9,8 @@ import {
   focusPane,
   reorderTab,
   togglePinTab,
-} from "@/actions/panes";
-import { CloseIcon, PinIcon, PinOffIcon } from "@/shared/icons";
+} from "@/store/actions/panes";
+import { CloseIcon, PinIcon, PinOffIcon } from "@/shared/icons/static";
 import {
   ContextMenu,
   ContextMenuContent,

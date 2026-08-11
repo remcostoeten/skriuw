@@ -12,7 +12,7 @@ import {
   TagsIcon,
   Trash2Icon,
   UsersIcon,
-} from "@/shared/icons";
+} from "./static";
 
 export type StaticIconComponent = ComponentType<
   SVGProps<SVGSVGElement> & { size?: number }

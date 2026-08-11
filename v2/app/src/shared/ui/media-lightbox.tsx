@@ -1,6 +1,6 @@
 import { Maximize2, Minimize2, Pause, Play, Repeat2, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { CopyIcon } from "@/shared/icons";
+import { CopyIcon } from "@/shared/icons/static";
 import { formatByteSize } from "@/shared/lib/format-bytes";
 import { Dialog } from "./dialog";
 

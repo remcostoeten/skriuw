@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useRendererSelector } from "@/store/use-renderer-selector";
-import { FileTextIcon, FolderIcon } from "@/shared/icons";
+import { FileTextIcon, FolderIcon } from "@/shared/icons/static";
 import type { RendererState, RendererStore } from "@/store/types";
 import { searchSidebarNodes } from "./sidebar-search";
 

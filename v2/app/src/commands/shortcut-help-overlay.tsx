@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 import { detectPlatform } from "@remcostoeten/use-shortcut/constants";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { matchesShortcut, parseShortcut } from "@remcostoeten/use-shortcut/parser";
-import { SearchIcon } from "@/shared/icons";
+import { SearchIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { Dialog } from "@/shared/ui/dialog";
 import {

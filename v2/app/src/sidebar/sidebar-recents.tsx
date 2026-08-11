@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDownIcon, ChevronRightIcon, ClockIcon, FileTextIcon } from "@/shared/icons";
+import { ChevronDownIcon, ChevronRightIcon, ClockIcon, FileTextIcon } from "@/shared/icons/static";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { NoteMetadata, RendererState, RendererStore } from "@/store/types";
 

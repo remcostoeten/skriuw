@@ -2,11 +2,11 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type {
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { activateNote } from "@/actions/workspace";
+import { activateNote } from "@/store/actions/workspace";
 import { isBrowserRuntime } from "@/bridge/runtime";
 import { journalEntryDateKey } from "@/journal/model";
 import { openJournalDay } from "@/journal/navigation";
-import { CloseIcon, SearchIcon } from "@/shared/icons";
+import { CloseIcon, SearchIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { Dialog } from "@/shared/ui/dialog";
 import {

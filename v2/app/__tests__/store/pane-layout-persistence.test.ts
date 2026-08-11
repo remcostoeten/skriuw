@@ -3,7 +3,7 @@ import test from "node:test";
 import type { WorkspaceSnapshot } from "../../src/contracts/workspace";
 import { bindPaneLayoutPersistence } from "../../src/store/pane-layout-persistence";
 import { PRIMARY_PANE_ID, parsePaneLayout, serializePaneLayout } from "../../src/store/panes";
-import { openNoteInTab } from "../../src/actions/panes";
+import { openNoteInTab } from "../../src/store/actions/panes";
 import { createInitialState, createRendererStore } from "../../src/store/store";
 
 const snapshot: WorkspaceSnapshot = {

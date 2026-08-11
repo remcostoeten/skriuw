@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRendererSelector } from "@/store/use-renderer-selector";
-import { ChevronRightIcon } from "@/shared/icons";
+import { ChevronRightIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { projectVersionList, type VersionListItem } from "@/history/version-model";
 import { noteHistoryHash } from "@/app-route";

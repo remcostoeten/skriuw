@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { WorkspaceSnapshot } from "../../src/contracts/workspace";
 import { EditorPanes } from "../../src/shell/editor-panes";
-import { openBeside, openNoteInTab } from "../../src/actions/panes";
+import { openBeside, openNoteInTab } from "../../src/store/actions/panes";
 import { SECONDARY_PANE_ID } from "../../src/store/panes";
 import { createInitialState, createRendererStore } from "../../src/store/store";
 

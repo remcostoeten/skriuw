@@ -8,8 +8,8 @@ import {
   suffixDocumentTitle,
   suffixMarkdownTitle,
   withFreshBlockIds,
-} from "../../src/actions/duplicate-note";
-import type { RendererState } from "../../src/store/types";
+} from "../../../src/store/actions/duplicate-note";
+import type { RendererState } from "../../../src/store/types";
 
 function sequentialIds(prefix = "new") {
   let next = 0;
@@ -273,7 +273,7 @@ test("planNoteDuplicate falls back to the node title when the first block has no
 });
 
 test("planNoteDuplicate bounds the copy's title the way the editor derives it", async () => {
-  const { TITLE_MAX_LENGTH, boundTitle } = await import("../../src/editor/note-title");
+  const { TITLE_MAX_LENGTH, boundTitle } = await import("../../../src/editor/note-title");
   const long = "x".repeat(TITLE_MAX_LENGTH);
   const state = stateWith({
     sourceNodes: new Map([["a", sourceNote("a", long)]]),

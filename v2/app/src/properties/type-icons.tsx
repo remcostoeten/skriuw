@@ -12,7 +12,7 @@ import {
   StarIcon,
   TypeIcon,
   UserIcon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import type { NotePropertyType } from "./types";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;

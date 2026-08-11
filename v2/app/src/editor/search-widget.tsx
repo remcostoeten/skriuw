@@ -11,7 +11,7 @@ import {
   ReplaceAllIcon,
   ReplaceIcon,
   WholeWordIcon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import type { SearchOptions } from "./search-plugin";
 

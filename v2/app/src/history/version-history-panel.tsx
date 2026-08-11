@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { DOMSerializer } from "prosemirror-model";
-import { restoreNoteVersion } from "@/actions/workspace";
+import { restoreNoteVersion } from "@/store/actions/workspace";
 import type { HistoryVersionContent } from "@/bridge/commands";
 import { readHistoryVersion } from "@/bridge/commands";
 import { productSchema } from "@/editor/schema";
-import { CloseIcon, HistoryIcon, RotateCcwIcon } from "@/shared/icons";
+import { CloseIcon, HistoryIcon, RotateCcwIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { HistoryGraphRail } from "./history-graph-rail";

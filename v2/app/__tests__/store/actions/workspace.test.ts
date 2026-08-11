@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import * as workspaceActions from "../../src/actions/workspace";
-import { setupTauriInvokeStub } from "../shared/tauri-stub";
+import * as workspaceActions from "../../../src/store/actions/workspace";
+import { setupTauriInvokeStub } from "../../shared/tauri-stub";
 
 setupTauriInvokeStub();
 
@@ -24,8 +24,8 @@ test("workspace action exports exist and are functions", () => {
 });
 
 test("navigateNote walks sidebar order and wraps at both ends", async () => {
-  const { createInitialState, createRendererStore } = await import("../../src/store/store");
-  const { navigateNote } = await import("../../src/actions/workspace");
+  const { createInitialState, createRendererStore } = await import("../../../src/store/store");
+  const { navigateNote } = await import("../../../src/store/actions/workspace");
   const base = {
     protocolVersion: 1,
     activeNoteId: "a",
@@ -50,9 +50,9 @@ test("navigateNote walks sidebar order and wraps at both ends", async () => {
 });
 
 test("navigateNote follows the focused pane's tab order when notes open in tabs", async () => {
-  const { createInitialState, createRendererStore } = await import("../../src/store/store");
-  const { navigateNote } = await import("../../src/actions/workspace");
-  const { openNoteInTab } = await import("../../src/actions/panes");
+  const { createInitialState, createRendererStore } = await import("../../../src/store/store");
+  const { navigateNote } = await import("../../../src/store/actions/workspace");
+  const { openNoteInTab } = await import("../../../src/store/actions/panes");
   const base = {
     protocolVersion: 1,
     activeNoteId: "a",
@@ -75,8 +75,8 @@ test("navigateNote follows the focused pane's tab order when notes open in tabs"
 });
 
 test("navigateNote is a no-op without an active note", async () => {
-  const { createInitialState, createRendererStore } = await import("../../src/store/store");
-  const { navigateNote } = await import("../../src/actions/workspace");
+  const { createInitialState, createRendererStore } = await import("../../../src/store/store");
+  const { navigateNote } = await import("../../../src/store/actions/workspace");
   const base = {
     protocolVersion: 1,
     activeNoteId: null,
@@ -123,7 +123,7 @@ function folderNode(id: string, rank: number, parentId: string | null = null) {
 }
 
 async function storeWith(snapshot: Record<string, unknown>) {
-  const { createInitialState, createRendererStore } = await import("../../src/store/store");
+  const { createInitialState, createRendererStore } = await import("../../../src/store/store");
   return createRendererStore(
     createInitialState({
       protocolVersion: 1,
@@ -136,7 +136,7 @@ async function storeWith(snapshot: Record<string, unknown>) {
 }
 
 test("focusedPaneNoteId falls back to the active note and rejects folders", async () => {
-  const { focusedPaneNoteId } = await import("../../src/actions/workspace");
+  const { focusedPaneNoteId } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [noteNode("a", 1), folderNode("f", 2)],
@@ -148,9 +148,9 @@ test("focusedPaneNoteId falls back to the active note and rejects folders", asyn
 });
 
 test("focusedPaneNoteId follows the focused pane in a split", async () => {
-  const { focusedPaneNoteId } = await import("../../src/actions/workspace");
-  const { focusPane, openBeside } = await import("../../src/actions/panes");
-  const { SECONDARY_PANE_ID } = await import("../../src/store/panes");
+  const { focusedPaneNoteId } = await import("../../../src/store/actions/workspace");
+  const { focusPane, openBeside } = await import("../../../src/store/actions/panes");
+  const { SECONDARY_PANE_ID } = await import("../../../src/store/panes");
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [noteNode("a", 1), noteNode("b", 2)],
@@ -161,7 +161,7 @@ test("focusedPaneNoteId follows the focused pane in a split", async () => {
 });
 
 test("focusedFolderId reads the sidebar's focused row, only when it's a folder", async () => {
-  const { focusedFolderId } = await import("../../src/actions/workspace");
+  const { focusedFolderId } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [noteNode("a", 1), folderNode("f", 2)],
@@ -178,7 +178,7 @@ test("focusedFolderId reads the sidebar's focused row, only when it's a folder",
 });
 
 test("focusedTreeNoteId reads the sidebar's focused row, only when it's a note", async () => {
-  const { focusedTreeNoteId } = await import("../../src/actions/workspace");
+  const { focusedTreeNoteId } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [noteNode("a", 1), folderNode("f", 2)],
@@ -195,7 +195,7 @@ test("focusedTreeNoteId reads the sidebar's focused row, only when it's a note",
 });
 
 test("renameCurrentNote starts the inline rename of the open note", async () => {
-  const { renameCurrentNote } = await import("../../src/actions/workspace");
+  const { renameCurrentNote } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({
     activeNoteId: "child",
     nodes: [folderNode("folder", 1), noteNode("child", 1, "folder")],
@@ -210,7 +210,7 @@ test("renameCurrentNote starts the inline rename of the open note", async () => 
 });
 
 test("renameCurrentNote keeps an in-progress rename and no-ops without a note", async () => {
-  const { renameCurrentNote } = await import("../../src/actions/workspace");
+  const { renameCurrentNote } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({ activeNoteId: "a", nodes: [noteNode("a", 1)] });
   assert.equal(renameCurrentNote(store), true);
   assert.equal(renameCurrentNote(store), true);
@@ -222,7 +222,7 @@ test("renameCurrentNote keeps an in-progress rename and no-ops without a note", 
 });
 
 test("nextNoteAfterRemoval prefers the successor and falls back to the predecessor", async () => {
-  const { nextNoteAfterRemoval } = await import("../../src/actions/workspace");
+  const { nextNoteAfterRemoval } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [noteNode("a", 1), noteNode("b", 2), noteNode("c", 3)],
@@ -234,7 +234,7 @@ test("nextNoteAfterRemoval prefers the successor and falls back to the predecess
 });
 
 test("trashCurrentNote soft-deletes the open note and opens the next one", async () => {
-  const { trashCurrentNote } = await import("../../src/actions/workspace");
+  const { trashCurrentNote } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [noteNode("a", 1), noteNode("b", 2)],
@@ -248,7 +248,7 @@ test("trashCurrentNote soft-deletes the open note and opens the next one", async
 });
 
 test("trashCurrentNote leaves the empty state when it was the last note", async () => {
-  const { trashCurrentNote } = await import("../../src/actions/workspace");
+  const { trashCurrentNote } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({ activeNoteId: "a", nodes: [noteNode("a", 1)] });
 
   assert.equal((await trashCurrentNote(store))?.noteId, "a");
@@ -256,7 +256,7 @@ test("trashCurrentNote leaves the empty state when it was the last note", async 
 });
 
 test("trashCurrentNote is a silent no-op without an open note", async () => {
-  const { trashCurrentNote } = await import("../../src/actions/workspace");
+  const { trashCurrentNote } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({ activeNoteId: null, nodes: [folderNode("f", 1)] });
   assert.equal(await trashCurrentNote(store), null);
   assert.equal(store.getState().nodes.has("f"), true);
@@ -264,7 +264,7 @@ test("trashCurrentNote is a silent no-op without an open note", async () => {
 
 test("restoreTrashedNote brings the note back and reopens it", async () => {
   const { restoreTrashedNote, trashCurrentNote } = await import(
-    "../../src/actions/workspace"
+    "../../../src/store/actions/workspace"
   );
   const store = await storeWith({
     activeNoteId: "a",
@@ -280,7 +280,7 @@ test("restoreTrashedNote brings the note back and reopens it", async () => {
 });
 
 test("duplicateCurrentNote copies the open note after it and opens the copy", async () => {
-  const { duplicateCurrentNote } = await import("../../src/actions/workspace");
+  const { duplicateCurrentNote } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [folderNode("f", 1), noteNode("a", 1, "f"), noteNode("b", 2, "f")],
@@ -314,7 +314,7 @@ test("duplicateCurrentNote copies the open note after it and opens the copy", as
 });
 
 test("duplicateCurrentNote leaves the original pinned state and dates alone", async () => {
-  const { duplicateCurrentNote } = await import("../../src/actions/workspace");
+  const { duplicateCurrentNote } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({
     activeNoteId: "a",
     nodes: [{ ...noteNode("a", 1), pinnedAt: 42, createdAt: 42 }],
@@ -341,16 +341,16 @@ test("duplicateCurrentNote leaves the original pinned state and dates alone", as
 });
 
 test("duplicateCurrentNote is a silent no-op without an open note", async () => {
-  const { duplicateCurrentNote } = await import("../../src/actions/workspace");
+  const { duplicateCurrentNote } = await import("../../../src/store/actions/workspace");
   const store = await storeWith({ activeNoteId: null, nodes: [folderNode("f", 1)] });
   assert.equal(await duplicateCurrentNote(store), null);
   assert.equal(store.getState().nodes.size, 1);
 });
 
 test("duplicateCurrentNote opens the copy in the focused split pane", async () => {
-  const { duplicateCurrentNote } = await import("../../src/actions/workspace");
-  const { focusPane, openBeside } = await import("../../src/actions/panes");
-  const { SECONDARY_PANE_ID, secondaryPane } = await import("../../src/store/panes");
+  const { duplicateCurrentNote } = await import("../../../src/store/actions/workspace");
+  const { focusPane, openBeside } = await import("../../../src/store/actions/panes");
+  const { SECONDARY_PANE_ID, secondaryPane } = await import("../../../src/store/panes");
   const document = (noteId: string, text: string) => ({
     noteId,
     documentJson: {

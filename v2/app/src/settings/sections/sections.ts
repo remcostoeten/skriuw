@@ -6,7 +6,7 @@ import {
   KeyboardIcon,
   SettingsIcon,
   UserIcon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
 
 export const SECTIONS = [

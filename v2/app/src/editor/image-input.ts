@@ -1,5 +1,5 @@
 import type { EditorView } from "prosemirror-view";
-import { commitOperations } from "@/actions/workspace";
+import { commitOperations } from "@/store/actions/workspace";
 import type { MediaBlobPayload } from "@/bridge/commands";
 import { storeNoteImage } from "@/bridge/commands";
 import { registerPendingWork } from "@/lifecycle/pending-work";

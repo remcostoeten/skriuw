@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { journalDayHash } from "@/app-route";
-import { CalendarDaysIcon, ChevronDownIcon, ChevronRightIcon } from "@/shared/icons";
+import { CalendarDaysIcon, ChevronDownIcon, ChevronRightIcon } from "@/shared/icons/static";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
 import { monthOfKey, todayKey, type DateKey, type MonthKey } from "./dates";

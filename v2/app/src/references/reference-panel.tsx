@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { activateNote, commitReferenceOperations } from "@/actions/workspace";
-import { PencilIcon, Trash2Icon } from "@/shared/icons";
+import { activateNote, commitReferenceOperations } from "@/store/actions/workspace";
+import { PencilIcon, Trash2Icon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { ColorSwatchRow } from "./color-swatch-row";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";

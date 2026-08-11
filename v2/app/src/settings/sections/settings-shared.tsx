@@ -1,6 +1,6 @@
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
-import { updateSetting } from "@/actions/settings";
-import { CheckIcon } from "@/shared/icons";
+import { updateSetting } from "@/store/actions/settings";
+import { CheckIcon } from "@/shared/icons/static";
 import { projectSettings } from "@/settings/settings-model";
 import type { EditableSettings, SettingsViewModel } from "@/settings/settings-model";
 import { cn } from "@/shared/lib/utils";

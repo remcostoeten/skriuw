@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import type { KeyboardEvent } from "react";
-import { commitOperations } from "@/actions/workspace";
+import { commitOperations } from "@/store/actions/workspace";
 import { registerPendingWork } from "@/lifecycle/pending-work";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { DocumentRecord, RendererState, RendererStore } from "@/store/types";

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useAuth } from "@remcostoeten/auth-drawer";
-import { updateSetting } from "@/actions/settings";
+import { updateSetting } from "@/store/actions/settings";
 import {
   ArrowUpDownIcon,
   ChevronLeftIcon,
@@ -14,7 +14,7 @@ import {
   PaletteIcon,
   RefreshIcon,
   SettingsIcon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { AppIcon } from "@/shared/icons/app-icon";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { Tooltip } from "@/shared/ui/tooltip";
-import { useMediaQuery } from "@/shared/ui/use-media-query";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
 import { useShortcutHints } from "@/commands/hints";
 import type { RendererStore } from "@/store/types";
 import {

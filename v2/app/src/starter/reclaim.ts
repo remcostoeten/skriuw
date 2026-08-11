@@ -1,4 +1,4 @@
-import { commitOperations } from "@/actions/workspace";
+import { commitOperations } from "@/store/actions/workspace";
 import type { WorkspaceOperation } from "@/contracts/workspace";
 import type { RendererStore } from "@/store/types";
 import { forgetSeededNotes, reclaimableNoteIds, seededNoteIds } from "./model";

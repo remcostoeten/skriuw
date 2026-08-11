@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { AuthProvider } from "@remcostoeten/auth-drawer";
-import { updateSettings } from "@/actions/settings";
+import { updateSettings } from "@/store/actions/settings";
 import { authAdapter } from "@/auth/adapter";
 import {
   clearOnboardingOverride,
@@ -74,7 +74,7 @@ import {
 } from "@/commands/registry";
 import type { CommandUiState } from "@/commands/registry";
 import { createWorkspaceCommands } from "@/commands/workspace-commands";
-import { SkriuwLogo } from "@/shared/icons";
+import { SkriuwLogo } from "@/shared/icons/static";
 import { AppIcon } from "@/shared/icons/app-icon";
 import { AnimatedIconsProvider } from "@/shared/icons/animated-icons-context";
 import type { AppIconName } from "@/shared/icons/registry";

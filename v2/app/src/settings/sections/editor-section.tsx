@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { updateSetting } from "@/actions/settings";
+import { updateSetting } from "@/store/actions/settings";
 import {
   EDITOR_FONT_OPTIONS,
   EDITOR_LINE_HEIGHT_OPTIONS,

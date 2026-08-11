@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { WorkspaceNode, WorkspaceSnapshot } from "../../src/contracts/workspace";
-import { editorModeForNote, setEditorMode, toggleEditorMode } from "../../src/actions/editor-mode";
-import { createInitialState, createRendererStore } from "../../src/store/store";
+import type { WorkspaceNode, WorkspaceSnapshot } from "../../../src/contracts/workspace";
+import { editorModeForNote, setEditorMode, toggleEditorMode } from "../../../src/store/actions/editor-mode";
+import { createInitialState, createRendererStore } from "../../../src/store/store";
 
 function node(partial: Partial<WorkspaceNode> & Pick<WorkspaceNode, "id" | "kind">): WorkspaceNode {
   return {

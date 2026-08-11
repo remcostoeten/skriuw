@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { createNoteFromTemplate } from "@/actions/workspace";
-import { SearchIcon } from "@/shared/icons";
+import { createNoteFromTemplate } from "@/store/actions/workspace";
+import { SearchIcon } from "@/shared/icons/static";
 import type { RendererStore } from "@/store/types";
 import {
   NOTE_TEMPLATES,

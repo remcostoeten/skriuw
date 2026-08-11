@@ -1,4 +1,4 @@
-import { SkriuwLogo } from "@/shared/icons";
+import { SkriuwLogo } from "@/shared/icons/static";
 
 type Props = {
   openingSignIn: boolean;

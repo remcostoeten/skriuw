@@ -1,5 +1,5 @@
 import { ThemePicker } from "@/settings/theme-picker";
-import { resetAllSettings } from "@/actions/settings";
+import { resetAllSettings } from "@/store/actions/settings";
 import { Button } from "@/shared/ui/button";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { CompactSidebarDemo, TreeGuidesDemo } from "./appearance-demos";

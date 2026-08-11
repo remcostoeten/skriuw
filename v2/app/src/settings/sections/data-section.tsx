@@ -16,7 +16,7 @@ import {
   importMarkdownIntoWorkspace,
   importProviderExportIntoWorkspace,
 } from "@/export/markdown-transfer";
-import { FolderOpenIcon, UploadIcon } from "@/shared/icons";
+import { FolderOpenIcon, UploadIcon } from "@/shared/icons/static";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import {
   IDLE_MAINTENANCE,

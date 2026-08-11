@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { activateNote } from "@/actions/workspace";
+import { activateNote } from "@/store/actions/workspace";
 import { appRouteHash, journalDayHash } from "@/app-route";
 import { JOURNAL_ROOT_ID } from "@/journal/constants";
 import { journalEntryDateKey } from "@/journal/model";
@@ -11,7 +11,7 @@ import {
   type EntityKind,
   type EntityRow,
 } from "@/references/entity-manager-model";
-import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "@/shared/icons";
+import { CircleIcon, FileTextIcon, SearchIcon, WaypointsIcon } from "@/shared/icons/static";
 import { fuzzyMatchScore } from "@/shared/lib/fuzzy-match";
 import { CommandPalette } from "./command-palette";
 import type { CommandPaletteItem } from "./command-palette-model";

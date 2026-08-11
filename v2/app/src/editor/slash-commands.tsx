@@ -27,7 +27,7 @@ import {
   TypeIcon,
   VideoIcon,
   WaypointsIcon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { createDefaultDiagram } from "./diagram-model";
 import { emojiEntries } from "./emoji";
 import { productSchema, type MediaKind, type SlashTrigger } from "./schema";

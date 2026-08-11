@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } fr
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
 import { useShortcutBinding } from "@remcostoeten/use-shortcut/react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
-import { activateNote, commitOperations, commitReferenceOperations } from "@/actions/workspace";
+import { activateNote, commitOperations, commitReferenceOperations } from "@/store/actions/workspace";
 import { appRouteHash, useRouteFocus } from "@/app-route";
 import {
   buildCreatePerson,
@@ -30,7 +30,7 @@ import {
   SearchIcon,
   Trash2Icon,
   WaypointsIcon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { effectiveShortcutKeys, shortcutDefinition } from "@/commands/bindings";
 import { sameOverrides, selectShortcutOverrides } from "@/settings/sections/selectors";

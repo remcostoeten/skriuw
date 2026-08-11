@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { appRouteHash, useRouteFocus, useRouteHistoryVersion } from "@/app-route";
-import { activateNote } from "@/actions/workspace";
-import { ChevronLeftIcon, HistoryIcon } from "@/shared/icons";
+import { activateNote } from "@/store/actions/workspace";
+import { ChevronLeftIcon, HistoryIcon } from "@/shared/icons/static";
 import { formatRelativeTime } from "@/shared/lib/relative-time";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererState, RendererStore } from "@/store/types";

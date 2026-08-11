@@ -5,8 +5,8 @@ import {
   clearAllShortcutOverrides,
   clearShortcutOverride,
   setShortcutOverride,
-} from "@/actions/settings";
-import { SearchIcon } from "@/shared/icons";
+} from "@/store/actions/settings";
+import { SearchIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { ShortcutRecorder } from "@/shared/ui/shortcut-recorder";
 import type { ShortcutRecorderHandle } from "@/shared/ui/shortcut-recorder";

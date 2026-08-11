@@ -49,7 +49,7 @@ import {
   PencilIcon,
   Trash2Icon,
   ZoomInIcon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { createMentionPlugin, type MentionContext } from "@/references/mention-plugin";
 import { createReferenceNodeViews } from "@/references/reference-nodeview";
 import { activateReference } from "@/references/reference-navigation";
@@ -59,7 +59,7 @@ import {
   commitOperations,
   commitReferenceOperations,
   createLinkedNote,
-} from "@/actions/workspace";
+} from "@/store/actions/workspace";
 import { cssStringLiteral } from "@/settings/apply-settings";
 import { projectSettings } from "@/settings/settings-model";
 import { useRendererSelector } from "@/store/use-renderer-selector";

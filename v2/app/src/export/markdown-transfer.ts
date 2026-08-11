@@ -1,4 +1,4 @@
-import { commitOperations } from "@/actions/workspace";
+import { commitOperations } from "@/store/actions/workspace";
 import {
   exportMarkdownTree,
   importMarkdownImage,

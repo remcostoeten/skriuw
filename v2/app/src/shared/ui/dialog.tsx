@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
-import { CloseIcon } from "@/shared/icons";
+import { CloseIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {

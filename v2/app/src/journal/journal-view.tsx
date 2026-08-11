@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useRouteFocus } from "@/app-route";
-import { editorModeForNote } from "@/actions/editor-mode";
+import { editorModeForNote } from "@/store/actions/editor-mode";
 import { NoteEditor } from "@/editor/note-editor";
 import { RawMarkdownEditor } from "@/editor/raw-markdown-editor";
 import {
@@ -12,7 +12,7 @@ import {
   PlusIcon,
   SearchIcon,
   Trash2Icon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { Tooltip } from "@/shared/ui/tooltip";
 import { toolbarIconButtonClass } from "@/shell/toolbar-styles";
 import { useShortcutHints } from "@/commands/hints";

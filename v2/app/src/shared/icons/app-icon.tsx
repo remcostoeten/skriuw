@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { iconStrokeWidth } from "@/shared/icons";
+import { iconStrokeWidth } from "./static";
 import { useAnimatedIcons } from "./animated-icons-context";
 import { APP_ICONS } from "./registry";
 import type { AppIconName } from "./registry";

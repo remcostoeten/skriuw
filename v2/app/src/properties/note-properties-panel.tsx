@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
-import { commitOperations } from "@/actions/workspace";
+import { commitOperations } from "@/store/actions/workspace";
 import type {
   NoteProperty,
   NotePropertyColor,
@@ -18,7 +18,7 @@ import {
   LayoutDashboardIcon,
   PlusIcon,
   Trash2Icon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import { InlineConfirm } from "@/shared/ui/inline-confirm";
 import { useRendererSelector } from "@/store/use-renderer-selector";

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { listMediaBlobs } from "@/bridge/commands";
 import type { MediaBlobPayload } from "@/bridge/commands";
-import { ImageIcon, SearchIcon, UploadIcon, VideoIcon } from "@/shared/icons";
+import { ImageIcon, SearchIcon, UploadIcon, VideoIcon } from "@/shared/icons/static";
 import { resolveImageBlobUrl } from "@/shared/lib/image-blob-url";
 import { resolveMediaPlaybackUrl } from "@/shared/lib/media-playback-url";
 import { Dialog } from "@/shared/ui/dialog";

@@ -10,8 +10,8 @@ import {
   setAllFoldersExpanded,
   setNodePinned,
   trashSubtrees,
-} from "@/actions/workspace";
-import { openBeside, openNoteInTab } from "@/actions/panes";
+} from "@/store/actions/workspace";
+import { openBeside, openNoteInTab } from "@/store/actions/panes";
 import { exportNoteAsMarkdown } from "@/export/markdown-transfer";
 import { showToast } from "@/shared/ui/toast";
 import { requestTemplatePicker } from "@/templates/template-picker-controller";
@@ -34,7 +34,7 @@ import {
   SearchIcon,
   Trash2Icon,
   UnfoldVerticalIcon,
-} from "@/shared/icons";
+} from "@/shared/icons/static";
 import {
   ContextMenu,
   ContextMenuContent,

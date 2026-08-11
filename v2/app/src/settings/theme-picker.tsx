@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { CheckIcon, ChevronDownIcon } from "@/shared/icons";
+import { CheckIcon, ChevronDownIcon } from "@/shared/icons/static";
 import { cn } from "@/shared/lib/utils";
 import {
   THEME_ENTRIES,

@@ -1,4 +1,4 @@
-import { commitOperations, trashSubtree } from "@/actions/workspace";
+import { commitOperations, trashSubtree } from "@/store/actions/workspace";
 import type { NoteProperty, WorkspaceOperation } from "@/contracts/workspace";
 import type { RendererStore } from "@/store/types";
 import type { DateKey } from "./dates";

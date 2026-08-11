@@ -1,5 +1,5 @@
 import type { WorkspaceOperation } from "@/contracts/workspace";
-import { documentTitleText, type IdFactory } from "@/actions/duplicate-note";
+import { documentTitleText, type IdFactory } from "@/store/actions/duplicate-note";
 import { boundTitle } from "@/editor/note-title";
 import { parseProductMarkdown, serializeProductMarkdown } from "@/editor/schema";
 import {

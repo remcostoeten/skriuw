@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import * as settingsActions from "../../src/actions/settings";
+import * as settingsActions from "../../../src/store/actions/settings";
 
 test("settings action exports exist and are functions", () => {
   assert.equal(typeof settingsActions.updateSettings, "function");
