@@ -10,77 +10,77 @@ pub(crate) const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
         name: "initial",
-        sql: include_str!("../../../migrations/0001_initial.sql"),
+        sql: include_str!("../migrations/0001_initial.sql"),
     },
     Migration {
         version: 2,
         name: "settings_document",
-        sql: include_str!("../../../migrations/0002_settings_document.sql"),
+        sql: include_str!("../migrations/0002_settings_document.sql"),
     },
     Migration {
         version: 3,
         name: "relationships",
-        sql: include_str!("../../../migrations/0003_relationships.sql"),
+        sql: include_str!("../migrations/0003_relationships.sql"),
     },
     Migration {
         version: 4,
         name: "entity_provenance",
-        sql: include_str!("../../../migrations/0004_entity_provenance.sql"),
+        sql: include_str!("../migrations/0004_entity_provenance.sql"),
     },
     Migration {
         version: 5,
         name: "pinned_nodes",
-        sql: include_str!("../../../migrations/0005_pinned_nodes.sql"),
+        sql: include_str!("../migrations/0005_pinned_nodes.sql"),
     },
     Migration {
         version: 6,
         name: "note_images",
-        sql: include_str!("../../../migrations/0006_note_images.sql"),
+        sql: include_str!("../migrations/0006_note_images.sql"),
     },
     Migration {
         version: 7,
         name: "typed_note_properties",
-        sql: include_str!("../../../migrations/0007_typed_note_properties.sql"),
+        sql: include_str!("../migrations/0007_typed_note_properties.sql"),
     },
     Migration {
         version: 8,
         name: "provider_import_receipts",
-        sql: include_str!("../../../migrations/0008_provider_import_receipts.sql"),
+        sql: include_str!("../migrations/0008_provider_import_receipts.sql"),
     },
     Migration {
         version: 9,
         name: "note_covers",
-        sql: include_str!("../../../migrations/0009_note_covers.sql"),
+        sql: include_str!("../migrations/0009_note_covers.sql"),
     },
     Migration {
         version: 10,
         name: "history_retry_backoff",
-        sql: include_str!("../../../migrations/0010_history_retry_backoff.sql"),
+        sql: include_str!("../migrations/0010_history_retry_backoff.sql"),
     },
     Migration {
         version: 11,
         name: "sync_outbox",
-        sql: include_str!("../../../migrations/0011_sync_outbox.sql"),
+        sql: include_str!("../migrations/0011_sync_outbox.sql"),
     },
     Migration {
         version: 12,
         name: "sync_inbound",
-        sql: include_str!("../../../migrations/0012_sync_inbound.sql"),
+        sql: include_str!("../migrations/0012_sync_inbound.sql"),
     },
     Migration {
         version: 13,
         name: "sync_convergence",
-        sql: include_str!("../../../migrations/0013_sync_convergence.sql"),
+        sql: include_str!("../migrations/0013_sync_convergence.sql"),
     },
     Migration {
         version: 14,
         name: "blocked_asset_content",
-        sql: include_str!("../../../migrations/0014_blocked_asset_content.sql"),
+        sql: include_str!("../migrations/0014_blocked_asset_content.sql"),
     },
     Migration {
         version: 15,
         name: "blocked_operation_recovery",
-        sql: include_str!("../../../migrations/0015_blocked_operation_recovery.sql"),
+        sql: include_str!("../migrations/0015_blocked_operation_recovery.sql"),
     },
 ];
 
