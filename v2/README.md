@@ -10,8 +10,10 @@
 </p>
 
 <p align="center">
-  A fast, private writing workspace for notes, journals, and connected knowledge.<br />
-  <strong>No server, no Node: the entire app is Rust compiled to WebAssembly, database included, running in your browser.</strong>
+  A blazingly fast, private writing workspace for notes, journals, and connected knowledge.<br />
+  Desktop-first on macOS, Windows, and Linux, with a Rust core and SQLite on disk.<br />
+  It runs in the browser too, on the same engine compiled to WebAssembly, storing notes locally.<br />
+  Sign in and your workspace syncs, so you can pick up on the web where your desktop left off.
 </p>
 
 <p align="center">
@@ -99,11 +101,18 @@ have no current publication; use a release asset or one of the channels above.
 
 ## Privacy
 
+**Nothing syncs unless you sign in.** Sync is off until you create an account
+and turn it on, on desktop and in the browser alike. Until then your notes
+never leave the machine they were written on: the desktop app keeps them in
+local SQLite, and the browser app keeps them in your browser's own storage.
+
 A fresh install performs no network requests, and there is no analytics or
-telemetry of any kind. The only network code is the opt-in sync Worker and
-the updater's version check. Sync is encrypted in transit but not yet
-end-to-end ([details](docs/specs/cloud-sync-master.md)); if that boundary
-matters, stay local-only.
+telemetry of any kind. The only network code in the app is the sync Worker,
+which runs only while you are signed in, and the updater's version check.
+
+Sync is encrypted in transit but not yet end-to-end
+([details](docs/specs/cloud-sync-master.md)), so the server can read what it
+stores for you. If that boundary matters, stay local-only.
 
 ## Development
 
@@ -121,9 +130,29 @@ The repository layout, web deployment, and cloud development reference is in
 [CONTRIBUTING.md](../CONTRIBUTING.md); report security issues through
 [SECURITY.md](../SECURITY.md) instead of a public issue.
 
+## Using the previous generation
+
 The previous generation of Skriuw (web, mobile, collaboration, self-hosting)
-lives in [`apps/`](../apps) and [`packages/`](../packages) and is frozen; see
-the [repository README](../README.md).
+lives in [`v1/`](../v1) and is frozen at `0.25.0`. It is still installable:
+
+```bash
+# source as it shipped, before the move into v1/
+git clone --branch v0.25.0 --single-branch \
+    https://github.com/remcostoeten/skriuw.git skriuw-v1
+
+# self-host image, pinned to the last v1 version
+docker pull ghcr.io/remcostoeten/skriuw:0.25.0
+```
+
+Desktop installers for macOS, Windows, and Linux are attached to the
+[`desktop-v0.25.0` release](https://github.com/remcostoeten/skriuw/releases/tag/desktop-v0.25.0).
+The `:latest` container tag still builds from the v1 tree but is rebuilt on
+every v2 release, so pin `0.25.0` if you want the frozen version.
+
+To work on v1 in this repository instead, use `v1/` on the current branch, or
+`f74af74f` for the last commit that touched it before the freeze. Setup lives
+in [`v1/README.md`](../v1/README.md), and the
+[repository README](../README.md) compares the two lines.
 
 ## License
 
