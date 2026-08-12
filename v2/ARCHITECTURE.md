@@ -2,7 +2,7 @@
 
 ## Context
 
-Skriuw Standalone starts as one local desktop application. Post-start interaction must feel immediate. A later web runtime must preserve that behavior without turning the desktop application into a web client.
+Skriuw Standalone starts as one local desktop application. Post-start interaction must feel immediate. The web runtime must preserve that behavior without turning the desktop application into a web client.
 
 Initial loading may perform expensive preparation. Navigation after loading may not depend on disk, IPC, network, route loading, Markdown parsing, or Git.
 
@@ -40,7 +40,7 @@ Embedded flowcharts are versioned atomic ProseMirror nodes stored inside the can
 
 The product sidebar ports the measured dependency-free fixed-row tree into one viewport-bounded row pool. Rendered DOM stays independent of 1,000-node and 5,000-node workspace size; deterministic sibling order, collapsed-subtree exclusion, imperative focus reveal, active-descendant semantics, and exact ARIA level/set metadata survive row recycling. Visual indentation clamps by sidebar width while semantic depth remains unlimited. Expansion IDs persist through a serialized native-only SQLite use case, are excluded from portable archives, and update after synchronous local paint through a coalesced background acknowledgement.
 
-The disposable `spikes/renderer-store` harness combines those projections with a normalized dependency-free external store and narrow React selectors. The application shell and persistent editor host hold no workspace subscription; mounted rows, editor selection, metadata fields, and settings observe only stable values they render. Editor typing remains editor-owned, equivalent updates stop before selector traversal, and collapse preserves hidden active-note identity while moving tree focus independently. Production and profiling artifacts are separate. Exact scenario allowlists and trusted native input make this a viable later ADR-0020 candidate, not a framework or store selection; fixed-runner evidence and representative editor semantics remain gates.
+The `spikes/ui-architecture` and `spikes/renderer-store` harnesses are the isolated measurement code behind that selection ([ADR-0020](docs/adr/0020-ui-architecture.md), accepted): direct editor state switching, and a normalized dependency-free external store with narrow React selectors where the application shell and persistent editor host hold no workspace subscription, editor typing remains editor-owned, and equivalent updates stop before selector traversal. Both harnesses are retained as regression suites — `./scripts/build.sh` and CI still run them — and stay separate from production and profiling artifacts.
 
 ## Runtime contract
 
@@ -92,16 +92,21 @@ History is a separate capability. `skriuw-history` coordinates leased queue item
 
 The desktop history drain publishes one note-scoped header only after materialization and the matching SQLite cache commit succeed. Renderer startup subscribes before bootstrap and merges the event through a narrow store update with version-ID deduplication. Git or cache failure publishes nothing, and neither saves nor navigation wait for publication.
 
-### Future web runtime
+### Web runtime
 
-Web uses the same operation protocol and renderer store. A dedicated worker owns SQLite WASM over OPFS. Network sync, if added, consumes a durable outbox and never services note navigation.
+The browser runs the same core, operation protocol, and renderer store. A
+dedicated worker owns SQLite WASM over an OPFS SAH pool
+([ADR-0027](docs/adr/0027-browser-sqlite-opfs-sah-pool.md)), and the same sync
+coordinator logic runs inside that storage worker
+([ADR-0028](docs/adr/0028-browser-worker-owned-sync.md)). Network sync consumes
+a durable outbox and never services note navigation.
 
 Optional connected mode replicates versioned domain operations rather than
-SQLite files or pages. Local-only desktop remains the default. The first cloud
-adapter assigns an ordered workspace log inside one SQLite-backed Durable
-Object per workspace; large content is referenced through content-addressed
-chunks instead of being forced into cloud SQLite rows. Public sync access stays
-disabled until authentication and workspace authorization are implemented. See
+SQLite files or pages. Local-only remains the default. The cloud adapter
+assigns an ordered workspace log inside one SQLite-backed Durable Object per
+workspace; large content is referenced through content-addressed chunks
+instead of being forced into cloud SQLite rows. Sync requests require an
+authenticated session and per-workspace authorization. See
 [the cloud sync master tracker](docs/specs/cloud-sync-master.md) and
 [ADR-0026](docs/adr/0026-optional-cloud-operation-replication.md).
 
@@ -166,3 +171,7 @@ Rust and Tauri suites rather than simulated browser state.
 - [ADR-0024: previewed and atomic provider import](docs/adr/0024-previewed-atomic-provider-import.md)
 - [ADR-0025: embedded diagrams use a structured local model](docs/adr/0025-embedded-diagrams.md)
 - [ADR-0026: optional cloud operation replication](docs/adr/0026-optional-cloud-operation-replication.md)
+- [ADR-0027: worker-owned browser SQLite over an OPFS SAH pool](docs/adr/0027-browser-sqlite-opfs-sah-pool.md)
+- [ADR-0028: browser sync inside the storage worker](docs/adr/0028-browser-worker-owned-sync.md)
+- [ADR-0029: stored video media](docs/adr/0029-stored-video-media.md)
+- [ADR-0030: remote cover download](docs/adr/0030-remote-cover-download.md)
