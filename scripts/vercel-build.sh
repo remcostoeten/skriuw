@@ -23,6 +23,13 @@ fi
 
 rustup target add wasm32-unknown-unknown --toolchain 1.95.0
 
+# The sqlite-wasm-rs C shim only compiles for wasm32 with clang, which the
+# Vercel build image stopped shipping (previews went red days before any
+# repository change).
+if ! command -v clang >/dev/null 2>&1; then
+  dnf install --assumeyes clang
+fi
+
 if ! command -v wasm-bindgen >/dev/null 2>&1 || \
   [[ "$(wasm-bindgen --version)" != "wasm-bindgen 0.2.126" ]]; then
   cargo install \
