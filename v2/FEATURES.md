@@ -29,9 +29,9 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Find and replace** — search within a note (`mod+f`), including content outside the visible window.
 - **Handles huge notes** — notes with thousands of blocks render through a bounded 192-block editor window; select-all, copy, search, undo, and accessibility traversal still cover the whole document.
 - **Images** — paste or drop an image and it appears inline, no dialog. Blobs are content-addressed files on disk (pasting the same image twice stores it once), never inflate the document itself, and round-trip through Markdown export/import with an `images/` directory, workspace archives, and scheduled recovery backups. Remote Markdown images stay as portable source but are blocked from loading.
-- **Note cover images** — choose any existing workspace asset or upload a new image above any note, then keep it aligned to the writing column or let it span the full editor pane without gutters. Drag or use arrow keys to pan, scroll or use `+`/`-` to zoom, or pick one of nine focal-point presets; transforms, covers, and layout reuse the local content-addressed image store and travel with workspace archives and recovery backups.
+- **Note cover images** — choose any existing workspace asset, upload a new image, or paste an image address the desktop shell downloads once into the local store, then keep the cover aligned to the writing column or let it span the full editor pane without gutters. Drag or use arrow keys to pan, scroll or use `+`/`-` to zoom, or pick one of nine focal-point presets; transforms, covers, and layout reuse the local content-addressed image store and travel with workspace archives and recovery backups.
 - **Workspace media gallery** — one filterable Settings gallery inventories every blob used inline, as a cover, or in the journal. Each asset shows format, dimensions, size, hash, attachment date, exact usage type, count, links back to every reference, and a full-screen preview. The cover picker searches, filters, sorts, and marks current, used, and reused assets.
-- **Video, audio, and file embeds** — `/video`, `/audio`, and `/file` drop a block that takes a URL. Embeds round-trip through Markdown as an ordinary link, so other editors still render something useful.
+- **Video, audio, and file embeds** — `/video`, `/audio`, and `/file` drop a block that takes a URL, and MP4/WebM video files are first-class stored media: content-addressed on disk like images, visible in the media gallery, and carried by archives and backups. Embeds round-trip through Markdown as an ordinary link, so other editors still render something useful.
 - **Embedded diagrams** — `/diagram` inserts a borderless, keyboard-accessible flowchart whose nodes can be renamed, connected, styled, arranged, and repositioned by pointer or keyboard. Mermaid-compatible `flowchart` fences round-trip through raw Markdown, while positions and canvas appearance stay durable in the local structured document. Unsupported Mermaid syntax remains editable source instead of being discarded.
 - **Tags, people, mentions, and wiki-links** — type `#` to tag, `@` or `[[` for wiki-style note links, `$` for people. Relationships are stored by ID, so renames propagate everywhere and nothing silently breaks.
 - **Backlinks and entity pages** — every note, tag, and person shows what points to it, precomputed and instant.
@@ -59,7 +59,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 ## History and safety
 
 - **Automatic Git history** — every save is materialized into Git in the background; editing and navigation never wait on it.
-- **Live history panel** — a note's history updates in-session the moment materialization completes, and you can restore any prior version.
+- **Live history panel** — a note's history updates in-session the moment materialization completes; versions open with a diff view, and any prior version can be restored.
 - **Verified backups** — scheduled every six hours with cadence/retention rotation, each backup verified before it counts.
 - **Recovery without fear** — restoring runs as a verified live database swap: the replacement is validated and bootstrapped before it goes live, and a rollback sibling is retained in case anything fails.
 - **Portable workspace archives** — versioned JSON export/import of your entire workspace, with golden-fixture compatibility tests guaranteeing old archives keep importing.
@@ -68,10 +68,11 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 
 ## Desktop experience
 
-- **Calm first-run choice** — a fresh, empty workspace opens with one keyboard-accessible choice: continue entirely locally with no account, or sign in and enable multi-device sync. Existing workspaces are never interrupted, and sync remains available later from Account & sync.
+- **Calm first-run choice** — a fresh install reveals its window only after the first real paint, opening on a seeded preview workspace you can type into immediately, with one keyboard-accessible choice: continue entirely locally with no account, or sign in and enable multi-device sync. An untouched preview is reclaimed at sign-in, existing workspaces are never interrupted, and sync remains available later from Account & sync.
 - **Command palette** — every action reachable from one keyboard surface.
 - **Rebindable shortcuts** — the shortcut system is fully remappable from settings.
 - **Zoom and fullscreen** — standard desktop chrome controls, plus quick-quit.
+- **Animated icons** — interface icons animate on hover through paired static and animated variants, with a settings toggle to keep them static.
 - **Settings with a Data & Recovery surface** — export, import, backup-now, and restore are all in the UI; the CLI is optional, not required.
 - **Storage you can see and move** — settings show every stored image with size and the notes that use it, open the database or blobs folder in the file manager, and can relocate the whole workspace (database, images, history, backups) to a new folder with a verified copy and automatic restart.
 - **Auto-updates** — built-in updater on top of a tag-driven, cross-platform release pipeline.
@@ -79,6 +80,6 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 
 ## Built to be trusted
 
-- 200+ tests across backend, desktop, renderer, store, and UI-architecture layers, plus a keyboard-driven end-to-end suite covering the complete workflow with zero tolerated console errors.
-- Twenty-five architecture decision records in [docs/adr](docs/adr) document why the system is shaped the way it is.
+- 1,300+ tests across backend, desktop, renderer, store, and UI-architecture layers, plus a keyboard-driven end-to-end suite covering the complete workflow with zero tolerated console errors.
+- Thirty architecture decision records in [docs/adr](docs/adr) document why the system is shaped the way it is.
 - Benchmark evidence for every performance claim lives in [docs/benchmarks](docs/benchmarks).
