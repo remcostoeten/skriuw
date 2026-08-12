@@ -21,7 +21,7 @@ Creating the bucket is a one-time operation and is not performed by any
 automated check:
 
 ```bash
-cd v2/cloud
+cd cloud
 bunx wrangler r2 bucket create skriuw-v2-sync-content
 bunx wrangler deploy
 ```

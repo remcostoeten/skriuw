@@ -34,9 +34,6 @@ jobs:
     # wasm32, so build once where CI already proves it works and share it
     build-browser-wasm:
         runs-on: ubuntu-latest
-        defaults:
-            run:
-                working-directory: v2
         steps:
             - uses: actions/checkout@v5
 
@@ -49,7 +46,7 @@ jobs:
             - name: Rust cache
               uses: Swatinem/rust-cache@v2
               with:
-                  workspaces: v2 -> target
+                  workspaces: . -> target
 
             - name: Install wasm-bindgen-cli
               run: |
@@ -65,7 +62,7 @@ jobs:
             - uses: actions/upload-artifact@v4
               with:
                   name: browser-wasm
-                  path: v2/.build/browser-wasm
+                  path: .build/browser-wasm
                   if-no-files-found: error
 
     publish-tauri:
@@ -110,8 +107,8 @@ jobs:
               uses: Swatinem/rust-cache@v2
               with:
                   workspaces: |
-                      v2 -> target
-                      v2/app/src-tauri -> target
+                      . -> target
+                      app/src-tauri -> target
 
             # the desktop frontend bundles the browser storage worker, whose
             # generated WASM bindings must exist before `build:frontend` typechecks
@@ -119,10 +116,10 @@ jobs:
               uses: actions/download-artifact@v4
               with:
                   name: browser-wasm
-                  path: v2/.build/browser-wasm
+                  path: .build/browser-wasm
 
             - name: Install frontend dependencies
-              working-directory: v2/app
+              working-directory: app
               run: bun install --frozen-lockfile
 
             - name: Build and release
@@ -133,7 +130,7 @@ jobs:
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
                   NO_STRIP: 1
               with:
-                  projectPath: "./v2/app"
+                  projectPath: "./app"
                   # the default `bun run tauri` script routes through the bash verification
                   # wrapper, which breaks on Windows and re-runs the suite CI already ran
                   tauriScript: "bun run tauri:cli"

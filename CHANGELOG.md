@@ -3,8 +3,8 @@
 All notable changes to Skriuw are documented here. This project loosely follows
 [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
 
-From 0.26.0 onward, releases come from the v2 desktop application (`v2/`,
-tagged `v2-v*`), which continues the version line the v1 desktop ended at
+From 0.26.0 onward, releases come from the v2 desktop application (the
+repository root, tagged `v2-v*`), which continues the version line the v1 desktop ended at
 0.25.0. Entries up to 0.25.0 cover the v1 products.
 
 ## [0.28.0] — 2026-08-02

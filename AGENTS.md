@@ -6,7 +6,7 @@ These instructions apply to the entire Skriuw repository. Read the nearest produ
 
 Skriuw contains two independent product lines:
 
-- `v2/` is the current local-first desktop application. Its stack is Rust, React, ProseMirror, SQLite, and Tauri.
+- The repository root is the current (v2) local-first desktop application. Its stack is Rust, React, ProseMirror, SQLite, and Tauri.
 - `v1/` contains the frozen legacy v1 web, mobile, desktop, collaboration, and self-hosted products.
 - `v1/apps/documentation/content/docs/` is the canonical source for the published documentation site.
 
@@ -17,7 +17,7 @@ The default branch is `daddy`. `master` is not the primary integration branch.
 1. Inspect `git status --short` and preserve unrelated changes.
 2. Identify whether the task affects v1, v2, shared infrastructure, or documentation.
 3. Read the product's README and relevant architecture material:
-    - v2: `v2/README.md`, `v2/docs/FEATURES.md`, `v2/docs/ARCHITECTURE.md`, and applicable files in `v2/docs/adr/`.
+    - v2: `README.md`, `docs/FEATURES.md`, `docs/ARCHITECTURE.md`, and applicable files in `docs/adr/`.
     - v1: the relevant guide under `v1/apps/documentation/content/docs/` and any instructions generated in `v1/apps/web/AGENTS.md`.
 4. Search for existing contracts, tests, and conventions before introducing a new module or dependency.
 
@@ -46,7 +46,7 @@ Do not implement from a stale task plan when the repository provides newer code,
 - Recovery-relevant failures must remain visible and testable.
 - Generated Rust/TypeScript contracts are committed and drift-checked.
 
-Read `v2/docs/performance-contract.md` before changing navigation, editor, store subscription, or rendering behavior.
+Read `docs/performance-contract.md` before changing navigation, editor, store subscription, or rendering behavior.
 
 ## TypeScript and React
 
@@ -70,7 +70,7 @@ Read `v2/docs/performance-contract.md` before changing navigation, editor, store
 ## Documentation
 
 - Link to canonical documentation instead of copying it.
-- Put v2 architecture decisions in `v2/docs/adr/`, implementation contracts in `v2/docs/specs/`, and measurements in `v2/docs/benchmarks/`.
+- Put v2 architecture decisions in `docs/adr/`, implementation contracts in `docs/specs/`, and measurements in `docs/benchmarks/`.
 - Put published v1 and user documentation in `v1/apps/documentation/content/docs/`.
 - Do not commit agent handoffs, implementation prompts, generated audits, or temporary planning documents.
 - Update `README.md`, `CONTRIBUTING.md`, and affected guides when commands or contributor workflows change.
@@ -82,11 +82,10 @@ Run the smallest relevant checks while iterating, followed by the product-level 
 For v2:
 
 ```bash
-cd v2
 ./scripts/check.sh
 ```
 
-Generate changed contracts with `v2/scripts/generate.sh`. Performance-sensitive changes require representative measurements against `v2/docs/performance-contract.md`.
+Generate changed contracts with `scripts/generate.sh`. Performance-sensitive changes require representative measurements against `docs/performance-contract.md`.
 
 For v1:
 

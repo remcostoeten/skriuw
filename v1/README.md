@@ -2,7 +2,7 @@
 
 This directory holds the original Skriuw product line: the Next.js web app, the Expo mobile app, the Tauri desktop shell, the collaboration worker, the documentation site, and the shared packages behind them.
 
-**v1 is frozen.** It is no longer hosted at skriuw.com and receives no new features. Active development happens in [`../v2`](../v2). See the [root README](../README.md) for the comparison between the two lines.
+**v1 is frozen.** It is no longer hosted at skriuw.com and receives no new features. Active development happens in the repository root. See the [root README](../README.md) for the comparison between the two lines.
 
 It is kept here because the documentation site still builds from `apps/documentation`, and because the self-hosted Docker image is still published from this tree.
 

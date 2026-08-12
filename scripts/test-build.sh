@@ -17,10 +17,10 @@ grep -Fq '"tauri": "../scripts/tauri.sh"' app/package.json
 grep -Fq '"tauri:build": "../scripts/build.sh desktop"' app/package.json
 grep -Fq '"check": "bun run types:check && bun run typecheck && bun run test"' cloud/package.json
 grep -Fq '"beforeBuildCommand": "bash ../scripts/run-in.sh app build:frontend"' app/src-tauri/tauri.conf.json
-grep -Fq 'run: ./scripts/build.sh ci' ../.github/workflows/ci-v2.yml
-grep -Fq 'run: ./scripts/check-wasm.sh' ../.github/workflows/ci-v2.yml
-grep -Fq 'wasm-bindgen-0.2.126' ../.github/workflows/ci-v2.yml
+grep -Fq 'run: ./scripts/build.sh ci' .github/workflows/ci-v2.yml
+grep -Fq 'run: ./scripts/check-wasm.sh' .github/workflows/ci-v2.yml
+grep -Fq 'wasm-bindgen-0.2.126' .github/workflows/ci-v2.yml
 grep -Fq 'SKRIUW_WEB_BASE="/app/" bun run build:frontend' scripts/vercel-build.sh
 grep -Fq 'run_step "Browser SQLite WASM module"' scripts/build.sh
-grep -Fq '(cd cloud && bun install --frozen-lockfile)' ../.github/workflows/ci-v2.yml
+grep -Fq '(cd cloud && bun install --frozen-lockfile)' .github/workflows/ci-v2.yml
 grep -Fq 'exec "$repo_dir/scripts/build.sh" check "$@"' scripts/check.sh

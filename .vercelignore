@@ -15,3 +15,7 @@ node_modules
 .env.*
 !.env.example
 .claude
+
+# Local data/build dirs (CLI deploys)
+.build
+.data

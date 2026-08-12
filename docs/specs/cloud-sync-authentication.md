@@ -47,7 +47,7 @@ the API is bearer-authenticated.
 Production provisioning and rotation use Wrangler:
 
 ```bash
-cd v2/cloud
+cd cloud
 bunx wrangler d1 migrations apply skriuw-v2-auth --remote
 bunx wrangler secret put BETTER_AUTH_SECRET
 bunx wrangler deploy
@@ -142,7 +142,7 @@ must fail closed immediately.
 Account and sync routes fail closed when the Better Auth secret is absent. Run:
 
 ```bash
-cd v2/cloud
+cd cloud
 bun install --frozen-lockfile
 bun run check
 bun run deploy:dry
