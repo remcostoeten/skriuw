@@ -232,6 +232,26 @@ async function runScenario(session) {
     JSON.stringify(before),
   );
 
+  // A fresh workspace opens on the first-run onboarding modal, and the
+  // shortcut engine's modal guard holds every binding until it closes — so
+  // the scenario must finish onboarding the way a user would before any
+  // shortcut-driven step.
+  await session.waitFor(
+    "return document.querySelector('.onboarding-root [id=\"onboarding-title\"]') !== null",
+    "onboarding modal",
+  );
+  await session.script(`
+    const dialog = document.querySelector('.onboarding-root');
+    [...dialog.querySelectorAll('button')]
+      .find((button) => button.textContent.trim() === 'Start writing')
+      .click();
+  `);
+  await session.waitFor(
+    "return document.querySelector('.onboarding-root') === null",
+    "onboarding dismissal",
+  );
+  assert(checks, "onboarding-shows-once-and-dismisses", true, "clicked Start writing");
+
   const preview = await runProviderImport(session);
   assert(
     checks,
