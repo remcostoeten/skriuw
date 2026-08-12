@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EDITOR_BOUND_SHORTCUT_IDS } from "../../src/editor/editor-bound-shortcut-ids";
+import { EDITOR_BOUND_SHORTCUT_IDS } from "../../src/features/editor/editor-bound-shortcut-ids";
 import { SHORTCUT_DEFINITIONS } from "../../src/commands/definitions";
 import { shortcutHelpCombos } from "../../src/commands/help-model";
 import type { ShortcutPlatform } from "../../src/commands/definitions";

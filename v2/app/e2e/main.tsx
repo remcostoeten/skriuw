@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "../src/app";
-import { bindSettingsToRoot } from "../src/settings/apply-settings";
+import { bindSettingsToRoot } from "../src/features/settings/apply-settings";
 import { createInitialState, createRendererStore } from "../src/store/store";
 import { configureBridge } from "./bridge-mock";
 import { createWorkflowSnapshot } from "./fixture";

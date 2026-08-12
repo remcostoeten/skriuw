@@ -23,7 +23,7 @@ import {
   settingsGroup,
   settingsGroupTitle,
   settingsRow,
-} from "@/settings/sections/settings-shared";
+} from "@/features/settings/sections/settings-shared";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 import type { RendererStore } from "@/store/types";
 

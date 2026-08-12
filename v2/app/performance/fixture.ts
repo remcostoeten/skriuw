@@ -10,7 +10,7 @@ import type {
   ReferenceBootstrap,
   StructuredReference,
   TagRecord,
-} from "../src/references/types";
+} from "../src/features/references/types";
 import type { FixtureIdentity } from "./types";
 
 type ProjectionMetadata = {

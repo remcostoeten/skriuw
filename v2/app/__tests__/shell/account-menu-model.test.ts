@@ -9,7 +9,7 @@ import {
   COMPACT_MENU_QUERY,
   type AccountMenuPanel,
 } from "../../src/shell/account-menu-model";
-import { THEME_ENTRIES } from "../../src/settings/themes";
+import { THEME_ENTRIES } from "../../src/features/settings/themes";
 
 test("every selectable theme reaches the menu exactly once", () => {
   const options = themeMenuOptions();

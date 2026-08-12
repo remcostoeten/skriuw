@@ -1,4 +1,4 @@
-import { projectSettings } from "@/settings/settings-model";
+import { projectSettings } from "@/features/settings/settings-model";
 import type { RendererState, RendererStore } from "@/store/types";
 
 export type EditorMode = "rendered" | "raw";

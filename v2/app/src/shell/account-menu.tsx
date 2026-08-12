@@ -43,10 +43,10 @@ import {
   type AccountMenuPanel,
 } from "./account-menu-model";
 import { railActiveClass, railIconButtonClass, railInactiveClass } from "./rail-styles";
-import { selectTheme } from "@/settings/sections/selectors";
-import type { SectionId } from "@/settings/sections/sections";
-import { syncSummary, syncTone } from "@/settings/sections/sync-status";
-import { SYNC_POLL_AMBIENT_MS, useWorkspaceSync } from "@/settings/sections/use-workspace-sync";
+import { selectTheme } from "@/features/settings/sections/selectors";
+import type { SectionId } from "@/features/settings/sections/sections";
+import { syncSummary, syncTone } from "@/features/settings/sections/sync-status";
+import { SYNC_POLL_AMBIENT_MS, useWorkspaceSync } from "@/features/settings/sections/use-workspace-sync";
 import { useRendererSelector } from "@/store/use-renderer-selector";
 
 const TRANSFER_COMMANDS = [

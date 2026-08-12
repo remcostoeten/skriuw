@@ -13,8 +13,8 @@ import type {
 import type {
   IncomingReferences,
   OutgoingReferences,
-} from "@/references/projection";
-import type { PersonRecord, ReferenceOperation, TagRecord } from "@/references/types";
+} from "@/features/references/projection";
+import type { PersonRecord, ReferenceOperation, TagRecord } from "@/features/references/types";
 import type { ClosedTab, PaneState } from "./panes";
 
 export type NodeRecord = {

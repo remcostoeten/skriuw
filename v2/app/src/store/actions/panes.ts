@@ -1,4 +1,4 @@
-import { opensNotesInTabs } from "@/settings/settings-model";
+import { opensNotesInTabs } from "@/features/settings/settings-model";
 import type { RendererState, RendererStore } from "@/store/types";
 import {
   PRIMARY_PANE_ID,
