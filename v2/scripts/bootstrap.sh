@@ -15,8 +15,8 @@ fi
 cargo fetch
 (cd "$repo_dir/app" && bun install --frozen-lockfile)
 (cd "$repo_dir/cloud" && bun install --frozen-lockfile)
-(cd "$repo_dir/spikes/ui-architecture" && bun install --frozen-lockfile)
-(cd "$repo_dir/spikes/renderer-store" && bun install --frozen-lockfile)
+(cd "$repo_dir/app/harnesses/ui-architecture" && bun install --frozen-lockfile)
+(cd "$repo_dir/app/harnesses/renderer-store" && bun install --frozen-lockfile)
 ./scripts/generate.sh
 ./scripts/build-browser-wasm.sh
 ./scripts/check.sh

@@ -109,8 +109,8 @@ jobs:
               run: |
                   (cd app && bun install --frozen-lockfile)
                   (cd cloud && bun install --frozen-lockfile)
-                  (cd spikes/ui-architecture && bun install --frozen-lockfile)
-                  (cd spikes/renderer-store && bun install --frozen-lockfile)
+                  (cd app/harnesses/ui-architecture && bun install --frozen-lockfile)
+                  (cd app/harnesses/renderer-store && bun install --frozen-lockfile)
 
             - name: Verify and build
               # Updater artifacts are only signed in the release workflow; CI builds skip them

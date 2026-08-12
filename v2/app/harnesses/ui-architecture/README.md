@@ -5,7 +5,7 @@ This isolated browser harness compares direct ProseMirror and direct Lexical sta
 ## Run
 
 ```bash
-cd spikes/ui-architecture
+cd app/harnesses/ui-architecture
 bun install --frozen-lockfile
 bun run build
 bun run test

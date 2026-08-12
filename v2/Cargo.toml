@@ -12,7 +12,7 @@ members = [
     "crates/skriuw-history-git",
     "crates/skriuw-lifecycle",
     "crates/skriuw-cli",
-    "xtask",
+    "crates/xtask",
 ]
 resolver = "2"
 

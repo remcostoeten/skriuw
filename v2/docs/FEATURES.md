@@ -40,7 +40,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 
 - **Nested workspace tree** — arbitrary depth, clamped indentation so deep trees stay readable, virtualized to stay smooth at 5,000+ nodes.
 - **Pinned notes and folders** — pin any node to a fixed shelf at the top of the sidebar (context menu, palette, or `mod+p`). Pins are workspace content: they travel with archives, survive trash round trips, and order most-recently-pinned-first.
-- **Tabs and split view** — open notes in tabs (`ctrl+tab` to cycle, `mod+w` to close) or a second pane side by side (`mod+\`). Closing prioritizes the split before the active tab, regardless of which pane has focus. Only visible panes hold live editors, so background tabs cost nothing; open tabs survive restarts. See [ADR-0021](docs/adr/0021-tabs-and-split-view.md).
+- **Tabs and split view** — open notes in tabs (`ctrl+tab` to cycle, `mod+w` to close) or a second pane side by side (`mod+\`). Closing prioritizes the split before the active tab, regardless of which pane has focus. Only visible panes hold live editors, so background tabs cost nothing; open tabs survive restarts. See [ADR-0021](adr/0021-tabs-and-split-view.md).
 - **Full keyboard control** — create, rename, reorder siblings, move across folders, multi-select, expand/collapse-all, switch rail destinations with layout-independent number-row shortcuts, and use a dedicated move mode, all without touching the mouse.
 - **Drag and drop** — pointer-based move and reorder in the sidebar.
 - **Sidebar search** — filters the tree and reveals matches in place.
@@ -63,7 +63,7 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 - **Verified backups** — scheduled every six hours with cadence/retention rotation, each backup verified before it counts.
 - **Recovery without fear** — restoring runs as a verified live database swap: the replacement is validated and bootstrapped before it goes live, and a rollback sibling is retained in case anything fails.
 - **Portable workspace archives** — versioned JSON export/import of your entire workspace, with golden-fixture compatibility tests guaranteeing old archives keep importing.
-- **Provider import with preview** — migrate local Markdown, plain text, Obsidian, Notion, Bear, Simplenote, and Apple Notes exports from folders, individual files, ZIPs, or `.bear2bk` backups. Preview format, destination, re-import behavior, counts, and warnings before one atomic workspace commit. Durable receipts support skip, update, and copy modes. Intake and image transfer show cancellable progress. Notion databases become notes with typed properties; provider timestamps, tags, links, and local images migrate when representable. Ambiguous or unsupported content remains exact source or appears in the report. See [the import guide](docs/provider-import.md).
+- **Provider import with preview** — migrate local Markdown, plain text, Obsidian, Notion, Bear, Simplenote, and Apple Notes exports from folders, individual files, ZIPs, or `.bear2bk` backups. Preview format, destination, re-import behavior, counts, and warnings before one atomic workspace commit. Durable receipts support skip, update, and copy modes. Intake and image transfer show cancellable progress. Notion databases become notes with typed properties; provider timestamps, tags, links, and local images migrate when representable. Ambiguous or unsupported content remains exact source or appears in the report. See [the import guide](provider-import.md).
 - **Markdown export/import** — take single notes or whole workspaces out as plain Markdown, or bring Markdown in. Wiki-link labels resolve to unique stable note IDs during import, exports refresh labels after renames, and ambiguous links remain source text. Frontmatter and footnotes remain exact raw source until the structured editor supports them.
 
 ## Desktop experience
@@ -81,5 +81,5 @@ The renderer navigates a fully hydrated in-memory workspace: switching notes per
 ## Built to be trusted
 
 - 1,300+ tests across backend, desktop, renderer, store, and UI-architecture layers, plus a keyboard-driven end-to-end suite covering the complete workflow with zero tolerated console errors.
-- Thirty architecture decision records in [docs/adr](docs/adr) document why the system is shaped the way it is.
-- Benchmark evidence for every performance claim lives in [docs/benchmarks](docs/benchmarks).
+- Thirty architecture decision records in [docs/adr](adr) document why the system is shaped the way it is.
+- Benchmark evidence for every performance claim lives in [docs/benchmarks](benchmarks).

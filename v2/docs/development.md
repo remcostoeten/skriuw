@@ -40,8 +40,8 @@ crates/skriuw-fixtures     Deterministic scale fixtures
 crates/skriuw-cli          Database development utility
 cloud                      Cloudflare Worker sync service
 app                        React renderer and Tauri desktop shell
-spikes                     Retained measurement harnesses run by the build
-xtask                      Repository automation and contract generation
+app/harnesses              Retained measurement harnesses run by the build
+crates/xtask               Repository automation and contract generation
 contracts/generated        Generated JSON Schema
 docs                       ADRs, specs, and benchmarks
 scripts                    Contributor/CI entrypoints

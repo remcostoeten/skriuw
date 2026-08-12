@@ -343,8 +343,8 @@ require_command node
 require_command rustc
 [[ -d "$app_dir/node_modules" ]] || fail "Frontend dependencies are missing. Run ./scripts/bootstrap.sh or install manually in app/."
 [[ -d "$cloud_dir/node_modules" ]] || fail "Cloud dependencies are missing. Run ./scripts/bootstrap.sh or install manually in cloud/."
-[[ -d "$repo_dir/spikes/ui-architecture/node_modules" ]] || fail "UI architecture dependencies are missing. Run ./scripts/bootstrap.sh or install manually in spikes/ui-architecture/."
-[[ -d "$repo_dir/spikes/renderer-store/node_modules" ]] || fail "Renderer-store dependencies are missing. Run ./scripts/bootstrap.sh or install manually in spikes/renderer-store/."
+[[ -d "$repo_dir/app/harnesses/ui-architecture/node_modules" ]] || fail "UI architecture dependencies are missing. Run ./scripts/bootstrap.sh or install manually in app/harnesses/ui-architecture/."
+[[ -d "$repo_dir/app/harnesses/renderer-store/node_modules" ]] || fail "Renderer-store dependencies are missing. Run ./scripts/bootstrap.sh or install manually in app/harnesses/renderer-store/."
 
 print_header
 
@@ -357,9 +357,9 @@ run_step "Backend test suite" "backend-tests" cargo test --workspace --locked --
 print_metric "$(rust_test_summary "$last_log")"
 run_step "Desktop bridge test suite" "desktop-tests" cargo test --manifest-path app/src-tauri/Cargo.toml --locked --no-fail-fast
 print_metric "$(rust_test_summary "$last_log")"
-run_step "UI architecture regression suite" "ui-architecture-tests" bun --cwd="$repo_dir/spikes/ui-architecture" run test
+run_step "UI architecture regression suite" "ui-architecture-tests" bun --cwd="$repo_dir/app/harnesses/ui-architecture" run test
 print_metric "$(node_test_summary "$last_log")"
-run_step "Renderer-store regression suite" "renderer-store-tests" bun --cwd="$repo_dir/spikes/renderer-store" run test
+run_step "Renderer-store regression suite" "renderer-store-tests" bun --cwd="$repo_dir/app/harnesses/renderer-store" run test
 print_metric "$(node_test_summary "$last_log")"
 run_step "Renderer test suite and coverage" "renderer-tests" bun --cwd="$app_dir" run test
 print_metric "$(renderer_summary "$last_log")"

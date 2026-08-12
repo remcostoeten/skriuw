@@ -60,10 +60,10 @@ One release-mode run on the development machine materialized the 5,018 `mixed-50
 The `export_tree_projection` example writes one JSON file per canonical fixture for browser tree workloads. Each file contains the fixture metadata, the pinned operations digest, the active note ID, and every node as `{id, parentId, kind, title}` in creation order, which equals sibling order because every fixture placement is semantic `last`. The example generates each projection twice and asserts byte equality before writing; nothing generated is committed.
 
 ```bash
-cargo run --release --locked -p skriuw-fixtures --example export_tree_projection -- spikes/renderer-store/public/fixtures
+cargo run --release --locked -p skriuw-fixtures --example export_tree_projection -- app/harnesses/renderer-store/public/fixtures
 ```
 
-`spikes/renderer-store/scripts/export-fixtures.sh` wraps the same command for the renderer-store harness, which asserts node, folder, and document counts, maximum depth, and parent relationships against the embedded metadata after hydration.
+`app/harnesses/renderer-store/scripts/export-fixtures.sh` wraps the same command for the renderer-store harness, which asserts node, folder, and document counts, maximum depth, and parent relationships against the embedded metadata after hydration.
 
 ## Backend workload measurements
 

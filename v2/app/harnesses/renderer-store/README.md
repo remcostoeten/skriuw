@@ -5,7 +5,7 @@ This disposable React harness measures fine-grained external-store selectors aga
 ## Prepare and build
 
 ```bash
-cd spikes/renderer-store
+cd app/harnesses/renderer-store
 ./scripts/export-fixtures.sh
 bun install --frozen-lockfile
 bun run test

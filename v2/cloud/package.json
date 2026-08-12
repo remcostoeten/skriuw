@@ -11,9 +11,9 @@
   "private": true,
   "scripts": {
     "types": "wrangler types worker-configuration.d.ts",
-    "types:check": "wrangler types worker-configuration.d.ts --check",
+    "types:check": "bash scripts/without-dev-vars.sh wrangler types worker-configuration.d.ts --check",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "bash scripts/without-dev-vars.sh vitest run",
     "check": "bun run types:check && bun run typecheck && bun run test",
     "deploy:dry": "wrangler deploy --dry-run"
   },

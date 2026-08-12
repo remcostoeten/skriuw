@@ -24,7 +24,7 @@ Application shell
 
 The backend foundation, React product shell, and direct ProseMirror editor exist today. The isolated UI architecture harness remains measurement evidence rather than a runtime adapter.
 
-`skriuw-fixtures` generates deterministic operation-sequence workspaces for scale and adapter testing. It depends only on the domain contracts, never on storage adapters, and no generated fixture data is committed. See [docs/fixtures.md](docs/fixtures.md).
+`skriuw-fixtures` generates deterministic operation-sequence workspaces for scale and adapter testing. It depends only on the domain contracts, never on storage adapters, and no generated fixture data is committed. See [docs/fixtures.md](fixtures.md).
 
 Backend access is owned by one serialized runtime queue. Callers submit work and receive a completion handle. The desktop bridge must wait for completions away from the renderer and UI threads. FIFO execution makes write ordering explicit and prevents SQLite lock contention inside the process.
 
@@ -36,11 +36,11 @@ Typed subsystem errors project to bounded diagnostics only at shell or persisten
 
 The product uses one persistent direct ProseMirror view. Documents through 192 top-level blocks use the whole-document path; larger documents keep one canonical structured document behind a 192-block rendered window. Canonical range reconciliation, compact grouped undo/redo, full-document find/replace and clipboard output, deferred IME movement, accessible traversal, selection/focus/scroll restoration, and external reconciliation remain renderer-local. Product measurements keep 2,000-block editor installation and typing inside their budgets.
 
-Embedded flowcharts are versioned atomic ProseMirror nodes stored inside the canonical document. Mermaid-compatible source is a portable projection, not a second source of truth. A direct semantic-DOM/SVG NodeView owns interaction locally and commits one document transaction per completed gesture; diagram editing adds no navigation IPC, database read, React store subscription, or library-specific persisted state. See [ADR-0025](docs/adr/0025-embedded-diagrams.md).
+Embedded flowcharts are versioned atomic ProseMirror nodes stored inside the canonical document. Mermaid-compatible source is a portable projection, not a second source of truth. A direct semantic-DOM/SVG NodeView owns interaction locally and commits one document transaction per completed gesture; diagram editing adds no navigation IPC, database read, React store subscription, or library-specific persisted state. See [ADR-0025](adr/0025-embedded-diagrams.md).
 
 The product sidebar ports the measured dependency-free fixed-row tree into one viewport-bounded row pool. Rendered DOM stays independent of 1,000-node and 5,000-node workspace size; deterministic sibling order, collapsed-subtree exclusion, imperative focus reveal, active-descendant semantics, and exact ARIA level/set metadata survive row recycling. Visual indentation clamps by sidebar width while semantic depth remains unlimited. Expansion IDs persist through a serialized native-only SQLite use case, are excluded from portable archives, and update after synchronous local paint through a coalesced background acknowledgement.
 
-The `spikes/ui-architecture` and `spikes/renderer-store` harnesses are the isolated measurement code behind that selection ([ADR-0020](docs/adr/0020-ui-architecture.md), accepted): direct editor state switching, and a normalized dependency-free external store with narrow React selectors where the application shell and persistent editor host hold no workspace subscription, editor typing remains editor-owned, and equivalent updates stop before selector traversal. Both harnesses are retained as regression suites — `./scripts/build.sh` and CI still run them — and stay separate from production and profiling artifacts.
+The `app/harnesses/ui-architecture` and `app/harnesses/renderer-store` harnesses are the isolated measurement code behind that selection ([ADR-0020](adr/0020-ui-architecture.md), accepted): direct editor state switching, and a normalized dependency-free external store with narrow React selectors where the application shell and persistent editor host hold no workspace subscription, editor typing remains editor-owned, and equivalent updates stop before selector traversal. Both harnesses are retained as regression suites — `./scripts/build.sh` and CI still run them — and stay separate from production and profiling artifacts.
 
 ## Runtime contract
 
@@ -84,7 +84,7 @@ User action
 
 ### Sync coordination
 
-`skriuw-sync` owns the optional background sync lifecycle: a narrow push/pull transport seam over the generated v1 sync contracts, classified failure handling with bounded jittered backoff, and one coalesced coordinator loop per workspace database that claims, pushes, acknowledges, pulls, and applies through the durable `WorkspaceSyncQueue` port. It holds no SQLite transaction across network work and never runs on interaction or recovery paths; see `docs/specs/desktop-sync-coordinator.md`.
+`skriuw-sync` owns the optional background sync lifecycle: a narrow push/pull transport seam over the generated v1 sync contracts, classified failure handling with bounded jittered backoff, and one coalesced coordinator loop per workspace database that claims, pushes, acknowledges, pulls, and applies through the durable `WorkspaceSyncQueue` port. It holds no SQLite transaction across network work and never runs on interaction or recovery paths; see `specs/desktop-sync-coordinator.md`.
 
 ### History
 
@@ -96,9 +96,9 @@ The desktop history drain publishes one note-scoped header only after materializ
 
 The browser runs the same core, operation protocol, and renderer store. A
 dedicated worker owns SQLite WASM over an OPFS SAH pool
-([ADR-0027](docs/adr/0027-browser-sqlite-opfs-sah-pool.md)), and the same sync
+([ADR-0027](adr/0027-browser-sqlite-opfs-sah-pool.md)), and the same sync
 coordinator logic runs inside that storage worker
-([ADR-0028](docs/adr/0028-browser-worker-owned-sync.md)). Network sync consumes
+([ADR-0028](adr/0028-browser-worker-owned-sync.md)). Network sync consumes
 a durable outbox and never services note navigation.
 
 Optional connected mode replicates versioned domain operations rather than
@@ -107,14 +107,14 @@ assigns an ordered workspace log inside one SQLite-backed Durable Object per
 workspace; large content is referenced through content-addressed chunks
 instead of being forced into cloud SQLite rows. Sync requests require an
 authenticated session and per-workspace authorization. See
-[the cloud sync master tracker](docs/specs/cloud-sync-master.md) and
-[ADR-0026](docs/adr/0026-optional-cloud-operation-replication.md).
+[the cloud sync master tracker](specs/cloud-sync-master.md) and
+[ADR-0026](adr/0026-optional-cloud-operation-replication.md).
 
 ### Recovery and portability
 
 `WorkspaceArchive` is the versioned interchange contract for export, import, and cross-runtime migration. It contains canonical workspace state only. Each adapter rebuilds search, history caches, and operational queues locally. Immutable golden JSON fixtures catalogue every supported archive version and must keep passing domain validation plus two complete SQLite import/export round trips. Native raw-database backup is a separate SQLite capability and never becomes the web interchange format.
 
-Native backup uses SQLite's Online Backup API against a live WAL database. It publishes only a create-new, single-file artifact after integrity, foreign-key, migration, and domain validation. Scheduled rotation enforces a six-hour default cadence and publishes immutable relative-path recovery manifests before checksum-guarded pruning. Restore writes a new verified database rather than replacing the open workspace. See [docs/recovery.md](docs/recovery.md).
+Native backup uses SQLite's Online Backup API against a live WAL database. It publishes only a create-new, single-file artifact after integrity, foreign-key, migration, and domain validation. Scheduled rotation enforces a six-hour default cadence and publishes immutable relative-path recovery manifests before checksum-guarded pruning. Restore writes a new verified database rather than replacing the open workspace. See [docs/recovery.md](recovery.md).
 
 ## Data ownership
 
@@ -128,11 +128,11 @@ Native backup uses SQLite's Online Backup API against a live WAL database. It pu
 - `sync_outbox`: durable pending replicated local operations.
 - `sync_blocked_operations`: recovery-visible operations awaiting later sync capabilities.
 
-See [docs/data-model.md](docs/data-model.md).
+See [docs/data-model.md](data-model.md).
 
 ## Performance
 
-Architecture performance is tested as a contract, not assumed from framework choice. See [docs/performance-contract.md](docs/performance-contract.md).
+Architecture performance is tested as a contract, not assumed from framework choice. See [docs/performance-contract.md](performance-contract.md).
 
 The C3 production gate drives the real renderer, external store, shell, and
 editor through deterministic native bridge fixtures, then independently
@@ -145,33 +145,33 @@ Rust and Tauri suites rather than simulated browser state.
 
 ## Decisions
 
-- [ADR-0001: standalone local-first product](docs/adr/0001-standalone-local-first.md)
-- [ADR-0002: SQLite is canonical](docs/adr/0002-sqlite-canonical.md)
-- [ADR-0003: operation protocol and runtime adapters](docs/adr/0003-operation-protocol.md)
-- [ADR-0004: defer UI and editor selection](docs/adr/0004-defer-ui-editor.md)
-- [ADR-0005: asynchronous Git history](docs/adr/0005-background-git-history.md)
-- [ADR-0006: native Git history materializer](docs/adr/0006-native-git-materializer.md)
-- [ADR-0007: portable workspace archive](docs/adr/0007-portable-workspace-archive.md)
-- [ADR-0008: verified native SQLite backups](docs/adr/0008-verified-native-backups.md)
-- [ADR-0009: subtree trash and permanent purge](docs/adr/0009-subtree-trash-and-purge.md)
-- [ADR-0010: backend-owned node ranking](docs/adr/0010-backend-owned-node-ranking.md)
-- [ADR-0011: graceful storage runtime shutdown](docs/adr/0011-graceful-runtime-shutdown.md)
-- [ADR-0012: lossless save batching](docs/adr/0012-lossless-save-batching.md)
-- [ADR-0013: versioned settings and note metadata](docs/adr/0013-versioned-settings-and-note-metadata.md)
-- [ADR-0014: bounded failure diagnostics](docs/adr/0014-bounded-failure-diagnostics.md)
-- [ADR-0015: scheduled backup rotation](docs/adr/0015-scheduled-backup-rotation.md)
-- [ADR-0016: deterministic operation-sequence scale fixtures](docs/adr/0016-deterministic-scale-fixtures.md)
-- [ADR-0017: verified live database swap](docs/adr/0017-verified-live-database-swap.md)
-- [ADR-0018: read-only Git history integrity and cache rebuild](docs/adr/0018-read-only-git-history-integrity.md)
-- [ADR-0019: archive compatibility fixtures](docs/adr/0019-archive-compatibility-fixtures.md)
-- [ADR-0020: UI architecture selection](docs/adr/0020-ui-architecture.md)
-- [ADR-0021: tabs and split view](docs/adr/0021-tabs-and-split-view.md)
-- [ADR-0022: import into the Skriuw monorepo as the v2 line](docs/adr/0022-v2-monorepo-import.md)
-- [ADR-0023: lossless and reference-safe Markdown transfer](docs/adr/0023-lossless-markdown-transfer.md)
-- [ADR-0024: previewed and atomic provider import](docs/adr/0024-previewed-atomic-provider-import.md)
-- [ADR-0025: embedded diagrams use a structured local model](docs/adr/0025-embedded-diagrams.md)
-- [ADR-0026: optional cloud operation replication](docs/adr/0026-optional-cloud-operation-replication.md)
-- [ADR-0027: worker-owned browser SQLite over an OPFS SAH pool](docs/adr/0027-browser-sqlite-opfs-sah-pool.md)
-- [ADR-0028: browser sync inside the storage worker](docs/adr/0028-browser-worker-owned-sync.md)
-- [ADR-0029: stored video media](docs/adr/0029-stored-video-media.md)
-- [ADR-0030: remote cover download](docs/adr/0030-remote-cover-download.md)
+- [ADR-0001: standalone local-first product](adr/0001-standalone-local-first.md)
+- [ADR-0002: SQLite is canonical](adr/0002-sqlite-canonical.md)
+- [ADR-0003: operation protocol and runtime adapters](adr/0003-operation-protocol.md)
+- [ADR-0004: defer UI and editor selection](adr/0004-defer-ui-editor.md)
+- [ADR-0005: asynchronous Git history](adr/0005-background-git-history.md)
+- [ADR-0006: native Git history materializer](adr/0006-native-git-materializer.md)
+- [ADR-0007: portable workspace archive](adr/0007-portable-workspace-archive.md)
+- [ADR-0008: verified native SQLite backups](adr/0008-verified-native-backups.md)
+- [ADR-0009: subtree trash and permanent purge](adr/0009-subtree-trash-and-purge.md)
+- [ADR-0010: backend-owned node ranking](adr/0010-backend-owned-node-ranking.md)
+- [ADR-0011: graceful storage runtime shutdown](adr/0011-graceful-runtime-shutdown.md)
+- [ADR-0012: lossless save batching](adr/0012-lossless-save-batching.md)
+- [ADR-0013: versioned settings and note metadata](adr/0013-versioned-settings-and-note-metadata.md)
+- [ADR-0014: bounded failure diagnostics](adr/0014-bounded-failure-diagnostics.md)
+- [ADR-0015: scheduled backup rotation](adr/0015-scheduled-backup-rotation.md)
+- [ADR-0016: deterministic operation-sequence scale fixtures](adr/0016-deterministic-scale-fixtures.md)
+- [ADR-0017: verified live database swap](adr/0017-verified-live-database-swap.md)
+- [ADR-0018: read-only Git history integrity and cache rebuild](adr/0018-read-only-git-history-integrity.md)
+- [ADR-0019: archive compatibility fixtures](adr/0019-archive-compatibility-fixtures.md)
+- [ADR-0020: UI architecture selection](adr/0020-ui-architecture.md)
+- [ADR-0021: tabs and split view](adr/0021-tabs-and-split-view.md)
+- [ADR-0022: import into the Skriuw monorepo as the v2 line](adr/0022-v2-monorepo-import.md)
+- [ADR-0023: lossless and reference-safe Markdown transfer](adr/0023-lossless-markdown-transfer.md)
+- [ADR-0024: previewed and atomic provider import](adr/0024-previewed-atomic-provider-import.md)
+- [ADR-0025: embedded diagrams use a structured local model](adr/0025-embedded-diagrams.md)
+- [ADR-0026: optional cloud operation replication](adr/0026-optional-cloud-operation-replication.md)
+- [ADR-0027: worker-owned browser SQLite over an OPFS SAH pool](adr/0027-browser-sqlite-opfs-sah-pool.md)
+- [ADR-0028: browser sync inside the storage worker](adr/0028-browser-worker-owned-sync.md)
+- [ADR-0029: stored video media](adr/0029-stored-video-media.md)
+- [ADR-0030: remote cover download](adr/0030-remote-cover-download.md)

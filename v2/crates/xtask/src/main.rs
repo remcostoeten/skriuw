@@ -31,6 +31,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     let check = arguments.iter().any(|argument| argument == "--check");
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
+        .and_then(Path::parent)
         .ok_or("xtask must live below repository root")?
         .to_path_buf();
     let output = root.join("contracts/generated");
