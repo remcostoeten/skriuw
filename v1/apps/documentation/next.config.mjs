@@ -7,10 +7,13 @@ const nextConfig = {
 	reactStrictMode: true,
 	// Vercel pins the trace root to this app, but bun symlinks packages into a
 	// store at the monorepo root, so `next` resolves outside that root and
-	// Turbopack refuses to compile it. Both roots must be the workspace root.
-	outputFileTracingRoot: path.join(import.meta.dirname, "../.."),
+	// Turbopack refuses to compile it. Both roots must be the repository root
+	// (three levels up since the v1/ move) — Vercel resolves the build output
+	// relative to this root, so v1/ here would make it look for the app at
+	// apps/documentation and fail with a missing build-manifest.json.
+	outputFileTracingRoot: path.join(import.meta.dirname, "../../.."),
 	turbopack: {
-		root: path.join(import.meta.dirname, "../.."),
+		root: path.join(import.meta.dirname, "../../.."),
 	},
 	async rewrites() {
 		return [
