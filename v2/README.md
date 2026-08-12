@@ -26,38 +26,27 @@ every keystroke paints in the same frame — no spinners, no server round-trips,
 no account. Try it without installing anything: the **full app runs in your
 browser** at [skriuw.com/app](https://skriuw.com/app).
 
-- Rich-text editor with Markdown input rules and paste, tables, checklists, toggles, code blocks, slash commands, find/replace, note properties, images, and Mermaid-round-tripping flowcharts
-- `#` tags, `$` people, and `[[` wiki-links stored by ID, so renames propagate; backlinks on every note, tag, and person
-- Nested note tree (virtualized, fast at 5,000+ nodes), pinned notes, tabs, split view, drag and drop, trash with subtree restore
-- Daily journal with mood tracking, calendar, and streaks
-- Automatic background Git history with in-app restore, verified backups every six hours, JSON workspace archives
-- Importers for Markdown, Obsidian, Notion, Bear, Simplenote, and Apple Notes
-- Full keyboard control throughout
-- Optional cloud sync, off by default
+- A real rich-text editor that speaks Markdown
+- `#` tags, `$` people, and `[[` wiki-links — renames propagate, backlinks everywhere
+- Automatic Git history and verified backups, in the background
+- Imports from Obsidian, Notion, Bear, Apple Notes, and plain Markdown
+- Keyboard-first, fast at thousands of notes, sync strictly opt-in
 
-The complete feature reference is in [FEATURES.md](FEATURES.md).
+Everything else — journal, tabs, split view, flowcharts, properties, trash —
+is in [FEATURES.md](docs/FEATURES.md).
 
 ## What makes it different
 
 Most "local-first" apps are a web client with a cache. Skriuw is one Rust
-core — schema, operations, search, history — behind narrow ports, with an
-adapter per platform:
+core — schema, operations, search, history — with an adapter per platform:
+the desktop app links against native SQLite, and the browser runs **the same
+core compiled to WebAssembly** with a real SQLite database in OPFS.
+[skriuw.com/app](https://skriuw.com/app) is the entire application, not a demo.
 
-- On desktop it links against native SQLite inside a Tauri shell.
-- In the browser **the same core is compiled to WebAssembly** and owns a real
-  SQLite database in OPFS inside a worker. [skriuw.com/app](https://skriuw.com/app)
-  is the entire application, not a demo or a thin client.
-- Every action updates renderer state synchronously and paints in the same
-  frame; durability happens on a serialized queue the UI never waits for.
-- Git history, verified backups, and sync consume durable outboxes on
-  background threads — they can fail, retry, and recover without ever
-  blocking typing or navigation.
-- Sync, when you turn it on, replicates versioned operations — never database
-  files — through an ordered per-workspace log. Concurrent edits become
-  explicit both-version conflicts, never silent merges.
-
-[ARCHITECTURE.md](ARCHITECTURE.md) has the full system shape; decisions live
-in [docs/adr](docs/adr).
+Writes paint in the same frame and become durable on a background queue the
+UI never waits for; history, backups, and sync can fail and retry without
+ever touching typing or navigation. The full system shape is in
+[ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Installation
 
@@ -108,13 +97,11 @@ have no current publication; use a release asset or one of the channels above.
 
 ## Privacy
 
-A fresh install performs no network requests. Notes, images, search indexes,
-history, and backups are local files, and there is no analytics, crash
-reporting, or telemetry of any kind — the only network code in the app is the
-opt-in sync Worker and the updater's version check. With sync enabled, data
-is encrypted in transit; end-to-end encryption is an open decision
-([details](docs/specs/cloud-sync-master.md)), so if that boundary matters to
-you, stay local-only.
+A fresh install performs no network requests, and there is no analytics or
+telemetry of any kind — the only network code is the opt-in sync Worker and
+the updater's version check. Sync is encrypted in transit but not yet
+end-to-end ([details](docs/specs/cloud-sync-master.md)); if that boundary
+matters, stay local-only.
 
 ## Development
 
