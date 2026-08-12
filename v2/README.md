@@ -11,7 +11,7 @@
 
 <p align="center">
   A fast, private writing workspace for notes, journals, and connected knowledge.<br />
-  <strong>No server, no Node — the whole app, database included, runs as WebAssembly in your browser.</strong>
+  <strong>No server, no Node: the entire app is Rust compiled to WebAssembly, database included, running in your browser.</strong>
 </p>
 
 <p align="center">
@@ -24,23 +24,23 @@
 ![The Skriuw workspace](docs/assets/preview.png)
 
 Your workspace is a SQLite database on your machine. Open the app, type, and
-every keystroke paints in the same frame — no spinners, no server round-trips,
+every keystroke paints in the same frame: no spinners, no server round-trips,
 no account. Try it without installing anything: the **full app runs in your
 browser** at [skriuw.com/app](https://skriuw.com/app).
 
 - A real rich-text editor that speaks Markdown
-- `#` tags, `$` people, and `[[` wiki-links — renames propagate, backlinks everywhere
+- `#` tags, `$` people, and `[[` wiki-links; renames propagate, backlinks everywhere
 - Automatic Git history and verified backups, in the background
 - Imports from Obsidian, Notion, Bear, Apple Notes, and plain Markdown
 - Keyboard-first, fast at thousands of notes, sync strictly opt-in
 
-Everything else — journal, tabs, split view, flowcharts, properties, trash —
+Everything else (journal, tabs, split view, flowcharts, properties, trash)
 is in [FEATURES.md](docs/FEATURES.md).
 
 ## What makes it different
 
 Most "local-first" apps are a web client with a cache. Skriuw is one Rust
-core — schema, operations, search, history — with an adapter per platform:
+core (schema, operations, search, history) with an adapter per platform:
 the desktop app links against native SQLite, and the browser runs **the same
 core compiled to WebAssembly** with a real SQLite database in OPFS.
 [skriuw.com/app](https://skriuw.com/app) is the entire application, not a demo.
@@ -100,7 +100,7 @@ have no current publication; use a release asset or one of the channels above.
 ## Privacy
 
 A fresh install performs no network requests, and there is no analytics or
-telemetry of any kind — the only network code is the opt-in sync Worker and
+telemetry of any kind. The only network code is the opt-in sync Worker and
 the updater's version check. Sync is encrypted in transit but not yet
 end-to-end ([details](docs/specs/cloud-sync-master.md)); if that boundary
 matters, stay local-only.
