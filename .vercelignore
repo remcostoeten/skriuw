@@ -1,7 +1,13 @@
 # Frozen v1 product line. This Vercel project builds v2 only, and v1 carries
 # both the ~5GB Tauri target dir and Expo's 150MB native .so files, which
-# exceed Vercel's 100MB per-file upload limit.
-v1
+# exceed Vercel's 100MB per-file upload limit. The skriuw-docs Vercel project
+# clones this same repo with Root Directory v1/apps/documentation, so the
+# docs app must stay re-included (a self-contained install; it has no
+# workspace dependencies).
+v1/*
+!v1/apps
+v1/apps/*
+!v1/apps/documentation
 
 # Build artifacts / caches
 .next
