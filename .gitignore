@@ -74,3 +74,6 @@ apps/desktop/skriuw_*_amd64-working-directory/
 next-beats/
 paralelprompts/
 apps/documentation/native/
+
+# One-shot release-notes files fed to gh release create
+release-notes-v2-*.txt

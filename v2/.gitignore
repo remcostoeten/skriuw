@@ -10,6 +10,9 @@ dist/
 .claude/worktrees/
 /app/e2e/results/
 
+# Local MCP config; holds machine-absolute paths
+/.mcp.json
+
 # Vendored third-party skills; reinstallable from skills-lock.json
 /.agents/skills/building-tauri-with-github-actions/
 /.agents/skills/distributing-tauri-for-windows/
