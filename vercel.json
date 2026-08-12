@@ -2,9 +2,9 @@
 	"$schema": "https://openapi.vercel.sh/vercel.json",
 	"framework": null,
 	"bunVersion": "1.3.14",
-	"installCommand": "cd v2/app && bun install --frozen-lockfile",
-	"buildCommand": "bash v2/scripts/vercel-build.sh",
-	"outputDirectory": "v2/.build/vercel-public",
+	"installCommand": "cd app && bun install --frozen-lockfile",
+	"buildCommand": "bash scripts/vercel-build.sh",
+	"outputDirectory": ".build/vercel-public",
 	"redirects": [
 		{ "source": "/", "destination": "/app/", "permanent": false },
 		{ "source": "/app", "destination": "/app/", "permanent": true }

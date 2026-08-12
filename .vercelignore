@@ -1,11 +1,7 @@
-# Desktop (Tauri) app — not part of the Vercel web deployment.
-# Its Rust target dir alone is ~5GB.
-apps/desktop
-
-# Mobile (Expo/React Native) app — not part of the Vercel web deployment.
-# Its Android build outputs include 150MB native .so files that exceed
-# Vercel's 100MB per-file upload limit.
-apps/mobile
+# Frozen v1 product line. This Vercel project builds v2 only, and v1 carries
+# both the ~5GB Tauri target dir and Expo's 150MB native .so files, which
+# exceed Vercel's 100MB per-file upload limit.
+v1
 
 # Build artifacts / caches
 .next
@@ -19,3 +15,7 @@ node_modules
 .env.*
 !.env.example
 .claude
+
+# Local data/build dirs (CLI deploys)
+.build
+.data

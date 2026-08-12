@@ -6,8 +6,14 @@ Thank you for helping improve Skriuw. Bug fixes, documentation improvements, tes
 
 Skriuw contains two product lines:
 
-- `v2/` is the current local-first desktop application.
-- `apps/` and `packages/` contain the legacy web, mobile, and self-hosted line.
+- The repository root is the current (v2) local-first desktop application.
+- `v1/` contains the frozen legacy web, mobile, and self-hosted line.
+
+Git hooks live at the repository root and are shared by both lines. Enable them once per clone:
+
+```bash
+git config core.hooksPath .husky/_
+```
 
 Check for an existing issue before starting a large change. Open an issue first when a proposal changes persisted data, public contracts, security behavior, or an architectural decision.
 
@@ -20,7 +26,6 @@ Do not report vulnerabilities in a public issue. Follow [SECURITY.md](SECURITY.m
 Install Rust 1.95, Bun 1.3, Node.js 24, Bash, and the platform dependencies required by Tauri.
 
 ```bash
-cd v2
 ./scripts/bootstrap.sh
 ./scripts/check.sh
 ```
@@ -32,21 +37,22 @@ Build individual targets with:
 ./scripts/build.sh desktop
 ```
 
-See [v2/README.md](v2/README.md) for the complete command reference.
+See [README.md](README.md) for the complete command reference.
 
 ### v1
 
 Install Bun 1.3 and Node.js 24, then:
 
 ```bash
+cd v1
 bun install
 cp .env.example .env.local
 bun dev
 ```
 
-The environment variables required by the web application are documented in [apps/documentation/content/docs/infra/environment-variables.mdx](apps/documentation/content/docs/infra/environment-variables.mdx).
+The environment variables required by the web application are documented in [v1/apps/documentation/content/docs/infra/environment-variables.mdx](v1/apps/documentation/content/docs/infra/environment-variables.mdx).
 
-Common checks:
+Common checks, all run from `v1/`:
 
 ```bash
 bun lint
@@ -66,7 +72,7 @@ bun run build
 - Ensure generated contracts and lockfiles are current when applicable.
 - Run the checks relevant to the files you changed.
 
-Architecture decisions for v2 live in [v2/docs/adr](v2/docs/adr). Changes that contradict an accepted decision should update or supersede the ADR explicitly.
+Architecture decisions for v2 live in [docs/adr](docs/adr). Changes that contradict an accepted decision should update or supersede the ADR explicitly.
 
 ## Commit and review expectations
 
