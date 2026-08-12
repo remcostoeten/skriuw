@@ -245,3 +245,92 @@ pub(crate) fn verify_migration(
 pub(crate) fn checksum(sql: &str) -> String {
     format!("{:x}", Sha256::digest(sql.as_bytes()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{MIGRATIONS, checksum};
+
+    /// Applied migrations are byte-immutable: `verify_migration` compares the
+    /// ledger's stored checksum against the embedded SQL, so ANY edit to a
+    /// shipped migration file — even a comment or whitespace change — bricks
+    /// every existing database with "checksum drift" at boot. The 2026-08-12
+    /// repository hoist rewrote a doc path inside 0013's comment and broke
+    /// exactly this way. New schema changes go in a NEW migration file, and
+    /// its checksum gets appended here in the same commit.
+    #[test]
+    fn shipped_migrations_are_byte_immutable() {
+        const SHIPPED: &[(i64, &str)] = &[
+            (
+                1,
+                "92b58c89acc0de517e594c418596abfe84947976a774250eacebb49e34ec3e23",
+            ),
+            (
+                2,
+                "5ef489b5792913a5f3a19f3e6b35c0eab81b7eba6522c86ea458a00d4fa5221f",
+            ),
+            (
+                3,
+                "2868267fb5d01685fab029b71ceb3cf81c64c2b7e4a20bb581acc9b0de61da4d",
+            ),
+            (
+                4,
+                "ef42f83abf025d0f8f7738d1128fd6cf5a7bfc7a801ea10676a6acdba000285e",
+            ),
+            (
+                5,
+                "3d70092245a75dfce55f1d7ad1976cb4706d87dd81cdd81459f5f921aa4b3437",
+            ),
+            (
+                6,
+                "e2755093f801ab332a6192f1ec9c01b46cc7673b1f7b817e32113f46a80998d2",
+            ),
+            (
+                7,
+                "ec28d007d9a471b4e97856d9be7fc36cd3a0af257a879d3d2ef8cdef9921943e",
+            ),
+            (
+                8,
+                "2de6362349327cfad8b845869aba0105b673070a73a14785efed8a24ec5fd99f",
+            ),
+            (
+                9,
+                "1894937a6f2af02302a298864e8b2690897e1d1c23c70eda39a209c16351d491",
+            ),
+            (
+                10,
+                "ae59eddb2136d99b2e699d944481572a22f1de97db6ece50681f8b0fe5bf607d",
+            ),
+            (
+                11,
+                "f1fc816a87bde3beab29318285450ad46612b787056cebebd361f5d68acf90ca",
+            ),
+            (
+                12,
+                "6834f7973659ba720ce97720a86e54857b90e82a127dffcce3ffa64b8e474e40",
+            ),
+            (
+                13,
+                "730f5a92ef87572450d1a0485d9a24acf7bad458b32cf850622d19566d6c385d",
+            ),
+            (
+                14,
+                "77e4869ca89cc09a68dd2406a5b6703822a726c9a23db07aa31d87e886e1cc30",
+            ),
+            (
+                15,
+                "673715ccb46d2a1e71cc845baed1589bfc44f1e34141fa56237aa3ab74ffcbd7",
+            ),
+        ];
+        assert_eq!(MIGRATIONS.len(), SHIPPED.len(), "append new checksums here");
+        for (migration, (version, shipped)) in MIGRATIONS.iter().zip(SHIPPED) {
+            assert_eq!(migration.version, *version);
+            assert_eq!(
+                checksum(migration.sql),
+                *shipped,
+                "migration {} ({}) changed after shipping; add a new migration instead",
+                migration.version,
+                migration.name,
+            );
+        }
+    }
+}

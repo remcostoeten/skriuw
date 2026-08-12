@@ -1,6 +1,6 @@
 -- Sync convergence v1: terminal identity tombstones, preserved document
 -- conflict alternatives, precise conflict subreasons, and a no-op received
--- outcome. See docs/specs/sync-convergence-v1.md.
+-- outcome. See v2/docs/specs/sync-convergence-v1.md.
 
 CREATE TABLE sync_tombstones (
     entity_kind TEXT NOT NULL CHECK (
