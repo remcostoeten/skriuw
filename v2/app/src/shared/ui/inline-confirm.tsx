@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { cn } from "../lib/utils";
+import { cn } from "@/shared/lib/utils";
 
 type Size = "sm" | "md";
 

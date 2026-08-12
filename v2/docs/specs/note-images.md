@@ -53,7 +53,7 @@ The blob write itself (decoding clipboard data, hashing, writing the file) is na
 
 ## Editor integration
 
-`app/src/editor/schema.ts`: add an `image_ref` node spec, atom + inline-or-block (block, most likely — images are typically their own line, unlike `tag_ref`/`mention_ref` which are inline atoms):
+`app/src/features/editor/schema.ts`: add an `image_ref` node spec, atom + inline-or-block (block, most likely — images are typically their own line, unlike `tag_ref`/`mention_ref` which are inline atoms):
 
 ```ts
 const imageRefSpec: NodeSpec = {
@@ -66,7 +66,7 @@ const imageRefSpec: NodeSpec = {
 };
 ```
 
-Paste/drop handling lives in `app/src/editor/note-editor.tsx` alongside the existing clipboard handling (`note-editor.tsx:552` already intercepts `clipboardData` for whole-document copy — add a paste-side handler, not a copy-side one, in the same file). On `paste`/`drop`:
+Paste/drop handling lives in `app/src/features/editor/note-editor.tsx` alongside the existing clipboard handling (`note-editor.tsx:552` already intercepts `clipboardData` for whole-document copy — add a paste-side handler, not a copy-side one, in the same file). On `paste`/`drop`:
 
 1. Read `DataTransfer.files` (drop) or `clipboardData.items` (paste) for `image/*` MIME types.
 2. Hash the bytes client-side is unnecessary — dispatch the raw bytes through the bridge (`app/src/bridge/**`) to the native `ImageStore.put`, which hashes and writes.
@@ -77,7 +77,7 @@ Rendering: `image_ref`'s `toDOM`/NodeView resolves `id` to a local `file://`/cus
 
 ## Markdown export/import
 
-`app/src/export/markdown-transfer.ts`: an `image_ref` serializes to standard `![alt](relative/path/to/blob)`. Markdown export must copy the referenced blob file alongside the exported `.md` (e.g. into an `images/` sibling directory), not just emit a dangling path — the whole point of Markdown export is portability. Markdown import reads local `![alt](path)` references, hashes the referenced file, and creates the matching `note_images` row + blob (deduplicating if the hash already exists).
+`app/src/features/transfer/export/markdown-transfer.ts`: an `image_ref` serializes to standard `![alt](relative/path/to/blob)`. Markdown export must copy the referenced blob file alongside the exported `.md` (e.g. into an `images/` sibling directory), not just emit a dangling path — the whole point of Markdown export is portability. Markdown import reads local `![alt](path)` references, hashes the referenced file, and creates the matching `note_images` row + blob (deduplicating if the hash already exists).
 
 ## Archive and portability
 

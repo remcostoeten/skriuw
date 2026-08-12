@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { hasTauriRuntime } from "../bridge/external-links";
-import { cn } from "../shared/lib/utils";
-import { noop } from "../shared/lib/noop";
-import { CloseIcon, MaximizeIcon, MinimizeIcon, RestoreIcon } from "../shared/icons";
+import { hasTauriRuntime } from "@/bridge/external-links";
+import { cn } from "@/shared/lib/utils";
+import { noop } from "@/shared/lib/noop";
+import { CloseIcon, MaximizeIcon, MinimizeIcon, RestoreIcon } from "@/shared/icons/static";
 
 type ControlButtonProps = {
   label: string;

@@ -3,7 +3,7 @@ import {
   BrowserStorageWorkerClient,
   type BrowserStorageFailure,
 } from "../../../crates/skriuw-sqlite-wasm/web/worker-client.ts";
-import type { WorkspaceArchive, WorkspaceSnapshot } from "../contracts/workspace";
+import type { WorkspaceArchive, WorkspaceSnapshot } from "@/contracts/workspace";
 import type { ArchiveExportReport, ArchiveImportReport } from "./commands";
 import {
   deleteBrowserMediaBlob,
@@ -14,7 +14,7 @@ import {
 } from "./browser-media";
 import { pickTextFile, readPickedFile, saveTextFile } from "./browser-files";
 import { browserSyncDriver, publishBrowserSyncEvent, type SyncWorkerPort } from "./browser-sync";
-import { noop } from "../shared/lib/noop";
+import { noop } from "@/shared/lib/noop";
 
 type BrowserWorkerValue = {
   kind: string;

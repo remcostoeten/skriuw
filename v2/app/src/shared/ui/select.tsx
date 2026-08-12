@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { CheckIcon, ChevronDownIcon } from "../icons";
-import { cn } from "../lib/utils";
+import { CheckIcon, ChevronDownIcon } from "@/shared/icons/static";
+import { cn } from "@/shared/lib/utils";
 
 export type SelectOption<TValue extends string> = {
   value: TValue;

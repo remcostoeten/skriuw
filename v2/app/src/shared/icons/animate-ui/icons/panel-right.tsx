@@ -7,7 +7,7 @@ import {
   useAnimateIconContext,
   IconWrapper,
   type IconProps,
-} from '@/shared/icons/animate-ui/icons/icon';
+} from './icon';
 
 type PanelRightProps = IconProps<keyof typeof animations>;
 

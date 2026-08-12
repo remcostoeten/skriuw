@@ -1,89 +1,89 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatShortcut } from "@remcostoeten/use-shortcut/formatter";
 import { AuthProvider } from "@remcostoeten/auth-drawer";
-import { updateSettings } from "./actions/settings";
-import { authAdapter } from "./auth/adapter";
+import { updateSettings } from "@/store/actions/settings";
+import { authAdapter } from "@/features/auth/adapter";
 import {
   clearOnboardingOverride,
   readOnboardingOverride,
-} from "./onboarding/debug-override";
-import { completeOnboarding, shouldShowOnboarding } from "./onboarding/model";
-import { Onboarding } from "./onboarding/onboarding";
-import { AccountMenu } from "./shell/account-menu";
+} from "@/features/onboarding/debug-override";
+import { completeOnboarding, shouldShowOnboarding } from "@/features/onboarding/model";
+import { Onboarding } from "@/features/onboarding/onboarding";
+import { AccountMenu } from "@/shell/account-menu";
 import {
   railActiveClass,
   railIconButtonClass,
   railInactiveClass,
-} from "./shell/rail-styles";
-import type { SectionId } from "./shell/settings/sections";
-import { Sidebar } from "./shell/sidebar";
-import { CommandPaletteHost } from "./shell/command-palette-host";
-import { EditorPanes } from "./shell/editor-panes";
-import { MetadataPanel } from "./shell/metadata-panel";
-import { SettingsDialog } from "./shell/settings-dialog";
+} from "@/shell/rail-styles";
+import type { SectionId } from "@/features/settings/sections/sections";
+import { Sidebar } from "@/features/sidebar/sidebar";
+import { CommandPaletteHost } from "@/commands/command-palette-host";
+import { EditorPanes } from "@/shell/editor-panes";
+import { MetadataPanel } from "@/features/note-chrome/metadata-panel";
+import { SettingsDialog } from "@/features/settings/settings-dialog";
 
 function loadSignInDrawer() {
-  return import("./auth/sign-in-drawer");
+  return import("@/features/auth/sign-in-drawer");
 }
 
 const CloudSignInDrawer = lazy(async () => {
   const module = await loadSignInDrawer();
   return { default: module.CloudSignInDrawer };
 });
-import { ShortcutHelpOverlay } from "./shell/shortcut-help-overlay";
-import { TrashView } from "./shell/trash-view";
-import { EntityView } from "./shell/entity-view";
-import { HistoryView } from "./history/history-view";
-import { JournalSidebar, JournalView } from "./journal/journal-view";
-import { WindowControls } from "./shell/window-controls";
+import { ShortcutHelpOverlay } from "@/commands/shortcut-help-overlay";
+import { TrashView } from "@/features/trash/trash-view";
+import { EntityView } from "@/features/references/entity-view";
+import { HistoryView } from "@/features/history/history-view";
+import { JournalSidebar, JournalView } from "@/features/journal/journal-view";
+import { WindowControls } from "@/shell/window-controls";
 import {
   panelGridTemplate,
   panelTracksWith,
   routeHasSidebar,
   type PanelTracks,
-} from "./shell/panel-layout";
-import { toolbarIconButtonClass } from "./shell/toolbar-styles";
-import { PanelResizeHandle } from "./shell/panel-resize-handle";
+} from "@/shell/panel-layout";
+import { toolbarIconButtonClass } from "@/shell/toolbar-styles";
+import { PanelResizeHandle } from "@/shell/panel-resize-handle";
 import {
   SIDEBAR_RESIZE_BOUNDS,
   readSidebarWidth,
   writeSidebarWidth,
-} from "./shell/sidebar-resize";
+} from "@/features/sidebar/sidebar-resize";
 import {
   METADATA_RESIZE_BOUNDS,
   readMetadataWidth,
   writeMetadataWidth,
-} from "./shell/metadata-resize";
-import { TemplatePickerHost } from "./templates/template-picker";
-import { TransferReportHost } from "./export/transfer-report-host";
-import { ImportPreviewHost } from "./import/import-preview-host";
-import { ImportProgressHost } from "./import/import-progress-host";
-import { WorkspaceShortcuts } from "./shortcuts/workspace-shortcuts";
-import { useShortcutHints } from "./shortcuts/hints";
+} from "@/shell/metadata-resize";
+import { TemplatePickerHost } from "@/features/templates/template-picker";
+import { TransferReportHost } from "@/features/transfer/export/transfer-report-host";
+import { ImportPreviewHost } from "@/features/transfer/import/import-preview-host";
+import { ImportProgressHost } from "@/features/transfer/import/import-progress-host";
+import { WorkspaceShortcuts } from "@/commands/workspace-shortcuts";
+import { useShortcutHints } from "@/commands/hints";
 import {
   RAIL_ITEMS,
   formatRailSequenceHint,
   railModShiftKeys,
   type RailItem,
-} from "./shortcuts/rail-items";
+} from "@/commands/rail-items";
 import { appRouteHash, noteHistoryHash, useAppRoute } from "./app-route";
-import { installBackNavigation } from "./references/reference-navigation";
+import { installBackNavigation } from "@/features/references/reference-navigation";
 import {
   createCommandRegistry,
   registryShortcutActions,
-} from "./commands/registry";
-import type { CommandUiState } from "./commands/registry";
-import { createWorkspaceCommands } from "./commands/workspace-commands";
-import { SkriuwLogo } from "./shared/icons";
-import { AppIcon } from "./shared/icons/app-icon";
-import { AnimatedIconsProvider } from "./shared/icons/animated-icons-context";
-import type { AppIconName } from "./shared/icons/registry";
-import { ToastHost } from "./shared/ui/toast";
-import { Tooltip } from "./shared/ui/tooltip";
-import { useNoteNavigation } from "./shell/use-note-navigation";
-import { selectAnimatedIcons, selectShowToasts } from "./shell/settings/selectors";
-import { useRendererSelector } from "./store/use-renderer-selector";
-import type { RendererState, RendererStore } from "./store/types";
+} from "@/commands/registry";
+import type { CommandUiState } from "@/commands/registry";
+import { createWorkspaceCommands } from "@/commands/workspace-commands";
+import { SkriuwLogo } from "@/shared/icons/static";
+import { AppIcon } from "@/shared/icons/app-icon";
+import { AnimatedIconsProvider } from "@/shared/icons/animated-icons-context";
+import type { AppIconName } from "@/shared/icons/registry";
+import { ToastHost } from "@/shared/ui/toast";
+import { Tooltip } from "@/shared/ui/tooltip";
+import { useNoteNavigation } from "@/shell/use-note-navigation";
+import { selectAnimatedIcons, selectShowToasts } from "@/features/settings/sections/selectors";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
 
 const RAIL_ICONS: Record<RailItem["actionId"], AppIconName> = {
   goToNotes: "notes",

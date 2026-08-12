@@ -7,7 +7,7 @@ import {
   type AppCommand,
   type CommandUiState,
 } from "../../src/commands/registry";
-import { SHORTCUT_DEFINITIONS } from "../../src/shortcuts/definitions";
+import { SHORTCUT_DEFINITIONS } from "../../src/commands/definitions";
 import type { RendererState } from "../../src/store/types";
 
 function fakeState(overrides: Partial<RendererState> = {}): RendererState {

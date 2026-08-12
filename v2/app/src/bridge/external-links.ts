@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { noop } from "../shared/lib/noop";
+import { noop } from "@/shared/lib/noop";
 
 const OPENABLE_PROTOCOLS = new Set(["http:", "https:"]);
 

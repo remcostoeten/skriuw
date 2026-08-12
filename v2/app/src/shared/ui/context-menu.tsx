@@ -1,8 +1,8 @@
 import * as React from "react";
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 
-import { CheckIcon, ChevronRightIcon, CircleIcon } from "../icons";
-import { cn } from "../lib/utils";
+import { CheckIcon, ChevronRightIcon, CircleIcon } from "@/shared/icons/static";
+import { cn } from "@/shared/lib/utils";
 import { overlayContentMotion } from "./overlay-motion";
 
 const ContextMenu = ContextMenuPrimitive.Root;

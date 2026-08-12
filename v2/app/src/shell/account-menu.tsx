@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useAuth } from "@remcostoeten/auth-drawer";
-import { updateSetting } from "../actions/settings";
+import { updateSetting } from "@/store/actions/settings";
 import {
   ArrowUpDownIcon,
   ChevronLeftIcon,
@@ -14,9 +14,9 @@ import {
   PaletteIcon,
   RefreshIcon,
   SettingsIcon,
-} from "../shared/icons";
-import { AppIcon } from "../shared/icons/app-icon";
-import { cn } from "../shared/lib/utils";
+} from "@/shared/icons/static";
+import { AppIcon } from "@/shared/icons/app-icon";
+import { cn } from "@/shared/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -28,11 +28,11 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "../shared/ui/dropdown-menu";
-import { Tooltip } from "../shared/ui/tooltip";
-import { useMediaQuery } from "../shared/ui/use-media-query";
-import { useShortcutHints } from "../shortcuts/hints";
-import type { RendererStore } from "../store/types";
+} from "@/shared/ui/dropdown-menu";
+import { Tooltip } from "@/shared/ui/tooltip";
+import { useMediaQuery } from "@/shared/hooks/use-media-query";
+import { useShortcutHints } from "@/commands/hints";
+import type { RendererStore } from "@/store/types";
 import {
   accountDisplayName,
   accountInitials,
@@ -43,11 +43,11 @@ import {
   type AccountMenuPanel,
 } from "./account-menu-model";
 import { railActiveClass, railIconButtonClass, railInactiveClass } from "./rail-styles";
-import { selectTheme } from "./settings/selectors";
-import type { SectionId } from "./settings/sections";
-import { syncSummary, syncTone } from "./settings/sync-status";
-import { SYNC_POLL_AMBIENT_MS, useWorkspaceSync } from "./settings/use-workspace-sync";
-import { useRendererSelector } from "../store/use-renderer-selector";
+import { selectTheme } from "@/features/settings/sections/selectors";
+import type { SectionId } from "@/features/settings/sections/sections";
+import { syncSummary, syncTone } from "@/features/settings/sections/sync-status";
+import { SYNC_POLL_AMBIENT_MS, useWorkspaceSync } from "@/features/settings/sections/use-workspace-sync";
+import { useRendererSelector } from "@/store/use-renderer-selector";
 
 const TRANSFER_COMMANDS = [
   { id: "import-markdown-file", label: "Import markdown file…" },

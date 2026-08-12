@@ -1,7 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { noteMediaPath, readNoteImageBlob } from "../../bridge/commands";
-import { browserMediaFile } from "../../bridge/browser-media";
-import { isBrowserRuntime } from "../../bridge/runtime";
+import { noteMediaPath, readNoteImageBlob } from "@/bridge/commands";
+import { browserMediaFile } from "@/bridge/browser-media";
+import { isBrowserRuntime } from "@/bridge/runtime";
 import { resolveImageBlobUrl } from "./image-blob-url";
 
 const playbackUrlByHash = new Map<string, Promise<string>>();

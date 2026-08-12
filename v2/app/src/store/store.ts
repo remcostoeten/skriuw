@@ -6,15 +6,15 @@ import type {
   WorkspaceNode,
   WorkspaceOperation,
   WorkspaceSnapshot,
-} from "../contracts/workspace";
-import { extractReferences } from "../references/extract";
+} from "@/contracts/workspace";
+import { extractReferences } from "@/features/references/extract";
 import {
   buildReferenceProjection,
   removeSourceNotes,
   removeTarget,
   updateNoteReferences,
   type ReferenceProjection,
-} from "../references/projection";
+} from "@/features/references/projection";
 import {
   emptyReferenceBootstrap,
   referenceKey,
@@ -23,20 +23,20 @@ import {
   type ReferenceBootstrap,
   type ReferenceOperation,
   type TagRecord,
-} from "../references/types";
+} from "@/features/references/types";
 import {
   removeNoteProperty,
   reorderNoteProperties,
   upsertNoteProperty,
-} from "../properties/operations";
+} from "@/features/properties/operations";
 import {
   deletePropertyTemplate,
   reorderPropertyTemplates,
   upsertPropertyTemplate,
-} from "../properties/templates";
-import { isPropertyValidationError } from "../properties/value";
-import { JOURNAL_ROOT_ID } from "../journal/constants";
-import { opensNotesInTabs } from "../settings/settings-model";
+} from "@/features/properties/templates";
+import { isPropertyValidationError } from "@/features/properties/value";
+import { JOURNAL_ROOT_ID } from "@/features/journal/constants";
+import { opensNotesInTabs } from "@/features/settings/settings-model";
 import { reduceOperation } from "./operations";
 import { PRIMARY_PANE_ID, defaultPanes, syncPanes } from "./panes";
 import {

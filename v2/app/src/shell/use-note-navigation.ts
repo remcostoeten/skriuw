@@ -1,5 +1,5 @@
-import type { RendererState, RendererStore } from "../store/types";
-import { useRendererSelector } from "../store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
+import { useRendererSelector } from "@/store/use-renderer-selector";
 
 export type NoteNavigation = {
   noteId: string | null;

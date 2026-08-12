@@ -1,6 +1,6 @@
-import type { AppRoute } from "../app-route";
+import type { AppRoute } from "@/app-route";
 import { METADATA_DEFAULT_WIDTH } from "./metadata-resize";
-import { SIDEBAR_DEFAULT_WIDTH } from "./sidebar-resize";
+import { SIDEBAR_DEFAULT_WIDTH } from "@/features/sidebar/sidebar-resize";
 
 export type PanelTracks = {
   sidebarOpen: boolean;

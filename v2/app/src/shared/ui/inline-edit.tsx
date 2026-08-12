@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { cn } from "../lib/utils";
+import { cn } from "@/shared/lib/utils";
 
 type Props = {
   defaultValue: string;

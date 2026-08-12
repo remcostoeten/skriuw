@@ -1,15 +1,15 @@
 @import "tailwindcss";
 @import "prosemirror-gapcursor/style/gapcursor.css";
 @import "./themes.css";
-@import "./css/base.css";
-@import "./css/editor.css";
-@import "./css/sidebar.css";
-@import "./css/references.css";
-@import "./css/diff.css";
-@import "./css/tooltip.css";
-@import "./css/app-icon.css";
-@import "./css/shortcut-recorder.css";
-@import "./css/auth-drawer.css";
-@import "./css/onboarding.css";
+@import "./base.css";
+@import "./features/editor/editor.css";
+@import "./features/sidebar/sidebar.css";
+@import "./features/references/references.css";
+@import "./features/history/diff.css";
+@import "./shared/ui/tooltip.css";
+@import "./shared/icons/app-icon.css";
+@import "./shared/ui/shortcut-recorder.css";
+@import "./features/auth/auth-drawer.css";
+@import "./features/onboarding/onboarding.css";
 
 @plugin "tailwindcss-animate";

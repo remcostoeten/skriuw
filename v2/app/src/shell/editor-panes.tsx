@@ -9,18 +9,18 @@ import {
   focusPane,
   reorderTab,
   togglePinTab,
-} from "../actions/panes";
-import { CloseIcon, PinIcon, PinOffIcon } from "../shared/icons";
+} from "@/store/actions/panes";
+import { CloseIcon, PinIcon, PinOffIcon } from "@/shared/icons/static";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "../shared/ui/context-menu";
-import { PRIMARY_PANE_ID, SECONDARY_PANE_ID } from "../store/panes";
-import { useRendererSelector } from "../store/use-renderer-selector";
-import type { RendererState, RendererStore } from "../store/types";
+} from "@/shared/ui/context-menu";
+import { PRIMARY_PANE_ID, SECONDARY_PANE_ID } from "@/store/panes";
+import { useRendererSelector } from "@/store/use-renderer-selector";
+import type { RendererState, RendererStore } from "@/store/types";
 import { EditorHost } from "./editor-host";
 
 type Props = {

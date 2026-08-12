@@ -3,13 +3,13 @@ import type { ProfilerOnRenderCallback } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { App } from "../src/app";
-import { bindSettingsToRoot } from "../src/settings/apply-settings";
+import { bindSettingsToRoot } from "../src/features/settings/apply-settings";
 import { createInitialState, createRendererStore } from "../src/store/store";
 import { createPerformanceSnapshot } from "./fixture";
 import type { TreeProjection } from "./fixture";
 import { createPerformanceController } from "./harness";
 import type { PerformanceWindow } from "./types";
-import { preparedEditorDocuments } from "../src/editor/prepared-documents";
+import { preparedEditorDocuments } from "../src/features/editor/prepared-documents";
 import "../src/styles.css";
 
 async function start(): Promise<void> {

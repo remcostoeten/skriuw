@@ -1,4 +1,4 @@
-import { readNoteImageBlob } from "../../bridge/commands";
+import { readNoteImageBlob } from "@/bridge/commands";
 
 const objectUrlByHash = new Map<string, Promise<string>>();
 

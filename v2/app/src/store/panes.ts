@@ -1,4 +1,4 @@
-import type { WorkspaceNode } from "../contracts/workspace";
+import type { WorkspaceNode } from "@/contracts/workspace";
 import { unavailableNodeIds } from "./tree";
 
 export type PaneState = {
