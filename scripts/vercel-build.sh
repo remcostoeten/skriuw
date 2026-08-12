@@ -27,11 +27,13 @@ rustup target add wasm32-unknown-unknown --toolchain 1.95.0
 # Vercel build image stopped shipping (previews went red days before any
 # repository change). Its clang 15 also defaults to C17, while the shim
 # header uses C23 [[noreturn]] syntax, so pin the C standard for the
-# wasm32 target.
+# wasm32 target. gnu2x, not c2x: strict c2x defines __STRICT_ANSI__,
+# which stops musl's features.h from defaulting _BSD_SOURCE/_XOPEN_SOURCE
+# and leaves off_t undefined in the shim's stdio internals.
 if ! command -v clang >/dev/null 2>&1; then
   dnf install --assumeyes clang
 fi
-export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown:--std=c2x}"
+export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown:--std=gnu2x}"
 
 if ! command -v wasm-bindgen >/dev/null 2>&1 || \
   [[ "$(wasm-bindgen --version)" != "wasm-bindgen 0.2.126" ]]; then
