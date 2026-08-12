@@ -5,11 +5,13 @@
 <h1 align="center">Skriuw</h1>
 
 <p align="center">
-  <em><strong>skriuw</strong> · Frisian · "to write"</em>
+  <em><strong>skriuw</strong> · verb · Frisian<br />
+  "to write"</em>
 </p>
 
 <p align="center">
-  A fast, private writing workspace for notes, journals, and connected knowledge.
+  A fast, private writing workspace for notes, journals, and connected knowledge.<br />
+  <strong>No server, no Node — the whole app, database included, runs as WebAssembly in your browser.</strong>
 </p>
 
 <p align="center">
