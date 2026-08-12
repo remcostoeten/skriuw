@@ -35,7 +35,7 @@
 	],
 	"type": "module",
 	"scripts": {
-		"postinstall": "prisma generate && husky",
+		"postinstall": "prisma generate",
 		"dev": "bun run --cwd apps/web dev",
 		"mobile": "bun run --cwd apps/mobile start",
 		"mobile:web": "bun run --cwd apps/mobile web",

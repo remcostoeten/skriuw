@@ -5,7 +5,15 @@
 <h1 align="center">Skriuw</h1>
 
 <p align="center">
-  A fast, private writing workspace for notes, journals, and connected knowledge.
+  <em><strong>skriuw</strong> · verb · Frisian<br />
+  "to write"</em>
+</p>
+
+<p align="center">
+  A blazingly fast, private writing workspace for notes, journals, and connected knowledge.<br />
+  Desktop-first on macOS, Windows, and Linux, with a Rust core and SQLite on disk.<br />
+  It runs in the browser too, on the same engine compiled to WebAssembly, storing notes locally.<br />
+  Sign in and your workspace syncs, so you can pick up on the web where your desktop left off.
 </p>
 
 <p align="center">
@@ -19,7 +27,7 @@
   <strong>Fully free and open source. Your workspace stays on your machine.</strong>
 </p>
 
-Skriuw _(Frisian, “to write”)_ is a keyboard-first knowledge workspace for macOS, Windows, and Linux. The current desktop app stores its canonical data in local SQLite, responds to edits immediately, maintains Git-backed history in the background, and exports portable workspace archives. Cloud sync is optional and off by default. Skriuw also runs in the browser at [skriuw.com/app](https://skriuw.com/app).
+Skriuw is a keyboard-first knowledge workspace. The desktop app keeps its canonical data in local SQLite, responds to edits immediately, maintains Git-backed history in the background, and exports portable workspace archives. Cloud sync is optional and off by default. Try it in the browser at [skriuw.com/app](https://skriuw.com/app).
 
 ## Why Skriuw
 
@@ -52,9 +60,11 @@ This repository contains two independent generations of Skriuw:
 | Line   | Status        | Best for                                              | Source                                      |
 | ------ | ------------- | ----------------------------------------------------- | ------------------------------------------- |
 | **v2** | Current       | Private, local-first writing (desktop and browser)    | [`v2/`](v2)                                 |
-| **v1** | Frozen legacy | Web, mobile, sharing, collaboration, and self-hosting | [`apps/`](apps) and [`packages/`](packages) |
+| **v1** | Frozen legacy | Web, mobile, sharing, collaboration, and self-hosting | [`v1/`](v1)                                 |
 
-Package-manager channels and the latest GitHub release install v2. The v2 browser app runs at [skriuw.com/app](https://skriuw.com/app), and the bare domain redirects there. v1 is no longer hosted at skriuw.com but can still be self-hosted with Docker.
+Package-manager channels and the latest GitHub release install v2. The v2 browser app runs at [skriuw.com/app](https://skriuw.com/app), and the bare domain redirects there.
+
+v1 is no longer hosted at skriuw.com, but it is still installable. It is frozen at `0.25.0`: self-host `ghcr.io/remcostoeten/skriuw:0.25.0`, or take the desktop installers from the [`desktop-v0.25.0` release](https://github.com/remcostoeten/skriuw/releases/tag/desktop-v0.25.0). See [`v1/README.md`](v1/README.md) for the details.
 
 ## Architecture
 
@@ -72,7 +82,7 @@ SQLite ─┴─ background Git history
 
 SQLite owns canonical workspace state. The renderer applies user actions synchronously and submits durable operations to a serialized runtime queue. Git history, indexing, persistence, and opt-in cloud sync never sit on the navigation path.
 
-Read the [v2 architecture](v2/ARCHITECTURE.md), [architecture decision records](v2/docs/adr), and [performance contract](v2/docs/performance-contract.md).
+Read the [v2 architecture](v2/docs/ARCHITECTURE.md), [architecture decision records](v2/docs/adr), and [performance contract](v2/docs/performance-contract.md).
 
 ## Build from source
 
@@ -92,23 +102,25 @@ The [v2 developer guide](v2/README.md) lists every build, test, generation, and 
 ### v1 web
 
 ```bash
+cd v1
 bun install
 cp .env.example .env.local
 bun dev
 ```
 
-Configure the required database and authentication variables described in the [environment documentation](apps/documentation/content/docs/infra/environment-variables.mdx). For a server deployment, use the [self-hosting guide](apps/documentation/content/docs/infra/self-host-docker.mdx).
+Configure the required database and authentication variables described in the [environment documentation](v1/apps/documentation/content/docs/infra/environment-variables.mdx). For a server deployment, use the [self-hosting guide](v1/apps/documentation/content/docs/infra/self-host-docker.mdx).
 
 ## Repository structure
 
 ```text
-v2/                    current Rust, React, and Tauri desktop application
-apps/web/              v1 Next.js application
-apps/mobile/           v1 Expo mobile application
-apps/desktop/          v1 Tauri desktop shell
-apps/documentation/    canonical documentation website source
-packages/              shared v1 packages
-.github/workflows/     CI and release automation
+v2/                       current Rust, React, and Tauri desktop application
+v1/                       frozen legacy product line
+v1/apps/web/              v1 Next.js application
+v1/apps/mobile/           v1 Expo mobile application
+v1/apps/desktop/          v1 Tauri desktop shell
+v1/apps/documentation/    canonical documentation website source
+v1/packages/              shared v1 packages
+.github/workflows/        CI and release automation
 ```
 
 ## Contributing

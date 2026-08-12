@@ -7,7 +7,13 @@ Thank you for helping improve Skriuw. Bug fixes, documentation improvements, tes
 Skriuw contains two product lines:
 
 - `v2/` is the current local-first desktop application.
-- `apps/` and `packages/` contain the legacy web, mobile, and self-hosted line.
+- `v1/` contains the frozen legacy web, mobile, and self-hosted line.
+
+Git hooks live at the repository root and are shared by both lines. Enable them once per clone:
+
+```bash
+git config core.hooksPath .husky/_
+```
 
 Check for an existing issue before starting a large change. Open an issue first when a proposal changes persisted data, public contracts, security behavior, or an architectural decision.
 
@@ -39,14 +45,15 @@ See [v2/README.md](v2/README.md) for the complete command reference.
 Install Bun 1.3 and Node.js 24, then:
 
 ```bash
+cd v1
 bun install
 cp .env.example .env.local
 bun dev
 ```
 
-The environment variables required by the web application are documented in [apps/documentation/content/docs/infra/environment-variables.mdx](apps/documentation/content/docs/infra/environment-variables.mdx).
+The environment variables required by the web application are documented in [v1/apps/documentation/content/docs/infra/environment-variables.mdx](v1/apps/documentation/content/docs/infra/environment-variables.mdx).
 
-Common checks:
+Common checks, all run from `v1/`:
 
 ```bash
 bun lint

@@ -337,7 +337,9 @@ export function ConnectedAccounts() {
 				error={stepUp.error}
 				pending={stepUp.pending}
 				reauthProviders={reauthProviders}
-				onPasswordChange={(value) => dispatchStepUp({ type: "setPassword", password: value })}
+				onPasswordChange={(value) =>
+					dispatchStepUp({ type: "setPassword", password: value })
+				}
 				onConfirm={handleStepUpConfirm}
 				onReauth={handleStepUpReauth}
 				onOpenChange={handleStepUpOpenChange}

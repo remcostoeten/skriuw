@@ -58,8 +58,12 @@ export function Media({ src, poster, caption, label, aspect = "video" }: Props) 
 				) : (
 					<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-fd-muted-foreground">
 						<PlaceholderIcon />
-						<span className="text-sm font-medium">{label ?? "Recording coming soon"}</span>
-						<span className="text-xs opacity-70">A short demo of this feature will land here.</span>
+						<span className="text-sm font-medium">
+							{label ?? "Recording coming soon"}
+						</span>
+						<span className="text-xs opacity-70">
+							A short demo of this feature will land here.
+						</span>
 					</div>
 				)}
 			</div>

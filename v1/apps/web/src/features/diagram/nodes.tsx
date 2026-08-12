@@ -488,4 +488,3 @@ export function NoteNode({ id, data, selected }: NodeProps<Node<NodeData>>) {
 		</div>
 	);
 }
-

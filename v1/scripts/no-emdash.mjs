@@ -18,7 +18,9 @@ async function main() {
 	}
 
 	if (offenders.length > 0) {
-		console.error("Em-dashes are not allowed in documentation content. Use a hyphen or reword:\n");
+		console.error(
+			"Em-dashes are not allowed in documentation content. Use a hyphen or reword:\n",
+		);
 		console.error(offenders.join("\n"));
 		process.exit(1);
 	}
