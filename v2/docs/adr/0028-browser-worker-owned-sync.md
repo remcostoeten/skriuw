@@ -60,7 +60,7 @@ durable `WorkspaceSyncQueue` port.
   visible progress; interruption leaves durable state untouched and the next
   cycle restarts hydration.
 - The browser session token persists in `localStorage` under a versioned key
-  (`app/src/auth/session-store.ts`) so a reload of a linked workspace resumes
+  (`app/src/features/auth/session-store.ts`) so a reload of a linked workspace resumes
   sync without interactive sign-in. Cookies are not an option because the
   cloud Worker is cross-origin and the auth client already runs the Bearer
   token flow, so `localStorage` is the least-novel fit; the accepted tradeoff

@@ -131,14 +131,14 @@ Dragging a tab between strips moves it (removed from origin, inserted at the dro
 
 This is a first-class case, not an edge case.
 
-**Independent view state.** `NoteEditor` holds its `EditorWorkingSet` in a component-instance ref (`app/src/editor/note-editor.tsx:332`), so two mounted instances already keep separate `EditorState`, `scrollTop`, selection, bounded-document window, and search state per note. Two panes showing the same note therefore scroll and select independently by construction. This spec makes that a tested guarantee rather than an accident:
+**Independent view state.** `NoteEditor` holds its `EditorWorkingSet` in a component-instance ref (`app/src/features/editor/note-editor.tsx:332`), so two mounted instances already keep separate `EditorState`, `scrollTop`, selection, bounded-document window, and search state per note. Two panes showing the same note therefore scroll and select independently by construction. This spec makes that a tested guarantee rather than an accident:
 
 - Scrolling pane B does not move pane A, for the same note.
 - Selection and caret position are per pane.
 - Find-in-note state, the bounded-document window, and the outline highlight are per pane.
 - Raw-Markdown mode is per note, not per pane (it is a note-level setting) — flipping it in one pane flips both, and both re-render from the same document.
 
-**Edit propagation.** Edits reach the other pane through the store's `documents` subscription (`app/src/editor/note-editor.tsx:1216`), which currently reconciles a mounted editor when the record changes and the pane is not itself dirty. That gives save-flush granularity: pane B updates when pane A's save lands, not per keystroke. That is acceptable and is what the spec requires — but the dirty guard opens a real divergence window when **both** panes are dirty on the same note, where each pane would ignore the other's write and the last flush would silently win.
+**Edit propagation.** Edits reach the other pane through the store's `documents` subscription (`app/src/features/editor/note-editor.tsx:1216`), which currently reconciles a mounted editor when the record changes and the pane is not itself dirty. That gives save-flush granularity: pane B updates when pane A's save lands, not per keystroke. That is acceptable and is what the spec requires — but the dirty guard opens a real divergence window when **both** panes are dirty on the same note, where each pane would ignore the other's write and the last flush would silently win.
 
 Required rule: **one pane at a time owns editing for a given note.** Implemented as:
 

@@ -37,7 +37,7 @@ because v2 has no provider credentials or outbound email delivery. The Account
 settings section lazy-loads the auth UI so account checks do not enter the local
 workspace startup path. Native bearer tokens are stored in the operating-system
 credential vault. The browser runtime has no vault access, so it persists its
-bearer token in `localStorage` (`app/src/auth/session-store.ts`): the stored
+bearer token in `localStorage` (`app/src/features/auth/session-store.ts`): the stored
 value survives reloads, a sign-out in one tab is honored everywhere, malformed
 values are cleared and treated as signed-out, and browsers that block storage
 fall back to a page-lifetime in-memory session. HttpOnly cookies are not an

@@ -4,17 +4,17 @@ Status: not started.
 
 ## Goal
 
-Let `[[note title]]` create a reference to another note, as a second trigger syntax alongside the existing `@note-title` mention. This is a syntax addition, not a new reference system — the app already has a fully working note-reference primitive (`mention_ref` with `kind: "note"`, see `app/src/editor/schema.ts`) driven by typing `@`. Wiki-link support should reuse that primitive entirely rather than building a parallel one.
+Let `[[note title]]` create a reference to another note, as a second trigger syntax alongside the existing `@note-title` mention. This is a syntax addition, not a new reference system — the app already has a fully working note-reference primitive (`mention_ref` with `kind: "note"`, see `app/src/features/editor/schema.ts`) driven by typing `@`. Wiki-link support should reuse that primitive entirely rather than building a parallel one.
 
 ## Why this is small
 
-`app/src/references/mention-plugin.ts` already detects trigger characters via `TRIGGER_PATTERN = /(?:^|[\s([{])([#$@])([\p{L}\p{N}_-]{0,64})$/u` and drives the same suggestion menu (`mention-menu.ts`), suggestion index (`suggestion-index.ts`), and resolver (`reference-resolver.ts`) regardless of which of `#`/`$`/`@` was typed. The entire feature is: recognize a `[[` trigger, use `]]` instead of a whitespace boundary to close it, and reuse every downstream piece unchanged.
+`app/src/features/references/mention-plugin.ts` already detects trigger characters via `TRIGGER_PATTERN = /(?:^|[\s([{])([#$@])([\p{L}\p{N}_-]{0,64})$/u` and drives the same suggestion menu (`mention-menu.ts`), suggestion index (`suggestion-index.ts`), and resolver (`reference-resolver.ts`) regardless of which of `#`/`$`/`@` was typed. The entire feature is: recognize a `[[` trigger, use `]]` instead of a whitespace boundary to close it, and reuse every downstream piece unchanged.
 
 ## Trigger detection
 
 `[[` differs from `#`/`$`/`@` in one important way: those are single-character triggers where the query runs to the cursor and the token closes implicitly (on whitespace, selection, or explicit pick). `[[note title]]` is a bracketed span with an explicit close delimiter, and the query can contain spaces and stay open across multiple words — `#`/`@`/`$` queries currently cannot (`TRIGGER_PATTERN`'s query class excludes whitespace).
 
-Add a second regex path in `detectMention` (`app/src/references/mention-plugin.ts`) specifically for `[[`:
+Add a second regex path in `detectMention` (`app/src/features/references/mention-plugin.ts`) specifically for `[[`:
 
 ```ts
 const WIKI_TRIGGER_PATTERN = /\[\[([^\]\n]{0,96})$/;
@@ -34,14 +34,14 @@ Standard Markdown link syntax (`[text](url)`, `[text][ref]`) always has a traili
 
 ## Markdown export/import
 
-Serializer (`productMarkdownSerializer` in `app/src/editor/schema.ts`) already emits `mention_ref` nodes as `@label` or `$label` regardless of which trigger created them (the node doesn't remember its trigger, only its `kind`). Two export choices:
+Serializer (`productMarkdownSerializer` in `app/src/features/editor/schema.ts`) already emits `mention_ref` nodes as `@label` or `$label` regardless of which trigger created them (the node doesn't remember its trigger, only its `kind`). Two export choices:
 
 1. Keep exporting all note mentions as `@label`, regardless of whether they were typed via `@` or `[[`. Simplest, no serializer change, but loses the round-trip property (`[[foo]]` in → `@foo` out).
 2. Export note mentions as `[[label]]` specifically (person mentions stay `$label`, tags stay `#label`), matching the wider wiki-link convention used by other note apps and making exported Markdown more portable/recognizable outside this app.
 
 Prefer option 2 — it's what makes "wiki-style" a meaningful export format, not just an input convenience. Update `productMarkdownSerializer.nodes.mention_ref` to branch on `kind`.
 
-Markdown import: `productMarkdownParser` needs a preprocessing or custom token rule recognizing `[[label]]` spans not immediately followed by `(`/`[` and converting them into `mention_ref` nodes at parse time, resolving `label` to an existing note by title (create-on-import semantics should match whatever `@mention`-in-pasted-Markdown already does today, if anything — check `app/src/references/extract.ts` for the current resolution behavior before adding a second path).
+Markdown import: `productMarkdownParser` needs a preprocessing or custom token rule recognizing `[[label]]` spans not immediately followed by `(`/`[` and converting them into `mention_ref` nodes at parse time, resolving `label` to an existing note by title (create-on-import semantics should match whatever `@mention`-in-pasted-Markdown already does today, if anything — check `app/src/features/references/extract.ts` for the current resolution behavior before adding a second path).
 
 ## Acceptance criteria
 
@@ -49,4 +49,4 @@ Markdown import: `productMarkdownParser` needs a preprocessing or custom token r
 - Selecting a suggestion or typing `]]` to close with an exact unambiguous title match inserts the identical `mention_ref` atom that `@notetitle` would produce — verified by asserting the resulting document JSON is identical between the two input paths for the same target note.
 - A real Markdown link `[[bracketed text]](https://example.com)` pasted or imported never becomes a note reference.
 - Exported Markdown round-trips: export a note containing a `[[`-created reference, re-import that Markdown, and get back an equivalent `mention_ref` node.
-- No new schema node, no new suggestion index, no new resolver — diff review should show this landing almost entirely inside `mention-plugin.ts` and the serializer/parser, not new files in `app/src/references/`.
+- No new schema node, no new suggestion index, no new resolver — diff review should show this landing almost entirely inside `mention-plugin.ts` and the serializer/parser, not new files in `app/src/features/references/`.
