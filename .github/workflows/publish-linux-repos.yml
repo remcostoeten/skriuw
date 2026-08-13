@@ -310,10 +310,18 @@ jobs:
                     git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:daddy
                   fi
 
-    # Submits a version PR to microsoft/winget-pkgs pointing at the NSIS
-    # installer on the release. Requires WINGET_TOKEN (classic PAT with
-    # public_repo) and a one-time manual submission of the first version so
-    # the RemcoStoeten.Skriuw identifier exists.
+    # Submits a version PR to microsoft/winget-pkgs pointing at the MSI on the
+    # release. Requires WINGET_TOKEN (classic PAT with public_repo) and a
+    # one-time manual submission of the first version so the
+    # RemcoStoeten.Skriuw identifier exists.
+    #
+    # The MSI is deliberate, not the NSIS installer: komac emulates the NSIS
+    # script to build the manifest and walks into the WebView2
+    # downloadBootstrapper failure branch, aborting with "Failed to install
+    # WebView2!". That blocked every submission from 0.29.0 to 0.32.1. komac
+    # reads an MSI from its WiX database instead, so no script emulation.
+    # Consequence: winget installs are perMachine (the Tauri MSI default),
+    # while the NSIS installer this replaced was perUser.
     winget:
         needs: resolve
         runs-on: windows-latest
@@ -337,7 +345,7 @@ jobs:
                   identifier: RemcoStoeten.Skriuw
                   version: ${{ needs.resolve.outputs.version }}
                   release-tag: ${{ needs.resolve.outputs.tag }}
-                  installers-regex: '-setup\.exe$'
+                  installers-regex: '_x64_en-US\.msi$'
                   token: ${{ secrets.WINGET_TOKEN }}
 
             - name: winget token not configured
